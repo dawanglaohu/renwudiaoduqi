@@ -1,0 +1,10 @@
+{
+	"name": "@agent-scheduler/daemon",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "tsx watch src/main.ts",
+		"start": "node --experimental-strip-types src/main.ts"
+	}
+}

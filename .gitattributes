@@ -1,0 +1,13 @@
+# 全仓统一 LF，Windows 上改一行不产生整文件 diff（E-214）
+* text=auto eol=lf
+
+# 这些文件 Windows 上必须是 CRLF，动不得
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制明确标注，避免被 eol 规则碰坏
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
