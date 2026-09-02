@@ -1,0 +1,344 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - navigation "面包屑" [ref=f1e3]:
+      - generic [ref=f1e4]: Agent任务调度器-开发文档
+      - generic [ref=f1e5]: ›
+      - generic [ref=f1e6]: 第一批 · M1 运行底座
+    - group "三个闸门" [ref=f1e7]:
+      - button "派发前 · 自动" [ref=f1e8] [cursor=pointer]
+      - button "审查 · 自动" [ref=f1e10] [cursor=pointer]
+      - button "落地 · 等我确认" [ref=f1e12] [cursor=pointer]
+    - generic [ref=f1e14]:
+      - generic [ref=f1e15]: ◆
+      - text: 2 条等你
+    - generic [ref=f1e16]: 已连接 · 最后同步 14:07
+    - button "浅色" [ref=f1e19] [cursor=pointer]
+  - generic [ref=f1e20]:
+    - complementary [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - heading "批次" [level=2] [ref=f1e23]
+        - generic [ref=f1e24]:
+          - button "第一批 · M1 3/8" [ref=f1e25] [cursor=pointer]:
+            - generic [ref=f1e29]: 第一批 · M1
+            - generic [ref=f1e30]: 3/8
+          - button "第二批 · M2 M3 0/11" [ref=f1e31] [cursor=pointer]:
+            - generic [ref=f1e34]: 第二批 · M2 M3
+            - generic [ref=f1e35]: 0/11
+          - button "第三批 · M4 M5 0/16" [ref=f1e36] [cursor=pointer]:
+            - generic [ref=f1e39]: 第三批 · M4 M5
+            - generic [ref=f1e40]: 0/16
+      - generic [ref=f1e41]:
+        - heading "队列 · 3" [level=2] [ref=f1e42]
+        - generic [ref=f1e43]:
+          - generic [ref=f1e44]:
+            - generic [ref=f1e45]: M1-T5
+            - generic [ref=f1e46]: 等 M1-T4
+          - generic [ref=f1e47]:
+            - generic [ref=f1e48]: M1-T8
+            - generic [ref=f1e49]: 等 M1-T7
+          - generic [ref=f1e50]:
+            - generic [ref=f1e51]: M1-T6
+            - generic [ref=f1e52]: 路径冲突 · 排队
+      - generic [ref=f1e53]:
+        - heading "派发" [level=2] [ref=f1e54]
+        - generic [ref=f1e55]:
+          - generic [ref=f1e56]:
+            - generic [ref=f1e57]: "1"
+            - generic [ref=f1e58]:
+              - text: 文档
+              - generic [ref=f1e59]: Agent任务调度器-开发文档
+          - generic [ref=f1e60]:
+            - generic [ref=f1e61]: "2"
+            - generic [ref=f1e62]:
+              - text: 批次
+              - generic [ref=f1e63]: 第一批 · 8 个任务
+          - generic [ref=f1e64]:
+            - generic [ref=f1e65]: "3"
+            - generic [ref=f1e66]:
+              - text: 逐任务指派
+              - generic [ref=f1e67]: 2 个已指派 · 同 agent 可开多会话
+        - generic [ref=f1e68]:
+          - generic [ref=f1e69]:
+            - generic [ref=f1e70]:
+              - generic [ref=f1e71]: M1-T6
+              - button "改" [ref=f1e72] [cursor=pointer]
+            - generic [ref=f1e73]:
+              - generic [ref=f1e74]: codex
+              - generic [ref=f1e75]: ·
+              - text: 会话
+              - generic [ref=f1e76]: "4"
+              - generic [ref=f1e77]: ·
+              - text: gpt-5.6-sol
+              - generic [ref=f1e78]: ·
+              - text: 思考
+              - generic [ref=f1e79]: 高
+          - generic [ref=f1e80]:
+            - generic [ref=f1e81]:
+              - generic [ref=f1e82]: M1-T5
+              - button "改" [ref=f1e83] [cursor=pointer]
+            - generic [ref=f1e84]:
+              - generic [ref=f1e85]: codex
+              - generic [ref=f1e86]: ·
+              - text: 会话
+              - generic [ref=f1e87]: "5"
+              - generic [ref=f1e88]: ·
+              - text: gpt-5.6-sol
+              - generic [ref=f1e89]: ·
+              - text: 思考
+              - generic [ref=f1e90]: 低
+        - generic [ref=f1e92]:
+          - generic [ref=f1e93]: "4"
+          - generic [ref=f1e94]:
+            - text: 派发
+            - generic [ref=f1e95]: 可放行 2 · 瓶颈见下
+        - button "派发 2 个任务" [ref=f1e96] [cursor=pointer]
+        - generic [ref=f1e97]:
+          - text: 并行窗口 3（1 在跑，剩 2）· 你设定 5 · codex 上限 4（剩 3）→ 瓶颈是并行窗口，可放行 2。
+          - generic [ref=f1e98]:
+            - generic [ref=f1e99]:
+              - generic [ref=f1e100]: codex
+              - generic [ref=f1e101]: 1/4 在跑
+            - generic [ref=f1e102]:
+              - generic [ref=f1e103]: claude
+              - generic [ref=f1e104]: 0/2
+            - generic [ref=f1e105]:
+              - generic [ref=f1e106]: grok
+              - generic [ref=f1e107]: 0/2
+            - generic [ref=f1e108]:
+              - generic [ref=f1e109]: dsh
+              - generic [ref=f1e110]: 0/1
+    - main [ref=f1e111]:
+      - region "第一批汇总" [ref=f1e112]:
+        - generic [ref=f1e113]:
+          - generic [ref=f1e114]:
+            - text: 运行中
+            - generic [ref=f1e115]: "1"
+          - generic [ref=f1e116]:
+            - text: 等你
+            - generic [ref=f1e117]: "2"
+          - generic [ref=f1e118]:
+            - text: 失败 · 停止
+            - generic [ref=f1e119]: "2"
+          - generic [ref=f1e120]:
+            - text: 未开始
+            - generic [ref=f1e121]: "3"
+          - generic [ref=f1e122]:
+            - text: 批次累计
+            - generic [ref=f1e123]: 31.5k token
+        - img "8 个任务中：运行中 1、等你 2、失败或停止 2、未开始 3" [ref=f1e124]
+        - generic [ref=f1e129]:
+          - generic [ref=f1e130]: 运行中 1
+          - generic [ref=f1e132]: 等你 2
+          - generic [ref=f1e134]: 失败 · 停止 2
+          - generic [ref=f1e136]: 未开始 3
+      - generic [ref=f1e138]:
+        - article "M1-T1 运行中" [ref=f1e139]:
+          - generic [ref=f1e140]:
+            - generic "codex · 第 1 个会话" [ref=f1e141]:
+              - text: CX
+              - generic [ref=f1e142]: "1"
+            - generic [ref=f1e143]:
+              - generic [ref=f1e144]: r-4182
+              - generic [ref=f1e145]: M1-T1 · 仓库骨架与启动自检
+            - generic [ref=f1e146]: 03:04
+          - generic [ref=f1e147]:
+            - generic [ref=f1e148]: gpt-5.6-sol
+            - generic [ref=f1e149]: ·
+            - generic [ref=f1e150]: 思考 中
+            - generic [ref=f1e151]: ·
+            - generic [ref=f1e152]: 工作区可写
+          - generic [ref=f1e153]:
+            - generic [ref=f1e154]:
+              - generic [ref=f1e158]:
+                - text: 读取
+                - code [ref=f1e159]: 05-技术栈.md
+                - text: 取值
+              - generic [ref=f1e160]: 2.1s
+            - generic [ref=f1e162]:
+              - generic [ref=f1e166]:
+                - text: 写入
+                - code [ref=f1e167]: package.json
+                - text: （5 个包）
+              - generic [ref=f1e168]: 0.9s
+            - generic [ref=f1e170]:
+              - generic [ref=f1e175]:
+                - text: 写入
+                - code [ref=f1e176]: src/boot/single-instance.ts
+              - generic [ref=f1e177]: 1.4s
+            - generic [ref=f1e179]:
+              - generic [ref=f1e184]:
+                - text: 调用
+                - code [ref=f1e185]: node --version
+                - text: 校验最低版本
+              - generic [ref=f1e186]: 0:07
+            - generic [ref=f1e188]:
+              - generic [ref=f1e192]: 注册 unhandledRejection 处理
+              - generic [ref=f1e193]: —
+            - generic [ref=f1e195]:
+              - generic [ref=f1e199]: 配置 biome.json 与 .gitattributes
+              - generic [ref=f1e200]: —
+          - generic [ref=f1e202]:
+            - generic [ref=f1e203]: 4 步 · 3:04 · 6.8k token
+            - generic [ref=f1e204]: 运行中
+            - button "■ 停止" [ref=f1e205] [cursor=pointer]
+        - article "M1-T7 等你审批" [ref=f1e206]:
+          - generic [ref=f1e207]:
+            - generic "codex · 第 2 个会话" [ref=f1e208]:
+              - text: CX
+              - generic [ref=f1e209]: "2"
+            - generic [ref=f1e210]:
+              - generic [ref=f1e211]: r-4183
+              - generic [ref=f1e212]: M1-T7 · 子进程 spawn 基座
+            - generic [ref=f1e213]: 08:41
+          - generic [ref=f1e214]:
+            - generic [ref=f1e215]: gpt-5.6-sol
+            - generic [ref=f1e216]: ·
+            - generic [ref=f1e217]: 思考 高
+            - generic [ref=f1e218]: ·
+            - generic [ref=f1e219]: 工作区可写
+          - generic [ref=f1e220]:
+            - generic [ref=f1e221]:
+              - generic [ref=f1e225]:
+                - text: 写入
+                - code [ref=f1e226]: src/proc/spawn.ts
+              - generic [ref=f1e227]: 3.2s
+            - generic [ref=f1e229]:
+              - generic [ref=f1e234]:
+                - text: 写入
+                - code [ref=f1e235]: src/proc/line-reader.ts
+              - generic [ref=f1e236]: 4.7s
+            - generic [ref=f1e238]:
+              - generic [ref=f1e242]:
+                - text: 请求执行
+                - code [ref=f1e243]: pnpm add -D vitest
+              - generic [ref=f1e244]: 停在此
+            - group "审批：安装依赖" [ref=f1e247]:
+              - paragraph [ref=f1e248]: 批准 agent 在 worktree 内安装 2 个开发依赖
+              - paragraph [ref=f1e249]: 2 个包
+              - paragraph [ref=f1e250]:
+                - code [ref=f1e251]: vitest@3.2.4
+                - text: ·
+                - code [ref=f1e252]: "@vitest/coverage-v8@3.2.4"
+                - text: · 可回滚
+              - paragraph [ref=f1e253]:
+                - text: 中档权限在装依赖处停下。技术栈已声明 vitest 为测试框架， 与该任务验收标准第 5 条一致 —
+                - link "见第 2 步的技术栈读取结果" [ref=f1e254] [cursor=pointer]:
+                  - /url: "#step-2"
+              - generic [ref=f1e255]:
+                - button "批准并继续" [ref=f1e256] [cursor=pointer]
+                - button "改一下" [ref=f1e257] [cursor=pointer]
+                - button "拒绝" [ref=f1e258] [cursor=pointer]
+              - paragraph [ref=f1e259]: 无人应答不会自动批准，任务保持等待
+            - generic [ref=f1e260]:
+              - generic [ref=f1e264]: 编写行读取器回归用例
+              - generic [ref=f1e265]: —
+          - generic [ref=f1e267]:
+            - generic [ref=f1e268]: 3 步 · 8:41 · 11.2k token
+            - generic [ref=f1e269]: 等你
+            - button "■ 停止" [ref=f1e270] [cursor=pointer]
+        - article "M1-T3 部分完成" [ref=f1e271]:
+          - generic [ref=f1e272]:
+            - generic "codex · 第 3 个会话" [ref=f1e273]:
+              - text: CX
+              - generic [ref=f1e274]: "3"
+            - generic [ref=f1e275]:
+              - generic [ref=f1e276]: r-4179
+              - generic [ref=f1e277]: M1-T3 · platform 模块
+            - generic [ref=f1e278]: 06:12
+          - generic [ref=f1e279]:
+            - generic [ref=f1e280]: gpt-5.6-sol
+            - generic [ref=f1e281]: ·
+            - generic [ref=f1e282]: 思考 高
+            - generic [ref=f1e283]: ·
+            - generic "手动调到最高档，持续标注" [ref=f1e284]: ⚠ 无限制
+          - generic [ref=f1e285]:
+            - generic [ref=f1e286]:
+              - generic [ref=f1e290]:
+                - text: 写入
+                - code [ref=f1e291]: src/platform/kill-tree.ts
+              - generic [ref=f1e292]: 5.1s
+            - generic [ref=f1e294]:
+              - generic [ref=f1e298]:
+                - text: 写入
+                - code [ref=f1e299]: src/platform/paths.ts
+              - generic [ref=f1e300]: 3.8s
+            - generic [ref=f1e302]:
+              - generic [ref=f1e306]: 机械检查 · diff 非空 + 退出码 0
+              - generic [ref=f1e307]: 12.4s
+            - generic [ref=f1e309]:
+              - generic [ref=f1e314]: 审查 agent 返回 · 有保留
+              - generic [ref=f1e315]: 31.7s
+            - generic [ref=f1e317]: 3 条验收标准中 2 条已满足，第 3 条未指到代码： E-132「长路径与 UNC」只在注释里提及，未见实现与用例。 建议：补 src/platform/paths.ts 的 \\?\ 前缀分支与一条 260+ 字符路径用例。
+          - generic [ref=f1e319]:
+            - generic [ref=f1e320]: 4 步 · 6:12 · 9.4k token
+            - generic [ref=f1e321]: 部分完成
+            - button "■ 停止" [ref=f1e322] [cursor=pointer]
+        - article "M1-T2 失败" [ref=f1e323]:
+          - generic [ref=f1e324]:
+            - generic "claude · 第 1 个会话" [ref=f1e325]:
+              - text: CL
+              - generic [ref=f1e326]: "1"
+            - generic [ref=f1e327]:
+              - generic [ref=f1e328]: r-4176
+              - generic [ref=f1e329]: M1-T2 · SQLite 连接与迁移
+            - generic [ref=f1e330]: 01:52
+          - generic [ref=f1e331]:
+            - generic "agent 自报的实际模型与所选不一致（E-37）" [ref=f1e332]: sonnet-5 → 实际 sonnet-5-mini
+            - generic [ref=f1e333]: ·
+            - generic [ref=f1e334]: 思考 低
+            - generic [ref=f1e335]: ·
+            - generic [ref=f1e336]: 工作区可写
+          - generic [ref=f1e337]:
+            - generic [ref=f1e338]:
+              - generic [ref=f1e342]:
+                - text: 写入
+                - code [ref=f1e343]: src/db/connect.ts
+              - generic [ref=f1e344]: 4.2s
+            - generic [ref=f1e346]:
+              - generic [ref=f1e350]:
+                - text: 执行
+                - code [ref=f1e351]: pnpm exec tsx src/db/migrate.ts
+              - generic [ref=f1e352]: 8.9s
+            - generic [ref=f1e354]:
+              - generic [ref=f1e360]: 迁移中断 · SQLITE_BUSY
+              - generic [ref=f1e361]: 0.4s
+            - generic [ref=f1e363]: "exit code 1 SqliteError: database is locked at Database.prepare (src/db/connect.ts:41:18) at runMigration (src/db/migrate.ts:22:9) 提示 busy_timeout 未设置；11 节要求四条 PRAGMA 齐备（E-150）"
+            - button "从这一步重试" [ref=f1e367] [cursor=pointer]
+          - generic [ref=f1e368]:
+            - generic [ref=f1e369]: 3 步 · 1:52 · 4.1k token
+            - generic [ref=f1e370]: 失败
+            - button "■ 停止" [disabled] [ref=f1e371]
+        - article "M1-T4 已停止" [ref=f1e372]:
+          - generic [ref=f1e373]:
+            - generic "dsh · 第 1 个会话" [ref=f1e374]:
+              - text: DS
+              - generic [ref=f1e375]: "1"
+            - generic [ref=f1e376]:
+              - generic [ref=f1e377]: r-4171
+              - generic [ref=f1e378]: M1-T4 · 日志追加写与偏移索引
+            - generic [ref=f1e379]: 04:23
+          - generic [ref=f1e380]:
+            - generic [ref=f1e381]: 跟随 dsh 配置
+            - generic [ref=f1e382]: ·
+            - generic "dsh 未提供思考强度控制，不拿默认值冒充" [ref=f1e383]: 思考 —
+            - generic [ref=f1e384]: ·
+            - generic [ref=f1e385]: 工作区可写
+          - generic [ref=f1e386]:
+            - generic [ref=f1e387]:
+              - generic [ref=f1e391]:
+                - text: 写入
+                - code [ref=f1e392]: src/log/append.ts
+              - generic [ref=f1e393]: 6.3s
+            - generic [ref=f1e395]:
+              - generic [ref=f1e400]:
+                - text: 写入
+                - code [ref=f1e401]: src/log/offset-index.ts
+              - generic [ref=f1e402]: 7.8s
+            - generic [ref=f1e404]:
+              - generic [ref=f1e409]: 你在第 3/7 步停止
+              - generic [ref=f1e410]: —
+            - paragraph [ref=f1e413]: 进程树已终止（3 个子进程）。worktree 与已写文件保留，可原样重跑。
+          - generic [ref=f1e414]:
+            - generic [ref=f1e415]: 3 步 · 4:23 · 未提供花费数据
+            - generic [ref=f1e416]: 已停止
+            - button "■ 重跑" [ref=f1e417] [cursor=pointer]

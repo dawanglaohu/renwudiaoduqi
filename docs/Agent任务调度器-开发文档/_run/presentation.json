@@ -1,0 +1,417 @@
+{
+ "project": "Agent 任务调度器",
+ "lead": "最强的约束是**agent 只能装在用户那台 Windows 上，手机够不到**——所以核心必须是一个独立常驻的 daemon，两个端只是它的两副面孔。第二强的是**「已退出」不等于「已落地」**：四个 agent 都只给退出码，不给「活干完了没有」，整个状态机与两级审查都是为这一条建的。进度上要盯 **M1**（8 个任务、12.5 人天，其余九个模块全部依赖它，其中 `spawn` 基座 M1-T7 是四个适配器的共同地基）与 **M4**（12 个任务、20 人天、47 条边界，是最大的单一风险块）。三条风险**已经发生**而不是假设：Rust 工具链未装、Android 构建环境未确认、视觉方向未经用户目视确认。",
+ "highlights": {
+  "tasks": [
+   "M1-T7",
+   "M4-T3",
+   "M6-T1",
+   "M8-T2"
+  ],
+  "modules": [
+   "M1",
+   "M4",
+   "M9"
+  ],
+  "edges": [
+   "E-23",
+   "E-08",
+   "E-46",
+   "E-138",
+   "E-203"
+  ]
+ },
+ "handoff": {
+  "docsPath": "docs/Agent任务调度器-开发文档",
+  "repo": "agent-scheduler",
+  "mainBranch": "main",
+  "branchPrefix": "task/",
+  "stack": "Node.js 22 LTS + TypeScript strict + Fastify + SQLite(better-sqlite3, WAL) 后端；React 18 + Vite + Tailwind + shadcn/ui + TanStack Virtual + zustand 前端；Tauri v2 桌面壳 + Capacitor 手机壳；pnpm 单仓多包（daemon / web / shell-desktop / shell-mobile / shared）；测试 Vitest，lint 用 Biome；Windows 10/11 优先，手机端 Android",
+  "frontendModules": [
+   "M9",
+   "M10"
+  ],
+  "design": {
+   "register": "product / 工作台（workbench）+ 代理层（AI agent 控制台）——用户反复做的是同一件事（派活 → 盯着 agent 干 → 审查 → 放行）而不是围着一批业务对象转，所以是工作台不是后台；屏幕上最重要的是多个 agent 会话的实时运行流，人在旁边看并决定放不放行，所以再叠一层代理层。**方向已判定，实施时不要重判、不要重新定调**",
+   "dials": "SOUL 6 / SPECTACLE 2 / DENSITY 8",
+   "tone": "仪表感。代理层的失败模式不是「看不懂」也不是「填不完」，而是**不可信**——四个问题必须在没人问的时候就一直答着：它现在在干什么 / 它凭什么这么干 / 这花了我多少 / 我怎么让它停。回溯不到这四问的一律是装饰，而装饰在这个语域里读作心虚",
+   "palette": "**色相分配规则先于选色**：暖色 #F0B03C = 要你（等你审批、部分完成、预算告警、主按钮）／冷绿 #54C9AE = 机器自理（运行中心跳、检查通过、已落地）／红 #FF6B5A = 坏了／**没有颜色 = 不用管**。机器正常推进占 90% 的像素，它不配一个色相。**agent 身份永不使用色相**，用两字符字母组 + 中性 ink 片。深色底 #0F1213（page）/ #171B1C（bg）/ #1F2425（panel-2）；浅色是独立一套不是反色",
+   "type": "display 用 Commit Mono 600（26px 批次大数 / 20px 流头部），body 用 Public Sans（14px 默认，13px 密集，12px meta），utility 等宽用 Commit Mono 400-600（12.5px 日志行）。**两者都自托管**，只打包用到的字重。硬规则：日志/路径/命令/diff 一律等宽，UI 标签一律不用等宽",
+   "layout": "控制塔——左栏 272px（批次·队列·派发面板）+ 中间 N 条竖直运行流泳道并排 + 顶栏 52px（面包屑·预算·三个闸门开关）。4px 栅格（4/8/12/16/20/24/32）。**显式拒绝 rail|stream|aside 三栏**：右栏被拆散、下沉进每条泳道内部，审批卡就地插在该流时间轴里",
+   "signature": "**运行轨（the spine）**——每条流左侧贯穿全高的 2px 竖线，它不是分隔线，它就是状态条本身。六种形态：已完成实线 / 当前步实心点 8px + 1.6s 呼吸环（全页唯一的连续动画）/ 未执行虚线 / 等你时当前点变空心方块 9px 且以下整段转暖色 / 失败时平头截断 4px 端帽 / 已停止时半调虚线 + 10px 横杠。**必须贯穿整栏全高含未来虚线段**，只画到当前步就退化成普通时间线、签名就没了",
+   "avoid": "不许靛紫/violet 主色（grep #6366f1 #5E6AD2 #635BFF #7C3AED 一个都不许出现）；不许紫色蓝色辉光、发光球体、✨ 图标、AI 二字渐变；不许绿字黑底磷光终端与 Graphite&Lime 开发者套装（这是拒绝紫色之后的二阶默认，同样拒）；不许 Linear 克隆；不许聊天气泡当运行流；不许一个 spinner 代表整轮运行；**不许全局模态审批**；不许 partial 渲染成绿色或计进成功；不许状态只靠色相；不许停止键藏进 ⋯ 菜单或只在 hover 显示；不许停止按下后等回包才变样；不许每个 agent 一个厂商品牌色；不许图表当主角；不许假精确数字；不许拟人化步骤标签；不许步骤标签写成类目；不许日志区用比例字体；不许 UI 标签用等宽装技术感；不许卡片左侧 3px 彩条、玻璃拟态、渐变流光边框、hover 弹跳；不许 #fff/#000/硬 1px solid #333/纯灰阶；不许 Inter 当默认字体；不许空态放插画；不许超时自动批准；**不许 :root 之外出现颜色字面量**；不许多于一处连续动画",
+   "tokens": "--page:#0F1213;\n--bg:#171B1C;\n--panel-2:#1F2425;\n--border:rgba(214,232,229,.09);\n--border-strong:rgba(214,232,229,.16);\n--ink-1:#E9EEED;\n--ink-2:#B2BCBB;\n--ink-3:#8B9695;\n--needs:#F0B03C;\n--needs-soft:rgba(240,176,60,.13);\n--on-needs:#171205;\n--auto:#54C9AE;\n--auto-soft:rgba(84,201,174,.13);\n--on-auto:#04140F;\n--down:#FF6B5A;\n--down-soft:rgba(255,107,90,.13);\n--warn:var(--needs);\n--stopped:var(--ink-3);\n--spine-done:rgba(139,150,149,.35);\n--spine-pending:rgba(139,150,149,.22);\n--spine-live:var(--auto);\n--spine-needs:var(--needs);\n--spine-dead:var(--down);\n--font-ui:\"Public Sans\",system-ui,\"Segoe UI\",sans-serif;\n--font-mono:\"Commit Mono\",\"Cascadia Mono\",ui-monospace,Consolas,monospace;\n--fs-log:12.5px;\n--fs-body:14px;\n--fs-num-lg:26px;\n--r:14px;\n--r-sm:9px;\n--r-lg:20px;\n--sp-1:4px;\n--sp-2:8px;\n--sp-3:12px;\n--sp-4:16px;\n--h-btn:32px;\n--h-btn-lg:44px;\n--h-input:32px;\n--badge-h:20px;\n--row-h:30px;\n--row-h-touch:44px;\n--rail-w:272px;\n--topbar-h:52px;\n--stream-min:320px;\n--stream-max:460px;\n--stream-min-dense:260px;\n--thumbbar-h:60px;\n--runstrip-h:44px;\n--spine-w:2px;\n--spine-x:11px;\n--payload-max-h:240px;\n--dur-fast:120ms;\n--dur:180ms;\n--pulse:1.6s;\n--ease:cubic-bezier(.2,.8,.2,1);",
+   "components": "**主题**：store 存 system|dark|light 三值，但 theme-provider 解析后只往 html 元素的 data-theme 属性写 dark 或 light 之一，system 靠 matchMedia('(prefers-color-scheme: dark)') 解析并订阅其变化；**把 system 原样写进 DOM 会让两个 [data-theme] 块都不匹配、只剩 :root 生效 → 永远深色**，与 E-15 直接冲突。color-scheme 随解析结果切换，不恒为 dark light。浅色是独立一套色值不是反色，取值见 11-UI 的 tokens。\n按钮四个变体 primary/stop/danger/ghost，高 32px（手机 44px）圆角 9px；**primary 的唯一性按容器算不按整屏算**——E-109 要求每条流各自内联审批卡，5 条流并置时同屏必然有 2–5 个「批准并继续」，准确规则是每个可见容器内至多一个 primary（左栏派发面板 1 个、每条泳道 1 个），而 **--glow 只允许出现在左栏那个派发按钮上**，审批卡里的 primary 用实底无 glow；**stop 不是红的**（红留给拒绝/删除），且在两次运行之间保持原位、边框不减淡、只淡化文字——它必须一直看起来「在那儿」。focus-visible 用 box-shadow 0 0 0 3px var(--needs-soft)，永不 outline:none 而不给替代；hover 只提亮 4% 不放大不弹跳。输入框高 32px（手机 44px）圆角 9px 底 --panel-2；派发提示词框 min-height 72px / max-height 200px 且用等宽；error 态给原因与改法并配 aria-invalid。卡片 border-radius 14px + 1px --border + --shadow，深色下靠明度分层不靠阴影，禁止硬灰边。**运行流条目**折叠 30px（触摸 44px），网格 20px minmax(0,1fr) auto 16px，轨在 x=11px 贯穿，标签必须是「工具+对象」，**每一步都显示耗时**，成功步默认折叠失败步默认展开并给「从这一步重试」，键盘焦点用内嵌环不撑布局。**状态徽标**高 20px 圆角 6px，**矩形不是药丸**，恒为「字形+文字」颜色是第三层；九个状态各有专属内联 SVG 形状（queued ▢ / thinking ◇ / tool ⬡ / streaming ▮ / awaiting-input ◆ / succeeded ✓ / partial ◧ / failed ✕ / stopped ▬ 虚线边框），另需为「失联」「审查未完成」「未识别」各补专属形状。**审批卡**整卡染色 + 1px --needs 全边框（不用左侧彩条），四段固定顺序：要做什么 / 影响什么（大数用 26px 等宽）/ **凭什么（必须带可点链接回产出该结论的那一步）** / 三个动作，「改一下」不是可选项；底部写明「无人应答不会自动批准」；**只阻塞这一条流，绝不弹全局模态**"
+  },
+  "architecture": {
+   "shared": {
+    "errors": "错误码枚举唯一定义在 packages/shared/src/errors/codes.ts，形如 ERROR_CODES = { E_VALIDATION: {defaultHttpStatus:400, retryable:false, origin:'server'} } as const；每条带 origin:'server'|'client'，client 侧三条 E_NETWORK/E_TIMEOUT/E_SHELL_UNAVAILABLE 的 defaultHttpStatus 置 null。**只有 daemon 的 http/plugins/90-error-handler.ts 转 HTTP 状态码；只有 web 的 src/i18n/error-messages.ts 转中文文案**（缺键回落显示原始 code）。响应信封固定 {error:{code,message,requestId,details?}}，401/403 与 SSE 握手失败同样返回带信封的 body。daemon 的 message 恒为英文开发者短句，中文用户文案只在前端。**前端禁止按 HTTP 状态码分支，一律按 error.code**。10 节的错误码表是源、codes.ts 是投影，scripts/check-error-codes.mjs 断言一致。禁令：代码中出现未登记的 E_ 字面量即架构测试失败；边界编号 E-01 与错误码 E_VALIDATION 是两套东西，禁止混写",
+    "env": "环境变量只在 packages/daemon/src/config/env.ts 一处声明与校验，前缀恒为 AGSCHED_，**全集只有五个**：PORT(7817) / BIND(0.0.0.0) / DATA_DIR(%APPDATA%\\agent-scheduler) / LOG_LEVEL(info) / DEV。缺失可回落默认，但**格式非法必须打印变量名与期望格式后退出**（AGSCHED_PORT=abc 不许静默回落）。AGSCHED_DEV **只控制错误响应带不带 stack，明令不得影响鉴权、不得放宽任何校验**。令牌只存 scrypt 哈希+随机盐，比对用 timingSafeEqual，绝不存明文；配对码只在内存 TTL≤60 秒一次性；客户端令牌存壳安全存储，**禁止 localStorage**，无壳时降级 sessionStorage 并常驻提示。**仓库禁止出现任何 .env / .env.example**。禁令：业务代码禁止直读 process.env（唯二白名单 config/env.ts 与 proc/env.ts）；禁止直读 process.platform（走 platform 模块）；禁止把令牌/配对码/Authorization 头写进任何日志或事件 payload",
+    "types": "请求响应类型集中在 packages/shared/src/api/ 按资源分文件，**手写 TypeScript 接口，不引入 schema→类型生成链**。packages/shared/src/api/routes.ts 一张常量表 {method,path,auth,reqType,resType,errors[]}，daemon 侧架构测试断言「实际注册的 method+path 集合 === 该表」多一条少一条都失败。入参校验用 Fastify 内置 AJV，JSON Schema 手写在各路由文件里并与 TS 类型同名对应，**统一 additionalProperties:false**；每个请求体类型旁配 as const satisfies 键清单做穷尽断言，改了类型没改 Schema 则 tsc 报错。**出参不写 schema**（避免 SSE 与大对象开销）。事件 kind 在 packages/shared/src/api/events.ts 导出 EVENT_KINDS as const 与判别联合，switch 有穷尽性检查。壳桥接契约放 packages/shared/src/shell/bridge-contract.ts（纯类型）。**packages/shared 的 dependencies 必须为空**（架构测试断言）。数据库 Row（snake_case）与 API DTO（camelCase）严格分开，**禁止把 Row 直接从 API 吐出**；daemon 与 web 禁止各自定义同名 DTO",
+    "naming": "文件与目录一律 kebab-case.ts 零例外；**禁止 barrel index.ts**（任何目录不得有转出文件）。类型与接口 PascalCase 且**不加 I 前缀**；工厂函数一律 createXxx；布尔一律 isXxx/hasXxx/canXxx；常量对象 SCREAMING_SNAKE 且必须 as const。**事件 kind 两组命名形状是硬规则**：ACP 组保留原文 snake_case（agent_message_chunk、tool_call），本产品组 <scope>.<过去式>（run.started、task.gate_waiting），**不许为统一风格改写 ACP 原文**。错误码 E_ + SCREAMING_SNAKE；边界编号 E-数字只出现在文档与测试用例名里，不许当标识符。数据库表名 snake_case 复数、列名 snake_case、时间列 _at 后缀存 ISO8601 文本、布尔列存 0/1 且带 is_/has_ 前缀。lint 与 format 配置放仓库根、单文件、不分包。**本项目没有 CI 也没有 pre-push 钩子，唯一强制点是每个任务的验收命令必须包含 pnpm -w check**（= biome ci . && tsc -b --noEmit && vitest run）；禁止 --no-verify 式绕过或临时关规则"
+   },
+   "frontend": {
+    "layout": "packages/web/src/ 下 13 个顶层目录：main.tsx（唯一 createRoot，零业务代码）/ styles（tokens.css 是全仓唯一允许颜色字面量的文件）/ app（骨架与唯一路由表）/ pages（7 个装配件，只拼栏位不取数）/ features（容器层）/ components（展示层）/ ui（shadcn 生成物与二封）/ hooks（纯 UI 行为）/ store（zustand 四个 slice）/ api（唯一 fetch 出口）/ shell（壳桥接两个文件）/ i18n（中文字符串唯一来源）/ lib（纯函数，每个文件配同名 .test.ts）。**禁止新增第二个 src 顶层目录；禁止 src/utils、src/helpers、src/common、src/types 这四个名字；禁止任何 index.ts**",
+    "tier": "四层单向 pages → features → components/ui，反向 import 一律打回。pages 只做装配，**禁止 import src/api 与 src/store**；features 是**唯一**允许 import src/api、订阅 store 与 event-bus 的一层，每域固定 use-<域>.ts + <域>-container.tsx 两类文件，容器里只许写 grid/flex/gap，**禁止写颜色字号圆角**；components 纯 props in / callback out，**禁止 import api/store/features/shell**，禁止内部 useEffect 取数；ui 目录**禁止出现 task/run/agent/gate/batch/spine 任何业务词**。**界面不含业务判定**：前端不得计算能否派发/能否回话/闸门是否放行/审查是否通过/批次四个数字/并发瓶颈/模型清单是否可用，一律读 daemon 字段，缺失就显示「—」不得用前端逻辑补齐。只开两个例外：呈现派生（断点档位、密度档、是否贴底、虚拟窗口区间）与**停止的乐观呈现**（一帧内写 local-intent 到 event-bus 旁的 mutable Map，不写进 run.state，服务端事件到达即清、失败则横幅回滚）。**每条运行流一个 ErrorBoundary**，一条流崩了不许带走另外四条",
+    "ui": "shadcn 生成物原样落 src/ui/shadcn/ 不手改（升级时整目录重生成），二封放 src/ui/<name>.tsx 只做三件事：绑 token、锁死高度圆角、收敛变体枚举。**业务组件禁止直接 import @radix-ui/***，唯一允许 import radix 的目录是 src/ui/。允许的传递依赖只有 cva/clsx/tailwind-merge/lucide-react 四个，**禁止再引第五个 UI/图标/动画库**（含 framer-motion）。lucide 只许用于非语义图标；**九个运行状态与六个步骤类型的字形一律来自 lib/spine-shape.ts 的内联 SVG 形状表，禁止用 lucide 或 emoji 表达状态**。四个产品特有组件全部在展示层：spine.tsx（props segments，必须渲染到容器全高，内部不知道 runId）、status-badge.tsx、gate-card.tsx（**禁止 import dialog、禁止 createPortal**）、stream-row.tsx。dialog 的用途白名单只有四项：停止二次确认、拒绝二次确认、吊销设备、手机原样重跑确认；**审批不许用 dialog**。虚拟滚动只允许经 components/virtual-rows.tsx 一个包装使用 TanStack Virtual。**只有 tokens.css 的 :root 与 [data-theme] 两个块允许颜色字面量**（check-forbidden.ts 机检）；深浅两套 token 必须同 PR 内成对新增",
+    "route": "**自写 hash 路由**约 80 行（hashchange 监听 + ROUTE_PATHS 表 + 单段 :param 匹配 + navigateTo()），路由表唯一文件 src/app/routes.tsx 导出 ROUTE_PATHS 与 ROUTES 两个 as const。**必须 hash 模式**——同一份产物要被 daemon 的 /、tauri://localhost、https://localhost 三处加载，history 模式要三份 fallback。七条平铺路径：#/ #/tasks #/run/:runId #/landing/:taskId #/settings/agents #/settings/devices #/pair。鉴权守卫只在 src/app/route-guard.tsx 一处，只判内存里有没有令牌，#/pair 是唯一免守卫路由；**禁止在页面或容器里再判一次登录态；禁止做角色权限**。懒加载切点只有 settings/* 与 landing，**运行甲板、任务列表、运行详情必须留在主 chunk**。手机窄屏三栏切换走 hash query #/?pane=tasks|stream|detail **不新增路由**（Android 返回键天然回上一 pane）。禁令：禁止路由参数以外的 URL 状态；禁止嵌套路由与 loader/action；禁止组件内写 location.hash（一律用 navigateTo()）",
+    "state": "**高频事件流不进 zustand 也不进 React state**：api/event-bus.ts 持非响应式 Map<runId, RunStreamBuffer>，定长环形数组 STREAM_BUFFER_MAX=600 超出丢头部；SSE 回调只做 push+标脏**不 setState**；flush 由 requestAnimationFrame 合并且最小间隔 FLUSH_INTERVAL_MS=80，一次 flush 每条脏流只 bump 一个整数 version；组件用 useSyncExternalStore 订阅且 **getSnapshot 只返回 version 数字，禁止返回数组或对象**。zustand 只放四类低频状态：connection（status/lastSyncedAt/lastEventId/needsPairing）、ui-prefs（theme/density/expandedRunId/lastDocId）、selection（当前文档批次与派发草稿）、notice（横幅与未读计数，**计数来自服务端前端只存不算**）。服务端态用 api/resource-cache.ts 极小实现，**失效只由事件驱动**（cache-invalidation.ts 一张 kind→key 前缀常量表），断线重连调一次 refetchAll()，**禁止轮询、禁止时间型 stale 窗口**。日志正文只保留 6 段（每段 ≤2000 行）滚出即丢弃可重拉。持久化白名单只有 theme/density/lastDocId 三个字段进 localStorage（手写 30 行不用 persist 中间件），**令牌绝不进 localStorage，事件运行日志快照一律不持久化**。禁止：把 SSE 事件数组塞进 zustand；把全量日志放进 store 或 DOM；用 Context 传高频数据；在 store 里存派生值；selector 返回新对象字面量；一份数据两处缓存；组件里写 useEffect 取数",
+    "api": "唯一 fetch 出口 src/api/http-client.ts，**除 http-client.ts 与 sse-client.ts 外全仓禁止出现 fetch(**（机检）。baseUrl 运行时三级发现：壳注入 hostHint() → 用户手填（localStorage agsched.host）→ location.origin，**禁止构建期常量、禁止 import.meta.env 里出现 host/port**。拦截器只做四件事：注入 Authorization（令牌从 shell 异步取一次缓存在模块内变量**不进 store**）、注入 X-Agsched-Client、写请求注入 X-Idempotency-Key（重试复用同一个）、把响应规格化成 ApiError；**禁止在拦截器里做重定向、弹窗、刷新令牌、上报**。超时 TIMEOUT_MS={get:8000,post:15000,probe:30000}。**只重试 GET 且只在网络错误与 502/503/504 最多 2 次，POST 一律不自动重试**。容器层只 catch 一次交给 useErrorSink()，展示层不 catch。类型只从 @agsched/shared 来，**禁止前端定义与后端对应的 DTO、禁止 URL 字符串字面量、禁止 as any、禁止 zod 之类运行时校验层**。**SSE 唯一实现 src/api/sse-client.ts**：fetch + ReadableStream + TextDecoder 自己按 \\n\\n 分帧、忽略 : 心跳注释；**全应用只开一条连接**按 taskId/runId 分派，禁止每流一条；指数退避 [1000,2000,4000,8000,15000] ±20% 抖动封顶 15s 并保留 Last-Event-ID；60s 无任何字节判死连接主动 abort；收到 401 立即停止退避循环并置 needsPairing；重放窗口过期则清空 buffer → 拉 REST 快照 → 从最新 id 续接。**写请求一律不拿响应体改状态**，只判是否被接受，状态等回流事件",
+    "utils": "src/lib/ 只放纯函数——不 import React、不 import src 下任何其他目录（只允许 import type from @agsched/shared）、无模块级副作用、同输入同输出。已定清单：format-duration / format-bytes / format-token-count（**无数据返回 '—' 禁止返回 0**）/ format-time-ago / **spine-shape（形状枚举唯一映射表）** / ansi-collapse / truncate-line / group-by-batch / monogram / class-names。**什么不算工具**：带 React 的（→hooks）、读 store 的（→features）、发请求的（→api）、只有一个组件用的私有函数（就近写在该组件文件底部，**不许为它单开 lib 文件**）、任何业务判定（→daemon）、任何通用 helper 大杂烩。**src/lib/ 是唯一强制单测的目录**，每个文件必须有同名 .test.ts；禁止 lib/utils.ts、lib/misc.ts、lib/common.ts 这类名字；禁止 lib 里出现 document/window",
+    "errors": "三种形态各有唯一落点。**字段错**（E_VALIDATION 且 details.field 存在）只渲染在输入框下方 12px 提示 + aria-invalid + aria-describedby，文案写清原因与改法，**不弹 toast、不整页替换、不清空已填内容**。**业务错**渲染成就地 inline notice，位置固定为触发它的那块面板，同一 code 重复只更新计数不叠加，**禁止 toast 堆叠、禁止 alert、禁止升级成整页**。**整页失败只有两种**：未配对→路由到 #/pair；首屏快照拉不到→connect-failed.tsx 单屏（显示 baseUrl、requestId、重试/改地址/壳内额外「启动调度服务」，文案按 E-04 写「电脑上的调度服务未启动」而不是「连接超时」）。**运行流已在屏上时任何错误都不得整页替换**。401 只在 http-client 与 sse-client 两处处理，动作固定：清内存令牌 → setNeedsPairing → 跳 #/pair → SSE 停止退避循环，**禁止自动重试、禁止静默刷新令牌**。ErrorBoundary 三层：app 根、每页、**每条运行流**。文案唯一来源 src/i18n/error-messages.ts，**禁止组件内出现中文错误字符串**；daemon 的英文 message 只出现在可展开的「技术详情」里并附一键复制 requestId",
+    "env": "客户端可见前缀 VITE_，**全集只有两个**：VITE_APP_VERSION 与 VITE_BUILD_ID，由 vite.config.ts 的 define 从 package.json 与 git 短 hash 注入。**仓库不得出现 .env / .env.example / .env.local**（机检）。import.meta.env **只允许出现在 src/app/app-version.ts 一个文件**。daemon 地址是运行时发现的、令牌是运行时从壳取的：**禁止出现 VITE_API_BASE_URL / VITE_PORT / VITE_TOKEN 之类任何变量；禁止 AGSCHED_ 前缀出现在 web 包任何文件**。禁止把端口、局域网 IP、配对码、任意 token、数据目录绝对路径写进源码或构建配置",
+    "build": "**base: './' 必须相对**——同一份产物要被 daemon 的 /、tauri://localhost、https://localhost 三处加载，绝对 /assets/ 在壳里必然 404。outDir dist，target es2020（Android WebView 保守档，**禁止 @vitejs/plugin-legacy**），sourcemap hidden，minify esbuild。**三处消费同一次构建**（daemon 的 @fastify/static、Tauri 的 frontendDist、Capacitor 的 webDir），禁止为壳单独打第二份产物。manualChunks 手工三块：vendor-react / vendor-ui / 其余进主 chunk；页面级 lazy 只切 settings/* 与 landing，**禁止按组件粒度 lazy、禁止动态 import 拼字符串路径**。字体只自托管拉丁字重，@font-face 集中在 styles/fonts.css，font-display swap，**中文走系统栈兜底禁止打包中文字体**；回退时列宽用 ch 计算不依赖具体度量。**禁止任何 CDN 或外链、禁止 CSS-in-JS 运行时、禁止 vite-plugin-pwa、禁止任何 analytics/Sentry/自动上报、禁止把 dist 提交进仓库**。验收侧 pnpm -w check 必须串起 tsc --noEmit、biome ci、vitest run、check-contrast.ts、check-forbidden.ts（后者至少八条 grep 禁令）"
+   },
+   "backend": {
+    "layout": "packages/daemon/src/ 下 15 个目录：main.ts（全仓唯一允许 process.exit 与 SIGINT 的文件）/ boot（启动序列固定：node 自检→单实例锁→数据目录→打开库→跑迁移→createContainer→启动 jobs→建 Fastify→listen）/ platform（平台差异唯一收口）/ config / db / repo（**全仓唯一允许出现 SQL 字符串的目录**）/ logstore / events / proc（**全仓唯一允许 import child_process 的目录**）/ adapters（一家一目录，**厂商事件字符串只许出现在这里**）/ workspace / domain（零依赖叶子）/ service（**全仓唯一允许开事务的层**）/ jobs / http / errors。另有 migrations/ 与 test/{unit,integration,arch}",
+    "layers": "五层单向 http/routes → service → (repo|logstore|proc|adapters|workspace|events) → (db|platform)；domain 是零依赖叶子任何层可 import 它、它只能 import shared。禁止的反向与跨层调用逐条写死：repo 禁止 import service/http/events/proc/adapters；**service 禁止 import fastify**（文件里不得出现 FastifyRequest/FastifyReply/request.*，需要 actorDeviceId 就作为普通函数参数传进来）；proc 与 adapters 禁止 import repo/service（只产出数据结构，落库一律由 service 做）；events 禁止 import service（否则成环）；jobs 禁止 import http 且只能调 service；http/routes 禁止跨层直调 repo/logstore/proc/adapters/workspace（唯一例外是 sse.ts 直接向 events/bus 订阅）；**全仓禁止 barrel 文件**（它会把跨层 import 藏进路径别名绕过检查）。以上全部由 test/arch/layering.test.ts 用 ALLOWED_IMPORTS 邻接表正则扫全部 import 语句**机器化断言**，违规即 pnpm test 失败，不靠人 review",
+    "data": "全进程恰好一个 Database 实例由 db/openDatabase(path) 工厂在 boot 创建后经 DI 传递，**除该工厂外任何文件禁止 new Database()**；打开后固定四条 PRAGMA：journal_mode=WAL、busy_timeout=5000、foreign_keys=ON、synchronous=NORMAL，**其余 PRAGMA 一律不设**。迁移放 migrations/NNNN_名字.sql，在 listen 之前按文件名升序逐个在独立事务执行并写 schema_migrations，**已应用的文件禁止再修改**（只能新增一个迁移改回来），**不写 down 脚本**。SQL 只许出现在 repo/，repo 之外出现 SELECT/INSERT/UPDATE/DELETE/db.prepare 一律架构测试判失败；repo 内部**禁止用模板字符串或 + 把值拼进 SQL**，参数一律绑定，唯一允许的动态片段是排序方向且必须来自封闭枚举 SORTABLE_COLUMNS，**禁止把用户串当列名**；预编译语句在工厂闭包里 prepare 一次复用，禁止方法体里每次 prepare。**日志正文只存文件**（每次运行两个文件 raw.log 与 events.ndjson），**SQLite 只存索引与可筛选字段，库里任何列都不得存事件 payload 正文**；events 索引表只收里程碑事件，高频 *_chunk 不进表。一致性靠单向写序：**恒先 append 文件成功再写索引行，反序绝对禁止**；「文件比索引多」是正常态，**「索引比文件多」是数据损坏必须 error**。日志文件被手工删除时返回 E_LOG_FILE_MISSING 类型化结果而不是抛异常",
+    "middleware": "Fastify 只建一个实例只监听一个端口，插件按数字前缀注册且顺序写死：00-request-id → 10-logging → 20-security-headers → 30-auth → 40-ratelimit → 50-routes → 80-static → 90-error-handler。**鉴权与限流必须注册在 /api/v1 子 scope 内部**（Fastify 封装边界一旦挂错会连带拦住静态资源或漏掉后注册的路由），**禁止把鉴权 hook 挂到根实例上**。logging 的 redact 列表写死 authorization、*.token、*.pairingCode、*.deviceToken。免鉴权白名单**只有三条且写死在常量数组里**：GET /health、POST /pair/claim、GET /version；**代码中禁止出现任何基于 remoteAddress/网段/isPrivateIp 的绕过分支**。静态资源在根 scope 匿名可取（产物里不含用户数据），这是唯一的非鉴权面。40-ratelimit 是自写内存滑动计数器（不引限流库）只挂 /pair/*，每 IP 每分钟 10 次，超限 429 **并立即作废当前配对码**。SSE 路由**必须 reply.hijack() 后只操作 reply.raw**，头固定含 X-Accel-Buffering: no，每 15 秒写一行 : 心跳，**路由内禁止调用 reply.send**。90-error-handler 同时设 setErrorHandler 与 setNotFoundHandler，是全仓**唯一**允许出现 HTTP 状态码数字的地方。**不注册 CORS 插件**（生产同源、开发用 Vite proxy），代码里出现 @fastify/cors 一律打回",
+    "tx": "**只有 service 层能开事务**，入口唯一为注入的 unitOfWork.run(fn)；repo 方法一律不自开事务、必须能在事务内外同样执行。**禁止嵌套**：UnitOfWork 持 depth 计数，depth>0 时直接抛 E_TX_NESTED，**不许靠 savepoint 隐式吞掉**。**事务回调内禁止出现 await 与任何异步/阻塞副作用**（better-sqlite3 是同步 API，回调里跨事件循环就会长时间独占 WAL 写锁）——禁止在事务内 spawn 子进程、读写日志文件、发 SSE、调 adapters 或 workspace；**硬顺序恒为「先在事务里改库、事务返回后再做副作用」**。事件发布同理：service 在事务内把待发事件收集进本地数组，run() 返回后才 bus.publish，**bus.publish 出现在事务回调内由架构测试判失败**。一个 HTTP 请求最多开一次事务；组合多个 service 时**禁止「A 调 B、各自开事务」**，跨 service 的复合写必须新建上层 service 方法把双方 repo 调用聚进同一个 unitOfWork.run；事务上下文不许向上传给 route 也不许向下传给 proc/adapters/logstore。**jobs 与 route 走完全相同的规则，没有「后台任务可以放松」的例外**",
+    "utils": "**不存在 utils/、helpers/、common/、misc/、lib/ 目录**，出现即打回（架构测试断言目录名黑名单）。有业务语义的纯函数一律进 src/domain/，跨包共用的进 packages/shared/src/，只被单个文件用到的私有函数就地放在该文件底部**不许升格为共享工具**。「不算工具」的口径写死四条：碰 fs/net/db/子进程的不算；**读 Date.now()/Math.random()/crypto.randomUUID() 的不算**（时钟与 id 必须从 DI 注入 clock.now()/ids.newId()，否则 domain 无法确定性测试）；读 process.env/process.platform 的不算；**把值格式化成给人看的中文字符串的不算**（那是 web 层的事，daemon 不产出用户文案）。domain/ 下每个文件必须能被 Vitest 直接 import 且**顶层零副作用**，禁止顶层读文件、建连接、注册定时器",
+    "errors": "只有一个基类 AppError extends Error，字段固定 {code, message, details?, cause?, retryable}，**不带 HTTP 状态码字段**；**禁止三层继承**，第一版只允许两个直接子类：AgentProcessError（带 pid/exitCode/signal/stderrTail/launchSpecId）与 DocsSourceError（带 docsPath/offset）。每个基础设施模块必须在自己的边界把原生错误包成 AppError 并挂 cause（ENOENT→E_AGENT_EXEC_NOT_FOUND、SQLITE_BUSY→E_DB_BUSY、AJV 失败→E_VALIDATION）；**禁止让原生错误穿透到 service 之上、禁止 catch {} 空吞、禁止用 err.message 做字符串匹配来分支**（一律判 err.code）；除 assertNever 外**全仓禁止 throw new Error('...')**。**只有 90-error-handler 允许把 code 转成 HTTP 状态码**，映射表是 errors/httpStatus.ts 里的常量表，未登记的 code 与非 AppError 一律 500 + E_INTERNAL。非 AppError 的原始 message 与 stack **只写服务端日志不回客户端**（AGSCHED_DEV=1 时才附 stack）。**daemon 侧 message 一律英文开发者短句，禁止在 daemon 里拼中文用户文案**",
+    "config": "分三类读取次数各不相同。①**进程配置**（端口/绑定/数据目录/日志级别/dev）来自环境变量 + %APPDATA%\\agent-scheduler\\daemon.json，**启动时读一次**，Object.freeze 后经 DI 注入，**不支持热更**改了必须重启。②**agent 注册表** agents.json **支持热加载**，实现固定为 fs.watch + 300ms 防抖 + **内容指纹去重**（编辑器保存会触发多次写事件，不去重会重载多次）；**校验失败保留上一版并发警告事件，绝不因此退出 daemon**；未知字段忽略并 warn、缺字段回落 defaults；**内置默认与用户覆盖分开存两份**以便升级后算差。③**派发快照**：每次派发把注册表条目逐字段深拷贝进 runs.launch_spec_json，**在途运行只读该快照，运行中的代码禁止再读注册表当前值**。adapterKind 热切换**必须校验该 agent 无在途运行**否则拒绝并保留旧值。禁令：除 config/env.ts 外禁止出现 process.env（proc/env.ts 是唯一白名单）；除 config/registry.ts 外禁止读 agents.json；**请求处理路径里禁止出现同步文件读取来取配置**",
+    "di": "手写 composition root，boot/container.ts 导出 createContainer(config)，构造顺序写死：platform → clock/ids → db → repos → logstore → events → proc → adapters → workspace → services → jobs。**不引入任何 DI 框架/装饰器/反射**；依赖一律通过工厂函数参数传递，统一写法 createXxxService(deps) 返回对象字面量，**除 AppError 及其两个子类外不写 class**。**禁止模块级可变单例**（export const db = openDatabase(...) 一律打回），模块顶层只允许导出纯常量与纯函数——Vitest 并行用例会互相污染，且单实例语义由**进程锁**保证而不是靠模块变量。全进程仅两个允许的单例：boot/lock.ts 的单实例锁与 Fastify 自带 logger。容器通过 fastify.decorate('container', ...) 挂一次，route handler 从 request.server.container.services.xxx 取，**禁止 route 从容器里取 repo/db/proc/adapters**。**凡是与外部世界交互的东西（clock、ids、fs、spawn、fetch）都必须在容器里有可替换实现**，集成测试通过替换 proc.spawnManaged 为假进程来跑，**禁止在测试里 mock 模块路径**",
+    "jobs": "src/jobs/ 一个工作一个文件，统一形状 createXxxJob(deps) => {name,start(),stop()}，全部由 boot 在 listen() 之后启动、优雅退出时先于 HTTP 关闭。**只有五个**：reconcile-runs（启动期一次，按 runs.pid 对账，进程不存在标「异常终止」、存在则标「失联」，**绝不推定成功**）、log-index-repair（启动期一次）、stall-detector（30s tick，**只发弱事件不改运行状态不杀进程**）、scheduler-tick（事件触发 + 5s 兜底，**全局一把内存互斥量禁止并发 tick 禁止重入**否则会把同一任务派两次）、disk-watch（5min，超阈值置「停止新派发」标志）。**收流不是 job**——子进程输出由 proc 的流水线事件驱动，只有「没人触发也必须发生」的事才配做 job，**任何人想为收流加轮询 tick 一律打回**。隔离规则：job 禁止 import http、禁止持有 request/reply、只调 service 且**必须与 route 复用同一批 service 方法**（jobs 里出现第二套业务逻辑一律打回），写库时 actorDeviceId 恒为 null 表示系统发起。每个 tick 自己保证不重入，内部必须 try/catch 把异常转成事件，**禁止让异常冒泡到 unhandledRejection**；stop() 必须 clearInterval 并等待当前 tick 结束",
+    "proc": "全仓唯一允许 import child_process 的目录，唯一入口 spawnManaged(spec)，恒 **shell:false + 参数数组**、windowsHide:true、windowsVerbatimArguments:false，**任何地方拼 shell 字符串一律打回**；adapters 的 agent 调用、workspace 的 git 调用、机械检查命令、终止用的 taskkill **全部走这一个函数**。file 必须是注册表解析出的**绝对路径**，以 .cmd/.bat 结尾的**不直接 spawn**改为 spawn comSpec 并以 ['/d','/s','/c', file, ...args] 传参（**仍是数组不拼串**），quoteForCmd() 必须有覆盖空格/引号/;/&/^ 的单元测试。进程树终止一律走 platform.killTree（先 taskkill /PID /T 等 3 秒、仍存活再加 /F，两次都写事件），**禁止用 child.kill() 或 process.kill(pid) 作为终止手段**（只杀父会留下占着文件锁的孤儿 node/git/npm）。流读取**禁止 child.stdout.setEncoding()**（多字节 UTF-8 会被 chunk 边界切碎）也**禁止 readline**（U+2028/U+2029 在 JSON 字符串里合法但会被断行，文件顶部必须写死这条注释并配一条含 U+2028 的回归用例），统一由 proc/line-reader.ts 在 Buffer 上只按 0x0A 切、剥尾部 \\r、再 UTF-8 解码，单行上限 1 MiB 超限截断并标记后继续。环境由 proc/env.ts 单点构造，强制 UTF-8、NO_COLOR=1，按 envDenylist 清掉 ANTHROPIC_MODEL 等模型覆盖变量，并写死 git 凭据禁用（GIT_TERMINAL_PROMPT=0、GIT_ASKPASS=、GCM_INTERACTIVE=never、GIT_CONFIG_NOSYSTEM=1、GIT_CONFIG_GLOBAL=空文件）；**不做 chcp**（管道输出与控制台代码页无关）。**超时分三个独立计时器**：startupTimeoutMs（spawn 到第一条可解析事件，native 60s / generic-acp 180s，超时杀树）、idleTimeoutMs（900s，**只喂给 stall-detector 打弱标记，proc 层绝不因它杀进程**）、hardWallClockMs（默认关闭）；**唯一允许「到点必杀」的是机械检查命令的 10 分钟超时，杀后不重试**。背压：每 run 一个 AppendQueue，待写超 8 MiB 时 pause()、回落 4 MiB 再 resume()，**禁止把 stdout 读进内存字符串、禁止 for await 累加全量**；向 stdin 注入必须检查 write() 返回值并在 drain 后续写。僵尸回收：exit/error/close 三个事件走同一个幂等 finalize(runId)。**daemon 优雅退出时不杀 agent 子进程**，但必须承认：除 codex app-server / grok leader socket 这类外部常驻通道外，**子进程管道无法跨 daemon 重启重挂**，重启后只能对账不能重挂，**禁止任何「重新 attach stdout」的假实现**",
+    "events": "内部信封形状写死 {id, ts, runId, taskId, scope, kind, seq, actorDeviceId, payload}（ts 为带毫秒 ISO8601 且来自注入的 clock，seq 是该 run 内从 0 起的连续序号用于文件定位，id 是 daemon 全局单调号用于 SSE Last-Event-ID），定义放 packages/shared/src/events.ts 供两端共用。EventKind 分两组靠命名形状区分：**ACP 组严格沿用 session/update 原文小写下划线**（agent_message_chunk、agent_thought_chunk、tool_call、tool_call_update、plan），**禁止为了统一风格改成 camelCase**；**本产品组一律 <scope>.<过去式动词>**（run.started、run.exited、run.stalled_suspected、run.permission_blocked、run.remote_push_detected、run.message_delivered、run.message_undelivered、task.gate_waiting、task.gate_passed、task.review_verdict、task.landed、batch.advanced、agent.availability_changed、system.disk_warning、system.docs_changed）。**厂商私有字段一律塞 payload.vendor 原样保留，禁止为某一家新增顶层 kind**。id 单调递增用**水位预分配**（SQLite event_seq 表，内存计数器每用满 1000 写一次新水位，启动时从水位继续），**允许跳号、禁止回退**（客户端按 id 去重），**禁止任何其他地方自造事件 id、禁止用纯内存计数器**（daemon 重启会回退直接破坏重放语义）。环形缓冲全局一个、容量恒 5000（就是重放窗口），存完整信封但**单条 payload 超 32 KiB 时入缓冲前替换为引用**。**SSE 推送与断线重放只读环形缓冲；任何按游标回读历史只走 logstore 的字节偏移分段读**；Last-Event-ID 小于缓冲最小 id 时返回 409 E_REPLAY_WINDOW_EXPIRED 让客户端改走 REST 全量快照，**禁止为了回读去查 events 表拿 payload**（表里根本没有正文）。**各家原生事件的映射规则只允许存在于 src/adapters/<agent>/map-events.ts**，签名固定为纯函数 (vendorLine) => EventEnvelopeInput[]（不碰 fs/db/clock），service/jobs/http/web 中出现任何厂商事件字符串一律架构测试判失败。无法解析的行归入 raw.log 并继续**绝不中断流**；能解析但类型未知的按丢弃并对 runs.unmapped_event_count 计数，**绝不崩溃也绝不臆造 kind**"
+   }
+  },
+  "taskPaths": {
+   "M1-T1": [
+    "package.json",
+    "pnpm-workspace.yaml",
+    "biome.json",
+    ".gitattributes",
+    "packages/daemon/src/main.ts",
+    "packages/daemon/src/boot/"
+   ],
+   "M1-T2": [
+    "packages/daemon/src/db/",
+    "packages/daemon/migrations/"
+   ],
+   "M1-T3": [
+    "packages/daemon/src/platform/"
+   ],
+   "M1-T4": [
+    "packages/daemon/src/logstore/"
+   ],
+   "M1-T5": [
+    "packages/daemon/src/logstore/",
+    "packages/daemon/src/jobs/disk-watch.ts"
+   ],
+   "M1-T6": [
+    "packages/daemon/src/boot/",
+    "packages/daemon/src/jobs/reconcile-runs.ts"
+   ],
+   "M1-T7": [
+    "packages/daemon/src/proc/"
+   ],
+   "M1-T8": [
+    "packages/daemon/src/proc/",
+    "packages/daemon/src/logstore/"
+   ],
+   "M2-T1": [
+    "packages/daemon/src/http/plugins/",
+    "packages/daemon/src/errors/"
+   ],
+   "M2-T2": [
+    "packages/daemon/src/service/pairing.ts",
+    "packages/daemon/src/repo/devices.ts",
+    "packages/daemon/src/http/routes/pair.ts",
+    "packages/daemon/src/http/routes/devices.ts"
+   ],
+   "M2-T3": [
+    "packages/daemon/src/http/plugins/30-auth.ts"
+   ],
+   "M2-T4": [
+    "packages/daemon/src/events/",
+    "packages/shared/src/events.ts"
+   ],
+   "M2-T5": [
+    "packages/daemon/src/http/sse.ts",
+    "packages/daemon/src/http/routes/events.ts"
+   ],
+   "M2-T6": [
+    "packages/shared/src/api/",
+    "packages/daemon/test/arch/routes.test.ts"
+   ],
+   "M3-T1": [
+    "packages/daemon/src/service/docs.ts",
+    "packages/daemon/src/repo/documents.ts"
+   ],
+   "M3-T2": [
+    "packages/daemon/src/repo/tasks.ts",
+    "packages/daemon/src/repo/batches.ts"
+   ],
+   "M3-T3": [
+    "packages/daemon/src/repo/dispatch-snapshots.ts",
+    "packages/daemon/src/domain/docs-fingerprint.ts"
+   ],
+   "M3-T4": [
+    "packages/daemon/src/http/routes/documents.ts"
+   ],
+   "M3-T5": [
+    "packages/daemon/src/service/review-context.ts"
+   ],
+   "M4-T1": [
+    "packages/daemon/src/config/registry.ts",
+    "packages/daemon/src/config/defaults.ts"
+   ],
+   "M4-T2": [
+    "packages/daemon/src/domain/launch-template.ts"
+   ],
+   "M4-T3": [
+    "packages/daemon/src/adapters/probe.ts"
+   ],
+   "M4-T4": [
+    "packages/daemon/src/service/agents.ts"
+   ],
+   "M4-T5": [
+    "packages/daemon/src/adapters/codex/read-models.ts",
+    "packages/daemon/src/adapters/claude/read-models.ts",
+    "packages/daemon/src/adapters/grok/read-models.ts",
+    "packages/daemon/src/adapters/pi/read-models.ts"
+   ],
+   "M4-T6": [
+    "packages/daemon/src/domain/model-selection.ts"
+   ],
+   "M4-T7": [
+    "packages/daemon/src/domain/permission-tier.ts"
+   ],
+   "M4-T8": [
+    "packages/daemon/src/adapters/codex/"
+   ],
+   "M4-T9": [
+    "packages/daemon/src/adapters/claude/"
+   ],
+   "M4-T10": [
+    "packages/daemon/src/adapters/pi/"
+   ],
+   "M4-T11": [
+    "packages/daemon/src/adapters/grok/"
+   ],
+   "M4-T12": [
+    "packages/daemon/src/adapters/generic-acp/"
+   ],
+   "M5-T1": [
+    "packages/daemon/src/workspace/worktree.ts"
+   ],
+   "M5-T2": [
+    "packages/daemon/src/workspace/base-select.ts"
+   ],
+   "M5-T3": [
+    "packages/daemon/src/workspace/diff.ts"
+   ],
+   "M5-T4": [
+    "packages/daemon/src/workspace/landing.ts",
+    "packages/daemon/src/http/routes/tasks.ts"
+   ],
+   "M6-T1": [
+    "packages/daemon/src/domain/run-state-machine.ts"
+   ],
+   "M6-T2": [
+    "packages/daemon/src/service/run.ts"
+   ],
+   "M6-T3": [
+    "packages/daemon/src/domain/progress.ts"
+   ],
+   "M6-T4": [
+    "packages/daemon/src/jobs/stall-detector.ts"
+   ],
+   "M6-T5": [
+    "packages/daemon/src/service/run-abort.ts",
+    "packages/daemon/src/http/routes/runs.ts"
+   ],
+   "M6-T6": [
+    "packages/daemon/src/service/message.ts"
+   ],
+   "M6-T7": [
+    "packages/daemon/src/service/run.ts"
+   ],
+   "M6-T8": [
+    "packages/daemon/src/service/run-log.ts",
+    "packages/daemon/src/http/routes/runs.ts"
+   ],
+   "M6-T9": [
+    "packages/daemon/src/service/retention.ts"
+   ],
+   "M7-T1": [
+    "packages/daemon/src/service/review.ts"
+   ],
+   "M7-T2": [
+    "packages/daemon/src/service/review-agent.ts"
+   ],
+   "M7-T3": [
+    "packages/daemon/src/domain/review-verdict.ts"
+   ],
+   "M7-T4": [
+    "packages/daemon/src/service/rework.ts"
+   ],
+   "M8-T1": [
+    "packages/daemon/src/domain/concurrency.ts"
+   ],
+   "M8-T2": [
+    "packages/daemon/src/domain/path-clash.ts"
+   ],
+   "M8-T3": [
+    "packages/daemon/src/service/dispatch.ts",
+    "packages/daemon/src/jobs/scheduler-tick.ts",
+    "packages/daemon/src/http/routes/batches.ts"
+   ],
+   "M8-T4": [
+    "packages/daemon/src/domain/gates.ts",
+    "packages/daemon/src/http/routes/gates.ts"
+   ],
+   "M8-T5": [
+    "packages/daemon/src/service/rerun.ts"
+   ],
+   "M9-T1": [
+    "packages/web/src/styles/",
+    "packages/web/scripts/",
+    "packages/web/tailwind.config.ts",
+    "packages/web/src/app/theme-provider.tsx"
+   ],
+   "M9-T2": [
+    "packages/web/src/lib/spine-shape.ts",
+    "packages/web/src/components/status-badge.tsx"
+   ],
+   "M9-T3": [
+    "packages/web/src/app/routes.tsx",
+    "packages/web/src/app/route-guard.tsx"
+   ],
+   "M9-T4": [
+    "packages/web/src/api/http-client.ts",
+    "packages/web/src/api/base-url.ts"
+   ],
+   "M9-T5": [
+    "packages/web/src/api/sse-client.ts"
+   ],
+   "M9-T6": [
+    "packages/web/src/api/event-bus.ts"
+   ],
+   "M9-T7": [
+    "packages/web/src/components/spine.tsx",
+    "packages/web/src/components/stream-row.tsx"
+   ],
+   "M9-T8": [
+    "packages/web/src/components/virtual-rows.tsx",
+    "packages/web/src/components/log-lines.tsx",
+    "packages/web/src/features/run-detail/"
+   ],
+   "M9-T9": [
+    "packages/web/src/components/stream-column.tsx",
+    "packages/web/src/hooks/use-breakpoint.ts",
+    "packages/web/src/features/run-deck/"
+   ],
+   "M9-T10": [
+    "packages/web/src/components/gate-card.tsx"
+   ],
+   "M9-T11": [
+    "packages/web/src/components/offline-banner.tsx",
+    "packages/web/src/store/connection-store.ts"
+   ],
+   "M9-T12": [
+    "packages/web/src/components/thumb-bar.tsx",
+    "packages/web/src/features/run-deck/"
+   ],
+   "M9-T13": [
+    "packages/web/src/features/run-detail/"
+   ],
+   "M9-T14": [
+    "packages/web/src/features/settings-agents/",
+    "packages/web/src/pages/settings-agents-page.tsx"
+   ],
+   "M9-T15": [
+    "packages/web/src/features/settings-devices/",
+    "packages/web/src/features/pairing/",
+    "packages/web/src/shell/shell-bridge.ts"
+   ],
+   "M9-T16": [
+    "packages/web/src/components/empty-onboarding.tsx",
+    "packages/web/src/components/batch-summary-bar.tsx",
+    "packages/web/src/pages/landing-page.tsx"
+   ],
+   "M10-T1": [
+    "packages/shared/src/shell/bridge-contract.ts",
+    "packages/web/src/shell/"
+   ],
+   "M10-T2": [
+    "packages/shell-desktop/"
+   ],
+   "M10-T3": [
+    "packages/shell-mobile/"
+   ],
+   "M10-T4": [
+    "packages/shell-desktop/",
+    "packages/shell-mobile/",
+    "packages/web/vite.config.ts"
+   ]
+  },
+  "taskSkills": {
+   "M9-T2": [
+    {
+     "name": "finesse-ui",
+     "when": "画 12 个形状之前",
+     "why": "形状是 E-110「状态区分不能只靠色相」的唯一承载物，也是方向被否决时唯一不许动的东西；用它的 audit 命令核对形状在灰度与浅色下是否仍可区分"
+    }
+   ],
+   "M6-T1": [
+    {
+     "name": "diagram-generator",
+     "when": "改状态机之前",
+     "why": "09 节的状态机图与非法迁移表是这个任务的规格；改代码前先确认图还对得上，改完要同步更新图"
+    }
+   ],
+   "M4-T3": [
+    {
+     "name": "dsh-code-review",
+     "when": "交回来审查时",
+     "why": "指纹探测是「静默派错 agent」的唯一防线，属于绕过路径类缺陷，验收标准列不全，需要语义审查"
+    }
+   ]
+  },
+  "conventions": "错误响应固定 {error:{code,message,requestId,details?}}；时间一律 ISO8601 文本（含毫秒）存储与传输，不存 unix 秒；数据库表名列名 snake_case、时间列 _at 后缀、布尔列 0/1 且带 is_/has_ 前缀；API DTO 一律 camelCase 且与 Row 严格分开；文件与目录一律 kebab-case，禁止 barrel index.ts；子进程一律 shell:false + 参数数组；**每个任务的验收命令必须包含 `pnpm -w check`**"
+ },
+ "blocks": [
+  {
+   "type": "metrics"
+  },
+  {
+   "type": "modulemap",
+   "note": "十个模块里 **M1 是唯一的叶子，其余九个全部依赖它**——所以第一批只有 M1-T1 一个任务能立刻开工，这不是排布得不好，是 M1 的 spawn 基座本来就是四个 agent 适配器的共同地基。要注意的是 **M8 依赖其余六个**，那是编排者的正常形态不是环；而 **M9 只依赖 M2 的契约**，这是把「客户端界面」与「壳」拆成两个模块的收益——如果哪天有第二个人，这里是唯一自然的切口。"
+  },
+  {
+   "type": "taskdag",
+   "note": "73 个任务、115.5 人天。关键路径穿过 **M1-T7（spawn 基座）→ M4 的四个适配器 → M6 的运行监管**，M4 一家就占 12 个任务、20 人天、47 条边界，是最大的单一风险块。建议先把 codex 与 claude 打通再做 pi 与 grok——这两家形态差异最大（daemon/thread 模型 vs stdin/stdout 双向流），接口被它们定型后剩下两家是填空。"
+  },
+  {
+   "type": "edgematrix",
+   "note": "240 条边界，覆盖率 100%，**没有空行**。这张表是这套文档最该被信任的部分，也是最该被检查的部分：每一条都是「什么条件下 → 期望什么行为」，写不出可执行行为的说明那个决策还没想清楚。特别看 **E-23**（退出码 0 不等于活干完了）——整个状态机与两级审查都建在这一条上；以及 **E-08**（代码里不许有局域网免鉴权分支）——它约束的是一个能起任意进程的服务。"
+  },
+  {
+   "type": "evolution",
+   "note": "47 条决策里 **15 条把我的问题驳回了**（红色），那意味着我最初的理解是错的、采纳的是代理用户的反提案——**这 15 行最该你亲自复核**。几个有代表性的：PWA 被判定在局域网 http 下技术上不成立（拿不到 secure context）；原生 EventSource 不能带 Authorization 头，与「鉴权无旁路」直接冲突；手机端其实早就在触发派发（派发前闸门的审批键就在拇指区）。另有两条 medium 置信度：闸门的分界与审查者的选择。八个版本同日产生，因为**中途你补充了需求**、且**调研结论改写了一条既有决策的理由**。"
+  },
+  {
+   "type": "risks",
+   "note": "标 ⚡ 的三条**已经发生，不是假设**：Rust 工具链本机未装（Tauri 桌面壳构建不出来，预案是换 Electron，因为壳内零业务逻辑所以切换只影响几十行）、Android 构建环境未确认（降级为浏览器直连，功能不缺）、视觉方向未经你目视确认（已把方向收敛到 token 层，使否决代价 ≤ 改一个文件）。另外 R-06 的 grok 同名冲突与 R-07 的 pi readline 陷阱都是调研查实的具体坑，不是泛泛的「可能有兼容问题」。"
+  },
+  {
+   "type": "milestones",
+   "note": "六批，每批结束都有能演示的东西——单人 5–6 个月的项目，前四个月拿不出可见成果是致命的。**第三批是真正的验证点**：四个 agent 各派一个真任务并跑完，假子进程测不出参数拼错、模型名无效、登录态过期。若中途要收缩，砍的顺序写在 20 节末尾，**从后往前砍，且第一批到第四批一条都不能砍**。"
+  },
+  {
+   "type": "html",
+   "title": "开工第一天做什么",
+   "html": "<ol><li><b>先装 Rust 工具链并跑通一个 Tauri v2 空壳构建</b>——这是 R-01，本机 <code>cargo --version</code> 已确认不存在。两天内跑不通就走预案换 Electron，不要拖到第六批才发现。</li><li>建仓库、装 <code>gh</code> 的 stack 扩展（<code>gh extension install github/gh-stack</code>），本机目前没装，而全部落地流程都建在它上面。</li><li>派 <b>M1-T1</b>（唯一无依赖的任务）：pnpm 五包骨架 + 启动自检 + 单实例锁。它同时把 <code>pnpm -w check</code> 这条唯一强制点立起来——后面 72 个任务的验收都靠它。</li><li>准备一份<b>真实的</b> <code>docs-data.js</code> 放在手边（就用这份文档自己产出的那个），M3 全模块的开工输入就是它。</li></ol><p><b>不要先做界面。</b> M9 是最大的模块（16 个任务、28 人天），但它依赖 M2 的契约；契约没定死就开工，返工的是 16 个任务。</p>"
+  },
+  {
+   "type": "handoff",
+   "note": "派活从这里开始。**第一批只有 M1-T1 一个任务可以立刻派**——其余全在等 M1。从第二批起并行度才起来，页面顶部的窗口排布会实时告诉你此刻能开几个会话。注意 taskPaths 已经标全，同批里抢同一个文件的任务会被标红并从「此刻能并发派几个」里扣掉。"
+  },
+  {
+   "type": "terms"
+  }
+ ]
+}
