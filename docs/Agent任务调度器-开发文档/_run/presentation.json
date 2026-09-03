@@ -1,6 +1,6 @@
 {
  "project": "Agent 任务调度器",
- "lead": "最强的约束是**agent 只能装在用户那台 Windows 上，手机够不到**——所以核心必须是一个独立常驻的 daemon，两个端只是它的两副面孔。第二强的是**「已退出」不等于「已落地」**：四个 agent 都只给退出码，不给「活干完了没有」，整个状态机与两级审查都是为这一条建的。进度上要盯 **M1**（8 个任务、12.5 人天，其余九个模块全部依赖它，其中 `spawn` 基座 M1-T7 是四个适配器的共同地基）与 **M4**（12 个任务、20 人天、47 条边界，是最大的单一风险块）。三条风险**已经发生**而不是假设：Rust 工具链未装、Android 构建环境未确认、视觉方向未经用户目视确认。",
+ "lead": "核心仍是一个独立常驻的 daemon，桌面与手机是它的两副面孔；新增的硬约束是**同一套 daemon、路径/子进程与 Tauri 桌面壳必须在 Windows、macOS、Linux 完整运行**。第二强的是**「已退出」不等于「已落地」**：五个 agent 都不能只靠退出码判定任务完成。进度上要盯 **M1**（9 个任务、14.5 人天，三平台路径、进程树、自启和 `spawn` 都在这里收口）与 **M4**（12 个任务、21 人天，是最大的 agent 差异块）。当前平台风险是 macOS/Linux 缺本地真机证据，必须由三平台 CI 与人工 GUI 清单共同补齐。",
  "highlights": {
   "tasks": [
    "M1-T7",
@@ -26,7 +26,7 @@
   "repo": "agent-scheduler",
   "mainBranch": "main",
   "branchPrefix": "task/",
-  "stack": "Node.js 22 LTS + TypeScript strict + Fastify + SQLite(better-sqlite3, WAL) 后端；React 18 + Vite + Tailwind + shadcn/ui + TanStack Virtual + zustand 前端；Tauri v2 桌面壳 + Capacitor 手机壳；pnpm 单仓多包（daemon / web / shell-desktop / shell-mobile / shared）；测试 Vitest，lint 用 Biome；Windows 10/11 优先，手机端 Android",
+  "stack": "Node.js 22 LTS + TypeScript strict + Fastify + SQLite(better-sqlite3, WAL) 后端；React 18 + Vite + Tailwind + shadcn/ui + TanStack Virtual + zustand 前端；Tauri v2 桌面壳 + Capacitor 手机壳；pnpm 单仓多包（daemon / web / shell-desktop / shell-mobile / shared）；测试 Vitest，lint 用 Biome；桌面 Windows 10/11 + macOS 11+ + Linux（Ubuntu CI 基线），手机端 Android",
   "frontendModules": [
    "M9",
    "M10"
@@ -46,9 +46,9 @@
   "architecture": {
    "shared": {
     "errors": "错误码枚举唯一定义在 packages/shared/src/errors/codes.ts，形如 ERROR_CODES = { E_VALIDATION: {defaultHttpStatus:400, retryable:false, origin:'server'} } as const；每条带 origin:'server'|'client'，client 侧三条 E_NETWORK/E_TIMEOUT/E_SHELL_UNAVAILABLE 的 defaultHttpStatus 置 null。**只有 daemon 的 http/plugins/90-error-handler.ts 转 HTTP 状态码；只有 web 的 src/i18n/error-messages.ts 转中文文案**（缺键回落显示原始 code）。响应信封固定 {error:{code,message,requestId,details?}}，401/403 与 SSE 握手失败同样返回带信封的 body。daemon 的 message 恒为英文开发者短句，中文用户文案只在前端。**前端禁止按 HTTP 状态码分支，一律按 error.code**。10 节的错误码表是源、codes.ts 是投影，scripts/check-error-codes.mjs 断言一致。禁令：代码中出现未登记的 E_ 字面量即架构测试失败；边界编号 E-01 与错误码 E_VALIDATION 是两套东西，禁止混写",
-    "env": "环境变量只在 packages/daemon/src/config/env.ts 一处声明与校验，前缀恒为 AGSCHED_，**全集只有五个**：PORT(7817) / BIND(0.0.0.0) / DATA_DIR(%APPDATA%\\agent-scheduler) / LOG_LEVEL(info) / DEV。缺失可回落默认，但**格式非法必须打印变量名与期望格式后退出**（AGSCHED_PORT=abc 不许静默回落）。AGSCHED_DEV **只控制错误响应带不带 stack，明令不得影响鉴权、不得放宽任何校验**。令牌只存 scrypt 哈希+随机盐，比对用 timingSafeEqual，绝不存明文；配对码只在内存 TTL≤60 秒一次性；客户端令牌存壳安全存储，**禁止 localStorage**，无壳时降级 sessionStorage 并常驻提示。**仓库禁止出现任何 .env / .env.example**。禁令：业务代码禁止直读 process.env（唯二白名单 config/env.ts 与 proc/env.ts）；禁止直读 process.platform（走 platform 模块）；禁止把令牌/配对码/Authorization 头写进任何日志或事件 payload",
-    "types": "请求响应类型集中在 packages/shared/src/api/ 按资源分文件，**手写 TypeScript 接口，不引入 schema→类型生成链**。packages/shared/src/api/routes.ts 一张常量表 {method,path,auth,reqType,resType,errors[]}，daemon 侧架构测试断言「实际注册的 method+path 集合 === 该表」多一条少一条都失败。入参校验用 Fastify 内置 AJV，JSON Schema 手写在各路由文件里并与 TS 类型同名对应，**统一 additionalProperties:false**；每个请求体类型旁配 as const satisfies 键清单做穷尽断言，改了类型没改 Schema 则 tsc 报错。**出参不写 schema**（避免 SSE 与大对象开销）。事件 kind 在 packages/shared/src/api/events.ts 导出 EVENT_KINDS as const 与判别联合，switch 有穷尽性检查。壳桥接契约放 packages/shared/src/shell/bridge-contract.ts（纯类型）。**packages/shared 的 dependencies 必须为空**（架构测试断言）。数据库 Row（snake_case）与 API DTO（camelCase）严格分开，**禁止把 Row 直接从 API 吐出**；daemon 与 web 禁止各自定义同名 DTO",
-    "naming": "文件与目录一律 kebab-case.ts 零例外；**禁止 barrel index.ts**（任何目录不得有转出文件）。类型与接口 PascalCase 且**不加 I 前缀**；工厂函数一律 createXxx；布尔一律 isXxx/hasXxx/canXxx；常量对象 SCREAMING_SNAKE 且必须 as const。**事件 kind 两组命名形状是硬规则**：ACP 组保留原文 snake_case（agent_message_chunk、tool_call），本产品组 <scope>.<过去式>（run.started、task.gate_waiting），**不许为统一风格改写 ACP 原文**。错误码 E_ + SCREAMING_SNAKE；边界编号 E-数字只出现在文档与测试用例名里，不许当标识符。数据库表名 snake_case 复数、列名 snake_case、时间列 _at 后缀存 ISO8601 文本、布尔列存 0/1 且带 is_/has_ 前缀。lint 与 format 配置放仓库根、单文件、不分包。**本项目没有 CI 也没有 pre-push 钩子，唯一强制点是每个任务的验收命令必须包含 pnpm -w check**（= biome ci . && tsc -b --noEmit && vitest run）；禁止 --no-verify 式绕过或临时关规则"
+    "env": "产品环境变量只在 packages/daemon/src/config/env.ts 一处声明与校验，前缀恒为 AGSCHED_，**全集只有五个**：PORT(7817) / BIND(0.0.0.0) / DATA_DIR(平台用户应用数据目录) / LOG_LEVEL(info) / DEV。boot 另快照 APPDATA / XDG_DATA_HOME 宿主输入并与 platform/host.ts 提供的 platform、homedir 一起冻结。默认数据目录必须是本机绝对路径：Windows 采用绝对 APPDATA，否则 homedir/AppData/Roaming；macOS 用 homedir/Library/Application Support；Linux 采用绝对 XDG_DATA_HOME，否则 homedir/.local/share，最后追加应用目录；禁止把 ~、${...}、%...% 字面量交给文件系统。缺失可回落默认，但**格式非法必须打印变量名与期望格式后退出**。AGSCHED_DEV **只控制错误响应带不带 stack，明令不得影响鉴权、不得放宽任何校验**。令牌只存 scrypt 哈希+随机盐，比对用 timingSafeEqual，绝不存明文；配对码只在内存 TTL≤60 秒一次性；客户端令牌存壳安全存储，**禁止 localStorage**，无壳时降级 sessionStorage 并常驻提示。**仓库禁止出现任何 .env / .env.example**。禁令：业务代码禁止直读 process.env（唯二白名单 config/env.ts 与 proc/env.ts）；禁止直读 process.platform（唯一定点 platform/host.ts）；禁止把令牌/配对码/Authorization 头写进任何日志或事件 payload",
+    "types": "请求响应类型集中在 packages/shared/src/api/ 按资源分文件，**手写 TypeScript 接口，不引入 schema→类型生成链**。packages/shared/src/api/routes.ts 一张常量表 {method,path,auth,reqType,resType,errors[]}，daemon 侧架构测试断言「实际注册的 method+path 集合 === 该表」多一条少一条都失败。入参校验用 Fastify 内置 AJV，JSON Schema 手写在各路由文件里并与 TS 类型同名对应，**统一 additionalProperties:false**；每个请求体类型旁配 as const satisfies 键清单做穷尽断言，改了类型没改 Schema 则 tsc 报错。**出参不写 schema**（避免 SSE 与大对象开销）。事件 kind 在 packages/shared/src/api/events.ts 导出 EVENT_KINDS as const 与判别联合，switch 有穷尽性检查。壳桥接契约放 packages/shared/src/shell/bridge-contract.ts（纯类型）；daemon 启动、自启与打包共用 packages/shared/src/shell/daemon-launch-spec.ts 的 {file,args[],cwd}。壳每次启动按实际 current_exe/resource_dir 生成绝对 file/cwd，桌面按钮与原生自启消费同一个冻结对象且不经 shell；安装包禁止预写固定绝对路径。**packages/shared 的 dependencies 必须为空**（架构测试断言）。数据库 Row（snake_case）与 API DTO（camelCase）严格分开，**禁止把 Row 直接从 API 吐出**；daemon 与 web 禁止各自定义同名 DTO",
+    "naming": "文件与目录一律 kebab-case.ts 零例外；**禁止 barrel index.ts**（任何目录不得有转出文件）。类型与接口 PascalCase 且**不加 I 前缀**；工厂函数一律 createXxx；布尔一律 isXxx/hasXxx/canXxx；常量对象 SCREAMING_SNAKE 且必须 as const。**事件 kind 两组命名形状是硬规则**：ACP 组保留原文 snake_case（agent_message_chunk、tool_call），本产品组 <scope>.<过去式>（run.started、task.gate_waiting），**不许为统一风格改写 ACP 原文**。错误码 E_ + SCREAMING_SNAKE；边界编号 E-数字只出现在文档与测试用例名里，不许当标识符。数据库表名 snake_case 复数、列名 snake_case、时间列 _at 后缀存 ISO8601 文本、布尔列存 0/1 且带 is_/has_ 前缀。lint 与 format 配置放仓库根、单文件、不分包。每个任务本地验收必须包含 pnpm -w check（= biome ci . && tsc -b --noEmit && vitest run）；三平台版本还必须由 Windows/macOS/Ubuntu CI 全部通过 workspace check、平台集成测试和桌面壳构建，任一失败阻断发布；禁止 --no-verify 式绕过或临时关规则"
    },
    "frontend": {
     "layout": "packages/web/src/ 下 13 个顶层目录：main.tsx（唯一 createRoot，零业务代码）/ styles（tokens.css 是全仓唯一允许颜色字面量的文件）/ app（骨架与唯一路由表）/ pages（7 个装配件，只拼栏位不取数）/ features（容器层）/ components（展示层）/ ui（shadcn 生成物与二封）/ hooks（纯 UI 行为）/ store（zustand 四个 slice）/ api（唯一 fetch 出口）/ shell（壳桥接两个文件）/ i18n（中文字符串唯一来源）/ lib（纯函数，每个文件配同名 .test.ts）。**禁止新增第二个 src 顶层目录；禁止 src/utils、src/helpers、src/common、src/types 这四个名字；禁止任何 index.ts**",
@@ -70,10 +70,10 @@
     "tx": "**只有 service 层能开事务**，入口唯一为注入的 unitOfWork.run(fn)；repo 方法一律不自开事务、必须能在事务内外同样执行。**禁止嵌套**：UnitOfWork 持 depth 计数，depth>0 时直接抛 E_TX_NESTED，**不许靠 savepoint 隐式吞掉**。**事务回调内禁止出现 await 与任何异步/阻塞副作用**（better-sqlite3 是同步 API，回调里跨事件循环就会长时间独占 WAL 写锁）——禁止在事务内 spawn 子进程、读写日志文件、发 SSE、调 adapters 或 workspace；**硬顺序恒为「先在事务里改库、事务返回后再做副作用」**。事件发布同理：service 在事务内把待发事件收集进本地数组，run() 返回后才 bus.publish，**bus.publish 出现在事务回调内由架构测试判失败**。一个 HTTP 请求最多开一次事务；组合多个 service 时**禁止「A 调 B、各自开事务」**，跨 service 的复合写必须新建上层 service 方法把双方 repo 调用聚进同一个 unitOfWork.run；事务上下文不许向上传给 route 也不许向下传给 proc/adapters/logstore。**jobs 与 route 走完全相同的规则，没有「后台任务可以放松」的例外**",
     "utils": "**不存在 utils/、helpers/、common/、misc/、lib/ 目录**，出现即打回（架构测试断言目录名黑名单）。有业务语义的纯函数一律进 src/domain/，跨包共用的进 packages/shared/src/，只被单个文件用到的私有函数就地放在该文件底部**不许升格为共享工具**。「不算工具」的口径写死四条：碰 fs/net/db/子进程的不算；**读 Date.now()/Math.random()/crypto.randomUUID() 的不算**（时钟与 id 必须从 DI 注入 clock.now()/ids.newId()，否则 domain 无法确定性测试）；读 process.env/process.platform 的不算；**把值格式化成给人看的中文字符串的不算**（那是 web 层的事，daemon 不产出用户文案）。domain/ 下每个文件必须能被 Vitest 直接 import 且**顶层零副作用**，禁止顶层读文件、建连接、注册定时器",
     "errors": "只有一个基类 AppError extends Error，字段固定 {code, message, details?, cause?, retryable}，**不带 HTTP 状态码字段**；**禁止三层继承**，第一版只允许两个直接子类：AgentProcessError（带 pid/exitCode/signal/stderrTail/launchSpecId）与 DocsSourceError（带 docsPath/offset）。每个基础设施模块必须在自己的边界把原生错误包成 AppError 并挂 cause（ENOENT→E_AGENT_EXEC_NOT_FOUND、SQLITE_BUSY→E_DB_BUSY、AJV 失败→E_VALIDATION）；**禁止让原生错误穿透到 service 之上、禁止 catch {} 空吞、禁止用 err.message 做字符串匹配来分支**（一律判 err.code）；除 assertNever 外**全仓禁止 throw new Error('...')**。**只有 90-error-handler 允许把 code 转成 HTTP 状态码**，映射表是 errors/httpStatus.ts 里的常量表，未登记的 code 与非 AppError 一律 500 + E_INTERNAL。非 AppError 的原始 message 与 stack **只写服务端日志不回客户端**（AGSCHED_DEV=1 时才附 stack）。**daemon 侧 message 一律英文开发者短句，禁止在 daemon 里拼中文用户文案**",
-    "config": "分三类读取次数各不相同。①**进程配置**（端口/绑定/数据目录/日志级别/dev）来自环境变量 + %APPDATA%\\agent-scheduler\\daemon.json，**启动时读一次**，Object.freeze 后经 DI 注入，**不支持热更**改了必须重启。②**agent 注册表** agents.json **支持热加载**，实现固定为 fs.watch + 300ms 防抖 + **内容指纹去重**（编辑器保存会触发多次写事件，不去重会重载多次）；**校验失败保留上一版并发警告事件，绝不因此退出 daemon**；未知字段忽略并 warn、缺字段回落 defaults；**内置默认与用户覆盖分开存两份**以便升级后算差。③**派发快照**：每次派发把注册表条目逐字段深拷贝进 runs.launch_spec_json，**在途运行只读该快照，运行中的代码禁止再读注册表当前值**。adapterKind 热切换**必须校验该 agent 无在途运行**否则拒绝并保留旧值。禁令：除 config/env.ts 外禁止出现 process.env（proc/env.ts 是唯一白名单）；除 config/registry.ts 外禁止读 agents.json；**请求处理路径里禁止出现同步文件读取来取配置**",
+    "config": "分三类读取次数各不相同。①**进程配置**（端口/绑定/数据目录/日志级别/dev）来自环境变量 + 当前平台用户应用数据目录下的 daemon.json，**启动时读一次**，Object.freeze 后经 DI 注入，**不支持热更**改了必须重启。②**agent 注册表** agents.json **支持热加载**，实现固定为 fs.watch + 300ms 防抖 + **内容指纹去重**（编辑器保存会触发多次写事件，不去重会重载多次）；**校验失败保留上一版并发警告事件，绝不因此退出 daemon**；未知字段忽略并 warn、缺字段回落 defaults；**内置默认与用户覆盖分开存两份**以便升级后算差。③**派发快照**：每次派发把注册表条目逐字段深拷贝进 runs.launch_spec_json，**在途运行只读该快照，运行中的代码禁止再读注册表当前值**。adapterKind 热切换**必须校验该 agent 无在途运行**否则拒绝并保留旧值。禁令：除 config/env.ts 外禁止出现 process.env（proc/env.ts 是唯一白名单）；除 config/registry.ts 外禁止读 agents.json；**请求处理路径里禁止出现同步文件读取来取配置**",
     "di": "手写 composition root，boot/container.ts 导出 createContainer(config)，构造顺序写死：platform → clock/ids → db → repos → logstore → events → proc → adapters → workspace → services → jobs。**不引入任何 DI 框架/装饰器/反射**；依赖一律通过工厂函数参数传递，统一写法 createXxxService(deps) 返回对象字面量，**除 AppError 及其两个子类外不写 class**。**禁止模块级可变单例**（export const db = openDatabase(...) 一律打回），模块顶层只允许导出纯常量与纯函数——Vitest 并行用例会互相污染，且单实例语义由**进程锁**保证而不是靠模块变量。全进程仅两个允许的单例：boot/lock.ts 的单实例锁与 Fastify 自带 logger。容器通过 fastify.decorate('container', ...) 挂一次，route handler 从 request.server.container.services.xxx 取，**禁止 route 从容器里取 repo/db/proc/adapters**。**凡是与外部世界交互的东西（clock、ids、fs、spawn、fetch）都必须在容器里有可替换实现**，集成测试通过替换 proc.spawnManaged 为假进程来跑，**禁止在测试里 mock 模块路径**",
     "jobs": "src/jobs/ 一个工作一个文件，统一形状 createXxxJob(deps) => {name,start(),stop()}，全部由 boot 在 listen() 之后启动、优雅退出时先于 HTTP 关闭。**只有五个**：reconcile-runs（启动期一次，按 runs.pid 对账，进程不存在标「异常终止」、存在则标「失联」，**绝不推定成功**）、log-index-repair（启动期一次）、stall-detector（30s tick，**只发弱事件不改运行状态不杀进程**）、scheduler-tick（事件触发 + 5s 兜底，**全局一把内存互斥量禁止并发 tick 禁止重入**否则会把同一任务派两次）、disk-watch（5min，超阈值置「停止新派发」标志）。**收流不是 job**——子进程输出由 proc 的流水线事件驱动，只有「没人触发也必须发生」的事才配做 job，**任何人想为收流加轮询 tick 一律打回**。隔离规则：job 禁止 import http、禁止持有 request/reply、只调 service 且**必须与 route 复用同一批 service 方法**（jobs 里出现第二套业务逻辑一律打回），写库时 actorDeviceId 恒为 null 表示系统发起。每个 tick 自己保证不重入，内部必须 try/catch 把异常转成事件，**禁止让异常冒泡到 unhandledRejection**；stop() 必须 clearInterval 并等待当前 tick 结束",
-    "proc": "全仓唯一允许 import child_process 的目录，唯一入口 spawnManaged(spec)，恒 **shell:false + 参数数组**、windowsHide:true、windowsVerbatimArguments:false，**任何地方拼 shell 字符串一律打回**；adapters 的 agent 调用、workspace 的 git 调用、机械检查命令、终止用的 taskkill **全部走这一个函数**。file 必须是注册表解析出的**绝对路径**，以 .cmd/.bat 结尾的**不直接 spawn**改为 spawn comSpec 并以 ['/d','/s','/c', file, ...args] 传参（**仍是数组不拼串**），quoteForCmd() 必须有覆盖空格/引号/;/&/^ 的单元测试。进程树终止一律走 platform.killTree（先 taskkill /PID /T 等 3 秒、仍存活再加 /F，两次都写事件），**禁止用 child.kill() 或 process.kill(pid) 作为终止手段**（只杀父会留下占着文件锁的孤儿 node/git/npm）。流读取**禁止 child.stdout.setEncoding()**（多字节 UTF-8 会被 chunk 边界切碎）也**禁止 readline**（U+2028/U+2029 在 JSON 字符串里合法但会被断行，文件顶部必须写死这条注释并配一条含 U+2028 的回归用例），统一由 proc/line-reader.ts 在 Buffer 上只按 0x0A 切、剥尾部 \\r、再 UTF-8 解码，单行上限 1 MiB 超限截断并标记后继续。环境由 proc/env.ts 单点构造，强制 UTF-8、NO_COLOR=1，按 envDenylist 清掉 ANTHROPIC_MODEL 等模型覆盖变量，并写死 git 凭据禁用（GIT_TERMINAL_PROMPT=0、GIT_ASKPASS=、GCM_INTERACTIVE=never、GIT_CONFIG_NOSYSTEM=1、GIT_CONFIG_GLOBAL=空文件）；**不做 chcp**（管道输出与控制台代码页无关）。**超时分三个独立计时器**：startupTimeoutMs（spawn 到第一条可解析事件，native 60s / generic-acp 180s，超时杀树）、idleTimeoutMs（900s，**只喂给 stall-detector 打弱标记，proc 层绝不因它杀进程**）、hardWallClockMs（默认关闭）；**唯一允许「到点必杀」的是机械检查命令的 10 分钟超时，杀后不重试**。背压：每 run 一个 AppendQueue，待写超 8 MiB 时 pause()、回落 4 MiB 再 resume()，**禁止把 stdout 读进内存字符串、禁止 for await 累加全量**；向 stdin 注入必须检查 write() 返回值并在 drain 后续写。僵尸回收：exit/error/close 三个事件走同一个幂等 finalize(runId)。**daemon 优雅退出时不杀 agent 子进程**，但必须承认：除 codex app-server / grok leader socket 这类外部常驻通道外，**子进程管道无法跨 daemon 重启重挂**，重启后只能对账不能重挂，**禁止任何「重新 attach stdout」的假实现**",
+    "proc": "全仓唯一允许 import child_process 的目录，唯一入口 spawnManaged(spec)，恒 **shell:false + 参数数组**；Windows 才设置 windowsHide:true 与 windowsVerbatimArguments:false，**任何地方拼 shell 字符串一律打回**。file 必须由 platform.resolveExecutable() 按当前宿主解析为绝对路径：Windows .cmd/.bat 只经 ComSpec 参数数组；macOS/Linux realpath 后校验普通文件与 X_OK 并直接 spawn，托管运行建立独立进程组；外来平台路径不转换。GUI/自启解析顺序固定为注册表绝对路径→平台级候选→要求选择文件，**禁止执行用户 shell 启动文件**。进程树终止一律走 platform.killTree：Windows taskkill /T 后按需 /F；macOS/Linux 对进程组 SIGTERM 后按需 SIGKILL，两阶段都写事件，业务层禁止直接杀父。流读取**禁止 child.stdout.setEncoding()**也**禁止 readline**，统一由 proc/line-reader.ts 在 Buffer 上只按 0x0A 切、剥尾部 \\r、再 UTF-8 解码，单行上限 1 MiB。环境由 proc/env.ts 单点构造，强制 UTF-8、NO_COLOR=1 并禁用 git 凭据。超时分 startupTimeoutMs、只作弱标记的 idleTimeoutMs 与默认关闭的 hardWallClockMs；机械检查 10 分钟硬超时。背压按 8 MiB/4 MiB 水位；向 stdin 写入处理 drain；exit/error/close 走同一幂等 finalize(runId)。daemon 优雅退出时不杀 agent 子进程，重启后只能对账不能伪造重挂",
     "events": "内部信封形状写死 {id, ts, runId, taskId, scope, kind, seq, actorDeviceId, payload}（ts 为带毫秒 ISO8601 且来自注入的 clock，seq 是该 run 内从 0 起的连续序号用于文件定位，id 是 daemon 全局单调号用于 SSE Last-Event-ID），定义放 packages/shared/src/events.ts 供两端共用。EventKind 分两组靠命名形状区分：**ACP 组严格沿用 session/update 原文小写下划线**（agent_message_chunk、agent_thought_chunk、tool_call、tool_call_update、plan），**禁止为了统一风格改成 camelCase**；**本产品组一律 <scope>.<过去式动词>**（run.started、run.exited、run.stalled_suspected、run.permission_blocked、run.remote_push_detected、run.message_delivered、run.message_undelivered、task.gate_waiting、task.gate_passed、task.review_verdict、task.landed、batch.advanced、agent.availability_changed、system.disk_warning、system.docs_changed）。**厂商私有字段一律塞 payload.vendor 原样保留，禁止为某一家新增顶层 kind**。id 单调递增用**水位预分配**（SQLite event_seq 表，内存计数器每用满 1000 写一次新水位，启动时从水位继续），**允许跳号、禁止回退**（客户端按 id 去重），**禁止任何其他地方自造事件 id、禁止用纯内存计数器**（daemon 重启会回退直接破坏重放语义）。环形缓冲全局一个、容量恒 5000（就是重放窗口），存完整信封但**单条 payload 超 32 KiB 时入缓冲前替换为引用**。**SSE 推送与断线重放只读环形缓冲；任何按游标回读历史只走 logstore 的字节偏移分段读**；Last-Event-ID 小于缓冲最小 id 时返回 409 E_REPLAY_WINDOW_EXPIRED 让客户端改走 REST 全量快照，**禁止为了回读去查 events 表拿 payload**（表里根本没有正文）。**各家原生事件的映射规则只允许存在于 src/adapters/<agent>/map-events.ts**，签名固定为纯函数 (vendorLine) => EventEnvelopeInput[]（不碰 fs/db/clock），service/jobs/http/web 中出现任何厂商事件字符串一律架构测试判失败。无法解析的行归入 raw.log 并继续**绝不中断流**；能解析但类型未知的按丢弃并对 runs.unmapped_event_count 计数，**绝不崩溃也绝不臆造 kind**"
    }
   },
@@ -91,7 +91,8 @@
     "packages/daemon/migrations/"
    ],
    "M1-T3": [
-    "packages/daemon/src/platform/"
+    "packages/daemon/src/platform/",
+    "packages/shared/src/shell/daemon-launch-spec.ts"
    ],
    "M1-T4": [
     "packages/daemon/src/logstore/"
@@ -110,6 +111,9 @@
    "M1-T8": [
     "packages/daemon/src/proc/",
     "packages/daemon/src/logstore/"
+   ],
+   "M1-T9": [
+    "packages/daemon/src/platform/"
    ],
    "M2-T1": [
     "packages/daemon/src/http/plugins/",
@@ -332,6 +336,12 @@
     "packages/web/src/components/batch-summary-bar.tsx",
     "packages/web/src/pages/landing-page.tsx"
    ],
+   "M9-T17": [
+    "packages/web/src/components/stream-head-meta.tsx"
+   ],
+   "M9-T18": [
+    "packages/web/src/components/assign-panel.tsx"
+   ],
    "M10-T1": [
     "packages/shared/src/shell/bridge-contract.ts",
     "packages/web/src/shell/"
@@ -346,6 +356,12 @@
     "packages/shell-desktop/",
     "packages/shell-mobile/",
     "packages/web/vite.config.ts"
+   ],
+   "M10-T5": [
+    ".github/workflows/",
+    "packages/shell-desktop/",
+    "packages/shell-desktop/launchers/",
+    "docs/platform-support.md"
    ]
   },
   "taskSkills": {
@@ -379,32 +395,32 @@
   },
   {
    "type": "modulemap",
-   "note": "十个模块里 **M1 是唯一的叶子，其余九个全部依赖它**——所以第一批只有 M1-T1 一个任务能立刻开工，这不是排布得不好，是 M1 的 spawn 基座本来就是四个 agent 适配器的共同地基。要注意的是 **M8 依赖其余六个**，那是编排者的正常形态不是环；而 **M9 只依赖 M2 的契约**，这是把「客户端界面」与「壳」拆成两个模块的收益——如果哪天有第二个人，这里是唯一自然的切口。"
+   "note": "十个模块里 **M1 是唯一的叶子，其余九个全部依赖它**——所以第一批只有 M1-T1 一个任务能立刻开工；三平台路径、进程树、自启与 spawn 基座都在 M1 收口，是五个 agent 适配器的共同地基。**M8 依赖其余六个**是编排者的正常形态不是环；**M9 只依赖 M2 的契约**，因此客户端界面可与平台壳并行推进。"
   },
   {
    "type": "taskdag",
-   "note": "73 个任务、115.5 人天。关键路径穿过 **M1-T7（spawn 基座）→ M4 的四个适配器 → M6 的运行监管**，M4 一家就占 12 个任务、20 人天、47 条边界，是最大的单一风险块。建议先把 codex 与 claude 打通再做 pi 与 grok——这两家形态差异最大（daemon/thread 模型 vs stdin/stdout 双向流），接口被它们定型后剩下两家是填空。"
+   "note": "77 个任务、121.5 人天。关键路径穿过 **M1-T3/T9/T7（三平台路径、进程树与 spawn）→ M4 的五个适配器 → M6 的运行监管 → M10-T5 三平台发布门禁**。建议先用 fixture 在三平台打通路径与终止，再接 codex 与 claude 定型 agent 接口。"
   },
   {
    "type": "edgematrix",
-   "note": "240 条边界，覆盖率 100%，**没有空行**。这张表是这套文档最该被信任的部分，也是最该被检查的部分：每一条都是「什么条件下 → 期望什么行为」，写不出可执行行为的说明那个决策还没想清楚。特别看 **E-23**（退出码 0 不等于活干完了）——整个状态机与两级审查都建在这一条上；以及 **E-08**（代码里不许有局域网免鉴权分支）——它约束的是一个能起任意进程的服务。"
+   "note": "271 条边界，目标覆盖率 100%。特别看 **E-23**（退出码 0 不等于活干完了）、**E-08**（代码里不许有局域网免鉴权分支）与 **E-257～E-271**（三平台完整性、原生路径/进程/自启、真实 runner、GUI PATH 与绝对数据目录）。"
   },
   {
    "type": "evolution",
-   "note": "47 条决策里 **15 条把我的问题驳回了**（红色），那意味着我最初的理解是错的、采纳的是代理用户的反提案——**这 15 行最该你亲自复核**。几个有代表性的：PWA 被判定在局域网 http 下技术上不成立（拿不到 secure context）；原生 EventSource 不能带 Authorization 头，与「鉴权无旁路」直接冲突；手机端其实早就在触发派发（派发前闸门的审批键就在拇指区）。另有两条 medium 置信度：闸门的分界与审查者的选择。八个版本同日产生，因为**中途你补充了需求**、且**调研结论改写了一条既有决策的理由**。"
+   "note": "57 条决策完整保留了演进历史。重点复核 **53～57**：三平台支持覆盖完整产品层，平台下限跟随 Node/Tauri 官方范围与实际 CI 资产，自启使用三套原生机制，子进程保持 shell:false + argv，发布由三平台 runner 与人工 GUI 清单共同放行。旧决策 21 的 Windows-only 范围没有删除，而是在 1.3 变更记录中明确被新需求取代。"
   },
   {
    "type": "risks",
-   "note": "标 ⚡ 的三条**已经发生，不是假设**：Rust 工具链本机未装（Tauri 桌面壳构建不出来，预案是换 Electron，因为壳内零业务逻辑所以切换只影响几十行）、Android 构建环境未确认（降级为浏览器直连，功能不缺）、视觉方向未经你目视确认（已把方向收敛到 token 层，使否决代价 ≤ 改一个文件）。另外 R-06 的 grok 同名冲突与 R-07 的 pi readline 陷阱都是调研查实的具体坑，不是泛泛的「可能有兼容问题」。"
+   "note": "R-01、R-02、R-03 已关闭；当前新增的关键风险是 **R-17：macOS/Linux 缺本地真机证据**。缓解不是口头承诺，而是 Windows/macOS/Ubuntu CI + 三平台人工 GUI 记录 + OS/架构资产清单。Ubuntu 之外只标尽力兼容，未签名未公证的 macOS 件只作构建验证；额外付费 runner 仍需另行授权。"
   },
   {
    "type": "milestones",
-   "note": "六批，每批结束都有能演示的东西——单人 5–6 个月的项目，前四个月拿不出可见成果是致命的。**第三批是真正的验证点**：四个 agent 各派一个真任务并跑完，假子进程测不出参数拼错、模型名无效、登录态过期。若中途要收缩，砍的顺序写在 20 节末尾，**从后往前砍，且第一批到第四批一条都不能砍**。"
+   "note": "六批，每批结束都有能演示的东西。**第一批先证明三平台路径、进程树与自启契约，第三批再让五个 agent 各派一个真任务并跑完，第六批由三平台 CI 与人工 GUI 清单共同放行桌面版本**。假子进程和单平台构建都不能替代这些验证。"
   },
   {
    "type": "html",
    "title": "开工第一天做什么",
-   "html": "<ol><li><b>先装 Rust 工具链并跑通一个 Tauri v2 空壳构建</b>——这是 R-01，本机 <code>cargo --version</code> 已确认不存在。两天内跑不通就走预案换 Electron，不要拖到第六批才发现。</li><li>建仓库、装 <code>gh</code> 的 stack 扩展（<code>gh extension install github/gh-stack</code>），本机目前没装，而全部落地流程都建在它上面。</li><li>派 <b>M1-T1</b>（唯一无依赖的任务）：pnpm 五包骨架 + 启动自检 + 单实例锁。它同时把 <code>pnpm -w check</code> 这条唯一强制点立起来——后面 72 个任务的验收都靠它。</li><li>准备一份<b>真实的</b> <code>docs-data.js</code> 放在手边（就用这份文档自己产出的那个），M3 全模块的开工输入就是它。</li></ol><p><b>不要先做界面。</b> M9 是最大的模块（16 个任务、28 人天），但它依赖 M2 的契约；契约没定死就开工，返工的是 16 个任务。</p>"
+   "html": "<ol><li><b>派 M1-T1</b>：建立 pnpm 五包骨架、启动自检、单实例锁与 <code>pnpm -w check</code>。</li><li>紧接着实施 <b>M1-T3 与 M1-T9</b>，先用 fixture 锁死 Windows/macOS/Linux 的路径、可执行文件、进程树与原生自启契约；没有这层证据，不接真实 agent。</li><li>为三平台 CI 预留 runner 矩阵，但不在没有授权时购买分钟数或启用付费 runner。</li><li>准备一份真实的 <code>docs-data.js</code> 作为 M3 输入。</li></ol><p>本机 Rust、Android 与 <code>gh stack</code> 环境已经就绪。先做运行底座，再做 agent 适配与界面。</p>"
   },
   {
    "type": "handoff",
