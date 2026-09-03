@@ -985,8 +985,17 @@ document.addEventListener("click", function(ev){
   var cp = ev.target.closest(".cp");
   if(cp && cp.dataset.kind){
     if(cp.disabled) { ev.stopPropagation(); return; }
-    var txt = promptFor(cp.dataset.kind, cp.dataset.task);
-    if(txt) copyText(txt, cp);
+    var kind = cp.dataset.kind, taskId = cp.dataset.task;
+    var row = cp.closest(".htask");
+    var txt = promptFor(kind, taskId);
+    if(txt) copyText(txt, cp, function(){
+      /* 交接台的主操作就是派出实施任务。复制成功后立刻记为进行中，
+         否则后续依赖永远看不到进度；卡片里的普通复制不改变派活状态。 */
+      if(kind === "impl" && row && stOf(taskId) === "todo"){
+        setSt(taskId, "doing");
+        refreshHand();
+      }
+    });
     ev.stopPropagation(); return;
   }
   if(ev.target.closest('[data-act="gohand"]')){
@@ -1910,7 +1919,7 @@ function buildKickoff(){
 
 /* file:// 下 clipboard API 在部分浏览器不可用，必须留 execCommand 这条退路，
    否则双击打开的 HTML 上按钮全是死的 */
-function copyText(txt, btn){
+function copyText(txt, btn, onCopied){
   function flash(ok){
     if(!btn.dataset.label) btn.dataset.label = btn.textContent;
     btn.textContent = ok ? "已复制" : "复制失败";
@@ -1922,6 +1931,10 @@ function copyText(txt, btn){
       btn.classList.remove("done", "err");
     }, 1600);
   }
+  function finish(ok){
+    flash(ok);
+    if(ok && onCopied) onCopied();
+  }
   function fallback(){
     var ta = document.createElement("textarea");
     ta.value = txt; ta.setAttribute("readonly", "");
@@ -1931,10 +1944,10 @@ function copyText(txt, btn){
     var ok = false;
     try { ok = document.execCommand("copy"); } catch(e) { ok = false; }
     document.body.removeChild(ta);
-    flash(ok);
+    finish(ok);
   }
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(function(){ flash(true); }, fallback);
+    navigator.clipboard.writeText(txt).then(function(){ finish(true); }, fallback);
   } else fallback();
 }
 
@@ -2418,7 +2431,8 @@ function renderHandoff(){
   }
   h += '<section class="blk"><h2>按批次派活<span class="k">HANDOFF</span></h2>' +
     '<p class="note">批次按依赖层级自动算出，同一批内互不依赖。' +
-    "点状态标签推进：待派 → 进行中 → 已落地；每推一格，上面的窗口调度和下面的可派集合一起重算。</p>" +
+    "点「实施」复制成功后自动记为进行中；审查通过并完成落地后，点「进行中」标为「已落地」。" +
+    "每次状态变化，上面的窗口调度和下面的可派集合都会重算。</p>" +
     C.handbatch() + "</section></div>";
   return h;
 }
@@ -2430,7 +2444,7 @@ C.handbatch = function(){
     : "想让它连文件冲突也一起防，在 presentation.json 里补 handoff.taskPaths";
   return '<div class="hand" id="handbox">' + handBody() + "</div>" +
     '<div class="legend"><span>批次按依赖层级自动算出，同一批内互不依赖</span>' +
-    "<span>点状态标签推进：待派 → 进行中 → 已落地；顶部会重算此刻能并发派哪几个</span>" +
+    "<span>点「实施」会自动记为进行中；审查通过并落地后点状态标签，后续批次才会解锁</span>" +
     "<span>" + tip + "</span>" +
     "<span>进度存在本机浏览器里，换机器要重新标</span></div>";
 };
