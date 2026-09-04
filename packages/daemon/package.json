@@ -6,5 +6,12 @@
 	"scripts": {
 		"dev": "node bootstrap.mjs",
 		"start": "node bootstrap.mjs"
+	},
+	"dependencies": {
+		"@agent-scheduler/shared": "workspace:*",
+		"better-sqlite3": "13.0.3"
+	},
+	"devDependencies": {
+		"@types/better-sqlite3": "9.6.0"
 	}
 }
