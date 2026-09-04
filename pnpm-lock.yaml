@@ -7,6 +7,19 @@ settings:
 importers:
 
   .:
+    optionalDependencies:
+      node20-linux-x64:
+        specifier: npm:node-linux-x64@20.19.5
+        version: node-linux-x64@20.19.5
+      node20-win-x64:
+        specifier: npm:node-win-x64@20.19.5
+        version: node-win-x64@20.19.5
+      node22-linux-x64:
+        specifier: npm:node-linux-x64@22.17.0
+        version: node-linux-x64@22.17.0
+      node22-win-x64:
+        specifier: npm:node-win-x64@22.17.0
+        version: node-win-x64@22.17.0
     devDependencies:
       '@biomejs/biome':
         specifier: ^1.9.4
@@ -456,6 +469,30 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
+  node-linux-x64@20.19.5:
+    resolution: {integrity: sha512-xuNO04Y9YvjAKVFwOP15sC4AY0dfdmrlxiQOxuiW+wjjHUx9XxO6jEvb57PmeQMm6wMz6nls7t2joeDeb3MHgQ==}
+    cpu: x64
+    os: linux
+    hasBin: true
+
+  node-linux-x64@22.17.0:
+    resolution: {integrity: sha512-DtgLeuvp/shyQ3nuKombBSZR+DkAxe3+1mn6HpYAOsBFKuUp0paKgwJRy5bbMUCNONJO3XTlz8FIQA/Yjnu2uw==}
+    cpu: x64
+    os: linux
+    hasBin: true
+
+  node-win-x64@20.19.5:
+    resolution: {integrity: sha512-i3DZ8tHNe9VEsr6uV9r/c5pLAlLA15Ermh9zMIj9fyeDrx76uabeiN+yGNqUa2gmp7XszmmYKa4MF7swHUchnw==}
+    cpu: x64
+    os: win32
+    hasBin: true
+
+  node-win-x64@22.17.0:
+    resolution: {integrity: sha512-aUNP0XzMd1pC0t5SvgaxpxRmecT6583nInTDI82Zu8ujc0cpKvDR/VPCRn/Qy0ve9+MTofUFmxhCS4Zz2FhfTw==}
+    cpu: x64
+    os: win32
+    hasBin: true
+
   pathe@1.1.2:
     resolution: {integrity: sha512-whLdWMYL2TwI08hn8/ZqAbrVemu0LNaNNJZX73O6qaIdCTfXutsLhMkjdENX0qhsQ9uIimo4/aQOmXkoon2nDQ==}
 
@@ -878,6 +915,18 @@ snapshots:
   ms@2.1.3: {}
 
   nanoid@3.3.18: {}
+
+  node-linux-x64@20.19.5:
+    optional: true
+
+  node-linux-x64@22.17.0:
+    optional: true
+
+  node-win-x64@20.19.5:
+    optional: true
+
+  node-win-x64@22.17.0:
+    optional: true
 
   pathe@1.1.2: {}
 

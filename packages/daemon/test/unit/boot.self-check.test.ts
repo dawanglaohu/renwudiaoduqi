@@ -1,36 +1,91 @@
-import { describe, expect, it } from 'vitest';
-import { parsePort } from '../../src/boot/env-port.ts';
-import { readPidFromLock } from '../../src/boot/lock.ts';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { acquireInstanceLock, readPidFromLock } from '../../src/boot/lock.ts';
 import { checkNodeVersion } from '../../src/boot/node-check.ts';
+import { defaultDataDir, resolveLockFilePath } from '../../src/boot/paths.ts';
+import { parseProcessConfig } from '../../src/config/env.ts';
 
-describe('boot.self-check (M1-T1)', () => {
-	it('E-139: node < 22 fails with required version', () => {
-		const err = checkNodeVersion('v20.11.0');
-		expect(err).not.toBeNull();
-		expect(err?.message).toContain('>= 22');
-		expect(err?.message).toContain('v20.11.0');
+const temporaryDirectories: string[] = [];
+
+afterEach(() => {
+	for (const directory of temporaryDirectories.splice(0)) {
+		rmSync(directory, { force: true, recursive: true });
+	}
+});
+
+describe('boot self-check', () => {
+	it('E-139 rejects Node 20 with the required version', () => {
+		expect(checkNodeVersion('v20.19.5')).toEqual({
+			ok: false,
+			currentVersion: 'v20.19.5',
+			requiredMajor: 22,
+			message:
+				'agent-scheduler daemon requires Node.js >= 22.0.0, current version is v20.19.5. Upgrade Node.js and start again.',
+		});
 	});
 
-	it('E-139: node 22 passes', () => {
-		expect(checkNodeVersion('v22.11.0')).toBeNull();
+	it('E-139 accepts Node 22', () => {
+		expect(checkNodeVersion('v22.17.0')).toEqual({ ok: true });
 	});
 
-	it('AGSCHED_PORT default falls back to 7817', () => {
-		expect(parsePort(undefined)).toBe(7817);
-		expect(parsePort('')).toBe(7817);
+	it('uses the default port only when AGSCHED_PORT is absent or empty', () => {
+		expect(parseProcessConfig({ port: undefined })).toEqual({
+			ok: true,
+			config: { port: 7817 },
+		});
+		expect(parseProcessConfig({ port: '' })).toEqual({
+			ok: true,
+			config: { port: 7817 },
+		});
 	});
 
-	it('AGSCHED_PORT=abc is invalid and rejected', () => {
-		expect(() => parsePort('abc')).toThrow(/AGSCHED_PORT/);
+	it.each(['abc', '0', '70000'])('rejects AGSCHED_PORT=%s', (port) => {
+		expect(parseProcessConfig({ port })).toEqual({
+			ok: false,
+			variable: 'AGSCHED_PORT',
+			expected: 'an integer port in 1..65535',
+			actual: port,
+		});
 	});
 
-	it('AGSCHED_PORT=70000 is out of range', () => {
-		expect(() => parsePort('70000')).toThrow(/AGSCHED_PORT/);
+	it('resolves data paths only from injected host inputs', () => {
+		const root = makeTemporaryDirectory();
+		expect(defaultDataDir({ appDataDir: root, homeDir: 'unused' })).toBe(
+			join(root, 'agent-scheduler'),
+		);
+		expect(defaultDataDir({ appDataDir: undefined, homeDir: root })).toBe(
+			join(root, '.agent-scheduler'),
+		);
+		expect(resolveLockFilePath({ appDataDir: root, homeDir: 'unused' })).toBe(
+			join(root, 'agent-scheduler', 'daemon.lock'),
+		);
 	});
 
-	it('E-03: lock pid is read back from the lock file', () => {
-		// 不真正取锁，只验证读 pid 的容错路径走通则不留锁。
-		const p = readPidFromLock('nonexistent.lock');
-		expect(p).toBeNull();
+	it('E-03 keeps the first pid visible and permits reacquisition after release', () => {
+		const lockFilePath = join(makeTemporaryDirectory(), 'daemon.lock');
+		const first = acquireInstanceLock(lockFilePath, 4321);
+		expect(first.ok).toBe(true);
+		if (!first.ok) return;
+		expect(readPidFromLock(lockFilePath)).toBe(4321);
+
+		expect(acquireInstanceLock(lockFilePath, 9876)).toEqual({
+			ok: false,
+			lockFilePath,
+			existingPid: 4321,
+		});
+
+		first.lock.release();
+		first.lock.release();
+		const reacquired = acquireInstanceLock(lockFilePath, 9876);
+		expect(reacquired.ok).toBe(true);
+		if (reacquired.ok) reacquired.lock.release();
 	});
 });
+
+function makeTemporaryDirectory(): string {
+	const directory = mkdtempSync(join(tmpdir(), 'agent-scheduler-'));
+	temporaryDirectories.push(directory);
+	return directory;
+}

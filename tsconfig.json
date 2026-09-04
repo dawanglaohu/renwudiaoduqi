@@ -11,7 +11,15 @@
 		"skipLibCheck": true,
 		"allowImportingTsExtensions": true,
 		"noEmit": true,
+		"composite": true,
 		"types": ["node"]
 	},
-	"include": ["packages/*/src", "packages/*/test", "vitest.config.ts"]
+	"files": [],
+	"references": [
+		{ "path": "./packages/daemon" },
+		{ "path": "./packages/shared" },
+		{ "path": "./packages/web" },
+		{ "path": "./packages/shell-desktop" },
+		{ "path": "./packages/shell-mobile" }
+	]
 }
