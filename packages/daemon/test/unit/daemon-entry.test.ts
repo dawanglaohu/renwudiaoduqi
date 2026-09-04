@@ -1,5 +1,5 @@
 import { type ChildProcessWithoutNullStreams, spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,6 +61,20 @@ describe('daemon entry', () => {
 		expect(secondResult.stderr).toContain(`lock file: ${lockFilePath}`);
 		expect(first.exitCode).toBeNull();
 	}, 120_000);
+
+	it('exits non-zero when startup infrastructure fails', () => {
+		const temporaryRoot = makeTemporaryDirectory();
+		const invalidAppData = join(temporaryRoot, 'not-a-directory');
+		writeFileSync(invalidAppData, 'occupied');
+		const result = spawnSync(nodeExecutable(22), [bootstrapPath], {
+			cwd: daemonRoot,
+			encoding: 'utf8',
+			env: { ...process.env, APPDATA: invalidAppData },
+		});
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain('[startupFailure]');
+	});
 });
 
 function startNode22(environment: NodeJS.ProcessEnv): ChildProcessWithoutNullStreams {
@@ -130,7 +144,12 @@ function removeRunningChild(child: ChildProcessWithoutNullStreams): void {
 }
 
 function nodeExecutable(major: 20 | 22): string {
-	const platform = process.platform === 'win32' ? 'win-x64' : 'linux-x64';
+	const platform =
+		process.platform === 'win32'
+			? 'win-x64'
+			: process.platform === 'darwin'
+				? 'darwin-x64'
+				: 'linux-x64';
 	const executable = process.platform === 'win32' ? 'node.exe' : 'node';
 	return join(repositoryRoot, 'node_modules', `node${major}-${platform}`, 'bin', executable);
 }

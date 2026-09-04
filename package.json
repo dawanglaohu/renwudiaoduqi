@@ -18,8 +18,10 @@
 		"vitest": "^2.1.8"
 	},
 	"optionalDependencies": {
+		"node20-darwin-x64": "npm:node-darwin-x64@20.19.5",
 		"node20-linux-x64": "npm:node-linux-x64@20.19.5",
 		"node20-win-x64": "npm:node-win-x64@20.19.5",
+		"node22-darwin-x64": "npm:node-darwin-x64@22.17.0",
 		"node22-linux-x64": "npm:node-linux-x64@22.17.0",
 		"node22-win-x64": "npm:node-win-x64@22.17.0"
 	}

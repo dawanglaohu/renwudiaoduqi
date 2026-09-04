@@ -38,7 +38,7 @@ describe('source contracts', () => {
 	it('injects fatal process exit and marks the async entry as fire-and-forget', () => {
 		const mainSource = readFileSync(join(daemonRoot, 'src/main.ts'), 'utf8');
 		expect(mainSource).toContain('fatalExit: () => process.exit(1)');
-		expect(mainSource).toMatch(/\nvoid main\(\);\s*$/);
+		expect(mainSource).toMatch(/\nvoid main\(\)\.catch\(handleStartupFailure\);\s*$/);
 	});
 
 	it('marks every unhandled Promise call statement with void', () => {

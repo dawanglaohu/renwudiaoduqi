@@ -26,4 +26,10 @@ export async function main(): Promise<never> {
 	return container.stayResident(result.lock);
 }
 
-void main();
+function handleStartupFailure(error: unknown): never {
+	const summary = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+	process.stderr.write(`[startupFailure] ${summary}\n`);
+	process.exit(1);
+}
+
+void main().catch(handleStartupFailure);
