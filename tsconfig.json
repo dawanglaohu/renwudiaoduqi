@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"lib": ["ES2022"],
+		"strict": true,
+		"exactOptionalPropertyTypes": false,
+		"noUncheckedIndexedAccess": true,
+		"forceConsistentCasingInFileNames": true,
+		"skipLibCheck": true,
+		"allowImportingTsExtensions": true,
+		"noEmit": true,
+		"composite": true,
+		"types": ["node"]
+	},
+	"files": [],
+	"references": [
+		{ "path": "./packages/daemon" },
+		{ "path": "./packages/shared" },
+		{ "path": "./packages/web" },
+		{ "path": "./packages/shell-desktop" },
+		{ "path": "./packages/shell-mobile" }
+	]
+}
