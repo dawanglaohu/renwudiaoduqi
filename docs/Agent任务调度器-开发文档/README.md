@@ -48,24 +48,26 @@ index.html      阅读器（脚本生成，不要手改）
 docs-data.js    阅读器的数据（脚本生成，不要手改）
 _MOC.md         知识库总索引（脚本生成，不要手改）
 图谱/           模块 / 任务 / 边界的原子笔记（脚本生成；只有「实施沉淀」等保护块可写）
-_run/           台账与脚本：原始需求、决策、边界、调研记录、presentation.json
+_run/           维护工具、编排配置、台账、任务契约、审查证据和派发导出
 ```
 
-**`_run/` 是内部台账，不是交付物**——它不进阅读器，也不进 Obsidian 图谱。
+`_run/` 中的原始需求、决策、边界和调研台账不展示在阅读器或 Obsidian 图谱中。
+`progress.js`、`maintenance.js` 是离线阅读器的运行依赖；`dispatch.json` 是机器可读的提示词导出，
+分发阅读器时须保留这些文件与 `docs-data.js`。`progress.js` 按每个检出目录独立生成，不进入 Git；
+从 GitHub 新检出后，先在本文档目录运行 `python _run/maintain_docs.py . build`，再打开阅读器。
 
 ## 怎么开工
 
-1. 打开阅读器，左侧点 **「⚡ 任务交接台」**（或按 `H`）
-2. 页面顶部先告诉你**这个项目值得开几个窗口、每个窗口按什么顺序做哪些任务**，
-   每条泳道下有「复制这个窗口的任务序列」
-3. 下面是按批次的任务列表。**先点开工提示词**发给写代码的模型，然后从那里逐个派发——
-   页面会实时算出**此刻能并行开几个会话**，每派出一个，剩下的重新算
-4. 模型交回来后，复制**同一行的审查提示词**拿去审；`pass` 才落地
-5. 落地走 `gh stack`，**一个任务一层**
+1. 打开阅读器，左侧点 **「⚡ 任务交接台」**（或按 `H`）。页面按依赖和有效改动路径安排窗口，每条泳道可复制任务序列。
+2. 先查看任务的**结构检查**和**契约复核**状态。尚未实施任务的「审查」按钮始终提供文档契约审查提示词（包括契约已经复核的任务）；此时核对任务、前置、支持文件和验收阶段，不创建空代码 PR。
+3. 审查者先运行 `maintain_docs.py status --task` 取得当前版本，完成真实审查后用 `verify` 登记证据。只有版本一致、检查通过、前置已落地的待派任务才能复制「实施」提示词。升级工具不会自动把历史任务标成已复核。
+4. 任务进行中或审查中时，使用「续做」提示词处理差异；完整实施入口停用，避免重复初始化任务、worktree 或 PR。
+5. 交活后复制同一行的代码审查提示词。结论仍为 `pass / rework / doc-issue`：只把阻断缺陷发回，最多两轮；之后由审查者接手剩余局部修复并复验。已定需求下的文档修补记作 `DOC_PATCH`，沿原任务继续；缺少决策或契约无法落实时才用 `doc-issue`。
+6. 回填任务笔记的代码位置与实施沉淀，完成必要检查后由审查者落地。只有一个开放 PR 时按普通 PR 合并；存在实际 GitHub 栈时走 `gh stack merge`。确认 PR 为 `MERGED` 后记录落地，进入合并队列不算完成。
 
-第一批能立刻并行开工的任务：**M1-T1 一个**（它是唯一无依赖的任务，
-其余九个模块全部依赖 M1）。这不是排布得不好——是 M1 的 spawn 基座本来就是所有适配器的地基。
-从第二批起并行度才起来。
+任务的有效改动范围由 `presentation.json` 中的 `handoff.taskPaths` 与可选 `task-contracts.json` 中的 `supportPaths` 合并；实施、审查和并行排程使用同一份范围。契约哈希覆盖任务、边界、相关条款、前置和提示词编译器，旧提示词须先查版本。
+
+依赖图的第一批仍只有 **M1-T1**。当前 M1-T1、M4-T1 已有落地记录；阅读器按记录和契约复核状态计算后续可派任务，不因升级重置已完成记录。已落地代码若受后续契约变更影响，会单独标为待复验，本机手点「已落地」不能解除该标记。历史已落地任务使用专门的复验提示词：以主干中已合入的代码、任务回填和历史 PR 为依据，完成当前契约与必要代码验收后记录复验；不要求重新打开已经 MERGED 的 PR，无代码差异时不创建空 PR。
 
 ## 这份文档的几个特别之处
 
@@ -80,8 +82,28 @@ _run/           台账与脚本：原始需求、决策、边界、调研记录�
 
 ## 改了文档之后
 
-**文档是唯一事实源。** 改完必须按顺序重跑三个脚本，否则派出去的提示词还是旧的：
+文档章节和配置是事实源，阅读器、派发导出和知识库正文由工具生成。使用 unattended-run **1.1.0** 的维护入口；Python 3.9+ 和 Node.js 是生成依赖，阅读器本身仍可离线打开。
 
-```bash
-python _run/review.py . --json > _run/review.json && python _run/build_docs.py . && python _run/build_vault.py .
+以下命令均在本开发文档目录执行。首次安装工具或升级已有项目时运行：
+
+```text
+python _run/maintain_docs.py . build
+python _run/maintain_docs.py . status
 ```
+
+`build` 会运行结构与显式契约检查、编译提示词并同步阅读器和知识库。退出码 0 表示构建检查无阻断，1 表示草稿已生成但存在阻断，2 表示操作未完成；结构通过不等于任务契约已复核。`status` 在仍有待复核任务时返回 1，须按输出逐任务处理。
+
+审查中修正已有任务时，在编辑前保存基线，然后同步；沿原分支与 PR 继续：
+
+```text
+python _run/maintain_docs.py . begin --task M1-T2 --patch M1-T2-P1 --reason "修正已定契约中的路径遗漏"
+python _run/maintain_docs.py . sync --patch M1-T2-P1
+python _run/maintain_docs.py . status --task M1-T2
+python _run/maintain_docs.py . verify --task M1-T2 --evidence evidence.json --patch M1-T2-P1
+```
+
+有 PR 时在 `begin` 后补 `--pr` 和实际编号。按 `status` 输出的模板填写当前 `contractHash`、裁定和可定位的条款、代码或检查证据后，再执行 `verify`；空证据、过期哈希和 pending 不会通过。单纯复核现有契约可直接 `status → verify`，不必建立补丁。文档契约证据不能替代代码验收或 CI。
+
+`_run/patches/` 保存基线、源文档差异和续做提示词；`task-reviews.json` 保存契约证据，`build-manifest.json` 绑定输入与产物版本。中断后用同一补丁 ID 继续 `sync`，完成后刷新阅读器；不要手改生成正文或为一次局部修补重开需求、架构和任务拆分。
+
+`docs-data.js` 保留原有数据字段，新增 `schemaVersion`、`handoff` 和 `dispatch`；`dispatch[taskId]` 提供 `contractHash / implementation / review / resume`，`_run/dispatch.json` 的 `tasks[taskId]` 导出同一组字符串。消费方应比较任务契约哈希；只比较 `data.tasks` 不能识别范围、条款和提示词编译器的变化。

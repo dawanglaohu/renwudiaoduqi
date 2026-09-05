@@ -2,5 +2,8 @@
 	"name": "@agent-scheduler/shared",
 	"private": true,
 	"version": "0.0.0",
-	"type": "module"
+	"type": "module",
+	"exports": {
+		"./errors/codes": "./src/errors/codes.ts"
+	}
 }

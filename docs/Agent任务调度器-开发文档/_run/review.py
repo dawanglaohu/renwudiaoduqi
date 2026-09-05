@@ -20,6 +20,8 @@ import json
 import os
 import re
 import sys
+
+from handoff_contract import analyze, read_json, source_version
 from collections import defaultdict
 
 # ---------- 约定 ----------
@@ -561,6 +563,17 @@ def review(path):
     check_tasks(rep, smap.get(SEC_TASKS), extract_module_ids(smap), edges,
                 risk["body"] if risk else "")
     check_extras(rep, smap, root, multi)
+    if multi:
+        # 与生成器复用同一结构解析，最终路径和能力配置也属于审查输入。
+        try:
+            from build_docs import collect, extract
+            _, numbered = collect(root)
+            data = extract(numbered)
+            pres = read_json(os.path.join(root, "_run", "presentation.json"), {})
+            checked = analyze(root, data["tasks"], pres, data["edges"])
+            rep.items.extend(checked["issues"])
+        except (ValueError, TypeError, KeyError) as exc:
+            rep.block("H00", "任务契约配置无法读取：" + str(exc))
     return rep
 
 
@@ -578,7 +591,8 @@ def main():
 
     if as_json:
         print(json.dumps({"block": rep.count(BLOCK), "warn": rep.count(WARN),
-                          "info": rep.count(INFO), "items": rep.items},
+                          "info": rep.count(INFO), "items": rep.items,
+                          "sourceVersion": source_version(args[0]) if os.path.isdir(args[0]) else None},
                          ensure_ascii=False, indent=2))
         return 1 if rep.count(BLOCK) else 0
 
