@@ -32,7 +32,9 @@ describe('source contracts', () => {
 		const matches = sourceFiles()
 			.filter((file) => /extends\s+Error\b/.test(readFileSync(file, 'utf8')))
 			.map(repositoryPath);
-		expect(matches.filter((path) => path !== 'packages/daemon/src/errors/AppError.ts')).toEqual([]);
+		expect(matches.filter((path) => path !== 'packages/daemon/src/errors/app-error.ts')).toEqual(
+			[],
+		);
 	});
 
 	it('injects fatal process exit and marks the async entry as fire-and-forget', () => {

@@ -21,6 +21,20 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M1-T2": {
+    "contractHash": "b9e1e78991d6424eb9b2a1d81942290696e909d0a543b4de49dbe4bdaecab656",
+    "evidence": [
+      "AC1 四条 PRAGMA: open-database.ts:7-12 精确设 journal_mode=WAL/busy_timeout=5000/foreign_keys=ON/synchronous=NORMAL 且无其他 PRAGMA；database.test.ts:49-57 在真实 better-sqlite3(Windows 实战) 逐条查询验证 wal/5000/1/1。E-150: database.test.ts:210-245 锁竞争走 E_DB_BUSY 且不双写。",
+      "AC2 迁移按文件名升序: migrate.ts:51-60 过滤 ^\\d{4}_ 并按文件名字典序排序，逐文件在独立 immediate 事务执行并写 schema_migrations(migrate.ts:48-74)。",
+      "AC3 嵌套事务: unit-of-work.ts:11-16 depth>0 直接抛 E_TX_NESTED 不用 savepoint；database.test.ts:147-173 覆盖。",
+      "AC4 ABI: open-database.ts:25,50-59 在工厂内 createRequire 捕获 ERR_DLOPEN_FAILED/MODULE_NOT_FOUND，包成 AppError(E_INTERNAL)+details.remediation='pnpm rebuild' 且不泄原始栈；database.testly E-152 用例两部分覆盖。",
+      "边界 E-150(boot 启退是 M1-T10 范围)+E-152 均已落地；架构分层 06/08(db 为底层无反向 import、repo 独占 SQL、service 独占事务、由 DI 传 clock/fileSystem)成立。",
+      "范围外支撑文件 shared/src/errors/codes.ts、packages/daemon/src/errors/app-error.ts、daemon/package.json、test/* 已补并按本任务验收，pnpm -w check (biome+tsc+vitest) 33/33 全绿。"
+    ],
+    "reviewed": "2026-09-05T10:36:49.607849+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T1": {
     "contractHash": "33faf5154ca654608d628fdf13cbd951044ef96b888e0909bf1e54171938e124",
     "evidence": [
