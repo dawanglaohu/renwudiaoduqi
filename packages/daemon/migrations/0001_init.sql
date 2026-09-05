@@ -35,6 +35,9 @@ CREATE TABLE tasks (
 	accept_text TEXT,
 	edge_ids_json TEXT,
 	task_paths_json TEXT,
+	contract_hash TEXT NOT NULL,
+	is_contract_ready INTEGER NOT NULL DEFAULT 0 CHECK (is_contract_ready IN (0, 1)),
+	contract_reasons_json TEXT NOT NULL,
 	est_days REAL,
 	batch_id TEXT REFERENCES batches(id),
 	impl_prompt TEXT,
@@ -56,6 +59,8 @@ CREATE TABLE dispatch_snapshots (
 	accept_text TEXT,
 	impl_prompt TEXT,
 	review_prompt TEXT,
+	contract_hash TEXT NOT NULL,
+	task_paths_json TEXT NOT NULL,
 	launch_spec_json TEXT NOT NULL,
 	created_at TEXT NOT NULL
 );
