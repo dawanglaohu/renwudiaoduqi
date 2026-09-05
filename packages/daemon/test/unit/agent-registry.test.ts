@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import {
 	type AgentRegistryFileSystem,
 	type AgentRegistryTimers,
 	type AgentRegistryWarning,
 	createAgentRegistry,
 } from '../../src/config/registry.ts';
-import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 
 type WatchListener = (eventType: string, filename: string | Buffer | null) => void;
 
@@ -25,7 +25,7 @@ interface ManualTimers {
 	fire(): void;
 }
 
-describe('agent registry rework regressions', () => {
+describe('agent registry lifecycle', () => {
 	it('persists a complete baseline when defaults are absent or empty', async () => {
 		for (const initialContents of [
 			undefined,
@@ -42,12 +42,14 @@ describe('agent registry rework regressions', () => {
 			registry.stop();
 
 			const persisted = parsePersistedFile(memory.getContents());
-			expect(persisted.defaults.codex).toEqual(BUILT_IN_AGENT_DEFAULTS.codex);
-			expect(persisted.defaults.claude).toEqual(BUILT_IN_AGENT_DEFAULTS.claude);
-			expect(snapshot.storedDefaults.codex).toEqual(BUILT_IN_AGENT_DEFAULTS.codex);
+			expect(requiredEntry(persisted.defaults, 'codex')).toEqual(BUILT_IN_AGENT_DEFAULTS.codex);
+			expect(requiredEntry(persisted.defaults, 'claude')).toEqual(BUILT_IN_AGENT_DEFAULTS.claude);
+			expect(requiredEntry(snapshot.storedDefaults, 'codex')).toEqual(
+				BUILT_IN_AGENT_DEFAULTS.codex,
+			);
 			if (initialContents !== undefined) {
-				expect(persisted.overrides.codex.maxConcurrency).toBe(2);
-				expect(snapshot.agents.codex.maxConcurrency).toBe(2);
+				expect(requiredEntry(persisted.overrides, 'codex').maxConcurrency).toBe(2);
+				expect(requiredEntry(snapshot.agents, 'codex').maxConcurrency).toBe(2);
 			}
 		}
 	});
@@ -68,10 +70,15 @@ describe('agent registry rework regressions', () => {
 		firstVersion.stop();
 
 		const completed = parsePersistedFile(memory.getContents());
-		expect(completed.defaults.codex.maxConcurrency).toBe(1);
-		expect(completed.defaults.codex.execPath).toBe(BUILT_IN_AGENT_DEFAULTS.codex.execPath);
-		expect(completed.defaults.claude).toEqual(BUILT_IN_AGENT_DEFAULTS.claude);
-		expect(completed.overrides.codex).toEqual({ maxConcurrency: 2, monogram: 'ZZ' });
+		expect(requiredEntry(completed.defaults, 'codex').maxConcurrency).toBe(1);
+		expect(requiredEntry(completed.defaults, 'codex').execPath).toBe(
+			BUILT_IN_AGENT_DEFAULTS.codex.execPath,
+		);
+		expect(requiredEntry(completed.defaults, 'claude')).toEqual(BUILT_IN_AGENT_DEFAULTS.claude);
+		expect(requiredEntry(completed.overrides, 'codex')).toEqual({
+			maxConcurrency: 2,
+			monogram: 'ZZ',
+		});
 
 		const upgradedDefaults = {
 			...BUILT_IN_AGENT_DEFAULTS,
@@ -97,9 +104,11 @@ describe('agent registry rework regressions', () => {
 		const adopted = await secondVersion.adoptDefault('codex', 'maxConcurrency');
 		expect(adopted.ok).toBe(true);
 		if (!adopted.ok) return;
-		expect(adopted.reload.snapshot.agents.codex.maxConcurrency).toBe(3);
-		expect(adopted.reload.snapshot.agents.codex.monogram).toBe('ZZ');
-		expect(adopted.reload.snapshot.userOverrides.codex).toEqual({ monogram: 'ZZ' });
+		expect(requiredEntry(adopted.reload.snapshot.agents, 'codex').maxConcurrency).toBe(3);
+		expect(requiredEntry(adopted.reload.snapshot.agents, 'codex').monogram).toBe('ZZ');
+		expect(requiredEntry(adopted.reload.snapshot.userOverrides, 'codex')).toEqual({
+			monogram: 'ZZ',
+		});
 		secondVersion.stop();
 	});
 
@@ -115,7 +124,7 @@ describe('agent registry rework regressions', () => {
 		const snapshot = await registry.start();
 		registry.stop();
 
-		expect(snapshot.agents.codex.maxConcurrency).toBe(1);
+		expect(requiredEntry(snapshot.agents, 'codex').maxConcurrency).toBe(1);
 		expect(warnings).toEqual([
 			expect.objectContaining({ kind: 'agent.availability_changed', reason: 'write-failed' }),
 		]);
@@ -149,13 +158,13 @@ describe('agent registry rework regressions', () => {
 		});
 
 		const initial = await registry.start();
-		expect(initial.agents.codex.maxConcurrency).toBe(1);
+		expect(requiredEntry(initial.agents, 'codex').maxConcurrency).toBe(1);
 		expect(manual.getSetCount()).toBe(3);
 		expect(manual.getClearCount()).toBe(2);
 
 		manual.fire();
 		await registry.reload();
-		expect(registry.getSnapshot().agents.codex.maxConcurrency).toBe(2);
+		expect(requiredEntry(registry.getSnapshot().agents, 'codex').maxConcurrency).toBe(2);
 		expect(reloadCount).toBe(2);
 		registry.stop();
 	});
@@ -234,6 +243,12 @@ function createManualTimers(): ManualTimers {
 			scheduled?.();
 		},
 	};
+}
+
+function requiredEntry<T>(record: Readonly<Record<string, T>>, key: string): T {
+	const value = record[key];
+	expect(value).toBeDefined();
+	return value as T;
 }
 
 function parsePersistedFile(contents: string | undefined): {
