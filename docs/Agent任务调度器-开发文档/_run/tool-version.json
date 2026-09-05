@@ -1,0 +1,13 @@
+{
+  "files": {
+    "build_docs.py": "f665b8f4c7c675adddf68a037f78d6932d53080badce1385d8ad6478de616654",
+    "build_vault.py": "def3461142e030d7473565e7a899db08cdb8ca0bb54806137a4b2571e84e9d0f",
+    "check_stale.py": "bf7a18075f525e912546778941682989dc93d9fe99c5f5a824344e064c9570cf",
+    "compile_prompts.js": "83afcf07660d9da35ec41a205f1f0d9c5a3bb44d0f4d2a0b3e692778dc0eeb39",
+    "handoff_contract.py": "904850f53e6ae9aa72b3b6c9400983c11e5f0ed8b437c250430c2ad710aae533",
+    "install_project.py": "8511ca1e45a0622beb7b531164d8b12c341037aad1cd82fe044e9b569695525b",
+    "maintain_docs.py": "d41f72069f02cd0f4bb394044ae9624ec7ce4ffd53773aa0e2c08856554f4476",
+    "review.py": "4d45f64b63f95f4aeb0ac60b67c08859dc2f028536eee32092ffcd93d9bed86e"
+  },
+  "version": "1.1.0"
+}

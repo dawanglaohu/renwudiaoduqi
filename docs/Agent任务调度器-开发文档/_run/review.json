@@ -1,31 +1,32 @@
 {
   "block": 0,
-  "warn": 0,
   "info": 4,
   "items": [
     {
-      "level": "INFO",
       "code": "T17",
+      "level": "INFO",
       "msg": "E-250 未被任务覆盖，但已在风险与未决事项中说明",
       "where": null
     },
     {
-      "level": "INFO",
       "code": "T17",
+      "level": "INFO",
       "msg": "E-251 未被任务覆盖，但已在风险与未决事项中说明",
       "where": null
     },
     {
-      "level": "INFO",
       "code": "T17",
+      "level": "INFO",
       "msg": "E-252 未被任务覆盖，但已在风险与未决事项中说明",
       "where": null
     },
     {
-      "level": "INFO",
       "code": "T19",
+      "level": "INFO",
       "msg": "边界覆盖率 100%（271 条边界，268 条被任务直接覆盖）",
       "where": null
     }
-  ]
+  ],
+  "sourceVersion": "6a428e68ae20ffb7b319eb81980999de1792af9351cc6f8892e5b73acfeedf52",
+  "warn": 0
 }

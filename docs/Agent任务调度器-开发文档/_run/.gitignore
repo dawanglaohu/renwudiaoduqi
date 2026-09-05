@@ -1,2 +1,6 @@
 # 派生文件，各检出目录各自生成，不进仓库
 progress.js
+__pycache__/
+tool-backups/
+# 可重建的差异预览；完整前后源文档保存在 patches/*.json
+patches/*.md

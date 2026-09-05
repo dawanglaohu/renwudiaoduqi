@@ -1,6 +1,6 @@
 {
     "project":  "Agent 任务调度器",
-    "lead":  "核心仍是一个独立常驻的 daemon，桌面与手机是它的两副面孔；新增的硬约束是**同一套 daemon、路径/子进程与 Tauri 桌面壳必须在 Windows、macOS、Linux 完整运行**。第二强的是**「已退出」不等于「已落地」**：五个 agent 都不能只靠退出码判定任务完成。进度上要盯 **M1**（9 个任务、14.5 人天，三平台路径、进程树、自启和 `spawn` 都在这里收口）与 **M4**（12 个任务、21 人天，是最大的 agent 差异块）。当前平台风险是 macOS/Linux 缺本地真机证据，必须由三平台 CI 与人工 GUI 清单共同补齐。",
+    "lead":  "核心仍是一个独立常驻的 daemon，桌面与手机是它的两副面孔；新增的硬约束是**同一套 daemon、路径/子进程与 Tauri 桌面壳必须在 Windows、macOS、Linux 完整运行**。第二强的是**「已退出」不等于「已落地」**：五个 agent 都不能只靠退出码判定任务完成。进度上要盯 **M1**（10 个任务、17 人天，三平台路径、进程树、自启和 `spawn` 都在这里收口）与 **M4**（12 个任务、21 人天，是最大的 agent 差异块）。当前平台风险是 macOS/Linux 缺本地真机证据，必须由三平台 CI 与人工 GUI 清单共同补齐。",
     "highlights":  {
                        "tasks":  [
                                      "M1-T7",
@@ -87,9 +87,21 @@
                                                     ".gitignore",
                                                     "tsconfig.json",
                                                     "vitest.config.ts",
-                                                    "packages/*/package.json",
-                                                    "packages/*/tsconfig.json",
-                                                    "packages/*/src/",
+                                                    "packages/daemon/package.json",
+                                                        "packages/web/package.json",
+                                                        "packages/shell-desktop/package.json",
+                                                        "packages/shell-mobile/package.json",
+                                                        "packages/shared/package.json",
+                                                    "packages/daemon/tsconfig.json",
+                                                        "packages/web/tsconfig.json",
+                                                        "packages/shell-desktop/tsconfig.json",
+                                                        "packages/shell-mobile/tsconfig.json",
+                                                        "packages/shared/tsconfig.json",
+                                                    "packages/daemon/src/",
+                                                        "packages/web/src/",
+                                                        "packages/shell-desktop/src/",
+                                                        "packages/shell-mobile/src/",
+                                                        "packages/shared/src/",
                                                     "packages/daemon/bootstrap.mjs",
                                                     "packages/daemon/src/main.ts",
                                                     "packages/daemon/src/boot/node-check.ts",
@@ -417,7 +429,7 @@
                    },
                    {
                        "type":  "taskdag",
-                       "note":  "77 个任务、121.5 人天。关键路径穿过 **M1-T3/T9/T7（三平台路径、进程树与 spawn）→ M4 的五个适配器 → M6 的运行监管 → M10-T5 三平台发布门禁**。建议先用 fixture 在三平台打通路径与终止，再接 codex 与 claude 定型 agent 接口。"
+                       "note":  "78 个任务、124 人天。关键路径穿过 **M1-T3/T9/T7（三平台路径、进程树与 spawn）→ M4 的五个适配器 → M6 的运行监管 → M10-T5 三平台发布门禁**。建议先用 fixture 在三平台打通路径与终止，再接 codex 与 claude 定型 agent 接口。"
                    },
                    {
                        "type":  "edgematrix",

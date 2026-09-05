@@ -93,8 +93,18 @@ def write(p, text):
     d = os.path.dirname(p)
     if d and not os.path.isdir(d):
         os.makedirs(d)
-    with open(p, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    if os.path.exists(p) and read(p) == text:
+        return False
+    import tempfile
+    fd, temp = tempfile.mkstemp(prefix=".vault-", dir=d or ".")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        os.replace(temp, p)
+    finally:
+        if os.path.exists(temp):
+            os.unlink(temp)
+    return True
 
 
 def tables(text):
@@ -654,9 +664,15 @@ def agents_block(project, doc_rel, modules, tasks, edges, mode="greenfield"):
          "- 模块划分要和真实目录对得上。**目录动了，06 节的表也要跟着动**，"
          "否则笔记里每一条代码位置都会错位。"] if bf else [
          "- 一个任务一层栈分支 `task/<任务ID>`，做完提交并 `gh stack push`，**不自己合并**。",
+         "  落地由审查方做：栈里只有一个开放 PR（GitHub 不为单个 PR 建栈对象）就按普通 PR `gh pr merge --merge`；"
+         "两个以上才走 `gh stack merge`。任务的前置都已落地时，单 PR 是常态，不用为了凑栈去等下一个任务。",
+         "- 并行开工时每个任务用自己的 git worktree（仓库旁边的同级目录，实施提示词第 0 步给命令），不在别人的检出里切分支；planning 类工作文件放仓库外。",
+         "- 派下来的任务前置都已合进主干，所以本任务是新栈最底层：`gh stack init`。`gh stack add` 报 All branches in this stack have been merged 就是该 init，不用问。",
          "- 只做当前任务范围内的事，不提前做后面的。",
          "- 验收标准和边界编号是硬指标，不是参考。每条都要能指到具体代码。",
-         "- 不改开发文档。文档有问题就提出来，别自己动手。",
+         "- 实施方不擅改任务定义；审查方可依据原始需求和已定契约定点修正文档、任务配置及有效范围。不得降低验收标准迁就错误代码。",
+         "- 审查发现局部文档问题，在原任务分支打补丁，运行 `maintain_docs.py begin/sync/verify` 同步并复验，随后继续原 PR 提交、推送和落地；不重跑需求、架构和整套文档生成流程。",
+         "- 实施、审查、并行排程共用有效路径（taskPaths + task-contracts.json 的 supportPaths）；漏列的必要支持文件由审查方补齐并核对冲突，不私自无限扩大范围。",
          "- **落地前必须回填** `图谱/任务/<任务ID>.md` 的「代码位置」和「实施沉淀」两段。",
          "  代码位置格式：`` `路径:行号` — 说明 ``，一行一处。",
          "  没回填不得落地——知识库烂掉，都是从没人回填开始的。"]) + [
@@ -754,6 +770,17 @@ def main():
             if root in args:
                 args.remove(root)
 
+    selected = None
+    if "--tasks" in sys.argv:
+        i = sys.argv.index("--tasks")
+        if i + 1 >= len(sys.argv):
+            print("--tasks 后跟逗号分隔的任务 ID")
+            return 2
+        value = sys.argv[i + 1]
+        selected = set(value.split(","))
+        if value in args:
+            args.remove(value)
+
     forced_mode = None
     if "--mode" in sys.argv:
         i = sys.argv.index("--mode")
@@ -827,7 +854,13 @@ def main():
         print("  没发现问题")
         return 0
 
-    # ── 写笔记 ──
+    if selected is not None:
+        unknown = selected - {t["id"] for t in tasks}
+        if unknown:
+            print("--tasks 包含未知任务：" + ", ".join(sorted(unknown)))
+            return 2
+
+    # ── 写笔记；正文未变不写磁盘，局部同步保留无关任务笔记 ──
     written, protected_kept = 0, 0
     for m in modules:
         p = os.path.join(doc_abs, DIR_MOD, m["id"] + ".md")
@@ -842,6 +875,8 @@ def main():
 
     for t in tasks:
         p = os.path.join(doc_abs, DIR_TASK, t["id"] + ".md")
+        if selected is not None and t["id"] not in selected and os.path.exists(p):
+            continue
         k = harvest(p)
         body = task_note(t, tasks, edges, modules, repo, main_branch, k)
         # status 是人手维护的，重跑不覆盖
