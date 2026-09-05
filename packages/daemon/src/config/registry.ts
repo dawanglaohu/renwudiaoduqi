@@ -298,9 +298,28 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 			return { status: 'rejected', snapshot: current };
 		}
 
+		let snapshotFingerprint = fingerprint;
+		if (parsed.needsDefaultPersistence) {
+			const persistedContents = serializeAgentsFile({
+				schemaVersion: AGENT_REGISTRY_SCHEMA_VERSION,
+				defaults: builtInDefaults,
+				overrides: parsed.overrides,
+			});
+			try {
+				await fileSystem.writeUtf8File(configPath, persistedContents);
+				snapshotFingerprint = fingerprintContents(persistedContents);
+				lastObservedFingerprint = snapshotFingerprint;
+			} catch (_cause) {
+				publishWarning(
+					'write-failed',
+					'Initial agent defaults could not be saved; continuing with in-memory defaults.',
+				);
+			}
+		}
+
 		current = createSnapshot(
 			current.generation + 1,
-			fingerprint,
+			snapshotFingerprint,
 			builtInDefaults,
 			parsed.defaults,
 			parsed.overrides,
@@ -346,8 +365,8 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 	}
 
 	async function start(): Promise<AgentRegistrySnapshot> {
-		await reload();
 		startWatcher();
+		await reload();
 		return current;
 	}
 
@@ -403,6 +422,7 @@ type ParseAgentsFileResult =
 			readonly ok: true;
 			readonly defaults: AgentConfigLayer;
 			readonly overrides: AgentConfigLayer;
+			readonly needsDefaultPersistence: boolean;
 			readonly unknownFields: readonly UnknownField[];
 	  }
 	| {
@@ -480,6 +500,7 @@ function parseAgentsFile(
 		ok: true,
 		defaults: defaults.value,
 		overrides: overrides.value,
+		needsDefaultPersistence: !Object.hasOwn(input, 'defaults'),
 		unknownFields: Object.freeze(unknownFields),
 	};
 }
@@ -772,6 +793,10 @@ function createAdoptedAgentsFile(
 		defaults: freezeAgentConfigLayer(defaults),
 		overrides: freezeAgentConfigLayer(overrides),
 	};
+}
+
+function serializeAgentsFile(config: Required<AgentsFileConfig>): string {
+	return `${JSON.stringify(config, null, 2)}\n`;
 }
 
 function getConfigField(config: AgentConfig, field: AgentConfigFieldPath): AgentConfigValue {
