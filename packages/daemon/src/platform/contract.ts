@@ -83,6 +83,9 @@ export interface DirectResolvedExecutable extends ResolvedExecutableBase {
 
 export interface ComSpecResolvedExecutable extends ResolvedExecutableBase {
 	readonly launchKind: 'com-spec';
+	readonly spawnOptions: {
+		readonly windowsVerbatimArguments: true;
+	};
 }
 
 export type ResolvedExecutable = DirectResolvedExecutable | ComSpecResolvedExecutable;

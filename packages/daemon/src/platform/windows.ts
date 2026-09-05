@@ -12,7 +12,6 @@ const DEFAULT_WINDOWS_DIRECTORY = 'C:\\Windows';
 const WINDOWS_DRIVE_ABSOLUTE = /^[A-Za-z]:[\\/]/;
 const WINDOWS_UNC_ABSOLUTE = /^(?:\\\\|\/\/)[^\\/]+[\\/][^\\/]+/;
 const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.cmd', '.bat', ''] as const;
-const CMD_META_CHARACTER = /([()%!^"<>&|;,\r\n])/g;
 
 export const WINDOWS_PATH_ADAPTER: PlatformPathAdapter = Object.freeze({
 	platform: 'win32',
@@ -105,7 +104,7 @@ export function comSpec(): string {
 
 export function quoteForCmd(value: string): string {
 	const escapedQuotes = value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/g, '$1$1');
-	return `"${escapedQuotes}"`.replace(CMD_META_CHARACTER, '^$1');
+	return `"${escapedQuotes}"`.replace(/([()%!^<>&|;,\r\n])/g, '^$1');
 }
 
 function isAbsoluteWindowsPath(value: string): boolean {

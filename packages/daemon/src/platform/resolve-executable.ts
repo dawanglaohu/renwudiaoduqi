@@ -111,7 +111,8 @@ async function buildResolvedExecutable(
 		launchKind: 'com-spec',
 		sourcePath,
 		file: commandProcessorValidation.path,
-		argsPrefix: Object.freeze(['/d', '/s', '/c', sourcePath]),
+		argsPrefix: Object.freeze(['/d', '/s', '/c', `""${sourcePath}""`]),
+		spawnOptions: Object.freeze({ windowsVerbatimArguments: true }),
 		checkedPaths: freezePaths(checkedPaths),
 	});
 }
