@@ -298,11 +298,12 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 			return { status: 'rejected', snapshot: current };
 		}
 
+		const storedDefaults = mergeAgentConfigRecord(builtInDefaults, parsed.defaults);
 		let snapshotFingerprint = fingerprint;
 		if (parsed.needsDefaultPersistence) {
 			const persistedContents = serializeAgentsFile({
 				schemaVersion: AGENT_REGISTRY_SCHEMA_VERSION,
-				defaults: builtInDefaults,
+				defaults: storedDefaults,
 				overrides: parsed.overrides,
 			});
 			try {
@@ -321,7 +322,7 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 			current.generation + 1,
 			snapshotFingerprint,
 			builtInDefaults,
-			parsed.defaults,
+			storedDefaults,
 			parsed.overrides,
 		);
 		options.onReload?.(current);
@@ -500,7 +501,7 @@ function parseAgentsFile(
 		ok: true,
 		defaults: defaults.value,
 		overrides: overrides.value,
-		needsDefaultPersistence: !Object.hasOwn(input, 'defaults'),
+		needsDefaultPersistence: !hasCompleteDefaultBaseline(defaults.value, builtInDefaults),
 		unknownFields: Object.freeze(unknownFields),
 	};
 }
@@ -797,6 +798,21 @@ function createAdoptedAgentsFile(
 
 function serializeAgentsFile(config: Required<AgentsFileConfig>): string {
 	return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+function hasCompleteDefaultBaseline(
+	defaults: AgentConfigLayer,
+	builtInDefaults: Readonly<Record<string, AgentConfig>>,
+): boolean {
+	return Object.keys(builtInDefaults).every((agentId) => {
+		const storedDefault = defaults[agentId];
+		return (
+			storedDefault !== undefined &&
+			AGENT_CONFIG_FIELD_PATHS.every(
+				(field) => getOverrideField(storedDefault, field) !== undefined,
+			)
+		);
+	});
 }
 
 function getConfigField(config: AgentConfig, field: AgentConfigFieldPath): AgentConfigValue {
