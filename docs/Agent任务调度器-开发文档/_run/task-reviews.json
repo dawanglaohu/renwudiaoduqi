@@ -42,12 +42,14 @@
   "M1-T3": {
     "contractHash": "d266ec31dab6ee1ec2846c47d9c1e8f3c585269ae1f036fe13eeacb94a57581d",
     "evidence": [
-      "这是任务定义复核，scope=task-contract，绝不代表 PR #5 代码验收通过。08 节将命令序列化限制在 Windows 适配器，proc 恒 shell:false；仅 ComSpec 使用 windowsVerbatimArguments:true，原生程序保持 false。14 节、E-42、19 节及 presentation.json 的 proc 提示词已同步，业务参数必须逐字保留、禁止额外命令和环境展开。",
-      "19 节原有 quoteForCmd 字符是分号 U+003B，build_vault.py:226 会按分号拆项；源条款改写为分号（U+003B）使生成笔记不再把它变成换行。未降低原有空格/引号/分号/&/^ 要求，新增真实 cmd/bat 最终 argv 验证；NUL/CR/LF 明确启动前报 E_VALIDATION。",
-      "M1-T3 有效范围新增两个精确测试文件 packages/daemon/test/unit/platform.test.ts 与 packages/daemon/test/unit/daemon-launch-spec.test.ts，未与独立任务发生路径冲突。前置仍为已合入 M1-T1；M1-T7 只消费完整冻结启动对象。共享 DaemonLaunchSpec 的 file/args/cwd、三平台路径、错误体系和依赖方向未更改。",
-      "机械文档检查 block=0/warn=0。代码验收仍为 rework：69bfe56 的 argsPrefix 后追加 alpha 即启动失败；quoteForCmd 将 a&b 传为 a^&b。Node 22.17.0 的真实 cmd/bat 矩阵仅无参数 4/32 成功。46 项路径、注入文件系统和 Ajv 8.17.1 schema 检查通过，347 字符 Windows 路径实际读写通过；经本机管理共享 localhost/C$ 的 369 字符 UNC 路径实际写入与回读也通过；POSIX 真机未验证。既有 pnpm -w check 33/33 不能覆盖这些新增缺陷。"
+      "2026-09-06 第2轮只核 PR #5 REVIEW-ROUND 1 的 R1/R2。契约 hash 未变化，沿用上一轮其余三平台路径、数据目录与共享 schema 验收，不增加无关返工项。",
+      "R1：resolve-executable.ts:114 的 ComSpec argsPrefix 为空，windows.ts wrapForComSpec 在取得完整原始 args 后生成冻结 file/args/spawnOptions。platform.test.ts 用真实 resolveExecutable → wrapForComSpec → spawnSync 链检查 cmd/bat、空/普通/多参数和复杂路径。",
+      "R2：返工头 59e4298 仍会展开 %M1_T3_SENTINEL%，引号与 & 组合能创建无害注入哨兵。审查者按两轮上限接手修复：原生 argv 的引号/反斜杠编码后，对参数做两次 cmd 元字符转义，脚本路径只做一次；NUL/CR/LF 仍在启动前返回 E_VALIDATION 和 argumentIndex。没有更改接口或任务定义。",
+      "实机回归：32个场景=2种目录×2种扩展名×8组argv，涵盖普通/空/多个参数、Unicode、引号、分号、caret、百分号、叹号、尾部反斜杠、环境变量名和组合注入。测试断言最终JSON argv逐项等于原输入，并断言4种哨兵文件均不存在；返工代码负控失败，修复后全部通过。",
+      "pnpm -w check：Biome51文件、TypeScript strict构建及7个Vitest文件72/72通过，其中platform.test.ts39项含32项真实Windows批处理场景。此轮未重新跑macOS/Linux真机；非Windows跳过原生cmd/bat组，不能把Windows证据称为三平台真机矩阵。",
+      "任务笔记code区按实际行号回填；notes区保留路径、候选、错误、失败不缓存及共享schema义务，修正乱码与不实保证，明确批处理%*转发以及proc原样消费完整启动对象的接口要求。仅改windows.ts、platform.test.ts及任务回填/维护记录，未实现M1-T7。"
     ],
-    "reviewed": "2026-09-05T11:38:47.135007+00:00",
+    "reviewed": "2026-09-06T05:42:26.836186+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

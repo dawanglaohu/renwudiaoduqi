@@ -13,6 +13,7 @@ const DEFAULT_WINDOWS_DIRECTORY = 'C:\\Windows';
 const WINDOWS_DRIVE_ABSOLUTE = /^[A-Za-z]:[\\/]/;
 const WINDOWS_UNC_ABSOLUTE = /^(?:\\\\|\/\/)[^\\/]+[\\/][^\\/]+/;
 const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.cmd', '.bat', ''] as const;
+const CMD_META_CHARACTER = /([()\][%!^"`<>&|;, *?])/g;
 
 export const WINDOWS_PATH_ADAPTER: PlatformPathAdapter = Object.freeze({
 	platform: 'win32',
@@ -103,10 +104,13 @@ export function comSpec(): string {
 	return win32.join(DEFAULT_WINDOWS_DIRECTORY, 'System32', 'cmd.exe');
 }
 
+/** Escapes one native argv value through ComSpec and a batch shim's %* forwarding. */
 export function quoteForCmd(value: string): string {
 	const escapedQuotes = value.replace(/(\\*)"/g, '$1$1\\"');
 	const escapedTail = escapedQuotes.replace(/(\\*)$/g, '$1$1');
-	return `"${escapedTail}"`;
+	// Quotes are shell syntax too: protect both cmd parsing passes, then let the
+	// target executable decode the remaining quotes and backslashes as native argv.
+	return `"${escapedTail}"`.replace(CMD_META_CHARACTER, '^$1').replace(CMD_META_CHARACTER, '^$1');
 }
 
 export interface ComSpecLaunch {
@@ -122,6 +126,11 @@ export type ComSpecLaunchResult =
 			readonly error: PlatformOperationError<'E_VALIDATION'>;
 	  };
 
+/**
+ * Takes validated absolute paths from resolveExecutable and the complete raw argv.
+ * Returns immutable spawn inputs, or E_VALIDATION with the rejected argument index.
+ * The batch shim must forward %* to its native CLI without adding another shell.
+ */
 export function wrapForComSpec(
 	scriptPath: string,
 	args: readonly string[],
@@ -146,7 +155,8 @@ export function wrapForComSpec(
 		});
 	}
 
-	const parts = [quoteForCmd(scriptPath)];
+	// The script path is interpreted only by the initial cmd, unlike its arguments.
+	const parts = [scriptPath.replace(CMD_META_CHARACTER, '^$1')];
 	for (const argument of args) {
 		parts.push(quoteForCmd(argument));
 	}

@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { platformPathAdapter } from '../../src/platform/host.ts';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { platformPathAdapter, takePlatformHostInputs } from '../../src/platform/host.ts';
+import { resolveExecutable } from '../../src/platform/resolve-executable.ts';
 import {
 	classifyWindowsPath,
-	quoteForCmd,
+	comSpec,
 	windowsAppDataDir,
 	windowsExecutableCandidatePaths,
 	wrapForComSpec,
@@ -64,43 +69,8 @@ describe('windowsExecutableCandidatePaths', () => {
 	});
 });
 
-describe('quoteForCmd', () => {
-	it('does not add caret escapes to plain metacharacter arguments', () => {
-		expect(quoteForCmd('a&b')).toBe('"a&b"');
-		expect(quoteForCmd('a^b')).toBe('"a^b"');
-		expect(quoteForCmd('a;b')).toBe('"a;b"');
-	});
-
-	it('backslash-escapes embedded quotes and closing backslashes', () => {
-		expect(quoteForCmd('he said "hi"')).toBe('"he said \\"hi\\""');
-		expect(quoteForCmd('back\\')).toBe('"back\\\\"');
-	});
-});
-
 describe('wrapForComSpec', () => {
 	const COMSPEC_TEST_PATH = 'C:\\Windows\\System32\\cmd.exe';
-
-	it('assembles a fully quoted frozen ComSpec launch object', () => {
-		const wrapped = wrapForComSpec('C:\\a b.cmd', ['one', 'a&b', 'x y'], COMSPEC_TEST_PATH);
-		expect(wrapped.ok).toBe(true);
-		if (!wrapped.ok) return;
-		const launch = wrapped.launch;
-		expect(launch.file).toBe(COMSPEC_TEST_PATH);
-		expect(launch.spawnOptions).toEqual({ windowsVerbatimArguments: true });
-		expect(launch.args.slice(0, 3)).toEqual(['/d', '/s', '/c']);
-		expect(Object.isFrozen(launch.args)).toBe(true);
-		expect(Object.isFrozen(launch)).toBe(true);
-		const commandLine = launch.args[3];
-		expect(typeof commandLine).toBe('string');
-		if (typeof commandLine !== 'string') return;
-		const metaChars = ['&', '^', ';', '%', '!', '"'];
-		for (const meta of metaChars) {
-			expect(commandLine.includes(`"${meta}"`)).toBe(false);
-		}
-		expect(commandLine).toContain('"C:\\a b.cmd"');
-		expect(commandLine).toContain('"a&b"');
-		expect(commandLine).toContain('"x y"');
-	});
 
 	it('rejects NUL, CR and LF arguments before any child process launch', () => {
 		const cases: ReadonlyArray<{
@@ -119,4 +89,98 @@ describe('wrapForComSpec', () => {
 			expect(wrapped.error.details.argumentIndex).toBe(expectedIndex);
 		}
 	});
+});
+
+const host = takePlatformHostInputs({});
+const isWindowsHost = host.ok && host.value.platform === 'win32';
+
+describe.skipIf(!isWindowsHost)('ComSpec real batch forwarding', () => {
+	let directory: string;
+	let reportPath: string;
+	const layouts = ['plain', 'space 中文 &^%M1_T3_SENTINEL%!'] as const;
+	const extensions = ['cmd', 'bat'] as const;
+	const argumentCases = [
+		[],
+		['alpha'],
+		['', 'two words', '中文', 'last'],
+		['a&b', 'a^b', 'a;b', 'he said "hi"', 'tail\\', 'slash\\"quote'],
+		['%M1_T3_SENTINEL%', '!M1_T3_SENTINEL!', '%PATH%', '100%', '!', '%1', '%*'],
+		['a"&echo INJECTED>injected.txt&rem "', 'a"|echo INJECTED>piped.txt&rem "'],
+		['a"&&echo INJECTED>and.txt&rem "', 'a"||echo INJECTED>or.txt&rem "'],
+		['&', '^', ';', '%', '!', '"', '(', ')', '<', '>', '|', '*', '?'],
+	] as const;
+
+	beforeAll(() => {
+		directory = mkdtempSync(join(tmpdir(), 'agsched-comspec-test-'));
+		reportPath = join(directory, 'argv.cjs');
+		writeFileSync(reportPath, 'console.log(JSON.stringify(process.argv.slice(2)))');
+		for (const layout of layouts) {
+			const scriptDirectory = join(directory, layout);
+			mkdirSync(scriptDirectory);
+			for (const extension of extensions) {
+				// Model a CLI shim: ComSpec reads the invocation, then the batch forwards %*.
+				writeFileSync(
+					join(scriptDirectory, `agent.${extension}`),
+					`@echo off\r\n"${process.execPath}" "${reportPath}" %*\r\n`,
+				);
+			}
+		}
+	});
+
+	afterAll(() => {
+		if (directory === undefined) return;
+		expect(dirname(resolve(directory))).toBe(resolve(tmpdir()));
+		rmSync(directory, { recursive: true, force: true });
+	});
+
+	for (const layout of layouts) {
+		for (const extension of extensions) {
+			for (const [caseIndex, originalArgs] of argumentCases.entries()) {
+				it(`${layout} .${extension} preserves argv case ${caseIndex}`, async () => {
+					const caseDirectory = join(
+						directory,
+						`case-${layouts.indexOf(layout)}-${extension}-${caseIndex}`,
+					);
+					mkdirSync(caseDirectory);
+					const scriptPath = join(directory, layout, `agent.${extension}`);
+					const found = await resolveExecutable({
+						hostInputs: { platform: 'win32', homedir: directory },
+						executableName: 'agent',
+						configuredPath: scriptPath,
+						windowsComSpecPath: comSpec(),
+					});
+					expect(found.ok).toBe(true);
+					if (!found.ok) throw new Error(found.error.message);
+					expect(found.executable.launchKind).toBe('com-spec');
+					expect(found.executable.argsPrefix).toEqual([]);
+					const wrapped = wrapForComSpec(
+						found.executable.sourcePath,
+						originalArgs,
+						found.executable.file,
+					);
+					if (!wrapped.ok) throw new Error(wrapped.error.message);
+					const { launch } = wrapped;
+					expect(Object.isFrozen(launch)).toBe(true);
+					expect(Object.isFrozen(launch.args)).toBe(true);
+					expect(Object.isFrozen(launch.spawnOptions)).toBe(true);
+					const child = spawnSync(launch.file, [...launch.args], {
+						...launch.spawnOptions,
+						shell: false,
+						windowsHide: true,
+						cwd: caseDirectory,
+						env: { ...process.env, M1_T3_SENTINEL: 'MUST_NOT_EXPAND' },
+						encoding: 'utf8',
+						timeout: 5_000,
+					});
+					expect(child.error).toBeUndefined();
+					expect(child.status, child.stderr).toBe(0);
+					expect(child.stderr).toBe('');
+					expect(JSON.parse(child.stdout)).toEqual(originalArgs);
+					for (const marker of ['injected.txt', 'piped.txt', 'and.txt', 'or.txt']) {
+						expect(existsSync(join(caseDirectory, marker))).toBe(false);
+					}
+				});
+			}
+		}
+	}
 });
