@@ -1,0 +1,74 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T1": {
+      "contractHash": "74d52923b08583dcc707d29639206b86d4fea4cccbbd85871c4b806429e93916",
+      "verdict": "pass",
+      "evidence": [
+        "2026-09-05 第二轮真实增量复核通过；当前sourceVersion=6a428e68ae20ffb7b319eb81980999de1792af9351cc6f8892e5b73acfeedf52，已核对final-hashes.json与_run/dispatch.json中本任务contractHash一致。仅签发M1-T1/M4-T1，未运行测试、未改源码、生成器、任务状态或复验标记。",
+        "最后B1-R1已关闭：13-边界问题与异常处理.md:33的E-20、:254的E-241，以及19-模块任务拆分.md:30的M3-T2均限定人工依赖确认且上游ready=true才放行；ready=false仍拒绝，确认不得改写ready或文档复核证据。17-测试策略.md:49已明确两种组合回归。本轮实际重新读取三处限定，和09/M8-T3门槛一致，无剩余BLOCKING。",
+        "实际review/resume标题分别为“复验已落地任务 M1-T1”和“继续复验已落地任务 M1-T1”。此前已完整核对B2/B3源码：build_docs.py:1311/:2174按真实进度让todo保持契约审查；:1315/:1770/:1900/:1919为持久done+needsReview提供专用复验，指向已合入代码与历史PR证据，不继续MERGED旧PR；verify不替代代码验收，只有实际验收后才--landed。最后版本相对已审候选提示词仅hash变化。",
+        "两历史任务的19任务行、有效路径及七条原验收边界均与基线不变；源码和5个测试文件已逐字确认未变。B1新增schema1三处hash一致性、id/contractHash指纹、ready元数据、固定文档快照和只读审查组装属于本次受影响M3/M7/M8职责，不转嫁为本任务新的代码义务。历史支持路径漏项按已定升级增量范围继续非阻断记录。",
+        "五包产出已存在：pnpm-workspace.yaml:1、tsconfig.json:18 声明 daemon/shared/web/shell-desktop/shell-mobile；各 packages/<包>/package.json:1、tsconfig.json:1 及 src/ 已入仓，所有包继承根 strict 配置并启用 composite；packages/shared/package.json:1 没有运行时依赖。package.json:9 的 check 仍为 biome ci . && tsc -b --noEmit && vitest run；.gitignore:1 忽略 node_modules/ 与 **/*.tsbuildinfo，pnpm-lock.yaml 已存在。",
+        "验收1/2、E-139（13-边界问题与异常处理.md:152）：packages/daemon/bootstrap.mjs:1 先以纯 JS 读取主版本，:5 低于22只打印 requires Node.js >= 22 并设置 exitCode=1；:11-13 通过后才注册 typescript-loader.mjs 并加载 main.ts。packages/daemon/typescript-loader.mjs:5 仅为 .ts 执行转译；packages/daemon/package.json:7 的 dev/start 都只调用 node bootstrap.mjs。packages/daemon/test/unit/daemon-entry.test.ts:24 断言真实 Node20.19.5 非零退出且无 SyntaxError/ERR_UNKNOWN_FILE_EXTENSION，:38 断言真实 Node22.17.0 常驻。",
+        "验收1的常驻与既有组合根：packages/daemon/src/main.ts:7 注册守卫并调用自检，:26 把锁交给常驻函数；boot/container.ts:17 注入冻结启动输入及锁/配置接线；boot/lock.ts:17 以 wx 原子创建锁并保存 pid，竞争返回已有 pid；boot/snapshot.ts:25 以活动计时器保留锁引用。daemon-entry.test.ts:57 断言第二实例拒绝且首实例持续存活，:65 覆盖启动基础设施失败非零退出；boot.self-check.test.ts:66 覆盖释放和重新获取。",
+        "验收3、E-213（13-边界问题与异常处理.md:226）：boot/guards.ts:20 未处理拒绝走注入 writeRunLog；:25 未捕获异常先记录再在 finally 调用 fatalExit；main.ts:11 将 fatalExit 注入为 process.exit(1)，:35 显式 void main().catch(handleStartupFailure)。runtime-guards.test.ts:9/:26/:39/:53 覆盖拒绝日志、先日志后退出、日志失败仍退出及两个 handler 注册；source-contracts.test.ts:44 通过 TypeScript 类型检查器遍历裸 Promise 调用语句。",
+        "验收4/5、E-214（13-边界问题与异常处理.md:227）：biome.json:15 固定 LF，.gitattributes:2 固定文本 LF 且:5-7 为 Windows 脚本保留既定 CRLF；已按原始字节确认 .gitattributes/.gitignore 无 BOM。已阅读本任务启动实现并搜索 daemon/shared src，未出现 throw new Error 或额外 Error 子类；直接 process.exit 仅在 main.ts，process.env 仅在 config/env.ts:28-29。source-contracts.test.ts:21/:31/:38 提供对应边界约束的既有断言。",
+        "验收阶段和前置：本任务无前置，交付的是五包/Node版本门/守卫/boot接线底座。19-模块任务拆分.md:14、:15、:23 分别把数据库迁移、三平台路径及后续完整常驻HTTP装配交给 M1-T2/M1-T3/M1-T10；这些长期未来义务未由本次范围展开转移给 M1-T1。不能以未来模块尚未完成否定本次升级等价性。",
+        "保留历史：图谱/任务/M1-T1.md:10 为 status: done；:51-65 的 code 块和:69-77 的 notes 块连同整份笔记均与 external baseline-docs/图谱/任务/M1-T1.md 逐字节相同，整文件 SHA-256=61477d56adb98ac5371c2b42b22f5beef23196716a99f5c956eb6663944a16d8。主线程提供 GitHub 核实：PR#2 于 2026-09-04T07:06:32Z MERGED，merge=51edc09；本地 first-parent 历史一致。",
+        "验证来源：主线程在本会话报告5个既有Vitest文件共24测试通过（其中M1-T1相关20项），包括实际Node20拒绝/Node22常驻锁；tsc -b --noEmit 通过；官方维护工具23测试通过。独立审查员已阅读相应测试文件及断言，未自行执行，也不把维护测试或主线程结果声称为独立执行。Biome/最终完整workspace check未由这些结果自动证明。",
+        "非阻断的既存范围欠项：packages/daemon/typescript-loader.mjs:5 是已合入且当前未修改的支持文件，但基线与当前 taskPaths 都未列入。限定本次已落地等价升级，不需要新增或改动该文件，因此不构成新代码义务；若以后该任务需要修改loader或重新实施，应先把该精确路径补入 taskPaths/supportPaths。对当前配置做路径匹配未找到其他任务覆盖该文件，未扩大到 packages/daemon/ 整目录。",
+        "最后同步已逐字段比较docs-data.js与_run/dispatch.json的contractHash/implementation/review/resume值一致，并核对三处任务hash一致。两份笔记整文件、status:done和code/notes仍与external baseline-docs逐字节相同。主线程已报告24个业务测试、tsc、实际项目工具副本23个维护回归及7个新路由回归通过，真实浏览器/78任务导出无不一致；本独立审查复用这些执行证据，不宣称自行跑过或审查全部78任务。当前无新增代码义务，可沿用已合入实现验收。",
+        "本次仅复验 ComSpec 文档补丁的影响：M1-T1 仍只负责 Node 自检、唯一 bootstrap 入口、最小锁与异常兜底，平台包装属于 M1-T3/M1-T7；其任务行、原生 Node 入口及实现均未改变。本次 diff 相对 origin/main 没有 M1-T1 产品文件。",
+        "GitHub PR #2 状态 MERGED，合并提交 51edc09；本机 Node 22.17.0 执行 pnpm -w check，6 文件 33/33 测试通过，其中 boot 8、guards 4、entry 3、source contracts 5 覆盖原有义务。此记录维持已合入成果，不声称完成尚未实现的 ComSpec 执行。"
+      ]
+    },
+    "M1-T2": {
+      "contractHash": "46522e395f003cfbaaa8cc46e893bd7a9ac78bbea5bdccae2323ea72818b837d",
+      "verdict": "pass",
+      "evidence": [
+        "AC1 四条 PRAGMA: open-database.ts:7-12 精确设 journal_mode=WAL/busy_timeout=5000/foreign_keys=ON/synchronous=NORMAL 且无其他 PRAGMA；database.test.ts:49-57 在真实 better-sqlite3(Windows 实战) 逐条查询验证 wal/5000/1/1。E-150: database.test.ts:210-245 锁竞争走 E_DB_BUSY 且不双写。",
+        "AC2 迁移按文件名升序: migrate.ts:51-60 过滤 ^\\d{4}_ 并按文件名字典序排序，逐文件在独立 immediate 事务执行并写 schema_migrations(migrate.ts:48-74)。",
+        "AC3 嵌套事务: unit-of-work.ts:11-16 depth>0 直接抛 E_TX_NESTED 不用 savepoint；database.test.ts:147-173 覆盖。",
+        "AC4 ABI: open-database.ts:25,50-59 在工厂内 createRequire 捕获 ERR_DLOPEN_FAILED/MODULE_NOT_FOUND，包成 AppError(E_INTERNAL)+details.remediation='pnpm rebuild' 且不泄原始栈；database.testly E-152 用例两部分覆盖。",
+        "边界 E-150(boot 启退是 M1-T10 范围)+E-152 均已落地；架构分层 06/08(db 为底层无反向 import、repo 独占 SQL、service 独占事务、由 DI 传 clock/fileSystem)成立。",
+        "范围外支撑文件 shared/src/errors/codes.ts、packages/daemon/src/errors/app-error.ts、daemon/package.json、test/* 已补并按本任务验收，pnpm -w check (biome+tsc+vitest) 33/33 全绿。",
+        "本次仅复验 ComSpec 文档补丁的影响：数据库连接、四条 PRAGMA、迁移顺序和 UnitOfWork 不启动子进程；M1-T2 任务行和所有产品文件相对 origin/main 未变，08 节数据层与事务约定未变。",
+        "GitHub PR #3 状态 MERGED，合并提交 aa5ad3b；pnpm -w check 33/33 通过，其中 database.test.ts 9 项在 Windows 上使用真实 SQLite 验证已有实现。可保持已落地状态，无新增数据库义务。"
+      ]
+    },
+    "M4-T1": {
+      "contractHash": "c221a7ad6f416094b23c3e5f311b9461b97d7dd91683345f23894098ffe50e18",
+      "verdict": "pass",
+      "evidence": [
+        "2026-09-05 第二轮真实增量复核通过；当前sourceVersion=6a428e68ae20ffb7b319eb81980999de1792af9351cc6f8892e5b73acfeedf52，已核对final-hashes.json与_run/dispatch.json中本任务contractHash一致。仅签发M1-T1/M4-T1，未运行测试、未改源码、生成器、任务状态或复验标记。",
+        "最后B1-R1已关闭：13-边界问题与异常处理.md:33的E-20、:254的E-241，以及19-模块任务拆分.md:30的M3-T2均限定人工依赖确认且上游ready=true才放行；ready=false仍拒绝，确认不得改写ready或文档复核证据。17-测试策略.md:49已明确两种组合回归。本轮实际重新读取三处限定，和09/M8-T3门槛一致，无剩余BLOCKING。",
+        "实际review/resume标题分别为“复验已落地任务 M4-T1”和“继续复验已落地任务 M4-T1”。此前已完整核对B2/B3源码：build_docs.py:1311/:2174按真实进度让todo保持契约审查；:1315/:1770/:1900/:1919为持久done+needsReview提供专用复验，指向已合入代码与历史PR证据，不继续MERGED旧PR；verify不替代代码验收，只有实际验收后才--landed。最后版本相对已审候选提示词仅hash变化。",
+        "两历史任务的19任务行、有效路径及七条原验收边界均与基线不变；源码和5个测试文件已逐字确认未变。B1新增schema1三处hash一致性、id/contractHash指纹、ready元数据、固定文档快照和只读审查组装属于本次受影响M3/M7/M8职责，不转嫁为本任务新的代码义务。历史支持路径漏项按已定升级增量范围继续非阻断记录。",
+        "原始输入和前置：_run/context.md:14 起追加要求按agent默认模型与批次派发；04-开发条件.md:81-99给出codex/claude/pi/grok实测入口及各家模型配置来源。M4-T1只前置已落地M1-T1，提供注册表与Schema；模型读取器、参数模板展开、各家适配器及UI仍由其各自后续任务负责。没有把后续第五家dsh接入或运行链路挪到本任务。",
+        "验收1：config/defaults.ts:1 定义 native/generic-acp具名枚举，:36 的AgentConfig包含execPath/argsTemplate/maxConcurrency/defaultModel/monogram/adapterKind/timeouts和versionFingerprint，:57 提供四家默认。config/registry.ts:162 导出 AGENTS_JSON_SCHEMA；:540 按白名单解析数据、:589 校验adapterKind、:1065 收集未知字段告警；用户输入不能注入函数或厂商事件解析器。配置Schema容忍未知字段是E-94的要求，不是HTTP请求Schema的additionalProperties:false适用面。",
+        "验收2、E-93（13-边界问题与异常处理.md:106；08-后端架构.md:235）：registry.ts:209/:216 的默认文件系统使用fs.watch监听目录；:16 将防抖固定300ms；:338 清旧计时器再调度，:349 过滤目标文件名且允许null事件；:282/:1100 以UTF-8内容SHA-256去重；:332 串行重载；:368 先安装监听再权威初读。agent-registry.test.ts:133 模拟初读交界三次保存，:162-168 断言3次设置/2次清除及仅两次实际装载；该测试使用注入文件系统，不把它说成三平台真实fs.watch验收。",
+        "验收3、E-94（13-边界问题与异常处理.md:107；08-后端架构.md:238）：registry.ts:266 的读失败、:288 的解析/字段失败均保留current并回传rejected；:289 对未知字段发布warning；:249 警告kind为agent.availability_changed，severity=warning；:463 JSON校验、:518/:540白名单字段处理、:723缺值回落，只有:321整体合法后才换快照。:303-318 初次默认基线写失败仅警告仍启动；agent-registry.test.ts:115 断言EACCES写失败不致命并收到write-failed警告。",
+        "验收4、E-92（13-边界问题与异常处理.md:105）：registry.ts:301 对缺失/不完整历史默认保留已有叶子并补齐，与overrides分层序列化；:680 同时保留builtInDefaults/storedDefaults/userOverrides；:761 仅对用户覆盖字段计算oldValue/newValue/userValue；:383 的adoptDefault写回并reload；:784只推进采纳字段基线并删除该字段覆盖。agent-registry.test.ts:29覆盖不存在/空baseline，:57覆盖部分baseline跨版本升级，:94断言1→3并保留用户2，:104-110断言采纳后仅该字段变更且monogram=ZZ继续保留。",
+        "验收5、E-91（13-边界问题与异常处理.md:104）：registry.ts:563 接受安全整数maxConcurrency且不把0/负数归一化成无限；:718 明确 isEnabled: config.maxConcurrency > 0；:1104 只对undefined回落，0/负值被保留。本结论来自具体代码核对；现有4个registry测试没有直接断言0/负数，未夸大自动化覆盖。",
+        "快照及完成阶段：registry.ts:680/:711/:1033 对当前配置、数组和嵌套超时/指纹深冻结，每次有效加载新建快照，旧引用不会因热加载被原地改写；adoptDefault只处理注册表字段。19-模块任务拆分.md:81 把E-92按钮/三行呈现交给M9-T14，:45把E-189无在途切换交给M4-T12，08-后端架构.md:241-243规定后续派发快照持久化。当前main.ts/container.ts尚未接入registry的完整业务链，本次复验限已落地注册表能力及升级等价性，不虚称UI/派发/在途运行已集成，也不新增这些未来实现义务。",
+        "保留历史：图谱/任务/M4-T1.md:10 为 status: done；:52-67 的code块及:71-77的notes块连同整份笔记与baseline-docs/图谱/任务/M4-T1.md逐字节相同，整文件SHA-256=7d0efa35871053b3fb3a873469e884c830ceb7055a919a23755cd5ffa2e7a1f3。主线程提供GitHub核实：PR#4于2026-09-05T02:47:20Z MERGED，merge=791328c；本地merge增量只有defaults.ts、registry.ts、agent-registry.test.ts三个代码/测试文件。",
+        "验证来源：主线程报告既有5个Vitest文件共24测试全通过，其中agent-registry.test.ts:28含4个registry测试；另报告tsc -b --noEmit通过、维护工具官方23测试通过。独立审查员已逐条阅读测试与实现，未运行测试。现有注册表测试覆盖基线补全、跨版本差异采纳、写失败降级和初读/保存去重；未将其外推为所有E-91/E-94输入组合或真实三平台watch的自动化证明。",
+        "非阻断的既存范围欠项：packages/daemon/test/unit/agent-registry.test.ts是PR#4已合入且当前未改动的M4-T1验证文件，基线和当前taskPaths都漏列；本次等价升级复用既有测试不需要改它，不构成新增代码义务。后续涉及该文件时应把精确路径补入taskPaths/supportPaths；当前路径匹配仅命中前置M1-T1的test/unit/范围，补列不产生新的独立并行任务冲突。",
+        "最后同步已逐字段比较docs-data.js与_run/dispatch.json的contractHash/implementation/review/resume值一致，并核对三处任务hash一致。两份笔记整文件、status:done和code/notes仍与external baseline-docs逐字节相同。主线程已报告24个业务测试、tsc、实际项目工具副本23个维护回归及7个新路由回归通过，真实浏览器/78任务导出无不一致；本独立审查复用这些执行证据，不宣称自行跑过或审查全部78任务。当前无新增代码义务，可沿用已合入实现验收。",
+        "本次仅复验 ComSpec 文档补丁的影响：注册表仅装载、校验和热加载路径及参数配置，不创建子进程；M4-T1 任务行、注册表实现和错误码相对 origin/main 未变。参数实际执行仍由 M1-T3/M1-T7 负责。",
+        "GitHub PR #4 状态 MERGED，合并提交 791328c；pnpm -w check 33/33 通过，其中 agent-registry.test.ts 4 项覆盖已有注册表契约。此次边界澄清不要求注册表实现自行转义参数。"
+      ]
+    },
+    "M1-T3": {
+      "contractHash": "d266ec31dab6ee1ec2846c47d9c1e8f3c585269ae1f036fe13eeacb94a57581d",
+      "verdict": "pass",
+      "evidence": [
+        "这是任务定义复核，scope=task-contract，绝不代表 PR #5 代码验收通过。08 节将命令序列化限制在 Windows 适配器，proc 恒 shell:false；仅 ComSpec 使用 windowsVerbatimArguments:true，原生程序保持 false。14 节、E-42、19 节及 presentation.json 的 proc 提示词已同步，业务参数必须逐字保留、禁止额外命令和环境展开。",
+        "19 节原有 quoteForCmd 字符是分号 U+003B，build_vault.py:226 会按分号拆项；源条款改写为分号（U+003B）使生成笔记不再把它变成换行。未降低原有空格/引号/分号/&/^ 要求，新增真实 cmd/bat 最终 argv 验证；NUL/CR/LF 明确启动前报 E_VALIDATION。",
+        "M1-T3 有效范围新增两个精确测试文件 packages/daemon/test/unit/platform.test.ts 与 packages/daemon/test/unit/daemon-launch-spec.test.ts，未与独立任务发生路径冲突。前置仍为已合入 M1-T1；M1-T7 只消费完整冻结启动对象。共享 DaemonLaunchSpec 的 file/args/cwd、三平台路径、错误体系和依赖方向未更改。",
+        "机械文档检查 block=0/warn=0。代码验收仍为 rework：69bfe56 的 argsPrefix 后追加 alpha 即启动失败；quoteForCmd 将 a&b 传为 a^&b。Node 22.17.0 的真实 cmd/bat 矩阵仅无参数 4/32 成功。46 项路径、注入文件系统和 Ajv 8.17.1 schema 检查通过，347 字符 Windows 路径实际读写通过；经本机管理共享 localhost/C$ 的 369 字符 UNC 路径实际写入与回读也通过；POSIX 真机未验证。既有 pnpm -w check 33/33 不能覆盖这些新增缺陷。"
+      ]
+    }
+  }
+}

@@ -54,6 +54,12 @@
         "packages/daemon/src/http/routes/snapshot.ts",
         "packages/daemon/test/unit/dispatch-contract.test.ts"
       ]
+    },
+    "M1-T3": {
+      "supportPaths": [
+        "packages/daemon/test/unit/platform.test.ts",
+        "packages/daemon/test/unit/daemon-launch-spec.test.ts"
+      ]
     }
   }
 }

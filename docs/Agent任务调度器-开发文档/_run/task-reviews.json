@@ -1,6 +1,6 @@
 {
   "M1-T1": {
-    "contractHash": "89fd45933eaed1a1c9acf7466a1a425b8a9dcd1f5f065ddd4e8cc91080781cc5",
+    "contractHash": "74d52923b08583dcc707d29639206b86d4fea4cccbbd85871c4b806429e93916",
     "evidence": [
       "2026-09-05 第二轮真实增量复核通过；当前sourceVersion=6a428e68ae20ffb7b319eb81980999de1792af9351cc6f8892e5b73acfeedf52，已核对final-hashes.json与_run/dispatch.json中本任务contractHash一致。仅签发M1-T1/M4-T1，未运行测试、未改源码、生成器、任务状态或复验标记。",
       "最后B1-R1已关闭：13-边界问题与异常处理.md:33的E-20、:254的E-241，以及19-模块任务拆分.md:30的M3-T2均限定人工依赖确认且上游ready=true才放行；ready=false仍拒绝，确认不得改写ready或文档复核证据。17-测试策略.md:49已明确两种组合回归。本轮实际重新读取三处限定，和09/M8-T3门槛一致，无剩余BLOCKING。",
@@ -15,28 +15,46 @@
       "保留历史：图谱/任务/M1-T1.md:10 为 status: done；:51-65 的 code 块和:69-77 的 notes 块连同整份笔记均与 external baseline-docs/图谱/任务/M1-T1.md 逐字节相同，整文件 SHA-256=61477d56adb98ac5371c2b42b22f5beef23196716a99f5c956eb6663944a16d8。主线程提供 GitHub 核实：PR#2 于 2026-09-04T07:06:32Z MERGED，merge=51edc09；本地 first-parent 历史一致。",
       "验证来源：主线程在本会话报告5个既有Vitest文件共24测试通过（其中M1-T1相关20项），包括实际Node20拒绝/Node22常驻锁；tsc -b --noEmit 通过；官方维护工具23测试通过。独立审查员已阅读相应测试文件及断言，未自行执行，也不把维护测试或主线程结果声称为独立执行。Biome/最终完整workspace check未由这些结果自动证明。",
       "非阻断的既存范围欠项：packages/daemon/typescript-loader.mjs:5 是已合入且当前未修改的支持文件，但基线与当前 taskPaths 都未列入。限定本次已落地等价升级，不需要新增或改动该文件，因此不构成新代码义务；若以后该任务需要修改loader或重新实施，应先把该精确路径补入 taskPaths/supportPaths。对当前配置做路径匹配未找到其他任务覆盖该文件，未扩大到 packages/daemon/ 整目录。",
-      "最后同步已逐字段比较docs-data.js与_run/dispatch.json的contractHash/implementation/review/resume值一致，并核对三处任务hash一致。两份笔记整文件、status:done和code/notes仍与external baseline-docs逐字节相同。主线程已报告24个业务测试、tsc、实际项目工具副本23个维护回归及7个新路由回归通过，真实浏览器/78任务导出无不一致；本独立审查复用这些执行证据，不宣称自行跑过或审查全部78任务。当前无新增代码义务，可沿用已合入实现验收。"
+      "最后同步已逐字段比较docs-data.js与_run/dispatch.json的contractHash/implementation/review/resume值一致，并核对三处任务hash一致。两份笔记整文件、status:done和code/notes仍与external baseline-docs逐字节相同。主线程已报告24个业务测试、tsc、实际项目工具副本23个维护回归及7个新路由回归通过，真实浏览器/78任务导出无不一致；本独立审查复用这些执行证据，不宣称自行跑过或审查全部78任务。当前无新增代码义务，可沿用已合入实现验收。",
+      "本次仅复验 ComSpec 文档补丁的影响：M1-T1 仍只负责 Node 自检、唯一 bootstrap 入口、最小锁与异常兜底，平台包装属于 M1-T3/M1-T7；其任务行、原生 Node 入口及实现均未改变。本次 diff 相对 origin/main 没有 M1-T1 产品文件。",
+      "GitHub PR #2 状态 MERGED，合并提交 51edc09；本机 Node 22.17.0 执行 pnpm -w check，6 文件 33/33 测试通过，其中 boot 8、guards 4、entry 3、source contracts 5 覆盖原有义务。此记录维持已合入成果，不声称完成尚未实现的 ComSpec 执行。"
     ],
-    "reviewed": "2026-09-05T08:45:39.954585+00:00",
+    "reviewed": "2026-09-05T11:35:59.208440+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T2": {
-    "contractHash": "b9e1e78991d6424eb9b2a1d81942290696e909d0a543b4de49dbe4bdaecab656",
+    "contractHash": "46522e395f003cfbaaa8cc46e893bd7a9ac78bbea5bdccae2323ea72818b837d",
     "evidence": [
       "AC1 四条 PRAGMA: open-database.ts:7-12 精确设 journal_mode=WAL/busy_timeout=5000/foreign_keys=ON/synchronous=NORMAL 且无其他 PRAGMA；database.test.ts:49-57 在真实 better-sqlite3(Windows 实战) 逐条查询验证 wal/5000/1/1。E-150: database.test.ts:210-245 锁竞争走 E_DB_BUSY 且不双写。",
       "AC2 迁移按文件名升序: migrate.ts:51-60 过滤 ^\\d{4}_ 并按文件名字典序排序，逐文件在独立 immediate 事务执行并写 schema_migrations(migrate.ts:48-74)。",
       "AC3 嵌套事务: unit-of-work.ts:11-16 depth>0 直接抛 E_TX_NESTED 不用 savepoint；database.test.ts:147-173 覆盖。",
       "AC4 ABI: open-database.ts:25,50-59 在工厂内 createRequire 捕获 ERR_DLOPEN_FAILED/MODULE_NOT_FOUND，包成 AppError(E_INTERNAL)+details.remediation='pnpm rebuild' 且不泄原始栈；database.testly E-152 用例两部分覆盖。",
       "边界 E-150(boot 启退是 M1-T10 范围)+E-152 均已落地；架构分层 06/08(db 为底层无反向 import、repo 独占 SQL、service 独占事务、由 DI 传 clock/fileSystem)成立。",
-      "范围外支撑文件 shared/src/errors/codes.ts、packages/daemon/src/errors/app-error.ts、daemon/package.json、test/* 已补并按本任务验收，pnpm -w check (biome+tsc+vitest) 33/33 全绿。"
+      "范围外支撑文件 shared/src/errors/codes.ts、packages/daemon/src/errors/app-error.ts、daemon/package.json、test/* 已补并按本任务验收，pnpm -w check (biome+tsc+vitest) 33/33 全绿。",
+      "本次仅复验 ComSpec 文档补丁的影响：数据库连接、四条 PRAGMA、迁移顺序和 UnitOfWork 不启动子进程；M1-T2 任务行和所有产品文件相对 origin/main 未变，08 节数据层与事务约定未变。",
+      "GitHub PR #3 状态 MERGED，合并提交 aa5ad3b；pnpm -w check 33/33 通过，其中 database.test.ts 9 项在 Windows 上使用真实 SQLite 验证已有实现。可保持已落地状态，无新增数据库义务。"
     ],
-    "reviewed": "2026-09-05T10:36:49.607849+00:00",
+    "reviewed": "2026-09-05T11:36:02.195377+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M1-T3": {
+    "contractHash": "d266ec31dab6ee1ec2846c47d9c1e8f3c585269ae1f036fe13eeacb94a57581d",
+    "evidence": [
+      "2026-09-06 第2轮只核 PR #5 REVIEW-ROUND 1 的 R1/R2。契约 hash 未变化，沿用上一轮其余三平台路径、数据目录与共享 schema 验收，不增加无关返工项。",
+      "R1：resolve-executable.ts:114 的 ComSpec argsPrefix 为空，windows.ts wrapForComSpec 在取得完整原始 args 后生成冻结 file/args/spawnOptions。platform.test.ts 用真实 resolveExecutable → wrapForComSpec → spawnSync 链检查 cmd/bat、空/普通/多参数和复杂路径。",
+      "R2：返工头 59e4298 仍会展开 %M1_T3_SENTINEL%，引号与 & 组合能创建无害注入哨兵。审查者按两轮上限接手修复：原生 argv 的引号/反斜杠编码后，对参数做两次 cmd 元字符转义，脚本路径只做一次；NUL/CR/LF 仍在启动前返回 E_VALIDATION 和 argumentIndex。没有更改接口或任务定义。",
+      "实机回归：32个场景=2种目录×2种扩展名×8组argv，涵盖普通/空/多个参数、Unicode、引号、分号、caret、百分号、叹号、尾部反斜杠、环境变量名和组合注入。测试断言最终JSON argv逐项等于原输入，并断言4种哨兵文件均不存在；返工代码负控失败，修复后全部通过。",
+      "pnpm -w check：Biome51文件、TypeScript strict构建及7个Vitest文件72/72通过，其中platform.test.ts39项含32项真实Windows批处理场景。此轮未重新跑macOS/Linux真机；非Windows跳过原生cmd/bat组，不能把Windows证据称为三平台真机矩阵。",
+      "任务笔记code区按实际行号回填；notes区保留路径、候选、错误、失败不缓存及共享schema义务，修正乱码与不实保证，明确批处理%*转发以及proc原样消费完整启动对象的接口要求。仅改windows.ts、platform.test.ts及任务回填/维护记录，未实现M1-T7。"
+    ],
+    "reviewed": "2026-09-06T05:42:26.836186+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T1": {
-    "contractHash": "33faf5154ca654608d628fdf13cbd951044ef96b888e0909bf1e54171938e124",
+    "contractHash": "c221a7ad6f416094b23c3e5f311b9461b97d7dd91683345f23894098ffe50e18",
     "evidence": [
       "2026-09-05 第二轮真实增量复核通过；当前sourceVersion=6a428e68ae20ffb7b319eb81980999de1792af9351cc6f8892e5b73acfeedf52，已核对final-hashes.json与_run/dispatch.json中本任务contractHash一致。仅签发M1-T1/M4-T1，未运行测试、未改源码、生成器、任务状态或复验标记。",
       "最后B1-R1已关闭：13-边界问题与异常处理.md:33的E-20、:254的E-241，以及19-模块任务拆分.md:30的M3-T2均限定人工依赖确认且上游ready=true才放行；ready=false仍拒绝，确认不得改写ready或文档复核证据。17-测试策略.md:49已明确两种组合回归。本轮实际重新读取三处限定，和09/M8-T3门槛一致，无剩余BLOCKING。",
@@ -52,9 +70,11 @@
       "保留历史：图谱/任务/M4-T1.md:10 为 status: done；:52-67 的code块及:71-77的notes块连同整份笔记与baseline-docs/图谱/任务/M4-T1.md逐字节相同，整文件SHA-256=7d0efa35871053b3fb3a873469e884c830ceb7055a919a23755cd5ffa2e7a1f3。主线程提供GitHub核实：PR#4于2026-09-05T02:47:20Z MERGED，merge=791328c；本地merge增量只有defaults.ts、registry.ts、agent-registry.test.ts三个代码/测试文件。",
       "验证来源：主线程报告既有5个Vitest文件共24测试全通过，其中agent-registry.test.ts:28含4个registry测试；另报告tsc -b --noEmit通过、维护工具官方23测试通过。独立审查员已逐条阅读测试与实现，未运行测试。现有注册表测试覆盖基线补全、跨版本差异采纳、写失败降级和初读/保存去重；未将其外推为所有E-91/E-94输入组合或真实三平台watch的自动化证明。",
       "非阻断的既存范围欠项：packages/daemon/test/unit/agent-registry.test.ts是PR#4已合入且当前未改动的M4-T1验证文件，基线和当前taskPaths都漏列；本次等价升级复用既有测试不需要改它，不构成新增代码义务。后续涉及该文件时应把精确路径补入taskPaths/supportPaths；当前路径匹配仅命中前置M1-T1的test/unit/范围，补列不产生新的独立并行任务冲突。",
-      "最后同步已逐字段比较docs-data.js与_run/dispatch.json的contractHash/implementation/review/resume值一致，并核对三处任务hash一致。两份笔记整文件、status:done和code/notes仍与external baseline-docs逐字节相同。主线程已报告24个业务测试、tsc、实际项目工具副本23个维护回归及7个新路由回归通过，真实浏览器/78任务导出无不一致；本独立审查复用这些执行证据，不宣称自行跑过或审查全部78任务。当前无新增代码义务，可沿用已合入实现验收。"
+      "最后同步已逐字段比较docs-data.js与_run/dispatch.json的contractHash/implementation/review/resume值一致，并核对三处任务hash一致。两份笔记整文件、status:done和code/notes仍与external baseline-docs逐字节相同。主线程已报告24个业务测试、tsc、实际项目工具副本23个维护回归及7个新路由回归通过，真实浏览器/78任务导出无不一致；本独立审查复用这些执行证据，不宣称自行跑过或审查全部78任务。当前无新增代码义务，可沿用已合入实现验收。",
+      "本次仅复验 ComSpec 文档补丁的影响：注册表仅装载、校验和热加载路径及参数配置，不创建子进程；M4-T1 任务行、注册表实现和错误码相对 origin/main 未变。参数实际执行仍由 M1-T3/M1-T7 负责。",
+      "GitHub PR #4 状态 MERGED，合并提交 791328c；pnpm -w check 33/33 通过，其中 agent-registry.test.ts 4 项覆盖已有注册表契约。此次边界澄清不要求注册表实现自行转义参数。"
     ],
-    "reviewed": "2026-09-05T08:45:42.903561+00:00",
+    "reviewed": "2026-09-05T11:36:05.319812+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }
