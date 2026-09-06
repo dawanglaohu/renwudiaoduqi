@@ -3,6 +3,7 @@ import type {
 	AppDataDirectoryResult,
 	CurrentPlatformPath,
 	PlatformHostInputs,
+	PlatformOperationError,
 	PlatformPathAdapter,
 } from './contract.ts';
 import { hasUnexpandedPathToken } from './contract.ts';
@@ -103,8 +104,61 @@ export function comSpec(): string {
 }
 
 export function quoteForCmd(value: string): string {
-	const escapedQuotes = value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/g, '$1$1');
-	return `"${escapedQuotes}"`.replace(/([()%!^<>&|;,\r\n])/g, '^$1');
+	const escapedQuotes = value.replace(/(\\*)"/g, '$1$1\\"');
+	const escapedTail = escapedQuotes.replace(/(\\*)$/g, '$1$1');
+	return `"${escapedTail}"`;
+}
+
+export interface ComSpecLaunch {
+	readonly file: string;
+	readonly args: readonly string[];
+	readonly spawnOptions: { readonly windowsVerbatimArguments: true };
+}
+
+export type ComSpecLaunchResult =
+	| { readonly ok: true; readonly launch: ComSpecLaunch }
+	| {
+			readonly ok: false;
+			readonly error: PlatformOperationError<'E_VALIDATION'>;
+	  };
+
+export function wrapForComSpec(
+	scriptPath: string,
+	args: readonly string[],
+	commandProcessorPath: string,
+): ComSpecLaunchResult {
+	let invalidIndex: number | undefined;
+	for (let index = 0; index < args.length; index += 1) {
+		const argument = args[index] as string;
+		if (argument.includes('\0') || argument.includes('\r') || argument.includes('\n')) {
+			invalidIndex = index;
+			break;
+		}
+	}
+	if (invalidIndex !== undefined) {
+		return Object.freeze({
+			ok: false,
+			error: Object.freeze({
+				code: 'E_VALIDATION',
+				message: 'The argument contains a character that cannot be passed through ComSpec.',
+				details: Object.freeze({ argumentIndex: invalidIndex }),
+			}),
+		});
+	}
+
+	const parts = [quoteForCmd(scriptPath)];
+	for (const argument of args) {
+		parts.push(quoteForCmd(argument));
+	}
+
+	return Object.freeze({
+		ok: true,
+		launch: Object.freeze({
+			file: commandProcessorPath,
+			args: Object.freeze(['/d', '/s', '/c', `"${parts.join(' ')}"`]),
+			spawnOptions: Object.freeze({ windowsVerbatimArguments: true }),
+		}),
+	});
 }
 
 function isAbsoluteWindowsPath(value: string): boolean {
