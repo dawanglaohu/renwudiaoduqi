@@ -1,6 +1,6 @@
+import { AppError } from '../errors/app-error.ts';
 import type { ReadSegmentResult, SegmentRow } from './contract.ts';
 import { READ_CHUNK_LIMIT_BYTES } from './contract.ts';
-import { AppError } from '../errors/app-error.ts';
 
 export async function readRange(
 	stream: AsyncIterable<Uint8Array>,
@@ -38,7 +38,10 @@ export function formatCursor(fileSeq: number, byteOffset: number): string {
 export async function readSegmentPage(
 	segments: readonly SegmentRow[],
 	cursor: string | undefined,
-	createStream: (path: string, options: { start: number; end: number }) => AsyncIterable<Uint8Array>,
+	createStream: (
+		path: string,
+		options: { start: number; end: number },
+	) => AsyncIterable<Uint8Array>,
 	fileLen: (path: string) => number | null,
 ): Promise<ReadSegmentResult> {
 	const parsed = parseCursor(cursor);
@@ -67,7 +70,13 @@ export async function readSegmentPage(
 		return { ok: false, code: 'E_VALIDATION' };
 	}
 	if (start === segment.byteEnd) {
-		return { ok: true, data: new Uint8Array(0), nextCursor: cursor ?? '0:0', hasMore: false, tailReached: true };
+		return {
+			ok: true,
+			data: new Uint8Array(0),
+			nextCursor: cursor ?? '0:0',
+			hasMore: false,
+			tailReached: true,
+		};
 	}
 
 	const end = Math.min(segment.byteEnd, start + READ_CHUNK_LIMIT_BYTES) - 1;

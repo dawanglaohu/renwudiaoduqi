@@ -1,6 +1,6 @@
+import type { AppendQueue } from './append-queue.ts';
 import type { LogFileSystem, LogStream, SegmentBoundary, StreamResumeState } from './contract.ts';
 import { SEGMENT_SIZE_LIMIT_BYTES } from './contract.ts';
-import type { AppendQueue } from './append-queue.ts';
 import type { LogstorePaths } from './paths.ts';
 
 export interface RawAppendResult {
@@ -53,7 +53,13 @@ export function createRunWriter(deps: {
 	async function performAppend(
 		stream: LogStream,
 		line: Uint8Array,
-	): Promise<{ fileSeq: number; path: string; closedSegment: SegmentBoundary | null; byteOffset: number; byteLen: number }> {
+	): Promise<{
+		fileSeq: number;
+		path: string;
+		closedSegment: SegmentBoundary | null;
+		byteOffset: number;
+		byteLen: number;
+	}> {
 		await ensureDirectory();
 
 		const state = stream === 'raw' ? rawState : eventsState;
@@ -97,12 +103,18 @@ export function createRunWriter(deps: {
 	return Object.freeze({
 		async appendRawLine(line: Uint8Array) {
 			const task = chain.then(() => performAppend('raw', line));
-			chain = task.then(() => undefined, () => undefined);
+			chain = task.then(
+				() => undefined,
+				() => undefined,
+			);
 			return task;
 		},
 		async appendEventLine(line: Uint8Array) {
 			const task = chain.then(() => performAppend('events', line));
-			chain = task.then(() => undefined, () => undefined);
+			chain = task.then(
+				() => undefined,
+				() => undefined,
+			);
 			return task;
 		},
 		async flush(): Promise<void> {

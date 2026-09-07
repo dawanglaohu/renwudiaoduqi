@@ -15,13 +15,7 @@ export const RAW_STREAM_FILE_SUFFIX = '.log';
 export const EVENTS_STREAM_FILE_BASE = 'events';
 export const EVENTS_STREAM_FILE_SUFFIX = '.ndjson';
 
-export const MILESTONE_KIND_PREFIXES = [
-	'run.',
-	'task.',
-	'batch.',
-	'system.',
-	'agent.',
-] as const;
+export const MILESTONE_KIND_PREFIXES = ['run.', 'task.', 'batch.', 'system.', 'agent.'] as const;
 
 export const MILESTONE_KIND_EXACT = ['tool_call', 'tool_call_update', 'plan'] as const;
 
