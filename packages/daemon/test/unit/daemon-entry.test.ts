@@ -35,7 +35,7 @@ describe('daemon entry', () => {
 		expect(result.stderr).not.toContain('ERR_UNKNOWN_FILE_EXTENSION');
 	});
 
-	it('runs main under real Node 22, stays resident, and keeps the instance lock', async () => {
+	it('E-03 stays resident under real Node 22 and keeps the instance lock', async () => {
 		const version = spawnSync(nodeExecutable(22), ['--version'], { encoding: 'utf8' });
 		expect(version.status).toBe(0);
 		expect(version.stdout.trim()).toBe('v22.17.0');

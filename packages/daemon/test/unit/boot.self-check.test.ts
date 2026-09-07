@@ -63,7 +63,7 @@ describe('boot self-check', () => {
 		);
 	});
 
-	it('E-03 keeps the first pid visible and permits reacquisition after release', () => {
+	it('E-03-T10 keeps the first pid visible and permits reacquisition after release', () => {
 		const lockFilePath = join(makeTemporaryDirectory(), 'daemon.lock');
 		const first = acquireInstanceLock(lockFilePath, 4321);
 		expect(first.ok).toBe(true);
