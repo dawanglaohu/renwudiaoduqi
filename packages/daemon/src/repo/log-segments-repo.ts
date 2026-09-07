@@ -1,5 +1,28 @@
 import type { DatabaseConnection } from '../db/open-database.ts';
-import type { SegmentInsert, SegmentRow } from '../logstore/contract.ts';
+
+export type SegmentStream = 'raw' | 'events';
+
+export interface SegmentInsert {
+	readonly id: string;
+	readonly runId: string;
+	readonly stream: SegmentStream;
+	readonly fileSeq: number;
+	readonly path: string;
+	readonly byteStart: number;
+	readonly byteEnd: number;
+	readonly lineCount: number;
+}
+
+export interface SegmentRow {
+	readonly id: string;
+	readonly runId: string;
+	readonly stream: SegmentStream;
+	readonly fileSeq: number;
+	readonly path: string;
+	readonly byteStart: number;
+	readonly byteEnd: number;
+	readonly lineCount: number;
+}
 
 interface SegmentDataRow {
 	id: string;
@@ -24,16 +47,22 @@ WHERE run_id = ? AND stream = ?
 ORDER BY file_seq ASC
 `;
 
+const SELECT_ALL_SQL = `
+SELECT id, run_id, stream, file_seq, path, byte_start, byte_end, line_count
+FROM log_segments
+ORDER BY run_id, stream, file_seq
+`;
+
 export interface LogSegmentsRepo {
 	readonly insertSegments: (segments: readonly SegmentInsert[]) => void;
-	readonly findByRunStream: (runId: string, stream: string) => readonly SegmentRow[];
+	readonly findByRunStream: (runId: string, stream: SegmentStream) => readonly SegmentRow[];
 	readonly listAll: () => readonly SegmentRow[];
 }
 
 export function createLogSegmentsRepo(db: DatabaseConnection): LogSegmentsRepo {
 	const insert = db.prepare(INSERT_SQL);
 	const selectByRunStream = db.prepare(SELECT_BY_RUN_STREAM_SQL);
-	const listAll = db.prepare('SELECT * FROM log_segments ORDER BY run_id, stream, file_seq');
+	const selectAll = db.prepare(SELECT_ALL_SQL);
 
 	return Object.freeze({
 		insertSegments(segments: readonly SegmentInsert[]) {
@@ -50,11 +79,11 @@ export function createLogSegmentsRepo(db: DatabaseConnection): LogSegmentsRepo {
 				});
 			}
 		},
-		findByRunStream(runId: string, stream: string) {
+		findByRunStream(runId: string, stream: SegmentStream) {
 			return (selectByRunStream.all(runId, stream) as SegmentDataRow[]).map(mapRow);
 		},
 		listAll() {
-			return (listAll.all() as SegmentDataRow[]).map(mapRow);
+			return (selectAll.all() as SegmentDataRow[]).map(mapRow);
 		},
 	});
 }

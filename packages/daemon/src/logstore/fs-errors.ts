@@ -11,6 +11,10 @@ export function toLogFileMissing(cause: unknown, path: string): AppError {
 	});
 }
 
+/**
+ * Wrap a native fs error at the module boundary (R4): ENOENT → E_LOG_FILE_MISSING
+ * (E-151), everything else → E_INTERNAL with the original error as `cause`.
+ */
 export function toFilesystemError(cause: unknown, fallbackMessage: string): AppError {
 	if (cause instanceof AppError) return cause;
 	if (isEnoent(cause)) return toLogFileMissing(cause, getNodeErrorPath(cause) ?? '');

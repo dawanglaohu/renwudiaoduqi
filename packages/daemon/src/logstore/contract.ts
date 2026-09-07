@@ -15,10 +15,6 @@ export const RAW_STREAM_FILE_SUFFIX = '.log';
 export const EVENTS_STREAM_FILE_BASE = 'events';
 export const EVENTS_STREAM_FILE_SUFFIX = '.ndjson';
 
-export const MILESTONE_KIND_PREFIXES = ['run.', 'task.', 'batch.', 'system.', 'agent.'] as const;
-
-export const MILESTONE_KIND_EXACT = ['tool_call', 'tool_call_update', 'plan'] as const;
-
 export interface LogstoreClock {
 	readonly now: () => string;
 }
@@ -31,12 +27,22 @@ export interface LogFileSystem {
 	readonly mkdirSync: (path: string) => void;
 	readonly listDirectory: (path: string) => readonly string[];
 	readonly appendFile: (path: string, data: Uint8Array) => Promise<void>;
-	readonly createReadStream: (
-		path: string,
-		options: { readonly start: number; readonly end: number },
-	) => AsyncIterable<Uint8Array>;
-	/** Null instead of throwing when the file is gone (E-151). */
+	readonly readFile: (path: string) => Promise<Uint8Array>;
+	/** Read bytes [start, endInclusive] from a file. */
+	readonly readRange: (path: string, start: number, endInclusive: number) => Promise<Uint8Array>;
+	/** Byte length, or null when the file is gone (E-151). */
 	readonly fileLenSync: (path: string) => number | null;
+}
+
+export interface SegmentRowLike {
+	readonly id: string;
+	readonly runId: string;
+	readonly stream: LogStream;
+	readonly fileSeq: number;
+	readonly path: string;
+	readonly byteStart: number;
+	readonly byteEnd: number;
+	readonly lineCount: number;
 }
 
 export interface SegmentBoundary {
@@ -48,41 +54,27 @@ export interface SegmentBoundary {
 	readonly lineCount: number;
 }
 
-export interface EventLineLocation {
-	readonly runId: string;
-	readonly fileSeq: number;
-	readonly path: string;
-	readonly byteOffset: number;
-	readonly byteLen: number;
-	readonly bytes: Uint8Array;
+export type LineSeverity = 'std' | 'err';
+export type MergedSource = 'raw' | 'events';
+
+/**
+ * One physical event line recovered from events.ndjson during a repair scan.
+ *
+ * - `line` is the exact bytes on disk (without the trailing LF).
+ * - `envelope` is the parsed JSON fields when the line is a complete, well-formed
+ *   envelope; a "null envelope" means a line whose fields are missing or
+ *   non-string (`ts`/`scope`/`kind` are required for the index).
+ * - `complete` marks lines terminated by an LF (a truncated tail line has no LF
+ *   and is treated as garbage, never re-attached to a following append).
+ */
+export interface ScannedEventLine {
+	readonly line: Uint8Array;
+	readonly lineLen: number; // bytes including the trailing LF
+	readonly envelope: ScannedEnvelope | null;
+	readonly complete: boolean;
 }
 
-export interface AppendedEventLine {
-	readonly location: EventLineLocation;
-	readonly closedSegment: SegmentBoundary | null;
-}
-
-export interface AppendedRawLine {
-	readonly fileSeq: number;
-	readonly path: string;
-	readonly byteOffset: number;
-	readonly byteLen: number;
-	readonly closedSegment: SegmentBoundary | null;
-}
-
-export interface StreamResumeState {
-	readonly fileSeq: number;
-	readonly byteEnd: number;
-	readonly lineCount: number;
-}
-
-export interface RecoveredEventLine {
-	readonly location: EventLineLocation;
-	readonly envelope: RecoveredEventEnvelope | null;
-	readonly isComplete: boolean;
-}
-
-export interface RecoveredEventEnvelope {
+export interface ScannedEnvelope {
 	readonly id: number | null;
 	readonly seq: number | null;
 	readonly ts: string | null;
@@ -92,41 +84,21 @@ export interface RecoveredEventEnvelope {
 	readonly actorDeviceId: string | null;
 }
 
-export interface EventIndexRecord {
-	readonly id: number;
+/** Scan one segment of events.ndjson from `start` to `endExclusive`. */
+export interface ScanWindow {
 	readonly runId: string;
-	readonly taskId: string | null;
-	readonly seq: number;
-	readonly ts: string;
-	readonly scope: string;
-	readonly kind: string;
-	readonly actorDeviceId: string | null;
+	readonly path: string;
 	readonly fileSeq: number;
-	readonly byteOffset: number;
-	readonly byteLen: number;
+	readonly start: number;
+	readonly endExclusive: number;
 }
 
-export interface SegmentInsert {
-	readonly id: string;
-	readonly runId: string;
-	readonly stream: LogStream;
-	readonly fileSeq: number;
-	readonly path: string;
-	readonly byteStart: number;
-	readonly byteEnd: number;
-	readonly lineCount: number;
-}
-
-export interface SegmentRow {
-	readonly id: string;
-	readonly runId: string;
-	readonly stream: LogStream;
-	readonly fileSeq: number;
-	readonly path: string;
-	readonly byteStart: number;
-	readonly byteEnd: number;
-	readonly lineCount: number;
-}
+export type ReadSegmentResult =
+	| ReadSegmentResultOk
+	| {
+			readonly ok: false;
+			readonly code: Extract<ErrorCode, 'E_LOG_FILE_MISSING' | 'E_VALIDATION'>;
+	  };
 
 export interface ReadSegmentResultOk {
 	readonly ok: true;
@@ -136,25 +108,9 @@ export interface ReadSegmentResultOk {
 	readonly tailReached: boolean;
 }
 
-export interface ReadSegmentResultError {
-	readonly ok: false;
-	readonly code: Extract<ErrorCode, 'E_LOG_FILE_MISSING' | 'E_VALIDATION'>;
-}
+export const MILESTONE_KIND_PREFIXES = ['run.', 'task.', 'batch.', 'system.', 'agent.'] as const;
 
-export type ReadSegmentResult = ReadSegmentResultOk | ReadSegmentResultError;
-
-export interface RepairError {
-	readonly runId: string;
-	readonly path: string;
-	readonly code: 'E_LOG_FILE_MISSING' | 'E_INTERNAL';
-	readonly message: string;
-}
-
-export interface RepairRunReport {
-	readonly runId: string;
-	readonly indexedLines: number;
-	readonly errors: readonly RepairError[];
-}
+export const MILESTONE_KIND_EXACT = ['tool_call', 'tool_call_update', 'plan'] as const;
 
 export function isMilestoneEventKind(kind: string): boolean {
 	return (
