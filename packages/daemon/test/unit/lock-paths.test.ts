@@ -32,7 +32,11 @@ describe('platform lock paths', () => {
 		expect(lines.some((line) => line.includes('chmod 0600'))).toBe(true);
 		expect(lines.some((line) => line.includes('root:root'))).toBe(true);
 
-		const darwinLines = requiredLockPermissionLines('darwin', MACOS_LOCK_DIR, `${MACOS_LOCK_DIR}/daemon.lock`);
+		const darwinLines = requiredLockPermissionLines(
+			'darwin',
+			MACOS_LOCK_DIR,
+			`${MACOS_LOCK_DIR}/daemon.lock`,
+		);
 		expect(darwinLines.some((line) => line.includes('root:admin'))).toBe(true);
 
 		const winLines = requiredLockPermissionLines(
@@ -40,8 +44,8 @@ describe('platform lock paths', () => {
 			WINDOWS_LOCK_DIR_FALLBACK,
 			`${WINDOWS_LOCK_DIR_FALLBACK.replaceAll('\\', '\\\\')}\\\\daemon.lock`,
 		);
-		expect(winLines.some((line) => line.includes('Administrators') && line.includes('SYSTEM'))).toBe(
-			true,
-		);
+		expect(
+			winLines.some((line) => line.includes('Administrators') && line.includes('SYSTEM')),
+		).toBe(true);
 	});
 });
