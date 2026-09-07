@@ -56,6 +56,7 @@ describe('E-149 log segment rotation', () => {
 			queue: realQueue as never,
 			ids: { newId: () => 'id-rotate' },
 			fs: fakeFs,
+			segmentsRepo: fakeSegmentsRepo,
 			segmentSizeLimitBytes: TEST_SEGMENT_LIMIT,
 		});
 
@@ -71,8 +72,7 @@ describe('E-149 log segment rotation', () => {
 		const size1 = readFileSync(seg1).byteLength;
 		expect(size0).toBe(62);
 		expect(size1).toBe(31);
-		expect(rotatedSegments).toHaveLength(2);
+		expect(rotatedSegments).toHaveLength(1);
 		expect(rotatedSegments[0]).toMatchObject({ fileSeq: 0, byteEnd: 62 });
-		expect(rotatedSegments[1]).toMatchObject({ fileSeq: 1, byteEnd: 31 });
 	});
 });

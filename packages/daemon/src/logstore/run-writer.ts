@@ -8,7 +8,7 @@ export interface RawAppendResult {
 	readonly path: string;
 	readonly byteOffset: number;
 	readonly byteLen: number;
-	readonly closedSegment: SegmentBoundary | null;
+	readonly lineCount: number;
 }
 
 export interface RunLogWriter {
@@ -25,21 +25,29 @@ interface OpenStreamState {
 
 const INITIAL_STATE: StreamResumeState = { fileSeq: 0, byteEnd: 0, lineCount: 0 };
 
+function toSegmentInsert(runId: string, closed: SegmentBoundary, ids: { newId: () => string }) {
+	return { id: ids.newId(), runId, ...closed };
+}
+
 export function createRunWriter(deps: {
 	readonly runId: string;
 	readonly paths: LogstorePaths;
 	readonly queue: AppendQueue;
 	readonly fs: LogFileSystem;
 	readonly ids: { newId: () => string };
+	readonly segmentsRepo?: {
+		insertSegments(rows: readonly ReturnType<typeof toSegmentInsert>[]): void;
+	};
 	readonly segmentSizeLimitBytes?: number;
 	readonly initialStates?: Partial<Record<LogStream, StreamResumeState>>;
 }): RunLogWriter {
-	const { runId, paths, queue, fs } = deps;
+	const { runId, paths, queue, fs, ids } = deps;
 	const segmentSizeLimit = deps.segmentSizeLimitBytes ?? SEGMENT_SIZE_LIMIT_BYTES;
 
 	let chain: Promise<void> = Promise.resolve();
 	let directoryCreated = false;
-	const closedSegments: SegmentBoundary[] = [];
+	const rawState: OpenStreamState = { ...INITIAL_STATE, ...(deps.initialStates?.raw ?? {}) };
+	const eventsState: OpenStreamState = { ...INITIAL_STATE, ...(deps.initialStates?.events ?? {}) };
 
 	async function ensureDirectory(): Promise<void> {
 		if (directoryCreated) return;
@@ -47,19 +55,7 @@ export function createRunWriter(deps: {
 		directoryCreated = true;
 	}
 
-	const rawState: OpenStreamState = { ...INITIAL_STATE, ...(deps.initialStates?.raw ?? {}) };
-	const eventsState: OpenStreamState = { ...INITIAL_STATE, ...(deps.initialStates?.events ?? {}) };
-
-	async function performAppend(
-		stream: LogStream,
-		line: Uint8Array,
-	): Promise<{
-		fileSeq: number;
-		path: string;
-		closedSegment: SegmentBoundary | null;
-		byteOffset: number;
-		byteLen: number;
-	}> {
+	async function performAppend(stream: LogStream, line: Uint8Array): Promise<RawAppendResult> {
 		await ensureDirectory();
 
 		const state = stream === 'raw' ? rawState : eventsState;
@@ -74,7 +70,7 @@ export function createRunWriter(deps: {
 				byteEnd: state.byteEnd,
 				lineCount: state.lineCount,
 			};
-			closedSegments.push(closed);
+			deps.segmentsRepo?.insertSegments([toSegmentInsert(runId, closed, ids)]);
 			state.fileSeq += 1;
 			state.byteEnd = 0;
 			state.lineCount = 0;
@@ -91,17 +87,14 @@ export function createRunWriter(deps: {
 		return {
 			fileSeq,
 			path,
-			closedSegment:
-				closedSegments.length > 0 && closedSegments[closedSegments.length - 1]?.fileSeq === fileSeq
-					? null
-					: (closedSegments.pop() ?? null),
 			byteOffset,
 			byteLen: incomingBytes,
+			lineCount: state.lineCount,
 		};
 	}
 
 	return Object.freeze({
-		async appendRawLine(line: Uint8Array) {
+		appendRawLine(line: Uint8Array) {
 			const task = chain.then(() => performAppend('raw', line));
 			chain = task.then(
 				() => undefined,
@@ -109,7 +102,7 @@ export function createRunWriter(deps: {
 			);
 			return task;
 		},
-		async appendEventLine(line: Uint8Array) {
+		appendEventLine(line: Uint8Array) {
 			const task = chain.then(() => performAppend('events', line));
 			chain = task.then(
 				() => undefined,
@@ -119,7 +112,6 @@ export function createRunWriter(deps: {
 		},
 		async flush(): Promise<void> {
 			await chain;
-			closedSegments.length = 0;
 		},
 	});
 }

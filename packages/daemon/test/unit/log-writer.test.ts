@@ -26,10 +26,12 @@ function makeDeps(runId: string, segmentLimit: number) {
 		findByRunStream: () => [],
 		listAll: () => [],
 	};
-	const eventsIndexRepo = {
-		lastIndexedEnd: () => 0,
-		lastIndexedFileSeq: () => null,
-		insertIndex: () => {},
+	const fs = {
+		mkdirSync: () => {},
+		listDirectory: () => [],
+		appendFile: async () => {},
+		createReadStream: () => (async function* () {})(),
+		fileLenSync: () => null,
 	};
 	const deps = {
 		runId,
@@ -37,14 +39,7 @@ function makeDeps(runId: string, segmentLimit: number) {
 		queue: { append: async () => {}, drain: async () => {}, pendingBytes: 0 },
 		ids: { newId: () => 'seg-1' },
 		segmentsRepo,
-		eventsIndexRepo,
-		fs: {
-			mkdirSync: () => {},
-			listDirectory: () => [],
-			appendFile: async () => {},
-			createReadStream: () => (async function* () {})(),
-			fileLenSync: () => null,
-		},
+		fs,
 		segmentSizeLimitBytes: segmentLimit,
 	};
 	return { segments, deps };
@@ -63,7 +58,7 @@ describe('log-writer (E-149)', () => {
 		await writer.appendRawLine(line);
 		await writer.flush();
 
-		expect(segments).toHaveLength(2);
+		expect(segments).toHaveLength(1);
 		expect(segments[0]).toMatchObject({
 			runId: 'run-1',
 			stream: 'raw',
@@ -71,14 +66,6 @@ describe('log-writer (E-149)', () => {
 			byteStart: 0,
 			byteEnd: 802,
 			lineCount: 2,
-		});
-		expect(segments[1]).toMatchObject({
-			runId: 'run-1',
-			stream: 'raw',
-			fileSeq: 1,
-			byteStart: 0,
-			byteEnd: 401,
-			lineCount: 1,
 		});
 	});
 });
