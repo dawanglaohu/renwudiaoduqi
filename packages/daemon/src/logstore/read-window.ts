@@ -1,38 +1,24 @@
-import { AppError } from '../errors/app-error.ts';
 import type { ReadSegmentResult, SegmentRow } from './contract.ts';
 import { READ_CHUNK_LIMIT_BYTES } from './contract.ts';
+import { AppError } from '../errors/app-error.ts';
 
-export interface ReadSegmentDeps {
-	readonly stream: AsyncIterable<Uint8Array>;
-	readonly limit?: number;
-}
-
-/**
- * Reads bytes from a Node fs.ReadStream, joining chunks into one string.
- * The stream is opened with explicit start/end byte offsets by the caller, so
- * this never loads a whole file: pages are capped at READ_CHUNK_LIMIT_BYTES (E-24).
- */
-export async function collectByteRange(
+export async function readRange(
 	stream: AsyncIterable<Uint8Array>,
 	limit: number = READ_CHUNK_LIMIT_BYTES,
-): Promise<string> {
-	let collected = '';
-	let read = 0;
+): Promise<Uint8Array> {
+	const chunks: Uint8Array[] = [];
+	let total = 0;
 	for await (const chunk of stream) {
-		const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
-		read += buf.byteLength;
-		if (read > limit) {
+		const buf = chunk instanceof Uint8Array ? chunk : Buffer.from(chunk);
+		total += buf.byteLength;
+		if (total > limit) {
 			throw new AppError('E_INTERNAL', 'Read stream exceeded the configured byte limit.');
 		}
-		collected += buf.toString('utf8');
+		chunks.push(buf);
 	}
-	return collected;
+	return Buffer.concat(chunks, total);
 }
 
-/**
- * Cursor format: `<fileSeq>:<byteOffset>`. Invalid input is a typed validation
- * failure, not an exception, because the cursor travels over the API.
- */
 export function parseCursor(
 	cursor: string | undefined,
 ): { ok: true; fileSeq: number; byteOffset: number } | { ok: false } {
@@ -49,17 +35,10 @@ export function formatCursor(fileSeq: number, byteOffset: number): string {
 	return `${fileSeq}:${byteOffset}`;
 }
 
-/**
- * Reads one page from a run's segment list (E-149: UI pages through segments,
- * never loads the whole file; E-151: missing file becomes a typed result).
- */
 export async function readSegmentPage(
 	segments: readonly SegmentRow[],
 	cursor: string | undefined,
-	createStream: (
-		path: string,
-		options: { start: number; end: number },
-	) => AsyncIterable<Uint8Array>,
+	createStream: (path: string, options: { start: number; end: number }) => AsyncIterable<Uint8Array>,
 	fileLen: (path: string) => number | null,
 ): Promise<ReadSegmentResult> {
 	const parsed = parseCursor(cursor);
@@ -68,12 +47,11 @@ export async function readSegmentPage(
 	const segment = segments.find((s) => s.fileSeq === parsed.fileSeq);
 	if (segment === undefined) {
 		if (segments.length === 0) return { ok: false, code: 'E_LOG_FILE_MISSING' };
-		// Cursor points at a segment we don't know about: treat as tail.
 		const last = segments.at(-1);
 		if (last === undefined) return { ok: false, code: 'E_LOG_FILE_MISSING' };
 		return {
 			ok: true,
-			data: '',
+			data: new Uint8Array(0),
 			nextCursor: formatCursor(last.fileSeq, last.byteEnd),
 			hasMore: false,
 			tailReached: true,
@@ -89,22 +67,19 @@ export async function readSegmentPage(
 		return { ok: false, code: 'E_VALIDATION' };
 	}
 	if (start === segment.byteEnd) {
-		return {
-			ok: true,
-			data: '',
-			nextCursor: cursor ?? formatCursor(0, 0),
-			hasMore: false,
-			tailReached: true,
-		};
+		return { ok: true, data: new Uint8Array(0), nextCursor: cursor ?? '0:0', hasMore: false, tailReached: true };
 	}
 
 	const end = Math.min(segment.byteEnd, start + READ_CHUNK_LIMIT_BYTES) - 1;
-	const data = await collectByteRange(createStream(segment.path, { start, end }));
+	const stream = createStream(segment.path, { start, end });
+	const data = await readRange(stream, READ_CHUNK_LIMIT_BYTES);
+	const nextCursor = formatCursor(segment.fileSeq, end + 1);
+	const nextSegment = segments.find((s) => s.fileSeq === segment.fileSeq + 1);
 	return {
 		ok: true,
 		data,
-		nextCursor: formatCursor(segment.fileSeq, end + 1),
-		hasMore: end + 1 < segment.byteEnd,
-		tailReached: end + 1 >= segment.byteEnd,
+		nextCursor,
+		hasMore: nextSegment !== undefined,
+		tailReached: end + 1 >= segment.byteEnd && nextSegment === undefined,
 	};
 }

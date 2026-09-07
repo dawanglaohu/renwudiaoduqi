@@ -12,19 +12,8 @@ interface SegmentDataRow {
 	line_count: number;
 }
 
-export interface LogSegmentRowFilters {
-	readonly runId: string;
-	readonly stream: string;
-}
-
-export interface LogSegmentsRepo {
-	readonly insertSegments: (segments: readonly SegmentInsert[]) => void;
-	readonly findByRunStream: (filters: LogSegmentRowFilters) => readonly SegmentRow[];
-	readonly findGcCandidates: (runIds: readonly string[]) => readonly SegmentRow[];
-}
-
 const INSERT_SQL = `
-INSERT INTO log_segments (id, run_id, stream, file_seq, path, byte_start, byte_end, line_count)
+INSERT OR IGNORE INTO log_segments (id, run_id, stream, file_seq, path, byte_start, byte_end, line_count)
 VALUES (@id, @runId, @stream, @fileSeq, @path, @byteStart, @byteEnd, @lineCount)
 `;
 
@@ -35,52 +24,42 @@ WHERE run_id = ? AND stream = ?
 ORDER BY file_seq ASC
 `;
 
-function buildGcSql(placeholders: string): string {
-	return `SELECT id, run_id, stream, file_seq, path, byte_start, byte_end, line_count FROM log_segments WHERE run_id IN (${placeholders})`;
+export interface LogSegmentsRepo {
+	readonly insertSegments: (segments: readonly SegmentInsert[]) => void;
+	readonly findByRunStream: (runId: string, stream: string) => readonly SegmentRow[];
+	readonly listAll: () => readonly SegmentRow[];
 }
 
-export function createLogSegmentsRepo(database: DatabaseConnection): LogSegmentsRepo {
-	const statementFiles = {
-		insert: database.prepare(INSERT_SQL),
-		selectByRunStream: database.prepare(SELECT_BY_RUN_STREAM_SQL),
-	};
+export function createLogSegmentsRepo(db: DatabaseConnection): LogSegmentsRepo {
+	const insert = db.prepare(INSERT_SQL);
+	const selectByRunStream = db.prepare(SELECT_BY_RUN_STREAM_SQL);
+	const listAll = db.prepare('SELECT * FROM log_segments ORDER BY run_id, stream, file_seq');
 
-	function insertSegments(segments: readonly SegmentInsert[]): void {
-		if (segments.length === 0) return;
-		for (const segment of segments) {
-			statementFiles.insert.run({
-				id: segment.id,
-				runId: segment.runId,
-				stream: segment.stream,
-				fileSeq: segment.fileSeq,
-				path: segment.path,
-				byteStart: segment.byteStart,
-				byteEnd: segment.byteEnd,
-				lineCount: segment.lineCount,
-			});
-		}
-	}
-
-	function findByRunStream(filters: LogSegmentRowFilters): readonly SegmentRow[] {
-		const rows = statementFiles.selectByRunStream.all(filters.runId, filters.stream) as
-			| SegmentDataRow[]
-			| undefined;
-		return (rows ?? []).map(mapSegmentRow);
-	}
-
-	function findGcCandidates(runIds: readonly string[]): readonly SegmentRow[] {
-		if (runIds.length === 0) return [];
-		const placeholders = runIds.map(() => '?').join(',');
-		const rows = database.prepare(buildGcSql(placeholders)).all(...runIds) as
-			| SegmentDataRow[]
-			| undefined;
-		return (rows ?? []).map(mapSegmentRow);
-	}
-
-	return Object.freeze({ insertSegments, findByRunStream, findGcCandidates });
+	return Object.freeze({
+		insertSegments(segments: readonly SegmentInsert[]) {
+			for (const s of segments) {
+				insert.run({
+					id: s.id,
+					runId: s.runId,
+					stream: s.stream,
+					fileSeq: s.fileSeq,
+					path: s.path,
+					byteStart: s.byteStart,
+					byteEnd: s.byteEnd,
+					lineCount: s.lineCount,
+				});
+			}
+		},
+		findByRunStream(runId: string, stream: string) {
+			return (selectByRunStream.all(runId, stream) as SegmentDataRow[]).map(mapRow);
+		},
+		listAll() {
+			return (listAll.all() as SegmentDataRow[]).map(mapRow);
+		},
+	});
 }
 
-function mapSegmentRow(row: SegmentDataRow): SegmentRow {
+function mapRow(row: SegmentDataRow): SegmentRow {
 	return Object.freeze({
 		id: row.id,
 		runId: row.run_id,

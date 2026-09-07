@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createLogstorePaths } from '../../src/logstore/paths.ts';
-import { createRunLogWriter } from '../../src/logstore/run-writer.ts';
+import { createRunWriter } from '../../src/logstore/run-writer.ts';
 
 const tmpDirs: string[] = [];
 
@@ -38,24 +38,23 @@ describe('RunLogWriter ordering', () => {
 			findGcCandidates: () => [],
 		};
 
-		const writer = createRunLogWriter({
+		const fs = {
+			mkdirSync: () => {},
+			listDirectory: () => [],
+			appendFile: async () => {},
+			createReadStream: () => (async function* () {})(),
+			fileLenSync: () => null,
+		};
+
+		const writer = createRunWriter({
 			runId: 'run-1',
 			paths,
 			queue: fakeQueue,
 			ids: { newId: () => 'id-1' },
-			segmentsRepo: fakeSegmentsRepo as never,
-			eventsIndexRepo: fakeIndexRepo as never,
+			fs,
 		});
 
-		await writer.appendEventLine({
-			bytes: new Uint8Array([65]),
-			taskId: null,
-			seq: 0,
-			ts: '2026-01-01T00:00:00.000Z',
-			scope: 'run',
-			kind: 'run.started',
-			actorDeviceId: null,
-		});
+		await writer.appendEventLine(new Uint8Array([65]));
 
 		expect(calls).toEqual(['append', 'append']);
 		expect(inserted.length).toBe(1);

@@ -1,17 +1,13 @@
 /**
  * Serialized async append point for log bytes.
  *
- * Chains every append after the previous one so segment bookkeeping on the
- * caller side can treat a resolved `append()` as "bytes durably at the end".
- * A failed append rejects that call; the chain itself survives so later
- * appends still run.
+ * Chains every append after the previous one so a resolved `append()` means
+ * those bytes are at the end of the file. A failed append rejects that call;
+ * the chain itself survives so later appends still run.
  */
 export interface AppendQueue {
-	/** Queue `data` for append to `path`. Resolves once the bytes hit disk. */
 	append(path: string, data: Uint8Array): Promise<void>;
-	/** Bytes queued but not yet written. Drives the 8/4 MiB pause/resume backpressure. */
 	readonly pendingBytes: number;
-	/** Wait until every queued append has finished. */
 	drain(): Promise<void>;
 }
 
@@ -34,7 +30,6 @@ export function createAppendQueue(deps: AppendQueueDeps): AppendQueue {
 	return {
 		append(path: string, data: Uint8Array): Promise<void> {
 			const write = tail.then(() => runAppend(path, data));
-			// The chain itself must never reject, or every later append would be skipped.
 			tail = write.catch(() => undefined);
 			pending += data.byteLength;
 			return write;

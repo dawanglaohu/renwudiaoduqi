@@ -2,7 +2,6 @@ import { join } from 'node:path';
 import {
 	EVENTS_STREAM_FILE_BASE,
 	EVENTS_STREAM_FILE_SUFFIX,
-	type LogFileSystem,
 	type LogStream,
 	RAW_STREAM_FILE_BASE,
 	RAW_STREAM_FILE_SUFFIX,
@@ -10,7 +9,6 @@ import {
 
 export interface LogstorePaths {
 	readonly runDir: (runId: string) => string;
-	/** Absolute path of one segment file. Segment 0 has no numeric suffix to keep the 06/08 节 names raw.log / events.ndjson. */
 	readonly segmentPath: (runId: string, stream: LogStream, fileSeq: number) => string;
 }
 
@@ -28,7 +26,30 @@ export function createLogstorePaths(baseDir: string): LogstorePaths {
 	});
 }
 
-/** Null-safe byte length of a file: null means the file is gone (E-151), never throws ENOENT. */
-export function fileLenOrNull(fs: LogFileSystem, path: string): number | null {
-	return fs.fileLenSync(path);
+export function parseSegmentFileName(
+	fileName: string,
+): { stream: LogStream; fileSeq: number } | null {
+	if (fileName === `${RAW_STREAM_FILE_BASE}${RAW_STREAM_FILE_SUFFIX}`) {
+		return { stream: 'raw', fileSeq: 0 };
+	}
+	if (fileName === `${EVENTS_STREAM_FILE_BASE}${EVENTS_STREAM_FILE_SUFFIX}`) {
+		return { stream: 'events', fileSeq: 0 };
+	}
+	const rawMatch = new RegExp(
+		`^${RAW_STREAM_FILE_BASE}-(\\d+)${escapeRegExp(RAW_STREAM_FILE_SUFFIX)}$`,
+	).exec(fileName);
+	if (rawMatch?.[1] !== undefined) {
+		return { stream: 'raw', fileSeq: Number.parseInt(rawMatch[1], 10) };
+	}
+	const eventsMatch = new RegExp(
+		`^${EVENTS_STREAM_FILE_BASE}-(\\d+)${escapeRegExp(EVENTS_STREAM_FILE_SUFFIX)}$`,
+	).exec(fileName);
+	if (eventsMatch?.[1] !== undefined) {
+		return { stream: 'events', fileSeq: Number.parseInt(eventsMatch[1], 10) };
+	}
+	return null;
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

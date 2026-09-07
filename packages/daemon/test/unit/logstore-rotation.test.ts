@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createLogstorePaths } from '../../src/logstore/paths.ts';
-import { createRunLogWriter } from '../../src/logstore/run-writer.ts';
+import { createRunWriter } from '../../src/logstore/run-writer.ts';
 
 const tmpDirs: string[] = [];
 
@@ -33,7 +33,13 @@ describe('E-149 log segment rotation', () => {
 				s: readonly { fileSeq: number; path: string; byteStart: number; byteEnd: number }[],
 			) => rotatedSegments.push(...s),
 			findByRunStream: () => [],
-			findGcCandidates: () => [],
+		};
+		const fakeFs = {
+			mkdirSync: () => {},
+			listDirectory: () => [],
+			appendFile: async () => {},
+			createReadStream: () => (async function* () {})(),
+			fileLenSync: () => null,
 		};
 		const fakeIndexRepo = {
 			insertIndex: () => {},
@@ -44,14 +50,12 @@ describe('E-149 log segment rotation', () => {
 		const { appendFile } = await import('node:fs/promises');
 		const realQueue = { append: appendFile, pendingBytes: 0, drain: async () => {} };
 
-		const writer = createRunLogWriter({
+		const writer = createRunWriter({
 			runId: 'run-rotate',
 			paths,
 			queue: realQueue as never,
 			ids: { newId: () => 'id-rotate' },
-			segmentsRepo: fakeSegmentsRepo as never,
-			eventsIndexRepo: fakeIndexRepo,
-			// Inject a tiny limit; production uses the 200 MB constant from contract.ts.
+			fs: fakeFs,
 			segmentSizeLimitBytes: TEST_SEGMENT_LIMIT,
 		});
 
