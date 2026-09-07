@@ -1,25 +1,24 @@
 import type { ProcessConfig } from '../config/env.ts';
-import type { AppContainer } from './container.ts';
-import type { LockHandle } from './lock.ts';
-import { checkNodeVersion } from './node-check.ts';
+import type { AppContainer } from '../boot/container.ts';
+import { checkNodeVersion } from '../boot/node-check.ts';
 
 export interface BootFailure {
-	readonly stage: 'node-version' | 'env' | 'single-instance';
+	readonly stage: 'node-version' | 'env' | 'data-dir' | 'lock';
 	readonly exitCode: number;
 	readonly lines: string[];
 }
 
 export type BootResult =
-	| { readonly ok: true; readonly config: ProcessConfig; readonly lock: LockHandle }
+	| { readonly ok: true; readonly config: ProcessConfig }
 	| { readonly ok: false; readonly failure: BootFailure };
 
 export function runBootSelfCheck(container: AppContainer): BootResult {
-	const versionResult = checkNodeVersion(container.nodeVersion);
-	if (!versionResult.ok) {
+	const nodeResult = checkNodeVersion(container.nodeVersion);
+	if (!nodeResult.ok) {
 		return fail('node-version', [
-			versionResult.message,
-			`Required: Node.js >= ${versionResult.requiredMajor}.0.0`,
-			`Current : ${versionResult.currentVersion}`,
+			nodeResult.message,
+			`Required: Node.js >= ${nodeResult.requiredMajor}.0.0`,
+			`Current : ${nodeResult.currentVersion}`,
 		]);
 	}
 
@@ -27,25 +26,11 @@ export function runBootSelfCheck(container: AppContainer): BootResult {
 	if (!configResult.ok) {
 		return fail('env', [
 			`${configResult.variable} has invalid format: "${configResult.actual}". Expected ${configResult.expected}.`,
-			'Fix the environment variable and restart the daemon. Default is not applied here.',
+			'Fix the environment variable and restart the daemon.',
 		]);
 	}
 
-	const lockResult = container.acquireInstanceLock();
-	if (!lockResult.ok) {
-		const pidPart =
-			lockResult.existingPid === null
-				? 'existing instance pid: unknown (lock file has no readable pid)'
-				: `existing instance pid: ${lockResult.existingPid}`;
-		return fail('single-instance', [
-			`another daemon instance already holds the lock at "${lockResult.lockFilePath}".`,
-			`lock file: ${lockResult.lockFilePath}`,
-			pidPart,
-			'This daemon refuses to start; hand the request to the already-running instance.',
-		]);
-	}
-
-	return { ok: true, config: configResult.config, lock: lockResult.lock };
+	return { ok: true, config: configResult.config };
 }
 
 function fail(stage: BootFailure['stage'], lines: string[]): BootResult {

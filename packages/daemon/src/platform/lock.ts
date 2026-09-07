@@ -1,12 +1,42 @@
 import { posix, win32 } from 'node:path';
 import type { SupportedPlatform } from './contract.ts';
+import { APPLICATION_DIRECTORY_NAME, type LockPathHost, LOCK_FILE_NAME } from './lock-contract.ts';
+import { createPosixLockAdapter } from './lock-posix.ts';
+import { createWindowsLockAdapter } from './lock-windows.ts';
+import type { NativeLockAdapter } from './lock-contract.ts';
 
-const APPLICATION_DIRECTORY_NAME = 'agent-scheduler';
-const LOCK_FILE_NAME = 'daemon.lock';
+export {
+	APPLICATION_DIRECTORY_NAME,
+	LOCK_DIRECTORY_MODE,
+	LOCK_FILE_MODE,
+	LOCK_FILE_NAME,
+	LOCK_METADATA_FIELDS,
+	POSIX_LOCK_DIRECTORY_MODE_OCTAL,
+	POSIX_LOCK_FILE_MODE_OCTAL,
+	WINDOWS_ADMINISTRATORS_SID,
+	WINDOWS_SYSTEM_SID,
+	combineProbeResults,
+	healthProbeHost,
+	isWildcardBind,
+	parseLockMetadata,
+	serializeLockMetadata,
+} from './lock-contract.ts';
+export type {
+	LockFileHandle,
+	LockIdentity,
+	LockMetadata,
+	LockMetadataField,
+	LockPathHost,
+	NativeLockAdapter,
+	NativeLockError,
+	NativeLockErrorCode,
+	NativeLockReadResult,
+	NativeLockWriteResult,
+	PosixLockPermissionSpec,
+	ProbeLiveness,
+	WindowsLockAclSpec,
+} from './lock-contract.ts';
 
-// Win32: %PROGRAMDATA%\agent-scheduler\daemon.lock (defaults to C:\ProgramData\agent-scheduler\daemon.lock)
-// darwin: /Library/Application Support/agent-scheduler/daemon.lock (system-wide, not user-level)
-// linux: /var/lib/agent-scheduler/daemon.lock
 export const WINDOWS_LOCK_DIR_FALLBACK = win32.join(
 	'C:\\',
 	'ProgramData',
@@ -19,10 +49,6 @@ export const MACOS_LOCK_DIR = posix.join(
 	APPLICATION_DIRECTORY_NAME,
 );
 export const LINUX_LOCK_DIR = posix.join('/var', 'lib', APPLICATION_DIRECTORY_NAME);
-
-export interface LockPathHost {
-	readonly programData?: string;
-}
 
 export function lockDirPath(platform: SupportedPlatform, host: LockPathHost): string {
 	switch (platform) {
@@ -48,8 +74,6 @@ export function lockFilePath(platform: SupportedPlatform, host: LockPathHost): s
 	}
 }
 
-// Print these when the daemon fails to acquire the lock due to permission,
-// never silently fall back to per-user directories (E-03).
 export function requiredLockPermissionLines(
 	platform: SupportedPlatform,
 	dirPath: string,
@@ -75,6 +99,28 @@ export function requiredLockPermissionLines(
 				`sudo touch "${filePath}" && sudo chown root:root "${filePath}" && sudo chmod 0600 "${filePath}"`,
 			];
 	}
+}
+
+export function createNativeLockAdapter(input: {
+	readonly platform: SupportedPlatform;
+	readonly host: LockPathHost;
+	readonly filePath?: string;
+}): NativeLockAdapter {
+	const dirPath = lockDirPath(input.platform, input.host);
+	const filePath = input.filePath ?? lockFilePath(input.platform, input.host);
+	const permissionLines = requiredLockPermissionLines(input.platform, dirPath, filePath);
+	if (input.platform !== 'win32' && input.platform !== 'darwin' && input.platform !== 'linux') {
+		throw new Error(`Unsupported platform: ${input.platform}`);
+	}
+	if (input.platform === 'win32') {
+		return createWindowsLockAdapter({ dirPath, filePath, permissionLines });
+	}
+	return createPosixLockAdapter({
+		platform: input.platform,
+		dirPath,
+		filePath,
+		permissionLines,
+	});
 }
 
 function isUsableWindowsAbsolute(value: string | undefined): value is string {

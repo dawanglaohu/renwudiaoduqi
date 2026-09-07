@@ -1,22 +1,36 @@
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute } from 'node:path';
+import type { PlatformHostInputs } from '../platform/contract.ts';
+import { appDataDir } from '../platform/host.ts';
 
-const LOCK_FILE_NAME = 'daemon.lock';
-
-export interface DataDirectoryHost {
-	readonly appDataDir: string | undefined;
-	readonly homeDir: string;
+export interface DataDirFailure {
+	readonly ok: false;
+	readonly message: string;
+	readonly path: string;
+	readonly cause?: unknown;
 }
 
-export function defaultDataDir(host: DataDirectoryHost): string {
-	if (host.appDataDir !== undefined && host.appDataDir.length > 0) {
-		return join(host.appDataDir, 'agent-scheduler');
+export type DataDirResult = { readonly ok: true; readonly path: string } | DataDirFailure;
+
+export function defaultDataDir(host: PlatformHostInputs): string {
+	const resolved = appDataDir(host);
+	if (!resolved.ok) {
+		return `${host.homedir}/agent-scheduler`;
 	}
-	return join(host.homeDir, '.agent-scheduler');
+	return resolved.path;
 }
 
-export function resolveLockFilePath(host: DataDirectoryHost): string {
-	const dir = defaultDataDir(host);
-	mkdirSync(dir, { recursive: true });
-	return join(dir, LOCK_FILE_NAME);
+export function ensureDataDir(path: string): DataDirResult {
+	if (path.length === 0) {
+		return { ok: false, path, message: 'data directory path must not be empty' };
+	}
+	if (!isAbsolute(path)) {
+		return { ok: false, path, message: 'data directory must be an absolute path' };
+	}
+	try {
+		mkdirSync(path, { recursive: true });
+		return { ok: true, path };
+	} catch (cause) {
+		return { ok: false, path, cause, message: 'directory creation failed' };
+	}
 }

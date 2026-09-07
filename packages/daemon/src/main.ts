@@ -4,26 +4,45 @@ import { runBootSelfCheck } from './boot/self-check.ts';
 import { takeBootSnapshot } from './boot/snapshot.ts';
 
 export async function main(): Promise<never> {
-	const container = createContainer(takeBootSnapshot());
+	const snapshot = takeBootSnapshot();
+	const container = createContainer(snapshot);
+
 	registerRuntimeGuards({
-		pid: container.pid,
-		writeRunLog: container.writeRunLog,
+		pid: snapshot.pid,
+		writeRunLog: snapshot.writeRunLog,
 		fatalExit: () => process.exit(1),
 	});
 
-	const result = runBootSelfCheck(container);
-	if (!result.ok) {
-		for (const line of result.failure.lines) {
+	const bootResult = runBootSelfCheck(container);
+	if (!bootResult.ok) {
+		for (const line of bootResult.failure.lines) {
 			container.writeRunLog(line);
 		}
-		container.writeRunLog(`boot failed at stage ${result.failure.stage}.`);
-		process.exit(result.failure.exitCode);
+		process.exit(bootResult.failure.exitCode);
 	}
 
-	container.writeRunLog(
-		`agent-scheduler daemon boot self-check passed. pid=${container.pid} port=${result.config.port}`,
-	);
-	return container.stayResident(result.lock);
+	const { config } = bootResult;
+
+	let server: ReturnType<typeof container.createHttpServer>;
+	try {
+		const database = container.openDatabase(container.databasePath());
+		container.runMigrations(database);
+		server = container.createHttpServer({ database, config });
+		await server.listen({ host: config.bind, port: config.port });
+		container.writeRunLog(
+			`daemon ready pid=${snapshot.pid} bind=${config.bind} port=${config.port}`,
+		);
+	} catch (error) {
+		container.writeRunLog(
+			`[startup-failure] ${error instanceof Error ? error.message : String(error)}`,
+		);
+		process.exit(1);
+	}
+	return new Promise<never>(() => {
+		setInterval(() => {
+			// keep the event loop alive
+		}, 2_147_483_647);
+	});
 }
 
 function handleStartupFailure(error: unknown): never {
