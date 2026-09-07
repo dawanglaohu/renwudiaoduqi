@@ -60,6 +60,43 @@
         "packages/daemon/test/unit/platform.test.ts",
         "packages/daemon/test/unit/daemon-launch-spec.test.ts"
       ]
+    },
+    "M1-T10": {
+      "provides": [
+        "daemon-http-runtime"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/main.ts",
+        "packages/daemon/src/boot/paths.ts",
+        "packages/daemon/src/boot/self-check.ts",
+        "packages/daemon/src/boot/snapshot.ts",
+        "packages/daemon/src/platform/lock.ts",
+        "packages/daemon/src/platform/lock-contract.ts",
+        "packages/daemon/src/platform/lock-posix.ts",
+        "packages/daemon/src/platform/lock-windows.ts",
+        "packages/daemon/src/proc/lock-command.ts",
+        "packages/daemon/src/http/server.ts",
+        "packages/daemon/src/http/routes/health.ts",
+        "packages/daemon/package.json",
+        "pnpm-lock.yaml",
+        "packages/daemon/test/unit/boot.self-check.test.ts",
+        "packages/daemon/test/unit/daemon-entry.test.ts",
+        "packages/daemon/test/unit/lock-paths.test.ts",
+        "packages/daemon/test/unit/source-contracts.test.ts"
+      ]
+    },
+    "M2-T1": {
+      "requires": [
+        {
+          "task": "M1-T10",
+          "capability": "daemon-http-runtime"
+        }
+      ],
+      "supportPaths": [
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/http/server.ts",
+        "packages/daemon/src/http/routes/health.ts"
+      ]
     }
   }
 }
