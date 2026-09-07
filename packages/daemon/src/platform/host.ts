@@ -82,3 +82,49 @@ export function platformPathAdapter(platform: SupportedPlatform): PlatformPathAd
 function isSupportedPlatform(platform: NodeJS.Platform): platform is SupportedPlatform {
 	return SUPPORTED_PLATFORMS.some((supported) => supported === platform);
 }
+
+// ---------------------------------------------------------------------------
+// Platform adapter seam (E-132). Platforms outside the three supported
+// setters get E_PLATFORM_UNSUPPORTED, never a near-name fallthrough into a
+// better-matching adapter.
+// ---------------------------------------------------------------------------
+
+export interface PlatformKillTreeAdapter {
+	readonly killTree: typeof platformKillTree;
+}
+
+import type {
+	KillTreeClock,
+	KillTreeEmit,
+	KillTreeResult,
+} from './kill-tree-contract.ts';
+import { darwinKillTree } from './darwin.ts';
+import { linuxKillTree } from './linux.ts';
+import { windowsKillTree } from './windows.ts';
+
+export function platformKillTree(
+	platform: SupportedPlatform,
+	pid: number,
+	options: {
+		readonly graceMs?: number;
+		readonly clock?: KillTreeClock;
+		readonly signal?: AbortSignal;
+		readonly emit?: KillTreeEmit;
+		readonly spawnImpl?: unknown;
+	},
+): Promise<KillTreeResult> {
+	switch (platform) {
+		case 'win32':
+			return windowsKillTree(pid, options as never);
+		case 'darwin':
+			return darwinKillTree(pid, options);
+		case 'linux':
+			return linuxKillTree(pid, options);
+	}
+	const error = Object.freeze({
+		code: 'E_PLATFORM_UNSUPPORTED',
+		message: 'The current host platform is not supported.',
+		details: Object.freeze({ platform }),
+	});
+	throw Object.assign(new Error(error.message), { code: error.code, details: error.details });
+}
