@@ -1,23 +1,23 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PlatformHostInputs } from '../platform/contract.ts';
-import { appDataDir } from '../platform/host.ts';
-import type { BootSnapshot } from './snapshot.ts';
+import { parseDaemonConfig } from '../config/env.ts';
+import type { EnvironmentSnapshot, ProcessConfig, ProcessConfigResult } from '../config/env.ts';
 import { createMigrationRunner } from '../db/migrate.ts';
 import { openDatabase } from '../db/open-database.ts';
 import { createHttpServer } from '../http/server.ts';
-import { parseDaemonConfig } from '../config/env.ts';
+import type { PlatformHostInputs } from '../platform/contract.ts';
+import { appDataDir } from '../platform/host.ts';
+import type { LockMetadata } from '../platform/lock-contract.ts';
+import { type NativeLockAdapter, createNativeLockAdapter } from '../platform/lock.ts';
 import {
+	type AcquireLockOutcome,
+	type LockHandle,
 	acquireInstanceLock,
 	createHttpHealthProbe,
 	createSystemProcessLivenessProbe,
-	type AcquireLockOutcome,
-	type LockHandle,
 } from './lock.ts';
 import { ensureDataDir } from './paths.ts';
-import { createNativeLockAdapter, type NativeLockAdapter } from '../platform/lock.ts';
-import type { LockMetadata } from '../platform/lock-contract.ts';
-import type { EnvironmentSnapshot, ProcessConfig, ProcessConfigResult } from '../config/env.ts';
+import type { BootSnapshot } from './snapshot.ts';
 
 export interface AppContainer {
 	readonly nodeVersion: string;

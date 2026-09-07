@@ -1,6 +1,6 @@
 import { snapshotEnvironment } from '../config/env.ts';
-import { takePlatformHostInputs } from '../platform/host.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
+import { takePlatformHostInputs } from '../platform/host.ts';
 
 export type RuntimeLogWriter = (line: string) => void;
 

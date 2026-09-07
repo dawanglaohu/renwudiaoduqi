@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
-import type { DatabaseConnection } from '../db/open-database.ts';
 import type { ProcessConfig } from '../config/env.ts';
+import type { DatabaseConnection } from '../db/open-database.ts';
 import { registerHealthRoute } from './routes/health.ts';
 
 export interface HttpServer {

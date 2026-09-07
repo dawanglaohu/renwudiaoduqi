@@ -1,14 +1,14 @@
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import type { NativeLockCommand } from './lock-contract.ts';
 import type { LockCommandResult } from '../proc/lock-command.ts';
+import type { NativeLockCommand } from './lock-contract.ts';
 
 import {
-	WINDOWS_ADMINISTRATORS_SID,
-	WINDOWS_SYSTEM_SID,
 	type NativeLockAdapter,
 	type NativeLockError,
 	type NativeLockReadResult,
 	type NativeLockWriteResult,
+	WINDOWS_ADMINISTRATORS_SID,
+	WINDOWS_SYSTEM_SID,
 	type WindowsLockAclSpec,
 } from './lock-contract.ts';
 export const WINDOWS_LOCK_ACL: WindowsLockAclSpec = Object.freeze({
@@ -29,9 +29,7 @@ export const WINDOWS_LOCK_ACL: WindowsLockAclSpec = Object.freeze({
 	]),
 });
 
-export interface WindowsLockCommandRunner {
-	(command: NativeLockCommand): LockCommandResult;
-}
+export type WindowsLockCommandRunner = (command: NativeLockCommand) => LockCommandResult;
 
 export function createWindowsLockAdapter(input: {
 	readonly dirPath: string;

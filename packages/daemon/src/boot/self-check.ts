@@ -1,6 +1,6 @@
-import type { ProcessConfig } from '../config/env.ts';
 import type { AppContainer } from '../boot/container.ts';
 import { checkNodeVersion } from '../boot/node-check.ts';
+import type { ProcessConfig } from '../config/env.ts';
 
 export interface BootFailure {
 	readonly stage: 'node-version' | 'env' | 'data-dir' | 'lock';

@@ -1,9 +1,9 @@
 import { posix, win32 } from 'node:path';
 import type { SupportedPlatform } from './contract.ts';
-import { APPLICATION_DIRECTORY_NAME, type LockPathHost, LOCK_FILE_NAME } from './lock-contract.ts';
+import { APPLICATION_DIRECTORY_NAME, LOCK_FILE_NAME, type LockPathHost } from './lock-contract.ts';
+import type { NativeLockAdapter } from './lock-contract.ts';
 import { createPosixLockAdapter } from './lock-posix.ts';
 import { createWindowsLockAdapter } from './lock-windows.ts';
-import type { NativeLockAdapter } from './lock-contract.ts';
 
 export {
 	APPLICATION_DIRECTORY_NAME,
