@@ -7,6 +7,7 @@ export interface EnvironmentSnapshot {
 	};
 	readonly host: {
 		readonly appDataDir: string | undefined;
+		readonly xdgDataHome: string | undefined;
 	};
 }
 
@@ -26,7 +27,10 @@ export type ProcessConfigResult =
 export function snapshotEnvironment(): EnvironmentSnapshot {
 	return Object.freeze({
 		product: Object.freeze({ port: process.env.AGSCHED_PORT }),
-		host: Object.freeze({ appDataDir: process.env.APPDATA }),
+		host: Object.freeze({
+			appDataDir: process.env.APPDATA,
+			xdgDataHome: process.env.XDG_DATA_HOME,
+		}),
 	});
 }
 
