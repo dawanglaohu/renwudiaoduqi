@@ -60,6 +60,15 @@
         "packages/daemon/test/unit/platform.test.ts",
         "packages/daemon/test/unit/daemon-launch-spec.test.ts"
       ]
+    },
+    "M1-T9": {
+      "supportPaths": [
+        "packages/daemon/test/unit/kill-tree.test.ts",
+        "packages/daemon/test/platform/",
+        "packages/shared/package.json",
+        "packages/shared/src/errors/codes.ts",
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md"
+      ]
     }
   }
 }

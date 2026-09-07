@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T9": {
+      "contractHash": "ab2f07872cb180570af552c852bd1ec0f0088cfb18fe5284a8f850c6da94d174",
+      "evidence": [
+        "2026-09-07 复核 docs/Agent任务调度器-开发文档/04-执行/19-模块任务拆分.md:22：M1-T9 的前置 M1-T3、输入 DaemonLaunchSpec、三平台适配器产出和四条验收标准一致，且未把 M1-T6/M1-T7/M6-T5 的后续接线提前纳入本任务。",
+        "复核 docs/Agent任务调度器-开发文档/02-设计/08-后端架构.md:20-22、:272-282、:380-387：平台差异唯一收口、冻结的 file/args/cwd 契约、进程树两阶段终止与注入 processOps 的分层要求明确且可实现。",
+        "复核 docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:132、:145、:222、:282：E-119、E-132、E-209、E-269 的触发、结果、失败降级和清理义务均未被删除或弱化。",
+        "复核 docs/Agent任务调度器-开发文档/03-质量/17-测试策略.md:3-16、:33、:67：本地 pnpm -w check 与 Windows/macOS/Ubuntu 平台集成矩阵、真实进程组/原生自启及 finally 清理证据要求明确。",
+        "通过补丁 M1-T9-review-scope-20260907 在 docs/Agent任务调度器-开发文档/_run/task-contracts.json:64-71 补入精确支持范围：kill-tree 单测、test/platform、shared 包导出与错误码源/投影；未扩大生产代码主范围 packages/daemon/src/platform/。",
+        "packages/shared/src/shell/daemon-launch-spec.ts:1-3、:43-76 已提供绝对 file/args/cwd 的共享冻结解析契约；本次契约复核仅确认任务定义 ready，不把 PR #8 当前代码验收或测试结果登记为通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

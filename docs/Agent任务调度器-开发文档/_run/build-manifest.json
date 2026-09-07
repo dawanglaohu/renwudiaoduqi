@@ -10,7 +10,7 @@
     "02-设计/07-前端架构.md": "e409147986d6fc5ee882354f4a544a5b8bb0278a398222880909c97f39e6adb4",
     "02-设计/08-后端架构.md": "35a57c3f42428402dd98d81444171c5ff7fcf6ddd248e2a0d504ca6e19622385",
     "02-设计/09-数据模型.md": "3682a6c9742ca4700c3832738b76d3e541f2980741e7a0d010ee76e2cc9549e5",
-    "02-设计/10-接口约定.md": "00ba6e3d84ba7156f0c221e570e611abfc164366a287612edd3276f0bd230c21",
+    "02-设计/10-接口约定.md": "fba6bf95ef82d25b5a8ca7cdc5a47cc5c7348d2a3fc555ec01af04d1ce3ce946",
     "02-设计/11-UI.md": "566777ff6a1db542de01b53f838e72d9ed17f33adaef72a1ff67d610f4b324df",
     "02-设计/12-UX.md": "b18c5e9184405c950c3b9aa29144786eb1c85f02235a0190a42c4530fdf43693",
     "03-质量/13-边界问题与异常处理.md": "da4d49b7fbf0ab75a10fa85c69d5b8090024ccb5768a5c06051d69c71b781568",
@@ -27,16 +27,16 @@
     "05-附录/24-参考资料.md": "eec613e723bff7847e309724b2c12f0d8eb447a3b1cff7ce169eae0bd02cc070",
     "README.md": "449e8971a4884cab4ad6bd71e0ed8d88166999fba8e4c20e3b446a6b898c3559",
     "_run/presentation.json": "f1b2de2cc9962077fde95225fdc4800c20971dde30916b146243ffdcf0df24bc",
-    "_run/task-contracts.json": "fb34b84b9483586a60a0a550b2e993c44f38f970ebaf4cb83786fcdba09171da"
+    "_run/task-contracts.json": "f71a17a6f06d24d96930a3bb2fdb68511cb0c004698a909fc55f9de37007111e"
   },
   "products": {
     "_MOC.md": "535ebaf8ee85a3ab014c1e3e1b78792f5a9d3a362df6925d062512e59d0ee23c",
-    "_run/dispatch.json": "f88da7847f79b52341d27684d6acf7313fbb3fbd79c131d98b1bc1b6a8361f46",
-    "_run/review.json": "80fe603b4b817acf9e463fc8a80314a8e4f34f2cee59eb5812636f2e5969096d",
-    "_run/task-reviews.json": "c8bd4d9c323261238985ca664a1cf53e8f97cabcfb3539b729c61ae2158b8776",
-    "docs-data.js": "10931d8f044238511f0f6f2c980fd93157b87f70f39e6164d21b3ab7b25eb417",
+    "_run/dispatch.json": "2a455e1839d707ea2099fa938e250dd7eaf7b418a45bd153caa92584909de85c",
+    "_run/review.json": "c8ebf0665e8e231698153eda2144bb3f00b1167dcc511f00fc453b234387c01d",
+    "_run/task-reviews.json": "3dbf37664dd22a7e2151bd066e44f55b627efd55a89ffa10ae9d34750fbbeeff",
+    "docs-data.js": "96f087a3033c3a406fff658b1585c702dc6366d8bd992a4ba5581c49e8a9d435",
     "index.html": "074a7e856b5c67e2cfe3dd400a1457607b5ccfa9590029f17422640a0806e841"
   },
   "schemaVersion": 1,
-  "sourceVersion": "9192277cd20a47bd8c67111d6584eebc7bd6b50d928d07680431747a141d355e"
+  "sourceVersion": "0f23c1166609c5b5d694a59c5f76251d927dc4597094fca5390636cc4877becf"
 }
