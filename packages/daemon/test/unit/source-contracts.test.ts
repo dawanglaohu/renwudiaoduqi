@@ -64,6 +64,19 @@ describe('source contracts', () => {
 
 		expect(violations).toEqual([]);
 	});
+
+	it('ensures adapters do not import node:os and avoid synchronous filesystem operations', () => {
+		const adapterFiles = sourceFiles().filter((file) =>
+			repositoryPath(file).includes('/src/adapters/'),
+		);
+		expect(adapterFiles.length).toBeGreaterThan(0);
+		for (const file of adapterFiles) {
+			const content = readFileSync(file, 'utf8');
+			expect(content).not.toMatch(/from ['"]node:os['"]/);
+			expect(content).not.toMatch(/from ['"]os['"]/);
+			expect(content).not.toMatch(/\b(?:readFileSync|statSync|existsSync|writeFileSync)\b/);
+		}
+	});
 });
 
 function visitPromiseStatements(
