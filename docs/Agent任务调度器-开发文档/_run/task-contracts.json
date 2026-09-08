@@ -60,6 +60,21 @@
         "packages/daemon/test/unit/platform.test.ts",
         "packages/daemon/test/unit/daemon-launch-spec.test.ts"
       ]
+    },
+    "M1-T4": {
+      "supportPaths": [
+        "packages/daemon/src/repo/events-index-repo.ts",
+        "packages/daemon/src/repo/log-segments-repo.ts",
+        "packages/daemon/src/service/logstore.ts",
+        "packages/daemon/src/jobs/log-index-repair.ts",
+        "packages/daemon/test/unit/log-index-repair.test.ts",
+        "packages/daemon/test/unit/log-writer.test.ts",
+        "packages/daemon/test/unit/logstore-append-queue.test.ts",
+        "packages/daemon/test/unit/logstore-read-window.test.ts",
+        "packages/daemon/test/unit/logstore-rotation.test.ts",
+        "packages/daemon/test/unit/logstore-run-writer.test.ts",
+        "packages/daemon/test/unit/logstore-integration.test.ts"
+      ]
     }
   }
 }
