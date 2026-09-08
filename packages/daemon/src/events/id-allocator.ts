@@ -28,7 +28,7 @@ export function createIdAllocator(deps: IdAllocatorDeps): IdAllocator {
 		store.setWatermark(GLOBAL_EVENT_SEQUENCE_NAME, watermarkLimit);
 		nextAllocatableId = 1;
 	} else {
-		// E-10: On restart, advance from previous watermark to ensure jump without rollback
+		// Reserving the next batch before allocation prevents a restart from reusing issued IDs.
 		watermarkLimit = existingWatermark + WATERMARK_BATCH_SIZE;
 		store.setWatermark(GLOBAL_EVENT_SEQUENCE_NAME, watermarkLimit);
 		nextAllocatableId = existingWatermark + 1;

@@ -63,7 +63,7 @@ const dummyLockAdapter: NativeLockAdapter = {
 };
 
 describe('M2-T4 Events Runtime Integration (real SQLite + migrations + container + restart)', () => {
-	it('wires container events and preserves monotonic ID jump without rollback across restart (R1, E-10)', () => {
+	it('E-10 wires one event runtime and preserves monotonic IDs across restart', () => {
 		const tempDir = mkdtempSync(join(tmpdir(), 'agent-scheduler-runtime-'));
 		temporaryDirectories.push(tempDir);
 		const dbPath = join(tempDir, 'app.db');

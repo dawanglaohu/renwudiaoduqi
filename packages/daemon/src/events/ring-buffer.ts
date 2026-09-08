@@ -60,18 +60,36 @@ function isTruncatedPayload(payload: unknown): payload is TruncatedPayloadRef {
 	);
 }
 
+function assertValidTruncatedPayload(payload: TruncatedPayloadRef): void {
+	if (
+		!Number.isSafeInteger(payload.byteLen) ||
+		payload.byteLen <= PAYLOAD_MAX_BYTES ||
+		!isValidLocationRef(payload.ref)
+	) {
+		throw new AppError(
+			'E_VALIDATION',
+			'An already-truncated event payload requires a valid byte length and logstore reference.',
+			{ details: { byteLen: payload.byteLen } },
+		);
+	}
+}
+
 function isValidLocationRef(ref: unknown): ref is EventPayloadLocationRef {
 	if (!ref || typeof ref !== 'object') {
 		return false;
 	}
 	const candidate = ref as Record<string, unknown>;
+	const { fileSeq, byteOffset, byteLen } = candidate;
 	return (
-		typeof candidate.fileSeq === 'number' &&
-		typeof candidate.byteOffset === 'number' &&
-		typeof candidate.byteLen === 'number' &&
-		candidate.fileSeq >= 0 &&
-		candidate.byteOffset >= 0 &&
-		candidate.byteLen >= 0
+		typeof fileSeq === 'number' &&
+		Number.isSafeInteger(fileSeq) &&
+		fileSeq >= 0 &&
+		typeof byteOffset === 'number' &&
+		Number.isSafeInteger(byteOffset) &&
+		byteOffset >= 0 &&
+		typeof byteLen === 'number' &&
+		Number.isSafeInteger(byteLen) &&
+		byteLen > 0
 	);
 }
 
@@ -80,6 +98,7 @@ function sanitizeEnvelopeForBuffer(
 	ref?: EventPayloadLocationRef,
 ): EventEnvelope {
 	if (isTruncatedPayload(envelope.payload)) {
+		assertValidTruncatedPayload(envelope.payload);
 		return envelope;
 	}
 
@@ -210,7 +229,7 @@ export function createRingBuffer(): RingBuffer {
 		}
 		const maxId = latestItem.id;
 
-		// E-153: If the requested last event id is older than minId - 1, events have been missed
+		// A cursor below minId - 1 has missed at least one event and must not receive a partial replay.
 		if (lastEventId < minId - 1) {
 			return {
 				ok: false,

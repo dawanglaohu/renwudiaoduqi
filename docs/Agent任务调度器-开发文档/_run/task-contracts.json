@@ -75,6 +75,7 @@
         "packages/daemon/src/repo/event-seq-repo.ts",
         "packages/daemon/src/service/logstore.ts",
         "packages/daemon/test/arch/bus-transaction.test.ts",
+        "packages/daemon/test/integration/daemon-runtime.test.ts",
         "packages/daemon/test/integration/events-runtime.test.ts",
         "packages/daemon/test/integration/logstore-integration.test.ts",
         "packages/daemon/test/unit/events.test.ts",

@@ -1,24 +1,24 @@
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
-import { AppError } from '../errors/app-error.ts';
 import type { EventPayloadLocationRef, ReplayResult, RingBuffer } from './ring-buffer.ts';
 
 export type EventSubscriber = (event: EventEnvelope) => void;
 
-export interface EventBusErrorContext {
-	readonly event: EventEnvelope;
+export interface EventSubscriberError {
+	readonly error: unknown;
 	readonly subscriber: EventSubscriber;
 }
 
-export type EventBusErrorHandler = (error: unknown, context: EventBusErrorContext) => void;
+export interface EventPublishResult {
+	readonly event: EventEnvelope;
+	readonly subscriberErrors: readonly EventSubscriberError[];
+}
 
 export interface EventBusDeps {
 	readonly ringBuffer: RingBuffer;
-	readonly isInsideTransaction?: () => boolean;
-	readonly onError?: EventBusErrorHandler;
 }
 
 export interface EventBus {
-	readonly publish: (envelope: EventEnvelope, ref?: EventPayloadLocationRef) => EventEnvelope;
+	readonly publish: (envelope: EventEnvelope, ref?: EventPayloadLocationRef) => EventPublishResult;
 	readonly subscribe: (listener: EventSubscriber) => () => void;
 	readonly subscribeWithFilter: (
 		filter: (event: EventEnvelope) => boolean,
@@ -30,32 +30,26 @@ export interface EventBus {
 }
 
 export function createEventBus(deps: EventBusDeps): EventBus {
-	const { ringBuffer, isInsideTransaction, onError } = deps;
+	const { ringBuffer } = deps;
 	const subscribers = new Set<EventSubscriber>();
 
-	function publish(envelope: EventEnvelope, ref?: EventPayloadLocationRef): EventEnvelope {
-		if (isInsideTransaction?.() === true) {
-			throw new AppError(
-				'E_INTERNAL',
-				'bus.publish must not be called inside a database transaction. Collect events and publish after the transaction commits.',
-			);
-		}
-
-		// Enters ring buffer exactly once
+	function publish(envelope: EventEnvelope, ref?: EventPayloadLocationRef): EventPublishResult {
 		const stored = ringBuffer.push(envelope, ref);
 		const currentSubscribers = Array.from(subscribers);
+		const subscriberErrors: EventSubscriberError[] = [];
 
 		for (const subscriber of currentSubscribers) {
 			try {
 				subscriber(stored);
 			} catch (error) {
-				if (onError) {
-					onError(error, { event: stored, subscriber });
-				}
+				subscriberErrors.push(Object.freeze({ error, subscriber }));
 			}
 		}
 
-		return stored;
+		return Object.freeze({
+			event: stored,
+			subscriberErrors: Object.freeze(subscriberErrors),
+		});
 	}
 
 	function subscribe(listener: EventSubscriber): () => void {

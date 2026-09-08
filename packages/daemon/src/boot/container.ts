@@ -42,16 +42,6 @@ export interface AppContainer {
 	readonly instanceLock: LockFileHandle;
 }
 
-function createStubEventSeqRepo(): EventSeqRepo {
-	let watermark: number | null = null;
-	return Object.freeze({
-		getWatermark: () => watermark,
-		setWatermark: (_name: string, w: number) => {
-			watermark = w;
-		},
-	});
-}
-
 export function createContainer(input: {
 	readonly config: ProcessConfig;
 	readonly database: DatabaseConnection;
@@ -62,10 +52,7 @@ export function createContainer(input: {
 }): AppContainer {
 	const empty = Object.freeze({});
 
-	const eventSeq =
-		typeof input.database?.prepare === 'function'
-			? createEventSeqRepo(input.database)
-			: createStubEventSeqRepo();
+	const eventSeq = createEventSeqRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 	});

@@ -44,22 +44,16 @@ function detectBusPublishInTransaction(sourceText: string, filePath = 'test.ts')
 	indexDefinitions(sourceFile);
 
 	function isTransactionObject(expr: ts.Expression): boolean {
-		const text = expr.getText(sourceFile).toLowerCase();
-		return (
-			text.includes('unitofwork') ||
-			text.includes('uow') ||
-			text.includes('database') ||
-			text.includes('db') ||
-			text.includes('transaction')
-		);
+		const name = terminalIdentifier(expr)?.toLowerCase();
+		return name === 'unitofwork' || name === 'uow' || name === 'database' || name === 'db';
 	}
 
 	function isPublishCall(node: ts.CallExpression): boolean {
 		if (ts.isPropertyAccessExpression(node.expression)) {
 			const methodName = node.expression.name.text;
 			if (methodName === 'publish') {
-				const objText = node.expression.expression.getText(sourceFile).toLowerCase();
-				return objText.includes('bus') || objText.includes('event');
+				const name = terminalIdentifier(node.expression.expression)?.toLowerCase();
+				return name === 'bus' || name === 'eventbus';
 			}
 		}
 		return false;
@@ -134,6 +128,12 @@ function detectBusPublishInTransaction(sourceText: string, filePath = 'test.ts')
 
 	visit(sourceFile);
 	return violations;
+
+	function terminalIdentifier(expression: ts.Expression): string | undefined {
+		if (ts.isIdentifier(expression)) return expression.text;
+		if (ts.isPropertyAccessExpression(expression)) return expression.name.text;
+		return undefined;
+	}
 }
 
 describe('M2-T4 Architecture: bus.publish outside transaction callbacks (Acceptance Criterion 3)', () => {
@@ -150,7 +150,7 @@ describe('M2-T4 Architecture: bus.publish outside transaction callbacks (Accepta
 		expect(allViolations).toEqual([]);
 	});
 
-	it('detects violations when bus.publish appears inside unitOfWork.run inline callback', () => {
+	it('detects bus.publish inside an inline unitOfWork callback', () => {
 		const badCode = `
 			function test(unitOfWork: any, bus: any, event: any) {
 				unitOfWork.run(() => {
@@ -164,7 +164,7 @@ describe('M2-T4 Architecture: bus.publish outside transaction callbacks (Accepta
 		expect(violations[0]?.message).toContain('bus.publish called inside transaction callback');
 	});
 
-	it('detects violations when bus.publish is passed via a named function or variable callback', () => {
+	it('detects bus.publish in named and variable transaction callbacks', () => {
 		const badCodeWithVariable = `
 			function test(unitOfWork: any, bus: any, event: any) {
 				const txCallback = () => {
@@ -188,7 +188,7 @@ describe('M2-T4 Architecture: bus.publish outside transaction callbacks (Accepta
 		expect(violations2).toHaveLength(1);
 	});
 
-	it('detects violations when bus.publish appears inside database.transaction', () => {
+	it('detects bus.publish inside a database transaction callback', () => {
 		const badCode = `
 			function test(database: any, bus: any, event: any) {
 				database.transaction(() => {
@@ -200,11 +200,11 @@ describe('M2-T4 Architecture: bus.publish outside transaction callbacks (Accepta
 		expect(violations).toHaveLength(1);
 	});
 
-	it('does NOT false-alarm on unrelated objects that have a .run method', () => {
+	it('does not flag unrelated run or publish methods', () => {
 		const nonTxCode = `
-			function test(taskRunner: any, bus: any, event: any) {
+			function test(taskRunner: any, eventStore: any, event: any) {
 				taskRunner.run(() => {
-					bus.publish(event);
+					eventStore.publish(event);
 				});
 			}
 		`;

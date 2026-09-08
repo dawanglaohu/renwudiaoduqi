@@ -5,7 +5,7 @@ import { join, win32 } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { HealthProbe, ProcessLivenessProbe } from '../../src/boot/lock.ts';
 import type { EnvironmentSnapshot } from '../../src/config/env.ts';
-import type { DatabaseConnection } from '../../src/db/open-database.ts';
+import { openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import { type DaemonStartDependencies, startDaemon } from '../../src/main.ts';
@@ -307,7 +307,11 @@ function dependencies(input: {
 		},
 		openDatabase: () => {
 			events.push('database.open');
-			return { close: () => undefined } as unknown as DatabaseConnection;
+			const database = openDatabase(':memory:');
+			database.exec(
+				'CREATE TABLE event_seq (name TEXT PRIMARY KEY, watermark INTEGER NOT NULL CHECK (watermark >= 0))',
+			);
+			return database;
 		},
 		runMigrations: () => events.push('migrations.run'),
 		createServer: ({ container }) => {

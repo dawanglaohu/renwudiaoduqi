@@ -43,7 +43,7 @@ export const EVENT_DEFINITIONS = {
 
 export type EventKind = keyof typeof EVENT_DEFINITIONS;
 
-export const EVENT_KINDS = [
+const EVENT_KIND_VALUES = [
 	'agent_message_chunk',
 	'agent_thought_chunk',
 	'tool_call',
@@ -69,6 +69,15 @@ export const EVENT_KINDS = [
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
+
+type ExhaustiveEventKindList<Kinds extends readonly EventKind[]> = Exclude<
+	EventKind,
+	Kinds[number]
+> extends never
+	? Kinds
+	: never;
+
+export const EVENT_KINDS: ExhaustiveEventKindList<typeof EVENT_KIND_VALUES> = EVENT_KIND_VALUES;
 
 export const ACP_EVENT_KINDS = [
 	'agent_message_chunk',
@@ -321,23 +330,11 @@ export function scopeFromEventKind(kind: EventKind): EventScope {
 }
 
 export function isEventKind(value: unknown): value is EventKind {
-	return typeof value === 'string' && value in EVENT_DEFINITIONS;
+	return typeof value === 'string' && Object.hasOwn(EVENT_DEFINITIONS, value);
 }
 
 export function isMilestoneEventKind(kind: string): boolean {
-	if (isEventKind(kind)) {
-		return EVENT_DEFINITIONS[kind].milestone;
-	}
-	return (
-		kind.startsWith('run.') ||
-		kind.startsWith('task.') ||
-		kind.startsWith('batch.') ||
-		kind.startsWith('system.') ||
-		kind.startsWith('agent.') ||
-		kind === 'tool_call' ||
-		kind === 'tool_call_update' ||
-		kind === 'plan'
-	);
+	return isEventKind(kind) && EVENT_DEFINITIONS[kind].milestone;
 }
 
 export function assertNever(value: never, message = 'Unhandled discriminated union member'): never {
