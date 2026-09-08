@@ -5,6 +5,7 @@
 	"type": "module",
 	"exports": {
 		"./errors/codes": "./src/errors/codes.ts",
+		"./events": "./src/events.ts",
 		"./shell/daemon-launch-spec": "./src/shell/daemon-launch-spec.ts"
 	}
 }
