@@ -1,47 +1,20 @@
 import { posix, win32 } from 'node:path';
 import type { SupportedPlatform } from './contract.ts';
-import { APPLICATION_DIRECTORY_NAME, LOCK_FILE_NAME, type LockPathHost } from './lock-contract.ts';
-import type { NativeLockAdapter } from './lock-contract.ts';
-import { createPosixLockAdapter } from './lock-posix.ts';
-import { createWindowsLockAdapter } from './lock-windows.ts';
-
-export {
+import {
 	APPLICATION_DIRECTORY_NAME,
-	LOCK_DIRECTORY_MODE,
-	LOCK_FILE_MODE,
 	LOCK_FILE_NAME,
-	LOCK_METADATA_FIELDS,
-	POSIX_LOCK_DIRECTORY_MODE_OCTAL,
-	POSIX_LOCK_FILE_MODE_OCTAL,
-	WINDOWS_ADMINISTRATORS_SID,
-	WINDOWS_SYSTEM_SID,
-	combineProbeResults,
-	healthProbeHost,
-	isWildcardBind,
-	parseLockMetadata,
-	serializeLockMetadata,
+	type LockPathHost,
+	type NativeLockAdapter,
 } from './lock-contract.ts';
-export type {
-	LockFileHandle,
-	LockIdentity,
-	LockMetadata,
-	LockMetadataField,
-	LockPathHost,
-	NativeLockAdapter,
-	NativeLockError,
-	NativeLockErrorCode,
-	NativeLockReadResult,
-	NativeLockWriteResult,
-	PosixLockPermissionSpec,
-	ProbeLiveness,
-	WindowsLockAclSpec,
-} from './lock-contract.ts';
+import { createPosixLockAdapter } from './lock-posix.ts';
+import { type WindowsLockCommandRunner, createWindowsLockAdapter } from './lock-windows.ts';
 
 export const WINDOWS_LOCK_DIR_FALLBACK = win32.join(
 	'C:\\',
 	'ProgramData',
 	APPLICATION_DIRECTORY_NAME,
 );
+export const WINDOWS_SYSTEM_ROOT_FALLBACK = 'C:\\Windows';
 export const MACOS_LOCK_DIR = posix.join(
 	'/',
 	'Library',
@@ -64,14 +37,10 @@ export function lockDirPath(platform: SupportedPlatform, host: LockPathHost): st
 }
 
 export function lockFilePath(platform: SupportedPlatform, host: LockPathHost): string {
-	switch (platform) {
-		case 'win32':
-			return win32.join(lockDirPath(platform, host), LOCK_FILE_NAME);
-		case 'darwin':
-			return posix.join(MACOS_LOCK_DIR, LOCK_FILE_NAME);
-		case 'linux':
-			return posix.join(LINUX_LOCK_DIR, LOCK_FILE_NAME);
-	}
+	const dirPath = lockDirPath(platform, host);
+	return platform === 'win32'
+		? win32.join(dirPath, LOCK_FILE_NAME)
+		: posix.join(dirPath, LOCK_FILE_NAME);
 }
 
 export function requiredLockPermissionLines(
@@ -83,8 +52,8 @@ export function requiredLockPermissionLines(
 		case 'win32':
 			return [
 				'The lock file must be writable by Administrators and SYSTEM only. Run as Administrator or grant:',
-				`icacls "${dirPath}" /inheritance:r /grant:r "Administrators:(OI)(CI)M" "SYSTEM:(OI)(CI)F"`,
-				`icacls "${filePath}" /inheritance:r /grant:r "Administrators:F" "SYSTEM:F"`,
+				`icacls "${dirPath}" /inheritance:r /grant:r "*S-1-5-32-544:(OI)(CI)F" "*S-1-5-18:(OI)(CI)F"`,
+				`icacls "${filePath}" /inheritance:r /grant:r "*S-1-5-32-544:F" "*S-1-5-18:F"`,
 			];
 		case 'darwin':
 			return [
@@ -105,15 +74,28 @@ export function createNativeLockAdapter(input: {
 	readonly platform: SupportedPlatform;
 	readonly host: LockPathHost;
 	readonly filePath?: string;
+	readonly runWindowsCommand?: WindowsLockCommandRunner;
 }): NativeLockAdapter {
-	const dirPath = lockDirPath(input.platform, input.host);
+	const defaultDirPath = lockDirPath(input.platform, input.host);
 	const filePath = input.filePath ?? lockFilePath(input.platform, input.host);
+	const dirPath =
+		input.filePath === undefined
+			? defaultDirPath
+			: input.platform === 'win32'
+				? win32.dirname(filePath)
+				: posix.dirname(filePath);
 	const permissionLines = requiredLockPermissionLines(input.platform, dirPath, filePath);
-	if (input.platform !== 'win32' && input.platform !== 'darwin' && input.platform !== 'linux') {
-		throw new Error(`Unsupported platform: ${input.platform}`);
-	}
 	if (input.platform === 'win32') {
-		return createWindowsLockAdapter({ dirPath, filePath, permissionLines });
+		const systemRoot = isUsableWindowsAbsolute(input.host.systemRoot)
+			? input.host.systemRoot
+			: WINDOWS_SYSTEM_ROOT_FALLBACK;
+		return createWindowsLockAdapter({
+			dirPath,
+			filePath,
+			permissionLines,
+			icaclsPath: win32.join(systemRoot, 'System32', 'icacls.exe'),
+			runCommand: input.runWindowsCommand,
+		});
 	}
 	return createPosixLockAdapter({
 		platform: input.platform,
@@ -124,6 +106,5 @@ export function createNativeLockAdapter(input: {
 }
 
 function isUsableWindowsAbsolute(value: string | undefined): value is string {
-	if (value === undefined || value.length === 0) return false;
-	return /^[A-Za-z]:[\\/]/.test(value) || /^(?:\\\\|\/\/)/.test(value);
+	return value !== undefined && win32.isAbsolute(value) && !/[~%]|\$\{/.test(value);
 }

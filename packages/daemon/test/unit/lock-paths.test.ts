@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { serializeLockMetadata } from '../../src/platform/lock-contract.ts';
+import { verifyWindowsAclOutput } from '../../src/platform/lock-windows.ts';
 import {
 	LINUX_LOCK_DIR,
 	MACOS_LOCK_DIR,
@@ -47,5 +49,35 @@ describe('platform lock paths', () => {
 		expect(
 			winLines.some((line) => line.includes('Administrators') && line.includes('SYSTEM')),
 		).toBe(true);
+	});
+
+	it('serializes exactly the five machine-lock metadata fields', () => {
+		expect(
+			JSON.parse(
+				serializeLockMetadata({
+					pid: 123,
+					uid: '1000',
+					startedAt: '2026-09-07T01:02:03.004Z',
+					port: 7817,
+					bind: '0.0.0.0',
+				}),
+			),
+		).toEqual({
+			pid: 123,
+			uid: '1000',
+			startedAt: '2026-09-07T01:02:03.004Z',
+			port: 7817,
+			bind: '0.0.0.0',
+		});
+	});
+
+	it('accepts only Administrators and SYSTEM full-control Windows ACL entries', () => {
+		const safe = [
+			'C:\\ProgramData\\agent-scheduler BUILTIN\\Administrators:(F)',
+			'                                    NT AUTHORITY\\SYSTEM:(F)',
+		].join('\r\n');
+		const unsafe = `${safe}\r\n                                    BUILTIN\\Users:(RX)`;
+		expect(verifyWindowsAclOutput(safe)).toBe(true);
+		expect(verifyWindowsAclOutput(unsafe)).toBe(false);
 	});
 });

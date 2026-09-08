@@ -10,7 +10,6 @@ export interface PlatformEnvironmentInputs {
 export interface PlatformHostInputs extends PlatformEnvironmentInputs {
 	readonly platform: SupportedPlatform;
 	readonly homedir: string;
-	readonly appDataDir?: string;
 }
 
 export interface PlatformOperationError<Code extends string> {

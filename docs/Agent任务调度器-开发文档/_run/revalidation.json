@@ -1,1 +1,27 @@
-{}
+{
+  "M1-T1": {
+    "contractHash": "4cb3838a860dfa7ca29bc2529415498cba55bbb129c228f8b8793b06311f1521",
+    "patch": "M1-T10-review-host-inputs-20260907",
+    "previousStatus": "done"
+  },
+  "M1-T10": {
+    "contractHash": "99dd274fac9f7480ec51e58563693b20548d672a6fa3e7d0d750a9b50a5c2a56",
+    "patch": "M1-T10-review-host-inputs-20260907",
+    "previousStatus": "review"
+  },
+  "M1-T2": {
+    "contractHash": "e2eb336d75572845877b59fb9854743432b81b22c76538c9eaa926aec04f529f",
+    "patch": "M1-T10-review-host-inputs-20260907",
+    "previousStatus": "done"
+  },
+  "M1-T3": {
+    "contractHash": "2a275d86fe98947edacba0e90007ced07403f2a0afb70d0514fd1ee24425d854",
+    "patch": "M1-T10-review-host-inputs-20260907",
+    "previousStatus": "done"
+  },
+  "M4-T1": {
+    "contractHash": "73ea4019a5bfab22f96cadc0dc4472a46244e00dd73ba2751f462ca5bb68eca1",
+    "patch": "M1-T10-review-host-inputs-20260907",
+    "previousStatus": "done"
+  }
+}

@@ -11,7 +11,6 @@ import {
 } from '../platform/lock-contract.ts';
 
 export type LockHandle = LockFileHandle;
-
 export type LockProcessLiveness = ProbeLiveness;
 
 export interface ProcessLivenessProbe {
@@ -20,7 +19,7 @@ export interface ProcessLivenessProbe {
 
 export type HealthProbeOutcome =
 	| { readonly kind: 'success'; readonly status: number; readonly bodyOk: boolean }
-	| { readonly kind: 'failure'; readonly reason: string };
+	| { readonly kind: 'failure'; readonly reason: 'timeout' | 'connect-failed' };
 
 export interface HealthProbe {
 	probe(input: {
@@ -40,7 +39,7 @@ export type AcquireLockOutcome =
 			readonly reason: 'stale-lock-kept';
 			readonly live: {
 				readonly process: LockProcessLiveness;
-				readonly health: 'success' | 'failure' | 'uncertain';
+				readonly health: 'alive' | 'dead' | 'uncertain';
 			};
 	  }
 	| { readonly ok: false; readonly reason: 'lock-invalid' }
@@ -59,12 +58,25 @@ export async function acquireInstanceLock(
 	const serialized = serializeLockMetadata(metadata);
 	const createResult = dependencies.adapter.createExclusive(serialized);
 	if (createResult.ok) {
-		return { ok: true, lock: makeHandle(metadata, dependencies.adapter) };
+		const permissions = dependencies.adapter.verifyPermissions();
+		if (!permissions.ok) {
+			const contents = dependencies.adapter.read();
+			if (contents.ok && contents.contents === serialized) dependencies.adapter.remove();
+			return {
+				ok: false,
+				reason: 'permission-denied',
+				lines: dependencies.adapter.permissionLines,
+			};
+		}
+		return { ok: true, lock: makeHandle(metadata, serialized, dependencies.adapter) };
 	}
-	if (createResult.error.code === 'EEXIST') {
-		return handleExistingLock(metadata, dependencies);
+	if (createResult.failure.kind === 'already-exists') {
+		return handleExistingLock(metadata, serialized, dependencies);
 	}
-	if (createResult.error.code === 'EACCES' || createResult.error.code === 'EPERM') {
+	if (
+		createResult.failure.kind === 'permission-denied' ||
+		createResult.failure.kind === 'invalid-permissions'
+	) {
 		return {
 			ok: false,
 			reason: 'permission-denied',
@@ -76,69 +88,135 @@ export async function acquireInstanceLock(
 
 async function handleExistingLock(
 	metadata: LockMetadata,
+	serialized: string,
 	dependencies: InstanceLockDependencies,
 ): Promise<AcquireLockOutcome> {
+	const permissions = dependencies.adapter.verifyPermissions();
+	if (!permissions.ok) {
+		return {
+			ok: false,
+			reason: 'permission-denied',
+			lines: dependencies.adapter.permissionLines,
+		};
+	}
 	const existing = dependencies.adapter.read();
-	if (!existing.ok) {
-		return { ok: false, reason: 'lock-unreadable' };
-	}
+	if (!existing.ok) return { ok: false, reason: 'lock-unreadable' };
 	const existingMetadata = parseLockMetadata(existing.contents);
-	if (existingMetadata === null) {
-		return { ok: false, reason: 'lock-invalid' };
-	}
+	if (existingMetadata === null) return { ok: false, reason: 'lock-invalid' };
 	const processState = dependencies.processProbe.check(existingMetadata.pid);
 	const healthState = await probeHealth(existingMetadata, dependencies);
-	if (processState === 'alive' && healthState === 'success') {
+	if (processState === 'alive' && healthState === 'alive') {
 		return { ok: false, reason: 'already-held', metadata: existingMetadata };
 	}
-	if (processState === 'dead' && healthState === 'failure') {
-		const removeResult = dependencies.adapter.remove();
-		if (!removeResult.ok) {
-			return { ok: false, reason: 'lock-unreadable' };
-		}
-		return acquireInstanceLock(metadata, dependencies);
+	if (processState !== 'dead' || healthState !== 'dead') {
+		return {
+			ok: false,
+			reason: 'stale-lock-kept',
+			live: { process: processState, health: healthState },
+		};
 	}
-	return {
-		ok: false,
-		reason: 'stale-lock-kept',
-		live: {
-			process: processState,
-			health:
-				healthState === 'success' ? 'success' : healthState === 'failure' ? 'failure' : 'uncertain',
-		},
-	};
+	return reclaimStaleLock(metadata, serialized, existing.contents, dependencies);
+}
+
+async function reclaimStaleLock(
+	metadata: LockMetadata,
+	serialized: string,
+	expectedContents: string,
+	dependencies: InstanceLockDependencies,
+): Promise<AcquireLockOutcome> {
+	const guard = await acquireReclaimGuard(metadata, serialized, dependencies);
+	if (guard !== 'acquired') return guard;
+	try {
+		const current = dependencies.adapter.read();
+		if (!current.ok || current.contents !== expectedContents) {
+			return {
+				ok: false,
+				reason: 'stale-lock-kept',
+				live: { process: 'uncertain', health: 'uncertain' },
+			};
+		}
+		const removal = dependencies.adapter.remove();
+		if (!removal.ok) return { ok: false, reason: 'lock-unreadable' };
+		return acquireInstanceLock(metadata, dependencies);
+	} finally {
+		dependencies.adapter.removeReclaimGuard();
+	}
+}
+
+async function acquireReclaimGuard(
+	metadata: LockMetadata,
+	serialized: string,
+	dependencies: InstanceLockDependencies,
+): Promise<'acquired' | AcquireLockOutcome> {
+	const guard = dependencies.adapter.createReclaimGuard(serialized);
+	if (guard.ok) return 'acquired';
+	if (guard.failure.kind === 'permission-denied' || guard.failure.kind === 'invalid-permissions') {
+		return {
+			ok: false,
+			reason: 'permission-denied',
+			lines: dependencies.adapter.permissionLines,
+		};
+	}
+	if (guard.failure.kind !== 'already-exists') {
+		return { ok: false, reason: 'lock-unreadable' };
+	}
+	const existingGuard = dependencies.adapter.readReclaimGuard();
+	if (!existingGuard.ok) return { ok: false, reason: 'lock-unreadable' };
+	const guardMetadata = parseLockMetadata(existingGuard.contents);
+	if (guardMetadata === null) return { ok: false, reason: 'lock-invalid' };
+	const processState = dependencies.processProbe.check(guardMetadata.pid);
+	const healthState = await probeHealth(guardMetadata, dependencies);
+	if (processState !== 'dead' || healthState !== 'dead') {
+		return {
+			ok: false,
+			reason: 'stale-lock-kept',
+			live: { process: processState, health: healthState },
+		};
+	}
+	const currentGuard = dependencies.adapter.readReclaimGuard();
+	if (!currentGuard.ok || currentGuard.contents !== existingGuard.contents) {
+		return {
+			ok: false,
+			reason: 'stale-lock-kept',
+			live: { process: 'uncertain', health: 'uncertain' },
+		};
+	}
+	const removal = dependencies.adapter.removeReclaimGuard();
+	if (!removal.ok) return { ok: false, reason: 'lock-unreadable' };
+	return acquireReclaimGuard(metadata, serialized, dependencies);
 }
 
 async function probeHealth(
 	metadata: LockMetadata,
 	dependencies: InstanceLockDependencies,
-): Promise<'success' | 'failure' | 'uncertain'> {
-	const host = healthProbeHost(metadata.bind);
+): Promise<'alive' | 'dead' | 'uncertain'> {
 	const outcome = await dependencies.healthProbe.probe({
-		host,
+		host: healthProbeHost(metadata.bind),
 		port: metadata.port,
 		path: '/api/v1/health',
 		timeoutMs: 1_000,
 	});
 	if (outcome.kind === 'failure') {
-		return outcome.reason === 'timeout' ? 'uncertain' : 'failure';
+		return outcome.reason === 'timeout' ? 'uncertain' : 'dead';
 	}
-	if (!outcome.bodyOk) return 'uncertain';
-	return 'success';
+	return outcome.status >= 200 && outcome.status < 300 && outcome.bodyOk ? 'alive' : 'uncertain';
 }
 
-function makeHandle(metadata: LockMetadata, adapter: NativeLockAdapter): LockFileHandle {
+function makeHandle(
+	metadata: LockMetadata,
+	serializedMetadata: string,
+	adapter: NativeLockAdapter,
+): LockFileHandle {
 	let released = false;
 	return {
 		path: adapter.filePath,
 		metadata,
+		serializedMetadata,
 		get released() {
 			return released;
 		},
 		release(): void {
-			if (!released) {
-				released = true;
-			}
+			released = true;
 		},
 	};
 }
@@ -151,9 +229,7 @@ export function createSystemProcessLivenessProbe(): ProcessLivenessProbe {
 				process.kill(pid, 0);
 				return 'alive';
 			} catch (error) {
-				const code = getErrorCode(error);
-				if (code === 'ESRCH') return 'dead';
-				return 'uncertain';
+				return getErrorCode(error) === 'ESRCH' ? 'dead' : 'uncertain';
 			}
 		},
 	});
@@ -161,12 +237,7 @@ export function createSystemProcessLivenessProbe(): ProcessLivenessProbe {
 
 export function createHttpHealthProbe(fetchImplementation: typeof fetch = fetch): HealthProbe {
 	return Object.freeze({
-		async probe(input: {
-			readonly host: string;
-			readonly port: number;
-			readonly path?: string;
-			readonly timeoutMs?: number;
-		}): Promise<HealthProbeOutcome> {
+		async probe(input: Parameters<HealthProbe['probe']>[0]): Promise<HealthProbeOutcome> {
 			const controller = new AbortController();
 			const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? 1_000);
 			try {
@@ -177,27 +248,22 @@ export function createHttpHealthProbe(fetchImplementation: typeof fetch = fetch)
 				let bodyOk = false;
 				try {
 					const body = (await response.json()) as unknown;
-					bodyOk =
-						typeof body === 'object' &&
-						body !== null &&
-						(body as Record<string, unknown>).ok === true;
+					bodyOk = isRecord(body) && body.ok === true;
 				} catch {
 					bodyOk = false;
 				}
 				return { kind: 'success', status: response.status, bodyOk };
 			} catch (error) {
-				const reason =
-					error instanceof Error && error.name === 'AbortError' ? 'timeout' : 'connect-failed';
-				return { kind: 'failure', reason };
+				return {
+					kind: 'failure',
+					reason:
+						error instanceof Error && error.name === 'AbortError' ? 'timeout' : 'connect-failed',
+				};
 			} finally {
 				clearTimeout(timeout);
 			}
 		},
 	});
-}
-
-function formatHost(host: string): string {
-	return host.includes(':') ? `[${host}]` : host;
 }
 
 export function acquireLockOutcomeToBootLines(
@@ -207,14 +273,14 @@ export function acquireLockOutcomeToBootLines(
 		case 'already-held':
 			return [
 				`Existing instance pid=${outcome.metadata.pid} port=${outcome.metadata.port}`,
-				'Refusing to start; hand the request to the already-running instance.',
+				'Refusing to start; connect to the already-running instance.',
 			];
 		case 'permission-denied':
 			return outcome.lines;
 		case 'stale-lock-kept':
 			return [
 				`Lock is uncertain: process=${outcome.live.process} health=${outcome.live.health}.`,
-				'Refusing to delete a lock whose holder state cannot be determined; check the holder pid and port.',
+				'Refusing to delete a lock whose holder state cannot be determined.',
 			];
 		case 'lock-invalid':
 			return ['The existing lock file is invalid and cannot be automatically reclaimed.'];
@@ -223,19 +289,32 @@ export function acquireLockOutcomeToBootLines(
 	}
 }
 
-export async function releaseInstanceLock(
-	lock: LockFileHandle,
-	adapter: NativeLockAdapter,
-): Promise<void> {
+export function releaseInstanceLock(lock: LockFileHandle, adapter: NativeLockAdapter): void {
 	if (lock.released) return;
-	const removal = adapter.remove();
-	if (!removal.ok) {
-		throw removal.error;
+	const current = adapter.read();
+	if (!current.ok) {
+		if (current.failure.kind === 'not-found') {
+			lock.release();
+			return;
+		}
+		throw current.failure.error;
+	}
+	if (current.ok && current.contents === lock.serializedMetadata) {
+		const removal = adapter.remove();
+		if (!removal.ok) throw removal.failure.error;
 	}
 	lock.release();
+}
+
+function formatHost(host: string): string {
+	return host.includes(':') ? `[${host}]` : host;
 }
 
 function getErrorCode(cause: unknown): string | undefined {
 	if (typeof cause !== 'object' || cause === null || !('code' in cause)) return undefined;
 	return typeof cause.code === 'string' ? cause.code : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

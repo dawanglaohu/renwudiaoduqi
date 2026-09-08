@@ -1,6 +1,5 @@
-import type { AppContainer } from '../boot/container.ts';
 import { checkNodeVersion } from '../boot/node-check.ts';
-import type { ProcessConfig } from '../config/env.ts';
+import type { ProcessConfig, ProcessConfigResult } from '../config/env.ts';
 
 export interface BootFailure {
 	readonly stage: 'node-version' | 'env' | 'data-dir' | 'lock';
@@ -12,8 +11,11 @@ export type BootResult =
 	| { readonly ok: true; readonly config: ProcessConfig }
 	| { readonly ok: false; readonly failure: BootFailure };
 
-export function runBootSelfCheck(container: AppContainer): BootResult {
-	const nodeResult = checkNodeVersion(container.nodeVersion);
+export function runBootSelfCheck(input: {
+	readonly nodeVersion: string;
+	readonly configResult: ProcessConfigResult;
+}): BootResult {
+	const nodeResult = checkNodeVersion(input.nodeVersion);
 	if (!nodeResult.ok) {
 		return fail('node-version', [
 			nodeResult.message,
@@ -22,7 +24,7 @@ export function runBootSelfCheck(container: AppContainer): BootResult {
 		]);
 	}
 
-	const configResult = container.parseProcessConfig();
+	const configResult = input.configResult;
 	if (!configResult.ok) {
 		return fail('env', [
 			`${configResult.variable} has invalid format: "${configResult.actual}". Expected ${configResult.expected}.`,

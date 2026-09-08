@@ -1,16 +1,17 @@
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import type { LockCommandResult } from '../proc/lock-command.ts';
-import type { NativeLockCommand } from './lock-contract.ts';
-
+import { AppError } from '../errors/app-error.ts';
 import {
 	type NativeLockAdapter,
-	type NativeLockError,
+	type NativeLockCommand,
+	type NativeLockCommandResult,
+	type NativeLockFailure,
 	type NativeLockReadResult,
 	type NativeLockWriteResult,
 	WINDOWS_ADMINISTRATORS_SID,
 	WINDOWS_SYSTEM_SID,
 	type WindowsLockAclSpec,
 } from './lock-contract.ts';
+
 export const WINDOWS_LOCK_ACL: WindowsLockAclSpec = Object.freeze({
 	inherit: false,
 	entries: Object.freeze([
@@ -29,183 +30,255 @@ export const WINDOWS_LOCK_ACL: WindowsLockAclSpec = Object.freeze({
 	]),
 });
 
-export type WindowsLockCommandRunner = (command: NativeLockCommand) => LockCommandResult;
+export type WindowsLockCommandRunner = (command: NativeLockCommand) => NativeLockCommandResult;
 
 export function createWindowsLockAdapter(input: {
 	readonly dirPath: string;
 	readonly filePath: string;
 	readonly permissionLines: readonly string[];
+	readonly icaclsPath: string;
 	readonly runCommand?: WindowsLockCommandRunner;
 }): NativeLockAdapter {
+	const reclaimPath = `${input.filePath}.reclaim`;
 	return Object.freeze({
 		platform: 'win32',
 		filePath: input.filePath,
 		dirPath: input.dirPath,
+		reclaimPath,
 		permissionLines: input.permissionLines,
-		createExclusive(contents: string): NativeLockWriteResult {
-			return writeWindowsLock(input, contents, 'wx');
-		},
-		overwrite(contents: string): NativeLockWriteResult {
-			return writeWindowsLock(input, contents, 'w');
-		},
-		read(): NativeLockReadResult {
-			return readWindowsLock(input.filePath);
-		},
-		remove(): NativeLockWriteResult {
-			return removeWindowsLock(input.filePath);
-		},
-		inspectPermissions(): NativeLockReadResult {
-			return inspectWindowsAcl(input);
-		},
+		createExclusive: (contents: string) => writeWindowsFile(input, input.filePath, contents),
+		read: () => readWindowsFile(input.filePath),
+		remove: () => removeWindowsFile(input.filePath),
+		verifyPermissions: () => verifyWindowsPermissions(input, input.filePath),
+		createReclaimGuard: (contents: string) => writeWindowsFile(input, reclaimPath, contents),
+		readReclaimGuard: () => readWindowsFile(reclaimPath),
+		removeReclaimGuard: () => removeWindowsFile(reclaimPath),
+		inspectPermissions: () => inspectWindowsAcl(input, input.filePath),
 	});
 }
 
-function writeWindowsLock(
+function writeWindowsFile(
 	input: {
 		readonly dirPath: string;
-		readonly filePath: string;
 		readonly runCommand?: WindowsLockCommandRunner;
+		readonly icaclsPath: string;
 	},
+	filePath: string,
 	contents: string,
-	flag: 'wx' | 'w',
 ): NativeLockWriteResult {
+	let created = false;
 	try {
 		mkdirSync(input.dirPath, { recursive: true });
-		applyAcl(input.dirPath, input.runCommand);
-		writeFileSync(input.filePath, contents, { encoding: 'utf8', flag });
-		applyAcl(input.filePath, input.runCommand);
+		applyAcl(input, input.dirPath, true);
+		writeFileSync(filePath, contents, { encoding: 'utf8', flag: 'wx' });
+		created = true;
+		applyAcl(input, filePath, false);
 		return { ok: true };
 	} catch (cause) {
-		if (flag === 'wx') removeWindowsLock(input.filePath);
-		return { ok: false, error: toNativeLockError(cause, input.filePath) };
+		if (created) removeWindowsFile(filePath);
+		return { ok: false, failure: toNativeLockFailure(cause, filePath) };
 	}
 }
 
-function readWindowsLock(filePath: string): NativeLockReadResult {
+function readWindowsFile(filePath: string): NativeLockReadResult {
 	try {
 		return { ok: true, contents: readFileSync(filePath, 'utf8') };
 	} catch (cause) {
-		return { ok: false, error: toNativeLockError(cause, filePath) };
+		return { ok: false, failure: toNativeLockFailure(cause, filePath) };
 	}
 }
 
-function removeWindowsLock(filePath: string): NativeLockWriteResult {
+function removeWindowsFile(filePath: string): NativeLockWriteResult {
 	try {
 		unlinkSync(filePath);
 		return { ok: true };
 	} catch (cause) {
-		const error = toNativeLockError(cause, filePath);
-		if (error.code === 'ENOENT') return { ok: true };
-		return { ok: false, error };
+		const failure = toNativeLockFailure(cause, filePath);
+		if (failure.kind === 'not-found') return { ok: true };
+		return { ok: false, failure };
 	}
 }
 
-function inspectWindowsAcl(input: {
-	readonly filePath: string;
-	readonly runCommand?: WindowsLockCommandRunner;
-}): NativeLockReadResult {
-	const runCommand = input.runCommand;
-	if (runCommand === undefined) {
+function verifyWindowsPermissions(
+	input: {
+		readonly runCommand?: WindowsLockCommandRunner;
+		readonly icaclsPath: string;
+	},
+	filePath: string,
+): NativeLockWriteResult {
+	const inspected = inspectWindowsAcl(input, filePath);
+	if (!inspected.ok) return inspected;
+	if (verifyWindowsAclOutput(inspected.contents)) return { ok: true };
+	return {
+		ok: false,
+		failure: {
+			kind: 'invalid-permissions',
+			error: new AppError('E_INTERNAL', 'The machine-wide lock has an unsafe Windows ACL.', {
+				details: { path: filePath },
+			}),
+		},
+	};
+}
+
+function inspectWindowsAcl(
+	input: {
+		readonly runCommand?: WindowsLockCommandRunner;
+		readonly icaclsPath: string;
+	},
+	filePath: string,
+): NativeLockReadResult {
+	if (input.runCommand === undefined) {
 		return {
 			ok: false,
-			error: {
-				code: 'E_INTERNAL',
-				message: `Cannot inspect the machine-wide lock ACL at ${input.filePath} without a command runner.`,
-				details: { path: input.filePath },
+			failure: {
+				kind: 'permission-denied',
+				error: new AppError(
+					'E_INTERNAL',
+					`Cannot inspect the machine-wide lock ACL at ${filePath} without an icacls runner.`,
+					{ details: { path: filePath } },
+				),
 			},
 		};
 	}
-	const output = runCommand({ file: 'icacls', args: [input.filePath] });
+	const output = input.runCommand({ file: input.icaclsPath, args: [filePath] });
 	if (!output.ok) {
 		return {
 			ok: false,
-			error: {
-				code: 'E_INTERNAL',
-				message: `Failed to inspect the machine-wide lock ACL at ${input.filePath}.`,
-				cause: output,
-				details: { path: input.filePath, stderr: output.stderr },
+			failure: {
+				kind: 'permission-denied',
+				error: new AppError(
+					'E_INTERNAL',
+					`Failed to inspect the machine-wide lock ACL at ${filePath}.`,
+					{
+						cause: output,
+						details: { path: filePath, stderr: output.stderr },
+					},
+				),
 			},
 		};
 	}
 	return { ok: true, contents: output.stdout };
 }
 
-function applyAcl(path: string, runCommand: WindowsLockCommandRunner | undefined): void {
-	if (runCommand === undefined) {
-		throw {
-			code: 'EACCES',
-			message: `The Windows lock ACL cannot be applied at ${path} without an icacls runner.`,
-		} satisfies { code: string; message: string };
+function applyAcl(
+	input: {
+		readonly runCommand?: WindowsLockCommandRunner;
+		readonly icaclsPath: string;
+	},
+	path: string,
+	isDirectory: boolean,
+): void {
+	if (input.runCommand === undefined) {
+		throw nativeFailure('EACCES', `The Windows lock ACL cannot be applied at ${path}.`);
 	}
-	const result = runCommand(buildAclCommand(path));
+	const result = input.runCommand(buildAclCommand(input.icaclsPath, path, isDirectory));
 	if (!result.ok) {
-		throw {
-			code: 'EACCES',
-			message: `Failed to apply the Administrators/SYSTEM-only ACL at ${path}: ${result.stderr}`,
-		} satisfies { code: string; message: string };
+		throw nativeFailure(
+			'EACCES',
+			`Failed to apply the Administrators/SYSTEM-only ACL at ${path}: ${result.stderr}`,
+		);
 	}
-	const verify = runCommand({ file: 'icacls', args: [path] });
-	if (!verify.ok || !verifyWindowsAclOutput(verify.stdout)) {
-		throw {
-			code: 'EACCES',
-			message: `The machine-wide lock ACL at ${path} does not match Administrators/SYSTEM-only.`,
-		} satisfies { code: string; message: string };
-	}
+	const verification = verifyWindowsPermissions(input, path);
+	if (!verification.ok) throw nativeFailure('EACCES', verification.failure.error.message);
 }
 
-function buildAclCommand(path: string): NativeLockCommand {
+function buildAclCommand(
+	icaclsPath: string,
+	path: string,
+	isDirectory: boolean,
+): NativeLockCommand {
 	const grants = WINDOWS_LOCK_ACL.entries.map(
-		(entry) => `*${entry.sid}:${entry.inherit ? '(OI)(CI)' : ''}${entry.rights}`,
+		(entry) => `*${entry.sid}:${isDirectory && entry.inherit ? '(OI)(CI)' : ''}${entry.rights}`,
 	);
 	return {
-		file: 'icacls',
+		file: icaclsPath,
 		args: [path, '/inheritance:r', '/grant:r', ...grants],
 	};
 }
 
 export function verifyWindowsAclOutput(output: string): boolean {
-	const administrators = new RegExp(`\\*${WINDOWS_ADMINISTRATORS_SID}:`).test(output);
-	const system = new RegExp(`\\*${WINDOWS_SYSTEM_SID}:`).test(output);
-	const grants = output.match(/\([A-Z,]+\):(F|M|RX|R|W|D)/g) ?? [];
-	const onlyAllowedGrantees =
-		administrators &&
-		system &&
-		!/\*S-1-5-32-545:/.test(output) &&
-		!/\bEveryone\b/i.test(output) &&
-		!/\(I\)/.test(output);
-	return onlyAllowedGrantees && grants.length > 0;
+	if (/\(I\)/.test(output)) return false;
+	const entries = extractAclEntries(output);
+	const administrators = entries.find((entry) => isAdministratorsIdentity(entry.identity));
+	const system = entries.find((entry) => isSystemIdentity(entry.identity));
+	return (
+		administrators?.rights === 'F' &&
+		system?.rights === 'F' &&
+		entries.every(
+			(entry) => isAdministratorsIdentity(entry.identity) || isSystemIdentity(entry.identity),
+		)
+	);
 }
 
-function toNativeLockError(cause: unknown, path: string): NativeLockError {
-	const code = getErrorCode(cause);
-	if (code === 'EEXIST' || code === 'EACCES' || code === 'EPERM' || code === 'ENOENT') {
-		return {
-			code,
-			message: nativeErrorMessage(code, path),
-			cause,
-			details: { path },
-		};
+function extractAclEntries(
+	output: string,
+): readonly { readonly identity: string; readonly rights: string }[] {
+	const entries: { identity: string; rights: string }[] = [];
+	const pattern = /([^\r\n]+?):(?:\([A-Z,]+\))*\((F|M|RX|R|W|D)\)/g;
+	for (const match of output.matchAll(pattern)) {
+		entries.push({ identity: (match[1] ?? '').trim(), rights: match[2] ?? '' });
 	}
+	return entries;
+}
+
+function isAdministratorsIdentity(identity: string): boolean {
+	return (
+		identity.endsWith(`*${WINDOWS_ADMINISTRATORS_SID}`) ||
+		/\\Administrators$/i.test(identity) ||
+		/^Administrators$/i.test(identity)
+	);
+}
+
+function isSystemIdentity(identity: string): boolean {
+	return (
+		identity.endsWith(`*${WINDOWS_SYSTEM_SID}`) ||
+		/\\SYSTEM$/i.test(identity) ||
+		/^SYSTEM$/i.test(identity)
+	);
+}
+
+function toNativeLockFailure(cause: unknown, path: string): NativeLockFailure {
+	const nativeCode = getErrorCode(cause);
+	const kind =
+		nativeCode === 'EEXIST'
+			? 'already-exists'
+			: nativeCode === 'EACCES' || nativeCode === 'EPERM'
+				? 'permission-denied'
+				: nativeCode === 'ENOENT'
+					? 'not-found'
+					: 'internal';
 	return {
-		code: 'E_INTERNAL',
-		message: nativeErrorMessage('E_INTERNAL', path),
-		cause,
-		details: { path },
+		kind,
+		error:
+			cause instanceof AppError
+				? cause
+				: new AppError('E_INTERNAL', nativeErrorMessage(kind, path), {
+						cause,
+						details: { path, nativeCode },
+					}),
 	};
 }
 
-function nativeErrorMessage(code: NativeLockError['code'], path: string): string {
-	switch (code) {
-		case 'EEXIST':
+function nativeErrorMessage(kind: NativeLockFailure['kind'], path: string): string {
+	switch (kind) {
+		case 'already-exists':
 			return `The machine-wide lock already exists at ${path}.`;
-		case 'EACCES':
-		case 'EPERM':
+		case 'permission-denied':
 			return `Insufficient permission to use the machine-wide lock at ${path}.`;
-		case 'ENOENT':
+		case 'not-found':
 			return `The machine-wide lock was not found at ${path}.`;
-		case 'E_INTERNAL':
+		case 'invalid-permissions':
+			return `The machine-wide lock has an unsafe ACL at ${path}.`;
+		case 'internal':
 			return `Failed to operate on the machine-wide lock at ${path}.`;
 	}
+}
+
+function nativeFailure(
+	code: string,
+	message: string,
+): { readonly code: string; readonly message: string } {
+	return { code, message };
 }
 
 function getErrorCode(cause: unknown): string | undefined {

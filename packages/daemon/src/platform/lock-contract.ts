@@ -1,3 +1,4 @@
+import type { AppError } from '../errors/app-error.ts';
 import type { SupportedPlatform } from './contract.ts';
 
 export const LOCK_FILE_NAME = 'daemon.lock';
@@ -23,6 +24,7 @@ export interface LockMetadata {
 
 export interface LockPathHost {
 	readonly programData?: string;
+	readonly systemRoot?: string;
 }
 
 export interface LockIdentity {
@@ -61,41 +63,56 @@ export interface NativeLockCommand {
 	readonly args: readonly string[];
 }
 
+export interface NativeLockCommandResult {
+	readonly ok: boolean;
+	readonly status: number | null;
+	readonly stdout: string;
+	readonly stderr: string;
+}
+
 export type ProbeLiveness = 'alive' | 'dead' | 'uncertain';
 
 export interface LockFileHandle {
 	readonly path: string;
 	readonly metadata: LockMetadata;
+	readonly serializedMetadata: string;
 	readonly released: boolean;
 	release(): void;
 }
 
-export type NativeLockErrorCode = 'EEXIST' | 'EACCES' | 'EPERM' | 'ENOENT' | 'E_INTERNAL';
+export type NativeLockFailureKind =
+	| 'already-exists'
+	| 'permission-denied'
+	| 'not-found'
+	| 'invalid-permissions'
+	| 'internal';
 
-export interface NativeLockError {
-	readonly code: NativeLockErrorCode;
-	readonly message: string;
-	readonly cause?: unknown;
-	readonly details?: Readonly<Record<string, unknown>>;
+export interface NativeLockFailure {
+	readonly kind: NativeLockFailureKind;
+	readonly error: AppError;
 }
 
 export type NativeLockWriteResult =
 	| { readonly ok: true }
-	| { readonly ok: false; readonly error: NativeLockError };
+	| { readonly ok: false; readonly failure: NativeLockFailure };
 
 export type NativeLockReadResult =
 	| { readonly ok: true; readonly contents: string }
-	| { readonly ok: false; readonly error: NativeLockError };
+	| { readonly ok: false; readonly failure: NativeLockFailure };
 
 export interface NativeLockAdapter {
 	readonly platform: SupportedPlatform;
 	readonly filePath: string;
 	readonly dirPath: string;
+	readonly reclaimPath: string;
 	readonly permissionLines: readonly string[];
 	createExclusive(contents: string): NativeLockWriteResult;
-	overwrite(contents: string): NativeLockWriteResult;
 	read(): NativeLockReadResult;
 	remove(): NativeLockWriteResult;
+	verifyPermissions(): NativeLockWriteResult;
+	createReclaimGuard(contents: string): NativeLockWriteResult;
+	readReclaimGuard(): NativeLockReadResult;
+	removeReclaimGuard(): NativeLockWriteResult;
 	inspectPermissions(): NativeLockReadResult;
 }
 

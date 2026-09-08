@@ -1,4 +1,5 @@
 import { snapshotEnvironment } from '../config/env.ts';
+import { AppError } from '../errors/app-error.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import { takePlatformHostInputs } from '../platform/host.ts';
 
@@ -16,11 +17,13 @@ export interface BootSnapshot {
 export function takeBootSnapshot(): BootSnapshot {
 	const environment = snapshotEnvironment();
 	const hostResult = takePlatformHostInputs({
-		appData: environment.host.appDataDir,
+		appData: environment.host.appData,
 		xdgDataHome: environment.host.xdgDataHome,
 	});
 	if (!hostResult.ok) {
-		throw new Error(hostResult.error.message);
+		throw new AppError(hostResult.error.code, hostResult.error.message, {
+			details: { ...hostResult.error.details },
+		});
 	}
 
 	return Object.freeze({
