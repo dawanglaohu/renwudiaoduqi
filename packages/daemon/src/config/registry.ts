@@ -156,12 +156,12 @@ export interface AgentRegistryTimers {
 
 export interface CreateAgentRegistryOptions {
 	readonly dataDir: string;
+	readonly platform: PlatformTarget;
 	readonly publishWarning: (warning: AgentRegistryWarning) => void;
 	readonly onReload?: (snapshot: AgentRegistrySnapshot) => void;
 	readonly builtInDefaults?: Readonly<Record<string, AgentConfig>>;
 	readonly fileSystem?: AgentRegistryFileSystem;
 	readonly timers?: AgentRegistryTimers;
-	readonly platform?: PlatformTarget;
 }
 
 export interface AgentRegistry {

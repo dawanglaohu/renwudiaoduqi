@@ -34,6 +34,7 @@ describe('agent registry lifecycle', () => {
 			const memory = createMemoryFileSystem(initialContents);
 			const registry = createAgentRegistry({
 				dataDir: 'C:\\agent-scheduler-test',
+				platform: 'win32',
 				fileSystem: memory.fileSystem,
 				publishWarning() {},
 			});
@@ -63,6 +64,7 @@ describe('agent registry lifecycle', () => {
 		);
 		const firstVersion = createAgentRegistry({
 			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
 			fileSystem: memory.fileSystem,
 			publishWarning() {},
 		});
@@ -86,6 +88,7 @@ describe('agent registry lifecycle', () => {
 		};
 		const secondVersion = createAgentRegistry({
 			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
 			fileSystem: memory.fileSystem,
 			builtInDefaults: upgradedDefaults,
 			publishWarning() {},
@@ -117,6 +120,7 @@ describe('agent registry lifecycle', () => {
 		const memory = createMemoryFileSystem(undefined, true);
 		const registry = createAgentRegistry({
 			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
 			fileSystem: memory.fileSystem,
 			publishWarning: (warning) => warnings.push(warning),
 		});
@@ -149,6 +153,7 @@ describe('agent registry lifecycle', () => {
 		});
 		const registry = createAgentRegistry({
 			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
 			fileSystem: memory.fileSystem,
 			timers: manual.timers,
 			publishWarning() {},
@@ -182,6 +187,7 @@ describe('agent registry lifecycle', () => {
 		);
 		const registry = createAgentRegistry({
 			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
 			fileSystem: memory.fileSystem,
 			publishWarning: (w) => warnings.push(w),
 		});
@@ -215,6 +221,7 @@ describe('agent registry lifecycle', () => {
 		);
 		const registry = createAgentRegistry({
 			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
 			fileSystem: memory.fileSystem,
 			publishWarning: (w) => warnings.push(w),
 		});
@@ -263,6 +270,7 @@ describe('agent registry lifecycle', () => {
 		);
 		const registry = createAgentRegistry({
 			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
 			fileSystem: memory.fileSystem,
 			publishWarning: (w) => warnings.push(w),
 		});
@@ -298,6 +306,7 @@ describe('agent registry lifecycle', () => {
 		);
 		const registry = createAgentRegistry({
 			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
 			fileSystem: memory.fileSystem,
 			publishWarning: (w) => warnings.push(w),
 		});

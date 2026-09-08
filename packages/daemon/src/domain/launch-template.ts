@@ -5,7 +5,7 @@ export const ALLOWED_TEMPLATE_VARIABLES = ['model', 'prompt_file', 'cwd', 'sessi
 
 export type AllowedTemplateVariable = (typeof ALLOWED_TEMPLATE_VARIABLES)[number];
 
-export function isAllowedTemplateVariable(name: string): name is AllowedTemplateVariable {
+function isAllowedTemplateVariable(name: string): name is AllowedTemplateVariable {
 	return (ALLOWED_TEMPLATE_VARIABLES as readonly string[]).includes(name);
 }
 
@@ -30,7 +30,7 @@ export interface LaunchTemplateErrorLocation {
 /**
  * Creates visual caret highlight pointing to the error position in the raw argument.
  */
-export function formatTemplateErrorHighlight(
+function formatTemplateErrorHighlight(
 	rawArgument: string,
 	startIndex: number,
 	endIndex: number,
@@ -42,7 +42,7 @@ export function formatTemplateErrorHighlight(
 	return `${rawArgument}\n${caretLine}`;
 }
 
-export type TemplateToken =
+type TemplateToken =
 	| { readonly type: 'literal'; readonly text: string }
 	| { readonly type: 'variable'; readonly variableName: AllowedTemplateVariable };
 
@@ -50,7 +50,7 @@ export type TemplateToken =
  * Validates a single launch template argument string.
  * Returns null if valid, or a structured LaunchTemplateErrorLocation with highlight if invalid.
  */
-export function validateTemplateArgument(
+function validateTemplateArgument(
 	rawArgument: string,
 	argumentIndex = 0,
 ): LaunchTemplateErrorLocation | null {
@@ -141,15 +141,7 @@ export function validateTemplateArgument(
 /**
  * Parses a validated template argument string into literal and variable tokens.
  */
-export function parseTemplateArgumentTokens(
-	rawArgument: string,
-	argumentIndex = 0,
-): readonly TemplateToken[] {
-	const error = validateTemplateArgument(rawArgument, argumentIndex);
-	if (error !== null) {
-		throw new Error(error.message);
-	}
-
+function parseValidatedTemplateArgumentTokens(rawArgument: string): readonly TemplateToken[] {
 	const tokens: TemplateToken[] = [];
 	let cursor = 0;
 
@@ -209,18 +201,43 @@ export interface LaunchTemplateContext {
 	readonly sessionDir?: string | null;
 }
 
+export type LaunchTemplateRenderError =
+	| {
+			readonly reason: 'invalid-template';
+			readonly message: string;
+			readonly validationError: LaunchTemplateErrorLocation;
+	  }
+	| {
+			readonly reason: 'missing-variable';
+			readonly message: string;
+			readonly variableName: AllowedTemplateVariable;
+			readonly argumentIndex: number;
+			readonly rawArgument: string;
+	  };
+
+export type LaunchTemplateRenderResult =
+	| { readonly ok: true; readonly args: readonly string[] }
+	| { readonly ok: false; readonly error: LaunchTemplateRenderError };
+
 /**
  * Pure template substitution for launch arguments.
  * Replaces {model}, {prompt_file}, {cwd}, {session_dir} with values from context.
- * Throws an Error if the template contains invalid syntax or if a variable has no value.
+ * Returns a structured failure without producing arguments when syntax or context is invalid.
  */
 export function renderLaunchTemplate(
 	template: ValidatedLaunchTemplate | readonly string[],
 	context: LaunchTemplateContext,
-): readonly string[] {
+): LaunchTemplateRenderResult {
 	const validation = validateLaunchTemplate(template);
 	if (!validation.ok) {
-		throw new Error(`Invalid launch template: ${validation.error.message}`);
+		return Object.freeze({
+			ok: false,
+			error: Object.freeze({
+				reason: 'invalid-template',
+				message: `Invalid launch template: ${validation.error.message}`,
+				validationError: validation.error,
+			}),
+		});
 	}
 
 	const renderedArgs: string[] = [];
@@ -228,27 +245,38 @@ export function renderLaunchTemplate(
 		const arg = validation.template[index];
 		if (arg === undefined) continue;
 
-		const tokens = parseTemplateArgumentTokens(arg, index);
+		const tokens = parseValidatedTemplateArgumentTokens(arg);
 		let renderedArg = '';
 		for (const token of tokens) {
 			if (token.type === 'literal') {
 				renderedArg += token.text;
 			} else {
-				renderedArg += resolveContextVariableValue(token.variableName, context, index, arg);
+				const value = resolveContextVariableValue(token.variableName, context);
+				if (value === null) {
+					return Object.freeze({
+						ok: false,
+						error: Object.freeze({
+							reason: 'missing-variable',
+							message: `Missing template variable {${token.variableName}} for argument ${index} ("${arg}")`,
+							variableName: token.variableName,
+							argumentIndex: index,
+							rawArgument: arg,
+						}),
+					});
+				}
+				renderedArg += value;
 			}
 		}
 		renderedArgs.push(renderedArg);
 	}
 
-	return Object.freeze(renderedArgs);
+	return Object.freeze({ ok: true, args: Object.freeze(renderedArgs) });
 }
 
 function resolveContextVariableValue(
 	variableName: AllowedTemplateVariable,
 	context: LaunchTemplateContext,
-	argumentIndex: number,
-	rawArgument: string,
-): string {
+): string | null {
 	let value: string | null | undefined;
 	switch (variableName) {
 		case 'model':
@@ -265,16 +293,10 @@ function resolveContextVariableValue(
 			break;
 	}
 
-	if (value === null || value === undefined) {
-		throw new Error(
-			`Missing template variable {${variableName}} for argument ${argumentIndex} ("${rawArgument}")`,
-		);
-	}
-	return value;
+	return value ?? null;
 }
 
-export const SESSION_DIR_OVERWRITE_WARNING_MESSAGE =
-	'Session records may overwrite each other' as const;
+const SESSION_DIR_OVERWRITE_WARNING_MESSAGE = 'Session records may overwrite each other' as const;
 
 export interface SessionDirOverlapWarning {
 	readonly kind: 'agent.availability_changed';
@@ -290,7 +312,7 @@ export interface SessionDirOverlapWarning {
 
 export type PlatformTarget = 'win32' | 'posix';
 
-export interface PathIdentityOptions {
+interface PathIdentityOptions {
 	readonly platform?: PlatformTarget;
 }
 
@@ -299,10 +321,7 @@ export interface PathIdentityOptions {
  * When platform is 'win32', paths are case-insensitive and both slash types are normalized.
  * When platform is 'posix', case is preserved and backslashes are NOT converted.
  */
-export function normalizePathIdentity(
-	pathValue: string,
-	platform: PlatformTarget = 'posix',
-): string {
+function normalizePathIdentity(pathValue: string, platform: PlatformTarget = 'posix'): string {
 	const trimmed = pathValue.trim();
 	if (platform === 'win32') {
 		const forwardSlashes = trimmed.replaceAll('\\', '/');
@@ -312,7 +331,7 @@ export function normalizePathIdentity(
 	return trimmed.replace(/\/+$/, '');
 }
 
-export function isSamePathIdentity(
+function isSamePathIdentity(
 	pathA: string,
 	pathB: string,
 	platform: PlatformTarget = 'posix',
@@ -323,20 +342,20 @@ export function isSamePathIdentity(
 /**
  * Extracts session directory from an argsTemplate array if present.
  */
-export function extractSessionDirFromArgsTemplate(
-	argsTemplate?: readonly string[],
-): string | undefined {
+const SESSION_DIR_ARGUMENT = '--session-dir';
+
+function extractSessionDirFromArgsTemplate(argsTemplate?: readonly string[]): string | undefined {
 	if (!argsTemplate || argsTemplate.length === 0) return undefined;
 
 	for (let index = 0; index < argsTemplate.length; index++) {
 		const arg = argsTemplate[index];
 		if (arg === undefined) continue;
-		if (arg === '--session-dir' || arg === '--session_dir') {
+		if (arg === SESSION_DIR_ARGUMENT) {
 			if (index + 1 < argsTemplate.length) {
 				return argsTemplate[index + 1];
 			}
 		}
-		if (arg.startsWith('--session-dir=') || arg.startsWith('--session_dir=')) {
+		if (arg.startsWith(`${SESSION_DIR_ARGUMENT}=`)) {
 			return arg.slice(arg.indexOf('=') + 1);
 		}
 	}
@@ -346,7 +365,7 @@ export function extractSessionDirFromArgsTemplate(
 /**
  * Resolves the effective session identity for an agent.
  */
-export function resolveAgentSessionIdentity(
+function resolveAgentSessionIdentity(
 	agent: {
 		readonly execPath?: string;
 		readonly argsTemplate?: readonly string[];
@@ -361,7 +380,7 @@ export function resolveAgentSessionIdentity(
 	return `default:${execIdentity}`;
 }
 
-export function isSameSessionIdentity(
+function isSameSessionIdentity(
 	agentA: { readonly execPath?: string; readonly argsTemplate?: readonly string[] },
 	agentB: { readonly execPath?: string; readonly argsTemplate?: readonly string[] },
 	platform: PlatformTarget = 'posix',
@@ -374,7 +393,7 @@ export function isSameSessionIdentity(
 /**
  * Checks if two agents share the same executable path and same session directory.
  */
-export function checkSessionDirOverlap(
+function checkSessionDirOverlap(
 	agentA: { readonly execPath: string; readonly argsTemplate?: readonly string[] },
 	agentB: { readonly execPath: string; readonly argsTemplate?: readonly string[] },
 	agentIdA = 'agentA',
