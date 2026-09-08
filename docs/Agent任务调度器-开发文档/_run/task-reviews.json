@@ -133,5 +133,19 @@
     "reviewed": "2026-09-05T11:36:05.319812+00:00",
     "scope": "task-contract",
     "verdict": "pass"
+  },
+  "M4-T5": {
+    "contractHash": "f216ef0eba348bdcdbbc1c89c99139824c428ed6afbfcfb17e8c8b7304bcc8ad",
+    "evidence": [
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M4-T5 行、03-质量/13-边界问题与异常处理.md 的 E-38/E-39/E-43/E-44/E-90、03-质量/17-测试策略.md 和当前派发包，确认前置 M4-T1 已落地；本层产出为四个具名 readModels reader，测试、源码架构断言与任务笔记是必要支持文件，未接入 M4-T6 或 M9-T14 的后续业务链。",
+      "配置读取与错误：packages/daemon/src/adapters/codex/read-models.ts、claude/read-models.ts、grok/read-models.ts、pi/read-models.ts 通过宿主快照和异步可替换文件系统读取四家实测格式；非法 TOML 和损坏 JSON 不产生配置模型，返回具体绝对路径。Pi 通过 configErrors 保留多个文件错误，configError 兼容单错误消费者。",
+      "命令降级与进程边界：Grok 和 Pi 的列模型命令先经 platform.resolveExecutable；Windows 批处理目标再由 wrapForComSpec 生成完整 argv。超时上限不超过 5000ms，runner 接收 AbortSignal 并须在子进程和输出流收敛后返回；非零退出或超时标 isPartial，非空不可解析 stdout 原样保留到 rawStdout。",
+      "缓存与空目录：配置值、historicalModels 和 cachedModels 始终合并，不因命令或解析失败禁止后续派发。Pi 的 providers 空对象、models 空数组、空数组和空对象是合法空目录；未知非空结构标 isPartial 并保留上次成功缓存。四个 reader 每次调用重新 stat/read，不保留跨调用配置内容缓存。",
+      "回归与架构：packages/daemon/test/unit/read-models.test.ts 覆盖四家格式、非法配置、Pi 多文件绝对错误路径、Grok/Pi 非零退出与超时、5000ms 不可放大、AbortSignal 收敛、Windows ComSpec 启动、格式变化 rawStdout、mtime 重读及 Pi 空目录缓存降级。source-contracts.test.ts 禁止 adapter 直接 node:os 和同步文件 API。",
+      "验证结果：合并当前 origin/main 后，四个本机真实配置 smoke 分别读出 Codex 12、Claude 3、Grok 2、Pi 15 个模型，均无 partial/warning/error；pnpm -w check 通过，Biome、TypeScript 与 26 个 Vitest 文件全部通过，168 passed、32 skipped。跳过项是既有按平台条件选择的测试；Windows ComSpec 参数形状由纯平台回归覆盖。"
+    ],
+    "reviewed": "2026-09-08T16:48:32.904014+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
   }
 }
