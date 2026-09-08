@@ -131,6 +131,13 @@
         "packages/daemon/test/unit/launch-template.test.ts"
       ]
     },
+    "M4-T7": {
+      "supportPaths": [
+        "packages/daemon/test/unit/agent-registry.test.ts",
+        "packages/daemon/test/unit/permission-tier.test.ts",
+        "packages/daemon/test/unit/effort-tier.test.ts"
+      ]
+    },
     "M7-T2": {
       "supportPaths": [
         "packages/daemon/test/unit/review-agent.test.ts"

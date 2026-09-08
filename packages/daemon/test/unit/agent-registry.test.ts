@@ -174,6 +174,74 @@ describe('agent registry lifecycle', () => {
 		registry.stop();
 	});
 
+	it('persists product permission tiers and rejects vendor-specific values (E-136, E-137)', async () => {
+		const warnings: AgentRegistryWarning[] = [];
+		const memory = createMemoryFileSystem(
+			JSON.stringify({
+				defaults: {},
+				overrides: {
+					codex: { permissionTier: 'unrestricted' },
+				},
+			}),
+		);
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
+			fileSystem: memory.fileSystem,
+			publishWarning(warning) {
+				warnings.push(warning);
+			},
+		});
+
+		const snapshot = await registry.start();
+		// Built-in defaults must be workspaceWrite
+		expect(requiredEntry(snapshot.builtInDefaults, 'codex').permissionTier).toBe('workspaceWrite');
+		expect(requiredEntry(snapshot.builtInDefaults, 'claude').permissionTier).toBe('workspaceWrite');
+
+		// Override to highest tier persists
+		expect(requiredEntry(snapshot.agents, 'codex').permissionTier).toBe('unrestricted');
+		expect(requiredEntry(snapshot.agents, 'claude').permissionTier).toBe('workspaceWrite');
+
+		// Persisted file contains permissionTier
+		const persisted = parsePersistedFile(memory.getContents());
+		expect(requiredEntry(persisted.defaults, 'codex').permissionTier).toBe('workspaceWrite');
+		expect(requiredEntry(persisted.overrides, 'codex').permissionTier).toBe('unrestricted');
+
+		// Raw vendor parameter in agents.json must be rejected with invalid-config warning
+		memory.setContents(
+			JSON.stringify({
+				defaults: {},
+				overrides: {
+					claude: { permissionTier: 'acceptEdits' },
+				},
+			}),
+		);
+		const reloadResult = await registry.reload();
+		expect(reloadResult.status).toBe('rejected');
+		expect(requiredEntry(registry.getSnapshot().agents, 'codex').permissionTier).toBe(
+			'unrestricted',
+		);
+		expect(
+			warnings.some((w) => w.reason === 'invalid-config' && w.field?.includes('permissionTier')),
+		).toBe(true);
+
+		memory.setContents(
+			JSON.stringify({
+				defaults: persisted.defaults,
+				overrides: {
+					codex: { permissionTier: 'unrestricted', maxConcurrency: 2 },
+				},
+			}),
+		);
+		expect((await registry.reload()).status).toBe('loaded');
+		expect(requiredEntry(registry.getSnapshot().agents, 'codex')).toMatchObject({
+			permissionTier: 'unrestricted',
+			maxConcurrency: 2,
+		});
+
+		registry.stop();
+	});
+
 	it('rejects initial start with invalid template, retains baseline, and publishes detailed warning', async () => {
 		const warnings: AgentRegistryWarning[] = [];
 		const memory = createMemoryFileSystem(

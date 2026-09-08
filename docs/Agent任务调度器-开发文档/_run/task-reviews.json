@@ -149,6 +149,19 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T7": {
+    "contractHash": "6cd812354aed0a9bba7e1212822f549af13ff9066fa1d0a34abd20c9b5cd09d7",
+    "evidence": [
+      "R1 已关闭：packages/daemon/src/config/defaults.ts:38-47 与 :60-126 将 permissionTier 纳入 AgentConfig 和四家内置默认，默认均为 workspaceWrite；packages/daemon/src/config/registry.ts:23-52、:185-210、:589-598、:756-762 及字段读写/冻结链完成 schema、解析、合并、默认升级与持久化。agent-registry.test.ts:172 起以真实保存、重载、非法厂商值拒绝和保留上一快照验证该链。",
+      "R2 已关闭：permission-tier.ts:60-88 以判别联合保留 argv/env 通道；:109-149 映射 Codex/Claude/Grok、DSH 的 DSH_PERMISSION_MODE 和 Pi；Pi 的 write/edit 支持绝对路径，故 :127-133 对无外部沙箱的 workspaceWrite 明确 unsupported，不冒充工作区边界；generic ACP 在 :159-188 不臆造 CLI flag。effort-tier.ts:82-113 映射 Codex、Claude MAX_THINKING_TOKENS、Grok 与 Pi；真实 Claude 1.0.67 以 env 启动不再报 unknown option 或 Settings file not found。",
+      "R3 已关闭：effort-tier.ts:16-22、:115-140 接收适配器或模型探测给出的 isSupported/unsupportedReason，而不按模型名猜能力；:156-184 只对报告厂商的精确已知值做反向映射；:193-209 保留未经 trim 的 reportedRaw 与 selectedTier，未知值归一化为 null 并判 mismatch。测试覆盖 constructor/__proto__、未知 3000/8193/Infinity、空白和原始字符串保留。",
+      "R4 已关闭：permission-tier.ts 与 effort-tier.ts 均没有 import，domain 不再依赖 config/errors 或 Web CSS token；配置边界用 isPermissionTier 返回类型化 rejected 结果，不让裸原生错误穿透。两份 domain 测试读取源码断言无外层 import，并通过消费者可观察的注册表、映射和 unsupported 结果验证语义。任务笔记已改为当前态表述，删除 R1-R4 审查会话残渣及失实 --settings/Pi 工作区声明。",
+      "2026-09-09 在 Windows 工作树运行 pnpm -w check：Biome 检查 91 文件、tsc -b --noEmit、Vitest 24 文件 160 项全部通过。另运行三份相关测试共 19 项通过；真实入口核对 Codex 0.153.4、Claude 1.0.67、Pi 0.85.1、Grok 1.0.13 和已安装 DSH 配置，验证所采用 flag/env 以及 unsupported 路径。"
+    ],
+    "reviewed": "2026-09-08T17:20:48.655965+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T2": {
     "contractHash": "1cb87b7c52fc3392c8aeb7e0df922c87c0fcf724cd8b43bc06921c8ff7b31ea6",
     "evidence": [

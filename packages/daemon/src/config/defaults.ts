@@ -1,3 +1,5 @@
+import { DEFAULT_PERMISSION_TIER, type PermissionTier } from '../domain/permission-tier.ts';
+
 export const ADAPTER_KINDS = {
 	NATIVE: 'native',
 	GENERIC_ACP: 'generic-acp',
@@ -38,6 +40,7 @@ export interface AgentConfig {
 	readonly argsTemplate: readonly string[];
 	readonly maxConcurrency: number;
 	readonly defaultModel: string | null;
+	readonly permissionTier: PermissionTier;
 	readonly monogram: string;
 	readonly adapterKind: AdapterKind;
 	readonly timeouts: AgentTimeouts;
@@ -61,6 +64,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			argsTemplate: ['exec', '--json', '--model', '{model}'],
 			maxConcurrency: 1,
 			defaultModel: null,
+			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'CX',
 			adapterKind: ADAPTER_KINDS.NATIVE,
 			timeouts: NATIVE_TIMEOUTS,
@@ -74,6 +78,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			argsTemplate: ['--print', '--output-format', 'stream-json', '--model', '{model}'],
 			maxConcurrency: 1,
 			defaultModel: null,
+			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'CL',
 			adapterKind: ADAPTER_KINDS.NATIVE,
 			timeouts: NATIVE_TIMEOUTS,
@@ -95,6 +100,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			],
 			maxConcurrency: 1,
 			defaultModel: null,
+			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'PI',
 			adapterKind: ADAPTER_KINDS.NATIVE,
 			timeouts: NATIVE_TIMEOUTS,
@@ -108,6 +114,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			argsTemplate: ['--single', '--output-format', 'streaming-json', '--model', '{model}'],
 			maxConcurrency: 1,
 			defaultModel: null,
+			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'GK',
 			adapterKind: ADAPTER_KINDS.NATIVE,
 			timeouts: NATIVE_TIMEOUTS,

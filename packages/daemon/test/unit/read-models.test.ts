@@ -537,8 +537,10 @@ Available models:
 	describe('可替换异步文件系统能力与宿主快照', () => {
 		it('works with a pure in-memory mock ModelReaderFileSystem without touching disk', async () => {
 			const inMemoryStore: Record<string, string> = {
-				'/virtual/home/.codex/config.toml': 'model = "virtual-gpt-6"\n',
-				'/virtual/home/.claude/settings.json': JSON.stringify({ model: 'virtual-claude' }),
+				[resolve('/virtual/home/.codex/config.toml')]: 'model = "virtual-gpt-6"\n',
+				[resolve('/virtual/home/.claude/settings.json')]: JSON.stringify({
+					model: 'virtual-claude',
+				}),
 			};
 
 			const mockFs = {
