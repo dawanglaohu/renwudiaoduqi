@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M3-T1": {
+      "contractHash": "146512f9685ce81851231c1387405647829d67cc10e9dd6d92c95528b1fd87de",
+      "evidence": [
+        "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T1 行、09-数据模型.md:43-77、六条任务边界和当前派发包，确认输入为 unattended-run 1.1.0 docs-data.js，产出与七个有效实现/测试路径一致；前置 M1-T2 已落地，M3-T2 负责后续任务与批次落库。",
+        "协议与保留：packages/daemon/src/service/docs.ts 校验 UTF-8 JSON 外壳、schemaVersion=1、任务必需字段与唯一 ID、三处非空契约哈希、ready/reasons 和 effectivePaths；路径规则与 _run/handoff_contract.py:path_valid 对齐。直接调用真实解析入口验证首尾空白、反斜杠、点段、空段、通配符和盘符相对路径共十种输入全部返回 E_DOC_SOURCE_UNREADABLE；docs-import.test.ts 验证既有记录保留、is_source_readable 置 0、文件恢复后解除标记。",
+        "内容指纹：packages/daemon/src/domain/docs-fingerprint.ts 只规范化按任务 ID 确定性排序的 [id, contractHash] 列表且没有运行时 import；packages/daemon/src/service/docs.ts 提供 SHA-256。docs-fingerprint.test.ts 以固定规范串和已知摘要锁定结果，并覆盖任务顺序、增删和契约哈希变化；generated、mtime、ready/reasons 不进入指纹。",
+        "分层与数据边界：packages/daemon/src/domain/layer-of.ts 与当前阅读器 layerOf 的最长前驱链、环截断和缺失前驱过滤规则一致；packages/daemon/src/repo/documents.ts 只收发 snake_case DocumentRow，service 映射 camelCase 记录。repo 的 prepare/run/get/all 均经 toDatabaseError 包装，重复唯一键测试观察到带原始 cause 的 AppError。",
+        "E-79 与 E-247：同 id/contractHash 指纹下更新 generated 或 ready/reasons 时 hasChanged=false，同时刷新 last_seen_at 并返回最新复核元数据；lane_count 新建默认 2、值域 1-6，用户改为 4 后重新导入保持 4，代码不读取阅读器 localStorage。",
+        "验证环境与结果：Node 22.17.0 下执行聚焦 Vitest 三文件 33/33 通过；审查方补齐路径规则和原生命周期回归后执行 pnpm -w check，Biome、TypeScript 与 25 个 Vitest 文件全部通过，146 passed、32 skipped。跳过项是现有按平台条件选择的测试，不影响本任务的纯解析、SQLite 与 service 行为。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
