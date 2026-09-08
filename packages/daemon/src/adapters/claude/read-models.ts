@@ -55,7 +55,7 @@ export interface ReadClaudeModelsOptions {
 
 /**
  * Reads model catalog for Claude agent from ~/.claude/settings.json.
- * Receives host snapshot inputs and async file system capability (R3).
+ * Receives host snapshot inputs and an asynchronous, replaceable file-system capability.
  * Handles missing/damaged config without crashing (E-43).
  * Preserves both aliases and full IDs as distinct options (E-45).
  * Reads mtime on every call (E-44).

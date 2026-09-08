@@ -7,7 +7,37 @@ import { readClaudeModels } from '../../src/adapters/claude/read-models.ts';
 import { readCodexModels } from '../../src/adapters/codex/read-models.ts';
 import { readGrokModels } from '../../src/adapters/grok/read-models.ts';
 import { readPiModels } from '../../src/adapters/pi/read-models.ts';
-import type { PlatformHostInputs } from '../../src/platform/contract.ts';
+import type {
+	PlatformHostInputs,
+	ResolveExecutableInput,
+	ResolveExecutableResult,
+} from '../../src/platform/contract.ts';
+
+async function resolveFakeExecutable(
+	input: ResolveExecutableInput,
+): Promise<ResolveExecutableResult> {
+	const file = input.configuredPath;
+	if (!file) {
+		return {
+			ok: false,
+			error: {
+				code: 'E_AGENT_EXEC_NOT_FOUND',
+				message: 'Missing fake executable path.',
+				details: {},
+			},
+		};
+	}
+	return {
+		ok: true,
+		executable: {
+			launchKind: 'direct',
+			sourcePath: file,
+			file,
+			argsPrefix: Object.freeze([]),
+			checkedPaths: Object.freeze([file]),
+		},
+	};
+}
 
 describe('M4-T5: 四家模型清单读取与降级', () => {
 	let testDir: string;
@@ -151,6 +181,7 @@ Available models:
 				hostInputs,
 				configPath,
 				executablePath: resolve(testDir, 'fake-grok'),
+				resolveExecutable: resolveFakeExecutable,
 				commandRunner: runner,
 			});
 
@@ -228,7 +259,7 @@ Available models:
 		});
 	});
 
-	describe('R1: 严格识别四家所有已读取配置文件的缺失/损坏', () => {
+	describe('严格识别四家所有已读取配置文件的缺失或损坏', () => {
 		it('codex: model = ??? is rejected as invalid TOML and does not become a model', async () => {
 			const configPath = join(testDir, 'config.toml');
 			writeFileSync(configPath, 'model = ???\n', 'utf8');
@@ -296,7 +327,7 @@ Available models:
 		});
 	});
 
-	describe('R2: 生产超时硬上限固定 5000ms 且不可放大，命令只经绝对启动对象执行且超时可终止', () => {
+	describe('生产超时硬上限固定 5000ms，命令经绝对启动对象执行且超时可终止', () => {
 		it('grok: command runner receives absolute launch object, aborts on timeout, and caps timeout at 5000ms', async () => {
 			const configPath = join(testDir, 'config.toml');
 			writeFileSync(configPath, 'model = "grok-4.6"\n', 'utf8');
@@ -337,6 +368,7 @@ Available models:
 				hostInputs,
 				configPath,
 				executablePath: fakeExe,
+				resolveExecutable: resolveFakeExecutable,
 				commandRunner: runner,
 				timeoutMs: 10, // fast test timeout
 				historicalModels: ['grok-history'],
@@ -366,6 +398,7 @@ Available models:
 				hostInputs,
 				configPath,
 				executablePath: resolve(testDir, 'fake-grok'),
+				resolveExecutable: resolveFakeExecutable,
 				commandRunner: runner,
 				timeoutMs: 60_000, // caller attempted 60s
 			});
@@ -413,6 +446,7 @@ Available models:
 				settingsPath,
 				modelsPath,
 				executablePath: fakePi,
+				resolveExecutable: resolveFakeExecutable,
 				commandRunner: runner,
 				timeoutMs: 10,
 				historicalModels: ['claude-3-history'],
@@ -444,15 +478,63 @@ Available models:
 				settingsPath,
 				modelsPath,
 				executablePath: resolve(testDir, 'fake-pi'),
+				resolveExecutable: resolveFakeExecutable,
 				commandRunner: runner,
 				timeoutMs: 30_000,
 			});
 
 			expect(recordedTimeout).toBe(5000);
 		});
+
+		it('grok: resolves an absolute Windows batch target into a complete ComSpec launch', async () => {
+			const configPath = join(testDir, 'config.toml');
+			writeFileSync(configPath, 'model = "grok-4.6"\n', 'utf8');
+			let receivedSpec:
+				| {
+						readonly file: string;
+						readonly args: readonly string[];
+						readonly windowsVerbatimArguments?: true;
+				  }
+				| undefined;
+			const commandRunner = async (spec: {
+				file: string;
+				args: readonly string[];
+				windowsVerbatimArguments?: true;
+			}) => {
+				receivedSpec = spec;
+				return { ok: true, exitCode: 0, stdout: '* grok-4.6\n', stderr: '', timedOut: false };
+			};
+			const scriptPath = 'C:\\Tools\\grok.cmd';
+			const commandProcessor = 'C:\\Windows\\System32\\cmd.exe';
+			const resolveExecutable = async (): Promise<ResolveExecutableResult> => ({
+				ok: true,
+				executable: {
+					launchKind: 'com-spec',
+					sourcePath: scriptPath,
+					file: commandProcessor,
+					argsPrefix: Object.freeze([]),
+					checkedPaths: Object.freeze([scriptPath, commandProcessor]),
+					spawnOptions: Object.freeze({ windowsVerbatimArguments: true }),
+				},
+			});
+
+			await readGrokModels({
+				hostInputs: { platform: 'win32', homedir: 'C:\\Users\\test' },
+				configPath,
+				executablePath: scriptPath,
+				resolveExecutable,
+				commandRunner,
+			});
+
+			expect(receivedSpec?.file).toBe(commandProcessor);
+			expect(receivedSpec?.windowsVerbatimArguments).toBe(true);
+			expect(receivedSpec?.args.slice(0, 3)).toEqual(['/d', '/s', '/c']);
+			expect(receivedSpec?.args[3]).toContain('grok.cmd');
+			expect(receivedSpec?.args[3]).toContain('models');
+		});
 	});
 
-	describe('R3: 可替换异步文件系统能力与移除直接 node:os', () => {
+	describe('可替换异步文件系统能力与宿主快照', () => {
 		it('works with a pure in-memory mock ModelReaderFileSystem without touching disk', async () => {
 			const inMemoryStore: Record<string, string> = {
 				'/virtual/home/.codex/config.toml': 'model = "virtual-gpt-6"\n',
@@ -494,7 +576,7 @@ Available models:
 		});
 	});
 
-	describe('R4: Pi 的 {providers:{}} 或空 models 是合法空目录，不标 parser failure，仍合并 store/history/cache', () => {
+	describe('Pi 的 {providers:{}} 或空 models 是合法空目录并继续合并其他来源', () => {
 		it('treats {providers:{}} as valid empty catalog without parser failure and merges store/history/cache', async () => {
 			const settingsPath = join(testDir, 'settings.json');
 			const modelsPath = join(testDir, 'models.json');
@@ -592,6 +674,7 @@ Available models:
 				hostInputs,
 				configPath,
 				executablePath: resolve(testDir, 'fake-grok'),
+				resolveExecutable: resolveFakeExecutable,
 				commandRunner: runner,
 			});
 
@@ -620,6 +703,7 @@ Available models:
 				settingsPath,
 				modelsPath,
 				executablePath: resolve(testDir, 'fake-pi'),
+				resolveExecutable: resolveFakeExecutable,
 				commandRunner: runner,
 			});
 

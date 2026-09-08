@@ -1,7 +1,13 @@
 import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
-import type { PlatformHostInputs } from '../../platform/contract.ts';
-import { resolveExecutable } from '../../platform/resolve-executable.ts';
+import { join, resolve } from 'node:path';
+import type {
+	PlatformHostInputs,
+	ResolveExecutableInput,
+	ResolveExecutableResult,
+	ResolvedExecutable,
+} from '../../platform/contract.ts';
+import { resolveExecutable as resolvePlatformExecutable } from '../../platform/resolve-executable.ts';
+import { wrapForComSpec } from '../../platform/windows.ts';
 
 export interface ModelOption {
 	readonly id: string;
@@ -50,6 +56,7 @@ export interface AbsoluteCommandLaunchSpec {
 	readonly args: readonly string[];
 	readonly timeoutMs: number;
 	readonly signal: AbortSignal;
+	readonly windowsVerbatimArguments?: true;
 }
 
 export interface CommandExecutionResult {
@@ -60,7 +67,15 @@ export interface CommandExecutionResult {
 	readonly timedOut: boolean;
 }
 
+/**
+ * Starts the supplied absolute launch with `shell: false`, honors `signal`, and resolves only
+ * after the child process has terminated and its output streams have settled.
+ */
 export type CommandRunner = (spec: AbsoluteCommandLaunchSpec) => Promise<CommandExecutionResult>;
+
+export type ExecutableResolver = (
+	input: ResolveExecutableInput,
+) => Promise<ResolveExecutableResult>;
 
 export interface ReadPiModelsOptions {
 	readonly hostInputs?:
@@ -78,6 +93,7 @@ export interface ReadPiModelsOptions {
 	readonly timeoutMs?: number;
 	readonly allowCommand?: boolean;
 	readonly fs?: ModelReaderFileSystem;
+	readonly resolveExecutable?: ExecutableResolver;
 }
 
 /**
@@ -118,7 +134,7 @@ export function parsePiModelsCommandOutput(stdout: string): ModelOption[] {
  *   - { [p]: { models: [...] } }
  *   - { models: [...] }
  *   - Array of models: [...]
- * Valid empty catalogs (e.g. { providers: {} }, { models: [] }, [], {}) return [] (R4).
+ * Valid empty catalogs such as { providers: {} }, { models: [] }, [], and {} return [].
  * Returns null only if structure is unrecognized and non-empty (E-90 parser failure).
  */
 export function parsePiModelsJson(json: unknown): ModelOption[] | null {
@@ -132,7 +148,7 @@ export function parsePiModelsJson(json: unknown): ModelOption[] | null {
 			const m = parseModelItem(item);
 			if (m) extracted.push(m);
 		}
-		// A JSON array is a recognized structure, even if empty [] (R4)
+		// An empty array is a valid installed-but-unconfigured catalog.
 		return extracted;
 	}
 
@@ -152,7 +168,7 @@ export function parsePiModelsJson(json: unknown): ModelOption[] | null {
 				}
 			}
 		}
-		// Recognized structure, even when providers is {} or empty models (R4)
+		// An empty providers object is a valid installed-but-unconfigured catalog.
 		return extracted;
 	}
 
@@ -162,14 +178,14 @@ export function parsePiModelsJson(json: unknown): ModelOption[] | null {
 			const m = parseModelItem(item);
 			if (m) extracted.push(m);
 		}
-		// Recognized structure, even if empty [] (R4)
+		// An empty models array is a valid installed-but-unconfigured catalog.
 		return extracted;
 	}
 
 	// 3. Check direct provider map: { "antigravity": { models: [...] } }
 	const keys = Object.keys(obj);
 	if (keys.length === 0) {
-		// Empty object {} is a valid empty catalog (R4)
+		// An empty object is a valid installed-but-unconfigured catalog.
 		return extracted;
 	}
 
@@ -221,10 +237,10 @@ function parseModelItem(item: unknown, _provider?: string): ModelOption | null {
 /**
  * Reads model catalog for Pi agent from ~/.pi/agent/models.json, models-store.json, settings.json,
  * and optional `pi --models` CLI command.
- * Strictly identifies missing/damaged files and returns specific absolute paths (R1).
- * Hard ceiling 5000ms timeout with absolute launch object and cancellable AbortSignal (R2).
- * Receives host snapshot inputs and async file system capability (R3).
- * Treats {providers:{}} or empty models as valid empty catalog without parser failure (R4).
+ * Identifies each missing or damaged file and returns its absolute path.
+ * Runs the list command through an absolute launch object with a 5000ms hard ceiling.
+ * Receives host snapshot inputs and an asynchronous, replaceable file-system capability.
+ * Treats {providers:{}} and empty model arrays as valid empty catalogs.
  * Reads mtime on every call (E-44).
  */
 export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<ReadModelsResult> {
@@ -251,7 +267,7 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 	);
 	const storePath = resolve(options.storePath ?? join(piDir, 'models-store.json'));
 	const settingsPath = resolve(options.settingsPath ?? join(piDir, 'settings.json'));
-	// Hard cap 5000ms timeout that cannot be enlarged (R2)
+	// Callers may lower the timeout for tests or policy, but cannot enlarge the production ceiling.
 	const timeoutMs = Math.max(
 		1,
 		Math.min(options.timeoutMs ?? MAX_COMMAND_TIMEOUT_MS, MAX_COMMAND_TIMEOUT_MS),
@@ -265,7 +281,7 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 	let rawStdout: string | undefined;
 	const modelMap = new Map<string, ModelOption>();
 
-	// 1. Read settings.json for defaultModel asynchronously (R1: do NOT empty-catch syntax errors)
+	// 1. Read settings.json for defaultModel; every parse failure remains attributable to this path.
 	try {
 		const stat = await fs.stat(settingsPath);
 		if (mtimeMs === null || stat.mtimeMs > mtimeMs) mtimeMs = stat.mtimeMs;
@@ -299,7 +315,7 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 		}
 	}
 
-	// 2. Read models.json asynchronously (R1: return absolute path on failure)
+	// 2. Read models.json and preserve its absolute path on failure.
 	try {
 		const stat = await fs.stat(modelsPath);
 		if (mtimeMs === null || stat.mtimeMs > mtimeMs) mtimeMs = stat.mtimeMs;
@@ -353,7 +369,7 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 		warnings.push(`Failed to read Pi models.json at ${modelsPath}: ${errorMsg}`);
 	}
 
-	// 3. Read models-store.json asynchronously (R1: do NOT empty-catch syntax errors)
+	// 3. Read models-store.json; every parse failure remains attributable to this path.
 	try {
 		const stat = await fs.stat(storePath);
 		if (mtimeMs === null || stat.mtimeMs > mtimeMs) mtimeMs = stat.mtimeMs;
@@ -395,29 +411,21 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 		}
 	}
 
-	// 4. Run `pi --models` command via absolute launch object (R2)
+	// 4. Run `pi --models` through a fully resolved absolute launch object.
 	if (options.commandRunner && options.allowCommand !== false) {
-		let launchFile: string | null = null;
-		let launchArgsPrefix: readonly string[] = [];
-
-		if (options.executablePath && isAbsolute(options.executablePath)) {
-			launchFile = options.executablePath;
-		} else if (options.hostInputs && 'platform' in options.hostInputs) {
-			const resolved = await resolveExecutable(
-				{
-					hostInputs: options.hostInputs as PlatformHostInputs,
+		const hostInputs = platformHostInputs(options.hostInputs);
+		const resolved = hostInputs
+			? await (options.resolveExecutable ?? resolvePlatformExecutable)({
+					hostInputs,
 					executableName: 'pi',
 					configuredPath: options.executablePath,
-				},
-				options.fs as unknown as import('../../platform/contract.ts').ExecutableFileSystem,
-			);
-			if (resolved.ok) {
-				launchFile = resolved.executable.file;
-				launchArgsPrefix = resolved.executable.argsPrefix;
-			}
-		}
+				})
+			: null;
+		const launch = resolved?.ok
+			? buildCommandLaunch(resolved.executable, Object.freeze(['--models']))
+			: null;
 
-		if (!launchFile) {
+		if (!launch) {
 			isPartial = true;
 			warnings.push(
 				"Could not resolve absolute executable path for 'pi'. Skipping command execution.",
@@ -434,8 +442,7 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 			let cmdRes: CommandExecutionResult;
 			try {
 				cmdRes = await options.commandRunner({
-					file: launchFile,
-					args: Object.freeze([...launchArgsPrefix, '--models']),
+					...launch,
 					timeoutMs,
 					signal: controller.signal,
 				});
@@ -454,12 +461,12 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 			if (cmdRes.timedOut || controller.signal.aborted) {
 				isPartial = true;
 				warnings.push(
-					`Command '${launchFile}' timed out after ${timeoutMs}ms. List may be incomplete.`,
+					`Command '${launch.file}' timed out after ${timeoutMs}ms. List may be incomplete.`,
 				);
 			} else if (!cmdRes.ok || (cmdRes.exitCode !== null && cmdRes.exitCode !== 0)) {
 				isPartial = true;
 				warnings.push(
-					`Command '${launchFile}' exited with non-zero status. List may be incomplete.`,
+					`Command '${launch.file}' exited with non-zero status. List may be incomplete.`,
 				);
 				if (cmdRes.stdout) rawStdout = cmdRes.stdout;
 			} else {
@@ -526,6 +533,33 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 		configErrors: Object.freeze(configErrors),
 		mtimeMs,
 	});
+}
+
+function platformHostInputs(input: ReadPiModelsOptions['hostInputs']): PlatformHostInputs | null {
+	if (input?.platform !== 'win32' && input?.platform !== 'darwin' && input?.platform !== 'linux') {
+		return null;
+	}
+	return input as PlatformHostInputs;
+}
+
+function buildCommandLaunch(
+	executable: ResolvedExecutable,
+	rawArgs: readonly string[],
+): Pick<AbsoluteCommandLaunchSpec, 'file' | 'args' | 'windowsVerbatimArguments'> | null {
+	if (executable.launchKind === 'direct') {
+		return Object.freeze({
+			file: executable.file,
+			args: Object.freeze([...executable.argsPrefix, ...rawArgs]),
+		});
+	}
+	const wrapped = wrapForComSpec(executable.sourcePath, rawArgs, executable.file);
+	return wrapped.ok
+		? Object.freeze({
+				file: wrapped.launch.file,
+				args: wrapped.launch.args,
+				windowsVerbatimArguments: true as const,
+			})
+		: null;
 }
 
 export { readPiModels as readModels };

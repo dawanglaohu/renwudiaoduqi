@@ -1,7 +1,13 @@
 import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
-import type { PlatformHostInputs } from '../../platform/contract.ts';
-import { resolveExecutable } from '../../platform/resolve-executable.ts';
+import { join, resolve } from 'node:path';
+import type {
+	PlatformHostInputs,
+	ResolveExecutableInput,
+	ResolveExecutableResult,
+	ResolvedExecutable,
+} from '../../platform/contract.ts';
+import { resolveExecutable as resolvePlatformExecutable } from '../../platform/resolve-executable.ts';
+import { wrapForComSpec } from '../../platform/windows.ts';
 
 export interface ModelOption {
 	readonly id: string;
@@ -50,6 +56,7 @@ export interface AbsoluteCommandLaunchSpec {
 	readonly args: readonly string[];
 	readonly timeoutMs: number;
 	readonly signal: AbortSignal;
+	readonly windowsVerbatimArguments?: true;
 }
 
 export interface CommandExecutionResult {
@@ -60,7 +67,15 @@ export interface CommandExecutionResult {
 	readonly timedOut: boolean;
 }
 
+/**
+ * Starts the supplied absolute launch with `shell: false`, honors `signal`, and resolves only
+ * after the child process has terminated and its output streams have settled.
+ */
 export type CommandRunner = (spec: AbsoluteCommandLaunchSpec) => Promise<CommandExecutionResult>;
+
+export type ExecutableResolver = (
+	input: ResolveExecutableInput,
+) => Promise<ResolveExecutableResult>;
 
 export interface ReadGrokModelsOptions {
 	readonly hostInputs?:
@@ -75,12 +90,13 @@ export interface ReadGrokModelsOptions {
 	readonly timeoutMs?: number;
 	readonly allowCommand?: boolean;
 	readonly fs?: ModelReaderFileSystem;
+	readonly resolveExecutable?: ExecutableResolver;
 }
 
 /**
  * Parses a subset of TOML used by Grok configuration files.
  * Supports key-value pairs, string escaping, basic tables, dotted keys, and arrays.
- * Throws SyntaxError on malformed syntax or unquoted bare values (R1).
+ * Throws SyntaxError on malformed syntax or unquoted bare values.
  */
 export function parseToml(text: string): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
@@ -294,7 +310,7 @@ function parseTomlValue(valStr: string): unknown {
 		if (!inner) return [];
 		return splitArrayItems(inner).map((item) => parseTomlValue(item));
 	}
-	// Bare unquoted tokens that are not booleans or numbers are invalid TOML (R1: model = ??? must fail)
+	// TOML strings must be quoted; accepting arbitrary bare tokens would turn damaged config into model IDs.
 	throw new SyntaxError(`Invalid TOML value (unquoted string or invalid token): ${trimmed}`);
 }
 
@@ -363,7 +379,7 @@ export function parseGrokModelsCommandOutput(stdout: string): ModelOption[] {
 
 /**
  * Reads model catalog for Grok agent from ~/.grok/config.toml and `grok models`.
- * If `grok models` times out (hard ceiling 5000ms, R2) or fails with non-zero exit code:
+ * If `grok models` reaches its 5000ms hard ceiling or fails with a non-zero exit code:
  *   downgrades to config current + historical + manual and marks isPartial (E-38).
  * If output format changes and cannot be parsed:
  *   downgrades and retains raw stdout (E-39).
@@ -394,7 +410,7 @@ export async function readGrokModels(
 	const configPath = resolve(
 		options.configPath ?? join(homedirPath as string, '.grok', 'config.toml'),
 	);
-	// Hard cap 5000ms timeout that cannot be enlarged (R2)
+	// Callers may lower the timeout for tests or policy, but cannot enlarge the production ceiling.
 	const timeoutMs = Math.max(
 		1,
 		Math.min(options.timeoutMs ?? MAX_COMMAND_TIMEOUT_MS, MAX_COMMAND_TIMEOUT_MS),
@@ -470,30 +486,21 @@ export async function readGrokModels(
 		currentConfigModel = null;
 	}
 
-	// 2. Run `grok models` command via absolute launch object (R2)
+	// 2. Run `grok models` through a fully resolved absolute launch object.
 	if (options.commandRunner && options.allowCommand !== false) {
-		let launchFile: string | null = null;
-		let launchArgsPrefix: readonly string[] = [];
-
-		if (options.executablePath && isAbsolute(options.executablePath)) {
-			launchFile = options.executablePath;
-		} else if (options.hostInputs && 'platform' in options.hostInputs) {
-			const resolved = await resolveExecutable(
-				{
-					hostInputs: options.hostInputs as PlatformHostInputs,
+		const hostInputs = platformHostInputs(options.hostInputs);
+		const resolved = hostInputs
+			? await (options.resolveExecutable ?? resolvePlatformExecutable)({
+					hostInputs,
 					executableName: 'grok',
 					configuredPath: options.executablePath,
-				},
-				// Pass adaptively if custom fs provided
-				options.fs as unknown as import('../../platform/contract.ts').ExecutableFileSystem,
-			);
-			if (resolved.ok) {
-				launchFile = resolved.executable.file;
-				launchArgsPrefix = resolved.executable.argsPrefix;
-			}
-		}
+				})
+			: null;
+		const launch = resolved?.ok
+			? buildCommandLaunch(resolved.executable, Object.freeze(['models']))
+			: null;
 
-		if (!launchFile) {
+		if (!launch) {
 			// If not resolvable to absolute path, flag partial and skip unverified execution
 			isPartial = true;
 			warnings.push(
@@ -511,13 +518,11 @@ export async function readGrokModels(
 			let cmdRes: CommandExecutionResult;
 			try {
 				cmdRes = await options.commandRunner({
-					file: launchFile,
-					args: Object.freeze([...launchArgsPrefix, 'models']),
+					...launch,
 					timeoutMs,
 					signal: controller.signal,
 				});
 			} catch (err) {
-				// No unhandled throw (R2)
 				cmdRes = {
 					ok: false,
 					exitCode: null,
@@ -532,12 +537,12 @@ export async function readGrokModels(
 			if (cmdRes.timedOut || controller.signal.aborted) {
 				isPartial = true;
 				warnings.push(
-					`Command '${launchFile}' timed out after ${timeoutMs}ms. List may be incomplete.`,
+					`Command '${launch.file}' timed out after ${timeoutMs}ms. List may be incomplete.`,
 				);
 			} else if (!cmdRes.ok || (cmdRes.exitCode !== null && cmdRes.exitCode !== 0)) {
 				isPartial = true;
 				warnings.push(
-					`Command '${launchFile}' exited with non-zero status. List may be incomplete.`,
+					`Command '${launch.file}' exited with non-zero status. List may be incomplete.`,
 				);
 				if (cmdRes.stdout) rawStdout = cmdRes.stdout;
 			} else {
@@ -602,6 +607,33 @@ export async function readGrokModels(
 		configErrors: configError ? Object.freeze([configError]) : Object.freeze([]),
 		mtimeMs,
 	});
+}
+
+function platformHostInputs(input: ReadGrokModelsOptions['hostInputs']): PlatformHostInputs | null {
+	if (input?.platform !== 'win32' && input?.platform !== 'darwin' && input?.platform !== 'linux') {
+		return null;
+	}
+	return input as PlatformHostInputs;
+}
+
+function buildCommandLaunch(
+	executable: ResolvedExecutable,
+	rawArgs: readonly string[],
+): Pick<AbsoluteCommandLaunchSpec, 'file' | 'args' | 'windowsVerbatimArguments'> | null {
+	if (executable.launchKind === 'direct') {
+		return Object.freeze({
+			file: executable.file,
+			args: Object.freeze([...executable.argsPrefix, ...rawArgs]),
+		});
+	}
+	const wrapped = wrapForComSpec(executable.sourcePath, rawArgs, executable.file);
+	return wrapped.ok
+		? Object.freeze({
+				file: wrapped.launch.file,
+				args: wrapped.launch.args,
+				windowsVerbatimArguments: true as const,
+			})
+		: null;
 }
 
 export { readGrokModels as readModels };

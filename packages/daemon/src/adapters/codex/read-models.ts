@@ -57,7 +57,7 @@ export interface ReadCodexModelsOptions {
 /**
  * Parses a subset of TOML used by Codex configuration files.
  * Supports key-value pairs, string escaping, basic tables, dotted keys, and arrays.
- * Throws SyntaxError on malformed syntax or unquoted bare values (R1).
+ * Throws SyntaxError on malformed syntax or unquoted bare values.
  */
 export function parseToml(text: string): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
@@ -274,7 +274,7 @@ function parseTomlValue(valStr: string): unknown {
 		if (!inner) return [];
 		return splitArrayItems(inner).map((item) => parseTomlValue(item));
 	}
-	// Bare unquoted tokens that are not booleans or numbers are invalid TOML (R1: model = ??? must fail)
+	// TOML strings must be quoted; accepting arbitrary bare tokens would turn damaged config into model IDs.
 	throw new SyntaxError(`Invalid TOML value (unquoted string or invalid token): ${trimmed}`);
 }
 
@@ -317,7 +317,7 @@ function splitArrayItems(str: string): string[] {
 
 /**
  * Reads model catalog for Codex agent from ~/.codex/config.toml and models_cache.json.
- * Receives host snapshot inputs and async file system capability (R3).
+ * Receives host snapshot inputs and an asynchronous, replaceable file-system capability.
  * Handles missing/damaged config without crashing (E-43).
  * Reads mtime on every call (E-44).
  */
