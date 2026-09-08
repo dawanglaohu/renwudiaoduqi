@@ -1,3 +1,4 @@
+import { type EventEnvelope, isMilestoneEventKind } from '@agent-scheduler/shared/api/events';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { AppendQueue } from '../logstore/append-queue.ts';
@@ -11,7 +12,6 @@ import type {
 	SegmentBoundary,
 	SegmentRowLike,
 } from '../logstore/contract.ts';
-import { isMilestoneEventKind } from '../logstore/contract.ts';
 import { isEnoent, toFilesystemError } from '../logstore/fs-errors.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
 import { parseEnvelopeLine, readSegmentPage } from '../logstore/read-window.ts';
@@ -29,17 +29,7 @@ import type { LogSegmentsRepo } from '../repo/log-segments-repo.ts';
  * The normal-write path and the repair path produce the same envelope shape
  * and keep the envelope's existing id/seq.
  */
-export interface EventEnvelopeInput {
-	readonly id: number;
-	readonly seq: number;
-	readonly ts: string;
-	readonly runId: string | null;
-	readonly taskId: string | null;
-	readonly scope: 'run' | 'task' | 'batch' | 'agent' | 'system';
-	readonly kind: string;
-	readonly actorDeviceId: string | null;
-	readonly payload: unknown;
-}
+export type EventEnvelopeInput = EventEnvelope;
 
 export interface AppendEventResult {
 	readonly location: AppendResult;
