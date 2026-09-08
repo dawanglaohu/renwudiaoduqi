@@ -3,6 +3,11 @@ import { watch } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import {
+	PERMISSION_TIERS,
+	type PermissionTier,
+	isPermissionTier,
+} from '../domain/permission-tier.ts';
+import {
 	ADAPTER_KINDS,
 	type AdapterKind,
 	type AgentConfig,
@@ -20,6 +25,7 @@ const AGENT_CONFIG_FIELDS = [
 	'argsTemplate',
 	'maxConcurrency',
 	'defaultModel',
+	'permissionTier',
 	'monogram',
 	'adapterKind',
 	'timeouts',
@@ -35,6 +41,7 @@ export const AGENT_CONFIG_FIELD_PATHS = [
 	'argsTemplate',
 	'maxConcurrency',
 	'defaultModel',
+	'permissionTier',
 	'monogram',
 	'adapterKind',
 	'timeouts.startupTimeoutMs',
@@ -62,6 +69,7 @@ export interface AgentConfigOverrides {
 	readonly argsTemplate?: readonly string[];
 	readonly maxConcurrency?: number;
 	readonly defaultModel?: string | null;
+	readonly permissionTier?: PermissionTier;
 	readonly monogram?: string;
 	readonly adapterKind?: AdapterKind;
 	readonly timeouts?: AgentTimeoutOverrides;
@@ -182,6 +190,7 @@ export const AGENTS_JSON_SCHEMA = {
 				argsTemplate: { type: 'array', items: { type: 'string' } },
 				maxConcurrency: { type: 'integer', maximum: 32 },
 				defaultModel: { type: ['string', 'null'] },
+				permissionTier: { enum: Object.values(PERMISSION_TIERS) },
 				monogram: { type: 'string', minLength: 2, maxLength: 2 },
 				adapterKind: { enum: Object.values(ADAPTER_KINDS) },
 				timeouts: {
@@ -443,6 +452,7 @@ interface MutableAgentConfigOverrides {
 	argsTemplate?: readonly string[];
 	maxConcurrency?: number;
 	defaultModel?: string | null;
+	permissionTier?: PermissionTier;
 	monogram?: string;
 	adapterKind?: AdapterKind;
 	timeouts?: MutableAgentTimeoutOverrides;
@@ -575,6 +585,16 @@ function parseAgentConfig(
 			return { ok: false, field: `${path}.defaultModel`, expected: 'a string or null' };
 		}
 		result.defaultModel = input.defaultModel;
+	}
+	if (Object.hasOwn(input, 'permissionTier')) {
+		if (!isPermissionTier(input.permissionTier)) {
+			return {
+				ok: false,
+				field: `${path}.permissionTier`,
+				expected: "one of 'readOnly', 'workspaceWrite', 'unrestricted'",
+			};
+		}
+		result.permissionTier = input.permissionTier;
 	}
 	if (Object.hasOwn(input, 'monogram')) {
 		if (typeof input.monogram !== 'string' || [...input.monogram].length !== 2) {
@@ -738,6 +758,7 @@ function mergeAgentConfig(
 		argsTemplate: valueOr(overrides.argsTemplate, defaultConfig.argsTemplate),
 		maxConcurrency: valueOr(overrides.maxConcurrency, defaultConfig.maxConcurrency),
 		defaultModel: valueOr(overrides.defaultModel, defaultConfig.defaultModel),
+		permissionTier: valueOr(overrides.permissionTier, defaultConfig.permissionTier),
 		monogram: valueOr(overrides.monogram, defaultConfig.monogram),
 		adapterKind,
 		timeouts: {
@@ -821,6 +842,7 @@ function getConfigField(config: AgentConfig, field: AgentConfigFieldPath): Agent
 		case 'argsTemplate':
 		case 'maxConcurrency':
 		case 'defaultModel':
+		case 'permissionTier':
 		case 'monogram':
 		case 'adapterKind':
 			return config[field];
@@ -846,6 +868,7 @@ function getOverrideField(
 		case 'argsTemplate':
 		case 'maxConcurrency':
 		case 'defaultModel':
+		case 'permissionTier':
 		case 'monogram':
 		case 'adapterKind':
 			return Object.hasOwn(overrides, field) ? overrides[field] : undefined;
@@ -880,6 +903,9 @@ function setConfigField(
 			return;
 		case 'defaultModel':
 			config.defaultModel = value as string | null;
+			return;
+		case 'permissionTier':
+			config.permissionTier = value as PermissionTier;
 			return;
 		case 'monogram':
 			config.monogram = value as string;
@@ -927,6 +953,9 @@ function deleteOverrideField(
 			return;
 		case 'defaultModel':
 			overrides.defaultModel = undefined;
+			return;
+		case 'permissionTier':
+			overrides.permissionTier = undefined;
 			return;
 		case 'monogram':
 			overrides.monogram = undefined;
@@ -976,6 +1005,7 @@ function mutableFullConfigRecord(
 			argsTemplate: [...config.argsTemplate],
 			maxConcurrency: config.maxConcurrency,
 			defaultModel: config.defaultModel,
+			permissionTier: config.permissionTier,
 			monogram: config.monogram,
 			adapterKind: config.adapterKind,
 			timeouts: { ...config.timeouts },

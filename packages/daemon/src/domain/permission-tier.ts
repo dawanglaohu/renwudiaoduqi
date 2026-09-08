@@ -1,4 +1,17 @@
-import { BUILT_IN_AGENT_IDS } from '../config/defaults.ts';
+import { AppError } from '../errors/app-error.ts';
+
+/**
+ * Known built-in agent identifiers.
+ * Defined here in domain to avoid backward dependency on config layer (R4).
+ */
+export const BUILT_IN_AGENT_IDS = {
+	CODEX: 'codex',
+	CLAUDE: 'claude',
+	PI: 'pi',
+	GROK: 'grok',
+} as const;
+
+export type BuiltInAgentId = (typeof BUILT_IN_AGENT_IDS)[keyof typeof BUILT_IN_AGENT_IDS];
 
 /**
  * Three-tier permission abstraction used across the product.
@@ -42,10 +55,12 @@ export function isPermissionTier(value: unknown): value is PermissionTier {
 
 /**
  * Assertion function ensuring value is a valid PermissionTier.
+ * Throws AppError('E_VALIDATION') instead of bare TypeError (R4).
  */
 export function assertPermissionTier(value: unknown): asserts value is PermissionTier {
 	if (!isPermissionTier(value)) {
-		throw new TypeError(
+		throw new AppError(
+			'E_VALIDATION',
 			`Invalid permission tier: expected one of 'readOnly', 'workspaceWrite', 'unrestricted', got ${String(value)}`,
 		);
 	}
@@ -69,12 +84,13 @@ export interface PermissionTierSecurityMeta {
 	readonly tier: PermissionTier;
 	readonly isElevated: boolean;
 	readonly requiresPersistentMarker: boolean;
-	readonly styleClass: '--default' | '--down';
+	readonly alertSeverity: 'none' | 'warning';
 }
 
 /**
- * Returns UI and security metadata for the given permission tier.
- * Highest tier requires persistent marker in agent cards and dispatch dialogs (E-136).
+ * Returns security metadata for the given permission tier.
+ * Does not emit UI CSS tokens in daemon domain (R4).
+ * Highest tier requires persistent marker in agent cards and dispatch confirmation (E-136).
  */
 export function getPermissionTierSecurityMeta(tier: PermissionTier): PermissionTierSecurityMeta {
 	const elevated = isHighestPermissionTier(tier);
@@ -82,7 +98,7 @@ export function getPermissionTierSecurityMeta(tier: PermissionTier): PermissionT
 		tier,
 		isElevated: elevated,
 		requiresPersistentMarker: elevated,
-		styleClass: elevated ? '--down' : '--default',
+		alertSeverity: elevated ? 'warning' : 'none',
 	});
 }
 
@@ -189,6 +205,12 @@ const GROK_RULES: VendorPermissionRule = Object.freeze({
 	}),
 });
 
+/**
+ * Pi tools permission mapping.
+ * In readOnly: strictly inspection tools (no file write/edit, no shell).
+ * In workspaceWrite: file edit/write tools only; bash/powershell are excluded to prevent out-of-bounds writes (R2).
+ * In unrestricted: full tools including bash and powershell, with --approve (R2).
+ */
 const PI_RULES: VendorPermissionRule = Object.freeze({
 	flag: '--tools',
 	values: Object.freeze({
@@ -197,30 +219,12 @@ const PI_RULES: VendorPermissionRule = Object.freeze({
 			args: Object.freeze(['--tools', 'read,grep,find,ls']),
 		}),
 		[PERMISSION_TIERS.WORKSPACE_WRITE]: Object.freeze({
-			value: 'read,grep,find,ls,edit,write,bash,powershell',
-			args: Object.freeze(['--tools', 'read,grep,find,ls,edit,write,bash,powershell']),
+			value: 'read,grep,find,ls,edit,write',
+			args: Object.freeze(['--tools', 'read,grep,find,ls,edit,write']),
 		}),
 		[PERMISSION_TIERS.UNRESTRICTED]: Object.freeze({
 			value: 'read,grep,find,ls,edit,write,bash,powershell',
-			args: Object.freeze(['--tools', 'read,grep,find,ls,edit,write,bash,powershell']),
-		}),
-	}),
-});
-
-const GENERIC_ACP_RULES: VendorPermissionRule = Object.freeze({
-	flag: '--permission-mode',
-	values: Object.freeze({
-		[PERMISSION_TIERS.READ_ONLY]: Object.freeze({
-			value: 'plan',
-			args: Object.freeze(['--permission-mode', 'plan']),
-		}),
-		[PERMISSION_TIERS.WORKSPACE_WRITE]: Object.freeze({
-			value: 'acceptEdits',
-			args: Object.freeze(['--permission-mode', 'acceptEdits']),
-		}),
-		[PERMISSION_TIERS.UNRESTRICTED]: Object.freeze({
-			value: 'bypassPermissions',
-			args: Object.freeze(['--permission-mode', 'bypassPermissions']),
+			args: Object.freeze(['--tools', 'read,grep,find,ls,edit,write,bash,powershell', '--approve']),
 		}),
 	}),
 });
@@ -230,35 +234,45 @@ const KNOWN_VENDOR_RULES: Readonly<Record<string, VendorPermissionRule>> = Objec
 	[BUILT_IN_AGENT_IDS.CLAUDE]: CLAUDE_RULES,
 	[BUILT_IN_AGENT_IDS.GROK]: GROK_RULES,
 	[BUILT_IN_AGENT_IDS.PI]: PI_RULES,
-	'generic-acp': GENERIC_ACP_RULES,
 });
 
 /**
  * Checks whether the given agent supports permission tier argument mapping.
+ * Uses Object.hasOwn to prevent prototype property pollution crashes (R3).
  */
 export function isPermissionSupported(agentId: string): boolean {
+	if (typeof agentId !== 'string') {
+		return false;
+	}
 	const normalized = agentId.trim().toLowerCase();
-	return normalized in KNOWN_VENDOR_RULES;
+	return Object.hasOwn(KNOWN_VENDOR_RULES, normalized);
 }
 
 /**
  * Resolves the vendor parameter mapping for an agent and product permission tier (E-137).
- * If unsupported (e.g. DeepSeek Harness), returns unsupported status rather than defaulting.
+ * - DSH has no sandbox/read-only mode, so it returns supported: false (R2).
+ * - Generic ACP negotiates permissions in-protocol and has no CLI permission flags, returning supported: false (R2).
+ * - Unknown agents or prototype property names return supported: false (R3).
  */
 export function resolvePermissionMapping(
 	agentId: string,
 	tier: PermissionTier,
 ): ResolvedPermissionMapping {
 	assertPermissionTier(tier);
-	const normalized = agentId.trim().toLowerCase();
-	const rule = KNOWN_VENDOR_RULES[normalized];
+	const normalized = typeof agentId === 'string' ? agentId.trim().toLowerCase() : '';
+	const rule = Object.hasOwn(KNOWN_VENDOR_RULES, normalized)
+		? KNOWN_VENDOR_RULES[normalized]
+		: undefined;
 
 	if (!rule) {
 		const isDsh =
 			normalized === 'dsh' || normalized === 'deepseek' || normalized === 'deepseek-harness';
+		const isGenericAcp = normalized === 'generic-acp';
 		const reason = isDsh
 			? 'DeepSeek Harness does not support permission sandbox/mode arguments.'
-			: `Agent '${agentId}' does not support permission tier parameter mapping.`;
+			: isGenericAcp
+				? 'Generic ACP does not use CLI flags for permissions; permissions are negotiated in-protocol.'
+				: `Agent '${agentId}' does not support permission tier parameter mapping.`;
 		return Object.freeze({
 			supported: false,
 			agentId,
@@ -280,9 +294,17 @@ export function resolvePermissionMapping(
 
 /**
  * Retrieves the CLI arguments to be appended for the given agent and tier.
- * Returns empty array if unsupported.
+ * Throws AppError('E_CAPABILITY_UNSUPPORTED') if unsupported (R2).
+ * Unsupported permissions must never silently degrade to empty args or continue unconstrained (R2).
  */
 export function getPermissionArgs(agentId: string, tier: PermissionTier): readonly string[] {
 	const result = resolvePermissionMapping(agentId, tier);
-	return result.supported ? result.args : Object.freeze([]);
+	if (!result.supported) {
+		throw new AppError(
+			'E_CAPABILITY_UNSUPPORTED',
+			`Agent '${agentId}' does not support permission tier '${tier}': ${result.reason}`,
+			{ details: { agentId, tier, reason: result.reason } },
+		);
+	}
+	return result.args;
 }

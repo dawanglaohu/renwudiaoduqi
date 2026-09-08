@@ -1,3 +1,10 @@
+import {
+	BUILT_IN_AGENT_IDS,
+	type BuiltInAgentId,
+	DEFAULT_PERMISSION_TIER,
+	type PermissionTier,
+} from '../domain/permission-tier.ts';
+
 export const ADAPTER_KINDS = {
 	NATIVE: 'native',
 	GENERIC_ACP: 'generic-acp',
@@ -5,14 +12,7 @@ export const ADAPTER_KINDS = {
 
 export type AdapterKind = (typeof ADAPTER_KINDS)[keyof typeof ADAPTER_KINDS];
 
-export const BUILT_IN_AGENT_IDS = {
-	CODEX: 'codex',
-	CLAUDE: 'claude',
-	PI: 'pi',
-	GROK: 'grok',
-} as const;
-
-export type BuiltInAgentId = (typeof BUILT_IN_AGENT_IDS)[keyof typeof BUILT_IN_AGENT_IDS];
+export { BUILT_IN_AGENT_IDS, type BuiltInAgentId };
 
 export const DEFAULT_STARTUP_TIMEOUT_MS = {
 	[ADAPTER_KINDS.NATIVE]: 60_000,
@@ -38,6 +38,7 @@ export interface AgentConfig {
 	readonly argsTemplate: readonly string[];
 	readonly maxConcurrency: number;
 	readonly defaultModel: string | null;
+	readonly permissionTier: PermissionTier;
 	readonly monogram: string;
 	readonly adapterKind: AdapterKind;
 	readonly timeouts: AgentTimeouts;
@@ -61,6 +62,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			argsTemplate: ['exec', '--json', '--model', '{model}'],
 			maxConcurrency: 1,
 			defaultModel: null,
+			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'CX',
 			adapterKind: ADAPTER_KINDS.NATIVE,
 			timeouts: NATIVE_TIMEOUTS,
@@ -74,6 +76,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			argsTemplate: ['--print', '--output-format', 'stream-json', '--model', '{model}'],
 			maxConcurrency: 1,
 			defaultModel: null,
+			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'CL',
 			adapterKind: ADAPTER_KINDS.NATIVE,
 			timeouts: NATIVE_TIMEOUTS,
@@ -95,6 +98,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			],
 			maxConcurrency: 1,
 			defaultModel: null,
+			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'PI',
 			adapterKind: ADAPTER_KINDS.NATIVE,
 			timeouts: NATIVE_TIMEOUTS,
@@ -108,6 +112,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			argsTemplate: ['--single', '--output-format', 'streaming-json', '--model', '{model}'],
 			maxConcurrency: 1,
 			defaultModel: null,
+			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'GK',
 			adapterKind: ADAPTER_KINDS.NATIVE,
 			timeouts: NATIVE_TIMEOUTS,

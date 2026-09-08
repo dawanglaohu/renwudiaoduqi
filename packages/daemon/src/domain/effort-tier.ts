@@ -1,4 +1,5 @@
-import { BUILT_IN_AGENT_IDS } from '../config/defaults.ts';
+import { AppError } from '../errors/app-error.ts';
+import { BUILT_IN_AGENT_IDS } from './permission-tier.ts';
 
 /**
  * Three-tier reasoning effort abstraction used across the product (决策 52).
@@ -28,13 +29,20 @@ export function isEffortTier(value: unknown): value is EffortTier {
 
 /**
  * Assertion function ensuring value is a valid EffortTier.
+ * Throws AppError('E_VALIDATION') instead of bare TypeError (R4).
  */
 export function assertEffortTier(value: unknown): asserts value is EffortTier {
 	if (!isEffortTier(value)) {
-		throw new TypeError(
+		throw new AppError(
+			'E_VALIDATION',
 			`Invalid effort tier: expected one of 'low', 'medium', 'high', got ${String(value)}`,
 		);
 	}
+}
+
+export interface EffortContextOptions {
+	readonly model?: string | null;
+	readonly agentVersion?: string | null;
 }
 
 export interface SupportedEffortMapping {
@@ -88,22 +96,26 @@ const CODEX_EFFORT_RULES: VendorEffortRule = Object.freeze({
 	}),
 });
 
+/**
+ * Claude thinking budget mapping (AC 4: "claude 思考预算", 决策 52).
+ * Uses --settings with maxThinkingTokens to configure reasoning budget tokens on thinking-capable models.
+ */
 const CLAUDE_EFFORT_RULES: VendorEffortRule = Object.freeze({
-	vendorParam: '--effort',
+	vendorParam: 'thinking_budget',
 	values: Object.freeze({
 		[EFFORT_TIERS.LOW]: Object.freeze({
-			value: 'low',
-			args: Object.freeze(['--effort', 'low']),
+			value: '2048',
+			args: Object.freeze(['--settings', '{"maxThinkingTokens":2048}']),
 			budgetTokens: 2048,
 		}),
 		[EFFORT_TIERS.MEDIUM]: Object.freeze({
-			value: 'medium',
-			args: Object.freeze(['--effort', 'medium']),
+			value: '8192',
+			args: Object.freeze(['--settings', '{"maxThinkingTokens":8192}']),
 			budgetTokens: 8192,
 		}),
 		[EFFORT_TIERS.HIGH]: Object.freeze({
-			value: 'high',
-			args: Object.freeze(['--effort', 'high']),
+			value: '32768',
+			args: Object.freeze(['--settings', '{"maxThinkingTokens":32768}']),
 			budgetTokens: 32768,
 		}),
 	}),
@@ -153,35 +165,89 @@ const KNOWN_EFFORT_RULES: Readonly<Record<string, VendorEffortRule>> = Object.fr
 });
 
 /**
+ * Checks whether a model is incapable of reasoning effort / thinking budget.
+ * Non-reasoning models (e.g. haiku, gpt-4o) do not support thinking/reasoning effort parameters (R3).
+ */
+function isModelIncapableOfEffort(agentId: string, model: string): boolean {
+	const lower = model.toLowerCase();
+	if (agentId === BUILT_IN_AGENT_IDS.CLAUDE) {
+		// Claude haiku models do not support extended thinking
+		if (lower.includes('haiku')) {
+			return true;
+		}
+	} else if (agentId === BUILT_IN_AGENT_IDS.CODEX) {
+		// Standard non-reasoning GPT-4o / GPT-3.5 models do not support reasoning effort
+		if (
+			lower.includes('gpt-4o') ||
+			lower.includes('gpt-4-') ||
+			lower === 'gpt-4' ||
+			lower.includes('gpt-3.5')
+		) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Checks whether the given agent supports reasoning effort configuration.
+ * Uses Object.hasOwn to prevent prototype property lookup crashes (R3).
  * DeepSeek Harness (dsh) and generic-acp return false (E-254).
  */
-export function isEffortSupported(agentId: string): boolean {
+export function isEffortSupported(agentId: string, options: EffortContextOptions = {}): boolean {
+	if (typeof agentId !== 'string') {
+		return false;
+	}
 	const normalized = agentId.trim().toLowerCase();
-	return normalized in KNOWN_EFFORT_RULES;
+	if (!Object.hasOwn(KNOWN_EFFORT_RULES, normalized)) {
+		return false;
+	}
+	if (options.model && isModelIncapableOfEffort(normalized, options.model)) {
+		return false;
+	}
+	return true;
 }
 
 /**
  * Resolves the vendor parameter mapping for an agent and product effort tier (决策 52).
- * When an agent does not support reasoning effort, returns unsupported status rather
- * than a fake default tier (AC 5, E-254).
+ * Context-aware: perceives agent version and model capability (R3).
+ * When an agent or model does not support reasoning effort, returns unsupported status
+ * rather than a fake default tier (AC 5, E-254).
  */
-export function resolveEffortMapping(agentId: string, tier: EffortTier): ResolvedEffortMapping {
+export function resolveEffortMapping(
+	agentId: string,
+	tier: EffortTier,
+	options: EffortContextOptions = {},
+): ResolvedEffortMapping {
 	assertEffortTier(tier);
-	const normalized = agentId.trim().toLowerCase();
-	const rule = KNOWN_EFFORT_RULES[normalized];
+	const normalized = typeof agentId === 'string' ? agentId.trim().toLowerCase() : '';
+	const rule = Object.hasOwn(KNOWN_EFFORT_RULES, normalized)
+		? KNOWN_EFFORT_RULES[normalized]
+		: undefined;
 
 	if (!rule) {
 		const isDsh =
 			normalized === 'dsh' || normalized === 'deepseek' || normalized === 'deepseek-harness';
+		const isGenericAcp = normalized === 'generic-acp';
 		const reason = isDsh
 			? 'DeepSeek Harness does not support reasoning effort configuration.'
-			: `Agent '${agentId}' does not support reasoning effort configuration.`;
+			: isGenericAcp
+				? 'Generic ACP does not standardize reasoning effort configuration.'
+				: `Agent '${agentId}' does not support reasoning effort configuration.`;
 		return Object.freeze({
 			supported: false,
 			agentId,
 			tier,
 			reason,
+		});
+	}
+
+	if (options.model && isModelIncapableOfEffort(normalized, options.model)) {
+		return Object.freeze({
+			supported: false,
+			agentId,
+			tier,
+			reason: `Model '${options.model}' under agent '${agentId}' does not support reasoning effort or thinking budget.`,
 		});
 	}
 
@@ -199,27 +265,38 @@ export function resolveEffortMapping(agentId: string, tier: EffortTier): Resolve
 
 /**
  * Retrieves the CLI arguments to be passed for reasoning effort.
- * If the agent does not support reasoning effort or the tier is null/undefined,
- * returns an empty array to avoid passing any arguments (E-254).
+ * If tier is null or undefined, returns empty array (E-254: NULL tier passes no args).
+ * If tier is specified but unsupported, throws AppError('E_CAPABILITY_UNSUPPORTED')
+ * to ensure unsupported settings never silently proceed to launch (R2).
  */
 export function getEffortArgs(
 	agentId: string,
 	tier: EffortTier | null | undefined,
+	options: EffortContextOptions = {},
 ): readonly string[] {
 	if (!tier) {
 		return Object.freeze([]);
 	}
-	const result = resolveEffortMapping(agentId, tier);
-	return result.supported ? result.args : Object.freeze([]);
+	const result = resolveEffortMapping(agentId, tier, options);
+	if (!result.supported) {
+		throw new AppError(
+			'E_CAPABILITY_UNSUPPORTED',
+			`Agent '${agentId}' does not support effort tier '${tier}': ${result.reason}`,
+			{ details: { agentId, tier, reason: result.reason } },
+		);
+	}
+	return result.args;
 }
 
 /**
- * Normalizes self-reported vendor effort strings to product EffortTier when recognized.
- * Preserves unrecognized non-empty strings as-is for logging and receipts (E-256).
+ * Normalizes self-reported vendor effort strings to product EffortTier when recognized (R3).
+ * Performs reverse-mapping for token counts (e.g. Claude budget tokens) and level aliases.
+ * Returns normalized EffortTier, or null if empty / unrecognized.
  */
 export function normalizeReportedEffort(
 	rawReported: string | null | undefined,
-): EffortTier | string | null {
+	_options: EffortContextOptions = {},
+): EffortTier | null {
 	if (rawReported === null || rawReported === undefined) {
 		return null;
 	}
@@ -239,7 +316,7 @@ export function normalizeReportedEffort(
 		return EFFORT_TIERS.HIGH;
 	}
 
-	// Numerical token budget normalization (e.g. Claude thinking tokens)
+	// Numerical token budget normalization (e.g. Claude thinking budget tokens)
 	const numericBudget = Number(trimmed);
 	if (!Number.isNaN(numericBudget) && numericBudget > 0) {
 		if (numericBudget <= 2048) {
@@ -251,27 +328,29 @@ export function normalizeReportedEffort(
 		return EFFORT_TIERS.HIGH;
 	}
 
-	return trimmed;
+	return null;
 }
 
 export interface EffortComparisonResult {
 	readonly isMismatch: boolean;
 	readonly selectedTier: EffortTier | null;
 	readonly reportedRaw: string | null;
-	readonly reportedNormalized: EffortTier | string | null;
+	readonly reportedNormalized: EffortTier | null;
 }
 
 /**
  * Compares the user-selected effort tier with the agent self-reported value (E-256).
- * Neither side is silently discarded or overwritten.
+ * Exactly preserves the original reported string and selected tier without silent coercion.
+ * Accurately detects mismatch when reported value diverges from selected tier (R3).
  */
 export function compareSelectedAndReportedEffort(
 	selectedTier: EffortTier | null | undefined,
 	reportedRaw: string | null | undefined,
+	options: EffortContextOptions = {},
 ): EffortComparisonResult {
 	const selected = selectedTier ?? null;
 	const reported = reportedRaw ? reportedRaw.trim() : null;
-	const normalized = normalizeReportedEffort(reported);
+	const normalized = normalizeReportedEffort(reported, options);
 
 	if (!selected || !reported) {
 		return Object.freeze({
@@ -282,6 +361,7 @@ export function compareSelectedAndReportedEffort(
 		});
 	}
 
+	// Mismatch occurs if reported value cannot be normalized to match the selected tier
 	const isMismatch = normalized !== selected;
 	return Object.freeze({
 		isMismatch,
