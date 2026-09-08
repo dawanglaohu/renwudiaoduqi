@@ -68,6 +68,19 @@
         "packages/daemon/src/http/routes/health.ts"
       ]
     },
+    "M2-T4": {
+      "supportPaths": [
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/logstore/contract.ts",
+        "packages/daemon/src/repo/event-seq-repo.ts",
+        "packages/daemon/src/service/logstore.ts",
+        "packages/daemon/test/arch/bus-transaction.test.ts",
+        "packages/daemon/test/integration/events-runtime.test.ts",
+        "packages/daemon/test/integration/logstore-integration.test.ts",
+        "packages/daemon/test/unit/events.test.ts",
+        "packages/shared/package.json"
+      ]
+    },
     "M3-T1": {
       "provides": [
         "docs-source-contract"
