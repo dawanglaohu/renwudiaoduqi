@@ -1,9 +1,4 @@
-import {
-	BUILT_IN_AGENT_IDS,
-	type BuiltInAgentId,
-	DEFAULT_PERMISSION_TIER,
-	type PermissionTier,
-} from '../domain/permission-tier.ts';
+import { DEFAULT_PERMISSION_TIER, type PermissionTier } from '../domain/permission-tier.ts';
 
 export const ADAPTER_KINDS = {
 	NATIVE: 'native',
@@ -12,7 +7,14 @@ export const ADAPTER_KINDS = {
 
 export type AdapterKind = (typeof ADAPTER_KINDS)[keyof typeof ADAPTER_KINDS];
 
-export { BUILT_IN_AGENT_IDS, type BuiltInAgentId };
+export const BUILT_IN_AGENT_IDS = {
+	CODEX: 'codex',
+	CLAUDE: 'claude',
+	PI: 'pi',
+	GROK: 'grok',
+} as const;
+
+export type BuiltInAgentId = (typeof BUILT_IN_AGENT_IDS)[keyof typeof BUILT_IN_AGENT_IDS];
 
 export const DEFAULT_STARTUP_TIMEOUT_MS = {
 	[ADAPTER_KINDS.NATIVE]: 60_000,

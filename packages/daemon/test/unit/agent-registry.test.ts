@@ -169,7 +169,7 @@ describe('agent registry lifecycle', () => {
 		registry.stop();
 	});
 
-	it('integrates permissionTier with workspaceWrite default, unrestricted persistence, and vendor rejection (R1, E-136, E-137)', async () => {
+	it('persists product permission tiers and rejects vendor-specific values (E-136, E-137)', async () => {
 		const warnings: AgentRegistryWarning[] = [];
 		const memory = createMemoryFileSystem(
 			JSON.stringify({
@@ -212,9 +212,26 @@ describe('agent registry lifecycle', () => {
 		);
 		const reloadResult = await registry.reload();
 		expect(reloadResult.status).toBe('rejected');
+		expect(requiredEntry(registry.getSnapshot().agents, 'codex').permissionTier).toBe(
+			'unrestricted',
+		);
 		expect(
 			warnings.some((w) => w.reason === 'invalid-config' && w.field?.includes('permissionTier')),
 		).toBe(true);
+
+		memory.setContents(
+			JSON.stringify({
+				defaults: persisted.defaults,
+				overrides: {
+					codex: { permissionTier: 'unrestricted', maxConcurrency: 2 },
+				},
+			}),
+		);
+		expect((await registry.reload()).status).toBe('loaded');
+		expect(requiredEntry(registry.getSnapshot().agents, 'codex')).toMatchObject({
+			permissionTier: 'unrestricted',
+			maxConcurrency: 2,
+		});
 
 		registry.stop();
 	});
