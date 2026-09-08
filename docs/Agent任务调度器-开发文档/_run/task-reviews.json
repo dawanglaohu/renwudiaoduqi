@@ -119,5 +119,30 @@
     "reviewed": "2026-09-05T11:36:05.319812+00:00",
     "scope": "task-contract",
     "verdict": "pass"
+  },
+  "M4-T2": {
+    "contractHash": "1cb87b7c52fc3392c8aeb7e0df922c87c0fcf724cd8b43bc06921c8ff7b31ea6",
+    "evidence": [
+      "范围与产出：对照 04-执行/19-模块任务拆分.md 的 M4-T2 行，仍只交付四变量模板解析、注册表保存/热加载校验、运行时防御校验与同路径同会话目录告警；E-89/E-95 的触发和结果均未删除或放宽。supportPaths 只补入既有 M4-T1 所有者 packages/daemon/src/config/registry.ts 及两份直接测试，没有开放整个 config/test 目录。",
+      "前置与接线：M4-T1 任务笔记状态为 done，现有 registry.ts 已提供 agents.json 解析、热加载、保留上一版与 publishWarning 接缝。补丁把 M4-T2 的客观成功点写成注册表只发布校验通过的快照，并要求运行时渲染入口再次拒绝未经校验模板；当前代码实际探针仍能发布 --bad={unknown}，因此代码验收为 rework，不把本契约 pass 冒充实现通过。",
+      "分层与文案：对照 06/08 节，domain 保持纯函数叶子，配置边界负责把校验失败接入注册表拒绝/告警；daemon 只产英文开发者 message 与 reason 精确等于 session-dir-overlap 的结构化告警，中文用户文案由 M9-T14 设置页映射。没有新增 HTTP 状态、环境变量、SQL、事务或反向依赖。",
+      "验收与测试责任：E-89 由 launch-template 单元测试覆盖允许变量、未知变量、未闭合括号及起止位置，并由 agent-registry 单元测试覆盖真实 reload 拒绝、旧快照保留和可高亮 details；E-95 由纯函数与 registry 集成测试覆盖同路径同目录告警、不同目录不告警且保存成功；17 节的 pnpm -w check 仍是本地验收门禁。",
+      "实证：在 task/M4-T2 worktree 的原始 PR head c119ad8 上执行 pnpm -w check，Biome、tsc 与 Vitest 全绿，23 个测试文件中 136 通过、32 个平台用例跳过；另以 createAgentRegistry 真实入口加载未知变量，观测到无告警且非法 argsTemplate 进入 snapshot，定位出当前实现与已定契约的具体差距。补丁同步使用 Python 3.13.7 成功，sourceVersion 与契约哈希由 status 重新读取。"
+    ],
+    "reviewed": "2026-09-08T13:45:07.296645+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T14": {
+    "contractHash": "9f0200e8c97b6144bdbe866c2205b1fe48fbefe58d08457973e05e5605ef75bb",
+    "evidence": [
+      "职责边界：M9-T14 仍只拥有 agent 设置页与容器；补丁仅增加 E-95 的呈现侧，把 reason 精确等于 session-dir-overlap 映射为会话记录可能互相覆盖，不把路径/会话目录判定搬到前端，不允许组件直出 daemon 英文 message。",
+      "前置与接口：任务依赖和输入显式加入 M4-T2 的 session-dir-overlap 告警，原有 M9-T4、M4-T5 与 M4-T1 注册表输入保持不变。M4-T2 现直接解锁 M9-T14，避免设置页在结构化原因尚未落地前实施该分支。",
+      "路径与冲突：M9-T14 有效路径仍为 packages/web/src/features/settings-agents/ 与 packages/web/src/pages/settings-agents-page.tsx，未扩大到共享错误表或其他页面；M4-T2 的 daemon/config/domain/test 路径与它不冲突，依赖表达的是接口顺序而非放宽并行写范围。",
+      "验收阶段：本次只复核下游契约可执行性，不实现 M9-T14，不声称 UI 已完成。后续验收须通过设置页容器测试观测中文提示，并按 06/07 节确认组件只按 reason 分支、中文仍由前端文案所有者提供。"
+    ],
+    "reviewed": "2026-09-08T13:45:23.326119+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
   }
 }
