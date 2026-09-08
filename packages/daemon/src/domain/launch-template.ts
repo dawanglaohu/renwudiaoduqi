@@ -1,8 +1,5 @@
-import { AppError } from '../errors/app-error.ts';
-
 /**
  * Whitelist of allowed launch template variables.
- * Criterion 1: Only {model}, {prompt_file}, {cwd}, {session_dir} are allowed.
  */
 export const ALLOWED_TEMPLATE_VARIABLES = ['model', 'prompt_file', 'cwd', 'session_dir'] as const;
 
@@ -32,7 +29,6 @@ export interface LaunchTemplateErrorLocation {
 
 /**
  * Creates visual caret highlight pointing to the error position in the raw argument.
- * E-89: Highlights error location clearly for developer diagnostics.
  */
 export function formatTemplateErrorHighlight(
 	rawArgument: string,
@@ -151,7 +147,7 @@ export function parseTemplateArgumentTokens(
 ): readonly TemplateToken[] {
 	const error = validateTemplateArgument(rawArgument, argumentIndex);
 	if (error !== null) {
-		throw new AppError('E_VALIDATION', error.message, { details: { ...error } });
+		throw new Error(error.message);
 	}
 
 	const tokens: TemplateToken[] = [];
@@ -187,7 +183,7 @@ export type LaunchTemplateValidationResult =
 
 /**
  * Validates an entire argsTemplate array.
- * Rejects any unknown template variable or unclosed brace (E-89).
+ * Rejects any unknown template variable or unclosed brace.
  */
 export function validateLaunchTemplate(
 	argsTemplate: readonly string[],
@@ -206,37 +202,6 @@ export function validateLaunchTemplate(
 	};
 }
 
-/**
- * Asserts that an argsTemplate array is valid, throwing an AppError with code E_VALIDATION
- * and the visual highlight in message & details if invalid.
- */
-export function assertValidLaunchTemplate(
-	argsTemplate: readonly string[],
-	agentId?: string,
-): ValidatedLaunchTemplate {
-	const result = validateLaunchTemplate(argsTemplate);
-	if (!result.ok) {
-		const prefix = agentId !== undefined ? `Agent '${agentId}' argsTemplate` : 'ArgsTemplate';
-		throw new AppError(
-			'E_VALIDATION',
-			`${prefix} contains invalid template syntax: ${result.error.message}`,
-			{
-				details: {
-					agentId,
-					argumentIndex: result.error.argumentIndex,
-					rawArgument: result.error.rawArgument,
-					startIndex: result.error.startIndex,
-					endIndex: result.error.endIndex,
-					reason: result.error.reason,
-					variableName: result.error.variableName,
-					highlight: result.error.highlight,
-				},
-			},
-		);
-	}
-	return result.template;
-}
-
 export interface LaunchTemplateContext {
 	readonly model?: string | null;
 	readonly promptFile?: string | null;
@@ -244,56 +209,24 @@ export interface LaunchTemplateContext {
 	readonly sessionDir?: string | null;
 }
 
-export interface RenderLaunchTemplateOptions {
-	/**
-	 * When model is null or undefined, omit `--model <model>`, `--model=<model>`, or `{model}` from launch arguments.
-	 * Default: true (conforms to M4-T6 / E-35 requirement: missing model does not pass `--model`).
-	 */
-	readonly omitUnspecifiedModel?: boolean;
-}
-
 /**
- * Renders launch arguments from a template.
- * Criterion 2: Runtime NEVER uses an unvalidated template — validation runs first.
+ * Pure template substitution for launch arguments.
+ * Replaces {model}, {prompt_file}, {cwd}, {session_dir} with values from context.
+ * Throws an Error if the template contains invalid syntax or if a variable has no value.
  */
 export function renderLaunchTemplate(
 	template: ValidatedLaunchTemplate | readonly string[],
 	context: LaunchTemplateContext,
-	options: RenderLaunchTemplateOptions = {},
 ): readonly string[] {
-	const validated = assertValidLaunchTemplate(template);
-	const omitModel = options.omitUnspecifiedModel ?? true;
+	const validation = validateLaunchTemplate(template);
+	if (!validation.ok) {
+		throw new Error(`Invalid launch template: ${validation.error.message}`);
+	}
+
 	const renderedArgs: string[] = [];
-
-	for (let index = 0; index < validated.length; index++) {
-		const arg = validated[index];
+	for (let index = 0; index < validation.template.length; index++) {
+		const arg = validation.template[index];
 		if (arg === undefined) continue;
-
-		// Case 1: `--model` followed by `{model}` when model is unspecified
-		const nextArg = index + 1 < validated.length ? validated[index + 1] : undefined;
-		if (
-			omitModel &&
-			(context.model === null || context.model === undefined) &&
-			arg === '--model' &&
-			nextArg === '{model}'
-		) {
-			index++;
-			continue;
-		}
-
-		// Case 2: `--model={model}` when model is unspecified
-		if (
-			omitModel &&
-			(context.model === null || context.model === undefined) &&
-			arg === '--model={model}'
-		) {
-			continue;
-		}
-
-		// Case 3: standalone `{model}` when model is unspecified
-		if (omitModel && (context.model === null || context.model === undefined) && arg === '{model}') {
-			continue;
-		}
 
 		const tokens = parseTemplateArgumentTokens(arg, index);
 		let renderedArg = '';
@@ -316,50 +249,32 @@ function resolveContextVariableValue(
 	argumentIndex: number,
 	rawArgument: string,
 ): string {
+	let value: string | null | undefined;
 	switch (variableName) {
 		case 'model':
-			if (context.model === null || context.model === undefined) {
-				throw new AppError(
-					'E_VALIDATION',
-					`Launch template variable {model} in argument ${argumentIndex} ("${rawArgument}") has no model provided in context`,
-					{ details: { variable: 'model', argumentIndex, rawArgument } },
-				);
-			}
-			return context.model;
+			value = context.model;
+			break;
 		case 'prompt_file':
-			if (context.promptFile === null || context.promptFile === undefined) {
-				throw new AppError(
-					'E_VALIDATION',
-					`Launch template variable {prompt_file} in argument ${argumentIndex} ("${rawArgument}") has no promptFile provided in context`,
-					{ details: { variable: 'prompt_file', argumentIndex, rawArgument } },
-				);
-			}
-			return context.promptFile;
+			value = context.promptFile;
+			break;
 		case 'cwd':
-			if (context.cwd === null || context.cwd === undefined) {
-				throw new AppError(
-					'E_VALIDATION',
-					`Launch template variable {cwd} in argument ${argumentIndex} ("${rawArgument}") has no cwd provided in context`,
-					{ details: { variable: 'cwd', argumentIndex, rawArgument } },
-				);
-			}
-			return context.cwd;
+			value = context.cwd;
+			break;
 		case 'session_dir':
-			if (context.sessionDir === null || context.sessionDir === undefined) {
-				throw new AppError(
-					'E_VALIDATION',
-					`Launch template variable {session_dir} in argument ${argumentIndex} ("${rawArgument}") has no sessionDir provided in context`,
-					{ details: { variable: 'session_dir', argumentIndex, rawArgument } },
-				);
-			}
-			return context.sessionDir;
+			value = context.sessionDir;
+			break;
 	}
+
+	if (value === null || value === undefined) {
+		throw new Error(
+			`Missing template variable {${variableName}} for argument ${argumentIndex} ("${rawArgument}")`,
+		);
+	}
+	return value;
 }
 
-/**
- * Exact warning text required by E-95 and Criterion 3.
- */
-export const SESSION_DIR_OVERWRITE_WARNING_MESSAGE = '会话记录可能互相覆盖' as const;
+export const SESSION_DIR_OVERWRITE_WARNING_MESSAGE =
+	'Session records may overwrite each other' as const;
 
 export interface SessionDirOverlapWarning {
 	readonly kind: 'agent.availability_changed';
@@ -373,21 +288,40 @@ export interface SessionDirOverlapWarning {
 	readonly detail: string;
 }
 
-export function normalizeExecPath(execPath: string): string {
-	const trimmed = execPath.trim();
-	const normalizedSlashes = trimmed.replaceAll('\\', '/');
-	const noTrailing = normalizedSlashes.replace(/\/+$/, '');
-	// Windows absolute paths (drive letter) or .exe binaries are case-insensitive
-	const isWindowsLike = /^[a-zA-Z]:/.test(noTrailing) || /\.exe$/i.test(noTrailing);
-	return isWindowsLike ? noTrailing.toLowerCase() : noTrailing;
-}
+export type PlatformTarget = 'win32' | 'posix';
 
-export function isSameExecPath(execPathA: string, execPathB: string): boolean {
-	return normalizeExecPath(execPathA) === normalizeExecPath(execPathB);
+export interface PathIdentityOptions {
+	readonly platform?: PlatformTarget;
 }
 
 /**
- * Extracts session directory from an argsTemplate array if present (e.g. `--session-dir <dir>` or `--session-dir=<dir>`).
+ * Normalizes an executable path or session directory path for identity comparison.
+ * When platform is 'win32', paths are case-insensitive and both slash types are normalized.
+ * When platform is 'posix', case is preserved and backslashes are NOT converted.
+ */
+export function normalizePathIdentity(
+	pathValue: string,
+	platform: PlatformTarget = 'posix',
+): string {
+	const trimmed = pathValue.trim();
+	if (platform === 'win32') {
+		const forwardSlashes = trimmed.replaceAll('\\', '/');
+		const noTrailing = forwardSlashes.replace(/\/+$/, '');
+		return noTrailing.toLowerCase();
+	}
+	return trimmed.replace(/\/+$/, '');
+}
+
+export function isSamePathIdentity(
+	pathA: string,
+	pathB: string,
+	platform: PlatformTarget = 'posix',
+): boolean {
+	return normalizePathIdentity(pathA, platform) === normalizePathIdentity(pathB, platform);
+}
+
+/**
+ * Extracts session directory from an argsTemplate array if present.
  */
 export function extractSessionDirFromArgsTemplate(
 	argsTemplate?: readonly string[],
@@ -410,45 +344,59 @@ export function extractSessionDirFromArgsTemplate(
 }
 
 /**
- * Resolves the effective session directory for an agent.
- * If argsTemplate specifies --session-dir, that is used; otherwise defaults to the canonical executable.
+ * Resolves the effective session identity for an agent.
  */
-export function resolveAgentSessionDir(agent: {
-	readonly execPath?: string;
-	readonly argsTemplate?: readonly string[];
-}): string {
+export function resolveAgentSessionIdentity(
+	agent: {
+		readonly execPath?: string;
+		readonly argsTemplate?: readonly string[];
+	},
+	platform: PlatformTarget = 'posix',
+): string {
 	const fromArgs = extractSessionDirFromArgsTemplate(agent.argsTemplate);
 	if (fromArgs !== undefined) {
-		return fromArgs;
+		return `dir:${normalizePathIdentity(fromArgs, platform)}`;
 	}
-	const exec = normalizeExecPath(agent.execPath ?? 'default');
-	return `default:${exec}`;
+	const execIdentity = normalizePathIdentity(agent.execPath ?? '', platform);
+	return `default:${execIdentity}`;
 }
 
-export function isSameSessionDir(dirA: string, dirB: string): boolean {
-	return normalizeExecPath(dirA) === normalizeExecPath(dirB);
+export function isSameSessionIdentity(
+	agentA: { readonly execPath?: string; readonly argsTemplate?: readonly string[] },
+	agentB: { readonly execPath?: string; readonly argsTemplate?: readonly string[] },
+	platform: PlatformTarget = 'posix',
+): boolean {
+	return (
+		resolveAgentSessionIdentity(agentA, platform) === resolveAgentSessionIdentity(agentB, platform)
+	);
 }
 
 /**
  * Checks if two agents share the same executable path and same session directory.
- * Criterion 3 & E-95: Allowed, but warns "会话记录可能互相覆盖".
  */
 export function checkSessionDirOverlap(
 	agentA: { readonly execPath: string; readonly argsTemplate?: readonly string[] },
 	agentB: { readonly execPath: string; readonly argsTemplate?: readonly string[] },
 	agentIdA = 'agentA',
 	agentIdB = 'agentB',
+	options: PathIdentityOptions = {},
 ): SessionDirOverlapWarning | null {
-	if (!isSameExecPath(agentA.execPath, agentB.execPath)) {
+	const platform = options.platform ?? 'posix';
+	if (!isSamePathIdentity(agentA.execPath, agentB.execPath, platform)) {
 		return null;
 	}
 
-	const dirA = resolveAgentSessionDir(agentA);
-	const dirB = resolveAgentSessionDir(agentB);
+	const sessionA = resolveAgentSessionIdentity(agentA, platform);
+	const sessionB = resolveAgentSessionIdentity(agentB, platform);
 
-	if (!isSameSessionDir(dirA, dirB)) {
+	if (sessionA !== sessionB) {
 		return null;
 	}
+
+	const rawSessionDir =
+		extractSessionDirFromArgsTemplate(agentA.argsTemplate) ??
+		extractSessionDirFromArgsTemplate(agentB.argsTemplate) ??
+		`default:${normalizePathIdentity(agentA.execPath, platform)}`;
 
 	return Object.freeze({
 		kind: 'agent.availability_changed',
@@ -458,19 +406,19 @@ export function checkSessionDirOverlap(
 		agentId: agentIdA,
 		peerAgentId: agentIdB,
 		execPath: agentA.execPath,
-		sessionDir: dirA,
-		detail: `Agents '${agentIdA}' and '${agentIdB}' share executable '${agentA.execPath}' and session directory '${dirA}'. Session records may overwrite each other (会话记录可能互相覆盖).`,
+		sessionDir: rawSessionDir,
+		detail: `Agents '${agentIdA}' and '${agentIdB}' share executable '${agentA.execPath}' and session directory '${rawSessionDir}'. Session records may overwrite each other.`,
 	});
 }
 
 /**
  * Detects session directory overlaps across all configured agents.
- * E-95: User copied agent configuration without changing path/session directory.
  */
 export function detectSessionDirOverlaps(
 	agents: Readonly<
 		Record<string, { readonly execPath?: string; readonly argsTemplate?: readonly string[] }>
 	>,
+	options: PathIdentityOptions = {},
 ): readonly SessionDirOverlapWarning[] {
 	const entries = Object.entries(agents).filter(
 		([_, config]) => typeof config.execPath === 'string' && config.execPath.trim().length > 0,
@@ -491,6 +439,7 @@ export function detectSessionDirOverlaps(
 				configB as { readonly execPath: string; readonly argsTemplate?: readonly string[] },
 				idA,
 				idB,
+				options,
 			);
 			if (warning !== null) {
 				warnings.push(warning);
@@ -499,88 +448,4 @@ export function detectSessionDirOverlaps(
 	}
 
 	return Object.freeze(warnings);
-}
-
-export interface AgentSaveConfigInput {
-	readonly execPath?: string;
-	readonly argsTemplate?: readonly string[];
-	readonly defaultModel?: string | null;
-	readonly [key: string]: unknown;
-}
-
-export type SaveValidationResult =
-	| {
-			readonly ok: true;
-			readonly validatedTemplates: Readonly<Record<string, ValidatedLaunchTemplate>>;
-			readonly warnings: readonly SessionDirOverlapWarning[];
-	  }
-	| {
-			readonly ok: false;
-			readonly agentId: string;
-			readonly error: LaunchTemplateErrorLocation;
-			readonly appError: AppError;
-	  };
-
-/**
- * Validates agent configurations at save-time.
- * Criterion 1 & E-89: Rejects immediately on unknown template variables or unclosed braces.
- * Criterion 3 & E-95: Emits warnings if two agents share the same execPath and sessionDir.
- */
-export function validateAgentsForSave(
-	agents: Readonly<Record<string, AgentSaveConfigInput>>,
-): SaveValidationResult {
-	const validatedTemplates: Record<string, ValidatedLaunchTemplate> = {};
-
-	for (const [agentId, config] of Object.entries(agents)) {
-		if (config.argsTemplate !== undefined) {
-			const result = validateLaunchTemplate(config.argsTemplate);
-			if (!result.ok) {
-				const appError = new AppError(
-					'E_VALIDATION',
-					`Agent '${agentId}' has invalid launch template argument at index ${result.error.argumentIndex}: ${result.error.reason}\n${result.error.highlight}`,
-					{
-						details: {
-							agentId,
-							argumentIndex: result.error.argumentIndex,
-							rawArgument: result.error.rawArgument,
-							startIndex: result.error.startIndex,
-							endIndex: result.error.endIndex,
-							reason: result.error.reason,
-							variableName: result.error.variableName,
-							highlight: result.error.highlight,
-						},
-					},
-				);
-				return {
-					ok: false,
-					agentId,
-					error: result.error,
-					appError,
-				};
-			}
-			validatedTemplates[agentId] = result.template;
-		}
-	}
-
-	const warnings = detectSessionDirOverlaps(agents);
-	return {
-		ok: true,
-		validatedTemplates: Object.freeze(validatedTemplates),
-		warnings,
-	};
-}
-
-/**
- * Asserts all agent configurations are valid for saving.
- * Throws AppError('E_VALIDATION') if any template is invalid.
- * Returns warnings (e.g. E-95) if all are valid.
- */
-export function assertAgentsForSave(
-	agents: Readonly<Record<string, AgentSaveConfigInput>>,
-): readonly SessionDirOverlapWarning[] {
-	const result = validateAgentsForSave(agents);
-	if (!result.ok) {
-		throw result.appError;
-	}
-	return result.warnings;
 }

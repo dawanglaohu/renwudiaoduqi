@@ -2,21 +2,20 @@ import { describe, expect, it } from 'vitest';
 import {
 	ALLOWED_TEMPLATE_VARIABLES,
 	SESSION_DIR_OVERWRITE_WARNING_MESSAGE,
-	assertAgentsForSave,
-	assertValidLaunchTemplate,
 	checkSessionDirOverlap,
 	detectSessionDirOverlaps,
 	formatTemplateErrorHighlight,
 	isAllowedTemplateVariable,
+	isSamePathIdentity,
+	isSameSessionIdentity,
+	normalizePathIdentity,
 	parseTemplateArgumentTokens,
 	renderLaunchTemplate,
-	validateAgentsForSave,
 	validateLaunchTemplate,
 	validateTemplateArgument,
 } from '../../src/domain/launch-template.ts';
-import { AppError } from '../../src/errors/app-error.ts';
 
-describe('launch template variable whitelist and parsing (Criterion 1 & E-89)', () => {
+describe('launch template variable whitelist and argument validation', () => {
 	it('only allows {model}, {prompt_file}, {cwd}, {session_dir} as whitelisted variables', () => {
 		expect(ALLOWED_TEMPLATE_VARIABLES).toEqual(['model', 'prompt_file', 'cwd', 'session_dir']);
 
@@ -46,7 +45,9 @@ describe('launch template variable whitelist and parsing (Criterion 1 & E-89)', 
 
 		for (let i = 0; i < validArgs.length; i++) {
 			const arg = validArgs[i];
-			if (arg !== undefined) expect(validateTemplateArgument(arg, i)).toBeNull();
+			if (arg !== undefined) {
+				expect(validateTemplateArgument(arg, i)).toBeNull();
+			}
 		}
 
 		const result = validateLaunchTemplate(validArgs);
@@ -56,7 +57,7 @@ describe('launch template variable whitelist and parsing (Criterion 1 & E-89)', 
 		}
 	});
 
-	it('E-89: rejects unknown template variables and provides caret highlight at exact position', () => {
+	it('rejects unknown template variables and provides caret highlight at exact position', () => {
 		const rawArg = '--custom-flag={unknown_var}';
 		const error = validateTemplateArgument(rawArg, 2);
 
@@ -70,7 +71,7 @@ describe('launch template variable whitelist and parsing (Criterion 1 & E-89)', 
 		expect(error?.message).toContain('Unknown template variable "{unknown_var}"');
 	});
 
-	it('E-89: rejects unclosed opening braces and highlights unclosed span', () => {
+	it('rejects unclosed opening braces and highlights unclosed span', () => {
 		const rawArg = '--dir={session_dir';
 		const error = validateTemplateArgument(rawArg, 0);
 
@@ -129,88 +130,8 @@ describe('launch template variable whitelist and parsing (Criterion 1 & E-89)', 
 	});
 });
 
-describe('save-time validation and rejection (Criterion 1 & E-89)', () => {
-	it('assertAgentsForSave rejects configurations containing unknown template variables', () => {
-		const agents = {
-			codex: {
-				execPath: 'codex',
-				argsTemplate: ['exec', '--model', '{bad_model}'],
-			},
-		};
-
-		expect(() => assertAgentsForSave(agents)).toThrowError(AppError);
-		try {
-			assertAgentsForSave(agents);
-		} catch (error) {
-			expect(error).toBeInstanceOf(AppError);
-			const appErr = error as AppError;
-			expect(appErr.code).toBe('E_VALIDATION');
-			expect(appErr.message).toContain('{bad_model}');
-			expect(appErr.details?.agentId).toBe('codex');
-			expect(appErr.details?.argumentIndex).toBe(2);
-			expect(appErr.details?.reason).toBe('unknown-variable');
-			expect(appErr.details?.highlight).toContain('^^^^^^^^^^^');
-		}
-	});
-
-	it('validateAgentsForSave rejects unclosed braces with typed validation error', () => {
-		const agents = {
-			claude: {
-				execPath: 'claude',
-				argsTemplate: ['--output-format', 'stream-json', '--model={model'],
-			},
-		};
-
-		const result = validateAgentsForSave(agents);
-		expect(result.ok).toBe(false);
-		if (!result.ok) {
-			expect(result.agentId).toBe('claude');
-			expect(result.error.reason).toBe('unclosed-brace');
-			expect(result.appError.code).toBe('E_VALIDATION');
-			expect(result.appError.details?.highlight).toContain('^^^^^^');
-		}
-	});
-
-	it('validateAgentsForSave succeeds for valid configurations', () => {
-		const agents = {
-			codex: {
-				execPath: 'codex',
-				argsTemplate: ['exec', '--json', '--model', '{model}'],
-			},
-			claude: {
-				execPath: 'claude',
-				argsTemplate: ['--print', '--output-format', 'stream-json', '--model', '{model}'],
-			},
-		};
-
-		const result = validateAgentsForSave(agents);
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(Object.keys(result.validatedTemplates)).toEqual(['codex', 'claude']);
-		}
-	});
-});
-
-describe('runtime safe usage and execution (Criterion 2)', () => {
-	it('assertValidLaunchTemplate throws E_VALIDATION for unvalidated templates', () => {
-		expect(() => assertValidLaunchTemplate(['--invalid={foo}'], 'test-agent')).toThrowError(
-			AppError,
-		);
-	});
-
-	it('renderLaunchTemplate enforces validation before rendering and refuses invalid templates', () => {
-		const unvalidatedTemplate = ['--flag', '{unclosed_brace'];
-		expect(() =>
-			renderLaunchTemplate(unvalidatedTemplate, {
-				model: 'test',
-				promptFile: '/tmp/p',
-				cwd: '/tmp/c',
-				sessionDir: '/tmp/s',
-			}),
-		).toThrowError(AppError);
-	});
-
-	it('renderLaunchTemplate substitutes all whitelisted variables correctly', () => {
+describe('pure template rendering', () => {
+	it('substitutes all four whitelisted variables into arguments', () => {
 		const template = [
 			'--model',
 			'{model}',
@@ -237,73 +158,110 @@ describe('runtime safe usage and execution (Criterion 2)', () => {
 		]);
 	});
 
-	it('renderLaunchTemplate omits --model and {model} when model is null or undefined (E-35 / M4-T6)', () => {
-		const template = ['exec', '--json', '--model', '{model}', '--prompt={prompt_file}'];
-
-		const rendered = renderLaunchTemplate(template, {
-			model: null,
-			promptFile: '/tmp/prompt.txt',
-		});
-
-		expect(rendered).toEqual(['exec', '--json', '--prompt=/tmp/prompt.txt']);
+	it('throws an error if template contains invalid syntax', () => {
+		expect(() =>
+			renderLaunchTemplate(['--flag', '{unclosed'], {
+				model: 'm',
+				promptFile: 'p',
+				cwd: 'c',
+				sessionDir: 's',
+			}),
+		).toThrowError('Invalid launch template');
 	});
 
-	it('renderLaunchTemplate throws E_VALIDATION if required template variable is missing in context', () => {
-		const template = ['exec', '--prompt={prompt_file}'];
+	it('throws an error if a template variable is missing in context', () => {
+		expect(() =>
+			renderLaunchTemplate(['--model', '{model}'], {
+				model: null,
+			}),
+		).toThrowError('Missing template variable {model}');
 
 		expect(() =>
-			renderLaunchTemplate(template, {
-				promptFile: null,
+			renderLaunchTemplate(['--file={prompt_file}'], {
+				promptFile: undefined,
 			}),
-		).toThrowError(AppError);
-
-		try {
-			renderLaunchTemplate(template, { promptFile: null });
-		} catch (error) {
-			const appErr = error as AppError;
-			expect(appErr.code).toBe('E_VALIDATION');
-			expect(appErr.message).toContain('{prompt_file}');
-		}
+		).toThrowError('Missing template variable {prompt_file}');
 	});
 });
 
-describe('duplicate executable path and session directory overlap (Criterion 3 & E-95)', () => {
-	it('E-95: allows two agents with same executable path, but warns if session directory is identical', () => {
-		const agentA = {
-			execPath: 'codex',
-			argsTemplate: ['exec', '--json', '--model', '{model}'],
-		};
-		// User copied configuration from codex without changing path or session directory
-		const agentB = {
-			execPath: 'codex',
-			argsTemplate: ['exec', '--json', '--model', '{model}'],
-		};
+describe('cross-platform path identity and session overlap detection', () => {
+	it('POSIX: case-sensitive counter-example does not treat different case paths as identical', () => {
+		expect(isSamePathIdentity('/usr/bin/agent', '/usr/bin/Agent', 'posix')).toBe(false);
 
-		const warning = checkSessionDirOverlap(agentA, agentB, 'codex-1', 'codex-2');
+		const agentA = { execPath: '/usr/bin/agent' };
+		const agentB = { execPath: '/usr/bin/Agent' };
+		expect(
+			checkSessionDirOverlap(agentA, agentB, 'agent1', 'agent2', { platform: 'posix' }),
+		).toBeNull();
+	});
+
+	it('POSIX: backslashes are not converted to slashes on POSIX', () => {
+		expect(normalizePathIdentity('path\\with\\backslash', 'posix')).toBe('path\\with\\backslash');
+		expect(isSamePathIdentity('/bin/sub\\file', '/bin/sub/file', 'posix')).toBe(false);
+	});
+
+	it('Windows: case-insensitive and slash-normalized positive example matches identical executables', () => {
+		expect(isSamePathIdentity('C:\\Tools\\Agent.EXE', 'c:/tools/agent.exe', 'win32')).toBe(true);
+
+		const agentA = { execPath: 'C:\\Tools\\Agent.EXE' };
+		const agentB = { execPath: 'c:/tools/agent.exe' };
+		const warning = checkSessionDirOverlap(agentA, agentB, 'agentA', 'agentB', {
+			platform: 'win32',
+		});
+
 		expect(warning).not.toBeNull();
 		expect(warning?.reason).toBe('session-dir-overlap');
 		expect(warning?.message).toBe(SESSION_DIR_OVERWRITE_WARNING_MESSAGE);
-		expect(warning?.message).toBe('会话记录可能互相覆盖');
-		expect(warning?.agentId).toBe('codex-1');
-		expect(warning?.peerAgentId).toBe('codex-2');
+		expect(warning?.message).toBe('Session records may overwrite each other');
 	});
 
-	it('E-95: warns when both agents explicitly configure the same session directory', () => {
+	it('session identity: same executable with both default session directories warns overlap', () => {
+		const agentA = { execPath: '/usr/local/bin/codex' };
+		const agentB = { execPath: '/usr/local/bin/codex' };
+
+		expect(isSameSessionIdentity(agentA, agentB, 'posix')).toBe(true);
+		const warning = checkSessionDirOverlap(agentA, agentB, 'codex-1', 'codex-2', {
+			platform: 'posix',
+		});
+		expect(warning).not.toBeNull();
+		expect(warning?.reason).toBe('session-dir-overlap');
+		expect(warning?.sessionDir).toBe('default:/usr/local/bin/codex');
+	});
+
+	it('session identity: same executable with same explicit --session-dir warns overlap', () => {
 		const agentA = {
-			execPath: '/usr/local/bin/pi',
-			argsTemplate: ['--mode', 'rpc', '--session-dir', '/shared/sessions'],
+			execPath: 'codex',
+			argsTemplate: ['exec', '--session-dir', '/var/data/sessions'],
 		};
 		const agentB = {
-			execPath: '/usr/local/bin/pi',
-			argsTemplate: ['--mode', 'rpc', '--session-dir=/shared/sessions'],
+			execPath: 'codex',
+			argsTemplate: ['exec', '--session-dir=/var/data/sessions'],
 		};
 
-		const warning = checkSessionDirOverlap(agentA, agentB, 'pi-a', 'pi-b');
+		expect(isSameSessionIdentity(agentA, agentB, 'posix')).toBe(true);
+		const warning = checkSessionDirOverlap(agentA, agentB, 'codex-1', 'codex-2', {
+			platform: 'posix',
+		});
 		expect(warning).not.toBeNull();
-		expect(warning?.message).toBe('会话记录可能互相覆盖');
 	});
 
-	it('E-95: does NOT warn if two agents with same executable have different session directories', () => {
+	it('session identity: same executable where one specifies --session-dir and one uses default does NOT warn', () => {
+		const agentA = {
+			execPath: 'codex',
+			argsTemplate: ['exec', '--session-dir', '/var/custom/sessions'],
+		};
+		const agentB = {
+			execPath: 'codex',
+			argsTemplate: ['exec'],
+		};
+
+		expect(isSameSessionIdentity(agentA, agentB, 'posix')).toBe(false);
+		expect(
+			checkSessionDirOverlap(agentA, agentB, 'codex-1', 'codex-2', { platform: 'posix' }),
+		).toBeNull();
+	});
+
+	it('session identity: same executable with different explicit --session-dir does NOT warn', () => {
 		const agentA = {
 			execPath: 'codex',
 			argsTemplate: ['exec', '--session-dir', '/sessions/codex-1'],
@@ -313,22 +271,24 @@ describe('duplicate executable path and session directory overlap (Criterion 3 &
 			argsTemplate: ['exec', '--session-dir', '/sessions/codex-2'],
 		};
 
-		const warning = checkSessionDirOverlap(agentA, agentB, 'codex-1', 'codex-2');
-		expect(warning).toBeNull();
+		expect(isSameSessionIdentity(agentA, agentB, 'posix')).toBe(false);
+		expect(
+			checkSessionDirOverlap(agentA, agentB, 'codex-1', 'codex-2', { platform: 'posix' }),
+		).toBeNull();
 	});
 
-	it('E-95: does NOT warn if two agents have different executables', () => {
+	it('session identity: POSIX case-sensitive session directories do not match', () => {
 		const agentA = {
 			execPath: 'codex',
-			argsTemplate: ['exec', '--model', '{model}'],
+			argsTemplate: ['--session-dir', '/var/Sessions'],
 		};
 		const agentB = {
-			execPath: 'claude',
-			argsTemplate: ['--print', '--model', '{model}'],
+			execPath: 'codex',
+			argsTemplate: ['--session-dir', '/var/sessions'],
 		};
 
-		const warning = checkSessionDirOverlap(agentA, agentB, 'codex', 'claude');
-		expect(warning).toBeNull();
+		expect(isSameSessionIdentity(agentA, agentB, 'posix')).toBe(false);
+		expect(checkSessionDirOverlap(agentA, agentB, 'a', 'b', { platform: 'posix' })).toBeNull();
 	});
 
 	it('detectSessionDirOverlaps checks multiple agents and returns all overlap warnings', () => {
@@ -349,29 +309,8 @@ describe('duplicate executable path and session directory overlap (Criterion 3 &
 
 		const warnings = detectSessionDirOverlaps(agents);
 		expect(warnings).toHaveLength(1);
-		expect(warnings[0]?.message).toBe('会话记录可能互相覆盖');
+		expect(warnings[0]?.message).toBe('Session records may overwrite each other');
 		expect(warnings[0]?.agentId).toBe('codex1');
 		expect(warnings[0]?.peerAgentId).toBe('codex2');
-	});
-
-	it('validateAgentsForSave returns warnings while permitting save (Criterion 3)', () => {
-		const agents = {
-			codex1: {
-				execPath: 'codex',
-				argsTemplate: ['exec', '--model', '{model}'],
-			},
-			codex2: {
-				execPath: 'codex',
-				argsTemplate: ['exec', '--model', '{model}'],
-			},
-		};
-
-		const result = validateAgentsForSave(agents);
-		// Criterion 3: Allowed (ok: true), but gives warning
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.warnings).toHaveLength(1);
-			expect(result.warnings[0]?.message).toBe('会话记录可能互相覆盖');
-		}
 	});
 });

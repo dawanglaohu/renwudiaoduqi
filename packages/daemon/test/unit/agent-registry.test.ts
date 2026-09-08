@@ -168,6 +168,149 @@ describe('agent registry lifecycle', () => {
 		expect(reloadCount).toBe(2);
 		registry.stop();
 	});
+
+	it('rejects initial start with invalid template, retains baseline, and publishes detailed warning', async () => {
+		const warnings: AgentRegistryWarning[] = [];
+		const memory = createMemoryFileSystem(
+			JSON.stringify({
+				overrides: {
+					codex: {
+						argsTemplate: ['exec', '--model={unknown_var}'],
+					},
+				},
+			}),
+		);
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			fileSystem: memory.fileSystem,
+			publishWarning: (w) => warnings.push(w),
+		});
+
+		const snapshot = await registry.start();
+		registry.stop();
+
+		expect(snapshot.generation).toBe(0);
+		expect(requiredEntry(snapshot.agents, 'codex').argsTemplate).toEqual(
+			BUILT_IN_AGENT_DEFAULTS.codex.argsTemplate,
+		);
+
+		const invalidWarning = warnings.find((w) => w.reason === 'invalid-config');
+		expect(invalidWarning).toBeDefined();
+		expect(invalidWarning?.agentId).toBe('codex');
+		expect(invalidWarning?.field).toBe('$.overrides.codex.argsTemplate');
+		expect(invalidWarning?.argumentIndex).toBe(1);
+		expect(invalidWarning?.startIndex).toBe(8);
+		expect(invalidWarning?.endIndex).toBe(21);
+		expect(invalidWarning?.highlight).toBe('--model={unknown_var}\n        ^^^^^^^^^^^^^');
+	});
+
+	it('rejects hot reload with invalid template and preserves previous valid version', async () => {
+		const warnings: AgentRegistryWarning[] = [];
+		const memory = createMemoryFileSystem(
+			JSON.stringify({
+				overrides: {
+					codex: { maxConcurrency: 2 },
+				},
+			}),
+		);
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			fileSystem: memory.fileSystem,
+			publishWarning: (w) => warnings.push(w),
+		});
+
+		const initialSnapshot = await registry.start();
+		expect(initialSnapshot.generation).toBe(1);
+		expect(requiredEntry(initialSnapshot.agents, 'codex').maxConcurrency).toBe(2);
+
+		memory.setContents(
+			JSON.stringify({
+				overrides: {
+					codex: {
+						argsTemplate: ['exec', '--model={model'],
+					},
+				},
+			}),
+		);
+
+		const reloadResult = await registry.reload();
+		expect(reloadResult.status).toBe('rejected');
+		expect(reloadResult.snapshot.generation).toBe(1);
+		expect(requiredEntry(registry.getSnapshot().agents, 'codex').maxConcurrency).toBe(2);
+
+		const invalidWarning = warnings.find((w) => w.reason === 'invalid-config');
+		expect(invalidWarning).toBeDefined();
+		expect(invalidWarning?.agentId).toBe('codex');
+		expect(invalidWarning?.field).toBe('$.overrides.codex.argsTemplate');
+		expect(invalidWarning?.argumentIndex).toBe(1);
+		expect(invalidWarning?.startIndex).toBe(8);
+		expect(invalidWarning?.endIndex).toBe(14);
+		expect(invalidWarning?.highlight).toBe('--model={model\n        ^^^^^^');
+
+		registry.stop();
+	});
+
+	it('warns when two agents share executable path and session directory but does not reject', async () => {
+		const warnings: AgentRegistryWarning[] = [];
+		const memory = createMemoryFileSystem(
+			JSON.stringify({
+				overrides: {
+					claude: {
+						execPath: 'codex',
+					},
+				},
+			}),
+		);
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			fileSystem: memory.fileSystem,
+			publishWarning: (w) => warnings.push(w),
+		});
+
+		const snapshot = await registry.start();
+		registry.stop();
+
+		expect(requiredEntry(snapshot.agents, 'claude').execPath).toBe('codex');
+		expect(requiredEntry(snapshot.agents, 'codex').execPath).toBe('codex');
+
+		const overlapWarning = warnings.find((w) => w.reason === 'session-dir-overlap');
+		expect(overlapWarning).toBeDefined();
+		expect(overlapWarning?.reason).toBe('session-dir-overlap');
+		expect(overlapWarning?.message).toBe('Session records may overwrite each other');
+		expect(overlapWarning?.agentId).toBe('codex');
+		expect(overlapWarning?.peerAgentId).toBe('claude');
+	});
+
+	it('does not warn when two agents share executable path but have different session directories', async () => {
+		const warnings: AgentRegistryWarning[] = [];
+		const memory = createMemoryFileSystem(
+			JSON.stringify({
+				overrides: {
+					codex: {
+						argsTemplate: ['exec', '--session-dir', '/sessions/codex'],
+					},
+					claude: {
+						execPath: 'codex',
+						argsTemplate: ['exec', '--session-dir', '/sessions/claude'],
+					},
+				},
+			}),
+		);
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			fileSystem: memory.fileSystem,
+			publishWarning: (w) => warnings.push(w),
+		});
+
+		const snapshot = await registry.start();
+		registry.stop();
+
+		expect(requiredEntry(snapshot.agents, 'claude').execPath).toBe('codex');
+		expect(requiredEntry(snapshot.agents, 'codex').execPath).toBe('codex');
+
+		const overlapWarning = warnings.find((w) => w.reason === 'session-dir-overlap');
+		expect(overlapWarning).toBeUndefined();
+	});
 });
 
 function createMemoryFileSystem(
