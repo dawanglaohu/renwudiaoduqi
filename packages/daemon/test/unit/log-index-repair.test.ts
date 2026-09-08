@@ -15,7 +15,7 @@ function makeService(
 	return base as LogstoreService;
 }
 
-describe('log-index-repair job (R2)', () => {
+describe('log-index-repair job', () => {
 	it('start runs once and captures exceptions as logged failures, not unhandled rejections', async () => {
 		const state: { calls: string[] } = { calls: [] };
 		const failures: unknown[] = [];
@@ -80,6 +80,33 @@ describe('log-index-repair job (R2)', () => {
 		holder.release?.();
 		await job.stop();
 		expect(state.calls).toEqual(['repairAll']);
+	});
+
+	it('start logs per-run repair errors instead of swallowing them', async () => {
+		const failures: unknown[] = [];
+		const serviceWithErrors = {
+			repairAll: async () => [
+				{
+					runId: 'run-ahead',
+					indexedLines: 0,
+					errors: [
+						{
+							runId: 'run-ahead',
+							path: '/logs/run-ahead/events.ndjson',
+							code: 'E_VALIDATION' as const,
+							message: 'index ahead of file (indexed=510,file=6)',
+						},
+					],
+				},
+			],
+		} as unknown as LogstoreService;
+		const job = createLogIndexRepairJob({
+			service: serviceWithErrors,
+			logFailure: (e) => failures.push(e),
+		});
+		job.start();
+		await job.stop();
+		expect(failures).toHaveLength(1);
 	});
 
 	it('runOnce returns reports', async () => {

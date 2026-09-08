@@ -492,11 +492,110 @@ describe('logstore integration (real files + real SQLite)', () => {
 		other.exec('ROLLBACK');
 	});
 
+	it('repairAll discovers a crashed run from disk when log_segments has no row', async () => {
+		const base = makeBase();
+		const db = openSqlite();
+		const { service, paths, eventsIndexRepo } = makeService(db, base);
+		const { mkdirSync } = await import('node:fs');
+		mkdirSync(paths.runDir('run-disk'), { recursive: true });
+		const crashPath = paths.segmentPath('run-disk', 'events', 0);
+		const line1 = JSON.stringify({
+			id: 1,
+			seq: 0,
+			ts: '2026-01-01T00:00:00.000Z',
+			runId: 'run-disk',
+			taskId: null,
+			scope: 'run',
+			kind: 'run.started',
+			actorDeviceId: null,
+			payload: null,
+		});
+		const line2 = JSON.stringify({
+			id: 2,
+			seq: 1,
+			ts: '2026-01-01T00:00:01.000Z',
+			runId: 'run-disk',
+			taskId: null,
+			scope: 'run',
+			kind: 'run.exited',
+			actorDeviceId: null,
+			payload: null,
+		});
+		const chunk = JSON.stringify({
+			id: 3,
+			seq: 2,
+			ts: '2026-01-01T00:00:02.000Z',
+			runId: 'run-disk',
+			taskId: null,
+			scope: 'agent',
+			kind: 'agent_message_chunk',
+			actorDeviceId: null,
+			payload: { text: 'never indexed' },
+		});
+		writeFileSync(crashPath, `${line1}\n${line2}\n${chunk}\n`);
+
+		const reports = await service.repairAll();
+		expect(reports).toHaveLength(1);
+		expect(reports[0]?.runId).toBe('run-disk');
+		expect(reports[0]?.indexedLines).toBe(2);
+		expect(reports[0]?.errors).toEqual([]);
+		expect(eventsIndexRepo.lastIndexedFileSeq('run-disk')).toBe(0);
+	});
+
+	it('repair resumes from lastIndexedEnd on a never-rotated run without unique conflicts', async () => {
+		const base = makeBase();
+		const db = openSqlite();
+		const { service, paths, eventsIndexRepo } = makeService(db, base);
+		await service.appendEvent('run-1', envelope({ id: 1, seq: 0, kind: 'run.started' }));
+		await service.closeWriter('run-1');
+		const seg0 = paths.segmentPath('run-1', 'events', 0);
+		const extra = JSON.stringify({
+			id: 2,
+			seq: 1,
+			ts: '2026-01-01T00:00:01.000Z',
+			runId: 'run-1',
+			taskId: 'M1-T4',
+			scope: 'run',
+			kind: 'run.exited',
+			actorDeviceId: null,
+			payload: null,
+		});
+		writeFileSync(seg0, `${readFileSync(seg0, 'utf8')}${extra}\n`);
+
+		const reports = await service.repairAll();
+		expect(reports[0]?.errors).toEqual([]);
+		expect(reports[0]?.indexedLines).toBe(1);
+		const rows = db.prepare('SELECT id, seq FROM events ORDER BY seq').all() as Array<{
+			id: number;
+			seq: number;
+		}>;
+		expect(rows.map((r) => r.id)).toEqual([1, 2]);
+		expect(eventsIndexRepo.lastIndexedEnd('run-1')).toBe(statSync(seg0).size);
+	});
+
+	it('serializes concurrent appendEvent so the file contains two complete NDJSON lines', async () => {
+		const base = makeBase();
+		const db = openSqlite();
+		const { service, paths } = makeService(db, base);
+		await Promise.all([
+			service.appendEvent('run-1', envelope({ id: 1, seq: 0, kind: 'run.started' })),
+			service.appendEvent('run-1', envelope({ id: 2, seq: 1, kind: 'run.exited' })),
+		]);
+		await service.closeWriter('run-1');
+		const raw = readFileSync(paths.segmentPath('run-1', 'events', 0), 'utf8');
+		const lines = raw
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line) as { id: number });
+		expect(lines).toHaveLength(2);
+		expect(lines.map((line) => line.id).sort((a, b) => a - b)).toEqual([1, 2]);
+	});
+
 	it('R3: readEventsPage advances across a rotated segment and drains the whole stream', async () => {
 		const base = makeBase();
 		const db = openSqlite();
 		// Small segment limit forces a rotation within a handful of events.
-		const { service, paths, eventsIndexRepo } = makeService(db, base, 400);
+		const { service, paths, eventsIndexRepo, segmentsRepo } = makeService(db, base, 400);
 
 		const mk = (n: number) => envelope({ id: n, seq: n, kind: 'run.started', payload: { n } });
 		await service.appendEvent('run-page', mk(1));
@@ -505,6 +604,7 @@ describe('logstore integration (real files + real SQLite)', () => {
 		await service.closeWriter('run-page');
 		// At least one rotation must have occurred across three ~190-byte lines.
 		expect(r3.location.fileSeq).toBeGreaterThanOrEqual(1);
+		expect(segmentsRepo.findByRunStream('run-page', 'events').map((s) => s.fileSeq)).toContain(0);
 
 		// Page through with the default chunk limit; the cursor must always advance
 		// and eventually drain every segment without a 0:3 → 0:3 stall (R3).

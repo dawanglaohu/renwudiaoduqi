@@ -8,12 +8,14 @@ import {
 } from './contract.ts';
 
 export interface LogstorePaths {
+	readonly rootDir: string;
 	readonly runDir: (runId: string) => string;
 	readonly segmentPath: (runId: string, stream: LogStream, fileSeq: number) => string;
 }
 
 export function createLogstorePaths(baseDir: string): LogstorePaths {
 	return Object.freeze({
+		rootDir: baseDir,
 		runDir(runId: string): string {
 			return join(baseDir, runId);
 		},

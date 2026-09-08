@@ -14,7 +14,7 @@ import type {
 import { isMilestoneEventKind } from '../logstore/contract.ts';
 import { isEnoent, toFilesystemError } from '../logstore/fs-errors.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
-import { parseEnvelopeLine } from '../logstore/read-window.ts';
+import { parseEnvelopeLine, readSegmentPage } from '../logstore/read-window.ts';
 import {
 	type AppendResult,
 	type RunLogWriter,
@@ -25,9 +25,9 @@ import type { EventIndexRecord, EventsIndexRepo } from '../repo/events-index-rep
 import type { LogSegmentsRepo } from '../repo/log-segments-repo.ts';
 
 /**
- * Canonical event envelope written to events.ndjson and indexed for milestones
- * (see 08-后端架构 §427). Both the normal-write path and the repair path
- * produce the same envelope shape and the same id/seq (R6).
+ * Canonical event envelope written to events.ndjson and indexed for milestones.
+ * The normal-write path and the repair path produce the same envelope shape
+ * and keep the envelope's existing id/seq.
  */
 export interface EventEnvelopeInput {
 	readonly id: number;
@@ -82,15 +82,15 @@ export interface LogstoreService {
 	 * Serialize the envelope, append the bytes to events.ndjson, then — inside a
 	 * unitOfWork transaction — record any newly-closed segment boundary and,
 	 * for milestone kinds, the index row using the envelope's existing id/seq.
-	 * The file write happens first; if the index write fails, the bytes are
-	 * still on disk and a future repair will back-fill (R1, R6).
+	 * The file write happens first; if the index write fails, the bytes stay
+	 * on disk and a later repair will back-fill them.
 	 */
 	appendEvent(runId: string, envelope: EventEnvelopeInput): Promise<AppendEventResult>;
-	/** Paged read across segments (R3): cursor always advances; tail end is signalled. */
+	/** Paged read across segments: the cursor always advances; the tail is signalled. */
 	readEventsPage(runId: string, cursor: string | undefined): Promise<ReadSegmentResult>;
-	/** Bounded scan-and-repair for one run (R2). */
+	/** Bounded scan-and-repair for one run. */
 	repairRun(runId: string): Promise<RepairRunReport>;
-	/** Bounded scan-and-repair for every registered run (R2). */
+	/** Bounded scan-and-repair for every run found in log_segments or on disk. */
 	repairAll(): Promise<readonly RepairRunReport[]>;
 }
 
@@ -196,8 +196,8 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 			});
 		} catch (cause) {
 			// File bytes are already on disk; the next repair pass will back-fill the
-			// index from the same window. A failed index insert is NOT a write failure
-			// and must not propagate to the caller (R1).
+			// index from the same window. A failed index insert is not a write failure
+			// and must not propagate to the caller.
 			result.indexError =
 				cause instanceof AppError
 					? cause
@@ -259,7 +259,6 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 			});
 		}
 		const segments = [...bySeq.values()].sort((a, b) => a.fileSeq - b.fileSeq);
-		const { readSegmentPage } = await import('../logstore/read-window.ts');
 		const effectiveCursor = cursor ?? '0:0';
 		return readSegmentPage(segments, effectiveCursor, fs);
 	}
@@ -272,27 +271,31 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 		const segments = segmentsRepo.findByRunStream(runId, 'events');
 		const onDisk = discoverOnDiskSegments(fs, paths, runId, 'events');
 
-		// Build scan windows: each segment, scanned from its "already indexed" end
-		// (within this fileSeq) to its on-disk end. Also include unregistered tail
-		// files whose fileSeq is past the last registered segment (R2).
+		// One window per on-disk (or registered-but-missing) events file, starting
+		// after the last indexed byte in that fileSeq. Unregistered active tails
+		// use the same start rule so a never-rotated run is not rescanned from 0.
 		const windows: { window: ScanWindow; cursor: number }[] = [];
-		for (const seg of segments) {
-			const fileLen = onDisk.get(seg.fileSeq);
+		const registeredBySeq = new Map(segments.map((seg) => [seg.fileSeq, seg]));
+		const fileSeqs = new Set<number>([...registeredBySeq.keys(), ...onDisk.keys()]);
+		for (const fileSeq of [...fileSeqs].sort((a, b) => a - b)) {
+			const registered = registeredBySeq.get(fileSeq);
+			const path = registered?.path ?? paths.segmentPath(runId, 'events', fileSeq);
+			const fileLen = onDisk.get(fileSeq);
 			if (fileLen === undefined) {
 				errors.push({
 					runId,
-					path: seg.path,
+					path,
 					code: 'E_LOG_FILE_MISSING',
-					message: `registered segment ${seg.fileSeq} missing on disk`,
+					message: `registered segment ${fileSeq} missing on disk`,
 				});
 				continue;
 			}
 			let start: number;
 			if (indexedFileSeq === null) {
 				start = 0;
-			} else if (seg.fileSeq < indexedFileSeq) {
+			} else if (fileSeq < indexedFileSeq) {
 				start = fileLen;
-			} else if (seg.fileSeq === indexedFileSeq) {
+			} else if (fileSeq === indexedFileSeq) {
 				start = indexedEndInLatestFile;
 			} else {
 				start = 0;
@@ -300,7 +303,7 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 			if (start > fileLen) {
 				errors.push({
 					runId,
-					path: seg.path,
+					path,
 					code: 'E_VALIDATION',
 					message: `index ahead of file (indexed=${start},file=${fileLen})`,
 				});
@@ -308,24 +311,10 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 			}
 			if (start < fileLen) {
 				windows.push({
-					window: { runId, path: seg.path, fileSeq: seg.fileSeq, start, endExclusive: fileLen },
+					window: { runId, path, fileSeq, start, endExclusive: fileLen },
 					cursor: start,
 				});
 			}
-		}
-		const registeredMaxSeq = segments.length > 0 ? Math.max(...segments.map((s) => s.fileSeq)) : -1;
-		for (const [seq, fileLen] of onDisk) {
-			if (seq <= registeredMaxSeq) continue;
-			windows.push({
-				window: {
-					runId,
-					path: paths.segmentPath(runId, 'events', seq),
-					fileSeq: seq,
-					start: 0,
-					endExclusive: fileLen,
-				},
-				cursor: 0,
-			});
 		}
 
 		// Repair is idempotent: every scan is bounded, so a second invocation
@@ -393,9 +382,19 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 
 	async function repairAll(): Promise<readonly RepairRunReport[]> {
 		const reports: RepairRunReport[] = [];
-		const all = segmentsRepo.listAll();
 		const runIds = new Set<string>();
-		for (const seg of all) runIds.add(seg.runId);
+		for (const seg of segmentsRepo.listAll()) runIds.add(seg.runId);
+		let names: readonly string[] = [];
+		try {
+			names = fs.listDirectory(paths.rootDir);
+		} catch (cause) {
+			if (!isEnoent(cause)) throw toFilesystemError(cause, 'Failed to list log root.');
+		}
+		for (const name of names) {
+			if (discoverOnDiskSegments(fs, paths, name, 'events').size > 0) {
+				runIds.add(name);
+			}
+		}
 		for (const runId of runIds) {
 			reports.push(await repairRun(runId));
 		}

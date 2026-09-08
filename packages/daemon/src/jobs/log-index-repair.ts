@@ -14,8 +14,7 @@ export interface LogIndexRepairJob {
  * normal crash window (E-24), index-ahead-of-file is corruption and surfaces
  * as an error entry, never silent (E-24).
  *
- * Strict layering (R2 / R5): this job ONLY calls the logstore service. It
- * never imports `repo` or `db`.
+ * This job only calls the logstore service. It never imports repo or db.
  */
 export function createLogIndexRepairJob(deps: {
 	readonly service: LogstoreService;
@@ -26,7 +25,13 @@ export function createLogIndexRepairJob(deps: {
 	let stopRequested = false;
 
 	async function runOnceInternal(): Promise<readonly RepairRunReport[]> {
-		return service.repairAll();
+		const reports = await service.repairAll();
+		for (const report of reports) {
+			for (const error of report.errors) {
+				logFailure(error);
+			}
+		}
+		return reports;
 	}
 
 	return Object.freeze({

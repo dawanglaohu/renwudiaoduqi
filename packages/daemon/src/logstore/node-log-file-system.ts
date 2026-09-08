@@ -1,7 +1,7 @@
 import { createReadStream, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { appendFile, readFile } from 'node:fs/promises';
 import type { LogFileSystem } from './contract.ts';
-import { isEnoent, toFilesystemError, toLogFileMissing } from './fs-errors.ts';
+import { getNodeErrorCode, isEnoent, toFilesystemError, toLogFileMissing } from './fs-errors.ts';
 
 /**
  * Real fs adapter for the logstore layer. Every native error is wrapped into an
@@ -21,7 +21,7 @@ export function createNodeLogFileSystem(): LogFileSystem {
 			try {
 				return readdirSync(path);
 			} catch (cause) {
-				if (isEnoent(cause)) return [];
+				if (isEnoent(cause) || getNodeErrorCode(cause) === 'ENOTDIR') return [];
 				throw toFilesystemError(cause, 'Failed to list log directory.');
 			}
 		},
