@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { homedir as osHomedir } from 'node:os';
+import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import type { PlatformHostInputs } from '../../platform/contract.ts';
 
 export interface ModelOption {
 	readonly id: string;
@@ -21,18 +21,41 @@ export interface ReadModelsResult {
 	readonly warnings: readonly string[];
 	readonly rawStdout?: string;
 	readonly configError?: ConfigErrorInfo;
+	readonly configErrors?: readonly ConfigErrorInfo[];
 	readonly mtimeMs?: number | null;
 }
 
+export interface ModelReaderFileStat {
+	readonly mtimeMs: number;
+}
+
+export interface ModelReaderFileSystem {
+	readonly readFile: (path: string, encoding: 'utf8') => Promise<string>;
+	readonly stat: (path: string) => Promise<ModelReaderFileStat>;
+}
+
+export const DEFAULT_MODEL_FILE_SYSTEM: ModelReaderFileSystem = Object.freeze({
+	readFile: (path: string, encoding: 'utf8') => nodeReadFile(path, encoding),
+	stat: async (path: string) => {
+		const s = await nodeStat(path);
+		return { mtimeMs: s.mtimeMs };
+	},
+});
+
 export interface ReadClaudeModelsOptions {
-	readonly configPath?: string;
+	readonly hostInputs?:
+		| PlatformHostInputs
+		| { readonly homedir: string; readonly platform?: string };
 	readonly homedir?: string;
+	readonly configPath?: string;
 	readonly historicalModels?: readonly string[];
 	readonly cachedModels?: readonly (string | ModelOption)[];
+	readonly fs?: ModelReaderFileSystem;
 }
 
 /**
  * Reads model catalog for Claude agent from ~/.claude/settings.json.
+ * Receives host snapshot inputs and async file system capability (R3).
  * Handles missing/damaged config without crashing (E-43).
  * Preserves both aliases and full IDs as distinct options (E-45).
  * Reads mtime on every call (E-44).
@@ -40,8 +63,26 @@ export interface ReadClaudeModelsOptions {
 export async function readClaudeModels(
 	options: ReadClaudeModelsOptions = {},
 ): Promise<ReadModelsResult> {
-	const homedirPath = options.homedir ?? osHomedir();
-	const configPath = resolve(options.configPath ?? join(homedirPath, '.claude', 'settings.json'));
+	const fs = options.fs ?? DEFAULT_MODEL_FILE_SYSTEM;
+	const homedirPath = options.hostInputs?.homedir ?? options.homedir;
+
+	if (!options.configPath && !homedirPath) {
+		return Object.freeze({
+			models: Object.freeze([]),
+			currentConfigModel: null,
+			isPartial: false,
+			warnings: Object.freeze(['Neither configPath nor hostInputs.homedir was provided.']),
+			configError: Object.freeze({
+				path: '',
+				error: 'Host snapshot with homedir or configPath is required',
+			}),
+			mtimeMs: null,
+		});
+	}
+
+	const configPath = resolve(
+		options.configPath ?? join(homedirPath as string, '.claude', 'settings.json'),
+	);
 
 	const warnings: string[] = [];
 	let currentConfigModel: string | null = null;
@@ -49,75 +90,71 @@ export async function readClaudeModels(
 	let mtimeMs: number | null = null;
 	const modelMap = new Map<string, ModelOption>();
 
-	if (!existsSync(configPath)) {
+	try {
+		const stat = await fs.stat(configPath);
+		mtimeMs = stat.mtimeMs;
+		const content = await fs.readFile(configPath, 'utf8');
+		const parsed = JSON.parse(content) as Record<string, unknown>;
+
+		if (typeof parsed.model === 'string' && parsed.model.trim()) {
+			currentConfigModel = parsed.model.trim();
+			modelMap.set(currentConfigModel, {
+				id: currentConfigModel,
+				isDefault: true,
+			});
+		}
+
+		// Extract models from env object
+		if (parsed.env && typeof parsed.env === 'object') {
+			const env = parsed.env as Record<string, unknown>;
+
+			const envModelKeys = [
+				'ANTHROPIC_MODEL',
+				'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+				'ANTHROPIC_DEFAULT_OPUS_MODEL',
+				'ANTHROPIC_DEFAULT_SONNET_MODEL',
+			] as const;
+
+			for (const key of envModelKeys) {
+				const val = env[key];
+				if (typeof val === 'string' && val.trim()) {
+					const id = val.trim();
+					if (!modelMap.has(id)) {
+						modelMap.set(id, { id });
+					}
+				}
+			}
+		}
+
+		// Extract models from explicit models array if present
+		if (Array.isArray(parsed.models)) {
+			for (const item of parsed.models) {
+				if (typeof item === 'string' && item.trim()) {
+					const id = item.trim();
+					if (!modelMap.has(id)) modelMap.set(id, { id });
+				} else if (item && typeof item === 'object') {
+					const obj = item as Record<string, unknown>;
+					const id = typeof obj.id === 'string' ? obj.id.trim() : null;
+					if (id && !modelMap.has(id)) {
+						const name = typeof obj.name === 'string' ? obj.name : undefined;
+						const description = typeof obj.description === 'string' ? obj.description : undefined;
+						modelMap.set(id, { id, name, description });
+					}
+				}
+			}
+		}
+	} catch (err) {
+		const errorObj = err as { code?: string; message?: string };
+		const isNotFound = errorObj.code === 'ENOENT';
+		const errorMsg = isNotFound
+			? 'Config file does not exist'
+			: (errorObj.message ?? 'Unknown read error');
 		configError = Object.freeze({
 			path: configPath,
-			error: 'Config file does not exist',
+			error: errorMsg,
 		});
-		warnings.push(`Claude settings file does not exist at ${configPath}`);
-	} else {
-		try {
-			const stat = statSync(configPath);
-			mtimeMs = stat.mtimeMs;
-			const content = readFileSync(configPath, 'utf8');
-			const parsed = JSON.parse(content) as Record<string, unknown>;
-
-			if (typeof parsed.model === 'string' && parsed.model.trim()) {
-				currentConfigModel = parsed.model.trim();
-				modelMap.set(currentConfigModel, {
-					id: currentConfigModel,
-					isDefault: true,
-				});
-			}
-
-			// Extract models from env object
-			if (parsed.env && typeof parsed.env === 'object') {
-				const env = parsed.env as Record<string, unknown>;
-
-				const envModelKeys = [
-					'ANTHROPIC_MODEL',
-					'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-					'ANTHROPIC_DEFAULT_OPUS_MODEL',
-					'ANTHROPIC_DEFAULT_SONNET_MODEL',
-				] as const;
-
-				for (const key of envModelKeys) {
-					const val = env[key];
-					if (typeof val === 'string' && val.trim()) {
-						const id = val.trim();
-						if (!modelMap.has(id)) {
-							modelMap.set(id, { id });
-						}
-					}
-				}
-			}
-
-			// Extract models from explicit models array if present
-			if (Array.isArray(parsed.models)) {
-				for (const item of parsed.models) {
-					if (typeof item === 'string' && item.trim()) {
-						const id = item.trim();
-						if (!modelMap.has(id)) modelMap.set(id, { id });
-					} else if (item && typeof item === 'object') {
-						const obj = item as Record<string, unknown>;
-						const id = typeof obj.id === 'string' ? obj.id.trim() : null;
-						if (id && !modelMap.has(id)) {
-							const name = typeof obj.name === 'string' ? obj.name : undefined;
-							const description = typeof obj.description === 'string' ? obj.description : undefined;
-							modelMap.set(id, { id, name, description });
-						}
-					}
-				}
-			}
-		} catch (err) {
-			const errorMsg = (err as Error).message;
-			configError = Object.freeze({
-				path: configPath,
-				error: errorMsg,
-			});
-			warnings.push(`Failed to parse Claude settings at ${configPath}: ${errorMsg}`);
-			currentConfigModel = null;
-		}
+		warnings.push(`Failed to read Claude settings at ${configPath}: ${errorMsg}`);
+		currentConfigModel = null;
 	}
 
 	// Merge cachedModels
@@ -155,6 +192,7 @@ export async function readClaudeModels(
 		isPartial: false,
 		warnings: Object.freeze(warnings),
 		configError,
+		configErrors: configError ? Object.freeze([configError]) : Object.freeze([]),
 		mtimeMs,
 	});
 }

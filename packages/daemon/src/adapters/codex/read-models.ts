@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { homedir as osHomedir } from 'node:os';
+import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import type { PlatformHostInputs } from '../../platform/contract.ts';
 
 export interface ModelOption {
 	readonly id: string;
@@ -21,21 +21,43 @@ export interface ReadModelsResult {
 	readonly warnings: readonly string[];
 	readonly rawStdout?: string;
 	readonly configError?: ConfigErrorInfo;
+	readonly configErrors?: readonly ConfigErrorInfo[];
 	readonly mtimeMs?: number | null;
 }
 
+export interface ModelReaderFileStat {
+	readonly mtimeMs: number;
+}
+
+export interface ModelReaderFileSystem {
+	readonly readFile: (path: string, encoding: 'utf8') => Promise<string>;
+	readonly stat: (path: string) => Promise<ModelReaderFileStat>;
+}
+
+export const DEFAULT_MODEL_FILE_SYSTEM: ModelReaderFileSystem = Object.freeze({
+	readFile: (path: string, encoding: 'utf8') => nodeReadFile(path, encoding),
+	stat: async (path: string) => {
+		const s = await nodeStat(path);
+		return { mtimeMs: s.mtimeMs };
+	},
+});
+
 export interface ReadCodexModelsOptions {
+	readonly hostInputs?:
+		| PlatformHostInputs
+		| { readonly homedir: string; readonly platform?: string };
+	readonly homedir?: string;
 	readonly configPath?: string;
 	readonly cachePath?: string;
-	readonly homedir?: string;
 	readonly historicalModels?: readonly string[];
 	readonly cachedModels?: readonly (string | ModelOption)[];
+	readonly fs?: ModelReaderFileSystem;
 }
 
 /**
  * Parses a subset of TOML used by Codex configuration files.
  * Supports key-value pairs, string escaping, basic tables, dotted keys, and arrays.
- * Throws SyntaxError on malformed syntax.
+ * Throws SyntaxError on malformed syntax or unquoted bare values (R1).
  */
 export function parseToml(text: string): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
@@ -221,6 +243,9 @@ function cleanKey(k: string): string {
 
 function parseTomlValue(valStr: string): unknown {
 	const trimmed = stripTrailingComment(valStr).trim();
+	if (trimmed === '') {
+		throw new SyntaxError('Empty value in TOML key-value pair');
+	}
 	if (trimmed === 'true') return true;
 	if (trimmed === 'false') return false;
 	if (trimmed.startsWith('"')) {
@@ -249,7 +274,8 @@ function parseTomlValue(valStr: string): unknown {
 		if (!inner) return [];
 		return splitArrayItems(inner).map((item) => parseTomlValue(item));
 	}
-	return trimmed;
+	// Bare unquoted tokens that are not booleans or numbers are invalid TOML (R1: model = ??? must fail)
+	throw new SyntaxError(`Invalid TOML value (unquoted string or invalid token): ${trimmed}`);
 }
 
 function stripTrailingComment(str: string): string {
@@ -291,14 +317,33 @@ function splitArrayItems(str: string): string[] {
 
 /**
  * Reads model catalog for Codex agent from ~/.codex/config.toml and models_cache.json.
+ * Receives host snapshot inputs and async file system capability (R3).
  * Handles missing/damaged config without crashing (E-43).
  * Reads mtime on every call (E-44).
  */
 export async function readCodexModels(
 	options: ReadCodexModelsOptions = {},
 ): Promise<ReadModelsResult> {
-	const homedirPath = options.homedir ?? osHomedir();
-	const configPath = resolve(options.configPath ?? join(homedirPath, '.codex', 'config.toml'));
+	const fs = options.fs ?? DEFAULT_MODEL_FILE_SYSTEM;
+	const homedirPath = options.hostInputs?.homedir ?? options.homedir;
+
+	if (!options.configPath && !homedirPath) {
+		return Object.freeze({
+			models: Object.freeze([]),
+			currentConfigModel: null,
+			isPartial: false,
+			warnings: Object.freeze(['Neither configPath nor hostInputs.homedir was provided.']),
+			configError: Object.freeze({
+				path: '',
+				error: 'Host snapshot with homedir or configPath is required',
+			}),
+			mtimeMs: null,
+		});
+	}
+
+	const configPath = resolve(
+		options.configPath ?? join(homedirPath as string, '.codex', 'config.toml'),
+	);
 	const cachePath = resolve(options.cachePath ?? join(dirname(configPath), 'models_cache.json'));
 
 	const warnings: string[] = [];
@@ -307,98 +352,92 @@ export async function readCodexModels(
 	let mtimeMs: number | null = null;
 	const modelMap = new Map<string, ModelOption>();
 
-	// 1. Read config.toml
-	if (!existsSync(configPath)) {
-		configError = Object.freeze({
-			path: configPath,
-			error: 'Config file does not exist',
-		});
-		warnings.push(`Codex config file does not exist at ${configPath}`);
-	} else {
-		try {
-			const stat = statSync(configPath);
-			mtimeMs = stat.mtimeMs;
-			const content = readFileSync(configPath, 'utf8');
-			const parsed = parseToml(content);
+	// 1. Read config.toml asynchronously
+	try {
+		const stat = await fs.stat(configPath);
+		mtimeMs = stat.mtimeMs;
+		const content = await fs.readFile(configPath, 'utf8');
+		const parsed = parseToml(content);
 
-			if (typeof parsed.model === 'string' && parsed.model.trim()) {
-				currentConfigModel = parsed.model.trim();
-				modelMap.set(currentConfigModel, {
-					id: currentConfigModel,
-					isDefault: true,
-				});
-			}
+		if (typeof parsed.model === 'string' && parsed.model.trim()) {
+			currentConfigModel = parsed.model.trim();
+			modelMap.set(currentConfigModel, {
+				id: currentConfigModel,
+				isDefault: true,
+			});
+		}
 
-			// Extract models from [model_providers.*]
-			if (parsed.model_providers && typeof parsed.model_providers === 'object') {
-				const providers = parsed.model_providers as Record<string, unknown>;
-				for (const [providerId, providerVal] of Object.entries(providers)) {
-					if (providerVal && typeof providerVal === 'object') {
-						const provObj = providerVal as Record<string, unknown>;
-						const providerName = typeof provObj.name === 'string' ? provObj.name : providerId;
+		// Extract models from [model_providers.*]
+		if (parsed.model_providers && typeof parsed.model_providers === 'object') {
+			const providers = parsed.model_providers as Record<string, unknown>;
+			for (const [providerId, providerVal] of Object.entries(providers)) {
+				if (providerVal && typeof providerVal === 'object') {
+					const provObj = providerVal as Record<string, unknown>;
+					const providerName = typeof provObj.name === 'string' ? provObj.name : providerId;
 
-						if (typeof provObj.model === 'string' && provObj.model.trim()) {
-							const id = provObj.model.trim();
-							if (!modelMap.has(id)) {
-								modelMap.set(id, { id, name: providerName });
-							}
+					if (typeof provObj.model === 'string' && provObj.model.trim()) {
+						const id = provObj.model.trim();
+						if (!modelMap.has(id)) {
+							modelMap.set(id, { id, name: providerName });
 						}
-						if (Array.isArray(provObj.models)) {
-							for (const m of provObj.models) {
-								if (typeof m === 'string' && m.trim()) {
-									const id = m.trim();
-									if (!modelMap.has(id)) {
-										modelMap.set(id, { id, name: providerName });
-									}
+					}
+					if (Array.isArray(provObj.models)) {
+						for (const m of provObj.models) {
+							if (typeof m === 'string' && m.trim()) {
+								const id = m.trim();
+								if (!modelMap.has(id)) {
+									modelMap.set(id, { id, name: providerName });
 								}
 							}
 						}
 					}
 				}
 			}
-		} catch (err) {
-			const errorMsg = (err as Error).message;
-			configError = Object.freeze({
-				path: configPath,
-				error: errorMsg,
-			});
-			warnings.push(`Failed to parse Codex config at ${configPath}: ${errorMsg}`);
-			currentConfigModel = null;
 		}
+	} catch (err) {
+		const errorObj = err as { code?: string; message?: string };
+		const isNotFound = errorObj.code === 'ENOENT';
+		const errorMsg = isNotFound
+			? 'Config file does not exist'
+			: (errorObj.message ?? 'Unknown read error');
+		configError = Object.freeze({
+			path: configPath,
+			error: errorMsg,
+		});
+		warnings.push(`Failed to read Codex config at ${configPath}: ${errorMsg}`);
+		currentConfigModel = null;
 	}
 
 	// 2. Read models_cache.json if available
-	if (existsSync(cachePath)) {
-		try {
-			const cacheContent = readFileSync(cachePath, 'utf8');
-			const cacheJson = JSON.parse(cacheContent) as { models?: unknown[] };
-			if (Array.isArray(cacheJson.models)) {
-				for (const item of cacheJson.models) {
-					if (item && typeof item === 'object') {
-						const m = item as Record<string, unknown>;
-						const id = typeof m.slug === 'string' ? m.slug : typeof m.id === 'string' ? m.id : null;
-						if (id?.trim()) {
-							const trimmedId = id.trim();
-							const name =
-								typeof m.display_name === 'string'
-									? m.display_name
-									: typeof m.name === 'string'
-										? m.name
-										: undefined;
-							const description = typeof m.description === 'string' ? m.description : undefined;
-							const existing = modelMap.get(trimmedId);
-							if (!existing) {
-								modelMap.set(trimmedId, { id: trimmedId, name, description });
-							} else if (!existing.description && description) {
-								modelMap.set(trimmedId, { ...existing, description, name: existing.name ?? name });
-							}
+	try {
+		const cacheContent = await fs.readFile(cachePath, 'utf8');
+		const cacheJson = JSON.parse(cacheContent) as { models?: unknown[] };
+		if (Array.isArray(cacheJson.models)) {
+			for (const item of cacheJson.models) {
+				if (item && typeof item === 'object') {
+					const m = item as Record<string, unknown>;
+					const id = typeof m.slug === 'string' ? m.slug : typeof m.id === 'string' ? m.id : null;
+					if (id?.trim()) {
+						const trimmedId = id.trim();
+						const name =
+							typeof m.display_name === 'string'
+								? m.display_name
+								: typeof m.name === 'string'
+									? m.name
+									: undefined;
+						const description = typeof m.description === 'string' ? m.description : undefined;
+						const existing = modelMap.get(trimmedId);
+						if (!existing) {
+							modelMap.set(trimmedId, { id: trimmedId, name, description });
+						} else if (!existing.description && description) {
+							modelMap.set(trimmedId, { ...existing, description, name: existing.name ?? name });
 						}
 					}
 				}
 			}
-		} catch {
-			// Cache read errors are non-fatal
 		}
+	} catch {
+		// Cache read errors are non-fatal
 	}
 
 	// 3. Merge cachedModels
@@ -436,6 +475,7 @@ export async function readCodexModels(
 		isPartial: false,
 		warnings: Object.freeze(warnings),
 		configError,
+		configErrors: configError ? Object.freeze([configError]) : Object.freeze([]),
 		mtimeMs,
 	});
 }

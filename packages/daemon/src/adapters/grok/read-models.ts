@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { homedir as osHomedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
+import { isAbsolute, join, resolve } from 'node:path';
+import type { PlatformHostInputs } from '../../platform/contract.ts';
+import { resolveExecutable } from '../../platform/resolve-executable.ts';
 
 export interface ModelOption {
 	readonly id: string;
@@ -21,29 +22,65 @@ export interface ReadModelsResult {
 	readonly warnings: readonly string[];
 	readonly rawStdout?: string;
 	readonly configError?: ConfigErrorInfo;
+	readonly configErrors?: readonly ConfigErrorInfo[];
 	readonly mtimeMs?: number | null;
 }
 
-export type CommandRunner = (
-	command: string,
-	args: readonly string[],
-	options?: { timeoutMs?: number },
-) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
+export interface ModelReaderFileStat {
+	readonly mtimeMs: number;
+}
+
+export interface ModelReaderFileSystem {
+	readonly readFile: (path: string, encoding: 'utf8') => Promise<string>;
+	readonly stat: (path: string) => Promise<ModelReaderFileStat>;
+}
+
+export const DEFAULT_MODEL_FILE_SYSTEM: ModelReaderFileSystem = Object.freeze({
+	readFile: (path: string, encoding: 'utf8') => nodeReadFile(path, encoding),
+	stat: async (path: string) => {
+		const s = await nodeStat(path);
+		return { mtimeMs: s.mtimeMs };
+	},
+});
+
+export const MAX_COMMAND_TIMEOUT_MS = 5000;
+
+export interface AbsoluteCommandLaunchSpec {
+	readonly file: string;
+	readonly args: readonly string[];
+	readonly timeoutMs: number;
+	readonly signal: AbortSignal;
+}
+
+export interface CommandExecutionResult {
+	readonly ok: boolean;
+	readonly exitCode: number | null;
+	readonly stdout: string;
+	readonly stderr: string;
+	readonly timedOut: boolean;
+}
+
+export type CommandRunner = (spec: AbsoluteCommandLaunchSpec) => Promise<CommandExecutionResult>;
 
 export interface ReadGrokModelsOptions {
-	readonly configPath?: string;
+	readonly hostInputs?:
+		| PlatformHostInputs
+		| { readonly homedir: string; readonly platform?: string };
 	readonly homedir?: string;
+	readonly configPath?: string;
+	readonly executablePath?: string;
 	readonly historicalModels?: readonly string[];
 	readonly cachedModels?: readonly (string | ModelOption)[];
 	readonly commandRunner?: CommandRunner;
 	readonly timeoutMs?: number;
 	readonly allowCommand?: boolean;
+	readonly fs?: ModelReaderFileSystem;
 }
 
 /**
  * Parses a subset of TOML used by Grok configuration files.
  * Supports key-value pairs, string escaping, basic tables, dotted keys, and arrays.
- * Throws SyntaxError on malformed syntax.
+ * Throws SyntaxError on malformed syntax or unquoted bare values (R1).
  */
 export function parseToml(text: string): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
@@ -226,6 +263,9 @@ function cleanKey(k: string): string {
 
 function parseTomlValue(valStr: string): unknown {
 	const trimmed = stripTrailingComment(valStr).trim();
+	if (trimmed === '') {
+		throw new SyntaxError('Empty value in TOML key-value pair');
+	}
 	if (trimmed === 'true') return true;
 	if (trimmed === 'false') return false;
 	if (trimmed.startsWith('"')) {
@@ -254,7 +294,8 @@ function parseTomlValue(valStr: string): unknown {
 		if (!inner) return [];
 		return splitArrayItems(inner).map((item) => parseTomlValue(item));
 	}
-	return trimmed;
+	// Bare unquoted tokens that are not booleans or numbers are invalid TOML (R1: model = ??? must fail)
+	throw new SyntaxError(`Invalid TOML value (unquoted string or invalid token): ${trimmed}`);
 }
 
 function stripTrailingComment(str: string): string {
@@ -322,7 +363,7 @@ export function parseGrokModelsCommandOutput(stdout: string): ModelOption[] {
 
 /**
  * Reads model catalog for Grok agent from ~/.grok/config.toml and `grok models`.
- * If `grok models` times out (> 5s) or fails with non-zero exit code:
+ * If `grok models` times out (hard ceiling 5000ms, R2) or fails with non-zero exit code:
  *   downgrades to config current + historical + manual and marks isPartial (E-38).
  * If output format changes and cannot be parsed:
  *   downgrades and retains raw stdout (E-39).
@@ -333,9 +374,31 @@ export function parseGrokModelsCommandOutput(stdout: string): ModelOption[] {
 export async function readGrokModels(
 	options: ReadGrokModelsOptions = {},
 ): Promise<ReadModelsResult> {
-	const homedirPath = options.homedir ?? osHomedir();
-	const configPath = resolve(options.configPath ?? join(homedirPath, '.grok', 'config.toml'));
-	const timeoutMs = options.timeoutMs ?? 5000;
+	const fs = options.fs ?? DEFAULT_MODEL_FILE_SYSTEM;
+	const homedirPath = options.hostInputs?.homedir ?? options.homedir;
+
+	if (!options.configPath && !homedirPath) {
+		return Object.freeze({
+			models: Object.freeze([]),
+			currentConfigModel: null,
+			isPartial: false,
+			warnings: Object.freeze(['Neither configPath nor hostInputs.homedir was provided.']),
+			configError: Object.freeze({
+				path: '',
+				error: 'Host snapshot with homedir or configPath is required',
+			}),
+			mtimeMs: null,
+		});
+	}
+
+	const configPath = resolve(
+		options.configPath ?? join(homedirPath as string, '.grok', 'config.toml'),
+	);
+	// Hard cap 5000ms timeout that cannot be enlarged (R2)
+	const timeoutMs = Math.max(
+		1,
+		Math.min(options.timeoutMs ?? MAX_COMMAND_TIMEOUT_MS, MAX_COMMAND_TIMEOUT_MS),
+	);
 
 	const warnings: string[] = [];
 	let currentConfigModel: string | null = null;
@@ -345,123 +408,156 @@ export async function readGrokModels(
 	let rawStdout: string | undefined;
 	const modelMap = new Map<string, ModelOption>();
 
-	// 1. Read config.toml
-	if (!existsSync(configPath)) {
+	// 1. Read config.toml asynchronously
+	try {
+		const stat = await fs.stat(configPath);
+		mtimeMs = stat.mtimeMs;
+		const content = await fs.readFile(configPath, 'utf8');
+		const parsed = parseToml(content);
+
+		// Extract default model
+		if (parsed.models && typeof parsed.models === 'object') {
+			const modelsSection = parsed.models as Record<string, unknown>;
+			if (typeof modelsSection.default === 'string' && modelsSection.default.trim()) {
+				currentConfigModel = modelsSection.default.trim();
+			}
+		}
+		if (!currentConfigModel && typeof parsed.model === 'string' && parsed.model.trim()) {
+			currentConfigModel = parsed.model.trim();
+		}
+
+		if (currentConfigModel) {
+			modelMap.set(currentConfigModel, { id: currentConfigModel, isDefault: true });
+		}
+
+		// Extract models from [model.*]
+		if (parsed.model && typeof parsed.model === 'object') {
+			const modelSection = parsed.model as Record<string, unknown>;
+			for (const [modelKey, modelVal] of Object.entries(modelSection)) {
+				if (modelVal && typeof modelVal === 'object') {
+					const mObj = modelVal as Record<string, unknown>;
+					const id = typeof mObj.model === 'string' ? mObj.model.trim() : modelKey.trim();
+					const name = typeof mObj.name === 'string' ? mObj.name.trim() : undefined;
+					if (id) {
+						const existing = modelMap.get(id);
+						modelMap.set(id, { ...existing, id, name: existing?.name ?? name });
+					}
+				}
+			}
+		}
+
+		// Extract models from [ui]
+		if (parsed.ui && typeof parsed.ui === 'object') {
+			const ui = parsed.ui as Record<string, unknown>;
+			if (typeof ui.fork_secondary_model === 'string' && ui.fork_secondary_model.trim()) {
+				const id = ui.fork_secondary_model.trim();
+				if (!modelMap.has(id)) {
+					modelMap.set(id, { id });
+				}
+			}
+		}
+	} catch (err) {
+		const errorObj = err as { code?: string; message?: string };
+		const isNotFound = errorObj.code === 'ENOENT';
+		const errorMsg = isNotFound
+			? 'Config file does not exist'
+			: (errorObj.message ?? 'Unknown read error');
 		configError = Object.freeze({
 			path: configPath,
-			error: 'Config file does not exist',
+			error: errorMsg,
 		});
-		warnings.push(`Grok config file does not exist at ${configPath}`);
-	} else {
-		try {
-			const stat = statSync(configPath);
-			mtimeMs = stat.mtimeMs;
-			const content = readFileSync(configPath, 'utf8');
-			const parsed = parseToml(content);
-
-			// Extract default model
-			if (parsed.models && typeof parsed.models === 'object') {
-				const modelsSection = parsed.models as Record<string, unknown>;
-				if (typeof modelsSection.default === 'string' && modelsSection.default.trim()) {
-					currentConfigModel = modelsSection.default.trim();
-				}
-			}
-			if (!currentConfigModel && typeof parsed.model === 'string' && parsed.model.trim()) {
-				currentConfigModel = parsed.model.trim();
-			}
-
-			if (currentConfigModel) {
-				modelMap.set(currentConfigModel, { id: currentConfigModel, isDefault: true });
-			}
-
-			// Extract models from [model.*]
-			if (parsed.model && typeof parsed.model === 'object') {
-				const modelSection = parsed.model as Record<string, unknown>;
-				for (const [modelKey, modelVal] of Object.entries(modelSection)) {
-					if (modelVal && typeof modelVal === 'object') {
-						const mObj = modelVal as Record<string, unknown>;
-						const id = typeof mObj.model === 'string' ? mObj.model.trim() : modelKey.trim();
-						const name = typeof mObj.name === 'string' ? mObj.name.trim() : undefined;
-						if (id) {
-							const existing = modelMap.get(id);
-							modelMap.set(id, { ...existing, id, name: existing?.name ?? name });
-						}
-					}
-				}
-			}
-
-			// Extract models from [ui]
-			if (parsed.ui && typeof parsed.ui === 'object') {
-				const ui = parsed.ui as Record<string, unknown>;
-				if (typeof ui.fork_secondary_model === 'string' && ui.fork_secondary_model.trim()) {
-					const id = ui.fork_secondary_model.trim();
-					if (!modelMap.has(id)) {
-						modelMap.set(id, { id });
-					}
-				}
-			}
-		} catch (err) {
-			const errorMsg = (err as Error).message;
-			configError = Object.freeze({
-				path: configPath,
-				error: errorMsg,
-			});
-			warnings.push(`Failed to parse Grok config at ${configPath}: ${errorMsg}`);
-			currentConfigModel = null;
-		}
+		warnings.push(`Failed to read Grok config at ${configPath}: ${errorMsg}`);
+		currentConfigModel = null;
 	}
 
-	// 2. Run `grok models` command if commandRunner is provided
+	// 2. Run `grok models` command via absolute launch object (R2)
 	if (options.commandRunner && options.allowCommand !== false) {
-		let commandTimedOut = false;
-		let commandFailed = false;
-		let cmdStdout = '';
+		let launchFile: string | null = null;
+		let launchArgsPrefix: readonly string[] = [];
 
-		try {
-			const cmdPromise = options.commandRunner('grok', ['models'], { timeoutMs });
-			const timeoutPromise = new Promise<never>((_, reject) => {
-				const timer = setTimeout(() => {
-					commandTimedOut = true;
-					reject(new Error(`Command timed out after ${timeoutMs}ms`));
-				}, timeoutMs);
-				if (typeof timer.unref === 'function') timer.unref();
-			});
-
-			const res = await Promise.race([cmdPromise, timeoutPromise]);
-			cmdStdout = res.stdout;
-			if (res.exitCode !== 0) {
-				commandFailed = true;
+		if (options.executablePath && isAbsolute(options.executablePath)) {
+			launchFile = options.executablePath;
+		} else if (options.hostInputs && 'platform' in options.hostInputs) {
+			const resolved = await resolveExecutable(
+				{
+					hostInputs: options.hostInputs as PlatformHostInputs,
+					executableName: 'grok',
+					configuredPath: options.executablePath,
+				},
+				// Pass adaptively if custom fs provided
+				options.fs as unknown as import('../../platform/contract.ts').ExecutableFileSystem,
+			);
+			if (resolved.ok) {
+				launchFile = resolved.executable.file;
+				launchArgsPrefix = resolved.executable.argsPrefix;
 			}
-		} catch {
-			commandFailed = true;
 		}
 
-		if (commandTimedOut) {
+		if (!launchFile) {
+			// If not resolvable to absolute path, flag partial and skip unverified execution
 			isPartial = true;
 			warnings.push(
-				`Command 'grok models' timed out after ${timeoutMs}ms. List may be incomplete.`,
+				"Could not resolve absolute executable path for 'grok'. Skipping command execution.",
 			);
-		} else if (commandFailed) {
-			isPartial = true;
-			warnings.push("Command 'grok models' exited with non-zero status. List may be incomplete.");
-			if (cmdStdout) rawStdout = cmdStdout;
 		} else {
-			// Command succeeded: parse models from output
-			const parsedCommandModels = parseGrokModelsCommandOutput(cmdStdout);
-			if (parsedCommandModels.length === 0 && cmdStdout.trim().length > 0) {
-				// Format changed! (E-39)
+			const controller = new AbortController();
+			let timedOut = false;
+			const timer = setTimeout(() => {
+				timedOut = true;
+				controller.abort();
+			}, timeoutMs);
+			if (typeof timer.unref === 'function') timer.unref();
+
+			let cmdRes: CommandExecutionResult;
+			try {
+				cmdRes = await options.commandRunner({
+					file: launchFile,
+					args: Object.freeze([...launchArgsPrefix, 'models']),
+					timeoutMs,
+					signal: controller.signal,
+				});
+			} catch (err) {
+				// No unhandled throw (R2)
+				cmdRes = {
+					ok: false,
+					exitCode: null,
+					stdout: '',
+					stderr: (err as Error).message ?? '',
+					timedOut: controller.signal.aborted || timedOut,
+				};
+			} finally {
+				clearTimeout(timer);
+			}
+
+			if (cmdRes.timedOut || controller.signal.aborted) {
 				isPartial = true;
-				rawStdout = cmdStdout;
-				warnings.push('Failed to parse model list from grok output; format may have changed.');
+				warnings.push(
+					`Command '${launchFile}' timed out after ${timeoutMs}ms. List may be incomplete.`,
+				);
+			} else if (!cmdRes.ok || (cmdRes.exitCode !== null && cmdRes.exitCode !== 0)) {
+				isPartial = true;
+				warnings.push(
+					`Command '${launchFile}' exited with non-zero status. List may be incomplete.`,
+				);
+				if (cmdRes.stdout) rawStdout = cmdRes.stdout;
 			} else {
-				for (const m of parsedCommandModels) {
-					const existing = modelMap.get(m.id);
-					modelMap.set(m.id, {
-						...existing,
-						...m,
-						name: existing?.name ?? m.name,
-						isDefault: existing?.isDefault || m.isDefault,
-					});
+				// Command succeeded: parse models from output
+				const parsedCommandModels = parseGrokModelsCommandOutput(cmdRes.stdout);
+				if (parsedCommandModels.length === 0 && cmdRes.stdout.trim().length > 0) {
+					// Format changed! (E-39)
+					isPartial = true;
+					rawStdout = cmdRes.stdout;
+					warnings.push('Failed to parse model list from grok output; format may have changed.');
+				} else {
+					for (const m of parsedCommandModels) {
+						const existing = modelMap.get(m.id);
+						modelMap.set(m.id, {
+							...existing,
+							...m,
+							name: existing?.name ?? m.name,
+							isDefault: existing?.isDefault || m.isDefault,
+						});
+					}
 				}
 			}
 		}
@@ -503,6 +599,7 @@ export async function readGrokModels(
 		warnings: Object.freeze(warnings),
 		rawStdout,
 		configError,
+		configErrors: configError ? Object.freeze([configError]) : Object.freeze([]),
 		mtimeMs,
 	});
 }
