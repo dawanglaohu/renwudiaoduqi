@@ -108,13 +108,4 @@ export interface ReadSegmentResultOk {
 	readonly tailReached: boolean;
 }
 
-export const MILESTONE_KIND_PREFIXES = ['run.', 'task.', 'batch.', 'system.', 'agent.'] as const;
-
-export const MILESTONE_KIND_EXACT = ['tool_call', 'tool_call_update', 'plan'] as const;
-
-export function isMilestoneEventKind(kind: string): boolean {
-	return (
-		MILESTONE_KIND_EXACT.some((exact) => exact === kind) ||
-		MILESTONE_KIND_PREFIXES.some((prefix) => kind.startsWith(prefix))
-	);
-}
+export { isMilestoneEventKind } from '@agent-scheduler/shared/api/events';

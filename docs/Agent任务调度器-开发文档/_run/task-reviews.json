@@ -109,6 +109,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M2-T4": {
+    "contractHash": "60d225b167e8f219e9faa601fc08891d1f560f8c75deec7b946820919e07dd8c",
+    "evidence": [
+      "R1: packages/daemon/src/repo/event-seq-repo.ts owns all event_seq SQL and converts SQLite failures; createContainer uses only this real repo, fixes the global sequence and 1000-ID reservation, and events-runtime.test.ts verifies real migrations plus file-SQLite restart from ID 50 to 1001 without rollback.",
+      "R2: createRingBuffer exposes neither capacity configuration nor clear, always retains 5000 envelopes, rejects oversized or pre-truncated payloads without a valid positive safe-integer logstore reference before mutation, and events.test.ts verifies the 5000/5001 replay boundary and E_REPLAY_WINDOW_EXPIRED.",
+      "R3: packages/shared/src/api/events.ts is the single exported event contract; EventKind is derived from EVENT_DEFINITIONS, EVENT_KINDS has a reverse exhaustiveness assertion, EventPayloadMap covers every kind, logstore consumes EventEnvelope directly, and compile-only tests reject caller overrides and wrong payloads.",
+      "R4: bus-transaction.test.ts scans production sources and negative controls for inline, variable, named, and database transaction callbacks while excluding unrelated run/publish methods; the event bus has no optional unconnected transaction probe.",
+      "R5: EventBus.publish buffers once, continues all subscriber notifications, and returns a frozen structured list retaining each thrown error and subscriber; events.test.ts verifies one failure, continued delivery, and one buffer insertion.",
+      "Focused verification: pnpm exec tsc -b --noEmit and Vitest over events.test.ts, bus-transaction.test.ts, events-runtime.test.ts, logstore-integration.test.ts, and daemon-runtime.test.ts exited 0 with 5 files and 38 tests passed.",
+      "Workspace verification: pnpm -w check exited 0 after the final reviewer fixes; Biome checked 96 files, TypeScript passed, and Vitest reported 25 files passed with 130 tests passed and 32 platform-gated tests skipped."
+    ],
+    "reviewed": "2026-09-08T16:06:16.223015+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T1": {
     "contractHash": "c221a7ad6f416094b23c3e5f311b9461b97d7dd91683345f23894098ffe50e18",
     "evidence": [

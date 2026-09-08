@@ -160,7 +160,7 @@
                                                 ],
                                       "M2-T4":  [
                                                     "packages/daemon/src/events/",
-                                                    "packages/shared/src/events.ts"
+                                                    "packages/shared/src/api/events.ts"
                                                 ],
                                       "M2-T5":  [
                                                     "packages/daemon/src/http/sse.ts",
