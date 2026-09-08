@@ -176,7 +176,7 @@ function makeValidDocPayload(overrides: Partial<DocPayload> = {}): DocPayload {
 	return { ...base, ...overrides };
 }
 
-describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
+describe('service/docs protocol validation (E-16, E-17, E-82, E-246)', () => {
 	it('E-16 parses UTF-8 content with Chinese characters, strips window.DOCS prefix and semicolon', () => {
 		const payload = makeValidDocPayload();
 		const jsContent = `window.DOCS = ${JSON.stringify(payload)};\n`;
@@ -220,10 +220,17 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 		}
 	});
 
-	it('R1 rejects duplicate task IDs in data.tasks with E_DOC_SOURCE_UNREADABLE', () => {
+	it('E-82 rejects protocol versions other than schemaVersion 1', () => {
+		const payload = makeValidDocPayload({ schemaVersion: 2 });
+		expect(() => parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`)).toThrowError(
+			AppError,
+		);
+	});
+
+	it('E-82 rejects duplicate task IDs in data.tasks with E_DOC_SOURCE_UNREADABLE', () => {
 		const payload = makeValidDocPayload();
 		payload.data.tasks.push({
-			id: 'T-1', // Duplicate ID!
+			id: 'T-1',
 			title: '重复的任务',
 			module: 'M1',
 			deps: [],
@@ -239,10 +246,11 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 		}
 	});
 
-	it('R1 rejects task missing required fields (title, module, accept) with E_DOC_SOURCE_UNREADABLE', () => {
+	it('E-82 rejects tasks with missing required title, module, or acceptance fields', () => {
 		const payloadNoTitle = makeValidDocPayload();
 		const t0 = payloadNoTitle.data.tasks[0];
-		if (!t0) throw new Error('task0 missing');
+		expect(t0).toBeDefined();
+		if (!t0) return;
 		payloadNoTitle.data.tasks[0] = {
 			...t0,
 			title: '   ',
@@ -253,7 +261,8 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 
 		const payloadNoAccept = makeValidDocPayload();
 		const tAccept0 = payloadNoAccept.data.tasks[0];
-		if (!tAccept0) throw new Error('task0 missing');
+		expect(tAccept0).toBeDefined();
+		if (!tAccept0) return;
 		payloadNoAccept.data.tasks[0] = {
 			...tAccept0,
 			accept: '',
@@ -261,15 +270,41 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 		expect(() =>
 			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadNoAccept)};`),
 		).toThrowError(AppError);
+
+		const payloadNoModule = makeValidDocPayload();
+		const tModule0 = payloadNoModule.data.tasks[0];
+		expect(tModule0).toBeDefined();
+		if (!tModule0) return;
+		payloadNoModule.data.tasks[0] = {
+			...tModule0,
+			module: '',
+		};
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadNoModule)};`),
+		).toThrowError(AppError);
+
+		const payloadInvalidDeps = makeValidDocPayload();
+		const tDeps0 = payloadInvalidDeps.data.tasks[0];
+		expect(tDeps0).toBeDefined();
+		if (!tDeps0) return;
+		payloadInvalidDeps.data.tasks[0] = {
+			...tDeps0,
+			deps: 'T-0' as unknown as string[],
+		};
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadInvalidDeps)};`),
+		).toThrowError(AppError);
 	});
 
-	it('R1 rejects empty contract hashes or hash mismatch across the 3 places with E_DOC_SOURCE_UNREADABLE', () => {
-		// Empty contract hash
+	it('E-17 rejects empty or mismatched hashes across all three task packages', () => {
 		const payloadEmpty = makeValidDocPayload();
 		const d1 = payloadEmpty.dispatch['T-1'];
 		const c1 = payloadEmpty.handoff.contracts['T-1'];
 		const r1 = payloadEmpty.handoff.readiness['T-1'];
-		if (!d1 || !c1 || !r1) throw new Error('T-1 missing');
+		expect(d1).toBeDefined();
+		expect(c1).toBeDefined();
+		expect(r1).toBeDefined();
+		if (!d1 || !c1 || !r1) return;
 
 		payloadEmpty.dispatch['T-1'] = {
 			...d1,
@@ -292,10 +327,10 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 			expect((err as AppError).message).toContain('Contract hash missing or mismatch');
 		}
 
-		// Hash mismatch
 		const payloadMismatch = makeValidDocPayload();
 		const mismatchContract = payloadMismatch.handoff.contracts['T-1'];
-		if (!mismatchContract) throw new Error('T-1 missing');
+		expect(mismatchContract).toBeDefined();
+		if (!mismatchContract) return;
 		payloadMismatch.handoff.contracts['T-1'] = {
 			...mismatchContract,
 			hash: 'mismatched-hash',
@@ -310,8 +345,7 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 		}
 	});
 
-	it('R1 rejects invalid ready/reasons shape with E_DOC_SOURCE_UNREADABLE', () => {
-		// ready is not boolean (e.g. string "true")
+	it('E-82 rejects invalid ready and reasons shapes', () => {
 		const payloadInvalidReady = makeValidDocPayload();
 		const readiness1 = {
 			...payloadInvalidReady.handoff.readiness,
@@ -330,7 +364,6 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadInvalidReady)};`),
 		).toThrowError(AppError);
 
-		// reasons is not an array of strings
 		const payloadInvalidReasons = makeValidDocPayload();
 		const readiness2 = {
 			...payloadInvalidReasons.handoff.readiness,
@@ -350,34 +383,59 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 		).toThrowError(AppError);
 	});
 
-	it('R1 rejects 1.1.0 effectivePaths violating path safety rules with E_DOC_SOURCE_UNREADABLE', () => {
-		// Empty array
+	it('E-82 rejects missing task packages and empty implementation or review prompts', () => {
+		const missingDispatch = makeValidDocPayload();
+		const t1Dispatch = missingDispatch.dispatch['T-1'];
+		expect(t1Dispatch).toBeDefined();
+		if (!t1Dispatch) return;
+		missingDispatch.dispatch = { 'T-1': t1Dispatch };
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(missingDispatch)};`),
+		).toThrowError(AppError);
+
+		const emptyImplementation = makeValidDocPayload();
+		const dispatch = emptyImplementation.dispatch['T-1'];
+		expect(dispatch).toBeDefined();
+		if (!dispatch) return;
+		emptyImplementation.dispatch['T-1'] = { ...dispatch, implementation: ' ' };
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(emptyImplementation)};`),
+		).toThrowError(AppError);
+	});
+
+	it('E-82 rejects effectivePaths that violate the 1.1.0 producer rules', () => {
 		const payloadEmpty = makeValidDocPayload();
 		payloadEmpty.handoff.effectivePaths['T-1'] = [];
 		expect(() =>
 			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadEmpty)};`),
 		).toThrowError(AppError);
 
-		// Traversal segment ..
-		const payloadTraversal = makeValidDocPayload();
-		payloadTraversal.handoff.effectivePaths['T-1'] = ['src/../secret.ts'];
-		expect(() =>
-			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadTraversal)};`),
-		).toThrowError(AppError);
-
-		// Absolute path
-		const payloadAbsolute = makeValidDocPayload();
-		payloadAbsolute.handoff.effectivePaths['T-1'] = ['/etc/passwd'];
-		expect(() =>
-			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadAbsolute)};`),
-		).toThrowError(AppError);
-
-		// Null byte
-		const payloadNullByte = makeValidDocPayload();
-		payloadNullByte.handoff.effectivePaths['T-1'] = ['src/\0bad.ts'];
-		expect(() =>
-			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadNullByte)};`),
-		).toThrowError(AppError);
+		const invalidPaths: unknown[] = [
+			42,
+			'',
+			' src/file.ts',
+			'src/file.ts ',
+			'src\\file.ts',
+			'/etc/passwd',
+			'C:relative.ts',
+			'C:\\absolute.ts',
+			'src/../secret.ts',
+			'src/./file.ts',
+			'src//file.ts',
+			'src/\0bad.ts',
+			'src/*.ts',
+			'src/file?.ts',
+			'src/[file].ts',
+			'src/{file}.ts',
+		];
+		for (const invalidPath of invalidPaths) {
+			const payload = makeValidDocPayload();
+			payload.handoff.effectivePaths['T-1'] = [invalidPath as string];
+			expect(
+				() => parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`),
+				`expected ${JSON.stringify(invalidPath)} to be rejected`,
+			).toThrowError(AppError);
+		}
 	});
 
 	it('E-82 task with ready=false is valid for import but records isContractReady=false', () => {
@@ -395,7 +453,7 @@ describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 	});
 });
 
-describe('R1 negative tests: existing document remains intact and marked is_source_readable=0 on corrupted input', () => {
+describe('E-82 document preservation after a valid source becomes corrupt', () => {
 	it('retains existing document record and sets is_source_readable=0 when input becomes corrupted', async () => {
 		const db = createTestDatabase();
 		const documentsRepo = createDocumentsRepo(db);
@@ -427,13 +485,11 @@ describe('R1 negative tests: existing document remains intact and marked is_sour
 			fs: mockFs,
 		});
 
-		// 1. Initial valid import
 		const initial = await service.importDocument('/app/docs-data.js');
 		expect(initial.isNew).toBe(true);
 		expect(initial.document.isSourceReadable).toBe(true);
 		const docId = initial.document.id;
 
-		// 2. Input becomes corrupted with duplicate task ID
 		const corruptedDuplicateId = makeValidDocPayload();
 		corruptedDuplicateId.data.tasks.push({
 			id: 'T-1',
@@ -452,16 +508,15 @@ describe('R1 negative tests: existing document remains intact and marked is_sour
 			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
 		}
 
-		// Assert: DB record retained, is_source_readable is 0, last_seen_at updated
 		let doc = service.getDocumentById(docId);
 		expect(doc).not.toBeNull();
 		expect(doc?.isSourceReadable).toBe(false);
 		expect(doc?.lastSeenAt).toBe('2026-09-08T11:00:00.000Z');
 
-		// 3. Input becomes corrupted with hash mismatch
 		const corruptedHashMismatch = makeValidDocPayload();
 		const corruptContract = corruptedHashMismatch.handoff.contracts['T-1'];
-		if (!corruptContract) throw new Error('T-1 contract missing');
+		expect(corruptContract).toBeDefined();
+		if (!corruptContract) return;
 		corruptedHashMismatch.handoff.contracts['T-1'] = {
 			...corruptContract,
 			hash: 'bad-hash',
@@ -480,7 +535,6 @@ describe('R1 negative tests: existing document remains intact and marked is_sour
 		expect(doc?.isSourceReadable).toBe(false);
 		expect(doc?.lastSeenAt).toBe('2026-09-08T12:00:00.000Z');
 
-		// 4. Input becomes corrupted with invalid effectivePaths (path traversal)
 		const corruptedPath = makeValidDocPayload();
 		corruptedPath.handoff.effectivePaths['T-1'] = ['../outside.ts'];
 		currentContent = `window.DOCS = ${JSON.stringify(corruptedPath)};`;
@@ -497,7 +551,6 @@ describe('R1 negative tests: existing document remains intact and marked is_sour
 		expect(doc?.isSourceReadable).toBe(false);
 		expect(doc?.lastSeenAt).toBe('2026-09-08T13:00:00.000Z');
 
-		// 5. Restoring valid document clears unreadable state back to 1
 		currentContent = `window.DOCS = ${JSON.stringify(makeValidDocPayload())};`;
 		clock.current = '2026-09-08T14:00:00.000Z';
 		const recovered = await service.importDocument('/app/docs-data.js');
@@ -506,7 +559,7 @@ describe('R1 negative tests: existing document remains intact and marked is_sour
 	});
 });
 
-describe('R3 repo/documents contracts: snake_case Row and error boundary wrapping', () => {
+describe('documents repository Row and error boundary', () => {
 	it('repo/documents only operates on snake_case DocumentRow and wraps SQLite errors as AppError', () => {
 		const db = createTestDatabase();
 		const documentsRepo = createDocumentsRepo(db);
@@ -528,17 +581,15 @@ describe('R3 repo/documents contracts: snake_case Row and error boundary wrappin
 
 		documentsRepo.insert(row1);
 
-		// Queries return snake_case DocumentRow
 		const fetched = documentsRepo.findById('doc-row-1');
 		expect(fetched).not.toBeNull();
 		expect(fetched?.docs_path).toBe('/path/row1.js');
 		expect(fetched?.project_name).toBe('测试行');
 		expect(fetched?.is_source_readable).toBe(1);
 
-		// Negative test: inserting duplicate primary key or unique docs_path wraps native error into AppError with cause
 		let error: unknown;
 		try {
-			documentsRepo.insert(row1); // Duplicate insert!
+			documentsRepo.insert(row1);
 		} catch (err) {
 			error = err;
 		}
@@ -547,26 +598,138 @@ describe('R3 repo/documents contracts: snake_case Row and error boundary wrappin
 		expect((error as AppError).code).toBe('E_INTERNAL');
 		expect((error as AppError).cause).toBeDefined();
 
-		// Negative test: lane_count validation in repo
 		expect(() =>
 			documentsRepo.insert({
 				...row1,
 				id: 'doc-row-2',
 				docs_path: '/path/row2.js',
-				lane_count: 0, // Invalid!
+				lane_count: 0,
 			}),
 		).toThrowError(AppError);
 
 		expect(() => documentsRepo.updateLaneCount('doc-row-1', 99)).toThrowError(AppError);
 
-		// Test mapDocumentRow converts snake_case row to camelCase DocumentRecord
 		expect(fetched).not.toBeNull();
-		if (!fetched) throw new Error('fetched document missing');
+		if (!fetched) return;
 		const mapped = mapDocumentRow(fetched);
 		expect(mapped.docsPath).toBe('/path/row1.js');
 		expect(mapped.projectName).toBe('测试行');
 		expect(mapped.isSourceReadable).toBe(true);
 		expect(mapped.isTakeoverNotified).toBe(false);
+	});
+});
+
+describe('DocsService document lifecycle (E-79, E-82, E-247)', () => {
+	it('uses product lane_count defaults and preserves user changes across imports', async () => {
+		const db = createTestDatabase();
+		const documentsRepo = createDocumentsRepo(db);
+		const clock = {
+			current: '2026-09-08T10:00:00.000Z',
+			now() {
+				return this.current;
+			},
+		};
+		const payload = makeValidDocPayload();
+		const service = createDocsService({
+			documentsRepo,
+			clock,
+			ids: { newId: () => 'doc-lanes' },
+			fs: {
+				async readFile() {
+					return `window.DOCS = ${JSON.stringify(payload)};`;
+				},
+			},
+		});
+
+		const first = await service.importDocument('/app/lanes/docs-data.js');
+		expect(first.document.laneCount).toBe(2);
+		service.updateLaneCount(first.document.id, 4);
+		clock.current = '2026-09-08T11:00:00.000Z';
+
+		const second = await service.importDocument('/app/lanes/docs-data.js');
+		expect(second.isNew).toBe(false);
+		expect(second.hasChanged).toBe(false);
+		expect(second.document.laneCount).toBe(4);
+	});
+
+	it('refreshes readiness metadata without reporting a contract change', async () => {
+		const db = createTestDatabase();
+		const documentsRepo = createDocumentsRepo(db);
+		const clock = {
+			current: '2026-09-08T10:00:00.000Z',
+			now() {
+				return this.current;
+			},
+		};
+		let currentPayload = makeValidDocPayload({ generated: '2026-09-08T10:00:00.000Z' });
+		const service = createDocsService({
+			documentsRepo,
+			clock,
+			ids: { newId: () => 'doc-readiness' },
+			fs: {
+				async readFile() {
+					return `window.DOCS = ${JSON.stringify(currentPayload)};`;
+				},
+			},
+		});
+
+		const first = await service.importDocument('/app/readiness/docs-data.js');
+		const initialFingerprint = first.document.contentFingerprint;
+		const t2Readiness = currentPayload.handoff.readiness['T-2'];
+		expect(t2Readiness).toBeDefined();
+		if (!t2Readiness) return;
+		currentPayload = makeValidDocPayload({
+			generated: '2026-09-08T12:00:00.000Z',
+			handoff: {
+				...currentPayload.handoff,
+				readiness: {
+					...currentPayload.handoff.readiness,
+					'T-2': { ...t2Readiness, ready: true, reasons: [] },
+				},
+			},
+		});
+		clock.current = '2026-09-08T12:00:00.000Z';
+
+		const second = await service.importDocument('/app/readiness/docs-data.js');
+		expect(second.hasChanged).toBe(false);
+		expect(second.document.contentFingerprint).toBe(initialFingerprint);
+		expect(second.document.lastSeenAt).toBe('2026-09-08T12:00:00.000Z');
+		expect(second.parsed.taskMap.get('T-2')?.isContractReady).toBe(true);
+	});
+
+	it('marks an existing document unreadable when the source file disappears', async () => {
+		const db = createTestDatabase();
+		const documentsRepo = createDocumentsRepo(db);
+		const clock = {
+			current: '2026-09-08T10:00:00.000Z',
+			now() {
+				return this.current;
+			},
+		};
+		let isMissing = false;
+		const service = createDocsService({
+			documentsRepo,
+			clock,
+			ids: { newId: () => 'doc-missing' },
+			fs: {
+				async readFile() {
+					if (isMissing) throw { code: 'ENOENT' };
+					return `window.DOCS = ${JSON.stringify(makeValidDocPayload())};`;
+				},
+			},
+		});
+
+		const first = await service.importDocument('/app/missing/docs-data.js');
+		isMissing = true;
+		clock.current = '2026-09-08T14:00:00.000Z';
+		await expect(service.importDocument('/app/missing/docs-data.js')).rejects.toMatchObject({
+			code: 'E_DOC_SOURCE_UNREADABLE',
+		});
+
+		const retained = service.getDocumentById(first.document.id);
+		expect(retained).not.toBeNull();
+		expect(retained?.isSourceReadable).toBe(false);
+		expect(retained?.lastSeenAt).toBe('2026-09-08T14:00:00.000Z');
 	});
 });
 

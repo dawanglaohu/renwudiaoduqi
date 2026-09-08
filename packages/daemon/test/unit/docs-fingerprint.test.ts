@@ -7,30 +7,28 @@ import {
 } from '../../src/domain/docs-fingerprint.ts';
 import { defaultSha256Hasher } from '../../src/service/docs.ts';
 
-describe('domain/docs-fingerprint (AC 2, E-17, E-79, R2)', () => {
-	it('R2 domain/docs-fingerprint has zero dependencies and does not import node:crypto', () => {
+describe('domain/docs-fingerprint (AC 2, E-17, E-79)', () => {
+	it('keeps domain fingerprint canonicalization free of runtime crypto dependencies', () => {
 		const source = readFileSync(resolve(__dirname, '../../src/domain/docs-fingerprint.ts'), 'utf8');
 		expect(source).not.toMatch(/from ['"]node:crypto['"]/);
 		expect(source).not.toMatch(/from ['"]crypto['"]/);
 		expect(source).not.toContain('createHash');
 	});
 
-	it('R2 locks canonical JSON byte string and known SHA-256 digest on fixed fixture', () => {
+	it('locks the canonical JSON bytes and known SHA-256 digest for a fixed fixture', () => {
 		const fixture = [
 			{ id: 'M1-T2', contractHash: 'hash-2' },
 			{ id: 'M1-T1', contractHash: 'hash-1' },
 		];
 
 		const canonical = canonicalizeDocsFingerprintPayload(fixture);
-		// Fixed canonical format: sorted ascending by task ID UTF-16 binary code unit
 		expect(canonical).toBe('[["M1-T1","hash-1"],["M1-T2","hash-2"]]');
 
-		// Locked known SHA-256 digest for this exact canonical payload
 		const digest = computeDocsFingerprint(fixture, defaultSha256Hasher);
 		expect(digest).toBe('620238617147fd35eb246c5a079b969af6b9c29510ed9ff6a3d47068685619f6');
 	});
 
-	it('R2 sorts task IDs with cross-platform deterministic code unit comparison', () => {
+	it('sorts task IDs with a cross-platform deterministic code-unit comparison', () => {
 		const mixed = [
 			{ id: 'M1-T2', contractHash: 'h2' },
 			{ id: 'M1-T10', contractHash: 'h10' },
@@ -39,7 +37,6 @@ describe('domain/docs-fingerprint (AC 2, E-17, E-79, R2)', () => {
 		];
 
 		const canonical = canonicalizeDocsFingerprintPayload(mixed);
-		// 'M1-T1' < 'M1-T10' < 'M1-T2' < 'M10-T1' in UTF-16 code unit order
 		expect(canonical).toBe('[["M1-T1","h1"],["M1-T10","h10"],["M1-T2","h2"],["M10-T1","h10_1"]]');
 	});
 

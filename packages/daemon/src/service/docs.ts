@@ -110,41 +110,29 @@ export function mapDocumentRow(row: DocumentRow): DocumentRecord {
 	});
 }
 
-function assertValidEffectivePath(taskId: string, path: string, docsPath?: string): void {
-	if (typeof path !== 'string' || path.trim().length === 0) {
-		throw new AppError(
-			'E_DOC_SOURCE_UNREADABLE',
-			`Task ${taskId} has empty or non-string effectivePath`,
-			{ details: { docsPath, taskId, path } },
-		);
-	}
+function assertValidEffectivePath(
+	taskId: string,
+	path: unknown,
+	docsPath?: string,
+): asserts path is string {
+	const globCharacters = ['*', '?', '[', ']', '{', '}'] as const;
+	const segments =
+		typeof path === 'string' ? path.replace(/\/+$/, '').split('/') : ([] as string[]);
+	const isValid =
+		typeof path === 'string' &&
+		path.length > 0 &&
+		path === path.trim() &&
+		!path.includes('\\') &&
+		!path.includes('\0') &&
+		!path.startsWith('/') &&
+		!/^[a-zA-Z]:/.test(path) &&
+		!segments.some((segment) => segment === '' || segment === '.' || segment === '..') &&
+		!globCharacters.some((character) => path.includes(character));
 
-	if (path.includes('\0')) {
+	if (!isValid) {
 		throw new AppError(
 			'E_DOC_SOURCE_UNREADABLE',
-			`Task ${taskId} effectivePath contains null byte: ${path}`,
-			{ details: { docsPath, taskId, path } },
-		);
-	}
-
-	if (
-		path.startsWith('/') ||
-		path.startsWith('\\') ||
-		/^[a-zA-Z]:[\\/]/.test(path) ||
-		path.startsWith('\\\\')
-	) {
-		throw new AppError(
-			'E_DOC_SOURCE_UNREADABLE',
-			`Task ${taskId} effectivePath must be a relative path: ${path}`,
-			{ details: { docsPath, taskId, path } },
-		);
-	}
-
-	const segments = path.split(/[\\/]/);
-	if (segments.includes('..')) {
-		throw new AppError(
-			'E_DOC_SOURCE_UNREADABLE',
-			`Task ${taskId} effectivePath must not contain traversal segment (..): ${path}`,
+			`Task ${taskId} has invalid effectivePath: ${String(path)}`,
 			{ details: { docsPath, taskId, path } },
 		);
 	}
@@ -152,7 +140,7 @@ function assertValidEffectivePath(taskId: string, path: string, docsPath?: strin
 
 /**
  * 强制按 UTF-8 读取 docs-data.js，剥离固定外壳后 JSON.parse，
- * 严格校验 schemaVersion=1、唯一任务 ID、三处非空哈希一致、ready/reasons 形状与 1.1.0 路径规则（R1, E-16, E-17, E-246）。
+ * 严格校验 schemaVersion=1、唯一任务 ID、三处非空哈希一致、ready/reasons 形状与 1.1.0 路径规则（E-16、E-17、E-82、E-246）。
  */
 export function parseDocsDataContent(
 	content: string,
@@ -269,7 +257,7 @@ export function parseDocsDataContent(
 			});
 		}
 
-		// R1: 唯一任务 ID
+		// 任务 ID 是所有任务包映射的连接键，重复值会使后项覆盖前项。
 		if (seenTaskIds.has(taskId)) {
 			throw new AppError('E_DOC_SOURCE_UNREADABLE', `Duplicate task id in data.tasks: ${taskId}`, {
 				details: { docsPath: options.docsPath, taskId },
@@ -278,7 +266,7 @@ export function parseDocsDataContent(
 		seenTaskIds.add(taskId);
 		taskIds.push(taskId);
 
-		// R1: 必需任务字段严格校验 (title, module, deps, accept)
+		// 这些字段决定展示、分层和验收，不能把损坏值静默降级为空值。
 		if (typeof taskObj.title !== 'string' || taskObj.title.trim().length === 0) {
 			throw new AppError(
 				'E_DOC_SOURCE_UNREADABLE',
@@ -374,7 +362,7 @@ export function parseDocsDataContent(
 			);
 		}
 
-		// R1: 1.1.0 effectivePaths 路径规则
+		// 有效路径直接参与工作区范围和冲突判断，必须与 1.1.0 生产者使用同一规则。
 		const taskPathsRaw = effectivePaths[taskId];
 		if (!Array.isArray(taskPathsRaw) || taskPathsRaw.length === 0) {
 			throw new AppError(
@@ -387,7 +375,7 @@ export function parseDocsDataContent(
 			assertValidEffectivePath(taskId, p, options.docsPath);
 		}
 
-		// R1: 校验三处非空契约哈希一致性（E-17）
+		// 三处非空契约哈希必须逐字一致（E-17）。
 		const dispatchHash = dispatchItem.contractHash;
 		const contractsHash = contractItem.hash;
 		const readinessHash = readinessItem.contractHash;
@@ -433,7 +421,7 @@ export function parseDocsDataContent(
 			);
 		}
 
-		// R1: ready/reasons 形状严格校验
+		// ready/reasons 控制新派发，损坏值不能被当作待复核的合法任务。
 		if (typeof readinessItem.ready !== 'boolean') {
 			throw new AppError(
 				'E_DOC_SOURCE_UNREADABLE',
@@ -486,7 +474,7 @@ export function parseDocsDataContent(
 		fingerprintItems.push({ id: taskId, contractHash: dispatchHash });
 	}
 
-	// R2: 使用 service 层注入的哈希函数或默认 sha256 计算指纹
+	// 加密实现属于 service 的外部能力；domain 只规范化输入。
 	const hasher = options.hasher ?? defaultSha256Hasher;
 	const contentFingerprint = computeDocsFingerprint(fingerprintItems, hasher);
 
@@ -562,7 +550,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 								},
 							);
 
-				// R1, E-82: 源不可读时保留全部记录与快照，置 is_source_readable=0 并冻结新派发，不清空任何数据
+				// E-82：源不可读时只置不可读标记，既有任务和派发快照保持不变。
 				if (existingRow) {
 					deps.documentsRepo.markSourceUnreadable(existingRow.id, deps.clock.now());
 				}

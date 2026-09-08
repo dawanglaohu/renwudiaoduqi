@@ -20,7 +20,7 @@ export function canonicalizeDocsFingerprintPayload(
 
 /**
  * 使用注入的哈希函数对规范化载荷计算指纹。
- * domain 保持为零外部依赖的纯函数层（R2）。
+ * 调用方拥有具体哈希实现，domain 只负责确定性规范化。
  */
 export function computeDocsFingerprint(
 	tasks: readonly TaskContractHashItem[] | Iterable<TaskContractHashItem>,
