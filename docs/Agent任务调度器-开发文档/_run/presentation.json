@@ -211,7 +211,10 @@
                                                     "packages/daemon/src/domain/model-selection.ts"
                                                 ],
                                       "M4-T7":  [
-                                                    "packages/daemon/src/domain/permission-tier.ts"
+                                                    "packages/daemon/src/domain/permission-tier.ts",
+                                                    "packages/daemon/src/domain/effort-tier.ts",
+                                                    "packages/daemon/src/config/defaults.ts",
+                                                    "packages/daemon/src/config/registry.ts"
                                                 ],
                                       "M4-T8":  [
                                                     "packages/daemon/src/adapters/codex/"
