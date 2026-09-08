@@ -1,34 +1,53 @@
-import type { EnvironmentSnapshot, ProcessConfigResult } from '../config/env.ts';
-import { parseProcessConfig } from '../config/env.ts';
-import { type AcquireInstanceLockResult, acquireInstanceLock } from './lock.ts';
-import { resolveLockFilePath } from './paths.ts';
-import type { BootSnapshot, RuntimeLogWriter } from './snapshot.ts';
+import type { ProcessConfig } from '../config/env.ts';
+import type { DatabaseConnection } from '../db/open-database.ts';
+import type { PlatformHostInputs } from '../platform/contract.ts';
+import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 
 export interface AppContainer {
-	readonly nodeVersion: string;
-	readonly pid: number;
-	readonly productEnvironment: EnvironmentSnapshot['product'];
-	readonly writeRunLog: RuntimeLogWriter;
-	readonly parseProcessConfig: () => ProcessConfigResult;
-	readonly acquireInstanceLock: () => AcquireInstanceLockResult;
-	readonly stayResident: BootSnapshot['stayResident'];
+	readonly config: ProcessConfig;
+	readonly database: DatabaseConnection;
+	readonly platform: {
+		readonly hostInputs: PlatformHostInputs;
+		readonly lock: NativeLockAdapter;
+	};
+	readonly clock: {
+		readonly now: () => string;
+	};
+	readonly ids: Record<string, never>;
+	readonly repos: Record<string, never>;
+	readonly logstore: Record<string, never>;
+	readonly events: Record<string, never>;
+	readonly proc: Record<string, never>;
+	readonly adapters: Record<string, never>;
+	readonly workspace: Record<string, never>;
+	readonly services: Record<string, never>;
+	readonly jobs: readonly never[];
+	readonly instanceLock: LockFileHandle;
 }
 
-export function createContainer(snapshot: BootSnapshot): AppContainer {
+export function createContainer(input: {
+	readonly config: ProcessConfig;
+	readonly database: DatabaseConnection;
+	readonly hostInputs: PlatformHostInputs;
+	readonly lockAdapter: NativeLockAdapter;
+	readonly instanceLock: LockFileHandle;
+	readonly clock: { readonly now: () => string };
+}): AppContainer {
+	const empty = Object.freeze({});
 	return Object.freeze({
-		nodeVersion: snapshot.nodeVersion,
-		pid: snapshot.pid,
-		productEnvironment: snapshot.environment.product,
-		writeRunLog: snapshot.writeRunLog,
-		parseProcessConfig: () => parseProcessConfig(snapshot.environment.product),
-		acquireInstanceLock: () =>
-			acquireInstanceLock(
-				resolveLockFilePath({
-					appDataDir: snapshot.environment.host.appDataDir,
-					homeDir: snapshot.homeDir,
-				}),
-				snapshot.pid,
-			),
-		stayResident: snapshot.stayResident,
+		config: input.config,
+		database: input.database,
+		platform: Object.freeze({ hostInputs: input.hostInputs, lock: input.lockAdapter }),
+		clock: input.clock,
+		ids: empty,
+		repos: empty,
+		logstore: empty,
+		events: empty,
+		proc: empty,
+		adapters: empty,
+		workspace: empty,
+		services: empty,
+		jobs: Object.freeze([]),
+		instanceLock: input.instanceLock,
 	});
 }

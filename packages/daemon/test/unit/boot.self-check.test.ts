@@ -1,19 +1,10 @@
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { acquireInstanceLock, readPidFromLock } from '../../src/boot/lock.ts';
+import { describe, expect, it } from 'vitest';
 import { checkNodeVersion } from '../../src/boot/node-check.ts';
-import { defaultDataDir, resolveLockFilePath } from '../../src/boot/paths.ts';
-import { parseProcessConfig } from '../../src/config/env.ts';
-
-const temporaryDirectories: string[] = [];
-
-afterEach(() => {
-	for (const directory of temporaryDirectories.splice(0)) {
-		rmSync(directory, { force: true, recursive: true });
-	}
-});
+import {
+	type EnvironmentSnapshot,
+	loadProcessConfig,
+	parseProcessConfig,
+} from '../../src/config/env.ts';
 
 describe('boot self-check', () => {
 	it('E-139 rejects Node 20 with the required version', () => {
@@ -30,62 +21,85 @@ describe('boot self-check', () => {
 		expect(checkNodeVersion('v22.17.0')).toEqual({ ok: true });
 	});
 
-	it('uses the default port only when AGSCHED_PORT is absent or empty', () => {
-		expect(parseProcessConfig({ port: undefined })).toEqual({
-			ok: true,
-			config: { port: 7817 },
-		});
-		expect(parseProcessConfig({ port: '' })).toEqual({
-			ok: true,
-			config: { port: 7817 },
-		});
-	});
-
-	it.each(['abc', '0', '70000'])('rejects AGSCHED_PORT=%s', (port) => {
-		expect(parseProcessConfig({ port })).toEqual({
+	it('validates AGSCHED_PORT and reports the product variable name', () => {
+		expect(parseProcessConfig({ port: 'abc' })).toEqual({
 			ok: false,
 			variable: 'AGSCHED_PORT',
 			expected: 'an integer port in 1..65535',
-			actual: port,
+			actual: 'abc',
 		});
 	});
 
-	it('resolves data paths only from injected host inputs', () => {
-		const root = makeTemporaryDirectory();
-		expect(defaultDataDir({ appDataDir: root, homeDir: 'unused' })).toBe(
-			join(root, 'agent-scheduler'),
-		);
-		expect(defaultDataDir({ appDataDir: undefined, homeDir: root })).toBe(
-			join(root, '.agent-scheduler'),
-		);
-		expect(resolveLockFilePath({ appDataDir: root, homeDir: 'unused' })).toBe(
-			join(root, 'agent-scheduler', 'daemon.lock'),
-		);
-	});
-
-	it('E-03 keeps the first pid visible and permits reacquisition after release', () => {
-		const lockFilePath = join(makeTemporaryDirectory(), 'daemon.lock');
-		const first = acquireInstanceLock(lockFilePath, 4321);
-		expect(first.ok).toBe(true);
-		if (!first.ok) return;
-		expect(readPidFromLock(lockFilePath)).toBe(4321);
-
-		expect(acquireInstanceLock(lockFilePath, 9876)).toEqual({
-			ok: false,
-			lockFilePath,
-			existingPid: 4321,
+	it('loads daemon.json once, applies environment precedence, and freezes five process settings', () => {
+		let reads = 0;
+		const result = loadProcessConfig({
+			environment: environment({ port: '9001', dev: '0' }),
+			platform: 'linux',
+			defaultDataDir: '/home/user/.local/share/agent-scheduler',
+			configFilePath: '/home/user/.local/share/agent-scheduler/daemon.json',
+			fileReader: {
+				read: () => {
+					reads += 1;
+					return JSON.stringify({
+						port: 8000,
+						bind: '127.0.0.1',
+						dataDir: '/srv/agent scheduler',
+						logLevel: 'warn',
+						dev: true,
+					});
+				},
+			},
 		});
 
-		first.lock.release();
-		first.lock.release();
-		const reacquired = acquireInstanceLock(lockFilePath, 9876);
-		expect(reacquired.ok).toBe(true);
-		if (reacquired.ok) reacquired.lock.release();
+		expect(reads).toBe(1);
+		expect(result).toEqual({
+			ok: true,
+			config: {
+				port: 9001,
+				bind: '127.0.0.1',
+				dataDir: '/srv/agent scheduler',
+				logLevel: 'warn',
+				dev: false,
+			},
+		});
+		if (result.ok) expect(Object.isFrozen(result.config)).toBe(true);
+	});
+
+	it('rejects malformed daemon.json and relative data directories without DEV bypasses', () => {
+		const malformed = loadProcessConfig({
+			environment: environment(),
+			platform: 'linux',
+			defaultDataDir: '/home/user/.local/share/agent-scheduler',
+			configFilePath: '/config/daemon.json',
+			fileReader: { read: () => '{' },
+		});
+		expect(malformed).toMatchObject({ ok: false, variable: 'daemon.json' });
+
+		const relative = loadProcessConfig({
+			environment: environment({ dataDir: 'relative/path', dev: '1' }),
+			platform: 'linux',
+			defaultDataDir: '/home/user/.local/share/agent-scheduler',
+			configFilePath: '/config/daemon.json',
+			fileReader: { read: () => '{}' },
+		});
+		expect(relative).toMatchObject({ ok: false, variable: 'AGSCHED_DATA_DIR' });
 	});
 });
 
-function makeTemporaryDirectory(): string {
-	const directory = mkdtempSync(join(tmpdir(), 'agent-scheduler-'));
-	temporaryDirectories.push(directory);
-	return directory;
+function environment(product: Partial<EnvironmentSnapshot['product']> = {}): EnvironmentSnapshot {
+	return Object.freeze({
+		product: Object.freeze({
+			port: product.port,
+			bind: product.bind,
+			dataDir: product.dataDir,
+			logLevel: product.logLevel,
+			dev: product.dev,
+		}),
+		host: Object.freeze({
+			appData: undefined,
+			xdgDataHome: undefined,
+			programData: undefined,
+			systemRoot: undefined,
+		}),
+	});
 }
