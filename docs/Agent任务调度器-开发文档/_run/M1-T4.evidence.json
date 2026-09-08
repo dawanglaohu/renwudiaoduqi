@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T4": {
+      "contractHash": "64cff7d83d2bb33f5a7af7ad4ad32853b12ac9c67c20b7bf35f19fcfc5a97fb9",
+      "evidence": [
+        "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M1-T4 行与当前派发包，四条验收标准及 E-149/E-151/E-24 保持原文。产出为 logstore 文件层、repo 索引、service 先文件后索引编排、jobs/log-index-repair 启动入口。未扩大到 boot 容器接线或 M6 日志 API/UI。",
+        "依赖与分层：前置 M1-T2 已落地，0001_init.sql 含 events/log_segments。logstore 不 import repo；repo 不 import logstore；service/logstore.ts 编排两者并用 unitOfWork 写索引，事务回调无 await/文件 I/O；job 只调 service.repairAll。无反向依赖。",
+        "数据与接口：events 无 payload 列，只存 id/seq/kind/偏移；log_segments 记关闭段边界。isMilestoneEventKind 同时用于 appendEvent 与 repairRun。E_LOG_FILE_MISSING 已在 shared/src/errors/codes.ts 登记。内部字节游标不取代 M6-T8 外部 API。",
+        "有效路径：taskPaths 为 packages/daemon/src/logstore/；supportPaths 含两项 repo、service/logstore.ts、jobs/log-index-repair.ts 及对应测试。本轮审查只改上述范围内文件，未放行整个 service/repo 目录。",
+        "验收：1) appendEvent 先 await appendEventLine 再 recordRunIndexes。2) 超阈值返回 closedSegment 并 insertSegments。3) repairAll 从磁盘与 log_segments 发现 run，repairRun 从 lastIndexedEnd 扫到 EOF，索引超过文件记 E_VALIDATION。4) 读/修路径 ENOENT 返回 E_LOG_FILE_MISSING 不抛原生异常。",
+        "边界：E-149 切片并记关闭段边界，分页跨段。E-151 类型化缺失。E-24 有界扫描与 1MiB 分页，不把全量正文留在内存。 vitest 本层 8 文件 39 通过；biome check 已改文件通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
