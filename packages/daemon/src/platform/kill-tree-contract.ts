@@ -13,7 +13,7 @@ export interface KillTreeAttempt {
 
 export type KillTreeOutcome = 'terminated' | 'survived' | 'not-process-owner';
 
-/** Emitted per attempt (phase 'attempt') and once at the end (phase 'outcome'). */
+/** Each termination attempt is emitted before one final outcome event. */
 export interface KillTreeEvent {
 	readonly phase: 'attempt' | 'outcome';
 	readonly pid: number;
@@ -27,8 +27,23 @@ export interface KillTreeResult {
 	readonly attempts: readonly KillTreeAttempt[];
 }
 
-export interface KillTreeClock {
+export type KillTreeEmit = (event: KillTreeEvent) => void;
+
+/**
+ * The proc layer owns native process APIs. Platform adapters only choose the
+ * command, signal, grace period, and escalation policy.
+ */
+export interface KillTreeProcessOps {
 	readonly now: () => string;
+	readonly wait: (milliseconds: number) => Promise<void>;
+	/** Exit 128 is ambiguous: stderr distinguishes an absent PID from a tree that still needs /F. */
+	readonly taskkill: (args: readonly string[]) => Promise<KillTreeAttemptResult>;
+	readonly signalGroup: (pid: number, signal: 'SIGTERM' | 'SIGKILL') => KillTreeAttemptResult;
+	readonly probeTree: (pid: number) => Promise<KillTreeAttemptResult>;
+	readonly probeGroup: (pid: number) => KillTreeAttemptResult;
 }
 
-export type KillTreeEmit = (event: KillTreeEvent) => void;
+export interface KillTreeOptions {
+	readonly graceMs?: number;
+	readonly emit?: KillTreeEmit;
+}

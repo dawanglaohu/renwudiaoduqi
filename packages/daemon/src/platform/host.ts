@@ -1,7 +1,9 @@
 import { homedir as readSystemHomedir } from 'node:os';
+import type { AutostartDependencies } from './autostart-contract.ts';
 import type {
 	AppDataDirectoryResult,
 	CurrentPlatformPath,
+	PlatformAdapter,
 	PlatformEnvironmentInputs,
 	PlatformHostInputs,
 	PlatformOperationError,
@@ -9,9 +11,9 @@ import type {
 	SupportedPlatform,
 } from './contract.ts';
 import { SUPPORTED_PLATFORMS } from './contract.ts';
-import { DARWIN_PATH_ADAPTER } from './darwin.ts';
-import { LINUX_PATH_ADAPTER } from './linux.ts';
-import { WINDOWS_PATH_ADAPTER } from './windows.ts';
+import { DARWIN_PATH_ADAPTER, createDarwinAutostart, darwinKillTree } from './darwin.ts';
+import { LINUX_PATH_ADAPTER, createLinuxAutostart, linuxKillTree } from './linux.ts';
+import { WINDOWS_PATH_ADAPTER, createWindowsAutostart, windowsKillTree } from './windows.ts';
 
 export interface HostReader {
 	readonly platform: () => NodeJS.Platform;
@@ -79,52 +81,66 @@ export function platformPathAdapter(platform: SupportedPlatform): PlatformPathAd
 	}
 }
 
+export type PlatformAdapterResult =
+	| { readonly ok: true; readonly value: PlatformAdapter }
+	| {
+			readonly ok: false;
+			readonly error: PlatformOperationError<'E_PLATFORM_UNSUPPORTED'>;
+	  };
+
+/** Resolves the only platform branch and binds one uniform adapter for callers. */
+export function createPlatformAdapter(
+	platform: NodeJS.Platform,
+	host: Omit<PlatformHostInputs, 'platform'>,
+	autostartName: string,
+	autostartDependencies: AutostartDependencies,
+): PlatformAdapterResult {
+	if (!isSupportedPlatform(platform)) return unsupportedPlatform(platform);
+	const hostInputs = Object.freeze({ ...host, platform });
+	switch (platform) {
+		case 'win32':
+			return Object.freeze({
+				ok: true,
+				value: Object.freeze({
+					...WINDOWS_PATH_ADAPTER,
+					killTree: windowsKillTree,
+					autostart: createWindowsAutostart(autostartName, autostartDependencies),
+				}),
+			});
+		case 'darwin':
+			return Object.freeze({
+				ok: true,
+				value: Object.freeze({
+					...DARWIN_PATH_ADAPTER,
+					killTree: darwinKillTree,
+					autostart: createDarwinAutostart(autostartName, hostInputs, autostartDependencies),
+				}),
+			});
+		case 'linux':
+			return Object.freeze({
+				ok: true,
+				value: Object.freeze({
+					...LINUX_PATH_ADAPTER,
+					killTree: linuxKillTree,
+					autostart: createLinuxAutostart(autostartName, hostInputs, autostartDependencies),
+				}),
+			});
+	}
+}
+
 function isSupportedPlatform(platform: NodeJS.Platform): platform is SupportedPlatform {
 	return SUPPORTED_PLATFORMS.some((supported) => supported === platform);
 }
 
-// ---------------------------------------------------------------------------
-// Platform adapter seam (E-132). Platforms outside the three supported
-// setters get E_PLATFORM_UNSUPPORTED, never a near-name fallthrough into a
-// better-matching adapter.
-// ---------------------------------------------------------------------------
-
-export interface PlatformKillTreeAdapter {
-	readonly killTree: typeof platformKillTree;
-}
-
-import type {
-	KillTreeClock,
-	KillTreeEmit,
-	KillTreeResult,
-} from './kill-tree-contract.ts';
-import { darwinKillTree } from './darwin.ts';
-import { linuxKillTree } from './linux.ts';
-import { windowsKillTree } from './windows.ts';
-
-export function platformKillTree(
-	platform: SupportedPlatform,
-	pid: number,
-	options: {
-		readonly graceMs?: number;
-		readonly clock?: KillTreeClock;
-		readonly signal?: AbortSignal;
-		readonly emit?: KillTreeEmit;
-		readonly spawnImpl?: unknown;
-	},
-): Promise<KillTreeResult> {
-	switch (platform) {
-		case 'win32':
-			return windowsKillTree(pid, options as never);
-		case 'darwin':
-			return darwinKillTree(pid, options);
-		case 'linux':
-			return linuxKillTree(pid, options);
-	}
-	const error = Object.freeze({
-		code: 'E_PLATFORM_UNSUPPORTED',
-		message: 'The current host platform is not supported.',
-		details: Object.freeze({ platform }),
+function unsupportedPlatform(
+	platform: NodeJS.Platform,
+): Extract<PlatformAdapterResult, { readonly ok: false }> {
+	return Object.freeze({
+		ok: false,
+		error: Object.freeze({
+			code: 'E_PLATFORM_UNSUPPORTED',
+			message: 'The current host platform is not supported.',
+			details: Object.freeze({ platform }),
+		}),
 	});
-	throw Object.assign(new Error(error.message), { code: error.code, details: error.details });
 }

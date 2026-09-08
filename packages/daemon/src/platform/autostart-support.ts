@@ -1,44 +1,25 @@
 import type { DaemonLaunchSpec } from '@agent-scheduler/shared/shell/daemon-launch-spec';
-import type { AutostartFailure } from './autostart-contract.ts';
-
-export interface CommandResult {
-	readonly code: number | null;
-	readonly stdout: string;
-	readonly stderr: string;
-}
-
-export type CommandRunner = (file: string, args: readonly string[]) => Promise<CommandResult>;
-
-/** Encodes the three launch-spec fields losslessly: file, cwd, then args as JSON. */
-export function encodeSpec(spec: DaemonLaunchSpec): string {
-	return `${spec.file}\n${spec.cwd}\n${JSON.stringify(spec.args)}\n`;
-}
-
-export function decodeSpec(encoded: string): DaemonLaunchSpec | undefined {
-	const lines = encoded.split('\n');
-	const [file, cwd, argsLine] = [lines[0], lines[1], lines[2]];
-	if (file === undefined || cwd === undefined || argsLine === undefined) return undefined;
-	if (file.length === 0 || cwd.length === 0) return undefined;
-	let args: unknown;
-	try {
-		args = JSON.parse(argsLine);
-	} catch {
-		return undefined;
-	}
-	if (!Array.isArray(args) || args.some((argument) => typeof argument !== 'string')) {
-		return undefined;
-	}
-	return Object.freeze({ file, cwd, args: Object.freeze([...(args as readonly string[])]) });
-}
+import type { AutostartErrorCode, AutostartFailure, CommandResult } from './autostart-contract.ts';
 
 export function encodeSpecBase64(spec: DaemonLaunchSpec): string {
-	return Buffer.from(encodeSpec(spec), 'utf8').toString('base64');
+	return Buffer.from(JSON.stringify([spec.file, spec.args, spec.cwd]), 'utf8').toString('base64');
 }
 
 export function decodeSpecBase64(encoded: string): DaemonLaunchSpec | undefined {
 	if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) return undefined;
 	try {
-		return decodeSpec(Buffer.from(encoded, 'base64').toString('utf8'));
+		const parsed: unknown = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+		if (!Array.isArray(parsed) || parsed.length !== 3) return undefined;
+		const [file, args, cwd] = parsed;
+		if (
+			typeof file !== 'string' ||
+			!Array.isArray(args) ||
+			args.some((argument) => typeof argument !== 'string') ||
+			typeof cwd !== 'string'
+		) {
+			return undefined;
+		}
+		return Object.freeze({ file, args: Object.freeze([...args]), cwd });
 	} catch {
 		return undefined;
 	}
@@ -53,24 +34,70 @@ export function specsEqual(left: DaemonLaunchSpec, right: DaemonLaunchSpec): boo
 	);
 }
 
-export function deniedFailure(
-	operation: 'register' | 'unregister' | 'status',
+export function failure(
+	code: AutostartErrorCode,
+	message: string,
 	details: Readonly<Record<string, unknown>>,
 	cause?: unknown,
 ): { readonly ok: false; readonly error: AutostartFailure } {
-	const code: AutostartFailure['code'] =
-		operation === 'unregister'
-			? 'E_AUTOSTART_UNREGISTER_DENIED'
-			: operation === 'register'
-				? 'E_AUTOSTART_REGISTER_DENIED'
+	return Object.freeze({
+		ok: false,
+		error: Object.freeze({ code, message, details, cause }),
+	});
+}
+
+export function commandFailure(
+	operation: 'register' | 'status' | 'unregister',
+	result: Exclude<CommandResult, { readonly ok: true }>,
+	details: Readonly<Record<string, unknown>>,
+): { readonly ok: false; readonly error: AutostartFailure } {
+	if (result.kind === 'unsupported') {
+		return failure(
+			'E_AUTOSTART_UNSUPPORTED',
+			'The current host does not provide the required user autostart service.',
+			Object.freeze({ ...details, stderr: result.stderr }),
+			result.cause,
+		);
+	}
+	const code =
+		operation === 'register'
+			? 'E_AUTOSTART_REGISTER_DENIED'
+			: operation === 'unregister'
+				? 'E_AUTOSTART_UNREGISTER_DENIED'
 				: 'E_AUTOSTART_UNSUPPORTED';
+	return failure(
+		code,
+		`The host failed the autostart ${operation} operation.`,
+		Object.freeze({ ...details, stderr: result.stderr }),
+		result.cause,
+	);
+}
+
+export function invalidNameFailure(name: string) {
+	return failure(
+		'E_VALIDATION',
+		'The autostart registration name is invalid.',
+		Object.freeze({ name }),
+	);
+}
+
+export function isFileNotFound(cause: unknown): boolean {
+	return (
+		typeof cause === 'object' &&
+		cause !== null &&
+		(cause as NodeJS.ErrnoException).code === 'ENOENT'
+	);
+}
+
+export function withManualStartCommand(
+	result: { readonly ok: false; readonly error: AutostartFailure },
+	manualStartCommand: string,
+): { readonly ok: false; readonly error: AutostartFailure } {
 	return Object.freeze({
 		ok: false,
 		error: Object.freeze({
-			code,
-			message: `The host refused the autostart ${operation} operation.`,
-			details,
-			cause,
+			...result.error,
+			details: Object.freeze({ ...result.error.details, manualStartCommand }),
 		}),
 	});
 }
@@ -84,14 +111,22 @@ export function xmlEscape(value: string): string {
 		.replace(/'/g, '&apos;');
 }
 
-/** CommandLineToArgvW-compatible quoting for a single argument (no shell involved). */
+export function xmlUnescape(value: string): string {
+	return value
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&apos;/g, "'")
+		.replace(/&amp;/g, '&');
+}
+
+/** CommandLineToArgvW-compatible quoting for one argument; no shell is involved. */
 export function quoteForWindowsArgv(argument: string): string {
 	if (argument.length > 0 && !/[\s"]/.test(argument)) return argument;
 	const escaped = argument.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/g, '$1$1');
 	return `"${escaped}"`;
 }
 
-/** Single-quote escaping for POSIX sh. */
 export function quoteForSh(value: string): string {
 	return `'${value.replace(/'/g, `'\\''`)}'`;
 }

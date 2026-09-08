@@ -1,20 +1,23 @@
-import { execFile, spawn } from 'node:child_process';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { win32 } from 'node:path';
 import type { DaemonLaunchSpec } from '@agent-scheduler/shared/shell/daemon-launch-spec';
 import type {
+	AutostartAdapter,
+	AutostartDependencies,
 	AutostartOperationResult,
 	AutostartStatus,
 	AutostartVoidResult,
+	CommandRunner,
 } from './autostart-contract.ts';
+import { isValidAutostartName } from './autostart-contract.ts';
 import {
-	type CommandRunner,
-	deniedFailure,
-	encodeSpec,
+	commandFailure,
+	encodeSpecBase64,
+	invalidNameFailure,
 	quoteForWindowsArgv,
 	specsEqual,
+	withManualStartCommand,
 	xmlEscape,
+	xmlUnescape,
 } from './autostart-support.ts';
 import type {
 	AppDataDirectoryResult,
@@ -28,11 +31,12 @@ import type {
 	KillTreeAttempt,
 	KillTreeAttemptMethod,
 	KillTreeAttemptResult,
-	KillTreeClock,
-	KillTreeEmit,
+	KillTreeOptions,
+	KillTreeProcessOps,
 	KillTreeResult,
 } from './kill-tree-contract.ts';
 import { KILL_TREE_GRACE_MS } from './kill-tree-contract.ts';
+import { finish, recordAttempt } from './kill-tree-posix.ts';
 
 const APPLICATION_DIRECTORY_NAME = 'agent-scheduler';
 const DEFAULT_WINDOWS_DIRECTORY = 'C:\\Windows';
@@ -224,107 +228,34 @@ function unresolvedDataDirectory(homedir: string): AppDataDirectoryResult {
 
 export async function windowsKillTree(
 	pid: number,
-	options: {
-		readonly graceMs?: number;
-		readonly clock?: KillTreeClock;
-		readonly signal?: AbortSignal;
-		readonly emit?: KillTreeEmit;
-		readonly spawnImpl?: WindowsSpawnImpl;
-	} = {},
+	processOps: KillTreeProcessOps,
+	options: KillTreeOptions = {},
 ): Promise<KillTreeResult> {
 	const graceMs = options.graceMs ?? KILL_TREE_GRACE_MS;
-	const clock = options.clock ?? { now: () => new Date().toISOString() };
-	const spawnImpl = options.spawnImpl ?? defaultWindowsTaskkill;
 	const attempts: KillTreeAttempt[] = [];
 
 	const attempt = async (
 		method: KillTreeAttemptMethod,
 		args: readonly string[],
 	): Promise<KillTreeAttemptResult> => {
-		const result = await spawnImpl(args);
-		const record: KillTreeAttempt = Object.freeze({
-			attempt: attempts.length + 1,
-			method,
-			result,
-			at: clock.now(),
-		});
-		attempts.push(record);
-		options.emit?.(Object.freeze({ phase: 'attempt', pid, attempt: record }));
+		const result = await processOps.taskkill(args);
+		recordAttempt(pid, method, result, processOps, attempts, options.emit);
 		return result;
 	};
 
 	const initial = await attempt('taskkill-soft', ['/PID', String(pid), '/T']);
 	if (initial === 'terminated' || initial === 'not-process-owner') {
-		return finishKillTree(pid, initial, attempts, options.emit);
+		return finish(pid, initial, attempts, options.emit);
 	}
 
-	await delayKillTree(graceMs, options.signal);
+	await processOps.wait(graceMs);
+	const afterGrace = await processOps.probeTree(pid);
+	if (afterGrace !== 'still-running') {
+		return finish(pid, afterGrace, attempts, options.emit);
+	}
 
 	const forced = await attempt('taskkill-force', ['/PID', String(pid), '/T', '/F']);
-	return finishKillTree(pid, forced, attempts, options.emit);
-}
-
-export type WindowsSpawnImpl = (args: readonly string[]) => Promise<KillTreeAttemptResult>;
-
-/** taskkill exit 128 means no process matched; "Access is denied" means EPERM. */
-const defaultWindowsTaskkill: WindowsSpawnImpl = async (args) => {
-	const child = spawn('taskkill.exe', [...args], {
-		shell: false,
-		windowsHide: true,
-	});
-	let stderr = '';
-	child.stderr?.on('data', (chunk: Buffer) => {
-		stderr += chunk.toString('utf8');
-	});
-	return new Promise((resolve) => {
-		child.once('close', (code) => {
-			child.stderr?.removeAllListeners('data');
-			if (code === 0 || code === 128) {
-				resolve('terminated');
-			} else if (/access is denied/i.test(stderr)) {
-				resolve('not-process-owner');
-			} else {
-				resolve('still-running');
-			}
-		});
-		child.once('error', () => resolve('still-running'));
-	});
-};
-
-function finishKillTree(
-	pid: number,
-	lastResult: KillTreeAttemptResult,
-	attempts: readonly KillTreeAttempt[],
-	emit?: KillTreeEmit,
-): KillTreeResult {
-	const outcome =
-		lastResult === 'terminated'
-			? 'terminated'
-			: lastResult === 'not-process-owner'
-				? 'not-process-owner'
-				: 'survived';
-	emit?.(Object.freeze({ phase: 'outcome', pid, outcome, attempts: Object.freeze([...attempts]) }));
-	return Object.freeze({ outcome, attempts });
-}
-
-function delayKillTree(milliseconds: number, signal?: AbortSignal): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const timer = setTimeout(() => {
-			signal?.removeEventListener('abort', onAbort);
-			resolve();
-		}, milliseconds);
-		const onAbort = (): void => {
-			clearTimeout(timer);
-			reject(Object.assign(new Error('Aborted.'), { name: 'AbortError' }));
-		};
-		if (signal) {
-			if (signal.aborted) {
-				onAbort();
-				return;
-			}
-			signal.addEventListener('abort', onAbort, { once: true });
-		}
-	});
+	return finish(pid, forced, attempts, options.emit);
 }
 
 // ---------------------------------------------------------------------------
@@ -336,50 +267,65 @@ function delayKillTree(milliseconds: number, signal?: AbortSignal): Promise<void
 
 const WINDOWS_TASK_FOLDER = '\\AgentScheduler';
 
-export interface WindowsAutostartAdapter {
-	readonly register: (
-		name: string,
-		spec: DaemonLaunchSpec,
-		runner?: CommandRunner,
-	) => Promise<AutostartVoidResult>;
-	readonly status: (
-		name: string,
-		spec: DaemonLaunchSpec,
-		runner?: CommandRunner,
-	) => Promise<AutostartOperationResult<AutostartStatus>>;
-	readonly unregister: (name: string, runner?: CommandRunner) => Promise<AutostartVoidResult>;
-	readonly deleteLine: (name: string) => string;
-}
-
-export const WINDOWS_AUTOSTART: WindowsAutostartAdapter = Object.freeze({
-	register: windowsAutostartRegister,
-	status: windowsAutostartStatus,
-	unregister: windowsAutostartUnregister,
-	deleteLine: windowsAutostartDeleteLine,
-});
-
 export function windowsAutostartDeleteLine(name: string): string {
 	return `schtasks.exe /Delete /TN "${windowsTaskName(name)}" /F`;
+}
+
+export function windowsAutostartStartLine(spec: DaemonLaunchSpec): string {
+	return `Set-Location -LiteralPath ${quoteForPowerShell(spec.cwd)}; & ${[spec.file, ...spec.args]
+		.map(quoteForPowerShell)
+		.join(' ')}`;
 }
 
 function windowsTaskName(name: string): string {
 	return `${WINDOWS_TASK_FOLDER}\\${name}`;
 }
 
+export function createWindowsAutostart(
+	name: string,
+	dependencies: AutostartDependencies,
+): AutostartAdapter {
+	return Object.freeze({
+		register: async (spec: DaemonLaunchSpec) => {
+			const result = await windowsAutostartRegister(name, spec, dependencies);
+			return result.ok ? result : withManualStartCommand(result, windowsAutostartStartLine(spec));
+		},
+		status: (spec: DaemonLaunchSpec) => windowsAutostartStatus(name, spec, dependencies.runCommand),
+		unregister: () => windowsAutostartUnregister(name, dependencies.runCommand),
+		manualStartCommand: windowsAutostartStartLine,
+		manualUnregisterCommand: windowsAutostartDeleteLine(name),
+	});
+}
+
+function quoteForPowerShell(value: string): string {
+	return `'${value.replace(/'/g, "''")}'`;
+}
+
 async function windowsAutostartRegister(
 	name: string,
 	spec: DaemonLaunchSpec,
-	runner: CommandRunner = defaultWindowsRunner,
+	dependencies: AutostartDependencies,
 ): Promise<AutostartVoidResult> {
-	const existing = await windowsAutostartStatus(name, spec, runner);
+	if (!isValidAutostartName(name)) return invalidNameFailure(name);
+	const existing = await windowsAutostartStatus(name, spec, dependencies.runCommand);
 	if (!existing.ok) return existing;
 	if (existing.value.registered && existing.value.matchesSpec) {
 		return Object.freeze({ ok: true, value: null });
 	}
 	const xml = buildWindowsTaskXml(spec);
-	const xmlPath = await writeTaskXmlFile(name, xml);
+	const xmlPath = win32.join(dependencies.temporaryDirectory, `${name}.xml`);
 	try {
-		const result = await runner('schtasks.exe', [
+		await dependencies.files.makeDirectory(dependencies.temporaryDirectory);
+		await dependencies.files.writeTextFile(xmlPath, xml);
+	} catch (cause) {
+		return commandFailure(
+			'register',
+			{ ok: false, kind: 'failed', code: null, stdout: '', stderr: '', cause },
+			Object.freeze({ taskName: windowsTaskName(name), xmlPath }),
+		);
+	}
+	try {
+		const result = await dependencies.runCommand('schtasks.exe', [
 			'/Create',
 			'/TN',
 			windowsTaskName(name),
@@ -387,35 +333,33 @@ async function windowsAutostartRegister(
 			xmlPath,
 			'/F',
 		]);
-		if (result.code !== 0) {
-			return deniedFailure(
-				'register',
-				Object.freeze({ taskName: windowsTaskName(name), stderr: result.stderr }),
-			);
-		}
+		if (!result.ok) return commandFailure('register', result, { taskName: windowsTaskName(name) });
 		return Object.freeze({ ok: true, value: null });
 	} finally {
-		await rm(xmlPath, { force: true }).catch(() => undefined);
+		await dependencies.files.removeFile(xmlPath).catch(() => undefined);
 	}
 }
 
 async function windowsAutostartStatus(
 	name: string,
 	spec: DaemonLaunchSpec,
-	runner: CommandRunner = defaultWindowsRunner,
+	runner: CommandRunner,
 ): Promise<AutostartOperationResult<AutostartStatus>> {
+	if (!isValidAutostartName(name)) return invalidNameFailure(name);
 	const result = await runner('schtasks.exe', ['/Query', '/TN', windowsTaskName(name), '/XML']);
-	if (result.code !== 0) {
+	if (!result.ok && result.kind === 'not-found') {
 		return Object.freeze({
 			ok: true,
 			value: Object.freeze({ registered: false, matchesSpec: false }),
 		});
 	}
+	if (!result.ok) return commandFailure('status', result, { taskName: windowsTaskName(name) });
 	const recorded = parseWindowsTaskXml(result.stdout);
 	if (recorded === undefined) {
-		return deniedFailure(
+		return commandFailure(
 			'status',
-			Object.freeze({ taskName: windowsTaskName(name), reason: 'unreadable-registration' }),
+			{ ok: false, kind: 'failed', code: 0, stdout: result.stdout, stderr: '' },
+			{ taskName: windowsTaskName(name), reason: 'unreadable-registration' },
 		);
 	}
 	return Object.freeze({
@@ -430,24 +374,21 @@ async function windowsAutostartStatus(
 
 async function windowsAutostartUnregister(
 	name: string,
-	runner: CommandRunner = defaultWindowsRunner,
+	runner: CommandRunner,
 ): Promise<AutostartVoidResult> {
+	if (!isValidAutostartName(name)) return invalidNameFailure(name);
 	const result = await runner('schtasks.exe', ['/Delete', '/TN', windowsTaskName(name), '/F']);
-	if (result.code !== 0) {
-		return deniedFailure(
-			'unregister',
-			Object.freeze({ taskName: windowsTaskName(name), stderr: result.stderr }),
-		);
-	}
+	if (!result.ok && result.kind === 'not-found') return Object.freeze({ ok: true, value: null });
+	if (!result.ok) return commandFailure('unregister', result, { taskName: windowsTaskName(name) });
 	return Object.freeze({ ok: true, value: null });
 }
 
 function buildWindowsTaskXml(spec: DaemonLaunchSpec): string {
 	return [
-		'<?xml version="1.0" encoding="UTF-16"?>',
+		'<?xml version="1.0" encoding="UTF-8"?>',
 		'<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">',
 		'  <RegistrationInfo>',
-		`    <Description>${xmlEscape(`agent-scheduler-spec\n${encodeSpec(spec)}`)}</Description>`,
+		`    <Description>agent-scheduler-spec:${encodeSpecBase64(spec)}</Description>`,
 		'  </RegistrationInfo>',
 		'  <Triggers><LogonTrigger><Enabled>true</Enabled></LogonTrigger></Triggers>',
 		'  <Settings>',
@@ -464,7 +405,7 @@ function buildWindowsTaskXml(spec: DaemonLaunchSpec): string {
 		'    </Exec>',
 		'  </Actions>',
 		'</Task>',
-	].join('\r\n');
+	].join('\n');
 }
 
 function parseWindowsTaskXml(xml: string): DaemonLaunchSpec | undefined {
@@ -524,39 +465,3 @@ function parseCommandLineToArgv(commandLine: string): readonly string[] {
 	flush();
 	return Object.freeze(args);
 }
-
-function xmlUnescape(value: string): string {
-	return value
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&apos;/g, "'")
-		.replace(/&#xA;/g, '\n')
-		.replace(/&amp;/g, '&');
-}
-
-async function writeTaskXmlFile(name: string, xml: string): Promise<string> {
-	const safe = name.replace(/[^A-Za-z0-9._-]/g, '_');
-	const directory = win32.join(tmpdir(), 'agent-scheduler-autostart');
-	await mkdir(directory, { recursive: true });
-	const path = win32.join(directory, `${safe}.xml`);
-	await writeFile(path, xml.replace(/\n/g, '\r\n'), 'utf8');
-	return path;
-}
-
-const defaultWindowsRunner: CommandRunner = (file, args) =>
-	new Promise((resolve, reject) => {
-		execFile(file, [...args], { windowsHide: true }, (cause, stdout, stderr) => {
-			if (cause && typeof cause.code === 'number') {
-				resolve(
-					Object.freeze({ code: cause.code, stdout: String(stdout), stderr: String(stderr) }),
-				);
-				return;
-			}
-			if (cause) {
-				reject(cause);
-				return;
-			}
-			resolve(Object.freeze({ code: 0, stdout: String(stdout), stderr: String(stderr) }));
-		});
-	});

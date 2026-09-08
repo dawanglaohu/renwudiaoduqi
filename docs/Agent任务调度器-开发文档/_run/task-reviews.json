@@ -56,14 +56,15 @@
   "M1-T9": {
     "contractHash": "ab2f07872cb180570af552c852bd1ec0f0088cfb18fe5284a8f850c6da94d174",
     "evidence": [
-      "2026-09-07 复核 docs/Agent任务调度器-开发文档/04-执行/19-模块任务拆分.md:22：M1-T9 的前置 M1-T3、输入 DaemonLaunchSpec、三平台适配器产出和四条验收标准一致，且未把 M1-T6/M1-T7/M6-T5 的后续接线提前纳入本任务。",
-      "复核 docs/Agent任务调度器-开发文档/02-设计/08-后端架构.md:20-22、:272-282、:380-387：平台差异唯一收口、冻结的 file/args/cwd 契约、进程树两阶段终止与注入 processOps 的分层要求明确且可实现。",
-      "复核 docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:132、:145、:222、:282：E-119、E-132、E-209、E-269 的触发、结果、失败降级和清理义务均未被删除或弱化。",
-      "复核 docs/Agent任务调度器-开发文档/03-质量/17-测试策略.md:3-16、:33、:67：本地 pnpm -w check 与 Windows/macOS/Ubuntu 平台集成矩阵、真实进程组/原生自启及 finally 清理证据要求明确。",
-      "通过补丁 M1-T9-review-scope-20260907 在 docs/Agent任务调度器-开发文档/_run/task-contracts.json:64-71 补入精确支持范围：kill-tree 单测、test/platform、shared 包导出与错误码源/投影；未扩大生产代码主范围 packages/daemon/src/platform/。",
-      "packages/shared/src/shell/daemon-launch-spec.ts:1-3、:43-76 已提供绝对 file/args/cwd 的共享冻结解析契约；本次契约复核仅确认任务定义 ready，不把 PR #8 当前代码验收或测试结果登记为通过。"
+      "2026-09-08 第2轮仅复核 PR #8 REVIEW-ROUND 1 的 R1-R5。任务契约 hash 保持 ab2f07872cb180570af552c852bd1ec0f0088cfb18fe5284a8f850c6da94d174；maintain_docs status 返回 ready=true、stale=[]。",
+      "R1/E-119：kill-tree-posix.ts:16-37 与 windows.ts:229-258 由注入的 processOps 执行软终止、3000ms 等待、探活与强制升级，每次动作由 recordAttempt 发事件。kill-tree.test.ts 5 项覆盖 TERM/TASKKILL、等待、探活、KILL/F 和所有权终局。",
+      "R2/R4/E-132：contract.ts:53-60 定义统一 PlatformAdapter；host.ts:92-145 是唯一平台选择点，freebsd 返回 E_PLATFORM_UNSUPPORTED。生产 platform 代码不再导入 child_process、调用 process.kill 或自建时钟/等待，process.platform 只在 host.ts。",
+      "R3/E-209：三个 AutostartAdapter 都实现 register(spec)/status(spec)/unregister()；Windows 读取 XML 原生字段，Darwin 同时核对 launchctl 与 plist，Linux 同时核对 systemd is-enabled 与完整 unit。autostart.test.ts 14 项覆盖特殊参数往返、幂等、file/args/cwd 分别变化后的重写、原生字段篡改、部分失败回滚、手动启动命令和 unsupported 分支。",
+      "R5/E-119/E-269：test/platform/kill-tree-native.test.ts 启动会派生后代且拒绝软终止的父进程，Windows 实际经过 taskkill /T 再 /F 并确认父子 PID 均退出，Linux 实际经过进程组 TERM 再 KILL。autostart-native.test.ts 使用 PID+UUID 隔离名称，在 finally 注销、复查残留并在失败时输出人工删除命令。",
+      "实测：Windows Node 22.17.0 的 pnpm -w check 通过 Biome、tsc 与 11 个 Vitest 文件 93/93；Linux Node 22.17.0 聚焦运行 4 个文件 21/21。Windows Task Scheduler 原生注册清理和父子树终止通过；Linux 环境的 POSIX 父子组终止及无 systemd user 降级通过。没有把这些结果外推成 macOS 本机证据，macOS runner 与三平台发布门禁仍归 M10-T5。",
+      "任务笔记 code/notes 已按当前文件和行号重写，记录注入边界、原生状态与字段双重核对、taskkill 128 歧义、失败回滚及本机证据边界；未提前实现 M1-T6/M1-T7/M6-T5 的调用接线。"
     ],
-    "reviewed": "2026-09-07T06:24:16.608375+00:00",
+    "reviewed": "2026-09-08T08:30:07.434462+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

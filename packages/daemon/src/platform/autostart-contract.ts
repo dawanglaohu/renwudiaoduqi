@@ -1,25 +1,7 @@
 import type { DaemonLaunchSpec } from '@agent-scheduler/shared/shell/daemon-launch-spec';
 
-export type AutostartNameValidation =
-	| { readonly ok: true; readonly value: string }
-	| { readonly ok: false };
-
-/**
- * deleteLine is the plain text command a human can paste verbatim to remove a
- * leftover registration, e.g. when a test run dies mid-cleanup (E-269).
- */
-export interface AutostartEntryName {
-	readonly argv: readonly string[];
-	readonly deleteLine: string;
-}
-
-export interface AutostartStatus {
-	readonly registered: boolean;
-	readonly matchesSpec: boolean;
-	readonly recordedSpec?: DaemonLaunchSpec;
-}
-
 export type AutostartErrorCode =
+	| 'E_VALIDATION'
 	| 'E_PLATFORM_UNSUPPORTED'
 	| 'E_AUTOSTART_UNSUPPORTED'
 	| 'E_AUTOSTART_REGISTER_DENIED'
@@ -38,19 +20,53 @@ export type AutostartOperationResult<T> =
 
 export type AutostartVoidResult = AutostartOperationResult<null>;
 
+export interface AutostartStatus {
+	readonly registered: boolean;
+	readonly matchesSpec: boolean;
+	readonly recordedSpec?: DaemonLaunchSpec;
+}
+
+/** The registration name and platform dependencies are bound by the adapter factory. */
 export interface AutostartAdapter {
-	readonly register: (name: string, spec: DaemonLaunchSpec) => Promise<AutostartVoidResult>;
-	readonly status: (
-		name: string,
-		spec: DaemonLaunchSpec,
-	) => Promise<AutostartOperationResult<AutostartStatus>>;
-	readonly unregister: (name: string) => Promise<AutostartVoidResult>;
+	readonly register: (spec: DaemonLaunchSpec) => Promise<AutostartVoidResult>;
+	readonly status: (spec: DaemonLaunchSpec) => Promise<AutostartOperationResult<AutostartStatus>>;
+	readonly unregister: () => Promise<AutostartVoidResult>;
+	/** Copyable fallback that preserves the launch file, argv, and working directory. */
+	readonly manualStartCommand: (spec: DaemonLaunchSpec) => string;
+	/** Copyable recovery command for a native entry left behind by interrupted cleanup. */
+	readonly manualUnregisterCommand: string;
+}
+
+export type CommandFailureKind = 'not-found' | 'unsupported' | 'denied' | 'failed';
+
+export type CommandResult =
+	| { readonly ok: true; readonly stdout: string; readonly stderr: string }
+	| {
+			readonly ok: false;
+			readonly kind: CommandFailureKind;
+			readonly code: number | null;
+			readonly stdout: string;
+			readonly stderr: string;
+			readonly cause?: unknown;
+	  };
+
+export type CommandRunner = (file: string, args: readonly string[]) => Promise<CommandResult>;
+
+export interface AutostartFileSystem {
+	readonly makeDirectory: (path: string) => Promise<void>;
+	readonly readTextFile: (path: string) => Promise<string>;
+	readonly writeTextFile: (path: string, content: string) => Promise<void>;
+	readonly removeFile: (path: string) => Promise<void>;
+}
+
+export interface AutostartDependencies {
+	readonly files: AutostartFileSystem;
+	readonly runCommand: CommandRunner;
+	readonly temporaryDirectory: string;
 }
 
 const AUTOSTART_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
-export function isValidAutostartName(name: string): AutostartNameValidation {
-	return AUTOSTART_NAME_PATTERN.test(name)
-		? Object.freeze({ ok: true, value: name })
-		: Object.freeze({ ok: false });
+export function isValidAutostartName(name: string): boolean {
+	return AUTOSTART_NAME_PATTERN.test(name);
 }

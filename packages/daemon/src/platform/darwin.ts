@@ -1,18 +1,23 @@
-import { spawn } from 'node:child_process';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { posix } from 'node:path';
 import type { DaemonLaunchSpec } from '@agent-scheduler/shared/shell/daemon-launch-spec';
 import type {
+	AutostartAdapter,
+	AutostartDependencies,
 	AutostartOperationResult,
 	AutostartStatus,
 	AutostartVoidResult,
 } from './autostart-contract.ts';
+import { isValidAutostartName } from './autostart-contract.ts';
 import {
-	type CommandRunner,
-	decodeSpecBase64,
-	deniedFailure,
+	commandFailure,
 	encodeSpecBase64,
+	invalidNameFailure,
+	isFileNotFound,
+	quoteForSh,
 	specsEqual,
+	withManualStartCommand,
+	xmlEscape,
+	xmlUnescape,
 } from './autostart-support.ts';
 import type {
 	AppDataDirectoryResult,
@@ -106,64 +111,69 @@ export { posixKillTree as darwinKillTree } from './kill-tree-posix.ts';
 // marker carries the base64-encoded spec for lossless field comparison.
 // ---------------------------------------------------------------------------
 
-export interface DarwinAutostartAdapter {
-	readonly register: (
-		name: string,
-		spec: DaemonLaunchSpec,
-		hostInputs: PlatformHostInputs,
-		runner?: CommandRunner,
-	) => Promise<AutostartVoidResult>;
-	readonly status: (
-		name: string,
-		spec: DaemonLaunchSpec,
-		hostInputs: PlatformHostInputs,
-	) => Promise<AutostartOperationResult<AutostartStatus>>;
-	readonly unregister: (
-		name: string,
-		hostInputs: PlatformHostInputs,
-		runner?: CommandRunner,
-	) => Promise<AutostartVoidResult>;
-	readonly deleteLine: (name: string, hostInputs: PlatformHostInputs) => string;
+export function darwinAutostartDeleteLine(name: string, hostInputs: PlatformHostInputs): string {
+	const path = darwinPlistPath(hostInputs, name);
+	return `launchctl unload -w ${quoteForSh(path)}; rm -f ${quoteForSh(path)}`;
 }
 
-export const DARWIN_AUTOSTART: DarwinAutostartAdapter = Object.freeze({
-	register: darwinAutostartRegister,
-	status: darwinAutostartStatus,
-	unregister: darwinAutostartUnregister,
-	deleteLine: darwinAutostartDeleteLine,
-});
-
-export function darwinAutostartDeleteLine(name: string, hostInputs: PlatformHostInputs): string {
-	return `rm -f ${darwinPlistPath(hostInputs, name)}`;
+export function darwinAutostartStartLine(spec: DaemonLaunchSpec): string {
+	return `cd ${quoteForSh(spec.cwd)} && exec ${[spec.file, ...spec.args].map(quoteForSh).join(' ')}`;
 }
 
 function darwinPlistPath(hostInputs: PlatformHostInputs, name: string): string {
 	return posix.join(hostInputs.homedir, 'Library', 'LaunchAgents', `${name}.plist`);
 }
 
+export function createDarwinAutostart(
+	name: string,
+	hostInputs: PlatformHostInputs,
+	dependencies: AutostartDependencies,
+): AutostartAdapter {
+	return Object.freeze({
+		register: async (spec: DaemonLaunchSpec) => {
+			const result = await darwinAutostartRegister(name, spec, hostInputs, dependencies);
+			return result.ok ? result : withManualStartCommand(result, darwinAutostartStartLine(spec));
+		},
+		status: (spec: DaemonLaunchSpec) => darwinAutostartStatus(name, spec, hostInputs, dependencies),
+		unregister: () => darwinAutostartUnregister(name, hostInputs, dependencies),
+		manualStartCommand: darwinAutostartStartLine,
+		manualUnregisterCommand: darwinAutostartDeleteLine(name, hostInputs),
+	});
+}
+
 async function darwinAutostartRegister(
 	name: string,
 	spec: DaemonLaunchSpec,
 	hostInputs: PlatformHostInputs,
-	runner: CommandRunner = defaultDarwinRunner,
+	dependencies: AutostartDependencies,
 ): Promise<AutostartVoidResult> {
-	const existing = await darwinAutostartStatus(name, spec, hostInputs);
+	if (!isValidAutostartName(name)) return invalidNameFailure(name);
+	const existing = await darwinAutostartStatus(name, spec, hostInputs, dependencies);
 	if (!existing.ok) return existing;
 	if (existing.value.registered && existing.value.matchesSpec) {
 		return Object.freeze({ ok: true, value: null });
 	}
 	const path = darwinPlistPath(hostInputs, name);
-	try {
-		await mkdir(posix.dirname(path), { recursive: true });
-		await writeFile(path, buildLaunchAgentPlist(name, spec), 'utf8');
-	} catch (cause: unknown) {
-		return deniedFailure('register', Object.freeze({ plistPath: path }), cause);
+	if (existing.value.registered) {
+		const unloaded = await dependencies.runCommand('launchctl', ['unload', '-w', path]);
+		if (!unloaded.ok && unloaded.kind !== 'not-found') {
+			return commandFailure('register', unloaded, { plistPath: path, phase: 'unload-stale' });
+		}
 	}
-	// Unload first so a stale in-memory entry cannot shadow the rewrite.
-	await runLaunchctl(['unload', '-w', path], runner);
-	const loaded = await runLaunchctl(['load', '-w', path], runner);
-	if (loaded.code !== 0) {
-		return deniedFailure('register', Object.freeze({ plistPath: path, stderr: loaded.stderr }));
+	try {
+		await dependencies.files.makeDirectory(posix.dirname(path));
+		await dependencies.files.writeTextFile(path, buildLaunchAgentPlist(name, spec));
+	} catch (cause: unknown) {
+		return commandFailure(
+			'register',
+			{ ok: false, kind: 'failed', code: null, stdout: '', stderr: '', cause },
+			{ plistPath: path },
+		);
+	}
+	const loaded = await dependencies.runCommand('launchctl', ['load', '-w', path]);
+	if (!loaded.ok) {
+		await dependencies.files.removeFile(path).catch(() => undefined);
+		return commandFailure('register', loaded, { plistPath: path });
 	}
 	return Object.freeze({ ok: true, value: null });
 }
@@ -172,17 +182,31 @@ async function darwinAutostartStatus(
 	name: string,
 	spec: DaemonLaunchSpec,
 	hostInputs: PlatformHostInputs,
+	dependencies: AutostartDependencies,
 ): Promise<AutostatStatusUnion> {
+	if (!isValidAutostartName(name)) return invalidNameFailure(name);
 	const path = darwinPlistPath(hostInputs, name);
+	const nativeStatus = await dependencies.runCommand('launchctl', ['list', name]);
+	if (!nativeStatus.ok && nativeStatus.kind !== 'not-found') {
+		return commandFailure('status', nativeStatus, { plistPath: path });
+	}
 	try {
-		const content = await readFile(path, 'utf8');
-		const recorded = parseLaunchAgentPlist(content) ?? parseEmbeddedSpec(content);
+		const content = await dependencies.files.readTextFile(path);
+		const recorded = parseLaunchAgentPlist(content);
 		if (recorded === undefined) {
-			return deniedFailure(
+			return commandFailure(
 				'status',
-				Object.freeze({ plistPath: path, reason: 'unreadable-registration' }),
+				{ ok: false, kind: 'failed', code: null, stdout: '', stderr: '' },
+				{ plistPath: path, reason: 'unreadable-registration' },
 			);
 		}
+		if (!nativeStatus.ok && nativeStatus.kind === 'not-found') {
+			return Object.freeze({
+				ok: true,
+				value: Object.freeze({ registered: false, matchesSpec: false, recordedSpec: recorded }),
+			});
+		}
+		if (!nativeStatus.ok) return commandFailure('status', nativeStatus, { plistPath: path });
 		return Object.freeze({
 			ok: true,
 			value: Object.freeze({
@@ -192,13 +216,17 @@ async function darwinAutostartStatus(
 			}),
 		});
 	} catch (cause: unknown) {
-		if ((cause as NodeJS.ErrnoException).code === 'ENOENT') {
+		if (isFileNotFound(cause)) {
 			return Object.freeze({
 				ok: true,
-				value: Object.freeze({ registered: false, matchesSpec: false }),
+				value: Object.freeze({ registered: nativeStatus.ok, matchesSpec: false }),
 			});
 		}
-		return deniedFailure('status', Object.freeze({ plistPath: path }), cause);
+		return commandFailure(
+			'status',
+			{ ok: false, kind: 'failed', code: null, stdout: '', stderr: '', cause },
+			{ plistPath: path },
+		);
 	}
 }
 
@@ -207,15 +235,23 @@ type AutostatStatusUnion = AutostartOperationResult<AutostartStatus>;
 async function darwinAutostartUnregister(
 	name: string,
 	hostInputs: PlatformHostInputs,
-	runner: CommandRunner = defaultDarwinRunner,
+	dependencies: AutostartDependencies,
 ): Promise<AutostartVoidResult> {
+	if (!isValidAutostartName(name)) return invalidNameFailure(name);
 	const path = darwinPlistPath(hostInputs, name);
-	await runLaunchctl(['unload', '-w', path], runner).catch(() => undefined);
+	const unloaded = await dependencies.runCommand('launchctl', ['unload', '-w', path]);
+	if (!unloaded.ok && unloaded.kind !== 'not-found') {
+		return commandFailure('unregister', unloaded, { plistPath: path });
+	}
 	try {
-		await rm(path, { force: false });
+		await dependencies.files.removeFile(path);
 	} catch (cause: unknown) {
-		if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') {
-			return deniedFailure('unregister', Object.freeze({ plistPath: path }), cause);
+		if (!isFileNotFound(cause)) {
+			return commandFailure(
+				'unregister',
+				{ ok: false, kind: 'failed', code: null, stdout: '', stderr: '', cause },
+				{ plistPath: path },
+			);
 		}
 	}
 	return Object.freeze({ ok: true, value: null });
@@ -223,7 +259,7 @@ async function darwinAutostartUnregister(
 
 function buildLaunchAgentPlist(name: string, spec: DaemonLaunchSpec): string {
 	const argsXml = [spec.file, ...spec.args]
-		.map((argument) => `    <string>${xmlEscapeText(argument)}</string>`)
+		.map((argument) => `    <string>${xmlEscape(argument)}</string>`)
 		.join('\n');
 	return [
 		'<?xml version="1.0" encoding="UTF-8"?>',
@@ -232,13 +268,13 @@ function buildLaunchAgentPlist(name: string, spec: DaemonLaunchSpec): string {
 		`<!-- agent-scheduler-spec: ${encodeSpecBase64(spec)} -->`,
 		'<dict>',
 		'  <key>Label</key>',
-		`  <string>${xmlEscapeText(name)}</string>`,
+		`  <string>${xmlEscape(name)}</string>`,
 		'  <key>ProgramArguments</key>',
 		'  <array>',
 		argsXml,
 		'  </array>',
 		'  <key>WorkingDirectory</key>',
-		`  <string>${xmlEscapeText(spec.cwd)}</string>`,
+		`  <string>${xmlEscape(spec.cwd)}</string>`,
 		'  <key>RunAtLoad</key>',
 		'  <true/>',
 		'</dict>',
@@ -252,50 +288,13 @@ function parseLaunchAgentPlist(content: string): DaemonLaunchSpec | undefined {
 	const cwdMatch = content.match(/<key>WorkingDirectory<\/key>\s*<string>([\s\S]*?)<\/string>/);
 	if (argsMatch?.[1] === undefined || cwdMatch?.[1] === undefined) return undefined;
 	const items = [...argsMatch[1].matchAll(/<string>([\s\S]*?)<\/string>/g)].map((match) =>
-		xmlUnescapeText(match[1] ?? ''),
+		xmlUnescape(match[1] ?? ''),
 	);
 	const file = items[0];
 	if (file === undefined) return undefined;
 	return Object.freeze({
 		file,
 		args: Object.freeze(items.slice(1)),
-		cwd: xmlUnescapeText(cwdMatch[1]),
+		cwd: xmlUnescape(cwdMatch[1]),
 	});
 }
-
-function parseEmbeddedSpec(content: string): DaemonLaunchSpec | undefined {
-	const match = content.match(/agent-scheduler-spec: ([A-Za-z0-9+/=]+)/);
-	return match?.[1] === undefined ? undefined : decodeSpecBase64(match[1]);
-}
-
-function xmlEscapeText(value: string): string {
-	return value
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&apos;');
-}
-
-function xmlUnescapeText(value: string): string {
-	return value
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&apos;/g, "'")
-		.replace(/&amp;/g, '&');
-}
-
-function runLaunchctl(args: readonly string[], runner: CommandRunner) {
-	return runner('launchctl', args).then(
-		(result) => result,
-		() => ({ code: null, stdout: '', stderr: '' }) as const,
-	);
-}
-
-const defaultDarwinRunner: CommandRunner = (file, args) =>
-	new Promise((resolve) => {
-		spawn(file, [...args], { shell: false }).once('close', (code) =>
-			resolve(Object.freeze({ code, stdout: '', stderr: '' })),
-		);
-	});
