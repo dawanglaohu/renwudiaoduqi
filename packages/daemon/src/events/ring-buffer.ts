@@ -1,4 +1,4 @@
-import type { EventEnvelope, TruncatedPayloadRef } from '@agent-scheduler/shared/events';
+import type { EventEnvelope, TruncatedPayloadRef } from '@agent-scheduler/shared/api/events';
 import { AppError } from '../errors/app-error.ts';
 
 export const RING_BUFFER_CAPACITY = 5000;
@@ -32,11 +32,6 @@ export interface RingBuffer {
 	readonly oldest: () => EventEnvelope | undefined;
 	readonly latest: () => EventEnvelope | undefined;
 	readonly getEventsSince: (lastEventId: number) => ReplayResult;
-	readonly clear: () => void;
-}
-
-export interface RingBufferOptions {
-	readonly capacity?: number;
 }
 
 function measurePayloadByteLength(payload: unknown): number {
@@ -65,6 +60,21 @@ function isTruncatedPayload(payload: unknown): payload is TruncatedPayloadRef {
 	);
 }
 
+function isValidLocationRef(ref: unknown): ref is EventPayloadLocationRef {
+	if (!ref || typeof ref !== 'object') {
+		return false;
+	}
+	const candidate = ref as Record<string, unknown>;
+	return (
+		typeof candidate.fileSeq === 'number' &&
+		typeof candidate.byteOffset === 'number' &&
+		typeof candidate.byteLen === 'number' &&
+		candidate.fileSeq >= 0 &&
+		candidate.byteOffset >= 0 &&
+		candidate.byteLen >= 0
+	);
+}
+
 function sanitizeEnvelopeForBuffer(
 	envelope: EventEnvelope,
 	ref?: EventPayloadLocationRef,
@@ -75,11 +85,30 @@ function sanitizeEnvelopeForBuffer(
 
 	const byteLen = measurePayloadByteLength(envelope.payload);
 	if (byteLen > PAYLOAD_MAX_BYTES) {
+		if (!isValidLocationRef(ref)) {
+			throw new AppError(
+				'E_VALIDATION',
+				`Large event payload exceeding ${PAYLOAD_MAX_BYTES} bytes requires a valid logstore reference before entering ring buffer. ref:null is prohibited.`,
+				{
+					details: {
+						byteLen,
+						maxAllowedBytes: PAYLOAD_MAX_BYTES,
+						hasRef: ref !== undefined && ref !== null,
+					},
+				},
+			);
+		}
+
 		const truncatedPayload: TruncatedPayloadRef = {
 			truncated: true,
 			byteLen,
-			ref: ref ?? null,
+			ref: {
+				fileSeq: ref.fileSeq,
+				byteOffset: ref.byteOffset,
+				byteLen: ref.byteLen,
+			},
 		};
+
 		return Object.freeze({
 			...envelope,
 			payload: truncatedPayload,
@@ -89,11 +118,8 @@ function sanitizeEnvelopeForBuffer(
 	return envelope;
 }
 
-export function createRingBuffer(options?: RingBufferOptions): RingBuffer {
-	const capacity = options?.capacity ?? RING_BUFFER_CAPACITY;
-	if (capacity <= 0) {
-		throw new AppError('E_VALIDATION', 'RingBuffer capacity must be greater than 0.');
-	}
+export function createRingBuffer(): RingBuffer {
+	const capacity = RING_BUFFER_CAPACITY;
 
 	const buffer: Array<EventEnvelope | null> = new Array(capacity).fill(null);
 	let head = 0;
@@ -210,12 +236,6 @@ export function createRingBuffer(options?: RingBufferOptions): RingBuffer {
 		return { ok: true, events };
 	}
 
-	function clear(): void {
-		buffer.fill(null);
-		head = 0;
-		count = 0;
-	}
-
 	return Object.freeze({
 		capacity,
 		size,
@@ -226,7 +246,6 @@ export function createRingBuffer(options?: RingBufferOptions): RingBuffer {
 		oldest,
 		latest,
 		getEventsSince,
-		clear,
 	});
 }
 

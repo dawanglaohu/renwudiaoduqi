@@ -1,9 +1,10 @@
 import {
+	EVENT_DEFINITIONS,
 	type EventEnvelope,
 	type EventKind,
-	type EventScope,
-	scopeFromEventKind,
-} from '@agent-scheduler/shared/events';
+	type EventPayloadMap,
+	type TypedEventEnvelope,
+} from '@agent-scheduler/shared/api/events';
 
 export interface EnvelopeClock {
 	readonly now: () => string;
@@ -20,51 +21,68 @@ export interface EnvelopeFactoryDeps {
 
 export interface CreateEnvelopeInput<K extends EventKind = EventKind> {
 	readonly kind: K;
-	readonly payload: unknown;
+	readonly payload: EventPayloadMap[K];
 	readonly runId?: string | null;
 	readonly taskId?: string | null;
-	readonly scope?: EventScope;
 	readonly seq?: number;
 	readonly actorDeviceId?: string | null;
-	readonly id?: number;
-	readonly ts?: string;
-}
-
-export function createEventEnvelope<K extends EventKind = EventKind>(
-	deps: EnvelopeFactoryDeps,
-	input: CreateEnvelopeInput<K>,
-): EventEnvelope {
-	const scope = input.scope ?? scopeFromEventKind(input.kind);
-	const id = input.id ?? deps.idAllocator.allocate();
-	const ts = input.ts ?? deps.clock.now();
-	const seq = input.seq ?? 0;
-	const runId = input.runId ?? null;
-	const taskId = input.taskId ?? null;
-	const actorDeviceId = input.actorDeviceId ?? null;
-
-	return Object.freeze({
-		id,
-		ts,
-		runId,
-		taskId,
-		scope,
-		kind: input.kind,
-		seq,
-		actorDeviceId,
-		payload: input.payload,
-	}) as EventEnvelope;
 }
 
 export interface EnvelopeFactory {
 	readonly createEnvelope: <K extends EventKind = EventKind>(
 		input: CreateEnvelopeInput<K>,
-	) => EventEnvelope;
+	) => TypedEventEnvelope<K>;
+	readonly currentSeqForRun: (runId: string) => number;
 }
 
 export function createEnvelopeFactory(deps: EnvelopeFactoryDeps): EnvelopeFactory {
+	const runSequenceMap = new Map<string, number>();
+
+	function createEnvelope<K extends EventKind = EventKind>(
+		input: CreateEnvelopeInput<K>,
+	): TypedEventEnvelope<K> {
+		const runId = input.runId ?? null;
+		let seq: number;
+
+		if (input.seq !== undefined) {
+			seq = input.seq;
+			if (runId !== null) {
+				runSequenceMap.set(runId, Math.max(runSequenceMap.get(runId) ?? 0, seq + 1));
+			}
+		} else if (runId !== null) {
+			const current = runSequenceMap.get(runId) ?? 0;
+			seq = current;
+			runSequenceMap.set(runId, current + 1);
+		} else {
+			seq = 0;
+		}
+
+		const id = deps.idAllocator.allocate();
+		const ts = deps.clock.now();
+		const scope = EVENT_DEFINITIONS[input.kind].scope;
+		const taskId = input.taskId ?? null;
+		const actorDeviceId = input.actorDeviceId ?? null;
+
+		return Object.freeze({
+			id,
+			ts,
+			runId,
+			taskId,
+			scope,
+			kind: input.kind,
+			seq,
+			actorDeviceId,
+			payload: input.payload,
+		}) as TypedEventEnvelope<K>;
+	}
+
+	function currentSeqForRun(runId: string): number {
+		return runSequenceMap.get(runId) ?? 0;
+	}
+
 	return Object.freeze({
-		createEnvelope: <K extends EventKind = EventKind>(input: CreateEnvelopeInput<K>) =>
-			createEventEnvelope(deps, input),
+		createEnvelope,
+		currentSeqForRun,
 	});
 }
 

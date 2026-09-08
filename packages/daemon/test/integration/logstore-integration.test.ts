@@ -97,7 +97,7 @@ function envelope(
 		actorDeviceId: null,
 		payload: { hello: 'world' },
 		...overrides,
-	};
+	} as EventEnvelopeInput;
 }
 
 function paths2Segments(

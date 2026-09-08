@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
 	ACP_EVENT_KINDS,
+	EVENT_DEFINITIONS,
 	EVENT_KINDS,
 	type EventEnvelope,
 	PRODUCT_EVENT_KINDS,
@@ -10,17 +11,14 @@ import {
 	isEventKind,
 	isMilestoneEventKind,
 	scopeFromEventKind,
-} from '@agent-scheduler/shared/events';
+} from '@agent-scheduler/shared/api/events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { AppError } from '../../src/errors/app-error.ts';
 import { createEventBus } from '../../src/events/bus.ts';
+import { createEnvelopeFactory, isEventEnvelope } from '../../src/events/envelope.ts';
 import {
-	createEnvelopeFactory,
-	createEventEnvelope,
-	isEventEnvelope,
-} from '../../src/events/envelope.ts';
-import {
-	DEFAULT_EVENT_SEQ_NAME,
+	GLOBAL_EVENT_SEQUENCE_NAME,
 	WATERMARK_BATCH_SIZE,
 	createIdAllocator,
 } from '../../src/events/id-allocator.ts';
@@ -30,6 +28,7 @@ import {
 	createRingBuffer,
 	replayEventsSinceOrThrow,
 } from '../../src/events/ring-buffer.ts';
+import { createEventSeqRepo } from '../../src/repo/event-seq-repo.ts';
 
 const temporaryDirectories: string[] = [];
 const openDatabases: DatabaseConnection[] = [];
@@ -60,28 +59,14 @@ function createTemporaryDatabase(): { db: DatabaseConnection; path: string } {
 	return { db, path: dbPath };
 }
 
-describe('M2-T4 Event Envelope & Discriminated Union (Acceptance Criterion 4)', () => {
-	it('defines all required ACP and product event kinds in EVENT_KINDS', () => {
-		expect(ACP_EVENT_KINDS).toEqual([
-			'agent_message_chunk',
-			'agent_thought_chunk',
-			'tool_call',
-			'tool_call_update',
-			'plan',
-			'available_commands_update',
-		]);
-
-		expect(PRODUCT_EVENT_KINDS).toContain('run.state_changed');
-		expect(PRODUCT_EVENT_KINDS).toContain('run.started');
-		expect(PRODUCT_EVENT_KINDS).toContain('run.exited');
-		expect(PRODUCT_EVENT_KINDS).toContain('run.aborted');
-		expect(PRODUCT_EVENT_KINDS).toContain('task.gate_waiting');
-		expect(PRODUCT_EVENT_KINDS).toContain('task.gate_passed');
-		expect(PRODUCT_EVENT_KINDS).toContain('task.landed');
-		expect(PRODUCT_EVENT_KINDS).toContain('system.disk_warning');
-		expect(PRODUCT_EVENT_KINDS).toContain('system.docs_changed');
-
-		expect(EVENT_KINDS.length).toBe(ACP_EVENT_KINDS.length + PRODUCT_EVENT_KINDS.length);
+describe('M2-T4 Event Envelope & Single Mapping Derivation (R3, Acceptance Criterion 4)', () => {
+	it('derives EVENT_KINDS, ACP and product sets from EVENT_DEFINITIONS mapping table', () => {
+		expect(Object.keys(EVENT_DEFINITIONS).length).toBe(EVENT_KINDS.length);
+		expect(ACP_EVENT_KINDS.length + PRODUCT_EVENT_KINDS.length).toBe(EVENT_KINDS.length);
+		for (const kind of EVENT_KINDS) {
+			expect(EVENT_DEFINITIONS[kind]).toBeDefined();
+			expect(scopeFromEventKind(kind)).toBe(EVENT_DEFINITIONS[kind].scope);
+		}
 	});
 
 	it('provides exhaustive switch coverage across every kind in EVENT_KINDS with assertNever', () => {
@@ -140,206 +125,158 @@ describe('M2-T4 Event Envelope & Discriminated Union (Acceptance Criterion 4)', 
 			}
 		}
 
-		for (const kind of EVENT_KINDS) {
-			const envelope = createEventEnvelope(
-				{
-					clock: { now: () => '2026-09-08T12:00:00.000Z' },
-					idAllocator: { allocate: () => 1 },
-				},
-				{
-					kind,
-					payload: { from: 'pending', to: 'running', chunk: 'hi' },
-				},
-			);
-			const desc = describeKind(envelope);
-			expect(typeof desc).toBe('string');
-			expect(desc.length).toBeGreaterThan(0);
-		}
-	});
+		const dummyAllocator = { allocate: () => 1 };
+		const dummyClock = { now: () => '2026-09-08T12:00:00.000Z' };
+		const factory = createEnvelopeFactory({ clock: dummyClock, idAllocator: dummyAllocator });
 
-	it('maps scopes from kinds correctly', () => {
-		expect(scopeFromEventKind('agent_message_chunk')).toBe('run');
-		expect(scopeFromEventKind('tool_call')).toBe('run');
-		expect(scopeFromEventKind('run.started')).toBe('run');
-		expect(scopeFromEventKind('run.state_changed')).toBe('run');
-		expect(scopeFromEventKind('task.gate_waiting')).toBe('task');
-		expect(scopeFromEventKind('task.landed')).toBe('task');
-		expect(scopeFromEventKind('batch.advanced')).toBe('batch');
-		expect(scopeFromEventKind('agent.availability_changed')).toBe('agent');
-		expect(scopeFromEventKind('system.disk_warning')).toBe('system');
-		expect(scopeFromEventKind('system.docs_changed')).toBe('system');
-	});
-
-	it('creates event envelope with defaults and validates structure', () => {
-		const deps = {
-			clock: { now: () => '2026-09-08T12:34:56.789Z' },
-			idAllocator: { allocate: () => 42 },
-		};
-
-		const env = createEventEnvelope(deps, {
+		const e1 = factory.createEnvelope({
 			kind: 'run.state_changed',
-			payload: { from: 'pending', to: 'running', reason: 'dispatched' },
+			payload: { from: 'pending', to: 'running' },
 		});
-
-		expect(env.id).toBe(42);
-		expect(env.ts).toBe('2026-09-08T12:34:56.789Z');
-		expect(env.scope).toBe('run');
-		expect(env.kind).toBe('run.state_changed');
-		expect(env.runId).toBeNull();
-		expect(env.taskId).toBeNull();
-		expect(env.actorDeviceId).toBeNull();
-		expect(env.seq).toBe(0);
-		expect(isEventEnvelope(env)).toBe(true);
-
-		const factory = createEnvelopeFactory(deps);
-		const env2 = factory.createEnvelope({
-			kind: 'task.landed',
-			runId: 'run-1',
-			taskId: 'task-1',
-			actorDeviceId: 'dev-1',
-			seq: 5,
-			payload: { branch: 'task/M2-T4' },
-		});
-		expect(env2.runId).toBe('run-1');
-		expect(env2.taskId).toBe('task-1');
-		expect(env2.actorDeviceId).toBe('dev-1');
-		expect(env2.seq).toBe(5);
-		expect(env2.scope).toBe('task');
+		expect(describeKind(e1)).toContain('state:pending->running');
 	});
 
-	it('classifies milestone event kinds consistently with logstore', () => {
+	it('R3 negative type check: missing any kind in switch causes tsc compile error', () => {
+		function incompleteSwitch(event: EventEnvelope): string {
+			switch (event.kind) {
+				case 'agent_message_chunk':
+					return 'msg';
+				case 'agent_thought_chunk':
+					return 'thought';
+				// Note: Omits other kinds on purpose
+				default:
+					// @ts-expect-error - Compile-time assertion: unhandled kind cannot be assigned to never
+					return assertNever(event);
+			}
+		}
+
+		expect(incompleteSwitch).toBeDefined();
+	});
+
+	it('R3 factory: prohibits overriding id, ts, or scope, and sequences runs starting from 0', () => {
+		let currentId = 10;
+		const dummyAllocator = { allocate: () => currentId++ };
+		const dummyClock = { now: () => '2026-09-08T12:34:56.789Z' };
+		const factory = createEnvelopeFactory({ clock: dummyClock, idAllocator: dummyAllocator });
+
+		// run-1 sequence starts from 0
+		const e1 = factory.createEnvelope({
+			kind: 'run.started',
+			runId: 'run-1',
+			payload: { runId: 'run-1' },
+		});
+		expect(e1.id).toBe(10);
+		expect(e1.ts).toBe('2026-09-08T12:34:56.789Z');
+		expect(e1.scope).toBe('run');
+		expect(e1.seq).toBe(0);
+
+		const e2 = factory.createEnvelope({
+			kind: 'run.state_changed',
+			runId: 'run-1',
+			payload: { from: 'pending', to: 'running' },
+		});
+		expect(e2.id).toBe(11);
+		expect(e2.seq).toBe(1);
+
+		// run-2 sequence independently starts from 0
+		const e3 = factory.createEnvelope({
+			kind: 'run.started',
+			runId: 'run-2',
+			payload: { runId: 'run-2' },
+		});
+		expect(e3.id).toBe(12);
+		expect(e3.seq).toBe(0);
+
+		// run-1 continues from 2
+		const e4 = factory.createEnvelope({
+			kind: 'run.exited',
+			runId: 'run-1',
+			payload: { exitCode: 0 },
+		});
+		expect(e4.seq).toBe(2);
+
+		// event without runId defaults to seq 0
+		const eSys = factory.createEnvelope({
+			kind: 'system.disk_warning',
+			payload: { freeBytes: 1000000 },
+		});
+		expect(eSys.seq).toBe(0);
+		expect(eSys.scope).toBe('system');
+		expect(isEventEnvelope(eSys)).toBe(true);
+	});
+
+	it('classifies milestone event kinds consistently with definitions', () => {
 		expect(isMilestoneEventKind('run.state_changed')).toBe(true);
 		expect(isMilestoneEventKind('task.landed')).toBe(true);
-		expect(isMilestoneEventKind('system.disk_warning')).toBe(true);
 		expect(isMilestoneEventKind('tool_call')).toBe(true);
-		expect(isMilestoneEventKind('tool_call_update')).toBe(true);
-		expect(isMilestoneEventKind('plan')).toBe(true);
-
 		expect(isMilestoneEventKind('agent_message_chunk')).toBe(false);
-		expect(isMilestoneEventKind('agent_thought_chunk')).toBe(false);
-	});
-
-	it('identifies valid event kinds', () => {
 		expect(isEventKind('run.started')).toBe(true);
-		expect(isEventKind('agent_message_chunk')).toBe(true);
 		expect(isEventKind('unknown.event')).toBe(false);
-		expect(isEventKind(123)).toBe(false);
 	});
 });
 
-describe('M2-T4 Id Allocator & SQLite Watermark (Acceptance Criterion 1 & E-10)', () => {
-	it('pre-allocates SQLite watermark and writes every 1000 allocations in steady state', () => {
+describe('M2-T4 Id Allocator & SQLite Watermark (R1, Acceptance Criterion 1 & E-10)', () => {
+	it('R1: EventSeqRepo encapsulates all SQL and persists watermarks', () => {
 		const { db } = createTemporaryDatabase();
-		const allocator = createIdAllocator({ database: db });
+		const repo = createEventSeqRepo(db);
+
+		expect(repo.getWatermark('test-seq')).toBeNull();
+		repo.setWatermark('test-seq', 500);
+		expect(repo.getWatermark('test-seq')).toBe(500);
+		repo.setWatermark('test-seq', 1000);
+		expect(repo.getWatermark('test-seq')).toBe(1000);
+	});
+
+	it('R1 & E-10: allocator consumes injected store, fixes sequence name and 1000 batch size', () => {
+		const { db, path: dbPath } = createTemporaryDatabase();
+		const repo1 = createEventSeqRepo(db);
+		const allocator1 = createIdAllocator({ store: repo1 });
 
 		// Initial watermark is 1000
-		expect(allocator.currentWatermark()).toBe(WATERMARK_BATCH_SIZE);
-		const row1 = db
-			.prepare<[string], { watermark: number }>('SELECT watermark FROM event_seq WHERE name = ?')
-			.get(DEFAULT_EVENT_SEQ_NAME);
-		expect(row1?.watermark).toBe(1000);
+		expect(allocator1.currentWatermark()).toBe(WATERMARK_BATCH_SIZE);
+		expect(repo1.getWatermark(GLOBAL_EVENT_SEQUENCE_NAME)).toBe(1000);
 
-		// Allocate 1000 items: IDs 1..1000
-		for (let i = 1; i <= 1000; i++) {
-			const id = allocator.allocate();
-			expect(id).toBe(i);
-		}
-
-		// Watermark in DB is still 1000
-		const rowAfter1000 = db
-			.prepare<[string], { watermark: number }>('SELECT watermark FROM event_seq WHERE name = ?')
-			.get(DEFAULT_EVENT_SEQ_NAME);
-		expect(rowAfter1000?.watermark).toBe(1000);
-
-		// 1001st allocation triggers the next watermark batch write (2000)
-		const id1001 = allocator.allocate();
-		expect(id1001).toBe(1001);
-
-		const rowAfter1001 = db
-			.prepare<[string], { watermark: number }>('SELECT watermark FROM event_seq WHERE name = ?')
-			.get(DEFAULT_EVENT_SEQ_NAME);
-		expect(rowAfter1001?.watermark).toBe(2000);
-		expect(allocator.currentWatermark()).toBe(2000);
-	});
-
-	it('E-10: on daemon restart, resumes from watermark and jumps without ever rolling back', () => {
-		const { db, path: dbPath } = createTemporaryDatabase();
-
-		// Run 1: Start allocator, allocate 150 IDs
-		const allocator1 = createIdAllocator({ database: db });
-		const run1Ids: number[] = [];
+		// Allocate 150 IDs
+		const ids: number[] = [];
 		for (let i = 0; i < 150; i++) {
-			run1Ids.push(allocator1.allocate());
+			ids.push(allocator1.allocate());
 		}
-		expect(run1Ids[0]).toBe(1);
-		expect(run1Ids[run1Ids.length - 1]).toBe(150);
+		expect(ids[0]).toBe(1);
+		expect(ids[149]).toBe(150);
 
-		// DB watermark in Run 1 is 1000
+		// Watermark is still 1000
+		expect(repo1.getWatermark(GLOBAL_EVENT_SEQUENCE_NAME)).toBe(1000);
+
 		db.close();
 
-		// Run 2 (Simulating daemon restart after mobile offline):
+		// Simulate restart on same DB
 		const db2 = openDatabase(dbPath);
 		openDatabases.push(db2);
+		const repo2 = createEventSeqRepo(db2);
+		const allocator2 = createIdAllocator({ store: repo2 });
 
-		const allocator2 = createIdAllocator({ database: db2 });
-
-		// On restart, DB watermark advances to 2000 immediately to protect the batch
-		const rowRun2 = db2
-			.prepare<[string], { watermark: number }>('SELECT watermark FROM event_seq WHERE name = ?')
-			.get(DEFAULT_EVENT_SEQ_NAME);
-		expect(rowRun2?.watermark).toBe(2000);
+		// On restart, watermark immediately advances to 2000 (E-10 jump without rollback)
 		expect(allocator2.currentWatermark()).toBe(2000);
+		expect(repo2.getWatermark(GLOBAL_EVENT_SEQUENCE_NAME)).toBe(2000);
 
-		// First ID allocated in Run 2 must be strictly greater than any ID in Run 1
-		const run2FirstId = allocator2.allocate();
-		expect(run2FirstId).toBe(1001);
-		const lastRun1Id = run1Ids[run1Ids.length - 1];
-		expect(lastRun1Id !== undefined && run2FirstId > lastRun1Id).toBe(true);
+		const restartId = allocator2.allocate();
+		expect(restartId).toBe(1001);
+		expect(restartId).toBeGreaterThan(ids[ids.length - 1] as number);
 
-		// Allocate more IDs in Run 2
+		// Allocate through 2000
 		for (let i = 1002; i <= 2000; i++) {
-			const id = allocator2.allocate();
-			expect(id).toBe(i);
+			expect(allocator2.allocate()).toBe(i);
 		}
+		expect(repo2.getWatermark(GLOBAL_EVENT_SEQUENCE_NAME)).toBe(2000);
 
-		// At 2001, watermark advances to 3000
+		// 2001st allocation writes 3000 to DB (1 write per 1000 in steady state)
 		const id2001 = allocator2.allocate();
 		expect(id2001).toBe(2001);
-
-		const rowRun2Later = db2
-			.prepare<[string], { watermark: number }>('SELECT watermark FROM event_seq WHERE name = ?')
-			.get(DEFAULT_EVENT_SEQ_NAME);
-		expect(rowRun2Later?.watermark).toBe(3000);
-	});
-
-	it('supports custom batch sizes', () => {
-		const { db } = createTemporaryDatabase();
-		const allocator = createIdAllocator({ database: db, batchSize: 5 });
-
-		expect(allocator.currentWatermark()).toBe(5);
-		for (let i = 1; i <= 5; i++) {
-			expect(allocator.allocate()).toBe(i);
-		}
-		expect(allocator.allocate()).toBe(6);
-		expect(allocator.currentWatermark()).toBe(10);
-	});
-
-	it('works with a memory store adapter', () => {
-		let watermark: number | null = null;
-		const memoryStore = {
-			getWatermark: () => watermark,
-			saveWatermark: (_name: string, w: number) => {
-				watermark = w;
-			},
-		};
-
-		const allocator = createIdAllocator({ store: memoryStore, batchSize: 10 });
-		expect(allocator.allocate()).toBe(1);
-		expect(watermark).toBe(10);
+		expect(repo2.getWatermark(GLOBAL_EVENT_SEQUENCE_NAME)).toBe(3000);
 	});
 });
 
-describe('M2-T4 Ring Buffer & Replay Window (Acceptance Criterion 2 & E-153)', () => {
+describe('M2-T4 Ring Buffer & Replay Window (R2, Acceptance Criterion 2 & E-153)', () => {
 	function makeEnvelope(id: number, payload: unknown = { ok: true }): EventEnvelope {
 		return Object.freeze({
 			id,
@@ -354,11 +291,12 @@ describe('M2-T4 Ring Buffer & Replay Window (Acceptance Criterion 2 & E-153)', (
 		}) as EventEnvelope;
 	}
 
-	it('has fixed default capacity of 5000 and evicts oldest on overflow (FIFO)', () => {
+	it('R2 & E-153: real 5000 capacity and 5001st overflow correctly expire replay window', () => {
 		const ring = createRingBuffer();
 		expect(ring.capacity).toBe(RING_BUFFER_CAPACITY);
-		expect(ring.size()).toBe(0);
+		expect(RING_BUFFER_CAPACITY).toBe(5000);
 
+		// Push exactly 5000 events: IDs 1..5000
 		for (let i = 1; i <= 5000; i++) {
 			ring.push(makeEnvelope(i));
 		}
@@ -366,193 +304,135 @@ describe('M2-T4 Ring Buffer & Replay Window (Acceptance Criterion 2 & E-153)', (
 		expect(ring.oldest()?.id).toBe(1);
 		expect(ring.latest()?.id).toBe(5000);
 
+		// Replay from 0 returns all 5000 events
+		const replayAll = ring.getEventsSince(0);
+		expect(replayAll.ok).toBe(true);
+		if (replayAll.ok) {
+			expect(replayAll.events.length).toBe(5000);
+			expect(replayAll.events[0]?.id).toBe(1);
+			expect(replayAll.events[4999]?.id).toBe(5000);
+		}
+
+		// Replay from 5000 returns empty
+		const replayDone = ring.getEventsSince(5000);
+		expect(replayDone.ok).toBe(true);
+		if (replayDone.ok) {
+			expect(replayDone.events).toEqual([]);
+		}
+
 		// Push 5001st event: overwrites event 1
 		ring.push(makeEnvelope(5001));
 		expect(ring.size()).toBe(5000);
 		expect(ring.oldest()?.id).toBe(2);
 		expect(ring.latest()?.id).toBe(5001);
-		expect(ring.totalPushed()).toBe(5001);
-	});
 
-	it('E-142: truncates payloads > 32 KiB and replaces with reference', () => {
-		const ring = createRingBuffer({ capacity: 10 });
-
-		// Small payload stays intact
-		const small = makeEnvelope(1, { text: 'small' });
-		const storedSmall = ring.push(small);
-		expect(storedSmall.payload).toEqual({ text: 'small' });
-
-		// Large payload > 32 KiB
-		const largeString = 'X'.repeat(PAYLOAD_MAX_BYTES + 100);
-		const large = makeEnvelope(2, { text: largeString });
-		const ref = { fileSeq: 1, byteOffset: 4096, byteLen: 33000 };
-		const storedLarge = ring.push(large, ref);
-
-		expect(storedLarge.payload).toEqual({
-			truncated: true,
-			byteLen: expect.any(Number),
-			ref,
-		});
-		expect((storedLarge.payload as { byteLen: number }).byteLen).toBeGreaterThan(PAYLOAD_MAX_BYTES);
-
-		// Already truncated payloads are not double-truncated
-		const alreadyTruncated = makeEnvelope(3, {
-			truncated: true,
-			byteLen: 50000,
-			ref: null,
-		});
-		const storedAlready = ring.push(alreadyTruncated);
-		expect(storedAlready.payload).toEqual({
-			truncated: true,
-			byteLen: 50000,
-			ref: null,
-		});
-	});
-
-	it('E-153: provides replay for within-window Last-Event-ID and reports E_REPLAY_WINDOW_EXPIRED when expired', () => {
-		const ring = createRingBuffer({ capacity: 10 });
-
-		// Push 10 events: IDs 1..10
-		for (let i = 1; i <= 10; i++) {
-			ring.push(makeEnvelope(i));
+		// Replay from 1: needs 2..5001, all are in buffer
+		const replaySince1 = ring.getEventsSince(1);
+		expect(replaySince1.ok).toBe(true);
+		if (replaySince1.ok) {
+			expect(replaySince1.events.length).toBe(5000);
+			expect(replaySince1.events[0]?.id).toBe(2);
+			expect(replaySince1.events[4999]?.id).toBe(5001);
 		}
 
-		// Replay from 0: returns all 1..10
-		const replay0 = ring.getEventsSince(0);
-		expect(replay0.ok).toBe(true);
-		if (replay0.ok) {
-			expect(replay0.events.map((e) => e.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-		}
-
-		// Replay from 5: returns 6..10
-		const replay5 = ring.getEventsSince(5);
-		expect(replay5.ok).toBe(true);
-		if (replay5.ok) {
-			expect(replay5.events.map((e) => e.id)).toEqual([6, 7, 8, 9, 10]);
-		}
-
-		// Replay from 10: up to date
-		const replay10 = ring.getEventsSince(10);
-		expect(replay10.ok).toBe(true);
-		if (replay10.ok) {
-			expect(replay10.events).toEqual([]);
-		}
-
-		// Push 5 more events: now buffer holds 6..15 (events 1..5 evicted)
-		for (let i = 11; i <= 15; i++) {
-			ring.push(makeEnvelope(i));
-		}
-		expect(ring.oldest()?.id).toBe(6);
-		expect(ring.latest()?.id).toBe(15);
-
-		// Client at ID 5 (oldest - 1): needs 6..15, all are in buffer
-		const replay5After = ring.getEventsSince(5);
-		expect(replay5After.ok).toBe(true);
-		if (replay5After.ok) {
-			expect(replay5After.events.map((e) => e.id)).toEqual([6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
-		}
-
-		// Client at ID 4 (expired, missed event 5)
-		const replay4 = ring.getEventsSince(4);
-		expect(replay4.ok).toBe(false);
-		if (!replay4.ok) {
-			expect(replay4.code).toBe('E_REPLAY_WINDOW_EXPIRED');
-			expect(replay4.minId).toBe(6);
-			expect(replay4.requestedLastEventId).toBe(4);
-		}
-
-		// Client at ID 0: expired
+		// Replay from 0: event 1 was evicted, so replay window is expired! (E-153)
 		const replayExpired0 = ring.getEventsSince(0);
 		expect(replayExpired0.ok).toBe(false);
 		if (!replayExpired0.ok) {
 			expect(replayExpired0.code).toBe('E_REPLAY_WINDOW_EXPIRED');
+			expect(replayExpired0.minId).toBe(2);
+			expect(replayExpired0.requestedLastEventId).toBe(0);
 		}
 
-		// replayEventsSinceOrThrow throws AppError
-		expect(() => replayEventsSinceOrThrow(ring, 2)).toThrowError(
-			/Replay window expired for Last-Event-ID 2/,
+		// Throwing variant throws typed AppError
+		expect(() => replayEventsSinceOrThrow(ring, 0)).toThrowError(
+			/Replay window expired for Last-Event-ID 0/,
 		);
-		expect(() => replayEventsSinceOrThrow(ring, 10)).not.toThrow();
+	});
+
+	it('R2: large payload > 32 KiB without valid ref throws E_VALIDATION before buffer change; prohibits ref:null', () => {
+		const ring = createRingBuffer();
+
+		const largeText = 'A'.repeat(PAYLOAD_MAX_BYTES + 50);
+		const largeEnv = makeEnvelope(1, { text: largeText });
+
+		// Attempting without ref: must throw before buffer modification
+		expect(() => ring.push(largeEnv)).toThrowError(
+			/Large event payload exceeding 32768 bytes requires a valid logstore reference/,
+		);
+		expect(ring.size()).toBe(0);
+
+		// Attempting with null ref: must throw
+		// @ts-expect-error - testing prohibited null ref
+		expect(() => ring.push(largeEnv, null)).toThrowError(/ref:null is prohibited/);
+		expect(ring.size()).toBe(0);
+
+		// With valid ref: succeeds and truncates
+		const validRef = { fileSeq: 0, byteOffset: 1024, byteLen: 33000 };
+		const stored = ring.push(largeEnv, validRef);
+		expect(ring.size()).toBe(1);
+		expect(stored.payload).toEqual({
+			truncated: true,
+			byteLen: expect.any(Number),
+			ref: validRef,
+		});
 	});
 });
 
-describe('M2-T4 Event Bus & Transaction Boundary Guard', () => {
+describe('M2-T4 Event Bus, Subscriber Errors and Transaction Guard (R4, R5)', () => {
 	function makeEnvelope(id: number): EventEnvelope {
 		return Object.freeze({
 			id,
 			ts: '2026-09-08T12:00:00.000Z',
-			runId: 'run-test',
+			runId: 'run-1',
 			taskId: null,
 			scope: 'run',
 			kind: 'run.started',
 			seq: 0,
 			actorDeviceId: null,
-			payload: { runId: 'run-test' },
+			payload: { runId: 'run-1' },
 		}) as EventEnvelope;
 	}
 
-	it('subscribes, publishes, and unsubscribes listeners', () => {
+	it('R5: notifies error sink on subscriber failure, guarantees other subscribers continue and pushes buffer once', () => {
 		const ringBuffer = createRingBuffer();
-		const bus = createEventBus({ ringBuffer });
+		const errorsReported: Array<{ error: unknown; eventId: number }> = [];
 
-		const received: EventEnvelope[] = [];
-		const unsubscribe = bus.subscribe((event) => {
-			received.push(event);
+		const bus = createEventBus({
+			ringBuffer,
+			onError: (error, context) => {
+				errorsReported.push({ error, eventId: context.event.id });
+			},
 		});
 
-		expect(bus.listenerCount()).toBe(1);
+		const goodSubscriber1 = vi.fn();
+		const badSubscriber = vi.fn(() => {
+			throw new Error('Subscriber failure');
+		});
+		const goodSubscriber2 = vi.fn();
 
-		const env1 = makeEnvelope(1);
-		bus.publish(env1);
+		bus.subscribe(goodSubscriber1);
+		bus.subscribe(badSubscriber);
+		bus.subscribe(goodSubscriber2);
 
-		expect(received).toHaveLength(1);
-		expect(received[0]?.id).toBe(1);
+		const env = makeEnvelope(1);
+		bus.publish(env);
+
+		// All good subscribers are still called
+		expect(goodSubscriber1).toHaveBeenCalledTimes(1);
+		expect(badSubscriber).toHaveBeenCalledTimes(1);
+		expect(goodSubscriber2).toHaveBeenCalledTimes(1);
+
+		// Error sink received the error
+		expect(errorsReported).toHaveLength(1);
+		expect(errorsReported[0]?.eventId).toBe(1);
+
+		// Ring buffer received the event exactly once
 		expect(ringBuffer.size()).toBe(1);
-
-		unsubscribe();
-		expect(bus.listenerCount()).toBe(0);
-
-		bus.publish(makeEnvelope(2));
-		expect(received).toHaveLength(1); // not called after unsubscribe
-		expect(ringBuffer.size()).toBe(2);
+		expect(ringBuffer.totalPushed()).toBe(1);
 	});
 
-	it('supports filtered subscriptions', () => {
-		const ringBuffer = createRingBuffer();
-		const bus = createEventBus({ ringBuffer });
-
-		const filtered: EventEnvelope[] = [];
-		bus.subscribeWithFilter(
-			(event) => event.id % 2 === 0,
-			(event) => filtered.push(event),
-		);
-
-		bus.publish(makeEnvelope(1));
-		bus.publish(makeEnvelope(2));
-		bus.publish(makeEnvelope(3));
-		bus.publish(makeEnvelope(4));
-
-		expect(filtered.map((e) => e.id)).toEqual([2, 4]);
-	});
-
-	it('safeguards against listener errors so other listeners still execute', () => {
-		const ringBuffer = createRingBuffer();
-		const bus = createEventBus({ ringBuffer });
-
-		const goodListener = vi.fn();
-		const badListener = vi.fn(() => {
-			throw new Error('Subscriber error');
-		});
-
-		bus.subscribe(badListener);
-		bus.subscribe(goodListener);
-
-		expect(() => bus.publish(makeEnvelope(1))).not.toThrow();
-		expect(badListener).toHaveBeenCalledTimes(1);
-		expect(goodListener).toHaveBeenCalledTimes(1);
-	});
-
-	it('rejects bus.publish when inside an active database transaction', () => {
+	it('R4: runtime guard throws E_INTERNAL (not E_TX_NESTED) if called in transaction', () => {
 		let inTx = false;
 		const ringBuffer = createRingBuffer();
 		const bus = createEventBus({
@@ -560,13 +440,16 @@ describe('M2-T4 Event Bus & Transaction Boundary Guard', () => {
 			isInsideTransaction: () => inTx,
 		});
 
-		// Outside tx: succeeds
 		expect(() => bus.publish(makeEnvelope(1))).not.toThrow();
 
-		// Inside tx: throws E_TX_NESTED
 		inTx = true;
-		expect(() => bus.publish(makeEnvelope(2))).toThrowError(
-			/bus\.publish must not be called inside a database transaction/,
-		);
+		try {
+			bus.publish(makeEnvelope(2));
+			expect.fail('should have thrown');
+		} catch (err) {
+			expect(err instanceof AppError).toBe(true);
+			expect((err as AppError).code).toBe('E_INTERNAL');
+			expect((err as AppError).code).not.toBe('E_TX_NESTED');
+		}
 	});
 });

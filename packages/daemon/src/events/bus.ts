@@ -1,12 +1,20 @@
-import type { EventEnvelope } from '@agent-scheduler/shared/events';
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { AppError } from '../errors/app-error.ts';
 import type { EventPayloadLocationRef, ReplayResult, RingBuffer } from './ring-buffer.ts';
 
 export type EventSubscriber = (event: EventEnvelope) => void;
 
+export interface EventBusErrorContext {
+	readonly event: EventEnvelope;
+	readonly subscriber: EventSubscriber;
+}
+
+export type EventBusErrorHandler = (error: unknown, context: EventBusErrorContext) => void;
+
 export interface EventBusDeps {
 	readonly ringBuffer: RingBuffer;
 	readonly isInsideTransaction?: () => boolean;
+	readonly onError?: EventBusErrorHandler;
 }
 
 export interface EventBus {
@@ -22,25 +30,28 @@ export interface EventBus {
 }
 
 export function createEventBus(deps: EventBusDeps): EventBus {
-	const { ringBuffer, isInsideTransaction } = deps;
+	const { ringBuffer, isInsideTransaction, onError } = deps;
 	const subscribers = new Set<EventSubscriber>();
 
 	function publish(envelope: EventEnvelope, ref?: EventPayloadLocationRef): EventEnvelope {
 		if (isInsideTransaction?.() === true) {
 			throw new AppError(
-				'E_TX_NESTED',
+				'E_INTERNAL',
 				'bus.publish must not be called inside a database transaction. Collect events and publish after the transaction commits.',
 			);
 		}
 
+		// Enters ring buffer exactly once
 		const stored = ringBuffer.push(envelope, ref);
 		const currentSubscribers = Array.from(subscribers);
 
 		for (const subscriber of currentSubscribers) {
 			try {
 				subscriber(stored);
-			} catch {
-				// Prevent one subscriber's synchronous failure from dropping others
+			} catch (error) {
+				if (onError) {
+					onError(error, { event: stored, subscriber });
+				}
 			}
 		}
 

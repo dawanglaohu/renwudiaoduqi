@@ -9,8 +9,67 @@ export const EVENT_SCOPES = [
 ] as const satisfies readonly EventScope[];
 
 /**
- * ACP group: session/update events strictly preserved in snake_case.
+ * Single exhaustive mapping table deriving kinds, scopes, and milestone classifications.
  */
+export const EVENT_DEFINITIONS = {
+	// ACP group: strictly snake_case, session/update events
+	agent_message_chunk: { scope: 'run', milestone: false },
+	agent_thought_chunk: { scope: 'run', milestone: false },
+	tool_call: { scope: 'run', milestone: true },
+	tool_call_update: { scope: 'run', milestone: true },
+	plan: { scope: 'run', milestone: true },
+	available_commands_update: { scope: 'run', milestone: false },
+
+	// Product group: <scope>.<past_tense_verb>
+	'run.state_changed': { scope: 'run', milestone: true },
+	'run.started': { scope: 'run', milestone: true },
+	'run.exited': { scope: 'run', milestone: true },
+	'run.aborted': { scope: 'run', milestone: true },
+	'run.stalled_suspected': { scope: 'run', milestone: true },
+	'run.stderr_line': { scope: 'run', milestone: true },
+	'run.permission_blocked': { scope: 'run', milestone: true },
+	'run.remote_push_detected': { scope: 'run', milestone: true },
+	'run.message_delivered': { scope: 'run', milestone: true },
+	'run.message_undelivered': { scope: 'run', milestone: true },
+	'task.gate_waiting': { scope: 'task', milestone: true },
+	'task.gate_passed': { scope: 'task', milestone: true },
+	'task.review_verdict': { scope: 'task', milestone: true },
+	'task.landed': { scope: 'task', milestone: true },
+	'batch.advanced': { scope: 'batch', milestone: true },
+	'agent.availability_changed': { scope: 'agent', milestone: true },
+	'system.disk_warning': { scope: 'system', milestone: true },
+	'system.docs_changed': { scope: 'system', milestone: true },
+} as const;
+
+export type EventKind = keyof typeof EVENT_DEFINITIONS;
+
+export const EVENT_KINDS = [
+	'agent_message_chunk',
+	'agent_thought_chunk',
+	'tool_call',
+	'tool_call_update',
+	'plan',
+	'available_commands_update',
+	'run.state_changed',
+	'run.started',
+	'run.exited',
+	'run.aborted',
+	'run.stalled_suspected',
+	'run.stderr_line',
+	'run.permission_blocked',
+	'run.remote_push_detected',
+	'run.message_delivered',
+	'run.message_undelivered',
+	'task.gate_waiting',
+	'task.gate_passed',
+	'task.review_verdict',
+	'task.landed',
+	'batch.advanced',
+	'agent.availability_changed',
+	'system.disk_warning',
+	'system.docs_changed',
+] as const satisfies readonly EventKind[];
+
 export const ACP_EVENT_KINDS = [
 	'agent_message_chunk',
 	'agent_thought_chunk',
@@ -18,11 +77,8 @@ export const ACP_EVENT_KINDS = [
 	'tool_call_update',
 	'plan',
 	'available_commands_update',
-] as const;
+] as const satisfies readonly EventKind[];
 
-/**
- * Product group: <scope>.<past_tense_verb>.
- */
 export const PRODUCT_EVENT_KINDS = [
 	'run.state_changed',
 	'run.started',
@@ -42,20 +98,16 @@ export const PRODUCT_EVENT_KINDS = [
 	'agent.availability_changed',
 	'system.disk_warning',
 	'system.docs_changed',
-] as const;
-
-export const EVENT_KINDS = [...ACP_EVENT_KINDS, ...PRODUCT_EVENT_KINDS] as const;
-
-export type EventKind = (typeof EVENT_KINDS)[number];
+] as const satisfies readonly EventKind[];
 
 export interface TruncatedPayloadRef {
 	readonly truncated: true;
 	readonly byteLen: number;
-	readonly ref?: {
+	readonly ref: {
 		readonly fileSeq: number;
 		readonly byteOffset: number;
 		readonly byteLen: number;
-	} | null;
+	};
 }
 
 export interface AgentMessageChunkPayload {
@@ -221,188 +273,70 @@ export interface SystemDocsChangedPayload {
 	readonly [key: string]: unknown;
 }
 
-export interface TypedEventEnvelope<K extends EventKind, S extends EventScope, P> {
+export interface EventPayloadMap {
+	readonly agent_message_chunk: AgentMessageChunkPayload;
+	readonly agent_thought_chunk: AgentThoughtChunkPayload;
+	readonly tool_call: ToolCallPayload;
+	readonly tool_call_update: ToolCallUpdatePayload;
+	readonly plan: PlanPayload;
+	readonly available_commands_update: AvailableCommandsUpdatePayload;
+	readonly 'run.state_changed': RunStateChangedPayload;
+	readonly 'run.started': RunStartedPayload;
+	readonly 'run.exited': RunExitedPayload;
+	readonly 'run.aborted': RunAbortedPayload;
+	readonly 'run.stalled_suspected': RunStalledSuspectedPayload;
+	readonly 'run.stderr_line': RunStderrLinePayload;
+	readonly 'run.permission_blocked': RunPermissionBlockedPayload;
+	readonly 'run.remote_push_detected': RunRemotePushDetectedPayload;
+	readonly 'run.message_delivered': RunMessageDeliveredPayload;
+	readonly 'run.message_undelivered': RunMessageUndeliveredPayload;
+	readonly 'task.gate_waiting': TaskGateWaitingPayload;
+	readonly 'task.gate_passed': TaskGatePassedPayload;
+	readonly 'task.review_verdict': TaskReviewVerdictPayload;
+	readonly 'task.landed': TaskLandedPayload;
+	readonly 'batch.advanced': BatchAdvancedPayload;
+	readonly 'agent.availability_changed': AgentAvailabilityChangedPayload;
+	readonly 'system.disk_warning': SystemDiskWarningPayload;
+	readonly 'system.docs_changed': SystemDocsChangedPayload;
+}
+
+export interface TypedEventEnvelope<K extends EventKind = EventKind> {
 	readonly id: number;
 	readonly ts: string;
 	readonly runId: string | null;
 	readonly taskId: string | null;
-	readonly scope: S;
+	readonly scope: (typeof EVENT_DEFINITIONS)[K]['scope'];
 	readonly kind: K;
 	readonly seq: number;
 	readonly actorDeviceId: string | null;
-	readonly payload: P | TruncatedPayloadRef;
+	readonly payload: EventPayloadMap[K] | TruncatedPayloadRef;
 }
 
-export type AgentMessageChunkEnvelope = TypedEventEnvelope<
-	'agent_message_chunk',
-	'run',
-	AgentMessageChunkPayload
->;
-export type AgentThoughtChunkEnvelope = TypedEventEnvelope<
-	'agent_thought_chunk',
-	'run',
-	AgentThoughtChunkPayload
->;
-export type ToolCallEnvelope = TypedEventEnvelope<'tool_call', 'run', ToolCallPayload>;
-export type ToolCallUpdateEnvelope = TypedEventEnvelope<
-	'tool_call_update',
-	'run',
-	ToolCallUpdatePayload
->;
-export type PlanEnvelope = TypedEventEnvelope<'plan', 'run', PlanPayload>;
-export type AvailableCommandsUpdateEnvelope = TypedEventEnvelope<
-	'available_commands_update',
-	'run',
-	AvailableCommandsUpdatePayload
->;
-
-export type RunStateChangedEnvelope = TypedEventEnvelope<
-	'run.state_changed',
-	'run',
-	RunStateChangedPayload
->;
-export type RunStartedEnvelope = TypedEventEnvelope<'run.started', 'run', RunStartedPayload>;
-export type RunExitedEnvelope = TypedEventEnvelope<'run.exited', 'run', RunExitedPayload>;
-export type RunAbortedEnvelope = TypedEventEnvelope<'run.aborted', 'run', RunAbortedPayload>;
-export type RunStalledSuspectedEnvelope = TypedEventEnvelope<
-	'run.stalled_suspected',
-	'run',
-	RunStalledSuspectedPayload
->;
-export type RunStderrLineEnvelope = TypedEventEnvelope<
-	'run.stderr_line',
-	'run',
-	RunStderrLinePayload
->;
-export type RunPermissionBlockedEnvelope = TypedEventEnvelope<
-	'run.permission_blocked',
-	'run',
-	RunPermissionBlockedPayload
->;
-export type RunRemotePushDetectedEnvelope = TypedEventEnvelope<
-	'run.remote_push_detected',
-	'run',
-	RunRemotePushDetectedPayload
->;
-export type RunMessageDeliveredEnvelope = TypedEventEnvelope<
-	'run.message_delivered',
-	'run',
-	RunMessageDeliveredPayload
->;
-export type RunMessageUndeliveredEnvelope = TypedEventEnvelope<
-	'run.message_undelivered',
-	'run',
-	RunMessageUndeliveredPayload
->;
-
-export type TaskGateWaitingEnvelope = TypedEventEnvelope<
-	'task.gate_waiting',
-	'task',
-	TaskGateWaitingPayload
->;
-export type TaskGatePassedEnvelope = TypedEventEnvelope<
-	'task.gate_passed',
-	'task',
-	TaskGatePassedPayload
->;
-export type TaskReviewVerdictEnvelope = TypedEventEnvelope<
-	'task.review_verdict',
-	'task',
-	TaskReviewVerdictPayload
->;
-export type TaskLandedEnvelope = TypedEventEnvelope<'task.landed', 'task', TaskLandedPayload>;
-
-export type BatchAdvancedEnvelope = TypedEventEnvelope<
-	'batch.advanced',
-	'batch',
-	BatchAdvancedPayload
->;
-
-export type AgentAvailabilityChangedEnvelope = TypedEventEnvelope<
-	'agent.availability_changed',
-	'agent',
-	AgentAvailabilityChangedPayload
->;
-
-export type SystemDiskWarningEnvelope = TypedEventEnvelope<
-	'system.disk_warning',
-	'system',
-	SystemDiskWarningPayload
->;
-export type SystemDocsChangedEnvelope = TypedEventEnvelope<
-	'system.docs_changed',
-	'system',
-	SystemDocsChangedPayload
->;
-
-export type EventEnvelope =
-	| AgentMessageChunkEnvelope
-	| AgentThoughtChunkEnvelope
-	| ToolCallEnvelope
-	| ToolCallUpdateEnvelope
-	| PlanEnvelope
-	| AvailableCommandsUpdateEnvelope
-	| RunStateChangedEnvelope
-	| RunStartedEnvelope
-	| RunExitedEnvelope
-	| RunAbortedEnvelope
-	| RunStalledSuspectedEnvelope
-	| RunStderrLineEnvelope
-	| RunPermissionBlockedEnvelope
-	| RunRemotePushDetectedEnvelope
-	| RunMessageDeliveredEnvelope
-	| RunMessageUndeliveredEnvelope
-	| TaskGateWaitingEnvelope
-	| TaskGatePassedEnvelope
-	| TaskReviewVerdictEnvelope
-	| TaskLandedEnvelope
-	| BatchAdvancedEnvelope
-	| AgentAvailabilityChangedEnvelope
-	| SystemDiskWarningEnvelope
-	| SystemDocsChangedEnvelope;
-
-export interface CanonicalEventEnvelope {
-	readonly id: number;
-	readonly ts: string;
-	readonly runId: string | null;
-	readonly taskId: string | null;
-	readonly scope: EventScope;
-	readonly kind: EventKind;
-	readonly seq: number;
-	readonly actorDeviceId: string | null;
-	readonly payload: unknown;
-}
+export type EventEnvelope = {
+	[K in EventKind]: TypedEventEnvelope<K>;
+}[EventKind];
 
 export function scopeFromEventKind(kind: EventKind): EventScope {
-	if (kind.startsWith('run.') || ACP_EVENT_KINDS.some((k) => k === kind)) {
-		return 'run';
-	}
-	if (kind.startsWith('task.')) {
-		return 'task';
-	}
-	if (kind.startsWith('batch.')) {
-		return 'batch';
-	}
-	if (kind.startsWith('agent.')) {
-		return 'agent';
-	}
-	if (kind.startsWith('system.')) {
-		return 'system';
-	}
-	return 'run';
+	return EVENT_DEFINITIONS[kind].scope;
 }
 
 export function isEventKind(value: unknown): value is EventKind {
-	return typeof value === 'string' && EVENT_KINDS.some((kind) => kind === value);
+	return typeof value === 'string' && value in EVENT_DEFINITIONS;
 }
 
-const MILESTONE_KIND_PREFIXES = ['run.', 'task.', 'batch.', 'system.', 'agent.'] as const;
-const MILESTONE_KIND_EXACT = ['tool_call', 'tool_call_update', 'plan'] as const;
-
 export function isMilestoneEventKind(kind: string): boolean {
+	if (isEventKind(kind)) {
+		return EVENT_DEFINITIONS[kind].milestone;
+	}
 	return (
-		MILESTONE_KIND_EXACT.some((exact) => exact === kind) ||
-		MILESTONE_KIND_PREFIXES.some((prefix) => kind.startsWith(prefix))
+		kind.startsWith('run.') ||
+		kind.startsWith('task.') ||
+		kind.startsWith('batch.') ||
+		kind.startsWith('system.') ||
+		kind.startsWith('agent.') ||
+		kind === 'tool_call' ||
+		kind === 'tool_call_update' ||
+		kind === 'plan'
 	);
 }
 
