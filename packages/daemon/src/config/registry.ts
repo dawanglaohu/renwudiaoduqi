@@ -3,6 +3,11 @@ import { watch } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import {
+	type PlatformTarget,
+	detectSessionDirOverlaps,
+	validateLaunchTemplate,
+} from '../domain/launch-template.ts';
+import {
 	PERMISSION_TIERS,
 	type PermissionTier,
 	isPermissionTier,
@@ -109,7 +114,8 @@ export type AgentRegistryWarningReason =
 	| 'read-failed'
 	| 'unknown-field'
 	| 'watch-failed'
-	| 'write-failed';
+	| 'write-failed'
+	| 'session-dir-overlap';
 
 export interface AgentRegistryWarning {
 	readonly kind: 'agent.availability_changed';
@@ -119,6 +125,13 @@ export interface AgentRegistryWarning {
 	readonly configPath: string;
 	readonly field?: string;
 	readonly agentId?: string;
+	readonly peerAgentId?: string;
+	readonly argumentIndex?: number;
+	readonly startIndex?: number;
+	readonly endIndex?: number;
+	readonly highlight?: string;
+	readonly execPath?: string;
+	readonly sessionDir?: string;
 }
 
 export type AgentRegistryReloadResult =
@@ -151,6 +164,7 @@ export interface AgentRegistryTimers {
 
 export interface CreateAgentRegistryOptions {
 	readonly dataDir: string;
+	readonly platform: PlatformTarget;
 	readonly publishWarning: (warning: AgentRegistryWarning) => void;
 	readonly onReload?: (snapshot: AgentRegistrySnapshot) => void;
 	readonly builtInDefaults?: Readonly<Record<string, AgentConfig>>;
@@ -258,7 +272,17 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 	function publishWarning(
 		reason: AgentRegistryWarningReason,
 		message: string,
-		context: { readonly field?: string; readonly agentId?: string } = {},
+		context: {
+			readonly field?: string;
+			readonly agentId?: string;
+			readonly peerAgentId?: string;
+			readonly argumentIndex?: number;
+			readonly startIndex?: number;
+			readonly endIndex?: number;
+			readonly highlight?: string;
+			readonly execPath?: string;
+			readonly sessionDir?: string;
+		} = {},
 	): void {
 		options.publishWarning(
 			Object.freeze({
@@ -302,12 +326,52 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 			publishWarning(
 				'invalid-config',
 				`Agent registry field ${parsed.field} must be ${parsed.expected}; keeping the previous version.`,
-				{ field: parsed.field, agentId: parsed.agentId },
+				{
+					field: parsed.field,
+					agentId: parsed.agentId,
+					argumentIndex: parsed.argumentIndex,
+					startIndex: parsed.startIndex,
+					endIndex: parsed.endIndex,
+					highlight: parsed.highlight,
+				},
 			);
 			return { status: 'rejected', snapshot: current };
 		}
 
 		const storedDefaults = mergeAgentConfigRecord(builtInDefaults, parsed.defaults);
+		const resolvedAgents = resolveAgentConfigRecord(builtInDefaults, parsed.overrides);
+
+		for (const [agentId, config] of Object.entries(resolvedAgents)) {
+			const validation = validateLaunchTemplate(config.argsTemplate);
+			if (!validation.ok) {
+				publishWarning(
+					'invalid-config',
+					`Agent registry field $.agents.${agentId}.argsTemplate must be valid template syntax (${validation.error.reason}); keeping the previous version.`,
+					{
+						field: `$.agents.${agentId}.argsTemplate`,
+						agentId,
+						argumentIndex: validation.error.argumentIndex,
+						startIndex: validation.error.startIndex,
+						endIndex: validation.error.endIndex,
+						highlight: validation.error.highlight,
+					},
+				);
+				return { status: 'rejected', snapshot: current };
+			}
+		}
+
+		const sessionWarnings = detectSessionDirOverlaps(resolvedAgents, {
+			platform: options.platform,
+		});
+		for (const warning of sessionWarnings) {
+			publishWarning('session-dir-overlap', warning.message, {
+				agentId: warning.agentId,
+				peerAgentId: warning.peerAgentId,
+				execPath: warning.execPath,
+				sessionDir: warning.sessionDir,
+			});
+		}
+
 		let snapshotFingerprint = fingerprint;
 		if (parsed.needsDefaultPersistence) {
 			const persistedContents = serializeAgentsFile({
@@ -440,12 +504,24 @@ type ParseAgentsFileResult =
 			readonly field: string;
 			readonly expected: string;
 			readonly agentId?: string;
+			readonly argumentIndex?: number;
+			readonly startIndex?: number;
+			readonly endIndex?: number;
+			readonly highlight?: string;
 			readonly unknownFields: readonly UnknownField[];
 	  };
 
 type ParseAgentConfigResult =
 	| { readonly ok: true; readonly value: AgentConfigOverrides }
-	| { readonly ok: false; readonly field: string; readonly expected: string };
+	| {
+			readonly ok: false;
+			readonly field: string;
+			readonly expected: string;
+			readonly argumentIndex?: number;
+			readonly startIndex?: number;
+			readonly endIndex?: number;
+			readonly highlight?: string;
+	  };
 
 interface MutableAgentConfigOverrides {
 	execPath?: string;
@@ -523,6 +599,10 @@ type ParseAgentLayerResult =
 			readonly field: string;
 			readonly expected: string;
 			readonly agentId?: string;
+			readonly argumentIndex?: number;
+			readonly startIndex?: number;
+			readonly endIndex?: number;
+			readonly highlight?: string;
 	  };
 
 function parseAgentLayer(
@@ -568,7 +648,19 @@ function parseAgentConfig(
 		if (args === undefined) {
 			return { ok: false, field: `${path}.argsTemplate`, expected: 'an array of strings' };
 		}
-		result.argsTemplate = args;
+		const templateValidation = validateLaunchTemplate(args);
+		if (!templateValidation.ok) {
+			return {
+				ok: false,
+				field: `${path}.argsTemplate`,
+				expected: `valid template syntax (${templateValidation.error.reason})`,
+				argumentIndex: templateValidation.error.argumentIndex,
+				startIndex: templateValidation.error.startIndex,
+				endIndex: templateValidation.error.endIndex,
+				highlight: templateValidation.error.highlight,
+			};
+		}
+		result.argsTemplate = templateValidation.template;
 	}
 	if (Object.hasOwn(input, 'maxConcurrency')) {
 		if (!isSafeInteger(input.maxConcurrency) || input.maxConcurrency > 32) {

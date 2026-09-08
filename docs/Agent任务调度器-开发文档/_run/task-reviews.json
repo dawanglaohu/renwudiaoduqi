@@ -95,6 +95,20 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M3-T1": {
+    "contractHash": "146512f9685ce81851231c1387405647829d67cc10e9dd6d92c95528b1fd87de",
+    "evidence": [
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T1 行、09-数据模型.md:43-77、六条任务边界和当前派发包，确认输入为 unattended-run 1.1.0 docs-data.js，产出与七个有效实现/测试路径一致；前置 M1-T2 已落地，M3-T2 负责后续任务与批次落库。",
+      "协议与保留：packages/daemon/src/service/docs.ts 校验 UTF-8 JSON 外壳、schemaVersion=1、任务必需字段与唯一 ID、三处非空契约哈希、ready/reasons 和 effectivePaths；路径规则与 _run/handoff_contract.py:path_valid 对齐。直接调用真实解析入口验证首尾空白、反斜杠、点段、空段、通配符和盘符相对路径共十种输入全部返回 E_DOC_SOURCE_UNREADABLE；docs-import.test.ts 验证既有记录保留、is_source_readable 置 0、文件恢复后解除标记。",
+      "内容指纹：packages/daemon/src/domain/docs-fingerprint.ts 只规范化按任务 ID 确定性排序的 [id, contractHash] 列表且没有运行时 import；packages/daemon/src/service/docs.ts 提供 SHA-256。docs-fingerprint.test.ts 以固定规范串和已知摘要锁定结果，并覆盖任务顺序、增删和契约哈希变化；generated、mtime、ready/reasons 不进入指纹。",
+      "分层与数据边界：packages/daemon/src/domain/layer-of.ts 与当前阅读器 layerOf 的最长前驱链、环截断和缺失前驱过滤规则一致；packages/daemon/src/repo/documents.ts 只收发 snake_case DocumentRow，service 映射 camelCase 记录。repo 的 prepare/run/get/all 均经 toDatabaseError 包装，重复唯一键测试观察到带原始 cause 的 AppError。",
+      "E-79 与 E-247：同 id/contractHash 指纹下更新 generated 或 ready/reasons 时 hasChanged=false，同时刷新 last_seen_at 并返回最新复核元数据；lane_count 新建默认 2、值域 1-6，用户改为 4 后重新导入保持 4，代码不读取阅读器 localStorage。",
+      "验证环境与结果：Node 22.17.0 下执行聚焦 Vitest 三文件 33/33 通过；审查方补齐路径规则和原生命周期回归后执行 pnpm -w check，Biome、TypeScript 与 25 个 Vitest 文件全部通过，146 passed、32 skipped。跳过项是现有按平台条件选择的测试，不影响本任务的纯解析、SQLite 与 service 行为。"
+    ],
+    "reviewed": "2026-09-08T15:10:57.065155+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T1": {
     "contractHash": "c221a7ad6f416094b23c3e5f311b9461b97d7dd91683345f23894098ffe50e18",
     "evidence": [
@@ -130,6 +144,45 @@
       "2026-09-09 在 Windows 工作树运行 pnpm -w check：Biome 检查 91 文件、tsc -b --noEmit、Vitest 24 文件 160 项全部通过。另运行三份相关测试共 19 项通过；真实入口核对 Codex 0.153.4、Claude 1.0.67、Pi 0.85.1、Grok 1.0.13 和已安装 DSH 配置，验证所采用 flag/env 以及 unsupported 路径。"
     ],
     "reviewed": "2026-09-08T17:20:48.655965+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M4-T2": {
+    "contractHash": "1cb87b7c52fc3392c8aeb7e0df922c87c0fcf724cd8b43bc06921c8ff7b31ea6",
+    "evidence": [
+      "范围与产出：对照 04-执行/19-模块任务拆分.md 的 M4-T2 行，仍只交付四变量模板解析、注册表保存/热加载校验、运行时防御校验与同路径同会话目录告警；E-89/E-95 的触发和结果均未删除或放宽。supportPaths 只补入既有 M4-T1 所有者 packages/daemon/src/config/registry.ts 及两份直接测试，没有开放整个 config/test 目录。",
+      "前置与接线：M4-T1 任务笔记状态为 done，现有 registry.ts 已提供 agents.json 解析、热加载、保留上一版与 publishWarning 接缝。补丁把 M4-T2 的客观成功点写成注册表只发布校验通过的快照，并要求运行时渲染入口再次拒绝未经校验模板；当前代码实际探针仍能发布 --bad={unknown}，因此代码验收为 rework，不把本契约 pass 冒充实现通过。",
+      "分层与文案：对照 06/08 节，domain 保持纯函数叶子，配置边界负责把校验失败接入注册表拒绝/告警；daemon 只产英文开发者 message 与 reason 精确等于 session-dir-overlap 的结构化告警，中文用户文案由 M9-T14 设置页映射。没有新增 HTTP 状态、环境变量、SQL、事务或反向依赖。",
+      "验收与测试责任：E-89 由 launch-template 单元测试覆盖允许变量、未知变量、未闭合括号及起止位置，并由 agent-registry 单元测试覆盖真实 reload 拒绝、旧快照保留和可高亮 details；E-95 由纯函数与 registry 集成测试覆盖同路径同目录告警、不同目录不告警且保存成功；17 节的 pnpm -w check 仍是本地验收门禁。",
+      "实证：在 task/M4-T2 worktree 的原始 PR head c119ad8 上执行 pnpm -w check，Biome、tsc 与 Vitest 全绿，23 个测试文件中 136 通过、32 个平台用例跳过；另以 createAgentRegistry 真实入口加载未知变量，观测到无告警且非法 argsTemplate 进入 snapshot，定位出当前实现与已定契约的具体差距。补丁同步使用 Python 3.13.7 成功，sourceVersion 与契约哈希由 status 重新读取。"
+    ],
+    "reviewed": "2026-09-08T13:45:07.296645+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M4-T5": {
+    "contractHash": "f216ef0eba348bdcdbbc1c89c99139824c428ed6afbfcfb17e8c8b7304bcc8ad",
+    "evidence": [
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M4-T5 行、03-质量/13-边界问题与异常处理.md 的 E-38/E-39/E-43/E-44/E-90、03-质量/17-测试策略.md 和当前派发包，确认前置 M4-T1 已落地；本层产出为四个具名 readModels reader，测试、源码架构断言与任务笔记是必要支持文件，未接入 M4-T6 或 M9-T14 的后续业务链。",
+      "配置读取与错误：packages/daemon/src/adapters/codex/read-models.ts、claude/read-models.ts、grok/read-models.ts、pi/read-models.ts 通过宿主快照和异步可替换文件系统读取四家实测格式；非法 TOML 和损坏 JSON 不产生配置模型，返回具体绝对路径。Pi 通过 configErrors 保留多个文件错误，configError 兼容单错误消费者。",
+      "命令降级与进程边界：Grok 和 Pi 的列模型命令先经 platform.resolveExecutable；Windows 批处理目标再由 wrapForComSpec 生成完整 argv。超时上限不超过 5000ms，runner 接收 AbortSignal 并须在子进程和输出流收敛后返回；非零退出或超时标 isPartial，非空不可解析 stdout 原样保留到 rawStdout。",
+      "缓存与空目录：配置值、historicalModels 和 cachedModels 始终合并，不因命令或解析失败禁止后续派发。Pi 的 providers 空对象、models 空数组、空数组和空对象是合法空目录；未知非空结构标 isPartial 并保留上次成功缓存。四个 reader 每次调用重新 stat/read，不保留跨调用配置内容缓存。",
+      "回归与架构：packages/daemon/test/unit/read-models.test.ts 覆盖四家格式、非法配置、Pi 多文件绝对错误路径、Grok/Pi 非零退出与超时、5000ms 不可放大、AbortSignal 收敛、Windows ComSpec 启动、格式变化 rawStdout、mtime 重读及 Pi 空目录缓存降级。source-contracts.test.ts 禁止 adapter 直接 node:os 和同步文件 API。",
+      "验证结果：合并当前 origin/main 后，四个本机真实配置 smoke 分别读出 Codex 12、Claude 3、Grok 2、Pi 15 个模型，均无 partial/warning/error；pnpm -w check 通过，Biome、TypeScript 与 26 个 Vitest 文件全部通过，168 passed、32 skipped。跳过项是既有按平台条件选择的测试；Windows ComSpec 参数形状由纯平台回归覆盖。"
+    ],
+    "reviewed": "2026-09-08T16:58:55.154130+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T14": {
+    "contractHash": "9f0200e8c97b6144bdbe866c2205b1fe48fbefe58d08457973e05e5605ef75bb",
+    "evidence": [
+      "职责边界：M9-T14 仍只拥有 agent 设置页与容器；补丁仅增加 E-95 的呈现侧，把 reason 精确等于 session-dir-overlap 映射为会话记录可能互相覆盖，不把路径/会话目录判定搬到前端，不允许组件直出 daemon 英文 message。",
+      "前置与接口：任务依赖和输入显式加入 M4-T2 的 session-dir-overlap 告警，原有 M9-T4、M4-T5 与 M4-T1 注册表输入保持不变。M4-T2 现直接解锁 M9-T14，避免设置页在结构化原因尚未落地前实施该分支。",
+      "路径与冲突：M9-T14 有效路径仍为 packages/web/src/features/settings-agents/ 与 packages/web/src/pages/settings-agents-page.tsx，未扩大到共享错误表或其他页面；M4-T2 的 daemon/config/domain/test 路径与它不冲突，依赖表达的是接口顺序而非放宽并行写范围。",
+      "验收阶段：本次只复核下游契约可执行性，不实现 M9-T14，不声称 UI 已完成。后续验收须通过设置页容器测试观测中文提示，并按 06/07 节确认组件只按 reason 分支、中文仍由前端文案所有者提供。"
+    ],
+    "reviewed": "2026-09-08T13:45:23.326119+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }
