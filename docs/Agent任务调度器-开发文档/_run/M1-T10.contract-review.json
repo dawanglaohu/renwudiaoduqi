@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T10": {
+      "contractHash": "99dd274fac9f7480ec51e58563693b20548d672a6fa3e7d0d750a9b50a5c2a56",
+      "verdict": "pass",
+      "evidence": [
+        "04-执行/19-模块任务拆分.md:23 与 图谱/任务/M1-T10.md：逐条复核六项验收、E-03、M1-T1/M1-T2/M1-T3 前置和 M2-T1 的 HTTP 接线责任；局部补丁仅明确 Windows 整机锁必须由 config/env.ts 快照 PROGRAMDATA/SystemRoot，并仍保持五项 AGSCHED_* 产品配置边界。",
+        "packages/daemon/src/platform/lock.ts、lock-posix.ts、lock-windows.ts 与 lock-contract.ts：核对三平台整机路径、五字段锁记录、POSIX root 所有权与 0600、Windows Administrators/SYSTEM-only ACL、绝对 icacls.exe、权限失败诊断和 AppError cause 封装。",
+        "packages/daemon/src/boot/lock.ts 与 packages/daemon/test/integration/daemon-runtime.test.ts：核对 PID + /api/v1/health 双探活、通配绑定回环探测、单活/不确定保锁、双死竞争回收、遗留 reclaim 守卫恢复、并发回收只允许一个持有者，以及只删除与本进程序列化元数据一致的锁。",
+        "packages/daemon/src/config/env.ts、packages/daemon/src/main.ts、packages/daemon/src/boot/container.ts、packages/daemon/src/http/server.ts：核对 daemon.json 单次读取、环境优先、五项配置冻结与格式校验，以及配置→锁→数据目录→SQLite/迁移→容器→HTTP→listen→ready 的真实入口顺序；listen 原生失败在 HTTP 边界包装为 AppError 后清理锁。",
+        "2026-09-07 实际执行 pnpm -w check：10 个测试文件通过，53 passed、32 skipped；聚焦 integration/arch/config/lock 共 22 项通过。Linux 原生入口实测从遗留死锁恢复、GET /api/v1/health 返回 {ok:true}、SIGTERM exit=0 且 /var/lib/agent-scheduler/daemon.lock 已删除。Windows/macOS 原生权限分支由本机条件测试定义，发布级三平台矩阵仍由 M10-T5 负责。"
+      ]
+    }
+  }
+}

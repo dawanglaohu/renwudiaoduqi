@@ -1,6 +1,7 @@
-import { homedir } from 'node:os';
 import { snapshotEnvironment } from '../config/env.ts';
-import type { LockHandle } from './lock.ts';
+import { AppError } from '../errors/app-error.ts';
+import type { PlatformHostInputs } from '../platform/contract.ts';
+import { takePlatformHostInputs } from '../platform/host.ts';
 
 export type RuntimeLogWriter = (line: string) => void;
 
@@ -8,27 +9,36 @@ export interface BootSnapshot {
 	readonly nodeVersion: string;
 	readonly pid: number;
 	readonly environment: ReturnType<typeof snapshotEnvironment>;
-	readonly homeDir: string;
+	readonly hostInputs: PlatformHostInputs;
 	readonly writeRunLog: RuntimeLogWriter;
-	readonly stayResident: (lock: LockHandle) => Promise<never>;
+	readonly startResident: () => Promise<never>;
 }
 
 export function takeBootSnapshot(): BootSnapshot {
+	const environment = snapshotEnvironment();
+	const hostResult = takePlatformHostInputs({
+		appData: environment.host.appData,
+		xdgDataHome: environment.host.xdgDataHome,
+	});
+	if (!hostResult.ok) {
+		throw new AppError(hostResult.error.code, hostResult.error.message, {
+			details: { ...hostResult.error.details },
+		});
+	}
+
 	return Object.freeze({
 		nodeVersion: process.version,
 		pid: process.pid,
-		environment: snapshotEnvironment(),
-		homeDir: homedir(),
-		writeRunLog(line: string): void {
+		environment,
+		hostInputs: hostResult.value,
+		writeRunLog: (line: string): void => {
 			process.stderr.write(`${line}\n`);
 		},
-		stayResident(lock: LockHandle): Promise<never> {
-			return new Promise(() => {
-				// The active handle keeps the successful daemon alive and retains its lock handle.
+		startResident: (): Promise<never> =>
+			new Promise(() => {
 				setInterval(() => {
-					void lock.pid;
+					// keep the event loop alive
 				}, 2_147_483_647);
-			});
-		},
+			}),
 	});
 }

@@ -10,5 +10,6 @@ if (!Number.isInteger(currentMajor) || currentMajor < REQUIRED_NODE_MAJOR) {
 } else {
 	const { register } = await import('node:module');
 	register(new URL('./typescript-loader.mjs', import.meta.url));
-	await import('./src/main.ts');
+	const { runMain } = await import('./src/main.ts');
+	runMain();
 }
