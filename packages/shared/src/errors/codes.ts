@@ -47,6 +47,13 @@ export const ERROR_CODES = {
 	E_TX_NESTED: { defaultHttpStatus: 500, retryable: false, origin: 'server' },
 	E_DISK_FULL: { defaultHttpStatus: 507, retryable: false, origin: 'server' },
 	E_PLATFORM_UNSUPPORTED: { defaultHttpStatus: 501, retryable: false, origin: 'server' },
+	E_AUTOSTART_UNSUPPORTED: { defaultHttpStatus: 501, retryable: false, origin: 'server' },
+	E_AUTOSTART_REGISTER_DENIED: { defaultHttpStatus: 500, retryable: false, origin: 'server' },
+	E_AUTOSTART_UNREGISTER_DENIED: {
+		defaultHttpStatus: 500,
+		retryable: false,
+		origin: 'server',
+	},
 	E_DATA_DIR_UNRESOLVABLE: { defaultHttpStatus: 500, retryable: false, origin: 'server' },
 	E_INVALID_STATE_TRANSITION: {
 		defaultHttpStatus: 500,

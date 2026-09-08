@@ -50,6 +50,15 @@ export interface PlatformPathAdapter {
 	toFileSystemPath(value: string): string;
 }
 
+export interface PlatformAdapter extends PlatformPathAdapter {
+	readonly killTree: (
+		pid: number,
+		processOps: import('./kill-tree-contract.ts').KillTreeProcessOps,
+		options?: import('./kill-tree-contract.ts').KillTreeOptions,
+	) => Promise<import('./kill-tree-contract.ts').KillTreeResult>;
+	readonly autostart: import('./autostart-contract.ts').AutostartAdapter;
+}
+
 export interface ExecutableFileInfo {
 	isFile(): boolean;
 	isSymbolicLink(): boolean;

@@ -80,6 +80,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M1-T9": {
+    "contractHash": "ab2f07872cb180570af552c852bd1ec0f0088cfb18fe5284a8f850c6da94d174",
+    "evidence": [
+      "2026-09-08 第2轮仅复核 PR #8 REVIEW-ROUND 1 的 R1-R5。任务契约 hash 保持 ab2f07872cb180570af552c852bd1ec0f0088cfb18fe5284a8f850c6da94d174；maintain_docs status 返回 ready=true、stale=[]。",
+      "R1/E-119：kill-tree-posix.ts:16-37 与 windows.ts:229-258 由注入的 processOps 执行软终止、3000ms 等待、探活与强制升级，每次动作由 recordAttempt 发事件。kill-tree.test.ts 5 项覆盖 TERM/TASKKILL、等待、探活、KILL/F 和所有权终局。",
+      "R2/R4/E-132：contract.ts:53-60 定义统一 PlatformAdapter；host.ts:92-145 是唯一平台选择点，freebsd 返回 E_PLATFORM_UNSUPPORTED。生产 platform 代码不再导入 child_process、调用 process.kill 或自建时钟/等待，process.platform 只在 host.ts。",
+      "R3/E-209：三个 AutostartAdapter 都实现 register(spec)/status(spec)/unregister()；Windows 读取 XML 原生字段，Darwin 同时核对 launchctl 与 plist，Linux 同时核对 systemd is-enabled 与完整 unit。autostart.test.ts 14 项覆盖特殊参数往返、幂等、file/args/cwd 分别变化后的重写、原生字段篡改、部分失败回滚、手动启动命令和 unsupported 分支。",
+      "R5/E-119/E-269：test/platform/kill-tree-native.test.ts 启动会派生后代且拒绝软终止的父进程，Windows 实际经过 taskkill /T 再 /F 并确认父子 PID 均退出，Linux 实际经过进程组 TERM 再 KILL。autostart-native.test.ts 使用 PID+UUID 隔离名称，在 finally 注销、复查残留并在失败时输出人工删除命令。",
+      "实测：Windows Node 22.17.0 的 pnpm -w check 通过 Biome、tsc 与 11 个 Vitest 文件 93/93；Linux Node 22.17.0 聚焦运行 4 个文件 21/21。Windows Task Scheduler 原生注册清理和父子树终止通过；Linux 环境的 POSIX 父子组终止及无 systemd user 降级通过。没有把这些结果外推成 macOS 本机证据，macOS runner 与三平台发布门禁仍归 M10-T5。",
+      "任务笔记 code/notes 已按当前文件和行号重写，记录注入边界、原生状态与字段双重核对、taskkill 128 歧义、失败回滚及本机证据边界；未提前实现 M1-T6/M1-T7/M6-T5 的调用接线。"
+    ],
+    "reviewed": "2026-09-08T08:30:07.434462+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T1": {
     "contractHash": "c221a7ad6f416094b23c3e5f311b9461b97d7dd91683345f23894098ffe50e18",
     "evidence": [
