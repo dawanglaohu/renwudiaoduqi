@@ -1,21 +1,31 @@
-import { createHash } from 'node:crypto';
-
 export interface TaskContractHashItem {
 	readonly id: string;
 	readonly contractHash: string;
 }
 
+export type DocsFingerprintHasher = (canonicalPayload: string) => string;
+
 /**
- * 文档级 content_fingerprint：
- * 按任务 ID 排序的 [id, contractHash] 列表的 SHA-256 哈希。
- * 任务 ID 增删、有效范围、边界、相关条款或提示词编译器变化都能被识别；
- * 禁止使用 generated 或 mtime 作为变更依据（E-17、E-79）。
+ * 对任务列表进行跨平台确定性规范化（canonicalization）。
+ * 按任务 ID 的二进制 UTF-16 序升序排序，输出唯一的 JSON 规范串。
+ * 绝不包含 generated、mtime 或其他非契约元数据（E-17、E-79）。
  */
-export function computeDocsFingerprint(
+export function canonicalizeDocsFingerprintPayload(
 	tasks: readonly TaskContractHashItem[] | Iterable<TaskContractHashItem>,
 ): string {
 	const items = Array.from(tasks).map((item) => [item.id, item.contractHash] as const);
-	items.sort(([a], [b]) => a.localeCompare(b));
-	const payload = JSON.stringify(items);
-	return createHash('sha256').update(payload, 'utf8').digest('hex');
+	items.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+	return JSON.stringify(items);
+}
+
+/**
+ * 使用注入的哈希函数对规范化载荷计算指纹。
+ * domain 保持为零外部依赖的纯函数层（R2）。
+ */
+export function computeDocsFingerprint(
+	tasks: readonly TaskContractHashItem[] | Iterable<TaskContractHashItem>,
+	hasher: DocsFingerprintHasher,
+): string {
+	const payload = canonicalizeDocsFingerprintPayload(tasks);
+	return hasher(payload);
 }

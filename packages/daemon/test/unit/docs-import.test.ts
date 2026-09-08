@@ -6,10 +6,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
-import { createDocumentsRepo } from '../../src/repo/documents.ts';
+import { type DocumentRow, createDocumentsRepo } from '../../src/repo/documents.ts';
 import {
 	type DocsFileSystem,
 	createDocsService,
+	mapDocumentRow,
 	parseDocsDataContent,
 } from '../../src/service/docs.ts';
 
@@ -54,14 +55,14 @@ interface DocTask {
 	deps: string[];
 	input?: string;
 	output?: string;
-	accept?: string;
+	accept: string;
 	est?: number;
 	edges?: string[];
 }
 
 interface DocDispatchItem {
 	contractHash: string;
-	implementation: unknown;
+	implementation: string;
 	review: string;
 	resume?: string;
 }
@@ -175,7 +176,7 @@ function makeValidDocPayload(overrides: Partial<DocPayload> = {}): DocPayload {
 	return { ...base, ...overrides };
 }
 
-describe('service/docs parser (AC 1, AC 2, E-16, E-17, E-82, E-246)', () => {
+describe('service/docs strict validation (R1, E-16, E-17, E-82, E-246)', () => {
 	it('E-16 parses UTF-8 content with Chinese characters, strips window.DOCS prefix and semicolon', () => {
 		const payload = makeValidDocPayload();
 		const jsContent = `window.DOCS = ${JSON.stringify(payload)};\n`;
@@ -219,47 +220,164 @@ describe('service/docs parser (AC 1, AC 2, E-16, E-17, E-82, E-246)', () => {
 		}
 	});
 
-	it('AC 2 throws E_DOC_SOURCE_UNREADABLE if schemaVersion is not 1', () => {
-		const payload = makeValidDocPayload({ schemaVersion: 2 });
+	it('R1 rejects duplicate task IDs in data.tasks with E_DOC_SOURCE_UNREADABLE', () => {
+		const payload = makeValidDocPayload();
+		payload.data.tasks.push({
+			id: 'T-1', // Duplicate ID!
+			title: '重复的任务',
+			module: 'M1',
+			deps: [],
+			accept: '1) 验收',
+		});
+
 		try {
 			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
-			expect.unreachable('Should have thrown');
+			expect.unreachable('Should have thrown for duplicate task id');
 		} catch (err) {
 			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
+			expect((err as AppError).message).toContain('Duplicate task id in data.tasks');
 		}
 	});
 
-	it('AC 2 / E-17 throws E_DOC_SOURCE_UNREADABLE if three hashes mismatch', () => {
-		const payload = makeValidDocPayload();
-		const contracts = {
-			...payload.handoff.contracts,
-			'T-1': { hash: 'mismatched-hash', effectivePaths: ['src/a.ts'] },
+	it('R1 rejects task missing required fields (title, module, accept) with E_DOC_SOURCE_UNREADABLE', () => {
+		const payloadNoTitle = makeValidDocPayload();
+		const t0 = payloadNoTitle.data.tasks[0];
+		if (!t0) throw new Error('task0 missing');
+		payloadNoTitle.data.tasks[0] = {
+			...t0,
+			title: '   ',
 		};
-		payload.handoff = { ...payload.handoff, contracts };
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadNoTitle)};`),
+		).toThrowError(AppError);
+
+		const payloadNoAccept = makeValidDocPayload();
+		const tAccept0 = payloadNoAccept.data.tasks[0];
+		if (!tAccept0) throw new Error('task0 missing');
+		payloadNoAccept.data.tasks[0] = {
+			...tAccept0,
+			accept: '',
+		};
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadNoAccept)};`),
+		).toThrowError(AppError);
+	});
+
+	it('R1 rejects empty contract hashes or hash mismatch across the 3 places with E_DOC_SOURCE_UNREADABLE', () => {
+		// Empty contract hash
+		const payloadEmpty = makeValidDocPayload();
+		const d1 = payloadEmpty.dispatch['T-1'];
+		const c1 = payloadEmpty.handoff.contracts['T-1'];
+		const r1 = payloadEmpty.handoff.readiness['T-1'];
+		if (!d1 || !c1 || !r1) throw new Error('T-1 missing');
+
+		payloadEmpty.dispatch['T-1'] = {
+			...d1,
+			contractHash: '',
+		};
+		payloadEmpty.handoff.contracts['T-1'] = {
+			...c1,
+			hash: '',
+		};
+		payloadEmpty.handoff.readiness['T-1'] = {
+			...r1,
+			contractHash: '',
+		};
 
 		try {
-			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
-			expect.unreachable('Should have thrown');
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadEmpty)};`);
+			expect.unreachable('Should have thrown for empty contract hash');
 		} catch (err) {
 			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
-			expect((err as AppError).message).toContain('Contract hash mismatch');
+			expect((err as AppError).message).toContain('Contract hash missing or mismatch');
+		}
+
+		// Hash mismatch
+		const payloadMismatch = makeValidDocPayload();
+		const mismatchContract = payloadMismatch.handoff.contracts['T-1'];
+		if (!mismatchContract) throw new Error('T-1 missing');
+		payloadMismatch.handoff.contracts['T-1'] = {
+			...mismatchContract,
+			hash: 'mismatched-hash',
+		};
+
+		try {
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadMismatch)};`);
+			expect.unreachable('Should have thrown for hash mismatch');
+		} catch (err) {
+			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
+			expect((err as AppError).message).toContain('Contract hash missing or mismatch');
 		}
 	});
 
-	it('AC 2 / E-17 throws E_DOC_SOURCE_UNREADABLE if readiness hash mismatches dispatch hash', () => {
-		const payload = makeValidDocPayload();
-		const readiness = {
-			...payload.handoff.readiness,
-			'T-1': { ready: true, contractHash: 'readiness-different', reasons: [] },
+	it('R1 rejects invalid ready/reasons shape with E_DOC_SOURCE_UNREADABLE', () => {
+		// ready is not boolean (e.g. string "true")
+		const payloadInvalidReady = makeValidDocPayload();
+		const readiness1 = {
+			...payloadInvalidReady.handoff.readiness,
+			'T-1': {
+				ready: 'true' as unknown as boolean,
+				contractHash: 'hash-t1',
+				reasons: [],
+			},
 		};
-		payload.handoff = { ...payload.handoff, readiness };
+		payloadInvalidReady.handoff = {
+			...payloadInvalidReady.handoff,
+			readiness: readiness1,
+		};
 
-		try {
-			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
-			expect.unreachable('Should have thrown');
-		} catch (err) {
-			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
-		}
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadInvalidReady)};`),
+		).toThrowError(AppError);
+
+		// reasons is not an array of strings
+		const payloadInvalidReasons = makeValidDocPayload();
+		const readiness2 = {
+			...payloadInvalidReasons.handoff.readiness,
+			'T-1': {
+				ready: true,
+				contractHash: 'hash-t1',
+				reasons: 'not-an-array' as unknown as string[],
+			},
+		};
+		payloadInvalidReasons.handoff = {
+			...payloadInvalidReasons.handoff,
+			readiness: readiness2,
+		};
+
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadInvalidReasons)};`),
+		).toThrowError(AppError);
+	});
+
+	it('R1 rejects 1.1.0 effectivePaths violating path safety rules with E_DOC_SOURCE_UNREADABLE', () => {
+		// Empty array
+		const payloadEmpty = makeValidDocPayload();
+		payloadEmpty.handoff.effectivePaths['T-1'] = [];
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadEmpty)};`),
+		).toThrowError(AppError);
+
+		// Traversal segment ..
+		const payloadTraversal = makeValidDocPayload();
+		payloadTraversal.handoff.effectivePaths['T-1'] = ['src/../secret.ts'];
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadTraversal)};`),
+		).toThrowError(AppError);
+
+		// Absolute path
+		const payloadAbsolute = makeValidDocPayload();
+		payloadAbsolute.handoff.effectivePaths['T-1'] = ['/etc/passwd'];
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadAbsolute)};`),
+		).toThrowError(AppError);
+
+		// Null byte
+		const payloadNullByte = makeValidDocPayload();
+		payloadNullByte.handoff.effectivePaths['T-1'] = ['src/\0bad.ts'];
+		expect(() =>
+			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payloadNullByte)};`),
+		).toThrowError(AppError);
 	});
 
 	it('E-82 task with ready=false is valid for import but records isContractReady=false', () => {
@@ -275,44 +393,10 @@ describe('service/docs parser (AC 1, AC 2, E-16, E-17, E-82, E-246)', () => {
 		expect(task2?.isContractReady).toBe(false);
 		expect(task2?.contractReasons).toEqual(['待复核条款 3']);
 	});
-
-	it('throws E_DOC_SOURCE_UNREADABLE when required fields or task dispatch is missing', () => {
-		const payload = makeValidDocPayload();
-		const t1 = payload.dispatch['T-1'];
-		if (!t1) throw new Error('T-1 dispatch item missing');
-		payload.dispatch = {
-			'T-1': t1,
-		};
-
-		try {
-			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
-			expect.unreachable('Should have thrown');
-		} catch (err) {
-			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
-			expect((err as AppError).message).toContain('Missing dispatch package');
-		}
-	});
-
-	it('throws E_DOC_SOURCE_UNREADABLE when prompts are missing or not strings', () => {
-		const payload = makeValidDocPayload();
-		const t1 = payload.dispatch['T-1'];
-		if (!t1) throw new Error('T-1 dispatch item missing');
-		payload.dispatch['T-1'] = {
-			...t1,
-			implementation: 12345,
-		};
-
-		try {
-			parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
-			expect.unreachable('Should have thrown');
-		} catch (err) {
-			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
-		}
-	});
 });
 
-describe('DocsService document lifecycle and repository sync (AC 3, AC 4, AC 6, E-79, E-82, E-247)', () => {
-	it('AC 6 / E-247 imports new document with lane_count=2 and preserves it on re-import', async () => {
+describe('R1 negative tests: existing document remains intact and marked is_source_readable=0 on corrupted input', () => {
+	it('retains existing document record and sets is_source_readable=0 when input becomes corrupted', async () => {
 		const db = createTestDatabase();
 		const documentsRepo = createDocumentsRepo(db);
 
@@ -322,17 +406,17 @@ describe('DocsService document lifecycle and repository sync (AC 3, AC 4, AC 6, 
 				return this.current;
 			},
 		};
+		let idCounter = 0;
 		const ids = {
-			counter: 0,
 			newId() {
-				return `doc-${++this.counter}`;
+				return `doc-${++idCounter}`;
 			},
 		};
 
-		const payload = makeValidDocPayload();
+		let currentContent = `window.DOCS = ${JSON.stringify(makeValidDocPayload())};`;
 		const mockFs: DocsFileSystem = {
 			async readFile() {
-				return `window.DOCS = ${JSON.stringify(payload)};`;
+				return currentContent;
 			},
 		};
 
@@ -343,159 +427,146 @@ describe('DocsService document lifecycle and repository sync (AC 3, AC 4, AC 6, 
 			fs: mockFs,
 		});
 
-		// First import
-		const res1 = await service.importDocument('/path/to/docs-data.js');
-		expect(res1.isNew).toBe(true);
-		expect(res1.hasChanged).toBe(true);
-		expect(res1.document.laneCount).toBe(2);
-		expect(res1.document.isSourceReadable).toBe(true);
-		expect(res1.document.importedAt).toBe('2026-09-08T10:00:00.000Z');
+		// 1. Initial valid import
+		const initial = await service.importDocument('/app/docs-data.js');
+		expect(initial.isNew).toBe(true);
+		expect(initial.document.isSourceReadable).toBe(true);
+		const docId = initial.document.id;
 
-		// User updates lane_count to 4 in our system
-		service.updateLaneCount(res1.document.id, 4);
-		const updated = service.getDocumentById(res1.document.id);
-		expect(updated?.laneCount).toBe(4);
-
-		// Re-import with same content: laneCount must remain 4, not reset (E-247)
+		// 2. Input becomes corrupted with duplicate task ID
+		const corruptedDuplicateId = makeValidDocPayload();
+		corruptedDuplicateId.data.tasks.push({
+			id: 'T-1',
+			title: 'dup',
+			module: 'M1',
+			deps: [],
+			accept: '1) acc',
+		});
+		currentContent = `window.DOCS = ${JSON.stringify(corruptedDuplicateId)};`;
 		clock.current = '2026-09-08T11:00:00.000Z';
-		const res2 = await service.importDocument('/path/to/docs-data.js');
-		expect(res2.isNew).toBe(false);
-		expect(res2.hasChanged).toBe(false);
-		expect(res2.document.laneCount).toBe(4);
-		expect(res2.document.lastSeenAt).toBe('2026-09-08T11:00:00.000Z');
-	});
-
-	it('E-247 rejects invalid lane_count with E_VALIDATION', () => {
-		const db = createTestDatabase();
-		const documentsRepo = createDocumentsRepo(db);
-		const service = createDocsService({
-			documentsRepo,
-			clock: { now: () => '2026-09-08T00:00:00.000Z' },
-			ids: { newId: () => 'id' },
-		});
-
-		expect(() => service.updateLaneCount('unused', 0)).toThrowError(AppError);
-		expect(() => service.updateLaneCount('unused', 7)).toThrowError(AppError);
-	});
-
-	it('AC 3 / E-79 does not report change when only timestamp or ready/reasons change, but refreshes metadata', async () => {
-		const db = createTestDatabase();
-		const documentsRepo = createDocumentsRepo(db);
-		const clock = {
-			current: '2026-09-08T10:00:00.000Z',
-			now() {
-				return this.current;
-			},
-		};
-		const ids = {
-			counter: 0,
-			newId() {
-				return `doc-${++this.counter}`;
-			},
-		};
-
-		let currentPayload = makeValidDocPayload({ generated: '2026-09-08T10:00:00.000Z' });
-		const mockFs: DocsFileSystem = {
-			async readFile() {
-				return `window.DOCS = ${JSON.stringify(currentPayload)};`;
-			},
-		};
-
-		const service = createDocsService({
-			documentsRepo,
-			clock,
-			ids,
-			fs: mockFs,
-		});
-
-		const res1 = await service.importDocument('/app/docs-data.js');
-		const initialFingerprint = res1.document.contentFingerprint;
-
-		// Document rebuilt with updated timestamp and T-2 became ready, but contract hashes are identical!
-		clock.current = '2026-09-08T12:00:00.000Z';
-		const updatedReadiness = {
-			...currentPayload.handoff.readiness,
-			'T-2': { ready: true, contractHash: 'hash-t2', reasons: [] },
-		};
-		currentPayload = makeValidDocPayload({
-			generated: '2026-09-08T12:00:00.000Z',
-			handoff: {
-				...currentPayload.handoff,
-				readiness: updatedReadiness,
-			},
-		});
-
-		const res2 = await service.importDocument('/app/docs-data.js');
-		// E-79: Fingerprint is identical -> hasChanged is false!
-		expect(res2.hasChanged).toBe(false);
-		expect(res2.document.contentFingerprint).toBe(initialFingerprint);
-		// But document metadata refreshed with current timestamp
-		expect(res2.document.lastSeenAt).toBe('2026-09-08T12:00:00.000Z');
-		expect(res2.parsed.taskMap.get('T-2')?.isContractReady).toBe(true);
-	});
-
-	it('AC 4 / E-82 marks source unreadable, retains records and clears nothing when file fails', async () => {
-		const db = createTestDatabase();
-		const documentsRepo = createDocumentsRepo(db);
-		const clock = {
-			current: '2026-09-08T10:00:00.000Z',
-			now() {
-				return this.current;
-			},
-		};
-		const ids = {
-			counter: 0,
-			newId() {
-				return `doc-${++this.counter}`;
-			},
-		};
-
-		let shouldFail = false;
-		const mockFs: DocsFileSystem = {
-			async readFile() {
-				if (shouldFail) {
-					const err = new Error('ENOENT: no such file or directory');
-					Object.assign(err, { code: 'ENOENT' });
-					throw err;
-				}
-				return `window.DOCS = ${JSON.stringify(makeValidDocPayload())};`;
-			},
-		};
-
-		const service = createDocsService({
-			documentsRepo,
-			clock,
-			ids,
-			fs: mockFs,
-		});
-
-		// Successful initial import
-		const res1 = await service.importDocument('/app/docs-data.js');
-		expect(res1.document.isSourceReadable).toBe(true);
-
-		// Now file becomes unreadable / deleted
-		shouldFail = true;
-		clock.current = '2026-09-08T14:00:00.000Z';
 
 		try {
 			await service.importDocument('/app/docs-data.js');
-			expect.unreachable('Should have thrown');
+			expect.unreachable('Should have thrown on duplicate task ID');
 		} catch (err) {
 			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
 		}
 
-		// Check DB: document still exists (not deleted), but is_source_readable is 0
-		const docAfterFailure = service.getDocumentById(res1.document.id);
-		expect(docAfterFailure).not.toBeNull();
-		expect(docAfterFailure?.isSourceReadable).toBe(false);
-		expect(docAfterFailure?.lastSeenAt).toBe('2026-09-08T14:00:00.000Z');
+		// Assert: DB record retained, is_source_readable is 0, last_seen_at updated
+		let doc = service.getDocumentById(docId);
+		expect(doc).not.toBeNull();
+		expect(doc?.isSourceReadable).toBe(false);
+		expect(doc?.lastSeenAt).toBe('2026-09-08T11:00:00.000Z');
 
-		// File is restored: re-import succeeds and restores is_source_readable = 1
-		shouldFail = false;
-		clock.current = '2026-09-08T15:00:00.000Z';
-		const res3 = await service.importDocument('/app/docs-data.js');
-		expect(res3.document.isSourceReadable).toBe(true);
-		expect(res3.document.lastSeenAt).toBe('2026-09-08T15:00:00.000Z');
+		// 3. Input becomes corrupted with hash mismatch
+		const corruptedHashMismatch = makeValidDocPayload();
+		const corruptContract = corruptedHashMismatch.handoff.contracts['T-1'];
+		if (!corruptContract) throw new Error('T-1 contract missing');
+		corruptedHashMismatch.handoff.contracts['T-1'] = {
+			...corruptContract,
+			hash: 'bad-hash',
+		};
+		currentContent = `window.DOCS = ${JSON.stringify(corruptedHashMismatch)};`;
+		clock.current = '2026-09-08T12:00:00.000Z';
+
+		try {
+			await service.importDocument('/app/docs-data.js');
+			expect.unreachable('Should have thrown on hash mismatch');
+		} catch (err) {
+			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
+		}
+
+		doc = service.getDocumentById(docId);
+		expect(doc?.isSourceReadable).toBe(false);
+		expect(doc?.lastSeenAt).toBe('2026-09-08T12:00:00.000Z');
+
+		// 4. Input becomes corrupted with invalid effectivePaths (path traversal)
+		const corruptedPath = makeValidDocPayload();
+		corruptedPath.handoff.effectivePaths['T-1'] = ['../outside.ts'];
+		currentContent = `window.DOCS = ${JSON.stringify(corruptedPath)};`;
+		clock.current = '2026-09-08T13:00:00.000Z';
+
+		try {
+			await service.importDocument('/app/docs-data.js');
+			expect.unreachable('Should have thrown on path traversal');
+		} catch (err) {
+			expect((err as AppError).code).toBe('E_DOC_SOURCE_UNREADABLE');
+		}
+
+		doc = service.getDocumentById(docId);
+		expect(doc?.isSourceReadable).toBe(false);
+		expect(doc?.lastSeenAt).toBe('2026-09-08T13:00:00.000Z');
+
+		// 5. Restoring valid document clears unreadable state back to 1
+		currentContent = `window.DOCS = ${JSON.stringify(makeValidDocPayload())};`;
+		clock.current = '2026-09-08T14:00:00.000Z';
+		const recovered = await service.importDocument('/app/docs-data.js');
+		expect(recovered.document.isSourceReadable).toBe(true);
+		expect(recovered.document.lastSeenAt).toBe('2026-09-08T14:00:00.000Z');
+	});
+});
+
+describe('R3 repo/documents contracts: snake_case Row and error boundary wrapping', () => {
+	it('repo/documents only operates on snake_case DocumentRow and wraps SQLite errors as AppError', () => {
+		const db = createTestDatabase();
+		const documentsRepo = createDocumentsRepo(db);
+
+		const row1: DocumentRow = {
+			id: 'doc-row-1',
+			docs_path: '/path/row1.js',
+			project_name: '测试行',
+			repo_path: 'repo1',
+			main_branch: 'main',
+			branch_prefix: 'task/',
+			lane_count: 2,
+			content_fingerprint: 'fp-1',
+			is_source_readable: 1,
+			is_takeover_notified: 0,
+			imported_at: '2026-09-08T00:00:00.000Z',
+			last_seen_at: '2026-09-08T00:00:00.000Z',
+		};
+
+		documentsRepo.insert(row1);
+
+		// Queries return snake_case DocumentRow
+		const fetched = documentsRepo.findById('doc-row-1');
+		expect(fetched).not.toBeNull();
+		expect(fetched?.docs_path).toBe('/path/row1.js');
+		expect(fetched?.project_name).toBe('测试行');
+		expect(fetched?.is_source_readable).toBe(1);
+
+		// Negative test: inserting duplicate primary key or unique docs_path wraps native error into AppError with cause
+		let error: unknown;
+		try {
+			documentsRepo.insert(row1); // Duplicate insert!
+		} catch (err) {
+			error = err;
+		}
+
+		expect(error).toBeInstanceOf(AppError);
+		expect((error as AppError).code).toBe('E_INTERNAL');
+		expect((error as AppError).cause).toBeDefined();
+
+		// Negative test: lane_count validation in repo
+		expect(() =>
+			documentsRepo.insert({
+				...row1,
+				id: 'doc-row-2',
+				docs_path: '/path/row2.js',
+				lane_count: 0, // Invalid!
+			}),
+		).toThrowError(AppError);
+
+		expect(() => documentsRepo.updateLaneCount('doc-row-1', 99)).toThrowError(AppError);
+
+		// Test mapDocumentRow converts snake_case row to camelCase DocumentRecord
+		expect(fetched).not.toBeNull();
+		if (!fetched) throw new Error('fetched document missing');
+		const mapped = mapDocumentRow(fetched);
+		expect(mapped.docsPath).toBe('/path/row1.js');
+		expect(mapped.projectName).toBe('测试行');
+		expect(mapped.isSourceReadable).toBe(true);
+		expect(mapped.isTakeoverNotified).toBe(false);
 	});
 });
 

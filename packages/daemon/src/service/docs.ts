@@ -1,9 +1,10 @@
+import { createHash } from 'node:crypto';
 import * as nodeFs from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { computeDocsFingerprint } from '../domain/docs-fingerprint.ts';
+import { type DocsFingerprintHasher, computeDocsFingerprint } from '../domain/docs-fingerprint.ts';
 import { batchNoOf, layerOf } from '../domain/layer-of.ts';
 import { AppError } from '../errors/app-error.ts';
-import type { DocumentRecord, DocumentsRepo } from '../repo/documents.ts';
+import type { DocumentMetadataUpdateRow, DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 
 export interface ParsedDocTask {
 	readonly id: string;
@@ -12,7 +13,7 @@ export interface ParsedDocTask {
 	readonly deps: readonly string[];
 	readonly input: string | null;
 	readonly output: string | null;
-	readonly accept: string | null;
+	readonly accept: string;
 	readonly estDays: number | null;
 	readonly edgeIds: readonly string[];
 	readonly contractHash: string;
@@ -37,6 +38,21 @@ export interface ParsedDocData {
 	readonly taskMap: ReadonlyMap<string, ParsedDocTask>;
 }
 
+export interface DocumentRecord {
+	readonly id: string;
+	readonly docsPath: string;
+	readonly projectName: string;
+	readonly repoPath: string | null;
+	readonly mainBranch: string;
+	readonly branchPrefix: string;
+	readonly laneCount: number;
+	readonly contentFingerprint: string;
+	readonly isSourceReadable: boolean;
+	readonly isTakeoverNotified: boolean;
+	readonly importedAt: string;
+	readonly lastSeenAt: string;
+}
+
 export interface DocsFileSystem {
 	readonly readFile: (path: string, encoding: 'utf8') => Promise<string>;
 }
@@ -46,6 +62,7 @@ export interface DocsServiceDeps {
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly fs?: DocsFileSystem;
+	readonly hasher?: DocsFingerprintHasher;
 }
 
 export interface ImportDocumentResult {
@@ -72,13 +89,74 @@ const DEFAULT_FS: DocsFileSystem = Object.freeze({
 	},
 });
 
+export function defaultSha256Hasher(payload: string): string {
+	return createHash('sha256').update(payload, 'utf8').digest('hex');
+}
+
+export function mapDocumentRow(row: DocumentRow): DocumentRecord {
+	return Object.freeze({
+		id: row.id,
+		docsPath: row.docs_path,
+		projectName: row.project_name,
+		repoPath: row.repo_path,
+		mainBranch: row.main_branch,
+		branchPrefix: row.branch_prefix,
+		laneCount: row.lane_count,
+		contentFingerprint: row.content_fingerprint,
+		isSourceReadable: row.is_source_readable === 1,
+		isTakeoverNotified: row.is_takeover_notified === 1,
+		importedAt: row.imported_at,
+		lastSeenAt: row.last_seen_at,
+	});
+}
+
+function assertValidEffectivePath(taskId: string, path: string, docsPath?: string): void {
+	if (typeof path !== 'string' || path.trim().length === 0) {
+		throw new AppError(
+			'E_DOC_SOURCE_UNREADABLE',
+			`Task ${taskId} has empty or non-string effectivePath`,
+			{ details: { docsPath, taskId, path } },
+		);
+	}
+
+	if (path.includes('\0')) {
+		throw new AppError(
+			'E_DOC_SOURCE_UNREADABLE',
+			`Task ${taskId} effectivePath contains null byte: ${path}`,
+			{ details: { docsPath, taskId, path } },
+		);
+	}
+
+	if (
+		path.startsWith('/') ||
+		path.startsWith('\\') ||
+		/^[a-zA-Z]:[\\/]/.test(path) ||
+		path.startsWith('\\\\')
+	) {
+		throw new AppError(
+			'E_DOC_SOURCE_UNREADABLE',
+			`Task ${taskId} effectivePath must be a relative path: ${path}`,
+			{ details: { docsPath, taskId, path } },
+		);
+	}
+
+	const segments = path.split(/[\\/]/);
+	if (segments.includes('..')) {
+		throw new AppError(
+			'E_DOC_SOURCE_UNREADABLE',
+			`Task ${taskId} effectivePath must not contain traversal segment (..): ${path}`,
+			{ details: { docsPath, taskId, path } },
+		);
+	}
+}
+
 /**
  * 强制按 UTF-8 读取 docs-data.js，剥离固定外壳后 JSON.parse，
- * 校验 schemaVersion=1 与任务包的三处哈希一致，按 deps 计算批次分层（E-16, E-17, E-246）。
+ * 严格校验 schemaVersion=1、唯一任务 ID、三处非空哈希一致、ready/reasons 形状与 1.1.0 路径规则（R1, E-16, E-17, E-246）。
  */
 export function parseDocsDataContent(
 	content: string,
-	options: { docsPath?: string } = {},
+	options: { docsPath?: string; hasher?: DocsFingerprintHasher } = {},
 ): ParsedDocData {
 	let text = content;
 	if (text.charCodeAt(0) === 0xfeff) {
@@ -173,6 +251,7 @@ export function parseDocsDataContent(
 	}
 
 	const taskIds: string[] = [];
+	const seenTaskIds = new Set<string>();
 	const depsLookup: Record<string, readonly string[]> = {};
 
 	for (const t of tasksRaw) {
@@ -181,17 +260,71 @@ export function parseDocsDataContent(
 				details: { docsPath: options.docsPath },
 			});
 		}
-		const taskId = (t as { id?: unknown }).id;
+
+		const taskObj = t as Record<string, unknown>;
+		const taskId = taskObj.id;
 		if (typeof taskId !== 'string' || taskId.trim().length === 0) {
 			throw new AppError('E_DOC_SOURCE_UNREADABLE', 'Task in data.tasks has missing or empty id', {
 				details: { docsPath: options.docsPath },
 			});
 		}
+
+		// R1: 唯一任务 ID
+		if (seenTaskIds.has(taskId)) {
+			throw new AppError('E_DOC_SOURCE_UNREADABLE', `Duplicate task id in data.tasks: ${taskId}`, {
+				details: { docsPath: options.docsPath, taskId },
+			});
+		}
+		seenTaskIds.add(taskId);
 		taskIds.push(taskId);
-		const rawDeps = (t as { deps?: unknown }).deps;
-		depsLookup[taskId] = Array.isArray(rawDeps)
-			? rawDeps.filter((d): d is string => typeof d === 'string')
-			: [];
+
+		// R1: 必需任务字段严格校验 (title, module, deps, accept)
+		if (typeof taskObj.title !== 'string' || taskObj.title.trim().length === 0) {
+			throw new AppError(
+				'E_DOC_SOURCE_UNREADABLE',
+				`Task ${taskId} has missing or empty title in data.tasks`,
+				{ details: { docsPath: options.docsPath, taskId } },
+			);
+		}
+
+		if (typeof taskObj.module !== 'string' || taskObj.module.trim().length === 0) {
+			throw new AppError(
+				'E_DOC_SOURCE_UNREADABLE',
+				`Task ${taskId} has missing or empty module in data.tasks`,
+				{ details: { docsPath: options.docsPath, taskId } },
+			);
+		}
+
+		if (
+			!Array.isArray(taskObj.deps) ||
+			!taskObj.deps.every((d): d is string => typeof d === 'string')
+		) {
+			throw new AppError(
+				'E_DOC_SOURCE_UNREADABLE',
+				`Task ${taskId} has invalid deps; must be array of strings`,
+				{ details: { docsPath: options.docsPath, taskId } },
+			);
+		}
+
+		if (typeof taskObj.accept !== 'string' || taskObj.accept.trim().length === 0) {
+			throw new AppError(
+				'E_DOC_SOURCE_UNREADABLE',
+				`Task ${taskId} has missing or empty accept criteria in data.tasks`,
+				{ details: { docsPath: options.docsPath, taskId } },
+			);
+		}
+
+		depsLookup[taskId] = taskObj.deps;
+	}
+
+	// 核对 dispatch 任务集合与 data.tasks 一致
+	const dispatchKeys = Object.keys(dispatch);
+	if (dispatchKeys.length !== taskIds.length) {
+		throw new AppError(
+			'E_DOC_SOURCE_UNREADABLE',
+			`Task count mismatch between dispatch (${dispatchKeys.length}) and data.tasks (${taskIds.length})`,
+			{ details: { docsPath: options.docsPath } },
+		);
 	}
 
 	const parsedTasks: ParsedDocTask[] = [];
@@ -202,13 +335,14 @@ export function parseDocsDataContent(
 
 	for (const t of tasksRaw as Record<string, unknown>[]) {
 		const taskId = t.id as string;
-		const title = typeof t.title === 'string' ? t.title : '';
-		const moduleKey = typeof t.module === 'string' ? t.module : '';
+		const title = t.title as string;
+		const moduleKey = t.module as string;
 		const deps = depsLookup[taskId] ?? [];
 		const input = typeof t.input === 'string' ? t.input : null;
 		const output = typeof t.output === 'string' ? t.output : null;
-		const accept = typeof t.accept === 'string' ? t.accept : null;
-		const estDays = typeof t.est === 'number' ? t.est : null;
+		const accept = t.accept as string;
+		const estDays =
+			typeof t.est === 'number' && Number.isFinite(t.est) && t.est >= 0 ? t.est : null;
 		const edgeIds = Array.isArray(t.edges)
 			? Object.freeze(t.edges.filter((e): e is string => typeof e === 'string'))
 			: Object.freeze([]);
@@ -240,30 +374,37 @@ export function parseDocsDataContent(
 			);
 		}
 
+		// R1: 1.1.0 effectivePaths 路径规则
 		const taskPathsRaw = effectivePaths[taskId];
-		if (!Array.isArray(taskPathsRaw) || !taskPathsRaw.every((p) => typeof p === 'string')) {
+		if (!Array.isArray(taskPathsRaw) || taskPathsRaw.length === 0) {
 			throw new AppError(
 				'E_DOC_SOURCE_UNREADABLE',
-				`Missing or invalid effectivePaths for task: ${taskId}`,
+				`Missing or empty effectivePaths for task: ${taskId}`,
 				{ details: { docsPath: options.docsPath, taskId } },
 			);
 		}
+		for (const p of taskPathsRaw) {
+			assertValidEffectivePath(taskId, p, options.docsPath);
+		}
 
-		// 校验三处哈希一致性（E-17）
+		// R1: 校验三处非空契约哈希一致性（E-17）
 		const dispatchHash = dispatchItem.contractHash;
 		const contractsHash = contractItem.hash;
 		const readinessHash = readinessItem.contractHash;
 
 		if (
 			typeof dispatchHash !== 'string' ||
+			dispatchHash.trim().length === 0 ||
 			typeof contractsHash !== 'string' ||
+			contractsHash.trim().length === 0 ||
 			typeof readinessHash !== 'string' ||
+			readinessHash.trim().length === 0 ||
 			dispatchHash !== contractsHash ||
 			dispatchHash !== readinessHash
 		) {
 			throw new AppError(
 				'E_DOC_SOURCE_UNREADABLE',
-				`Contract hash mismatch for task ${taskId}: dispatch=${String(dispatchHash)}, contracts=${String(contractsHash)}, readiness=${String(readinessHash)}`,
+				`Contract hash missing or mismatch for task ${taskId}: dispatch=${String(dispatchHash)}, contracts=${String(contractsHash)}, readiness=${String(readinessHash)}`,
 				{
 					details: {
 						docsPath: options.docsPath,
@@ -276,21 +417,45 @@ export function parseDocsDataContent(
 			);
 		}
 
+		// 提示词必须是非空字符串
 		const implPrompt = dispatchItem.implementation;
 		const reviewPrompt = dispatchItem.review;
-		if (typeof implPrompt !== 'string' || typeof reviewPrompt !== 'string') {
+		if (
+			typeof implPrompt !== 'string' ||
+			implPrompt.trim().length === 0 ||
+			typeof reviewPrompt !== 'string' ||
+			reviewPrompt.trim().length === 0
+		) {
 			throw new AppError(
 				'E_DOC_SOURCE_UNREADABLE',
-				`Missing or non-string prompts in dispatch for task: ${taskId}`,
+				`Missing or empty prompts in dispatch for task: ${taskId}`,
+				{ details: { docsPath: options.docsPath, taskId } },
+			);
+		}
+
+		// R1: ready/reasons 形状严格校验
+		if (typeof readinessItem.ready !== 'boolean') {
+			throw new AppError(
+				'E_DOC_SOURCE_UNREADABLE',
+				`Task ${taskId} readiness.ready must be boolean`,
+				{ details: { docsPath: options.docsPath, taskId } },
+			);
+		}
+
+		if (
+			!Array.isArray(readinessItem.reasons) ||
+			!readinessItem.reasons.every((r): r is string => typeof r === 'string')
+		) {
+			throw new AppError(
+				'E_DOC_SOURCE_UNREADABLE',
+				`Task ${taskId} readiness.reasons must be array of strings`,
 				{ details: { docsPath: options.docsPath, taskId } },
 			);
 		}
 
 		const resumePrompt = typeof dispatchItem.resume === 'string' ? dispatchItem.resume : null;
-		const isContractReady = readinessItem.ready === true;
-		const contractReasons = Array.isArray(readinessItem.reasons)
-			? Object.freeze(readinessItem.reasons.filter((r): r is string => typeof r === 'string'))
-			: Object.freeze([]);
+		const isContractReady = readinessItem.ready;
+		const contractReasons = Object.freeze([...readinessItem.reasons]);
 
 		const layer = layers[taskId] ?? 0;
 		const batchNo = batchNoOf(layer);
@@ -321,7 +486,9 @@ export function parseDocsDataContent(
 		fingerprintItems.push({ id: taskId, contractHash: dispatchHash });
 	}
 
-	const contentFingerprint = computeDocsFingerprint(fingerprintItems);
+	// R2: 使用 service 层注入的哈希函数或默认 sha256 计算指纹
+	const hasher = options.hasher ?? defaultSha256Hasher;
+	const contentFingerprint = computeDocsFingerprint(fingerprintItems, hasher);
 
 	const pres = doc.pres as Record<string, unknown> | undefined;
 	const presHandoff = pres?.handoff as Record<string, unknown> | undefined;
@@ -347,6 +514,7 @@ export function parseDocsDataContent(
 export async function parseDocsDataFile(
 	filePath: string,
 	fs: DocsFileSystem = DEFAULT_FS,
+	hasher: DocsFingerprintHasher = defaultSha256Hasher,
 ): Promise<ParsedDocData> {
 	let content: string;
 	try {
@@ -358,28 +526,29 @@ export async function parseDocsDataFile(
 		});
 	}
 
-	return parseDocsDataContent(content, { docsPath: filePath });
+	return parseDocsDataContent(content, { docsPath: filePath, hasher });
 }
 
 export function createDocsService(deps: DocsServiceDeps): DocsService {
 	const fileSystem = deps.fs ?? DEFAULT_FS;
+	const hasher = deps.hasher ?? defaultSha256Hasher;
 
 	return Object.freeze({
 		parseContent(content: string, options?: { docsPath?: string }): ParsedDocData {
-			return parseDocsDataContent(content, options);
+			return parseDocsDataContent(content, { ...options, hasher });
 		},
 
 		async parseFile(filePath: string): Promise<ParsedDocData> {
-			return parseDocsDataFile(filePath, fileSystem);
+			return parseDocsDataFile(filePath, fileSystem, hasher);
 		},
 
 		async importDocument(docsPath: string): Promise<ImportDocumentResult> {
 			const resolvedPath = resolve(docsPath);
-			const existingDoc = deps.documentsRepo.findByPath(resolvedPath);
+			const existingRow = deps.documentsRepo.findByPath(resolvedPath);
 
 			let parsed: ParsedDocData;
 			try {
-				parsed = await parseDocsDataFile(resolvedPath, fileSystem);
+				parsed = await parseDocsDataFile(resolvedPath, fileSystem, hasher);
 			} catch (error) {
 				const appError =
 					error instanceof AppError
@@ -393,38 +562,39 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 								},
 							);
 
-				// E-82: 源不可读时保留全部记录与快照，置 is_source_readable=0 并冻结新派发，不清空任何数据
-				if (existingDoc) {
-					deps.documentsRepo.markSourceUnreadable(existingDoc.id, deps.clock.now());
+				// R1, E-82: 源不可读时保留全部记录与快照，置 is_source_readable=0 并冻结新派发，不清空任何数据
+				if (existingRow) {
+					deps.documentsRepo.markSourceUnreadable(existingRow.id, deps.clock.now());
 				}
 				throw appError;
 			}
 
 			const now = deps.clock.now();
 
-			if (!existingDoc) {
+			if (!existingRow) {
 				const newDocId = deps.ids.newId();
-				deps.documentsRepo.insert({
+				const newRow: DocumentRow = {
 					id: newDocId,
-					docsPath: resolvedPath,
-					projectName: parsed.projectName,
-					repoPath: parsed.repoPath,
-					mainBranch: parsed.mainBranch,
-					branchPrefix: parsed.branchPrefix,
-					laneCount: 2, // 默认 2，不读取阅读器 localStorage（E-247）
-					contentFingerprint: parsed.contentFingerprint,
-					isSourceReadable: true,
-					isTakeoverNotified: false,
-					importedAt: now,
-					lastSeenAt: now,
-				});
+					docs_path: resolvedPath,
+					project_name: parsed.projectName,
+					repo_path: parsed.repoPath,
+					main_branch: parsed.mainBranch,
+					branch_prefix: parsed.branchPrefix,
+					lane_count: 2, // 默认 2，不读取阅读器 localStorage（E-247）
+					content_fingerprint: parsed.contentFingerprint,
+					is_source_readable: 1,
+					is_takeover_notified: 0,
+					imported_at: now,
+					last_seen_at: now,
+				};
+				deps.documentsRepo.insert(newRow);
 
-				const document = deps.documentsRepo.findById(newDocId);
-				if (!document) {
+				const row = deps.documentsRepo.findById(newDocId);
+				if (!row) {
 					throw new AppError('E_INTERNAL', `Failed to retrieve inserted document ${newDocId}`);
 				}
 				return Object.freeze({
-					document,
+					document: mapDocumentRow(row),
 					parsed,
 					hasChanged: true,
 					isNew: true,
@@ -432,26 +602,27 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			}
 
 			// E-17, E-79: 比对指纹
-			const hasChanged = existingDoc.contentFingerprint !== parsed.contentFingerprint;
+			const hasChanged = existingRow.content_fingerprint !== parsed.contentFingerprint;
 
 			// 成功读取时刷新文档复核元数据，恢复 is_source_readable = 1
-			deps.documentsRepo.updateMetadata({
-				id: existingDoc.id,
-				projectName: parsed.projectName,
-				repoPath: parsed.repoPath,
-				mainBranch: parsed.mainBranch,
-				branchPrefix: parsed.branchPrefix,
-				contentFingerprint: parsed.contentFingerprint,
-				isSourceReadable: true,
-				lastSeenAt: now,
-			});
+			const updateRow: DocumentMetadataUpdateRow = {
+				id: existingRow.id,
+				project_name: parsed.projectName,
+				repo_path: parsed.repoPath,
+				main_branch: parsed.mainBranch,
+				branch_prefix: parsed.branchPrefix,
+				content_fingerprint: parsed.contentFingerprint,
+				is_source_readable: 1,
+				last_seen_at: now,
+			};
+			deps.documentsRepo.updateMetadata(updateRow);
 
-			const document = deps.documentsRepo.findById(existingDoc.id);
-			if (!document) {
-				throw new AppError('E_INTERNAL', `Failed to retrieve updated document ${existingDoc.id}`);
+			const row = deps.documentsRepo.findById(existingRow.id);
+			if (!row) {
+				throw new AppError('E_INTERNAL', `Failed to retrieve updated document ${existingRow.id}`);
 			}
 			return Object.freeze({
-				document,
+				document: mapDocumentRow(row),
 				parsed,
 				hasChanged,
 				isNew: false,
@@ -459,16 +630,18 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 		},
 
 		getDocumentById(id: string): DocumentRecord | null {
-			return deps.documentsRepo.findById(id);
+			const row = deps.documentsRepo.findById(id);
+			return row ? mapDocumentRow(row) : null;
 		},
 
 		getDocumentByPath(docsPath: string): DocumentRecord | null {
 			const resolvedPath = resolve(docsPath);
-			return deps.documentsRepo.findByPath(resolvedPath);
+			const row = deps.documentsRepo.findByPath(resolvedPath);
+			return row ? mapDocumentRow(row) : null;
 		},
 
 		listDocuments(): readonly DocumentRecord[] {
-			return deps.documentsRepo.listAll();
+			return deps.documentsRepo.listAll().map(mapDocumentRow);
 		},
 
 		updateLaneCount(id: string, laneCount: number): void {
