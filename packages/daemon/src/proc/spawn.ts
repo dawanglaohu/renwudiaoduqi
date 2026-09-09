@@ -110,7 +110,7 @@ export interface ManagedProcess {
 	onJson(listener: (parsed: ParsedJsonLine) => void): () => void;
 	onExit(listener: (result: ProcessExitResult) => void): () => void;
 	onError(listener: (error: Error) => void): () => void;
-	kill(signal?: NodeJS.Signals, options?: KillTreeOptions): Promise<KillTreeResult>;
+	kill(options?: KillTreeOptions): Promise<KillTreeResult>;
 	finalize(): Promise<void>;
 }
 
@@ -167,7 +167,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 		}
 		targetFile = wrapResult.launch.file;
 		targetArgs = wrapResult.launch.args;
-		windowsVerbatimArguments = true;
+		windowsVerbatimArguments = wrapResult.launch.spawnOptions.windowsVerbatimArguments;
 	}
 
 	// 3. Child process environment (E-131, E-138, E-270)
@@ -195,9 +195,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 	try {
 		child = spawnFn(targetFile, [...targetArgs], spawnOptions);
 	} catch (cause) {
-		const code = (cause as NodeJS.ErrnoException).code;
-		const errorCode: ErrorCode = code === 'ENOENT' ? 'E_AGENT_EXEC_NOT_FOUND' : 'E_INTERNAL';
-		throw new AppError(errorCode, `Failed to spawn executable: ${targetFile}`, {
+		throw new AppError(spawnErrorCode(cause), `Failed to spawn executable: ${targetFile}`, {
 			cause,
 			details: { file: targetFile, args: targetArgs, cwd: spec.cwd },
 		});
@@ -224,52 +222,20 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 	if (options.onExit) exitListeners.add(options.onExit);
 	if (options.onError) errorListeners.add(options.onError);
 
-	function dispatchLine(line: ReadLine): void {
-		for (const listener of lineListeners) {
-			try {
-				listener(line);
-			} catch {
-				// Prevent listener exception from disrupting the stream
-			}
-		}
-	}
-
-	function dispatchRaw(line: ReadLine): void {
-		for (const listener of rawListeners) {
-			try {
-				listener(line);
-			} catch {
-				// Prevent listener exception from disrupting the stream
-			}
-		}
-	}
-
-	function dispatchStderr(line: ReadLine): void {
-		for (const listener of stderrListeners) {
-			try {
-				listener(line);
-			} catch {
-				// Prevent listener exception from disrupting the stream
-			}
-		}
-	}
-
-	function dispatchJson(parsed: ParsedJsonLine): void {
-		for (const listener of jsonListeners) {
-			try {
-				listener(parsed);
-			} catch {
-				// Prevent listener exception from disrupting the stream
-			}
-		}
-	}
-
+	// Error listeners are the last resort: their own exceptions propagate.
 	function dispatchError(error: Error): void {
 		for (const listener of errorListeners) {
+			listener(error);
+		}
+	}
+
+	// A throwing listener must not break the stream, but the failure is reported, never hidden.
+	function notify<T>(listeners: ReadonlySet<(value: T) => void>, value: T): void {
+		for (const listener of listeners) {
 			try {
-				listener(error);
-			} catch {
-				// Prevent listener exception from disrupting the stream
+				listener(value);
+			} catch (cause) {
+				dispatchError(new AppError('E_INTERNAL', 'Managed process listener threw', { cause }));
 			}
 		}
 	}
@@ -346,13 +312,13 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 			const lines = stdoutReader.push(chunk);
 			for (const line of lines) {
 				timers.recordActivity();
-				dispatchRaw(line);
-				dispatchLine(line);
+				notify(rawListeners, line);
+				notify(lineListeners, line);
 
 				const parsed = parseJsonLine(line);
 				if (parsed.isJson) {
 					timers.disarmStartupTimer();
-					dispatchJson(parsed);
+					notify(jsonListeners, parsed);
 				}
 				// E-140: non-JSON lines remain in raw.log and NEVER interrupt the stream
 			}
@@ -369,8 +335,8 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 				if (stderrTailQueue.length > MAX_STDERR_TAIL_LINES) {
 					stderrTailQueue.shift();
 				}
-				dispatchRaw(line);
-				dispatchStderr(line);
+				notify(rawListeners, line);
+				notify(stderrListeners, line);
 			}
 		});
 	}
@@ -379,10 +345,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 	const processOps = options.processOps ?? createDefaultProcessOps();
 	const killTreeFn = options.killTree ?? (platform === 'win32' ? windowsKillTree : posixKillTree);
 
-	async function kill(
-		_signal?: NodeJS.Signals,
-		killOptions?: KillTreeOptions,
-	): Promise<KillTreeResult> {
+	async function kill(killOptions?: KillTreeOptions): Promise<KillTreeResult> {
 		if (pid <= 0) {
 			return Object.freeze({ outcome: 'terminated', attempts: Object.freeze([]) });
 		}
@@ -401,12 +364,12 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 			// Flush remaining buffers from line readers
 			for (const line of stdoutReader.flush()) {
 				timers.recordActivity();
-				dispatchRaw(line);
-				dispatchLine(line);
+				notify(rawListeners, line);
+				notify(lineListeners, line);
 				const parsed = parseJsonLine(line);
 				if (parsed.isJson) {
 					timers.disarmStartupTimer();
-					dispatchJson(parsed);
+					notify(jsonListeners, parsed);
 				}
 			}
 
@@ -416,8 +379,8 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 				if (stderrTailQueue.length > MAX_STDERR_TAIL_LINES) {
 					stderrTailQueue.shift();
 				}
-				dispatchRaw(line);
-				dispatchStderr(line);
+				notify(rawListeners, line);
+				notify(stderrListeners, line);
 			}
 
 			if (options.registry !== undefined) {
@@ -432,14 +395,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 				error: lastProcessError,
 			});
 			exitResult = result;
-
-			for (const listener of exitListeners) {
-				try {
-					listener(result);
-				} catch {
-					// listener errors must not break finalize
-				}
-			}
+			notify(exitListeners, result);
 		})();
 
 		return finalizePromise;
@@ -447,10 +403,8 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 
 	// 11. Lifecycle event bindings
 	child.on('error', (err) => {
-		const code = (err as NodeJS.ErrnoException).code;
-		const errorCode: ErrorCode = code === 'ENOENT' ? 'E_AGENT_EXEC_NOT_FOUND' : 'E_INTERNAL';
 		const wrappedError = new AgentProcessError(
-			errorCode,
+			spawnErrorCode(err),
 			`Child process emitted error: ${err.message}`,
 			{
 				pid,
@@ -539,6 +493,13 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 	}
 
 	return managed;
+}
+
+function spawnErrorCode(cause: unknown): ErrorCode {
+	const code = (cause as NodeJS.ErrnoException).code;
+	if (code === 'ENOENT') return 'E_AGENT_EXEC_NOT_FOUND';
+	if (code === 'EACCES' || code === 'EPERM') return 'E_AGENT_EXEC_NOT_EXECUTABLE';
+	return 'E_INTERNAL';
 }
 
 function createDefaultProcessOps(): KillTreeProcessOps {

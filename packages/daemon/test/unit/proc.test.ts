@@ -2,6 +2,7 @@ import type { ChildProcess, SpawnOptions } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
+import { AppError } from '../../src/errors/app-error.ts';
 import type { KillTreeResult } from '../../src/platform/kill-tree-contract.ts';
 import { DEFAULT_ENV_DENYLIST, createProcessEnv } from '../../src/proc/env.ts';
 import {
@@ -469,11 +470,68 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 			windowsComSpecPath: 'C:\\Windows\\System32\\cmd.exe',
 		};
 
-		expect(() => {
-			spawnManaged(spec, {
-				platform: 'win32',
-			});
-		}).toThrowError();
+		let thrown: unknown;
+		try {
+			spawnManaged(spec, { platform: 'win32' });
+		} catch (error) {
+			thrown = error;
+		}
+		expect(thrown).toBeInstanceOf(AppError);
+		if (thrown instanceof AppError) {
+			expect(thrown.code).toBe('E_VALIDATION');
+			expect(thrown.details?.argumentIndex).toBe(1);
+		}
+	});
+
+	it('maps native spawn failures to the registered executable error codes', () => {
+		const spawnThrowing = (code: string) =>
+			vi.fn(() => {
+				const failure = new Error(`spawn ${code}`) as NodeJS.ErrnoException;
+				failure.code = code;
+				throw failure;
+			}) as unknown as typeof import('node:child_process').spawn;
+		const spec: LaunchSpec = { runId: 'run-spawn-fail', file: '/opt/agent', args: [], cwd: '/tmp' };
+		const codeFor = (native: string): string => {
+			try {
+				spawnManaged(spec, { platform: 'linux', spawnFn: spawnThrowing(native) });
+			} catch (error) {
+				return error instanceof AppError ? error.code : 'not-app-error';
+			}
+			return 'no-throw';
+		};
+		expect(codeFor('ENOENT')).toBe('E_AGENT_EXEC_NOT_FOUND');
+		expect(codeFor('EACCES')).toBe('E_AGENT_EXEC_NOT_EXECUTABLE');
+		expect(codeFor('EPERM')).toBe('E_AGENT_EXEC_NOT_EXECUTABLE');
+		expect(codeFor('EMFILE')).toBe('E_INTERNAL');
+	});
+
+	it('reports a throwing listener through onError instead of swallowing it', () => {
+		const mockChild = createMockChild();
+		const fakeSpawn = vi.fn(() => mockChild as unknown as ChildProcess);
+		const reported: Error[] = [];
+		const delivered: unknown[] = [];
+		spawnManaged(
+			{ runId: 'run-listener-throws', file: '/bin/agent', args: [], cwd: '/tmp' },
+			{
+				platform: 'linux',
+				spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+				onJson: (parsed) => {
+					delivered.push(parsed.value);
+					throw new Error('listener bug');
+				},
+				onError: (error) => reported.push(error),
+			},
+		);
+
+		mockChild.stdout.write('{"type":"a"}\n{"type":"b"}\n');
+
+		expect(delivered).toEqual([{ type: 'a' }, { type: 'b' }]);
+		expect(reported).toHaveLength(2);
+		expect(reported[0]).toBeInstanceOf(AppError);
+		if (reported[0] instanceof AppError) {
+			expect(reported[0].code).toBe('E_INTERNAL');
+			expect((reported[0].cause as Error).message).toBe('listener bug');
+		}
 	});
 
 	it('AC 2 & E-130: Windows native .exe is directly spawned with windowsVerbatimArguments: false', () => {

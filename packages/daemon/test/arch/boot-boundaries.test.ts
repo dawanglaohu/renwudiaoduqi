@@ -8,11 +8,13 @@ const daemonRoot = join(repositoryRoot, 'packages/daemon');
 const sourceRoot = join(daemonRoot, 'src');
 
 describe('M1-T10 boot architecture', () => {
-	it('keeps direct environment access at the declared configuration boundary', () => {
+	it('keeps direct environment access at the two declared boundaries', () => {
+		const approvedPaths = ['packages/daemon/src/config/env.ts', 'packages/daemon/src/proc/env.ts'];
 		const matches = sourceFiles()
 			.filter((file) => readFileSync(file, 'utf8').includes('process.env'))
 			.map(repositoryPath);
-		expect(matches).toEqual(['packages/daemon/src/config/env.ts']);
+		expect(matches).toContain('packages/daemon/src/config/env.ts');
+		expect(matches.filter((path) => !approvedPaths.includes(path))).toEqual([]);
 	});
 
 	it('keeps child-process imports in proc and process exit or signal wiring in main', () => {

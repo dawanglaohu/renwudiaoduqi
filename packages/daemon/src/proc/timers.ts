@@ -11,9 +11,10 @@ export interface LaunchTimeouts {
 	readonly checkTimeoutMs?: number;
 }
 
+/** Matches the container clock, which only exposes now(); nowMs is derived from it when absent. */
 export interface Clock {
 	now(): string;
-	nowMs(): number;
+	nowMs?(): number;
 }
 
 export type TimerHandle = ReturnType<typeof setTimeout>;
@@ -56,6 +57,8 @@ const DEFAULT_CLOCK: Clock = Object.freeze({
 
 export function createProcessTimers(options: ProcessTimerOptions = {}): ProcessTimerController {
 	const clock = options.clock ?? DEFAULT_CLOCK;
+	const readNowMs = (): number =>
+		clock.nowMs !== undefined ? clock.nowMs() : Date.parse(clock.now());
 	const setTimeoutFn = options.setTimeoutFn ?? setTimeout;
 	const clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
 
@@ -67,7 +70,7 @@ export function createProcessTimers(options: ProcessTimerOptions = {}): ProcessT
 	const checkTimeoutMs = options.timeouts?.checkTimeoutMs ?? DEFAULT_CHECK_TIMEOUT_MS;
 
 	let lastActivityAt = clock.now();
-	let lastActivityMs = clock.nowMs();
+	let lastActivityMs = readNowMs();
 
 	let startupTimerId: TimerHandle | undefined = undefined;
 	let hardTimerId: TimerHandle | undefined = undefined;
@@ -115,7 +118,7 @@ export function createProcessTimers(options: ProcessTimerOptions = {}): ProcessT
 
 	function recordActivity(): void {
 		lastActivityAt = clock.now();
-		lastActivityMs = clock.nowMs();
+		lastActivityMs = readNowMs();
 	}
 
 	function armHardWallClockTimer(onTimeout?: () => void): void {
@@ -141,12 +144,12 @@ export function createProcessTimers(options: ProcessTimerOptions = {}): ProcessT
 	}
 
 	function isIdleSuspected(nowMs?: number): boolean {
-		const current = nowMs ?? clock.nowMs();
+		const current = nowMs ?? readNowMs();
 		return idleTimeoutMs > 0 && current - lastActivityMs >= idleTimeoutMs;
 	}
 
 	function idleDurationMs(nowMs?: number): number {
-		const current = nowMs ?? clock.nowMs();
+		const current = nowMs ?? readNowMs();
 		return Math.max(0, current - lastActivityMs);
 	}
 
