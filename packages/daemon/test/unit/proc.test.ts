@@ -299,12 +299,12 @@ describe('M1-T7 Child Process Environment (AC 6, E-131, E-138, E-270)', () => {
 });
 
 describe('M1-T7 Process Timers (E-120, E-190)', () => {
-	it('differentiates startup timeout between native (60s) and generic-acp (180s) and defaults checkTimeoutMs to 0 (R4)', () => {
+	it('differentiates startup timeout between native (60s) and generic-acp (180s) and leaves checkTimeoutMs at 0 unless set', () => {
 		const nativeTimers = createProcessTimers({ isAcp: false });
 		expect(nativeTimers.startupTimeoutMs).toBe(DEFAULT_STARTUP_TIMEOUT_MS_NATIVE); // 60s
 		expect(nativeTimers.idleTimeoutMs).toBe(DEFAULT_IDLE_TIMEOUT_MS); // 900s
 		expect(nativeTimers.hardWallClockMs).toBe(0); // disabled
-		expect(nativeTimers.checkTimeoutMs).toBe(0); // R4: default 0 (not armed)
+		expect(nativeTimers.checkTimeoutMs).toBe(0); // only mechanical checks opt into this timer
 
 		const customTimers = createProcessTimers({
 			timeouts: { checkTimeoutMs: DEFAULT_CHECK_TIMEOUT_MS },
@@ -313,6 +313,19 @@ describe('M1-T7 Process Timers (E-120, E-190)', () => {
 
 		const acpTimers = createProcessTimers({ isAcp: true });
 		expect(acpTimers.startupTimeoutMs).toBe(DEFAULT_STARTUP_TIMEOUT_MS_ACP); // 180s
+	});
+
+	it('arms the check timer only when checkTimeoutMs is set explicitly', () => {
+		const setTimeoutFn = vi.fn((_callback: () => void, _ms: number) => 1 as unknown as TimerHandle);
+		createProcessTimers({ setTimeoutFn, onCheckTimeout: () => {} }).armCheckTimer();
+		expect(setTimeoutFn).not.toHaveBeenCalled();
+
+		createProcessTimers({
+			setTimeoutFn,
+			timeouts: { checkTimeoutMs: DEFAULT_CHECK_TIMEOUT_MS },
+			onCheckTimeout: () => {},
+		}).armCheckTimer();
+		expect(setTimeoutFn).toHaveBeenCalledWith(expect.any(Function), DEFAULT_CHECK_TIMEOUT_MS);
 	});
 
 	it('disarms startup timer on activity and never kills on idle timeout (E-120)', () => {
@@ -439,7 +452,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		}).toThrowError(/runId must be a non-empty string/);
 	});
 
-	it('R2: rejects non-absolute path or foreign-platform path with E_VALIDATION and details {file, reason}', () => {
+	it('E-270: rejects a bare command name or a foreign-platform path with E_VALIDATION and details {file, reason}', () => {
 		let thrownRelative: unknown;
 		try {
 			spawnManaged(
@@ -840,7 +853,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		expect(managed.isExited).toBe(true);
 	});
 
-	it('R1: exit does not finalize; allows pending stdout to drain before close triggers finalize', () => {
+	it("'exit' does not finalize: stdout keeps draining until 'close' finalizes", () => {
 		const mockChild = createMockChild();
 		const fakeSpawn = vi.fn(() => mockChild as unknown as ChildProcess);
 		const registry = createProcessRegistry();
@@ -885,7 +898,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		expect(registry.has('run-drain-exit-close')).toBe(false);
 	});
 
-	it('R1: child exit without close triggers finalize after fallback timer', async () => {
+	it("'exit' without 'close' finalizes after the drain grace", async () => {
 		const mockChild = createMockChild();
 		const fakeSpawn = vi.fn(() => mockChild as unknown as ChildProcess);
 		const exitEvents: ProcessExitResult[] = [];
@@ -912,7 +925,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		expect(exitEvents[0]?.reason).toBe('exited');
 	});
 
-	it('R1: startup timeout kills tree: terminated waits for close; survived immediately finalizes', async () => {
+	it("startup timeout: a terminated tree waits for 'close', a surviving tree finalizes at once", async () => {
 		// Case 1: killTree returns 'terminated' -> waits for 'close'
 		const mockChild1 = createMockChild(1111);
 		const killTreeTerminated = vi.fn(async (): Promise<KillTreeResult> => {
@@ -1003,7 +1016,56 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		expect(exitEvents2[0]?.killTree?.outcome).toBe('survived');
 	});
 
-	it('R3: hardWallClockMs expires -> onExit has reason wall-clock-timeout, error is undefined, killTree called once', async () => {
+	it('finalize waits for an in-flight killTree so the exit record carries the attempts', async () => {
+		const mockChild = createMockChild(4444);
+		let resolveKill: ((result: KillTreeResult) => void) | undefined;
+		const killTreeDeferred = vi.fn(
+			() =>
+				new Promise<KillTreeResult>((resolve) => {
+					resolveKill = resolve;
+				}),
+		);
+		const exitEvents: ProcessExitResult[] = [];
+
+		const managed = spawnManaged(
+			{
+				runId: 'run-kill-in-flight',
+				file: '/bin/agent',
+				args: [],
+				cwd: '/tmp',
+				timeouts: { startupTimeoutMs: 10 },
+			},
+			{
+				platform: 'linux',
+				spawnFn: vi.fn(() => mockChild as unknown as ChildProcess) as unknown as SpawnFn,
+				killTree: killTreeDeferred,
+				onExit: (r) => exitEvents.push(r),
+			},
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		expect(killTreeDeferred).toHaveBeenCalledTimes(1);
+
+		// SIGTERM lands and the pipes close while the adapter is still inside its grace wait.
+		mockChild.emit('exit', null, 'SIGTERM');
+		mockChild.emit('close', null, 'SIGTERM');
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(managed.isExited).toBe(true);
+		expect(exitEvents).toHaveLength(0);
+
+		resolveKill?.({
+			outcome: 'terminated',
+			attempts: [
+				{ attempt: 1, method: 'sigterm', result: 'terminated', at: '2026-09-09T00:00:00.000Z' },
+			],
+		});
+		await managed.finalize();
+		expect(exitEvents).toHaveLength(1);
+		expect(exitEvents[0]?.reason).toBe('startup-timeout');
+		expect(exitEvents[0]?.killTree?.attempts.map((a) => a.method)).toEqual(['sigterm']);
+	});
+
+	it('hard wall-clock timeout is an exit reason, not an error: killTree once and no onError', async () => {
 		const mockChild = createMockChild(3333);
 		const killTreeMock = vi.fn(async (): Promise<KillTreeResult> => {
 			return { outcome: 'survived', attempts: [] };
@@ -1031,13 +1093,13 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		await new Promise((resolve) => setTimeout(resolve, 30));
 
 		expect(killTreeMock).toHaveBeenCalledTimes(1);
-		expect(errors).toHaveLength(0); // R3: no onError
+		expect(errors).toHaveLength(0);
 		expect(exitEvents).toHaveLength(1);
 		expect(exitEvents[0]?.reason).toBe('wall-clock-timeout');
 		expect(exitEvents[0]?.error).toBeUndefined();
 	});
 
-	it('R4: spawnManaged without timeouts does not arm check timer', () => {
+	it('spawnManaged without timeouts leaves the check timer disarmed', () => {
 		const mockChild = createMockChild();
 		const managed = spawnManaged(
 			{ runId: 'run-no-check-arm', file: '/bin/agent', args: [], cwd: '/tmp' },

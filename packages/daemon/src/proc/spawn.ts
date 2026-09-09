@@ -273,16 +273,18 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 	});
 
 	let isExited = false;
+	// Stays 'exited' until a timeout claims the termination; the first claim wins.
 	let exitReason: ProcessExitReason = 'exited';
 	let lastKillTreeResult: KillTreeResult | undefined = undefined;
 	let exitResult: ProcessExitResult | undefined = undefined;
 	let lastProcessError: Error | undefined = undefined;
 	let finalizePromise: Promise<void> | null = null;
 	let exitDrainTimerId: ReturnType<typeof setTimeout> | undefined = undefined;
+	let pendingKill: Promise<KillTreeResult> | null = null;
 	const exitDrainGraceMs = options.exitDrainGraceMs ?? EXIT_DRAIN_GRACE_MS;
 
 	async function handleStartupTimeout(): Promise<void> {
-		if (isExited) return;
+		if (isExited || exitReason !== 'exited') return;
 		exitReason = 'startup-timeout';
 		const error = new AgentProcessError(
 			'E_AGENT_STARTUP_TIMEOUT',
@@ -296,27 +298,24 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		lastProcessError = error;
 		dispatchError(error);
 		const result = await kill();
-		lastKillTreeResult = result;
 		if (result.outcome !== 'terminated') {
 			void finalize();
 		}
 	}
 
 	async function handleHardWallClockTimeout(): Promise<void> {
-		if (isExited) return;
+		if (isExited || exitReason !== 'exited') return;
 		exitReason = 'wall-clock-timeout';
 		const result = await kill();
-		lastKillTreeResult = result;
 		if (result.outcome !== 'terminated') {
 			void finalize();
 		}
 	}
 
 	async function handleCheckTimeout(): Promise<void> {
-		if (isExited) return;
+		if (isExited || exitReason !== 'exited') return;
 		exitReason = 'check-timeout';
 		const result = await kill();
-		lastKillTreeResult = result;
 		if (result.outcome !== 'terminated') {
 			void finalize();
 		}
@@ -361,14 +360,27 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 	const processOps = options.processOps ?? createDefaultProcessOps(platform);
 	const killTreeFn = options.killTree ?? (platform === 'win32' ? windowsKillTree : posixKillTree);
 
+	// The exit record must carry every termination attempt, so an in-flight kill is
+	// tracked here and finalize waits for it: SIGTERM usually lands within the grace
+	// period, which makes 'close' arrive long before the adapter reports its outcome.
 	async function kill(killOptions?: KillTreeOptions): Promise<KillTreeResult> {
 		if (pid <= 0) {
 			return Object.freeze({ outcome: 'terminated', attempts: Object.freeze([]) });
 		}
-		return await killTreeFn(pid, processOps, killOptions);
+		const inFlight = killTreeFn(pid, processOps, killOptions).then((result) => {
+			lastKillTreeResult = result;
+			return result;
+		});
+		pendingKill = inFlight;
+		try {
+			return await inFlight;
+		} finally {
+			if (pendingKill === inFlight) pendingKill = null;
+		}
 	}
 
-	// 10. Idempotent finalize (R1: triggered only by close or drain fallback timeout)
+	// 10. Idempotent finalize: reached from 'close', the drain grace after 'exit', a
+	// spawn failure, a kill the tree survived, or the caller.
 	function finalize(): Promise<void> {
 		if (finalizePromise !== null) return finalizePromise;
 		finalizePromise = (async () => {
@@ -404,6 +416,10 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 				notify(stderrListeners, line);
 			}
 
+			if (pendingKill !== null) {
+				await pendingKill;
+			}
+
 			if (options.registry !== undefined) {
 				options.registry.unregister(spec.runId);
 			}
@@ -424,7 +440,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		return finalizePromise;
 	}
 
-	// 11. Lifecycle event bindings (R1)
+	// 11. Lifecycle event bindings
 	child.on('error', (err) => {
 		const wrappedError = new AgentProcessError(
 			spawnErrorCode(err),
@@ -444,7 +460,9 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		}
 	});
 
-	// 'exit' starts the exit->close fallback timer, but does not finalize immediately (R1)
+	// Node does not guarantee stdio has been drained at 'exit'; finalizing there would
+	// split the last output lines. 'exit' only arms a drain grace for the case where
+	// 'close' never comes (a grandchild keeps the pipes open).
 	child.on('exit', () => {
 		if (isExited || finalizePromise !== null) return;
 		if (exitDrainTimerId === undefined) {
@@ -454,7 +472,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		}
 	});
 
-	// 'close' triggers finalization when all stdio streams have closed (R1)
+	// 'close' fires once every stdio stream has ended: the normal finalize path.
 	child.on('close', () => {
 		if (exitDrainTimerId !== undefined) {
 			clearTimeout(exitDrainTimerId);
