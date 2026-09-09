@@ -1,0 +1,18 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T1": {
+      "contractHash": "2a4429b92f4ba1b4a4df58fd08b46ab22e3b4a8eb9ea27dd2092b95a097dc917",
+      "evidence": [
+        "PR #2（task/M1-T1）已于 2026-09-04 合并进 main；任务笔记代码位置与实施沉淀已回填并与 main 一致",
+        "代码在 main：packages/daemon/bootstrap.mjs（E-139 版本门）、src/main.ts、src/boot/{container,snapshot,lock,guards,node-check}.ts、src/config/env.ts、biome.json formatter.lineEnding=lf + .gitattributes（E-214）",
+        "本任务测试本次实跑通过：test/unit/daemon-entry.test.ts 2 用例（真实 Node 20/22 子进程）、runtime-guards.test.ts 4 用例（E-213）、source-contracts.test.ts 6 用例（显式 void、Error 子类与入口约束）",
+        "复验原因：_run/revalidation.json 在 M1-T10-review-host-inputs-20260907 补丁同步时因契约哈希传播把本任务（previousStatus=done）标为待复验；本次按「复验已落地任务」流程以 main 上已合入代码为依据复核，不重开 PR",
+        "契约差异：与上次复核版本（M1-T10-review-contract-20260907 补丁基线）逐字段比对，唯一变化是 02-设计/10-接口约定.md 的章节指纹——commit 59dcef9（M1-T9）在错误码表新增 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行；任务行、验收条款、边界、有效路径、前置契约均无变化",
+        "新增错误码由 M1-T9/M1-T6 的 boot/autostart.ts、platform/autostart-contract.ts、autostart-support.ts、linux.ts 消费，且同一提交已写入 packages/shared/src/errors/codes.ts:50-52；不新增本任务的代码义务",
+        "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
