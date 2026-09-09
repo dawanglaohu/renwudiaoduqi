@@ -26,8 +26,7 @@ export interface ContainerEvents {
 }
 
 export interface ContainerServices {
-	readonly system?: SystemService;
-	readonly [key: string]: unknown;
+	readonly system: SystemService;
 }
 
 export interface AppContainer {
@@ -62,6 +61,8 @@ export function createContainer(input: {
 	readonly logstorePaths?: LogstorePaths;
 	readonly logFs?: LogFileSystem;
 	readonly systemService?: SystemService;
+	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
+	readonly logViolation?: (message: string) => void;
 }): AppContainer {
 	const empty = Object.freeze({});
 
@@ -92,6 +93,7 @@ export function createContainer(input: {
 			fs: logFs,
 			bus,
 			envelopeFactory,
+			logViolation: input.logViolation,
 		});
 
 	const services: ContainerServices = Object.freeze({

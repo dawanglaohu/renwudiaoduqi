@@ -7,9 +7,15 @@ import { createEventBus } from '../../src/events/bus.ts';
 import { createEnvelopeFactory } from '../../src/events/envelope.ts';
 import { createRingBuffer } from '../../src/events/ring-buffer.ts';
 import { createDiskWatchJob } from '../../src/jobs/disk-watch.ts';
+import type { LogFileSystem, VolumeStats } from '../../src/logstore/contract.ts';
 import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
 import { createLogstorePaths } from '../../src/logstore/paths.ts';
 import { createSystemService } from '../../src/service/system.ts';
+
+const PLENTY_OF_SPACE: VolumeStats = { bavail: 1_000_000, bsize: 4096, blocks: 2_000_000 };
+const NO_SPACE: VolumeStats = { bavail: 0, bsize: 4096, blocks: 2_000_000 };
+
+type ServiceDouble = Parameters<typeof createDiskWatchJob>[0]['service'];
 
 describe('disk-watch job & SystemService (M1-T5)', () => {
 	let testDir: string;
@@ -18,21 +24,16 @@ describe('disk-watch job & SystemService (M1-T5)', () => {
 	beforeEach(() => {
 		testDir = mkdtempSync(join(tmpdir(), 'sched-disk-watch-'));
 		logRoot = join(testDir, 'runs');
-		const fs = createNodeLogFileSystem();
-		fs.mkdirSync(logRoot);
+		createNodeLogFileSystem().mkdirSync(logRoot);
 	});
 
 	afterEach(() => {
-		try {
-			rmSync(testDir, { recursive: true, force: true });
-		} catch {
-			// ignore cleanup
-		}
+		rmSync(testDir, { recursive: true, force: true });
 	});
 
-	function setupSystem(warnThresholdBytes = 1000) {
-		const fs = createNodeLogFileSystem();
-		const paths = createLogstorePaths(logRoot);
+	/** Free space is stubbed so the thresholds under test never depend on the CI volume. */
+	function setupSystem(warnThresholdBytes = 1000, volume: VolumeStats = PLENTY_OF_SPACE) {
+		const fs: LogFileSystem = { ...createNodeLogFileSystem(), statfs: async () => volume };
 		const ringBuffer = createRingBuffer();
 		const bus = createEventBus({ ringBuffer });
 		let eventSeq = 1;
@@ -40,153 +41,156 @@ describe('disk-watch job & SystemService (M1-T5)', () => {
 			clock: { now: () => new Date().toISOString() },
 			idAllocator: { allocate: () => eventSeq++ },
 		});
-
 		const service = createSystemService({
-			paths,
+			paths: createLogstorePaths(logRoot),
 			fs,
 			bus,
 			envelopeFactory,
 			warnThresholdBytes,
 		});
-
 		const publishedEvents: EventEnvelope[] = [];
 		bus.subscribe((event) => {
 			publishedEvents.push(event);
 		});
-
-		return { fs, paths, bus, envelopeFactory, service, publishedEvents };
+		return { fs, service, publishedEvents };
 	}
 
-	describe('E-103: usage exceeds warning threshold', () => {
-		it('issues system.disk_warning event and sets dispatch halted flag', async () => {
+	describe('E-103: usage exceeds the warning threshold', () => {
+		it('publishes system.disk_warning and halts new dispatches', async () => {
 			const { fs, service, publishedEvents } = setupSystem(100);
-
-			// Populate files exceeding 100 bytes
-			const runDir = join(logRoot, 'run-1');
-			fs.mkdirSync(runDir);
-			writeFileSync(join(runDir, 'events.ndjson'), 'z'.repeat(150));
-
+			fs.mkdirSync(join(logRoot, 'run-1'));
+			writeFileSync(join(logRoot, 'run-1', 'events.ndjson'), 'z'.repeat(150));
 			expect(service.isDispatchHalted()).toBe(false);
 
-			const job = createDiskWatchJob({
-				service,
-				intervalMs: 1000,
-			});
-
-			const res = await job.runOnce();
+			const res = await createDiskWatchJob({ service, intervalMs: 1000 }).runOnce();
 
 			expect(res?.warningIssued).toBe(true);
 			expect(res?.dispatchHalted).toBe(true);
-			expect(service.isDispatchHalted()).toBe(true);
-
-			// E-103: system.disk_warning event was published
+			expect(service.getDispatchHalt()?.cause).toBe('disk_threshold');
 			expect(publishedEvents).toHaveLength(1);
-			const warningEvent = publishedEvents[0];
-			expect(warningEvent?.kind).toBe('system.disk_warning');
-			expect(warningEvent?.scope).toBe('system');
-			expect(warningEvent?.payload).toMatchObject({
+			const warning = publishedEvents[0];
+			expect(warning?.kind).toBe('system.disk_warning');
+			expect(warning?.scope).toBe('system');
+			expect(warning?.payload).toMatchObject({
 				path: logRoot,
+				message: expect.stringContaining('exceeded warning threshold'),
 			});
-			if (warningEvent && 'message' in warningEvent.payload) {
-				expect(String(warningEvent.payload.message)).toContain('exceeded warning threshold');
-			}
 		});
 
-		it('does NOT issue warning when usage is below threshold', async () => {
-			const { fs, service, publishedEvents } = setupSystem(10000);
+		it('stays quiet while usage is below the threshold', async () => {
+			const { fs, service, publishedEvents } = setupSystem(10_000);
+			fs.mkdirSync(join(logRoot, 'run-small'));
+			writeFileSync(join(logRoot, 'run-small', 'raw.log'), 'hello');
 
-			const runDir = join(logRoot, 'run-small');
-			fs.mkdirSync(runDir);
-			writeFileSync(join(runDir, 'raw.log'), 'hello');
-
-			const job = createDiskWatchJob({ service });
-			const res = await job.runOnce();
+			const res = await createDiskWatchJob({ service }).runOnce();
 
 			expect(res?.warningIssued).toBe(false);
 			expect(res?.dispatchHalted).toBe(false);
 			expect(service.isDispatchHalted()).toBe(false);
 			expect(publishedEvents).toHaveLength(0);
 		});
+
+		it('treats a volume with zero available blocks as full (E-104 seen by the watcher)', async () => {
+			const { service, publishedEvents } = setupSystem(10_000, NO_SPACE);
+
+			const res = await createDiskWatchJob({ service }).runOnce();
+
+			expect(res?.usage.isDiskFull).toBe(true);
+			expect(service.getDispatchHalt()?.cause).toBe('disk_full');
+			expect(publishedEvents[0]?.payload).toMatchObject({
+				message: expect.stringContaining('full'),
+			});
+		});
 	});
 
-	describe('E-205: M1 NEVER deletes any text files automatically on disk warning or full', () => {
-		it('preserves all log files on disk even when threshold is severely exceeded', async () => {
+	describe('E-205: M1 never deletes any log file on warning or full', () => {
+		it('preserves every log file even when the threshold is severely exceeded', async () => {
 			const { fs, service } = setupSystem(50);
-
-			const runDir = join(logRoot, 'run-precious');
-			fs.mkdirSync(runDir);
-			const logFile = join(runDir, 'events.ndjson');
+			fs.mkdirSync(join(logRoot, 'run-precious'));
+			const logFile = join(logRoot, 'run-precious', 'events.ndjson');
 			const content = 'vital historical agent logs that must never be deleted by M1';
 			writeFileSync(logFile, content);
 
-			const job = createDiskWatchJob({ service });
-			await job.runOnce();
+			await createDiskWatchJob({ service }).runOnce();
 
-			// M1 halted dispatches
 			expect(service.isDispatchHalted()).toBe(true);
-
-			// But the file MUST still be intact and undamaged!
 			expect(fs.fileLenSync(logFile)).toBe(Buffer.byteLength(content));
 		});
 
-		it('preserves all log files when notifyDiskFull is triggered', () => {
-			const { fs, service, publishedEvents } = setupSystem(10000);
-
-			const runDir = join(logRoot, 'run-full');
-			fs.mkdirSync(runDir);
-			const logFile = join(runDir, 'raw.log');
+		it('preserves every log file when notifyDiskFull fires', () => {
+			const { fs, service, publishedEvents } = setupSystem(10_000);
+			fs.mkdirSync(join(logRoot, 'run-full'));
+			const logFile = join(logRoot, 'run-full', 'raw.log');
 			writeFileSync(logFile, 'data before disk full');
 
-			service.notifyDiskFull(logFile);
+			service.notifyDiskFull(join(logRoot, 'run-full'));
 
 			expect(service.isDispatchHalted()).toBe(true);
 			expect(publishedEvents).toHaveLength(1);
 			expect(publishedEvents[0]?.kind).toBe('system.disk_warning');
-
-			// File on disk was NOT deleted
 			expect(fs.fileLenSync(logFile)).toBeGreaterThan(0);
+		});
+	});
+
+	describe('E-104: halt lifts once a later check finds the volume healthy again', () => {
+		it('notifyDiskFull publishes once per outage and the next check resumes dispatch', async () => {
+			const { service, publishedEvents } = setupSystem(10_000);
+			const runDir = join(logRoot, 'run-1');
+
+			service.notifyDiskFull(runDir);
+			service.notifyDiskFull(runDir);
+			expect(service.getDispatchHalt()).toEqual({
+				cause: 'disk_full',
+				message: expect.any(String),
+			});
+			expect(publishedEvents).toHaveLength(1);
+
+			const res = await createDiskWatchJob({ service }).runOnce();
+
+			expect(res?.dispatchHalted).toBe(false);
+			expect(service.getDispatchHalt()).toBeNull();
+			expect(publishedEvents).toHaveLength(1);
+		});
+
+		it('resumeDispatch clears the flag by hand', () => {
+			const { service } = setupSystem(10_000);
+			service.notifyDiskFull(join(logRoot, 'run-1'));
+			service.resumeDispatch();
+			expect(service.isDispatchHalted()).toBe(false);
 		});
 	});
 
 	describe('disk-watch job lifecycle & error handling', () => {
 		it('starts, can be stopped cleanly, and stops the periodic timer', async () => {
-			const { service } = setupSystem(10000);
-			const job = createDiskWatchJob({
-				service,
-				intervalMs: 50,
-			});
+			const { service } = setupSystem(10_000);
+			const job = createDiskWatchJob({ service, intervalMs: 50 });
 
 			job.start();
-			// Starting twice is a no-op
 			job.start();
-
 			await new Promise((resolve) => setTimeout(resolve, 80));
-
 			await job.stop();
-			// Stopping twice is safe
 			await job.stop();
 		});
 
-		it('catches and isolates errors during runOnce without bubbling to unhandledRejection', async () => {
+		it('hands a failing pass to logFailure instead of rejecting', async () => {
 			const errors: unknown[] = [];
 			const brokenService = {
 				checkDiskWatch: async () => {
 					throw new Error('Simulated filesystem I/O error during disk watch');
 				},
-			} as unknown as Parameters<typeof createDiskWatchJob>[0]['service'];
+			} as unknown as ServiceDouble;
 
-			const job = createDiskWatchJob({
+			const res = await createDiskWatchJob({
 				service: brokenService,
 				logFailure: (err) => errors.push(err),
-			});
+			}).runOnce();
 
-			const res = await job.runOnce();
 			expect(res).toBeNull();
 			expect(errors).toHaveLength(1);
 			expect((errors[0] as Error).message).toContain('Simulated filesystem I/O error');
 		});
 
-		it('is non-reentrant: subsequent concurrent runOnce calls await in-flight task', async () => {
+		it('is non-reentrant: a concurrent runOnce joins the in-flight pass', async () => {
 			let checkCount = 0;
 			const delayedService = {
 				checkDiskWatch: async () => {
@@ -204,10 +208,9 @@ describe('disk-watch job & SystemService (M1-T5)', () => {
 						},
 					};
 				},
-			} as unknown as Parameters<typeof createDiskWatchJob>[0]['service'];
+			} as unknown as ServiceDouble;
 
 			const job = createDiskWatchJob({ service: delayedService });
-
 			const [res1, res2] = await Promise.all([job.runOnce(), job.runOnce()]);
 
 			expect(checkCount).toBe(1);

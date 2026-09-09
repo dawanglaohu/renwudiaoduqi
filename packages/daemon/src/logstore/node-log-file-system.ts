@@ -1,9 +1,9 @@
 import { createReadStream, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { appendFile, readFile, rm, statfs, truncate } from 'node:fs/promises';
-import type { LogFileSystem } from './contract.ts';
+import { appendFile, readFile, rm, statfs as statfsNative, truncate } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import type { LogFileSystem, VolumeStats } from './contract.ts';
 import {
 	getNodeErrorCode,
-	isEbusy,
 	isEnoent,
 	isEnospc,
 	toDiskFullError,
@@ -13,8 +13,9 @@ import {
 
 /**
  * Real fs adapter for the logstore layer. Every native error is wrapped into an
- * AppError at this module boundary (R4): ENOENT → E_LOG_FILE_MISSING, everything
- * else → E_INTERNAL carrying the raw `cause`.
+ * AppError at this module boundary (R4): ENOENT → E_LOG_FILE_MISSING,
+ * ENOSPC → E_DISK_FULL (E-104), everything else → E_INTERNAL carrying the raw
+ * `cause` (EBUSY/EPERM included; primitives.ts reads the cause to decide retry).
  */
 export function createNodeLogFileSystem(): LogFileSystem {
 	return Object.freeze({
@@ -80,36 +81,48 @@ export function createNodeLogFileSystem(): LogFileSystem {
 			try {
 				await rm(path, { recursive: true, force: false });
 			} catch (cause) {
-				if (isEbusy(cause)) {
-					// E-204: rethrow raw cause with EBUSY/EPERM so primitives can catch as retryable
-					throw cause;
-				}
 				if (isEnoent(cause)) throw toLogFileMissing(cause, path);
 				throw toFilesystemError(cause, 'Failed to delete file.');
 			}
 		},
-		async truncateFile(path: string, targetBytes = 0): Promise<void> {
+		async truncateFile(path: string, targetBytes: number): Promise<void> {
 			try {
 				await truncate(path, targetBytes);
 			} catch (cause) {
-				if (isEbusy(cause)) {
-					throw cause;
-				}
 				if (isEnoent(cause)) throw toLogFileMissing(cause, path);
 				throw toFilesystemError(cause, 'Failed to truncate file.');
 			}
 		},
-		async statfs(path: string): Promise<{ bavail: number; bsize: number; blocks: number }> {
-			try {
-				const res = await statfs(path);
-				return {
-					bavail: Number(res.bavail),
-					bsize: Number(res.bsize),
-					blocks: Number(res.blocks),
-				};
-			} catch (cause) {
-				throw toFilesystemError(cause, 'Failed to query filesystem stats.');
+		async statfs(path: string): Promise<VolumeStats> {
+			let lastCause: unknown;
+			for (const probe of pathAndAncestors(path)) {
+				try {
+					const res = await statfsNative(probe);
+					return {
+						bavail: Number(res.bavail),
+						bsize: Number(res.bsize),
+						blocks: Number(res.blocks),
+					};
+				} catch (cause) {
+					if (!isEnoent(cause))
+						throw toFilesystemError(cause, 'Failed to query volume statistics.');
+					lastCause = cause;
+				}
 			}
+			throw toFilesystemError(lastCause, 'Failed to query volume statistics.');
 		},
 	});
+}
+
+/** `path` followed by each ancestor up to the volume root. */
+function pathAndAncestors(path: string): readonly string[] {
+	const chain = [path];
+	let current = path;
+	let parent = dirname(current);
+	while (parent !== current) {
+		chain.push(parent);
+		current = parent;
+		parent = dirname(current);
+	}
+	return chain;
 }

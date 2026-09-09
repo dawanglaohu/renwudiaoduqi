@@ -8,9 +8,15 @@ export function isEnospc(cause: unknown): boolean {
 	return getNodeErrorCode(cause) === 'ENOSPC';
 }
 
+/** EBUSY, or the EPERM Windows reports for a file another handle holds open. */
 export function isEbusy(cause: unknown): boolean {
 	const code = getNodeErrorCode(cause);
 	return code === 'EBUSY' || code === 'EPERM';
+}
+
+/** True for a raw busy error or for an AppError from this module wrapping one. */
+export function isBusyCause(cause: unknown): boolean {
+	return isEbusy(cause) || (cause instanceof AppError && isEbusy(cause.cause));
 }
 
 export function toLogFileMissing(cause: unknown, path: string): AppError {

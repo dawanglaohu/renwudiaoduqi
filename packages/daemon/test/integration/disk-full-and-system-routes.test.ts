@@ -12,6 +12,7 @@ import { createRingBuffer } from '../../src/events/ring-buffer.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import { createAppendQueue } from '../../src/logstore/append-queue.ts';
 import type { LogFileSystem } from '../../src/logstore/contract.ts';
+import { toDiskFullError } from '../../src/logstore/fs-errors.ts';
 import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
 import { createLogstorePaths } from '../../src/logstore/paths.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-contract.ts';
@@ -49,6 +50,7 @@ const dummyLockAdapter: NativeLockAdapter = {
 	removeReclaimGuard: () => ({ ok: true }),
 	inspectPermissions: () => ({ ok: true, contents: '{}' }),
 };
+
 describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 	let testDir: string;
 	let logRoot: string;
@@ -56,71 +58,48 @@ describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 	beforeEach(() => {
 		testDir = mkdtempSync(join(tmpdir(), 'sched-disk-full-integ-'));
 		logRoot = join(testDir, 'runs');
-		const fs = createNodeLogFileSystem();
-		fs.mkdirSync(logRoot);
+		createNodeLogFileSystem().mkdirSync(logRoot);
 	});
 
 	afterEach(() => {
-		try {
-			rmSync(testDir, { recursive: true, force: true });
-		} catch {
-			// ignore cleanup
-		}
+		rmSync(testDir, { recursive: true, force: true });
 	});
 
 	describe('E-104: storage disk write full handling', () => {
-		it('immediately halts new dispatches, emits system.disk_warning, and throws typed E_DISK_FULL error', async () => {
+		it('halts new dispatches at once, publishes system.disk_warning, rejects with E_DISK_FULL, then resumes appending', async () => {
 			let simulatedDiskFull = false;
 			const realFs = createNodeLogFileSystem();
-
+			// Only appendFile is intercepted; it fails exactly the way createNodeLogFileSystem reports ENOSPC.
 			const controlledFs: LogFileSystem = {
-				mkdirSync: (p) => realFs.mkdirSync(p),
-				listDirectory: (p) => realFs.listDirectory(p),
-				fileLenSync: (p) => realFs.fileLenSync(p),
-				readFile: (p) => realFs.readFile(p),
-				readRange: (p, s, e) => realFs.readRange(p, s, e),
+				...realFs,
 				appendFile: async (path, data) => {
 					if (simulatedDiskFull) {
-						const err = new Error('ENOSPC: no space left on device, write');
-						Object.assign(err, { code: 'ENOSPC' });
-						throw err;
+						const native = Object.assign(new Error('ENOSPC: no space left on device, write'), {
+							code: 'ENOSPC',
+						});
+						throw toDiskFullError(native, path);
 					}
 					return realFs.appendFile(path, data);
 				},
-				deleteFile: (p) => (realFs.deleteFile ? realFs.deleteFile(p) : Promise.resolve()),
-				truncateFile: (p, len) =>
-					realFs.truncateFile ? realFs.truncateFile(p, len) : Promise.resolve(),
-				statfs: (p) =>
-					realFs.statfs
-						? realFs.statfs(p)
-						: Promise.resolve({ bavail: 1000, bsize: 4096, blocks: 2000 }),
 			};
 
 			const paths = createLogstorePaths(logRoot);
 			const queue = createAppendQueue({
 				appendFile: (path, data) => controlledFs.appendFile(path, data),
 			});
-			const ringBuffer = createRingBuffer();
-			const bus = createEventBus({ ringBuffer });
+			const bus = createEventBus({ ringBuffer: createRingBuffer() });
 			let eventSeq = 1;
 			const envelopeFactory = createEnvelopeFactory({
 				clock: { now: () => new Date().toISOString() },
 				idAllocator: { allocate: () => eventSeq++ },
 			});
-
-			const systemService = createSystemService({
-				paths,
-				fs: controlledFs,
-				bus,
-				envelopeFactory,
-			});
-
+			const systemService = createSystemService({ paths, fs: controlledFs, bus, envelopeFactory });
 			const publishedEvents: EventEnvelope[] = [];
 			bus.subscribe((event) => {
 				publishedEvents.push(event);
 			});
 
-			// Dummy unit of work and repos for logstore service
+			// The index side is irrelevant here: appendRaw never touches the repos.
 			const dummyDb = {
 				transaction: (fn: () => unknown) => ({
 					immediate: () => fn(),
@@ -128,7 +107,6 @@ describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 					exclusive: () => fn(),
 				}),
 			};
-			const dummyUow = createUnitOfWork(dummyDb as unknown as DatabaseConnection);
 			const dummySegmentsRepo = {
 				insertSegments: () => {},
 				findByRunStream: () => [],
@@ -140,70 +118,55 @@ describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 				lastIndexedEnd: () => null,
 				lastIndexedFileSeq: () => null,
 			};
-
 			const logstore = createLogstoreService({
 				fs: controlledFs,
 				paths,
 				queue,
 				ids: { newId: () => 'id-1' },
-				unitOfWork: dummyUow,
+				unitOfWork: createUnitOfWork(dummyDb as unknown as DatabaseConnection),
 				eventsIndexRepo: dummyIndexRepo as unknown as EventsIndexRepo,
 				segmentsRepo: dummySegmentsRepo as unknown as LogSegmentsRepo,
-				onDiskFull: (failedPath) => {
-					systemService.notifyDiskFull(failedPath);
-				},
+				onDiskFull: systemService.notifyDiskFull,
 			});
 
-			// 1. Initial write succeeds
 			const runId = 'run-e104';
-			await logstore.appendRaw(runId, Buffer.from('Hello')); // 5 bytes + 1 newline = 6 bytes
+			await logstore.appendRaw(runId, Buffer.from('Hello'));
 			const rawPath = paths.segmentPath(runId, 'raw', 0);
-			const initialLen = controlledFs.fileLenSync(rawPath);
-			expect(initialLen).toBe(6);
+			expect(controlledFs.fileLenSync(rawPath)).toBe(6);
 			expect(systemService.isDispatchHalted()).toBe(false);
 
-			// 2. Trigger ENOSPC (disk full)
 			simulatedDiskFull = true;
-
 			await expect(logstore.appendRaw(runId, Buffer.from('World'))).rejects.toMatchObject({
 				code: 'E_DISK_FULL',
 			});
+			await expect(logstore.appendRaw(runId, Buffer.from('Again'))).rejects.toMatchObject({
+				code: 'E_DISK_FULL',
+			});
 
-			// Verify dispatch is halted immediately
-			expect(systemService.isDispatchHalted()).toBe(true);
-
-			// Verify system.disk_warning event was emitted
+			expect(systemService.getDispatchHalt()?.cause).toBe('disk_full');
+			// Two failed appends, one warning: the flag flips once per outage.
 			expect(publishedEvents).toHaveLength(1);
 			expect(publishedEvents[0]?.kind).toBe('system.disk_warning');
+			expect(controlledFs.fileLenSync(rawPath)).toBe(6);
+			expect(Buffer.from(await controlledFs.readFile(rawPath)).toString('utf8')).toBe('Hello\n');
 
-			// Verify already-written log is NOT damaged or lost
-			const preservedLen = controlledFs.fileLenSync(rawPath);
-			expect(preservedLen).toBe(initialLen);
-			const existingData = await controlledFs.readFile(rawPath);
-			expect(Buffer.from(existingData).toString('utf8')).toBe('Hello\n');
-
-			// 3. Disk space recovered (simulated full cleared)
 			simulatedDiskFull = false;
-
-			// Append resumes successfully
-			await logstore.appendRaw(runId, Buffer.from('World')); // 5 bytes + 1 newline = 6 bytes
-			const finalLen = controlledFs.fileLenSync(rawPath);
-			expect(finalLen).toBe(12);
-
-			const finalData = await controlledFs.readFile(rawPath);
-			expect(Buffer.from(finalData).toString('utf8')).toBe('Hello\nWorld\n');
+			const resumed = await logstore.appendRaw(runId, Buffer.from('World'));
+			expect(resumed.byteOffset).toBe(6);
+			expect(controlledFs.fileLenSync(rawPath)).toBe(12);
+			expect(Buffer.from(await controlledFs.readFile(rawPath)).toString('utf8')).toBe(
+				'Hello\nWorld\n',
+			);
 		});
 	});
 
 	describe('GET /api/v1/system/usage HTTP endpoint', () => {
-		it('returns 200 with dataDirBytes, byRun, and warnThreshold', async () => {
+		it('returns 200 with the documented {dataDirBytes, byRun[], warnThreshold} shape', async () => {
 			const fs = createNodeLogFileSystem();
-			const run1Dir = join(logRoot, 'run-1');
-			const run2Dir = join(logRoot, 'run-2');
-			fs.mkdirSync(run1Dir);
-			fs.mkdirSync(run2Dir);
-			writeFileSync(join(run1Dir, 'raw.log'), 'x'.repeat(400));
-			writeFileSync(join(run2Dir, 'events.ndjson'), 'y'.repeat(600));
+			fs.mkdirSync(join(logRoot, 'run-1'));
+			fs.mkdirSync(join(logRoot, 'run-2'));
+			writeFileSync(join(logRoot, 'run-1', 'raw.log'), 'x'.repeat(400));
+			writeFileSync(join(logRoot, 'run-2', 'events.ndjson'), 'y'.repeat(600));
 
 			const db = openDatabase(join(testDir, 'app.db'));
 			db.exec(`
@@ -212,7 +175,6 @@ describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 					watermark INTEGER NOT NULL DEFAULT 0
 				);
 			`);
-
 			const container = createContainer({
 				config: {
 					port: 7817,
@@ -228,27 +190,22 @@ describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 				clock: { now: () => new Date().toISOString() },
 				logstorePaths: createLogstorePaths(logRoot),
 			});
-
 			const server = createHttpServer({ container });
 
-			const response = await server.instance.inject({
-				method: 'GET',
-				url: '/api/v1/system/usage',
-			});
+			const response = await server.instance.inject({ method: 'GET', url: '/api/v1/system/usage' });
 
 			expect(response.statusCode).toBe(200);
 			const body = JSON.parse(response.body);
-
+			expect(Object.keys(body).sort()).toEqual(['byRun', 'dataDirBytes', 'warnThreshold']);
 			expect(body.dataDirBytes).toBe(1000);
-			expect(body.byRun).toHaveLength(2);
-			// Sorted descending by bytes: run-2 (600) then run-1 (400)
-			expect(body.byRun[0]?.runId).toBe('run-2');
-			expect(body.byRun[0]?.bytes).toBe(600);
-			expect(body.byRun[1]?.runId).toBe('run-1');
-			expect(body.byRun[1]?.bytes).toBe(400);
+			expect(body.byRun).toEqual([
+				{ runId: 'run-2', bytes: 600 },
+				{ runId: 'run-1', bytes: 400 },
+			]);
 			expect(body.warnThreshold).toBeGreaterThan(0);
 
 			await server.close();
+			db.close();
 		});
 	});
 });

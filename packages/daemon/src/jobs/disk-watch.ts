@@ -10,16 +10,17 @@ export interface DiskWatchJob {
 	readonly name: string;
 	start(): void;
 	stop(): Promise<void>;
+	/** One pass outside the timer; joins an in-flight pass instead of starting a second one. */
 	runOnce(): Promise<DiskWatchCheckResult | null>;
 }
 
-const DEFAULT_DISK_WATCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_DISK_WATCH_INTERVAL_MS = 5 * 60 * 1000;
 
 /**
- * Background job running every 5 minutes:
- * E-103, E-104: Checks disk usage against warning threshold.
- * If exceeded, marks dispatch halted and issues `system.disk_warning`.
- * E-205: M1 only reports warning/halt, NEVER deletes any text files.
+ * disk-watch (08 节 jobs table): every 5 minutes ask SystemService to measure
+ * the run log root and halt or resume new dispatches (E-103 / E-104). The job
+ * owns only the timer and re-entrancy; it never touches the filesystem and
+ * never deletes anything (E-205). A failing pass is handed to `logFailure`.
  */
 export function createDiskWatchJob(deps: DiskWatchJobDeps): DiskWatchJob {
 	const { service, intervalMs = DEFAULT_DISK_WATCH_INTERVAL_MS, logFailure } = deps;
@@ -36,16 +37,18 @@ export function createDiskWatchJob(deps: DiskWatchJobDeps): DiskWatchJob {
 		}
 	}
 
+	function runGuarded(): Promise<DiskWatchCheckResult | null> {
+		if (inFlight !== null) return inFlight;
+		const pass = runOnceInternal().finally(() => {
+			if (inFlight === pass) inFlight = null;
+		});
+		inFlight = pass;
+		return pass;
+	}
+
 	function tick(): void {
-		if (inFlight !== null || stopRequested) return;
-		inFlight = (async () => {
-			try {
-				return await runOnceInternal();
-			} finally {
-				inFlight = null;
-			}
-		})();
-		void inFlight.catch(() => undefined);
+		if (stopRequested) return;
+		void runGuarded();
 	}
 
 	return Object.freeze({
@@ -55,9 +58,7 @@ export function createDiskWatchJob(deps: DiskWatchJobDeps): DiskWatchJob {
 			if (timer !== null) return;
 			tick();
 			timer = setInterval(tick, intervalMs);
-			if (typeof timer.unref === 'function') {
-				timer.unref();
-			}
+			timer.unref();
 		},
 		async stop(): Promise<void> {
 			stopRequested = true;
@@ -65,25 +66,10 @@ export function createDiskWatchJob(deps: DiskWatchJobDeps): DiskWatchJob {
 				clearInterval(timer);
 				timer = null;
 			}
-			const running = inFlight;
-			if (running !== null) {
-				try {
-					await running;
-				} catch {
-					// runOnce catches errors; stop never throws
-				}
-			}
+			if (inFlight !== null) await inFlight;
 		},
-		async runOnce(): Promise<DiskWatchCheckResult | null> {
-			const running = inFlight;
-			if (running !== null) return running;
-			const task = runOnceInternal();
-			inFlight = task;
-			try {
-				return await task;
-			} finally {
-				if (inFlight === task) inFlight = null;
-			}
+		runOnce(): Promise<DiskWatchCheckResult | null> {
+			return runGuarded();
 		},
 	});
 }

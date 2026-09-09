@@ -38,12 +38,27 @@ export interface LogFileSystem {
 	readonly readRange: (path: string, start: number, endInclusive: number) => Promise<Uint8Array>;
 	/** Byte length, or null when the file is gone (E-151). */
 	readonly fileLenSync: (path: string) => number | null;
-	/** Delete a file or directory on disk (E-204, E-206). */
-	readonly deleteFile?: (path: string) => Promise<void>;
-	/** Truncate a file to targetBytes (default 0). */
-	readonly truncateFile?: (path: string, targetBytes?: number) => Promise<void>;
-	/** Query filesystem disk statistics. */
-	readonly statfs?: (path: string) => Promise<{ bavail: number; bsize: number; blocks: number }>;
+	/**
+	 * Remove a file, or a directory with its contents. Rejects with an AppError:
+	 * E_LOG_FILE_MISSING when the path is gone, otherwise E_INTERNAL carrying the
+	 * native cause (EBUSY/EPERM included; primitives.ts turns that into a retry).
+	 */
+	readonly deleteFile: (path: string) => Promise<void>;
+	/** Shrink a file to targetBytes. Same rejection contract as deleteFile. */
+	readonly truncateFile: (path: string, targetBytes: number) => Promise<void>;
+	/**
+	 * Volume statistics for the filesystem holding `path`; when `path` does not
+	 * exist yet the nearest existing ancestor answers, so a fresh data directory
+	 * is measurable before the first run writes anything.
+	 */
+	readonly statfs: (path: string) => Promise<VolumeStats>;
+}
+
+export interface VolumeStats {
+	/** Blocks available to this process. */
+	readonly bavail: number;
+	readonly bsize: number;
+	readonly blocks: number;
 }
 
 export interface SegmentRowLike {
@@ -126,16 +141,6 @@ export interface DeleteResultSuccess {
 	readonly bytesFreed: number;
 }
 
-export interface DeleteResultFailure {
-	readonly ok: false;
-	readonly retryable: boolean;
-	readonly code: 'EBUSY' | 'E_FORBIDDEN' | 'E_LOG_FILE_MISSING' | 'E_INTERNAL';
-	readonly message: string;
-	readonly path: string;
-}
-
-export type DeleteResult = DeleteResultSuccess | DeleteResultFailure;
-
 export interface TruncateResultSuccess {
 	readonly ok: true;
 	readonly path: string;
@@ -143,7 +148,12 @@ export interface TruncateResultSuccess {
 	readonly newSize: number;
 }
 
-export interface TruncateResultFailure {
+/**
+ * Failure of a restricted delete or truncate. `EBUSY` is the only retryable
+ * code (E-204: another handle still reads the file, so the caller skips it this
+ * pass and retries next pass); `E_FORBIDDEN` marks a whitelist violation (E-206).
+ */
+export interface RestrictedOpFailure {
 	readonly ok: false;
 	readonly retryable: boolean;
 	readonly code: 'EBUSY' | 'E_FORBIDDEN' | 'E_LOG_FILE_MISSING' | 'E_INTERNAL';
@@ -151,7 +161,9 @@ export interface TruncateResultFailure {
 	readonly path: string;
 }
 
-export type TruncateResult = TruncateResultSuccess | TruncateResultFailure;
+export type DeleteResult = DeleteResultSuccess | RestrictedOpFailure;
+
+export type TruncateResult = TruncateResultSuccess | RestrictedOpFailure;
 
 export interface RunUsage {
 	readonly runId: string;
@@ -159,13 +171,16 @@ export interface RunUsage {
 	readonly fileCount: number;
 }
 
+/** Usage of the run log root; `byRun` is sorted by bytes descending (E-103 banner order). */
 export interface DiskUsageReport {
 	readonly dataDirBytes: number;
 	readonly byRun: readonly RunUsage[];
 	readonly warnThreshold: number;
+	/** Undefined when the volume does not answer statfs. */
 	readonly freeBytes?: number;
 	readonly totalBytes?: number;
 	readonly isWarnThresholdExceeded: boolean;
+	/** The volume reports zero available blocks. */
 	readonly isDiskFull: boolean;
 }
 
