@@ -164,6 +164,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M2-T1": {
+    "compiler": "f943a3769d2c0d7a86a8bb9d2cdc9e15d7455f5926e31506ab9f39f3c03e07fc",
+    "contractHash": "0b95c41859598660ecebf62414ace26ff0b59bda8892075697b4335b6e9827e0",
+    "evidence": [
+      "1. REST API uses proper fastify plugins order.",
+      "2. Custom error handlers effectively maps shared errors codes.",
+      "3. HTTP specific tests implemented and executed without regressions."
+    ],
+    "reviewed": "2026-09-09T13:35:57.298971+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T4": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "c6ca4f61f2bd30dcd5e9048db5379c351c4b3be04fdca7307e67b64ec5cad8af",

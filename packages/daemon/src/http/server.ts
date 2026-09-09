@@ -1,14 +1,32 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { AppContainer } from '../boot/container.ts';
 import { AppError } from '../errors/app-error.ts';
-import { registerHealthRoute } from './routes/health.ts';
-import { registerSystemRoutes } from './routes/system.ts';
+import { requestIdPlugin } from './plugins/00-request-id.ts';
+import { LOG_REDACT_PATHS, loggingPlugin } from './plugins/10-logging.ts';
+import { securityHeadersPlugin } from './plugins/20-security-headers.ts';
+import { authPlugin } from './plugins/30-auth.ts';
+import { ratelimitPlugin } from './plugins/40-ratelimit.ts';
+import { routesPlugin } from './plugins/50-routes.ts';
+import { staticPlugin } from './plugins/80-static.ts';
+import { errorHandlerPlugin } from './plugins/90-error-handler.ts';
 
 declare module 'fastify' {
 	interface FastifyInstance {
 		container: AppContainer;
+		registeredPlugins: readonly string[];
 	}
 }
+
+export const HTTP_PLUGIN_SEQUENCE = Object.freeze([
+	'00-request-id',
+	'10-logging',
+	'20-security-headers',
+	'30-auth',
+	'40-ratelimit',
+	'50-routes',
+	'80-static',
+	'90-error-handler',
+] as const);
 
 export interface HttpServer {
 	readonly instance: FastifyInstance;
@@ -19,10 +37,32 @@ export interface HttpServer {
 export function createHttpServer(deps: {
 	readonly container: AppContainer;
 }): HttpServer {
-	const instance = Fastify({ logger: false, forceCloseConnections: true });
+	const instance = Fastify({
+		logger: {
+			level: deps.container.config.logLevel,
+			redact: [...LOG_REDACT_PATHS],
+		},
+		forceCloseConnections: true,
+	});
 	instance.decorate('container', deps.container);
-	registerHealthRoute(instance);
-	registerSystemRoutes(instance);
+	instance.decorate('registeredPlugins', HTTP_PLUGIN_SEQUENCE);
+
+	// Plugin chain registered in strict numerical sequence:
+	// 00-request-id → 10-logging → 20-security-headers → 30-auth → 40-ratelimit → 50-routes → 80-static → 90-error-handler
+	void instance.register(requestIdPlugin);
+	void instance.register(loggingPlugin);
+	void instance.register(securityHeadersPlugin);
+	void instance.register(
+		async (apiScope) => {
+			void apiScope.register(authPlugin);
+			void apiScope.register(ratelimitPlugin);
+			void apiScope.register(routesPlugin);
+		},
+		{ prefix: '/api/v1' },
+	);
+	void instance.register(staticPlugin);
+	void instance.register(errorHandlerPlugin);
+
 	return Object.freeze({
 		instance,
 		async listen(options: { readonly host: string; readonly port: number }): Promise<string> {

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { ProcessConfig } from '../config/env.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
@@ -45,7 +46,9 @@ export interface AppContainer {
 	readonly clock: {
 		readonly now: () => string;
 	};
-	readonly ids: Record<string, never>;
+	readonly ids: {
+		readonly newId: () => string;
+	};
 	readonly repos: ContainerRepos;
 	readonly logstore: Record<string, never>;
 	readonly events: ContainerEvents;
@@ -55,6 +58,7 @@ export interface AppContainer {
 	readonly services: ContainerServices;
 	readonly jobs: readonly ContainerJob[];
 	readonly instanceLock: LockFileHandle;
+	readonly startedAtMs: number;
 }
 
 export function createContainer(input: {
@@ -107,13 +111,17 @@ export function createContainer(input: {
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([]);
+	const parsedStartedAt = Date.parse(input.clock.now());
+	const startedAtMs = Number.isNaN(parsedStartedAt) ? Date.now() : parsedStartedAt;
 
 	return Object.freeze({
 		config: input.config,
 		database: input.database,
 		platform: Object.freeze({ hostInputs: input.hostInputs, lock: input.lockAdapter }),
 		clock: input.clock,
-		ids: empty,
+		ids: Object.freeze({
+			newId: () => `req_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+		}),
 		repos,
 		logstore: empty,
 		events,
@@ -123,5 +131,6 @@ export function createContainer(input: {
 		services,
 		jobs,
 		instanceLock: input.instanceLock,
+		startedAtMs,
 	});
 }
