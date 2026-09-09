@@ -60,6 +60,16 @@
         "packages/daemon/test/unit/logstore-fs-errors.test.ts"
       ]
     },
+    "M1-T6": {
+      "supportPaths": [
+        "packages/daemon/src/main.ts",
+        "packages/daemon/test/unit/autostart.test.ts",
+        "packages/daemon/test/unit/reconcile-runs.test.ts",
+        "packages/daemon/test/unit/shutdown.test.ts",
+        "packages/daemon/test/integration/daemon-runtime.test.ts",
+        "packages/daemon/test/arch/boot-boundaries.test.ts"
+      ]
+    },
     "M1-T9": {
       "supportPaths": [
         "packages/daemon/test/unit/kill-tree.test.ts",

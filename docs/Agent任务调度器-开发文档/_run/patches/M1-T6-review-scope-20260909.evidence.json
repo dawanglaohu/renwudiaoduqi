@@ -1,0 +1,31 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T6": {
+      "contractHash": "6e5645536965e38123b9845037932a92823afe5887af23c5d3ef5d2d5ca13228",
+      "evidence": [
+        "前置 M1-T1、M1-T9 已落地（origin/main afe2a97 之后），M6-T1 的 domain/run-state-machine.ts 已合入分支并被 jobs/reconcile-runs.ts 消费",
+        "有效路径复核：改动仅落在 boot/autostart.ts、boot/shutdown.ts、boot/container.ts、jobs/reconcile-runs.ts 与补丁新增的 supportPaths（main.ts 与五个测试文件）",
+        "接口字段：register/status/unregister 消费 platform/autostart-contract.ts 的 AutostartAdapter 与 shared daemon-launch-spec.ts 的 DaemonLaunchSpec，逐字段比对、恒不拼 shell；ReconcileRunsService 三方法必填，processProbe 三态 alive/dead/uncertain，clock 注入",
+        "验收 1-5 逐条指到代码：autostart.ts:43/96/120，shutdown.ts:31，main.ts:113（listen 后 job.start、退出走 createShutdownHandler），reconcile-runs.ts:87/113/132；E-01/E-02/E-123/E-209/E-210/E-212/E-261 均有对应实现与用例",
+        "PR #16 第 1 轮返工 R1-R3 已修（commit 0cc9c29），审查方补 AppError 上报与 writeRunLog 接线；分支 pnpm -w check 通过：36 个测试文件 297 用例全绿（biome ci + tsc -b + vitest）"
+      ],
+      "verdict": "pass"
+    },
+    "M10-T2": {
+      "contractHash": "01fac5888b6c7515860b1d00e2a23cc6471e317aaec8095972fb9b5507f2bf8f",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M10-T4": {
+      "contractHash": "b6d0797225ce6ef6674bcb7a35af54026243dee1fc858fd109f9128e7f93a2a6",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M10-T5": {
+      "contractHash": "28cabe80462e8518ba9788ece8e22e3f0ff06a9654200d92b65fac5bc3b26e4b",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

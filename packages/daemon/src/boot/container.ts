@@ -13,6 +13,12 @@ import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contrac
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 
+export interface ContainerJob {
+	readonly name: string;
+	start(): void;
+	stop(): Promise<void>;
+}
+
 export interface ContainerRepos {
 	readonly eventSeq: EventSeqRepo;
 	readonly [key: string]: unknown;
@@ -47,7 +53,7 @@ export interface AppContainer {
 	readonly adapters: Record<string, never>;
 	readonly workspace: Record<string, never>;
 	readonly services: ContainerServices;
-	readonly jobs: readonly never[];
+	readonly jobs: readonly ContainerJob[];
 	readonly instanceLock: LockFileHandle;
 }
 
@@ -100,6 +106,8 @@ export function createContainer(input: {
 		system: systemService,
 	});
 
+	const jobs: readonly ContainerJob[] = Object.freeze([]);
+
 	return Object.freeze({
 		config: input.config,
 		database: input.database,
@@ -113,7 +121,7 @@ export function createContainer(input: {
 		adapters: empty,
 		workspace: empty,
 		services,
-		jobs: Object.freeze([]),
+		jobs,
 		instanceLock: input.instanceLock,
 	});
 }
