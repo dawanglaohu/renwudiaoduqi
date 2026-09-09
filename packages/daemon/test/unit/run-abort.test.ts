@@ -8,6 +8,7 @@ import type { EventBus } from '../../src/events/bus.ts';
 import { createEventBus } from '../../src/events/bus.ts';
 import { createEnvelopeFactory } from '../../src/events/envelope.ts';
 import { createRingBuffer } from '../../src/events/ring-buffer.ts';
+import { routesPlugin } from '../../src/http/plugins/50-routes.ts';
 import { registerRunsRoutes } from '../../src/http/routes/runs.ts';
 import type {
 	KillTreeAttemptResult,
@@ -16,12 +17,14 @@ import type {
 import { createProcessRegistry } from '../../src/proc/registry.ts';
 import type { ManagedProcess } from '../../src/proc/spawn.ts';
 import {
-	REASON_ABORTED_WITH_UNREVIEWED_CHANGES,
 	type RunAbortRunRecord,
 	type RunsAbortRepo,
+	createSqliteRunsAbortRepo,
+} from '../../src/repo/runs-abort-repo.ts';
+import {
+	REASON_ABORTED_WITH_UNREVIEWED_CHANGES,
 	type WorktreeInspector,
 	createRunAbortService,
-	createSqliteRunsAbortRepo,
 } from '../../src/service/run-abort.ts';
 
 const FIXED_NOW = '2026-09-09T10:00:00.000Z';
@@ -204,6 +207,7 @@ describe('M6-T5 run-abort service & routes', () => {
 				runsRepo: repo,
 				clock,
 				processRegistry: registry,
+				processOps: createMockProcessOps(),
 			});
 
 			const result = await service.abortRun({ runId: 'run-managed-1', graceMs: 1500 });
@@ -243,6 +247,7 @@ describe('M6-T5 run-abort service & routes', () => {
 			const service = createRunAbortService({
 				runsRepo: repo,
 				clock,
+				processOps: createMockProcessOps(),
 				worktreeInspector: inspector,
 				bus,
 				envelopeFactory,
@@ -300,6 +305,7 @@ describe('M6-T5 run-abort service & routes', () => {
 			const service = createRunAbortService({
 				runsRepo: repo,
 				clock,
+				processOps: createMockProcessOps(),
 			});
 
 			const result = await service.abortRun('run-changes-2');
@@ -328,6 +334,7 @@ describe('M6-T5 run-abort service & routes', () => {
 			const service = createRunAbortService({
 				runsRepo: repo,
 				clock,
+				processOps: createMockProcessOps(),
 				worktreeInspector: inspector,
 			});
 
@@ -356,6 +363,7 @@ describe('M6-T5 run-abort service & routes', () => {
 			const service = createRunAbortService({
 				runsRepo: repo,
 				clock,
+				processOps: createMockProcessOps(),
 				killTree: killTreeSpy,
 			});
 
@@ -384,6 +392,7 @@ describe('M6-T5 run-abort service & routes', () => {
 			const service = createRunAbortService({
 				runsRepo: repo,
 				clock,
+				processOps: createMockProcessOps(),
 				killTree: killTreeSpy,
 			});
 
@@ -417,7 +426,11 @@ describe('M6-T5 run-abort service & routes', () => {
 				},
 			]);
 
-			const service = createRunAbortService({ runsRepo: repo, clock });
+			const service = createRunAbortService({
+				runsRepo: repo,
+				clock,
+				processOps: createMockProcessOps(),
+			});
 
 			const failedResult = await service.abortRun('run-failed-1');
 			expect(failedResult.accepted).toBe(true);
@@ -467,7 +480,11 @@ describe('M6-T5 run-abort service & routes', () => {
 	describe('State machine validation & error handling', () => {
 		it('throws E_NOT_FOUND when run does not exist', async () => {
 			const { repo } = createMockRunsRepo([]);
-			const service = createRunAbortService({ runsRepo: repo, clock });
+			const service = createRunAbortService({
+				runsRepo: repo,
+				clock,
+				processOps: createMockProcessOps(),
+			});
 
 			await expect(service.abortRun('non-existent')).rejects.toMatchObject({
 				code: 'E_NOT_FOUND',
@@ -485,7 +502,11 @@ describe('M6-T5 run-abort service & routes', () => {
 					changedFileCount: 0,
 				},
 			]);
-			const service = createRunAbortService({ runsRepo: repo, clock });
+			const service = createRunAbortService({
+				runsRepo: repo,
+				clock,
+				processOps: createMockProcessOps(),
+			});
 
 			await expect(service.abortRun('run-exited-1')).rejects.toMatchObject({
 				code: 'E_INVALID_STATE_TRANSITION',
@@ -536,6 +557,7 @@ describe('M6-T5 run-abort service & routes', () => {
 			const service = createRunAbortService({
 				runsRepo: repo,
 				clock,
+				processOps: createMockProcessOps(),
 				unitOfWork: unitOfWork as unknown as ReturnType<typeof createUnitOfWork>,
 				bus,
 				envelopeFactory,
@@ -548,7 +570,7 @@ describe('M6-T5 run-abort service & routes', () => {
 		});
 	});
 
-	describe('Fastify HTTP routes: POST /api/v1/runs/:id/abort & POST /runs/:id/abort', () => {
+	describe('Fastify HTTP routes: POST /api/v1/runs/:id/abort', () => {
 		it('POST /api/v1/runs/:id/abort returns 200 with { accepted: true }', async () => {
 			const { repo } = createMockRunsRepo([
 				{
@@ -560,7 +582,11 @@ describe('M6-T5 run-abort service & routes', () => {
 					changedFileCount: 0,
 				},
 			]);
-			const service = createRunAbortService({ runsRepo: repo, clock });
+			const service = createRunAbortService({
+				runsRepo: repo,
+				clock,
+				processOps: createMockProcessOps(),
+			});
 
 			const app = Fastify({ logger: false });
 			registerRunsRoutes(app, { runAbortService: service });
@@ -569,32 +595,6 @@ describe('M6-T5 run-abort service & routes', () => {
 				method: 'POST',
 				url: '/api/v1/runs/run-http-1/abort',
 				payload: { reason: 'user requested' },
-			});
-
-			expect(response.statusCode).toBe(200);
-			expect(JSON.parse(response.body)).toEqual({ accepted: true });
-			await app.close();
-		});
-
-		it('POST /runs/:id/abort alias route returns 200 with { accepted: true }', async () => {
-			const { repo } = createMockRunsRepo([
-				{
-					id: 'run-http-2',
-					taskId: 'T-61',
-					state: 'awaiting_reply',
-					pid: null,
-					worktreePath: null,
-					changedFileCount: 0,
-				},
-			]);
-			const service = createRunAbortService({ runsRepo: repo, clock });
-
-			const app = Fastify({ logger: false });
-			registerRunsRoutes(app, { runAbortService: service });
-
-			const response = await app.inject({
-				method: 'POST',
-				url: '/runs/run-http-2/abort',
 			});
 
 			expect(response.statusCode).toBe(200);
@@ -613,7 +613,11 @@ describe('M6-T5 run-abort service & routes', () => {
 					changedFileCount: 0,
 				},
 			]);
-			const service = createRunAbortService({ runsRepo: repo, clock });
+			const service = createRunAbortService({
+				runsRepo: repo,
+				clock,
+				processOps: createMockProcessOps(),
+			});
 
 			const app = Fastify({
 				logger: false,
@@ -628,6 +632,42 @@ describe('M6-T5 run-abort service & routes', () => {
 			});
 
 			expect(response.statusCode).toBe(400);
+			await app.close();
+		});
+
+		it('R2: routesPlugin integrates registerRunsRoutes into plugin chain', async () => {
+			const { repo } = createMockRunsRepo([
+				{
+					id: 'run-plugin-1',
+					taskId: 'T-70',
+					state: 'running',
+					pid: null,
+					worktreePath: null,
+					changedFileCount: 0,
+				},
+			]);
+			const service = createRunAbortService({
+				runsRepo: repo,
+				clock,
+				processOps: createMockProcessOps(),
+			});
+
+			const app = Fastify({ logger: false });
+			app.decorate('container', {
+				services: {
+					runAbort: service,
+					system: {} as unknown as import('../../src/service/system.ts').SystemService,
+				},
+			} as unknown as import('../../src/boot/container.ts').AppContainer);
+			await app.register(routesPlugin, { prefix: '/api/v1' });
+
+			const response = await app.inject({
+				method: 'POST',
+				url: '/api/v1/runs/run-plugin-1/abort',
+			});
+
+			expect(response.statusCode).toBe(200);
+			expect(JSON.parse(response.body)).toEqual({ accepted: true });
 			await app.close();
 		});
 	});

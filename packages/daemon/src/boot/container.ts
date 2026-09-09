@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { ProcessConfig } from '../config/env.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
+import { createUnitOfWork } from '../db/unit-of-work.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
@@ -11,7 +12,10 @@ import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
+import { createDefaultProcessOps } from '../proc/spawn.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
+import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
+import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 
 export interface ContainerJob {
@@ -22,6 +26,7 @@ export interface ContainerJob {
 
 export interface ContainerRepos {
 	readonly eventSeq: EventSeqRepo;
+	readonly runsAbort: RunsAbortRepo;
 	readonly [key: string]: unknown;
 }
 
@@ -34,6 +39,7 @@ export interface ContainerEvents {
 
 export interface ContainerServices {
 	readonly system: SystemService;
+	readonly runAbort: RunAbortService;
 }
 
 export interface AppContainer {
@@ -71,14 +77,18 @@ export function createContainer(input: {
 	readonly logstorePaths?: LogstorePaths;
 	readonly logFs?: LogFileSystem;
 	readonly systemService?: SystemService;
+	readonly runAbortService?: RunAbortService;
+	readonly runsAbortRepo?: RunsAbortRepo;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
 }): AppContainer {
 	const empty = Object.freeze({});
 
 	const eventSeq = createEventSeqRepo(input.database);
+	const runsAbort = input.runsAbortRepo ?? createSqliteRunsAbortRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
+		runsAbort,
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
@@ -106,8 +116,23 @@ export function createContainer(input: {
 			logViolation: input.logViolation,
 		});
 
+	const unitOfWork = createUnitOfWork(input.database);
+	const processOps = createDefaultProcessOps(input.hostInputs.platform);
+	const runAbortService =
+		input.runAbortService ??
+		createRunAbortService({
+			runsRepo: runsAbort,
+			processOps,
+			unitOfWork,
+			clock: input.clock,
+			bus,
+			envelopeFactory,
+			platform: input.hostInputs.platform,
+		});
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
+		runAbort: runAbortService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([]);

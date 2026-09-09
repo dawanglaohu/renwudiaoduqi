@@ -49,7 +49,6 @@ interface ContainerWithRunAbort {
 /**
  * Registers run management routes:
  * - `POST /api/v1/runs/:id/abort` (10-接口约定 端点总表)
- * - `POST /runs/:id/abort` (AC 验收依据别名)
  */
 export function registerRunsRoutes(
 	instance: FastifyInstance,
@@ -82,20 +81,6 @@ export function registerRunsRoutes(
 		Body: AbortRunBody;
 	}>(
 		'/api/v1/runs/:id/abort',
-		{
-			schema: {
-				params: abortRunParamsSchema,
-				body: abortRunBodySchema,
-			},
-		},
-		abortHandler,
-	);
-
-	instance.post<{
-		Params: AbortRunParams;
-		Body: AbortRunBody;
-	}>(
-		'/runs/:id/abort',
 		{
 			schema: {
 				params: abortRunParamsSchema,

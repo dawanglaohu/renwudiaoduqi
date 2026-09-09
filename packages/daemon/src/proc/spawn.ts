@@ -557,7 +557,7 @@ function spawnErrorCode(cause: unknown): ErrorCode {
 	return 'E_INTERNAL';
 }
 
-function createDefaultProcessOps(platform: SupportedPlatform): KillTreeProcessOps {
+export function createDefaultProcessOps(platform: SupportedPlatform): KillTreeProcessOps {
 	return {
 		now: () => new Date().toISOString(),
 		wait: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
