@@ -33,7 +33,9 @@ handoff 段，缺了就退到通用默认值。
 `--landed` 记录：status 写进任务笔记头部（随那一层的提交进仓库，一任务一文件不冲突），
 再从全部笔记派生出 _run/progress.js，阅读器加载时与本机点出来的进度合并、取更靠后的一格。
 没记录就手点状态标签兜底。下游任务的「实施」在前置全部已落地之前是灰的；契约复核不锁「实施」，它在审查阶段登记，
-锁「实施」的只有明确的契约错误、过期的结构检查和同步中的文档补丁。「查 bug」不改状态。
+锁「实施」的只有明确的契约错误、过期的结构检查和同步中的文档补丁。已落地任务被文档补丁标为待复验时显示
+「已落地·待复验」，仍算已落地、不锁下游。落地记录随 docs-data.js 的 progress 进仓库，换检出目录只 git pull
+也看得到；本机 _run/progress.js 只是覆盖。「查 bug」不改状态。
 审查提示词把问题分成阻断与非阻断两级，只有阻断项才打回，且最多打回两轮，之后由审查方
 自己修完落地——不给「审了又审」留路。
 
@@ -69,7 +71,7 @@ import re
 import sys
 import subprocess
 from pathlib import Path
-from handoff_contract import (analyze, readiness, read_json, write_text, write_json,
+from handoff_contract import (analyze, digest, readiness, read_json, write_text, write_json,
                               source_version, manifest, stale_reasons)
 
 GROUP_ORDER = ["00-概览", "01-约束", "02-设计", "03-质量", "04-执行", "05-附录"]
@@ -326,6 +328,10 @@ svg .lane{font-size:10px;fill:var(--muted)}
 .htask.done{opacity:.48}
 .htask.done .st{color:var(--pass);background:#F2F9F6;border-color:#BFDDD0}
 .htask.done .htt{text-decoration:line-through;text-decoration-color:var(--rule-strong)}
+/* 已落地·待复验：仍算已落地，但要被看见——不压暗、不划线，用警示色 */
+.htask.recheck{background:var(--crit-soft)}
+.htask.recheck .st{width:auto;padding:2px 6px;color:var(--crit);background:#FFF;border-color:#E3B894}
+.htask.recheck .st[disabled]:hover{color:var(--crit);border-color:#E3B894}
 .htask.now{box-shadow:inset 3px 0 0 var(--accent)}
 .htask .cls{flex:none;max-width:170px;overflow:hidden;text-overflow:ellipsis;
   padding:1px 6px;font-family:var(--mono);font-size:10px;white-space:nowrap;cursor:help;
@@ -1277,7 +1283,7 @@ var C = {};
 var HO = PR.handoff || {};
 var HC = D.handoff || {contracts:{}, readiness:{}, effectivePaths:{}};
 var MAINT = window.MAINTENANCE || {pendingTasks:[], needsReview:[]};
-/* 契约「待语义复核」是审查阶段要登记的一步，不锁派发；contractPending 只用来数「已复核 N/78」。
+/* 契约「待语义复核」是审查阶段要登记的一步，不锁派发；contractPending 只用来数「已复核 N/M」。
    真正锁「实施」的是 contractBlocked：契约有明确错误（H01–H11）、结构检查过期、或本任务的
    文档补丁还在同步——这三种情况说明任务要求本身还不可信 */
 function contractPending(id){
@@ -1310,9 +1316,10 @@ try { PG = JSON.parse(localStorage.getItem(PKEY) || "{}") || {}; } catch(e){ PG 
    审查方落地时跑 build_docs.py --landed，把 status 写进任务笔记并生成 _run/progress.js，
    页面加载时读它；没跑就手点状态标签。两边取更靠后的一格 */
 var ST_NEXT = {todo:"doing", doing:"review", review:"done", done:"todo"};
-var ST_TEXT = {todo:"待派", doing:"进行中", review:"审查中", done:"已落地"};
+var ST_TEXT = {todo:"待派", doing:"进行中", review:"审查中", done:"已落地", recheck:"已落地·待复验"};
 var ST_RANK = {todo:0, doing:1, review:2, done:3};
-var FP = window.PROGRESS || {};
+/* 落地记录随 docs-data.js 进仓库（D.progress），本机 _run/progress.js 只是覆盖：换检出目录只 git pull 也看得到已落地 */
+var FP = Object.assign({}, D.progress || {}, window.PROGRESS || {});
 function fileSt(id){ return ST_RANK[FP[id]] != null ? FP[id] : "todo"; }
 function fileLanded(id){ return fileSt(id) === "done"; }
 /* 维护标记影响闸门，但不把尚未实施或已有落地历史的任务变成开放代码 PR。 */
@@ -1323,10 +1330,15 @@ function progressOf(id){
 function landedNeedsReview(id){
   return fileLanded(id) && (MAINT.needsReview || []).indexOf(id) >= 0;
 }
+/* 已落地又被文档补丁标为待复验的是第五种显示态 recheck：它仍算已落地（不锁下游、不占窗口），
+   只是提醒去做复验。把它显示成「审查中」曾让全部下游被静默锁死两天 */
 function stOf(id){
-  if((MAINT.pendingTasks || []).indexOf(id) >= 0 || (MAINT.needsReview || []).indexOf(id) >= 0 || FP[id] === "review") return "review";
+  if((MAINT.pendingTasks || []).indexOf(id) >= 0) return "review";
+  if(landedNeedsReview(id)) return "recheck";
+  if((MAINT.needsReview || []).indexOf(id) >= 0 || FP[id] === "review") return "review";
   return progressOf(id);
 }
+function isLanded(id){ var s = stOf(id); return s === "done" || s === "recheck"; }
 function setSt(id, v){
   if(v === "todo") delete PG[id]; else PG[id] = v;
   try { localStorage.setItem(PKEY, JSON.stringify(PG)); } catch(e){}
@@ -1402,10 +1414,10 @@ function skillBlock(t, side){
 }
 
 function waitingOn(t){
-  return (t.deps||[]).filter(function(d){ return stOf(d) !== "done"; });
+  return (t.deps||[]).filter(function(d){ return !isLanded(d); });
 }
 /* 实施按钮的闸门：本任务还是待派、前置全部已落地、契约没有明确错误。行里和弹卡里共用这一个判断。
-   同批次里别的任务在跑不算前置，不锁；契约待复核也不锁——那一步在审查提示词里做 */
+   同批次里别的任务在跑不算前置，不锁；契约待复核也不锁——那一步在审查提示词里做；前置已落地·待复验也不锁 */
 function implLocked(id){ var t = taskById(id); return !t || stOf(id) !== "todo" || contractBlocked(id) || !!waitingOn(t).length; }
 /* 此刻能同时派出去的一组：依赖已落地、自己还没派、彼此之间以及与在跑的都不抢文件 */
 function dispatchable(){
@@ -1477,9 +1489,9 @@ function planLanes(N){
      不是「从头再来一遍怎么排」 */
   var finish = {}, merged = [];
   tasks.forEach(function(t){
-    if(stOf(t.id) === "done"){ finish[t.id] = 0; merged.push(t.id); }
+    if(isLanded(t.id)){ finish[t.id] = 0; merged.push(t.id); }
   });
-  var rest = tasks.filter(function(t){ return stOf(t.id) !== "done"; });
+  var rest = tasks.filter(function(t){ return !isLanded(t.id); });
 
   var lanes = [], free = [];
   for(var i = 0; i < N; i++){ lanes.push([]); free.push(0); }
@@ -1529,7 +1541,7 @@ function planLanes(N){
   var span = 0;
   free.forEach(function(f){ span = Math.max(span, f); });
   /* 串行工期 = 所有还没落地的任务人天之和，用来对比出并行省了多少 */
-  var serial = tasks.filter(function(t){ return stOf(t.id) !== "done"; })
+  var serial = tasks.filter(function(t){ return !isLanded(t.id); })
     .reduce(function(s, x){ return s + (x.est||0); }, 0);
   return {lanes: lanes, placed: placed, blocked: rest, merged: merged,
           span: Math.round(span*10)/10, serial: Math.round(serial*10)/10};
@@ -1730,7 +1742,10 @@ function buildImpl(t){
          " && git worktree add -b " + br + " " + wt + " origin/" + HMAIN + "，然后 cd 进去（分支已存在就去掉 -b；目录已存在就直接进）");
   L.push("   - 已在某个工作树里（窗口序列开的 ../" + HREPO + "-w<N> 之类）→ 就地：git fetch origin " + HMAIN +
          " && git checkout -b " + br + " origin/" + HMAIN + "（分支已存在就 git checkout " + br + "）");
-  L.push("   进去后先装依赖，node_modules 这类不跟工作树走；planning 一类工作文件放仓库外，如 ../.codex-plans/" + slug + "/，别放仓库根目录。之后所有命令都在这个目录里跑。");
+  L.push("   进去后先装依赖，node_modules 这类不跟工作树走；planning 一类工作文件放仓库外的 ../.codex-plans/" + HREPO + "-" + slug + "/，别放仓库根目录。之后所有命令都在这个目录里跑。");
+  L.push("   本任务只允许这两个仓库外目录：工作树 " + wt + "（或窗口序列给你的 ../" + HREPO + "-w<N>）与 planning ../.codex-plans/" + HREPO + "-" + slug + "/。" +
+         "不许 git clone 一份仓库，不许自造 ../" + HREPO + "-review-" + slug + "、../" + t.id + "-review.<随机> 之类目录；审查方也在这同一个工作树里干活。" +
+         "Windows 侧绝不跑 git worktree prune——WSL 建的活工作树在 Windows 显示 prunable，prune 会打断正在干活的会话。");
   L.push("1. 建栈。" + (hasDeps ? "前置 " + t.deps.join("、") + " 已合进 " + HMAIN + "，" : "本任务没有前置，") +
          "所以它是一条新栈的最底层，不叠在任何开放 PR 上：");
   L.push("   git config rerere.enabled true && git config remote.pushDefault origin && gh stack init --base " + HMAIN + " " + br);
@@ -1806,9 +1821,11 @@ function buildReview(t){
   L.push("## 怎么审（一轮）");
   L.push("先核对当前契约：python \"" + HDOCS + "/_run/maintain_docs.py\" \"" + HDOCS + "\" status --task " + t.id + "。复制的版本过期则读当前派发包；保留原 PR，复核变化条款，不重建分支。");
   L.push("契约复核是审查的一部分：「实施」只按前置落地解锁，所以本任务多半还没登记复核。status 显示 ready=false 且原因是「待语义复核」→ 本轮核对后用 verify 登记；原因是明确错误 → 先走下面的文档补丁。--landed 会拒绝没登记的任务。");
-  var wt = "../" + HREPO + "-" + t.id.toLowerCase();
+  var slug = t.id.toLowerCase(), wt = "../" + HREPO + "-" + slug, plans = "../.codex-plans/" + HREPO + "-" + slug;
   L.push("工作目录：实施方按提示词在自己的工作树里做，一般是 " + wt + "（git worktree list 能看到）。要动这条分支就 cd 进那个工作树——" +
-         "分支已在那儿检出，主检出里 gh stack checkout 会被 git 拒绝；工作树没了就 git worktree add " + wt + " " + br + "。下面说「切到 " + br + "」都指这个动作。");
+         "分支已在那儿检出，主检出里 gh stack checkout 会被 git 拒绝；工作树没了就 git worktree add " + wt + " " + br + "。下面说「切到 " + br + "」都指这个动作。" +
+         "本任务只允许两个仓库外目录：工作树 " + wt + " 与 planning " + plans + "/。审查方在同一个工作树里干活：不许 git clone 一份仓库，不许自造 ../" + HREPO + "-review-" + slug + "、../" + t.id + "-review.<随机> 之类目录。" +
+         "Windows 侧绝不跑 git worktree prune——WSL 建的活工作树在 Windows 显示 prunable，prune 会打断正在干活的会话。");
   L.push("0. 轮次：gh pr view " + br + " --comments。有「REVIEW-ROUND」评论 → 第 N+1 轮，只核那些条目，每条写已修/未修；没有 → 第 1 轮，跑全清单。");
   L.push("   没有 PR 就自己补开，不算实施方的错：切到 " + br + " → gh stack submit --auto --open");
   L.push("1. gh pr diff " + br + "（栈里每层 PR 只含本层，正是要审的范围）");
@@ -1841,7 +1858,7 @@ function buildReview(t){
   L.push("1. 回填：" + note + " 的 code / notes 两个受保护区块。实施方填了就核质量（dsh-prose-standard、dsh-trim-cot-leakage 各过一遍），" +
          "缺了或写成废话就自己补。切到 " + br + "，在仓库根跑 python " + HDOCS + "/_run/build_vault.py " + HDOCS + "（后面几步都在这个工作树里）");
   L.push("2. 记录落地：python " + HDOCS + "/_run/build_docs.py " + HDOCS + " --landed " + t.id +
-         "　（写进任务笔记的 status 与 _run/progress.js；交接台刷新后这一行变「已落地」，下游解锁）");
+         "　（写进任务笔记的 status、docs-data.js 的 progress 与本机 _run/progress.js；交接台刷新后这一行变「已落地」，下游解锁）");
   L.push("3. 一起进仓库：切到 " + br + " → git add " + HDOCS + " && git commit -m \"" + t.id + " 回填知识库并记录落地\" && gh stack push");
   L.push("4. 证据：调 dsh-pre-push-checks 按本层改动挑最小充分测试集跑一遍；红了回头按阻断项处理");
   L.push("5. 还是 draft 就 gh pr ready " + br);
@@ -1850,8 +1867,10 @@ function buildReview(t){
       ? "本层连同下面未合的层一起合；依赖本层的 " + up.map(function(x){ return x.id; }).join("、") +
         " 正常还没开工，若已叠在上面，其 PR base 由 GitHub 改到主干，让它们的会话跑 gh stack sync"
       : "本层是栈顶，合它就是整栈落地") + "。等每个 PR 都报 MERGED 才算落地；合并失败就把任务笔记的 status 改回 review 并 push，PR 还开着时不许留 done");
-  L.push("7. 删分支前：gh pr list --state open --base " + br + " --json number --jq length，不是 0 不许删；" +
-         "是 0 就先 git worktree remove " + wt + "（有未提交文件时看清是什么再决定 --force），再删分支——工作树留着只会越积越多");
+  L.push("7. 清理（落地当场做，不留到以后）：gh pr list --state open --base " + br + " --json number --jq length，不是 0 不许删；" +
+         "是 0 就依次：git worktree remove " + wt + "（有未提交文件时看清是什么再决定 --force；node_modules 报 not empty 就 rm -rf " + wt + "）→ git branch -d " + br +
+         " → rm -rf " + plans + "。工作树和 planning 目录留着只会越积越多；不确定漏了哪些就跑 python " + HDOCS + "/_run/maintain_docs.py " + HDOCS + " workspace 看清单。");
+  L.push("8. 主检出 git pull 后刷新交接台：落地记录随 docs-data.js 进了仓库，换检出目录不必重跑 --landed。");
   L.push("");
   L.push("## 输出格式（严格遵守）");
   L.push("VERDICT: pass | rework | doc-issue");
@@ -1913,7 +1932,7 @@ function buildLandedReview(t, resume){
     "本任务有已落地历史，现在仅因契约变化待复验。代码依据是已合入 " + HMAIN + " 的当前代码与任务回填；历史 PR 只作为已合入实现和原验收的证据。",
     "不要创建空 PR，不重新初始化旧任务分支，不向已经 MERGED 的原 PR 追加提交或要求再次合并。",
     promptHead(t), "任务契约版本：" + ((HC.contracts[t.id] || {}).hash || "未建立"),
-    "先读 " + note + " 的代码位置、实施沉淀和已有落地记录，以及本次补丁的差异与复验清单。",
+    "先读 " + note + " 的代码位置、实施沉淀和已有落地记录，以及本次补丁的差异与复验清单（_run/revalidation.json 里本任务的 patches[].changedFields 列出了变化字段；只有共享章节变化时只核该章节对本任务的影响）。",
     "若已有本次复验或修复的工作树、分支和开放 PR，沿用它们的实际标识；不假定它们仍是旧任务的分支或历史 PR。",
     "仅核对变化条款及其直接影响，保留已有代码、回填和 done 历史，不按完整实施流程重做。",
     "验收：", acceptLines(t.accept).join("\n"), "边界：", edgeBlock(t.edges),
@@ -1981,7 +2000,9 @@ function buildKickoff(){
   L.push("");
   L.push("## 每个任务都适用的规矩");
   L.push("- 一个任务一层栈分支 " + HPRE + "<任务ID>：做完提交、gh stack push、gh stack submit --auto --open 开出 PR，不自己合并。");
-  L.push("- 每个任务在自己的 git worktree 里做（../" + HREPO + "-<小写任务ID>，或窗口序列给的 ../" + HREPO + "-w<N>），几个会话不共用一个检出；工作文件放仓库外。");
+  L.push("- 每个任务在自己的 git worktree 里做（../" + HREPO + "-<小写任务ID>，或窗口序列给的 ../" + HREPO + "-w<N>），几个会话不共用一个检出；planning 类工作文件放 ../.codex-plans/" + HREPO + "-<小写任务ID>/。" +
+         "一个任务只允许这两个仓库外目录：不许 git clone 一份仓库，不许自造 ../" + HREPO + "-review-<id>、../<ID>-review.<随机> 之类目录；审查方在同一个工作树里干活。" +
+         "Windows 侧绝不跑 git worktree prune——WSL 建的活工作树在 Windows 显示 prunable，prune 会打断别人的会话。落地后当场删工作树、分支和 planning 目录。");
   L.push("- 派给你的任务前置都已合进 " + HMAIN + "，所以每个任务都是新栈最底层：gh stack init。gh stack add 报 All branches in this stack have been merged 就是该 init，不用问。");
   L.push("- 无人值守：不要停下来要授权或确认；提示词写好的处理办法照做，自己定的写进回报「自行裁决」。");
   L.push("- gh stack 命令一律带非交互标志：view 用 --json、submit 用 --auto、merge 用 --yes。");
@@ -2006,7 +2027,7 @@ function buildKickoff(){
 /* 查 bug 提示词：审查证明「文档要的都做了」，查 bug 假设一定做错了、去构造让它失败的输入。
    不改交接台状态。代码还在栈分支上就在那一层修，已进主干就另开 fix 栈，两种情况都写死 */
 function buildBug(t){
-  var L = [], br = hBranch(t.id), fe = isFrontend(t.module), landed = stOf(t.id) === "done";
+  var L = [], br = hBranch(t.id), fe = isFrontend(t.module), landed = isLanded(t.id);
   var note = HDOCS + "/图谱/任务/" + t.id + ".md";
   L.push("# 查找 bug：" + t.id + "　" + t.title);
   L.push("");
@@ -2076,7 +2097,7 @@ function buildBug(t){
    范围取交接台里已落地的任务；一个都没有就按主干现有代码查，把全部任务列出来 */
 function buildBugAll(){
   var tasks = DT.tasks || [], mods = DT.modules || [];
-  var landed = tasks.filter(function(t){ return stOf(t.id) === "done"; });
+  var landed = tasks.filter(function(t){ return isLanded(t.id); });
   var scope = landed.length ? landed : tasks;
   var L = [];
   L.push("# " + D.project + "　全项目查 bug");
@@ -2402,9 +2423,10 @@ function handBody(){
   var by = {};
   tasks.forEach(function(t){ (by[lv[t.id]] = by[lv[t.id]] || []).push(t); });
 
-  var done = tasks.filter(function(t){ return stOf(t.id) === "done"; }).length;
-  /* 进行中和审查中都算「在跑」：分支都还没进主干，下游都还得等 */
+  var done = tasks.filter(function(t){ return isLanded(t.id); }).length;
+  /* 进行中和审查中都算「在跑」：分支都还没进主干，下游都还得等。已落地·待复验不在其中 */
   var doing = tasks.filter(function(t){ return stOf(t.id) === "doing" || stOf(t.id) === "review"; });
+  var recheck = tasks.filter(function(t){ return stOf(t.id) === "recheck"; });
   var next = dispatchable();
   var nextIds = {};
   next.forEach(function(t){ nextIds[t.id] = 1; });
@@ -2423,6 +2445,10 @@ function handBody(){
   } else {
     say = "已落地 <b>" + done + "/" + tasks.length + "</b>　当前没有可派任务：检查前置是否都已落地、文档补丁是否还在同步、任务要求有没有明确错误（点该行「审查」看原因），或存在依赖循环。";
   }
+  if(recheck.length){
+    say += "　<b>" + recheck.length + "</b> 个已落地任务待复验：<em>" + recheck.map(function(t){ return t.id; }).join("　") +
+           "</em>，点该行「审查」得到复验提示词；它们仍算已落地，不锁下游。";
+  }
 
   var h = '<div class="kick">' +
     '<button class="cp big" data-kind="kick">复制开工总提示词</button>' +
@@ -2439,14 +2465,14 @@ function handBody(){
   Object.keys(by).map(Number).sort(function(a, b){ return a - b; }).forEach(function(k){
     var g = by[k].slice().sort(function(a, b){ return a.id.localeCompare(b.id); });
     var d = Math.round(g.reduce(function(s, x){ return s + (x.est||0); }, 0) * 10) / 10;
-    var gd = g.filter(function(t){ return stOf(t.id) === "done"; }).length;
+    var gd = g.filter(function(t){ return isLanded(t.id); }).length;
     h += '<div class="hbatch"><h5>第 ' + (k+1) + " 批 · " + g.length + " 个任务 · " + d + " 人天 · " +
          (k === 0 ? "无前置依赖，可立即开工" : "前置全部落地后可开始；同批次其他任务在跑不影响") +
          (gd ? " · 已落地 " + gd + "/" + g.length : "") + "</h5>";
     g.forEach(function(t){
       var id = esc(t.id), st = stOf(t.id), wait = waitingOn(t);
       var rv = rivalsOf(t.id).filter(function(x){
-        return lv[x.id] === k && stOf(x.id) !== "done";
+        return lv[x.id] === k && !isLanded(x.id);
       });
       var cls = "htask " + st + (nextIds[t.id] ? " now" : "");
       h += '<div class="' + cls + '" data-t="' + id + '">' +
@@ -2467,8 +2493,8 @@ function handBody(){
       h += '<span class="hd">' + (t.est ? t.est + "d" : "—") + "</span>" +
         '<button class="cp" data-kind="impl" data-task="' + id + '"' +
           (implLocked(t.id) ? " disabled title=\"前置未落地、文档补丁同步中或任务要求有明确错误；点「审查」看原因\"" : "") + ">实施</button>" +
-        '<button class="cp" data-kind="review" data-task="' + id + '">审查</button>' +
-        ((st === "doing" || st === "review") ? '<button class="cp" data-kind="resume" data-task="' + id + '" title="沿用原分支和 PR，只处理补丁与返工条目">续做</button>' : '') +
+        '<button class="cp" data-kind="review" data-task="' + id + '"' + (st === "recheck" ? ' title="已落地任务被文档补丁标为待复验：复制复验提示词，核对后 verify 并 --landed 清除标记"' : '') + '>审查</button>' +
+        ((st === "doing" || st === "review" || st === "recheck") ? '<button class="cp" data-kind="resume" data-task="' + id + '" title="' + (st === "recheck" ? "继续复验：沿用本次复验的工作树与 PR（若有）" : "沿用原分支和 PR，只处理补丁与返工条目") + '">续做</button>' : '') +
         '<button class="cp bug" data-kind="bug" data-task="' + id + '" title="不改状态，随时可点">查 bug</button></div>';
     });
     h += "</div>";
@@ -2627,7 +2653,7 @@ C.schedule = function(){
    不用改就仍然有效，note 照旧显示，只是不再占概览页一大片 */
 C.handoff = function(){
   if(!(DT.tasks||[]).length) return "";
-  var tasks = DT.tasks, done = tasks.filter(function(t){ return stOf(t.id) === "done"; }).length;
+  var tasks = DT.tasks, done = tasks.filter(function(t){ return isLanded(t.id); }).length;
   var next = dispatchable();
   var say;
   if(done === tasks.length) say = "<b>全部 " + tasks.length + " 个任务已落地。</b>";
@@ -2637,7 +2663,7 @@ C.handoff = function(){
           next.slice(0, 5).map(function(t){ return t.id; }).join("　") +
           (next.length > 5 ? " …" : "") + "</em>";
   else
-    say = "已落地 <b>" + done + "/" + tasks.length + "</b>　其余任务等待前置落地或任务要求复核，可点「审查」查看。";
+    say = "已落地 <b>" + done + "/" + tasks.length + "</b>　其余任务在等前置落地、文档补丁同步或任务要求的明确错误修正，点「审查」看原因。";
   return '<div class="hentry" id="hentry"><span class="bar"><i style="width:' +
     (tasks.length ? Math.round(100*done/tasks.length) : 0) + '%"></i></span>' +
     '<span class="txt">' + say + "</span>" +
@@ -2772,7 +2798,7 @@ if((DT.tasks||[]).length){
 function navBadge(){
   if(!handBtn) return;
   var tasks = DT.tasks || [];
-  var done = tasks.filter(function(t){ return stOf(t.id) === "done"; }).length;
+  var done = tasks.filter(function(t){ return isLanded(t.id); }).length;
   var all = done === tasks.length;
   handBtn.innerHTML = '<span class="n">⚡</span><span class="t">任务交接台</span>' +
     '<span class="c' + (all ? " all" : "") + '">' + done + "/" + tasks.length + "</span>";
@@ -3186,14 +3212,24 @@ def note_status(text):
 
 
 def read_progress(root):
+    """先取 docs-data.js 里随仓库走的 progress，再让本机 progress.js 覆盖；两者都只是笔记之外的兜底"""
+    st = {}
+    dp = os.path.join(root, "docs-data.js")
+    if os.path.exists(dp):
+        try:
+            text = read(dp)
+            st.update(json.loads(text[len("window.DOCS = "):].strip().removesuffix(";")).get("progress") or {})
+        except (ValueError, AttributeError):
+            pass
     p = os.path.join(root, "_run", "progress.js")
     if not os.path.exists(p):
-        return {}
+        return st
     m = re.search(r"window\.PROGRESS\s*=\s*(\{.*?\});", read(p), re.S)
     try:
-        return json.loads(m.group(1)) if m else {}
+        st.update(json.loads(m.group(1)) if m else {})
     except ValueError:
-        return {}
+        pass
+    return st
 
 
 def progress_state(root):
@@ -3221,7 +3257,7 @@ def write_progress(root, st):
                "window.PROGRESS = " + json.dumps(st, ensure_ascii=False, sort_keys=True) + ";\n")
     gi = os.path.join(rd, ".gitignore")
     if not os.path.exists(gi):
-        with open(gi, "w", encoding="utf-8") as f:
+        with open(gi, "w", encoding="utf-8", newline="\n") as f:
             f.write("# 派生文件，各检出目录各自生成，不进仓库\nprogress.js\n")
 
 
@@ -3231,6 +3267,30 @@ def prompt_compiler_core(progress, maintenance):
     return ("window.PROGRESS = " + json.dumps(progress, ensure_ascii=False) + ";\n"
             + "window.MAINTENANCE = " + json.dumps(maintenance, ensure_ascii=False) + ";\n"
             + core)
+
+
+def write_progress_payload(root, st):
+    """就地改写 docs-data.js 的 progress 键（不重建）：落地记录随它进仓库，换检出目录只 git pull 就能看到。
+    它是构建清单里的产物，改完把清单里这一项的指纹同步更新，否则下一次 --landed 会被当成产物过期拒绝"""
+    p = os.path.join(root, "docs-data.js")
+    if not os.path.exists(p):
+        return False
+    text = read(p)
+    try:
+        payload = json.loads(text[len("window.DOCS = "):].strip().removesuffix(";"))
+    except ValueError:
+        return False
+    if payload.get("progress") == st:
+        return False
+    payload["progress"] = st
+    new_text = "window.DOCS = " + json.dumps(payload, ensure_ascii=False) + ";\n"
+    write_text(p, new_text)
+    mp = os.path.join(root, "_run", "build-manifest.json")
+    m = read_json(mp, {})
+    if m and "docs-data.js" in (m.get("products") or {}):
+        m["products"]["docs-data.js"] = digest(new_text)
+        write_json(mp, m)
+    return True
 
 
 def mark_landed(root, ids):
@@ -3279,7 +3339,7 @@ def mark_landed(root, ids):
                 text = text[:m.start(1)] + fm + text[m.end(1):]
             else:
                 text = "---\nid: %s\nstatus: done\n---\n%s" % (i, text)
-            with open(p, "w", encoding="utf-8") as f:
+            with open(p, "w", encoding="utf-8", newline="\n") as f:
                 f.write(text)
             print("  %s → status: done（%s）" % (i, os.path.relpath(p, root)))
         else:
@@ -3307,9 +3367,13 @@ def mark_landed(root, ids):
     for i in ok:
         st[i] = "done"
     write_progress(root, st)
+    write_progress_payload(root, st)
     landed = len([v for v in st.values() if v == "done"])
-    print("已写 _run/progress.js：已落地 %d%s" % (landed, "/%d" % len(known) if known else ""))
-    print("  刷新阅读器的交接台即可看到「已落地」，依赖这些任务的「实施」随之解锁")
+    print("已写 _run/progress.js 与 docs-data.js 的 progress：已落地 %d%s" % (landed, "/%d" % len(known) if known else ""))
+    print("  刷新阅读器的交接台即可看到「已落地」，依赖这些任务的「实施」随之解锁；别的检出 git pull 后同样看得到")
+    if revalidation:
+        print("  仍待复验的已落地任务：%s（交接台显示「已落地·待复验」，点该行「审查」得到复验提示词）" % "、".join(sorted(revalidation)))
+    print("  工作树与 planning 目录当场清理；漏了的用 python \"%s/_run/maintain_docs.py\" \"%s\" workspace 列出" % (root, root))
     if bad:
         print("  ! 不在 19 节任务表里，没记：%s" % "、".join(bad))
         return 1
@@ -3381,6 +3445,8 @@ def main():
             entry["ready"] = False
             entry["reasons"].append("结构检查缺失或已过期，运行维护同步命令")
             entry.setdefault("blockers", []).append("结构检查缺失或已过期，运行维护同步命令")
+    # 落地记录进 payload：随 docs-data.js 进仓库，别的检出 git pull 就看得到；本机 progress.js 只是覆盖
+    progress = progress_state(root)
     payload = {
         "schemaVersion": 1,
         "handoff": checked,
@@ -3391,10 +3457,10 @@ def main():
         "data": data,
         "pres": pres,
         "index": chip_index(data),
+        "progress": progress,
     }
 
-    # 固定的提示词函数共用同一实现；编译器也要看到已落地历史及本次复验标记。
-    progress = progress_state(root)
+    # 固定的提示词函数共用同一实现；编译器也要看到已落地历史及本次复验标记，dispatch.json 才与浏览器同源。
     maintenance = {"pendingTasks": [], "needsReview": sorted(read_json(os.path.join(root, "_run", "revalidation.json"), {}))}
     core = prompt_compiler_core(progress, maintenance)
     compiled = subprocess.run(["node", str(Path(__file__).with_name("compile_prompts.js"))],

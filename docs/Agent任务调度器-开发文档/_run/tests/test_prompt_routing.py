@@ -9,6 +9,8 @@ import unittest
 
 
 RUN = Path(__file__).resolve().parents[1]
+if (RUN / "scripts").is_dir():
+    RUN = RUN / "scripts"
 
 BROWSER = r"""
 (async function(){
@@ -58,6 +60,22 @@ for (const task of input.payload.data.tasks) {
 }
 process.stdout.write(JSON.stringify({tasks, copied, writes, local: context.PG}));
 })().catch(error => { console.error(error); process.exitCode = 1; });
+"""
+
+KICKOFF = r"""
+const fs = require('node:fs');
+const vm = require('node:vm');
+const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+const context = {
+  D: input.payload, DT: input.payload.data, PR: input.payload.pres,
+  window: {PROGRESS: {}, MAINTENANCE: {pendingTasks: [], needsReview: []}},
+  localStorage: {getItem: () => null, setItem: () => {}},
+  esc: value => String(value == null ? '' : value),
+  layerOf: (ids) => { const lv = {}; ids.forEach(id => { lv[id] = 0; }); return lv; }
+};
+vm.createContext(context, {codeGeneration: {strings: false, wasm: false}});
+vm.runInContext(input.core, context, {timeout: 5000});
+process.stdout.write(JSON.stringify({kick: context.promptFor('kick')}));
 """
 
 SEMANTIC_PENDING = {"ready": False, "blockers": [],
@@ -171,7 +189,7 @@ class PromptRoutingTests(unittest.TestCase):
                     for old_action in ("PR 已提", "gh stack submit", "gh stack merge",
                                        "gh pr merge", "git worktree add", "沿用分支 task/M1-T1"):
                         self.assertNotIn(old_action, text)
-                self.assertEqual(result["tasks"]["M1-T1"]["state"], "review")
+                self.assertEqual(result["tasks"]["M1-T1"]["state"], "recheck")
                 self.assertEqual(result["tasks"]["M1-T1"]["fileState"], "done")
                 self.assertEqual(result["local"], {"M1-T1": "done"})
                 self.assertEqual(result["writes"], 0)
@@ -236,18 +254,21 @@ class PromptRoutingTests(unittest.TestCase):
         self.assertTrue(result["tasks"]["M1-T4"]["locked"])  # 前置 M1-T2 还没落地
         self.assertEqual(result["tasks"]["M1-T4"]["implementation"], "")
 
-    def test_dependency_in_progress_review_or_revalidation_keeps_downstream_locked(self):
+    def test_dependency_in_progress_or_review_keeps_downstream_locked_but_revalidation_does_not(self):
         for state in ("todo", "doing", "review"):
             with self.subTest(prerequisite=state):
                 local = {} if state == "todo" else {"M1-T1": state}
                 result = self.browser(chain(), local=local)
                 self.assertTrue(result["tasks"]["M1-T2"]["locked"])
                 self.assertEqual(result["tasks"]["M1-T2"]["implementation"], "")
-        # 已落地的前置被补丁标为待复验时显示「审查中」，下游重新锁住：标记必须尽快按复验流程清除
+        # 已落地的前置被文档补丁标为待复验：它的代码仍在主干，下游要基于的代码并没有消失，
+        # 所以不锁下游。1.1.x 把它显示成「审查中」并锁住全部下游，实测两天没人识别出这是待复验标记，
+        # 派发停摆——待复验是提醒，不是闸门。
         result = self.browser(chain(), progress={"M1-T1": "done"},
                               maintenance={"pendingTasks": [], "needsReview": ["M1-T1"]})
-        self.assertEqual(result["tasks"]["M1-T1"]["state"], "review")
-        self.assertTrue(result["tasks"]["M1-T2"]["locked"])
+        self.assertEqual(result["tasks"]["M1-T1"]["state"], "recheck")
+        self.assertFalse(result["tasks"]["M1-T2"]["locked"])
+        self.assertIn("# 实现任务 M1-T2", result["tasks"]["M1-T2"]["implementation"])
 
     def test_maintenance_progress_and_structural_blocks_still_prevent_implementation(self):
         landed = {"M1-T1": "done"}
@@ -295,6 +316,69 @@ class PromptRoutingTests(unittest.TestCase):
         self.assertIn("契约复核是审查的一部分", text)
         self.assertIn("verify --task M1-T2", text)
         self.assertIn("--landed M1-T2", text)
+
+    # ---- 1.2.0：待复验被看见且不锁下游；落地记录随 docs-data.js 走；工作区纪律进提示词 ----
+
+    def test_landed_revalidation_is_visible_and_prompts_stay_revalidation(self):
+        result = self.browser(chain(), progress={"M1-T1": "done"},
+                              maintenance={"pendingTasks": [], "needsReview": ["M1-T1"]},
+                              actions=[{"kind": "review", "id": "M1-T1"}, {"kind": "resume", "id": "M1-T1"}])
+        t1 = result["tasks"]["M1-T1"]
+        self.assertEqual(t1["state"], "recheck")
+        self.assertTrue(t1["locked"])                     # 已落地的不再派
+        self.assertIn("复验已落地任务 M1-T1", t1["review"])
+        self.assertIn("继续复验已落地任务 M1-T1", t1["resume"])
+        self.assertIn("changedFields", t1["review"])      # 提示词指到 revalidation.json 的变化字段
+        for text in result["copied"]:
+            self.assertIn("复验已落地任务", text)
+        self.assertEqual(result["local"], {})             # 复制复验提示词不改本机状态
+        self.assertEqual(result["writes"], 0)
+        self.assertFalse(result["tasks"]["M1-T2"]["locked"])
+        self.assertFalse(result["tasks"]["M1-T3"]["locked"])
+        self.assertTrue(result["tasks"]["M1-T4"]["locked"])   # 前置 M1-T2 还是待派
+
+    def test_landing_record_in_payload_unlocks_downstream_without_progress_js(self):
+        payload = payload_for("M1-T1", "M1-T2", deps={"M1-T2": ["M1-T1"]},
+                              readiness={"M1-T2": SEMANTIC_PENDING})
+        payload["progress"] = {"M1-T1": "done"}          # 随 docs-data.js 进仓库的落地记录
+        result = self.browser(payload, progress={})      # 新检出：没有本机 _run/progress.js
+        self.assertEqual(result["tasks"]["M1-T1"]["state"], "done")
+        self.assertEqual(result["tasks"]["M1-T1"]["fileState"], "done")
+        self.assertFalse(result["tasks"]["M1-T2"]["locked"])
+        # 本机 progress.js 仍是覆盖：它说 done 而 payload 没说，也算已落地
+        payload["progress"] = {}
+        result = self.browser(payload, progress={"M1-T1": "done"})
+        self.assertEqual(result["tasks"]["M1-T1"]["state"], "done")
+        self.assertFalse(result["tasks"]["M1-T2"]["locked"])
+
+    def test_prompts_carry_workspace_discipline(self):
+        result = self.browser(chain(), progress={"M1-T1": "done"}, local={"M1-T3": "doing"})
+        impl = result["tasks"]["M1-T2"]["implementation"]
+        for needle in ("../.codex-plans/routing-m1-t2/", "只允许这两个仓库外目录", "不许 git clone",
+                       "../routing-review-m1-t2", "../M1-T2-review.<随机>", "git worktree prune"):
+            self.assertIn(needle, impl)
+        review = result["tasks"]["M1-T3"]["review"]
+        for needle in ("只允许两个仓库外目录", "不许 git clone", "审查方在同一个工作树里干活", "git worktree prune",
+                       "git worktree remove ../routing-m1-t3", "git branch -d task/M1-T3",
+                       "rm -rf ../.codex-plans/routing-m1-t3", " workspace ",
+                       "主检出 git pull 后刷新交接台", "换检出目录不必重跑 --landed"):
+            self.assertIn(needle, review)
+        kick = self.run_node(["node", "-e", KICKOFF], {"payload": chain(), "core": self.core})["kick"]
+        for needle in ("../.codex-plans/routing-<小写任务ID>/", "不许 git clone", "../routing-review-<id>",
+                       "git worktree prune", "落地后当场删工作树、分支和 planning 目录"):
+            self.assertIn(needle, kick)
+
+    def test_dispatch_copy_and_batch_copy_follow_landed_semantics(self):
+        # 契约复核不是派发条件：批次标题与锁住时的 title 都不再提「契约复核后」
+        result = self.browser(chain(), progress={"M1-T1": "done"})
+        self.assertIn("派发本身只看前置是否落地", self.browser(payload_for("M1-T9"))["tasks"]["M1-T9"]["review"])
+        # 批次标题与按钮 title 在 handBody 里，不在 core 范围内，查整份 HTML
+        self.assertNotIn("契约复核后可开工", self.html)
+        self.assertNotIn("前置未落地或任务要求待复核", self.html)
+        self.assertIn("无前置依赖，可立即开工", self.html)
+        self.assertIn("前置全部落地后可开始；同批次其他任务在跑不影响", self.html)
+        self.assertFalse(result["tasks"]["M1-T2"]["locked"])
+
 
 
 if __name__ == "__main__":
