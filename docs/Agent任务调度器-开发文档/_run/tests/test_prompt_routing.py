@@ -48,6 +48,8 @@ for (const task of input.payload.data.tasks) {
   tasks[task.id] = {
     review: context.promptFor('review', task.id),
     resume: context.promptFor('resume', task.id),
+    implementation: context.promptFor('impl', task.id),
+    locked: context.implLocked(task.id),
     state: context.stOf(task.id), fileState: context.fileSt(task.id),
     compiled: {contractHash: input.payload.handoff.contracts[task.id].hash,
       implementation: context.buildImpl(task), review: context.buildReview(task),
@@ -58,9 +60,14 @@ process.stdout.write(JSON.stringify({tasks, copied, writes, local: context.PG}))
 })().catch(error => { console.error(error); process.exitCode = 1; });
 """
 
+SEMANTIC_PENDING = {"ready": False, "blockers": [],
+                    "reasons": ["任务契约待语义复核；可在当前审查内完成，无需重跑生成流程"]}
 
-def payload_for(*ids):
-    tasks = [dict(id=tid, title="路由回归", module="M1", deps=[], input="已有输入",
+
+def payload_for(*ids, deps=None, readiness=None):
+    deps = deps or {}
+    readiness = readiness or {}
+    tasks = [dict(id=tid, title="路由回归", module="M1", deps=list(deps.get(tid, [])), input="已有输入",
                   output="确定结果", accept="1) 保留验收依据", est=1, edges=["E-01"])
              for tid in ids]
     return {
@@ -72,10 +79,17 @@ def payload_for(*ids):
                              "mainBranch": "main", "branchPrefix": "task/"}},
         "handoff": {
             "version": "1.1.0", "contracts": {tid: {"hash": "hash-" + tid} for tid in ids},
-            "readiness": {tid: {"ready": True} for tid in ids},
+            "readiness": {tid: copy.deepcopy(readiness.get(tid, {"ready": True})) for tid in ids},
             "effectivePaths": {tid: ["packages/daemon/src/"] for tid in ids}
         }
     }
+
+
+def chain():
+    """M1-T1 ← M1-T2 ← M1-T4；M1-T3 与 M1-T2 同批（都只依赖 M1-T1）。四个任务都还没登记语义复核。"""
+    ids = ("M1-T1", "M1-T2", "M1-T3", "M1-T4")
+    return payload_for(*ids, deps={"M1-T2": ["M1-T1"], "M1-T3": ["M1-T1"], "M1-T4": ["M1-T2"]},
+                       readiness={tid: SEMANTIC_PENDING for tid in ids})
 
 
 class PromptRoutingTests(unittest.TestCase):
@@ -210,6 +224,77 @@ class PromptRoutingTests(unittest.TestCase):
         self.assertIn("复验已落地任务", exported["M1-T3"]["review"])
         self.assertIn("继续复验已落地任务", exported["M1-T3"]["resume"])
         self.assertEqual(payload, original)
+
+    # ---- 实施解锁只看前置是否落地；契约语义复核在审查阶段登记 ----
+
+    def test_dependency_must_land_and_unrelated_batch_siblings_do_not_block(self):
+        result = self.browser(chain(), progress={"M1-T1": "done"}, local={"M1-T3": "doing"})
+        self.assertFalse(result["tasks"]["M1-T2"]["locked"])
+        self.assertIn("# 实现任务 M1-T2", result["tasks"]["M1-T2"]["implementation"])
+        self.assertTrue(result["tasks"]["M1-T1"]["locked"])  # 已落地的不再派
+        self.assertTrue(result["tasks"]["M1-T3"]["locked"])  # 进行中的不重复派
+        self.assertTrue(result["tasks"]["M1-T4"]["locked"])  # 前置 M1-T2 还没落地
+        self.assertEqual(result["tasks"]["M1-T4"]["implementation"], "")
+
+    def test_dependency_in_progress_review_or_revalidation_keeps_downstream_locked(self):
+        for state in ("todo", "doing", "review"):
+            with self.subTest(prerequisite=state):
+                local = {} if state == "todo" else {"M1-T1": state}
+                result = self.browser(chain(), local=local)
+                self.assertTrue(result["tasks"]["M1-T2"]["locked"])
+                self.assertEqual(result["tasks"]["M1-T2"]["implementation"], "")
+        # 已落地的前置被补丁标为待复验时显示「审查中」，下游重新锁住：标记必须尽快按复验流程清除
+        result = self.browser(chain(), progress={"M1-T1": "done"},
+                              maintenance={"pendingTasks": [], "needsReview": ["M1-T1"]})
+        self.assertEqual(result["tasks"]["M1-T1"]["state"], "review")
+        self.assertTrue(result["tasks"]["M1-T2"]["locked"])
+
+    def test_maintenance_progress_and_structural_blocks_still_prevent_implementation(self):
+        landed = {"M1-T1": "done"}
+        explicit = chain()
+        explicit["handoff"]["readiness"]["M1-T2"] = {
+            "ready": False, "blockers": ["M1-T2 缺少能力前置 M1-T9"], "reasons": ["M1-T2 缺少能力前置 M1-T9"]}
+        self.assertTrue(self.browser(explicit, progress=landed)["tasks"]["M1-T2"]["locked"])
+        stale = chain()
+        stale["handoff"]["readiness"]["M1-T2"] = {
+            "ready": False, "blockers": ["结构检查缺失或已过期，运行维护同步命令"],
+            "reasons": ["任务契约待语义复核；可在当前审查内完成，无需重跑生成流程", "结构检查缺失或已过期，运行维护同步命令"]}
+        self.assertTrue(self.browser(stale, progress=landed)["tasks"]["M1-T2"]["locked"])
+        missing = chain()
+        del missing["handoff"]["readiness"]["M1-T2"]
+        self.assertTrue(self.browser(missing, progress=landed)["tasks"]["M1-T2"]["locked"])
+        syncing = self.browser(chain(), progress=landed,
+                               maintenance={"pendingTasks": ["M1-T2"], "needsReview": []})
+        self.assertTrue(syncing["tasks"]["M1-T2"]["locked"])
+        self.assertEqual(syncing["tasks"]["M1-T2"]["state"], "review")
+        # 只是还没登记语义复核：不锁
+        self.assertFalse(self.browser(chain(), progress=landed)["tasks"]["M1-T2"]["locked"])
+
+    def test_unlocked_implementation_copy_advances_once_without_landing(self):
+        result = self.browser(chain(), progress={"M1-T1": "done"}, actions=[
+            {"kind": "impl", "id": "M1-T2"}, {"kind": "impl", "id": "M1-T2"}])
+        self.assertEqual(len(result["copied"]), 1)
+        self.assertIn("# 实现任务 M1-T2", result["copied"][0])
+        self.assertEqual(result["local"], {"M1-T2": "doing"})
+        self.assertEqual(result["writes"], 1)
+        self.assertEqual(result["tasks"]["M1-T2"]["state"], "doing")
+        self.assertEqual(result["tasks"]["M1-T2"]["fileState"], "todo")
+        self.assertTrue(result["tasks"]["M1-T4"]["locked"])
+
+    def test_locked_implementation_copy_cannot_advance_task(self):
+        result = self.browser(chain(), progress={"M1-T1": "done"}, actions=[
+            {"kind": "impl", "id": "M1-T4"}])
+        self.assertEqual(result["copied"], [])
+        self.assertEqual(result["local"], {})
+        self.assertEqual(result["writes"], 0)
+        self.assertEqual(result["tasks"]["M1-T4"]["state"], "todo")
+
+    def test_review_prompt_registers_contract_verification_for_dispatched_task(self):
+        result = self.browser(chain(), progress={"M1-T1": "done"}, local={"M1-T2": "doing"})
+        text = result["tasks"]["M1-T2"]["review"]
+        self.assertIn("契约复核是审查的一部分", text)
+        self.assertIn("verify --task M1-T2", text)
+        self.assertIn("--landed M1-T2", text)
 
 
 if __name__ == "__main__":

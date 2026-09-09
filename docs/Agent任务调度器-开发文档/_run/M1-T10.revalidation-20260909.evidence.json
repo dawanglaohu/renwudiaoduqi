@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T10": {
+      "contractHash": "abb3c9ad2c5b1f4aabd6b6194d93b40628f0c026a1e6edbaf21bb770fdb08aea",
+      "evidence": [
+        "PR #6（task/M1-T10）已于 2026-09-08 合并进 main；上次契约复核记录为 M1-T10-review-host-inputs-20260907 补丁之后的版本",
+        "本任务测试本次实跑通过（含在上述 pnpm -w check 内）：test/unit/lock-paths.test.ts 5、boot.self-check.test.ts 5、test/integration/daemon-runtime.test.ts 8（顺序启动、健康检查、第二实例拒绝）",
+        "复验原因：本任务已落地（PR 已合并、笔记 status: done），但 task-reviews.json 里的复核记录哈希早在 2026-09-08 之后就与当前契约失配（ready=false）；本次按「复验已落地任务」流程以 main 上已合入代码为依据重新登记，不重开 PR",
+        "契约差异：与上次复核版本逐字段比对，只有 compiler 指纹（本次生成器解锁修复）与 02-设计/10-接口约定.md 章节指纹变化；后者是 commit 59dcef9（M1-T9）在错误码表新增的 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行，已由同一提交写入 packages/shared/src/errors/codes.ts:50-52；任务行、验收、边界、有效路径、前置契约均无变化，本任务无新代码义务",
+        "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件、tsc -b --noEmit、vitest 39 个文件 332 用例全部通过；e64fa0c→7e75ff2（当前 main）仅新增 M1-T7 的 packages/daemon/src/proc/* 与 test/unit/proc.test.ts，本任务代码路径未变"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
