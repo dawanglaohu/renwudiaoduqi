@@ -3218,7 +3218,7 @@ def read_progress(root):
     if os.path.exists(dp):
         try:
             text = read(dp)
-            st.update(json.loads(text[len("window.DOCS = "):].strip().removesuffix(";")).get("progress") or {})
+            st.update(json.loads(text[len("window.DOCS = "):].strip()).get("progress") or {})
         except (ValueError, AttributeError):
             pass
     p = os.path.join(root, "_run", "progress.js")
@@ -3277,7 +3277,7 @@ def write_progress_payload(root, st):
         return False
     text = read(p)
     try:
-        payload = json.loads(text[len("window.DOCS = "):].strip().removesuffix(";"))
+        payload = json.loads(text[len("window.DOCS = "):].strip())
     except ValueError:
         return False
     if payload.get("progress") == st:
@@ -3310,7 +3310,7 @@ def mark_landed(root, ids):
     marker_path = os.path.join(root, "_run", "maintenance.js")
     if os.path.exists(marker_path):
         try:
-            pending = json.loads(read(marker_path).split("=", 1)[1].strip().removesuffix(";")).get("pendingTasks", [])
+            pending = json.loads(read(marker_path).split("=", 1)[1].strip()).get("pendingTasks", [])
         except (ValueError, IndexError):
             print("维护状态无法读取；先修复同步状态再记录落地。")
             return 1
@@ -3356,7 +3356,7 @@ def mark_landed(root, ids):
     if os.path.exists(marker_path):
         text = read(marker_path)
         try:
-            marker_value["pendingTasks"] = json.loads(text.split("=", 1)[1].strip().removesuffix(";")).get("pendingTasks", [])
+            marker_value["pendingTasks"] = json.loads(text.split("=", 1)[1].strip()).get("pendingTasks", [])
         except (ValueError, IndexError):
             pass
     if any(i in marker_value["pendingTasks"] for i in ok):
@@ -3474,7 +3474,7 @@ def main():
     if os.path.exists(os.path.join(root, "docs-data.js")):
         old = read(os.path.join(root, "docs-data.js"))
         try:
-            previous = json.loads(old[len("window.DOCS = "):].strip().removesuffix(";"))
+            previous = json.loads(old[len("window.DOCS = "):].strip())
         except ValueError:
             pass
     if previous:
