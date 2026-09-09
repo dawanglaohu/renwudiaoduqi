@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M2-T1": {
+      "contractHash": "0b95c41859598660ecebf62414ace26ff0b59bda8892075697b4335b6e9827e0",
+      "evidence": [
+        "1. REST API uses proper fastify plugins order.",
+        "2. Custom error handlers effectively maps shared errors codes.",
+        "3. HTTP specific tests implemented and executed without regressions."
+      ],
+      "verdict": "pass"
+    }
+  }
+}
