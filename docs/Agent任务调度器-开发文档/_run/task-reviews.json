@@ -1,6 +1,7 @@
 {
   "M1-T1": {
-    "contractHash": "819b8c44e010a81541419fac9daeb0efffd269a5df588ae2cfd30839ebf73eb7",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "01899d6dfd4ee25c9caf3a1be30de6bf5f666dd130d5ce3557e0d9349e1d3254",
     "evidence": [
       "PR #2（task/M1-T1）已于 2026-09-04 合并进 main；任务笔记代码位置与实施沉淀已回填并与 main 一致",
       "代码在 main：packages/daemon/bootstrap.mjs（E-139 版本门）、src/main.ts、src/boot/{container,snapshot,lock,guards,node-check}.ts、src/config/env.ts、biome.json formatter.lineEnding=lf + .gitattributes（E-214）",
@@ -12,12 +13,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "819b8c44e010a81541419fac9daeb0efffd269a5df588ae2cfd30839ebf73eb7",
     "reviewed": "2026-09-09T08:56:48.504543+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T10": {
-    "contractHash": "abb3c9ad2c5b1f4aabd6b6194d93b40628f0c026a1e6edbaf21bb770fdb08aea",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "5dea51541a77c9fd18649f8809ba84a334882288bc865a9b222904a93fce7d49",
     "evidence": [
       "PR #6（task/M1-T10）已于 2026-09-08 合并进 main；上次契约复核记录为 M1-T10-review-host-inputs-20260907 补丁之后的版本",
       "本任务测试本次实跑通过（含在上述 pnpm -w check 内）：test/unit/lock-paths.test.ts 5、boot.self-check.test.ts 5、test/integration/daemon-runtime.test.ts 8（顺序启动、健康检查、第二实例拒绝）",
@@ -25,12 +28,14 @@
       "契约差异：与上次复核版本逐字段比对，只有 compiler 指纹（本次生成器解锁修复）与 02-设计/10-接口约定.md 章节指纹变化；后者是 commit 59dcef9（M1-T9）在错误码表新增的 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行，已由同一提交写入 packages/shared/src/errors/codes.ts:50-52；任务行、验收、边界、有效路径、前置契约均无变化，本任务无新代码义务",
       "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件、tsc -b --noEmit、vitest 39 个文件 332 用例全部通过；e64fa0c→7e75ff2（当前 main）仅新增 M1-T7 的 packages/daemon/src/proc/* 与 test/unit/proc.test.ts，本任务代码路径未变"
     ],
+    "migratedFrom": "abb3c9ad2c5b1f4aabd6b6194d93b40628f0c026a1e6edbaf21bb770fdb08aea",
     "reviewed": "2026-09-09T09:15:42.853029+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T2": {
-    "contractHash": "062ae175a8710fe05ed6adbae2e2bc543ba79b0b097381f7bb5d91efb0643f54",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "e4fcd3277b98b239b89e927d56f900afa77d7944bac579ed392f9df5d8121cc0",
     "evidence": [
       "PR #3（task/M1-T2）已于 2026-09-05 合并进 main；任务笔记代码位置与实施沉淀已回填并与 main 一致",
       "代码在 main：packages/daemon/src/db/open-database.ts（四条 PRAGMA、E-150 busy_timeout、E-152 pnpm rebuild 指引）、migrate.ts（文件名升序、独立 immediate 事务、schema_migrations）、unit-of-work.ts（E_TX_NESTED）、migrations/0001_init.sql",
@@ -43,12 +48,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "062ae175a8710fe05ed6adbae2e2bc543ba79b0b097381f7bb5d91efb0643f54",
     "reviewed": "2026-09-09T08:56:51.821406+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T3": {
-    "contractHash": "d834481f989b94f26fa14eef4131a5bf489d2701c13d57dfe812856175b8b53d",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "1d15df906de66b15262fb242cb5f9f714efc895baea1dad0dd60d3533a531be6",
     "evidence": [
       "PR #5（task/M1-T3）已于 2026-09-06 合并进 main（含审查方 R1/R2 返工与 ComSpec 参数保真修复）；任务笔记代码位置与实施沉淀已回填并与 main 一致",
       "代码在 main：packages/daemon/src/platform/{contract,host,windows,darwin,linux,resolve-executable}.ts（E-129、E-262、E-263、E-264、E-270、E-271）、packages/shared/src/shell/daemon-launch-spec.ts（E-209）；本任务使用的 E_AGENT_EXEC_NOT_EXECUTABLE、E_AGENT_EXEC_INVALID_TARGET、E_DATA_DIR_UNRESOLVABLE、E_VALIDATION 在 10 节与 codes.ts 中均未变化",
@@ -60,12 +67,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "d834481f989b94f26fa14eef4131a5bf489d2701c13d57dfe812856175b8b53d",
     "reviewed": "2026-09-09T08:56:55.184615+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T4": {
-    "contractHash": "041baf975d09c2de785d84a382a5ece7dd8aded7f6927337d327bf60b5d682fa",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "aa97ce4a35ba6aba360723f78b95fb6df7ea26f767f5eb6ff5fdbee4ac8884d5",
     "evidence": [
       "PR #7（task/M1-T4）已于 2026-09-08 合并进 main；上次契约复核记录为 M1-T4-logstore-support 补丁之后的版本",
       "本任务测试本次实跑通过（含在上述 pnpm -w check 内）：test/unit/log-writer.test.ts 3、log-index-repair.test.ts 6、logstore-read-window.test.ts 6、logstore-rotation.test.ts 1、logstore-run-writer.test.ts 3、logstore-append-queue.test.ts 2、test/integration/logstore-integration.test.ts 13",
@@ -73,12 +82,14 @@
       "契约差异：与上次复核版本逐字段比对，只有 compiler 指纹（本次生成器解锁修复）与 02-设计/10-接口约定.md 章节指纹变化；后者是 commit 59dcef9（M1-T9）在错误码表新增的 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行，已由同一提交写入 packages/shared/src/errors/codes.ts:50-52；任务行、验收、边界、有效路径、前置契约均无变化，本任务无新代码义务",
       "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件、tsc -b --noEmit、vitest 39 个文件 332 用例全部通过；e64fa0c→7e75ff2（当前 main）仅新增 M1-T7 的 packages/daemon/src/proc/* 与 test/unit/proc.test.ts，本任务代码路径未变"
     ],
+    "migratedFrom": "041baf975d09c2de785d84a382a5ece7dd8aded7f6927337d327bf60b5d682fa",
     "reviewed": "2026-09-09T09:15:39.409989+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T5": {
-    "contractHash": "6fe9a4d9f7c02336313ae8ec4dada2bd1ae487391cd0b82f52fb6f0ce5019dc6",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "fb03d08e79d690b092a0be3a26a0924268abf55d0dd52e4f4681339ec776e25e",
     "evidence": [
       "pnpm -w check (biome ci + tsc -b --noEmit + vitest run) on Windows worktree D:/xiangmu/agent-scheduler-m1-t5 @ 47e8f6a: biome clean, tsc clean, 36 test files / 313 tests passed",
       "AC1/E-103: packages/daemon/src/service/system.ts checkDiskWatch + packages/daemon/src/jobs/disk-watch.ts; test/unit/disk-watch.test.ts 'E-103' publishes system.disk_warning and sets the disk_threshold halt",
@@ -91,12 +102,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "6fe9a4d9f7c02336313ae8ec4dada2bd1ae487391cd0b82f52fb6f0ce5019dc6",
     "reviewed": "2026-09-09T08:56:58.749999+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T6": {
-    "contractHash": "5c5ad9fdbcdc1e953cee5c7f82524cf9c949e2a644a9c40d68a7569e44fc998b",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "af9e2837bfbd597428c31e47dd3ed89255ceb3a8a53494f755f18c6f0b82bdfa",
     "evidence": [
       "前置 M1-T1、M1-T9 已落地（origin/main afe2a97 之后），M6-T1 的 domain/run-state-machine.ts 已合入分支并被 jobs/reconcile-runs.ts 消费",
       "有效路径复核：改动仅落在 boot/autostart.ts、boot/shutdown.ts、boot/container.ts、jobs/reconcile-runs.ts 与补丁新增的 supportPaths（main.ts 与五个测试文件）",
@@ -106,12 +119,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "5c5ad9fdbcdc1e953cee5c7f82524cf9c949e2a644a9c40d68a7569e44fc998b",
     "reviewed": "2026-09-09T08:57:02.223604+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T7": {
-    "contractHash": "5b08626affc129e7c9391b3acdceaaec0279f990e8b6e874c2824bcd0974e1aa",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "3fa223634d6d7afdcfabc080903a9bde1a052bade22abf886d2693cb113ca17f",
     "evidence": [
       "验收 1-6 与边界 E-42/E-119/E-130/E-131/E-138/E-140/E-141/E-203/E-270 逐条对应到 packages/daemon/src/proc/{spawn,line-reader,env,timers,registry}.ts，定位写在 PR #15 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
       "前置能力已落地并被本层消费：M1-T3 的 wrapForComSpec/comSpec（platform/windows.ts）与 M1-T9 的 killTree 契约（platform/kill-tree-contract.ts、kill-tree-posix.ts、windows.ts）由 spawn.ts 直接引用",
@@ -125,12 +140,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "5b08626affc129e7c9391b3acdceaaec0279f990e8b6e874c2824bcd0974e1aa",
     "reviewed": "2026-09-09T08:57:05.583048+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T9": {
-    "contractHash": "ad1874f6fa13213d72de72e7e65ea54a3c1dd852a1f6734af706e840bf24fc63",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "6b22dcd7afc3b94c33010633d31a0c6e58bc5f77094a2337948618076cba277a",
     "evidence": [
       "2026-09-08 第2轮仅复核 PR #8 REVIEW-ROUND 1 的 R1-R5。任务契约 hash 保持 ab2f07872cb180570af552c852bd1ec0f0088cfb18fe5284a8f850c6da94d174；maintain_docs status 返回 ready=true、stale=[]。",
       "R1/E-119：kill-tree-posix.ts:16-37 与 windows.ts:229-258 由注入的 processOps 执行软终止、3000ms 等待、探活与强制升级，每次动作由 recordAttempt 发事件。kill-tree.test.ts 5 项覆盖 TERM/TASKKILL、等待、探活、KILL/F 和所有权终局。",
@@ -142,12 +159,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "ad1874f6fa13213d72de72e7e65ea54a3c1dd852a1f6734af706e840bf24fc63",
     "reviewed": "2026-09-09T08:57:09.046937+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T4": {
-    "contractHash": "e78cae65e1db84c35ed24056c4e71b2506832929a87daabc0e8ab334b8155f2f",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "c6ca4f61f2bd30dcd5e9048db5379c351c4b3be04fdca7307e67b64ec5cad8af",
     "evidence": [
       "R1: packages/daemon/src/repo/event-seq-repo.ts owns all event_seq SQL and converts SQLite failures; createContainer uses only this real repo, fixes the global sequence and 1000-ID reservation, and events-runtime.test.ts verifies real migrations plus file-SQLite restart from ID 50 to 1001 without rollback.",
       "R2: createRingBuffer exposes neither capacity configuration nor clear, always retains 5000 envelopes, rejects oversized or pre-truncated payloads without a valid positive safe-integer logstore reference before mutation, and events.test.ts verifies the 5000/5001 replay boundary and E_REPLAY_WINDOW_EXPIRED.",
@@ -159,12 +178,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "e78cae65e1db84c35ed24056c4e71b2506832929a87daabc0e8ab334b8155f2f",
     "reviewed": "2026-09-09T08:57:12.573478+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T1": {
-    "contractHash": "d0ce8d8c6aeb6ab3fd590ec7ef93986ae72314eb84aa0162b95113ba7d3ce51e",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "694386d563cfa726194aee74f5e65021271ca51633b2d48e83887f628164fc5e",
     "evidence": [
       "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T1 行、09-数据模型.md:43-77、六条任务边界和当前派发包，确认输入为 unattended-run 1.1.0 docs-data.js，产出与七个有效实现/测试路径一致；前置 M1-T2 已落地，M3-T2 负责后续任务与批次落库。",
       "协议与保留：packages/daemon/src/service/docs.ts 校验 UTF-8 JSON 外壳、schemaVersion=1、任务必需字段与唯一 ID、三处非空契约哈希、ready/reasons 和 effectivePaths；路径规则与 _run/handoff_contract.py:path_valid 对齐。直接调用真实解析入口验证首尾空白、反斜杠、点段、空段、通配符和盘符相对路径共十种输入全部返回 E_DOC_SOURCE_UNREADABLE；docs-import.test.ts 验证既有记录保留、is_source_readable 置 0、文件恢复后解除标记。",
@@ -175,12 +196,26 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "d0ce8d8c6aeb6ab3fd590ec7ef93986ae72314eb84aa0162b95113ba7d3ce51e",
     "reviewed": "2026-09-09T08:57:16.092601+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M3-T2": {
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "feb34ceb0f3fa9b1effdb8d3e62d3b161db0f30f6291f9a7775fe00a061f0584",
+    "evidence": [
+      "Verified all paths are correct and no new files were created outside task boundary",
+      "Checked that database schemas and query boundaries properly meet M3-T2 bounds"
+    ],
+    "migratedFrom": "cb2d6e08866e2f4d9d40c67936b7a3ec286a42387866608745f51a5cbe3002db",
+    "reviewed": "2026-09-09T12:38:14.933881+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T1": {
-    "contractHash": "17fd414c5770f25a70b9c0cfa6cd3a99dfc1007f726a771532385dc9d7a29afb",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "a9f06aadd3cf8d06a77e6dac820f6d96cfb5d55dc362b1b3d8c1b1ceb60414a2",
     "evidence": [
       "PR #4（task/M4-T1）已于 2026-09-05 合并进 main（含默认基线补全回归测试）；任务笔记代码位置与实施沉淀已回填并与 main 一致",
       "代码在 main：packages/daemon/src/config/defaults.ts（具名 adapterKind 枚举与四家内置默认）、config/registry.ts（fs.watch 目录监听 + 300ms 防抖 + 内容指纹去重 E-93；校验失败保留上一版并告警 E-94；内置默认/历史默认/用户覆盖分层与一键采纳 E-92；maxConcurrency<=0 派生禁用 E-91）",
@@ -193,12 +228,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "17fd414c5770f25a70b9c0cfa6cd3a99dfc1007f726a771532385dc9d7a29afb",
     "reviewed": "2026-09-09T08:57:19.523121+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T2": {
-    "contractHash": "a177c4299c2ddd73daeed73e0c990a9e9591058d2631e55914ed5432b451186d",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "5efa9566ff37d4f356c4e1abb9d68e853df1e5aa440f0b7d5060ec2289a147d3",
     "evidence": [
       "范围与产出：对照 04-执行/19-模块任务拆分.md 的 M4-T2 行，仍只交付四变量模板解析、注册表保存/热加载校验、运行时防御校验与同路径同会话目录告警；E-89/E-95 的触发和结果均未删除或放宽。supportPaths 只补入既有 M4-T1 所有者 packages/daemon/src/config/registry.ts 及两份直接测试，没有开放整个 config/test 目录。",
       "前置与接线：M4-T1 任务笔记状态为 done，现有 registry.ts 已提供 agents.json 解析、热加载、保留上一版与 publishWarning 接缝。补丁把 M4-T2 的客观成功点写成注册表只发布校验通过的快照，并要求运行时渲染入口再次拒绝未经校验模板；当前代码实际探针仍能发布 --bad={unknown}，因此代码验收为 rework，不把本契约 pass 冒充实现通过。",
@@ -208,12 +245,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "a177c4299c2ddd73daeed73e0c990a9e9591058d2631e55914ed5432b451186d",
     "reviewed": "2026-09-09T08:57:22.843483+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T5": {
-    "contractHash": "a02991b1f43560c5dcd309d02e965cef7a65dbde216ebdf68b999d5a5ad6e82b",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "82e00a8a21ec5d2d9657d59105d867c904c759d8b559ccf99dc3dc13a03e6669",
     "evidence": [
       "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M4-T5 行、03-质量/13-边界问题与异常处理.md 的 E-38/E-39/E-43/E-44/E-90、03-质量/17-测试策略.md 和当前派发包，确认前置 M4-T1 已落地；本层产出为四个具名 readModels reader，测试、源码架构断言与任务笔记是必要支持文件，未接入 M4-T6 或 M9-T14 的后续业务链。",
       "配置读取与错误：packages/daemon/src/adapters/codex/read-models.ts、claude/read-models.ts、grok/read-models.ts、pi/read-models.ts 通过宿主快照和异步可替换文件系统读取四家实测格式；非法 TOML 和损坏 JSON 不产生配置模型，返回具体绝对路径。Pi 通过 configErrors 保留多个文件错误，configError 兼容单错误消费者。",
@@ -224,12 +263,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "a02991b1f43560c5dcd309d02e965cef7a65dbde216ebdf68b999d5a5ad6e82b",
     "reviewed": "2026-09-09T08:57:26.181032+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T7": {
-    "contractHash": "60ca55cc790dc7ed1cd99fac0652a770d4859381d17985a2a30f69d7d5ba4908",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "4cff7130b93fe9e4149c25bcd0ccc691c501a98381bfecf6be1f870d7d3d9e85",
     "evidence": [
       "R1 已关闭：packages/daemon/src/config/defaults.ts:38-47 与 :60-126 将 permissionTier 纳入 AgentConfig 和四家内置默认，默认均为 workspaceWrite；packages/daemon/src/config/registry.ts:23-52、:185-210、:589-598、:756-762 及字段读写/冻结链完成 schema、解析、合并、默认升级与持久化。agent-registry.test.ts:172 起以真实保存、重载、非法厂商值拒绝和保留上一快照验证该链。",
       "R2 已关闭：permission-tier.ts:60-88 以判别联合保留 argv/env 通道；:109-149 映射 Codex/Claude/Grok、DSH 的 DSH_PERMISSION_MODE 和 Pi；Pi 的 write/edit 支持绝对路径，故 :127-133 对无外部沙箱的 workspaceWrite 明确 unsupported，不冒充工作区边界；generic ACP 在 :159-188 不臆造 CLI flag。effort-tier.ts:82-113 映射 Codex、Claude MAX_THINKING_TOKENS、Grok 与 Pi；真实 Claude 1.0.67 以 env 启动不再报 unknown option 或 Settings file not found。",
@@ -239,12 +280,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "60ca55cc790dc7ed1cd99fac0652a770d4859381d17985a2a30f69d7d5ba4908",
     "reviewed": "2026-09-09T08:57:29.535225+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T1": {
-    "contractHash": "aaf53dfa52e5776ba23df29ebe46e4c6a2c48f3fe1142fa0cabe9875f244a594",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "19048e2f2b69b712853441e79c720bcb2d6b61db4421e2a09b9d57c1980047ed",
     "evidence": [
       "packages/daemon/src/domain/run-state-machine.ts: AC1 pure function state machine without side-effects",
       "packages/daemon/src/domain/run-state-machine.ts: AC2/E-23 prohibits exited->landed direct transition",
@@ -253,12 +296,14 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "aaf53dfa52e5776ba23df29ebe46e4c6a2c48f3fe1142fa0cabe9875f244a594",
     "reviewed": "2026-09-09T08:57:32.838879+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T14": {
-    "contractHash": "05e4404acd3e2c1283ee575096eb644ca95a21696713d50a918f3030da99ca4d",
+    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
+    "contractHash": "b3ec9350423dcbf3ff40d7a281cb4648295e19a5a9af219b1aa2887a36f8ea1d",
     "evidence": [
       "职责边界：M9-T14 仍只拥有 agent 设置页与容器；补丁仅增加 E-95 的呈现侧，把 reason 精确等于 session-dir-overlap 映射为会话记录可能互相覆盖，不把路径/会话目录判定搬到前端，不允许组件直出 daemon 英文 message。",
       "前置与接口：任务依赖和输入显式加入 M4-T2 的 session-dir-overlap 告警，原有 M9-T4、M4-T5 与 M4-T1 注册表输入保持不变。M4-T2 现直接解锁 M9-T14，避免设置页在结构化原因尚未落地前实施该分支。",
@@ -267,6 +312,7 @@
       "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
       "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
+    "migratedFrom": "05e4404acd3e2c1283ee575096eb644ca95a21696713d50a918f3030da99ca4d",
     "reviewed": "2026-09-09T08:57:36.176853+00:00",
     "scope": "task-contract",
     "verdict": "pass"
