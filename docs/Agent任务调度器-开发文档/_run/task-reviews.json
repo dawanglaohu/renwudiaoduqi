@@ -268,6 +268,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T6": {
+    "compiler": "f943a3769d2c0d7a86a8bb9d2cdc9e15d7455f5926e31506ab9f39f3c03e07fc",
+    "contractHash": "a790c4cc008af6d4196cacf31aa4596d04293d039e2de1cd0a15440504965eba",
+    "evidence": [
+      "验收 1-9 与边界 E-30/E-33/E-34/E-35/E-41/E-42/E-45/E-254/E-255 逐条对应到 packages/daemon/src/domain/model-selection.ts，定位在 PR #22 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
+      "前置能力已落地：M4-T5 四家模型清单读取与降级已合入 main，本层依赖的 effort-tier 基础类型与能力判定函数由 domain/effort-tier.ts 提供",
+      "有效路径核对：实施范围严格收敛在 packages/daemon/src/domain/model-selection.ts，配套纯函数单测 packages/daemon/test/unit/model-selection.test.ts（30 个用例全过），无越界改动",
+      "架构与分层约定：作为 domain 层纯函数模块，顶层零副作用，无 Date.now/Math.random/crypto.randomUUID 等非确定性调用，无 child_process/fs/db 等外部调用，返回深冻结只读类型化结构，严格遵循 06/08 节约定",
+      "验收阶段：WSL 内 pnpm -w check 通过（biome ci、tsc -b --noEmit、vitest 41 文件 365 通过 32 跳过）；Python 3.13 运行 _run/tests 52 个用例全部通过（OK）",
+      "契约哈希与工具升级说明：分支合并 origin/main 后维护工具升级至 unattended-run 1.2.0，contractHash 更新为 a790c4cc008af6d4196cacf31aa4596d04293d039e2de1cd0a15440504965eba，经与原契约条款逐项比对仅编译器指纹变化，语义无变更，完成真实复核登记"
+    ],
+    "reviewed": "2026-09-09T13:21:42.363699+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T7": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "4cff7130b93fe9e4149c25bcd0ccc691c501a98381bfecf6be1f870d7d3d9e85",
