@@ -42,6 +42,12 @@ export function createHttpServer(deps: {
 			level: deps.container.config.logLevel,
 			redact: [...LOG_REDACT_PATHS],
 		},
+		ajv: {
+			customOptions: {
+				removeAdditional: false,
+				allErrors: true,
+			},
+		},
 		forceCloseConnections: true,
 	});
 	instance.decorate('container', deps.container);
