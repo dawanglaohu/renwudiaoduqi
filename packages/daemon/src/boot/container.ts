@@ -8,6 +8,12 @@ import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
 
+export interface ContainerJob {
+	readonly name: string;
+	start(): void;
+	stop(): Promise<void>;
+}
+
 export interface ContainerRepos {
 	readonly eventSeq: EventSeqRepo;
 	readonly [key: string]: unknown;
@@ -38,7 +44,7 @@ export interface AppContainer {
 	readonly adapters: Record<string, never>;
 	readonly workspace: Record<string, never>;
 	readonly services: Record<string, never>;
-	readonly jobs: readonly never[];
+	readonly jobs: readonly ContainerJob[];
 	readonly instanceLock: LockFileHandle;
 }
 
@@ -49,6 +55,7 @@ export function createContainer(input: {
 	readonly lockAdapter: NativeLockAdapter;
 	readonly instanceLock: LockFileHandle;
 	readonly clock: { readonly now: () => string };
+	readonly jobs?: readonly ContainerJob[];
 }): AppContainer {
 	const empty = Object.freeze({});
 
@@ -82,7 +89,7 @@ export function createContainer(input: {
 		adapters: empty,
 		workspace: empty,
 		services: empty,
-		jobs: Object.freeze([]),
+		jobs: Object.freeze(input.jobs ? [...input.jobs] : []),
 		instanceLock: input.instanceLock,
 	});
 }
