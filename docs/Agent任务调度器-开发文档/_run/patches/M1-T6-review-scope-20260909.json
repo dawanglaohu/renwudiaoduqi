@@ -11070,8 +11070,10 @@
     "_run/task-contracts.json": "5b0a3f47ed35805f6c955d6941fcdcad946775dfd1ab9798b8ff9a0aa6a109d8"
   },
   "sourceVersion": "cc6f9674edab99f3b7b5119ade4461296e9c47b85df5a5e9e6ab929e9803f561",
-  "status": "synced",
+  "status": "verified",
   "synced": "2026-09-09T03:30:02.035390+00:00",
   "task": "M1-T6",
-  "verifiedTasks": []
+  "verifiedTasks": [
+    "M1-T6"
+  ]
 }
