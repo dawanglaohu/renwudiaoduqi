@@ -275,13 +275,14 @@ export interface RunStateChangedEventPayload {
 	readonly reason: string;
 }
 
-export interface RunStateChangedEvent {
-	readonly id: string;
-	readonly ts: string;
+/**
+ * 交给 events 层 createEnvelope 的输入。信封的 id、ts、seq 由 events 层的
+ * 水位分配器与时钟填充，domain 不自造事件 id。
+ */
+export interface RunStateChangedEventInput {
+	readonly kind: 'run.state_changed';
 	readonly runId: string;
 	readonly taskId: string | null;
-	readonly scope: 'run';
-	readonly kind: 'run.state_changed';
 	readonly actorDeviceId: string | null;
 	readonly payload: RunStateChangedEventPayload;
 }
@@ -293,7 +294,7 @@ export interface RunStateTransitionResult {
 	readonly to: RunState;
 	readonly reason: string;
 	readonly occurredAt: string;
-	readonly event: RunStateChangedEvent;
+	readonly event: RunStateChangedEventInput;
 	readonly isTerminal: boolean;
 	readonly countsTowardConcurrency: boolean;
 }
@@ -330,13 +331,10 @@ export function createRunStateMachine(deps: RunStateMachineDeps) {
 				reason: input.reason,
 			};
 
-			const event: RunStateChangedEvent = {
-				id: transitionId,
-				ts: occurredAt,
+			const event: RunStateChangedEventInput = {
+				kind: 'run.state_changed',
 				runId: input.runId,
 				taskId: input.taskId ?? null,
-				scope: 'run',
-				kind: 'run.state_changed',
 				actorDeviceId: input.actorDeviceId ?? null,
 				payload: eventPayload,
 			};
