@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AppError } from '../../src/errors/app-error.ts';
 import {
 	type ReconcileRunRecord,
 	type ReconcileRunsService,
@@ -186,7 +187,9 @@ describe('jobs/reconcile-runs', () => {
 		expect(outcomes).toHaveLength(1);
 		expect(outcomes[0]?.runId).toBe('run-valid');
 		expect(failures).toHaveLength(1);
-		expect((failures[0] as Error).message).toContain('not a candidate');
+		expect(failures[0]).toBeInstanceOf(AppError);
+		expect((failures[0] as AppError).code).toBe('E_INTERNAL');
+		expect((failures[0] as AppError).details).toEqual({ runId: 'run-landed', state: 'landed' });
 	});
 
 	it('AC 5: NEVER presumes success (never transitions to landed or pass)', async () => {

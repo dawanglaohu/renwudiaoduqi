@@ -1,4 +1,5 @@
 import { type RunState, isReconciliationCandidate } from '../domain/run-state-machine.ts';
+import { AppError } from '../errors/app-error.ts';
 
 export interface ReconcileRunRecord {
 	readonly id: string;
@@ -85,9 +86,9 @@ export function createReconcileRunsJob(deps: ReconcileRunsDependencies): Reconci
 
 			if (!isReconciliationCandidate(run.state)) {
 				logFailure(
-					new Error(
-						`Run ${run.id} with state '${run.state}' is not a candidate for reconciliation.`,
-					),
+					new AppError('E_INTERNAL', 'Run state is not a reconciliation candidate.', {
+						details: { runId: run.id, state: run.state },
+					}),
 				);
 				continue;
 			}

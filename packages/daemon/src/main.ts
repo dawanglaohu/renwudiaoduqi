@@ -123,9 +123,16 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			database,
 			dependencies.lockAdapter,
 			container.jobs,
+			dependencies.writeRunLog,
 		);
 	} catch (error) {
-		await cleanupStartupFailure(server, database, lock, dependencies.lockAdapter);
+		await cleanupStartupFailure(
+			server,
+			database,
+			lock,
+			dependencies.lockAdapter,
+			dependencies.writeRunLog,
+		);
 		throw error;
 	}
 }
@@ -193,7 +200,8 @@ function createDaemonRuntime(
 	server: HttpServer,
 	database: DatabaseConnection,
 	lockAdapter: NativeLockAdapter,
-	jobs: readonly ContainerJob[] = [],
+	jobs: readonly ContainerJob[],
+	writeRunLog: (line: string) => void,
 ): DaemonRuntime {
 	const stop = createShutdownHandler({
 		jobs,
@@ -201,6 +209,7 @@ function createDaemonRuntime(
 		database,
 		lock,
 		lockAdapter,
+		writeRunLog,
 	});
 	return Object.freeze({
 		config,
@@ -215,12 +224,14 @@ async function cleanupStartupFailure(
 	database: DatabaseConnection | undefined,
 	lock: LockFileHandle,
 	lockAdapter: NativeLockAdapter,
+	writeRunLog: (line: string) => void,
 ): Promise<void> {
 	await shutdown({
 		server,
 		database,
 		lock,
 		lockAdapter,
+		writeRunLog,
 	});
 }
 
