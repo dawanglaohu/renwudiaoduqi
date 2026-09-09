@@ -6,6 +6,8 @@ import {
 } from 'node:child_process';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
 import { AppError } from '../errors/app-error.ts';
+import type { SupportedPlatform } from '../platform/contract.ts';
+import { classifyPathForHost } from '../platform/host.ts';
 import type {
 	KillTreeOptions,
 	KillTreeProcessOps,
@@ -28,6 +30,8 @@ import {
 	type ProcessTimerController,
 	createProcessTimers,
 } from './timers.ts';
+
+export const EXIT_DRAIN_GRACE_MS = 2000;
 
 export class AgentProcessError extends AppError {
 	readonly pid?: number;
@@ -82,12 +86,21 @@ export interface LaunchSpec {
 	readonly windowsComSpecPath?: string;
 }
 
+export type ProcessExitReason =
+	| 'exited'
+	| 'spawn-failed'
+	| 'startup-timeout'
+	| 'wall-clock-timeout'
+	| 'check-timeout';
+
 export interface ProcessExitResult {
 	readonly runId: string;
 	readonly pid: number;
 	readonly exitCode: number | null;
 	readonly signal: NodeJS.Signals | null;
 	readonly error?: Error;
+	readonly killTree?: KillTreeResult;
+	readonly reason: ProcessExitReason;
 }
 
 export interface ManagedProcess {
@@ -115,7 +128,8 @@ export interface ManagedProcess {
 }
 
 export interface SpawnManagedOptions {
-	readonly platform?: 'win32' | 'darwin' | 'linux';
+	readonly platform: SupportedPlatform;
+	readonly exitDrainGraceMs?: number;
 	readonly baseEnv?: Readonly<Record<string, string | undefined>>;
 	readonly emptyGitConfigFile?: string;
 	readonly spawnFn?: typeof nodeSpawn;
@@ -137,7 +151,7 @@ export interface SpawnManagedOptions {
 
 const MAX_STDERR_TAIL_LINES = 100;
 
-export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}): ManagedProcess {
+export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): ManagedProcess {
 	// 1. Input validation (E-42)
 	if (typeof spec.runId !== 'string' || spec.runId.trim().length === 0) {
 		throw new AppError('E_VALIDATION', 'LaunchSpec runId must be a non-empty string');
@@ -149,17 +163,25 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 		throw new AppError('E_VALIDATION', 'LaunchSpec args must be an array of strings');
 	}
 
-	const platform = options.platform ?? (process.platform as 'win32' | 'darwin' | 'linux');
+	const platform = options.platform;
+
+	const classified = classifyPathForHost(spec.file, platform);
+	if (!classified.isValidForCurrentPlatform) {
+		throw new AppError('E_VALIDATION', `Invalid executable path for ${platform}: ${spec.file}`, {
+			details: { file: spec.file, reason: classified.reason },
+		});
+	}
 
 	// 2. Platform executable resolution (E-119, E-130, E-42)
-	let targetFile = spec.file;
+	const normalizedFile = classified.normalizedPath;
+	let targetFile = normalizedFile;
 	let targetArgs: readonly string[] = spec.args;
 	let windowsVerbatimArguments = false;
-	const isCmdBat = platform === 'win32' && /\.(?:cmd|bat)$/i.test(spec.file);
+	const isCmdBat = platform === 'win32' && /\.(?:cmd|bat)$/i.test(normalizedFile);
 
 	if (isCmdBat) {
 		const commandProcessor = spec.windowsComSpecPath ?? comSpec();
-		const wrapResult = wrapForComSpec(spec.file, spec.args, commandProcessor);
+		const wrapResult = wrapForComSpec(normalizedFile, spec.args, commandProcessor);
 		if (!wrapResult.ok) {
 			throw new AppError('E_VALIDATION', wrapResult.error.message, {
 				details: wrapResult.error.details as Record<string, unknown>,
@@ -172,10 +194,10 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 
 	// 3. Child process environment (E-131, E-138, E-270)
 	const env = createProcessEnv({
+		platform,
 		baseEnv: options.baseEnv,
 		envOverrides: spec.envOverrides,
 		envDenylist: spec.envDenylist,
-		platform,
 		emptyGitConfigFile: options.emptyGitConfigFile,
 	});
 
@@ -251,12 +273,17 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 	});
 
 	let isExited = false;
+	let exitReason: ProcessExitReason = 'exited';
+	let lastKillTreeResult: KillTreeResult | undefined = undefined;
 	let exitResult: ProcessExitResult | undefined = undefined;
 	let lastProcessError: Error | undefined = undefined;
 	let finalizePromise: Promise<void> | null = null;
+	let exitDrainTimerId: ReturnType<typeof setTimeout> | undefined = undefined;
+	const exitDrainGraceMs = options.exitDrainGraceMs ?? EXIT_DRAIN_GRACE_MS;
 
 	async function handleStartupTimeout(): Promise<void> {
 		if (isExited) return;
+		exitReason = 'startup-timeout';
 		const error = new AgentProcessError(
 			'E_AGENT_STARTUP_TIMEOUT',
 			`Agent process timed out before initial event (${timers.startupTimeoutMs}ms)`,
@@ -268,42 +295,31 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 		);
 		lastProcessError = error;
 		dispatchError(error);
-		void kill();
-		void finalize();
+		const result = await kill();
+		lastKillTreeResult = result;
+		if (result.outcome !== 'terminated') {
+			void finalize();
+		}
 	}
 
 	async function handleHardWallClockTimeout(): Promise<void> {
 		if (isExited) return;
-		const error = new AgentProcessError(
-			'E_TIMEOUT',
-			`Agent process reached hard wall-clock timeout (${timers.hardWallClockMs}ms)`,
-			{
-				pid,
-				launchSpecId: spec.runId,
-				stderrTail: stderrTailQueue.join('\n'),
-			},
-		);
-		lastProcessError = error;
-		dispatchError(error);
-		void kill();
-		void finalize();
+		exitReason = 'wall-clock-timeout';
+		const result = await kill();
+		lastKillTreeResult = result;
+		if (result.outcome !== 'terminated') {
+			void finalize();
+		}
 	}
 
 	async function handleCheckTimeout(): Promise<void> {
 		if (isExited) return;
-		const error = new AgentProcessError(
-			'E_TIMEOUT',
-			`Mechanical check timed out (${timers.checkTimeoutMs}ms)`,
-			{
-				pid,
-				launchSpecId: spec.runId,
-				stderrTail: stderrTailQueue.join('\n'),
-			},
-		);
-		lastProcessError = error;
-		dispatchError(error);
-		void kill();
-		void finalize();
+		exitReason = 'check-timeout';
+		const result = await kill();
+		lastKillTreeResult = result;
+		if (result.outcome !== 'terminated') {
+			void finalize();
+		}
 	}
 
 	// 7. Wire stdout stream data
@@ -342,7 +358,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 	}
 
 	// 9. Process tree termination implementation (E-119)
-	const processOps = options.processOps ?? createDefaultProcessOps();
+	const processOps = options.processOps ?? createDefaultProcessOps(platform);
 	const killTreeFn = options.killTree ?? (platform === 'win32' ? windowsKillTree : posixKillTree);
 
 	async function kill(killOptions?: KillTreeOptions): Promise<KillTreeResult> {
@@ -352,12 +368,17 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 		return await killTreeFn(pid, processOps, killOptions);
 	}
 
-	// 10. Idempotent finalize
+	// 10. Idempotent finalize (R1: triggered only by close or drain fallback timeout)
 	function finalize(): Promise<void> {
 		if (finalizePromise !== null) return finalizePromise;
 		finalizePromise = (async () => {
 			if (isExited) return;
 			isExited = true;
+
+			if (exitDrainTimerId !== undefined) {
+				clearTimeout(exitDrainTimerId);
+				exitDrainTimerId = undefined;
+			}
 
 			timers.clearAll();
 
@@ -393,6 +414,8 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 				exitCode: child.exitCode,
 				signal: child.signalCode,
 				error: lastProcessError,
+				killTree: lastKillTreeResult,
+				reason: exitReason,
 			});
 			exitResult = result;
 			notify(exitListeners, result);
@@ -401,7 +424,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 		return finalizePromise;
 	}
 
-	// 11. Lifecycle event bindings
+	// 11. Lifecycle event bindings (R1)
 	child.on('error', (err) => {
 		const wrappedError = new AgentProcessError(
 			spawnErrorCode(err),
@@ -415,14 +438,28 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions = {}
 		);
 		lastProcessError = wrappedError;
 		dispatchError(wrappedError);
-		void finalize();
+		if (child.pid === undefined) {
+			exitReason = 'spawn-failed';
+			void finalize();
+		}
 	});
 
+	// 'exit' starts the exit->close fallback timer, but does not finalize immediately (R1)
 	child.on('exit', () => {
-		void finalize();
+		if (isExited || finalizePromise !== null) return;
+		if (exitDrainTimerId === undefined) {
+			exitDrainTimerId = setTimeout(() => {
+				void finalize();
+			}, exitDrainGraceMs);
+		}
 	});
 
+	// 'close' triggers finalization when all stdio streams have closed (R1)
 	child.on('close', () => {
+		if (exitDrainTimerId !== undefined) {
+			clearTimeout(exitDrainTimerId);
+			exitDrainTimerId = undefined;
+		}
 		void finalize();
 	});
 
@@ -502,7 +539,7 @@ function spawnErrorCode(cause: unknown): ErrorCode {
 	return 'E_INTERNAL';
 }
 
-function createDefaultProcessOps(): KillTreeProcessOps {
+function createDefaultProcessOps(platform: SupportedPlatform): KillTreeProcessOps {
 	return {
 		now: () => new Date().toISOString(),
 		wait: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -531,7 +568,7 @@ function createDefaultProcessOps(): KillTreeProcessOps {
 			}
 		},
 		probeTree: async (pid: number) => {
-			if (process.platform === 'win32') {
+			if (platform === 'win32') {
 				return new Promise((resolve) => {
 					execFile(
 						'tasklist.exe',

@@ -2,6 +2,8 @@ import type { ChildProcess, SpawnOptions } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
+
+type SpawnFn = typeof import('node:child_process').spawn;
 import { AppError } from '../../src/errors/app-error.ts';
 import type { KillTreeResult } from '../../src/platform/kill-tree-contract.ts';
 import { DEFAULT_ENV_DENYLIST, createProcessEnv } from '../../src/proc/env.ts';
@@ -257,6 +259,7 @@ describe('M1-T7 Child Process Environment (AC 6, E-131, E-138, E-270)', () => {
 
 	it('strips denylisted model override variables (E-37)', () => {
 		const env = createProcessEnv({
+			platform: 'linux',
 			baseEnv: {
 				ANTHROPIC_MODEL: 'claude-3-opus-20240229',
 				ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-3-haiku-override',
@@ -278,6 +281,7 @@ describe('M1-T7 Child Process Environment (AC 6, E-131, E-138, E-270)', () => {
 
 	it('locks git credential variables against user overrides', () => {
 		const env = createProcessEnv({
+			platform: 'linux',
 			baseEnv: {},
 			envOverrides: {
 				GIT_TERMINAL_PROMPT: '1',
@@ -295,12 +299,17 @@ describe('M1-T7 Child Process Environment (AC 6, E-131, E-138, E-270)', () => {
 });
 
 describe('M1-T7 Process Timers (E-120, E-190)', () => {
-	it('differentiates startup timeout between native (60s) and generic-acp (180s)', () => {
+	it('differentiates startup timeout between native (60s) and generic-acp (180s) and defaults checkTimeoutMs to 0 (R4)', () => {
 		const nativeTimers = createProcessTimers({ isAcp: false });
 		expect(nativeTimers.startupTimeoutMs).toBe(DEFAULT_STARTUP_TIMEOUT_MS_NATIVE); // 60s
 		expect(nativeTimers.idleTimeoutMs).toBe(DEFAULT_IDLE_TIMEOUT_MS); // 900s
 		expect(nativeTimers.hardWallClockMs).toBe(0); // disabled
-		expect(nativeTimers.checkTimeoutMs).toBe(DEFAULT_CHECK_TIMEOUT_MS); // 10 min
+		expect(nativeTimers.checkTimeoutMs).toBe(0); // R4: default 0 (not armed)
+
+		const customTimers = createProcessTimers({
+			timeouts: { checkTimeoutMs: DEFAULT_CHECK_TIMEOUT_MS },
+		});
+		expect(customTimers.checkTimeoutMs).toBe(600_000); // 10 min when explicitly set
 
 		const acpTimers = createProcessTimers({ isAcp: true });
 		expect(acpTimers.startupTimeoutMs).toBe(DEFAULT_STARTUP_TIMEOUT_MS_ACP); // 180s
@@ -395,7 +404,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		spawnManaged(spec, {
 			platform: 'linux',
-			spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+			spawnFn: fakeSpawn as unknown as SpawnFn,
 		});
 
 		expect(capturedFile).toBe('/usr/local/bin/agent-cli');
@@ -406,22 +415,63 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 	it('AC 1: rejects non-array or non-string arguments with E_VALIDATION', () => {
 		expect(() => {
-			spawnManaged({
-				runId: 'run-bad',
-				file: '/bin/ls',
-				args: 'not-an-array' as unknown as string[],
-				cwd: '/tmp',
-			});
+			spawnManaged(
+				{
+					runId: 'run-bad',
+					file: '/bin/ls',
+					args: 'not-an-array' as unknown as string[],
+					cwd: '/tmp',
+				},
+				{ platform: 'linux' },
+			);
 		}).toThrowError(/args must be an array/);
 
 		expect(() => {
-			spawnManaged({
-				runId: '',
-				file: '/bin/ls',
-				args: [],
-				cwd: '/tmp',
-			});
+			spawnManaged(
+				{
+					runId: '',
+					file: '/bin/ls',
+					args: [],
+					cwd: '/tmp',
+				},
+				{ platform: 'linux' },
+			);
 		}).toThrowError(/runId must be a non-empty string/);
+	});
+
+	it('R2: rejects non-absolute path or foreign-platform path with E_VALIDATION and details {file, reason}', () => {
+		let thrownRelative: unknown;
+		try {
+			spawnManaged(
+				{ runId: 'run-rel', file: 'node', args: [], cwd: '/tmp' },
+				{ platform: 'linux' },
+			);
+		} catch (error) {
+			thrownRelative = error;
+		}
+		expect(thrownRelative).toBeInstanceOf(AppError);
+		if (thrownRelative instanceof AppError) {
+			expect(thrownRelative.code).toBe('E_VALIDATION');
+			expect(thrownRelative.details).toEqual({ file: 'node', reason: 'not-absolute' });
+		}
+
+		let thrownForeign: unknown;
+		try {
+			spawnManaged(
+				{ runId: 'run-foreign', file: '/usr/bin/agent', args: [], cwd: 'C:\\repo' },
+				{ platform: 'win32' },
+			);
+		} catch (error) {
+			thrownForeign = error;
+		}
+		expect(thrownForeign).toBeInstanceOf(AppError);
+		if (thrownForeign instanceof AppError) {
+			expect(thrownForeign.code).toBe('E_VALIDATION');
+			expect(thrownForeign.details).toEqual({
+				file: '/usr/bin/agent',
+				reason: 'foreign-platform-path',
+			});
+		}
 	});
 
 	it('AC 2, E-119, E-130: Windows .cmd/.bat wraps args through ComSpec and sets windowsVerbatimArguments: true', () => {
@@ -447,7 +497,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		spawnManaged(spec, {
 			platform: 'win32',
-			spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+			spawnFn: fakeSpawn as unknown as SpawnFn,
 		});
 
 		expect(capturedFile).toBe('C:\\Windows\\System32\\cmd.exe');
@@ -489,7 +539,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 				const failure = new Error(`spawn ${code}`) as NodeJS.ErrnoException;
 				failure.code = code;
 				throw failure;
-			}) as unknown as typeof import('node:child_process').spawn;
+			}) as unknown as SpawnFn;
 		const spec: LaunchSpec = { runId: 'run-spawn-fail', file: '/opt/agent', args: [], cwd: '/tmp' };
 		const codeFor = (native: string): string => {
 			try {
@@ -514,7 +564,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 			{ runId: 'run-listener-throws', file: '/bin/agent', args: [], cwd: '/tmp' },
 			{
 				platform: 'linux',
-				spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+				spawnFn: fakeSpawn as unknown as SpawnFn,
 				onJson: (parsed) => {
 					delivered.push(parsed.value);
 					throw new Error('listener bug');
@@ -556,7 +606,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		spawnManaged(spec, {
 			platform: 'win32',
-			spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+			spawnFn: fakeSpawn as unknown as SpawnFn,
 		});
 
 		expect(capturedFile).toBe('C:\\Program Files\\nodejs\\node.exe');
@@ -581,7 +631,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		spawnManaged(spec, {
 			platform: 'linux',
-			spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+			spawnFn: fakeSpawn as unknown as SpawnFn,
 			onRaw: (line) => rawLines.push(line.text),
 			onJson: (parsed) => jsonEvents.push(parsed.value),
 		});
@@ -638,7 +688,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		const managed = spawnManaged(spec, {
 			platform: 'linux',
-			spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+			spawnFn: fakeSpawn as unknown as SpawnFn,
 			killTree: killTreeMock,
 		});
 
@@ -663,7 +713,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		const managed = spawnManaged(spec, {
 			platform: 'linux',
-			spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+			spawnFn: fakeSpawn as unknown as SpawnFn,
 			registry,
 		});
 
@@ -697,7 +747,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		spawnManaged(spec, {
 			platform: 'linux',
-			spawnFn: fakeSpawn as unknown as typeof import('node:child_process').spawn,
+			spawnFn: fakeSpawn as unknown as SpawnFn,
 			killTree: killTreeMock,
 			onError: (err) => {
 				recordedTimeout = err;
@@ -741,6 +791,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		};
 
 		const managed = spawnManaged(spec, {
+			platform: process.platform as 'win32' | 'darwin' | 'linux',
 			onJson: (parsed) => jsonEvents.push(parsed.value as { readonly argv?: readonly string[] }),
 		});
 
@@ -769,6 +820,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		};
 
 		const managed = spawnManaged(spec, {
+			platform: process.platform as 'win32' | 'darwin' | 'linux',
 			onJson: (parsed) => jsonEvents.push(parsed.value as { readonly echo?: string }),
 			onExit: (result) => {
 				exitEvent = result;
@@ -784,6 +836,218 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		expect(jsonEvents).toEqual([{ echo: 'hello-from-stdin' }]);
 		expect(exitEvent).toBeDefined();
 		expect(exitEvent?.exitCode).toBe(0);
+		expect(exitEvent?.reason).toBe('exited');
 		expect(managed.isExited).toBe(true);
+	});
+
+	it('R1: exit does not finalize; allows pending stdout to drain before close triggers finalize', () => {
+		const mockChild = createMockChild();
+		const fakeSpawn = vi.fn(() => mockChild as unknown as ChildProcess);
+		const registry = createProcessRegistry();
+		const jsonEvents: unknown[] = [];
+		const exitEvents: ProcessExitResult[] = [];
+
+		const managed = spawnManaged(
+			{ runId: 'run-drain-exit-close', file: '/bin/agent', args: [], cwd: '/tmp' },
+			{
+				platform: 'linux',
+				spawnFn: fakeSpawn as unknown as SpawnFn,
+				registry,
+				exitDrainGraceMs: 500,
+				onJson: (p) => jsonEvents.push(p.value),
+				onExit: (r) => exitEvents.push(r),
+			},
+		);
+
+		// Step 1: Write incomplete JSON chunk
+		mockChild.stdout.write('{"type":"a"');
+
+		// Step 2: Emit 'exit'
+		mockChild.emit('exit', 0, null);
+
+		// Between exit and close: isExited is false, registry still has run, exit not yet fired
+		expect(managed.isExited).toBe(false);
+		expect(registry.has('run-drain-exit-close')).toBe(true);
+		expect(exitEvents).toHaveLength(0);
+
+		// Step 3: Write remaining JSON chunk ending in newline
+		mockChild.stdout.write(',"b":1}\n');
+
+		// Step 4: Emit 'close'
+		mockChild.emit('close', 0, null);
+
+		// onJson received exactly once
+		expect(jsonEvents).toEqual([{ type: 'a', b: 1 }]);
+		// onExit triggered once after onJson
+		expect(exitEvents).toHaveLength(1);
+		expect(exitEvents[0]?.reason).toBe('exited');
+		expect(managed.isExited).toBe(true);
+		expect(registry.has('run-drain-exit-close')).toBe(false);
+	});
+
+	it('R1: child exit without close triggers finalize after fallback timer', async () => {
+		const mockChild = createMockChild();
+		const fakeSpawn = vi.fn(() => mockChild as unknown as ChildProcess);
+		const exitEvents: ProcessExitResult[] = [];
+
+		const managed = spawnManaged(
+			{ runId: 'run-drain-timeout', file: '/bin/agent', args: [], cwd: '/tmp' },
+			{
+				platform: 'linux',
+				spawnFn: fakeSpawn as unknown as SpawnFn,
+				exitDrainGraceMs: 30,
+				onExit: (r) => exitEvents.push(r),
+			},
+		);
+
+		mockChild.emit('exit', 0, null);
+		expect(managed.isExited).toBe(false);
+		expect(exitEvents).toHaveLength(0);
+
+		// Wait for fallback timer (30ms) to fire
+		await new Promise((resolve) => setTimeout(resolve, 60));
+
+		expect(managed.isExited).toBe(true);
+		expect(exitEvents).toHaveLength(1);
+		expect(exitEvents[0]?.reason).toBe('exited');
+	});
+
+	it('R1: startup timeout kills tree: terminated waits for close; survived immediately finalizes', async () => {
+		// Case 1: killTree returns 'terminated' -> waits for 'close'
+		const mockChild1 = createMockChild(1111);
+		const killTreeTerminated = vi.fn(async (): Promise<KillTreeResult> => {
+			return {
+				outcome: 'terminated',
+				attempts: [
+					{ attempt: 1, method: 'sigterm', result: 'terminated', at: '2026-09-08T00:00:00.000Z' },
+				],
+			};
+		});
+		const exitEvents1: ProcessExitResult[] = [];
+
+		const managed1 = spawnManaged(
+			{
+				runId: 'run-timeout-terminated',
+				file: '/bin/agent',
+				args: [],
+				cwd: '/tmp',
+				timeouts: { startupTimeoutMs: 10 },
+			},
+			{
+				platform: 'linux',
+				spawnFn: vi.fn(() => mockChild1 as unknown as ChildProcess) as unknown as SpawnFn,
+				killTree: killTreeTerminated,
+				onExit: (r) => exitEvents1.push(r),
+			},
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		expect(killTreeTerminated).toHaveBeenCalledTimes(1);
+		// Still waiting for 'close'
+		expect(managed1.isExited).toBe(false);
+		expect(exitEvents1).toHaveLength(0);
+
+		// Now emit close
+		mockChild1.emit('close', null, 'SIGTERM');
+		expect(managed1.isExited).toBe(true);
+		expect(exitEvents1).toHaveLength(1);
+		expect(exitEvents1[0]?.reason).toBe('startup-timeout');
+		expect(exitEvents1[0]?.killTree?.outcome).toBe('terminated');
+		expect(exitEvents1[0]?.killTree?.attempts).toHaveLength(1);
+
+		// Case 2: killTree returns 'survived' -> immediately finalizes without waiting for close
+		const mockChild2 = createMockChild(2222);
+		const killTreeSurvived = vi.fn(async (): Promise<KillTreeResult> => {
+			return {
+				outcome: 'survived',
+				attempts: [
+					{
+						attempt: 1,
+						method: 'sigterm',
+						result: 'still-running',
+						at: '2026-09-08T00:00:00.000Z',
+					},
+					{
+						attempt: 2,
+						method: 'sigkill',
+						result: 'still-running',
+						at: '2026-09-08T00:00:03.000Z',
+					},
+				],
+			};
+		});
+		const exitEvents2: ProcessExitResult[] = [];
+
+		const managed2 = spawnManaged(
+			{
+				runId: 'run-timeout-survived',
+				file: '/bin/agent',
+				args: [],
+				cwd: '/tmp',
+				timeouts: { startupTimeoutMs: 10 },
+			},
+			{
+				platform: 'linux',
+				spawnFn: vi.fn(() => mockChild2 as unknown as ChildProcess) as unknown as SpawnFn,
+				killTree: killTreeSurvived,
+				onExit: (r) => exitEvents2.push(r),
+			},
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		expect(killTreeSurvived).toHaveBeenCalledTimes(1);
+		// Did not wait for close because outcome is survived!
+		expect(managed2.isExited).toBe(true);
+		expect(exitEvents2).toHaveLength(1);
+		expect(exitEvents2[0]?.reason).toBe('startup-timeout');
+		expect(exitEvents2[0]?.killTree?.outcome).toBe('survived');
+	});
+
+	it('R3: hardWallClockMs expires -> onExit has reason wall-clock-timeout, error is undefined, killTree called once', async () => {
+		const mockChild = createMockChild(3333);
+		const killTreeMock = vi.fn(async (): Promise<KillTreeResult> => {
+			return { outcome: 'survived', attempts: [] };
+		});
+		const exitEvents: ProcessExitResult[] = [];
+		const errors: Error[] = [];
+
+		spawnManaged(
+			{
+				runId: 'run-hard-timeout',
+				file: '/bin/agent',
+				args: [],
+				cwd: '/tmp',
+				timeouts: { hardWallClockMs: 10 },
+			},
+			{
+				platform: 'linux',
+				spawnFn: vi.fn(() => mockChild as unknown as ChildProcess) as unknown as SpawnFn,
+				killTree: killTreeMock,
+				onError: (e) => errors.push(e),
+				onExit: (r) => exitEvents.push(r),
+			},
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 30));
+
+		expect(killTreeMock).toHaveBeenCalledTimes(1);
+		expect(errors).toHaveLength(0); // R3: no onError
+		expect(exitEvents).toHaveLength(1);
+		expect(exitEvents[0]?.reason).toBe('wall-clock-timeout');
+		expect(exitEvents[0]?.error).toBeUndefined();
+	});
+
+	it('R4: spawnManaged without timeouts does not arm check timer', () => {
+		const mockChild = createMockChild();
+		const managed = spawnManaged(
+			{ runId: 'run-no-check-arm', file: '/bin/agent', args: [], cwd: '/tmp' },
+			{
+				platform: 'linux',
+				spawnFn: vi.fn(() => mockChild as unknown as ChildProcess) as unknown as SpawnFn,
+			},
+		);
+
+		// Startup timer is 60s default, but checkTimeoutMs is 0 by default (not armed)
+		expect(managed.timers.checkTimeoutMs).toBe(0);
 	});
 });

@@ -67,7 +67,7 @@ export function createProcessTimers(options: ProcessTimerOptions = {}): ProcessT
 		(options.isAcp ? DEFAULT_STARTUP_TIMEOUT_MS_ACP : DEFAULT_STARTUP_TIMEOUT_MS_NATIVE);
 	const idleTimeoutMs = options.timeouts?.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS;
 	const hardWallClockMs = options.timeouts?.hardWallClockMs ?? DEFAULT_HARD_WALL_CLOCK_MS;
-	const checkTimeoutMs = options.timeouts?.checkTimeoutMs ?? DEFAULT_CHECK_TIMEOUT_MS;
+	const checkTimeoutMs = options.timeouts?.checkTimeoutMs ?? 0;
 
 	let lastActivityAt = clock.now();
 	let lastActivityMs = readNowMs();

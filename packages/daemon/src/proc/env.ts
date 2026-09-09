@@ -1,3 +1,5 @@
+import type { SupportedPlatform } from '../platform/contract.ts';
+
 export const DEFAULT_ENV_DENYLIST = Object.freeze([
 	'ANTHROPIC_MODEL',
 	'ANTHROPIC_DEFAULT_HAIKU_MODEL',
@@ -12,20 +14,18 @@ export const DEFAULT_ENV_DENYLIST = Object.freeze([
 const MODEL_OVERRIDE_PATTERN = /^ANTHROPIC_DEFAULT_.*_MODEL$/;
 
 export interface ProcessEnvOptions {
+	readonly platform: SupportedPlatform;
 	readonly baseEnv?: Readonly<Record<string, string | undefined>>;
 	readonly envOverrides?: Readonly<Record<string, string | undefined>>;
 	readonly envDenylist?: readonly string[];
-	readonly platform?: 'win32' | 'darwin' | 'linux';
 	readonly emptyGitConfigFile?: string;
 }
 
-export function createProcessEnv(
-	options: ProcessEnvOptions = {},
-): Readonly<Record<string, string>> {
-	const platform = options.platform ?? (process.platform as 'win32' | 'darwin' | 'linux');
+export function createProcessEnv(options: ProcessEnvOptions): Readonly<Record<string, string>> {
+	const platform = options.platform;
 
 	const rawHostEnv: Record<string, string | undefined> =
-		options.baseEnv ?? (Reflect.get(process, 'env') as Record<string, string | undefined>) ?? {};
+		options.baseEnv ?? (process.env as Record<string, string | undefined>) ?? {};
 
 	const denylist = new Set<string>(DEFAULT_ENV_DENYLIST);
 	if (options.envDenylist !== undefined) {
