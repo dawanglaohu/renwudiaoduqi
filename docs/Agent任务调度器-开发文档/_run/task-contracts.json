@@ -46,6 +46,20 @@
         "packages/daemon/test/unit/logstore-integration.test.ts"
       ]
     },
+    "M1-T5": {
+      "supportPaths": [
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/main.ts",
+        "packages/daemon/src/http/routes/system.ts",
+        "packages/daemon/src/http/server.ts",
+        "packages/daemon/src/service/logstore.ts",
+        "packages/daemon/src/service/system.ts",
+        "packages/daemon/test/integration/disk-full-and-system-routes.test.ts",
+        "packages/daemon/test/unit/disk-primitives.test.ts",
+        "packages/daemon/test/unit/disk-watch.test.ts",
+        "packages/daemon/test/unit/logstore-fs-errors.test.ts"
+      ]
+    },
     "M1-T9": {
       "supportPaths": [
         "packages/daemon/test/unit/kill-tree.test.ts",
@@ -58,8 +72,8 @@
     "M2-T1": {
       "requires": [
         {
-          "task": "M1-T10",
-          "capability": "daemon-http-runtime"
+          "capability": "daemon-http-runtime",
+          "task": "M1-T10"
         }
       ],
       "supportPaths": [
@@ -97,8 +111,8 @@
     "M3-T2": {
       "requires": [
         {
-          "task": "M3-T1",
-          "capability": "docs-source-contract"
+          "capability": "docs-source-contract",
+          "task": "M3-T1"
         }
       ],
       "supportPaths": [
@@ -116,8 +130,8 @@
     "M3-T5": {
       "requires": [
         {
-          "task": "M3-T3",
-          "capability": "dispatch-contract-snapshot"
+          "capability": "dispatch-contract-snapshot",
+          "task": "M3-T3"
         }
       ],
       "supportPaths": [

@@ -106,6 +106,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			lockAdapter: dependencies.lockAdapter,
 			instanceLock: lock,
 			clock: Object.freeze({ now: dependencies.now }),
+			logViolation: dependencies.writeRunLog,
 		});
 		server = dependencies.createServer({ container });
 		await server.listen({ host: config.bind, port: config.port });
