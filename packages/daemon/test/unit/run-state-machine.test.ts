@@ -252,12 +252,9 @@ describe('domain/run-state-machine (M6-T1, AC 1-4, E-123, E-23, E-55)', () => {
 			expect(res1.isTerminal).toBe(false);
 			expect(res1.countsTowardConcurrency).toBe(true);
 			expect(res1.event).toEqual({
-				id: 'evt-001',
-				ts: '2026-09-08T10:00:00.000Z',
+				kind: 'run.state_changed',
 				runId: 'run-100',
 				taskId: 'task-M6-T1',
-				scope: 'run',
-				kind: 'run.state_changed',
 				actorDeviceId: null,
 				payload: {
 					from: 'queued',
@@ -279,6 +276,8 @@ describe('domain/run-state-machine (M6-T1, AC 1-4, E-123, E-23, E-55)', () => {
 			expect(res2.transitionId).toBe('evt-002');
 			expect(res2.occurredAt).toBe('2026-09-08T10:00:05.000Z');
 			expect(res2.event.actorDeviceId).toBe('dev-client-1');
+			expect(res2.event).not.toHaveProperty('id');
+			expect(res2.event).not.toHaveProperty('ts');
 			expect(res2.event.payload).toEqual({
 				from: 'starting',
 				to: 'running',
