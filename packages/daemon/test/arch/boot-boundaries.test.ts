@@ -38,6 +38,7 @@ describe('M1-T10 boot architecture', () => {
 			'createContainer({',
 			'createServer({ container })',
 			'await server.listen({',
+			'job.start()',
 			'`daemon ready pid=',
 		];
 		let previous = -1;
@@ -47,6 +48,19 @@ describe('M1-T10 boot architecture', () => {
 				previous,
 			);
 			previous = current;
+		}
+	});
+
+	it('ensures main.ts and other boot files do not import boot/autostart.ts', () => {
+		const filesToCheck = [
+			join(sourceRoot, 'main.ts'),
+			...listTypeScriptFiles(join(sourceRoot, 'boot')).filter(
+				(file) => !file.endsWith('autostart.ts'),
+			),
+		];
+		for (const file of filesToCheck) {
+			const content = readFileSync(file, 'utf8');
+			expect(content).not.toMatch(/from ['"][^'"]*autostart(?:\.ts)?['"]/);
 		}
 	});
 

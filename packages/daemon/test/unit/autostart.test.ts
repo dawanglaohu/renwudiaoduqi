@@ -183,12 +183,6 @@ describe('boot/autostart', () => {
 		expect(harness.registeredSpecs).toHaveLength(0);
 	});
 
-	it('AC 3 & E-212: autostart is not registered automatically on pure daemon CLI launch', () => {
-		// M1 only provides the mechanism; no autostart is scheduled on raw import/startup
-		const harness = createMockAdapter();
-		expect(harness.registeredSpecs).toHaveLength(0);
-	});
-
 	it('createAutostartRegistrar binds adapter and exposes status and unregister helpers', async () => {
 		const harness = createMockAdapter();
 		const registrar = createAutostartRegistrar(harness.adapter);

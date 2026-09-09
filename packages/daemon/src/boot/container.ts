@@ -55,7 +55,6 @@ export function createContainer(input: {
 	readonly lockAdapter: NativeLockAdapter;
 	readonly instanceLock: LockFileHandle;
 	readonly clock: { readonly now: () => string };
-	readonly jobs?: readonly ContainerJob[];
 }): AppContainer {
 	const empty = Object.freeze({});
 
@@ -76,6 +75,8 @@ export function createContainer(input: {
 		bus,
 	});
 
+	const jobs: readonly ContainerJob[] = Object.freeze([]);
+
 	return Object.freeze({
 		config: input.config,
 		database: input.database,
@@ -89,7 +90,7 @@ export function createContainer(input: {
 		adapters: empty,
 		workspace: empty,
 		services: empty,
-		jobs: Object.freeze(input.jobs ? [...input.jobs] : []),
+		jobs,
 		instanceLock: input.instanceLock,
 	});
 }

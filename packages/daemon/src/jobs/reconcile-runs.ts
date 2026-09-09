@@ -1,8 +1,10 @@
+import { type RunState, isReconciliationCandidate } from '../domain/run-state-machine.ts';
+
 export interface ReconcileRunRecord {
 	readonly id: string;
 	readonly taskId: string;
 	readonly pid: number | null;
-	readonly state: string;
+	readonly state: RunState;
 }
 
 export type ReconciledState = 'interrupted' | 'orphaned';
@@ -10,15 +12,21 @@ export type ReconciledState = 'interrupted' | 'orphaned';
 export interface ReconciledRunOutcome {
 	readonly runId: string;
 	readonly taskId: string;
-	readonly previousState: string;
+	readonly previousState: RunState;
 	readonly nextState: ReconciledState;
-	readonly reason: 'process-dead' | 'attach-failed' | 'missing-pid';
+	readonly reason: 'process-dead' | 'attach-failed' | 'missing-pid' | 'probe-uncertain';
 	readonly detail: string;
 }
 
+export type ProcessLiveness = 'alive' | 'dead' | 'uncertain';
+
+export interface ProcessLivenessProbe {
+	check(pid: number): ProcessLiveness;
+}
+
 export interface ReconcileRunsService {
-	readonly findInFlightRuns?: () => Promise<readonly ReconcileRunRecord[]>;
-	readonly markInterrupted?: (
+	readonly findInFlightRuns: () => Promise<readonly ReconcileRunRecord[]>;
+	readonly markInterrupted: (
 		runId: string,
 		details: {
 			readonly reason: string;
@@ -26,16 +34,13 @@ export interface ReconcileRunsService {
 			readonly actorDeviceId: null;
 		},
 	) => Promise<void>;
-	readonly markOrphaned?: (
+	readonly markOrphaned: (
 		runId: string,
 		details: {
 			readonly reason: string;
 			readonly actorDeviceId: null;
 		},
 	) => Promise<void>;
-	readonly reconcile?: (
-		isProcessAlive: (pid: number) => boolean | Promise<boolean>,
-	) => Promise<readonly ReconciledRunOutcome[]>;
 }
 
 export interface ReconcileRunsJob {
@@ -47,19 +52,9 @@ export interface ReconcileRunsJob {
 
 export interface ReconcileRunsDependencies {
 	readonly service: ReconcileRunsService;
-	readonly isProcessAlive?: (pid: number) => boolean | Promise<boolean>;
-	readonly clock?: { readonly now: () => string };
+	readonly processProbe: ProcessLivenessProbe;
+	readonly clock: { readonly now: () => string };
 	readonly logFailure?: (error: unknown) => void;
-}
-
-function defaultProcessLivenessProbe(pid: number): boolean {
-	if (!Number.isInteger(pid) || pid <= 0) return false;
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch {
-		return false;
-	}
 }
 
 /**
@@ -68,61 +63,57 @@ function defaultProcessLivenessProbe(pid: number): boolean {
  * Rules:
  * 1. Runs once during daemon startup after listen().
  * 2. Scans active in-flight runs and reconciles against OS process table (runs.pid).
- * 3. Process does NOT exist -> mark "interrupted" (异常终止) (E-123).
- * 4. Process DOES exist but unattachable -> mark "orphaned" (失联) (E-02).
- * 5. NEVER presumes success (never marks landed / pass / completed).
- * 6. actorDeviceId is strictly null for system-initiated updates.
- * 7. Non-reentrant and catches all errors internally, never triggering unhandled rejections.
+ * 3. Filters non-reconciliation candidate states with isReconciliationCandidate and logs failure.
+ * 4. Process check 'dead' (or missing PID) -> mark "interrupted" with reason 'daemon-restart-process-missing' (E-123).
+ * 5. Process check 'alive' or 'uncertain' -> mark "orphaned" with reason 'daemon-restart-attach-failed' (E-02).
+ * 6. NEVER presumes success (never marks landed / pass / completed).
+ * 7. actorDeviceId is strictly null for system-initiated updates.
+ * 8. Non-reentrant and catches all errors internally, never triggering unhandled rejections.
  */
 export function createReconcileRunsJob(deps: ReconcileRunsDependencies): ReconcileRunsJob {
-	const {
-		service,
-		isProcessAlive = defaultProcessLivenessProbe,
-		clock = Object.freeze({ now: () => new Date().toISOString() }),
-		logFailure = () => undefined,
-	} = deps;
+	const { service, processProbe, clock, logFailure = () => undefined } = deps;
 
 	let inFlight: Promise<readonly ReconciledRunOutcome[]> | null = null;
 	let stopRequested = false;
 
 	async function runOnceInternal(): Promise<readonly ReconciledRunOutcome[]> {
-		if (typeof service.reconcile === 'function') {
-			return await service.reconcile(isProcessAlive);
-		}
-
-		if (typeof service.findInFlightRuns !== 'function') {
-			return Object.freeze([]);
-		}
-
 		const inFlightRuns = await service.findInFlightRuns();
 		const outcomes: ReconciledRunOutcome[] = [];
 
 		for (const run of inFlightRuns) {
 			if (stopRequested) break;
 
+			if (!isReconciliationCandidate(run.state)) {
+				logFailure(
+					new Error(
+						`Run ${run.id} with state '${run.state}' is not a candidate for reconciliation.`,
+					),
+				);
+				continue;
+			}
+
 			try {
 				const hasValidPid =
 					run.pid !== null && run.pid !== undefined && Number.isInteger(run.pid) && run.pid > 0;
 
-				let alive = false;
+				let liveness: ProcessLiveness = 'dead';
 				if (hasValidPid) {
 					try {
-						alive = await isProcessAlive(run.pid as number);
-					} catch {
-						alive = false;
+						liveness = processProbe.check(run.pid as number);
+					} catch (error) {
+						logFailure(error);
+						liveness = 'uncertain';
 					}
 				}
 
-				if (!alive) {
-					// E-123: Process is dead / missing -> interrupted ("异常终止（daemon 重启）")
+				if (!hasValidPid || liveness === 'dead') {
+					// Only 'dead' (or missing pid) marks interrupted (E-123)
 					const now = clock.now();
-					if (typeof service.markInterrupted === 'function') {
-						await service.markInterrupted(run.id, {
-							reason: '异常终止（daemon 重启）',
-							endedAt: now,
-							actorDeviceId: null,
-						});
-					}
+					await service.markInterrupted(run.id, {
+						reason: 'daemon-restart-process-missing',
+						endedAt: now,
+						actorDeviceId: null,
+					});
 					outcomes.push(
 						Object.freeze({
 							runId: run.id,
@@ -136,21 +127,22 @@ export function createReconcileRunsJob(deps: ReconcileRunsDependencies): Reconci
 						}),
 					);
 				} else {
-					// E-02: Process is alive but cannot re-attach -> orphaned ("失联")
-					if (typeof service.markOrphaned === 'function') {
-						await service.markOrphaned(run.id, {
-							reason: 'daemon 重启会话失联',
-							actorDeviceId: null,
-						});
-					}
+					// Both 'alive' and 'uncertain' mark orphaned (E-02)
+					await service.markOrphaned(run.id, {
+						reason: 'daemon-restart-attach-failed',
+						actorDeviceId: null,
+					});
 					outcomes.push(
 						Object.freeze({
 							runId: run.id,
 							taskId: run.taskId,
 							previousState: run.state,
 							nextState: 'orphaned',
-							reason: 'attach-failed',
-							detail: `Process ${run.pid} is alive but unattachable on daemon restart.`,
+							reason: liveness === 'alive' ? 'attach-failed' : 'probe-uncertain',
+							detail:
+								liveness === 'alive'
+									? `Process ${run.pid} is alive but unattachable on daemon restart.`
+									: `Process ${run.pid} liveness is uncertain on daemon restart; marking orphaned.`,
 						}),
 					);
 				}

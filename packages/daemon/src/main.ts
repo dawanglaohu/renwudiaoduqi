@@ -1,7 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createContainer } from './boot/container.ts';
+
+import { type ContainerJob, createContainer } from './boot/container.ts';
 import { registerRuntimeGuards } from './boot/guards.ts';
 import {
 	type HealthProbe,
@@ -10,9 +11,9 @@ import {
 	acquireLockOutcomeToBootLines,
 	createHttpHealthProbe,
 	createSystemProcessLivenessProbe,
-	releaseInstanceLock,
 } from './boot/lock.ts';
 import { ensureDataDir } from './boot/paths.ts';
+import { createShutdownHandler, shutdown } from './boot/shutdown.ts';
 import { takeBootSnapshot } from './boot/snapshot.ts';
 import { type ConfigFileReader, type ProcessConfig, loadProcessConfig } from './config/env.ts';
 import { createMigrationRunner } from './db/migrate.ts';
@@ -109,10 +110,20 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 		});
 		server = dependencies.createServer({ container });
 		await server.listen({ host: config.bind, port: config.port });
+		for (const job of container.jobs) {
+			job.start();
+		}
 		dependencies.writeRunLog(
 			`daemon ready pid=${dependencies.pid} bind=${config.bind} port=${config.port}`,
 		);
-		return createDaemonRuntime(config, lock, server, database, dependencies.lockAdapter);
+		return createDaemonRuntime(
+			config,
+			lock,
+			server,
+			database,
+			dependencies.lockAdapter,
+			container.jobs,
+		);
 	} catch (error) {
 		await cleanupStartupFailure(server, database, lock, dependencies.lockAdapter);
 		throw error;
@@ -182,25 +193,20 @@ function createDaemonRuntime(
 	server: HttpServer,
 	database: DatabaseConnection,
 	lockAdapter: NativeLockAdapter,
+	jobs: readonly ContainerJob[] = [],
 ): DaemonRuntime {
-	let stopped = false;
+	const stop = createShutdownHandler({
+		jobs,
+		server,
+		database,
+		lock,
+		lockAdapter,
+	});
 	return Object.freeze({
 		config,
 		lock,
 		server,
-		async stop(): Promise<void> {
-			if (stopped) return;
-			stopped = true;
-			try {
-				await server.close();
-			} finally {
-				try {
-					database.close();
-				} finally {
-					releaseInstanceLock(lock, lockAdapter);
-				}
-			}
-		},
+		stop,
 	});
 }
 
@@ -210,15 +216,12 @@ async function cleanupStartupFailure(
 	lock: LockFileHandle,
 	lockAdapter: NativeLockAdapter,
 ): Promise<void> {
-	try {
-		if (server !== undefined) await server.close();
-	} finally {
-		try {
-			database?.close();
-		} finally {
-			releaseInstanceLock(lock, lockAdapter);
-		}
-	}
+	await shutdown({
+		server,
+		database,
+		lock,
+		lockAdapter,
+	});
 }
 
 function waitForShutdown(runtime: DaemonRuntime): Promise<never> {

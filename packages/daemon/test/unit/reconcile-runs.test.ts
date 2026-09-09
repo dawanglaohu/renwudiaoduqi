@@ -5,8 +5,12 @@ import {
 	createReconcileRunsJob,
 } from '../../src/jobs/reconcile-runs.ts';
 
+const MOCK_CLOCK = Object.freeze({
+	now: () => '2026-09-09T00:00:00.000Z',
+});
+
 describe('jobs/reconcile-runs', () => {
-	it('AC 5 & E-123: marks in-flight run with dead PID as interrupted (异常终止) with actorDeviceId null', async () => {
+	it('AC 5 & E-123: marks in-flight run with dead PID as interrupted with actorDeviceId null and daemon-restart-process-missing', async () => {
 		const inFlightRuns: ReconcileRunRecord[] = [
 			{ id: 'run-dead-1', taskId: 'M1-T1', pid: 10001, state: 'running' },
 			{ id: 'run-no-pid', taskId: 'M1-T2', pid: null, state: 'starting' },
@@ -27,8 +31,8 @@ describe('jobs/reconcile-runs', () => {
 
 		const job = createReconcileRunsJob({
 			service,
-			isProcessAlive: () => false, // all processes are dead
-			clock: { now: () => '2026-09-09T00:00:00.000Z' },
+			processProbe: { check: () => 'dead' },
+			clock: MOCK_CLOCK,
 		});
 
 		const outcomes = await job.runOnce();
@@ -51,17 +55,22 @@ describe('jobs/reconcile-runs', () => {
 
 		expect(interruptedCalls).toHaveLength(2);
 		expect(interruptedCalls[0]?.details).toEqual({
-			reason: '异常终止（daemon 重启）',
+			reason: 'daemon-restart-process-missing',
 			endedAt: '2026-09-09T00:00:00.000Z',
 			actorDeviceId: null,
 		});
 		expect(orphanedCalls).toHaveLength(0);
 	});
 
-	it('AC 5 & E-02: marks in-flight run with alive PID as orphaned (失联) with actorDeviceId null', async () => {
+	it('AC 5 & E-02: marks in-flight run with alive PID as orphaned with actorDeviceId null and daemon-restart-attach-failed', async () => {
 		const inFlightRuns: ReconcileRunRecord[] = [
 			{ id: 'run-alive-1', taskId: 'M1-T3', pid: 20002, state: 'running' },
-			{ id: 'run-alive-2', taskId: 'M1-T4', pid: 20003, state: 'awaiting_reply' },
+			{
+				id: 'run-alive-2',
+				taskId: 'M1-T4',
+				pid: 20003,
+				state: 'awaiting_reply',
+			},
 		];
 
 		const interruptedCalls: Array<{ runId: string; details: unknown }> = [];
@@ -79,7 +88,8 @@ describe('jobs/reconcile-runs', () => {
 
 		const job = createReconcileRunsJob({
 			service,
-			isProcessAlive: () => true, // processes are still alive in OS
+			processProbe: { check: () => 'alive' },
+			clock: MOCK_CLOCK,
 		});
 
 		const outcomes = await job.runOnce();
@@ -102,10 +112,81 @@ describe('jobs/reconcile-runs', () => {
 
 		expect(orphanedCalls).toHaveLength(2);
 		expect(orphanedCalls[0]?.details).toEqual({
-			reason: 'daemon 重启会话失联',
+			reason: 'daemon-restart-attach-failed',
 			actorDeviceId: null,
 		});
 		expect(interruptedCalls).toHaveLength(0);
+	});
+
+	it('AC 5 & R2: marks in-flight run with uncertain PID as orphaned', async () => {
+		const inFlightRuns: ReconcileRunRecord[] = [
+			{ id: 'run-uncertain-1', taskId: 'M1-T5', pid: 30003, state: 'running' },
+		];
+
+		const interruptedCalls: Array<{ runId: string; details: unknown }> = [];
+		const orphanedCalls: Array<{ runId: string; details: unknown }> = [];
+
+		const service: ReconcileRunsService = {
+			findInFlightRuns: async () => inFlightRuns,
+			markInterrupted: async (runId, details) => {
+				interruptedCalls.push({ runId, details });
+			},
+			markOrphaned: async (runId, details) => {
+				orphanedCalls.push({ runId, details });
+			},
+		};
+
+		const job = createReconcileRunsJob({
+			service,
+			processProbe: { check: () => 'uncertain' },
+			clock: MOCK_CLOCK,
+		});
+
+		const outcomes = await job.runOnce();
+
+		expect(outcomes).toHaveLength(1);
+		expect(outcomes[0]).toMatchObject({
+			runId: 'run-uncertain-1',
+			taskId: 'M1-T5',
+			previousState: 'running',
+			nextState: 'orphaned',
+			reason: 'probe-uncertain',
+		});
+
+		expect(orphanedCalls).toHaveLength(1);
+		expect(orphanedCalls[0]?.details).toEqual({
+			reason: 'daemon-restart-attach-failed',
+			actorDeviceId: null,
+		});
+		expect(interruptedCalls).toHaveLength(0);
+	});
+
+	it('filters non-reconciliation candidate states with isReconciliationCandidate and logs failure', async () => {
+		const inFlightRuns: ReconcileRunRecord[] = [
+			{ id: 'run-landed', taskId: 'M1-T6', pid: 40001, state: 'landed' },
+			{ id: 'run-valid', taskId: 'M1-T7', pid: 40002, state: 'starting' },
+		];
+
+		const failures: unknown[] = [];
+		const service: ReconcileRunsService = {
+			findInFlightRuns: async () => inFlightRuns,
+			markInterrupted: async () => undefined,
+			markOrphaned: async () => undefined,
+		};
+
+		const job = createReconcileRunsJob({
+			service,
+			processProbe: { check: () => 'dead' },
+			clock: MOCK_CLOCK,
+			logFailure: (err) => failures.push(err),
+		});
+
+		const outcomes = await job.runOnce();
+
+		expect(outcomes).toHaveLength(1);
+		expect(outcomes[0]?.runId).toBe('run-valid');
+		expect(failures).toHaveLength(1);
+		expect((failures[0] as Error).message).toContain('not a candidate');
 	});
 
 	it('AC 5: NEVER presumes success (never transitions to landed or pass)', async () => {
@@ -127,7 +208,8 @@ describe('jobs/reconcile-runs', () => {
 
 		const job = createReconcileRunsJob({
 			service,
-			isProcessAlive: () => false,
+			processProbe: { check: () => 'dead' },
+			clock: MOCK_CLOCK,
 		});
 
 		const outcomes = await job.runOnce();
@@ -155,9 +237,15 @@ describe('jobs/reconcile-runs', () => {
 				await gate;
 				return [];
 			},
+			markInterrupted: async () => undefined,
+			markOrphaned: async () => undefined,
 		};
 
-		const job = createReconcileRunsJob({ service });
+		const job = createReconcileRunsJob({
+			service,
+			processProbe: { check: () => 'dead' },
+			clock: MOCK_CLOCK,
+		});
 		job.start();
 		job.start(); // second start must be ignored
 
@@ -173,10 +261,14 @@ describe('jobs/reconcile-runs', () => {
 			findInFlightRuns: async () => {
 				throw new Error('Database locked');
 			},
+			markInterrupted: async () => undefined,
+			markOrphaned: async () => undefined,
 		};
 
 		const job = createReconcileRunsJob({
 			service,
+			processProbe: { check: () => 'dead' },
+			clock: MOCK_CLOCK,
 			logFailure: (err) => failures.push(err),
 		});
 
@@ -184,26 +276,5 @@ describe('jobs/reconcile-runs', () => {
 		await job.stop();
 
 		expect(failures).toHaveLength(1);
-	});
-
-	it('supports delegate service.reconcile if provided by full run service', async () => {
-		const customOutcome = [
-			{
-				runId: 'run-custom',
-				taskId: 'M1-T10',
-				previousState: 'starting',
-				nextState: 'interrupted' as const,
-				reason: 'process-dead' as const,
-				detail: 'custom delegate',
-			},
-		];
-
-		const service: ReconcileRunsService = {
-			reconcile: async () => customOutcome,
-		};
-
-		const job = createReconcileRunsJob({ service });
-		const outcomes = await job.runOnce();
-		expect(outcomes).toEqual(customOutcome);
 	});
 });

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { type ShutdownJob, createShutdownHandler, shutdown } from '../../src/boot/shutdown.ts';
 import type { DatabaseConnection } from '../../src/db/open-database.ts';
@@ -79,21 +82,14 @@ describe('boot/shutdown', () => {
 		]);
 	});
 
-	it('AC 4 & E-01: does NOT terminate running agent child processes', async () => {
-		const agentProcessAlive = true;
-		const procKillTreeSpy = vi.fn();
-
-		const job: ShutdownJob = {
-			name: 'stall-detector',
-			stop: vi.fn(async () => undefined),
-		};
-
-		await shutdown({
-			jobs: [job],
-		});
-
-		expect(procKillTreeSpy).not.toHaveBeenCalled();
-		expect(agentProcessAlive).toBe(true);
+	it('AC 4 & E-01: does NOT terminate running agent child processes (shutdown.ts does not import proc/ or kill-tree)', () => {
+		const shutdownSource = readFileSync(
+			resolve(dirname(fileURLToPath(import.meta.url)), '../../src/boot/shutdown.ts'),
+			'utf8',
+		);
+		expect(shutdownSource).not.toMatch(/from ['"][^'"]*proc\/[^'"]*['"]/);
+		expect(shutdownSource).not.toMatch(/from ['"][^'"]*kill-tree[^'"]*['"]/);
+		expect(shutdownSource).not.toMatch(/killTree/);
 	});
 
 	it('continues gracefully if a job throws an error during stop', async () => {
