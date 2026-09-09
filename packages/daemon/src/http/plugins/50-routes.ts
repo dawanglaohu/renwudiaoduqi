@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { registerDeviceRoutes } from '../routes/devices.ts';
 import { registerHealthRoute } from '../routes/health.ts';
+import { registerPairRoutes } from '../routes/pair.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
 import { registerSystemRoutes } from '../routes/system.ts';
 
@@ -34,4 +36,6 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerHealthRoute(target);
 	registerSystemRoutes(target);
 	registerRunsRoutes(target);
+	registerPairRoutes(target);
+	registerDeviceRoutes(target);
 };

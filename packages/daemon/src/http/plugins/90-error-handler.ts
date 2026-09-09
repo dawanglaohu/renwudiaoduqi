@@ -16,9 +16,7 @@ export interface ErrorEnvelope {
 	};
 }
 
-export const errorHandlerPlugin: FastifyPluginAsync = async (
-	instance: FastifyInstance,
-): Promise<void> => {
+export function createErrorHandler(instance: FastifyInstance): void {
 	instance.setErrorHandler((error: FastifyError | Error, request, reply) => {
 		const isDev = Boolean(request.server.container?.config?.dev);
 		const requestId =
@@ -98,6 +96,12 @@ export const errorHandlerPlugin: FastifyPluginAsync = async (
 		};
 		void reply.status(STATUS_NOT_FOUND).send(envelope);
 	});
+}
+
+export const errorHandlerPlugin: FastifyPluginAsync = async (
+	instance: FastifyInstance,
+): Promise<void> => {
+	createErrorHandler(instance);
 };
 
 Object.defineProperty(errorHandlerPlugin, Symbol.for('skip-override'), {
