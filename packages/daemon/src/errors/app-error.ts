@@ -15,6 +15,10 @@ export class AppError extends Error {
 		this.name = 'AppError';
 		this.code = code;
 		this.details = options.details;
-		this.retryable = ERROR_CODES[code].retryable;
+		this.retryable = ERROR_CODES[code]?.retryable ?? false;
 	}
+}
+
+export function isAppError(error: unknown): error is AppError {
+	return error instanceof AppError;
 }

@@ -41,7 +41,7 @@ describe('minimal daemon runtime', () => {
 			method: 'GET',
 			url: '/api/v1/health',
 		});
-		expect(healthResponse.json()).toEqual({ ok: true });
+		expect(healthResponse.json()).toMatchObject({ ok: true });
 		expect(firstEvents).toEqual([
 			'lock.create',
 			'lock.permissions',

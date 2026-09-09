@@ -55,6 +55,7 @@ export interface AppContainer {
 	readonly services: ContainerServices;
 	readonly jobs: readonly ContainerJob[];
 	readonly instanceLock: LockFileHandle;
+	readonly startedAtMs: number;
 }
 
 export function createContainer(input: {
@@ -107,6 +108,8 @@ export function createContainer(input: {
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([]);
+	const parsedStartedAt = Date.parse(input.clock.now());
+	const startedAtMs = Number.isNaN(parsedStartedAt) ? Date.now() : parsedStartedAt;
 
 	return Object.freeze({
 		config: input.config,
@@ -123,5 +126,6 @@ export function createContainer(input: {
 		services,
 		jobs,
 		instanceLock: input.instanceLock,
+		startedAtMs,
 	});
 }
