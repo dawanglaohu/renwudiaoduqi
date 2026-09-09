@@ -62,6 +62,12 @@ export interface LogstoreServiceDeps {
 	readonly segmentsRepo: LogSegmentsRepo;
 	readonly isMilestone?: (kind: string) => boolean;
 	readonly segmentSizeLimitBytes?: number;
+	/**
+	 * E-104: called with the run directory whenever an append rejects with
+	 * E_DISK_FULL, before that rejection reaches the caller. The composition root
+	 * points it at SystemService.notifyDiskFull so new dispatches halt at once.
+	 */
+	readonly onDiskFull?: (path: string) => void;
 }
 
 export interface LogstoreService {
@@ -97,6 +103,20 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 	} = deps;
 
 	const writers = new Map<string, RunLogWriter>();
+
+	async function appendOrSignalDiskFull(
+		runId: string,
+		write: () => Promise<AppendResult>,
+	): Promise<AppendResult> {
+		try {
+			return await write();
+		} catch (cause) {
+			if (cause instanceof AppError && cause.code === 'E_DISK_FULL') {
+				deps.onDiskFull?.(paths.runDir(runId));
+			}
+			throw cause;
+		}
+	}
 
 	function buildWriter(runId: string): RunLogWriter {
 		const initialState = resumeRunWriterState(fs, paths, runId);
@@ -202,7 +222,7 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 	): Promise<AppendEventResult> {
 		const bytes = encodeEnvelope(envelope);
 		const writer = getWriter(runId);
-		const location = await writer.appendEventLine(bytes);
+		const location = await appendOrSignalDiskFull(runId, () => writer.appendEventLine(bytes));
 		const result = recordRunIndexes(runId, envelope, location);
 		return {
 			location,
@@ -214,7 +234,7 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 
 	async function appendRaw(runId: string, line: Uint8Array): Promise<AppendResult> {
 		const writer = getWriter(runId);
-		const location = await writer.appendRawLine(line);
+		const location = await appendOrSignalDiskFull(runId, () => writer.appendRawLine(line));
 		if (location.closedSegment !== null) {
 			recordClosedSegment(runId, location.closedSegment);
 		}

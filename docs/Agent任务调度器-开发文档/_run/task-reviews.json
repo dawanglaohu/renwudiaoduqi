@@ -80,16 +80,32 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
-  "M1-T7": {
-    "contractHash": "c77455dca49862dae5cc135e1c138ca32ece2135a49a94b7249decc4cd2fbe62",
+  "M1-T5": {
+    "contractHash": "bccc69f02a3dcbef75ddc8c156eaa36dc53b8f5d89779c4c1edbf65e1d504ce3",
     "evidence": [
-      "验收 1-6 与边界 E-42/E-119/E-130/E-131/E-138/E-140/E-141/E-203/E-270 逐条对应到 packages/daemon/src/proc/{spawn,line-reader,env,timers,registry}.ts，定位写在 PR #15 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
-      "前置能力已落地并被本层消费：M1-T3 的 wrapForComSpec/comSpec（platform/windows.ts）与 M1-T9 的 killTree 契约（platform/kill-tree-contract.ts、kill-tree-posix.ts、windows.ts）由 spawn.ts 直接引用",
-      "有效路径补齐：补丁 M1-T7-review-scope-20260909 把 packages/daemon/test/unit/proc.test.ts 与 packages/daemon/test/arch/boot-boundaries.test.ts 登记为 supportPaths；两者不与 M1-T10 等既有 supportPaths 重叠",
-      "接口字段核对：LaunchSpec{runId,file,args,cwd,envOverrides,envDenylist,timeouts,label,isAcp,windowsComSpecPath} 与 08 节 LaunchSpec 一致，ManagedProcess 暴露 kill/finalize/writeStdin 与 onRaw/onJson/onExit/onError；13/17/19 节对 proc 无额外要求",
-      "验收阶段：WSL 内 pnpm -w check 通过（biome ci、tsc -b --noEmit、vitest 33 文件 242 通过，2026-09-09 11:36）；审查小修 d040db0 后定点复跑 proc.test/boot-boundaries/source-contracts 共 37 通过；代码缺陷 R1-R4 走 PR 返工，不改契约"
+      "pnpm -w check (biome ci + tsc -b --noEmit + vitest run) on Windows worktree D:/xiangmu/agent-scheduler-m1-t5 @ 47e8f6a: biome clean, tsc clean, 36 test files / 313 tests passed",
+      "AC1/E-103: packages/daemon/src/service/system.ts checkDiskWatch + packages/daemon/src/jobs/disk-watch.ts; test/unit/disk-watch.test.ts 'E-103' publishes system.disk_warning and sets the disk_threshold halt",
+      "AC2/E-104: packages/daemon/src/service/logstore.ts appendOrSignalDiskFull + node-log-file-system.ts ENOSPC->E_DISK_FULL; test/integration/disk-full-and-system-routes.test.ts rejects with E_DISK_FULL, halts at once, keeps the existing bytes intact and resumes appending at offset 6",
+      "AC3/E-205: no delete or truncate call in service/system.ts or jobs/disk-watch.ts; test/unit/disk-watch.test.ts 'E-205' asserts file bytes unchanged after threshold and notifyDiskFull",
+      "AC4/E-206: packages/daemon/src/logstore/primitives.ts isPathWithinWhitelist + refuseOutsideWhitelist; test/unit/disk-primitives.test.ts 'E-206' returns E_FORBIDDEN and logs a [SECURITY_VIOLATION] line; main.ts routes the sink to writeRunLog",
+      "AC5/E-204: primitives.ts toOpFailure via fs-errors.ts isBusyCause; test/unit/disk-primitives.test.ts 'E-204' raw EBUSY and adapter-wrapped EPERM both return {ok:false, retryable:true, code:'EBUSY'} without throwing",
+      "Interface: GET /api/v1/system/usage returns exactly {dataDirBytes, byRun[], warnThreshold} per 10-接口约定 端点总表 (integration test asserts the key set); system.disk_warning payload {freeBytes?, path, message} matches packages/shared/src/api/events.ts SystemDiskWarningPayload",
+      "Prerequisite M1-T4 landed (progress.js done); effective paths patched via M1-T5-support-paths-20260909 (supportPaths: boot/container.ts, main.ts, http/routes/system.ts, http/server.ts, service/logstore.ts, service/system.ts, 4 test files); in-flight task/M1-T6 also edits container.ts additively, no shared hunk"
     ],
-    "reviewed": "2026-09-09T03:58:08.998284+00:00",
+    "reviewed": "2026-09-09T03:57:10.753513+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M1-T6": {
+    "contractHash": "6e5645536965e38123b9845037932a92823afe5887af23c5d3ef5d2d5ca13228",
+    "evidence": [
+      "前置 M1-T1、M1-T9 已落地（origin/main afe2a97 之后），M6-T1 的 domain/run-state-machine.ts 已合入分支并被 jobs/reconcile-runs.ts 消费",
+      "有效路径复核：改动仅落在 boot/autostart.ts、boot/shutdown.ts、boot/container.ts、jobs/reconcile-runs.ts 与补丁新增的 supportPaths（main.ts 与五个测试文件）",
+      "接口字段：register/status/unregister 消费 platform/autostart-contract.ts 的 AutostartAdapter 与 shared daemon-launch-spec.ts 的 DaemonLaunchSpec，逐字段比对、恒不拼 shell；ReconcileRunsService 三方法必填，processProbe 三态 alive/dead/uncertain，clock 注入",
+      "验收 1-5 逐条指到代码：autostart.ts:43/96/120，shutdown.ts:31，main.ts:113（listen 后 job.start、退出走 createShutdownHandler），reconcile-runs.ts:87/113/132；E-01/E-02/E-123/E-209/E-210/E-212/E-261 均有对应实现与用例",
+      "PR #16 第 1 轮返工 R1-R3 已修（commit 0cc9c29），审查方补 AppError 上报与 writeRunLog 接线；分支 pnpm -w check 通过：36 个测试文件 297 用例全绿（biome ci + tsc -b + vitest）"
+    ],
+    "reviewed": "2026-09-09T04:06:23.312170+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
