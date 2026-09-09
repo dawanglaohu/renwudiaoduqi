@@ -4,10 +4,11 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import tempfile
 from pathlib import Path
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 SCHEMA_VERSION = 1
 TASK_RE = re.compile(r'M\d{1,2}-T\d{1,3}')
 SOURCE_EXCLUDES = {'_run', '图谱', '.obsidian'}
@@ -64,6 +65,8 @@ def input_hashes(root):
 
 
 def compiler_hash():
+    """生成器指纹只进 source_version / manifest / stale_reasons，提醒重跑 build；
+    不进任务契约哈希——否则改一行生成器就让全部复核记录失配，逐任务重新 verify。"""
     here = Path(__file__).parent
     sources = {name: (here / name).read_text(encoding='utf-8-sig')
                for name in COMPILERS if (here / name).exists()}
@@ -128,7 +131,6 @@ def analyze(root, tasks, pres, edges=None):
         raise ValueError('task-contracts.json tasks 必须是对象')
     edge_map = {e['id']: e for e in (edges or [])}
     issues, contexts, paths, owners = [], {}, {}, {}
-    compiled_version = compiler_hash()
     section_cache = {}
 
     def issue(code, text, ids):
@@ -224,7 +226,7 @@ def analyze(root, tasks, pres, edges=None):
                          'architecture': architecture, 'design': ho.get('design') if fe else None,
                          'module': module, 'project': pres.get('project'),
                          'handoff': {k: ho.get(k) for k in ('stack', 'docsPath', 'repo', 'branchPrefix', 'mainBranch', 'conventions')},
-                         'skills': (ho.get('taskSkills') or {}).get(tid), 'compiler': compiled_version}
+                         'skills': (ho.get('taskSkills') or {}).get(tid)}
     bases = {k: digest(v) for k, v in contexts.items()}
     contracts = {}
     for tid, context in contexts.items():
@@ -250,6 +252,74 @@ def readiness(root, analysis, structural=None):
                        'blockers': list(errors),
                        'reasons': list(errors) or ([] if verified else ['任务契约待语义复核；可在当前审查内完成，无需重跑生成流程'])}
     return checks
+
+
+def rehash_contracts(contracts):
+    """按当前公式重算一组契约的哈希：去掉 1.1.x 塞进上下文的 compiler 字段，再沿真实依赖传播。
+    补丁基线是升级前保存的时，用它归一，避免把全部任务误判成受影响。"""
+    contexts = {tid: {k: v for k, v in (c.get('context') or {}).items() if k != 'compiler'}
+                for tid, c in (contracts or {}).items()}
+    tasks = {tid: ctx.get('task') or {} for tid, ctx in contexts.items()}
+    bases = {tid: digest(ctx) for tid, ctx in contexts.items()}
+    result = {}
+    for tid, ctx in contexts.items():
+        supplied = {dep: bases[dep] for dep in sorted(ancestors(tid, tasks)) if dep in bases}
+        result[tid] = {**contracts[tid], 'hash': digest({'context': ctx, 'providers': supplied}), 'context': ctx}
+    return result
+
+
+def legacy_hashes(analysis, compiler):
+    """1.1.x 的契约哈希把当时的生成器指纹算进每个任务上下文；给定那个指纹就能重算，
+    用来证明旧复核记录对应的语义上下文没变，沿用原证据而不是逐任务重新 verify。"""
+    contexts = {tid: {**c['context'], 'compiler': compiler} for tid, c in analysis['contracts'].items()}
+    tasks = {tid: c['context']['task'] for tid, c in analysis['contracts'].items()}
+    bases = {tid: digest(ctx) for tid, ctx in contexts.items()}
+    return {tid: digest({'context': ctx, 'providers': {dep: bases[dep] for dep in sorted(ancestors(tid, tasks)) if dep in bases}})
+            for tid, ctx in contexts.items()}
+
+
+def file_digest(path):
+    """生成器文件的指纹按 LF 归一：仓库 eol=lf 检出与技能源 CRLF 副本是同一份工具。"""
+    raw = Path(path).read_bytes()
+    return hashlib.sha256(raw.replace(b'\r\n', b'\n')).hexdigest(), hashlib.sha256(raw).hexdigest()
+
+
+def runtime_drift(root):
+    """生成器在项目 _run/ 里的两种漂移，各给一条原因：
+    (a) 与 tool-version.json 登记的指纹不一致——本地补丁没登记，重装技能会覆盖；
+    (b) 在 git 仓库内且有未提交改动——不当场提交就会随下一次检出/合并丢失。
+    只报告，不阻断；调用方决定退出码。"""
+    run = Path(root) / '_run'
+    names = list(COMPILERS) + ['build_vault.py']
+    reasons = []
+    recorded = (read_json(run / 'tool-version.json', {}) or {}).get('files') or {}
+    for name in names:
+        p = run / name
+        if not p.exists() or name not in recorded:
+            continue
+        if recorded[name] not in file_digest(p):
+            reasons.append('生成器与 tool-version.json 不一致：' + name + '；本地补丁未登记，重装技能会覆盖')
+    inside = subprocess.run(['git', '-C', str(run), 'rev-parse', '--is-inside-work-tree'],
+                            capture_output=True, text=True, encoding='utf-8')
+    if inside.returncode == 0 and inside.stdout.strip() == 'true':
+        has_head = subprocess.run(['git', '-C', str(run), 'rev-parse', '--verify', '-q', 'HEAD'],
+                                  capture_output=True, text=True, encoding='utf-8').returncode == 0
+        for name in names:
+            if not (run / name).exists():
+                continue
+            tracked = subprocess.run(['git', '-C', str(run), 'ls-files', '--error-unmatch', '--', name],
+                                     capture_output=True, text=True, encoding='utf-8').returncode == 0
+            if not tracked:
+                dirty = True
+            elif not has_head:
+                dirty = True
+            else:
+                dirty = subprocess.run(['git', '-C', str(run), 'diff', '--quiet', 'HEAD', '--', name],
+                                       capture_output=True, text=True, encoding='utf-8').returncode != 0
+            if dirty:
+                reasons.append('生成器有未提交改动：' + name + ('（未跟踪）' if not tracked else '')
+                               + '；当场提交进主干，否则会随下一次检出/合并丢失')
+    return reasons
 
 
 def manifest(root, products):

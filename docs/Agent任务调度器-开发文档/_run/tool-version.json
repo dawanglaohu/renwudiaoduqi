@@ -1,13 +1,17 @@
 {
   "files": {
-    "build_docs.py": "f665b8f4c7c675adddf68a037f78d6932d53080badce1385d8ad6478de616654",
-    "build_vault.py": "def3461142e030d7473565e7a899db08cdb8ca0bb54806137a4b2571e84e9d0f",
-    "check_stale.py": "bf7a18075f525e912546778941682989dc93d9fe99c5f5a824344e064c9570cf",
-    "compile_prompts.js": "83afcf07660d9da35ec41a205f1f0d9c5a3bb44d0f4d2a0b3e692778dc0eeb39",
-    "handoff_contract.py": "904850f53e6ae9aa72b3b6c9400983c11e5f0ed8b437c250430c2ad710aae533",
-    "install_project.py": "8511ca1e45a0622beb7b531164d8b12c341037aad1cd82fe044e9b569695525b",
-    "maintain_docs.py": "d41f72069f02cd0f4bb394044ae9624ec7ce4ffd53773aa0e2c08856554f4476",
-    "review.py": "4d45f64b63f95f4aeb0ac60b67c08859dc2f028536eee32092ffcd93d9bed86e"
+    "build_docs.py": "2e5cd888765f88968d3f5cd01a47f67122c5d7ffe42e31bcdebf7d069f6da828",
+    "build_vault.py": "d627d6e278e8c920b47a3a75693c90662a7b13b6ce8f0a835b439a66b6336a65",
+    "check_stale.py": "407d3dd10721752cd35c77daac9f34ecdc5828d5bf6c257f6723cb6207d6575c",
+    "compile_prompts.js": "e86288a0b74b2b338de19963534c212c44f74f4ba14c58c18f70c1cbce2065df",
+    "handoff-manual.md": "052fb07d7a0ac31b33ddb40186e8143720a9e62420e790a1ff7b2606d593b14e",
+    "handoff_contract.py": "9020b24d30558535420bcd09a4ba74490181acb9f5b5c98df2dcf5c3e69e3db4",
+    "install_project.py": "bede1eca2091e3c96b44ecd96d6b86bbd820e5e57d7b0aebdca797f6acaac1d3",
+    "maintain_docs.py": "a26714b8158e7f6227bdc2a981621cdd52e05edff413066d93610772f14f0bd3",
+    "review.py": "018bc787fb39ba0d4199b57df5ed67992c0fe2471daa90bf1e1255176e48236b",
+    "tests/test_maintenance.py": "9605cba07a9e7f7c3601b228230ce4ae6df2a768eacebc46be8612cdc7948e82",
+    "tests/test_prompt_routing.py": "4083efd91c259968a85c092a5dd79b3b40e173b76e56fa9598767ea0196eaa0e",
+    "tests/test_release_1_2.py": "934dce5a78f52a9172219e87b78f74edcc0c3388e9d96cc435dab05594510cc6"
   },
-  "version": "1.1.0"
+  "version": "1.2.0"
 }
