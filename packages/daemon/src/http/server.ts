@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { AppContainer } from '../boot/container.ts';
 import { AppError } from '../errors/app-error.ts';
 import { registerHealthRoute } from './routes/health.ts';
+import { registerSystemRoutes } from './routes/system.ts';
 
 declare module 'fastify' {
 	interface FastifyInstance {
@@ -21,6 +22,7 @@ export function createHttpServer(deps: {
 	const instance = Fastify({ logger: false, forceCloseConnections: true });
 	instance.decorate('container', deps.container);
 	registerHealthRoute(instance);
+	registerSystemRoutes(instance);
 	return Object.freeze({
 		instance,
 		async listen(options: { readonly host: string; readonly port: number }): Promise<string> {

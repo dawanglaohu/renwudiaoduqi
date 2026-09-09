@@ -80,6 +80,22 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M1-T5": {
+    "contractHash": "bccc69f02a3dcbef75ddc8c156eaa36dc53b8f5d89779c4c1edbf65e1d504ce3",
+    "evidence": [
+      "pnpm -w check (biome ci + tsc -b --noEmit + vitest run) on Windows worktree D:/xiangmu/agent-scheduler-m1-t5 @ 47e8f6a: biome clean, tsc clean, 36 test files / 313 tests passed",
+      "AC1/E-103: packages/daemon/src/service/system.ts checkDiskWatch + packages/daemon/src/jobs/disk-watch.ts; test/unit/disk-watch.test.ts 'E-103' publishes system.disk_warning and sets the disk_threshold halt",
+      "AC2/E-104: packages/daemon/src/service/logstore.ts appendOrSignalDiskFull + node-log-file-system.ts ENOSPC->E_DISK_FULL; test/integration/disk-full-and-system-routes.test.ts rejects with E_DISK_FULL, halts at once, keeps the existing bytes intact and resumes appending at offset 6",
+      "AC3/E-205: no delete or truncate call in service/system.ts or jobs/disk-watch.ts; test/unit/disk-watch.test.ts 'E-205' asserts file bytes unchanged after threshold and notifyDiskFull",
+      "AC4/E-206: packages/daemon/src/logstore/primitives.ts isPathWithinWhitelist + refuseOutsideWhitelist; test/unit/disk-primitives.test.ts 'E-206' returns E_FORBIDDEN and logs a [SECURITY_VIOLATION] line; main.ts routes the sink to writeRunLog",
+      "AC5/E-204: primitives.ts toOpFailure via fs-errors.ts isBusyCause; test/unit/disk-primitives.test.ts 'E-204' raw EBUSY and adapter-wrapped EPERM both return {ok:false, retryable:true, code:'EBUSY'} without throwing",
+      "Interface: GET /api/v1/system/usage returns exactly {dataDirBytes, byRun[], warnThreshold} per 10-接口约定 端点总表 (integration test asserts the key set); system.disk_warning payload {freeBytes?, path, message} matches packages/shared/src/api/events.ts SystemDiskWarningPayload",
+      "Prerequisite M1-T4 landed (progress.js done); effective paths patched via M1-T5-support-paths-20260909 (supportPaths: boot/container.ts, main.ts, http/routes/system.ts, http/server.ts, service/logstore.ts, service/system.ts, 4 test files); in-flight task/M1-T6 also edits container.ts additively, no shared hunk"
+    ],
+    "reviewed": "2026-09-09T03:57:10.753513+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M1-T6": {
     "contractHash": "6e5645536965e38123b9845037932a92823afe5887af23c5d3ef5d2d5ca13228",
     "evidence": [

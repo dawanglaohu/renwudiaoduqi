@@ -1,12 +1,17 @@
+import { join } from 'node:path';
 import type { ProcessConfig } from '../config/env.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
 import { type RingBuffer, createRingBuffer } from '../events/ring-buffer.ts';
+import type { LogFileSystem } from '../logstore/contract.ts';
+import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
+import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
+import { type SystemService, createSystemService } from '../service/system.ts';
 
 export interface ContainerJob {
 	readonly name: string;
@@ -26,6 +31,10 @@ export interface ContainerEvents {
 	readonly bus: EventBus;
 }
 
+export interface ContainerServices {
+	readonly system: SystemService;
+}
+
 export interface AppContainer {
 	readonly config: ProcessConfig;
 	readonly database: DatabaseConnection;
@@ -43,7 +52,7 @@ export interface AppContainer {
 	readonly proc: Record<string, never>;
 	readonly adapters: Record<string, never>;
 	readonly workspace: Record<string, never>;
-	readonly services: Record<string, never>;
+	readonly services: ContainerServices;
 	readonly jobs: readonly ContainerJob[];
 	readonly instanceLock: LockFileHandle;
 }
@@ -55,6 +64,11 @@ export function createContainer(input: {
 	readonly lockAdapter: NativeLockAdapter;
 	readonly instanceLock: LockFileHandle;
 	readonly clock: { readonly now: () => string };
+	readonly logstorePaths?: LogstorePaths;
+	readonly logFs?: LogFileSystem;
+	readonly systemService?: SystemService;
+	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
+	readonly logViolation?: (message: string) => void;
 }): AppContainer {
 	const empty = Object.freeze({});
 
@@ -75,6 +89,23 @@ export function createContainer(input: {
 		bus,
 	});
 
+	const logstorePaths =
+		input.logstorePaths ?? createLogstorePaths(join(input.config.dataDir, 'runs'));
+	const logFs = input.logFs ?? createNodeLogFileSystem();
+	const systemService =
+		input.systemService ??
+		createSystemService({
+			paths: logstorePaths,
+			fs: logFs,
+			bus,
+			envelopeFactory,
+			logViolation: input.logViolation,
+		});
+
+	const services: ContainerServices = Object.freeze({
+		system: systemService,
+	});
+
 	const jobs: readonly ContainerJob[] = Object.freeze([]);
 
 	return Object.freeze({
@@ -89,7 +120,7 @@ export function createContainer(input: {
 		proc: empty,
 		adapters: empty,
 		workspace: empty,
-		services: empty,
+		services,
 		jobs,
 		instanceLock: input.instanceLock,
 	});
