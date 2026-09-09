@@ -6,6 +6,7 @@ import {
 } from 'node:child_process';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
 import { AppError } from '../errors/app-error.ts';
+import type { AppendQueue } from '../logstore/append-queue.ts';
 import type { SupportedPlatform } from '../platform/contract.ts';
 import { classifyPathForHost } from '../platform/host.ts';
 import type {
@@ -113,9 +114,13 @@ export interface ManagedProcess {
 	readonly stdoutReader: LineReader;
 	readonly stderrReader: LineReader;
 	readonly timers: ProcessTimerController;
+	readonly appendQueue?: AppendQueue;
 	readonly isExited: boolean;
 	readonly exitResult?: ProcessExitResult;
 	readonly stderrTail: string;
+	attachAppendQueue(queue: AppendQueue): () => void;
+	waitForStdinDrain(): Promise<void>;
+	onStdinDrain(listener: () => void): () => void;
 	writeStdin(data: string | Buffer): boolean;
 	onLine(listener: (line: ReadLine) => void): () => void;
 	onRaw(listener: (line: ReadLine) => void): () => void;
@@ -141,6 +146,7 @@ export interface SpawnManagedOptions {
 	) => Promise<KillTreeResult>;
 	readonly registry?: ProcessRegistry;
 	readonly clock?: Clock;
+	readonly appendQueue?: AppendQueue;
 	readonly onLine?: (line: ReadLine) => void;
 	readonly onRaw?: (line: ReadLine) => void;
 	readonly onStderr?: (line: ReadLine) => void;
@@ -324,6 +330,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 	// 7. Wire stdout stream data
 	if (child.stdout !== null) {
 		child.stdout.on('data', (chunk: Buffer) => {
+			timers.recordActivity();
 			const lines = stdoutReader.push(chunk);
 			for (const line of lines) {
 				timers.recordActivity();
@@ -390,6 +397,11 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 			if (exitDrainTimerId !== undefined) {
 				clearTimeout(exitDrainTimerId);
 				exitDrainTimerId = undefined;
+			}
+
+			if (detachQueue !== undefined) {
+				detachQueue();
+				detachQueue = undefined;
 			}
 
 			timers.clearAll();
@@ -490,6 +502,24 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		timers.armCheckTimer(() => void handleCheckTimeout());
 	}
 
+	let activeAppendQueue: AppendQueue | undefined = options.appendQueue;
+	let detachQueue: (() => void) | undefined = undefined;
+
+	function bindAppendQueue(queue: AppendQueue): () => void {
+		if (child.stdout === null || typeof queue.attachStream !== 'function') return () => {};
+		const unbind = queue.attachStream(child.stdout);
+		return () => {
+			unbind();
+			if (activeAppendQueue === queue) {
+				activeAppendQueue = undefined;
+			}
+		};
+	}
+
+	if (options.appendQueue !== undefined && child.stdout !== null) {
+		detachQueue = bindAppendQueue(options.appendQueue);
+	}
+
 	const managed: ManagedProcess = {
 		runId: spec.runId,
 		pid,
@@ -500,6 +530,9 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		stdoutReader,
 		stderrReader,
 		timers,
+		get appendQueue() {
+			return activeAppendQueue;
+		},
 		get isExited() {
 			return isExited;
 		},
@@ -508,6 +541,37 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		},
 		get stderrTail() {
 			return stderrTailQueue.join('\n');
+		},
+		attachAppendQueue(queue: AppendQueue): () => void {
+			if (detachQueue !== undefined) {
+				detachQueue();
+			}
+			activeAppendQueue = queue;
+			detachQueue = bindAppendQueue(queue);
+			return () => {
+				if (detachQueue !== undefined) {
+					detachQueue();
+					detachQueue = undefined;
+				}
+			};
+		},
+		waitForStdinDrain(): Promise<void> {
+			if (child.stdin === null || child.stdin.destroyed) {
+				return Promise.resolve();
+			}
+			if (!child.stdin.writableNeedDrain) {
+				return Promise.resolve();
+			}
+			return new Promise((resolve) => {
+				child.stdin?.once('drain', () => resolve());
+			});
+		},
+		onStdinDrain(listener: () => void): () => void {
+			if (child.stdin === null) return () => {};
+			child.stdin.on('drain', listener);
+			return () => {
+				child.stdin?.off('drain', listener);
+			};
 		},
 		writeStdin(data: string | Buffer): boolean {
 			if (child.stdin === null || child.stdin.destroyed) {
