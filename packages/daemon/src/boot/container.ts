@@ -1,12 +1,17 @@
+import { join } from 'node:path';
 import type { ProcessConfig } from '../config/env.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
 import { type RingBuffer, createRingBuffer } from '../events/ring-buffer.ts';
+import type { LogFileSystem } from '../logstore/contract.ts';
+import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
+import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
+import { type SystemService, createSystemService } from '../service/system.ts';
 
 export interface ContainerRepos {
 	readonly eventSeq: EventSeqRepo;
@@ -18,6 +23,11 @@ export interface ContainerEvents {
 	readonly envelopeFactory: EnvelopeFactory;
 	readonly ringBuffer: RingBuffer;
 	readonly bus: EventBus;
+}
+
+export interface ContainerServices {
+	readonly system?: SystemService;
+	readonly [key: string]: unknown;
 }
 
 export interface AppContainer {
@@ -37,7 +47,7 @@ export interface AppContainer {
 	readonly proc: Record<string, never>;
 	readonly adapters: Record<string, never>;
 	readonly workspace: Record<string, never>;
-	readonly services: Record<string, never>;
+	readonly services: ContainerServices;
 	readonly jobs: readonly never[];
 	readonly instanceLock: LockFileHandle;
 }
@@ -49,6 +59,9 @@ export function createContainer(input: {
 	readonly lockAdapter: NativeLockAdapter;
 	readonly instanceLock: LockFileHandle;
 	readonly clock: { readonly now: () => string };
+	readonly logstorePaths?: LogstorePaths;
+	readonly logFs?: LogFileSystem;
+	readonly systemService?: SystemService;
 }): AppContainer {
 	const empty = Object.freeze({});
 
@@ -69,6 +82,22 @@ export function createContainer(input: {
 		bus,
 	});
 
+	const logstorePaths =
+		input.logstorePaths ?? createLogstorePaths(join(input.config.dataDir, 'runs'));
+	const logFs = input.logFs ?? createNodeLogFileSystem();
+	const systemService =
+		input.systemService ??
+		createSystemService({
+			paths: logstorePaths,
+			fs: logFs,
+			bus,
+			envelopeFactory,
+		});
+
+	const services: ContainerServices = Object.freeze({
+		system: systemService,
+	});
+
 	return Object.freeze({
 		config: input.config,
 		database: input.database,
@@ -81,7 +110,7 @@ export function createContainer(input: {
 		proc: empty,
 		adapters: empty,
 		workspace: empty,
-		services: empty,
+		services,
 		jobs: Object.freeze([]),
 		instanceLock: input.instanceLock,
 	});

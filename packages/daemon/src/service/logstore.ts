@@ -3,6 +3,8 @@ import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { AppendQueue } from '../logstore/append-queue.ts';
 import type {
+	DeleteResult,
+	DiskUsageReport,
 	LogFileSystem,
 	LogStream,
 	LogstoreIds,
@@ -11,9 +13,11 @@ import type {
 	ScannedEventLine,
 	SegmentBoundary,
 	SegmentRowLike,
+	TruncateResult,
 } from '../logstore/contract.ts';
-import { isEnoent, toFilesystemError } from '../logstore/fs-errors.ts';
+import { getNodeErrorCode, isEnoent, toFilesystemError } from '../logstore/fs-errors.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
+import { createLogstorePrimitives } from '../logstore/primitives.ts';
 import { parseEnvelopeLine, readSegmentPage } from '../logstore/read-window.ts';
 import {
 	type AppendResult,
@@ -62,6 +66,8 @@ export interface LogstoreServiceDeps {
 	readonly segmentsRepo: LogSegmentsRepo;
 	readonly isMilestone?: (kind: string) => boolean;
 	readonly segmentSizeLimitBytes?: number;
+	readonly onDiskFull?: (path: string) => void;
+	readonly logViolation?: (message: string) => void;
 }
 
 export interface LogstoreService {
@@ -82,6 +88,12 @@ export interface LogstoreService {
 	repairRun(runId: string): Promise<RepairRunReport>;
 	/** Bounded scan-and-repair for every run found in log_segments or on disk. */
 	repairAll(): Promise<readonly RepairRunReport[]>;
+	/** E-204, E-206: Restricted delete primitive within the logstore whitelist root. */
+	deleteByPath?(targetPath: string): Promise<DeleteResult>;
+	/** Restricted truncate primitive within the logstore whitelist root. */
+	truncate?(targetPath: string, targetBytes?: number): Promise<TruncateResult>;
+	/** E-103: Log disk usage breakdown by run. */
+	getUsage?(): Promise<DiskUsageReport>;
 }
 
 export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreService {
@@ -97,6 +109,11 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 	} = deps;
 
 	const writers = new Map<string, RunLogWriter>();
+	const primitives = createLogstorePrimitives({
+		whitelistRoot: paths.rootDir,
+		fs,
+		logViolation: deps.logViolation,
+	});
 
 	function buildWriter(runId: string): RunLogWriter {
 		const initialState = resumeRunWriterState(fs, paths, runId);
@@ -202,7 +219,24 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 	): Promise<AppendEventResult> {
 		const bytes = encodeEnvelope(envelope);
 		const writer = getWriter(runId);
-		const location = await writer.appendEventLine(bytes);
+		let location: AppendResult;
+		try {
+			location = await writer.appendEventLine(bytes);
+		} catch (cause) {
+			if (
+				getNodeErrorCode(cause) === 'ENOSPC' ||
+				(cause instanceof AppError && cause.code === 'E_DISK_FULL')
+			) {
+				deps.onDiskFull?.(paths.runDir(runId));
+				throw cause instanceof AppError
+					? cause
+					: new AppError('E_DISK_FULL', 'Storage disk is full; new dispatches halted.', {
+							cause,
+							details: { runId },
+						});
+			}
+			throw cause;
+		}
 		const result = recordRunIndexes(runId, envelope, location);
 		return {
 			location,
@@ -214,7 +248,24 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 
 	async function appendRaw(runId: string, line: Uint8Array): Promise<AppendResult> {
 		const writer = getWriter(runId);
-		const location = await writer.appendRawLine(line);
+		let location: AppendResult;
+		try {
+			location = await writer.appendRawLine(line);
+		} catch (cause) {
+			if (
+				getNodeErrorCode(cause) === 'ENOSPC' ||
+				(cause instanceof AppError && cause.code === 'E_DISK_FULL')
+			) {
+				deps.onDiskFull?.(paths.runDir(runId));
+				throw cause instanceof AppError
+					? cause
+					: new AppError('E_DISK_FULL', 'Storage disk is full; new dispatches halted.', {
+							cause,
+							details: { runId },
+						});
+			}
+			throw cause;
+		}
 		if (location.closedSegment !== null) {
 			recordClosedSegment(runId, location.closedSegment);
 		}
@@ -399,6 +450,9 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 		readEventsPage,
 		repairRun,
 		repairAll,
+		deleteByPath: primitives.deleteByPath,
+		truncate: primitives.truncate,
+		getUsage: primitives.usage,
 	});
 }
 

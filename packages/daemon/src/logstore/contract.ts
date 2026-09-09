@@ -7,6 +7,12 @@ export const LOG_STREAMS = ['raw', 'events'] as const satisfies readonly LogStre
 /** E-149: one segment file never exceeds 200 MB. */
 export const SEGMENT_SIZE_LIMIT_BYTES = 200 * 1024 * 1024;
 
+/** Default warning threshold: 10 GB (E-103). */
+export const DEFAULT_DISK_WARN_THRESHOLD_BYTES = 10 * 1024 * 1024 * 1024;
+
+/** Default low disk free threshold: 500 MB (E-104). */
+export const DEFAULT_FREE_DISK_THRESHOLD_BYTES = 500 * 1024 * 1024;
+
 /** One paged read returns at most this many bytes; the UI pages instead of loading whole files (E-24). */
 export const READ_CHUNK_LIMIT_BYTES = 1024 * 1024;
 
@@ -32,6 +38,12 @@ export interface LogFileSystem {
 	readonly readRange: (path: string, start: number, endInclusive: number) => Promise<Uint8Array>;
 	/** Byte length, or null when the file is gone (E-151). */
 	readonly fileLenSync: (path: string) => number | null;
+	/** Delete a file or directory on disk (E-204, E-206). */
+	readonly deleteFile?: (path: string) => Promise<void>;
+	/** Truncate a file to targetBytes (default 0). */
+	readonly truncateFile?: (path: string, targetBytes?: number) => Promise<void>;
+	/** Query filesystem disk statistics. */
+	readonly statfs?: (path: string) => Promise<{ bavail: number; bsize: number; blocks: number }>;
 }
 
 export interface SegmentRowLike {
@@ -106,6 +118,55 @@ export interface ReadSegmentResultOk {
 	readonly nextCursor: string;
 	readonly hasMore: boolean;
 	readonly tailReached: boolean;
+}
+
+export interface DeleteResultSuccess {
+	readonly ok: true;
+	readonly path: string;
+	readonly bytesFreed: number;
+}
+
+export interface DeleteResultFailure {
+	readonly ok: false;
+	readonly retryable: boolean;
+	readonly code: 'EBUSY' | 'E_FORBIDDEN' | 'E_LOG_FILE_MISSING' | 'E_INTERNAL';
+	readonly message: string;
+	readonly path: string;
+}
+
+export type DeleteResult = DeleteResultSuccess | DeleteResultFailure;
+
+export interface TruncateResultSuccess {
+	readonly ok: true;
+	readonly path: string;
+	readonly bytesFreed: number;
+	readonly newSize: number;
+}
+
+export interface TruncateResultFailure {
+	readonly ok: false;
+	readonly retryable: boolean;
+	readonly code: 'EBUSY' | 'E_FORBIDDEN' | 'E_LOG_FILE_MISSING' | 'E_INTERNAL';
+	readonly message: string;
+	readonly path: string;
+}
+
+export type TruncateResult = TruncateResultSuccess | TruncateResultFailure;
+
+export interface RunUsage {
+	readonly runId: string;
+	readonly bytes: number;
+	readonly fileCount: number;
+}
+
+export interface DiskUsageReport {
+	readonly dataDirBytes: number;
+	readonly byRun: readonly RunUsage[];
+	readonly warnThreshold: number;
+	readonly freeBytes?: number;
+	readonly totalBytes?: number;
+	readonly isWarnThresholdExceeded: boolean;
+	readonly isDiskFull: boolean;
 }
 
 export { isMilestoneEventKind } from '@agent-scheduler/shared/api/events';

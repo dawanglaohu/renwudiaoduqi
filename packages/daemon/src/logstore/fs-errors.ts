@@ -4,6 +4,15 @@ export function isEnoent(cause: unknown): boolean {
 	return getNodeErrorCode(cause) === 'ENOENT';
 }
 
+export function isEnospc(cause: unknown): boolean {
+	return getNodeErrorCode(cause) === 'ENOSPC';
+}
+
+export function isEbusy(cause: unknown): boolean {
+	const code = getNodeErrorCode(cause);
+	return code === 'EBUSY' || code === 'EPERM';
+}
+
 export function toLogFileMissing(cause: unknown, path: string): AppError {
 	return new AppError('E_LOG_FILE_MISSING', 'Log file is missing on disk.', {
 		cause,
@@ -11,13 +20,21 @@ export function toLogFileMissing(cause: unknown, path: string): AppError {
 	});
 }
 
+export function toDiskFullError(cause: unknown, path: string): AppError {
+	return new AppError('E_DISK_FULL', 'Storage disk is full; new dispatches halted.', {
+		cause,
+		details: { path },
+	});
+}
+
 /**
  * Wrap a native fs error at the module boundary (R4): ENOENT → E_LOG_FILE_MISSING
- * (E-151), everything else → E_INTERNAL with the original error as `cause`.
+ * (E-151), ENOSPC → E_DISK_FULL (E-104), everything else → E_INTERNAL with the original error as `cause`.
  */
 export function toFilesystemError(cause: unknown, fallbackMessage: string): AppError {
 	if (cause instanceof AppError) return cause;
 	if (isEnoent(cause)) return toLogFileMissing(cause, getNodeErrorPath(cause) ?? '');
+	if (isEnospc(cause)) return toDiskFullError(cause, getNodeErrorPath(cause) ?? '');
 	return new AppError('E_INTERNAL', fallbackMessage, { cause });
 }
 
