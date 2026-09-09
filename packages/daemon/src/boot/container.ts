@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { ProcessConfig } from '../config/env.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
@@ -45,7 +46,9 @@ export interface AppContainer {
 	readonly clock: {
 		readonly now: () => string;
 	};
-	readonly ids: Record<string, never>;
+	readonly ids: {
+		readonly newId: () => string;
+	};
 	readonly repos: ContainerRepos;
 	readonly logstore: Record<string, never>;
 	readonly events: ContainerEvents;
@@ -116,7 +119,9 @@ export function createContainer(input: {
 		database: input.database,
 		platform: Object.freeze({ hostInputs: input.hostInputs, lock: input.lockAdapter }),
 		clock: input.clock,
-		ids: empty,
+		ids: Object.freeze({
+			newId: () => `req_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+		}),
 		repos,
 		logstore: empty,
 		events,

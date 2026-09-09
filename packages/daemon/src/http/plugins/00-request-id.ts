@@ -1,9 +1,4 @@
-import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
-
-export function generateRequestId(): string {
-	return `req_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
-}
 
 export const requestIdPlugin: FastifyPluginAsync = async (
 	instance: FastifyInstance,
@@ -13,7 +8,7 @@ export const requestIdPlugin: FastifyPluginAsync = async (
 		if (typeof incomingId === 'string' && incomingId.trim().length > 0) {
 			request.id = incomingId.trim();
 		} else if (!request.id || !request.id.startsWith('req_')) {
-			request.id = generateRequestId();
+			request.id = request.server.container.ids.newId();
 		}
 	});
 
