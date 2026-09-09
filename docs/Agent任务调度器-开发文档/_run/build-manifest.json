@@ -27,16 +27,16 @@
     "05-附录/24-参考资料.md": "eec613e723bff7847e309724b2c12f0d8eb447a3b1cff7ce169eae0bd02cc070",
     "README.md": "449e8971a4884cab4ad6bd71e0ed8d88166999fba8e4c20e3b446a6b898c3559",
     "_run/presentation.json": "6cec8bbc9e7d23fed10f4b281e775cd6f67ef7d2e28d57a6779de3e7d1288ba7",
-    "_run/task-contracts.json": "5b0a3f47ed35805f6c955d6941fcdcad946775dfd1ab9798b8ff9a0aa6a109d8"
+    "_run/task-contracts.json": "6dec67d9b376a53c34a9e055fefdbee734fe91cfbad34ce78a96a5e2f102373b"
   },
   "products": {
     "_MOC.md": "b72428e7361ccd6b304116e47703c5d0efe16f7510d1a269cedea5f845fd7ed3",
-    "_run/dispatch.json": "b94494b5f257190df787d70a9d71a41c1232a93681737807bb8f694ebb896b00",
-    "_run/review.json": "82c71a9d7557d35907cd3b876c0eea708f25a0d3dc3e4b56d6a90e7c14f9e382",
-    "_run/task-reviews.json": "06c878bd130873d52260cd7e7b61d47e512b53959325e981cd61c2e1e2d5aa95",
-    "docs-data.js": "a67ea087e4227019eb5ae6de0cd4b3b069d53508d7e5faaa50a30bd653a96a22",
+    "_run/dispatch.json": "00ef49cd104b0d45ca4d14109e0488dd075983fb296f84dfe159561217649a1c",
+    "_run/review.json": "b5ca501e83ee7e4657347e132f1a5fba9e4f34f5d7b1c6dd603c6811d75beb47",
+    "_run/task-reviews.json": "e2ea2af7d4cd331bfc774b16d8a7aae1a94471fc65218c5bffee79e218763a3e",
+    "docs-data.js": "d28baba1079830323cbb8b2f116d4860c587e9c3d729b2d472bf9898ebc0ec83",
     "index.html": "074a7e856b5c67e2cfe3dd400a1457607b5ccfa9590029f17422640a0806e841"
   },
   "schemaVersion": 1,
-  "sourceVersion": "1a9774d1bd2f3d6aff5a9c3bcd578e182a5882cf6f625c664526048b9423e55a"
+  "sourceVersion": "f0c73b985edcc296300e48b9292367f49084f4d6fc12f90b81a96611c785a7ad"
 }

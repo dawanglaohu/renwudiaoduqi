@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T7": {
+      "contractHash": "c77455dca49862dae5cc135e1c138ca32ece2135a49a94b7249decc4cd2fbe62",
+      "verdict": "pass",
+      "evidence": [
+        "验收 1-6 与边界 E-42/E-119/E-130/E-131/E-138/E-140/E-141/E-203/E-270 逐条对应到 packages/daemon/src/proc/{spawn,line-reader,env,timers,registry}.ts，定位写在 PR #15 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
+        "前置能力已落地并被本层消费：M1-T3 的 wrapForComSpec/comSpec（platform/windows.ts）与 M1-T9 的 killTree 契约（platform/kill-tree-contract.ts、kill-tree-posix.ts、windows.ts）由 spawn.ts 直接引用",
+        "有效路径补齐：补丁 M1-T7-review-scope-20260909 把 packages/daemon/test/unit/proc.test.ts 与 packages/daemon/test/arch/boot-boundaries.test.ts 登记为 supportPaths；两者不与 M1-T10 等既有 supportPaths 重叠",
+        "接口字段核对：LaunchSpec{runId,file,args,cwd,envOverrides,envDenylist,timeouts,label,isAcp,windowsComSpecPath} 与 08 节 LaunchSpec 一致，ManagedProcess 暴露 kill/finalize/writeStdin 与 onRaw/onJson/onExit/onError；13/17/19 节对 proc 无额外要求",
+        "验收阶段：WSL 内 pnpm -w check 通过（biome ci、tsc -b --noEmit、vitest 33 文件 242 通过，2026-09-09 11:36）；审查小修 d040db0 后定点复跑 proc.test/boot-boundaries/source-contracts 共 37 通过；代码缺陷 R1-R4 走 PR 返工，不改契约"
+      ]
+    }
+  }
+}

@@ -46,6 +46,12 @@
         "packages/daemon/test/unit/logstore-integration.test.ts"
       ]
     },
+    "M1-T7": {
+      "supportPaths": [
+        "packages/daemon/test/unit/proc.test.ts",
+        "packages/daemon/test/arch/boot-boundaries.test.ts"
+      ]
+    },
     "M1-T9": {
       "supportPaths": [
         "packages/daemon/test/unit/kill-tree.test.ts",
