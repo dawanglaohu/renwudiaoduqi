@@ -245,8 +245,10 @@ def readiness(root, analysis, structural=None):
         record = records.get(tid, {})
         verified = (record.get('contractHash') == contract['hash'] and record.get('verdict') == 'pass'
                     and bool(record.get('evidence')))
+        # blockers 只收明确的契约错误；语义复核待办不在其中，由审查阶段登记，不锁派发。
         checks[tid] = {'ready': verified and not errors, 'contractHash': contract['hash'],
-                       'reasons': errors or ([] if verified else ['任务契约待语义复核；可在当前审查内完成，无需重跑生成流程'])}
+                       'blockers': list(errors),
+                       'reasons': list(errors) or ([] if verified else ['任务契约待语义复核；可在当前审查内完成，无需重跑生成流程'])}
     return checks
 
 

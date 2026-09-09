@@ -32,7 +32,8 @@ handoff 段，缺了就退到通用默认值。
 「审查」复制成功自动推到审查中；「已落地」页面自己看不到 GitHub，由审查方落地时跑
 `--landed` 记录：status 写进任务笔记头部（随那一层的提交进仓库，一任务一文件不冲突），
 再从全部笔记派生出 _run/progress.js，阅读器加载时与本机点出来的进度合并、取更靠后的一格。
-没记录就手点状态标签兜底。下游任务的「实施」在前置全部已落地之前是灰的。「查 bug」不改状态。
+没记录就手点状态标签兜底。下游任务的「实施」在前置全部已落地之前是灰的；契约复核不锁「实施」，它在审查阶段登记，
+锁「实施」的只有明确的契约错误、过期的结构检查和同步中的文档补丁。「查 bug」不改状态。
 审查提示词把问题分成阻断与非阻断两级，只有阻断项才打回，且最多打回两轮，之后由审查方
 自己修完落地——不给「审了又审」留路。
 
@@ -1050,7 +1051,7 @@ function showCardAt(x, y, id){
          /* 卡片里的「实施」和交接台那一行一样受依赖闸门管——否则从正文芯片进来
             就能绕过闸门，把一个前置还没落地的任务推成进行中 */
          '<button class="cp" data-kind="impl" data-task="'+esc(id)+'"'+
-           (implLocked(id) ? ' disabled title="前置未落地或任务要求待复核；可点审查继续"' : '')+'>复制实施提示词</button>'+
+           (implLocked(id) ? ' disabled title="前置未落地、文档补丁同步中或任务要求有明确错误；点「审查」看原因"' : '')+'>复制实施提示词</button>'+
          '<button class="cp" data-kind="review" data-task="'+esc(id)+'">复制审查提示词</button>'+
          '<button class="cp bug" data-kind="bug" data-task="'+esc(id)+'">复制查 bug 提示词</button></div>';
   } else if(m){
@@ -1276,9 +1277,16 @@ var C = {};
 var HO = PR.handoff || {};
 var HC = D.handoff || {contracts:{}, readiness:{}, effectivePaths:{}};
 var MAINT = window.MAINTENANCE || {pendingTasks:[], needsReview:[]};
+/* 契约「待语义复核」是审查阶段要登记的一步，不锁派发；contractPending 只用来数「已复核 N/78」。
+   真正锁「实施」的是 contractBlocked：契约有明确错误（H01–H11）、结构检查过期、或本任务的
+   文档补丁还在同步——这三种情况说明任务要求本身还不可信 */
 function contractPending(id){
   var r = HC.readiness && HC.readiness[id];
   return !r || !r.ready || (MAINT.pendingTasks || []).indexOf(id) >= 0;
+}
+function contractBlocked(id){
+  var r = HC.readiness && HC.readiness[id];
+  return !r || (r.blockers || []).length > 0 || (MAINT.pendingTasks || []).indexOf(id) >= 0;
 }
 var HDOCS  = HO.docsPath || ("docs/" + D.project + "-开发文档");
 var HREPO  = HO.repo || "repo";
@@ -1396,8 +1404,9 @@ function skillBlock(t, side){
 function waitingOn(t){
   return (t.deps||[]).filter(function(d){ return stOf(d) !== "done"; });
 }
-/* 实施按钮的闸门：任何一个前置还没落地就锁着。行里和弹卡里共用这一个判断 */
-function implLocked(id){ var t = taskById(id); return !t || stOf(id) !== "todo" || contractPending(id) || !!waitingOn(t).length; }
+/* 实施按钮的闸门：本任务还是待派、前置全部已落地、契约没有明确错误。行里和弹卡里共用这一个判断。
+   同批次里别的任务在跑不算前置，不锁；契约待复核也不锁——那一步在审查提示词里做 */
+function implLocked(id){ var t = taskById(id); return !t || stOf(id) !== "todo" || contractBlocked(id) || !!waitingOn(t).length; }
 /* 此刻能同时派出去的一组：依赖已落地、自己还没派、彼此之间以及与在跑的都不抢文件 */
 function dispatchable(){
   var tasks = DT.tasks || [];
@@ -1796,6 +1805,7 @@ function buildReview(t){
   L.push("");
   L.push("## 怎么审（一轮）");
   L.push("先核对当前契约：python \"" + HDOCS + "/_run/maintain_docs.py\" \"" + HDOCS + "\" status --task " + t.id + "。复制的版本过期则读当前派发包；保留原 PR，复核变化条款，不重建分支。");
+  L.push("契约复核是审查的一部分：「实施」只按前置落地解锁，所以本任务多半还没登记复核。status 显示 ready=false 且原因是「待语义复核」→ 本轮核对后用 verify 登记；原因是明确错误 → 先走下面的文档补丁。--landed 会拒绝没登记的任务。");
   var wt = "../" + HREPO + "-" + t.id.toLowerCase();
   L.push("工作目录：实施方按提示词在自己的工作树里做，一般是 " + wt + "（git worktree list 能看到）。要动这条分支就 cd 进那个工作树——" +
          "分支已在那儿检出，主检出里 gh stack checkout 会被 git 拒绝；工作树没了就 git worktree add " + wt + " " + br + "。下面说「切到 " + br + "」都指这个动作。");
@@ -1883,7 +1893,7 @@ function buildContractReview(t){
     "验收：", acceptLines(t.accept).join("\n"), "边界：", edgeBlock(t.edges),
     "有效范围：", pathsOf(t.id).join("\n"),
     "运行 python \"" + HDOCS + "/_run/maintain_docs.py\" \"" + HDOCS + "\" status --task " + t.id + " 读取当前版本与证据模板。",
-    "要求一致则填写真实证据并运行同一命令的 verify --task " + t.id + " --evidence <JSON>，之后刷新交接台派发。",
+    "要求一致则填写真实证据并运行同一命令的 verify --task " + t.id + " --evidence <JSON>。派发本身只看前置是否落地，这一步提前做完可以让审查阶段少一道工序。",
     "发现文档局部问题则按 references/doc-maintenance.md 保存基线并定点修补、同步、复核；没有代码 PR 时不伪造 PR 号。不得放宽验收标准。"
   ].join("\n");
 }
@@ -2411,7 +2421,7 @@ function handBody(){
           " 个还没落地（<em>" + doing.map(function(t){ return t.id; }).join("　") +
           "</em>）。剩下的都等着它们：审查方落地时会记录（--landed），刷新本页即解锁下游；没记录的手点状态标签。";
   } else {
-    say = "已落地 <b>" + done + "/" + tasks.length + "</b>　当前没有可派任务：先核对任务要求的待复核项、前置落地或依赖循环。";
+    say = "已落地 <b>" + done + "/" + tasks.length + "</b>　当前没有可派任务：检查前置是否都已落地、文档补丁是否还在同步、任务要求有没有明确错误（点该行「审查」看原因），或存在依赖循环。";
   }
 
   var h = '<div class="kick">' +
@@ -2431,7 +2441,7 @@ function handBody(){
     var d = Math.round(g.reduce(function(s, x){ return s + (x.est||0); }, 0) * 10) / 10;
     var gd = g.filter(function(t){ return stOf(t.id) === "done"; }).length;
     h += '<div class="hbatch"><h5>第 ' + (k+1) + " 批 · " + g.length + " 个任务 · " + d + " 人天 · " +
-         (k === 0 ? "无前置依赖，契约复核后可开工" : "前置落地且契约复核后可开始") +
+         (k === 0 ? "无前置依赖，可立即开工" : "前置全部落地后可开始；同批次其他任务在跑不影响") +
          (gd ? " · 已落地 " + gd + "/" + g.length : "") + "</h5>";
     g.forEach(function(t){
       var id = esc(t.id), st = stOf(t.id), wait = waitingOn(t);
@@ -2456,7 +2466,7 @@ function handBody(){
         h += '<span class="wait">等 ' + esc(wait.join("、")) + "</span>";
       h += '<span class="hd">' + (t.est ? t.est + "d" : "—") + "</span>" +
         '<button class="cp" data-kind="impl" data-task="' + id + '"' +
-          (implLocked(t.id) ? " disabled title=\"前置未落地或任务要求待复核；可点审查继续\"" : "") + ">实施</button>" +
+          (implLocked(t.id) ? " disabled title=\"前置未落地、文档补丁同步中或任务要求有明确错误；点「审查」看原因\"" : "") + ">实施</button>" +
         '<button class="cp" data-kind="review" data-task="' + id + '">审查</button>' +
         ((st === "doing" || st === "review") ? '<button class="cp" data-kind="resume" data-task="' + id + '" title="沿用原分支和 PR，只处理补丁与返工条目">续做</button>' : '') +
         '<button class="cp bug" data-kind="bug" data-task="' + id + '" title="不改状态，随时可点">查 bug</button></div>';
@@ -3370,6 +3380,7 @@ def main():
         for entry in checked["readiness"].values():
             entry["ready"] = False
             entry["reasons"].append("结构检查缺失或已过期，运行维护同步命令")
+            entry.setdefault("blockers", []).append("结构检查缺失或已过期，运行维护同步命令")
     payload = {
         "schemaVersion": 1,
         "handoff": checked,

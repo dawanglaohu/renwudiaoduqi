@@ -1,6 +1,6 @@
 {
   "M1-T1": {
-    "contractHash": "2a4429b92f4ba1b4a4df58fd08b46ab22e3b4a8eb9ea27dd2092b95a097dc917",
+    "contractHash": "819b8c44e010a81541419fac9daeb0efffd269a5df588ae2cfd30839ebf73eb7",
     "evidence": [
       "PR #2（task/M1-T1）已于 2026-09-04 合并进 main；任务笔记代码位置与实施沉淀已回填并与 main 一致",
       "代码在 main：packages/daemon/bootstrap.mjs（E-139 版本门）、src/main.ts、src/boot/{container,snapshot,lock,guards,node-check}.ts、src/config/env.ts、biome.json formatter.lineEnding=lf + .gitattributes（E-214）",
@@ -8,27 +8,29 @@
       "复验原因：_run/revalidation.json 在 M1-T10-review-host-inputs-20260907 补丁同步时因契约哈希传播把本任务（previousStatus=done）标为待复验；本次按「复验已落地任务」流程以 main 上已合入代码为依据复核，不重开 PR",
       "契约差异：与上次复核版本（M1-T10-review-contract-20260907 补丁基线）逐字段比对，唯一变化是 02-设计/10-接口约定.md 的章节指纹——commit 59dcef9（M1-T9）在错误码表新增 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行；任务行、验收条款、边界、有效路径、前置契约均无变化",
       "新增错误码由 M1-T9/M1-T6 的 boot/autostart.ts、platform/autostart-contract.ts、autostart-support.ts、linux.ts 消费，且同一提交已写入 packages/shared/src/errors/codes.ts:50-52；不新增本任务的代码义务",
-      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过"
+      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-09T07:07:17.761451+00:00",
+    "reviewed": "2026-09-09T08:56:48.504543+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T10": {
-    "contractHash": "99dd274fac9f7480ec51e58563693b20548d672a6fa3e7d0d750a9b50a5c2a56",
+    "contractHash": "abb3c9ad2c5b1f4aabd6b6194d93b40628f0c026a1e6edbaf21bb770fdb08aea",
     "evidence": [
-      "第 2 轮只核 R1–R5。packages/daemon/src/platform/lock.ts:26-44、lock-posix.ts:21-37、lock-windows.ts:15-31：三平台整机锁路径、五字段元数据、POSIX root:admin/root:root 0600、Windows Administrators/SYSTEM ACL；权限不足走 permissionLines 并以非 0 退出，无每用户锁回落。",
-      "packages/daemon/src/boot/lock.ts:54-119 与 main.ts:57-119：PID + GET /api/v1/health 双探活；双活打印 Existing instance pid=/port=；双死原子回收；单活/不确定保锁；listen EADDRINUSE 经 createHttpServer 包装后 cleanupStartupFailure 释放锁。",
-      "packages/daemon/src/config/env.ts:68-84、105-138：五项 AGSCHED_* 与 daemon.json 一次装载、格式校验、冻结；PROGRAMDATA/SystemRoot 仅作宿主快照；AGSCHED_DEV 不放宽校验。arch/boot-boundaries.test.ts 断言 src 内 process.env 仅 env.ts。",
-      "packages/daemon/src/main.ts:57-114 启动顺序为 loadProcessConfig → acquireInstanceLock → ensureDataDirectory → openDatabase → runMigrations → createContainer → createHttpServer → listen → ready。本层不启动 jobs。",
-      "2026-09-08 在 Windows 工作树实测：biome ci . 通过；tsc -b --noEmit 通过；pnpm exec vitest run packages/daemon/test 为 10 files / 85 passed，含 integration 启动顺序、不同端口第二实例拒绝、陈旧锁回收、不确定探活保锁、EADDRINUSE 释锁、Windows 原生 ACL。daemon-entry 真实 bootstrap 拒绝 AGSCHED_PORT=abc。"
+      "PR #6（task/M1-T10）已于 2026-09-08 合并进 main；上次契约复核记录为 M1-T10-review-host-inputs-20260907 补丁之后的版本",
+      "本任务测试本次实跑通过（含在上述 pnpm -w check 内）：test/unit/lock-paths.test.ts 5、boot.self-check.test.ts 5、test/integration/daemon-runtime.test.ts 8（顺序启动、健康检查、第二实例拒绝）",
+      "复验原因：本任务已落地（PR 已合并、笔记 status: done），但 task-reviews.json 里的复核记录哈希早在 2026-09-08 之后就与当前契约失配（ready=false）；本次按「复验已落地任务」流程以 main 上已合入代码为依据重新登记，不重开 PR",
+      "契约差异：与上次复核版本逐字段比对，只有 compiler 指纹（本次生成器解锁修复）与 02-设计/10-接口约定.md 章节指纹变化；后者是 commit 59dcef9（M1-T9）在错误码表新增的 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行，已由同一提交写入 packages/shared/src/errors/codes.ts:50-52；任务行、验收、边界、有效路径、前置契约均无变化，本任务无新代码义务",
+      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件、tsc -b --noEmit、vitest 39 个文件 332 用例全部通过；e64fa0c→7e75ff2（当前 main）仅新增 M1-T7 的 packages/daemon/src/proc/* 与 test/unit/proc.test.ts，本任务代码路径未变"
     ],
-    "reviewed": "2026-09-08T08:24:12.969386+00:00",
+    "reviewed": "2026-09-09T09:15:42.853029+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T2": {
-    "contractHash": "99015ac5e067d6f3f0bf8f564e357159ea36555d46c1fb0102df5f9fa7d90d4c",
+    "contractHash": "062ae175a8710fe05ed6adbae2e2bc543ba79b0b097381f7bb5d91efb0643f54",
     "evidence": [
       "PR #3（task/M1-T2）已于 2026-09-05 合并进 main；任务笔记代码位置与实施沉淀已回填并与 main 一致",
       "代码在 main：packages/daemon/src/db/open-database.ts（四条 PRAGMA、E-150 busy_timeout、E-152 pnpm rebuild 指引）、migrate.ts（文件名升序、独立 immediate 事务、schema_migrations）、unit-of-work.ts（E_TX_NESTED）、migrations/0001_init.sql",
@@ -37,14 +39,16 @@
       "复验原因：_run/revalidation.json 在 M1-T10-review-host-inputs-20260907 补丁同步时因契约哈希传播把本任务（previousStatus=done）标为待复验；本次按「复验已落地任务」流程以 main 上已合入代码为依据复核，不重开 PR",
       "契约差异：与上次复核版本（M1-T10-review-contract-20260907 补丁基线）逐字段比对，唯一变化是 02-设计/10-接口约定.md 的章节指纹——commit 59dcef9（M1-T9）在错误码表新增 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行；任务行、验收条款、边界、有效路径、前置契约均无变化",
       "新增错误码由 M1-T9/M1-T6 的 boot/autostart.ts、platform/autostart-contract.ts、autostart-support.ts、linux.ts 消费，且同一提交已写入 packages/shared/src/errors/codes.ts:50-52；不新增本任务的代码义务",
-      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过"
+      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-09T07:07:21.096215+00:00",
+    "reviewed": "2026-09-09T08:56:51.821406+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T3": {
-    "contractHash": "f28b9471ea38ddafef5c55dbb4e11b54ccf1d0e78934f3cd6eda0d85172bad98",
+    "contractHash": "d834481f989b94f26fa14eef4131a5bf489d2701c13d57dfe812856175b8b53d",
     "evidence": [
       "PR #5（task/M1-T3）已于 2026-09-06 合并进 main（含审查方 R1/R2 返工与 ComSpec 参数保真修复）；任务笔记代码位置与实施沉淀已回填并与 main 一致",
       "代码在 main：packages/daemon/src/platform/{contract,host,windows,darwin,linux,resolve-executable}.ts（E-129、E-262、E-263、E-264、E-270、E-271）、packages/shared/src/shell/daemon-launch-spec.ts（E-209）；本任务使用的 E_AGENT_EXEC_NOT_EXECUTABLE、E_AGENT_EXEC_INVALID_TARGET、E_DATA_DIR_UNRESOLVABLE、E_VALIDATION 在 10 节与 codes.ts 中均未变化",
@@ -52,28 +56,29 @@
       "复验原因：_run/revalidation.json 在 M1-T10-review-host-inputs-20260907 补丁同步时因契约哈希传播把本任务（previousStatus=done）标为待复验；本次按「复验已落地任务」流程以 main 上已合入代码为依据复核，不重开 PR",
       "契约差异：与上次复核版本（M1-T10-review-contract-20260907 补丁基线）逐字段比对，唯一变化是 02-设计/10-接口约定.md 的章节指纹——commit 59dcef9（M1-T9）在错误码表新增 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行；任务行、验收条款、边界、有效路径、前置契约均无变化",
       "新增错误码由 M1-T9/M1-T6 的 boot/autostart.ts、platform/autostart-contract.ts、autostart-support.ts、linux.ts 消费，且同一提交已写入 packages/shared/src/errors/codes.ts:50-52；不新增本任务的代码义务",
-      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过"
+      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-09T07:07:24.360474+00:00",
+    "reviewed": "2026-09-09T08:56:55.184615+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T4": {
-    "contractHash": "64cff7d83d2bb33f5a7af7ad4ad32853b12ac9c67c20b7bf35f19fcfc5a97fb9",
+    "contractHash": "041baf975d09c2de785d84a382a5ece7dd8aded7f6927337d327bf60b5d682fa",
     "evidence": [
-      "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M1-T4 行与当前派发包，四条验收标准及 E-149/E-151/E-24 保持原文。产出为 logstore 文件层、repo 索引、service 先文件后索引编排、jobs/log-index-repair 启动入口。未扩大到 boot 容器接线或 M6 日志 API/UI。",
-      "依赖与分层：前置 M1-T2 已落地，0001_init.sql 含 events/log_segments。logstore 不 import repo；repo 不 import logstore；service/logstore.ts 编排两者并用 unitOfWork 写索引，事务回调无 await/文件 I/O；job 只调 service.repairAll。无反向依赖。",
-      "数据与接口：events 无 payload 列，只存 id/seq/kind/偏移；log_segments 记关闭段边界。isMilestoneEventKind 同时用于 appendEvent 与 repairRun。E_LOG_FILE_MISSING 已在 shared/src/errors/codes.ts 登记。内部字节游标不取代 M6-T8 外部 API。",
-      "有效路径：taskPaths 为 packages/daemon/src/logstore/；supportPaths 含两项 repo、service/logstore.ts、jobs/log-index-repair.ts 及对应测试。本轮审查只改上述范围内文件，未放行整个 service/repo 目录。",
-      "验收：1) appendEvent 先 await appendEventLine 再 recordRunIndexes。2) 超阈值返回 closedSegment 并 insertSegments。3) repairAll 从磁盘与 log_segments 发现 run，repairRun 从 lastIndexedEnd 扫到 EOF，索引超过文件记 E_VALIDATION。4) 读/修路径 ENOENT 返回 E_LOG_FILE_MISSING 不抛原生异常。",
-      "边界：E-149 切片并记关闭段边界，分页跨段。E-151 类型化缺失。E-24 有界扫描与 1MiB 分页，不把全量正文留在内存。 vitest 本层 8 文件 39 通过；biome check 已改文件通过。"
+      "PR #7（task/M1-T4）已于 2026-09-08 合并进 main；上次契约复核记录为 M1-T4-logstore-support 补丁之后的版本",
+      "本任务测试本次实跑通过（含在上述 pnpm -w check 内）：test/unit/log-writer.test.ts 3、log-index-repair.test.ts 6、logstore-read-window.test.ts 6、logstore-rotation.test.ts 1、logstore-run-writer.test.ts 3、logstore-append-queue.test.ts 2、test/integration/logstore-integration.test.ts 13",
+      "复验原因：本任务已落地（PR 已合并、笔记 status: done），但 task-reviews.json 里的复核记录哈希早在 2026-09-08 之后就与当前契约失配（ready=false）；本次按「复验已落地任务」流程以 main 上已合入代码为依据重新登记，不重开 PR",
+      "契约差异：与上次复核版本逐字段比对，只有 compiler 指纹（本次生成器解锁修复）与 02-设计/10-接口约定.md 章节指纹变化；后者是 commit 59dcef9（M1-T9）在错误码表新增的 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行，已由同一提交写入 packages/shared/src/errors/codes.ts:50-52；任务行、验收、边界、有效路径、前置契约均无变化，本任务无新代码义务",
+      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件、tsc -b --noEmit、vitest 39 个文件 332 用例全部通过；e64fa0c→7e75ff2（当前 main）仅新增 M1-T7 的 packages/daemon/src/proc/* 与 test/unit/proc.test.ts，本任务代码路径未变"
     ],
-    "reviewed": "2026-09-08T08:19:43.081166+00:00",
+    "reviewed": "2026-09-09T09:15:39.409989+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T5": {
-    "contractHash": "bccc69f02a3dcbef75ddc8c156eaa36dc53b8f5d89779c4c1edbf65e1d504ce3",
+    "contractHash": "6fe9a4d9f7c02336313ae8ec4dada2bd1ae487391cd0b82f52fb6f0ce5019dc6",
     "evidence": [
       "pnpm -w check (biome ci + tsc -b --noEmit + vitest run) on Windows worktree D:/xiangmu/agent-scheduler-m1-t5 @ 47e8f6a: biome clean, tsc clean, 36 test files / 313 tests passed",
       "AC1/E-103: packages/daemon/src/service/system.ts checkDiskWatch + packages/daemon/src/jobs/disk-watch.ts; test/unit/disk-watch.test.ts 'E-103' publishes system.disk_warning and sets the disk_threshold halt",
@@ -82,27 +87,31 @@
       "AC4/E-206: packages/daemon/src/logstore/primitives.ts isPathWithinWhitelist + refuseOutsideWhitelist; test/unit/disk-primitives.test.ts 'E-206' returns E_FORBIDDEN and logs a [SECURITY_VIOLATION] line; main.ts routes the sink to writeRunLog",
       "AC5/E-204: primitives.ts toOpFailure via fs-errors.ts isBusyCause; test/unit/disk-primitives.test.ts 'E-204' raw EBUSY and adapter-wrapped EPERM both return {ok:false, retryable:true, code:'EBUSY'} without throwing",
       "Interface: GET /api/v1/system/usage returns exactly {dataDirBytes, byRun[], warnThreshold} per 10-接口约定 端点总表 (integration test asserts the key set); system.disk_warning payload {freeBytes?, path, message} matches packages/shared/src/api/events.ts SystemDiskWarningPayload",
-      "Prerequisite M1-T4 landed (progress.js done); effective paths patched via M1-T5-support-paths-20260909 (supportPaths: boot/container.ts, main.ts, http/routes/system.ts, http/server.ts, service/logstore.ts, service/system.ts, 4 test files); in-flight task/M1-T6 also edits container.ts additively, no shared hunk"
+      "Prerequisite M1-T4 landed (progress.js done); effective paths patched via M1-T5-support-paths-20260909 (supportPaths: boot/container.ts, main.ts, http/routes/system.ts, http/server.ts, service/logstore.ts, service/system.ts, 4 test files); in-flight task/M1-T6 also edits container.ts additively, no shared hunk",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-09T03:57:10.753513+00:00",
+    "reviewed": "2026-09-09T08:56:58.749999+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T6": {
-    "contractHash": "6e5645536965e38123b9845037932a92823afe5887af23c5d3ef5d2d5ca13228",
+    "contractHash": "5c5ad9fdbcdc1e953cee5c7f82524cf9c949e2a644a9c40d68a7569e44fc998b",
     "evidence": [
       "前置 M1-T1、M1-T9 已落地（origin/main afe2a97 之后），M6-T1 的 domain/run-state-machine.ts 已合入分支并被 jobs/reconcile-runs.ts 消费",
       "有效路径复核：改动仅落在 boot/autostart.ts、boot/shutdown.ts、boot/container.ts、jobs/reconcile-runs.ts 与补丁新增的 supportPaths（main.ts 与五个测试文件）",
       "接口字段：register/status/unregister 消费 platform/autostart-contract.ts 的 AutostartAdapter 与 shared daemon-launch-spec.ts 的 DaemonLaunchSpec，逐字段比对、恒不拼 shell；ReconcileRunsService 三方法必填，processProbe 三态 alive/dead/uncertain，clock 注入",
       "验收 1-5 逐条指到代码：autostart.ts:43/96/120，shutdown.ts:31，main.ts:113（listen 后 job.start、退出走 createShutdownHandler），reconcile-runs.ts:87/113/132；E-01/E-02/E-123/E-209/E-210/E-212/E-261 均有对应实现与用例",
-      "PR #16 第 1 轮返工 R1-R3 已修（commit 0cc9c29），审查方补 AppError 上报与 writeRunLog 接线；分支 pnpm -w check 通过：36 个测试文件 297 用例全绿（biome ci + tsc -b + vitest）"
+      "PR #16 第 1 轮返工 R1-R3 已修（commit 0cc9c29），审查方补 AppError 上报与 writeRunLog 接线；分支 pnpm -w check 通过：36 个测试文件 297 用例全绿（biome ci + tsc -b + vitest）",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-09T04:06:23.312170+00:00",
+    "reviewed": "2026-09-09T08:57:02.223604+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T7": {
-    "contractHash": "c77455dca49862dae5cc135e1c138ca32ece2135a49a94b7249decc4cd2fbe62",
+    "contractHash": "5b08626affc129e7c9391b3acdceaaec0279f990e8b6e874c2824bcd0974e1aa",
     "evidence": [
       "验收 1-6 与边界 E-42/E-119/E-130/E-131/E-138/E-140/E-141/E-203/E-270 逐条对应到 packages/daemon/src/proc/{spawn,line-reader,env,timers,registry}.ts，定位写在 PR #15 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
       "前置能力已落地并被本层消费：M1-T3 的 wrapForComSpec/comSpec（platform/windows.ts）与 M1-T9 的 killTree 契约（platform/kill-tree-contract.ts、kill-tree-posix.ts、windows.ts）由 spawn.ts 直接引用",
@@ -112,14 +121,16 @@
       "第 2 轮（2026-09-09）：R1-R4 逐条复核，定位在 PR #15 的 REVIEW-ROUND 2 评论。R1 'exit' 只武装排空计时器、'close' 才 finalize（spawn.ts:466、:476）；R2 proc 下 process.platform/Reflect.get 为空，platform 必填并用 classifyPathForHost 校验绝对路径（spawn.ts:166-173、env.ts:17）；R3 proc 下无 E_TIMEOUT，ProcessExitReason 五值（spawn.ts:89-94）；R4 checkTimeoutMs 默认 0（timers.ts:70）",
       "第 2 轮审查修复（FIXED_BY_REVIEWER）：finalize 等待在途 killTree（spawn.ts:366-380、:419-421），否则 POSIX 3 秒宽限内子进程先 close 会让退出记录的 killTree 恒为 undefined；超时先到先得（handleXxxTimeout 入口检查 exitReason）；新增用例「finalize waits for an in-flight killTree」与「arms the check timer only when checkTimeoutMs is set explicitly」",
       "第 2 轮验收：分支已合并 origin/main（e64fa0c，含 M1-T5/M1-T6），冲突只在 _run 生成产物与 task-contracts.json（保留双方任务条目）；合并后 WSL 内 pnpm -w check 通过（biome ci、tsc -b --noEmit、vitest 40 文件 333 通过 32 跳过，2026-09-09 15:26）；审查修复后定点复跑 biome(proc)、tsc -b、proc.test 35 通过、test/arch + source-contracts + kill-tree 22 通过",
-      "第 2 轮契约复核：contractHash c77455dc 与派发包一致，合并未改变本任务契约；有效路径 proc/ 与 supportPaths（proc.test.ts、boot-boundaries.test.ts）之外无改动；接口字段新增 ProcessExitResult.reason/killTree 与 SpawnManagedOptions.platform(必填)/exitDrainGraceMs，均在 08 节 proc 条款「exit/error/close 走同一幂等 finalize」「进程树终止一律走 platform.killTree」范围内，不新增错误码"
+      "第 2 轮契约复核：contractHash c77455dc 与派发包一致，合并未改变本任务契约；有效路径 proc/ 与 supportPaths（proc.test.ts、boot-boundaries.test.ts）之外无改动；接口字段新增 ProcessExitResult.reason/killTree 与 SpawnManagedOptions.platform(必填)/exitDrainGraceMs，均在 08 节 proc 条款「exit/error/close 走同一幂等 finalize」「进程树终止一律走 platform.killTree」范围内，不新增错误码",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-09T07:50:24.682602+00:00",
+    "reviewed": "2026-09-09T08:57:05.583048+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T9": {
-    "contractHash": "ab2f07872cb180570af552c852bd1ec0f0088cfb18fe5284a8f850c6da94d174",
+    "contractHash": "ad1874f6fa13213d72de72e7e65ea54a3c1dd852a1f6734af706e840bf24fc63",
     "evidence": [
       "2026-09-08 第2轮仅复核 PR #8 REVIEW-ROUND 1 的 R1-R5。任务契约 hash 保持 ab2f07872cb180570af552c852bd1ec0f0088cfb18fe5284a8f850c6da94d174；maintain_docs status 返回 ready=true、stale=[]。",
       "R1/E-119：kill-tree-posix.ts:16-37 与 windows.ts:229-258 由注入的 processOps 执行软终止、3000ms 等待、探活与强制升级，每次动作由 recordAttempt 发事件。kill-tree.test.ts 5 项覆盖 TERM/TASKKILL、等待、探活、KILL/F 和所有权终局。",
@@ -127,14 +138,16 @@
       "R3/E-209：三个 AutostartAdapter 都实现 register(spec)/status(spec)/unregister()；Windows 读取 XML 原生字段，Darwin 同时核对 launchctl 与 plist，Linux 同时核对 systemd is-enabled 与完整 unit。autostart.test.ts 14 项覆盖特殊参数往返、幂等、file/args/cwd 分别变化后的重写、原生字段篡改、部分失败回滚、手动启动命令和 unsupported 分支。",
       "R5/E-119/E-269：test/platform/kill-tree-native.test.ts 启动会派生后代且拒绝软终止的父进程，Windows 实际经过 taskkill /T 再 /F 并确认父子 PID 均退出，Linux 实际经过进程组 TERM 再 KILL。autostart-native.test.ts 使用 PID+UUID 隔离名称，在 finally 注销、复查残留并在失败时输出人工删除命令。",
       "实测：Windows Node 22.17.0 的 pnpm -w check 通过 Biome、tsc 与 11 个 Vitest 文件 93/93；Linux Node 22.17.0 聚焦运行 4 个文件 21/21。Windows Task Scheduler 原生注册清理和父子树终止通过；Linux 环境的 POSIX 父子组终止及无 systemd user 降级通过。没有把这些结果外推成 macOS 本机证据，macOS runner 与三平台发布门禁仍归 M10-T5。",
-      "任务笔记 code/notes 已按当前文件和行号重写，记录注入边界、原生状态与字段双重核对、taskkill 128 歧义、失败回滚及本机证据边界；未提前实现 M1-T6/M1-T7/M6-T5 的调用接线。"
+      "任务笔记 code/notes 已按当前文件和行号重写，记录注入边界、原生状态与字段双重核对、taskkill 128 歧义、失败回滚及本机证据边界；未提前实现 M1-T6/M1-T7/M6-T5 的调用接线。",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-08T08:30:07.434462+00:00",
+    "reviewed": "2026-09-09T08:57:09.046937+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T4": {
-    "contractHash": "60d225b167e8f219e9faa601fc08891d1f560f8c75deec7b946820919e07dd8c",
+    "contractHash": "e78cae65e1db84c35ed24056c4e71b2506832929a87daabc0e8ab334b8155f2f",
     "evidence": [
       "R1: packages/daemon/src/repo/event-seq-repo.ts owns all event_seq SQL and converts SQLite failures; createContainer uses only this real repo, fixes the global sequence and 1000-ID reservation, and events-runtime.test.ts verifies real migrations plus file-SQLite restart from ID 50 to 1001 without rollback.",
       "R2: createRingBuffer exposes neither capacity configuration nor clear, always retains 5000 envelopes, rejects oversized or pre-truncated payloads without a valid positive safe-integer logstore reference before mutation, and events.test.ts verifies the 5000/5001 replay boundary and E_REPLAY_WINDOW_EXPIRED.",
@@ -142,28 +155,32 @@
       "R4: bus-transaction.test.ts scans production sources and negative controls for inline, variable, named, and database transaction callbacks while excluding unrelated run/publish methods; the event bus has no optional unconnected transaction probe.",
       "R5: EventBus.publish buffers once, continues all subscriber notifications, and returns a frozen structured list retaining each thrown error and subscriber; events.test.ts verifies one failure, continued delivery, and one buffer insertion.",
       "Focused verification: pnpm exec tsc -b --noEmit and Vitest over events.test.ts, bus-transaction.test.ts, events-runtime.test.ts, logstore-integration.test.ts, and daemon-runtime.test.ts exited 0 with 5 files and 38 tests passed.",
-      "Workspace verification: pnpm -w check exited 0 after the final reviewer fixes; Biome checked 96 files, TypeScript passed, and Vitest reported 25 files passed with 130 tests passed and 32 platform-gated tests skipped."
+      "Workspace verification: pnpm -w check exited 0 after the final reviewer fixes; Biome checked 96 files, TypeScript passed, and Vitest reported 25 files passed with 130 tests passed and 32 platform-gated tests skipped.",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-08T16:06:16.223015+00:00",
+    "reviewed": "2026-09-09T08:57:12.573478+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T1": {
-    "contractHash": "146512f9685ce81851231c1387405647829d67cc10e9dd6d92c95528b1fd87de",
+    "contractHash": "d0ce8d8c6aeb6ab3fd590ec7ef93986ae72314eb84aa0162b95113ba7d3ce51e",
     "evidence": [
       "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T1 行、09-数据模型.md:43-77、六条任务边界和当前派发包，确认输入为 unattended-run 1.1.0 docs-data.js，产出与七个有效实现/测试路径一致；前置 M1-T2 已落地，M3-T2 负责后续任务与批次落库。",
       "协议与保留：packages/daemon/src/service/docs.ts 校验 UTF-8 JSON 外壳、schemaVersion=1、任务必需字段与唯一 ID、三处非空契约哈希、ready/reasons 和 effectivePaths；路径规则与 _run/handoff_contract.py:path_valid 对齐。直接调用真实解析入口验证首尾空白、反斜杠、点段、空段、通配符和盘符相对路径共十种输入全部返回 E_DOC_SOURCE_UNREADABLE；docs-import.test.ts 验证既有记录保留、is_source_readable 置 0、文件恢复后解除标记。",
       "内容指纹：packages/daemon/src/domain/docs-fingerprint.ts 只规范化按任务 ID 确定性排序的 [id, contractHash] 列表且没有运行时 import；packages/daemon/src/service/docs.ts 提供 SHA-256。docs-fingerprint.test.ts 以固定规范串和已知摘要锁定结果，并覆盖任务顺序、增删和契约哈希变化；generated、mtime、ready/reasons 不进入指纹。",
       "分层与数据边界：packages/daemon/src/domain/layer-of.ts 与当前阅读器 layerOf 的最长前驱链、环截断和缺失前驱过滤规则一致；packages/daemon/src/repo/documents.ts 只收发 snake_case DocumentRow，service 映射 camelCase 记录。repo 的 prepare/run/get/all 均经 toDatabaseError 包装，重复唯一键测试观察到带原始 cause 的 AppError。",
       "E-79 与 E-247：同 id/contractHash 指纹下更新 generated 或 ready/reasons 时 hasChanged=false，同时刷新 last_seen_at 并返回最新复核元数据；lane_count 新建默认 2、值域 1-6，用户改为 4 后重新导入保持 4，代码不读取阅读器 localStorage。",
-      "验证环境与结果：Node 22.17.0 下执行聚焦 Vitest 三文件 33/33 通过；审查方补齐路径规则和原生命周期回归后执行 pnpm -w check，Biome、TypeScript 与 25 个 Vitest 文件全部通过，146 passed、32 skipped。跳过项是现有按平台条件选择的测试，不影响本任务的纯解析、SQLite 与 service 行为。"
+      "验证环境与结果：Node 22.17.0 下执行聚焦 Vitest 三文件 33/33 通过；审查方补齐路径规则和原生命周期回归后执行 pnpm -w check，Biome、TypeScript 与 25 个 Vitest 文件全部通过，146 passed、32 skipped。跳过项是现有按平台条件选择的测试，不影响本任务的纯解析、SQLite 与 service 行为。",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-08T15:10:57.065155+00:00",
+    "reviewed": "2026-09-09T08:57:16.092601+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T1": {
-    "contractHash": "252acf02a0c7d89eb656665c76a2310a6f1b01c44b08dfb06e93e771903b35ae",
+    "contractHash": "17fd414c5770f25a70b9c0cfa6cd3a99dfc1007f726a771532385dc9d7a29afb",
     "evidence": [
       "PR #4（task/M4-T1）已于 2026-09-05 合并进 main（含默认基线补全回归测试）；任务笔记代码位置与实施沉淀已回填并与 main 一致",
       "代码在 main：packages/daemon/src/config/defaults.ts（具名 adapterKind 枚举与四家内置默认）、config/registry.ts（fs.watch 目录监听 + 300ms 防抖 + 内容指纹去重 E-93；校验失败保留上一版并告警 E-94；内置默认/历史默认/用户覆盖分层与一键采纳 E-92；maxConcurrency<=0 派生禁用 E-91）",
@@ -172,73 +189,85 @@
       "复验原因：_run/revalidation.json 在 M1-T10-review-host-inputs-20260907 补丁同步时因契约哈希传播把本任务（previousStatus=done）标为待复验；本次按「复验已落地任务」流程以 main 上已合入代码为依据复核，不重开 PR",
       "契约差异：与上次复核版本（M1-T10-review-contract-20260907 补丁基线）逐字段比对，唯一变化是 02-设计/10-接口约定.md 的章节指纹——commit 59dcef9（M1-T9）在错误码表新增 E_AUTOSTART_UNSUPPORTED、E_AUTOSTART_REGISTER_DENIED、E_AUTOSTART_UNREGISTER_DENIED 三行；任务行、验收条款、边界、有效路径、前置契约均无变化",
       "新增错误码由 M1-T9/M1-T6 的 boot/autostart.ts、platform/autostart-contract.ts、autostart-support.ts、linux.ts 消费，且同一提交已写入 packages/shared/src/errors/codes.ts:50-52；不新增本任务的代码义务",
-      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过"
+      "2026-09-09 主检出 main @ e64fa0c 运行 pnpm -w check：biome ci 129 文件无问题、tsc -b --noEmit 通过、vitest run 39 个测试文件 332 用例全部通过",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-09T07:07:27.631289+00:00",
+    "reviewed": "2026-09-09T08:57:19.523121+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T2": {
-    "contractHash": "1cb87b7c52fc3392c8aeb7e0df922c87c0fcf724cd8b43bc06921c8ff7b31ea6",
+    "contractHash": "a177c4299c2ddd73daeed73e0c990a9e9591058d2631e55914ed5432b451186d",
     "evidence": [
       "范围与产出：对照 04-执行/19-模块任务拆分.md 的 M4-T2 行，仍只交付四变量模板解析、注册表保存/热加载校验、运行时防御校验与同路径同会话目录告警；E-89/E-95 的触发和结果均未删除或放宽。supportPaths 只补入既有 M4-T1 所有者 packages/daemon/src/config/registry.ts 及两份直接测试，没有开放整个 config/test 目录。",
       "前置与接线：M4-T1 任务笔记状态为 done，现有 registry.ts 已提供 agents.json 解析、热加载、保留上一版与 publishWarning 接缝。补丁把 M4-T2 的客观成功点写成注册表只发布校验通过的快照，并要求运行时渲染入口再次拒绝未经校验模板；当前代码实际探针仍能发布 --bad={unknown}，因此代码验收为 rework，不把本契约 pass 冒充实现通过。",
       "分层与文案：对照 06/08 节，domain 保持纯函数叶子，配置边界负责把校验失败接入注册表拒绝/告警；daemon 只产英文开发者 message 与 reason 精确等于 session-dir-overlap 的结构化告警，中文用户文案由 M9-T14 设置页映射。没有新增 HTTP 状态、环境变量、SQL、事务或反向依赖。",
       "验收与测试责任：E-89 由 launch-template 单元测试覆盖允许变量、未知变量、未闭合括号及起止位置，并由 agent-registry 单元测试覆盖真实 reload 拒绝、旧快照保留和可高亮 details；E-95 由纯函数与 registry 集成测试覆盖同路径同目录告警、不同目录不告警且保存成功；17 节的 pnpm -w check 仍是本地验收门禁。",
-      "实证：在 task/M4-T2 worktree 的原始 PR head c119ad8 上执行 pnpm -w check，Biome、tsc 与 Vitest 全绿，23 个测试文件中 136 通过、32 个平台用例跳过；另以 createAgentRegistry 真实入口加载未知变量，观测到无告警且非法 argsTemplate 进入 snapshot，定位出当前实现与已定契约的具体差距。补丁同步使用 Python 3.13.7 成功，sourceVersion 与契约哈希由 status 重新读取。"
+      "实证：在 task/M4-T2 worktree 的原始 PR head c119ad8 上执行 pnpm -w check，Biome、tsc 与 Vitest 全绿，23 个测试文件中 136 通过、32 个平台用例跳过；另以 createAgentRegistry 真实入口加载未知变量，观测到无告警且非法 argsTemplate 进入 snapshot，定位出当前实现与已定契约的具体差距。补丁同步使用 Python 3.13.7 成功，sourceVersion 与契约哈希由 status 重新读取。",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-08T13:45:07.296645+00:00",
+    "reviewed": "2026-09-09T08:57:22.843483+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T5": {
-    "contractHash": "f216ef0eba348bdcdbbc1c89c99139824c428ed6afbfcfb17e8c8b7304bcc8ad",
+    "contractHash": "a02991b1f43560c5dcd309d02e965cef7a65dbde216ebdf68b999d5a5ad6e82b",
     "evidence": [
       "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M4-T5 行、03-质量/13-边界问题与异常处理.md 的 E-38/E-39/E-43/E-44/E-90、03-质量/17-测试策略.md 和当前派发包，确认前置 M4-T1 已落地；本层产出为四个具名 readModels reader，测试、源码架构断言与任务笔记是必要支持文件，未接入 M4-T6 或 M9-T14 的后续业务链。",
       "配置读取与错误：packages/daemon/src/adapters/codex/read-models.ts、claude/read-models.ts、grok/read-models.ts、pi/read-models.ts 通过宿主快照和异步可替换文件系统读取四家实测格式；非法 TOML 和损坏 JSON 不产生配置模型，返回具体绝对路径。Pi 通过 configErrors 保留多个文件错误，configError 兼容单错误消费者。",
       "命令降级与进程边界：Grok 和 Pi 的列模型命令先经 platform.resolveExecutable；Windows 批处理目标再由 wrapForComSpec 生成完整 argv。超时上限不超过 5000ms，runner 接收 AbortSignal 并须在子进程和输出流收敛后返回；非零退出或超时标 isPartial，非空不可解析 stdout 原样保留到 rawStdout。",
       "缓存与空目录：配置值、historicalModels 和 cachedModels 始终合并，不因命令或解析失败禁止后续派发。Pi 的 providers 空对象、models 空数组、空数组和空对象是合法空目录；未知非空结构标 isPartial 并保留上次成功缓存。四个 reader 每次调用重新 stat/read，不保留跨调用配置内容缓存。",
       "回归与架构：packages/daemon/test/unit/read-models.test.ts 覆盖四家格式、非法配置、Pi 多文件绝对错误路径、Grok/Pi 非零退出与超时、5000ms 不可放大、AbortSignal 收敛、Windows ComSpec 启动、格式变化 rawStdout、mtime 重读及 Pi 空目录缓存降级。source-contracts.test.ts 禁止 adapter 直接 node:os 和同步文件 API。",
-      "验证结果：合并当前 origin/main 后，四个本机真实配置 smoke 分别读出 Codex 12、Claude 3、Grok 2、Pi 15 个模型，均无 partial/warning/error；pnpm -w check 通过，Biome、TypeScript 与 26 个 Vitest 文件全部通过，168 passed、32 skipped。跳过项是既有按平台条件选择的测试；Windows ComSpec 参数形状由纯平台回归覆盖。"
+      "验证结果：合并当前 origin/main 后，四个本机真实配置 smoke 分别读出 Codex 12、Claude 3、Grok 2、Pi 15 个模型，均无 partial/warning/error；pnpm -w check 通过，Biome、TypeScript 与 26 个 Vitest 文件全部通过，168 passed、32 skipped。跳过项是既有按平台条件选择的测试；Windows ComSpec 参数形状由纯平台回归覆盖。",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-08T16:58:55.154130+00:00",
+    "reviewed": "2026-09-09T08:57:26.181032+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T7": {
-    "contractHash": "6cd812354aed0a9bba7e1212822f549af13ff9066fa1d0a34abd20c9b5cd09d7",
+    "contractHash": "60ca55cc790dc7ed1cd99fac0652a770d4859381d17985a2a30f69d7d5ba4908",
     "evidence": [
       "R1 已关闭：packages/daemon/src/config/defaults.ts:38-47 与 :60-126 将 permissionTier 纳入 AgentConfig 和四家内置默认，默认均为 workspaceWrite；packages/daemon/src/config/registry.ts:23-52、:185-210、:589-598、:756-762 及字段读写/冻结链完成 schema、解析、合并、默认升级与持久化。agent-registry.test.ts:172 起以真实保存、重载、非法厂商值拒绝和保留上一快照验证该链。",
       "R2 已关闭：permission-tier.ts:60-88 以判别联合保留 argv/env 通道；:109-149 映射 Codex/Claude/Grok、DSH 的 DSH_PERMISSION_MODE 和 Pi；Pi 的 write/edit 支持绝对路径，故 :127-133 对无外部沙箱的 workspaceWrite 明确 unsupported，不冒充工作区边界；generic ACP 在 :159-188 不臆造 CLI flag。effort-tier.ts:82-113 映射 Codex、Claude MAX_THINKING_TOKENS、Grok 与 Pi；真实 Claude 1.0.67 以 env 启动不再报 unknown option 或 Settings file not found。",
       "R3 已关闭：effort-tier.ts:16-22、:115-140 接收适配器或模型探测给出的 isSupported/unsupportedReason，而不按模型名猜能力；:156-184 只对报告厂商的精确已知值做反向映射；:193-209 保留未经 trim 的 reportedRaw 与 selectedTier，未知值归一化为 null 并判 mismatch。测试覆盖 constructor/__proto__、未知 3000/8193/Infinity、空白和原始字符串保留。",
       "R4 已关闭：permission-tier.ts 与 effort-tier.ts 均没有 import，domain 不再依赖 config/errors 或 Web CSS token；配置边界用 isPermissionTier 返回类型化 rejected 结果，不让裸原生错误穿透。两份 domain 测试读取源码断言无外层 import，并通过消费者可观察的注册表、映射和 unsupported 结果验证语义。任务笔记已改为当前态表述，删除 R1-R4 审查会话残渣及失实 --settings/Pi 工作区声明。",
-      "2026-09-09 在 Windows 工作树运行 pnpm -w check：Biome 检查 91 文件、tsc -b --noEmit、Vitest 24 文件 160 项全部通过。另运行三份相关测试共 19 项通过；真实入口核对 Codex 0.153.4、Claude 1.0.67、Pi 0.85.1、Grok 1.0.13 和已安装 DSH 配置，验证所采用 flag/env 以及 unsupported 路径。"
+      "2026-09-09 在 Windows 工作树运行 pnpm -w check：Biome 检查 91 文件、tsc -b --noEmit、Vitest 24 文件 160 项全部通过。另运行三份相关测试共 19 项通过；真实入口核对 Codex 0.153.4、Claude 1.0.67、Pi 0.85.1、Grok 1.0.13 和已安装 DSH 配置，验证所采用 flag/env 以及 unsupported 路径。",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-08T17:20:48.655965+00:00",
+    "reviewed": "2026-09-09T08:57:29.535225+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T1": {
-    "contractHash": "14107ce84c31a79ce8d389664b71b0f5021279c5fbc20918bae64a93e9079f04",
+    "contractHash": "aaf53dfa52e5776ba23df29ebe46e4c6a2c48f3fe1142fa0cabe9875f244a594",
     "evidence": [
       "packages/daemon/src/domain/run-state-machine.ts: AC1 pure function state machine without side-effects",
       "packages/daemon/src/domain/run-state-machine.ts: AC2/E-23 prohibits exited->landed direct transition",
       "packages/daemon/src/domain/run-state-machine.ts: AC3/E-123 makes interrupted a terminal state with zero outgoing edges",
-      "packages/daemon/src/domain/run-state-machine.ts: AC4 DI clock and ids injection for deterministic behavior"
+      "packages/daemon/src/domain/run-state-machine.ts: AC4 DI clock and ids injection for deterministic behavior",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-09T01:31:34.455330+00:00",
+    "reviewed": "2026-09-09T08:57:32.838879+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T14": {
-    "contractHash": "9f0200e8c97b6144bdbe866c2205b1fe48fbefe58d08457973e05e5605ef75bb",
+    "contractHash": "05e4404acd3e2c1283ee575096eb644ca95a21696713d50a918f3030da99ca4d",
     "evidence": [
       "职责边界：M9-T14 仍只拥有 agent 设置页与容器；补丁仅增加 E-95 的呈现侧，把 reason 精确等于 session-dir-overlap 映射为会话记录可能互相覆盖，不把路径/会话目录判定搬到前端，不允许组件直出 daemon 英文 message。",
       "前置与接口：任务依赖和输入显式加入 M4-T2 的 session-dir-overlap 告警，原有 M9-T4、M4-T5 与 M4-T1 注册表输入保持不变。M4-T2 现直接解锁 M9-T14，避免设置页在结构化原因尚未落地前实施该分支。",
       "路径与冲突：M9-T14 有效路径仍为 packages/web/src/features/settings-agents/ 与 packages/web/src/pages/settings-agents-page.tsx，未扩大到共享错误表或其他页面；M4-T2 的 daemon/config/domain/test 路径与它不冲突，依赖表达的是接口顺序而非放宽并行写范围。",
-      "验收阶段：本次只复核下游契约可执行性，不实现 M9-T14，不声称 UI 已完成。后续验收须通过设置页容器测试观测中文提示，并按 06/07 节确认组件只按 reason 分支、中文仍由前端文案所有者提供。"
+      "验收阶段：本次只复核下游契约可执行性，不实现 M9-T14，不声称 UI 已完成。后续验收须通过设置页容器测试观测中文提示，并按 06/07 节确认组件只按 reason 分支、中文仍由前端文案所有者提供。",
+      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
+      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
     ],
-    "reviewed": "2026-09-08T13:45:23.326119+00:00",
+    "reviewed": "2026-09-09T08:57:36.176853+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }
