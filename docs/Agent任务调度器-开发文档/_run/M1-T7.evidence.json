@@ -9,7 +9,11 @@
         "前置能力已落地并被本层消费：M1-T3 的 wrapForComSpec/comSpec（platform/windows.ts）与 M1-T9 的 killTree 契约（platform/kill-tree-contract.ts、kill-tree-posix.ts、windows.ts）由 spawn.ts 直接引用",
         "有效路径补齐：补丁 M1-T7-review-scope-20260909 把 packages/daemon/test/unit/proc.test.ts 与 packages/daemon/test/arch/boot-boundaries.test.ts 登记为 supportPaths；两者不与 M1-T10 等既有 supportPaths 重叠",
         "接口字段核对：LaunchSpec{runId,file,args,cwd,envOverrides,envDenylist,timeouts,label,isAcp,windowsComSpecPath} 与 08 节 LaunchSpec 一致，ManagedProcess 暴露 kill/finalize/writeStdin 与 onRaw/onJson/onExit/onError；13/17/19 节对 proc 无额外要求",
-        "验收阶段：WSL 内 pnpm -w check 通过（biome ci、tsc -b --noEmit、vitest 33 文件 242 通过，2026-09-09 11:36）；审查小修 d040db0 后定点复跑 proc.test/boot-boundaries/source-contracts 共 37 通过；代码缺陷 R1-R4 走 PR 返工，不改契约"
+        "验收阶段：WSL 内 pnpm -w check 通过（biome ci、tsc -b --noEmit、vitest 33 文件 242 通过，2026-09-09 11:36）；审查小修 d040db0 后定点复跑 proc.test/boot-boundaries/source-contracts 共 37 通过；代码缺陷 R1-R4 走 PR 返工，不改契约",
+        "第 2 轮（2026-09-09）：R1-R4 逐条复核，定位在 PR #15 的 REVIEW-ROUND 2 评论。R1 'exit' 只武装排空计时器、'close' 才 finalize（spawn.ts:466、:476）；R2 proc 下 process.platform/Reflect.get 为空，platform 必填并用 classifyPathForHost 校验绝对路径（spawn.ts:166-173、env.ts:17）；R3 proc 下无 E_TIMEOUT，ProcessExitReason 五值（spawn.ts:89-94）；R4 checkTimeoutMs 默认 0（timers.ts:70）",
+        "第 2 轮审查修复（FIXED_BY_REVIEWER）：finalize 等待在途 killTree（spawn.ts:366-380、:419-421），否则 POSIX 3 秒宽限内子进程先 close 会让退出记录的 killTree 恒为 undefined；超时先到先得（handleXxxTimeout 入口检查 exitReason）；新增用例「finalize waits for an in-flight killTree」与「arms the check timer only when checkTimeoutMs is set explicitly」",
+        "第 2 轮验收：分支已合并 origin/main（e64fa0c，含 M1-T5/M1-T6），冲突只在 _run 生成产物与 task-contracts.json（保留双方任务条目）；合并后 WSL 内 pnpm -w check 通过（biome ci、tsc -b --noEmit、vitest 40 文件 333 通过 32 跳过，2026-09-09 15:26）；审查修复后定点复跑 biome(proc)、tsc -b、proc.test 35 通过、test/arch + source-contracts + kill-tree 22 通过",
+        "第 2 轮契约复核：contractHash c77455dc 与派发包一致，合并未改变本任务契约；有效路径 proc/ 与 supportPaths（proc.test.ts、boot-boundaries.test.ts）之外无改动；接口字段新增 ProcessExitResult.reason/killTree 与 SpawnManagedOptions.platform(必填)/exitDrainGraceMs，均在 08 节 proc 条款「exit/error/close 走同一幂等 finalize」「进程树终止一律走 platform.killTree」范围内，不新增错误码"
       ]
     }
   }
