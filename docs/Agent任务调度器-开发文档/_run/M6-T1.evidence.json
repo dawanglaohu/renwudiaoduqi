@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M6-T1": {
+      "contractHash": "14107ce84c31a79ce8d389664b71b0f5021279c5fbc20918bae64a93e9079f04",
+      "evidence": [
+        "packages/daemon/src/domain/run-state-machine.ts: AC1 pure function state machine without side-effects",
+        "packages/daemon/src/domain/run-state-machine.ts: AC2/E-23 prohibits exited->landed direct transition",
+        "packages/daemon/src/domain/run-state-machine.ts: AC3/E-123 makes interrupted a terminal state with zero outgoing edges",
+        "packages/daemon/src/domain/run-state-machine.ts: AC4 DI clock and ids injection for deterministic behavior"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
