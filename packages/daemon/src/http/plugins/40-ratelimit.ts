@@ -49,7 +49,7 @@ export const ratelimitPlugin: FastifyPluginAsync = async (
 		const ip = request.ip || '127.0.0.1';
 		const allowed = limiter.checkAndRecord(ip, Date.now());
 		if (!allowed) {
-			// TODO(M2-T3): Revoke the current pairing code via pairService before throwing 429
+			// TODO(M2-T3): Revoke the current pairing code via pairService before throwing rate limit error
 			throw new AppError('E_RATE_LIMITED', 'Rate limit exceeded for pairing endpoint.', {
 				details: { ip, windowMs: DEFAULT_WINDOW_MS, maxRequests: DEFAULT_MAX_REQUESTS },
 			});

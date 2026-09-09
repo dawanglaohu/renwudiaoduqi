@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { registerHealthRoute } from '../routes/health.ts';
+import { registerRunsRoutes } from '../routes/runs.ts';
 import { registerSystemRoutes } from '../routes/system.ts';
 
 function normalizePath(url: string): string {
@@ -32,4 +33,5 @@ export const routesPlugin: FastifyPluginAsync = async (
 	const target = createRouteTarget(instance);
 	registerHealthRoute(target);
 	registerSystemRoutes(target);
+	registerRunsRoutes(target);
 };
