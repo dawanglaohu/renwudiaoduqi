@@ -14,7 +14,8 @@ from handoff_contract import VERSION, read_json, write_json, write_text
 
 RUNTIME = ('build_docs.py', 'review.py', 'check_stale.py', 'handoff_contract.py',
            'maintain_docs.py', 'compile_prompts.js', 'install_project.py')
-TESTS = ('test_maintenance.py', 'test_prompt_routing.py', 'test_release_1_2.py')
+TESTS = ('test_maintenance.py', 'test_prompt_routing.py', 'test_release_1_2.py', 'test_release_1_3.py',
+         'test_release_1_3_tools.py')
 MANUAL = 'handoff-manual.md'
 HANDOFF_BEGIN, HANDOFF_END = '<!-- handoff:begin -->', '<!-- handoff:end -->'
 
@@ -86,7 +87,9 @@ def install(docs, root=None):
     root = docs
     target = root / '_run'
     target.mkdir(exist_ok=True)
-    if not target.resolve().is_relative_to(root):
+    try:
+        target.resolve().relative_to(root)
+    except ValueError:
         raise ValueError('_run 必须位于指定文档目录内')
     source = Path(__file__).resolve().parent
     vault = source / 'build_vault.py'
@@ -106,8 +109,11 @@ def install(docs, root=None):
         if not path.is_file():
             raise ValueError('工具包不完整：' + str(path))
         dest = target / name
-        if dest.exists() and not dest.resolve().is_relative_to(root):
-            raise ValueError('安装目标指向文档目录外：' + str(dest))
+        if dest.exists():
+            try:
+                dest.resolve().relative_to(root)
+            except ValueError:
+                raise ValueError('安装目标指向文档目录外：' + str(dest))
     backup = target / 'tool-backups' / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ-') + uuid.uuid4().hex[:8])
     changed = []
     for name, path in sources.items():

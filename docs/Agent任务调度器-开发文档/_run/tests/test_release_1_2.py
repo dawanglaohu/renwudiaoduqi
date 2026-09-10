@@ -77,7 +77,7 @@ class RevalidationAndDriftTests(unittest.TestCase):
 
     def payload(self):
         src = (self.doc / 'docs-data.js').read_text(encoding='utf-8')
-        return json.loads(src[len('window.DOCS = '):].strip().removesuffix(';'))
+        return json.loads(src[len('window.DOCS = '):].strip().rstrip(';'))
 
     def tool(self, *args):
         run = subprocess.run([sys.executable, '-B', str(self.doc / '_run/maintain_docs.py'), str(self.doc), *args],
@@ -158,7 +158,7 @@ class RevalidationAndDriftTests(unittest.TestCase):
 const c={D:x.payload,DT:x.payload.data,PR:x.payload.pres,window:{PROGRESS:{},MAINTENANCE:x.maint},localStorage:{getItem:()=>null},esc:String};
 vm.createContext(c);vm.runInContext(x.core,c);console.log(JSON.stringify({t1:c.stOf('M1-T1'),t2locked:c.implLocked('M1-T2'),t2:c.stOf('M1-T2'),
 review:c.promptFor('review','M1-T1'),resume:c.promptFor('resume','M1-T1'),impl:c.promptFor('impl','M1-T2')}));"""
-        maint = json.loads((self.doc / '_run/maintenance.js').read_text(encoding='utf-8').split('=', 1)[1].strip().removesuffix(';'))
+        maint = json.loads((self.doc / '_run/maintenance.js').read_text(encoding='utf-8').split('=', 1)[1].strip().rstrip(';'))
         run = subprocess.run(['node', '-e', js], input=json.dumps({'payload': payload, 'core': core, 'maint': maint}),
                              text=True, encoding='utf-8', capture_output=True, check=True)
         r = json.loads(run.stdout)

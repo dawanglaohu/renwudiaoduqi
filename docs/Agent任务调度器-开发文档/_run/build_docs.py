@@ -6,6 +6,8 @@
     python build_docs.py <文档目录>
     python build_docs.py <文档目录> --landed <任务ID> [<任务ID>…]
         记录落地：把 status: done 写进 图谱/任务/<ID>.md 的头部并重写 _run/progress.js，不重建阅读器
+    python build_docs.py <文档目录> --batches
+        只重扫 _run/batches/*.md 的批次收口记录，就地改写 docs-data.js 的 batchRecords 键，不重建阅读器
 
 产出（写在文档目录下）:
     index.html     阅读器 + 可视化组件库，跨项目复用
@@ -38,6 +40,11 @@ handoff 段，缺了就退到通用默认值。
 也看得到；本机 _run/progress.js 只是覆盖。「查 bug」不改状态。
 审查提示词把问题分成阻断与非阻断两级，只有阻断项才打回，且最多打回两轮，之后由审查方
 自己修完落地——不给「审了又审」留路。
+一批（按依赖层级算的「第 N 批」）全部落地后，批次标题右侧出现「批次收口」：复制一份把整批当整体做小结、
+跑测试、查批内与跨批接缝的提示词，记录写进 _run/batches/batch-<N>-<日期>.md，随 docs-data.js 的 batchRecords
+键进仓库（--batches 只重扫这一键）；它不是闸门，不改状态也不锁下游。批次标题行可点折叠，默认只展开有在跑
+或可派任务的批，手动开合记在本机。进行中与审查中的状态标签带一个呼吸圆点，一眼看出哪几行还在动。
+每批的收口提示词也随 dispatch.json 与 docs-data.js 的 dispatchBatches 键导出，下游按 tasks 集合匹配本批。
 
 交接台顶部是并行窗口调度：把未落地的任务排进 N 条 lane，一条 lane 就是一个会话
 窗口。排的时候同时受依赖层级和 handoff.taskPaths 的文件冲突约束——依赖只保证逻辑
@@ -287,7 +294,16 @@ svg .lane{font-size:10px;fill:var(--muted)}
   background:var(--accent-soft);border-bottom:1px solid var(--rule)}
 .hand .kick p{margin:0;flex:1;min-width:0;font-size:12.5px;color:var(--muted);line-height:1.65}
 .hbatch>h5{margin:0;padding:8px 16px;font-family:var(--mono);font-size:10.5px;font-weight:600;
-  letter-spacing:.05em;color:var(--muted);background:var(--panel);border-bottom:1px solid var(--rule)}
+  letter-spacing:.05em;color:var(--muted);background:var(--panel);border-bottom:1px solid var(--rule);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* 标题行本身是折叠开关；右侧的「批次收口」是按钮，点它不折叠 */
+.hbatch>h5 .tg{flex:none;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:6px}
+.hbatch>h5 .tg:hover{color:var(--ink)}
+.hbatch>h5 .tg .tri{font-family:var(--sans);font-size:9px;width:9px;display:inline-block;color:var(--muted)}
+.hbatch>h5 .cnt{flex:none;font-weight:500;letter-spacing:0}
+.hbatch>h5 .cp{margin-left:auto;font-weight:500;letter-spacing:0}
+.cp.batch:hover{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
+.hbody[hidden]{display:none}
 .htask{display:flex;align-items:center;gap:11px;padding:7px 16px;border-bottom:1px solid var(--rule)}
 .hbatch:last-child .htask:last-child{border-bottom:none}
 .htask:hover{background:#FAFAF8}
@@ -316,8 +332,14 @@ svg .lane{font-size:10px;fill:var(--muted)}
   border:1px solid var(--rule);border-radius:3px;padding:2px 8px}
 .hnow .rs:hover{color:var(--fail);border-color:#E8C4BD}
 
-.htask .st{flex:none;width:52px;padding:2px 0;font-family:var(--mono);font-size:10px;text-align:center;
+.htask .st{flex:none;width:62px;padding:2px 0;font-family:var(--mono);font-size:10px;text-align:center;
   color:var(--muted);border:1px solid var(--rule-strong);border-radius:3px}
+/* 呼吸点：在跑的两格各带一个圆点，扫一眼就知道哪几行还在动。宽度多留的 10px 就是给它的 */
+.htask.doing .st::before,.htask.review .st::before{content:"";display:inline-block;width:6px;height:6px;
+  border-radius:50%;margin-right:5px;vertical-align:1px;animation:hpulse 1.6s ease-in-out infinite}
+.htask.doing .st::before{background:var(--warn)}
+.htask.review .st::before{background:var(--accent)}
+@keyframes hpulse{0%,100%{opacity:.35}50%{opacity:1}}
 .htask .st:hover{color:var(--accent);border-color:var(--accent-line)}
 .htask .st[disabled]{cursor:default}
 .htask .st[disabled]:hover{color:var(--pass);border-color:#BFDDD0}
@@ -465,6 +487,8 @@ svg .melblbg{fill:#FDFDFC}
   .top,.side,.pager,.card{display:none!important}
   /* 提示词是给人复制的，纸上按不动；窗口数选择器和 lane 导出同理 */
   .cp,.swimn,.swimcp,.hentry .cp{display:none!important}
+  .htask .st::before{display:none!important}
+  .hbody[hidden]{display:block!important}
   .wrap{display:block}
   #app{display:none}
   #printall{display:block;padding:0}
@@ -496,7 +520,7 @@ svg .melblbg{fill:#FDFDFC}
   .badge{font-size:10.5px;padding:3px 7px}
   .top{gap:10px;padding:0 12px}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.htask .st::before{animation:none}}
 </style>
 </head>
 <body>
@@ -1082,7 +1106,7 @@ document.addEventListener("click", function(ev){
   if(cp && cp.dataset.kind){
     if(cp.disabled) { ev.stopPropagation(); return; }
     var kind = cp.dataset.kind, taskId = cp.dataset.task;
-    var txt = promptFor(kind, taskId);
+    var txt = promptFor(kind, taskId || cp.dataset.batch);
     if(txt) copyText(txt, cp, function(){
       /* 复制成功就是动作本身：「实施」把待派推到进行中，「审查」把进行中推到审查中。
          只往前推一格，且只从对应的前一格推——重复复制、乱序复制都不改状态，
@@ -1094,12 +1118,26 @@ document.addEventListener("click", function(ev){
       if(kind === "review" && st === "doing") to = "review";
       if(!to) return;
       setSt(taskId, to);
+      /* 刚派出去的任务所在批要看得见：记为展开（只增不减，不折叠别的批） */
+      if(to === "doing") setBatchOpen(batchLayers().lv[taskId], true);
       refreshHand();
       /* 重画把这一行连按钮一起换掉了，「已复制」要补到新按钮上，否则看着像没复制成功 */
       flashBtn(document.querySelector('.htask[data-t="' + taskId + '"] .cp[data-kind="' + kind + '"]'), true);
       var dd = card.querySelector("[data-st]");
       if(!card.hidden && card.dataset.id === taskId && dd) dd.textContent = ST_TEXT[to];
     });
+    ev.stopPropagation(); return;
+  }
+  var bt = ev.target.closest('[data-act="batchtoggle"]');
+  if(bt){
+    var hb = bt.closest(".hbatch"), body = hb && hb.querySelector(".hbody");
+    if(body){
+      var openNow = body.hidden;
+      body.hidden = !openNow;
+      hb.classList.toggle("open", openNow);
+      var tri = bt.querySelector(".tri"); if(tri) tri.textContent = openNow ? "▾" : "▸";
+      setBatchOpen(bt.dataset.batch, openNow);
+    }
     ev.stopPropagation(); return;
   }
   if(ev.target.closest('[data-act="gohand"]')){
@@ -1192,22 +1230,6 @@ function fitTables(root){
    ══════════════════════════════════════════════════ */
 var HI = PR.highlights || {};
 function isHi(kind, id){ return (HI[kind]||[]).indexOf(id) >= 0; }
-
-/* 按依赖算层级：层号 = 最长前驱链长度。有环则就地截断，不死循环 */
-function layerOf(ids, depsOf){
-  var lv = {};
-  function walk(id, stack){
-    if(lv[id] != null) return lv[id];
-    if(stack.indexOf(id) >= 0) return 0;
-    var m = 0;
-    depsOf(id).forEach(function(p){
-      if(ids.indexOf(p) >= 0) m = Math.max(m, walk(p, stack.concat([id])) + 1);
-    });
-    lv[id] = m; return m;
-  }
-  ids.forEach(function(id){ walk(id, []); });
-  return lv;
-}
 
 /* 关键路径：按人天加权的最长链 */
 function critical(tasks){
@@ -1307,6 +1329,37 @@ function findBy(list, id){
 }
 function taskById(id){ return findBy(DT.tasks, id); }
 
+/* 按依赖算层级：层号 = 最长前驱链长度。有环则就地截断，不死循环。
+   放在 core 里是因为导出器也要按批分组；前面 mermaid 布局的调用靠函数声明提升 */
+function layerOf(ids, depsOf){
+  var lv = {};
+  function walk(id, stack){
+    if(lv[id] != null) return lv[id];
+    if(stack.indexOf(id) >= 0) return 0;
+    var m = 0;
+    depsOf(id).forEach(function(p){
+      if(ids.indexOf(p) >= 0) m = Math.max(m, walk(p, stack.concat([id])) + 1);
+    });
+    lv[id] = m; return m;
+  }
+  ids.forEach(function(id){ walk(id, []); });
+  return lv;
+}
+/* 交接台的「第 N 批」：lv 是任务 → 0 起层号，by[k] 是该层任务（按 ID 排序）。
+   Python 端 task_layers 用同一算法，--landed 才能报「哪批已全部落地」 */
+function batchLayers(){
+  var tasks = DT.tasks || [];
+  var lv = layerOf(tasks.map(function(t){ return t.id; }), function(id){
+    var t = taskById(id); return (t && t.deps) || [];
+  });
+  var by = {};
+  tasks.forEach(function(t){ (by[lv[t.id]] = by[lv[t.id]] || []).push(t); });
+  Object.keys(by).forEach(function(k){
+    by[k].sort(function(a, b){ return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; });
+  });
+  return {lv: lv, by: by};
+}
+
 /* ── 派活进度：状态存本机浏览器，用来算「此刻能并发派哪几个」 ── */
 var PKEY = "unattended-run/" + (D.project || "docs") + "/progress";
 var PG = {};
@@ -1320,6 +1373,9 @@ var ST_TEXT = {todo:"待派", doing:"进行中", review:"审查中", done:"已�
 var ST_RANK = {todo:0, doing:1, review:2, done:3};
 /* 落地记录随 docs-data.js 进仓库（D.progress），本机 _run/progress.js 只是覆盖：换检出目录只 git pull 也看得到已落地 */
 var FP = Object.assign({}, D.progress || {}, window.PROGRESS || {});
+/* 批次收口记录随 docs-data.js 进仓库（--batches 重扫 _run/batches/*.md）。
+   匹配只看任务集合，不看批次号：任务表一改，层号会漂，集合不会 */
+var BR = D.batchRecords || {};
 function fileSt(id){ return ST_RANK[FP[id]] != null ? FP[id] : "todo"; }
 function fileLanded(id){ return fileSt(id) === "done"; }
 /* 维护标记影响闸门，但不把尚未实施或已有落地历史的任务变成开放代码 PR。 */
@@ -1342,6 +1398,16 @@ function isLanded(id){ var s = stOf(id); return s === "done" || s === "recheck";
 function setSt(id, v){
   if(v === "todo") delete PG[id]; else PG[id] = v;
   try { localStorage.setItem(PKEY, JSON.stringify(PG)); } catch(e){}
+}
+/* 批次折叠：只记用户点过的批（{k: true|false}），没点过的按默认规则算 */
+var BKEY = "unattended-run/" + (D.project || "docs") + "/batches-open";
+function batchOpenMap(){
+  try { return JSON.parse(localStorage.getItem(BKEY) || "{}") || {}; } catch(e){ return {}; }
+}
+function setBatchOpen(k, v){
+  if(k == null) return;
+  var m = batchOpenMap(); m[String(k)] = !!v;
+  try { localStorage.setItem(BKEY, JSON.stringify(m)); } catch(e){}
 }
 
 /* ── 路径冲突：依赖层级只保证逻辑不冲突，两个任务照样能抢同一个文件 ── */
@@ -1895,8 +1961,8 @@ function buildReview(t){
   L.push("- 一行给用户，三选一：「把下面的返工指令发给实施模型，它推送后再点「审查」」｜" +
          "「已 merge 并记录落地，刷新交接台派下一批（没变就手点状态标签）」｜「文档补丁已同步并继续原 PR」或「尚缺裁定：<具体问题与影响>」");
   L.push("");
-  L.push("rework 时末尾附，原样可粘：");
-  L.push("```");
+  L.push("rework 时末尾附，原样可粘（围栏语言固定为 rework，下游靠它定位返工块）：");
+  L.push("```rework");
   L.push("# 返工 " + t.id + "：" + t.title + "（第 N 轮）");
   L.push("分支 " + br + "。只改下面几条，别动别的；改完 git commit + gh stack push；回报按编号写改了哪个文件哪一行。");
   L.push("R1 …");
@@ -2194,9 +2260,200 @@ function copyText(txt, btn, onSuccess){
   } else fallback();
 }
 
+/* ── 批次收口：一批全部落地后，把整批当整体做小结、跑测试、查接缝，走一条 PR 落地。
+   不是闸门：不影响实施解锁、可派集合与窗口排程；复制不改状态 ── */
+function batchComplete(k){
+  var g = batchLayers().by[k] || [];
+  return g.length > 0 && g.every(function(t){ return isLanded(t.id); });
+}
+/* 某批的记录 = tasks 集合与当前批任务集合相等的记录里 date 最大的一条；批次号变化不影响匹配 */
+function batchRecordsOf(k){
+  var ids = (batchLayers().by[k] || []).map(function(t){ return t.id; });
+  return Object.keys(BR).map(function(n){ return BR[n]; }).filter(function(r){
+    var ts = (r && r.tasks || []).slice().sort();
+    if(ts.length !== ids.length) return false;
+    for(var i = 0; i < ids.length; i++) if(ts[i] !== ids[i]) return false;
+    return true;
+  }).sort(function(a, b){
+    var x = String(a.date || ""), y = String(b.date || "");
+    return x < y ? -1 : x > y ? 1 : 0;
+  });
+}
+function batchRecord(k){
+  var rs = batchRecordsOf(k);
+  return rs.length ? rs[rs.length - 1] : null;
+}
+var VERDICT_TEXT = {clean:"干净", fixed:"已修", open:"有遗留"};
+function batchLabel(rec){
+  if(!rec) return "";
+  return "已收口 " + (rec.date || "—") + " · " + (VERDICT_TEXT[rec.verdict] || rec.verdict || "—");
+}
+/* 纯函数：只依赖任务数据与 handoff 配置，不读 progress、不读 batchRecords——导出用。
+   口吻与密度照 buildBugAll，不带架构段 */
+function batchPrompt(k){
+  var BL = batchLayers(), g = BL.by[k] || [], N = k + 1, mods = DT.modules || [];
+  if(!g.length) return "";
+  var ids = g.map(function(t){ return t.id; });
+  var slug = "batch-" + N, wt = "../" + HREPO + "-" + slug, plans = "../.codex-plans/" + HREPO + "-" + slug + "/";
+  var br = "batch/" + N + "-<YYYYMMDD>", rec = HDOCS + "/_run/batches/batch-" + N + "-<YYYYMMDD>.md";
+  var fe = g.some(function(t){ return isFrontend(t.module); });
+  var L = [];
+  L.push("# 第 " + N + " 批收口：批次小结 · 测试 · 查 bug");
+  L.push("");
+  L.push("本批 " + g.length + " 个任务已全部落地（" + ids.join("、") + "）。单任务审查各看各的一层，看不见任务之间的接缝；" +
+         "这一步把整批当整体验一遍，并给下一批留一份小结。假设一定有 bug，去证明它错；证明不了才算干净。");
+  L.push("");
+  L.push("本会话无人值守：权限已经全给你了，不要停下来要授权、要确认，也不要以提问收尾。" +
+         "提示词与仓库现状对不上时按下面写好的办法自己定，把怎么定的写进回报的「自行裁决」段。");
+  L.push("");
+  L.push("## 项目");
+  L.push("- 项目：" + D.project + (HO.stack ? "　｜　技术栈：" + HO.stack : "") + "　｜　主干：" + HMAIN);
+  L.push("- 开发文档：" + HDOCS + "。知识库入口 " + HDOCS + "/_MOC.md；每个任务的代码位置在 图谱/任务/<任务ID>.md，先读它再开文件。");
+  L.push("");
+  L.push("## 本批任务");
+  var seen = {};
+  mods.forEach(function(m){
+    var ts = g.filter(function(t){ return t.module === m.id; });
+    if(!ts.length) return;
+    L.push("- " + m.id + "　" + m.role);
+    ts.forEach(function(t){
+      seen[t.id] = 1;
+      L.push("  - " + t.id + "　" + t.title + ((t.edges||[]).length ? "　边界 " + t.edges.join("、") : ""));
+    });
+  });
+  g.forEach(function(t){
+    if(!seen[t.id]) L.push("- " + t.id + "　" + t.title + "（模块 " + t.module + "）");
+  });
+  var prev = [];
+  for(var i = 0; i < k; i++) (BL.by[i] || []).forEach(function(t){ prev.push(t.id); });
+  if(prev.length){
+    L.push("");
+    L.push("## 前置批次");
+    L.push("第 1..." + k + " 批共 " + prev.length + " 个任务：" + prev.join("、"));
+    L.push("接缝往前查一层：本批与它们的接口（调用、共享类型、读写同一份数据）；不重审前置本身。");
+  }
+  var bm = {};
+  g.forEach(function(t){ bm[t.module] = 1; });
+  var ms = (DT.milestones || []).filter(function(m){
+    return (m.modules || []).some(function(x){ return bm[x]; }) && String(m.demo || "").trim();
+  });
+  if(ms.length){
+    L.push("");
+    L.push("## 对照里程碑（只作参照，不是本批的验收）");
+    ms.forEach(function(m){ L.push("- " + m.name + "（" + (m.modules||[]).join("、") + "）：结束时可演示 — " + m.demo); });
+  }
+  L.push("");
+  L.push("## 逐任务复核清单（每条都要指到 文件:行）");
+  g.forEach(function(t){
+    L.push("");
+    L.push("### " + t.id + "　" + t.title);
+    L.push("验收标准：");
+    acceptLines(t.accept).forEach(function(x){ L.push("- " + x); });
+    L.push("边界：");
+    L.push(edgeBlock(t.edges));
+  });
+  L.push("");
+  L.push("## 怎么做");
+  L.push("0. 工作目录。先 git worktree list 看自己在哪：");
+  L.push("   - 在主检出（列表第一行）→ 别的会话可能也在这里切分支，先开自己的：git fetch origin " + HMAIN +
+         " && git worktree add -b " + br + " " + wt + " origin/" + HMAIN + "，然后 cd 进去（分支已存在就去掉 -b；目录已存在就直接进）。<YYYYMMDD> 换成今天的日期。");
+  L.push("   - 已在某个工作树里 → 就地：git fetch origin " + HMAIN + " && git checkout -b " + br + " origin/" + HMAIN + "（分支已存在就 git checkout " + br + "）");
+  L.push("   进去后先装依赖，node_modules 这类不跟工作树走；planning 一类工作文件放仓库外的 " + plans + "，别放仓库根目录。之后所有命令都在这个目录里跑。");
+  L.push("   本次只允许这两个仓库外目录：工作树 " + wt + " 与 planning " + plans + "。不许 git clone 一份仓库，不许自造别的目录。" +
+         "Windows 侧绝不跑 git worktree prune——WSL 建的活工作树在 Windows 显示 prunable，prune 会打断正在干活的会话。");
+  L.push("   建栈：git config rerere.enabled true && git config remote.pushDefault origin && gh stack init --base " + HMAIN + " " + br);
+  L.push("1. 先跑现有全部测试与 lint（命令在 17-测试策略；没写就 TESTS 记 skipped 并写明原因，不猜命令）。红的先记下来，别顺手修——它可能就是线索。");
+  L.push("2. 逐任务在 " + HMAIN + " 上过一遍上面的复核清单：每条验收标准、每条边界指到 文件:行；指不到的就是 bug。");
+  L.push("3. 查五类接缝，范围限本批内部与本批对前置批次的接口：");
+  L.push("   1) 模块之间的调用：A 产出的字段、错误码、枚举、时间格式、精度，B 读的时候是不是同一套。判据是 10-接口约定。");
+  L.push("   2) 同一条边界被两个任务各兜一半：13 节里「模块」列和实现它的任务不在同一模块的边界，两边是不是都做了、有没有做成两套。");
+  L.push("   3) 共用约定（06 节）的执行：错误体系、环境变量、共享类型，有没有哪个模块自己另立一套。");
+  L.push("   4) 跨任务的状态与并发：一个任务写、另一个任务读的表或缓存，读到的是不是权威来源；两个入口同时改一条记录会怎样。");
+  L.push("   5) 主流程端到端跑一遍（09 节 UX 主路径 + 12 节时序图）中本批覆盖的段：起真实服务，不 mock；每个失败分支都走一次。");
+  L.push("4. 找到 bug 先写复现再修，只改根因不重构；每个修复配一个修复前失败、修复后通过的测试。根因在前置批次代码里的也修，条目标「跨批」；" +
+         "根因在文档的记进 NOT_FIXED 标「doc-issue」，不改开发文档。提交写 fix(<任务ID>): <现象>，相关的几处修在同一个提交。" +
+         "收工前调 dsh-pre-push-checks 按本次改动挑最小充分测试集跑一遍。");
+  L.push("5. 写记录文件 " + rec + "（模板见下，<YYYYMMDD> 与分支同一个日期）→ python " + HDOCS + "/_run/build_docs.py " + HDOCS + " --batches" +
+         " → git add -- " + rec + " " + HDOCS + "/docs-data.js " + HDOCS + "/_run/build-manifest.json 与修复的文件（不用 git add -A）" +
+         " → git commit -m \"第 " + N + " 批收口小结\" → gh stack push && gh stack submit --auto --open。没有修复也要提 PR：记录文件本身就要进仓库。");
+  L.push("6. PR 按审查提示词的方式核了再合：gh stack view --json 只有这一个 → gh pr merge <号> --merge；等它报 MERGED。" +
+         "合并后清理：gh pr list --state open --base " + br + " --json number --jq length 是 0 才删；git worktree remove " + wt +
+         "（node_modules 报 not empty 就 rm -rf " + wt + "）→ git branch -d " + br + " → rm -rf " + plans + "。主检出 git pull 后刷新交接台，该批标题会显示「已收口」。");
+  L.push("");
+  L.push("## 记录文件模板（原样写，front matter 七个字段一个不少）");
+  L.push("```markdown");
+  L.push("---");
+  L.push("batch: " + N);
+  L.push("tasks: " + ids.join(", "));
+  L.push("date: <YYYY-MM-DD>");
+  L.push("verdict: <clean | fixed | open>");
+  L.push("tests: <pass | fail | skipped>");
+  L.push("pr: <PR 链接或 none>");
+  L.push("note: <给下一批的一句提醒，可空>");
+  L.push("---");
+  L.push("");
+  L.push("## 交付了什么");
+  L.push("本批 " + g.length + " 个任务各做成了什么，合起来能演示什么。");
+  L.push("");
+  L.push("## 测试");
+  L.push("跑了哪些命令、结果；skipped 写原因。");
+  L.push("");
+  L.push("## 发现与修复");
+  L.push("每条 bug 一行：编号、严重级、涉及任务、根因、修复提交。");
+  L.push("");
+  L.push("## 遗留");
+  L.push("没修的与为什么；没有写 none。");
+  L.push("");
+  L.push("## 给下一批的提醒");
+  L.push("接口、约定、坑：下一批开工前该知道的一两句。");
+  L.push("```");
+  L.push("");
+  L.push("## 要用的技能（时机 — 拿到什么）");
+  L.push("- `gh-stack`　建分支、push、submit 时 — 每条命令的非交互标志；不带 --json/--auto 会卡死在全屏 TUI 且不报错");
+  L.push("- `dsh-code-review`　查接缝时 — 接口两侧契约、生命周期与并发、绕过校验的入口；不调会放过「每条都做了但合起来是错的」");
+  L.push("- `dsh-pre-push-checks`　收工前 — 按 outgoing diff 挑最小充分证据集；不许 --passWithNoTests、不许裸 --force");
+  L.push("- `dsh-merging-stacked-prs`　合并时 — 先认单 PR 情形（base 是主干、没人叠在上面 → 普通 gh pr merge）；等 MERGED、零依赖才删分支");
+  if(fe){
+    L.push("- `record-browser-gif`　端到端跑主流程时 — 从真实服务录 GIF 作证据，等待条件用 DOM 状态不用固定延时");
+    L.push("- `finesse-ui`　看界面时 — 只用 audit 只读命令：组件八态、对比度与焦点顺序、偷懒默认、手机六类硬伤");
+  }
+  L.push("");
+  L.push("## 输出格式（严格遵守，BUGS 与 NOT_FIXED 的条目格式下游要机器解析）");
+  L.push("BATCH_SUMMARY");
+  L.push("- 本批合起来交付了什么，三五句");
+  L.push("TESTS");
+  L.push("- pass | fail | skipped → 跑的命令与结果；skipped 写原因");
+  L.push("BUGS");
+  L.push("- B1 [S1 数据错或丢、权限能绕 | S2 功能错 | S3 体验与边角] 涉及 <任务ID>（跨批时加「跨批」）：现象 → 复现 → 根因 → 文件:行");
+  L.push("  没有写 none，并列出跑过的用例——没有证据的「没找到」不算");
+  L.push("FIXED");
+  L.push("- B1 → commit <hash>：改了什么、加了哪个测试");
+  L.push("NOT_FIXED");
+  L.push("- B2 [S1|S2|S3] 涉及 <任务ID>（跨批时加「跨批」）：现象 → 复现 → 根因 → 文件:行 → 为什么不修（doc-issue / 要用户决定 / 牵动太大该单开任务）");
+  L.push("SUSPECT");
+  L.push("- 怀疑但没复现的；没有写 none");
+  L.push("RECORD");
+  L.push("- 记录文件路径 → verdict → --batches 输出的那行");
+  L.push("NEXT");
+  L.push("- 一行给用户：「收口 PR 已提：<链接>，按审查方式核了再合；合并后 git pull 刷新交接台」");
+  L.push("");
+  L.push("「自行裁决」一段：提示词与现状对不上时你怎么定的；没有就写「无」。");
+  return L.join("\n");
+}
+
 function promptFor(kind, id){
   if(kind === "kick") return buildKickoff();
   if(kind === "bugall") return buildBugAll();
+  if(kind === "batch"){
+    var k = parseInt(id, 10);
+    if(isNaN(k) || !batchComplete(k)) return "";
+    var rs = batchRecordsOf(k), head = "";
+    if(rs.length){
+      var last = rs[rs.length - 1];
+      head = "上次收口 " + (last.date || "—") + " · " + (last.verdict || "—") + "，本次是第 " + (rs.length + 1) + " 轮。\n\n";
+    }
+    return head + batchPrompt(k);
+  }
   var t = taskById(id);
   if(!t) return "";
   if(kind === "impl" && implLocked(id)) return "";
@@ -2417,11 +2674,7 @@ C.evolution = function(){
 
 function handBody(){
   var tasks = DT.tasks || [];
-  var lv = layerOf(tasks.map(function(t){ return t.id; }), function(id){
-    var t = taskById(id); return (t && t.deps) || [];
-  });
-  var by = {};
-  tasks.forEach(function(t){ (by[lv[t.id]] = by[lv[t.id]] || []).push(t); });
+  var BL = batchLayers(), lv = BL.lv, by = BL.by;
 
   var done = tasks.filter(function(t){ return isLanded(t.id); }).length;
   /* 进行中和审查中都算「在跑」：分支都还没进主干，下游都还得等。已落地·待复验不在其中 */
@@ -2449,6 +2702,12 @@ function handBody(){
     say += "　<b>" + recheck.length + "</b> 个已落地任务待复验：<em>" + recheck.map(function(t){ return t.id; }).join("　") +
            "</em>，点该行「审查」得到复验提示词；它们仍算已落地，不锁下游。";
   }
+  var unwrapped = Object.keys(by).map(Number).filter(function(k){ return batchComplete(k) && !batchRecord(k); })
+    .sort(function(a, b){ return a - b; });
+  if(unwrapped.length){
+    say += "　<b>" + unwrapped.length + "</b> 批已全部落地、尚未收口：第 " + unwrapped.map(function(k){ return k + 1; }).join("、") +
+           " 批，点该批标题右侧「批次收口」。";
+  }
 
   var h = '<div class="kick">' +
     '<button class="cp big" data-kind="kick">复制开工总提示词</button>' +
@@ -2462,13 +2721,33 @@ function handBody(){
       '<span class="txt">' + say + "</span>" +
       '<button class="rs" data-act="reset">重置进度</button></div>';
 
+  var openMap = batchOpenMap();
   Object.keys(by).map(Number).sort(function(a, b){ return a - b; }).forEach(function(k){
-    var g = by[k].slice().sort(function(a, b){ return a.id.localeCompare(b.id); });
+    var g = by[k];
     var d = Math.round(g.reduce(function(s, x){ return s + (x.est||0); }, 0) * 10) / 10;
     var gd = g.filter(function(t){ return isLanded(t.id); }).length;
-    h += '<div class="hbatch"><h5>第 ' + (k+1) + " 批 · " + g.length + " 个任务 · " + d + " 人天 · " +
+    var gDoing = g.filter(function(t){ return stOf(t.id) === "doing"; }).length;
+    var gReview = g.filter(function(t){ return stOf(t.id) === "review"; }).length;
+    var full = batchComplete(k), rec = full ? batchRecord(k) : null;
+    var notLanded = g.filter(function(t){ return !isLanded(t.id); }).map(function(t){ return t.id; });
+    /* 默认开合：在跑或可派的批展开，全落地的折叠，其余折叠；用户点过的以本机记录为准 */
+    var isOpen = openMap[String(k)] != null ? !!openMap[String(k)]
+      : (gDoing + gReview > 0 || g.some(function(t){ return nextIds[t.id]; }));
+    var cnt = [];
+    if(gd) cnt.push("已落地 " + gd + "/" + g.length);
+    if(gDoing) cnt.push("进行中 " + gDoing);
+    if(gReview) cnt.push("审查中 " + gReview);
+    h += '<div class="hbatch' + (isOpen ? " open" : "") + '" data-batch="' + k + '"><h5>' +
+         '<span class="tg" data-act="batchtoggle" data-batch="' + k + '" title="点一下折叠或展开这一批"><span class="tri">' + (isOpen ? "▾" : "▸") + "</span>" +
+         "第 " + (k+1) + " 批 · " + g.length + " 个任务 · " + d + " 人天 · " +
          (k === 0 ? "无前置依赖，可立即开工" : "前置全部落地后可开始；同批次其他任务在跑不影响") +
-         (gd ? " · 已落地 " + gd + "/" + g.length : "") + "</h5>";
+         (rec ? " · " + esc(batchLabel(rec)) : full ? " · 可收口" : "") + "</span>" +
+         (cnt.length ? '<span class="cnt">' + cnt.join(" · ") + "</span>" : "") +
+         '<button class="cp batch" data-kind="batch" data-batch="' + k + '"' +
+         (full ? ' title="' + (rec ? "再收口一次：把整批重新验一遍，记录文件新开一份" : "复制收口提示词：整批做小结、跑测试、查批内与跨批接缝，写记录并走一条 PR") + '"'
+               : ' disabled title="还有 ' + notLanded.length + ' 个未落地：' + esc(notLanded.join("、")) + '"') +
+         ">" + (rec ? "再收口一次" : "批次收口") + "</button></h5>" +
+         '<div class="hbody"' + (isOpen ? "" : " hidden") + ">";
     g.forEach(function(t){
       var id = esc(t.id), st = stOf(t.id), wait = waitingOn(t);
       var rv = rivalsOf(t.id).filter(function(x){
@@ -2497,7 +2776,7 @@ function handBody(){
         ((st === "doing" || st === "review" || st === "recheck") ? '<button class="cp" data-kind="resume" data-task="' + id + '" title="' + (st === "recheck" ? "继续复验：沿用本次复验的工作树与 PR（若有）" : "沿用原分支和 PR，只处理补丁与返工条目") + '">续做</button>' : '') +
         '<button class="cp bug" data-kind="bug" data-task="' + id + '" title="不改状态，随时可点">查 bug</button></div>';
     });
-    h += "</div>";
+    h += "</div></div>";
   });
   return h;
 }
@@ -2709,6 +2988,7 @@ C.handbatch = function(){
   return '<div class="hand" id="handbox">' + handBody() + "</div>" +
     '<div class="legend"><span>批次按依赖层级自动算出，同一批内互不依赖</span>' +
     "<span>状态：待派 → 进行中 → 审查中 → 已落地；「实施」「审查」自动推前两格，「已落地」由 --landed 记录、刷新即见，没记录才手点</span>" +
+    "<span>批次收口：一批全部落地后可点；不改状态、不锁下游</span>" +
     "<span>" + tip + "</span>" +
     "<span>进度存在本机浏览器里，换机器要重新标</span></div>";
 };
@@ -2994,9 +3274,9 @@ def tables(text):
     """抽出所有表格（已去掉分隔行）"""
     out, cur = [], []
     for ln in text.split("\n"):
-        s = ln.strip(" ;\n\r\t")
+        s = ln.strip()
         if s.startswith("|"):
-            cs = [c.strip(" ;\n\r\t") for c in s.strip("|").split("|")]
+            cs = [c.strip() for c in s.strip("|").split("|")]
             if all(re.fullmatch(r":?-{2,}:?", c) for c in cs if c):
                 continue
             cur.append(cs)
@@ -3021,18 +3301,18 @@ def first_table(text, min_cols):
 
 
 def cell(r, i):
-    return r[i].strip(" ;\n\r\t") if len(r) > i else ""
+    return r[i].strip() if len(r) > i else ""
 
 
 def strip_h1(text):
     """去掉文件开头的一级标题——阅读器会自己渲染标题，留着会重复显示"""
     lines = text.split("\n")
     i = 0
-    while i < len(lines) and not lines[i].strip(" ;\n\r\t"):
+    while i < len(lines) and not lines[i].strip():
         i += 1
     if i < len(lines) and re.match(r"^#\s+\S", lines[i]):
         del lines[i]
-    return "\n".join(lines).strip(" ;\n\r\t")
+    return "\n".join(lines).strip()
 
 
 def collect(root):
@@ -3050,7 +3330,7 @@ def collect(root):
         for f in files:
             m = re.match(r"^(\d{1,2})[-_.]?\s*(.+)\.md$", f)
             num = m.group(1).zfill(2) if m else ""
-            title = (m.group(2) if m else f[:-3]).strip(" ;\n\r\t")
+            title = (m.group(2) if m else f[:-3]).strip()
             text = strip_h1(read(os.path.join(gd, f)))
             if m:
                 by_num[int(m.group(1))] = text
@@ -3071,7 +3351,7 @@ def est_days(s):
 def norm_review(s):
     """代理用户的 QUESTION_REVIEW 归一化。中英文写法都收，认不出的按 sound 处理——
     「问题成立」是常态，误判成 flawed 会在时间线上凭空标一片红"""
-    v = (s or "").strip(" ;\n\r\t").lower()
+    v = (s or "").strip().lower()
     if "flaw" in v or "counter" in v or "驳回" in v or "不成立" in v or "有问题" in v:
         return "flawed"
     if "incomplete" in v or "不全" in v or "信息不足" in v or "待补" in v:
@@ -3081,7 +3361,7 @@ def norm_review(s):
 
 def norm_conf(s):
     """CONFIDENCE 归一化。认不出按 high——低置信要进复核清单，宁可漏标不可错标"""
-    v = (s or "").strip(" ;\n\r\t").lower()
+    v = (s or "").strip().lower()
     if v.startswith("l") or "低" in v:
         return "low"
     if v.startswith("m") or "中" in v:
@@ -3092,7 +3372,7 @@ def norm_conf(s):
 def dec_refs(s):
     """23 节末列的「涉及决策」→ 决策序号列表。收 13 / 1-12 / 1,3,5 / D7 几种写法"""
     out = []
-    for part in re.split(r"[,，、\s]+", (s or "").strip(" ;\n\r\t")):
+    for part in re.split(r"[,，、\s]+", (s or "").strip()):
         if not part:
             continue
         m = re.fullmatch(r"[Dd]?(\d{1,3})\s*[-–~～至到]\s*[Dd]?(\d{1,3})", part)
@@ -3204,11 +3484,21 @@ def note_status(text):
     s = re.search(r"^status:\s*(\S+)", fm, re.M)
     if not i:
         return None, None
-    v = (s.group(1) if s else "todo").strip(" ;\n\r\t").strip("\"'").lower()
+    v = (s.group(1) if s else "todo").strip().strip("\"'").lower()
     for k, words in ST_WORDS.items():
         if v in words:
             return i.group(1), k
     return i.group(1), "todo"
+
+
+def js_payload(text, prefix):
+    """把「window.X = {...};」这类一行赋值剥成 JSON 文本：去前缀、strip、末尾的分号切掉。
+    不用 3.9 才有的字符串后缀方法——项目实施方在 WSL 里跑的是 Python 3.8"""
+    body = text[len(prefix):] if text.startswith(prefix) else text
+    body = body.strip()
+    if body.endswith(";"):
+        body = body[:-1]
+    return body
 
 
 def read_progress(root):
@@ -3218,7 +3508,7 @@ def read_progress(root):
     if os.path.exists(dp):
         try:
             text = read(dp)
-            st.update(json.loads(text[len("window.DOCS = "):].strip(" ;\n\r\t")).get("progress") or {})
+            st.update(json.loads(js_payload(text, "window.DOCS = ")).get("progress") or {})
         except (ValueError, AttributeError):
             pass
     p = os.path.join(root, "_run", "progress.js")
@@ -3269,20 +3559,21 @@ def prompt_compiler_core(progress, maintenance):
             + core)
 
 
-def write_progress_payload(root, st):
-    """就地改写 docs-data.js 的 progress 键（不重建）：落地记录随它进仓库，换检出目录只 git pull 就能看到。
-    它是构建清单里的产物，改完把清单里这一项的指纹同步更新，否则下一次 --landed 会被当成产物过期拒绝"""
+def write_payload_key(root, key, value):
+    """就地改写 docs-data.js 的一个顶层键（不重建）：progress 与 batchRecords 都走这里，随仓库进别的检出。
+    它是构建清单里的产物，改完把清单里这一项的指纹同步更新，否则下一次 --landed 会被当成产物过期拒绝。
+    返回 None 表示 docs-data.js 不存在或读不出来；False 表示值没变没写；True 表示写了"""
     p = os.path.join(root, "docs-data.js")
     if not os.path.exists(p):
-        return False
+        return None
     text = read(p)
     try:
-        payload = json.loads(text[len("window.DOCS = "):].strip(" ;\n\r\t"))
+        payload = json.loads(js_payload(text, "window.DOCS = "))
     except ValueError:
+        return None
+    if payload.get(key) == value:
         return False
-    if payload.get("progress") == st:
-        return False
-    payload["progress"] = st
+    payload[key] = value
     new_text = "window.DOCS = " + json.dumps(payload, ensure_ascii=False) + ";\n"
     write_text(p, new_text)
     mp = os.path.join(root, "_run", "build-manifest.json")
@@ -3291,6 +3582,92 @@ def write_progress_payload(root, st):
         m["products"]["docs-data.js"] = digest(new_text)
         write_json(mp, m)
     return True
+
+
+def write_progress_payload(root, st):
+    """--landed 用：落地记录写进 docs-data.js 的 progress 键"""
+    return bool(write_payload_key(root, "progress", st))
+
+
+def task_layers(tasks):
+    """交接台的「第 N 批」：{任务ID: 0 起层号}，层号 = 最长前驱链长度，有环就地截断。算法与 JS layerOf 相同"""
+    ids = [t["id"] for t in tasks]
+    deps = {t["id"]: list(t.get("deps") or []) for t in tasks}
+    lv = {}
+
+    def walk(tid, stack):
+        if tid in lv:
+            return lv[tid]
+        if tid in stack:
+            return 0
+        m = 0
+        for d in deps.get(tid, []):
+            if d in deps:
+                m = max(m, walk(d, stack + [tid]) + 1)
+        lv[tid] = m
+        return m
+
+    for tid in ids:
+        walk(tid, [])
+    return lv
+
+
+def read_batch_records(root):
+    """扫 _run/batches/*.md 的 front matter → {文件名去 .md: {batch, tasks, date, verdict, tests, pr, note}}。
+    目录不存在返回 {}；batch 不是整数的文件跳过。tasks 排序去重——阅读器与下游都按集合匹配本批"""
+    d = os.path.join(root, "_run", "batches")
+    if not os.path.isdir(d):
+        return {}
+    out = {}
+    for f in sorted(os.listdir(d)):
+        if not f.endswith(".md"):
+            continue
+        m = re.match(r"^\ufeff?---\s*\n(.*?)\n---", read(os.path.join(d, f)), re.S)
+        if not m:
+            continue
+        fm = {}
+        for line in m.group(1).splitlines():
+            mm = re.match(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$", line)
+            if mm:
+                fm[mm.group(1)] = mm.group(2).strip().strip("\"'")
+        try:
+            batch = int(fm.get("batch", ""))
+        except ValueError:
+            continue
+        tasks = sorted({x.strip() for x in re.split(r"[,，、\s]+", fm.get("tasks", "")) if x.strip()})
+        out[f[:-3]] = {"batch": batch, "tasks": tasks, "date": fm.get("date", ""),
+                       "verdict": fm.get("verdict", ""), "tests": fm.get("tests", ""),
+                       "pr": fm.get("pr", ""), "note": fm.get("note", "")}
+    return out
+
+
+def unwrapped_batches(tasks, progress, records):
+    """已全部落地、尚未收口的批：[(1 起批次号, [任务ID…])]。记录按 tasks 集合匹配，不看批次号"""
+    lv = task_layers(tasks)
+    by = {}
+    for t in tasks:
+        by.setdefault(lv[t["id"]], []).append(t["id"])
+    have = {tuple(r["tasks"]) for r in records.values()}
+    out = []
+    for k in sorted(by):
+        ids = sorted(by[k])
+        if all(progress.get(i) == "done" for i in ids) and tuple(ids) not in have:
+            out.append((k + 1, ids))
+    return out
+
+
+def write_batches(root):
+    """--batches：只重扫收口记录并就地改写 docs-data.js 的 batchRecords 键，不重建阅读器"""
+    records = read_batch_records(root)
+    r = write_payload_key(root, "batchRecords", records)
+    if r is None:
+        print("docs-data.js 不存在或读不出来：先跑 python build_docs.py " + root + " 完整构建")
+        return 1
+    print("已写 docs-data.js 的 batchRecords：%d 条记录" % len(records))
+    for name in sorted(records):
+        rec = records[name]
+        print("  %s：batch %s / %s / %s" % (name, rec["batch"], rec["date"] or "—", rec["verdict"] or "—"))
+    return 0
 
 
 def mark_landed(root, ids):
@@ -3310,7 +3687,7 @@ def mark_landed(root, ids):
     marker_path = os.path.join(root, "_run", "maintenance.js")
     if os.path.exists(marker_path):
         try:
-            pending = json.loads(read(marker_path).split("=", 1)[1].strip(" ;\n\r\t")).get("pendingTasks", [])
+            pending = json.loads(js_payload(read(marker_path).split("=", 1)[1], "")).get("pendingTasks", [])
         except (ValueError, IndexError):
             print("维护状态无法读取；先修复同步状态再记录落地。")
             return 1
@@ -3356,7 +3733,7 @@ def mark_landed(root, ids):
     if os.path.exists(marker_path):
         text = read(marker_path)
         try:
-            marker_value["pendingTasks"] = json.loads(text.split("=", 1)[1].strip(" ;\n\r\t")).get("pendingTasks", [])
+            marker_value["pendingTasks"] = json.loads(js_payload(text.split("=", 1)[1], "")).get("pendingTasks", [])
         except (ValueError, IndexError):
             pass
     if any(i in marker_value["pendingTasks"] for i in ok):
@@ -3374,6 +3751,8 @@ def mark_landed(root, ids):
     if revalidation:
         print("  仍待复验的已落地任务：%s（交接台显示「已落地·待复验」，点该行「审查」得到复验提示词）" % "、".join(sorted(revalidation)))
     print("  工作树与 planning 目录当场清理；漏了的用 python \"%s/_run/maintain_docs.py\" \"%s\" workspace 列出" % (root, root))
+    for n, ids_in in unwrapped_batches(extract(by_num)["tasks"], st, read_batch_records(root)):
+        print("  第 %d 批已全部落地、尚未收口（%s）：交接台点该批标题右侧「批次收口」" % (n, "、".join(ids_in)))
     if bad:
         print("  ! 不在 19 节任务表里，没记：%s" % "、".join(bad))
         return 1
@@ -3398,6 +3777,12 @@ def main():
             print("用法：python build_docs.py <文档目录> --landed <任务ID> [<任务ID>…]")
             return 2
         return mark_landed(root, ids)
+    if "--batches" in args:
+        root = args[0] if args and not args[0].startswith("--") else ""
+        if not root or not os.path.isdir(root):
+            print("用法：python build_docs.py <文档目录> --batches")
+            return 2
+        return write_batches(root)
     if len(args) != 1:
         print(__doc__)
         return 2
@@ -3458,6 +3843,7 @@ def main():
         "pres": pres,
         "index": chip_index(data),
         "progress": progress,
+        "batchRecords": read_batch_records(root),
     }
 
     # 固定的提示词函数共用同一实现；编译器也要看到已落地历史及本次复验标记，dispatch.json 才与浏览器同源。
@@ -3469,12 +3855,19 @@ def main():
     if compiled.returncode:
         print("提示词编译失败：" + compiled.stderr)
         return 2
-    payload["dispatch"] = json.loads(compiled.stdout)
+    compiled_out = json.loads(compiled.stdout)
+    payload["dispatch"] = compiled_out["tasks"]
+    # 每批收口提示词随产物导出；contractHash 是本批任务契约哈希的摘要，下游按 tasks 集合匹配本批
+    payload["dispatchBatches"] = {}
+    for k, b in compiled_out.get("batches", {}).items():
+        b = dict(b)
+        b["contractHash"] = digest(sorted([[i, (checked["contracts"].get(i) or {}).get("hash")] for i in b["tasks"]]))
+        payload["dispatchBatches"][k] = b
     previous = None
     if os.path.exists(os.path.join(root, "docs-data.js")):
         old = read(os.path.join(root, "docs-data.js"))
         try:
-            previous = json.loads(old[len("window.DOCS = "):].strip(" ;\n\r\t"))
+            previous = json.loads(js_payload(old, "window.DOCS = "))
         except ValueError:
             pass
     if previous:
@@ -3484,7 +3877,8 @@ def main():
             payload["generated"] = previous.get("generated")
     write_text(os.path.join(root, "docs-data.js"), "window.DOCS = " + json.dumps(payload, ensure_ascii=False) + ";\n")
     write_json(os.path.join(root, "_run", "dispatch.json"), {
-        "schemaVersion": 1, "sourceVersion": checked["sourceVersion"], "tasks": payload["dispatch"]})
+        "schemaVersion": 1, "sourceVersion": checked["sourceVersion"], "tasks": payload["dispatch"],
+        "batches": payload["dispatchBatches"]})
     write_text(os.path.join(root, "index.html"), HTML)
     if not os.path.exists(os.path.join(root, "_run", "maintenance.js")):
         write_text(os.path.join(root, "_run", "maintenance.js"), "window.MAINTENANCE = {\"pendingTasks\":[],\"needsReview\":[]};\n")
@@ -3515,6 +3909,10 @@ def main():
         landed = len([v for v in progress.values() if v == "done"])
         print("  落地记录：%d/%d 个任务已落地（来自 图谱/任务 笔记头部的 status，写进 _run/progress.js）"
               % (landed, len(data["tasks"])))
+        print("  批次收口：%d 批各一份收口提示词（dispatchBatches）；收口记录 %d 条（_run/batches/）"
+              % (len(payload["dispatchBatches"]), len(payload["batchRecords"])))
+        for n, ids_in in unwrapped_batches(data["tasks"], progress, payload["batchRecords"]):
+            print("    第 %d 批已全部落地、尚未收口：%s" % (n, "、".join(ids_in)))
         if ho.get("design") and not ho.get("frontendModules"):
             print("  提示：handoff.design 写了视觉方向，但没写 frontendModules，前端任务拿不到它")
 
@@ -3527,7 +3925,7 @@ def main():
                 v = arch.get(name)
                 if isinstance(v, dict):
                     return len([k for k, x in v.items() if x]), "项"
-                if isinstance(v, str) and v.strip(" ;\n\r\t"):
+                if isinstance(v, str) and v.strip():
                     return 1, "整段"
                 return 0, ""
             bits, loose = [], []
@@ -3553,7 +3951,7 @@ def main():
                 v = arch.get(name)
                 if isinstance(v, dict):
                     return sum(len(str(x)) for x in v.values() if x)
-                return len(v.strip(" ;\n\r\t")) if isinstance(v, str) else 0
+                return len(v.strip()) if isinstance(v, str) else 0
             fat = [(label, seg_len(name))
                    for name, label in (("shared", "共用"), ("frontend", "前端"), ("backend", "后端"))
                    if seg_len(name) > 2500]

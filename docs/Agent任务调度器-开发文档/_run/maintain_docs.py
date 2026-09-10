@@ -349,7 +349,8 @@ def status(root, args):
 
 def workspace(root, args):
     """已落地任务遗留的工作树 ../<repo>-<id> 与 planning ../.codex-plans/<repo>-<id>/：
-    只列出并给删除命令，不自动删；活的工作树（git worktree list 里有）不碰。"""
+    只列出并给删除命令，不自动删；活的工作树（git worktree list 里有）不碰。
+    批次收口遗留的 ../<repo>-batch-<n>（不在 worktree list 里）与全部 ../.codex-plans/<repo>-batch-<n>/ 一并列出。"""
     pres = read_json(root / '_run/presentation.json', {}) or {}
     repo = ((pres.get('handoff') or {}).get('repo') or '').strip()
     if not repo:
@@ -366,20 +367,33 @@ def workspace(root, args):
             active.add(path_key(line[len('worktree '):].strip()))
     leftovers = []
     slug_of = {tid.lower(): tid for tid in landed}
+    batch_prefix = repo + '-batch-'
     for d in sorted(parent.glob(repo + '-*')):
-        tid = slug_of.get(d.name[len(repo) + 1:].lower())
-        if tid and d.is_dir() and path_key(d) not in active and path_key(d) != path_key(project):
+        slug = d.name[len(repo) + 1:]
+        if not d.is_dir() or path_key(d) in active or path_key(d) == path_key(project):
+            continue
+        if d.name.lower().startswith(batch_prefix.lower()):
+            leftovers.append(('batch-worktree', slug, d))
+            continue
+        tid = slug_of.get(slug.lower())
+        if tid:
             leftovers.append(('worktree', tid, d))
     plans = parent / '.codex-plans'
     if plans.is_dir():
         for d in sorted(plans.glob(repo + '-*')):
-            tid = slug_of.get(d.name[len(repo) + 1:].lower())
-            if tid and d.is_dir():
+            slug = d.name[len(repo) + 1:]
+            if not d.is_dir():
+                continue
+            if d.name.lower().startswith(batch_prefix.lower()):
+                leftovers.append(('batch-planning', slug, d))
+                continue
+            tid = slug_of.get(slug.lower())
+            if tid:
                 leftovers.append(('planning', tid, d))
     if not leftovers:
-        print('没有已落地任务遗留的工作树或 planning 目录（仓库同级 ' + repo + '-*、.codex-plans/' + repo + '-*）。')
+        print('没有已落地任务或批次收口遗留的工作树与 planning 目录（仓库同级 ' + repo + '-*、.codex-plans/' + repo + '-*）。')
         return 0
-    print('已落地任务遗留的目录（不在 git worktree list 里；核对后手动执行，脚本不删）：')
+    print('已落地任务与批次收口遗留的目录（不在 git worktree list 里；核对后手动执行，脚本不删）：')
     for kind, tid, d in leftovers:
         print('  ' + tid + '　' + kind + '　' + d.as_posix())
         print('    rm -rf "' + d.as_posix() + '"')
@@ -421,7 +435,8 @@ def main():
     p = sub.add_parser('verify'); p.add_argument('--task', required=True)
     p.add_argument('--evidence', required=True); p.add_argument('--patch')
     p = sub.add_parser('status'); p.add_argument('--task')
-    sub.add_parser('workspace', help='列出已落地任务遗留的工作树与 planning 目录，只打印删除命令不执行')
+    sub.add_parser('workspace', help='列出已落地任务遗留的工作树与 planning 目录，只打印删除命令不执行；'
+                   '批次收口的 ../<repo>-batch-<n> 工作树（不在 worktree list 里）与 planning 目录一并列出')
     args = parser.parse_args()
     root = args.docs.resolve()
     if not root.is_dir():
