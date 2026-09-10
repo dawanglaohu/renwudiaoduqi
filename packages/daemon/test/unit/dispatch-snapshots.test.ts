@@ -384,8 +384,8 @@ describe('M3-T3 repo/dispatch-snapshots Database Integration', () => {
 			edge_ids_json: '["E-19"]',
 			task_paths_json: '["packages/daemon/src/a.ts"]',
 			contract_hash: overrides.contract_hash ?? 'hash-v1',
-			is_contract_ready: 1,
-			contract_reasons_json: '[]',
+			is_contract_ready: overrides.is_contract_ready ?? 1,
+			contract_reasons_json: overrides.contract_reasons_json ?? '[]',
 			est_days: 1.5,
 			batch_id: 'batch-1',
 			impl_prompt: overrides.impl_prompt ?? 'Implementation Prompt V1',
@@ -766,6 +766,93 @@ describe('M3-T3 repo/dispatch-snapshots Database Integration', () => {
 
 		// Returns null for non-existent task
 		expect(snapshotsRepo.getTaskAcceptanceComparison('unknown-task')).toBeNull();
+	});
+
+	it('E-82: an unreviewed contract is blocked with E_DOC_CONTRACT_PENDING, not E_TASK_REMOVED_FROM_DOC', () => {
+		setupTask({
+			id: 'task-pending',
+			task_key: 'M3-T9',
+			is_contract_ready: 0,
+			contract_reasons_json: JSON.stringify(['task contract has not been semantically reviewed']),
+		});
+
+		let captured: unknown;
+		try {
+			snapshotsRepo.takeSnapshotForTask({
+				taskId: 'task-pending',
+				launchSpecJson: '{}',
+				createdAt: '2026-09-08T12:00:00.000Z',
+			});
+		} catch (err) {
+			captured = err;
+		}
+
+		expect(captured).toBeInstanceOf(AppError);
+		const appError = captured as AppError;
+		// The task is still in the document; reporting the removal code here would mislabel it
+		// and hide the readiness reasons the card has to show (E-82).
+		expect(appError.code).toBe('E_DOC_CONTRACT_PENDING');
+		expect(appError.details?.reasons).toEqual(['task contract has not been semantically reviewed']);
+		expect(snapshotsRepo.listByTaskId('task-pending')).toEqual([]);
+	});
+
+	it('AC 4 & E-80 & E-78: taking a new snapshot moves the baseline and clears stale change flags', () => {
+		setupTask({ id: 'task-baseline', task_key: 'M4-T1', accept_text: 'Accept V1' });
+
+		snapshotsRepo.takeSnapshotForTask({
+			taskId: 'task-baseline',
+			launchSpecJson: '{}',
+			createdAt: '2026-09-08T09:00:00.000Z',
+			snapshotId: 'snap-baseline-1',
+		});
+
+		// Document regenerates with a changed acceptance criterion -> flag is set against round 1.
+		tasksRepo.updateDocFields({
+			id: 'task-baseline',
+			title: 'Task Baseline',
+			module_key: 'M4',
+			deps_json: '[]',
+			input_text: null,
+			output_text: null,
+			accept_text: 'Accept V2',
+			edge_ids_json: '[]',
+			task_paths_json: '[]',
+			contract_hash: 'hash-v2',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+			est_days: 1,
+			batch_id: 'batch-1',
+			impl_prompt: 'impl v2',
+			review_prompt: 'review v2',
+			is_removed_from_doc: 0,
+		});
+
+		const bannerBefore = snapshotsRepo.refreshDocDiff('doc-1', ['M4-T1']);
+		expect(bannerBefore.acceptChangedCount).toBe(1);
+		expect(tasksRepo.findById('task-baseline')?.has_accept_changed).toBe(1);
+
+		// Re-dispatch against the current document: round 2 becomes the comparison baseline,
+		// so the round-1 flags no longer describe the task (E-80).
+		snapshotsRepo.takeSnapshotForTask({
+			taskId: 'task-baseline',
+			launchSpecJson: '{}',
+			createdAt: '2026-09-08T10:00:00.000Z',
+			snapshotId: 'snap-baseline-2',
+		});
+
+		const rowAfterDispatch = tasksRepo.findById('task-baseline');
+		expect(rowAfterDispatch?.has_accept_changed).toBe(0);
+		expect(rowAfterDispatch?.has_prompt_changed).toBe(0);
+		expect(snapshotsRepo.getTaskAcceptanceComparison('task-baseline')?.hasAcceptChanged).toBe(
+			false,
+		);
+
+		// History keeps both rounds verbatim; only the latest one is compared against.
+		const history = snapshotsRepo.listByTaskId('task-baseline');
+		expect(history).toHaveLength(2);
+		expect(history[0]?.id).toBe('snap-baseline-2');
+		expect(history[1]?.id).toBe('snap-baseline-1');
+		expect(history[1]?.accept_text).toBe('Accept V1');
 	});
 
 	it('handles non-existent snapshot and task queries gracefully', () => {

@@ -117,6 +117,11 @@ export type TaskDiffFilter = 'all' | 'removed' | 'accept_changed' | 'prompt_chan
 
 export interface TaskDispatchEligibility {
 	readonly canDispatch: boolean;
+	/**
+	 * 阻断原因分类，供调用方选择错误码：
+	 * removed_from_doc → E_TASK_REMOVED_FROM_DOC；contract_not_ready → E_DOC_CONTRACT_PENDING。
+	 */
+	readonly blockReason?: 'removed_from_doc' | 'contract_not_ready';
 	readonly reason?: string;
 }
 
@@ -286,6 +291,7 @@ export function checkTaskDispatchEligibility(task: {
 	if (isRemoved) {
 		return Object.freeze({
 			canDispatch: false,
+			blockReason: 'removed_from_doc',
 			reason: 'Task has been removed from document (E-18, E-77)',
 		});
 	}
@@ -300,6 +306,7 @@ export function checkTaskDispatchEligibility(task: {
 	if (!isReady) {
 		return Object.freeze({
 			canDispatch: false,
+			blockReason: 'contract_not_ready',
 			reason: 'Task contract is not ready for dispatch (E-82)',
 		});
 	}

@@ -609,9 +609,22 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 				throw new AppError('E_NOT_FOUND', `Task not found: ${params.taskId}`);
 			}
 
-			// E-18、E-77：任务从文档移除后禁止再次派发
+			// E-18、E-77：任务从文档移除后禁止再次派发；
+			// 契约未复核是另一种阻断，必须报 E_DOC_CONTRACT_PENDING 并带上文档给出的 reasons（E-82）。
 			const eligibility = checkTaskDispatchEligibility(task);
 			if (!eligibility.canDispatch) {
+				if (eligibility.blockReason === 'contract_not_ready') {
+					throw new AppError(
+						'E_DOC_CONTRACT_PENDING',
+						`Task ${task.task_key} contract is not ready for dispatch.`,
+						{
+							details: {
+								taskId: task.id,
+								reasons: parseContractReasons(task.contract_reasons_json),
+							},
+						},
+					);
+				}
 				throw new AppError(
 					'E_TASK_REMOVED_FROM_DOC',
 					`Task ${task.task_key} is removed from document and cannot be dispatched (E-18, E-77)`,
@@ -635,6 +648,16 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 			};
 
 			insertSnapshotInternal(snapshotRow);
+
+			// 新快照取代旧的比对基准：派发时读到的内容此刻就是「当前文档」，
+			// 相对上一个快照的验收／提示词变更标记随之失效，否则任务卡会显示过期角标，
+			// 并让 E-180 的「旧快照盲跑」拦截误伤刚派发的新快照（E-19、E-78、E-80）。
+			updateTaskFlagsInternal(task.id, {
+				hasAcceptChanged: 0,
+				hasPromptChanged: 0,
+				isRemovedFromDoc: task.is_removed_from_doc,
+			});
+
 			return rowToSnapshot({
 				...snapshotRow,
 				input_text: snapshotRow.input_text ?? null,
@@ -657,6 +680,18 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 			return executeDocDiff(docId, undefined, false);
 		},
 	});
+}
+
+// 只被本文件使用的私有函数：contract_reasons_json 由文档导入写入，
+// 读到非字符串数组（手改库等）时回落为空列表，不把解析失败带进派发错误里。
+function parseContractReasons(raw: string): readonly string[] {
+	try {
+		const parsed: unknown = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return Object.freeze([]);
+		return Object.freeze(parsed.filter((item): item is string => typeof item === 'string'));
+	} catch {
+		return Object.freeze([]);
+	}
 }
 
 // 重新导出 domain 层的辅助过滤函数供消费
