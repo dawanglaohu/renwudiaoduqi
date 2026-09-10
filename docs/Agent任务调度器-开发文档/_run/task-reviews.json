@@ -365,6 +365,31 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T1": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "8273eace3f563f309d65a1ef9edf7bbb2a6e1278fb26b896b9877e20376cdefb",
+    "evidence": [
+      "AC1（E-170）：packages/web/src/styles/tokens.css 是唯一含颜色字面量的文件，:root/:root,[data-theme=\"dark\"]（tokens.css:4、:65）与 [data-theme=\"light\"]（:106）三块之外无 hex/rgb/hsl；机检由 packages/web/scripts/check-forbidden.ts:159 的 COLOR_LITERAL_OUTSIDE_TOKENS_CSS 覆盖（src 全树 + tailwind.config.ts），实测把 #ff00ff/rgba() 写进 src 下 .tsx 会失败；tokens.css 的块级检查限定只允许含 :root 或 [data-theme 的块",
+      "AC2（E-169）：check-contrast.ts:246 起逐组前景/背景算 WCAG 2.1 比值，深色 18 组、浅色 16 组全部 ≥4.5:1，低于阈值即 process.exit(1)；本轮复核用 --needs-ink 承接浅色文字（#B0740C 作小字仅 3.9:1）",
+      "AC3（E-15）：base.css:6 的 html 块无 font-size、无 zoom、无 text-size-adjust: none；主题只经 html[data-theme] 表达（theme-provider.tsx:40），system 由 resolveTheme（:28）按 matchMedia('(prefers-color-scheme: dark)') 解析并订阅变化（:87），DOM 上只出现 dark/light，colorScheme 随解析结果写 style（:41）；check-forbidden.ts 的 E15_ROOT_FONT_SIZE_LOCKED / E15_TEXT_SIZE_ADJUST_NONE / E15_ZOOM_PROHIBITED 三项机检把守",
+      "AC4（E-171）：浅色 --spine-done rgba(101,111,110,.40) 与 --spine-pending rgba(101,111,110,.26)（tokens.css:127-128）为显式取值，实测对 --bg 分别为 1.72:1、1.41:1，与深色同组 1.80:1、1.42:1 同量级；check-contrast.ts:343 起断言两者存在、不透明度 >0.05 且可见度不低于阈值",
+      "AC5（E-159、E-161）：颜色、字号、行高、字族、栅格、圆角、时长全部收敛在 tokens.css；tailwind.config.ts 只做 var(--*) alias，无字面量与字体栈，方向被否决时改一个 token 文件即可。运行轨形状枚举表属 M9-T2 的 lib/spine-shape.ts（其 taskPaths 已声明），不在本层有效路径内",
+      "AC6（E-173）：check-contrast.ts:212 起对「值解析成颜色的 token」求深浅两侧键集合的并集后双向断言，深色新增状态或 chip 而缺浅色当场失败；本轮修复前该断言只遍历一张写死的清单，新增 token 逃得掉，已按边界补上并加负例测试（test/check-contrast.test.ts:52）",
+      "AC7（E-162）：本层未新增任何配色截图、示意图或阅读器图片，diff 内无图片文件，不产生伪证据",
+      "AC8（E-160）：真页已于 2026-09-01 摆出并由用户明确认可（_preview/run-deck.html，五条流覆盖运行中/等你/部分完成/失败/已停止全部轨形态），21-风险与未决事项 R-03 与 20-里程碑均记该前置已完成，本任务不再二次追问；本层不产出可渲染页面（index.html/main.tsx/vite.config.ts 不在本任务有效路径内），故无需真服务 GIF",
+      "E-15 系统字号：全仓无 html/{:root} 根字号锁；本轮把机检从「逐行匹配」改成「整块匹配」（check-forbidden.ts:26），因为 formatter 会把声明单独成行，逐行写法正好漏掉手写锁最可能的样子，负例见 test/check-forbidden.test.ts:14",
+      "07 节「至少八条 grep 禁令」：check-forbidden.ts:78 现覆盖靛紫 hex、tokens.css 之外的颜色字面量、api 之外的 fetch(、任意 index.ts、.env、ui/ 之外的 @radix-ui、shell/ 之外的壳内建、甲板容器 overflow-x（E-145）八条，另有 E-15 三项；修复前缺「甲板容器 overflow-x」一条却打印「All 8」，该计数宣称已删",
+      "范围与路径：本层相对 main 改 packages/web/{scripts,test,src/styles,src/app/theme-provider.tsx,tailwind.config.ts,package.json,tsconfig.json}、根 package.json、pnpm-lock.yaml，删除 M1-T1 的占位 src/placeholder.ts（全仓无引用）；补丁 M9-T1-review-scope-20260910 把这些测试与支持文件登记为 supportPaths（原 taskPaths 只有 scripts/ 与两个源文件 + tailwind 配置），并核对 presentation.json 中无其他任务声明同一批文件",
+      "前置能力核对：M2-T1 已落地（daemon REST 骨架与错误信封），本层只用它的输出物作对照，不引入任何 daemon 依赖；本层不碰 src/api、src/store、src/shell，四层分层与「界面不含业务判定」在本层尚未有消费者，未提前落组件",
+      "13/17/19 与接口字段：13 节 E-15/E-159/E-160/E-161/E-162/E-169/E-170/E-171/E-173 九条与任务笔记边界逐字一致；17 节要求每个任务本地跑 pnpm -w check，故支撑文件补登记；19 节 M9-T1 行的产出、依赖与验收与任务笔记一致；本层不涉及 10 节接口字段",
+      "验收阶段检查（2026-09-10，工作树 ../agent-scheduler-m9-t1）：node --experimental-strip-types packages/web/scripts/check-contrast.ts → 深色 18 组 + 浅色 16 组全过、成对性与 E-171 通过；check-forbidden.ts → 0 violations；npx vitest run packages/web/test → 3 文件 12 passed；npx tsc -b --noEmit → 0；npx biome ci → 0（182 files）；完整 pnpm -w check 在实施提交 d80d324 上跑过 → 49 文件 449 passed / 32 skipped，失败 0",
+      "本轮 review-fix 只改 packages/web/scripts 两个机检与对应测试（acf6199），未改 token 值、组件、接口或数据结构；token 值与 11-UI 的可粘贴 token 块逐字一致，未自创颜色",
+      "未构成阻断的观察：① 浅色 --ink-3/--down/--auto 对 --page 实测 4.48/4.46/4.67，未纳入配对枚举（阈值内 4.45 容差可过），若日后把 --page 纳入需微调浅色 token；② tailwind.config 在 07 节「只声明 content 扫描与栅格/圆角映射」之外多 alias 了颜色/字号/字族/阴影/时长（全为 var()，不构成色值旁路），且 Tailwind 默认色板仍可用 bg-red-500 之类绕过 token；③ fonts.css 的 woff2 本体与 public/fonts/ 不在本任务有效路径内，当前走回退栈（R-03 记录已预期）。三项进 FOLLOW_UP"
+    ],
+    "reviewed": "2026-09-10T10:04:13.304567+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T14": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "b3ec9350423dcbf3ff40d7a281cb4648295e19a5a9af219b1aa2887a36f8ea1d",

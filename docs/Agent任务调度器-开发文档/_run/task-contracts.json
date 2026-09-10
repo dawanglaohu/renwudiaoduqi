@@ -179,6 +179,18 @@
         "packages/daemon/src/http/routes/snapshot.ts",
         "packages/daemon/test/unit/dispatch-contract.test.ts"
       ]
+    },
+    "M9-T1": {
+      "supportPaths": [
+        "packages/web/test/check-contrast.test.ts",
+        "packages/web/test/check-forbidden.test.ts",
+        "packages/web/test/theme-provider.test.ts",
+        "packages/web/package.json",
+        "packages/web/tsconfig.json",
+        "packages/web/src/placeholder.ts",
+        "package.json",
+        "pnpm-lock.yaml"
+      ]
     }
   }
 }
