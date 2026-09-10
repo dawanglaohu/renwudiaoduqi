@@ -143,6 +143,15 @@
         "packages/daemon/test/unit/dispatch-snapshots.test.ts"
       ]
     },
+    "M3-T4": {
+      "supportPaths": [
+        "packages/daemon/src/service/docs.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/proc/open-browser.ts",
+        "packages/daemon/test/unit/documents-routes.test.ts"
+      ]
+    },
     "M3-T5": {
       "requires": [
         {
