@@ -1,0 +1,18 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M4-T3": {
+      "contractHash": "bdf4daa97faebeda5a2f6709207c37c49f9975a2a0f4c76745005533ec57fe73",
+      "evidence": [
+        "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M4-T3 行与任务笔记，六条验收标准、八条边界（E-195/E-196/E-197/E-198/E-199/E-264/E-270/E-36）与「产出 probeAgent() + 指纹缓存」保持原文，未新增或放宽要求。前置 M4-T1（注册表两层结构与热加载）与 M1-T7（spawn 基座）均已落地，status 仅剩「待语义复核」。",
+        "依赖与契约：probe.ts 只 import config/defaults.ts（AgentConfig/ResolvedAgentConfig）、platform/{contract,host,resolve-executable}.ts、proc/{env,spawn}.ts，不 import repo/service/db/http/events，是 adapters 层只产出数据结构的形状；spawnManaged 的调用方传原始参数数组、shell:false 不变；错误码 E_AGENT_EXEC_NOT_FOUND / E_AGENT_EXEC_NOT_EXECUTABLE / E_AGENT_EXEC_INVALID_TARGET / E_AGENT_VERSION_UNRECOGNIZED / E_VALIDATION 均在 packages/shared/src/errors/codes.ts 登记，无未登记 E_ 字面量；daemon 侧 message 为英文短句，无中文用户文案。",
+        "数据与接口：ProbeAgentResult 只含状态、实测版本串、比较结果、候选与已检查位置、警告横幅、手填入口标记，字段命名符合 isXxx/hasXxx/canXxx 与 PascalCase 无 I 前缀；指纹缓存条目为 {resolvedPath, mtimeMs, size, result, cachedAt}，正是验收标准 4 要求的「真实路径 + mtime + 大小」。探针不落库、不开事务、不产事件 id。",
+        "有效路径：taskPaths 原仅列 packages/daemon/src/adapters/probe.ts，实测实施方还新增了本任务唯一单测 packages/daemon/test/unit/probe.test.ts（没有它六条验收与八条边界无从本地验收）。本轮按 M4-T7 / M1-T5 的先例走 DOC_PATCH（M4-T3-review-scope-20260910）把该测试补进 supportPaths，未放行整个 test 或 adapters 目录，未触碰其他任务的文件。",
+        "验收（契约可达性）：1) 通用字段 versionFingerprint.{args,expectedPattern} 已在 config/defaults.ts 为四家内置 agent 声明，探针无「按厂商名取探测命令」的查表；2) 未识别态返回 observed + expected + allowManualPath；3) 候选碰撞返回 primaryCandidate + allCandidates + requiresConfirmation；4) 缓存命中先查路径再比 mtime/size；5) 宽松匹配 + 可选版本区间；6) 手填路径失败降级为 warning 且 canDispatch=true，跨平台路径单列为 invalid-platform-path。契约本身自洽、可实现，无矛盾条款，故 task-contract 复核为 pass。",
+        "边界（契约映射）：E-195→unrecognized 分支；E-196→requires-confirmation；E-197→cache；E-198→matchVersionFingerprint；E-199→warning 分支；E-264→isForeignPlatformPath 前置判定；E-270→checkedPaths + 显式不执行 shell 启动文件；E-36 由本任务承担「探测不做厂商特化」的对偶面，模型名白名单/失效透传由 M4-T5、M8-T5 兜底。八条边界均有对应契约位点。",
+        "代码层验收另计：本轮逐条核对代码后发现四项阻断缺陷（Windows com-spec 启动对象未消费 launchKind；Windows PATH 键名大小写；指纹宽松匹配中的 pi 专用分支；stderr 未走 onStderr），已作为 REVIEW-ROUND 1 的 R1-R4 退回实施方。本条复核只确认任务契约、边界归属与有效路径成立，不冒充代码验收通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
