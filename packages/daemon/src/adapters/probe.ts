@@ -5,6 +5,7 @@ import type { AgentConfig, ResolvedAgentConfig } from '../config/defaults.ts';
 import type {
 	ExecutableFileSystem,
 	PlatformHostInputs,
+	ResolvedExecutable,
 	SupportedPlatform,
 } from '../platform/contract.ts';
 import { platformPathAdapter, takePlatformHostInputs } from '../platform/host.ts';
@@ -131,30 +132,43 @@ export interface CommandRunnerParams {
 	readonly windowsVerbatimArguments?: boolean;
 }
 
+export interface ProbeComSpecLaunch {
+	readonly sourcePath: string;
+	readonly commandProcessor: string;
+	readonly rawArgs: readonly string[];
+}
+
 export interface ProbeLaunchSpec {
 	readonly file: string;
 	readonly args: readonly string[];
 	readonly windowsVerbatimArguments: boolean;
+	readonly comSpec?: ProbeComSpecLaunch;
 }
 
 export function buildProbeLaunch(
-	executable: import('../platform/contract.ts').ResolvedExecutable,
+	executable: ResolvedExecutable,
 	rawArgs: readonly string[],
 ): ProbeLaunchSpec | null {
+	const fullArgs = Object.freeze([...executable.argsPrefix, ...rawArgs]);
 	if (executable.launchKind === 'direct') {
 		return Object.freeze({
 			file: executable.file,
-			args: Object.freeze([...executable.argsPrefix, ...rawArgs]),
+			args: fullArgs,
 			windowsVerbatimArguments: false,
 		});
 	}
 
-	const wrapped = wrapForComSpec(executable.sourcePath, rawArgs, executable.file);
+	const wrapped = wrapForComSpec(executable.sourcePath, fullArgs, executable.file);
 	return wrapped.ok
 		? Object.freeze({
 				file: wrapped.launch.file,
 				args: wrapped.launch.args,
 				windowsVerbatimArguments: true,
+				comSpec: Object.freeze({
+					sourcePath: executable.sourcePath,
+					commandProcessor: executable.file,
+					rawArgs: fullArgs,
+				}),
 			})
 		: null;
 }
@@ -461,6 +475,7 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 		file: launch.file,
 		args: launch.args,
 		windowsVerbatimArguments: launch.windowsVerbatimArguments,
+		comSpec: launch.comSpec,
 		cwd: homedir.length > 0 ? homedir : '.',
 		timeoutMs,
 		platform,
@@ -971,6 +986,7 @@ async function executeProbeProcess(params: {
 	readonly file: string;
 	readonly args: readonly string[];
 	readonly windowsVerbatimArguments: boolean;
+	readonly comSpec?: ProbeComSpecLaunch;
 	readonly cwd: string;
 	readonly timeoutMs: number;
 	readonly platform: SupportedPlatform;
@@ -982,6 +998,7 @@ async function executeProbeProcess(params: {
 		file,
 		args,
 		windowsVerbatimArguments,
+		comSpec,
 		cwd,
 		timeoutMs,
 		platform,
@@ -1025,15 +1042,29 @@ async function executeProbeProcess(params: {
 		}, timeoutMs);
 		if (typeof timer.unref === 'function') timer.unref();
 
-		const spec: LaunchSpec = {
-			runId: `probe-${agentId}-${Date.now()}`,
-			file,
-			args,
-			cwd,
-			timeouts: {
-				startupTimeoutMs: timeoutMs,
-			},
-		};
+		// ComSpec launches go to proc as the batch script plus the command processor:
+		// proc owns the /d /s /c wrapper and windowsVerbatimArguments, so the frozen argv
+		// is never re-escaped by Node's own Windows quoting (E-130, E-119).
+		const spec: LaunchSpec = comSpec
+			? {
+					runId: `probe-${agentId}-${Date.now()}`,
+					file: comSpec.sourcePath,
+					args: comSpec.rawArgs,
+					windowsComSpecPath: comSpec.commandProcessor,
+					cwd,
+					timeouts: {
+						startupTimeoutMs: timeoutMs,
+					},
+				}
+			: {
+					runId: `probe-${agentId}-${Date.now()}`,
+					file,
+					args,
+					cwd,
+					timeouts: {
+						startupTimeoutMs: timeoutMs,
+					},
+				};
 
 		let managed: ReturnType<typeof spawnManaged>;
 		try {

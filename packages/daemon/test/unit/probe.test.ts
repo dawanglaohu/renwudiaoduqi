@@ -179,6 +179,55 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 				| undefined;
 			expect(firstCall?.[0]?.args).toEqual(['--ver']);
 		});
+		it('R1: default spawn path hands the .cmd script plus ComSpec to proc (verbatim wrapping stays in proc)', async () => {
+			const config = {
+				...BUILT_IN_AGENT_DEFAULTS.grok,
+				execPath: 'C:\\tools\\grok.cmd',
+			};
+
+			const fs = createMockFileSystem({
+				'C:\\tools\\grok.cmd': { isFile: true },
+				'C:\\Windows\\System32\\cmd.exe': { isFile: true },
+			});
+
+			let capturedSpec: import('../../src/proc/spawn.ts').LaunchSpec | undefined;
+			const fakeSpawn = ((
+				spec: import('../../src/proc/spawn.ts').LaunchSpec,
+				options: import('../../src/proc/spawn.ts').SpawnManagedOptions,
+			) => {
+				capturedSpec = spec;
+				setTimeout(() => {
+					options.onRaw?.({ text: 'grok 1.0.3 (1a29d5bc12)' } as never);
+					options.onExit?.({
+						runId: spec.runId,
+						pid: 1,
+						exitCode: 0,
+						signal: null,
+						reason: 'exited',
+					});
+				}, 0);
+				return { runId: spec.runId, pid: 1, file: spec.file, args: spec.args } as never;
+			}) as unknown as NonNullable<
+				import('../../src/adapters/probe.ts').ProbeAgentOptions['spawnManagedFn']
+			>;
+
+			const result = await probeAgent({
+				agentId: 'grok',
+				config,
+				hostInputs: windowsHost,
+				fileSystem: fs,
+				isCustomPath: true,
+				spawnManagedFn: fakeSpawn,
+			});
+
+			expect(result.status).toBe('matched');
+			// proc wraps only when it receives the batch script itself; handing it cmd.exe
+			// directly would skip windowsVerbatimArguments and re-escape the /c payload.
+			expect(capturedSpec?.file).toBe('C:\\tools\\grok.cmd');
+			expect(capturedSpec?.args).toEqual(['--version']);
+			expect(capturedSpec?.windowsComSpecPath).toBe('C:\\Windows\\System32\\cmd.exe');
+		});
+
 		it('R1: wraps Windows .cmd/.bat using ComSpec with windowsVerbatimArguments: true', async () => {
 			const config = {
 				...BUILT_IN_AGENT_DEFAULTS.grok,
