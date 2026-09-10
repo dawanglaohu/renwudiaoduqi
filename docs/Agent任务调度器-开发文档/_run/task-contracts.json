@@ -173,6 +173,11 @@
         "packages/daemon/test/unit/effort-tier.test.ts"
       ]
     },
+    "M5-T1": {
+      "supportPaths": [
+        "packages/daemon/test/unit/worktree.test.ts"
+      ]
+    },
     "M7-T2": {
       "supportPaths": [
         "packages/daemon/test/unit/review-agent.test.ts"

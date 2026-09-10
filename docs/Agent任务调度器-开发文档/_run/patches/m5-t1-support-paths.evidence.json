@@ -1,0 +1,90 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M5-T1": {
+      "contractHash": "6733b90ec642e487d5953313eb3f451dc6338d06a5d8809b17370cda1f3e4995",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M5-T2": {
+      "contractHash": "1a58b18c2f835a39e45e32c668777028ff64b6e31a2b6e5dd6c469781e60ec58",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M5-T3": {
+      "contractHash": "0f3c55bd0c16ca907dd5159d693a6a31e2031051159d165b598b8ffcf40a6029",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M5-T4": {
+      "contractHash": "46e2b26ead60671ebf9480bdf327672023f14af6d029ca73efe64bbd0205fb2c",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M6-T3": {
+      "contractHash": "c8343834a079101f8ffc87423576f7e11185ae1e51964d1c86f97e423367dbc2",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M6-T4": {
+      "contractHash": "68e582905d2e759a022def71acc6725ec9bba57812469a8b8f88d2f2adea2d19",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M7-T1": {
+      "contractHash": "7c2e3a062fc1a8851a3cb434cb5d0c62da00feafde7f99aecf394621ae9a79a2",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M7-T2": {
+      "contractHash": "c863ff1bd680b9d1c7ce64b8b414709730a5301119fd2a983955a837ad93b6b1",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M7-T3": {
+      "contractHash": "818132de4f7c8c0a6fe0a7d812c682b0c393fd3c91bee5c85b0e1078333fb7fb",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M7-T4": {
+      "contractHash": "4b9478629c1729610df54c9a8b516124af2454e3b76c8850e248ec4a005aa5fa",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T3": {
+      "contractHash": "643545f0add20363a787b604102793370a55060e37cb5cbf6e4335a9dfb9bdd7",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T4": {
+      "contractHash": "e6364382fdd8778088e49bf7e0952d261a57599c21c4fae31aeb5455eac450d0",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T5": {
+      "contractHash": "222d2f4f81fb84cac8b7a7ba9f26fb9bcbf041d398877580bb8bdd361b319427",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T10": {
+      "contractHash": "4ba30dc6db4fdc080377dee7b39335bcbf36c088275fef01f435026e24f497fa",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T13": {
+      "contractHash": "b445198938d92b06536d884376b6b790e04cbfff55fd8ca384dc9f35059b2863",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T16": {
+      "contractHash": "72bb5d05734851107da5ad8674ada513b15b0c15460910105d08352b7c437f46",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T18": {
+      "contractHash": "3f7bbaa5538a959a9a309a297419d9ae63e1e8c7bb5c3d359eced6f3d7b8984c",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

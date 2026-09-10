@@ -365,6 +365,23 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M5-T1": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "6733b90ec642e487d5953313eb3f451dc6338d06a5d8809b17370cda1f3e4995",
+    "evidence": [
+      "图谱/任务/M5-T1.md 与 04-执行/19-模块任务拆分.md：逐条核对四项验收与 E-69/E-71/E-72/E-76，产出 workspace/worktree.ts，前置 M1-T7（spawn 基座）已落地，完成后解锁 M5-T2、M5-T3；任务定义与模块 M5 的职责一致，无缺项。",
+      "E-69（图谱/边界/E-69.md）：非 git 仓库必须不静默降级到共享目录并行，改为强制串行并说明原因；契约要求交出 requiresSerialExecution/forcedSerial 信号，串行与释放窗口名额的消费方为 M8 调度，属接口契约范围，定义可判定。",
+      "E-71/E-72（图谱/边界/E-71.md、E-72.md）：分支名冲突自动加序号后缀且不复用不覆盖；主工作区有未提交改动时不得 stash，diff 基线取 worktree 自身 HEAD。两条边界与验收标准 1、3 一一对应，可写进测试断言。",
+      "E-76（图谱/边界/E-76.md）：磁盘不足或权限问题标「派发失败·工作区不可用」并释放窗口名额；契约以 E_WORKSPACE_UNAVAILABLE + releaseSlot/workspaceUnavailable 承载机器信号，中文状态标签的渲染是前端职责，边界归属清晰。",
+      "08-后端架构.md：workspace 属五层中的基础设施层，git 调用必须经 proc/spawnManaged，file 必须是 platform.resolveExecutable() 解析的绝对路径（E-130）；本任务契约与此约束不冲突，已在有效范围内补齐 packages/daemon/test/unit/worktree.test.ts 作为验收实测证据（补丁 m5-t1-support-paths）。",
+      "有效范围复核：taskPaths 为 packages/daemon/src/workspace/worktree.ts；本次补丁在 task-contracts.json 增列测试支持路径，两处并集仍只覆盖 worktree.ts 与该单元测试，未与 M5-T2/M5-T3/M5-T4 的 base-select.ts、diff.ts、landing.ts 冲突。",
+      "文档与既有约定核对：错误码 E_NOT_A_GIT_REPO、E_WORKSPACE_UNAVAILABLE 已在 packages/shared/src/errors/codes.ts 与 10 节错误码表登记（scripts/check-error-codes.mjs 断言 43 条一致）；任务不涉及数据库事务、事件发布与共享 API 类型变更。",
+      "本机实测：npx vitest run packages/daemon/test/unit/worktree.test.ts 通过 20 项；node scripts/check-error-codes.mjs、npx biome ci .、npx tsc -b --noEmit 均退出 0；全量 npx vitest run 47 个文件 460 passed / 32 skipped。代码层面的 08 节可执行文件解析问题按本轮 R1 返工，不改变本契约判定。"
+    ],
+    "reviewed": "2026-09-10T09:52:11.355119+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M6-T1": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "19048e2f2b69b712853441e79c720bcb2d6b61db4421e2a09b9d57c1980047ed",
