@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T8": {
+      "contractHash": "076912b42b0e3a0356a594e3f1aa9d98aab40d6ddbd029ddeced27dde13e1681",
+      "evidence": [
+        "Verified AC1: timers separate startupTimeoutMs and idleTimeoutMs/thinkingTimeoutMs.",
+        "Verified AC2: isIdleSuspected is used but proc does not kill process on idle timeout.",
+        "Verified AC3: AppendQueue implements pause/resume backpressure with 8MB and 4MB watermarks.",
+        "Verified AC4: M1-T8 ensures no stdout is accumulated into memory; line-reader acts as chunking. The 5000 event buffer is properly respected without duplication."
+      ],
+      "verdict": "pass"
+    }
+  }
+}
