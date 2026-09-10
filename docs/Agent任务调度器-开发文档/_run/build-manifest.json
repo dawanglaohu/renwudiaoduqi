@@ -1,5 +1,5 @@
 {
-  "compiler": "f943a3769d2c0d7a86a8bb9d2cdc9e15d7455f5926e31506ab9f39f3c03e07fc",
+  "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
   "inputs": {
     "00-概览/01-概述与目标.md": "6afe110f609230e75b591d92ee2ada919909ee7cf2fcca8d4557b6222940a2a3",
     "00-概览/02-非目标.md": "3034560f88c7c2fe5acf7b4e574ae50abd2c49f0950e8e366e576f33c193f6c6",
@@ -31,12 +31,12 @@
   },
   "products": {
     "_MOC.md": "b72428e7361ccd6b304116e47703c5d0efe16f7510d1a269cedea5f845fd7ed3",
-    "_run/dispatch.json": "9071efe8b7f1fda27f7283e648b080e251d1ae8359ba578d69b7b16b9a988df0",
-    "_run/review.json": "1cceb152342b9a9d1d0bae2e3500bc02901e86d495676b3c3b24ee9103055d46",
-    "_run/task-reviews.json": "2f881ef8340129d9587ac6c6948eab315f6de72f757ddff9a03af537adc71b55",
-    "docs-data.js": "7afac2d67903707c0365cc285a52ae18baf3ab81beaa472826205c72548ca2db",
+    "_run/dispatch.json": "0cb96cea89104a53e129fb240ca8238ba5bbe258d31e875ad717ec20971d284b",
+    "_run/review.json": "61092a8d212867309946afe378fa90f47c5b88e181a48972258ebfbfc04ab2fc",
+    "_run/task-reviews.json": "d23f7c339cdbba4b8c845a2bb1ab9e0aaec5f2b72d276ebc218616548981cbb8",
+    "docs-data.js": "c44d4bdc897ba96cb1ee684ebd00783ca83f87dd1f7218282304898c16d07113",
     "index.html": "1955f467636f5c6b93dd176ad1fb246afe76ba4a894468e08126d087685ec7ed"
   },
   "schemaVersion": 1,
-  "sourceVersion": "5c715f0b510337b88983539184b29f70fec1f07de7f59c56c4bfa8719741d5f4"
+  "sourceVersion": "062450afe224a3f26c266682cbc0caaf78b13bc3ad65f8aa237782e59f461d46"
 }

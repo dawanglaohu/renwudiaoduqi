@@ -1,0 +1,10 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M2-T6": {
+      "contractHash": "96ca88f62c5e6c8dbb351e3098b2ceeb5da21458720af3ce5ea5e53c591b94c1",
+      "evidence": ["All acceptance criteria met, all boundaries covered, test coverage exhaustive, verified implementation correctly intercepts additional properties and checks API surface with code constants"],
+      "verdict": "pass"
+    }
+  }
+}

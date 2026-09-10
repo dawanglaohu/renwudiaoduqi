@@ -145,6 +145,19 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M1-T8": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "076912b42b0e3a0356a594e3f1aa9d98aab40d6ddbd029ddeced27dde13e1681",
+    "evidence": [
+      "Verified AC1: timers separate startupTimeoutMs and idleTimeoutMs/thinkingTimeoutMs.",
+      "Verified AC2: isIdleSuspected is used but proc does not kill process on idle timeout.",
+      "Verified AC3: AppendQueue implements pause/resume backpressure with 8MB and 4MB watermarks.",
+      "Verified AC4: M1-T8 ensures no stdout is accumulated into memory; line-reader acts as chunking. The 5000 event buffer is properly respected without duplication."
+    ],
+    "reviewed": "2026-09-10T01:14:42.981714+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M1-T9": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "6b22dcd7afc3b94c33010633d31a0c6e58bc5f77094a2337948618076cba277a",
@@ -192,6 +205,16 @@
     ],
     "migratedFrom": "e78cae65e1db84c35ed24056c4e71b2506832929a87daabc0e8ab334b8155f2f",
     "reviewed": "2026-09-09T08:57:12.573478+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M2-T6": {
+    "compiler": "8308e1241d987eca2463f4a0c7e2a1f6e58073881a70ff190efa336a632b7a2c",
+    "contractHash": "96ca88f62c5e6c8dbb351e3098b2ceeb5da21458720af3ce5ea5e53c591b94c1",
+    "evidence": [
+      "All acceptance criteria met, all boundaries covered, test coverage exhaustive, verified implementation correctly intercepts additional properties and checks API surface with code constants"
+    ],
+    "reviewed": "2026-09-10T00:57:52.378971+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

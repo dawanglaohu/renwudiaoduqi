@@ -2994,9 +2994,9 @@ def tables(text):
     """抽出所有表格（已去掉分隔行）"""
     out, cur = [], []
     for ln in text.split("\n"):
-        s = ln.strip()
+        s = ln.strip(" ;\n\r\t")
         if s.startswith("|"):
-            cs = [c.strip() for c in s.strip("|").split("|")]
+            cs = [c.strip(" ;\n\r\t") for c in s.strip("|").split("|")]
             if all(re.fullmatch(r":?-{2,}:?", c) for c in cs if c):
                 continue
             cur.append(cs)
@@ -3021,18 +3021,18 @@ def first_table(text, min_cols):
 
 
 def cell(r, i):
-    return r[i].strip() if len(r) > i else ""
+    return r[i].strip(" ;\n\r\t") if len(r) > i else ""
 
 
 def strip_h1(text):
     """去掉文件开头的一级标题——阅读器会自己渲染标题，留着会重复显示"""
     lines = text.split("\n")
     i = 0
-    while i < len(lines) and not lines[i].strip():
+    while i < len(lines) and not lines[i].strip(" ;\n\r\t"):
         i += 1
     if i < len(lines) and re.match(r"^#\s+\S", lines[i]):
         del lines[i]
-    return "\n".join(lines).strip()
+    return "\n".join(lines).strip(" ;\n\r\t")
 
 
 def collect(root):
@@ -3050,7 +3050,7 @@ def collect(root):
         for f in files:
             m = re.match(r"^(\d{1,2})[-_.]?\s*(.+)\.md$", f)
             num = m.group(1).zfill(2) if m else ""
-            title = (m.group(2) if m else f[:-3]).strip()
+            title = (m.group(2) if m else f[:-3]).strip(" ;\n\r\t")
             text = strip_h1(read(os.path.join(gd, f)))
             if m:
                 by_num[int(m.group(1))] = text
@@ -3071,7 +3071,7 @@ def est_days(s):
 def norm_review(s):
     """代理用户的 QUESTION_REVIEW 归一化。中英文写法都收，认不出的按 sound 处理——
     「问题成立」是常态，误判成 flawed 会在时间线上凭空标一片红"""
-    v = (s or "").strip().lower()
+    v = (s or "").strip(" ;\n\r\t").lower()
     if "flaw" in v or "counter" in v or "驳回" in v or "不成立" in v or "有问题" in v:
         return "flawed"
     if "incomplete" in v or "不全" in v or "信息不足" in v or "待补" in v:
@@ -3081,7 +3081,7 @@ def norm_review(s):
 
 def norm_conf(s):
     """CONFIDENCE 归一化。认不出按 high——低置信要进复核清单，宁可漏标不可错标"""
-    v = (s or "").strip().lower()
+    v = (s or "").strip(" ;\n\r\t").lower()
     if v.startswith("l") or "低" in v:
         return "low"
     if v.startswith("m") or "中" in v:
@@ -3092,7 +3092,7 @@ def norm_conf(s):
 def dec_refs(s):
     """23 节末列的「涉及决策」→ 决策序号列表。收 13 / 1-12 / 1,3,5 / D7 几种写法"""
     out = []
-    for part in re.split(r"[,，、\s]+", (s or "").strip()):
+    for part in re.split(r"[,，、\s]+", (s or "").strip(" ;\n\r\t")):
         if not part:
             continue
         m = re.fullmatch(r"[Dd]?(\d{1,3})\s*[-–~～至到]\s*[Dd]?(\d{1,3})", part)
@@ -3204,7 +3204,7 @@ def note_status(text):
     s = re.search(r"^status:\s*(\S+)", fm, re.M)
     if not i:
         return None, None
-    v = (s.group(1) if s else "todo").strip().strip("\"'").lower()
+    v = (s.group(1) if s else "todo").strip(" ;\n\r\t").strip("\"'").lower()
     for k, words in ST_WORDS.items():
         if v in words:
             return i.group(1), k
@@ -3218,7 +3218,7 @@ def read_progress(root):
     if os.path.exists(dp):
         try:
             text = read(dp)
-            st.update(json.loads(text[len("window.DOCS = "):].strip()).get("progress") or {})
+            st.update(json.loads(text[len("window.DOCS = "):].strip(" ;\n\r\t")).get("progress") or {})
         except (ValueError, AttributeError):
             pass
     p = os.path.join(root, "_run", "progress.js")
@@ -3277,7 +3277,7 @@ def write_progress_payload(root, st):
         return False
     text = read(p)
     try:
-        payload = json.loads(text[len("window.DOCS = "):].strip())
+        payload = json.loads(text[len("window.DOCS = "):].strip(" ;\n\r\t"))
     except ValueError:
         return False
     if payload.get("progress") == st:
@@ -3310,7 +3310,7 @@ def mark_landed(root, ids):
     marker_path = os.path.join(root, "_run", "maintenance.js")
     if os.path.exists(marker_path):
         try:
-            pending = json.loads(read(marker_path).split("=", 1)[1].strip()).get("pendingTasks", [])
+            pending = json.loads(read(marker_path).split("=", 1)[1].strip(" ;\n\r\t")).get("pendingTasks", [])
         except (ValueError, IndexError):
             print("维护状态无法读取；先修复同步状态再记录落地。")
             return 1
@@ -3356,7 +3356,7 @@ def mark_landed(root, ids):
     if os.path.exists(marker_path):
         text = read(marker_path)
         try:
-            marker_value["pendingTasks"] = json.loads(text.split("=", 1)[1].strip()).get("pendingTasks", [])
+            marker_value["pendingTasks"] = json.loads(text.split("=", 1)[1].strip(" ;\n\r\t")).get("pendingTasks", [])
         except (ValueError, IndexError):
             pass
     if any(i in marker_value["pendingTasks"] for i in ok):
@@ -3474,7 +3474,7 @@ def main():
     if os.path.exists(os.path.join(root, "docs-data.js")):
         old = read(os.path.join(root, "docs-data.js"))
         try:
-            previous = json.loads(old[len("window.DOCS = "):].strip())
+            previous = json.loads(old[len("window.DOCS = "):].strip(" ;\n\r\t"))
         except ValueError:
             pass
     if previous:
@@ -3527,7 +3527,7 @@ def main():
                 v = arch.get(name)
                 if isinstance(v, dict):
                     return len([k for k, x in v.items() if x]), "项"
-                if isinstance(v, str) and v.strip():
+                if isinstance(v, str) and v.strip(" ;\n\r\t"):
                     return 1, "整段"
                 return 0, ""
             bits, loose = [], []
@@ -3553,7 +3553,7 @@ def main():
                 v = arch.get(name)
                 if isinstance(v, dict):
                     return sum(len(str(x)) for x in v.values() if x)
-                return len(v.strip()) if isinstance(v, str) else 0
+                return len(v.strip(" ;\n\r\t")) if isinstance(v, str) else 0
             fat = [(label, seg_len(name))
                    for name, label in (("shared", "共用"), ("frontend", "前端"), ("backend", "后端"))
                    if seg_len(name) > 2500]

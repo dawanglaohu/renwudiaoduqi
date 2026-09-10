@@ -3,19 +3,21 @@ import { AppError } from '../../errors/app-error.ts';
 import type { RunAbortService } from '../../service/run-abort.ts';
 
 export interface AbortRunParams {
-	readonly id: string;
+	readonly id?: string;
+	readonly runId?: string;
 }
 
 export const ABORT_RUN_PARAMS_PROPERTIES = [
 	'id',
+	'runId',
 ] as const satisfies readonly (keyof AbortRunParams)[];
 
 export const abortRunParamsSchema = {
 	type: 'object',
 	additionalProperties: false,
-	required: ['id'],
 	properties: {
 		id: { type: 'string', minLength: 1 },
+		runId: { type: 'string', minLength: 1 },
 	},
 } as const;
 
@@ -68,7 +70,7 @@ export function registerRunsRoutes(
 		const actorDeviceId = (request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
 
 		const result = await service.abortRun({
-			runId: params.id,
+			runId: params.runId ?? params.id ?? '',
 			reason: body.reason,
 			actorDeviceId,
 		});
@@ -80,7 +82,7 @@ export function registerRunsRoutes(
 		Params: AbortRunParams;
 		Body: AbortRunBody;
 	}>(
-		'/api/v1/runs/:id/abort',
+		'/api/v1/runs/:runId/abort',
 		{
 			schema: {
 				params: abortRunParamsSchema,

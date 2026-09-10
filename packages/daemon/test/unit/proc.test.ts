@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 type SpawnFn = typeof import('node:child_process').spawn;
 import { AppError } from '../../src/errors/app-error.ts';
+import { createAppendQueue } from '../../src/logstore/append-queue.ts';
 import type { KillTreeResult } from '../../src/platform/kill-tree-contract.ts';
 import { DEFAULT_ENV_DENYLIST, createProcessEnv } from '../../src/proc/env.ts';
 import {
@@ -1111,5 +1112,296 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		// Startup timer is 60s default, but checkTimeoutMs is 0 by default (not armed)
 		expect(managed.timers.checkTimeoutMs).toBe(0);
+	});
+
+	describe('M1-T8 Three-Tier Timers & Backpressure (AC 1-4, E-120, E-142, E-190)', () => {
+		it('AC 1 & E-190: separates startup timeout (native 60s / ACP 180s) from thinking timeout; cold startup never triggers idle/stall', () => {
+			let currentMs = 100_000;
+			const clock = {
+				now: () => new Date(currentMs).toISOString(),
+				nowMs: () => currentMs,
+			};
+
+			// 1. Native defaults to 60s, ACP defaults to 180s
+			const nativeTimers = createProcessTimers({ isAcp: false, clock });
+			expect(nativeTimers.startupTimeoutMs).toBe(DEFAULT_STARTUP_TIMEOUT_MS_NATIVE); // 60,000
+			expect(nativeTimers.idleTimeoutMs).toBe(DEFAULT_IDLE_TIMEOUT_MS); // 900,000
+			expect(nativeTimers.thinkingTimeoutMs).toBe(DEFAULT_IDLE_TIMEOUT_MS);
+
+			const acpTimers = createProcessTimers({ isAcp: true, clock });
+			expect(acpTimers.startupTimeoutMs).toBe(DEFAULT_STARTUP_TIMEOUT_MS_ACP); // 180,000
+			expect(acpTimers.thinkingTimeoutMs).toBe(DEFAULT_IDLE_TIMEOUT_MS);
+
+			// 2. Cold startup delay under ACP (e.g. npx taking 120s):
+			// Arm startup timer
+			acpTimers.armStartupTimer(() => {});
+			expect(acpTimers.isStartupTimerArmed).toBe(true);
+			expect(acpTimers.isStartupCompleted).toBe(false);
+
+			// Advance clock by 120s (still within 180s startup timeout)
+			currentMs += 120_000;
+
+			// Must NOT be suspected idle or stalled during cold startup!
+			expect(acpTimers.isIdleSuspected(currentMs)).toBe(false);
+			expect(acpTimers.idleDurationMs(currentMs)).toBe(0);
+
+			// 3. First parsable JSON event arrives -> startup completes, thinking timer begins fresh
+			acpTimers.disarmStartupTimer();
+			expect(acpTimers.isStartupTimerArmed).toBe(false);
+			expect(acpTimers.isStartupCompleted).toBe(true);
+
+			// Immediately after startup completion, idle duration is 0
+			expect(acpTimers.idleDurationMs(currentMs)).toBe(0);
+			expect(acpTimers.isIdleSuspected(currentMs)).toBe(false);
+
+			// Thinking timeout can also be configured with thinkingTimeoutMs alias
+			const customTimers = createProcessTimers({
+				timeouts: { thinkingTimeoutMs: 300_000 },
+			});
+			expect(customTimers.thinkingTimeoutMs).toBe(300_000);
+			expect(customTimers.idleTimeoutMs).toBe(300_000);
+		});
+
+		it('AC 1 & E-190: startup timeout kills tree with E_AGENT_STARTUP_TIMEOUT when initial event is missing', async () => {
+			const mockChild = createMockChild();
+			const killTreeMock = vi.fn(async () => {
+				mockChild.emit('close', null, 'SIGTERM');
+				return {
+					outcome: 'terminated' as const,
+					attempts: [],
+				};
+			});
+			const errors: Error[] = [];
+			const exitEvents: ProcessExitResult[] = [];
+
+			spawnManaged(
+				{
+					runId: 'run-startup-timeout',
+					file: '/bin/agent',
+					args: [],
+					cwd: '/tmp',
+					timeouts: { startupTimeoutMs: 15 },
+				},
+				{
+					platform: 'linux',
+					spawnFn: vi.fn(() => mockChild as unknown as ChildProcess) as unknown as SpawnFn,
+					killTree: killTreeMock,
+					onError: (e) => errors.push(e),
+					onExit: (r) => exitEvents.push(r),
+				},
+			);
+
+			// Emit non-JSON line (banner) which does NOT disarm startup timer
+			mockChild.stdout.write('Connecting to upstream service...\n');
+
+			await new Promise((resolve) => setTimeout(resolve, 40));
+
+			expect(killTreeMock).toHaveBeenCalledTimes(1);
+			expect(errors).toHaveLength(1);
+			const err = errors[0] as AgentProcessError;
+			expect(err.code).toBe('E_AGENT_STARTUP_TIMEOUT');
+			expect(exitEvents).toHaveLength(1);
+			expect(exitEvents[0]?.reason).toBe('startup-timeout');
+		});
+
+		it('AC 2 & E-120: streaming NDJSON continuously resets activity; idle timeout marks weak state but proc NEVER kills', async () => {
+			let currentMs = 1_000_000;
+			const clock = {
+				now: () => new Date(currentMs).toISOString(),
+				nowMs: () => currentMs,
+			};
+
+			const mockChild = createMockChild();
+			const killTreeMock = vi.fn(async () => ({
+				outcome: 'terminated' as const,
+				attempts: [],
+			}));
+			const exitEvents: ProcessExitResult[] = [];
+
+			const managed = spawnManaged(
+				{
+					runId: 'run-long-thought',
+					file: '/bin/agent',
+					args: [],
+					cwd: '/tmp',
+					timeouts: { idleTimeoutMs: 900_000 },
+				},
+				{
+					platform: 'linux',
+					clock,
+					spawnFn: vi.fn(() => mockChild as unknown as ChildProcess) as unknown as SpawnFn,
+					killTree: killTreeMock,
+					onExit: (r) => exitEvents.push(r),
+				},
+			);
+
+			// Initial event completes startup
+			mockChild.stdout.write('{"type":"session.started"}\n');
+			expect(managed.timers.isStartupCompleted).toBe(true);
+
+			// Simulate agent performing a 10-minute thought, emitting a thought chunk every 30 seconds
+			for (let i = 0; i < 20; i++) {
+				currentMs += 30_000; // 30 seconds
+				mockChild.stdout.write(`{"type":"agent_thought_chunk","content":"step ${i}"}\n`);
+				// With NDJSON streaming, it is never suspected idle
+				expect(managed.timers.isIdleSuspected(currentMs)).toBe(false);
+			}
+
+			// Total elapsed time is 600s, still not idle because NDJSON was outputting
+			expect(managed.timers.isIdleSuspected(currentMs)).toBe(false);
+
+			// Now silence: advance clock by 901 seconds with NO stdout activity
+			currentMs += 901_000;
+			expect(managed.timers.isIdleSuspected(currentMs)).toBe(true);
+			expect(managed.timers.idleDurationMs(currentMs)).toBeGreaterThanOrEqual(900_000);
+
+			// PROC LAYER NEVER KILLS PROCESS FOR IDLE TIMEOUT (E-120):
+			expect(killTreeMock).not.toHaveBeenCalled();
+			expect(managed.isExited).toBe(false);
+			expect(exitEvents).toHaveLength(0);
+		});
+
+		it('AC 3: wires AppendQueue backpressure to child.stdout (pauses at > 8 MiB, resumes at <= 4 MiB)', async () => {
+			let resolveFirstWrite: (() => void) | undefined;
+			let writeCount = 0;
+			const queue = createAppendQueue(
+				{
+					appendFile: async () => {
+						writeCount += 1;
+						if (writeCount === 1) {
+							await new Promise<void>((resolve) => {
+								resolveFirstWrite = resolve;
+							});
+						}
+					},
+				},
+				{
+					highWatermarkBytes: 8 * 1024 * 1024,
+					lowWatermarkBytes: 4 * 1024 * 1024,
+				},
+			);
+
+			const mockChild = createMockChild();
+			const stdoutPauseSpy = vi.spyOn(mockChild.stdout, 'pause');
+			const stdoutResumeSpy = vi.spyOn(mockChild.stdout, 'resume');
+
+			const managed = spawnManaged(
+				{
+					runId: 'run-backpressure',
+					file: '/bin/agent',
+					args: [],
+					cwd: '/tmp',
+				},
+				{
+					platform: 'linux',
+					spawnFn: vi.fn(() => mockChild as unknown as ChildProcess) as unknown as SpawnFn,
+					appendQueue: queue,
+				},
+			);
+
+			expect(managed.appendQueue).toBe(queue);
+
+			// Clear spy calls from stream initialization (Node calls resume() inside on('data'))
+			stdoutPauseSpy.mockClear();
+			stdoutResumeSpy.mockClear();
+
+			// 1. Append 8 MiB -> not exceeded yet
+			const p1 = queue.append('/tmp/raw.log', new Uint8Array(8 * 1024 * 1024));
+			expect(queue.isPaused).toBe(false);
+			expect(stdoutPauseSpy).not.toHaveBeenCalled();
+
+			// 2. Append 1 more byte -> exceeds 8 MiB -> child.stdout.pause() is called!
+			const p2 = queue.append('/tmp/raw.log', new Uint8Array(1));
+			expect(queue.isPaused).toBe(true);
+			expect(stdoutPauseSpy).toHaveBeenCalledTimes(1);
+
+			// Wait a tick for appendFile to enter
+			await new Promise((r) => setTimeout(r, 5));
+
+			// 3. Resolve first write (8 MiB freed, 1 byte remains <= 4 MiB) -> child.stdout.resume() is called!
+			resolveFirstWrite?.();
+			await p1;
+
+			expect(queue.pendingBytes).toBe(1);
+			expect(queue.isPaused).toBe(false);
+			expect(stdoutResumeSpy).toHaveBeenCalledTimes(1);
+
+			await p2;
+		});
+
+		it('AC 3: supports attachAppendQueue dynamically and stdin drain backpressure', async () => {
+			const mockChild = createMockChild();
+			const managed = spawnManaged(
+				{
+					runId: 'run-dynamic-queue',
+					file: '/bin/agent',
+					args: [],
+					cwd: '/tmp',
+				},
+				{
+					platform: 'linux',
+					spawnFn: vi.fn(() => mockChild as unknown as ChildProcess) as unknown as SpawnFn,
+				},
+			);
+
+			const queue = createAppendQueue(
+				{ appendFile: async () => {} },
+				{ highWatermarkBytes: 100, lowWatermarkBytes: 50 },
+			);
+
+			const stdoutPauseSpy = vi.spyOn(mockChild.stdout, 'pause');
+			const detach = managed.attachAppendQueue(queue);
+			expect(managed.appendQueue).toBe(queue);
+
+			// Stdin backpressure: writeStdin returns boolean
+			const stdinWriteSpy = vi.spyOn(mockChild.stdin, 'write').mockReturnValue(false);
+			const written = managed.writeStdin('hello');
+			expect(written).toBe(false);
+			expect(stdinWriteSpy).toHaveBeenCalledWith('hello');
+
+			// waitForStdinDrain and onStdinDrain
+			const drainListener = vi.fn();
+			const unbindDrain = managed.onStdinDrain(drainListener);
+
+			// Simulate child.stdin emitting 'drain'
+			mockChild.stdin.emit('drain');
+			expect(drainListener).toHaveBeenCalledTimes(1);
+
+			unbindDrain();
+			detach();
+			expect(managed.appendQueue).toBeUndefined();
+		});
+
+		it('AC 3 & AC 4: no code path accumulates stdout into memory strings or creates second in-memory buffer (E-142)', () => {
+			const mockChild = createMockChild();
+			const linesReceived: string[] = [];
+
+			const managed = spawnManaged(
+				{
+					runId: 'run-memory-test',
+					file: '/bin/agent',
+					args: [],
+					cwd: '/tmp',
+				},
+				{
+					platform: 'linux',
+					spawnFn: vi.fn(() => mockChild as unknown as ChildProcess) as unknown as SpawnFn,
+					onLine: (line) => linesReceived.push(line.text),
+				},
+			);
+
+			// Emit 50 lines through stdout
+			for (let i = 0; i < 50; i++) {
+				mockChild.stdout.write(`line ${i}\n`);
+			}
+
+			expect(linesReceived).toHaveLength(50);
+			// ManagedProcess does NOT retain an unbounded in-memory array of lines or events
+			expect(Object.keys(managed)).not.toContain('events');
+			expect(Object.keys(managed)).not.toContain('allLines');
+			expect(Object.keys(managed)).not.toContain('eventHistory');
+			// Only bounded stderr tail (max 100 lines) exists
+			expect(managed.stderrTail).toBeDefined();
+		});
 	});
 });

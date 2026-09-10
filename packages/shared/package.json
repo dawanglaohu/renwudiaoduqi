@@ -6,6 +6,18 @@
 	"exports": {
 		"./errors/codes": "./src/errors/codes.ts",
 		"./api/events": "./src/api/events.ts",
+		"./api/routes": "./src/api/routes.ts",
+		"./api/pair": "./src/api/pair.ts",
+		"./api/devices": "./src/api/devices.ts",
+		"./api/documents": "./src/api/documents.ts",
+		"./api/batches": "./src/api/batches.ts",
+		"./api/agents": "./src/api/agents.ts",
+		"./api/runs": "./src/api/runs.ts",
+		"./api/tasks": "./src/api/tasks.ts",
+		"./api/system": "./src/api/system.ts",
+		"./api/gates": "./src/api/gates.ts",
+		"./api/settings": "./src/api/settings.ts",
+		"./api/snapshot": "./src/api/snapshot.ts",
 		"./shell/daemon-launch-spec": "./src/shell/daemon-launch-spec.ts"
 	}
 }

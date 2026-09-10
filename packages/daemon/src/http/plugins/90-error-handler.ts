@@ -58,12 +58,30 @@ export function createErrorHandler(instance: FastifyInstance): void {
 
 		// 2. Fastify validation error (AJV)
 		if ('validation' in error && error.validation) {
+			const extraFields: string[] = [];
+			if (Array.isArray(error.validation)) {
+				for (const v of error.validation as Array<{
+					keyword?: string;
+					params?: { additionalProperty?: string };
+				}>) {
+					if (
+						v.keyword === 'additionalProperties' &&
+						typeof v.params?.additionalProperty === 'string'
+					) {
+						extraFields.push(v.params.additionalProperty);
+					}
+				}
+			}
+
 			const envelope: ErrorEnvelope = {
 				error: {
 					code: 'E_VALIDATION',
 					message: error.message || 'Request validation failed.',
 					requestId,
-					details: { validation: error.validation as unknown as Record<string, unknown> },
+					details: {
+						validation: error.validation as unknown as Record<string, unknown>,
+						...(extraFields.length > 0 ? { extraFields } : {}),
+					},
 					...(isDev && error.stack ? { stack: error.stack } : {}),
 				},
 			};
