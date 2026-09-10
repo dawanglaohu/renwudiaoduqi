@@ -1,4 +1,5 @@
 import { spawn as nodeSpawn } from 'node:child_process';
+import { AppError } from '../errors/app-error.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import { resolveExecutable } from '../platform/resolve-executable.ts';
 
@@ -14,7 +15,10 @@ export interface OpenBrowserProcessOps {
 			readonly detached: boolean;
 			readonly stdio: 'ignore';
 		},
-	) => { unref?: () => void };
+	) => {
+		unref?: () => void;
+		on?: (event: 'error', listener: (err: Error) => void) => void;
+	};
 }
 
 export function defaultOpenBrowserProcessOps(): OpenBrowserProcessOps {
@@ -47,22 +51,22 @@ export function createOpenBrowser(options: CreateOpenBrowserOptions): OpenBrowse
 
 	return async function openInDefaultBrowser(targetPath: string): Promise<void> {
 		let executableName: string;
-		let fallbackPath: string;
+		let candidatePath: string;
 
 		switch (hostInputs.platform) {
 			case 'darwin': {
 				executableName = 'open';
-				fallbackPath = '/usr/bin/open';
+				candidatePath = '/usr/bin/open';
 				break;
 			}
 			case 'win32': {
 				executableName = 'explorer.exe';
-				fallbackPath = 'C:Windowsexplorer.exe';
+				candidatePath = 'C:\\Windows\\explorer.exe';
 				break;
 			}
 			default: {
 				executableName = 'xdg-open';
-				fallbackPath = '/usr/bin/xdg-open';
+				candidatePath = '/usr/bin/xdg-open';
 				break;
 			}
 		}
@@ -70,9 +74,25 @@ export function createOpenBrowser(options: CreateOpenBrowserOptions): OpenBrowse
 		const resolved = await resolver({
 			hostInputs,
 			executableName,
+			configuredPath: candidatePath,
 		});
 
-		const file = resolved.ok ? resolved.executable.file : fallbackPath;
+		if (!resolved.ok) {
+			throw new AppError(
+				'E_AGENT_EXEC_NOT_FOUND',
+				`Failed to resolve browser executable for platform ${hostInputs.platform}: ${resolved.error.message}`,
+				{
+					details: {
+						platform: hostInputs.platform,
+						executableName,
+						candidatePath,
+						error: resolved.error,
+					},
+				},
+			);
+		}
+
+		const file = resolved.executable.file;
 		const args = [targetPath];
 
 		const child = processOps.spawn(file, args, {
@@ -81,6 +101,12 @@ export function createOpenBrowser(options: CreateOpenBrowserOptions): OpenBrowse
 			detached: true,
 			stdio: 'ignore',
 		});
+
+		if (typeof child.on === 'function') {
+			child.on('error', () => {
+				// Prevent unhandled errors from detached browser processes
+			});
+		}
 
 		if (typeof child.unref === 'function') {
 			child.unref();

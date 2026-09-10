@@ -498,6 +498,7 @@ describe(
 			expect(mockResolver).toHaveBeenCalledWith({
 				hostInputs: { platform: 'linux', homedir: testDir },
 				executableName: 'xdg-open',
+				configuredPath: '/usr/bin/xdg-open',
 			});
 			expect(spawned).toHaveLength(1);
 			expect(spawned[0]?.file).toBe('/resolved/bin/xdg-open');
@@ -507,6 +508,27 @@ describe(
 				windowsHide: true,
 				detached: true,
 				stdio: 'ignore',
+			});
+		});
+
+		it('R3: createOpenBrowser throws AppError with E_AGENT_EXEC_NOT_FOUND when executable cannot be resolved', async () => {
+			const mockResolver = vi.fn(async () => ({
+				ok: false as const,
+				error: {
+					code: 'E_AGENT_EXEC_NOT_FOUND' as const,
+					message: 'Command not found',
+					details: {},
+				},
+			}));
+
+			const openBrowser = createOpenBrowser({
+				hostInputs: { platform: 'linux', homedir: testDir },
+				resolver: mockResolver as unknown as Parameters<typeof createOpenBrowser>[0]['resolver'],
+			});
+
+			await expect(openBrowser('/tmp/test-doc/index.html')).rejects.toThrowError(AppError);
+			await expect(openBrowser('/tmp/test-doc/index.html')).rejects.toMatchObject({
+				code: 'E_AGENT_EXEC_NOT_FOUND',
 			});
 		});
 	},
