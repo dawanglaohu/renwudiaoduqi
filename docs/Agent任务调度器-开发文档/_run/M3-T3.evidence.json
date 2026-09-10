@@ -1,0 +1,21 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M3-T3": {
+      "contractHash": "c261409624364dcba8ff1e619089f905821ff647ad71773ecf9b89889ff4c0cf",
+      "evidence": [
+        "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T3 行、09-数据模型.md:77/134-136/189 与六条边界（E-18/E-19/E-77/E-78/E-80/E-81），确认产出为 repo/dispatch-snapshots.ts + 比对逻辑 + 横幅数据；实际改动只有 taskPaths 的 domain/docs-fingerprint.ts、repo/dispatch-snapshots.ts 与 supportPaths 的 test/unit/dispatch-snapshots.test.ts。前置 M3-T2 已落地（repo/tasks.ts 的 importDocTasks/markRemovedFromDoc 与 repo/batches.ts 在 main），本任务只读 tasks 表、不重做导入；接线（容器注册、service 调用、HTTP 路由）归 M3-T5/M8-T3。",
+        "AC1/E-19 快照：packages/daemon/src/repo/dispatch-snapshots.ts:606 takeSnapshotForTask 单次读取任务行后，把 input_text/output_text/accept_text、impl_prompt/review_prompt、contract_hash、task_paths_json（有效路径，缺省 '[]'）与 launch_spec_json 一并写入 dispatch_snapshots（INSERT 语句在 :226 之前定义，字段与 migrations/0001_init.sql:54 的列一一对应）；runs.snapshot_id 由 M8-T3 在创建运行时引用该快照 id，本任务返回完整行供其使用。",
+        "AC2/E-77/E-78 三个标记与过滤列表：packages/daemon/src/domain/docs-fingerprint.ts:139 compareTaskWithSnapshot 逐字符比对（normalizeComparableText 只把 null/undefined 归一为空串），产出 isRemovedFromDoc/hasAcceptChanged/hasPromptChanged；hasAcceptChanged 覆盖 input/output/accept 三段，hasPromptChanged 覆盖两段提示词与 contract_hash（哈希不同即视为提示词变更），不再依赖任务行是否变；:206 computeDocDiffBanner 汇总计数与 affectedTaskIds/removedTaskIds/acceptChangedTaskIds/promptChangedTaskIds 四个清单，:259 filterAffectedTasks 支持 all/removed/accept_changed/prompt_changed 过滤。",
+        "AC3/E-18/E-77：refreshDocDiff（repo/dispatch-snapshots.ts:675）只 UPDATE tasks.is_removed_from_doc/has_accept_changed/has_prompt_changed 并重算横幅，全程不出现 runs 表的写语句（SELECT_ACTIVE_RUN_COUNT_BY_TASK_ID_SQL 仅计数），在途运行不被终止也不被删除；入口 takeSnapshotForTask 对 is_removed_from_doc=1 抛 E_TASK_REMOVED_FROM_DOC 阻断再派发；hasActiveRuns（:492）按 queued/starting/running/awaiting_reply/reviewing/reworking 判定在途，供卡片与归档侧读取。",
+        "AC4/E-80：最新快照统一走 SELECT_LATEST_SNAPSHOT_BY_TASK_ID_SQL 的 ORDER BY created_at DESC, id DESC LIMIT 1（doc 级用 ROW_NUMBER() OVER (PARTITION BY task_id ...)），历史由 listByTaskId 按同一序只读返回；全文件没有 dispatch_snapshots 的 UPDATE/DELETE 语句，历史轮次不会被原地覆盖。",
+        "AC5/E-81：快照值取自 task 行的单次读取，落库后不重新读取任务表补充字段；同进程内 better-sqlite3 同步调用使「读任务行 + 插快照」不会与导入事务交错，文档重出只改标记与横幅，绝不回滚已发出的运行。",
+        "E-78 并列展示：repo/dispatch-snapshots.ts:501 getTaskAcceptanceComparison 返回 snapshotAcceptText/currentAcceptText 及 input/output 两侧文本与 snapshotCreatedAt，主操作「重派」与「按旧标准手动判为已落地」由 manual_state 在 M3-T5/M9 落地，本任务只供数据。",
+        "分层与共用约定：dispatch-snapshots.ts 只 import node:crypto、../db/open-database、../domain/docs-fingerprint、../errors/app-error，无 service/http/events/proc/adapters 反向依赖；SQL 全在本 repo 目录且全部参数绑定，预编译语句在工厂闭包内 prepare 一次；无 process.env / process.platform（身份与时间由调用方经 params 注入，id 可注入 snapshotId）；原生错误一律经 toDatabaseError、应用错误一律 AppError，未自造 E_ 字面量（node scripts/check-error-codes.mjs: 43 codes match）。",
+        "复核修正（FIXED_BY_REVIEWER，已随本层提交并加测试）：① 阻断原因分类——checkTaskDispatchEligibility 返回 blockReason，takeSnapshotForTask 对 is_contract_ready=0 改抛 E_DOC_CONTRACT_PENDING 并带 details.reasons（09-数据模型.md:73、M8-T3 AC5），不再与「已从文档移除」混用；② 派发即换基准——落库后把该任务 has_accept_changed/has_prompt_changed 归零，避免 E-180 的旧快照拦截误伤刚派发的新快照。",
+        "运行证据（工作树 agent-scheduler-m3-t3，committed diff 上执行）：node scripts/check-error-codes.mjs 通过；biome ci . 175 files 通过；tsc -b --noEmit 通过；vitest run packages/daemon/test/unit/dispatch-snapshots.test.ts 15 passed（含 E-18/E-19/E-77/E-78/E-80/E-81/E-82 逐条断言）；此前全仓 vitest run 47 files / 453 passed。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
