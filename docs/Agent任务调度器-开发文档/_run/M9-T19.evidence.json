@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T19": {
+      "contractHash": "7f924480a446c81a41d56bd34570d4f49d600494647d1c25d3a4778035f6773e",
+      "evidence": [
+        "19 节 M9-T19 行：依赖 M9-T16（左栏与批次汇总条）、M9-T2（形状）、M9-T5（SSE/event-bus）；19 条有效路径覆盖 batch-tree/pulse-dot/gate-toggles 组件、lib/run-pulse、features/run-deck 三个文件、task-list 目录、base.css、check-forbidden、cache-invalidation/keys、spine.tsx（改为 import pulse-dot）与五个测试文件；sections 含 11、12",
+        "验收 1)～6) 对应 E-284（展开集只增不减、不持久化）、E-272/E-298（daemon 字段与进 HEAD 三态）、E-282（一个 pulse-dot、keyframe 唯一、13 状态映射、reduced-motion）、E-13（手机档取代折叠列表）、E-299（闸门开关）；11 节「批次树」小节、07 节「批次树的展开集」小节与 lib/components 清单已写明；决策 71/85/86 的取值已进文档",
+        "接缝：BatchDto 新字段（defaultExpanded/canWrapup/四计数/notInHeadCount）由 M8-T6 在 shared batches.ts 落，本任务只读；`settings.gates_changed` 由 M8-T4 发；前端不算任何业务判定（07 节「批次树同样不算」）"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

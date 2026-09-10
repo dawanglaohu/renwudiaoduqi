@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T6": {
+      "contractHash": "02af45bd16d41129bc7880b92748a1201226c72b2ff9493bcd7ee0fc4d0d3975",
+      "evidence": [
+        "19 节 M8-T6 行：依赖 M8-T3（tick/批次路由）、M8-T4（闸门模型与 settings 表，H05 已补）、M3-T6、M7-T6、M5-T5，五个 requires 的 provider 全在前置闭包；28 条有效路径覆盖 service/wrapup.ts、batch.ts、三个 domain 文件、repo、路由、tick、migrate.ts、migrations/、shared 四文件与集成测试",
+        "验收 1)～7) 逐条指向 E-272/E-283/E-301（tick 四步与 awaiting_landing）、E-287（agent 取值）、E-296（材料）、E-294/E-274/E-295（收口运行退出后的三种归宿）、E-288（批次级闸门与硬顶）、E-291（迁移重建）、E-285（不内联 diff 正文）；批次状态机图在 09 节、路由与错误码在 10 节、事件在 08 节、事务顺序在 08 节「三条编排路径」",
+        "接缝：修复派发交 M8-T7（provides batch-wrapup）；与在途任务 M3-T4/M4-T3/M5-T1 无路径交集（三者已落地）；迁移目录与 M8-T4、M7-T5 都在同一 migrations/ 目录，交接台会按路径冲突排队，不并行派"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

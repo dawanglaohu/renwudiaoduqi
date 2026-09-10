@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T3": {
+      "contractHash": "0399bc1e585281715acf0b91c1a977e655cf2bfe8d25487b1624662abbe099b0",
+      "evidence": [
+        "改动：验收新增 4)（返工块三处提取、未结构化标 incomplete、pass 带 R 条目按 incomplete、关键词判 rework 的路径不存在），预估 1→1.5d；supportPaths 补 review-verdict.test.ts 与 migrations/（rework_text 列若由本任务先落）",
+        "对应 E-278、E-63；与 09 节 runs.rework_text/review_verdict 注释、08 节 domain 清单 review-verdict 描述一致；决策 59 原文",
+        "接缝：M7-T5 消费 reworkText/isStructured；M9-T20 的「投递原文」按钮读 review_verdict='incomplete' && rework_text"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

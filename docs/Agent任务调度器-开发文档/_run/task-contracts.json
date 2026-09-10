@@ -168,6 +168,9 @@
       ],
       "supportPaths": [
         "packages/daemon/test/unit/review-context.test.ts"
+      ],
+      "provides": [
+        "review-context"
       ]
     },
     "M4-T2": {
@@ -221,6 +224,250 @@
         "packages/web/src/placeholder.ts",
         "package.json",
         "pnpm-lock.yaml"
+      ]
+    },
+    "M3-T6": {
+      "requires": [
+        {
+          "task": "M3-T5",
+          "capability": "review-context"
+        }
+      ],
+      "provides": [
+        "wrapup-context"
+      ],
+      "supportPaths": [
+        "packages/daemon/test/unit/wrapup-context.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        4,
+        6,
+        8,
+        9,
+        10,
+        17
+      ]
+    },
+    "M5-T5": {
+      "provides": [
+        "in-head-judgement"
+      ],
+      "supportPaths": [
+        "packages/daemon/test/unit/in-head.test.ts",
+        "packages/daemon/src/workspace/worktree.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        17
+      ]
+    },
+    "M7-T5": {
+      "provides": [
+        "rework-dispatch"
+      ],
+      "supportPaths": [
+        "packages/daemon/test/unit/rework-dispatch.test.ts",
+        "packages/daemon/test/unit/rework-prompt.test.ts",
+        "packages/daemon/migrations/",
+        "packages/shared/src/api/events.ts",
+        "packages/shared/src/api/runs.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        17
+      ]
+    },
+    "M7-T6": {
+      "requires": [
+        {
+          "task": "M7-T3",
+          "capability": "review-verdict"
+        }
+      ],
+      "provides": [
+        "wrapup-report"
+      ],
+      "supportPaths": [
+        "packages/daemon/test/unit/wrapup-report.test.ts",
+        "packages/daemon/test/fixtures/wrapup/"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        17
+      ]
+    },
+    "M7-T3": {
+      "provides": [
+        "review-verdict"
+      ],
+      "supportPaths": [
+        "packages/daemon/test/unit/review-verdict.test.ts",
+        "packages/daemon/migrations/"
+      ]
+    },
+    "M8-T6": {
+      "requires": [
+        {
+          "task": "M3-T6",
+          "capability": "wrapup-context"
+        },
+        {
+          "task": "M7-T6",
+          "capability": "wrapup-report"
+        },
+        {
+          "task": "M5-T5",
+          "capability": "in-head-judgement"
+        }
+      ],
+      "provides": [
+        "batch-wrapup"
+      ],
+      "supportPaths": [
+        "packages/shared/src/api/routes.ts",
+        "packages/shared/src/api/events.ts",
+        "packages/shared/src/api/batches.ts",
+        "packages/shared/src/errors/codes.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/shared/src/api/gates.ts",
+        "packages/daemon/src/domain/gates.ts",
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/repo/batches.ts",
+        "packages/daemon/src/repo/gates.ts",
+        "packages/daemon/test/unit/batch-state-machine.test.ts",
+        "packages/daemon/test/unit/wrapup-prompt.test.ts",
+        "packages/daemon/test/integration/batch-wrapup.test.ts",
+        "packages/daemon/test/integration/migrate-rebuild.test.ts",
+        "packages/daemon/test/fixtures/wrapup/",
+        "packages/daemon/test/arch/routes.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
+    "M8-T7": {
+      "requires": [
+        {
+          "task": "M8-T6",
+          "capability": "batch-wrapup"
+        },
+        {
+          "task": "M7-T5",
+          "capability": "rework-dispatch"
+        }
+      ],
+      "supportPaths": [
+        "packages/shared/src/api/routes.ts",
+        "packages/shared/src/api/tasks.ts",
+        "packages/shared/src/errors/codes.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/test/unit/task-state.test.ts",
+        "packages/daemon/test/unit/path-clash.test.ts",
+        "packages/daemon/test/integration/batch-wrapup.test.ts",
+        "packages/daemon/test/arch/routes.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        17
+      ]
+    },
+    "M9-T19": {
+      "supportPaths": [
+        "packages/web/src/api/cache-invalidation.ts",
+        "packages/web/src/api/cache-keys.ts",
+        "packages/web/src/api/event-bus.ts",
+        "packages/web/src/components/spine.tsx",
+        "packages/web/scripts/check-forbidden.ts",
+        "packages/web/src/lib/run-pulse.test.ts",
+        "packages/web/test/batch-tree.test.tsx",
+        "packages/web/test/pulse-dot.test.tsx",
+        "packages/web/test/batch-expansion.test.ts",
+        "packages/web/test/gate-toggles.test.tsx"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
+      ]
+    },
+    "M9-T20": {
+      "supportPaths": [
+        "packages/web/src/i18n/error-messages.ts",
+        "packages/web/src/api/cache-keys.ts",
+        "packages/web/test/wrapup-report.test.tsx",
+        "packages/web/test/gate-card.test.tsx",
+        "packages/web/test/stream-column.test.tsx"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
+      ]
+    },
+    "M8-T4": {
+      "supportPaths": [
+        "packages/shared/src/api/settings.ts",
+        "packages/shared/src/api/gates.ts",
+        "packages/shared/src/api/events.ts",
+        "packages/daemon/test/unit/gates.test.ts",
+        "packages/daemon/test/unit/settings.test.ts"
+      ]
+    },
+    "M5-T4": {
+      "supportPaths": [
+        "packages/daemon/test/unit/landing.test.ts"
       ]
     }
   }

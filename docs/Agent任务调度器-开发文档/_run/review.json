@@ -23,10 +23,10 @@
     {
       "code": "T19",
       "level": "INFO",
-      "msg": "边界覆盖率 100%（271 条边界，268 条被任务直接覆盖）",
+      "msg": "边界覆盖率 100%（301 条边界，298 条被任务直接覆盖）",
       "where": null
     }
   ],
-  "sourceVersion": "1e78e634301b67e0cab9df026b7a775711a7af8b20bf4b4e16d2161b5fd67e36",
+  "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6",
   "warn": 0
 }

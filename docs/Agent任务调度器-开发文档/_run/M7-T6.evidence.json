@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T6": {
+      "contractHash": "765d80ebee27298cfaac8a0495e8ca3cd9e04dd7d61c509f06b4fccd1b36d538",
+      "evidence": [
+        "19 节 M7-T6 行：只依赖 M7-T3（解析器结构）；产出 domain/wrapup-report.ts 纯函数在 taskPaths，fixtures 与单测在 supportPaths；requires M7-T3 的 review-verdict 在闭包内",
+        "验收 1)～5) 对应 E-274（八段缺一不猜）、E-290（无主进 unassigned）、E-286（有效裁定由内容算出）；解析规则与 08 节 domain 清单、09 节 batch_wrapups.findings_json/unassigned_json 字段一致；17 节列出了全部单测用例",
+        "接缝：M8-T6 调 parseWrapupReport/deriveWrapupVerdict/planWrapupFixes（requires wrapup-report）；条目正则的 S1／S2／S3 写法与决策 61 的八段格式一致"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
