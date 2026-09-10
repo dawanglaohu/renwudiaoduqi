@@ -8,7 +8,7 @@ import { authPlugin } from './plugins/30-auth.ts';
 import { ratelimitPlugin } from './plugins/40-ratelimit.ts';
 import { routesPlugin } from './plugins/50-routes.ts';
 import { staticPlugin } from './plugins/80-static.ts';
-import { createErrorHandler, errorHandlerPlugin } from './plugins/90-error-handler.ts';
+import { errorHandlerPlugin } from './plugins/90-error-handler.ts';
 
 declare module 'fastify' {
 	interface FastifyInstance {
@@ -38,11 +38,6 @@ export function createHttpServer(deps: {
 	readonly container: AppContainer;
 }): HttpServer {
 	const instance = Fastify({
-		ajv: {
-			customOptions: {
-				removeAdditional: false,
-			},
-		},
 		logger: {
 			level: deps.container.config.logLevel,
 			redact: [...LOG_REDACT_PATHS],
@@ -68,7 +63,6 @@ export function createHttpServer(deps: {
 			void apiScope.register(authPlugin);
 			void apiScope.register(ratelimitPlugin);
 			void apiScope.register(routesPlugin);
-			createErrorHandler(apiScope);
 		},
 		{ prefix: '/api/v1' },
 	);

@@ -1,11 +1,9 @@
+import type {
+	DeviceParams,
+	DeviceRevokeResponse,
+	DevicesListResponse,
+} from '@agent-scheduler/shared/api/devices';
 import type { FastifyInstance } from 'fastify';
-import type { DeviceDto } from '../../service/pairing.ts';
-
-export interface DeviceParams {
-	readonly deviceId: string;
-}
-
-export const DEVICE_PARAMS_KEYS = ['deviceId'] as const satisfies readonly (keyof DeviceParams)[];
 
 export const DEVICE_PARAMS_SCHEMA = {
 	type: 'object',
@@ -20,14 +18,6 @@ export const DEVICE_PARAMS_SCHEMA = {
 	readonly required: readonly (keyof DeviceParams)[];
 	readonly properties: Readonly<Record<keyof DeviceParams, unknown>>;
 };
-
-export interface DevicesListResponse {
-	readonly devices: readonly DeviceDto[];
-}
-
-export interface DeviceRevokeResponse {
-	readonly revokedAt: string;
-}
 
 export function registerDeviceRoutes(instance: FastifyInstance): void {
 	instance.get('/api/v1/devices', async (request): Promise<DevicesListResponse> => {

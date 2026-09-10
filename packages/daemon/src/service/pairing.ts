@@ -9,17 +9,12 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import type { DeviceDto } from '@agent-scheduler/shared/api/devices';
 import { AppError } from '../errors/app-error.ts';
 import type { SupportedPlatform } from '../platform/contract.ts';
 import type { DevicesRepo } from '../repo/devices.ts';
 
-export interface DeviceDto {
-	readonly id: string;
-	readonly name: string;
-	readonly pairedAt: string;
-	readonly lastSeenAt: string;
-	readonly revokedAt: string | null;
-}
+export type { DeviceDto };
 
 export interface PairingFileSystem {
 	readonly writeFileSync: (

@@ -1,14 +1,9 @@
+import type {
+	ClaimPairBody,
+	ClaimPairResponse,
+	CreatePairCodeResponse,
+} from '@agent-scheduler/shared/api/pair';
 import type { FastifyInstance } from 'fastify';
-
-export interface ClaimPairBody {
-	readonly code: string;
-	readonly deviceName: string;
-}
-
-export const CLAIM_PAIR_BODY_KEYS = [
-	'code',
-	'deviceName',
-] as const satisfies readonly (keyof ClaimPairBody)[];
 
 export const CLAIM_PAIR_BODY_SCHEMA = {
 	type: 'object',
@@ -24,16 +19,6 @@ export const CLAIM_PAIR_BODY_SCHEMA = {
 	readonly required: readonly (keyof ClaimPairBody)[];
 	readonly properties: Readonly<Record<keyof ClaimPairBody, unknown>>;
 };
-
-export interface ClaimPairResponse {
-	readonly deviceId: string;
-	readonly token: string;
-}
-
-export interface CreatePairCodeResponse {
-	readonly code: string;
-	readonly expiresAt: string;
-}
 
 export function registerPairRoutes(instance: FastifyInstance): void {
 	instance.post<{ Body: ClaimPairBody }>(
