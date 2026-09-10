@@ -14,8 +14,10 @@ import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { createDefaultProcessOps } from '../proc/spawn.ts';
 import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
+import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
 import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
+import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
@@ -30,6 +32,7 @@ export interface ContainerRepos {
 	readonly eventSeq: EventSeqRepo;
 	readonly runsAbort: RunsAbortRepo;
 	readonly devices: DevicesRepo;
+	readonly documents: DocumentsRepo;
 	readonly [key: string]: unknown;
 }
 
@@ -44,6 +47,7 @@ export interface ContainerServices {
 	readonly system: SystemService;
 	readonly runAbort: RunAbortService;
 	readonly pairing: PairingService;
+	readonly docs: DocsService;
 }
 
 export interface AppContainer {
@@ -84,6 +88,8 @@ export function createContainer(input: {
 	readonly runAbortService?: RunAbortService;
 	readonly runsAbortRepo?: RunsAbortRepo;
 	readonly pairingService?: PairingService;
+	readonly docsService?: DocsService;
+	readonly documentsRepo?: DocumentsRepo;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
 }): AppContainer {
@@ -92,10 +98,12 @@ export function createContainer(input: {
 	const eventSeq = createEventSeqRepo(input.database);
 	const runsAbort = input.runsAbortRepo ?? createSqliteRunsAbortRepo(input.database);
 	const devices = createDevicesRepo(input.database);
+	const documents = input.documentsRepo ?? createDocumentsRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 		runsAbort,
 		devices,
+		documents,
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
@@ -153,10 +161,21 @@ export function createContainer(input: {
 
 	pairingService.bootstrapIfNeeded();
 
+	const docsService =
+		input.docsService ??
+		createDocsService({
+			documentsRepo: documents,
+			clock: input.clock,
+			ids,
+			bus,
+			envelopeFactory,
+		});
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
 		pairing: pairingService,
+		docs: docsService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([]);

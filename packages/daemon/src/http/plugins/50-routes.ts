@@ -2,6 +2,7 @@ import { ROUTES } from '@agent-scheduler/shared/api/routes';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
 import { registerDeviceRoutes } from '../routes/devices.ts';
+import { registerDocumentRoutes } from '../routes/documents.ts';
 import { registerHealthRoute } from '../routes/health.ts';
 import { registerPairRoutes } from '../routes/pair.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
@@ -42,6 +43,7 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerRunsRoutes(target);
 	registerPairRoutes(target);
 	registerDeviceRoutes(target);
+	registerDocumentRoutes(target);
 
 	const customRegisteredPaths = new Set<string>([
 		'GET /api/v1/health',
@@ -52,6 +54,11 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'POST /api/v1/pair/code',
 		'GET /api/v1/devices',
 		'DELETE /api/v1/devices/:deviceId',
+		'GET /api/v1/documents',
+		'POST /api/v1/documents',
+		'POST /api/v1/documents/:docId/refresh',
+		'POST /api/v1/documents/:docId/open-reader',
+		'PATCH /api/v1/documents/:docId/settings',
 	]);
 
 	for (const route of ROUTES) {

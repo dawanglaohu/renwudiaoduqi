@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
 import * as nodeFs from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { type DocsFingerprintHasher, computeDocsFingerprint } from '../domain/docs-fingerprint.ts';
 import { batchNoOf, layerOf } from '../domain/layer-of.ts';
 import { AppError } from '../errors/app-error.ts';
+import type { EventBus } from '../events/bus.ts';
+import type { EnvelopeFactory } from '../events/envelope.ts';
+import { type OpenBrowserFn, createOpenBrowser } from '../proc/open-browser.ts';
 import type { DocumentMetadataUpdateRow, DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 
 export interface ParsedDocTask {
@@ -63,6 +66,10 @@ export interface DocsServiceDeps {
 	readonly ids: { readonly newId: () => string };
 	readonly fs?: DocsFileSystem;
 	readonly hasher?: DocsFingerprintHasher;
+	readonly bus?: EventBus;
+	readonly envelopeFactory?: EnvelopeFactory;
+	readonly openBrowser?: OpenBrowserFn;
+	readonly fileExists?: (path: string) => Promise<boolean> | boolean;
 }
 
 export interface ImportDocumentResult {
@@ -70,6 +77,11 @@ export interface ImportDocumentResult {
 	readonly parsed: ParsedDocData;
 	readonly hasChanged: boolean;
 	readonly isNew: boolean;
+}
+
+export interface OpenReaderResult {
+	readonly opened: true;
+	readonly readerPath: string;
 }
 
 export interface DocsService {
@@ -81,6 +93,8 @@ export interface DocsService {
 	readonly listDocuments: () => readonly DocumentRecord[];
 	readonly updateLaneCount: (id: string, laneCount: number) => void;
 	readonly markSourceUnreadable: (id: string) => void;
+	readonly setTakeoverNotified: (id: string, isTakeoverNotified: boolean) => void;
+	readonly openReader: (id: string) => Promise<OpenReaderResult>;
 }
 
 const DEFAULT_FS: DocsFileSystem = Object.freeze({
@@ -581,6 +595,19 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				if (!row) {
 					throw new AppError('E_INTERNAL', `Failed to retrieve inserted document ${newDocId}`);
 				}
+
+				if (deps.bus && deps.envelopeFactory) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'system.docs_changed',
+							payload: {
+								docsPath: row.docs_path,
+								fingerprint: row.content_fingerprint,
+							},
+						}),
+					);
+				}
+
 				return Object.freeze({
 					document: mapDocumentRow(row),
 					parsed,
@@ -609,6 +636,19 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			if (!row) {
 				throw new AppError('E_INTERNAL', `Failed to retrieve updated document ${existingRow.id}`);
 			}
+
+			if (hasChanged && deps.bus && deps.envelopeFactory) {
+				deps.bus.publish(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'system.docs_changed',
+						payload: {
+							docsPath: row.docs_path,
+							fingerprint: row.content_fingerprint,
+						},
+					}),
+				);
+			}
+
 			return Object.freeze({
 				document: mapDocumentRow(row),
 				parsed,
@@ -638,6 +678,54 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 
 		markSourceUnreadable(id: string): void {
 			deps.documentsRepo.markSourceUnreadable(id, deps.clock.now());
+		},
+
+		setTakeoverNotified(id: string, isTakeoverNotified: boolean): void {
+			deps.documentsRepo.setTakeoverNotified(id, isTakeoverNotified ? 1 : 0);
+		},
+
+		async openReader(id: string): Promise<OpenReaderResult> {
+			const row = deps.documentsRepo.findById(id);
+			if (!row) {
+				throw new AppError('E_NOT_FOUND', `Document not found: ${id}`, {
+					details: { id },
+				});
+			}
+
+			const readerPath = join(dirname(row.docs_path), 'index.html');
+			const checkExists =
+				deps.fileExists ??
+				(async (p: string) => {
+					try {
+						await nodeFs.access(p);
+						return true;
+					} catch {
+						return false;
+					}
+				});
+
+			const exists = await checkExists(readerPath);
+			if (!exists) {
+				// E-86: 文档目录被移动或重命名时提示「文档路径不可用，请重新定位」，
+				// 任务记录、快照、会话指针全部保留，只标记源不可读
+				deps.documentsRepo.markSourceUnreadable(id, deps.clock.now());
+				throw new AppError('E_NOT_FOUND', '文档路径不可用，请重新定位', {
+					details: {
+						docId: id,
+						docsPath: row.docs_path,
+						readerPath,
+					},
+				});
+			}
+
+			// E-85: 以系统默认浏览器打开原 index.html，不注入脚本、不改磁盘任何文件
+			const browserOpener = deps.openBrowser ?? createOpenBrowser();
+			await browserOpener(readerPath);
+
+			return Object.freeze({
+				opened: true,
+				readerPath,
+			});
 		},
 	});
 }
