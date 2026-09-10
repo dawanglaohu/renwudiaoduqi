@@ -2,13 +2,13 @@
   "scope": "task-contract",
   "tasks": {
     "M3-T4": {
-      "contractHash": "c8453409e387402bbfb5bdea060bd5b04f6fc1f506dc70fabaa66442cb7e9425",
+      "contractHash": "896fb573a358d59919f226fd26906c966ff601328d60bad895548da3e04aa774",
       "evidence": [
-        "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T4 行、图谱/任务/M3-T4.md 的 5 条验收与 5 条边界（E-249/E-83/E-84/E-85/E-86），确认既定产出为 system.docs_changed 事件、接管横幅数据与 documents 路由（open-reader、settings）。实现该产出必需改动 packages/daemon/src/service/docs.ts（事件发布、横幅标记、openReader）、packages/daemon/src/boot/container.ts（注入 docsService 并接 bus/envelopeFactory）与 packages/daemon/src/http/plugins/50-routes.ts（注册路由），并新增 packages/daemon/src/proc/open-browser.ts 承载默认浏览器打开；这些支持文件与单测原先漏列，已由补丁 M3-T4-review-scope-20260910 补入 supportPaths，有效路径现为 taskPaths(documents.ts) + 上述 5 个支持文件。",
-        "路径冲突：与已落地任务的 supportPaths 逐一比对不重叠；本任务在独立工作树 ../agent-scheduler-m3-t4 独占。M3-T2（docs 导入）与 M3-T3（派发快照）只新增各自 repo/domain 文件，未与 documents.ts 及其支持文件冲突；base 与 main 对这几个文件无差异，merge-tree 无冲突。",
-        "接口与边界核对：packages/shared/src/api/routes.ts 的 ROUTES 已含 GET/POST /api/v1/documents、/:docId/refresh、/:docId/open-reader、/:docId/settings；daemon 侧 test/arch/routes.test.ts 断言注册集合与 ROUTES 完全一致（本工作树 16/16 通过）。E-84 由 documents.is_takeover_notified 落库、GET 返回 isTakeoverNotified、PATCH settings 置位实现；E-83/E-249 由 daemon 完全不含浏览器存储、lane_count 独立默认 2 实现；E-85 由 openReader 对 index.html 原始路径调用系统默认浏览器实现；E-86 由 openReader 检出文件缺失后置 is_source_readable=0 且不级联删除任何记录实现。",
-        "复核中发现的代码级偏离（已作为 REWORK 条目记录，不改变本条契约结论）：proc/open-browser.ts 直读 process.platform（08 节要求唯一收口在 platform/host.ts）、以硬编码 explorer.exe / /usr/bin/xdg-open 直接 spawn（未经 platform.resolveExecutable）；service/docs.ts openReader 在 daemon 内抛中文用户文案「文档路径不可用，请重新定位」（06/08 节要求 daemon message 恒为英文）；routes/documents.ts 的 refresh 端点返回硬编码三个变更标记；repo/documents.ts 的惰性 prepare 重构与本任务无关。",
-        "运行证据（审查方在本工作树 committed diff 上执行）：node scripts/check-error-codes.mjs 通过（43 codes match）；biome ci . 176 files 通过；tsc -b --noEmit 通过；vitest run packages/daemon/test/unit/documents-routes.test.ts 6/6 通过；vitest run packages/daemon/test/arch/ 16/16 通过。"
+        "任务与范围（第 2 轮复核）：既定产出仍为 system.docs_changed 事件、接管横幅数据与 documents 路由（open-reader、settings）。除首轮已补的 service/docs.ts、boot/container.ts、http/plugins/50-routes.ts、proc/open-browser.ts、documents-routes.test.ts 外，本轮补入 repo/documents.ts（与 devices.ts 一致的惰性 prepare+表存在守卫，容器接线必需）以及平台默认浏览器开启命令所需的 platform 路径（contract.ts/host.ts/windows.ts/linux.ts/darwin.ts 与 platform.test.ts）。合并后有效路径为 taskPaths(documents.ts) 加上述文件。",
+        "路径冲突：新增的 platform 文件与已落地任务 M1-T3/M1-T9 的 supportPaths 有交集，但两者均已落地、不在途，且本任务只读取（如需要）平台适配器导出；repo/documents.ts 与 M3-T2 已落地文件不冲突，M3-T2 已合入 main。",
+        "首轮复核结论保留：E-83/E-249 由 daemon 不接浏览器存储、lane_count 独立默认 2 保证；E-84 由 documents.is_takeover_notified 落库与 GET/PATCH 暴露；E-85 由 openReader 以 index.html 原始路径调系统默认浏览器；E-86 由 openReader 检出文件缺失后置 is_source_readable=0 且不级联删除实现。ROUTES 表与注册集合由 test/arch/routes.test.ts 断言一致。",
+        "第 2 轮代码级发现（记录为 REWORK，不改变本条契约结论）：① R5 首轮判断修正——惰性 prepare+表存在守卫是 repo/devices.ts 的既有约定，返工把容错搬到 boot/container.ts（hasTable 让 boot 出现 SQL，createFallbackDocumentsRepo 静默 no-op）不合 08 节，应恢复 repo 层惰性并让 container 直接 createDocumentsRepo；② R3 未真正修好——platform 候选路径不含 explorer.exe，fallback 被拼成 C:Windowsexplorer.exe，且 spawn 无 error 监听会触发 guards 的 uncaughtException 致命退出，Windows 上 E-85 不可用且有宕机风险。",
+        "运行证据（第 1 轮审查方在本工作树 committed diff 上执行，第 2 轮返工 commit b6de97e 之上的静态检查）：node scripts/check-error-codes.mjs 通过（43 codes match）；tsc -b --noEmit 通过；biome ci . 通过。第 2 轮代码级返工项未通过验收，待实施方修复后复跑 documents-routes 与 arch 测试。"
       ],
       "verdict": "pass"
     }

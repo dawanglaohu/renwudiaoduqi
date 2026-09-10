@@ -149,7 +149,14 @@
         "packages/daemon/src/boot/container.ts",
         "packages/daemon/src/http/plugins/50-routes.ts",
         "packages/daemon/src/proc/open-browser.ts",
-        "packages/daemon/test/unit/documents-routes.test.ts"
+        "packages/daemon/src/repo/documents.ts",
+        "packages/daemon/src/platform/contract.ts",
+        "packages/daemon/src/platform/host.ts",
+        "packages/daemon/src/platform/windows.ts",
+        "packages/daemon/src/platform/linux.ts",
+        "packages/daemon/src/platform/darwin.ts",
+        "packages/daemon/test/unit/documents-routes.test.ts",
+        "packages/daemon/test/unit/platform.test.ts"
       ]
     },
     "M3-T5": {
