@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles: follows system theme and font size (E-15). */
+html {
+	font-family: var(--font-ui);
+	color: var(--ink-1);
+	background-color: var(--page);
+	line-height: var(--lh-ui);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	background-color: var(--page);
+	color: var(--ink-1);
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+/* Accessible focus ring using design token */
+:focus-visible {
+	outline: 2px solid var(--needs);
+	outline-offset: 2px;
+	box-shadow: 0 0 0 3px var(--needs-soft);
+}
+
+/* Monospace text rules */
+pre,
+code,
+kbd,
+samp {
+	font-family: var(--font-mono);
+}

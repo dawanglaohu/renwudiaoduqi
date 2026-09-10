@@ -1,0 +1,150 @@
+/* Agent 任务调度器 · design tokens
+   规则：暖色 = 要你 · 冷绿 = 机器自理 · 红 = 坏了 · 无色 = 不用管
+        agent 身份永不用色相（用 monogram + 中性 chip） */
+:root {
+	color-scheme: dark light;
+
+	--font-ui: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--font-mono: "Commit Mono", "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+		monospace;
+
+	--fs-micro: 11px;
+	--fs-meta: 12px;
+	--fs-log: 12.5px;
+	--fs-dense: 13px;
+	--fs-body: 14px;
+	--fs-lead: 16px;
+	--fs-num: 20px;
+	--fs-num-lg: 26px;
+	--lh-ui: 1.45;
+	--lh-log: 1.5;
+	--tracking-num: -0.02em;
+
+	--sp-1: 4px;
+	--sp-2: 8px;
+	--sp-3: 12px;
+	--sp-4: 16px;
+	--sp-5: 20px;
+	--sp-6: 24px;
+	--sp-8: 32px;
+
+	--r: 14px;
+	--r-sm: 9px;
+	--r-lg: 20px;
+	--r-pill: 999px;
+
+	--rail-w: 272px;
+	--rail-w-collapsed: 64px;
+	--topbar-h: 52px;
+	--stream-head-h: 40px;
+	--stream-foot-h: 36px;
+	--stream-min: 320px;
+	--stream-max: 460px;
+	--stream-min-dense: 260px;
+	--row-h: 30px;
+	--row-h-touch: 44px;
+	--h-btn: 32px;
+	--h-btn-sm: 26px;
+	--h-btn-lg: 44px;
+	--h-input: 32px;
+	--h-input-touch: 44px;
+	--badge-h: 20px;
+	--composer-min: 72px;
+	--composer-max: 200px;
+	--thumbbar-h: 60px;
+	--runstrip-h: 44px;
+	--payload-max-h: 240px;
+	--spine-w: 2px;
+	--spine-x: 11px;
+
+	--dur-fast: 120ms;
+	--dur: 180ms;
+	--ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+	--pulse: 1.6s;
+}
+
+:root,
+[data-theme="dark"] {
+	--page: #0f1213;
+	--bg: #171b1c;
+	--panel-2: #1f2425;
+	--border: rgba(214, 232, 229, 0.09);
+	--border-strong: rgba(214, 232, 229, 0.16);
+	--ink-1: #e9eeed;
+	--ink-2: #b2bcbb;
+	--ink-3: #8b9695;
+
+	--needs: #f0b03c;
+	--needs-ink: #f0b03c;
+	--needs-soft: rgba(240, 176, 60, 0.13);
+	--on-needs: #171205;
+	--auto: #54c9ae;
+	--auto-ink: #54c9ae;
+	--auto-soft: rgba(84, 201, 174, 0.13);
+	--on-auto: #04140f;
+	--down: #ff6b5a;
+	--down-ink: #ff6b5a;
+	--down-soft: rgba(255, 107, 90, 0.13);
+	--on-down: #1a0906;
+
+	--warn: var(--needs);
+	--warn-soft: var(--needs-soft);
+	--stopped: var(--ink-3);
+
+	--spine-done: rgba(139, 150, 149, 0.35);
+	--spine-pending: rgba(139, 150, 149, 0.22);
+	--spine-live: var(--auto);
+	--spine-needs: var(--needs);
+	--spine-dead: var(--down);
+
+	--row-hover: rgba(255, 255, 255, 0.035);
+	--shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+	--shadow-lg: 0 32px 70px -40px rgba(0, 0, 0, 0.8);
+	--glow: 0 6px 20px rgba(240, 176, 60, 0.28);
+}
+
+[data-theme="light"] {
+	--page: #ecefee;
+	--bg: #fbfcfc;
+	--panel-2: #f1f4f3;
+	--border: rgba(16, 30, 28, 0.09);
+	--border-strong: rgba(16, 30, 28, 0.18);
+	--ink-1: #101615;
+	--ink-2: #3b4746;
+	--ink-3: #656f6e;
+
+	--needs: #b0740c;
+	--needs-ink: #8a5a05;
+	--needs-soft: rgba(176, 116, 12, 0.12);
+	--on-needs: #17120a;
+	--auto: #16785f;
+	--auto-ink: #16785f;
+	--auto-soft: rgba(22, 120, 95, 0.11);
+	--on-auto: #ffffff;
+	--down: #c2402f;
+	--down-ink: #c2402f;
+	--down-soft: rgba(194, 64, 47, 0.1);
+	--on-down: #ffffff;
+
+	--warn: var(--needs);
+	--warn-soft: var(--needs-soft);
+	--stopped: var(--ink-3);
+
+	--spine-done: rgba(101, 111, 110, 0.4);
+	--spine-pending: rgba(101, 111, 110, 0.26);
+	--spine-live: var(--auto);
+	--spine-needs: var(--needs);
+	--spine-dead: var(--down);
+
+	--row-hover: rgba(16, 30, 28, 0.035);
+	--shadow: 0 1px 3px rgba(16, 40, 36, 0.06);
+	--shadow-lg: 0 40px 90px -50px rgba(16, 40, 36, 0.34);
+	--glow: 0 6px 20px rgba(176, 116, 12, 0.24);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

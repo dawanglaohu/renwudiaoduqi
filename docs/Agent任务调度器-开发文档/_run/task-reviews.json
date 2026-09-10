@@ -313,6 +313,22 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T3": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "bdf4daa97faebeda5a2f6709207c37c49f9975a2a0f4c76745005533ec57fe73",
+    "evidence": [
+      "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M4-T3 行与任务笔记，六条验收标准、八条边界（E-195/E-196/E-197/E-198/E-199/E-264/E-270/E-36）与「产出 probeAgent() + 指纹缓存」保持原文，未新增或放宽要求。前置 M4-T1（注册表两层结构与热加载）与 M1-T7（spawn 基座）均已落地，status 仅剩「待语义复核」。",
+      "依赖与契约：probe.ts 只 import config/defaults.ts（AgentConfig/ResolvedAgentConfig）、platform/{contract,host,resolve-executable}.ts、proc/{env,spawn}.ts，不 import repo/service/db/http/events，是 adapters 层只产出数据结构的形状；spawnManaged 的调用方传原始参数数组、shell:false 不变；错误码 E_AGENT_EXEC_NOT_FOUND / E_AGENT_EXEC_NOT_EXECUTABLE / E_AGENT_EXEC_INVALID_TARGET / E_AGENT_VERSION_UNRECOGNIZED / E_VALIDATION 均在 packages/shared/src/errors/codes.ts 登记，无未登记 E_ 字面量；daemon 侧 message 为英文短句，无中文用户文案。",
+      "数据与接口：ProbeAgentResult 只含状态、实测版本串、比较结果、候选与已检查位置、警告横幅、手填入口标记，字段命名符合 isXxx/hasXxx/canXxx 与 PascalCase 无 I 前缀；指纹缓存条目为 {resolvedPath, mtimeMs, size, result, cachedAt}，正是验收标准 4 要求的「真实路径 + mtime + 大小」。探针不落库、不开事务、不产事件 id。",
+      "有效路径：taskPaths 原仅列 packages/daemon/src/adapters/probe.ts，实测实施方还新增了本任务唯一单测 packages/daemon/test/unit/probe.test.ts（没有它六条验收与八条边界无从本地验收）。本轮按 M4-T7 / M1-T5 的先例走 DOC_PATCH（M4-T3-review-scope-20260910）把该测试补进 supportPaths，未放行整个 test 或 adapters 目录，未触碰其他任务的文件。",
+      "验收（契约可达性）：1) 通用字段 versionFingerprint.{args,expectedPattern} 已在 config/defaults.ts 为四家内置 agent 声明，探针无「按厂商名取探测命令」的查表；2) 未识别态返回 observed + expected + allowManualPath；3) 候选碰撞返回 primaryCandidate + allCandidates + requiresConfirmation；4) 缓存命中先查路径再比 mtime/size；5) 宽松匹配 + 可选版本区间；6) 手填路径失败降级为 warning 且 canDispatch=true，跨平台路径单列为 invalid-platform-path。契约本身自洽、可实现，无矛盾条款，故 task-contract 复核为 pass。",
+      "边界（契约映射）：E-195→unrecognized 分支；E-196→requires-confirmation；E-197→cache；E-198→matchVersionFingerprint；E-199→warning 分支；E-264→isForeignPlatformPath 前置判定；E-270→checkedPaths + 显式不执行 shell 启动文件；E-36 由本任务承担「探测不做厂商特化」的对偶面，模型名白名单/失效透传由 M4-T5、M8-T5 兜底。八条边界均有对应契约位点。",
+      "代码层验收另计：本轮逐条核对代码后发现四项阻断缺陷（Windows com-spec 启动对象未消费 launchKind；Windows PATH 键名大小写；指纹宽松匹配中的 pi 专用分支；stderr 未走 onStderr），已作为 REVIEW-ROUND 1 的 R1-R4 退回实施方。本条复核只确认任务契约、边界归属与有效路径成立，不冒充代码验收通过。"
+    ],
+    "reviewed": "2026-09-10T09:44:42.558483+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T5": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "82e00a8a21ec5d2d9657d59105d867c904c759d8b559ccf99dc3dc13a03e6669",
@@ -379,6 +395,31 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T1": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "8273eace3f563f309d65a1ef9edf7bbb2a6e1278fb26b896b9877e20376cdefb",
+    "evidence": [
+      "AC1（E-170）：packages/web/src/styles/tokens.css 是唯一含颜色字面量的文件，:root/:root,[data-theme=\"dark\"]（tokens.css:4、:65）与 [data-theme=\"light\"]（:106）三块之外无 hex/rgb/hsl；机检由 packages/web/scripts/check-forbidden.ts:159 的 COLOR_LITERAL_OUTSIDE_TOKENS_CSS 覆盖（src 全树 + tailwind.config.ts），实测把 #ff00ff/rgba() 写进 src 下 .tsx 会失败；tokens.css 的块级检查限定只允许含 :root 或 [data-theme 的块",
+      "AC2（E-169）：check-contrast.ts:246 起逐组前景/背景算 WCAG 2.1 比值，深色 18 组、浅色 16 组全部 ≥4.5:1，低于阈值即 process.exit(1)；本轮复核用 --needs-ink 承接浅色文字（#B0740C 作小字仅 3.9:1）",
+      "AC3（E-15）：base.css:6 的 html 块无 font-size、无 zoom、无 text-size-adjust: none；主题只经 html[data-theme] 表达（theme-provider.tsx:40），system 由 resolveTheme（:28）按 matchMedia('(prefers-color-scheme: dark)') 解析并订阅变化（:87），DOM 上只出现 dark/light，colorScheme 随解析结果写 style（:41）；check-forbidden.ts 的 E15_ROOT_FONT_SIZE_LOCKED / E15_TEXT_SIZE_ADJUST_NONE / E15_ZOOM_PROHIBITED 三项机检把守",
+      "AC4（E-171）：浅色 --spine-done rgba(101,111,110,.40) 与 --spine-pending rgba(101,111,110,.26)（tokens.css:127-128）为显式取值，实测对 --bg 分别为 1.72:1、1.41:1，与深色同组 1.80:1、1.42:1 同量级；check-contrast.ts:343 起断言两者存在、不透明度 >0.05 且可见度不低于阈值",
+      "AC5（E-159、E-161）：颜色、字号、行高、字族、栅格、圆角、时长全部收敛在 tokens.css；tailwind.config.ts 只做 var(--*) alias，无字面量与字体栈，方向被否决时改一个 token 文件即可。运行轨形状枚举表属 M9-T2 的 lib/spine-shape.ts（其 taskPaths 已声明），不在本层有效路径内",
+      "AC6（E-173）：check-contrast.ts:212 起对「值解析成颜色的 token」求深浅两侧键集合的并集后双向断言，深色新增状态或 chip 而缺浅色当场失败；本轮修复前该断言只遍历一张写死的清单，新增 token 逃得掉，已按边界补上并加负例测试（test/check-contrast.test.ts:52）",
+      "AC7（E-162）：本层未新增任何配色截图、示意图或阅读器图片，diff 内无图片文件，不产生伪证据",
+      "AC8（E-160）：真页已于 2026-09-01 摆出并由用户明确认可（_preview/run-deck.html，五条流覆盖运行中/等你/部分完成/失败/已停止全部轨形态），21-风险与未决事项 R-03 与 20-里程碑均记该前置已完成，本任务不再二次追问；本层不产出可渲染页面（index.html/main.tsx/vite.config.ts 不在本任务有效路径内），故无需真服务 GIF",
+      "E-15 系统字号：全仓无 html/{:root} 根字号锁；本轮把机检从「逐行匹配」改成「整块匹配」（check-forbidden.ts:26），因为 formatter 会把声明单独成行，逐行写法正好漏掉手写锁最可能的样子，负例见 test/check-forbidden.test.ts:14",
+      "07 节「至少八条 grep 禁令」：check-forbidden.ts:78 现覆盖靛紫 hex、tokens.css 之外的颜色字面量、api 之外的 fetch(、任意 index.ts、.env、ui/ 之外的 @radix-ui、shell/ 之外的壳内建、甲板容器 overflow-x（E-145）八条，另有 E-15 三项；修复前缺「甲板容器 overflow-x」一条却打印「All 8」，该计数宣称已删",
+      "范围与路径：本层相对 main 改 packages/web/{scripts,test,src/styles,src/app/theme-provider.tsx,tailwind.config.ts,package.json,tsconfig.json}、根 package.json、pnpm-lock.yaml，删除 M1-T1 的占位 src/placeholder.ts（全仓无引用）；补丁 M9-T1-review-scope-20260910 把这些测试与支持文件登记为 supportPaths（原 taskPaths 只有 scripts/ 与两个源文件 + tailwind 配置），并核对 presentation.json 中无其他任务声明同一批文件",
+      "前置能力核对：M2-T1 已落地（daemon REST 骨架与错误信封），本层只用它的输出物作对照，不引入任何 daemon 依赖；本层不碰 src/api、src/store、src/shell，四层分层与「界面不含业务判定」在本层尚未有消费者，未提前落组件",
+      "13/17/19 与接口字段：13 节 E-15/E-159/E-160/E-161/E-162/E-169/E-170/E-171/E-173 九条与任务笔记边界逐字一致；17 节要求每个任务本地跑 pnpm -w check，故支撑文件补登记；19 节 M9-T1 行的产出、依赖与验收与任务笔记一致；本层不涉及 10 节接口字段",
+      "验收阶段检查（2026-09-10，工作树 ../agent-scheduler-m9-t1）：node --experimental-strip-types packages/web/scripts/check-contrast.ts → 深色 18 组 + 浅色 16 组全过、成对性与 E-171 通过；check-forbidden.ts → 0 violations；npx vitest run packages/web/test → 3 文件 12 passed；npx tsc -b --noEmit → 0；npx biome ci → 0（182 files）；完整 pnpm -w check 在实施提交 d80d324 上跑过 → 49 文件 449 passed / 32 skipped，失败 0",
+      "本轮 review-fix 只改 packages/web/scripts 两个机检与对应测试（acf6199），未改 token 值、组件、接口或数据结构；token 值与 11-UI 的可粘贴 token 块逐字一致，未自创颜色",
+      "未构成阻断的观察：① 浅色 --ink-3/--down/--auto 对 --page 实测 4.48/4.46/4.67，未纳入配对枚举（阈值内 4.45 容差可过），若日后把 --page 纳入需微调浅色 token；② tailwind.config 在 07 节「只声明 content 扫描与栅格/圆角映射」之外多 alias 了颜色/字号/字族/阴影/时长（全为 var()，不构成色值旁路），且 Tailwind 默认色板仍可用 bg-red-500 之类绕过 token；③ fonts.css 的 woff2 本体与 public/fonts/ 不在本任务有效路径内，当前走回退栈（R-03 记录已预期）。三项进 FOLLOW_UP"
+    ],
+    "reviewed": "2026-09-10T10:04:13.304567+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T14": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "b3ec9350423dcbf3ff40d7a281cb4648295e19a5a9af219b1aa2887a36f8ea1d",
@@ -392,6 +433,48 @@
     ],
     "migratedFrom": "05e4404acd3e2c1283ee575096eb644ca95a21696713d50a918f3030da99ca4d",
     "reviewed": "2026-09-09T08:57:36.176853+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M3-T3": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "c261409624364dcba8ff1e619089f905821ff647ad71773ecf9b89889ff4c0cf",
+    "evidence": [
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T3 行、09-数据模型.md:77/134-136/189 与六条边界（E-18/E-19/E-77/E-78/E-80/E-81），确认产出为 repo/dispatch-snapshots.ts + 比对逻辑 + 横幅数据；实际改动只有 taskPaths 的 domain/docs-fingerprint.ts、repo/dispatch-snapshots.ts 与 supportPaths 的 test/unit/dispatch-snapshots.test.ts。前置 M3-T2 已落地（repo/tasks.ts 的 importDocTasks/markRemovedFromDoc 与 repo/batches.ts 在 main），本任务只读 tasks 表、不重做导入；接线（容器注册、service 调用、HTTP 路由）归 M3-T5/M8-T3。",
+      "AC1/E-19 快照：packages/daemon/src/repo/dispatch-snapshots.ts:606 takeSnapshotForTask 单次读取任务行后，把 input_text/output_text/accept_text、impl_prompt/review_prompt、contract_hash、task_paths_json（有效路径，缺省 '[]'）与 launch_spec_json 一并写入 dispatch_snapshots（INSERT 语句在 :226 之前定义，字段与 migrations/0001_init.sql:54 的列一一对应）；runs.snapshot_id 由 M8-T3 在创建运行时引用该快照 id，本任务返回完整行供其使用。",
+      "AC2/E-77/E-78 三个标记与过滤列表：packages/daemon/src/domain/docs-fingerprint.ts:139 compareTaskWithSnapshot 逐字符比对（normalizeComparableText 只把 null/undefined 归一为空串），产出 isRemovedFromDoc/hasAcceptChanged/hasPromptChanged；hasAcceptChanged 覆盖 input/output/accept 三段，hasPromptChanged 覆盖两段提示词与 contract_hash（哈希不同即视为提示词变更），不再依赖任务行是否变；:206 computeDocDiffBanner 汇总计数与 affectedTaskIds/removedTaskIds/acceptChangedTaskIds/promptChangedTaskIds 四个清单，:259 filterAffectedTasks 支持 all/removed/accept_changed/prompt_changed 过滤。",
+      "AC3/E-18/E-77：refreshDocDiff（repo/dispatch-snapshots.ts:675）只 UPDATE tasks.is_removed_from_doc/has_accept_changed/has_prompt_changed 并重算横幅，全程不出现 runs 表的写语句（SELECT_ACTIVE_RUN_COUNT_BY_TASK_ID_SQL 仅计数），在途运行不被终止也不被删除；入口 takeSnapshotForTask 对 is_removed_from_doc=1 抛 E_TASK_REMOVED_FROM_DOC 阻断再派发；hasActiveRuns（:492）按 queued/starting/running/awaiting_reply/reviewing/reworking 判定在途，供卡片与归档侧读取。",
+      "AC4/E-80：最新快照统一走 SELECT_LATEST_SNAPSHOT_BY_TASK_ID_SQL 的 ORDER BY created_at DESC, id DESC LIMIT 1（doc 级用 ROW_NUMBER() OVER (PARTITION BY task_id ...)），历史由 listByTaskId 按同一序只读返回；全文件没有 dispatch_snapshots 的 UPDATE/DELETE 语句，历史轮次不会被原地覆盖。",
+      "AC5/E-81：快照值取自 task 行的单次读取，落库后不重新读取任务表补充字段；同进程内 better-sqlite3 同步调用使「读任务行 + 插快照」不会与导入事务交错，文档重出只改标记与横幅，绝不回滚已发出的运行。",
+      "E-78 并列展示：repo/dispatch-snapshots.ts:501 getTaskAcceptanceComparison 返回 snapshotAcceptText/currentAcceptText 及 input/output 两侧文本与 snapshotCreatedAt，主操作「重派」与「按旧标准手动判为已落地」由 manual_state 在 M3-T5/M9 落地，本任务只供数据。",
+      "分层与共用约定：dispatch-snapshots.ts 只 import node:crypto、../db/open-database、../domain/docs-fingerprint、../errors/app-error，无 service/http/events/proc/adapters 反向依赖；SQL 全在本 repo 目录且全部参数绑定，预编译语句在工厂闭包内 prepare 一次；无 process.env / process.platform（身份与时间由调用方经 params 注入，id 可注入 snapshotId）；原生错误一律经 toDatabaseError、应用错误一律 AppError，未自造 E_ 字面量（node scripts/check-error-codes.mjs: 43 codes match）。",
+      "复核修正（FIXED_BY_REVIEWER，已随本层提交并加测试）：① 阻断原因分类——checkTaskDispatchEligibility 返回 blockReason，takeSnapshotForTask 对 is_contract_ready=0 改抛 E_DOC_CONTRACT_PENDING 并带 details.reasons（09-数据模型.md:73、M8-T3 AC5），不再与「已从文档移除」混用；② 派发即换基准——落库后把该任务 has_accept_changed/has_prompt_changed 归零，避免 E-180 的旧快照拦截误伤刚派发的新快照。",
+      "运行证据（工作树 agent-scheduler-m3-t3，committed diff 上执行）：node scripts/check-error-codes.mjs 通过；biome ci . 175 files 通过；tsc -b --noEmit 通过；vitest run packages/daemon/test/unit/dispatch-snapshots.test.ts 15 passed（含 E-18/E-19/E-77/E-78/E-80/E-81/E-82 逐条断言）；此前全仓 vitest run 47 files / 453 passed。"
+    ],
+    "reviewed": "2026-09-10T08:35:43.015994+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M8-T1": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "b7fe130e99ed29f239d0307854389a21022b6cdc20f166b534bb53542caf8878",
+    "evidence": [
+      "验收 1-5 与边界 E-245/E-47/E-48/E-52 逐条对应到 packages/daemon/src/domain/concurrency.ts，定位写在 PR #33 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
+      "AC1/E-52：calculateConcurrencyLimit 取 min(用户设定, 窗口数, 每 agent 上限, 机器资源, 路径冲突)（concurrency.ts:203-222），并返回瓶颈 bottleneck 与并列全部因子的 bottlenecks（:224-235、:249-252）；单测 packages/daemon/test/unit/concurrency.test.ts:14-81 覆盖三种单因子瓶颈、三因子并列与并列时的确定性裁决",
+      "AC5/E-245：机器资源与路径冲突入 min（:207-213），userSetting 不参与改写、原样返回（:191-194、:248）；单测 :238-283 断言 effectiveConcurrency=2、bottleneck=machine_resource、factors.userSetting=6、pathConflict 优先于其他并列因子",
+      "AC2/E-47：allocateConcurrencySlots 按候选顺序扫描，agent 达上限时记 reason=agent_limit_reached（:420）并继续给后续其他 agent 的任务分配空位（:405-418、:396），不空转；单测 :83-176 覆盖单纯顺延、已有在途运行占满、availableSlots 耗尽与函数式 limit 查询",
+      "AC3/E-48：windowCount<=1 或 effectiveConcurrency<=1 时只置 isDegradedToSerial（:237），既不抛异常也不产出任何「无法并行」文案；单测 :194-232 覆盖 windowCount=1、availableSlots=1 与 windowCount=0 均逐个派且无异常",
+      "AC4：全文件为纯函数与冻结常量；无 fs/net/db/子进程/process.env/process.platform/Date.now/Math.random，无顶层副作用（仅 import errors/app-error.ts 与 domain/run-state-machine.ts）；输入非法时按统一错误体系抛 AppError('E_VALIDATION')（:151-190），与 run-state-machine.ts:228 同一写法，未新增错误码",
+      "E-52 显式解锁：exceedsWindowCount=userSetting>windowCount（:238）与 canIncreaseWithoutUnlock（:446-448）供 UI 显示「向上超过窗口数需解锁」；单测 :63-81",
+      "前置能力核对：M3-T2 已落地（批次与层由 repo/tasks.ts:701-737 推导，调用方把窗口数作为 windowCount 传入）；M4-T1 已落地（config/registry.ts:830 由 maxConcurrency>0 派生 isEnabled），本层以可选 agentLimits 映射/回调解耦消费，不直读 agents.json 或注册表",
+      "接口字段与 13/17/19 节：10 节 maxConcurrency 为 0/负即禁用（由 registry isEnabled 派生），本层只接收可派发 agent 的数值上限；13 节 E-47/E-48/E-52/E-245 行与任务笔记边界逐字一致；17 节强制 daemon domain/ 单测，故本层补登记测试文件；19 节 M8-T1 行的产出、依赖与验收与任务笔记一致",
+      "有效路径补齐：补丁 M8-T1-review-scope-20260910 把 packages/daemon/test/unit/concurrency.test.ts 登记为 supportPaths（原 taskPaths 只有 packages/daemon/src/domain/concurrency.ts）；presentation.json 中 M1-T1/M1-T10/M2-T6 已落地的 test 路径与该文件不重叠，其他任务未声明它",
+      "范围：本层相对 main 只改 packages/daemon/src/domain/concurrency.ts、packages/daemon/test/unit/concurrency.test.ts 与任务笔记 M8-T1.md 回填；除补丁登记的测试文件外无路径外改动",
+      "验收阶段检查（2026-09-10，工作树 ../agent-scheduler-m8-t1）：npx vitest run test/unit/concurrency.test.ts → 21 passed；test/arch（boot-boundaries、bus-transaction、routes）+ test/unit/source-contracts + concurrency → 5 文件 43 passed；node scripts/check-error-codes.mjs → 43 codes OK；npx tsc -b --noEmit → 退出码 0；npx biome ci 两个改动文件 → 无修复项",
+      "受影响下游（补丁模板列出 M8-T2/M8-T3/M8-T4/M8-T5/M9-T10/M9-T13/M9-T18）：本补丁只增 M8-T1 的 supportPaths 一项，未改验收、边界、依赖、产出与任何接口字段，下游契约不变",
+      "未构成阻断的观察：concurrency.ts:305、:396 把非正数 limit 归一为 1（Math.max(1,…)）。06 节规定 M4 提供「可派发 agent 清单与每 agent 并发上限」，调用方只应传可派发 agent，故本层不改语义；已列入 FOLLOW_UP 交 M8-T3 接线时确认"
+    ],
+    "reviewed": "2026-09-10T08:32:56.942654+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }
