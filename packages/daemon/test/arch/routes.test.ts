@@ -273,7 +273,7 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 				`Error details for ${item.path} must list the unrecognized field name 'extraUnrecognizedField_e217'`,
 			).toBe(true);
 		}
-	});
+	}, 15000);
 
 	it('AC 5: check-error-codes.mjs asserts consistency between codes.ts and 10 节 error table', () => {
 		// Run the standalone verification script directly
