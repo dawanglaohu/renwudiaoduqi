@@ -1,17 +1,19 @@
 {
   "files": {
-    "build_docs.py": "2e5cd888765f88968d3f5cd01a47f67122c5d7ffe42e31bcdebf7d069f6da828",
+    "build_docs.py": "d92b3845687a0a2f4d6edb1ee16d8114fab8c846c612ff0d7ceb02498aaa4277",
     "build_vault.py": "d627d6e278e8c920b47a3a75693c90662a7b13b6ce8f0a835b439a66b6336a65",
     "check_stale.py": "407d3dd10721752cd35c77daac9f34ecdc5828d5bf6c257f6723cb6207d6575c",
-    "compile_prompts.js": "e86288a0b74b2b338de19963534c212c44f74f4ba14c58c18f70c1cbce2065df",
-    "handoff-manual.md": "052fb07d7a0ac31b33ddb40186e8143720a9e62420e790a1ff7b2606d593b14e",
-    "handoff_contract.py": "9020b24d30558535420bcd09a4ba74490181acb9f5b5c98df2dcf5c3e69e3db4",
-    "install_project.py": "bede1eca2091e3c96b44ecd96d6b86bbd820e5e57d7b0aebdca797f6acaac1d3",
-    "maintain_docs.py": "a26714b8158e7f6227bdc2a981621cdd52e05edff413066d93610772f14f0bd3",
+    "compile_prompts.js": "fc2f98362ad973d6803b42a38a5e5ffd2300a0f17fe99a74497b5af19b826fa8",
+    "handoff-manual.md": "21c3024dccaf9fa535c6a26dc74460c6d0644665bc9f0e7913b7beaf29877454",
+    "handoff_contract.py": "ca630108ce6ffe5bc523185b2fa501001a592902ec28020162a9328607111667",
+    "install_project.py": "e8537024cc7f4e663fb553c40e5fb61b9a878913f9d624175fe55b80a2954e2d",
+    "maintain_docs.py": "a009fdd4d517ef78c909a5e568b8945ed1d301f398bbaaa86d1e4dd8310bb14b",
     "review.py": "018bc787fb39ba0d4199b57df5ed67992c0fe2471daa90bf1e1255176e48236b",
-    "tests/test_maintenance.py": "9605cba07a9e7f7c3601b228230ce4ae6df2a768eacebc46be8612cdc7948e82",
-    "tests/test_prompt_routing.py": "4083efd91c259968a85c092a5dd79b3b40e173b76e56fa9598767ea0196eaa0e",
-    "tests/test_release_1_2.py": "934dce5a78f52a9172219e87b78f74edcc0c3388e9d96cc435dab05594510cc6"
+    "tests/test_maintenance.py": "51c3a2d09577bd36b4cf1032fa486976a28dfd23df1c629a25a6ff7f891d6747",
+    "tests/test_prompt_routing.py": "3772288cc24af7714d2e34ef78d53e5e1572a1ed7aba02f2408d337d01db735b",
+    "tests/test_release_1_2.py": "7220728b1d712962430ecaeec385f1cd0762ce31fa3757038ee4146c30878985",
+    "tests/test_release_1_3.py": "202509a3503319d67bedc322c9808a2f36db4460622679c2ec6393c31db05d04",
+    "tests/test_release_1_3_tools.py": "97f60802b2328b7104d017bc700471146d7a2a35ec972375fe4d42f711c0cb73"
   },
-  "version": "1.2.0"
+  "version": "1.3.0"
 }

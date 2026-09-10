@@ -11,8 +11,14 @@ const context = {
 };
 vm.createContext(context, {codeGeneration: {strings: false, wasm: false}});
 vm.runInContext(input.core, context, {timeout: 5000});
-vm.runInContext(`result = {}; (DT.tasks || []).forEach(function(t) {
-  result[t.id] = {contractHash: D.handoff.contracts[t.id].hash,
+vm.runInContext(`result = {tasks: {}, batches: {}}; (DT.tasks || []).forEach(function(t) {
+  result.tasks[t.id] = {contractHash: D.handoff.contracts[t.id].hash,
     implementation: buildImpl(t), review: buildReview(t), resume: buildResume(t)};
+});
+// 每批一份收口提示词：batchPrompt 是纯函数，不看进度也不看收口记录；tasks 排序后导出，下游按集合匹配本批
+var BL = batchLayers();
+Object.keys(BL.by).forEach(function(k) {
+  result.batches[k] = {batchNo: Number(k) + 1,
+    tasks: BL.by[k].map(function(t) { return t.id; }), wrapup: batchPrompt(Number(k))};
 });`, context, {timeout: 15000});
 process.stdout.write(JSON.stringify(context.result));

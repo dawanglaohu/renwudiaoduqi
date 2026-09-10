@@ -17,13 +17,13 @@ BROWSER = r"""
 const fs = require('node:fs');
 const vm = require('node:vm');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-let listener, copied = [], writes = 0;
+let listener, copied = [], writes = 0, keys = [];
 const context = {
   D: input.payload, DT: input.payload.data, PR: input.payload.pres,
   window: {PROGRESS: input.progress, MAINTENANCE: input.maintenance},
   localStorage: {
-    getItem: () => JSON.stringify(input.local || {}),
-    setItem: () => { writes++; }
+    getItem: key => key.endsWith('/progress') ? JSON.stringify(input.local || {}) : null,
+    setItem: key => { keys.push(key); if (key.endsWith('/progress')) writes++; }
   },
   esc: value => String(value == null ? '' : value),
   document: {
@@ -39,7 +39,7 @@ vm.runInContext(input.core, context, {timeout: 5000});
 vm.runInContext(input.click, context, {timeout: 5000});
 for (const action of input.actions || []) {
   const button = {disabled: false, textContent: action.kind,
-                  dataset: {kind: action.kind, task: action.id},
+                  dataset: {kind: action.kind, task: action.id, batch: action.batch},
                   classList: {remove: () => {}, add: () => {}}};
   listener({target: {closest: selector => selector === '.cp' ? button : null},
             stopPropagation: () => {}});
@@ -58,7 +58,9 @@ for (const task of input.payload.data.tasks) {
       resume: context.buildResume(task)}
   };
 }
-process.stdout.write(JSON.stringify({tasks, copied, writes, local: context.PG}));
+process.stdout.write(JSON.stringify({tasks, copied, writes, local: context.PG, keys,
+  batch0: context.promptFor('batch', '0'), batch1: context.promptFor('batch', '1'),
+  pure0: context.batchPrompt(0)}));
 })().catch(error => { console.error(error); process.exitCode = 1; });
 """
 
@@ -70,8 +72,7 @@ const context = {
   D: input.payload, DT: input.payload.data, PR: input.payload.pres,
   window: {PROGRESS: {}, MAINTENANCE: {pendingTasks: [], needsReview: []}},
   localStorage: {getItem: () => null, setItem: () => {}},
-  esc: value => String(value == null ? '' : value),
-  layerOf: (ids) => { const lv = {}; ids.forEach(id => { lv[id] = 0; }); return lv; }
+  esc: value => String(value == null ? '' : value)
 };
 vm.createContext(context, {codeGeneration: {strings: false, wasm: false}});
 vm.runInContext(input.core, context, {timeout: 5000});
@@ -232,15 +233,22 @@ class PromptRoutingTests(unittest.TestCase):
         browser = self.browser(payload, progress, maintenance)
         exported = self.run_node(["node", str(RUN / "compile_prompts.js")], {
             "payload": payload, "core": self.compiler_core(progress, maintenance)})
-        for tid in exported:
+        self.assertEqual(set(exported), {"tasks", "batches"})
+        for tid in exported["tasks"]:
             with self.subTest(task=tid):
-                self.assertEqual(set(exported[tid]), {"contractHash", "implementation", "review", "resume"})
-                self.assertEqual(exported[tid], browser["tasks"][tid]["compiled"])
+                self.assertEqual(set(exported["tasks"][tid]), {"contractHash", "implementation", "review", "resume"})
+                self.assertEqual(exported["tasks"][tid], browser["tasks"][tid]["compiled"])
         self.assertIn("本任务尚未开始实现", browser["tasks"]["M1-T1"]["review"])
         # Exports keep the existing code-review field; pre-start UI routing is separate.
-        self.assertIn("PR 已提", exported["M1-T1"]["review"])
-        self.assertIn("复验已落地任务", exported["M1-T3"]["review"])
-        self.assertIn("继续复验已落地任务", exported["M1-T3"]["resume"])
+        self.assertIn("PR 已提", exported["tasks"]["M1-T1"]["review"])
+        self.assertIn("复验已落地任务", exported["tasks"]["M1-T3"]["review"])
+        self.assertIn("继续复验已落地任务", exported["tasks"]["M1-T3"]["resume"])
+        # 三个任务互不依赖，同在第 1 批；收口提示词是纯函数，与浏览器里的 batchPrompt(0) 一致
+        self.assertEqual(list(exported["batches"]), ["0"])
+        self.assertEqual(exported["batches"]["0"]["batchNo"], 1)
+        self.assertEqual(exported["batches"]["0"]["tasks"], ["M1-T1", "M1-T2", "M1-T3"])
+        self.assertIn("# 第 1 批收口", exported["batches"]["0"]["wrapup"])
+        self.assertEqual(exported["batches"]["0"]["wrapup"], browser["pure0"])
         self.assertEqual(payload, original)
 
     # ---- 实施解锁只看前置是否落地；契约语义复核在审查阶段登记 ----
@@ -378,6 +386,63 @@ class PromptRoutingTests(unittest.TestCase):
         self.assertIn("无前置依赖，可立即开工", self.html)
         self.assertIn("前置全部落地后可开始；同批次其他任务在跑不影响", self.html)
         self.assertFalse(result["tasks"]["M1-T2"]["locked"])
+
+    # ---- 1.3.0：批次收口、折叠与呼吸点 ----
+
+    def test_batch_prompt_only_when_layer_landed(self):
+        before = {tid: t["locked"] for tid, t in self.browser(chain(), progress={"M1-T1": "done"})["tasks"].items()}
+        result = self.browser(chain(), progress={"M1-T1": "done"})
+        self.assertIn("# 第 1 批收口", result["batch0"])
+        self.assertIn("M1-T1", result["batch0"])
+        self.assertEqual(result["batch1"], "")                       # 第 2 批（M1-T2、M1-T3）还没落地
+        self.assertEqual({tid: t["locked"] for tid, t in result["tasks"].items()}, before)
+        self.assertFalse(result["tasks"]["M1-T2"]["locked"])         # 收口不是闸门
+        # 第 2 批全部落地后才给；第 1 批的提示词列出前置为空、第 2 批列出前置批次
+        landed = self.browser(chain(), progress={"M1-T1": "done", "M1-T2": "done", "M1-T3": "done"})
+        self.assertIn("# 第 2 批收口", landed["batch1"])
+        self.assertIn("## 前置批次", landed["batch1"])
+        self.assertNotIn("## 前置批次", landed["batch0"])
+        for needle in ("BATCH_SUMMARY", "TESTS", "BUGS", "FIXED", "NOT_FIXED", "SUSPECT", "RECORD", "NEXT",
+                       "batch/2-<YYYYMMDD>", "../routing-batch-2", "../.codex-plans/routing-batch-2/",
+                       "--batches", "gh stack init --base main", "跨批", "git worktree prune"):
+            self.assertIn(needle, landed["batch1"])
+
+    def test_batch_copy_does_not_change_state(self):
+        result = self.browser(chain(), progress={"M1-T1": "done"}, actions=[{"kind": "batch", "batch": "0"}])
+        self.assertEqual(len(result["copied"]), 1)
+        self.assertIn("# 第 1 批收口", result["copied"][0])
+        self.assertEqual(result["local"], {})
+        self.assertEqual(result["writes"], 0)
+        self.assertEqual(result["keys"], [])                         # 也不碰折叠记录
+        # 未全部落地的批：什么都不复制
+        result = self.browser(chain(), progress={"M1-T1": "done"}, actions=[{"kind": "batch", "batch": "1"}])
+        self.assertEqual(result["copied"], [])
+
+    def test_batch_record_matches_by_task_set(self):
+        payload = chain()
+        payload["batchRecords"] = {"batch-1-20260901": {"batch": 1, "tasks": ["M1-T1"], "date": "2026-09-01",
+                                                        "verdict": "fixed", "tests": "pass", "pr": "none", "note": ""}}
+        result = self.browser(payload, progress={"M1-T1": "done"})
+        self.assertIn("上次收口 2026-09-01 · fixed，本次是第 2 轮", result["batch0"])
+        self.assertNotIn("上次收口", result["pure0"])               # 纯函数不读记录
+        # 批次号一样但任务集合不同的记录不匹配
+        payload["batchRecords"]["batch-1-20260901"]["tasks"] = ["M1-T1", "M1-T2"]
+        self.assertNotIn("上次收口", self.browser(payload, progress={"M1-T1": "done"})["batch0"])
+        # 批次号不同但集合相同仍匹配；多条取 date 最大的
+        payload["batchRecords"] = {
+            "batch-9-20260901": {"batch": 9, "tasks": ["M1-T1"], "date": "2026-09-01", "verdict": "open"},
+            "batch-1-20260903": {"batch": 1, "tasks": ["M1-T1"], "date": "2026-09-03", "verdict": "clean"}}
+        self.assertIn("上次收口 2026-09-03 · clean，本次是第 3 轮", self.browser(payload, progress={"M1-T1": "done"})["batch0"])
+
+    def test_impl_copy_expands_batch(self):
+        result = self.browser(chain(), progress={"M1-T1": "done"}, actions=[{"kind": "impl", "id": "M1-T2"}])
+        self.assertEqual(result["local"], {"M1-T2": "doing"})
+        self.assertTrue(any(k.endswith("/batches-open") for k in result["keys"]), result["keys"])
+
+    def test_reader_html_carries_batch_wrapup_and_breathing_dots(self):
+        for needle in ('data-kind="batch"', "批次收口", "再收口一次", "尚未收口", 'data-act="batchtoggle"',
+                       "@keyframes hpulse", "prefers-reduced-motion", "```rework", "hbody", "可收口"):
+            self.assertIn(needle, self.html)
 
 
 

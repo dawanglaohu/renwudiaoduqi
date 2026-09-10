@@ -194,7 +194,7 @@ class MaintenanceTests(unittest.TestCase):
     def test_browser_core_export_and_review_override(self):
         self.run_build()
         src=(self.doc/'docs-data.js').read_text(encoding='utf-8')
-        payload=json.loads(src[len('window.DOCS = '):].strip().removesuffix(';'))
+        payload=json.loads(src[len('window.DOCS = '):].strip().rstrip(';'))
         self.assertEqual(payload['dispatch'],hc.read_json(self.doc/'_run/dispatch.json')['tasks'])
         self.assertIn('DOC_PATCH',payload['dispatch']['M1-T1']['review'])
         self.assertNotIn('gh stack init',payload['dispatch']['M1-T1']['resume'])
@@ -290,7 +290,7 @@ vm.createContext(c);vm.runInContext(x.core,c);console.log(JSON.stringify({state:
     def test_first_review_is_contract_only_without_code_pr(self):
         self.run_build()
         src=(self.doc/'docs-data.js').read_text(encoding='utf-8')
-        payload=json.loads(src[len('window.DOCS = '):].strip().removesuffix(';'))
+        payload=json.loads(src[len('window.DOCS = '):].strip().rstrip(';'))
         core=build_docs.HTML[build_docs.HTML.index('var HO = PR.handoff || {};'):build_docs.HTML.index('C.metrics = function(){')]
         js="""const vm=require('node:vm'),fs=require('node:fs');const x=JSON.parse(fs.readFileSync(0,'utf8'));
 const c={D:x.payload,DT:x.payload.data,PR:x.payload.pres,window:{PROGRESS:{}},localStorage:{getItem:()=>null},esc:String};

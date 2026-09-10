@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-VERSION = '1.2.0'
+VERSION = '1.3.0'
 SCHEMA_VERSION = 1
 TASK_RE = re.compile(r'M\d{1,2}-T\d{1,3}')
 SOURCE_EXCLUDES = {'_run', '图谱', '.obsidian'}
