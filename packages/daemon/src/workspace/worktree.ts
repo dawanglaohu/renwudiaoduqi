@@ -1,7 +1,13 @@
 import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 import { AppError } from '../errors/app-error.ts';
-import type { SupportedPlatform } from '../platform/contract.ts';
+import type {
+	PlatformHostInputs,
+	ResolvedExecutable,
+	SupportedPlatform,
+} from '../platform/contract.ts';
+import { takePlatformHostInputs } from '../platform/host.ts';
+import { resolveExecutable } from '../platform/resolve-executable.ts';
 import { type LaunchSpec, spawnManaged } from '../proc/spawn.ts';
 
 export interface GitCommandResult {
@@ -82,11 +88,12 @@ export interface WorktreeFileSystem {
 
 export interface WorktreeManagerDeps {
 	readonly platform: SupportedPlatform;
-	readonly gitBinary?: string;
+	readonly gitBinary?: string | ResolvedExecutable;
+	readonly hostInputs?: PlatformHostInputs;
 	readonly gitRunner?: GitRunner;
 	readonly spawnManaged?: typeof spawnManaged;
 	readonly clock?: { readonly now: () => string };
-	readonly ids?: { readonly newId: () => string };
+	readonly ids: { readonly newId: () => string };
 	readonly fs?: WorktreeFileSystem;
 	readonly homedir?: string;
 }
@@ -172,18 +179,60 @@ export function parseWorktreeListPorcelain(text: string): WorktreeEntry[] {
 	return entries;
 }
 
-export function createDefaultGitRunner(
-	gitBinary: string,
-	platform: SupportedPlatform,
-	deps: WorktreeManagerDeps,
-): GitRunner {
+export async function resolveGitExecutable(
+	deps: Pick<WorktreeManagerDeps, 'platform' | 'gitBinary' | 'hostInputs' | 'homedir'>,
+): Promise<ResolvedExecutable> {
+	if (typeof deps.gitBinary === 'object' && deps.gitBinary !== null) {
+		return deps.gitBinary;
+	}
+
+	let hostInputs = deps.hostInputs;
+	if (!hostInputs) {
+		const hostResult = takePlatformHostInputs({});
+		if (hostResult.ok) {
+			hostInputs = hostResult.value;
+		} else {
+			hostInputs = {
+				platform: deps.platform,
+				homedir: deps.homedir ?? '',
+			};
+		}
+	}
+
+	const resolution = await resolveExecutable({
+		hostInputs,
+		executableName: 'git',
+		configuredPath: typeof deps.gitBinary === 'string' ? deps.gitBinary : undefined,
+	});
+
+	if (!resolution.ok) {
+		throw new AppError(resolution.error.code, resolution.error.message, {
+			cause: resolution.error.cause,
+			details: resolution.error.details as Record<string, unknown>,
+		});
+	}
+
+	return resolution.executable;
+}
+
+export function createDefaultGitRunner(deps: WorktreeManagerDeps): GitRunner {
+	let resolvedGit: ResolvedExecutable | undefined =
+		typeof deps.gitBinary === 'object' && deps.gitBinary !== null ? deps.gitBinary : undefined;
+
+	async function getOrResolveGit(): Promise<ResolvedExecutable> {
+		if (resolvedGit) return resolvedGit;
+		resolvedGit = await resolveGitExecutable(deps);
+		return resolvedGit;
+	}
+
 	return {
 		async run(args: readonly string[], cwd: string): Promise<GitCommandResult> {
-			const runId = `git_${deps.ids?.newId() ?? Math.random().toString(36).slice(2, 10)}`;
+			const git = await getOrResolveGit();
+			const runId = `git_${deps.ids.newId()}`;
 			const spec: LaunchSpec = {
 				runId,
-				file: gitBinary,
-				args,
+				file: git.file,
+				args: [...git.argsPrefix, ...args],
 				cwd,
 			};
 
@@ -194,7 +243,7 @@ export function createDefaultGitRunner(
 			return new Promise<GitCommandResult>((resolve, reject) => {
 				try {
 					const managed = spawnImpl(spec, {
-						platform,
+						platform: deps.platform,
 						onLine: (line) => stdoutLines.push(line.text),
 						onStderr: (line) => stderrLines.push(line.text),
 						onExit: (result) => {
@@ -602,13 +651,7 @@ export async function inspectWorktree(
 }
 
 export function createWorktreeManager(deps: WorktreeManagerDeps): WorktreeManager {
-	let runner = deps.gitRunner;
-	if (!runner) {
-		const gitBinary =
-			deps.gitBinary ??
-			(deps.platform === 'win32' ? 'C:\\Program Files\\Git\\cmd\\git.exe' : '/usr/bin/git');
-		runner = createDefaultGitRunner(gitBinary, deps.platform, deps);
-	}
+	const runner = deps.gitRunner ?? createDefaultGitRunner(deps);
 
 	return Object.freeze({
 		platform: deps.platform,

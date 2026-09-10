@@ -3,6 +3,15 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AppError } from '../../src/errors/app-error.ts';
+import type { ResolvedExecutable } from '../../src/platform/contract.ts';
+import { takePlatformHostInputs } from '../../src/platform/host.ts';
+import { resolveExecutable } from '../../src/platform/resolve-executable.ts';
+import type {
+	LaunchSpec,
+	ManagedProcess,
+	ProcessExitResult,
+	spawnManaged,
+} from '../../src/proc/spawn.ts';
 import {
 	type GitCommandResult,
 	type GitRunner,
@@ -17,6 +26,8 @@ import {
 	removeWorktree,
 	resolveBranchName,
 } from '../../src/workspace/worktree.ts';
+
+const defaultTestIds = { newId: () => 'test-req-id' };
 
 function createMockGitRunner(
 	handler: (args: readonly string[], cwd: string) => GitCommandResult | Promise<GitCommandResult>,
@@ -139,7 +150,11 @@ detached
 				stderr: 'fatal: not a git repository',
 			}));
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			await expect(
 				prepareWorktree(
 					{
@@ -260,7 +275,11 @@ detached
 				return { exitCode: 0, stdout: '', stderr: '' };
 			});
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			const result = await prepareWorktree(
 				{
 					repoPath: '/repo',
@@ -305,7 +324,11 @@ detached
 				return { exitCode: 0, stdout: '', stderr: '' };
 			});
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			const result = await prepareWorktree(
 				{
 					repoPath: '/my-repo',
@@ -351,7 +374,11 @@ detached
 				return { exitCode: 0, stdout: '', stderr: '' };
 			});
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			let thrown: unknown;
 			try {
 				await prepareWorktree({ repoPath: '/repo', taskId: 'M5-T1' }, runner, deps);
@@ -389,7 +416,11 @@ detached
 				return { exitCode: 0, stdout: '', stderr: '' };
 			});
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			let thrown: unknown;
 			try {
 				await prepareWorktree({ repoPath: '/repo', taskId: 'M5-T1' }, runner, deps);
@@ -424,7 +455,11 @@ detached
 				return { exitCode: 0, stdout: '', stderr: '' };
 			});
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			await expect(
 				prepareWorktree({ repoPath: '/repo', taskId: 'M5-T1' }, runner, deps),
 			).rejects.toMatchObject({
@@ -459,7 +494,11 @@ detached
 				return { exitCode: 0, stdout: '', stderr: '' };
 			});
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			const result = await removeWorktree(
 				{
 					repoPath: '/repo',
@@ -495,7 +534,11 @@ detached
 				return { exitCode: 0, stdout: '', stderr: '' };
 			});
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			const result = await removeWorktree(
 				{
 					repoPath: '/repo',
@@ -530,7 +573,11 @@ detached
 				return { exitCode: 0, stdout: '', stderr: '' };
 			});
 
-			const deps: WorktreeManagerDeps = { platform: 'linux', gitRunner: runner };
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitRunner: runner,
+				ids: defaultTestIds,
+			};
 			const result = await removeWorktree(
 				{
 					repoPath: '/repo',
@@ -599,6 +646,7 @@ detached
 			const manager = createWorktreeManager({
 				platform: 'linux',
 				gitRunner: runner,
+				ids: defaultTestIds,
 			});
 
 			expect(manager.platform).toBe('linux');
@@ -608,17 +656,95 @@ detached
 			const inspection = await manager.inspect('/my-repo');
 			expect(inspection.hasChanges).toBe(false);
 		});
+
+		it('R1: throws typed AppError (E_AGENT_EXEC_NOT_FOUND) when git executable cannot be resolved', async () => {
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitBinary: '/non/existent/git/binary/path',
+				ids: defaultTestIds,
+			};
+			const runner = createDefaultGitRunner(deps);
+			await expect(runner.run(['status'], '/tmp')).rejects.toMatchObject({
+				code: 'E_AGENT_EXEC_NOT_FOUND',
+			});
+		});
+
+		it('R1 & R2: accepts injected ResolvedExecutable directly and runId uses injected ids.newId()', async () => {
+			let capturedRunId = '';
+			const fakeResolved: ResolvedExecutable = {
+				launchKind: 'direct',
+				sourcePath: '/mock/git',
+				file: '/mock/git',
+				argsPrefix: [],
+				checkedPaths: ['/mock/git'],
+			};
+			let newIdCalls = 0;
+			const customIds = {
+				newId: () => {
+					newIdCalls++;
+					return `custom-seq-${newIdCalls}`;
+				},
+			};
+
+			const deps: WorktreeManagerDeps = {
+				platform: 'linux',
+				gitBinary: fakeResolved,
+				ids: customIds,
+				spawnManaged: ((spec: LaunchSpec) => {
+					capturedRunId = spec.runId;
+					const exitResult: ProcessExitResult = {
+						exitCode: 0,
+						runId: spec.runId,
+						pid: 1234,
+						signal: null,
+						reason: 'exited',
+					};
+					return {
+						isExited: true,
+						exitResult,
+						onExit: (cb: (result: ProcessExitResult) => void) => cb(exitResult),
+						onError: () => () => {},
+					} as unknown as ManagedProcess;
+				}) as unknown as typeof spawnManaged,
+			};
+
+			const runner = createDefaultGitRunner(deps);
+			await runner.run(['status'], '/tmp');
+
+			expect(capturedRunId).toBe('git_custom-seq-1');
+			expect(newIdCalls).toBe(1);
+		});
 	});
 
 	describe('End-to-End Real Git Integration', () => {
-		it('executes real git commands on a real repository (AC 1, AC 2, AC 3, E-69, E-71, E-72)', async () => {
+		it('executes real git commands on a real repository (AC 1, AC 2, AC 3, E-69, E-71, E-72)', async (ctx) => {
+			// R1: E2E 测试按宿主解析 git，找不到就 skip
+			const hostInputsResult = takePlatformHostInputs({});
+			if (!hostInputsResult.ok) {
+				ctx.skip();
+				return;
+			}
+			const hostInputs = hostInputsResult.value;
+			const gitResolution = await resolveExecutable({
+				hostInputs,
+				executableName: 'git',
+			});
+			if (!gitResolution.ok) {
+				ctx.skip();
+				return;
+			}
+			const gitExecutable = gitResolution.executable;
+
 			// Create a real temporary repository
 			const tempBase = mkdtempSync(join(tmpdir(), 'git-test-'));
 			const mainRepo = join(tempBase, 'main-repo');
 			mkdirSync(mainRepo, { recursive: true });
 
-			const gitBinary = '/usr/bin/git';
-			const defaultRunner = createDefaultGitRunner(gitBinary, 'linux', { platform: 'linux' });
+			const defaultRunner = createDefaultGitRunner({
+				platform: hostInputs.platform,
+				gitBinary: gitExecutable,
+				ids: defaultTestIds,
+			});
 
 			try {
 				// Initialize real git repo
@@ -633,8 +759,9 @@ detached
 				await defaultRunner.run(['commit', '-m', 'Initial commit'], mainRepo);
 
 				const manager = createWorktreeManager({
-					platform: 'linux',
-					gitBinary,
+					platform: hostInputs.platform,
+					gitBinary: gitExecutable,
+					ids: defaultTestIds,
 				});
 
 				// AC 2 & E-69: Check git repo status
