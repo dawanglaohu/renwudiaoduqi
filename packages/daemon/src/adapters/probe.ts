@@ -1,6 +1,6 @@
 import { constants as fsConstants } from 'node:fs';
 import { access as nodeAccess, realpath as nodeRealpath, stat as nodeStat } from 'node:fs/promises';
-import { isAbsolute, join, normalize, delimiter as pathDelimiter } from 'node:path';
+import { isAbsolute, join, normalize, delimiter as pathDelimiter, win32 } from 'node:path';
 import type { AgentConfig, ResolvedAgentConfig } from '../config/defaults.ts';
 import type {
 	ExecutableFileSystem,
@@ -9,6 +9,7 @@ import type {
 } from '../platform/contract.ts';
 import { platformPathAdapter, takePlatformHostInputs } from '../platform/host.ts';
 import { resolveExecutable as resolvePlatformExecutable } from '../platform/resolve-executable.ts';
+import { wrapForComSpec } from '../platform/windows.ts';
 import { createProcessEnv } from '../proc/env.ts';
 import { type LaunchSpec, spawnManaged } from '../proc/spawn.ts';
 
@@ -127,6 +128,35 @@ export interface CommandRunnerParams {
 	readonly cwd: string;
 	readonly timeoutMs: number;
 	readonly env?: Record<string, string>;
+	readonly windowsVerbatimArguments?: boolean;
+}
+
+export interface ProbeLaunchSpec {
+	readonly file: string;
+	readonly args: readonly string[];
+	readonly windowsVerbatimArguments: boolean;
+}
+
+export function buildProbeLaunch(
+	executable: import('../platform/contract.ts').ResolvedExecutable,
+	rawArgs: readonly string[],
+): ProbeLaunchSpec | null {
+	if (executable.launchKind === 'direct') {
+		return Object.freeze({
+			file: executable.file,
+			args: Object.freeze([...executable.argsPrefix, ...rawArgs]),
+			windowsVerbatimArguments: false,
+		});
+	}
+
+	const wrapped = wrapForComSpec(executable.sourcePath, rawArgs, executable.file);
+	return wrapped.ok
+		? Object.freeze({
+				file: wrapped.launch.file,
+				args: wrapped.launch.args,
+				windowsVerbatimArguments: true,
+			})
+		: null;
 }
 
 export interface CommandRunnerResult {
@@ -222,13 +252,15 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 		});
 	}
 
+	const pathIsAbsolute = platform === 'win32' ? win32.isAbsolute : isAbsolute;
+
 	// 2. Resolve executable path
 	let targetExecutablePath: string | undefined;
 	let discovery: CandidateDiscoveryResult | undefined;
 
 	if (options.userConfirmedCandidate !== undefined && options.userConfirmedCandidate.length > 0) {
 		targetExecutablePath = options.userConfirmedCandidate;
-	} else if (isCustom && isAbsolute(configuredExecPath)) {
+	} else if (isCustom && pathIsAbsolute(configuredExecPath)) {
 		targetExecutablePath = configuredExecPath;
 	} else {
 		// Discover candidates on PATH and fixed platform locations (AC 3, E-196, E-270)
@@ -401,15 +433,34 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 		}
 	}
 
-	// 5. Execute probe command (AC 1, AC 5)
+	// 5. Build launch specification for direct or com-spec execution (R1)
 	const probeArgs = options.config.versionFingerprint.args;
 	const expectedPattern = options.config.versionFingerprint.expectedPattern;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
 
+	const launch = buildProbeLaunch(executable, probeArgs);
+	if (!launch) {
+		return Object.freeze({
+			ok: false,
+			status: 'warning',
+			agentId: options.agentId,
+			canDispatch: isCustom,
+			matched: false,
+			versionString: '',
+			resolvedPath: realPath,
+			isCustomPath: isCustom,
+			allowManualPath: true,
+			warningBanner: Object.freeze({
+				code: 'E_VALIDATION',
+				message: 'Failed to wrap arguments for Windows ComSpec.',
+			}),
+		});
+	}
+
 	const execution = await executeProbeProcess({
-		file: executable.file,
-		argsPrefix: executable.argsPrefix,
-		probeArgs,
+		file: launch.file,
+		args: launch.args,
+		windowsVerbatimArguments: launch.windowsVerbatimArguments,
 		cwd: homedir.length > 0 ? homedir : '.',
 		timeoutMs,
 		platform,
@@ -566,12 +617,28 @@ export async function findExecutableCandidates(input: {
 
 	const searchDirectories: string[] = [];
 
-	// 1. Search directories from PATH environment variable
+	// 1. Search directories from PATH environment variable (R2 case-insensitive on win32)
 	const resolvedEnv = createProcessEnv({
 		platform,
 		baseEnv: input.env,
 	});
-	const rawPath = resolvedEnv.PATH;
+	let rawPath = resolvedEnv.PATH;
+	if (platform === 'win32' || rawPath === undefined) {
+		for (const [key, value] of Object.entries(resolvedEnv)) {
+			if (key.toLowerCase() === 'path' && value !== undefined) {
+				rawPath = value;
+				break;
+			}
+		}
+	}
+	if (rawPath === undefined && input.env) {
+		for (const [key, value] of Object.entries(input.env)) {
+			if (key.toLowerCase() === 'path' && value !== undefined) {
+				rawPath = value;
+				break;
+			}
+		}
+	}
 	if (rawPath !== undefined && rawPath.length > 0) {
 		const segments = rawPath.split(platform === 'win32' ? ';' : pathDelimiter);
 		for (const segment of segments) {
@@ -589,12 +656,15 @@ export async function findExecutableCandidates(input: {
 	const candidatePathsToTest: string[] = [];
 	const seenPaths = new Set<string>();
 
+	const pathJoin = platform === 'win32' ? win32.join : join;
+	const pathNormalize = platform === 'win32' ? win32.normalize : normalize;
+
 	const addCandidate = (cand: string) => {
-		const normalized = normalize(cand);
+		const normalized = pathNormalize(cand);
 		const key = platform === 'win32' ? normalized.toLowerCase() : normalized;
 		if (!seenPaths.has(key)) {
 			seenPaths.add(key);
-			candidatePathsToTest.push(cand);
+			candidatePathsToTest.push(normalized);
 		}
 	};
 
@@ -602,10 +672,10 @@ export async function findExecutableCandidates(input: {
 	for (const dir of searchDirectories) {
 		if (platform === 'win32') {
 			for (const ext of PROBE_WINDOWS_EXTENSIONS) {
-				addCandidate(join(dir, `${executableName}${ext}`));
+				addCandidate(pathJoin(dir, `${executableName}${ext}`));
 			}
 		} else {
-			addCandidate(join(dir, executableName));
+			addCandidate(pathJoin(dir, executableName));
 		}
 	}
 
@@ -845,11 +915,29 @@ function checkLenientMatch(
 	if (!parsedVersion) return false;
 
 	const trimmed = output.trim();
-	// If output is solely a semver version string (e.g. "0.85.1" or "v1.2.3")
+	// Universal rule for bare version string (R3):
+	// Matches if expectedPattern is a version regex, or if expectedPattern equals the agentId.
+	// Rejects if expectedPattern merely contains agentId/substring (e.g. 'api-tool' for unrelated binary).
 	if (trimmed === parsedVersion.raw || trimmed === `v${parsedVersion.raw}`) {
-		if (agentId === 'pi' || expectedPattern.includes('pi')) {
-			return true;
+		if (agentId) {
+			const cleanExpected = expectedPattern
+				.replace(/\\b/g, '')
+				.replace(/[\^$]/g, '')
+				.trim()
+				.toLowerCase();
+			if (cleanExpected === agentId.toLowerCase()) {
+				return true;
+			}
 		}
+		try {
+			const versionRegex = new RegExp(expectedPattern, 'i');
+			if (versionRegex.test(parsedVersion.raw) || versionRegex.test(`v${parsedVersion.raw}`)) {
+				return true;
+			}
+		} catch {
+			// ignore regex failure
+		}
+		return false;
 	}
 
 	const cleanExpected = expectedPattern.replace(/\\b/g, '').replace(/[\^$]/g, '').trim();
@@ -881,8 +969,8 @@ function escapeRegex(str: string): string {
 
 async function executeProbeProcess(params: {
 	readonly file: string;
-	readonly argsPrefix: readonly string[];
-	readonly probeArgs: readonly string[];
+	readonly args: readonly string[];
+	readonly windowsVerbatimArguments: boolean;
 	readonly cwd: string;
 	readonly timeoutMs: number;
 	readonly platform: SupportedPlatform;
@@ -892,8 +980,8 @@ async function executeProbeProcess(params: {
 }): Promise<CommandRunnerResult> {
 	const {
 		file,
-		argsPrefix,
-		probeArgs,
+		args,
+		windowsVerbatimArguments,
 		cwd,
 		timeoutMs,
 		platform,
@@ -901,14 +989,14 @@ async function executeProbeProcess(params: {
 		spawnManagedFn,
 		agentId,
 	} = params;
-	const fullArgs = Object.freeze([...argsPrefix, ...probeArgs]);
 
 	if (commandRunner) {
 		return commandRunner({
 			file,
-			args: fullArgs,
+			args,
 			cwd,
 			timeoutMs,
+			windowsVerbatimArguments,
 		});
 	}
 
@@ -940,7 +1028,7 @@ async function executeProbeProcess(params: {
 		const spec: LaunchSpec = {
 			runId: `probe-${agentId}-${Date.now()}`,
 			file,
-			args: fullArgs,
+			args,
 			cwd,
 			timeouts: {
 				startupTimeoutMs: timeoutMs,
@@ -953,6 +1041,9 @@ async function executeProbeProcess(params: {
 				platform,
 				onRaw: (line) => {
 					stdoutChunks.push(line.text);
+				},
+				onStderr: (line) => {
+					stderrChunks.push(line.text);
 				},
 				onError: (err) => {
 					stderrChunks.push(err.message);

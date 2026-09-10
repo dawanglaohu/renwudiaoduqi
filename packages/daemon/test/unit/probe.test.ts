@@ -20,9 +20,23 @@ function createMockFileSystem(
 		{ content?: string; isFile?: boolean; isExecutable?: boolean; mtimeMs?: number; size?: number }
 	>,
 ): ExecutableFileSystem & { realpath: (path: string) => Promise<string> } {
+	const normalizePath = (p: string) =>
+		p
+			.replace(/^\\\\\?\\/, '')
+			.replaceAll('/', '\\')
+			.toLowerCase();
+	const findFile = (p: string) => {
+		if (files[p]) return files[p];
+		const norm = normalizePath(p);
+		for (const [key, val] of Object.entries(files)) {
+			if (key === p || normalizePath(key) === norm) return val;
+		}
+		return undefined;
+	};
+
 	return {
 		stat: async (path: string) => {
-			const file = files[path];
+			const file = findFile(path);
 			if (!file) {
 				const err = new Error(
 					`ENOENT: no such file or directory, stat '${path}'`,
@@ -38,7 +52,7 @@ function createMockFileSystem(
 			} as unknown as ExecutableFileInfo;
 		},
 		lstat: async (path: string) => {
-			const file = files[path];
+			const file = findFile(path);
 			if (!file) {
 				const err = new Error(
 					`ENOENT: no such file or directory, lstat '${path}'`,
@@ -54,7 +68,7 @@ function createMockFileSystem(
 		readlink: async (path: string) => path,
 		realpath: async (path: string) => path,
 		access: async (path: string) => {
-			const file = files[path];
+			const file = findFile(path);
 			if (!file || file.isExecutable === false) {
 				const err = new Error(
 					`EACCES: permission denied, access '${path}'`,
@@ -165,18 +179,96 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 				| undefined;
 			expect(firstCall?.[0]?.args).toEqual(['--ver']);
 		});
-		it('exercises default spawnManaged path with real Node.js process', async () => {
+		it('R1: wraps Windows .cmd/.bat using ComSpec with windowsVerbatimArguments: true', async () => {
+			const config = {
+				...BUILT_IN_AGENT_DEFAULTS.grok,
+				execPath: 'C:\\tools\\grok.cmd',
+			};
+
+			const fs = createMockFileSystem({
+				'C:\\tools\\grok.cmd': { isFile: true },
+				'C:\\Windows\\System32\\cmd.exe': { isFile: true },
+			});
+
+			let capturedParams: import('../../src/adapters/probe.ts').CommandRunnerParams | undefined;
+			const mockRunner = vi.fn(
+				async (params: import('../../src/adapters/probe.ts').CommandRunnerParams) => {
+					capturedParams = params;
+					return {
+						ok: true,
+						exitCode: 0,
+						stdout: 'grok 1.0.3 (1a29d5bc12)',
+						stderr: '',
+					};
+				},
+			);
+
+			const result = await probeAgent({
+				agentId: 'grok',
+				config,
+				hostInputs: windowsHost,
+				fileSystem: fs,
+				commandRunner: mockRunner,
+				isCustomPath: true,
+			});
+
+			expect(result.ok).toBe(true);
+			expect(result.status).toBe('matched');
+			expect(capturedParams).toBeDefined();
+			if (capturedParams) {
+				// Assert file is comSpec (cmd.exe)
+				expect(capturedParams.file.toLowerCase()).toContain('cmd.exe');
+				// Assert args first three items are /d, /s, /c
+				expect(capturedParams.args[0]).toBe('/d');
+				expect(capturedParams.args[1]).toBe('/s');
+				expect(capturedParams.args[2]).toBe('/c');
+				expect(capturedParams.args[3]).toContain('grok.cmd');
+				// Assert windowsVerbatimArguments is true
+				expect(capturedParams.windowsVerbatimArguments).toBe(true);
+			}
+		});
+
+		it('R4: collects version output from stderr when stdout is empty', async () => {
+			const config = BUILT_IN_AGENT_DEFAULTS.codex;
+
+			const fs = createMockFileSystem({
+				'/usr/local/bin/codex': { isFile: true, isExecutable: true },
+			});
+
+			const mockRunner = vi.fn(async () => ({
+				ok: true,
+				exitCode: 0,
+				stdout: '',
+				stderr: 'codex version 0.1.5 (cli-engine)\n',
+			}));
+
+			const result = await probeAgent({
+				agentId: 'codex',
+				config,
+				hostInputs: linuxHost,
+				fileSystem: fs,
+				commandRunner: mockRunner,
+			});
+
+			expect(result.ok).toBe(true);
+			expect(result.status).toBe('matched');
+			expect(result.versionString).toBe('codex version 0.1.5 (cli-engine)');
+		});
+
+		it('R4: real Node child process collecting version string strictly through stderr', async () => {
+			// Real node process emitting version string to stderr and exiting with 0
+			const script = 'console.error("codex 0.1.5-stderr"); process.exit(0);';
 			const nodeConfig = {
 				...BUILT_IN_AGENT_DEFAULTS.codex,
 				execPath: process.execPath,
 				versionFingerprint: {
-					args: ['--version'],
-					expectedPattern: 'v?\\d+\\.\\d+',
+					args: ['-e', script],
+					expectedPattern: '\\bcodex\\b',
 				},
 			};
 
 			const result = await probeAgent({
-				agentId: 'node-test',
+				agentId: 'codex',
 				config: nodeConfig,
 				hostInputs: {
 					platform: process.platform as 'win32' | 'darwin' | 'linux',
@@ -187,8 +279,7 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 
 			expect(result.ok).toBe(true);
 			expect(result.status).toBe('matched');
-			expect(result.matched).toBe(true);
-			expect(result.versionString).toMatch(/v?\d+\.\d+/);
+			expect(result.versionString).toBe('codex 0.1.5-stderr');
 		});
 	});
 
@@ -232,6 +323,30 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 	});
 
 	describe('AC 3, E-196 & E-270: Candidate discovery, collisions and minimal environment', () => {
+		it('R2: reads Path case-insensitively on Windows and lists all candidates with confirmation', async () => {
+			const config = BUILT_IN_AGENT_DEFAULTS.grok;
+
+			const fs = createMockFileSystem({
+				'C:\\tools\\grok.cmd': { isFile: true },
+				'C:\\other\\grok.exe': { isFile: true },
+			});
+
+			const result = await probeAgent({
+				agentId: 'grok',
+				config,
+				hostInputs: windowsHost,
+				env: { Path: 'C:\\tools;C:\\other' },
+				fileSystem: fs,
+			});
+
+			expect(result.ok).toBe(false);
+			expect(result.status).toBe('requires-confirmation');
+			expect(result.canDispatch).toBe(false);
+			expect(result.candidates?.requiresConfirmation).toBe(true);
+			expect(result.candidates?.allCandidates).toContain('C:\\tools\\grok.cmd');
+			expect(result.candidates?.allCandidates).toContain('C:\\other\\grok.exe');
+		});
+
 		it('E-196: records first hit but lists all candidates and requires confirmation when multiple executables hit', async () => {
 			const config = BUILT_IN_AGENT_DEFAULTS.grok;
 
@@ -402,12 +517,16 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 			expect(claudeRes.isLenientMatch).toBe(true);
 			expect(claudeRes.parsedVersion).toBe('1.0.0');
 
-			// Pi format variation: package name or pure semver
+			// Pi format variation: bare version number or full identifier
 			const piRes = matchVersionFingerprint('0.85.1', '\\bpi\\b', {
 				agentId: 'pi',
 			});
 			expect(piRes.matched).toBe(true);
 			expect(piRes.parsedVersion).toBe('0.85.1');
+
+			const piPkgRes = matchVersionFingerprint('pi-coding-agent v0.85.1', '\\bpi\\b');
+			expect(piPkgRes.matched).toBe(true);
+			expect(piPkgRes.parsedVersion).toBe('0.85.1');
 
 			// Codex variation with commit hash and prefixes
 			const codexRes = matchVersionFingerprint(
@@ -419,6 +538,21 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 			);
 			expect(codexRes.matched).toBe(true);
 			expect(codexRes.parsedVersion).toBe('0.2.1');
+		});
+
+		it('R3: rejects bare version number when expected pattern contains pi substring (E-201)', () => {
+			// Pattern contains "pi" as a substring (e.g. api-tool, rapid-pipeline),
+			// but output is a bare version number from an unrelated binary.
+			const rejectedSubstr = matchVersionFingerprint('2.1.0', 'api-tool');
+			expect(rejectedSubstr.matched).toBe(false);
+
+			const rejectedBarePi = matchVersionFingerprint('2.1.0', '\\bpi\\b', {
+				agentId: 'other-tool',
+			});
+			expect(rejectedBarePi.matched).toBe(false);
+
+			const rejectedArbitraryBare = matchVersionFingerprint('0.85.1', '\\bClaude Code\\b');
+			expect(rejectedArbitraryBare.matched).toBe(false);
 		});
 
 		it('validates version range matching (passes within range, fails out of range)', () => {
