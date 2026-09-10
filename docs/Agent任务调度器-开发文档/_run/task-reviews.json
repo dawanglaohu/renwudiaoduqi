@@ -384,6 +384,29 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M8-T1": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "b7fe130e99ed29f239d0307854389a21022b6cdc20f166b534bb53542caf8878",
+    "evidence": [
+      "验收 1-5 与边界 E-245/E-47/E-48/E-52 逐条对应到 packages/daemon/src/domain/concurrency.ts，定位写在 PR #33 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
+      "AC1/E-52：calculateConcurrencyLimit 取 min(用户设定, 窗口数, 每 agent 上限, 机器资源, 路径冲突)（concurrency.ts:203-222），并返回瓶颈 bottleneck 与并列全部因子的 bottlenecks（:224-235、:249-252）；单测 packages/daemon/test/unit/concurrency.test.ts:14-81 覆盖三种单因子瓶颈、三因子并列与并列时的确定性裁决",
+      "AC5/E-245：机器资源与路径冲突入 min（:207-213），userSetting 不参与改写、原样返回（:191-194、:248）；单测 :238-283 断言 effectiveConcurrency=2、bottleneck=machine_resource、factors.userSetting=6、pathConflict 优先于其他并列因子",
+      "AC2/E-47：allocateConcurrencySlots 按候选顺序扫描，agent 达上限时记 reason=agent_limit_reached（:420）并继续给后续其他 agent 的任务分配空位（:405-418、:396），不空转；单测 :83-176 覆盖单纯顺延、已有在途运行占满、availableSlots 耗尽与函数式 limit 查询",
+      "AC3/E-48：windowCount<=1 或 effectiveConcurrency<=1 时只置 isDegradedToSerial（:237），既不抛异常也不产出任何「无法并行」文案；单测 :194-232 覆盖 windowCount=1、availableSlots=1 与 windowCount=0 均逐个派且无异常",
+      "AC4：全文件为纯函数与冻结常量；无 fs/net/db/子进程/process.env/process.platform/Date.now/Math.random，无顶层副作用（仅 import errors/app-error.ts 与 domain/run-state-machine.ts）；输入非法时按统一错误体系抛 AppError('E_VALIDATION')（:151-190），与 run-state-machine.ts:228 同一写法，未新增错误码",
+      "E-52 显式解锁：exceedsWindowCount=userSetting>windowCount（:238）与 canIncreaseWithoutUnlock（:446-448）供 UI 显示「向上超过窗口数需解锁」；单测 :63-81",
+      "前置能力核对：M3-T2 已落地（批次与层由 repo/tasks.ts:701-737 推导，调用方把窗口数作为 windowCount 传入）；M4-T1 已落地（config/registry.ts:830 由 maxConcurrency>0 派生 isEnabled），本层以可选 agentLimits 映射/回调解耦消费，不直读 agents.json 或注册表",
+      "接口字段与 13/17/19 节：10 节 maxConcurrency 为 0/负即禁用（由 registry isEnabled 派生），本层只接收可派发 agent 的数值上限；13 节 E-47/E-48/E-52/E-245 行与任务笔记边界逐字一致；17 节强制 daemon domain/ 单测，故本层补登记测试文件；19 节 M8-T1 行的产出、依赖与验收与任务笔记一致",
+      "有效路径补齐：补丁 M8-T1-review-scope-20260910 把 packages/daemon/test/unit/concurrency.test.ts 登记为 supportPaths（原 taskPaths 只有 packages/daemon/src/domain/concurrency.ts）；presentation.json 中 M1-T1/M1-T10/M2-T6 已落地的 test 路径与该文件不重叠，其他任务未声明它",
+      "范围：本层相对 main 只改 packages/daemon/src/domain/concurrency.ts、packages/daemon/test/unit/concurrency.test.ts 与任务笔记 M8-T1.md 回填；除补丁登记的测试文件外无路径外改动",
+      "验收阶段检查（2026-09-10，工作树 ../agent-scheduler-m8-t1）：npx vitest run test/unit/concurrency.test.ts → 21 passed；test/arch（boot-boundaries、bus-transaction、routes）+ test/unit/source-contracts + concurrency → 5 文件 43 passed；node scripts/check-error-codes.mjs → 43 codes OK；npx tsc -b --noEmit → 退出码 0；npx biome ci 两个改动文件 → 无修复项",
+      "受影响下游（补丁模板列出 M8-T2/M8-T3/M8-T4/M8-T5/M9-T10/M9-T13/M9-T18）：本补丁只增 M8-T1 的 supportPaths 一项，未改验收、边界、依赖、产出与任何接口字段，下游契约不变",
+      "未构成阻断的观察：concurrency.ts:305、:396 把非正数 limit 归一为 1（Math.max(1,…)）。06 节规定 M4 提供「可派发 agent 清单与每 agent 并发上限」，调用方只应传可派发 agent，故本层不改语义；已列入 FOLLOW_UP 交 M8-T3 接线时确认"
+    ],
+    "reviewed": "2026-09-10T08:32:56.942654+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T14": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "b3ec9350423dcbf3ff40d7a281cb4648295e19a5a9af219b1aa2887a36f8ea1d",
