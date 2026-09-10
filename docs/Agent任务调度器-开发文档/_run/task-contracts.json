@@ -161,6 +161,11 @@
         "packages/daemon/test/unit/launch-template.test.ts"
       ]
     },
+    "M4-T3": {
+      "supportPaths": [
+        "packages/daemon/test/unit/probe.test.ts"
+      ]
+    },
     "M4-T7": {
       "supportPaths": [
         "packages/daemon/test/unit/agent-registry.test.ts",
