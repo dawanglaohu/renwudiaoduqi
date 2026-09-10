@@ -17,6 +17,43 @@ export interface CheckForbiddenReport {
 
 const INDIGO_VIOLET_HEXES = ['#6366f1', '#5e6ad2', '#635bff', '#7c3aed'];
 
+/**
+ * Line numbers of `html` / `:root` rule blocks that lock the root font size (E-15).
+ * Matching has to cover the whole declaration block: the formatter puts the declaration on its
+ * own line, so a per-line scan misses exactly the shape a hand-written lock takes.
+ * `font-size: 100%` stays allowed — it preserves the user's own root size.
+ */
+export function findRootFontSizeLocks(cssContent: string): number[] {
+	const withoutComments = cssContent.replace(/\/\*[\s\S]*?\*\//g, '');
+	const lines: number[] = [];
+	const blockRegex = /([^{}]*)\{([^{}]*)\}/g;
+	let block = blockRegex.exec(withoutComments);
+	while (block) {
+		const selector = block[1] ?? '';
+		const body = block[2] ?? '';
+		const targetsRoot = /(^|[\s,])(html|:root)\s*(,|$)/.test(selector);
+		const declared = /font-size\s*:\s*([^;}]+)/i.exec(body)?.[1];
+		const locksFontSize = declared !== undefined && !/^100\s*%$/.test(declared.trim());
+		if (targetsRoot && locksFontSize) {
+			lines.push(withoutComments.slice(0, block.index).split('\n').length);
+		}
+		block = blockRegex.exec(withoutComments);
+	}
+	return lines;
+}
+
+/**
+ * The run deck wraps its lanes onto more rows (auto-fill grid) and never scrolls sideways,
+ * on the desktop window or on a narrow phone (E-145, E-164).
+ */
+export function isDeckContainer(relativePath: string): boolean {
+	const normalized = relativePath.split('\\').join('/');
+	return (
+		normalized.includes('/src/features/run-deck/') ||
+		normalized.endsWith('/src/components/stream-column.tsx')
+	);
+}
+
 function walkFiles(dir: string, filter?: (path: string) => boolean): string[] {
 	if (!existsSync(dir)) {
 		return [];
@@ -233,24 +270,37 @@ export function runForbiddenCheck(projectRootPath?: string): CheckForbiddenRepor
 			}
 		}
 
-		// Check 6: Fixed font-size / text-size-adjust: none / zoom on html (E-15)
-		if (file.endsWith('.css')) {
+		// Check 6: Horizontal scrolling on the run deck (E-145)
+		if (isDeckContainer(relPath)) {
 			for (let i = 0; i < lines.length; i++) {
 				const line = lines[i] ?? '';
-				const stripped = line.replace(/\/\*.*?\*\/|\/\/.*/g, '');
-				if (
-					/html\s*\{[^}]*font-size\s*:\s*\d+px/i.test(stripped) ||
-					(/font-size\s*:\s*\d+px/i.test(stripped) && stripped.includes('html'))
-				) {
+				if (/overflow-x/.test(line)) {
 					violations.push({
-						rule: 'E15_ROOT_FONT_SIZE_LOCKED',
+						rule: 'DECK_OVERFLOW_X',
 						file: relPath,
 						line: i + 1,
 						snippet: line.trim(),
 						message:
-							'Fixed font-size on html root is prohibited (violates E-15 system font-size scaling).',
+							'Horizontal scrolling on the run deck is prohibited; lanes wrap instead (E-145).',
 					});
 				}
+			}
+		}
+
+		// Check 7: Fixed font-size / text-size-adjust: none / zoom on html (E-15)
+		if (file.endsWith('.css')) {
+			for (const line of findRootFontSizeLocks(content)) {
+				violations.push({
+					rule: 'E15_ROOT_FONT_SIZE_LOCKED',
+					file: relPath,
+					line,
+					message:
+						'Fixed font-size on the html root is prohibited (violates E-15 system font-size scaling).',
+				});
+			}
+			for (let i = 0; i < lines.length; i++) {
+				const line = lines[i] ?? '';
+				const stripped = line.replace(/\/\*.*?\*\/|\/\/.*/g, '');
 				if (/text-size-adjust\s*:\s*none/i.test(stripped)) {
 					violations.push({
 						rule: 'E15_TEXT_SIZE_ADJUST_NONE',
@@ -285,9 +335,7 @@ if (process.argv[1]?.endsWith('check-forbidden.ts')) {
 	console.log('\n=== Architecture Forbidden Patterns Verification (M9-T1 / E-170, E-15) ===\n');
 
 	if (report.violations.length === 0) {
-		console.log(
-			'All 8 architecture grep and token restrictions passed cleanly. (0 violations) ✓\n',
-		);
+		console.log('All architecture grep and token restrictions passed cleanly. (0 violations) ✓\n');
 		process.exit(0);
 	} else {
 		console.error(`FAILED: ${report.violations.length} architecture violations found:\n`);

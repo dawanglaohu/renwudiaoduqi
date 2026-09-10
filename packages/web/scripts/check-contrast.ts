@@ -81,6 +81,22 @@ export function parseColor(raw: string, tokens: Record<string, string>): RgbColo
 	throw new Error(`Cannot parse color value: ${str}`);
 }
 
+/**
+ * A token carries theme-dependent color state when its value resolves to a color:
+ * a hex literal, an rgb()/rgba()/hsl() function, or a var() chain ending in one.
+ */
+export function isColorToken(value: string | undefined, tokens: Record<string, string>): boolean {
+	if (!value) {
+		return false;
+	}
+	try {
+		parseColor(value, tokens);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 export function getLuminance(color: RgbColor): number {
 	const [rs = 0, gs = 0, bs = 0] = [color.r, color.g, color.b].map((c) => {
 		const s = c / 255;
@@ -155,7 +171,9 @@ export function runContrastCheck(tokensCssPath?: string): CheckContrastReport {
 	const results: ContrastResult[] = [];
 
 	// 1. Check Token Parity (E-173)
-	// Every color token defined in dark must be defined in light, and vice versa.
+	// Every color token defined in one theme must be defined in the other. The declared list
+	// states intent; detecting over both blocks as well makes a newly added dark-only state or
+	// chip fail here, which is the case E-173 forbids.
 	const COLOR_TOKEN_PREFIXES = [
 		'--page',
 		'--bg',
@@ -191,7 +209,19 @@ export function runContrastCheck(tokensCssPath?: string): CheckContrastReport {
 		'--glow',
 	];
 
-	for (const token of COLOR_TOKEN_PREFIXES) {
+	const colorTokens = new Set<string>(COLOR_TOKEN_PREFIXES);
+	for (const [name, value] of Object.entries(darkTokens)) {
+		if (isColorToken(value, darkTokens)) {
+			colorTokens.add(name);
+		}
+	}
+	for (const [name, value] of Object.entries(lightTokens)) {
+		if (isColorToken(value, lightTokens)) {
+			colorTokens.add(name);
+		}
+	}
+
+	for (const token of [...colorTokens].sort()) {
 		if (darkTokens[token] && !lightTokens[token]) {
 			errors.push(
 				`[E-173 Token Parity Violation] Token ${token} is defined in dark theme but missing in light theme.`,

@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
 	calculateContrast,
@@ -47,5 +50,21 @@ describe('check-contrast (M9-T1, E-169, E-171, E-173)', () => {
 		expect(color.r).toBe(0xf0);
 		expect(color.g).toBe(0xb0);
 		expect(color.b).toBe(0x3c);
+	});
+
+	it('fails token parity when a dark-only color token is added (E-173)', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'agsched-tokens-'));
+		const cssPath = join(dir, 'tokens.css');
+		writeFileSync(
+			cssPath,
+			':root, [data-theme="dark"] { --bg: #171b1c; --partial: #f0b03c; }\n[data-theme="light"] { --bg: #fbfcfc; }\n',
+		);
+		try {
+			const report = runContrastCheck(cssPath);
+			expect(report.tokenParityPassed).toBe(false);
+			expect(report.errors.some((error) => error.includes('--partial'))).toBe(true);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });
