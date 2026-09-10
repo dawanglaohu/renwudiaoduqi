@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T7": {
+      "contractHash": "d393b5c413d9b0d94b1683cac25009a77220b0588ec80be3c458269d7e076ac0",
+      "evidence": [
+        "19 节 M8-T7 行：依赖 M8-T6（有效裁定与开放项）与 M7-T5（返工提示词）；产出 service/wrapup.ts 修复段、domain/task-state.ts、domain/path-clash.ts、routes/tasks.ts 在 taskPaths；shared tasks.ts/codes.ts/routes.ts 在 supportPaths（E_FIX_RUN_IN_FLIGHT 与 recall 路由）",
+        "验收 1)～6) 对应 E-275（修复运行字段与跨批语义）、E-280（同收口串行、E-46 排队）、E-276/E-290（第 2 轮与无主）、E-293/E-300（撤回与在途冲突）、E-298（inHead 派生）；10 节已加 POST /tasks/:taskId/recall 与三个错误码；决策 70 写明不为 wrapup-fix 跳过审查",
+        "接缝：与 M9-T20 的批次级落地清单消费同一 GET /batches/:id/wrapups[].landing；TaskDto.inHead/crossBatchFix 字段由本任务在 shared tasks.ts 落，M9-T19 只读"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

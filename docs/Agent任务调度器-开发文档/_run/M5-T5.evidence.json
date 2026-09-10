@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M5-T5": {
+      "contractHash": "9ee29591be889a1f217a575fb745e1dead6a3114471855d7e404428404ac8b89",
+      "evidence": [
+        "19 节 M5-T5 行：只依赖 M5-T2（base 解析）与 M1-T7（spawn，已落地，在 M5-T2 闭包内）；产出 workspace/in-head.ts 在 taskPaths，worktree.ts 作 supportPaths 供收口分支命名",
+        "验收 1)～5) 对应 E-273（squash 回退无差异）、E-289（分支已删按 SHA / branch_gone）、E-301（dirty_worktree 判未进、error 不推断）、E-71（收口分支冲突加序号）；返回结构 {inHead, method, tipSha, commandText?, stderrTail?} 与 08 节 scheduler-tick 第 1 步、09 节 runs.is_in_head/branch_tip_sha 一致",
+        "本函数不写库，写库由 M8-T6 的 tick 事务做——事务边界在 08 节写死，符合「事务内不 spawn」；17 节列出了 in-head 的七条用例"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

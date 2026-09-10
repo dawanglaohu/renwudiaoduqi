@@ -262,6 +262,25 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M3-T3": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "c261409624364dcba8ff1e619089f905821ff647ad71773ecf9b89889ff4c0cf",
+    "evidence": [
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T3 行、09-数据模型.md:77/134-136/189 与六条边界（E-18/E-19/E-77/E-78/E-80/E-81），确认产出为 repo/dispatch-snapshots.ts + 比对逻辑 + 横幅数据；实际改动只有 taskPaths 的 domain/docs-fingerprint.ts、repo/dispatch-snapshots.ts 与 supportPaths 的 test/unit/dispatch-snapshots.test.ts。前置 M3-T2 已落地（repo/tasks.ts 的 importDocTasks/markRemovedFromDoc 与 repo/batches.ts 在 main），本任务只读 tasks 表、不重做导入；接线（容器注册、service 调用、HTTP 路由）归 M3-T5/M8-T3。",
+      "AC1/E-19 快照：packages/daemon/src/repo/dispatch-snapshots.ts:606 takeSnapshotForTask 单次读取任务行后，把 input_text/output_text/accept_text、impl_prompt/review_prompt、contract_hash、task_paths_json（有效路径，缺省 '[]'）与 launch_spec_json 一并写入 dispatch_snapshots（INSERT 语句在 :226 之前定义，字段与 migrations/0001_init.sql:54 的列一一对应）；runs.snapshot_id 由 M8-T3 在创建运行时引用该快照 id，本任务返回完整行供其使用。",
+      "AC2/E-77/E-78 三个标记与过滤列表：packages/daemon/src/domain/docs-fingerprint.ts:139 compareTaskWithSnapshot 逐字符比对（normalizeComparableText 只把 null/undefined 归一为空串），产出 isRemovedFromDoc/hasAcceptChanged/hasPromptChanged；hasAcceptChanged 覆盖 input/output/accept 三段，hasPromptChanged 覆盖两段提示词与 contract_hash（哈希不同即视为提示词变更），不再依赖任务行是否变；:206 computeDocDiffBanner 汇总计数与 affectedTaskIds/removedTaskIds/acceptChangedTaskIds/promptChangedTaskIds 四个清单，:259 filterAffectedTasks 支持 all/removed/accept_changed/prompt_changed 过滤。",
+      "AC3/E-18/E-77：refreshDocDiff（repo/dispatch-snapshots.ts:675）只 UPDATE tasks.is_removed_from_doc/has_accept_changed/has_prompt_changed 并重算横幅，全程不出现 runs 表的写语句（SELECT_ACTIVE_RUN_COUNT_BY_TASK_ID_SQL 仅计数），在途运行不被终止也不被删除；入口 takeSnapshotForTask 对 is_removed_from_doc=1 抛 E_TASK_REMOVED_FROM_DOC 阻断再派发；hasActiveRuns（:492）按 queued/starting/running/awaiting_reply/reviewing/reworking 判定在途，供卡片与归档侧读取。",
+      "AC4/E-80：最新快照统一走 SELECT_LATEST_SNAPSHOT_BY_TASK_ID_SQL 的 ORDER BY created_at DESC, id DESC LIMIT 1（doc 级用 ROW_NUMBER() OVER (PARTITION BY task_id ...)），历史由 listByTaskId 按同一序只读返回；全文件没有 dispatch_snapshots 的 UPDATE/DELETE 语句，历史轮次不会被原地覆盖。",
+      "AC5/E-81：快照值取自 task 行的单次读取，落库后不重新读取任务表补充字段；同进程内 better-sqlite3 同步调用使「读任务行 + 插快照」不会与导入事务交错，文档重出只改标记与横幅，绝不回滚已发出的运行。",
+      "E-78 并列展示：repo/dispatch-snapshots.ts:501 getTaskAcceptanceComparison 返回 snapshotAcceptText/currentAcceptText 及 input/output 两侧文本与 snapshotCreatedAt，主操作「重派」与「按旧标准手动判为已落地」由 manual_state 在 M3-T5/M9 落地，本任务只供数据。",
+      "分层与共用约定：dispatch-snapshots.ts 只 import node:crypto、../db/open-database、../domain/docs-fingerprint、../errors/app-error，无 service/http/events/proc/adapters 反向依赖；SQL 全在本 repo 目录且全部参数绑定，预编译语句在工厂闭包内 prepare 一次；无 process.env / process.platform（身份与时间由调用方经 params 注入，id 可注入 snapshotId）；原生错误一律经 toDatabaseError、应用错误一律 AppError，未自造 E_ 字面量（node scripts/check-error-codes.mjs: 43 codes match）。",
+      "复核修正（FIXED_BY_REVIEWER，已随本层提交并加测试）：① 阻断原因分类——checkTaskDispatchEligibility 返回 blockReason，takeSnapshotForTask 对 is_contract_ready=0 改抛 E_DOC_CONTRACT_PENDING 并带 details.reasons（09-数据模型.md:73、M8-T3 AC5），不再与「已从文档移除」混用；② 派发即换基准——落库后把该任务 has_accept_changed/has_prompt_changed 归零，避免 E-180 的旧快照拦截误伤刚派发的新快照。",
+      "运行证据（工作树 agent-scheduler-m3-t3，committed diff 上执行）：node scripts/check-error-codes.mjs 通过；biome ci . 175 files 通过；tsc -b --noEmit 通过；vitest run packages/daemon/test/unit/dispatch-snapshots.test.ts 15 passed（含 E-18/E-19/E-77/E-78/E-80/E-81/E-82 逐条断言）；此前全仓 vitest run 47 files / 453 passed。"
+    ],
+    "reviewed": "2026-09-10T08:35:43.015994+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M3-T4": {
     "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
     "contractHash": "896fb573a358d59919f226fd26906c966ff601328d60bad895548da3e04aa774",
@@ -273,6 +292,18 @@
       "运行证据（第 1 轮审查方在本工作树 committed diff 上执行，第 2 轮返工 commit b6de97e 之上的静态检查）：node scripts/check-error-codes.mjs 通过（43 codes match）；tsc -b --noEmit 通过；biome ci . 通过。第 2 轮代码级返工项未通过验收，待实施方修复后复跑 documents-routes 与 arch 测试。"
     ],
     "reviewed": "2026-09-10T11:33:57.596451+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M3-T6": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "bcdb7606f545e1b142878de00d3bc3572b04a41727cad988468dd7ecf12e57b0",
+    "evidence": [
+      "19 节 M3-T6 行：输入=M3-T5 快照取用接口 + 04 节 dispatchBatches 协议；产出 service/docs.ts getWrapupContext 与 domain/wrapup-builtin-prompt.ts 均在 taskPaths；requires M3-T5 的 review-context 在前置闭包内",
+      "验收 1)～4) 逐条对应 E-296（按 tasks 集合匹配、匹配不到走 builtin）、E-50（用快照不热改）、决策 73（不读 batchRecords）；04 节「数据来源」已加 dispatchBatches 字段说明，schemaVersion 仍为 1",
+      "接缝：M8-T6 的 wrapup_prompt_assembly 消费本任务返回的 {wrapupMaterial, promptSource}，字段名在 08 节「收口运行的提示词包装」与本行产出一致；测试文件 test/unit/wrapup-context.test.ts 在 supportPaths"
+    ],
+    "reviewed": "2026-09-10T20:07:44.142190+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -396,6 +427,30 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M5-T4": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "bac62ae25f2920ad126962832713704ecb6223548f112e9c6400a42446d0b6ec",
+    "evidence": [
+      "改动：验收 1) 落地清单附一行可复制的 build_docs.py --landed 命令，产品不调用文档维护脚本；预估不变 1d；supportPaths 补 landing.test.ts",
+      "对应 E-74、决策 68（D11）；03 节术语「落地清单」与 11 节页面清单已同步；docsPath 取文档记录目录，不写死",
+      "接缝：M9-T16 验收 3) 同步为展示该命令并各带复制按钮；M9-T20 批次级清单复用同一 commands 形状"
+    ],
+    "reviewed": "2026-09-10T20:09:01.332888+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M5-T5": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "9ee29591be889a1f217a575fb745e1dead6a3114471855d7e404428404ac8b89",
+    "evidence": [
+      "19 节 M5-T5 行：只依赖 M5-T2（base 解析）与 M1-T7（spawn，已落地，在 M5-T2 闭包内）；产出 workspace/in-head.ts 在 taskPaths，worktree.ts 作 supportPaths 供收口分支命名",
+      "验收 1)～5) 对应 E-273（squash 回退无差异）、E-289（分支已删按 SHA / branch_gone）、E-301（dirty_worktree 判未进、error 不推断）、E-71（收口分支冲突加序号）；返回结构 {inHead, method, tipSha, commandText?, stderrTail?} 与 08 节 scheduler-tick 第 1 步、09 节 runs.is_in_head/branch_tip_sha 一致",
+      "本函数不写库，写库由 M8-T6 的 tick 事务做——事务边界在 08 节写死，符合「事务内不 spawn」；17 节列出了 in-head 的七条用例"
+    ],
+    "reviewed": "2026-09-10T20:07:50.930957+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M6-T1": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "19048e2f2b69b712853441e79c720bcb2d6b61db4421e2a09b9d57c1980047ed",
@@ -409,6 +464,113 @@
     ],
     "migratedFrom": "aaf53dfa52e5776ba23df29ebe46e4c6a2c48f3fe1142fa0cabe9875f244a594",
     "reviewed": "2026-09-09T08:57:32.838879+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M7-T3": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "0399bc1e585281715acf0b91c1a977e655cf2bfe8d25487b1624662abbe099b0",
+    "evidence": [
+      "改动：验收新增 4)（返工块三处提取、未结构化标 incomplete、pass 带 R 条目按 incomplete、关键词判 rework 的路径不存在），预估 1→1.5d；supportPaths 补 review-verdict.test.ts 与 migrations/（rework_text 列若由本任务先落）",
+      "对应 E-278、E-63；与 09 节 runs.rework_text/review_verdict 注释、08 节 domain 清单 review-verdict 描述一致；决策 59 原文",
+      "接缝：M7-T5 消费 reworkText/isStructured；M9-T20 的「投递原文」按钮读 review_verdict='incomplete' && rework_text"
+    ],
+    "reviewed": "2026-09-10T20:08:39.744227+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M7-T4": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "d2cddd8872515bb27a363f82e9301a0c5f19b2a76c00f9a68e5ac2294664b80e",
+    "evidence": [
+      "改动：验收新增 4)（只负责活会话回灌分支，其余交 M7-T5，不做先试后降级），预估不变 1d；依赖不变",
+      "对应 E-279 入口侧、E-55、E-59；决策 60 三分支中的第一分支归本任务",
+      "接缝：与 M7-T5 的交接载荷 {reviewRunId, targetRunId, reworkText, source} 在两行验收里同名"
+    ],
+    "reviewed": "2026-09-10T20:08:47.128612+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M7-T5": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "bf029e5f56f1eef4552df6942cf84e656f1551cb576fd382050cbe749c6425b7",
+    "evidence": [
+      "19 节 M7-T5 行：依赖 M7-T4（交来的返工载荷）、M8-T5（新建运行路径）、M5-T2（base）；派发快照的 adapterKind 由 M3-T3（M8-T5 闭包内）提供；产出 service/rework.ts + domain/rework-prompt.ts 在 taskPaths；迁移目录与 shared events/runs 在 supportPaths（runs 加 origin/spawned_by_run_id 列由本任务的迁移先落）",
+      "验收 1)～5) 对应 E-279（能力位三选一、自包含提示词）、E-277（worktree 已清理重建于原分支）、E-55（计数继承、达上限直接转人）、E-112、E-59；与 09 节 runs.origin/spawned_by_run_id/rework_count 注释、08 节「finalizeReviewRun 事务前后」一致",
+      "接缝：M7-T4 修改后的验收 4) 明确把非回灌分支交本任务；M8-T7 消费本任务的 assembleReworkPrompt 组修复提示词（requires rework-dispatch）；run.rework_dispatched payload 在 08 节事件清单与 shared events.ts 一致"
+    ],
+    "reviewed": "2026-09-10T20:07:57.850918+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M7-T6": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "765d80ebee27298cfaac8a0495e8ca3cd9e04dd7d61c509f06b4fccd1b36d538",
+    "evidence": [
+      "19 节 M7-T6 行：只依赖 M7-T3（解析器结构）；产出 domain/wrapup-report.ts 纯函数在 taskPaths，fixtures 与单测在 supportPaths；requires M7-T3 的 review-verdict 在闭包内",
+      "验收 1)～5) 对应 E-274（八段缺一不猜）、E-290（无主进 unassigned）、E-286（有效裁定由内容算出）；解析规则与 08 节 domain 清单、09 节 batch_wrapups.findings_json/unassigned_json 字段一致；17 节列出了全部单测用例",
+      "接缝：M8-T6 调 parseWrapupReport/deriveWrapupVerdict/planWrapupFixes（requires wrapup-report）；条目正则的 S1／S2／S3 写法与决策 61 的八段格式一致"
+    ],
+    "reviewed": "2026-09-10T20:08:04.776156+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M8-T1": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "b7fe130e99ed29f239d0307854389a21022b6cdc20f166b534bb53542caf8878",
+    "evidence": [
+      "验收 1-5 与边界 E-245/E-47/E-48/E-52 逐条对应到 packages/daemon/src/domain/concurrency.ts，定位写在 PR #33 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
+      "AC1/E-52：calculateConcurrencyLimit 取 min(用户设定, 窗口数, 每 agent 上限, 机器资源, 路径冲突)（concurrency.ts:203-222），并返回瓶颈 bottleneck 与并列全部因子的 bottlenecks（:224-235、:249-252）；单测 packages/daemon/test/unit/concurrency.test.ts:14-81 覆盖三种单因子瓶颈、三因子并列与并列时的确定性裁决",
+      "AC5/E-245：机器资源与路径冲突入 min（:207-213），userSetting 不参与改写、原样返回（:191-194、:248）；单测 :238-283 断言 effectiveConcurrency=2、bottleneck=machine_resource、factors.userSetting=6、pathConflict 优先于其他并列因子",
+      "AC2/E-47：allocateConcurrencySlots 按候选顺序扫描，agent 达上限时记 reason=agent_limit_reached（:420）并继续给后续其他 agent 的任务分配空位（:405-418、:396），不空转；单测 :83-176 覆盖单纯顺延、已有在途运行占满、availableSlots 耗尽与函数式 limit 查询",
+      "AC3/E-48：windowCount<=1 或 effectiveConcurrency<=1 时只置 isDegradedToSerial（:237），既不抛异常也不产出任何「无法并行」文案；单测 :194-232 覆盖 windowCount=1、availableSlots=1 与 windowCount=0 均逐个派且无异常",
+      "AC4：全文件为纯函数与冻结常量；无 fs/net/db/子进程/process.env/process.platform/Date.now/Math.random，无顶层副作用（仅 import errors/app-error.ts 与 domain/run-state-machine.ts）；输入非法时按统一错误体系抛 AppError('E_VALIDATION')（:151-190），与 run-state-machine.ts:228 同一写法，未新增错误码",
+      "E-52 显式解锁：exceedsWindowCount=userSetting>windowCount（:238）与 canIncreaseWithoutUnlock（:446-448）供 UI 显示「向上超过窗口数需解锁」；单测 :63-81",
+      "前置能力核对：M3-T2 已落地（批次与层由 repo/tasks.ts:701-737 推导，调用方把窗口数作为 windowCount 传入）；M4-T1 已落地（config/registry.ts:830 由 maxConcurrency>0 派生 isEnabled），本层以可选 agentLimits 映射/回调解耦消费，不直读 agents.json 或注册表",
+      "接口字段与 13/17/19 节：10 节 maxConcurrency 为 0/负即禁用（由 registry isEnabled 派生），本层只接收可派发 agent 的数值上限；13 节 E-47/E-48/E-52/E-245 行与任务笔记边界逐字一致；17 节强制 daemon domain/ 单测，故本层补登记测试文件；19 节 M8-T1 行的产出、依赖与验收与任务笔记一致",
+      "有效路径补齐：补丁 M8-T1-review-scope-20260910 把 packages/daemon/test/unit/concurrency.test.ts 登记为 supportPaths（原 taskPaths 只有 packages/daemon/src/domain/concurrency.ts）；presentation.json 中 M1-T1/M1-T10/M2-T6 已落地的 test 路径与该文件不重叠，其他任务未声明它",
+      "范围：本层相对 main 只改 packages/daemon/src/domain/concurrency.ts、packages/daemon/test/unit/concurrency.test.ts 与任务笔记 M8-T1.md 回填；除补丁登记的测试文件外无路径外改动",
+      "验收阶段检查（2026-09-10，工作树 ../agent-scheduler-m8-t1）：npx vitest run test/unit/concurrency.test.ts → 21 passed；test/arch（boot-boundaries、bus-transaction、routes）+ test/unit/source-contracts + concurrency → 5 文件 43 passed；node scripts/check-error-codes.mjs → 43 codes OK；npx tsc -b --noEmit → 退出码 0；npx biome ci 两个改动文件 → 无修复项",
+      "受影响下游（补丁模板列出 M8-T2/M8-T3/M8-T4/M8-T5/M9-T10/M9-T13/M9-T18）：本补丁只增 M8-T1 的 supportPaths 一项，未改验收、边界、依赖、产出与任何接口字段，下游契约不变",
+      "未构成阻断的观察：concurrency.ts:305、:396 把非正数 limit 归一为 1（Math.max(1,…)）。06 节规定 M4 提供「可派发 agent 清单与每 agent 并发上限」，调用方只应传可派发 agent，故本层不改语义；已列入 FOLLOW_UP 交 M8-T3 接线时确认"
+    ],
+    "reviewed": "2026-09-10T08:32:56.942654+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M8-T4": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "03dc3c753234dd6969c18f7ad39f743b75c1d7f14dd35fe10ce6e43492dbe996",
+    "evidence": [
+      "改动：验收 1) 落地闸门可设 auto、gateOverrides 允许 landing；2) 新增 settings 表与 settings.gates_changed 事件；2b) task.landed payload 带 by/gateId；taskPaths 加 service/settings.ts、repo/settings.ts、migrations/；supportPaths 加 shared settings/gates/events 与两个单测；预估不变 2d",
+      "对应 E-53（改写）、E-56、E-292、E-299 的数据侧；10 节 landing 值域与字段表、09 节 settings 表、08 节事件清单已同步；决策 64、79",
+      "接缝：M8-T6 requires 本任务（H05 已解）；M9-T19 的 gate-toggles 消费 GET/PATCH /settings/gates 与 settings.gates_changed"
+    ],
+    "reviewed": "2026-09-10T20:08:54.234616+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M8-T6": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "02af45bd16d41129bc7880b92748a1201226c72b2ff9493bcd7ee0fc4d0d3975",
+    "evidence": [
+      "19 节 M8-T6 行：依赖 M8-T3（tick/批次路由）、M8-T4（闸门模型与 settings 表，H05 已补）、M3-T6、M7-T6、M5-T5，五个 requires 的 provider 全在前置闭包；28 条有效路径覆盖 service/wrapup.ts、batch.ts、三个 domain 文件、repo、路由、tick、migrate.ts、migrations/、shared 四文件与集成测试",
+      "验收 1)～7) 逐条指向 E-272/E-283/E-301（tick 四步与 awaiting_landing）、E-287（agent 取值）、E-296（材料）、E-294/E-274/E-295（收口运行退出后的三种归宿）、E-288（批次级闸门与硬顶）、E-291（迁移重建）、E-285（不内联 diff 正文）；批次状态机图在 09 节、路由与错误码在 10 节、事件在 08 节、事务顺序在 08 节「三条编排路径」",
+      "接缝：修复派发交 M8-T7（provides batch-wrapup）；与在途任务 M3-T4/M4-T3/M5-T1 无路径交集（三者已落地）；迁移目录与 M8-T4、M7-T5 都在同一 migrations/ 目录，交接台会按路径冲突排队，不并行派"
+    ],
+    "reviewed": "2026-09-10T20:08:12.104186+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M8-T7": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "d393b5c413d9b0d94b1683cac25009a77220b0588ec80be3c458269d7e076ac0",
+    "evidence": [
+      "19 节 M8-T7 行：依赖 M8-T6（有效裁定与开放项）与 M7-T5（返工提示词）；产出 service/wrapup.ts 修复段、domain/task-state.ts、domain/path-clash.ts、routes/tasks.ts 在 taskPaths；shared tasks.ts/codes.ts/routes.ts 在 supportPaths（E_FIX_RUN_IN_FLIGHT 与 recall 路由）",
+      "验收 1)～6) 对应 E-275（修复运行字段与跨批语义）、E-280（同收口串行、E-46 排队）、E-276/E-290（第 2 轮与无主）、E-293/E-300（撤回与在途冲突）、E-298（inHead 派生）；10 节已加 POST /tasks/:taskId/recall 与三个错误码；决策 70 写明不为 wrapup-fix 跳过审查",
+      "接缝：与 M9-T20 的批次级落地清单消费同一 GET /batches/:id/wrapups[].landing；TaskDto.inHead/crossBatchFix 字段由本任务在 shared tasks.ts 落，M9-T19 只读"
+    ],
+    "reviewed": "2026-09-10T20:08:19.105424+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -453,45 +615,27 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
-  "M3-T3": {
-    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
-    "contractHash": "c261409624364dcba8ff1e619089f905821ff647ad71773ecf9b89889ff4c0cf",
+  "M9-T19": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "7f924480a446c81a41d56bd34570d4f49d600494647d1c25d3a4778035f6773e",
     "evidence": [
-      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T3 行、09-数据模型.md:77/134-136/189 与六条边界（E-18/E-19/E-77/E-78/E-80/E-81），确认产出为 repo/dispatch-snapshots.ts + 比对逻辑 + 横幅数据；实际改动只有 taskPaths 的 domain/docs-fingerprint.ts、repo/dispatch-snapshots.ts 与 supportPaths 的 test/unit/dispatch-snapshots.test.ts。前置 M3-T2 已落地（repo/tasks.ts 的 importDocTasks/markRemovedFromDoc 与 repo/batches.ts 在 main），本任务只读 tasks 表、不重做导入；接线（容器注册、service 调用、HTTP 路由）归 M3-T5/M8-T3。",
-      "AC1/E-19 快照：packages/daemon/src/repo/dispatch-snapshots.ts:606 takeSnapshotForTask 单次读取任务行后，把 input_text/output_text/accept_text、impl_prompt/review_prompt、contract_hash、task_paths_json（有效路径，缺省 '[]'）与 launch_spec_json 一并写入 dispatch_snapshots（INSERT 语句在 :226 之前定义，字段与 migrations/0001_init.sql:54 的列一一对应）；runs.snapshot_id 由 M8-T3 在创建运行时引用该快照 id，本任务返回完整行供其使用。",
-      "AC2/E-77/E-78 三个标记与过滤列表：packages/daemon/src/domain/docs-fingerprint.ts:139 compareTaskWithSnapshot 逐字符比对（normalizeComparableText 只把 null/undefined 归一为空串），产出 isRemovedFromDoc/hasAcceptChanged/hasPromptChanged；hasAcceptChanged 覆盖 input/output/accept 三段，hasPromptChanged 覆盖两段提示词与 contract_hash（哈希不同即视为提示词变更），不再依赖任务行是否变；:206 computeDocDiffBanner 汇总计数与 affectedTaskIds/removedTaskIds/acceptChangedTaskIds/promptChangedTaskIds 四个清单，:259 filterAffectedTasks 支持 all/removed/accept_changed/prompt_changed 过滤。",
-      "AC3/E-18/E-77：refreshDocDiff（repo/dispatch-snapshots.ts:675）只 UPDATE tasks.is_removed_from_doc/has_accept_changed/has_prompt_changed 并重算横幅，全程不出现 runs 表的写语句（SELECT_ACTIVE_RUN_COUNT_BY_TASK_ID_SQL 仅计数），在途运行不被终止也不被删除；入口 takeSnapshotForTask 对 is_removed_from_doc=1 抛 E_TASK_REMOVED_FROM_DOC 阻断再派发；hasActiveRuns（:492）按 queued/starting/running/awaiting_reply/reviewing/reworking 判定在途，供卡片与归档侧读取。",
-      "AC4/E-80：最新快照统一走 SELECT_LATEST_SNAPSHOT_BY_TASK_ID_SQL 的 ORDER BY created_at DESC, id DESC LIMIT 1（doc 级用 ROW_NUMBER() OVER (PARTITION BY task_id ...)），历史由 listByTaskId 按同一序只读返回；全文件没有 dispatch_snapshots 的 UPDATE/DELETE 语句，历史轮次不会被原地覆盖。",
-      "AC5/E-81：快照值取自 task 行的单次读取，落库后不重新读取任务表补充字段；同进程内 better-sqlite3 同步调用使「读任务行 + 插快照」不会与导入事务交错，文档重出只改标记与横幅，绝不回滚已发出的运行。",
-      "E-78 并列展示：repo/dispatch-snapshots.ts:501 getTaskAcceptanceComparison 返回 snapshotAcceptText/currentAcceptText 及 input/output 两侧文本与 snapshotCreatedAt，主操作「重派」与「按旧标准手动判为已落地」由 manual_state 在 M3-T5/M9 落地，本任务只供数据。",
-      "分层与共用约定：dispatch-snapshots.ts 只 import node:crypto、../db/open-database、../domain/docs-fingerprint、../errors/app-error，无 service/http/events/proc/adapters 反向依赖；SQL 全在本 repo 目录且全部参数绑定，预编译语句在工厂闭包内 prepare 一次；无 process.env / process.platform（身份与时间由调用方经 params 注入，id 可注入 snapshotId）；原生错误一律经 toDatabaseError、应用错误一律 AppError，未自造 E_ 字面量（node scripts/check-error-codes.mjs: 43 codes match）。",
-      "复核修正（FIXED_BY_REVIEWER，已随本层提交并加测试）：① 阻断原因分类——checkTaskDispatchEligibility 返回 blockReason，takeSnapshotForTask 对 is_contract_ready=0 改抛 E_DOC_CONTRACT_PENDING 并带 details.reasons（09-数据模型.md:73、M8-T3 AC5），不再与「已从文档移除」混用；② 派发即换基准——落库后把该任务 has_accept_changed/has_prompt_changed 归零，避免 E-180 的旧快照拦截误伤刚派发的新快照。",
-      "运行证据（工作树 agent-scheduler-m3-t3，committed diff 上执行）：node scripts/check-error-codes.mjs 通过；biome ci . 175 files 通过；tsc -b --noEmit 通过；vitest run packages/daemon/test/unit/dispatch-snapshots.test.ts 15 passed（含 E-18/E-19/E-77/E-78/E-80/E-81/E-82 逐条断言）；此前全仓 vitest run 47 files / 453 passed。"
+      "19 节 M9-T19 行：依赖 M9-T16（左栏与批次汇总条）、M9-T2（形状）、M9-T5（SSE/event-bus）；19 条有效路径覆盖 batch-tree/pulse-dot/gate-toggles 组件、lib/run-pulse、features/run-deck 三个文件、task-list 目录、base.css、check-forbidden、cache-invalidation/keys、spine.tsx（改为 import pulse-dot）与五个测试文件；sections 含 11、12",
+      "验收 1)～6) 对应 E-284（展开集只增不减、不持久化）、E-272/E-298（daemon 字段与进 HEAD 三态）、E-282（一个 pulse-dot、keyframe 唯一、13 状态映射、reduced-motion）、E-13（手机档取代折叠列表）、E-299（闸门开关）；11 节「批次树」小节、07 节「批次树的展开集」小节与 lib/components 清单已写明；决策 71/85/86 的取值已进文档",
+      "接缝：BatchDto 新字段（defaultExpanded/canWrapup/四计数/notInHeadCount）由 M8-T6 在 shared batches.ts 落，本任务只读；`settings.gates_changed` 由 M8-T4 发；前端不算任何业务判定（07 节「批次树同样不算」）"
     ],
-    "reviewed": "2026-09-10T08:35:43.015994+00:00",
+    "reviewed": "2026-09-10T20:08:25.984292+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
-  "M8-T1": {
-    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
-    "contractHash": "b7fe130e99ed29f239d0307854389a21022b6cdc20f166b534bb53542caf8878",
+  "M9-T20": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "9bd265a4292ea87fb35110451e140ff94ff0bf09475eef70c71aa72070f7ea36",
     "evidence": [
-      "验收 1-5 与边界 E-245/E-47/E-48/E-52 逐条对应到 packages/daemon/src/domain/concurrency.ts，定位写在 PR #33 的 REVIEW-ROUND 1 评论 ACCEPTANCE/EDGES 段",
-      "AC1/E-52：calculateConcurrencyLimit 取 min(用户设定, 窗口数, 每 agent 上限, 机器资源, 路径冲突)（concurrency.ts:203-222），并返回瓶颈 bottleneck 与并列全部因子的 bottlenecks（:224-235、:249-252）；单测 packages/daemon/test/unit/concurrency.test.ts:14-81 覆盖三种单因子瓶颈、三因子并列与并列时的确定性裁决",
-      "AC5/E-245：机器资源与路径冲突入 min（:207-213），userSetting 不参与改写、原样返回（:191-194、:248）；单测 :238-283 断言 effectiveConcurrency=2、bottleneck=machine_resource、factors.userSetting=6、pathConflict 优先于其他并列因子",
-      "AC2/E-47：allocateConcurrencySlots 按候选顺序扫描，agent 达上限时记 reason=agent_limit_reached（:420）并继续给后续其他 agent 的任务分配空位（:405-418、:396），不空转；单测 :83-176 覆盖单纯顺延、已有在途运行占满、availableSlots 耗尽与函数式 limit 查询",
-      "AC3/E-48：windowCount<=1 或 effectiveConcurrency<=1 时只置 isDegradedToSerial（:237），既不抛异常也不产出任何「无法并行」文案；单测 :194-232 覆盖 windowCount=1、availableSlots=1 与 windowCount=0 均逐个派且无异常",
-      "AC4：全文件为纯函数与冻结常量；无 fs/net/db/子进程/process.env/process.platform/Date.now/Math.random，无顶层副作用（仅 import errors/app-error.ts 与 domain/run-state-machine.ts）；输入非法时按统一错误体系抛 AppError('E_VALIDATION')（:151-190），与 run-state-machine.ts:228 同一写法，未新增错误码",
-      "E-52 显式解锁：exceedsWindowCount=userSetting>windowCount（:238）与 canIncreaseWithoutUnlock（:446-448）供 UI 显示「向上超过窗口数需解锁」；单测 :63-81",
-      "前置能力核对：M3-T2 已落地（批次与层由 repo/tasks.ts:701-737 推导，调用方把窗口数作为 windowCount 传入）；M4-T1 已落地（config/registry.ts:830 由 maxConcurrency>0 派生 isEnabled），本层以可选 agentLimits 映射/回调解耦消费，不直读 agents.json 或注册表",
-      "接口字段与 13/17/19 节：10 节 maxConcurrency 为 0/负即禁用（由 registry isEnabled 派生），本层只接收可派发 agent 的数值上限；13 节 E-47/E-48/E-52/E-245 行与任务笔记边界逐字一致；17 节强制 daemon domain/ 单测，故本层补登记测试文件；19 节 M8-T1 行的产出、依赖与验收与任务笔记一致",
-      "有效路径补齐：补丁 M8-T1-review-scope-20260910 把 packages/daemon/test/unit/concurrency.test.ts 登记为 supportPaths（原 taskPaths 只有 packages/daemon/src/domain/concurrency.ts）；presentation.json 中 M1-T1/M1-T10/M2-T6 已落地的 test 路径与该文件不重叠，其他任务未声明它",
-      "范围：本层相对 main 只改 packages/daemon/src/domain/concurrency.ts、packages/daemon/test/unit/concurrency.test.ts 与任务笔记 M8-T1.md 回填；除补丁登记的测试文件外无路径外改动",
-      "验收阶段检查（2026-09-10，工作树 ../agent-scheduler-m8-t1）：npx vitest run test/unit/concurrency.test.ts → 21 passed；test/arch（boot-boundaries、bus-transaction、routes）+ test/unit/source-contracts + concurrency → 5 文件 43 passed；node scripts/check-error-codes.mjs → 43 codes OK；npx tsc -b --noEmit → 退出码 0；npx biome ci 两个改动文件 → 无修复项",
-      "受影响下游（补丁模板列出 M8-T2/M8-T3/M8-T4/M8-T5/M9-T10/M9-T13/M9-T18）：本补丁只增 M8-T1 的 supportPaths 一项，未改验收、边界、依赖、产出与任何接口字段，下游契约不变",
-      "未构成阻断的观察：concurrency.ts:305、:396 把非正数 limit 归一为 1（Math.max(1,…)）。06 节规定 M4 提供「可派发 agent 清单与每 agent 并发上限」，调用方只应传可派发 agent，故本层不改语义；已列入 FOLLOW_UP 交 M8-T3 接线时确认"
+      "19 节 M9-T20 行：依赖 M9-T19（批次树与 pulse-dot）、M9-T10（审批卡）；产出 wrapup-report.tsx、wrapup-panel-container.tsx、use-gate-card.ts、stream-column.tsx 收口分支、gate-card.tsx 条件动作、landing-page.tsx 在 taskPaths；error-messages.ts 与三个测试在 supportPaths",
+      "验收 1)～5) 对应 E-297（收口泳道与面板只读展示）、E-106/E-236（停止控件在 kind 分支之外）、E-286 呈现侧、E-157（收口按钮等回流）、E-278/E-117/E-113（投递原文按钮）、E-74 批次侧；11 节「收口报告面板」与审批卡第④段条件动作已写明；决策 76 采纳 C-103",
+      "接缝：消费 M8-T6 的 GET/POST wrapup 路由与 M8-T7 的 landing 字段；手机档不出收口按钮与决策 32 一致"
     ],
-    "reviewed": "2026-09-10T08:32:56.942654+00:00",
+    "reviewed": "2026-09-10T20:08:32.858040+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

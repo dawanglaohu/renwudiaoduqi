@@ -1,1 +1,785 @@
-{}
+{
+  "M1-T1": {
+    "contractHash": "3928ac839acb1cccc888beea4217a1d1d99a8fca06a999b3a2a75dcb81954870",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T10": {
+    "contractHash": "3103844704e4e8a8cdce1af0681e73cb02c34bd8b33b2cfdfc0df295298bed8d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T2": {
+    "contractHash": "11fcc0c0228370317617d8f27ceee2681fc590f2759799f8d142e65f0e8534ae",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T3": {
+    "contractHash": "2f3554a40fe3f40f0fe9014cd7cf6443f4e033bd5470400610622d0e4e173a37",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T4": {
+    "contractHash": "4c3eb27068121d1da8b5870422847d449ee1b2db06dbbdf411cf5a7b74d0e53e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T5": {
+    "contractHash": "e3fa141aeff93c462bf75dbcdcfceb8de676873905ae525d746675de33c8d3d5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T6": {
+    "contractHash": "97c5df59b20b330a42f075862f866616e48b8da467dcc2a4537bfb2b4e382fc4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T7": {
+    "contractHash": "06a32ea6173a4eff8d72a14fc8607e8bd10f12cd199d090312a8eb9e3c381dfa",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T8": {
+    "contractHash": "0f485eab03031fdf73b8dc2165f48baf672e2b6e8c1b6b691d180c24187347f1",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T9": {
+    "contractHash": "c5a0fbdeaf5eda7d8053271648ffaf2dbcf9e22f6d7229994805efb1ab2117aa",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T1": {
+    "contractHash": "2c40c4249d9ca5d9e801b04da3cb0a4a3b9a76bb239f86d255ea3a2e64260c88",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T2": {
+    "contractHash": "ca9ca4f76e37a45718a9cbe068016c144b86c4e58f46f4f00261f484b6060251",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T4": {
+    "contractHash": "4b5e7b74336b5e8144aef169c65e4e9a1327d662b3442fc172e91e681a322f17",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T6": {
+    "contractHash": "74644bc5de693e3cacfca1afc00835c3b594613c3ad170ecf626858f052a1903",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T1": {
+    "contractHash": "a3f02983f9e89277bbbe62bd2745ad48e68e8c0ec98a520f435b679a3dbaa21a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T2": {
+    "contractHash": "603119213e1b06a12c26df16f9e60f24a00e73ce628e249768e11810fb9f9d5e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T3": {
+    "contractHash": "dc7a1f36f5e0822caa1b186c605662d76b12cab41c646f41bf5bc0e28802d21f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T4": {
+    "contractHash": "6db484e5f2f741b46ce4421a89a1594c043c8f46a80abe221d14be977e730e08",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T1": {
+    "contractHash": "2131449e21c7e8fe74c973d5916546ad619d8dba6f13e81e098bc16709a66fb4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T2": {
+    "contractHash": "b376d43039fb85aae2f12c1414e5bc5b5157368a2314707a6b53af9591ba3302",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T3": {
+    "contractHash": "f3b6267611e8e8144eb7f7ce413c1993edb440811944d4caa2c9403e8aaf301d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T5": {
+    "contractHash": "208362e6f73e450da5aa35c305592c3d91e702dad04d3744fd86fb7e5a25f6e3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T6": {
+    "contractHash": "bfd53c05f35f872cfe6d537f76d56d8f48ef24308940becb2edd4be977475a93",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T7": {
+    "contractHash": "200cfc2f1b64519ec263fc11a91155b6e2954c02508ee62045c03b9b1cf0993f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T1": {
+    "contractHash": "6b9cae757c84fb4181f1eb06a4e6d958e0f1cf38daee513247ad97157cbeaf9a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T1": {
+    "contractHash": "d2fde88de710eb0349dc95ae0d13596a89cfca2a5a5dff4f445399b03d754e0c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T5": {
+    "contractHash": "9face4976a0ea9a06a90349dce92cc2ba2370e07c841292392b4cc46546f0704",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T1": {
+    "contractHash": "b56d145940d0dfbcf2786c9109d98552e1fcf2766bc5681def19a5927862dfa4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T1": {
+    "contractHash": "ce2b095ad326bd8ca301e896562d4f7579fbf90e3e776e1cc753813a8bb285ec",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/07-前端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,02-设计/11-UI.md,02-设计/12-UX.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "744c53177346bcfa686f83491d69517a97589a3d6efe29c15a3419173aaf9e8a"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/07-前端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,02-设计/11-UI.md,02-设计/12-UX.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "ac87cad150e31a426b59241c2b2e019523d5899da2b00bf71844acadcb7f04ac"
+      },
+      {
+        "changedFields": [
+          "sections:00-概览/01-概述与目标.md,00-概览/02-非目标.md,02-设计/06-系统架构与模块划分.md,02-设计/07-前端架构.md,02-设计/09-数据模型.md,02-设计/10-接口约定.md,02-设计/11-UI.md,02-设计/12-UX.md,03-质量/14-安全与权限.md,03-质量/16-可观测性.md,03-质量/17-测试策略.md"
+        ],
+        "patch": "pipeline-automation-20260910",
+        "sourceVersion": "b338f8d8ec9e03723f1c67baea3325d69e49eb0b382a85a82c7f94a990e055c6"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}

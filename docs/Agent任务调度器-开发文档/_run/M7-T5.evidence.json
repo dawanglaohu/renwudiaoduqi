@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T5": {
+      "contractHash": "bf029e5f56f1eef4552df6942cf84e656f1551cb576fd382050cbe749c6425b7",
+      "evidence": [
+        "19 节 M7-T5 行：依赖 M7-T4（交来的返工载荷）、M8-T5（新建运行路径）、M5-T2（base）；派发快照的 adapterKind 由 M3-T3（M8-T5 闭包内）提供；产出 service/rework.ts + domain/rework-prompt.ts 在 taskPaths；迁移目录与 shared events/runs 在 supportPaths（runs 加 origin/spawned_by_run_id 列由本任务的迁移先落）",
+        "验收 1)～5) 对应 E-279（能力位三选一、自包含提示词）、E-277（worktree 已清理重建于原分支）、E-55（计数继承、达上限直接转人）、E-112、E-59；与 09 节 runs.origin/spawned_by_run_id/rework_count 注释、08 节「finalizeReviewRun 事务前后」一致",
+        "接缝：M7-T4 修改后的验收 4) 明确把非回灌分支交本任务；M8-T7 消费本任务的 assembleReworkPrompt 组修复提示词（requires rework-dispatch）；run.rework_dispatched payload 在 08 节事件清单与 shared events.ts 一致"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

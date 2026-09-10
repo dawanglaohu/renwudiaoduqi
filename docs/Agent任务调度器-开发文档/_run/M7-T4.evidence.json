@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T4": {
+      "contractHash": "d2cddd8872515bb27a363f82e9301a0c5f19b2a76c00f9a68e5ac2294664b80e",
+      "evidence": [
+        "改动：验收新增 4)（只负责活会话回灌分支，其余交 M7-T5，不做先试后降级），预估不变 1d；依赖不变",
+        "对应 E-279 入口侧、E-55、E-59；决策 60 三分支中的第一分支归本任务",
+        "接缝：与 M7-T5 的交接载荷 {reviewRunId, targetRunId, reworkText, source} 在两行验收里同名"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

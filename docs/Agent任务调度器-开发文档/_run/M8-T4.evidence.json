@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T4": {
+      "contractHash": "03dc3c753234dd6969c18f7ad39f743b75c1d7f14dd35fe10ce6e43492dbe996",
+      "evidence": [
+        "改动：验收 1) 落地闸门可设 auto、gateOverrides 允许 landing；2) 新增 settings 表与 settings.gates_changed 事件；2b) task.landed payload 带 by/gateId；taskPaths 加 service/settings.ts、repo/settings.ts、migrations/；supportPaths 加 shared settings/gates/events 与两个单测；预估不变 2d",
+        "对应 E-53（改写）、E-56、E-292、E-299 的数据侧；10 节 landing 值域与字段表、09 节 settings 表、08 节事件清单已同步；决策 64、79",
+        "接缝：M8-T6 requires 本任务（H05 已解）；M9-T19 的 gate-toggles 消费 GET/PATCH /settings/gates 与 settings.gates_changed"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

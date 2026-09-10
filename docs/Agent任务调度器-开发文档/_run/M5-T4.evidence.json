@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M5-T4": {
+      "contractHash": "bac62ae25f2920ad126962832713704ecb6223548f112e9c6400a42446d0b6ec",
+      "evidence": [
+        "改动：验收 1) 落地清单附一行可复制的 build_docs.py --landed 命令，产品不调用文档维护脚本；预估不变 1d；supportPaths 补 landing.test.ts",
+        "对应 E-74、决策 68（D11）；03 节术语「落地清单」与 11 节页面清单已同步；docsPath 取文档记录目录，不写死",
+        "接缝：M9-T16 验收 3) 同步为展示该命令并各带复制按钮；M9-T20 批次级清单复用同一 commands 形状"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

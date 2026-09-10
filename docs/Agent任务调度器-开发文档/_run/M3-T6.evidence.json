@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M3-T6": {
+      "contractHash": "bcdb7606f545e1b142878de00d3bc3572b04a41727cad988468dd7ecf12e57b0",
+      "evidence": [
+        "19 节 M3-T6 行：输入=M3-T5 快照取用接口 + 04 节 dispatchBatches 协议；产出 service/docs.ts getWrapupContext 与 domain/wrapup-builtin-prompt.ts 均在 taskPaths；requires M3-T5 的 review-context 在前置闭包内",
+        "验收 1)～4) 逐条对应 E-296（按 tasks 集合匹配、匹配不到走 builtin）、E-50（用快照不热改）、决策 73（不读 batchRecords）；04 节「数据来源」已加 dispatchBatches 字段说明，schemaVersion 仍为 1",
+        "接缝：M8-T6 的 wrapup_prompt_assembly 消费本任务返回的 {wrapupMaterial, promptSource}，字段名在 08 节「收口运行的提示词包装」与本行产出一致；测试文件 test/unit/wrapup-context.test.ts 在 supportPaths"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

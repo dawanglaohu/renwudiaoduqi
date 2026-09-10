@@ -336,3 +336,33 @@
 | E-269 | 自启集成测试留下真实注册项 | 测试中断或清理失败 | 使用带唯一测试标识的隔离自启项并在 `finally` 清理；清理失败必须使测试失败并输出残留项与人工删除命令 | 57 |
 | E-270 | 图形界面或自启进程找不到 shell 中已安装的 agent | agent 只通过 `.zshrc`、`.bashrc` 等 shell 启动文件加入 `PATH`，而 macOS/Linux GUI 或服务没有继承这些变量 | 先使用用户配置的绝对路径，再检查平台级固定候选目录；仍找不到时列出已检查位置并要求用户选择文件，不读取、不执行用户 shell 启动文件 | 56 |
 | E-271 | 平台数据目录输入缺失或不是绝对路径 | Windows `APPDATA` 缺失/相对，Linux `XDG_DATA_HOME` 缺失/相对，或主目录含空格与 Unicode | boot 注入冻结的宿主输入；Windows 只采用绝对 `APPDATA`，否则回落绝对 `homedir/AppData/Roaming`；macOS 用绝对 `homedir/Library/Application Support`；Linux 只采用绝对 `XDG_DATA_HOME`，否则回落绝对 `homedir/.local/share`，再追加应用目录。不得把 `~`、`${...}`、`%...%` 当路径交给文件系统；主目录本身不绝对则返回 `E_DATA_DIR_UNRESOLVABLE` | 56 |
+| E-272 | 全部已验收但分支未进 HEAD | 本批任务全部 landed，至少一条 landed 运行的分支尚未进入当前 HEAD | 批次转 `awaiting_landing`，标题显示「等你落地 N 个」暖色（N 来自 daemon 字段 notInHeadCount）；不派收口、不解锁下一批；进 HEAD 判定只在 `scheduler-tick` 内按节流做（每运行 ≥30s 一次、每 tick ≤20 条），不在任何读接口现跑 git，不做比 tick 更密的轮询 | M8 |
+| E-273 | squash 合并让祖先判定失败 | 人用 squash 合并任务分支，`merge-base --is-ancestor` 返回否 | 回退 `git diff --quiet HEAD 〈分支〉`：无差异视为进 HEAD（method=no_diff）；仍有差异判「未进」，横幅提示改用 `--merge` 或人工裁定，不加第三种猜测 | M5 |
+| E-274 | 收口输出不合八段 | 收口运行的最终文本缺任一段、段头顺序找不齐、或条目格式不合 | 按「收口未完成」处理：保留原文可读、不做部分解析、不猜；收口运行转 `awaiting_human` 并开批次级收口闸门，批次 `needs_attention`，不计入自动轮次 | M7 |
+| E-275 | 收口发现跨批问题 | BUGS/NOT_FIXED 条目「涉及」前置批次的任务 | 给该任务派修复运行（`origin=wrapup-fix`、attempt_no+1、归触发批次），任务原 landed 记录不改；已 done 的前置批次不重触发收口、done 不回退；前置批次「已落地 x/n」按最近一次非修复运行计，任务行标「跨批修复」并呼吸 | M8 |
+| E-276 | 第 2 轮收口仍 open | 自动轮次达上限（2）时有效裁定仍为 open | 批次 `needs_attention`，不派第 3 轮修复运行、不自动再收口；开批次级收口闸门等人 | M8 |
+| E-277 | 返工需新会话但 worktree 已清理 | 审查判 rework，原会话不可回灌（需恢复或新开），而 worktree 目录已被清理 | 走 M5-T1 在原分支上重建 worktree（reuse 模式）再派返工运行；分支不存在则转 `awaiting_human` 并在闸门 comment 写 `branch_missing`；不开干净 worktree、不静默换 base | M7 |
+| E-278 | 返工块解析不出 R 条目 | VERDICT 为 rework 但围栏块与 REWORK 段都没有 `R〈n〉` 条目，或 VERDICT 行缺失 | 标「未结构化」：`review_verdict=incomplete`，原文全文存 `rework_text`，转 `awaiting_human`；审批卡给「投递原文到实施会话」按钮，按能力位灰掉；不猜语义、不裁剪 | M7 |
+| E-279 | 无续接能力的 agent 需要返工 | 被审实施运行的 adapterKind 既不能回灌也不能恢复（dsh headless） | 新开实施运行（`origin=rework`、同任务 attempt_no+1、同 worktree 与分支），提示词必须自包含：返工块原文 + 派发快照实施提示词里「收到返工指令时」规则段 + 工作区指针 + 只改列出条目；分支由能力位决定，不由投递结果决定 | M7 |
+| E-280 | 修复运行与在途任务抢路径 | 修复运行的有效路径与同批在途任务有交集，或同一收口派出多条修复运行 | 前者按 M8-T2 排队等对方 landed；同一收口运行派出的修复运行互相冲突（共用收口工作区），`queued_reason=wrapup-fix-serial:〈runId〉` 逐个跑；不为修复运行新建 worktree | M8 |
+| E-281 | 落地闸门自动但本批收口未跑 | 三闸门全自动，本批全部任务已自动 landed，收口尚未 clean/fixed | 下一批不派发：启动条件是本批 `done`（全部 landed 且最近一轮收口有效裁定 clean／fixed）；`POST /batches/:id/start` 对前一批未 done 返回既有前置检查错误并在 details 写 `previousBatchState` | M8 |
+| E-282 | 呼吸灯与运行轨同屏 | 批次树执行行与流甲板当前步同时可见 | 两处 import 同一个 `pulse-dot` 组件、共用 `@keyframes agsched-pulse` 与 `--pulse`，算同一种动画；只对 starting/running/reviewing/reworking 呼吸，awaiting_* 静态暖点，终态与 queued 无点；`prefers-reduced-motion` 下环冻结在中间不透明度 | M9 |
+| E-283 | 收口运行的名额与权限 | 收口运行被派出 | 计入并行窗口与该 agent 并发上限（占 1 个名额）；权限档恒 `workspaceWrite`，不给 `unrestricted`；同一批次同时只有一条收口运行 | M8 |
+| E-284 | 自动展开只增不减 | `batch.advanced` 到达时该批已被用户手动折叠，或本会话已展开多批 | 事件到达且 `to ∈ {running, wrapping, awaiting_landing, needs_attention}` 时并入展开集，永不从集合删元素（除切换文档整体清空与用户手动 toggle）；不折叠用户手动展开的批；展开集只存内存，刷新后回到 daemon 的 `defaultExpanded` | M9 |
+| E-285 | 收口 agent 上下文超限 | 本批 diff 或测试输出超出收口模型上下文 | 与 E-65 同法：给 diff stat 全量 + 验收标准命中文件全文，其余折叠，报告标注「基于部分 diff」；产品不因此判失败 | M7 |
+| E-286 | 收口自报裁定与实际不符 | RECORD 段写 clean 但 BUGS 有未修条目、NOT_FIXED 非空或 TESTS fail | 有效裁定由内容算出（open），自报值只存 `declared_verdict`；两者不一致记 warn，UI 同时显示两者；绝不按自报放行 | M7 |
+| E-287 | 自动收口的 agent 取值 | tick 自动触发收口，无人在场选 agent | 第 1 轮取本批 `ended_at` 最晚的 landed 实施运行快照里的 agent/model/effort（并列取 run id 字典序最大）；第 2 轮起沿用上一轮收口运行的取值；推导出的 agent 不可用则不派、批次 `needs_attention`（原因 `agent_unavailable`），人用手动触发带 `agentId` 覆盖；禁止静默换家 | M8 |
+| E-288 | 批次进入 needs_attention 后人的出口 | 收口运行失败/中止/中断、八段解析失败、open 达上限、open 但可派条目为零、agent 不可用 | 每次进入都在最近一条收口运行上开一张 `task_id` 为空的批次级收口闸门：pass 必须带 comment → 写一条 `is_human_verdict=1`、`verdict=clean` 的收口记录 → 批次 `done`；reject 只关闭闸门，批次留在 `needs_attention`；手动再收口不受自动上限约束、受硬顶 6 轮约束，到顶返回 `E_WRAPUP_ROUND_LIMIT`；批次因重派离开 needs_attention 时未决闸门标 superseded | M8 |
+| E-289 | 分支本地已不存在时判进 HEAD | landed 运行的分支被 `git branch -d`/`-D` 删除 | 用 tick 记录的 `branch_tip_sha` 做同一套祖先/无差异判定；都否 → 未进（method=branch_gone_unmerged）并给出 `git branch 〈原分支〉 〈sha〉` 可复制命令；无记录 SHA 且 worktree 已清理 → 视为进 HEAD（method=branch_gone）并暴露 method；worktree 仍在则用其 HEAD SHA 判定 | M5 |
+| E-290 | TESTS 失败项无「涉及 〈任务ID〉」 | 收口报告的测试失败行没写任务号，或任务 ID 不在文档里 | 进 unassigned，有效裁定为 open；有其他可派条目照派、第 2 轮复跑兜底；全部开放项无主才 `needs_attention`（可派修复条目为零）；不猜归属、不去重 | M7 |
+| E-291 | 迁移需要整表重建 | 扩枚举 CHECK 或放宽 NOT NULL，SQLite 只能 12 步法重建，且外键开着时 DROP 会失败 | 首行标 `-- requires: foreign_keys=off` 的迁移在事务外先关外键、事务内重建、执行后 `PRAGMA foreign_key_check` 必须零行否则回滚并以非 0 退出、finally 开回；标记不在首行按普通迁移执行；重建不算改已应用文件 | M1 |
+| E-292 | 闸门设置存储缺行或损坏 | `settings` 表无 key=gates 行，或 `value_json` 非法/含未知值 | 缺行返回内置默认 `{dispatch:auto, review:manual, landing:manual}` 不插行；非法值回落默认并 warn，不退出、不覆盖坏值直到下一次 PATCH；PATCH 三字段整体写入，缺字段或值不在 auto／manual 返回 `E_VALIDATION`；写成功发 `settings.gates_changed` 让另一端刷新 | M8 |
+| E-293 | 人工撤回已自动 landed 的任务 | 落地闸门自动时人在收口前发现审查误判 | `POST /tasks/:taskId/recall` 附言必填，起一次修复运行（`origin=wrapup-fix`、spawned_by 为空、在原 worktree 与分支上 attempt_no+1）走正常审查；该任务已有在途修复/返工运行或本批收口运行在跑时返回 409；不计入 E-55 自动返工上限；手机端不放此入口 | M8 |
+| E-294 | 收口运行退出但没改代码 | `kind=wrapup` 的运行退出码 0 且 diff 为空 | 不按 E-61 判失败；其 exited 后走八段解析而不是派审查 agent；解析成功且裁定 clean 即批次 `done` | M7 |
+| E-295 | 收口运行中途失败或被中止 | 收口运行 failed/aborted/interrupted 时工作区已有半成品改动 | 不回滚工作区、不派修复运行；批次 `needs_attention` 并开收口闸门；落地清单照常列出该分支并标「未完成的收口改动」，由人决定丢弃或合入 | M8 |
+| E-296 | 收口提示词匹配不到 | 文档 `dispatchBatches` 里没有 tasks 集合与本批当前任务集合相等的条目，或文档未导出该键 | 用内置通用收口提示词并标「文档未提供」（`prompt_source=builtin`，记 warn）；匹配只按派发快照那一刻的文档，不按当前文档；材料逐字引用不改写，外层包装说明覆盖其中的提交/推送/PR/合并/记录文件步骤 | M3 |
+| E-297 | 收口运行的界面落位 | 收口运行没有 task_id | 流甲板占一条普通泳道（头部写「批次收口 · 第 N 轮 · 第 M 批」），停止控件、参照条、运行轨与实施流一致；批次树在该批标题下挂一行「批次收口 · 第 N 轮」；收口报告面板只显示 daemon 已解析字段，解析失败显示「解析失败」并直链原文；手机端不出「收口」按钮 | M9 |
+| E-298 | 任务行的「进 HEAD」标记 | 任务已验收、未验收或从未派发 | 三态：true「进 HEAD」、false「未进 HEAD」（title 显示 method）、null「—」；同色不用色相；前端只读 `TaskDto.inHead`，不由分支名或运行状态推断 | M9 |
+| E-299 | 落地闸门开关切到自动 | 用户把第三个开关从「等我确认」切到「自动」 | 不弹 dialog、不二次确认，开关下常驻一行提示「审查 pass 后直接标记已验收，仍不执行任何 git 操作」；PATCH 全量三值，状态以 `settings.gates_changed` 回流为准；三个开关同一形态，第三个不再置灰 | M9 |
+| E-300 | 同一任务被重复判定要修 | 两轮收口或两个批次的收口同时给同一任务开修复条目，或撤回撞上在途修复 | 每任务同时只允许一条在途修复运行；后到的合并进落地清单提示而不再派；重复撤回返回 409 | M8 |
+| E-301 | 进 HEAD 标记的单调性 | 分支合入后本地分支被删、worktree 被清理、或后续 git 判定报错 | `is_in_head` 一旦为 1 不回 0；tick 在分支存在时记录 `branch_tip_sha`；判定连续 error ≥3 次横幅「无法判定分支是否已合入」，不推断为已合入 | M8 |

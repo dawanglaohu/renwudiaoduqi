@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T20": {
+      "contractHash": "9bd265a4292ea87fb35110451e140ff94ff0bf09475eef70c71aa72070f7ea36",
+      "evidence": [
+        "19 节 M9-T20 行：依赖 M9-T19（批次树与 pulse-dot）、M9-T10（审批卡）；产出 wrapup-report.tsx、wrapup-panel-container.tsx、use-gate-card.ts、stream-column.tsx 收口分支、gate-card.tsx 条件动作、landing-page.tsx 在 taskPaths；error-messages.ts 与三个测试在 supportPaths",
+        "验收 1)～5) 对应 E-297（收口泳道与面板只读展示）、E-106/E-236（停止控件在 kind 分支之外）、E-286 呈现侧、E-157（收口按钮等回流）、E-278/E-117/E-113（投递原文按钮）、E-74 批次侧；11 节「收口报告面板」与审批卡第④段条件动作已写明；决策 76 采纳 C-103",
+        "接缝：消费 M8-T6 的 GET/POST wrapup 路由与 M8-T7 的 landing 字段；手机档不出收口按钮与决策 32 一致"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
