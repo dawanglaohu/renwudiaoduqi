@@ -4,7 +4,6 @@ import {
 	type DocumentDto,
 	type ListDocumentsResponse,
 	type OpenReaderResponse,
-	type RefreshDocumentResponse,
 	type UpdateDocumentSettingsBody,
 	type UpdateDocumentSettingsResponse,
 	createDocumentBodySchema,
@@ -132,36 +131,6 @@ export function registerDocumentRoutes(
 			return {
 				document: toDocumentDto(result.document),
 				taskCount: result.parsed.tasks.length,
-			};
-		},
-	);
-
-	// POST /api/v1/documents/:docId/refresh
-	instance.post<{ Params: DocumentParams }>(
-		'/api/v1/documents/:docId/refresh',
-		{
-			schema: {
-				params: DOCUMENT_PARAMS_SCHEMA,
-			},
-		},
-		async (request): Promise<RefreshDocumentResponse> => {
-			authenticateDevice(request);
-			const docsService = options?.docsService ?? resolveDocsService(instance, options);
-			const existing = docsService.getDocumentById(request.params.docId);
-			if (!existing) {
-				throw new AppError('E_NOT_FOUND', `Document not found: ${request.params.docId}`, {
-					details: { docId: request.params.docId },
-				});
-			}
-
-			const result = await docsService.importDocument(existing.docsPath);
-			return {
-				changed: result.hasChanged,
-				flags: {
-					hasAcceptChanged: false,
-					hasPromptChanged: false,
-					isRemovedFromDoc: false,
-				},
 			};
 		},
 	);

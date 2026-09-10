@@ -56,7 +56,6 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'DELETE /api/v1/devices/:deviceId',
 		'GET /api/v1/documents',
 		'POST /api/v1/documents',
-		'POST /api/v1/documents/:docId/refresh',
 		'POST /api/v1/documents/:docId/open-reader',
 		'PATCH /api/v1/documents/:docId/settings',
 	]);

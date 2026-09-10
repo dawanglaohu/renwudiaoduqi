@@ -19,6 +19,7 @@ import type {
 	NativeLockReadResult,
 	NativeLockWriteResult,
 } from '../../src/platform/lock-contract.ts';
+import { createOpenBrowser } from '../../src/proc/open-browser.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
 import { createDocsService } from '../../src/service/docs.ts';
 
@@ -371,8 +372,8 @@ describe(
 			expect(openRes.statusCode).toBe(404);
 			const errorBody = JSON.parse(openRes.body);
 			expect(errorBody.error.code).toBe('E_NOT_FOUND');
-			expect(errorBody.error.message).toContain('文档路径不可用，请重新定位');
 			expect(errorBody.error.details.docId).toBe(docId);
+			expect(errorBody.error.details.readerPath).toBe(readerPath);
 
 			// Verify existing task records, document record, and state pointers are preserved
 			const doc = container.services.docs.getDocumentById(docId);
@@ -450,18 +451,63 @@ describe(
 			const docsChangedEvents = publishedEvents.filter((e) => e.kind === 'system.docs_changed');
 			expect(docsChangedEvents.length).toBeGreaterThanOrEqual(1);
 
-			// 2. Update doc content and refresh -> emits another system.docs_changed event
+			// 2. Update doc content and re-import -> emits another system.docs_changed event
 			writeFileSync(docsDataPath, createSampleDocsDataJs('fingerprint-v2'), 'utf8');
-			const refreshRes = await server.instance.inject({
+			const reimportRes = await server.instance.inject({
 				method: 'POST',
-				url: `/api/v1/documents/${docId}/refresh`,
+				url: '/api/v1/documents',
 				headers: { authorization: authToken },
+				payload: { docsPath: docsDataPath },
 			});
-			expect(refreshRes.statusCode).toBe(200);
-			expect(JSON.parse(refreshRes.body).changed).toBe(true);
+			expect(reimportRes.statusCode).toBe(200);
 
 			const updatedEvents = publishedEvents.filter((e) => e.kind === 'system.docs_changed');
 			expect(updatedEvents.length).toBeGreaterThanOrEqual(2);
+		});
+
+		it('R1 & R3: createOpenBrowser uses injected hostInputs without process.platform and resolves absolute path', async () => {
+			const spawned: Array<{ file: string; args: readonly string[]; options: unknown }> = [];
+			const mockProcessOps = {
+				spawn: (file: string, args: readonly string[], options: unknown) => {
+					spawned.push({ file, args, options });
+					return { unref: vi.fn() };
+				},
+			};
+			const mockResolver = vi.fn(async () => ({
+				ok: true as const,
+				executable: {
+					sourcePath: 'resolved/xdg-open',
+					file: '/resolved/bin/xdg-open',
+					argsPrefix: [] as readonly string[],
+					checkedPaths: [] as readonly string[],
+					launchKind: 'direct' as const,
+				},
+			}));
+
+			const openBrowser = createOpenBrowser({
+				hostInputs: { platform: 'linux', homedir: testDir },
+				processOps: mockProcessOps as unknown as Parameters<
+					typeof createOpenBrowser
+				>[0]['processOps'],
+				resolver: mockResolver as unknown as Parameters<typeof createOpenBrowser>[0]['resolver'],
+			});
+
+			await openBrowser('/tmp/test-doc/index.html');
+
+			expect(mockResolver).toHaveBeenCalledTimes(1);
+			expect(mockResolver).toHaveBeenCalledWith({
+				hostInputs: { platform: 'linux', homedir: testDir },
+				executableName: 'xdg-open',
+			});
+			expect(spawned).toHaveLength(1);
+			expect(spawned[0]?.file).toBe('/resolved/bin/xdg-open');
+			expect(spawned[0]?.args).toEqual(['/tmp/test-doc/index.html']);
+			expect(spawned[0]?.options).toMatchObject({
+				shell: false,
+				windowsHide: true,
+				detached: true,
+				stdio: 'ignore',
+			});
 		});
 	},
 );

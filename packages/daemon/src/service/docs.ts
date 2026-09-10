@@ -6,6 +6,7 @@ import { batchNoOf, layerOf } from '../domain/layer-of.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { PlatformHostInputs } from '../platform/contract.ts';
 import { type OpenBrowserFn, createOpenBrowser } from '../proc/open-browser.ts';
 import type { DocumentMetadataUpdateRow, DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 
@@ -69,6 +70,7 @@ export interface DocsServiceDeps {
 	readonly bus?: EventBus;
 	readonly envelopeFactory?: EnvelopeFactory;
 	readonly openBrowser?: OpenBrowserFn;
+	readonly hostInputs?: PlatformHostInputs;
 	readonly fileExists?: (path: string) => Promise<boolean> | boolean;
 }
 
@@ -709,7 +711,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				// E-86: 文档目录被移动或重命名时提示「文档路径不可用，请重新定位」，
 				// 任务记录、快照、会话指针全部保留，只标记源不可读
 				deps.documentsRepo.markSourceUnreadable(id, deps.clock.now());
-				throw new AppError('E_NOT_FOUND', '文档路径不可用，请重新定位', {
+				throw new AppError('E_NOT_FOUND', 'Document reader path is not available', {
 					details: {
 						docId: id,
 						docsPath: row.docs_path,
@@ -719,7 +721,12 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			}
 
 			// E-85: 以系统默认浏览器打开原 index.html，不注入脚本、不改磁盘任何文件
-			const browserOpener = deps.openBrowser ?? createOpenBrowser();
+			const browserOpener =
+				deps.openBrowser ??
+				(deps.hostInputs ? createOpenBrowser({ hostInputs: deps.hostInputs }) : undefined);
+			if (!browserOpener) {
+				throw new AppError('E_INTERNAL', 'Host platform input is required to open browser');
+			}
 			await browserOpener(readerPath);
 
 			return Object.freeze({

@@ -167,77 +167,20 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		}
 	}
 
-	type Statement = ReturnType<typeof prepareStatement>;
-	let insertStmt: Statement | undefined;
-	let selectByIdStmt: Statement | undefined;
-	let selectByPathStmt: Statement | undefined;
-	let selectAllStmt: Statement | undefined;
-	let updateMetadataStmt: Statement | undefined;
-	let updateSourceReadableStmt: Statement | undefined;
-	let updateLaneCountStmt: Statement | undefined;
-	let updateTakeoverNotifiedStmt: Statement | undefined;
-
-	function getInsertStmt(): Statement {
-		if (!insertStmt) {
-			insertStmt = prepareStatement(INSERT_SQL, 'insert document');
-		}
-		return insertStmt;
-	}
-
-	function getSelectByIdStmt(): Statement {
-		if (!selectByIdStmt) {
-			selectByIdStmt = prepareStatement(SELECT_BY_ID_SQL, 'select document by id');
-		}
-		return selectByIdStmt;
-	}
-
-	function getSelectByPathStmt(): Statement {
-		if (!selectByPathStmt) {
-			selectByPathStmt = prepareStatement(SELECT_BY_PATH_SQL, 'select document by path');
-		}
-		return selectByPathStmt;
-	}
-
-	function getSelectAllStmt(): Statement {
-		if (!selectAllStmt) {
-			selectAllStmt = prepareStatement(SELECT_ALL_SQL, 'select all documents');
-		}
-		return selectAllStmt;
-	}
-
-	function getUpdateMetadataStmt(): Statement {
-		if (!updateMetadataStmt) {
-			updateMetadataStmt = prepareStatement(UPDATE_METADATA_SQL, 'update document metadata');
-		}
-		return updateMetadataStmt;
-	}
-
-	function getUpdateSourceReadableStmt(): Statement {
-		if (!updateSourceReadableStmt) {
-			updateSourceReadableStmt = prepareStatement(
-				UPDATE_SOURCE_READABLE_SQL,
-				'update document source readable',
-			);
-		}
-		return updateSourceReadableStmt;
-	}
-
-	function getUpdateLaneCountStmt(): Statement {
-		if (!updateLaneCountStmt) {
-			updateLaneCountStmt = prepareStatement(UPDATE_LANE_COUNT_SQL, 'update document lane count');
-		}
-		return updateLaneCountStmt;
-	}
-
-	function getUpdateTakeoverNotifiedStmt(): Statement {
-		if (!updateTakeoverNotifiedStmt) {
-			updateTakeoverNotifiedStmt = prepareStatement(
-				UPDATE_TAKEOVER_NOTIFIED_SQL,
-				'update document takeover notified',
-			);
-		}
-		return updateTakeoverNotifiedStmt;
-	}
+	const insertStmt = prepareStatement(INSERT_SQL, 'insert document');
+	const selectByIdStmt = prepareStatement(SELECT_BY_ID_SQL, 'select document by id');
+	const selectByPathStmt = prepareStatement(SELECT_BY_PATH_SQL, 'select document by path');
+	const selectAllStmt = prepareStatement(SELECT_ALL_SQL, 'select all documents');
+	const updateMetadataStmt = prepareStatement(UPDATE_METADATA_SQL, 'update document metadata');
+	const updateSourceReadableStmt = prepareStatement(
+		UPDATE_SOURCE_READABLE_SQL,
+		'update document source readable',
+	);
+	const updateLaneCountStmt = prepareStatement(UPDATE_LANE_COUNT_SQL, 'update document lane count');
+	const updateTakeoverNotifiedStmt = prepareStatement(
+		UPDATE_TAKEOVER_NOTIFIED_SQL,
+		'update document takeover notified',
+	);
 
 	function assertValidLaneCount(laneCount: number): void {
 		if (!Number.isInteger(laneCount) || laneCount < 1 || laneCount > 6) {
@@ -252,7 +195,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		insert(row: DocumentRow): void {
 			assertValidLaneCount(row.lane_count);
 			try {
-				getInsertStmt().run(row);
+				insertStmt.run(row);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to insert document: ${row.id}`);
 			}
@@ -260,7 +203,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 
 		findById(id: string): DocumentRow | null {
 			try {
-				const row = getSelectByIdStmt().get(id) as DocumentRow | undefined;
+				const row = selectByIdStmt.get(id) as DocumentRow | undefined;
 				return row ? Object.freeze({ ...row }) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find document by id: ${id}`);
@@ -269,7 +212,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 
 		findByPath(docsPath: string): DocumentRow | null {
 			try {
-				const row = getSelectByPathStmt().get(docsPath) as DocumentRow | undefined;
+				const row = selectByPathStmt.get(docsPath) as DocumentRow | undefined;
 				return row ? Object.freeze({ ...row }) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find document by path: ${docsPath}`);
@@ -278,7 +221,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 
 		listAll(): readonly DocumentRow[] {
 			try {
-				const rows = getSelectAllStmt().all() as DocumentRow[];
+				const rows = selectAllStmt.all() as DocumentRow[];
 				return Object.freeze(rows.map((row) => Object.freeze({ ...row })));
 			} catch (cause) {
 				throw toDatabaseError(cause, 'Failed to list all documents');
@@ -287,7 +230,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 
 		updateMetadata(row: DocumentMetadataUpdateRow): void {
 			try {
-				getUpdateMetadataStmt().run(row);
+				updateMetadataStmt.run(row);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update document metadata: ${row.id}`);
 			}
@@ -295,7 +238,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 
 		markSourceUnreadable(id: string, lastSeenAt: string): void {
 			try {
-				getUpdateSourceReadableStmt().run({
+				updateSourceReadableStmt.run({
 					id,
 					is_source_readable: 0,
 					last_seen_at: lastSeenAt,
@@ -307,7 +250,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 
 		markSourceReadable(id: string, lastSeenAt: string): void {
 			try {
-				getUpdateSourceReadableStmt().run({
+				updateSourceReadableStmt.run({
 					id,
 					is_source_readable: 1,
 					last_seen_at: lastSeenAt,
@@ -320,7 +263,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		updateLaneCount(id: string, laneCount: number): void {
 			assertValidLaneCount(laneCount);
 			try {
-				getUpdateLaneCountStmt().run({
+				updateLaneCountStmt.run({
 					id,
 					lane_count: laneCount,
 				});
@@ -331,7 +274,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 
 		setTakeoverNotified(id: string, isTakeoverNotified: number): void {
 			try {
-				getUpdateTakeoverNotifiedStmt().run({
+				updateTakeoverNotifiedStmt.run({
 					id,
 					is_takeover_notified: isTakeoverNotified === 1 ? 1 : 0,
 				});

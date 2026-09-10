@@ -1,5 +1,6 @@
 import { spawn as nodeSpawn } from 'node:child_process';
-import type { SupportedPlatform } from '../platform/contract.ts';
+import type { PlatformHostInputs } from '../platform/contract.ts';
+import { resolveExecutable } from '../platform/resolve-executable.ts';
 
 export type OpenBrowserFn = (targetPath: string) => Promise<void> | void;
 
@@ -33,34 +34,46 @@ export function defaultOpenBrowserProcessOps(): OpenBrowserProcessOps {
 	});
 }
 
-export function createOpenBrowser(options?: {
-	readonly platform?: SupportedPlatform;
+export interface CreateOpenBrowserOptions {
+	readonly hostInputs: PlatformHostInputs;
 	readonly processOps?: OpenBrowserProcessOps;
-}): OpenBrowserFn {
-	const platform = options?.platform ?? (process.platform as SupportedPlatform);
-	const processOps = options?.processOps ?? defaultOpenBrowserProcessOps();
+	readonly resolver?: typeof resolveExecutable;
+}
+
+export function createOpenBrowser(options: CreateOpenBrowserOptions): OpenBrowserFn {
+	const hostInputs = options.hostInputs;
+	const processOps = options.processOps ?? defaultOpenBrowserProcessOps();
+	const resolver = options.resolver ?? resolveExecutable;
 
 	return async function openInDefaultBrowser(targetPath: string): Promise<void> {
-		let file: string;
-		let args: readonly string[];
+		let executableName: string;
+		let fallbackPath: string;
 
-		switch (platform) {
+		switch (hostInputs.platform) {
 			case 'darwin': {
-				file = '/usr/bin/open';
-				args = [targetPath];
+				executableName = 'open';
+				fallbackPath = '/usr/bin/open';
 				break;
 			}
 			case 'win32': {
-				file = 'explorer.exe';
-				args = [targetPath];
+				executableName = 'explorer.exe';
+				fallbackPath = 'C:Windowsexplorer.exe';
 				break;
 			}
 			default: {
-				file = '/usr/bin/xdg-open';
-				args = [targetPath];
+				executableName = 'xdg-open';
+				fallbackPath = '/usr/bin/xdg-open';
 				break;
 			}
 		}
+
+		const resolved = await resolver({
+			hostInputs,
+			executableName,
+		});
+
+		const file = resolved.ok ? resolved.executable.file : fallbackPath;
+		const args = [targetPath];
 
 		const child = processOps.spawn(file, args, {
 			shell: false,

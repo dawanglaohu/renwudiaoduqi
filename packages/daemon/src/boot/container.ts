@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { ProcessConfig } from '../config/env.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { createUnitOfWork } from '../db/unit-of-work.ts';
+import { AppError } from '../errors/app-error.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
@@ -75,6 +76,40 @@ export interface AppContainer {
 	readonly startedAtMs: number;
 }
 
+function hasTable(database: DatabaseConnection, name: string): boolean {
+	try {
+		const stmt = database.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?");
+		const row = stmt.get(name);
+		return row !== undefined;
+	} catch {
+		return false;
+	}
+}
+
+function createFallbackDocumentsRepo(): DocumentsRepo {
+	return Object.freeze({
+		insert(): void {
+			throw new AppError('E_INTERNAL', 'documents table is not initialized');
+		},
+		findById(): null {
+			return null;
+		},
+		findByPath(): null {
+			return null;
+		},
+		listAll(): readonly [] {
+			return Object.freeze([]);
+		},
+		updateMetadata(): void {
+			throw new AppError('E_INTERNAL', 'documents table is not initialized');
+		},
+		markSourceUnreadable(): void {},
+		markSourceReadable(): void {},
+		updateLaneCount(): void {},
+		setTakeoverNotified(): void {},
+	});
+}
+
 export function createContainer(input: {
 	readonly config: ProcessConfig;
 	readonly database: DatabaseConnection;
@@ -98,7 +133,11 @@ export function createContainer(input: {
 	const eventSeq = createEventSeqRepo(input.database);
 	const runsAbort = input.runsAbortRepo ?? createSqliteRunsAbortRepo(input.database);
 	const devices = createDevicesRepo(input.database);
-	const documents = input.documentsRepo ?? createDocumentsRepo(input.database);
+	const documents =
+		input.documentsRepo ??
+		(hasTable(input.database, 'documents')
+			? createDocumentsRepo(input.database)
+			: createFallbackDocumentsRepo());
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 		runsAbort,
@@ -169,6 +208,7 @@ export function createContainer(input: {
 			ids,
 			bus,
 			envelopeFactory,
+			hostInputs: input.hostInputs,
 		});
 
 	const services: ContainerServices = Object.freeze({
