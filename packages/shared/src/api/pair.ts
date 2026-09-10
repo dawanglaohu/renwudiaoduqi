@@ -30,7 +30,13 @@ export interface ClaimPairingCodeResponse {
 	readonly token: string;
 }
 
+export type ClaimPairBody = ClaimPairingCodeBody;
+export const CLAIM_PAIR_BODY_KEYS = CLAIM_PAIRING_CODE_BODY_KEYS;
+export type ClaimPairResponse = ClaimPairingCodeResponse;
+
 export interface CreatePairingCodeResponse {
 	readonly code: string;
 	readonly expiresAt: string;
 }
+
+export type CreatePairCodeResponse = CreatePairingCodeResponse;

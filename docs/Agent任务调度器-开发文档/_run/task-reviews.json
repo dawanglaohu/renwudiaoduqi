@@ -189,6 +189,20 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M2-T2": {
+    "compiler": "3927ebb88f7dfac3a034ad04260598d851c967de91ed3ce78e6a06023ca25613",
+    "contractHash": "e91603242a9cfce9a2a02101845255c6f9c383e157fab49693dbf13fb25df89b",
+    "evidence": [
+      "1) Pairing code generated as one-time TTL 60s in pairing.ts:162, consumed at pairing.ts:211",
+      "2) Token uses scrypt and timingSafeEqual at pairing.ts:153",
+      "3) revokeDevice immediately calls active connection callbacks with E_DEVICE_REVOKED at pairing.ts:251",
+      "4) Rate limit hits E_RATE_LIMITED and clears current pairing code at 40-ratelimit.ts:52",
+      "5) Bootstrap creates POSIX 0600 / Windows DACL pairing-code.txt at pairing.ts:303, deleted upon use"
+    ],
+    "reviewed": "2026-09-10T02:57:45.144653+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T4": {
     "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
     "contractHash": "c6ca4f61f2bd30dcd5e9048db5379c351c4b3be04fdca7307e67b64ec5cad8af",

@@ -1,7 +1,9 @@
 import { ROUTES } from '@agent-scheduler/shared/api/routes';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
+import { registerDeviceRoutes } from '../routes/devices.ts';
 import { registerHealthRoute } from '../routes/health.ts';
+import { registerPairRoutes } from '../routes/pair.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
 import { registerSystemRoutes } from '../routes/system.ts';
 import { errorHandlerPlugin } from './90-error-handler.ts';
@@ -38,12 +40,18 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerHealthRoute(target);
 	registerSystemRoutes(target);
 	registerRunsRoutes(target);
+	registerPairRoutes(target);
+	registerDeviceRoutes(target);
 
 	const customRegisteredPaths = new Set<string>([
 		'GET /api/v1/health',
 		'GET /api/v1/system/usage',
 		'POST /api/v1/runs/:runId/abort',
 		'POST /api/v1/runs/:id/abort',
+		'POST /api/v1/pair/claim',
+		'POST /api/v1/pair/code',
+		'GET /api/v1/devices',
+		'DELETE /api/v1/devices/:deviceId',
 	]);
 
 	for (const route of ROUTES) {

@@ -13,8 +13,10 @@ import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { createDefaultProcessOps } from '../proc/spawn.ts';
+import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
 import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
+import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 
@@ -27,6 +29,7 @@ export interface ContainerJob {
 export interface ContainerRepos {
 	readonly eventSeq: EventSeqRepo;
 	readonly runsAbort: RunsAbortRepo;
+	readonly devices: DevicesRepo;
 	readonly [key: string]: unknown;
 }
 
@@ -40,6 +43,7 @@ export interface ContainerEvents {
 export interface ContainerServices {
 	readonly system: SystemService;
 	readonly runAbort: RunAbortService;
+	readonly pairing: PairingService;
 }
 
 export interface AppContainer {
@@ -79,6 +83,7 @@ export function createContainer(input: {
 	readonly systemService?: SystemService;
 	readonly runAbortService?: RunAbortService;
 	readonly runsAbortRepo?: RunsAbortRepo;
+	readonly pairingService?: PairingService;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
 }): AppContainer {
@@ -86,9 +91,11 @@ export function createContainer(input: {
 
 	const eventSeq = createEventSeqRepo(input.database);
 	const runsAbort = input.runsAbortRepo ?? createSqliteRunsAbortRepo(input.database);
+	const devices = createDevicesRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 		runsAbort,
+		devices,
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
@@ -130,9 +137,26 @@ export function createContainer(input: {
 			platform: input.hostInputs.platform,
 		});
 
+	const ids = Object.freeze({
+		newId: () => `req_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+	});
+
+	const pairingService =
+		input.pairingService ??
+		createPairingService({
+			devicesRepo: devices,
+			clock: input.clock,
+			ids,
+			dataDir: input.config.dataDir,
+			platform: input.hostInputs.platform,
+		});
+
+	pairingService.bootstrapIfNeeded();
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
+		pairing: pairingService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([]);
