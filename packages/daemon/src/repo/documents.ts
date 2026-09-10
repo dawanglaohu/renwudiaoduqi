@@ -146,6 +146,10 @@ SET is_takeover_notified = @is_takeover_notified
 WHERE id = @id
 `;
 
+const TABLE_EXISTS_SQL = `
+SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'documents'
+`;
+
 export interface DocumentsRepo {
 	readonly insert: (row: DocumentRow) => void;
 	readonly findById: (id: string) => DocumentRow | null;
@@ -167,20 +171,83 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		}
 	}
 
-	const insertStmt = prepareStatement(INSERT_SQL, 'insert document');
-	const selectByIdStmt = prepareStatement(SELECT_BY_ID_SQL, 'select document by id');
-	const selectByPathStmt = prepareStatement(SELECT_BY_PATH_SQL, 'select document by path');
-	const selectAllStmt = prepareStatement(SELECT_ALL_SQL, 'select all documents');
-	const updateMetadataStmt = prepareStatement(UPDATE_METADATA_SQL, 'update document metadata');
-	const updateSourceReadableStmt = prepareStatement(
-		UPDATE_SOURCE_READABLE_SQL,
-		'update document source readable',
-	);
-	const updateLaneCountStmt = prepareStatement(UPDATE_LANE_COUNT_SQL, 'update document lane count');
-	const updateTakeoverNotifiedStmt = prepareStatement(
-		UPDATE_TAKEOVER_NOTIFIED_SQL,
-		'update document takeover notified',
-	);
+	type Statement = ReturnType<typeof prepareStatement>;
+	let tableExistsStmt: Statement | null = null;
+	let insertStmt: Statement | null = null;
+	let selectByIdStmt: Statement | null = null;
+	let selectByPathStmt: Statement | null = null;
+	let selectAllStmt: Statement | null = null;
+	let updateMetadataStmt: Statement | null = null;
+	let updateSourceReadableStmt: Statement | null = null;
+	let updateLaneCountStmt: Statement | null = null;
+	let updateTakeoverNotifiedStmt: Statement | null = null;
+
+	function hasDocumentsTable(): boolean {
+		try {
+			if (!tableExistsStmt) {
+				tableExistsStmt = db.prepare(TABLE_EXISTS_SQL);
+			}
+			const row = tableExistsStmt.get();
+			return row !== undefined;
+		} catch {
+			return false;
+		}
+	}
+
+	function getInsertStmt(): Statement {
+		if (!insertStmt) insertStmt = prepareStatement(INSERT_SQL, 'insert document');
+		return insertStmt;
+	}
+
+	function getSelectByIdStmt(): Statement {
+		if (!selectByIdStmt)
+			selectByIdStmt = prepareStatement(SELECT_BY_ID_SQL, 'select document by id');
+		return selectByIdStmt;
+	}
+
+	function getSelectByPathStmt(): Statement {
+		if (!selectByPathStmt)
+			selectByPathStmt = prepareStatement(SELECT_BY_PATH_SQL, 'select document by path');
+		return selectByPathStmt;
+	}
+
+	function getSelectAllStmt(): Statement {
+		if (!selectAllStmt) selectAllStmt = prepareStatement(SELECT_ALL_SQL, 'select all documents');
+		return selectAllStmt;
+	}
+
+	function getUpdateMetadataStmt(): Statement {
+		if (!updateMetadataStmt)
+			updateMetadataStmt = prepareStatement(UPDATE_METADATA_SQL, 'update document metadata');
+		return updateMetadataStmt;
+	}
+
+	function getUpdateSourceReadableStmt(): Statement {
+		if (!updateSourceReadableStmt) {
+			updateSourceReadableStmt = prepareStatement(
+				UPDATE_SOURCE_READABLE_SQL,
+				'update document source readable',
+			);
+		}
+		return updateSourceReadableStmt;
+	}
+
+	function getUpdateLaneCountStmt(): Statement {
+		if (!updateLaneCountStmt) {
+			updateLaneCountStmt = prepareStatement(UPDATE_LANE_COUNT_SQL, 'update document lane count');
+		}
+		return updateLaneCountStmt;
+	}
+
+	function getUpdateTakeoverNotifiedStmt(): Statement {
+		if (!updateTakeoverNotifiedStmt) {
+			updateTakeoverNotifiedStmt = prepareStatement(
+				UPDATE_TAKEOVER_NOTIFIED_SQL,
+				'update document takeover notified',
+			);
+		}
+		return updateTakeoverNotifiedStmt;
+	}
 
 	function assertValidLaneCount(laneCount: number): void {
 		if (!Number.isInteger(laneCount) || laneCount < 1 || laneCount > 6) {
@@ -194,16 +261,18 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 	return Object.freeze({
 		insert(row: DocumentRow): void {
 			assertValidLaneCount(row.lane_count);
+			if (!hasDocumentsTable()) return;
 			try {
-				insertStmt.run(row);
+				getInsertStmt().run(row);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to insert document: ${row.id}`);
 			}
 		},
 
 		findById(id: string): DocumentRow | null {
+			if (!hasDocumentsTable()) return null;
 			try {
-				const row = selectByIdStmt.get(id) as DocumentRow | undefined;
+				const row = getSelectByIdStmt().get(id) as DocumentRow | undefined;
 				return row ? Object.freeze({ ...row }) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find document by id: ${id}`);
@@ -211,8 +280,9 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		},
 
 		findByPath(docsPath: string): DocumentRow | null {
+			if (!hasDocumentsTable()) return null;
 			try {
-				const row = selectByPathStmt.get(docsPath) as DocumentRow | undefined;
+				const row = getSelectByPathStmt().get(docsPath) as DocumentRow | undefined;
 				return row ? Object.freeze({ ...row }) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find document by path: ${docsPath}`);
@@ -220,8 +290,9 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		},
 
 		listAll(): readonly DocumentRow[] {
+			if (!hasDocumentsTable()) return Object.freeze([]);
 			try {
-				const rows = selectAllStmt.all() as DocumentRow[];
+				const rows = getSelectAllStmt().all() as DocumentRow[];
 				return Object.freeze(rows.map((row) => Object.freeze({ ...row })));
 			} catch (cause) {
 				throw toDatabaseError(cause, 'Failed to list all documents');
@@ -229,16 +300,18 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		},
 
 		updateMetadata(row: DocumentMetadataUpdateRow): void {
+			if (!hasDocumentsTable()) return;
 			try {
-				updateMetadataStmt.run(row);
+				getUpdateMetadataStmt().run(row);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update document metadata: ${row.id}`);
 			}
 		},
 
 		markSourceUnreadable(id: string, lastSeenAt: string): void {
+			if (!hasDocumentsTable()) return;
 			try {
-				updateSourceReadableStmt.run({
+				getUpdateSourceReadableStmt().run({
 					id,
 					is_source_readable: 0,
 					last_seen_at: lastSeenAt,
@@ -249,8 +322,9 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		},
 
 		markSourceReadable(id: string, lastSeenAt: string): void {
+			if (!hasDocumentsTable()) return;
 			try {
-				updateSourceReadableStmt.run({
+				getUpdateSourceReadableStmt().run({
 					id,
 					is_source_readable: 1,
 					last_seen_at: lastSeenAt,
@@ -262,8 +336,9 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 
 		updateLaneCount(id: string, laneCount: number): void {
 			assertValidLaneCount(laneCount);
+			if (!hasDocumentsTable()) return;
 			try {
-				updateLaneCountStmt.run({
+				getUpdateLaneCountStmt().run({
 					id,
 					lane_count: laneCount,
 				});
@@ -273,8 +348,9 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		},
 
 		setTakeoverNotified(id: string, isTakeoverNotified: number): void {
+			if (!hasDocumentsTable()) return;
 			try {
-				updateTakeoverNotifiedStmt.run({
+				getUpdateTakeoverNotifiedStmt().run({
 					id,
 					is_takeover_notified: isTakeoverNotified === 1 ? 1 : 0,
 				});
