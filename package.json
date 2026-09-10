@@ -6,7 +6,7 @@
 		"node": ">=22"
 	},
 	"scripts": {
-		"check": "node scripts/check-error-codes.mjs && biome ci . && tsc -b --noEmit && vitest run",
+		"check": "node scripts/check-error-codes.mjs && node --no-warnings --experimental-strip-types packages/web/scripts/check-contrast.ts && node --no-warnings --experimental-strip-types packages/web/scripts/check-forbidden.ts && biome ci . && tsc -b --noEmit && vitest run",
 		"test": "vitest run",
 		"format": "biome format --write .",
 		"lint": "biome lint ."
