@@ -14,6 +14,11 @@ export const ERROR_CODES = {
 	E_PATH_CLASH_QUEUED: { defaultHttpStatus: 409, retryable: false, origin: 'server' },
 	E_REPLAY_WINDOW_EXPIRED: { defaultHttpStatus: 409, retryable: false, origin: 'server' },
 	E_DOC_SOURCE_UNREADABLE: { defaultHttpStatus: 409, retryable: false, origin: 'server' },
+	E_DOC_CONTRACT_PENDING: {
+		defaultHttpStatus: 409,
+		retryable: false,
+		origin: 'server',
+	},
 	E_TASK_REMOVED_FROM_DOC: { defaultHttpStatus: 409, retryable: false, origin: 'server' },
 	E_SNAPSHOT_STALE: { defaultHttpStatus: 409, retryable: false, origin: 'server' },
 	E_UPSTREAM_BASE_MISSING: { defaultHttpStatus: 409, retryable: false, origin: 'server' },

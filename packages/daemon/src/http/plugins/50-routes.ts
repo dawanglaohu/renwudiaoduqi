@@ -1,7 +1,10 @@
+import { ROUTES } from '@agent-scheduler/shared/api/routes';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { AppError } from '../../errors/app-error.ts';
 import { registerHealthRoute } from '../routes/health.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
 import { registerSystemRoutes } from '../routes/system.ts';
+import { errorHandlerPlugin } from './90-error-handler.ts';
 
 function normalizePath(url: string): string {
 	if (url === '/api/v1' || url === '/api/v1/') return '/';
@@ -30,8 +33,39 @@ export function createRouteTarget(instance: FastifyInstance): FastifyInstance {
 export const routesPlugin: FastifyPluginAsync = async (
 	instance: FastifyInstance,
 ): Promise<void> => {
+	await errorHandlerPlugin(instance, {});
 	const target = createRouteTarget(instance);
 	registerHealthRoute(target);
 	registerSystemRoutes(target);
 	registerRunsRoutes(target);
+
+	const customRegisteredPaths = new Set<string>([
+		'GET /api/v1/health',
+		'GET /api/v1/system/usage',
+		'POST /api/v1/runs/:runId/abort',
+		'POST /api/v1/runs/:id/abort',
+	]);
+
+	for (const route of ROUTES) {
+		const key = `${route.method} ${route.path}`;
+		if (customRegisteredPaths.has(key)) {
+			continue;
+		}
+
+		const method = route.method.toLowerCase() as 'get' | 'post' | 'patch' | 'delete';
+		const opts = route.bodySchema
+			? {
+					schema: {
+						body: route.bodySchema,
+					},
+				}
+			: {};
+
+		target[method](route.path, opts, async (request) => {
+			throw new AppError(
+				'E_INTERNAL',
+				`Route ${request.method} ${request.url} handler is not implemented yet.`,
+			);
+		});
+	}
 };
