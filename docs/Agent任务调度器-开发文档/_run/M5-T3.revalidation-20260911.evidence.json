@@ -21,6 +21,16 @@
         "结论：M5-T2 无新增条款需要复核，撤销误标；本任务代码与测试保持 main 上的已复核状态。"
       ],
       "verdict": "pass"
+    },
+    "M9-T2": {
+      "contractHash": "0f497e47dd4f74c88dac1a88333b77999e5d08aa48e7f804340f404be31cc7b4",
+      "evidence": [
+        "标记来源：M5-T3 的补丁 m5-t3-supportpaths 基线早于 main 合并 M9-T2（PR #45），落地前合并 main 再 sync 时把 M9-T2 自身的 supportPaths 变更算进了补丁窗口，属跨合并的哈希传播误标。",
+        "契约逐字段比对：当前 _run/task-contracts.json 的 M9-T2 条目为 {\"supportPaths\":[\"packages/web/test/spine-shape.test.ts\",\"packages/web/test/status-badge.test.ts\"]}，与 main 上 M9-T2 自身补丁 M9-T2-review-scope-20260911（status=verified，verifiedTasks=[M9-T2]，PR #45）登记的内容一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目。",
+        "代码比对：git diff origin/main --name-only 中没有任何 web/ 或 M9-T2 相关路径，本分支未触碰 M9-T2 的产出与测试。",
+        "结论：M9-T2 无新增条款需要复核，撤销误标；其代码与测试保持 main 上的已复核状态。"
+      ],
+      "verdict": "pass"
     }
   }
 }
