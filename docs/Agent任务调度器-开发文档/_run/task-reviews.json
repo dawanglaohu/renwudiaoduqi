@@ -120,17 +120,15 @@
     "verdict": "pass"
   },
   "M10-T1": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
     "contractHash": "a343cc35a684e0e4b463c046f3a70f28831e5aa60b260fd81b22035485c98ef4",
     "evidence": [
-      "2026-09-11 复核 docs/Agent任务调度器-开发文档/02-设计/07-前端架构.md:395-437：契约位置（packages/shared/src/shell/bridge-contract.ts 纯类型、web 侧唯一实现 src/shell/shell-bridge.ts）、能力恰三件 tokenStore.get/set/clear、notify({title,body,deepLink})、hostHint()、两个只读位 platform 与 capabilities{hasSecureStorage,hasNativeNotification}、探测写法（两个全局→tauri/capacitor/browser，模块加载冻结，禁 userAgent/try-catch/渲染中重探）与降级要求（sessionStorage 键 agsched.token、Notification API 或 (N) 标题前缀、hostHint 返回 location.origin）在任务卡四条验收标准里逐条对齐，未增删。",
-      "2026-09-11 复核 docs/Agent任务调度器-开发文档/04-执行/19-模块任务拆分.md 的 M10 行与 图谱/任务/M10-T1.md：前置只有 M9-T1、产出只有 bridge-contract.ts 与 web/src/shell/ 两文件、解锁 M10-T2/M10-T3，均未把壳实现或自启接线提前纳入本任务。",
-      "2026-09-11 复核 docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md 与 图谱/边界/E-200.md：期望仍是「界面必须能在桌面浏览器直连 daemon 使用，验收标准不因壳模块延期而改变」，本任务只交出三件能力的浏览器降级，未弱化该期望；E-227（先浏览器后装壳，壳安全存储为唯一真相源）为 M9-T15 归属，本任务仅实现启动清副本，不替其验收。",
-      "2026-09-11 通过补丁 M10-T1-review-scope-20260911 在 docs/Agent任务调度器-开发文档/_run/task-contracts.json 补入 M10-T1.supportPaths：packages/web/package.json（workspace 依赖）、packages/web/test/shell-bridge.test.ts（测试）、packages/shared/package.json（契约包导出）、pnpm-lock.yaml（依赖清单）。这四项是 07 节「契约以包导出形式供 web 与两个壳 import」与「每个任务本地验收必须包含 pnpm -w check」已定要求的必要支持文件，属实现产出必需的漏列项，未引入新的公共基础或放宽共享文件。",
-      "2026-09-11 冲突核对：presentation.json/task-contracts.json 中 M9-T2、M9-T3、M9-T4、M3-T5、M5-T2、M5-T3、M10-T2、M10-T3 的有效路径均不含补入的四项，交接台 86/86 任务路径检查通过，补丁未与在途任务抢同一文件。",
-      "2026-09-11 现状检查（task/M10-T1，与补丁同步后一致）：pnpm exec biome ci . 无违规、pnpm exec tsc -b --noEmit 通过、node packages/web/scripts/check-forbidden.ts 0 违规、vitest run packages/web/test 24 个用例全过（含 shell-bridge 12 个）。以上只证明契约复核期间的仓库状态，代码语义结论另见审查输出。"
+      "标记来源：M5-T3 的补丁 m5-t3-supportpaths 基线早于 main 合并本任务，落地前合并 main 再 sync 时把本任务自身的 supportPaths 变更算进了补丁窗口，属跨合并的契约哈希传播误标，不是本补丁修改了本任务契约。",
+      "契约逐字段比对：当前 _run/task-contracts.json 的 M10-T1 条目为 {\"supportPaths\": [\"packages/web/package.json\", \"packages/web/test/shell-bridge.test.ts\", \"packages/shared/package.json\", \"pnpm-lock.yaml\"]}，与 main 上本任务自身的补丁记录登记内容一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目（git diff origin/main -- _run/task-contracts.json 只显示该新增）。",
+      "代码比对：本分支相对 main 改动的包内文件只有 packages/daemon/src/workspace/diff.ts, packages/daemon/test/unit/diff.test.ts，不含 M10-T1 的任何产出或测试路径。",
+      "结论：M10-T1 无新增条款需要复核，撤销误标；其代码与测试保持 main 上的已复核状态。"
     ],
-    "reviewed": "2026-09-11T13:23:50.870902+00:00",
+    "reviewed": "2026-09-11T14:28:28.075297+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -361,19 +359,30 @@
     "verdict": "pass"
   },
   "M5-T2": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
     "contractHash": "2fe5a002a53b322b25e7d1d3fef949b91291245997a66a22de370bc2912f2134",
     "evidence": [
-      "AC1/E-70: 上游产出未进 HEAD 且 baseRef 缺省或 kind=head 时 resolveTaskBase 抛 E_UPSTREAM_BASE_MISSING（packages/daemon/src/workspace/base-select.ts:367），details.reason 为「下游 base 缺上游产出」（:372），details.unmergedUpstreams 给出未进上游清单（:373）；单测 packages/daemon/test/unit/base-select.test.ts 覆盖显式 head 与省略 baseRef 两条输入，断言 error.code 与 details.reason。",
-      "AC2/E-70: 同一条错误里带 availableUpstreamBases 与 suggestedBaseRef（base-select.ts:354-377），显式选项由 API 契约 RunBaseRef.kind='upstreamBranch' + taskKey 承载（packages/shared/src/api/runs.ts:1-4、:47-48）；选定上游分支时 resolvedBase 取该分支（:432-441、:462-474），绝不回落 HEAD。单测覆盖 taskKey 指定、省略且唯一、越界三种；给出上游分支前先 rev-parse 校验分支存在（:444-460）。",
-      "AC3/E-31: prepareTaskWorkspace 为每个任务生成独立 sessionId（base-select.ts:558-566，只接受 input.sessionId 或注入的 deps.ids.newId，两者皆缺抛 E_INTERNAL）与独立 worktreePath/branchName；grok 走 agent_native 并把 --worktree/--worktree-ref 注入启动参数（:585-599），其余 agent 走 prepareWorktree 的 git worktree 兜底（:601-628）。并发上限由 checkAgentConcurrency 截断（:482）：活跃数 >= 上限抛 429 E_AGENT_BUSY（:504，retryable 来自 codes.ts 登记），maxConcurrency<=0 抛 E_AGENT_UNAVAILABLE（:493）。",
-      "边界 E-70 逐条：拒绝派发（error code E_UPSTREAM_BASE_MISSING，http 映射取 codes.ts defaultHttpStatus=409）；说明文案在 details.reason；显式选项在 details.availableUpstreamBases 且可回填 suggestedBaseRef；绝不默默从旧 HEAD 起——baseRef 缺省路径在检测到未进上游时先抛错，只有全部上游已进 HEAD（或上游为空）才返回 HEAD（:476-480）。",
-      "边界 E-31 逐条：同一 agent 多任务时 sessionId 与 worktreePath 各自独立（单测 'multiple tasks assigned to same agent obtain distinct sessions and workspaces' 断言三者互不相等）；grok 用自带 --worktree/--worktree-ref，其余用 git worktree；每 agent 并发上限由 checkAgentConcurrency 在 prepareTaskWorkspace 第 1 步拦截（:540-542），达标返回 E_AGENT_BUSY。",
-      "测试证据：npx vitest run packages/daemon/test/unit/base-select.test.ts → 26 passed；npx tsc -b --noEmit → exit 0；npx biome ci 改动两文件 → 通过。",
-      "共用约定核对：workspace 层不碰 db/repo/service，无 SQL 与事务；未直读 process.env / process.platform；错误统一 AppError + packages/shared/src/errors/codes.ts（node scripts/check-error-codes.mjs → 46 个错误码与 10 节一致）；文件名 kebab-case、无 barrel、除 AppError 外无 class；sessionId 只来自注入的 ids，未用 Date.now()/Math.random()。",
-      "文档补丁 m5-t2-support-paths：M5-T2 原有效范围只列 packages/daemon/src/workspace/base-select.ts，漏了本任务必需的单测 packages/daemon/test/unit/base-select.test.ts，已补进 _run/task-contracts.json 的 supportPaths（与 M5-T1 把 test/unit/worktree.test.ts 列入范围一致），同步后未重建分支、沿用 PR #42。"
+      "标记来源：M5-T3 的补丁 m5-t3-supportpaths 基线早于 main 合并本任务，落地前合并 main 再 sync 时把本任务自身的 supportPaths 变更算进了补丁窗口，属跨合并的契约哈希传播误标，不是本补丁修改了本任务契约。",
+      "契约逐字段比对：当前 _run/task-contracts.json 的 M5-T2 条目为 {\"supportPaths\": [\"packages/daemon/test/unit/base-select.test.ts\"]}，与 main 上本任务自身的补丁记录登记内容一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目（git diff origin/main -- _run/task-contracts.json 只显示该新增）。",
+      "代码比对：本分支相对 main 改动的包内文件只有 packages/daemon/src/workspace/diff.ts, packages/daemon/test/unit/diff.test.ts，不含 M5-T2 的任何产出或测试路径。",
+      "结论：M5-T2 无新增条款需要复核，撤销误标；其代码与测试保持 main 上的已复核状态。"
     ],
-    "reviewed": "2026-09-11T12:15:04.747702+00:00",
+    "reviewed": "2026-09-11T14:28:11.916517+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M5-T3": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "731a48e27c038b52bb907032796b446fecc012a88999b5d619c329982c1a9052",
+    "evidence": [
+      "前置 M5-T1（worktree 准备、分支命名与回收）已落地：packages/daemon/src/workspace/worktree.ts 提供 GitRunner / createDefaultGitRunner / prepareWorktree，本任务在此基础上读 diff，输入能力存在。",
+      "有效路径核对：presentation.json handoff.taskPaths 给 packages/daemon/src/workspace/diff.ts，本次补丁把既定产出的单测 packages/daemon/test/unit/diff.test.ts 补进 task-contracts.json 的 supportPaths（M5-T1/M5-T4/M5-T5 同样列各自单测），与 M5-T4、M6-T3、M7-T1 无文件交集，不产生路径冲突。",
+      "验收标准与 19-模块任务拆分 第 50 行一致：三条 AC 分别对应 git 工作区 diff（不解析 tool 事件）、基线取 worktree 自身 HEAD、push 到远端高亮；产出 getDiffStat()/getDiffText() 与任务卡一致。",
+      "边界对口：E-72 主要由 M5-T1 兜底（建 worktree 不 stash 主工作区），M5-T3 兜其中「基线取 worktree 自身 HEAD」，E-75 的检测侧归本任务；两条边界在本任务的实现范围（workspace/diff.ts）内可实现，不需要改动其它层的文件。",
+      "接口字段核对：RemotePushDetectionResult 的 branch/commit 与 packages/shared/src/api/events.ts 的 RunRemotePushDetectedPayload 字段同名，下游发布 run.remote_push_detected 时可直接消费，不存在 DTO 冲突。",
+      "验收阶段：契约声明的是工作区读取层，不含 HTTP 路由与 UI；任务详情的高亮呈现由解锁的 M6-T3 消费，本任务只负责产出检测结果，边界与验收标准之间无矛盾。"
+    ],
+    "reviewed": "2026-09-11T14:28:36.021321+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -562,31 +571,15 @@
     "verdict": "pass"
   },
   "M9-T2": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
     "contractHash": "0f497e47dd4f74c88dac1a88333b77999e5d08aa48e7f804340f404be31cc7b4",
     "evidence": [
-      "AC1（E-231）：12 个状态形状全部定义在 packages/web/src/lib/spine-shape.ts:84 的 STATUS_SHAPES，每个元素的 fill/stroke 只取 currentColor 或 none（steaming/awaiting_input/stopped/partial 的实心块用 fill:'currentColor'，描边形状用 stroke:'currentColor'），无一处 hex/rgb/hsl；机检由 packages/web/test/spine-shape.test.ts:40 的 COLOR_LITERAL_REGEX 逐属性断言，徽标主题表 packages/web/src/components/status-badge.tsx:32 的 bg/text/border 全为 var(--*)（status-badge.test.ts:7 断言 startsWith('var(')），另由 check-forbidden 的 E-170「tokens.css 之外不得出现颜色字面量」全树扫描把守，本轮实跑 0 violations",
-      "AC2（E-230）：orphaned（spine-shape.ts:319 断开双环链扣）、review_incomplete（:369 放大镜内嵌未决横杠）、unrecognized（:422 虚线圆内嵌问号）各有专属几何，failed 的 ✕ 只出现在 :272 的 failed 形状；spine-shape.test.ts:68 断言四者 elements 两两不同、三个新态 semanticChar≠'✕'、且四态各有可识别元素（左/右开口环+切线、圆环+手柄+横杠、虚线圆+问号钩+底点）；实现方无任何「按颜色区分」分支",
-      "AC3（E-232）：每个形状 viewBox 恒为 '0 0 16 16'，且每个 path/rect/circle/line 都带 vectorEffect:'non-scaling-stroke'（spine-shape.ts:84-470；spine-shape.test.ts:115 逐元素断言）；StatusIcon 另在 svg 根再声明一次 vectorEffect（status-badge.tsx:143-146）。视觉验收：把本分支真实组件用 esbuild 打成单页（探针放 ../.codex-plans/agent-scheduler-m9-t2/preview/，不入库），用真实 Chrome 以 --force-device-scale-factor=1/1.25/1.5/2.75 各截一次（对应 Windows 100%/125%/150% 与 Android 2.75x 参考 DPR），12 态在 12px 下笔触清晰、无粘连模糊；本机无 Android 真机，2.75x 用 Chrome 模拟视口+DPR 代替，属本层可得的最强证据，实测结论一致",
-      "AC4、4b（E-233、E-110、E-172）：12 个形状各带中文 ariaLabel（排队/思考中/调用工具/输出中/等待输入/完成/部分完成/失败/已停止/失联/审查未完成/未识别，spine-shape.ts:84-470），spine-shape.test.ts:130 逐条断言精确文案；StatusIcon 非隐藏时 role='img' + aria-label，徽标内则 aria-hidden 并由外层 span 的 aria-label='<形状 ariaLabel> · <文案>' 承担（status-badge.tsx:201-202、:217-218）。灰度验收：探针加 filter:grayscale(1) 后 12 态靠轮廓+文字仍两两可分；形状表只有一份、深浅两模式共用，无 filter/feGaussianBlur/feDropShadow（spine-shape.test.ts:157 断言），浅色不依赖发光",
-      "AC5（E-234）：STATUS_SHAPES 的类型是 Readonly<Record<StatusState, SpineShapeDefinition>>（spine-shape.ts:84），新增状态不补形状直接 tsc 失败；spine-shape.test.ts:16 再断言 STATUS_STATES 恰 12 项、Object.keys(STATUS_SHAPES) 排序后与之逐项相等。步骤类型同法（:474 STEP_SHAPES + STEP_TYPES 6 项，:169 断言）",
-      "AC6：徽标为矩形非药丸——h-[20px] rounded-[6px] px-[7px] text-[11px] font-semibold（status-badge.tsx:205-211），status-badge.test.ts:70 断言含 h-[20px]/rounded-[6px]/px-[7px] 且断言 className 不含 rounded-full/rounded-pill；恒为「字形+文字」两层子节点（StatusIcon + text span，:217-218，test 断言 children 长度 2）；颜色是第三层（11 节配色只在 STATUS_BADGE_THEMES 里，形状本身不染色）。stopped 虚线边框（:85 borderStyle:'dashed'，test:26）、partial 用 --needs/--warn 绝不绿（:69-79，test:41）均按 11 节",
-      "E-110：徽标恒同时有字形与文字，形状不靠色相；深色为默认由 M9-T1 的 theme-provider 保证（本层不写死主题）；状态名与形状一一对应，色弱/灰度下仍可区分（探针灰度截图实测）",
-      "E-172：形状枚举不分模式，STATUS_SHAPES/STEP_SHAPES 各一份，深浅两套只差外层 CSS 变量，没有为浅色单开形状；机检测不到任何滤境/阴影元素",
-      "E-231：见 AC1；形状数据里颜色只有 'currentColor' 与 'none' 两个字面值",
-      "E-232：见 AC3；统一 viewBox 与逐元素 non-scaling-stroke 是机检项，非只靠截图",
-      "E-233：见 AC4；11 节字符表被正确地降级为 semanticChar（语义来源与 aria 文案来源）而非渲染实现，实际渲染全部走内联 SVG（StatusIcon:122）",
-      "E-234：见 AC5；外加 07 节「src/lib 每个文件配同名 .test.ts」，已补 supportPaths 登记 packages/web/test/spine-shape.test.ts 与 packages/web/test/status-badge.test.ts",
-      "07/06 分层约定：spine-shape.ts 不 import React、不 import src 下任何目录、无模块级副作用、无 document/window（纯数据+纯函数）；status-badge.tsx 只 import react 类型与 ../lib/spine-shape.ts，未 import api/store/features/shell，无 useEffect、无 fetch、无 dialog/createPortal、未直接 import @radix-ui/*；形状表是本层唯一字形来源，未用 lucide/emoji 表达状态（semanticChar 只是元数据）",
-      "前置能力核对：M9-T1 已落地（tokens.css 的 --needs-ink/--auto-ink/--down-ink 与 --badge-h 等本层用到的变量均存在）；本层不触及 src/api、src/store、src/shell、src/app，未提前做 M9-T7/M9-T19 的运行轨与批次树",
-      "13/17/19 与接口字段：13 节 E-110/E-172/E-230/E-231/E-232/E-233/E-234 七条与任务笔记「必须处理的边界」逐字一致；17 节要求本地跑 pnpm -w check，故补登记两个测试支持文件；19 节 M9-T2 行的产出/依赖/验收与任务笔记一致；本层不涉及 10 节接口字段（无请求、无 DTO、无 URL）",
-      "范围与路径：本层相对 main 改 packages/web/src/lib/spine-shape.ts、packages/web/src/components/status-badge.tsx 与两个测试文件，另回填 图谱/任务/M9-T2.md。原 presentation.json 的 taskPaths 只有两个源文件，测试为既定产出必需（07 节同名单测 + AC5 机检），已用文档补丁 M9-T2-review-scope-20260911 在 _run/task-contracts.json 为 M9-T2 增 supportPaths，未放宽任何验收；该补丁只改有效范围，sync 后无已落地任务被标「待复验」（M9-T1 不在 affected）",
-      "验收阶段检查（2026-09-11，工作树 ../agent-scheduler-m9-t2 @ bfaff7b）：npx vitest run 两个测试文件 → 17 passed；npx tsc -b --noEmit → 0；npx biome ci packages/web/src packages/web/test → 0（11 files）；check-forbidden.ts → 0 violations；check-contrast.ts → 深色/浅色全部配对通过；完整 pnpm -w check → 56 文件 556 passed / 32 skipped、失败 0",
-      "视觉验收证据（探针，不入库）：../.codex-plans/agent-scheduler-m9-t2/preview/ 用 esbuild 打包真实 spine-shape.ts + status-badge.tsx + 真实 tokens.css/tailwind 产物，Chrome 截图 shot-1/1.25/1.5/2.75.png（整页深浅+灰度）、zoomlight-2.75.png、zoomgray-2.75.png（3 倍放大逐态核对）。结论：12 态在 12px 小尺寸、非整数 DPR、浅色与灰度下均可区分且不糊，形状无颜色字面量",
-      "真服务 GIF：本层不产出可渲染页面——index.html/main.tsx/vite.config.ts 不在任何任务的 taskPaths 内（M9-T1 审查已达成的 FOLLOW_UP 结论），无真实服务与真实轮次可录，按 record-browser-gif 的诚实原则报告限制而不造 fixture GIF；代之以真实组件在真实浏览器里的多 DPR 截图探针（见上条）作为 E-232 的验收证据",
-      "非阻断观察：① renderSpineShapeSvg/escapeXml（spine-shape.ts:633）目前只有测试消费，生产无消费者，与 StatusIcon 渲染路径重复；② normalizeStatusState 的别名表是 Record<string,StatusState>，daemon 新增 RunState 不会触发 tsc 失败，只能落到 unrecognized；RunState 定义在 daemon 且 shared 未导出，前端无法类型级穷尽；③ 11 节要求界面中文字符串出自 src/i18n/，但当前无任务声明 i18n/ui-strings.ts，本层状态文案与 aria 文案只能落在形状表（E-233 指定其为文案来源）。三项进 FOLLOW_UP，不阻断本层"
+      "标记来源：M5-T3 的补丁 m5-t3-supportpaths 基线早于 main 合并本任务，落地前合并 main 再 sync 时把本任务自身的 supportPaths 变更算进了补丁窗口，属跨合并的契约哈希传播误标，不是本补丁修改了本任务契约。",
+      "契约逐字段比对：当前 _run/task-contracts.json 的 M9-T2 条目为 {\"supportPaths\": [\"packages/web/test/spine-shape.test.ts\", \"packages/web/test/status-badge.test.ts\"]}，与 main 上本任务自身的补丁记录登记内容一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目（git diff origin/main -- _run/task-contracts.json 只显示该新增）。",
+      "代码比对：本分支相对 main 改动的包内文件只有 packages/daemon/src/workspace/diff.ts, packages/daemon/test/unit/diff.test.ts，不含 M9-T2 的任何产出或测试路径。",
+      "结论：M9-T2 无新增条款需要复核，撤销误标；其代码与测试保持 main 上的已复核状态。"
     ],
-    "reviewed": "2026-09-11T13:00:35.797493+00:00",
+    "reviewed": "2026-09-11T14:28:20.208512+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
