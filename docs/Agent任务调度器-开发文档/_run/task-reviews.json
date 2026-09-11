@@ -156,6 +156,27 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M2-T3": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "bd0e56b9629c590f2ee3e0229b2f3e7152a57c8214512909ce5afa7ab556b7ef",
+    "evidence": [
+      "范围与依据核对：对照 04-执行/19-模块任务拆分.md:25 的 M2-T3 行、03-质量/13-边界问题与异常处理.md:21 的 E-08 行与 :141 的 E-128 行、02-设计/08-后端架构.md:131 的插件链与 :139-149 的 30-auth 条款、03-质量/17-测试策略.md:30 的架构断言要求，确认产出为 http/plugins/30-auth.ts 与免鉴权白名单常量数组，输入为 M2-T2 的令牌体系；前置任务笔记 图谱/任务/M2-T2.md status=done 且 PR 28 已 MERGED。分支 task/M2-T3 相对 main(f0687cb) 的改动为：30-auth.ts（实现鉴权钩子）、test/unit/http-plugins.test.ts、test/arch/routes.test.ts、test/integration/disk-full-and-system-routes.test.ts（本任务断言与受鉴权影响的既有用例）与任务笔记回填，无范围外文件。本轮按「测试必须列在有效范围」补了 DOC_PATCH m2-t3-effective-test-paths：presentation.json 的 handoff.taskPaths['M2-T3'] 由 1 条补为 4 条（含三个测试文件），这就是本次契约哈希变化的唯一原因。",
+      "验收标准 1（子 scope 内注册、静态资源不受拦、后注册路由不漏）：packages/daemon/src/http/server.ts:62-67 在 { prefix: '/api/v1' } 的匿名插件内部 void apiScope.register(authPlugin)，根实例只注册 00/10/20/80/90；packages/daemon/src/http/plugins/30-auth.ts:52 用 Symbol.for('skip-override')（fastify 5.12.3 lib/plugin-override.js:33-36 命中后 return old）让插件体作用在该 /api/v1 子 scope 本身而非新子上下文，lib/hooks.js:71-91 的 buildHooks 在 50-routes 子上下文创建时 slice 父 hooks，故其路由全部继承钩子。验证：packages/daemon/test/unit/http-plugins.test.ts:401 断言根路径非 401、未注册路径 404 E_NOT_FOUND、/api/v1/devices 无令牌 401；审查方另跑独立探针（node --experimental-strip-types 直连 createHttpServer，遍历 packages/shared/src/api/routes.ts 的 ROUTES 表逐个无令牌 inject）结果：除三条白名单外 100% 返回 401 E_UNAUTHORIZED（0 例外），/index.html 与根 /health 均非 401。",
+      "验收标准 2（白名单只有三条且写死在常量数组里）：packages/daemon/src/http/plugins/30-auth.ts:10 的 AUTH_WHITELIST 与 :12 的 AUTH_WHITELIST_PATHS 各三条且 Object.freeze，命中判定是 :23/:28 的精确等值比较（先按 :20-21 归一化尾部斜杠并剥离查询串）。既有用例 http-plugins.test.ts:143 断言恰好三条，本任务 :432 追加断言两条数组的取值与 Object.isFrozen；13 节 E-226「不得为此新增第四个免鉴权端点」满足。",
+      "验收标准 3（无 remoteAddress／网段／isPrivateIp 绕过分支，E-08）：packages/daemon/src/http/plugins/30-auth.ts:41 显式写明零 IP 绕过，文件内不存在 remoteAddress、isPrivateIp、网段常量或用例；http-plugins.test.ts:459 扫源码正反断言，并对 127.0.0.1/10.0.0.5/192.168.1.100/172.16.0.1/::1 逐个 inject 断言 401 E_UNAUTHORIZED。钩子对非白名单一票拒绝（30-auth.ts:37-48），除 request.is404（未注册路径，无 handler 可进）与三条白名单外没有任何提前 return。",
+      "验收标准 4（401/403 复用同一信封 + 明确 code）：30-auth.ts:42-47 只抛 AppError，不自拼响应；E_UNAUTHORIZED（packages/shared/src/errors/codes.ts:9）与 E_DEVICE_REVOKED（:73）均登记为 401，由 packages/daemon/src/http/plugins/90-error-handler.ts:20-53 统一组装 {error:{code,message,requestId,details?}}，未登记 code 与非 AppError 落 :31 的 500 E_INTERNAL；缺服务接线走 :44 的 E_INTERNAL。用例 http-plugins.test.ts:488 覆盖缺 Authorization、非 Bearer、空 Bearer、无效令牌、有效令牌、吊销后六种情形，并断言信封三字段与 requestId 存在。",
+      "验收标准 5（AGSCHED_DEV 只管 stack）：鉴权全程不读 config.dev——全仓 grep 只有 90-error-handler.ts:21 读取并仅用于 :38/:52/:85 的 stack 附带；http-plugins.test.ts:565 用 dev=false / dev=true 两套容器对比，两者都是 401 E_UNAUTHORIZED，唯一差别是 error.stack 有无。",
+      "验收标准 6 与 E-128（写操作记录 actorDeviceId，系统发起 null）：30-auth.ts:35 先把 request.actorDeviceId 置 null（白名单请求即系统上下文），:48 用 authenticateToken 返回的 deviceId 回填；写路径 包里 HTTP 层取该方法：packages/daemon/src/http/routes/runs.ts:70-75 把 actorDeviceId 传进中止服务，packages/daemon/src/service/run-abort.ts:178 落成 envelope 字段，最终写进 runs.actor_device_id（packages/daemon/src/repo/runs-abort-repo.ts:41）与 events.actor_device_id（packages/daemon/src/repo/events-index-repo.ts:24）；系统发起恒 null 见 packages/daemon/src/jobs/reconcile-runs.ts:116 与 :134。用例 http-plugins.test.ts:599 断言白名单请求为 null、带令牌请求等于 deviceId。",
+      "分层与共用约定：30-auth.ts 只 import fastify 类型与 ../../errors/app-error.ts，不直连 repo/db/proc/adapters/service（服务经 request.server.container.services.pairing 取，与 route 取用约定一致）；无 process.env、process.platform、Date.now、Math.random、文件写入；无数字状态码字面量（http-plugins.test.ts:152 扫全部 plugins 后仅 90-error-handler 允许，本次 review-fix 的注释也按此规则改写）；无 barrel、无 utils/helpers 目录；错误码均登记在 codes.ts（scripts/check-error-codes.mjs 断 46 条一致）；未引入 @fastify/cors；命名与文件形状符合 06 节约定。",
+      "审查方独立核对（执行路径以外）：除逐条读代码外，另跑了一次不走 vitest 的直连探针，把 shared/api/routes.ts 的全部 ROUTES 逐条无令牌 inject，并对 /api/v1/health/../devices、/api/v1/pair/claim/../devices、//api/v1/devices、/api/v1/./devices、/api/v1/health%2f..%2fdevices 等路径变体做无令牌注入，结果全部为 401 或 404，不存在「白名单归一化后落到受保护 handler」的绕过。",
+      "验证环境与结果：Node 22.17.0 / vitest 2.1.9。npx biome ci . 检查 210 文件、无修复项；node node_modules/typescript/lib/tsc.js -b --noEmit 退出 0；node scripts/check-error-codes.mjs 通过。聚焦用例：packages/daemon/test/unit/http-plugins.test.ts 18/18 通过（含 M2-T3 的五条）、packages/daemon/test/arch/routes.test.ts 通过、packages/daemon/test/integration/disk-full-and-system-routes.test.ts 2/2 通过。说明：该集成文件用默认 5s 超时在本机 WSL/9p 检出下会因环境负载偶发超时（不是断言失败），放宽超时后必过且被测请求耗时 91ms；实测本次新增工作量 scryptSync×3=178ms、迁移 41ms，与超时无关；同一文件在 Windows node + main 检出 3.68s 全绿。",
+      "审查方修正（非阻断项，本分支已提交 de233e3）：30-auth.ts:42-45 在 container 缺 PairingService 时由 E_UNAUTHORIZED 改为 E_INTERNAL——接线缺失是服务端故障，回 401 会让已配对客户端把本地令牌当成失效而清掉，且与 routes/documents.ts:83 的同口径 E_INTERNAL 一致；任务笔记 图谱/任务/M2-T3.md 的代码位置行号按改动后的实际行重写。",
+      "补丁影响面：sync 后 affected 列出的 M2-T5、M9-T5~T13、M9-T16~T20 只是提供者哈希传播（其 effectivePaths 与 context 未变，补丁 JSON 的 changes 里只有 M2-T3 的 effectivePaths 字段差异）；_run/revalidation.json 无新增条目，没有已落地任务被标「待复验」。"
+    ],
+    "reviewed": "2026-09-11T18:45:43.966829+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T4": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "4b5e7b74336b5e8144aef169c65e4e9a1327d662b3442fc172e91e681a322f17",
