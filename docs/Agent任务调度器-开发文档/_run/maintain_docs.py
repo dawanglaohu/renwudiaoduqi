@@ -118,7 +118,7 @@ def build(root, selected=None):
         cmd += ['--tasks', ','.join(sorted(selected))]
     commands.append(cmd)
     for cmd in commands:
-        result = subprocess.run(cmd, text=True, encoding='utf-8', capture_output=True, timeout=60)
+        result = subprocess.run(cmd, text=True, encoding='utf-8', capture_output=True, timeout=600)
         if result.returncode:
             raise ValueError('同步失败：' + result.stdout + '\n' + result.stderr)
         print(result.stdout.strip())
