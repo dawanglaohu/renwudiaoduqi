@@ -556,6 +556,35 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T2": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "0f497e47dd4f74c88dac1a88333b77999e5d08aa48e7f804340f404be31cc7b4",
+    "evidence": [
+      "AC1（E-231）：12 个状态形状全部定义在 packages/web/src/lib/spine-shape.ts:84 的 STATUS_SHAPES，每个元素的 fill/stroke 只取 currentColor 或 none（steaming/awaiting_input/stopped/partial 的实心块用 fill:'currentColor'，描边形状用 stroke:'currentColor'），无一处 hex/rgb/hsl；机检由 packages/web/test/spine-shape.test.ts:40 的 COLOR_LITERAL_REGEX 逐属性断言，徽标主题表 packages/web/src/components/status-badge.tsx:32 的 bg/text/border 全为 var(--*)（status-badge.test.ts:7 断言 startsWith('var(')），另由 check-forbidden 的 E-170「tokens.css 之外不得出现颜色字面量」全树扫描把守，本轮实跑 0 violations",
+      "AC2（E-230）：orphaned（spine-shape.ts:319 断开双环链扣）、review_incomplete（:369 放大镜内嵌未决横杠）、unrecognized（:422 虚线圆内嵌问号）各有专属几何，failed 的 ✕ 只出现在 :272 的 failed 形状；spine-shape.test.ts:68 断言四者 elements 两两不同、三个新态 semanticChar≠'✕'、且四态各有可识别元素（左/右开口环+切线、圆环+手柄+横杠、虚线圆+问号钩+底点）；实现方无任何「按颜色区分」分支",
+      "AC3（E-232）：每个形状 viewBox 恒为 '0 0 16 16'，且每个 path/rect/circle/line 都带 vectorEffect:'non-scaling-stroke'（spine-shape.ts:84-470；spine-shape.test.ts:115 逐元素断言）；StatusIcon 另在 svg 根再声明一次 vectorEffect（status-badge.tsx:143-146）。视觉验收：把本分支真实组件用 esbuild 打成单页（探针放 ../.codex-plans/agent-scheduler-m9-t2/preview/，不入库），用真实 Chrome 以 --force-device-scale-factor=1/1.25/1.5/2.75 各截一次（对应 Windows 100%/125%/150% 与 Android 2.75x 参考 DPR），12 态在 12px 下笔触清晰、无粘连模糊；本机无 Android 真机，2.75x 用 Chrome 模拟视口+DPR 代替，属本层可得的最强证据，实测结论一致",
+      "AC4、4b（E-233、E-110、E-172）：12 个形状各带中文 ariaLabel（排队/思考中/调用工具/输出中/等待输入/完成/部分完成/失败/已停止/失联/审查未完成/未识别，spine-shape.ts:84-470），spine-shape.test.ts:130 逐条断言精确文案；StatusIcon 非隐藏时 role='img' + aria-label，徽标内则 aria-hidden 并由外层 span 的 aria-label='<形状 ariaLabel> · <文案>' 承担（status-badge.tsx:201-202、:217-218）。灰度验收：探针加 filter:grayscale(1) 后 12 态靠轮廓+文字仍两两可分；形状表只有一份、深浅两模式共用，无 filter/feGaussianBlur/feDropShadow（spine-shape.test.ts:157 断言），浅色不依赖发光",
+      "AC5（E-234）：STATUS_SHAPES 的类型是 Readonly<Record<StatusState, SpineShapeDefinition>>（spine-shape.ts:84），新增状态不补形状直接 tsc 失败；spine-shape.test.ts:16 再断言 STATUS_STATES 恰 12 项、Object.keys(STATUS_SHAPES) 排序后与之逐项相等。步骤类型同法（:474 STEP_SHAPES + STEP_TYPES 6 项，:169 断言）",
+      "AC6：徽标为矩形非药丸——h-[20px] rounded-[6px] px-[7px] text-[11px] font-semibold（status-badge.tsx:205-211），status-badge.test.ts:70 断言含 h-[20px]/rounded-[6px]/px-[7px] 且断言 className 不含 rounded-full/rounded-pill；恒为「字形+文字」两层子节点（StatusIcon + text span，:217-218，test 断言 children 长度 2）；颜色是第三层（11 节配色只在 STATUS_BADGE_THEMES 里，形状本身不染色）。stopped 虚线边框（:85 borderStyle:'dashed'，test:26）、partial 用 --needs/--warn 绝不绿（:69-79，test:41）均按 11 节",
+      "E-110：徽标恒同时有字形与文字，形状不靠色相；深色为默认由 M9-T1 的 theme-provider 保证（本层不写死主题）；状态名与形状一一对应，色弱/灰度下仍可区分（探针灰度截图实测）",
+      "E-172：形状枚举不分模式，STATUS_SHAPES/STEP_SHAPES 各一份，深浅两套只差外层 CSS 变量，没有为浅色单开形状；机检测不到任何滤境/阴影元素",
+      "E-231：见 AC1；形状数据里颜色只有 'currentColor' 与 'none' 两个字面值",
+      "E-232：见 AC3；统一 viewBox 与逐元素 non-scaling-stroke 是机检项，非只靠截图",
+      "E-233：见 AC4；11 节字符表被正确地降级为 semanticChar（语义来源与 aria 文案来源）而非渲染实现，实际渲染全部走内联 SVG（StatusIcon:122）",
+      "E-234：见 AC5；外加 07 节「src/lib 每个文件配同名 .test.ts」，已补 supportPaths 登记 packages/web/test/spine-shape.test.ts 与 packages/web/test/status-badge.test.ts",
+      "07/06 分层约定：spine-shape.ts 不 import React、不 import src 下任何目录、无模块级副作用、无 document/window（纯数据+纯函数）；status-badge.tsx 只 import react 类型与 ../lib/spine-shape.ts，未 import api/store/features/shell，无 useEffect、无 fetch、无 dialog/createPortal、未直接 import @radix-ui/*；形状表是本层唯一字形来源，未用 lucide/emoji 表达状态（semanticChar 只是元数据）",
+      "前置能力核对：M9-T1 已落地（tokens.css 的 --needs-ink/--auto-ink/--down-ink 与 --badge-h 等本层用到的变量均存在）；本层不触及 src/api、src/store、src/shell、src/app，未提前做 M9-T7/M9-T19 的运行轨与批次树",
+      "13/17/19 与接口字段：13 节 E-110/E-172/E-230/E-231/E-232/E-233/E-234 七条与任务笔记「必须处理的边界」逐字一致；17 节要求本地跑 pnpm -w check，故补登记两个测试支持文件；19 节 M9-T2 行的产出/依赖/验收与任务笔记一致；本层不涉及 10 节接口字段（无请求、无 DTO、无 URL）",
+      "范围与路径：本层相对 main 改 packages/web/src/lib/spine-shape.ts、packages/web/src/components/status-badge.tsx 与两个测试文件，另回填 图谱/任务/M9-T2.md。原 presentation.json 的 taskPaths 只有两个源文件，测试为既定产出必需（07 节同名单测 + AC5 机检），已用文档补丁 M9-T2-review-scope-20260911 在 _run/task-contracts.json 为 M9-T2 增 supportPaths，未放宽任何验收；该补丁只改有效范围，sync 后无已落地任务被标「待复验」（M9-T1 不在 affected）",
+      "验收阶段检查（2026-09-11，工作树 ../agent-scheduler-m9-t2 @ bfaff7b）：npx vitest run 两个测试文件 → 17 passed；npx tsc -b --noEmit → 0；npx biome ci packages/web/src packages/web/test → 0（11 files）；check-forbidden.ts → 0 violations；check-contrast.ts → 深色/浅色全部配对通过；完整 pnpm -w check → 56 文件 556 passed / 32 skipped、失败 0",
+      "视觉验收证据（探针，不入库）：../.codex-plans/agent-scheduler-m9-t2/preview/ 用 esbuild 打包真实 spine-shape.ts + status-badge.tsx + 真实 tokens.css/tailwind 产物，Chrome 截图 shot-1/1.25/1.5/2.75.png（整页深浅+灰度）、zoomlight-2.75.png、zoomgray-2.75.png（3 倍放大逐态核对）。结论：12 态在 12px 小尺寸、非整数 DPR、浅色与灰度下均可区分且不糊，形状无颜色字面量",
+      "真服务 GIF：本层不产出可渲染页面——index.html/main.tsx/vite.config.ts 不在任何任务的 taskPaths 内（M9-T1 审查已达成的 FOLLOW_UP 结论），无真实服务与真实轮次可录，按 record-browser-gif 的诚实原则报告限制而不造 fixture GIF；代之以真实组件在真实浏览器里的多 DPR 截图探针（见上条）作为 E-232 的验收证据",
+      "非阻断观察：① renderSpineShapeSvg/escapeXml（spine-shape.ts:633）目前只有测试消费，生产无消费者，与 StatusIcon 渲染路径重复；② normalizeStatusState 的别名表是 Record<string,StatusState>，daemon 新增 RunState 不会触发 tsc 失败，只能落到 unrecognized；RunState 定义在 daemon 且 shared 未导出，前端无法类型级穷尽；③ 11 节要求界面中文字符串出自 src/i18n/，但当前无任务声明 i18n/ui-strings.ts，本层状态文案与 aria 文案只能落在形状表（E-233 指定其为文案来源）。三项进 FOLLOW_UP，不阻断本层"
+    ],
+    "reviewed": "2026-09-11T13:00:35.797493+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T20": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "9bd265a4292ea87fb35110451e140ff94ff0bf09475eef70c71aa72070f7ea36",
