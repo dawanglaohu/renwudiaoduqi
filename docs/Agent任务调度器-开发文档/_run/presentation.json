@@ -156,7 +156,10 @@
         "packages/daemon/src/http/routes/devices.ts"
       ],
       "M2-T3": [
-        "packages/daemon/src/http/plugins/30-auth.ts"
+        "packages/daemon/src/http/plugins/30-auth.ts",
+        "packages/daemon/test/unit/http-plugins.test.ts",
+        "packages/daemon/test/arch/routes.test.ts",
+        "packages/daemon/test/integration/disk-full-and-system-routes.test.ts"
       ],
       "M2-T4": [
         "packages/daemon/src/events/",

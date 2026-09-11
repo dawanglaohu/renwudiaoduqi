@@ -4,11 +4,16 @@ import { fileURLToPath } from 'node:url';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
 import { describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
-import type { DatabaseConnection } from '../../src/db/open-database.ts';
+import { createMigrationRunner } from '../../src/db/migrate.ts';
+import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { getHttpStatusForErrorCode } from '../../src/errors/http-status.ts';
 import { LOG_REDACT_PATHS } from '../../src/http/plugins/10-logging.ts';
-import { AUTH_WHITELIST, AUTH_WHITELIST_PATHS } from '../../src/http/plugins/30-auth.ts';
+import {
+	AUTH_WHITELIST,
+	AUTH_WHITELIST_PATHS,
+	isAuthWhitelisted,
+} from '../../src/http/plugins/30-auth.ts';
 import { HTTP_PLUGIN_SEQUENCE, createHttpServer } from '../../src/http/server.ts';
 import type {
 	LockFileHandle,
@@ -344,5 +349,288 @@ describe('M2-T1 HTTP Pipeline & Error Handling', () => {
 		expect(getHttpStatusForErrorCode('E_RATE_LIMITED')).toBe(429);
 		expect(getHttpStatusForErrorCode('E_NETWORK')).toBeNull();
 		expect(getHttpStatusForErrorCode('NON_EXISTENT_CODE')).toBeNull();
+	});
+});
+
+describe('M2-T3 Auth Middleware and Whitelist (E-08, E-128)', () => {
+	function createRealAuthContainer(options: { readonly dev?: boolean } = {}) {
+		const dataDir = resolve(currentDir, '../fixtures');
+		const lockAdapter = createMemoryLockAdapter();
+		const db = openDatabase(':memory:');
+		const migrationsDir = join(currentDir, '../../migrations');
+		const runner = createMigrationRunner({
+			clock: { now: () => '2026-09-10T12:00:00.000Z' },
+			database: db,
+			fileSystem: {
+				readDirectory: () => ['0001_init.sql'],
+				readFile: (p: string) => readFileSync(p, 'utf8'),
+			},
+		});
+		runner.run(migrationsDir);
+
+		const container = createContainer({
+			config: {
+				port: 7817,
+				bind: '127.0.0.1',
+				dataDir,
+				logLevel: 'error',
+				dev: options.dev ?? false,
+			},
+			database: db,
+			hostInputs: { platform: 'linux', homedir: dataDir },
+			lockAdapter,
+			instanceLock: { release: () => undefined } as unknown as LockFileHandle,
+			clock: { now: () => '2026-09-10T12:00:00.000Z' },
+		});
+		return { container, db };
+	}
+
+	async function pairDevice(
+		container: ReturnType<typeof createContainer>,
+		deviceName = 'Test-Laptop',
+	) {
+		const code =
+			container.services.pairing.getActivePairingCode()?.code ??
+			container.services.pairing.createPairingCode().code;
+		return await container.services.pairing.claimPairingCode({
+			code,
+			deviceName,
+		});
+	}
+
+	it('AC 1: Auth hook is registered in /api/v1 scope, static assets at root are not intercepted, and later registered routes are protected', async () => {
+		const { container, db } = createRealAuthContainer();
+		const server = createHttpServer({ container });
+		await server.instance.ready();
+
+		// Root scope route (like static assets) must be completely unaffected by auth
+		const staticRes = await server.instance.inject({
+			method: 'GET',
+			url: '/index.html',
+		});
+		expect(staticRes.statusCode).not.toBe(401);
+
+		// Non-existent route under /api/v1 returns 404 E_NOT_FOUND, not 401
+		const notFoundRes = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/non-existent-endpoint',
+		});
+		expect(notFoundRes.statusCode).toBe(404);
+		expect(notFoundRes.json().error.code).toBe('E_NOT_FOUND');
+
+		// Protected route under /api/v1 must be intercepted
+		const devicesRes = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+		});
+		expect(devicesRes.statusCode).toBe(401);
+		expect(devicesRes.json().error.code).toBe('E_UNAUTHORIZED');
+
+		db.close();
+	});
+
+	it('AC 2: Whitelist contains only /health, /pair/claim, /version and is frozen', async () => {
+		expect(AUTH_WHITELIST).toEqual(['/health', '/pair/claim', '/version']);
+		expect(Object.isFrozen(AUTH_WHITELIST)).toBe(true);
+		expect(AUTH_WHITELIST_PATHS).toEqual([
+			'/api/v1/health',
+			'/api/v1/pair/claim',
+			'/api/v1/version',
+		]);
+		expect(Object.isFrozen(AUTH_WHITELIST_PATHS)).toBe(true);
+
+		// isAuthWhitelisted helper handles variations and prefixes
+		expect(isAuthWhitelisted('/api/v1/health')).toBe(true);
+		expect(isAuthWhitelisted('/api/v1/health?param=1')).toBe(true);
+		expect(isAuthWhitelisted('/api/v1/health/')).toBe(true);
+		expect(isAuthWhitelisted('/api/v1/pair/claim')).toBe(true);
+		expect(isAuthWhitelisted('/api/v1/version')).toBe(true);
+		expect(isAuthWhitelisted('/health', '/api/v1')).toBe(true);
+		expect(isAuthWhitelisted('/pair/claim', '/api/v1')).toBe(true);
+		expect(isAuthWhitelisted('/version', '/api/v1')).toBe(true);
+
+		// Non-whitelisted routes
+		expect(isAuthWhitelisted('/api/v1/devices')).toBe(false);
+		expect(isAuthWhitelisted('/api/v1/runs')).toBe(false);
+		expect(isAuthWhitelisted('/api/v1/health-check')).toBe(false);
+		expect(isAuthWhitelisted('/api/v1/health/details')).toBe(false);
+	});
+
+	it('AC 3 & E-08: Zero bypass branches based on remoteAddress, subnet, or isPrivateIp', async () => {
+		const authFileContent = readFileSync(join(pluginsDir, '30-auth.ts'), 'utf8');
+		expect(authFileContent).not.toMatch(/\bremoteAddress\b/);
+		expect(authFileContent).not.toMatch(/\bisPrivateIp\b/);
+		expect(authFileContent).not.toMatch(/\b127\.0\.0\.1\b/);
+		expect(authFileContent).not.toMatch(/\blocalhost\b/);
+		expect(authFileContent).not.toMatch(/\b192\.168\b/);
+		expect(authFileContent).not.toMatch(/\b10\.\b/);
+		expect(authFileContent).not.toMatch(/\bsubnet\b/);
+
+		const { container, db } = createRealAuthContainer();
+		const server = createHttpServer({ container });
+		await server.instance.ready();
+
+		// Requests from private IPs or localhost still require authentication (E-08)
+		const clientIps = ['127.0.0.1', '10.0.0.5', '192.168.1.100', '172.16.0.1', '::1'];
+		for (const ip of clientIps) {
+			const res = await server.instance.inject({
+				method: 'GET',
+				url: '/api/v1/devices',
+				remoteAddress: ip,
+			});
+			expect(res.statusCode).toBe(401);
+			expect(res.json().error.code).toBe('E_UNAUTHORIZED');
+		}
+
+		db.close();
+	});
+
+	it('AC 4: 401/403 share identical error envelope and yield clear E_UNAUTHORIZED or E_DEVICE_REVOKED codes', async () => {
+		const { container, db } = createRealAuthContainer();
+		const server = createHttpServer({ container });
+		await server.instance.ready();
+
+		const paired = await pairDevice(container, 'Workstation');
+
+		// 1. Missing Authorization header
+		const resNoAuth = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+		});
+		expect(resNoAuth.statusCode).toBe(401);
+		const bodyNoAuth = resNoAuth.json();
+		expect(bodyNoAuth).toMatchObject({
+			error: {
+				code: 'E_UNAUTHORIZED',
+				message: expect.stringContaining('Authorization'),
+				requestId: expect.any(String),
+			},
+		});
+
+		// 2. Malformed / non-Bearer scheme
+		const resBasic = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+			headers: { authorization: 'Basic dXNlcjpwYXNz' },
+		});
+		expect(resBasic.statusCode).toBe(401);
+		expect(resBasic.json().error.code).toBe('E_UNAUTHORIZED');
+
+		// 3. Empty Bearer token
+		const resEmptyToken = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+			headers: { authorization: 'Bearer ' },
+		});
+		expect(resEmptyToken.statusCode).toBe(401);
+		expect(resEmptyToken.json().error.code).toBe('E_UNAUTHORIZED');
+
+		// 4. Invalid Bearer token
+		const resInvalid = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+			headers: { authorization: 'Bearer non-existent-token-hex' },
+		});
+		expect(resInvalid.statusCode).toBe(401);
+		expect(resInvalid.json().error.code).toBe('E_UNAUTHORIZED');
+
+		// 5. Valid token succeeds
+		const resValid = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+			headers: { authorization: `Bearer ${paired.token}` },
+		});
+		expect(resValid.statusCode).toBe(200);
+
+		// 6. Revoked token produces 401 E_DEVICE_REVOKED with the same response envelope
+		container.services.pairing.revokeDevice(paired.deviceId);
+		const resRevoked = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+			headers: { authorization: `Bearer ${paired.token}` },
+		});
+		expect(resRevoked.statusCode).toBe(401);
+		const bodyRevoked = resRevoked.json();
+		expect(bodyRevoked).toMatchObject({
+			error: {
+				code: 'E_DEVICE_REVOKED',
+				message: expect.stringContaining('revoked'),
+				requestId: expect.any(String),
+			},
+		});
+
+		db.close();
+	});
+
+	it('AC 5: AGSCHED_DEV=1 does not alter auth enforcement, only controls whether stack trace is returned in error envelope', async () => {
+		// Test dev = false
+		const { container: prodContainer, db: prodDb } = createRealAuthContainer({ dev: false });
+		const prodServer = createHttpServer({ container: prodContainer });
+		await prodServer.instance.ready();
+
+		const prodRes = await prodServer.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+		});
+		expect(prodRes.statusCode).toBe(401);
+		const prodBody = prodRes.json();
+		expect(prodBody.error.code).toBe('E_UNAUTHORIZED');
+		expect(prodBody.error.stack).toBeUndefined();
+
+		// Test dev = true
+		const { container: devContainer, db: devDb } = createRealAuthContainer({ dev: true });
+		const devServer = createHttpServer({ container: devContainer });
+		await devServer.instance.ready();
+
+		const devRes = await devServer.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+		});
+		expect(devRes.statusCode).toBe(401);
+		const devBody = devRes.json();
+		expect(devBody.error.code).toBe('E_UNAUTHORIZED');
+		expect(typeof devBody.error.stack).toBe('string');
+		expect(devBody.error.stack).toContain('AppError:');
+
+		prodDb.close();
+		devDb.close();
+	});
+
+	it('AC 6 & E-128: Valid device token sets request.actorDeviceId to the device id, whitelisted requests set null', async () => {
+		const { container, db } = createRealAuthContainer();
+		const server = createHttpServer({ container });
+
+		let capturedActorOnHealth: string | null | undefined = 'initial';
+		let capturedActorOnDevices: string | null | undefined;
+		server.instance.addHook('preHandler', async (req) => {
+			if (req.url === '/api/v1/health') {
+				capturedActorOnHealth = req.actorDeviceId;
+			}
+			if (req.url === '/api/v1/devices') {
+				capturedActorOnDevices = req.actorDeviceId;
+			}
+		});
+
+		await server.instance.ready();
+
+		const paired = await pairDevice(container, 'Primary-Device');
+
+		// 1. Whitelisted route: actorDeviceId must be null
+		await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/health',
+		});
+		expect(capturedActorOnHealth).toBeNull();
+
+		// 2. Authenticated write route: request.actorDeviceId is set to device.id (E-128)
+		const res = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/devices',
+			headers: { authorization: `Bearer ${paired.token}` },
+		});
+		expect(res.statusCode).toBe(200);
+		expect(capturedActorOnDevices).toBe(paired.deviceId);
+
+		db.close();
 	});
 });
