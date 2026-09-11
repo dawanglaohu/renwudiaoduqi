@@ -231,6 +231,12 @@
         "pnpm-lock.yaml"
       ]
     },
+    "M9-T4": {
+      "supportPaths": [
+        "packages/web/test/http-client.test.ts",
+        "packages/web/tsconfig.json"
+      ]
+    },
     "M3-T6": {
       "requires": [
         {
