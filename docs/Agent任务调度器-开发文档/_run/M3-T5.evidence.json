@@ -1,0 +1,18 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M3-T5": {
+      "contractHash": "f7b9ff60df21c1bdb7e964539d418a8d01f82dd6f7f58d9140138f46c74698ee",
+      "evidence": [
+        "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T5 行、图谱/任务/M3-T5.md、03-质量/13-边界问题与异常处理.md:63 的 E-50 行、02-设计/06-系统架构与模块划分.md:82 与 02-设计/12-UX.md:125 的 M3→M7 取用方向，确认产出为供 M7 组装只读裁定包的 getReviewContext(taskId)，输入为 M3-T3 派发快照；前置 M3-T3 任务笔记 status=done 已落地。PR 43 的 diff 只含两条有效路径与任务笔记的回填，无范围外改动。",
+        "验收标准 1（快照而非当前文档）：packages/daemon/src/service/review-context.ts:188 的 getReviewContext 全部字段取自 dispatch_snapshots 行本身——review_prompt/contract_hash/accept_text/input_text/output_text/task_paths_json/launch_spec_json，另标 isSnapshot/isReadOnly 表达「引用审查材料、非运行时权限」；packages/daemon/test/unit/review-context.test.ts:142 在派发快照后把 tasks 表整行改写成 accept/review/contractHash 的 V2，断言接口仍返回 V1 快照内容且 docChangedSinceDispatch=true。",
+        "验收标准 2（快照缺失明确报错）：packages/daemon/src/service/review-context.ts:213-219 在无快照时抛 AppError('E_NOT_FOUND')，无任何回落读 tasks.accept_text / review_prompt 的分支；E_NOT_FOUND 已登记在 packages/shared/src/errors/codes.ts:12。packages/daemon/test/unit/review-context.test.ts:214 先断言任务行存在且带「文档版」验收标准，再断言调用抛 E_NOT_FOUND。",
+        "验收标准 3 与 E-50：service/review-context.ts:248 的 handleDocFingerprintChange 把该文档下 running 批次转 paused、收集在途任务、绝不改写运行或任务记录；:361 isBatchPaused 供后续派发前查闸；:308 confirmDocChangeAndResumeBatch 只在状态为 paused 时恢复，非 paused 抛 E_INVALID_STATE_TRANSITION。自动触发在 :363 订阅 system.docs_changed，其唯一发布点是 service/docs.ts:604 与 :645，payload 用 docsPath 字段，与订阅侧取用一致。测试 test:253 覆盖「改 contractHash + 触发 → 批次 paused、在途任务仍取 V1 快照、人工确认后恢复」，test:478 覆盖事件总线自动暂停路径。",
+        "分层与共用约定：service 只 import repo/events/errors/db（db 仅取 DatabaseConnection 类型与 createXxxRepo 工厂，与 run-abort.ts:1、logstore.ts:2 同样的 service→db 用法），未 import fastify，文件内无 SQL 字面量、无 process.env / process.platform、无 Date.now（pausedAt 走注入 clock）、无 barrel 与 utils 目录；分批 10 条错误码全部是 codes.ts 已登记项。数据往返只用 Row（snake_case），未把 Row 直接当 DTO 吐出。",
+        "审查方修正（非阻断项，本轮提交）：repo/batches.ts 的 updateState 两个时间参数缺省即写回 null，暂停与恢复原本会抹掉用户可见的批次起始时间（shared/api/batches.ts 的 BatchDto.startedAt），已改为带回 batch.started_at/finished_at 并加断言；顶层导出 getReviewContext 每次调用新建 service，注入 bus 时会多一个不解绑的常驻订阅者，已 try/finally dispose。",
+        "验证环境与结果：Node 22.17.0。npx biome ci . 检查 195 个文件、无修复项；npx tsc -b --noEmit 通过；聚焦 Vitest 5 个文件 33/33 通过（review-context 9、layer-of 8、arch/routes 5、arch/boot-boundaries 5、arch/bus-transaction 6），其中 arch/bus-transaction 也确认本次改动没有把 bus.publish 放进事务回调。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
