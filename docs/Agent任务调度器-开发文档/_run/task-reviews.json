@@ -156,12 +156,24 @@
     "verdict": "pass"
   },
   "M2-T6": {
-    "compiler": "8308e1241d987eca2463f4a0c7e2a1f6e58073881a70ff190efa336a632b7a2c",
-    "contractHash": "96ca88f62c5e6c8dbb351e3098b2ceeb5da21458720af3ce5ea5e53c591b94c1",
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "74644bc5de693e3cacfca1afc00835c3b594613c3ad170ecf626858f052a1903",
     "evidence": [
-      "All acceptance criteria met, all boundaries covered, test coverage exhaustive, verified implementation correctly intercepts additional properties and checks API surface with code constants"
+      "复验原因与契约差异：_run/revalidation.json 中 M2-T6 的 patches[].changedFields 只有 sections，涉及 00-概览/01-概述与目标.md、00-概览/02-非目标.md、02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/14-安全与权限.md、03-质量/16-可观测性.md、03-质量/17-测试策略.md 九个共享章节。与补丁 JSON（_run/patches/pipeline-automation-20260910.json）changes['M2-T6'] 的 before/after 逐字段比对，task（accept/deps/edges/input/output/est）、edges（E-215/E-216/E-217）、effectivePaths（packages/daemon/test/arch/routes.test.ts、packages/shared/src/api/）、handoff 全部一致，仅 context.sections 指纹与由此产生的 hash 变化。",
+      "变化条款（10 节）：新增 POST /api/v1/batches/:batchId/wrapup、GET /api/v1/batches/:batchId/wrapups、POST /api/v1/tasks/:taskId/recall 三端点及幂等要求。三端点归 M8-T6/M8-T7（其任务卡产出已写明 http/routes/batches.ts、http/routes/tasks.ts 与 shared routes/DTO 增量），与本任务的断言方式无关：AC1 断的是「Fastify 实际注册集合 === routes.ts 常量表」这一恒等式，不钉死条数，新增端点只会要求 routes.ts 与 50-routes.ts 同步，不产生本任务义务。",
+      "变化条款（10 节）：错误码表新增 E_BATCH_NOT_WRAPPABLE、E_WRAPUP_ROUND_LIMIT、E_FIX_RUN_IN_FLIGHT 三行（真正消费它们的是 M8-T6 的收口与 M8-T7 的撤回）。10 节写明「本表是源、codes.ts 是投影，不一致即 pnpm -w check 失败」，因此这三行的投影同步属本任务（本任务历史上已同法补齐 E_DOC_CONTRACT_PENDING）。这是本轮唯一真实分歧，已在本分支修复。",
+      "变化条款（10 节）：gateOverrides 增加 landing、PATCH /settings/gates 三字段整体写入、新增 comment 与 wrapup 的 agentId/model/effortTier 入参行。其 schema 增量归 M8-T4/M8-T6/M8-T7（补丁同步时的 changedFields 说明与各任务卡一致），本任务的请求体断言不校验字段值域、只校验「schema.properties 键集合 === 键清单常量」与 additionalProperties:false，故不受条款变化影响，现有 11 处 Schema 未改也无需改。",
+      "变化条款（06/08/09/14/16/17 节）：批次状态机、收口与返工 service/domain 文件、batch_wrapups/settings 表与 runs 新列、整表重建迁移例外、三类运行权限档、6 条日志点与新增测试剧本。全部落在 M8-T3/M8-T4/M8-T6/M8-T7、M7-T5/M7-T6、M3-T6、M9-T4 等任务上，不触及本任务的 AJV 配置、路由表恒等式与错误码表投影三条断言。",
+      "AC1（Fastify 注册集合 === routes.ts 常量表）：packages/daemon/test/arch/routes.test.ts:97 用 onRoute 收集实际注册的 method+path 并双向求差；常量表 packages/shared/src/api/routes.ts:107（36 条）；注册处 packages/daemon/src/http/plugins/50-routes.ts:36。多一条少一条都失败。",
+      "AC2 / E-215（加字段只改类型则编译期失败）：packages/daemon/test/arch/routes.test.ts:139 起；每处请求体类型旁配 `as const satisfies readonly (keyof T)[]` 键清单——packages/shared/src/api/pair.ts:6、documents.ts:20/62、batches.ts:19、agents.ts:20、runs.ts:16/65/86/116、gates.ts:23、settings.ts:7，并按 `[Exclude<keyof T, K[number]>] extends [never] ? true : never` 做穷尽断言。本轮把该用例原先的 `REQUEST_BODY_SCHEMAS.length === 11` 改为 routes.test.ts:148 的集合断言「ROUTES 里带 bodySchema 的端点集合 === REQUEST_BODY_SCHEMAS 的端点集合」，增量请求体不再要求改本测试，强度不降（重复注册同样会红）。",
+      "AC3 / E-216（只改 Schema 则契约测试失败）：packages/daemon/test/arch/routes.test.ts:181 逐条比对 `Object.keys(schema.properties)` 与键清单常量。",
+      "AC4 / E-217（多余字段 400 且列出字段名）：packages/daemon/test/arch/routes.test.ts:207 先静态断言全部 11 处 schema `additionalProperties === false`，再对每个端点注入未声明字段、断言 400 + E_VALIDATION 且 details 含该字段名；实现侧 packages/daemon/src/http/server.ts:47-48（AJV removeAdditional:false + allErrors:true，否则 Fastify 默认静默剥离多余字段）与 packages/daemon/src/http/plugins/90-error-handler.ts:61-83（从 validation 中抽取 additionalProperty 汇入 details.extraFields）。",
+      "AC5（错误码表文档为源、代码为投影）：packages/daemon/test/arch/routes.test.ts:288 起直接执行 scripts/check-error-codes.mjs；条数不再钉死，从 10 节原文现读 ErrorCode 行（routes.test.ts:299-312），并断言该脚本已进入根 package.json 的 check 脚本（routes.test.ts:313-315），使「不一致即 pnpm -w check 失败」可被机器验证。",
+      "本轮唯一真实分歧与修复：主检出 main @ 62e41bf 上 packages/daemon/test/arch/routes.test.ts 为 4 过 1 红，唯一红项是 AC5 —— check-error-codes.mjs 退出 1 并列出 E_BATCH_NOT_WRAPPABLE / E_WRAPUP_ROUND_LIMIT / E_FIX_RUN_IN_FLIGHT 三条只在文档、不在 codes.ts 的码；同时该断言把条数写死为 'OK: 43 error codes match perfectly'。修复：packages/shared/src/errors/codes.ts:69-71 按 10 节的 origin/http/retryable 逐字段补齐三条投影；routes.test.ts 把该条数改为按源推导。两处均不引入行为改动、不提前实现 M8-T6/M8-T7 的端点与逻辑。",
+      "检查结果（分支 revalidate/M2-T6 已并入 origin/main @ 24bbaaf，即含 M3-T1 复验修复）：pnpm run check 全绿，退出码 0 —— check-error-codes.mjs OK 46 条；check-contrast.ts 与 check-forbidden.ts 通过；biome ci . 193 文件无问题；tsc -b --noEmit 五个 project 全部通过；vitest run 54 个测试文件 539 通过 / 32 跳过 / 0 失败，其中 M2-T6 架构测试 5/5 通过。修复前同一命令在 main 上因上述三条码缺失而失败。",
+      "改动范围：packages/shared/src/errors/codes.ts（+3 条投影）、packages/daemon/test/arch/routes.test.ts（两处断言按源推导 + 新增一条 pnpm check 网关断言）、任务卡 docs/Agent任务调度器-开发文档/图谱/任务/M2-T6.md 两个受保护区（按新行号回填并记录本轮同步）。未改 daemon src、未改 routes.ts 与任何 JSON Schema，未新增公共结构。"
     ],
-    "reviewed": "2026-09-10T00:57:52.378971+00:00",
+    "reviewed": "2026-09-11T07:20:50.452003+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
