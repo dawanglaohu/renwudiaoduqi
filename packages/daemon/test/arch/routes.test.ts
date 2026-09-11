@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -136,8 +137,17 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 	});
 
 	it('AC 2 & E-215: Key list constants are exhaustive for every request body interface', () => {
-		// Verify that every registered request body schema has an accompanying keys list
-		expect(REQUEST_BODY_SCHEMAS.length).toBe(11);
+		// Every body-bearing route in the constant table must have exactly one registered
+		// schema plus key list (and vice versa). The expected set comes from ROUTES rather
+		// than a pinned total, so a new request body extends routes.ts only.
+		const bodyBearingRoutes = ROUTES.filter((route) => route.bodySchema !== undefined).map(
+			(route) => `${route.method} ${route.path}`,
+		);
+		const registeredBodyRoutes = REQUEST_BODY_SCHEMAS.map((item) => `${item.method} ${item.path}`);
+		expect(new Set(registeredBodyRoutes).size).toBe(registeredBodyRoutes.length);
+		expect(new Set(registeredBodyRoutes)).toEqual(new Set(bodyBearingRoutes));
+		expect(bodyBearingRoutes.length).toBeGreaterThan(0);
+
 		for (const item of REQUEST_BODY_SCHEMAS) {
 			expect(
 				item.keys.length,
@@ -283,6 +293,25 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 			encoding: 'utf8',
 		});
 
-		expect(result).toContain('OK: 43 error codes match perfectly');
+		// Section 10 is the source of truth, so the expected total is read back from the
+		// document instead of being pinned here: adding a code to the table must extend
+		// codes.ts and the script's count, not require editing this assertion.
+		const documentedCodes = [
+			...readFileSync(
+				join(repositoryRoot, 'docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md'),
+				'utf8',
+			).matchAll(/^\|\s*`(E_[A-Z0-9_]+)`\s*\|\s*(?:server|client)\s*\|/gm),
+		].map((match) => match[1]);
+		expect(documentedCodes.length).toBeGreaterThan(0);
+
+		const reported = /OK: (\d+) error codes match perfectly/.exec(result);
+		expect(reported?.[1], `Unexpected script output: ${result}`).toBe(
+			String(documentedCodes.length),
+		);
+
+		// The projection gate only bites when it is part of the workspace check.
+		const workspaceCheck = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8'))
+			.scripts.check as string;
+		expect(workspaceCheck).toContain('scripts/check-error-codes.mjs');
 	});
 });
