@@ -248,6 +248,22 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M3-T5": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "f7b9ff60df21c1bdb7e964539d418a8d01f82dd6f7f58d9140138f46c74698ee",
+    "evidence": [
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T5 行、图谱/任务/M3-T5.md、03-质量/13-边界问题与异常处理.md:63 的 E-50 行、02-设计/06-系统架构与模块划分.md:82 与 02-设计/12-UX.md:125 的 M3→M7 取用方向，确认产出为供 M7 组装只读裁定包的 getReviewContext(taskId)，输入为 M3-T3 派发快照；前置 M3-T3 任务笔记 status=done 已落地。PR 43 的 diff 只含两条有效路径与任务笔记的回填，无范围外改动。",
+      "验收标准 1（快照而非当前文档）：packages/daemon/src/service/review-context.ts:188 的 getReviewContext 全部字段取自 dispatch_snapshots 行本身——review_prompt/contract_hash/accept_text/input_text/output_text/task_paths_json/launch_spec_json，另标 isSnapshot/isReadOnly 表达「引用审查材料、非运行时权限」；packages/daemon/test/unit/review-context.test.ts:142 在派发快照后把 tasks 表整行改写成 accept/review/contractHash 的 V2，断言接口仍返回 V1 快照内容且 docChangedSinceDispatch=true。",
+      "验收标准 2（快照缺失明确报错）：packages/daemon/src/service/review-context.ts:213-219 在无快照时抛 AppError('E_NOT_FOUND')，无任何回落读 tasks.accept_text / review_prompt 的分支；E_NOT_FOUND 已登记在 packages/shared/src/errors/codes.ts:12。packages/daemon/test/unit/review-context.test.ts:214 先断言任务行存在且带「文档版」验收标准，再断言调用抛 E_NOT_FOUND。",
+      "验收标准 3 与 E-50：service/review-context.ts:248 的 handleDocFingerprintChange 把该文档下 running 批次转 paused、收集在途任务、绝不改写运行或任务记录；:361 isBatchPaused 供后续派发前查闸；:308 confirmDocChangeAndResumeBatch 只在状态为 paused 时恢复，非 paused 抛 E_INVALID_STATE_TRANSITION。自动触发在 :363 订阅 system.docs_changed，其唯一发布点是 service/docs.ts:604 与 :645，payload 用 docsPath 字段，与订阅侧取用一致。测试 test:253 覆盖「改 contractHash + 触发 → 批次 paused、在途任务仍取 V1 快照、人工确认后恢复」，test:478 覆盖事件总线自动暂停路径。",
+      "分层与共用约定：service 只 import repo/events/errors/db（db 仅取 DatabaseConnection 类型与 createXxxRepo 工厂，与 run-abort.ts:1、logstore.ts:2 同样的 service→db 用法），未 import fastify，文件内无 SQL 字面量、无 process.env / process.platform、无 Date.now（pausedAt 走注入 clock）、无 barrel 与 utils 目录；分批 10 条错误码全部是 codes.ts 已登记项。数据往返只用 Row（snake_case），未把 Row 直接当 DTO 吐出。",
+      "审查方修正（非阻断项，本轮提交）：repo/batches.ts 的 updateState 两个时间参数缺省即写回 null，暂停与恢复原本会抹掉用户可见的批次起始时间（shared/api/batches.ts 的 BatchDto.startedAt），已改为带回 batch.started_at/finished_at 并加断言；顶层导出 getReviewContext 每次调用新建 service，注入 bus 时会多一个不解绑的常驻订阅者，已 try/finally dispose。",
+      "验证环境与结果：Node 22.17.0。npx biome ci . 检查 195 个文件、无修复项；npx tsc -b --noEmit 通过；聚焦 Vitest 5 个文件 33/33 通过（review-context 9、layer-of 8、arch/routes 5、arch/boot-boundaries 5、arch/bus-transaction 6），其中 arch/bus-transaction 也确认本次改动没有把 bus.publish 放进事务回调。"
+    ],
+    "reviewed": "2026-09-11T12:13:14.683581+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M3-T6": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "bcdb7606f545e1b142878de00d3bc3572b04a41727cad988468dd7ecf12e57b0",
@@ -341,6 +357,23 @@
       "2026-09-11 全量核查：check-contrast、check-forbidden、biome ci（193 文件）、tsc -b --noEmit 通过；pnpm -w check 整体退出码 1，唯一阻断是 check-error-codes（10 节新增三码尚未投影到 codes.ts，归未落地的 M8-T6/M8-T7）；vitest（WSL Ubuntu 20.04，better-sqlite3 源码编译）571 例：534 通过 / 5 失败 / 32 跳过，5 个失败全部是 M2-T6 AC5 与 M3-T1/M3-T2 硬编码 78 个任务数的用例，与本任务无关；本任务测试文件：无独立测试文件，覆盖在集成用例中"
     ],
     "reviewed": "2026-09-11T02:45:46.610903+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M5-T2": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "2fe5a002a53b322b25e7d1d3fef949b91291245997a66a22de370bc2912f2134",
+    "evidence": [
+      "AC1/E-70: 上游产出未进 HEAD 且 baseRef 缺省或 kind=head 时 resolveTaskBase 抛 E_UPSTREAM_BASE_MISSING（packages/daemon/src/workspace/base-select.ts:367），details.reason 为「下游 base 缺上游产出」（:372），details.unmergedUpstreams 给出未进上游清单（:373）；单测 packages/daemon/test/unit/base-select.test.ts 覆盖显式 head 与省略 baseRef 两条输入，断言 error.code 与 details.reason。",
+      "AC2/E-70: 同一条错误里带 availableUpstreamBases 与 suggestedBaseRef（base-select.ts:354-377），显式选项由 API 契约 RunBaseRef.kind='upstreamBranch' + taskKey 承载（packages/shared/src/api/runs.ts:1-4、:47-48）；选定上游分支时 resolvedBase 取该分支（:432-441、:462-474），绝不回落 HEAD。单测覆盖 taskKey 指定、省略且唯一、越界三种；给出上游分支前先 rev-parse 校验分支存在（:444-460）。",
+      "AC3/E-31: prepareTaskWorkspace 为每个任务生成独立 sessionId（base-select.ts:558-566，只接受 input.sessionId 或注入的 deps.ids.newId，两者皆缺抛 E_INTERNAL）与独立 worktreePath/branchName；grok 走 agent_native 并把 --worktree/--worktree-ref 注入启动参数（:585-599），其余 agent 走 prepareWorktree 的 git worktree 兜底（:601-628）。并发上限由 checkAgentConcurrency 截断（:482）：活跃数 >= 上限抛 429 E_AGENT_BUSY（:504，retryable 来自 codes.ts 登记），maxConcurrency<=0 抛 E_AGENT_UNAVAILABLE（:493）。",
+      "边界 E-70 逐条：拒绝派发（error code E_UPSTREAM_BASE_MISSING，http 映射取 codes.ts defaultHttpStatus=409）；说明文案在 details.reason；显式选项在 details.availableUpstreamBases 且可回填 suggestedBaseRef；绝不默默从旧 HEAD 起——baseRef 缺省路径在检测到未进上游时先抛错，只有全部上游已进 HEAD（或上游为空）才返回 HEAD（:476-480）。",
+      "边界 E-31 逐条：同一 agent 多任务时 sessionId 与 worktreePath 各自独立（单测 'multiple tasks assigned to same agent obtain distinct sessions and workspaces' 断言三者互不相等）；grok 用自带 --worktree/--worktree-ref，其余用 git worktree；每 agent 并发上限由 checkAgentConcurrency 在 prepareTaskWorkspace 第 1 步拦截（:540-542），达标返回 E_AGENT_BUSY。",
+      "测试证据：npx vitest run packages/daemon/test/unit/base-select.test.ts → 26 passed；npx tsc -b --noEmit → exit 0；npx biome ci 改动两文件 → 通过。",
+      "共用约定核对：workspace 层不碰 db/repo/service，无 SQL 与事务；未直读 process.env / process.platform；错误统一 AppError + packages/shared/src/errors/codes.ts（node scripts/check-error-codes.mjs → 46 个错误码与 10 节一致）；文件名 kebab-case、无 barrel、除 AppError 外无 class；sessionId 只来自注入的 ids，未用 Date.now()/Math.random()。",
+      "文档补丁 m5-t2-support-paths：M5-T2 原有效范围只列 packages/daemon/src/workspace/base-select.ts，漏了本任务必需的单测 packages/daemon/test/unit/base-select.test.ts，已补进 _run/task-contracts.json 的 supportPaths（与 M5-T1 把 test/unit/worktree.test.ts 列入范围一致），同步后未重建分支、沿用 PR #42。"
+    ],
+    "reviewed": "2026-09-11T12:15:04.747702+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

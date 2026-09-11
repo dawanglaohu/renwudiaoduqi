@@ -470,6 +470,11 @@
         "packages/daemon/test/unit/landing.test.ts"
       ]
     },
+    "M5-T2": {
+      "supportPaths": [
+        "packages/daemon/test/unit/base-select.test.ts"
+      ]
+    },
     "M10-T1": {
       "supportPaths": [
         "packages/web/package.json",
