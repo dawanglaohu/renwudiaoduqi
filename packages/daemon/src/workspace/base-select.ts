@@ -553,9 +553,15 @@ export async function prepareTaskWorkspace(
 	);
 
 	// 3. Generate independent session ID (AC 3, E-31)
-	const sessionId =
-		input.sessionId ??
-		(deps.ids ? `sess_${deps.ids.newId()}` : `sess_${taskId}_${Date.now().toString(36)}`);
+	// Session ids come from the injected id source only: a clock-derived fallback would make
+	// two dispatches within the same millisecond collide and is not reproducible in tests.
+	const sessionId = input.sessionId ?? (deps.ids ? `sess_${deps.ids.newId()}` : undefined);
+	if (!sessionId) {
+		throw new AppError(
+			'E_INTERNAL',
+			`prepareTaskWorkspace for task '${taskId}' has no session id: pass input.sessionId or deps.ids.newId.`,
+		);
+	}
 
 	// 4. Determine workspace strategy: grok native --worktree vs git worktree fallback (E-31)
 	const isGrok = agentId.toLowerCase() === 'grok';

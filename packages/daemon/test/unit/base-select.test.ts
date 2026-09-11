@@ -626,6 +626,34 @@ describe('M5-T2 Base Selection and Upstream Output Validation', () => {
 		});
 	});
 
+	describe('prepareTaskWorkspace session identity', () => {
+		it('E-31: refuses to invent a session id when neither sessionId nor deps.ids is provided', async () => {
+			const runner = createMockGitRunner((args) => {
+				if (args[0] === 'rev-parse') return { exitCode: 0, stdout: 'sha\n', stderr: '' };
+				if (args[0] === 'merge-base') return { exitCode: 0, stdout: '', stderr: '' };
+				return { exitCode: 0, stdout: '', stderr: '' };
+			});
+
+			await expect(
+				prepareTaskWorkspace(
+					{
+						repoPath: '/repo',
+						taskId: 'M1-T3',
+						agentId: 'codex',
+						currentActiveRuns: 0,
+						maxConcurrency: 2,
+					},
+					runner,
+					{},
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					code: 'E_INTERNAL',
+				}),
+			);
+		});
+	});
+
 	describe('createBaseSelector factory', () => {
 		it('creates a BaseSelector instance with all methods bound', async () => {
 			const runner = createMockGitRunner((args) => {
