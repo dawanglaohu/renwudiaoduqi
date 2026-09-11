@@ -1,9 +1,11 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
+import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
 import { createEventBus } from '../../src/events/bus.ts';
@@ -168,13 +170,17 @@ describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 			writeFileSync(join(logRoot, 'run-1', 'raw.log'), 'x'.repeat(400));
 			writeFileSync(join(logRoot, 'run-2', 'events.ndjson'), 'y'.repeat(600));
 
+			const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 			const db = openDatabase(join(testDir, 'app.db'));
-			db.exec(`
-				CREATE TABLE IF NOT EXISTS event_seq (
-					name TEXT PRIMARY KEY,
-					watermark INTEGER NOT NULL DEFAULT 0
-				);
-			`);
+			const runner = createMigrationRunner({
+				clock: { now: () => new Date().toISOString() },
+				database: db,
+				fileSystem: {
+					readDirectory: () => ['0001_init.sql'],
+					readFile: (p: string) => readFileSync(p, 'utf8'),
+				},
+			});
+			runner.run(migrationsDir);
 			const container = createContainer({
 				config: {
 					port: 7817,
@@ -192,7 +198,19 @@ describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 			});
 			const server = createHttpServer({ container });
 
-			const response = await server.instance.inject({ method: 'GET', url: '/api/v1/system/usage' });
+			const claim = await container.services.pairing.claimPairingCode({
+				code:
+					container.services.pairing.getActivePairingCode()?.code ??
+					container.services.pairing.createPairingCode().code,
+				deviceName: 'test-device',
+			});
+			const authToken = `Bearer ${claim.token}`;
+
+			const response = await server.instance.inject({
+				method: 'GET',
+				url: '/api/v1/system/usage',
+				headers: { authorization: authToken },
+			});
 
 			expect(response.statusCode).toBe(200);
 			const body = JSON.parse(response.body);

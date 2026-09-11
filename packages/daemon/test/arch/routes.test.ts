@@ -9,7 +9,8 @@ import {
 } from '@agent-scheduler/shared/api/routes';
 import { describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
-import type { DatabaseConnection } from '../../src/db/open-database.ts';
+import { createMigrationRunner } from '../../src/db/migrate.ts';
+import { openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type {
@@ -73,6 +74,17 @@ function createMemoryLockAdapter(): NativeLockAdapter {
 function makeTestContainer() {
 	const dataDir = resolve(currentDir, '../fixtures');
 	const lockAdapter = createMemoryLockAdapter();
+	const db = openDatabase(':memory:');
+	const migrationsDir = join(currentDir, '../../migrations');
+	const runner = createMigrationRunner({
+		clock: { now: () => '2026-09-09T12:00:00.000Z' },
+		database: db,
+		fileSystem: {
+			readDirectory: () => ['0001_init.sql'],
+			readFile: (p: string) => readFileSync(p, 'utf8'),
+		},
+	});
+	runner.run(migrationsDir);
 	return createContainer({
 		config: {
 			port: 7817,
@@ -81,11 +93,7 @@ function makeTestContainer() {
 			logLevel: 'error',
 			dev: false,
 		},
-		database: {
-			pragma: () => 4096,
-			prepare: () => ({ get: () => ({}), all: () => [], run: () => ({ changes: 0 }) }),
-			close: () => undefined,
-		} as unknown as DatabaseConnection,
+		database: db,
 		hostInputs: { platform: 'linux', homedir: dataDir },
 		lockAdapter,
 		instanceLock: { release: () => undefined } as unknown as LockFileHandle,
@@ -218,6 +226,14 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 		const server = createHttpServer({ container });
 		await server.instance.ready();
 
+		const claim = await container.services.pairing.claimPairingCode({
+			code:
+				container.services.pairing.getActivePairingCode()?.code ??
+				container.services.pairing.createPairingCode().code,
+			deviceName: 'test-device',
+		});
+		const authToken = `Bearer ${claim.token}`;
+
 		const testPayloads: Record<string, Record<string, unknown>> = {
 			'/api/v1/pair/claim': { code: 'test-code-123', deviceName: 'my-desktop' },
 			'/api/v1/documents': { docsPath: '/absolute/path/docs-data.js' },
@@ -258,6 +274,7 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 				method: item.method,
 				url: resolvedPath,
 				payload: payloadWithExtra,
+				headers: { authorization: authToken },
 			});
 
 			expect(
