@@ -41,7 +41,9 @@ export const authPlugin: FastifyPluginAsync = async (instance: FastifyInstance):
 		// E-08: All non-whitelisted routes require authentication. Zero IP-based bypass branches.
 		const pairingService = request.server.container?.services?.pairing;
 		if (!pairingService) {
-			throw new AppError('E_UNAUTHORIZED', 'Authentication service unavailable.');
+			// Missing wiring is a server fault: an auth-denied status would tell a paired
+			// client its token is bad.
+			throw new AppError('E_INTERNAL', 'PairingService is not available in container.');
 		}
 
 		const auth = pairingService.authenticateToken(request.headers.authorization);
