@@ -1,0 +1,26 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M5-T3": {
+      "contractHash": "731a48e27c038b52bb907032796b446fecc012a88999b5d619c329982c1a9052",
+      "evidence": [
+        "复验触发：本任务自身补丁 m5-t3-supportpaths 把既定产出的单测补进 supportPaths；落地前合并 main（M5-T2 已落地）后按流程重跑 sync，变化条款为 definition 与 effectivePaths。",
+        "变化条款复核：有效范围 = packages/daemon/src/workspace/diff.ts（presentation.json handoff.taskPaths）+ packages/daemon/test/unit/diff.test.ts（task-contracts.json supportPaths）；与 M5-T4、M6-T3、M7-T1 的路径无交集，合并 main 后无新增冲突。",
+        "验收条款与边界未变：1) 改动文件数由 git 工作区 diff 得出、不解析 tool 事件；2) 基线取 worktree 自身 HEAD（E-72）；3) 不拦截 agent commit/push，远端推送标注（E-75）。三条在合并后的代码里仍逐条成立（diff.ts:458/586/656）。",
+        "本次实跑：node node_modules/vitest/vitest.mjs run packages/daemon/test/unit/diff.test.ts → 23 passed / 0 skipped，含真实 git E2E（新建 worktree 未推送 pushed=false、commit+push 后 pushed=true）；tsc -b --noEmit 通过；biome ci 195 文件无问题。",
+        "独立复现：自写探针用本机真实 git 走一遍（新建 remote/main/worktree → 改文件 → 主工作区脏改动隔离 → agent commit+push），detectRemotePush 未推送返回 {pushed:false}、推送后返回 {pushed:true, remoteRef:'refs/remotes/origin/task/M5-T3'}，E-72 隔离下 diff 正文不含主工作区改动。"
+      ],
+      "verdict": "pass"
+    },
+    "M5-T2": {
+      "contractHash": "2fe5a002a53b322b25e7d1d3fef949b91291245997a66a22de370bc2912f2134",
+      "evidence": [
+        "标记来源：M5-T3 的补丁 m5-t3-supportpaths 在 main 合并 M5-T2（PR #42）之前保存基线，落地前合并 main 再 sync 时把 M5-T2 自身的 supportPaths 变更算进了补丁窗口，属跨合并的哈希传播误标，不是 M5-T2 契约被本补丁修改。",
+        "契约逐字段比对：当前 _run/task-contracts.json 的 M5-T2 条目为 {\"supportPaths\":[\"packages/daemon/test/unit/base-select.test.ts\"]}，与 main 上 M5-T2 自身补丁 m5-2-support-paths（status=verified，verifiedTasks=[M5-T2]）登记的内容完全一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目。",
+        "代码比对：git diff origin/main -- packages/daemon/src/workspace/base-select.ts packages/daemon/test/unit/base-select.test.ts 为空，本分支未触碰 M5-T2 的任何产出或测试。",
+        "结论：M5-T2 无新增条款需要复核，撤销误标；本任务代码与测试保持 main 上的已复核状态。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
