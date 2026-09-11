@@ -1,10 +1,14 @@
 import { promises as nodeFs } from 'node:fs';
 import { join as nodeJoin, resolve as nodeResolve } from 'node:path';
 import { AppError } from '../errors/app-error.ts';
-import { takePlatformHostInputs } from '../platform/host.ts';
-import { type GitCommandResult, type GitRunner, createDefaultGitRunner } from './worktree.ts';
+import {
+	type GitCommandResult,
+	type GitRunner,
+	type WorktreeManagerDeps,
+	createDefaultGitRunner,
+} from './worktree.ts';
 
-export type { GitCommandResult, GitRunner };
+export type { GitCommandResult, GitRunner, WorktreeManagerDeps };
 
 export type DiffFileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
 
@@ -40,6 +44,11 @@ export interface DiffOptions {
 	readonly runner?: GitRunner;
 
 	/**
+	 * Optional WorktreeManagerDeps to construct default runner with injected ids/platform.
+	 */
+	readonly deps?: WorktreeManagerDeps;
+
+	/**
 	 * Whether to check if commits on this branch were pushed to a remote (E-75).
 	 * Defaults to false.
 	 */
@@ -60,6 +69,7 @@ export interface DiffStatResult {
 export interface DetectRemotePushOptions {
 	readonly worktreePath: string;
 	readonly runner?: GitRunner;
+	readonly deps?: WorktreeManagerDeps;
 	readonly branchName?: string;
 	readonly baseRef?: string;
 }
@@ -94,14 +104,25 @@ function normalizeDiffOptions(
 	return worktreePathOrOptions;
 }
 
-function getDefaultRunner(): GitRunner {
-	const hostResult = takePlatformHostInputs({});
-	const hostInputs = hostResult.ok ? hostResult.value : { platform: 'linux' as const, homedir: '' };
-	return createDefaultGitRunner({
-		platform: hostInputs.platform,
-		hostInputs,
-		ids: { newId: () => Math.random().toString(36).slice(2, 10) },
-	});
+function resolveRunner(options: {
+	readonly runner?: GitRunner;
+	readonly deps?: WorktreeManagerDeps;
+	readonly worktreePath: string;
+}): GitRunner {
+	if (options.runner) {
+		return options.runner;
+	}
+	if (options.deps) {
+		if (options.deps.gitRunner) {
+			return options.deps.gitRunner;
+		}
+		return createDefaultGitRunner(options.deps);
+	}
+	throw new AppError(
+		'E_VALIDATION',
+		'A GitRunner or WorktreeManagerDeps with an ids generator must be provided to diff operations',
+		{ details: { worktreePath: options.worktreePath } },
+	);
 }
 
 async function assertWorktreeDirectory(resolvedPath: string): Promise<void> {
@@ -440,11 +461,15 @@ export async function getDiffStat(
 ): Promise<DiffStatResult> {
 	const options = normalizeDiffOptions(worktreePathOrOptions, maybeOptions);
 	const resolvedPath = nodeResolve(options.worktreePath);
+	await assertWorktreeDirectory(resolvedPath);
+
 	const baseRef = options.baseRef ?? 'HEAD';
 	const includeUntracked = options.includeUntracked ?? true;
-	const runner = options.runner ?? getDefaultRunner();
-
-	await assertWorktreeDirectory(resolvedPath);
+	const runner = resolveRunner({
+		runner: options.runner,
+		deps: options.deps,
+		worktreePath: resolvedPath,
+	});
 
 	// 1. Check git repository status in worktree (E-72: isolated to worktreePath)
 	const checkRepoResult = await runner.run(['rev-parse', '--is-inside-work-tree'], resolvedPath);
@@ -536,7 +561,8 @@ export async function getDiffStat(
 	if (options.detectRemotePush) {
 		remotePush = await detectRemotePush(resolvedPath, {
 			runner,
-			baseRef,
+			deps: options.deps,
+			baseRef: options.baseRef,
 		});
 	}
 
@@ -563,11 +589,15 @@ export async function getDiffText(
 ): Promise<string> {
 	const options = normalizeDiffOptions(worktreePathOrOptions, maybeOptions);
 	const resolvedPath = nodeResolve(options.worktreePath);
+	await assertWorktreeDirectory(resolvedPath);
+
 	const baseRef = options.baseRef ?? 'HEAD';
 	const includeUntracked = options.includeUntracked ?? true;
-	const runner = options.runner ?? getDefaultRunner();
-
-	await assertWorktreeDirectory(resolvedPath);
+	const runner = resolveRunner({
+		runner: options.runner,
+		deps: options.deps,
+		worktreePath: resolvedPath,
+	});
 
 	// 1. Run git diff against baseline
 	const diffResult = await runner.run(['diff', baseRef], resolvedPath);
@@ -633,9 +663,13 @@ export async function detectRemotePush(
 			: worktreePathOrOptions;
 
 	const resolvedPath = nodeResolve(options.worktreePath);
-	const runner = options.runner ?? getDefaultRunner();
-
 	await assertWorktreeDirectory(resolvedPath);
+
+	const runner = resolveRunner({
+		runner: options.runner,
+		deps: options.deps,
+		worktreePath: resolvedPath,
+	});
 
 	// 1. Get current branch name
 	let currentBranch = options.branchName;
@@ -649,11 +683,63 @@ export async function detectRemotePush(
 		}
 	}
 
-	// 2. Get current HEAD commit
+	// 2. Get current HEAD commit SHA
 	const headResult = await runner.run(['rev-parse', 'HEAD'], resolvedPath);
-	const currentHead = headResult.exitCode === 0 ? headResult.stdout.trim() : '';
+	if (headResult.exitCode !== 0 || !headResult.stdout.trim()) {
+		return Object.freeze({ pushed: false });
+	}
+	const currentHead = headResult.stdout.trim();
 
-	// 3. Query all remote references
+	// 3. Resolve baseline SHA (本次运行起点 SHA)
+	// baseRef 给了就 rev-parse，没给就用 worktree 起点，别拿移动的 HEAD 当基线；解析不出基线就不报 pushed
+	let baseSha = '';
+	if (options.baseRef && options.baseRef !== 'HEAD') {
+		const baseResult = await runner.run(['rev-parse', options.baseRef], resolvedPath);
+		if (baseResult.exitCode === 0 && baseResult.stdout.trim()) {
+			baseSha = baseResult.stdout.trim();
+		}
+	}
+
+	if (!baseSha) {
+		// Try reflog to find worktree starting SHA (the oldest entry in reflog for current branch or HEAD)
+		const reflogTarget = currentBranch || 'HEAD';
+		const reflogResult = await runner.run(
+			['reflog', 'show', '--format=%H', reflogTarget],
+			resolvedPath,
+		);
+		if (reflogResult.exitCode === 0 && reflogResult.stdout.trim()) {
+			const lines = reflogResult.stdout
+				.split(/\r?\n/)
+				.map((l) => l.trim())
+				.filter((l) => l.length > 0);
+			if (lines.length > 0) {
+				baseSha = lines[lines.length - 1] ?? '';
+			}
+		}
+	}
+
+	if (!baseSha) {
+		// Fallback: try merge-base against common base branch references
+		for (const candidate of ['origin/main', 'main', 'origin/master', 'master']) {
+			const mbResult = await runner.run(['merge-base', 'HEAD', candidate], resolvedPath);
+			if (mbResult.exitCode === 0 && mbResult.stdout.trim()) {
+				baseSha = mbResult.stdout.trim();
+				break;
+			}
+		}
+	}
+
+	// 解析不出基线就不报 pushed
+	if (!baseSha) {
+		return Object.freeze({ pushed: false });
+	}
+
+	// 只在 HEAD !== baseSha 时才算推送
+	if (currentHead === baseSha) {
+		return Object.freeze({ pushed: false });
+	}
+
+	// 4. Query all remote references and map refname -> objectname
 	const forEachRefResult = await runner.run(
 		['for-each-ref', '--format=%(refname) %(objectname)', 'refs/remotes/'],
 		resolvedPath,
@@ -663,22 +749,36 @@ export async function detectRemotePush(
 		return Object.freeze({ pushed: false });
 	}
 
+	const remoteRefsMap = new Map<string, string>();
 	const lines = forEachRefResult.stdout
 		.split(/\r?\n/)
 		.map((l) => l.trim())
 		.filter((l) => l.length > 0);
 
-	// 4. Check if current task branch matches any remote ref (e.g. refs/remotes/origin/task/M5-T3)
+	for (const line of lines) {
+		const spaceIdx = line.indexOf(' ');
+		if (spaceIdx === -1) continue;
+		const refname = line.slice(0, spaceIdx);
+		const objectname = line.slice(spaceIdx + 1).trim();
+		remoteRefsMap.set(refname, objectname);
+
+		if (refname.startsWith('refs/remotes/')) {
+			remoteRefsMap.set(refname.slice('refs/remotes/'.length), objectname);
+		}
+	}
+
+	// 5. Check if current task branch matches any remote ref (e.g. refs/remotes/origin/task/M5-T3)
+	// 第 4 步同样比较 objectname，远端同名分支 tip==baseSha → false
 	if (currentBranch) {
 		const targetSuffix = `/${currentBranch}`;
-		for (const line of lines) {
-			const spaceIdx = line.indexOf(' ');
-			if (spaceIdx === -1) continue;
-			const refname = line.slice(0, spaceIdx);
-			const objectname = line.slice(spaceIdx + 1);
-
+		for (const [refname, objectname] of remoteRefsMap.entries()) {
+			if (!refname.startsWith('refs/remotes/')) continue;
 			if (refname.endsWith(targetSuffix)) {
-				// Extract remote name (refs/remotes/<remote>/<branch>)
+				// 远端同名分支 tip 等于基线一律不算推送
+				if (objectname === baseSha) {
+					continue;
+				}
+
 				const withoutPrefix = refname.slice('refs/remotes/'.length);
 				const slashIdx = withoutPrefix.indexOf('/');
 				const remote = slashIdx !== -1 ? withoutPrefix.slice(0, slashIdx) : 'origin';
@@ -695,47 +795,41 @@ export async function detectRemotePush(
 		}
 	}
 
-	// 5. Check if current HEAD is contained in any remote branch
-	// (e.g. agent pushed HEAD to a different branch name)
-	if (currentHead && currentHead.length > 0) {
-		let baseSha = '';
-		if (options.baseRef) {
-			const baseResult = await runner.run(['rev-parse', options.baseRef], resolvedPath);
-			if (baseResult.exitCode === 0) {
-				baseSha = baseResult.stdout.trim();
+	// 6. Check if current HEAD is contained in any remote branch
+	// containment 命中的远端 ref tip 等于基线一律不算
+	const containsResult = await runner.run(['branch', '-r', '--contains', 'HEAD'], resolvedPath);
+
+	if (containsResult.exitCode === 0 && containsResult.stdout.trim()) {
+		const remoteBranches = containsResult.stdout
+			.split(/\r?\n/)
+			.map((l) => l.trim())
+			.filter((l) => l.length > 0 && !l.includes('->'));
+
+		for (const rb of remoteBranches) {
+			const tipSha = remoteRefsMap.get(rb) ?? remoteRefsMap.get(`refs/remotes/${rb}`);
+
+			// containment 命中的远端 ref tip 等于基线一律不算
+			if (tipSha && tipSha === baseSha) {
+				continue;
 			}
-		}
 
-		// Only check commit containment if HEAD has progressed beyond baseSha
-		if (!baseSha || currentHead !== baseSha) {
-			const containsResult = await runner.run(['branch', '-r', '--contains', 'HEAD'], resolvedPath);
-
-			if (containsResult.exitCode === 0 && containsResult.stdout.trim()) {
-				const remoteBranches = containsResult.stdout
-					.split(/\r?\n/)
-					.map((l) => l.trim())
-					.filter((l) => l.length > 0 && !l.includes('->'));
-
-				for (const rb of remoteBranches) {
-					const slashIdx = rb.indexOf('/');
-					const remote = slashIdx !== -1 ? rb.slice(0, slashIdx) : 'origin';
-					const branch = slashIdx !== -1 ? rb.slice(slashIdx + 1) : rb;
-
-					// If baseRef is e.g. main, skip origin/main if currentHead is just the base
-					if (options.baseRef && rb.endsWith(`/${options.baseRef}`)) {
-						continue;
-					}
-
-					return Object.freeze({
-						pushed: true,
-						branch,
-						commit: currentHead,
-						remote,
-						remoteRef: `refs/remotes/${rb}`,
-						details: `Commit ${currentHead} was pushed to remote branch '${rb}'`,
-					});
-				}
+			// If baseRef is e.g. main, skip origin/main if currentHead is just the base
+			if (options.baseRef && rb.endsWith(`/${options.baseRef}`)) {
+				continue;
 			}
+
+			const slashIdx = rb.indexOf('/');
+			const remote = slashIdx !== -1 ? rb.slice(0, slashIdx) : 'origin';
+			const branch = slashIdx !== -1 ? rb.slice(slashIdx + 1) : rb;
+
+			return Object.freeze({
+				pushed: true,
+				branch,
+				commit: currentHead,
+				remote,
+				remoteRef: `refs/remotes/${rb}`,
+				details: `Commit ${currentHead} was pushed to remote branch '${rb}'`,
+			});
 		}
 	}
 
@@ -755,6 +849,7 @@ export async function inspectWorktreeDiff(
 		diffStat.remotePush ??
 		(await detectRemotePush(worktreePath, {
 			runner: options?.runner,
+			deps: options?.deps,
 			baseRef: options?.baseRef,
 		}));
 

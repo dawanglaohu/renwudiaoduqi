@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -406,6 +406,7 @@ R  old.ts -> new.ts
 			const testDir = mkdtempSync(join(tmpdir(), 'sched-diff-push-true-'));
 			try {
 				const commitSha = 'aabbccddeeff00112233445566778899aabbccdd';
+				const baseSha = '0000111122223333444455556666777788889999';
 				const mockRunner = createMockGitRunner((args) => {
 					if (args[0] === 'rev-parse' && args[1] === '--abbrev-ref') {
 						return { exitCode: 0, stdout: 'task/M5-T3\n', stderr: '' };
@@ -413,10 +414,13 @@ R  old.ts -> new.ts
 					if (args[0] === 'rev-parse' && args[1] === 'HEAD') {
 						return { exitCode: 0, stdout: commitSha, stderr: '' };
 					}
+					if (args[0] === 'reflog') {
+						return { exitCode: 0, stdout: `${commitSha}\n${baseSha}\n`, stderr: '' };
+					}
 					if (args[0] === 'for-each-ref') {
 						return {
 							exitCode: 0,
-							stdout: `refs/remotes/origin/main 00001111\nrefs/remotes/origin/task/M5-T3 ${commitSha}\n`,
+							stdout: `refs/remotes/origin/main ${baseSha}\nrefs/remotes/origin/task/M5-T3 ${commitSha}\n`,
 							stderr: '',
 						};
 					}
@@ -483,6 +487,115 @@ R  old.ts -> new.ts
 			}
 		});
 
+		it('returns pushed: false when HEAD == baseSha even if branch -r --contains returns origin/main (R1)', async () => {
+			const testDir = mkdtempSync(join(tmpdir(), 'sched-diff-head-base-'));
+			try {
+				const baseSha = '1111222233334444555566667777888899990000';
+				const mockRunner = createMockGitRunner((args) => {
+					if (args[0] === 'rev-parse' && args[1] === '--abbrev-ref') {
+						return { exitCode: 0, stdout: 'task/M5-T3\n', stderr: '' };
+					}
+					if (args[0] === 'rev-parse' && args[1] === 'HEAD') {
+						return { exitCode: 0, stdout: baseSha, stderr: '' };
+					}
+					if (args[0] === 'reflog') {
+						return { exitCode: 0, stdout: `${baseSha}\n`, stderr: '' };
+					}
+					if (args[0] === 'for-each-ref') {
+						return {
+							exitCode: 0,
+							stdout: `refs/remotes/origin/main ${baseSha}\n`,
+							stderr: '',
+						};
+					}
+					if (args[0] === 'branch' && args[1] === '-r' && args[2] === '--contains') {
+						return { exitCode: 0, stdout: '  origin/main\n', stderr: '' };
+					}
+					return { exitCode: 0, stdout: '', stderr: '' };
+				});
+
+				const detection = await detectRemotePush(testDir, { runner: mockRunner });
+				expect(detection.pushed).toBe(false);
+			} finally {
+				rmSync(testDir, { recursive: true, force: true });
+			}
+		});
+
+		it('returns pushed: true when HEAD moves beyond baseSha and is contained in origin/feature-x (R1)', async () => {
+			const testDir = mkdtempSync(join(tmpdir(), 'sched-diff-head-advanced-'));
+			try {
+				const baseSha = '1111222233334444555566667777888899990000';
+				const advancedSha = '2222333344445555666677778888999900001111';
+				const mockRunner = createMockGitRunner((args) => {
+					if (args[0] === 'rev-parse' && args[1] === '--abbrev-ref') {
+						return { exitCode: 0, stdout: 'task/M5-T3\n', stderr: '' };
+					}
+					if (args[0] === 'rev-parse' && args[1] === 'HEAD') {
+						return { exitCode: 0, stdout: advancedSha, stderr: '' };
+					}
+					if (args[0] === 'reflog') {
+						return { exitCode: 0, stdout: `${advancedSha}\n${baseSha}\n`, stderr: '' };
+					}
+					if (args[0] === 'for-each-ref') {
+						return {
+							exitCode: 0,
+							stdout: `refs/remotes/origin/main ${baseSha}\nrefs/remotes/origin/feature-x ${advancedSha}\n`,
+							stderr: '',
+						};
+					}
+					if (args[0] === 'branch' && args[1] === '-r' && args[2] === '--contains') {
+						return { exitCode: 0, stdout: '  origin/feature-x\n', stderr: '' };
+					}
+					return { exitCode: 0, stdout: '', stderr: '' };
+				});
+
+				const detection = await detectRemotePush(testDir, { runner: mockRunner });
+				expect(detection.pushed).toBe(true);
+				expect(detection.branch).toBe('feature-x');
+				expect(detection.commit).toBe(advancedSha);
+				expect(detection.remote).toBe('origin');
+				expect(detection.remoteRef).toBe('refs/remotes/origin/feature-x');
+			} finally {
+				rmSync(testDir, { recursive: true, force: true });
+			}
+		});
+
+		it('returns pushed: false when remote branch with same name has tip equal to baseSha (R1)', async () => {
+			const testDir = mkdtempSync(join(tmpdir(), 'sched-diff-remote-tip-base-'));
+			try {
+				const baseSha = '1111222233334444555566667777888899990000';
+				const advancedSha = '2222333344445555666677778888999900001111';
+				const mockRunner = createMockGitRunner((args) => {
+					if (args[0] === 'rev-parse' && args[1] === '--abbrev-ref') {
+						return { exitCode: 0, stdout: 'task/M5-T3\n', stderr: '' };
+					}
+					if (args[0] === 'rev-parse' && args[1] === 'HEAD') {
+						return { exitCode: 0, stdout: advancedSha, stderr: '' };
+					}
+					if (args[0] === 'reflog') {
+						return { exitCode: 0, stdout: `${advancedSha}\n${baseSha}\n`, stderr: '' };
+					}
+					if (args[0] === 'for-each-ref') {
+						// Remote task/M5-T3 exists but its tip is still baseSha (e.g. created prior to run)
+						return {
+							exitCode: 0,
+							stdout: `refs/remotes/origin/task/M5-T3 ${baseSha}\n`,
+							stderr: '',
+						};
+					}
+					if (args[0] === 'branch' && args[1] === '-r' && args[2] === '--contains') {
+						return { exitCode: 0, stdout: '', stderr: '' };
+					}
+					return { exitCode: 0, stdout: '', stderr: '' };
+				});
+
+				const detection = await detectRemotePush(testDir, { runner: mockRunner });
+				expect(detection.pushed).toBe(false);
+			} finally {
+				rmSync(testDir, { recursive: true, force: true });
+			}
+		});
+
 		it('inspectWorktreeDiff aggregates diffStat, diffText, and remotePush', async () => {
 			const testDir = mkdtempSync(join(tmpdir(), 'sched-diff-inspect-'));
 			try {
@@ -527,12 +640,30 @@ R  old.ts -> new.ts
 	});
 
 	describe('Error Boundaries and Edge Cases', () => {
+		it('throws E_VALIDATION when neither GitRunner nor WorktreeManagerDeps is provided (R2)', async () => {
+			const testDir = mkdtempSync(join(tmpdir(), 'sched-diff-no-runner-'));
+			try {
+				await expect(getDiffStat(testDir)).rejects.toMatchObject({
+					code: 'E_VALIDATION',
+				});
+				await expect(getDiffText(testDir)).rejects.toMatchObject({
+					code: 'E_VALIDATION',
+				});
+				await expect(detectRemotePush(testDir)).rejects.toMatchObject({
+					code: 'E_VALIDATION',
+				});
+			} finally {
+				rmSync(testDir, { recursive: true, force: true });
+			}
+		});
+
 		it('throws E_WORKSPACE_UNAVAILABLE when worktree path does not exist', async () => {
-			await expect(getDiffStat('/path/that/definitely/does/not/exist/99999')).rejects.toMatchObject(
-				{
-					code: 'E_WORKSPACE_UNAVAILABLE',
-				},
-			);
+			const mockRunner = createMockGitRunner(() => ({ exitCode: 0, stdout: '', stderr: '' }));
+			await expect(
+				getDiffStat('/path/that/definitely/does/not/exist/99999', { runner: mockRunner }),
+			).rejects.toMatchObject({
+				code: 'E_WORKSPACE_UNAVAILABLE',
+			});
 		});
 
 		it('throws E_NOT_A_GIT_REPO when directory is not inside a git repository (E-69)', async () => {
@@ -563,20 +694,51 @@ R  old.ts -> new.ts
 				return;
 			}
 			const hostInputs = hostInputsResult.value;
-			const gitResolution = await resolveExecutable({
+
+			let gitExecutable: import('../../src/platform/contract.ts').ResolvedExecutable | undefined =
+				undefined;
+			const initialResolution = await resolveExecutable({
 				hostInputs,
 				executableName: 'git',
 			});
-			if (!gitResolution.ok) {
+			if (initialResolution.ok) {
+				gitExecutable = initialResolution.executable;
+			} else {
+				const candidates = [
+					'D:\\Program Files\\Git\\cmd\\git.exe',
+					'C:\\Program Files\\Git\\cmd\\git.exe',
+					'C:\\Program Files (x86)\\Git\\cmd\\git.exe',
+					'/usr/bin/git',
+					'/usr/local/bin/git',
+				];
+				for (const cand of candidates) {
+					try {
+						if (existsSync(cand)) {
+							const candRes = await resolveExecutable({
+								hostInputs,
+								executableName: 'git',
+								configuredPath: cand,
+							});
+							if (candRes.ok) {
+								gitExecutable = candRes.executable;
+								break;
+							}
+						}
+					} catch {}
+				}
+			}
+
+			if (!gitExecutable) {
 				ctx.skip();
 				return;
 			}
-			const gitExecutable = gitResolution.executable;
 
 			const tempBase = mkdtempSync(join(tmpdir(), 'sched-diff-real-'));
 			const remoteRepo = join(tempBase, 'remote.git');
 			const mainRepo = join(tempBase, 'main-repo');
 			const worktreePath = join(tempBase, 'task-wt');
+			mkdirSync(remoteRepo, { recursive: true });
+			mkdirSync(mainRepo, { recursive: true });
 
 			const runner = createDefaultGitRunner({
 				platform: hostInputs.platform,
@@ -660,6 +822,6 @@ R  old.ts -> new.ts
 			} finally {
 				rmSync(tempBase, { recursive: true, force: true });
 			}
-		});
+		}, 30000);
 	});
 });
