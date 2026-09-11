@@ -329,6 +329,23 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M5-T2": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "2fe5a002a53b322b25e7d1d3fef949b91291245997a66a22de370bc2912f2134",
+    "evidence": [
+      "AC1/E-70: 上游产出未进 HEAD 且 baseRef 缺省或 kind=head 时 resolveTaskBase 抛 E_UPSTREAM_BASE_MISSING（packages/daemon/src/workspace/base-select.ts:367），details.reason 为「下游 base 缺上游产出」（:372），details.unmergedUpstreams 给出未进上游清单（:373）；单测 packages/daemon/test/unit/base-select.test.ts 覆盖显式 head 与省略 baseRef 两条输入，断言 error.code 与 details.reason。",
+      "AC2/E-70: 同一条错误里带 availableUpstreamBases 与 suggestedBaseRef（base-select.ts:354-377），显式选项由 API 契约 RunBaseRef.kind='upstreamBranch' + taskKey 承载（packages/shared/src/api/runs.ts:1-4、:47-48）；选定上游分支时 resolvedBase 取该分支（:432-441、:462-474），绝不回落 HEAD。单测覆盖 taskKey 指定、省略且唯一、越界三种；给出上游分支前先 rev-parse 校验分支存在（:444-460）。",
+      "AC3/E-31: prepareTaskWorkspace 为每个任务生成独立 sessionId（base-select.ts:558-566，只接受 input.sessionId 或注入的 deps.ids.newId，两者皆缺抛 E_INTERNAL）与独立 worktreePath/branchName；grok 走 agent_native 并把 --worktree/--worktree-ref 注入启动参数（:585-599），其余 agent 走 prepareWorktree 的 git worktree 兜底（:601-628）。并发上限由 checkAgentConcurrency 截断（:482）：活跃数 >= 上限抛 429 E_AGENT_BUSY（:504，retryable 来自 codes.ts 登记），maxConcurrency<=0 抛 E_AGENT_UNAVAILABLE（:493）。",
+      "边界 E-70 逐条：拒绝派发（error code E_UPSTREAM_BASE_MISSING，http 映射取 codes.ts defaultHttpStatus=409）；说明文案在 details.reason；显式选项在 details.availableUpstreamBases 且可回填 suggestedBaseRef；绝不默默从旧 HEAD 起——baseRef 缺省路径在检测到未进上游时先抛错，只有全部上游已进 HEAD（或上游为空）才返回 HEAD（:476-480）。",
+      "边界 E-31 逐条：同一 agent 多任务时 sessionId 与 worktreePath 各自独立（单测 'multiple tasks assigned to same agent obtain distinct sessions and workspaces' 断言三者互不相等）；grok 用自带 --worktree/--worktree-ref，其余用 git worktree；每 agent 并发上限由 checkAgentConcurrency 在 prepareTaskWorkspace 第 1 步拦截（:540-542），达标返回 E_AGENT_BUSY。",
+      "测试证据：npx vitest run packages/daemon/test/unit/base-select.test.ts → 26 passed；npx tsc -b --noEmit → exit 0；npx biome ci 改动两文件 → 通过。",
+      "共用约定核对：workspace 层不碰 db/repo/service，无 SQL 与事务；未直读 process.env / process.platform；错误统一 AppError + packages/shared/src/errors/codes.ts（node scripts/check-error-codes.mjs → 46 个错误码与 10 节一致）；文件名 kebab-case、无 barrel、除 AppError 外无 class；sessionId 只来自注入的 ids，未用 Date.now()/Math.random()。",
+      "文档补丁 m5-t2-support-paths：M5-T2 原有效范围只列 packages/daemon/src/workspace/base-select.ts，漏了本任务必需的单测 packages/daemon/test/unit/base-select.test.ts，已补进 _run/task-contracts.json 的 supportPaths（与 M5-T1 把 test/unit/worktree.test.ts 列入范围一致），同步后未重建分支、沿用 PR #42。"
+    ],
+    "reviewed": "2026-09-11T12:15:04.747702+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M5-T4": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "bac62ae25f2920ad126962832713704ecb6223548f112e9c6400a42446d0b6ec",
