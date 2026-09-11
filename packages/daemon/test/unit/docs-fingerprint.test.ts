@@ -114,6 +114,9 @@ describe('domain/docs-fingerprint (AC 2, E-17, E-79)', () => {
 
 		const fp = computeDocsFingerprint(tasks, defaultSha256Hasher);
 		expect(fp).toMatch(/^[0-9a-f]{64}$/);
-		expect(tasks.length).toBe(78);
+		// The payload must cover every task in the file, each with a 64-hex dispatch
+		// contract hash; the count follows the source instead of a pinned total.
+		expect(tasks.map((t) => t.id)).toEqual(data.data.tasks.map((t) => t.id));
+		expect(tasks.every((t) => /^[0-9a-f]{64}$/.test(t.contractHash))).toBe(true);
 	});
 });
