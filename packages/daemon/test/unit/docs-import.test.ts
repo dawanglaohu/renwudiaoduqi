@@ -741,7 +741,7 @@ describe('DocsService document lifecycle (E-79, E-82, E-247)', () => {
 });
 
 describe('DocsService real repository docs-data.js integration', () => {
-	it('parses and imports real repository docs-data.js with all 86 tasks', async () => {
+	it('parses and imports real repository docs-data.js with every task in the file', async () => {
 		const db = createTestDatabase();
 		const documentsRepo = createDocumentsRepo(db);
 
@@ -760,6 +760,13 @@ describe('DocsService real repository docs-data.js integration', () => {
 			__dirname,
 			'../../../../docs/Agent任务调度器-开发文档/docs-data.js',
 		);
+		const sourceTaskCount = (
+			JSON.parse(
+				readFileSync(realDocsPath, 'utf8')
+					.replace(/^window\.DOCS\s*=\s*/, '')
+					.replace(/;?\s*$/, ''),
+			) as { data: { tasks: unknown[] } }
+		).data.tasks.length;
 		const result = await service.importDocument(realDocsPath);
 
 		expect(result.isNew).toBe(true);
@@ -768,7 +775,7 @@ describe('DocsService real repository docs-data.js integration', () => {
 		expect(result.document.repoPath).toBe('agent-scheduler');
 		expect(result.document.laneCount).toBe(2);
 		expect(result.document.isSourceReadable).toBe(true);
-		expect(result.parsed.tasks.length).toBe(86);
+		expect(result.parsed.tasks.length).toBe(sourceTaskCount);
 
 		// Verify task M1-T1
 		const m1t1 = result.parsed.taskMap.get('M1-T1');
@@ -1235,9 +1242,9 @@ describe('importDocTasks AC 1-7 and boundary coverage', () => {
 		expect(t2?.is_removed_from_doc).toBe(1); // Marked removed, not deleted!
 	});
 
-	it('imports all 86 tasks from real repository docs-data.js into tasks and batches tables', async () => {
+	it('imports every task from real repository docs-data.js into tasks and batches tables', async () => {
 		const db = createTestDatabase();
-		const doc = insertTestDocument(db, { id: 'doc-real-tasks' });
+		const doc = insertTestDocument(db, { id: 'doc-real-all' });
 
 		const realDocsPath = resolve(
 			__dirname,
@@ -1251,8 +1258,8 @@ describe('importDocTasks AC 1-7 and boundary coverage', () => {
 			tasks: parsed.tasks,
 		});
 
-		// 86 tasks imported
-		expect(result.tasks.length).toBe(86);
+		// Every task in the source file is imported; the expected count comes from that parse.
+		expect(result.tasks.length).toBe(parsed.tasks.length);
 		expect(result.report.hasDependencyIssues).toBe(false);
 		expect(result.report.canAutoDispatch).toBe(true);
 		expect(result.report.ghostDependencies).toEqual([]);
