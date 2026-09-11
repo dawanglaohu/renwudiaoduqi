@@ -485,6 +485,14 @@
       "supportPaths": [
         "packages/daemon/test/unit/base-select.test.ts"
       ]
+    },
+    "M10-T1": {
+      "supportPaths": [
+        "packages/web/package.json",
+        "packages/web/test/shell-bridge.test.ts",
+        "packages/shared/package.json",
+        "pnpm-lock.yaml"
+      ]
     }
   }
 }
