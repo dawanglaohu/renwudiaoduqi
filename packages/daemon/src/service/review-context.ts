@@ -257,9 +257,13 @@ export function createReviewContextService(deps: ReviewContextServiceDeps): Revi
 			const batches = batchesRepo.listByDocId(params.docId);
 			for (const batch of batches) {
 				if (batch.state === 'running') {
+					// 暂停只改状态：started_at 是用户可见的批次起始时间（BatchDto.startedAt），
+					// updateState 的两个时间参数缺省即写回 null，必须原样带回去。
 					batchesRepo.updateState({
 						id: batch.id,
 						state: 'paused',
+						started_at: batch.started_at,
+						finished_at: batch.finished_at,
 					});
 					pausedBatchIds.push(batch.id);
 
@@ -328,6 +332,8 @@ export function createReviewContextService(deps: ReviewContextServiceDeps): Revi
 		batchesRepo.updateState({
 			id: batchId,
 			state: 'running',
+			started_at: batch.started_at,
+			finished_at: batch.finished_at,
 		});
 
 		const updated = batchesRepo.findById(batchId);
@@ -404,5 +410,11 @@ export function getReviewContext(
 	options?: GetReviewContextOptions,
 ): ReviewContext {
 	const service = createReviewContextService(deps);
-	return service.getReviewContext(taskId, options);
+	try {
+		return service.getReviewContext(taskId, options);
+	} finally {
+		// 每次调用都会新建一个服务实例；注入了 bus 时这里订阅了 system.docs_changed，
+		// 不解绑就会每调用一次多一个常驻监听者。
+		service.dispose();
+	}
 }

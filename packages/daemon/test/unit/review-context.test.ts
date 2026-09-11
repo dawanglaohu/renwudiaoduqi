@@ -320,6 +320,7 @@ describe('M3-T5 review-context service and getReviewContext', () => {
 
 		const batchAfter = batchesRepo.findById('batch-1');
 		expect(batchAfter?.state).toBe('paused');
+		expect(batchAfter?.started_at).toBe('2026-09-08T00:00:00.000Z');
 		expect(service.isBatchPaused('batch-1')).toBe(true);
 
 		// 4. AC 3 & E-50: In-flight task is NOT hot-reloaded and continues with original snapshot
@@ -335,6 +336,7 @@ describe('M3-T5 review-context service and getReviewContext', () => {
 		// 6. AC 3 & E-50: Human confirms document changes and resumes batch
 		const resumedBatch = service.confirmDocChangeAndResumeBatch('batch-1');
 		expect(resumedBatch.state).toBe('running');
+		expect(resumedBatch.started_at).toBe('2026-09-08T00:00:00.000Z');
 		expect(service.isBatchPaused('batch-1')).toBe(false);
 
 		// Attempting to resume a non-paused batch throws E_INVALID_STATE_TRANSITION
