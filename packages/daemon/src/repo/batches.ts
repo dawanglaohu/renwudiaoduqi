@@ -106,13 +106,6 @@ DELETE FROM batches
 WHERE doc_id = ?
 `;
 
-const DELETE_UNUSED_SQL = `
-DELETE FROM batches
-WHERE doc_id = ? AND id NOT IN (
-	SELECT batch_id FROM tasks WHERE doc_id = ? AND batch_id IS NOT NULL
-)
-`;
-
 function assertValidBatchState(state: string): asserts state is BatchState {
 	if (!VALID_BATCH_STATES.includes(state as BatchState)) {
 		throw new AppError('E_VALIDATION', `Invalid batch state: ${state}`);
@@ -133,7 +126,6 @@ export interface BatchesRepo {
 	readonly updateState: (params: BatchUpdateStateParams) => void;
 	readonly deleteById: (id: string) => void;
 	readonly deleteByDocId: (docId: string) => void;
-	readonly deleteUnusedForDoc: (docId: string) => void;
 	readonly ensureBatchesForDoc: (
 		docId: string,
 		batchNos: readonly number[],
@@ -149,7 +141,6 @@ export function createBatchesRepo(db: DatabaseConnection): BatchesRepo {
 	const updateStateStmt = db.prepare(UPDATE_STATE_SQL);
 	const deleteByIdStmt = db.prepare(DELETE_BY_ID_SQL);
 	const deleteByDocIdStmt = db.prepare(DELETE_BY_DOC_ID_SQL);
-	const deleteUnusedStmt = db.prepare(DELETE_UNUSED_SQL);
 
 	return Object.freeze({
 		insert(row: BatchInsertRow): void {
@@ -231,14 +222,6 @@ export function createBatchesRepo(db: DatabaseConnection): BatchesRepo {
 				deleteByDocIdStmt.run(docId);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to delete batches by docId: ${docId}`);
-			}
-		},
-
-		deleteUnusedForDoc(docId: string): void {
-			try {
-				deleteUnusedStmt.run(docId, docId);
-			} catch (cause) {
-				throw toDatabaseError(cause, `Failed to delete unused batches for docId: ${docId}`);
 			}
 		},
 

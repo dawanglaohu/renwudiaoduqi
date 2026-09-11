@@ -741,7 +741,7 @@ describe('DocsService document lifecycle (E-79, E-82, E-247)', () => {
 });
 
 describe('DocsService real repository docs-data.js integration', () => {
-	it('parses and imports real repository docs-data.js with all 78 tasks', async () => {
+	it('parses and imports real repository docs-data.js with all 86 tasks', async () => {
 		const db = createTestDatabase();
 		const documentsRepo = createDocumentsRepo(db);
 
@@ -768,7 +768,7 @@ describe('DocsService real repository docs-data.js integration', () => {
 		expect(result.document.repoPath).toBe('agent-scheduler');
 		expect(result.document.laneCount).toBe(2);
 		expect(result.document.isSourceReadable).toBe(true);
-		expect(result.parsed.tasks.length).toBe(78);
+		expect(result.parsed.tasks.length).toBe(86);
 
 		// Verify task M1-T1
 		const m1t1 = result.parsed.taskMap.get('M1-T1');
@@ -1172,8 +1172,11 @@ describe('importDocTasks AC 1-7 and boundary coverage', () => {
 		const batch1 = secondImport.batches.find((b) => b.batch_no === 1);
 		expect(updatedT2?.batch_id).toBe(batch1?.id);
 
-		// Unused batch 2 was deleted
-		expect(secondImport.batches.find((b) => b.batch_no === 2)).toBeUndefined();
+		// 批次行永不删除（09 节）：未被引用的批次 2 原样保留，state 与 id 不变
+		const keptBatch2 = secondImport.batches.find((b) => b.batch_no === 2);
+		expect(keptBatch2).toBeDefined();
+		expect(keptBatch2?.id).toBe(originalBatch2Id);
+		expect(keptBatch2?.state).toBe('idle');
 	});
 
 	it('AC 7 & E-244: all tasks with no dependencies produce only Batch 1 and do not degrade into a no-batch list', () => {
@@ -1232,9 +1235,9 @@ describe('importDocTasks AC 1-7 and boundary coverage', () => {
 		expect(t2?.is_removed_from_doc).toBe(1); // Marked removed, not deleted!
 	});
 
-	it('imports all 78 tasks from real repository docs-data.js into tasks and batches tables', async () => {
+	it('imports all 86 tasks from real repository docs-data.js into tasks and batches tables', async () => {
 		const db = createTestDatabase();
-		const doc = insertTestDocument(db, { id: 'doc-real-78' });
+		const doc = insertTestDocument(db, { id: 'doc-real-tasks' });
 
 		const realDocsPath = resolve(
 			__dirname,
@@ -1248,8 +1251,8 @@ describe('importDocTasks AC 1-7 and boundary coverage', () => {
 			tasks: parsed.tasks,
 		});
 
-		// 78 tasks imported
-		expect(result.tasks.length).toBe(78);
+		// 86 tasks imported
+		expect(result.tasks.length).toBe(86);
 		expect(result.report.hasDependencyIssues).toBe(false);
 		expect(result.report.canAutoDispatch).toBe(true);
 		expect(result.report.ghostDependencies).toEqual([]);
