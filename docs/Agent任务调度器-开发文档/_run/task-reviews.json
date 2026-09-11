@@ -166,20 +166,20 @@
     "verdict": "pass"
   },
   "M3-T1": {
-    "compiler": "03fc48775efb7d99b359511e6c64cf82df96790ed08cc5ab423385dfbdba5944",
-    "contractHash": "694386d563cfa726194aee74f5e65021271ca51633b2d48e83887f628164fc5e",
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "a3f02983f9e89277bbbe62bd2745ad48e68e8c0ec98a520f435b679a3dbaa21a",
     "evidence": [
-      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T1 行、09-数据模型.md:43-77、六条任务边界和当前派发包，确认输入为 unattended-run 1.1.0 docs-data.js，产出与七个有效实现/测试路径一致；前置 M1-T2 已落地，M3-T2 负责后续任务与批次落库。",
-      "协议与保留：packages/daemon/src/service/docs.ts 校验 UTF-8 JSON 外壳、schemaVersion=1、任务必需字段与唯一 ID、三处非空契约哈希、ready/reasons 和 effectivePaths；路径规则与 _run/handoff_contract.py:path_valid 对齐。直接调用真实解析入口验证首尾空白、反斜杠、点段、空段、通配符和盘符相对路径共十种输入全部返回 E_DOC_SOURCE_UNREADABLE；docs-import.test.ts 验证既有记录保留、is_source_readable 置 0、文件恢复后解除标记。",
-      "内容指纹：packages/daemon/src/domain/docs-fingerprint.ts 只规范化按任务 ID 确定性排序的 [id, contractHash] 列表且没有运行时 import；packages/daemon/src/service/docs.ts 提供 SHA-256。docs-fingerprint.test.ts 以固定规范串和已知摘要锁定结果，并覆盖任务顺序、增删和契约哈希变化；generated、mtime、ready/reasons 不进入指纹。",
-      "分层与数据边界：packages/daemon/src/domain/layer-of.ts 与当前阅读器 layerOf 的最长前驱链、环截断和缺失前驱过滤规则一致；packages/daemon/src/repo/documents.ts 只收发 snake_case DocumentRow，service 映射 camelCase 记录。repo 的 prepare/run/get/all 均经 toDatabaseError 包装，重复唯一键测试观察到带原始 cause 的 AppError。",
-      "E-79 与 E-247：同 id/contractHash 指纹下更新 generated 或 ready/reasons 时 hasChanged=false，同时刷新 last_seen_at 并返回最新复核元数据；lane_count 新建默认 2、值域 1-6，用户改为 4 后重新导入保持 4，代码不读取阅读器 localStorage。",
-      "验证环境与结果：Node 22.17.0 下执行聚焦 Vitest 三文件 33/33 通过；审查方补齐路径规则和原生命周期回归后执行 pnpm -w check，Biome、TypeScript 与 25 个 Vitest 文件全部通过，146 passed、32 skipped。跳过项是现有按平台条件选择的测试，不影响本任务的纯解析、SQLite 与 service 行为。",
-      "2026-09-09 实施解锁修复（重做 2026-09-08 未提交而丢失的修复）：本任务契约 context 与修改前逐字段比较，仅 compiler 指纹变化；任务定义、前置、有效路径、验收、边界均一致，沿用已合入代码与原验收证据，无新增代码义务。",
-      "生成器 implLocked 改为：待派 + 前置全部已落地 + 契约无明确错误、结构检查未过期、不在同步中的文档补丁；语义复核改在审查阶段登记。_run/tests 路由与闸门回归 13 项通过。"
+      "复验原因与契约差异：_run/revalidation.json 中 M3-T1 的 patches[].changedFields 只有 sections，涉及 00-概览/01-概述与目标.md、00-概览/02-非目标.md、02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/14-安全与权限.md、03-质量/16-可观测性.md、03-质量/17-测试策略.md 九个共享章节。与补丁 JSON（_run/patches/pipeline-automation-20260910.json）changes['M3-T1'] 的 before/after 逐字段比对，task（accept/deps/edges/input/output/est）、effectivePaths、handoff 全部一致，仅 context.sections 指纹与 hash 变化。",
+      "变化条款对本任务的影响：02-设计/06 的 M3 行新增「收口提示词 dispatchBatches 的按任务集合匹配也归它」，与本任务卡早已写明的模块描述一致，具体匹配实现归 M3-T6，无新义务；02-设计/09 明确「lane_count 仍留在 documents（按文档持久化，决策 48）」，与 AC6/E-247 一致；新增的 batch_wrapups、settings 表、runs 收口列、批次状态机与收口提示词组装均属 M3-T2/M3-T3/M3-T5/M3-T6，不影响本任务的解析、指纹与 documents repo。",
+      "E-16 强制 UTF-8 且不启用 JS 引擎：packages/daemon/src/service/docs.ts:158-184 读入后剥离可选的 window.DOCS 外壳再 JSON.parse；packages/daemon/src/service/docs.ts:525 以 'utf8' 读取；packages/daemon/test/unit/docs-import.test.ts:179 起的协议负向测试覆盖外壳、首尾空白与损坏输入。",
+      "E-17/E-79 指纹与复核元数据：packages/daemon/src/domain/docs-fingerprint.ts:13 按任务 ID 代码单元序生成 [id, contractHash] 规范串，:25 使用注入的摘要实现；packages/daemon/src/service/docs.ts:622 用 content_fingerprint 比对得 hasChanged，generated、mtime、ready/reasons 不进入载荷；:634-640 在成功读取时无条件刷新文档复核元数据（project/repo/branch/fingerprint/last_seen_at/is_source_readable）。",
+      "E-82 源不可读时不清空数据：packages/daemon/src/service/docs.ts:563-573 解析失败只调 markSourceUnreadable 并抛 E_DOC_SOURCE_UNREADABLE，既有任务、派发快照与运行状态不动；packages/daemon/src/repo/documents.ts:239 的 markSourceUnreadable 只更新 is_source_readable 与 last_seen_at。packages/daemon/test/unit/docs-import.test.ts:456 起验证损坏后记录保留、恢复后解除标记。",
+      "E-246 分层收敛在唯一函数：packages/daemon/src/domain/layer-of.ts:9 按最长前驱链计算层号、遇环就地截断、忽略不在 ids 中的前驱，:44 的 batchNoOf 只做层号 + 1；E-247 产品自有窗口数：packages/daemon/src/service/docs.ts:587 新建 documents 行 lane_count 默认 2，daemon 全仓无 localStorage 读取，packages/daemon/test/unit/docs-import.test.ts:622 起验证 lane_count 保留与指纹相同的复核元数据刷新。",
+      "本轮发现的唯一真实分歧（已返工修复）：2026-09-10 补丁把文档任务从 78 增到 86（当前 docs-data.js 实测 86 个任务、86 个 dispatch 契约哈希），本任务三个真实文档用例写死 78 导致失败。改为从源派生：packages/daemon/test/unit/layer-of.test.ts:120 用源 id 列表长度断言分层条数；packages/daemon/test/unit/docs-fingerprint.test.ts:119-120 断言指纹载荷覆盖源文件的全部任务且每个契约哈希为 64 位十六进制；packages/daemon/test/unit/docs-import.test.ts:763/778 用源文件任务数组长度、:1259 用同一次解析结果断言导入条数。",
+      "检查结果（修复后）：聚焦 Vitest 三文件 packages/daemon/test/unit/{layer-of,docs-fingerprint,docs-import}.test.ts 共 49 用例全部通过；全仓 vitest 535 通过 / 32 跳过 / 1 失败，唯一失败是 packages/daemon/test/arch/routes.test.ts 的 M2-T6 AC5 —— check-error-codes.mjs 报 E_BATCH_NOT_WRAPPABLE/E_WRAPUP_ROUND_LIMIT/E_FIX_RUN_IN_FLIGHT 尚未投影到 codes.ts，归未落地的 M8-T6/M8-T7，与本任务无关；packages/web/test/theme-provider.test.ts 因本检出未安装 web 依赖（react 缺失）加载失败，同属既有环境问题。biome ci 对三个改动文件无问题，tsc -b packages/daemon 通过。",
+      "改动范围：仅 packages/daemon/test/unit/layer-of.test.ts、packages/daemon/test/unit/docs-fingerprint.test.ts、packages/daemon/test/unit/docs-import.test.ts，以及按新行号回填的任务卡 docs/Agent任务调度器-开发文档/图谱/任务/M3-T1.md 两个受保护区。src、migrations 未改，未新增公共结构。"
     ],
-    "migratedFrom": "d0ce8d8c6aeb6ab3fd590ec7ef93986ae72314eb84aa0162b95113ba7d3ce51e",
-    "reviewed": "2026-09-09T08:57:16.092601+00:00",
+    "reviewed": "2026-09-11T06:27:39.440302+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
