@@ -329,6 +329,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M5-T3": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "731a48e27c038b52bb907032796b446fecc012a88999b5d619c329982c1a9052",
+    "evidence": [
+      "前置 M5-T1（worktree 准备、分支命名与回收）已落地：packages/daemon/src/workspace/worktree.ts 提供 GitRunner / createDefaultGitRunner / prepareWorktree，本任务在此基础上读 diff，输入能力存在。",
+      "有效路径核对：presentation.json handoff.taskPaths 给 packages/daemon/src/workspace/diff.ts，本次补丁把既定产出的单测 packages/daemon/test/unit/diff.test.ts 补进 task-contracts.json 的 supportPaths（M5-T1/M5-T4/M5-T5 同样列各自单测），与 M5-T4、M6-T3、M7-T1 无文件交集，不产生路径冲突。",
+      "验收标准与 19-模块任务拆分 第 50 行一致：三条 AC 分别对应 git 工作区 diff（不解析 tool 事件）、基线取 worktree 自身 HEAD、push 到远端高亮；产出 getDiffStat()/getDiffText() 与任务卡一致。",
+      "边界对口：E-72 主要由 M5-T1 兜底（建 worktree 不 stash 主工作区），M5-T3 兜其中「基线取 worktree 自身 HEAD」，E-75 的检测侧归本任务；两条边界在本任务的实现范围（workspace/diff.ts）内可实现，不需要改动其它层的文件。",
+      "接口字段核对：RemotePushDetectionResult 的 branch/commit 与 packages/shared/src/api/events.ts 的 RunRemotePushDetectedPayload 字段同名，下游发布 run.remote_push_detected 时可直接消费，不存在 DTO 冲突。",
+      "验收阶段：契约声明的是工作区读取层，不含 HTTP 路由与 UI；任务详情的高亮呈现由解锁的 M6-T3 消费，本任务只负责产出检测结果，边界与验收标准之间无矛盾。"
+    ],
+    "reviewed": "2026-09-11T12:05:14.932401+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M5-T4": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "bac62ae25f2920ad126962832713704ecb6223548f112e9c6400a42446d0b6ec",
