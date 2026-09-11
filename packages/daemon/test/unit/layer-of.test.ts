@@ -115,7 +115,9 @@ describe('domain/layer-of (AC 5, E-241, E-242, E-244, E-246)', () => {
 
 		const layers = layerOf(ids, (id) => taskMap.get(id)?.deps ?? []);
 
-		expect(Object.keys(layers).length).toBe(78);
+		// One layer per task in the source list; the count is derived so the test stays
+		// valid when the document gains tasks instead of pinning a stale total.
+		expect(Object.keys(layers).length).toBe(ids.length);
 		// Root tasks with no deps must be at layer 0 (batch 1)
 		expect(layers['M1-T1']).toBe(0);
 		expect(batchNoOf(layers['M1-T1'] ?? 0)).toBe(1);
