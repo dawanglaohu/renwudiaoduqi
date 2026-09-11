@@ -12,22 +12,32 @@
       ],
       "verdict": "pass"
     },
+    "M10-T1": {
+      "contractHash": "a343cc35a684e0e4b463c046f3a70f28831e5aa60b260fd81b22035485c98ef4",
+      "evidence": [
+        "标记来源：M5-T3 的补丁 m5-t3-supportpaths 基线早于 main 合并本任务，落地前合并 main 再 sync 时把本任务自身的 supportPaths 变更算进了补丁窗口，属跨合并的契约哈希传播误标，不是本补丁修改了本任务契约。",
+        "契约逐字段比对：当前 _run/task-contracts.json 的 M10-T1 条目为 {\"supportPaths\": [\"packages/web/package.json\", \"packages/web/test/shell-bridge.test.ts\", \"packages/shared/package.json\", \"pnpm-lock.yaml\"]}，与 main 上本任务自身的补丁记录登记内容一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目（git diff origin/main -- _run/task-contracts.json 只显示该新增）。",
+        "代码比对：本分支相对 main 改动的包内文件只有 packages/daemon/src/workspace/diff.ts, packages/daemon/test/unit/diff.test.ts，不含 M10-T1 的任何产出或测试路径。",
+        "结论：M10-T1 无新增条款需要复核，撤销误标；其代码与测试保持 main 上的已复核状态。"
+      ],
+      "verdict": "pass"
+    },
     "M5-T2": {
       "contractHash": "2fe5a002a53b322b25e7d1d3fef949b91291245997a66a22de370bc2912f2134",
       "evidence": [
-        "标记来源：M5-T3 的补丁 m5-t3-supportpaths 在 main 合并 M5-T2（PR #42）之前保存基线，落地前合并 main 再 sync 时把 M5-T2 自身的 supportPaths 变更算进了补丁窗口，属跨合并的哈希传播误标，不是 M5-T2 契约被本补丁修改。",
-        "契约逐字段比对：当前 _run/task-contracts.json 的 M5-T2 条目为 {\"supportPaths\":[\"packages/daemon/test/unit/base-select.test.ts\"]}，与 main 上 M5-T2 自身补丁 m5-2-support-paths（status=verified，verifiedTasks=[M5-T2]）登记的内容完全一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目。",
-        "代码比对：git diff origin/main -- packages/daemon/src/workspace/base-select.ts packages/daemon/test/unit/base-select.test.ts 为空，本分支未触碰 M5-T2 的任何产出或测试。",
-        "结论：M5-T2 无新增条款需要复核，撤销误标；本任务代码与测试保持 main 上的已复核状态。"
+        "标记来源：M5-T3 的补丁 m5-t3-supportpaths 基线早于 main 合并本任务，落地前合并 main 再 sync 时把本任务自身的 supportPaths 变更算进了补丁窗口，属跨合并的契约哈希传播误标，不是本补丁修改了本任务契约。",
+        "契约逐字段比对：当前 _run/task-contracts.json 的 M5-T2 条目为 {\"supportPaths\": [\"packages/daemon/test/unit/base-select.test.ts\"]}，与 main 上本任务自身的补丁记录登记内容一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目（git diff origin/main -- _run/task-contracts.json 只显示该新增）。",
+        "代码比对：本分支相对 main 改动的包内文件只有 packages/daemon/src/workspace/diff.ts, packages/daemon/test/unit/diff.test.ts，不含 M5-T2 的任何产出或测试路径。",
+        "结论：M5-T2 无新增条款需要复核，撤销误标；其代码与测试保持 main 上的已复核状态。"
       ],
       "verdict": "pass"
     },
     "M9-T2": {
       "contractHash": "0f497e47dd4f74c88dac1a88333b77999e5d08aa48e7f804340f404be31cc7b4",
       "evidence": [
-        "标记来源：M5-T3 的补丁 m5-t3-supportpaths 基线早于 main 合并 M9-T2（PR #45），落地前合并 main 再 sync 时把 M9-T2 自身的 supportPaths 变更算进了补丁窗口，属跨合并的哈希传播误标。",
-        "契约逐字段比对：当前 _run/task-contracts.json 的 M9-T2 条目为 {\"supportPaths\":[\"packages/web/test/spine-shape.test.ts\",\"packages/web/test/status-badge.test.ts\"]}，与 main 上 M9-T2 自身补丁 M9-T2-review-scope-20260911（status=verified，verifiedTasks=[M9-T2]，PR #45）登记的内容一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目。",
-        "代码比对：git diff origin/main --name-only 中没有任何 web/ 或 M9-T2 相关路径，本分支未触碰 M9-T2 的产出与测试。",
+        "标记来源：M5-T3 的补丁 m5-t3-supportpaths 基线早于 main 合并本任务，落地前合并 main 再 sync 时把本任务自身的 supportPaths 变更算进了补丁窗口，属跨合并的契约哈希传播误标，不是本补丁修改了本任务契约。",
+        "契约逐字段比对：当前 _run/task-contracts.json 的 M9-T2 条目为 {\"supportPaths\": [\"packages/web/test/spine-shape.test.ts\", \"packages/web/test/status-badge.test.ts\"]}，与 main 上本任务自身的补丁记录登记内容一致；本分支相对 main 对 task-contracts.json 的唯一改动是新增 M5-T3 条目（git diff origin/main -- _run/task-contracts.json 只显示该新增）。",
+        "代码比对：本分支相对 main 改动的包内文件只有 packages/daemon/src/workspace/diff.ts, packages/daemon/test/unit/diff.test.ts，不含 M9-T2 的任何产出或测试路径。",
         "结论：M9-T2 无新增条款需要复核，撤销误标；其代码与测试保持 main 上的已复核状态。"
       ],
       "verdict": "pass"
