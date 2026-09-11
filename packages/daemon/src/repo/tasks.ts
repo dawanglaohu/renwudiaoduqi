@@ -669,6 +669,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
  * 2. 按拓扑分层重算批次号，成环任务就地截断为层 0（落入第 1 批，E-241）；
  * 3. 全部任务无依赖时只有第 1 批，界面照常按批次呈现（E-244）；
  * 4. 批次号不作持久标识，历史派发记录认 task id 与快照，已有任务保留原始 id 与 manual_state（E-243）；
+ *    批次行按 (doc_id, batch_no) upsert 且**永不删除**——重出分层只改任务的归属，批次行的 state 与已有收口记录原样保留；
  * 5. 多份文档按 doc_id 隔离，任务 id 不冲突，批次独立编号（E-21、E-87）；
  * 6. ready=false 的合法任务正常落库但 is_contract_ready=0，带阻断原因（E-17、E-82）。
  */
@@ -807,10 +808,7 @@ export function importDocTasks(
 	// 5. 将文档中已消失的任务标为 is_removed_from_doc = 1（E-18、E-77）
 	tasksRepo.markRemovedFromDoc(params.docId, taskKeys);
 
-	// 6. 清理未被引用的批次
-	batchesRepo.deleteUnusedForDoc(params.docId);
-
-	// 7. 返回查询结果
+	// 6. 返回查询结果（批次行永不删除，未被引用的批次原样保留，09 节）
 	const finalTasks = tasksRepo.listByDocId(params.docId);
 	const finalBatches = batchesRepo.listByDocId(params.docId);
 

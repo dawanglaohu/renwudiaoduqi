@@ -1179,8 +1179,11 @@ describe('importDocTasks AC 1-7 and boundary coverage', () => {
 		const batch1 = secondImport.batches.find((b) => b.batch_no === 1);
 		expect(updatedT2?.batch_id).toBe(batch1?.id);
 
-		// Unused batch 2 was deleted
-		expect(secondImport.batches.find((b) => b.batch_no === 2)).toBeUndefined();
+		// 批次行永不删除（09 节）：未被引用的批次 2 原样保留，state 与 id 不变
+		const keptBatch2 = secondImport.batches.find((b) => b.batch_no === 2);
+		expect(keptBatch2).toBeDefined();
+		expect(keptBatch2?.id).toBe(originalBatch2Id);
+		expect(keptBatch2?.state).toBe('idle');
 	});
 
 	it('AC 7 & E-244: all tasks with no dependencies produce only Batch 1 and do not degrade into a no-batch list', () => {
