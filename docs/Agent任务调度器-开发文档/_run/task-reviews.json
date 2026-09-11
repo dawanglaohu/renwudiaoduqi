@@ -119,6 +119,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M10-T1": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "a343cc35a684e0e4b463c046f3a70f28831e5aa60b260fd81b22035485c98ef4",
+    "evidence": [
+      "2026-09-11 复核 docs/Agent任务调度器-开发文档/02-设计/07-前端架构.md:395-437：契约位置（packages/shared/src/shell/bridge-contract.ts 纯类型、web 侧唯一实现 src/shell/shell-bridge.ts）、能力恰三件 tokenStore.get/set/clear、notify({title,body,deepLink})、hostHint()、两个只读位 platform 与 capabilities{hasSecureStorage,hasNativeNotification}、探测写法（两个全局→tauri/capacitor/browser，模块加载冻结，禁 userAgent/try-catch/渲染中重探）与降级要求（sessionStorage 键 agsched.token、Notification API 或 (N) 标题前缀、hostHint 返回 location.origin）在任务卡四条验收标准里逐条对齐，未增删。",
+      "2026-09-11 复核 docs/Agent任务调度器-开发文档/04-执行/19-模块任务拆分.md 的 M10 行与 图谱/任务/M10-T1.md：前置只有 M9-T1、产出只有 bridge-contract.ts 与 web/src/shell/ 两文件、解锁 M10-T2/M10-T3，均未把壳实现或自启接线提前纳入本任务。",
+      "2026-09-11 复核 docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md 与 图谱/边界/E-200.md：期望仍是「界面必须能在桌面浏览器直连 daemon 使用，验收标准不因壳模块延期而改变」，本任务只交出三件能力的浏览器降级，未弱化该期望；E-227（先浏览器后装壳，壳安全存储为唯一真相源）为 M9-T15 归属，本任务仅实现启动清副本，不替其验收。",
+      "2026-09-11 通过补丁 M10-T1-review-scope-20260911 在 docs/Agent任务调度器-开发文档/_run/task-contracts.json 补入 M10-T1.supportPaths：packages/web/package.json（workspace 依赖）、packages/web/test/shell-bridge.test.ts（测试）、packages/shared/package.json（契约包导出）、pnpm-lock.yaml（依赖清单）。这四项是 07 节「契约以包导出形式供 web 与两个壳 import」与「每个任务本地验收必须包含 pnpm -w check」已定要求的必要支持文件，属实现产出必需的漏列项，未引入新的公共基础或放宽共享文件。",
+      "2026-09-11 冲突核对：presentation.json/task-contracts.json 中 M9-T2、M9-T3、M9-T4、M3-T5、M5-T2、M5-T3、M10-T2、M10-T3 的有效路径均不含补入的四项，交接台 86/86 任务路径检查通过，补丁未与在途任务抢同一文件。",
+      "2026-09-11 现状检查（task/M10-T1，与补丁同步后一致）：pnpm exec biome ci . 无违规、pnpm exec tsc -b --noEmit 通过、node packages/web/scripts/check-forbidden.ts 0 违规、vitest run packages/web/test 24 个用例全过（含 shell-bridge 12 个）。以上只证明契约复核期间的仓库状态，代码语义结论另见审查输出。"
+    ],
+    "reviewed": "2026-09-11T13:23:50.870902+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T1": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "2c40c4249d9ca5d9e801b04da3cb0a4a3b9a76bb239f86d255ea3a2e64260c88",
@@ -230,6 +245,22 @@
       "2026-09-11 全量核查：check-contrast、check-forbidden、biome ci（193 文件）、tsc -b --noEmit 通过；pnpm -w check 整体退出码 1，唯一阻断是 check-error-codes（10 节新增三码尚未投影到 codes.ts，归未落地的 M8-T6/M8-T7）；vitest（WSL Ubuntu 20.04，better-sqlite3 源码编译）571 例：534 通过 / 5 失败 / 32 跳过，5 个失败全部是 M2-T6 AC5 与 M3-T1/M3-T2 硬编码 78 个任务数的用例，与本任务无关；本任务测试文件：packages/daemon/test/unit/documents-routes.test.ts 8 通过/0 失败/0 跳过"
     ],
     "reviewed": "2026-09-11T02:45:09.264048+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M3-T5": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "f7b9ff60df21c1bdb7e964539d418a8d01f82dd6f7f58d9140138f46c74698ee",
+    "evidence": [
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T5 行、图谱/任务/M3-T5.md、03-质量/13-边界问题与异常处理.md:63 的 E-50 行、02-设计/06-系统架构与模块划分.md:82 与 02-设计/12-UX.md:125 的 M3→M7 取用方向，确认产出为供 M7 组装只读裁定包的 getReviewContext(taskId)，输入为 M3-T3 派发快照；前置 M3-T3 任务笔记 status=done 已落地。PR 43 的 diff 只含两条有效路径与任务笔记的回填，无范围外改动。",
+      "验收标准 1（快照而非当前文档）：packages/daemon/src/service/review-context.ts:188 的 getReviewContext 全部字段取自 dispatch_snapshots 行本身——review_prompt/contract_hash/accept_text/input_text/output_text/task_paths_json/launch_spec_json，另标 isSnapshot/isReadOnly 表达「引用审查材料、非运行时权限」；packages/daemon/test/unit/review-context.test.ts:142 在派发快照后把 tasks 表整行改写成 accept/review/contractHash 的 V2，断言接口仍返回 V1 快照内容且 docChangedSinceDispatch=true。",
+      "验收标准 2（快照缺失明确报错）：packages/daemon/src/service/review-context.ts:213-219 在无快照时抛 AppError('E_NOT_FOUND')，无任何回落读 tasks.accept_text / review_prompt 的分支；E_NOT_FOUND 已登记在 packages/shared/src/errors/codes.ts:12。packages/daemon/test/unit/review-context.test.ts:214 先断言任务行存在且带「文档版」验收标准，再断言调用抛 E_NOT_FOUND。",
+      "验收标准 3 与 E-50：service/review-context.ts:248 的 handleDocFingerprintChange 把该文档下 running 批次转 paused、收集在途任务、绝不改写运行或任务记录；:361 isBatchPaused 供后续派发前查闸；:308 confirmDocChangeAndResumeBatch 只在状态为 paused 时恢复，非 paused 抛 E_INVALID_STATE_TRANSITION。自动触发在 :363 订阅 system.docs_changed，其唯一发布点是 service/docs.ts:604 与 :645，payload 用 docsPath 字段，与订阅侧取用一致。测试 test:253 覆盖「改 contractHash + 触发 → 批次 paused、在途任务仍取 V1 快照、人工确认后恢复」，test:478 覆盖事件总线自动暂停路径。",
+      "分层与共用约定：service 只 import repo/events/errors/db（db 仅取 DatabaseConnection 类型与 createXxxRepo 工厂，与 run-abort.ts:1、logstore.ts:2 同样的 service→db 用法），未 import fastify，文件内无 SQL 字面量、无 process.env / process.platform、无 Date.now（pausedAt 走注入 clock）、无 barrel 与 utils 目录；分批 10 条错误码全部是 codes.ts 已登记项。数据往返只用 Row（snake_case），未把 Row 直接当 DTO 吐出。",
+      "审查方修正（非阻断项，本轮提交）：repo/batches.ts 的 updateState 两个时间参数缺省即写回 null，暂停与恢复原本会抹掉用户可见的批次起始时间（shared/api/batches.ts 的 BatchDto.startedAt），已改为带回 batch.started_at/finished_at 并加断言；顶层导出 getReviewContext 每次调用新建 service，注入 bus 时会多一个不解绑的常驻订阅者，已 try/finally dispose。",
+      "验证环境与结果：Node 22.17.0。npx biome ci . 检查 195 个文件、无修复项；npx tsc -b --noEmit 通过；聚焦 Vitest 5 个文件 33/33 通过（review-context 9、layer-of 8、arch/routes 5、arch/boot-boundaries 5、arch/bus-transaction 6），其中 arch/bus-transaction 也确认本次改动没有把 bus.publish 放进事务回调。"
+    ],
+    "reviewed": "2026-09-11T12:13:14.683581+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -527,6 +558,35 @@
       "接缝：BatchDto 新字段（defaultExpanded/canWrapup/四计数/notInHeadCount）由 M8-T6 在 shared batches.ts 落，本任务只读；`settings.gates_changed` 由 M8-T4 发；前端不算任何业务判定（07 节「批次树同样不算」）"
     ],
     "reviewed": "2026-09-10T20:08:25.984292+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T2": {
+    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
+    "contractHash": "0f497e47dd4f74c88dac1a88333b77999e5d08aa48e7f804340f404be31cc7b4",
+    "evidence": [
+      "AC1（E-231）：12 个状态形状全部定义在 packages/web/src/lib/spine-shape.ts:84 的 STATUS_SHAPES，每个元素的 fill/stroke 只取 currentColor 或 none（steaming/awaiting_input/stopped/partial 的实心块用 fill:'currentColor'，描边形状用 stroke:'currentColor'），无一处 hex/rgb/hsl；机检由 packages/web/test/spine-shape.test.ts:40 的 COLOR_LITERAL_REGEX 逐属性断言，徽标主题表 packages/web/src/components/status-badge.tsx:32 的 bg/text/border 全为 var(--*)（status-badge.test.ts:7 断言 startsWith('var(')），另由 check-forbidden 的 E-170「tokens.css 之外不得出现颜色字面量」全树扫描把守，本轮实跑 0 violations",
+      "AC2（E-230）：orphaned（spine-shape.ts:319 断开双环链扣）、review_incomplete（:369 放大镜内嵌未决横杠）、unrecognized（:422 虚线圆内嵌问号）各有专属几何，failed 的 ✕ 只出现在 :272 的 failed 形状；spine-shape.test.ts:68 断言四者 elements 两两不同、三个新态 semanticChar≠'✕'、且四态各有可识别元素（左/右开口环+切线、圆环+手柄+横杠、虚线圆+问号钩+底点）；实现方无任何「按颜色区分」分支",
+      "AC3（E-232）：每个形状 viewBox 恒为 '0 0 16 16'，且每个 path/rect/circle/line 都带 vectorEffect:'non-scaling-stroke'（spine-shape.ts:84-470；spine-shape.test.ts:115 逐元素断言）；StatusIcon 另在 svg 根再声明一次 vectorEffect（status-badge.tsx:143-146）。视觉验收：把本分支真实组件用 esbuild 打成单页（探针放 ../.codex-plans/agent-scheduler-m9-t2/preview/，不入库），用真实 Chrome 以 --force-device-scale-factor=1/1.25/1.5/2.75 各截一次（对应 Windows 100%/125%/150% 与 Android 2.75x 参考 DPR），12 态在 12px 下笔触清晰、无粘连模糊；本机无 Android 真机，2.75x 用 Chrome 模拟视口+DPR 代替，属本层可得的最强证据，实测结论一致",
+      "AC4、4b（E-233、E-110、E-172）：12 个形状各带中文 ariaLabel（排队/思考中/调用工具/输出中/等待输入/完成/部分完成/失败/已停止/失联/审查未完成/未识别，spine-shape.ts:84-470），spine-shape.test.ts:130 逐条断言精确文案；StatusIcon 非隐藏时 role='img' + aria-label，徽标内则 aria-hidden 并由外层 span 的 aria-label='<形状 ariaLabel> · <文案>' 承担（status-badge.tsx:201-202、:217-218）。灰度验收：探针加 filter:grayscale(1) 后 12 态靠轮廓+文字仍两两可分；形状表只有一份、深浅两模式共用，无 filter/feGaussianBlur/feDropShadow（spine-shape.test.ts:157 断言），浅色不依赖发光",
+      "AC5（E-234）：STATUS_SHAPES 的类型是 Readonly<Record<StatusState, SpineShapeDefinition>>（spine-shape.ts:84），新增状态不补形状直接 tsc 失败；spine-shape.test.ts:16 再断言 STATUS_STATES 恰 12 项、Object.keys(STATUS_SHAPES) 排序后与之逐项相等。步骤类型同法（:474 STEP_SHAPES + STEP_TYPES 6 项，:169 断言）",
+      "AC6：徽标为矩形非药丸——h-[20px] rounded-[6px] px-[7px] text-[11px] font-semibold（status-badge.tsx:205-211），status-badge.test.ts:70 断言含 h-[20px]/rounded-[6px]/px-[7px] 且断言 className 不含 rounded-full/rounded-pill；恒为「字形+文字」两层子节点（StatusIcon + text span，:217-218，test 断言 children 长度 2）；颜色是第三层（11 节配色只在 STATUS_BADGE_THEMES 里，形状本身不染色）。stopped 虚线边框（:85 borderStyle:'dashed'，test:26）、partial 用 --needs/--warn 绝不绿（:69-79，test:41）均按 11 节",
+      "E-110：徽标恒同时有字形与文字，形状不靠色相；深色为默认由 M9-T1 的 theme-provider 保证（本层不写死主题）；状态名与形状一一对应，色弱/灰度下仍可区分（探针灰度截图实测）",
+      "E-172：形状枚举不分模式，STATUS_SHAPES/STEP_SHAPES 各一份，深浅两套只差外层 CSS 变量，没有为浅色单开形状；机检测不到任何滤境/阴影元素",
+      "E-231：见 AC1；形状数据里颜色只有 'currentColor' 与 'none' 两个字面值",
+      "E-232：见 AC3；统一 viewBox 与逐元素 non-scaling-stroke 是机检项，非只靠截图",
+      "E-233：见 AC4；11 节字符表被正确地降级为 semanticChar（语义来源与 aria 文案来源）而非渲染实现，实际渲染全部走内联 SVG（StatusIcon:122）",
+      "E-234：见 AC5；外加 07 节「src/lib 每个文件配同名 .test.ts」，已补 supportPaths 登记 packages/web/test/spine-shape.test.ts 与 packages/web/test/status-badge.test.ts",
+      "07/06 分层约定：spine-shape.ts 不 import React、不 import src 下任何目录、无模块级副作用、无 document/window（纯数据+纯函数）；status-badge.tsx 只 import react 类型与 ../lib/spine-shape.ts，未 import api/store/features/shell，无 useEffect、无 fetch、无 dialog/createPortal、未直接 import @radix-ui/*；形状表是本层唯一字形来源，未用 lucide/emoji 表达状态（semanticChar 只是元数据）",
+      "前置能力核对：M9-T1 已落地（tokens.css 的 --needs-ink/--auto-ink/--down-ink 与 --badge-h 等本层用到的变量均存在）；本层不触及 src/api、src/store、src/shell、src/app，未提前做 M9-T7/M9-T19 的运行轨与批次树",
+      "13/17/19 与接口字段：13 节 E-110/E-172/E-230/E-231/E-232/E-233/E-234 七条与任务笔记「必须处理的边界」逐字一致；17 节要求本地跑 pnpm -w check，故补登记两个测试支持文件；19 节 M9-T2 行的产出/依赖/验收与任务笔记一致；本层不涉及 10 节接口字段（无请求、无 DTO、无 URL）",
+      "范围与路径：本层相对 main 改 packages/web/src/lib/spine-shape.ts、packages/web/src/components/status-badge.tsx 与两个测试文件，另回填 图谱/任务/M9-T2.md。原 presentation.json 的 taskPaths 只有两个源文件，测试为既定产出必需（07 节同名单测 + AC5 机检），已用文档补丁 M9-T2-review-scope-20260911 在 _run/task-contracts.json 为 M9-T2 增 supportPaths，未放宽任何验收；该补丁只改有效范围，sync 后无已落地任务被标「待复验」（M9-T1 不在 affected）",
+      "验收阶段检查（2026-09-11，工作树 ../agent-scheduler-m9-t2 @ bfaff7b）：npx vitest run 两个测试文件 → 17 passed；npx tsc -b --noEmit → 0；npx biome ci packages/web/src packages/web/test → 0（11 files）；check-forbidden.ts → 0 violations；check-contrast.ts → 深色/浅色全部配对通过；完整 pnpm -w check → 56 文件 556 passed / 32 skipped、失败 0",
+      "视觉验收证据（探针，不入库）：../.codex-plans/agent-scheduler-m9-t2/preview/ 用 esbuild 打包真实 spine-shape.ts + status-badge.tsx + 真实 tokens.css/tailwind 产物，Chrome 截图 shot-1/1.25/1.5/2.75.png（整页深浅+灰度）、zoomlight-2.75.png、zoomgray-2.75.png（3 倍放大逐态核对）。结论：12 态在 12px 小尺寸、非整数 DPR、浅色与灰度下均可区分且不糊，形状无颜色字面量",
+      "真服务 GIF：本层不产出可渲染页面——index.html/main.tsx/vite.config.ts 不在任何任务的 taskPaths 内（M9-T1 审查已达成的 FOLLOW_UP 结论），无真实服务与真实轮次可录，按 record-browser-gif 的诚实原则报告限制而不造 fixture GIF；代之以真实组件在真实浏览器里的多 DPR 截图探针（见上条）作为 E-232 的验收证据",
+      "非阻断观察：① renderSpineShapeSvg/escapeXml（spine-shape.ts:633）目前只有测试消费，生产无消费者，与 StatusIcon 渲染路径重复；② normalizeStatusState 的别名表是 Record<string,StatusState>，daemon 新增 RunState 不会触发 tsc 失败，只能落到 unrecognized；RunState 定义在 daemon 且 shared 未导出，前端无法类型级穷尽；③ 11 节要求界面中文字符串出自 src/i18n/，但当前无任务声明 i18n/ui-strings.ts，本层状态文案与 aria 文案只能落在形状表（E-233 指定其为文案来源）。三项进 FOLLOW_UP，不阻断本层"
+    ],
+    "reviewed": "2026-09-11T13:00:35.797493+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
