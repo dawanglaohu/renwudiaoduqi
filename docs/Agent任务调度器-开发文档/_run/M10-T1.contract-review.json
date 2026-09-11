@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M10-T1": {
+      "contractHash": "a343cc35a684e0e4b463c046f3a70f28831e5aa60b260fd81b22035485c98ef4",
+      "evidence": [
+        "2026-09-11 复核 docs/Agent任务调度器-开发文档/02-设计/07-前端架构.md:395-437：契约位置（packages/shared/src/shell/bridge-contract.ts 纯类型、web 侧唯一实现 src/shell/shell-bridge.ts）、能力恰三件 tokenStore.get/set/clear、notify({title,body,deepLink})、hostHint()、两个只读位 platform 与 capabilities{hasSecureStorage,hasNativeNotification}、探测写法（两个全局→tauri/capacitor/browser，模块加载冻结，禁 userAgent/try-catch/渲染中重探）与降级要求（sessionStorage 键 agsched.token、Notification API 或 (N) 标题前缀、hostHint 返回 location.origin）在任务卡四条验收标准里逐条对齐，未增删。",
+        "2026-09-11 复核 docs/Agent任务调度器-开发文档/04-执行/19-模块任务拆分.md 的 M10 行与 图谱/任务/M10-T1.md：前置只有 M9-T1、产出只有 bridge-contract.ts 与 web/src/shell/ 两文件、解锁 M10-T2/M10-T3，均未把壳实现或自启接线提前纳入本任务。",
+        "2026-09-11 复核 docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md 与 图谱/边界/E-200.md：期望仍是「界面必须能在桌面浏览器直连 daemon 使用，验收标准不因壳模块延期而改变」，本任务只交出三件能力的浏览器降级，未弱化该期望；E-227（先浏览器后装壳，壳安全存储为唯一真相源）为 M9-T15 归属，本任务仅实现启动清副本，不替其验收。",
+        "2026-09-11 通过补丁 M10-T1-review-scope-20260911 在 docs/Agent任务调度器-开发文档/_run/task-contracts.json 补入 M10-T1.supportPaths：packages/web/package.json（workspace 依赖）、packages/web/test/shell-bridge.test.ts（测试）、packages/shared/package.json（契约包导出）、pnpm-lock.yaml（依赖清单）。这四项是 07 节「契约以包导出形式供 web 与两个壳 import」与「每个任务本地验收必须包含 pnpm -w check」已定要求的必要支持文件，属实现产出必需的漏列项，未引入新的公共基础或放宽共享文件。",
+        "2026-09-11 冲突核对：presentation.json/task-contracts.json 中 M9-T2、M9-T3、M9-T4、M3-T5、M5-T2、M5-T3、M10-T2、M10-T3 的有效路径均不含补入的四项，交接台 86/86 任务路径检查通过，补丁未与在途任务抢同一文件。",
+        "2026-09-11 现状检查（task/M10-T1，与补丁同步后一致）：pnpm exec biome ci . 无违规、pnpm exec tsc -b --noEmit 通过、node packages/web/scripts/check-forbidden.ts 0 违规、vitest run packages/web/test 24 个用例全过（含 shell-bridge 12 个）。以上只证明契约复核期间的仓库状态，代码语义结论另见审查输出。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
