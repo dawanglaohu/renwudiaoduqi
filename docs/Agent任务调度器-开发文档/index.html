@@ -2005,9 +2005,11 @@ function buildKickoff(){
 }
 
 /* 查 bug 提示词：审查证明「文档要的都做了」，查 bug 假设一定做错了、去构造让它失败的输入。
-   不改交接台状态。代码还在栈分支上就在那一层修，已进主干就另开 fix 栈，两种情况都写死 */
-function buildBug(t){
-  var L = [], br = hBranch(t.id), fe = isFrontend(t.module), landed = isLanded(t.id);
+   不改交接台状态。代码还在栈分支上就在那一层修，已进主干就另开 fix 栈，两种情况都写死。
+   bugPrompt(t, landed) 是纯函数、不看进度：导出用 bugPrompt(t, false)——产品在任务落地前、
+   在该任务的工作树里派查 bug 运行，代码还在栈分支上；页面按钮走 buildBug(t)，按此刻状态选措辞 */
+function bugPrompt(t, landed){
+  var L = [], br = hBranch(t.id), fe = isFrontend(t.module);
   var note = HDOCS + "/图谱/任务/" + t.id + ".md";
   L.push("# 查找 bug：" + t.id + "　" + t.title);
   L.push("");
@@ -2072,6 +2074,7 @@ function buildBug(t){
       : "「已修并推送，重新点「审查」」或「没找到 bug，继续走审查 / 落地」"));
   return L.join("\n");
 }
+function buildBug(t){ return bugPrompt(t, isLanded(t.id)); }
 
 /* 全项目查 bug：单任务审查只看自己那一层，任务之间的接缝没人管。
    范围取交接台里已落地的任务；一个都没有就按主干现有代码查，把全部任务列出来 */

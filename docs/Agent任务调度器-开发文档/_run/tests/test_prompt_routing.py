@@ -50,12 +50,13 @@ for (const task of input.payload.data.tasks) {
   tasks[task.id] = {
     review: context.promptFor('review', task.id),
     resume: context.promptFor('resume', task.id),
+    bug: context.promptFor('bug', task.id),
     implementation: context.promptFor('impl', task.id),
     locked: context.implLocked(task.id),
     state: context.stOf(task.id), fileState: context.fileSt(task.id),
     compiled: {contractHash: input.payload.handoff.contracts[task.id].hash,
       implementation: context.buildImpl(task), review: context.buildReview(task),
-      resume: context.buildResume(task)}
+      resume: context.buildResume(task), bug: context.bugPrompt(task, false)}
   };
 }
 process.stdout.write(JSON.stringify({tasks, copied, writes, local: context.PG, keys,
@@ -236,7 +237,8 @@ class PromptRoutingTests(unittest.TestCase):
         self.assertEqual(set(exported), {"tasks", "batches"})
         for tid in exported["tasks"]:
             with self.subTest(task=tid):
-                self.assertEqual(set(exported["tasks"][tid]), {"contractHash", "implementation", "review", "resume"})
+                self.assertEqual(set(exported["tasks"][tid]),
+                                 {"contractHash", "implementation", "review", "resume", "bug"})
                 self.assertEqual(exported["tasks"][tid], browser["tasks"][tid]["compiled"])
         self.assertIn("本任务尚未开始实现", browser["tasks"]["M1-T1"]["review"])
         # Exports keep the existing code-review field; pre-start UI routing is separate.
@@ -250,6 +252,29 @@ class PromptRoutingTests(unittest.TestCase):
         self.assertIn("# 第 1 批收口", exported["batches"]["0"]["wrapup"])
         self.assertEqual(exported["batches"]["0"]["wrapup"], browser["pure0"])
         self.assertEqual(payload, original)
+
+    def test_bug_export_uses_unlanded_wording(self):
+        """导出的 bug 是纯函数 bugPrompt(t, false)：产品在任务落地前、在该任务工作树里派它跑，
+        措辞按「代码还在栈分支」；页面按钮走 buildBug(t)，落地后切成主干措辞。"""
+        payload = payload_for("M1-T1")
+        idle = {"pendingTasks": [], "needsReview": []}
+        exported = self.run_node(["node", str(RUN / "compile_prompts.js")], {
+            "payload": payload, "core": self.compiler_core({}, idle)})
+        bug = exported["tasks"]["M1-T1"]["bug"]
+        self.assertIn("# 查找 bug：M1-T1", bug)
+        self.assertIn("栈分支 task/M1-T1", bug)
+        self.assertIn("重新点「审查」", bug)
+        self.assertNotIn("已合进 main", bug)
+        self.assertNotIn("fix/M1-T1", bug)
+        # 进度标 done 后导出不变（不看进度），页面的 promptFor 则切到主干措辞
+        landed_export = self.run_node(["node", str(RUN / "compile_prompts.js")], {
+            "payload": payload, "core": self.compiler_core({"M1-T1": "done"}, idle)})
+        self.assertEqual(landed_export["tasks"]["M1-T1"]["bug"], bug)
+        page = self.browser(payload, {"M1-T1": "done"}, idle)["tasks"]["M1-T1"]["bug"]
+        self.assertIn("已合进 main", page)
+        self.assertIn("fix/M1-T1", page)
+        self.assertNotIn("栈分支 task/M1-T1", page)
+        self.assertNotIn("重新点「审查」", page)
 
     # ---- 实施解锁只看前置是否落地；契约语义复核在审查阶段登记 ----
 

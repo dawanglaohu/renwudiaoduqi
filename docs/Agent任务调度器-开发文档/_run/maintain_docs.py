@@ -118,6 +118,7 @@ def build(root, selected=None):
         cmd += ['--tasks', ','.join(sorted(selected))]
     commands.append(cmd)
     for cmd in commands:
+        # build_vault 在大项目上要 70 到 120 秒，60 秒会让 verify 与 --landed 每次中途回滚
         result = subprocess.run(cmd, text=True, encoding='utf-8', capture_output=True, timeout=600)
         if result.returncode:
             raise ValueError('同步失败：' + result.stdout + '\n' + result.stderr)

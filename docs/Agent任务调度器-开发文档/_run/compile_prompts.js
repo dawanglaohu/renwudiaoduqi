@@ -13,7 +13,9 @@ vm.createContext(context, {codeGeneration: {strings: false, wasm: false}});
 vm.runInContext(input.core, context, {timeout: 5000});
 vm.runInContext(`result = {tasks: {}, batches: {}}; (DT.tasks || []).forEach(function(t) {
   result.tasks[t.id] = {contractHash: D.handoff.contracts[t.id].hash,
-    implementation: buildImpl(t), review: buildReview(t), resume: buildResume(t)};
+    implementation: buildImpl(t), review: buildReview(t), resume: buildResume(t),
+    // 查 bug 一律用未落地措辞：产品在任务落地前、在该任务工作树里派它运行，代码还在栈分支上
+    bug: bugPrompt(t, false)};
 });
 // 每批一份收口提示词：batchPrompt 是纯函数，不看进度也不看收口记录；tasks 排序后导出，下游按集合匹配本批
 var BL = batchLayers();

@@ -1,5 +1,6 @@
-"""1.3.0 工具脚本配套的回归：workspace 列出批次收口遗留目录、版本号升到 1.3.0、
-脚本与测试不用 Python 3.9+ 才有的写法（项目 _run/tests 在 WSL 用 3.8.10 跑）。"""
+"""1.3.x 工具脚本配套的回归：workspace 列出批次收口遗留目录、版本号升到 1.3.1、
+脚本与测试不用 Python 3.9+ 才有的写法（项目 _run/tests 在 WSL 用 3.8.10 跑）、
+build 子进程超时是 600 秒。"""
 import contextlib
 import io
 from pathlib import Path
@@ -58,12 +59,21 @@ class Release13ToolTests(unittest.TestCase):
         self.assertIn('git worktree prune', out)
 
     # ---- 版本号 ----
-    def test_version_is_1_3_0(self):
+    def test_version_is_1_3_1(self):
         import install_project
-        self.assertEqual(hc.VERSION, '1.3.0')
+        self.assertEqual(hc.VERSION, '1.3.1')
         with contextlib.redirect_stdout(io.StringIO()):
             install_project.install(self.doc, root=self.base)
-        self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.3.0')
+        self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.3.1')
+
+    # ---- build 子进程超时 ----
+    def test_build_subprocess_timeout_is_600(self):
+        """build_vault 在大项目上要 70 到 120 秒；60 秒会让 verify 与 --landed 每次中途回滚
+        （项目 renwudiaoduqi 提交 60b269a 已验证），收进技能后重装才不会冲掉。"""
+        source = (SCRIPTS / 'maintain_docs.py').read_text(encoding='utf-8-sig')
+        build_src = source[source.index('def build('):source.index('def ', source.index('def build(') + 1)]
+        self.assertIn("capture_output=True, timeout=600)", build_src)
+        self.assertNotIn('timeout=60)', source)
 
     # ---- Python 3.8 兼容 ----
     def test_no_python39_only_idioms(self):
