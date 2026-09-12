@@ -258,6 +258,26 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(ev2?.payload.chunk).toBe('Analyzing type constraints...');
 		});
 
+		it('R1: maps a real exec reasoning item to agent_thought_chunk (item.type = reasoning)', () => {
+			// exec --json delivers the thought as a completed item instead of a delta event.
+			const execLine = JSON.stringify({
+				type: 'item.completed',
+				item: {
+					id: 'rs-2',
+					type: 'reasoning',
+					text: 'Checking the schema against the installed CLI.',
+				},
+			});
+
+			const result = parseAndMapCodexLine(execLine, context);
+			expect(result.events.length).toBe(1);
+			expect(result.events[0]?.kind).toBe('agent_thought_chunk');
+			expect(result.events[0]?.payload.chunk).toBe(
+				'Checking the schema against the installed CLI.',
+			);
+			expect(result.unmappedCount).toBe(0);
+		});
+
 		it('maps command execution tool_call started identically using camelCase (app-server) and real snake_case (exec)', () => {
 			// app-server uses commandExecution
 			const appServerItem = {

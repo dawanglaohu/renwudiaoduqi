@@ -51,6 +51,7 @@ export const CODEX_VENDOR_EVENT_STRINGS = Object.freeze([
 	'item/reasoning/summaryTextDelta',
 	'item.reasoning.delta',
 	'reasoning_delta',
+	'reasoning',
 	'item/commandExecution/outputDelta',
 	'command/exec/outputDelta',
 	'process/outputDelta',
@@ -261,6 +262,21 @@ function mapItemStarted(
 			}
 			return null;
 		}
+		case 'reasoning': {
+			// exec --json carries thought text on the item itself, app-server streams it through
+			// item/reasoning/textDelta; both normalize to agent_thought_chunk.
+			if (typeof item.text === 'string' && item.text.length > 0) {
+				return createInput(
+					'agent_thought_chunk',
+					{
+						chunk: item.text,
+						vendor: parsed,
+					},
+					context,
+				);
+			}
+			return null;
+		}
 		case 'error': {
 			const msg =
 				typeof item.message === 'string'
@@ -389,6 +405,21 @@ function mapItemCompleted(
 					context,
 				),
 			);
+			break;
+		}
+		case 'reasoning': {
+			if (typeof item.text === 'string' && item.text.length > 0) {
+				events.push(
+					createInput(
+						'agent_thought_chunk',
+						{
+							chunk: item.text,
+							vendor: parsed,
+						},
+						context,
+					),
+				);
+			}
 			break;
 		}
 		case 'error': {
