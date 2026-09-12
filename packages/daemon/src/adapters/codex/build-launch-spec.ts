@@ -67,7 +67,7 @@ export function buildCodexLaunchSpec(options: BuildCodexLaunchSpecOptions): Laun
 			const permissionMapping = resolvePermissionMapping('codex', options.permissionTier);
 			if (permissionMapping.supported && permissionMapping.transport.kind === 'argv') {
 				const flagValue = permissionMapping.transport.value;
-				args.push('-c', `sandbox="${flagValue}"`);
+				args.push('-c', `sandbox_mode="${flagValue}"`);
 			}
 		}
 	} else {

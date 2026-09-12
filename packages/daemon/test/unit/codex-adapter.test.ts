@@ -60,7 +60,7 @@ describe('M4-T8: codex 原生适配器', () => {
 		});
 	});
 
-	describe('AC 1: 主用 app-server，保留 codex exec --json 为退路', () => {
+	describe('AC 1 & R2: 主用 app-server，保留 codex exec --json 为退路与权限键映射', () => {
 		it('defaults to app-server mode for buildLaunchSpec', () => {
 			const spec = buildLaunchSpec({
 				runId: 'run-001',
@@ -77,7 +77,37 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(Object.isFrozen(spec.args)).toBe(true);
 		});
 
-		it('configures model, effort tier, and sandbox permissions in app-server mode', () => {
+		it('R2: maps three permission tiers to sandbox_mode in app-server mode and never outputs sandbox=', () => {
+			const tiers = [
+				{ tier: PERMISSION_TIERS.READ_ONLY, expected: 'sandbox_mode="read-only"' },
+				{
+					tier: PERMISSION_TIERS.WORKSPACE_WRITE,
+					expected: 'sandbox_mode="workspace-write"',
+				},
+				{
+					tier: PERMISSION_TIERS.UNRESTRICTED,
+					expected: 'sandbox_mode="danger-full-access"',
+				},
+			] as const;
+
+			for (const { tier, expected } of tiers) {
+				const spec = buildCodexLaunchSpec({
+					runId: 'run-sandbox-tier',
+					cwd: '/workspace/project',
+					permissionTier: tier,
+				});
+
+				expect(spec.args).toContain('-c');
+				expect(spec.args).toContain(expected);
+				// Must NOT contain sandbox=
+				for (const arg of spec.args) {
+					expect(arg).not.toMatch(/^sandbox=/);
+					expect(arg).not.toMatch(/^sandbox="/);
+				}
+			}
+		});
+
+		it('configures model and effort tier in app-server mode', () => {
 			const spec = buildCodexLaunchSpec({
 				runId: 'run-002',
 				cwd: '/workspace/project',
@@ -92,12 +122,35 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(spec.args).toContain('-c');
 			expect(spec.args).toContain('model="o3-mini"');
 			expect(spec.args).toContain('model_reasoning_effort="high"');
-			expect(spec.args).toContain('sandbox="workspace-write"');
+			expect(spec.args).toContain('sandbox_mode="workspace-write"');
 		});
 
-		it('supports exec --json fallback mode with identical capability settings', () => {
+		it('R2: retains --sandbox <value> in exec fallback mode', () => {
+			const tiers = [
+				{ tier: PERMISSION_TIERS.READ_ONLY, expected: 'read-only' },
+				{ tier: PERMISSION_TIERS.WORKSPACE_WRITE, expected: 'workspace-write' },
+				{ tier: PERMISSION_TIERS.UNRESTRICTED, expected: 'danger-full-access' },
+			] as const;
+
+			for (const { tier, expected } of tiers) {
+				const spec = buildCodexLaunchSpec({
+					runId: 'run-003',
+					cwd: '/workspace/project',
+					mode: 'exec',
+					permissionTier: tier,
+				});
+
+				expect(spec.args[0]).toBe('exec');
+				expect(spec.args[1]).toBe('--json');
+				expect(spec.args).toContain('--sandbox');
+				const sandboxIndex = spec.args.indexOf('--sandbox');
+				expect(spec.args[sandboxIndex + 1]).toBe(expected);
+			}
+		});
+
+		it('supports exec --json fallback mode with model, effort tier, and prompt', () => {
 			const spec = buildCodexLaunchSpec({
-				runId: 'run-003',
+				runId: 'run-003-full',
 				cwd: '/workspace/project',
 				mode: 'exec',
 				model: 'o3-mini',
@@ -138,7 +191,7 @@ describe('M4-T8: codex 原生适配器', () => {
 		});
 	});
 
-	describe('AC 1: map-events 产出同一套归一化事件 (app-server 与 exec --json)', () => {
+	describe('AC 1 & R1: map-events 产出同一套归一化事件 (app-server 与 real snake_case exec --json)', () => {
 		const context = { runId: 'run-test-1', taskId: 'M4-T8' };
 
 		it('maps message chunks identically from app-server and exec --json', () => {
@@ -154,11 +207,14 @@ describe('M4-T8: codex 原生适配器', () => {
 				},
 			});
 
-			// exec --json line
+			// real exec --json line with snake_case item.started
 			const execLine = JSON.stringify({
-				type: 'item.agent_message.delta',
-				delta: 'Generating solution...',
-				itemId: 'msg-1',
+				type: 'item.started',
+				item: {
+					type: 'agent_message',
+					id: 'msg-1',
+					text: 'Generating solution...',
+				},
 			});
 
 			const appServerEvents = mapEvents(appServerLine, context);
@@ -202,9 +258,18 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(ev2?.payload.chunk).toBe('Analyzing type constraints...');
 		});
 
-		it('maps command execution tool_call started identically from app-server and exec --json', () => {
-			const itemPayload = {
+		it('maps command execution tool_call started identically using camelCase (app-server) and real snake_case (exec)', () => {
+			// app-server uses commandExecution
+			const appServerItem = {
 				type: 'commandExecution',
+				id: 'cmd-42',
+				command: 'pnpm test',
+				cwd: '/app/repo',
+			};
+
+			// real exec uses command_execution
+			const execItem = {
+				type: 'command_execution',
 				id: 'cmd-42',
 				command: 'pnpm test',
 				cwd: '/app/repo',
@@ -212,12 +277,12 @@ describe('M4-T8: codex 原生适配器', () => {
 
 			const appServerLine = JSON.stringify({
 				method: 'item/started',
-				params: { item: itemPayload },
+				params: { item: appServerItem },
 			});
 
 			const execLine = JSON.stringify({
 				type: 'item.started',
-				item: itemPayload,
+				item: execItem,
 			});
 
 			const ev1 = mapEvents(appServerLine, context)[0];
@@ -233,8 +298,8 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(ev2?.payload.input).toEqual({ command: 'pnpm test', cwd: '/app/repo' });
 		});
 
-		it('maps command execution tool_call_update completed identically from app-server and exec --json', () => {
-			const itemPayload = {
+		it('maps command execution completed identically using camelCase (app-server) and real snake_case exit_code / aggregated_output (exec)', () => {
+			const appServerItem = {
 				type: 'commandExecution',
 				id: 'cmd-42',
 				command: 'pnpm test',
@@ -244,14 +309,24 @@ describe('M4-T8: codex 原生适配器', () => {
 				durationMs: 450,
 			};
 
+			const execItem = {
+				type: 'command_execution',
+				id: 'cmd-42',
+				command: 'pnpm test',
+				exit_code: 0,
+				aggregated_output: '✓ 12 tests passed',
+				status: 'completed',
+				duration_ms: 450,
+			};
+
 			const appServerLine = JSON.stringify({
 				method: 'item/completed',
-				params: { item: itemPayload },
+				params: { item: appServerItem },
 			});
 
 			const execLine = JSON.stringify({
 				type: 'item.completed',
-				item: itemPayload,
+				item: execItem,
 			});
 
 			const ev1 = mapEvents(appServerLine, context)[0];
@@ -275,6 +350,99 @@ describe('M4-T8: codex 原生适配器', () => {
 			});
 		});
 
+		it('R1: 同一命令在两条通道产出同样事件 (end-to-end command lifecycle test)', () => {
+			const command = 'git status --short';
+			const cwd = '/workspace/project';
+			const output = 'M packages/daemon/src/adapters/codex/map-events.ts';
+
+			// App-server events
+			const appServerStart = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'item/started',
+				params: {
+					item: {
+						type: 'commandExecution',
+						id: 'call-unified-1',
+						command,
+						cwd,
+					},
+				},
+			});
+			const appServerDone = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'item/completed',
+				params: {
+					item: {
+						type: 'commandExecution',
+						id: 'call-unified-1',
+						command,
+						exitCode: 0,
+						aggregatedOutput: output,
+						status: 'completed',
+						durationMs: 120,
+					},
+				},
+			});
+
+			// Real exec events (snake_case types and fields)
+			const execStart = JSON.stringify({
+				type: 'item.started',
+				item: {
+					type: 'command_execution',
+					id: 'call-unified-1',
+					command,
+					cwd,
+				},
+			});
+			const execDone = JSON.stringify({
+				type: 'item.completed',
+				item: {
+					type: 'command_execution',
+					id: 'call-unified-1',
+					command,
+					exit_code: 0,
+					aggregated_output: output,
+					status: 'completed',
+					duration_ms: 120,
+				},
+			});
+
+			const appEvents = [
+				...mapEvents(appServerStart, context),
+				...mapEvents(appServerDone, context),
+			];
+			const execEvents = [...mapEvents(execStart, context), ...mapEvents(execDone, context)];
+
+			expect(appEvents.length).toBe(2);
+			expect(execEvents.length).toBe(2);
+
+			// Check event 1 (tool_call)
+			expect(appEvents[0]?.kind).toBe('tool_call');
+			expect(execEvents[0]?.kind).toBe('tool_call');
+			expect(appEvents[0]?.payload.callId).toBe('call-unified-1');
+			expect(execEvents[0]?.payload.callId).toBe('call-unified-1');
+			expect(appEvents[0]?.payload.input).toEqual({ command, cwd });
+			expect(execEvents[0]?.payload.input).toEqual({ command, cwd });
+
+			// Check event 2 (tool_call_update)
+			expect(appEvents[1]?.kind).toBe('tool_call_update');
+			expect(execEvents[1]?.kind).toBe('tool_call_update');
+			expect(appEvents[1]?.payload.callId).toBe('call-unified-1');
+			expect(execEvents[1]?.payload.callId).toBe('call-unified-1');
+			expect(appEvents[1]?.payload.output).toEqual({
+				exitCode: 0,
+				aggregatedOutput: output,
+				status: 'completed',
+				durationMs: 120,
+			});
+			expect(execEvents[1]?.payload.output).toEqual({
+				exitCode: 0,
+				aggregatedOutput: output,
+				status: 'completed',
+				durationMs: 120,
+			});
+		});
+
 		it('detects git push and emits run.remote_push_detected in addition to tool_call_update', () => {
 			const pushItem = {
 				type: 'commandExecution',
@@ -294,7 +462,7 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(events[1]?.kind).toBe('run.remote_push_detected');
 		});
 
-		it('maps fileChange tool_call and update', () => {
+		it('maps fileChange / file_change tool_call and update for both channels', () => {
 			const startLine = JSON.stringify({
 				method: 'item/started',
 				params: {
@@ -306,15 +474,13 @@ describe('M4-T8: codex 原生适配器', () => {
 				},
 			});
 
-			const completeLine = JSON.stringify({
-				method: 'item/completed',
-				params: {
-					item: {
-						type: 'fileChange',
-						id: 'fc-1',
-						status: 'applied',
-						changes: [{ path: 'src/main.ts', kind: 'modify' }],
-					},
+			const execCompleteLine = JSON.stringify({
+				type: 'item.completed',
+				item: {
+					type: 'file_change',
+					id: 'fc-1',
+					status: 'applied',
+					changes: [{ path: 'src/main.ts', kind: 'modify' }],
 				},
 			});
 
@@ -323,7 +489,7 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(startEv?.payload.tool).toBe('fileChange');
 			expect(startEv?.payload.callId).toBe('fc-1');
 
-			const completeEv = mapEvents(completeLine)[0];
+			const completeEv = mapEvents(execCompleteLine)[0];
 			expect(completeEv?.kind).toBe('tool_call_update');
 			expect(completeEv?.payload.callId).toBe('fc-1');
 			expect(completeEv?.payload.output).toEqual({
@@ -359,26 +525,193 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(ev1?.payload.entries).toEqual(ev2?.payload.entries);
 		});
 
-		it('maps run lifecycle events (started, exited, error, permissions)', () => {
+		describe('R3: turn/completed status handling (completed, failed, interrupted)', () => {
+			it('handles completed turn: emits run.exited with exitCode=0', () => {
+				const line = JSON.stringify({
+					method: 'turn/completed',
+					params: {
+						threadId: 'th-1',
+						turn: {
+							id: 'turn-1',
+							status: 'completed',
+						},
+					},
+				});
+
+				const events = mapEvents(line, context);
+				expect(events.length).toBe(1);
+				expect(events[0]?.kind).toBe('run.exited');
+				expect(events[0]?.payload.exitCode).toBe(0);
+			});
+
+			it('handles failed turn: emits run.stderr_line and run.exited with exitCode=1 (failed 不得是 0)', () => {
+				const line = JSON.stringify({
+					method: 'turn/completed',
+					params: {
+						threadId: 'th-1',
+						turn: {
+							id: 'turn-2',
+							status: 'failed',
+							error: {
+								message: 'Context window token limit exceeded',
+							},
+						},
+					},
+				});
+
+				const events = mapEvents(line, context);
+				expect(events.length).toBe(2);
+				expect(events[0]?.kind).toBe('run.stderr_line');
+				expect(events[0]?.payload.line).toBe('Context window token limit exceeded');
+				expect(events[1]?.kind).toBe('run.exited');
+				expect(events[1]?.payload.exitCode).toBe(1);
+				expect(events[1]?.payload.exitCode).not.toBe(0);
+			});
+
+			it('handles interrupted turn: emits run.exited with exitCode=130 and signal=SIGINT', () => {
+				const line = JSON.stringify({
+					method: 'turn/completed',
+					params: {
+						threadId: 'th-1',
+						turn: {
+							id: 'turn-3',
+							status: 'interrupted',
+						},
+					},
+				});
+
+				const events = mapEvents(line, context);
+				expect(events.length).toBe(1);
+				expect(events[0]?.kind).toBe('run.exited');
+				expect(events[0]?.payload.exitCode).toBe(130);
+				expect(events[0]?.payload.signal).toBe('SIGINT');
+			});
+
+			it('handles turn.failed in exec mode: exitCode=1', () => {
+				const line = JSON.stringify({
+					type: 'turn.failed',
+					error: 'Command failed with exit code 2',
+				});
+
+				const events = mapEvents(line, context);
+				expect(events.length).toBe(2);
+				expect(events[0]?.kind).toBe('run.stderr_line');
+				expect(events[0]?.payload.line).toBe('Command failed with exit code 2');
+				expect(events[1]?.kind).toBe('run.exited');
+				expect(events[1]?.payload.exitCode).toBe(1);
+			});
+		});
+
+		describe('R4: 未知 item 类型与 item.updated 处理与计数', () => {
+			it('counts unmappedCount=1 when item.started has an unknown item type', () => {
+				const line = JSON.stringify({
+					method: 'item/started',
+					params: {
+						item: {
+							type: 'unknown_vendor_feature_2026',
+							id: 'feat-1',
+						},
+					},
+				});
+
+				const result = parseAndMapCodexLine(line);
+				expect(result.events.length).toBe(0);
+				expect(result.unmappedCount).toBe(1);
+			});
+
+			it('counts unmappedCount=0 when item.started has a known item type', () => {
+				const line = JSON.stringify({
+					method: 'item/started',
+					params: {
+						item: {
+							type: 'commandExecution',
+							id: 'feat-2',
+							command: 'ls',
+						},
+					},
+				});
+
+				const result = parseAndMapCodexLine(line);
+				expect(result.events.length).toBe(1);
+				expect(result.unmappedCount).toBe(0);
+			});
+
+			it('counts unmappedCount=1 when item.completed has an unknown item type', () => {
+				const line = JSON.stringify({
+					type: 'item.completed',
+					item: {
+						type: 'unknown_future_item',
+						id: 'feat-3',
+					},
+				});
+
+				const result = parseAndMapCodexLine(line);
+				expect(result.events.length).toBe(0);
+				expect(result.unmappedCount).toBe(1);
+			});
+
+			it('handles item.updated: maps known command_execution and counts unknown type as 1', () => {
+				// Known item type in item.updated
+				const knownLine = JSON.stringify({
+					type: 'item.updated',
+					item: {
+						type: 'command_execution',
+						id: 'cmd-up',
+						aggregated_output: 'Streaming delta output...',
+						status: 'running',
+					},
+				});
+
+				const knownResult = parseAndMapCodexLine(knownLine);
+				expect(knownResult.events.length).toBe(1);
+				expect(knownResult.events[0]?.kind).toBe('tool_call_update');
+				expect(knownResult.events[0]?.payload.callId).toBe('cmd-up');
+				expect(knownResult.unmappedCount).toBe(0);
+
+				// Unknown item type in item.updated
+				const unknownLine = JSON.stringify({
+					type: 'item.updated',
+					item: {
+						type: 'unknown_update_type',
+						id: 'up-1',
+					},
+				});
+
+				const unknownResult = parseAndMapCodexLine(unknownLine);
+				expect(unknownResult.events.length).toBe(0);
+				expect(unknownResult.unmappedCount).toBe(1);
+			});
+
+			it('maps real exec error item to run.stderr_line with unmappedCount=0', () => {
+				const line = JSON.stringify({
+					type: 'item.started',
+					item: {
+						type: 'error',
+						id: 'err-item-1',
+						message: 'Command execution timed out after 30s',
+					},
+				});
+
+				const result = parseAndMapCodexLine(line);
+				expect(result.events.length).toBe(1);
+				expect(result.events[0]?.kind).toBe('run.stderr_line');
+				expect(result.events[0]?.payload.line).toBe('Command execution timed out after 30s');
+				expect(result.unmappedCount).toBe(0);
+			});
+		});
+
+		it('maps run lifecycle events (started, permission_blocked, error)', () => {
 			const startEvents = mapEvents(
 				JSON.stringify({ method: 'turn/started', params: { turnId: 't1' } }),
 				context,
 			);
 			expect(startEvents[0]?.kind).toBe('run.started');
 
-			const exit0Events = mapEvents(
-				JSON.stringify({ method: 'turn/completed', params: { turnId: 't1' } }),
-				context,
-			);
-			expect(exit0Events[0]?.kind).toBe('run.exited');
-			expect(exit0Events[0]?.payload.exitCode).toBe(0);
-
-			const failEvents = mapEvents(JSON.stringify({ type: 'turn.failed' }), context);
-			expect(failEvents[0]?.kind).toBe('run.exited');
-			expect(failEvents[0]?.payload.exitCode).toBe(1);
-
 			const errorEvents = mapEvents(
-				JSON.stringify({ method: 'error', params: { message: 'Token limit exceeded' } }),
+				JSON.stringify({
+					method: 'error',
+					params: { message: 'Token limit exceeded' },
+				}),
 			);
 			expect(errorEvents[0]?.kind).toBe('run.stderr_line');
 			expect(errorEvents[0]?.payload.line).toBe('Token limit exceeded');
@@ -411,12 +744,37 @@ describe('M4-T8: codex 原生适配器', () => {
 		});
 	});
 
-	describe('AC 2: 厂商事件字符串只出现在本目录，service/jobs/http 中出现即架构测试失败', () => {
-		it('defines CODEX_VENDOR_EVENT_STRINGS containing the vendor event names', () => {
-			expect(CODEX_VENDOR_EVENT_STRINGS.length).toBeGreaterThan(10);
-			expect(CODEX_VENDOR_EVENT_STRINGS).toContain('thread/started');
-			expect(CODEX_VENDOR_EVENT_STRINGS).toContain('item/agentMessage/delta');
-			expect(CODEX_VENDOR_EVENT_STRINGS).toContain('commandExecution');
+	describe('AC 2 & R5: 厂商事件字符串只出现在本目录，service/jobs/http 中出现即架构测试失败', () => {
+		it('R5: CODEX_VENDOR_EVENT_STRINGS covers all case literals in map-events.ts minus generic whitelist', () => {
+			const mapEventsSource = readFileSync(join(daemonSrc, 'adapters/codex/map-events.ts'), 'utf8');
+			const caseRegex = /case\s+['"]([^'"]+)['"]/g;
+			const casesInFile = new Set<string>();
+
+			let match: RegExpExecArray | null = caseRegex.exec(mapEventsSource);
+			while (match !== null) {
+				if (match[1] !== undefined) {
+					casesInFile.add(match[1]);
+				}
+				match = caseRegex.exec(mapEventsSource);
+			}
+
+			// Generic names not considered vendor-specific per R5 instructions
+			const GENERIC_WHITELIST = new Set([
+				'plan',
+				'agent_message_chunk',
+				'agent_thought_chunk',
+				'error',
+			]);
+
+			const nonGenericCases = Array.from(casesInFile).filter((c) => !GENERIC_WHITELIST.has(c));
+			expect(nonGenericCases.length).toBeGreaterThan(20);
+
+			for (const caseStr of nonGenericCases) {
+				expect(
+					CODEX_VENDOR_EVENT_STRINGS,
+					`Expected CODEX_VENDOR_EVENT_STRINGS to cover case literal "${caseStr}" from map-events.ts`,
+				).toContain(caseStr);
+			}
 		});
 
 		it('asserts vendor event strings do not appear in service, jobs, or http layers', () => {

@@ -25,6 +25,7 @@ export interface CodexMapEventsResult {
  * All Codex vendor-specific event method and type strings.
  * Architecture test asserts these strings ONLY appear in adapters/codex/
  * and NEVER leak into service/, jobs/, or http/ layers (AC 2).
+ * Excludes generic names: 'plan', 'agent_message_chunk', 'agent_thought_chunk', 'error'.
  */
 export const CODEX_VENDOR_EVENT_STRINGS = Object.freeze([
 	'thread/started',
@@ -36,19 +37,38 @@ export const CODEX_VENDOR_EVENT_STRINGS = Object.freeze([
 	'turn/failed',
 	'turn.failed',
 	'turn/plan/updated',
+	'turn.plan.updated',
 	'item/started',
 	'item.started',
 	'item/completed',
 	'item.completed',
+	'item/updated',
+	'item.updated',
 	'item/agentMessage/delta',
+	'item.agent_message.delta',
+	'agent_message_delta',
 	'item/reasoning/textDelta',
 	'item/reasoning/summaryTextDelta',
+	'item.reasoning.delta',
+	'reasoning_delta',
 	'item/commandExecution/outputDelta',
+	'command/exec/outputDelta',
+	'process/outputDelta',
 	'item/fileChange/outputDelta',
+	'item/plan/delta',
+	'item/autoApprovalReview/started',
+	'autoApprovalReview/strictReviewRequired',
+	'guardianWarning',
+	'agentMessage',
+	'agent_message',
 	'commandExecution',
+	'command_execution',
 	'fileChange',
+	'file_change',
 	'mcpToolCall',
+	'mcp_tool_call',
 	'dynamicToolCall',
+	'dynamic_tool_call',
 ] as const);
 
 /**
@@ -130,18 +150,23 @@ interface ItemPayload {
 	readonly cwd?: string;
 	readonly text?: string;
 	readonly delta?: string;
+	readonly message?: string;
 	readonly changes?: readonly unknown[];
 	readonly server?: string;
 	readonly tool?: string;
 	readonly arguments?: unknown;
 	readonly exitCode?: number | null;
+	readonly exit_code?: number | null;
 	readonly aggregatedOutput?: string | null;
+	readonly aggregated_output?: string | null;
 	readonly status?: string;
 	readonly durationMs?: number | null;
+	readonly duration_ms?: number | null;
 	readonly success?: boolean | null;
 	readonly result?: unknown;
 	readonly error?: unknown;
 	readonly contentItems?: readonly unknown[];
+	readonly content_items?: readonly unknown[];
 	readonly [key: string]: unknown;
 }
 
@@ -154,7 +179,8 @@ function mapItemStarted(
 	const itemId = item.id;
 
 	switch (itemType) {
-		case 'commandExecution': {
+		case 'commandExecution':
+		case 'command_execution': {
 			return createInput(
 				'tool_call',
 				{
@@ -169,7 +195,8 @@ function mapItemStarted(
 				context,
 			);
 		}
-		case 'fileChange': {
+		case 'fileChange':
+		case 'file_change': {
 			return createInput(
 				'tool_call',
 				{
@@ -183,7 +210,8 @@ function mapItemStarted(
 				context,
 			);
 		}
-		case 'mcpToolCall': {
+		case 'mcpToolCall':
+		case 'mcp_tool_call': {
 			const toolName = item.server ? `${item.server}:${item.tool ?? ''}` : (item.tool ?? 'mcp');
 			return createInput(
 				'tool_call',
@@ -196,7 +224,8 @@ function mapItemStarted(
 				context,
 			);
 		}
-		case 'dynamicToolCall': {
+		case 'dynamicToolCall':
+		case 'dynamic_tool_call': {
 			return createInput(
 				'tool_call',
 				{
@@ -218,7 +247,8 @@ function mapItemStarted(
 				context,
 			);
 		}
-		case 'agentMessage': {
+		case 'agentMessage':
+		case 'agent_message': {
 			if (typeof item.text === 'string' && item.text.length > 0) {
 				return createInput(
 					'agent_message_chunk',
@@ -230,6 +260,22 @@ function mapItemStarted(
 				);
 			}
 			return null;
+		}
+		case 'error': {
+			const msg =
+				typeof item.message === 'string'
+					? item.message
+					: typeof item.text === 'string'
+						? item.text
+						: JSON.stringify(item);
+			return createInput(
+				'run.stderr_line',
+				{
+					line: msg,
+					vendor: parsed,
+				},
+				context,
+			);
 		}
 		default:
 			return null;
@@ -246,17 +292,26 @@ function mapItemCompleted(
 	const events: EventEnvelopeInput[] = [];
 
 	switch (itemType) {
-		case 'commandExecution': {
+		case 'commandExecution':
+		case 'command_execution': {
+			const exitCode = item.exit_code !== undefined ? item.exit_code : (item.exitCode ?? null);
+			const aggregatedOutput =
+				item.aggregated_output !== undefined
+					? item.aggregated_output
+					: (item.aggregatedOutput ?? null);
+			const durationMs =
+				item.duration_ms !== undefined ? item.duration_ms : (item.durationMs ?? null);
+
 			events.push(
 				createInput(
 					'tool_call_update',
 					{
 						callId: itemId,
 						output: {
-							exitCode: item.exitCode ?? null,
-							aggregatedOutput: item.aggregatedOutput ?? null,
+							exitCode,
+							aggregatedOutput,
 							status: item.status ?? null,
-							durationMs: item.durationMs ?? null,
+							durationMs,
 						},
 						vendor: parsed,
 					},
@@ -266,7 +321,7 @@ function mapItemCompleted(
 
 			// Detect git push command executions and output
 			const command = item.command ?? '';
-			const output = item.aggregatedOutput ?? '';
+			const output = aggregatedOutput ?? '';
 			if (
 				command.includes('git push') ||
 				output.includes('->') ||
@@ -284,7 +339,8 @@ function mapItemCompleted(
 			}
 			break;
 		}
-		case 'fileChange': {
+		case 'fileChange':
+		case 'file_change': {
 			events.push(
 				createInput(
 					'tool_call_update',
@@ -301,7 +357,8 @@ function mapItemCompleted(
 			);
 			break;
 		}
-		case 'mcpToolCall': {
+		case 'mcpToolCall':
+		case 'mcp_tool_call': {
 			events.push(
 				createInput(
 					'tool_call_update',
@@ -315,7 +372,9 @@ function mapItemCompleted(
 			);
 			break;
 		}
-		case 'dynamicToolCall': {
+		case 'dynamicToolCall':
+		case 'dynamic_tool_call': {
+			const contentItems = item.content_items ?? item.contentItems ?? [];
 			events.push(
 				createInput(
 					'tool_call_update',
@@ -323,8 +382,27 @@ function mapItemCompleted(
 						callId: itemId,
 						output: {
 							success: item.success ?? null,
-							contentItems: item.contentItems ?? [],
+							contentItems,
 						},
+						vendor: parsed,
+					},
+					context,
+				),
+			);
+			break;
+		}
+		case 'error': {
+			const msg =
+				typeof item.message === 'string'
+					? item.message
+					: typeof item.text === 'string'
+						? item.text
+						: JSON.stringify(item);
+			events.push(
+				createInput(
+					'run.stderr_line',
+					{
+						line: msg,
 						vendor: parsed,
 					},
 					context,
@@ -334,6 +412,130 @@ function mapItemCompleted(
 		}
 		default:
 			break;
+	}
+
+	return events;
+}
+
+function mapItemUpdated(
+	item: ItemPayload,
+	parsed: unknown,
+	context?: CodexMapEventsContext,
+): readonly EventEnvelopeInput[] {
+	const itemType = item.type;
+	const itemId = item.id;
+	const events: EventEnvelopeInput[] = [];
+
+	switch (itemType) {
+		case 'commandExecution':
+		case 'command_execution': {
+			const exitCode = item.exit_code !== undefined ? item.exit_code : (item.exitCode ?? null);
+			const aggregatedOutput =
+				item.aggregated_output !== undefined
+					? item.aggregated_output
+					: (item.aggregatedOutput ?? (typeof item.delta === 'string' ? item.delta : null));
+			const durationMs =
+				item.duration_ms !== undefined ? item.duration_ms : (item.durationMs ?? null);
+
+			events.push(
+				createInput(
+					'tool_call_update',
+					{
+						callId: itemId,
+						output: {
+							exitCode,
+							aggregatedOutput,
+							status: item.status ?? null,
+							durationMs,
+						},
+						vendor: parsed,
+					},
+					context,
+				),
+			);
+			break;
+		}
+		case 'error': {
+			const msg =
+				typeof item.message === 'string'
+					? item.message
+					: typeof item.text === 'string'
+						? item.text
+						: JSON.stringify(item);
+			events.push(
+				createInput(
+					'run.stderr_line',
+					{
+						line: msg,
+						vendor: parsed,
+					},
+					context,
+				),
+			);
+			break;
+		}
+		default:
+			break;
+	}
+
+	return events;
+}
+
+function mapTurnResolution(
+	status: string,
+	errorMessage: string | null,
+	parsed: unknown,
+	context?: CodexMapEventsContext,
+): readonly EventEnvelopeInput[] {
+	const events: EventEnvelopeInput[] = [];
+
+	if (status === 'failed') {
+		if (errorMessage) {
+			events.push(
+				createInput(
+					'run.stderr_line',
+					{
+						line: errorMessage,
+						vendor: parsed,
+					},
+					context,
+				),
+			);
+		}
+		events.push(
+			createInput(
+				'run.exited',
+				{
+					exitCode: 1,
+					vendor: parsed,
+				},
+				context,
+			),
+		);
+	} else if (status === 'interrupted') {
+		events.push(
+			createInput(
+				'run.exited',
+				{
+					exitCode: 130,
+					signal: 'SIGINT',
+					vendor: parsed,
+				},
+				context,
+			),
+		);
+	} else {
+		// 'completed' or normal exit
+		events.push(
+			createInput(
+				'run.exited',
+				{
+					exitCode: 0,
+					vendor: parsed,
+				},
+				context,
+			),
+		);
 	}
 
 	return events;
@@ -401,15 +603,31 @@ function mapParsedObject(
 				const mapped = mapItemStarted(item, parsed, context);
 				if (mapped) {
 					events.push(mapped);
+					return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
 				}
-				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+				return Object.freeze({ events: Object.freeze(events), unmappedCount: 1, rawLine });
 			}
 
 			case 'item/completed': {
 				const item = (params.item ?? {}) as ItemPayload;
 				const mappedEvents = mapItemCompleted(item, parsed, context);
 				events.push(...mappedEvents);
-				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+				return Object.freeze({
+					events: Object.freeze(events),
+					unmappedCount: events.length > 0 ? 0 : 1,
+					rawLine,
+				});
+			}
+
+			case 'item/updated': {
+				const item = (params.item ?? {}) as ItemPayload;
+				const mappedEvents = mapItemUpdated(item, parsed, context);
+				events.push(...mappedEvents);
+				return Object.freeze({
+					events: Object.freeze(events),
+					unmappedCount: events.length > 0 ? 0 : 1,
+					rawLine,
+				});
 			}
 
 			case 'item/commandExecution/outputDelta':
@@ -482,16 +700,48 @@ function mapParsedObject(
 			}
 
 			case 'turn/completed': {
-				events.push(
-					createInput(
-						'run.exited',
-						{
-							exitCode: 0,
-							vendor: parsed,
-						},
-						context,
-					),
-				);
+				const turn = (
+					typeof params.turn === 'object' && params.turn !== null ? params.turn : params
+				) as Record<string, unknown>;
+				const status =
+					typeof turn.status === 'string'
+						? turn.status
+						: typeof params.status === 'string'
+							? params.status
+							: 'completed';
+				const turnError = (
+					typeof turn.error === 'object' && turn.error !== null ? turn.error : null
+				) as Record<string, unknown> | null;
+				const errorMessage =
+					typeof turnError?.message === 'string'
+						? turnError.message
+						: typeof turn.error === 'string'
+							? turn.error
+							: null;
+
+				const resolutionEvents = mapTurnResolution(status, errorMessage, parsed, context);
+				events.push(...resolutionEvents);
+				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+			}
+
+			case 'turn/failed': {
+				const turn = (
+					typeof params.turn === 'object' && params.turn !== null ? params.turn : params
+				) as Record<string, unknown>;
+				const turnError = (
+					typeof turn.error === 'object' && turn.error !== null ? turn.error : null
+				) as Record<string, unknown> | null;
+				const errorMessage =
+					typeof turnError?.message === 'string'
+						? turnError.message
+						: typeof turn.error === 'string'
+							? turn.error
+							: typeof params.message === 'string'
+								? params.message
+								: null;
+
+				const resolutionEvents = mapTurnResolution('failed', errorMessage, parsed, context);
+				events.push(...resolutionEvents);
 				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
 			}
 
@@ -577,8 +827,9 @@ function mapParsedObject(
 				const mapped = mapItemStarted(item, parsed, context);
 				if (mapped) {
 					events.push(mapped);
+					return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
 				}
-				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+				return Object.freeze({ events: Object.freeze(events), unmappedCount: 1, rawLine });
 			}
 
 			case 'item.completed':
@@ -586,36 +837,63 @@ function mapParsedObject(
 				const item = (record.item ?? {}) as ItemPayload;
 				const mappedEvents = mapItemCompleted(item, parsed, context);
 				events.push(...mappedEvents);
-				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+				return Object.freeze({
+					events: Object.freeze(events),
+					unmappedCount: events.length > 0 ? 0 : 1,
+					rawLine,
+				});
+			}
+
+			case 'item.updated':
+			case 'item/updated': {
+				const item = (record.item ?? {}) as ItemPayload;
+				const mappedEvents = mapItemUpdated(item, parsed, context);
+				events.push(...mappedEvents);
+				return Object.freeze({
+					events: Object.freeze(events),
+					unmappedCount: events.length > 0 ? 0 : 1,
+					rawLine,
+				});
 			}
 
 			case 'turn.completed':
 			case 'turn/completed': {
-				events.push(
-					createInput(
-						'run.exited',
-						{
-							exitCode: 0,
-							vendor: parsed,
-						},
-						context,
-					),
-				);
+				const turn = (
+					typeof record.turn === 'object' && record.turn !== null ? record.turn : record
+				) as Record<string, unknown>;
+				const status =
+					typeof turn.status === 'string'
+						? turn.status
+						: typeof record.status === 'string'
+							? record.status
+							: 'completed';
+				const turnError = (
+					typeof turn.error === 'object' && turn.error !== null ? turn.error : null
+				) as Record<string, unknown> | null;
+				const errorMessage =
+					typeof turnError?.message === 'string'
+						? turnError.message
+						: typeof turn.error === 'string'
+							? turn.error
+							: typeof record.error === 'string'
+								? record.error
+								: null;
+
+				const resolutionEvents = mapTurnResolution(status, errorMessage, parsed, context);
+				events.push(...resolutionEvents);
 				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
 			}
 
 			case 'turn.failed':
 			case 'turn/failed': {
-				events.push(
-					createInput(
-						'run.exited',
-						{
-							exitCode: 1,
-							vendor: parsed,
-						},
-						context,
-					),
-				);
+				const errorMessage =
+					typeof record.error === 'string'
+						? record.error
+						: typeof record.message === 'string'
+							? record.message
+							: null;
+				const resolutionEvents = mapTurnResolution('failed', errorMessage, parsed, context);
+				events.push(...resolutionEvents);
 				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
 			}
 
