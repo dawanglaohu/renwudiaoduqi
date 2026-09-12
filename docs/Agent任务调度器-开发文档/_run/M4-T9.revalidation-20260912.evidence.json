@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M4-T9": {
+      "contractHash": "e0f83be0eb45841c73ba8dca750f8abc13adefaa02ca30f07a2855b11b47adb3",
+      "evidence": [
+        "本任务被标「待复验」的原因是补丁 M4-T8-support-paths-20260912 的基线快照取在 M4-T9 自己的 task-contracts.json 条目落地之前（该补丁 baseline 的 sourceContents['_run/task-contracts.json'] 里 M4-T9 为 null），不是本补丁改了 M4-T9 的条款",
+        "git 核对：edc0389（M4-T8 补丁提交）→ HEAD 对 task-contracts.json 的唯一改动是新增 M4-T9 条目 {\"supportPaths\":[\"packages/daemon/test/unit/claude-adapter.test.ts\"]}，来自 main 的 d0bfed0（M4-T9 回填知识库并记录落地）；本补丁只新增 M4-T8 的 supportPaths，未触碰 M4-T9 的任何路径或代码",
+        "变化条款复核：M4-T9 的有效范围仍是 taskPaths packages/daemon/src/adapters/claude/ + supportPaths packages/daemon/test/unit/claude-adapter.test.ts，与其落地时登记的一致；M4-T8 自己的提交（ed7b6d3、c6ec8d0、edc0389）改动路径里没有任何 claude 路径（git show --name-only ed7b6d3 c6ec8d0 edc0389 | grep -i claude 为空）",
+        "结论：M4-T9 无需要复验的变化条款，原复核结论可继续沿用；标记来源是共享文件 task-contracts.json 的基线时间差"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
