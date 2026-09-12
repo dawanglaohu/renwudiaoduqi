@@ -323,6 +323,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T11": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "d8abed44515914e34111c3339af9175594438e6b7ec73478d8fd96c4027b2874",
+    "evidence": [
+      "契约逐条核对：04-执行/19-模块任务拆分.md 的 M4-T11 行、图谱/任务/M4-T11.md、图谱/模块/M4.md 与 03-质量/13-边界问题与异常处理.md 的 E-26 行一致；产出为 adapters/grok/ 的 buildLaunchSpec / map-events / capabilities / sessions（read-models.ts 由已落地 M4-T5 提供），输入为 --output-format streaming-json 与 grok sessions/export，前置 M4-T3、M1-T8 均已在 main 落地，无新增错误码、无新增环境变量、无接口契约变化。",
+      "有效路径核对：presentation.json 的 handoff.taskPaths['M4-T11'] 为 packages/daemon/src/adapters/grok/；分支实际改动为该目录四个源文件 + 任务笔记回填 + 新增单测 packages/daemon/test/unit/grok-adapter.test.ts。单测是本任务既定产出的必要支持文件（17-测试策略要求 adapters/*/map-events.ts 与 domain 强制单测，E-26 需用例），先例见 M5-T1/M5-T2/M10-T1 把各自单测列进 supportPaths，故本次以补丁 M4-T11-review-scope-20260912 增列该路径；与仓库内其他任务的有效路径无交集（当前在途的 M4-T8/M4-T9/M4-T10 各写自己的 adapters 子目录），sync 未把任何已落地任务标为待复验。",
+      "架构约定核对：adapters/grok 只 import domain/ 与 proc/ 的类型、platform/（read-models 已有），不 import repo/service/http/events/jobs，符合 08 节「proc 与 adapters 只产出数据结构」；文件命名 kebab-case，无 barrel，常量 as const，无 process.env/process.platform 直读，错误一律 AppError（sessions.ts 用 E_VALIDATION/E_INTERNAL）。语义层面的缺陷（ACP 事件形状、启动参数渲染、运行级事件）记在 PR #53 的 REVIEW-ROUND 1 返工条目里，不改任务定义、不降验收标准。"
+    ],
+    "reviewed": "2026-09-12T04:48:36.967713+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T2": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "b376d43039fb85aae2f12c1414e5bc5b5157368a2314707a6b53af9591ba3302",
