@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M3-T7": {
+      "contractHash": "df53fdeb40a38afeac107bfd3b455095080a9e72252d45539119888afa9d95da",
+      "verdict": "pass",
+      "evidence": [
+        "19 节 M3-T7 行（第 35 行）：依赖 M3-T5 且 requires review-context 在前置闭包内；产出 service/bughunt-context.ts、domain/bughunt-builtin-prompt.ts、service/docs.ts 导入、两列 bug_prompt 迁移，全部在 taskPaths；测试 test/unit/bughunt-context.test.ts 与 docs-import.test.ts 在 supportPaths；sections 含 4/9/10/16/17",
+        "验收 1)～4) 逐条对应：04 节「数据来源」dispatch[id] 五键（bug 未落地措辞，unattended-run 1.3.1）；09 节 tasks.bug_prompt 与 dispatch_snapshots.bug_prompt 列定义、兼容策略第 7 条普通 ADD COLUMN；E-316（缺失用内置并标文档未提供、取快照不热改）、E-19、E-50；16 节「日志里禁止打印提示词全文」",
+        "接缝：M7-T8 的 assembleBughuntPrompt() 消费本任务返回的 {bugPrompt, promptSource}，字段名与 08 节「查 bug 运行的提示词包装」第 2 段一致；已核实 docs-data.js 与 _run/dispatch.json 的 dispatch[id] 均含 bug 键（H3 已落地）"
+      ]
+    }
+  }
+}

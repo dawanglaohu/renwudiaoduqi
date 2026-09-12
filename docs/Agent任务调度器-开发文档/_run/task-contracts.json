@@ -541,6 +541,232 @@
       "supportPaths": [
         "packages/web/test/routes.test.ts"
       ]
+    },
+    "M3-T7": {
+      "requires": [
+        {
+          "task": "M3-T5",
+          "capability": "review-context"
+        }
+      ],
+      "provides": [
+        "bughunt-context"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/repo/tasks.ts",
+        "packages/daemon/src/repo/dispatch-snapshots.ts",
+        "packages/daemon/test/unit/bughunt-context.test.ts",
+        "packages/daemon/test/unit/docs-import.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        4,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
+    "M9-T21": {
+      "supportPaths": [
+        "packages/web/src/api/cache-keys.ts",
+        "packages/web/src/api/cache-invalidation.ts",
+        "packages/web/src/store/selection-store.ts",
+        "packages/web/src/store/ui-prefs-store.ts",
+        "packages/web/src/styles/tokens.css",
+        "packages/web/src/i18n/ui-strings.ts",
+        "packages/web/scripts/check-forbidden.ts",
+        "packages/web/src/lib/stage-rows.test.ts",
+        "packages/web/src/lib/spine-shape.test.ts",
+        "packages/web/test/pipeline-lane.test.tsx",
+        "packages/web/test/lane-history-row.test.tsx",
+        "packages/web/test/lane-run-strip.test.tsx",
+        "packages/web/test/stream-column.test.tsx",
+        "packages/web/test/cache-invalidation.test.ts",
+        "packages/shared/src/api/lanes.ts",
+        "packages/shared/src/api/snapshot.ts",
+        "packages/shared/src/api/events.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
+      ]
+    },
+    "M9-T22": {
+      "supportPaths": [
+        "packages/web/src/components/gate-toggles.tsx",
+        "packages/web/src/i18n/ui-strings.ts",
+        "packages/web/src/i18n/error-messages.ts",
+        "packages/web/src/api/cache-keys.ts",
+        "packages/web/scripts/check-forbidden.ts",
+        "packages/web/test/pipeline-toggles.test.tsx",
+        "packages/web/test/routes.test.ts",
+        "packages/web/test/check-forbidden.test.ts",
+        "packages/shared/src/api/settings.ts",
+        "packages/shared/src/api/routes.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
+      ]
+    },
+    "M6-T10": {
+      "provides": [
+        "session-archive"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/service/message.ts",
+        "packages/daemon/src/proc/registry.ts",
+        "packages/daemon/src/repo/tasks.ts",
+        "packages/shared/src/api/events.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/shared/src/errors/codes.ts",
+        "packages/daemon/test/unit/session-guard.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
+    "M7-T7": {
+      "provides": [
+        "review-continuation"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/service/message.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/daemon/test/unit/rework-prompt.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
+    "M7-T8": {
+      "requires": [
+        {
+          "task": "M3-T7",
+          "capability": "bughunt-context"
+        },
+        {
+          "task": "M7-T7",
+          "capability": "review-continuation"
+        },
+        {
+          "task": "M8-T6",
+          "capability": "batch-wrapup"
+        }
+      ],
+      "provides": [
+        "bughunt-stage"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/domain/run-state-machine.ts",
+        "packages/daemon/src/domain/wrapup-report.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/service/settings.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/shared/src/errors/codes.ts",
+        "packages/daemon/test/unit/bughunt-prompt.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
+    "M8-T8": {
+      "requires": [
+        {
+          "task": "M7-T8",
+          "capability": "bughunt-stage"
+        },
+        {
+          "task": "M6-T10",
+          "capability": "session-archive"
+        },
+        {
+          "task": "M8-T6",
+          "capability": "batch-wrapup"
+        }
+      ],
+      "provides": [
+        "pipeline-lanes"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/domain/wrapup-policy.ts",
+        "packages/daemon/src/domain/concurrency.ts",
+        "packages/daemon/src/domain/path-clash.ts",
+        "packages/daemon/src/repo/settings.ts",
+        "packages/daemon/src/repo/tasks.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/repo/documents.ts",
+        "packages/daemon/src/service/session-guard.ts",
+        "packages/shared/src/api/settings.ts",
+        "packages/shared/src/api/events.ts",
+        "packages/shared/src/api/routes.ts",
+        "packages/shared/src/api/snapshot.ts",
+        "packages/shared/src/api/documents.ts",
+        "packages/shared/src/errors/codes.ts",
+        "packages/daemon/test/arch/routes.test.ts",
+        "packages/daemon/test/fixtures/bughunt/"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
     }
   }
 }

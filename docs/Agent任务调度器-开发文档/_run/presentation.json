@@ -453,6 +453,77 @@
         "packages/web/src/components/stream-column.tsx",
         "packages/web/src/components/gate-card.tsx",
         "packages/web/src/pages/landing-page.tsx"
+      ],
+      "M3-T7": [
+        "packages/daemon/src/service/bughunt-context.ts",
+        "packages/daemon/src/service/docs.ts",
+        "packages/daemon/src/domain/bughunt-builtin-prompt.ts",
+        "packages/daemon/migrations/"
+      ],
+      "M9-T21": [
+        "packages/web/src/components/pipeline-lane.tsx",
+        "packages/web/src/components/stage-chain.tsx",
+        "packages/web/src/components/lane-history-row.tsx",
+        "packages/web/src/components/lane-run-strip.tsx",
+        "packages/web/src/components/stream-column.tsx",
+        "packages/web/src/components/spine.tsx",
+        "packages/web/src/lib/stage-rows.ts",
+        "packages/web/src/lib/spine-shape.ts",
+        "packages/web/src/features/run-deck/use-lanes.ts",
+        "packages/web/src/features/run-deck/lanes-container.tsx",
+        "packages/web/src/features/run-deck/lane-steps-container.tsx",
+        "packages/web/src/api/lanes.ts"
+      ],
+      "M9-T22": [
+        "packages/web/src/ui/segmented-toggle.tsx",
+        "packages/web/src/components/pipeline-toggles.tsx",
+        "packages/web/src/features/run-deck/pipeline-toggles-container.tsx",
+        "packages/web/src/features/run-deck/use-pipeline-settings.ts",
+        "packages/web/src/pages/settings-pipeline-page.tsx",
+        "packages/web/src/app/routes.tsx"
+      ],
+      "M6-T10": [
+        "packages/daemon/src/service/session-archive.ts",
+        "packages/daemon/src/service/session-guard.ts",
+        "packages/daemon/src/service/run.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/migrations/",
+        "packages/daemon/test/arch/session-isolation.test.ts",
+        "packages/daemon/test/integration/session-archive.test.ts"
+      ],
+      "M7-T7": [
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/src/proc/registry.ts",
+        "packages/daemon/src/domain/rework-prompt.ts",
+        "packages/daemon/migrations/",
+        "packages/daemon/test/unit/review-round.test.ts"
+      ],
+      "M7-T8": [
+        "packages/daemon/src/domain/bughunt-prompt.ts",
+        "packages/daemon/src/domain/bughunt-report.ts",
+        "packages/daemon/src/service/bughunt.ts",
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/migrations/",
+        "packages/daemon/test/unit/bughunt-report.test.ts",
+        "packages/daemon/test/fixtures/bughunt/"
+      ],
+      "M8-T8": [
+        "packages/daemon/src/domain/lanes.ts",
+        "packages/daemon/src/domain/lane-slots.ts",
+        "packages/daemon/src/domain/pipeline-settings.ts",
+        "packages/daemon/src/service/lanes.ts",
+        "packages/daemon/src/service/settings.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/service/wrapup.ts",
+        "packages/daemon/src/jobs/scheduler-tick.ts",
+        "packages/daemon/src/http/routes/settings.ts",
+        "packages/daemon/src/http/routes/documents.ts",
+        "packages/daemon/src/http/routes/snapshot.ts",
+        "packages/shared/src/api/lanes.ts",
+        "packages/daemon/test/unit/lanes.test.ts",
+        "packages/daemon/test/unit/lane-slots.test.ts",
+        "packages/daemon/test/unit/pipeline-settings.test.ts",
+        "packages/daemon/test/integration/pipeline-lanes.test.ts"
       ]
     },
     "taskSkills": {

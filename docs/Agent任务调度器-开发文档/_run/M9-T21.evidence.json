@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T21": {
+      "contractHash": "7627c4470cdf7a0691cc3ae44c7ac533923418652f02eeeeb9e1f18df7d6869b",
+      "verdict": "pass",
+      "evidence": [
+        "19 节 M9-T21 行（第 99 行）：依赖 M9-T9、M9-T7、M9-T19、M9-T20 在前置闭包；产出 components/pipeline-lane.tsx、stage-chain.tsx、lane-history-row.tsx、lane-run-strip.tsx、stream-column.tsx 外壳改写、spine.tsx 两字段、lib/stage-rows.ts、lib/spine-shape.ts LOOP_PIECES、features/run-deck 三个容器、api/lanes.ts，全部在 taskPaths；cache-keys/cache-invalidation、两个 store、tokens.css、ui-strings、check-forbidden、七个测试文件与 shared lanes/snapshot/events 在 supportPaths；sections 含 7/11/12",
+        "验收 1)～10) 逐条对应：07 节「泳道同样不算」段与「补充需求 2026-09-12 的泳道组件」清单（第 138 行起：props 形状、只读靠无 callback、不测量 DOM、阶段字面量禁令）、缓存失效表五条新映射、lib 清单 stage-rows、check-forbidden 五条新禁令；11 节「运行轨——一个任务的流水线」（含返工回环行）、「任务流水线泳道」四段结构（第 375 行起）、空闲泳道与停靠任务、紧凑档不折（决策 95）、断点表手机运行条；12 节流程六与交互反馈三行；决策 90、95、97、98、104、105；E-306、E-307、E-309、E-313～E-315、E-317、E-319、E-324～E-326、E-332、E-333；17 节 E-313～E-325 行与 E-236 泳道维度矩阵",
+        "接缝：lanes[] 字段（含 nextBlockedBy / archivedWrapupRunId / overLimit）与 10 节快照契约一致；收口泳道沿用 M9-T20 的 StreamColumn kind='wrapup' 头部不重画；pulse-dot 与 @keyframes 沿用 M9-T19 的唯一动画规则（回环无动画）"
+      ]
+    }
+  }
+}
