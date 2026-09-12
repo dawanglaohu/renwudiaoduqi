@@ -214,7 +214,8 @@
     },
     "M7-T2": {
       "supportPaths": [
-        "packages/daemon/test/unit/review-agent.test.ts"
+        "packages/daemon/test/unit/review-agent.test.ts",
+        "packages/daemon/src/repo/runs.ts"
       ]
     },
     "M8-T1": {
@@ -704,7 +705,8 @@
         "packages/daemon/src/service/settings.ts",
         "packages/shared/src/api/runs.ts",
         "packages/shared/src/errors/codes.ts",
-        "packages/daemon/test/unit/bughunt-prompt.test.ts"
+        "packages/daemon/test/unit/bughunt-prompt.test.ts",
+        "packages/daemon/src/workspace/in-head.ts"
       ],
       "sections": [
         1,
@@ -765,6 +767,225 @@
         10,
         14,
         16,
+        17
+      ]
+    },
+    "M4-T13": {
+      "requires": [],
+      "provides": [
+        "login-probe"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/boot/container.ts",
+        "packages/shared/src/api/agents.ts",
+        "packages/shared/src/api/events.ts",
+        "packages/shared/src/errors/codes.ts",
+        "packages/daemon/src/events/bus.ts",
+        "packages/daemon/test/unit/probe.test.ts",
+        "packages/daemon/test/unit/agents-service.test.ts",
+        "packages/daemon/test/integration/agents-routes.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
+    "M4-T14": {
+      "requires": [
+        {
+          "task": "M4-T13",
+          "capability": "login-probe"
+        }
+      ],
+      "provides": [
+        "model-catalog"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/domain/run-state-machine.ts",
+        "packages/daemon/src/proc/line-reader.ts",
+        "packages/daemon/src/db/migrate.ts",
+        "packages/shared/src/api/agents.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/shared/src/api/routes.ts",
+        "packages/daemon/test/unit/agent-registry.test.ts",
+        "packages/daemon/test/unit/codex-adapter.test.ts",
+        "packages/daemon/test/unit/pi-adapter.test.ts",
+        "packages/daemon/test/unit/grok-adapter.test.ts",
+        "packages/daemon/test/unit/agents-service.test.ts",
+        "packages/daemon/test/integration/agents-routes.test.ts",
+        "packages/daemon/src/adapters/probe.ts",
+        "packages/daemon/src/adapters/login-probe.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
+    "M8-T9": {
+      "requires": [
+        {
+          "task": "M4-T14",
+          "capability": "model-catalog"
+        },
+        {
+          "task": "M7-T8",
+          "capability": "bughunt-stage"
+        },
+        {
+          "task": "M8-T8",
+          "capability": "pipeline-lanes"
+        },
+        {
+          "task": "M7-T5",
+          "capability": "rework-dispatch"
+        },
+        {
+          "task": "M3-T3",
+          "capability": "dispatch-contract-snapshot"
+        },
+        {
+          "task": "M8-T7"
+        }
+      ],
+      "provides": [
+        "assignment-chain"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/domain/effort-tier.ts",
+        "packages/daemon/src/domain/effort-value.ts",
+        "packages/daemon/src/domain/pipeline-settings.ts",
+        "packages/daemon/src/domain/run-state-machine.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/repo/gates.ts",
+        "packages/daemon/src/repo/settings.ts",
+        "packages/daemon/src/logstore/",
+        "packages/daemon/src/http/routes/settings.ts",
+        "packages/daemon/src/http/routes/gates.ts",
+        "packages/daemon/src/http/routes/batches.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/shared/src/api/settings.ts",
+        "packages/shared/src/api/gates.ts",
+        "packages/shared/src/api/events.ts",
+        "packages/shared/src/api/agents.ts",
+        "packages/daemon/test/unit/pipeline-settings.test.ts",
+        "packages/daemon/test/unit/review-agent.test.ts",
+        "packages/daemon/test/unit/bughunt-report.test.ts",
+        "packages/daemon/test/fixtures/login/",
+        "packages/daemon/test/fixtures/models/",
+        "packages/daemon/src/service/rerun.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
+    "M9-T23": {
+      "requires": [
+        {
+          "task": "M4-T13",
+          "capability": "login-probe"
+        },
+        {
+          "task": "M4-T14",
+          "capability": "model-catalog"
+        }
+      ],
+      "supportPaths": [
+        "packages/web/src/api/cache-keys.ts",
+        "packages/web/src/api/cache-invalidation.ts",
+        "packages/web/src/api/http-client.ts",
+        "packages/web/src/store/selection-store.ts",
+        "packages/web/src/styles/tokens.css",
+        "packages/web/src/i18n/ui-strings.ts",
+        "packages/web/src/i18n/error-messages.ts",
+        "packages/web/scripts/check-forbidden.ts",
+        "packages/web/src/lib/model-groups.test.ts",
+        "packages/web/src/lib/effort-options.test.ts",
+        "packages/web/src/lib/login-freshness.test.ts",
+        "packages/web/test/assign-panel.test.tsx",
+        "packages/web/test/stream-head-meta.test.tsx",
+        "packages/web/test/gate-card.test.tsx",
+        "packages/web/test/cache-invalidation.test.ts",
+        "packages/web/test/cache-keys.test.ts",
+        "packages/web/test/check-forbidden.test.ts",
+        "packages/shared/src/api/agents.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/shared/src/api/gates.ts",
+        "packages/shared/src/api/settings.ts",
+        "packages/shared/src/api/events.ts",
+        "packages/shared/src/api/routes.ts",
+        "packages/web/package.json",
+        "pnpm-lock.yaml",
+        "packages/web/src/ui/shadcn/select.tsx",
+        "packages/web/src/api/resource-cache.ts",
+        "packages/web/src/api/runs.ts",
+        "packages/web/src/features/run-deck/batch-expansion.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
+      ]
+    },
+    "M9-T17": {
+      "requires": [
+        {
+          "task": "M4-T14",
+          "capability": "model-catalog"
+        },
+        {
+          "task": "M8-T9",
+          "capability": "assignment-chain"
+        }
+      ],
+      "supportPaths": [
+        "packages/web/test/stream-head-meta.test.tsx",
+        "packages/web/src/i18n/ui-strings.ts",
+        "packages/shared/src/api/runs.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
         17
       ]
     }

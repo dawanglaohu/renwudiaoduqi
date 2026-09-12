@@ -1,0 +1,18 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M4-T13": {
+      "contractHash": "b37bab666fb55f27151d52d09c81f30399c2008e2aa13c3949e262dde0f1798e",
+      "evidence": [
+        "前置闭包：19 节 M4-T13 依赖 M4-T3、M4-T4；输入列引用的 probeAgent() / buildProbeLaunch() 在 main packages/daemon/src/adapters/probe.ts 已导出，executeProbeProcess() 在 main 为模块私有，本任务产出列已写明由本任务导出（审查员后端 NON_BLOCKING 1 已采纳）；service/agents.ts 已有 changed 谓词与 agent.availability_changed 发送、assertCanDispatch()；http/routes/agents.ts 四端点齐全。",
+        "有效范围：产出列 13 项逐一对照 presentation.json taskPaths（10 条）+ task-contracts.json supportPaths（8 条）全部覆盖；pi provider 集合改为调用方注入参数（验收 3），本任务不再读 pi --list-models 或 settings.json，因此 adapters/pi/read-models.ts 不需入范围（审查员 BLOCKING 1 按方案 (a) 修正）。",
+        "枚举完整：10 节字段级契约 login 行逐字列出 reason 八值 timeout / exec_missing / spawn_failed / unparsable / exit_nonzero / not_supported / no_provider / not_probed，pi status:'invalid' 归 unparsable；19 节验收 2 引用该行（审查员 BLOCKING 2 修正）。",
+        "事件时机：19 节验收 5 改为「每次 refreshLogin() 结束都发 agent.availability_changed{reason:'login_changed'}，changed 谓词不含 login，订阅方不得重探」，与 08 节事件清单、决策 130 一致（审查员 BLOCKING 3 修正）。",
+        "边界：E-335、E-336、E-337、E-346、E-349、E-353、E-354、E-355 均在 13 节且与验收条款逐条对应；E-336「代码中不存在按登录态拒绝 POST /runs 的路径」与验收 4 一致；E-353 禁词清单与验收 6 一致。",
+        "平台契约：04 节登录态表五家逐行有实测输出形状（codex 已登录 stdout、claude JSON 三键、pi 三种 status 与退出码、grok 成败判定、dsh 无），未实测形态在 17 节标 synthetic；fixture 可逐字造。",
+        "提供／消费：provides login-probe；M4-T14 requires 它并消费 getLogin() / refreshLogin() / redactSecrets()；M8-T9 消费 refreshLogin({trigger:'exited_before_output'})；M9-T23 消费 LoginState。验收阶段：单测 + 集成剧本 ①③④，M4-T13 自身可在 M4-T14 之前独立验收。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T23": {
+      "contractHash": "8bef70b295469a1dd048294b4fdd27f569553f8571b0c34b8f5b82edbc0b2f5c",
+      "evidence": [
+        "前置闭包：依赖 M9-T18、M9-T14、M9-T22、M4-T13、M4-T14、M8-T9；输入列的 assign-panel.tsx ← M9-T18、settings-agents-page ← M9-T14、use-pipeline-settings.ts ← M9-T22、AgentEntryDto.login 与 login_changed ← M4-T13、GET /agents/:id/models 新结构 / EffortValue / layers / clearOverrides / MODEL_SOURCES ← M4-T14、PipelineSettings 四键 ← M8-T9，全部能指到产出列（前端审查 BLOCKING 2 由 M4-T14 补齐后闭合）。",
+        "layers 读法：19 节验收 7 与 11 节设置页段改为「内置默认／你的覆盖」读 layers.X.builtin / .override、「当前生效」读顶层字段，与 10 节 layers 契约（{builtin, config, override, hasOverride}）和决策 128 一致（前端 BLOCKING 1 修正）。",
+        "unknown 文案：验收 1 补 unknown → 「登录态未知：确认后点刷新」并写明三态徽标文案「已登录／未登录／无法判定」、状态谓词放 lib/login-freshness.ts，与 11 节引导行、E-335 一致（前端 BLOCKING 6 修正）。",
+        "pipeline PATCH 四键：10 节字段级契约 bughunt/wrapupMode 行、11 节顶栏开关段、M9-T22 验收 2 都改为「容器补齐后四键全量」，与 M9-T23 验收 8、E-356 一致（前端 BLOCKING 7 修正）。",
+        "测试清单可判定：17 节新增「E-335～E-339 / E-350 / E-351 / E-355～E-359（前端侧）」一行逐文件列出断言，验收 9 引用该行；use-minute-tick 与 agent-card 两个测试文件加进 taskPaths；GIF 只覆盖可达流程、不可达态以单测为准写进验收 9 与 17 节（前端 BLOCKING 5 与 NON_BLOCKING 采纳）。",
+        "登录态单一来源：验收 5 改为 login_changed 到达只经 cache-invalidation 失效 agents key 重拉，不重拉 /snapshot、不重探；08 节与决策 130 措辞同步为「失效重拉」，07 节 resource-cache 写明无 patch 接口且 read() 以最后一次 fetcher 为准（前端 NON_BLOCKING 采纳）。",
+        "有效范围：supportPaths 补 packages/web/package.json、pnpm-lock.yaml、ui/shadcn/select.tsx、api/resource-cache.ts、api/runs.ts、features/run-deck/batch-expansion.ts；验收 6 写明 onEdit 由 use-gate-card.ts 先调 batch-expansion 再调 openReassign（store 不 import features）。token 名核对：11 节与 19 节用到的 token 除新增两个尺寸 token 外均在 main tokens.css。",
+        "边界：E-254、E-335、E-336、E-338、E-339、E-348、E-350、E-351、E-355～E-359 均在 13 节；E-347「agent_default」措辞已对齐为「来源：任务指派（agent 默认）」；决策 134 表外来源归「其他」组已进验收 2。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
