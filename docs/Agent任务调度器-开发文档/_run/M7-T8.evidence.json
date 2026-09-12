@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T8": {
+      "contractHash": "3a698b8ee33dc7e4687093895161b5fdc5de8c64ed79daa4b5feb824c220e40c",
+      "verdict": "pass",
+      "evidence": [
+        "19 节 M7-T8 行（第 70 行）：依赖 M7-T3、M3-T7、M8-T6、M7-T7 均在前置闭包，requires bughunt-context / review-continuation / batch-wrapup 三个能力各有唯一提供方；产出 domain/bughunt-prompt.ts、bughunt-report.ts、service/bughunt.ts、review.ts 接线、run-state-machine.ts 七个 reason、一个普通迁移（prompt_source 与 (parent_run_id, kind) 索引）、test/unit/bughunt-report.test.ts、test/fixtures/bughunt/，全部在 taskPaths；wrapup-report.ts、settings.ts、shared codes/runs 在 supportPaths",
+        "验收 1)～6) 逐条对应：08 节「查 bug 运行的提示词包装」（第 544 行起：四段顺序、与收口共用禁令常量、起点树基线、agent 复制实施快照、无手动端点）；09 节 runs.kind 四值（随 M8-T6 四表重建）、prompt_source 列、「kind='bughunt' 的运行同样走同一张状态机」段；决策 91、96、100、101、103；E-306、E-307、E-308、E-316、E-320、E-321、E-323、E-328、E-329、E-331；10 节 E_PIPELINE_STAGE_DISABLED 只保留收口语义；17 节 E-306～E-331 行单测清单",
+        "接缝：开关读取点在 finalizeReviewRun() 判 pass 之后（08 节）；M8-T8 的 lanes/lane-slots 把 bughunt 行视为不占槽、占 agent 名额；M9-T21 只在存在 kind='bughunt' 运行时画「查 bug」行（E-306、E-332）"
+      ]
+    }
+  }
+}

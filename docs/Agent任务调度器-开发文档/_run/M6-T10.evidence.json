@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M6-T10": {
+      "contractHash": "3c073df7429c301b799c3e1b6b11476530fb02baca6954a7236c606164be155c",
+      "verdict": "pass",
+      "evidence": [
+        "19 节 M6-T10 行（第 62 行）：依赖 M6-T1、M6-T6、M1-T7 均已落地或在前置闭包；产出 service/session-archive.ts、session-guard.ts、run.ts 接线、repo/runs.ts 三个查询、arch 与 integration 两个测试、一个普通迁移，全部在 taskPaths；shared events/runs/codes 与 message.ts、proc/registry.ts 在 supportPaths；provides session-archive 被 M8-T8 requires",
+        "验收 1)～7) 逐条对应：09 节 runs.session_archived_at / lane_no、tasks.lane_no（含 ux_tasks_lane 部分唯一索引）与「泳道槽位与会话归档」小节（第 535 行起）；08 节「会话引用不跨任务」段（第 83 行起，service 校验 + test/arch/session-isolation.test.ts）与「事务边界」新增的归档路径（事务内写列、事务后 killTree 与 publish）；E-302、E-303、E-322、E-326（awaiting_human/orphaned 只释放槽位不归档）、E-96、E-54；10 节 E_SESSION_ARCHIVED 行；16 节埋点 15",
+        "接缝：M8-T8 补位调用本任务的 assertSessionRefFree()（08 节 tick 第 ③ 步）；M7-T7 续接前调 assertNotArchived()；17 节 E-302/E-303/E-322 行写明 session-isolation 静态扫描与 session-archive 四条集成剧本；事务内不 await/killTree/publish 与 08 节事务规则一致"
+      ]
+    }
+  }
+}

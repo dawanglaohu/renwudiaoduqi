@@ -295,6 +295,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M3-T7": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "df53fdeb40a38afeac107bfd3b455095080a9e72252d45539119888afa9d95da",
+    "evidence": [
+      "19 节 M3-T7 行（第 35 行）：依赖 M3-T5 且 requires review-context 在前置闭包内；产出 service/bughunt-context.ts、domain/bughunt-builtin-prompt.ts、service/docs.ts 导入、两列 bug_prompt 迁移，全部在 taskPaths；测试 test/unit/bughunt-context.test.ts 与 docs-import.test.ts 在 supportPaths；sections 含 4/9/10/16/17",
+      "验收 1)～4) 逐条对应：04 节「数据来源」dispatch[id] 五键（bug 未落地措辞，unattended-run 1.3.1）；09 节 tasks.bug_prompt 与 dispatch_snapshots.bug_prompt 列定义、兼容策略第 7 条普通 ADD COLUMN；E-316（缺失用内置并标文档未提供、取快照不热改）、E-19、E-50；16 节「日志里禁止打印提示词全文」",
+      "接缝：M7-T8 的 assembleBughuntPrompt() 消费本任务返回的 {bugPrompt, promptSource}，字段名与 08 节「查 bug 运行的提示词包装」第 2 段一致；已核实 docs-data.js 与 _run/dispatch.json 的 dispatch[id] 均含 bug 键（H3 已落地）"
+    ],
+    "reviewed": "2026-09-12T17:04:44.838823+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T1": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "2131449e21c7e8fe74c973d5916546ad619d8dba6f13e81e098bc16709a66fb4",
@@ -513,6 +525,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M6-T10": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "3c073df7429c301b799c3e1b6b11476530fb02baca6954a7236c606164be155c",
+    "evidence": [
+      "19 节 M6-T10 行（第 62 行）：依赖 M6-T1、M6-T6、M1-T7 均已落地或在前置闭包；产出 service/session-archive.ts、session-guard.ts、run.ts 接线、repo/runs.ts 三个查询、arch 与 integration 两个测试、一个普通迁移，全部在 taskPaths；shared events/runs/codes 与 message.ts、proc/registry.ts 在 supportPaths；provides session-archive 被 M8-T8 requires",
+      "验收 1)～7) 逐条对应：09 节 runs.session_archived_at / lane_no、tasks.lane_no（含 ux_tasks_lane 部分唯一索引）与「泳道槽位与会话归档」小节（第 535 行起）；08 节「会话引用不跨任务」段（第 83 行起，service 校验 + test/arch/session-isolation.test.ts）与「事务边界」新增的归档路径（事务内写列、事务后 killTree 与 publish）；E-302、E-303、E-322、E-326（awaiting_human/orphaned 只释放槽位不归档）、E-96、E-54；10 节 E_SESSION_ARCHIVED 行；16 节埋点 15",
+      "接缝：M8-T8 补位调用本任务的 assertSessionRefFree()（08 节 tick 第 ③ 步）；M7-T7 续接前调 assertNotArchived()；17 节 E-302/E-303/E-322 行写明 session-isolation 静态扫描与 session-archive 四条集成剧本；事务内不 await/killTree/publish 与 08 节事务规则一致"
+    ],
+    "reviewed": "2026-09-12T17:04:52.432310+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M6-T2": {
     "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
     "contractHash": "b6c689bc98031b281c3f74749ac5503af6efcbc5b23bb54ad9cd736210e779b2",
@@ -541,6 +565,18 @@
       "2026-09-11 全量核查：check-contrast、check-forbidden、biome ci（193 文件）、tsc -b --noEmit 通过；pnpm -w check 整体退出码 1，唯一阻断是 check-error-codes（10 节新增三码尚未投影到 codes.ts，归未落地的 M8-T6/M8-T7）；vitest（WSL Ubuntu 20.04，better-sqlite3 源码编译）571 例：534 通过 / 5 失败 / 32 跳过，5 个失败全部是 M2-T6 AC5 与 M3-T1/M3-T2 硬编码 78 个任务数的用例，与本任务无关；本任务测试文件：无独立测试文件，覆盖在集成用例中"
     ],
     "reviewed": "2026-09-11T02:45:57.001484+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M7-T2": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "9bb103bc45597192945db6a7d8b41daf3e7c54d35b412bd9e1733119b3bb3618",
+    "evidence": [
+      "本轮只改 19 节 M7-T2 行（第 64 行）第 4) 条：本任务只负责第 1 轮审查会话的新建（review_round=1、continued_from_run_id 为空），后续轮次续接交 M7-T7，代码中不出现按轮次分支（决策 89）；原 1)～3) 条与 taskPaths（service/review-agent.ts）、supportPaths 未动，依赖 M7-T1、M3-T5、M4-T7 未变",
+      "受影响条款核对：09 节 runs.review_round「第 1 轮审查为 1」与 continued_from_run_id「第 1 轮为 NULL」；08 节「事务边界」startReviewRound round=1 走既有新开；E-135 只读档不变、续接第 N+1 轮仍只读（14 节第 4 条）",
+      "接缝：M7-T7 的 startReviewRound({round ≥ 2}) 以本任务建的第 1 轮行为 prev（findLatestReview），vendor_session_ref 由本任务首轮写入，M7-T7 续接时复用；两者路径不重叠（review-agent.ts 与 review.ts）"
+    ],
+    "reviewed": "2026-09-12T17:05:39.103323+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -589,6 +625,30 @@
       "接缝：M8-T6 调 parseWrapupReport/deriveWrapupVerdict/planWrapupFixes（requires wrapup-report）；条目正则的 S1／S2／S3 写法与决策 61 的八段格式一致"
     ],
     "reviewed": "2026-09-10T20:08:04.776156+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M7-T7": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "dc339e1eb3b036973deddc374650c5ed2379a96ff50d4e6ec05f528ec580ef57",
+    "evidence": [
+      "19 节 M7-T7 行（第 69 行）：依赖 M7-T2、M7-T4、M6-T6 在前置闭包（M7-T2 已改为只负责第 1 轮）；产出 service/review.ts startReviewRound()、proc/registry.ts reassign()、domain/rework-prompt.ts 续审头部、repo/runs.ts findLatestReview、一个普通迁移、test/unit/review-round.test.ts，全部在 taskPaths；provides review-continuation 被 M7-T8 requires",
+      "验收 1)～6) 逐条对应：09 节 runs.review_round / continued_from_run_id（含 ux_runs_continued 与 (task_id, kind, review_round) 索引）；08 节「事务边界」startReviewRound 路径（事务前选路、事务内 INSERT、事务后 reassign/投递）；决策 89（续用同一审查会话）、102（撑爆按事件流结构判定）；E-304、E-305、E-307、E-330、E-302、E-113；17 节 E-304/E-305/E-307/E-330 行的单测清单",
+      "接缝：M7-T8 的 rereview 分支调 startReviewRound({round: N+1, reworkItems: FIXED 条目})；M6-T6 的类型化投递结果是撑爆判定的输入；M7-T2 行第 4) 条已写明后续轮次交本任务，代码中不按轮次分支"
+    ],
+    "reviewed": "2026-09-12T17:04:59.819282+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M7-T8": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "3a698b8ee33dc7e4687093895161b5fdc5de8c64ed79daa4b5feb824c220e40c",
+    "evidence": [
+      "19 节 M7-T8 行（第 70 行）：依赖 M7-T3、M3-T7、M8-T6、M7-T7 均在前置闭包，requires bughunt-context / review-continuation / batch-wrapup 三个能力各有唯一提供方；产出 domain/bughunt-prompt.ts、bughunt-report.ts、service/bughunt.ts、review.ts 接线、run-state-machine.ts 七个 reason、一个普通迁移（prompt_source 与 (parent_run_id, kind) 索引）、test/unit/bughunt-report.test.ts、test/fixtures/bughunt/，全部在 taskPaths；wrapup-report.ts、settings.ts、shared codes/runs 在 supportPaths",
+      "验收 1)～6) 逐条对应：08 节「查 bug 运行的提示词包装」（第 544 行起：四段顺序、与收口共用禁令常量、起点树基线、agent 复制实施快照、无手动端点）；09 节 runs.kind 四值（随 M8-T6 四表重建）、prompt_source 列、「kind='bughunt' 的运行同样走同一张状态机」段；决策 91、96、100、101、103；E-306、E-307、E-308、E-316、E-320、E-321、E-323、E-328、E-329、E-331；10 节 E_PIPELINE_STAGE_DISABLED 只保留收口语义；17 节 E-306～E-331 行单测清单",
+      "接缝：开关读取点在 finalizeReviewRun() 判 pass 之后（08 节）；M8-T8 的 lanes/lane-slots 把 bughunt 行视为不占槽、占 agent 名额；M9-T21 只在存在 kind='bughunt' 运行时画「查 bug」行（E-306、E-332）"
+    ],
+    "reviewed": "2026-09-12T17:05:07.123387+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -659,6 +719,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M8-T8": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "ce703a06b65ef96af0c169c47c4e1f9fbb3acb63a005d346bf0cc96d7252899c",
+    "evidence": [
+      "19 节 M8-T8 行（第 78 行）：依赖 M8-T3、M8-T6、M7-T8、M6-T10 在前置闭包，requires bughunt-stage / session-archive / batch-wrapup 各有唯一提供方；产出 domain/lanes.ts、lane-slots.ts、pipeline-settings.ts、wrapup-policy.ts canWrapup、service/lanes.ts、settings.ts、dispatch.ts 补位段、wrapup.ts 模式校验、jobs/scheduler-tick.ts 第②③步、三个路由文件、shared api/lanes.ts、四个测试文件，全部在 taskPaths；shared settings/events/routes/snapshot/documents/codes 与 concurrency.ts、path-clash.ts、session-guard.ts 在 supportPaths",
+      "验收 1)～7) 逐条对应：08 节 scheduler-tick 第 ②③ 步改写（第 373 行起：手动模式不触发、槽位补位、返工优先、agent 上限按运行）、事件清单八值 scope 与 lane.*/document.settings_changed/settings.pipeline_changed；09 节 settings.pipeline、tasks.lane_no、「泳道槽位与会话归档」小节（LANE_STAGES 七值、PIPELINE_STAGES、deriveLanes 派生不落表）、批次状态机手动模式说明；10 节 GET/PATCH /settings/pipeline、snapshot lanes 字段契约与示例、documents/:id/settings laneCount 1–6、E_PIPELINE_STAGE_DISABLED；决策 87、92、93、99、104、105、106；E-303、E-306、E-309～E-312、E-317、E-318、E-319、E-326、E-327、E-332、E-334；17 节 pipeline-lanes 十四条集成断言",
+      "接缝：M8-T1 的 calculateConcurrencyLimit / countsTowardAgentConcurrency 已核实按运行计数（packages/daemon/src/domain/concurrency.ts、run-state-machine.ts），本任务新增 countLaneSlots 按任务槽位计、不改其签名（E-311）；M9-T21 只消费 lanes[] 与 shared PIPELINE_STAGES，不算槽位（E-317）；M9-T22 消费 GET/PATCH /settings/pipeline 与 settings.pipeline_changed"
+    ],
+    "reviewed": "2026-09-12T17:05:15.065355+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T1": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "ce2b095ad326bd8ca301e896562d4f7579fbf90e3e776e1cc753813a8bb285ec",
@@ -724,6 +796,30 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T21": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "7627c4470cdf7a0691cc3ae44c7ac533923418652f02eeeeb9e1f18df7d6869b",
+    "evidence": [
+      "19 节 M9-T21 行（第 99 行）：依赖 M9-T9、M9-T7、M9-T19、M9-T20 在前置闭包；产出 components/pipeline-lane.tsx、stage-chain.tsx、lane-history-row.tsx、lane-run-strip.tsx、stream-column.tsx 外壳改写、spine.tsx 两字段、lib/stage-rows.ts、lib/spine-shape.ts LOOP_PIECES、features/run-deck 三个容器、api/lanes.ts，全部在 taskPaths；cache-keys/cache-invalidation、两个 store、tokens.css、ui-strings、check-forbidden、七个测试文件与 shared lanes/snapshot/events 在 supportPaths；sections 含 7/11/12",
+      "验收 1)～10) 逐条对应：07 节「泳道同样不算」段与「补充需求 2026-09-12 的泳道组件」清单（第 138 行起：props 形状、只读靠无 callback、不测量 DOM、阶段字面量禁令）、缓存失效表五条新映射、lib 清单 stage-rows、check-forbidden 五条新禁令；11 节「运行轨——一个任务的流水线」（含返工回环行）、「任务流水线泳道」四段结构（第 375 行起）、空闲泳道与停靠任务、紧凑档不折（决策 95）、断点表手机运行条；12 节流程六与交互反馈三行；决策 90、95、97、98、104、105；E-306、E-307、E-309、E-313～E-315、E-317、E-319、E-324～E-326、E-332、E-333；17 节 E-313～E-325 行与 E-236 泳道维度矩阵",
+      "接缝：lanes[] 字段（含 nextBlockedBy / archivedWrapupRunId / overLimit）与 10 节快照契约一致；收口泳道沿用 M9-T20 的 StreamColumn kind='wrapup' 头部不重画；pulse-dot 与 @keyframes 沿用 M9-T19 的唯一动画规则（回环无动画）"
+    ],
+    "reviewed": "2026-09-12T17:05:23.392858+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T22": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "ac1b35ee19d42e06f6d775217ca00c1a9a7eefeccc9012491ca293dc5e959b73",
+    "evidence": [
+      "19 节 M9-T22 行（第 100 行）：依赖 M9-T21、M8-T8 在前置闭包；产出 ui/segmented-toggle.tsx、components/pipeline-toggles.tsx、两个容器、pages/settings-pipeline-page.tsx、app/routes.tsx 第八条路由，全部在 taskPaths；gate-toggles.tsx、ui-strings、error-messages、cache-keys、check-forbidden、三个测试文件与 shared settings/routes 在 supportPaths；sections 含 7/11/12",
+      "验收 1)～6) 逐条对应：11 节「顶栏流水线开关」（第 367 行起：同形态、1px 竖线、两行常驻说明、设置页同一组件、手机档不放）与页面清单「设置 · 流水线」行；07 节路由八条与 settings 页同一 Suspense、组件清单 pipeline-toggles / segmented-toggle、ui/ 业务词禁令、「开关互不 import」禁令；10 节 GET/PATCH /settings/pipeline 契约与示例；决策 93、103；E-26、E-157、E-306、E-312、E-318；17 节 E-306/E-312/E-318 前端侧行",
+      "接缝：值只来自 GET /settings/pipeline、写走 PATCH 全量两值、状态等 settings.pipeline_changed 回流（M8-T8 提供）；与 M9-T19 的 gate-toggles 共用 ui/segmented-toggle 基元、先落地者创建；E_PIPELINE_STAGE_DISABLED 文案在 i18n/error-messages.ts 补键"
+    ],
+    "reviewed": "2026-09-12T17:05:31.346918+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T3": {
     "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
     "contractHash": "da896eb06e64ba55c9cc4089594eb684bc22d0c7cc1b72838ae9fa1c455a9036",
@@ -753,6 +849,18 @@
       "未完成/留待后续（非阻断，见审查结论 FOLLOW_UP）：① 前端跨包取类型走 '../../../shared/src/…' 深路径，M10-T1 落地后 web/package.json 会有 @agent-scheduler/shared 的 workspace:* 依赖，届时应改为按包名 + exports 映射取，并回退 tsconfig 的 include；② X-Agsched-Client 的版本段暂回落 '0.0.0'，等 src/app/app-version.ts（import.meta.env 唯一落点）出现后接上；③ check-forbidden 的 fetch 规则粒度是 'src/api/ 之外'、且 07 节要求 localStorage 键白名单机检尚未实现，属 M9-T1 的脚本范围。"
     ],
     "reviewed": "2026-09-11T14:04:10.369050+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T9": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "962ce7ca834d665694ef3a7fee2064b5a5ab908c82d3b795cc09234a0182715d",
+    "evidence": [
+      "本轮只改 19 节 M9-T9 行（第 87 行）新增第 12) 条：stream-column.tsx 是泳道外壳（五段网格、停止键与审批槽位在所有 kind/档位分支之外）、流数恒等于 lanes[] 长度、一条流就是一个任务槽位、阶段链由 M9-T21 填进 body（E-311、E-317 的呈现侧）；原 1)～11) 条与 taskPaths（stream-column.tsx、use-breakpoint.ts、features/run-deck/）未动，依赖 M9-T7 未变",
+      "受影响条款核对：07 节泳道组件清单第一条 stream-column 五段网格与 props 形状；11 节「任务流水线泳道」头部/底部沿用 --stream-head-h / --stream-foot-h、紧凑档换行网格与 E-165 展开态不变、E-236 逐档断言加泳道维度（17 节）；决策 87、95",
+      "接缝：M9-T21 是 stream-column 的调用方（pipeline-lane → body 插槽），M9-T20 的收口头部分支仍在 stream-column 的 kind 分支内；本任务不引入 stage/lanes/StageRow（07 节禁令）"
+    ],
+    "reviewed": "2026-09-12T17:05:46.905794+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

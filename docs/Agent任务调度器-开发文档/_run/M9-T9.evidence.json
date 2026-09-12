@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T9": {
+      "contractHash": "962ce7ca834d665694ef3a7fee2064b5a5ab908c82d3b795cc09234a0182715d",
+      "verdict": "pass",
+      "evidence": [
+        "本轮只改 19 节 M9-T9 行（第 87 行）新增第 12) 条：stream-column.tsx 是泳道外壳（五段网格、停止键与审批槽位在所有 kind/档位分支之外）、流数恒等于 lanes[] 长度、一条流就是一个任务槽位、阶段链由 M9-T21 填进 body（E-311、E-317 的呈现侧）；原 1)～11) 条与 taskPaths（stream-column.tsx、use-breakpoint.ts、features/run-deck/）未动，依赖 M9-T7 未变",
+        "受影响条款核对：07 节泳道组件清单第一条 stream-column 五段网格与 props 形状；11 节「任务流水线泳道」头部/底部沿用 --stream-head-h / --stream-foot-h、紧凑档换行网格与 E-165 展开态不变、E-236 逐档断言加泳道维度（17 节）；决策 87、95",
+        "接缝：M9-T21 是 stream-column 的调用方（pipeline-lane → body 插槽），M9-T20 的收口头部分支仍在 stream-column 的 kind 分支内；本任务不引入 stage/lanes/StageRow（07 节禁令）"
+      ]
+    }
+  }
+}

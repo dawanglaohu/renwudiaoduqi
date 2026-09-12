@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T22": {
+      "contractHash": "ac1b35ee19d42e06f6d775217ca00c1a9a7eefeccc9012491ca293dc5e959b73",
+      "verdict": "pass",
+      "evidence": [
+        "19 节 M9-T22 行（第 100 行）：依赖 M9-T21、M8-T8 在前置闭包；产出 ui/segmented-toggle.tsx、components/pipeline-toggles.tsx、两个容器、pages/settings-pipeline-page.tsx、app/routes.tsx 第八条路由，全部在 taskPaths；gate-toggles.tsx、ui-strings、error-messages、cache-keys、check-forbidden、三个测试文件与 shared settings/routes 在 supportPaths；sections 含 7/11/12",
+        "验收 1)～6) 逐条对应：11 节「顶栏流水线开关」（第 367 行起：同形态、1px 竖线、两行常驻说明、设置页同一组件、手机档不放）与页面清单「设置 · 流水线」行；07 节路由八条与 settings 页同一 Suspense、组件清单 pipeline-toggles / segmented-toggle、ui/ 业务词禁令、「开关互不 import」禁令；10 节 GET/PATCH /settings/pipeline 契约与示例；决策 93、103；E-26、E-157、E-306、E-312、E-318；17 节 E-306/E-312/E-318 前端侧行",
+        "接缝：值只来自 GET /settings/pipeline、写走 PATCH 全量两值、状态等 settings.pipeline_changed 回流（M8-T8 提供）；与 M9-T19 的 gate-toggles 共用 ui/segmented-toggle 基元、先落地者创建；E_PIPELINE_STAGE_DISABLED 文案在 i18n/error-messages.ts 补键"
+      ]
+    }
+  }
+}
