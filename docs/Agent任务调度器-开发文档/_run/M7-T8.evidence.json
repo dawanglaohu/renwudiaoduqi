@@ -2,13 +2,15 @@
   "scope": "task-contract",
   "tasks": {
     "M7-T8": {
-      "contractHash": "3a698b8ee33dc7e4687093895161b5fdc5de8c64ed79daa4b5feb824c220e40c",
-      "verdict": "pass",
+      "contractHash": "23696eda97d1f806360065b590ba01e887609bf8d8beefa08937cd2371d9479d",
       "evidence": [
-        "19 节 M7-T8 行（第 70 行）：依赖 M7-T3、M3-T7、M8-T6、M7-T7 均在前置闭包，requires bughunt-context / review-continuation / batch-wrapup 三个能力各有唯一提供方；产出 domain/bughunt-prompt.ts、bughunt-report.ts、service/bughunt.ts、review.ts 接线、run-state-machine.ts 七个 reason、一个普通迁移（prompt_source 与 (parent_run_id, kind) 索引）、test/unit/bughunt-report.test.ts、test/fixtures/bughunt/，全部在 taskPaths；wrapup-report.ts、settings.ts、shared codes/runs 在 supportPaths",
-        "验收 1)～6) 逐条对应：08 节「查 bug 运行的提示词包装」（第 544 行起：四段顺序、与收口共用禁令常量、起点树基线、agent 复制实施快照、无手动端点）；09 节 runs.kind 四值（随 M8-T6 四表重建）、prompt_source 列、「kind='bughunt' 的运行同样走同一张状态机」段；决策 91、96、100、101、103；E-306、E-307、E-308、E-316、E-320、E-321、E-323、E-328、E-329、E-331；10 节 E_PIPELINE_STAGE_DISABLED 只保留收口语义；17 节 E-306～E-331 行单测清单",
-        "接缝：开关读取点在 finalizeReviewRun() 判 pass 之后（08 节）；M8-T8 的 lanes/lane-slots 把 bughunt 行视为不占槽、占 agent 名额；M9-T21 只在存在 kind='bughunt' 运行时画「查 bug」行（E-306、E-332）"
-      ]
+        "本轮改动：19 节验收 2 取值来源改为被审实施运行行三值（不从 launch_spec_json.defaultModel 推导、不读注册表当前默认），M8-T9 落地后改经 readTaskAssignment() 读 assignment_json、不留第二条取值路径，入口返回形状预留 effortVendor?；E-328 期望列与决策 100 选定列同步修订为同一措辞（审查员 BLOCKING 1 修正）。",
+        "输入列：settings.pipeline.bughunt 的读取入口点名 M8-T4 的 service/settings.ts（pipeline 键缺行按 E-356 默认），不再引用闭包外的 M8-T8；E-329 起点树的 git 调用点名 M5-T5 的 workspace/in-head.ts 并加进 supportPaths（审查员 NON_BLOCKING 1、3 采纳）。",
+        "E-331 的 bughunt 行 rerun 放行归 M8-T9 验收 2（其输入列含 M8-T5 的 rerun），本任务不再无人实现（审查员 NON_BLOCKING 2 采纳）。",
+        "前置闭包：runs.kind 四值重建（M8-T6）、wrapup-report.ts 解析器（M7-T6 经 M8-T6）、startReviewRound()（M7-T7）、getBughuntContext()（M3-T7）、RunTransitionReason（M7-T3）均在闭包；有效范围产出列 10 项对照 taskPaths 7 条 + supportPaths 8 条全部覆盖。",
+        "边界：E-61、E-306、E-307、E-308、E-316、E-320、E-321、E-323、E-328、E-329、E-331、E-341 均存在；E-323、E-331 与验收 1、5 一致；08 节 finalizeBughuntRun() 事务顺序与验收 6 一致。"
+      ],
+      "verdict": "pass"
     }
   }
 }

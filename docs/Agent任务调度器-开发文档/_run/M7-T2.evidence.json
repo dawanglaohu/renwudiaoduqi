@@ -2,13 +2,15 @@
   "scope": "task-contract",
   "tasks": {
     "M7-T2": {
-      "contractHash": "9bb103bc45597192945db6a7d8b41daf3e7c54d35b412bd9e1733119b3bb3618",
-      "verdict": "pass",
+      "contractHash": "1a2f08eccfd636436a775f333a60149755ff689c9bb8a1dcfbc2370634579e07",
       "evidence": [
-        "本轮只改 19 节 M7-T2 行（第 64 行）第 4) 条：本任务只负责第 1 轮审查会话的新建（review_round=1、continued_from_run_id 为空），后续轮次续接交 M7-T7，代码中不出现按轮次分支（决策 89）；原 1)～3) 条与 taskPaths（service/review-agent.ts）、supportPaths 未动，依赖 M7-T1、M3-T5、M4-T7 未变",
-        "受影响条款核对：09 节 runs.review_round「第 1 轮审查为 1」与 continued_from_run_id「第 1 轮为 NULL」；08 节「事务边界」startReviewRound round=1 走既有新开；E-135 只读档不变、续接第 N+1 轮仍只读（14 节第 4 条）",
-        "接缝：M7-T7 的 startReviewRound({round ≥ 2}) 以本任务建的第 1 轮行为 prev（findLatestReview），vendor_session_ref 由本任务首轮写入，M7-T7 续接时复用；两者路径不重叠（review-agent.ts 与 review.ts）"
-      ]
+        "本轮改动：19 节验收 1 改为默认审查者三值逐字取被审实施运行行的 agent_id / model_name / effort_tier（任务指派副本，决策 107），禁止「设置里指定其他 agent／模型」分支，单一函数入口返回形状预留 effortVendor?，三值由 service/review.ts 以参数传入；与决策 107、E-347 一致；E-341 改由 M8-T9 引用（审查员 NON_BLOCKING 2 采纳）。",
+        "前置闭包：依赖 M7-T1、M3-T5、M4-T7 不变；读运行行的 repo 方法通过 supportPaths 加 packages/daemon/src/repo/runs.ts 兜底（审查员 NON_BLOCKING 1 采纳）。",
+        "与 M8-T9 的替换点：M8-T9 taskPaths 含 service/review-agent.ts、supportPaths 含 test/unit/review-agent.test.ts，M7-T2 只留入口、M8-T9 接 resolveAssignment() 与 reviewOverride。",
+        "边界：E-65、E-135、E-347 均存在；E-135 审查只读档与验收 2 一致，E-342 重申权限档不在指派里；验收 4 与决策 89 / M7-T7 分工不变。",
+        "有效范围：产出对应 taskPath service/review-agent.ts，测试与 repo/runs.ts 在 supportPaths。"
+      ],
+      "verdict": "pass"
     }
   }
 }

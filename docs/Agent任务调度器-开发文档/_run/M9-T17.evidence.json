@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T17": {
+      "contractHash": "64794bf2a2376c17b7b81d4a8c8b5a0ce4a316d36148182a96d5cf4a65212cf2",
+      "evidence": [
+        "前置闭包：依赖列加 M4-T14（RunDto.effort）与 M8-T9（RunDto.assignmentSource / followedTaskId），contracts 新增 requires model-catalog / assignment-chain，输入列点名两者的产出；不再让实施方在类型不存在时开工（前端审查 BLOCKING 1 按方案 A 修正）。",
+        "有效范围：contracts 新增 supportPaths packages/web/test/stream-head-meta.test.tsx、i18n/ui-strings.ts、shared api/runs.ts；17 节前端行含 stream-head-meta.test.tsx 增量断言（前端 BLOCKING 2 修正）。",
+        "RunDto.effort 已在 10 节字段级契约声明：EffortValue，{tier} 读 effort_tier、{vendor} 读 effort_vendor（fromEffortColumns()），既有 effortTier 保留恒等于 effort.tier ?? null（前端 BLOCKING 3 修正）。",
+        "条款与规格对齐：19 节验收 1 四段网格、第四段来源四值文案 + agent_default 括注 + 缺失「来源：—」+ compact 短文案、{vendor} 原串与 title，与 11 节参照条段（四段）、11 节 L415 已改四段、E-347（措辞已对齐）、E-357 逐句一致。",
+        "边界：E-254、E-37、E-256、E-136、E-31、E-347、E-357 均存在；决策 33、110、111、124、129 均在 22 节；token --needs / --down / --font-mono / --fs-micro / --ink-3 在 main tokens.css 存在。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

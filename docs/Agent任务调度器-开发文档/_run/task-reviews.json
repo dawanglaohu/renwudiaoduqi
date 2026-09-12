@@ -344,6 +344,39 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T13": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "b37bab666fb55f27151d52d09c81f30399c2008e2aa13c3949e262dde0f1798e",
+    "evidence": [
+      "前置闭包：19 节 M4-T13 依赖 M4-T3、M4-T4；输入列引用的 probeAgent() / buildProbeLaunch() 在 main packages/daemon/src/adapters/probe.ts 已导出，executeProbeProcess() 在 main 为模块私有，本任务产出列已写明由本任务导出（审查员后端 NON_BLOCKING 1 已采纳）；service/agents.ts 已有 changed 谓词与 agent.availability_changed 发送、assertCanDispatch()；http/routes/agents.ts 四端点齐全。",
+      "有效范围：产出列 13 项逐一对照 presentation.json taskPaths（10 条）+ task-contracts.json supportPaths（8 条）全部覆盖；pi provider 集合改为调用方注入参数（验收 3），本任务不再读 pi --list-models 或 settings.json，因此 adapters/pi/read-models.ts 不需入范围（审查员 BLOCKING 1 按方案 (a) 修正）。",
+      "枚举完整：10 节字段级契约 login 行逐字列出 reason 八值 timeout / exec_missing / spawn_failed / unparsable / exit_nonzero / not_supported / no_provider / not_probed，pi status:'invalid' 归 unparsable；19 节验收 2 引用该行（审查员 BLOCKING 2 修正）。",
+      "事件时机：19 节验收 5 改为「每次 refreshLogin() 结束都发 agent.availability_changed{reason:'login_changed'}，changed 谓词不含 login，订阅方不得重探」，与 08 节事件清单、决策 130 一致（审查员 BLOCKING 3 修正）。",
+      "边界：E-335、E-336、E-337、E-346、E-349、E-353、E-354、E-355 均在 13 节且与验收条款逐条对应；E-336「代码中不存在按登录态拒绝 POST /runs 的路径」与验收 4 一致；E-353 禁词清单与验收 6 一致。",
+      "平台契约：04 节登录态表五家逐行有实测输出形状（codex 已登录 stdout、claude JSON 三键、pi 三种 status 与退出码、grok 成败判定、dsh 无），未实测形态在 17 节标 synthetic；fixture 可逐字造。",
+      "提供／消费：provides login-probe；M4-T14 requires 它并消费 getLogin() / refreshLogin() / redactSecrets()；M8-T9 消费 refreshLogin({trigger:'exited_before_output'})；M9-T23 消费 LoginState。验收阶段：单测 + 集成剧本 ①③④，M4-T13 自身可在 M4-T14 之前独立验收。"
+    ],
+    "reviewed": "2026-09-12T21:47:47.898329+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M4-T14": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "cb1f983901b7cf5fd44e2524ea49b50471e3af681235dde2c3fcccac6f2f7377",
+    "evidence": [
+      "前置闭包：依赖 M4-T5、M4-T7、M4-T8、M4-T10、M4-T11、M4-T13；输入列引用的四家 read-models.ts、domain/effort-tier.ts resolveEffortMapping()、getLogin()/refreshLogin() 都由闭包内任务产出；输入列已按 main 真名写 parsePiModelsCommandOutput() / parseGrokModelsCommandOutput() 并注明本任务改名（审查员 NON_BLOCKING 1 采纳）。",
+      "响应形状：19 节验收 1 与 10 节 GET /agents/:id/models 端点行一致——不含登录态，登录态只在 AgentEntryDto.login（审查员 BLOCKING 1 与前端 BLOCKING 3 修正，决策 130）。",
+      "有效范围：config/registry.ts 已加进 taskPaths（四字段校验、AGENT_CONFIG_FIELD_PATHS、clearOverrides 对齐）；adapters/probe.ts 与 adapters/login-probe.ts 加进 supportPaths；产出列 20 项全部落在 taskPaths + supportPaths（审查员 BLOCKING 2、NON_BLOCKING 2 修正）。",
+      "职责拆分：验收 7 改为本任务只交付 assertVendorEffortInDomain()、PATCH /agents/:id 的 defaultEffortTier / clearOverrides 校验与 shared CreateRunBody.effort 类型，POST /runs 的 effort 接线归 M8-T9 验收 2；10 节 POST /runs 端点行 body 已加 effort?（审查员 BLOCKING 3 修正）。",
+      "layers 与 clearOverrides 有了交付方：产出列加 toAgentEntryDto() 组装 AgentEntryDto.layers 与 updateAgent() 的 clearOverrides 校验，验收 7 写全决策 128、132 的条款（三层 + hasOverride、同名同现 / 重复 / 未知 → E_VALIDATION、空数组视为未提供、dsh 幂等），17 节 models-live 行加对应用例（审查员 BLOCKING 4 与前端 BLOCKING 2 修正）。",
+      "出厂映射钉死：09 节注册表说明与 19 节验收 8 写明五家出厂 effortVendorMap（codex／grok／pi 三档同名，claude 三档 token 数，dsh null），17 节 assignment 用例 ④⑤ 与集成 ⑧ 改为与该出厂值一致的期望（审查员 NON_BLOCKING 4 采纳）。",
+      "边界：E-38、E-255、E-338、E-339、E-340、E-342、E-345、E-350、E-351 均在 13 节；E-38 已改为按注册表 modelsLive.timeoutMs（codex 出厂 10 秒）；E-340 一条 SQL / landed / 20 条 / pi 后缀在 adapters/pi 剥，与验收 4 一致；E-351 effort_tier CHECK 不改 + 新列 effort_vendor 与 09 节一致。",
+      "平台契约：04 节实时清单表有 codex model/list 响应字段、六条模型、hidden/isDefault/supportedReasoningEfforts、通知与 stderr ERROR 逐字记录，请求侧 initialize{clientInfo:{name,title,version}} / initialized{} / model/list{} 已补实测，翻页参数名标未实测且验收 2 改为不追页。"
+    ],
+    "reviewed": "2026-09-12T21:47:56.777177+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T2": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "b376d43039fb85aae2f12c1414e5bc5b5157368a2314707a6b53af9591ba3302",
@@ -570,13 +603,15 @@
   },
   "M7-T2": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "9bb103bc45597192945db6a7d8b41daf3e7c54d35b412bd9e1733119b3bb3618",
+    "contractHash": "1a2f08eccfd636436a775f333a60149755ff689c9bb8a1dcfbc2370634579e07",
     "evidence": [
-      "本轮只改 19 节 M7-T2 行（第 64 行）第 4) 条：本任务只负责第 1 轮审查会话的新建（review_round=1、continued_from_run_id 为空），后续轮次续接交 M7-T7，代码中不出现按轮次分支（决策 89）；原 1)～3) 条与 taskPaths（service/review-agent.ts）、supportPaths 未动，依赖 M7-T1、M3-T5、M4-T7 未变",
-      "受影响条款核对：09 节 runs.review_round「第 1 轮审查为 1」与 continued_from_run_id「第 1 轮为 NULL」；08 节「事务边界」startReviewRound round=1 走既有新开；E-135 只读档不变、续接第 N+1 轮仍只读（14 节第 4 条）",
-      "接缝：M7-T7 的 startReviewRound({round ≥ 2}) 以本任务建的第 1 轮行为 prev（findLatestReview），vendor_session_ref 由本任务首轮写入，M7-T7 续接时复用；两者路径不重叠（review-agent.ts 与 review.ts）"
+      "本轮改动：19 节验收 1 改为默认审查者三值逐字取被审实施运行行的 agent_id / model_name / effort_tier（任务指派副本，决策 107），禁止「设置里指定其他 agent／模型」分支，单一函数入口返回形状预留 effortVendor?，三值由 service/review.ts 以参数传入；与决策 107、E-347 一致；E-341 改由 M8-T9 引用（审查员 NON_BLOCKING 2 采纳）。",
+      "前置闭包：依赖 M7-T1、M3-T5、M4-T7 不变；读运行行的 repo 方法通过 supportPaths 加 packages/daemon/src/repo/runs.ts 兜底（审查员 NON_BLOCKING 1 采纳）。",
+      "与 M8-T9 的替换点：M8-T9 taskPaths 含 service/review-agent.ts、supportPaths 含 test/unit/review-agent.test.ts，M7-T2 只留入口、M8-T9 接 resolveAssignment() 与 reviewOverride。",
+      "边界：E-65、E-135、E-347 均存在；E-135 审查只读档与验收 2 一致，E-342 重申权限档不在指派里；验收 4 与决策 89 / M7-T7 分工不变。",
+      "有效范围：产出对应 taskPath service/review-agent.ts，测试与 repo/runs.ts 在 supportPaths。"
     ],
-    "reviewed": "2026-09-12T17:05:39.103323+00:00",
+    "reviewed": "2026-09-12T21:48:23.989707+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -642,13 +677,15 @@
   },
   "M7-T8": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "3a698b8ee33dc7e4687093895161b5fdc5de8c64ed79daa4b5feb824c220e40c",
+    "contractHash": "23696eda97d1f806360065b590ba01e887609bf8d8beefa08937cd2371d9479d",
     "evidence": [
-      "19 节 M7-T8 行（第 70 行）：依赖 M7-T3、M3-T7、M8-T6、M7-T7 均在前置闭包，requires bughunt-context / review-continuation / batch-wrapup 三个能力各有唯一提供方；产出 domain/bughunt-prompt.ts、bughunt-report.ts、service/bughunt.ts、review.ts 接线、run-state-machine.ts 七个 reason、一个普通迁移（prompt_source 与 (parent_run_id, kind) 索引）、test/unit/bughunt-report.test.ts、test/fixtures/bughunt/，全部在 taskPaths；wrapup-report.ts、settings.ts、shared codes/runs 在 supportPaths",
-      "验收 1)～6) 逐条对应：08 节「查 bug 运行的提示词包装」（第 544 行起：四段顺序、与收口共用禁令常量、起点树基线、agent 复制实施快照、无手动端点）；09 节 runs.kind 四值（随 M8-T6 四表重建）、prompt_source 列、「kind='bughunt' 的运行同样走同一张状态机」段；决策 91、96、100、101、103；E-306、E-307、E-308、E-316、E-320、E-321、E-323、E-328、E-329、E-331；10 节 E_PIPELINE_STAGE_DISABLED 只保留收口语义；17 节 E-306～E-331 行单测清单",
-      "接缝：开关读取点在 finalizeReviewRun() 判 pass 之后（08 节）；M8-T8 的 lanes/lane-slots 把 bughunt 行视为不占槽、占 agent 名额；M9-T21 只在存在 kind='bughunt' 运行时画「查 bug」行（E-306、E-332）"
+      "本轮改动：19 节验收 2 取值来源改为被审实施运行行三值（不从 launch_spec_json.defaultModel 推导、不读注册表当前默认），M8-T9 落地后改经 readTaskAssignment() 读 assignment_json、不留第二条取值路径，入口返回形状预留 effortVendor?；E-328 期望列与决策 100 选定列同步修订为同一措辞（审查员 BLOCKING 1 修正）。",
+      "输入列：settings.pipeline.bughunt 的读取入口点名 M8-T4 的 service/settings.ts（pipeline 键缺行按 E-356 默认），不再引用闭包外的 M8-T8；E-329 起点树的 git 调用点名 M5-T5 的 workspace/in-head.ts 并加进 supportPaths（审查员 NON_BLOCKING 1、3 采纳）。",
+      "E-331 的 bughunt 行 rerun 放行归 M8-T9 验收 2（其输入列含 M8-T5 的 rerun），本任务不再无人实现（审查员 NON_BLOCKING 2 采纳）。",
+      "前置闭包：runs.kind 四值重建（M8-T6）、wrapup-report.ts 解析器（M7-T6 经 M8-T6）、startReviewRound()（M7-T7）、getBughuntContext()（M3-T7）、RunTransitionReason（M7-T3）均在闭包；有效范围产出列 10 项对照 taskPaths 7 条 + supportPaths 8 条全部覆盖。",
+      "边界：E-61、E-306、E-307、E-308、E-316、E-320、E-321、E-323、E-328、E-329、E-331、E-341 均存在；E-323、E-331 与验收 1、5 一致；08 节 finalizeBughuntRun() 事务顺序与验收 6 一致。"
     ],
-    "reviewed": "2026-09-12T17:05:07.123387+00:00",
+    "reviewed": "2026-09-12T21:48:32.820940+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -696,14 +733,16 @@
     "verdict": "pass"
   },
   "M8-T6": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "02af45bd16d41129bc7880b92748a1201226c72b2ff9493bcd7ee0fc4d0d3975",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "06b2c85bd608ac0c4c749d5b8a089f1a704405e9d8b156d875595784923727d6",
     "evidence": [
-      "19 节 M8-T6 行：依赖 M8-T3（tick/批次路由）、M8-T4（闸门模型与 settings 表，H05 已补）、M3-T6、M7-T6、M5-T5，五个 requires 的 provider 全在前置闭包；28 条有效路径覆盖 service/wrapup.ts、batch.ts、三个 domain 文件、repo、路由、tick、migrate.ts、migrations/、shared 四文件与集成测试",
-      "验收 1)～7) 逐条指向 E-272/E-283/E-301（tick 四步与 awaiting_landing）、E-287（agent 取值）、E-296（材料）、E-294/E-274/E-295（收口运行退出后的三种归宿）、E-288（批次级闸门与硬顶）、E-291（迁移重建）、E-285（不内联 diff 正文）；批次状态机图在 09 节、路由与错误码在 10 节、事件在 08 节、事务顺序在 08 节「三条编排路径」",
-      "接缝：修复派发交 M8-T7（provides batch-wrapup）；与在途任务 M3-T4/M4-T3/M5-T1 无路径交集（三者已落地）；迁移目录与 M8-T4、M7-T5 都在同一 migrations/ 目录，交接台会按路径冲突排队，不并行派"
+      "本轮改动：19 节验收 2 加「默认跟随本批 ended_at 最晚的 landed 实施运行的任务指派（决策 116 follow 模式）……三值取值收成 triggerWrapup() 内单一函数入口，fixed 模式由 M8-T9 接进，本任务不读 settings.pipeline」，与 E-287（措辞已改为运行行三值 / 快照 assignment_json）、E-344 逐条一致。",
+      "分工：wrapupMode 由 M8-T8 接、wrapupAssignment 由 M8-T9 接，M8-T9 taskPaths 含 service/wrapup.ts；M8-T6 只留入口。",
+      "四表重建：验收 6 与 09 节 kind 四值 CHECK、dispatch_snapshots.task_id 可空 + CHECK、E-291 一致；09 节注 8 已改为「M8-T6 若晚于 M4-T14 落地必须逐列保留 effort_vendor，M8-T9 三列恒在重建之后加」（审查员 NON_BLOCKING 2 采纳）。",
+      "10 节手动收口 body 注明 effortTier 只收三档不接受 {vendor}（审查员 NON_BLOCKING 3 采纳）。",
+      "有效范围：产出列 10 项对照 taskPaths 10 条 + supportPaths 18 条全部覆盖；边界 E-272、E-274、E-283、E-285、E-287、E-288、E-291、E-294、E-295、E-296、E-301、E-344 均存在，错误码 E_WRAPUP_ROUND_LIMIT 已登记。"
     ],
-    "reviewed": "2026-09-10T20:08:12.104186+00:00",
+    "reviewed": "2026-09-12T21:48:41.429681+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -728,6 +767,22 @@
       "接缝：M8-T1 的 calculateConcurrencyLimit / countsTowardAgentConcurrency 已核实按运行计数（packages/daemon/src/domain/concurrency.ts、run-state-machine.ts），本任务新增 countLaneSlots 按任务槽位计、不改其签名（E-311）；M9-T21 只消费 lanes[] 与 shared PIPELINE_STAGES，不算槽位（E-317）；M9-T22 消费 GET/PATCH /settings/pipeline 与 settings.pipeline_changed"
     ],
     "reviewed": "2026-09-12T17:05:15.065355+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M8-T9": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "8c665f54c6bcf83c855947eb007cebd9621a657694a88c2300ecab8a434f4d5c",
+    "evidence": [
+      "前置闭包：依赖列加 M8-T7（修复派发接线点）与 M6-T2（收流路径），contracts requires 加 {task:'M8-T7'}；输入列引用的 startReviewRound() / dispatchRework() / dispatchBughunt() / finalizeReviewRun() / getPipeline() / refillLanes() / triggerWrapup() / rerun / POST /runs / EffortValue 转换函数全部由闭包内任务产出（审查员 BLOCKING 1 修正）。",
+      "RunDto.followedTaskId 有了交付方：产出列加 RunDto.followedTaskId，验收 3 写明由 service 按 snapshot_id 集合一次联结取自 assignment_json（旧快照无该键 → null，不新增 runs 列），17 节集成 ⑧ 加断言；09 节 assignment_source 行注明不另加列（审查员 BLOCKING 2、决策 129）。",
+      "rerun 语义统一：验收 2 改为「复用原 snapshot_id，不新建快照、不改 assignment_json，assignment_source 抄原运行」，17 节 ⑦ 改为「新运行的 snapshot_id 与原运行相同」，与决策 129、E-352、M8-T5 验收 2 一致；service/rerun.ts 加进 supportPaths（审查员 BLOCKING 3 修正）。",
+      "零产出退出闭环：验收 7 两跳 exited → reviewing → awaiting_human 与 main domain/run-state-machine.ts 白名单一致（无需新边）；验收 8 点明产品级 run.exited 由 service/run.ts 在进程 close 时发并带 stderrTail、该闸门 reject 走 awaiting_human → failed（09 节白名单已有「人判定失败」边）、rerun 对 exited_before_output 的 awaiting_human 放行并作废闸门；E-331 的 bughunt 行 rerun 放行归验收 2（前端审查跨侧缺口与 M7-T8 NON_BLOCKING 2 采纳）。",
+      "设置四键：验收 5 与 10 节端点行、字段级契约 bughunt/wrapupMode 行（已改四字段）、E-356 一致；10 节 wrapup 手动 body 注明 effortTier 只收三档（M8-T6 NON_BLOCKING 3 采纳）。",
+      "有效范围：产出列逐项对照 taskPaths（19 条，含新加 http/routes/runs.ts）+ supportPaths（23 条）全部覆盖；数据库约束核对：0001_init.sql 的 dispatch_snapshots 无 (task_id, contract_hash) 唯一约束，子快照 INSERT 不冲突，parent_snapshot_id 自引用 FK 走普通 ADD COLUMN。",
+      "边界：E-62、E-93、E-295、E-304、E-323、E-331、E-341～E-344、E-347、E-348、E-352、E-354、E-356、E-357 均存在且与验收逐条对应；08 节三条事务顺序（startReviewRound 事务前读快照与设置、finalizeReviewRun 第一步、refreshLogin 不开事务）与验收 3、4、7、9 一致。"
+    ],
+    "reviewed": "2026-09-12T21:48:05.985944+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -756,6 +811,20 @@
     ],
     "migratedFrom": "05e4404acd3e2c1283ee575096eb644ca95a21696713d50a918f3030da99ca4d",
     "reviewed": "2026-09-09T08:57:36.176853+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T17": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "64794bf2a2376c17b7b81d4a8c8b5a0ce4a316d36148182a96d5cf4a65212cf2",
+    "evidence": [
+      "前置闭包：依赖列加 M4-T14（RunDto.effort）与 M8-T9（RunDto.assignmentSource / followedTaskId），contracts 新增 requires model-catalog / assignment-chain，输入列点名两者的产出；不再让实施方在类型不存在时开工（前端审查 BLOCKING 1 按方案 A 修正）。",
+      "有效范围：contracts 新增 supportPaths packages/web/test/stream-head-meta.test.tsx、i18n/ui-strings.ts、shared api/runs.ts；17 节前端行含 stream-head-meta.test.tsx 增量断言（前端 BLOCKING 2 修正）。",
+      "RunDto.effort 已在 10 节字段级契约声明：EffortValue，{tier} 读 effort_tier、{vendor} 读 effort_vendor（fromEffortColumns()），既有 effortTier 保留恒等于 effort.tier ?? null（前端 BLOCKING 3 修正）。",
+      "条款与规格对齐：19 节验收 1 四段网格、第四段来源四值文案 + agent_default 括注 + 缺失「来源：—」+ compact 短文案、{vendor} 原串与 title，与 11 节参照条段（四段）、11 节 L415 已改四段、E-347（措辞已对齐）、E-357 逐句一致。",
+      "边界：E-254、E-37、E-256、E-136、E-31、E-347、E-357 均存在；决策 33、110、111、124、129 均在 22 节；token --needs / --down / --font-mono / --fs-micro / --ink-3 在 main tokens.css 存在。"
+    ],
+    "reviewed": "2026-09-12T21:48:49.866637+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -817,6 +886,23 @@
       "接缝：值只来自 GET /settings/pipeline、写走 PATCH 全量两值、状态等 settings.pipeline_changed 回流（M8-T8 提供）；与 M9-T19 的 gate-toggles 共用 ui/segmented-toggle 基元、先落地者创建；E_PIPELINE_STAGE_DISABLED 文案在 i18n/error-messages.ts 补键"
     ],
     "reviewed": "2026-09-12T17:05:31.346918+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T23": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "8bef70b295469a1dd048294b4fdd27f569553f8571b0c34b8f5b82edbc0b2f5c",
+    "evidence": [
+      "前置闭包：依赖 M9-T18、M9-T14、M9-T22、M4-T13、M4-T14、M8-T9；输入列的 assign-panel.tsx ← M9-T18、settings-agents-page ← M9-T14、use-pipeline-settings.ts ← M9-T22、AgentEntryDto.login 与 login_changed ← M4-T13、GET /agents/:id/models 新结构 / EffortValue / layers / clearOverrides / MODEL_SOURCES ← M4-T14、PipelineSettings 四键 ← M8-T9，全部能指到产出列（前端审查 BLOCKING 2 由 M4-T14 补齐后闭合）。",
+      "layers 读法：19 节验收 7 与 11 节设置页段改为「内置默认／你的覆盖」读 layers.X.builtin / .override、「当前生效」读顶层字段，与 10 节 layers 契约（{builtin, config, override, hasOverride}）和决策 128 一致（前端 BLOCKING 1 修正）。",
+      "unknown 文案：验收 1 补 unknown → 「登录态未知：确认后点刷新」并写明三态徽标文案「已登录／未登录／无法判定」、状态谓词放 lib/login-freshness.ts，与 11 节引导行、E-335 一致（前端 BLOCKING 6 修正）。",
+      "pipeline PATCH 四键：10 节字段级契约 bughunt/wrapupMode 行、11 节顶栏开关段、M9-T22 验收 2 都改为「容器补齐后四键全量」，与 M9-T23 验收 8、E-356 一致（前端 BLOCKING 7 修正）。",
+      "测试清单可判定：17 节新增「E-335～E-339 / E-350 / E-351 / E-355～E-359（前端侧）」一行逐文件列出断言，验收 9 引用该行；use-minute-tick 与 agent-card 两个测试文件加进 taskPaths；GIF 只覆盖可达流程、不可达态以单测为准写进验收 9 与 17 节（前端 BLOCKING 5 与 NON_BLOCKING 采纳）。",
+      "登录态单一来源：验收 5 改为 login_changed 到达只经 cache-invalidation 失效 agents key 重拉，不重拉 /snapshot、不重探；08 节与决策 130 措辞同步为「失效重拉」，07 节 resource-cache 写明无 patch 接口且 read() 以最后一次 fetcher 为准（前端 NON_BLOCKING 采纳）。",
+      "有效范围：supportPaths 补 packages/web/package.json、pnpm-lock.yaml、ui/shadcn/select.tsx、api/resource-cache.ts、api/runs.ts、features/run-deck/batch-expansion.ts；验收 6 写明 onEdit 由 use-gate-card.ts 先调 batch-expansion 再调 openReassign（store 不 import features）。token 名核对：11 节与 19 节用到的 token 除新增两个尺寸 token 外均在 main tokens.css。",
+      "边界：E-254、E-335、E-336、E-338、E-339、E-348、E-350、E-351、E-355～E-359 均在 13 节；E-347「agent_default」措辞已对齐为「来源：任务指派（agent 默认）」；决策 134 表外来源归「其他」组已进验收 2。"
+    ],
+    "reviewed": "2026-09-12T21:48:14.941061+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
