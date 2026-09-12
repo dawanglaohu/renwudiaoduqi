@@ -724,6 +724,19 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T3": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "da896eb06e64ba55c9cc4089594eb684bc22d0c7cc1b72838ae9fa1c455a9036",
+    "evidence": [
+      "契约与依据核对：对照 04-执行/19-模块任务拆分.md:76 的 M9-T3 行（产出 app/routes.tsx、navigateTo()、route-guard.tsx）、02-设计/07-前端架构.md:143-169 的路由章节（七条平铺 hash 路径、ROUTES/ROUTE_PATHS 两个 as const、单点守卫、#/pair 唯一免守卫、禁止组件内写 location.hash）、03-质量/13-边界问题与异常处理.md 的 E-222/E-223/E-224 三行，确认本任务的产出边界与验收依据；前置 M9-T1（Web 骨架、token 层与主题）已在 main 落地、任务笔记 status=done。",
+      "有效范围补丁（m9-t3-support-paths）：原 handoff.taskPaths['M9-T3'] 只有 packages/web/src/app/routes.tsx 与 packages/web/src/app/route-guard.tsx 两条，本任务产出必需的测试 packages/web/test/routes.test.ts 未列入；按 06/07 节「验收侧 pnpm -w check 必须串起 vitest run」「测试落在 packages/web/test/」与既有的 M9-T1/M9-T2/M9-T4 supportPaths 先例，在 _run/task-contracts.json 的 tasks['M9-T3'].supportPaths 定点补入该测试文件。改动后比对 taskPaths 与本补丁前已存在条目：无其他任务占用 packages/web/test/routes.test.ts，与在飞的 M9 系列任务无路径冲突；未放行整个 packages/web/test/ 目录。",
+      "契约语义复核（本轮）：路由职责与 07 节一致——七条平铺路径与两个单段参数在 routes.tsx:9 的 ROUTE_PATHS 与 :44 的 ROUTES 中登记，鉴权判断与强制收敛集中在 route-guard.tsx:78 的 RouteGuard，pages/features 无需再判登录态；#/pair 免守卫、无角色权限，符合单人自用的约定。E-223 的口径（参数指向不存在的对象由页面自身呈现，路由层不做实体存在性判断）在 routes.tsx:167 的 matchRoute 中体现：只做单段语法匹配、不查对象存在性，属既定契约、非缺陷。",
+      "代码验收与阻塞项分离：本轮 run 的 pnpm -w check 全绿（70 test files、831 passed/32 skipped，含 biome ci、tsc -b --noEmit、check-forbidden 八条 grep 禁令、check-contrast），但在语义评审中确认一处阻断——matchRoute 在 routes.tsx:215/:233 对路径参数直接调用 decodeURIComponent，遇到 '#/run/%' 这类畸形百分号编码会抛 URIError；该函数在 initializeHash 的模块加载期（routes.tsx:311-347）被调用，命中畸形 hash 时会在 React 挂载前崩溃，直接违反 E-222「绝不白屏、绝不抛异常」与 AC 2。已用探针复现（'#/run/%'、'#/run/%E0%A4%A'、'#/landing/%zz' 均抛 URIError: URI malformed）。因此本轮 verify 只登记契约复核通过，代码层按 R1 返工，待实施方修复并补回归用例后再走落地。"
+    ],
+    "reviewed": "2026-09-12T09:04:48.033098+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T4": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "b42b6721507abc6473a7394bd49e78262ba421aa171ec2c550086cd4acb8c696",
