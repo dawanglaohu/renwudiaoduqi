@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M4-T8": {
+      "contractHash": "13a9f3e39cfe61686b961b813b28a9b98ecf48f8688183bee7142d863d602e19",
+      "evidence": [
+        "变化条款：本任务被标「待复验」的 changedFields 是 definition/effectivePaths，来源是补丁 M4-T8-support-paths-20260912 本身新增的 supportPaths packages/daemon/test/unit/codex-adapter.test.ts；该补丁的证据与复核在 _run/M4-T8.evidence.json，本轮第 2 轮审查已按修正后的有效范围逐条验收",
+        "代码未受后续 main 合并影响：合并 M4-T10（fdc40d7）后，codex 路径在本分支的改动只有审查方的 d67752b（map-events.ts +31 行、codex-adapter.test.ts +20 行，即 exec reasoning item 归一化与用例），merge 未修改适配器代码",
+        "验收证据：npx vitest run packages/daemon/test/unit/codex-adapter.test.ts 33/33 通过；npx biome ci . 通过；npx tsc -b --noEmit 通过",
+        "结论：无新增需复验的条款，原复核结论可继续沿用"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
