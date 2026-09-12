@@ -137,7 +137,8 @@ class BatchWrapupTests(unittest.TestCase):
         self.assertEqual(set(dispatch), {'schemaVersion', 'sourceVersion', 'tasks', 'batches'})
         self.assertEqual(dispatch['batches'], payload['dispatchBatches'])
         self.assertEqual(set(dispatch['tasks']), {'M1-T1', 'M1-T2', 'M1-T3'})
-        self.assertEqual(set(dispatch['tasks']['M1-T1']), {'contractHash', 'implementation', 'review', 'resume'})
+        self.assertEqual(set(dispatch['tasks']['M1-T1']),
+                         {'contractHash', 'implementation', 'review', 'resume', 'bug'})
         # 收口提示词是纯函数：落地前后、有没有记录，导出的 wrapup 都一样
         self.verify_task('M1-T1'); self.land('M1-T1')
         self.write_record()

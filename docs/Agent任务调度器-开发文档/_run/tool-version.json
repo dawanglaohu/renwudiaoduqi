@@ -1,19 +1,19 @@
 {
   "files": {
-    "build_docs.py": "d92b3845687a0a2f4d6edb1ee16d8114fab8c846c612ff0d7ceb02498aaa4277",
+    "build_docs.py": "f8dbded620cddb5315e17f17f185e55a0c01cc2cffe32a4389a3961e732f1da3",
     "build_vault.py": "d627d6e278e8c920b47a3a75693c90662a7b13b6ce8f0a835b439a66b6336a65",
     "check_stale.py": "407d3dd10721752cd35c77daac9f34ecdc5828d5bf6c257f6723cb6207d6575c",
-    "compile_prompts.js": "fc2f98362ad973d6803b42a38a5e5ffd2300a0f17fe99a74497b5af19b826fa8",
+    "compile_prompts.js": "9cad4c6d38ddf364cedae6f528802e1ffdde3db4e681d3dabdd0be5c6497c3d4",
     "handoff-manual.md": "21c3024dccaf9fa535c6a26dc74460c6d0644665bc9f0e7913b7beaf29877454",
-    "handoff_contract.py": "ca630108ce6ffe5bc523185b2fa501001a592902ec28020162a9328607111667",
+    "handoff_contract.py": "c525a0280471f4ebc39107b15550b39e86710b41b3dc8f655c1d65451e09da5c",
     "install_project.py": "e8537024cc7f4e663fb553c40e5fb61b9a878913f9d624175fe55b80a2954e2d",
-    "maintain_docs.py": "a009fdd4d517ef78c909a5e568b8945ed1d301f398bbaaa86d1e4dd8310bb14b",
+    "maintain_docs.py": "a82117b61030174d5806e6c5a7b67481a11727ea60601808ab0558a8060ee2ca",
     "review.py": "018bc787fb39ba0d4199b57df5ed67992c0fe2471daa90bf1e1255176e48236b",
     "tests/test_maintenance.py": "51c3a2d09577bd36b4cf1032fa486976a28dfd23df1c629a25a6ff7f891d6747",
-    "tests/test_prompt_routing.py": "3772288cc24af7714d2e34ef78d53e5e1572a1ed7aba02f2408d337d01db735b",
+    "tests/test_prompt_routing.py": "8697892348c58df175b9781d36697ff9a6aac85512d8d9467b4597d21ce0e344",
     "tests/test_release_1_2.py": "7220728b1d712962430ecaeec385f1cd0762ce31fa3757038ee4146c30878985",
-    "tests/test_release_1_3.py": "202509a3503319d67bedc322c9808a2f36db4460622679c2ec6393c31db05d04",
-    "tests/test_release_1_3_tools.py": "97f60802b2328b7104d017bc700471146d7a2a35ec972375fe4d42f711c0cb73"
+    "tests/test_release_1_3.py": "bd9adecfa6d6447695f9d3ed9509c97a1a58df9e3f9d2ccea1a233672570f433",
+    "tests/test_release_1_3_tools.py": "19214373e583eff3792f341ac9898151bc2b91abcf5f8dda19e9915d273321b9"
   },
-  "version": "1.3.0"
+  "version": "1.3.1"
 }

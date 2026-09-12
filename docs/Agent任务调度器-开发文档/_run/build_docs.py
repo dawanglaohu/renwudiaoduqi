@@ -45,6 +45,8 @@ handoff 段，缺了就退到通用默认值。
 键进仓库（--batches 只重扫这一键）；它不是闸门，不改状态也不锁下游。批次标题行可点折叠，默认只展开有在跑
 或可派任务的批，手动开合记在本机。进行中与审查中的状态标签带一个呼吸圆点，一眼看出哪几行还在动。
 每批的收口提示词也随 dispatch.json 与 docs-data.js 的 dispatchBatches 键导出，下游按 tasks 集合匹配本批。
+查 bug 提示词也随 dispatch 导出（bug 键），一律按「代码还在栈分支」的未落地措辞生成：产品在任务落地前、
+在该任务的工作树里派它运行；页面的「查 bug」按钮才看此刻状态，已落地的切成主干措辞。
 
 交接台顶部是并行窗口调度：把未落地的任务排进 N 条 lane，一条 lane 就是一个会话
 窗口。排的时候同时受依赖层级和 handoff.taskPaths 的文件冲突约束——依赖只保证逻辑
@@ -2091,9 +2093,11 @@ function buildKickoff(){
 }
 
 /* 查 bug 提示词：审查证明「文档要的都做了」，查 bug 假设一定做错了、去构造让它失败的输入。
-   不改交接台状态。代码还在栈分支上就在那一层修，已进主干就另开 fix 栈，两种情况都写死 */
-function buildBug(t){
-  var L = [], br = hBranch(t.id), fe = isFrontend(t.module), landed = isLanded(t.id);
+   不改交接台状态。代码还在栈分支上就在那一层修，已进主干就另开 fix 栈，两种情况都写死。
+   bugPrompt(t, landed) 是纯函数、不看进度：导出用 bugPrompt(t, false)——产品在任务落地前、
+   在该任务的工作树里派查 bug 运行，代码还在栈分支上；页面按钮走 buildBug(t)，按此刻状态选措辞 */
+function bugPrompt(t, landed){
+  var L = [], br = hBranch(t.id), fe = isFrontend(t.module);
   var note = HDOCS + "/图谱/任务/" + t.id + ".md";
   L.push("# 查找 bug：" + t.id + "　" + t.title);
   L.push("");
@@ -2158,6 +2162,7 @@ function buildBug(t){
       : "「已修并推送，重新点「审查」」或「没找到 bug，继续走审查 / 落地」"));
   return L.join("\n");
 }
+function buildBug(t){ return bugPrompt(t, isLanded(t.id)); }
 
 /* 全项目查 bug：单任务审查只看自己那一层，任务之间的接缝没人管。
    范围取交接台里已落地的任务；一个都没有就按主干现有代码查，把全部任务列出来 */
