@@ -54,6 +54,7 @@ export interface AgentAvailabilityState {
 		readonly details?: unknown;
 	};
 	readonly probedAt: string;
+	readonly generation: number;
 }
 
 export interface AgentServiceDeps {
@@ -116,6 +117,12 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	});
 	const availabilityMap = new Map<string, AgentAvailabilityState>();
 
+	if (typeof deps.registry.onReload === 'function') {
+		deps.registry.onReload(() => {
+			void probeAll({ force: true });
+		});
+	}
+
 	let initializationPromise: Promise<Readonly<Record<string, AgentAvailabilityState>>> | null =
 		null;
 
@@ -151,6 +158,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		} = {},
 	): Promise<{ readonly probeResult: ProbeAgentResult; readonly state: AgentAvailabilityState }> {
 		const now = clock.now();
+		const generation = deps.registry.getSnapshot().generation;
 
 		// Check if disabled by concurrency (E-91)
 		if (config.maxConcurrency <= 0) {
@@ -164,6 +172,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				unavailableCode: 'E_AGENT_UNAVAILABLE',
 				missingRequirements: Object.freeze(['Concurrency greater than 0']),
 				probedAt: now,
+				generation,
 			});
 			const probeResult: ProbeAgentResult = Object.freeze({
 				ok: false,
@@ -322,12 +331,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 						execPath: probeResult.errorDetails.execPath ?? probeResult.resolvedPath,
 						checkedPaths: probeResult.errorDetails.checkedPaths,
 						reason: probeResult.errorDetails.reason,
-						originalPath: (
-							probeResult.errorDetails as unknown as { readonly originalPath?: string }
-						).originalPath,
-						resolvedPath:
-							(probeResult.errorDetails as unknown as { readonly resolvedPath?: string })
-								.resolvedPath ?? probeResult.resolvedPath,
+						originalPath: probeResult.errorDetails.originalPath,
+						resolvedPath: probeResult.errorDetails.resolvedPath ?? probeResult.resolvedPath,
 					})
 				: undefined,
 			warningBanner: probeResult.warningBanner
@@ -338,6 +343,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					})
 				: undefined,
 			probedAt: now,
+			generation,
 		});
 
 		return { probeResult, state };
@@ -420,6 +426,13 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	async function listAgents(): Promise<readonly AgentEntryDto[]> {
 		await ensureInitialized();
 		const snapshot = deps.registry.getSnapshot();
+		for (const [agentId, config] of Object.entries(snapshot.agents)) {
+			const state = availabilityMap.get(agentId);
+			if (!state || state.generation !== snapshot.generation) {
+				const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
+				recordAndPublishAvailability(agentId, refreshedState);
+			}
+		}
 		const result: AgentEntryDto[] = [];
 		for (const [agentId, config] of Object.entries(snapshot.agents)) {
 			const state = availabilityMap.get(agentId);
@@ -433,7 +446,12 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		const snapshot = deps.registry.getSnapshot();
 		const config = snapshot.agents[agentId];
 		if (!config) return undefined;
-		const state = availabilityMap.get(agentId);
+		let state = availabilityMap.get(agentId);
+		if (!state || state.generation !== snapshot.generation) {
+			const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
+			recordAndPublishAvailability(agentId, refreshedState);
+			state = refreshedState;
+		}
 		return toAgentEntryDto(agentId, config, state);
 	}
 
@@ -491,50 +509,18 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			);
 		}
 
-		// Read existing agents.json
-		let parsedData: {
-			schemaVersion?: number;
-			defaults?: Record<string, unknown>;
-			overrides?: Record<string, Record<string, unknown>>;
-		} = {};
-		try {
-			const content = await fileSystem.readUtf8File(deps.registry.configPath);
-			parsedData = JSON.parse(content) as typeof parsedData;
-		} catch {
-			parsedData = { schemaVersion: 1, overrides: {} };
+		// Update overrides via registry (R2)
+		const updateResult = await deps.registry.updateOverrides(agentId, updates);
+		if (!updateResult.ok) {
+			throw new AppError('E_VALIDATION', updateResult.message, {
+				details: updateResult.details ?? { agentId },
+			});
 		}
-
-		if (!parsedData.overrides || typeof parsedData.overrides !== 'object') {
-			parsedData.overrides = {};
+		if (updateResult.reload.status === 'rejected') {
+			throw new AppError('E_VALIDATION', 'Agent configuration update was rejected by registry.', {
+				details: { agentId },
+			});
 		}
-		if (!parsedData.overrides[agentId] || typeof parsedData.overrides[agentId] !== 'object') {
-			parsedData.overrides[agentId] = {};
-		}
-
-		const agentOverrides = parsedData.overrides[agentId];
-		if (updates.defaultModel !== undefined) {
-			agentOverrides.defaultModel = updates.defaultModel;
-		}
-		if (updates.maxConcurrency !== undefined) {
-			agentOverrides.maxConcurrency = updates.maxConcurrency;
-		}
-		if (updates.permissionTier !== undefined) {
-			agentOverrides.permissionTier = updates.permissionTier;
-		}
-		if (updates.execPath !== undefined) {
-			agentOverrides.execPath = updates.execPath;
-		}
-		if (updates.monogram !== undefined) {
-			agentOverrides.monogram = updates.monogram;
-		}
-
-		await fileSystem.writeUtf8File(
-			deps.registry.configPath,
-			`${JSON.stringify(parsedData, null, 2)}\n`,
-		);
-
-		// Reload registry
-		await deps.registry.reload();
 
 		// Re-probe agent (force bypass cache)
 		await probeAgentMethod(agentId, { force: true });
@@ -624,8 +610,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 
 	async function assertCanDispatch(agentId: string): Promise<void> {
 		await ensureInitialized();
-		const snapshot = deps.registry.getSnapshot();
-		const config = snapshot.agents[agentId];
+		const currentSnapshot = deps.registry.getSnapshot();
+		const config = currentSnapshot.agents[agentId];
 		if (!config) {
 			throw new AppError('E_NOT_FOUND', `Agent '${agentId}' is not registered in agent registry.`);
 		}
@@ -636,9 +622,14 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				{ details: { agentId, reason: 'disabled' } },
 			);
 		}
-		const state = availabilityMap.get(agentId);
-		if (!state || !state.canDispatch) {
-			if (state?.unavailableCode === 'E_AGENT_VERSION_UNRECOGNIZED') {
+		let state = availabilityMap.get(agentId);
+		if (!state || state.generation !== currentSnapshot.generation) {
+			const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
+			recordAndPublishAvailability(agentId, refreshedState);
+			state = refreshedState;
+		}
+		if (!state.canDispatch) {
+			if (state.unavailableCode === 'E_AGENT_VERSION_UNRECOGNIZED') {
 				throw new AppError(
 					'E_AGENT_VERSION_UNRECOGNIZED',
 					`Agent '${agentId}' version fingerprint mismatch; cannot dispatch.`,
@@ -647,13 +638,13 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			}
 			throw new AppError(
 				'E_AGENT_UNAVAILABLE',
-				`Agent '${agentId}' is unavailable: ${state?.unavailableReason ?? 'cannot dispatch'}.`,
+				`Agent '${agentId}' is unavailable: ${state.unavailableReason ?? 'cannot dispatch'}.`,
 				{
 					details: {
 						agentId,
-						code: state?.unavailableCode ?? 'E_AGENT_UNAVAILABLE',
-						reason: state?.unavailableReason,
-						...state?.errorDetails,
+						code: state.unavailableCode ?? 'E_AGENT_UNAVAILABLE',
+						reason: state.unavailableReason,
+						...state.errorDetails,
 					},
 				},
 			);
@@ -661,7 +652,12 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	}
 
 	function getAvailability(agentId: string): AgentAvailabilityState | undefined {
-		return availabilityMap.get(agentId);
+		const state = availabilityMap.get(agentId);
+		const currentSnapshot = deps.registry.getSnapshot();
+		if (state && state.generation !== currentSnapshot.generation) {
+			return undefined;
+		}
+		return state;
 	}
 
 	return Object.freeze({

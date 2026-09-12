@@ -143,6 +143,15 @@ export type AdoptDefaultResult =
 	| { readonly ok: true; readonly reload: AgentRegistryReloadResult }
 	| { readonly ok: false; readonly reason: 'no-default-update' | 'write-failed' };
 
+export type UpdateOverridesResult =
+	| { readonly ok: true; readonly reload: AgentRegistryReloadResult }
+	| {
+			readonly ok: false;
+			readonly reason: 'unknown-agent' | 'read-failed' | 'invalid-config' | 'write-failed';
+			readonly message: string;
+			readonly details?: Record<string, unknown>;
+	  };
+
 export interface AgentRegistryWatcher {
 	close(): void;
 	on(event: 'error', listener: (cause: Error) => void): AgentRegistryWatcher;
@@ -179,6 +188,8 @@ export interface AgentRegistry {
 	reload(): Promise<AgentRegistryReloadResult>;
 	getSnapshot(): AgentRegistrySnapshot;
 	adoptDefault(agentId: string, field: AgentConfigFieldPath): Promise<AdoptDefaultResult>;
+	updateOverrides(agentId: string, updates: AgentConfigOverrides): Promise<UpdateOverridesResult>;
+	onReload(listener: (snapshot: AgentRegistrySnapshot) => void): () => void;
 }
 
 export const AGENTS_JSON_SCHEMA = {
@@ -264,6 +275,7 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 	let lastObservedFingerprint: string | null = null;
 	let watcher: AgentRegistryWatcher | undefined;
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	const reloadListeners = new Set<(snapshot: AgentRegistrySnapshot) => void>();
 	let reloadQueue = Promise.resolve<AgentRegistryReloadResult>({
 		status: 'unchanged',
 		snapshot: current,
@@ -399,6 +411,9 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 			parsed.overrides,
 		);
 		options.onReload?.(current);
+		for (const listener of reloadListeners) {
+			listener(current);
+		}
 		return { status: 'loaded', snapshot: current };
 	}
 
@@ -476,6 +491,161 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 		return { ok: true, reload: await reload() };
 	}
 
+	async function updateOverrides(
+		agentId: string,
+		updates: AgentConfigOverrides,
+	): Promise<UpdateOverridesResult> {
+		if (!Object.hasOwn(builtInDefaults, agentId)) {
+			return Object.freeze({
+				ok: false,
+				reason: 'unknown-agent',
+				message: `Agent '${agentId}' is not recognized in built-in registry defaults.`,
+				details: { agentId },
+			});
+		}
+
+		let contents: string;
+		try {
+			contents = await fileSystem.readUtf8File(configPath);
+		} catch (cause) {
+			if (isFileNotFound(cause)) {
+				contents = '{}';
+			} else {
+				return Object.freeze({
+					ok: false,
+					reason: 'read-failed',
+					message: 'Agent registry could not be read; keeping the previous version.',
+				});
+			}
+		}
+
+		// R2: File on disk cannot be parsed -> refuse to write and preserve disk text verbatim!
+		let rawParsed: unknown;
+		try {
+			rawParsed = JSON.parse(contents);
+		} catch (cause) {
+			return Object.freeze({
+				ok: false,
+				reason: 'invalid-config',
+				message: 'Current agents.json file on disk is invalid JSON; refusing to overwrite.',
+				details: { cause: String(cause) },
+			});
+		}
+		if (!isRecord(rawParsed)) {
+			return Object.freeze({
+				ok: false,
+				reason: 'invalid-config',
+				message:
+					'Current agents.json file on disk is not a valid JSON object; refusing to overwrite.',
+			});
+		}
+
+		const diskParsed = parseAgentsFile(contents, builtInDefaults);
+		if (!diskParsed.ok) {
+			return Object.freeze({
+				ok: false,
+				reason: 'invalid-config',
+				message: `Current agents.json on disk has invalid field ${diskParsed.field} (${diskParsed.expected}); refusing to overwrite.`,
+				details: { field: diskParsed.field, expected: diskParsed.expected },
+			});
+		}
+
+		// Merge candidate updates into existing overrides for this agent
+		const nextOverrides = mutableOverrideRecord(diskParsed.overrides);
+		const currentAgentOverrides = nextOverrides[agentId] ?? {};
+		const mergedAgentOverrides: MutableAgentConfigOverrides = {
+			...currentAgentOverrides,
+			...updates,
+			timeouts:
+				updates.timeouts !== undefined
+					? { ...currentAgentOverrides.timeouts, ...updates.timeouts }
+					: currentAgentOverrides.timeouts,
+			versionFingerprint:
+				updates.versionFingerprint !== undefined
+					? { ...currentAgentOverrides.versionFingerprint, ...updates.versionFingerprint }
+					: currentAgentOverrides.versionFingerprint,
+		};
+
+		// Pre-validate mergedAgentOverrides against AGENTS_JSON_SCHEMA before writing!
+		const dummyUnknown: UnknownField[] = [];
+		const validation = parseAgentConfig(
+			mergedAgentOverrides,
+			`$.overrides.${agentId}`,
+			dummyUnknown,
+			agentId,
+		);
+		if (!validation.ok) {
+			return Object.freeze({
+				ok: false,
+				reason: 'invalid-config',
+				message: `Agent registry field ${validation.field} must be ${validation.expected}`,
+				details: {
+					field: validation.field,
+					expected: validation.expected,
+					agentId,
+				},
+			});
+		}
+
+		if (mergedAgentOverrides.argsTemplate) {
+			const templateVal = validateLaunchTemplate(mergedAgentOverrides.argsTemplate);
+			if (!templateVal.ok) {
+				return Object.freeze({
+					ok: false,
+					reason: 'invalid-config',
+					message: `Invalid template syntax in argsTemplate: ${templateVal.error.reason}`,
+					details: {
+						field: `$.overrides.${agentId}.argsTemplate`,
+						reason: templateVal.error.reason,
+					},
+				});
+			}
+		}
+
+		nextOverrides[agentId] = validation.value;
+
+		const nextFile: Required<AgentsFileConfig> = {
+			schemaVersion: AGENT_REGISTRY_SCHEMA_VERSION,
+			defaults:
+				Object.keys(diskParsed.defaults).length > 0 ? diskParsed.defaults : current.storedDefaults,
+			overrides: freezeAgentConfigLayer(nextOverrides),
+		};
+
+		const serialized = `${JSON.stringify(nextFile, null, 2)}\n`;
+		try {
+			await fileSystem.writeUtf8File(configPath, serialized);
+		} catch (cause) {
+			publishWarning('write-failed', 'Updated agent configuration could not be saved.', {
+				agentId,
+			});
+			return Object.freeze({
+				ok: false,
+				reason: 'write-failed',
+				message: 'Failed to write updated agents.json to disk.',
+				details: { cause: String(cause) },
+			});
+		}
+
+		const reloadResult = await reload();
+		if (reloadResult.status === 'rejected') {
+			return Object.freeze({
+				ok: false,
+				reason: 'invalid-config',
+				message: 'Reload rejected the updated configuration.',
+				details: { agentId },
+			});
+		}
+
+		return Object.freeze({ ok: true, reload: reloadResult });
+	}
+
+	function onReload(listener: (snapshot: AgentRegistrySnapshot) => void): () => void {
+		reloadListeners.add(listener);
+		return () => {
+			reloadListeners.delete(listener);
+		};
+	}
+
 	return Object.freeze({
 		configPath,
 		start,
@@ -483,6 +653,8 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 		reload,
 		getSnapshot: () => current,
 		adoptDefault,
+		updateOverrides,
+		onReload,
 	});
 }
 
@@ -637,13 +809,13 @@ function parseAgentConfig(
 	collectUnknownFields(input, AGENT_CONFIG_FIELDS, path, unknownFields, agentId);
 	const result: MutableAgentConfigOverrides = {};
 
-	if (Object.hasOwn(input, 'execPath')) {
+	if (Object.hasOwn(input, 'execPath') && input.execPath !== undefined) {
 		if (typeof input.execPath !== 'string' || input.execPath.length === 0) {
 			return { ok: false, field: `${path}.execPath`, expected: 'a non-empty string' };
 		}
 		result.execPath = input.execPath;
 	}
-	if (Object.hasOwn(input, 'argsTemplate')) {
+	if (Object.hasOwn(input, 'argsTemplate') && input.argsTemplate !== undefined) {
 		const args = parseStringArray(input.argsTemplate);
 		if (args === undefined) {
 			return { ok: false, field: `${path}.argsTemplate`, expected: 'an array of strings' };
@@ -662,7 +834,7 @@ function parseAgentConfig(
 		}
 		result.argsTemplate = templateValidation.template;
 	}
-	if (Object.hasOwn(input, 'maxConcurrency')) {
+	if (Object.hasOwn(input, 'maxConcurrency') && input.maxConcurrency !== undefined) {
 		if (!isSafeInteger(input.maxConcurrency) || input.maxConcurrency > 32) {
 			return {
 				ok: false,
@@ -672,13 +844,13 @@ function parseAgentConfig(
 		}
 		result.maxConcurrency = input.maxConcurrency;
 	}
-	if (Object.hasOwn(input, 'defaultModel')) {
+	if (Object.hasOwn(input, 'defaultModel') && input.defaultModel !== undefined) {
 		if (input.defaultModel !== null && typeof input.defaultModel !== 'string') {
 			return { ok: false, field: `${path}.defaultModel`, expected: 'a string or null' };
 		}
 		result.defaultModel = input.defaultModel;
 	}
-	if (Object.hasOwn(input, 'permissionTier')) {
+	if (Object.hasOwn(input, 'permissionTier') && input.permissionTier !== undefined) {
 		if (!isPermissionTier(input.permissionTier)) {
 			return {
 				ok: false,
@@ -688,7 +860,7 @@ function parseAgentConfig(
 		}
 		result.permissionTier = input.permissionTier;
 	}
-	if (Object.hasOwn(input, 'monogram')) {
+	if (Object.hasOwn(input, 'monogram') && input.monogram !== undefined) {
 		if (typeof input.monogram !== 'string' || [...input.monogram].length !== 2) {
 			return {
 				ok: false,
@@ -698,7 +870,7 @@ function parseAgentConfig(
 		}
 		result.monogram = input.monogram;
 	}
-	if (Object.hasOwn(input, 'adapterKind')) {
+	if (Object.hasOwn(input, 'adapterKind') && input.adapterKind !== undefined) {
 		if (!isAdapterKind(input.adapterKind)) {
 			return {
 				ok: false,
@@ -708,7 +880,7 @@ function parseAgentConfig(
 		}
 		result.adapterKind = input.adapterKind;
 	}
-	if (Object.hasOwn(input, 'timeouts')) {
+	if (Object.hasOwn(input, 'timeouts') && input.timeouts !== undefined) {
 		const parsedTimeouts = parseTimeouts(
 			input.timeouts,
 			`${path}.timeouts`,
@@ -718,7 +890,7 @@ function parseAgentConfig(
 		if (!parsedTimeouts.ok) return parsedTimeouts;
 		result.timeouts = parsedTimeouts.value;
 	}
-	if (Object.hasOwn(input, 'versionFingerprint')) {
+	if (Object.hasOwn(input, 'versionFingerprint') && input.versionFingerprint !== undefined) {
 		const parsedFingerprint = parseVersionFingerprint(
 			input.versionFingerprint,
 			`${path}.versionFingerprint`,

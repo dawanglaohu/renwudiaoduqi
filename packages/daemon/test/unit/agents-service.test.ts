@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto';
+import { mkdirSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ResolvedAgentConfig } from '../../src/config/defaults.ts';
 import { type AgentRegistry, createAgentRegistry } from '../../src/config/registry.ts';
@@ -36,7 +40,7 @@ function createMockRegistry(initialOverrides: Record<string, Partial<ResolvedAge
 		schemaVersion: 1,
 		overrides: initialOverrides,
 	};
-	files.set(configPath, JSON.stringify(initialJson));
+	files.set(configPath, JSON.stringify(initialJson, null, 2));
 
 	const mockFs = {
 		readUtf8File: async (p: string) => files.get(p) ?? '{}',
@@ -276,6 +280,69 @@ describe('M4-T4 AgentService and Availability Probing', () => {
 		expect(accessAttempts).toBe(0); // broken link fails before access()
 	});
 
+	it(
+		'R1 E-263 end-to-end: real fs broken/cyclic/directory symlink yields E_AGENT_EXEC_INVALID_TARGET with originalPath and resolvedPath',
+		{ timeout: 30000 },
+		async () => {
+			const tempDir = join(tmpdir(), `test-symlinks-e263-${randomUUID()}`);
+			mkdirSync(tempDir, { recursive: true });
+
+			try {
+				// 1. Broken symlink to non-existent target
+				const brokenLink = join(tempDir, 'broken-link');
+				const missingTarget = join(tempDir, 'nonexistent-target');
+				symlinkSync(missingTarget, brokenLink);
+
+				// 2. Cyclic symlink
+				const cyclicA = join(tempDir, 'cyclic-a');
+				const cyclicB = join(tempDir, 'cyclic-b');
+				symlinkSync(cyclicB, cyclicA);
+				symlinkSync(cyclicA, cyclicB);
+
+				// 3. Symlink to a directory (non-regular file)
+				const subDir = join(tempDir, 'some-dir');
+				mkdirSync(subDir);
+				const dirLink = join(tempDir, 'dir-link');
+				symlinkSync(subDir, dirLink);
+
+				const { registry } = createMockRegistry({
+					codex: { execPath: brokenLink },
+					claude: { execPath: cyclicA },
+					grok: { execPath: dirLink },
+				});
+
+				// No mock fileSystem injected: use real DEFAULT_FILE_SYSTEM (R1)
+				const agentService = createAgentService({
+					registry,
+					hostInputs: { platform: 'linux', homedir: tempDir },
+				});
+
+				await agentService.start();
+
+				// Verify broken symlink
+				const codex = await agentService.getAgent('codex');
+				expect(codex?.isAvailable).toBe(false);
+				expect(codex?.unavailableCode).toBe('E_AGENT_EXEC_INVALID_TARGET');
+				expect(codex?.errorDetails?.originalPath).toBe(brokenLink);
+				expect(codex?.errorDetails?.resolvedPath).toBe(missingTarget);
+
+				// Verify cyclic symlink
+				const claude = await agentService.getAgent('claude');
+				expect(claude?.isAvailable).toBe(false);
+				expect(claude?.unavailableCode).toBe('E_AGENT_EXEC_INVALID_TARGET');
+				expect(claude?.errorDetails?.originalPath).toBe(cyclicA);
+
+				// Verify directory symlink
+				const grok = await agentService.getAgent('grok');
+				expect(grok?.isAvailable).toBe(false);
+				expect(grok?.unavailableCode).toBe('E_AGENT_EXEC_INVALID_TARGET');
+				expect(grok?.errorDetails?.originalPath).toBe(dirLink);
+			} finally {
+				rmSync(tempDir, { recursive: true, force: true });
+			}
+		},
+	);
+
 	it('AC 3 & E-201: detects pi pointing to another binary via fingerprint mismatch, prompts manual path entry, forbids silent dispatch', async () => {
 		// In E-201: PATH has 'pi', but running it returns mismatched output
 		const { registry, files } = createMockRegistry({
@@ -487,5 +554,127 @@ describe('M4-T4 AgentService and Availability Probing', () => {
 		});
 		expect(updated.monogram).toBe('CD');
 		expect(updated.maxConcurrency).toBe(3);
+	});
+
+	it('R2: refuses invalid values with 400 E_VALIDATION and keeps disk file byte-by-byte identical; preserves unparseable disk file', async () => {
+		const { registry, files } = createMockRegistry({
+			codex: { execPath: 'codex', monogram: 'CX' },
+			claude: { execPath: 'claude', monogram: 'CL' },
+		});
+
+		const agentService = createAgentService({
+			registry,
+			hostInputs,
+			fileSystem: {
+				readUtf8File: async (p) => files.get(p) ?? '{}',
+				writeUtf8File: async (p, c) => {
+					files.set(p, c);
+				},
+				stat: async () => createMockFileStat(true, false, 1000, 2048),
+				lstat: async () => createMockFileStat(true, false),
+				realpath: async (p) => p,
+				access: async () => undefined,
+				readlink: async (p) => p,
+			},
+		});
+
+		await agentService.start();
+		const originalDiskBytes = files.get(registry.configPath);
+		expect(originalDiskBytes).toBeDefined();
+
+		// 1. Invalid execPath: '' -> must fail with E_VALIDATION, file unchanged byte-by-byte
+		await expect(agentService.updateAgent('codex', { execPath: '' })).rejects.toThrowError(
+			AppError,
+		);
+		expect(files.get(registry.configPath)).toBe(originalDiskBytes);
+
+		// 2. Invalid monogram: 'TOOLONG' -> must fail with E_VALIDATION, file unchanged byte-by-byte
+		await expect(agentService.updateAgent('codex', { monogram: 'TOOLONG' })).rejects.toThrowError(
+			AppError,
+		);
+		expect(files.get(registry.configPath)).toBe(originalDiskBytes);
+
+		// 3. Corrupted unparseable JSON on disk -> updateAgent refuses to write and keeps file intact
+		const corruptedContent = '<<<corrupted unparseable json text>>>';
+		files.set(registry.configPath, corruptedContent);
+		await expect(agentService.updateAgent('claude', { maxConcurrency: 2 })).rejects.toThrowError(
+			AppError,
+		);
+		expect(files.get(registry.configPath)).toBe(corruptedContent);
+	});
+
+	it('R3: hot-reload refreshing availability; assertCanDispatch blocks after path becomes invalid', async () => {
+		const { registry, files } = createMockRegistry({
+			codex: { execPath: '/bin/codex-valid' },
+		});
+
+		const fileSystem: ExecutableFileSystem & {
+			readUtf8File: (p: string) => Promise<string>;
+			writeUtf8File: (p: string, c: string) => Promise<void>;
+		} = {
+			readUtf8File: async (p: string) => files.get(p) ?? '{}',
+			writeUtf8File: async (p: string, c: string) => {
+				files.set(p, c);
+			},
+			stat: async (p: string) => {
+				if (p === '/bin/codex-valid') {
+					return createMockFileStat(true, false, 1000, 2048);
+				}
+				throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+			},
+			lstat: async (p: string) => {
+				if (p === '/bin/codex-valid') {
+					return createMockFileStat(true, false);
+				}
+				throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+			},
+			realpath: async (p: string) => p,
+			access: async (p: string) => {
+				if (p === '/bin/codex-valid') return undefined;
+				throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+			},
+			readlink: async (p: string) => p,
+		};
+
+		const commandRunner = async (params: { file: string; args: readonly string[] }) => {
+			if (params.file === '/bin/codex-valid') {
+				return { ok: true, exitCode: 0, stdout: 'codex 0.12.0\n', stderr: '' };
+			}
+			return { ok: false, exitCode: 1, stdout: '', stderr: 'command not found' };
+		};
+
+		const agentService = createAgentService({
+			registry,
+			hostInputs,
+			fileSystem,
+			commandRunner,
+		});
+
+		await agentService.start();
+
+		// Initially valid and dispatchable
+		expect(agentService.getAvailability('codex')?.isAvailable).toBe(true);
+		await expect(agentService.assertCanDispatch('codex')).resolves.toBeUndefined();
+
+		// Simulate external configuration change: change execPath to a non-existent path
+		const updatedContent = JSON.stringify({
+			schemaVersion: 1,
+			overrides: {
+				codex: { execPath: '/bin/codex-corrupted-now' },
+			},
+		});
+		files.set(registry.configPath, updatedContent);
+		const reloadRes = await registry.reload();
+		expect(reloadRes.status).toBe('loaded');
+
+		// R3: Hot-reload triggers generation advancement; availability is refreshed
+		expect(agentService.getAvailability('codex')?.isAvailable).toBeFalsy();
+		await expect(agentService.assertCanDispatch('codex')).rejects.toThrowError(AppError);
+		try {
+			await agentService.assertCanDispatch('codex');
+		} catch (err) {
+			const appError = err as AppError;
+			expect(appError.code).toBe('E_AGENT_UNAVAILABLE');
+		}
 	});
 });

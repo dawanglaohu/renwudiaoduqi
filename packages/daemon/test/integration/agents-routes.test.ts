@@ -1,7 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { ListAgentsResponse, UpdateAgentResponse } from '@agent-scheduler/shared/api/agents';
+import type {
+	ListAgentModelsResponse,
+	ListAgentsResponse,
+	UpdateAgentResponse,
+} from '@agent-scheduler/shared/api/agents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
@@ -9,6 +16,7 @@ import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
+import type { ExecutableFileInfo, ExecutableFileSystem } from '../../src/platform/contract.ts';
 import type {
 	LockFileHandle,
 	NativeLockAdapter,
@@ -18,12 +26,24 @@ import type {
 } from '../../src/platform/lock-contract.ts';
 import { createAgentService } from '../../src/service/agents.ts';
 
-const currentDir = dirname(fileURLToPath(import.meta.url));
-const testDir = resolve(currentDir, '../fixtures/agents-routes-test');
+const currentDir = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const migrationsDir = resolve(currentDir, '../../migrations');
-const dbPath = join(testDir, 'test.db');
 
-function createMemoryLockAdapter(): NativeLockAdapter {
+function createMockFileStat(
+	isFile = true,
+	isSymbolicLink = false,
+	mtimeMs = 1000,
+	size = 2048,
+): ExecutableFileInfo {
+	return {
+		isFile: () => isFile,
+		isSymbolicLink: () => isSymbolicLink,
+		mtimeMs,
+		size,
+	} as unknown as ExecutableFileInfo;
+}
+
+function createMemoryLockAdapter(testDir: string): NativeLockAdapter {
 	let lockContents: string | undefined;
 	const missing = (): NativeLockFailure => ({
 		kind: 'not-found',
@@ -70,11 +90,14 @@ function createMemoryLockAdapter(): NativeLockAdapter {
 	});
 }
 
-describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
+describe('M4-T4 Agents HTTP Routes Integration (R4 Fake Processes)', { timeout: 60000 }, () => {
 	let db: DatabaseConnection;
+	let testDir: string;
+	let dbPath: string;
 
 	beforeEach(() => {
-		rmSync(testDir, { recursive: true, force: true });
+		testDir = join(tmpdir(), `agents-routes-test-${randomUUID()}`);
+		dbPath = join(testDir, 'test.db');
 		mkdirSync(testDir, { recursive: true });
 		db = openDatabase(dbPath);
 		const runner = createMigrationRunner({
@@ -100,23 +123,116 @@ describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
 			stdout: string;
 			stderr: string;
 		}>;
+		unavailableAgents?: readonly string[];
 	}) {
-		const lockAdapter = createMemoryLockAdapter();
+		const lockAdapter = createMemoryLockAdapter(testDir);
+		const unavailableSet = new Set(options?.unavailableAgents ?? []);
 
-		let customAgentService: ReturnType<typeof createAgentService> | undefined;
-		if (options?.commandRunner) {
-			const baseRegistry = createAgentRegistry({
-				dataDir: testDir,
-				platform: 'posix',
-				publishWarning: () => undefined,
+		const defaultCommandRunner =
+			options?.commandRunner ??
+			(async (params: { file: string; args: readonly string[] }) => {
+				if (params.file.includes('claude')) {
+					return { ok: true, exitCode: 0, stdout: '2.1.0 (Claude Code)\n', stderr: '' };
+				}
+				if (params.file.includes('codex')) {
+					return { ok: true, exitCode: 0, stdout: 'codex 0.12.0\n', stderr: '' };
+				}
+				if (params.file.includes('pi')) {
+					return { ok: true, exitCode: 0, stdout: 'pi 0.9.0\n', stderr: '' };
+				}
+				if (params.file.includes('grok')) {
+					return { ok: true, exitCode: 0, stdout: 'grok 1.1.0\n', stderr: '' };
+				}
+				return { ok: false, exitCode: 1, stdout: '', stderr: 'command not found' };
 			});
-			customAgentService = createAgentService({
-				registry: baseRegistry,
-				hostInputs: { platform: 'linux', homedir: testDir },
-				commandRunner: options.commandRunner,
-				clock: { now: () => '2026-09-12T02:00:00.000Z' },
-			});
-		}
+
+		const mockFileSystem: ExecutableFileSystem & {
+			readUtf8File: (p: string) => Promise<string>;
+			writeUtf8File: (p: string, c: string) => Promise<void>;
+		} = {
+			readUtf8File: async (p) => {
+				try {
+					return await readFile(p, 'utf8');
+				} catch {
+					return '{}';
+				}
+			},
+			writeUtf8File: async (p, c) => {
+				await writeFile(p, c, 'utf8');
+			},
+			stat: async (p) => {
+				for (const bad of unavailableSet) {
+					if (p.includes(bad)) {
+						throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+					}
+				}
+				if (
+					p === '/usr/local/bin/codex' ||
+					p === '/usr/local/bin/claude' ||
+					p === '/usr/local/bin/pi' ||
+					p === '/usr/local/bin/grok'
+				) {
+					return createMockFileStat(true, false, 1000, 2048);
+				}
+				throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+			},
+			lstat: async (p) => {
+				for (const bad of unavailableSet) {
+					if (p.includes(bad)) {
+						throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+					}
+				}
+				if (
+					p === '/usr/local/bin/codex' ||
+					p === '/usr/local/bin/claude' ||
+					p === '/usr/local/bin/pi' ||
+					p === '/usr/local/bin/grok'
+				) {
+					return createMockFileStat(true, false);
+				}
+				throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+			},
+			realpath: async (p) => p,
+			access: async (p) => {
+				for (const bad of unavailableSet) {
+					if (p.includes(bad)) {
+						throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+					}
+				}
+				if (
+					p === '/usr/local/bin/codex' ||
+					p === '/usr/local/bin/claude' ||
+					p === '/usr/local/bin/pi' ||
+					p === '/usr/local/bin/grok'
+				) {
+					return undefined;
+				}
+				throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+			},
+			readlink: async (p) => p,
+		};
+
+		const baseRegistry = createAgentRegistry({
+			dataDir: testDir,
+			platform: 'posix',
+			publishWarning: () => undefined,
+			fileSystem: {
+				readUtf8File: mockFileSystem.readUtf8File,
+				writeUtf8File: mockFileSystem.writeUtf8File,
+				watchDirectory: () => {
+					const watcher = { close: () => undefined, on: () => watcher };
+					return watcher;
+				},
+			},
+		});
+
+		const agentService = createAgentService({
+			registry: baseRegistry,
+			hostInputs: { platform: 'linux', homedir: testDir },
+			commandRunner: defaultCommandRunner,
+			fileSystem: mockFileSystem,
+			clock: { now: () => '2026-09-12T02:00:00.000Z' },
+		});
 
 		const container = createContainer({
 			config: {
@@ -131,7 +247,8 @@ describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
 			lockAdapter,
 			instanceLock: { release: () => undefined } as unknown as LockFileHandle,
 			clock: { now: () => '2026-09-12T02:00:00.000Z' },
-			agentService: customAgentService,
+			agentRegistry: baseRegistry,
+			agentService,
 		});
 
 		const server = createHttpServer({ container });
@@ -149,7 +266,7 @@ describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
 		return `Bearer ${claim.token}`;
 	}
 
-	it('GET /api/v1/agents returns 401 without auth, returns agents list with valid token', async () => {
+	it('GET /api/v1/agents returns 401 without auth, returns agents list with valid token (R4)', async () => {
 		const { server, container } = setupTestServer();
 		await server.instance.ready();
 
@@ -186,7 +303,7 @@ describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
 		}
 	});
 
-	it('PATCH /api/v1/agents/:agentId updates agent and rejects duplicate monogram', async () => {
+	it('PATCH /api/v1/agents/:agentId updates agent and rejects duplicate monogram (R2)', async () => {
 		const { server, container } = setupTestServer();
 		await server.instance.ready();
 		const token = await getAuthToken(container);
@@ -225,7 +342,7 @@ describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
 		expect(validBody.agent.defaultModel).toBe('gpt-5');
 	});
 
-	it('POST /api/v1/agents/:agentId/probe runs probe and reports success or typed error', async () => {
+	it('POST /api/v1/agents/:agentId/probe runs probe and reports success or typed error (R4)', async () => {
 		const mockRunner = async (params: { file: string; args: readonly string[] }) => {
 			if (params.file.includes('claude')) {
 				return { ok: true, exitCode: 0, stdout: '2.1.0 (Claude Code)\n', stderr: '' };
@@ -233,7 +350,10 @@ describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
 			return { ok: true, exitCode: 0, stdout: 'Python 3.10.12 (not pi)\n', stderr: '' };
 		};
 
-		const { server, container } = setupTestServer({ commandRunner: mockRunner });
+		const { server, container } = setupTestServer({
+			commandRunner: mockRunner,
+			unavailableAgents: ['codex'],
+		});
 		await server.instance.ready();
 		const token = await getAuthToken(container);
 
@@ -245,7 +365,7 @@ describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
 		});
 		expect(notFoundRes.statusCode).toBe(404);
 
-		// 2. Unavailable agent (e.g. not found in mock env) -> 409 E_AGENT_UNAVAILABLE
+		// 2. Unavailable agent -> 409 E_AGENT_UNAVAILABLE
 		const unavailableRes = await server.instance.inject({
 			method: 'POST',
 			url: '/api/v1/agents/codex/probe',
@@ -253,25 +373,44 @@ describe('M4-T4 Agents HTTP Routes Integration', { timeout: 60000 }, () => {
 		});
 		expect(unavailableRes.statusCode).toBe(409);
 		const unavailBody = JSON.parse(unavailableRes.body);
-		expect(
-			['E_AGENT_UNAVAILABLE', 'E_AGENT_VERSION_UNRECOGNIZED'].includes(unavailBody.error?.code),
-		).toBe(true);
+		expect(unavailBody.error?.code).toBe('E_AGENT_UNAVAILABLE');
+
+		// 3. Available agent (claude) -> 200 ProbeAgentResponse
+		const availableRes = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/agents/claude/probe',
+			headers: { authorization: token },
+		});
+		expect(availableRes.statusCode).toBe(200);
+		const availableBody = JSON.parse(availableRes.body);
+		expect(availableBody.matched).toBe(true);
+		expect(availableBody.status).toBe('matched');
 	});
 
-	it('GET /api/v1/agents/:agentId/models returns 409 when agent is unavailable', async () => {
-		const { server, container } = setupTestServer();
+	it('GET /api/v1/agents/:agentId/models returns 409 when agent is unavailable and 200 when available (R4)', async () => {
+		const { server, container } = setupTestServer({ unavailableAgents: ['codex'] });
 		await server.instance.ready();
 		const token = await getAuthToken(container);
 
-		// Agent is unavailable -> 409 E_AGENT_UNAVAILABLE
-		const res = await server.instance.inject({
+		// 1. Agent is unavailable -> 409 E_AGENT_UNAVAILABLE
+		const unavailRes = await server.instance.inject({
 			method: 'GET',
 			url: '/api/v1/agents/codex/models',
 			headers: { authorization: token },
 		});
 
-		expect(res.statusCode).toBe(409);
-		const body = JSON.parse(res.body);
+		expect(unavailRes.statusCode).toBe(409);
+		const body = JSON.parse(unavailRes.body);
 		expect(body.error?.code).toBe('E_AGENT_UNAVAILABLE');
+
+		// 2. Available agent -> 200 ListAgentModelsResponse
+		const availRes = await server.instance.inject({
+			method: 'GET',
+			url: '/api/v1/agents/claude/models',
+			headers: { authorization: token },
+		});
+		expect(availRes.statusCode).toBe(200);
+		const availBody = JSON.parse(availRes.body) as ListAgentModelsResponse;
+		expect(Array.isArray(availBody.models)).toBe(true);
 	});
 });
