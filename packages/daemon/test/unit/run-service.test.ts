@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { type UnitOfWork, createUnitOfWork } from '../../src/db/unit-of-work.ts';
+import { AppError } from '../../src/errors/app-error.ts';
 import { createEventBus } from '../../src/events/bus.ts';
 import { createEnvelopeFactory } from '../../src/events/envelope.ts';
 import { createIdAllocator } from '../../src/events/id-allocator.ts';
@@ -162,6 +163,7 @@ function setupTestEnvironment() {
 		clock,
 		ids,
 		ringBuffer,
+		idAllocator,
 	};
 }
 
@@ -237,6 +239,7 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 			envelopeFactory: env.envelopeFactory,
 			unitOfWork: env.unitOfWork,
 			runsRepo: env.runsRepo,
+			clock: env.clock,
 		});
 
 		const runId = 'run-ac2-001';
@@ -374,6 +377,7 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 			envelopeFactory: env.envelopeFactory,
 			unitOfWork: env.unitOfWork,
 			runsRepo: env.runsRepo,
+			clock: env.clock,
 		});
 
 		const runId = 'run-e142-001';
@@ -436,6 +440,7 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 			unitOfWork: env.unitOfWork,
 			runsRepo: env.runsRepo,
 			eventMapper: customMapper,
+			clock: env.clock,
 		});
 
 		const runId = 'run-line-001';
@@ -608,5 +613,142 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 			actorDeviceId: null,
 		});
 		expect(env.runsRepo.findById('run-rec-2')?.state).toBe('orphaned');
+	});
+
+	it('R1: Asserts that envelopes strictly use the injected envelopeFactory and clock, never fabricating id/seq or local Date', async () => {
+		const env = setupTestEnvironment();
+		const testClockTime = '2026-09-12T08:30:00.000Z';
+		const customClock = { now: () => testClockTime };
+		const customEnvelopeFactory = createEnvelopeFactory({
+			clock: customClock,
+			idAllocator: env.idAllocator,
+		});
+
+		const publishedEnvelopes: EventEnvelope[] = [];
+		env.bus.subscribe((envelope) => {
+			publishedEnvelopes.push(envelope);
+		});
+
+		const service = createRunService({
+			logstore: env.logstore,
+			bus: env.bus,
+			envelopeFactory: customEnvelopeFactory,
+			unitOfWork: env.unitOfWork,
+			runsRepo: env.runsRepo,
+			clock: customClock,
+		});
+
+		const runId = 'run-r1-verify';
+		env.createRun({
+			id: runId,
+			taskId: 'task-r1',
+			state: 'running',
+			pid: 7777,
+		});
+
+		// Transition state
+		await service.transitionState({
+			runId,
+			targetState: 'exited',
+			reason: 'process_exited',
+		});
+
+		expect(publishedEnvelopes.length).toBeGreaterThan(0);
+		const stateChanged = publishedEnvelopes.find((e) => e.kind === 'run.state_changed');
+		expect(stateChanged).toBeDefined();
+
+		// ID must be positive allocated ID from the allocator, NOT a fabricated 1
+		expect(stateChanged?.id).toBeGreaterThan(0);
+		// ts must strictly match the injected customClock, not host new Date()
+		expect(stateChanged?.ts).toBe(testClockTime);
+		// scope must be 'run'
+		expect(stateChanged?.scope).toBe('run');
+
+		// Database endedAt must also strictly equal injected clock.now(), never local Date
+		const runInDb = env.runsRepo.findById(runId);
+		expect(runInDb?.endedAt).toBe(testClockTime);
+	});
+
+	it('R2: Reports failures to logFailure without silent swallowing or unhandled rejections', async () => {
+		const env = setupTestEnvironment();
+		const reportedFailures: unknown[] = [];
+		const logFailure = (error: unknown) => {
+			reportedFailures.push(error);
+		};
+
+		// Create a failing logstore that throws E_LOG_FILE_MISSING
+		const failingLogstore = {
+			...env.logstore,
+			appendRaw: async () => {
+				throw new AppError('E_LOG_FILE_MISSING', 'Simulated missing log file on raw append');
+			},
+			appendEvent: async () => {
+				throw new AppError('E_LOG_FILE_MISSING', 'Simulated missing log file on event append');
+			},
+		};
+
+		const service = createRunService({
+			logstore: failingLogstore,
+			bus: env.bus,
+			envelopeFactory: env.envelopeFactory,
+			unitOfWork: env.unitOfWork,
+			runsRepo: env.runsRepo,
+			clock: env.clock,
+			logFailure,
+		});
+
+		const runId = 'run-r2-failure';
+		env.createRun({
+			id: runId,
+			taskId: 'task-r2',
+			state: 'running',
+			pid: 8888,
+		});
+
+		let rawCb: ((line: ReadLine) => void) | undefined;
+		let exitCb: ((result: ProcessExitResult) => void) | undefined;
+
+		const mockProcess = {
+			runId,
+			pid: 8888,
+			onRaw: (cb: (line: ReadLine) => void) => {
+				rawCb = cb;
+				return () => {
+					rawCb = undefined;
+				};
+			},
+			onJson: () => () => undefined,
+			onExit: (cb: (result: ProcessExitResult) => void) => {
+				exitCb = cb;
+				return () => {
+					exitCb = undefined;
+				};
+			},
+		} as unknown as ManagedProcess;
+
+		const controller = service.attachProcess(runId, mockProcess);
+
+		// Trigger raw line -> should be caught and passed to logFailure, no unhandled rejection
+		rawCb?.({ text: 'failing line', truncated: false, rawByteLen: 12 });
+
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		// Expect failure reported
+		expect(reportedFailures.length).toBeGreaterThan(0);
+		const firstError = reportedFailures[0];
+		expect(firstError).toBeInstanceOf(AppError);
+		expect((firstError as AppError).code).toBe('E_LOG_FILE_MISSING');
+
+		// Process exit
+		exitCb?.({
+			runId,
+			pid: 8888,
+			exitCode: 0,
+			signal: null,
+			reason: 'exited',
+		});
+
+		await controller.waitForCompletion();
+		controller.detach();
 	});
 });

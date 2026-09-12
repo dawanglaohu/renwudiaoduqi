@@ -28,7 +28,7 @@ export interface RunRecord {
 
 export interface RunsRepo {
 	findById(id: string): RunRecord | null;
-	updateState?(input: {
+	updateState(input: {
 		readonly id: string;
 		readonly fromState: RunState;
 		readonly toState: RunState;
@@ -37,9 +37,9 @@ export interface RunsRepo {
 		readonly exitSignal?: string | null;
 		readonly actorDeviceId?: string | null;
 	}): void;
-	updateLastEventAt?(id: string, lastEventAt: string): void;
-	incrementUnmappedEventCount?(id: string): void;
-	findInFlight?(): readonly RunRecord[];
+	updateLastEventAt(id: string, lastEventAt: string): void;
+	incrementUnmappedEventCount(id: string): void;
+	findInFlight(): readonly RunRecord[];
 }
 
 export interface ReconcileRunRecord {
@@ -70,13 +70,13 @@ export interface AttachedProcessController {
 
 export interface RunServiceDeps {
 	readonly logstore: LogstoreService;
+	readonly clock: { readonly now: () => string };
+	readonly envelopeFactory: EnvelopeFactory;
 	readonly bus?: EventBus;
-	readonly envelopeFactory?: EnvelopeFactory;
 	readonly unitOfWork?: UnitOfWork;
 	readonly runsRepo?: RunsRepo;
-	readonly clock?: { readonly now: () => string };
-	readonly ids?: { readonly newId: () => string };
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
+	readonly logFailure?: (error: unknown) => void;
 }
 
 export interface RunService {
@@ -171,8 +171,10 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
  *    flushed to disk and read back on demand via cursor pages without memory accumulation.
  */
 export function createRunService(deps: RunServiceDeps): RunService {
+	const logFailure = deps.logFailure ?? (() => undefined);
+
 	function getNow(): string {
-		return deps.clock ? deps.clock.now() : new Date().toISOString();
+		return deps.clock.now();
 	}
 
 	async function ingestRaw(runId: string, rawLine: string | Uint8Array): Promise<AppendResult> {
@@ -194,11 +196,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		// 1. 落盘：全量原文写入 events.ndjson；里程碑写入 events 索引表，*_chunk 不进索引表 (AC 1, AC 2)
 		const appendResult = await deps.logstore.appendEvent(runId, envelope);
 
-		// 2. 更新运行元数据中的 last_event_at (若提供了仓储且方法存在)
-		if (deps.runsRepo?.updateLastEventAt) {
+		// 2. 更新运行元数据中的 last_event_at (若提供了仓储)
+		if (deps.runsRepo) {
 			if (deps.unitOfWork) {
 				deps.unitOfWork.run(() => {
-					deps.runsRepo?.updateLastEventAt?.(runId, envelope.ts);
+					deps.runsRepo?.updateLastEventAt(runId, envelope.ts);
 				});
 			} else {
 				deps.runsRepo.updateLastEventAt(runId, envelope.ts);
@@ -269,10 +271,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			} else {
 				// 能解析但未映射到任何已知事件 (E-202)
 				unmappedDiscarded = true;
-				if (deps.runsRepo?.incrementUnmappedEventCount) {
+				if (deps.runsRepo) {
 					if (deps.unitOfWork) {
 						deps.unitOfWork.run(() => {
-							deps.runsRepo?.incrementUnmappedEventCount?.(runId);
+							deps.runsRepo?.incrementUnmappedEventCount(runId);
 						});
 					} else {
 						deps.runsRepo.incrementUnmappedEventCount(runId);
@@ -283,10 +285,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			envelopesToIngest = [parsed];
 		} else {
 			unmappedDiscarded = true;
-			if (deps.runsRepo?.incrementUnmappedEventCount) {
+			if (deps.runsRepo) {
 				if (deps.unitOfWork) {
 					deps.unitOfWork.run(() => {
-						deps.runsRepo?.incrementUnmappedEventCount?.(runId);
+						deps.runsRepo?.incrementUnmappedEventCount(runId);
 					});
 				} else {
 					deps.runsRepo.incrementUnmappedEventCount(runId);
@@ -319,7 +321,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		cleanups.push(
 			process.onRaw((line) => {
 				if (detached) return;
-				void ingestRaw(runId, line.text).catch(() => undefined);
+				void ingestRaw(runId, line.text).catch((err) => logFailure(err));
 			}),
 		);
 
@@ -335,19 +337,19 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								.then(() => {
 									options?.onEvent?.(env);
 								})
-								.catch(() => undefined);
+								.catch((err) => logFailure(err));
 						}
-					} else if (deps.runsRepo?.incrementUnmappedEventCount) {
+					} else if (deps.runsRepo) {
 						try {
 							if (deps.unitOfWork) {
 								deps.unitOfWork.run(() => {
-									deps.runsRepo?.incrementUnmappedEventCount?.(runId);
+									deps.runsRepo?.incrementUnmappedEventCount(runId);
 								});
 							} else {
 								deps.runsRepo.incrementUnmappedEventCount(runId);
 							}
-						} catch {
-							// 忽略非关键计数错误
+						} catch (err) {
+							logFailure(err);
 						}
 					}
 				} else if (isCanonicalEnvelopeCandidate(parsed.value)) {
@@ -356,7 +358,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						.then(() => {
 							options?.onEvent?.(env);
 						})
-						.catch(() => undefined);
+						.catch((err) => logFailure(err));
 				}
 			}),
 		);
@@ -386,10 +388,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								exitSignal: result.signal ? String(result.signal) : null,
 							});
 						}
-					} catch {
-						// 退出状态流转异常不阻塞收流关闭
+					} catch (err) {
+						logFailure(err);
 					} finally {
-						await closeRunStream(runId).catch(() => undefined);
+						await closeRunStream(runId).catch((err) => logFailure(err));
 						completionResolve(result);
 					}
 				})();
@@ -436,42 +438,37 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		const endedAt =
 			isTerminalRunState(targetState) || targetState === 'exited' ? (input.endedAt ?? now) : null;
 
-		let stateChangedEnvelope: EventEnvelope;
-		if (deps.envelopeFactory) {
-			stateChangedEnvelope = deps.envelopeFactory.createEnvelope({
-				kind: 'run.state_changed',
-				runId,
-				taskId: run.taskId,
-				actorDeviceId: actorDeviceId ?? null,
-				payload: {
-					from: previousState,
-					to: targetState,
-					reason,
-				},
-			});
-		} else {
-			stateChangedEnvelope = Object.freeze({
-				id: deps.ids ? Number.parseInt(deps.ids.newId(), 10) || 1 : 1,
-				ts: now,
-				runId,
-				taskId: run.taskId,
-				scope: 'run' as const,
-				kind: 'run.state_changed' as const,
-				seq: 0,
-				actorDeviceId: actorDeviceId ?? null,
-				payload: {
-					from: previousState,
-					to: targetState,
-					reason,
-				},
-			});
-		}
+		const stateChangedEnvelope = deps.envelopeFactory.createEnvelope({
+			kind: 'run.state_changed',
+			runId,
+			taskId: run.taskId,
+			actorDeviceId: actorDeviceId ?? null,
+			payload: {
+				from: previousState,
+				to: targetState,
+				reason,
+			},
+		});
 
 		// 事务回调内部严格禁止 await 与异步副作用；事件发布在事务返回后进行 (AC 3)
 		const pendingEvents: EventEnvelope[] = [];
-		if (deps.unitOfWork) {
-			deps.unitOfWork.run(() => {
-				deps.runsRepo?.updateState?.({
+		if (deps.runsRepo) {
+			const repo = deps.runsRepo;
+			if (deps.unitOfWork) {
+				deps.unitOfWork.run(() => {
+					repo.updateState({
+						id: runId,
+						fromState: previousState,
+						toState: targetState,
+						endedAt,
+						exitCode: exitCode ?? null,
+						exitSignal: exitSignal ?? null,
+						actorDeviceId: actorDeviceId ?? null,
+					});
+					pendingEvents.push(stateChangedEnvelope);
+				});
+			} else {
+				repo.updateState({
 					id: runId,
 					fromState: previousState,
 					toState: targetState,
@@ -481,17 +478,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					actorDeviceId: actorDeviceId ?? null,
 				});
 				pendingEvents.push(stateChangedEnvelope);
-			});
+			}
 		} else {
-			deps.runsRepo?.updateState?.({
-				id: runId,
-				fromState: previousState,
-				toState: targetState,
-				endedAt,
-				exitCode: exitCode ?? null,
-				exitSignal: exitSignal ?? null,
-				actorDeviceId: actorDeviceId ?? null,
-			});
 			pendingEvents.push(stateChangedEnvelope);
 		}
 
@@ -520,7 +508,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 	}
 
 	async function findInFlightRuns(): Promise<readonly ReconcileRunRecord[]> {
-		if (deps.runsRepo?.findInFlight) {
+		if (deps.runsRepo) {
 			const runs = deps.runsRepo.findInFlight();
 			return runs.map((r) => ({
 				id: r.id,
