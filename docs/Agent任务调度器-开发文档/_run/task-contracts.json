@@ -192,6 +192,16 @@
         "packages/daemon/test/unit/effort-tier.test.ts"
       ]
     },
+    "M4-T8": {
+      "supportPaths": [
+        "packages/daemon/test/unit/codex-adapter.test.ts"
+      ]
+    },
+    "M4-T9": {
+      "supportPaths": [
+        "packages/daemon/test/unit/claude-adapter.test.ts"
+      ]
+    },
     "M5-T1": {
       "supportPaths": [
         "packages/daemon/test/unit/worktree.test.ts"
@@ -498,6 +508,16 @@
         "packages/web/test/shell-bridge.test.ts",
         "packages/shared/package.json",
         "pnpm-lock.yaml"
+      ]
+    },
+    "M4-T10": {
+      "supportPaths": [
+        "packages/daemon/test/unit/pi-adapter.test.ts"
+      ]
+    },
+    "M4-T11": {
+      "supportPaths": [
+        "packages/daemon/test/unit/grok-adapter.test.ts"
       ]
     },
     "M4-T4": {
