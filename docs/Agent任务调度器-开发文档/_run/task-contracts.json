@@ -499,6 +499,11 @@
         "packages/shared/package.json",
         "pnpm-lock.yaml"
       ]
+    },
+    "M4-T11": {
+      "supportPaths": [
+        "packages/daemon/test/unit/grok-adapter.test.ts"
+      ]
     }
   }
 }
