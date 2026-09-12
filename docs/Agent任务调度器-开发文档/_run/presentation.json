@@ -251,7 +251,8 @@
         "packages/daemon/src/domain/run-state-machine.ts"
       ],
       "M6-T2": [
-        "packages/daemon/src/service/run.ts"
+        "packages/daemon/src/service/run.ts",
+        "packages/daemon/test/unit/run-service.test.ts"
       ],
       "M6-T3": [
         "packages/daemon/src/domain/progress.ts"
