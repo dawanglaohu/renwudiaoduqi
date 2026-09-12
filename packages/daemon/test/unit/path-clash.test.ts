@@ -235,6 +235,34 @@ describe('M8-T2 domain/path-clash: 路径冲突检测与排队', () => {
 			expect(isTaskPathHolding('interrupted')).toBe(false);
 		});
 
+		it('E-46: an active task with missing or unrecognised state still holds the lock (never fails open)', () => {
+			expect(isTaskPathHolding(undefined)).toBe(true);
+			expect(isTaskPathHolding(null)).toBe(true);
+			expect(isTaskPathHolding('')).toBe(true);
+			expect(isTaskPathHolding('unrecognised_state')).toBe(true);
+
+			const activeTask: TaskPathDescriptor = {
+				taskId: 'task-prior',
+				taskPaths: ['packages/daemon/src/domain/path-clash.ts'],
+				batchId: 'batch-1',
+			};
+			const latterTask: TaskPathDescriptor = {
+				taskId: 'task-latter',
+				taskPaths: ['packages/daemon/src/domain/path-clash.ts'],
+				batchId: 'batch-1',
+			};
+
+			const evaluation = evaluatePathClashQueue({
+				activeTasks: [activeTask],
+				candidates: [latterTask],
+				batchId: 'batch-1',
+			});
+
+			expect(evaluation.dispatchable).toHaveLength(0);
+			expect(evaluation.blocked).toHaveLength(1);
+			expect(evaluation.blocked[0]?.blockedByTaskId).toBe('task-prior');
+		});
+
 		it('E-46: candidate task queues when earlier task is in exited state (NOT landed)', () => {
 			const earlierTask: TaskPathDescriptor = {
 				taskId: 'task-prior',

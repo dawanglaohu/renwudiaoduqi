@@ -1,4 +1,5 @@
 import { AppError } from '../errors/app-error.ts';
+import { RUN_STATES, type RunState, TERMINAL_RUN_STATES } from './run-state-machine.ts';
 
 /**
  * Prefix for run.queued_reason when blocked by path clash (E-46).
@@ -11,25 +12,20 @@ export const PATH_CONFLICT_REASON_PREFIX = 'path_conflict:';
 export const WRAPUP_FIX_SERIAL_PREFIX = 'wrapup-fix-serial:';
 
 /**
- * Task/run states that actively occupy path locks (AC 1, E-46).
+ * Task/run states that still occupy a path lock (AC 1, E-46).
  *
- * Notice: 'exited' IS a path-holding state because process exit (exit code 0)
- * does NOT equal landing ("等前者到达「已落地」（不是「已退出」）才起").
- * Review and landing gates must pass before the path lock is released.
+ * Projection of the run state machine (09 数据模型): a lock is released only by a
+ * terminal state — 'landed' proves the change is on the trunk, and a terminal
+ * failure means the change can never land. 'exited' IS a holding state because
+ * process exit (exit code 0) does NOT equal landing
+ * ("等前者到达「已落地」（不是「已退出」）才起"); review and landing gates must pass
+ * before the lock is released.
  */
-export const ACTIVE_PATH_HOLDING_STATES = Object.freeze([
-	'queued',
-	'starting',
-	'running',
-	'awaiting_reply',
-	'exited',
-	'reviewing',
-	'reworking',
-	'awaiting_human',
-	'orphaned',
-] as const);
+export const ACTIVE_PATH_HOLDING_STATES: readonly RunState[] = Object.freeze(
+	RUN_STATES.filter((state) => !(TERMINAL_RUN_STATES as readonly string[]).includes(state)),
+);
 
-export type ActivePathHoldingState = (typeof ACTIVE_PATH_HOLDING_STATES)[number];
+export type ActivePathHoldingState = Exclude<RunState, (typeof TERMINAL_RUN_STATES)[number]>;
 
 /**
  * Checks whether a task or run state represents "已落地" (landed).
@@ -49,10 +45,14 @@ export function isTaskLanded(state: string | null | undefined): boolean {
  * for unblocking independent tasks (M8-T3 AC 3).
  */
 export function isTaskPathHolding(state: string | null | undefined): boolean {
+	// Release only on evidence that the change can no longer land: 'landed' itself,
+	// or a terminal failure. A missing or unrecognised state must NOT fail open —
+	// reading it as "released" would put two tasks on the same files and recreate the
+	// conflict at landing time (E-46). Only reachable states hold by default.
 	if (!state) {
-		return false;
+		return true;
 	}
-	return (ACTIVE_PATH_HOLDING_STATES as readonly string[]).includes(state);
+	return !(TERMINAL_RUN_STATES as readonly string[]).includes(state);
 }
 
 /**
