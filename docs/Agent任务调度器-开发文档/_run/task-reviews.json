@@ -367,6 +367,23 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T8": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "13a9f3e39cfe61686b961b813b28a9b98ecf48f8688183bee7142d863d602e19",
+    "evidence": [
+      "19 节 M4-T8 行与任务卡一致：输入=codex exec --json 与 app-server 实测事件形状；产出=adapters/codex 的 buildLaunchSpec/readModels/map-events/capabilities；前置 M4-T3、M1-T8 均 status: done；解锁 M4-T12、M6-T6 尚未开工",
+      "有效路径补丁（M4-T8-support-paths-20260912）：本任务新增的验收/架构测试 packages/daemon/test/unit/codex-adapter.test.ts 原不在有效范围，按派发提示词「测试必须列在有效范围」补进 supportPaths；已 grep 全 task-contracts.json，无其它任务声明该文件，无路径冲突",
+      "验收 1)-4) 都有落点：build-launch-spec.ts:40 默认 app-server、:73 起 exec 退路；map-events.ts:342 起两通道共用归一化；capabilities.ts:14/:19 能力位与 adapterKind 收窄；codex-adapter.test.ts 20 个用例独立跑绿",
+      "E-186 三句归属核对：数据层 adapterKind 切换（config/registry.ts 已支持）+ 能力位收窄（capabilities.ts:29）+ isAcp 标注（build-launch-spec.ts:104）在 M4-T8 可达范围；「在途任务按 E-02 标失联」不在 adapters/codex/ 可达范围，由 E-02 的覆盖任务（M1-T6 对账、M6-T5 中止与状态落定）与 M4-T1 的「adapterKind 热切换必须校验无在途运行」共同承担",
+      "框架约定核对：map-events.ts 为纯函数、不碰 fs/db/clock；adapters 未 import repo/service；无 process.env / process.platform；无 throw new Error；文件 kebab-case、无 barrel；事件 kind 沿用 shared/api/events.ts 命名形状（ACP 组 snake_case、本产品组 <scope>.<过去式>），厂商私有字段进 payload.vendor",
+      "检查：pnpm -w check 中 biome ci 与 tsc -b --noEmit 通过；npx vitest run packages/daemon/test/unit/codex-adapter.test.ts 20/20 通过",
+      "环境说明：整仓 vitest 全量跑时 disk-full-and-system-routes.test.ts 因同机另有会话的 vitest 并发（loadavg 10+）触发 5000ms 默认超时；该用例 body 实测 82-193ms 即返回 200，放宽超时后 2/2 通过，且与 M4-T8 diff 无调用关系（适配器未被 daemon 路径 import），非本任务阻断项",
+      "语义复核另发现 5 条真实阻断（见 PR 首轮 REVIEW-ROUND 的 R1-R5），不因契约复核通过而放行"
+    ],
+    "reviewed": "2026-09-12T02:03:36.272896+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M5-T1": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "6b9cae757c84fb4181f1eb06a4e6d958e0f1cf38daee513247ad97157cbeaf9a",
