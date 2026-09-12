@@ -11,7 +11,7 @@
         "框架约定核对：map-events.ts 为纯函数、不碰 fs/db/clock；adapters 未 import repo/service；无 process.env / process.platform；无 throw new Error；文件 kebab-case、无 barrel；事件 kind 沿用 shared/api/events.ts 命名形状（ACP 组 snake_case、本产品组 <scope>.<过去式>），厂商私有字段进 payload.vendor",
         "检查：pnpm -w check 中 biome ci 与 tsc -b --noEmit 通过；npx vitest run packages/daemon/test/unit/codex-adapter.test.ts 20/20 通过",
         "环境说明：整仓 vitest 全量跑时 disk-full-and-system-routes.test.ts 因同机另有会话的 vitest 并发（loadavg 10+）触发 5000ms 默认超时；该用例 body 实测 82-193ms 即返回 200，放宽超时后 2/2 通过，且与 M4-T8 diff 无调用关系（适配器未被 daemon 路径 import），非本任务阻断项",
-        "语义复核另发现 5 条真实阻断（见 PR 首轮 REVIEW-ROUND 的 R1-R5），不因契约复核通过而放行"
+        "语义复核：首轮发现 5 条阻断（R1 exec item 类型未归一、R2 app-server 权限键 sandbox 无效、R3 turn/completed 推定成功、R4 未知 item 类型不计数、R5 厂商字符串清单不全），第 2 轮逐条复核已修复（R1 的 reasoning item 由审查方补齐，见 FIXED_BY_REVIEWER），33 个用例、biome ci 与 tsc -b --noEmit 均通过"
       ],
       "verdict": "pass"
     }

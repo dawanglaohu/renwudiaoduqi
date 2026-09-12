@@ -367,20 +367,33 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T8": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "13a9f3e39cfe61686b961b813b28a9b98ecf48f8688183bee7142d863d602e19",
+    "evidence": [
+      "19 节 M4-T8 行与任务卡一致：输入=codex exec --json 与 app-server 实测事件形状；产出=adapters/codex 的 buildLaunchSpec/readModels/map-events/capabilities；前置 M4-T3、M1-T8 均 status: done；解锁 M4-T12、M6-T6 尚未开工",
+      "有效路径补丁（M4-T8-support-paths-20260912）：本任务新增的验收/架构测试 packages/daemon/test/unit/codex-adapter.test.ts 原不在有效范围，按派发提示词「测试必须列在有效范围」补进 supportPaths；已 grep 全 task-contracts.json，无其它任务声明该文件，无路径冲突",
+      "验收 1)-4) 都有落点：build-launch-spec.ts:40 默认 app-server、:73 起 exec 退路；map-events.ts:342 起两通道共用归一化；capabilities.ts:14/:19 能力位与 adapterKind 收窄；codex-adapter.test.ts 20 个用例独立跑绿",
+      "E-186 三句归属核对：数据层 adapterKind 切换（config/registry.ts 已支持）+ 能力位收窄（capabilities.ts:29）+ isAcp 标注（build-launch-spec.ts:104）在 M4-T8 可达范围；「在途任务按 E-02 标失联」不在 adapters/codex/ 可达范围，由 E-02 的覆盖任务（M1-T6 对账、M6-T5 中止与状态落定）与 M4-T1 的「adapterKind 热切换必须校验无在途运行」共同承担",
+      "框架约定核对：map-events.ts 为纯函数、不碰 fs/db/clock；adapters 未 import repo/service；无 process.env / process.platform；无 throw new Error；文件 kebab-case、无 barrel；事件 kind 沿用 shared/api/events.ts 命名形状（ACP 组 snake_case、本产品组 <scope>.<过去式>），厂商私有字段进 payload.vendor",
+      "检查：pnpm -w check 中 biome ci 与 tsc -b --noEmit 通过；npx vitest run packages/daemon/test/unit/codex-adapter.test.ts 20/20 通过",
+      "环境说明：整仓 vitest 全量跑时 disk-full-and-system-routes.test.ts 因同机另有会话的 vitest 并发（loadavg 10+）触发 5000ms 默认超时；该用例 body 实测 82-193ms 即返回 200，放宽超时后 2/2 通过，且与 M4-T8 diff 无调用关系（适配器未被 daemon 路径 import），非本任务阻断项",
+      "语义复核：首轮发现 5 条阻断（R1 exec item 类型未归一、R2 app-server 权限键 sandbox 无效、R3 turn/completed 推定成功、R4 未知 item 类型不计数、R5 厂商字符串清单不全），第 2 轮逐条复核已修复（R1 的 reasoning item 由审查方补齐，见 FIXED_BY_REVIEWER），33 个用例、biome ci 与 tsc -b --noEmit 均通过"
+    ],
+    "reviewed": "2026-09-12T04:15:43.108897+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T9": {
     "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
     "contractHash": "e0f83be0eb45841c73ba8dca750f8abc13adefaa02ca30f07a2855b11b47adb3",
     "evidence": [
-      "范围与产出：对照 04-执行/19-模块任务拆分.md 的 M4-T9 行与任务笔记，产出仍是 adapters/claude/ 四件套（capabilities / build-launch-spec / map-events 三份新增，read-models 由前置 M4-T5 落地），输入仍是 claude --bg 与 agents --json 的实测字段；四条验收标准与 E-202、E-37 两条边界的触发与期望均保持原文，未新增、未删减、未放宽。",
-      "前置与接线：M4-T3（版本指纹与可执行路径解析）与 M1-T8（三档超时与背压）已在 main 落地，笔记头部 depends_on 与 status 只剩「待语义复核」。任务笔记未把「回写 runs.unmapped_event_count」当作本任务落库责任——按 08 节「proc 与 adapters 禁止 import repo/service，只产出数据结构，落库一律由 service 做」，适配器只负责逐行返回 unmappedCount 与累计 getUnmappedEventCount()，由 M6-T2 收流编排落库，这一分工与既定分层一致，不是缺口。",
-      "分层与共用约定：三个新增文件只 import domain/{effort-tier,permission-tier}.ts、errors/app-error.ts、proc/{spawn,timers}.ts 与 shared 的 EventKind 类型，不 import repo/service/db/http/events/workspace，符合 adapters 层「只产出数据结构」的形状；厂商事件字符串（stream_event / content_block_delta / tool_use / tool_result / system 等）只出现在 adapters/claude/map-events.ts，未外泄到 service/jobs/http/web；事件 kind 形状合规：ACP 组沿用原文 snake_case（agent_message_chunk / agent_thought_chunk / tool_call / tool_call_update / plan / available_commands_update），本产品组沿用 <scope>.<过去式>（run.started），厂商原文一律塞 payload.vendor；错误走唯一基类 AppError（E_VALIDATION 已在 packages/shared/src/errors/codes.ts 登记），框架层没有原生 Error 穿透、catch {} 空吞或用 err.message 做分支；无 HTTP 状态码、无 SQL、无事务、无 process.env 直读、无中文用户文案，模块顶层零副作用（全部为纯常量与纯函数/工厂）。",
-      "验收（契约可达性）：1) buildClaudeLaunchSpec 对 --bg 与 -p/--print 做互斥剔除 + 组装后二次断言，buildClaudeAgentsQuerySpec/parseClaudeAgentsJson/findClaudeAgentSession 覆盖 state/waitingFor/sessionId 回读；2) cleanClaudeEnv + envDenylist 覆盖 ANTHROPIC_MODEL 与 ANTHROPIC_DEFAULT_*_MODEL，映射器在首帧读自报模型并与 selectedModel 归一化比对后标记 modelMismatch；3) 未知类型丢弃并计入 unmappedCount，非 JSON 行归 raw.log 不计数不崩溃，不存在臆造 kind 的分支；4) 能力位 canReply=true 且 inputFormat/outputFormat='stream-json'。四条相互独立、无矛盾条款，contract 可达。",
-      "边界契约映射：E-202 → 未知事件一律丢弃 + 计数（绝不崩溃、绝不臆造 kind），已知系统帧静默忽略，RPC 子事件集变化不影响主干；E-37 → 派发期清环境变量 + 首帧回读并与所选比对，呈现侧「实际使用：X」与不一致高亮按 E-37 的 covered_by 归 M6-T3（进度字段）与 M9-T17（流头部参照条），本任务只承担产生侧数据（payload 带 actualModel/selectedModel/modelMismatch 供收流层落 runs.reported_model）。两条边界均有对应契约位点，归属正确。",
-      "有效路径与补丁：taskPaths 原仅列 packages/daemon/src/adapters/claude/（覆盖四件套），漏列本任务唯一单测 packages/daemon/test/unit/claude-adapter.test.ts。03-质量/17-测试策略.md 明确把 adapters/*/map-events.ts 列为必须有单元用例的强制目录，且 17 节要求每个任务本地验收必须包含 pnpm -w check。本轮按 M4-T3 / M4-T7 先例走 DOC_PATCH（M4-T9-review-scope-20260912）把该测试文件补进 supportPaths，未放行整个 test 目录或 adapters 目录，与其他任务的有效路径无交集（M4-T8 拥有 adapters/codex/，M4-T10/T11 各自拥有 pi/ 与 grok/）。",
-      "实证：在 task/M4-T9 工作树上（已 rebase 到 origin/main 950d09d）执行 pnpm -w check，Biome 检查 214 个文件零改写通过、tsc -b --noEmit 通过、Vitest 61/62 个测试文件通过、662 通过 / 32 跳过 / 0 失败（claude-adapter.test.ts 16 个用例全绿），结尾 3 条「[vitest-worker]: Timeout calling onTaskUpdate」为多工作树并行时的 worker RPC 超时，非断言失败；隔离复跑 claude-adapter + source-contracts 两个文件为 2 passed / 22 passed。",
-      "结论：任务定义自洽、验收标准可满足、边界归属正确、前置已落地、有效路径经补丁补齐且与并行任务无冲突，task-contract 复核为 pass。"
+      "本任务被标「待复验」的原因是补丁 M4-T8-support-paths-20260912 的基线快照取在 M4-T9 自己的 task-contracts.json 条目落地之前（该补丁 baseline 的 sourceContents['_run/task-contracts.json'] 里 M4-T9 为 null），不是本补丁改了 M4-T9 的条款",
+      "git 核对：edc0389（M4-T8 补丁提交）→ HEAD 对 task-contracts.json 的唯一改动是新增 M4-T9 条目 {\"supportPaths\":[\"packages/daemon/test/unit/claude-adapter.test.ts\"]}，来自 main 的 d0bfed0（M4-T9 回填知识库并记录落地）；本补丁只新增 M4-T8 的 supportPaths，未触碰 M4-T9 的任何路径或代码",
+      "变化条款复核：M4-T9 的有效范围仍是 taskPaths packages/daemon/src/adapters/claude/ + supportPaths packages/daemon/test/unit/claude-adapter.test.ts，与其落地时登记的一致；M4-T8 自己的提交（ed7b6d3、c6ec8d0、edc0389）改动路径里没有任何 claude 路径（git show --name-only ed7b6d3 c6ec8d0 edc0389 | grep -i claude 为空）",
+      "结论：M4-T9 无需要复验的变化条款，原复核结论可继续沿用；标记来源是共享文件 task-contracts.json 的基线时间差"
     ],
-    "reviewed": "2026-09-12T01:48:34.404645+00:00",
+    "reviewed": "2026-09-12T04:25:41.003994+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
