@@ -7,6 +7,32 @@ export interface AgentEntryDto {
 	readonly maxConcurrency: number;
 	readonly permissionTier: 'readOnly' | 'workspaceWrite' | 'unrestricted';
 	readonly execPath: string | null;
+	readonly unavailableReason?: string | null;
+	readonly unavailableCode?: string | null;
+	readonly missingRequirements?: readonly string[];
+	readonly errorDetails?: {
+		readonly code: string;
+		readonly observed?: string;
+		readonly expected?: string;
+		readonly execPath?: string;
+		readonly checkedPaths?: readonly string[];
+		readonly reason?: string;
+		readonly originalPath?: string;
+		readonly resolvedPath?: string;
+	};
+	readonly warningBanner?: {
+		readonly code: string;
+		readonly message: string;
+		readonly details?: unknown;
+	};
+}
+
+export interface AgentParams {
+	readonly agentId: string;
+}
+
+export interface ListAgentModelsQuery {
+	readonly refresh?: string;
 }
 
 export interface UpdateAgentBody {
@@ -52,6 +78,19 @@ export interface ProbeAgentResponse {
 	readonly status: string;
 	readonly versionString: string;
 	readonly matched: boolean;
+	readonly canDispatch?: boolean;
+	readonly errorDetails?: {
+		readonly code: string;
+		readonly observed?: string;
+		readonly expected?: string;
+		readonly execPath?: string;
+		readonly checkedPaths?: readonly string[];
+		readonly reason?: string;
+	};
+	readonly warningBanner?: {
+		readonly code: string;
+		readonly message: string;
+	};
 }
 
 export interface ListAgentModelsResponse {
