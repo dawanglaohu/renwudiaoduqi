@@ -331,6 +331,25 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T4": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "6ef3db32ce3e107dece104cc74e130a4fbe7c997eca7abc5c30762d8732a409f",
+    "evidence": [
+      "任务与前置：核对 04-执行/19-模块任务拆分.md 的 M4-T4 行、图谱/任务/M4-T4.md 与 PR 51 的 diff。前置 M4-T3（版本指纹探测与可执行路径解析）已落地——packages/daemon/src/adapters/probe.ts 提供 probeAgent/createFingerprintCache/ProbeAgentResult，本任务的 service/agents.ts:20-31 只消费它，没有自己重造探测或路径解析；M4-T3 的 probe.test.ts 覆盖 E-195/E-196/E-198/E-199。",
+      "产出核对：三条都在。启动期探测——boot/container.ts:205 建 createAgentService、:213 在 listen 之前起 start()，service/agents.ts:375 probeAll 逐 agent 探测、:399 ensureInitialized 让首个请求等待探测完成；agent.availability_changed 事件——service/agents.ts:346 recordAndPublishAvailability 只在首次或可用性翻转时发布；四个端点——http/routes/agents.ts:79/98/116/157 的 GET /agents、PATCH /agents/:agentId、POST /agents/:agentId/probe、GET /agents/:agentId/models，对应 shared/api/routes.ts:258/266/276/291 已有条目，arch/routes.test.ts 的「实际注册集合 === ROUTES 表」断言通过。",
+      "验收 1（E-29、E-40）：不在 PATH 的 agent 由 probeAgent 返回 status='not-found' + E_AGENT_EXEC_NOT_FOUND，service/agents.ts:265-281 映射为 isAvailable=false/canDispatch=false 并填 unavailableReason 与 missingRequirements，toAgentEntryDto:122 把它们放进 DTO 供 UI 置灰写原因；派发前失败由 assertCanDispatch:625 抛 E_AGENT_UNAVAILABLE/E_AGENT_VERSION_UNRECOGNIZED，不等到起进程。审查方在 Node 22.17.0 下实跑真实 PATH：grok 未安装 → isAvailable=false、unavailableCode=E_AGENT_EXEC_NOT_FOUND、missingRequirements 非空；pi 输出不匹配指纹 → E_AGENT_VERSION_UNRECOGNIZED。",
+      "验收 2（E-88、E-262、E-263）：路径无效与不可执行的类型化原因由 service/agents.ts:231-264 的两条映射分支给出，各 agent 之间由 probeAll:381 的 Promise.allSettled 加 probeSingleAgent:225 的 try/catch 隔离，单个 agent 失败不影响其余；「点击跳到该项配置」由 DTO 的 id/execPath 承载，交给 M9-T14 消费。审查方用真实临时目录实跑：0o644 的 POSIX 可执行文件 → E_AGENT_EXEC_NOT_EXECUTABLE 且带 execPath；但「符号链接目标不存在」实测返回 E_AGENT_EXEC_NOT_FOUND 而非 E-263 要求的 E_AGENT_EXEC_INVALID_TARGET，且解析目标未进 DTO——已作为 R1 打回。",
+      "验收 3（E-201）：PATH 上的 pi 指向别的程序时，probeAgent 走 status='unrecognized' + E_AGENT_VERSION_UNRECOGNIZED，service/agents.ts:282-290 标 unavailable、把实测串与期望模式留在 errorDetails 并给出手填路径要求，assertCanDispatch:642 以 E_AGENT_VERSION_UNRECOGNIZED 抛错，不存在按错误参数静默派发的分支。",
+      "接口字段与 10 节一致：PATCH body 的 defaultModel/maxConcurrency/permissionTier/execPath/monogram 与 02-设计/10-接口约定.md:34 相同，updateAgentBodySchema 为 additionalProperties:false 且与 UpdateAgentBody 键清单同名对应；monogram 唯一性（service/agents.ts:466-485）与 permissionTier 值域（:486-494）在服务端复核；probe 出参只有 {status, versionString, matched}，models 出参 {models, source, isComplete}，与 10 节表一致；错误码 E_NOT_FOUND/E_AGENT_UNAVAILABLE/E_AGENT_VERSION_UNRECOGNIZED/E_AGENT_EXEC_NOT_FOUND/E_AGENT_EXEC_NOT_EXECUTABLE/E_AGENT_EXEC_INVALID_TARGET 均已登记在 packages/shared/src/errors/codes.ts。",
+      "有效范围补丁（m4-t4-effective-paths）：原 handoff.taskPaths 只列 packages/daemon/src/service/agents.ts，而本任务既定产出必需的 http/routes/agents.ts（四个端点）、http/plugins/50-routes.ts 与 boot/container.ts（接线）、packages/shared/src/api/agents.ts（DTO 的不可用原因字段）、两个测试文件都缺列；再加 adapters/probe.ts 与 config/registry.ts——前者是 E-262/E-263 类型化错误码的唯一来源，后者按 06/08 禁令是 agents.json 的唯一读写归属。已按审查方职责定点补齐 source 配置（_run/task-contracts.json）并核对无与其他任务冲突，改动范围按修正后的 8+1 条路径验收。",
+      "分层与共用约定（06/08）：http/routes/agents.ts 只经 request.server.container.services.agents 取服务，未直连 repo/adapters/proc；service/agents.ts 不 import fastify、不出现 process.env/process.platform/Date.now（时间走注入 clock）、无 SQL 字面量与事务；厂商事件字符串未出现在 service/http；错误一律 AppError + 已登记 code，message 为英文开发者短句。审查方顺手改掉的一处中文回落文案见 FIXED_BY_REVIEWER。",
+      "本轮结论：任务契约本身（前置、产出、三条验收与六个边界、接口字段、有效范围）无阻断，故登记 task-contract 复核为 pass；代码侧存在 R1（E-263 端到端类型码与解析目标）与 R2（agents.json 绕过注册表读写导致静默失败与用户配置丢失）两项阻断，已随 REVIEW-ROUND 1 打回，落地等返工后复验。",
+      "验证环境与结果：Node 22.17.0（WSL）。npx biome ci . 检查 214 个文件无修复项；npx tsc -b --noEmit 通过；聚焦 Vitest 通过——test/unit/agents-service.test.ts 8/8、test/integration/agents-routes.test.ts 4/4、test/arch/{routes,boot-boundaries,bus-transaction}.test.ts 16/16。"
+    ],
+    "reviewed": "2026-09-12T01:48:41.719811+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T5": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "208362e6f73e450da5aa35c305592c3d91e702dad04d3744fd86fb7e5a25f6e3",

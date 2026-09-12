@@ -499,6 +499,18 @@
         "packages/shared/package.json",
         "pnpm-lock.yaml"
       ]
+    },
+    "M4-T4": {
+      "supportPaths": [
+        "packages/daemon/src/adapters/probe.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/config/registry.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/http/routes/agents.ts",
+        "packages/shared/src/api/agents.ts",
+        "packages/daemon/test/integration/agents-routes.test.ts",
+        "packages/daemon/test/unit/agents-service.test.ts"
+      ]
     }
   }
 }
