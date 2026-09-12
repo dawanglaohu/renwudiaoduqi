@@ -585,6 +585,25 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M8-T2": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "0dc7abef7876e8ee77e3c1c3748b70ccd72054b7200ba723d9bb83895a557430",
+    "evidence": [
+      "19 节 M8-T2 行与任务卡一致：输入＝M8-T1 与 taskPaths；产出＝冲突判定与队列；前置 M8-T1 status: done；解锁 M8-T3、M9-T18 尚未开工，未叠在本层之上；边界只有 E-46",
+      "有效路径补丁（M8-T2-support-paths-20260912）：本任务必有单元测试 packages/daemon/test/unit/path-clash.test.ts 原不在有效范围，按任务定义补进 supportPaths（M8-T1 已同样把 concurrency.test.ts 列入），补后提示词的有效范围为本任务源码 + 该测试文件；与 M8-T7 已声明的同名测试文件不构成同时并发的冲突（M8-T7 依赖本任务，本层落地后它才开工）",
+      "AC 1 满足：evaluatePathClashQueue()（packages/daemon/src/domain/path-clash.ts:521）先按 isTaskPathHolding()（:47）过滤在途任务，再经 checkTaskPathClash()（:456）对每个候选判定；与在途任务或已入选候选有路径交集者进 blocked 并带 queuedReason（:364），不进 dispatchable。exited 属持有集合 → 后者排队；只有 landed 或终态失败释放",
+      "AC 2 满足：TaskPathDescriptor.worktreePath（:70）只作描述字段，checkTaskPathClash() 与 evaluatePathClashQueue() 全程不读它；AST 用例扫 path-clash.ts 源码，断言不存在以 worktree 为条件的 if/三元分支；运行期用例断言两侧各自有独立 worktree 时仍判冲突",
+      "AC 3 满足：getPathSegments()（:221）按 / 拆段，isPathClash()（:240）在 min(段数) 内逐段全等比对，任一不等即返回 false；model/order 与 model/orderitem 在第 2 段不等 → 不冲突；完全相同的路径与目录包含关系（model/order 对 model/order/item.ts）判冲突",
+      "E-46 已处理：同批（batchId 相同，sameBatchOnly 默认 true）两个任务 taskPaths 有交集时，后者进 blocked、queuedReason=path_conflict:〈taskKey〉:〈taskId〉:〈runId〉；worktree 隔离不参与放行；释放条件绑定终态，exited/reviewing/awaiting_human 都仍持有",
+      "框架约定核对：domain 纯函数、顶层零副作用，不碰 fs/db/net/子进程，不读 Date.now()/Math.random()/process.env/process.platform，不抛 throw new Error（只用 AppError 的 E_VALIDATION）；未跨层 import（只 import ../errors/app-error.ts 与同层 ./run-state-machine.ts，与 concurrency.ts 既有做法一致）；未开事务、未新增环境变量、未新增错误码；文件 kebab-case、无 barrel；常量 SCREAMING_SNAKE 加 as const；布尔 isXxx 命名",
+      "语义复核发现 1 处代码缺陷并由审查方修复（非契约问题）：原实现把「持有路径锁」写成 9 状态白名单，state 缺失或拼错时判不持有，等于对状态未知的在途任务 fail-open，会把两个任务同时放上同一批文件。现改为「只有 landed 与终态失败（failed/aborted/interrupted）释放，其余含缺失/未知一律持有」，状态词表直接从 run-state-machine.ts 的 RUN_STATES/TERMINAL_RUN_STATES 投影，不再重复声明，并补了「缺失/未知 state 仍持有」的回归用例",
+      "测试证据（在 task/M8-T2 工作树内跑）：npx vitest run packages/daemon/test/unit/path-clash.test.ts → 26/26 通过；与 M8-T1 的 concurrency.test.ts 同跑 47/47 通过；pnpm -w check（check-error-codes + check-contrast + check-forbidden + biome ci . + tsc -b --noEmit + vitest run）整仓 63 文件 / 696 通过 / 32 跳过 / 0 失败",
+      "回填：图谱/任务/M8-T2.md 的代码位置与实施沉淀已填，行号按本层最终代码校正（:24 状态投影、:47 持有判定）"
+    ],
+    "reviewed": "2026-09-12T07:18:05.925913+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M8-T4": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "03dc3c753234dd6969c18f7ad39f743b75c1d7f14dd35fe10ce6e43492dbe996",
