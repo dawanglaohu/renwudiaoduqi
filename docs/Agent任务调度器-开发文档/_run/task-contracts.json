@@ -536,6 +536,11 @@
         "packages/daemon/test/integration/agents-routes.test.ts",
         "packages/daemon/test/unit/agents-service.test.ts"
       ]
+    },
+    "M9-T3": {
+      "supportPaths": [
+        "packages/web/test/routes.test.ts"
+      ]
     }
   }
 }
