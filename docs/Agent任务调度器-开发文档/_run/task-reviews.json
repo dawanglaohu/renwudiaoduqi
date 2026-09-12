@@ -460,6 +460,25 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M6-T2": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "b6c689bc98031b281c3f74749ac5503af6efcbc5b23bb54ad9cd736210e779b2",
+    "evidence": [
+      "范围与依据核对：对照 04-执行/19-模块任务拆分.md:53 的 M6-T2 行、03-质量/13-边界问题与异常处理.md:155 的 E-142 行、03-质量/17-测试策略.md:7-33 的验收命令与架构断言要求，确认产出为 service/run.ts 的收流路径，输入为 M1-T4 的 logstore 与 M4 的归一化事件。前置 M6-T1（e55bf09，domain/run-state-machine.ts 的 13 状态迁移表在 main）、M1-T4（service/logstore.ts 追加写与索引）、M1-T8（proc 三档计时器与背压）均已落地于 main 918afd9。分支 task/M6-T2 相对 main 的改动为三个文件：packages/daemon/src/service/run.ts（新增）、packages/daemon/test/unit/run-service.test.ts（新增）、图谱/任务/M6-T2.md 的 code/notes 回填。",
+      "有效路径补齐（DOC_PATCH M6-T2-effective-test-paths）：本任务既定产出的单元测试 packages/daemon/test/unit/run-service.test.ts 原本不在有效路径内，已把 _run/presentation.json 的 handoff.taskPaths['M6-T2'] 由 1 条补为 2 条（run.ts + run-service.test.ts）。这是本次契约哈希变化的唯一原因；补丁 JSON 的 sourceChanges 只有 _run/presentation.json，sync 后 affected 列出的 M6-T3/M6-T4/M6-T8/M6-T9 是依赖方哈希传播，_run/revalidation.json 为空，没有已落地任务被标「待复验」。",
+      "验收标准 1（每条归一化事件一行 events.ndjson 全量原文、每条原始输出行一行 raw.log）：packages/daemon/src/service/run.ts:178 ingestRaw → logstore.appendRaw → run-writer.appendRawLine 追加 raw.log；run.ts:186 ingestEvent → logstore.appendEvent → service/logstore.ts:425 encodeEnvelope 按 {id,seq,ts,runId,taskId,scope,kind,actorDeviceId,payload} 原样序列化，不做任何截断；run.ts:223 ingestLine 恒先写 raw.log 再解析，非 JSON / 坏 JSON 只留 raw.log 并继续（E-140）。用例 test/unit/run-service.test.ts:169（AC 1）以 50 KiB payload 断言 events.ndjson 行内 payload.input 与原文逐字相等，并断言 raw.log 两行原文与行尾换行。",
+      "验收标准 2（events 索引表只收里程碑）：run.ts:186 ingestEvent 把「是否进索引」交给 logstore.appendEvent，由 service/logstore.ts:165 recordRunIndexes 用 isMilestone(envelope.kind)（默认 service/logstore.ts:102 的 isMilestoneEventKind）判定；agent_message_chunk / agent_thought_chunk / available_commands_update 只追加文件。用例 test/unit/run-service.test.ts:232 直接 SQL 查 events 表（SELECT kind,seq FROM events ORDER BY seq），断言 5 条事件（tool_call、3 条 *_chunk、plan）里只有 tool_call 与 plan 两行，同时断言 events.ndjson 有 5 行。",
+      "验收标准 3（事务回调内无 await 与异步副作用，发布在事务返回后）：run.ts:415-511 transitionState 把 runs 表更新与待发事件收进同步回调（pendingEvents.push，run.ts:483/495），回调内不出现 await、不写文件、不调 bus；run.ts:507 才 bus.publish。run.ts:194-205 ingestEvent 的 last_event_at 更新同为同步回调，run.ts:217 在其后发布。架构断言 packages/daemon/test/arch/bus-transaction.test.ts:140 扫全部生产文件，本轮实跑该文件 6/6 通过。",
+      "E-142（daemon 长跑内存增长）：run.ts 自身不持有任何按 run 累积的事件数组或 Map，事件落盘后即结束生命周期；run.ts:206-219 把带 locationRef 的事件交给 events/bus 的唯一全局环形缓冲（events/ring-buffer.ts:4 RING_BUFFER_CAPACITY=5000；超 32 KiB 由 events/ring-buffer.ts:96 sanitizeEnvelopeForBuffer 换成截断引用），历史回读只走 service/logstore.ts:244 readEventsPage 的字节偏移分段读；run.ts:517 closeRunStream 在进程退出路径释放 run writer（logstore 的 writers Map 条目见 service/logstore.ts:105）。用例 test/unit/run-service.test.ts:369 断言 50 条事件后内存侧只有环形缓冲、历史页从 logstore 分页读。",
+      "分层与共用约定：service/run.ts 的 import 只有 shared/api/events 与 daemon 的 db/domain/errors/events/logstore/proc/service 类型，不引 fastify、不出现 FastifyRequest/FastifyReply、不出现 SQL 字面量或 db.prepare（SQL 只在 repo/ 与 logstore 内），无 process.env/process.platform 直读，无 barrel、无新目录，actorDeviceId 以普通参数传入；错误一律走 AppError 且只用已登记错误码 E_VALIDATION（run.ts:180/191）、E_NOT_FOUND（run.ts:427）与 domain/run-state-machine.ts 的 E_INVALID_STATE_TRANSITION，未新增错误码。对账接口形状与已落地的 M1-T6 job 逐字段一致（jobs/reconcile-runs.ts:4 与 :28 对 run.ts:45 与 :71 起的方法集），接线方向由 job → service，未反向。",
+      "接口字段核对：RunServiceDeps{logstore,bus,envelopeFactory,unitOfWork,runsRepo,clock,ids,eventMapper}（run.ts:71）与 08 节「service 只经 DI 拿 repo/logstore/events」一致；ingestRaw/ingestEvent/ingestLine/attachProcess/transitionState/closeRunStream 覆盖收流路径，findInFlightRuns/markInterrupted/markOrphaned（run.ts:522/535/552）覆盖 M1-T6 对账接口；ReconcileRunRecord{id,taskId,pid,state}（run.ts:45）与 job 侧同名同型。13/17/19 节对 M6-T2 无额外字段要求。",
+      "本轮验证（WSL，Node 22.17.0 / vitest 2.1.9）：node_modules/.bin/biome ci 两个改动文件 → 2 files checked、无修复项；node_modules/.bin/tsc -b --noEmit → 退出 0；vitest run packages/daemon/test/unit/run-service.test.ts → 7/7 通过（AC1/AC2/AC3/E-142 四类断言全中）；vitest run packages/daemon/test/arch → 3 文件 16/16 通过。完整 pnpm -w check 属落地步骤的最小充分证据集，本轮未跑全量。",
+      "契约复核结论：验收标准、边界 E-142、有效路径（含补丁后的测试路径）、前置能力与接口字段都与最终任务包一致，无缺裁定、无需再改文档；审查发现的阻断项都是代码层实现问题（R1-R3，见 PR #54 的 REVIEW-ROUND 1 评论），按 rework 处理，不降契约、不重跑需求/架构。"
+    ],
+    "reviewed": "2026-09-12T04:27:18.106944+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M6-T5": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "9face4976a0ea9a06a90349dce92cc2ba2370e07c841292392b4cc46546f0704",
