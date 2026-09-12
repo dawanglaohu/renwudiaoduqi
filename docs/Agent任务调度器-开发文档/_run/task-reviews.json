@@ -311,15 +311,12 @@
     "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
     "contractHash": "e6a3a59d1da1b3ef0ca5968dacd59cb2f4cd2ea15f8f2d62bb66a2301ce3ec8f",
     "evidence": [
-      "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M4-T10 行与任务笔记，四条验收标准（--mode rpc 且不用第三方 ACP 桥接 / 禁用 readline 用 M1-T7 行读取器并配 U+2028 回归 / 只依赖 prompt-steer-abort-get_state 与 agent_settled / agent_settled 为运行结束信号）与两条边界 E-202、E-203 保持原文，未新增或放宽要求；产出 `adapters/pi/` 四件套（capabilities / build-launch-spec / client / map-events）落在既定路径。前置 M4-T3、M1-T8 已落地，status 只剩「待语义复核」。",
-      "依赖与契约：四个新文件只 import ../../domain/{permission-tier,effort-tier}.ts、../../errors/app-error.ts、../../proc/{line-reader,spawn,timers}.ts 与 @agent-scheduler/shared/api/events；不 import repo/service/db/http/events/jobs/workspace，符合「adapters 只产出数据结构、落库由 service 做」；不出现 process.env / process.platform / child_process / readline，厂商事件字符串只出现在 adapters/pi/map-events.ts 与 client.ts 的事件类型判定里；使用的 E_INTERNAL / E_TIMEOUT / E_AGENT_UNAVAILABLE 均在 packages/shared/src/errors/codes.ts 登记，无未登记 E_ 字面量，daemon 侧 message 为英文短句。",
-      "数据与接口：映射产出的 kind（agent_message_chunk / agent_thought_chunk / tool_call / tool_call_update / plan / run.started / run.exited / run.state_changed）全部在 packages/shared/src/api/events.ts 的 EVENT_DEFINITIONS 内，ACP 组保留原文 snake_case，厂商私有字段按 08 节塞 payload.vendor；客户端只暴露 prompt / steer / abort / get_state 四个命令，与 AC3 的「已验证最小子集」一致；envelope 的 id/ts/seq 未在适配器内自造，留给 events 工厂。",
-      "有效路径：taskPaths 原仅列 packages/daemon/src/adapters/pi/，实测实施方新增了本任务唯一单测 packages/daemon/test/unit/pi-adapter.test.ts（四条验收与两条边界全靠它本地验收，E-203 更是明确要求「须配一条含 U+2028 输出的回归用例」）。本轮按 M4-T3 / M1-T5 先例走 DOC_PATCH（M4-T10-review-scope-20260911）把该测试补进 supportPaths，未放行整个 test 目录或 adapters 目录，未触碰其他任务文件。",
-      "验收（契约可达性）：1) buildPiLaunchSpec 强制 --mode rpc 且 caps.mode/inputFormat/outputFormat 均为 rpc，不引第三方桥接；2) 客户端复用 proc/line-reader.ts 的 Buffer 行切分器，测试覆盖 U+2028/U+2029 与跨 chunk 边界；3) 命令联合类型收窄为四个命令，未知事件按 E-202 丢弃并计数；4) agent_settled 有独立分支作为会话结算信号。契约自洽、可实现、与 08/09 节不冲突，故 task-contract 复核为 pass。",
-      "边界（契约映射）：E-202→未知事件类型走 isKnownPiEventType 判定后丢弃并累加 tracker，绝不抛异常中断流；E-203→只按 0x0A 切分、剥尾部 \\r，禁用 Node readline（单测另有源码扫描断言）。两条边界均有对应契约位点。",
-      "代码层验收另计：本轮逐条核对代码后发现两项阻断缺陷——map-events 用 'completed'/'pending'/'idle' 等不在 09 节 13 个 RunState 内的取值发 run.state_changed，以及 agent_settled 伪造成 exitCode:0 的 run.exited（工具流更新又读 pi 不存在的 output 字段而非 partialResult），已作为 REVIEW-ROUND 1 的 R1/R2 退回实施方。本条复核只确认任务契约、边界归属与有效路径成立，不冒充代码验收通过。"
+      "本任务被标「待复验」的原因是补丁 M4-T8-support-paths-20260912 的基线快照取在 M4-T10 自己的 task-contracts.json 条目落地之前（该补丁 baseline 的 sourceContents['_run/task-contracts.json'] 里 M4-T10 为 null），不是本补丁改了 M4-T10 的条款",
+      "git 核对：新增 M4-T10 条目 {\"supportPaths\":[\"packages/daemon/test/unit/pi-adapter.test.ts\"]} 的提交是 main 上 M4-T10 自己的 6c9f3cf（M4-T10 文档补丁：补齐单测有效路径并登记契约复核）；M4-T8 的提交（ed7b6d3、c6ec8d0、edc0389、d67752b）未触碰任何 pi 路径",
+      "变化条款复核：M4-T10 的有效范围仍是 taskPaths packages/daemon/src/adapters/pi/ + supportPaths packages/daemon/test/unit/pi-adapter.test.ts，与其落地时登记的一致",
+      "结论：M4-T10 无需要复验的变化条款，原复核结论可继续沿用；标记来源是共享文件 task-contracts.json 的基线时间差"
     ],
-    "reviewed": "2026-09-12T01:27:26.466298+00:00",
+    "reviewed": "2026-09-12T04:56:36.840115+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -387,16 +384,12 @@
     "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
     "contractHash": "13a9f3e39cfe61686b961b813b28a9b98ecf48f8688183bee7142d863d602e19",
     "evidence": [
-      "19 节 M4-T8 行与任务卡一致：输入=codex exec --json 与 app-server 实测事件形状；产出=adapters/codex 的 buildLaunchSpec/readModels/map-events/capabilities；前置 M4-T3、M1-T8 均 status: done；解锁 M4-T12、M6-T6 尚未开工",
-      "有效路径补丁（M4-T8-support-paths-20260912）：本任务新增的验收/架构测试 packages/daemon/test/unit/codex-adapter.test.ts 原不在有效范围，按派发提示词「测试必须列在有效范围」补进 supportPaths；已 grep 全 task-contracts.json，无其它任务声明该文件，无路径冲突",
-      "验收 1)-4) 都有落点：build-launch-spec.ts:40 默认 app-server、:73 起 exec 退路；map-events.ts:342 起两通道共用归一化；capabilities.ts:14/:19 能力位与 adapterKind 收窄；codex-adapter.test.ts 20 个用例独立跑绿",
-      "E-186 三句归属核对：数据层 adapterKind 切换（config/registry.ts 已支持）+ 能力位收窄（capabilities.ts:29）+ isAcp 标注（build-launch-spec.ts:104）在 M4-T8 可达范围；「在途任务按 E-02 标失联」不在 adapters/codex/ 可达范围，由 E-02 的覆盖任务（M1-T6 对账、M6-T5 中止与状态落定）与 M4-T1 的「adapterKind 热切换必须校验无在途运行」共同承担",
-      "框架约定核对：map-events.ts 为纯函数、不碰 fs/db/clock；adapters 未 import repo/service；无 process.env / process.platform；无 throw new Error；文件 kebab-case、无 barrel；事件 kind 沿用 shared/api/events.ts 命名形状（ACP 组 snake_case、本产品组 <scope>.<过去式>），厂商私有字段进 payload.vendor",
-      "检查：pnpm -w check 中 biome ci 与 tsc -b --noEmit 通过；npx vitest run packages/daemon/test/unit/codex-adapter.test.ts 20/20 通过",
-      "环境说明：整仓 vitest 全量跑时 disk-full-and-system-routes.test.ts 因同机另有会话的 vitest 并发（loadavg 10+）触发 5000ms 默认超时；该用例 body 实测 82-193ms 即返回 200，放宽超时后 2/2 通过，且与 M4-T8 diff 无调用关系（适配器未被 daemon 路径 import），非本任务阻断项",
-      "语义复核：首轮发现 5 条阻断（R1 exec item 类型未归一、R2 app-server 权限键 sandbox 无效、R3 turn/completed 推定成功、R4 未知 item 类型不计数、R5 厂商字符串清单不全），第 2 轮逐条复核已修复（R1 的 reasoning item 由审查方补齐，见 FIXED_BY_REVIEWER），33 个用例、biome ci 与 tsc -b --noEmit 均通过"
+      "变化条款：本任务被标「待复验」的 changedFields 是 definition/effectivePaths，来源是补丁 M4-T8-support-paths-20260912 本身新增的 supportPaths packages/daemon/test/unit/codex-adapter.test.ts；该补丁的证据与复核在 _run/M4-T8.evidence.json，本轮第 2 轮审查已按修正后的有效范围逐条验收",
+      "代码未受后续 main 合并影响：合并 M4-T10（fdc40d7）后，codex 路径在本分支的改动只有审查方的 d67752b（map-events.ts +31 行、codex-adapter.test.ts +20 行，即 exec reasoning item 归一化与用例），merge 未修改适配器代码",
+      "验收证据：npx vitest run packages/daemon/test/unit/codex-adapter.test.ts 33/33 通过；npx biome ci . 通过；npx tsc -b --noEmit 通过",
+      "结论：无新增需复验的条款，原复核结论可继续沿用"
     ],
-    "reviewed": "2026-09-12T04:15:43.108897+00:00",
+    "reviewed": "2026-09-12T04:52:08.892975+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -409,7 +402,7 @@
       "变化条款复核：M4-T9 的有效范围仍是 taskPaths packages/daemon/src/adapters/claude/ + supportPaths packages/daemon/test/unit/claude-adapter.test.ts，与其落地时登记的一致；M4-T8 自己的提交（ed7b6d3、c6ec8d0、edc0389）改动路径里没有任何 claude 路径（git show --name-only ed7b6d3 c6ec8d0 edc0389 | grep -i claude 为空）",
       "结论：M4-T9 无需要复验的变化条款，原复核结论可继续沿用；标记来源是共享文件 task-contracts.json 的基线时间差"
     ],
-    "reviewed": "2026-09-12T04:25:41.003994+00:00",
+    "reviewed": "2026-09-12T04:54:18.965569+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
