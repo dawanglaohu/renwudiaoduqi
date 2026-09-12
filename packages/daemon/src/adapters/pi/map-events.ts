@@ -129,26 +129,14 @@ export function mapPiEvents(
 	const envelopes: EventEnvelopeInput[] = [];
 
 	switch (eventType) {
-		// AC 4 & E-202: `agent_settled` mapped to run completion signal
+		// AC 4 & E-202: `agent_settled` mapped to run completion signal (R1, R2)
 		case 'agent_settled': {
 			envelopes.push({
 				kind: 'run.state_changed',
 				payload: {
 					from: 'running',
-					to: 'completed',
+					to: 'exited',
 					reason: 'agent_settled',
-					vendor: data,
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
-			envelopes.push({
-				kind: 'run.exited',
-				payload: {
-					exitCode: 0,
-					signal: null,
 					vendor: data,
 				},
 				runId,
@@ -171,54 +159,12 @@ export function mapPiEvents(
 				actorDeviceId,
 				scope: 'run',
 			});
-			envelopes.push({
-				kind: 'run.state_changed',
-				payload: {
-					from: 'pending',
-					to: 'running',
-					vendor: data,
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
 			break;
 		}
 
-		case 'turn_start': {
-			envelopes.push({
-				kind: 'run.state_changed',
-				payload: {
-					from: 'idle',
-					to: 'running',
-					reason: 'turn_start',
-					vendor: data,
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
+		case 'turn_start':
+		case 'turn_end':
 			break;
-		}
-
-		case 'turn_end': {
-			envelopes.push({
-				kind: 'run.state_changed',
-				payload: {
-					from: 'running',
-					to: 'idle',
-					reason: 'turn_end',
-					vendor: data,
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
-			break;
-		}
 
 		case 'message_update': {
 			// Check for assistantMessageEvent nesting from Pi RPC
@@ -307,7 +253,7 @@ export function mapPiEvents(
 				kind: 'tool_call_update',
 				payload: {
 					callId: callId || undefined,
-					output: data.output,
+					output: data.partialResult ?? data.output,
 					vendor: data,
 				},
 				runId,

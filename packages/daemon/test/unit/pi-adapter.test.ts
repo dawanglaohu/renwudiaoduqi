@@ -425,25 +425,18 @@ describe('M4-T10: pi 原生适配器（RPC 模式）', () => {
 	});
 
 	describe('4) agent_settled 映射为运行结束信号 (AC 4)', () => {
-		it('mapPiEvents maps agent_settled to run.exited and run.state_changed', () => {
+		it('mapPiEvents maps agent_settled to run.state_changed with to:exited (R1, R2)', () => {
 			const rawEvent = { type: 'agent_settled' };
 			const envelopes = mapPiEvents(rawEvent, { runId: 'run-settle-1' });
 
-			expect(envelopes.length).toBe(2);
+			expect(envelopes.length).toBe(1);
 
-			const stateChanged = envelopes.find((e) => e.kind === 'run.state_changed');
-			expect(stateChanged).toBeDefined();
+			const stateChanged = envelopes[0];
+			expect(stateChanged?.kind).toBe('run.state_changed');
 			expect(stateChanged?.payload).toMatchObject({
 				from: 'running',
-				to: 'completed',
+				to: 'exited',
 				reason: 'agent_settled',
-			});
-
-			const runExited = envelopes.find((e) => e.kind === 'run.exited');
-			expect(runExited).toBeDefined();
-			expect(runExited?.payload).toMatchObject({
-				exitCode: 0,
-				signal: null,
 			});
 		});
 
@@ -466,6 +459,43 @@ describe('M4-T10: pi 原生适配器（RPC 模式）', () => {
 	});
 
 	describe('5) event mapping: tool execution, plan, and streaming text', () => {
+		it('maps agent_start only to run.started without state_changed (R1)', () => {
+			const envelopes = mapPiEvents({ type: 'agent_start' }, { runId: 'run-start-1' });
+			expect(envelopes.length).toBe(1);
+			expect(envelopes[0]?.kind).toBe('run.started');
+		});
+
+		it('turn_start and turn_end do not emit run.state_changed (R1)', () => {
+			expect(mapPiEvents({ type: 'turn_start' })).toEqual([]);
+			expect(mapPiEvents({ type: 'turn_end' })).toEqual([]);
+		});
+
+		it('maps tool_execution_update reading partialResult or fallback output (R3)', () => {
+			const withPartial = mapPiEvents({
+				type: 'tool_execution_update',
+				toolCallId: 'call_1',
+				partialResult: 'partial output text',
+			});
+			expect(withPartial.length).toBe(1);
+			expect(withPartial[0]?.kind).toBe('tool_call_update');
+			expect(withPartial[0]?.payload).toMatchObject({
+				callId: 'call_1',
+				output: 'partial output text',
+			});
+
+			const withOutputFallback = mapPiEvents({
+				type: 'tool_execution_update',
+				toolCallId: 'call_2',
+				output: 'fallback output text',
+			});
+			expect(withOutputFallback.length).toBe(1);
+			expect(withOutputFallback[0]?.kind).toBe('tool_call_update');
+			expect(withOutputFallback[0]?.payload).toMatchObject({
+				callId: 'call_2',
+				output: 'fallback output text',
+			});
+		});
+
 		it('maps tool_execution_start to tool_call and tool_execution_end to tool_call_update', () => {
 			const startEnvelopes = mapPiEvents({
 				type: 'tool_execution_start',
