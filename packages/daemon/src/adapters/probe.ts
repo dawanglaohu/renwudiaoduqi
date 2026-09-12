@@ -1,5 +1,11 @@
 import { constants as fsConstants } from 'node:fs';
-import { access as nodeAccess, realpath as nodeRealpath, stat as nodeStat } from 'node:fs/promises';
+import {
+	access as nodeAccess,
+	lstat as nodeLstat,
+	readlink as nodeReadlink,
+	realpath as nodeRealpath,
+	stat as nodeStat,
+} from 'node:fs/promises';
 import { isAbsolute, join, normalize, delimiter as pathDelimiter, win32 } from 'node:path';
 import type { AgentConfig, ResolvedAgentConfig } from '../config/defaults.ts';
 import type {
@@ -120,6 +126,8 @@ export interface ProbeAgentResult {
 		readonly execPath?: string;
 		readonly checkedPaths?: readonly string[];
 		readonly reason?: string;
+		readonly originalPath?: string;
+		readonly resolvedPath?: string;
 	};
 }
 
@@ -204,10 +212,10 @@ export interface ProbeAgentOptions {
 const DEFAULT_FILE_SYSTEM: ExecutableFileSystem & {
 	readonly realpath: (path: string) => Promise<string>;
 } = Object.freeze({
-	stat: nodeStat,
-	lstat: nodeStat,
-	readlink: async (path: string) => path,
+	lstat: nodeLstat,
+	readlink: nodeReadlink,
 	realpath: nodeRealpath,
+	stat: nodeStat,
 	access: nodeAccess,
 });
 
@@ -397,6 +405,10 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 					execPath: targetExecutablePath,
 					checkedPaths:
 						(resolved.error.details.checkedPaths as readonly string[]) ?? Object.freeze([]),
+					originalPath: (resolved.error.details as { readonly originalPath?: string })
+						?.originalPath,
+					resolvedPath: (resolved.error.details as { readonly resolvedPath?: string })
+						?.resolvedPath,
 				}),
 			});
 		}
@@ -417,6 +429,8 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 				execPath: targetExecutablePath,
 				checkedPaths:
 					(resolved.error.details.checkedPaths as readonly string[]) ?? Object.freeze([]),
+				originalPath: (resolved.error.details as { readonly originalPath?: string })?.originalPath,
+				resolvedPath: (resolved.error.details as { readonly resolvedPath?: string })?.resolvedPath,
 			}),
 		});
 	}

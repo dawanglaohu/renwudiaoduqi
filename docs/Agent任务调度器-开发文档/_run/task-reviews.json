@@ -356,6 +356,25 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T4": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "6ef3db32ce3e107dece104cc74e130a4fbe7c997eca7abc5c30762d8732a409f",
+    "evidence": [
+      "任务与前置：核对 04-执行/19-模块任务拆分.md 的 M4-T4 行、图谱/任务/M4-T4.md 与 PR 51 的 diff。前置 M4-T3（版本指纹探测与可执行路径解析）已落地——packages/daemon/src/adapters/probe.ts 提供 probeAgent/createFingerprintCache/ProbeAgentResult，本任务的 service/agents.ts:20-31 只消费它，没有自己重造探测或路径解析；M4-T3 的 probe.test.ts 覆盖 E-195/E-196/E-198/E-199。",
+      "产出核对：三条都在。启动期探测——boot/container.ts:205 建 createAgentService、:213 在 listen 之前起 start()，service/agents.ts:375 probeAll 逐 agent 探测、:399 ensureInitialized 让首个请求等待探测完成；agent.availability_changed 事件——service/agents.ts:346 recordAndPublishAvailability 只在首次或可用性翻转时发布；四个端点——http/routes/agents.ts:79/98/116/157 的 GET /agents、PATCH /agents/:agentId、POST /agents/:agentId/probe、GET /agents/:agentId/models，对应 shared/api/routes.ts:258/266/276/291 已有条目，arch/routes.test.ts 的「实际注册集合 === ROUTES 表」断言通过。",
+      "验收 1（E-29、E-40）：不在 PATH 的 agent 由 probeAgent 返回 status='not-found' + E_AGENT_EXEC_NOT_FOUND，service/agents.ts:265-281 映射为 isAvailable=false/canDispatch=false 并填 unavailableReason 与 missingRequirements，toAgentEntryDto:122 把它们放进 DTO 供 UI 置灰写原因；派发前失败由 assertCanDispatch:625 抛 E_AGENT_UNAVAILABLE/E_AGENT_VERSION_UNRECOGNIZED，不等到起进程。审查方在 Node 22.17.0 下实跑真实 PATH：grok 未安装 → isAvailable=false、unavailableCode=E_AGENT_EXEC_NOT_FOUND、missingRequirements 非空；pi 输出不匹配指纹 → E_AGENT_VERSION_UNRECOGNIZED。",
+      "验收 2（E-88、E-262、E-263）：路径无效与不可执行的类型化原因由 service/agents.ts:231-264 的两条映射分支给出，各 agent 之间由 probeAll:381 的 Promise.allSettled 加 probeSingleAgent:225 的 try/catch 隔离，单个 agent 失败不影响其余；「点击跳到该项配置」由 DTO 的 id/execPath 承载，交给 M9-T14 消费。审查方用真实临时目录实跑：0o644 的 POSIX 可执行文件 → E_AGENT_EXEC_NOT_EXECUTABLE 且带 execPath；但「符号链接目标不存在」实测返回 E_AGENT_EXEC_NOT_FOUND 而非 E-263 要求的 E_AGENT_EXEC_INVALID_TARGET，且解析目标未进 DTO——已作为 R1 打回。",
+      "验收 3（E-201）：PATH 上的 pi 指向别的程序时，probeAgent 走 status='unrecognized' + E_AGENT_VERSION_UNRECOGNIZED，service/agents.ts:282-290 标 unavailable、把实测串与期望模式留在 errorDetails 并给出手填路径要求，assertCanDispatch:642 以 E_AGENT_VERSION_UNRECOGNIZED 抛错，不存在按错误参数静默派发的分支。",
+      "接口字段与 10 节一致：PATCH body 的 defaultModel/maxConcurrency/permissionTier/execPath/monogram 与 02-设计/10-接口约定.md:34 相同，updateAgentBodySchema 为 additionalProperties:false 且与 UpdateAgentBody 键清单同名对应；monogram 唯一性（service/agents.ts:466-485）与 permissionTier 值域（:486-494）在服务端复核；probe 出参只有 {status, versionString, matched}，models 出参 {models, source, isComplete}，与 10 节表一致；错误码 E_NOT_FOUND/E_AGENT_UNAVAILABLE/E_AGENT_VERSION_UNRECOGNIZED/E_AGENT_EXEC_NOT_FOUND/E_AGENT_EXEC_NOT_EXECUTABLE/E_AGENT_EXEC_INVALID_TARGET 均已登记在 packages/shared/src/errors/codes.ts。",
+      "有效范围补丁（m4-t4-effective-paths）：原 handoff.taskPaths 只列 packages/daemon/src/service/agents.ts，而本任务既定产出必需的 http/routes/agents.ts（四个端点）、http/plugins/50-routes.ts 与 boot/container.ts（接线）、packages/shared/src/api/agents.ts（DTO 的不可用原因字段）、两个测试文件都缺列；再加 adapters/probe.ts 与 config/registry.ts——前者是 E-262/E-263 类型化错误码的唯一来源，后者按 06/08 禁令是 agents.json 的唯一读写归属。已按审查方职责定点补齐 source 配置（_run/task-contracts.json）并核对无与其他任务冲突，改动范围按修正后的 8+1 条路径验收。",
+      "分层与共用约定（06/08）：http/routes/agents.ts 只经 request.server.container.services.agents 取服务，未直连 repo/adapters/proc；service/agents.ts 不 import fastify、不出现 process.env/process.platform/Date.now（时间走注入 clock）、无 SQL 字面量与事务；厂商事件字符串未出现在 service/http；错误一律 AppError + 已登记 code，message 为英文开发者短句。审查方顺手改掉的一处中文回落文案见 FIXED_BY_REVIEWER。",
+      "本轮结论：任务契约本身（前置、产出、三条验收与六个边界、接口字段、有效范围）无阻断，故登记 task-contract 复核为 pass；代码侧存在 R1（E-263 端到端类型码与解析目标）与 R2（agents.json 绕过注册表读写导致静默失败与用户配置丢失）两项阻断，已随 REVIEW-ROUND 1 打回，落地等返工后复验。",
+      "验证环境与结果：Node 22.17.0（WSL）。npx biome ci . 检查 214 个文件无修复项；npx tsc -b --noEmit 通过；聚焦 Vitest 通过——test/unit/agents-service.test.ts 8/8、test/integration/agents-routes.test.ts 4/4、test/arch/{routes,boot-boundaries,bus-transaction}.test.ts 16/16。"
+    ],
+    "reviewed": "2026-09-12T01:48:41.719811+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T5": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "208362e6f73e450da5aa35c305592c3d91e702dad04d3744fd86fb7e5a25f6e3",
@@ -582,6 +601,25 @@
       "2026-09-11 全量核查：check-contrast、check-forbidden、biome ci（193 文件）、tsc -b --noEmit 通过；pnpm -w check 整体退出码 1，唯一阻断是 check-error-codes（10 节新增三码尚未投影到 codes.ts，归未落地的 M8-T6/M8-T7）；vitest（WSL Ubuntu 20.04，better-sqlite3 源码编译）571 例：534 通过 / 5 失败 / 32 跳过，5 个失败全部是 M2-T6 AC5 与 M3-T1/M3-T2 硬编码 78 个任务数的用例，与本任务无关；本任务测试文件：packages/daemon/test/unit/concurrency.test.ts 21 通过/0 失败/0 跳过"
     ],
     "reviewed": "2026-09-11T02:46:02.418201+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M8-T2": {
+    "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
+    "contractHash": "0dc7abef7876e8ee77e3c1c3748b70ccd72054b7200ba723d9bb83895a557430",
+    "evidence": [
+      "19 节 M8-T2 行与任务卡一致：输入＝M8-T1 与 taskPaths；产出＝冲突判定与队列；前置 M8-T1 status: done；解锁 M8-T3、M9-T18 尚未开工，未叠在本层之上；边界只有 E-46",
+      "有效路径补丁（M8-T2-support-paths-20260912）：本任务必有单元测试 packages/daemon/test/unit/path-clash.test.ts 原不在有效范围，按任务定义补进 supportPaths（M8-T1 已同样把 concurrency.test.ts 列入），补后提示词的有效范围为本任务源码 + 该测试文件；与 M8-T7 已声明的同名测试文件不构成同时并发的冲突（M8-T7 依赖本任务，本层落地后它才开工）",
+      "AC 1 满足：evaluatePathClashQueue()（packages/daemon/src/domain/path-clash.ts:521）先按 isTaskPathHolding()（:47）过滤在途任务，再经 checkTaskPathClash()（:456）对每个候选判定；与在途任务或已入选候选有路径交集者进 blocked 并带 queuedReason（:364），不进 dispatchable。exited 属持有集合 → 后者排队；只有 landed 或终态失败释放",
+      "AC 2 满足：TaskPathDescriptor.worktreePath（:70）只作描述字段，checkTaskPathClash() 与 evaluatePathClashQueue() 全程不读它；AST 用例扫 path-clash.ts 源码，断言不存在以 worktree 为条件的 if/三元分支；运行期用例断言两侧各自有独立 worktree 时仍判冲突",
+      "AC 3 满足：getPathSegments()（:221）按 / 拆段，isPathClash()（:240）在 min(段数) 内逐段全等比对，任一不等即返回 false；model/order 与 model/orderitem 在第 2 段不等 → 不冲突；完全相同的路径与目录包含关系（model/order 对 model/order/item.ts）判冲突",
+      "E-46 已处理：同批（batchId 相同，sameBatchOnly 默认 true）两个任务 taskPaths 有交集时，后者进 blocked、queuedReason=path_conflict:〈taskKey〉:〈taskId〉:〈runId〉；worktree 隔离不参与放行；释放条件绑定终态，exited/reviewing/awaiting_human 都仍持有",
+      "框架约定核对：domain 纯函数、顶层零副作用，不碰 fs/db/net/子进程，不读 Date.now()/Math.random()/process.env/process.platform，不抛 throw new Error（只用 AppError 的 E_VALIDATION）；未跨层 import（只 import ../errors/app-error.ts 与同层 ./run-state-machine.ts，与 concurrency.ts 既有做法一致）；未开事务、未新增环境变量、未新增错误码；文件 kebab-case、无 barrel；常量 SCREAMING_SNAKE 加 as const；布尔 isXxx 命名",
+      "语义复核发现 1 处代码缺陷并由审查方修复（非契约问题）：原实现把「持有路径锁」写成 9 状态白名单，state 缺失或拼错时判不持有，等于对状态未知的在途任务 fail-open，会把两个任务同时放上同一批文件。现改为「只有 landed 与终态失败（failed/aborted/interrupted）释放，其余含缺失/未知一律持有」，状态词表直接从 run-state-machine.ts 的 RUN_STATES/TERMINAL_RUN_STATES 投影，不再重复声明，并补了「缺失/未知 state 仍持有」的回归用例",
+      "测试证据（在 task/M8-T2 工作树内跑）：npx vitest run packages/daemon/test/unit/path-clash.test.ts → 26/26 通过；与 M8-T1 的 concurrency.test.ts 同跑 47/47 通过；pnpm -w check（check-error-codes + check-contrast + check-forbidden + biome ci . + tsc -b --noEmit + vitest run）整仓 63 文件 / 696 通过 / 32 跳过 / 0 失败",
+      "回填：图谱/任务/M8-T2.md 的代码位置与实施沉淀已填，行号按本层最终代码校正（:24 状态投影、:47 持有判定）"
+    ],
+    "reviewed": "2026-09-12T07:18:05.925913+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { ProcessConfig } from '../config/env.ts';
+import { type AgentRegistry, createAgentRegistry } from '../config/registry.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { createUnitOfWork } from '../db/unit-of-work.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
@@ -17,6 +18,7 @@ import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
 import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
+import { type AgentService, createAgentService } from '../service/agents.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
@@ -48,6 +50,7 @@ export interface ContainerServices {
 	readonly runAbort: RunAbortService;
 	readonly pairing: PairingService;
 	readonly docs: DocsService;
+	readonly agents: AgentService;
 }
 
 export interface AppContainer {
@@ -90,6 +93,8 @@ export function createContainer(input: {
 	readonly pairingService?: PairingService;
 	readonly docsService?: DocsService;
 	readonly documentsRepo?: DocumentsRepo;
+	readonly agentRegistry?: AgentRegistry;
+	readonly agentService?: AgentService;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
 }): AppContainer {
@@ -172,11 +177,47 @@ export function createContainer(input: {
 			hostInputs: input.hostInputs,
 		});
 
+	const agentRegistry =
+		input.agentRegistry ??
+		createAgentRegistry({
+			dataDir: input.config.dataDir,
+			platform: input.hostInputs.platform === 'win32' ? 'win32' : 'posix',
+			publishWarning: (warning) => {
+				const envelope = envelopeFactory.createEnvelope({
+					kind: 'agent.availability_changed',
+					payload: {
+						agentId: warning.agentId ?? 'system',
+						available: false,
+						reason: warning.message,
+						vendor: {
+							severity: warning.severity,
+							reason: warning.reason,
+							configPath: warning.configPath,
+						},
+					},
+				});
+				bus.publish(envelope);
+			},
+		});
+
+	const agentService =
+		input.agentService ??
+		createAgentService({
+			registry: agentRegistry,
+			hostInputs: input.hostInputs,
+			bus,
+			envelopeFactory,
+			clock: input.clock,
+		});
+
+	void agentService.start();
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
 		pairing: pairingService,
 		docs: docsService,
+		agents: agentService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([]);
