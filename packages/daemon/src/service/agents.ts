@@ -236,7 +236,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			unavailableReason =
 				probeResult.warningBanner?.message ??
 				probeResult.errorDetails?.reason ??
-				'不可用（路径无效）';
+				'Configured executable path is not usable.';
 
 			if (code === 'E_AGENT_EXEC_NOT_EXECUTABLE') {
 				isAvailable = false;
