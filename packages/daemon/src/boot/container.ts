@@ -177,22 +177,11 @@ export function createContainer(input: {
 			hostInputs: input.hostInputs,
 		});
 
-	const isFixtureDir = input.config.dataDir.includes('fixtures');
 	const agentRegistry =
 		input.agentRegistry ??
 		createAgentRegistry({
 			dataDir: input.config.dataDir,
 			platform: input.hostInputs.platform === 'win32' ? 'win32' : 'posix',
-			fileSystem: isFixtureDir
-				? {
-						readUtf8File: async () => '{}',
-						writeUtf8File: async () => undefined,
-						watchDirectory: () => {
-							const watcher = { close: () => undefined, on: () => watcher };
-							return watcher;
-						},
-					}
-				: undefined,
 			publishWarning: (warning) => {
 				const envelope = envelopeFactory.createEnvelope({
 					kind: 'agent.availability_changed',

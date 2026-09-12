@@ -1,4 +1,3 @@
-import { readFile, writeFile } from 'node:fs/promises';
 import type {
 	AgentEntryDto,
 	ListAgentModelsResponse,
@@ -103,18 +102,9 @@ function getAgentDisplayName(agentId: string): string {
 	return AGENT_DISPLAY_NAMES[agentId] ?? agentId;
 }
 
-const DEFAULT_FS = Object.freeze({
-	readUtf8File: (filePath: string) => readFile(filePath, 'utf8'),
-	writeUtf8File: (filePath: string, contents: string) => writeFile(filePath, contents, 'utf8'),
-});
-
 export function createAgentService(deps: AgentServiceDeps): AgentService {
 	const clock = deps.clock ?? Object.freeze({ now: () => new Date().toISOString() });
 	const cache = deps.cache ?? createFingerprintCache();
-	const fileSystem = Object.freeze({
-		readUtf8File: deps.fileSystem?.readUtf8File ?? DEFAULT_FS.readUtf8File,
-		writeUtf8File: deps.fileSystem?.writeUtf8File ?? DEFAULT_FS.writeUtf8File,
-	});
 	const availabilityMap = new Map<string, AgentAvailabilityState>();
 
 	if (typeof deps.registry.onReload === 'function') {
