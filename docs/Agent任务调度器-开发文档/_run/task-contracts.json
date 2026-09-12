@@ -505,6 +505,11 @@
         "pnpm-lock.yaml"
       ]
     },
+    "M4-T10": {
+      "supportPaths": [
+        "packages/daemon/test/unit/pi-adapter.test.ts"
+      ]
+    },
     "M4-T11": {
       "supportPaths": [
         "packages/daemon/test/unit/grok-adapter.test.ts"

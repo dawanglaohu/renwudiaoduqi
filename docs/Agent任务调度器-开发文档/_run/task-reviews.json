@@ -307,15 +307,19 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
-  "M4-T11": {
+  "M4-T10": {
     "compiler": "9b8a80cc104a5d2ca17dfa4f9c8cfd395aa97f9e5d68f09c06b442e36ec25338",
-    "contractHash": "d8abed44515914e34111c3339af9175594438e6b7ec73478d8fd96c4027b2874",
+    "contractHash": "e6a3a59d1da1b3ef0ca5968dacd59cb2f4cd2ea15f8f2d62bb66a2301ce3ec8f",
     "evidence": [
-      "契约逐条核对：04-执行/19-模块任务拆分.md 的 M4-T11 行、图谱/任务/M4-T11.md、图谱/模块/M4.md 与 03-质量/13-边界问题与异常处理.md 的 E-26 行一致；产出为 adapters/grok/ 的 buildLaunchSpec / map-events / capabilities / sessions（read-models.ts 由已落地 M4-T5 提供），输入为 --output-format streaming-json 与 grok sessions/export，前置 M4-T3、M1-T8 均已在 main 落地，无新增错误码、无新增环境变量、无接口契约变化。",
-      "有效路径核对：presentation.json 的 handoff.taskPaths['M4-T11'] 为 packages/daemon/src/adapters/grok/；分支实际改动为该目录四个源文件 + 任务笔记回填 + 新增单测 packages/daemon/test/unit/grok-adapter.test.ts。单测是本任务既定产出的必要支持文件（17-测试策略要求 adapters/*/map-events.ts 与 domain 强制单测，E-26 需用例），先例见 M5-T1/M5-T2/M10-T1 把各自单测列进 supportPaths，故本次以补丁 M4-T11-review-scope-20260912 增列该路径；与仓库内其他任务的有效路径无交集（当前在途的 M4-T8/M4-T9/M4-T10 各写自己的 adapters 子目录），sync 未把任何已落地任务标为待复验。",
-      "架构约定核对：adapters/grok 只 import domain/ 与 proc/ 的类型、platform/（read-models 已有），不 import repo/service/http/events/jobs，符合 08 节「proc 与 adapters 只产出数据结构」；文件命名 kebab-case，无 barrel，常量 as const，无 process.env/process.platform 直读，错误一律 AppError（sessions.ts 用 E_VALIDATION/E_INTERNAL）。语义层面的缺陷（ACP 事件形状、启动参数渲染、运行级事件）记在 PR #53 的 REVIEW-ROUND 1 返工条目里，不改任务定义、不降验收标准。"
+      "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M4-T10 行与任务笔记，四条验收标准（--mode rpc 且不用第三方 ACP 桥接 / 禁用 readline 用 M1-T7 行读取器并配 U+2028 回归 / 只依赖 prompt-steer-abort-get_state 与 agent_settled / agent_settled 为运行结束信号）与两条边界 E-202、E-203 保持原文，未新增或放宽要求；产出 `adapters/pi/` 四件套（capabilities / build-launch-spec / client / map-events）落在既定路径。前置 M4-T3、M1-T8 已落地，status 只剩「待语义复核」。",
+      "依赖与契约：四个新文件只 import ../../domain/{permission-tier,effort-tier}.ts、../../errors/app-error.ts、../../proc/{line-reader,spawn,timers}.ts 与 @agent-scheduler/shared/api/events；不 import repo/service/db/http/events/jobs/workspace，符合「adapters 只产出数据结构、落库由 service 做」；不出现 process.env / process.platform / child_process / readline，厂商事件字符串只出现在 adapters/pi/map-events.ts 与 client.ts 的事件类型判定里；使用的 E_INTERNAL / E_TIMEOUT / E_AGENT_UNAVAILABLE 均在 packages/shared/src/errors/codes.ts 登记，无未登记 E_ 字面量，daemon 侧 message 为英文短句。",
+      "数据与接口：映射产出的 kind（agent_message_chunk / agent_thought_chunk / tool_call / tool_call_update / plan / run.started / run.exited / run.state_changed）全部在 packages/shared/src/api/events.ts 的 EVENT_DEFINITIONS 内，ACP 组保留原文 snake_case，厂商私有字段按 08 节塞 payload.vendor；客户端只暴露 prompt / steer / abort / get_state 四个命令，与 AC3 的「已验证最小子集」一致；envelope 的 id/ts/seq 未在适配器内自造，留给 events 工厂。",
+      "有效路径：taskPaths 原仅列 packages/daemon/src/adapters/pi/，实测实施方新增了本任务唯一单测 packages/daemon/test/unit/pi-adapter.test.ts（四条验收与两条边界全靠它本地验收，E-203 更是明确要求「须配一条含 U+2028 输出的回归用例」）。本轮按 M4-T3 / M1-T5 先例走 DOC_PATCH（M4-T10-review-scope-20260911）把该测试补进 supportPaths，未放行整个 test 目录或 adapters 目录，未触碰其他任务文件。",
+      "验收（契约可达性）：1) buildPiLaunchSpec 强制 --mode rpc 且 caps.mode/inputFormat/outputFormat 均为 rpc，不引第三方桥接；2) 客户端复用 proc/line-reader.ts 的 Buffer 行切分器，测试覆盖 U+2028/U+2029 与跨 chunk 边界；3) 命令联合类型收窄为四个命令，未知事件按 E-202 丢弃并计数；4) agent_settled 有独立分支作为会话结算信号。契约自洽、可实现、与 08/09 节不冲突，故 task-contract 复核为 pass。",
+      "边界（契约映射）：E-202→未知事件类型走 isKnownPiEventType 判定后丢弃并累加 tracker，绝不抛异常中断流；E-203→只按 0x0A 切分、剥尾部 \\r，禁用 Node readline（单测另有源码扫描断言）。两条边界均有对应契约位点。",
+      "代码层验收另计：本轮逐条核对代码后发现两项阻断缺陷——map-events 用 'completed'/'pending'/'idle' 等不在 09 节 13 个 RunState 内的取值发 run.state_changed，以及 agent_settled 伪造成 exitCode:0 的 run.exited（工具流更新又读 pi 不存在的 output 字段而非 partialResult），已作为 REVIEW-ROUND 1 的 R1/R2 退回实施方。本条复核只确认任务契约、边界归属与有效路径成立，不冒充代码验收通过。"
     ],
-    "reviewed": "2026-09-12T01:10:50.787907+00:00",
+    "reviewed": "2026-09-12T01:27:26.466298+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
