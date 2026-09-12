@@ -1,9 +1,12 @@
 import { type EffortTier, isEffortTier, resolveEffortMapping } from '../../domain/effort-tier.ts';
+import { renderLaunchTemplate, validateLaunchTemplate } from '../../domain/launch-template.ts';
+import { applyModelToArgsTemplate } from '../../domain/model-selection.ts';
 import {
 	type PermissionTier,
 	isPermissionTier,
 	resolvePermissionMapping,
 } from '../../domain/permission-tier.ts';
+import { AppError } from '../../errors/app-error.ts';
 import type { LaunchSpec } from '../../proc/spawn.ts';
 import type { LaunchTimeouts } from '../../proc/timers.ts';
 
@@ -15,6 +18,7 @@ export interface BuildGrokLaunchSpecOptions {
 	readonly promptFile?: string;
 	readonly model?: string | null;
 	readonly sessionId?: string | null;
+	readonly sessionDir?: string | null;
 	readonly worktree?: string;
 	readonly worktreeRef?: string;
 	readonly permissionTier?: PermissionTier;
@@ -36,44 +40,40 @@ export interface BuildGrokLaunchSpecOptions {
  * AC 4: Does not perform executable fingerprint checks (handled upstream by M4-T3).
  */
 export function buildGrokLaunchSpec(options: BuildGrokLaunchSpecOptions): LaunchSpec {
-	const file =
-		options.execPath && options.execPath.trim().length > 0 ? options.execPath.trim() : 'grok';
+	if (!options.execPath || options.execPath.trim().length === 0) {
+		throw new AppError('E_VALIDATION', 'execPath is required to build grok launch spec');
+	}
+	const file = options.execPath.trim();
 
-	const args: string[] = [];
+	let args: string[] = [];
 
-	// 1. Template arguments if provided
+	// 1. Template validation and rendering via domain/launch-template.ts (R1)
 	if (options.argsTemplate && options.argsTemplate.length > 0) {
-		for (let i = 0; i < options.argsTemplate.length; i++) {
-			const arg = options.argsTemplate[i];
-			if (arg === undefined) continue;
-
-			if (arg === '{model}') {
-				if (options.model) args.push(options.model.trim());
-				continue;
-			}
-			if (arg === '{session_id}') {
-				if (options.sessionId) args.push(options.sessionId.trim());
-				continue;
-			}
-			if (arg === '{prompt}') {
-				if (options.prompt) args.push(options.prompt.trim());
-				continue;
-			}
-			if (arg === '{prompt_file}') {
-				if (options.promptFile) args.push(options.promptFile.trim());
-				continue;
-			}
-			if (arg === '{worktree}') {
-				if (options.worktree) args.push(options.worktree);
-				continue;
-			}
-			if (arg === '{worktree_ref}') {
-				if (options.worktreeRef) args.push(options.worktreeRef);
-				continue;
-			}
-
-			args.push(arg);
+		const validation = validateLaunchTemplate(options.argsTemplate);
+		if (!validation.ok) {
+			throw new AppError('E_VALIDATION', validation.error.message, {
+				details: { error: validation.error },
+			});
 		}
+
+		// When model is omitted or null, remove '--model' / '-m' and placeholder to avoid dangling flag (E-35)
+		const processedTemplate = applyModelToArgsTemplate(validation.template, options.model);
+
+		const renderContext = {
+			model: options.model?.trim() ?? null,
+			promptFile: options.promptFile?.trim() ?? null,
+			cwd: options.cwd,
+			sessionDir: options.sessionDir ?? options.cwd,
+		};
+
+		const renderResult = renderLaunchTemplate(processedTemplate, renderContext);
+		if (!renderResult.ok) {
+			throw new AppError('E_VALIDATION', renderResult.error.message, {
+				details: { error: renderResult.error },
+			});
+		}
+
+		args = [...renderResult.args];
 	}
 
 	// 2. Enforce `--output-format streaming-json` for ACP native output (AC 1)
@@ -84,15 +84,60 @@ export function buildGrokLaunchSpec(options: BuildGrokLaunchSpecOptions): Launch
 		args[outputFormatIdx + 1] = 'streaming-json';
 	}
 
-	// 3. Headless prompt handling: `--prompt-file` or `-p` (AC 3)
-	// Headless grok does not read piped stdin; prompt must be provided via argument or file
+	// 3. Headless prompt handling: `--prompt-file` or `-p` (AC 3, R1)
+	// Headless grok does not read piped stdin. If template already contained `--single` or `-p`,
+	// provide the prompt value without dropping it.
+	const singleIdx = args.indexOf('--single');
+	const pIdx = args.indexOf('-p');
+	const promptFileIdx = args.indexOf('--prompt-file');
+
+	const hasSingleValue =
+		singleIdx !== -1 && args[singleIdx + 1] !== undefined && !args[singleIdx + 1]?.startsWith('-');
+
+	const hasPValue = pIdx !== -1 && args[pIdx + 1] !== undefined && !args[pIdx + 1]?.startsWith('-');
+
+	const hasPromptFileValue =
+		promptFileIdx !== -1 &&
+		args[promptFileIdx + 1] !== undefined &&
+		!args[promptFileIdx + 1]?.startsWith('-');
+
 	if (options.promptFile && options.promptFile.trim().length > 0) {
-		if (!args.includes('--prompt-file')) {
-			args.push('--prompt-file', options.promptFile.trim());
+		const pfValue = options.promptFile.trim();
+		// If template had --single or -p, remove them since we're using --prompt-file
+		if (singleIdx !== -1) {
+			args.splice(singleIdx, hasSingleValue ? 2 : 1);
+		}
+		const currentPIdx = args.indexOf('-p');
+		if (currentPIdx !== -1) {
+			const currentHasPValue =
+				args[currentPIdx + 1] !== undefined && !args[currentPIdx + 1]?.startsWith('-');
+			args.splice(currentPIdx, currentHasPValue ? 2 : 1);
+		}
+
+		const currentPfIdx = args.indexOf('--prompt-file');
+		if (currentPfIdx === -1) {
+			args.push('--prompt-file', pfValue);
+		} else if (!hasPromptFileValue) {
+			args[currentPfIdx + 1] = pfValue;
 		}
 	} else if (options.prompt && options.prompt.trim().length > 0) {
-		if (!args.includes('-p') && !args.includes('--single')) {
-			args.push('-p', options.prompt.trim());
+		const pValue = options.prompt.trim();
+		if (singleIdx !== -1) {
+			// Normalize --single to -p and ensure prompt value is attached
+			args[singleIdx] = '-p';
+			if (hasSingleValue) {
+				args[singleIdx + 1] = pValue;
+			} else {
+				args.splice(singleIdx + 1, 0, pValue);
+			}
+		} else if (pIdx !== -1) {
+			if (hasPValue) {
+				args[pIdx + 1] = pValue;
+			} else {
+				args.splice(pIdx + 1, 0, pValue);
+			}
+		} else if (!hasPromptFileValue) {
+			args.push('-p', pValue);
 		}
 	}
 

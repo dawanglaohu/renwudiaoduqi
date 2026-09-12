@@ -35,8 +35,9 @@ export interface GrokTokenUsage {
 }
 
 /**
- * Known ACP session update and Grok vendor event types.
- * Architecture tests assert that vendor event strings only appear in adapters/grok/
+ * Known ACP session update and Grok vendor event discriminants.
+ * Architecture tests assert that vendor event strings only appear in adapters/grok/.
+ * R3: Converged strictly to ACP session/update discriminants and permission signals.
  */
 export const GROK_VENDOR_EVENT_STRINGS = Object.freeze([
 	'session/update',
@@ -46,14 +47,6 @@ export const GROK_VENDOR_EVENT_STRINGS = Object.freeze([
 	'tool_call_update',
 	'plan',
 	'available_commands_update',
-	'session_start',
-	'session_complete',
-	'agent_start',
-	'agent_settled',
-	'turn_start',
-	'turn_end',
-	'turn_complete',
-	'turn_failed',
 	'permission_request',
 	'permission_blocked',
 ] as const);
@@ -97,6 +90,7 @@ export function createGrokEventTracker(): GrokEventTracker {
 
 /**
  * Extracts token usage from Grok / ACP event data.
+ * Checks the unpacked update object first, then the root container.
  *
  * AC 5 & E-26: If token usage is absent, partial, or unparseable, missing fields
  * are set strictly to `null` so the UI displays "—". It NEVER fills `0`.
@@ -107,21 +101,41 @@ export function extractGrokTokenUsage(data: unknown): GrokTokenUsage | null {
 	}
 
 	const record = data as Record<string, unknown>;
-	const usageObj = (record.usage ?? record.token_usage ?? record.tokens) as
-		| Record<string, unknown>
-		| undefined;
+	let target: Record<string, unknown> = record;
 
-	// Check wrapper usage object if present, otherwise check top-level record
-	const target = usageObj && typeof usageObj === 'object' ? usageObj : record;
+	if (record.params && typeof record.params === 'object') {
+		const params = record.params as Record<string, unknown>;
+		if (params.update && typeof params.update === 'object') {
+			target = params.update as Record<string, unknown>;
+		} else if (params.sessionUpdate && typeof params.sessionUpdate === 'object') {
+			target = params.sessionUpdate as Record<string, unknown>;
+		}
+	} else if (record.update && typeof record.update === 'object') {
+		target = record.update as Record<string, unknown>;
+	} else if (record.sessionUpdate && typeof record.sessionUpdate === 'object') {
+		target = record.sessionUpdate as Record<string, unknown>;
+	}
+
+	const usageObj = (target.usage ??
+		target.token_usage ??
+		target.tokens ??
+		record.usage ??
+		record.token_usage ??
+		record.tokens) as Record<string, unknown> | undefined;
+
+	const resolvedTarget = usageObj && typeof usageObj === 'object' ? usageObj : target;
 
 	const rawInput =
-		target.prompt_tokens ?? target.input_tokens ?? target.promptTokens ?? target.inputTokens;
+		resolvedTarget.prompt_tokens ??
+		resolvedTarget.input_tokens ??
+		resolvedTarget.promptTokens ??
+		resolvedTarget.inputTokens;
 	const rawOutput =
-		target.completion_tokens ??
-		target.output_tokens ??
-		target.completionTokens ??
-		target.outputTokens;
-	const rawTotal = target.total_tokens ?? target.totalTokens;
+		resolvedTarget.completion_tokens ??
+		resolvedTarget.output_tokens ??
+		resolvedTarget.completionTokens ??
+		resolvedTarget.outputTokens;
+	const rawTotal = resolvedTarget.total_tokens ?? resolvedTarget.totalTokens;
 
 	const parseCount = (val: unknown): number | null => {
 		if (typeof val === 'number' && Number.isFinite(val) && val >= 0) {
@@ -153,6 +167,8 @@ export function extractGrokTokenUsage(data: unknown): GrokTokenUsage | null {
  * Pure function mapping a Grok ACP streaming-json line into normalized ACP / product event envelope inputs.
  *
  * AC 1: Directly consumes its ACP session updates as the reference implementation.
+ * R2: Primary unpack path reads `params.update.sessionUpdate` and reads standardized ACP payload fields.
+ * R3: Only produces ACP group events and `run.permission_blocked`. Never fakes runtime states or exit codes.
  * AC 5 & E-26: Sets token usage fields to null (not 0) when missing.
  * E-140: Unparseable lines return [] without interrupting the stream.
  * E-202: Unknown vendor event types are ignored, counted on the tracker, and never crash or invent kinds.
@@ -229,37 +245,43 @@ function mapParsedGrokObject(
 	rawLine: string,
 	context?: GrokMapEventsContext,
 ): GrokMapEventsResult {
-	// Support JSON-RPC notification wrapper: { jsonrpc: "2.0", method: "session/update", params: { update: ... } }
-	let payloadObj: Record<string, unknown> = data;
-	let eventType = '';
+	// R2: Primary unwrapping path is ACP v1 session/update notification:
+	// {"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"...","update":{"sessionUpdate":"agent_message_chunk",...}}}
+	let updateObj: Record<string, unknown> = data;
 
-	if (data.method === 'session/update' && data.params && typeof data.params === 'object') {
+	if (data.params && typeof data.params === 'object') {
 		const params = data.params as Record<string, unknown>;
-		const innerUpdate = (params.update ?? params.sessionUpdate ?? params) as Record<
-			string,
-			unknown
-		>;
-		if (innerUpdate && typeof innerUpdate === 'object') {
-			payloadObj = innerUpdate;
+		if (params.update && typeof params.update === 'object') {
+			updateObj = params.update as Record<string, unknown>;
+		} else if (params.sessionUpdate && typeof params.sessionUpdate === 'object') {
+			updateObj = params.sessionUpdate as Record<string, unknown>;
+		} else {
+			updateObj = params;
 		}
-	} else if (data.sessionUpdate && typeof data.sessionUpdate === 'object') {
-		payloadObj = data.sessionUpdate as Record<string, unknown>;
 	} else if (data.update && typeof data.update === 'object') {
-		payloadObj = data.update as Record<string, unknown>;
+		updateObj = data.update as Record<string, unknown>;
+	} else if (data.sessionUpdate && typeof data.sessionUpdate === 'object') {
+		updateObj = data.sessionUpdate as Record<string, unknown>;
 	}
 
-	if (typeof payloadObj.type === 'string') {
-		eventType = payloadObj.type;
-	} else if (typeof payloadObj.kind === 'string') {
-		eventType = payloadObj.kind;
-	} else if (typeof data.type === 'string') {
-		eventType = data.type;
-	}
+	// Discriminant field: primary ACP v1 is sessionUpdate on updateObj; flat type/kind as fallback (R2)
+	const rawType =
+		updateObj.sessionUpdate ??
+		updateObj.type ??
+		updateObj.kind ??
+		data.sessionUpdate ??
+		data.type ??
+		data.kind;
 
+	const eventType = typeof rawType === 'string' ? rawType.trim() : '';
+
+	// R2: Unrecognized line after unpacking is counted on tracker, never silently dropped
 	if (!eventType) {
+		context?.tracker?.recordUnmapped('unknown', data);
+		context?.onUnmapped?.('unknown', data);
 		return Object.freeze({
 			events: Object.freeze([]),
-			unmappedCount: 0,
+			unmappedCount: 1,
 			rawLine,
 		});
 	}
@@ -280,25 +302,37 @@ function mapParsedGrokObject(
 	const actorDeviceId = context?.actorDeviceId ?? null;
 	const envelopes: EventEnvelopeInput[] = [];
 
+	// Token usage extracted from unpacked updateObj or data container
+	const tokenUsage = extractGrokTokenUsage(updateObj) ?? extractGrokTokenUsage(data);
+	const vendorWithToken = Object.freeze({
+		...data,
+		...(tokenUsage ? { tokenUsage } : {}),
+	});
+
 	switch (eventType) {
-		// AC 1: ACP session updates reference implementation
+		// AC 1 & R2: ACP session updates reference implementation
 		case 'agent_message_chunk': {
-			const chunk =
-				typeof payloadObj.text === 'string'
-					? payloadObj.text
-					: typeof payloadObj.chunk === 'string'
-						? payloadObj.chunk
-						: typeof payloadObj.delta === 'string'
-							? payloadObj.delta
-							: typeof payloadObj.content === 'string'
-								? payloadObj.content
-								: '';
+			// R2: read content.text; if content is string use directly
+			const rawContent = updateObj.content ?? updateObj.text ?? updateObj.chunk ?? updateObj.delta;
+			let chunk = '';
+			if (typeof rawContent === 'string') {
+				chunk = rawContent;
+			} else if (rawContent && typeof rawContent === 'object') {
+				const contentObj = rawContent as Record<string, unknown>;
+				if (typeof contentObj.text === 'string') {
+					chunk = contentObj.text;
+				} else if (typeof contentObj.content === 'string') {
+					chunk = contentObj.content;
+				} else if (typeof contentObj.delta === 'string') {
+					chunk = contentObj.delta;
+				}
+			}
 
 			envelopes.push({
 				kind: 'agent_message_chunk',
 				payload: {
 					chunk,
-					vendor: data,
+					vendor: vendorWithToken,
 				},
 				runId,
 				taskId,
@@ -309,22 +343,26 @@ function mapParsedGrokObject(
 		}
 
 		case 'agent_thought_chunk': {
-			const chunk =
-				typeof payloadObj.text === 'string'
-					? payloadObj.text
-					: typeof payloadObj.chunk === 'string'
-						? payloadObj.chunk
-						: typeof payloadObj.delta === 'string'
-							? payloadObj.delta
-							: typeof payloadObj.thought === 'string'
-								? payloadObj.thought
-								: '';
+			const rawContent = updateObj.content ?? updateObj.text ?? updateObj.chunk ?? updateObj.delta;
+			let chunk = '';
+			if (typeof rawContent === 'string') {
+				chunk = rawContent;
+			} else if (rawContent && typeof rawContent === 'object') {
+				const contentObj = rawContent as Record<string, unknown>;
+				if (typeof contentObj.text === 'string') {
+					chunk = contentObj.text;
+				} else if (typeof contentObj.thought === 'string') {
+					chunk = contentObj.thought;
+				} else if (typeof contentObj.delta === 'string') {
+					chunk = contentObj.delta;
+				}
+			}
 
 			envelopes.push({
 				kind: 'agent_thought_chunk',
 				payload: {
 					chunk,
-					vendor: data,
+					vendor: vendorWithToken,
 				},
 				runId,
 				taskId,
@@ -335,11 +373,15 @@ function mapParsedGrokObject(
 		}
 
 		case 'tool_call': {
+			// R2: read toolCallId/title/rawInput/status
 			const callId = String(
-				payloadObj.callId ?? payloadObj.call_id ?? payloadObj.toolCallId ?? payloadObj.id ?? '',
+				updateObj.toolCallId ?? updateObj.callId ?? updateObj.tool_call_id ?? updateObj.id ?? '',
 			);
-			const tool = String(payloadObj.tool ?? payloadObj.toolName ?? payloadObj.name ?? '');
-			const input = payloadObj.input ?? payloadObj.args ?? payloadObj.arguments;
+			const tool = String(
+				updateObj.title ?? updateObj.tool ?? updateObj.toolName ?? updateObj.name ?? '',
+			);
+			const input = updateObj.rawInput ?? updateObj.input ?? updateObj.args ?? updateObj.arguments;
+			const status = updateObj.status;
 
 			envelopes.push({
 				kind: 'tool_call',
@@ -347,7 +389,8 @@ function mapParsedGrokObject(
 					callId: callId || undefined,
 					tool: tool || undefined,
 					input,
-					vendor: data,
+					status: status !== undefined ? status : undefined,
+					vendor: vendorWithToken,
 				},
 				runId,
 				taskId,
@@ -358,17 +401,22 @@ function mapParsedGrokObject(
 		}
 
 		case 'tool_call_update': {
+			// R2: read toolCallId/status/rawOutput
 			const callId = String(
-				payloadObj.callId ?? payloadObj.call_id ?? payloadObj.toolCallId ?? payloadObj.id ?? '',
+				updateObj.toolCallId ?? updateObj.callId ?? updateObj.tool_call_id ?? updateObj.id ?? '',
 			);
-			const output = payloadObj.output ?? payloadObj.result;
+			const output = updateObj.rawOutput ?? updateObj.output ?? updateObj.result;
+			const status = updateObj.status;
+			const isError = status === 'failed' || status === 'error' || Boolean(updateObj.isError);
 
 			envelopes.push({
 				kind: 'tool_call_update',
 				payload: {
 					callId: callId || undefined,
 					output,
-					vendor: data,
+					status: status !== undefined ? status : undefined,
+					isError,
+					vendor: vendorWithToken,
 				},
 				runId,
 				taskId,
@@ -379,14 +427,36 @@ function mapParsedGrokObject(
 		}
 
 		case 'plan': {
-			const rawEntries = payloadObj.entries ?? payloadObj.steps ?? payloadObj.tasks;
-			const entries = Array.isArray(rawEntries) ? (rawEntries as readonly unknown[]) : [];
+			// R2: read entries[].content/status/priority
+			const rawEntries = updateObj.entries ?? updateObj.steps ?? updateObj.tasks;
+			const entries = Array.isArray(rawEntries)
+				? (rawEntries as readonly unknown[]).map((entry) => {
+						if (entry && typeof entry === 'object') {
+							const item = entry as Record<string, unknown>;
+							const rawContent = item.content;
+							const content =
+								typeof rawContent === 'string'
+									? rawContent
+									: rawContent &&
+											typeof rawContent === 'object' &&
+											typeof (rawContent as Record<string, unknown>).text === 'string'
+										? (rawContent as Record<string, unknown>).text
+										: rawContent;
+							return Object.freeze({
+								content,
+								status: item.status,
+								priority: item.priority,
+							});
+						}
+						return entry;
+					})
+				: [];
 
 			envelopes.push({
 				kind: 'plan',
 				payload: {
 					entries,
-					vendor: data,
+					vendor: vendorWithToken,
 				},
 				runId,
 				taskId,
@@ -397,125 +467,15 @@ function mapParsedGrokObject(
 		}
 
 		case 'available_commands_update': {
-			const rawCommands = payloadObj.commands;
+			// R2: read availableCommands (fallback commands)
+			const rawCommands = updateObj.availableCommands ?? updateObj.commands;
 			const commands = Array.isArray(rawCommands) ? (rawCommands as readonly string[]) : [];
 
 			envelopes.push({
 				kind: 'available_commands_update',
 				payload: {
 					commands,
-					vendor: data,
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
-			break;
-		}
-
-		// Lifecycle / state transitions
-		case 'agent_start':
-		case 'session_start': {
-			envelopes.push({
-				kind: 'run.started',
-				payload: {
-					runId: runId ?? undefined,
-					vendor: data,
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
-			envelopes.push({
-				kind: 'run.state_changed',
-				payload: {
-					from: 'pending',
-					to: 'running',
-					vendor: data,
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
-			break;
-		}
-
-		case 'turn_start': {
-			envelopes.push({
-				kind: 'run.state_changed',
-				payload: {
-					from: 'idle',
-					to: 'running',
-					reason: 'turn_start',
-					vendor: data,
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
-			break;
-		}
-
-		case 'turn_end':
-		case 'turn_complete':
-		case 'agent_settled':
-		case 'session_complete': {
-			// AC 5 & E-26: Parse token usage, if absent fields are strictly null, never 0
-			const tokenUsage = extractGrokTokenUsage(data);
-
-			envelopes.push({
-				kind: 'run.state_changed',
-				payload: {
-					from: 'running',
-					to: 'completed',
-					reason: eventType,
-					vendor: {
-						...data,
-						tokenUsage,
-					},
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
-			envelopes.push({
-				kind: 'run.exited',
-				payload: {
-					exitCode: 0,
-					signal: null,
-					vendor: {
-						...data,
-						tokenUsage,
-					},
-				},
-				runId,
-				taskId,
-				actorDeviceId,
-				scope: 'run',
-			});
-			break;
-		}
-
-		case 'turn_failed': {
-			const reason =
-				typeof payloadObj.error === 'string'
-					? payloadObj.error
-					: typeof payloadObj.message === 'string'
-						? payloadObj.message
-						: 'turn_failed';
-
-			envelopes.push({
-				kind: 'run.state_changed',
-				payload: {
-					from: 'running',
-					to: 'failed',
-					reason,
-					vendor: data,
+					vendor: vendorWithToken,
 				},
 				runId,
 				taskId,
@@ -528,16 +488,18 @@ function mapParsedGrokObject(
 		case 'permission_request':
 		case 'permission_blocked': {
 			const tool =
-				typeof payloadObj.tool === 'string'
-					? payloadObj.tool
-					: typeof payloadObj.toolName === 'string'
-						? payloadObj.toolName
-						: undefined;
+				typeof updateObj.tool === 'string'
+					? updateObj.tool
+					: typeof updateObj.toolName === 'string'
+						? updateObj.toolName
+						: typeof updateObj.title === 'string'
+							? updateObj.title
+							: undefined;
 			const reason =
-				typeof payloadObj.reason === 'string'
-					? payloadObj.reason
-					: typeof payloadObj.message === 'string'
-						? payloadObj.message
+				typeof updateObj.reason === 'string'
+					? updateObj.reason
+					: typeof updateObj.message === 'string'
+						? updateObj.message
 						: undefined;
 
 			envelopes.push({
@@ -545,7 +507,7 @@ function mapParsedGrokObject(
 				payload: {
 					tool,
 					reason,
-					vendor: data,
+					vendor: vendorWithToken,
 				},
 				runId,
 				taskId,
@@ -554,6 +516,10 @@ function mapParsedGrokObject(
 			});
 			break;
 		}
+
+		case 'session/update':
+			// Generic ACP container notification without child event does not emit envelope
+			break;
 	}
 
 	return Object.freeze({

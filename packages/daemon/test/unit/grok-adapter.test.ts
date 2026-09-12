@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { ACP_EVENT_KINDS } from '@agent-scheduler/shared/api/events';
 import { describe, expect, it, vi } from 'vitest';
 import { buildGrokLaunchSpec, buildLaunchSpec } from '../../src/adapters/grok/build-launch-spec.ts';
 import {
@@ -26,18 +27,20 @@ import {
 	parseGrokSessionsTable,
 	searchGrokSessions,
 } from '../../src/adapters/grok/sessions.ts';
+import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import { PERMISSION_TIERS } from '../../src/domain/permission-tier.ts';
 
 describe('M4-T11 grok 原生适配器', () => {
-	describe('1. buildLaunchSpec (AC 1, AC 3, AC 4)', () => {
+	describe('1. buildLaunchSpec (AC 1, AC 3, AC 4, R1)', () => {
 		it('AC 1: enforces `--output-format streaming-json` for ACP native output', () => {
 			const spec = buildGrokLaunchSpec({
 				runId: 'run-1',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				prompt: 'fix the bug',
 			});
 
-			expect(spec.file).toBe('grok');
+			expect(spec.file).toBe('/usr/bin/grok');
 			expect(spec.args).toContain('--output-format');
 			const idx = spec.args.indexOf('--output-format');
 			expect(spec.args[idx + 1]).toBe('streaming-json');
@@ -50,6 +53,7 @@ describe('M4-T11 grok 原生适配器', () => {
 			const spec = buildGrokLaunchSpec({
 				runId: 'run-2',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				prompt: 'fix the bug',
 				argsTemplate: ['--output-format', 'plain'],
 			});
@@ -58,36 +62,108 @@ describe('M4-T11 grok 原生适配器', () => {
 			expect(spec.args[idx + 1]).toBe('streaming-json');
 		});
 
-		it('AC 3: passes prompt via `-p` argument and does NOT read piped stdin', () => {
+		it('R1 (a): with BUILT_IN_AGENT_DEFAULTS.grok.argsTemplate, prompt lands on argv (-p value == prompt)', () => {
 			const spec = buildGrokLaunchSpec({
-				runId: 'run-prompt-arg',
+				runId: 'run-builtin-p',
 				cwd: '/workspace/test',
-				prompt: 'implement feature X',
+				execPath: '/usr/bin/grok',
+				prompt: 'do the task',
+				model: 'grok-4',
+				argsTemplate: BUILT_IN_AGENT_DEFAULTS.grok.argsTemplate,
 			});
 
 			expect(spec.args).toContain('-p');
 			const pIdx = spec.args.indexOf('-p');
-			expect(spec.args[pIdx + 1]).toBe('implement feature X');
-			expect(spec.args).not.toContain('--prompt-file');
+			expect(spec.args[pIdx + 1]).toBe('do the task');
+			expect(spec.args).toContain('--model');
+			expect(spec.args[spec.args.indexOf('--model') + 1]).toBe('grok-4');
 		});
 
-		it('AC 3: passes prompt via `--prompt-file` when promptFile is provided', () => {
+		it('R1 (a): with BUILT_IN_AGENT_DEFAULTS.grok.argsTemplate, promptFile lands on argv (--prompt-file value == promptFile)', () => {
 			const spec = buildGrokLaunchSpec({
-				runId: 'run-prompt-file',
+				runId: 'run-builtin-pf',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				promptFile: '/tmp/prompts/task-1.md',
+				model: 'grok-4',
+				argsTemplate: BUILT_IN_AGENT_DEFAULTS.grok.argsTemplate,
 			});
 
 			expect(spec.args).toContain('--prompt-file');
 			const pfIdx = spec.args.indexOf('--prompt-file');
 			expect(spec.args[pfIdx + 1]).toBe('/tmp/prompts/task-1.md');
+			expect(spec.args).not.toContain('--single');
 			expect(spec.args).not.toContain('-p');
+		});
+
+		it('R1 (b): with BUILT_IN_AGENT_DEFAULTS.grok.argsTemplate and model=null, argv does NOT contain `--model` (E-35)', () => {
+			const spec = buildGrokLaunchSpec({
+				runId: 'run-builtin-no-model',
+				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
+				prompt: 'do the task',
+				model: null,
+				argsTemplate: BUILT_IN_AGENT_DEFAULTS.grok.argsTemplate,
+			});
+
+			expect(spec.args).not.toContain('--model');
+			expect(spec.args).not.toContain('-m');
+			// Prompt still lands
+			const pIdx = spec.args.indexOf('-p');
+			expect(spec.args[pIdx + 1]).toBe('do the task');
+		});
+
+		it('R1 (c): with argsTemplate containing {session_dir}, argv has no element containing "{"', () => {
+			const spec = buildGrokLaunchSpec({
+				runId: 'run-session-dir',
+				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
+				prompt: 'test',
+				sessionDir: '/tmp/sessions/grok-sess-1',
+				argsTemplate: ['--session-dir', '{session_dir}'],
+			});
+
+			const sessIdx = spec.args.indexOf('--session-dir');
+			expect(sessIdx).not.toBe(-1);
+			expect(spec.args[sessIdx + 1]).toBe('/tmp/sessions/grok-sess-1');
+			for (const arg of spec.args) {
+				expect(arg).not.toContain('{');
+			}
+		});
+
+		it('R1 (d): template with unknown variable {session_id} returns structured failure (E_VALIDATION), not passed verbatim', () => {
+			expect(() =>
+				buildGrokLaunchSpec({
+					runId: 'run-unknown-var',
+					cwd: '/workspace/test',
+					execPath: '/usr/bin/grok',
+					argsTemplate: ['--custom', '{session_id}'],
+				}),
+			).toThrowError(/Unknown template variable/);
+		});
+
+		it('R1: rejects missing or empty execPath with E_VALIDATION', () => {
+			expect(() =>
+				buildGrokLaunchSpec({
+					runId: 'run-no-exec',
+					cwd: '/workspace/test',
+					execPath: '',
+				}),
+			).toThrowError(/execPath is required/);
+
+			expect(() =>
+				buildGrokLaunchSpec({
+					runId: 'run-undefined-exec',
+					cwd: '/workspace/test',
+				}),
+			).toThrowError(/execPath is required/);
 		});
 
 		it('maps three permission tiers correctly to `--permission-mode`', () => {
 			const readOnlySpec = buildGrokLaunchSpec({
 				runId: 'run-ro',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				permissionTier: PERMISSION_TIERS.READ_ONLY,
 			});
 			expect(readOnlySpec.args).toContain('--permission-mode');
@@ -97,6 +173,7 @@ describe('M4-T11 grok 原生适配器', () => {
 			const writeSpec = buildGrokLaunchSpec({
 				runId: 'run-write',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				permissionTier: PERMISSION_TIERS.WORKSPACE_WRITE,
 			});
 			const writeIdx = writeSpec.args.indexOf('--permission-mode');
@@ -105,6 +182,7 @@ describe('M4-T11 grok 原生适配器', () => {
 			const unresSpec = buildGrokLaunchSpec({
 				runId: 'run-unres',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				permissionTier: PERMISSION_TIERS.UNRESTRICTED,
 			});
 			const unresIdx = unresSpec.args.indexOf('--permission-mode');
@@ -115,6 +193,7 @@ describe('M4-T11 grok 原生适配器', () => {
 			const lowSpec = buildGrokLaunchSpec({
 				runId: 'run-low',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				effortTier: 'low',
 			});
 			expect(lowSpec.args).toContain('--reasoning-effort');
@@ -124,6 +203,7 @@ describe('M4-T11 grok 原生适配器', () => {
 			const medSpec = buildGrokLaunchSpec({
 				runId: 'run-med',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				effortTier: 'medium',
 			});
 			const medIdx = medSpec.args.indexOf('--reasoning-effort');
@@ -132,9 +212,11 @@ describe('M4-T11 grok 原生适配器', () => {
 			const highSpec = buildGrokLaunchSpec({
 				runId: 'run-high',
 				cwd: '/workspace/test',
+				execPath: '/usr/bin/grok',
 				effortTier: 'high',
 			});
 			const highIdx = highSpec.args.indexOf('--reasoning-effort');
+			expect(highIdx).not.toBe(-1);
 			expect(highSpec.args[highIdx + 1]).toBe('high');
 		});
 
@@ -162,33 +244,6 @@ describe('M4-T11 grok 原生适配器', () => {
 			expect(spec.args).toContain('--worktree-ref');
 			expect(spec.args[spec.args.indexOf('--worktree-ref') + 1]).toBe('main');
 			expect(spec.args).toContain('--debug');
-		});
-
-		it('performs template variable substitution on argsTemplate', () => {
-			const spec = buildGrokLaunchSpec({
-				runId: 'run-template',
-				cwd: '/workspace/test',
-				prompt: 'hello world',
-				model: 'grok-3',
-				sessionId: 'sess-123',
-				worktree: 'wt-branch',
-				worktreeRef: 'HEAD',
-				argsTemplate: [
-					'--custom-model',
-					'{model}',
-					'--custom-session',
-					'{session_id}',
-					'--worktree',
-					'{worktree}',
-					'--worktree-ref',
-					'{worktree_ref}',
-				],
-			});
-
-			expect(spec.args).toContain('--custom-model');
-			expect(spec.args[spec.args.indexOf('--custom-model') + 1]).toBe('grok-3');
-			expect(spec.args).toContain('--custom-session');
-			expect(spec.args[spec.args.indexOf('--custom-session') + 1]).toBe('sess-123');
 		});
 
 		it('exports alias buildLaunchSpec', () => {
@@ -220,207 +275,331 @@ describe('M4-T11 grok 原生适配器', () => {
 		});
 	});
 
-	describe('3. mapEvents (AC 1, AC 5, E-26, E-140, E-202)', () => {
-		it('AC 1: directly consumes ACP agent_message_chunk as reference implementation', () => {
-			const raw = JSON.stringify({
-				type: 'agent_message_chunk',
-				text: 'Hello from Grok ACP!',
-			});
-
-			const events = mapGrokEvents(raw, { runId: 'run-10' });
-			expect(events).toHaveLength(1);
-			expect(events[0]?.kind).toBe('agent_message_chunk');
-			expect(events[0]?.payload.chunk).toBe('Hello from Grok ACP!');
-			expect(events[0]?.runId).toBe('run-10');
-			expect(events[0]?.scope).toBe('run');
-		});
-
-		it('AC 1: supports delta and content aliases for agent_message_chunk', () => {
-			const deltaEvents = mapGrokEvents(
-				JSON.stringify({ type: 'agent_message_chunk', delta: 'Delta text' }),
-			);
-			expect(deltaEvents[0]?.payload.chunk).toBe('Delta text');
-
-			const contentEvents = mapGrokEvents(
-				JSON.stringify({ type: 'agent_message_chunk', content: 'Content text' }),
-			);
-			expect(contentEvents[0]?.payload.chunk).toBe('Content text');
-		});
-
-		it('AC 1: directly consumes ACP agent_thought_chunk', () => {
-			const raw = JSON.stringify({
-				type: 'agent_thought_chunk',
-				text: 'Thinking deeply...',
-			});
-
-			const events = mapGrokEvents(raw);
-			expect(events).toHaveLength(1);
-			expect(events[0]?.kind).toBe('agent_thought_chunk');
-			expect(events[0]?.payload.chunk).toBe('Thinking deeply...');
-		});
-
-		it('AC 1: directly consumes ACP tool_call and tool_call_update', () => {
-			const callRaw = JSON.stringify({
-				type: 'tool_call',
-				callId: 'call_123',
-				tool: 'bash',
-				input: { command: 'git status' },
-			});
-
-			const callEvents = mapGrokEvents(callRaw);
-			expect(callEvents).toHaveLength(1);
-			expect(callEvents[0]?.kind).toBe('tool_call');
-			expect(callEvents[0]?.payload.callId).toBe('call_123');
-			expect(callEvents[0]?.payload.tool).toBe('bash');
-			expect(callEvents[0]?.payload.input).toEqual({ command: 'git status' });
-
-			const updateRaw = JSON.stringify({
-				type: 'tool_call_update',
-				callId: 'call_123',
-				output: 'On branch main\nnothing to commit',
-			});
-
-			const updateEvents = mapGrokEvents(updateRaw);
-			expect(updateEvents).toHaveLength(1);
-			expect(updateEvents[0]?.kind).toBe('tool_call_update');
-			expect(updateEvents[0]?.payload.callId).toBe('call_123');
-			expect(updateEvents[0]?.payload.output).toBe('On branch main\nnothing to commit');
-		});
-
-		it('AC 1: directly consumes ACP plan and available_commands_update', () => {
-			const planRaw = JSON.stringify({
-				type: 'plan',
-				entries: [
-					{ task: 'inspect code', done: true },
-					{ task: 'run test', done: false },
-				],
-			});
-			const planEvents = mapGrokEvents(planRaw);
-			expect(planEvents).toHaveLength(1);
-			expect(planEvents[0]?.kind).toBe('plan');
-			expect(planEvents[0]?.payload.entries).toHaveLength(2);
-
-			const cmdRaw = JSON.stringify({
-				type: 'available_commands_update',
-				commands: ['help', 'export'],
-			});
-			const cmdEvents = mapGrokEvents(cmdRaw);
-			expect(cmdEvents).toHaveLength(1);
-			expect(cmdEvents[0]?.kind).toBe('available_commands_update');
-			expect(cmdEvents[0]?.payload.commands).toEqual(['help', 'export']);
-		});
-
-		it('unwraps JSON-RPC notification envelopes { method: "session/update", params: { update: ... } }', () => {
-			const rpcRaw = JSON.stringify({
+	describe('3. mapEvents (AC 1, AC 5, R2, R3, E-26, E-140, E-202)', () => {
+		it('R2: unwraps real ACP session/update JSON-RPC shape with sessionUpdate discriminant and content object', () => {
+			const tracker = createGrokEventTracker();
+			const realAcpMessageLine = JSON.stringify({
 				jsonrpc: '2.0',
 				method: 'session/update',
 				params: {
-					sessionId: 'sess-abc',
+					sessionId: 'sess-001',
 					update: {
-						type: 'agent_message_chunk',
-						text: 'RPC unwrapped text',
+						sessionUpdate: 'agent_message_chunk',
+						content: {
+							type: 'text',
+							text: 'Real ACP streaming message chunk',
+						},
 					},
 				},
 			});
 
-			const events = mapGrokEvents(rpcRaw);
+			const result = parseAndMapGrokLine(realAcpMessageLine, {
+				runId: 'run-acp-1',
+				tracker,
+			});
+			expect(result.events).toHaveLength(1);
+			expect(result.events[0]?.kind).toBe('agent_message_chunk');
+			expect(result.events[0]?.payload.chunk).toBe('Real ACP streaming message chunk');
+			expect(result.events[0]?.runId).toBe('run-acp-1');
+			expect(result.unmappedCount).toBe(0);
+			expect(tracker.unmappedCount).toBe(0);
+		});
+
+		it('R2: unwraps real ACP session/update agent_thought_chunk', () => {
+			const realAcpThoughtLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-002',
+					update: {
+						sessionUpdate: 'agent_thought_chunk',
+						content: {
+							type: 'text',
+							text: 'Real ACP thinking chunk',
+						},
+					},
+				},
+			});
+
+			const events = mapGrokEvents(realAcpThoughtLine);
 			expect(events).toHaveLength(1);
-			expect(events[0]?.kind).toBe('agent_message_chunk');
-			expect(events[0]?.payload.chunk).toBe('RPC unwrapped text');
+			expect(events[0]?.kind).toBe('agent_thought_chunk');
+			expect(events[0]?.payload.chunk).toBe('Real ACP thinking chunk');
 		});
 
-		it('maps lifecycle events: agent_start, turn_start, turn_complete, agent_settled', () => {
-			const startEvents = mapGrokEvents(JSON.stringify({ type: 'agent_start' }));
-			expect(startEvents.map((e) => e.kind)).toContain('run.started');
-			expect(startEvents.map((e) => e.kind)).toContain('run.state_changed');
+		it('R2: reads tool_call with toolCallId/title/rawInput/status', () => {
+			const realAcpToolCallLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-003',
+					update: {
+						sessionUpdate: 'tool_call',
+						toolCallId: 'call-xyz-99',
+						title: 'readFile',
+						rawInput: { path: 'package.json' },
+						status: 'in_progress',
+					},
+				},
+			});
 
-			const turnStartEvents = mapGrokEvents(JSON.stringify({ type: 'turn_start' }));
-			expect(turnStartEvents[0]?.kind).toBe('run.state_changed');
-			expect(turnStartEvents[0]?.payload.to).toBe('running');
-
-			const settledEvents = mapGrokEvents(JSON.stringify({ type: 'agent_settled' }));
-			expect(settledEvents.map((e) => e.kind)).toEqual(['run.state_changed', 'run.exited']);
-			expect(settledEvents[0]?.payload.to).toBe('completed');
-			expect(settledEvents[1]?.payload.exitCode).toBe(0);
+			const events = mapGrokEvents(realAcpToolCallLine);
+			expect(events).toHaveLength(1);
+			expect(events[0]?.kind).toBe('tool_call');
+			expect(events[0]?.payload.callId).toBe('call-xyz-99');
+			expect(events[0]?.payload.tool).toBe('readFile');
+			expect(events[0]?.payload.input).toEqual({ path: 'package.json' });
+			expect(events[0]?.payload.status).toBe('in_progress');
 		});
 
-		it('AC 5 & E-26: missing token usage sets fields to null and NEVER 0', () => {
-			// Test 1: empty object or event without usage
-			const emptyUsage = extractGrokTokenUsage({});
-			expect(emptyUsage).toEqual({
-				inputTokens: null,
-				outputTokens: null,
-				totalTokens: null,
-			});
-
-			// Test 2: event with empty usage object
-			const nullUsage = extractGrokTokenUsage({ usage: {} });
-			expect(nullUsage).toEqual({
-				inputTokens: null,
-				outputTokens: null,
-				totalTokens: null,
-			});
-
-			// Test 3: event with only prompt_tokens present; completion_tokens and total_tokens MUST be null, NOT 0
-			const partialUsage = extractGrokTokenUsage({
-				usage: {
-					prompt_tokens: 150,
+		it('R2: reads tool_call_update with toolCallId/status/rawOutput', () => {
+			const realAcpToolUpdateLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-004',
+					update: {
+						sessionUpdate: 'tool_call_update',
+						toolCallId: 'call-xyz-99',
+						status: 'completed',
+						rawOutput: '{"name": "agent-scheduler"}',
+					},
 				},
 			});
-			expect(partialUsage).toEqual({
-				inputTokens: 150,
-				outputTokens: null,
-				totalTokens: null,
-			});
-			expect(partialUsage?.outputTokens).not.toBe(0);
-			expect(partialUsage?.totalTokens).not.toBe(0);
 
-			// Test 4: event with all tokens provided
-			const fullUsage = extractGrokTokenUsage({
-				usage: {
-					prompt_tokens: 100,
-					completion_tokens: 50,
-					total_tokens: 150,
-				},
-			});
-			expect(fullUsage).toEqual({
-				inputTokens: 100,
-				outputTokens: 50,
-				totalTokens: 150,
-			});
-
-			// Test 5: non-numeric tokens (e.g. invalid strings or NaN) are set to null, NEVER 0
-			const invalidUsage = extractGrokTokenUsage({
-				usage: {
-					prompt_tokens: 'unknown',
-					completion_tokens: null,
-				},
-			});
-			expect(invalidUsage).toEqual({
-				inputTokens: null,
-				outputTokens: null,
-				totalTokens: null,
-			});
+			const events = mapGrokEvents(realAcpToolUpdateLine);
+			expect(events).toHaveLength(1);
+			expect(events[0]?.kind).toBe('tool_call_update');
+			expect(events[0]?.payload.callId).toBe('call-xyz-99');
+			expect(events[0]?.payload.output).toBe('{"name": "agent-scheduler"}');
+			expect(events[0]?.payload.status).toBe('completed');
+			expect(events[0]?.payload.isError).toBe(false);
 		});
 
-		it('AC 5 & E-26: turn_complete attaches tokenUsage with null fields when tokens are missing', () => {
-			const events = mapGrokEvents(
+		it('R2: reads plan with entries[].content/status/priority', () => {
+			const realAcpPlanLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-005',
+					update: {
+						sessionUpdate: 'plan',
+						entries: [
+							{
+								content: { type: 'text', text: 'Analyze requirements' },
+								status: 'completed',
+								priority: 'high',
+							},
+							{
+								content: { type: 'text', text: 'Implement fix' },
+								status: 'in_progress',
+								priority: 'medium',
+							},
+						],
+					},
+				},
+			});
+
+			const events = mapGrokEvents(realAcpPlanLine);
+			expect(events).toHaveLength(1);
+			expect(events[0]?.kind).toBe('plan');
+			expect(events[0]?.payload.entries).toEqual([
+				{
+					content: 'Analyze requirements',
+					status: 'completed',
+					priority: 'high',
+				},
+				{
+					content: 'Implement fix',
+					status: 'in_progress',
+					priority: 'medium',
+				},
+			]);
+		});
+
+		it('R2: reads available_commands_update with availableCommands', () => {
+			const realAcpCommandsLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-006',
+					update: {
+						sessionUpdate: 'available_commands_update',
+						availableCommands: ['help', 'export', 'abort'],
+					},
+				},
+			});
+
+			const events = mapGrokEvents(realAcpCommandsLine);
+			expect(events).toHaveLength(1);
+			expect(events[0]?.kind).toBe('available_commands_update');
+			expect(events[0]?.payload.commands).toEqual(['help', 'export', 'abort']);
+		});
+
+		it('R3: adapter ONLY produces ACP group events or run.permission_blocked, never fakes runtime states or exit codes', () => {
+			const allowedKinds = new Set<string>([...ACP_EVENT_KINDS, 'run.permission_blocked']);
+
+			const sampleLines = [
 				JSON.stringify({
-					type: 'turn_complete',
-					// No token usage provided
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						update: {
+							sessionUpdate: 'agent_message_chunk',
+							content: 'msg',
+						},
+					},
 				}),
-			);
+				JSON.stringify({
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						update: {
+							sessionUpdate: 'agent_thought_chunk',
+							content: 'thought',
+						},
+					},
+				}),
+				JSON.stringify({
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						update: {
+							sessionUpdate: 'tool_call',
+							toolCallId: '1',
+							title: 'test',
+						},
+					},
+				}),
+				JSON.stringify({
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						update: {
+							sessionUpdate: 'permission_blocked',
+							tool: 'rm',
+							reason: 'read-only',
+						},
+					},
+				}),
+			];
 
-			expect(events).toHaveLength(2);
-			const stateChanged = events[0];
-			const vendor = stateChanged?.payload.vendor as {
+			for (const line of sampleLines) {
+				const events = mapGrokEvents(line);
+				for (const event of events) {
+					// Strict assertion: kind MUST be in ACP group ∪ {run.permission_blocked}
+					expect(allowedKinds.has(event.kind)).toBe(true);
+					// Strictly no run.started, run.state_changed, or run.exited
+					expect(event.kind).not.toBe('run.started');
+					expect(event.kind).not.toBe('run.state_changed');
+					expect(event.kind).not.toBe('run.exited');
+				}
+			}
+		});
+
+		it('R3: GROK_VENDOR_EVENT_STRINGS is strictly converged to ACP session/update discriminants without pi RPC names', () => {
+			// Pi RPC names must NOT be in grok vendor strings
+			expect(GROK_VENDOR_EVENT_STRINGS).not.toContain('agent_settled');
+			expect(GROK_VENDOR_EVENT_STRINGS).not.toContain('turn_start');
+			expect(GROK_VENDOR_EVENT_STRINGS).not.toContain('turn_end');
+			expect(GROK_VENDOR_EVENT_STRINGS).not.toContain('turn_complete');
+			expect(GROK_VENDOR_EVENT_STRINGS).not.toContain('agent_start');
+			expect(GROK_VENDOR_EVENT_STRINGS).not.toContain('session_start');
+			expect(GROK_VENDOR_EVENT_STRINGS).not.toContain('session_complete');
+			expect(GROK_VENDOR_EVENT_STRINGS).not.toContain('turn_failed');
+
+			// ACP discriminants must be in grok vendor strings
+			expect(GROK_VENDOR_EVENT_STRINGS).toContain('session/update');
+			expect(GROK_VENDOR_EVENT_STRINGS).toContain('agent_message_chunk');
+			expect(GROK_VENDOR_EVENT_STRINGS).toContain('agent_thought_chunk');
+			expect(GROK_VENDOR_EVENT_STRINGS).toContain('tool_call');
+			expect(GROK_VENDOR_EVENT_STRINGS).toContain('tool_call_update');
+			expect(GROK_VENDOR_EVENT_STRINGS).toContain('plan');
+			expect(GROK_VENDOR_EVENT_STRINGS).toContain('available_commands_update');
+			expect(GROK_VENDOR_EVENT_STRINGS).toContain('permission_blocked');
+		});
+
+		it('AC 5 & E-26 & R2: token usage extracted from unpacked update object, missing fields are null and NEVER 0', () => {
+			const realAcpWithToken = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-tok',
+					update: {
+						sessionUpdate: 'agent_message_chunk',
+						content: 'message with tokens',
+						usage: {
+							prompt_tokens: 250,
+							completion_tokens: 125,
+							total_tokens: 375,
+						},
+					},
+				},
+			});
+
+			const events = mapGrokEvents(realAcpWithToken);
+			expect(events).toHaveLength(1);
+			const vendor = events[0]?.payload.vendor as {
 				tokenUsage?: { inputTokens: number | null; outputTokens: number | null };
 			};
-			expect(vendor.tokenUsage).toBeDefined();
-			expect(vendor.tokenUsage?.inputTokens).toBeNull();
-			expect(vendor.tokenUsage?.outputTokens).toBeNull();
-			expect(vendor.tokenUsage?.inputTokens).not.toBe(0);
-			expect(vendor.tokenUsage?.outputTokens).not.toBe(0);
+			expect(vendor.tokenUsage).toEqual({
+				inputTokens: 250,
+				outputTokens: 125,
+				totalTokens: 375,
+			});
+
+			// Partial token usage: only prompt_tokens provided -> outputTokens must be null, NOT 0
+			const partialTokenLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					update: {
+						sessionUpdate: 'agent_message_chunk',
+						content: 'partial tokens',
+						usage: {
+							prompt_tokens: 300,
+						},
+					},
+				},
+			});
+
+			const partialEvents = mapGrokEvents(partialTokenLine);
+			const partialVendor = partialEvents[0]?.payload.vendor as {
+				tokenUsage?: {
+					inputTokens: number | null;
+					outputTokens: number | null;
+					totalTokens: number | null;
+				};
+			};
+			expect(partialVendor.tokenUsage?.inputTokens).toBe(300);
+			expect(partialVendor.tokenUsage?.outputTokens).toBeNull();
+			expect(partialVendor.tokenUsage?.totalTokens).toBeNull();
+			expect(partialVendor.tokenUsage?.outputTokens).not.toBe(0);
+			expect(partialVendor.tokenUsage?.totalTokens).not.toBe(0);
+		});
+
+		it('AC 5 & E-26: standalone extractGrokTokenUsage strictly returns null for missing or invalid values', () => {
+			expect(extractGrokTokenUsage({})).toEqual({
+				inputTokens: null,
+				outputTokens: null,
+				totalTokens: null,
+			});
+
+			expect(extractGrokTokenUsage({ usage: {} })).toEqual({
+				inputTokens: null,
+				outputTokens: null,
+				totalTokens: null,
+			});
+
+			expect(
+				extractGrokTokenUsage({
+					usage: { prompt_tokens: 'invalid', completion_tokens: null },
+				}),
+			).toEqual({
+				inputTokens: null,
+				outputTokens: null,
+				totalTokens: null,
+			});
 		});
 
 		it('E-140: unparseable line returns empty array without throwing and marks parseError', () => {
@@ -438,17 +617,23 @@ describe('M4-T11 grok 原生适配器', () => {
 			const onUnmapped = vi.fn();
 
 			const unknownLine = JSON.stringify({
-				type: 'unknown_future_grok_feature_event',
-				someData: 123,
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					update: {
+						sessionUpdate: 'unrecognized_future_discriminant',
+						data: 123,
+					},
+				},
 			});
 
 			const result = parseAndMapGrokLine(unknownLine, { tracker, onUnmapped });
 			expect(result.events).toHaveLength(0);
 			expect(result.unmappedCount).toBe(1);
 			expect(tracker.unmappedCount).toBe(1);
-			expect(tracker.unmappedTypes).toContain('unknown_future_grok_feature_event');
+			expect(tracker.unmappedTypes).toContain('unrecognized_future_discriminant');
 			expect(onUnmapped).toHaveBeenCalledWith(
-				'unknown_future_grok_feature_event',
+				'unrecognized_future_discriminant',
 				expect.any(Object),
 			);
 		});
