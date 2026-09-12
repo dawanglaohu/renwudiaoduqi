@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M4-T10": {
+      "contractHash": "e6a3a59d1da1b3ef0ca5968dacd59cb2f4cd2ea15f8f2d62bb66a2301ce3ec8f",
+      "evidence": [
+        "本任务被标「待复验」的原因是补丁 M4-T8-support-paths-20260912 的基线快照取在 M4-T10 自己的 task-contracts.json 条目落地之前（该补丁 baseline 的 sourceContents['_run/task-contracts.json'] 里 M4-T10 为 null），不是本补丁改了 M4-T10 的条款",
+        "git 核对：新增 M4-T10 条目 {\"supportPaths\":[\"packages/daemon/test/unit/pi-adapter.test.ts\"]} 的提交是 main 上 M4-T10 自己的 6c9f3cf（M4-T10 文档补丁：补齐单测有效路径并登记契约复核）；M4-T8 的提交（ed7b6d3、c6ec8d0、edc0389、d67752b）未触碰任何 pi 路径",
+        "变化条款复核：M4-T10 的有效范围仍是 taskPaths packages/daemon/src/adapters/pi/ + supportPaths packages/daemon/test/unit/pi-adapter.test.ts，与其落地时登记的一致",
+        "结论：M4-T10 无需要复验的变化条款，原复核结论可继续沿用；标记来源是共享文件 task-contracts.json 的基线时间差"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
