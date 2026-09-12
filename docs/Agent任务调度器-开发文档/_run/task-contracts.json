@@ -217,6 +217,11 @@
         "packages/daemon/test/unit/concurrency.test.ts"
       ]
     },
+    "M8-T2": {
+      "supportPaths": [
+        "packages/daemon/test/unit/path-clash.test.ts"
+      ]
+    },
     "M8-T3": {
       "supportPaths": [
         "packages/daemon/src/http/routes/runs.ts",
