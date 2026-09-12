@@ -17,6 +17,7 @@ import {
 	matchRoute,
 	navigateTo,
 	normalizeHash,
+	safeDecodeParam,
 } from '../src/app/routes.tsx';
 
 describe('M9-T3 hash router and route guard', () => {
@@ -166,6 +167,30 @@ describe('M9-T3 hash router and route guard', () => {
 			// #/landing/ with empty parameter
 			const landingEmptyParam = matchRoute('#/landing/');
 			expect(landingEmptyParam.isUnknown).toBe(true);
+		});
+
+		it('safely handles malformed percent-encoded parameters without throwing URIError (R1 regression, E-222)', () => {
+			const malformedHashes = ['#/run/%', '#/run/%2', '#/run/%E0%A4%A', '#/landing/%zz'];
+
+			for (const hash of malformedHashes) {
+				expect(() => matchRoute(hash)).not.toThrow();
+				const match = matchRoute(hash);
+				expect(match.isUnknown).toBe(true);
+				expect(match.id).toBe('unknown');
+			}
+
+			// Confirm missing or multi-segment parameters remain unknown routes
+			expect(matchRoute('#/run/').isUnknown).toBe(true);
+			expect(matchRoute('#/run').isUnknown).toBe(true);
+			expect(matchRoute('#/run/a/b').isUnknown).toBe(true);
+
+			// Direct safeDecodeParam assertions
+			expect(safeDecodeParam('valid-id')).toBe('valid-id');
+			expect(safeDecodeParam('foo%20bar')).toBe('foo bar');
+			expect(safeDecodeParam('%')).toBeNull();
+			expect(safeDecodeParam('%2')).toBeNull();
+			expect(safeDecodeParam('%E0%A4%A')).toBeNull();
+			expect(safeDecodeParam('%zz')).toBeNull();
 		});
 
 		it('renders UnknownRouteView with preserved topbar, "未知路径", and "回到运行甲板" button', () => {

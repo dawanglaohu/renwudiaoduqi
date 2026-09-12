@@ -159,6 +159,17 @@ export function buildPath(
 }
 
 /**
+ * Safely decodes a URI component, returning null if malformed (E-222).
+ */
+export function safeDecodeParam(param: string): string | null {
+	try {
+		return decodeURIComponent(param);
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Matches a hash against the 7 registered routes + 2 single-segment parameters (AC 1).
  * When route parameters point to non-existent objects, the router still matches
  * and lets the page itself render the missing notice (E-223).
@@ -209,17 +220,20 @@ export function matchRoute(rawHash?: string | null): RouteMatch {
 		const param = pathname.slice('#/run/'.length);
 		// Must have non-empty single segment (no further slashes)
 		if (param.length > 0 && !param.includes('/')) {
-			return {
-				id: 'runDetail',
-				path: pathname,
-				params: { runId: decodeURIComponent(param) },
-				query,
-				isUnknown: false,
-				auth: true,
-				lazy: false,
-			};
+			const decoded = safeDecodeParam(param);
+			if (decoded !== null) {
+				return {
+					id: 'runDetail',
+					path: pathname,
+					params: { runId: decoded },
+					query,
+					isUnknown: false,
+					auth: true,
+					lazy: false,
+				};
+			}
 		}
-		// Missing parameter or multi-segment: falls through to unknown (E-222)
+		// Missing parameter, multi-segment, or malformed encoding: falls through to unknown (E-222)
 	}
 
 	// 4. Landing (#/landing/:taskId) - single segment param
@@ -227,17 +241,20 @@ export function matchRoute(rawHash?: string | null): RouteMatch {
 		const param = pathname.slice('#/landing/'.length);
 		// Must have non-empty single segment (no further slashes)
 		if (param.length > 0 && !param.includes('/')) {
-			return {
-				id: 'landing',
-				path: pathname,
-				params: { taskId: decodeURIComponent(param) },
-				query,
-				isUnknown: false,
-				auth: true,
-				lazy: true,
-			};
+			const decoded = safeDecodeParam(param);
+			if (decoded !== null) {
+				return {
+					id: 'landing',
+					path: pathname,
+					params: { taskId: decoded },
+					query,
+					isUnknown: false,
+					auth: true,
+					lazy: true,
+				};
+			}
 		}
-		// Missing parameter or multi-segment: falls through to unknown (E-222)
+		// Missing parameter, multi-segment, or malformed encoding: falls through to unknown (E-222)
 	}
 
 	// 5. Settings: Agents (#/settings/agents)
