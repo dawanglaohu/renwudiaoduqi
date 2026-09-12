@@ -197,6 +197,11 @@
         "packages/daemon/test/unit/codex-adapter.test.ts"
       ]
     },
+    "M4-T9": {
+      "supportPaths": [
+        "packages/daemon/test/unit/claude-adapter.test.ts"
+      ]
+    },
     "M5-T1": {
       "supportPaths": [
         "packages/daemon/test/unit/worktree.test.ts"
