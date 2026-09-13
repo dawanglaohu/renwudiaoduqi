@@ -988,6 +988,12 @@
         12,
         17
       ]
+    },
+    "M2-T5": {
+      "supportPaths": [
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/test/unit/sse.test.ts"
+      ]
     }
   }
 }
