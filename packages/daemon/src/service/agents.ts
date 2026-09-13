@@ -5,6 +5,7 @@ import type {
 } from '@agent-scheduler/shared/api/agents';
 import { readClaudeModels } from '../adapters/claude/read-models.ts';
 import { readCodexModels } from '../adapters/codex/read-models.ts';
+import { readDshModels } from '../adapters/dsh/read-models.ts';
 import { readGrokModels } from '../adapters/grok/read-models.ts';
 import { readPiModels } from '../adapters/pi/read-models.ts';
 import {
@@ -67,6 +68,7 @@ export interface AgentServiceDeps {
 	readonly spawnManagedFn?: typeof spawnManaged;
 	readonly clock?: { readonly now: () => string };
 	readonly env?: Record<string, string>;
+	readonly hasInFlightRuns?: (agentId: string) => boolean | Promise<boolean>;
 }
 
 export interface AgentService {
@@ -96,6 +98,7 @@ const AGENT_DISPLAY_NAMES: Readonly<Record<string, string>> = Object.freeze({
 	[BUILT_IN_AGENT_IDS.CLAUDE]: 'Claude Code',
 	[BUILT_IN_AGENT_IDS.PI]: 'Pi Agent',
 	[BUILT_IN_AGENT_IDS.GROK]: 'Grok CLI',
+	[BUILT_IN_AGENT_IDS.DSH]: 'DeepSeek Harness',
 });
 
 function getAgentDisplayName(agentId: string): string {
@@ -250,12 +253,20 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				canDispatch = false;
 				missingRequirements.push('Valid executable path');
 			} else if (code === 'E_AGENT_VERSION_UNRECOGNIZED') {
-				// Version mismatch on custom binary
-				isAvailable = false;
-				canDispatch = false;
-				missingRequirements.push(
-					`Compatible version matching pattern "${config.versionFingerprint.expectedPattern}"`,
-				);
+				if (probeResult.matched) {
+					// Version recognized by pattern but outside expected range (E-194): allow enablement with warning banner
+					isAvailable = true;
+					canDispatch = true;
+					unavailableCode = undefined;
+					unavailableReason = undefined;
+				} else {
+					// Version mismatch on custom binary
+					isAvailable = false;
+					canDispatch = false;
+					missingRequirements.push(
+						`Compatible version matching pattern "${config.versionFingerprint.expectedPattern}"`,
+					);
+				}
 			} else {
 				isAvailable = false;
 				canDispatch = false;
@@ -499,6 +510,21 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			);
 		}
 
+		// Validate adapterKind switch requires no in-flight runs (AC 8, E-189)
+		const candidateAdapterKind = (updates as { adapterKind?: unknown }).adapterKind;
+		if (candidateAdapterKind !== undefined && candidateAdapterKind !== config.adapterKind) {
+			if (deps.hasInFlightRuns) {
+				const inFlight = await deps.hasInFlightRuns(agentId);
+				if (inFlight) {
+					throw new AppError(
+						'E_VALIDATION',
+						`Cannot switch adapterKind for agent '${agentId}' while runs are in flight.`,
+						{ details: { agentId, field: 'adapterKind' } },
+					);
+				}
+			}
+		}
+
 		// Update overrides via registry (R2)
 		const updateResult = await deps.registry.updateOverrides(agentId, updates);
 		if (!updateResult.ok) {
@@ -576,6 +602,15 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			}
 			case BUILT_IN_AGENT_IDS.PI: {
 				const res = await readPiModels({
+					hostInputs: deps.hostInputs,
+					homedir,
+				});
+				modelNames = res.models.map((m) => m.id);
+				isComplete = !res.isPartial;
+				break;
+			}
+			case BUILT_IN_AGENT_IDS.DSH: {
+				const res = await readDshModels({
 					hostInputs: deps.hostInputs,
 					homedir,
 				});

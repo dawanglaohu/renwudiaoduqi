@@ -12,6 +12,7 @@ export const BUILT_IN_AGENT_IDS = {
 	CLAUDE: 'claude',
 	PI: 'pi',
 	GROK: 'grok',
+	DSH: 'dsh',
 } as const;
 
 export type BuiltInAgentId = (typeof BUILT_IN_AGENT_IDS)[keyof typeof BUILT_IN_AGENT_IDS];
@@ -121,6 +122,20 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			versionFingerprint: {
 				args: ['--version'],
 				expectedPattern: '\\bgrok\\b',
+			},
+		}),
+		[BUILT_IN_AGENT_IDS.DSH]: freezeAgentConfig({
+			execPath: 'resources/host/node_modules/@deepseek-ai/dsh/lib/bin.js',
+			argsTemplate: ['--profile', 'headless', '--model', '{model}'],
+			maxConcurrency: 1,
+			defaultModel: 'deepseek-chat',
+			permissionTier: DEFAULT_PERMISSION_TIER,
+			monogram: 'DS',
+			adapterKind: ADAPTER_KINDS.NATIVE,
+			timeouts: NATIVE_TIMEOUTS,
+			versionFingerprint: {
+				args: ['--version'],
+				expectedPattern: '\\bdsh\\b',
 			},
 		}),
 	},

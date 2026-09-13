@@ -538,6 +538,54 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 		return result;
 	}
 
+	// 6b. Version recognized by pattern but outside expected versionRange (AC 5, E-194):
+	// Allow enablement (canDispatch=true), but provide persistent warning banner '版本未验证'
+	if (
+		execution.ok &&
+		(comparison.isStrictMatch || comparison.isLenientMatch) &&
+		comparison.inVersionRange === false
+	) {
+		const warningBanner: ProbeWarningBanner = Object.freeze({
+			code: 'E_AGENT_VERSION_UNRECOGNIZED',
+			message: '版本未验证',
+			details: Object.freeze({
+				observed: rawOutput,
+				expected: expectedPattern,
+				execPath: realPath,
+				inVersionRange: false,
+			}),
+		});
+
+		const result: ProbeAgentResult = Object.freeze({
+			ok: true,
+			status: 'warning',
+			agentId: options.agentId,
+			canDispatch: true,
+			matched: true,
+			versionString: rawOutput,
+			resolvedPath: realPath,
+			isCustomPath: isCustom,
+			candidates: discovery,
+			comparison,
+			warningBanner,
+		});
+
+		if (cache && mtimeMs > 0) {
+			cache.set(
+				realPath,
+				Object.freeze({
+					resolvedPath: realPath,
+					mtimeMs,
+					size,
+					result,
+					cachedAt: options.nowIso ?? new Date().toISOString(),
+				}),
+			);
+		}
+
+		return result;
+	}
+
 	// 7. Probe failed or output was unrecognized
 	if (isCustom) {
 		// Custom user-entered path: failure downgrades to warning banner instead of disabling (AC 6, E-199)
