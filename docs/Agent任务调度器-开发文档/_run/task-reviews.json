@@ -311,6 +311,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M4-T12": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "9e8230908f8973a1c2ab6f1a425dae42f3a2c06adaa2fdd42109944d5d8811b1",
+    "evidence": [
+      "契约逐条核对：04-执行/19-模块任务拆分.md:47 的 M4-T12 行、图谱/任务/M4-T12.md:27-42、图谱/模块/M4.md:32 与 03-质量/13-边界问题与异常处理.md 的 E-28/E-187/E-188/E-189/E-191/E-192/E-193/E-194/E-253 九行一致（触发、期望、归属模块都对得上）；产出为 adapters/dsh/ 的 buildLaunchSpec / readModels / map-events / capabilities（另加满足验收 3 所必需的 smoke 自检）与 adapters/generic-acp/；输入为 dsh 实测契约（--profile headless）与 ACP v1 规格；前置 M4-T8 已落地（packages/daemon/src/adapters/codex/ 在 main 上，图谱/任务/M4-T8.md 头部 status 非 todo，dispatch.json 第 6 批全部落地）。本任务不新增错误码、不新增环境变量（四个边界复用已登记的 E_AGENT_VERSION_UNRECOGNIZED 等）、不改 10 节接口表，故不触发 06 节的 codes.ts / routes.ts 投影同步。",
+      "有效路径核对（补丁 m4-t12-effective-paths）：原 handoff.taskPaths['M4-T12'] 只有 packages/daemon/src/adapters/generic-acp/，而同一条 19-拆分 行的产出明写 adapters/dsh/ 的四个文件，实际分支也确实新增了 adapters/dsh/{build-launch-spec,capabilities,map-events,read-models,smoke}.ts——漏列。补丁把 adapters/dsh/ 补进 taskPaths，并按验收 3/5/8 的接线点补 supportPaths：adapters/probe.ts（版本区间判定与 E_194 的常驻 warning banner 在此）、config/defaults.ts（第五家内置条目）、config/registry.ts（E-194 的「注册表已知区间」字段归属、06/08 禁令下 agents.json 的唯一读写点）、service/agents.ts（探测/启用路径与 adapterKind 守卫）、service/run.ts（收流入口，dsh 纯文本 stdout 的落地通路）、以及三个测试文件。核对冲突：M4-T13（同批在途）的 taskPaths 也含 adapters/probe.ts、config/defaults.ts、config/registry.ts、service/agents.ts，两者确有同文件交集，补丁后并行排程会把它们分到不同窗口；service/run.ts 属 M6-T2（第 6 批已落地，dispatch.json 批次记录显示该批全部落地），M6-T7/M6-T10/M8-T9 属后续批次，不在本批竞争。",
+      "13/17/19 对应要求：13 节的九条边界在任务笔记中逐条列出且本任务是其唯一 covered_by（图谱/边界/E-191.md 的 covered_by 为 [M4-T12]）；17 节的测试要求落在新增的 test/unit/dsh-adapter.test.ts 与 test/unit/generic-acp-adapter.test.ts；19 节的产出与验收八条与任务笔记逐字一致。接口字段方面本任务只产出 adapters 内部类型（DshCapabilities / GenericAcpCapabilities / ReadModelsResult / LaunchSpec），不新增 packages/shared 的 DTO 字段，故无 API 契约变化需要 §10 同步。",
+      "语义与架构约定核对（06/08）：两个 adapters 目录只 import domain/、proc/ 的类型、config/defaults.ts 与 shared 的事件类型，不 import repo/service/http/jobs/events；事件映射是纯函数（实测两文件无 fs/db/Date/process.env/process.platform）；厂商事件字符串只在各自目录（自写的隔离用例通过）；文件命名 kebab-case、无 barrel、常量 as const、错误走 AppError；事件 id/ts/seq/scope 由 events/envelope.ts 统一补，适配器不碰。有效范围内实际改动文件与补丁后的路径集合一致，无落在范围外的必要支持文件。",
+      "本轮结论：任务契约本身（前置已落地、产出与验收八条、九个边界、有效范围）无阻断，故登记 task-contract 复核为 pass；代码侧存在 R1-R6 六项阻断（通用 ACP 事件映射对不上 ACP v1 真实报文与 shared payload 契约、dsh 映射与收流入口对不上、E-191 冒烟自检无生产调用点、E-194 版本区间无来源、throw new Error 违反 06/08、daemon 产出中文用户文案），已随 PR #65 的 REVIEW-ROUND 1 打回；E-189 的守卫已实现但生产切换路径受「容器内尚无 runs repo」阻塞、E-187 的注册表侧接入口与 M9-T14 的 E-185 重叠，两项记 FOLLOW_UP，不在本轮返工条目内。",
+      "验证环境与结果：Node 22.17.0（WSL）。npx biome ci . 检查 251 个文件、无修复项；npx tsc -b --noEmit 通过；聚焦 Vitest 全绿——test/unit/dsh-adapter.test.ts 21/21、test/unit/generic-acp-adapter.test.ts 15/15、test/arch/{routes,boot-boundaries,bus-transaction}.test.ts、test/unit/agents-service.test.ts、test/unit/agent-registry.test.ts、test/integration/agents-routes.test.ts 共 7 文件 61 用例通过。"
+    ],
+    "reviewed": "2026-09-13T14:05:01.264993+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M4-T13": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "b37bab666fb55f27151d52d09c81f30399c2008e2aa13c3949e262dde0f1798e",
