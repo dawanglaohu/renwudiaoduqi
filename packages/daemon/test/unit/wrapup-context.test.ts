@@ -19,12 +19,7 @@ import {
 } from '../../src/repo/dispatch-snapshots.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../../src/repo/documents.ts';
 import { type TasksRepo, createTasksRepo } from '../../src/repo/tasks.ts';
-import {
-	clearWrapupContextLock,
-	createDocsService,
-	getWrapupContext,
-	matchBatchByTasksSet,
-} from '../../src/service/docs.ts';
+import { createDocsService, matchBatchByTasksSet } from '../../src/service/docs.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -137,7 +132,6 @@ describe('M3-T6 Wrapup Context Service and DispatchBatches Matching', () => {
 	let snapshotsRepo: DispatchSnapshotsRepo;
 
 	beforeEach(() => {
-		clearWrapupContextLock();
 		db = createTestDatabase();
 		documentsRepo = createDocumentsRepo(db);
 		batchesRepo = createBatchesRepo(db);
@@ -146,7 +140,6 @@ describe('M3-T6 Wrapup Context Service and DispatchBatches Matching', () => {
 	});
 
 	afterEach(() => {
-		clearWrapupContextLock();
 		for (const d of openDatabases.splice(0)) {
 			if (d.open) d.close();
 		}
@@ -210,6 +203,17 @@ describe('M3-T6 Wrapup Context Service and DispatchBatches Matching', () => {
 		return taskId;
 	}
 
+	function createTestDocsService() {
+		return createDocsService({
+			documentsRepo,
+			batchesRepo,
+			tasksRepo,
+			dispatchSnapshotsRepo: snapshotsRepo,
+			clock: MOCK_CLOCK,
+			ids: MOCK_IDS,
+		});
+	}
+
 	it('matchBatchByTasksSet: pure function correctly matches tasks set regardless of order (AC 1)', () => {
 		const batches = [
 			{
@@ -268,16 +272,9 @@ describe('M3-T6 Wrapup Context Service and DispatchBatches Matching', () => {
 			},
 		});
 
-		const service = createDocsService({
-			documentsRepo,
-			batchesRepo,
-			tasksRepo,
-			dispatchSnapshotsRepo: snapshotsRepo,
-			clock: MOCK_CLOCK,
-			ids: MOCK_IDS,
-		});
+		const service = createTestDocsService();
 
-		// Parse doc content so it is registered in docFingerprintBatchesCache
+		// Parse doc content so it is registered in the service instance closure
 		const parsed = service.parseContent(rawDocJs);
 		// Update docRow to reflect the parsed fingerprint
 		documentsRepo.updateMetadata({
@@ -317,16 +314,9 @@ describe('M3-T6 Wrapup Context Service and DispatchBatches Matching', () => {
 			tasks: [{ id: 'M1-T1', title: 'Task 1' }],
 		});
 
-		const service = createDocsService({
-			documentsRepo,
-			batchesRepo,
-			tasksRepo,
-			dispatchSnapshotsRepo: snapshotsRepo,
-			clock: MOCK_CLOCK,
-			ids: MOCK_IDS,
-		});
+		const service1 = createTestDocsService();
 
-		const parsed = service.parseContent(rawDocWithoutBatches);
+		const parsed = service1.parseContent(rawDocWithoutBatches);
 		documentsRepo.updateMetadata({
 			id: 'doc-1',
 			project_name: parsed.projectName,
@@ -338,14 +328,14 @@ describe('M3-T6 Wrapup Context Service and DispatchBatches Matching', () => {
 			last_seen_at: MOCK_CLOCK.now(),
 		});
 
-		const contextNoBatches = service.getWrapupContext('batch-1');
+		const contextNoBatches = service1.getWrapupContext('batch-1');
 		expect(contextNoBatches.promptSource).toBe(PROMPT_SOURCE_BUILTIN);
 		expect(contextNoBatches.wrapup).toBe(BUILTIN_WRAPUP_PROMPT);
 		expect(contextNoBatches.contractHash).toBeNull();
 		expect(warnSpy).toHaveBeenCalled();
 
 		// 2. Doc has dispatchBatches, but tasks count does not match (has an extra task M1-T2)
-		clearWrapupContextLock('batch-1');
+		const service2 = createTestDocsService();
 		const rawDocMismatch = buildValidDocsDataJs({
 			tasks: [
 				{ id: 'M1-T1', title: 'Task 1' },
@@ -360,7 +350,7 @@ describe('M3-T6 Wrapup Context Service and DispatchBatches Matching', () => {
 			},
 		});
 
-		const parsedMismatch = service.parseContent(rawDocMismatch);
+		const parsedMismatch = service2.parseContent(rawDocMismatch);
 		documentsRepo.updateMetadata({
 			id: 'doc-1',
 			project_name: parsedMismatch.projectName,
@@ -372,7 +362,7 @@ describe('M3-T6 Wrapup Context Service and DispatchBatches Matching', () => {
 			last_seen_at: MOCK_CLOCK.now(),
 		});
 
-		const contextMismatch = service.getWrapupContext('batch-1');
+		const contextMismatch = service2.getWrapupContext('batch-1');
 		expect(contextMismatch.promptSource).toBe(PROMPT_SOURCE_BUILTIN);
 		expect(contextMismatch.wrapup).toBe(BUILTIN_WRAPUP_PROMPT);
 	});
@@ -417,14 +407,7 @@ End of prompt.
 			},
 		});
 
-		const service = createDocsService({
-			documentsRepo,
-			batchesRepo,
-			tasksRepo,
-			dispatchSnapshotsRepo: snapshotsRepo,
-			clock: MOCK_CLOCK,
-			ids: MOCK_IDS,
-		});
+		const service = createTestDocsService();
 
 		// Decision 73: parseDocsDataContent does not populate batchRecords
 		const parsed = service.parseContent(rawDocWithBatchRecords);
@@ -447,7 +430,7 @@ End of prompt.
 		expect(context.wrapupPrompt).toBe(complexVerbatimWrapup);
 	});
 
-	it('AC 4 & E-50: when document fingerprint changes during execution or wrapup, original snapshot is preserved without hot-reloading', () => {
+	it('AC 4 & E-50: when document fingerprint changes during execution or wrapup, original snapshot is preserved without hot-reloading (both in memory)', () => {
 		setupDocument('doc-1');
 		setupBatch('doc-1', 1, 'batch-1');
 		const t1Id = setupTask('M1-T1', 'batch-1', 'doc-1', { contractHash: 'hash-M1-T1-v1' });
@@ -464,16 +447,9 @@ End of prompt.
 			},
 		});
 
-		const service = createDocsService({
-			documentsRepo,
-			batchesRepo,
-			tasksRepo,
-			dispatchSnapshotsRepo: snapshotsRepo,
-			clock: MOCK_CLOCK,
-			ids: MOCK_IDS,
-		});
+		const service = createTestDocsService();
 
-		// 1. Initial document import
+		// 1. Initial document import V1
 		const parsedV1 = service.parseContent(docV1Js);
 		documentsRepo.updateMetadata({
 			id: 'doc-1',
@@ -494,7 +470,7 @@ End of prompt.
 			snapshotId: 'snap-1',
 		});
 
-		// 3. First wrapup context retrieval locks the context
+		// 3. First wrapup context retrieval locks the context in the service instance
 		const initialContext = service.getWrapupContext('batch-1');
 		expect(initialContext.wrapup).toBe(v1Wrapup);
 		expect(initialContext.promptSource).toBe(PROMPT_SOURCE_DOCS);
@@ -535,7 +511,7 @@ End of prompt.
 			accept_text: 'new accept',
 			edge_ids_json: '[]',
 			task_paths_json: '["packages/daemon/src/m1-t1.ts"]',
-			contract_hash: 'hash-v2-changed',
+			contract_hash: 'hash-M1-T1-v2',
 			is_contract_ready: 1,
 			contract_reasons_json: '[]',
 			est_days: 1.0,
@@ -551,22 +527,132 @@ End of prompt.
 		expect(contextAfterChange.wrapup).not.toBe(v2Wrapup);
 		expect(contextAfterChange.isSnapshot).toBe(true);
 
-		// 6. Even when unlocking, historical fingerprint match restores the pre-change snapshot
-		clearWrapupContextLock('batch-1');
-		const contextFromHistory = service.getWrapupContext('batch-1');
+		// 6. Even with a fresh service instance that parsed both V1 and V2, contract hash matching recovers V1
+		const serviceNew = createTestDocsService();
+		serviceNew.parseContent(docV1Js);
+		serviceNew.parseContent(docV2Js);
+		const contextFromHistory = serviceNew.getWrapupContext('batch-1');
 		expect(contextFromHistory.wrapup).toBe(v1Wrapup);
 		expect(contextFromHistory.docChangedSinceDispatch).toBe(true);
 	});
 
-	it('validates batchId and verifies error boundaries for missing entities', () => {
-		const service = createDocsService({
-			documentsRepo,
-			batchesRepo,
-			tasksRepo,
-			dispatchSnapshotsRepo: snapshotsRepo,
-			clock: MOCK_CLOCK,
-			ids: MOCK_IDS,
+	it('R2 & E-50: when document changes to V2 and instance only knows V2 (equivalent to daemon restart after doc change), falls back to builtin and never leaks V2', () => {
+		setupDocument('doc-1');
+		setupBatch('doc-1', 1, 'batch-restart');
+		const t1Id = setupTask('M1-T1', 'batch-restart', 'doc-1', { contractHash: 'hash-M1-T1-v1' });
+
+		// Task was dispatched when contractHash was v1
+		snapshotsRepo.takeSnapshotForTask({
+			taskId: t1Id,
+			launchSpecJson: '{"agentId":"codex"}',
+			createdAt: '2026-09-13T01:00:00.000Z',
+			snapshotId: 'snap-restarted',
 		});
+
+		// Document was updated to V2 in disk and DB task record has hash v2
+		const v2Wrapup = '# Batch 1 - Version 2 Wrapup (Should NEVER leak to V1 in-flight batch)';
+		const docV2Js = buildValidDocsDataJs({
+			tasks: [{ id: 'M1-T1', title: 'Task 1 Modified', contractHash: 'hash-M1-T1-v2' }],
+			dispatchBatches: {
+				'0': {
+					batchNo: 1,
+					tasks: ['M1-T1'],
+					wrapup: v2Wrapup,
+				},
+			},
+		});
+
+		tasksRepo.updateDocFields({
+			id: t1Id,
+			title: 'Task 1 Modified',
+			module_key: 'M1',
+			deps_json: '[]',
+			input_text: 'new input',
+			output_text: 'new output',
+			accept_text: 'new accept',
+			edge_ids_json: '[]',
+			task_paths_json: '["packages/daemon/src/m1-t1.ts"]',
+			contract_hash: 'hash-M1-T1-v2',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+			est_days: 1.0,
+			batch_id: 'batch-restart',
+			impl_prompt: 'new impl',
+			review_prompt: 'new review',
+			is_removed_from_doc: 0,
+		});
+
+		// New service instance starts up and ONLY parses V2 (no knowledge of historical V1)
+		const freshServiceAfterRestart = createTestDocsService();
+		const parsedV2 = freshServiceAfterRestart.parseContent(docV2Js);
+		documentsRepo.updateMetadata({
+			id: 'doc-1',
+			project_name: parsedV2.projectName,
+			repo_path: parsedV2.repoPath,
+			main_branch: parsedV2.mainBranch,
+			branch_prefix: parsedV2.branchPrefix,
+			content_fingerprint: parsedV2.contentFingerprint,
+			is_source_readable: 1,
+			last_seen_at: MOCK_CLOCK.now(),
+		});
+
+		const context = freshServiceAfterRestart.getWrapupContext('batch-restart');
+
+		// R2 requirement: docChangedSinceDispatch=true but snapshot v1 hash not in memory ->
+		// MUST fall back to builtin prompt and MUST NOT leak V2 wrapup
+		expect(context.promptSource).toBe(PROMPT_SOURCE_BUILTIN);
+		expect(context.wrapup).toBe(BUILTIN_WRAPUP_PROMPT);
+		expect(context.wrapup).not.toBe(v2Wrapup);
+		expect(context.docChangedSinceDispatch).toBe(true);
+	});
+
+	it('R1: two separate DocsService instances have isolated wrapup locks and doc version caches (no module-level state)', () => {
+		setupDocument('doc-1');
+		setupBatch('doc-1', 1, 'batch-isolated');
+		setupTask('M1-T1', 'batch-isolated');
+
+		const wrapupTextA = '# Wrapup from Instance A';
+		const docJsA = buildValidDocsDataJs({
+			tasks: [{ id: 'M1-T1', title: 'Task 1' }],
+			dispatchBatches: {
+				'0': {
+					batchNo: 1,
+					tasks: ['M1-T1'],
+					wrapup: wrapupTextA,
+				},
+			},
+		});
+
+		const serviceA = createTestDocsService();
+		const parsedA = serviceA.parseContent(docJsA);
+		documentsRepo.updateMetadata({
+			id: 'doc-1',
+			project_name: parsedA.projectName,
+			repo_path: parsedA.repoPath,
+			main_branch: parsedA.mainBranch,
+			branch_prefix: parsedA.branchPrefix,
+			content_fingerprint: parsedA.contentFingerprint,
+			is_source_readable: 1,
+			last_seen_at: MOCK_CLOCK.now(),
+		});
+
+		// Service A locks wrapupTextA for batch-isolated
+		const contextA = serviceA.getWrapupContext('batch-isolated');
+		expect(contextA.wrapup).toBe(wrapupTextA);
+
+		// Service B is a completely independent instance that has never parsed docJsA
+		const serviceB = createTestDocsService();
+		// Service B calls getWrapupContext on the same batchId:
+		// because Service B's closure has no cache for doc-1's fingerprint and has no locked wrapup,
+		// it falls back to builtin without being affected by Service A's memory lock
+		const contextB = serviceB.getWrapupContext('batch-isolated');
+		expect(contextB.promptSource).toBe(PROMPT_SOURCE_BUILTIN);
+		expect(contextB.wrapup).toBe(BUILTIN_WRAPUP_PROMPT);
+		expect(contextB.wrapup).not.toBe(wrapupTextA);
+	});
+
+	it('validates batchId and verifies error boundaries for missing entities', () => {
+		const service = createTestDocsService();
 
 		// Empty batchId -> E_VALIDATION
 		expect(() => service.getWrapupContext('')).toThrowError(AppError);
@@ -576,32 +662,47 @@ End of prompt.
 		expect(() => service.getWrapupContext('non-existent-batch')).toThrowError(AppError);
 	});
 
-	it('standalone getWrapupContext function behaves identically to service method', () => {
+	it('filters out is_removed_from_doc=1 tasks and matches remaining active tasks set', () => {
 		setupDocument('doc-1');
-		setupBatch('doc-1', 1, 'batch-standalone');
-		setupTask('M1-T1', 'batch-standalone');
+		setupBatch('doc-1', 1, 'batch-removed-test');
+		setupTask('M1-T1', 'batch-removed-test');
+		const t2Id = setupTask('M1-T2', 'batch-removed-test');
 
-		const wrapupText = '# Standalone Wrapup Prompt';
+		// Mark M1-T2 as removed from document (is_removed_from_doc = 1)
+		tasksRepo.updateDocFields({
+			id: t2Id,
+			title: 'Task M1-T2 Removed',
+			module_key: 'M1',
+			deps_json: '[]',
+			input_text: null,
+			output_text: null,
+			accept_text: 'Accept',
+			edge_ids_json: '[]',
+			task_paths_json: '[]',
+			contract_hash: 'hash-M1-T2-v1',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+			est_days: 1.0,
+			batch_id: 'batch-removed-test',
+			impl_prompt: 'impl',
+			review_prompt: 'review',
+			is_removed_from_doc: 1,
+		});
+
+		// Document has dispatchBatches only for the remaining active task M1-T1
+		const wrapupOnlyT1 = '# Wrapup matching active task M1-T1 only';
 		const docJs = buildValidDocsDataJs({
 			tasks: [{ id: 'M1-T1', title: 'Task 1' }],
 			dispatchBatches: {
 				'0': {
 					batchNo: 1,
 					tasks: ['M1-T1'],
-					wrapup: wrapupText,
+					wrapup: wrapupOnlyT1,
 				},
 			},
 		});
 
-		const service = createDocsService({
-			documentsRepo,
-			batchesRepo,
-			tasksRepo,
-			dispatchSnapshotsRepo: snapshotsRepo,
-			clock: MOCK_CLOCK,
-			ids: MOCK_IDS,
-		});
-
+		const service = createTestDocsService();
 		const parsed = service.parseContent(docJs);
 		documentsRepo.updateMetadata({
 			id: 'doc-1',
@@ -614,16 +715,9 @@ End of prompt.
 			last_seen_at: MOCK_CLOCK.now(),
 		});
 
-		const context = getWrapupContext('batch-standalone', {
-			documentsRepo,
-			batchesRepo,
-			tasksRepo,
-			dispatchSnapshotsRepo: snapshotsRepo,
-		});
-
+		const context = service.getWrapupContext('batch-removed-test');
 		expect(context.promptSource).toBe(PROMPT_SOURCE_DOCS);
-		expect(context.wrapup).toBe(wrapupText);
-		expect(context.batchNo).toBe(1);
-		expect(context.isSnapshot).toBe(true);
+		expect(context.wrapup).toBe(wrapupOnlyT1);
+		expect(context.tasks).toEqual(['M1-T1']);
 	});
 });

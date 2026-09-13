@@ -20,12 +20,7 @@ import {
 	type DispatchSnapshotsRepo,
 	createDispatchSnapshotsRepo,
 } from '../repo/dispatch-snapshots.ts';
-import {
-	type DocumentMetadataUpdateRow,
-	type DocumentRow,
-	type DocumentsRepo,
-	createDocumentsRepo,
-} from '../repo/documents.ts';
+import type { DocumentMetadataUpdateRow, DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 
 export interface ParsedDocTask {
@@ -82,8 +77,6 @@ export interface WrapupContext {
 }
 
 export interface GetWrapupContextOptions {
-	readonly snapshotFingerprint?: string;
-	readonly snapshotBatches?: readonly ParsedDispatchBatch[];
 	readonly database?: DatabaseConnection;
 	readonly batchesRepo?: BatchesRepo;
 	readonly tasksRepo?: TasksRepo;
@@ -163,18 +156,6 @@ interface CachedDocHistoryEntry {
 	readonly fingerprint: string;
 	readonly dispatchBatches: readonly ParsedDispatchBatch[];
 	readonly taskContractHashes: ReadonlyMap<string, string>;
-}
-
-const docFingerprintBatchesCache = new Map<string, CachedDocHistoryEntry>();
-const lockedBatchWrapups = new Map<string, WrapupContext>();
-
-export function clearWrapupContextLock(batchId?: string): void {
-	if (batchId) {
-		lockedBatchWrapups.delete(batchId);
-	} else {
-		lockedBatchWrapups.clear();
-		docFingerprintBatchesCache.clear();
-	}
 }
 
 /**
@@ -642,15 +623,6 @@ export function parseDocsDataContent(
 	}
 
 	const frozenBatches = Object.freeze(parsedDispatchBatches);
-	const taskHashesMap = new Map(parsedTasks.map((t) => [t.id, t.contractHash]));
-	docFingerprintBatchesCache.set(
-		contentFingerprint,
-		Object.freeze({
-			fingerprint: contentFingerprint,
-			dispatchBatches: frozenBatches,
-			taskContractHashes: taskHashesMap,
-		}),
-	);
 
 	return Object.freeze({
 		schemaVersion: 1,
@@ -687,13 +659,33 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 	const fileSystem = deps.fs ?? DEFAULT_FS;
 	const hasher = deps.hasher ?? defaultSha256Hasher;
 
+	const docFingerprintBatchesCache = new Map<string, CachedDocHistoryEntry>();
+	const lockedBatchWrapups = new Map<string, WrapupContext>();
+
+	function recordParsedDoc(parsed: ParsedDocData): void {
+		if (!parsed.dispatchBatches) return;
+		const taskHashesMap = new Map(parsed.tasks.map((t) => [t.id, t.contractHash]));
+		docFingerprintBatchesCache.set(
+			parsed.contentFingerprint,
+			Object.freeze({
+				fingerprint: parsed.contentFingerprint,
+				dispatchBatches: parsed.dispatchBatches,
+				taskContractHashes: taskHashesMap,
+			}),
+		);
+	}
+
 	return Object.freeze({
 		parseContent(content: string, options?: { docsPath?: string }): ParsedDocData {
-			return parseDocsDataContent(content, { ...options, hasher });
+			const parsed = parseDocsDataContent(content, { ...options, hasher });
+			recordParsedDoc(parsed);
+			return parsed;
 		},
 
 		async parseFile(filePath: string): Promise<ParsedDocData> {
-			return parseDocsDataFile(filePath, fileSystem, hasher);
+			const parsed = await parseDocsDataFile(filePath, fileSystem, hasher);
+			recordParsedDoc(parsed);
+			return parsed;
 		},
 
 		async importDocument(docsPath: string): Promise<ImportDocumentResult> {
@@ -703,6 +695,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			let parsed: ParsedDocData;
 			try {
 				parsed = await parseDocsDataFile(resolvedPath, fileSystem, hasher);
+				recordParsedDoc(parsed);
 			} catch (error) {
 				const appError =
 					error instanceof AppError
@@ -886,7 +879,13 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 		},
 
 		getWrapupContext(batchId: string, options?: GetWrapupContextOptions): WrapupContext {
-			return getWrapupContextInternal(batchId, deps, options);
+			return getWrapupContextInternal(
+				batchId,
+				deps,
+				lockedBatchWrapups,
+				docFingerprintBatchesCache,
+				options,
+			);
 		},
 	});
 }
@@ -906,6 +905,8 @@ export function getWrapupContextInternal(
 		fs?: DocsFileSystem;
 		hasher?: DocsFingerprintHasher;
 	},
+	lockedBatchWrapups: Map<string, WrapupContext>,
+	docFingerprintBatchesCache: Map<string, CachedDocHistoryEntry>,
 	options?: GetWrapupContextOptions,
 ): WrapupContext {
 	if (typeof batchId !== 'string' || batchId.trim().length === 0) {
@@ -957,7 +958,6 @@ export function getWrapupContextInternal(
 
 	// 检查快照与文档变更状态（E-50）
 	let docChangedSinceDispatch = false;
-	const snapshotFingerprint: string | null = options?.snapshotFingerprint ?? null;
 	const snapshotHashesByTaskKey = new Map<string, string>();
 
 	if (snapshotsRepo && activeTasks.length > 0) {
@@ -976,44 +976,30 @@ export function getWrapupContextInternal(
 		}
 	}
 
-	// 获取候选用以匹配的 dispatchBatches
-	let candidateBatches: readonly ParsedDispatchBatch[] | undefined = options?.snapshotBatches;
+	// R2 & AC 4 & E-50: 候选批次严格受限：
+	// docChangedSinceDispatch=true 时候选只能是用本批任务派发快照 contract_hash 逐版本精确命中的版本；
+	// 拿不到就保持 undefined（下游回退 builtin），绝不取任意历史版本，绝不在检出变更后退回当前文档。
+	// docChangedSinceDispatch=false（当前文档≡派发时文档）才允许使用当前版本。
+	let candidateBatches: readonly ParsedDispatchBatch[] | undefined;
 
-	// 优先根据快照指纹从历史缓存中获取（E-50）
-	if (!candidateBatches && snapshotFingerprint) {
-		candidateBatches = docFingerprintBatchesCache.get(snapshotFingerprint)?.dispatchBatches;
-	}
-
-	// 若文档在派发后发生变更（E-50），优先查找历史快照中与派发时任务契约哈希匹配的版本
-	if (!candidateBatches && docChangedSinceDispatch && snapshotHashesByTaskKey.size > 0) {
-		for (const entry of docFingerprintBatchesCache.values()) {
-			let allMatch = true;
-			for (const [taskKey, snapHash] of snapshotHashesByTaskKey.entries()) {
-				const historicalHash = entry.taskContractHashes.get(taskKey);
-				if (historicalHash !== snapHash) {
-					allMatch = false;
+	if (docChangedSinceDispatch) {
+		if (snapshotHashesByTaskKey.size > 0) {
+			for (const entry of docFingerprintBatchesCache.values()) {
+				let allMatch = true;
+				for (const [taskKey, snapHash] of snapshotHashesByTaskKey.entries()) {
+					const historicalHash = entry.taskContractHashes.get(taskKey);
+					if (historicalHash !== snapHash) {
+						allMatch = false;
+						break;
+					}
+				}
+				if (allMatch) {
+					candidateBatches = entry.dispatchBatches;
 					break;
 				}
 			}
-			if (allMatch) {
-				candidateBatches = entry.dispatchBatches;
-				break;
-			}
 		}
-	}
-
-	// 若未精准匹配到历史快照，但发生了文档变更，则取不等于当前指纹的任一历史版本
-	if (!candidateBatches && docChangedSinceDispatch) {
-		for (const entry of docFingerprintBatchesCache.values()) {
-			if (entry.fingerprint !== docRow.content_fingerprint) {
-				candidateBatches = entry.dispatchBatches;
-				break;
-			}
-		}
-	}
-
-	// 回退：取当前文档指纹在缓存中的 dispatchBatches
-	if (!candidateBatches) {
+	} else {
 		candidateBatches = docFingerprintBatchesCache.get(docRow.content_fingerprint)?.dispatchBatches;
 	}
 
@@ -1056,36 +1042,4 @@ export function getWrapupContextInternal(
 	lockedBatchWrapups.set(cleanBatchId, context);
 
 	return context;
-}
-
-/**
- * 独立导出的 getWrapupContext 函数。
- */
-export function getWrapupContext(
-	batchId: string,
-	options?: GetWrapupContextOptions & Partial<DocsServiceDeps>,
-): WrapupContext {
-	const db = options?.database ?? options?.db;
-	const documentsRepo = options?.documentsRepo ?? (db ? createDocumentsRepo(db) : undefined);
-
-	if (!documentsRepo) {
-		throw new AppError(
-			'E_INTERNAL',
-			'documentsRepo or database connection is required for standalone getWrapupContext',
-		);
-	}
-
-	return getWrapupContextInternal(
-		batchId,
-		{
-			documentsRepo,
-			batchesRepo: options?.batchesRepo,
-			tasksRepo: options?.tasksRepo,
-			dispatchSnapshotsRepo: options?.dispatchSnapshotsRepo,
-			db,
-			fs: options?.fs,
-			hasher: options?.hasher,
-		},
-		options,
-	);
 }
