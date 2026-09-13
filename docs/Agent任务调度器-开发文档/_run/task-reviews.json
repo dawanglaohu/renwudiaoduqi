@@ -252,14 +252,16 @@
     "verdict": "pass"
   },
   "M3-T6": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "bcdb7606f545e1b142878de00d3bc3572b04a41727cad988468dd7ecf12e57b0",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "696df1c93a324a2e37beb10919cde75dc085d9efddcd0dd53057d324597c10fa",
     "evidence": [
-      "19 节 M3-T6 行：输入=M3-T5 快照取用接口 + 04 节 dispatchBatches 协议；产出 service/docs.ts getWrapupContext 与 domain/wrapup-builtin-prompt.ts 均在 taskPaths；requires M3-T5 的 review-context 在前置闭包内",
-      "验收 1)～4) 逐条对应 E-296（按 tasks 集合匹配、匹配不到走 builtin）、E-50（用快照不热改）、决策 73（不读 batchRecords）；04 节「数据来源」已加 dispatchBatches 字段说明，schemaVersion 仍为 1",
-      "接缝：M8-T6 的 wrapup_prompt_assembly 消费本任务返回的 {wrapupMaterial, promptSource}，字段名在 08 节「收口运行的提示词包装」与本行产出一致；测试文件 test/unit/wrapup-context.test.ts 在 supportPaths"
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T6 行、图谱/任务/M3-T6.md、03-质量/13-边界问题与异常处理.md:309 的 E-296 行、02-设计/08-后端架构.md 的「收口运行的提示词包装」段（第 2 段引用材料由 M3-T6 按任务集合匹配 dispatchBatches[层号].wrapup）、01-约束/04-开发条件.md:158 的 dispatchBatches 输入协议，确认产出为 service/docs.ts 的 getWrapupContext(batchId) 与 domain/wrapup-builtin-prompt.ts（内置通用收口提示词常量）；前置 M3-T5 任务笔记 status=done 已落地；PR 62 的 diff 只含两条有效路径、一个新增测试与任务笔记回填，无范围外文件。",
+      "输入协议核对：dispatchBatches 的键值形状 {batchNo, tasks（已排序）, contractHash, wrapup} 与生成器 _run/build_docs.py:3866-3870（contractHash 由本批任务契约哈希摘出）及 _run/compile_prompts.js:23-24（batchPrompt 为纯函数、tasks 排序导出）一致，wrapup 语句为字符串；promptSource 取值 'docs'/'builtin' 与 02-设计/09-数据模型.md:138 的 batch_wrapups.prompt_source 值域一致。",
+      "契约可实施性：M3-T7 同期用普通迁移把 dispatch[id].bug 落 dispatch_snapshots.bug_prompt，而 dispatchBatches 是批次级材料，本任务 19 节只列 domain/wrapup-builtin-prompt.ts、service/docs.ts、test/unit/wrapup-context.test.ts 三处，不含迁移与 repo；在此范围内「进程内按内容指纹保留各版本文档解析结果 + 用任务派发快照 contract_hash 定位派发时那一版」可实现验收标准 1 与 4，条款之间无矛盾，故契约无缺口，本轮不发起文档补丁。",
+      "验收标准可判定：四条判据全部落在 getWrapupContext 返回值上——AC1 tasks 集合相等（顺序无关、多一个少一个都不匹配）且命中返回 wrapup 原文与 promptSource='docs'；AC2 未命中/未导出键返回内置常量与 promptSource='builtin' 且不抛错；AC3 逐字不改写不截断且不读 batchRecords；AC4 指纹变化后仍取快照那一份。E-296 的匹配/回退与 E-50 的不热改都有可指认的代码位置，本轮逐条核到位。",
+      "本轮代码验收结论：契约本身通过（本登记），代码侧回退两条阻断项 R1（08 明令禁止模块级可变单例：service/docs.ts:168-178 的两个模块级 Map 与顶层 clearWrapupContextLock）、R2（文档变更后不得退到当前文档或任意历史版本：service/docs.ts:1005-1018，违反 08 的「禁止用当前文档而非派发快照那一刻的 dispatchBatches（E-50）」与 AC4）。证据清单与判据见 PR 62 的 REVIEW-ROUND 1 评论。"
     ],
-    "reviewed": "2026-09-10T20:07:44.142190+00:00",
+    "reviewed": "2026-09-13T11:59:15.379931+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
