@@ -1,0 +1,2 @@
+# Synthetic fixture: codex not logged in output
+not logged in

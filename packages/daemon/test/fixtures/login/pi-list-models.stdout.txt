@@ -1,0 +1,16 @@
+provider            model                             context  max-out  thinking  images
+cc-switch-deep-seek deepseek-chat                     64k      8k       yes       no
+antigravity         claude-3-5-sonnet-20241022        200k     8k       yes       yes
+antigravity         claude-3-5-haiku-20241022         200k     8k       no        no
+antigravity         gpt-4o                            128k     4k       no        yes
+antigravity         gpt-4o-mini                       128k     4k       no        yes
+antigravity         gemini-1.5-pro                    1000k    8k       yes       yes
+antigravity         gemini-1.5-flash                  1000k    8k       yes       yes
+antigravity         claude-3-opus-20240229            200k     4k       no        yes
+antigravity         o1-preview                        128k     32k      yes       no
+antigravity         o1-mini                           128k     64k      yes       no
+antigravity         mistral-large                     128k     8k       no        no
+antigravity         codestral                         32k      4k       no        no
+antigravity         llama-3.1-405b                    128k     4k       no        no
+antigravity         qwen-2.5-72b                      128k     4k       no        no
+antigravity         deepseek-coder                    64k      8k       yes       no
