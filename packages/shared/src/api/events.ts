@@ -1,3 +1,5 @@
+import type { LoginState } from './agents.ts';
+
 export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system';
 
 export const EVENT_SCOPES = [
@@ -262,6 +264,7 @@ export interface AgentAvailabilityChangedPayload {
 	readonly agentId: string;
 	readonly available: boolean;
 	readonly reason?: string;
+	readonly login?: LoginState | null;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }
