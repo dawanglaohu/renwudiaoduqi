@@ -35,7 +35,13 @@ const rowRegex =
 
 for (const line of docRows) {
 	const trimmed = line.trim();
-	if (!trimmed.startsWith('|') || trimmed.includes('---') || trimmed.includes('HTTP')) {
+	// Skip only the table header and the separator row; a data row's description may legitimately
+	// mention 'HTTP' (e.g. E_AGENT_LOGIN_PROBE_FAILED), so it must not be used as a header marker.
+	if (
+		!trimmed.startsWith('|') ||
+		/^\|\s*code\s*\|/i.test(trimmed) ||
+		/^\|\s*:?-{3,}/.test(trimmed)
+	) {
 		continue;
 	}
 	const match = rowRegex.exec(trimmed);
