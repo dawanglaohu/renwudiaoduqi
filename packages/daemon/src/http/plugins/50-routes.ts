@@ -4,6 +4,7 @@ import { AppError } from '../../errors/app-error.ts';
 import { registerAgentRoutes } from '../routes/agents.ts';
 import { registerDeviceRoutes } from '../routes/devices.ts';
 import { registerDocumentRoutes } from '../routes/documents.ts';
+import { registerEventsRoutes } from '../routes/events.ts';
 import { registerHealthRoute } from '../routes/health.ts';
 import { registerPairRoutes } from '../routes/pair.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
@@ -46,9 +47,11 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerDeviceRoutes(target);
 	registerDocumentRoutes(target);
 	registerAgentRoutes(target);
+	registerEventsRoutes(target);
 
 	const customRegisteredPaths = new Set<string>([
 		'GET /api/v1/health',
+		'GET /api/v1/events',
 		'GET /api/v1/system/usage',
 		'POST /api/v1/runs/:runId/abort',
 		'POST /api/v1/runs/:id/abort',
