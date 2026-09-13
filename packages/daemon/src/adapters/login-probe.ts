@@ -305,7 +305,7 @@ export async function probeLogin(options: ProbeLoginOptions): Promise<LoginState
 				state: 'unknown',
 				reason: 'no_provider',
 				checkedAt: now,
-				loginCommand: null,
+				loginCommand: commandHint,
 				warningCode: null,
 			});
 		}
@@ -397,7 +397,7 @@ export async function probeLogin(options: ProbeLoginOptions): Promise<LoginState
 			state: agentState,
 			reason: agentReason,
 			checkedAt: now,
-			loginCommand: null,
+			loginCommand: commandHint,
 			warningCode,
 			providers: Object.freeze(providersMap),
 		});

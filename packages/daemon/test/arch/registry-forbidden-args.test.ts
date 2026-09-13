@@ -3,6 +3,7 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { SECRET_REDACTION_PATTERNS } from '../../src/adapters/probe.ts';
 import { BUILT_IN_AGENT_DEFAULTS, BUILT_IN_AGENT_IDS } from '../../src/config/defaults.ts';
 import {
 	FORBIDDEN_LOGIN_PROBE_ARG_SUBSTRINGS,
@@ -13,19 +14,26 @@ const currentDir = resolve(dirname(fileURLToPath(import.meta.url)));
 const daemonSrc = resolve(currentDir, '../../src');
 const sharedSrc = resolve(daemonSrc, '../../shared/src');
 
-function getAllTsFiles(dir: string): string[] {
+function getAllFiles(dir: string): string[] {
 	const results: string[] = [];
 	const entries = readdirSync(dir);
 	for (const entry of entries) {
 		const fullPath = join(dir, entry);
 		const stat = statSync(fullPath);
 		if (stat.isDirectory()) {
-			results.push(...getAllTsFiles(fullPath));
-		} else if (extname(fullPath) === '.ts' || extname(fullPath) === '.tsx') {
+			results.push(...getAllFiles(fullPath));
+		} else {
 			results.push(fullPath);
 		}
 	}
 	return results;
+}
+
+function getAllTsFiles(dir: string): string[] {
+	return getAllFiles(dir).filter((file) => {
+		const extension = extname(file);
+		return extension === '.ts' || extension === '.tsx';
+	});
 }
 
 describe('M4-T13 / E-353 Arch Test: Forbidden Args and Sensitive Path Scans', () => {
@@ -212,6 +220,22 @@ describe('M4-T13 / E-353 Arch Test: Forbidden Args and Sensitive Path Scans', ()
 			}
 
 			checkNode(sourceFile);
+		}
+
+		expect(violations).toEqual([]);
+	});
+
+	it('E-354: no fixture file carries a real-looking token', () => {
+		const fixturesDir = resolve(currentDir, '../fixtures');
+		const violations: { file: string; pattern: string; match: string }[] = [];
+
+		for (const file of getAllFiles(fixturesDir)) {
+			const content = readFileSync(file, 'utf8');
+			for (const [name, pattern] of Object.entries(SECRET_REDACTION_PATTERNS)) {
+				for (const match of content.match(pattern) ?? []) {
+					violations.push({ file, pattern: name, match });
+				}
+			}
 		}
 
 		expect(violations).toEqual([]);

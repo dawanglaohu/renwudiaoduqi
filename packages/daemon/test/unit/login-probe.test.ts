@@ -428,6 +428,43 @@ describe('M4-T13: 登录态探测与刷新 (login-probe)', () => {
 			expect(result?.providers?.['provider-12']?.reason).toBe('not_probed');
 		});
 
+		it('AC 7: loginCommandHint projects into LoginState.loginCommand for pi', async () => {
+			const hint = 'pi auth login --provider <provider>';
+			const piConfig = {
+				...BUILT_IN_AGENT_DEFAULTS.pi,
+				loginProbe: { ...BUILT_IN_AGENT_DEFAULTS.pi.loginProbe, loginCommandHint: hint },
+			};
+			const mockRunner = vi.fn(async () => ({
+				ok: true,
+				exitCode: 0,
+				stdout: '{"status":"ready","provider":"p"}',
+				stderr: '',
+			}));
+
+			const probed = await probeLogin({
+				agentId: 'pi',
+				config: piConfig,
+				resolvedPath: '/usr/local/bin/pi',
+				providers: ['p'],
+				defaultProvider: 'p',
+				commandRunner: mockRunner,
+			});
+			expect(probed?.loginCommand).toBe(hint);
+
+			const noProvider = await probeLogin({
+				agentId: 'pi',
+				config: piConfig,
+				resolvedPath: '/usr/local/bin/pi',
+				providers: [],
+				defaultProvider: null,
+				commandRunner: mockRunner,
+			});
+			expect(noProvider?.reason).toBe('no_provider');
+			expect(noProvider?.loginCommand).toBe(hint);
+			// pi ships with a null hint, so the factory projection stays null
+			expect(BUILT_IN_AGENT_DEFAULTS.pi.loginProbe.loginCommandHint).toBeNull();
+		});
+
 		it('parser=none (dsh) does not start process and returns null', async () => {
 			const mockRunner = vi.fn();
 			const result = await probeLogin({
