@@ -39,6 +39,7 @@ export interface ParsedDocTask {
 	readonly taskPaths: readonly string[];
 	readonly implPrompt: string;
 	readonly reviewPrompt: string;
+	readonly bugPrompt: string | null;
 	readonly resumePrompt: string | null;
 	readonly layer: number;
 	readonly batchNo: number;
@@ -546,6 +547,8 @@ export function parseDocsDataContent(
 		}
 
 		const resumePrompt = typeof dispatchItem.resume === 'string' ? dispatchItem.resume : null;
+		// 查 bug 提示词：缺失或不是字符串存 NULL，不冻结派发、不报 E_DOC_SOURCE_UNREADABLE（AC 1、E-19、E-316）
+		const bugPrompt = typeof dispatchItem.bug === 'string' ? dispatchItem.bug : null;
 		const isContractReady = readinessItem.ready;
 		const contractReasons = Object.freeze([...readinessItem.reasons]);
 
@@ -569,6 +572,7 @@ export function parseDocsDataContent(
 				taskPaths: Object.freeze([...taskPathsRaw]),
 				implPrompt,
 				reviewPrompt,
+				bugPrompt,
 				resumePrompt,
 				layer,
 				batchNo,

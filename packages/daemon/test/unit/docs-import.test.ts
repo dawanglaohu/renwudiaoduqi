@@ -7,6 +7,7 @@ import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
+import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
 import { type DocumentRow, createDocumentsRepo } from '../../src/repo/documents.ts';
 import {
 	type ParsedDocTaskInput,
@@ -72,6 +73,7 @@ interface DocDispatchItem {
 	implementation: string;
 	review: string;
 	resume?: string;
+	bug?: unknown;
 }
 
 interface DocPayload {
@@ -1382,5 +1384,122 @@ describe('BatchesRepo & TasksRepo direct CRUD and validation', () => {
 		// Delete by id
 		tasksRepo.deleteById('t-1');
 		expect(tasksRepo.findById('t-1')).toBeNull();
+	});
+
+	describe('M3-T7 bug prompt import and snapshotting (AC 1, E-19, E-316)', () => {
+		it('imports dispatch[id].bug verbatim into tasks.bug_prompt and snapshots it on dispatch', () => {
+			const db = createTestDatabase();
+			const payload = makeValidDocPayload();
+			const verbatimBugPrompt =
+				'# 查找 bug：M1-T1 自定义查 bug 提示词\n\n逐字测试，不改写不截断。\n1. 边界测试\n2. 竞态测试';
+			const itemT1 = payload.dispatch['T-1'];
+			if (!itemT1) throw new Error('dispatch T-1 missing');
+			itemT1.bug = verbatimBugPrompt;
+
+			const parsed = parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
+			const task1 = parsed.tasks.find((t) => t.id === 'T-1');
+			expect(task1).toBeDefined();
+			expect(task1?.bugPrompt).toBe(verbatimBugPrompt);
+
+			const doc = insertTestDocument(db, { id: 'doc-m3t7-1' });
+			const importResult = importDocTasks(db, {
+				docId: doc.id,
+				tasks: parsed.tasks,
+			});
+
+			const importedTask = importResult.tasks.find((t) => t.task_key === 'T-1');
+			expect(importedTask).toBeDefined();
+			expect(importedTask?.bug_prompt).toBe(verbatimBugPrompt);
+			if (!importedTask) throw new Error('Task not found');
+
+			// 派发时随三段快照一起复制进 dispatch_snapshots.bug_prompt（AC 1、E-19、E-316）
+			const snapshotsRepo = createDispatchSnapshotsRepo(db);
+			const snapshot = snapshotsRepo.takeSnapshotForTask({
+				taskId: importedTask.id,
+				launchSpecJson: JSON.stringify({ agentId: 'codex' }),
+				createdAt: '2026-09-14T10:00:00.000Z',
+			});
+
+			expect(snapshot.bug_prompt).toBe(verbatimBugPrompt);
+
+			// 从库中读取快照验证持久化
+			const fetchedSnapshot = snapshotsRepo.findById(snapshot.id);
+			expect(fetchedSnapshot?.bug_prompt).toBe(verbatimBugPrompt);
+		});
+
+		it('stores NULL in tasks.bug_prompt when dispatch[id].bug is missing or not a string, without throwing or freezing dispatch (AC 1, E-316)', () => {
+			const db = createTestDatabase();
+			const payload = makeValidDocPayload();
+			const itemT1 = payload.dispatch['T-1'];
+			const itemT2 = payload.dispatch['T-2'];
+			if (!itemT1 || !itemT2) throw new Error('dispatch items missing');
+			// T-1 没有 bug 属性（缺失）
+			itemT1.bug = undefined;
+			// T-2 的 bug 属性不是字符串（例如数字或对象）
+			itemT2.bug = 12345;
+
+			// 不抛出 E_DOC_SOURCE_UNREADABLE
+			let parsed: ReturnType<typeof parseDocsDataContent> | undefined;
+			expect(() => {
+				parsed = parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
+			}).not.toThrow();
+
+			expect(parsed).toBeDefined();
+			if (!parsed) throw new Error('Expected parsed to be defined');
+
+			const task1 = parsed.tasks.find((t) => t.id === 'T-1');
+			const task2 = parsed.tasks.find((t) => t.id === 'T-2');
+			expect(task1?.bugPrompt).toBeNull();
+			expect(task2?.bugPrompt).toBeNull();
+
+			// 不冻结派发：T-1 原本 ready: true 依然为 true
+			expect(task1?.isContractReady).toBe(true);
+
+			const doc = insertTestDocument(db, { id: 'doc-m3t7-2' });
+			const importResult = importDocTasks(db, {
+				docId: doc.id,
+				tasks: parsed.tasks,
+			});
+
+			const importedT1 = importResult.tasks.find((t) => t.task_key === 'T-1');
+			const importedT2 = importResult.tasks.find((t) => t.task_key === 'T-2');
+			expect(importedT1?.bug_prompt).toBeNull();
+			expect(importedT2?.bug_prompt).toBeNull();
+			if (!importedT1) throw new Error('Expected importedT1 to be defined');
+
+			// 派发快照中 bug_prompt 同样落为 null
+			const snapshotsRepo = createDispatchSnapshotsRepo(db);
+			const snapshotT1 = snapshotsRepo.takeSnapshotForTask({
+				taskId: importedT1.id,
+				launchSpecJson: JSON.stringify({ agentId: 'codex' }),
+				createdAt: '2026-09-14T10:00:00.000Z',
+			});
+			expect(snapshotT1.bug_prompt).toBeNull();
+
+			const fetched = snapshotsRepo.findById(snapshotT1.id);
+			expect(fetched?.bug_prompt).toBeNull();
+		});
+
+		it('preserves existing tasks.bug_prompt across re-imports when bug is provided or updated', () => {
+			const db = createTestDatabase();
+			const payload = makeValidDocPayload();
+			const itemT1 = payload.dispatch['T-1'];
+			if (!itemT1) throw new Error('dispatch T-1 missing');
+			itemT1.bug = '初始查 bug 提示词 v1';
+
+			const parsed1 = parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
+			const doc = insertTestDocument(db, { id: 'doc-m3t7-reimport' });
+			const r1 = importDocTasks(db, { docId: doc.id, tasks: parsed1.tasks });
+			const t1 = r1.tasks.find((t) => t.task_key === 'T-1');
+			expect(t1?.bug_prompt).toBe('初始查 bug 提示词 v1');
+
+			// 重导入新版本
+			itemT1.bug = '更新后查 bug 提示词 v2';
+			const parsed2 = parseDocsDataContent(`window.DOCS = ${JSON.stringify(payload)};`);
+			const r2 = importDocTasks(db, { docId: doc.id, tasks: parsed2.tasks });
+			const t2 = r2.tasks.find((t) => t.task_key === 'T-1');
+			expect(t2?.bug_prompt).toBe('更新后查 bug 提示词 v2');
+			expect(t2?.id).toBe(t1?.id); // 保留任务 ID
+		});
 	});
 });

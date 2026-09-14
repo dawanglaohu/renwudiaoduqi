@@ -149,7 +149,7 @@ describe('migration runner', () => {
 		});
 
 		expect(runner.run(migrationsDirectory)).toEqual({
-			appliedVersions: ['0001_init.sql'],
+			appliedVersions: ['0001_init.sql', '0002_add_bug_prompt.sql'],
 		});
 		expect(readTableNames(database)).toEqual([
 			'batches',
@@ -172,7 +172,10 @@ describe('migration runner', () => {
 					'SELECT version, applied_at FROM schema_migrations',
 				)
 				.all(),
-		).toEqual([{ version: '0001_init.sql', applied_at: '2026-09-04T03:00:00.000Z' }]);
+		).toEqual([
+			{ version: '0001_init.sql', applied_at: '2026-09-04T03:00:00.000Z' },
+			{ version: '0002_add_bug_prompt.sql', applied_at: '2026-09-04T03:00:00.000Z' },
+		]);
 	});
 });
 

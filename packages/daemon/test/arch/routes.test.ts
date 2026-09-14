@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -80,7 +80,7 @@ function makeTestContainer() {
 		clock: { now: () => '2026-09-09T12:00:00.000Z' },
 		database: db,
 		fileSystem: {
-			readDirectory: () => ['0001_init.sql'],
+			readDirectory: () => readdirSync(migrationsDir),
 			readFile: (p: string) => readFileSync(p, 'utf8'),
 		},
 	});

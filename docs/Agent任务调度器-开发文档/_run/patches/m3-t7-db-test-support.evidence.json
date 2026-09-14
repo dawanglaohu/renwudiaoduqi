@@ -15,6 +15,36 @@
         "测试（工作树 ../agent-scheduler-m3-t7，主干已合入后再跑）：pnpm vitest run packages/daemon/test/unit/bughunt-context.test.ts packages/daemon/test/unit/docs-import.test.ts packages/daemon/test/unit/database.test.ts → 3 文件 59/59 通过；packages/daemon/test/arch → 4 文件 23/23 通过（含修好的 routes.test.ts）；npx tsc -b --noEmit 全绿；biome ci 对改动文件通过。"
       ],
       "verdict": "pass"
+    },
+    "M7-T8": {
+      "contractHash": "c748b948eb5394b3b5c949bcfa2d629681d4fc840598cddba2683ef8f2371366",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T8": {
+      "contractHash": "41a4286d19195b25c10bc543790772eb6b73b2af3c13331b279fdb9b4e9effba",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T9": {
+      "contractHash": "aefcea20178b2688e0ef1a7eae88a2239117b081cc286d720b920d5eccab0aa5",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T17": {
+      "contractHash": "48d360bf5d7e2d80f2cd7940201ef6579efdb82e41b418f2ae6d66a6d0e3ce9c",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T22": {
+      "contractHash": "0d4c20596dc60e65c63a9fac60744c041f4213833cacd37461731d293026c60b",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "2cbf15f0fede120750f8d309abb35b0dab214a6e8d9499959fdc2e008c2fcdcb",
+      "evidence": [],
+      "verdict": "pending"
     }
   }
 }

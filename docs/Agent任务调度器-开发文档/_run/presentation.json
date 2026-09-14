@@ -323,7 +323,8 @@
         "packages/daemon/src/service/retention.ts"
       ],
       "M7-T1": [
-        "packages/daemon/src/service/review.ts"
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/test/unit/review.test.ts"
       ],
       "M7-T2": [
         "packages/daemon/src/service/review-agent.ts"
