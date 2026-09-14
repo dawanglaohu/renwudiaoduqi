@@ -13,6 +13,27 @@ pub struct DaemonLaunchSpec {
 
 pub struct LaunchState(pub Mutex<Option<DaemonLaunchSpec>>);
 
+/// Mirrors `isAbsoluteLaunchPath` in
+/// `packages/shared/src/shell/daemon-launch-spec.ts`: POSIX root, drive letter, or UNC.
+fn is_absolute_launch_path(value: &str) -> bool {
+    if value.is_empty() || value.contains('\0') {
+        return false;
+    }
+    let bytes = value.as_bytes();
+    if bytes[0] == b'/' {
+        return true;
+    }
+    if bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+    {
+        return true;
+    }
+    bytes.len() >= 2
+        && ((bytes[0] == b'\\' && bytes[1] == b'\\') || (bytes[0] == b'/' && bytes[1] == b'/'))
+}
+
 #[tauri::command]
 fn get_token() -> Result<Option<String>, String> {
     let entry = keyring::Entry::new(SERVICE_NAME, TOKEN_USER).map_err(|e| e.to_string())?;
@@ -84,16 +105,21 @@ pub fn start_desktop() {
         .plugin(tauri_plugin_opener::init())
         .manage(LaunchState(Mutex::new(None)))
         .setup(|app| {
-            let resource_dir = app
-                .path()
-                .resource_dir()
-                .unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
+            let resource_dir_text = resource_dir.to_string_lossy().into_owned();
+            if !is_absolute_launch_path(&resource_dir_text) {
+                return Err("Desktop resource directory must be an absolute path.".into());
+            }
             let binary_name = if cfg!(windows) { "daemon.exe" } else { "daemon" };
             let daemon_file = resource_dir.join(binary_name);
+            let daemon_file_text = daemon_file.to_string_lossy().into_owned();
+            if !is_absolute_launch_path(&daemon_file_text) {
+                return Err("Daemon executable path must be an absolute path.".into());
+            }
             let spec = DaemonLaunchSpec {
-                file: daemon_file.to_string_lossy().into_owned(),
+                file: daemon_file_text,
                 args: Vec::new(),
-                cwd: resource_dir.to_string_lossy().into_owned(),
+                cwd: resource_dir_text,
             };
             if let Some(state) = app.try_state::<LaunchState>() {
                 if let Ok(mut guard) = state.0.lock() {
