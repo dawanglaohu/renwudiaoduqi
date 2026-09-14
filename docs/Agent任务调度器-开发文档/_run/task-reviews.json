@@ -666,6 +666,24 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M6-T8": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "31e79a02d32297a3872a3401901204b1506d247fb21e949d244adb100e6d3bd5",
+    "evidence": [
+      "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M6-T8 行与派发包，六条验收标准及 E-25/E-32/E-96/E-97/E-98 原文一致，无增删；输入「M1-T4 的偏移索引」、产出「GET /runs/:id/log、vendorSessionRef」一致。补丁只改 effectivePaths，未动验收标准与边界。",
+      "依赖与前置能力：M6-T2、M1-T4 均已落地。M1-T4 提供的可消费件齐备——logstore/paths.ts:22 段文件命名（raw.log / raw-N.log）、repo/log-segments-repo.ts:56-59 findByRunStream 返回 fileSeq/path/byteStart/byteEnd/lineCount、logstore/read-window.ts:16/20 formatCursor/parseCursor 字节游标编解码。故「按字节偏移分段回读」在本契约下可实现。",
+      "数据与接口：02-设计/10-接口约定.md:43 定 GET /api/v1/runs/:runId/log，query ?fromSeq&direction&limit，响应 {lines,totalLines,prevCursor,nextCursor}，auth=device；packages/shared/src/api/routes.ts:387 常量表一致（resType=GetRunLogResponse，errors 含 E_NOT_FOUND/E_LOG_FILE_MISSING/E_LOG_PURGED）；packages/shared/src/api/runs.ts:196 DTO 与之一致。migrations/0001_init.sql:120 存在 runs.vendor_session_ref 列。",
+      "有效路径（本补丁的修正点）：原 taskPaths 只有 service/run-log.ts 与 http/routes/runs.ts。实际落地必需的支持文件漏列——packages/daemon/src/boot/container.ts 未注入 runLogService（container.ts:215-221 services 无 runLog），http/plugins/50-routes.ts:39 以 registerRunsRoutes(target) 调用且不传 options，端点恒返回 500 E_INTERNAL；repo/runs-abort-repo.ts:11-16 的 findById 不返回 vendor_session_ref 与 snapshot_id，服务取不到数据。补丁在 _run/presentation.json 的 handoff.taskPaths['M6-T8'] 补入 boot/container.ts、http/plugins/50-routes.ts、repo/runs-log-repo.ts、repo/log-segments-repo.ts、test/unit/run-log.test.ts、test/integration/run-log-routes.test.ts 六条。",
+      "路径冲突核对：boot/container.ts 另属 M1-T1、M1-T10（均已落地），http/routes/runs.ts 另属 M6-T5（已落地）与 M8-T9（未开工，届时需 rebase）；无与在途任务撞车。sync 后受影响仅 M6-T8、M6-T9，_run/revalidation.json 无新增条目，没有已落地任务被标「待复验」。",
+      "验收与边界的代码落点：AC1/E-96 run-log.ts:241-258（只读打开断言）；AC2/E-97 run-log.ts:322-346；AC3/E-98 run-log.ts:348-360 与 128-137（buildOpenCommand）；AC4 run-log.ts:362-398；AC5/E-25 run-log.ts:93-126 与 412-419；AC6/E-32 run-log.ts:170-236（不依赖厂商 GUI，回落自捕获 raw.log/events.ndjson）。五条边界均有代码落点与单测。",
+      "测试：在工作树 ../agent-scheduler-m6-t8 跑 pnpm -w check，biome ci 与 tsc -b --noEmit 通过；packages/daemon/test/unit/run-log.test.ts 全绿（9 例）。其余失败文件（含 arch/routes.test.ts 2 例）与主干同环境基线一致，非本层引入。",
+      "返工已修并复核（第 2 轮）：run-log.ts 不再直读 process.platform（平台由 container 从 hostInputs 注入，container.ts:280-288）；只读断言在 finally 中配对关闭描述符（run-log.ts:204-215），单测以 fd 集合断言 50 次调用无泄漏；回读改为消费 log_segments 偏移索引 + formatCursor/parseCursor 字节游标，单次读取不超过 READ_CHUNK_LIMIT_BYTES（run-log.ts:367-460），轮转分片靠段记录定位，原先错误的 raw.<n>.log 正则已删除；打开方式改为结构化 buildOpenSpec 返回 {file,args[],cwd}（run-log.ts:145-163），含引号/&/;/%% 的路径只作为 args 元素出现。",
+      "审查方在落地前补的一处：totalLines 曾被返工改成窗口行数（等于 lines.length），与字段名和 M6-T8 原实现语义不符；现已改为取各段 lineCount 之和，段尚未入索引（仍在追加）时回落窗口行数，并在 3 段用例中断言 totalLines=300（run-log.ts:533、test/unit/run-log.test.ts:324-327）。"
+    ],
+    "reviewed": "2026-09-14T12:58:05.918936+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M7-T2": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "1a2f08eccfd636436a775f333a60149755ff689c9bb8a1dcfbc2370634579e07",

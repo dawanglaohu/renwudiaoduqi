@@ -322,6 +322,8 @@ describe('M6-T8 RunLogService & Session Segmented Readback', () => {
 		expect(fwdRes.lines.length).toBe(10);
 		expect(fwdRes.lines[0]).toBe('Seg0 Row #0');
 		expect(fwdRes.nextCursor).toBe('0:120'); // 10 lines * 12 bytes = 120
+		// totalLines counts the whole session (3 segments x 100 lines), not the returned window
+		expect(fwdRes.totalLines).toBe(300);
 
 		// 2. Backward from segment 2 tail
 		const bwdRes = await service.getRunLog({

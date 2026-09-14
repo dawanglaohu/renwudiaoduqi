@@ -167,6 +167,8 @@ interface ResolvedSegment {
 	readonly path: string;
 	readonly byteStart: number;
 	readonly byteEnd: number;
+	/** null when the segment has no index row yet (still being appended), so its length is unknown. */
+	readonly lineCount: number | null;
 }
 
 /**
@@ -224,6 +226,7 @@ export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
 					path: r.path,
 					byteStart: r.byteStart,
 					byteEnd: r.byteEnd,
+					lineCount: r.lineCount,
 				});
 			}
 		}
@@ -239,6 +242,7 @@ export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
 						path: defaultPath,
 						byteStart: 0,
 						byteEnd: stat.size,
+						lineCount: null,
 					});
 				} catch {
 					// Fall through
@@ -299,6 +303,18 @@ export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
 			let totalCapturedBytes = 0;
 			for (const seg of segments) {
 				totalCapturedBytes += Math.max(0, seg.byteEnd - seg.byteStart);
+			}
+
+			// `totalLines` is the session's whole line count, not the size of the window returned here.
+			// A segment still being appended has no index row yet, so its length is unknown; in that
+			// case fall back to the window size rather than reporting a number we cannot stand behind.
+			let sessionLineTotal: number | null = 0;
+			for (const seg of segments) {
+				if (typeof seg.lineCount === 'number' && sessionLineTotal !== null) {
+					sessionLineTotal += seg.lineCount;
+				} else {
+					sessionLineTotal = null;
+				}
 			}
 
 			const totalBytes = vendorSessionBytes + totalCapturedBytes;
@@ -514,7 +530,7 @@ export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
 				];
 			}
 
-			const totalLines = windowLines.length;
+			const totalLines = sessionLineTotal ?? windowLines.length;
 
 			return Object.freeze({
 				lines: Object.freeze(windowLines),
