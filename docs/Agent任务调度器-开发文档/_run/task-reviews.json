@@ -599,6 +599,26 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M6-T6": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "9194046d4f0dcfdc69415cd644253ec81e4e3e1784cb3882ac407f617468cfb6",
+    "evidence": [
+      "pnpm -w check（check-error-codes + web 对比度/禁用词 + biome ci + tsc -b --noEmit + vitest run）于工作树 D:/xiangmu/agent-scheduler-m6-t6 @ task/M6-T6：biome 与 tsc 均无错；18/18 message-service 用例通过（含新增「无 resume 处理器不得谎报送达」）",
+      "AC1/E-117：packages/daemon/src/service/message.ts:94-145 resolveAgentMessageCapabilities 汇总各适配器 canReply/canResume，generic-acp 与 dsh 收窄为 false；:253 不具备时抛 E_CAPABILITY_UNSUPPORTED；:566 canReply() 供 UI 灰按钮；routes.ts:118 注册 POST /api/v1/runs/:runId/messages",
+      "AC2/E-113：message.ts:349-375 进程存活与 stdin 管道检测；:476-553 handleUndelivered 以 delivery_state='undelivered' 落库并原样保留 text、发 run.message_undelivered、抛 E_MESSAGE_UNDELIVERED；路由 throwOnUndelivered=true，HTTP 422 且消息已落库可复制",
+      "AC3/E-112：message.ts:267-306 已结束运行分支；canResume=false 抛 E_CAPABILITY_UNSUPPORTED（details.suggestion='redispatch'）；canResume=true 且已注入 resumeSession 时返回 isNewRun/newRunId；未注入时（M7-T5 负责会话恢复）落为 undelivered(reason='resume_unavailable')，不再伪造新运行 id（审查方修复，回归用例已加）",
+      "AC4/E-114：message.ts:176-193 enqueueForRun 按 runId 串行化；每条独立 insertMessage 带 actorDeviceId 与 clock.now()，无去重合并；测试断言同文两条落两条并按到达序写入 stdin",
+      "AC5/E-116：message.ts:195-235 validateInput 空/空白拒绝、超长带 requiresTruncationConfirmation 细节拒绝且从不截断；schema maxLength 32768 与 DEFAULT_MAX_MESSAGE_LENGTH 一致，HTTP 层先拦，均不静默截断",
+      "AC6：message.ts:377-393 检查 writeStdin 返回 false 后 await waitForStdinDrain()，写入异常归入未送达",
+      "08 节：事务只在 service 层经 unitOfWork.run 开启（:454、:516），回调内无 await/无副作用，bus.publish 在 run() 返回后（:461、:522）；SQL 只在 repo/run-messages-repo.ts，参数绑定、语句在工厂闭包预编译、Row→DTO 映射后返回；service 未 import fastify；routes 未跨层取 repo",
+      "06 节：错误码 E_CAPABILITY_UNSUPPORTED/E_MESSAGE_UNDELIVERED/E_VALIDATION 均登记于 shared/errors/codes.ts（422/422/400）；事件 kind run.message_delivered / run.message_undelivered / run.state_changed 在 shared/api/events.ts EVENT_KINDS 内；daemon 侧 message 全为英文短句；无新增 process.env/process.platform 直读",
+      "数据模型：run_messages 表已在 migrations/0001_init.sql:156 定义（本次未改迁移）；50-routes.ts 已把 POST /api/v1/runs/:runId/messages 加入自定义注册白名单，路由注册集合与 shared/api/routes.ts 一致",
+      "有效路径补丁：presentation.json handoff.taskPaths['M6-T6'] 补入 repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts；与 M6-T5/M6-T8/M8-T9（runs.ts）、M1-T1/M1-T10（container.ts）为共同持有，均为新增 hunks，无既有代码改写"
+    ],
+    "reviewed": "2026-09-14T08:12:12.418057+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M7-T2": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "1a2f08eccfd636436a775f333a60149755ff689c9bb8a1dcfbc2370634579e07",
