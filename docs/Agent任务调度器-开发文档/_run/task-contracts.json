@@ -1009,6 +1009,11 @@
         "packages/daemon/src/http/plugins/50-routes.ts",
         "packages/daemon/test/unit/sse.test.ts"
       ]
+    },
+    "M9-T14": {
+      "supportPaths": [
+        "packages/web/test/settings-agents.test.ts"
+      ]
     }
   }
 }

@@ -5,6 +5,11 @@
       "contractHash": "d357f6bcf1da8ec2cf29de74eafdbd96050765e1511b8b74a0838a2c63573f6a",
       "evidence": [],
       "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "62333dc8723f5cdd73e4467eaaf94de91095df9b99f05376df4797d9b86e8a45",
+      "evidence": [],
+      "verdict": "pending"
     }
   }
 }
