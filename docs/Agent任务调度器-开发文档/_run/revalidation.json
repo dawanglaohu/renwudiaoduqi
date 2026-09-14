@@ -1,1 +1,29 @@
-{}
+{
+  "M5-T4": {
+    "contractHash": "2098ae61aea621b79e7ca669275e4fce2b507143a3bc16cba56eedadd8156990",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "M6-T8-support-paths-20260914",
+        "sourceVersion": "a5dee8b581ddac7897d43e3b0792bc4c2e2ab989a4e323422f80b4a685f74072"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T6": {
+    "contractHash": "9194046d4f0dcfdc69415cd644253ec81e4e3e1784cb3882ac407f617468cfb6",
+    "patches": [
+      {
+        "changedFields": [
+          "effectivePaths"
+        ],
+        "patch": "M6-T8-support-paths-20260914",
+        "sourceVersion": "a5dee8b581ddac7897d43e3b0792bc4c2e2ab989a4e323422f80b4a685f74072"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}

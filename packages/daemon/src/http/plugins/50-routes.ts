@@ -59,6 +59,7 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'POST /api/v1/runs/:id/abort',
 		'POST /api/v1/runs/:runId/messages',
 		'POST /api/v1/runs/:id/messages',
+		'GET /api/v1/runs/:runId/log',
 		'POST /api/v1/pair/claim',
 		'POST /api/v1/pair/code',
 		'GET /api/v1/devices',
