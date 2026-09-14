@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { AppContainer } from '../../src/boot/container.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { routesPlugin } from '../../src/http/plugins/50-routes.ts';
 import { errorHandlerPlugin } from '../../src/http/plugins/90-error-handler.ts';
 import { registerTasksRoutes } from '../../src/http/routes/tasks.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../../src/repo/documents.ts';
@@ -550,11 +552,14 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			});
 
 			registerTasksRoutes(app, {
-				tasksRepo,
-				documentsRepo,
-				gitRunner: runner,
-				repoPath: tempDir,
-				docsPath: 'docs/Agent任务调度器-开发文档',
+				landingService: createLandingService({
+					tasksRepo,
+					documentsRepo,
+					runner,
+					repoPath: tempDir,
+					docsPath: 'docs/Agent任务调度器-开发文档',
+					ids: testIds,
+				}),
 			});
 
 			const res = await app.inject({
@@ -581,10 +586,13 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			const runner = createMockGitRunner(() => ({ exitCode: 0, stdout: '', stderr: '' }));
 
 			registerTasksRoutes(app, {
-				tasksRepo,
-				documentsRepo,
-				gitRunner: runner,
-				repoPath: tempDir,
+				landingService: createLandingService({
+					tasksRepo,
+					documentsRepo,
+					runner,
+					repoPath: tempDir,
+					ids: testIds,
+				}),
 			});
 
 			const res = await app.inject({
@@ -601,10 +609,13 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			const runner = createMockGitRunner(() => ({ exitCode: 0, stdout: '', stderr: '' }));
 
 			registerTasksRoutes(app, {
-				tasksRepo,
-				documentsRepo,
-				gitRunner: runner,
-				repoPath: tempDir,
+				landingService: createLandingService({
+					tasksRepo,
+					documentsRepo,
+					runner,
+					repoPath: tempDir,
+					ids: testIds,
+				}),
 			});
 
 			const res = await app.inject({
@@ -633,10 +644,13 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			});
 
 			registerTasksRoutes(app, {
-				tasksRepo,
-				documentsRepo,
-				gitRunner: runner,
-				repoPath: tempDir,
+				landingService: createLandingService({
+					tasksRepo,
+					documentsRepo,
+					runner,
+					repoPath: tempDir,
+					ids: testIds,
+				}),
 			});
 
 			const res = await app.inject({
@@ -653,10 +667,13 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			const runner = createMockGitRunner(() => ({ exitCode: 0, stdout: '', stderr: '' }));
 
 			registerTasksRoutes(app, {
-				tasksRepo,
-				documentsRepo,
-				gitRunner: runner,
-				repoPath: tempDir,
+				landingService: createLandingService({
+					tasksRepo,
+					documentsRepo,
+					runner,
+					repoPath: tempDir,
+					ids: testIds,
+				}),
 			});
 
 			const res = await app.inject({
@@ -667,6 +684,52 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			expect(res.statusCode).toBe(404);
 			const body = JSON.parse(res.body);
 			expect(body.error.code).toBe('E_NOT_FOUND');
+		});
+	});
+
+	describe('HTTP wiring through the routes plugin', () => {
+		it('serves the landing route from the registered handler, not the not-implemented stub', async () => {
+			const worktreeDir = join(tempDir, 'repo-m5-t4');
+			mkdirSync(worktreeDir, { recursive: true });
+
+			const runner = createMockGitRunner((args) => {
+				if (args[0] === 'worktree' && args[1] === 'list') {
+					return {
+						exitCode: 0,
+						stdout: `worktree ${tempDir}\nHEAD 111\nbranch refs/heads/main\n\nworktree ${worktreeDir}\nHEAD 222\nbranch refs/heads/task/M5-T4`,
+						stderr: '',
+					};
+				}
+				return { exitCode: 0, stdout: '', stderr: '' };
+			});
+
+			const app = fastify();
+			app.decorate('container', {
+				services: {
+					landing: createLandingService({
+						tasksRepo,
+						documentsRepo,
+						runner,
+						repoPath: tempDir,
+						docsPath: 'docs/Agent任务调度器-开发文档',
+						ids: testIds,
+					}),
+				},
+			} as unknown as AppContainer);
+			await app.register(routesPlugin, { prefix: '/api/v1' });
+			await app.ready();
+
+			const res = await app.inject({
+				method: 'GET',
+				url: '/api/v1/tasks/M5-T4/landing',
+			});
+
+			expect(res.statusCode).toBe(200);
+			const body = JSON.parse(res.body);
+			expect(body.branchName).toBe('task/M5-T4');
+			expect(body.commands).toHaveLength(2);
+
+			await app.close();
 		});
 	});
 

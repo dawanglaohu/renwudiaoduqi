@@ -1,22 +1,6 @@
-import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, RouteHandlerMethod } from 'fastify';
-import type { DatabaseConnection } from '../../db/open-database.ts';
 import { AppError } from '../../errors/app-error.ts';
-import type { PlatformHostInputs, SupportedPlatform } from '../../platform/contract.ts';
-import { takePlatformHostInputs } from '../../platform/host.ts';
-import { type DocumentsRepo, createDocumentsRepo } from '../../repo/documents.ts';
-import { type TasksRepo, createTasksRepo } from '../../repo/tasks.ts';
-import {
-	type TaskLandingService,
-	type TaskLandingServiceDeps,
-	createLandingService,
-} from '../../workspace/landing.ts';
-import {
-	type GitRunner,
-	type WorktreeFileSystem,
-	type WorktreeManagerDeps,
-	createDefaultGitRunner,
-} from '../../workspace/worktree.ts';
+import type { LandingService } from '../../service/landing.ts';
 
 export interface TaskRouteParams {
 	readonly taskId: string;
@@ -36,33 +20,12 @@ export const taskRouteParamsSchema = {
 } as const;
 
 export interface RegisterTasksRoutesOptions {
-	readonly landingService?: TaskLandingService;
-	readonly gitRunner?: GitRunner;
-	readonly worktreeDeps?: WorktreeManagerDeps;
-	readonly tasksRepo?: TasksRepo;
-	readonly documentsRepo?: DocumentsRepo;
-	readonly db?: DatabaseConnection;
-	readonly repoPath?: string;
-	readonly docsPath?: string;
-	readonly platform?: SupportedPlatform;
-	readonly hostInputs?: PlatformHostInputs;
-	readonly fs?: WorktreeFileSystem;
+	readonly landingService?: LandingService;
 }
 
-interface ContainerWithServices {
-	readonly database?: DatabaseConnection;
-	readonly platform?: {
-		readonly hostInputs?: PlatformHostInputs;
-	};
-	readonly ids?: {
-		readonly newId: () => string;
-	};
-	readonly repos?: {
-		readonly tasks?: TasksRepo;
-		readonly documents?: DocumentsRepo;
-	};
+interface ContainerWithLandingService {
 	readonly services?: {
-		readonly landing?: TaskLandingService;
+		readonly landing?: LandingService;
 	};
 }
 
@@ -70,60 +33,28 @@ function resolveLandingService(
 	request: FastifyRequest,
 	instance: FastifyInstance,
 	options?: RegisterTasksRoutesOptions,
-): TaskLandingService {
+): LandingService {
 	if (options?.landingService) {
 		return options.landingService;
 	}
 
 	const container =
-		(request.server as unknown as { container?: ContainerWithServices })?.container ??
-		(instance as unknown as { container?: ContainerWithServices })?.container;
+		(request.server as unknown as { container?: ContainerWithLandingService })?.container ??
+		(instance as unknown as { container?: ContainerWithLandingService })?.container;
 
-	if (container?.services?.landing) {
-		return container.services.landing;
+	const service = container?.services?.landing;
+	if (!service) {
+		throw new AppError('E_INTERNAL', 'Landing service is not registered in the container');
 	}
+	return service;
+}
 
-	const db = options?.db ?? container?.database;
-	const tasksRepo =
-		options?.tasksRepo ?? container?.repos?.tasks ?? (db ? createTasksRepo(db) : undefined);
-	const documentsRepo =
-		options?.documentsRepo ??
-		container?.repos?.documents ??
-		(db ? createDocumentsRepo(db) : undefined);
-
-	const defaultHostResult = takePlatformHostInputs({});
-	const defaultHostInputs = defaultHostResult.ok ? defaultHostResult.value : undefined;
-
-	const hostInputs = options?.hostInputs ?? container?.platform?.hostInputs ?? defaultHostInputs;
-	const platform = options?.platform ?? hostInputs?.platform ?? 'linux';
-	const ids = container?.ids ?? { newId: () => randomUUID() };
-
-	const worktreeDeps: WorktreeManagerDeps = options?.worktreeDeps ?? {
-		platform,
-		hostInputs,
-		ids,
-		fs: options?.fs,
-		gitRunner: options?.gitRunner,
-	};
-
-	const runner =
-		options?.gitRunner ?? worktreeDeps.gitRunner ?? createDefaultGitRunner(worktreeDeps);
-
-	const serviceDeps: TaskLandingServiceDeps = {
-		runner,
-		worktreeDeps,
-		tasksRepo,
-		documentsRepo,
-		db,
-		platform,
-		hostInputs,
-		ids,
-		fs: options?.fs,
-		repoPath: options?.repoPath,
-		docsPath: options?.docsPath,
-	};
-
-	return createLandingService(serviceDeps);
+function readTaskId(request: FastifyRequest): string {
+	const params = request.params as TaskRouteParams | undefined;
+	if (!params || typeof params.taskId !== 'string' || params.taskId.trim().length === 0) {
+		throw new AppError('E_VALIDATION', 'taskId is required and must be non-empty');
+	}
+	return params.taskId.trim();
 }
 
 /**
@@ -136,23 +67,15 @@ export function registerTasksRoutes(
 	options?: RegisterTasksRoutesOptions,
 ): void {
 	const getLandingHandler: RouteHandlerMethod = async (request) => {
-		const params = request.params as TaskRouteParams;
-		if (!params || typeof params.taskId !== 'string' || params.taskId.trim().length === 0) {
-			throw new AppError('E_VALIDATION', 'taskId is required and must be non-empty');
-		}
+		const taskId = readTaskId(request);
 		const service = resolveLandingService(request, instance, options);
-		const landing = await service.getLanding({ taskId: params.taskId.trim() });
-		return landing;
+		return service.getLanding({ taskId });
 	};
 
 	const cleanupWorktreeHandler: RouteHandlerMethod = async (request) => {
-		const params = request.params as TaskRouteParams;
-		if (!params || typeof params.taskId !== 'string' || params.taskId.trim().length === 0) {
-			throw new AppError('E_VALIDATION', 'taskId is required and must be non-empty');
-		}
+		const taskId = readTaskId(request);
 		const service = resolveLandingService(request, instance, options);
-		const cleanupResult = await service.cleanupWorktree({ taskId: params.taskId.trim() });
-		return cleanupResult;
+		return service.cleanupWorktree({ taskId });
 	};
 
 	instance.get(

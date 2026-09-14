@@ -9,6 +9,7 @@ import { registerHealthRoute } from '../routes/health.ts';
 import { registerPairRoutes } from '../routes/pair.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
 import { registerSystemRoutes } from '../routes/system.ts';
+import { registerTasksRoutes } from '../routes/tasks.ts';
 import { errorHandlerPlugin } from './90-error-handler.ts';
 
 function normalizePath(url: string): string {
@@ -48,6 +49,7 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerDocumentRoutes(target);
 	registerAgentRoutes(target);
 	registerEventsRoutes(target);
+	registerTasksRoutes(target);
 
 	const customRegisteredPaths = new Set<string>([
 		'GET /api/v1/health',
@@ -67,6 +69,8 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'PATCH /api/v1/agents/:agentId',
 		'POST /api/v1/agents/:agentId/probe',
 		'GET /api/v1/agents/:agentId/models',
+		'GET /api/v1/tasks/:taskId/landing',
+		'POST /api/v1/tasks/:taskId/worktree/cleanup',
 	]);
 
 	for (const route of ROUTES) {

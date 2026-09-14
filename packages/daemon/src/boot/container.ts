@@ -18,8 +18,10 @@ import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
 import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
+import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
+import { type LandingService, createLandingService } from '../service/landing.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
@@ -35,6 +37,7 @@ export interface ContainerRepos {
 	readonly runsAbort: RunsAbortRepo;
 	readonly devices: DevicesRepo;
 	readonly documents: DocumentsRepo;
+	readonly tasks: TasksRepo;
 	readonly [key: string]: unknown;
 }
 
@@ -51,6 +54,7 @@ export interface ContainerServices {
 	readonly pairing: PairingService;
 	readonly docs: DocsService;
 	readonly agents: AgentService;
+	readonly landing: LandingService;
 }
 
 export interface AppContainer {
@@ -95,6 +99,8 @@ export function createContainer(input: {
 	readonly documentsRepo?: DocumentsRepo;
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
+	readonly tasksRepo?: TasksRepo;
+	readonly landingService?: LandingService;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
 }): AppContainer {
@@ -104,11 +110,13 @@ export function createContainer(input: {
 	const runsAbort = input.runsAbortRepo ?? createSqliteRunsAbortRepo(input.database);
 	const devices = createDevicesRepo(input.database);
 	const documents = input.documentsRepo ?? createDocumentsRepo(input.database);
+	const tasks = input.tasksRepo ?? createTasksRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 		runsAbort,
 		devices,
 		documents,
+		tasks,
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
@@ -212,12 +220,23 @@ export function createContainer(input: {
 
 	void agentService.start();
 
+	const landingService =
+		input.landingService ??
+		createLandingService({
+			tasksRepo: tasks,
+			documentsRepo: documents,
+			platform: input.hostInputs.platform,
+			hostInputs: input.hostInputs,
+			ids,
+		});
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
 		pairing: pairingService,
 		docs: docsService,
 		agents: agentService,
+		landing: landingService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([]);
