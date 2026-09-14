@@ -937,6 +937,66 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 			expect(result.stdout).toContain('argB');
 		});
 
+		it('R1 regression: 名字解析命中 .cmd 时 spec.file 是该 .cmd 而不是 cmd.exe，且真实执行不挂死', async () => {
+			if (process.platform !== 'win32') return;
+
+			// 候选目录由注入的 homedir 派生：<homedir>/AppData/Roaming/npm
+			const fakeHome = join(fakeWorktreeDir, 'home');
+			const candidateDir = join(fakeHome, 'AppData', 'Roaming', 'npm');
+			mkdirSync(candidateDir, { recursive: true });
+			const shim = join(candidateDir, 'ags-m7t1-probe.cmd');
+			writeFileSync(shim, '@echo off\r\necho NAME_RESOLVED_OK [%1]\r\n');
+			const hostInputs = { platform: 'win32' as const, homedir: fakeHome };
+
+			// 1) 名字解析拿到 .cmd 时，交给 spawnManaged 的 file 必须是该 .cmd，而不是 cmd.exe
+			const capturedSpecs: LaunchSpec[] = [];
+			type SpawnManagedFn = NonNullable<
+				NonNullable<Parameters<typeof createReviewService>[0]>['spawnManaged']
+			>;
+			const mockSpawnManaged: SpawnManagedFn = (spec, options) => {
+				capturedSpecs.push(spec);
+				setTimeout(() => {
+					options.onExit?.({
+						runId: spec.runId,
+						pid: 4321,
+						exitCode: 0,
+						signal: null,
+						reason: 'exited',
+					});
+				}, 5);
+				return {
+					runId: spec.runId,
+					pid: 4321,
+					file: spec.file,
+					args: spec.args,
+					cwd: spec.cwd,
+				} as unknown as ReturnType<SpawnManagedFn>;
+			};
+
+			const mockResult = await createDefaultCommandRunner({
+				hostInputs,
+				spawnManaged: mockSpawnManaged,
+			})({ file: 'ags-m7t1-probe', args: ['has space'] }, fakeWorktreeDir, {
+				checkTimeoutMs: 10_000,
+			});
+
+			expect(mockResult.exitCode).toBe(0);
+			expect(capturedSpecs[0]?.file).toBe(shim);
+			expect(capturedSpecs[0]?.file.toLowerCase().endsWith('.cmd')).toBe(true);
+			expect(capturedSpecs[0]?.args).toEqual(['has space']);
+
+			// 2) 同一条名字解析走真实 spawnManaged：必须真的执行完，而不是挂到超时
+			const realResult = await createDefaultCommandRunner({ hostInputs })(
+				{ file: 'ags-m7t1-probe', args: ['real'] },
+				fakeWorktreeDir,
+				{ checkTimeoutMs: 10_000 },
+			);
+
+			expect(realResult.timedOut).toBe(false);
+			expect(realResult.exitCode).toBe(0);
+			expect(realResult.stdout).toContain('NAME_RESOLVED_OK');
+		});
+
 		// R2
 		it('R2: Command executable resolution failure does not enter spawnManaged, exposes E_AGENT_EXEC_NOT_FOUND, and avoids exitCode 127', async () => {
 			let spawnManagedCalled = false;
