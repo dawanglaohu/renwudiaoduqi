@@ -494,7 +494,10 @@
     },
     "M5-T4": {
       "supportPaths": [
-        "packages/daemon/test/unit/landing.test.ts"
+        "packages/daemon/test/unit/landing.test.ts",
+        "packages/daemon/src/service/landing.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts"
       ]
     },
     "M9-T2": {
@@ -524,6 +527,18 @@
     "M4-T11": {
       "supportPaths": [
         "packages/daemon/test/unit/grok-adapter.test.ts"
+      ]
+    },
+    "M4-T12": {
+      "supportPaths": [
+        "packages/daemon/src/adapters/probe.ts",
+        "packages/daemon/src/config/defaults.ts",
+        "packages/daemon/src/config/registry.ts",
+        "packages/daemon/src/service/agents.ts",
+        "packages/daemon/src/service/run.ts",
+        "packages/daemon/test/unit/dsh-adapter.test.ts",
+        "packages/daemon/test/unit/generic-acp-adapter.test.ts",
+        "packages/daemon/test/unit/run-service.test.ts"
       ]
     },
     "M4-T4": {
@@ -987,6 +1002,12 @@
         11,
         12,
         17
+      ]
+    },
+    "M2-T5": {
+      "supportPaths": [
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/test/unit/sse.test.ts"
       ]
     }
   }

@@ -131,6 +131,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M10-T2": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "ae3a642846e51bad910f7d5b65087cb65d7c97b078ccaa0e201900258de7787c",
+    "evidence": [
+      "2026-09-14 复核 docs/Agent任务调度器-开发文档/04-执行/19-模块任务拆分.md 的 M10-T2 行与 图谱/任务/M10-T2.md：前置 M10-T1 + M1-T6、产出 packages/shell-desktop/、六条验收标准与七条边界（E-146/E-148/E-208/E-209/E-210/E-257/E-258）与派发包逐字一致，未增删、未降低要求。",
+      "2026-09-14 复核 docs/Agent任务调度器-开发文档/02-设计/08-后端架构.md:325-336：桌面壳每次启动按本次实际 current_exe/resource_dir 解析并校验一个绝对 DaemonLaunchSpec，然后把同一个冻结对象交给「启动 daemon」与 M1 的 autostart.register(spec)/status(spec)/unregister()，调用时恒为 shell:false；M10-T5 才在含空格与 Unicode 的临时根目录跑解析器与启动 smoke。契约条款完整、可实现，无自相矛盾。",
+      "2026-09-14 复核 docs/Agent任务调度器-开发文档/02-设计/07-前端架构.md:495-511 壳侧禁令：壳内禁止 task/run/gate/batch/agent 业务词、禁止解析事件、禁止调 daemon 业务 API、禁止内嵌重试或调度策略（E-146 连不上时壳只给「启动 daemon」按钮，逻辑仍在 Web UI）、通知点击一律以 #/run/〈runId〉 交给 WebView 不做自定义 IPC 传业务数据。与 AC 1/2/6 一致。",
+      "2026-09-14 复核 docs/Agent任务调度器-开发文档/01-约束/05-技术栈.md:20 决策 25（Tauri v2 的 single-instance / autostart / notification 官方插件与壳三件事一一对上）：与 AC4「把同一个 DaemonLaunchSpec 交给 M1」不冲突——前者给插件选型依据，后者给注册调用归属，两者不矛盾，本任务无需为它改文档。",
+      "2026-09-14 有效路径核对：M10-T2 有效路径仅 packages/shell-desktop/。AC4 要求把 spec 交给 M1，而 M1 的自启实现在 packages/daemon/src/boot/autostart.ts 与 packages/daemon/src/platform/{windows,linux,darwin}.ts，packages/daemon/package.json 目前没有 exports 字段，壳无法按包导出引用，属「既定产出必需的包导出漏列」（与 M10-T1 补 packages/shared/package.json 同类）。本轮因 gh 未登录拿不到 PR 号，未执行 begin/sync 补丁，已记入 DOC_ISSUE 待补。",
+      "2026-09-14 现状检查（task/M10-T2 @ e1312a9）：biome ci . 检查 268 个文件无违规；tsc -b --noEmit 通过；vitest run packages/shell-desktop/test 9 个文件 41 个用例全过。以上只证明契约复核期间的仓库状态，代码语义结论另见审查输出。"
+    ],
+    "reviewed": "2026-09-14T05:02:37.950999+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M10-T3": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "fc9fc2e1eff652c1817c4ed2fc2235907dcaff1bd5061297662f13252d9206fd",
@@ -192,6 +207,23 @@
       "pnpm -w check 通过：check-error-codes 49 条与 10 节逐行一致、check-contrast 与 check-forbidden 通过、biome ci 239 文件无问题、tsc -b --noEmit 通过、vitest 70 文件 832 通过 / 32 跳过 / 0 失败（864 例），2026-09-13，WSL Ubuntu 20.04（better-sqlite3 源码重编）。修复前 main@131faa2 同一命令在第一步 check-error-codes 即失败（10 节新增三条错误码未投影到 codes.ts，M2-T6 架构测试 AC 5 随之红）；本分支按 M2-T6 的投影职责补齐三条并修正脚本表头判定后全绿。"
     ],
     "reviewed": "2026-09-13T01:53:58.941819+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M2-T5": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "f370edb3a2816e97b380b90486bf227d500b3aa24551b93f19217fb2270012ae",
+    "evidence": [
+      "2026-09-13 复核 图谱/任务/M2-T5.md 五条验收标准与 04-执行/19-模块任务拆分.md 的 M2 行：产出仍是 http/sse.ts 与 GET /events，输入仍只有 M2-T4 的事件总线，前置 M2-T3（已落地）与 M2-T4（已落地）都在 main 上，未把客户端重连策略或 REST 快照接口提前塞进本任务。",
+      "2026-09-13 复核 02-设计/08-后端架构.md 的中间件链与 SSE 条款：reply.hijack() 后只操作 reply.raw、头固定含 X-Accel-Buffering: no、每 15 秒写一行 : 心跳、路由内禁止 reply.send、90-error-handler 是全仓唯一把 code 转成 HTTP 状态码的地方、鉴权 hook 挂在 /api/v1 子 scope 内。任务卡第 1、5 条与这些条款逐条对齐，未增删；第 2、4 条的 409/401 也因此必须走统一错误体系，不能在本文件自建状态码映射。",
+      "2026-09-13 复核 02-设计/06-系统架构与模块划分.md 的错误信封、环境变量与分层约定：信封固定 {error:{code,message,requestId,details?}}，401/403 与 SSE 握手失败同样返回带信封 body；daemon 只产出英文 message；SSE 不新增任何环境变量（心跳间隔是写死的 15 秒常量，不是 AGSCHED_ 变量），因此本任务不碰 packages/daemon/src/config/env.ts。",
+      "2026-09-13 复核 03-质量/13-边界问题与异常处理.md 与 图谱/边界/E-153、E-154、E-155、E-156：E-153 的服务端职责只到「返回重放窗口已过期、不静默丢事件」，改走 REST 全量快照是客户端职责，未加进本任务；E-156 的「主动关闭该流并返回 401」在流已建立后只能以带信封的错误帧加主动关流实现，握手期的 401 由 30-auth 与错误处理器承担，两者不冲突。",
+      "2026-09-13 复核 02-设计/10-接口约定.md 与 packages/shared/src/api/routes.ts:489-496：GET /api/v1/events 已在常量表内（auth=device、resType=text/event-stream、errors 含 E_UNAUTHORIZED/E_DEVICE_REVOKED/E_REPLAY_WINDOW_EXPIRED/E_INTERNAL），本任务是把它从 50-routes.ts 的兜底桩换成真实处理器，不改接口表本身。",
+      "2026-09-13 通过补丁 M2-T5-support-paths 在 docs/Agent任务调度器-开发文档/_run/task-contracts.json 补入 M2-T5.supportPaths：packages/daemon/src/http/plugins/50-routes.ts（路由挂载与已注册路径表是 08 节固定中间件链的必需接线）与 packages/daemon/test/unit/sse.test.ts（17 节要求的分帧、心跳、重放、吊销测试）。二项都是任务产出必需的漏列支持文件，只做追加式改动，未放行 http/、service/ 或 repo/ 整个目录。",
+      "2026-09-13 冲突核对：presentation.json 中 M2-T5 的 taskPaths 为 http/sse.ts 与 http/routes/events.ts；全仓只有 M3-T4、M8-T6、M8-T7、M9-T5 等任务路径含 50-routes.ts 或 test/ 目录，其中 M3-T4 已落地、其余未开工且不相邻同批，补丁未与在途任务抢同一文件。",
+      "2026-09-13 现状检查（task/M2-T5，与补丁同步后一致）：pnpm exec tsc -b --noEmit 通过、pnpm exec biome ci packages/daemon/src/http packages/daemon/test/unit/sse.test.ts 无违规、node scripts/check-error-codes.mjs 49 条一致、vitest run packages/daemon/test/unit/sse.test.ts 15 个用例全过、vitest run packages/daemon/test/arch 16 个用例全过（含路由集合与 ROUTES 表逐条相等）。以上只证明契约复核期间的仓库状态，代码语义结论另见审查输出的 R1/R2。"
+    ],
+    "reviewed": "2026-09-13T13:56:42.797760+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -326,6 +358,21 @@
       "pnpm -w check 通过：check-error-codes 49 条与 10 节逐行一致、check-contrast 与 check-forbidden 通过、biome ci 239 文件无问题、tsc -b --noEmit 通过、vitest 70 文件 832 通过 / 32 跳过 / 0 失败（864 例），2026-09-13，WSL Ubuntu 20.04（better-sqlite3 源码重编）。修复前 main@131faa2 同一命令在第一步 check-error-codes 即失败（10 节新增三条错误码未投影到 codes.ts，M2-T6 架构测试 AC 5 随之红）；本分支按 M2-T6 的投影职责补齐三条并修正脚本表头判定后全绿。"
     ],
     "reviewed": "2026-09-13T01:56:08.253949+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M4-T12": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "9e8230908f8973a1c2ab6f1a425dae42f3a2c06adaa2fdd42109944d5d8811b1",
+    "evidence": [
+      "触发原因核对：_run/revalidation.json 的 M4-T12 条目记着两个补丁（M6-T6-support-paths-20260914、m5t4-support-paths），changedFields 为 definition 与 effectivePaths。逐条比对两个补丁 JSON 的 changes['M4-T12']：before.effectivePaths 是 [\"packages/daemon/src/adapters/generic-acp/\"]（补丁落地前的旧值），after.effectivePaths 是本任务补丁 m4-t12-effective-paths 修好后的 10 条（adapters/dsh/ + adapters/generic-acp/ + probe.ts + config/defaults.ts + config/registry.ts + service/agents.ts + service/run.ts + 三个测试）。也就是说被标出来的「变化」正是本任务自己那条补丁的内容，两个后续补丁的 baseline 早于它落地，把同一个变化重复记到了 M4-T12 头上，不是新条款。",
+      "条款未变核对：在 main 当前 HEAD（0241f6b）上 git diff bfc83bd..HEAD -- 图谱/任务/M4-T12.md 为空、git diff bfc83bd..HEAD -- 00-概览 01-约束 02-设计 03-质量 04-执行 05-附录 README.md 为空（bfc83bd 是本任务审查通过时的分支尖，已在 main 历史里）。即 M4-T12 的任务定义、验收八条、九个边界、以及它引用的共享章节（含 06/08 的列表分层、事件信封与 payload.vendor、错误体系与「daemon 不产出中文用户文案」、契约三类读取）自批准以来逐字未变。",
+      "有效路径核对：main 上 presentation.json 的 handoff.taskPaths['M4-T12'] 与本任务批准时一致，仍为 [\"packages/daemon/src/adapters/dsh/\",\"packages/daemon/src/adapters/generic-acp/\"]；task-contracts.json 的 tasks['M4-T12'].supportPaths 仍是那 8 条（probe.ts、config/defaults.ts、config/registry.ts、service/agents.ts、service/run.ts、dsh-adapter.test.ts、generic-acp-adapter.test.ts、run-service.test.ts）。两个新补丁只给 M6-T6 与 M5-T4 自己加了路径（container.ts、50-routes.ts、service/message.ts、service/landing.ts 等），没有向 M4-T12 增加任何义务。",
+      "代码未变核对：git diff --stat bfc83bd..HEAD -- packages/daemon/src/adapters/dsh packages/daemon/src/adapters/generic-acp packages/daemon/src/adapters/probe.ts packages/daemon/src/config/defaults.ts packages/daemon/src/config/registry.ts packages/daemon/src/service/agents.ts packages/daemon/src/service/run.ts packages/daemon/test/unit/dsh-adapter.test.ts packages/daemon/test/unit/generic-acp-adapter.test.ts packages/daemon/test/unit/agent-registry.test.ts 为空——本任务的实现与测试逐字未动。共享章节里与 M4-T12 直接相关的三条（adapters 只产数据结构、厂商事件串只许在各家目录、daemon 只出英文开发者短句）在 main 的代码里仍成立：两个 adapters 目录不 import repo/service/http/jobs/events、无 fs/db/clock/process.env，错误走 AppError，probe 的版本警告 message 为英文。",
+      "复验结论：变化的只是台账侧的派生字段（两条补丁 baseline 早于本任务补丁落地造成的重复记账），M4-T12 自己的条款、有效路径、共享章节与代码在批准后都没有变化，故登记复验 pass，清掉「已落地·待复验」标记，不改任何验收标准、不回退落地状态。",
+      "验证环境与结果：Node 22.17.0（WSL），main 尖 0241f6b。npx tsc -b --noEmit 通过、npx biome ci . 无修复项（复验工作树内）；本任务的三组用例在主检出上复跑全绿——dsh-adapter 23、generic-acp-adapter 17、agent-registry 11、agents-service 11、probe 21、run-service 9，共 6 文件 92 用例通过（复验工作树新建后 better-sqlite3 原生模块未编译完成，原生依赖用例改在主检出跑，代码逐字相同）。"
+    ],
+    "reviewed": "2026-09-14T11:35:06.277233+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -496,26 +543,48 @@
     "verdict": "pass"
   },
   "M5-T4": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "bac62ae25f2920ad126962832713704ecb6223548f112e9c6400a42446d0b6ec",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "2098ae61aea621b79e7ca669275e4fce2b507143a3bc16cba56eedadd8156990",
     "evidence": [
-      "改动：验收 1) 落地清单附一行可复制的 build_docs.py --landed 命令，产品不调用文档维护脚本；预估不变 1d；supportPaths 补 landing.test.ts",
-      "对应 E-74、决策 68（D11）；03 节术语「落地清单」与 11 节页面清单已同步；docsPath 取文档记录目录，不写死",
-      "接缝：M9-T16 验收 3) 同步为展示该命令并各带复制按钮；M9-T20 批次级清单复用同一 commands 形状"
+      "AC1: packages/daemon/src/workspace/landing.ts:108 generateLandingCommands 产出 gh stack 命令与 python <docsPath>/_run/build_docs.py <docsPath> --landed <任务ID> 两行文本；:359-374 返回 worktreePath/branchName/diffStat/commands，全程只生成字符串不执行",
+      "AC1 docsPath: landing.ts:287 取 documentsRepo 记录的 docs_path，硬编码值仅作缺省",
+      "AC2/E-73: getTaskLanding 只读故 worktree 默认保留；仅 POST /api/v1/tasks/:taskId/worktree/cleanup 触发 landing.ts:382 cleanupTaskWorktree -> removeWorktree，deleteBranch 默认 false 保留分支；已清理后重试由 M5-T1 prepareWorktree 重建分支序号（landing.test.ts:736 真实 git 全生命周期用例覆盖）",
+      "AC3: landing.test.ts:292 断言 mock runner 收到的命令不含 commit/push/merge/pull/rebase；产品不调用提交、push、PR、合并与文档维护脚本",
+      "分层：新增 packages/daemon/src/service/landing.ts:20/30 作为 service 接缝；http/routes/tasks.ts 只 import service，原直连 repo/workspace 已移除；boot/container.ts:223 装配 services.landing",
+      "接线：http/plugins/50-routes.ts:52 注册 registerTasksRoutes，:72-73 加入 customRegisteredPaths；landing.test.ts:690 回归用例验证经 routesPlugin 以 /api/v1 前缀注册后命中真实 handler",
+      "支持文件：service/landing.ts、boot/container.ts、http/plugins/50-routes.ts 已补入 M5-T4.supportPaths；与在途 M6-T8（50-routes.ts）共同持有，双方均为新增 hunk",
+      "合并 origin/main 后：container.ts 与 M6-T6 的 runMessages/messageService 为并列新增，冲突取并集解决，repos 同时含 tasks 与 runMessages，services 同时含 landing 与 message",
+      "检查：tsc -b --noEmit 通过；biome ci . 通过；landing.test.ts 19/20 通过，唯一失败为 Windows 侧 resolveGitExecutable 找不到 git（用例写死 platform: linux），已落地的 M5-T1 worktree.test.ts 同样失败，属既有环境差异",
+      "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）"
     ],
-    "reviewed": "2026-09-10T20:09:01.332888+00:00",
+    "reviewed": "2026-09-14T10:12:44.002565+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M5-T5": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "9ee29591be889a1f217a575fb745e1dead6a3114471855d7e404428404ac8b89",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "b9e761d4715a60a477ea1fcba71be39dff9225a2dca42664151a71b237e03913",
     "evidence": [
-      "19 节 M5-T5 行：只依赖 M5-T2（base 解析）与 M1-T7（spawn，已落地，在 M5-T2 闭包内）；产出 workspace/in-head.ts 在 taskPaths，worktree.ts 作 supportPaths 供收口分支命名",
-      "验收 1)～5) 对应 E-273（squash 回退无差异）、E-289（分支已删按 SHA / branch_gone）、E-301（dirty_worktree 判未进、error 不推断）、E-71（收口分支冲突加序号）；返回结构 {inHead, method, tipSha, commandText?, stderrTail?} 与 08 节 scheduler-tick 第 1 步、09 节 runs.is_in_head/branch_tip_sha 一致",
-      "本函数不写库，写库由 M8-T6 的 tick 事务做——事务边界在 08 节写死，符合「事务内不 spawn」；17 节列出了 in-head 的七条用例"
+      "AC1 ancestor：in-head.ts:255-263 先跑 git merge-base --is-ancestor refs/heads/<branch> HEAD，退出 0 返回 method=ancestor",
+      "AC1 squash 回退：in-head.ts:257-271 退出 1 时回退 git diff --quiet HEAD refs/heads/<branch>，退出 0 返回 no_diff、退出 1 返回 unmerged",
+      "AC1 脏工作区优先：in-head.ts:145-205 worktree 存在且 git status --porcelain 非空一律 method=dirty_worktree 判未进",
+      "AC2 用 tipSha 同一套判定：in-head.ts:319 取 tipSha，342-366 对 targetSha 跑祖先判定并在退出 1 时回退 diff",
+      "AC2 branch_gone_unmerged：in-head.ts:368-375 都否时判未进并附 commandText=git branch <branch> <sha>",
+      "AC2 branch_gone：in-head.ts:335-339 只有 worktree 确认已清理才判进 HEAD；E-289「worktree 仍在则用其 HEAD SHA」由 in-head.ts:207-219 与 319 实现",
+      "AC3 报错不推断：in-head.ts:325-334（worktree 状态不可判定）、237-245（rev-parse 严重错误）、非语义退出码分支与各 catch 均返回 method=error；stderr 尾 200 字节由 in-head.ts:57-65 takeStderrTail 提供",
+      "AC4 经 proc/spawn：in-head.ts:130 只经 GitRunner 调 git，默认 runner 由 worktree.ts:227-283 createDefaultGitRunner 走 proc 的 spawnManaged（worktree.ts:250）",
+      "AC4 顺序不并发：全部 await 串行，in-head.test.ts 并发用例断言 maxConcurrentCommands=1",
+      "AC4 返回结构与不写库：in-head.ts:38-44 IsBranchInHeadResult{inHead,method,tipSha,commandText?,stderrTail?}，函数无 repo/db 依赖",
+      "AC5 收口分支：worktree.ts:678-680 格式 wrapup/<batchId>-<round>；682-692 复用 M5-T1 的 resolveBranchName，冲突序号在 worktree.ts:404-410",
+      "AC5 base 恒 HEAD：worktree.ts:694-726 prepareWrapupWorktree 固定 baseRef='HEAD'（710、723 行）",
+      "E-273：in-head.ts:265-271 no_diff 回退，有差异即 unmerged（273-279），无第三种猜测",
+      "E-289：in-head.ts:318-375 分支不存在时优先 tipSha、其次现存 worktree 的 HEAD SHA；都否给恢复命令",
+      "E-301：in-head.ts:325-334 不可判定不推断为已合入（审查修复项，原实现会在 worktree 仍在但 HEAD 读不到时误判 branch_gone）；method=error 供上层按连续 error≥3 出横幅",
+      "E-71：worktree.ts:404-410 冲突自动加序号后缀 -2/-3，不复用不覆盖；目录名同步带后缀（worktree.ts:516-536）",
+      "测试：packages/daemon/test/unit/in-head.test.ts 21 项全绿，含审查新增 2 项（worktree 仍在但 HEAD 不可读、stat 非 ENOENT 失败均不得落到 branch_gone）",
+      "检查：biome ci . 通过；tsc --noEmit -p packages/daemon/tsconfig.json 无错（shell-desktop 跨包未构建报错与本层无关）"
     ],
-    "reviewed": "2026-09-10T20:07:50.930957+00:00",
+    "reviewed": "2026-09-14T09:53:39.837164+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -555,6 +624,23 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M6-T3": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "7cf7e49f299c2aa881fad69a395318c98aac0c49ef559fc4ed4baf37ca75240a",
+    "evidence": [
+      "AC1/E-253：packages/daemon/src/domain/progress.ts:118 hasStreamingCapability 显式能力位优先、dsh 置假；:594 extractLastMessage 在 !isCompleted 时直接返回 null，运行期不伪造中间事件；:743 extractProgress 输出 stepDurationDegraded 与运行期 streamingNotice（完成后置 null）；证据 packages/daemon/test/unit/progress.test.ts:103、:122、:523",
+      "AC2/E-26：packages/daemon/src/domain/progress.ts:163 extractTokenUsage 兼容 7 组输入输出总计别名与 usage/tokenUsage/tokens/stats/vendor/params 容器，负数/NaN/非数字字符串一律 null（无 0 冒充）；:339 formatTokenDisplay 缺失统一输出 TOKEN_MISSING_PLACEHOLDER「—」；证据 packages/daemon/test/unit/progress.test.ts:189、:240、:497",
+      "AC3/E-37 呈现侧：packages/daemon/src/domain/progress.ts:384 extractReportedModel 只读 events[0] 首帧（含 payload.vendor.model），无自报返回 null 不猜测；:446 checkModelMismatch、:466 resolveModelProgressInfo 规范化比对，仅在有自报且与所选不一致时置 modelMismatch/isMismatchHighlighted 并给出「实际使用：X」；证据 packages/daemon/test/unit/progress.test.ts:265、:307、:471",
+      "E-37 环境变量清理半边不在本任务有效路径：已由 packages/daemon/src/proc/env.ts:4-14、:43、:55（ANTHROPIC_MODEL / ANTHROPIC_DEFAULT_*_MODEL / OPENAI_MODEL 等模型覆盖变量清理）覆盖，本任务只承担读回与呈现",
+      "分层与约定：packages/daemon/src/domain/progress.ts 仅 import 同层 run-state-machine.ts，无 process.env / process.platform / Date.now / Math.random / randomUUID，顶层零副作用，时钟与 now 全部参数注入；kebab-case 文件名、无 barrel、工厂 createProgressExtractor、常量 as const",
+      "检查：biome ci . 通过；tsc -b --noEmit 通过；packages/daemon/test/unit/progress.test.ts 17 用例全绿；run-state-machine.test.ts 29 用例全绿；架构测试 boot-boundaries/bus-transaction/registry-forbidden-args 通过（routes.test.ts 与 probe/worktree/run-service 等失败为 Windows 环境既有失败，主检出基线同样失败）",
+      "范围：改动仅 packages/daemon/src/domain/progress.ts（有效路径）与新增 packages/daemon/test/unit/progress.test.ts（既定产出必需的测试，未越界）",
+      "审查修复（已提交并推送）：终态/已退出判定改为复用 domain/run-state-machine.ts 的 TERMINAL_RUN_STATES 并补上 exited 的后继状态 reworking；移除 domain 中不该出现的厂商事件 kind 分支（turn.completed / agent_message / message / assistant_message），只认归一化后的 agent_message_chunk"
+    ],
+    "reviewed": "2026-09-14T06:43:13.215399+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M6-T5": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "6e040ed72c18f68fa49814f18f389814efa06da98ac5680799dc9e2038af5adb",
@@ -564,6 +650,37 @@
       "pnpm -w check 通过：check-error-codes 49 条与 10 节逐行一致、check-contrast 与 check-forbidden 通过、biome ci 239 文件无问题、tsc -b --noEmit 通过、vitest 70 文件 832 通过 / 32 跳过 / 0 失败（864 例），2026-09-13，WSL Ubuntu 20.04（better-sqlite3 源码重编）。修复前 main@131faa2 同一命令在第一步 check-error-codes 即失败（10 节新增三条错误码未投影到 codes.ts，M2-T6 架构测试 AC 5 随之红）；本分支按 M2-T6 的投影职责补齐三条并修正脚本表头判定后全绿。"
     ],
     "reviewed": "2026-09-13T01:56:53.110166+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M6-T6": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "9194046d4f0dcfdc69415cd644253ec81e4e3e1784cb3882ac407f617468cfb6",
+    "evidence": [
+      "本次待复验字段仅为 effectivePaths（M5-T4 的 supportPaths 补丁触发重新计算），M6-T6 的验收条款与边界本身未变",
+      "复核有效范围：presentation.json handoff.taskPaths['M6-T6'] 六条路径与已合并 PR #69 的实际改动文件逐一对应，无多列也无漏列",
+      "  service/message.ts、repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts",
+      "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过"
+    ],
+    "reviewed": "2026-09-14T10:15:15.310300+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M6-T8": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "31e79a02d32297a3872a3401901204b1506d247fb21e949d244adb100e6d3bd5",
+    "evidence": [
+      "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M6-T8 行与派发包，六条验收标准及 E-25/E-32/E-96/E-97/E-98 原文一致，无增删；输入「M1-T4 的偏移索引」、产出「GET /runs/:id/log、vendorSessionRef」一致。补丁只改 effectivePaths，未动验收标准与边界。",
+      "依赖与前置能力：M6-T2、M1-T4 均已落地。M1-T4 提供的可消费件齐备——logstore/paths.ts:22 段文件命名（raw.log / raw-N.log）、repo/log-segments-repo.ts:56-59 findByRunStream 返回 fileSeq/path/byteStart/byteEnd/lineCount、logstore/read-window.ts:16/20 formatCursor/parseCursor 字节游标编解码。故「按字节偏移分段回读」在本契约下可实现。",
+      "数据与接口：02-设计/10-接口约定.md:43 定 GET /api/v1/runs/:runId/log，query ?fromSeq&direction&limit，响应 {lines,totalLines,prevCursor,nextCursor}，auth=device；packages/shared/src/api/routes.ts:387 常量表一致（resType=GetRunLogResponse，errors 含 E_NOT_FOUND/E_LOG_FILE_MISSING/E_LOG_PURGED）；packages/shared/src/api/runs.ts:196 DTO 与之一致。migrations/0001_init.sql:120 存在 runs.vendor_session_ref 列。",
+      "有效路径（本补丁的修正点）：原 taskPaths 只有 service/run-log.ts 与 http/routes/runs.ts。实际落地必需的支持文件漏列——packages/daemon/src/boot/container.ts 未注入 runLogService（container.ts:215-221 services 无 runLog），http/plugins/50-routes.ts:39 以 registerRunsRoutes(target) 调用且不传 options，端点恒返回 500 E_INTERNAL；repo/runs-abort-repo.ts:11-16 的 findById 不返回 vendor_session_ref 与 snapshot_id，服务取不到数据。补丁在 _run/presentation.json 的 handoff.taskPaths['M6-T8'] 补入 boot/container.ts、http/plugins/50-routes.ts、repo/runs-log-repo.ts、repo/log-segments-repo.ts、test/unit/run-log.test.ts、test/integration/run-log-routes.test.ts 六条。",
+      "路径冲突核对：boot/container.ts 另属 M1-T1、M1-T10（均已落地），http/routes/runs.ts 另属 M6-T5（已落地）与 M8-T9（未开工，届时需 rebase）；无与在途任务撞车。sync 后受影响仅 M6-T8、M6-T9，_run/revalidation.json 无新增条目，没有已落地任务被标「待复验」。",
+      "验收与边界的代码落点：AC1/E-96 run-log.ts:241-258（只读打开断言）；AC2/E-97 run-log.ts:322-346；AC3/E-98 run-log.ts:348-360 与 128-137（buildOpenCommand）；AC4 run-log.ts:362-398；AC5/E-25 run-log.ts:93-126 与 412-419；AC6/E-32 run-log.ts:170-236（不依赖厂商 GUI，回落自捕获 raw.log/events.ndjson）。五条边界均有代码落点与单测。",
+      "测试：在工作树 ../agent-scheduler-m6-t8 跑 pnpm -w check，biome ci 与 tsc -b --noEmit 通过；packages/daemon/test/unit/run-log.test.ts 全绿（9 例）。其余失败文件（含 arch/routes.test.ts 2 例）与主干同环境基线一致，非本层引入。",
+      "返工已修并复核（第 2 轮）：run-log.ts 不再直读 process.platform（平台由 container 从 hostInputs 注入，container.ts:280-288）；只读断言在 finally 中配对关闭描述符（run-log.ts:204-215），单测以 fd 集合断言 50 次调用无泄漏；回读改为消费 log_segments 偏移索引 + formatCursor/parseCursor 字节游标，单次读取不超过 READ_CHUNK_LIMIT_BYTES（run-log.ts:367-460），轮转分片靠段记录定位，原先错误的 raw.<n>.log 正则已删除；打开方式改为结构化 buildOpenSpec 返回 {file,args[],cwd}（run-log.ts:145-163），含引号/&/;/%% 的路径只作为 args 元素出现。",
+      "审查方在落地前补的一处：totalLines 曾被返工改成窗口行数（等于 lines.length），与字段名和 M6-T8 原实现语义不符；现已改为取各段 lineCount 之和，段尚未入索引（仍在追加）时回落窗口行数，并在 3 段用例中断言 totalLines=300（run-log.ts:533、test/unit/run-log.test.ts:324-327）。"
+    ],
+    "reviewed": "2026-09-14T12:58:05.918936+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

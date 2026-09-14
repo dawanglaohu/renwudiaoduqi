@@ -2,5 +2,19 @@
 	"name": "@agent-scheduler/shell-desktop",
 	"private": true,
 	"version": "0.0.0",
-	"type": "module"
+	"type": "module",
+	"exports": {
+		"./desktop-bridge": "./src/desktop-bridge.ts",
+		"./launch-spec": "./src/launch-spec.ts",
+		"./daemon-process": "./src/daemon-process.ts",
+		"./runtime-diagnostics": "./src/runtime-diagnostics.ts",
+		"./autostart-handler": "./src/autostart-handler.ts",
+		"./notification-handler": "./src/notification-handler.ts",
+		"./platform-support": "./src/platform-support.ts",
+		"./connection-ui": "./src/connection-ui.ts"
+	},
+	"dependencies": {
+		"@agent-scheduler/daemon": "workspace:*",
+		"@agent-scheduler/shared": "workspace:*"
+	}
 }

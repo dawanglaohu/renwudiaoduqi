@@ -1,0 +1,18 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M6-T8": {
+      "contractHash": "3de8d99f5fdac54a5be4dacb82af0e6c8a9aeb3bcdcdc56fd5fd8b945bb41e0a",
+      "evidence": [
+        "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M6-T8 行与当前派发包，六条验收标准及 E-25/E-32/E-96/E-97/E-98 原文一致，无增删。输入「M1-T4 的偏移索引」、产出「GET /runs/:id/log、vendorSessionRef」一致。",
+        "依赖与前置能力：M6-T2、M1-T4 均已落地。M1-T4 提供的可消费件齐备——logstore/paths.ts:22 段文件命名（raw.log / raw-N.log）、repo/log-segments-repo.ts:56-59 findByRunStream 返回 byteStart/byteEnd/lineCount、logstore/read-window.ts:16/20 formatCursor/parseCursor 字节游标编解码。故「按字节偏移分段回读」在本契约下可实现。",
+        "数据与接口：02-设计/10-接口约定.md:43 定 GET /api/v1/runs/:runId/log，query ?fromSeq&direction&limit，响应 {lines,totalLines,prevCursor,nextCursor}，auth=device；packages/shared/src/api/routes.ts:387 常量表一致（resType=GetRunLogResponse，errors 含 E_NOT_FOUND/E_LOG_FILE_MISSING/E_LOG_PURGED）；packages/shared/src/api/runs.ts:196 DTO 与之一致。migrations/0001_init.sql:120 存在 runs.vendor_session_ref 列。",
+        "有效路径：taskPaths 为 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/service/run-log.ts。本轮发现既定产出的必需支持文件漏列——packages/daemon/src/boot/container.ts 未注入 runLogService（container.ts:215-221），50-routes.ts:39 以 registerRunsRoutes(target) 调用且不传 options，端点恒返回 500 E_INTERNAL；repo/runs-abort-repo.ts:11-16 的 findById 不返回 vendor_session_ref 与 snapshot_id。属必需支持文件漏列而非契约错误，已在审查 REWORK R1 逐条指明，未据此改契约，也未放行无关共享文件。",
+        "验收与边界的代码落点：AC1/E-96 run-log.ts:241-258（只读打开断言）与 12-17 行阈值常量；AC2/E-97 run-log.ts:322-346；AC3/E-98 run-log.ts:348-360 与 128-137（buildOpenCommand）；AC4 run-log.ts:362-398；AC5/E-25 run-log.ts:93-126 与 412-419；AC6/E-32 run-log.ts:170-236（不依赖厂商 GUI，回落自捕获 raw.log/events.ndjson）。五条边界均有代码落点与单测。",
+        "遗留（不构成本契约错误，进 REWORK）：run-log.ts:169 直读 process.platform（06 节唯一定点 platform/host.ts）；run-log.ts:252 openSync 打开后未 close 造成描述符泄漏；run-log.ts:183/203/219 整文件 readFileSync 后按行号切片，未消费 M1-T4 偏移索引，与 08 节「按游标回读历史只走 logstore 的字节偏移分段读」不符；run-log.ts:194 轮转分片正则 /^raw\\.\\d+\\.log$/ 与实际命名 raw-N.log 不符。",
+        "测试：在工作树 ../agent-scheduler-m6-t8 跑 pnpm -w check，biome ci 与 tsc -b --noEmit 通过；packages/daemon/test/unit/run-log.test.ts 全绿（新增 9 例）。其余失败文件（含 arch/routes.test.ts 2 例）与主干同环境基线一致，非本层引入。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

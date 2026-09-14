@@ -1,0 +1,113 @@
+{
+ "scope": "task-contract",
+ "tasks": {
+  "M4-T12": {
+   "contractHash": "9e8230908f8973a1c2ab6f1a425dae42f3a2c06adaa2fdd42109944d5d8811b1",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M6-T10": {
+   "contractHash": "813a7663b6304bca3d402af94c16d9f6af3854c4786a238738eecbcef23ac769",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M6-T6": {
+   "contractHash": "9194046d4f0dcfdc69415cd644253ec81e4e3e1784cb3882ac407f617468cfb6",
+   "evidence": [
+    "pnpm -w check 相关子集（biome ci + tsc -b --noEmit + vitest run）于工作树 D:/xiangmu/agent-scheduler-m6-t6 @ task/M6-T6：biome 2 文件无告警，tsc 无错，message-service 18/18 通过（含新增「未注入 resumeSession 不得谎报送达」回归用例）",
+    "AC1/E-117：service/message.ts:94-145 resolveAgentMessageCapabilities 汇总各适配器 canReply/canResume，generic-acp 与 dsh 收窄为 false；:254 不具备时抛 E_CAPABILITY_UNSUPPORTED；:532 canReply() 供 UI 灰按钮；http/routes/runs.ts:122 注册 POST /api/v1/runs/:runId/messages",
+    "AC2/E-113：message.ts:316-343 进程存活与 stdin 管道检测；:442-500 handleUndelivered 以 delivery_state='undelivered' 落库并原样保留 text、发 run.message_undelivered、抛 E_MESSAGE_UNDELIVERED；路由 throwOnUndelivered=true，HTTP 422 且消息已落库可复制",
+    "AC3/E-112：message.ts:271-314 已结束运行分支；canResume=false 抛 E_CAPABILITY_UNSUPPORTED（details.suggestion='redispatch'）；canResume=true 且已注入 resumeSession 时返回 isNewRun/newRunId；未注入时落为 undelivered(reason='resume_unavailable')，不再伪造新运行 id（审查方修复 + 回归用例）",
+    "AC4/E-114：message.ts:177-194 enqueueForRun 按 runId 串行化；每条独立 insertMessage 带 actorDeviceId 与 clock.now()，无去重合并；用例断言同文两条落两条并按到达序写入 stdin",
+    "AC5/E-116：message.ts:196-236 validateInput 空/空白拒绝、超长带 requiresTruncationConfirmation 细节拒绝且从不截断；schema maxLength 32768 与 DEFAULT_MAX_MESSAGE_LENGTH 一致",
+    "AC6：message.ts:344-360 检查 writeStdin 返回 false 后 await waitForStdinDrain()，写入异常归入未送达",
+    "08 节：事务只在 service 层经 unitOfWork.run 开启（:390、:496），回调内无 await/无副作用，bus.publish 在 run() 返回后；SQL 只在 repo/run-messages-repo.ts（:165 工厂闭包预编译、参数绑定、Row→DTO 映射）；service 未 import fastify；routes 只取容器里的 service",
+    "06 节：E_CAPABILITY_UNSUPPORTED/E_MESSAGE_UNDELIVERED/E_VALIDATION 均登记于 shared/errors/codes.ts；事件 kind run.message_delivered / run.message_undelivered / run.state_changed 在 shared/api/events.ts EVENT_KINDS 内；daemon 侧 message 全为英文短句；无新增 process.env / process.platform 直读；无 barrel、无 utils 目录",
+    "数据模型与接线：run_messages 表沿用 migrations/0001_init.sql:156（未改迁移）；50-routes.ts 已把 POST /api/v1/runs/:runId/messages 加入自定义注册白名单，实际注册集合与 shared/api/routes.ts 一致；container.ts 注入 runMessages repo 与 messageService",
+    "有效路径补丁：presentation.json handoff.taskPaths['M6-T6'] 补入 repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts；与 M6-T5/M6-T8/M8-T9（runs.ts）、M1-T1/M1-T10（container.ts）为共同持有，本次均为新增 hunks，未改写既有代码"
+   ],
+   "verdict": "pass"
+  },
+  "M6-T7": {
+   "contractHash": "8d0c7bb4ed46c59720bdd9d80c8555aaaca8cd747b5bfd5b7012fca5e636ebf8",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M7-T4": {
+   "contractHash": "156ad0c39aa41c0fa66604721435c9b5fec67c60037aaccd486536603e1ec6e5",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M7-T5": {
+   "contractHash": "fffa47306fede0c674f40e59831c10efa3edf78177b7bbfb5273b7919a45d082",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M7-T7": {
+   "contractHash": "b52d2c00d1db6d0b6192f85c16278158165429d6b1b480d972259e674cdbcc00",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M7-T8": {
+   "contractHash": "89d1eddfa37e5b18e8f3044602914647dc0d631e1ec4eb68d38ee1521850dbd2",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M8-T7": {
+   "contractHash": "2b6533bfd494518c4a11da627b4d29217a270683eff87eee047315aafa1c8a16",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M8-T8": {
+   "contractHash": "8f2a2f674936222eca48fa522b6dd7b61855afcd61a3aead7fc5e7ef3db20e9c",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M8-T9": {
+   "contractHash": "03582f339e6586365ac7a4412e0e0e70c9cced38b62a5fd599952dea08d28af1",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M9-T17": {
+   "contractHash": "f7d6d99993f19afd119c8e6c449cd732ae4fde15f883b6b3c253e88a76c08567",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M9-T22": {
+   "contractHash": "5d92e0f6b642997f57158fbfe97d097ea45e18341099fe840fd44c1993eabbee",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  },
+  "M9-T23": {
+   "contractHash": "4d93ead5ea85e11adcf41aaf6b1562f62efab882693fadabe121c58e8518ea8f",
+   "evidence": [
+    "受影响仅限文件所有权（新增 packages/daemon/src/repo/run-messages-repo.ts、packages/daemon/test/unit/message-service.test.ts、packages/daemon/src/http/plugins/50-routes.ts，并新增对 packages/daemon/src/http/routes/runs.ts 与 packages/daemon/src/boot/container.ts 的共同持有）；验收标准、边界、接口与错误码均未改动；该任务尚无可复核代码，契约无需变更"
+   ],
+   "verdict": "pass"
+  }
+ }
+}

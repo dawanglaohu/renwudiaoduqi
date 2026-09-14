@@ -4,10 +4,12 @@ import { AppError } from '../../errors/app-error.ts';
 import { registerAgentRoutes } from '../routes/agents.ts';
 import { registerDeviceRoutes } from '../routes/devices.ts';
 import { registerDocumentRoutes } from '../routes/documents.ts';
+import { registerEventsRoutes } from '../routes/events.ts';
 import { registerHealthRoute } from '../routes/health.ts';
 import { registerPairRoutes } from '../routes/pair.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
 import { registerSystemRoutes } from '../routes/system.ts';
+import { registerTasksRoutes } from '../routes/tasks.ts';
 import { errorHandlerPlugin } from './90-error-handler.ts';
 
 function normalizePath(url: string): string {
@@ -46,12 +48,18 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerDeviceRoutes(target);
 	registerDocumentRoutes(target);
 	registerAgentRoutes(target);
+	registerEventsRoutes(target);
+	registerTasksRoutes(target);
 
 	const customRegisteredPaths = new Set<string>([
 		'GET /api/v1/health',
+		'GET /api/v1/events',
 		'GET /api/v1/system/usage',
 		'POST /api/v1/runs/:runId/abort',
 		'POST /api/v1/runs/:id/abort',
+		'POST /api/v1/runs/:runId/messages',
+		'POST /api/v1/runs/:id/messages',
+		'GET /api/v1/runs/:runId/log',
 		'POST /api/v1/pair/claim',
 		'POST /api/v1/pair/code',
 		'GET /api/v1/devices',
@@ -64,6 +72,8 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'PATCH /api/v1/agents/:agentId',
 		'POST /api/v1/agents/:agentId/probe',
 		'GET /api/v1/agents/:agentId/models',
+		'GET /api/v1/tasks/:taskId/landing',
+		'POST /api/v1/tasks/:taskId/worktree/cleanup',
 	]);
 
 	for (const route of ROUTES) {

@@ -36,6 +36,11 @@ export interface VersionFingerprint {
 	readonly expectedPattern: string;
 }
 
+export interface VersionRange {
+	readonly min?: string;
+	readonly max?: string;
+}
+
 export const LOGIN_PROBE_PARSERS = {
 	CODEX_LOGIN_STATUS: 'codex_login_status',
 	CLAUDE_AUTH_JSON: 'claude_auth_json',
@@ -72,6 +77,7 @@ export interface AgentConfig {
 	readonly adapterKind: AdapterKind;
 	readonly timeouts: AgentTimeouts;
 	readonly versionFingerprint: VersionFingerprint;
+	readonly versionRange?: VersionRange;
 	readonly loginProbe: LoginProbeConfig;
 }
 
@@ -180,10 +186,10 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			},
 		}),
 		[BUILT_IN_AGENT_IDS.DSH]: freezeAgentConfig({
-			execPath: 'dsh',
-			argsTemplate: ['--profile', 'headless'],
+			execPath: 'resources/host/node_modules/@deepseek-ai/dsh/lib/bin.js',
+			argsTemplate: ['--profile', 'headless', '--model', '{model}'],
 			maxConcurrency: 1,
-			defaultModel: null,
+			defaultModel: 'deepseek-chat',
 			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'DS',
 			adapterKind: ADAPTER_KINDS.NATIVE,
@@ -192,13 +198,11 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				args: ['--version'],
 				expectedPattern: '\\bdsh\\b',
 			},
-			loginProbe: {
-				args: [],
-				parser: LOGIN_PROBE_PARSERS.NONE,
-				loggedInPattern: null,
-				loggedOutPattern: null,
-				loginCommandHint: null,
+			versionRange: {
+				min: '0.1.0',
+				max: '0.1.2',
 			},
+			loginProbe: GENERIC_LOGIN_PROBE_DEFAULT,
 		}),
 	},
 );
@@ -220,6 +224,7 @@ function freezeAgentConfig(config: AgentConfig): AgentConfig {
 			...config.versionFingerprint,
 			args: Object.freeze([...config.versionFingerprint.args]),
 		}),
+		versionRange: config.versionRange ? Object.freeze({ ...config.versionRange }) : undefined,
 		loginProbe: Object.freeze({
 			...config.loginProbe,
 			args: Object.freeze([...config.loginProbe.args]),

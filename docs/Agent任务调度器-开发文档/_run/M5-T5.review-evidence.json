@@ -1,0 +1,29 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M5-T5": {
+      "contractHash": "b9e761d4715a60a477ea1fcba71be39dff9225a2dca42664151a71b237e03913",
+      "verdict": "pass",
+      "evidence": [
+        "AC1 ancestor：in-head.ts:255-263 先跑 git merge-base --is-ancestor refs/heads/<branch> HEAD，退出 0 返回 method=ancestor",
+        "AC1 squash 回退：in-head.ts:257-271 退出 1 时回退 git diff --quiet HEAD refs/heads/<branch>，退出 0 返回 no_diff、退出 1 返回 unmerged",
+        "AC1 脏工作区优先：in-head.ts:145-205 worktree 存在且 git status --porcelain 非空一律 method=dirty_worktree 判未进",
+        "AC2 用 tipSha 同一套判定：in-head.ts:319 取 tipSha，342-366 对 targetSha 跑祖先判定并在退出 1 时回退 diff",
+        "AC2 branch_gone_unmerged：in-head.ts:368-375 都否时判未进并附 commandText=git branch <branch> <sha>",
+        "AC2 branch_gone：in-head.ts:335-339 只有 worktree 确认已清理才判进 HEAD；E-289「worktree 仍在则用其 HEAD SHA」由 in-head.ts:207-219 与 319 实现",
+        "AC3 报错不推断：in-head.ts:325-334（worktree 状态不可判定）、237-245（rev-parse 严重错误）、非语义退出码分支与各 catch 均返回 method=error；stderr 尾 200 字节由 in-head.ts:57-65 takeStderrTail 提供",
+        "AC4 经 proc/spawn：in-head.ts:130 只经 GitRunner 调 git，默认 runner 由 worktree.ts:227-283 createDefaultGitRunner 走 proc 的 spawnManaged（worktree.ts:250）",
+        "AC4 顺序不并发：全部 await 串行，in-head.test.ts 并发用例断言 maxConcurrentCommands=1",
+        "AC4 返回结构与不写库：in-head.ts:38-44 IsBranchInHeadResult{inHead,method,tipSha,commandText?,stderrTail?}，函数无 repo/db 依赖",
+        "AC5 收口分支：worktree.ts:678-680 格式 wrapup/<batchId>-<round>；682-692 复用 M5-T1 的 resolveBranchName，冲突序号在 worktree.ts:404-410",
+        "AC5 base 恒 HEAD：worktree.ts:694-726 prepareWrapupWorktree 固定 baseRef='HEAD'（710、723 行）",
+        "E-273：in-head.ts:265-271 no_diff 回退，有差异即 unmerged（273-279），无第三种猜测",
+        "E-289：in-head.ts:318-375 分支不存在时优先 tipSha、其次现存 worktree 的 HEAD SHA；都否给恢复命令",
+        "E-301：in-head.ts:325-334 不可判定不推断为已合入（审查修复项，原实现会在 worktree 仍在但 HEAD 读不到时误判 branch_gone）；method=error 供上层按连续 error≥3 出横幅",
+        "E-71：worktree.ts:404-410 冲突自动加序号后缀 -2/-3，不复用不覆盖；目录名同步带后缀（worktree.ts:516-536）",
+        "测试：packages/daemon/test/unit/in-head.test.ts 21 项全绿，含审查新增 2 项（worktree 仍在但 HEAD 不可读、stat 非 ENOENT 失败均不得落到 branch_gone）",
+        "检查：biome ci . 通过；tsc --noEmit -p packages/daemon/tsconfig.json 无错（shell-desktop 跨包未构建报错与本层无关）"
+      ]
+    }
+  }
+}

@@ -13,15 +13,27 @@ import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
+import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
 import { createDefaultProcessOps } from '../proc/spawn.ts';
 import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
+import {
+	type DispatchSnapshotsRepo,
+	createDispatchSnapshotsRepo,
+} from '../repo/dispatch-snapshots.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
+import { type LogSegmentsRepo, createLogSegmentsRepo } from '../repo/log-segments-repo.ts';
+import { type RunMessagesRepo, createSqliteRunMessagesRepo } from '../repo/run-messages-repo.ts';
 import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
+import { type RunsLogRepo, createSqliteRunsLogRepo } from '../repo/runs-log-repo.ts';
+import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
+import { type LandingService, createLandingService } from '../service/landing.ts';
+import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
+import { type RunLogService, createRunLogService } from '../service/run-log.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 
 export interface ContainerJob {
@@ -33,8 +45,13 @@ export interface ContainerJob {
 export interface ContainerRepos {
 	readonly eventSeq: EventSeqRepo;
 	readonly runsAbort: RunsAbortRepo;
+	readonly runsLog?: RunsLogRepo;
+	readonly dispatchSnapshots?: DispatchSnapshotsRepo;
+	readonly logSegments?: LogSegmentsRepo;
 	readonly devices: DevicesRepo;
 	readonly documents: DocumentsRepo;
+	readonly runMessages: RunMessagesRepo;
+	readonly tasks: TasksRepo;
 	readonly [key: string]: unknown;
 }
 
@@ -48,9 +65,12 @@ export interface ContainerEvents {
 export interface ContainerServices {
 	readonly system: SystemService;
 	readonly runAbort: RunAbortService;
+	readonly runLog: RunLogService;
 	readonly pairing: PairingService;
 	readonly docs: DocsService;
 	readonly agents: AgentService;
+	readonly landing: LandingService;
+	readonly message: MessageService;
 }
 
 export interface AppContainer {
@@ -90,11 +110,20 @@ export function createContainer(input: {
 	readonly systemService?: SystemService;
 	readonly runAbortService?: RunAbortService;
 	readonly runsAbortRepo?: RunsAbortRepo;
+	readonly runsLogRepo?: RunsLogRepo;
+	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+	readonly logSegmentsRepo?: LogSegmentsRepo;
+	readonly runLogService?: RunLogService;
 	readonly pairingService?: PairingService;
 	readonly docsService?: DocsService;
 	readonly documentsRepo?: DocumentsRepo;
+	readonly runMessagesRepo?: RunMessagesRepo;
+	readonly messageService?: MessageService;
+	readonly processRegistry?: ProcessRegistry;
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
+	readonly tasksRepo?: TasksRepo;
+	readonly landingService?: LandingService;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
 }): AppContainer {
@@ -102,13 +131,24 @@ export function createContainer(input: {
 
 	const eventSeq = createEventSeqRepo(input.database);
 	const runsAbort = input.runsAbortRepo ?? createSqliteRunsAbortRepo(input.database);
+	const runsLog = input.runsLogRepo ?? createSqliteRunsLogRepo(input.database);
+	const dispatchSnapshots =
+		input.dispatchSnapshotsRepo ?? createDispatchSnapshotsRepo(input.database);
+	const logSegments = input.logSegmentsRepo ?? createLogSegmentsRepo(input.database);
 	const devices = createDevicesRepo(input.database);
 	const documents = input.documentsRepo ?? createDocumentsRepo(input.database);
+	const runMessages = input.runMessagesRepo ?? createSqliteRunMessagesRepo(input.database);
+	const tasks = input.tasksRepo ?? createTasksRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 		runsAbort,
+		runsLog,
+		dispatchSnapshots,
+		logSegments,
 		devices,
 		documents,
+		runMessages,
+		tasks,
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
@@ -212,12 +252,50 @@ export function createContainer(input: {
 
 	void agentService.start();
 
+	const landingService =
+		input.landingService ??
+		createLandingService({
+			tasksRepo: tasks,
+			documentsRepo: documents,
+			platform: input.hostInputs.platform,
+			hostInputs: input.hostInputs,
+			ids,
+		});
+
+	const processRegistry = input.processRegistry ?? createProcessRegistry();
+	const messageService =
+		input.messageService ??
+		createMessageService({
+			runMessagesRepo: runMessages,
+			processRegistry,
+			clock: input.clock,
+			ids: Object.freeze({
+				newId: () => `msg_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+			}),
+			bus,
+			envelopeFactory,
+			unitOfWork,
+		});
+
+	const runLogService =
+		input.runLogService ??
+		createRunLogService({
+			runsRepo: runsLog,
+			snapshotsRepo: dispatchSnapshots,
+			logSegmentsRepo: logSegments,
+			logstorePaths,
+			platform: input.hostInputs.platform,
+		});
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
+		runLog: runLogService,
 		pairing: pairingService,
 		docs: docsService,
 		agents: agentService,
+		landing: landingService,
+		message: messageService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([]);
