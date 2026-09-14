@@ -977,6 +977,13 @@ function parseAgentConfig(
 		if (!parsedFingerprint.ok) return parsedFingerprint;
 		result.versionFingerprint = parsedFingerprint.value;
 	}
+	if (Object.hasOwn(input, 'versionRange') && input.versionRange !== undefined) {
+		const parsedRange = parseVersionRange(
+			input.versionRange,
+			`${path}.versionRange`,
+			unknownFields,
+			agentId,
+		);
 		if (!parsedRange.ok) return parsedRange;
 		result.versionRange = parsedRange.value;
 	}
