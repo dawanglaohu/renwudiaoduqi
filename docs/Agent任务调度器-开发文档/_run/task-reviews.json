@@ -131,6 +131,22 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M10-T3": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "fc9fc2e1eff652c1817c4ed2fc2235907dcaff1bd5061297662f13252d9206fd",
+    "evidence": [
+      "2026-09-13 复核 图谱/任务/M10-T3.md 与 04-执行/19-模块任务拆分.md 的 M10-T3 行：前置 M10-T1、产出 packages/shell-mobile/、解锁 M10-T4、覆盖率边界 E-11/E-147/E-200/E-211/E-225、预估 2 人天逐字一致，六条验收标准未增删。",
+      "AC1 依据 02-设计/07-前端架构.md:422-431「产物固定在 packages/web/dist：daemon 的 @fastify/static、Tauri 的 frontendDist、Capacitor 的 webDir 三处消费同一次构建，禁止为壳单独打第二份产物」；AC2 依据 02-设计/06-系统架构与模块划分.md:188 与 03-质量/14-安全与权限.md:16「客户端令牌存壳的安全存储（Tauri / Capacitor Preferences），禁止 localStorage」；AC3 依据 03-质量/13-边界问题与异常处理.md:238（E-225）；AC4 依据 13 节:160（E-147）与 02-设计/12-UX.md:96-98（重开带 Last-Event-ID 补拉）；AC5 依据 13 节:224（E-211）与 04-执行/18-部署与运维.md:63-70（自启由桌面壳负责触发，手机侧不对称仅为少调一个接口）；AC6 依据 13 节:213（E-200）与 18-部署:77-78「构建环境未就绪时降级为浏览器直接打开局域网 URL」。",
+      "五条边界的期望与 03-质量/13-边界问题与异常处理.md 表格逐条对齐：E-11（行 24，不做 APNs/FCM、只保证前台本地通知 + 重开未读）、E-147（行 160）、E-200（行 213，「界面验收标准不因壳模块延期而改变」）、E-211（行 224）、E-225（行 238「必须映射到 history.back()，hash 栈退到底时才允许退出 app」）；未发现把边界要求降级或扩大的地方。",
+      "前置 M10-T1 已落地（图谱/任务/M10-T1.md status: done）：packages/shared/src/shell/bridge-contract.ts 与 packages/web/src/shell/ 两文件在 main 上，任务卡「输入：M10-T1 的契约」与「产出：packages/shell-mobile/」一致；本任务不重复实现契约与能力探测，只消费 bridge-contract.ts。",
+      "有效路径核对：taskPaths = packages/shell-mobile/；实现另改动 pnpm-lock.yaml（新增 @capacitor/app、@capacitor/core、@capacitor/local-notifications、@capacitor/preferences、@capacitor/android、@capacitor/cli 六个依赖，属实现必需的支持文件——M10-T1 复核时已把同一文件补入该任务 supportPaths），未发现对 M10-T2/T4/T5 与 M9-* 的路径冲突。",
+      "现状检查（task/M10-T3，head ea2f812）：pnpm exec biome ci packages/shell-mobile 报 0 违规；pnpm exec tsc -b --noEmit 通过（根 tsconfig references 已含 packages/shell-mobile）；pnpm exec vitest run packages/shell-mobile/test 7 个文件 18 个用例全过。整仓 pnpm -w check 的 vitest 阶段唯一失败是 packages/daemon/test/integration/disk-full-and-system-routes.test.ts 默认 5s 超时（单独以 --testTimeout=600000 重跑 49.3s 通过），与本任务改动无关。",
+      "另记两处文档冲突（不改变本任务契约的可实现性，详见本次审查 DOC_ISSUE）：02-设计/07-前端架构.md:343 要求「壳可用时另写 shell 存储」保存 Last-Event-ID，而 07:472 与 bridge-contract.ts:15 冻结「能力只有三件，加第四件需先改文档」，E-147 的壳侧读写通道待裁定；07:469 的「除 src/shell/ 两文件外全仓库禁止出现 @capacitor/*」与两个壳包必须使用 Capacitor 官方插件相冲突（check-forbidden.ts 只扫 packages/web）。"
+    ],
+    "reviewed": "2026-09-13T14:19:38.030280+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T1": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "a679cdc47a2129f126bb69d455428042f6d5573cd0ed9bffff616c33ea8fafc2",

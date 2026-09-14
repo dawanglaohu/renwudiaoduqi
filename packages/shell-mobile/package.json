@@ -2,5 +2,28 @@
 	"name": "@agent-scheduler/shell-mobile",
 	"private": true,
 	"version": "0.0.0",
-	"type": "module"
+	"type": "module",
+	"exports": {
+		"./mobile-bridge": "./src/mobile-bridge.ts",
+		"./preferences-store": "./src/preferences-store.ts",
+		"./back-button": "./src/back-button.ts",
+		"./event-sync": "./src/event-sync.ts",
+		"./notification-adapter": "./src/notification-adapter.ts",
+		"./autostart": "./src/autostart.ts",
+		"./android-env": "./src/android-env.ts"
+	},
+	"scripts": {
+		"build": "tsc -b"
+	},
+	"dependencies": {
+		"@agent-scheduler/shared": "workspace:*",
+		"@capacitor/app": "^8.1.1",
+		"@capacitor/core": "^8.5.2",
+		"@capacitor/local-notifications": "^8.3.1",
+		"@capacitor/preferences": "^8.0.1"
+	},
+	"devDependencies": {
+		"@capacitor/android": "^8.5.2",
+		"@capacitor/cli": "^8.5.2"
+	}
 }
