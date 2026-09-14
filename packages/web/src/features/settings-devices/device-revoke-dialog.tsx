@@ -26,9 +26,9 @@ export function DeviceRevokeDialog({
 			open
 			data-testid="device-revoke-dialog"
 			aria-labelledby="revoke-dialog-title"
-			className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-page/80 border-0 m-0 w-full h-full max-w-none max-h-none"
+			className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-page border-0 m-0 w-full h-full max-w-none max-h-none"
 		>
-			<div className="w-full max-w-md rounded-DEFAULT bg-bg border border-border-strong p-6 shadow-lg flex flex-col gap-4">
+			<div className="w-full max-w-md rounded bg-bg border border-border-strong p-6 shadow-lg flex flex-col gap-4">
 				<div className="flex flex-col gap-1">
 					<h2 id="revoke-dialog-title" className="text-lead font-semibold text-ink-1">
 						吊销设备授权

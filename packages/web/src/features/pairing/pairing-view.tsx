@@ -27,6 +27,9 @@ export function PairingView({ pairing }: PairingViewProps) {
 		void submitPairing();
 	};
 
+	// 07 节错误体系：字段错（配对码/设备名称）才给输入框 aria-invalid + aria-describedby（E-06 的网络错是就地 notice）
+	const isFieldError = error?.stage === 'validation' || error?.stage === 'code';
+
 	const handleSaveHost = () => {
 		if (manualHost.trim()) {
 			saveManualAddress(manualHost);
@@ -62,13 +65,10 @@ export function PairingView({ pairing }: PairingViewProps) {
 			{/* E-06: 配对失败报到具体环节并给出具体 host:port */}
 			{error && (
 				<div
+					id="pairing-error-notice"
 					data-testid="pairing-error-notice"
 					role="alert"
-					className={`mb-6 p-4 rounded-sm border text-body ${
-						error.stage === 'network'
-							? 'bg-down-soft border-down text-down'
-							: 'bg-down-soft border-down text-down'
-					}`}
+					className="mb-6 p-4 rounded-sm border text-body bg-down-soft border-down text-down"
 				>
 					<div className="font-semibold mb-1">
 						{error.stage === 'network'
@@ -102,6 +102,8 @@ export function PairingView({ pairing }: PairingViewProps) {
 						type="text"
 						autoComplete="off"
 						spellCheck={false}
+						aria-invalid={isFieldError}
+						aria-describedby={isFieldError ? 'pairing-error-notice' : undefined}
 						value={pairingCode}
 						onChange={(e) => setPairingCode(e.target.value.toUpperCase())}
 						placeholder="例如：6 位字母数字码"
@@ -122,6 +124,8 @@ export function PairingView({ pairing }: PairingViewProps) {
 						data-testid="device-name-input"
 						type="text"
 						autoComplete="off"
+						aria-invalid={isFieldError}
+						aria-describedby={isFieldError ? 'pairing-error-notice' : undefined}
 						value={deviceName}
 						onChange={(e) => setDeviceName(e.target.value)}
 						placeholder="设备识别名称"

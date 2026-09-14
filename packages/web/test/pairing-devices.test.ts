@@ -26,6 +26,7 @@ import { DeviceRevokeDialog } from '../src/features/settings-devices/device-revo
 import { SettingsDevicesContainer } from '../src/features/settings-devices/settings-devices-container.tsx';
 import { formatIsoDateTime } from '../src/features/settings-devices/use-settings-devices.ts';
 import {
+	CURRENT_DEVICE_ID_STORAGE_KEY,
 	SESSION_STORAGE_TOKEN_KEY,
 	registerNativeShellAdapter,
 	shellBridge,
@@ -415,10 +416,46 @@ describe('M9-T15 设置页：设备、配对与浏览器模式 (AC 1-7, E-06, E-
 				tokenStore: mockNativeStore,
 			});
 
-			// E-227: If shell exists, sessionStorage must be cleared upon startup
-			// In our code: registerNativeShellAdapter cleans stale sessionStorage if platform !== 'browser'.
-			// We can verify that tokenStore.set does NOT write to sessionStorage in shell mode.
-			expect(sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY)).toBeDefined();
+			// SHELL.platform 在本测试进程里恒为 browser，上面这行不会走壳分支；
+			// 真壳分支固定由下面这个用例在全部模块重新加载、__TAURI_INTERNALS__ 存在的前提下验。
+			expect(mockSessionStore[SESSION_STORAGE_TOKEN_KEY]).toBe('stale-token-browser');
+		});
+
+		it('E-227: shell mode clears the stale session copy on startup and never dual-writes the token', async () => {
+			mockSessionStore[SESSION_STORAGE_TOKEN_KEY] = 'stale-token-browser';
+			mockSessionStore[CURRENT_DEVICE_ID_STORAGE_KEY] = 'stale-device-browser';
+			(globalThis as unknown as { window: Record<string, unknown> }).window.__TAURI_INTERNALS__ =
+				{};
+
+			vi.resetModules();
+			const shell = await import('../src/shell/shell-bridge.ts');
+			expect(shell.shellBridge.platform).toBe('tauri');
+			// 启动清掉会话副本（令牌与设备 id 都不留在 sessionStorage）
+			expect(mockSessionStore[SESSION_STORAGE_TOKEN_KEY]).toBeUndefined();
+			expect(mockSessionStore[CURRENT_DEVICE_ID_STORAGE_KEY]).toBeUndefined();
+
+			const nativeStore = {
+				set: vi.fn(async () => undefined),
+				get: vi.fn(async () => 'native-token'),
+				clear: vi.fn(async () => undefined),
+			};
+			shell.registerNativeShellAdapter({ tokenStore: nativeStore });
+			await shell.shellBridge.tokenStore.set('written-in-shell');
+			expect(nativeStore.set).toHaveBeenCalledWith('written-in-shell');
+			// 绝不双写：壳模式下 sessionStorage 不得出现令牌
+			expect(mockSessionStore[SESSION_STORAGE_TOKEN_KEY]).toBeUndefined();
+		});
+	});
+
+	describe('E-127: 本会话设备身份（claim 返回的 deviceId）', () => {
+		it('remembers the deviceId so the list can mark 当前设备 and self-revoke returns to #/pair', async () => {
+			const { rememberCurrentDeviceId, readCurrentDeviceId } = await import(
+				'../src/shell/shell-bridge.ts'
+			);
+			expect(readCurrentDeviceId()).toBeNull();
+			rememberCurrentDeviceId('dev_claim_01');
+			expect(mockSessionStore[CURRENT_DEVICE_ID_STORAGE_KEY]).toBe('dev_claim_01');
+			expect(readCurrentDeviceId()).toBe('dev_claim_01');
 		});
 	});
 

@@ -90,7 +90,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 			{newPairingCode && (
 				<div
 					data-testid="new-pairing-code-card"
-					className="p-5 rounded-DEFAULT bg-panel-2 border border-needs text-ink-1 flex flex-col gap-3"
+					className="p-5 rounded bg-panel-2 border border-needs text-ink-1 flex flex-col gap-3"
 				>
 					<div className="flex items-center justify-between">
 						<span className="text-meta font-medium text-needs">新设备配对码（一次性）</span>
@@ -126,7 +126,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 			)}
 
 			{/* 已授权设备列表 (AC 2 / E-127 / E-228) */}
-			<div className="bg-bg border border-border rounded-DEFAULT overflow-hidden">
+			<div className="bg-bg border border-border rounded overflow-hidden">
 				<div className="px-4 py-3 bg-panel-2 border-b border-border flex items-center justify-between">
 					<span className="text-meta font-semibold text-ink-1">已配对设备列表</span>
 					<span className="text-micro font-mono text-ink-3">共 {devices.length} 台设备</span>
@@ -149,7 +149,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 								<div
 									key={device.id}
 									data-testid={`device-row-${device.id}`}
-									className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-panel-2/50 transition-colors"
+									className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-row-hover transition-colors"
 								>
 									<div className="flex flex-col gap-1 min-w-0">
 										<div className="flex items-center gap-2 flex-wrap">
@@ -217,7 +217,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 			</div>
 
 			{/* PC 局域网 IP 变化与手填地址说明 (AC 3 / E-09 / E-06) */}
-			<div className="p-5 rounded-DEFAULT bg-bg border border-border flex flex-col gap-4">
+			<div className="p-5 rounded bg-bg border border-border flex flex-col gap-4">
 				<div className="flex flex-col gap-1">
 					<h2 className="text-body font-semibold text-ink-1">
 						调度服务网络与局域网 IP 设置 (E-09)

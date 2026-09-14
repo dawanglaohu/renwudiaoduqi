@@ -7,7 +7,7 @@ import { getManualHost, resolveBaseUrl, setManualHost } from '../../api/base-url
 import { isApiError, setCachedToken } from '../../api/http-client.ts';
 import { httpClient } from '../../api/http-client.ts';
 import { ROUTE_PATHS, navigateTo } from '../../app/routes.tsx';
-import { isBrowserMode, shellBridge } from '../../shell/shell-bridge.ts';
+import { isBrowserMode, rememberCurrentDeviceId, shellBridge } from '../../shell/shell-bridge.ts';
 
 export interface PairingErrorState {
 	readonly stage: 'network' | 'code' | 'ratelimit' | 'validation' | 'general';
@@ -150,6 +150,8 @@ export function usePairing(options?: UsePairingOptions): UsePairingResult {
 			// Save token to shell tokenStore (sessionStorage in browser mode, native storage in shell, E-227 / E-229)
 			await shellBridge.tokenStore.set(response.token);
 			setCachedToken(response.token);
+			// 记住本会话是哪台设备（claim 返回 deviceId，10-接口约定），供设备列表标「当前设备」与自吊销即时回 #/pair（E-127）
+			rememberCurrentDeviceId(response.deviceId);
 
 			// Persist manual host if the user specified one (E-09)
 			if (manualHost.trim()) {

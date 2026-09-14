@@ -14,9 +14,7 @@ import {
 import { clearCachedToken, isApiError } from '../../api/http-client.ts';
 import { httpClient } from '../../api/http-client.ts';
 import { ROUTE_PATHS, navigateTo } from '../../app/routes.tsx';
-import { isBrowserMode, shellBridge } from '../../shell/shell-bridge.ts';
-
-export const CURRENT_DEVICE_ID_STORAGE_KEY = 'agsched.current_device_id' as const;
+import { isBrowserMode, readCurrentDeviceId, shellBridge } from '../../shell/shell-bridge.ts';
 
 export interface UseSettingsDevicesResult {
 	readonly devices: readonly DeviceDto[];
@@ -86,12 +84,7 @@ export function useSettingsDevices(): UseSettingsDevicesResult {
 
 	const [currentBaseUrl, setCurrentBaseUrl] = useState<string>('');
 	const [manualHost, setManualHostInput] = useState<string>(() => getManualHost() ?? '');
-	const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(() => {
-		if (typeof sessionStorage !== 'undefined') {
-			return sessionStorage.getItem(CURRENT_DEVICE_ID_STORAGE_KEY);
-		}
-		return null;
-	});
+	const [currentDeviceId] = useState<string | null>(() => readCurrentDeviceId());
 
 	const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 

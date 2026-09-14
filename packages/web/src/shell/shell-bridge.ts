@@ -9,6 +9,12 @@ import { SHELL } from './detect-shell.ts';
 
 export const SESSION_STORAGE_TOKEN_KEY = 'agsched.token' as const;
 
+/**
+ * 本会话所用设备的 deviceId（`POST /api/v1/pair/claim` 返回，10-接口约定），非凭证。
+ * 仅用于设备列表标出「当前设备」与自吊销时立刻回 #/pair（E-127）。
+ */
+export const CURRENT_DEVICE_ID_STORAGE_KEY = 'agsched.current_device_id' as const;
+
 export interface NativeShellAdapter {
 	readonly tokenStore?: Partial<ShellTokenStore>;
 	notify?(options: ShellNotificationOptions): Promise<void> | void;
@@ -29,6 +35,7 @@ export function registerNativeShellAdapter(adapter: NativeShellAdapter | null): 
 	nativeAdapter = adapter;
 	if (SHELL.platform !== 'browser' && typeof sessionStorage !== 'undefined') {
 		sessionStorage.removeItem(SESSION_STORAGE_TOKEN_KEY);
+		sessionStorage.removeItem(CURRENT_DEVICE_ID_STORAGE_KEY);
 	}
 }
 
@@ -79,6 +86,7 @@ function incrementBrowserBadge(options: ShellNotificationOptions): void {
  */
 if (SHELL.platform !== 'browser' && typeof sessionStorage !== 'undefined') {
 	sessionStorage.removeItem(SESSION_STORAGE_TOKEN_KEY);
+	sessionStorage.removeItem(CURRENT_DEVICE_ID_STORAGE_KEY);
 }
 
 /**
@@ -202,6 +210,27 @@ async function hostHint(): Promise<string | null> {
  */
 export function isBrowserMode(): boolean {
 	return SHELL.platform === 'browser';
+}
+
+/**
+ * Remember the deviceId this session authenticated as, so the device list can
+ * mark 「当前设备」 and revoking it drops the session immediately (E-127).
+ */
+export function rememberCurrentDeviceId(deviceId: string): void {
+	if (typeof sessionStorage === 'undefined') {
+		return;
+	}
+	sessionStorage.setItem(CURRENT_DEVICE_ID_STORAGE_KEY, deviceId);
+}
+
+/**
+ * Read the deviceId remembered by `rememberCurrentDeviceId`, or null when unknown.
+ */
+export function readCurrentDeviceId(): string | null {
+	if (typeof sessionStorage === 'undefined') {
+		return null;
+	}
+	return sessionStorage.getItem(CURRENT_DEVICE_ID_STORAGE_KEY);
 }
 
 /**
