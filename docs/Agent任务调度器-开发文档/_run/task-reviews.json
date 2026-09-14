@@ -543,14 +543,21 @@
     "verdict": "pass"
   },
   "M5-T4": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "bac62ae25f2920ad126962832713704ecb6223548f112e9c6400a42446d0b6ec",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "2098ae61aea621b79e7ca669275e4fce2b507143a3bc16cba56eedadd8156990",
     "evidence": [
-      "改动：验收 1) 落地清单附一行可复制的 build_docs.py --landed 命令，产品不调用文档维护脚本；预估不变 1d；supportPaths 补 landing.test.ts",
-      "对应 E-74、决策 68（D11）；03 节术语「落地清单」与 11 节页面清单已同步；docsPath 取文档记录目录，不写死",
-      "接缝：M9-T16 验收 3) 同步为展示该命令并各带复制按钮；M9-T20 批次级清单复用同一 commands 形状"
+      "AC1: packages/daemon/src/workspace/landing.ts:108 generateLandingCommands 产出 gh stack 命令与 python <docsPath>/_run/build_docs.py <docsPath> --landed <任务ID> 两行文本；:359-374 返回 worktreePath/branchName/diffStat/commands，全程只生成字符串不执行",
+      "AC1 docsPath: landing.ts:287 取 documentsRepo 记录的 docs_path，硬编码值仅作缺省",
+      "AC2/E-73: getTaskLanding 只读故 worktree 默认保留；仅 POST /api/v1/tasks/:taskId/worktree/cleanup 触发 landing.ts:382 cleanupTaskWorktree -> removeWorktree，deleteBranch 默认 false 保留分支；已清理后重试由 M5-T1 prepareWorktree 重建分支序号（landing.test.ts:736 真实 git 全生命周期用例覆盖）",
+      "AC3: landing.test.ts:292 断言 mock runner 收到的命令不含 commit/push/merge/pull/rebase；产品不调用提交、push、PR、合并与文档维护脚本",
+      "分层：新增 packages/daemon/src/service/landing.ts:20/30 作为 service 接缝；http/routes/tasks.ts 只 import service，原直连 repo/workspace 已移除；boot/container.ts:223 装配 services.landing",
+      "接线：http/plugins/50-routes.ts:52 注册 registerTasksRoutes，:72-73 加入 customRegisteredPaths；landing.test.ts:690 回归用例验证经 routesPlugin 以 /api/v1 前缀注册后命中真实 handler",
+      "支持文件：service/landing.ts、boot/container.ts、http/plugins/50-routes.ts 已补入 M5-T4.supportPaths；与在途 M6-T8（50-routes.ts）共同持有，双方均为新增 hunk",
+      "合并 origin/main 后：container.ts 与 M6-T6 的 runMessages/messageService 为并列新增，冲突取并集解决，repos 同时含 tasks 与 runMessages，services 同时含 landing 与 message",
+      "检查：tsc -b --noEmit 通过；biome ci . 通过；landing.test.ts 19/20 通过，唯一失败为 Windows 侧 resolveGitExecutable 找不到 git（用例写死 platform: linux），已落地的 M5-T1 worktree.test.ts 同样失败，属既有环境差异",
+      "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）"
     ],
-    "reviewed": "2026-09-10T20:09:01.332888+00:00",
+    "reviewed": "2026-09-14T10:12:44.002565+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -650,19 +657,12 @@
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "9194046d4f0dcfdc69415cd644253ec81e4e3e1784cb3882ac407f617468cfb6",
     "evidence": [
-      "pnpm -w check 相关子集（biome ci + tsc -b --noEmit + vitest run）于工作树 D:/xiangmu/agent-scheduler-m6-t6 @ task/M6-T6：biome 2 文件无告警，tsc 无错，message-service 18/18 通过（含新增「未注入 resumeSession 不得谎报送达」回归用例）",
-      "AC1/E-117：service/message.ts:94-145 resolveAgentMessageCapabilities 汇总各适配器 canReply/canResume，generic-acp 与 dsh 收窄为 false；:254 不具备时抛 E_CAPABILITY_UNSUPPORTED；:532 canReply() 供 UI 灰按钮；http/routes/runs.ts:122 注册 POST /api/v1/runs/:runId/messages",
-      "AC2/E-113：message.ts:316-343 进程存活与 stdin 管道检测；:442-500 handleUndelivered 以 delivery_state='undelivered' 落库并原样保留 text、发 run.message_undelivered、抛 E_MESSAGE_UNDELIVERED；路由 throwOnUndelivered=true，HTTP 422 且消息已落库可复制",
-      "AC3/E-112：message.ts:271-314 已结束运行分支；canResume=false 抛 E_CAPABILITY_UNSUPPORTED（details.suggestion='redispatch'）；canResume=true 且已注入 resumeSession 时返回 isNewRun/newRunId；未注入时落为 undelivered(reason='resume_unavailable')，不再伪造新运行 id（审查方修复 + 回归用例）",
-      "AC4/E-114：message.ts:177-194 enqueueForRun 按 runId 串行化；每条独立 insertMessage 带 actorDeviceId 与 clock.now()，无去重合并；用例断言同文两条落两条并按到达序写入 stdin",
-      "AC5/E-116：message.ts:196-236 validateInput 空/空白拒绝、超长带 requiresTruncationConfirmation 细节拒绝且从不截断；schema maxLength 32768 与 DEFAULT_MAX_MESSAGE_LENGTH 一致",
-      "AC6：message.ts:344-360 检查 writeStdin 返回 false 后 await waitForStdinDrain()，写入异常归入未送达",
-      "08 节：事务只在 service 层经 unitOfWork.run 开启（:390、:496），回调内无 await/无副作用，bus.publish 在 run() 返回后；SQL 只在 repo/run-messages-repo.ts（:165 工厂闭包预编译、参数绑定、Row→DTO 映射）；service 未 import fastify；routes 只取容器里的 service",
-      "06 节：E_CAPABILITY_UNSUPPORTED/E_MESSAGE_UNDELIVERED/E_VALIDATION 均登记于 shared/errors/codes.ts；事件 kind run.message_delivered / run.message_undelivered / run.state_changed 在 shared/api/events.ts EVENT_KINDS 内；daemon 侧 message 全为英文短句；无新增 process.env / process.platform 直读；无 barrel、无 utils 目录",
-      "数据模型与接线：run_messages 表沿用 migrations/0001_init.sql:156（未改迁移）；50-routes.ts 已把 POST /api/v1/runs/:runId/messages 加入自定义注册白名单，实际注册集合与 shared/api/routes.ts 一致；container.ts 注入 runMessages repo 与 messageService",
-      "有效路径补丁：presentation.json handoff.taskPaths['M6-T6'] 补入 repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts；与 M6-T5/M6-T8/M8-T9（runs.ts）、M1-T1/M1-T10（container.ts）为共同持有，本次均为新增 hunks，未改写既有代码"
+      "本次待复验字段仅为 effectivePaths（M5-T4 的 supportPaths 补丁触发重新计算），M6-T6 的验收条款与边界本身未变",
+      "复核有效范围：presentation.json handoff.taskPaths['M6-T6'] 六条路径与已合并 PR #69 的实际改动文件逐一对应，无多列也无漏列",
+      "  service/message.ts、repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts",
+      "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过"
     ],
-    "reviewed": "2026-09-14T08:58:28.830811+00:00",
+    "reviewed": "2026-09-14T10:15:15.310300+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

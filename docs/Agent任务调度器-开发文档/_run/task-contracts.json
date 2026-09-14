@@ -494,7 +494,10 @@
     },
     "M5-T4": {
       "supportPaths": [
-        "packages/daemon/test/unit/landing.test.ts"
+        "packages/daemon/test/unit/landing.test.ts",
+        "packages/daemon/src/service/landing.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts"
       ]
     },
     "M9-T2": {

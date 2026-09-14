@@ -20,8 +20,10 @@ import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
 import { type RunMessagesRepo, createSqliteRunMessagesRepo } from '../repo/run-messages-repo.ts';
 import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
+import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
+import { type LandingService, createLandingService } from '../service/landing.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
@@ -39,6 +41,7 @@ export interface ContainerRepos {
 	readonly devices: DevicesRepo;
 	readonly documents: DocumentsRepo;
 	readonly runMessages: RunMessagesRepo;
+	readonly tasks: TasksRepo;
 	readonly [key: string]: unknown;
 }
 
@@ -55,6 +58,7 @@ export interface ContainerServices {
 	readonly pairing: PairingService;
 	readonly docs: DocsService;
 	readonly agents: AgentService;
+	readonly landing: LandingService;
 	readonly message: MessageService;
 }
 
@@ -103,6 +107,8 @@ export function createContainer(input: {
 	readonly processRegistry?: ProcessRegistry;
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
+	readonly tasksRepo?: TasksRepo;
+	readonly landingService?: LandingService;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
 }): AppContainer {
@@ -113,12 +119,14 @@ export function createContainer(input: {
 	const devices = createDevicesRepo(input.database);
 	const documents = input.documentsRepo ?? createDocumentsRepo(input.database);
 	const runMessages = input.runMessagesRepo ?? createSqliteRunMessagesRepo(input.database);
+	const tasks = input.tasksRepo ?? createTasksRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 		runsAbort,
 		devices,
 		documents,
 		runMessages,
+		tasks,
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
@@ -222,6 +230,16 @@ export function createContainer(input: {
 
 	void agentService.start();
 
+	const landingService =
+		input.landingService ??
+		createLandingService({
+			tasksRepo: tasks,
+			documentsRepo: documents,
+			platform: input.hostInputs.platform,
+			hostInputs: input.hostInputs,
+			ids,
+		});
+
 	const processRegistry = input.processRegistry ?? createProcessRegistry();
 	const messageService =
 		input.messageService ??
@@ -243,6 +261,7 @@ export function createContainer(input: {
 		pairing: pairingService,
 		docs: docsService,
 		agents: agentService,
+		landing: landingService,
 		message: messageService,
 	});
 
