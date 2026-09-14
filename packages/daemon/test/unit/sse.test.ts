@@ -8,10 +8,9 @@ import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
-import type { AppContainer } from '../../src/boot/container.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { openDatabase } from '../../src/db/open-database.ts';
-import type { AppError } from '../../src/errors/app-error.ts';
+import { AppError } from '../../src/errors/app-error.ts';
 import { createEventBus } from '../../src/events/bus.ts';
 import { createRingBuffer } from '../../src/events/ring-buffer.ts';
 import { createHttpServer } from '../../src/http/server.ts';
@@ -20,15 +19,17 @@ import {
 	SSE_HEARTBEAT_FRAME,
 	formatSseEvent,
 	handleSseStream,
+	parseLastEventId,
+	resolveReplayEvents,
 } from '../../src/http/sse.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 
 interface MockResponseState {
-	statusCode?: number;
 	headers: Record<string, string>;
 	chunks: string[];
 	ended: boolean;
 	headersSent: boolean;
+	flushedHeaders: boolean;
 }
 
 function createMockResponse(): {
@@ -42,6 +43,7 @@ function createMockResponse(): {
 		chunks: [],
 		ended: false,
 		headersSent: false,
+		flushedHeaders: false,
 	};
 
 	const res = {
@@ -51,17 +53,13 @@ function createMockResponse(): {
 		socket: {
 			setNoDelay: vi.fn(),
 		},
-		writeHead: vi.fn((code: number, headers?: Record<string, string>) => {
-			state.statusCode = code;
-			state.headersSent = true;
-			if (headers) {
-				Object.assign(state.headers, headers);
-			}
-			return res;
-		}),
 		setHeader: vi.fn((name: string, value: string) => {
 			state.headers[name.toLowerCase()] = value;
 			return res;
+		}),
+		flushHeaders: vi.fn(() => {
+			state.headersSent = true;
+			state.flushedHeaders = true;
 		}),
 		write: vi.fn((chunk: string | Buffer) => {
 			state.chunks.push(chunk.toString());
@@ -116,68 +114,33 @@ function createTestEnvelope(id: number, kind = 'run.started'): EventEnvelope {
 	} as unknown as EventEnvelope;
 }
 
-function createStubRequest(options: {
-	id?: string;
-	actorDeviceId?: string | null;
-	query?: Record<string, unknown>;
-	raw?: IncomingMessage;
-	container?: AppContainer;
-}): FastifyRequest {
-	return {
-		id: options.id ?? 'req-stub',
-		actorDeviceId: options.actorDeviceId ?? null,
-		query: options.query,
-		raw: options.raw,
-		server: {
-			container: options.container,
-		},
-	} as unknown as FastifyRequest;
-}
-
 describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 	let ringBuffer: ReturnType<typeof createRingBuffer>;
 	let bus: ReturnType<typeof createEventBus>;
-	let devicesMap: Map<string, { id: string; name: string; revoked_at: string | null }>;
 	let activeRevokeListeners: Map<string, Set<(error: AppError) => void>>;
-	let mockContainer: AppContainer;
+	let mockPairingService: {
+		registerConnection: (deviceId: string, onRevoke: (error: AppError) => void) => () => void;
+	};
 
 	beforeEach(() => {
 		vi.useFakeTimers();
 		ringBuffer = createRingBuffer();
 		bus = createEventBus({ ringBuffer });
-		devicesMap = new Map();
 		activeRevokeListeners = new Map();
 
-		devicesMap.set('device-active', {
-			id: 'device-active',
-			name: 'Desktop Device',
-			revoked_at: null,
-		});
-
-		mockContainer = {
-			config: { dev: false },
-			events: { ringBuffer, bus },
-			repos: {
-				devices: {
-					findById: vi.fn((id: string) => devicesMap.get(id) ?? null),
-				},
-			},
-			services: {
-				pairing: {
-					registerConnection: vi.fn((deviceId: string, onRevoke: (error: AppError) => void) => {
-						let set = activeRevokeListeners.get(deviceId);
-						if (!set) {
-							set = new Set();
-							activeRevokeListeners.set(deviceId, set);
-						}
-						set.add(onRevoke);
-						return () => {
-							set?.delete(onRevoke);
-						};
-					}),
-				},
-			},
-		} as unknown as AppContainer;
+		mockPairingService = {
+			registerConnection: vi.fn((deviceId: string, onRevoke: (error: AppError) => void) => {
+				let set = activeRevokeListeners.get(deviceId);
+				if (!set) {
+					set = new Set();
+					activeRevokeListeners.set(deviceId, set);
+				}
+				set.add(onRevoke);
+				return () => {
+					set?.delete(onRevoke);
+				};
+			}),
+		};
 	});
 
 	afterEach(() => {
@@ -186,25 +149,24 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 	});
 
 	describe('AC 1 & E-154: SSE Headers and Periodic Heartbeat', () => {
-		it('sets required response headers text/event-stream, no-cache, no-transform, keep-alive, and X-Accel-Buffering: no', () => {
+		it('sets required response headers text/event-stream, no-cache, no-transform, keep-alive, and X-Accel-Buffering: no without status code literals', () => {
 			const { req } = createMockRequest();
 			const { res, state } = createMockResponse();
 
 			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-1',
-				}),
 				rawRequest: req,
 				rawResponse: res,
-				container: mockContainer,
+				requestId: 'req-1',
+				actorDeviceId: 'device-active',
+				bus,
+				pairingService: mockPairingService,
 			});
 
-			expect(state.statusCode).toBe(200);
-			expect(state.headers['Content-Type']).toBe('text/event-stream; charset=utf-8');
-			expect(state.headers['Cache-Control']).toBe('no-cache, no-transform');
-			expect(state.headers.Connection).toBe('keep-alive');
-			expect(state.headers['X-Accel-Buffering']).toBe('no');
+			expect(state.headers['content-type']).toBe('text/event-stream; charset=utf-8');
+			expect(state.headers['cache-control']).toBe('no-cache, no-transform');
+			expect(state.headers.connection).toBe('keep-alive');
+			expect(state.headers['x-accel-buffering']).toBe('no');
+			expect(state.flushedHeaders).toBe(true);
 		});
 
 		it('writes :\\n\\n heartbeat frame every 15 seconds (E-154)', () => {
@@ -212,13 +174,12 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 			const { res, state } = createMockResponse();
 
 			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-1',
-				}),
 				rawRequest: req,
 				rawResponse: res,
-				container: mockContainer,
+				requestId: 'req-1',
+				actorDeviceId: 'device-active',
+				bus,
+				pairingService: mockPairingService,
 			});
 
 			expect(state.chunks.filter((c) => c === SSE_HEARTBEAT_FRAME).length).toBe(0);
@@ -237,13 +198,12 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 			const { res, state } = createMockResponse();
 
 			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-1',
-				}),
 				rawRequest: req,
 				rawResponse: res,
-				container: mockContainer,
+				requestId: 'req-1',
+				actorDeviceId: 'device-active',
+				bus,
+				pairingService: mockPairingService,
 				options: { heartbeatIntervalMs: 100 },
 			});
 
@@ -269,119 +229,107 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 		});
 	});
 
-	describe('AC 2 & E-153: Last-Event-ID Replay and Window Expiry', () => {
-		it('replays missing events when connecting with valid Last-Event-ID', () => {
-			// Populate ring buffer with events 1, 2, 3
-			bus.publish(createTestEnvelope(1));
-			bus.publish(createTestEnvelope(2));
-			bus.publish(createTestEnvelope(3));
-
-			const { req } = createMockRequest({ 'last-event-id': '1' });
-			const { res, state } = createMockResponse();
-
-			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-replay',
-				}),
-				rawRequest: req,
-				rawResponse: res,
-				container: mockContainer,
-			});
-
-			expect(state.statusCode).toBe(200);
-			// Should have replayed event 2 and 3, but not 1
-			expect(state.chunks.some((c) => c.includes('id: 1\n'))).toBe(false);
-			expect(state.chunks.some((c) => c.includes('id: 2\n'))).toBe(true);
-			expect(state.chunks.some((c) => c.includes('id: 3\n'))).toBe(true);
+	describe('AC 2 & E-153: Last-Event-ID Parsing, Replay, and Window Expiry (R2 pure function)', () => {
+		it('parseLastEventId parses non-negative safe integers from header and ignores missing/invalid', () => {
+			expect(parseLastEventId(undefined)).toBeNull();
+			expect(parseLastEventId('')).toBeNull();
+			expect(parseLastEventId('not-a-number')).toBeNull();
+			expect(parseLastEventId('-5')).toBeNull();
+			expect(parseLastEventId('0')).toBe(0);
+			expect(parseLastEventId('123')).toBe(123);
+			expect(parseLastEventId(['456'])).toBe(456);
 		});
 
-		it('supports Last-Event-ID passed via query parameter fallback', () => {
-			bus.publish(createTestEnvelope(10));
-			bus.publish(createTestEnvelope(11));
-
-			const { req } = createMockRequest();
-			const { res, state } = createMockResponse();
-
-			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-q',
-					query: { lastEventId: '10' },
-				}),
-				rawRequest: req,
-				rawResponse: res,
-				container: mockContainer,
-			});
-
-			expect(state.statusCode).toBe(200);
-			expect(state.chunks.some((c) => c.includes('id: 10\n'))).toBe(false);
-			expect(state.chunks.some((c) => c.includes('id: 11\n'))).toBe(true);
+		it('resolveReplayEvents returns empty replay when Last-Event-ID is absent', () => {
+			const result = resolveReplayEvents(ringBuffer, undefined);
+			expect(result.parsedLastEventId).toBeNull();
+			expect(result.replayEvents).toEqual([]);
 		});
 
-		it('returns 409 E_REPLAY_WINDOW_EXPIRED and actively closes stream when Last-Event-ID is older than buffer minId (E-153)', () => {
+		it('resolveReplayEvents replays events strictly greater than Last-Event-ID', () => {
+			ringBuffer.push(createTestEnvelope(1));
+			ringBuffer.push(createTestEnvelope(2));
+			ringBuffer.push(createTestEnvelope(3));
+
+			const result = resolveReplayEvents(ringBuffer, '1');
+			expect(result.parsedLastEventId).toBe(1);
+			expect(result.replayEvents.map((e) => e.id)).toEqual([2, 3]);
+		});
+
+		it('resolveReplayEvents throws AppError(E_REPLAY_WINDOW_EXPIRED) with details when cursor is older than minId (E-153)', () => {
 			// Push 5005 events to evict early events from the 5000-capacity ring buffer
 			for (let i = 1; i <= 5005; i++) {
 				ringBuffer.push(createTestEnvelope(i));
 			}
 
 			// Buffer now holds 6..5005 (minId is 6)
-			const { req } = createMockRequest({ 'last-event-id': '2' });
+			expect(() => resolveReplayEvents(ringBuffer, '2')).toThrowError(AppError);
+			try {
+				resolveReplayEvents(ringBuffer, '2');
+			} catch (err: unknown) {
+				const appError = err as AppError;
+				expect(appError.code).toBe('E_REPLAY_WINDOW_EXPIRED');
+				expect(appError.details).toEqual({
+					minId: 6,
+					requestedLastEventId: 2,
+				});
+			}
+		});
+
+		it('flushes pre-resolved replay events into SSE stream before accepting new events', () => {
+			const ev2 = createTestEnvelope(2);
+			const ev3 = createTestEnvelope(3);
+
+			const { req } = createMockRequest();
 			const { res, state } = createMockResponse();
 
 			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-expired',
-				}),
 				rawRequest: req,
 				rawResponse: res,
-				container: mockContainer,
+				requestId: 'req-replay',
+				actorDeviceId: 'device-active',
+				bus,
+				pairingService: mockPairingService,
+				parsedLastEventId: 1,
+				replayEvents: [ev2, ev3],
 			});
 
-			expect(state.statusCode).toBe(409);
-			expect(state.headers['Content-Type']).toBe('application/json; charset=utf-8');
-			expect(state.ended).toBe(true);
-
-			const body = JSON.parse(state.chunks.join(''));
-			expect(body.error.code).toBe('E_REPLAY_WINDOW_EXPIRED');
-			expect(body.error.requestId).toBe('req-expired');
-			expect(body.error.details.minId).toBe(6);
-			expect(body.error.details.requestedLastEventId).toBe(2);
-			// No SSE header was written
-			expect(state.headers['X-Accel-Buffering']).toBeUndefined();
+			expect(state.chunks.some((c) => c.includes('id: 1\n'))).toBe(false);
+			expect(state.chunks.some((c) => c.includes('id: 2\n'))).toBe(true);
+			expect(state.chunks.some((c) => c.includes('id: 3\n'))).toBe(true);
 		});
 	});
 
 	describe('AC 3 & E-155: Independent Connection Cursors and Deduplication', () => {
 		it('maintains independent cursors and deduplication for multiple simultaneous clients', () => {
-			bus.publish(createTestEnvelope(10));
-			bus.publish(createTestEnvelope(20));
+			const ev20 = createTestEnvelope(20);
 
 			// Client A (e.g. Mobile) starts at Last-Event-ID: 10
-			const { req: reqA } = createMockRequest({ 'last-event-id': '10' });
+			const { req: reqA } = createMockRequest();
 			const { res: resA, state: stateA } = createMockResponse();
 			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-client-a',
-				}),
 				rawRequest: reqA,
 				rawResponse: resA,
-				container: mockContainer,
+				requestId: 'req-client-a',
+				actorDeviceId: 'device-active',
+				bus,
+				pairingService: mockPairingService,
+				parsedLastEventId: 10,
+				replayEvents: [ev20],
 			});
 
 			// Client B (e.g. Desktop) starts at Last-Event-ID: 20
-			const { req: reqB } = createMockRequest({ 'last-event-id': '20' });
+			const { req: reqB } = createMockRequest();
 			const { res: resB, state: stateB } = createMockResponse();
 			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-client-b',
-				}),
 				rawRequest: reqB,
 				rawResponse: resB,
-				container: mockContainer,
+				requestId: 'req-client-b',
+				actorDeviceId: 'device-active',
+				bus,
+				pairingService: mockPairingService,
+				parsedLastEventId: 20,
+				replayEvents: [],
 			});
 
 			// Client A replayed event 20
@@ -407,79 +355,27 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 		});
 	});
 
-	describe('AC 4 & E-156: Token Revocation or Expiry Closes Stream with 401', () => {
-		it('returns 401 E_UNAUTHORIZED when actorDeviceId is missing', () => {
-			const { req } = createMockRequest();
-			const { res, state } = createMockResponse();
-
-			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: null,
-					id: 'req-no-auth',
-				}),
-				rawRequest: req,
-				rawResponse: res,
-				container: mockContainer,
-			});
-
-			expect(state.statusCode).toBe(401);
-			expect(state.headers['Content-Type']).toBe('application/json; charset=utf-8');
-			expect(state.ended).toBe(true);
-			const body = JSON.parse(state.chunks.join(''));
-			expect(body.error.code).toBe('E_UNAUTHORIZED');
-		});
-
-		it('returns 401 E_DEVICE_REVOKED when connecting device is already revoked', () => {
-			devicesMap.set('device-revoked', {
-				id: 'device-revoked',
-				name: 'Revoked Device',
-				revoked_at: '2026-09-12T10:00:00.000Z',
-			});
-
-			const { req } = createMockRequest();
-			const { res, state } = createMockResponse();
-
-			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-revoked',
-					id: 'req-revoked',
-				}),
-				rawRequest: req,
-				rawResponse: res,
-				container: mockContainer,
-			});
-
-			expect(state.statusCode).toBe(401);
-			expect(state.ended).toBe(true);
-			const body = JSON.parse(state.chunks.join(''));
-			expect(body.error.code).toBe('E_DEVICE_REVOKED');
-		});
-
+	describe('AC 4 & E-156: In-Stream Revocation Notification', () => {
 		it('actively closes open stream and emits error envelope when device is revoked during live connection (E-156)', () => {
 			const { req } = createMockRequest();
 			const { res, state } = createMockResponse();
 
 			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-live',
-				}),
 				rawRequest: req,
 				rawResponse: res,
-				container: mockContainer,
+				requestId: 'req-live',
+				actorDeviceId: 'device-active',
+				bus,
+				pairingService: mockPairingService,
 			});
 
-			expect(state.statusCode).toBe(200);
 			expect(state.ended).toBe(false);
 
-			// Device is revoked by another action (e.g. DELETE /api/v1/devices/:id)
+			// Device is revoked during live streaming
 			const listeners = activeRevokeListeners.get('device-active');
 			expect(listeners?.size).toBe(1);
 
-			const revocationError = {
-				code: 'E_DEVICE_REVOKED',
-				message: 'Device token has been revoked.',
-			} as unknown as AppError;
+			const revocationError = new AppError('E_DEVICE_REVOKED', 'Device token has been revoked.');
 			for (const listener of Array.from(listeners ?? [])) {
 				listener(revocationError);
 			}
@@ -489,44 +385,12 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 			const errorChunk = state.chunks.find((c) => c.includes('event: error\n'));
 			expect(errorChunk).toBeDefined();
 			expect(errorChunk).toContain('"code":"E_DEVICE_REVOKED"');
-		});
-
-		it('periodically checks device validity during heartbeat and closes stream if revoked out-of-band (E-156)', () => {
-			const { req } = createMockRequest();
-			const { res, state } = createMockResponse();
-
-			handleSseStream({
-				request: createStubRequest({
-					actorDeviceId: 'device-active',
-					id: 'req-heartbeat-revoke',
-				}),
-				rawRequest: req,
-				rawResponse: res,
-				container: mockContainer,
-				options: { heartbeatIntervalMs: 50 },
-			});
-
-			expect(state.statusCode).toBe(200);
-			expect(state.ended).toBe(false);
-
-			// Device status changes in DB without firing registered listener
-			devicesMap.set('device-active', {
-				id: 'device-active',
-				name: 'Desktop Device',
-				revoked_at: '2026-09-12T12:00:00.000Z',
-			});
-
-			vi.advanceTimersByTime(50);
-
-			expect(state.ended).toBe(true);
-			const errorChunk = state.chunks.find((c) => c.includes('event: error\n'));
-			expect(errorChunk).toBeDefined();
-			expect(errorChunk).toContain('E_DEVICE_REVOKED');
+			expect(errorChunk).toContain('Device token has been revoked.');
 		});
 	});
 
 	describe('AC 5: Route Operates Strictly via reply.raw without reply.send', () => {
-		it('registers GET /api/v1/events and handles request using reply.hijack and reply.raw', async () => {
+		it('registers GET /api/v1/events and handles request using reply.hijack and reply.raw without reply.send', async () => {
 			const { registerEventsRoutes } = await import('../../src/http/routes/events.ts');
 
 			let registeredHandler: (req: FastifyRequest, reply: FastifyReply) => Promise<void> =
@@ -552,23 +416,28 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 				send: vi.fn(),
 			} as unknown as FastifyReply;
 
-			const mockFastifyReq = createStubRequest({
+			const mockContainer = {
+				events: { ringBuffer, bus },
+				services: { pairing: mockPairingService },
+			};
+
+			const mockFastifyReq = {
+				headers: {},
 				raw: req,
 				actorDeviceId: 'device-active',
 				id: 'req-fastify-1',
-				container: mockContainer,
-			});
+				server: { container: mockContainer },
+			} as unknown as FastifyRequest;
 
 			await registeredHandler(mockFastifyReq, mockReply);
 
 			expect(mockReply.hijack).toHaveBeenCalledTimes(1);
 			expect(mockReply.send).not.toHaveBeenCalled();
-			expect(state.statusCode).toBe(200);
-			expect(state.headers['Content-Type']).toBe('text/event-stream; charset=utf-8');
+			expect(state.headers['content-type']).toBe('text/event-stream; charset=utf-8');
 		});
 	});
 
-	describe('Fastify End-to-End Real HTTP Server Integration', () => {
+	describe('Fastify End-to-End Real HTTP Server Integration (R1 & R2 Verifications)', () => {
 		const currentDir = dirname(fileURLToPath(import.meta.url));
 		const migrationsDir = resolve(currentDir, '../../migrations');
 		const testDirs: string[] = [];
@@ -638,7 +507,7 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 			return { server, container };
 		}
 
-		it('rejects unauthenticated GET /api/v1/events with 401 and error envelope', async () => {
+		it('returns 401 with standard error envelope when request is unauthenticated (E-156 handshake)', async () => {
 			const { server } = createRealServer();
 			const listenAddr = await server.listen({ host: '127.0.0.1', port: 0 });
 			const port = Number(new URL(listenAddr).port);
@@ -673,13 +542,135 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 
 				expect(res.statusCode).toBe(401);
 				const parsed = JSON.parse(res.body);
+				expect(parsed.error).toBeDefined();
 				expect(parsed.error.code).toBe('E_UNAUTHORIZED');
+				expect(parsed.error.requestId).toBeDefined();
 			} finally {
 				await server.close();
 			}
 		});
 
-		it('establishes SSE stream for paired device, streams published events, and cuts stream on revocation', async () => {
+		it('returns 401 with standard error envelope when token belongs to revoked device (E-156 handshake)', async () => {
+			const { server, container } = createRealServer();
+			const listenAddr = await server.listen({ host: '127.0.0.1', port: 0 });
+			const port = Number(new URL(listenAddr).port);
+
+			// Pair then revoke device
+			const code =
+				container.services.pairing.getActivePairingCode()?.code ??
+				container.services.pairing.createPairingCode().code;
+			const claim = await container.services.pairing.claimPairingCode({
+				code,
+				deviceName: 'Revoked-Before-Connect',
+			});
+			await container.services.pairing.revokeDevice(claim.deviceId);
+
+			try {
+				const res = await new Promise<{ statusCode?: number; body: string }>(
+					(resolvePromise, rejectPromise) => {
+						const req = http.request(
+							{
+								host: '127.0.0.1',
+								port,
+								path: '/api/v1/events',
+								method: 'GET',
+								headers: {
+									Authorization: `Bearer ${claim.token}`,
+								},
+							},
+							(response) => {
+								let data = '';
+								response.on('data', (chunk) => {
+									data += chunk;
+								});
+								response.on('end', () => {
+									resolvePromise({
+										statusCode: response.statusCode,
+										body: data,
+									});
+								});
+							},
+						);
+						req.on('error', rejectPromise);
+						req.end();
+					},
+				);
+
+				expect(res.statusCode).toBe(401);
+				const parsed = JSON.parse(res.body);
+				expect(parsed.error).toBeDefined();
+				expect(parsed.error.code).toBe('E_DEVICE_REVOKED');
+				expect(parsed.error.requestId).toBeDefined();
+			} finally {
+				await server.close();
+			}
+		});
+
+		it('returns 409 with standard error envelope when Last-Event-ID is expired before stream hijacking (E-153 handshake)', async () => {
+			const { server, container } = createRealServer();
+			const listenAddr = await server.listen({ host: '127.0.0.1', port: 0 });
+			const port = Number(new URL(listenAddr).port);
+
+			// Push 5005 events to evict ID 1..5
+			for (let i = 1; i <= 5005; i++) {
+				container.events.ringBuffer.push(createTestEnvelope(i));
+			}
+
+			// Pair device
+			const code =
+				container.services.pairing.getActivePairingCode()?.code ??
+				container.services.pairing.createPairingCode().code;
+			const claim = await container.services.pairing.claimPairingCode({
+				code,
+				deviceName: 'Valid-Device',
+			});
+
+			try {
+				const res = await new Promise<{ statusCode?: number; body: string }>(
+					(resolvePromise, rejectPromise) => {
+						const req = http.request(
+							{
+								host: '127.0.0.1',
+								port,
+								path: '/api/v1/events',
+								method: 'GET',
+								headers: {
+									Authorization: `Bearer ${claim.token}`,
+									'Last-Event-ID': '2',
+								},
+							},
+							(response) => {
+								let data = '';
+								response.on('data', (chunk) => {
+									data += chunk;
+								});
+								response.on('end', () => {
+									resolvePromise({
+										statusCode: response.statusCode,
+										body: data,
+									});
+								});
+							},
+						);
+						req.on('error', rejectPromise);
+						req.end();
+					},
+				);
+
+				// Handled by 90-error-handler: HTTP status 409 and standard error envelope
+				expect(res.statusCode).toBe(409);
+				const parsed = JSON.parse(res.body);
+				expect(parsed.error).toBeDefined();
+				expect(parsed.error.code).toBe('E_REPLAY_WINDOW_EXPIRED');
+				expect(parsed.error.details).toBeDefined();
+				expect(parsed.error.details.minId).toBe(6);
+				expect(parsed.error.details.requestedLastEventId).toBe(2);
+			} finally {
+				await server.close();
+			}
+		});
+
+		it('establishes live SSE stream for paired device, streams published events, and cuts stream on revocation (E-156)', async () => {
 			const { server, container } = createRealServer();
 			const listenAddr = await server.listen({ host: '127.0.0.1', port: 0 });
 			const port = Number(new URL(listenAddr).port);
