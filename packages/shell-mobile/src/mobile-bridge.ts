@@ -14,6 +14,8 @@ import {
 } from './notification-adapter.ts';
 import { type StorageBackend, createPreferencesTokenStore } from './preferences-store.ts';
 
+import { type MobileVersionCheckResult, checkMobileApiVersion } from './version-check.ts';
+
 export interface MobileBridgeOptions {
 	readonly storageBackend?: StorageBackend;
 	readonly notificationBackend?: LocalNotificationBackend;
@@ -31,6 +33,7 @@ export interface InitializedMobileShell {
 	readonly bridge: ShellBridge;
 	readonly adapter: MobileShellAdapter;
 	readonly backButtonHandler: BackButtonHandler;
+	readonly verifyVersion: (baseUrl?: string) => Promise<MobileVersionCheckResult>;
 	readonly destroy: () => void;
 }
 
@@ -103,8 +106,18 @@ export function initializeMobileShell(options: MobileBridgeOptions = {}): Initia
 		bridge,
 		adapter,
 		backButtonHandler,
+		async verifyVersion(customBaseUrl?: string): Promise<MobileVersionCheckResult> {
+			const resolvedBaseUrl = customBaseUrl ?? (await bridge.hostHint()) ?? 'http://127.0.0.1:7817';
+			return checkMobileApiVersion({ baseUrl: resolvedBaseUrl });
+		},
 		destroy(): void {
 			backButtonHandler.destroy();
 		},
 	});
 }
+
+export {
+	checkMobileApiVersion,
+	generateMobileUpgradeNotice,
+	isMobileApiVersionCompatible,
+} from './version-check.ts';

@@ -11,7 +11,12 @@
 		"./autostart-handler": "./src/autostart-handler.ts",
 		"./notification-handler": "./src/notification-handler.ts",
 		"./platform-support": "./src/platform-support.ts",
-		"./connection-ui": "./src/connection-ui.ts"
+		"./connection-ui": "./src/connection-ui.ts",
+		"./version-check": "./src/version-check.ts",
+		"./packaging-pipeline": "./src/packaging-pipeline.ts"
+	},
+	"scripts": {
+		"verify-pipeline": "node --no-warnings --experimental-strip-types scripts/package-pipeline.ts"
 	},
 	"dependencies": {
 		"@agent-scheduler/daemon": "workspace:*",
