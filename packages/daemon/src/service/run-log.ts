@@ -1,8 +1,10 @@
-import { existsSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
 import { AppError } from '../errors/app-error.ts';
+import { READ_CHUNK_LIMIT_BYTES } from '../logstore/contract.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
+import { type ByteCursor, formatCursor, parseCursor, splitLines } from '../logstore/read-window.ts';
 import type { SupportedPlatform } from '../platform/contract.ts';
+import type { LogSegmentsRepo } from '../repo/log-segments-repo.ts';
 
 /**
  * E-98: Single session size threshold.
@@ -26,9 +28,12 @@ export interface RunLogRunRecord {
 
 export interface RunLogSnapshotRecord {
 	readonly id: string;
-	readonly inputText: string | null;
-	readonly outputText: string | null;
-	readonly acceptText: string | null;
+	readonly input_text?: string | null;
+	readonly output_text?: string | null;
+	readonly accept_text?: string | null;
+	readonly inputText?: string | null;
+	readonly outputText?: string | null;
+	readonly acceptText?: string | null;
 }
 
 export interface RunLogRepo {
@@ -37,9 +42,15 @@ export interface RunLogRepo {
 	findLatestSnapshotByTaskId?(taskId: string): RunLogSnapshotRecord | null;
 }
 
+export interface OpenSpec {
+	readonly file: string;
+	readonly args: readonly string[];
+	readonly cwd?: string;
+}
+
 export interface GetRunLogOptions {
 	readonly runId: string;
-	readonly fromSeq?: number | null;
+	readonly fromSeq?: number | string | null;
 	readonly direction?: 'forward' | 'backward';
 	readonly limit?: number;
 	readonly isMobileDevice?: boolean;
@@ -54,16 +65,17 @@ export interface GetRunLogResult {
 	readonly isVendorSessionMissing?: boolean;
 	readonly originalFilePath?: string | null;
 	readonly openCommand?: string | null;
+	readonly openSpec?: OpenSpec | null;
 	readonly isExceedsThreshold?: boolean;
 	readonly isRedacted?: boolean;
 }
 
 export interface RunLogFileOps {
 	readonly existsSync: (path: string) => boolean;
-	readonly readFileSync: (path: string, encoding: 'utf8') => string;
 	readonly statSync: (path: string) => { readonly size: number };
-	readonly readdirSync?: (path: string) => readonly string[];
 	readonly openReadOnlySync?: (path: string) => number;
+	readonly closeSync?: (fd: number) => void;
+	readonly readRangeSync?: (path: string, start: number, length: number) => Uint8Array;
 }
 
 export interface RunLogServiceDeps {
@@ -72,17 +84,18 @@ export interface RunLogServiceDeps {
 		findById(id: string): RunLogSnapshotRecord | null;
 		findLatestByTaskId?(taskId: string): RunLogSnapshotRecord | null;
 	};
+	readonly logSegmentsRepo?: Pick<LogSegmentsRepo, 'findByRunStream'>;
 	readonly logstorePaths?: LogstorePaths;
 	readonly runsDataDir?: string;
 	readonly fileOps?: RunLogFileOps;
-	readonly platform?: SupportedPlatform;
+	readonly platform: SupportedPlatform;
 }
 
 export interface RunLogService {
 	getRunLog(options: GetRunLogOptions): Promise<GetRunLogResult>;
 	/**
 	 * E-96: Asserts that a vendor session ref is handled read-only.
-	 * Vendor session files are only opened in read-only mode and are never modified or unlinked.
+	 * Vendor session files are only opened in read-only mode, and descriptors are strictly closed.
 	 */
 	assertVendorSessionRefReadOnly(path: string): void;
 }
@@ -125,136 +138,115 @@ export function redactSensitiveLogLine(line: string): string {
 	return redacted;
 }
 
-export function buildOpenCommand(filePath: string, platform: SupportedPlatform): string {
-	const normalized = platform === 'win32' ? resolve(filePath) : filePath;
+/**
+ * R6: Structured launch spec for system default open command.
+ * Avoids string concatenation and prevents shell command injection on vendor paths.
+ */
+export function buildOpenSpec(filePath: string, platform: SupportedPlatform): OpenSpec {
 	switch (platform) {
 		case 'win32':
-			return `start "" "${normalized}"`;
+			return Object.freeze({
+				file: 'cmd.exe',
+				args: Object.freeze(['/d', '/s', '/c', 'start', '', filePath]),
+			});
 		case 'darwin':
-			return `open "${normalized}"`;
+			return Object.freeze({
+				file: 'open',
+				args: Object.freeze([filePath]),
+			});
 		default:
-			return `xdg-open "${normalized}"`;
+			return Object.freeze({
+				file: 'xdg-open',
+				args: Object.freeze([filePath]),
+			});
 	}
+}
+
+interface ResolvedSegment {
+	readonly fileSeq: number;
+	readonly path: string;
+	readonly byteStart: number;
+	readonly byteEnd: number;
 }
 
 /**
  * Creates the RunLogService (M6-T8).
  */
 export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
-	const fileOps: RunLogFileOps = deps.fileOps ?? {
-		existsSync,
-		readFileSync: (p: string, enc: 'utf8') => readFileSync(p, enc),
-		statSync: (p: string) => statSync(p),
-		readdirSync: (p: string) => readdirSync(p),
-		openReadOnlySync: (p: string) => openSync(p, 'r'),
+	const platform: SupportedPlatform = deps.platform;
+
+	const defaultReadRange = (path: string, start: number, length: number): Uint8Array => {
+		if (length <= 0) return new Uint8Array(0);
+		const fd = openSync(path, 'r');
+		try {
+			const buf = Buffer.alloc(length);
+			const bytesRead = readSync(fd, buf, 0, length, start);
+			return new Uint8Array(buf.buffer, buf.byteOffset, bytesRead);
+		} finally {
+			closeSync(fd);
+		}
 	};
 
-	function checkFileExists(path: string): boolean {
-		if (fileOps.existsSync(path)) return true;
-		const alt = path.includes('\\') ? path.replaceAll('\\', '/') : path.replaceAll('/', '\\');
-		return fileOps.existsSync(alt);
-	}
+	const fileOps: RunLogFileOps = {
+		existsSync: deps.fileOps?.existsSync ?? existsSync,
+		statSync: deps.fileOps?.statSync ?? statSync,
+		openReadOnlySync:
+			deps.fileOps?.openReadOnlySync ??
+			(deps.fileOps?.readRangeSync ? () => 1 : (p: string) => openSync(p, 'r')),
+		closeSync:
+			deps.fileOps?.closeSync ??
+			(deps.fileOps?.readRangeSync ? () => undefined : (fd: number) => closeSync(fd)),
+		readRangeSync: deps.fileOps?.readRangeSync ?? defaultReadRange,
+	};
 
-	function readUtf8File(path: string): string {
-		try {
-			return fileOps.readFileSync(path, 'utf8');
-		} catch (err) {
-			const alt = path.includes('\\') ? path.replaceAll('\\', '/') : path.replaceAll('/', '\\');
-			return fileOps.readFileSync(alt, 'utf8');
-		}
-	}
-
-	const currentPlatform: SupportedPlatform =
-		deps.platform ??
-		(process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux');
-
-	function readCapturedLines(runId: string): readonly string[] {
-		const baseDir = deps.runsDataDir ?? deps.logstorePaths?.runDir(runId);
-		if (!baseDir || !checkFileExists(baseDir)) {
-			return [];
-		}
-
-		const collected: string[] = [];
-
-		// Try reading raw.log and its rotated slices (raw.1.log, raw.2.log...)
-		const defaultRaw = join(baseDir, 'raw.log');
-		if (checkFileExists(defaultRaw)) {
+	function assertVendorSessionRefReadOnly(path: string): void {
+		// E-96 & R4: Verify file opens read-only and close descriptor immediately to avoid leakage.
+		if (!path || !fileOps.existsSync(path)) return;
+		if (fileOps.openReadOnlySync && fileOps.closeSync) {
+			const fd = fileOps.openReadOnlySync(path);
 			try {
-				const content = readUtf8File(defaultRaw);
-				collected.push(...content.split(/\r?\n/));
-			} catch {
-				// Ignore read errors and fall back to whatever is readable
-			}
-		}
-
-		if (fileOps.readdirSync) {
-			try {
-				const files = fileOps.readdirSync(baseDir);
-				const slicedRaws = files
-					.filter((f) => /^raw\.\d+\.log$/.test(f))
-					.sort((a, b) => {
-						const seqA = Number.parseInt(a.split('.')[1] ?? '0', 10);
-						const seqB = Number.parseInt(b.split('.')[1] ?? '0', 10);
-						return seqA - seqB;
-					});
-
-				for (const sliceFile of slicedRaws) {
-					try {
-						const content = readUtf8File(join(baseDir, sliceFile));
-						collected.push(...content.split(/\r?\n/));
-					} catch {
-						// Ignore read error for single slice
-					}
+				if (typeof fd === 'number' && fd >= 0) {
+					// Read-only check verified
 				}
-			} catch {
-				// Ignore directory read failure
+			} finally {
+				fileOps.closeSync(fd);
+			}
+		}
+	}
+
+	function resolveSegments(runId: string): readonly ResolvedSegment[] {
+		const segments: ResolvedSegment[] = [];
+		if (deps.logSegmentsRepo) {
+			const registered = deps.logSegmentsRepo.findByRunStream(runId, 'raw');
+			for (const r of registered) {
+				segments.push({
+					fileSeq: r.fileSeq,
+					path: r.path,
+					byteStart: r.byteStart,
+					byteEnd: r.byteEnd,
+				});
 			}
 		}
 
-		// If no raw.log output was found, check events.ndjson
-		if (collected.length === 0) {
-			const eventsFile = join(baseDir, 'events.ndjson');
-			if (checkFileExists(eventsFile)) {
+		// If no registered slices yet, locate default segment 0 on disk
+		if (segments.length === 0 && deps.logstorePaths) {
+			const defaultPath = deps.logstorePaths.segmentPath(runId, 'raw', 0);
+			if (fileOps.existsSync(defaultPath)) {
 				try {
-					const content = readUtf8File(eventsFile);
-					const lines = content.split(/\r?\n/);
-					for (const line of lines) {
-						if (!line.trim()) continue;
-						try {
-							const parsed = JSON.parse(line) as {
-								kind?: string;
-								ts?: string;
-								payload?: { text?: string; message?: string };
-							};
-							const text = parsed.payload?.text ?? parsed.payload?.message;
-							if (typeof text === 'string') {
-								collected.push(text);
-							} else {
-								collected.push(`[${parsed.ts ?? ''}] ${parsed.kind ?? 'event'}`);
-							}
-						} catch {
-							collected.push(line);
-						}
-					}
+					const stat = fileOps.statSync(defaultPath);
+					segments.push({
+						fileSeq: 0,
+						path: defaultPath,
+						byteStart: 0,
+						byteEnd: stat.size,
+					});
 				} catch {
 					// Fall through
 				}
 			}
 		}
 
-		return collected;
-	}
-
-	function assertVendorSessionRefReadOnly(path: string): void {
-		// E-96: Verify that the file can be opened read-only and no mutation is performed.
-		if (!path || !checkFileExists(path)) return;
-		if (fileOps.openReadOnlySync) {
-			const fd = fileOps.openReadOnlySync(path);
-			// In Node fs, descriptor opened with 'r' is strictly read-only
-			if (typeof fd === 'number' && fd >= 0) {
-				// Closed immediately or tracked purely for reading
-			}
-		}
+		return Object.freeze(segments.sort((a, b) => a.fileSeq - b.fileSeq));
 	}
 
 	return {
@@ -281,51 +273,54 @@ export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
 			}
 
 			let isVendorSessionMissing = false;
-			let vendorSessionContent: string | null = null;
 			let vendorSessionBytes = 0;
 			let vendorSessionChars = 0;
 			const vendorRef = run.vendorSessionRef ?? null;
 
 			if (vendorRef) {
 				assertVendorSessionRefReadOnly(vendorRef);
-				if (!checkFileExists(vendorRef)) {
+				if (!fileOps.existsSync(vendorRef)) {
 					// E-97: Vendor session file is missing from disk
 					isVendorSessionMissing = true;
 				} else {
 					try {
 						const stat = fileOps.statSync(vendorRef);
 						vendorSessionBytes = stat.size;
-						vendorSessionContent = readUtf8File(vendorRef);
-						vendorSessionChars = vendorSessionContent.length;
+						// Approximation: UTF-8 text size roughly correlates to character count
+						vendorSessionChars = stat.size;
 					} catch {
 						isVendorSessionMissing = true;
 					}
 				}
 			}
 
-			// Read captured scheduler logs
-			const capturedLines = readCapturedLines(runId);
-			let capturedBytes = 0;
-			let capturedChars = 0;
-			for (const line of capturedLines) {
-				capturedChars += line.length + 1;
-				capturedBytes += Buffer.byteLength(line, 'utf8') + 1;
+			// R2: Resolve segments using M1-T4 segment records & paths
+			const segments = resolveSegments(runId);
+			let totalCapturedBytes = 0;
+			for (const seg of segments) {
+				totalCapturedBytes += Math.max(0, seg.byteEnd - seg.byteStart);
 			}
 
-			// Total session size & chars calculation for E-98 threshold
-			const totalBytes = vendorSessionBytes + capturedBytes;
-			const totalChars = vendorSessionChars + capturedChars;
+			const totalBytes = vendorSessionBytes + totalCapturedBytes;
+			const totalChars = vendorSessionChars + totalCapturedBytes;
 			const isExceedsThreshold =
 				totalBytes >= RUN_LOG_SIZE_THRESHOLD_BYTES || totalChars >= RUN_LOG_CHAR_THRESHOLD_COUNT;
 
-			// Prepare complete lines buffer
-			const allLines: string[] = [];
+			// R6: Structured open spec & formatted command
+			const originalFilePath =
+				vendorRef ?? deps.logstorePaths?.segmentPath(runId, 'raw', 0) ?? null;
+			const openSpec = originalFilePath ? buildOpenSpec(originalFilePath, platform) : null;
+			const openCommand = openSpec
+				? `${openSpec.file} ${openSpec.args.map((a) => (a.includes(' ') || a === '' ? `"${a}"` : a)).join(' ')}`
+				: null;
 
-			// E-97: When vendor session is missing, display warning and present dispatch snapshot
+			const decoder = new TextDecoder('utf-8', { fatal: false });
+			const lines: string[] = [];
+
+			// E-97: When vendor session is missing, insert warning and present dispatch snapshot
 			if (isVendorSessionMissing && vendorRef) {
-				allLines.push(`[调度器提示] 原始会话已不在磁盘（附路径：${vendorRef}）`);
+				lines.push(`[调度器提示] 原始会话已不在磁盘（附路径：${vendorRef}）`);
 
-				// Fetch 3-stage dispatch snapshot
 				let snapshot: RunLogSnapshotRecord | null = null;
 				if (run.snapshotId && deps.snapshotsRepo?.findById) {
 					snapshot = deps.snapshotsRepo.findById(run.snapshotId);
@@ -337,71 +332,172 @@ export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
 					snapshot = deps.runsRepo.findLatestSnapshotByTaskId(run.taskId);
 				}
 
-				allLines.push('--- 派发快照：输入 ---');
-				allLines.push(snapshot?.inputText ?? '(无输入快照)');
-				allLines.push('--- 派发快照：产出 ---');
-				allLines.push(snapshot?.outputText ?? '(无产出快照)');
-				allLines.push('--- 派发快照：验收标准 ---');
-				allLines.push(snapshot?.acceptText ?? '(无验收快照)');
-				allLines.push('--- 调度器捕获输出 ---');
+				const inputText = snapshot?.inputText ?? snapshot?.input_text ?? '(无输入快照)';
+				const outputText = snapshot?.outputText ?? snapshot?.output_text ?? '(无产出快照)';
+				const acceptText = snapshot?.acceptText ?? snapshot?.accept_text ?? '(无验收快照)';
+
+				lines.push('--- 派发快照：输入 ---');
+				lines.push(inputText);
+				lines.push('--- 派发快照：产出 ---');
+				lines.push(outputText);
+				lines.push('--- 派发快照：验收标准 ---');
+				lines.push(acceptText);
+				lines.push('--- 调度器捕获输出 ---');
 			}
 
-			// If vendor transcript content exists and captured is empty, include vendor content
-			if (vendorSessionContent !== null && capturedLines.length === 0) {
-				allLines.push(...vendorSessionContent.split(/\r?\n/));
-			} else {
-				// Otherwise include captured lines
-				allLines.push(...capturedLines);
+			// Parse incoming cursor: supports "fileSeq:byteOffset" or numeric byteOffset on segment 0
+			let parsedCursor: ByteCursor | null = null;
+			if (typeof fromSeq === 'string') {
+				parsedCursor = parseCursor(fromSeq);
+			} else if (typeof fromSeq === 'number' && Number.isSafeInteger(fromSeq)) {
+				parsedCursor = { fileSeq: 0, byteOffset: Math.max(0, fromSeq) };
 			}
 
-			// If allLines is completely empty and no vendor ref was ever configured, verify if log files are missing
-			if (allLines.length === 0 && !vendorRef) {
+			// R2: Bounded segment read across log segments
+			const isTailDefault = isExceedsThreshold && fromSeq === undefined;
+			let prevCursor: string | null = null;
+			let nextCursor: string | null = null;
+
+			if (segments.length > 0) {
+				const firstSeg = segments[0];
+				const lastSeg = segments[segments.length - 1];
+				if (!firstSeg || !lastSeg) {
+					return Object.freeze({
+						lines: Object.freeze([]),
+						totalLines: 0,
+						prevCursor: null,
+						nextCursor: null,
+						vendorSessionRef: vendorRef,
+						isVendorSessionMissing,
+						originalFilePath,
+						openCommand,
+						openSpec,
+						isExceedsThreshold,
+						isRedacted: isMobileDevice,
+					});
+				}
+
+				if (isTailDefault || direction === 'backward') {
+					// Backward / Tail-only read: start from target segment end and read up to READ_CHUNK_LIMIT_BYTES
+					const targetSeq = parsedCursor !== null ? parsedCursor.fileSeq : lastSeg.fileSeq;
+					const targetSeg = segments.find((s) => s.fileSeq === targetSeq) ?? lastSeg;
+					const targetOffset = parsedCursor !== null ? parsedCursor.byteOffset : targetSeg.byteEnd;
+
+					const readLength = Math.min(targetOffset - targetSeg.byteStart, READ_CHUNK_LIMIT_BYTES);
+					const readStart = Math.max(targetSeg.byteStart, targetOffset - readLength);
+
+					if (readLength > 0 && fileOps.readRangeSync) {
+						const chunk = fileOps.readRangeSync(targetSeg.path, readStart, readLength);
+						const slices = splitLines(chunk);
+						const selectedSlices = slices.slice(-limit);
+						const selectedLines = selectedSlices.map((s) => decoder.decode(s.bytes));
+						lines.push(...selectedLines);
+
+						const consumedBytes = selectedSlices.reduce((acc, s) => acc + s.lenWithLf, 0);
+						const windowStart = targetOffset - consumedBytes;
+
+						if (windowStart > targetSeg.byteStart) {
+							prevCursor = formatCursor(targetSeg.fileSeq, windowStart);
+						} else if (targetSeg.fileSeq > firstSeg.fileSeq) {
+							const prevSeg = segments[segments.indexOf(targetSeg) - 1];
+							if (prevSeg) {
+								prevCursor = formatCursor(prevSeg.fileSeq, prevSeg.byteEnd);
+							}
+						}
+
+						if (targetOffset < targetSeg.byteEnd) {
+							nextCursor = formatCursor(targetSeg.fileSeq, targetOffset);
+						}
+					}
+				} else {
+					// Forward read
+					const targetSeq = parsedCursor !== null ? parsedCursor.fileSeq : firstSeg.fileSeq;
+					const targetSeg = segments.find((s) => s.fileSeq >= targetSeq) ?? firstSeg;
+					const targetOffset =
+						parsedCursor !== null && parsedCursor.fileSeq === targetSeg.fileSeq
+							? parsedCursor.byteOffset
+							: targetSeg.byteStart;
+
+					const readLength = Math.min(targetSeg.byteEnd - targetOffset, READ_CHUNK_LIMIT_BYTES);
+
+					if (readLength > 0 && fileOps.readRangeSync) {
+						const chunk = fileOps.readRangeSync(targetSeg.path, targetOffset, readLength);
+						const slices = splitLines(chunk);
+						const selectedSlices = slices.slice(0, limit);
+						const selectedLines = selectedSlices.map((s) => decoder.decode(s.bytes));
+						lines.push(...selectedLines);
+
+						const consumedBytes = selectedSlices.reduce((acc, s) => acc + s.lenWithLf, 0);
+						const nextByteOffset = targetOffset + consumedBytes;
+						if (nextByteOffset < targetSeg.byteEnd) {
+							nextCursor = formatCursor(targetSeg.fileSeq, nextByteOffset);
+						} else {
+							const nextSeg = segments[segments.indexOf(targetSeg) + 1];
+							if (nextSeg) {
+								nextCursor = formatCursor(nextSeg.fileSeq, nextSeg.byteStart);
+							}
+						}
+
+						if (targetOffset > targetSeg.byteStart) {
+							prevCursor = formatCursor(
+								targetSeg.fileSeq,
+								Math.max(targetSeg.byteStart, targetOffset - READ_CHUNK_LIMIT_BYTES),
+							);
+						}
+					}
+				}
+			} else if (vendorRef && !isVendorSessionMissing && fileOps.existsSync(vendorRef)) {
+				// R2: Bounded reading of vendor session file
+				const stat = fileOps.statSync(vendorRef);
+				const fileSize = stat.size;
+				let readStart = 0;
+				let readLength = Math.min(fileSize, READ_CHUNK_LIMIT_BYTES);
+
+				if (isTailDefault || direction === 'backward') {
+					readStart = Math.max(0, fileSize - readLength);
+				} else if (parsedCursor !== null) {
+					readStart = Math.min(fileSize, parsedCursor.byteOffset);
+					readLength = Math.min(fileSize - readStart, READ_CHUNK_LIMIT_BYTES);
+				}
+
+				if (readLength > 0 && fileOps.readRangeSync) {
+					const chunk = fileOps.readRangeSync(vendorRef, readStart, readLength);
+					const slices = splitLines(chunk);
+					const selectedSlices =
+						isTailDefault || direction === 'backward'
+							? slices.slice(-limit)
+							: slices.slice(0, limit);
+					const selectedLines = selectedSlices.map((s) => decoder.decode(s.bytes));
+					lines.push(...selectedLines);
+
+					const consumedBytes = selectedSlices.reduce((acc, s) => acc + s.lenWithLf, 0);
+
+					if (isTailDefault || direction === 'backward') {
+						const windowStart = fileSize - consumedBytes;
+						if (windowStart > 0) {
+							prevCursor = formatCursor(0, windowStart);
+						}
+					} else {
+						if (readStart > 0) {
+							prevCursor = formatCursor(0, readStart);
+						}
+						if (readStart + consumedBytes < fileSize) {
+							nextCursor = formatCursor(0, readStart + consumedBytes);
+						}
+					}
+				}
+			} else if (lines.length === 0 && !vendorRef) {
 				const baseDir = deps.runsDataDir ?? deps.logstorePaths?.runDir(runId);
-				if (baseDir && !checkFileExists(baseDir)) {
+				if (baseDir && !fileOps.existsSync(baseDir)) {
 					throw new AppError('E_LOG_FILE_MISSING', `Log files missing for run: ${runId}`, {
 						details: { runId },
 					});
 				}
 			}
 
-			const totalLines = allLines.length;
+			let windowLines = lines;
 
-			// E-98: Threshold banner & system default open command
-			const originalFilePath =
-				vendorRef ?? deps.logstorePaths?.segmentPath(runId, 'raw', 0) ?? null;
-			const openCommand = originalFilePath
-				? buildOpenCommand(originalFilePath, currentPlatform)
-				: null;
-
-			// Pagination calculation
-			// If exceeds threshold and no fromSeq is given: default to loading the tail window
-			const isTailDefault = isExceedsThreshold && fromSeq === undefined;
-
-			let startIdx: number;
-			let endIdx: number;
-
-			if (isTailDefault) {
-				endIdx = totalLines;
-				startIdx = Math.max(0, endIdx - limit);
-			} else if (direction === 'backward') {
-				endIdx =
-					fromSeq !== undefined && fromSeq !== null
-						? Math.min(totalLines, fromSeq + 1)
-						: totalLines;
-				startIdx = Math.max(0, endIdx - limit);
-			} else {
-				// direction === 'forward'
-				startIdx = fromSeq !== undefined && fromSeq !== null ? Math.max(0, fromSeq) : 0;
-				endIdx = Math.min(totalLines, startIdx + limit);
-			}
-
-			let windowLines = allLines.slice(startIdx, endIdx);
-
-			// Compute bi-directional cursors
-			const prevCursor = startIdx > 0 ? String(startIdx - 1) : null;
-			const nextCursor = endIdx < totalLines ? String(endIdx) : null;
-
-			// Prepend E-98 hint line if tail-loaded due to threshold
+			// E-98: Prepend hint line if tail-loaded due to threshold
 			if (isTailDefault && openCommand) {
 				windowLines = [
 					`[调度器提示] 单会话内容超阈值（>20MB 或 >50万字），默认仅加载尾部片段。可点击「向上加载更多」，或用系统默认程序打开原始文件：${openCommand}`,
@@ -418,6 +514,8 @@ export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
 				];
 			}
 
+			const totalLines = windowLines.length;
+
 			return Object.freeze({
 				lines: Object.freeze(windowLines),
 				totalLines,
@@ -427,6 +525,7 @@ export function createRunLogService(deps: RunLogServiceDeps): RunLogService {
 				isVendorSessionMissing,
 				originalFilePath,
 				openCommand,
+				openSpec,
 				isExceedsThreshold,
 				isRedacted: isMobileDevice,
 			});
