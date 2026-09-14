@@ -21,6 +21,7 @@ export interface DispatchSnapshotRow {
 	readonly accept_text: string | null;
 	readonly impl_prompt: string | null;
 	readonly review_prompt: string | null;
+	readonly bug_prompt: string | null;
 	readonly contract_hash: string;
 	readonly task_paths_json: string;
 	readonly launch_spec_json: string;
@@ -35,6 +36,7 @@ export interface DispatchSnapshotInsertRow {
 	readonly accept_text?: string | null;
 	readonly impl_prompt?: string | null;
 	readonly review_prompt?: string | null;
+	readonly bug_prompt?: string | null;
 	readonly contract_hash: string;
 	readonly task_paths_json: string;
 	readonly launch_spec_json: string;
@@ -83,6 +85,7 @@ export interface TaskRecordForDiff {
 	readonly batch_id: string | null;
 	readonly impl_prompt: string | null;
 	readonly review_prompt: string | null;
+	readonly bug_prompt: string | null;
 	readonly is_removed_from_doc: number;
 	readonly has_accept_changed: number;
 	readonly has_prompt_changed: number;
@@ -164,6 +167,7 @@ INSERT INTO dispatch_snapshots (
 	accept_text,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	contract_hash,
 	task_paths_json,
 	launch_spec_json,
@@ -176,6 +180,7 @@ INSERT INTO dispatch_snapshots (
 	@accept_text,
 	@impl_prompt,
 	@review_prompt,
+	@bug_prompt,
 	@contract_hash,
 	@task_paths_json,
 	@launch_spec_json,
@@ -192,6 +197,7 @@ SELECT
 	accept_text,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	contract_hash,
 	task_paths_json,
 	launch_spec_json,
@@ -210,6 +216,7 @@ SELECT
 	accept_text,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	contract_hash,
 	task_paths_json,
 	launch_spec_json,
@@ -229,6 +236,7 @@ SELECT
 	accept_text,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	contract_hash,
 	task_paths_json,
 	launch_spec_json,
@@ -248,6 +256,7 @@ WITH ranked AS (
 		s.accept_text,
 		s.impl_prompt,
 		s.review_prompt,
+		s.bug_prompt,
 		s.contract_hash,
 		s.task_paths_json,
 		s.launch_spec_json,
@@ -268,6 +277,7 @@ SELECT
 	accept_text,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	contract_hash,
 	task_paths_json,
 	launch_spec_json,
@@ -296,6 +306,7 @@ SELECT
 	batch_id,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	is_removed_from_doc,
 	has_accept_changed,
 	has_prompt_changed,
@@ -325,6 +336,7 @@ SELECT
 	batch_id,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	is_removed_from_doc,
 	has_accept_changed,
 	has_prompt_changed,
@@ -377,6 +389,7 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 			accept_text: row.accept_text ?? null,
 			impl_prompt: row.impl_prompt ?? null,
 			review_prompt: row.review_prompt ?? null,
+			bug_prompt: row.bug_prompt ?? null,
 			contract_hash: row.contract_hash,
 			task_paths_json: row.task_paths_json,
 			launch_spec_json: row.launch_spec_json,
@@ -394,6 +407,7 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 				accept_text: snapshot.accept_text ?? null,
 				impl_prompt: snapshot.impl_prompt ?? null,
 				review_prompt: snapshot.review_prompt ?? null,
+				bug_prompt: snapshot.bug_prompt ?? null,
 				contract_hash: snapshot.contract_hash,
 				task_paths_json: snapshot.task_paths_json,
 				launch_spec_json: snapshot.launch_spec_json,
@@ -641,6 +655,7 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 				accept_text: task.accept_text,
 				impl_prompt: task.impl_prompt,
 				review_prompt: task.review_prompt,
+				bug_prompt: task.bug_prompt ?? null,
 				contract_hash: task.contract_hash,
 				task_paths_json: task.task_paths_json ?? '[]',
 				launch_spec_json: params.launchSpecJson,
@@ -665,6 +680,7 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 				accept_text: snapshotRow.accept_text ?? null,
 				impl_prompt: snapshotRow.impl_prompt ?? null,
 				review_prompt: snapshotRow.review_prompt ?? null,
+				bug_prompt: snapshotRow.bug_prompt ?? null,
 			});
 		},
 

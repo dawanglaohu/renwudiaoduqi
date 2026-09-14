@@ -315,13 +315,19 @@
   },
   "M3-T7": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "df53fdeb40a38afeac107bfd3b455095080a9e72252d45539119888afa9d95da",
+    "contractHash": "70666fa06ae5d23132c471d2027e8de3b7773021d5bed7bd7dd5c0c6ce1b2748",
     "evidence": [
-      "19 节 M3-T7 行（第 35 行）：依赖 M3-T5 且 requires review-context 在前置闭包内；产出 service/bughunt-context.ts、domain/bughunt-builtin-prompt.ts、service/docs.ts 导入、两列 bug_prompt 迁移，全部在 taskPaths；测试 test/unit/bughunt-context.test.ts 与 docs-import.test.ts 在 supportPaths；sections 含 4/9/10/16/17",
-      "验收 1)～4) 逐条对应：04 节「数据来源」dispatch[id] 五键（bug 未落地措辞，unattended-run 1.3.1）；09 节 tasks.bug_prompt 与 dispatch_snapshots.bug_prompt 列定义、兼容策略第 7 条普通 ADD COLUMN；E-316（缺失用内置并标文档未提供、取快照不热改）、E-19、E-50；16 节「日志里禁止打印提示词全文」",
-      "接缝：M7-T8 的 assembleBughuntPrompt() 消费本任务返回的 {bugPrompt, promptSource}，字段名与 08 节「查 bug 运行的提示词包装」第 2 段一致；已核实 docs-data.js 与 _run/dispatch.json 的 dispatch[id] 均含 bug 键（H3 已落地）"
+      "范围与任务：对照 04-执行/19-模块任务拆分.md 的 M3-T7 行与本次派发包，四条验收标准与 E-19、E-316、E-50 原文一致，无增删；产出 getBughuntContext(taskId)、domain/bughunt-builtin-prompt.ts、docs.ts 导入 dispatch[id].bug、派发快照落 dispatch_snapshots.bug_prompt、0002 两列迁移。补丁只修有效范围（见第 4 条），未动验收标准、边界或 taskPaths。",
+      "前置能力：M3-T5（review-context，已落地）提供派发快照取用接口，requires=review-context 在前置闭包内；本任务复用 dispatch_snapshots 表与 repo/dispatch-snapshots.ts 的 takeSnapshotForTask。",
+      "数据与接口：02-设计/09-数据模型.md:189 tasks.bug_prompt、:280 dispatch_snapshots.bug_prompt 与 :605 兼容策略第 7 条「普通 ADD COLUMN、旧库直开不回填」一致；02-设计/08-后端架构.md:594 规定快照 NULL 用内置通用版并 prompt_source='builtin'（E-316），消费字段 {bugPrompt, promptSource} 与 08 节「查 bug 运行的提示词包装」第 2 段对齐。",
+      "有效路径（本补丁修正点）：原范围只有 taskPaths（migrations/、domain/bughunt-builtin-prompt.ts、service/bughunt-context.ts、service/docs.ts）与 supportPaths（repo/tasks.ts、repo/dispatch-snapshots.ts、bughunt-context.test.ts、docs-import.test.ts）。新增 0002 后两处必要支持文件漏列：packages/daemon/test/unit/database.test.ts:151-176 的 appliedVersions/applied_at 断言必须同步；packages/daemon/test/arch/routes.test.ts:83 的 readDirectory 硬编码 ['0001_init.sql']，主干把 dispatch-snapshots repo 接进 container.ts:136 后容器建库即报 no column named bug_prompt。补丁把这两条补进 supportPaths，routes.test.ts 改为 readdirSync(migrationsDir) 以对后续迁移免疫。",
+      "路径冲突核对：database.test.ts 属 M1-T2（已落地）、routes.test.ts 属 M2-T6（已落地），无在途任务共享；migrations/ 与 M4-T14、M6-T10、M7-T7、M8-T6、M8-T9 共享，但本任务只新增独立文件 0002_add_bug_prompt.sql，未改 0001_init.sql 或公共结构。sync 后受影响集为 M3-T7 与传递依赖 M7-T8、M8-T8、M8-T9、M9-T17、M9-T22、M9-T23，_run/revalidation.json 无新增「已落地·待复验」条目。",
+      "验收 1) 满足：service/docs.ts:551 逐字取 dispatchItem.bug（typeof 非 string 存 null，不抛 E_DOC_SOURCE_UNREADABLE、不冻结 is_contract_ready）；repo/tasks.ts:790 与 :814 在 INSERT/UPDATE 落 tasks.bug_prompt；repo/dispatch-snapshots.ts:658 takeSnapshotForTask 复制进 dispatch_snapshots.bug_prompt；migrations/0002_add_bug_prompt.sql:1-2 两条普通 ADD COLUMN，无回填。",
+      "验收 2) 满足：service/bughunt-context.ts:151-159 只读 snapshot.bug_prompt；命中给 promptSource='docs'，NULL／空白／无快照回落 BUILTIN_BUGHUNT_PROMPT 且 promptSource='builtin'，不抛错、不读 tasks.bug_prompt；:160-165 按 E-316 记 warn（只带 task ID 与原因，不带正文）。domain/bughunt-builtin-prompt.ts:11 为内置五段查 bug 提示词常量。",
+      "验收 3) 与 4) 满足：service/bughunt-context.ts:156 直接返回快照字符串（不改写、不截断），:167-175 只把文档变化记为 docChangedSinceDispatch、始终取快照那一份（E-50）；全仓 bug_prompt 只出现在 repo/、service/docs.ts、service/bughunt-context.ts 与单测，任何事件 payload 均无该字段，提示词正文不入日志。",
+      "测试（工作树 ../agent-scheduler-m3-t7，主干已合入后再跑）：pnpm vitest run packages/daemon/test/unit/bughunt-context.test.ts packages/daemon/test/unit/docs-import.test.ts packages/daemon/test/unit/database.test.ts → 3 文件 59/59 通过；packages/daemon/test/arch → 4 文件 23/23 通过（含修好的 routes.test.ts）；npx tsc -b --noEmit 全绿；biome ci 对改动文件通过。"
     ],
-    "reviewed": "2026-09-12T17:04:44.838823+00:00",
+    "reviewed": "2026-09-14T14:17:15.087572+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

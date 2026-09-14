@@ -23,6 +23,7 @@ export interface TaskRow {
 	readonly batch_id: string | null;
 	readonly impl_prompt: string | null;
 	readonly review_prompt: string | null;
+	readonly bug_prompt: string | null;
 	readonly is_removed_from_doc: number;
 	readonly has_accept_changed: number;
 	readonly has_prompt_changed: number;
@@ -48,6 +49,7 @@ export interface TaskInsertRow {
 	readonly batch_id?: string | null;
 	readonly impl_prompt?: string | null;
 	readonly review_prompt?: string | null;
+	readonly bug_prompt?: string | null;
 	readonly is_removed_from_doc?: number;
 	readonly has_accept_changed?: number;
 	readonly has_prompt_changed?: number;
@@ -71,6 +73,7 @@ export interface TaskUpdateDocFieldsRow {
 	readonly batch_id: string | null;
 	readonly impl_prompt: string | null;
 	readonly review_prompt: string | null;
+	readonly bug_prompt?: string | null;
 	readonly is_removed_from_doc: number;
 }
 
@@ -111,6 +114,7 @@ export interface ParsedDocTaskInput {
 	readonly implPrompt: string;
 	readonly reviewPrompt: string;
 	readonly resumePrompt?: string | null;
+	readonly bugPrompt?: string | null;
 }
 
 export interface ImportDocTasksParams {
@@ -145,6 +149,7 @@ INSERT INTO tasks (
 	batch_id,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	is_removed_from_doc,
 	has_accept_changed,
 	has_prompt_changed,
@@ -168,6 +173,7 @@ INSERT INTO tasks (
 	@batch_id,
 	@impl_prompt,
 	@review_prompt,
+	@bug_prompt,
 	@is_removed_from_doc,
 	@has_accept_changed,
 	@has_prompt_changed,
@@ -195,6 +201,7 @@ SELECT
 	batch_id,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	is_removed_from_doc,
 	has_accept_changed,
 	has_prompt_changed,
@@ -224,6 +231,7 @@ SELECT
 	batch_id,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	is_removed_from_doc,
 	has_accept_changed,
 	has_prompt_changed,
@@ -253,6 +261,7 @@ SELECT
 	batch_id,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	is_removed_from_doc,
 	has_accept_changed,
 	has_prompt_changed,
@@ -282,6 +291,7 @@ SELECT
 	batch_id,
 	impl_prompt,
 	review_prompt,
+	bug_prompt,
 	is_removed_from_doc,
 	has_accept_changed,
 	has_prompt_changed,
@@ -309,6 +319,7 @@ SET
 	batch_id = @batch_id,
 	impl_prompt = @impl_prompt,
 	review_prompt = @review_prompt,
+	bug_prompt = @bug_prompt,
 	is_removed_from_doc = @is_removed_from_doc
 WHERE id = @id
 `;
@@ -524,6 +535,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 			batch_id: row.batch_id ?? null,
 			impl_prompt: row.impl_prompt ?? null,
 			review_prompt: row.review_prompt ?? null,
+			bug_prompt: row.bug_prompt ?? null,
 			is_removed_from_doc: row.is_removed_from_doc === 1 ? 1 : 0,
 			has_accept_changed: row.has_accept_changed === 1 ? 1 : 0,
 			has_prompt_changed: row.has_prompt_changed === 1 ? 1 : 0,
@@ -608,6 +620,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 					batch_id: row.batch_id ?? null,
 					impl_prompt: row.impl_prompt ?? null,
 					review_prompt: row.review_prompt ?? null,
+					bug_prompt: row.bug_prompt ?? null,
 					is_removed_from_doc: row.is_removed_from_doc === 1 ? 1 : 0,
 				});
 			} catch (cause) {
@@ -774,6 +787,7 @@ export function importDocTasks(
 				batch_id: batchId,
 				impl_prompt: t.implPrompt,
 				review_prompt: t.reviewPrompt,
+				bug_prompt: t.bugPrompt ?? null,
 				is_removed_from_doc: 0,
 			});
 		} else {
@@ -797,6 +811,7 @@ export function importDocTasks(
 				batch_id: batchId,
 				impl_prompt: t.implPrompt,
 				review_prompt: t.reviewPrompt,
+				bug_prompt: t.bugPrompt ?? null,
 				is_removed_from_doc: 0,
 				has_accept_changed: 0,
 				has_prompt_changed: 0,
