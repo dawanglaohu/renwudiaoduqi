@@ -572,7 +572,9 @@
         "packages/daemon/src/repo/tasks.ts",
         "packages/daemon/src/repo/dispatch-snapshots.ts",
         "packages/daemon/test/unit/bughunt-context.test.ts",
-        "packages/daemon/test/unit/docs-import.test.ts"
+        "packages/daemon/test/unit/database.test.ts",
+        "packages/daemon/test/unit/docs-import.test.ts",
+        "packages/daemon/test/arch/routes.test.ts"
       ],
       "sections": [
         1,
@@ -973,6 +975,11 @@
         11,
         12,
         17
+      ]
+    },
+    "M9-T15": {
+      "supportPaths": [
+        "packages/web/test/pairing-devices.test.ts"
       ]
     },
     "M9-T17": {
