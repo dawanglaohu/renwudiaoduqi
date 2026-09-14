@@ -311,7 +311,13 @@
       ],
       "M6-T8": [
         "packages/daemon/src/service/run-log.ts",
-        "packages/daemon/src/http/routes/runs.ts"
+        "packages/daemon/src/http/routes/runs.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/repo/runs-log-repo.ts",
+        "packages/daemon/src/repo/log-segments-repo.ts",
+        "packages/daemon/test/unit/run-log.test.ts",
+        "packages/daemon/test/integration/run-log-routes.test.ts"
       ],
       "M6-T9": [
         "packages/daemon/src/service/retention.ts"
