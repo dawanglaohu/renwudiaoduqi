@@ -108,7 +108,13 @@ export interface WorktreeManager extends WorktreeInspector {
 		taskId: string,
 		options?: { branchPrefix?: string; preferredBranchName?: string },
 	): Promise<string>;
+	resolveWrapupBranchName(
+		repoPath: string,
+		batchId: string | number,
+		round: number,
+	): Promise<string>;
 	prepareWorktree(input: PrepareWorktreeInput): Promise<PrepareWorktreeResult>;
+	prepareWrapupWorktree(input: PrepareWrapupWorktreeInput): Promise<PrepareWrapupWorktreeResult>;
 	removeWorktree(input: CleanupWorktreeInput): Promise<CleanupWorktreeResult>;
 	inspect(worktreePath: string): Promise<WorktreeInspectionResult>;
 }
@@ -190,7 +196,10 @@ export async function resolveGitExecutable(
 	if (!hostInputs) {
 		const hostResult = takePlatformHostInputs({});
 		if (hostResult.ok) {
-			hostInputs = hostResult.value;
+			hostInputs = {
+				...hostResult.value,
+				platform: deps.platform ?? hostResult.value.platform,
+			};
 		} else {
 			hostInputs = {
 				platform: deps.platform,
@@ -650,6 +659,72 @@ export async function inspectWorktree(
 	});
 }
 
+export interface PrepareWrapupWorktreeInput {
+	readonly repoPath: string;
+	readonly batchId: string | number;
+	readonly round: number;
+	readonly targetWorktreePath?: string;
+	readonly worktreesDir?: string;
+	readonly worktreeMode?: 'fresh' | 'reuse';
+}
+
+export interface PrepareWrapupWorktreeResult {
+	readonly worktreePath: string;
+	readonly branchName: string;
+	readonly baseRef: 'HEAD';
+	readonly isReused: boolean;
+}
+
+export function formatWrapupBranchName(batchId: string | number, round: number): string {
+	return `wrapup/${batchId}-${round}`;
+}
+
+export async function resolveWrapupBranchName(
+	repoPath: string,
+	batchId: string | number,
+	round: number,
+	runner: GitRunner,
+): Promise<string> {
+	const preferredBranchName = formatWrapupBranchName(batchId, round);
+	return resolveBranchName(repoPath, `${batchId}-${round}`, runner, {
+		preferredBranchName,
+	});
+}
+
+export async function prepareWrapupWorktree(
+	input: PrepareWrapupWorktreeInput,
+	runner: GitRunner,
+	deps: WorktreeManagerDeps,
+): Promise<PrepareWrapupWorktreeResult> {
+	const preferredBranchName = await resolveWrapupBranchName(
+		input.repoPath,
+		input.batchId,
+		input.round,
+		runner,
+	);
+
+	const result = await prepareWorktree(
+		{
+			repoPath: input.repoPath,
+			taskId: `wrapup-${input.batchId}-${input.round}`,
+			baseRef: 'HEAD',
+			preferredBranchName,
+			targetWorktreePath: input.targetWorktreePath,
+			worktreesDir: input.worktreesDir,
+			worktreeMode: input.worktreeMode,
+		},
+		runner,
+		deps,
+	);
+
+	return Object.freeze({
+		worktreePath: result.worktreePath,
+		branchName: result.branchName,
+		baseRef: 'HEAD',
+		isReused: result.isReused,
+	});
+}
+
 export function createWorktreeManager(deps: WorktreeManagerDeps): WorktreeManager {
 	const runner = deps.gitRunner ?? createDefaultGitRunner(deps);
 
@@ -671,8 +746,14 @@ export function createWorktreeManager(deps: WorktreeManagerDeps): WorktreeManage
 		) {
 			return resolveBranchName(repoPath, taskId, runner, options);
 		},
+		resolveWrapupBranchName(repoPath: string, batchId: string | number, round: number) {
+			return resolveWrapupBranchName(repoPath, batchId, round, runner);
+		},
 		prepareWorktree(input: PrepareWorktreeInput) {
 			return prepareWorktree(input, runner, deps);
+		},
+		prepareWrapupWorktree(input: PrepareWrapupWorktreeInput) {
+			return prepareWrapupWorktree(input, runner, deps);
 		},
 		removeWorktree(input: CleanupWorktreeInput) {
 			return removeWorktree(input, runner, deps);
