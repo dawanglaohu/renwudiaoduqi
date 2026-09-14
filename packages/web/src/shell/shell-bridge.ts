@@ -27,6 +27,9 @@ const fallbackListeners = new Set<NotificationFallbackListener>();
  */
 export function registerNativeShellAdapter(adapter: NativeShellAdapter | null): void {
 	nativeAdapter = adapter;
+	if (SHELL.platform !== 'browser' && typeof sessionStorage !== 'undefined') {
+		sessionStorage.removeItem(SESSION_STORAGE_TOKEN_KEY);
+	}
 }
 
 /**
@@ -80,11 +83,16 @@ if (SHELL.platform !== 'browser' && typeof sessionStorage !== 'undefined') {
 
 /**
  * Token storage capability implementation with browser sessionStorage fallback (07-前端架构 / AC 4).
+ * E-227: When running in a native shell, the shell's secure storage is the sole source of truth.
+ * Under no circumstances may sessionStorage be read, written, or dual-written in shell mode.
  */
 const tokenStore: ShellTokenStore = {
 	async get(): Promise<string | null> {
-		if (SHELL.platform !== 'browser' && nativeAdapter?.tokenStore?.get) {
-			return nativeAdapter.tokenStore.get();
+		if (SHELL.platform !== 'browser') {
+			if (nativeAdapter?.tokenStore?.get) {
+				return nativeAdapter.tokenStore.get();
+			}
+			return null;
 		}
 		if (typeof sessionStorage === 'undefined') {
 			return null;
@@ -93,8 +101,10 @@ const tokenStore: ShellTokenStore = {
 	},
 
 	async set(token: string): Promise<void> {
-		if (SHELL.platform !== 'browser' && nativeAdapter?.tokenStore?.set) {
-			await nativeAdapter.tokenStore.set(token);
+		if (SHELL.platform !== 'browser') {
+			if (nativeAdapter?.tokenStore?.set) {
+				await nativeAdapter.tokenStore.set(token);
+			}
 			return;
 		}
 		if (typeof sessionStorage !== 'undefined') {
@@ -103,8 +113,10 @@ const tokenStore: ShellTokenStore = {
 	},
 
 	async clear(): Promise<void> {
-		if (SHELL.platform !== 'browser' && nativeAdapter?.tokenStore?.clear) {
-			await nativeAdapter.tokenStore.clear();
+		if (SHELL.platform !== 'browser') {
+			if (nativeAdapter?.tokenStore?.clear) {
+				await nativeAdapter.tokenStore.clear();
+			}
 			return;
 		}
 		if (typeof sessionStorage !== 'undefined') {
@@ -183,6 +195,13 @@ async function hostHint(): Promise<string | null> {
 		return window.location.origin;
 	}
 	return null;
+}
+
+/**
+ * Check if the application is running in un-shelled browser mode (E-229).
+ */
+export function isBrowserMode(): boolean {
+	return SHELL.platform === 'browser';
 }
 
 /**
