@@ -210,6 +210,23 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M2-T5": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "f370edb3a2816e97b380b90486bf227d500b3aa24551b93f19217fb2270012ae",
+    "evidence": [
+      "2026-09-13 复核 图谱/任务/M2-T5.md 五条验收标准与 04-执行/19-模块任务拆分.md 的 M2 行：产出仍是 http/sse.ts 与 GET /events，输入仍只有 M2-T4 的事件总线，前置 M2-T3（已落地）与 M2-T4（已落地）都在 main 上，未把客户端重连策略或 REST 快照接口提前塞进本任务。",
+      "2026-09-13 复核 02-设计/08-后端架构.md 的中间件链与 SSE 条款：reply.hijack() 后只操作 reply.raw、头固定含 X-Accel-Buffering: no、每 15 秒写一行 : 心跳、路由内禁止 reply.send、90-error-handler 是全仓唯一把 code 转成 HTTP 状态码的地方、鉴权 hook 挂在 /api/v1 子 scope 内。任务卡第 1、5 条与这些条款逐条对齐，未增删；第 2、4 条的 409/401 也因此必须走统一错误体系，不能在本文件自建状态码映射。",
+      "2026-09-13 复核 02-设计/06-系统架构与模块划分.md 的错误信封、环境变量与分层约定：信封固定 {error:{code,message,requestId,details?}}，401/403 与 SSE 握手失败同样返回带信封 body；daemon 只产出英文 message；SSE 不新增任何环境变量（心跳间隔是写死的 15 秒常量，不是 AGSCHED_ 变量），因此本任务不碰 packages/daemon/src/config/env.ts。",
+      "2026-09-13 复核 03-质量/13-边界问题与异常处理.md 与 图谱/边界/E-153、E-154、E-155、E-156：E-153 的服务端职责只到「返回重放窗口已过期、不静默丢事件」，改走 REST 全量快照是客户端职责，未加进本任务；E-156 的「主动关闭该流并返回 401」在流已建立后只能以带信封的错误帧加主动关流实现，握手期的 401 由 30-auth 与错误处理器承担，两者不冲突。",
+      "2026-09-13 复核 02-设计/10-接口约定.md 与 packages/shared/src/api/routes.ts:489-496：GET /api/v1/events 已在常量表内（auth=device、resType=text/event-stream、errors 含 E_UNAUTHORIZED/E_DEVICE_REVOKED/E_REPLAY_WINDOW_EXPIRED/E_INTERNAL），本任务是把它从 50-routes.ts 的兜底桩换成真实处理器，不改接口表本身。",
+      "2026-09-13 通过补丁 M2-T5-support-paths 在 docs/Agent任务调度器-开发文档/_run/task-contracts.json 补入 M2-T5.supportPaths：packages/daemon/src/http/plugins/50-routes.ts（路由挂载与已注册路径表是 08 节固定中间件链的必需接线）与 packages/daemon/test/unit/sse.test.ts（17 节要求的分帧、心跳、重放、吊销测试）。二项都是任务产出必需的漏列支持文件，只做追加式改动，未放行 http/、service/ 或 repo/ 整个目录。",
+      "2026-09-13 冲突核对：presentation.json 中 M2-T5 的 taskPaths 为 http/sse.ts 与 http/routes/events.ts；全仓只有 M3-T4、M8-T6、M8-T7、M9-T5 等任务路径含 50-routes.ts 或 test/ 目录，其中 M3-T4 已落地、其余未开工且不相邻同批，补丁未与在途任务抢同一文件。",
+      "2026-09-13 现状检查（task/M2-T5，与补丁同步后一致）：pnpm exec tsc -b --noEmit 通过、pnpm exec biome ci packages/daemon/src/http packages/daemon/test/unit/sse.test.ts 无违规、node scripts/check-error-codes.mjs 49 条一致、vitest run packages/daemon/test/unit/sse.test.ts 15 个用例全过、vitest run packages/daemon/test/arch 16 个用例全过（含路由集合与 ROUTES 表逐条相等）。以上只证明契约复核期间的仓库状态，代码语义结论另见审查输出的 R1/R2。"
+    ],
+    "reviewed": "2026-09-13T13:56:42.797760+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T6": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "4032efd134522b4d2414521b360fc754af55bd7bb4359fa6580a4309ea6f8710",
