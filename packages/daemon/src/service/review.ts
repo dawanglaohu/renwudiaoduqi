@@ -1,5 +1,6 @@
 import { promises as nodeFs } from 'node:fs';
 import { resolve as nodeResolve } from 'node:path';
+import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import {
 	RUN_TRANSITION_REASONS,
@@ -20,6 +21,7 @@ import {
 	spawnManaged,
 } from '../proc/spawn.ts';
 import { DEFAULT_CHECK_TIMEOUT_MS, type LaunchTimeouts } from '../proc/timers.ts';
+import type { RunAbortRunRecord, RunsAbortRepo } from '../repo/runs-abort-repo.ts';
 import {
 	type DiffStatResult,
 	type GitRunner,
@@ -38,6 +40,7 @@ export const NO_CHANGES_TAG = '无改动' as const; // E-61, E-23
 export const MECHANICAL_CHECK_TIMEOUT_TAG = '机械检查超时' as const; // E-66
 export const MECHANICAL_CHECK_PASSED_TAG = '机械检查通过' as const;
 export const COMMAND_FAILED_TAG = '命令执行失败' as const;
+export const COMMAND_NOT_FOUND_TAG = '找不到检查命令' as const;
 export const ZERO_CONFIG_FAILED_TAG = '零配置检查失败' as const;
 export const KEYWORDS_MISSED_TAG = '验收关键词未命中' as const;
 export const EXIT_CODE_FAILED_TAG = '进程退出码非零' as const;
@@ -72,6 +75,7 @@ export interface CheckCommandResult {
 	readonly stderr: string;
 	readonly timedOut: boolean;
 	readonly durationMs: number;
+	readonly errorCode?: ErrorCode;
 }
 
 /**
@@ -257,30 +261,15 @@ export interface MechanicalCheckResult {
 
 /**
  * Minimal run record needed by review service for state evaluation.
+ * Uses RunsAbortRepo contract from repo/runs-abort-repo.ts (R3).
  */
-export interface ReviewRunRecord {
-	readonly id: string;
-	readonly taskId: string;
-	readonly state: RunState;
-	readonly exitCode?: number | null;
-	readonly worktreePath?: string | null;
-	readonly snapshotId?: string | null;
-}
+export type ReviewRunRecord = RunAbortRunRecord;
 
 /**
  * Repository interface for updating run states during review.
+ * Strictly adheres to RunsAbortRepo contract (endedAt required, R3).
  */
-export interface ReviewRunsRepo {
-	findById(id: string): ReviewRunRecord | null;
-	updateState(input: {
-		readonly id: string;
-		readonly fromState: RunState;
-		readonly toState: RunState;
-		readonly endedAt?: string | null;
-		readonly queuedReason?: string | null;
-		readonly actorDeviceId?: string | null;
-	}): void;
-}
+export type ReviewRunsRepo = RunsAbortRepo;
 
 /**
  * Repository interface for recording human review gates.
@@ -661,41 +650,84 @@ function resolveEffectiveHostInputs(deps: MechanicalCheckDeps): PlatformHostInpu
 	};
 }
 
+type ResolvedCommand =
+	| { readonly ok: true; readonly file: string; readonly argsPrefix: readonly string[] }
+	| { readonly ok: false; readonly error: { readonly code: ErrorCode; readonly message: string } };
+
 /**
- * Resolves an executable name or relative path to an absolute path for spawnManaged (E-130, E-42).
+ * Resolves an executable name or relative path to an absolute path for spawnManaged (E-130, E-42, R1, R2).
  */
 async function resolveCommandExecutable(
 	commandFile: string,
 	cwd: string,
 	deps: MechanicalCheckDeps,
-): Promise<{ readonly file: string; readonly argsPrefix: readonly string[] }> {
+): Promise<ResolvedCommand> {
 	// If already an absolute path, verify and return
 	if (commandFile.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(commandFile)) {
-		return { file: commandFile, argsPrefix: Object.freeze([]) };
+		try {
+			const stat = await nodeFs.stat(commandFile);
+			if (stat.isFile()) {
+				return { ok: true, file: commandFile, argsPrefix: Object.freeze([]) };
+			}
+			return {
+				ok: false,
+				error: {
+					code: 'E_AGENT_EXEC_INVALID_TARGET',
+					message: `The executable path does not resolve to a regular file: ${commandFile}`,
+				},
+			};
+		} catch {
+			return {
+				ok: false,
+				error: {
+					code: 'E_AGENT_EXEC_NOT_FOUND',
+					message: `The executable file does not exist: ${commandFile}`,
+				},
+			};
+		}
 	}
 
 	// If relative path like './bin/test.sh', resolve against cwd
 	if (commandFile.startsWith('./') || commandFile.startsWith('.\\')) {
 		const resolved = nodeResolve(cwd, commandFile);
-		return { file: resolved, argsPrefix: Object.freeze([]) };
+		try {
+			const stat = await nodeFs.stat(resolved);
+			if (stat.isFile()) {
+				return { ok: true, file: resolved, argsPrefix: Object.freeze([]) };
+			}
+			return {
+				ok: false,
+				error: {
+					code: 'E_AGENT_EXEC_INVALID_TARGET',
+					message: `The executable path does not resolve to a regular file: ${resolved}`,
+				},
+			};
+		} catch {
+			return {
+				ok: false,
+				error: {
+					code: 'E_AGENT_EXEC_NOT_FOUND',
+					message: `The executable file does not exist: ${resolved}`,
+				},
+			};
+		}
 	}
 
 	const hostInputs = resolveEffectiveHostInputs(deps);
 	const platform = hostInputs.platform;
 
-	try {
-		const resolution = await resolveExecutable({
-			hostInputs,
-			executableName: commandFile,
-		});
-		if (resolution.ok) {
-			return {
-				file: resolution.executable.file,
-				argsPrefix: resolution.executable.argsPrefix,
-			};
-		}
-	} catch {
-		// Fall through to path resolution below
+	const resolution = await resolveExecutable({
+		hostInputs,
+		executableName: commandFile,
+	});
+	if (resolution.ok) {
+		// R1: USE resolution.executable.sourcePath (validated .cmd/.bat path) instead of file (cmd.exe)
+		// spawnManaged expects .cmd/.bat in spec.file so it can wrap it with ComSpec and /d /s /c
+		return {
+			ok: true,
+			file: resolution.executable.sourcePath,
+			argsPrefix: resolution.executable.argsPrefix,
+		};
 	}
 
 	// Check platform adapter candidate paths
@@ -706,7 +738,7 @@ async function resolveCommandExecutable(
 			try {
 				const stat = await nodeFs.stat(candidate);
 				if (stat.isFile()) {
-					return { file: candidate, argsPrefix: Object.freeze([]) };
+					return { ok: true, file: candidate, argsPrefix: Object.freeze([]) };
 				}
 			} catch {
 				// Continue to next candidate
@@ -716,12 +748,18 @@ async function resolveCommandExecutable(
 		// Ignore and fallback
 	}
 
-	// Fallback to absolute file resolution
-	return { file: commandFile, argsPrefix: Object.freeze([]) };
+	// R2: Return structured resolution error, do NOT proceed to spawnManaged or fallback to bare name
+	return {
+		ok: false,
+		error: {
+			code: resolution.error.code,
+			message: resolution.error.message,
+		},
+	};
 }
 
 /**
- * Creates the default command runner backed by spawnManaged and killTree (E-66, E-67).
+ * Creates the default command runner backed by spawnManaged and killTree (E-66, E-67, R1, R2).
  */
 export function createDefaultCommandRunner(deps: MechanicalCheckDeps): CommandRunner {
 	const spawnImpl = deps.spawnManaged ?? spawnManaged;
@@ -741,11 +779,28 @@ export function createDefaultCommandRunner(deps: MechanicalCheckDeps): CommandRu
 		const runId = `check_${ids.newId()}`;
 
 		const resolved = await resolveCommandExecutable(command.file, cwd, deps);
+		if (!resolved.ok) {
+			// R2: Do NOT proceed to spawnManaged. Expose resolution error code directly!
+			return Object.freeze({
+				command: command.label ?? `${command.file} ${(command.args ?? []).join(' ')}`.trim(),
+				file: command.file,
+				args: Object.freeze(command.args ?? []),
+				exitCode: null,
+				signal: null,
+				stdout: '',
+				stderr: resolved.error.message,
+				timedOut: false,
+				durationMs: 0,
+				errorCode: resolved.error.code,
+			});
+		}
+
+		const resolvedExecutableFile = resolved.file;
 		const fullArgs = [...resolved.argsPrefix, ...(command.args ?? [])];
 
 		const spec: LaunchSpec = {
 			runId,
-			file: resolved.file,
+			file: resolvedExecutableFile,
 			args: fullArgs,
 			cwd,
 			envOverrides: command.envOverrides,
@@ -772,7 +827,7 @@ export function createDefaultCommandRunner(deps: MechanicalCheckDeps): CommandRu
 				resolve(
 					Object.freeze({
 						command: command.label ?? `${command.file} ${(command.args ?? []).join(' ')}`.trim(),
-						file: resolved.file,
+						file: resolvedExecutableFile,
 						args: Object.freeze(fullArgs),
 						exitCode: result.exitCode,
 						signal: result.signal,
@@ -865,8 +920,60 @@ export async function runMechanicalCheck(
 	}
 
 	const hasChanges = diffStat.hasChanges && diffStat.filesChanged > 0;
-	const exitCode = input.exitCode ?? 0;
-	const isExitCodeZero = exitCode === 0;
+	const exitCode = input.exitCode;
+	const isExitCodeProvided = typeof exitCode === 'number';
+	const isExitCodeZero = isExitCodeProvided && exitCode === 0;
+
+	// R4: exitCode missing, null, or undefined MUST NOT fall back to 0 (E-23)
+	if (!isExitCodeProvided) {
+		const zeroConfigLayer: ZeroConfigLayerResult = Object.freeze({
+			passed: false,
+			diffCheck: Object.freeze({
+				passed: hasChanges,
+				hasChanges,
+				filesChanged: diffStat.filesChanged,
+				insertions: diffStat.insertions,
+				deletions: diffStat.deletions,
+			}),
+			exitCodeCheck: Object.freeze({
+				passed: false,
+				exitCode: null,
+			}),
+			sessionErrorCheck: Object.freeze({
+				passed: !input.hasFatalError,
+				hasFatalError: Boolean(input.hasFatalError),
+				errorDetail: input.errorDetail ?? 'Exit code is missing or null',
+			}),
+			keywordsCheck: Object.freeze({
+				passed: true,
+				requiredKeywords: Object.freeze([]),
+				matchedKeywords: Object.freeze([]),
+			}),
+			reason: RUN_TRANSITION_REASONS.MECHANICAL_CHECK_FAILED,
+		});
+
+		const projectCommandLayer: ProjectCommandLayerResult = Object.freeze({
+			passed: false,
+			executed: false,
+			coverageLimited: false,
+			commands: Object.freeze([]),
+			timedOut: false,
+			reason: 'skipped_due_to_missing_exit_code',
+		});
+
+		return Object.freeze({
+			passed: false,
+			targetState: 'awaiting_human',
+			reason: RUN_TRANSITION_REASONS.MECHANICAL_CHECK_FAILED,
+			tag: EXIT_CODE_FAILED_TAG,
+			canDispatchReviewAgent: false,
+			retryable: false,
+			worktreePath,
+			zeroConfigLayer,
+			projectCommandLayer,
+			diffStat,
+		});
+	}
 
 	// E-61, E-23: 退出码为 0 但 diff 为空时机械层直接判失败，不派审查 agent，标「无改动」转人
 	if (isExitCodeZero && !hasChanges) {
@@ -1152,6 +1259,35 @@ export async function runMechanicalCheck(
 		});
 		executedResults.push(result);
 
+		// R2: Executable resolution failure (e.g. E_AGENT_EXEC_NOT_FOUND)
+		if (result.errorCode) {
+			const projectCommandLayer: ProjectCommandLayerResult = Object.freeze({
+				passed: false,
+				executed: true,
+				coverageLimited: false,
+				commands: Object.freeze(executedResults),
+				timedOut: false,
+				failedCommand: result.command,
+				reason: result.errorCode,
+			});
+
+			return Object.freeze({
+				passed: false,
+				targetState: 'awaiting_human',
+				reason: result.errorCode,
+				tag:
+					result.errorCode === 'E_AGENT_EXEC_NOT_FOUND'
+						? COMMAND_NOT_FOUND_TAG
+						: COMMAND_FAILED_TAG,
+				canDispatchReviewAgent: false,
+				retryable: false,
+				worktreePath,
+				zeroConfigLayer,
+				projectCommandLayer,
+				diffStat,
+			});
+		}
+
 		// E-66: Hard timeout reached -> kill, mark '机械检查超时' and transition to human, DO NOT RETRY
 		if (result.timedOut) {
 			const projectCommandLayer: ProjectCommandLayerResult = Object.freeze({
@@ -1254,34 +1390,17 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			}
 		}
 
-		let previousState: RunState = run?.state ?? 'exited';
-
-		// exited -> reviewing: unconditional transition (09-数据模型)
-		if (run && run.state === 'exited') {
-			assertValidTransition('exited', 'reviewing', {
-				reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
-			});
-			if (deps.unitOfWork && deps.runsRepo) {
-				deps.unitOfWork.run(() => {
-					deps.runsRepo?.updateState({
-						id: run.id,
-						fromState: 'exited',
-						toState: 'reviewing',
-					});
-				});
-			} else if (deps.runsRepo) {
-				deps.runsRepo.updateState({
-					id: run.id,
-					fromState: 'exited',
-					toState: 'reviewing',
-				});
-			}
-			previousState = 'reviewing';
-		}
-
+		const previousState: RunState = run?.state ?? 'exited';
 		const worktreePath = input.worktreePath ?? run?.worktreePath ?? '';
-		const exitCode = input.exitCode !== undefined ? input.exitCode : (run?.exitCode ?? 0);
+		// R4: exitCode from input or run; do NOT default to 0!
+		const exitCode =
+			input.exitCode !== undefined
+				? input.exitCode
+				: run && 'exitCode' in run
+					? (run as { exitCode?: number | null }).exitCode
+					: undefined;
 
+		// 1. 机械检查在事务外先执行算结论（08节事务边界，R3）
 		const checkResult = await performCheck({
 			worktreePath,
 			mainRepoPath: input.mainRepoPath,
@@ -1300,20 +1419,34 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		let currentState: RunState = previousState;
 		let gateCreated = false;
 
-		if (!checkResult.passed && previousState === 'reviewing') {
-			assertValidTransition('reviewing', 'awaiting_human', {
-				reason: checkResult.reason,
-			});
+		// 2. 两次迁移收进同一个 unitOfWork.run，且每次迁移显式传 clock.now()（R3）
+		const applyTransitions = () => {
+			const now = clock.now();
 
-			if (deps.unitOfWork && deps.runsRepo) {
-				deps.unitOfWork.run(() => {
+			if (previousState === 'exited') {
+				assertValidTransition('exited', 'reviewing', {
+					reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+				});
+				deps.runsRepo?.updateState({
+					id: input.runId,
+					fromState: 'exited',
+					toState: 'reviewing',
+					endedAt: now,
+				});
+				currentState = 'reviewing';
+
+				if (!checkResult.passed) {
+					assertValidTransition('reviewing', 'awaiting_human', {
+						reason: checkResult.reason,
+					});
 					deps.runsRepo?.updateState({
 						id: input.runId,
 						fromState: 'reviewing',
 						toState: 'awaiting_human',
-						endedAt: clock.now(),
+						endedAt: now,
 						queuedReason: checkResult.reason,
 					});
+					currentState = 'awaiting_human';
 
 					if (deps.gatesRepo) {
 						deps.gatesRepo.insert({
@@ -1323,33 +1456,49 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							kind: 'review',
 							state: 'waiting',
 							comment: checkResult.tag,
-							createdAt: clock.now(),
+							createdAt: now,
 						});
 						gateCreated = true;
 					}
-				});
-			} else if (deps.runsRepo) {
-				deps.runsRepo.updateState({
-					id: input.runId,
-					fromState: 'reviewing',
-					toState: 'awaiting_human',
-					endedAt: clock.now(),
-					queuedReason: checkResult.reason,
-				});
-				if (deps.gatesRepo) {
-					deps.gatesRepo.insert({
-						id: `gate_${ids.newId()}`,
-						taskId: input.taskId ?? run?.taskId ?? '',
-						runId: input.runId,
-						kind: 'review',
-						state: 'waiting',
-						comment: checkResult.tag,
-						createdAt: clock.now(),
+				}
+			} else if (previousState === 'reviewing') {
+				if (!checkResult.passed) {
+					assertValidTransition('reviewing', 'awaiting_human', {
+						reason: checkResult.reason,
 					});
-					gateCreated = true;
+					deps.runsRepo?.updateState({
+						id: input.runId,
+						fromState: 'reviewing',
+						toState: 'awaiting_human',
+						endedAt: now,
+						queuedReason: checkResult.reason,
+					});
+					currentState = 'awaiting_human';
+
+					if (deps.gatesRepo) {
+						deps.gatesRepo.insert({
+							id: `gate_${ids.newId()}`,
+							taskId: input.taskId ?? run?.taskId ?? '',
+							runId: input.runId,
+							kind: 'review',
+							state: 'waiting',
+							comment: checkResult.tag,
+							createdAt: now,
+						});
+						gateCreated = true;
+					}
 				}
 			}
-			currentState = 'awaiting_human';
+		};
+
+		if (deps.runsRepo) {
+			if (deps.unitOfWork) {
+				deps.unitOfWork.run(() => {
+					applyTransitions();
+				});
+			} else {
+				applyTransitions();
+			}
 		}
 
 		return Object.freeze({

@@ -1,11 +1,16 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { openDatabase } from '../../src/db/open-database.ts';
+import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
 import { RUN_TRANSITION_REASONS } from '../../src/domain/run-state-machine.ts';
 import { AppError } from '../../src/errors/app-error.ts';
+import type { LaunchSpec } from '../../src/proc/spawn.ts';
+import { createSqliteRunsAbortRepo } from '../../src/repo/runs-abort-repo.ts';
 import {
 	COMMAND_FAILED_TAG,
+	COMMAND_NOT_FOUND_TAG,
 	type CommandRunner,
 	DEFAULT_CHECK_TIMEOUT_MS,
 	EXIT_CODE_FAILED_TAG,
@@ -15,9 +20,11 @@ import {
 	MECHANICAL_COVERAGE_LIMITED_TAG,
 	NO_CHANGES_TAG,
 	type ReviewGatesRepo,
+	type ReviewRunRecord,
 	type ReviewRunsRepo,
 	SESSION_ERROR_TAG,
 	assertWorktreeDirectory,
+	createDefaultCommandRunner,
 	createReviewService,
 	extractAcceptanceKeywords,
 	matchesAcceptanceKeywords,
@@ -535,12 +542,13 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 			const diffStat = makeFakeDiffStat(true);
 			const diffText = '+const review = 1; // E-60 mechanical check';
 
-			const runRecord = {
+			const runRecord: ReviewRunRecord = {
 				id: 'run-001',
 				taskId: 'task-m7-t1',
 				state: 'exited' as const,
-				exitCode: 0,
+				pid: null,
 				worktreePath: fakeWorktreeDir,
+				changedFileCount: null,
 			};
 
 			const stateUpdates: Array<{ fromState: string; toState: string }> = [];
@@ -559,6 +567,7 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 			const evalResult = await service.evaluateMechanicalCheck({
 				runId: 'run-001',
 				mainRepoPath: fakeMainRepoDir,
+				exitCode: 0,
 				diffStat,
 				diffText,
 				acceptText: 'E-60 mechanical check',
@@ -566,7 +575,7 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 			});
 
 			expect(evalResult.result.passed).toBe(true);
-			expect(evalResult.previousState).toBe('reviewing');
+			expect(evalResult.previousState).toBe('exited');
 			expect(evalResult.currentState).toBe('reviewing');
 			expect(evalResult.result.canDispatchReviewAgent).toBe(true);
 			// Transitioned exited -> reviewing
@@ -574,12 +583,13 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 		});
 
 		it('transitions run from reviewing to awaiting_human and inserts gate on empty diff (E-61, E-23)', async () => {
-			const runRecord = {
+			const runRecord: ReviewRunRecord = {
 				id: 'run-002',
 				taskId: 'task-m7-t1',
 				state: 'reviewing' as const,
-				exitCode: 0,
+				pid: null,
 				worktreePath: fakeWorktreeDir,
+				changedFileCount: null,
 			};
 
 			const stateUpdates: Array<{ fromState: string; toState: string; reason?: string }> = [];
@@ -613,6 +623,7 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 			const evalResult = await service.evaluateMechanicalCheck({
 				runId: 'run-002',
 				mainRepoPath: fakeMainRepoDir,
+				exitCode: 0,
 				diffStat: emptyDiffStat,
 				projectCommands: [],
 			});
@@ -630,12 +641,13 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 		});
 
 		it('transitions run to awaiting_human and tags 机械检查超时 on timeout (E-66)', async () => {
-			const runRecord = {
+			const runRecord: ReviewRunRecord = {
 				id: 'run-003',
 				taskId: 'task-m7-t1',
 				state: 'reviewing' as const,
-				exitCode: 0,
+				pid: null,
 				worktreePath: fakeWorktreeDir,
+				changedFileCount: null,
 			};
 
 			const stateUpdates: Array<{ fromState: string; toState: string; reason?: string }> = [];
@@ -671,6 +683,7 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 			const evalResult = await service.evaluateMechanicalCheck({
 				runId: 'run-003',
 				mainRepoPath: fakeMainRepoDir,
+				exitCode: 0,
 				diffStat: makeFakeDiffStat(true),
 				projectCommands: ['npm test'],
 			});
@@ -827,6 +840,9 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 				} as unknown as ReturnType<SpawnManagedFn>;
 			};
 
+			const scriptFile = join(fakeWorktreeDir, 'fake-build.sh');
+			writeFileSync(scriptFile, '#!/bin/sh\necho ok');
+
 			const diffStat = makeFakeDiffStat(true);
 			const diffText = '+const code = 1;';
 
@@ -837,7 +853,7 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 					exitCode: 0,
 					diffStat,
 					diffText,
-					projectCommands: [{ file: 'fake-build', args: ['--prod'] }],
+					projectCommands: [{ file: scriptFile, args: ['--prod'] }],
 				},
 				{ spawnManaged: fakeSpawnManaged },
 			);
@@ -845,6 +861,291 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 			expect(result.passed).toBe(true);
 			expect(result.projectCommandLayer.executed).toBe(true);
 			expect(result.projectCommandLayer.commands[0]?.stdout).toContain('build output line 1');
+		});
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────────
+	// Rework verifications (R1, R2, R3, R4)
+	// ─────────────────────────────────────────────────────────────────────────────
+	describe('Rework round 1 verifications: R1 (Windows .cmd sourcePath), R2 (E_AGENT_EXEC_NOT_FOUND), R3 (RunsAbortRepo & single transaction), R4 (null exitCode rejection)', () => {
+		// R1
+		it('R1: Windows .cmd/.bat projects commands pass sourcePath to spawnManaged without pre-wrapping args', async () => {
+			const capturedSpecs: LaunchSpec[] = [];
+			type SpawnManagedFn = NonNullable<
+				NonNullable<Parameters<typeof createReviewService>[0]>['spawnManaged']
+			>;
+			const mockSpawnManaged: SpawnManagedFn = (spec, options) => {
+				capturedSpecs.push(spec);
+				setTimeout(() => {
+					options.onLine?.({ text: 'shim output', truncated: false, rawByteLen: 11 });
+					options.onExit?.({
+						runId: spec.runId,
+						pid: 1234,
+						exitCode: 0,
+						signal: null,
+						reason: 'exited',
+					});
+				}, 5);
+				return {
+					runId: spec.runId,
+					pid: 1234,
+					file: spec.file,
+					args: spec.args,
+					cwd: spec.cwd,
+				} as unknown as ReturnType<SpawnManagedFn>;
+			};
+
+			const cmdFile = join(fakeWorktreeDir, 'my-test-runner.cmd');
+			writeFileSync(cmdFile, '@echo off\r\necho shim output\r\n');
+
+			const runner = createDefaultCommandRunner({
+				spawnManaged: mockSpawnManaged,
+				platform: 'win32',
+			});
+
+			const cmdResult = await runner({ file: cmdFile, args: ['--foo', 'bar'] }, fakeWorktreeDir);
+
+			expect(cmdResult.exitCode).toBe(0);
+			expect(cmdResult.timedOut).toBe(false);
+			expect(capturedSpecs.length).toBe(1);
+
+			const captured = capturedSpecs[0];
+			// R1 assertion: spec.file MUST be the validated .cmd path (sourcePath), NOT cmd.exe!
+			expect(captured?.file).toBe(cmdFile);
+			// args must be raw and NOT pre-wrapped with /d /s /c
+			expect(captured?.args).toEqual(['--foo', 'bar']);
+		});
+
+		it('R1: Real execution of .cmd shim on Windows runs cleanly with exitCode 0 and does not time out', async () => {
+			if (process.platform !== 'win32') return;
+
+			const cmdFile = join(fakeWorktreeDir, 'real-probe.cmd');
+			writeFileSync(cmdFile, '@echo hello-from-cmd-shim %*\r\n');
+
+			const runner = createDefaultCommandRunner({
+				platform: 'win32',
+			});
+
+			const result = await runner({ file: cmdFile, args: ['argA', 'argB'] }, fakeWorktreeDir, {
+				checkTimeoutMs: 10_000,
+			});
+
+			expect(result.exitCode).toBe(0);
+			expect(result.timedOut).toBe(false);
+			expect(result.stdout).toContain('hello-from-cmd-shim');
+			expect(result.stdout).toContain('argA');
+			expect(result.stdout).toContain('argB');
+		});
+
+		// R2
+		it('R2: Command executable resolution failure does not enter spawnManaged, exposes E_AGENT_EXEC_NOT_FOUND, and avoids exitCode 127', async () => {
+			let spawnManagedCalled = false;
+			type SpawnManagedFn = NonNullable<
+				NonNullable<Parameters<typeof createReviewService>[0]>['spawnManaged']
+			>;
+			const mockSpawnManaged: SpawnManagedFn = () => {
+				spawnManagedCalled = true;
+				throw new Error('spawnManaged should never be called when executable resolution fails!');
+			};
+
+			const diffStat = makeFakeDiffStat(true);
+			const diffText = '+const code = 1;';
+
+			const result = await runMechanicalCheck(
+				{
+					worktreePath: fakeWorktreeDir,
+					mainRepoPath: fakeMainRepoDir,
+					exitCode: 0,
+					diffStat,
+					diffText,
+					projectCommands: ['completely_non_existent_binary_xyz_123'],
+				},
+				{
+					spawnManaged: mockSpawnManaged,
+				},
+			);
+
+			// R2 assertions
+			expect(spawnManagedCalled).toBe(false); // spawnManaged never called!
+			expect(result.passed).toBe(false);
+			expect(result.reason).toBe('E_AGENT_EXEC_NOT_FOUND');
+			expect(result.tag).toBe(COMMAND_NOT_FOUND_TAG);
+			expect(result.canDispatchReviewAgent).toBe(false);
+			expect(result.retryable).toBe(false);
+			expect(result.targetState).toBe('awaiting_human');
+
+			const cmdRes = result.projectCommandLayer.commands[0];
+			expect(cmdRes?.errorCode).toBe('E_AGENT_EXEC_NOT_FOUND');
+			expect(cmdRes?.exitCode).toBeNull(); // NOT 127!
+			expect(cmdRes?.timedOut).toBe(false);
+			expect(cmdRes?.stderr).toContain('The executable was not found');
+		});
+
+		// R3
+		it('R3: Real SQLite integration with RunsAbortRepo and UnitOfWork: updates state/ended_at and executes single transaction', async () => {
+			const db = openDatabase(':memory:');
+			db.exec(`
+				CREATE TABLE documents (
+					id TEXT PRIMARY KEY, docs_path TEXT NOT NULL UNIQUE, project_name TEXT NOT NULL,
+					content_fingerprint TEXT NOT NULL, imported_at TEXT NOT NULL, last_seen_at TEXT NOT NULL
+				);
+				CREATE TABLE tasks (
+					id TEXT PRIMARY KEY, doc_id TEXT NOT NULL, task_key TEXT NOT NULL, title TEXT NOT NULL,
+					module_key TEXT NOT NULL, deps_json TEXT NOT NULL, contract_hash TEXT NOT NULL,
+					contract_reasons_json TEXT NOT NULL
+				);
+				CREATE TABLE dispatch_snapshots (
+					id TEXT PRIMARY KEY, task_id TEXT NOT NULL, contract_hash TEXT NOT NULL,
+					task_paths_json TEXT NOT NULL, launch_spec_json TEXT NOT NULL, created_at TEXT NOT NULL
+				);
+				CREATE TABLE runs (
+					id TEXT PRIMARY KEY, task_id TEXT NOT NULL, attempt_no INTEGER NOT NULL,
+					kind TEXT NOT NULL, state TEXT NOT NULL, agent_id TEXT NOT NULL,
+					permission_tier TEXT NOT NULL, snapshot_id TEXT NOT NULL, worktree_path TEXT,
+					pid INTEGER, changed_file_count INTEGER, queued_reason TEXT, actor_device_id TEXT,
+					ended_at TEXT
+				);
+				CREATE TABLE gates (
+					id TEXT PRIMARY KEY, task_id TEXT NOT NULL, run_id TEXT, kind TEXT NOT NULL,
+					state TEXT NOT NULL, decision TEXT, comment TEXT, decided_by_device_id TEXT,
+					created_at TEXT NOT NULL, decided_at TEXT
+				);
+
+				INSERT INTO documents VALUES ('doc-1', 'doc.md', 'test', 'fp', '2026-01-01', '2026-01-01');
+				INSERT INTO tasks VALUES ('task-1', 'doc-1', 'T-1', 'Title', 'M1', '[]', 'hash', '[]');
+				INSERT INTO dispatch_snapshots VALUES ('snap-1', 'task-1', 'hash', '[]', '{}', '2026-01-01');
+				INSERT INTO runs (id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id, pid, worktree_path, changed_file_count, ended_at)
+				VALUES ('run-r3-1', 'task-1', 1, 'implement', 'exited', 'agent-1', 'workspaceWrite', 'snap-1', 12345, '${fakeWorktreeDir.replace(/\\/g, '\\\\')}', 0, '2026-09-14T10:00:00.000Z');
+			`);
+
+			const repo = createSqliteRunsAbortRepo(db);
+			const realUow = createUnitOfWork(db);
+			let uowCallCount = 0;
+			const monitoredUow = {
+				run<T>(fn: () => T): T {
+					uowCallCount += 1;
+					return realUow.run(fn);
+				},
+			};
+
+			const service = createReviewService({
+				runsRepo: repo,
+				unitOfWork: monitoredUow,
+				clock: { now: () => '2026-09-14T12:00:00.000Z' },
+			});
+
+			const diffStat = makeFakeDiffStat(true);
+			const diffText = '+const code = 1; // E-60';
+
+			const evalResult = await service.evaluateMechanicalCheck({
+				runId: 'run-r3-1',
+				mainRepoPath: fakeMainRepoDir,
+				exitCode: 0,
+				diffStat,
+				diffText,
+				acceptText: 'E-60 mechanical check',
+				projectCommands: [],
+			});
+
+			expect(evalResult.result.passed).toBe(true);
+			expect(evalResult.currentState).toBe('reviewing');
+			expect(uowCallCount).toBe(1); // Single transaction!
+
+			// Verify in SQLite directly
+			const row = db.prepare('SELECT state, ended_at FROM runs WHERE id = ?').get('run-r3-1') as {
+				state: string;
+				ended_at: string | null;
+			};
+			expect(row.state).toBe('reviewing');
+			expect(row.ended_at).toBe('2026-09-14T12:00:00.000Z');
+			expect(row.ended_at).not.toBeNull();
+
+			// Now test failing check (e.g. empty diff): transitions exited -> reviewing -> awaiting_human in single transaction
+			db.prepare(`
+				INSERT INTO runs (id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id, pid, worktree_path, changed_file_count, ended_at)
+				VALUES ('run-r3-fail', 'task-1', 2, 'implement', 'exited', 'agent-1', 'workspaceWrite', 'snap-1', 12345, '${fakeWorktreeDir.replace(/\\/g, '\\\\')}', 0, '2026-09-14T10:00:00.000Z');
+			`).run();
+
+			uowCallCount = 0;
+			const emptyDiffStat = makeFakeDiffStat(false, 0);
+
+			const failEvalResult = await service.evaluateMechanicalCheck({
+				runId: 'run-r3-fail',
+				mainRepoPath: fakeMainRepoDir,
+				exitCode: 0,
+				diffStat: emptyDiffStat,
+				projectCommands: [],
+			});
+
+			expect(failEvalResult.result.passed).toBe(false);
+			expect(failEvalResult.currentState).toBe('awaiting_human');
+			expect(uowCallCount).toBe(1); // Single transaction for both transitions!
+
+			const failRow = db
+				.prepare('SELECT state, ended_at, queued_reason FROM runs WHERE id = ?')
+				.get('run-r3-fail') as {
+				state: string;
+				ended_at: string | null;
+				queued_reason: string;
+			};
+			expect(failRow.state).toBe('awaiting_human');
+			expect(failRow.ended_at).toBe('2026-09-14T12:00:00.000Z');
+			expect(failRow.ended_at).not.toBeNull();
+			expect(failRow.queued_reason).toBe(RUN_TRANSITION_REASONS.MECHANICAL_CHECK_FAILED);
+			db.close();
+		});
+
+		// R4
+		it('R4: Absent or null exitCode fails zero-config check, does not dispatch review agent, retryable: false', async () => {
+			const diffStat = makeFakeDiffStat(true);
+			const diffText = '+const code = 1;';
+
+			// Case 1: exitCode explicitly null
+			const resultNull = await runMechanicalCheck({
+				worktreePath: fakeWorktreeDir,
+				mainRepoPath: fakeMainRepoDir,
+				exitCode: null,
+				diffStat,
+				diffText,
+				projectCommands: [],
+			});
+
+			expect(resultNull.passed).toBe(false);
+			expect(resultNull.canDispatchReviewAgent).toBe(false);
+			expect(resultNull.retryable).toBe(false);
+			expect(resultNull.targetState).toBe('awaiting_human');
+			expect(resultNull.tag).toBe(EXIT_CODE_FAILED_TAG);
+			expect(resultNull.zeroConfigLayer.exitCodeCheck.passed).toBe(false);
+			expect(resultNull.zeroConfigLayer.exitCodeCheck.exitCode).toBeNull();
+
+			// Case 2: evaluateMechanicalCheck without passing exitCode and run has null exitCode
+			const mockRunsRepo: ReviewRunsRepo = {
+				findById: () => ({
+					id: 'run-null-exit',
+					taskId: 'task-1',
+					state: 'reviewing',
+					pid: null,
+					worktreePath: fakeWorktreeDir,
+					changedFileCount: null,
+				}),
+				updateState: () => {},
+			};
+
+			const service = createReviewService({ runsRepo: mockRunsRepo });
+			const evalResult = await service.evaluateMechanicalCheck({
+				runId: 'run-null-exit',
+				mainRepoPath: fakeMainRepoDir,
+				diffStat,
+				diffText,
+				projectCommands: [],
+				// exitCode omitted
+			});
+
+			expect(evalResult.result.passed).toBe(false);
+			expect(evalResult.result.canDispatchReviewAgent).toBe(false);
+			expect(evalResult.result.retryable).toBe(false);
+			expect(evalResult.currentState).toBe('awaiting_human');
+			expect(evalResult.result.tag).toBe(EXIT_CODE_FAILED_TAG);
 		});
 	});
 });
