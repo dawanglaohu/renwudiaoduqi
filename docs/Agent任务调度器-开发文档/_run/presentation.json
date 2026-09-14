@@ -232,6 +232,7 @@
         "packages/daemon/src/adapters/grok/"
       ],
       "M4-T12": [
+        "packages/daemon/src/adapters/dsh/",
         "packages/daemon/src/adapters/generic-acp/"
       ],
       "M4-T13": [
@@ -298,7 +299,12 @@
         "packages/daemon/src/http/routes/runs.ts"
       ],
       "M6-T6": [
-        "packages/daemon/src/service/message.ts"
+        "packages/daemon/src/service/message.ts",
+        "packages/daemon/src/repo/run-messages-repo.ts",
+        "packages/daemon/src/http/routes/runs.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/test/unit/message-service.test.ts"
       ],
       "M6-T7": [
         "packages/daemon/src/service/run.ts"

@@ -6,6 +6,8 @@ import type {
 } from '@agent-scheduler/shared/api/agents';
 import { readClaudeModels } from '../adapters/claude/read-models.ts';
 import { readCodexModels } from '../adapters/codex/read-models.ts';
+import { readDshModels } from '../adapters/dsh/read-models.ts';
+import { runDshSmokeTest } from '../adapters/dsh/smoke.ts';
 import { readGrokModels } from '../adapters/grok/read-models.ts';
 import { probeLogin } from '../adapters/login-probe.ts';
 import { readPiModels } from '../adapters/pi/read-models.ts';
@@ -69,6 +71,7 @@ export interface AgentServiceDeps {
 	readonly spawnManagedFn?: typeof spawnManaged;
 	readonly clock?: { readonly now: () => string };
 	readonly env?: Record<string, string>;
+	readonly hasInFlightRuns?: (agentId: string) => boolean | Promise<boolean>;
 }
 
 export interface AgentService {
@@ -217,6 +220,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				nowIso: now,
 				env: deps.env,
 				userConfirmedCandidate: options.userConfirmedCandidate,
+				versionRange: config.versionRange,
 			});
 		} catch (error) {
 			// Probe failure must never crash or block other agents (E-88)
@@ -235,6 +239,69 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					reason: err.message,
 				}),
 			});
+		}
+
+		// R3 & E-191 & E-28: dsh smoke test verification before enablement
+		const smokeCommandRunner = deps.commandRunner;
+		if (
+			agentId === BUILT_IN_AGENT_IDS.DSH &&
+			probeResult.canDispatch &&
+			smokeCommandRunner !== undefined
+		) {
+			const runCommand: NonNullable<typeof smokeCommandRunner> = smokeCommandRunner;
+			const runner = async (params: {
+				file: string;
+				args: readonly string[];
+				cwd: string;
+				timeoutMs?: number;
+				env?: Readonly<Record<string, string | undefined>>;
+			}) => {
+				const cleanEnv: Record<string, string> = {};
+				if (params.env) {
+					for (const [k, v] of Object.entries(params.env)) {
+						if (v !== undefined) cleanEnv[k] = v;
+					}
+				}
+				const res = await runCommand({
+					file: params.file,
+					args: params.args,
+					cwd: params.cwd,
+					timeoutMs: params.timeoutMs ?? 10_000,
+					env: Object.keys(cleanEnv).length > 0 ? cleanEnv : undefined,
+				});
+				return {
+					ok: res.ok,
+					exitCode: res.exitCode,
+					stdout: res.stdout,
+					stderr: res.stderr,
+					timedOut: res.timedOut,
+				};
+			};
+
+			const smokeResult = await runDshSmokeTest({
+				execPath: probeResult.resolvedPath ?? config.execPath,
+				cwd: deps.hostInputs.homedir,
+				runner,
+			});
+
+			if (!smokeResult.ok) {
+				probeResult = Object.freeze({
+					...probeResult,
+					ok: false,
+					status: 'warning',
+					canDispatch: false,
+					matched: false,
+					errorDetails: Object.freeze({
+						code: 'E_AGENT_UNAVAILABLE',
+						reason: smokeResult.reason ?? 'dsh smoke test failed',
+						execPath: probeResult.resolvedPath ?? config.execPath,
+					}),
+					warningBanner: Object.freeze({
+						code: 'E_AGENT_UNAVAILABLE',
+						message: smokeResult.reason ?? 'dsh smoke test failed',
+					}),
+				});
+			}
 		}
 
 		// Map ProbeAgentResult to AgentAvailabilityState
@@ -270,12 +337,25 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				canDispatch = false;
 				missingRequirements.push('Valid executable path');
 			} else if (code === 'E_AGENT_VERSION_UNRECOGNIZED') {
-				// Version mismatch on custom binary
+				if (probeResult.matched) {
+					// Version recognized by pattern but outside expected range (E-194): allow enablement with warning banner
+					isAvailable = true;
+					canDispatch = true;
+					unavailableCode = undefined;
+					unavailableReason = undefined;
+				} else {
+					// Version mismatch on custom binary
+					isAvailable = false;
+					canDispatch = false;
+					missingRequirements.push(
+						`Compatible version matching pattern "${config.versionFingerprint.expectedPattern}"`,
+					);
+				}
+			} else if (code === 'E_AGENT_UNAVAILABLE') {
+				// dsh smoke test contract failure (E-191): the executable resolves, the run contract does not
 				isAvailable = false;
 				canDispatch = false;
-				missingRequirements.push(
-					`Compatible version matching pattern "${config.versionFingerprint.expectedPattern}"`,
-				);
+				missingRequirements.push('Passing the dsh headless smoke test contract');
 			} else {
 				isAvailable = false;
 				canDispatch = false;
@@ -531,6 +611,21 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			);
 		}
 
+		// Validate adapterKind switch requires no in-flight runs (AC 8, E-189)
+		const candidateAdapterKind = (updates as { adapterKind?: unknown }).adapterKind;
+		if (candidateAdapterKind !== undefined && candidateAdapterKind !== config.adapterKind) {
+			if (deps.hasInFlightRuns) {
+				const inFlight = await deps.hasInFlightRuns(agentId);
+				if (inFlight) {
+					throw new AppError(
+						'E_VALIDATION',
+						`Cannot switch adapterKind for agent '${agentId}' while runs are in flight.`,
+						{ details: { agentId, field: 'adapterKind' } },
+					);
+				}
+			}
+		}
+
 		// Update overrides via registry (R2)
 		const updateResult = await deps.registry.updateOverrides(agentId, updates);
 		if (!updateResult.ok) {
@@ -613,6 +708,15 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			}
 			case BUILT_IN_AGENT_IDS.PI: {
 				const res = await readPiModels({
+					hostInputs: deps.hostInputs,
+					homedir,
+				});
+				modelNames = res.models.map((m) => m.id);
+				isComplete = !res.isPartial;
+				break;
+			}
+			case BUILT_IN_AGENT_IDS.DSH: {
+				const res = await readDshModels({
 					hostInputs: deps.hostInputs,
 					homedir,
 				});

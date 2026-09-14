@@ -60,6 +60,7 @@ export interface AttachProcessOptions {
 	readonly onEvent?: (envelope: EventEnvelope) => void;
 	readonly onExit?: (result: ProcessExitResult) => void;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
+	readonly acceptsPlainText?: boolean;
 }
 
 export interface AttachedProcessController {
@@ -89,6 +90,7 @@ export interface RunService {
 			readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 			readonly taskId?: string | null;
 			readonly actorDeviceId?: string | null;
+			readonly acceptsPlainText?: boolean;
 		},
 	): Promise<IngestLineResult>;
 	attachProcess(
@@ -229,6 +231,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 			readonly taskId?: string | null;
 			readonly actorDeviceId?: string | null;
+			readonly acceptsPlainText?: boolean;
 		},
 	): Promise<IngestLineResult> {
 		// 1. 每条原始输出行写一行 raw.log (AC 1)
@@ -237,8 +240,25 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		const rawText = typeof line === 'string' ? line : Buffer.from(line).toString('utf8');
 		const trimmed = rawText.trim();
 
-		// 非 JSON 格式直接归入 raw.log 并继续，绝不中断流 (E-140)
+		// 非 JSON 格式处理 (E-140 & R2 c: 纯文本 stdout 终稿支持)
 		if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+			if (options?.acceptsPlainText) {
+				const mapper = options?.eventMapper ?? deps.eventMapper;
+				if (mapper) {
+					const mapped = mapper(rawText);
+					let eventsAppended = 0;
+					for (const env of mapped) {
+						await ingestEvent(runId, env);
+						eventsAppended++;
+					}
+					return {
+						rawAppended: true,
+						rawLocation,
+						eventsAppended,
+						unmappedDiscarded: false,
+					};
+				}
+			}
 			return {
 				rawAppended: true,
 				rawLocation,
@@ -322,6 +342,22 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			process.onRaw((line) => {
 				if (detached) return;
 				void ingestRaw(runId, line.text).catch((err) => logFailure(err));
+				if (options?.acceptsPlainText) {
+					const trimmed = line.text.trim();
+					if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+						const mapper = options?.eventMapper ?? deps.eventMapper;
+						if (mapper) {
+							const mapped = mapper(line.text);
+							for (const env of mapped) {
+								void ingestEvent(runId, env)
+									.then(() => {
+										options?.onEvent?.(env);
+									})
+									.catch((err) => logFailure(err));
+							}
+						}
+					}
+				}
 			}),
 		);
 

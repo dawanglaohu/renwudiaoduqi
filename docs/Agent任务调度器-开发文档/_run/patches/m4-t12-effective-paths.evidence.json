@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M4-T12": {
+      "contractHash": "9e8230908f8973a1c2ab6f1a425dae42f3a2c06adaa2fdd42109944d5d8811b1",
+      "verdict": "pass",
+      "evidence": [
+        "契约逐条核对：04-执行/19-模块任务拆分.md:47 的 M4-T12 行、图谱/任务/M4-T12.md:27-42、图谱/模块/M4.md:32 与 03-质量/13-边界问题与异常处理.md 的 E-28/E-187/E-188/E-189/E-191/E-192/E-193/E-194/E-253 九行一致（触发、期望、归属模块都对得上）；产出为 adapters/dsh/ 的 buildLaunchSpec / readModels / map-events / capabilities（另加满足验收 3 所必需的 smoke 自检）与 adapters/generic-acp/；输入为 dsh 实测契约（--profile headless）与 ACP v1 规格；前置 M4-T8 已落地。本任务不新增错误码、不新增环境变量（四个边界复用已登记的 E_AGENT_VERSION_UNRECOGNIZED 等）、不改 10 节接口表。",
+        "有效路径核对（补丁 m4-t12-effective-paths）：原 handoff.taskPaths['M4-T12'] 只有 packages/daemon/src/adapters/generic-acp/，而同一条 19-拆分 行的产出明写 adapters/dsh/ 的四个文件，实际分支也确实新增了 adapters/dsh/{build-launch-spec,capabilities,map-events,read-models,smoke}.ts——漏列。补丁把 adapters/dsh/ 补进 taskPaths，并按验收 3/5/8 的接线点补 supportPaths：adapters/probe.ts、config/defaults.ts、config/registry.ts、service/agents.ts、service/run.ts、三个测试文件。合并 main 时与 M4-T13（已落地，login-probe）在 defaults.ts/registry.ts 同文件追加不同字段，已手工合并保留双方（defaults.ts 的 dsh 条目带 loginProbe: GENERIC_LOGIN_PROBE_DEFAULT；registry.ts 同时保留 versionRange 与 loginProbe 的解析/合并）；task-contracts.json 与 presentation.json 双方条目都在（M4-T12 的 8 条 supportPaths 与 2 条 taskPaths 完整）。",
+        "13/17/19 对应要求：13 节的九条边界在任务笔记中逐条列出且本任务是其唯一 covered_by（图谱/边界/E-191.md 的 covered_by 为 [M4-T12]）；17 节的测试要求落在新增的 test/unit/dsh-adapter.test.ts 与 test/unit/generic-acp-adapter.test.ts；19 节的产出与验收八条与任务笔记逐字一致。接口字段方面本任务只产出 adapters 内部类型（DshCapabilities / GenericAcpCapabilities / ReadModelsResult / LaunchSpec），不新增 packages/shared 的 DTO 字段，故无 API 契约变化需要 §10 同步。",
+        "语义与架构约定核对（06/08）：两个 adapters 目录只 import domain/、proc/ 的类型、config/defaults.ts 与 shared 的事件类型，不 import repo/service/http/jobs/events；事件映射是纯函数（实测两文件无 fs/db/Date/process.env/process.platform）；厂商事件字符串只在各自目录（自写的隔离用例通过）；文件命名 kebab-case、无 barrel、常量 as const、错误走 AppError；事件 id/ts/seq/scope 由 events/envelope.ts 统一补，适配器不碰。",
+        "本轮结论：任务契约本身（前置已落地、产出与验收八条、九个边界、有效范围）无阻断，故登记 task-contract 复核为 pass；代码侧第 1 轮 R1-R6 已由实施方修复，第 2 轮复验发现 R4 只做了一半（注册表解析结果经 mergeAgentConfig 丢掉了 versionRange，生产里仍不可达）并引入两处新问题（agent-registry 基线测试变红、service/agents.ts 出现 throw new Error），这三处已由审查方直接改掉并加测试，记入 FIXED_BY_REVIEWER；E-189 的生产接线受「容器内尚无 runs repo」阻塞、E-187 的注册表侧接入口与 M9-T14 的 E-185 重叠，两项记 FOLLOW_UP。",
+        "验证环境与结果：Node 22.17.0（WSL）。合并 main 后重跑 npx tsc -b --noEmit 通过；npx biome ci . 检查 296 个文件、无修复项；聚焦 Vitest：unit 的 agent-registry/agents-service/probe/dsh-adapter/generic-acp-adapter/login-probe/run-service 七文件 126 用例，其中 1 例（M4-T3 的真实子进程探测）在并行满载下超 5 秒默认超时、单独重跑 21/21 通过（probe.test.ts 218ms）；arch 三文件、integration agents-routes 均通过。合并前另跑过一次全量 vitest：71/72 文件绿，唯一失败件 disk-full-and-system-routes.test.ts 在给足超时后 2/2 通过，属本机 WSL+Windows 文件系统的加载/超时环境问题。"
+      ]
+    }
+  }
+}
