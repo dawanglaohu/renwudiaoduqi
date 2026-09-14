@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T1": {
+      "contractHash": "edeec243d1e3323473a9ab8bd050b37241bd5219d13fb07917d48e113e16b61e",
+      "verdict": "pass",
+      "evidence": [
+        "补丁 m7-t1-test-path 只改 _run/presentation.json 的 handoff.taskPaths[M7-T1]：把 packages/daemon/test/unit/review.test.ts 补进有效范围，与 M6-T8 等任务在自己的 taskPaths 里列出测试文件的既有做法一致；未改任何验收标准、边界或源条款。",
+        "同步结果中只有 M7-T1 的 effectivePaths 实际变化（patches/m7-t1-test-path.md 差异段）；其余 18 个任务的契约哈希因共享 handoff 配置被重算，context 无字段变化，且 _run/revalidation.json 无新增条目——没有把已落地任务标成「待复验」。",
+        "补丁后 M7-T1 契约哈希 edeec243d1e3323473a9ab8bd050b37241bd5219d13fb07917d48e113e16b61e 与当前 status 一致；验收标准 1-4 与边界 E-23/E-60/E-61/E-66/E-67 逐字未变，本任务代码侧结论（PR #77 REVIEW-ROUND 1）不受补丁影响。",
+        "补丁只扩大有效范围、不放宽要求：实施方新增的 packages/daemon/test/unit/review.test.ts 从此在范围内，不再算范围外改动；范围外改动仅此一项，已在审查输出中说明。"
+      ]
+    }
+  }
+}

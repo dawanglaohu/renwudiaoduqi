@@ -686,15 +686,14 @@
   },
   "M7-T1": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "efb605a52538833052ac774d627be6eadb5e48fd8412731ee38519adc241ad81",
+    "contractHash": "edeec243d1e3323473a9ab8bd050b37241bd5219d13fb07917d48e113e16b61e",
     "evidence": [
-      "status --task M7-T1 输出的契约哈希 efb605a5… 与派发包一致，源文档无需补丁（sourceVersion 无 stale、无 runtimeDrift）。",
-      "验收标准 1-4 与 5 条边界 E-23/E-60/E-61/E-66/E-67 在 图谱/任务/M7-T1.md 与 03-质量/13-边界问题与异常处理.md 中逐条可定位且互不矛盾；E-60 的两层划分与 E-61 的「不派审查 agent」与 E-23 的「已退出≠已落地」相互一致。",
-      "前置能力已在 main 落地可用：M5-T3 的 getDiffStat/getDiffText（packages/daemon/src/workspace/diff.ts:458、:586）、M6-T1 的运行状态机（packages/daemon/src/domain/run-state-machine.ts 的 VALID_RUN_TRANSITIONS 与 RUN_TRANSITION_REASONS，exited 唯一出边为 reviewing、landed 只能从 reviewing/awaiting_human 进入）、E-66 的默认超时常量 DEFAULT_CHECK_TIMEOUT_MS=600_000（packages/daemon/src/proc/timers.ts:5）。",
-      "有效路径 packages/daemon/src/service/review.ts 与本任务产出「service/review.ts 的机械层」一致；本任务新建 packages/daemon/test/unit/review.test.ts 属必要支持文件，未与其他任务的路径冲突。",
-      "本记录只覆盖任务契约（范围/术语/前置/有效路径/验收与边界自洽）；代码侧结论见 PR #77 的 REVIEW-ROUND 1，本轮判定 rework，不构成代码通过。"
+      "补丁 m7-t1-test-path 只改 _run/presentation.json 的 handoff.taskPaths[M7-T1]：把 packages/daemon/test/unit/review.test.ts 补进有效范围，与 M6-T8 等任务在自己的 taskPaths 里列出测试文件的既有做法一致；未改任何验收标准、边界或源条款。",
+      "同步结果中只有 M7-T1 的 effectivePaths 实际变化（patches/m7-t1-test-path.md 差异段）；其余 18 个任务的契约哈希因共享 handoff 配置被重算，context 无字段变化，且 _run/revalidation.json 无新增条目——没有把已落地任务标成「待复验」。",
+      "补丁后 M7-T1 契约哈希 edeec243d1e3323473a9ab8bd050b37241bd5219d13fb07917d48e113e16b61e 与当前 status 一致；验收标准 1-4 与边界 E-23/E-60/E-61/E-66/E-67 逐字未变，本任务代码侧结论（PR #77 REVIEW-ROUND 1）不受补丁影响。",
+      "补丁只扩大有效范围、不放宽要求：实施方新增的 packages/daemon/test/unit/review.test.ts 从此在范围内，不再算范围外改动；范围外改动仅此一项，已在审查输出中说明。"
     ],
-    "reviewed": "2026-09-14T13:59:03.984548+00:00",
+    "reviewed": "2026-09-14T14:03:37.656138+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
