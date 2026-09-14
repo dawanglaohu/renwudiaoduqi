@@ -505,7 +505,7 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 	// 6. Match version output against fingerprint pattern (AC 1, AC 2, AC 5, E-195, E-198)
 	const comparison = matchVersionFingerprint(rawOutput, expectedPattern, {
 		agentId: options.agentId,
-		versionRange: options.versionRange,
+		versionRange: options.versionRange ?? options.config.versionRange,
 	});
 
 	if (comparison.matched && execution.ok) {
@@ -547,7 +547,7 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 	) {
 		const warningBanner: ProbeWarningBanner = Object.freeze({
 			code: 'E_AGENT_VERSION_UNRECOGNIZED',
-			message: '版本未验证',
+			message: 'Unverified agent version',
 			details: Object.freeze({
 				observed: rawOutput,
 				expected: expectedPattern,

@@ -6,6 +6,7 @@ export interface DshCapabilities {
 	readonly canResume: boolean;
 	readonly sessionHistory: 'current-run-only';
 	readonly mode: 'headless';
+	readonly outputMode: 'plain-text-final';
 	readonly supportsReasoningEffort: boolean;
 }
 
@@ -15,6 +16,7 @@ export const DSH_CAPABILITIES: DshCapabilities = Object.freeze({
 	canResume: false,
 	sessionHistory: 'current-run-only', // AC 6, E-188: dsh has no session list, history from scheduler run records
 	mode: 'headless',
+	outputMode: 'plain-text-final', // R2 (c): output is terminal plain text, handled via plain-text streaming channel
 	supportsReasoningEffort: false,
 });
 

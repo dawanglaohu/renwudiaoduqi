@@ -35,10 +35,12 @@ const AGENT_CONFIG_FIELDS = [
 	'adapterKind',
 	'timeouts',
 	'versionFingerprint',
+	'versionRange',
 ] as const;
 
 const TIMEOUT_FIELDS = ['startupTimeoutMs', 'idleTimeoutMs', 'hardWallClockMs'] as const;
 const VERSION_FINGERPRINT_FIELDS = ['args', 'expectedPattern'] as const;
+const VERSION_RANGE_FIELDS = ['min', 'max'] as const;
 const ROOT_FIELDS = ['schemaVersion', 'defaults', 'overrides'] as const;
 
 export const AGENT_CONFIG_FIELD_PATHS = [
@@ -54,6 +56,8 @@ export const AGENT_CONFIG_FIELD_PATHS = [
 	'timeouts.hardWallClockMs',
 	'versionFingerprint.args',
 	'versionFingerprint.expectedPattern',
+	'versionRange.min',
+	'versionRange.max',
 ] as const;
 
 export type AgentConfigFieldPath = (typeof AGENT_CONFIG_FIELD_PATHS)[number];
@@ -62,6 +66,11 @@ export interface AgentTimeoutOverrides {
 	readonly startupTimeoutMs?: number;
 	readonly idleTimeoutMs?: number;
 	readonly hardWallClockMs?: number;
+}
+
+export interface VersionRangeOverrides {
+	readonly min?: string;
+	readonly max?: string;
 }
 
 export interface VersionFingerprintOverrides {
@@ -79,6 +88,7 @@ export interface AgentConfigOverrides {
 	readonly adapterKind?: AdapterKind;
 	readonly timeouts?: AgentTimeoutOverrides;
 	readonly versionFingerprint?: VersionFingerprintOverrides;
+	readonly versionRange?: VersionRangeOverrides;
 }
 
 export type AgentConfigLayer = Readonly<Record<string, AgentConfigOverrides>>;
@@ -225,6 +235,14 @@ export const AGENTS_JSON_SCHEMA = {
 						startupTimeoutMs: { type: 'integer', minimum: 1 },
 						idleTimeoutMs: { type: 'integer', minimum: 1 },
 						hardWallClockMs: { type: 'integer', minimum: 0 },
+					},
+				},
+				versionRange: {
+					type: 'object',
+					additionalProperties: true,
+					properties: {
+						min: { type: 'string' },
+						max: { type: 'string' },
 					},
 				},
 				versionFingerprint: {
@@ -705,12 +723,18 @@ interface MutableAgentConfigOverrides {
 	adapterKind?: AdapterKind;
 	timeouts?: MutableAgentTimeoutOverrides;
 	versionFingerprint?: MutableVersionFingerprintOverrides;
+	versionRange?: MutableVersionRangeOverrides;
 }
 
 interface MutableAgentTimeoutOverrides {
 	startupTimeoutMs?: number;
 	idleTimeoutMs?: number;
 	hardWallClockMs?: number;
+}
+
+interface MutableVersionRangeOverrides {
+	min?: string;
+	max?: string;
 }
 
 interface MutableVersionFingerprintOverrides {
@@ -900,6 +924,16 @@ function parseAgentConfig(
 		if (!parsedFingerprint.ok) return parsedFingerprint;
 		result.versionFingerprint = parsedFingerprint.value;
 	}
+	if (Object.hasOwn(input, 'versionRange') && input.versionRange !== undefined) {
+		const parsedRange = parseVersionRange(
+			input.versionRange,
+			`${path}.versionRange`,
+			unknownFields,
+			agentId,
+		);
+		if (!parsedRange.ok) return parsedRange;
+		result.versionRange = parsedRange.value;
+	}
 
 	return { ok: true, value: freezeAgentOverrides(result) };
 }
@@ -927,6 +961,34 @@ function parseTimeouts(
 			};
 		}
 		result[field] = input[field];
+	}
+
+	return { ok: true, value: Object.freeze(result) };
+}
+
+function parseVersionRange(
+	input: unknown,
+	path: string,
+	unknownFields: UnknownField[],
+	agentId: string,
+):
+	| { readonly ok: true; readonly value: VersionRangeOverrides }
+	| { readonly ok: false; readonly field: string; readonly expected: string } {
+	if (!isRecord(input)) return { ok: false, field: path, expected: 'an object' };
+	collectUnknownFields(input, VERSION_RANGE_FIELDS, path, unknownFields, agentId);
+	const result: MutableVersionRangeOverrides = {};
+
+	if (Object.hasOwn(input, 'min')) {
+		if (typeof input.min !== 'string' || input.min.trim().length === 0) {
+			return { ok: false, field: `${path}.min`, expected: 'a non-empty string' };
+		}
+		result.min = input.min.trim();
+	}
+	if (Object.hasOwn(input, 'max')) {
+		if (typeof input.max !== 'string' || input.max.trim().length === 0) {
+			return { ok: false, field: `${path}.max`, expected: 'a non-empty string' };
+		}
+		result.max = input.max.trim();
 	}
 
 	return { ok: true, value: Object.freeze(result) };
@@ -1120,6 +1182,10 @@ function getConfigField(config: AgentConfig, field: AgentConfigFieldPath): Agent
 			return config.versionFingerprint.args;
 		case 'versionFingerprint.expectedPattern':
 			return config.versionFingerprint.expectedPattern;
+		case 'versionRange.min':
+			return config.versionRange?.min ?? null;
+		case 'versionRange.max':
+			return config.versionRange?.max ?? null;
 	}
 }
 
@@ -1146,6 +1212,10 @@ function getOverrideField(
 			return ownOptionalValue(overrides.versionFingerprint, 'args');
 		case 'versionFingerprint.expectedPattern':
 			return ownOptionalValue(overrides.versionFingerprint, 'expectedPattern');
+		case 'versionRange.min':
+			return ownOptionalValue(overrides.versionRange, 'min');
+		case 'versionRange.max':
+			return ownOptionalValue(overrides.versionRange, 'max');
 	}
 }
 

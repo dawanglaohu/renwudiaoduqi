@@ -36,6 +36,11 @@ export interface VersionFingerprint {
 	readonly expectedPattern: string;
 }
 
+export interface VersionRange {
+	readonly min?: string;
+	readonly max?: string;
+}
+
 export interface AgentConfig {
 	readonly execPath: string;
 	readonly argsTemplate: readonly string[];
@@ -46,6 +51,7 @@ export interface AgentConfig {
 	readonly adapterKind: AdapterKind;
 	readonly timeouts: AgentTimeouts;
 	readonly versionFingerprint: VersionFingerprint;
+	readonly versionRange?: VersionRange;
 }
 
 export interface ResolvedAgentConfig extends AgentConfig {
@@ -137,6 +143,10 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				args: ['--version'],
 				expectedPattern: '\\bdsh\\b',
 			},
+			versionRange: {
+				min: '0.1.0',
+				max: '0.1.2',
+			},
 		}),
 	},
 );
@@ -158,5 +168,6 @@ function freezeAgentConfig(config: AgentConfig): AgentConfig {
 			...config.versionFingerprint,
 			args: Object.freeze([...config.versionFingerprint.args]),
 		}),
+		versionRange: config.versionRange ? Object.freeze({ ...config.versionRange }) : undefined,
 	});
 }

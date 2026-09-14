@@ -16,20 +16,20 @@ import {
 } from '../../src/adapters/generic-acp/capabilities.ts';
 import {
 	GENERIC_ACP_VENDOR_STRINGS,
-	mapEvents,
 	mapGenericAcpEvents,
 	parseAndMapGenericAcpLine,
 } from '../../src/adapters/generic-acp/map-events.ts';
 import { readGenericAcpModels, readModels } from '../../src/adapters/generic-acp/read-models.ts';
 import { checkAgentAcpSupport } from '../../src/adapters/generic-acp/support.ts';
+import { mapGrokEvents } from '../../src/adapters/grok/map-events.ts';
 import type {
 	AgentRegistry,
 	AgentRegistryReloadResult,
 	AgentRegistrySnapshot,
 	UpdateOverridesResult,
 } from '../../src/config/registry.ts';
-import type { ExecutableFileSystem } from '../../src/platform/contract.ts';
-import type { PlatformHostInputs } from '../../src/platform/contract.ts';
+import { AppError } from '../../src/errors/app-error.ts';
+import type { ExecutableFileSystem, PlatformHostInputs } from '../../src/platform/contract.ts';
 import { createAgentService } from '../../src/service/agents.ts';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -66,7 +66,7 @@ describe('M4-T12: 通用 ACP 适配器与扩展槽 (AC 6, AC 7, AC 8, E-187, E-1
 		});
 	});
 
-	describe('AC 7 & E-187: 通用 ACP 适配器作为第 6 家及以后的兜底入口与接入校验', () => {
+	describe('AC 7 & E-187 & R5: 通用 ACP 适配器作为第 6 家及以后的兜底入口与接入校验', () => {
 		it('allows launching an agent by only filling the startup command', () => {
 			const spec = buildGenericAcpLaunchSpec({
 				runId: 'acp-run-1',
@@ -98,17 +98,26 @@ describe('M4-T12: 通用 ACP 适配器与扩展槽 (AC 6, AC 7, AC 8, E-187, E-1
 			expect(spec.isAcp).toBe(true);
 		});
 
-		it('throws on empty command and execPath', () => {
-			expect(() =>
+		it('R5: throws AppError with E_VALIDATION on empty command and execPath', () => {
+			let thrownError: unknown;
+			try {
 				buildGenericAcpLaunchSpec({
 					runId: 'acp-run-fail',
 					cwd: '/workspace/project',
 					command: '  ',
-				}),
-			).toThrow('requires a non-empty command or execPath');
+				});
+			} catch (err) {
+				thrownError = err;
+			}
+
+			expect(thrownError).toBeInstanceOf(AppError);
+			expect((thrownError as AppError).code).toBe('E_VALIDATION');
+			expect((thrownError as AppError).message).toContain(
+				'requires a non-empty command or execPath',
+			);
 		});
 
-		it('E-187: unambiguously marks unregistered agents without ACP entry as「暂不支持」', () => {
+		it('E-187 & R6: unambiguously marks unregistered agents without ACP entry as status=unsupported', () => {
 			const check = checkAgentAcpSupport({
 				agentId: 'unknown-agent-7',
 				isRegistered: false,
@@ -116,11 +125,11 @@ describe('M4-T12: 通用 ACP 适配器与扩展槽 (AC 6, AC 7, AC 8, E-187, E-1
 			});
 
 			expect(check.supported).toBe(false);
-			expect(check.statusText).toBe('暂不支持'); // E-187: 明确标「暂不支持」，不提供半可用状态
+			expect(check.status).toBe('unsupported'); // R6: status is 'unsupported' enum
 			expect(check.reason).toContain('is not registered and provides no ACP launch command');
 		});
 
-		it('E-187: marks agents with ACP entry command as supported', () => {
+		it('E-187 & R6: marks agents with ACP entry command as status=supported', () => {
 			const check = checkAgentAcpSupport({
 				agentId: 'custom-acp-agent',
 				isRegistered: false,
@@ -128,7 +137,7 @@ describe('M4-T12: 通用 ACP 适配器与扩展槽 (AC 6, AC 7, AC 8, E-187, E-1
 			});
 
 			expect(check.supported).toBe(true);
-			expect(check.statusText).toBe('支持');
+			expect(check.status).toBe('supported'); // R6: status is 'supported' enum
 		});
 	});
 
@@ -190,7 +199,7 @@ describe('M4-T12: 通用 ACP 适配器与扩展槽 (AC 6, AC 7, AC 8, E-187, E-1
 				hostInputs,
 				fileSystem: mockFs as unknown as ExecutableFileSystem,
 				commandRunner: vi.fn(async () => ({
-					ok: true as const,
+					ok: true,
 					exitCode: 0,
 					stdout: 'codex 1.0',
 					stderr: '',
@@ -289,72 +298,169 @@ describe('M4-T12: 通用 ACP 适配器与扩展槽 (AC 6, AC 7, AC 8, E-187, E-1
 		});
 	});
 
-	describe('ACP 事件映射 (mapGenericAcpEvents)', () => {
-		it('maps session/update notification with agent_message_chunk', () => {
-			const line = JSON.stringify({
+	describe('ACP 事件映射与跨适配器契约对齐 (R1)', () => {
+		it('unpacks params.update.sessionUpdate as primary backbone with vendor attached', () => {
+			const rawPacket = {
 				jsonrpc: '2.0',
 				method: 'session/update',
 				params: {
+					sessionId: 'sess-123',
 					update: {
-						kind: 'agent_message_chunk',
-						delta: 'Writing tests for ACP adapter.',
+						sessionUpdate: 'agent_message_chunk',
+						content: {
+							type: 'text',
+							text: 'Hello from ACP v1 server',
+						},
 					},
 				},
-			});
+			};
 
-			const events = mapGenericAcpEvents(line, { runId: 'run-acp' });
+			const events = mapGenericAcpEvents(rawPacket, { runId: 'run-acp-1' });
 			expect(events.length).toBe(1);
 			expect(events[0]?.kind).toBe('agent_message_chunk');
-			expect(events[0]?.payload.content).toBe('Writing tests for ACP adapter.');
-			expect(events[0]?.payload.delta).toBe('Writing tests for ACP adapter.');
+			expect(events[0]?.payload.chunk).toBe('Hello from ACP v1 server');
+			expect(events[0]?.payload.vendor).toEqual(rawPacket);
 		});
 
-		it('maps agent_thought_chunk, tool_call, tool_call_update, and plan', () => {
-			const thoughtLine = JSON.stringify({
-				method: 'session/update',
-				params: {
-					update: {
-						kind: 'agent_thought_chunk',
-						thought: 'I should inspect the code.',
+		it('R1 cross-adapter contract: mapGenericAcpEvents matches mapGrokEvents across all 5 ACP v1 packets', () => {
+			const fivePackets = [
+				// 1. agent_message_chunk
+				{
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						sessionId: 'sess-test',
+						update: {
+							sessionUpdate: 'agent_message_chunk',
+							content: { text: 'chunk content text' },
+						},
 					},
 				},
-			});
-			const thoughtEvents = mapGenericAcpEvents(thoughtLine);
-			expect(thoughtEvents[0]?.kind).toBe('agent_thought_chunk');
-			expect((thoughtEvents[0]?.payload as { thought: string }).thought).toBe(
-				'I should inspect the code.',
-			);
+				// 2. agent_thought_chunk
+				{
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						sessionId: 'sess-test',
+						update: {
+							sessionUpdate: 'agent_thought_chunk',
+							content: { text: 'thought content text' },
+						},
+					},
+				},
+				// 3. tool_call
+				{
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						sessionId: 'sess-test',
+						update: {
+							sessionUpdate: 'tool_call',
+							toolCallId: 'tc-001',
+							title: 'read_file',
+							rawInput: { path: 'file.txt' },
+						},
+					},
+				},
+				// 4. tool_call_update
+				{
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						sessionId: 'sess-test',
+						update: {
+							sessionUpdate: 'tool_call_update',
+							toolCallId: 'tc-001',
+							rawOutput: { lines: 10 },
+						},
+					},
+				},
+				// 5. plan
+				{
+					jsonrpc: '2.0',
+					method: 'session/update',
+					params: {
+						sessionId: 'sess-test',
+						update: {
+							sessionUpdate: 'plan',
+							entries: [
+								{ content: 'Inspect code', status: 'completed' },
+								{ content: 'Write tests', status: 'in_progress' },
+							],
+						},
+					},
+				},
+			];
 
-			const toolCallLine = JSON.stringify({
-				method: 'session/update',
-				params: {
-					update: {
-						kind: 'tool_call',
-						toolCallId: 'call-1',
-						name: 'read_file',
-						input: { path: 'README.md' },
-					},
-				},
-			});
-			const toolEvents = mapGenericAcpEvents(toolCallLine);
-			expect(toolEvents[0]?.kind).toBe('tool_call');
-			expect((toolEvents[0]?.payload as { toolCallId: string }).toolCallId).toBe('call-1');
-			expect((toolEvents[0]?.payload as { name: string }).name).toBe('read_file');
+			for (const packet of fivePackets) {
+				const genericEvents = mapGenericAcpEvents(packet, { runId: 'test-run' });
+				const grokEvents = mapGrokEvents(packet, { runId: 'test-run' });
 
-			const planLine = JSON.stringify({
+				expect(genericEvents.length).toBeGreaterThan(0);
+				expect(genericEvents.length).toBe(grokEvents.length);
+
+				for (let i = 0; i < genericEvents.length; i++) {
+					const genEv = genericEvents[i];
+					const grokEv = grokEvents[i];
+
+					// Assert kind is identical
+					expect(genEv?.kind).toBe(grokEv?.kind);
+
+					// Assert payload key sets match exactly
+					const genKeys = Object.keys(genEv?.payload ?? {}).sort();
+					const grokKeys = Object.keys(grokEv?.payload ?? {}).sort();
+
+					// Check core keys alignment:
+					// chunk for chunks, callId/tool/input for tool_call, callId/output for update, entries for plan
+					if (genEv?.kind === 'agent_message_chunk' || genEv?.kind === 'agent_thought_chunk') {
+						expect(genKeys).toContain('chunk');
+						expect(grokKeys).toContain('chunk');
+						expect(genEv?.payload.chunk).toBe(grokEv?.payload.chunk);
+					} else if (genEv?.kind === 'tool_call') {
+						expect(genKeys).toContain('callId');
+						expect(genKeys).toContain('tool');
+						expect(genKeys).toContain('input');
+						expect(genEv?.payload.callId).toBe(grokEv?.payload.callId);
+						expect(genEv?.payload.tool).toBe(grokEv?.payload.tool);
+					} else if (genEv?.kind === 'tool_call_update') {
+						expect(genKeys).toContain('callId');
+						expect(genKeys).toContain('output');
+						expect(genEv?.payload.callId).toBe(grokEv?.payload.callId);
+					} else if (genEv?.kind === 'plan') {
+						expect(genKeys).toContain('entries');
+						expect(grokKeys).toContain('entries');
+					}
+				}
+			}
+		});
+
+		it('handles available_commands_update', () => {
+			const cmdLine = JSON.stringify({
 				method: 'session/update',
 				params: {
 					update: {
-						kind: 'plan',
-						steps: [{ id: 's1', text: 'Step 1', status: 'completed' }],
+						sessionUpdate: 'available_commands_update',
+						availableCommands: ['/help', '/clear'],
 					},
 				},
 			});
-			const planEvents = mapEvents(planLine);
-			expect(planEvents[0]?.kind).toBe('plan');
-			expect((planEvents[0]?.payload as { steps: { text: string }[] }).steps[0]?.text).toBe(
-				'Step 1',
-			);
+			const events = mapGenericAcpEvents(cmdLine);
+			expect(events[0]?.kind).toBe('available_commands_update');
+			expect(events[0]?.payload.commands).toEqual(['/help', '/clear']);
+		});
+
+		it('does not emit empty chunk when content text cannot be extracted (R1)', () => {
+			const emptyPacket = {
+				method: 'session/update',
+				params: {
+					update: {
+						sessionUpdate: 'agent_message_chunk',
+						content: {}, // No text
+					},
+				},
+			};
+			const events = mapGenericAcpEvents(emptyPacket);
+			expect(events).toEqual([]);
 		});
 
 		it('tracks unknown event types in unmappedCount without breaking the stream', () => {
@@ -412,7 +518,6 @@ describe('M4-T12: 通用 ACP 适配器与扩展槽 (AC 6, AC 7, AC 8, E-187, E-1
 				match = methodRegex.exec(acpSource);
 			}
 
-			// Case literals in map-events are standard ACP names (agent_message_chunk, etc.)
 			expect(casesInFile.has('agent_message_chunk')).toBe(true);
 			expect(casesInFile.has('tool_call')).toBe(true);
 			expect(GENERIC_ACP_VENDOR_STRINGS.length).toBeGreaterThan(5);

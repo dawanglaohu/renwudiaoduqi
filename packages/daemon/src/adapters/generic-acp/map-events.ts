@@ -6,6 +6,7 @@ export interface EventEnvelopeInput<K extends EventKind = EventKind> {
 	readonly runId?: string | null;
 	readonly taskId?: string | null;
 	readonly actorDeviceId?: string | null;
+	readonly scope?: string;
 }
 
 export interface GenericAcpMapEventsContext {
@@ -22,7 +23,7 @@ export interface GenericAcpMapEventsResult {
 }
 
 /**
- * All Generic ACP vendor/protocol strings.
+ * All Generic ACP vendor/protocol event strings.
  * Architecture test asserts these strings ONLY appear in adapters/generic-acp/
  * and NEVER leak into service/, jobs/, or http/ layers.
  */
@@ -38,6 +39,12 @@ export const GENERIC_ACP_VENDOR_STRINGS = Object.freeze([
 	'session.update',
 	'session.created',
 	'session.terminated',
+	'agent_message_chunk',
+	'agent_thought_chunk',
+	'tool_call',
+	'tool_call_update',
+	'plan',
+	'available_commands_update',
 ] as const);
 
 export function isKnownAcpEventType(type: string): boolean {
@@ -46,245 +53,37 @@ export function isKnownAcpEventType(type: string): boolean {
 
 /**
  * Pure function mapping a single ACP v1 line (JSON-RPC 2.0 or NDJSON)
- * into normalized ACP and product event envelope inputs.
+ * into normalized ACP event envelope inputs.
  * Never touches fs, db, or clock.
  */
 export function mapGenericAcpEvents(
 	vendorLine: unknown,
 	context?: GenericAcpMapEventsContext,
 ): readonly EventEnvelopeInput[] {
-	if (vendorLine === null || vendorLine === undefined) {
-		return Object.freeze([]);
-	}
-
-	let parsed: Record<string, unknown>;
-	if (typeof vendorLine === 'object') {
-		parsed = vendorLine as Record<string, unknown>;
-	} else if (typeof vendorLine === 'string') {
-		const trimmed = vendorLine.trim();
-		if (trimmed.length === 0 || !trimmed.startsWith('{') || !trimmed.endsWith('}')) {
-			return Object.freeze([]);
-		}
-		try {
-			parsed = JSON.parse(trimmed) as Record<string, unknown>;
-		} catch {
-			return Object.freeze([]);
-		}
-	} else {
-		return Object.freeze([]);
-	}
-
-	const method = (parsed.method ?? parsed.type ?? parsed.event) as string | undefined;
-
-	// Handle JSON-RPC session/update notification
-	if (method === 'session/update' || method === 'session.update') {
-		const params = (parsed.params ?? parsed) as Record<string, unknown>;
-		const update = (params.update ?? params) as Record<string, unknown>;
-		return mapAcpUpdatePayload(update, context);
-	}
-
-	// Handle direct update object without outer session/update envelope
-	if (method === 'agent_message_chunk' || parsed.kind === 'agent_message_chunk') {
-		return mapAcpUpdatePayload({ ...parsed, kind: 'agent_message_chunk' }, context);
-	}
-	if (method === 'agent_thought_chunk' || parsed.kind === 'agent_thought_chunk') {
-		return mapAcpUpdatePayload({ ...parsed, kind: 'agent_thought_chunk' }, context);
-	}
-	if (method === 'tool_call' || parsed.kind === 'tool_call') {
-		return mapAcpUpdatePayload({ ...parsed, kind: 'tool_call' }, context);
-	}
-	if (method === 'tool_call_update' || parsed.kind === 'tool_call_update') {
-		return mapAcpUpdatePayload({ ...parsed, kind: 'tool_call_update' }, context);
-	}
-	if (method === 'plan' || parsed.kind === 'plan') {
-		return mapAcpUpdatePayload({ ...parsed, kind: 'plan' }, context);
-	}
-
-	// Lifecycle notifications like turn/started, session/created do not emit content chunks directly
-	return Object.freeze([]);
-}
-
-function mapAcpUpdatePayload(
-	update: Record<string, unknown>,
-	context?: GenericAcpMapEventsContext,
-): readonly EventEnvelopeInput[] {
-	const kind = (update.kind ?? update.type) as string | undefined;
-
-	switch (kind) {
-		case 'agent_message_chunk': {
-			const content =
-				typeof update.content === 'string'
-					? update.content
-					: typeof update.text === 'string'
-						? update.text
-						: typeof update.delta === 'string'
-							? update.delta
-							: '';
-			const delta = typeof update.delta === 'string' ? update.delta : content;
-			return Object.freeze([
-				{
-					kind: 'agent_message_chunk',
-					payload: { content, delta },
-					runId: context?.runId,
-					taskId: context?.taskId,
-					actorDeviceId: context?.actorDeviceId,
-				},
-			]);
-		}
-		case 'agent_thought_chunk': {
-			const thought =
-				typeof update.thought === 'string'
-					? update.thought
-					: typeof update.text === 'string'
-						? update.text
-						: typeof update.delta === 'string'
-							? update.delta
-							: '';
-			const delta = typeof update.delta === 'string' ? update.delta : thought;
-			return Object.freeze([
-				{
-					kind: 'agent_thought_chunk',
-					payload: { thought, delta },
-					runId: context?.runId,
-					taskId: context?.taskId,
-					actorDeviceId: context?.actorDeviceId,
-				},
-			]);
-		}
-		case 'tool_call': {
-			const toolCallId =
-				typeof update.toolCallId === 'string'
-					? update.toolCallId
-					: typeof update.id === 'string'
-						? update.id
-						: 'unknown-tool-call';
-			const name =
-				typeof update.name === 'string'
-					? update.name
-					: typeof update.tool === 'string'
-						? update.tool
-						: 'tool';
-			const rawInput = update.input ?? update.arguments ?? {};
-			const input =
-				typeof rawInput === 'object' && rawInput !== null
-					? (rawInput as Record<string, unknown>)
-					: { value: rawInput };
-
-			return Object.freeze([
-				{
-					kind: 'tool_call',
-					payload: { toolCallId, name, input },
-					runId: context?.runId,
-					taskId: context?.taskId,
-					actorDeviceId: context?.actorDeviceId,
-				},
-			]);
-		}
-		case 'tool_call_update': {
-			const toolCallId =
-				typeof update.toolCallId === 'string'
-					? update.toolCallId
-					: typeof update.id === 'string'
-						? update.id
-						: 'unknown-tool-call';
-			const status =
-				update.status === 'completed' || update.status === 'failed' || update.status === 'running'
-					? update.status
-					: 'completed';
-			const rawOutput = update.output ?? update.result;
-			const output =
-				rawOutput !== undefined
-					? typeof rawOutput === 'object' && rawOutput !== null
-						? (rawOutput as Record<string, unknown>)
-						: { value: rawOutput }
-					: undefined;
-
-			return Object.freeze([
-				{
-					kind: 'tool_call_update',
-					payload: { toolCallId, status, output },
-					runId: context?.runId,
-					taskId: context?.taskId,
-					actorDeviceId: context?.actorDeviceId,
-				},
-			]);
-		}
-		case 'plan': {
-			const rawSteps = Array.isArray(update.steps) ? update.steps : [];
-			const steps = rawSteps.map((step, idx) => {
-				if (typeof step === 'object' && step !== null) {
-					const s = step as Record<string, unknown>;
-					return {
-						id: typeof s.id === 'string' ? s.id : `step-${idx + 1}`,
-						text: typeof s.text === 'string' ? s.text : String(s.title ?? `Step ${idx + 1}`),
-						status:
-							s.status === 'pending' || s.status === 'in_progress' || s.status === 'completed'
-								? (s.status as 'pending' | 'in_progress' | 'completed')
-								: ('pending' as const),
-					};
-				}
-				return {
-					id: `step-${idx + 1}`,
-					text: String(step),
-					status: 'pending' as const,
-				};
-			});
-
-			return Object.freeze([
-				{
-					kind: 'plan',
-					payload: { steps: Object.freeze(steps) },
-					runId: context?.runId,
-					taskId: context?.taskId,
-					actorDeviceId: context?.actorDeviceId,
-				},
-			]);
-		}
-		default:
-			return Object.freeze([]);
-	}
+	return parseAndMapGenericAcpLine(vendorLine, context).events;
 }
 
 /**
- * Parses and maps a line from Generic ACP, tracking unmapped counts and parse errors.
+ * Parses and maps an ACP v1 line, tracking unmapped counts and parse errors.
  */
 export function parseAndMapGenericAcpLine(
-	rawLine: string,
+	vendorLine: unknown,
 	context?: GenericAcpMapEventsContext,
 ): GenericAcpMapEventsResult {
-	const trimmed = rawLine.trim();
-	if (trimmed.length === 0) {
+	const rawLine = typeof vendorLine === 'string' ? vendorLine : JSON.stringify(vendorLine);
+
+	if (vendorLine === null || vendorLine === undefined) {
 		return Object.freeze({
 			events: Object.freeze([]),
 			unmappedCount: 0,
-			rawLine,
+			rawLine: '',
 		});
 	}
 
-	if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
-		return Object.freeze({
-			events: Object.freeze([]),
-			unmappedCount: 0,
-			parseError: true,
-			rawLine,
-		});
-	}
-
-	try {
-		const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-		const method = (parsed.method ?? parsed.type ?? parsed.event) as string | undefined;
-
-		const events = mapGenericAcpEvents(parsed, context);
-		if (events.length > 0) {
-			return Object.freeze({
-				events,
-				unmappedCount: 0,
-				rawLine,
-			});
-		}
-
-		// Check if it's a known protocol message that produces no events (e.g. session/created)
-		if (method && isKnownAcpEventType(method)) {
+	let data: Record<string, unknown>;
+	if (typeof vendorLine === 'string') {
+		const trimmed = vendorLine.trim();
+		if (trimmed.length === 0) {
 			return Object.freeze({
 				events: Object.freeze([]),
 				unmappedCount: 0,
@@ -292,20 +91,305 @@ export function parseAndMapGenericAcpLine(
 			});
 		}
 
-		// Unknown event type
+		try {
+			data = JSON.parse(trimmed) as Record<string, unknown>;
+		} catch {
+			return Object.freeze({
+				events: Object.freeze([]),
+				unmappedCount: 0,
+				parseError: true,
+				rawLine,
+			});
+		}
+	} else if (typeof vendorLine === 'object') {
+		data = vendorLine as Record<string, unknown>;
+	} else {
+		return Object.freeze({
+			events: Object.freeze([]),
+			unmappedCount: 0,
+			rawLine,
+		});
+	}
+
+	if (!data || typeof data !== 'object') {
+		return Object.freeze({
+			events: Object.freeze([]),
+			unmappedCount: 0,
+			rawLine,
+		});
+	}
+
+	return mapParsedAcpObject(data, rawLine, context);
+}
+
+function mapParsedAcpObject(
+	data: Record<string, unknown>,
+	rawLine: string,
+	context?: GenericAcpMapEventsContext,
+): GenericAcpMapEventsResult {
+	// R1: Primary unwrapping path is ACP v1 session/update notification:
+	// {"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"...","update":{"sessionUpdate":"agent_message_chunk",...}}}
+	let updateObj: Record<string, unknown> = data;
+
+	if (data.params && typeof data.params === 'object') {
+		const params = data.params as Record<string, unknown>;
+		if (params.update && typeof params.update === 'object') {
+			updateObj = params.update as Record<string, unknown>;
+		} else if (params.sessionUpdate && typeof params.sessionUpdate === 'object') {
+			updateObj = params.sessionUpdate as Record<string, unknown>;
+		} else {
+			updateObj = params;
+		}
+	} else if (data.update && typeof data.update === 'object') {
+		updateObj = data.update as Record<string, unknown>;
+	} else if (data.sessionUpdate && typeof data.sessionUpdate === 'object') {
+		updateObj = data.sessionUpdate as Record<string, unknown>;
+	}
+
+	// Discriminant field: primary ACP v1 is sessionUpdate on updateObj; flat type/kind as fallback (R1)
+	const rawType =
+		updateObj.sessionUpdate ??
+		updateObj.type ??
+		updateObj.kind ??
+		data.sessionUpdate ??
+		data.type ??
+		data.kind;
+
+	const eventType = typeof rawType === 'string' ? rawType.trim() : '';
+
+	if (!eventType) {
 		return Object.freeze({
 			events: Object.freeze([]),
 			unmappedCount: 1,
 			rawLine,
 		});
-	} catch {
+	}
+
+	if (!isKnownAcpEventType(eventType)) {
 		return Object.freeze({
 			events: Object.freeze([]),
-			unmappedCount: 0,
-			parseError: true,
+			unmappedCount: 1,
 			rawLine,
 		});
 	}
+
+	const runId = context?.runId ?? null;
+	const taskId = context?.taskId ?? null;
+	const actorDeviceId = context?.actorDeviceId ?? null;
+	const envelopes: EventEnvelopeInput[] = [];
+
+	switch (eventType) {
+		case 'agent_message_chunk': {
+			const rawContent = updateObj.content ?? updateObj.text ?? updateObj.chunk ?? updateObj.delta;
+			let chunk = '';
+			if (typeof rawContent === 'string') {
+				chunk = rawContent;
+			} else if (rawContent && typeof rawContent === 'object') {
+				const contentObj = rawContent as Record<string, unknown>;
+				if (typeof contentObj.text === 'string') {
+					chunk = contentObj.text;
+				} else if (typeof contentObj.content === 'string') {
+					chunk = contentObj.content;
+				} else if (typeof contentObj.delta === 'string') {
+					chunk = contentObj.delta;
+				}
+			}
+
+			// R1: 取不到文本按未映射/归原始日志处理，不发空 chunk
+			if (!chunk) {
+				return Object.freeze({
+					events: Object.freeze([]),
+					unmappedCount: 0,
+					rawLine,
+				});
+			}
+
+			envelopes.push({
+				kind: 'agent_message_chunk',
+				payload: {
+					chunk,
+					vendor: data,
+				},
+				runId,
+				taskId,
+				actorDeviceId,
+				scope: 'run',
+			});
+			break;
+		}
+
+		case 'agent_thought_chunk': {
+			const rawContent = updateObj.content ?? updateObj.text ?? updateObj.chunk ?? updateObj.delta;
+			let chunk = '';
+			if (typeof rawContent === 'string') {
+				chunk = rawContent;
+			} else if (rawContent && typeof rawContent === 'object') {
+				const contentObj = rawContent as Record<string, unknown>;
+				if (typeof contentObj.text === 'string') {
+					chunk = contentObj.text;
+				} else if (typeof contentObj.thought === 'string') {
+					chunk = contentObj.thought;
+				} else if (typeof contentObj.delta === 'string') {
+					chunk = contentObj.delta;
+				}
+			}
+
+			// R1: 取不到文本不发空 chunk
+			if (!chunk) {
+				return Object.freeze({
+					events: Object.freeze([]),
+					unmappedCount: 0,
+					rawLine,
+				});
+			}
+
+			envelopes.push({
+				kind: 'agent_thought_chunk',
+				payload: {
+					chunk,
+					vendor: data,
+				},
+				runId,
+				taskId,
+				actorDeviceId,
+				scope: 'run',
+			});
+			break;
+		}
+
+		case 'tool_call': {
+			// R1: keys callId, tool, input, status, vendor (aligned with shared/api/events.ts)
+			const callId = String(
+				updateObj.toolCallId ?? updateObj.callId ?? updateObj.tool_call_id ?? updateObj.id ?? '',
+			);
+			const tool = String(
+				updateObj.title ?? updateObj.tool ?? updateObj.toolName ?? updateObj.name ?? '',
+			);
+			const input = updateObj.rawInput ?? updateObj.input ?? updateObj.args ?? updateObj.arguments;
+			const status = updateObj.status;
+
+			envelopes.push({
+				kind: 'tool_call',
+				payload: {
+					callId: callId || undefined,
+					tool: tool || undefined,
+					input,
+					status: status !== undefined ? status : undefined,
+					vendor: data,
+				},
+				runId,
+				taskId,
+				actorDeviceId,
+				scope: 'run',
+			});
+			break;
+		}
+
+		case 'tool_call_update': {
+			// R1: keys callId, output, status (不替厂商断言工具状态), vendor
+			const callId = String(
+				updateObj.toolCallId ?? updateObj.callId ?? updateObj.tool_call_id ?? updateObj.id ?? '',
+			);
+			const output = updateObj.rawOutput ?? updateObj.output ?? updateObj.result;
+			const status = updateObj.status;
+			const isError = status === 'failed' || status === 'error' || Boolean(updateObj.isError);
+
+			envelopes.push({
+				kind: 'tool_call_update',
+				payload: {
+					callId: callId || undefined,
+					output,
+					status: status !== undefined ? status : undefined,
+					isError,
+					vendor: data,
+				},
+				runId,
+				taskId,
+				actorDeviceId,
+				scope: 'run',
+			});
+			break;
+		}
+
+		case 'plan': {
+			// R1: keys entries, vendor
+			const rawEntries = updateObj.entries ?? updateObj.steps ?? updateObj.tasks;
+			const entries = Array.isArray(rawEntries)
+				? (rawEntries as readonly unknown[]).map((entry) => {
+						if (entry && typeof entry === 'object') {
+							const item = entry as Record<string, unknown>;
+							const rawContent = item.content;
+							const content =
+								typeof rawContent === 'string'
+									? rawContent
+									: rawContent &&
+											typeof rawContent === 'object' &&
+											typeof (rawContent as Record<string, unknown>).text === 'string'
+										? (rawContent as Record<string, unknown>).text
+										: rawContent;
+							return Object.freeze({
+								content,
+								status: item.status,
+								priority: item.priority,
+							});
+						}
+						return entry;
+					})
+				: [];
+
+			envelopes.push({
+				kind: 'plan',
+				payload: {
+					entries,
+					vendor: data,
+				},
+				runId,
+				taskId,
+				actorDeviceId,
+				scope: 'run',
+			});
+			break;
+		}
+
+		case 'available_commands_update': {
+			// R1: keys commands, vendor
+			const rawCommands = updateObj.availableCommands ?? updateObj.commands;
+			const commands = Array.isArray(rawCommands) ? (rawCommands as readonly string[]) : [];
+
+			envelopes.push({
+				kind: 'available_commands_update',
+				payload: {
+					commands,
+					vendor: data,
+				},
+				runId,
+				taskId,
+				actorDeviceId,
+				scope: 'run',
+			});
+			break;
+		}
+
+		case 'session/created':
+		case 'session/terminated':
+		case 'turn/started':
+		case 'turn/completed':
+		case 'turn/failed':
+		case 'session/prompt':
+		case 'session/cancel':
+		case 'session.created':
+		case 'session.terminated':
+		case 'session/update':
+		case 'session.update':
+			// Known lifecycle notifications that emit no content chunks
+			break;
+	}
+
+	return Object.freeze({
+		events: Object.freeze(envelopes),
+		unmappedCount: 0,
+		rawLine,
+	});
 }
 
 export { mapGenericAcpEvents as mapEvents };

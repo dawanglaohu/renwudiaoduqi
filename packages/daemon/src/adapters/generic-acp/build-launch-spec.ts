@@ -4,6 +4,7 @@ import {
 	DEFAULT_IDLE_TIMEOUT_MS,
 	DEFAULT_STARTUP_TIMEOUT_MS,
 } from '../../config/defaults.ts';
+import { AppError } from '../../errors/app-error.ts';
 import type { LaunchSpec } from '../../proc/spawn.ts';
 
 export interface BuildGenericAcpLaunchSpecOptions {
@@ -28,7 +29,10 @@ export interface BuildGenericAcpLaunchSpecOptions {
 export function buildGenericAcpLaunchSpec(options: BuildGenericAcpLaunchSpecOptions): LaunchSpec {
 	const rawCommand = options.command?.trim() || options.execPath?.trim() || '';
 	if (rawCommand.length === 0) {
-		throw new Error('Generic ACP launch specification requires a non-empty command or execPath.');
+		throw new AppError(
+			'E_VALIDATION',
+			'Generic ACP launch specification requires a non-empty command or execPath.',
+		);
 	}
 
 	let file: string;

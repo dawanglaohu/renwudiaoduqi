@@ -3,6 +3,7 @@ import { extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import {
 	DEFAULT_DSH_BIN_PATH,
 	buildDshLaunchSpec,
@@ -18,15 +19,19 @@ import {
 	DSH_VENDOR_EVENT_STRINGS,
 	isKnownDshEventType,
 	mapDshEvents,
-	mapEvents,
 	parseAndMapDshLine,
 } from '../../src/adapters/dsh/map-events.ts';
 import { readDshModels, readModels } from '../../src/adapters/dsh/read-models.ts';
-import { runDshSmokeTest } from '../../src/adapters/dsh/smoke.ts';
-import { matchVersionFingerprint, probeAgent } from '../../src/adapters/probe.ts';
+import { type DshSmokeRunnerParams, runDshSmokeTest } from '../../src/adapters/dsh/smoke.ts';
+import { probeAgent } from '../../src/adapters/probe.ts';
 import { BUILT_IN_AGENT_DEFAULTS, BUILT_IN_AGENT_IDS } from '../../src/config/defaults.ts';
+import type { AgentRegistry, AgentRegistrySnapshot } from '../../src/config/registry.ts';
 import { PERMISSION_TIERS } from '../../src/domain/permission-tier.ts';
-import type { PlatformHostInputs } from '../../src/platform/contract.ts';
+import type { EnvelopeFactory } from '../../src/events/envelope.ts';
+import type { ExecutableFileSystem, PlatformHostInputs } from '../../src/platform/contract.ts';
+import { createAgentService } from '../../src/service/agents.ts';
+import type { LogstoreService } from '../../src/service/logstore.ts';
+import { createRunService } from '../../src/service/run.ts';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const daemonSrc = resolve(__dirname, '../../src');
@@ -76,7 +81,6 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 		});
 
 		it('supports user hand-entered custom absolute binary or bin.js path (E-193)', () => {
-			// Binary path without .js
 			const customBinarySpec = buildDshLaunchSpec({
 				runId: 'dsh-custom-bin',
 				cwd: '/workspace/project',
@@ -87,7 +91,6 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(customBinarySpec.args[0]).toBe('--profile');
 			expect(customBinarySpec.args[1]).toBe('headless');
 
-			// Custom .js path executed via node
 			const customJsSpec = buildDshLaunchSpec({
 				runId: 'dsh-custom-js',
 				cwd: '/workspace/project',
@@ -130,8 +133,8 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 		});
 	});
 
-	describe('AC 2 & E-253: 能力位 hasStreamingEvents 置假与禁止伪造中间事件', () => {
-		it('strictly sets hasStreamingEvents=false and declares current-run-only session history', () => {
+	describe('AC 2 & E-253 & R2: 能力位 hasStreamingEvents 置假与事件映射收流契约', () => {
+		it('strictly sets hasStreamingEvents=false, sessionHistory=current-run-only, and outputMode=plain-text-final', () => {
 			expect(DSH_CAPABILITIES.hasStreamingEvents).toBe(false);
 			expect(capabilities.hasStreamingEvents).toBe(false);
 			expect(getDshCapabilities().hasStreamingEvents).toBe(false);
@@ -141,67 +144,116 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(DSH_CAPABILITIES.canResume).toBe(false);
 			expect(DSH_CAPABILITIES.supportsReasoningEffort).toBe(false);
 			expect(DSH_CAPABILITIES.sessionHistory).toBe('current-run-only');
+			expect(DSH_CAPABILITIES.outputMode).toBe('plain-text-final'); // R2 (c)
 			expect(DSH_CAPABILITIES.mode).toBe('headless');
 			expect(Object.isFrozen(DSH_CAPABILITIES)).toBe(true);
 		});
 
-		it('mapDshEvents never fabricates fake intermediate events (no fake tool_call, plan, or thought)', () => {
-			const rawStdoutLines = ['Starting execution...', 'Model generated final analysis.', 'OK'];
+		it('R2 (a): correctly handles object inputs without String(obj) -> [object Object]', () => {
+			// Object with text field
+			const objWithText = { text: 'Assistant final conclusion.' };
+			const events1 = mapDshEvents(objWithText);
+			expect(events1.length).toBe(1);
+			expect(events1[0]?.payload.chunk).toBe('Assistant final conclusion.');
+			expect(events1[0]?.payload.chunk).not.toContain('[object Object]');
+			expect(events1[0]?.payload.vendor).toEqual(objWithText);
 
-			for (const line of rawStdoutLines) {
-				const events = mapDshEvents(line, { runId: 'run-1', taskId: 'task-1' });
-				// Must only emit agent_message_chunk for terminal text, NEVER tool_call or plan
-				expect(events.length).toBe(1);
-				expect(events[0]?.kind).toBe('agent_message_chunk');
-				expect(events[0]?.payload.content).toBe(line);
-				expect(events[0]?.payload.delta).toBe(line);
-
-				// Verify NO fake tool_call, plan, or agent_thought_chunk
-				expect(events.some((e) => e.kind === 'tool_call')).toBe(false);
-				expect(events.some((e) => e.kind === 'plan')).toBe(false);
-				expect(events.some((e) => e.kind === 'agent_thought_chunk')).toBe(false);
-			}
+			// Object without discriminant or text fields
+			const emptyObj = { foo: 'bar', timestamp: 12345 };
+			const result = parseAndMapDshLine(emptyObj);
+			expect(result.events).toEqual([]);
+			expect(result.unmappedCount).toBe(1); // R2 (d)
 		});
 
-		it('handles structured dsh completion JSON lines without intermediate steps', () => {
-			const completionLine = JSON.stringify({
-				method: 'turn/end',
-				text: 'Task completed successfully in HEAD.',
+		it('R2 (b): filters out dsh banners and progress lines; only terminal assistant text emits event', () => {
+			const bannerLines = [
+				'DeepSeek Harness v0.1.0 (headless)',
+				'Loading profile headless...',
+				'[info] Initializing workspace...',
+				'[progress] Executing model...',
+				'==============================',
+				'------------------------------',
+			];
+
+			for (const banner of bannerLines) {
+				const events = mapDshEvents(banner);
+				expect(events).toEqual([]);
+			}
+
+			// Actual terminal assistant text emits exactly 1 event
+			const assistantText = 'Here is the completed implementation.';
+			const events = mapDshEvents(assistantText);
+			expect(events.length).toBe(1);
+			expect(events[0]?.payload.chunk).toBe(assistantText);
+		});
+
+		it('R2 (e): preserves multi-line text with original newlines verbatim and attaches vendor payload', () => {
+			const multiLineText = 'Line 1: Summary\nLine 2: Details\nLine 3: Done.';
+			const events = mapDshEvents(multiLineText, { runId: 'run-multi' });
+
+			expect(events.length).toBe(1);
+			expect(events[0]?.payload.chunk).toBe(multiLineText);
+			expect(events[0]?.payload.content).toBe(multiLineText);
+			expect(events[0]?.payload.vendor).toBe(multiLineText);
+			expect(events[0]?.runId).toBe('run-multi');
+		});
+
+		it('R2 (c) & E-140: runService.ingestLine with acceptsPlainText=true passes plain text to mapper without unmapped_event_count', async () => {
+			const mockLogstore = {
+				appendRaw: vi.fn(async () => ({ offset: 0, byteLen: 50 })),
+				appendEvent: vi.fn(async () => ({ offset: 0, byteLen: 100, seq: 1 })),
+			};
+			const mockRunsRepo = {
+				findById: vi.fn(() => null),
+				updateState: vi.fn(),
+				updateLastEventAt: vi.fn(),
+				incrementUnmappedEventCount: vi.fn(),
+				findInFlight: vi.fn(() => []),
+			};
+
+			const mockEnvelopeFactory = {
+				createEnvelope: vi.fn(
+					(input: import('../../src/adapters/dsh/map-events.ts').EventEnvelopeInput) => ({
+						...input,
+						id: 1,
+						ts: new Date().toISOString(),
+						seq: 1,
+					}),
+				),
+			};
+			const runService = createRunService({
+				logstore: mockLogstore as unknown as LogstoreService,
+				clock: { now: () => new Date().toISOString() },
+				envelopeFactory: mockEnvelopeFactory as unknown as EnvelopeFactory,
+				runsRepo: mockRunsRepo,
+				eventMapper: (line: unknown) => {
+					const inputs = mapDshEvents(line, { runId: 'run-plain-1' });
+					return inputs.map(
+						(inp) => mockEnvelopeFactory.createEnvelope(inp) as unknown as EventEnvelope,
+					);
+				},
 			});
 
-			const events = mapDshEvents(completionLine, { runId: 'run-1' });
-			expect(events.length).toBe(1);
-			expect(events[0]?.kind).toBe('agent_message_chunk');
-			expect(events[0]?.payload.content).toBe('Task completed successfully in HEAD.');
+			const plainTextOutput = 'Final analysis finished successfully.';
+			const result = await runService.ingestLine('run-plain-1', plainTextOutput, {
+				acceptsPlainText: true,
+			});
 
-			// Empty or non-content turn events produce no fake events
-			const startLine = JSON.stringify({ method: 'turn/started' });
-			const startEvents = mapEvents(startLine);
-			expect(startEvents).toEqual([]);
-		});
-
-		it('parseAndMapDshLine tracks unknown vendor events in unmappedCount without crashing', () => {
-			const unknownLine = JSON.stringify({ method: 'unknown/dsh/method', params: {} });
-			const result = parseAndMapDshLine(unknownLine);
-			expect(result.unmappedCount).toBe(1);
-			expect(result.events).toEqual([]);
-
-			const emptyResult = parseAndMapDshLine('   ');
-			expect(emptyResult.events).toEqual([]);
-			expect(emptyResult.unmappedCount).toBe(0);
+			expect(result.rawAppended).toBe(true);
+			expect(result.eventsAppended).toBe(1);
+			expect(result.unmappedDiscarded).toBe(false); // E-140: not discarded as unmapped
+			expect(mockRunsRepo.incrementUnmappedEventCount).not.toHaveBeenCalled();
 		});
 	});
 
-	describe('AC 3 & E-191 & E-28: 启用前过探测与冒烟任务', () => {
-		it('passes smoke test when dsh succeeds with exit code 0, empty stderr, and stdout text', async () => {
-			const mockRunner = vi.fn(
-				async (_params: import('../../src/adapters/dsh/smoke.ts').DshSmokeRunnerParams) => ({
-					ok: true,
-					exitCode: 0,
-					stdout: 'OK\n',
-					stderr: '',
-				}),
-			);
+	describe('AC 3 & E-191 & E-28 & R3: 启用前过探测 + 冒烟任务（生产接线与单测覆盖）', () => {
+		it('passes standalone runDshSmokeTest on contract match', async () => {
+			const mockRunner = vi.fn(async (_params: DshSmokeRunnerParams) => ({
+				ok: true,
+				exitCode: 0,
+				stdout: 'OK\n',
+				stderr: '',
+			}));
 
 			const result = await runDshSmokeTest({
 				runner: mockRunner,
@@ -220,74 +272,265 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(callArgs?.args).toContain('ping');
 		});
 
-		it('E-191: fails smoke test when dsh exits non-zero and reports failure reason', async () => {
-			const mockRunner = vi.fn(async () => ({
-				ok: false,
-				exitCode: 1,
-				stdout: '',
-				stderr: 'Error: invalid session format',
-			}));
+		it('R3 case 1 (E-191): non-zero exit code makes dsh unavailable with failure reason in DTO, others unaffected', async () => {
+			const mockRegistry: Partial<AgentRegistry> = {
+				getSnapshot: () => ({
+					generation: 1,
+					fingerprint: 'fp-1',
+					agents: {
+						dsh: {
+							...BUILT_IN_AGENT_DEFAULTS[BUILT_IN_AGENT_IDS.DSH],
+							execPath: '/usr/bin/dsh',
+							isEnabled: true,
+						},
+						codex: {
+							...BUILT_IN_AGENT_DEFAULTS[BUILT_IN_AGENT_IDS.CODEX],
+							execPath: '/usr/bin/codex',
+							isEnabled: true,
+						},
+					},
+					builtInDefaults: Object.freeze({}),
+					storedDefaults: Object.freeze({}),
+					userOverrides: {},
+					defaultUpdates: [],
+				}),
+				start: vi.fn(async () => ({}) as unknown as AgentRegistrySnapshot),
+				stop: vi.fn(),
+			};
 
-			const result = await runDshSmokeTest({ runner: mockRunner });
-			expect(result.ok).toBe(false);
-			expect(result.reason).toContain('non-zero exit code: 1');
-		});
+			const mockFs = {
+				lstat: async () =>
+					({
+						isFile: () => true,
+						isDirectory: () => false,
+						isSymbolicLink: () => false,
+					}) as unknown as Stats,
+				readlink: async (p: string) => p,
+				realpath: async (p: string) => p,
+				stat: async () =>
+					({
+						isFile: () => true,
+						isDirectory: () => false,
+						mtimeMs: 1000,
+						size: 5000,
+					}) as unknown as Stats,
+				access: async () => undefined,
+			};
 
-		it('E-191: fails smoke test when successful exit code has non-empty stderr (contract violation)', async () => {
-			const mockRunner = vi.fn(async () => ({
-				ok: true,
-				exitCode: 0,
-				stdout: 'Partial output',
-				stderr: 'Warning: deprecated profile combination',
-			}));
-
-			const result = await runDshSmokeTest({ runner: mockRunner });
-			expect(result.ok).toBe(false);
-			expect(result.reason).toContain('contract violation: expected empty stderr');
-		});
-
-		it('E-191: fails smoke test when stdout is empty', async () => {
-			const mockRunner = vi.fn(async () => ({
-				ok: true,
-				exitCode: 0,
-				stdout: '   \n',
-				stderr: '',
-			}));
-
-			const result = await runDshSmokeTest({ runner: mockRunner });
-			expect(result.ok).toBe(false);
-			expect(result.reason).toContain('expected terminal assistant text on stdout');
-		});
-
-		it('E-191: fails smoke test when process fails to spawn (ENOENT)', async () => {
-			const mockRunner = vi.fn(async () => {
-				throw new Error('spawn dsh ENOENT');
+			// Runner: probe (--version) succeeds, but smoke test exits with code 1
+			const mockRunner = vi.fn(async (params: { file: string; args: readonly string[] }) => {
+				if (params.file.includes('codex')) {
+					return { ok: true, exitCode: 0, stdout: 'codex 1.0.0', stderr: '' };
+				}
+				if (params.args.includes('--version')) {
+					return { ok: true, exitCode: 0, stdout: 'dsh 0.1.1', stderr: '' };
+				}
+				// Smoke run
+				return { ok: false, exitCode: 1, stdout: '', stderr: 'Fatal: invalid profile' };
 			});
 
-			const result = await runDshSmokeTest({ runner: mockRunner });
-			expect(result.ok).toBe(false);
-			expect(result.reason).toContain('dsh process failed to start: spawn dsh ENOENT');
+			const service = createAgentService({
+				registry: mockRegistry as AgentRegistry,
+				hostInputs: { platform: 'linux', homedir: '/home/tester' },
+				fileSystem: mockFs as unknown as ExecutableFileSystem,
+				commandRunner: mockRunner,
+			});
+
+			const dshDto = await service.getAgent('dsh');
+			expect(dshDto?.isAvailable).toBe(false);
+			expect(dshDto?.unavailableReason).toContain('non-zero exit code: 1');
+
+			// Assert other agents (codex) are completely unaffected
+			const codexDto = await service.getAgent('codex');
+			expect(codexDto?.isAvailable).toBe(true);
+		});
+
+		it('R3 case 2 (E-191): non-empty stderr makes dsh unavailable with failure reason in DTO', async () => {
+			const mockRegistry: Partial<AgentRegistry> = {
+				getSnapshot: () => ({
+					generation: 1,
+					fingerprint: 'fp-1',
+					agents: {
+						dsh: {
+							...BUILT_IN_AGENT_DEFAULTS[BUILT_IN_AGENT_IDS.DSH],
+							execPath: '/usr/bin/dsh',
+							isEnabled: true,
+						},
+					},
+					builtInDefaults: Object.freeze({}),
+					storedDefaults: Object.freeze({}),
+					userOverrides: {},
+					defaultUpdates: [],
+				}),
+				start: vi.fn(async () => ({}) as unknown as AgentRegistrySnapshot),
+				stop: vi.fn(),
+			};
+
+			const mockFs = {
+				lstat: async () =>
+					({
+						isFile: () => true,
+						isDirectory: () => false,
+						isSymbolicLink: () => false,
+					}) as unknown as Stats,
+				readlink: async (p: string) => p,
+				realpath: async (p: string) => p,
+				stat: async () =>
+					({
+						isFile: () => true,
+						isDirectory: () => false,
+						mtimeMs: 1000,
+						size: 5000,
+					}) as unknown as Stats,
+				access: async () => undefined,
+			};
+
+			const mockRunner = vi.fn(async (params: { args: readonly string[] }) => {
+				if (params.args.includes('--version')) {
+					return { ok: true, exitCode: 0, stdout: 'dsh 0.1.1', stderr: '' };
+				}
+				// Smoke run: exit code 0 but non-empty stderr
+				return { ok: true, exitCode: 0, stdout: 'OK', stderr: 'Warning: unexpected runtime log' };
+			});
+
+			const service = createAgentService({
+				registry: mockRegistry as AgentRegistry,
+				hostInputs: { platform: 'linux', homedir: '/home/tester' },
+				fileSystem: mockFs as unknown as ExecutableFileSystem,
+				commandRunner: mockRunner,
+			});
+
+			const dshDto = await service.getAgent('dsh');
+			expect(dshDto?.isAvailable).toBe(false);
+			expect(dshDto?.unavailableReason).toContain('expected empty stderr on success');
+		});
+
+		it('R3 case 3 (E-191): empty stdout makes dsh unavailable with failure reason in DTO', async () => {
+			const mockRegistry: Partial<AgentRegistry> = {
+				getSnapshot: () => ({
+					generation: 1,
+					fingerprint: 'fp-1',
+					agents: {
+						dsh: {
+							...BUILT_IN_AGENT_DEFAULTS[BUILT_IN_AGENT_IDS.DSH],
+							execPath: '/usr/bin/dsh',
+							isEnabled: true,
+						},
+					},
+					builtInDefaults: Object.freeze({}),
+					storedDefaults: Object.freeze({}),
+					userOverrides: {},
+					defaultUpdates: [],
+				}),
+				start: vi.fn(async () => ({}) as unknown as AgentRegistrySnapshot),
+				stop: vi.fn(),
+			};
+
+			const mockFs = {
+				lstat: async () =>
+					({
+						isFile: () => true,
+						isDirectory: () => false,
+						isSymbolicLink: () => false,
+					}) as unknown as Stats,
+				readlink: async (p: string) => p,
+				realpath: async (p: string) => p,
+				stat: async () =>
+					({
+						isFile: () => true,
+						isDirectory: () => false,
+						mtimeMs: 1000,
+						size: 5000,
+					}) as unknown as Stats,
+				access: async () => undefined,
+			};
+
+			const mockRunner = vi.fn(async (params: { args: readonly string[] }) => {
+				if (params.args.includes('--version')) {
+					return { ok: true, exitCode: 0, stdout: 'dsh 0.1.1', stderr: '' };
+				}
+				// Smoke run: exit code 0 and empty stderr, but empty stdout
+				return { ok: true, exitCode: 0, stdout: '   \n', stderr: '' };
+			});
+
+			const service = createAgentService({
+				registry: mockRegistry as AgentRegistry,
+				hostInputs: { platform: 'linux', homedir: '/home/tester' },
+				fileSystem: mockFs as unknown as ExecutableFileSystem,
+				commandRunner: mockRunner,
+			});
+
+			const dshDto = await service.getAgent('dsh');
+			expect(dshDto?.isAvailable).toBe(false);
+			expect(dshDto?.unavailableReason).toContain('expected terminal assistant text on stdout');
+		});
+
+		it('R3 case 4: smoke test completely passes -> dsh is available and canDispatch=true', async () => {
+			const mockRegistry: Partial<AgentRegistry> = {
+				getSnapshot: () => ({
+					generation: 1,
+					fingerprint: 'fp-1',
+					agents: {
+						dsh: {
+							...BUILT_IN_AGENT_DEFAULTS[BUILT_IN_AGENT_IDS.DSH],
+							execPath: '/usr/bin/dsh',
+							isEnabled: true,
+						},
+					},
+					builtInDefaults: Object.freeze({}),
+					storedDefaults: Object.freeze({}),
+					userOverrides: {},
+					defaultUpdates: [],
+				}),
+				start: vi.fn(async () => ({}) as unknown as AgentRegistrySnapshot),
+				stop: vi.fn(),
+			};
+
+			const mockFs = {
+				lstat: async () =>
+					({
+						isFile: () => true,
+						isDirectory: () => false,
+						isSymbolicLink: () => false,
+					}) as unknown as Stats,
+				readlink: async (p: string) => p,
+				realpath: async (p: string) => p,
+				stat: async () =>
+					({
+						isFile: () => true,
+						isDirectory: () => false,
+						mtimeMs: 1000,
+						size: 5000,
+					}) as unknown as Stats,
+				access: async () => undefined,
+			};
+
+			const mockRunner = vi.fn(async (params: { args: readonly string[] }) => {
+				if (params.args.includes('--version')) {
+					return { ok: true, exitCode: 0, stdout: 'dsh 0.1.1', stderr: '' };
+				}
+				return { ok: true, exitCode: 0, stdout: 'All tests passed cleanly.', stderr: '' };
+			});
+
+			const service = createAgentService({
+				registry: mockRegistry as AgentRegistry,
+				hostInputs: { platform: 'linux', homedir: '/home/tester' },
+				fileSystem: mockFs as unknown as ExecutableFileSystem,
+				commandRunner: mockRunner,
+			});
+
+			const dshDto = await service.getAgent('dsh');
+			expect(dshDto?.isAvailable).toBe(true);
+			await expect(service.assertCanDispatch('dsh')).resolves.toBeUndefined();
 		});
 	});
 
-	describe('AC 5 & E-194: 版本超出注册表已知区间时允许启用但常驻提示「版本未验证」', () => {
-		it('allows enablement with canDispatch=true and warning banner when version exceeds range', () => {
-			const comparison = matchVersionFingerprint('dsh 0.3.5', '\\bdsh\\b', {
-				agentId: 'dsh',
-				versionRange: { min: '0.1.0', max: '0.1.2' },
-			});
-
-			expect(comparison.isStrictMatch).toBe(true);
-			expect(comparison.inVersionRange).toBe(false);
-			// Under E-194, matched is false for strict range, but isStrictMatch recognizes the tool
-			expect(comparison.matched).toBe(false);
-		});
-
-		it('probeAgent returns status=warning, canDispatch=true, and warning banner when version out of range', async () => {
+	describe('AC 5 & E-194 & R4 & R6: 版本超出注册表已知区间时允许启用但常驻提示「Unverified agent version」', () => {
+		it('R4: version within registry versionRange produces no warning banner', async () => {
 			const mockRunner = vi.fn(async () => ({
 				ok: true,
 				exitCode: 0,
-				stdout: 'dsh 0.3.0',
+				stdout: 'dsh 0.1.1',
 				stderr: '',
 			}));
 
@@ -323,20 +566,139 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 				...BUILT_IN_AGENT_DEFAULTS[BUILT_IN_AGENT_IDS.DSH],
 				execPath: '/usr/bin/dsh',
 			};
+
 			const result = await probeAgent({
 				agentId: 'dsh',
 				config: dshConfig,
 				hostInputs: linuxHost,
 				fileSystem: mockFs,
 				commandRunner: mockRunner,
-				versionRange: { min: '0.1.0', max: '0.1.2' },
 			});
 
 			expect(result.ok).toBe(true);
-			expect(result.status).toBe('warning');
-			expect(result.canDispatch).toBe(true); // E-194: 允许启用
-			expect(result.warningBanner).toBeDefined();
-			expect(result.warningBanner?.message).toBe('版本未验证'); // E-194: 常驻提示「版本未验证」
+			expect(result.status).toBe('matched');
+			expect(result.canDispatch).toBe(true);
+			expect(result.warningBanner).toBeUndefined(); // In range: no banner
+		});
+
+		it('R4 & R6: version outside registry versionRange has canDispatch=true and attaches warningBanner to DTO', async () => {
+			const mockRunner = vi.fn(async () => ({
+				ok: true,
+				exitCode: 0,
+				stdout: 'dsh 0.3.0',
+				stderr: '',
+			}));
+
+			const mockRegistry: Partial<AgentRegistry> = {
+				getSnapshot: () => ({
+					generation: 1,
+					fingerprint: 'fp-1',
+					agents: {
+						dsh: {
+							...BUILT_IN_AGENT_DEFAULTS[BUILT_IN_AGENT_IDS.DSH],
+							execPath: '/usr/bin/dsh',
+							isEnabled: true,
+						},
+					},
+					builtInDefaults: Object.freeze({}),
+					storedDefaults: Object.freeze({}),
+					userOverrides: {},
+					defaultUpdates: [],
+				}),
+				start: vi.fn(async () => ({}) as unknown as AgentRegistrySnapshot),
+				stop: vi.fn(),
+			};
+
+			const mockFs = {
+				lstat: vi.fn(
+					async () =>
+						({
+							isFile: () => true,
+							isDirectory: () => false,
+							isSymbolicLink: () => false,
+						}) as unknown as Stats,
+				),
+				readlink: vi.fn(async () => '/usr/bin/dsh'),
+				realpath: vi.fn(async () => '/usr/bin/dsh'),
+				stat: vi.fn(
+					async () =>
+						({
+							isFile: () => true,
+							isDirectory: () => false,
+							mtimeMs: 1000,
+							size: 5000,
+						}) as unknown as Stats,
+				),
+				access: vi.fn(async () => undefined),
+			};
+
+			const service = createAgentService({
+				registry: mockRegistry as AgentRegistry,
+				hostInputs: { platform: 'linux', homedir: '/home/tester' },
+				fileSystem: mockFs as unknown as ExecutableFileSystem,
+				commandRunner: mockRunner,
+			});
+
+			const dshDto = await service.getAgent('dsh');
+			expect(dshDto?.isAvailable).toBe(true); // E-194: 允许启用
+			expect(dshDto?.warningBanner).toBeDefined();
+			expect(dshDto?.warningBanner?.code).toBe('E_AGENT_VERSION_UNRECOGNIZED');
+			expect(dshDto?.warningBanner?.message).toBe('Unverified agent version'); // R6: English short sentence
+		});
+
+		it('R4: completely unrecognizable version output remains unavailable', async () => {
+			const mockRunner = vi.fn(async () => ({
+				ok: true,
+				exitCode: 0,
+				stdout: 'unknown-tool 9.9.9',
+				stderr: '',
+			}));
+
+			const linuxHost: PlatformHostInputs = {
+				platform: 'linux',
+				homedir: '/home/tester',
+			};
+
+			const mockFs = {
+				lstat: vi.fn(
+					async () =>
+						({
+							isFile: () => true,
+							isDirectory: () => false,
+							isSymbolicLink: () => false,
+						}) as unknown as Stats,
+				),
+				readlink: vi.fn(async () => '/usr/bin/dsh'),
+				realpath: vi.fn(async () => '/usr/bin/dsh'),
+				stat: vi.fn(
+					async () =>
+						({
+							isFile: () => true,
+							isDirectory: () => false,
+							mtimeMs: 1000,
+							size: 5000,
+						}) as unknown as Stats,
+				),
+				access: vi.fn(async () => undefined),
+			};
+
+			const dshConfig = {
+				...BUILT_IN_AGENT_DEFAULTS[BUILT_IN_AGENT_IDS.DSH],
+				execPath: '/usr/bin/dsh',
+			};
+
+			const result = await probeAgent({
+				agentId: 'dsh',
+				config: dshConfig,
+				hostInputs: linuxHost,
+				fileSystem: mockFs,
+				commandRunner: mockRunner,
+				isCustomPath: false,
+			});
+
+			expect(result.ok).toBe(false);
+			expect(result.canDispatch).toBe(false); // Completely unrecognized -> cannot dispatch
+			expect(result.status).toBe('unrecognized');
 		});
 	});
 

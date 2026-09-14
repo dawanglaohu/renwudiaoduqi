@@ -6,6 +6,7 @@ import type {
 import { readClaudeModels } from '../adapters/claude/read-models.ts';
 import { readCodexModels } from '../adapters/codex/read-models.ts';
 import { readDshModels } from '../adapters/dsh/read-models.ts';
+import { runDshSmokeTest } from '../adapters/dsh/smoke.ts';
 import { readGrokModels } from '../adapters/grok/read-models.ts';
 import { readPiModels } from '../adapters/pi/read-models.ts';
 import {
@@ -200,6 +201,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				nowIso: now,
 				env: deps.env,
 				userConfirmedCandidate: options.userConfirmedCandidate,
+				versionRange: config.versionRange,
 			});
 		} catch (error) {
 			// Probe failure must never crash or block other agents (E-88)
@@ -218,6 +220,65 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					reason: err.message,
 				}),
 			});
+		}
+
+		// R3 & E-191 & E-28: dsh smoke test verification before enablement
+		if (agentId === BUILT_IN_AGENT_IDS.DSH && probeResult.canDispatch && deps.commandRunner) {
+			const runner = async (params: {
+				file: string;
+				args: readonly string[];
+				cwd: string;
+				timeoutMs?: number;
+				env?: Readonly<Record<string, string | undefined>>;
+			}) => {
+				const commandRunner = deps.commandRunner;
+				if (!commandRunner) throw new Error('Command runner unavailable');
+				const cleanEnv: Record<string, string> = {};
+				if (params.env) {
+					for (const [k, v] of Object.entries(params.env)) {
+						if (v !== undefined) cleanEnv[k] = v;
+					}
+				}
+				const res = await commandRunner({
+					file: params.file,
+					args: params.args,
+					cwd: params.cwd,
+					timeoutMs: params.timeoutMs ?? 10_000,
+					env: Object.keys(cleanEnv).length > 0 ? cleanEnv : undefined,
+				});
+				return {
+					ok: res.ok,
+					exitCode: res.exitCode,
+					stdout: res.stdout,
+					stderr: res.stderr,
+					timedOut: res.timedOut,
+				};
+			};
+
+			const smokeResult = await runDshSmokeTest({
+				execPath: probeResult.resolvedPath ?? config.execPath,
+				cwd: deps.hostInputs.homedir,
+				runner,
+			});
+
+			if (!smokeResult.ok) {
+				probeResult = Object.freeze({
+					...probeResult,
+					ok: false,
+					status: 'warning',
+					canDispatch: false,
+					matched: false,
+					errorDetails: Object.freeze({
+						code: 'E_AGENT_UNAVAILABLE',
+						reason: smokeResult.reason ?? 'dsh smoke test failed',
+						execPath: probeResult.resolvedPath ?? config.execPath,
+					}),
+					warningBanner: Object.freeze({
+						code: 'E_AGENT_UNAVAILABLE',
+						message: smokeResult.reason ?? 'dsh smoke test failed',
+					}),
+				});
+			}
 		}
 
 		// Map ProbeAgentResult to AgentAvailabilityState
