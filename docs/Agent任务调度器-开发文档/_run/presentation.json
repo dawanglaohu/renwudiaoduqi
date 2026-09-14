@@ -413,7 +413,8 @@
         "packages/web/src/components/agent-card.tsx",
         "packages/web/src/components/model-picker.tsx",
         "packages/web/src/components/field-layers-row.tsx",
-        "packages/web/src/components/lane-count-setting.tsx"
+        "packages/web/src/components/lane-count-setting.tsx",
+        "packages/web/src/components/inline-notice.tsx"
       ],
       "M9-T15": [
         "packages/web/src/features/settings-devices/",

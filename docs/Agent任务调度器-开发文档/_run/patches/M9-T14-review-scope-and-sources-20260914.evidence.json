@@ -2,12 +2,12 @@
   "scope": "task-contract",
   "tasks": {
     "M9-T14": {
-      "contractHash": "d357f6bcf1da8ec2cf29de74eafdbd96050765e1511b8b74a0838a2c63573f6a",
+      "contractHash": "5642a1916f8401a25d3b782955ab753a708592e4396784e1e8614a9be3d5cdd4",
       "evidence": [],
       "verdict": "pending"
     },
     "M9-T23": {
-      "contractHash": "62333dc8723f5cdd73e4467eaaf94de91095df9b99f05376df4797d9b86e8a45",
+      "contractHash": "26c55343aed5f394af0d96fcc6f0620b5d0d704d546892b422e81b34859d14ee",
       "evidence": [],
       "verdict": "pending"
     }
