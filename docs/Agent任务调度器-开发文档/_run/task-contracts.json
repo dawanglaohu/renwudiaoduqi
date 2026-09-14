@@ -526,6 +526,18 @@
         "packages/daemon/test/unit/grok-adapter.test.ts"
       ]
     },
+    "M4-T12": {
+      "supportPaths": [
+        "packages/daemon/src/adapters/probe.ts",
+        "packages/daemon/src/config/defaults.ts",
+        "packages/daemon/src/config/registry.ts",
+        "packages/daemon/src/service/agents.ts",
+        "packages/daemon/src/service/run.ts",
+        "packages/daemon/test/unit/dsh-adapter.test.ts",
+        "packages/daemon/test/unit/generic-acp-adapter.test.ts",
+        "packages/daemon/test/unit/run-service.test.ts"
+      ]
+    },
     "M4-T4": {
       "supportPaths": [
         "packages/daemon/src/adapters/probe.ts",
