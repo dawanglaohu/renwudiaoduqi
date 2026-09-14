@@ -977,6 +977,11 @@
         17
       ]
     },
+    "M9-T15": {
+      "supportPaths": [
+        "packages/web/test/pairing-devices.test.ts"
+      ]
+    },
     "M9-T17": {
       "requires": [
         {

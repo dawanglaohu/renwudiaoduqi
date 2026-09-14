@@ -9,6 +9,12 @@ import { SHELL } from './detect-shell.ts';
 
 export const SESSION_STORAGE_TOKEN_KEY = 'agsched.token' as const;
 
+/**
+ * 本会话所用设备的 deviceId（`POST /api/v1/pair/claim` 返回，10-接口约定），非凭证。
+ * 仅用于设备列表标出「当前设备」与自吊销时立刻回 #/pair（E-127）。
+ */
+export const CURRENT_DEVICE_ID_STORAGE_KEY = 'agsched.current_device_id' as const;
+
 export interface NativeShellAdapter {
 	readonly tokenStore?: Partial<ShellTokenStore>;
 	notify?(options: ShellNotificationOptions): Promise<void> | void;
@@ -27,6 +33,10 @@ const fallbackListeners = new Set<NotificationFallbackListener>();
  */
 export function registerNativeShellAdapter(adapter: NativeShellAdapter | null): void {
 	nativeAdapter = adapter;
+	if (SHELL.platform !== 'browser' && typeof sessionStorage !== 'undefined') {
+		sessionStorage.removeItem(SESSION_STORAGE_TOKEN_KEY);
+		sessionStorage.removeItem(CURRENT_DEVICE_ID_STORAGE_KEY);
+	}
 }
 
 /**
@@ -76,15 +86,21 @@ function incrementBrowserBadge(options: ShellNotificationOptions): void {
  */
 if (SHELL.platform !== 'browser' && typeof sessionStorage !== 'undefined') {
 	sessionStorage.removeItem(SESSION_STORAGE_TOKEN_KEY);
+	sessionStorage.removeItem(CURRENT_DEVICE_ID_STORAGE_KEY);
 }
 
 /**
  * Token storage capability implementation with browser sessionStorage fallback (07-前端架构 / AC 4).
+ * E-227: When running in a native shell, the shell's secure storage is the sole source of truth.
+ * Under no circumstances may sessionStorage be read, written, or dual-written in shell mode.
  */
 const tokenStore: ShellTokenStore = {
 	async get(): Promise<string | null> {
-		if (SHELL.platform !== 'browser' && nativeAdapter?.tokenStore?.get) {
-			return nativeAdapter.tokenStore.get();
+		if (SHELL.platform !== 'browser') {
+			if (nativeAdapter?.tokenStore?.get) {
+				return nativeAdapter.tokenStore.get();
+			}
+			return null;
 		}
 		if (typeof sessionStorage === 'undefined') {
 			return null;
@@ -93,8 +109,10 @@ const tokenStore: ShellTokenStore = {
 	},
 
 	async set(token: string): Promise<void> {
-		if (SHELL.platform !== 'browser' && nativeAdapter?.tokenStore?.set) {
-			await nativeAdapter.tokenStore.set(token);
+		if (SHELL.platform !== 'browser') {
+			if (nativeAdapter?.tokenStore?.set) {
+				await nativeAdapter.tokenStore.set(token);
+			}
 			return;
 		}
 		if (typeof sessionStorage !== 'undefined') {
@@ -103,8 +121,10 @@ const tokenStore: ShellTokenStore = {
 	},
 
 	async clear(): Promise<void> {
-		if (SHELL.platform !== 'browser' && nativeAdapter?.tokenStore?.clear) {
-			await nativeAdapter.tokenStore.clear();
+		if (SHELL.platform !== 'browser') {
+			if (nativeAdapter?.tokenStore?.clear) {
+				await nativeAdapter.tokenStore.clear();
+			}
 			return;
 		}
 		if (typeof sessionStorage !== 'undefined') {
@@ -183,6 +203,34 @@ async function hostHint(): Promise<string | null> {
 		return window.location.origin;
 	}
 	return null;
+}
+
+/**
+ * Check if the application is running in un-shelled browser mode (E-229).
+ */
+export function isBrowserMode(): boolean {
+	return SHELL.platform === 'browser';
+}
+
+/**
+ * Remember the deviceId this session authenticated as, so the device list can
+ * mark 「当前设备」 and revoking it drops the session immediately (E-127).
+ */
+export function rememberCurrentDeviceId(deviceId: string): void {
+	if (typeof sessionStorage === 'undefined') {
+		return;
+	}
+	sessionStorage.setItem(CURRENT_DEVICE_ID_STORAGE_KEY, deviceId);
+}
+
+/**
+ * Read the deviceId remembered by `rememberCurrentDeviceId`, or null when unknown.
+ */
+export function readCurrentDeviceId(): string | null {
+	if (typeof sessionStorage === 'undefined') {
+		return null;
+	}
+	return sessionStorage.getItem(CURRENT_DEVICE_ID_STORAGE_KEY);
 }
 
 /**
