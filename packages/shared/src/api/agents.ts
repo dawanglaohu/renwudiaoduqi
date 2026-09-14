@@ -1,3 +1,33 @@
+export const LOGIN_UNKNOWN_REASONS = [
+	'timeout',
+	'exec_missing',
+	'spawn_failed',
+	'unparsable',
+	'exit_nonzero',
+	'not_supported',
+	'no_provider',
+	'not_probed',
+] as const;
+
+export type LoginUnknownReason = (typeof LOGIN_UNKNOWN_REASONS)[number];
+
+export type LoginStatusState = 'logged_in' | 'logged_out' | 'unknown';
+
+export interface ProviderLoginState {
+	readonly state: LoginStatusState;
+	readonly reason: LoginUnknownReason | null;
+}
+
+export interface LoginState {
+	readonly state: LoginStatusState;
+	readonly reason: LoginUnknownReason | null;
+	readonly checkedAt: string | null;
+	readonly loginCommand: string | null;
+	readonly warningCode: 'E_AGENT_LOGIN_PROBE_FAILED' | null;
+	readonly providers?: Readonly<Record<string, ProviderLoginState>>;
+	readonly vendor?: string;
+}
+
 export interface AgentEntryDto {
 	readonly id: string;
 	readonly name: string;
@@ -7,6 +37,7 @@ export interface AgentEntryDto {
 	readonly maxConcurrency: number;
 	readonly permissionTier: 'readOnly' | 'workspaceWrite' | 'unrestricted';
 	readonly execPath: string | null;
+	readonly login?: LoginState | null;
 	readonly unavailableReason?: string | null;
 	readonly unavailableCode?: string | null;
 	readonly missingRequirements?: readonly string[];
@@ -78,6 +109,7 @@ export interface ProbeAgentResponse {
 	readonly status: string;
 	readonly versionString: string;
 	readonly matched: boolean;
+	readonly login?: LoginState | null;
 	readonly canDispatch?: boolean;
 	readonly errorDetails?: {
 		readonly code: string;

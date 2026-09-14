@@ -17,6 +17,9 @@ import {
 	type AdapterKind,
 	type AgentConfig,
 	BUILT_IN_AGENT_DEFAULTS,
+	GENERIC_LOGIN_PROBE_DEFAULT,
+	LOGIN_PROBE_PARSERS,
+	type LoginProbeParser,
 	type ResolvedAgentConfig,
 	createDefaultTimeouts,
 } from './defaults.ts';
@@ -35,11 +38,25 @@ const AGENT_CONFIG_FIELDS = [
 	'adapterKind',
 	'timeouts',
 	'versionFingerprint',
+	'loginProbe',
 ] as const;
 
 const TIMEOUT_FIELDS = ['startupTimeoutMs', 'idleTimeoutMs', 'hardWallClockMs'] as const;
 const VERSION_FINGERPRINT_FIELDS = ['args', 'expectedPattern'] as const;
+const LOGIN_PROBE_FIELDS = [
+	'args',
+	'parser',
+	'loggedInPattern',
+	'loggedOutPattern',
+	'loginCommandHint',
+] as const;
 const ROOT_FIELDS = ['schemaVersion', 'defaults', 'overrides'] as const;
+
+export const FORBIDDEN_LOGIN_PROBE_ARG_SUBSTRINGS = Object.freeze([
+	'print-api-key',
+	'print-bearer-token',
+	'--credentials',
+] as const);
 
 export const AGENT_CONFIG_FIELD_PATHS = [
 	'execPath',
@@ -54,6 +71,11 @@ export const AGENT_CONFIG_FIELD_PATHS = [
 	'timeouts.hardWallClockMs',
 	'versionFingerprint.args',
 	'versionFingerprint.expectedPattern',
+	'loginProbe.args',
+	'loginProbe.parser',
+	'loginProbe.loggedInPattern',
+	'loginProbe.loggedOutPattern',
+	'loginProbe.loginCommandHint',
 ] as const;
 
 export type AgentConfigFieldPath = (typeof AGENT_CONFIG_FIELD_PATHS)[number];
@@ -69,6 +91,14 @@ export interface VersionFingerprintOverrides {
 	readonly expectedPattern?: string;
 }
 
+export interface LoginProbeOverrides {
+	readonly args?: readonly string[];
+	readonly parser?: LoginProbeParser;
+	readonly loggedInPattern?: string | null;
+	readonly loggedOutPattern?: string | null;
+	readonly loginCommandHint?: string | null;
+}
+
 export interface AgentConfigOverrides {
 	readonly execPath?: string;
 	readonly argsTemplate?: readonly string[];
@@ -79,6 +109,7 @@ export interface AgentConfigOverrides {
 	readonly adapterKind?: AdapterKind;
 	readonly timeouts?: AgentTimeoutOverrides;
 	readonly versionFingerprint?: VersionFingerprintOverrides;
+	readonly loginProbe?: LoginProbeOverrides;
 }
 
 export type AgentConfigLayer = Readonly<Record<string, AgentConfigOverrides>>;
@@ -233,6 +264,17 @@ export const AGENTS_JSON_SCHEMA = {
 					properties: {
 						args: { type: 'array', items: { type: 'string' } },
 						expectedPattern: { type: 'string', minLength: 1 },
+					},
+				},
+				loginProbe: {
+					type: 'object',
+					additionalProperties: true,
+					properties: {
+						args: { type: 'array', items: { type: 'string' } },
+						parser: { enum: Object.values(LOGIN_PROBE_PARSERS) },
+						loggedInPattern: { type: ['string', 'null'] },
+						loggedOutPattern: { type: ['string', 'null'] },
+						loginCommandHint: { type: ['string', 'null'], maxLength: 200 },
 					},
 				},
 			},
@@ -564,6 +606,10 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 				updates.versionFingerprint !== undefined
 					? { ...currentAgentOverrides.versionFingerprint, ...updates.versionFingerprint }
 					: currentAgentOverrides.versionFingerprint,
+			loginProbe:
+				updates.loginProbe !== undefined
+					? { ...currentAgentOverrides.loginProbe, ...updates.loginProbe }
+					: currentAgentOverrides.loginProbe,
 		};
 
 		// Pre-validate mergedAgentOverrides against AGENTS_JSON_SCHEMA before writing!
@@ -705,6 +751,7 @@ interface MutableAgentConfigOverrides {
 	adapterKind?: AdapterKind;
 	timeouts?: MutableAgentTimeoutOverrides;
 	versionFingerprint?: MutableVersionFingerprintOverrides;
+	loginProbe?: MutableLoginProbeOverrides;
 }
 
 interface MutableAgentTimeoutOverrides {
@@ -716,6 +763,14 @@ interface MutableAgentTimeoutOverrides {
 interface MutableVersionFingerprintOverrides {
 	args?: readonly string[];
 	expectedPattern?: string;
+}
+
+interface MutableLoginProbeOverrides {
+	args?: readonly string[];
+	parser?: LoginProbeParser;
+	loggedInPattern?: string | null;
+	loggedOutPattern?: string | null;
+	loginCommandHint?: string | null;
 }
 
 function parseAgentsFile(
@@ -900,6 +955,16 @@ function parseAgentConfig(
 		if (!parsedFingerprint.ok) return parsedFingerprint;
 		result.versionFingerprint = parsedFingerprint.value;
 	}
+	if (Object.hasOwn(input, 'loginProbe') && input.loginProbe !== undefined) {
+		const parsedLoginProbe = parseLoginProbe(
+			input.loginProbe,
+			`${path}.loginProbe`,
+			unknownFields,
+			agentId,
+		);
+		if (!parsedLoginProbe.ok) return parsedLoginProbe;
+		result.loginProbe = parsedLoginProbe.value;
+	}
 
 	return { ok: true, value: freezeAgentOverrides(result) };
 }
@@ -961,6 +1026,104 @@ function parseVersionFingerprint(
 	return { ok: true, value: Object.freeze(result) };
 }
 
+function parseLoginProbe(
+	input: unknown,
+	path: string,
+	unknownFields: UnknownField[],
+	agentId: string,
+):
+	| { readonly ok: true; readonly value: LoginProbeOverrides }
+	| { readonly ok: false; readonly field: string; readonly expected: string } {
+	if (!isRecord(input)) return { ok: false, field: path, expected: 'an object' };
+	collectUnknownFields(input, LOGIN_PROBE_FIELDS, path, unknownFields, agentId);
+	const result: MutableLoginProbeOverrides = {};
+
+	let parser: LoginProbeParser | undefined;
+	if (Object.hasOwn(input, 'parser') && input.parser !== undefined) {
+		if (!isLoginProbeParser(input.parser)) {
+			return {
+				ok: false,
+				field: `${path}.parser`,
+				expected:
+					"one of 'codex_login_status', 'claude_auth_json', 'grok_models_exit', 'pi_auth_check', 'none'",
+			};
+		}
+		parser = input.parser;
+		result.parser = parser;
+	}
+
+	if (Object.hasOwn(input, 'args') && input.args !== undefined) {
+		const args = parseStringArray(input.args);
+		if (args === undefined) {
+			return { ok: false, field: `${path}.args`, expected: 'an array of strings' };
+		}
+		for (const arg of args) {
+			for (const forbidden of FORBIDDEN_LOGIN_PROBE_ARG_SUBSTRINGS) {
+				if (arg.includes(forbidden)) {
+					return {
+						ok: false,
+						field: `${path}.args`,
+						expected: `arguments not containing forbidden credential inspection substring '${forbidden}'`,
+					};
+				}
+			}
+			if (
+				arg.includes('{provider}') &&
+				parser !== 'pi_auth_check' &&
+				(parser !== undefined || agentId !== 'pi')
+			) {
+				return {
+					ok: false,
+					field: `${path}.args`,
+					expected: '{provider} variable is only allowed when parser is pi_auth_check',
+				};
+			}
+		}
+		result.args = args;
+	}
+
+	if (Object.hasOwn(input, 'loggedInPattern') && input.loggedInPattern !== undefined) {
+		if (input.loggedInPattern !== null && typeof input.loggedInPattern !== 'string') {
+			return { ok: false, field: `${path}.loggedInPattern`, expected: 'a string or null' };
+		}
+		result.loggedInPattern = input.loggedInPattern;
+	}
+
+	if (Object.hasOwn(input, 'loggedOutPattern') && input.loggedOutPattern !== undefined) {
+		if (input.loggedOutPattern !== null && typeof input.loggedOutPattern !== 'string') {
+			return { ok: false, field: `${path}.loggedOutPattern`, expected: 'a string or null' };
+		}
+		result.loggedOutPattern = input.loggedOutPattern;
+	}
+
+	if (Object.hasOwn(input, 'loginCommandHint') && input.loginCommandHint !== undefined) {
+		if (input.loginCommandHint !== null && typeof input.loginCommandHint !== 'string') {
+			return { ok: false, field: `${path}.loginCommandHint`, expected: 'a string or null' };
+		}
+		if (typeof input.loginCommandHint === 'string') {
+			if (
+				input.loginCommandHint.length > 200 ||
+				// biome-ignore lint/suspicious/noControlCharactersInRegex: Checking for control characters per E-355
+				/[\x00-\x1F\x7F]/.test(input.loginCommandHint)
+			) {
+				unknownFields.push(
+					Object.freeze({
+						field: `${path}.loginCommandHint`,
+						agentId,
+					}),
+				);
+				result.loginCommandHint = null;
+			} else {
+				result.loginCommandHint = input.loginCommandHint;
+			}
+		} else {
+			result.loginCommandHint = null;
+		}
+	}
+
+	return { ok: true, value: Object.freeze(result) };
+}
+
 function createSnapshot(
 	generation: number,
 	fingerprint: string | null,
@@ -1017,6 +1180,9 @@ function mergeAgentConfig(
 			? defaultConfig.timeouts.startupTimeoutMs
 			: adapterTimeouts.startupTimeoutMs;
 
+	const defaultLoginProbe = defaultConfig.loginProbe ?? GENERIC_LOGIN_PROBE_DEFAULT;
+	const loginOverrides = overrides.loginProbe ?? {};
+
 	return freezeAgentConfig({
 		execPath: valueOr(overrides.execPath, defaultConfig.execPath),
 		argsTemplate: valueOr(overrides.argsTemplate, defaultConfig.argsTemplate),
@@ -1038,6 +1204,19 @@ function mergeAgentConfig(
 			expectedPattern: valueOr(
 				versionOverrides.expectedPattern,
 				defaultConfig.versionFingerprint.expectedPattern,
+			),
+		},
+		loginProbe: {
+			args: valueOr(loginOverrides.args, defaultLoginProbe.args),
+			parser: valueOr(loginOverrides.parser, defaultLoginProbe.parser),
+			loggedInPattern: valueOr(loginOverrides.loggedInPattern, defaultLoginProbe.loggedInPattern),
+			loggedOutPattern: valueOr(
+				loginOverrides.loggedOutPattern,
+				defaultLoginProbe.loggedOutPattern,
+			),
+			loginCommandHint: valueOr(
+				loginOverrides.loginCommandHint,
+				defaultLoginProbe.loginCommandHint,
 			),
 		},
 	});
@@ -1120,6 +1299,16 @@ function getConfigField(config: AgentConfig, field: AgentConfigFieldPath): Agent
 			return config.versionFingerprint.args;
 		case 'versionFingerprint.expectedPattern':
 			return config.versionFingerprint.expectedPattern;
+		case 'loginProbe.args':
+			return config.loginProbe.args;
+		case 'loginProbe.parser':
+			return config.loginProbe.parser;
+		case 'loginProbe.loggedInPattern':
+			return config.loginProbe.loggedInPattern;
+		case 'loginProbe.loggedOutPattern':
+			return config.loginProbe.loggedOutPattern;
+		case 'loginProbe.loginCommandHint':
+			return config.loginProbe.loginCommandHint;
 	}
 }
 
@@ -1146,6 +1335,16 @@ function getOverrideField(
 			return ownOptionalValue(overrides.versionFingerprint, 'args');
 		case 'versionFingerprint.expectedPattern':
 			return ownOptionalValue(overrides.versionFingerprint, 'expectedPattern');
+		case 'loginProbe.args':
+			return ownOptionalValue(overrides.loginProbe, 'args');
+		case 'loginProbe.parser':
+			return ownOptionalValue(overrides.loginProbe, 'parser');
+		case 'loginProbe.loggedInPattern':
+			return ownOptionalValue(overrides.loginProbe, 'loggedInPattern');
+		case 'loginProbe.loggedOutPattern':
+			return ownOptionalValue(overrides.loginProbe, 'loggedOutPattern');
+		case 'loginProbe.loginCommandHint':
+			return ownOptionalValue(overrides.loginProbe, 'loginCommandHint');
 	}
 }
 
@@ -1197,6 +1396,37 @@ function setConfigField(
 				...config.versionFingerprint,
 				expectedPattern: value as string,
 			};
+			return;
+		case 'loginProbe.args':
+			config.loginProbe = {
+				...config.loginProbe,
+				args: value as readonly string[],
+			};
+			return;
+		case 'loginProbe.parser':
+			config.loginProbe = {
+				...config.loginProbe,
+				parser: value as LoginProbeParser,
+			};
+			return;
+		case 'loginProbe.loggedInPattern':
+			config.loginProbe = {
+				...config.loginProbe,
+				loggedInPattern: value as string | null,
+			};
+			return;
+		case 'loginProbe.loggedOutPattern':
+			config.loginProbe = {
+				...config.loginProbe,
+				loggedOutPattern: value as string | null,
+			};
+			return;
+		case 'loginProbe.loginCommandHint':
+			config.loginProbe = {
+				...config.loginProbe,
+				loginCommandHint: value as string | null,
+			};
+			return;
 	}
 }
 
@@ -1247,6 +1477,22 @@ function deleteOverrideField(
 			if (overrides.versionFingerprint !== undefined) {
 				overrides.versionFingerprint.expectedPattern = undefined;
 			}
+			break;
+		case 'loginProbe.args':
+			if (overrides.loginProbe !== undefined) overrides.loginProbe.args = undefined;
+			break;
+		case 'loginProbe.parser':
+			if (overrides.loginProbe !== undefined) overrides.loginProbe.parser = undefined;
+			break;
+		case 'loginProbe.loggedInPattern':
+			if (overrides.loginProbe !== undefined) overrides.loginProbe.loggedInPattern = undefined;
+			break;
+		case 'loginProbe.loggedOutPattern':
+			if (overrides.loginProbe !== undefined) overrides.loginProbe.loggedOutPattern = undefined;
+			break;
+		case 'loginProbe.loginCommandHint':
+			if (overrides.loginProbe !== undefined) overrides.loginProbe.loginCommandHint = undefined;
+			break;
 	}
 	if (overrides.timeouts !== undefined && Object.keys(overrides.timeouts).length === 0) {
 		overrides.timeouts = undefined;
@@ -1256,6 +1502,9 @@ function deleteOverrideField(
 		Object.keys(overrides.versionFingerprint).length === 0
 	) {
 		overrides.versionFingerprint = undefined;
+	}
+	if (overrides.loginProbe !== undefined && Object.keys(overrides.loginProbe).length === 0) {
+		overrides.loginProbe = undefined;
 	}
 }
 
@@ -1276,6 +1525,13 @@ function mutableFullConfigRecord(
 			versionFingerprint: {
 				args: [...config.versionFingerprint.args],
 				expectedPattern: config.versionFingerprint.expectedPattern,
+			},
+			loginProbe: {
+				args: [...config.loginProbe.args],
+				parser: config.loginProbe.parser,
+				loggedInPattern: config.loginProbe.loggedInPattern,
+				loggedOutPattern: config.loginProbe.loggedOutPattern,
+				loginCommandHint: config.loginProbe.loginCommandHint,
 			},
 		};
 	}
@@ -1300,6 +1556,16 @@ function mutableOverrideRecord(
 								overrides.versionFingerprint.args === undefined
 									? undefined
 									: [...overrides.versionFingerprint.args],
+						},
+			loginProbe:
+				overrides.loginProbe === undefined
+					? undefined
+					: {
+							...overrides.loginProbe,
+							args:
+								overrides.loginProbe.args === undefined
+									? undefined
+									: [...overrides.loginProbe.args],
 						},
 		};
 	}
@@ -1353,6 +1619,16 @@ function freezeAgentOverrides(overrides: AgentConfigOverrides): AgentConfigOverr
 								? undefined
 								: Object.freeze([...overrides.versionFingerprint.args]),
 					}),
+		loginProbe:
+			overrides.loginProbe === undefined
+				? undefined
+				: Object.freeze({
+						...overrides.loginProbe,
+						args:
+							overrides.loginProbe.args === undefined
+								? undefined
+								: Object.freeze([...overrides.loginProbe.args]),
+					}),
 	});
 }
 
@@ -1368,6 +1644,10 @@ function collectUnknownFields(
 			unknownFields.push(Object.freeze({ field: `${path}.${field}`, agentId }));
 		}
 	}
+}
+
+function isLoginProbeParser(input: unknown): input is LoginProbeParser {
+	return Object.values(LOGIN_PROBE_PARSERS).some((parser) => parser === input);
 }
 
 function parseStringArray(input: unknown): readonly string[] | undefined {

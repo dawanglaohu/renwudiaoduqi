@@ -268,14 +268,16 @@
     "verdict": "pass"
   },
   "M3-T6": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "bcdb7606f545e1b142878de00d3bc3572b04a41727cad988468dd7ecf12e57b0",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "696df1c93a324a2e37beb10919cde75dc085d9efddcd0dd53057d324597c10fa",
     "evidence": [
-      "19 节 M3-T6 行：输入=M3-T5 快照取用接口 + 04 节 dispatchBatches 协议；产出 service/docs.ts getWrapupContext 与 domain/wrapup-builtin-prompt.ts 均在 taskPaths；requires M3-T5 的 review-context 在前置闭包内",
-      "验收 1)～4) 逐条对应 E-296（按 tasks 集合匹配、匹配不到走 builtin）、E-50（用快照不热改）、决策 73（不读 batchRecords）；04 节「数据来源」已加 dispatchBatches 字段说明，schemaVersion 仍为 1",
-      "接缝：M8-T6 的 wrapup_prompt_assembly 消费本任务返回的 {wrapupMaterial, promptSource}，字段名在 08 节「收口运行的提示词包装」与本行产出一致；测试文件 test/unit/wrapup-context.test.ts 在 supportPaths"
+      "任务与范围：对照 04-执行/19-模块任务拆分.md 的 M3-T6 行、图谱/任务/M3-T6.md、03-质量/13-边界问题与异常处理.md:309 的 E-296 行、02-设计/08-后端架构.md 的「收口运行的提示词包装」段（第 2 段引用材料由 M3-T6 按任务集合匹配 dispatchBatches[层号].wrapup）、01-约束/04-开发条件.md:158 的 dispatchBatches 输入协议，确认产出为 service/docs.ts 的 getWrapupContext(batchId) 与 domain/wrapup-builtin-prompt.ts（内置通用收口提示词常量）；前置 M3-T5 任务笔记 status=done 已落地；PR 62 的 diff 只含两条有效路径、一个新增测试与任务笔记回填，无范围外文件。",
+      "输入协议核对：dispatchBatches 的键值形状 {batchNo, tasks（已排序）, contractHash, wrapup} 与生成器 _run/build_docs.py:3866-3870（contractHash 由本批任务契约哈希摘出）及 _run/compile_prompts.js:23-24（batchPrompt 为纯函数、tasks 排序导出）一致，wrapup 语句为字符串；promptSource 取值 'docs'/'builtin' 与 02-设计/09-数据模型.md:138 的 batch_wrapups.prompt_source 值域一致。",
+      "契约可实施性：M3-T7 同期用普通迁移把 dispatch[id].bug 落 dispatch_snapshots.bug_prompt，而 dispatchBatches 是批次级材料，本任务 19 节只列 domain/wrapup-builtin-prompt.ts、service/docs.ts、test/unit/wrapup-context.test.ts 三处，不含迁移与 repo；在此范围内「进程内按内容指纹保留各版本文档解析结果 + 用任务派发快照 contract_hash 定位派发时那一版」可实现验收标准 1 与 4，条款之间无矛盾，故契约无缺口，本轮不发起文档补丁。",
+      "验收标准可判定：四条判据全部落在 getWrapupContext 返回值上——AC1 tasks 集合相等（顺序无关、多一个少一个都不匹配）且命中返回 wrapup 原文与 promptSource='docs'；AC2 未命中/未导出键返回内置常量与 promptSource='builtin' 且不抛错；AC3 逐字不改写不截断且不读 batchRecords；AC4 指纹变化后仍取快照那一份。E-296 的匹配/回退与 E-50 的不热改都有可指认的代码位置，本轮逐条核到位。",
+      "本轮代码验收结论：契约本身通过（本登记），代码侧回退两条阻断项 R1（08 明令禁止模块级可变单例：service/docs.ts:168-178 的两个模块级 Map 与顶层 clearWrapupContextLock）、R2（文档变更后不得退到当前文档或任意历史版本：service/docs.ts:1005-1018，违反 08 的「禁止用当前文档而非派发快照那一刻的 dispatchBatches（E-50）」与 AC4）。证据清单与判据见 PR 62 的 REVIEW-ROUND 1 评论。"
     ],
-    "reviewed": "2026-09-10T20:07:44.142190+00:00",
+    "reviewed": "2026-09-13T11:59:15.379931+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -331,15 +333,15 @@
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "b37bab666fb55f27151d52d09c81f30399c2008e2aa13c3949e262dde0f1798e",
     "evidence": [
-      "前置闭包：19 节 M4-T13 依赖 M4-T3、M4-T4；输入列引用的 probeAgent() / buildProbeLaunch() 在 main packages/daemon/src/adapters/probe.ts 已导出，executeProbeProcess() 在 main 为模块私有，本任务产出列已写明由本任务导出（审查员后端 NON_BLOCKING 1 已采纳）；service/agents.ts 已有 changed 谓词与 agent.availability_changed 发送、assertCanDispatch()；http/routes/agents.ts 四端点齐全。",
-      "有效范围：产出列 13 项逐一对照 presentation.json taskPaths（10 条）+ task-contracts.json supportPaths（8 条）全部覆盖；pi provider 集合改为调用方注入参数（验收 3），本任务不再读 pi --list-models 或 settings.json，因此 adapters/pi/read-models.ts 不需入范围（审查员 BLOCKING 1 按方案 (a) 修正）。",
-      "枚举完整：10 节字段级契约 login 行逐字列出 reason 八值 timeout / exec_missing / spawn_failed / unparsable / exit_nonzero / not_supported / no_provider / not_probed，pi status:'invalid' 归 unparsable；19 节验收 2 引用该行（审查员 BLOCKING 2 修正）。",
-      "事件时机：19 节验收 5 改为「每次 refreshLogin() 结束都发 agent.availability_changed{reason:'login_changed'}，changed 谓词不含 login，订阅方不得重探」，与 08 节事件清单、决策 130 一致（审查员 BLOCKING 3 修正）。",
-      "边界：E-335、E-336、E-337、E-346、E-349、E-353、E-354、E-355 均在 13 节且与验收条款逐条对应；E-336「代码中不存在按登录态拒绝 POST /runs 的路径」与验收 4 一致；E-353 禁词清单与验收 6 一致。",
-      "平台契约：04 节登录态表五家逐行有实测输出形状（codex 已登录 stdout、claude JSON 三键、pi 三种 status 与退出码、grok 成败判定、dsh 无），未实测形态在 17 节标 synthetic；fixture 可逐字造。",
-      "提供／消费：provides login-probe；M4-T14 requires 它并消费 getLogin() / refreshLogin() / redactSecrets()；M8-T9 消费 refreshLogin({trigger:'exited_before_output'})；M9-T23 消费 LoginState。验收阶段：单测 + 集成剧本 ①③④，M4-T13 自身可在 M4-T14 之前独立验收。"
+      "前置能力已落地：库上 703a700 已有 M4-T3 的 probeAgent()/buildProbeLaunch()/probe.ts（adapters/probe.ts:23 DEFAULT_PROBE_TIMEOUT_MS=5000、:1017 executeProbeProcess 含 spawnManaged 与超时 kill()、:1007 redactSecrets）与 M4-T4 的 service/agents.ts、http/routes/agents.ts 四端点、agent.availability_changed。本任务只需把 executeProbeProcess()/redactSecrets() 导出并加 getLogin()/refreshLogin()，不新建子进程或事件通道，与 19 节依赖列一致。",
+      "有效范围：gh pr diff 的 25 个文件全部落在 presentation.json taskPaths（10 条）与 task-contracts.json supportPaths（8 条）内，无范围外改动。boot/container.ts、events/bus.ts、errors/codes.ts、test/unit/agents-service.test.ts、test/unit/probe.test.ts、test/integration/agents-routes.test.ts 在范围内但无需改动——E_AGENT_LOGIN_PROBE_FAILED 已在 codes.ts:74（409/server），scripts/check-error-codes.mjs 报 49 个错误码与 10 节一致；container.ts 已按既有 deps 传递 commandRunner/spawnManagedFn，无需新接线。",
+      "13 节边界逐条有落点：E-335 超时/不匹配/退出码非 0 归 unknown 并给 reason，warningCode 只 4 种（login-probe.ts:46-58、88-120、150-165、183-190、222-248）；E-336/337 派发不禁用（assertCanDispatch() agents.ts:638-657 不读 loginCache，全仓无「运行成功改判 logged_in」路径）；E-346 探测命令与正则源串在 config/defaults.ts:103-202、脚本外置（login-patterns.ts:21）；E-349 pi 按 provider 并行、集合与 defaultProvider 由参数注入、上限 10、超出的 not_probed（login-probe.ts:293-410）；E-353 凭据参数禁令与 {provider} 作用域（registry.ts:1029-1125、FORBIDDEN_LOGIN_PROBE_ARG_SUBSTRINGS registry.ts:55）；E-355 hint 控制字符/超 200 置 null 并 warn（registry.ts:1100-1122）、首次探测前 not_probed（agents.ts:690-709）。",
+      "10 节接口字段一致：LoginState 三值 state + 八值 reason + checkedAt/loginCommand/warningCode/providers（shared/api/agents.ts:1-27），与 10 节「login（AgentEntry / probe 响应）」行逐字对应；probe 响应四字段 {status, versionString, matched, login}（http/routes/agents.ts:138-145）；AgentEntryDto 顶层无 loginCommandHint（单测断言）；E_AGENT_LOGIN_PROBE_FAILED 全仓只出现在 login.warningCode、无任何路由把它当 HTTP 错误抛出（grep 仅命中 login-probe.ts 的 warningCode 赋值）。决策 130 的「ListAgentModelsResponse 无 loginState」成立（grep loginState 零命中）。",
+      "17 节测试对应：test/unit/login-probe.test.ts 34 例（四解析器 × 五家 fixture、redactSecrets 五样本 + 不误伤 gpt-5.6-sol/opus[1m]、超时/exec_missing/parser=none 不调 commandRunner、并发去重、四失效点、login_changed 事件、assertCanDispatch 放行 logged_out）与 test/arch/registry-forbidden-args.test.ts 7 例全部通过；本次审查另跑 tsc -b --noEmit、biome ci、check-error-codes 与 agent-registry/agents-service/probe/read-models/model-selection/effort-tier/source-contracts/agents-routes 与 arch routes/bus-transaction/boot-boundaries 回归，全绿。",
+      "08 节分层与约定：adapters/login-probe.ts 只 import shared、config/defaults、platform、proc/spawn（类型）与同层 adapters，未触 repo/service/events；refreshLogin() 不开事务、bus.publish 在事务外（test/arch/bus-transaction 通过）；service/agents.ts 无 setInterval（arch 断言）与 fastify import；全仓无 process.env/process.platform 直读、无新依赖、无 barrel、文件 kebab-case。",
+      "decision 130/133：每次 refreshLogin() 结束（成功/超时/unparsable/exec_missing）都发 agent.availability_changed{reason:'login_changed', login}（agents.ts:775-792），changed 谓词只比 isAvailable/unavailableCode、不含 login（agents.ts:369-370），login_changed 的 publish 不自清缓存，daemon 侧唯一 bus 订阅者 review-context.ts:369 只收 system.docs_changed，无「收到事件就重探」的回环；缓存只由 refreshLogin() 写、四个失效点之外无写入（grep loginCache 仅 agents.ts + stop() 清理）。"
     ],
-    "reviewed": "2026-09-12T21:47:47.898329+00:00",
+    "reviewed": "2026-09-13T14:09:08.523197+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

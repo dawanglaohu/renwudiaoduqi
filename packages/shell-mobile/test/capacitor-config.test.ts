@@ -15,6 +15,11 @@ describe('Capacitor Mobile Shell Configuration (AC 1)', () => {
 		expect(capacitorConfig.server?.androidScheme).toBe('https');
 	});
 
+	it('allows mixed content for local plaintext HTTP daemon connections from https://localhost', () => {
+		// usesCleartextTraffic 管控 Android OS 层明文套接字，allowMixedContent 管控 WebView 内 https://localhost 向明文 HTTP daemon 发起 fetch/SSE
+		expect(capacitorConfig.android?.allowMixedContent).toBe(true);
+	});
+
 	it('AndroidManifest.xml enables cleartext traffic for local daemon HTTP and requires INTERNET permission', () => {
 		const manifestPath = resolve(__dirname, '../android/app/src/main/AndroidManifest.xml');
 		const content = readFileSync(manifestPath, 'utf8');

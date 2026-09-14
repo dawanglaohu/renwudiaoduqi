@@ -1,14 +1,27 @@
 import { createHash } from 'node:crypto';
 import * as nodeFs from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import type { DatabaseConnection } from '../db/open-database.ts';
 import { type DocsFingerprintHasher, computeDocsFingerprint } from '../domain/docs-fingerprint.ts';
 import { batchNoOf, layerOf } from '../domain/layer-of.ts';
+import {
+	BUILTIN_WRAPUP_PROMPT,
+	PROMPT_SOURCE_BUILTIN,
+	PROMPT_SOURCE_DOCS,
+	type WrapupPromptSource,
+} from '../domain/wrapup-builtin-prompt.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import { type OpenBrowserFn, createOpenBrowser } from '../proc/open-browser.ts';
+import { type BatchesRepo, createBatchesRepo } from '../repo/batches.ts';
+import {
+	type DispatchSnapshotsRepo,
+	createDispatchSnapshotsRepo,
+} from '../repo/dispatch-snapshots.ts';
 import type { DocumentMetadataUpdateRow, DocumentRow, DocumentsRepo } from '../repo/documents.ts';
+import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 
 export interface ParsedDocTask {
 	readonly id: string;
@@ -31,6 +44,13 @@ export interface ParsedDocTask {
 	readonly batchNo: number;
 }
 
+export interface ParsedDispatchBatch {
+	readonly batchNo?: number;
+	readonly tasks: readonly string[];
+	readonly contractHash?: string | null;
+	readonly wrapup: string;
+}
+
 export interface ParsedDocData {
 	readonly schemaVersion: number;
 	readonly projectName: string;
@@ -40,6 +60,28 @@ export interface ParsedDocData {
 	readonly contentFingerprint: string;
 	readonly tasks: readonly ParsedDocTask[];
 	readonly taskMap: ReadonlyMap<string, ParsedDocTask>;
+	readonly dispatchBatches?: readonly ParsedDispatchBatch[];
+}
+
+export interface WrapupContext {
+	readonly batchId: string;
+	readonly batchNo: number;
+	readonly wrapup: string;
+	readonly wrapupPrompt: string;
+	readonly promptSource: WrapupPromptSource;
+	readonly tasks: readonly string[];
+	readonly contractHash: string | null;
+	readonly isSnapshot: true;
+	readonly isReadOnly: true;
+	readonly docChangedSinceDispatch: boolean;
+}
+
+export interface GetWrapupContextOptions {
+	readonly database?: DatabaseConnection;
+	readonly batchesRepo?: BatchesRepo;
+	readonly tasksRepo?: TasksRepo;
+	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+	readonly documentsRepo?: DocumentsRepo;
 }
 
 export interface DocumentRecord {
@@ -72,6 +114,10 @@ export interface DocsServiceDeps {
 	readonly openBrowser?: OpenBrowserFn;
 	readonly hostInputs?: PlatformHostInputs;
 	readonly fileExists?: (path: string) => Promise<boolean> | boolean;
+	readonly batchesRepo?: BatchesRepo;
+	readonly tasksRepo?: TasksRepo;
+	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+	readonly db?: DatabaseConnection;
 }
 
 export interface ImportDocumentResult {
@@ -97,6 +143,7 @@ export interface DocsService {
 	readonly markSourceUnreadable: (id: string) => void;
 	readonly setTakeoverNotified: (id: string, isTakeoverNotified: boolean) => void;
 	readonly openReader: (id: string) => Promise<OpenReaderResult>;
+	readonly getWrapupContext: (batchId: string, options?: GetWrapupContextOptions) => WrapupContext;
 }
 
 const DEFAULT_FS: DocsFileSystem = Object.freeze({
@@ -104,6 +151,47 @@ const DEFAULT_FS: DocsFileSystem = Object.freeze({
 		return nodeFs.readFile(path, encoding);
 	},
 });
+
+interface CachedDocHistoryEntry {
+	readonly fingerprint: string;
+	readonly dispatchBatches: readonly ParsedDispatchBatch[];
+	readonly taskContractHashes: ReadonlyMap<string, string>;
+}
+
+/**
+ * 集合相等匹配（AC 1, E-296）。
+ * 按「tasks 集合与本批当前任务集合相等」匹配（顺序无关，多一个少一个都不匹配）。
+ * 不按层号匹配。
+ */
+export function matchBatchByTasksSet(
+	dispatchBatches: readonly ParsedDispatchBatch[] | undefined,
+	currentTasks: readonly string[],
+): ParsedDispatchBatch | null {
+	if (!dispatchBatches || dispatchBatches.length === 0) {
+		return null;
+	}
+	const currentSet = new Set(currentTasks);
+	for (const entry of dispatchBatches) {
+		if (entry.tasks.length !== currentTasks.length) {
+			continue;
+		}
+		const entrySet = new Set(entry.tasks);
+		if (entrySet.size !== currentSet.size) {
+			continue;
+		}
+		let isMatch = true;
+		for (const t of currentSet) {
+			if (!entrySet.has(t)) {
+				isMatch = false;
+				break;
+			}
+		}
+		if (isMatch) {
+			return entry;
+		}
+	}
+	return null;
+}
 
 export function defaultSha256Hasher(payload: string): string {
 	return createHash('sha256').update(payload, 'utf8').digest('hex');
@@ -503,6 +591,39 @@ export function parseDocsDataContent(
 
 	const taskMap = new Map(parsedTasks.map((t) => [t.id, t]));
 
+	// 解析 dispatchBatches（04 节，AC 1、AC 2、E-296）。
+	// 格式形如 dispatchBatches["<层号>"] = { batchNo, tasks, contractHash, wrapup }
+	// 键缺失或不是对象时不报错，由下游收口逻辑回落到 builtin（AC 2）。
+	// 严格执行决策 73：明令不读取 doc.batchRecords 键。
+	const parsedDispatchBatches: ParsedDispatchBatch[] = [];
+	const dispatchBatchesRaw = doc.dispatchBatches;
+	if (typeof dispatchBatchesRaw === 'object' && dispatchBatchesRaw !== null) {
+		const rawEntries = Array.isArray(dispatchBatchesRaw)
+			? dispatchBatchesRaw
+			: Object.values(dispatchBatchesRaw);
+		for (const entry of rawEntries) {
+			if (typeof entry === 'object' && entry !== null) {
+				const item = entry as Record<string, unknown>;
+				if (
+					Array.isArray(item.tasks) &&
+					item.tasks.every((t): t is string => typeof t === 'string') &&
+					typeof item.wrapup === 'string'
+				) {
+					parsedDispatchBatches.push(
+						Object.freeze({
+							batchNo: typeof item.batchNo === 'number' ? item.batchNo : undefined,
+							tasks: Object.freeze([...item.tasks]),
+							contractHash: typeof item.contractHash === 'string' ? item.contractHash : null,
+							wrapup: item.wrapup, // 逐字不改写、不截断（AC 3）
+						}),
+					);
+				}
+			}
+		}
+	}
+
+	const frozenBatches = Object.freeze(parsedDispatchBatches);
+
 	return Object.freeze({
 		schemaVersion: 1,
 		projectName: doc.project as string,
@@ -512,6 +633,7 @@ export function parseDocsDataContent(
 		contentFingerprint,
 		tasks: Object.freeze(parsedTasks),
 		taskMap,
+		dispatchBatches: frozenBatches,
 	});
 }
 
@@ -537,13 +659,33 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 	const fileSystem = deps.fs ?? DEFAULT_FS;
 	const hasher = deps.hasher ?? defaultSha256Hasher;
 
+	const docFingerprintBatchesCache = new Map<string, CachedDocHistoryEntry>();
+	const lockedBatchWrapups = new Map<string, WrapupContext>();
+
+	function recordParsedDoc(parsed: ParsedDocData): void {
+		if (!parsed.dispatchBatches) return;
+		const taskHashesMap = new Map(parsed.tasks.map((t) => [t.id, t.contractHash]));
+		docFingerprintBatchesCache.set(
+			parsed.contentFingerprint,
+			Object.freeze({
+				fingerprint: parsed.contentFingerprint,
+				dispatchBatches: parsed.dispatchBatches,
+				taskContractHashes: taskHashesMap,
+			}),
+		);
+	}
+
 	return Object.freeze({
 		parseContent(content: string, options?: { docsPath?: string }): ParsedDocData {
-			return parseDocsDataContent(content, { ...options, hasher });
+			const parsed = parseDocsDataContent(content, { ...options, hasher });
+			recordParsedDoc(parsed);
+			return parsed;
 		},
 
 		async parseFile(filePath: string): Promise<ParsedDocData> {
-			return parseDocsDataFile(filePath, fileSystem, hasher);
+			const parsed = await parseDocsDataFile(filePath, fileSystem, hasher);
+			recordParsedDoc(parsed);
+			return parsed;
 		},
 
 		async importDocument(docsPath: string): Promise<ImportDocumentResult> {
@@ -553,6 +695,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			let parsed: ParsedDocData;
 			try {
 				parsed = await parseDocsDataFile(resolvedPath, fileSystem, hasher);
+				recordParsedDoc(parsed);
 			} catch (error) {
 				const appError =
 					error instanceof AppError
@@ -734,5 +877,169 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				readerPath,
 			});
 		},
+
+		getWrapupContext(batchId: string, options?: GetWrapupContextOptions): WrapupContext {
+			return getWrapupContextInternal(
+				batchId,
+				deps,
+				lockedBatchWrapups,
+				docFingerprintBatchesCache,
+				options,
+			);
+		},
 	});
+}
+
+/**
+ * 提取指定批次的收口上下文（M3-T6, AC 1-4, E-296, E-50）。
+ * 供 M8 组装收口运行提示词。
+ */
+export function getWrapupContextInternal(
+	batchId: string,
+	deps: {
+		documentsRepo: DocumentsRepo;
+		batchesRepo?: BatchesRepo;
+		tasksRepo?: TasksRepo;
+		dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+		db?: DatabaseConnection;
+		fs?: DocsFileSystem;
+		hasher?: DocsFingerprintHasher;
+	},
+	lockedBatchWrapups: Map<string, WrapupContext>,
+	docFingerprintBatchesCache: Map<string, CachedDocHistoryEntry>,
+	options?: GetWrapupContextOptions,
+): WrapupContext {
+	if (typeof batchId !== 'string' || batchId.trim().length === 0) {
+		throw new AppError('E_VALIDATION', 'batchId must be a non-empty string');
+	}
+	const cleanBatchId = batchId.trim();
+
+	// AC 4 & E-50: 收口途中文档指纹变化时仍取快照那一份，不热改
+	const locked = lockedBatchWrapups.get(cleanBatchId);
+	if (locked) {
+		return locked;
+	}
+
+	const db = options?.database ?? deps.db;
+	const batchesRepo =
+		options?.batchesRepo ?? deps.batchesRepo ?? (db ? createBatchesRepo(db) : undefined);
+	const tasksRepo = options?.tasksRepo ?? deps.tasksRepo ?? (db ? createTasksRepo(db) : undefined);
+	const snapshotsRepo =
+		options?.dispatchSnapshotsRepo ??
+		deps.dispatchSnapshotsRepo ??
+		(db ? createDispatchSnapshotsRepo(db) : undefined);
+	const documentsRepo = options?.documentsRepo ?? deps.documentsRepo;
+
+	if (!batchesRepo || !tasksRepo || !documentsRepo) {
+		throw new AppError(
+			'E_INTERNAL',
+			'Required repositories (batchesRepo, tasksRepo, documentsRepo) are not available to getWrapupContext',
+		);
+	}
+
+	const batchRow = batchesRepo.findById(cleanBatchId);
+	if (!batchRow) {
+		throw new AppError('E_NOT_FOUND', `Batch not found: ${cleanBatchId}`, {
+			details: { batchId: cleanBatchId },
+		});
+	}
+
+	const docRow = documentsRepo.findById(batchRow.doc_id);
+	if (!docRow) {
+		throw new AppError('E_NOT_FOUND', `Document not found for batch: ${cleanBatchId}`, {
+			details: { batchId: cleanBatchId, docId: batchRow.doc_id },
+		});
+	}
+
+	// 查本批任务并提取业务标识 task_key（过滤已从文档移除的任务）
+	const batchTasks = tasksRepo.listByBatchId(cleanBatchId);
+	const activeTasks = batchTasks.filter((t) => t.is_removed_from_doc !== 1);
+	const currentTaskKeys = activeTasks.map((t) => t.task_key);
+
+	// 检查快照与文档变更状态（E-50）
+	let docChangedSinceDispatch = false;
+	const snapshotHashesByTaskKey = new Map<string, string>();
+
+	if (snapshotsRepo && activeTasks.length > 0) {
+		for (const task of activeTasks) {
+			const snap = snapshotsRepo.findLatestByTaskId(task.id);
+			if (snap) {
+				snapshotHashesByTaskKey.set(task.task_key, snap.contract_hash);
+				if (
+					snap.contract_hash !== task.contract_hash ||
+					task.has_accept_changed === 1 ||
+					task.has_prompt_changed === 1
+				) {
+					docChangedSinceDispatch = true;
+				}
+			}
+		}
+	}
+
+	// R2 & AC 4 & E-50: 候选批次严格受限：
+	// docChangedSinceDispatch=true 时候选只能是用本批任务派发快照 contract_hash 逐版本精确命中的版本；
+	// 拿不到就保持 undefined（下游回退 builtin），绝不取任意历史版本，绝不在检出变更后退回当前文档。
+	// docChangedSinceDispatch=false（当前文档≡派发时文档）才允许使用当前版本。
+	let candidateBatches: readonly ParsedDispatchBatch[] | undefined;
+
+	if (docChangedSinceDispatch) {
+		if (snapshotHashesByTaskKey.size > 0) {
+			for (const entry of docFingerprintBatchesCache.values()) {
+				let allMatch = true;
+				for (const [taskKey, snapHash] of snapshotHashesByTaskKey.entries()) {
+					const historicalHash = entry.taskContractHashes.get(taskKey);
+					if (historicalHash !== snapHash) {
+						allMatch = false;
+						break;
+					}
+				}
+				if (allMatch) {
+					candidateBatches = entry.dispatchBatches;
+					break;
+				}
+			}
+		}
+	} else {
+		candidateBatches = docFingerprintBatchesCache.get(docRow.content_fingerprint)?.dispatchBatches;
+	}
+
+	// 执行任务集合相等匹配（AC 1, AC 2, E-296）
+	const matchedEntry = matchBatchByTasksSet(candidateBatches, currentTaskKeys);
+
+	let wrapup: string;
+	let promptSource: WrapupPromptSource;
+	let contractHash: string | null = null;
+
+	if (matchedEntry) {
+		// AC 1 & AC 3: 命中返回该批 wrapup 原文（逐字不改写、不截断）与 promptSource='docs'
+		wrapup = matchedEntry.wrapup;
+		promptSource = PROMPT_SOURCE_DOCS;
+		contractHash = matchedEntry.contractHash ?? null;
+	} else {
+		// AC 2 & E-296: 匹配不到或未导出该键时返回内置通用收口提示词，标 promptSource='builtin'
+		wrapup = BUILTIN_WRAPUP_PROMPT;
+		promptSource = PROMPT_SOURCE_BUILTIN;
+		// 记 warn，不抛错、不让收口停摆（E-296）
+		console.warn(
+			`[E-296] Document did not provide matching dispatchBatches for batch ${cleanBatchId}, falling back to builtin wrapup prompt`,
+		);
+	}
+
+	const context: WrapupContext = Object.freeze({
+		batchId: cleanBatchId,
+		batchNo: batchRow.batch_no,
+		wrapup,
+		wrapupPrompt: wrapup,
+		promptSource,
+		tasks: Object.freeze([...currentTaskKeys]),
+		contractHash,
+		isSnapshot: true,
+		isReadOnly: true,
+		docChangedSinceDispatch,
+	});
+
+	// 锁定该批次快照（AC 4, E-50: 收口途中文档变了仍取快照那一份，不热改）
+	lockedBatchWrapups.set(cleanBatchId, context);
+
+	return context;
 }
