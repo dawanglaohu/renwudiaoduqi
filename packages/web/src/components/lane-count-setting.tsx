@@ -1,4 +1,6 @@
-import { MAX_LANE_COUNT, MIN_LANE_COUNT } from '../features/settings-agents/types.ts';
+export const DEFAULT_LANE_COUNT = 2;
+export const MIN_LANE_COUNT = 1;
+export const MAX_LANE_COUNT = 6;
 
 export interface LaneCountSettingProps {
 	readonly laneCount: number;

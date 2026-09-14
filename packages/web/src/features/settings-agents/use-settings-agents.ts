@@ -13,16 +13,18 @@ import type {
 import { ROUTES } from '../../../../shared/src/api/routes.ts';
 import { isApiError } from '../../api/http-client.ts';
 import { httpClient } from '../../api/http-client.ts';
+import type { AgentEntryWithLayers } from '../../components/agent-card.tsx';
+import type {
+	AgentFieldKey,
+	FieldErrorInfo,
+	FieldLayerValues,
+} from '../../components/field-layers-row.tsx';
 import {
-	type AgentEntryWithLayers,
-	type AgentFieldKey,
 	DEFAULT_LANE_COUNT,
-	FIELD_LABELS,
-	type FieldErrorInfo,
-	type FieldLayerValues,
 	MAX_LANE_COUNT,
 	MIN_LANE_COUNT,
-} from './types.ts';
+} from '../../components/lane-count-setting.tsx';
+import { FIELD_LABELS } from './types.ts';
 
 export interface UseSettingsAgentsOptions {
 	readonly targetDocId?: string | null;
@@ -372,13 +374,10 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				}
 			}
 
-			const updateNotice =
-				layer?.defaultUpdate?.oldValue !== undefined && layer?.defaultUpdate?.newValue !== undefined
-					? {
-							oldValue: String(layer.defaultUpdate.oldValue),
-							newValue: String(layer.defaultUpdate.newValue),
-						}
-					: null;
+			// E-92 的「旧值 → 新值」目前没有任何 daemon 出口（layers 只有 builtin/config/override/hasOverride，
+			// defaultUpdates 只在 config/registry.ts 内部快照里），所以本页不自己造差异：
+			// 待 daemon 提供升级差异时，由它供给 updateNotice，展示层已经支持渲染。
+			const updateNotice = null;
 
 			return {
 				key: field,

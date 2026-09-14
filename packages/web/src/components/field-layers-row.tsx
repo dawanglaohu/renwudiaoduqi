@@ -1,5 +1,31 @@
 import type { ReactNode } from 'react';
-import type { FieldLayerValues } from '../features/settings-agents/types.ts';
+
+// 这三个类型是展示层自己的 props 契约（07 节：components 不得反向 import features），
+// features 的 hook/容器按需要从本文件引类型。
+export type AgentFieldKey =
+	| 'monogram'
+	| 'execPath'
+	| 'defaultModel'
+	| 'maxConcurrency'
+	| 'permissionTier';
+
+export interface FieldLayerValues {
+	readonly key: AgentFieldKey;
+	readonly label: string;
+	readonly builtIn: string;
+	readonly override: string | null;
+	readonly effective: string;
+	readonly updateNotice?: {
+		readonly oldValue: string;
+		readonly newValue: string;
+	} | null;
+}
+
+export interface FieldErrorInfo {
+	readonly message: string;
+	readonly technical?: string;
+	readonly requestId?: string;
+}
 
 export interface FieldLayersRowProps {
 	readonly layers: FieldLayerValues;

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { FieldErrorInfo } from './field-layers-row.tsx';
 
 export interface ModelPickerProps {
 	readonly models: readonly string[];
@@ -11,6 +12,7 @@ export interface ModelPickerProps {
 	readonly onAddCustomModel?: (model: string) => void;
 	readonly initialOpen?: boolean;
 	readonly disabled?: boolean;
+	readonly error?: FieldErrorInfo | null;
 }
 
 /**
@@ -33,6 +35,7 @@ export function ModelPicker({
 	onAddCustomModel,
 	initialOpen = false,
 	disabled = false,
+	error = null,
 }: ModelPickerProps) {
 	const pickerId = useId();
 	const [isOpen, setIsOpen] = useState<boolean>(initialOpen);
@@ -154,6 +157,23 @@ export function ModelPicker({
 					</button>
 				)}
 			</div>
+
+			{/* R4: 字段错只渲染在对应控件下方，英文只进可展开技术详情 */}
+			{error && (
+				<div
+					title={error.requestId ? `requestId: ${error.requestId}` : undefined}
+					data-testid="model-field-error"
+					className="mt-1 flex flex-col gap-0.5 text-micro text-down"
+				>
+					<span>{error.message}</span>
+					{error.technical && (
+						<details className="mt-0.5 text-micro text-ink-3">
+							<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
+							<div className="font-mono text-micro text-ink-3 break-all">{error.technical}</div>
+						</details>
+					)}
+				</div>
+			)}
 
 			{/* 桌面端下拉列表 */}
 			{isOpen && !isMobile && (

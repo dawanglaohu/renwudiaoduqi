@@ -1,17 +1,20 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { AgentCard, UNAVAILABLE_CODE_TITLES } from '../src/components/agent-card.tsx';
-import { FieldLayersRow } from '../src/components/field-layers-row.tsx';
-import { LaneCountSetting } from '../src/components/lane-count-setting.tsx';
-import { ModelPicker } from '../src/components/model-picker.tsx';
-import { SettingsAgentsContainer } from '../src/features/settings-agents/settings-agents-container.tsx';
 import {
+	AgentCard,
 	type AgentEntryWithLayers,
+	UNAVAILABLE_CODE_TITLES,
+} from '../src/components/agent-card.tsx';
+import { FieldLayersRow } from '../src/components/field-layers-row.tsx';
+import {
 	DEFAULT_LANE_COUNT,
+	LaneCountSetting,
 	MAX_LANE_COUNT,
 	MIN_LANE_COUNT,
-} from '../src/features/settings-agents/types.ts';
+} from '../src/components/lane-count-setting.tsx';
+import { ModelPicker } from '../src/components/model-picker.tsx';
+import { SettingsAgentsContainer } from '../src/features/settings-agents/settings-agents-container.tsx';
 import { SettingsAgentsPage } from '../src/pages/settings-agents-page.tsx';
 
 describe('M9-T14 设置页：agent 注册表与模型选择（返工第 1 轮）', () => {
@@ -448,6 +451,101 @@ describe('M9-T14 设置页：agent 注册表与模型选择（返工第 1 轮）
 			const html = renderToStaticMarkup(createElement(SettingsAgentsContainer));
 
 			expect(html).toContain('settings-agents-container');
+		});
+
+		it('keeps the container free of colour / font-size / radius utilities (R7)', async () => {
+			// 规则管的是容器源码本身：颜色、字号、圆角一律不写在 features/ 容器里。
+			const { readFileSync } = await import('node:fs');
+			const source = readFileSync(
+				new URL('../src/features/settings-agents/settings-agents-container.tsx', import.meta.url),
+				'utf8',
+			);
+
+			const forbidden =
+				/(text-(ink|meta|dense|lead|micro|down|needs|auto|on-)|bg-(down|needs|auto|panel|page|bg)|border-(down|needs|auto|strong)|font-(ui|mono)|rounded)/;
+			expect(source).not.toMatch(forbidden);
+			// 但加载态仍由展示层渲染
+			expect(source).toContain('InlineNotice');
+		});
+
+		it('keeps components/ free of reverse imports from features/ (R7)', async () => {
+			const { readdirSync, readFileSync } = await import('node:fs');
+			const dir = new URL('../src/components/', import.meta.url);
+			const offenders: string[] = [];
+			for (const name of readdirSync(dir)) {
+				if (!name.endsWith('.tsx') && !name.endsWith('.ts')) continue;
+				const source = readFileSync(new URL(name, dir), 'utf8');
+				if (/from\s+'[^']*features\//.test(source)) offenders.push(name);
+			}
+			expect(offenders).toEqual([]);
+		});
+	});
+
+	// ─── R4 余量：模型与权限档字段错也要就地渲染 ───
+	describe('R4: model and permissionTier field errors render below their own control', () => {
+		const mockAgent: AgentEntryWithLayers = {
+			id: 'codex',
+			name: 'Codex',
+			monogram: 'CX',
+			isAvailable: true,
+			defaultModel: 'gpt-4o',
+			maxConcurrency: 1,
+			permissionTier: 'workspaceWrite',
+			execPath: 'codex',
+		};
+
+		it('renders the defaultModel error under the model picker in Chinese, with technical detail folded', () => {
+			const html = renderToStaticMarkup(
+				createElement(AgentCard, {
+					agent: mockAgent,
+					models: ['gpt-4o'],
+					getFieldLayers: (_agent, field) => ({
+						key: field,
+						label: field,
+						builtIn: '—',
+						override: null,
+						effective: '—',
+					}),
+					onUpdateField: vi.fn().mockResolvedValue(true),
+					onProbe: vi.fn().mockResolvedValue(undefined),
+					validationError: {
+						defaultModel: {
+							message: '模型名不被该 agent 接受，请换一个',
+							technical: 'model "gpt-4o" is not in the catalog',
+							requestId: 'req-9',
+						},
+					},
+				}),
+			);
+
+			expect(html).toContain('data-testid="model-field-error"');
+			expect(html).toContain('模型名不被该 agent 接受，请换一个');
+			expect(html).toContain('技术详情');
+			expect(html).toContain('is not in the catalog');
+		});
+
+		it('renders the permissionTier error under the select', () => {
+			const html = renderToStaticMarkup(
+				createElement(AgentCard, {
+					agent: mockAgent,
+					models: [],
+					getFieldLayers: (_agent, field) => ({
+						key: field,
+						label: field,
+						builtIn: '—',
+						override: null,
+						effective: '—',
+					}),
+					onUpdateField: vi.fn().mockResolvedValue(true),
+					onProbe: vi.fn().mockResolvedValue(undefined),
+					validationError: {
+						permissionTier: { message: '权限档不被接受，请改选其他档位' },
+					},
+				}),
+			);
+
+			expect(html).toContain('data-testid="permissionTier-error-codex"');
+			expect(html).toContain('权限档不被接受，请改选其他档位');
 		});
 	});
 });

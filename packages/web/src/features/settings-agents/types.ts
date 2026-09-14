@@ -1,47 +1,7 @@
-import type { AgentEntryDto } from '../../../../shared/src/api/agents.ts';
+import type { AgentFieldKey } from '../../components/field-layers-row.tsx';
 
-export type AgentFieldKey =
-	| 'monogram'
-	| 'execPath'
-	| 'defaultModel'
-	| 'maxConcurrency'
-	| 'permissionTier';
-
-export interface FieldLayerValues {
-	readonly key: AgentFieldKey;
-	readonly label: string;
-	readonly builtIn: string;
-	readonly override: string | null;
-	readonly effective: string;
-	readonly updateNotice?: {
-		readonly oldValue: string;
-		readonly newValue: string;
-	} | null;
-}
-
-export interface FieldErrorInfo {
-	readonly message: string;
-	readonly technical?: string;
-	readonly requestId?: string;
-}
-
-export interface AgentEntryWithLayers extends AgentEntryDto {
-	readonly layers?: Readonly<
-		Record<
-			string,
-			{
-				readonly builtin?: unknown;
-				readonly override?: unknown;
-				readonly effective?: unknown;
-				readonly hasOverride?: boolean;
-				readonly defaultUpdate?: {
-					readonly oldValue?: unknown;
-					readonly newValue?: unknown;
-				} | null;
-			}
-		>
-	>;
-}
+// features 侧只保留本域自己的常量；展示层的 props 契约与尺寸常量
+// 分居 components/ 各自文件，避免 components 反向 import features（07 节分层）。
 
 export const FIELD_LABELS: Readonly<Record<AgentFieldKey, string>> = Object.freeze({
 	monogram: '两字符短码',
@@ -50,7 +10,3 @@ export const FIELD_LABELS: Readonly<Record<AgentFieldKey, string>> = Object.free
 	maxConcurrency: '最大并发数',
 	permissionTier: '权限档',
 });
-
-export const DEFAULT_LANE_COUNT = 2;
-export const MIN_LANE_COUNT = 1;
-export const MAX_LANE_COUNT = 6;

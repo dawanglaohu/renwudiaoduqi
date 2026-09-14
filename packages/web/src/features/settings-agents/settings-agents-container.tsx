@@ -1,11 +1,11 @@
-import { AgentCard } from '../../components/agent-card.tsx';
-import { LaneCountSetting } from '../../components/lane-count-setting.tsx';
+import { AgentCard, type AgentEntryWithLayers } from '../../components/agent-card.tsx';
 import type {
-	AgentEntryWithLayers,
 	AgentFieldKey,
 	FieldErrorInfo,
 	FieldLayerValues,
-} from './types.ts';
+} from '../../components/field-layers-row.tsx';
+import { InlineNotice } from '../../components/inline-notice.tsx';
+import { LaneCountSetting } from '../../components/lane-count-setting.tsx';
 import { useAgentModels } from './use-agent-models.ts';
 import { useSettingsAgents } from './use-settings-agents.ts';
 
@@ -59,7 +59,7 @@ function AgentCardItem({
  * 设置页 Agent 注册表与模型选择容器（M9-T14）
  * 规范约束（07 节前端架构与 R7）：
  * - features 是唯一允许调用 API 与管理数据 Hook 的层；
- * - 展示组件（AgentCard / LaneCountSetting）在 components/，纯 props in / callback out；
+ * - 展示组件（AgentCard / LaneCountSetting / InlineNotice）在 components/，纯 props in / callback out；
  * - 容器里只许写 grid/flex/gap 类名，禁止在容器里写颜色、字号、圆角。
  */
 export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?: string | null }) {
@@ -84,7 +84,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 		return (
 			<div data-testid="settings-agents-container" className="flex flex-col gap-4">
 				<div className="flex items-center justify-center p-8">
-					<span className="font-ui text-dense text-ink-3">正在加载 Agent 注册表...</span>
+					<InlineNotice tone="muted" message="正在加载 Agent 注册表..." />
 				</div>
 			</div>
 		);
@@ -92,15 +92,15 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 
 	return (
 		<div data-testid="settings-agents-container" className="flex flex-col gap-6">
-			{/* 错误提示 */}
+			{/* 错误提示：中文文案在展示层，daemon 英文 message 只进技术详情 */}
 			{error && (
 				<div className="flex flex-col gap-2">
-					<div
-						data-testid="settings-agents-error-notice"
-						className="rounded border border-down bg-down-soft p-3 text-meta text-down"
-					>
-						加载 Agent 列表失败：{error.message}
-					</div>
+					<InlineNotice
+						tone="down"
+						testId="settings-agents-error-notice"
+						message="加载 Agent 列表失败，请重试"
+						technical={error.message}
+					/>
 				</div>
 			)}
 

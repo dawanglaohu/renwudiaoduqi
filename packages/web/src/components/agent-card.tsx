@@ -1,13 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import type {
-	AgentEntryWithLayers,
-	AgentFieldKey,
-	FieldErrorInfo,
-	FieldLayerValues,
-} from '../features/settings-agents/types.ts';
-import { FIELD_LABELS } from '../features/settings-agents/types.ts';
+import type { AgentEntryDto } from '../../../shared/src/api/agents.ts';
+import type { AgentFieldKey, FieldErrorInfo, FieldLayerValues } from './field-layers-row.tsx';
 import { FieldLayersRow } from './field-layers-row.tsx';
 import { ModelPicker } from './model-picker.tsx';
+
+/**
+ * 卡片渲染的 agent 模型：daemon 的 `AgentEntryDto` 加上可选的分层字段。
+ * `layers` 由 M4-T14 交付，本页只读它，不在前端补算出厂默认。
+ */
+export interface AgentEntryWithLayers extends AgentEntryDto {
+	readonly layers?: Readonly<
+		Record<
+			string,
+			{
+				readonly builtin?: unknown;
+				readonly config?: unknown;
+				readonly override?: unknown;
+				readonly effective?: unknown;
+				readonly hasOverride?: boolean;
+			}
+		>
+	>;
+}
 
 export interface AgentCardProps {
 	readonly agent: AgentEntryWithLayers;
@@ -224,7 +238,7 @@ export function AgentCard({
 			{/* 配置字段列表 */}
 			<div className="flex flex-col gap-3">
 				{/* 1. 两字符短码（AC 5 / E-183） */}
-				<FieldLayersRow layers={monogramLayers} fieldLabel={FIELD_LABELS.monogram}>
+				<FieldLayersRow layers={monogramLayers} fieldLabel={monogramLayers.label}>
 					<div className="flex flex-col gap-1">
 						<div className="flex items-center gap-2">
 							<input
@@ -281,7 +295,7 @@ export function AgentCard({
 				</FieldLayersRow>
 
 				{/* 2. 可执行路径（AC 4 / E-88 挂钩点） */}
-				<FieldLayersRow layers={execPathLayers} fieldLabel={FIELD_LABELS.execPath}>
+				<FieldLayersRow layers={execPathLayers} fieldLabel={execPathLayers.label}>
 					<div className="flex flex-col gap-1">
 						<div className="flex items-center gap-2">
 							<input
@@ -331,11 +345,12 @@ export function AgentCard({
 				</FieldLayersRow>
 
 				{/* 3. 默认模型（AC 2 / AC 3 / E-38） */}
-				<FieldLayersRow layers={modelLayers} fieldLabel={FIELD_LABELS.defaultModel}>
+				<FieldLayersRow layers={modelLayers} fieldLabel={modelLayers.label}>
 					<ModelPicker
 						models={models}
 						selectedModel={agent.defaultModel}
 						onSelectModel={(model) => void onUpdateField(agent.id, 'defaultModel', model)}
+						error={validationError?.defaultModel}
 						isComplete={isModelsComplete}
 						isLoading={isModelsLoading}
 						isRefreshing={isModelsRefreshing}
@@ -345,7 +360,7 @@ export function AgentCard({
 				</FieldLayersRow>
 
 				{/* 4. 最大并发数 */}
-				<FieldLayersRow layers={concurrencyLayers} fieldLabel={FIELD_LABELS.maxConcurrency}>
+				<FieldLayersRow layers={concurrencyLayers} fieldLabel={concurrencyLayers.label}>
 					<div className="flex flex-col gap-1">
 						<div className="flex items-center gap-2">
 							<input
@@ -381,7 +396,7 @@ export function AgentCard({
 				</FieldLayersRow>
 
 				{/* 5. 权限档 */}
-				<FieldLayersRow layers={permissionLayers} fieldLabel={FIELD_LABELS.permissionTier}>
+				<FieldLayersRow layers={permissionLayers} fieldLabel={permissionLayers.label}>
 					<select
 						value={editingPermission}
 						onChange={(e) => {
@@ -397,6 +412,22 @@ export function AgentCard({
 						<option value="workspaceWrite">workspaceWrite（工作区写权限）</option>
 						<option value="unrestricted">unrestricted（无限制）</option>
 					</select>
+					{validationError?.permissionTier && (
+						<div
+							data-testid={`permissionTier-error-${agent.id}`}
+							className="flex flex-col gap-0.5 text-micro text-down"
+						>
+							<span>{validationError.permissionTier.message}</span>
+							{validationError.permissionTier.technical && (
+								<details className="mt-0.5 text-micro text-ink-3">
+									<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
+									<div className="font-mono text-micro text-ink-3 break-all">
+										{validationError.permissionTier.technical}
+									</div>
+								</details>
+							)}
+						</div>
+					)}
 				</FieldLayersRow>
 			</div>
 		</div>
