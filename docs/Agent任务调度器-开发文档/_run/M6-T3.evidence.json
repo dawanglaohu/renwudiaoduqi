@@ -1,0 +1,19 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M6-T3": {
+      "contractHash": "7cf7e49f299c2aa881fad69a395318c98aac0c49ef559fc4ed4baf37ca75240a",
+      "verdict": "pass",
+      "evidence": [
+        "AC1/E-253：packages/daemon/src/domain/progress.ts:118 hasStreamingCapability 显式能力位优先、dsh 置假；:594 extractLastMessage 在 !isCompleted 时直接返回 null，运行期不伪造中间事件；:743 extractProgress 输出 stepDurationDegraded 与运行期 streamingNotice（完成后置 null）；证据 packages/daemon/test/unit/progress.test.ts:103、:122、:523",
+        "AC2/E-26：packages/daemon/src/domain/progress.ts:163 extractTokenUsage 兼容 7 组输入输出总计别名与 usage/tokenUsage/tokens/stats/vendor/params 容器，负数/NaN/非数字字符串一律 null（无 0 冒充）；:339 formatTokenDisplay 缺失统一输出 TOKEN_MISSING_PLACEHOLDER「—」；证据 packages/daemon/test/unit/progress.test.ts:189、:240、:497",
+        "AC3/E-37 呈现侧：packages/daemon/src/domain/progress.ts:384 extractReportedModel 只读 events[0] 首帧（含 payload.vendor.model），无自报返回 null 不猜测；:446 checkModelMismatch、:466 resolveModelProgressInfo 规范化比对，仅在有自报且与所选不一致时置 modelMismatch/isMismatchHighlighted 并给出「实际使用：X」；证据 packages/daemon/test/unit/progress.test.ts:265、:307、:471",
+        "E-37 环境变量清理半边不在本任务有效路径：已由 packages/daemon/src/proc/env.ts:4-14、:43、:55（ANTHROPIC_MODEL / ANTHROPIC_DEFAULT_*_MODEL / OPENAI_MODEL 等模型覆盖变量清理）覆盖，本任务只承担读回与呈现",
+        "分层与约定：packages/daemon/src/domain/progress.ts 仅 import 同层 run-state-machine.ts，无 process.env / process.platform / Date.now / Math.random / randomUUID，顶层零副作用，时钟与 now 全部参数注入；kebab-case 文件名、无 barrel、工厂 createProgressExtractor、常量 as const",
+        "检查：biome ci . 通过；tsc -b --noEmit 通过；packages/daemon/test/unit/progress.test.ts 17 用例全绿；run-state-machine.test.ts 29 用例全绿；架构测试 boot-boundaries/bus-transaction/registry-forbidden-args 通过（routes.test.ts 与 probe/worktree/run-service 等失败为 Windows 环境既有失败，主检出基线同样失败）",
+        "范围：改动仅 packages/daemon/src/domain/progress.ts（有效路径）与新增 packages/daemon/test/unit/progress.test.ts（既定产出必需的测试，未越界）",
+        "审查修复（已提交并推送）：终态/已退出判定改为复用 domain/run-state-machine.ts 的 TERMINAL_RUN_STATES 并补上 exited 的后继状态 reworking；移除 domain 中不该出现的厂商事件 kind 分支（turn.completed / agent_message / message / assistant_message），只认归一化后的 agent_message_chunk"
+      ]
+    }
+  }
+}
