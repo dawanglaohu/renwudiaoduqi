@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process';
-import type { DaemonLaunchSpec } from '../../shared/src/shell/daemon-launch-spec.ts';
+import type { DaemonLaunchSpec } from '@agent-scheduler/shared/shell/daemon-launch-spec';
 
 export interface SpawnOptionsInjection {
 	readonly spawn?: (

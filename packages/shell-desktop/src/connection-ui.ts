@@ -1,4 +1,4 @@
-import type { DaemonLaunchSpec } from '../../shared/src/shell/daemon-launch-spec.ts';
+import type { DaemonLaunchSpec } from '@agent-scheduler/shared/shell/daemon-launch-spec';
 import { type LaunchDaemonResult, launchDaemon } from './daemon-process.ts';
 
 export type ConnectionUiStatus = 'idle' | 'starting' | 'started' | 'failed';
@@ -10,6 +10,7 @@ export interface ConnectionUiState {
 }
 
 export interface ConnectionUiController {
+	readonly spec: DaemonLaunchSpec;
 	getState(): ConnectionUiState;
 	startDaemon(): Promise<LaunchDaemonResult>;
 }
@@ -32,6 +33,8 @@ export function createConnectionUiController(
 	const executeLaunch = launcher ?? launchDaemon;
 
 	return {
+		spec,
+
 		getState(): ConnectionUiState {
 			return state;
 		},
@@ -67,7 +70,7 @@ export function generateConnectionFailedHtml(options: {
 	readonly baseUrl?: string;
 	readonly spec: DaemonLaunchSpec;
 }): string {
-	const displayUrl = options.baseUrl ?? 'http://127.0.0.1:7817';
+	const displayUrl = options.baseUrl ?? 'scheduler daemon';
 	const escapedFile = options.spec.file
 		.replace(/&/g, '&amp;')
 		.replace(/</g, '&lt;')
@@ -79,9 +82,19 @@ export function generateConnectionFailedHtml(options: {
   <meta charset="utf-8">
   <title>Service Unavailable</title>
   <style>
+    :root {
+      --bg: #0F1213;
+      --text: #E9EEED;
+      --panel: #171B1C;
+      --border: rgba(214, 232, 229, 0.09);
+      --accent: #F0B03C;
+      --accent-text: #171205;
+      --meta: #8B9695;
+      --desc: #B2BCBB;
+    }
     body {
-      background: #0F1213;
-      color: #E9EEED;
+      background: var(--bg);
+      color: var(--text);
       font-family: system-ui, -apple-system, sans-serif;
       margin: 0;
       padding: 32px;
@@ -93,8 +106,8 @@ export function generateConnectionFailedHtml(options: {
       box-sizing: border-box;
     }
     .panel {
-      background: #171B1C;
-      border: 1px solid rgba(214,232,229,.09);
+      background: var(--panel);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 24px;
       max-width: 480px;
@@ -103,24 +116,24 @@ export function generateConnectionFailedHtml(options: {
     h1 {
       font-size: 18px;
       margin: 0 0 12px;
-      color: #F0B03C;
+      color: var(--accent);
     }
     p {
       font-size: 13px;
       line-height: 1.5;
-      color: #B2BCBB;
+      color: var(--desc);
       margin: 0 0 16px;
     }
     .meta {
       font-size: 12px;
       font-family: monospace;
-      color: #8B9695;
+      color: var(--meta);
       margin-bottom: 20px;
       word-break: break-all;
     }
     button {
-      background: #F0B03C;
-      color: #171205;
+      background: var(--accent);
+      color: var(--accent-text);
       border: none;
       height: 32px;
       padding: 0 16px;

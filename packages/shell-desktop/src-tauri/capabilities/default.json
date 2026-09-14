@@ -3,5 +3,5 @@
 	"identifier": "default",
 	"description": "Desktop shell main window capabilities",
 	"windows": ["main"],
-	"permissions": ["core:default", "opener:default"]
+	"permissions": ["core:default", "opener:default", "notification:default"]
 }

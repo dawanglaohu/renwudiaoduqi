@@ -12,5 +12,9 @@
 		"./notification-handler": "./src/notification-handler.ts",
 		"./platform-support": "./src/platform-support.ts",
 		"./connection-ui": "./src/connection-ui.ts"
+	},
+	"dependencies": {
+		"@agent-scheduler/daemon": "workspace:*",
+		"@agent-scheduler/shared": "workspace:*"
 	}
 }

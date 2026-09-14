@@ -14,6 +14,29 @@ export interface PlatformCoverageReport {
 	readonly isFullySupported: boolean;
 }
 
+export interface DesktopWindowFocusable {
+	show(): void;
+	unminimize(): void;
+	setFocus(): void;
+}
+
+/**
+ * Handles second instance activation args and brings existing window to focus (AC 1).
+ */
+export function handleSecondInstance(
+	windowTarget?: DesktopWindowFocusable,
+	_args?: readonly string[],
+	_cwd?: string,
+): boolean {
+	if (!windowTarget) {
+		return false;
+	}
+	windowTarget.show();
+	windowTarget.unminimize();
+	windowTarget.setFocus();
+	return true;
+}
+
 /**
  * Validates product layer completeness for a desktop platform (AC 1, E-257).
  * A platform is fully supported if and only if daemon, platform adapters, and desktop shell are all present.

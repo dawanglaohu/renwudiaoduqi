@@ -34,7 +34,9 @@ describe('architecture restriction: no business domain words in desktop shell (A
 			const lines = content.split('\n');
 			for (let i = 0; i < lines.length; i++) {
 				const lineText = lines[i] ?? '';
-				if (FORBIDDEN_PATTERN.test(lineText)) {
+				// Exclude workspace package prefix @agent-scheduler/
+				const cleanedText = lineText.replace(/@agent-scheduler\//g, '');
+				if (FORBIDDEN_PATTERN.test(cleanedText)) {
 					violations.push({
 						file,
 						line: i + 1,

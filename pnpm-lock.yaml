@@ -58,7 +58,14 @@ importers:
 
   packages/shared: {}
 
-  packages/shell-desktop: {}
+  packages/shell-desktop:
+    dependencies:
+      '@agent-scheduler/daemon':
+        specifier: workspace:*
+        version: link:../daemon
+      '@agent-scheduler/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/shell-mobile: {}
 

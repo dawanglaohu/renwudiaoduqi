@@ -1,15 +1,24 @@
+import type { AutostartAdapter } from '@agent-scheduler/daemon/platform/autostart-contract';
 import {
 	type DaemonLaunchSpec,
 	isAbsoluteLaunchPath,
 	parseDaemonLaunchSpec,
-} from '../../shared/src/shell/daemon-launch-spec.ts';
+} from '@agent-scheduler/shared/shell/daemon-launch-spec';
+import {
+	type AutostartPreferenceStore,
+	type SyncAutostartOptions,
+	type SyncAutostartOutcome,
+	syncDesktopAutostart,
+} from './autostart-handler.ts';
+import { type ConnectionUiController, createConnectionUiController } from './connection-ui.ts';
+import type { LaunchDaemonResult } from './daemon-process.ts';
 
 export interface ResolveLaunchSpecOptions {
 	readonly currentExe: string;
 	readonly resourceDir: string;
+	readonly hostPlatform: string;
 	readonly customDaemonPath?: string;
 	readonly customArguments?: readonly string[];
-	readonly hostPlatform?: string;
 }
 
 function normalizeAbsolutePath(rawPath: string): string {
@@ -39,8 +48,7 @@ export function resolveLaunchSpec(options: ResolveLaunchSpecOptions): DaemonLaun
 		throw new Error('Desktop resource directory must be absolute.');
 	}
 
-	const platform =
-		options.hostPlatform ?? (typeof process !== 'undefined' ? process.platform : 'win32');
+	const platform = options.hostPlatform;
 	const isWindows = platform === 'win32';
 
 	let daemonFile: string;
@@ -75,21 +83,55 @@ export function resolveLaunchSpec(options: ResolveLaunchSpecOptions): DaemonLaun
 	return parseResult.value;
 }
 
+export interface DesktopStartupOptions {
+	readonly currentExe: string;
+	readonly resourceDir: string;
+	readonly hostPlatform: string;
+	readonly autostartAdapter?: AutostartAdapter;
+	readonly autostartStore?: AutostartPreferenceStore;
+	readonly autostartSync?: (options: SyncAutostartOptions) => Promise<SyncAutostartOutcome>;
+	readonly promptUser?: SyncAutostartOptions['promptUser'];
+	readonly launcher?: (spec: DaemonLaunchSpec) => LaunchDaemonResult;
+	readonly customDaemonPath?: string;
+	readonly customArguments?: readonly string[];
+}
+
+export interface DesktopStartupContext {
+	readonly spec: DaemonLaunchSpec;
+	readonly connectionController: ConnectionUiController;
+	readonly autostartOutcomePromise?: Promise<SyncAutostartOutcome>;
+}
+
 /**
- * Compares two DaemonLaunchSpec objects field-by-field (file, args, cwd).
- * Used for idempotent native registration and detecting path changes (AC 4, E-209).
+ * Creates the unified desktop shell startup context (AC 2, AC 4, E-146, E-209).
+ * Resolves the frozen DaemonLaunchSpec once and passes the identical frozen reference
+ * to both the connection UI controller (manual start button) and autostart registration.
  */
-export function areSpecsIdentical(left: DaemonLaunchSpec, right: DaemonLaunchSpec): boolean {
-	if (left.file !== right.file || left.cwd !== right.cwd) {
-		return false;
+export function createDesktopStartupContext(options: DesktopStartupOptions): DesktopStartupContext {
+	const spec = resolveLaunchSpec({
+		currentExe: options.currentExe,
+		resourceDir: options.resourceDir,
+		hostPlatform: options.hostPlatform,
+		customDaemonPath: options.customDaemonPath,
+		customArguments: options.customArguments,
+	});
+
+	const connectionController = createConnectionUiController(spec, options.launcher);
+
+	let autostartOutcomePromise: Promise<SyncAutostartOutcome> | undefined;
+	if (options.autostartAdapter) {
+		const syncFn = options.autostartSync ?? syncDesktopAutostart;
+		autostartOutcomePromise = syncFn({
+			adapter: options.autostartAdapter,
+			spec,
+			store: options.autostartStore,
+			promptUser: options.promptUser,
+		});
 	}
-	if (left.args.length !== right.args.length) {
-		return false;
-	}
-	for (let i = 0; i < left.args.length; i++) {
-		if (left.args[i] !== right.args[i]) {
-			return false;
-		}
-	}
-	return true;
+
+	return Object.freeze({
+		spec,
+		connectionController,
+		autostartOutcomePromise,
+	});
 }

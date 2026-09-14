@@ -5,16 +5,17 @@ import {
 } from '../src/connection-ui.ts';
 import { resolveLaunchSpec } from '../src/launch-spec.ts';
 
-describe('desktop connection-ui (AC 2, E-146)', () => {
+describe('desktop connection-ui (AC 2, E-146, R8)', () => {
 	const spec = resolveLaunchSpec({
 		currentExe: '/opt/scheduler/bin/scheduler',
 		resourceDir: '/opt/scheduler/lib',
 		hostPlatform: 'linux',
 	});
 
-	it('starts in idle state', () => {
+	it('starts in idle state and exposes the launch spec (R4)', () => {
 		const controller = createConnectionUiController(spec);
 		expect(controller.getState().status).toBe('idle');
+		expect(controller.spec).toBe(spec);
 	});
 
 	it('transitions to started upon successful process launch', async () => {
@@ -47,14 +48,22 @@ describe('desktop connection-ui (AC 2, E-146)', () => {
 		expect(controller.getState().errorMessage).toBe('Permission denied');
 	});
 
-	it('generates connection failed fallback HTML with executable path and start button', () => {
-		const html = generateConnectionFailedHtml({
-			baseUrl: 'http://127.0.0.1:7817',
+	it('generates connection failed fallback HTML without hardcoded port (R8)', () => {
+		const htmlDefault = generateConnectionFailedHtml({
 			spec,
 		});
 
-		expect(html).toContain('http://127.0.0.1:7817');
-		expect(html).toContain('/opt/scheduler/lib/daemon');
-		expect(html).toContain('<button id="start-btn">Start Daemon</button>');
+		expect(htmlDefault).not.toContain('127.0.0.1:7817');
+		expect(htmlDefault).toContain('/opt/scheduler/lib/daemon');
+		expect(htmlDefault).toContain('<button id="start-btn">Start Daemon</button>');
+		expect(htmlDefault).toContain('var(--bg)');
+		expect(htmlDefault).toContain('var(--accent)');
+
+		// When custom baseUrl is provided, it is reflected
+		const htmlCustom = generateConnectionFailedHtml({
+			baseUrl: 'http://custom-host:9000',
+			spec,
+		});
+		expect(htmlCustom).toContain('http://custom-host:9000');
 	});
 });
