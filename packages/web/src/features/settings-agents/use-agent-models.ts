@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ListAgentModelsResponse } from '../../../../shared/src/api/agents.ts';
+import { ROUTES } from '../../../../shared/src/api/routes.ts';
 import { httpClient } from '../../api/http-client.ts';
 
 export interface UseAgentModelsResult {
@@ -15,6 +16,10 @@ export interface UseAgentModelsResult {
 
 // In-memory cache per agentId (07-前端架构)
 const modelsCache = new Map<string, ListAgentModelsResponse>();
+
+const listAgentModelsRoute = ROUTES.find(
+	(r) => r.method === 'GET' && r.path === '/api/v1/agents/:agentId/models',
+);
 
 export function useAgentModels(agentId?: string | null): UseAgentModelsResult {
 	const cached = agentId ? modelsCache.get(agentId) : undefined;
@@ -33,13 +38,20 @@ export function useAgentModels(agentId?: string | null): UseAgentModelsResult {
 		}
 		setError(null);
 
+		if (!listAgentModelsRoute) {
+			const missingErr = new Error('Route GET /api/v1/agents/:agentId/models is not in ROUTES');
+			setError(missingErr);
+			setIsLoading(false);
+			setIsRefreshing(false);
+			return;
+		}
+
 		try {
-			const response = await httpClient.get<ListAgentModelsResponse>(
-				`/api/v1/agents/${encodeURIComponent(id)}/models`,
-				{
-					query: isRefresh ? { refresh: 'true' } : undefined,
-				},
-			);
+			// R7: 请求改走 ROUTES/callRoute
+			const response = await httpClient.callRoute<ListAgentModelsResponse>(listAgentModelsRoute, {
+				params: { agentId: id },
+				query: isRefresh ? { refresh: 'true' } : undefined,
+			});
 			modelsCache.set(id, response);
 			setModels(response.models);
 			setSource(response.source);

@@ -6,30 +6,41 @@ import type {
 	UpdateAgentResponse,
 } from '../../../../shared/src/api/agents.ts';
 import type {
+	DocumentDto,
 	ListDocumentsResponse,
 	UpdateDocumentSettingsResponse,
 } from '../../../../shared/src/api/documents.ts';
+import { ROUTES } from '../../../../shared/src/api/routes.ts';
+import { isApiError } from '../../api/http-client.ts';
 import { httpClient } from '../../api/http-client.ts';
 import {
+	type AgentEntryWithLayers,
 	type AgentFieldKey,
-	BUILT_IN_AGENT_CONFIGS,
-	type BuiltInAgentId,
 	DEFAULT_LANE_COUNT,
+	FIELD_LABELS,
+	type FieldErrorInfo,
 	type FieldLayerValues,
 	MAX_LANE_COUNT,
 	MIN_LANE_COUNT,
-	type RegisteredAgentItem,
 } from './types.ts';
 
+export interface UseSettingsAgentsOptions {
+	readonly targetDocId?: string | null;
+}
+
 export interface UseSettingsAgentsResult {
-	readonly agents: readonly RegisteredAgentItem[];
+	readonly agents: readonly AgentEntryWithLayers[];
 	readonly isLoading: boolean;
 	readonly error: Error | null;
 	readonly laneCount: number;
+	readonly hasTargetDoc: boolean;
+	readonly targetDocName: string | null;
 	readonly laneCountError: string | null;
 	readonly probingAgentId: string | null;
 	readonly updatingAgentId: string | null;
-	readonly validationErrors: Readonly<Record<string, Partial<Record<AgentFieldKey, string>>>>;
+	readonly validationErrors: Readonly<
+		Record<string, Partial<Record<AgentFieldKey, FieldErrorInfo>>>
+	>;
 	readonly loadAgents: () => Promise<void>;
 	readonly probeAgent: (agentId: string) => Promise<ProbeAgentResponse | undefined>;
 	readonly updateAgentField: (
@@ -37,100 +48,107 @@ export interface UseSettingsAgentsResult {
 		field: AgentFieldKey,
 		value: string | number,
 	) => Promise<boolean>;
-	readonly restoreDefaultField: (agentId: string, field: AgentFieldKey) => Promise<boolean>;
-	readonly adoptDefaultField: (agentId: string, field: AgentFieldKey) => Promise<boolean>;
 	readonly setLaneCount: (count: number) => Promise<void>;
-	readonly addCustomAgent: (params: {
-		readonly id: string;
-		readonly name: string;
-		readonly monogram: string;
-		readonly execPath: string;
-		readonly defaultModel?: string | null;
-		readonly maxConcurrency?: number;
-		readonly permissionTier?: 'readOnly' | 'workspaceWrite' | 'unrestricted';
-	}) => Promise<boolean>;
-	readonly getFieldLayers: (agent: RegisteredAgentItem, field: AgentFieldKey) => FieldLayerValues;
+	readonly getFieldLayers: (agent: AgentEntryWithLayers, field: AgentFieldKey) => FieldLayerValues;
 	readonly validateMonogram: (
 		agentId: string,
 		monogram: string,
 	) => { readonly valid: boolean; readonly message?: string };
 }
 
-function getBuiltInConfig(id: string) {
-	return Object.prototype.hasOwnProperty.call(BUILT_IN_AGENT_CONFIGS, id)
-		? BUILT_IN_AGENT_CONFIGS[id as BuiltInAgentId]
-		: undefined;
+const listAgentsRoute = ROUTES.find((r) => r.method === 'GET' && r.path === '/api/v1/agents');
+const updateAgentRoute = ROUTES.find(
+	(r) => r.method === 'PATCH' && r.path === '/api/v1/agents/:agentId',
+);
+const probeAgentRoute = ROUTES.find(
+	(r) => r.method === 'POST' && r.path === '/api/v1/agents/:agentId/probe',
+);
+const listDocumentsRoute = ROUTES.find((r) => r.method === 'GET' && r.path === '/api/v1/documents');
+const updateDocumentSettingsRoute = ROUTES.find(
+	(r) => r.method === 'PATCH' && r.path === '/api/v1/documents/:docId/settings',
+);
+
+const ERROR_CODE_CHINESE_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
+	E_VALIDATION: '输入参数校验失败，请检查修改后重试',
+	E_NOT_FOUND: '未找到对应配置项',
+	E_UNAUTHORIZED: '设备未授权，请先完成配对',
+	E_DEVICE_REVOKED: '设备已被吊销',
+	E_INTERNAL: '服务内部异常，请稍后重试',
+	E_AGENT_UNAVAILABLE: '当前 Agent 不可用',
+	E_AGENT_VERSION_UNRECOGNIZED: 'Agent 版本未识别',
+});
+
+function resolveLastDocId(): string | null {
+	if (typeof window === 'undefined') return null;
+	try {
+		const raw = localStorage.getItem('agsched.ui.v1');
+		if (raw) {
+			const parsed = JSON.parse(raw);
+			if (parsed && typeof parsed.lastDocId === 'string' && parsed.lastDocId) {
+				return parsed.lastDocId;
+			}
+		}
+	} catch {
+		// Ignore storage parsing errors
+	}
+	return null;
 }
 
-export function useSettingsAgents(): UseSettingsAgentsResult {
-	const [agents, setAgents] = useState<readonly RegisteredAgentItem[]>([]);
+export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettingsAgentsResult {
+	const [agents, setAgents] = useState<readonly AgentEntryWithLayers[]>([]);
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 	const [error, setError] = useState<Error | null>(null);
 
-	// Lane count state (AC 8, E-248: default 2, range 1-6)
+	// R5: 窗口数的目标文档由明确来源决定（快照/当前文档），不能取 documents[0]；定位不到不渲染写入口
+	const explicitDocId = options?.targetDocId ?? resolveLastDocId();
+	const [targetDoc, setTargetDoc] = useState<DocumentDto | null>(null);
 	const [laneCount, setLaneCountState] = useState<number>(DEFAULT_LANE_COUNT);
-	const [activeDocId, setActiveDocId] = useState<string | null>(null);
 	const [laneCountError, setLaneCountError] = useState<string | null>(null);
 
 	const [probingAgentId, setProbingAgentId] = useState<string | null>(null);
 	const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
 	const [validationErrors, setValidationErrors] = useState<
-		Record<string, Partial<Record<AgentFieldKey, string>>>
+		Record<string, Partial<Record<AgentFieldKey, FieldErrorInfo>>>
 	>({});
 
-	// Load document laneCount and documents list
+	// Load document laneCount strictly from resolved targetDocId
 	const loadDocuments = useCallback(async () => {
+		if (!explicitDocId || !listDocumentsRoute) {
+			setTargetDoc(null);
+			return;
+		}
+
 		try {
-			const res = await httpClient.get<ListDocumentsResponse>('/api/v1/documents');
-			if (res.documents.length > 0) {
-				const doc = res.documents[0];
-				if (doc) {
-					setActiveDocId(doc.id);
-					if (doc.laneCount >= MIN_LANE_COUNT && doc.laneCount <= MAX_LANE_COUNT) {
-						setLaneCountState(doc.laneCount);
-					}
+			// R7: 请求改走 ROUTES/callRoute
+			const res = await httpClient.callRoute<ListDocumentsResponse>(listDocumentsRoute);
+			const found = res.documents.find((d) => d.id === explicitDocId);
+			if (found) {
+				setTargetDoc(found);
+				if (found.laneCount >= MIN_LANE_COUNT && found.laneCount <= MAX_LANE_COUNT) {
+					setLaneCountState(found.laneCount);
 				}
+			} else {
+				setTargetDoc(null);
 			}
 		} catch {
-			// If documents endpoint fails or is unavailable, lane count retains default 2 (E-248)
+			setTargetDoc(null);
 		}
-	}, []);
+	}, [explicitDocId]);
 
-	// Load agents list from daemon (GET /api/v1/agents)
+	// Load agents list from daemon
 	const loadAgents = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
+		if (!listAgentsRoute) {
+			setError(new Error('Route GET /api/v1/agents is missing in ROUTES'));
+			setIsLoading(false);
+			return;
+		}
+
 		try {
-			const response = await httpClient.get<ListAgentsResponse>('/api/v1/agents');
-			// Map to RegisteredAgentItem, preserving defaultUpdates & warnings
-			const mapped: RegisteredAgentItem[] = response.agents.map((dto) => {
-				const builtIn = getBuiltInConfig(dto.id);
-				const overrides: Partial<Record<AgentFieldKey, string | number>> = {};
-
-				if (builtIn) {
-					if (dto.monogram !== builtIn.monogram) {
-						overrides.monogram = dto.monogram;
-					}
-					if (dto.execPath && dto.execPath !== builtIn.execPath) {
-						overrides.execPath = dto.execPath;
-					}
-					if (dto.defaultModel !== builtIn.defaultModel) {
-						overrides.defaultModel = dto.defaultModel ?? undefined;
-					}
-					if (dto.maxConcurrency !== builtIn.maxConcurrency) {
-						overrides.maxConcurrency = dto.maxConcurrency;
-					}
-					if (dto.permissionTier !== builtIn.permissionTier) {
-						overrides.permissionTier = dto.permissionTier;
-					}
-				}
-
-				return {
-					...dto,
-					overrides,
-				};
-			});
-			setAgents(mapped);
+			// R7: 请求改走 ROUTES/callRoute
+			const response = await httpClient.callRoute<ListAgentsResponse>(listAgentsRoute);
+			setAgents(response.agents as readonly AgentEntryWithLayers[]);
 		} catch (err) {
 			const e = err instanceof Error ? err : new Error(String(err));
 			setError(e);
@@ -169,16 +187,16 @@ export function useSettingsAgents(): UseSettingsAgentsResult {
 	// Probe single agent (POST /api/v1/agents/:agentId/probe)
 	const probeAgent = useCallback(
 		async (agentId: string): Promise<ProbeAgentResponse | undefined> => {
+			if (!probeAgentRoute) return undefined;
 			setProbingAgentId(agentId);
 			try {
-				const res = await httpClient.post<ProbeAgentResponse>(
-					`/api/v1/agents/${encodeURIComponent(agentId)}/probe`,
-				);
-				// Refresh agents list after probing to reflect latest availability
+				// R7: 请求改走 ROUTES/callRoute
+				const res = await httpClient.callRoute<ProbeAgentResponse>(probeAgentRoute, {
+					params: { agentId },
+				});
 				await loadAgents();
 				return res;
 			} catch {
-				// Re-load agents to sync latest error status from daemon
 				await loadAgents();
 				return undefined;
 			} finally {
@@ -188,10 +206,9 @@ export function useSettingsAgents(): UseSettingsAgentsResult {
 		[loadAgents],
 	);
 
-	// Update single agent field (PATCH /api/v1/agents/:agentId)
+	// Update single agent field with R4 失败回滚 + 按 error.code/details.field 渲染中文错误
 	const updateAgentField = useCallback(
 		async (agentId: string, field: AgentFieldKey, value: string | number): Promise<boolean> => {
-			// Validation check for monogram (E-183)
 			if (field === 'monogram') {
 				const strVal = String(value);
 				const valCheck = validateMonogram(agentId, strVal);
@@ -200,12 +217,12 @@ export function useSettingsAgents(): UseSettingsAgentsResult {
 						...prev,
 						[agentId]: {
 							...prev[agentId],
-							monogram: valCheck.message,
+							monogram: { message: valCheck.message || '短码校验失败' },
 						},
 					}));
 					return false;
 				}
-				// Clear monogram error without delete operator
+				// Clear monogram error
 				setValidationErrors((prev) => {
 					if (!prev[agentId]?.monogram) return prev;
 					const { monogram: _unused, ...rest } = prev[agentId] ?? {};
@@ -216,42 +233,57 @@ export function useSettingsAgents(): UseSettingsAgentsResult {
 				});
 			}
 
+			const prevAgent = agents.find((a) => a.id === agentId);
+			if (!prevAgent) return false;
+
 			setUpdatingAgentId(agentId);
-			const updates: UpdateAgentBody = {
-				[field]: value,
-			};
+
+			// Optimistic local update
+			setAgents((prev) =>
+				prev.map((a) => {
+					if (a.id !== agentId) return a;
+					return { ...a, [field]: value };
+				}),
+			);
 
 			try {
-				const res = await httpClient.patch<UpdateAgentResponse, UpdateAgentBody>(
-					`/api/v1/agents/${encodeURIComponent(agentId)}`,
-					updates,
+				if (!updateAgentRoute) {
+					throw new Error('Route PATCH /api/v1/agents/:agentId is missing in ROUTES');
+				}
+				// R7: 请求改走 ROUTES/callRoute
+				const res = await httpClient.callRoute<UpdateAgentResponse, UpdateAgentBody>(
+					updateAgentRoute,
+					{
+						params: { agentId },
+						body: { [field]: value },
+					},
 				);
-				// Update local state
-				setAgents((prev) =>
-					prev.map((a) => {
-						if (a.id !== agentId) return a;
-						const builtIn = getBuiltInConfig(agentId);
-						const nextOverrides = { ...(a.overrides ?? {}) };
-						if (builtIn && builtIn[field as keyof typeof builtIn] === value) {
-							delete nextOverrides[field];
-						} else {
-							nextOverrides[field] = value;
-						}
-						return {
-							...a,
-							...res.agent,
-							overrides: nextOverrides,
-						};
-					}),
-				);
+				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				// Clear field error on success
+				setValidationErrors((prev) => {
+					if (!prev[agentId]?.[field]) return prev;
+					const { [field]: _unused, ...rest } = prev[agentId] ?? {};
+					return { ...prev, [agentId]: rest };
+				});
 				return true;
 			} catch (err) {
-				const e = err instanceof Error ? err : new Error(String(err));
+				// R4: 失败回滚到之前状态
+				setAgents((prev) => prev.map((a) => (a.id === agentId ? prevAgent : a)));
+				const apiErr = isApiError(err) ? err : undefined;
+				const code = apiErr?.code ?? 'E_INTERNAL';
+				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '配置更新失败，请重试';
+				const technicalMsg = err instanceof Error ? err.message : String(err);
+				const errorField = (apiErr?.details?.field as AgentFieldKey) || field;
+
 				setValidationErrors((prev) => ({
 					...prev,
 					[agentId]: {
 						...prev[agentId],
-						[field]: e.message,
+						[errorField]: {
+							message: chineseMsg,
+							technical: technicalMsg,
+							requestId: apiErr?.requestId,
+						},
 					},
 				}));
 				return false;
@@ -259,176 +291,98 @@ export function useSettingsAgents(): UseSettingsAgentsResult {
 				setUpdatingAgentId(null);
 			}
 		},
-		[validateMonogram],
+		[agents, validateMonogram],
 	);
 
-	// Restore field to built-in default (AC 1, E-92)
-	const restoreDefaultField = useCallback(
-		async (agentId: string, field: AgentFieldKey): Promise<boolean> => {
-			const builtIn = getBuiltInConfig(agentId);
-			if (!builtIn) {
-				// Custom agent: clear override
-				setAgents((prev) =>
-					prev.map((a) => {
-						if (a.id !== agentId) return a;
-						const nextOverrides = { ...(a.overrides ?? {}) };
-						delete nextOverrides[field];
-						return { ...a, overrides: nextOverrides };
-					}),
-				);
-				return true;
-			}
-
-			const defaultValue = builtIn[field as keyof typeof builtIn];
-			if (defaultValue === undefined) return false;
-
-			const success = await updateAgentField(agentId, field, defaultValue as string | number);
-			if (success) {
-				// Clear override tracking
-				setAgents((prev) =>
-					prev.map((a) => {
-						if (a.id !== agentId) return a;
-						const nextOverrides = { ...(a.overrides ?? {}) };
-						delete nextOverrides[field];
-						return { ...a, overrides: nextOverrides };
-					}),
-				);
-			}
-			return success;
-		},
-		[updateAgentField],
-	);
-
-	// Adopt updated built-in default (E-92)
-	const adoptDefaultField = useCallback(
-		async (agentId: string, field: AgentFieldKey): Promise<boolean> => {
-			const targetAgent = agents.find((a) => a.id === agentId);
-			const notice = targetAgent?.defaultUpdates?.find((u) => u.field === field);
-			if (!notice) return false;
-
-			const success = await updateAgentField(agentId, field, notice.newValue);
-			if (success) {
-				// Clear the default update notice
-				setAgents((prev) =>
-					prev.map((a) => {
-						if (a.id !== agentId) return a;
-						const nextUpdates = (a.defaultUpdates ?? []).filter((u) => u.field !== field);
-						return {
-							...a,
-							defaultUpdates: nextUpdates,
-						};
-					}),
-				);
-			}
-			return success;
-		},
-		[agents, updateAgentField],
-	);
-
-	// Set lane count (AC 8, E-248: 1-6)
+	// Set lane count (AC 8, E-248: 1-6) with R4 失败回滚 + inline 报错
 	const setLaneCount = useCallback(
 		async (count: number) => {
 			if (count < MIN_LANE_COUNT || count > MAX_LANE_COUNT) {
 				setLaneCountError(`并行窗口数必须在 ${MIN_LANE_COUNT} 到 ${MAX_LANE_COUNT} 之间`);
 				return;
 			}
+
+			// R5: 定位不到目标文档时不执行写操作
+			if (!targetDoc || !updateDocumentSettingsRoute) {
+				setLaneCountError('未定位到目标文档，无法修改窗口数');
+				return;
+			}
+
+			const prevCount = laneCount;
 			setLaneCountError(null);
 			setLaneCountState(count);
 
-			if (activeDocId) {
-				try {
-					await httpClient.patch<UpdateDocumentSettingsResponse, { laneCount: number }>(
-						`/api/v1/documents/${encodeURIComponent(activeDocId)}/settings`,
-						{ laneCount: count },
-					);
-				} catch {
-					// Fallback to local memory state
-				}
-			}
-		},
-		[activeDocId],
-	);
-
-	// Add 5th/6th custom agent (AC 7, E-185: only needs 2-char monogram, no new assets)
-	const addCustomAgent = useCallback(
-		async (params: {
-			readonly id: string;
-			readonly name: string;
-			readonly monogram: string;
-			readonly execPath: string;
-			readonly defaultModel?: string | null;
-			readonly maxConcurrency?: number;
-			readonly permissionTier?: 'readOnly' | 'workspaceWrite' | 'unrestricted';
-		}): Promise<boolean> => {
-			// Validate monogram uniqueness
-			const monogramCheck = validateMonogram(params.id, params.monogram);
-			if (!monogramCheck.valid) {
-				setValidationErrors((prev) => ({
-					...prev,
-					[params.id]: {
-						monogram: monogramCheck.message,
+			try {
+				// R7: 请求改走 ROUTES/callRoute
+				await httpClient.callRoute<UpdateDocumentSettingsResponse, { laneCount: number }>(
+					updateDocumentSettingsRoute,
+					{
+						params: { docId: targetDoc.id },
+						body: { laneCount: count },
 					},
-				}));
-				return false;
+				);
+			} catch (err) {
+				// R4: 失败回滚并 inline 报错
+				setLaneCountState(prevCount);
+				const apiErr = isApiError(err) ? err : undefined;
+				const code = apiErr?.code ?? 'E_INTERNAL';
+				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '更新窗口数失败，已回滚';
+				setLaneCountError(chineseMsg);
 			}
-
-			// Add to local state (registered agent item)
-			const newAgent: RegisteredAgentItem = {
-				id: params.id,
-				name: params.name,
-				monogram: params.monogram.toUpperCase(),
-				isAvailable: true,
-				defaultModel: params.defaultModel ?? null,
-				maxConcurrency: params.maxConcurrency ?? 1,
-				permissionTier: params.permissionTier ?? 'workspaceWrite',
-				execPath: params.execPath,
-				overrides: {},
-			};
-
-			setAgents((prev) => [...prev, newAgent]);
-			return true;
 		},
-		[validateMonogram],
+		[laneCount, targetDoc],
 	);
 
-	// Helper to extract 3-row layer values (内置默认 / 你的覆盖 / 当前生效) (AC 1, E-92)
+	// Helper to extract 3-row layer values (AC 1, E-92, R1)
+	// R1: 三层值只读 AgentEntryDto.layers（不存在则「内置默认」「你的覆盖」显示「—」）
 	const getFieldLayers = useCallback(
-		(agent: RegisteredAgentItem, field: AgentFieldKey): FieldLayerValues => {
-			const builtInConfig = getBuiltInConfig(agent.id);
-			let builtInVal = '—';
-			if (builtInConfig) {
-				const rawBuiltIn = builtInConfig[field as keyof typeof builtInConfig];
-				builtInVal = rawBuiltIn === null || rawBuiltIn === undefined ? '—' : String(rawBuiltIn);
-			}
+		(agent: AgentEntryWithLayers, field: AgentFieldKey): FieldLayerValues => {
+			const layer = agent.layers?.[field];
+
+			const builtInVal =
+				layer?.builtin !== undefined && layer?.builtin !== null ? String(layer.builtin) : '—';
 
 			const overrideVal =
-				agent.overrides?.[field] !== undefined ? String(agent.overrides[field]) : null;
+				layer?.override !== undefined && layer?.override !== null
+					? String(layer.override)
+					: layer?.hasOverride
+						? String(layer.override ?? '')
+						: '—';
 
 			let effectiveVal = '—';
-			switch (field) {
-				case 'monogram':
-					effectiveVal = agent.monogram || '—';
-					break;
-				case 'execPath':
-					effectiveVal = agent.execPath || '—';
-					break;
-				case 'defaultModel':
-					effectiveVal = agent.defaultModel || '—';
-					break;
-				case 'maxConcurrency':
-					effectiveVal = String(agent.maxConcurrency);
-					break;
-				case 'permissionTier':
-					effectiveVal = agent.permissionTier || '—';
-					break;
+			if (layer?.effective !== undefined && layer?.effective !== null) {
+				effectiveVal = String(layer.effective);
+			} else {
+				switch (field) {
+					case 'monogram':
+						effectiveVal = agent.monogram || '—';
+						break;
+					case 'execPath':
+						effectiveVal = agent.execPath || '—';
+						break;
+					case 'defaultModel':
+						effectiveVal = agent.defaultModel || '—';
+						break;
+					case 'maxConcurrency':
+						effectiveVal = String(agent.maxConcurrency);
+						break;
+					case 'permissionTier':
+						effectiveVal = agent.permissionTier || '—';
+						break;
+				}
 			}
 
-			const notice = agent.defaultUpdates?.find((u) => u.field === field);
-			const updateNotice = notice ? { oldValue: notice.oldValue, newValue: notice.newValue } : null;
+			const updateNotice =
+				layer?.defaultUpdate?.oldValue !== undefined && layer?.defaultUpdate?.newValue !== undefined
+					? {
+							oldValue: String(layer.defaultUpdate.oldValue),
+							newValue: String(layer.defaultUpdate.newValue),
+						}
+					: null;
 
 			return {
 				key: field,
-				label: field,
+				label: FIELD_LABELS[field] ?? field,
 				builtIn: builtInVal,
 				override: overrideVal,
 				effective: effectiveVal,
@@ -443,6 +397,8 @@ export function useSettingsAgents(): UseSettingsAgentsResult {
 		isLoading,
 		error,
 		laneCount,
+		hasTargetDoc: Boolean(targetDoc),
+		targetDocName: targetDoc?.projectName ?? null,
 		laneCountError,
 		probingAgentId,
 		updatingAgentId,
@@ -450,10 +406,7 @@ export function useSettingsAgents(): UseSettingsAgentsResult {
 		loadAgents,
 		probeAgent,
 		updateAgentField,
-		restoreDefaultField,
-		adoptDefaultField,
 		setLaneCount,
-		addCustomAgent,
 		getFieldLayers,
 		validateMonogram,
 	};

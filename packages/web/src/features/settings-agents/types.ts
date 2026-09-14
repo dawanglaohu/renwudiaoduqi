@@ -1,7 +1,5 @@
 import type { AgentEntryDto } from '../../../../shared/src/api/agents.ts';
 
-export type BuiltInAgentId = 'codex' | 'claude' | 'pi' | 'grok' | 'dsh';
-
 export type AgentFieldKey =
 	| 'monogram'
 	| 'execPath'
@@ -21,80 +19,29 @@ export interface FieldLayerValues {
 	} | null;
 }
 
-export interface AgentDefaultUpdateNotice {
-	readonly agentId: string;
-	readonly field: AgentFieldKey;
-	readonly oldValue: string;
-	readonly newValue: string;
+export interface FieldErrorInfo {
+	readonly message: string;
+	readonly technical?: string;
+	readonly requestId?: string;
 }
 
-export interface AgentWarningItem {
-	readonly reason: string;
-	readonly message?: string;
-	readonly agentId?: string;
-	readonly peerAgentId?: string;
+export interface AgentEntryWithLayers extends AgentEntryDto {
+	readonly layers?: Readonly<
+		Record<
+			string,
+			{
+				readonly builtin?: unknown;
+				readonly override?: unknown;
+				readonly effective?: unknown;
+				readonly hasOverride?: boolean;
+				readonly defaultUpdate?: {
+					readonly oldValue?: unknown;
+					readonly newValue?: unknown;
+				} | null;
+			}
+		>
+	>;
 }
-
-export interface RegisteredAgentItem extends AgentEntryDto {
-	readonly overrides?: Partial<Record<AgentFieldKey, string | number>>;
-	readonly defaultUpdates?: readonly AgentDefaultUpdateNotice[];
-	readonly warnings?: readonly AgentWarningItem[];
-}
-
-export const BUILT_IN_AGENT_CONFIGS: Readonly<
-	Record<
-		BuiltInAgentId,
-		{
-			readonly name: string;
-			readonly monogram: string;
-			readonly execPath: string;
-			readonly defaultModel: string | null;
-			readonly maxConcurrency: number;
-			readonly permissionTier: 'readOnly' | 'workspaceWrite' | 'unrestricted';
-		}
-	>
-> = Object.freeze({
-	codex: Object.freeze({
-		name: 'Codex',
-		monogram: 'CX',
-		execPath: 'codex',
-		defaultModel: null,
-		maxConcurrency: 1,
-		permissionTier: 'workspaceWrite',
-	}),
-	claude: Object.freeze({
-		name: 'Claude Code',
-		monogram: 'CL',
-		execPath: 'claude',
-		defaultModel: null,
-		maxConcurrency: 1,
-		permissionTier: 'workspaceWrite',
-	}),
-	pi: Object.freeze({
-		name: 'Pi Agent',
-		monogram: 'PI',
-		execPath: 'pi',
-		defaultModel: null,
-		maxConcurrency: 1,
-		permissionTier: 'workspaceWrite',
-	}),
-	grok: Object.freeze({
-		name: 'Grok CLI',
-		monogram: 'GK',
-		execPath: 'grok',
-		defaultModel: null,
-		maxConcurrency: 1,
-		permissionTier: 'workspaceWrite',
-	}),
-	dsh: Object.freeze({
-		name: 'DeepSeek Harness',
-		monogram: 'DS',
-		execPath: 'dsh',
-		defaultModel: null,
-		maxConcurrency: 1,
-		permissionTier: 'workspaceWrite',
-	}),
-});
 
 export const FIELD_LABELS: Readonly<Record<AgentFieldKey, string>> = Object.freeze({
 	monogram: '两字符短码',

@@ -1,33 +1,84 @@
-import { AddAgentSection } from './add-agent-section.tsx';
-import { AgentCard } from './agent-card.tsx';
-import { LaneCountSetting } from './lane-count-setting.tsx';
+import { AgentCard } from '../../components/agent-card.tsx';
+import { LaneCountSetting } from '../../components/lane-count-setting.tsx';
+import type {
+	AgentEntryWithLayers,
+	AgentFieldKey,
+	FieldErrorInfo,
+	FieldLayerValues,
+} from './types.ts';
+import { useAgentModels } from './use-agent-models.ts';
 import { useSettingsAgents } from './use-settings-agents.ts';
+
+interface AgentCardItemProps {
+	readonly agent: AgentEntryWithLayers;
+	readonly getFieldLayers: (agent: AgentEntryWithLayers, field: AgentFieldKey) => FieldLayerValues;
+	readonly onUpdateField: (
+		agentId: string,
+		field: AgentFieldKey,
+		value: string | number,
+	) => Promise<boolean>;
+	readonly onProbe: (agentId: string) => Promise<unknown>;
+	readonly validationError?: Partial<Record<AgentFieldKey, FieldErrorInfo>>;
+	readonly isProbing?: boolean;
+	readonly isUpdating?: boolean;
+}
+
+function AgentCardItem({
+	agent,
+	getFieldLayers,
+	onUpdateField,
+	onProbe,
+	validationError,
+	isProbing,
+	isUpdating,
+}: AgentCardItemProps) {
+	const { models, isComplete, isLoading, isRefreshing, refresh, addCustomModel } = useAgentModels(
+		agent.id,
+	);
+
+	return (
+		<AgentCard
+			agent={agent}
+			getFieldLayers={getFieldLayers}
+			onUpdateField={onUpdateField}
+			onProbe={onProbe}
+			models={models}
+			isModelsComplete={isComplete}
+			isModelsLoading={isLoading}
+			isModelsRefreshing={isRefreshing}
+			onRefreshModels={refresh}
+			onAddCustomModel={addCustomModel}
+			validationError={validationError}
+			isProbing={isProbing}
+			isUpdating={isUpdating}
+		/>
+	);
+}
 
 /**
  * 设置页 Agent 注册表与模型选择容器（M9-T14）
- * 规范约束（07 节前端架构）：
- * - 容器里只许写 grid/flex/gap 类名，禁止在容器里写颜色、字号、圆角；
- * - 唯一允许连接 API 与调用 useSettingsAgents 的层。
+ * 规范约束（07 节前端架构与 R7）：
+ * - features 是唯一允许调用 API 与管理数据 Hook 的层；
+ * - 展示组件（AgentCard / LaneCountSetting）在 components/，纯 props in / callback out；
+ * - 容器里只许写 grid/flex/gap 类名，禁止在容器里写颜色、字号、圆角。
  */
-export function SettingsAgentsContainer() {
+export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?: string | null }) {
 	const {
 		agents,
 		isLoading,
 		error,
 		laneCount,
+		hasTargetDoc,
+		targetDocName,
 		laneCountError,
 		probingAgentId,
 		updatingAgentId,
 		validationErrors,
 		probeAgent,
 		updateAgentField,
-		restoreDefaultField,
-		adoptDefaultField,
 		setLaneCount,
-		addCustomAgent,
 		getFieldLayers,
-		validateMonogram,
-	} = useSettingsAgents();
+	} = useSettingsAgents({ targetDocId });
 
 	if (isLoading && agents.length === 0) {
 		return (
@@ -53,23 +104,23 @@ export function SettingsAgentsContainer() {
 				</div>
 			)}
 
-			{/* 1. 任务并行窗口数设置（AC 8 & E-248） */}
+			{/* 1. 任务并行窗口数设置（AC 8, E-248 & R5: 定位不到不渲染写入口） */}
 			<LaneCountSetting
 				laneCount={laneCount}
 				onChangeLaneCount={(count) => void setLaneCount(count)}
+				hasTargetDoc={hasTargetDoc}
+				targetDocName={targetDocName}
 				error={laneCountError}
 			/>
 
 			{/* 2. Agent 列表 */}
 			<div className="flex flex-col gap-4">
 				{agents.map((agent) => (
-					<AgentCard
+					<AgentCardItem
 						key={agent.id}
 						agent={agent}
 						getFieldLayers={getFieldLayers}
 						onUpdateField={updateAgentField}
-						onRestoreDefault={restoreDefaultField}
-						onAdoptDefault={adoptDefaultField}
 						onProbe={probeAgent}
 						validationError={validationErrors[agent.id]}
 						isProbing={probingAgentId === agent.id}
@@ -77,13 +128,6 @@ export function SettingsAgentsContainer() {
 					/>
 				))}
 			</div>
-
-			{/* 3. 接入新 Agent 区块（AC 7 & E-185） */}
-			<AddAgentSection
-				onAddAgent={addCustomAgent}
-				existingAgentIds={agents.map((a) => a.id)}
-				validateMonogram={validateMonogram}
-			/>
 		</div>
 	);
 }

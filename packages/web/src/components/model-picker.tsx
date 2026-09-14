@@ -1,30 +1,41 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useAgentModels } from './use-agent-models.ts';
 
 export interface ModelPickerProps {
-	readonly agentId: string;
+	readonly models: readonly string[];
 	readonly selectedModel: string | null;
 	readonly onSelectModel: (model: string) => void;
+	readonly isComplete?: boolean;
+	readonly isLoading?: boolean;
+	readonly isRefreshing?: boolean;
+	readonly onRefresh?: () => void;
+	readonly onAddCustomModel?: (model: string) => void;
+	readonly initialOpen?: boolean;
 	readonly disabled?: boolean;
 }
 
 /**
- * 模型选择组件（AC 2 & AC 3 / E-38 呈现侧）
+ * 模型选择展示组件（AC 2 & AC 3 / E-38 呈现侧）
+ * 规范约束（07 节 components 清单与 R7）：
+ * - 纯 props in / callback out，不直接发起 API 请求；
  * - 桌面端：下拉菜单选择器；
- * - 手机端：退化为全屏选择器（fixed inset-0），不因屏宽裁剪候选项；
- * - 清单不全（isComplete === false）时明示「清单可能不全」并保留手填入口。
+ * - 手机端：退化为全屏选择器（fixed inset-0），使用 break-all whitespace-normal，不因屏宽裁剪候选项；
+ * - 清单不全（isComplete === false）时明示「清单可能不全」并保留手填入口；
+ * - 修复 dead token：统一使用 h-input 与既有 token。
  */
 export function ModelPicker({
-	agentId,
+	models,
 	selectedModel,
 	onSelectModel,
+	isComplete = true,
+	isLoading = false,
+	isRefreshing = false,
+	onRefresh,
+	onAddCustomModel,
+	initialOpen = false,
 	disabled = false,
 }: ModelPickerProps) {
 	const pickerId = useId();
-	const { models, isComplete, isLoading, isRefreshing, refresh, addCustomModel } =
-		useAgentModels(agentId);
-
-	const [isOpen, setIsOpen] = useState<boolean>(false);
+	const [isOpen, setIsOpen] = useState<boolean>(initialOpen);
 	const [searchTerm, setSearchTerm] = useState<string>('');
 	const [manualInput, setManualInput] = useState<string>('');
 	const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -72,7 +83,9 @@ export function ModelPicker({
 	const handleApplyManual = () => {
 		const trimmed = manualInput.trim();
 		if (!trimmed) return;
-		addCustomModel(trimmed);
+		if (onAddCustomModel) {
+			onAddCustomModel(trimmed);
+		}
 		onSelectModel(trimmed);
 		setManualInput('');
 		setIsOpen(false);
@@ -113,31 +126,33 @@ export function ModelPicker({
 				</button>
 
 				{/* 刷新清单按钮 */}
-				<button
-					type="button"
-					onClick={() => void refresh()}
-					disabled={disabled || isRefreshing}
-					title="刷新模型清单"
-					aria-label="刷新模型清单"
-					data-testid="refresh-models-btn"
-					className="flex h-input w-input shrink-0 items-center justify-center rounded-sm border border-border bg-bg text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40"
-				>
-					<svg
-						className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-needs' : ''}`}
-						viewBox="0 0 16 16"
-						fill="none"
-						stroke="currentColor"
-						aria-hidden="true"
+				{onRefresh && (
+					<button
+						type="button"
+						onClick={onRefresh}
+						disabled={disabled || isRefreshing}
+						title="刷新模型清单"
+						aria-label="刷新模型清单"
+						data-testid="refresh-models-btn"
+						className="flex h-input w-input shrink-0 items-center justify-center rounded-sm border border-border bg-bg text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40"
 					>
-						<title>刷新</title>
-						<path
-							d="M2.5 8a5.5 5.5 0 019.39-3.89L13.5 6M13.5 8a5.5 5.5 0 01-9.39 3.89L2.5 10"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
-				</button>
+						<svg
+							className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-needs' : ''}`}
+							viewBox="0 0 16 16"
+							fill="none"
+							stroke="currentColor"
+							aria-hidden="true"
+						>
+							<title>刷新</title>
+							<path
+								d="M2.5 8a5.5 5.5 0 019.39-3.89L13.5 6M13.5 8a5.5 5.5 0 01-9.39 3.89L2.5 10"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+						</svg>
+					</button>
+				)}
 			</div>
 
 			{/* 桌面端下拉列表 */}
@@ -166,6 +181,7 @@ export function ModelPicker({
 								<span className="text-micro text-ink-2">支持手动输入模型</span>
 							</div>
 							<div className="flex gap-1">
+								{/* 修复：使用既有 h-input token 代替 h-input-sm */}
 								<input
 									type="text"
 									value={manualInput}
@@ -173,7 +189,7 @@ export function ModelPicker({
 									onKeyDown={(e) => e.key === 'Enter' && handleApplyManual()}
 									placeholder="输入任意模型名..."
 									data-testid="manual-model-input"
-									className="h-input-sm flex-1 rounded-sm border border-border bg-panel-2 px-2 font-mono text-dense text-ink-1 focus:border-needs focus:outline-none"
+									className="h-input flex-1 rounded-sm border border-border bg-panel-2 px-2 font-mono text-dense text-ink-1 focus:border-needs focus:outline-none"
 								/>
 								<button
 									type="button"

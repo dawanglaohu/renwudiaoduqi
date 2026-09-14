@@ -1,25 +1,23 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { AddAgentSection } from '../src/features/settings-agents/add-agent-section.tsx';
-import { AgentCard } from '../src/features/settings-agents/agent-card.tsx';
-import { FieldLayersRow } from '../src/features/settings-agents/field-layers-row.tsx';
-import { LaneCountSetting } from '../src/features/settings-agents/lane-count-setting.tsx';
-import { ModelPicker } from '../src/features/settings-agents/model-picker.tsx';
+import { AgentCard, UNAVAILABLE_CODE_TITLES } from '../src/components/agent-card.tsx';
+import { FieldLayersRow } from '../src/components/field-layers-row.tsx';
+import { LaneCountSetting } from '../src/components/lane-count-setting.tsx';
+import { ModelPicker } from '../src/components/model-picker.tsx';
 import { SettingsAgentsContainer } from '../src/features/settings-agents/settings-agents-container.tsx';
 import {
-	BUILT_IN_AGENT_CONFIGS,
+	type AgentEntryWithLayers,
 	DEFAULT_LANE_COUNT,
 	MAX_LANE_COUNT,
 	MIN_LANE_COUNT,
-	type RegisteredAgentItem,
 } from '../src/features/settings-agents/types.ts';
 import { SettingsAgentsPage } from '../src/pages/settings-agents-page.tsx';
 
-describe('M9-T14 设置页：agent 注册表与模型选择', () => {
-	// ─── AC 1 & E-92: 每个字段显示「内置默认 / 你的覆盖 / 当前生效」三行并带「恢复默认」 ───
-	describe('AC 1 & E-92: 三层字段呈现与恢复默认', () => {
-		it('renders Built-in, Override, and Effective rows for a field', () => {
+describe('M9-T14 设置页：agent 注册表与模型选择（返工第 1 轮）', () => {
+	// ─── R1 & AC 1: 三层值只读 daemon layers，缺失显示「—」 ───
+	describe('R1 & AC 1: 三层字段呈现只读 daemon 字段，未提供显示「—」', () => {
+		it('renders Built-in, Override, and Effective rows based on daemon layer values', () => {
 			const html = renderToStaticMarkup(
 				createElement(FieldLayersRow, {
 					layers: {
@@ -30,7 +28,6 @@ describe('M9-T14 设置页：agent 注册表与模型选择', () => {
 						effective: '/usr/local/bin/my-codex',
 					},
 					fieldLabel: '可执行路径',
-					onRestoreDefault: vi.fn(),
 				}),
 			);
 
@@ -39,30 +36,51 @@ describe('M9-T14 设置页：agent 注册表与模型选择', () => {
 			expect(html).toContain('当前生效');
 			expect(html).toContain('codex');
 			expect(html).toContain('/usr/local/bin/my-codex');
-			expect(html).toContain('恢复默认');
 		});
 
-		it('disables "恢复默认" with title="当前没有覆盖" when override is null', () => {
+		it('displays "—" for built-in and override when daemon does not provide layers', () => {
 			const html = renderToStaticMarkup(
 				createElement(FieldLayersRow, {
 					layers: {
 						key: 'execPath',
 						label: '可执行路径',
-						builtIn: 'codex',
+						builtIn: '—',
 						override: null,
 						effective: 'codex',
 					},
 					fieldLabel: '可执行路径',
-					onRestoreDefault: vi.fn(),
 				}),
 			);
 
-			expect(html).toContain('title="当前没有覆盖"');
-			expect(html).toContain('disabled=""');
+			expect(html).toContain('内置默认');
+			expect(html).toContain('你的覆盖');
+			expect(html).toContain('当前生效');
 			expect(html).toContain('—');
+			expect(html).toContain('codex');
 		});
 
-		it('shows E-92 default updated prompt and adopt button when updateNotice exists', () => {
+		it('does not render write/restore buttons in FieldLayersRow before clearOverrides lands (R1)', () => {
+			const html = renderToStaticMarkup(
+				createElement(FieldLayersRow, {
+					layers: {
+						key: 'defaultModel',
+						label: '默认模型',
+						builtIn: '—',
+						override: null,
+						effective: 'gpt-4o',
+					},
+					fieldLabel: '默认模型',
+				}),
+			);
+
+			// 不把前端假造的默认值发给 daemon，不渲染恢复默认写入口
+			expect(html).not.toContain('恢复默认');
+		});
+	});
+
+	// ─── R2 & E-92: 内置默认更新只呈现 daemon 提供的差异 ───
+	describe('R2 & E-92: 内置默认升级差异呈现', () => {
+		it('shows default updated notice when updateNotice is supplied by daemon', () => {
 			const html = renderToStaticMarkup(
 				createElement(FieldLayersRow, {
 					layers: {
@@ -77,30 +95,19 @@ describe('M9-T14 设置页：agent 注册表与模型选择', () => {
 						},
 					},
 					fieldLabel: '可执行路径',
-					onRestoreDefault: vi.fn(),
-					onAdoptDefault: vi.fn(),
 				}),
 			);
 
 			expect(html).toContain('内置默认已更新（codex-v1 → codex-v2）');
-			expect(html).toContain('一键采纳');
-		});
-
-		it('builtin defaults are defined for all 5 native agents', () => {
-			expect(BUILT_IN_AGENT_CONFIGS.codex.monogram).toBe('CX');
-			expect(BUILT_IN_AGENT_CONFIGS.claude.monogram).toBe('CL');
-			expect(BUILT_IN_AGENT_CONFIGS.pi.monogram).toBe('PI');
-			expect(BUILT_IN_AGENT_CONFIGS.grok.monogram).toBe('GK');
-			expect(BUILT_IN_AGENT_CONFIGS.dsh.monogram).toBe('DS');
 		});
 	});
 
-	// ─── AC 2 & AC 3 / E-38: 模型选择器与降级 ───
+	// ─── AC 2 & AC 3 / E-38: 模型选择器、手机全屏与清单不全手填 ───
 	describe('AC 2 & AC 3 / E-38: 模型选择、手机端全屏与清单不全手填', () => {
-		it('renders model picker trigger button with selected model', () => {
+		it('renders model picker trigger button with selected model and models prop', () => {
 			const html = renderToStaticMarkup(
 				createElement(ModelPicker, {
-					agentId: 'codex',
+					models: ['gpt-4o', 'claude-3-5-sonnet'],
 					selectedModel: 'gpt-4o',
 					onSelectModel: vi.fn(),
 				}),
@@ -108,13 +115,12 @@ describe('M9-T14 设置页：agent 注册表与模型选择', () => {
 
 			expect(html).toContain('gpt-4o');
 			expect(html).toContain('model-picker-trigger');
-			expect(html).toContain('refresh-models-btn');
 		});
 
 		it('displays placeholder when selectedModel is null', () => {
 			const html = renderToStaticMarkup(
 				createElement(ModelPicker, {
-					agentId: 'codex',
+					models: ['gpt-4o'],
 					selectedModel: null,
 					onSelectModel: vi.fn(),
 				}),
@@ -122,149 +128,275 @@ describe('M9-T14 设置页：agent 注册表与模型选择', () => {
 
 			expect(html).toContain('选择默认模型...');
 		});
+
+		it('shows "清单可能不全" and renders manual entry input using h-input token (R8)', () => {
+			const html = renderToStaticMarkup(
+				createElement(ModelPicker, {
+					models: ['gpt-4o'],
+					selectedModel: 'gpt-4o',
+					onSelectModel: vi.fn(),
+					isComplete: false,
+					initialOpen: true,
+				}),
+			);
+
+			// AC 3: 清单不全提示
+			expect(html).toContain('清单可能不全');
+			expect(html).toContain('支持手动输入模型');
+			expect(html).toContain('data-testid="manual-model-input"');
+			// R8: 检查使用 h-input token 代替 h-input-sm
+			expect(html).not.toContain('h-input-sm');
+			expect(html).toContain('h-input');
+		});
 	});
 
-	// ─── AC 4 & E-88: agent 不可用态与跳转配置 ───
-	describe('AC 4 & E-88: 不可用置灰、写明缺什么并支持跳转配置', () => {
-		const mockUnavailableAgent: RegisteredAgentItem = {
-			id: 'codex',
-			name: 'Codex',
-			monogram: 'CX',
-			isAvailable: false,
-			defaultModel: null,
-			maxConcurrency: 1,
-			permissionTier: 'workspaceWrite',
-			execPath: '/invalid/path/to/codex',
-			unavailableReason: '可执行文件不存在',
-			missingRequirements: ['可执行路径无效'],
-		};
+	// ─── R8 & AC 4 / E-88: unavailableCode 映射中文标题，英文进入技术详情 ───
+	describe('R8 & AC 4 / E-88: 动态映射不可用文案，英文进技术详情', () => {
+		it('maps unavailableCode E_AGENT_EXEC_NOT_FOUND to Chinese title, not hardcoded "路径无效"', () => {
+			const mockAgent: AgentEntryWithLayers = {
+				id: 'codex',
+				name: 'Codex',
+				monogram: 'CX',
+				isAvailable: false,
+				defaultModel: null,
+				maxConcurrency: 1,
+				permissionTier: 'workspaceWrite',
+				execPath: '/invalid/path/to/codex',
+				unavailableCode: 'E_AGENT_EXEC_NOT_FOUND',
+				unavailableReason: 'executable not found in platform paths',
+				missingRequirements: ['Native path for platform'],
+			};
 
-		it('grays out unavailable agent and states missing requirements', () => {
 			const html = renderToStaticMarkup(
 				createElement(AgentCard, {
-					agent: mockUnavailableAgent,
+					agent: mockAgent,
+					models: [],
 					getFieldLayers: (_agent, field) => ({
 						key: field,
 						label: field,
-						builtIn: 'codex',
-						override: '/invalid/path/to/codex',
-						effective: '/invalid/path/to/codex',
+						builtIn: '—',
+						override: null,
+						effective: '—',
 					}),
 					onUpdateField: vi.fn().mockResolvedValue(true),
-					onRestoreDefault: vi.fn().mockResolvedValue(true),
-					onAdoptDefault: vi.fn().mockResolvedValue(true),
 					onProbe: vi.fn().mockResolvedValue(undefined),
 				}),
 			);
 
-			expect(html).toContain('不可用（路径无效）');
-			expect(html).toContain('缺失项：');
-			expect(html).toContain('可执行路径无效');
-			expect(html).toContain('opacity-75');
-			expect(html).toContain('点击前往修改配置 →');
+			// R8: 中文标题映射为「未找到可执行文件」
+			expect(html).toContain('不可用（未找到可执行文件）');
+			expect(html).not.toContain('不可用（路径无效）');
+			// R8: 英文 requirement/reason 进入可展开技术详情
+			expect(html).toContain('技术详情');
+			expect(html).toContain('Native path for platform');
+			expect(html).toContain('修改配置 →');
+		});
+
+		it('maps unavailableCode E_AGENT_VERSION_UNRECOGNIZED to version title', () => {
+			expect(UNAVAILABLE_CODE_TITLES.E_AGENT_VERSION_UNRECOGNIZED).toBe('版本未识别');
+
+			const mockAgent: AgentEntryWithLayers = {
+				id: 'pi',
+				name: 'Pi Agent',
+				monogram: 'PI',
+				isAvailable: false,
+				defaultModel: null,
+				maxConcurrency: 1,
+				permissionTier: 'workspaceWrite',
+				execPath: 'pi',
+				unavailableCode: 'E_AGENT_VERSION_UNRECOGNIZED',
+				unavailableReason: 'unrecognized CLI version output',
+			};
+
+			const html = renderToStaticMarkup(
+				createElement(AgentCard, {
+					agent: mockAgent,
+					models: [],
+					getFieldLayers: (_agent, field) => ({
+						key: field,
+						label: field,
+						builtIn: '—',
+						override: null,
+						effective: '—',
+					}),
+					onUpdateField: vi.fn().mockResolvedValue(true),
+					onProbe: vi.fn().mockResolvedValue(undefined),
+				}),
+			);
+
+			expect(html).toContain('不可用（版本未识别）');
 		});
 	});
 
-	// ─── AC 5 & E-183: 两字符短码唯一性与撞车要求改一个 ───
-	describe('AC 5 & E-183: 两字符短码唯一性校验', () => {
-		const mockAgent: RegisteredAgentItem = {
+	// ─── R3 & AC 9 / E-95: reason === 'session-dir-overlap' ───
+	describe('R3 & AC 9 / E-95: 只按 reason 分支，绝不按英文 message 匹配或直出', () => {
+		it('renders "会话记录可能互相覆盖" when errorDetails.reason === "session-dir-overlap"', () => {
+			const mockAgent: AgentEntryWithLayers = {
+				id: 'codex',
+				name: 'Codex',
+				monogram: 'CX',
+				isAvailable: true,
+				defaultModel: null,
+				maxConcurrency: 1,
+				permissionTier: 'workspaceWrite',
+				execPath: 'codex',
+				errorDetails: {
+					code: 'E_AGENT_CONFIG_WARNING',
+					reason: 'session-dir-overlap',
+				},
+			};
+
+			const html = renderToStaticMarkup(
+				createElement(AgentCard, {
+					agent: mockAgent,
+					models: [],
+					getFieldLayers: (_agent, field) => ({
+						key: field,
+						label: field,
+						builtIn: '—',
+						override: null,
+						effective: 'CX',
+					}),
+					onUpdateField: vi.fn().mockResolvedValue(true),
+					onProbe: vi.fn().mockResolvedValue(undefined),
+				}),
+			);
+
+			// AC 9: 精确显示中文文案
+			expect(html).toContain('会话记录可能互相覆盖');
+			// 绝不直出英文
+			expect(html).not.toContain('Session records may overwrite each other');
+		});
+
+		it('does NOT trigger warning solely from an English message string (R3)', () => {
+			const mockAgentWithoutReason: AgentEntryWithLayers = {
+				id: 'codex',
+				name: 'Codex',
+				monogram: 'CX',
+				isAvailable: true,
+				defaultModel: null,
+				maxConcurrency: 1,
+				permissionTier: 'workspaceWrite',
+				execPath: 'codex',
+				warningBanner: {
+					code: 'E_AGENT_CONFIG_WARNING',
+					message: 'Session records may overwrite each other',
+				},
+			};
+
+			const html = renderToStaticMarkup(
+				createElement(AgentCard, {
+					agent: mockAgentWithoutReason,
+					models: [],
+					getFieldLayers: (_agent, field) => ({
+						key: field,
+						label: field,
+						builtIn: '—',
+						override: null,
+						effective: 'CX',
+					}),
+					onUpdateField: vi.fn().mockResolvedValue(true),
+					onProbe: vi.fn().mockResolvedValue(undefined),
+				}),
+			);
+
+			// R3: 来源未带 reason === 'session-dir-overlap' 时不按英文 message 猜测
+			expect(html).not.toContain('会话记录可能互相覆盖');
+		});
+	});
+
+	// ─── R4 & AC 5 / E-183: 中文错误提示与技术详情 ───
+	describe('R4 & AC 5 / E-183: 中文错误展示与英文进入技术详情', () => {
+		const mockAgent: AgentEntryWithLayers = {
 			id: 'codex',
 			name: 'Codex',
 			monogram: 'CX',
 			isAvailable: true,
-			defaultModel: 'gpt-4o',
+			defaultModel: null,
 			maxConcurrency: 1,
 			permissionTier: 'workspaceWrite',
 			execPath: 'codex',
 		};
 
-		it('renders monogram input with 2-char limit and validation error when duplicate', () => {
+		it('renders Chinese validation error below monogram input and puts technical detail in <details>', () => {
 			const html = renderToStaticMarkup(
 				createElement(AgentCard, {
 					agent: mockAgent,
+					models: [],
 					getFieldLayers: (_agent, field) => ({
 						key: field,
 						label: field,
-						builtIn: 'CX',
+						builtIn: '—',
 						override: null,
 						effective: 'CX',
 					}),
 					onUpdateField: vi.fn().mockResolvedValue(true),
-					onRestoreDefault: vi.fn().mockResolvedValue(true),
-					onAdoptDefault: vi.fn().mockResolvedValue(true),
 					onProbe: vi.fn().mockResolvedValue(undefined),
 					validationError: {
-						monogram: '短码 "CL" 已被 agent "Claude Code" 占用，请改用其他短码',
+						monogram: {
+							message: '短码已被其他 Agent 占用，请改用其他短码',
+							technical: 'Monogram "CL" is already in use by agent "claude".',
+							requestId: 'req-12345',
+						},
 					},
 				}),
 			);
 
-			expect(html).toContain('maxLength="2"');
-			expect(html).toContain('已被 agent');
-			expect(html).toContain('Claude Code');
-			expect(html).toContain('占用，请改用其他短码');
+			// 中文提示渲染在输入框下方
+			expect(html).toContain('短码已被其他 Agent 占用，请改用其他短码');
+			// 英文进入可展开技术详情
+			expect(html).toContain('技术详情');
+			expect(html).toContain(
+				'Monogram &quot;CL&quot; is already in use by agent &quot;claude&quot;.',
+			);
 			expect(html).toContain('aria-invalid="true"');
 		});
 	});
 
-	// ─── AC 6 & E-184: 窄处身份识别，字母组配合完整名称出现 ───
-	describe('AC 6 & E-184: 字母组配合完整名称出现，不得成为唯一标识', () => {
-		const mockAgent: RegisteredAgentItem = {
-			id: 'pi',
-			name: 'Pi Agent',
-			monogram: 'PI',
+	// ─── R6 & E-185: monogram 纯文本渲染，不引任何资源文件 ───
+	describe('R6 & E-185: 纯文本 monogram chip，不引用任何静态资源', () => {
+		const mockAgent: AgentEntryWithLayers = {
+			id: 'custom-6',
+			name: 'Sixth Agent',
+			monogram: 'S6',
 			isAvailable: true,
 			defaultModel: null,
 			maxConcurrency: 1,
 			permissionTier: 'workspaceWrite',
-			execPath: 'pi',
+			execPath: 'custom6',
 		};
 
-		it('renders monogram chip with title, aria-label, and visible full name', () => {
+		it('renders monogram chip using plain text and contains zero image assets', () => {
 			const html = renderToStaticMarkup(
 				createElement(AgentCard, {
 					agent: mockAgent,
+					models: [],
 					getFieldLayers: (_agent, field) => ({
 						key: field,
 						label: field,
-						builtIn: 'PI',
+						builtIn: '—',
 						override: null,
-						effective: 'PI',
+						effective: 'S6',
 					}),
 					onUpdateField: vi.fn().mockResolvedValue(true),
-					onRestoreDefault: vi.fn().mockResolvedValue(true),
-					onAdoptDefault: vi.fn().mockResolvedValue(true),
 					onProbe: vi.fn().mockResolvedValue(undefined),
 				}),
 			);
 
-			expect(html).toContain('data-testid="monogram-chip-pi"');
-			expect(html).toContain('title="Pi Agent"');
-			expect(html).toContain('aria-label="Pi Agent"');
-			expect(html).toContain('Pi Agent');
+			// 验证纯文本渲染
+			expect(html).toContain('data-testid="monogram-chip-custom-6"');
+			expect(html).toContain('>S6<');
+			// 断言绝不包含外部图片、svg 图标资产引用
+			expect(html).not.toContain('<img');
+			expect(html).not.toContain('<image');
+			expect(html).not.toContain('.png');
+			expect(html).not.toContain('.svg');
 		});
 	});
 
-	// ─── AC 7 & E-185: 接入新 agent 只需填两字符短码，不新增任何资源文件 ───
-	describe('AC 7 & E-185: 接入第 5/6 个 agent 视觉成本', () => {
-		it('renders add agent section stating only 2-char monogram needed with zero assets', () => {
-			const html = renderToStaticMarkup(
-				createElement(AddAgentSection, {
-					onAddAgent: vi.fn().mockResolvedValue(true),
-					existingAgentIds: ['codex', 'claude', 'pi', 'grok'],
-					validateMonogram: vi.fn().mockReturnValue({ valid: true }),
-				}),
-			);
-
-			expect(html).toContain('接入新 Agent');
-			expect(html).toContain('接入第 5、6 个 agent 只需填写两字符短码，无需新增任何图标或资源文件');
-			expect(html).toContain('toggle-add-agent-btn');
-		});
-	});
-
-	// ─── AC 8 & E-248: 并行窗口数（默认 2，值域 1-6，注明只属于调度器） ───
-	describe('AC 8 & E-248: 任务并行窗口数与互不影响提示', () => {
-		it('renders lane count setting with default 2, range 1-6, and required notice', () => {
+	// ─── R5 & AC 8 / E-248: 任务并行窗口数与定位不到不渲染写入口 ───
+	describe('R5 & AC 8 / E-248: 并行窗口数与目标文档定位', () => {
+		it('renders lane count setting with stepper buttons when targetDoc is identified', () => {
 			expect(DEFAULT_LANE_COUNT).toBe(2);
 			expect(MIN_LANE_COUNT).toBe(1);
 			expect(MAX_LANE_COUNT).toBe(6);
@@ -272,65 +404,33 @@ describe('M9-T14 设置页：agent 注册表与模型选择', () => {
 			const html = renderToStaticMarkup(
 				createElement(LaneCountSetting, {
 					laneCount: 2,
+					hasTargetDoc: true,
+					targetDocName: '主项目',
 					onChangeLaneCount: vi.fn(),
 				}),
 			);
 
 			expect(html).toContain('任务并行窗口数');
-			// Exact required notice string
+			expect(html).toContain('文档：主项目');
 			expect(html).toContain('此值只属于调度器，与阅读器互不影响');
 			expect(html).toContain('lane-count-decrease-btn');
 			expect(html).toContain('lane-count-increase-btn');
-			expect(html).toContain('2');
 		});
-	});
 
-	// ─── AC 9 & E-95: reason 等于 session-dir-overlap 时显示「会话记录可能互相覆盖」 ───
-	describe('AC 9 & E-95: 会话目录重叠告警呈现', () => {
-		const mockOverlapAgent: RegisteredAgentItem = {
-			id: 'codex',
-			name: 'Codex',
-			monogram: 'CX',
-			isAvailable: true,
-			defaultModel: null,
-			maxConcurrency: 1,
-			permissionTier: 'workspaceWrite',
-			execPath: 'codex',
-			warningBanner: {
-				code: 'E_AGENT_CONFIG_WARNING',
-				message: 'Session records may overwrite each other',
-				details: { reason: 'session-dir-overlap' },
-			},
-			warnings: [
-				{
-					reason: 'session-dir-overlap',
-					message: 'Session records may overwrite each other',
-				},
-			],
-		};
-
-		it('renders "会话记录可能互相覆盖" and NOT the raw daemon English message', () => {
+		it('does NOT render write stepper buttons when target doc is not identified (R5)', () => {
 			const html = renderToStaticMarkup(
-				createElement(AgentCard, {
-					agent: mockOverlapAgent,
-					getFieldLayers: (_agent, field) => ({
-						key: field,
-						label: field,
-						builtIn: 'codex',
-						override: null,
-						effective: 'codex',
-					}),
-					onUpdateField: vi.fn().mockResolvedValue(true),
-					onRestoreDefault: vi.fn().mockResolvedValue(true),
-					onAdoptDefault: vi.fn().mockResolvedValue(true),
-					onProbe: vi.fn().mockResolvedValue(undefined),
+				createElement(LaneCountSetting, {
+					laneCount: 2,
+					hasTargetDoc: false,
 				}),
 			);
 
-			// AC 9: 精确显示中文文案
-			expect(html).toContain('会话记录可能互相覆盖');
-			// 绝不直出 daemon 的英文 developer message
-			expect(html).not.toContain('Session records may overwrite each other');
+			expect(html).toContain('任务并行窗口数');
+			expect(html).toContain('此值只属于调度器，与阅读器互不影响');
+			// R5: 未定位到目标文档时不渲染写入口
+			expect(html).not.toContain('lane-count-decrease-btn');
+			expect(html).not.toContain('lane-count-increase-btn');
+			expect(html).toContain('未定位到目标文档，仅显示当前值');
 		});
 	});
 
