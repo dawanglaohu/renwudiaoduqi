@@ -157,6 +157,12 @@ export function createBughuntContextService(
 		const promptSource: BughuntPromptSource = hasDocPrompt
 			? PROMPT_SOURCE_DOCS
 			: PROMPT_SOURCE_BUILTIN;
+		if (!hasDocPrompt) {
+			// E-316：文档未提供查 bug 提示词时记 warn。提示词正文既不入事件 payload 也不入日志。
+			console.warn(
+				`[E-316] Dispatch snapshot has no bug prompt for task ${resolvedTaskId}, falling back to builtin bughunt prompt`,
+			);
+		}
 
 		// AC 3 & E-50: 文档指纹在途中变化时仍取快照那一份，不热改；标记文档是否在派发后变化
 		const isDocChanged =
