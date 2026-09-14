@@ -56,8 +56,6 @@ export const AGENT_CONFIG_FIELD_PATHS = [
 	'timeouts.hardWallClockMs',
 	'versionFingerprint.args',
 	'versionFingerprint.expectedPattern',
-	'versionRange.min',
-	'versionRange.max',
 ] as const;
 
 export type AgentConfigFieldPath = (typeof AGENT_CONFIG_FIELD_PATHS)[number];
@@ -1074,6 +1072,7 @@ function mergeAgentConfig(
 	const adapterTimeouts = createDefaultTimeouts(adapterKind);
 	const timeoutOverrides = overrides.timeouts ?? {};
 	const versionOverrides = overrides.versionFingerprint ?? {};
+	const versionRangeOverrides = overrides.versionRange;
 	const startupFallback =
 		adapterKind === defaultConfig.adapterKind
 			? defaultConfig.timeouts.startupTimeoutMs
@@ -1102,6 +1101,12 @@ function mergeAgentConfig(
 				defaultConfig.versionFingerprint.expectedPattern,
 			),
 		},
+		versionRange: versionRangeOverrides
+			? {
+					min: versionRangeOverrides.min ?? defaultConfig.versionRange?.min,
+					max: versionRangeOverrides.max ?? defaultConfig.versionRange?.max,
+				}
+			: defaultConfig.versionRange,
 	});
 }
 
@@ -1182,10 +1187,6 @@ function getConfigField(config: AgentConfig, field: AgentConfigFieldPath): Agent
 			return config.versionFingerprint.args;
 		case 'versionFingerprint.expectedPattern':
 			return config.versionFingerprint.expectedPattern;
-		case 'versionRange.min':
-			return config.versionRange?.min ?? null;
-		case 'versionRange.max':
-			return config.versionRange?.max ?? null;
 	}
 }
 
@@ -1212,10 +1213,6 @@ function getOverrideField(
 			return ownOptionalValue(overrides.versionFingerprint, 'args');
 		case 'versionFingerprint.expectedPattern':
 			return ownOptionalValue(overrides.versionFingerprint, 'expectedPattern');
-		case 'versionRange.min':
-			return ownOptionalValue(overrides.versionRange, 'min');
-		case 'versionRange.max':
-			return ownOptionalValue(overrides.versionRange, 'max');
 	}
 }
 

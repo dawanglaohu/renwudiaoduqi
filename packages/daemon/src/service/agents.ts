@@ -223,7 +223,13 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		}
 
 		// R3 & E-191 & E-28: dsh smoke test verification before enablement
-		if (agentId === BUILT_IN_AGENT_IDS.DSH && probeResult.canDispatch && deps.commandRunner) {
+		const smokeCommandRunner = deps.commandRunner;
+		if (
+			agentId === BUILT_IN_AGENT_IDS.DSH &&
+			probeResult.canDispatch &&
+			smokeCommandRunner !== undefined
+		) {
+			const runCommand: NonNullable<typeof smokeCommandRunner> = smokeCommandRunner;
 			const runner = async (params: {
 				file: string;
 				args: readonly string[];
@@ -231,15 +237,13 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				timeoutMs?: number;
 				env?: Readonly<Record<string, string | undefined>>;
 			}) => {
-				const commandRunner = deps.commandRunner;
-				if (!commandRunner) throw new Error('Command runner unavailable');
 				const cleanEnv: Record<string, string> = {};
 				if (params.env) {
 					for (const [k, v] of Object.entries(params.env)) {
 						if (v !== undefined) cleanEnv[k] = v;
 					}
 				}
-				const res = await commandRunner({
+				const res = await runCommand({
 					file: params.file,
 					args: params.args,
 					cwd: params.cwd,
@@ -328,6 +332,11 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 						`Compatible version matching pattern "${config.versionFingerprint.expectedPattern}"`,
 					);
 				}
+			} else if (code === 'E_AGENT_UNAVAILABLE') {
+				// dsh smoke test contract failure (E-191): the executable resolves, the run contract does not
+				isAvailable = false;
+				canDispatch = false;
+				missingRequirements.push('Passing the dsh headless smoke test contract');
 			} else {
 				isAvailable = false;
 				canDispatch = false;
