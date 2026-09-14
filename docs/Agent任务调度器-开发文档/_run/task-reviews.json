@@ -549,7 +549,7 @@
     "verdict": "pass"
   },
   "M5-T4": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "compiler": "5fb55fa9b1023d469f5bcee2d08ba80159fdaa56209ca733b43f0c2538d22dc2",
     "contractHash": "2098ae61aea621b79e7ca669275e4fce2b507143a3bc16cba56eedadd8156990",
     "evidence": [
       "AC1: packages/daemon/src/workspace/landing.ts:108 generateLandingCommands 产出 gh stack 命令与 python <docsPath>/_run/build_docs.py <docsPath> --landed <任务ID> 两行文本；:359-374 返回 worktreePath/branchName/diffStat/commands，全程只生成字符串不执行",
@@ -561,9 +561,12 @@
       "支持文件：service/landing.ts、boot/container.ts、http/plugins/50-routes.ts 已补入 M5-T4.supportPaths；与在途 M6-T8（50-routes.ts）共同持有，双方均为新增 hunk",
       "合并 origin/main 后：container.ts 与 M6-T6 的 runMessages/messageService 为并列新增，冲突取并集解决，repos 同时含 tasks 与 runMessages，services 同时含 landing 与 message",
       "检查：tsc -b --noEmit 通过；biome ci . 通过；landing.test.ts 19/20 通过，唯一失败为 Windows 侧 resolveGitExecutable 找不到 git（用例写死 platform: linux），已落地的 M5-T1 worktree.test.ts 同样失败，属既有环境差异",
-      "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）"
+      "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）",
+      "2026-09-14 状态纠正复核（以上检查保留为此前落地证据，并非本次重跑）：当前 revalidation 的来源为 M6-T8-support-paths-20260914，而不是新的 M5-T4 需求。该补丁跨过 M5-T4 自身落地提交，把已复核的支持路径变化再次计入差异。",
+      "本次核对 b3a4416（M6-T8 合并前）与 fa95214：M5-T4 的 presentation.taskPaths、task-contracts 条目、任务笔记完全一致；workspace/landing.ts、service/landing.ts、http/routes/tasks.ts 与 landing.test.ts 无差异。共享 container.ts 和 50-routes.ts 只并列新增日志服务与端点，原 landing 装配和路由保留。",
+      "本次只撤销错误的待复验显示：保持 M5-T4 status=done，使用 verify（不带 patch）及 --landed 清除本次误标，不更改验收标准或其他任务的实施状态。"
     ],
-    "reviewed": "2026-09-14T10:12:44.002565+00:00",
+    "reviewed": "2026-09-14T15:42:29.020582+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -660,15 +663,18 @@
     "verdict": "pass"
   },
   "M6-T6": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "compiler": "5fb55fa9b1023d469f5bcee2d08ba80159fdaa56209ca733b43f0c2538d22dc2",
     "contractHash": "9194046d4f0dcfdc69415cd644253ec81e4e3e1784cb3882ac407f617468cfb6",
     "evidence": [
       "本次待复验字段仅为 effectivePaths（M5-T4 的 supportPaths 补丁触发重新计算），M6-T6 的验收条款与边界本身未变",
       "复核有效范围：presentation.json handoff.taskPaths['M6-T6'] 六条路径与已合并 PR #69 的实际改动文件逐一对应，无多列也无漏列",
       "  service/message.ts、repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts",
-      "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过"
+      "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过",
+      "2026-09-14 状态纠正复核（以上为此前 M5-T4 落地时的证据，并非本次重跑）：当前误标由 M6-T8-support-paths-20260914 跨合并同步再次传播 effectivePaths 变化造成；M6-T6 仍已合并，不能将该标记视为新的代码审查或实施状态。",
+      "本次核对 b3a4416 与 fa95214：M6-T6 的 taskPaths、task-contracts 条目和任务笔记完全一致；service/message.ts、repo/run-messages-repo.ts、message-service.test.ts 无差异。共享 runs.ts 仍保留原 messageHandler、请求校验、actorDeviceId 传递和响应；container.ts 与 50-routes.ts 保留 message 装配和路由，只并列新增 runLog。",
+      "本次保持 status=done，通过不带 patch 的 verify 及 --landed 撤销错误的待复验标记；不改变其他任务的生命周期与浏览器手工推进记录。"
     ],
-    "reviewed": "2026-09-14T10:15:15.310300+00:00",
+    "reviewed": "2026-09-14T15:42:41.425433+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

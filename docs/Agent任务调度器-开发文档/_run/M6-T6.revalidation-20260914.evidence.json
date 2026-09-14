@@ -8,7 +8,10 @@
         "本次待复验字段仅为 effectivePaths（M5-T4 的 supportPaths 补丁触发重新计算），M6-T6 的验收条款与边界本身未变",
         "复核有效范围：presentation.json handoff.taskPaths['M6-T6'] 六条路径与已合并 PR #69 的实际改动文件逐一对应，无多列也无漏列",
         "  service/message.ts、repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts",
-        "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过"
+        "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过",
+        "2026-09-14 状态纠正复核（以上为此前 M5-T4 落地时的证据，并非本次重跑）：当前误标由 M6-T8-support-paths-20260914 跨合并同步再次传播 effectivePaths 变化造成；M6-T6 仍已合并，不能将该标记视为新的代码审查或实施状态。",
+        "本次核对 b3a4416 与 fa95214：M6-T6 的 taskPaths、task-contracts 条目和任务笔记完全一致；service/message.ts、repo/run-messages-repo.ts、message-service.test.ts 无差异。共享 runs.ts 仍保留原 messageHandler、请求校验、actorDeviceId 传递和响应；container.ts 与 50-routes.ts 保留 message 装配和路由，只并列新增 runLog。",
+        "本次保持 status=done，通过不带 patch 的 verify 及 --landed 撤销错误的待复验标记；不改变其他任务的生命周期与浏览器手工推进记录。"
       ]
     }
   }

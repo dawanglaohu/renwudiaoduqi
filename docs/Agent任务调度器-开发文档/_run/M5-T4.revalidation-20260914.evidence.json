@@ -14,7 +14,10 @@
         "支持文件：service/landing.ts、boot/container.ts、http/plugins/50-routes.ts 已补入 M5-T4.supportPaths；与在途 M6-T8（50-routes.ts）共同持有，双方均为新增 hunk",
         "合并 origin/main 后：container.ts 与 M6-T6 的 runMessages/messageService 为并列新增，冲突取并集解决，repos 同时含 tasks 与 runMessages，services 同时含 landing 与 message",
         "检查：tsc -b --noEmit 通过；biome ci . 通过；landing.test.ts 19/20 通过，唯一失败为 Windows 侧 resolveGitExecutable 找不到 git（用例写死 platform: linux），已落地的 M5-T1 worktree.test.ts 同样失败，属既有环境差异",
-        "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）"
+        "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）",
+        "2026-09-14 状态纠正复核（以上检查保留为此前落地证据，并非本次重跑）：当前 revalidation 的来源为 M6-T8-support-paths-20260914，而不是新的 M5-T4 需求。该补丁跨过 M5-T4 自身落地提交，把已复核的支持路径变化再次计入差异。",
+        "本次核对 b3a4416（M6-T8 合并前）与 fa95214：M5-T4 的 presentation.taskPaths、task-contracts 条目、任务笔记完全一致；workspace/landing.ts、service/landing.ts、http/routes/tasks.ts 与 landing.test.ts 无差异。共享 container.ts 和 50-routes.ts 只并列新增日志服务与端点，原 landing 装配和路由保留。",
+        "本次只撤销错误的待复验显示：保持 M5-T4 status=done，使用 verify（不带 patch）及 --landed 清除本次误标，不更改验收标准或其他任务的实施状态。"
       ]
     }
   }
