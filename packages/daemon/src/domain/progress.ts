@@ -1,3 +1,5 @@
+import { TERMINAL_RUN_STATES } from './run-state-machine.ts';
+
 /**
  * 占位符常量：缺失时统一显示全角破折号，不得拿 0 冒充 (E-26)。
  */
@@ -557,20 +559,25 @@ export function formatDurationText(durationMs: number | null | undefined): strin
 }
 
 /**
- * 判断运行状态是否为终态或已退出。
+ * 「已退出」及其后继状态：进程已结束，最终字段（最后一条消息／token／耗时）已可用。
+ * 复用 run-state-machine.ts 的终态定义，避免两处各写一份状态集合后漂移；
+ * exited 之后按迁移图只能走向 reviewing / reworking / awaiting_human 或四个终态。
+ * orphaned 是进程失联而非正常退出，刻意不计入。
+ */
+const EXITED_OR_LATER_RUN_STATES: readonly string[] = [
+	'exited',
+	'reviewing',
+	'reworking',
+	'awaiting_human',
+	...TERMINAL_RUN_STATES,
+];
+
+/**
+ * 判断运行状态是否为终态或已退出（进程已结束，最终字段可以补齐）。
  */
 export function isTerminalOrExitedState(state?: string | null): boolean {
 	if (!state || typeof state !== 'string') return false;
-	const s = state.trim().toLowerCase();
-	return (
-		s === 'landed' ||
-		s === 'failed' ||
-		s === 'aborted' ||
-		s === 'interrupted' ||
-		s === 'exited' ||
-		s === 'reviewing' ||
-		s === 'awaiting_human'
-	);
+	return EXITED_OR_LATER_RUN_STATES.includes(state.trim().toLowerCase());
 }
 
 /**
@@ -641,30 +648,10 @@ export function extractLastMessage(
 		}
 
 		// 2. 若已经在收集当前 message chunk 序列，遇到边界（如 tool_call 或 state_changed）则停止回溯
+		//    只认归一化后的 ACP kind；厂商原生 kind（如 turn.completed、agent_message）
+		//    由各家 adapters/<agent>/map-events.ts 归一化，domain 不得再认一份。
 		if (foundChunk) {
 			break;
-		}
-
-		// 3. 完整消息字段兼容（不做深度语义解析）
-		if (
-			kind === 'agent_message' ||
-			kind === 'message' ||
-			kind === 'assistant_message' ||
-			kind === 'turn.completed'
-		) {
-			const text =
-				typeof payload.text === 'string'
-					? payload.text
-					: typeof payload.content === 'string'
-						? payload.content
-						: typeof payload.message === 'string'
-							? payload.message
-							: typeof payload.summary === 'string'
-								? payload.summary
-								: '';
-			if (text?.trim()) {
-				return text.trim();
-			}
 		}
 	}
 
