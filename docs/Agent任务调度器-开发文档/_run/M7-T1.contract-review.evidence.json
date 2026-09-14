@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T1": {
+      "contractHash": "efb605a52538833052ac774d627be6eadb5e48fd8412731ee38519adc241ad81",
+      "verdict": "pass",
+      "evidence": [
+        "status --task M7-T1 输出的契约哈希 efb605a5… 与派发包一致，源文档无需补丁（sourceVersion 无 stale、无 runtimeDrift）。",
+        "验收标准 1-4 与 5 条边界 E-23/E-60/E-61/E-66/E-67 在 图谱/任务/M7-T1.md 与 03-质量/13-边界问题与异常处理.md 中逐条可定位且互不矛盾；E-60 的两层划分与 E-61 的「不派审查 agent」与 E-23 的「已退出≠已落地」相互一致。",
+        "前置能力已在 main 落地可用：M5-T3 的 getDiffStat/getDiffText（packages/daemon/src/workspace/diff.ts:458、:586）、M6-T1 的运行状态机（packages/daemon/src/domain/run-state-machine.ts 的 VALID_RUN_TRANSITIONS 与 RUN_TRANSITION_REASONS，exited 唯一出边为 reviewing、landed 只能从 reviewing/awaiting_human 进入）、E-66 的默认超时常量 DEFAULT_CHECK_TIMEOUT_MS=600_000（packages/daemon/src/proc/timers.ts:5）。",
+        "有效路径 packages/daemon/src/service/review.ts 与本任务产出「service/review.ts 的机械层」一致；本任务新建 packages/daemon/test/unit/review.test.ts 属必要支持文件，未与其他任务的路径冲突。",
+        "本记录只覆盖任务契约（范围/术语/前置/有效路径/验收与边界自洽）；代码侧结论见 PR #77 的 REVIEW-ROUND 1，本轮判定 rework，不构成代码通过。"
+      ]
+    }
+  }
+}
