@@ -229,7 +229,7 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 		});
 	});
 
-	describe('AC 2 & E-153: Last-Event-ID Parsing, Replay, and Window Expiry (R2 pure function)', () => {
+	describe('AC 2 & E-153: Last-Event-ID Parsing, Replay, and Window Expiry', () => {
 		it('parseLastEventId parses non-negative safe integers from header and ignores missing/invalid', () => {
 			expect(parseLastEventId(undefined)).toBeNull();
 			expect(parseLastEventId('')).toBeNull();
@@ -437,7 +437,7 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 		});
 	});
 
-	describe('Fastify End-to-End Real HTTP Server Integration (R1 & R2 Verifications)', () => {
+	describe('Fastify End-to-End Real HTTP Server Integration', () => {
 		const currentDir = dirname(fileURLToPath(import.meta.url));
 		const migrationsDir = resolve(currentDir, '../../migrations');
 		const testDirs: string[] = [];

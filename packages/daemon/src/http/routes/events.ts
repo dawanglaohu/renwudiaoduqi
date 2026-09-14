@@ -14,15 +14,14 @@ export function registerEventsRoutes(instance: FastifyInstance): void {
 			throw new AppError('E_UNAUTHORIZED', 'Authentication required for SSE event stream.');
 		}
 
-		// R2: Resolve and validate replay cursor before hijacking the reply.
-		// If the replay window is expired, AppError('E_REPLAY_WINDOW_EXPIRED') is thrown here
-		// and handled uniformly by 90-error-handler as HTTP 409 with standard error envelope.
+		// The replay cursor is validated before the reply is hijacked: once hijacked, Fastify no longer
+		// owns the response, so an expired window could not be reported as 409 E_REPLAY_WINDOW_EXPIRED.
 		const { parsedLastEventId, replayEvents } = resolveReplayEvents(
 			container.events.ringBuffer,
 			request.headers['last-event-id'],
 		);
 
-		// AC 5: Hijack response only after all pre-flight assertions pass
+		// Hijack only after every pre-flight assertion passed; the stream itself never calls reply.send.
 		reply.hijack();
 
 		handleSseStream({
