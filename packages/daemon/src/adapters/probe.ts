@@ -1044,7 +1044,25 @@ function escapeRegex(str: string): string {
 	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-async function executeProbeProcess(params: {
+export const SECRET_REDACTION_PATTERNS = Object.freeze({
+	SK: /\bsk-[A-Za-z0-9_-]{8,}\b/g,
+	XAI: /\bxai-[A-Za-z0-9_-]{8,}\b/g,
+	GHP: /\bghp_[A-Za-z0-9_]{8,}\b/g,
+	BEARER: /\bBearer\s+[A-Za-z0-9._~+/-]+=*\b/g,
+	JWT: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,
+} as const);
+
+export function redactSecrets(text: string): string {
+	if (!text) return text;
+	return text
+		.replace(SECRET_REDACTION_PATTERNS.BEARER, 'Bearer [REDACTED]')
+		.replace(SECRET_REDACTION_PATTERNS.JWT, '[REDACTED]')
+		.replace(SECRET_REDACTION_PATTERNS.SK, '[REDACTED]')
+		.replace(SECRET_REDACTION_PATTERNS.XAI, '[REDACTED]')
+		.replace(SECRET_REDACTION_PATTERNS.GHP, '[REDACTED]');
+}
+
+export async function executeProbeProcess(params: {
 	readonly file: string;
 	readonly args: readonly string[];
 	readonly windowsVerbatimArguments: boolean;

@@ -133,10 +133,12 @@ export function registerAgentRoutes(
 					{ details: result.errorDetails ? { ...result.errorDetails } : undefined },
 				);
 			}
+			const login = agentService.getLogin(request.params.agentId);
 			return {
 				status: result.status,
 				versionString: result.versionString,
 				matched: result.matched,
+				login,
 			};
 		},
 	);
@@ -156,7 +158,7 @@ export function registerAgentRoutes(
 		async (request): Promise<ListAgentModelsResponse> => {
 			requireAuth(request);
 			const agentService = getAgentService(request, options);
-			const refresh = request.query?.refresh === 'true';
+			const refresh = request.query?.refresh === 'true' || request.query?.refresh === '1';
 			return agentService.listAgentModels(request.params.agentId, { refresh });
 		},
 	);

@@ -41,6 +41,32 @@ export interface VersionRange {
 	readonly max?: string;
 }
 
+export const LOGIN_PROBE_PARSERS = {
+	CODEX_LOGIN_STATUS: 'codex_login_status',
+	CLAUDE_AUTH_JSON: 'claude_auth_json',
+	GROK_MODELS_EXIT: 'grok_models_exit',
+	PI_AUTH_CHECK: 'pi_auth_check',
+	NONE: 'none',
+} as const;
+
+export type LoginProbeParser = (typeof LOGIN_PROBE_PARSERS)[keyof typeof LOGIN_PROBE_PARSERS];
+
+export interface LoginProbeConfig {
+	readonly args: readonly string[];
+	readonly parser: LoginProbeParser;
+	readonly loggedInPattern: string | null;
+	readonly loggedOutPattern: string | null;
+	readonly loginCommandHint: string | null;
+}
+
+export const GENERIC_LOGIN_PROBE_DEFAULT: LoginProbeConfig = Object.freeze({
+	args: Object.freeze([]),
+	parser: LOGIN_PROBE_PARSERS.NONE,
+	loggedInPattern: null,
+	loggedOutPattern: null,
+	loginCommandHint: null,
+});
+
 export interface AgentConfig {
 	readonly execPath: string;
 	readonly argsTemplate: readonly string[];
@@ -52,6 +78,7 @@ export interface AgentConfig {
 	readonly timeouts: AgentTimeouts;
 	readonly versionFingerprint: VersionFingerprint;
 	readonly versionRange?: VersionRange;
+	readonly loginProbe: LoginProbeConfig;
 }
 
 export interface ResolvedAgentConfig extends AgentConfig {
@@ -79,6 +106,13 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				args: ['--version'],
 				expectedPattern: '\\bcodex\\b',
 			},
+			loginProbe: {
+				args: ['login', 'status'],
+				parser: LOGIN_PROBE_PARSERS.CODEX_LOGIN_STATUS,
+				loggedInPattern: '^Logged in',
+				loggedOutPattern: 'not logged in',
+				loginCommandHint: 'codex login',
+			},
 		}),
 		[BUILT_IN_AGENT_IDS.CLAUDE]: freezeAgentConfig({
 			execPath: 'claude',
@@ -92,6 +126,13 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			versionFingerprint: {
 				args: ['--version'],
 				expectedPattern: '\\bClaude Code\\b',
+			},
+			loginProbe: {
+				args: ['auth', 'status'],
+				parser: LOGIN_PROBE_PARSERS.CLAUDE_AUTH_JSON,
+				loggedInPattern: null,
+				loggedOutPattern: null,
+				loginCommandHint: 'claude auth login',
 			},
 		}),
 		[BUILT_IN_AGENT_IDS.PI]: freezeAgentConfig({
@@ -115,6 +156,13 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				args: ['--version'],
 				expectedPattern: '\\bpi\\b',
 			},
+			loginProbe: {
+				args: ['auth', 'check', '--provider', '{provider}', '--json'],
+				parser: LOGIN_PROBE_PARSERS.PI_AUTH_CHECK,
+				loggedInPattern: null,
+				loggedOutPattern: null,
+				loginCommandHint: null,
+			},
 		}),
 		[BUILT_IN_AGENT_IDS.GROK]: freezeAgentConfig({
 			execPath: 'grok',
@@ -128,6 +176,13 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			versionFingerprint: {
 				args: ['--version'],
 				expectedPattern: '\\bgrok\\b',
+			},
+			loginProbe: {
+				args: ['models'],
+				parser: LOGIN_PROBE_PARSERS.GROK_MODELS_EXIT,
+				loggedInPattern: null,
+				loggedOutPattern: null,
+				loginCommandHint: 'grok login',
 			},
 		}),
 		[BUILT_IN_AGENT_IDS.DSH]: freezeAgentConfig({
@@ -147,6 +202,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				min: '0.1.0',
 				max: '0.1.2',
 			},
+			loginProbe: GENERIC_LOGIN_PROBE_DEFAULT,
 		}),
 	},
 );
@@ -169,5 +225,9 @@ function freezeAgentConfig(config: AgentConfig): AgentConfig {
 			args: Object.freeze([...config.versionFingerprint.args]),
 		}),
 		versionRange: config.versionRange ? Object.freeze({ ...config.versionRange }) : undefined,
+		loginProbe: Object.freeze({
+			...config.loginProbe,
+			args: Object.freeze([...config.loginProbe.args]),
+		}),
 	});
 }

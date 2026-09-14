@@ -1,6 +1,7 @@
 import type {
 	AgentEntryDto,
 	ListAgentModelsResponse,
+	LoginState,
 	UpdateAgentBody,
 } from '@agent-scheduler/shared/api/agents';
 import { readClaudeModels } from '../adapters/claude/read-models.ts';
@@ -8,6 +9,7 @@ import { readCodexModels } from '../adapters/codex/read-models.ts';
 import { readDshModels } from '../adapters/dsh/read-models.ts';
 import { runDshSmokeTest } from '../adapters/dsh/smoke.ts';
 import { readGrokModels } from '../adapters/grok/read-models.ts';
+import { probeLogin } from '../adapters/login-probe.ts';
 import { readPiModels } from '../adapters/pi/read-models.ts';
 import {
 	type CommandRunnerParams,
@@ -92,6 +94,20 @@ export interface AgentService {
 	): Promise<ListAgentModelsResponse>;
 	assertCanDispatch(agentId: string): Promise<void>;
 	getAvailability(agentId: string): AgentAvailabilityState | undefined;
+	getLogin(agentId: string): LoginState | null;
+	refreshLogin(
+		agentId: string,
+		options?: {
+			readonly force?: boolean;
+			readonly trigger?:
+				| 'exited_before_output'
+				| 'probe'
+				| 'models_refresh'
+				| 'availability_changed';
+			readonly providers?: readonly string[];
+			readonly defaultProvider?: string | null;
+		},
+	): Promise<LoginState | null>;
 }
 
 const AGENT_DISPLAY_NAMES: Readonly<Record<string, string>> = Object.freeze({
@@ -110,6 +126,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	const clock = deps.clock ?? Object.freeze({ now: () => new Date().toISOString() });
 	const cache = deps.cache ?? createFingerprintCache();
 	const availabilityMap = new Map<string, AgentAvailabilityState>();
+	const loginCache = new Map<string, LoginState>();
+	const inflightLogin = new Map<string, Promise<LoginState | null>>();
 
 	if (typeof deps.registry.onReload === 'function') {
 		deps.registry.onReload(() => {
@@ -135,6 +153,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			maxConcurrency: config.maxConcurrency,
 			permissionTier: config.permissionTier,
 			execPath: config.execPath.length > 0 ? config.execPath : null,
+			login: getLogin(agentId),
 			unavailableReason: isAvailable ? null : (state?.unavailableReason ?? 'Not detected'),
 			unavailableCode: isAvailable ? null : (state?.unavailableCode ?? 'E_AGENT_UNAVAILABLE'),
 			missingRequirements: state?.missingRequirements ?? Object.freeze([]),
@@ -447,6 +466,12 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			});
 			deps.bus.publish(envelope);
 		}
+
+		// Invalidation point 3: availability flip (AC 5)
+		if (prev !== undefined && prev.isAvailable !== state.isAvailable) {
+			loginCache.delete(`login:${agentId}`);
+			void refreshLogin(agentId, { force: true, trigger: 'availability_changed' });
+		}
 	}
 
 	async function probeAll(
@@ -492,6 +517,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		deps.registry.stop();
 		initializationPromise = null;
 		cache.clear();
+		loginCache.clear();
+		inflightLogin.clear();
 	}
 
 	async function listAgents(): Promise<readonly AgentEntryDto[]> {
@@ -539,6 +566,10 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 
 		const { probeResult, state } = await probeSingleAgent(agentId, config, options);
 		recordAndPublishAvailability(agentId, state);
+
+		// Invalidation point 1: POST /agents/:id/probe runs fingerprint probe then login probe (AC 5)
+		await refreshLogin(agentId, { force: true, trigger: 'probe' });
+
 		return probeResult;
 	}
 
@@ -635,6 +666,11 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				`Agent '${agentId}' is unavailable (${state?.unavailableReason ?? 'not detected'}).`,
 				{ details: { agentId, code: state?.unavailableCode } },
 			);
+		}
+
+		// Invalidation point 2: GET /agents/:id/models?refresh=1 (AC 5)
+		if (_options?.refresh) {
+			void refreshLogin(agentId, { force: true, trigger: 'models_refresh' });
 		}
 
 		const homedir = deps.hostInputs.homedir;
@@ -755,6 +791,120 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		return state;
 	}
 
+	function getLogin(agentId: string): LoginState | null {
+		const snapshot = deps.registry.getSnapshot();
+		const config = snapshot.agents[agentId];
+		if (!config || config.loginProbe.parser === 'none') {
+			return null;
+		}
+
+		const cacheKey = `login:${agentId}`;
+		const cached = loginCache.get(cacheKey);
+		if (cached) {
+			return cached;
+		}
+
+		// Initial state before probe (AC 7, E-355, Decision 133)
+		return Object.freeze({
+			state: 'unknown',
+			reason: 'not_probed',
+			checkedAt: null,
+			loginCommand: config.loginProbe.loginCommandHint ?? null,
+			warningCode: null,
+		});
+	}
+
+	async function refreshLogin(
+		agentId: string,
+		options: {
+			readonly force?: boolean;
+			readonly trigger?:
+				| 'exited_before_output'
+				| 'probe'
+				| 'models_refresh'
+				| 'availability_changed';
+			readonly providers?: readonly string[];
+			readonly defaultProvider?: string | null;
+		} = {},
+	): Promise<LoginState | null> {
+		await ensureInitialized();
+		const snapshot = deps.registry.getSnapshot();
+		const config = snapshot.agents[agentId];
+		if (!config) {
+			throw new AppError('E_NOT_FOUND', `Agent '${agentId}' is not registered in agent registry.`);
+		}
+
+		// AC 3: parser='none' (dsh) does not start process, does not write cache, DTO login is null
+		if (config.loginProbe.parser === 'none') {
+			return null;
+		}
+
+		// In-flight deduplication (AC 5)
+		const existingInflight = inflightLogin.get(agentId);
+		if (existingInflight) {
+			return existingInflight;
+		}
+
+		const cacheKey = `login:${agentId}`;
+		loginCache.delete(cacheKey);
+
+		const probePromise = (async () => {
+			try {
+				let state = availabilityMap.get(agentId);
+				if (!state || state.generation !== snapshot.generation) {
+					const { state: refreshedState } = await probeSingleAgent(agentId, config, {
+						force: options.force,
+					});
+					recordAndPublishAvailability(agentId, refreshedState);
+					state = refreshedState;
+				}
+
+				const result = await probeLogin({
+					agentId,
+					config,
+					resolvedPath: state?.resolvedPath,
+					homedir: deps.hostInputs.homedir,
+					platform: deps.hostInputs.platform,
+					providers: options.providers,
+					defaultProvider: options.defaultProvider,
+					commandRunner: deps.commandRunner,
+					spawnManagedFn: deps.spawnManagedFn,
+					nowIso: clock.now(),
+				});
+
+				if (result) {
+					loginCache.set(cacheKey, result);
+				}
+
+				// AC 5: 每次 refreshLogin() 结束（成功、超时、unparsable、exec_missing）都发
+				// agent.availability_changed{reason:'login_changed', login}
+				if (deps.bus && deps.envelopeFactory) {
+					const currentAvail = availabilityMap.get(agentId)?.isAvailable ?? false;
+					const envelope = deps.envelopeFactory.createEnvelope({
+						kind: 'agent.availability_changed',
+						payload: {
+							agentId,
+							available: currentAvail,
+							reason: 'login_changed',
+							login: result,
+							vendor: {
+								trigger: options.trigger,
+							},
+						},
+					});
+					deps.bus.publish(envelope);
+				}
+
+				return result;
+			} finally {
+				inflightLogin.delete(agentId);
+			}
+		})();
+
+		inflightLogin.set(agentId, probePromise);
+		return probePromise;
+	}
+
 	return Object.freeze({
 		registry: deps.registry,
 		start,
@@ -767,5 +917,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		listAgentModels,
 		assertCanDispatch,
 		getAvailability,
+		getLogin,
+		refreshLogin,
 	});
 }
