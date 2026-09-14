@@ -232,6 +232,7 @@
         "packages/daemon/src/adapters/grok/"
       ],
       "M4-T12": [
+        "packages/daemon/src/adapters/dsh/",
         "packages/daemon/src/adapters/generic-acp/"
       ],
       "M4-T13": [

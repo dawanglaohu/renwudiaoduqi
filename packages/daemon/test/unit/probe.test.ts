@@ -104,7 +104,12 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 				// Simulate probing each agent with custom commandRunner
 				const mockRunner = vi.fn(async () => {
 					// Return output that matches the expected pattern
-					const sampleOutput = agentId === 'claude' ? '1.0.67 (Claude Code)' : `${agentId} v1.2.3`;
+					const sampleOutput =
+						agentId === 'claude'
+							? '1.0.67 (Claude Code)'
+							: agentId === 'dsh'
+								? 'dsh 0.1.1'
+								: `${agentId} v1.2.3`;
 					return {
 						ok: true,
 						exitCode: 0,

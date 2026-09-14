@@ -55,6 +55,47 @@ describe('agent registry lifecycle', () => {
 		}
 	});
 
+	it('carries the built-in version range into the resolved config (E-194)', async () => {
+		const memory = createMemoryFileSystem(undefined);
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
+			fileSystem: memory.fileSystem,
+			publishWarning() {},
+		});
+
+		const snapshot = await registry.start();
+		registry.stop();
+
+		expect(requiredEntry(snapshot.agents, 'dsh').versionRange).toEqual({
+			min: '0.1.0',
+			max: '0.1.2',
+		});
+	});
+
+	it('merges a user version range override into the resolved config (E-194)', async () => {
+		const memory = createMemoryFileSystem(
+			JSON.stringify({
+				schemaVersion: 1,
+				overrides: { dsh: { versionRange: { max: '0.9.9' } } },
+			}),
+		);
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
+			fileSystem: memory.fileSystem,
+			publishWarning() {},
+		});
+
+		const snapshot = await registry.start();
+		registry.stop();
+
+		expect(requiredEntry(snapshot.agents, 'dsh').versionRange).toEqual({
+			min: '0.1.0',
+			max: '0.9.9',
+		});
+	});
+
 	it('completes a partial historical baseline and preserves it across upgrade and adoption', async () => {
 		const memory = createMemoryFileSystem(
 			JSON.stringify({
