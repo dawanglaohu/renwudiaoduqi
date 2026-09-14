@@ -152,7 +152,8 @@ export function resolveAgentMessageCapabilities(
  * 2. AC 2: When process is dead or pipe is broken, message is recorded as 'undelivered' with original text
  *    preserved verbatim for copying, publishes run.message_undelivered, and raises E_MESSAGE_UNDELIVERED (E-113).
  * 3. AC 3: If session ended and canResume=true, routes through resume and clearly flags a new run (E-112);
- *    if canResume=false, disables sending and instructs user to redispatch/rerun.
+ *    if canResume=false, disables sending and instructs user to redispatch/rerun. When no resume handler
+ *    is wired, the message is recorded undelivered rather than reported as sent.
  * 4. AC 4: Concurrent messages are queued and delivered serially per runId; each records actorDeviceId and
  *    timestamp without deduplication or merging (E-114).
  * 5. AC 5: Empty messages rejected; overlong messages prompt for confirmation before sending and are NEVER
@@ -305,45 +306,10 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				};
 			}
 
-			// Default resume fallback when custom resumeSession handler is not supplied
-			const newRunId = deps.ids.newId();
-			const messageId = deps.ids.newId();
-			const now = deps.clock.now();
-
-			deps.runMessagesRepo.insertMessage({
-				id: messageId,
-				runId: run.id,
-				kind: input.kind,
-				text: input.text,
-				deliveryState: 'delivered',
-				undeliveredReason: null,
-				actorDeviceId: input.actorDeviceId ?? null,
-				createdAt: now,
-				deliveredAt: now,
-			});
-
-			if (deps.bus && deps.envelopeFactory) {
-				const deliveredEnvelope = deps.envelopeFactory.createEnvelope({
-					kind: 'run.message_delivered',
-					runId: run.id,
-					taskId: run.taskId,
-					actorDeviceId: input.actorDeviceId ?? null,
-					payload: {
-						messageId,
-					},
-				});
-				deps.bus.publish(deliveredEnvelope);
-			}
-
-			return {
-				delivered: true,
-				messageId,
-				text: input.text,
-				deliveryState: 'delivered',
-				runId: run.id,
-				isNewRun: true,
-				newRunId,
-			};
+			// No resumption handler wired (session resumption is owned by M7-T5): the message
+			// never reaches any process, so it is recorded as undelivered instead of being
+			// reported as sent. Never fabricate a new run id (AC 2 / E-113).
+			return handleUndelivered(run, input, 'resume_unavailable', throwOnUndelivered);
 		}
 
 		// AC 2 & E-113: Process liveness & pipe integrity checks

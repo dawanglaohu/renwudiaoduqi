@@ -536,6 +536,46 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 				}),
 			);
 		});
+
+		it('never reports delivery when no resume handler is wired (E-112 / E-113)', async () => {
+			const { repo, messages } = createMockRunsRepo([
+				{
+					id: 'run-ended-codex-unwired',
+					taskId: 'T-11b',
+					state: 'exited',
+					agentId: 'codex',
+					pid: 2003,
+					parentRunId: null,
+					attemptNo: 1,
+				},
+			]);
+
+			const service = createMessageService({
+				runMessagesRepo: repo,
+				processRegistry: createProcessRegistry(),
+				clock,
+				ids,
+			});
+
+			await expect(
+				service.sendMessage({
+					runId: 'run-ended-codex-unwired',
+					text: 'resume without handler',
+					kind: 'reply',
+					actorDeviceId: 'desktop-dev',
+				}),
+			).rejects.toMatchObject({
+				code: 'E_MESSAGE_UNDELIVERED',
+				details: { reason: 'resume_unavailable' },
+			});
+
+			// The message is still landed as undelivered with the original text kept for copying.
+			expect(messages).toHaveLength(1);
+			expect(messages[0]?.deliveryState).toBe('undelivered');
+			expect(messages[0]?.undeliveredReason).toBe('resume_unavailable');
+			expect(messages[0]?.text).toBe('resume without handler');
+			expect(messages[0]?.actorDeviceId).toBe('desktop-dev');
+		});
 	});
 
 	describe('AC 4 & E-114: Concurrent delivery serialization and device logging', () => {
