@@ -210,6 +210,23 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M2-T5": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "f370edb3a2816e97b380b90486bf227d500b3aa24551b93f19217fb2270012ae",
+    "evidence": [
+      "2026-09-13 复核 图谱/任务/M2-T5.md 五条验收标准与 04-执行/19-模块任务拆分.md 的 M2 行：产出仍是 http/sse.ts 与 GET /events，输入仍只有 M2-T4 的事件总线，前置 M2-T3（已落地）与 M2-T4（已落地）都在 main 上，未把客户端重连策略或 REST 快照接口提前塞进本任务。",
+      "2026-09-13 复核 02-设计/08-后端架构.md 的中间件链与 SSE 条款：reply.hijack() 后只操作 reply.raw、头固定含 X-Accel-Buffering: no、每 15 秒写一行 : 心跳、路由内禁止 reply.send、90-error-handler 是全仓唯一把 code 转成 HTTP 状态码的地方、鉴权 hook 挂在 /api/v1 子 scope 内。任务卡第 1、5 条与这些条款逐条对齐，未增删；第 2、4 条的 409/401 也因此必须走统一错误体系，不能在本文件自建状态码映射。",
+      "2026-09-13 复核 02-设计/06-系统架构与模块划分.md 的错误信封、环境变量与分层约定：信封固定 {error:{code,message,requestId,details?}}，401/403 与 SSE 握手失败同样返回带信封 body；daemon 只产出英文 message；SSE 不新增任何环境变量（心跳间隔是写死的 15 秒常量，不是 AGSCHED_ 变量），因此本任务不碰 packages/daemon/src/config/env.ts。",
+      "2026-09-13 复核 03-质量/13-边界问题与异常处理.md 与 图谱/边界/E-153、E-154、E-155、E-156：E-153 的服务端职责只到「返回重放窗口已过期、不静默丢事件」，改走 REST 全量快照是客户端职责，未加进本任务；E-156 的「主动关闭该流并返回 401」在流已建立后只能以带信封的错误帧加主动关流实现，握手期的 401 由 30-auth 与错误处理器承担，两者不冲突。",
+      "2026-09-13 复核 02-设计/10-接口约定.md 与 packages/shared/src/api/routes.ts:489-496：GET /api/v1/events 已在常量表内（auth=device、resType=text/event-stream、errors 含 E_UNAUTHORIZED/E_DEVICE_REVOKED/E_REPLAY_WINDOW_EXPIRED/E_INTERNAL），本任务是把它从 50-routes.ts 的兜底桩换成真实处理器，不改接口表本身。",
+      "2026-09-13 通过补丁 M2-T5-support-paths 在 docs/Agent任务调度器-开发文档/_run/task-contracts.json 补入 M2-T5.supportPaths：packages/daemon/src/http/plugins/50-routes.ts（路由挂载与已注册路径表是 08 节固定中间件链的必需接线）与 packages/daemon/test/unit/sse.test.ts（17 节要求的分帧、心跳、重放、吊销测试）。二项都是任务产出必需的漏列支持文件，只做追加式改动，未放行 http/、service/ 或 repo/ 整个目录。",
+      "2026-09-13 冲突核对：presentation.json 中 M2-T5 的 taskPaths 为 http/sse.ts 与 http/routes/events.ts；全仓只有 M3-T4、M8-T6、M8-T7、M9-T5 等任务路径含 50-routes.ts 或 test/ 目录，其中 M3-T4 已落地、其余未开工且不相邻同批，补丁未与在途任务抢同一文件。",
+      "2026-09-13 现状检查（task/M2-T5，与补丁同步后一致）：pnpm exec tsc -b --noEmit 通过、pnpm exec biome ci packages/daemon/src/http packages/daemon/test/unit/sse.test.ts 无违规、node scripts/check-error-codes.mjs 49 条一致、vitest run packages/daemon/test/unit/sse.test.ts 15 个用例全过、vitest run packages/daemon/test/arch 16 个用例全过（含路由集合与 ROUTES 表逐条相等）。以上只证明契约复核期间的仓库状态，代码语义结论另见审查输出的 R1/R2。"
+    ],
+    "reviewed": "2026-09-13T13:56:42.797760+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T6": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "4032efd134522b4d2414521b360fc754af55bd7bb4359fa6580a4309ea6f8710",
@@ -582,6 +599,23 @@
       "pnpm -w check 通过：check-error-codes 49 条与 10 节逐行一致、check-contrast 与 check-forbidden 通过、biome ci 239 文件无问题、tsc -b --noEmit 通过、vitest 70 文件 832 通过 / 32 跳过 / 0 失败（864 例），2026-09-13，WSL Ubuntu 20.04（better-sqlite3 源码重编）。修复前 main@131faa2 同一命令在第一步 check-error-codes 即失败（10 节新增三条错误码未投影到 codes.ts，M2-T6 架构测试 AC 5 随之红）；本分支按 M2-T6 的投影职责补齐三条并修正脚本表头判定后全绿。"
     ],
     "reviewed": "2026-09-13T01:56:45.452927+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M6-T3": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "7cf7e49f299c2aa881fad69a395318c98aac0c49ef559fc4ed4baf37ca75240a",
+    "evidence": [
+      "AC1/E-253：packages/daemon/src/domain/progress.ts:118 hasStreamingCapability 显式能力位优先、dsh 置假；:594 extractLastMessage 在 !isCompleted 时直接返回 null，运行期不伪造中间事件；:743 extractProgress 输出 stepDurationDegraded 与运行期 streamingNotice（完成后置 null）；证据 packages/daemon/test/unit/progress.test.ts:103、:122、:523",
+      "AC2/E-26：packages/daemon/src/domain/progress.ts:163 extractTokenUsage 兼容 7 组输入输出总计别名与 usage/tokenUsage/tokens/stats/vendor/params 容器，负数/NaN/非数字字符串一律 null（无 0 冒充）；:339 formatTokenDisplay 缺失统一输出 TOKEN_MISSING_PLACEHOLDER「—」；证据 packages/daemon/test/unit/progress.test.ts:189、:240、:497",
+      "AC3/E-37 呈现侧：packages/daemon/src/domain/progress.ts:384 extractReportedModel 只读 events[0] 首帧（含 payload.vendor.model），无自报返回 null 不猜测；:446 checkModelMismatch、:466 resolveModelProgressInfo 规范化比对，仅在有自报且与所选不一致时置 modelMismatch/isMismatchHighlighted 并给出「实际使用：X」；证据 packages/daemon/test/unit/progress.test.ts:265、:307、:471",
+      "E-37 环境变量清理半边不在本任务有效路径：已由 packages/daemon/src/proc/env.ts:4-14、:43、:55（ANTHROPIC_MODEL / ANTHROPIC_DEFAULT_*_MODEL / OPENAI_MODEL 等模型覆盖变量清理）覆盖，本任务只承担读回与呈现",
+      "分层与约定：packages/daemon/src/domain/progress.ts 仅 import 同层 run-state-machine.ts，无 process.env / process.platform / Date.now / Math.random / randomUUID，顶层零副作用，时钟与 now 全部参数注入；kebab-case 文件名、无 barrel、工厂 createProgressExtractor、常量 as const",
+      "检查：biome ci . 通过；tsc -b --noEmit 通过；packages/daemon/test/unit/progress.test.ts 17 用例全绿；run-state-machine.test.ts 29 用例全绿；架构测试 boot-boundaries/bus-transaction/registry-forbidden-args 通过（routes.test.ts 与 probe/worktree/run-service 等失败为 Windows 环境既有失败，主检出基线同样失败）",
+      "范围：改动仅 packages/daemon/src/domain/progress.ts（有效路径）与新增 packages/daemon/test/unit/progress.test.ts（既定产出必需的测试，未越界）",
+      "审查修复（已提交并推送）：终态/已退出判定改为复用 domain/run-state-machine.ts 的 TERMINAL_RUN_STATES 并补上 exited 的后继状态 reworking；移除 domain 中不该出现的厂商事件 kind 分支（turn.completed / agent_message / message / assistant_message），只认归一化后的 agent_message_chunk"
+    ],
+    "reviewed": "2026-09-14T06:43:13.215399+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
