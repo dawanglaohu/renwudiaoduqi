@@ -299,7 +299,11 @@ describe('M5-T5 isBranchInHead & Wrapup Worktree', () => {
 		it('returns inHead: true with method: branch_gone when no SHA and worktree is cleaned up (E-289)', async () => {
 			const mockFs = {
 				stat: async () => {
-					throw new Error('ENOENT: no such file or directory');
+					const error = new Error('ENOENT: no such file or directory') as Error & {
+						code?: string;
+					};
+					error.code = 'ENOENT';
+					throw error;
 				},
 			};
 
@@ -324,6 +328,68 @@ describe('M5-T5 isBranchInHead & Wrapup Worktree', () => {
 				method: 'branch_gone',
 				tipSha: undefined,
 			});
+		});
+
+		it('does not fall back to branch_gone when the worktree is still present but its HEAD cannot be read (E-289, E-301)', async () => {
+			const mockFs = {
+				stat: async () => ({ isDirectory: () => true }),
+			};
+
+			const { runner } = createMockRunner((args) => {
+				if (args[0] === 'status') {
+					return { exitCode: 0, stdout: '', stderr: '' };
+				}
+				if (args[0] === 'rev-parse' && args[1] === 'HEAD') {
+					return { exitCode: 128, stdout: '', stderr: 'fatal: bad object HEAD' };
+				}
+				if (args[0] === 'rev-parse') {
+					return { exitCode: 1, stdout: '', stderr: '' };
+				}
+				return { exitCode: 0, stdout: '', stderr: '' };
+			});
+
+			const result = await isBranchInHead(
+				{
+					repoPath: fakeRepo,
+					branchName: 'task/M4-T6',
+					worktreePath: '/repo/worktrees/task-m4-t6',
+				},
+				{ gitRunner: runner, fs: mockFs },
+			);
+
+			expect(result.inHead).toBe(false);
+			expect(result.method).toBe('error');
+			expect(result.stderrTail).toContain('bad object HEAD');
+		});
+
+		it('does not fall back to branch_gone when the worktree state itself cannot be determined (E-301)', async () => {
+			const mockFs = {
+				stat: async () => {
+					const error = new Error('EACCES: permission denied') as Error & { code?: string };
+					error.code = 'EACCES';
+					throw error;
+				},
+			};
+
+			const { runner } = createMockRunner((args) => {
+				if (args[0] === 'rev-parse') {
+					return { exitCode: 1, stdout: '', stderr: '' };
+				}
+				return { exitCode: 0, stdout: '', stderr: '' };
+			});
+
+			const result = await isBranchInHead(
+				{
+					repoPath: fakeRepo,
+					branchName: 'task/M4-T7',
+					worktreePath: '/repo/worktrees/task-m4-t7',
+				},
+				{ gitRunner: runner, fs: mockFs },
+			);
+
+			expect(result.inHead).toBe(false);
+			expect(result.method).toBe('error');
+			expect(result.stderrTail).toContain('EACCES');
 		});
 	});
 

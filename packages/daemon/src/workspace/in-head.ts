@@ -121,6 +121,8 @@ function resolveGitRunner(depsOrRunner?: GitRunner | IsBranchInHeadDeps): {
  *      Same ancestor & diff checks. If both fail -> not in HEAD (method='branch_gone_unmerged', AC 2, E-289)
  *      with commandText=`git branch <branchName> <sha>`.
  *    - If no tipSha and worktree cleaned up -> in HEAD (method='branch_gone', AC 2, E-289).
+ *      A worktree that is still present but whose HEAD is unreadable, or whose presence cannot be
+ *      determined, is NOT this case: report method='error' and never infer "already merged" (E-301).
  * 4. Any git command error -> method='error' with last 200 bytes of stderr (AC 3, E-301).
  */
 export async function isBranchInHead(
@@ -132,8 +134,13 @@ export async function isBranchInHead(
 	const branchName = input.branchName.trim();
 	let tipSha = input.tipSha?.trim() || undefined;
 
-	let worktreeExists = false;
+	// 'not-provided': caller passed no worktreePath; 'absent': confirmed gone;
+	// 'present': confirmed there; 'unknown': stat failed for a reason other than ENOENT.
+	let worktreePresence: 'not-provided' | 'absent' | 'present' | 'unknown' = input.worktreePath
+		? 'absent'
+		: 'not-provided';
 	let worktreeHeadSha: string | undefined = undefined;
+	let worktreeDiagnostic: string | undefined = undefined;
 
 	// Step 1: Check worktreePath existence and dirty status (AC 1, E-301)
 	if (input.worktreePath) {
@@ -142,14 +149,16 @@ export async function isBranchInHead(
 			const stat = fs?.stat
 				? await fs.stat(resolvedWorktreePath)
 				: await nodeFs.stat(resolvedWorktreePath);
-			if (stat.isDirectory()) {
-				worktreeExists = true;
+			worktreePresence = stat.isDirectory() ? 'present' : 'absent';
+		} catch (cause) {
+			const code = (cause as { code?: string } | undefined)?.code;
+			worktreePresence = code === 'ENOENT' ? 'absent' : 'unknown';
+			if (worktreePresence === 'unknown') {
+				worktreeDiagnostic = cause instanceof Error ? cause.message : String(cause);
 			}
-		} catch {
-			worktreeExists = false;
 		}
 
-		if (worktreeExists) {
+		if (worktreePresence === 'present') {
 			let statusResult: GitCommandResult;
 			try {
 				statusResult = await runner.run(['status', '--porcelain'], resolvedWorktreePath);
@@ -195,14 +204,18 @@ export async function isBranchInHead(
 				});
 			}
 
-			// Clean worktree: attempt reading HEAD sha for later fallback if needed
+			// Clean worktree: attempt reading HEAD sha for later fallback if needed (E-289).
+			// A failure here is not ignorable: without it we cannot tell "landed" from "unknown".
 			try {
 				const headResult = await runner.run(['rev-parse', 'HEAD'], resolvedWorktreePath);
 				if (headResult.exitCode === 0 && headResult.stdout.trim().length > 0) {
 					worktreeHeadSha = headResult.stdout.trim();
+				} else {
+					worktreeDiagnostic =
+						headResult.stderr.trim() || `git rev-parse HEAD exited ${headResult.exitCode}`;
 				}
-			} catch {
-				// Ignore
+			} catch (cause) {
+				worktreeDiagnostic = cause instanceof Error ? cause.message : String(cause);
 			}
 		}
 	}
@@ -303,10 +316,22 @@ export async function isBranchInHead(
 	}
 
 	// Step 4: Branch does not exist locally (AC 2, E-289)
-	const targetSha = tipSha || (worktreeExists ? worktreeHeadSha : undefined);
+	const targetSha = tipSha || (worktreePresence === 'present' ? worktreeHeadSha : undefined);
 
 	if (!targetSha) {
-		// No SHA and worktree cleaned up -> regarded as landed into HEAD (method='branch_gone', E-289)
+		// E-289 only allows assuming "landed" once the worktree is confirmed gone. A worktree that is
+		// still present but whose HEAD is unreadable, or whose state we could not determine, is an
+		// undeterminable case: never infer "already merged" (E-301), report method='error' instead.
+		if (worktreePresence === 'present' || worktreePresence === 'unknown') {
+			return Object.freeze({
+				inHead: false,
+				method: 'error',
+				tipSha: undefined,
+				stderrTail: takeStderrTail(
+					worktreeDiagnostic ?? `Unable to determine worktree HEAD for ${branchName}`,
+				),
+			});
+		}
 		return Object.freeze({
 			inHead: true,
 			method: 'branch_gone',
