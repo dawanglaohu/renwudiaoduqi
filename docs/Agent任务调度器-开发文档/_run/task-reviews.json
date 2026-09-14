@@ -131,6 +131,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M10-T2": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "ae3a642846e51bad910f7d5b65087cb65d7c97b078ccaa0e201900258de7787c",
+    "evidence": [
+      "2026-09-14 复核 docs/Agent任务调度器-开发文档/04-执行/19-模块任务拆分.md 的 M10-T2 行与 图谱/任务/M10-T2.md：前置 M10-T1 + M1-T6、产出 packages/shell-desktop/、六条验收标准与七条边界（E-146/E-148/E-208/E-209/E-210/E-257/E-258）与派发包逐字一致，未增删、未降低要求。",
+      "2026-09-14 复核 docs/Agent任务调度器-开发文档/02-设计/08-后端架构.md:325-336：桌面壳每次启动按本次实际 current_exe/resource_dir 解析并校验一个绝对 DaemonLaunchSpec，然后把同一个冻结对象交给「启动 daemon」与 M1 的 autostart.register(spec)/status(spec)/unregister()，调用时恒为 shell:false；M10-T5 才在含空格与 Unicode 的临时根目录跑解析器与启动 smoke。契约条款完整、可实现，无自相矛盾。",
+      "2026-09-14 复核 docs/Agent任务调度器-开发文档/02-设计/07-前端架构.md:495-511 壳侧禁令：壳内禁止 task/run/gate/batch/agent 业务词、禁止解析事件、禁止调 daemon 业务 API、禁止内嵌重试或调度策略（E-146 连不上时壳只给「启动 daemon」按钮，逻辑仍在 Web UI）、通知点击一律以 #/run/〈runId〉 交给 WebView 不做自定义 IPC 传业务数据。与 AC 1/2/6 一致。",
+      "2026-09-14 复核 docs/Agent任务调度器-开发文档/01-约束/05-技术栈.md:20 决策 25（Tauri v2 的 single-instance / autostart / notification 官方插件与壳三件事一一对上）：与 AC4「把同一个 DaemonLaunchSpec 交给 M1」不冲突——前者给插件选型依据，后者给注册调用归属，两者不矛盾，本任务无需为它改文档。",
+      "2026-09-14 有效路径核对：M10-T2 有效路径仅 packages/shell-desktop/。AC4 要求把 spec 交给 M1，而 M1 的自启实现在 packages/daemon/src/boot/autostart.ts 与 packages/daemon/src/platform/{windows,linux,darwin}.ts，packages/daemon/package.json 目前没有 exports 字段，壳无法按包导出引用，属「既定产出必需的包导出漏列」（与 M10-T1 补 packages/shared/package.json 同类）。本轮因 gh 未登录拿不到 PR 号，未执行 begin/sync 补丁，已记入 DOC_ISSUE 待补。",
+      "2026-09-14 现状检查（task/M10-T2 @ e1312a9）：biome ci . 检查 268 个文件无违规；tsc -b --noEmit 通过；vitest run packages/shell-desktop/test 9 个文件 41 个用例全过。以上只证明契约复核期间的仓库状态，代码语义结论另见审查输出。"
+    ],
+    "reviewed": "2026-09-14T01:00:05.651881+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T1": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "a679cdc47a2129f126bb69d455428042f6d5573cd0ed9bffff616c33ea8fafc2",
