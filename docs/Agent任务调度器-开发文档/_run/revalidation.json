@@ -1,1 +1,16 @@
-{}
+{
+  "M4-T12": {
+    "contractHash": "9e8230908f8973a1c2ab6f1a425dae42f3a2c06adaa2fdd42109944d5d8811b1",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "M6-T6-support-paths-20260914",
+        "sourceVersion": "02bd5d5f3e5120d46eaccf5a92059e28633c5a944d65f39df983916127a109a0"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}
