@@ -20665,8 +20665,10 @@
     "_run/task-contracts.json": "420342137fa50d2a1627353dc29a8f785c32b34e6a05472e899d758d84f2c100"
   },
   "sourceVersion": "aa9ae1a40940737347ac43bebaa3f597ea3e408fcadb5cfabadb289ea1eee00d",
-  "status": "synced",
+  "status": "verified",
   "synced": "2026-09-15T01:08:18.147583+00:00",
   "task": "M9-T5",
-  "verifiedTasks": []
+  "verifiedTasks": [
+    "M9-T5"
+  ]
 }
