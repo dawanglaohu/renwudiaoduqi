@@ -679,6 +679,31 @@
         17
       ]
     },
+    "M6-T9": {
+      "provides": [
+        "run-log-retention-search"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/http/routes/runs.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/repo/runs-log-repo.ts",
+        "packages/shared/src/api/routes.ts",
+        "packages/daemon/test/unit/retention.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        16,
+        17
+      ]
+    },
     "M7-T7": {
       "provides": [
         "review-continuation"
