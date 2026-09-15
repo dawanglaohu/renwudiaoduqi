@@ -249,7 +249,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		}
 
 		// AC 4 & E-302: Message delivery on archived session returns 409 E_SESSION_ARCHIVED
-		// session_archived_at is now part of MessageRunRecord via run-messages-repo SELECT
+		// session_archived_at 由 run-messages-repo 的行查询随 MessageRunRecord 一起取出
 		if (run.sessionArchivedAt) {
 			throw new AppError(
 				'E_SESSION_ARCHIVED',
