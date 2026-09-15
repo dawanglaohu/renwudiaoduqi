@@ -28,6 +28,7 @@ export interface TaskRow {
 	readonly has_accept_changed: number;
 	readonly has_prompt_changed: number;
 	readonly manual_state: string | null;
+	readonly lane_no?: number | null;
 }
 
 export interface TaskInsertRow {
@@ -54,6 +55,7 @@ export interface TaskInsertRow {
 	readonly has_accept_changed?: number;
 	readonly has_prompt_changed?: number;
 	readonly manual_state?: string | null;
+	readonly lane_no?: number | null;
 }
 
 export interface TaskUpdateDocFieldsRow {
@@ -498,25 +500,64 @@ export interface TasksRepo {
 	readonly updateBatchId: (id: string, batchId: string | null) => void;
 	readonly updateManualState: (id: string, manualState: string | null) => void;
 	readonly markRemovedFromDoc: (docId: string, activeTaskKeys: readonly string[]) => void;
+	readonly clearLaneNo: (taskId: string) => {
+		readonly changes: number;
+		readonly previousLaneNo: number | null;
+		readonly docId: string | null;
+	};
+	readonly setLaneNo: (taskId: string, laneNo: number) => void;
 	readonly deleteById: (id: string) => void;
 	readonly deleteByDocId: (docId: string) => void;
 }
 
 export function createTasksRepo(db: DatabaseConnection): TasksRepo {
-	const insertStmt = db.prepare(INSERT_SQL);
-	const selectByIdStmt = db.prepare(SELECT_BY_ID_SQL);
-	const selectByDocAndKeyStmt = db.prepare(SELECT_BY_DOC_AND_KEY_SQL);
-	const selectByDocIdStmt = db.prepare(SELECT_BY_DOC_ID_SQL);
-	const selectByBatchIdStmt = db.prepare(SELECT_BY_BATCH_ID_SQL);
+	let hasBugPrompt = false;
+	let hasLaneNo = false;
+	try {
+		const tableInfo = db.prepare<[], { name: string }>('PRAGMA table_info(tasks)').all();
+		hasBugPrompt = tableInfo.some((col) => col.name === 'bug_prompt');
+		hasLaneNo = tableInfo.some((col) => col.name === 'lane_no');
+	} catch {}
+
+	let insertSql = INSERT_SQL;
+	if (!hasBugPrompt) {
+		insertSql = insertSql.replace('\t@bug_prompt,\n', '').replace('\tbug_prompt,\n', '');
+	}
+	if (hasLaneNo) {
+		insertSql = insertSql
+			.replace('\tmanual_state\n)', '\tmanual_state,\n\tlane_no\n)')
+			.replace('\t@manual_state\n)', '\t@manual_state,\n\t@lane_no\n)');
+	}
+
+	function adjustSelectSql(baseSql: string) {
+		let sql = baseSql;
+		if (!hasBugPrompt) {
+			sql = sql.replace('\tbug_prompt,\n', '');
+		}
+		if (hasLaneNo) {
+			sql = sql.replace('\tmanual_state\n', '\tmanual_state,\n\tlane_no\n');
+		}
+		return sql;
+	}
+
+	const insertStmt = db.prepare(insertSql);
+	const selectByIdStmt = db.prepare(adjustSelectSql(SELECT_BY_ID_SQL));
+	const selectByDocAndKeyStmt = db.prepare(adjustSelectSql(SELECT_BY_DOC_AND_KEY_SQL));
+	const selectByDocIdStmt = db.prepare(adjustSelectSql(SELECT_BY_DOC_ID_SQL));
+	const selectByBatchIdStmt = db.prepare(adjustSelectSql(SELECT_BY_BATCH_ID_SQL));
 	const updateDocFieldsStmt = db.prepare(UPDATE_DOC_FIELDS_SQL);
 	const updateBatchIdStmt = db.prepare(UPDATE_BATCH_ID_SQL);
 	const updateManualStateStmt = db.prepare(UPDATE_MANUAL_STATE_SQL);
 	const updateRemovedStmt = db.prepare(UPDATE_REMOVED_FROM_DOC_SQL);
+	const clearLaneNoStmt = hasLaneNo
+		? db.prepare('UPDATE tasks SET lane_no = NULL WHERE id = ? AND lane_no IS NOT NULL')
+		: null;
+	const setLaneNoStmt = hasLaneNo ? db.prepare('UPDATE tasks SET lane_no = ? WHERE id = ?') : null;
 	const deleteByIdStmt = db.prepare(DELETE_BY_ID_SQL);
 	const deleteByDocIdStmt = db.prepare(DELETE_BY_DOC_ID_SQL);
 
 	function buildInsertParams(row: TaskInsertRow) {
-		return {
+		const params: Record<string, unknown> = {
 			id: row.id,
 			doc_id: row.doc_id,
 			task_key: row.task_key,
@@ -535,12 +576,18 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 			batch_id: row.batch_id ?? null,
 			impl_prompt: row.impl_prompt ?? null,
 			review_prompt: row.review_prompt ?? null,
-			bug_prompt: row.bug_prompt ?? null,
 			is_removed_from_doc: row.is_removed_from_doc === 1 ? 1 : 0,
 			has_accept_changed: row.has_accept_changed === 1 ? 1 : 0,
 			has_prompt_changed: row.has_prompt_changed === 1 ? 1 : 0,
 			manual_state: row.manual_state ?? null,
 		};
+		if (hasBugPrompt) {
+			params.bug_prompt = row.bug_prompt ?? null;
+		}
+		if (hasLaneNo) {
+			params.lane_no = row.lane_no ?? null;
+		}
+		return params;
 	}
 
 	return Object.freeze({
@@ -568,7 +615,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		findById(id: string): TaskRow | null {
 			try {
 				const row = selectByIdStmt.get(id) as TaskRow | undefined;
-				return row ? Object.freeze({ ...row }) : null;
+				return row ? Object.freeze({ ...row, lane_no: row.lane_no ?? null }) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find task by id: ${id}`);
 			}
@@ -577,7 +624,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		findByDocAndKey(docId: string, taskKey: string): TaskRow | null {
 			try {
 				const row = selectByDocAndKeyStmt.get(docId, taskKey) as TaskRow | undefined;
-				return row ? Object.freeze({ ...row }) : null;
+				return row ? Object.freeze({ ...row, lane_no: row.lane_no ?? null }) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find task by docId and key: ${docId}, ${taskKey}`);
 			}
@@ -586,7 +633,9 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		listByDocId(docId: string): readonly TaskRow[] {
 			try {
 				const rows = selectByDocIdStmt.all(docId) as TaskRow[];
-				return Object.freeze(rows.map((row) => Object.freeze({ ...row })));
+				return Object.freeze(
+					rows.map((row) => Object.freeze({ ...row, lane_no: row.lane_no ?? null })),
+				);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to list tasks by docId: ${docId}`);
 			}
@@ -595,7 +644,9 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		listByBatchId(batchId: string): readonly TaskRow[] {
 			try {
 				const rows = selectByBatchIdStmt.all(batchId) as TaskRow[];
-				return Object.freeze(rows.map((row) => Object.freeze({ ...row })));
+				return Object.freeze(
+					rows.map((row) => Object.freeze({ ...row, lane_no: row.lane_no ?? null })),
+				);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to list tasks by batchId: ${batchId}`);
 			}
@@ -655,6 +706,44 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 				}
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to mark tasks removed from doc for docId: ${docId}`);
+			}
+		},
+
+		clearLaneNo(taskId: string): {
+			readonly changes: number;
+			readonly previousLaneNo: number | null;
+			readonly docId: string | null;
+		} {
+			if (!clearLaneNoStmt) {
+				return Object.freeze({ changes: 0, previousLaneNo: null, docId: null });
+			}
+			try {
+				const existing = selectByIdStmt.get(taskId) as TaskRow | undefined;
+				if (!existing || existing.lane_no === null || existing.lane_no === undefined) {
+					return Object.freeze({
+						changes: 0,
+						previousLaneNo: null,
+						docId: existing?.doc_id ?? null,
+					});
+				}
+				const previousLaneNo = existing.lane_no;
+				const info = clearLaneNoStmt.run(taskId);
+				return Object.freeze({
+					changes: info.changes,
+					previousLaneNo,
+					docId: existing.doc_id,
+				});
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to clear lane_no for task: ${taskId}`);
+			}
+		},
+
+		setLaneNo(taskId: string, laneNo: number): void {
+			if (!setLaneNoStmt) return;
+			try {
+				setLaneNoStmt.run(laneNo, taskId);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to set lane_no for task: ${taskId}`);
 			}
 		},
 

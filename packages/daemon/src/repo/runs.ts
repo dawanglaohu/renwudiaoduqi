@@ -34,6 +34,8 @@ export interface RunRow {
 	readonly started_at: string | null;
 	readonly last_event_at: string | null;
 	readonly ended_at: string | null;
+	readonly lane_no?: number | null;
+	readonly session_archived_at?: string | null;
 }
 
 export interface RunInsertRow {
@@ -68,25 +70,42 @@ export interface RunInsertRow {
 	readonly started_at?: string | null;
 	readonly last_event_at?: string | null;
 	readonly ended_at?: string | null;
+	readonly lane_no?: number | null;
+	readonly session_archived_at?: string | null;
 }
 
 export interface RunsRepo {
 	readonly insert: (row: RunInsertRow) => void;
 	readonly findById: (id: string) => RunRow | null;
 	readonly findByIdempotencyKey: (key: string) => RunRow | null;
+	readonly findByVendorSessionRef: (vendorSessionRef: string) => RunRow | null;
 	readonly findActiveByTaskId: (taskId: string) => RunRow | null;
 	readonly listByTaskId: (taskId: string) => readonly RunRow[];
+	readonly listByTask: (taskId: string) => readonly RunRow[];
 	readonly listActive: () => readonly RunRow[];
 	readonly listAll: () => readonly RunRow[];
+	readonly markSessionsArchived: (input: {
+		readonly taskId: string;
+		readonly archivedAt: string;
+	}) => {
+		readonly runIds: readonly string[];
+		readonly runs: readonly { readonly id: string; readonly pid: number | null }[];
+		readonly changes: number;
+	};
 	readonly updateState: (input: {
 		readonly id: string;
-		readonly state: string;
+		readonly state?: string;
+		readonly toState?: string;
+		readonly fromState?: string;
 		readonly queuedReason?: string | null;
 		readonly endedAt?: string | null;
+		readonly exitCode?: number | null;
+		readonly exitSignal?: string | null;
+		readonly actorDeviceId?: string | null;
 	}) => void;
 }
 
-const INSERT_RUN_SQL = `
+const INSERT_RUN_SQL_BASE = `
 INSERT INTO runs (
 	id, task_id, attempt_no, kind, parent_run_id, state, review_verdict,
 	agent_id, model_name, reported_model, effort_tier, reported_effort,
@@ -106,12 +125,44 @@ INSERT INTO runs (
 )
 `;
 
+const INSERT_RUN_SQL_WITH_LANES = `
+INSERT INTO runs (
+	id, task_id, attempt_no, kind, parent_run_id, state, review_verdict,
+	agent_id, model_name, reported_model, effort_tier, reported_effort,
+	permission_tier, snapshot_id, worktree_path, branch_name, pid,
+	exit_code, exit_signal, vendor_session_ref, changed_file_count,
+	token_usage_json, unmapped_event_count, is_stall_suspected,
+	rework_count, queued_reason, idempotency_key, actor_device_id,
+	started_at, last_event_at, ended_at, lane_no, session_archived_at
+) VALUES (
+	@id, @task_id, @attempt_no, @kind, @parent_run_id, @state, @review_verdict,
+	@agent_id, @model_name, @reported_model, @effort_tier, @reported_effort,
+	@permission_tier, @snapshot_id, @worktree_path, @branch_name, @pid,
+	@exit_code, @exit_signal, @vendor_session_ref, @changed_file_count,
+	@token_usage_json, @unmapped_event_count, @is_stall_suspected,
+	@rework_count, @queued_reason, @idempotency_key, @actor_device_id,
+	@started_at, @last_event_at, @ended_at, @lane_no, @session_archived_at
+)
+`;
+
 const SELECT_RUN_BY_ID_SQL = `
 SELECT * FROM runs WHERE id = ? LIMIT 1
 `;
 
 const SELECT_RUN_BY_IDEMPOTENCY_KEY_SQL = `
 SELECT * FROM runs WHERE idempotency_key = ? LIMIT 1
+`;
+
+const SELECT_RUN_BY_VENDOR_SESSION_REF_SQL = `
+SELECT * FROM runs WHERE vendor_session_ref = ? LIMIT 1
+`;
+
+const SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL = `
+SELECT id, pid FROM runs WHERE task_id = ? AND session_archived_at IS NULL
+`;
+
+const MARK_SESSIONS_ARCHIVED_SQL = `
+UPDATE runs SET session_archived_at = ? WHERE task_id = ? AND session_archived_at IS NULL
 `;
 
 const SELECT_ACTIVE_RUN_BY_TASK_ID_SQL = `
@@ -185,23 +236,40 @@ export function toRunDto(row: RunRow): RunDto {
 		startedAt: row.started_at ?? null,
 		lastEventAt: row.last_event_at ?? null,
 		endedAt: row.ended_at ?? null,
+		laneNo: row.lane_no ?? null,
+		sessionArchivedAt: row.session_archived_at ?? null,
 	});
 }
 
 export function createRunsRepo(db: DatabaseConnection): RunsRepo {
-	const insertStmt = db.prepare(INSERT_RUN_SQL);
+	let hasSessionArchivedAt = false;
+	let hasLaneNo = false;
+	try {
+		const tableInfo = db.prepare<[], { name: string }>('PRAGMA table_info(runs)').all();
+		hasSessionArchivedAt = tableInfo.some((col) => col.name === 'session_archived_at');
+		hasLaneNo = tableInfo.some((col) => col.name === 'lane_no');
+	} catch {}
+
+	const insertStmt = db.prepare(
+		hasSessionArchivedAt && hasLaneNo ? INSERT_RUN_SQL_WITH_LANES : INSERT_RUN_SQL_BASE,
+	);
 	const selectByIdStmt = db.prepare(SELECT_RUN_BY_ID_SQL);
 	const selectByIdempotencyKeyStmt = db.prepare(SELECT_RUN_BY_IDEMPOTENCY_KEY_SQL);
+	const selectByVendorSessionRefStmt = db.prepare(SELECT_RUN_BY_VENDOR_SESSION_REF_SQL);
 	const selectActiveByTaskIdStmt = db.prepare(SELECT_ACTIVE_RUN_BY_TASK_ID_SQL);
 	const selectByTaskIdStmt = db.prepare(SELECT_RUNS_BY_TASK_ID_SQL);
 	const selectActiveStmt = db.prepare(SELECT_ACTIVE_RUNS_SQL);
 	const selectAllStmt = db.prepare(SELECT_ALL_RUNS_SQL);
 	const updateStateStmt = db.prepare(UPDATE_RUN_STATE_SQL);
+	const selectUnarchivedStmt = hasSessionArchivedAt
+		? db.prepare(SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL)
+		: null;
+	const markArchivedStmt = hasSessionArchivedAt ? db.prepare(MARK_SESSIONS_ARCHIVED_SQL) : null;
 
 	return Object.freeze({
 		insert(row: RunInsertRow): void {
 			try {
-				insertStmt.run({
+				const params: Record<string, unknown> = {
 					id: row.id,
 					task_id: row.task_id,
 					attempt_no: row.attempt_no,
@@ -233,7 +301,12 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 					started_at: row.started_at ?? null,
 					last_event_at: row.last_event_at ?? null,
 					ended_at: row.ended_at ?? null,
-				});
+				};
+				if (hasSessionArchivedAt && hasLaneNo) {
+					params.lane_no = row.lane_no ?? null;
+					params.session_archived_at = row.session_archived_at ?? null;
+				}
+				insertStmt.run(params);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to insert run: id=${row.id}`);
 			}
@@ -257,6 +330,18 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 			}
 		},
 
+		findByVendorSessionRef(vendorSessionRef: string): RunRow | null {
+			try {
+				const row = selectByVendorSessionRefStmt.get(vendorSessionRef) as RunRow | undefined;
+				return row ? freezeRunRow(row) : null;
+			} catch (cause) {
+				throw toDatabaseError(
+					cause,
+					`Failed to find run by vendor session ref: ${vendorSessionRef}`,
+				);
+			}
+		},
+
 		findActiveByTaskId(taskId: string): RunRow | null {
 			try {
 				const row = selectActiveByTaskIdStmt.get(taskId) as RunRow | undefined;
@@ -272,6 +357,15 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				return Object.freeze(rows.map(freezeRunRow));
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to list runs by taskId: ${taskId}`);
+			}
+		},
+
+		listByTask(taskId: string): readonly RunRow[] {
+			try {
+				const rows = selectByTaskIdStmt.all(taskId) as RunRow[];
+				return Object.freeze(rows.map(freezeRunRow));
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to list runs by task: ${taskId}`);
 			}
 		},
 
@@ -293,16 +387,50 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 			}
 		},
 
+		markSessionsArchived(input: {
+			readonly taskId: string;
+			readonly archivedAt: string;
+		}): {
+			readonly runIds: readonly string[];
+			readonly runs: readonly { readonly id: string; readonly pid: number | null }[];
+			readonly changes: number;
+		} {
+			if (!selectUnarchivedStmt || !markArchivedStmt) {
+				return Object.freeze({ runIds: [], runs: [], changes: 0 });
+			}
+			try {
+				const unarchived = selectUnarchivedStmt.all(input.taskId) as Array<{
+					id: string;
+					pid: number | null;
+				}>;
+				if (unarchived.length === 0) {
+					return Object.freeze({ runIds: [], runs: [], changes: 0 });
+				}
+				const result = markArchivedStmt.run(input.archivedAt, input.taskId);
+				const runIds = Object.freeze(unarchived.map((r) => r.id));
+				const runs = Object.freeze(unarchived.map((r) => Object.freeze({ id: r.id, pid: r.pid })));
+				return Object.freeze({
+					runIds,
+					runs,
+					changes: result.changes,
+				});
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to mark sessions archived for task: ${input.taskId}`);
+			}
+		},
+
 		updateState(input: {
 			readonly id: string;
-			readonly state: string;
+			readonly state?: string;
+			readonly toState?: string;
 			readonly queuedReason?: string | null;
 			readonly endedAt?: string | null;
 		}): void {
 			try {
+				const state = input.state ?? input.toState;
 				updateStateStmt.run({
 					id: input.id,
-					state: input.state,
+					state,
 					queued_reason: input.queuedReason ?? null,
 					ended_at: input.endedAt ?? null,
 				});

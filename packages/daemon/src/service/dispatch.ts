@@ -28,6 +28,7 @@ import {
 	toRunDto,
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
+import { assertSessionRefFree } from './session-guard.ts';
 
 export type { RunInsertRow, RunRow, RunsRepo };
 export { toRunDto };
@@ -351,6 +352,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				actor_device_id: input.actorDeviceId ?? null,
 				started_at: now,
 			};
+			assertSessionRefFree(
+				{ taskId, vendorSessionRef: undefined },
+				{ runsRepo, tasksRepo: deps.tasksRepo },
+			);
 			runsRepo.insert(runInsert);
 			return { snapshotId: snapshot.id };
 		};

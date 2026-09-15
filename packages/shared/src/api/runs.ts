@@ -164,6 +164,8 @@ export interface RunDto {
 	readonly startedAt: string | null;
 	readonly lastEventAt: string | null;
 	readonly endedAt: string | null;
+	readonly laneNo?: number | null;
+	readonly sessionArchivedAt?: string | null;
 }
 
 export interface CreateRunResponse {

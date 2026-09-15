@@ -149,7 +149,11 @@ describe('migration runner', () => {
 		});
 
 		expect(runner.run(migrationsDirectory)).toEqual({
-			appliedVersions: ['0001_init.sql', '0002_add_bug_prompt.sql'],
+			appliedVersions: [
+				'0001_init.sql',
+				'0002_add_bug_prompt.sql',
+				'0003_add_session_archive_and_lanes.sql',
+			],
 		});
 		expect(readTableNames(database)).toEqual([
 			'batches',
@@ -175,6 +179,10 @@ describe('migration runner', () => {
 		).toEqual([
 			{ version: '0001_init.sql', applied_at: '2026-09-04T03:00:00.000Z' },
 			{ version: '0002_add_bug_prompt.sql', applied_at: '2026-09-04T03:00:00.000Z' },
+			{
+				version: '0003_add_session_archive_and_lanes.sql',
+				applied_at: '2026-09-04T03:00:00.000Z',
+			},
 		]);
 	});
 });
