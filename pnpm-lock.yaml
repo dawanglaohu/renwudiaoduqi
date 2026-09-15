@@ -11,18 +11,21 @@ importers:
       node20-darwin-x64:
         specifier: npm:node-darwin-x64@20.19.5
         version: node-darwin-x64@20.19.5
-      node20-linux-arm64:
-        specifier: npm:node-linux-arm64@20.19.5
-        version: node-linux-arm64@20.19.5
       node20-linux-x64:
         specifier: npm:node-linux-x64@20.19.5
         version: node-linux-x64@20.19.5
-      node20-win-arm64:
-        specifier: npm:node-win-arm64@20.19.5
-        version: node-win-arm64@20.19.5
       node20-win-x64:
         specifier: npm:node-win-x64@20.19.5
         version: node-win-x64@20.19.5
+      node22-darwin-x64:
+        specifier: npm:node-darwin-x64@22.17.0
+        version: node-darwin-x64@22.17.0
+      node22-linux-x64:
+        specifier: npm:node-linux-x64@22.17.0
+        version: node-linux-x64@22.17.0
+      node22-win-x64:
+        specifier: npm:node-win-x64@22.17.0
+        version: node-win-x64@22.17.0
     devDependencies:
       '@biomejs/biome':
         specifier: ^1.9.4
@@ -1078,10 +1081,10 @@ packages:
     os: darwin
     hasBin: true
 
-  node-linux-arm64@20.19.5:
-    resolution: {integrity: sha512-EJ5hykHFVFujo9OUk3O59qC47EEdxJzz6QJ5qKLietg+c1APAnJvNwVEYXUEPytjZvy3S7p/xMFWzaMf1Ufbpg==}
-    cpu: arm64
-    os: linux
+  node-darwin-x64@22.17.0:
+    resolution: {integrity: sha512-Y4+Zb5VlweoCBduZuQJxMi/1Py0pcZ/rjn69xdIy4WHYL9XQEbLQC1NvToXbg/+5y8G8gxMCT7bdHplLd5dz0A==}
+    cpu: x64
+    os: darwin
     hasBin: true
 
   node-linux-x64@20.19.5:
@@ -1090,14 +1093,20 @@ packages:
     os: linux
     hasBin: true
 
-  node-win-arm64@20.19.5:
-    resolution: {integrity: sha512-S8DvEF6TslsmtGM3zBkYJJ48V8OnVS/e/3xpFIBrlvGkhIQ+S0/r/cy1w0NMsnWJV5wKI/eqXoAPV89k6OqjAQ==}
-    cpu: arm64
-    os: win32
+  node-linux-x64@22.17.0:
+    resolution: {integrity: sha512-DtgLeuvp/shyQ3nuKombBSZR+DkAxe3+1mn6HpYAOsBFKuUp0paKgwJRy5bbMUCNONJO3XTlz8FIQA/Yjnu2uw==}
+    cpu: x64
+    os: linux
     hasBin: true
 
   node-win-x64@20.19.5:
     resolution: {integrity: sha512-i3DZ8tHNe9VEsr6uV9r/c5pLAlLA15Ermh9zMIj9fyeDrx76uabeiN+yGNqUa2gmp7XszmmYKa4MF7swHUchnw==}
+    cpu: x64
+    os: win32
+    hasBin: true
+
+  node-win-x64@22.17.0:
+    resolution: {integrity: sha512-aUNP0XzMd1pC0t5SvgaxpxRmecT6583nInTDI82Zu8ujc0cpKvDR/VPCRn/Qy0ve9+MTofUFmxhCS4Zz2FhfTw==}
     cpu: x64
     os: win32
     hasBin: true
@@ -2472,16 +2481,19 @@ snapshots:
   node-darwin-x64@20.19.5:
     optional: true
 
-  node-linux-arm64@20.19.5:
+  node-darwin-x64@22.17.0:
     optional: true
 
   node-linux-x64@20.19.5:
     optional: true
 
-  node-win-arm64@20.19.5:
+  node-linux-x64@22.17.0:
     optional: true
 
   node-win-x64@20.19.5:
+    optional: true
+
+  node-win-x64@22.17.0:
     optional: true
 
   normalize-path@3.0.0: {}
