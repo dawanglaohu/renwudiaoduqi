@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M10-T4": {
+      "contractHash": "85bf01330da9a7eaf36117147d03d5d6dc024f9c51408851559b2e75249ebc40",
+      "evidence": [
+        "2026-09-14 复核补丁前契约（hash 1c3bf37a）：图谱/任务/M10-T4.md 与 04-执行/19-模块任务拆分.md 的 M10-T4 行逐字一致——前置 M10-T2/M10-T3 均已落地，解锁 M10-T5，覆盖边界 E-14/E-174/E-175/E-176，六条验收标准未增删。补丁后（hash 85bf0133）只改了「输入/产出」与 handoff.taskPaths：验收标准与四条边界的文字一字未动，未删验收、未降低边界要求。",
+        "补丁依据（缺口实测，非推测）：① 10-接口约定.md:17 与 :153 规定 `GET /api/v1/version` 返回 `{daemon, apiVersion, node}`、壳启动时校验；但实测以真实路由链装配后 GET /api/v1/version 返回 500 `{\"error\":{\"code\":\"E_INTERNAL\",\"message\":\"Route GET /api/v1/version handler is not implemented yet.\"}}`——该端点在 packages/daemon/src/http/plugins/50-routes.ts 的 customRegisteredPaths 里缺席，落到「未实现」桩，daemon 根本没有暴露 apiVersion，AC1 与 E-14 的期望（daemon 暴露 API 版本号）不成立。② 同一个真实路由链上 /index.html 与 /assets/* 均 404：packages/daemon/src/http/plugins/80-static.ts 只有占位注释、没有 @fastify/static 与任何 root，AC2 的 daemon 腿不成立。③ 全仓 glob **/*.woff2 为 0 个文件，fonts.css 引用的 6 个 `/fonts/*.woff2` 在 public/ 下不存在（packages/web 无 public 目录）；用包内 vite 5.4.21 复现其构建行为：public 资源存在时 CSS url(/fonts/x.woff2) 会被改写成相对 ../fonts/x.woff2，文件缺失时原样保留绝对 `/fonts/…` 并告警——即当前产物必然 404，AC4/AC6 不成立。④ packages/web 无 index.html/main.tsx 也无 build 脚本，`vite build` 直接报 Could not resolve entry module \"index.html\"，AC2/AC3 无产物可消费、无可验证性。以上四项都在本任务既定产出（`GET /version` 校验接线、打包脚本）的下游，而原 taskPaths 只有两个壳与 web/vite.config.ts，实施方无法在不越界的条件下修好，只能写读源码字符串的假机检。",
+        "补丁内容与影响：presentation.json 的 handoff.taskPaths['M10-T4'] 增加 packages/daemon/src/http/routes/version.ts、packages/daemon/src/http/plugins/{50-routes.ts,80-static.ts}、packages/daemon/package.json、packages/daemon/test/unit/version-route.test.ts、packages/shared/src/api/system.ts、packages/web/{index.html,package.json,dist}、packages/web/public/fonts/、packages/web/src/main.tsx、packages/web/src/styles/fonts.css、pnpm-lock.yaml；19-模块任务拆分.md 的 M10-T4 行「输入/产出」写明 daemon 侧暴露端点、两个壳启动期接线、三处消费同一份 packages/web/dist、字体随产物自托管、web 具备可构建入口。依据是 02-设计/07-前端架构.md:418-442（base './'、产物固定在 packages/web/dist、三处消费同一次构建、字重与 ch 列宽、禁止 CDN）与 10-接口约定.md:151-158。未新增依赖能力、未改架构、未重做任务拆分；sync 传播的受影响任务只有 M10-T5（下游 provider 契约变化）。",
+        "有效路径冲突核对：新增的 daemon 路径与 M2-T1（daemon-http-runtime）supportPaths 有交叠但已落地，不并行；packages/web/{index.html,src/main.tsx} 在 97 个任务的 taskPaths 中无任何任务声明（已 grep presentation.json 全表确认），因此不存在与未落地 M9-*/M10-T5 的并行冲突；packages/web/dist 为构建产物目录，已在 .gitignore 中，不会被提交。",
+        "实现方仍需自己完成的三处接线与一处既有实现缺陷，见本次审查 REWORK R1-R6：壳启动期校验接线（AC1）、daemon 端点与静态托管（AC1/AC2）、字体资产与 web 可构建入口（AC3/AC4/AC6）、机检不得用读字符串的假检查替代产物级断言（AC2/AC5），以及两个壳里硬编码的 'http://127.0.0.1:7817' 与重复声明的版本/DTO。本记录只登记契约复核为通过，不代表上述代码已通过验收。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
