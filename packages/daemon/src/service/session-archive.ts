@@ -34,6 +34,8 @@ export interface TerminateArchivedResult {
 	readonly runIds: readonly string[];
 	readonly killedPids: readonly number[];
 	readonly residualPids: readonly number[];
+	readonly phase1DurationMs: number;
+	readonly phase2DurationMs: number;
 	readonly envelope: EventEnvelope;
 }
 
@@ -133,6 +135,9 @@ export function createSessionArchiveService(
 		async terminateArchived(context: ArchiveTaskContext): Promise<TerminateArchivedResult> {
 			const killedPids: number[] = [];
 			const residualPids: number[] = [];
+			// phase1DurationMs: grace wait between attempt[0] and attempt[1]; phase2DurationMs: after attempt[1]
+			let phase1TotalMs = 0;
+			let phase2TotalMs = 0;
 
 			for (const run of context.runsToKill) {
 				const managed =
@@ -155,10 +160,21 @@ export function createSessionArchiveService(
 					}
 
 					if (killResult) {
-						if (killResult.outcome === 'survived') {
-							residualPids.push(run.pid);
-						} else {
+						if (killResult.outcome === 'terminated') {
 							killedPids.push(run.pid);
+						} else {
+							// 'survived' and 'not-process-owner' (EPERM) both mean process still lives (E-322)
+							residualPids.push(run.pid);
+						}
+						// Accumulate per-phase durations from attempt timestamps (Section 16 point 15, R4)
+						const attempts = killResult.attempts;
+						const a0 = attempts[0];
+						const a1 = attempts[1];
+						if (a0 !== undefined && a1 !== undefined) {
+							phase1TotalMs += Math.max(0, Date.parse(a1.at) - Date.parse(a0.at));
+							phase2TotalMs += Math.max(0, Date.now() - Date.parse(a1.at));
+						} else if (a0 !== undefined) {
+							phase1TotalMs += Math.max(0, Date.now() - Date.parse(a0.at));
 						}
 					} else {
 						killedPids.push(run.pid);
@@ -172,13 +188,15 @@ export function createSessionArchiveService(
 				}
 			}
 
-			// Section 16 point 15 observability logging
+			// Section 16 point 15 observability logging (with two-phase durations, R4)
 			const logData = {
 				taskId: context.taskId,
 				archivedRunCount: context.archivedRunIds.length,
 				killTreePidCount: killedPids.length + residualPids.length,
 				killedPids,
 				residualPids,
+				phase1DurationMs: phase1TotalMs,
+				phase2DurationMs: phase2TotalMs,
 			};
 			if (residualPids.length > 0) {
 				deps.logger?.warn?.(
@@ -212,6 +230,8 @@ export function createSessionArchiveService(
 				runIds: context.archivedRunIds,
 				killedPids: Object.freeze(killedPids),
 				residualPids: Object.freeze(residualPids),
+				phase1DurationMs: phase1TotalMs,
+				phase2DurationMs: phase2TotalMs,
 				envelope,
 			});
 		},

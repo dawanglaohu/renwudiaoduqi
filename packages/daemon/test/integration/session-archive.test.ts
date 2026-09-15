@@ -10,7 +10,7 @@ import type { EventBus } from '../../src/events/bus.ts';
 import { createEnvelopeFactory } from '../../src/events/envelope.ts';
 import { createProcessRegistry } from '../../src/proc/registry.ts';
 import type { ManagedProcess } from '../../src/proc/spawn.ts';
-import type { RunMessagesRepo } from '../../src/repo/run-messages-repo.ts';
+import { createSqliteRunMessagesRepo } from '../../src/repo/run-messages-repo.ts';
 import { createRunsRepo } from '../../src/repo/runs.ts';
 import { createTasksRepo } from '../../src/repo/tasks.ts';
 import type { LogstoreService } from '../../src/service/logstore.ts';
@@ -277,6 +277,17 @@ describe('M6-T10 Integration: Task Session Archiving and Isolation Assertion', (
 			residualPids: [1002],
 		});
 
+		// R1: lane.released published with correct payload (laneNo=1, reason='landed', docId correct)
+		const laneEvent = publishedEvents.find((e) => e.kind === 'lane.released');
+		expect(laneEvent).toBeDefined();
+		expect(laneEvent?.payload).toMatchObject({
+			taskId: 'task-1',
+			laneNo: 1,
+			runId: 'run-impl-1',
+			reason: 'landed',
+			docId: 'doc-1',
+		});
+
 		// Observability: section 16 point 15 logged warn because residualPids is non-empty (E-322)
 		expect(loggedWarn).toBeDefined();
 		expect(loggedWarn).toMatchObject({
@@ -285,6 +296,9 @@ describe('M6-T10 Integration: Task Session Archiving and Isolation Assertion', (
 			killedPids: [1001],
 			residualPids: [1002],
 		});
+		// R4: Phase durations present in log data
+		expect(typeof (loggedWarn as { phase1DurationMs?: number }).phase1DurationMs).toBe('number');
+		expect(typeof (loggedWarn as { phase2DurationMs?: number }).phase2DurationMs).toBe('number');
 	});
 
 	// =========================================================================
@@ -394,11 +408,226 @@ describe('M6-T10 Integration: Task Session Archiving and Isolation Assertion', (
 		const archiveEvent = publishedEvents.find((e) => e.kind === 'task.sessions_archived');
 		expect(archiveEvent).toBeUndefined();
 
+		// R1(c): lane.released published with reason='awaiting_human'
+		const laneEvent = publishedEvents.find((e) => e.kind === 'lane.released');
+		expect(laneEvent).toBeDefined();
+		expect(laneEvent?.payload).toMatchObject({
+			taskId: 'task-2',
+			laneNo: 2,
+			runId: 'run-impl-2',
+			reason: 'awaiting_human',
+		});
+
 		// assertNotArchived succeeds
 		expect(run).toBeDefined();
 		expect(() => {
 			if (run) assertNotArchived(run, { runsRepo });
 		}).not.toThrow();
+	});
+
+	// =========================================================================
+	// R1: lane_no already NULL → no lane.released emitted
+	// =========================================================================
+	it('R1: tasks.lane_no already NULL at terminal → no lane.released event emitted (E-326)', async () => {
+		tasksRepo.insert({
+			id: 'task-no-lane',
+			doc_id: 'doc-1',
+			task_key: 'M6-NOLANE',
+			title: 'Already released',
+			module_key: 'M6',
+			deps_json: '[]',
+			contract_hash: 'hash-nl',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+			// lane_no is NOT set → NULL
+		});
+
+		db.prepare(`
+			INSERT INTO dispatch_snapshots (
+				id, task_id, contract_hash, task_paths_json, launch_spec_json, created_at
+			) VALUES (
+				'snap-nl', 'task-no-lane', 'hash-nl', '[]', '{}', '2026-09-15T00:00:00.000Z'
+			);
+		`).run();
+
+		runsRepo.insert({
+			id: 'run-no-lane',
+			task_id: 'task-no-lane',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'reviewing',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-nl',
+			pid: null,
+			lane_no: null,
+			session_archived_at: null,
+		});
+
+		const sessionArchiveService = createSessionArchiveService({
+			runsRepo,
+			tasksRepo,
+			clock,
+			envelopeFactory,
+			bus: mockBus,
+		});
+
+		const mockLogstore: LogstoreService = {
+			appendEvent: async () => ({
+				location: { fileSeq: 1, byteOffset: 0, byteLen: 50 },
+			}),
+			closeWriter: async () => {},
+		} as unknown as LogstoreService;
+
+		const adaptRunsRepo = (repo: typeof runsRepo): ServiceRunsRepo => ({
+			findById: (id: string): RunRecord | null => {
+				const r = repo.findById(id);
+				if (!r) return null;
+				return {
+					id: r.id,
+					taskId: r.task_id,
+					state: r.state as RunState,
+					pid: r.pid,
+					kind: r.kind,
+					session_archived_at: r.session_archived_at,
+					lane_no: r.lane_no,
+				};
+			},
+			updateState: (input) => {
+				repo.updateState(input);
+			},
+			updateLastEventAt: () => {},
+			incrementUnmappedEventCount: () => {},
+			findInFlight: () => [],
+		});
+
+		const runService = createRunService({
+			logstore: mockLogstore,
+			clock,
+			envelopeFactory,
+			bus: mockBus,
+			unitOfWork,
+			runsRepo: adaptRunsRepo(runsRepo),
+			tasksRepo,
+			sessionArchiveService,
+		});
+
+		publishedEvents.length = 0;
+		await runService.transitionState({
+			runId: 'run-no-lane',
+			targetState: 'landed',
+			reason: 'already had no lane',
+		});
+
+		// tasks.lane_no was already NULL → clearLaneNo returns changes=0 → no lane.released
+		const laneEvent = publishedEvents.find((e) => e.kind === 'lane.released');
+		expect(laneEvent).toBeUndefined();
+	});
+
+	// =========================================================================
+	// R3: not-process-owner goes to residualPids
+	// =========================================================================
+	it('R3 & E-322: outcome not-process-owner (EPERM) lands in residualPids, not killedPids; logs warn', async () => {
+		tasksRepo.insert({
+			id: 'task-eperm',
+			doc_id: 'doc-1',
+			task_key: 'M6-EPERM',
+			title: 'EPERM test',
+			module_key: 'M6',
+			deps_json: '[]',
+			contract_hash: 'hash-ep',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+			lane_no: 1,
+		});
+
+		db.prepare(`
+			INSERT INTO dispatch_snapshots (
+				id, task_id, contract_hash, task_paths_json, launch_spec_json, created_at
+			) VALUES (
+				'snap-ep', 'task-eperm', 'hash-ep', '[]', '{}', '2026-09-15T00:00:00.000Z'
+			);
+		`).run();
+
+		runsRepo.insert({
+			id: 'run-eperm',
+			task_id: 'task-eperm',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'reviewing',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-ep',
+			pid: 5001,
+			lane_no: 1,
+			session_archived_at: null,
+		});
+
+		const processRegistry = createProcessRegistry();
+		processRegistry.register({
+			runId: 'run-eperm',
+			pid: 5001,
+			kill: async () => ({
+				outcome: 'not-process-owner' as const,
+				attempts: [
+					{
+						attempt: 1,
+						method: 'sigterm' as const,
+						result: 'not-process-owner' as const,
+						at: '2026-09-15T10:00:00.000Z',
+					},
+					{
+						attempt: 2,
+						method: 'sigkill' as const,
+						result: 'not-process-owner' as const,
+						at: '2026-09-15T10:00:03.000Z',
+					},
+				],
+			}),
+		} as unknown as ManagedProcess);
+
+		let epermWarn: unknown;
+		let epermInfo: unknown;
+		const epermLogger = {
+			warn: (data: unknown) => {
+				epermWarn = data;
+			},
+			info: (data: unknown) => {
+				epermInfo = data;
+			},
+		};
+
+		const sessionArchiveService = createSessionArchiveService({
+			runsRepo,
+			tasksRepo,
+			processRegistry,
+			clock,
+			envelopeFactory,
+			bus: mockBus,
+			logger: epermLogger,
+		});
+
+		const archiveCtx = sessionArchiveService.archiveTaskInTx({
+			taskId: 'task-eperm',
+			runId: 'run-eperm',
+		});
+		const result = await sessionArchiveService.terminateArchived(archiveCtx);
+
+		// not-process-owner must land in residualPids, NOT killedPids
+		expect(result.residualPids).toContain(5001);
+		expect(result.killedPids).not.toContain(5001);
+
+		// warn branch triggered (residualPids non-empty)
+		expect(epermWarn).toBeDefined();
+		expect(epermInfo).toBeUndefined();
+
+		// R4: phase durations present and numeric
+		expect(typeof (epermWarn as { phase1DurationMs?: number }).phase1DurationMs).toBe('number');
+		expect(typeof (epermWarn as { phase2DurationMs?: number }).phase2DurationMs).toBe('number');
+		// phase1 ≈ 3000ms (3s between attempt timestamps)
+		expect((epermWarn as { phase1DurationMs: number }).phase1DurationMs).toBeGreaterThanOrEqual(
+			2900,
+		);
 	});
 
 	// =========================================================================
@@ -438,35 +667,14 @@ describe('M6-T10 Integration: Task Session Archiving and Isolation Assertion', (
 			session_archived_at: '2026-09-15T09:00:00.000Z',
 		});
 
-		const runMessagesRepo: RunMessagesRepo = {
-			findRunById: (id: string) => {
-				const r = runsRepo.findById(id);
-				if (!r) return null;
-				return {
-					id: r.id,
-					taskId: r.task_id,
-					state: r.state as RunState,
-					agentId: r.agent_id,
-					pid: r.pid,
-					parentRunId: r.parent_run_id,
-					attemptNo: r.attempt_no,
-					sessionArchivedAt: r.session_archived_at,
-				};
-			},
-			insertMessage: () => {},
-			findMessageById: () => null,
-			findMessagesByRunId: () => [],
-			findUndeliveredByRunId: () => [],
-			updateRunState: () => {},
-		};
-
+		// Use the real SQLite-backed runMessagesRepo (R2: no hand-injection of runsRepo)
+		const realRunMessagesRepo = createSqliteRunMessagesRepo(db);
 		const processRegistry = createProcessRegistry();
 		const messageService = createMessageService({
-			runMessagesRepo,
+			runMessagesRepo: realRunMessagesRepo,
 			processRegistry,
 			clock,
 			ids: { newId: () => 'msg-1' },
-			runsRepo,
 		});
 
 		let thrown: unknown;

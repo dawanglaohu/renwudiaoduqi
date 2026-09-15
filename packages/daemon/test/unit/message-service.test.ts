@@ -227,6 +227,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 1001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -261,6 +262,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 1001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -287,6 +289,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 1001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -315,6 +318,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 1001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -373,6 +377,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 1002,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -426,6 +431,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 1001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -464,6 +470,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 2001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -499,6 +506,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 2002,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -547,6 +555,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 2003,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -589,6 +598,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 3001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -660,6 +670,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 4001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -701,6 +712,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 4002,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -742,6 +754,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 5001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -786,6 +799,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 5002,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -838,6 +852,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 6001,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -880,6 +895,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					pid: 6002,
 					parentRunId: null,
 					attemptNo: 1,
+					sessionArchivedAt: null,
 				},
 			]);
 
@@ -940,7 +956,7 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 					id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
 					attempt_no INTEGER NOT NULL, kind TEXT NOT NULL, parent_run_id TEXT REFERENCES runs(id),
 					state TEXT NOT NULL, agent_id TEXT NOT NULL, snapshot_id TEXT NOT NULL,
-					permission_tier TEXT NOT NULL, pid INTEGER, last_event_at TEXT
+					permission_tier TEXT NOT NULL, pid INTEGER, last_event_at TEXT, session_archived_at TEXT
 				);
 				CREATE TABLE run_messages (
 					id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id),

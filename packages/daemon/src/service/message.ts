@@ -75,14 +75,6 @@ export interface MessageServiceDeps {
 	) => AgentMessageCapabilities;
 	readonly resumeSession?: (input: ResumeSessionInput) => Promise<ResumeSessionResult>;
 	readonly maxMessageLength?: number;
-	readonly runsRepo?: {
-		readonly findById: (id: string) => {
-			readonly id: string;
-			readonly session_archived_at?: string | null;
-			readonly task_id?: string;
-		} | null;
-	};
-	readonly assertNotArchived?: (runId: string) => void;
 }
 
 export interface MessageService {
@@ -257,27 +249,8 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		}
 
 		// AC 4 & E-302: Message delivery on archived session returns 409 E_SESSION_ARCHIVED
-		if (deps.assertNotArchived) {
-			deps.assertNotArchived(input.runId);
-		} else if (deps.runsRepo) {
-			const fullRun = deps.runsRepo.findById(input.runId);
-			if (fullRun?.session_archived_at) {
-				throw new AppError(
-					'E_SESSION_ARCHIVED',
-					`Session for run '${run.id}' has been archived and is read-only.`,
-					{
-						details: {
-							runId: run.id,
-							taskId: run.taskId,
-							sessionArchivedAt: fullRun.session_archived_at,
-						},
-					},
-				);
-			}
-		} else if (
-			(run as { sessionArchivedAt?: string | null }).sessionArchivedAt ||
-			(run as { session_archived_at?: string | null }).session_archived_at
-		) {
+		// session_archived_at is now part of MessageRunRecord via run-messages-repo SELECT
+		if (run.sessionArchivedAt) {
 			throw new AppError(
 				'E_SESSION_ARCHIVED',
 				`Session for run '${run.id}' has been archived and is read-only.`,
@@ -285,6 +258,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 					details: {
 						runId: run.id,
 						taskId: run.taskId,
+						sessionArchivedAt: run.sessionArchivedAt,
 					},
 				},
 			);

@@ -533,9 +533,46 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					actorDeviceId,
 					now,
 				});
+				// R1(b): 收集 lane.released（只在 changes===1 时，E-326 防止人放行后重发）
+				if (archiveContext.laneReleased) {
+					const laneReason = targetState as 'landed' | 'failed' | 'aborted' | 'interrupted';
+					pendingEvents.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'lane.released',
+							taskId,
+							runId,
+							actorDeviceId: actorDeviceId ?? null,
+							payload: {
+								docId: archiveContext.docId,
+								laneNo: archiveContext.laneNo,
+								taskId,
+								runId,
+								reason: laneReason,
+							},
+						}),
+					);
+				}
 			} else if ((targetState === 'awaiting_human' || targetState === 'orphaned') && taskId) {
 				// AC 3 & E-326: awaiting_human 只置 tasks.lane_no NULL、不归档
-				deps.tasksRepo?.clearLaneNo(taskId);
+				const laneResult = deps.tasksRepo?.clearLaneNo(taskId);
+				// R1(c): 收集 lane.released（changes===1 时）
+				if (laneResult && laneResult.changes === 1) {
+					pendingEvents.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'lane.released',
+							taskId,
+							runId,
+							actorDeviceId: actorDeviceId ?? null,
+							payload: {
+								docId: laneResult.docId,
+								laneNo: laneResult.previousLaneNo,
+								taskId,
+								runId,
+								reason: 'awaiting_human',
+							},
+						}),
+					);
+				}
 			}
 		};
 
