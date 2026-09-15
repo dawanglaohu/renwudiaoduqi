@@ -28,8 +28,8 @@ import {
 	toRunDto,
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
-import { assertSessionRefFree } from './session-guard.ts';
 import { createRerunService } from './rerun.ts';
+import { assertSessionRefFree } from './session-guard.ts';
 
 export type { RunInsertRow, RunRow, RunsRepo };
 export { toRunDto };
