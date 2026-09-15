@@ -408,6 +408,7 @@ export const ROUTES: readonly RouteDefinition[] = [
 			'E_DEVICE_REVOKED',
 			'E_NOT_FOUND',
 			'E_LOG_FILE_MISSING',
+			'E_LOG_PURGED',
 			'E_INTERNAL',
 		],
 	},

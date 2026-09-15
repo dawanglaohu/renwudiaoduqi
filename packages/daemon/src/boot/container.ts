@@ -32,6 +32,7 @@ import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
+import { type RetentionService, createRetentionService } from '../service/retention.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
@@ -71,6 +72,7 @@ export interface ContainerServices {
 	readonly agents: AgentService;
 	readonly landing: LandingService;
 	readonly message: MessageService;
+	readonly retention: RetentionService;
 }
 
 export interface AppContainer {
@@ -114,6 +116,7 @@ export function createContainer(input: {
 	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
 	readonly logSegmentsRepo?: LogSegmentsRepo;
 	readonly runLogService?: RunLogService;
+	readonly retentionService?: RetentionService;
 	readonly pairingService?: PairingService;
 	readonly docsService?: DocsService;
 	readonly documentsRepo?: DocumentsRepo;
@@ -287,10 +290,21 @@ export function createContainer(input: {
 			platform: input.hostInputs.platform,
 		});
 
+	const retentionService =
+		input.retentionService ??
+		createRetentionService({
+			runsRepo: runsLog,
+			logstorePaths,
+			systemService,
+			logSegmentsRepo: logSegments,
+			clock: input.clock,
+		});
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
 		runLog: runLogService,
+		retention: retentionService,
 		pairing: pairingService,
 		docs: docsService,
 		agents: agentService,
