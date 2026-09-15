@@ -1,1 +1,16 @@
-{}
+{
+  "M9-T6": {
+    "contractHash": "697e7dd69e549be8e7a9714d5b4ec4f2091753236ccbecc15c18caa739944a87",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "M9-T6-support-paths",
+        "sourceVersion": "c171819b9e5b20081ef09321dd9c0332fa0596ad4b8395a8626593275c62d0b5"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}
