@@ -8,6 +8,7 @@ import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
 import { type RingBuffer, createRingBuffer } from '../events/ring-buffer.ts';
+import { createSchedulerTickJob } from '../jobs/scheduler-tick.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
@@ -15,6 +16,7 @@ import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
 import { createDefaultProcessOps } from '../proc/spawn.ts';
+import { type BatchesRepo, createBatchesRepo } from '../repo/batches.ts';
 import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
 import {
 	type DispatchSnapshotsRepo,
@@ -26,8 +28,10 @@ import { type LogSegmentsRepo, createLogSegmentsRepo } from '../repo/log-segment
 import { type RunMessagesRepo, createSqliteRunMessagesRepo } from '../repo/run-messages-repo.ts';
 import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
 import { type RunsLogRepo, createSqliteRunsLogRepo } from '../repo/runs-log-repo.ts';
+import { type RunsRepo, createRunsRepo } from '../repo/runs.ts';
 import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
+import { type DispatchService, createDispatchService } from '../service/dispatch.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
@@ -52,6 +56,8 @@ export interface ContainerRepos {
 	readonly documents: DocumentsRepo;
 	readonly runMessages: RunMessagesRepo;
 	readonly tasks: TasksRepo;
+	readonly runs: RunsRepo;
+	readonly batches: BatchesRepo;
 	readonly [key: string]: unknown;
 }
 
@@ -71,6 +77,7 @@ export interface ContainerServices {
 	readonly agents: AgentService;
 	readonly landing: LandingService;
 	readonly message: MessageService;
+	readonly dispatch: DispatchService;
 }
 
 export interface AppContainer {
@@ -124,6 +131,10 @@ export function createContainer(input: {
 	readonly agentService?: AgentService;
 	readonly tasksRepo?: TasksRepo;
 	readonly landingService?: LandingService;
+	readonly runsRepo?: RunsRepo;
+	readonly batchesRepo?: BatchesRepo;
+	readonly dispatchService?: DispatchService;
+	readonly schedulerTickJob?: ContainerJob;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
 }): AppContainer {
@@ -139,6 +150,8 @@ export function createContainer(input: {
 	const documents = input.documentsRepo ?? createDocumentsRepo(input.database);
 	const runMessages = input.runMessagesRepo ?? createSqliteRunMessagesRepo(input.database);
 	const tasks = input.tasksRepo ?? createTasksRepo(input.database);
+	const runs = input.runsRepo ?? createRunsRepo(input.database);
+	const batches = input.batchesRepo ?? createBatchesRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 		runsAbort,
@@ -149,6 +162,8 @@ export function createContainer(input: {
 		documents,
 		runMessages,
 		tasks,
+		runs,
+		batches,
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
@@ -287,6 +302,43 @@ export function createContainer(input: {
 			platform: input.hostInputs.platform,
 		});
 
+	const dispatchService =
+		input.dispatchService ??
+		createDispatchService({
+			unitOfWork,
+			tasksRepo: tasks,
+			batchesRepo: batches,
+			documentsRepo: documents,
+			dispatchSnapshotsRepo: dispatchSnapshots,
+			runsRepo: runs,
+			clock: input.clock,
+			ids,
+			bus,
+			envelopeFactory,
+			eventSeqRepo: eventSeq,
+			getDispatchHalt: () => systemService.isDispatchHalted(),
+			listAgents: () => agentService.listAgents(),
+			listDispatchableAgents: () => {
+				const snapshot = agentRegistry.getSnapshot();
+				return Object.keys(snapshot.agents).map((agentId) => {
+					const availability = agentService.getAvailability(agentId);
+					return {
+						agentId,
+						canDispatch: availability?.canDispatch === true,
+					};
+				});
+			},
+		});
+
+	const schedulerTickJob =
+		input.schedulerTickJob ??
+		createSchedulerTickJob({
+			dispatchService,
+			logFailure: (error) => {
+				input.logViolation?.(error instanceof Error ? error.message : String(error));
+			},
+		});
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
@@ -296,9 +348,10 @@ export function createContainer(input: {
 		agents: agentService,
 		landing: landingService,
 		message: messageService,
+		dispatch: dispatchService,
 	});
 
-	const jobs: readonly ContainerJob[] = Object.freeze([]);
+	const jobs: readonly ContainerJob[] = Object.freeze([schedulerTickJob]);
 	const parsedStartedAt = Date.parse(input.clock.now());
 	const startedAtMs = Number.isNaN(parsedStartedAt) ? Date.now() : parsedStartedAt;
 

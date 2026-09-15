@@ -8,12 +8,11 @@ import type { DocumentDto } from '@agent-scheduler/shared/api/documents';
 import type { CreateRunBody, RerunRunResponse, RunDto } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import type { DatabaseConnection } from '../db/open-database.ts';
-import { toDatabaseError } from '../db/open-database.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { allocateConcurrencySlots } from '../domain/concurrency.ts';
 import { evaluatePathClashQueue, isTaskLanded, isTaskPathHolding } from '../domain/path-clash.ts';
 import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
+import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
@@ -21,314 +20,17 @@ import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { EventSeqRepo } from '../repo/event-seq-repo.ts';
+import {
+	type RunInsertRow,
+	type RunRow,
+	type RunsRepo,
+	isConstraintConflict,
+	toRunDto,
+} from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 
-export interface RunRow {
-	readonly id: string;
-	readonly task_id: string;
-	readonly attempt_no: number;
-	readonly kind: string;
-	readonly parent_run_id: string | null;
-	readonly state: string;
-	readonly review_verdict: string | null;
-	readonly agent_id: string;
-	readonly model_name: string | null;
-	readonly reported_model: string | null;
-	readonly effort_tier: string | null;
-	readonly reported_effort: string | null;
-	readonly permission_tier: string;
-	readonly snapshot_id: string;
-	readonly worktree_path: string | null;
-	readonly branch_name: string | null;
-	readonly pid: number | null;
-	readonly exit_code: number | null;
-	readonly exit_signal: string | null;
-	readonly vendor_session_ref: string | null;
-	readonly changed_file_count: number | null;
-	readonly token_usage_json: string | null;
-	readonly unmapped_event_count: number;
-	readonly is_stall_suspected: number;
-	readonly rework_count: number;
-	readonly queued_reason: string | null;
-	readonly idempotency_key: string | null;
-	readonly actor_device_id: string | null;
-	readonly started_at: string | null;
-	readonly last_event_at: string | null;
-	readonly ended_at: string | null;
-}
-
-export interface RunInsertRow {
-	readonly id: string;
-	readonly task_id: string;
-	readonly attempt_no: number;
-	readonly kind: string;
-	readonly parent_run_id?: string | null;
-	readonly state: string;
-	readonly review_verdict?: string | null;
-	readonly agent_id: string;
-	readonly model_name?: string | null;
-	readonly reported_model?: string | null;
-	readonly effort_tier?: string | null;
-	readonly reported_effort?: string | null;
-	readonly permission_tier: string;
-	readonly snapshot_id: string;
-	readonly worktree_path?: string | null;
-	readonly branch_name?: string | null;
-	readonly pid?: number | null;
-	readonly exit_code?: number | null;
-	readonly exit_signal?: string | null;
-	readonly vendor_session_ref?: string | null;
-	readonly changed_file_count?: number | null;
-	readonly token_usage_json?: string | null;
-	readonly unmapped_event_count?: number;
-	readonly is_stall_suspected?: number;
-	readonly rework_count?: number;
-	readonly queued_reason?: string | null;
-	readonly idempotency_key?: string | null;
-	readonly actor_device_id?: string | null;
-	readonly started_at?: string | null;
-	readonly last_event_at?: string | null;
-	readonly ended_at?: string | null;
-}
-
-export interface DispatchRunsRepo {
-	readonly insert: (row: RunInsertRow) => void;
-	readonly findById: (id: string) => RunRow | null;
-	readonly findByIdempotencyKey: (key: string) => RunRow | null;
-	readonly findActiveByTaskId: (taskId: string) => RunRow | null;
-	readonly listByTaskId: (taskId: string) => readonly RunRow[];
-	readonly listActive: () => readonly RunRow[];
-	readonly listAll: () => readonly RunRow[];
-	readonly updateState: (input: {
-		readonly id: string;
-		readonly state: string;
-		readonly queuedReason?: string | null;
-		readonly endedAt?: string | null;
-	}) => void;
-}
-
-const INSERT_RUN_SQL = `
-INSERT INTO runs (
-	id, task_id, attempt_no, kind, parent_run_id, state, review_verdict,
-	agent_id, model_name, reported_model, effort_tier, reported_effort,
-	permission_tier, snapshot_id, worktree_path, branch_name, pid,
-	exit_code, exit_signal, vendor_session_ref, changed_file_count,
-	token_usage_json, unmapped_event_count, is_stall_suspected,
-	rework_count, queued_reason, idempotency_key, actor_device_id,
-	started_at, last_event_at, ended_at
-) VALUES (
-	@id, @task_id, @attempt_no, @kind, @parent_run_id, @state, @review_verdict,
-	@agent_id, @model_name, @reported_model, @effort_tier, @reported_effort,
-	@permission_tier, @snapshot_id, @worktree_path, @branch_name, @pid,
-	@exit_code, @exit_signal, @vendor_session_ref, @changed_file_count,
-	@token_usage_json, @unmapped_event_count, @is_stall_suspected,
-	@rework_count, @queued_reason, @idempotency_key, @actor_device_id,
-	@started_at, @last_event_at, @ended_at
-)
-`;
-
-const SELECT_RUN_BY_ID_SQL = `
-SELECT * FROM runs WHERE id = ? LIMIT 1
-`;
-
-const SELECT_RUN_BY_IDEMPOTENCY_KEY_SQL = `
-SELECT * FROM runs WHERE idempotency_key = ? LIMIT 1
-`;
-
-const SELECT_ACTIVE_RUN_BY_TASK_ID_SQL = `
-SELECT * FROM runs
-WHERE task_id = ? AND state IN ('queued', 'starting', 'running', 'awaiting_reply', 'reviewing', 'reworking', 'awaiting_human')
-ORDER BY attempt_no DESC LIMIT 1
-`;
-
-const SELECT_RUNS_BY_TASK_ID_SQL = `
-SELECT * FROM runs WHERE task_id = ? ORDER BY attempt_no ASC
-`;
-
-const SELECT_ACTIVE_RUNS_SQL = `
-SELECT * FROM runs
-WHERE state IN ('queued', 'starting', 'running', 'awaiting_reply', 'reviewing', 'reworking', 'awaiting_human')
-ORDER BY started_at ASC
-`;
-
-const SELECT_ALL_RUNS_SQL = `
-SELECT * FROM runs ORDER BY started_at DESC
-`;
-
-const UPDATE_RUN_STATE_SQL = `
-UPDATE runs
-SET state = @state,
-    queued_reason = @queued_reason,
-    ended_at = @ended_at
-WHERE id = @id
-`;
-
-export function createSqliteDispatchRunsRepo(db: DatabaseConnection): DispatchRunsRepo {
-	const insertStmt = db.prepare(INSERT_RUN_SQL);
-	const selectByIdStmt = db.prepare(SELECT_RUN_BY_ID_SQL);
-	const selectByIdempotencyKeyStmt = db.prepare(SELECT_RUN_BY_IDEMPOTENCY_KEY_SQL);
-	const selectActiveByTaskIdStmt = db.prepare(SELECT_ACTIVE_RUN_BY_TASK_ID_SQL);
-	const selectByTaskIdStmt = db.prepare(SELECT_RUNS_BY_TASK_ID_SQL);
-	const selectActiveStmt = db.prepare(SELECT_ACTIVE_RUNS_SQL);
-	const selectAllStmt = db.prepare(SELECT_ALL_RUNS_SQL);
-	const updateStateStmt = db.prepare(UPDATE_RUN_STATE_SQL);
-
-	return Object.freeze({
-		insert(row: RunInsertRow): void {
-			try {
-				insertStmt.run({
-					id: row.id,
-					task_id: row.task_id,
-					attempt_no: row.attempt_no,
-					kind: row.kind,
-					parent_run_id: row.parent_run_id ?? null,
-					state: row.state,
-					review_verdict: row.review_verdict ?? null,
-					agent_id: row.agent_id,
-					model_name: row.model_name ?? null,
-					reported_model: row.reported_model ?? null,
-					effort_tier: row.effort_tier ?? null,
-					reported_effort: row.reported_effort ?? null,
-					permission_tier: row.permission_tier,
-					snapshot_id: row.snapshot_id,
-					worktree_path: row.worktree_path ?? null,
-					branch_name: row.branch_name ?? null,
-					pid: row.pid ?? null,
-					exit_code: row.exit_code ?? null,
-					exit_signal: row.exit_signal ?? null,
-					vendor_session_ref: row.vendor_session_ref ?? null,
-					changed_file_count: row.changed_file_count ?? null,
-					token_usage_json: row.token_usage_json ?? null,
-					unmapped_event_count: row.unmapped_event_count ?? 0,
-					is_stall_suspected: row.is_stall_suspected ?? 0,
-					rework_count: row.rework_count ?? 0,
-					queued_reason: row.queued_reason ?? null,
-					idempotency_key: row.idempotency_key ?? null,
-					actor_device_id: row.actor_device_id ?? null,
-					started_at: row.started_at ?? null,
-					last_event_at: row.last_event_at ?? null,
-					ended_at: row.ended_at ?? null,
-				});
-			} catch (cause) {
-				throw toDatabaseError(cause, `Failed to insert run: id=${row.id}`);
-			}
-		},
-
-		findById(id: string): RunRow | null {
-			try {
-				const row = selectByIdStmt.get(id) as RunRow | undefined;
-				return row ? Object.freeze({ ...row }) : null;
-			} catch (cause) {
-				throw toDatabaseError(cause, `Failed to find run by id: ${id}`);
-			}
-		},
-
-		findByIdempotencyKey(key: string): RunRow | null {
-			try {
-				const row = selectByIdempotencyKeyStmt.get(key) as RunRow | undefined;
-				return row ? Object.freeze({ ...row }) : null;
-			} catch (cause) {
-				throw toDatabaseError(cause, `Failed to find run by idempotency key: ${key}`);
-			}
-		},
-
-		findActiveByTaskId(taskId: string): RunRow | null {
-			try {
-				const row = selectActiveByTaskIdStmt.get(taskId) as RunRow | undefined;
-				return row ? Object.freeze({ ...row }) : null;
-			} catch (cause) {
-				throw toDatabaseError(cause, `Failed to find active run for task: ${taskId}`);
-			}
-		},
-
-		listByTaskId(taskId: string): readonly RunRow[] {
-			try {
-				const rows = selectByTaskIdStmt.all(taskId) as RunRow[];
-				return Object.freeze(rows.map((r) => Object.freeze({ ...r })));
-			} catch (cause) {
-				throw toDatabaseError(cause, `Failed to list runs by taskId: ${taskId}`);
-			}
-		},
-
-		listActive(): readonly RunRow[] {
-			try {
-				const rows = selectActiveStmt.all() as RunRow[];
-				return Object.freeze(rows.map((r) => Object.freeze({ ...r })));
-			} catch (cause) {
-				throw toDatabaseError(cause, 'Failed to list active runs');
-			}
-		},
-
-		listAll(): readonly RunRow[] {
-			try {
-				const rows = selectAllStmt.all() as RunRow[];
-				return Object.freeze(rows.map((r) => Object.freeze({ ...r })));
-			} catch (cause) {
-				throw toDatabaseError(cause, 'Failed to list all runs');
-			}
-		},
-
-		updateState(input: {
-			readonly id: string;
-			readonly state: string;
-			readonly queuedReason?: string | null;
-			readonly endedAt?: string | null;
-		}): void {
-			try {
-				updateStateStmt.run({
-					id: input.id,
-					state: input.state,
-					queued_reason: input.queuedReason ?? null,
-					ended_at: input.endedAt ?? null,
-				});
-			} catch (cause) {
-				throw toDatabaseError(cause, `Failed to update run state: ${input.id}`);
-			}
-		},
-	});
-}
-
-export function toRunDto(row: RunRow): RunDto {
-	let tokenUsage: Record<string, unknown> | null = null;
-	if (row.token_usage_json) {
-		try {
-			tokenUsage = JSON.parse(row.token_usage_json);
-		} catch {
-			tokenUsage = null;
-		}
-	}
-
-	return Object.freeze({
-		id: row.id,
-		taskId: row.task_id,
-		attemptNo: row.attempt_no,
-		kind: row.kind as 'implement' | 'review',
-		parentRunId: row.parent_run_id ?? null,
-		state: row.state,
-		reviewVerdict: (row.review_verdict as RunDto['reviewVerdict']) ?? null,
-		agentId: row.agent_id,
-		modelName: row.model_name ?? null,
-		reportedModel: row.reported_model ?? null,
-		effortTier: (row.effort_tier as RunDto['effortTier']) ?? null,
-		reportedEffort: row.reported_effort ?? null,
-		permissionTier: (row.permission_tier as RunDto['permissionTier']) ?? 'workspaceWrite',
-		worktreePath: row.worktree_path ?? null,
-		branchName: row.branch_name ?? null,
-		pid: row.pid ?? null,
-		exitCode: row.exit_code ?? null,
-		exitSignal: row.exit_signal ?? null,
-		changedFileCount: row.changed_file_count ?? null,
-		tokenUsage,
-		isStallSuspected: row.is_stall_suspected === 1,
-		reworkCount: row.rework_count ?? 0,
-		queuedReason: row.queued_reason ?? null,
-		idempotencyKey: row.idempotency_key ?? '',
-		actorDeviceId: row.actor_device_id ?? null,
-		startedAt: row.started_at ?? null,
-		lastEventAt: row.last_event_at ?? null,
-		endedAt: row.ended_at ?? null,
-	});
-}
+export type { RunInsertRow, RunRow, RunsRepo };
+export { toRunDto };
 
 export function toBatchDto(row: BatchRow): BatchDto {
 	return Object.freeze({
@@ -415,14 +117,19 @@ export interface PauseBatchInput {
 	readonly actorDeviceId?: string | null;
 }
 
+export interface DispatchableAgent {
+	readonly agentId: string;
+	readonly canDispatch: boolean;
+	readonly concurrencyLimit?: number;
+}
+
 export interface DispatchServiceDeps {
-	readonly database?: DatabaseConnection;
 	readonly unitOfWork?: UnitOfWork;
 	readonly tasksRepo: TasksRepo;
 	readonly batchesRepo: BatchesRepo;
 	readonly documentsRepo: DocumentsRepo;
 	readonly dispatchSnapshotsRepo: DispatchSnapshotsRepo;
-	readonly runsRepo?: DispatchRunsRepo;
+	readonly runsRepo: RunsRepo;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly bus?: EventBus;
@@ -431,6 +138,8 @@ export interface DispatchServiceDeps {
 	readonly getDispatchHalt?: () => boolean;
 	readonly agentLimits?: number | Record<string, number> | ((agentId: string) => number);
 	readonly listAgents?: () => Promise<readonly unknown[]> | readonly unknown[];
+	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
+	readonly resolveAgentForTask?: (task: TaskRow) => string | null;
 }
 
 export interface DispatchService {
@@ -444,15 +153,20 @@ export interface DispatchService {
 	tick(): Promise<SchedulerTickResult>;
 }
 
-export function createDispatchService(deps: DispatchServiceDeps): DispatchService {
-	const runsRepo: DispatchRunsRepo =
-		deps.runsRepo ??
-		(deps.database
-			? createSqliteDispatchRunsRepo(deps.database)
-			: (() => {
-					throw new AppError('E_INTERNAL', 'RunsRepo or database connection must be provided');
-				})());
+const DEFAULT_AGENT_CONCURRENCY_LIMIT = 2;
 
+function resolveConstraintConflict(
+	error: unknown,
+	fallback: () => CreateRunResult | null,
+): CreateRunResult | null {
+	if (!isConstraintConflict(error)) {
+		return null;
+	}
+	return fallback();
+}
+
+export function createDispatchService(deps: DispatchServiceDeps): DispatchService {
+	const runsRepo = deps.runsRepo;
 	let isTicking = false;
 
 	function checkContractReady(task: TaskRow): void {
@@ -511,6 +225,49 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return runs.some((r) => r.state === 'landed');
 	}
 
+	function listDispatchableAgents(): readonly DispatchableAgent[] {
+		if (deps.listDispatchableAgents) {
+			return deps.listDispatchableAgents();
+		}
+		return Object.freeze([]);
+	}
+
+	function resolveAgentForTask(task: TaskRow): string | null {
+		if (deps.resolveAgentForTask) {
+			return deps.resolveAgentForTask(task);
+		}
+		const available = listDispatchableAgents().find((agent) => agent.canDispatch);
+		return available?.agentId ?? null;
+	}
+
+	function isAgentDispatchable(agentId: string): boolean {
+		const agents = listDispatchableAgents();
+		if (agents.length === 0) {
+			return false;
+		}
+		return agents.some((agent) => agent.agentId === agentId && agent.canDispatch);
+	}
+
+	function agentLimitFor(agentId: string): number {
+		if (typeof deps.agentLimits === 'function') {
+			return Math.max(1, Math.floor(deps.agentLimits(agentId)));
+		}
+		if (typeof deps.agentLimits === 'number') {
+			return Math.max(1, Math.floor(deps.agentLimits));
+		}
+		if (deps.agentLimits && typeof deps.agentLimits === 'object') {
+			const mapped = deps.agentLimits[agentId];
+			if (typeof mapped === 'number') {
+				return Math.max(1, Math.floor(mapped));
+			}
+		}
+		const listed = listDispatchableAgents().find((agent) => agent.agentId === agentId);
+		if (typeof listed?.concurrencyLimit === 'number') {
+			return Math.max(1, Math.floor(listed.concurrencyLimit));
+		}
+		return DEFAULT_AGENT_CONCURRENCY_LIMIT;
+	}
+
 	async function createRun(input: CreateRunInput): Promise<CreateRunResult> {
 		const { taskId, agentId, idempotencyKey } = input;
 		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
@@ -527,7 +284,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			throw new AppError('E_VALIDATION', 'idempotencyKey must be a non-empty string');
 		}
 
-		// AC 2 & E-126: 幂等键唯一，两端同时点派发时第二次返回既有 run 而非起第二个进程
 		const existingByIdempotency = runsRepo.findByIdempotencyKey(idempotencyKey);
 		if (existingByIdempotency) {
 			return {
@@ -543,16 +299,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 
-		// E-82: 文档源不可读检查
 		checkDocumentReadable(task.doc_id);
-
-		// E-18, E-77: 任务从文档移除检查
 		checkTaskRemoved(task);
-
-		// AC 5, E-50, E-82: is_contract_ready 检查，人工确认不绕过文档契约阻断
 		checkContractReady(task);
 
-		// AC 2 & E-126: 同一任务若已有在途运行，第二次调用返回既有 run 而非起第二个进程
+		if (!isAgentDispatchable(agentId)) {
+			throw new AppError('E_AGENT_UNAVAILABLE', `Agent ${agentId} is not available for dispatch`, {
+				details: { agentId, taskId },
+			});
+		}
+
 		const activeRun = runsRepo.findActiveByTaskId(taskId);
 		if (activeRun) {
 			return {
@@ -561,7 +317,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			};
 		}
 
-		// 创建派发快照（E-19、E-50）
 		const now = deps.clock.now();
 		const launchSpecJson = JSON.stringify({
 			agentId,
@@ -571,60 +326,55 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			worktreeMode: input.worktreeMode ?? 'fresh',
 		});
 
-		const snapshot = deps.dispatchSnapshotsRepo.takeSnapshotForTask({
-			taskId,
-			launchSpecJson,
-			createdAt: now,
-		});
-
 		const existingRuns = runsRepo.listByTaskId(taskId);
 		const attemptNo = existingRuns.length + 1;
 		const runId = deps.ids.newId();
 
-		const runInsert: RunInsertRow = {
-			id: runId,
-			task_id: taskId,
-			attempt_no: attemptNo,
-			kind: input.kind ?? 'implement',
-			parent_run_id: input.parentRunId ?? null,
-			state: 'starting',
-			agent_id: agentId,
-			model_name: input.model ?? null,
-			permission_tier: input.permissionTier ?? 'workspaceWrite',
-			snapshot_id: snapshot.id,
-			idempotency_key: idempotencyKey,
-			actor_device_id: input.actorDeviceId ?? null,
-			started_at: now,
+		const persist = (): { readonly snapshotId: string } => {
+			const snapshot = deps.dispatchSnapshotsRepo.takeSnapshotForTask({
+				taskId,
+				launchSpecJson,
+				createdAt: now,
+			});
+			const runInsert: RunInsertRow = {
+				id: runId,
+				task_id: taskId,
+				attempt_no: attemptNo,
+				kind: input.kind ?? 'implement',
+				parent_run_id: input.parentRunId ?? null,
+				state: 'starting',
+				agent_id: agentId,
+				model_name: input.model ?? null,
+				permission_tier: input.permissionTier ?? 'workspaceWrite',
+				snapshot_id: snapshot.id,
+				idempotency_key: idempotencyKey,
+				actor_device_id: input.actorDeviceId ?? null,
+				started_at: now,
+			};
+			runsRepo.insert(runInsert);
+			return { snapshotId: snapshot.id };
 		};
 
 		try {
-			runsRepo.insert(runInsert);
-		} catch (err) {
-			// 并发竞争处理：命中 SQLite 唯一约束时安全回退至已创建的 run
-			const errMessage = err instanceof Error ? err.message : String(err);
-			if (
-				errMessage.includes('UNIQUE constraint failed: runs.idempotency_key') ||
-				errMessage.includes('runs.idempotency_key')
-			) {
-				const racedRun = runsRepo.findByIdempotencyKey(idempotencyKey);
-				if (racedRun) {
-					return {
-						run: toRunDto(racedRun),
-						isExisting: true,
-					};
-				}
+			if (deps.unitOfWork) {
+				deps.unitOfWork.run(persist);
+			} else {
+				persist();
 			}
-			if (
-				errMessage.includes('UNIQUE constraint failed: runs.task_id, runs.attempt_no') ||
-				errMessage.includes('runs.task_id')
-			) {
+		} catch (err) {
+			const racedByKey = resolveConstraintConflict(err, () => {
+				const racedRun = runsRepo.findByIdempotencyKey(idempotencyKey);
+				return racedRun ? { run: toRunDto(racedRun), isExisting: true } : null;
+			});
+			if (racedByKey) {
+				return racedByKey;
+			}
+			const racedByTask = resolveConstraintConflict(err, () => {
 				const active = runsRepo.findActiveByTaskId(taskId);
-				if (active) {
-					return {
-						run: toRunDto(active),
-						isExisting: true,
-					};
-				}
+				return active ? { run: toRunDto(active), isExisting: true } : null;
+			});
+			if (racedByTask) {
+				return racedByTask;
 			}
 			throw err;
 		}
@@ -670,7 +420,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			throw new AppError('E_VALIDATION', 'idempotencyKey must be a non-empty string');
 		}
 
-		// 幂等复用既有 rerun
 		const existingByIdempotency = runsRepo.findByIdempotencyKey(idempotencyKey);
 		if (existingByIdempotency) {
 			return {
@@ -690,16 +439,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			throw new AppError('E_NOT_FOUND', `Task not found: ${previousRun.task_id}`);
 		}
 
-		// E-82: 文档源不可读检查
 		checkDocumentReadable(task.doc_id);
-
-		// E-18, E-77: 任务从文档移除检查
 		checkTaskRemoved(task);
-
-		// AC 5, E-50, E-82: 重派入口检查 is_contract_ready，未通过返回 E_DOC_CONTRACT_PENDING
 		checkContractReady(task);
 
-		// 若任务当前已有在途运行，返回既有运行（AC 2, E-126）
 		const active = runsRepo.findActiveByTaskId(task.id);
 		if (active) {
 			return {
@@ -736,11 +479,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 
-		// E-82: 检查文档源是否可读
 		checkDocumentReadable(batch.doc_id);
 
-		// AC 3, E-49, E-281: 下一批启动条件是本批 done——全部「已落地」且批次状态为 done
-		// 前一批未 done 时返回既有前置检查错误并在 details.previousBatchState 写明
 		if (batch.batch_no > 1) {
 			const prevBatch = deps.batchesRepo.findByDocAndBatchNo(batch.doc_id, batch.batch_no - 1);
 			if (prevBatch) {
@@ -758,7 +498,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					);
 				}
 
-				// 校验前一批所有任务是否全部落地
 				const prevTasks = deps.tasksRepo.listByBatchId(prevBatch.id);
 				const unlanded = prevTasks.filter((t) => !isTaskFinishedOrLanded(t));
 				if (unlanded.length > 0) {
@@ -785,7 +524,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			finished_at: null,
 		});
 
-		// 触发一次调度排队与候选任务计数
 		const batchTasks = deps.tasksRepo.listByBatchId(batchId);
 		const activeRunTaskIds = new Set(runsRepo.listActive().map((r) => r.task_id));
 		const queuedCount = batchTasks.filter(
@@ -793,7 +531,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				!isTaskFinishedOrLanded(t) && !activeRunTaskIds.has(t.id) && t.is_removed_from_doc === 0,
 		).length;
 
-		// 触发一次 scheduler tick
 		void tick();
 
 		return {
@@ -874,12 +611,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		});
 	}
 
-	/**
-	 * scheduler-tick 核心调度推进逻辑（AC 1, AC 3, AC 4, AC 5, E-126, E-281, E-49, E-50, E-51, E-82）
-	 * 全局内存互斥量：禁止并发 tick、禁止重入
-	 */
 	async function tick(): Promise<SchedulerTickResult> {
-		// AC 1: 全局一把内存互斥量，禁止并发 tick、禁止重入
 		if (isTicking) {
 			return {
 				executed: false,
@@ -911,7 +643,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 			const documents = deps.documentsRepo.listAll();
 			for (const doc of documents) {
-				// E-82: 文档源不可读时冻结新派发
 				if (doc.is_source_readable === 0) {
 					continue;
 				}
@@ -923,7 +654,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const tasks = deps.tasksRepo.listByBatchId(batch.id);
 					if (tasks.length === 0) continue;
 
-					// AC 3 & E-49: 批次推导——若全批任务均已 landed，批次推进为 done
 					const allLanded = tasks.every((t) => isTaskFinishedOrLanded(t));
 					if (allLanded) {
 						const now = deps.clock.now();
@@ -945,16 +675,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 							deps.bus.publish(env);
 						}
-						continue; // 当前批已完成，不再向本批派发
+						continue;
 					}
 
-					// 查找有依赖阻断或终态失败的任务状态
 					const taskByKey = new Map<string, TaskRow>();
 					for (const t of tasks) {
 						taskByKey.set(t.task_key, t);
 					}
 
-					// AC 4 & E-51: 收集已派运行，任何情况下不自动重派失败/中断任务
 					const allRunsForDoc = runsRepo.listAll();
 					const latestRunByTaskId = new Map<string, RunRow>();
 					for (const r of allRunsForDoc) {
@@ -964,20 +692,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						}
 					}
 
-					// 收集活跃运行
 					const activeRuns = runsRepo.listActive();
 					const activeTaskIds = new Set(activeRuns.map((r) => r.task_id));
-
-					// 筛选本批可放行候选任务
 					const candidateTasks: TaskRow[] = [];
 
 					for (const t of tasks) {
-						// 1. 已经落地或正在运行中，不重复派发（AC 1）
 						if (isTaskFinishedOrLanded(t) || activeTaskIds.has(t.id)) {
 							continue;
 						}
 
-						// 2. AC 4 & E-51: 进程死后或已失败的任务，任何情况下不自动重派，等待人工干预
 						const latestRun = latestRunByTaskId.get(t.id);
 						if (latestRun && isTerminalRunState(latestRun.state as RunState)) {
 							if (
@@ -990,8 +713,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							}
 						}
 
-						// 3. 依赖前置检查（AC 3 & E-49）：
-						//    批内某任务失败或未过时不阻塞无依赖任务；有依赖的前置必须已落地
 						let depsSatisfied = true;
 						let depKeys: string[] = [];
 						try {
@@ -1012,7 +733,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							continue;
 						}
 
-						// 4. AC 5 & E-82: 检查 is_contract_ready
 						if (t.is_contract_ready !== 1) {
 							tasksBlocked.push({
 								taskId: t.id,
@@ -1021,7 +741,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							continue;
 						}
 
-						// 5. AC 5 & E-50: 检查中途文档指纹/提示词变化，变化时自动暂停后续派发待确认
 						if (t.has_accept_changed === 1 || t.has_prompt_changed === 1) {
 							tasksBlocked.push({
 								taskId: t.id,
@@ -1037,7 +756,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						continue;
 					}
 
-					// M8-T2: 路径冲突队列评估
 					const candidateDescriptors = candidateTasks.map((t) => {
 						let taskPaths: string[] = [];
 						try {
@@ -1086,7 +804,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						});
 					}
 
-					// M8-T1: 并发窗口与每 agent 限制评估
 					const dispatchableTasks = candidateTasks.filter((t) =>
 						pathClashResult.dispatchable.some((d) => d.taskId === t.id),
 					);
@@ -1095,22 +812,29 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						continue;
 					}
 
+					const assigned: Array<{ readonly task: TaskRow; readonly agentId: string }> = [];
+					for (const t of dispatchableTasks) {
+						const agentId = resolveAgentForTask(t);
+						if (!agentId || !isAgentDispatchable(agentId)) {
+							tasksBlocked.push({
+								taskId: t.id,
+								reason: 'agent_unavailable',
+							});
+							continue;
+						}
+						assigned.push({ task: t, agentId });
+					}
+
+					if (assigned.length === 0) {
+						continue;
+					}
+
 					const activeRunCount = activeRuns.filter((r) => isTaskPathHolding(r.state)).length;
 					const availableSlots = Math.max(0, doc.lane_count - activeRunCount);
-
 					const activeRunsByAgent: Record<string, number> = {};
 					for (const r of activeRuns) {
 						activeRunsByAgent[r.agent_id] = (activeRunsByAgent[r.agent_id] ?? 0) + 1;
 					}
-
-					const agentLimitsFn =
-						typeof deps.agentLimits === 'function'
-							? deps.agentLimits
-							: typeof deps.agentLimits === 'number'
-								? () => deps.agentLimits as number
-								: typeof deps.agentLimits === 'object' && deps.agentLimits !== null
-									? (agentId: string) => (deps.agentLimits as Record<string, number>)[agentId] ?? 2
-									: () => 2;
 
 					interface SlotCandidate {
 						readonly id: string;
@@ -1120,13 +844,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					}
 
 					const slotResult = allocateConcurrencySlots<SlotCandidate>({
-						candidates: dispatchableTasks.map((t) => ({
-							id: t.id,
-							agentId: 'codex', // 默认 agentId，后续支持指派覆盖
-							task: t,
+						candidates: assigned.map((item) => ({
+							id: item.task.id,
+							agentId: item.agentId,
+							task: item.task,
 						})),
 						availableSlots,
-						agentLimits: agentLimitsFn,
+						agentLimits: agentLimitFor,
 						activeRunsByAgent,
 					});
 
@@ -1137,11 +861,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						});
 					}
 
-					// 派发通过放行的任务（AC 1: 内存互斥保证同一任务不会被派两次）
 					for (const item of slotResult.admitted) {
 						const task = item.task;
 						const idempotencyKey = `auto_${task.id}_${deps.ids.newId()}`;
-
 						try {
 							const runResult = await createRun({
 								taskId: task.id,
@@ -1151,10 +873,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 							runsDispatched.push(runResult.run.id);
 						} catch (err) {
-							// 捕获个别任务派发异常，不中断整个 tick
 							tasksBlocked.push({
 								taskId: task.id,
-								reason: err instanceof Error ? err.message : String(err),
+								reason: isAppError(err) ? err.code : 'dispatch_failed',
 							});
 						}
 					}

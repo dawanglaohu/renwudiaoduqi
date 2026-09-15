@@ -3,13 +3,23 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createContainer } from '../../src/boot/container.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { AppError } from '../../src/errors/app-error.ts';
 import { errorHandlerPlugin } from '../../src/http/plugins/90-error-handler.ts';
 import { registerBatchesRoutes } from '../../src/http/routes/batches.ts';
 import { registerDispatchRunsRoutes } from '../../src/http/routes/runs.ts';
 import { registerSnapshotRoute } from '../../src/http/routes/snapshot.ts';
+import { createHttpServer } from '../../src/http/server.ts';
 import { createSchedulerTickJob } from '../../src/jobs/scheduler-tick.ts';
+import type {
+	LockFileHandle,
+	NativeLockAdapter,
+	NativeLockFailure,
+	NativeLockReadResult,
+	NativeLockWriteResult,
+} from '../../src/platform/lock-contract.ts';
 import { type BatchesRepo, createBatchesRepo } from '../../src/repo/batches.ts';
 import {
 	type DispatchSnapshotsRepo,
@@ -17,13 +27,11 @@ import {
 } from '../../src/repo/dispatch-snapshots.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../../src/repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../../src/repo/event-seq-repo.ts';
+import { type RunsRepo, createRunsRepo } from '../../src/repo/runs.ts';
 import { type TasksRepo, createTasksRepo } from '../../src/repo/tasks.ts';
-import {
-	type DispatchRunsRepo,
-	type DispatchService,
-	createDispatchService,
-	createSqliteDispatchRunsRepo,
-} from '../../src/service/dispatch.ts';
+import type { DispatchService } from '../../src/service/dispatch.ts';
+import { createDispatchService } from '../../src/service/dispatch.ts';
+import type { PairingService } from '../../src/service/pairing.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = resolve(currentDir, '../../migrations');
@@ -52,7 +60,7 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 	let batchesRepo: BatchesRepo;
 	let tasksRepo: TasksRepo;
 	let dispatchSnapshotsRepo: DispatchSnapshotsRepo;
-	let runsRepo: DispatchRunsRepo;
+	let runsRepo: RunsRepo;
 	let eventSeqRepo: EventSeqRepo;
 	let dispatchService: DispatchService;
 	let testTime = '2026-09-15T10:00:00.000Z';
@@ -73,7 +81,7 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 		batchesRepo = createBatchesRepo(db);
 		tasksRepo = createTasksRepo(db);
 		dispatchSnapshotsRepo = createDispatchSnapshotsRepo(db);
-		runsRepo = createSqliteDispatchRunsRepo(db);
+		runsRepo = createRunsRepo(db);
 		eventSeqRepo = createEventSeqRepo(db);
 
 		// Seed initial document
@@ -93,7 +101,6 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 		});
 
 		dispatchService = createDispatchService({
-			database: db,
 			tasksRepo,
 			batchesRepo,
 			documentsRepo,
@@ -103,7 +110,7 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 			clock,
 			ids,
 			agentLimits: 2,
-			listAgents: () => [{ id: 'codex', available: true }],
+			listDispatchableAgents: () => [{ agentId: 'codex', canDispatch: true, concurrencyLimit: 2 }],
 		});
 	});
 
@@ -731,6 +738,147 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 			expect(body.documents.length).toBeGreaterThan(0);
 			expect(body.batches.length).toBeGreaterThan(0);
 			expect(body.tasks.length).toBeGreaterThan(0);
+		});
+	});
+
+	describe('R3: agent availability is required before auto-dispatch', () => {
+		it('does not create a run when the registry has no dispatchable agent', async () => {
+			dispatchService = createDispatchService({
+				tasksRepo,
+				batchesRepo,
+				documentsRepo,
+				dispatchSnapshotsRepo,
+				runsRepo,
+				eventSeqRepo,
+				clock,
+				ids,
+				agentLimits: 2,
+				listDispatchableAgents: () => [],
+			});
+			seedBatch({ id: 'batch-1', batchNo: 1, state: 'running' });
+			seedTask({ id: 'task-1', taskKey: 'T1', batchId: 'batch-1' });
+
+			const tickResult = await dispatchService.tick();
+			expect(tickResult.executed).toBe(true);
+			expect(runsRepo.listByTaskId('task-1').length).toBe(0);
+			expect(tickResult.tasksBlocked).toContainEqual({
+				taskId: 'task-1',
+				reason: 'agent_unavailable',
+			});
+		});
+	});
+
+	describe('R1: boot wiring through createContainer', () => {
+		function createMemoryLockAdapter(): NativeLockAdapter {
+			let lockContents: string | undefined;
+			const missing = (): NativeLockFailure => ({
+				kind: 'not-found',
+				error: new AppError('E_INTERNAL', 'Memory lock is missing.'),
+			});
+			return Object.freeze({
+				platform: 'linux',
+				filePath: '/machine/daemon.lock',
+				dirPath: '/machine',
+				reclaimPath: '/machine/daemon.lock.reclaim',
+				permissionLines: ['root:root 0600'],
+				createExclusive(contents: string): NativeLockWriteResult {
+					if (lockContents !== undefined) {
+						return {
+							ok: false,
+							failure: {
+								kind: 'already-exists',
+								error: new AppError('E_INTERNAL', 'Memory lock already exists.'),
+							},
+						};
+					}
+					lockContents = contents;
+					return { ok: true };
+				},
+				read(): NativeLockReadResult {
+					return lockContents === undefined
+						? { ok: false, failure: missing() }
+						: { ok: true, contents: lockContents };
+				},
+				remove(): NativeLockWriteResult {
+					lockContents = undefined;
+					return { ok: true };
+				},
+				verifyPermissions: (): NativeLockWriteResult => ({ ok: true }),
+				inspectPermissions: (): NativeLockReadResult => ({
+					ok: true,
+					contents: 'root:root mode=600',
+				}),
+				createReclaimGuard: (): NativeLockWriteResult => ({ ok: true }),
+				readReclaimGuard(): NativeLockReadResult {
+					return { ok: false, failure: missing() };
+				},
+				removeReclaimGuard: (): NativeLockWriteResult => ({ ok: true }),
+			});
+		}
+
+		it('wires dispatch routes and scheduler-tick through createContainer', async () => {
+			const lockAdapter = createMemoryLockAdapter();
+			const mockPairingService: PairingService = {
+				bootstrapIfNeeded: () => ({ bootstrapped: false }),
+				getActivePairingCode: () => null,
+				createPairingCode: () => ({ code: '123456', expiresAt: '2026-09-15T12:01:00.000Z' }),
+				claimPairingCode: async () => ({ deviceId: 'dev-1', token: 'mock-valid-token' }),
+				invalidatePairingCode: () => undefined,
+				listDevices: () => [],
+				revokeDevice: () => ({ revokedAt: '2026-09-15T10:00:00.000Z' }),
+				authenticateToken: (authHeader) => {
+					if (!authHeader || !authHeader.startsWith('Bearer ')) {
+						throw new AppError('E_UNAUTHORIZED', 'Missing or invalid Authorization header');
+					}
+					return { deviceId: 'dev-1', deviceName: 'test-device' };
+				},
+				registerConnection: () => () => undefined,
+			};
+			const container = createContainer({
+				config: {
+					port: 7817,
+					bind: '127.0.0.1',
+					dataDir: resolve(currentDir, '../fixtures'),
+					logLevel: 'error',
+					dev: false,
+				},
+				database: db,
+				hostInputs: { platform: 'linux', homedir: resolve(currentDir, '../fixtures') },
+				lockAdapter,
+				instanceLock: { release: () => undefined } as unknown as LockFileHandle,
+				clock,
+				pairingService: mockPairingService,
+			});
+
+			expect(container.jobs.some((job) => job.name === 'scheduler-tick')).toBe(true);
+			expect(container.services.dispatch).toBeDefined();
+
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+
+			const snapshotRes = await server.instance.inject({
+				method: 'GET',
+				url: '/api/v1/snapshot',
+			});
+			expect(snapshotRes.statusCode).not.toBe(501);
+			expect(snapshotRes.statusCode).not.toBe(404);
+			const snapshotBody = JSON.parse(snapshotRes.body);
+			expect(snapshotBody.error?.message ?? '').not.toMatch(/not implemented yet/i);
+
+			const createRes = await server.instance.inject({
+				method: 'POST',
+				url: '/api/v1/runs',
+				payload: {
+					taskId: 'missing',
+					agentId: 'codex',
+					idempotencyKey: 'boot-wiring-key',
+				},
+			});
+			expect(createRes.statusCode).not.toBe(501);
+			const createBody = JSON.parse(createRes.body);
+			expect(createBody.error?.message ?? '').not.toMatch(/not implemented yet/i);
+
+			await server.close();
 		});
 	});
 });

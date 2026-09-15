@@ -290,11 +290,7 @@ export function registerRunsRoutes(
 	instance: FastifyInstance,
 	options?: RegisterRunsRoutesOptions,
 ): void {
-	// If dispatch service is supplied in options or container, mount dispatch routes as well
-	const container = (instance as unknown as { container?: ContainerWithServices })?.container;
-	if (options?.dispatchService || container?.services?.dispatch) {
-		registerDispatchRunsRoutes(instance, options);
-	}
+	registerDispatchRunsRoutes(instance, options);
 
 	const abortHandler: RouteHandlerMethod = async (request) => {
 		const params = request.params as AbortRunParams;
