@@ -577,9 +577,12 @@
       "支持文件：service/landing.ts、boot/container.ts、http/plugins/50-routes.ts 已补入 M5-T4.supportPaths；与在途 M6-T8（50-routes.ts）共同持有，双方均为新增 hunk",
       "合并 origin/main 后：container.ts 与 M6-T6 的 runMessages/messageService 为并列新增，冲突取并集解决，repos 同时含 tasks 与 runMessages，services 同时含 landing 与 message",
       "检查：tsc -b --noEmit 通过；biome ci . 通过；landing.test.ts 19/20 通过，唯一失败为 Windows 侧 resolveGitExecutable 找不到 git（用例写死 platform: linux），已落地的 M5-T1 worktree.test.ts 同样失败，属既有环境差异",
-      "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）"
+      "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）",
+      "2026-09-14 状态纠正复核（以上检查保留为此前落地证据，并非本次重跑）：当前 revalidation 的来源为 M6-T8-support-paths-20260914，而不是新的 M5-T4 需求。该补丁跨过 M5-T4 自身落地提交，把已复核的支持路径变化再次计入差异。",
+      "本次核对 b3a4416（M6-T8 合并前）与 fa95214：M5-T4 的 presentation.taskPaths、task-contracts 条目、任务笔记完全一致；workspace/landing.ts、service/landing.ts、http/routes/tasks.ts 与 landing.test.ts 无差异。共享 container.ts 和 50-routes.ts 只并列新增日志服务与端点，原 landing 装配和路由保留。",
+      "本次只撤销错误的待复验显示：保持 M5-T4 status=done，使用 verify（不带 patch）及 --landed 清除本次误标，不更改验收标准或其他任务的实施状态。"
     ],
-    "reviewed": "2026-09-14T10:12:44.002565+00:00",
+    "reviewed": "2026-09-15T01:23:22.289934+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -663,6 +666,19 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M6-T4": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "44ae5b0d959c276a951a29a0f5b6ca6b4d2e7fafe59af8817488cc373eb2a4ca",
+    "evidence": [
+      "2026-09-15 复验触发面（revalidation.json 记录的 changedFields：definition / effectivePaths）：本次标记不是 M6-T4 自身出了问题，而是 M9-T5 的补丁 M9-T5-support-paths-and-output-scope 在取基线之后，main 合并了 M6-T4 自己的补丁 m6-t4-support-paths（PR 80，status=verified），于是重算契约差异时 M6-T4 的条目相对旧基线发生了变化。只核这条变化，未重开 M6-T4 的验收。",
+      "变化条款逐条核对：m6-t4-support-paths 的 reason 是「产出必需的停滞检测单测 packages/daemon/test/unit/stall-detector.test.ts 未列入有效范围」，其 changes 只涉及 context 文本；落到 task-contracts.json 的实际差异是新增 M6-T4.supportPaths = [\"packages/daemon/test/unit/stall-detector.test.ts\"]，追加式改动、未放行整目录、未降低验收。本分支上该条目原样存在（_run/task-contracts.json 的 M6-T4 条目只有这一项）。",
+      "落点存在性：packages/daemon/test/unit/stall-detector.test.ts 在 main 上存在（本分支合并 main 后同样存在，Test-Path 为 True），与包内既有支持路径写法一致（对照 M9-T4.supportPaths = [packages/web/test/http-client.test.ts, packages/web/tsconfig.json]、M2-T5.supportPaths 的同类先例）。",
+      "M9-T5 的补丁只改 19-模块任务拆分.md 的 M9-T5 / M9-T6 两行与 M9-T5.supportPaths，未触及 M6-T4 的行、路径或代码；两者除共用章节的上下文外没有交集，因此 M6-T4 的契约内容与 main 上一致，待复验标记可以清除。"
+    ],
+    "reviewed": "2026-09-15T01:14:58.944341+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M6-T5": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "6e040ed72c18f68fa49814f18f389814efa06da98ac5680799dc9e2038af5adb",
@@ -682,9 +698,12 @@
       "本次待复验字段仅为 effectivePaths（M5-T4 的 supportPaths 补丁触发重新计算），M6-T6 的验收条款与边界本身未变",
       "复核有效范围：presentation.json handoff.taskPaths['M6-T6'] 六条路径与已合并 PR #69 的实际改动文件逐一对应，无多列也无漏列",
       "  service/message.ts、repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts",
-      "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过"
+      "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过",
+      "2026-09-14 状态纠正复核（以上为此前 M5-T4 落地时的证据，并非本次重跑）：当前误标由 M6-T8-support-paths-20260914 跨合并同步再次传播 effectivePaths 变化造成；M6-T6 仍已合并，不能将该标记视为新的代码审查或实施状态。",
+      "本次核对 b3a4416 与 fa95214：M6-T6 的 taskPaths、task-contracts 条目和任务笔记完全一致；service/message.ts、repo/run-messages-repo.ts、message-service.test.ts 无差异。共享 runs.ts 仍保留原 messageHandler、请求校验、actorDeviceId 传递和响应；container.ts 与 50-routes.ts 保留 message 装配和路由，只并列新增 runLog。",
+      "本次保持 status=done，通过不带 patch 的 verify 及 --landed 撤销错误的待复验标记；不改变其他任务的生命周期与浏览器手工推进记录。"
     ],
-    "reviewed": "2026-09-14T10:15:15.310300+00:00",
+    "reviewed": "2026-09-15T01:23:34.175756+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1059,6 +1078,20 @@
       "pnpm -w check 通过：check-error-codes 49 条与 10 节逐行一致、check-contrast 与 check-forbidden 通过、biome ci 239 文件无问题、tsc -b --noEmit 通过、vitest 70 文件 832 通过 / 32 跳过 / 0 失败（864 例），2026-09-13，WSL Ubuntu 20.04（better-sqlite3 源码重编）。修复前 main@131faa2 同一命令在第一步 check-error-codes 即失败（10 节新增三条错误码未投影到 codes.ts，M2-T6 架构测试 AC 5 随之红）；本分支按 M2-T6 的投影职责补齐三条并修正脚本表头判定后全绿。"
     ],
     "reviewed": "2026-09-13T01:57:39.013964+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T5": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "2aa5ca33aecac46bb7119a7f93155c43febae8d49cf2d4fe81eb3180b10f7c9a",
+    "evidence": [
+      "2026-09-15 复验触发面（revalidation.json 记录的 changedFields：definition / effectivePaths / task）：全部来自本任务自身的补丁 M9-T5-support-paths-and-output-scope，不含任何别的补丁带来的实质变化。当前契约哈希 2aa5ca33aecac46bb7119a7f93155c43febae8d49cf2d4fe81eb3180b10f7c9a 与补丁轮 verify 时登记的哈希逐字符相同，即补丁轮复核覆盖的就是现在这份契约，没有新增条款需要重核。",
+      "①effectivePaths：_run/task-contracts.json 的 M9-T5.supportPaths 仍为 packages/web/test/sse-client.test.ts（唯一一项），与 17 节「src/lib 之外的本任务测试也要有落点」的要求一致；该文件在 main 上不存在、在本分支由本任务新建（packages/web/test/sse-client.test.ts，15 个用例）。全仓没有第二个任务的 taskPaths/supportPaths 声明该文件，无路径冲突。",
+      "②task / definition：04-执行/19-模块任务拆分.md 第 86-87 行现在是「M9-T5 产出 `api/sse-client.ts`」「M9-T6 输入 M9-T5 的 SSE 客户端与事件分派接口、产出 `api/event-bus.ts`（RunStreamBuffer 环形数组、useSyncExternalStore 订阅）」，与排程共用的 presentation.json handoff.taskPaths（M9-T5=packages/web/src/api/sse-client.ts、M9-T6=packages/web/src/api/event-bus.ts）一致；M9-T5 的六条验收标准与五条边界原文未删未改。",
+      "③合并 main（含 M6-T4 落地）后本层代码未变：packages/web/src/api/sse-client.ts 与 packages/web/test/sse-client.test.ts 在合并提交里没有冲突、内容与补丁轮复核时相同；重跑 node_modules/.bin/vitest run packages/web/test → 11 文件 137 用例全过（含 sse-client.test.ts 15 用例）；biome ci . → 0 违规；tsc -b --noEmit → 退出码 0；check-error-codes.mjs → 49 条一致；check-forbidden.ts → 0 违规。",
+      "④M6-T4 在本分支同时被标为待复验，与 M9-T5 无关（原因是 main 上 M6-T4 自己的补丁 m6-t4-support-paths 在 M9-T5 补丁取基线之后合并进来）。M9-T5 的验收结论不依赖 M6-T4，本任务有效范围也不含任何 daemon 路径。"
+    ],
+    "reviewed": "2026-09-15T01:14:49.342468+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
