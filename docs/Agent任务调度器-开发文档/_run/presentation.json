@@ -342,9 +342,11 @@
         "packages/daemon/src/domain/path-clash.ts"
       ],
       "M8-T3": [
-        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/http/routes/batches.ts",
         "packages/daemon/src/jobs/scheduler-tick.ts",
-        "packages/daemon/src/http/routes/batches.ts"
+        "packages/daemon/src/service/dispatch.ts"
       ],
       "M8-T4": [
         "packages/daemon/src/domain/gates.ts",

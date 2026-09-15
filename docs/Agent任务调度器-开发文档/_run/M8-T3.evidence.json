@@ -1,0 +1,19 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T3": {
+      "contractHash": "79267cb119de5fdb790eac5ad101e7f373b142641487c60eaf6ce257ce1edb6a",
+      "evidence": [
+        "第 2 轮复核：只核第 1 轮的三条返工与文档补丁后的有效范围，未新增无关条目。契约版本未变（79267cb119de5fdb790eac5ad101e7f373b142641487c60eaf6ce257ce1edb6a）",
+        "文档补丁 m8-t3-wiring-paths 已随本 PR 落地并复验：presentation.json 的 handoff.taskPaths.M8-T3 与 _run/task-contracts.json 的 supportPaths.M8-T3 均含 boot/container.ts 与 http/plugins/50-routes.ts；重生成的实施提示词有效范围 8 条逐字正确；status --task M8-T3 现 ready=true、无 blockers",
+        "R1 已修：boot/container.ts:305 装配 DispatchService 并放进 services.dispatch（注入 unitOfWork/tasks/batches/documents/dispatchSnapshots/runs repo、clock、ids、bus、envelopeFactory、getDispatchHalt、listAgents、listDispatchableAgents）；50-routes.ts:48 调用 registerBatchesRoutes/registerSnapshotRoute 并把本任务 7 条端点补进 customRegisteredPaths；container.ts 的 jobs 由恒空改为 [schedulerTickJob]，main.ts:114 在 listen() 之后逐个 start()。回归证据：test/unit/dispatch-contract.test.ts:819 走真实 createContainer + createHttpServer + inject，断言 container.jobs 含 scheduler-tick、services.dispatch 存在、GET /api/v1/snapshot 与 POST /api/v1/runs 均非 501 且响应 message 不是占位句「not implemented yet」——即端点确实由真实 handler 服务而非 50-routes 的未实现占位",
+        "R2 已修：runs 表的 INSERT/SELECT/UPDATE、预编译语句（repo/runs.ts:192-199 工厂闭包内 prepare 一次复用）与 Row/DTO 映射整体落到 packages/daemon/src/repo/runs.ts；service/dispatch.ts 现零 SQL 字面量、零 db.prepare（只 import type 与 repo 的 isConstraintConflict/toRunDto）；快照 INSERT 与 run INSERT 收进同一个 unitOfWork.run（dispatch.ts:333 persist 同步闭包、:359-363 调用，bus.publish 在 :401 的 run() 返回之后）；并发回退改判 code（dispatch.ts:158 resolveConstraintConflict → repo/runs.ts:316 isConstraintConflict 判 SQLITE_CONSTRAINT / SQLITE_CONSTRAINT_UNIQUE / SQLITE_CONSTRAINT_PRIMARYKEY，不再匹配 err.message）。回归证据：新增 test/arch/service-sql.test.ts:10 扫 service/ 下全部 .ts，断言无 INSERT/SELECT/UPDATE/DELETE 关键字与 db.prepare；dispatch-contract.test.ts 22/22 通过",
+        "R3 已修：dispatch.ts:228 listDispatchableAgents / :235 resolveAgentForTask / :243 isAgentDispatchable 走注入的注册表与可用性，硬编码 'codex' 已删除；tick 在 :817-825 对每个候选取 agentId，取不到或不可用即进 tasksBlocked 且 reason='agent_unavailable'，不落 run；createRun 在 :306 对不可用 agent 抛 E_AGENT_UNAVAILABLE（已登记错误码）；agentLimitFor（:251）不再散落魔法默认值，改由注入的 agentLimits 或注册表 concurrencyLimit 推导。回归证据：dispatch-contract.test.ts:737 空注册表下 tick 产出 0 条 run 且任务出现在 tasksBlocked",
+        "新增/变更文件均在第 1 轮补丁后的有效范围内或由错误修复必然引入：repo/runs.ts（R2 要求把 SQL 移出 service，runs 表仓储按 08 节只能放 repo）、test/arch/service-sql.test.ts（R2 要求的机器断言）、boot/container.ts 与 http/plugins/50-routes.ts（本轮补丁补入）。实施方未擅改任务定义，未动其他任务的公共结构",
+        "本轮检查（task/M8-T3 工作树内）：tsc -b --noEmit 退出 0；biome ci . 346 文件无问题（先清掉两个未跟踪测试残留 agents.json / pairing-code.txt，它们是 Windows 上既有 pairing 0600 断言失败与 agent 探测用例留下的产物，非本层文件）；vitest run packages/daemon/test/unit/dispatch-contract.test.ts packages/daemon/test/arch/service-sql.test.ts → 23/23 通过；全仓 vitest run 79 失败 1163 通过，失败文件（probe/sse/landing/agents-service/http-plugins/devices/dsh-adapter/documents-routes/routes/agents-routes/daemon-runtime/pairing-routes/run-log-routes/disk-full/events-runtime）与第 1 轮同源，全部是 Windows 下 service/pairing.ts 的 POSIX 0600 环境性断言，本层 10 个改动文件无一在列",
+        "回填已随本轮提交更新：图谱/任务/M8-T3.md 的代码位置与实施沉淀按 R1/R2/R3 后的新行号重写，第 1 段不再把幂等防重说成纯应用层逻辑（改为「UNIQUE 约束是最终兜底 + 应用层避免把冲突当正常路径」），新增第 4 段记接线与 agent 取值的坑；回填行号抽查一致（scheduler-tick.ts:34、repo/runs.ts:191、dispatch.ts:268）"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

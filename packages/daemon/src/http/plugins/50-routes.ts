@@ -2,12 +2,14 @@ import { ROUTES } from '@agent-scheduler/shared/api/routes';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
 import { registerAgentRoutes } from '../routes/agents.ts';
+import { registerBatchesRoutes } from '../routes/batches.ts';
 import { registerDeviceRoutes } from '../routes/devices.ts';
 import { registerDocumentRoutes } from '../routes/documents.ts';
 import { registerEventsRoutes } from '../routes/events.ts';
 import { registerHealthRoute } from '../routes/health.ts';
 import { registerPairRoutes } from '../routes/pair.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
+import { registerSnapshotRoute } from '../routes/snapshot.ts';
 import { registerSystemRoutes } from '../routes/system.ts';
 import { registerTasksRoutes } from '../routes/tasks.ts';
 import { registerVersionRoute } from '../routes/version.ts';
@@ -46,6 +48,8 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerVersionRoute(target);
 	registerSystemRoutes(target);
 	registerRunsRoutes(target);
+	registerBatchesRoutes(target);
+	registerSnapshotRoute(target);
 	registerPairRoutes(target);
 	registerDeviceRoutes(target);
 	registerDocumentRoutes(target);
@@ -63,6 +67,13 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'POST /api/v1/runs/:runId/messages',
 		'POST /api/v1/runs/:id/messages',
 		'GET /api/v1/runs/:runId/log',
+		'POST /api/v1/runs',
+		'POST /api/v1/runs/:runId/rerun',
+		'GET /api/v1/runs',
+		'GET /api/v1/runs/:runId',
+		'POST /api/v1/batches/:batchId/start',
+		'POST /api/v1/batches/:batchId/pause',
+		'GET /api/v1/snapshot',
 		'POST /api/v1/pair/claim',
 		'POST /api/v1/pair/code',
 		'GET /api/v1/devices',
