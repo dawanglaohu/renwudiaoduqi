@@ -782,24 +782,43 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 				laneNo: 2,
 			});
 
-			// 1. 收到第一条可解析事件，starting -> running
-			const startEvent = env.envelopeFactory.createEnvelope({
+			// 1. 收到未标提问字段的普通事件：starting -> running，但绝不转入 awaiting_reply
+			const normalChunkEvent = env.envelopeFactory.createEnvelope({
 				kind: 'agent_message_chunk',
 				runId,
 				taskId: 'task-e115',
 				payload: { chunk: 'Starting analysis...' },
 			});
-			await service.ingestEvent(runId, startEvent);
+			await service.ingestEvent(runId, normalChunkEvent);
 			expect(env.runsRepo.findById(runId)?.state).toBe('running');
+			expect(await service.isAwaitingReply(runId)).toBe(false);
 
-			// 2. agent 抛出开放提问 (tool: ask_user)
+			// 收到未标提问字段的普通 tool_call：保持 running，不进 awaiting_reply
+			const normalToolEvent = env.envelopeFactory.createEnvelope({
+				kind: 'tool_call',
+				runId,
+				taskId: 'task-e115',
+				payload: {
+					callId: 'call-read-1',
+					tool: 'readFile',
+					input: { path: 'src/index.ts' },
+				},
+			});
+			await service.ingestEvent(runId, normalToolEvent);
+			expect(env.runsRepo.findById(runId)?.state).toBe('running');
+			expect(await service.isAwaitingReply(runId)).toBe(false);
+
+			// 2. 收到标有归一化提问字段 (requiresReply / isQuestion) 的事件
 			const questionEvent = env.envelopeFactory.createEnvelope({
 				kind: 'tool_call',
 				runId,
 				taskId: 'task-e115',
 				payload: {
+					callId: 'call-q-1',
 					tool: 'ask_user',
 					input: { question: 'Should we proceed with schema migration?' },
+					requiresReply: true,
+					isQuestion: true,
 				},
 			});
 			await service.ingestEvent(runId, questionEvent);
@@ -854,27 +873,47 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 				pid: 5502,
 			});
 
-			// agent 尝试通过 bash 执行 npm install
-			const npmEvent = env.envelopeFactory.createEnvelope({
+			// 普通 tool_call 不触发阻断，保持 running
+			const regularToolCall = env.envelopeFactory.createEnvelope({
 				kind: 'tool_call',
 				runId,
 				taskId: 'task-e134',
 				payload: {
-					tool: 'bash',
-					input: { command: 'npm install --save-dev lodash' },
+					callId: 'call-grep-1',
+					tool: 'grep',
+					input: { pattern: 'TODO' },
+				},
+			});
+			await service.ingestEvent(runId, regularToolCall);
+			expect(env.runsRepo.findById(runId)?.state).toBe('running');
+			expect(await service.isAwaitingReply(runId)).toBe(false);
+
+			// 适配器将装依赖归一化为 run.permission_blocked 阻断事件并带 blockedCategory
+			const npmBlockedEvent = env.envelopeFactory.createEnvelope({
+				kind: 'run.permission_blocked',
+				runId,
+				taskId: 'task-e134',
+				payload: {
+					tool: 'commandExecution',
+					reason: 'Network dependency install blocked; human decision required',
+					blockedCategory: 'network_dependency',
 				},
 			});
 
-			await service.ingestEvent(runId, npmEvent);
+			await service.ingestEvent(runId, npmBlockedEvent);
 
-			// 默认拦下并转 awaiting_reply
+			// 默认拦下并转 awaiting_reply，原因归为 agent_question
 			expect(env.runsRepo.findById(runId)?.state).toBe('awaiting_reply');
 			expect(await service.isAwaitingReply(runId)).toBe(true);
 
-			// 必须产生并发布 run.permission_blocked 事件，且在原因中体现装依赖阻断
-			const permBlocked = publishedEnvelopes.find((e) => e.kind === 'run.permission_blocked');
-			expect(permBlocked).toBeDefined();
-			expect((permBlocked?.payload as { reason?: string })?.reason).toContain('E-134');
+			const stateChanged = publishedEnvelopes.find(
+				(e) =>
+					e.kind === 'run.state_changed' && (e.payload as { to?: string })?.to === 'awaiting_reply',
+			);
+			expect(stateChanged).toBeDefined();
+			expect((stateChanged?.payload as { reason?: string })?.reason).toBe(
+				RUN_TRANSITION_REASONS.AGENT_QUESTION,
+			);
 		});
 
 		it('AC 3 & E-133: 沙箱拦下越界写入时记「权限受阻」在时间线高亮，不判失败；提供「仅本次运行临时提升」开关', async () => {
@@ -899,10 +938,16 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 				taskId: 'task-e133',
 				state: 'running',
 				pid: 5503,
-				permissionTier: 'workspaceWrite',
 			});
 
-			// 沙箱拦下 worktree 之外的写入，产出 run.permission_blocked 事件
+			// 在真实 SQLite runs 表中预置记录，默认权限档位为 workspaceWrite
+			env.db
+				.prepare(
+					"INSERT INTO runs (id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id) VALUES (?, ?, 1, 'implement', 'running', 'codex', 'workspaceWrite', 'snap-1')",
+				)
+				.run(runId, 'task-e133');
+
+			// 沙箱拦下 worktree 之外的写入，产出 run.permission_blocked 阻断事件
 			const permEvent = env.envelopeFactory.createEnvelope({
 				kind: 'run.permission_blocked',
 				runId,
@@ -910,6 +955,7 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 				payload: {
 					tool: 'file_edit',
 					reason: 'Sandbox blocked write outside worktree: /etc/hosts',
+					blockedCategory: 'worktree_out_of_bounds',
 				},
 			});
 
@@ -926,14 +972,34 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 			expect(runInDb?.state).toBe('awaiting_reply');
 			expect(runInDb?.state).not.toBe('failed');
 
-			// 3. 提供「仅本次运行临时提升」开关 (elevateRunOnce)
+			// 3. 提供「仅本次运行临时提升」开关 (elevateRunOnce)：不落库、结束失效、事件留痕 (R3, E-133)
 			await service.elevateRunOnce(runId);
+
+			// 仅本次运行处于临时提升生效态
+			expect(service.isTemporarilyElevated(runId)).toBe(true);
 
 			// 运行转回 running 继续执行
 			expect(env.runsRepo.findById(runId)?.state).toBe('running');
 
-			// 绝不改写默认档位 (permissionTier 保持 workspaceWrite)
-			expect(env.runsRepo.findById(runId)?.permissionTier).toBe('workspaceWrite');
+			// 绝不改写默认档位：SQLite 数据库中该运行及全局的默认权限档位保持 workspaceWrite，绝不落库
+			const runRow = env.db.prepare('SELECT permission_tier FROM runs WHERE id = ?').get(runId) as {
+				permission_tier: string;
+			};
+			expect(runRow.permission_tier).toBe('workspaceWrite');
+
+			// 事件留痕：发布了带有 human_replied 原因的 state_changed 事件
+			const elevateStateChanged = publishedEnvelopes.filter(
+				(e) => e.kind === 'run.state_changed' && (e.payload as { to?: string })?.to === 'running',
+			);
+			expect(elevateStateChanged.length).toBeGreaterThan(0);
+
+			// 结束失效：运行正常退出到 exited 后，仅本次运行的临时提升标志自动清除
+			await service.transitionState({
+				runId,
+				targetState: 'exited',
+				reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+			});
+			expect(service.isTemporarilyElevated(runId)).toBe(false);
 
 			// 非 awaiting_reply 状态下调用 elevateRunOnce 抛出 E_INVALID_STATE_TRANSITION
 			await expect(service.elevateRunOnce(runId)).rejects.toThrowError(AppError);

@@ -20,8 +20,6 @@ export interface RunRecord {
 	readonly state: RunState;
 	readonly pid: number | null;
 	readonly kind?: string;
-	readonly permissionTier?: string;
-	readonly permission_tier?: string;
 	readonly sessionArchivedAt?: string | null;
 	readonly session_archived_at?: string | null;
 	readonly laneNo?: number | null;
@@ -155,6 +153,7 @@ export interface RunService {
 		},
 	): Promise<void>;
 	isAwaitingReply(runId: string): Promise<boolean>;
+	isTemporarilyElevated(runId: string): boolean;
 }
 
 function normalizeRawLineBytes(rawLine: string | Uint8Array): Uint8Array {
@@ -190,63 +189,6 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
 	);
 }
 
-const NETWORK_DEPENDENCY_COMMAND_REGEX =
-	/(?:^|[;&|]\s*)(?:sudo\s+)?(?:npm\s+(?:i|install|add|update)|pnpm\s+(?:i|install|add|update)|yarn(?:\s+add|\s+install)?|bun\s+(?:add|install)|pip3?\s+install|poetry\s+add|cargo\s+(?:add|install)|go\s+(?:get|install)|apt(?:-get)?\s+install|brew\s+install)(?:\s+|$)/i;
-
-function isQuestionEnvelope(envelope: EventEnvelopeInput): boolean {
-	const payload = envelope.payload as Record<string, unknown> | undefined;
-	if (!payload || typeof payload !== 'object') return false;
-
-	if (
-		payload.isQuestion === true ||
-		payload.requiresReply === true ||
-		payload.is_question === true ||
-		payload.requires_reply === true ||
-		payload.requiresHumanInput === true
-	) {
-		return true;
-	}
-
-	if (envelope.kind === 'tool_call') {
-		const tool = typeof payload.tool === 'string' ? payload.tool.trim().toLowerCase() : '';
-		if (
-			tool &&
-			/^(ask(_user|_followup_question|_human)?|question|prompt_user|request_user_input|user_input)$/i.test(
-				tool,
-			)
-		) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-function isNetworkDependencyInstall(payload: unknown): boolean {
-	if (!payload || typeof payload !== 'object') return false;
-	const p = payload as Record<string, unknown>;
-	if (p.requiresNetwork === true || p.requires_network === true) return true;
-
-	const input = p.input;
-	let commandText = '';
-	if (typeof input === 'string') {
-		commandText = input;
-	} else if (input && typeof input === 'object') {
-		const inputObj = input as Record<string, unknown>;
-		if (typeof inputObj.command === 'string') {
-			commandText = inputObj.command;
-		} else if (typeof inputObj.cmd === 'string') {
-			commandText = inputObj.cmd;
-		}
-	}
-
-	if (commandText) {
-		return NETWORK_DEPENDENCY_COMMAND_REGEX.test(commandText.trim());
-	}
-
-	return false;
-}
-
 /**
  * Service for run stream orchestration and disk wiring (M6-T2).
  *
@@ -262,6 +204,7 @@ function isNetworkDependencyInstall(payload: unknown): boolean {
  */
 export function createRunService(deps: RunServiceDeps): RunService {
 	const logFailure = deps.logFailure ?? (() => undefined);
+	const temporarilyElevatedRuns = new Set<string>();
 
 	function getNow(): string {
 		return deps.clock.now();
@@ -674,6 +617,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			}
 		}
 
+		// 运行退出或进入终态时，临时权限提升失效 (E-133)
+		if (targetState === 'exited' || isTerminal) {
+			temporarilyElevatedRuns.delete(runId);
+		}
+
 		// AC 2 & E-322: 事务后终止残留进程并发布 task.sessions_archived
 		if (archiveContext && deps.sessionArchiveService) {
 			await deps.sessionArchiveService.terminateArchived(archiveContext);
@@ -687,6 +635,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 	async function closeRunStream(runId: string): Promise<void> {
 		if (!runId || typeof runId !== 'string') return;
+		temporarilyElevatedRuns.delete(runId);
 		await deps.logstore.closeWriter(runId);
 	}
 
@@ -756,47 +705,24 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		}
 
 		if (currentRun.state === 'running') {
-			let isBlocked = envelope.kind === 'run.permission_blocked';
-			const isQuestion = isQuestionEnvelope(envelope);
-			let transitionReason: string =
-				(envelope.payload as { reason?: string })?.reason ?? RUN_TRANSITION_REASONS.AGENT_QUESTION;
-
-			// E-134: agent 需要联网装依赖时默认拦下并转回话通路由人决策，不提供「自动放行网络」开关
-			if (
-				!isBlocked &&
-				envelope.kind === 'tool_call' &&
-				isNetworkDependencyInstall(envelope.payload)
-			) {
-				isBlocked = true;
-				transitionReason = 'Network dependency install blocked; human decision required (E-134)';
-				// 记为「权限受阻」事件在时间线高亮，不判失败 (E-133, E-134)
-				const blockedEnvelope = deps.envelopeFactory.createEnvelope({
-					kind: 'run.permission_blocked',
-					runId,
-					taskId: currentRun.taskId ?? null,
-					actorDeviceId: null,
-					payload: {
-						tool: (envelope.payload as { tool?: string })?.tool ?? 'bash',
-						reason: transitionReason,
-					},
-				});
-				const appRes = await deps.logstore.appendEvent(runId, blockedEnvelope);
-				if (deps.bus) {
-					deps.bus.publish(blockedEnvelope, {
-						fileSeq: appRes.location.fileSeq,
-						byteOffset: appRes.location.byteOffset,
-						byteLen: appRes.location.byteLen,
-					});
-				}
-			}
+			const payload = envelope.payload as Record<string, unknown> | undefined;
+			const isBlocked = envelope.kind === 'run.permission_blocked';
+			const isQuestion = Boolean(
+				payload?.requiresReply === true ||
+					payload?.requires_reply === true ||
+					payload?.isQuestion === true ||
+					payload?.is_question === true ||
+					payload?.requiresHumanInput === true,
+			);
 
 			// E-115: 自动模式下 agent 提问一律不代答，转「等待人回话」并计入停滞检测，继续占用该 agent 并发额度
 			// E-133: 沙箱拦下越界写入记「权限受阻」，不判失败
+			// E-134: agent 联网装依赖由适配器归一化为 run.permission_blocked 并转回话通路由人决策
 			if (isBlocked || isQuestion) {
 				await transitionState({
 					runId,
 					targetState: 'awaiting_reply',
-					reason: transitionReason,
+					reason: RUN_TRANSITION_REASONS.AGENT_QUESTION,
 				});
 			}
 		}
@@ -859,7 +785,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				reason: details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED,
 			});
 		}
-		// 仅本次运行临时提升，绝不改写默认档位 (E-133)
+		// 仅本次运行临时提升，绝不改写默认档位（不落库、结束失效、事件留痕）(E-133)
+		temporarilyElevatedRuns.add(runId);
 		const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
 		await transitionState({
 			runId,
@@ -875,6 +802,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		return run?.state === 'awaiting_reply';
 	}
 
+	function isTemporarilyElevated(runId: string): boolean {
+		return temporarilyElevatedRuns.has(runId);
+	}
+
 	return Object.freeze({
 		ingestRaw,
 		ingestEvent,
@@ -888,5 +819,6 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		markAwaitingReply,
 		elevateRunOnce,
 		isAwaitingReply,
+		isTemporarilyElevated,
 	});
 }
