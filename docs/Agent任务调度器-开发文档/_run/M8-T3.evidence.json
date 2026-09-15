@@ -1,0 +1,19 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T3": {
+      "contractHash": "79267cb119de5fdb790eac5ad101e7f373b142641487c60eaf6ce257ce1edb6a",
+      "evidence": [
+        "契约范围复核：19 节 M8-T3 行、任务卡与派发包一致——输入＝M8-T2 的可放行集合；产出＝scheduler-tick job 与 http/routes/runs.ts、batches.ts、snapshot.ts；前置 M8-T2/M5-T2/M6-T1 均已落地（M6-T1 已合 main）；解锁 M8-T4、M8-T5、M8-T6、M8-T8 均未开工，本层 PR 未叠在任何开放层之上（base=main，单个 PR）",
+        "契约版本核对：本任务原契约哈希 6398896fe4cd46d93a0991e5be936da9f9f8d326e4d8d219907073e42249441d，status 的 ready=false 原因为「任务契约待语义复核」，不是明确错误，故本轮按审查流程登记复核；补丁后新哈希 79267cb119de5fdb790eac5ad101e7f373b142641487c60eaf6ce257ce1edb6a",
+        "13/17/19 对应要求核对：13 节本任务边界为 E-126、E-281、E-49、E-50、E-51、E-82 六条，与派发包「必须处理的边界」逐条一致；17 节要求本任务的集成/单元证据落在 test/unit/dispatch-contract.test.ts；19 节验收标准五条与本层代码逐条对应（互斥 tick、幂等键、批次推进前置检查、重启免自动重派、契约就绪与中途变更暂停）",
+        "接口字段核对：shared/api/routes.ts 已登记 POST /api/v1/runs（errors 含 E_VALIDATION、E_DOC_CONTRACT_PENDING 路径由 error-handler 投影）、POST /api/v1/runs/:runId/rerun、GET /api/v1/runs、GET /api/v1/runs/:runId、POST /api/v1/batches/:batchId/start（携带 E_VALIDATION）、POST /api/v1/batches/:batchId/pause、GET /api/v1/snapshot；StartBatchBody/StartBatchResponse、CreateRunBody/CreateRunResponse、RerunRunBody、SnapshotResponse 均在 shared 中手写且与 10 节端点总表一致；POST /batches/:id/start 的前置未 done 错误码用 E_VALIDATION 与 10 节端点表登记一致",
+        "文档补丁（m8-t3-wiring-paths）：本任务产出含 scheduler-tick job 与三条路由注册函数，而有效范围原本只有 6 条源码/测试路径，未列 boot/container.ts 与 http/plugins/50-routes.ts —— 这两处正是 job 进 container.jobs 与路由进 50-routes 注册表的唯一接线点（08 节「boot 在 listen() 之后启动 jobs」「routes 由 50-routes 挂载」）。先例见 M5-T4（图谱/任务/M5-T4.md:77）：未接进 customRegisteredPaths 的端点会被 50-routes 的「未实现」占位吞掉，而架构测试只比较 method+path 集合，照样通过、功能却是死的。故按任务定义把两条路径补进 taskPaths/supportPaths",
+        "补丁后有效范围（提示词内逐字）：boot/container.ts、http/plugins/50-routes.ts、http/routes/batches.ts、http/routes/runs.ts、http/routes/snapshot.ts、jobs/scheduler-tick.ts、service/dispatch.ts、test/unit/dispatch-contract.test.ts 共 8 条；与 M8-T4/M8-T5/M8-T6/M8-T8 的已声明路径无同批冲突（这些任务依赖本层，属后续批次）",
+        "测试现状（在 task/M8-T3 工作树内跑）：npx vitest run packages/daemon/test/unit/dispatch-contract.test.ts → 20/20 通过；tsc -b --noEmit 退出 0；biome ci . → 344 文件无问题；全仓 vitest run 有 81 个失败，逐文件核对后全部是 Windows 下 POSIX 0600 断言（service/pairing.ts 的 writeBootstrapFile）导致的既有环境性失败，失败文件（probe/sse/landing/agents-service/http-plugins/devices/routes/agents-routes/daemon-runtime 等）本层一个都没碰，与 main 同源，不构成本层引入的红",
+        "语义复核按 dsh-code-review 口径执行，发现的问题不属契约条款问题而是代码实现问题，已按阻断项写入 PR 的 REWORK 条目（R1 接线缺失、R2 service 层直写 runs 表 SQL、R3 派发 agent 硬编码），不在本证据内重复；本证据只声明契约本身经复核可用于本轮派发与验收"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
