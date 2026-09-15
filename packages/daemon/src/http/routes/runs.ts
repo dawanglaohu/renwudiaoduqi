@@ -14,6 +14,7 @@ import type { FastifyInstance, RouteHandlerMethod } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
 import type { DispatchService } from '../../service/dispatch.ts';
 import type { MessageService } from '../../service/message.ts';
+import type { RetentionService } from '../../service/retention.ts';
 import type { RunAbortService } from '../../service/run-abort.ts';
 import type { RunLogService } from '../../service/run-log.ts';
 
@@ -91,6 +92,91 @@ export const getRunLogParamsSchema = {
 	},
 } as const;
 
+export interface SearchRunLogParams {
+	readonly id?: string;
+	readonly runId?: string;
+}
+
+export const SEARCH_RUN_LOG_PARAMS_PROPERTIES = [
+	'id',
+	'runId',
+] as const satisfies readonly (keyof SearchRunLogParams)[];
+
+type AssertSearchRunLogParamsExhaustive = [
+	Exclude<keyof SearchRunLogParams, (typeof SEARCH_RUN_LOG_PARAMS_PROPERTIES)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertSearchRunLogParams: AssertSearchRunLogParamsExhaustive = true;
+
+export const searchRunLogParamsSchema = {
+	type: 'object',
+	additionalProperties: false,
+	properties: {
+		id: { type: 'string', minLength: 1 },
+		runId: { type: 'string', minLength: 1 },
+	},
+} as const;
+
+export interface SearchRunLogQuery {
+	readonly q: string;
+	readonly limit?: number;
+	readonly deviceType?: string;
+	readonly redact?: boolean;
+}
+
+export const SEARCH_RUN_LOG_QUERY_PROPERTIES = [
+	'deviceType',
+	'limit',
+	'q',
+	'redact',
+] as const satisfies readonly (keyof SearchRunLogQuery)[];
+
+type AssertSearchRunLogQueryExhaustive = [
+	Exclude<keyof SearchRunLogQuery, (typeof SEARCH_RUN_LOG_QUERY_PROPERTIES)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertSearchRunLogQuery: AssertSearchRunLogQueryExhaustive = true;
+
+export const searchRunLogQuerySchema = {
+	type: 'object',
+	required: ['q'],
+	additionalProperties: false,
+	properties: {
+		q: { type: 'string', minLength: 1, maxLength: 200 },
+		limit: { type: 'integer', minimum: 1, maximum: 500 },
+		deviceType: { type: 'string' },
+		redact: { type: 'boolean' },
+	},
+} as const;
+
+export interface PurgeRunLogsParams {
+	readonly id?: string;
+	readonly runId?: string;
+}
+
+export const PURGE_RUN_LOGS_PARAMS_PROPERTIES = [
+	'id',
+	'runId',
+] as const satisfies readonly (keyof PurgeRunLogsParams)[];
+
+type AssertPurgeRunLogsParamsExhaustive = [
+	Exclude<keyof PurgeRunLogsParams, (typeof PURGE_RUN_LOGS_PARAMS_PROPERTIES)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertPurgeRunLogsParams: AssertPurgeRunLogsParamsExhaustive = true;
+
+export const purgeRunLogsParamsSchema = {
+	type: 'object',
+	additionalProperties: false,
+	properties: {
+		id: { type: 'string', minLength: 1 },
+		runId: { type: 'string', minLength: 1 },
+	},
+} as const;
+
 export interface SingleRunParams {
 	readonly runId: string;
 }
@@ -138,6 +224,7 @@ export interface RegisterRunsRoutesOptions {
 	readonly runAbortService?: RunAbortService;
 	readonly messageService?: MessageService;
 	readonly runLogService?: RunLogService;
+	readonly retentionService?: RetentionService;
 	readonly dispatchService?: DispatchService;
 }
 
@@ -146,6 +233,7 @@ interface ContainerWithServices {
 		readonly runAbort?: RunAbortService;
 		readonly message?: MessageService;
 		readonly runLog?: RunLogService;
+		readonly retention?: RetentionService;
 		readonly dispatch?: DispatchService;
 	};
 }
@@ -428,5 +516,100 @@ export function registerRunsRoutes(
 			},
 		},
 		logHandler,
+	);
+
+	const searchHandler: RouteHandlerMethod = async (request) => {
+		const params = request.params as SearchRunLogParams;
+		const query = (request.query ?? {}) as SearchRunLogQuery;
+
+		const container = request.server.container as ContainerWithServices | undefined;
+		const service = options?.retentionService ?? container?.services?.retention;
+
+		if (!service) {
+			throw new AppError('E_INTERNAL', 'RetentionService is not available in container');
+		}
+
+		const runId = params.runId ?? params.id ?? '';
+		if (!runId) {
+			throw new AppError('E_VALIDATION', 'runId is required');
+		}
+
+		const headers = request.headers;
+		const userAgent = typeof headers['user-agent'] === 'string' ? headers['user-agent'] : '';
+		const xDeviceType =
+			typeof headers['x-device-type'] === 'string' ? headers['x-device-type'] : '';
+
+		const isMobile =
+			query.deviceType === 'mobile' ||
+			query.redact === true ||
+			xDeviceType === 'mobile' ||
+			/Mobile|Android|iPhone|iPad|Capacitor/i.test(userAgent);
+
+		const result = await service.searchInRun({
+			runId,
+			query: query.q,
+			limit: query.limit,
+			isMobileDevice: isMobile,
+		});
+
+		return {
+			hits: result.hits,
+			truncated: result.truncated,
+			scannedUntilSeq: result.scannedUntilSeq,
+			canceled: result.canceled,
+		};
+	};
+
+	instance.get<{
+		Params: SearchRunLogParams;
+		Querystring: SearchRunLogQuery;
+	}>(
+		'/api/v1/runs/:runId/search',
+		{
+			schema: {
+				params: searchRunLogParamsSchema,
+				querystring: searchRunLogQuerySchema,
+			},
+		},
+		searchHandler,
+	);
+
+	const purgeHandler: RouteHandlerMethod = async (request) => {
+		const params = request.params as PurgeRunLogsParams;
+
+		const container = request.server.container as ContainerWithServices | undefined;
+		const service = options?.retentionService ?? container?.services?.retention;
+
+		if (!service) {
+			throw new AppError('E_INTERNAL', 'RetentionService is not available in container');
+		}
+
+		const runId = params.runId ?? params.id ?? '';
+		if (!runId) {
+			throw new AppError('E_VALIDATION', 'runId is required');
+		}
+
+		const actorDeviceId = (request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
+
+		const result = await service.purgeRunLogs({
+			runId,
+			actorDeviceId,
+		});
+
+		return {
+			purgedBytes: result.purgedBytes,
+		};
+	};
+
+	instance.delete<{
+		Params: PurgeRunLogsParams;
+	}>(
+		'/api/v1/runs/:runId/logs',
+		{
+			schema: {
+				params: purgeRunLogsParamsSchema,
+			},
+		},
+		purgeHandler,
 	);
 }
