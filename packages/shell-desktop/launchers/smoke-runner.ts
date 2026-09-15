@@ -105,7 +105,7 @@ const isDirectExecution =
 	Boolean(process.argv[1]) && resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url);
 
 if (isDirectExecution) {
-	executeStagingSmokeCheck()
+	void executeStagingSmokeCheck()
 		.then((result) => {
 			console.log(`[smoke-runner] SUCCESS: ${result.message}`);
 			process.exit(0);

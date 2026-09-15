@@ -37,6 +37,8 @@
 			"_preview/**",
 			"**/dist/**",
 			"**/node_modules/**",
+			"packages/shell-desktop/src-tauri/target/**",
+			"packages/shell-desktop/src-tauri/gen/**",
 			"AGENTS.md",
 			"CLAUDE.md",
 			"packages/daemon/test/fixtures/agents.json",
