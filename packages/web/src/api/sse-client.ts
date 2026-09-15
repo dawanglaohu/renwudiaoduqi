@@ -399,11 +399,22 @@ export function createSseClient(options?: SseClientOptions): SseClient {
 						headers.set('Last-Event-ID', String(lastEventId));
 					}
 
-					const response = await fetchFn(requestUrl, {
-						method: 'GET',
-						headers,
-						signal: activeController.signal,
-					});
+					// AC 4 also covers the handshake: a tunnel or reverse proxy can accept the socket and
+					// then stall before any header arrives, so the no-bytes watchdog must already be armed.
+					const handshakeTimer = setTimeout(() => {
+						activeController?.abort(new Error('SSE handshake timeout: no response bytes received'));
+					}, silenceTimeoutMs);
+
+					let response: Response;
+					try {
+						response = await fetchFn(requestUrl, {
+							method: 'GET',
+							headers,
+							signal: activeController.signal,
+						});
+					} finally {
+						clearTimeout(handshakeTimer);
+					}
 
 					if (!shouldConnect) {
 						break;

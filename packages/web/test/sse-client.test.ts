@@ -348,6 +348,49 @@ describe('M9-T5 SSE Client (sse-client.ts)', () => {
 			expect(callCount).toBeGreaterThanOrEqual(2);
 		});
 
+		it('aborts and reconnects when the handshake never returns response headers (AC 4)', async () => {
+			let handshakeAborted = false;
+			let callCount = 0;
+
+			const mockFetch: typeof fetch = async (_input, init) => {
+				callCount += 1;
+				const signal = init?.signal;
+
+				if (callCount === 1) {
+					// A stalled tunnel accepts the socket and then never sends a single byte
+					return new Promise<Response>((_resolve, reject) => {
+						signal?.addEventListener('abort', () => {
+							handshakeAborted = true;
+							reject(new Error('handshake aborted'));
+						});
+					});
+				}
+
+				return new Response(createMockStream([':\n\n']), {
+					status: 200,
+					headers: { 'Content-Type': 'text/event-stream' },
+				});
+			};
+
+			const client = createSseClient({
+				getBaseUrl: () => 'http://localhost:7817',
+				fetchFn: mockFetch,
+				silenceTimeoutMs: 30,
+				sleep: async () => new Promise((r) => setTimeout(r, 5)),
+			});
+
+			client.connect();
+
+			const startTime = Date.now();
+			while (callCount < 2 && Date.now() - startTime < 1000) {
+				await new Promise((r) => setTimeout(r, 15));
+			}
+			client.disconnect();
+
+			expect(handshakeAborted).toBe(true);
+			expect(callCount).toBeGreaterThanOrEqual(2);
+		});
+
 		it('heartbeat comments reset silence timer and prevent abort (AC 1, AC 4, E-154)', async () => {
 			let silenceAbortTriggered = false;
 
