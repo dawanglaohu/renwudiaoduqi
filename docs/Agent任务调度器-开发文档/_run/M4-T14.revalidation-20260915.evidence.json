@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M4-T14": {
+      "contractHash": "1cba431afe16ba58967a86d0352d542edbc66ee6bf9fc061fc1ea3d9aef7a728",
+      "verdict": "pass",
+      "evidence": [
+        "标记来源与性质：M4-T14 被标为待复验的 changedFields 是 definition/effectivePaths，来源是本任务自身的补丁 m4-t14-support-paths-20260915 的窗口——该补丁基线早于合并 main，落地前 git merge origin/main（M8-T5 落地）后重跑 sync 时，补丁窗口把本任务自己新增的 supportPaths 算成了「变化」，属跨合并的契约哈希传播误标，不是外部补丁改动了本任务契约。",
+        "变化条款逐条核对：task-contracts.json 的 M4-T14 条目现为 requires=[{task:M4-T13,capability:login-probe}]、provides=[model-catalog]、supportPaths 19 条（原 14 条 + generic-acp-adapter.test.ts、database.test.ts、agent-card.tsx、use-agent-models.ts、use-settings-agents.ts），sections 与 taskPaths 未变；验收 9 条、边界 E-38/E-255/E-338/E-339/E-340/E-342/E-345/E-350/E-351/E-358、依赖与接口字段一字未改，未降低任何要求。契约哈希 1cba431afe16ba58967a86d0352d542edbc66ee6bf9fc061fc1ea3d9aef7a728 与第 2 轮验收登记时一致。",
+        "合并后代码复核（合并 main a70ed29 后在本工作树实跑）：node_modules/.bin/tsc.CMD -b --noEmit 退出 0；node_modules/.bin/biome.CMD ci . 退出 0；node_modules/.bin/vitest.CMD run packages/daemon/test/unit/{models-live,effort-tier,agent-registry,database}.test.ts = 4 files / 48 tests 全过、退出 0。本任务交付的 models-live.ts、model-list-rpc.ts、model-catalog.ts、effort-value.ts、effort-tier.ts、repo/runs.ts、service/agents.ts 在合并 main 后无冲突改动，语义未变。",
+        "受影响文件落点仍在范围内：合并 main 带来的 packages/daemon/src/service/dispatch.ts、packages/daemon/src/service/rerun.ts、packages/daemon/test/unit/rerun.test.ts 属 M8-T5 的落地内容，不在本任务有效范围，本任务未改动它们；本任务改动文件仍全部落在 taskPaths + supportPaths 19 条之内。",
+        "结论：补丁未修改 M4-T14 的验收与边界，只补齐产出必需的支持路径并已逐条验收；合并 main 后无新增冲突、无回归，待复验标记可以清除。"
+      ]
+    }
+  }
+}
