@@ -416,18 +416,15 @@
   },
   "M4-T14": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "cb1f983901b7cf5fd44e2524ea49b50471e3af681235dde2c3fcccac6f2f7377",
+    "contractHash": "1cba431afe16ba58967a86d0352d542edbc66ee6bf9fc061fc1ea3d9aef7a728",
     "evidence": [
-      "前置闭包：依赖 M4-T5、M4-T7、M4-T8、M4-T10、M4-T11、M4-T13；输入列引用的四家 read-models.ts、domain/effort-tier.ts resolveEffortMapping()、getLogin()/refreshLogin() 都由闭包内任务产出；输入列已按 main 真名写 parsePiModelsCommandOutput() / parseGrokModelsCommandOutput() 并注明本任务改名（审查员 NON_BLOCKING 1 采纳）。",
-      "响应形状：19 节验收 1 与 10 节 GET /agents/:id/models 端点行一致——不含登录态，登录态只在 AgentEntryDto.login（审查员 BLOCKING 1 与前端 BLOCKING 3 修正，决策 130）。",
-      "有效范围：config/registry.ts 已加进 taskPaths（四字段校验、AGENT_CONFIG_FIELD_PATHS、clearOverrides 对齐）；adapters/probe.ts 与 adapters/login-probe.ts 加进 supportPaths；产出列 20 项全部落在 taskPaths + supportPaths（审查员 BLOCKING 2、NON_BLOCKING 2 修正）。",
-      "职责拆分：验收 7 改为本任务只交付 assertVendorEffortInDomain()、PATCH /agents/:id 的 defaultEffortTier / clearOverrides 校验与 shared CreateRunBody.effort 类型，POST /runs 的 effort 接线归 M8-T9 验收 2；10 节 POST /runs 端点行 body 已加 effort?（审查员 BLOCKING 3 修正）。",
-      "layers 与 clearOverrides 有了交付方：产出列加 toAgentEntryDto() 组装 AgentEntryDto.layers 与 updateAgent() 的 clearOverrides 校验，验收 7 写全决策 128、132 的条款（三层 + hasOverride、同名同现 / 重复 / 未知 → E_VALIDATION、空数组视为未提供、dsh 幂等），17 节 models-live 行加对应用例（审查员 BLOCKING 4 与前端 BLOCKING 2 修正）。",
-      "出厂映射钉死：09 节注册表说明与 19 节验收 8 写明五家出厂 effortVendorMap（codex／grok／pi 三档同名，claude 三档 token 数，dsh null），17 节 assignment 用例 ④⑤ 与集成 ⑧ 改为与该出厂值一致的期望（审查员 NON_BLOCKING 4 采纳）。",
-      "边界：E-38、E-255、E-338、E-339、E-340、E-342、E-345、E-350、E-351 均在 13 节；E-38 已改为按注册表 modelsLive.timeoutMs（codex 出厂 10 秒）；E-340 一条 SQL / landed / 20 条 / pi 后缀在 adapters/pi 剥，与验收 4 一致；E-351 effort_tier CHECK 不改 + 新列 effort_vendor 与 09 节一致。",
-      "平台契约：04 节实时清单表有 codex model/list 响应字段、六条模型、hidden/isDefault/supportedReasoningEfforts、通知与 stderr ERROR 逐字记录，请求侧 initialize{clientInfo:{name,title,version}} / initialized{} / model/list{} 已补实测，翻页参数名标未实测且验收 2 改为不追页。"
+      "标记来源与性质：M4-T14 被标为待复验的 changedFields 是 definition/effectivePaths，来源是本任务自身的补丁 m4-t14-support-paths-20260915 的窗口——该补丁基线早于合并 main，落地前 git merge origin/main（M8-T5 落地）后重跑 sync 时，补丁窗口把本任务自己新增的 supportPaths 算成了「变化」，属跨合并的契约哈希传播误标，不是外部补丁改动了本任务契约。",
+      "变化条款逐条核对：task-contracts.json 的 M4-T14 条目现为 requires=[{task:M4-T13,capability:login-probe}]、provides=[model-catalog]、supportPaths 19 条（原 14 条 + generic-acp-adapter.test.ts、database.test.ts、agent-card.tsx、use-agent-models.ts、use-settings-agents.ts），sections 与 taskPaths 未变；验收 9 条、边界 E-38/E-255/E-338/E-339/E-340/E-342/E-345/E-350/E-351/E-358、依赖与接口字段一字未改，未降低任何要求。契约哈希 1cba431afe16ba58967a86d0352d542edbc66ee6bf9fc061fc1ea3d9aef7a728 与第 2 轮验收登记时一致。",
+      "合并后代码复核（合并 main a70ed29 后在本工作树实跑）：node_modules/.bin/tsc.CMD -b --noEmit 退出 0；node_modules/.bin/biome.CMD ci . 退出 0；node_modules/.bin/vitest.CMD run packages/daemon/test/unit/{models-live,effort-tier,agent-registry,database}.test.ts = 4 files / 48 tests 全过、退出 0。本任务交付的 models-live.ts、model-list-rpc.ts、model-catalog.ts、effort-value.ts、effort-tier.ts、repo/runs.ts、service/agents.ts 在合并 main 后无冲突改动，语义未变。",
+      "受影响文件落点仍在范围内：合并 main 带来的 packages/daemon/src/service/dispatch.ts、packages/daemon/src/service/rerun.ts、packages/daemon/test/unit/rerun.test.ts 属 M8-T5 的落地内容，不在本任务有效范围，本任务未改动它们；本任务改动文件仍全部落在 taskPaths + supportPaths 19 条之内。",
+      "结论：补丁未修改 M4-T14 的验收与边界，只补齐产出必需的支持路径并已逐条验收；合并 main 后无新增冲突、无回归，待复验标记可以清除。"
     ],
-    "reviewed": "2026-09-12T21:47:56.777177+00:00",
+    "reviewed": "2026-09-15T06:41:29.409917+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

@@ -2,6 +2,12 @@ import { createHash } from 'node:crypto';
 import { watch } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
+import type {
+	BuiltinModelDto,
+	EffortValue,
+	EffortVendorMap,
+} from '@agent-scheduler/shared/api/agents';
+import { isEffortTier } from '../domain/effort-tier.ts';
 import {
 	type PlatformTarget,
 	detectSessionDirOverlaps,
@@ -18,8 +24,11 @@ import {
 	type AgentConfig,
 	BUILT_IN_AGENT_DEFAULTS,
 	GENERIC_LOGIN_PROBE_DEFAULT,
+	GENERIC_MODELS_LIVE_DEFAULT,
 	LOGIN_PROBE_PARSERS,
 	type LoginProbeParser,
+	type ModelsLiveKind,
+	type ModelsLiveParser,
 	type ResolvedAgentConfig,
 	createDefaultTimeouts,
 } from './defaults.ts';
@@ -40,6 +49,10 @@ const AGENT_CONFIG_FIELDS = [
 	'versionFingerprint',
 	'versionRange',
 	'loginProbe',
+	'modelsLive',
+	'builtinModels',
+	'defaultEffortTier',
+	'effortVendorMap',
 ] as const;
 
 const TIMEOUT_FIELDS = ['startupTimeoutMs', 'idleTimeoutMs', 'hardWallClockMs'] as const;
@@ -52,6 +65,7 @@ const LOGIN_PROBE_FIELDS = [
 	'loggedOutPattern',
 	'loginCommandHint',
 ] as const;
+const MODELS_LIVE_FIELDS = ['kind', 'args', 'parser', 'timeoutMs'] as const;
 const ROOT_FIELDS = ['schemaVersion', 'defaults', 'overrides'] as const;
 
 export const FORBIDDEN_LOGIN_PROBE_ARG_SUBSTRINGS = Object.freeze([
@@ -78,6 +92,13 @@ export const AGENT_CONFIG_FIELD_PATHS = [
 	'loginProbe.loggedInPattern',
 	'loginProbe.loggedOutPattern',
 	'loginProbe.loginCommandHint',
+	'modelsLive.kind',
+	'modelsLive.args',
+	'modelsLive.parser',
+	'modelsLive.timeoutMs',
+	'builtinModels',
+	'defaultEffortTier',
+	'effortVendorMap',
 ] as const;
 
 export type AgentConfigFieldPath = (typeof AGENT_CONFIG_FIELD_PATHS)[number];
@@ -106,6 +127,13 @@ export interface LoginProbeOverrides {
 	readonly loginCommandHint?: string | null;
 }
 
+export interface ModelsLiveOverrides {
+	readonly kind?: ModelsLiveKind;
+	readonly args?: readonly string[];
+	readonly parser?: ModelsLiveParser;
+	readonly timeoutMs?: number;
+}
+
 export interface AgentConfigOverrides {
 	readonly execPath?: string;
 	readonly argsTemplate?: readonly string[];
@@ -118,6 +146,11 @@ export interface AgentConfigOverrides {
 	readonly versionFingerprint?: VersionFingerprintOverrides;
 	readonly versionRange?: VersionRangeOverrides;
 	readonly loginProbe?: LoginProbeOverrides;
+	readonly modelsLive?: ModelsLiveOverrides;
+	readonly builtinModels?: readonly BuiltinModelDto[];
+	readonly defaultEffortTier?: EffortValue;
+	readonly effortVendorMap?: EffortVendorMap;
+	readonly clearOverrides?: readonly ('defaultModel' | 'defaultEffortTier')[];
 }
 
 export type AgentConfigLayer = Readonly<Record<string, AgentConfigOverrides>>;
@@ -128,7 +161,14 @@ export interface AgentsFileConfig {
 	readonly overrides?: AgentConfigLayer;
 }
 
-export type AgentConfigValue = string | number | null | readonly string[];
+export type AgentConfigValue =
+	| string
+	| number
+	| null
+	| readonly string[]
+	| readonly BuiltinModelDto[]
+	| EffortValue
+	| EffortVendorMap;
 
 export interface AgentDefaultUpdate {
 	readonly agentId: string;
@@ -392,6 +432,13 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 		for (const unknownField of parsed.unknownFields) {
 			publishWarning('unknown-field', 'Unknown agent registry field was ignored.', unknownField);
 		}
+		for (const w of parsed.rejectedAgentWarnings ?? []) {
+			publishWarning(
+				'invalid-config',
+				`Agent registry field ${w.field} must be ${w.expected}; rejecting agent '${w.agentId}'.`,
+				{ field: w.field, agentId: w.agentId },
+			);
+		}
 		if (!parsed.ok) {
 			publishWarning(
 				'invalid-config',
@@ -626,7 +673,23 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 				updates.loginProbe !== undefined
 					? { ...currentAgentOverrides.loginProbe, ...updates.loginProbe }
 					: currentAgentOverrides.loginProbe,
+			modelsLive:
+				updates.modelsLive !== undefined
+					? { ...currentAgentOverrides.modelsLive, ...updates.modelsLive }
+					: currentAgentOverrides.modelsLive,
 		};
+
+		if (updates.clearOverrides) {
+			for (const field of updates.clearOverrides) {
+				if (field === 'defaultModel') {
+					mergedAgentOverrides.defaultModel = undefined;
+					currentAgentOverrides.defaultModel = undefined;
+				} else if (field === 'defaultEffortTier') {
+					mergedAgentOverrides.defaultEffortTier = undefined;
+					currentAgentOverrides.defaultEffortTier = undefined;
+				}
+			}
+		}
 
 		// Pre-validate mergedAgentOverrides against AGENTS_JSON_SCHEMA before writing!
 		const dummyUnknown: UnknownField[] = [];
@@ -725,32 +788,13 @@ interface UnknownField {
 	readonly agentId?: string;
 }
 
-type ParseAgentsFileResult =
-	| {
-			readonly ok: true;
-			readonly defaults: AgentConfigLayer;
-			readonly overrides: AgentConfigLayer;
-			readonly needsDefaultPersistence: boolean;
-			readonly unknownFields: readonly UnknownField[];
-	  }
-	| {
-			readonly ok: false;
-			readonly field: string;
-			readonly expected: string;
-			readonly agentId?: string;
-			readonly argumentIndex?: number;
-			readonly startIndex?: number;
-			readonly endIndex?: number;
-			readonly highlight?: string;
-			readonly unknownFields: readonly UnknownField[];
-	  };
-
 type ParseAgentConfigResult =
 	| { readonly ok: true; readonly value: AgentConfigOverrides }
 	| {
 			readonly ok: false;
 			readonly field: string;
 			readonly expected: string;
+			readonly rejectAgentOnly?: boolean;
 			readonly argumentIndex?: number;
 			readonly startIndex?: number;
 			readonly endIndex?: number;
@@ -769,6 +813,17 @@ interface MutableAgentConfigOverrides {
 	versionFingerprint?: MutableVersionFingerprintOverrides;
 	versionRange?: MutableVersionRangeOverrides;
 	loginProbe?: MutableLoginProbeOverrides;
+	modelsLive?: MutableModelsLiveOverrides;
+	builtinModels?: readonly BuiltinModelDto[];
+	defaultEffortTier?: EffortValue;
+	effortVendorMap?: EffortVendorMap;
+}
+
+interface MutableModelsLiveOverrides {
+	kind?: ModelsLiveKind;
+	args?: readonly string[];
+	parser?: ModelsLiveParser;
+	timeoutMs?: number;
 }
 
 interface MutableAgentTimeoutOverrides {
@@ -795,6 +850,34 @@ interface MutableLoginProbeOverrides {
 	loginCommandHint?: string | null;
 }
 
+export interface RejectedAgentWarning {
+	readonly field: string;
+	readonly expected: string;
+	readonly agentId: string;
+}
+
+export type ParseAgentsFileResult =
+	| {
+			readonly ok: true;
+			readonly defaults: AgentConfigLayer;
+			readonly overrides: AgentConfigLayer;
+			readonly needsDefaultPersistence: boolean;
+			readonly unknownFields: readonly UnknownField[];
+			readonly rejectedAgentWarnings: readonly RejectedAgentWarning[];
+	  }
+	| {
+			readonly ok: false;
+			readonly field: string;
+			readonly expected: string;
+			readonly unknownFields: readonly UnknownField[];
+			readonly rejectedAgentWarnings: readonly RejectedAgentWarning[];
+			readonly agentId?: string;
+			readonly argumentIndex?: number;
+			readonly startIndex?: number;
+			readonly endIndex?: number;
+			readonly highlight?: string;
+	  };
+
 function parseAgentsFile(
 	contents: string,
 	builtInDefaults: Readonly<Record<string, AgentConfig>>,
@@ -808,10 +891,17 @@ function parseAgentsFile(
 			field: '$',
 			expected: 'valid JSON',
 			unknownFields: [],
+			rejectedAgentWarnings: [],
 		};
 	}
 	if (!isRecord(input)) {
-		return { ok: false, field: '$', expected: 'an object', unknownFields: [] };
+		return {
+			ok: false,
+			field: '$',
+			expected: 'an object',
+			unknownFields: [],
+			rejectedAgentWarnings: [],
+		};
 	}
 
 	const unknownFields: UnknownField[] = [];
@@ -825,19 +915,34 @@ function parseAgentsFile(
 			field: '$.schemaVersion',
 			expected: `${AGENT_REGISTRY_SCHEMA_VERSION}`,
 			unknownFields,
+			rejectedAgentWarnings: [],
 		};
 	}
 
-	const defaults = parseAgentLayer(input.defaults, '$.defaults', builtInDefaults, unknownFields);
-	if (!defaults.ok) return { ...defaults, unknownFields };
-	const overrides = parseAgentLayer(input.overrides, '$.overrides', builtInDefaults, unknownFields);
-	if (!overrides.ok) return { ...overrides, unknownFields };
+	const rejectedAgentWarnings: RejectedAgentWarning[] = [];
+	const defaults = parseAgentLayer(
+		input.defaults,
+		'$.defaults',
+		builtInDefaults,
+		unknownFields,
+		rejectedAgentWarnings,
+	);
+	if (!defaults.ok) return { ...defaults, unknownFields, rejectedAgentWarnings };
+	const overrides = parseAgentLayer(
+		input.overrides,
+		'$.overrides',
+		builtInDefaults,
+		unknownFields,
+		rejectedAgentWarnings,
+	);
+	if (!overrides.ok) return { ...overrides, unknownFields, rejectedAgentWarnings };
 	return {
 		ok: true,
 		defaults: defaults.value,
 		overrides: overrides.value,
 		needsDefaultPersistence: !hasCompleteDefaultBaseline(defaults.value, builtInDefaults),
 		unknownFields: Object.freeze(unknownFields),
+		rejectedAgentWarnings: Object.freeze(rejectedAgentWarnings),
 	};
 }
 
@@ -859,6 +964,7 @@ function parseAgentLayer(
 	path: string,
 	builtInDefaults: Readonly<Record<string, AgentConfig>>,
 	unknownFields: UnknownField[],
+	rejectedAgentWarnings: RejectedAgentWarning[],
 ): ParseAgentLayerResult {
 	if (input === undefined) return { ok: true, value: Object.freeze({}) };
 	if (!isRecord(input)) return { ok: false, field: path, expected: 'an object' };
@@ -870,7 +976,17 @@ function parseAgentLayer(
 			continue;
 		}
 		const parsed = parseAgentConfig(value, `${path}.${agentId}`, unknownFields, agentId);
-		if (!parsed.ok) return { ...parsed, agentId };
+		if (!parsed.ok) {
+			if (parsed.rejectAgentOnly) {
+				rejectedAgentWarnings.push({
+					field: parsed.field,
+					expected: parsed.expected,
+					agentId,
+				});
+				continue;
+			}
+			return { ...parsed, agentId };
+		}
 		result[agentId] = parsed.value;
 	}
 	return { ok: true, value: Object.freeze(result) };
@@ -996,6 +1112,42 @@ function parseAgentConfig(
 		);
 		if (!parsedLoginProbe.ok) return parsedLoginProbe;
 		result.loginProbe = parsedLoginProbe.value;
+	}
+	if (Object.hasOwn(input, 'modelsLive') && input.modelsLive !== undefined) {
+		const parsedModelsLive = parseModelsLive(
+			input.modelsLive,
+			`${path}.modelsLive`,
+			unknownFields,
+			agentId,
+		);
+		if (!parsedModelsLive.ok) return parsedModelsLive;
+		result.modelsLive = parsedModelsLive.value;
+	}
+	if (Object.hasOwn(input, 'builtinModels') && input.builtinModels !== undefined) {
+		const parsedBuiltinModels = parseBuiltinModels(
+			input.builtinModels,
+			`${path}.builtinModels`,
+			unknownFields,
+			agentId,
+		);
+		if (!parsedBuiltinModels.ok) return parsedBuiltinModels;
+		result.builtinModels = parsedBuiltinModels.value;
+	}
+	if (Object.hasOwn(input, 'defaultEffortTier') && input.defaultEffortTier !== undefined) {
+		const parsedDefaultEffortTier = parseDefaultEffortTier(
+			input.defaultEffortTier,
+			`${path}.defaultEffortTier`,
+		);
+		if (!parsedDefaultEffortTier.ok) return parsedDefaultEffortTier;
+		result.defaultEffortTier = parsedDefaultEffortTier.value;
+	}
+	if (Object.hasOwn(input, 'effortVendorMap') && input.effortVendorMap !== undefined) {
+		const parsedEffortVendorMap = parseEffortVendorMap(
+			input.effortVendorMap,
+			`${path}.effortVendorMap`,
+		);
+		if (!parsedEffortVendorMap.ok) return parsedEffortVendorMap;
+		result.effortVendorMap = parsedEffortVendorMap.value;
 	}
 
 	return { ok: true, value: freezeAgentOverrides(result) };
@@ -1184,6 +1336,186 @@ function parseLoginProbe(
 	return { ok: true, value: Object.freeze(result) };
 }
 
+function parseModelsLive(
+	input: unknown,
+	path: string,
+	unknownFields: UnknownField[],
+	agentId: string,
+):
+	| { readonly ok: true; readonly value: ModelsLiveOverrides }
+	| { readonly ok: false; readonly field: string; readonly expected: string } {
+	if (!isRecord(input)) return { ok: false, field: path, expected: 'an object' };
+	collectUnknownFields(input, MODELS_LIVE_FIELDS, path, unknownFields, agentId);
+	const result: MutableModelsLiveOverrides = {};
+
+	if (Object.hasOwn(input, 'kind') && input.kind !== undefined) {
+		if (input.kind !== 'command' && input.kind !== 'codex_app_server' && input.kind !== 'none') {
+			return {
+				ok: false,
+				field: `${path}.kind`,
+				expected: "one of 'command', 'codex_app_server', 'none'",
+			};
+		}
+		result.kind = input.kind;
+	}
+
+	if (Object.hasOwn(input, 'args') && input.args !== undefined) {
+		const args = parseStringArray(input.args);
+		if (args === undefined) {
+			return { ok: false, field: `${path}.args`, expected: 'an array of strings' };
+		}
+		result.args = args;
+	}
+
+	if (Object.hasOwn(input, 'parser') && input.parser !== undefined) {
+		if (
+			input.parser !== 'grok_models_text' &&
+			input.parser !== 'pi_list_models_table' &&
+			input.parser !== 'codex_model_list_jsonrpc' &&
+			input.parser !== 'none'
+		) {
+			return {
+				ok: false,
+				field: `${path}.parser`,
+				expected:
+					"one of 'grok_models_text', 'pi_list_models_table', 'codex_model_list_jsonrpc', 'none'",
+			};
+		}
+		result.parser = input.parser;
+	}
+
+	if (Object.hasOwn(input, 'timeoutMs') && input.timeoutMs !== undefined) {
+		if (!isSafeInteger(input.timeoutMs) || input.timeoutMs < 1000 || input.timeoutMs > 60000) {
+			return {
+				ok: false,
+				field: `${path}.timeoutMs`,
+				expected: 'an integer between 1000 and 60000',
+			};
+		}
+		result.timeoutMs = input.timeoutMs;
+	}
+
+	return { ok: true, value: Object.freeze(result) };
+}
+
+function parseBuiltinModels(
+	input: unknown,
+	path: string,
+	_unknownFields: UnknownField[],
+	_agentId: string,
+):
+	| { readonly ok: true; readonly value: readonly BuiltinModelDto[] }
+	| {
+			readonly ok: false;
+			readonly field: string;
+			readonly expected: string;
+			readonly rejectAgentOnly?: boolean;
+	  } {
+	if (!Array.isArray(input)) {
+		return { ok: false, field: path, expected: 'an array of models', rejectAgentOnly: false };
+	}
+	const result: BuiltinModelDto[] = [];
+	for (let i = 0; i < input.length; i++) {
+		const item = input[i];
+		if (!isRecord(item) || typeof item.name !== 'string') {
+			return {
+				ok: false,
+				field: `${path}[${i}]`,
+				expected: 'an object with a string name property',
+				rejectAgentOnly: false,
+			};
+		}
+		const name = item.name;
+		// E-350 / Criterion 5: Items whose name contains whitespace or control characters reject this agent
+		// biome-ignore lint/suspicious/noControlCharactersInRegex: Checking for control characters per E-350
+		if (name.length === 0 || /\s|[\x00-\x1F\x7F]/.test(name)) {
+			return {
+				ok: false,
+				field: `${path}[${i}].name`,
+				expected: 'a non-empty string without whitespace or control characters',
+				rejectAgentOnly: true,
+			};
+		}
+		const note = typeof item.note === 'string' ? item.note : undefined;
+		result.push(Object.freeze({ name, ...(note !== undefined ? { note } : {}) }));
+	}
+	return { ok: true, value: Object.freeze(result) };
+}
+
+function parseDefaultEffortTier(
+	input: unknown,
+	path: string,
+):
+	| { readonly ok: true; readonly value: EffortValue }
+	| { readonly ok: false; readonly field: string; readonly expected: string } {
+	if (input === null) return { ok: true, value: null };
+	if (!isRecord(input)) {
+		return {
+			ok: false,
+			field: path,
+			expected: "null, { tier: 'low'|'medium'|'high' }, or { vendor: string }",
+		};
+	}
+	if (Object.hasOwn(input, 'tier')) {
+		if (typeof input.tier !== 'string' || !isEffortTier(input.tier)) {
+			return {
+				ok: false,
+				field: `${path}.tier`,
+				expected: "one of 'low', 'medium', 'high'",
+			};
+		}
+		return { ok: true, value: Object.freeze({ tier: input.tier }) };
+	}
+	if (Object.hasOwn(input, 'vendor')) {
+		if (typeof input.vendor !== 'string' || input.vendor.trim().length === 0) {
+			return {
+				ok: false,
+				field: `${path}.vendor`,
+				expected: 'a non-empty string',
+			};
+		}
+		return { ok: true, value: Object.freeze({ vendor: input.vendor }) };
+	}
+	return {
+		ok: false,
+		field: path,
+		expected: "an object with 'tier' or 'vendor'",
+	};
+}
+
+function parseEffortVendorMap(
+	input: unknown,
+	path: string,
+):
+	| { readonly ok: true; readonly value: EffortVendorMap }
+	| { readonly ok: false; readonly field: string; readonly expected: string } {
+	if (input === null) return { ok: true, value: null };
+	if (!isRecord(input)) {
+		return {
+			ok: false,
+			field: path,
+			expected: 'null or an object with { low, medium, high }',
+		};
+	}
+	for (const tier of ['low', 'medium', 'high'] as const) {
+		if (typeof input[tier] !== 'string' || (input[tier] as string).trim().length === 0) {
+			return {
+				ok: false,
+				field: `${path}.${tier}`,
+				expected: 'a non-empty string',
+			};
+		}
+	}
+	return {
+		ok: true,
+		value: Object.freeze({
+			low: (input.low as string).trim(),
+			medium: (input.medium as string).trim(),
+			high: (input.high as string).trim(),
+		}),
+	};
+}
+
 function createSnapshot(
 	generation: number,
 	fingerprint: string | null,
@@ -1243,6 +1575,8 @@ function mergeAgentConfig(
 
 	const defaultLoginProbe = defaultConfig.loginProbe ?? GENERIC_LOGIN_PROBE_DEFAULT;
 	const loginOverrides = overrides.loginProbe ?? {};
+	const defaultModelsLive = defaultConfig.modelsLive ?? GENERIC_MODELS_LIVE_DEFAULT;
+	const modelsLiveOverrides = overrides.modelsLive ?? {};
 
 	return freezeAgentConfig({
 		execPath: valueOr(overrides.execPath, defaultConfig.execPath),
@@ -1286,6 +1620,15 @@ function mergeAgentConfig(
 				defaultLoginProbe.loginCommandHint,
 			),
 		},
+		modelsLive: {
+			kind: valueOr(modelsLiveOverrides.kind, defaultModelsLive.kind),
+			args: valueOr(modelsLiveOverrides.args, defaultModelsLive.args),
+			parser: valueOr(modelsLiveOverrides.parser, defaultModelsLive.parser),
+			timeoutMs: valueOr(modelsLiveOverrides.timeoutMs, defaultModelsLive.timeoutMs),
+		},
+		builtinModels: valueOr(overrides.builtinModels, defaultConfig.builtinModels),
+		defaultEffortTier: valueOr(overrides.defaultEffortTier, defaultConfig.defaultEffortTier),
+		effortVendorMap: valueOr(overrides.effortVendorMap, defaultConfig.effortVendorMap),
 	});
 }
 
@@ -1376,6 +1719,20 @@ function getConfigField(config: AgentConfig, field: AgentConfigFieldPath): Agent
 			return config.loginProbe.loggedOutPattern;
 		case 'loginProbe.loginCommandHint':
 			return config.loginProbe.loginCommandHint;
+		case 'modelsLive.kind':
+			return config.modelsLive.kind;
+		case 'modelsLive.args':
+			return config.modelsLive.args;
+		case 'modelsLive.parser':
+			return config.modelsLive.parser;
+		case 'modelsLive.timeoutMs':
+			return config.modelsLive.timeoutMs;
+		case 'builtinModels':
+			return config.builtinModels;
+		case 'defaultEffortTier':
+			return config.defaultEffortTier;
+		case 'effortVendorMap':
+			return config.effortVendorMap;
 	}
 }
 
@@ -1412,6 +1769,22 @@ function getOverrideField(
 			return ownOptionalValue(overrides.loginProbe, 'loggedOutPattern');
 		case 'loginProbe.loginCommandHint':
 			return ownOptionalValue(overrides.loginProbe, 'loginCommandHint');
+		case 'modelsLive.kind':
+			return ownOptionalValue(overrides.modelsLive, 'kind');
+		case 'modelsLive.args':
+			return ownOptionalValue(overrides.modelsLive, 'args');
+		case 'modelsLive.parser':
+			return ownOptionalValue(overrides.modelsLive, 'parser');
+		case 'modelsLive.timeoutMs':
+			return ownOptionalValue(overrides.modelsLive, 'timeoutMs');
+		case 'builtinModels':
+			return Object.hasOwn(overrides, 'builtinModels') ? overrides.builtinModels : undefined;
+		case 'defaultEffortTier':
+			return Object.hasOwn(overrides, 'defaultEffortTier')
+				? overrides.defaultEffortTier
+				: undefined;
+		case 'effortVendorMap':
+			return Object.hasOwn(overrides, 'effortVendorMap') ? overrides.effortVendorMap : undefined;
 	}
 }
 
@@ -1494,6 +1867,39 @@ function setConfigField(
 				loginCommandHint: value as string | null,
 			};
 			return;
+		case 'modelsLive.kind':
+			config.modelsLive = {
+				...config.modelsLive,
+				kind: value as ModelsLiveKind,
+			};
+			return;
+		case 'modelsLive.args':
+			config.modelsLive = {
+				...config.modelsLive,
+				args: value as readonly string[],
+			};
+			return;
+		case 'modelsLive.parser':
+			config.modelsLive = {
+				...config.modelsLive,
+				parser: value as ModelsLiveParser,
+			};
+			return;
+		case 'modelsLive.timeoutMs':
+			config.modelsLive = {
+				...config.modelsLive,
+				timeoutMs: value as number,
+			};
+			return;
+		case 'builtinModels':
+			config.builtinModels = value as readonly BuiltinModelDto[];
+			return;
+		case 'defaultEffortTier':
+			config.defaultEffortTier = value as EffortValue;
+			return;
+		case 'effortVendorMap':
+			config.effortVendorMap = value as EffortVendorMap;
+			return;
 	}
 }
 
@@ -1560,6 +1966,27 @@ function deleteOverrideField(
 		case 'loginProbe.loginCommandHint':
 			if (overrides.loginProbe !== undefined) overrides.loginProbe.loginCommandHint = undefined;
 			break;
+		case 'modelsLive.kind':
+			if (overrides.modelsLive !== undefined) overrides.modelsLive.kind = undefined;
+			break;
+		case 'modelsLive.args':
+			if (overrides.modelsLive !== undefined) overrides.modelsLive.args = undefined;
+			break;
+		case 'modelsLive.parser':
+			if (overrides.modelsLive !== undefined) overrides.modelsLive.parser = undefined;
+			break;
+		case 'modelsLive.timeoutMs':
+			if (overrides.modelsLive !== undefined) overrides.modelsLive.timeoutMs = undefined;
+			break;
+		case 'builtinModels':
+			overrides.builtinModels = undefined;
+			return;
+		case 'defaultEffortTier':
+			overrides.defaultEffortTier = undefined;
+			return;
+		case 'effortVendorMap':
+			overrides.effortVendorMap = undefined;
+			return;
 	}
 	if (overrides.timeouts !== undefined && Object.keys(overrides.timeouts).length === 0) {
 		overrides.timeouts = undefined;
@@ -1572,6 +1999,9 @@ function deleteOverrideField(
 	}
 	if (overrides.loginProbe !== undefined && Object.keys(overrides.loginProbe).length === 0) {
 		overrides.loginProbe = undefined;
+	}
+	if (overrides.modelsLive !== undefined && Object.keys(overrides.modelsLive).length === 0) {
+		overrides.modelsLive = undefined;
 	}
 }
 
@@ -1600,6 +2030,15 @@ function mutableFullConfigRecord(
 				loggedOutPattern: config.loginProbe.loggedOutPattern,
 				loginCommandHint: config.loginProbe.loginCommandHint,
 			},
+			modelsLive: {
+				kind: config.modelsLive?.kind ?? 'none',
+				args: [...(config.modelsLive?.args ?? [])],
+				parser: config.modelsLive?.parser ?? 'none',
+				timeoutMs: config.modelsLive?.timeoutMs ?? 5000,
+			},
+			builtinModels: [...(config.builtinModels ?? [])],
+			defaultEffortTier: config.defaultEffortTier ?? null,
+			effortVendorMap: config.effortVendorMap ? { ...config.effortVendorMap } : null,
 		};
 	}
 	return result;
@@ -1634,6 +2073,25 @@ function mutableOverrideRecord(
 									? undefined
 									: [...overrides.loginProbe.args],
 						},
+			modelsLive:
+				overrides.modelsLive === undefined
+					? undefined
+					: {
+							...overrides.modelsLive,
+							args:
+								overrides.modelsLive.args === undefined
+									? undefined
+									: [...overrides.modelsLive.args],
+						},
+			builtinModels:
+				overrides.builtinModels === undefined ? undefined : [...overrides.builtinModels],
+			defaultEffortTier: overrides.defaultEffortTier,
+			effortVendorMap:
+				overrides.effortVendorMap === undefined
+					? undefined
+					: overrides.effortVendorMap === null
+						? null
+						: { ...overrides.effortVendorMap },
 		};
 	}
 	return result;
@@ -1658,6 +2116,8 @@ function freezeAgentConfigLayer(layer: AgentConfigLayer): AgentConfigLayer {
 }
 
 function freezeAgentConfig(config: AgentConfig): AgentConfig {
+	const defaultModelsLive = config.modelsLive ?? GENERIC_MODELS_LIVE_DEFAULT;
+	const defaultBuiltinModels = config.builtinModels ?? [];
 	return Object.freeze({
 		...config,
 		argsTemplate: Object.freeze([...config.argsTemplate]),
@@ -1666,6 +2126,17 @@ function freezeAgentConfig(config: AgentConfig): AgentConfig {
 			...config.versionFingerprint,
 			args: Object.freeze([...config.versionFingerprint.args]),
 		}),
+		loginProbe: Object.freeze({
+			...(config.loginProbe ?? GENERIC_LOGIN_PROBE_DEFAULT),
+			args: Object.freeze([...(config.loginProbe?.args ?? [])]),
+		}),
+		modelsLive: Object.freeze({
+			...defaultModelsLive,
+			args: Object.freeze([...(defaultModelsLive.args ?? [])]),
+		}),
+		builtinModels: Object.freeze(defaultBuiltinModels.map((b) => Object.freeze({ ...b }))),
+		defaultEffortTier: config.defaultEffortTier ?? null,
+		effortVendorMap: config.effortVendorMap ? Object.freeze({ ...config.effortVendorMap }) : null,
 	});
 }
 
@@ -1696,6 +2167,26 @@ function freezeAgentOverrides(overrides: AgentConfigOverrides): AgentConfigOverr
 								? undefined
 								: Object.freeze([...overrides.loginProbe.args]),
 					}),
+		modelsLive:
+			overrides.modelsLive === undefined
+				? undefined
+				: Object.freeze({
+						...overrides.modelsLive,
+						args:
+							overrides.modelsLive.args === undefined
+								? undefined
+								: Object.freeze([...overrides.modelsLive.args]),
+					}),
+		builtinModels:
+			overrides.builtinModels === undefined
+				? undefined
+				: Object.freeze(overrides.builtinModels.map((b) => Object.freeze({ ...b }))),
+		effortVendorMap:
+			overrides.effortVendorMap === undefined
+				? undefined
+				: overrides.effortVendorMap === null
+					? null
+					: Object.freeze({ ...overrides.effortVendorMap }),
 	});
 }
 
@@ -1754,6 +2245,9 @@ function ownOptionalValue<T extends object, K extends keyof T>(
 }
 
 function configValuesEqual(left: AgentConfigValue, right: AgentConfigValue): boolean {
-	if (!Array.isArray(left) || !Array.isArray(right)) return left === right;
-	return left.length === right.length && left.every((value, index) => value === right[index]);
+	if (left === right) return true;
+	if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
+		return JSON.stringify(left) === JSON.stringify(right);
+	}
+	return false;
 }

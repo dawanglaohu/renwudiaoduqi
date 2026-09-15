@@ -1,5 +1,6 @@
 import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import type { EffortValue } from '@agent-scheduler/shared/api/agents';
 import type {
 	PlatformHostInputs,
 	ResolveExecutableInput,
@@ -21,17 +22,6 @@ export interface ConfigErrorInfo {
 	readonly error: string;
 }
 
-export interface ReadModelsResult {
-	readonly models: readonly ModelOption[];
-	readonly currentConfigModel: string | null;
-	readonly isPartial: boolean;
-	readonly warnings: readonly string[];
-	readonly rawStdout?: string;
-	readonly configError?: ConfigErrorInfo;
-	readonly configErrors?: readonly ConfigErrorInfo[];
-	readonly mtimeMs?: number | null;
-}
-
 export interface ModelReaderFileStat {
 	readonly mtimeMs: number;
 }
@@ -51,6 +41,99 @@ export const DEFAULT_MODEL_FILE_SYSTEM: ModelReaderFileSystem = Object.freeze({
 
 export const MAX_COMMAND_TIMEOUT_MS = 5000;
 
+export interface ReadModelsResult {
+	readonly models: readonly ModelOption[];
+	readonly currentConfigModel: string | null;
+	readonly currentConfigEffort?: EffortValue;
+	readonly currentConfigProvider?: string | null;
+	readonly providers?: readonly string[];
+	readonly isPartial: boolean;
+	readonly warnings: readonly string[];
+	readonly rawStdout?: string;
+	readonly configError?: ConfigErrorInfo;
+	readonly configErrors?: readonly ConfigErrorInfo[];
+	readonly mtimeMs?: number | null;
+}
+
+export const PI_EFFORT_OPTIONS = Object.freeze([
+	'off',
+	'minimal',
+	'low',
+	'medium',
+	'high',
+	'xhigh',
+	'max',
+] as const);
+
+export function normalizeHistoryModelName(name: string): string {
+	const colonIdx = name.lastIndexOf(':');
+	if (colonIdx > 0 && colonIdx > name.lastIndexOf('/')) {
+		return name.slice(0, colonIdx);
+	}
+	return name;
+}
+
+export function parsePiListModelsTable(stdout: string): (ModelOption & {
+	readonly provider?: string;
+	readonly effortOptions?: readonly string[];
+})[] {
+	const models: (ModelOption & {
+		readonly provider?: string;
+		readonly effortOptions?: readonly string[];
+	})[] = [];
+	const lines = stdout.split(/\r?\n/);
+	let isTable = false;
+
+	for (const rawLine of lines) {
+		const line = rawLine.trim();
+		if (!line) continue;
+
+		if (/^provider\s+model\b/i.test(line)) {
+			isTable = true;
+			continue;
+		}
+
+		if (isTable) {
+			const parts = line.split(/\s+/);
+			if (parts.length >= 2) {
+				const provider = parts[0];
+				const model = parts[1];
+				const id = `${provider}/${model}`;
+				const thinking = parts[4]?.toLowerCase();
+				const hasThinking = thinking === 'yes';
+				const effortOptions = hasThinking ? PI_EFFORT_OPTIONS : undefined;
+				models.push({
+					id,
+					name: model,
+					provider,
+					effortOptions,
+				});
+				continue;
+			}
+		}
+
+		const bulletMatch = line.match(/^\s*[*•-]\s*([a-zA-Z0-9_./:-]+)(?:\s*\(([^)]+)\))?/);
+		if (bulletMatch && bulletMatch[1] !== undefined) {
+			const rawId = bulletMatch[1].trim();
+			const tag = bulletMatch[2]?.trim().toLowerCase();
+			const isDefault = tag?.includes('default') ?? false;
+			const provider = rawId.includes('/') ? rawId.split('/')[0] : undefined;
+			models.push({ id: rawId, isDefault, provider, effortOptions: PI_EFFORT_OPTIONS });
+		} else {
+			const singleModelMatch = line.match(/^([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)$/);
+			if (singleModelMatch && singleModelMatch[1] !== undefined) {
+				const rawId = singleModelMatch[1].trim();
+				const provider = rawId.split('/')[0];
+				models.push({ id: rawId, provider, effortOptions: PI_EFFORT_OPTIONS });
+			}
+		}
+	}
+
+	return models;
+}
+
+export const parsePiModelsCommandOutput = parsePiListModelsTable;
+
 export interface AbsoluteCommandLaunchSpec {
 	readonly file: string;
 	readonly args: readonly string[];
@@ -67,10 +150,6 @@ export interface CommandExecutionResult {
 	readonly timedOut: boolean;
 }
 
-/**
- * Starts the supplied absolute launch with `shell: false`, honors `signal`, and resolves only
- * after the child process has terminated and its output streams have settled.
- */
 export type CommandRunner = (spec: AbsoluteCommandLaunchSpec) => Promise<CommandExecutionResult>;
 
 export type ExecutableResolver = (
@@ -94,37 +173,6 @@ export interface ReadPiModelsOptions {
 	readonly allowCommand?: boolean;
 	readonly fs?: ModelReaderFileSystem;
 	readonly resolveExecutable?: ExecutableResolver;
-}
-
-/**
- * Extracts models from pi CLI command output.
- * Matches lines like:
- *   - provider/model-id
- *   - model-id
- *   * model-id
- */
-export function parsePiModelsCommandOutput(stdout: string): ModelOption[] {
-	const models: ModelOption[] = [];
-	const lines = stdout.split(/\r?\n/);
-	const modelLineRegex = /^\s*[*•-]\s*([a-zA-Z0-9_./:-]+)(?:\s*\(([^)]+)\))?/;
-
-	for (const rawLine of lines) {
-		const line = rawLine.trim();
-		const match = line.match(modelLineRegex);
-		if (match && match[1] !== undefined) {
-			const id = match[1].trim();
-			const tag = match[2]?.trim().toLowerCase();
-			const isDefault = tag?.includes('default') ?? false;
-			models.push({ id, isDefault });
-		} else {
-			const singleModelMatch = line.match(/^([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)$/);
-			if (singleModelMatch && singleModelMatch[1] !== undefined) {
-				models.push({ id: singleModelMatch[1].trim() });
-			}
-		}
-	}
-
-	return models;
 }
 
 /**
@@ -276,6 +324,9 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 	const warnings: string[] = [];
 	const configErrors: ConfigErrorInfo[] = [];
 	let currentConfigModel: string | null = null;
+	let currentConfigEffort: EffortValue = null;
+	let currentConfigProvider: string | null = null;
+	const providersSet = new Set<string>();
 	let mtimeMs: number | null = null;
 	let isPartial = false;
 	let rawStdout: string | undefined;
@@ -291,6 +342,18 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 			if (typeof parsed.defaultModel === 'string' && parsed.defaultModel.trim()) {
 				currentConfigModel = parsed.defaultModel.trim();
 				modelMap.set(currentConfigModel, { id: currentConfigModel, isDefault: true });
+			}
+			if (typeof parsed.defaultProvider === 'string' && parsed.defaultProvider.trim()) {
+				currentConfigProvider = parsed.defaultProvider.trim();
+				providersSet.add(currentConfigProvider);
+			}
+			if (typeof parsed.defaultThinkingLevel === 'string' && parsed.defaultThinkingLevel.trim()) {
+				const raw = parsed.defaultThinkingLevel.trim();
+				if (raw === 'low' || raw === 'medium' || raw === 'high') {
+					currentConfigEffort = { tier: raw };
+				} else {
+					currentConfigEffort = { vendor: raw };
+				}
 			}
 		} catch (err) {
 			const errorMsg = (err as Error).message;
@@ -343,7 +406,17 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 					`Failed to parse models.json structure at ${modelsPath}; structure may have changed.`,
 				);
 			} else {
+				if (parsed && typeof parsed === 'object') {
+					const obj = parsed as Record<string, unknown>;
+					if (obj.providers && typeof obj.providers === 'object') {
+						for (const p of Object.keys(obj.providers)) providersSet.add(p);
+					}
+				}
 				for (const m of modelsFromJson) {
+					if (m.id.includes('/')) {
+						const provider = m.id.split('/')[0];
+						if (provider) providersSet.add(provider);
+					}
 					const existing = modelMap.get(m.id);
 					modelMap.set(m.id, {
 						...existing,
@@ -526,6 +599,9 @@ export async function readPiModels(options: ReadPiModelsOptions = {}): Promise<R
 	return Object.freeze({
 		models: Object.freeze(Array.from(modelMap.values())),
 		currentConfigModel,
+		currentConfigEffort,
+		currentConfigProvider,
+		providers: Object.freeze(Array.from(providersSet)),
 		isPartial,
 		warnings: Object.freeze(warnings),
 		rawStdout,

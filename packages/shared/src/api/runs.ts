@@ -1,3 +1,5 @@
+import type { EffortValue } from './agents.ts';
+
 export interface RunBaseRef {
 	readonly kind: 'head' | 'upstreamBranch';
 	readonly taskKey?: string;
@@ -7,6 +9,7 @@ export interface CreateRunBody {
 	readonly taskId: string;
 	readonly agentId: string;
 	readonly model?: string | null;
+	readonly effort?: EffortValue;
 	readonly permissionTier?: 'readOnly' | 'workspaceWrite' | 'unrestricted';
 	readonly baseRef?: RunBaseRef;
 	readonly worktreeMode?: 'fresh' | 'reuse';
@@ -16,6 +19,7 @@ export interface CreateRunBody {
 export const CREATE_RUN_BODY_KEYS = [
 	'agentId',
 	'baseRef',
+	'effort',
 	'idempotencyKey',
 	'model',
 	'permissionTier',
@@ -38,6 +42,27 @@ export const createRunBodySchema = {
 		taskId: { type: 'string', minLength: 1, maxLength: 64 },
 		agentId: { type: 'string', minLength: 1, maxLength: 64 },
 		model: { type: ['string', 'null'], maxLength: 256 },
+		effort: {
+			anyOf: [
+				{ type: 'null' },
+				{
+					type: 'object',
+					additionalProperties: false,
+					required: ['tier'],
+					properties: {
+						tier: { type: 'string', enum: ['low', 'medium', 'high'] },
+					},
+				},
+				{
+					type: 'object',
+					additionalProperties: false,
+					required: ['vendor'],
+					properties: {
+						vendor: { type: 'string', minLength: 1, maxLength: 256 },
+					},
+				},
+			],
+		},
 		permissionTier: { type: 'string', enum: ['readOnly', 'workspaceWrite', 'unrestricted'] },
 		baseRef: {
 			type: 'object',
@@ -147,6 +172,8 @@ export interface RunDto {
 	readonly modelName: string | null;
 	readonly reportedModel: string | null;
 	readonly effortTier: 'low' | 'medium' | 'high' | null;
+	readonly effortVendor?: string | null;
+	readonly effort?: EffortValue;
 	readonly reportedEffort: string | null;
 	readonly permissionTier: 'readOnly' | 'workspaceWrite' | 'unrestricted';
 	readonly worktreePath: string | null;

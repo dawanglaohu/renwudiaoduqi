@@ -1,0 +1,2 @@
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{}}}
+{"jsonrpc":"2.0","id":2,"result":{"data":[{"id":"gpt-6-astra","model":"gpt-6-astra","displayName":"GPT-6 Astra","hidden":false,"isDefault":true,"supportedReasoningEfforts":[{"reasoningEffort":"low"},{"reasoningEffort":"high"}]}],"nextCursor":"cursor_page_2"}}

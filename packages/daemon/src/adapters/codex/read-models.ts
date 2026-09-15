@@ -1,5 +1,6 @@
 import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import type { EffortValue } from '@agent-scheduler/shared/api/agents';
 import type { PlatformHostInputs } from '../../platform/contract.ts';
 
 export interface ModelOption {
@@ -17,12 +18,17 @@ export interface ConfigErrorInfo {
 export interface ReadModelsResult {
 	readonly models: readonly ModelOption[];
 	readonly currentConfigModel: string | null;
+	readonly currentConfigEffort?: EffortValue;
 	readonly isPartial: boolean;
 	readonly warnings: readonly string[];
 	readonly rawStdout?: string;
 	readonly configError?: ConfigErrorInfo;
 	readonly configErrors?: readonly ConfigErrorInfo[];
 	readonly mtimeMs?: number | null;
+}
+
+export function normalizeHistoryModelName(name: string): string {
+	return name;
 }
 
 export interface ModelReaderFileStat {
@@ -348,6 +354,7 @@ export async function readCodexModels(
 
 	const warnings: string[] = [];
 	let currentConfigModel: string | null = null;
+	let currentConfigEffort: EffortValue = null;
 	let configError: ConfigErrorInfo | undefined;
 	let mtimeMs: number | null = null;
 	const modelMap = new Map<string, ModelOption>();
@@ -365,6 +372,15 @@ export async function readCodexModels(
 				id: currentConfigModel,
 				isDefault: true,
 			});
+		}
+
+		if (typeof parsed.model_reasoning_effort === 'string' && parsed.model_reasoning_effort.trim()) {
+			const rawEffort = parsed.model_reasoning_effort.trim();
+			if (rawEffort === 'low' || rawEffort === 'medium' || rawEffort === 'high') {
+				currentConfigEffort = { tier: rawEffort };
+			} else {
+				currentConfigEffort = { vendor: rawEffort };
+			}
 		}
 
 		// Extract models from [model_providers.*]
@@ -472,6 +488,7 @@ export async function readCodexModels(
 	return Object.freeze({
 		models: Object.freeze(Array.from(modelMap.values())),
 		currentConfigModel,
+		currentConfigEffort,
 		isPartial: false,
 		warnings: Object.freeze(warnings),
 		configError,

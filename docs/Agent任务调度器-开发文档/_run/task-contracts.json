@@ -872,7 +872,12 @@
         "packages/daemon/test/unit/agents-service.test.ts",
         "packages/daemon/test/integration/agents-routes.test.ts",
         "packages/daemon/src/adapters/probe.ts",
-        "packages/daemon/src/adapters/login-probe.ts"
+        "packages/daemon/src/adapters/login-probe.ts",
+        "packages/daemon/test/unit/generic-acp-adapter.test.ts",
+        "packages/daemon/test/unit/database.test.ts",
+        "packages/web/src/components/agent-card.tsx",
+        "packages/web/src/features/settings-agents/use-agent-models.ts",
+        "packages/web/src/features/settings-agents/use-settings-agents.ts"
       ],
       "sections": [
         1,

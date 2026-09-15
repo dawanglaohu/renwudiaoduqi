@@ -1,3 +1,8 @@
+import type {
+	BuiltinModelDto,
+	EffortValue,
+	EffortVendorMap,
+} from '@agent-scheduler/shared/api/agents';
 import { DEFAULT_PERMISSION_TIER, type PermissionTier } from '../domain/permission-tier.ts';
 
 export const ADAPTER_KINDS = {
@@ -67,6 +72,37 @@ export const GENERIC_LOGIN_PROBE_DEFAULT: LoginProbeConfig = Object.freeze({
 	loginCommandHint: null,
 });
 
+export const MODELS_LIVE_KINDS = {
+	COMMAND: 'command',
+	CODEX_APP_SERVER: 'codex_app_server',
+	NONE: 'none',
+} as const;
+
+export type ModelsLiveKind = (typeof MODELS_LIVE_KINDS)[keyof typeof MODELS_LIVE_KINDS];
+
+export const MODELS_LIVE_PARSERS = {
+	GROK_MODELS_TEXT: 'grok_models_text',
+	PI_LIST_MODELS_TABLE: 'pi_list_models_table',
+	CODEX_MODEL_LIST_JSONRPC: 'codex_model_list_jsonrpc',
+	NONE: 'none',
+} as const;
+
+export type ModelsLiveParser = (typeof MODELS_LIVE_PARSERS)[keyof typeof MODELS_LIVE_PARSERS];
+
+export interface ModelsLiveConfig {
+	readonly kind: ModelsLiveKind;
+	readonly args: readonly string[];
+	readonly parser: ModelsLiveParser;
+	readonly timeoutMs: number;
+}
+
+export const GENERIC_MODELS_LIVE_DEFAULT: ModelsLiveConfig = Object.freeze({
+	kind: MODELS_LIVE_KINDS.NONE,
+	args: Object.freeze([]),
+	parser: MODELS_LIVE_PARSERS.NONE,
+	timeoutMs: 5000,
+});
+
 export interface AgentConfig {
 	readonly execPath: string;
 	readonly argsTemplate: readonly string[];
@@ -79,6 +115,10 @@ export interface AgentConfig {
 	readonly versionFingerprint: VersionFingerprint;
 	readonly versionRange?: VersionRange;
 	readonly loginProbe: LoginProbeConfig;
+	readonly modelsLive: ModelsLiveConfig;
+	readonly builtinModels: readonly BuiltinModelDto[];
+	readonly defaultEffortTier: EffortValue;
+	readonly effortVendorMap: EffortVendorMap;
 }
 
 export interface ResolvedAgentConfig extends AgentConfig {
@@ -113,6 +153,15 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				loggedOutPattern: 'not logged in',
 				loginCommandHint: 'codex login',
 			},
+			modelsLive: {
+				kind: MODELS_LIVE_KINDS.CODEX_APP_SERVER,
+				args: ['app-server'],
+				parser: MODELS_LIVE_PARSERS.CODEX_MODEL_LIST_JSONRPC,
+				timeoutMs: 10000,
+			},
+			builtinModels: [],
+			defaultEffortTier: null,
+			effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
 		}),
 		[BUILT_IN_AGENT_IDS.CLAUDE]: freezeAgentConfig({
 			execPath: 'claude',
@@ -134,6 +183,20 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				loggedOutPattern: null,
 				loginCommandHint: 'claude auth login',
 			},
+			modelsLive: {
+				kind: MODELS_LIVE_KINDS.NONE,
+				args: [],
+				parser: MODELS_LIVE_PARSERS.NONE,
+				timeoutMs: 5000,
+			},
+			builtinModels: [
+				{ name: 'opus', note: '别名，实际可用由登录账号决定' },
+				{ name: 'sonnet', note: '别名，实际可用由登录账号决定' },
+				{ name: 'haiku', note: '别名，实际可用由登录账号决定' },
+				{ name: 'opus[1m]', note: '别名，实际可用由登录账号决定' },
+			],
+			defaultEffortTier: null,
+			effortVendorMap: { low: '2048', medium: '8192', high: '32768' },
 		}),
 		[BUILT_IN_AGENT_IDS.PI]: freezeAgentConfig({
 			execPath: 'pi',
@@ -163,6 +226,15 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				loggedOutPattern: null,
 				loginCommandHint: null,
 			},
+			modelsLive: {
+				kind: MODELS_LIVE_KINDS.COMMAND,
+				args: ['--list-models'],
+				parser: MODELS_LIVE_PARSERS.PI_LIST_MODELS_TABLE,
+				timeoutMs: 5000,
+			},
+			builtinModels: [],
+			defaultEffortTier: null,
+			effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
 		}),
 		[BUILT_IN_AGENT_IDS.GROK]: freezeAgentConfig({
 			execPath: 'grok',
@@ -184,6 +256,15 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				loggedOutPattern: null,
 				loginCommandHint: 'grok login',
 			},
+			modelsLive: {
+				kind: MODELS_LIVE_KINDS.COMMAND,
+				args: ['models'],
+				parser: MODELS_LIVE_PARSERS.GROK_MODELS_TEXT,
+				timeoutMs: 5000,
+			},
+			builtinModels: [],
+			defaultEffortTier: null,
+			effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
 		}),
 		[BUILT_IN_AGENT_IDS.DSH]: freezeAgentConfig({
 			execPath: 'resources/host/node_modules/@deepseek-ai/dsh/lib/bin.js',
@@ -203,6 +284,10 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				max: '0.1.2',
 			},
 			loginProbe: GENERIC_LOGIN_PROBE_DEFAULT,
+			modelsLive: GENERIC_MODELS_LIVE_DEFAULT,
+			builtinModels: [],
+			defaultEffortTier: null,
+			effortVendorMap: null,
 		}),
 	},
 );
@@ -229,5 +314,11 @@ function freezeAgentConfig(config: AgentConfig): AgentConfig {
 			...config.loginProbe,
 			args: Object.freeze([...config.loginProbe.args]),
 		}),
+		modelsLive: Object.freeze({
+			...config.modelsLive,
+			args: Object.freeze([...config.modelsLive.args]),
+		}),
+		builtinModels: Object.freeze(config.builtinModels.map((b) => Object.freeze({ ...b }))),
+		effortVendorMap: config.effortVendorMap ? Object.freeze({ ...config.effortVendorMap }) : null,
 	});
 }

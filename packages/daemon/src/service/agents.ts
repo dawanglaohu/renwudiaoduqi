@@ -1,16 +1,31 @@
+import { join } from 'node:path';
 import type {
 	AgentEntryDto,
+	AgentLayersDto,
+	EffortValue,
 	ListAgentModelsResponse,
 	LoginState,
 	UpdateAgentBody,
 } from '@agent-scheduler/shared/api/agents';
-import { readClaudeModels } from '../adapters/claude/read-models.ts';
-import { readCodexModels } from '../adapters/codex/read-models.ts';
-import { readDshModels } from '../adapters/dsh/read-models.ts';
+import {
+	normalizeHistoryModelName as normalizeClaudeHistoryModelName,
+	readClaudeModels,
+} from '../adapters/claude/read-models.ts';
+import {
+	normalizeHistoryModelName as normalizeCodexHistoryModelName,
+	readCodexModels,
+} from '../adapters/codex/read-models.ts';
 import { runDshSmokeTest } from '../adapters/dsh/smoke.ts';
-import { readGrokModels } from '../adapters/grok/read-models.ts';
+import {
+	normalizeHistoryModelName as normalizeGrokHistoryModelName,
+	readGrokModels,
+} from '../adapters/grok/read-models.ts';
 import { probeLogin } from '../adapters/login-probe.ts';
-import { readPiModels } from '../adapters/pi/read-models.ts';
+import { type LiveModelCatalogResult, readModelsLive } from '../adapters/models-live.ts';
+import {
+	normalizeHistoryModelName as normalizePiHistoryModelName,
+	readPiModels,
+} from '../adapters/pi/read-models.ts';
 import {
 	type CommandRunnerParams,
 	type CommandRunnerResult,
@@ -22,12 +37,16 @@ import {
 } from '../adapters/probe.ts';
 import { BUILT_IN_AGENT_IDS, type ResolvedAgentConfig } from '../config/defaults.ts';
 import type { AgentRegistry, AgentRegistryFileSystem } from '../config/registry.ts';
+import type { DatabaseConnection } from '../db/open-database.ts';
+import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
+import { mergeModelSources } from '../domain/model-catalog.ts';
 import { isPermissionTier } from '../domain/permission-tier.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { ExecutableFileSystem, PlatformHostInputs } from '../platform/contract.ts';
 import type { spawnManaged } from '../proc/spawn.ts';
+import { type RunsRepo, createRunsRepo } from '../repo/runs.ts';
 
 export type AgentAvailabilityStatus = ProbeStatus | 'disabled';
 
@@ -72,6 +91,12 @@ export interface AgentServiceDeps {
 	readonly clock?: { readonly now: () => string };
 	readonly env?: Record<string, string>;
 	readonly hasInFlightRuns?: (agentId: string) => boolean | Promise<boolean>;
+	readonly runsRepo?: RunsRepo;
+	readonly database?: DatabaseConnection;
+	readonly listSucceededModelNames?: (params: {
+		readonly agentId: string;
+		readonly limit?: number;
+	}) => readonly string[];
 }
 
 export interface AgentService {
@@ -122,12 +147,154 @@ function getAgentDisplayName(agentId: string): string {
 	return AGENT_DISPLAY_NAMES[agentId] ?? agentId;
 }
 
+function getAdapterHistoryNormalizer(agentId: string): (name: string) => string {
+	switch (agentId) {
+		case BUILT_IN_AGENT_IDS.CODEX:
+			return normalizeCodexHistoryModelName;
+		case BUILT_IN_AGENT_IDS.CLAUDE:
+			return normalizeClaudeHistoryModelName;
+		case BUILT_IN_AGENT_IDS.GROK:
+			return normalizeGrokHistoryModelName;
+		case BUILT_IN_AGENT_IDS.PI:
+			return normalizePiHistoryModelName;
+		default:
+			return (name: string) => name;
+	}
+}
+
+interface LiveCacheEntry {
+	readonly result: LiveModelCatalogResult;
+	readonly cachedAt: string;
+}
+
+interface AgentConfigFileData {
+	readonly currentConfigModel: string | null;
+	readonly currentConfigEffort: EffortValue | null;
+	readonly configPath: string;
+	readonly configError?: string;
+	readonly currentConfigProvider?: string | null;
+	readonly providers?: readonly string[];
+}
+
 export function createAgentService(deps: AgentServiceDeps): AgentService {
 	const clock = deps.clock ?? Object.freeze({ now: () => new Date().toISOString() });
 	const cache = deps.cache ?? createFingerprintCache();
 	const availabilityMap = new Map<string, AgentAvailabilityState>();
 	const loginCache = new Map<string, LoginState>();
 	const inflightLogin = new Map<string, Promise<LoginState | null>>();
+	const liveCache = new Map<string, LiveCacheEntry>();
+	const inflightModels = new Map<string, Promise<LiveModelCatalogResult>>();
+	const configCache = new Map<string, AgentConfigFileData>();
+
+	const runsRepo: RunsRepo | undefined =
+		deps.runsRepo ?? (deps.database ? createRunsRepo(deps.database) : undefined);
+
+	async function readAgentConfig(agentId: string): Promise<AgentConfigFileData> {
+		const cached = configCache.get(agentId);
+		if (cached) return cached;
+
+		const homedir = deps.hostInputs.homedir;
+		let data: AgentConfigFileData;
+
+		switch (agentId) {
+			case BUILT_IN_AGENT_IDS.CODEX: {
+				const res = await readCodexModels({
+					hostInputs: deps.hostInputs,
+					homedir,
+				});
+				data = Object.freeze({
+					currentConfigModel: res.currentConfigModel,
+					currentConfigEffort: res.currentConfigEffort ?? null,
+					configPath: res.configError?.path ?? join(homedir, '.codex', 'config.toml'),
+					configError: res.configError?.error,
+				});
+				break;
+			}
+			case BUILT_IN_AGENT_IDS.CLAUDE: {
+				const res = await readClaudeModels({
+					hostInputs: deps.hostInputs,
+					homedir,
+				});
+				data = Object.freeze({
+					currentConfigModel: res.currentConfigModel,
+					currentConfigEffort: null,
+					configPath: res.configError?.path ?? join(homedir, '.claude', 'settings.json'),
+					configError: res.configError?.error,
+				});
+				break;
+			}
+			case BUILT_IN_AGENT_IDS.GROK: {
+				const res = await readGrokModels({
+					hostInputs: deps.hostInputs,
+					homedir,
+				});
+				data = Object.freeze({
+					currentConfigModel: res.currentConfigModel,
+					currentConfigEffort: null,
+					configPath: res.configError?.path ?? join(homedir, '.grok', 'config.toml'),
+					configError: res.configError?.error,
+				});
+				break;
+			}
+			case BUILT_IN_AGENT_IDS.PI: {
+				const res = await readPiModels({
+					hostInputs: deps.hostInputs,
+					homedir,
+				});
+				data = Object.freeze({
+					currentConfigModel: res.currentConfigModel,
+					currentConfigEffort: res.currentConfigEffort ?? null,
+					currentConfigProvider: res.currentConfigProvider ?? null,
+					providers: res.providers ?? [],
+					configPath: res.configError?.path ?? join(homedir, '.pi', 'agent', 'settings.json'),
+					configError: res.configError?.error,
+				});
+				break;
+			}
+			default: {
+				data = Object.freeze({
+					currentConfigModel: null,
+					currentConfigEffort: null,
+					configPath: '',
+				});
+				break;
+			}
+		}
+
+		configCache.set(agentId, data);
+		return data;
+	}
+
+	function triggerLiveProbe(
+		agentId: string,
+		config: ResolvedAgentConfig,
+	): Promise<LiveModelCatalogResult> {
+		const existing = inflightModels.get(agentId);
+		if (existing) return existing;
+
+		const state = availabilityMap.get(agentId);
+		const resolvedPath = state?.resolvedPath ?? (config.execPath ? config.execPath : null);
+
+		const promise = (async () => {
+			try {
+				const result = await readModelsLive({
+					agentId,
+					config,
+					resolvedPath,
+					platform: deps.hostInputs.platform,
+					commandRunner: deps.commandRunner,
+					spawnManagedFn: deps.spawnManagedFn,
+				});
+				liveCache.set(agentId, { result, cachedAt: clock.now() });
+				return result;
+			} finally {
+				inflightModels.delete(agentId);
+			}
+		})();
+
+		inflightModels.set(agentId, promise);
+		return promise;
+	}
 
 	if (typeof deps.registry.onReload === 'function') {
 		deps.registry.onReload(() => {
@@ -144,12 +311,55 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		state?: AgentAvailabilityState,
 	): AgentEntryDto {
 		const isAvailable = state?.isAvailable ?? false;
+		const snapshot = deps.registry.getSnapshot();
+		const storedDefault = snapshot.storedDefaults[agentId] ?? config;
+		const userOverrides = snapshot.userOverrides[agentId];
+
+		const modelBuiltin = storedDefault.defaultModel ?? null;
+		const effortBuiltin = storedDefault.defaultEffortTier ?? null;
+
+		const cachedConfig = configCache.get(agentId);
+		const modelConfig = cachedConfig ? cachedConfig.currentConfigModel : null;
+		const effortConfig = cachedConfig ? cachedConfig.currentConfigEffort : null;
+
+		const hasModelOverride =
+			userOverrides !== undefined && Object.hasOwn(userOverrides, 'defaultModel');
+		const modelOverride = hasModelOverride ? (userOverrides.defaultModel ?? null) : null;
+
+		const hasEffortOverride =
+			userOverrides !== undefined && Object.hasOwn(userOverrides, 'defaultEffortTier');
+		const effortOverride = hasEffortOverride ? (userOverrides.defaultEffortTier ?? null) : null;
+
+		// E-358: 生效值 = 覆盖 ?? 配置 ?? 内置
+		// hasOverride: true, override: null -> 生效值 null
+		const effectiveModel = hasModelOverride ? modelOverride : (modelConfig ?? modelBuiltin);
+		const effectiveEffort = hasEffortOverride ? effortOverride : (effortConfig ?? effortBuiltin);
+
+		const layers: AgentLayersDto = Object.freeze({
+			defaultModel: Object.freeze({
+				builtin: modelBuiltin,
+				config: modelConfig,
+				override: modelOverride,
+				hasOverride: hasModelOverride,
+			}),
+			defaultEffortTier: Object.freeze({
+				builtin: effortBuiltin,
+				config: effortConfig,
+				override: effortOverride,
+				hasOverride: hasEffortOverride,
+			}),
+		});
+
 		return Object.freeze({
 			id: agentId,
 			name: getAgentDisplayName(agentId),
 			monogram: config.monogram,
 			isAvailable,
-			defaultModel: config.defaultModel ?? null,
+			defaultModel: effectiveModel,
+			defaultEffortTier: effectiveEffort,
+			layers,
+			effortVendorMap: config.effortVendorMap,
+			builtinModels: config.builtinModels,
 			maxConcurrency: config.maxConcurrency,
 			permissionTier: config.permissionTier,
 			execPath: config.execPath.length > 0 ? config.execPath : null,
@@ -519,6 +729,9 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		cache.clear();
 		loginCache.clear();
 		inflightLogin.clear();
+		liveCache.clear();
+		inflightModels.clear();
+		configCache.clear();
 	}
 
 	async function listAgents(): Promise<readonly AgentEntryDto[]> {
@@ -531,6 +744,9 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				recordAndPublishAvailability(agentId, refreshedState);
 			}
 		}
+		// Preload config cache for all agents
+		await Promise.all(Object.keys(snapshot.agents).map((id) => readAgentConfig(id)));
+
 		const result: AgentEntryDto[] = [];
 		for (const [agentId, config] of Object.entries(snapshot.agents)) {
 			const state = availabilityMap.get(agentId);
@@ -550,6 +766,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			recordAndPublishAvailability(agentId, refreshedState);
 			state = refreshedState;
 		}
+		await readAgentConfig(agentId);
 		return toAgentEntryDto(agentId, config, state);
 	}
 
@@ -611,6 +828,93 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			);
 		}
 
+		// Validate clearOverrides (Criterion 7, E-358)
+		if (updates.clearOverrides !== undefined) {
+			if (!Array.isArray(updates.clearOverrides)) {
+				throw new AppError('E_VALIDATION', 'clearOverrides must be an array', {
+					details: { field: 'clearOverrides' },
+				});
+			}
+			if (updates.clearOverrides.length > 0) {
+				const allowedClearFields = ['defaultModel', 'defaultEffortTier'] as const;
+				const seen = new Set<string>();
+				for (const field of updates.clearOverrides) {
+					if (!allowedClearFields.includes(field as (typeof allowedClearFields)[number])) {
+						throw new AppError('E_VALIDATION', `Unknown field in clearOverrides: '${field}'`, {
+							details: { field: 'clearOverrides', unknownField: field },
+						});
+					}
+					if (seen.has(field)) {
+						throw new AppError('E_VALIDATION', `Duplicate field in clearOverrides: '${field}'`, {
+							details: { field: 'clearOverrides', duplicateField: field },
+						});
+					}
+					seen.add(field);
+				}
+
+				if (updates.clearOverrides.includes('defaultModel') && updates.defaultModel !== undefined) {
+					throw new AppError(
+						'E_VALIDATION',
+						"Cannot specify both 'defaultModel' and clearOverrides containing 'defaultModel'",
+						{ details: { field: 'defaultModel' } },
+					);
+				}
+				if (
+					updates.clearOverrides.includes('defaultEffortTier') &&
+					updates.defaultEffortTier !== undefined
+				) {
+					throw new AppError(
+						'E_VALIDATION',
+						"Cannot specify both 'defaultEffortTier' and clearOverrides containing 'defaultEffortTier'",
+						{ details: { field: 'defaultEffortTier' } },
+					);
+				}
+			}
+		}
+
+		// Validate effortVendorMap is null (Criterion 7: effort unsupported agent like dsh)
+		if (
+			config.effortVendorMap === null &&
+			updates.defaultEffortTier !== undefined &&
+			updates.defaultEffortTier !== null
+		) {
+			throw new AppError('E_VALIDATION', `Agent '${agentId}' does not support reasoning effort.`, {
+				details: { reason: 'effort_unsupported', agentId, field: 'defaultEffortTier' },
+			});
+		}
+
+		// Validate vendor effort in domain (Criterion 7, E-351)
+		if (
+			updates.defaultEffortTier !== undefined &&
+			updates.defaultEffortTier !== null &&
+			'vendor' in updates.defaultEffortTier
+		) {
+			const vendor = updates.defaultEffortTier.vendor;
+			const configData = await readAgentConfig(agentId);
+			const allowed = new Set<string>();
+			if (configData.currentConfigEffort && 'vendor' in configData.currentConfigEffort) {
+				allowed.add(configData.currentConfigEffort.vendor);
+			}
+			const liveEntry = liveCache.get(agentId);
+			if (liveEntry?.result.models) {
+				for (const m of liveEntry.result.models) {
+					if (m.effortOptions) {
+						for (const opt of m.effortOptions) allowed.add(opt);
+					}
+				}
+			}
+			if (allowed.size === 0) {
+				const liveRes = await triggerLiveProbe(agentId, config);
+				for (const m of liveRes.models) {
+					if (m.effortOptions) {
+						for (const opt of m.effortOptions) allowed.add(opt);
+					}
+				}
+			}
+
+			assertVendorEffortInDomain(vendor, Array.from(allowed));
+		}
+
 		// Validate adapterKind switch requires no in-flight runs (AC 8, E-189)
 		const candidateAdapterKind = (updates as { adapterKind?: unknown }).adapterKind;
 		if (candidateAdapterKind !== undefined && candidateAdapterKind !== config.adapterKind) {
@@ -640,6 +944,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		}
 
 		// Re-probe agent (force bypass cache)
+		configCache.delete(agentId);
 		await probeAgentMethod(agentId, { force: true });
 
 		const updatedAgent = await getAgent(agentId);
@@ -651,7 +956,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 
 	async function listAgentModels(
 		agentId: string,
-		_options: { readonly refresh?: boolean } = {},
+		options: { readonly refresh?: boolean } = {},
 	): Promise<ListAgentModelsResponse> {
 		await ensureInitialized();
 		const snapshot = deps.registry.getSnapshot();
@@ -668,74 +973,140 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			);
 		}
 
-		// Invalidation point 2: GET /agents/:id/models?refresh=1 (AC 5)
-		if (_options?.refresh) {
-			void refreshLogin(agentId, { force: true, trigger: 'models_refresh' });
+		if (options.refresh) {
+			configCache.delete(agentId);
+		}
+		const configData = await readAgentConfig(agentId);
+		const currentConfigModel = configData.currentConfigModel;
+		const currentConfigEffort = configData.currentConfigEffort;
+
+		let liveResult: LiveModelCatalogResult;
+		let refreshedAt: string;
+		let isRefreshing = false;
+
+		if (options.refresh) {
+			liveCache.delete(agentId);
+			loginCache.delete(agentId);
+
+			const livePromise = triggerLiveProbe(agentId, config);
+
+			// For Pi: providers comes from live table first column DISTINCT, defaultProvider from currentConfigProvider
+			let loginPromise: Promise<LoginState | null>;
+			if (agentId === BUILT_IN_AGENT_IDS.PI) {
+				loginPromise = livePromise.then((res) => {
+					const providers = res.ok
+						? Array.from(
+								new Set(res.models.map((m) => m.provider).filter((p): p is string => Boolean(p))),
+							)
+						: configData.currentConfigProvider
+							? [configData.currentConfigProvider]
+							: [];
+					return refreshLogin(agentId, {
+						force: true,
+						trigger: 'models_refresh',
+						providers: providers.length > 0 ? providers : undefined,
+						defaultProvider: configData.currentConfigProvider,
+					});
+				});
+			} else {
+				loginPromise = refreshLogin(agentId, { force: true, trigger: 'models_refresh' });
+			}
+
+			const [liveSettled] = await Promise.allSettled([livePromise, loginPromise]);
+			if (liveSettled.status === 'fulfilled') {
+				liveResult = liveSettled.value;
+			} else {
+				liveResult = Object.freeze({
+					ok: false,
+					models: Object.freeze([]),
+					failure: Object.freeze({
+						reason: 'spawn_failed',
+						message: String(liveSettled.reason),
+					}),
+					warnings: Object.freeze([]),
+				});
+			}
+			refreshedAt = clock.now();
+			isRefreshing = false;
+		} else {
+			const cached = liveCache.get(agentId);
+			if (cached) {
+				liveResult = cached.result;
+				refreshedAt = cached.cachedAt;
+				isRefreshing = inflightModels.has(agentId);
+			} else if (inflightModels.has(agentId)) {
+				// AC 3 & E-339: Uncached and in-flight -> DO NOT WAIT, return empty live immediately with isRefreshing: true
+				liveResult = Object.freeze({
+					ok: false,
+					models: Object.freeze([]),
+					failure: null,
+					warnings: Object.freeze([]),
+				});
+				refreshedAt = clock.now();
+				isRefreshing = true;
+			} else {
+				const livePromise = triggerLiveProbe(agentId, config);
+				liveResult = await livePromise;
+				refreshedAt = clock.now();
+				isRefreshing = false;
+			}
 		}
 
-		const homedir = deps.hostInputs.homedir;
-		let modelNames: readonly string[] = [];
-		let isComplete = true;
-		let source = 'local-config';
-
-		switch (agentId) {
-			case BUILT_IN_AGENT_IDS.CODEX: {
-				const res = await readCodexModels({
-					hostInputs: deps.hostInputs,
-					homedir,
-				});
-				modelNames = res.models.map((m) => m.id);
-				isComplete = !res.isPartial;
-				break;
-			}
-			case BUILT_IN_AGENT_IDS.CLAUDE: {
-				const res = await readClaudeModels({
-					hostInputs: deps.hostInputs,
-					homedir,
-				});
-				modelNames = res.models.map((m) => m.id);
-				isComplete = !res.isPartial;
-				break;
-			}
-			case BUILT_IN_AGENT_IDS.GROK: {
-				const res = await readGrokModels({
-					hostInputs: deps.hostInputs,
-					homedir,
-				});
-				modelNames = res.models.map((m) => m.id);
-				isComplete = !res.isPartial;
-				break;
-			}
-			case BUILT_IN_AGENT_IDS.PI: {
-				const res = await readPiModels({
-					hostInputs: deps.hostInputs,
-					homedir,
-				});
-				modelNames = res.models.map((m) => m.id);
-				isComplete = !res.isPartial;
-				break;
-			}
-			case BUILT_IN_AGENT_IDS.DSH: {
-				const res = await readDshModels({
-					hostInputs: deps.hostInputs,
-					homedir,
-				});
-				modelNames = res.models.map((m) => m.id);
-				isComplete = !res.isPartial;
-				break;
-			}
-			default: {
-				source = 'fallback';
-				modelNames = [];
-				isComplete = true;
-				break;
-			}
+		// Check effortRecognized for currentConfig
+		let effortRecognized = true;
+		if (currentConfigEffort !== null && 'vendor' in currentConfigEffort) {
+			const vendor = currentConfigEffort.vendor;
+			const inVendorMap =
+				config.effortVendorMap !== null && Object.values(config.effortVendorMap).includes(vendor);
+			const inLiveOptions = liveResult.models.some((m) => m.effortOptions?.includes(vendor));
+			effortRecognized = inVendorMap || inLiveOptions;
 		}
+
+		// Get history models (Criterion 4, E-340)
+		let historyModels: readonly string[] = [];
+		const listHistoryFn =
+			deps.listSucceededModelNames ??
+			(runsRepo
+				? (p: { readonly agentId: string; readonly limit?: number }) =>
+						runsRepo.listSucceededModelNames(p)
+				: undefined);
+		if (listHistoryFn) {
+			const rawHistory = listHistoryFn({ agentId, limit: 40 });
+			const normalizedMap = new Set<string>();
+			const historyList: string[] = [];
+			const normalizeFn = getAdapterHistoryNormalizer(agentId);
+			for (const rawName of rawHistory) {
+				const normalized = normalizeFn(rawName);
+				if (normalized && !normalizedMap.has(normalized)) {
+					normalizedMap.add(normalized);
+					historyList.push(normalized);
+					if (historyList.length >= 20) break;
+				}
+			}
+			historyModels = Object.freeze(historyList);
+		}
+
+		// Merge model sources (Criterion 1, E-338, E-350)
+		const mergedModels = mergeModelSources({
+			live: liveResult,
+			currentConfigModel,
+			builtinModels: config.builtinModels,
+			historyModels,
+		});
 
 		return Object.freeze({
-			models: Object.freeze(modelNames),
-			source,
-			isComplete,
+			models: mergedModels,
+			isComplete: liveResult.ok,
+			refreshedAt,
+			liveFailure: liveResult.ok ? null : (liveResult.failure ?? null),
+			currentConfig: Object.freeze({
+				model: currentConfigModel,
+				effort: currentConfigEffort,
+				configPath: configData.configPath,
+				...(configData.configError ? { configError: configData.configError } : {}),
+				effortRecognized,
+			}),
+			isRefreshing,
 		});
 	}
 
