@@ -13,12 +13,21 @@ export function isEffortTier(value: unknown): value is EffortTier {
 	return typeof value === 'string' && EFFORT_TIER_SET.has(value);
 }
 
+export type EffortValue = { readonly tier: EffortTier } | { readonly vendor: string } | null;
+
+export type EffortVendorMap = {
+	readonly low: string;
+	readonly medium: string;
+	readonly high: string;
+} | null;
+
 export interface EffortCapabilityContext {
 	readonly model?: string | null;
 	readonly agentVersion?: string | null;
 	/** False means the adapter or model probe established that this run cannot accept effort. */
 	readonly isSupported?: boolean;
 	readonly unsupportedReason?: string;
+	readonly vendorMap?: EffortVendorMap;
 }
 
 export interface ArgumentEffortTransport {
@@ -70,7 +79,7 @@ function env(name: string, value: string): EnvironmentEffortTransport {
 	return Object.freeze({ kind: 'env', variables: Object.freeze({ [name]: value }) });
 }
 
-function codexConfig(value: EffortTier): ArgumentEffortTransport {
+function codexConfig(value: string): ArgumentEffortTransport {
 	return Object.freeze({
 		kind: 'argv',
 		parameter: 'model_reasoning_effort',
@@ -78,6 +87,13 @@ function codexConfig(value: EffortTier): ArgumentEffortTransport {
 		args: Object.freeze(['-c', `model_reasoning_effort="${value}"`]),
 	});
 }
+
+export const KNOWN_EFFORT_TRANSPORTS = Object.freeze({
+	codex: (value: string) => codexConfig(value),
+	claude: (value: string) => env('MAX_THINKING_TOKENS', value),
+	grok: (value: string) => argv('--reasoning-effort', value),
+	pi: (value: string) => argv('--thinking', value),
+});
 
 const CODEX_EFFORT_RULES: VendorEffortRule = Object.freeze({
 	[EFFORT_TIERS.LOW]: codexConfig(EFFORT_TIERS.LOW),
@@ -113,6 +129,13 @@ const KNOWN_EFFORT_RULES: Readonly<Record<string, VendorEffortRule>> = Object.fr
 });
 
 export function isEffortSupported(agentId: string, context: EffortCapabilityContext = {}): boolean {
+	if (context.vendorMap !== undefined) {
+		return (
+			context.isSupported !== false &&
+			context.vendorMap !== null &&
+			Object.hasOwn(KNOWN_EFFORT_TRANSPORTS, agentId.trim().toLowerCase())
+		);
+	}
 	return (
 		context.isSupported !== false && Object.hasOwn(KNOWN_EFFORT_RULES, agentId.trim().toLowerCase())
 	);
@@ -125,6 +148,30 @@ export function resolveEffortMapping(
 	context: EffortCapabilityContext = {},
 ): ResolvedEffortMapping {
 	const normalized = agentId.trim().toLowerCase();
+
+	if (context.vendorMap !== undefined) {
+		if (context.isSupported === false || context.vendorMap === null) {
+			const reason =
+				context.unsupportedReason ?? `Agent '${agentId}' does not support reasoning effort.`;
+			return Object.freeze({ supported: false, agentId, tier, reason });
+		}
+		const transportFn = Object.hasOwn(KNOWN_EFFORT_TRANSPORTS, normalized)
+			? KNOWN_EFFORT_TRANSPORTS[normalized as keyof typeof KNOWN_EFFORT_TRANSPORTS]
+			: undefined;
+		if (transportFn === undefined) {
+			const reason =
+				context.unsupportedReason ?? `Agent '${agentId}' has no reasoning-effort mapping.`;
+			return Object.freeze({ supported: false, agentId, tier, reason });
+		}
+		const vendorValue = context.vendorMap[tier];
+		return Object.freeze({
+			supported: true,
+			agentId,
+			tier,
+			transport: transportFn(vendorValue),
+		});
+	}
+
 	const rule = Object.hasOwn(KNOWN_EFFORT_RULES, normalized)
 		? KNOWN_EFFORT_RULES[normalized]
 		: undefined;
@@ -206,4 +253,102 @@ export function compareSelectedAndReportedEffort(
 		reportedRaw: raw,
 		reportedNormalized,
 	});
+}
+
+export interface RemapEffortAcrossAgentsParams {
+	readonly effort: EffortValue;
+	readonly fromAgentId: string;
+	readonly toAgentId: string;
+	readonly fromVendorMap: EffortVendorMap;
+	readonly toVendorMap: EffortVendorMap;
+}
+
+export interface RemapEffortResult {
+	readonly effort: EffortValue;
+	readonly warning?: 'effort_unmappable';
+	readonly unmappableReason?: string;
+}
+
+/**
+ * Pure function mapping effort across agents (E-342).
+ * Covers six cases:
+ * 1. from === to / same family -> identity
+ * 2. { tier } across agents -> preserved if target supports effort
+ * 3. { vendor } where vendor can be reverse-mapped in source agent -> maps to corresponding tier in target
+ * 4. { vendor } where reverse lookup misses -> null with effort_unmappable warning
+ * 5. target effortVendorMap is null -> null with effort_unmappable warning
+ * 6. null effort -> null
+ */
+export function remapEffortAcrossAgents(
+	effortOrParams: EffortValue | RemapEffortAcrossAgentsParams,
+	fromAgentIdParam?: string,
+	toAgentIdParam?: string,
+	fromVendorMapParam?: EffortVendorMap,
+	toVendorMapParam?: EffortVendorMap,
+): RemapEffortResult {
+	let effort: EffortValue;
+	let fromAgentId: string;
+	let toAgentId: string;
+	let fromVendorMap: EffortVendorMap;
+	let toVendorMap: EffortVendorMap;
+
+	if (
+		effortOrParams !== null &&
+		typeof effortOrParams === 'object' &&
+		'fromAgentId' in effortOrParams
+	) {
+		const p = effortOrParams as RemapEffortAcrossAgentsParams;
+		effort = p.effort;
+		fromAgentId = p.fromAgentId;
+		toAgentId = p.toAgentId;
+		fromVendorMap = p.fromVendorMap;
+		toVendorMap = p.toVendorMap;
+	} else {
+		effort = effortOrParams as EffortValue;
+		fromAgentId = fromAgentIdParam ?? '';
+		toAgentId = toAgentIdParam ?? '';
+		fromVendorMap = fromVendorMapParam ?? null;
+		toVendorMap = toVendorMapParam ?? null;
+	}
+
+	if (effort === null) {
+		return Object.freeze({ effort: null });
+	}
+
+	const normalizedFrom = fromAgentId.trim().toLowerCase();
+	const normalizedTo = toAgentId.trim().toLowerCase();
+
+	if (normalizedFrom === normalizedTo) {
+		return Object.freeze({ effort });
+	}
+
+	if (toVendorMap === null) {
+		return Object.freeze({
+			effort: null,
+			warning: 'effort_unmappable',
+			unmappableReason: `Target agent '${toAgentId}' does not support reasoning effort.`,
+		});
+	}
+
+	if ('tier' in effort && effort.tier) {
+		return Object.freeze({ effort: { tier: effort.tier } });
+	}
+
+	if ('vendor' in effort && effort.vendor) {
+		if (fromVendorMap !== null) {
+			const tiers: readonly EffortTier[] = ['low', 'medium', 'high'];
+			const matchedTier = tiers.find((t) => fromVendorMap[t] === effort.vendor);
+			if (matchedTier !== undefined) {
+				return Object.freeze({ effort: { tier: matchedTier } });
+			}
+		}
+
+		return Object.freeze({
+			effort: null,
+			warning: 'effort_unmappable',
+			unmappableReason: `Vendor value '${effort.vendor}' cannot be remapped from agent '${fromAgentId}' to '${toAgentId}'.`,
+		});
+	}
+
+	return Object.freeze({ effort: null });
 }

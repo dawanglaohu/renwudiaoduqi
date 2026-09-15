@@ -1,5 +1,6 @@
 import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import type { EffortValue } from '@agent-scheduler/shared/api/agents';
 import type { PlatformHostInputs } from '../../platform/contract.ts';
 
 export interface ModelOption {
@@ -17,12 +18,17 @@ export interface ConfigErrorInfo {
 export interface ReadModelsResult {
 	readonly models: readonly ModelOption[];
 	readonly currentConfigModel: string | null;
+	readonly currentConfigEffort?: EffortValue;
 	readonly isPartial: boolean;
 	readonly warnings: readonly string[];
 	readonly rawStdout?: string;
 	readonly configError?: ConfigErrorInfo;
 	readonly configErrors?: readonly ConfigErrorInfo[];
 	readonly mtimeMs?: number | null;
+}
+
+export function normalizeHistoryModelName(name: string): string {
+	return name;
 }
 
 export interface ModelReaderFileStat {
@@ -189,6 +195,7 @@ export async function readClaudeModels(
 	return Object.freeze({
 		models: Object.freeze(Array.from(modelMap.values())),
 		currentConfigModel,
+		currentConfigEffort: null,
 		isPartial: false,
 		warnings: Object.freeze(warnings),
 		configError,

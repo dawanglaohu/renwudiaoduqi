@@ -1,5 +1,6 @@
 import { readFile as nodeReadFile, stat as nodeStat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import type { EffortValue } from '@agent-scheduler/shared/api/agents';
 import type {
 	PlatformHostInputs,
 	ResolveExecutableInput,
@@ -24,12 +25,17 @@ export interface ConfigErrorInfo {
 export interface ReadModelsResult {
 	readonly models: readonly ModelOption[];
 	readonly currentConfigModel: string | null;
+	readonly currentConfigEffort?: EffortValue;
 	readonly isPartial: boolean;
 	readonly warnings: readonly string[];
 	readonly rawStdout?: string;
 	readonly configError?: ConfigErrorInfo;
 	readonly configErrors?: readonly ConfigErrorInfo[];
 	readonly mtimeMs?: number | null;
+}
+
+export function normalizeHistoryModelName(name: string): string {
+	return name;
 }
 
 export interface ModelReaderFileStat {
@@ -358,7 +364,7 @@ function splitArrayItems(str: string): string[] {
  *   * grok-4.5
  *   - grok-beta
  */
-export function parseGrokModelsCommandOutput(stdout: string): ModelOption[] {
+export function parseGrokModelsOutput(stdout: string): ModelOption[] {
 	const models: ModelOption[] = [];
 	const lines = stdout.split(/\r?\n/);
 	const bulletRegex = /^\s*[*•-]\s*([a-zA-Z0-9_.:-]+)(?:\s*\(([^)]+)\))?/;
@@ -376,6 +382,8 @@ export function parseGrokModelsCommandOutput(stdout: string): ModelOption[] {
 
 	return models;
 }
+
+export const parseGrokModelsCommandOutput = parseGrokModelsOutput;
 
 /**
  * Reads model catalog for Grok agent from ~/.grok/config.toml and `grok models`.
@@ -600,6 +608,7 @@ export async function readGrokModels(
 	return Object.freeze({
 		models: Object.freeze(Array.from(modelMap.values())),
 		currentConfigModel,
+		currentConfigEffort: null,
 		isPartial,
 		warnings: Object.freeze(warnings),
 		rawStdout,

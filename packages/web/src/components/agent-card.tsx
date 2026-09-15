@@ -8,20 +8,7 @@ import { ModelPicker } from './model-picker.tsx';
  * 卡片渲染的 agent 模型：daemon 的 `AgentEntryDto` 加上可选的分层字段。
  * `layers` 由 M4-T14 交付，本页只读它，不在前端补算出厂默认。
  */
-export interface AgentEntryWithLayers extends AgentEntryDto {
-	readonly layers?: Readonly<
-		Record<
-			string,
-			{
-				readonly builtin?: unknown;
-				readonly config?: unknown;
-				readonly override?: unknown;
-				readonly effective?: unknown;
-				readonly hasOverride?: boolean;
-			}
-		>
-	>;
-}
+export type AgentEntryWithLayers = AgentEntryDto;
 
 export interface AgentCardProps {
 	readonly agent: AgentEntryWithLayers;

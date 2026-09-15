@@ -429,6 +429,77 @@ describe('agent registry lifecycle', () => {
 		const overlapWarning = warnings.find((w) => w.reason === 'session-dir-overlap');
 		expect(overlapWarning).toBeUndefined();
 	});
+
+	it('AC 5 & E-350: rejects an agent with invalid builtinModels item name and warns while other agents load normally', async () => {
+		const warnings: { reason: string; message: string; details?: unknown }[] = [];
+		const memory = createMemoryFileSystem(
+			JSON.stringify({
+				schemaVersion: 1,
+				overrides: {
+					codex: {
+						builtinModels: [{ name: 'invalid name with space' }],
+					},
+					grok: {
+						builtinModels: [{ name: 'valid-grok-model', note: 'custom note' }],
+					},
+				},
+			}),
+		);
+
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
+			fileSystem: memory.fileSystem,
+			publishWarning: (w) => warnings.push(w),
+		});
+
+		const snapshot = await registry.start();
+		registry.stop();
+
+		// Codex had invalid builtinModels with whitespace -> rejected (falls back to defaults), and warned
+		const invalidWarning = warnings.find(
+			(w) => w.reason === 'invalid-config' && w.message.includes("rejecting agent 'codex'"),
+		);
+		expect(invalidWarning).toBeDefined();
+		expect(requiredEntry(snapshot.agents, 'codex').builtinModels).toEqual([]);
+
+		// Grok had valid builtinModels -> loaded normally (generic field, not specific to claude)
+		expect(requiredEntry(snapshot.agents, 'grok').builtinModels).toEqual([
+			{ name: 'valid-grok-model', note: 'custom note' },
+		]);
+		// Claude still has its built-in defaults
+		expect(requiredEntry(snapshot.agents, 'claude').builtinModels.length).toBe(4);
+	});
+
+	it('AC 5 & E-350: rejects an agent with control characters in builtinModels item name', async () => {
+		const warnings: { reason: string; message: string; details?: unknown }[] = [];
+		const memory = createMemoryFileSystem(
+			JSON.stringify({
+				schemaVersion: 1,
+				overrides: {
+					pi: {
+						builtinModels: [{ name: 'bad\x00model' }],
+					},
+				},
+			}),
+		);
+
+		const registry = createAgentRegistry({
+			dataDir: 'C:\\agent-scheduler-test',
+			platform: 'win32',
+			fileSystem: memory.fileSystem,
+			publishWarning: (w) => warnings.push(w),
+		});
+
+		const snapshot = await registry.start();
+		registry.stop();
+
+		const invalidWarning = warnings.find(
+			(w) => w.reason === 'invalid-config' && w.message.includes("rejecting agent 'pi'"),
+		);
+		expect(invalidWarning).toBeDefined();
+		expect(requiredEntry(snapshot.agents, 'pi').builtinModels).toEqual([]);
+	});
 });
 
 function createMemoryFileSystem(

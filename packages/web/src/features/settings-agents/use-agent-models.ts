@@ -23,8 +23,8 @@ const listAgentModelsRoute = ROUTES.find(
 
 export function useAgentModels(agentId?: string | null): UseAgentModelsResult {
 	const cached = agentId ? modelsCache.get(agentId) : undefined;
-	const [models, setModels] = useState<readonly string[]>(cached?.models ?? []);
-	const [source, setSource] = useState<string>(cached?.source ?? '');
+	const [models, setModels] = useState<readonly string[]>(cached?.models.map((m) => m.name) ?? []);
+	const [source, setSource] = useState<string>(cached?.models[0]?.source ?? '');
 	const [isComplete, setIsComplete] = useState<boolean>(cached?.isComplete ?? true);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -53,8 +53,8 @@ export function useAgentModels(agentId?: string | null): UseAgentModelsResult {
 				query: isRefresh ? { refresh: 'true' } : undefined,
 			});
 			modelsCache.set(id, response);
-			setModels(response.models);
-			setSource(response.source);
+			setModels(response.models.map((m) => m.name));
+			setSource(response.models[0]?.source ?? '');
 			setIsComplete(response.isComplete);
 		} catch (err) {
 			const e = err instanceof Error ? err : new Error(String(err));
@@ -78,8 +78,8 @@ export function useAgentModels(agentId?: string | null): UseAgentModelsResult {
 
 		const currentCached = modelsCache.get(agentId);
 		if (currentCached) {
-			setModels(currentCached.models);
-			setSource(currentCached.source);
+			setModels(currentCached.models.map((m) => m.name));
+			setSource(currentCached.models[0]?.source ?? '');
 			setIsComplete(currentCached.isComplete);
 		} else {
 			void fetchModels(agentId, false);
@@ -101,9 +101,21 @@ export function useAgentModels(agentId?: string | null): UseAgentModelsResult {
 				if (agentId) {
 					const prevCached = modelsCache.get(agentId);
 					modelsCache.set(agentId, {
-						models: next,
-						source: prevCached?.source ?? 'custom',
+						models: next.map((name) => ({
+							name,
+							source: 'manual' as const,
+							isCurrentConfig: false,
+						})),
 						isComplete: prevCached?.isComplete ?? false,
+						refreshedAt: prevCached?.refreshedAt ?? new Date().toISOString(),
+						liveFailure: prevCached?.liveFailure ?? null,
+						currentConfig: prevCached?.currentConfig ?? {
+							model: null,
+							effort: null,
+							configPath: '',
+							effortRecognized: true,
+						},
+						isRefreshing: false,
 					});
 				}
 				return next;
