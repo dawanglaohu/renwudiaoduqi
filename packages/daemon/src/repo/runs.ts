@@ -1,5 +1,6 @@
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import { type DatabaseConnection, toDatabaseError } from '../db/open-database.ts';
+import { SUCCEEDED_RUN_STATES } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 
 export interface RunRow {
@@ -138,11 +139,14 @@ const SELECT_ALL_RUNS_SQL = `
 SELECT * FROM runs ORDER BY started_at DESC
 `;
 
+const SUCCEEDED_STATE_PLACEHOLDERS = SUCCEEDED_RUN_STATES.map(() => '?').join(', ');
+
 const SELECT_SUCCEEDED_MODEL_NAMES_SQL = `
 SELECT model_name FROM runs
 WHERE agent_id = ?
-  AND state IN ('landed')
+  AND state IN (${SUCCEEDED_STATE_PLACEHOLDERS})
   AND model_name IS NOT NULL
+  AND model_name != ''
 GROUP BY model_name
 ORDER BY MAX(ended_at) DESC
 LIMIT ?
@@ -314,7 +318,11 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		}): readonly string[] {
 			try {
 				const limit = params.limit ?? 40;
-				const rows = selectSucceededModelNamesStmt.all(params.agentId, limit) as readonly {
+				const rows = selectSucceededModelNamesStmt.all(
+					params.agentId,
+					...SUCCEEDED_RUN_STATES,
+					limit,
+				) as readonly {
 					model_name: string;
 				}[];
 				return Object.freeze(rows.map((r) => r.model_name));
