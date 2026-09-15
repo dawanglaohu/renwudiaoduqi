@@ -2,12 +2,17 @@
   "scope": "task-contract",
   "tasks": {
     "M6-T10": {
-      "contractHash": "3c073df7429c301b799c3e1b6b11476530fb02baca6954a7236c606164be155c",
+      "contractHash": "5ee4de7714fbd564792b1e3d5e1a8a5df971cc48009dc3a4124a068f07625813",
       "verdict": "pass",
       "evidence": [
-        "19 节 M6-T10 行（第 62 行）：依赖 M6-T1、M6-T6、M1-T7 均已落地或在前置闭包；产出 service/session-archive.ts、session-guard.ts、run.ts 接线、repo/runs.ts 三个查询、arch 与 integration 两个测试、一个普通迁移，全部在 taskPaths；shared events/runs/codes 与 message.ts、proc/registry.ts 在 supportPaths；provides session-archive 被 M8-T8 requires",
-        "验收 1)～7) 逐条对应：09 节 runs.session_archived_at / lane_no、tasks.lane_no（含 ux_tasks_lane 部分唯一索引）与「泳道槽位与会话归档」小节（第 535 行起）；08 节「会话引用不跨任务」段（第 83 行起，service 校验 + test/arch/session-isolation.test.ts）与「事务边界」新增的归档路径（事务内写列、事务后 killTree 与 publish）；E-302、E-303、E-322、E-326（awaiting_human/orphaned 只释放槽位不归档）、E-96、E-54；10 节 E_SESSION_ARCHIVED 行；16 节埋点 15",
-        "接缝：M8-T8 补位调用本任务的 assertSessionRefFree()（08 节 tick 第 ③ 步）；M7-T7 续接前调 assertNotArchived()；17 节 E-302/E-303/E-322 行写明 session-isolation 静态扫描与 session-archive 四条集成剧本；事务内不 await/killTree/publish 与 08 节事务规则一致"
+        "契约复核（本轮，带 patch m6-t10-scope-and-lane-release）：19 节 M6-T10 行的产出列与 图谱/任务/M6-T10.md 的产出段新增两处遗漏的既定产出——`lane.released` 事件与 `boot/container.ts` 接线；验收标准 1)～7) 与边界 E-302、E-303、E-322、E-326、E-54、E-96 的条文一字未改，未降低任何要求",
+        "补 lane.released 的依据：验收标准 1) 原文「同事务把 `tasks.lane_no` 置 NULL（`changes===1` 才收集 `lane.released`）」、边界 E-326「同一事务里 `tasks.lane_no` 置 NULL、发 `lane.released{reason:'awaiting_human'}`」、08 节第 206 行「`tasks.lane_no` 置 NULL、收集 `lane.released` 与 `task.sessions_archived`」；09 节第 228 行与 10 节 lane 事件表（scope `lane`、payload `{docId, laneNo, taskId, runId, reason}`）已定契约，产出列原先漏写",
+        "补 boot/container.ts 的依据：验收标准 4) 要求 `POST /runs/:id/messages` 命中 `session_archived_at` 非空的行返回 409 `E_SESSION_ARCHIVED`，该端点由 `container.services.message` 提供（http/routes/runs.ts:427），而组合根未注入任何归档检查来源；同补 `service/dispatch.ts` 是验收标准 6) 静态扫描范围内唯一的生产 `runsRepo.insert(` 调用点",
+        "有效路径修正：task-contracts.json 的 M6-T10.supportPaths 增列 packages/daemon/src/service/dispatch.ts、packages/daemon/src/boot/container.ts、packages/daemon/test/unit/database.test.ts、packages/daemon/test/unit/events.test.ts；后两者是新增迁移 0003 与新事件 kind 的必然连带修改。既定产出路径（service/session-archive.ts、session-guard.ts、run.ts、repo/runs.ts、migrations/、test/arch/session-isolation.test.ts、test/integration/session-archive.test.ts）保持不变",
+        "依赖与解锁未变：仍为 M6-T1、M6-T6、M1-T7，解锁 M8-T8；provides 仍为 session-archive，M8-T8 的 requires 指向不变；sections 仍覆盖 1、2、5、6、8、9、10、14、16、17",
+        "受影响面：M6-T10 为本任务；M8-T8、M8-T9、M9-T17、M9-T22、M9-T23 仅因共享章节 04-执行/19-模块任务拆分.md 变化被 sync 标为待复验（changedFields 为共享章节，验收标准与边界未受影响），不锁下游",
+        "代码现状复核（与本次文档补丁分开）：tsc -b --noEmit 全仓通过；biome ci 仅因未跟踪的测试残留件 test/fixtures/agents.json 与 pairing-code.txt 报格式错，非本次改动；M6-T10 的五个证据测试文件（test/arch/session-isolation.test.ts、test/integration/session-archive.test.ts、test/unit/session-guard.test.ts、test/unit/database.test.ts、test/unit/events.test.ts）38 用例全绿；全仓 vitest 的 86 条失败经比对 main 上同样的 `readDirectory: () => ['0001_init.sql']` 迁移桩与 dispatch-snapshots 的 bug_prompt 列证实为既有问题，与本任务无关",
+        "本次文档补丁只改任务配置与产出条款，不重跑需求、架构与任务拆分；代码侧发现的缺口（lane.released 未收集、归档守卫未接线、not-process-owner 误计入 killedPids、16 节埋点缺两阶段耗时）未在本补丁内放宽或豁免，按审查结论原样返工"
       ]
     }
   }

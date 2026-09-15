@@ -661,12 +661,16 @@
       ],
       "supportPaths": [
         "packages/daemon/src/service/message.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/boot/container.ts",
         "packages/daemon/src/proc/registry.ts",
         "packages/daemon/src/repo/tasks.ts",
         "packages/shared/src/api/events.ts",
         "packages/shared/src/api/runs.ts",
         "packages/shared/src/errors/codes.ts",
-        "packages/daemon/test/unit/session-guard.test.ts"
+        "packages/daemon/test/unit/session-guard.test.ts",
+        "packages/daemon/test/unit/database.test.ts",
+        "packages/daemon/test/unit/events.test.ts"
       ],
       "sections": [
         1,
