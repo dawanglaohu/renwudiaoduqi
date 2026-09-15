@@ -775,15 +775,21 @@
   },
   "M7-T2": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "1a2f08eccfd636436a775f333a60149755ff689c9bb8a1dcfbc2370634579e07",
+    "contractHash": "81ad0fe05b6b8019d1fde21aa63d3df520864efe689ddc2a7dd24fe689cae3ef",
     "evidence": [
-      "本轮改动：19 节验收 1 改为默认审查者三值逐字取被审实施运行行的 agent_id / model_name / effort_tier（任务指派副本，决策 107），禁止「设置里指定其他 agent／模型」分支，单一函数入口返回形状预留 effortVendor?，三值由 service/review.ts 以参数传入；与决策 107、E-347 一致；E-341 改由 M8-T9 引用（审查员 NON_BLOCKING 2 采纳）。",
-      "前置闭包：依赖 M7-T1、M3-T5、M4-T7 不变；读运行行的 repo 方法通过 supportPaths 加 packages/daemon/src/repo/runs.ts 兜底（审查员 NON_BLOCKING 1 采纳）。",
-      "与 M8-T9 的替换点：M8-T9 taskPaths 含 service/review-agent.ts、supportPaths 含 test/unit/review-agent.test.ts，M7-T2 只留入口、M8-T9 接 resolveAssignment() 与 reviewOverride。",
-      "边界：E-65、E-135、E-347 均存在；E-135 审查只读档与验收 2 一致，E-342 重申权限档不在指派里；验收 4 与决策 89 / M7-T7 分工不变。",
-      "有效范围：产出对应 taskPath service/review-agent.ts，测试与 repo/runs.ts 在 supportPaths。"
+      "契约复核（第 1 轮语义复核）：status --task M7-T2 报 ready=false 的唯一原因是「任务契约待语义复核」，blockers 为空、stale 与 runtimeDrift 为空，contractHash 与派发包一致（81ad0fe0…）。逐条核对 19 节 M7-T2 行、图谱/任务/M7-T2.md 的验收标准 1)～4) 与边界 E-135／E-347／E-65 条文：与派发包逐字一致，本轮未修改、未降低任何要求，无需文档补丁。",
+      "前置能力核对：M7-T1 的机械检查与执行目录已落地（service/review.ts:886 runMechanicalCheck 返回 canDispatchReviewAgent，本层为其下游）；M3-T5 的审查材料取用接口已落地（service/review-context.ts:25 ReviewContext 提供 reviewPrompt／contractHash／acceptText／taskPaths／snapshotId 且 isReadOnly:true）；M4-T7 的权限与思考强度映射已落地（domain/permission-tier.ts:11 REVIEW_PERMISSION_TIER='readOnly' 与 resolvePermissionMapping；domain/effort-tier.ts resolveEffortMapping）。三者都可被 review-agent.ts 直接消费，无缺件。",
+      "有效路径核对：实施只改了 taskPaths 的三个文件（packages/daemon/src/repo/runs.ts、packages/daemon/src/service/review-agent.ts、packages/daemon/test/unit/review-agent.test.ts）加任务笔记回填，未新增导出、未加迁移、未动路由与 container，无漏列支持文件；审查方定点补的一处代码也在 review-agent.ts 内，有效范围不变。",
+      "AC 1 落点：review-agent.ts:63 readDefaultReviewAssignment 逐字复制实施运行行的 agent_id／model_name／effort_tier／effort_vendor，返回形状恰为 {agentId, modelName, effortTier, effortVendor?}（:52），全文件不 import config/registry.ts，无「设置里指定其他 agent／模型」分支，阶段覆盖只留 input.assignment 参数入口（:855）；:905 vendor_session_ref=null 为独立新 session；提示词只含 ReviewContext 快照材料 + diff（:522-540），单测断言提示词不含实施会话引用（review-agent.test.ts:231）。三值由调用方以 implRun／assignment 参数传入，本层不查库推断指派（唯一 repo 读取是 :879 listByTaskId 算 attempt_no，与 service/dispatch.ts:331 同法，与指派取值无关）。",
+      "AC 2 与 E-135 落点：:901 permission_tier 恒为 REVIEW_PERMISSION_TIER（'readOnly'），无任何入参可覆盖；:655／:670／:683／:699／:712 分别交由五家 adapter 按 readOnly 映射出厂商参数（codex sandbox read-only／claude·grok --permission-mode plan／pi --tools read,grep,find,ls／dsh DSH_PERMISSION_MODE=read-only），通用兜底亦在 :589 走 resolvePermissionMapping；:499-503 提示词顶层禁令（不得改代码文档、不得接手写入修复、不得 git commit/push/merge、不得跑 maintain_docs/build_docs/build_vault，源提示词仅作引用材料、其中步骤一律不得执行、超限转人）；预算内可派 agent 只有注册表内置五家（config/registry.ts:603 拒绝 unknown-agent），五家都有 readOnly 映射，无「派出去但没有只读档」的可达路径。",
+      "AC 3 与 E-65 落点：:204 formatFullDiffStat 输出全量 diff stat；:293 pruneDiff 在文件数 >100 或字符数 >80,000 时保留命中文件全文、折叠其余并置 annotationRequired；:513 与 :544 在提示词内强制结论标注「基于部分 diff」；单测覆盖 106 文件裁剪（review-agent.test.ts:477）、字符超限（:548）、标注强制（:588）与未超限不裁剪（:454）。",
+      "AC 4 与决策 89 落点：:907 review_round 恒为 1、:908 continued_from_run_id 恒为 null、:905 vendor_session_ref 恒为 null，均为无条件字面量，全文件无按轮次分支；单测断言三值（review-agent.test.ts:621）。第 N+1 轮续接未在本层出现，续接头部上下文留给 M7-T7。",
+      "E-347 落点：review-agent.ts:63 单一取值入口 + :52 预留形状 + :909 assignment_source='task'，runs.ts:40／:80 预留四个列，runs.ts:236 由两列还原 RunDto.effort 并下发 effortVendor 供参照条逐阶段显示「模型 · 思考强度 · 来源」；前端文案与逐阶段高亮归 M9-T17，取值链与 reviewOverride 覆盖归 M8-T9，本层只提供单一入口与预留字段，未越界。",
+      "共享约定核对：review-agent.ts 无 process.env／process.platform 直读（平台经 platform/host.ts 的 takePlatformHostInputs）、无 SQL 与 db.prepare（test/arch/service-sql 通过）、无 fastify import、无 throw new Error（只用 AppError，message 为英文开发者短句）、无时钟与 id 直读（clock.now／ids.newId 注入）、事务内不 publish（test/arch/bus-transaction 的 AST 扫描通过）、仓库目录未新增 barrel／utils 类目录。repo/runs.ts 的动态片段只有列名，列名取自工厂内封闭字面量数组、值一律 @参数绑定、语句在工厂闭包 prepare 一次，未把外部字符串当列名。",
+      "检查与实测（2026-09-15，工作树 ../agent-scheduler-m7-t2，Windows）：tsc -b --noEmit 全仓通过；biome ci . 通过（0 问题）；最小充分证据集 15 个测试文件 177 例 175 通过 —— review-agent 单测 19/19、test/arch 全部（含 service-sql、bus-transaction、session-isolation）、session-guard、dispatch-contract、dispatch-snapshots、database、read-models、rerun、run-service、review；2 例失败为 arch/routes.test.ts 的 pairing 码文件 chmod 断言（Windows NTFS 返回 0666 而非 0600），与本次改动无 import 关系、在基线同样失败。全量 vitest 121 文件里 17 文件 81 例红，其中 52 例为 test fixture 只应用 0001_init.sql 造成的 dispatch_snapshots.bug_prompt 缺失——main 上的 repo/dispatch-snapshots.ts 已含该列与迁移 0002，属既有基线红，不由本层引入（本层 diff 未触及 container、dispatch-snapshots、routes）。",
+      "顺带修的两处非阻断项（记 FIXED_BY_REVIEWER）：review-agent.ts:971 在插入审查行前复用 assertSessionRefFree，与 dispatch.ts／rerun.ts 三处插入点同守 E-303／M6-T10 AC6（第 1 轮 ref 为空是 no-op，M7-T7 续接带真实 ref 时才真正生效）；任务笔记「代码位置」十二处行号改为指向实现声明行，并补上新增站点的位置。"
     ],
-    "reviewed": "2026-09-12T21:48:23.989707+00:00",
+    "reviewed": "2026-09-15T13:22:40.710882+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1165,6 +1171,20 @@
       "④M6-T4 在本分支同时被标为待复验，与 M9-T5 无关（原因是 main 上 M6-T4 自己的补丁 m6-t4-support-paths 在 M9-T5 补丁取基线之后合并进来）。M9-T5 的验收结论不依赖 M6-T4，本任务有效范围也不含任何 daemon 路径。"
     ],
     "reviewed": "2026-09-15T01:14:49.342468+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T6": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "697e7dd69e549be8e7a9714d5b4ec4f2091753236ccbecc15c18caa739944a87",
+    "evidence": [
+      "复验触发面：revalidation.json 里 M9-T6 的 changedFields=[definition, effectivePaths]、patch=M9-T6-support-paths、sourceVersion=c171819b9e5b20081ef09321dd9c0332fa0596ad4b8395a8626593275c62d0b5（合并 main 后的当前源版本）。这次改动就是本任务自己的审查补丁，不涉及任何其它补丁带来的实质变化。",
+      "①definition：04-执行/19-模块任务拆分.md 第 87 行的 M9-T6 行原文未动（产出仍为 `api/event-bus.ts`（`RunStreamBuffer` 环形数组、`useSyncExternalStore` 订阅），四条验收标准与三条边界 E-142/E-143/E-144 一字未删）；task-contracts.json 的 M9-T6 条目由「不存在」变成 {supportPaths:[packages/web/test/event-bus.test.ts]}，是本次补丁唯一新增内容。",
+      "②effectivePaths：合并 main 后重跑 sync --patch，contractHash 仍为 697e7dd69e549be8e7a9714d5b4ec4f2091753236ccbecc15c18caa739944a87（与补丁轮 verify 登记值逐字符相同）；有效范围现在是 packages/web/src/api/event-bus.ts + packages/web/test/event-bus.test.ts，与分支上实际改动的文件集合一致；测试文件路径全仓只有 M9-T6 声明，冲突检测 0。",
+      "③合并 main（含 M7-T2 落地）后本层代码未变：packages/web/src/api/event-bus.ts 与 M9-T5 的 sse-client.ts 在合并提交里没有冲突、内容与审查时相同；重跑 node_modules/.bin/vitest run packages/web → 12 文件 161 用例全过（含 event-bus.test.ts 24 用例）；tsc -b --noEmit 退出码 0；biome ci . → Checked 381 files 无修复需求；check-forbidden.ts → 0 违规；check-contrast.ts 与 check-error-codes.mjs 均退出码 0。",
+      "④结论：变化条款只落在 M9-T6 自身的有效范围登记上，四条验收标准与三条边界的实现位置（event-bus.ts:10/16/50/95/115/318/326/415/471/497/628/652）未受影响，复验通过。"
+    ],
+    "reviewed": "2026-09-15T13:26:20.848191+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

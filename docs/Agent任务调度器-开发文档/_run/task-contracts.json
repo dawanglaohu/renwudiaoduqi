@@ -260,6 +260,11 @@
         "packages/web/test/sse-client.test.ts"
       ]
     },
+    "M9-T6": {
+      "supportPaths": [
+        "packages/web/test/event-bus.test.ts"
+      ]
+    },
     "M3-T6": {
       "requires": [
         {
