@@ -1,4 +1,3 @@
-import type { ChildProcess } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -54,28 +53,27 @@ export async function executeStagingSmokeCheck(options?: {
 		}
 		console.log('[smoke-runner] Staged assets verified clean of builder absolute paths.');
 
-		// 4. Resolve absolute DaemonLaunchSpec (AC 2, E-209)
+		// 4. Resolve absolute DaemonLaunchSpec pointing to the runnable stub script (AC 2, E-209, R2/R3).
+		// We launch `node <stub-script> --port <port>` so the smoke probe hits a real HTTP server.
+		const probePort = options?.port ?? 7817;
 		const spec = resolveStagedLaunchSpec({
 			currentExe: staging.currentExe,
 			resourceDir: staging.resourceDir,
 			hostPlatform: platform,
-			customArguments: ['--port', String(options?.port ?? 7817)],
+			// Override daemon file to the Node.js interpreter; pass stub script + port as args.
+			customDaemonPath: process.execPath,
+			customArguments: [staging.stubScriptFile, '--port', String(probePort)],
 		});
-		console.log(`[smoke-runner] Resolved launch spec: file="${spec.file}", cwd="${spec.cwd}"`);
+		console.log(
+			`[smoke-runner] Resolved launch spec: file="${spec.file}", args=[${spec.args.join(' ')}], cwd="${spec.cwd}"`,
+		);
 
-		// 5. Execute daemon smoke test (AC 2, E-265)
-		console.log('[smoke-runner] Executing daemon smoke test with exact file/args/cwd...');
+		// 5. Execute daemon smoke test with real spawn and real health probe (AC 2, E-265, R2).
+		// No customSpawn or probeEndpoint overrides — the stub ESM script serves /api/v1/health.
+		console.log('[smoke-runner] Executing daemon smoke test with real spawn and health probe...');
 		const smokeOutcome = await executeDaemonSmoke(spec, {
-			port: options?.port ?? 7817,
-			timeoutMs: options?.probeTimeoutMs ?? 5000,
-			// For simulation runner without live binary, simulate probe success if stub
-			probeEndpoint: async () => true,
-			customSpawn: () => {
-				return {
-					pid: 99999,
-					kill: () => true,
-				} as unknown as ChildProcess;
-			},
+			port: probePort,
+			timeoutMs: options?.probeTimeoutMs ?? 10_000,
 		});
 
 		if (!smokeOutcome.success) {

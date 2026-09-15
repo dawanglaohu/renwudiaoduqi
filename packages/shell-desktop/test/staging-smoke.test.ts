@@ -37,8 +37,10 @@ describe('M10-T5: Staging Staged Unpack and Smoke Testing (AC 2, E-209, E-257, E
 		expect(isAbsoluteLaunchPath(staging.currentExe)).toBe(true);
 		expect(isAbsoluteLaunchPath(staging.resourceDir)).toBe(true);
 		expect(isAbsoluteLaunchPath(staging.daemonFile)).toBe(true);
+		expect(isAbsoluteLaunchPath(staging.stubScriptFile)).toBe(true);
 		expect(staging.currentExe.endsWith('scheduler.exe')).toBe(true);
 		expect(staging.daemonFile.endsWith('daemon.exe')).toBe(true);
+		expect(staging.stubScriptFile.endsWith('daemon-smoke-stub.mjs')).toBe(true);
 	});
 
 	it('AC 2 & E-209: resolves absolute frozen DaemonLaunchSpec from staged layout', () => {

@@ -42,6 +42,13 @@ jobs:
             platform: linux
             name: Linux (Ubuntu LTS x64)
 
+    # Expose macOS signing status so the release gate can read it (R4).
+    # For matrix jobs GitHub captures the output of the last job to set each key;
+    # only the darwin runner sets these, so the value survives correctly.
+    outputs:
+      macos_is_signed: ${{ steps.macos-signing.outputs.is_signed }}
+      macos_artifact_label: ${{ steps.macos-signing.outputs.artifact_label }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -109,10 +116,12 @@ jobs:
       - name: Staged Unpack & Daemon Smoke Test (AC 2, E-209, E-257)
         run: node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
 
+      # R1 fix: use `cargo build --release` to produce a fully linked binary, not just type-check.
+      # `cargo check` compiles but does not link and does not produce a usable artifact (AC 1, E-265).
       - name: Build Tauri Desktop Shell (AC 1, E-265)
         run: |
           cd packages/shell-desktop/src-tauri
-          cargo check --release
+          cargo build --release
 
       - name: Evaluate macOS Signing & Notarization (AC 6, E-267)
         if: matrix.platform == 'darwin'
@@ -154,11 +163,29 @@ jobs:
       - name: Evaluate Three-Platform Release Matrix & macOS Signing (AC 1, AC 6, E-265, E-267)
         run: |
           node --no-warnings --experimental-strip-types -e '
-            import { assertReleaseVerification, resolvePlatformAsset } from "./packages/shell-desktop/src/platform-support.ts";
+            import { assertReleaseVerification } from "./packages/shell-desktop/src/platform-support.ts";
 
             const isFormal = "${{ github.event.inputs.formal_release }}" === "true";
 
-            // Evaluates three platforms completion
+            // R1/R4 fix: matrix result drives all boolean flags.
+            // `needs.desktop-matrix.result` is "success" only when every platform job passed;
+            // any step failure in any runner causes it to be "failure" or "cancelled".
+            const matrixPassed = "${{ needs.desktop-matrix.result }}" === "success";
+
+            // R4 fix: read macOS signing status from the darwin runner output (propagated via job
+            // outputs). Non-darwin runners leave these empty strings; the darwin runner sets them.
+            const macosIsSignedRaw = "${{ needs.desktop-matrix.outputs.macos_is_signed }}";
+            const macosIsSigned = macosIsSignedRaw === "true";
+            const macosIsNotarized = macosIsSigned; // notarization requires signing; same secret gate
+
+            if (!matrixPassed) {
+              console.error("Matrix did not pass — one or more platform jobs failed.");
+              process.exit(1);
+            }
+
+            // Construct per-platform outcomes from the matrix result.
+            // All four steps (check, tests, smoke, build) are encoded in matrixPassed:
+            // if the matrix job succeeded, every step in that job succeeded.
             const outcomes = [
               {
                 platform: "win32",
@@ -175,8 +202,8 @@ jobs:
                 platformTestsPassed: true,
                 smokePassed: true,
                 shellBuildPassed: true,
-                isSigned: false, // Default without secrets
-                isNotarized: false,
+                isSigned: macosIsSigned,
+                isNotarized: macosIsNotarized,
               },
               {
                 platform: "linux",
@@ -189,6 +216,7 @@ jobs:
             ];
 
             console.log("Evaluating three-platform matrix results...");
+            console.log("macOS is_signed:", macosIsSignedRaw, "→", macosIsSigned);
             assertReleaseVerification(outcomes, { isFormalRelease: isFormal });
             console.log("Matrix gate passed. Full three-platform coverage verified.");
           '

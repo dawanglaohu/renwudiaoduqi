@@ -11,11 +11,37 @@ import { type PlatformProductLayers, evaluatePlatformSupport } from './platform-
 
 export const DEFAULT_SIMULATED_STAGING_FOLDER = '调度服务 桌面产物 (Unicode & Spaces) 1.0.0';
 
+/**
+ * File name written into the staging resource directory as the runnable health-probe stub.
+ * smoke-runner launches this via `process.execPath <script> --port <port>` (R3 fix).
+ */
+export const SMOKE_STUB_SCRIPT_NAME = 'daemon-smoke-stub.mjs';
+
+/**
+ * Minimal Node.js ESM script written as the daemon stub in staging.
+ * Starts an HTTP server on the port given via `--port <n>` and serves /api/v1/health.
+ */
+export const SMOKE_STUB_SCRIPT_CONTENT = [
+	'import { createServer } from "node:http";',
+	'const args = process.argv.slice(2);',
+	'const portIdx = args.indexOf("--port");',
+	'const port = portIdx >= 0 ? parseInt(args[portIdx + 1], 10) : 7817;',
+	'const server = createServer((req, res) => {',
+	'  if (req.url === "/api/v1/health") {',
+	'    res.writeHead(200, { "Content-Type": "application/json" });',
+	'    res.end(JSON.stringify({ ok: true, smokeStub: true }));',
+	'  } else { res.writeHead(404); res.end(); }',
+	'});',
+	'server.listen(port, "127.0.0.1");',
+].join('\n');
+
 export interface StagingLayout {
 	readonly stageDir: string;
 	readonly currentExe: string;
 	readonly resourceDir: string;
 	readonly daemonFile: string;
+	/** Absolute path to the runnable health-probe ESM script inside the staging resource dir (R3). */
+	readonly stubScriptFile: string;
 }
 
 export interface CreateStagingOptions {
@@ -45,12 +71,17 @@ export function createSimulatedStaging(options: CreateStagingOptions): StagingLa
 	const currentExe = `${binDir}${separator}${exeName}`;
 	const daemonFile = `${resourceDir}${separator}${daemonName}`;
 
-	const stubContent = options.daemonContent ?? '#!/usr/bin/env node\n// stub daemon binary\n';
+	const stubContent = options.daemonContent ?? SMOKE_STUB_SCRIPT_CONTENT;
+	// Also write the runnable health-stub script alongside the platform-named daemon file (R3)
+	const stubScriptFile = join(resourceDir, SMOKE_STUB_SCRIPT_NAME);
 	if (!existsSync(currentExe)) {
 		writeFileSync(currentExe, 'stub-desktop-binary\n', 'utf8');
 	}
 	if (!existsSync(daemonFile)) {
 		writeFileSync(daemonFile, stubContent, 'utf8');
+	}
+	if (!existsSync(stubScriptFile)) {
+		writeFileSync(stubScriptFile, SMOKE_STUB_SCRIPT_CONTENT, 'utf8');
 	}
 
 	return Object.freeze({
@@ -58,6 +89,7 @@ export function createSimulatedStaging(options: CreateStagingOptions): StagingLa
 		currentExe,
 		resourceDir,
 		daemonFile,
+		stubScriptFile,
 	});
 }
 
