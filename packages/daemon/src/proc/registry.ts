@@ -5,6 +5,7 @@ export interface ProcessRegistry {
 	get(runId: string): ManagedProcess | undefined;
 	getByPid(pid: number): ManagedProcess | undefined;
 	has(runId: string): boolean;
+	hasPid(pid: number): boolean;
 	unregister(runId: string): boolean;
 	list(): readonly ManagedProcess[];
 	readonly size: number;
@@ -33,6 +34,10 @@ export function createProcessRegistry(): ProcessRegistry {
 
 		has(runId: string): boolean {
 			return byRunId.has(runId);
+		},
+
+		hasPid(pid: number): boolean {
+			return byPid.has(pid);
 		},
 
 		unregister(runId: string): boolean {

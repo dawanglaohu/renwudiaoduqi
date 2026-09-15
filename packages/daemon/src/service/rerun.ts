@@ -8,6 +8,7 @@ import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import { type RunInsertRow, type RunsRepo, isConstraintConflict, toRunDto } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
+import { assertSessionRefFree } from './session-guard.ts';
 
 export interface RerunRunInput {
 	readonly runId: string;
@@ -334,6 +335,10 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		};
 
 		const persist = (): void => {
+			assertSessionRefFree(
+				{ taskId: task.id, vendorSessionRef: runInsert.vendor_session_ref ?? null },
+				{ runsRepo, tasksRepo },
+			);
 			runsRepo.insert(runInsert);
 		};
 
@@ -480,6 +485,10 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 				actor_device_id: input.actorDeviceId ?? null,
 				started_at: now,
 			};
+			assertSessionRefFree(
+				{ taskId, vendorSessionRef: runInsert.vendor_session_ref ?? null },
+				{ runsRepo, tasksRepo },
+			);
 			runsRepo.insert(runInsert);
 			return { snapshotId: snapshot.id };
 		};

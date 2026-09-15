@@ -12,12 +12,18 @@ import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { AppendResult } from '../logstore/run-writer.ts';
 import type { ManagedProcess, ProcessExitResult } from '../proc/spawn.ts';
 import type { AppendEventResult, EventEnvelopeInput, LogstoreService } from './logstore.ts';
+import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 
 export interface RunRecord {
 	readonly id: string;
 	readonly taskId: string;
 	readonly state: RunState;
 	readonly pid: number | null;
+	readonly kind?: string;
+	readonly sessionArchivedAt?: string | null;
+	readonly session_archived_at?: string | null;
+	readonly laneNo?: number | null;
+	readonly lane_no?: number | null;
 	readonly lastEventAt?: string | null;
 	readonly unmappedEventCount?: number;
 	readonly exitCode?: number | null;
@@ -76,6 +82,14 @@ export interface RunServiceDeps {
 	readonly bus?: EventBus;
 	readonly unitOfWork?: UnitOfWork;
 	readonly runsRepo?: RunsRepo;
+	readonly tasksRepo?: {
+		readonly clearLaneNo: (taskId: string) => {
+			readonly changes: number;
+			readonly previousLaneNo: number | null;
+			readonly docId: string | null;
+		};
+	};
+	readonly sessionArchiveService?: SessionArchiveService;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 	readonly logFailure?: (error: unknown) => void;
 }
@@ -470,6 +484,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		const previousState = run.state;
 		assertValidTransition(previousState, targetState, { reason });
 
+		const taskId = run.taskId ?? (run as { task_id?: string }).task_id;
 		const now = getNow();
 		const endedAt =
 			isTerminalRunState(targetState) || targetState === 'exited' ? (input.endedAt ?? now) : null;
@@ -477,7 +492,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		const stateChangedEnvelope = deps.envelopeFactory.createEnvelope({
 			kind: 'run.state_changed',
 			runId,
-			taskId: run.taskId,
+			taskId: taskId ?? null,
 			actorDeviceId: actorDeviceId ?? null,
 			payload: {
 				from: previousState,
@@ -488,23 +503,17 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 		// 事务回调内部严格禁止 await 与异步副作用；事件发布在事务返回后进行 (AC 3)
 		const pendingEvents: EventEnvelope[] = [];
-		if (deps.runsRepo) {
-			const repo = deps.runsRepo;
-			if (deps.unitOfWork) {
-				deps.unitOfWork.run(() => {
-					repo.updateState({
-						id: runId,
-						fromState: previousState,
-						toState: targetState,
-						endedAt,
-						exitCode: exitCode ?? null,
-						exitSignal: exitSignal ?? null,
-						actorDeviceId: actorDeviceId ?? null,
-					});
-					pendingEvents.push(stateChangedEnvelope);
-				});
-			} else {
-				repo.updateState({
+		let archiveContext: ArchiveTaskContext | null = null;
+		const isTerminal =
+			targetState === 'landed' ||
+			targetState === 'failed' ||
+			targetState === 'aborted' ||
+			targetState === 'interrupted';
+		const isImplement = !run.kind || run.kind === 'implement';
+
+		const executeTransitionInTx = () => {
+			if (deps.runsRepo) {
+				deps.runsRepo.updateState({
 					id: runId,
 					fromState: previousState,
 					toState: targetState,
@@ -513,10 +522,64 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					exitSignal: exitSignal ?? null,
 					actorDeviceId: actorDeviceId ?? null,
 				});
-				pendingEvents.push(stateChangedEnvelope);
 			}
-		} else {
 			pendingEvents.push(stateChangedEnvelope);
+
+			// AC 1 & E-302: 归档只有一个触发点：kind='implement' 行迁到 landed/failed/aborted/interrupted
+			if (isImplement && isTerminal && deps.sessionArchiveService && taskId) {
+				archiveContext = deps.sessionArchiveService.archiveTaskInTx({
+					taskId,
+					runId,
+					actorDeviceId,
+					now,
+				});
+				// R1(b): 收集 lane.released（只在 changes===1 时，E-326 防止人放行后重发）
+				if (archiveContext.laneReleased) {
+					const laneReason = targetState as 'landed' | 'failed' | 'aborted' | 'interrupted';
+					pendingEvents.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'lane.released',
+							taskId,
+							runId,
+							actorDeviceId: actorDeviceId ?? null,
+							payload: {
+								docId: archiveContext.docId,
+								laneNo: archiveContext.laneNo,
+								taskId,
+								runId,
+								reason: laneReason,
+							},
+						}),
+					);
+				}
+			} else if ((targetState === 'awaiting_human' || targetState === 'orphaned') && taskId) {
+				// AC 3 & E-326: awaiting_human 只置 tasks.lane_no NULL、不归档
+				const laneResult = deps.tasksRepo?.clearLaneNo(taskId);
+				// R1(c): 收集 lane.released（changes===1 时）
+				if (laneResult && laneResult.changes === 1) {
+					pendingEvents.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'lane.released',
+							taskId,
+							runId,
+							actorDeviceId: actorDeviceId ?? null,
+							payload: {
+								docId: laneResult.docId,
+								laneNo: laneResult.previousLaneNo,
+								taskId,
+								runId,
+								reason: 'awaiting_human',
+							},
+						}),
+					);
+				}
+			}
+		};
+
+		if (deps.unitOfWork) {
+			deps.unitOfWork.run(executeTransitionInTx);
+		} else {
+			executeTransitionInTx();
 		}
 
 		// 事务已成功返回，执行落盘与事件总线发布 (AC 3)
@@ -530,6 +593,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				};
 				deps.bus.publish(event, locationRef);
 			}
+		}
+
+		// AC 2 & E-322: 事务后终止残留进程并发布 task.sessions_archived
+		if (archiveContext && deps.sessionArchiveService) {
+			await deps.sessionArchiveService.terminateArchived(archiveContext);
 		}
 
 		return {

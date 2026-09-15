@@ -38,7 +38,9 @@
 			"**/dist/**",
 			"**/node_modules/**",
 			"AGENTS.md",
-			"CLAUDE.md"
+			"CLAUDE.md",
+			"packages/daemon/test/fixtures/agents.json",
+			"packages/daemon/test/fixtures/pairing-code.txt"
 		]
 	}
 }

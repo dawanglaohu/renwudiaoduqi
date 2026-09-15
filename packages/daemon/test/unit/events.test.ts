@@ -111,6 +111,10 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'task_verdict';
 				case 'task.landed':
 					return 'task_landed';
+				case 'task.sessions_archived':
+					return 'task_sessions_archived';
+				case 'lane.released':
+					return 'lane_released';
 				case 'batch.advanced':
 					return 'batch_advanced';
 				case 'agent.availability_changed':

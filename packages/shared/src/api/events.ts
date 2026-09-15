@@ -1,6 +1,6 @@
 import type { LoginState } from './agents.ts';
 
-export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system';
+export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system' | 'lane';
 
 export const EVENT_SCOPES = [
 	'run',
@@ -8,6 +8,7 @@ export const EVENT_SCOPES = [
 	'batch',
 	'agent',
 	'system',
+	'lane',
 ] as const satisfies readonly EventScope[];
 
 /**
@@ -37,6 +38,8 @@ export const EVENT_DEFINITIONS = {
 	'task.gate_passed': { scope: 'task', milestone: true },
 	'task.review_verdict': { scope: 'task', milestone: true },
 	'task.landed': { scope: 'task', milestone: true },
+	'task.sessions_archived': { scope: 'task', milestone: true },
+	'lane.released': { scope: 'lane', milestone: true },
 	'batch.advanced': { scope: 'batch', milestone: true },
 	'agent.availability_changed': { scope: 'agent', milestone: true },
 	'system.disk_warning': { scope: 'system', milestone: true },
@@ -66,6 +69,8 @@ const EVENT_KIND_VALUES = [
 	'task.gate_passed',
 	'task.review_verdict',
 	'task.landed',
+	'task.sessions_archived',
+	'lane.released',
 	'batch.advanced',
 	'agent.availability_changed',
 	'system.disk_warning',
@@ -105,6 +110,8 @@ export const PRODUCT_EVENT_KINDS = [
 	'task.gate_passed',
 	'task.review_verdict',
 	'task.landed',
+	'task.sessions_archived',
+	'lane.released',
 	'batch.advanced',
 	'agent.availability_changed',
 	'system.disk_warning',
@@ -253,6 +260,25 @@ export interface TaskLandedPayload {
 	readonly [key: string]: unknown;
 }
 
+export interface LaneReleasedPayload {
+	readonly docId: string | null;
+	readonly laneNo: number | null;
+	readonly taskId: string;
+	readonly runId: string;
+	readonly reason: 'landed' | 'awaiting_human' | 'failed' | 'aborted' | 'interrupted';
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface TaskSessionsArchivedPayload {
+	readonly taskId: string;
+	readonly runIds: readonly string[];
+	readonly killedPids: readonly number[];
+	readonly residualPids: readonly number[];
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
 export interface BatchAdvancedPayload {
 	readonly batchId: string;
 	readonly stage?: string;
@@ -306,6 +332,8 @@ export interface EventPayloadMap {
 	readonly 'task.gate_passed': TaskGatePassedPayload;
 	readonly 'task.review_verdict': TaskReviewVerdictPayload;
 	readonly 'task.landed': TaskLandedPayload;
+	readonly 'task.sessions_archived': TaskSessionsArchivedPayload;
+	readonly 'lane.released': LaneReleasedPayload;
 	readonly 'batch.advanced': BatchAdvancedPayload;
 	readonly 'agent.availability_changed': AgentAvailabilityChangedPayload;
 	readonly 'system.disk_warning': SystemDiskWarningPayload;

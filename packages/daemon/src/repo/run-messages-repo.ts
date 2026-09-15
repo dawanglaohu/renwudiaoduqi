@@ -39,6 +39,7 @@ export interface MessageRunRecord {
 	readonly pid: number | null;
 	readonly parentRunId: string | null;
 	readonly attemptNo: number;
+	readonly sessionArchivedAt: string | null;
 }
 
 export interface RunMessagesRepo {
@@ -56,7 +57,7 @@ export interface RunMessagesRepo {
 }
 
 const SELECT_RUN_BY_ID_SQL = `
-SELECT id, task_id, state, agent_id, pid, parent_run_id, attempt_no
+SELECT id, task_id, state, agent_id, pid, parent_run_id, attempt_no, session_archived_at
 FROM runs
 WHERE id = ?
 LIMIT 1
@@ -122,6 +123,7 @@ interface RunRow {
 	readonly pid: number | null;
 	readonly parent_run_id: string | null;
 	readonly attempt_no: number;
+	readonly session_archived_at: string | null;
 }
 
 interface MessageRow {
@@ -145,6 +147,7 @@ function mapRunRow(row: RunRow): MessageRunRecord {
 		pid: row.pid,
 		parentRunId: row.parent_run_id,
 		attemptNo: row.attempt_no,
+		sessionArchivedAt: row.session_archived_at,
 	};
 }
 
