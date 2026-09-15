@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T5": {
+      "contractHash": "2aa5ca33aecac46bb7119a7f93155c43febae8d49cf2d4fe81eb3180b10f7c9a",
+      "verdict": "pass",
+      "evidence": [
+        "2026-09-15 复验触发面（revalidation.json 记录的 changedFields：definition / effectivePaths / task）：全部来自本任务自身的补丁 M9-T5-support-paths-and-output-scope，不含任何别的补丁带来的实质变化。当前契约哈希 2aa5ca33aecac46bb7119a7f93155c43febae8d49cf2d4fe81eb3180b10f7c9a 与补丁轮 verify 时登记的哈希逐字符相同，即补丁轮复核覆盖的就是现在这份契约，没有新增条款需要重核。",
+        "①effectivePaths：_run/task-contracts.json 的 M9-T5.supportPaths 仍为 packages/web/test/sse-client.test.ts（唯一一项），与 17 节「src/lib 之外的本任务测试也要有落点」的要求一致；该文件在 main 上不存在、在本分支由本任务新建（packages/web/test/sse-client.test.ts，15 个用例）。全仓没有第二个任务的 taskPaths/supportPaths 声明该文件，无路径冲突。",
+        "②task / definition：04-执行/19-模块任务拆分.md 第 86-87 行现在是「M9-T5 产出 `api/sse-client.ts`」「M9-T6 输入 M9-T5 的 SSE 客户端与事件分派接口、产出 `api/event-bus.ts`（RunStreamBuffer 环形数组、useSyncExternalStore 订阅）」，与排程共用的 presentation.json handoff.taskPaths（M9-T5=packages/web/src/api/sse-client.ts、M9-T6=packages/web/src/api/event-bus.ts）一致；M9-T5 的六条验收标准与五条边界原文未删未改。",
+        "③合并 main（含 M6-T4 落地）后本层代码未变：packages/web/src/api/sse-client.ts 与 packages/web/test/sse-client.test.ts 在合并提交里没有冲突、内容与补丁轮复核时相同；重跑 node_modules/.bin/vitest run packages/web/test → 11 文件 137 用例全过（含 sse-client.test.ts 15 用例）；biome ci . → 0 违规；tsc -b --noEmit → 退出码 0；check-error-codes.mjs → 49 条一致；check-forbidden.ts → 0 违规。",
+        "④M6-T4 在本分支同时被标为待复验，与 M9-T5 无关（原因是 main 上 M6-T4 自己的补丁 m6-t4-support-paths 在 M9-T5 补丁取基线之后合并进来）。M9-T5 的验收结论不依赖 M6-T4，本任务有效范围也不含任何 daemon 路径。"
+      ]
+    }
+  }
+}
