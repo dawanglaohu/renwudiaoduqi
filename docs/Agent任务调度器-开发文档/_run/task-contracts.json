@@ -255,6 +255,11 @@
         "packages/web/tsconfig.json"
       ]
     },
+    "M9-T5": {
+      "supportPaths": [
+        "packages/web/test/sse-client.test.ts"
+      ]
+    },
     "M3-T6": {
       "requires": [
         {
@@ -1022,6 +1027,11 @@
     "M9-T14": {
       "supportPaths": [
         "packages/web/test/settings-agents.test.ts"
+      ]
+    },
+    "M6-T4": {
+      "supportPaths": [
+        "packages/daemon/test/unit/stall-detector.test.ts"
       ]
     }
   }

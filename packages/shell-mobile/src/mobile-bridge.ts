@@ -1,3 +1,4 @@
+import { CURRENT_API_VERSION } from '@agent-scheduler/shared/api/system';
 import type {
 	ShellBridge,
 	ShellCapabilities,
@@ -14,11 +15,21 @@ import {
 } from './notification-adapter.ts';
 import { type StorageBackend, createPreferencesTokenStore } from './preferences-store.ts';
 
+import {
+	type MobileUpgradeNotice,
+	type MobileVersionCheckOptions,
+	type MobileVersionCheckResult,
+	checkMobileApiVersion,
+	generateMobileUpgradeNotice,
+} from './version-check.ts';
+
 export interface MobileBridgeOptions {
 	readonly storageBackend?: StorageBackend;
 	readonly notificationBackend?: LocalNotificationBackend;
 	readonly onDeepLink?: (deepLink: string) => void;
 	readonly hostStorageKey?: string;
+	readonly hostHint?: () => Promise<string | null> | string | null;
+	readonly versionFetcher?: MobileVersionCheckOptions['fetcher'];
 }
 
 export interface MobileShellAdapter {
@@ -31,6 +42,8 @@ export interface InitializedMobileShell {
 	readonly bridge: ShellBridge;
 	readonly adapter: MobileShellAdapter;
 	readonly backButtonHandler: BackButtonHandler;
+	readonly versionCheckPromise: Promise<MobileVersionCheckResult>;
+	readonly upgradeNotice: MobileUpgradeNotice | null;
 	readonly destroy: () => void;
 }
 
@@ -99,12 +112,51 @@ export function initializeMobileShell(options: MobileBridgeOptions = {}): Initia
 	const bridge = createMobileShellBridge(options);
 	const adapter = createMobileShellAdapter(options);
 
+	let upgradeNotice: MobileUpgradeNotice | null = null;
+	const versionCheckPromise = Promise.resolve()
+		.then(async () => {
+			const hinted = options.hostHint ? await options.hostHint() : await bridge.hostHint();
+			return checkMobileApiVersion({
+				baseUrl: hinted,
+				fetcher: options.versionFetcher,
+			});
+		})
+		.then((result) => {
+			if (!result.compatible && result.reason === 'incompatible') {
+				upgradeNotice = generateMobileUpgradeNotice({
+					apiVersion: result.apiVersion,
+					expectedVersion: result.expectedVersion,
+				});
+			}
+			return result;
+		})
+		.catch((error: unknown): MobileVersionCheckResult => {
+			const message = error instanceof Error ? error.message : String(error);
+			return {
+				compatible: false,
+				reason: 'unreachable',
+				expectedVersion: CURRENT_API_VERSION,
+				message,
+				upgradePrompt: '电脑上的调度服务未启动。请在电脑上启动调度服务后再打开手机应用。',
+			};
+		});
+
 	return Object.freeze({
 		bridge,
 		adapter,
 		backButtonHandler,
+		versionCheckPromise,
+		get upgradeNotice() {
+			return upgradeNotice;
+		},
 		destroy(): void {
 			backButtonHandler.destroy();
 		},
 	});
 }
+
+export {
+	checkMobileApiVersion,
+	generateMobileUpgradeNotice,
+	isMobileApiVersionCompatible,
+} from './version-check.ts';

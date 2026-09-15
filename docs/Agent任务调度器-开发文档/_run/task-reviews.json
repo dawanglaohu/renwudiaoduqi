@@ -162,6 +162,22 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M10-T4": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "dc0ce934f22f51712a6971c9ad11f09ca203f255ef27838fd70ea7a33c8cbbf2",
+    "evidence": [
+      "2026-09-14 复核补丁前契约（hash 1c3bf37a）：图谱/任务/M10-T4.md 与 04-执行/19-模块任务拆分.md 的 M10-T4 行逐字一致——前置 M10-T2/M10-T3 均已落地，解锁 M10-T5，覆盖边界 E-14/E-174/E-175/E-176，六条验收标准未增删。补丁后（hash dc0ce934）只改「输入/产出」与 handoff.taskPaths：验收标准与四条边界的文字一字未动，未删验收、未降低边界要求。",
+      "补丁依据（缺口实测，非推测）：① 补丁前实测 GET /api/v1/version 返回 500 E_INTERNAL「handler is not implemented yet」（该路径不在 50-routes.ts 的 customRegisteredPaths），daemon 未暴露 apiVersion；② 同一个真实路由链上 /index.html 与 /assets/* 均 404，80-static.ts 只有占位注释，AC2 的 daemon 腿为空；③ 全仓 0 个 *.woff2，fonts.css 引用的 6 个文件不存在，Vite 在文件缺失时保留绝对 /fonts/…（用包内 vite 5.4.21 实测），AC4/AC6 不成立；④ packages/web 无 index.html/main.tsx 与 build 脚本，vite build 报 Could not resolve entry module。四项都在本任务既定产出（GET /version 校验接线、打包脚本）的下游，而原 taskPaths 只有两个壳与 web/vite.config.ts，实施方无法在不越界的条件下修好。",
+      "补丁内容与影响：presentation.json 的 handoff.taskPaths['M10-T4'] 增加 packages/daemon/src/http/routes/version.ts、packages/daemon/src/http/plugins/{50-routes.ts,80-static.ts}、packages/daemon/package.json、packages/daemon/test/unit/version-route.test.ts、packages/shared/src/api/system.ts、packages/web/{index.html,package.json,dist}、packages/web/public/fonts/、packages/web/src/main.tsx、packages/web/src/styles/{fonts.css,base.css}、pnpm-lock.yaml；19-模块任务拆分.md 的 M10-T4 行「输入/产出」写明 daemon 侧暴露端点、两个壳启动期接线、三处消费同一份 packages/web/dist、字体随产物自托管、web 具备可构建入口。base.css 是 AC5「列宽用 ch 计算」的落点（.mono-col 用 12ch），第一轮返工后补充进有效范围。依据 02-设计/07-前端架构.md:418-442 与 10-接口约定.md:151-158。未新增能力、未改架构、未重做任务拆分；sync 传播的受影响任务只有下游 M10-T5。",
+      "有效路径冲突核对：packages/web/src/main.tsx 与 index.html 在 97 个任务的 taskPaths 中无任何任务声明（grep presentation.json 全表确认），不存在与未落地 M9-*/M10-T5 的并行冲突；packages/web/src/styles/base.css 已被 M9-T1 落地实现占用，未落地的 M9-T19（E-282）后续会在此文件加 @keyframes，本任务先落地，不与其并行；packages/web/dist 与 public/fonts 为构建产物/资源，不产生代码冲突。",
+      "返工复核结论（第二轮）：R1 daemon 已暴露 GET /api/v1/version，实测 200 返回 {daemon:0.0.0, apiVersion:v1, node:v22.17.0}，apiVersion 单点来自 shared 的 CURRENT_API_VERSION；R2 80-static.ts 用 @fastify/static 托管 packages/web/dist，实测 /index.html 200 text/html、/assets/*.js 200 application/javascript、/fonts/*.woff2 200 font/woff2；R3 桌面 createDesktopStartupContext 与手机 initializeMobileShell 都在启动期发起校验并分别产出 incompatible 状态 / upgradeNotice；R4 两个壳不再出现 127.0.0.1:7817，响应类型改用 shared 的 VersionResponse；R5 机检补了 daemon 腿、dist CSS 绝对 url(/…) 与 index.html 绝对 /assets/ 断言、外链面扩到 index.html 与 dist，并新增三条负例（缺 woff2、base '/'、daemon root 指向别处）各自必须 FAIL；R6 补了 index.html/main.tsx 与 build 脚本，vite build 通过。",
+      "审查方在第二轮就地修掉的两处剩余缺陷（见 FIXED_BY_REVIEWER）：① 六个 woff2 原是 288 字节的占位桩（totalSfntSize≈620、Brotli 流解不出 sfnt、无字形），已换成 @fontsource 的真实 SIL OFL 拉丁子集（public-sans 400/500/600 各约 14.6 KB、commit-mono 400/500/600 各约 48 KB，totalSfntSize 30.9 KB / 274.8 KB），并补 OFL 许可文本；打包机检相应加硬：wOF2 签名、头部声明长度 === 文件长度、sfnt ≥ 4096 字节，占位字体一律 FAIL（新增负例覆盖）。② 桌面壳把 unreachable（daemon 未运行）也切成 incompatible，会把 E-146 的「启动 daemon」连接失败页替换成版本升级页；改为只有可达但版本不符/接口不可用时才切 incompatible，并加断言。",
+      "测试证据（task/M10-T4，审查方修复后）：biome ci 0 违规；tsc -b --noEmit 通过；vitest run packages/shell-desktop packages/shell-mobile 22 文件 119 用例全过（含新增占位字体负例与 unreachable 不切 incompatible 断言）；packages/daemon/test/unit/{version-route,static-plugin}.test.ts 通过；两个壳的 scripts/package-pipeline.ts 五项检查全 PASS；vite build 产出 dist（index.html + assets + 6 个 woff2 + 许可文本）。仓库仍有 81 个 daemon 用例红，原因是测试夹具内联 CREATE TABLE 缺 migration 0002 的 bug_prompt 列与 Windows 0600 权限断言，packages/daemon 相对 main 零 diff，与本层无关，另记 FOLLOW_UP。"
+    ],
+    "reviewed": "2026-09-15T02:46:29.834185+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T1": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "a679cdc47a2129f126bb69d455428042f6d5573cd0ed9bffff616c33ea8fafc2",
@@ -561,9 +577,12 @@
       "支持文件：service/landing.ts、boot/container.ts、http/plugins/50-routes.ts 已补入 M5-T4.supportPaths；与在途 M6-T8（50-routes.ts）共同持有，双方均为新增 hunk",
       "合并 origin/main 后：container.ts 与 M6-T6 的 runMessages/messageService 为并列新增，冲突取并集解决，repos 同时含 tasks 与 runMessages，services 同时含 landing 与 message",
       "检查：tsc -b --noEmit 通过；biome ci . 通过；landing.test.ts 19/20 通过，唯一失败为 Windows 侧 resolveGitExecutable 找不到 git（用例写死 platform: linux），已落地的 M5-T1 worktree.test.ts 同样失败，属既有环境差异",
-      "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）"
+      "检查：路由集合经 routesPlugin 以 /api/v1 前缀注册后与 shared/api/routes.ts 常量表完全一致（missing 与 extra 均为空）",
+      "2026-09-14 状态纠正复核（以上检查保留为此前落地证据，并非本次重跑）：当前 revalidation 的来源为 M6-T8-support-paths-20260914，而不是新的 M5-T4 需求。该补丁跨过 M5-T4 自身落地提交，把已复核的支持路径变化再次计入差异。",
+      "本次核对 b3a4416（M6-T8 合并前）与 fa95214：M5-T4 的 presentation.taskPaths、task-contracts 条目、任务笔记完全一致；workspace/landing.ts、service/landing.ts、http/routes/tasks.ts 与 landing.test.ts 无差异。共享 container.ts 和 50-routes.ts 只并列新增日志服务与端点，原 landing 装配和路由保留。",
+      "本次只撤销错误的待复验显示：保持 M5-T4 status=done，使用 verify（不带 patch）及 --landed 清除本次误标，不更改验收标准或其他任务的实施状态。"
     ],
-    "reviewed": "2026-09-14T10:12:44.002565+00:00",
+    "reviewed": "2026-09-15T01:23:22.289934+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -647,6 +666,19 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M6-T4": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "44ae5b0d959c276a951a29a0f5b6ca6b4d2e7fafe59af8817488cc373eb2a4ca",
+    "evidence": [
+      "2026-09-15 复验触发面（revalidation.json 记录的 changedFields：definition / effectivePaths）：本次标记不是 M6-T4 自身出了问题，而是 M9-T5 的补丁 M9-T5-support-paths-and-output-scope 在取基线之后，main 合并了 M6-T4 自己的补丁 m6-t4-support-paths（PR 80，status=verified），于是重算契约差异时 M6-T4 的条目相对旧基线发生了变化。只核这条变化，未重开 M6-T4 的验收。",
+      "变化条款逐条核对：m6-t4-support-paths 的 reason 是「产出必需的停滞检测单测 packages/daemon/test/unit/stall-detector.test.ts 未列入有效范围」，其 changes 只涉及 context 文本；落到 task-contracts.json 的实际差异是新增 M6-T4.supportPaths = [\"packages/daemon/test/unit/stall-detector.test.ts\"]，追加式改动、未放行整目录、未降低验收。本分支上该条目原样存在（_run/task-contracts.json 的 M6-T4 条目只有这一项）。",
+      "落点存在性：packages/daemon/test/unit/stall-detector.test.ts 在 main 上存在（本分支合并 main 后同样存在，Test-Path 为 True），与包内既有支持路径写法一致（对照 M9-T4.supportPaths = [packages/web/test/http-client.test.ts, packages/web/tsconfig.json]、M2-T5.supportPaths 的同类先例）。",
+      "M9-T5 的补丁只改 19-模块任务拆分.md 的 M9-T5 / M9-T6 两行与 M9-T5.supportPaths，未触及 M6-T4 的行、路径或代码；两者除共用章节的上下文外没有交集，因此 M6-T4 的契约内容与 main 上一致，待复验标记可以清除。"
+    ],
+    "reviewed": "2026-09-15T01:14:58.944341+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M6-T5": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "6e040ed72c18f68fa49814f18f389814efa06da98ac5680799dc9e2038af5adb",
@@ -666,9 +698,12 @@
       "本次待复验字段仅为 effectivePaths（M5-T4 的 supportPaths 补丁触发重新计算），M6-T6 的验收条款与边界本身未变",
       "复核有效范围：presentation.json handoff.taskPaths['M6-T6'] 六条路径与已合并 PR #69 的实际改动文件逐一对应，无多列也无漏列",
       "  service/message.ts、repo/run-messages-repo.ts、http/routes/runs.ts、http/plugins/50-routes.ts、boot/container.ts、test/unit/message-service.test.ts",
-      "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过"
+      "M5-T4 在 container.ts 与 50-routes.ts 上的改动为并列新增 hunk，未改写 M6-T6 既有代码；合并 origin/main 后 tsc -b --noEmit 与 biome ci . 均通过",
+      "2026-09-14 状态纠正复核（以上为此前 M5-T4 落地时的证据，并非本次重跑）：当前误标由 M6-T8-support-paths-20260914 跨合并同步再次传播 effectivePaths 变化造成；M6-T6 仍已合并，不能将该标记视为新的代码审查或实施状态。",
+      "本次核对 b3a4416 与 fa95214：M6-T6 的 taskPaths、task-contracts 条目和任务笔记完全一致；service/message.ts、repo/run-messages-repo.ts、message-service.test.ts 无差异。共享 runs.ts 仍保留原 messageHandler、请求校验、actorDeviceId 传递和响应；container.ts 与 50-routes.ts 保留 message 装配和路由，只并列新增 runLog。",
+      "本次保持 status=done，通过不带 patch 的 verify 及 --landed 撤销错误的待复验标记；不改变其他任务的生命周期与浏览器手工推进记录。"
     ],
-    "reviewed": "2026-09-14T10:15:15.310300+00:00",
+    "reviewed": "2026-09-15T01:23:34.175756+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1060,6 +1095,20 @@
       "pnpm -w check 通过：check-error-codes 49 条与 10 节逐行一致、check-contrast 与 check-forbidden 通过、biome ci 239 文件无问题、tsc -b --noEmit 通过、vitest 70 文件 832 通过 / 32 跳过 / 0 失败（864 例），2026-09-13，WSL Ubuntu 20.04（better-sqlite3 源码重编）。修复前 main@131faa2 同一命令在第一步 check-error-codes 即失败（10 节新增三条错误码未投影到 codes.ts，M2-T6 架构测试 AC 5 随之红）；本分支按 M2-T6 的投影职责补齐三条并修正脚本表头判定后全绿。"
     ],
     "reviewed": "2026-09-13T01:57:39.013964+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T5": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "2aa5ca33aecac46bb7119a7f93155c43febae8d49cf2d4fe81eb3180b10f7c9a",
+    "evidence": [
+      "2026-09-15 复验触发面（revalidation.json 记录的 changedFields：definition / effectivePaths / task）：全部来自本任务自身的补丁 M9-T5-support-paths-and-output-scope，不含任何别的补丁带来的实质变化。当前契约哈希 2aa5ca33aecac46bb7119a7f93155c43febae8d49cf2d4fe81eb3180b10f7c9a 与补丁轮 verify 时登记的哈希逐字符相同，即补丁轮复核覆盖的就是现在这份契约，没有新增条款需要重核。",
+      "①effectivePaths：_run/task-contracts.json 的 M9-T5.supportPaths 仍为 packages/web/test/sse-client.test.ts（唯一一项），与 17 节「src/lib 之外的本任务测试也要有落点」的要求一致；该文件在 main 上不存在、在本分支由本任务新建（packages/web/test/sse-client.test.ts，15 个用例）。全仓没有第二个任务的 taskPaths/supportPaths 声明该文件，无路径冲突。",
+      "②task / definition：04-执行/19-模块任务拆分.md 第 86-87 行现在是「M9-T5 产出 `api/sse-client.ts`」「M9-T6 输入 M9-T5 的 SSE 客户端与事件分派接口、产出 `api/event-bus.ts`（RunStreamBuffer 环形数组、useSyncExternalStore 订阅）」，与排程共用的 presentation.json handoff.taskPaths（M9-T5=packages/web/src/api/sse-client.ts、M9-T6=packages/web/src/api/event-bus.ts）一致；M9-T5 的六条验收标准与五条边界原文未删未改。",
+      "③合并 main（含 M6-T4 落地）后本层代码未变：packages/web/src/api/sse-client.ts 与 packages/web/test/sse-client.test.ts 在合并提交里没有冲突、内容与补丁轮复核时相同；重跑 node_modules/.bin/vitest run packages/web/test → 11 文件 137 用例全过（含 sse-client.test.ts 15 用例）；biome ci . → 0 违规；tsc -b --noEmit → 退出码 0；check-error-codes.mjs → 49 条一致；check-forbidden.ts → 0 违规。",
+      "④M6-T4 在本分支同时被标为待复验，与 M9-T5 无关（原因是 main 上 M6-T4 自己的补丁 m6-t4-support-paths 在 M9-T5 补丁取基线之后合并进来）。M9-T5 的验收结论不依赖 M6-T4，本任务有效范围也不含任何 daemon 路径。"
+    ],
+    "reviewed": "2026-09-15T01:14:49.342468+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

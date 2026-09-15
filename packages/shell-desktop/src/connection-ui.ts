@@ -1,18 +1,21 @@
 import type { DaemonLaunchSpec } from '@agent-scheduler/shared/shell/daemon-launch-spec';
 import { type LaunchDaemonResult, launchDaemon } from './daemon-process.ts';
 
-export type ConnectionUiStatus = 'idle' | 'starting' | 'started' | 'failed';
+export type ConnectionUiStatus = 'idle' | 'starting' | 'started' | 'failed' | 'incompatible';
 
 export interface ConnectionUiState {
 	readonly status: ConnectionUiStatus;
 	readonly pid?: number;
 	readonly errorMessage?: string;
+	readonly apiVersion?: string;
+	readonly expectedVersion?: string;
 }
 
 export interface ConnectionUiController {
 	readonly spec: DaemonLaunchSpec;
 	getState(): ConnectionUiState;
 	startDaemon(): Promise<LaunchDaemonResult>;
+	setIncompatible(apiVersion: string, expectedVersion: string): void;
 }
 
 /**
@@ -37,6 +40,15 @@ export function createConnectionUiController(
 
 		getState(): ConnectionUiState {
 			return state;
+		},
+
+		setIncompatible(apiVersion: string, expectedVersion: string): void {
+			state = Object.freeze({
+				status: 'incompatible',
+				apiVersion,
+				expectedVersion,
+				errorMessage: `API version mismatch: daemon has ${apiVersion}, shell requires ${expectedVersion}`,
+			});
 		},
 
 		async startDaemon(): Promise<LaunchDaemonResult> {
@@ -154,3 +166,5 @@ export function generateConnectionFailedHtml(options: {
 </body>
 </html>`;
 }
+
+export { generateVersionIncompatibleHtml } from './version-check.ts';

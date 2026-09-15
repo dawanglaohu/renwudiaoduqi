@@ -448,7 +448,21 @@
       "M10-T4": [
         "packages/shell-desktop/",
         "packages/shell-mobile/",
-        "packages/web/vite.config.ts"
+        "packages/daemon/package.json",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/http/plugins/80-static.ts",
+        "packages/daemon/src/http/routes/version.ts",
+        "packages/daemon/test/unit/version-route.test.ts",
+        "packages/shared/src/api/system.ts",
+        "packages/web/index.html",
+        "packages/web/package.json",
+        "packages/web/dist",
+        "packages/web/public/fonts/",
+        "packages/web/src/main.tsx",
+        "packages/web/src/styles/base.css",
+        "packages/web/src/styles/fonts.css",
+        "packages/web/vite.config.ts",
+        "pnpm-lock.yaml"
       ],
       "M10-T5": [
         ".github/workflows/",
