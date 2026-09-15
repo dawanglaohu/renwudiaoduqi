@@ -1021,6 +1021,11 @@
       "supportPaths": [
         "packages/web/test/settings-agents.test.ts"
       ]
+    },
+    "M6-T4": {
+      "supportPaths": [
+        "packages/daemon/test/unit/stall-detector.test.ts"
+      ]
     }
   }
 }
