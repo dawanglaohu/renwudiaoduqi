@@ -94,6 +94,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				has_accept_changed INTEGER NOT NULL DEFAULT 0,
 				has_prompt_changed INTEGER NOT NULL DEFAULT 0,
 				manual_state TEXT,
+				bug_prompt TEXT,
 				UNIQUE (doc_id, task_key)
 			);
 		`);

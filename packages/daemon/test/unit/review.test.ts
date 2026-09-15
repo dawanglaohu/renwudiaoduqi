@@ -1052,7 +1052,7 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 				CREATE TABLE tasks (
 					id TEXT PRIMARY KEY, doc_id TEXT NOT NULL, task_key TEXT NOT NULL, title TEXT NOT NULL,
 					module_key TEXT NOT NULL, deps_json TEXT NOT NULL, contract_hash TEXT NOT NULL,
-					contract_reasons_json TEXT NOT NULL
+					contract_reasons_json TEXT NOT NULL, bug_prompt TEXT
 				);
 				CREATE TABLE dispatch_snapshots (
 					id TEXT PRIMARY KEY, task_id TEXT NOT NULL, contract_hash TEXT NOT NULL,
@@ -1072,7 +1072,8 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 				);
 
 				INSERT INTO documents VALUES ('doc-1', 'doc.md', 'test', 'fp', '2026-01-01', '2026-01-01');
-				INSERT INTO tasks VALUES ('task-1', 'doc-1', 'T-1', 'Title', 'M1', '[]', 'hash', '[]');
+				INSERT INTO tasks (id, doc_id, task_key, title, module_key, deps_json, contract_hash, contract_reasons_json)
+				VALUES ('task-1', 'doc-1', 'T-1', 'Title', 'M1', '[]', 'hash', '[]');
 				INSERT INTO dispatch_snapshots VALUES ('snap-1', 'task-1', 'hash', '[]', '{}', '2026-01-01');
 				INSERT INTO runs (id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id, pid, worktree_path, changed_file_count, ended_at)
 				VALUES ('run-r3-1', 'task-1', 1, 'implement', 'exited', 'agent-1', 'workspaceWrite', 'snap-1', 12345, '${fakeWorktreeDir.replace(/\\/g, '\\\\')}', 0, '2026-09-14T10:00:00.000Z');

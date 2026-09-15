@@ -941,7 +941,8 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 				CREATE TABLE tasks (
 					id TEXT PRIMARY KEY, doc_id TEXT NOT NULL REFERENCES documents(id),
 					task_key TEXT NOT NULL, title TEXT NOT NULL, module_key TEXT NOT NULL,
-					deps_json TEXT NOT NULL, contract_hash TEXT NOT NULL, contract_reasons_json TEXT NOT NULL
+					deps_json TEXT NOT NULL, contract_hash TEXT NOT NULL, contract_reasons_json TEXT NOT NULL,
+					bug_prompt TEXT
 				);
 				CREATE TABLE dispatch_snapshots (
 					id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
