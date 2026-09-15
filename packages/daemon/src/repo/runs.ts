@@ -37,6 +37,10 @@ export interface RunRow {
 	readonly ended_at: string | null;
 	readonly lane_no?: number | null;
 	readonly session_archived_at?: string | null;
+	readonly effort_vendor?: string | null;
+	readonly review_round?: number | null;
+	readonly continued_from_run_id?: string | null;
+	readonly assignment_source?: string | null;
 }
 
 export interface RunInsertRow {
@@ -73,6 +77,10 @@ export interface RunInsertRow {
 	readonly ended_at?: string | null;
 	readonly lane_no?: number | null;
 	readonly session_archived_at?: string | null;
+	readonly effort_vendor?: string | null;
+	readonly review_round?: number | null;
+	readonly continued_from_run_id?: string | null;
+	readonly assignment_source?: string | null;
 }
 
 export interface RunsRepo {
@@ -225,6 +233,13 @@ export function toRunDto(row: RunRow): RunDto {
 		}
 	}
 
+	let effort: RunDto['effort'] = null;
+	if (row.effort_tier) {
+		effort = { tier: row.effort_tier as 'low' | 'medium' | 'high' };
+	} else if (row.effort_vendor) {
+		effort = { vendor: row.effort_vendor };
+	}
+
 	return Object.freeze({
 		id: row.id,
 		taskId: row.task_id,
@@ -237,6 +252,8 @@ export function toRunDto(row: RunRow): RunDto {
 		modelName: row.model_name ?? null,
 		reportedModel: row.reported_model ?? null,
 		effortTier: (row.effort_tier as RunDto['effortTier']) ?? null,
+		effortVendor: row.effort_vendor ?? null,
+		effort,
 		reportedEffort: row.reported_effort ?? null,
 		permissionTier: (row.permission_tier as RunDto['permissionTier']) ?? 'workspaceWrite',
 		worktreePath: row.worktree_path ?? null,
@@ -262,15 +279,64 @@ export function toRunDto(row: RunRow): RunDto {
 export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	let hasSessionArchivedAt = false;
 	let hasLaneNo = false;
+	let hasEffortVendor = false;
+	let hasReviewRound = false;
+	let hasContinuedFromRunId = false;
+	let hasAssignmentSource = false;
 	try {
 		const tableInfo = db.prepare<[], { name: string }>('PRAGMA table_info(runs)').all();
 		hasSessionArchivedAt = tableInfo.some((col) => col.name === 'session_archived_at');
 		hasLaneNo = tableInfo.some((col) => col.name === 'lane_no');
+		hasEffortVendor = tableInfo.some((col) => col.name === 'effort_vendor');
+		hasReviewRound = tableInfo.some((col) => col.name === 'review_round');
+		hasContinuedFromRunId = tableInfo.some((col) => col.name === 'continued_from_run_id');
+		hasAssignmentSource = tableInfo.some((col) => col.name === 'assignment_source');
 	} catch {}
 
-	const insertStmt = db.prepare(
-		hasSessionArchivedAt && hasLaneNo ? INSERT_RUN_SQL_WITH_LANES : INSERT_RUN_SQL_BASE,
-	);
+	const baseInsertCols = [
+		'id',
+		'task_id',
+		'attempt_no',
+		'kind',
+		'parent_run_id',
+		'state',
+		'review_verdict',
+		'agent_id',
+		'model_name',
+		'reported_model',
+		'effort_tier',
+		'reported_effort',
+		'permission_tier',
+		'snapshot_id',
+		'worktree_path',
+		'branch_name',
+		'pid',
+		'exit_code',
+		'exit_signal',
+		'vendor_session_ref',
+		'changed_file_count',
+		'token_usage_json',
+		'unmapped_event_count',
+		'is_stall_suspected',
+		'rework_count',
+		'queued_reason',
+		'idempotency_key',
+		'actor_device_id',
+		'started_at',
+		'last_event_at',
+		'ended_at',
+	];
+	const extraInsertCols: string[] = [];
+	if (hasLaneNo) extraInsertCols.push('lane_no');
+	if (hasSessionArchivedAt) extraInsertCols.push('session_archived_at');
+	if (hasEffortVendor) extraInsertCols.push('effort_vendor');
+	if (hasReviewRound) extraInsertCols.push('review_round');
+	if (hasContinuedFromRunId) extraInsertCols.push('continued_from_run_id');
+	if (hasAssignmentSource) extraInsertCols.push('assignment_source');
+
+	const allInsertCols = [...baseInsertCols, ...extraInsertCols];
+	const dynamicInsertSql = `INSERT INTO runs (${allInsertCols.join(', ')}) VALUES (${allInsertCols.map((col) => `@${col}`).join(', ')})`;
+	const insertStmt = db.prepare(dynamicInsertSql);
 	const selectByIdStmt = db.prepare(SELECT_RUN_BY_ID_SQL);
 	const selectByIdempotencyKeyStmt = db.prepare(SELECT_RUN_BY_IDEMPOTENCY_KEY_SQL);
 	const selectByVendorSessionRefStmt = db.prepare(SELECT_RUN_BY_VENDOR_SESSION_REF_SQL);
@@ -321,9 +387,23 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 					last_event_at: row.last_event_at ?? null,
 					ended_at: row.ended_at ?? null,
 				};
-				if (hasSessionArchivedAt && hasLaneNo) {
+				if (hasLaneNo) {
 					params.lane_no = row.lane_no ?? null;
+				}
+				if (hasSessionArchivedAt) {
 					params.session_archived_at = row.session_archived_at ?? null;
+				}
+				if (hasEffortVendor) {
+					params.effort_vendor = row.effort_vendor ?? null;
+				}
+				if (hasReviewRound) {
+					params.review_round = row.review_round ?? null;
+				}
+				if (hasContinuedFromRunId) {
+					params.continued_from_run_id = row.continued_from_run_id ?? null;
+				}
+				if (hasAssignmentSource) {
+					params.assignment_source = row.assignment_source ?? null;
 				}
 				insertStmt.run(params);
 			} catch (cause) {
