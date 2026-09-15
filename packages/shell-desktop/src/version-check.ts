@@ -1,13 +1,13 @@
+import { CURRENT_API_VERSION, type VersionResponse } from '@agent-scheduler/shared/api/system';
+
 /**
  * Version check and compatibility verification for the Tauri desktop shell (AC 1, E-14).
  *
- * Requirements:
- * - On startup, queries the daemon's API version (GET /api/v1/version).
- * - When incompatible, prompts the user to upgrade instead of throwing low-level errors (E-14).
- * - Network failures or malformed responses are captured gracefully without throwing bottom-level exceptions.
+ * On startup, queries GET /api/v1/version. When incompatible, returns a structured
+ * result for the upgrade prompt instead of throwing. Network and parse failures
+ * also return a structured result and never throw.
  */
 
-export const SUPPORTED_API_VERSION = 'v1' as const;
 export const DEFAULT_VERSION_CHECK_TIMEOUT_MS = 5000;
 
 export type VersionIncompatibilityReason = 'incompatible' | 'unreachable' | 'malformed';
@@ -31,16 +31,24 @@ export interface VersionCheckIncompatible {
 export type VersionCheckResult = VersionCheckCompatible | VersionCheckIncompatible;
 
 export interface VersionCheckOptions {
-	readonly baseUrl?: string;
+	readonly baseUrl?: string | null;
 	readonly expectedVersion?: string;
 	readonly fetcher?: (url: string, init?: RequestInit) => Promise<Response>;
 	readonly timeoutMs?: number;
 }
 
-/**
- * Parses major version from string like 'v1', '1.0.0', 'v2.1', '2'.
- * Returns NaN when unrecognized.
- */
+function isVersionResponse(payload: unknown): payload is VersionResponse {
+	if (typeof payload !== 'object' || payload === null) {
+		return false;
+	}
+	const candidate = payload as Record<string, unknown>;
+	return (
+		typeof candidate.apiVersion === 'string' &&
+		typeof candidate.daemon === 'string' &&
+		typeof candidate.node === 'string'
+	);
+}
+
 export function extractMajorVersion(versionStr: string): number {
 	if (!versionStr || typeof versionStr !== 'string') {
 		return Number.NaN;
@@ -51,12 +59,9 @@ export function extractMajorVersion(versionStr: string): number {
 	return Number.isFinite(major) ? major : Number.NaN;
 }
 
-/**
- * Checks whether detected server API version is compatible with the expected client API version (E-14).
- */
 export function isApiVersionCompatible(
 	detectedVersion: string | null | undefined,
-	expectedVersion: string = SUPPORTED_API_VERSION,
+	expectedVersion: string = CURRENT_API_VERSION,
 ): boolean {
 	if (!detectedVersion || typeof detectedVersion !== 'string') {
 		return false;
@@ -80,15 +85,27 @@ export function isApiVersionCompatible(
 
 /**
  * Checks daemon API version for desktop shell startup (AC 1, E-14).
- * Never throws low-level errors; returns a structured VersionCheckResult.
+ * Never throws. Missing baseUrl is treated as unreachable (E-146).
  */
 export async function checkDesktopApiVersion(
 	options: VersionCheckOptions = {},
 ): Promise<VersionCheckResult> {
-	const baseUrl = (options.baseUrl ?? 'http://127.0.0.1:7817').replace(/\/+$/, '');
-	const expectedVersion = options.expectedVersion ?? SUPPORTED_API_VERSION;
+	const expectedVersion = options.expectedVersion ?? CURRENT_API_VERSION;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_VERSION_CHECK_TIMEOUT_MS;
 	const fetcher = options.fetcher ?? (typeof fetch !== 'undefined' ? fetch : undefined);
+	const rawBaseUrl = options.baseUrl?.trim();
+
+	if (!rawBaseUrl) {
+		return {
+			compatible: false,
+			reason: 'unreachable',
+			expectedVersion,
+			message: 'No daemon host hint available; refused to guess a loopback address',
+			upgradePrompt: '电脑上的调度服务未启动。请先启动调度服务后再打开桌面客户端。',
+		};
+	}
+
+	const baseUrl = rawBaseUrl.replace(/\/+$/, '');
 
 	if (!fetcher) {
 		return {
@@ -145,27 +162,17 @@ export async function checkDesktopApiVersion(
 			};
 		}
 
-		if (
-			typeof payload !== 'object' ||
-			payload === null ||
-			typeof (payload as { apiVersion?: unknown }).apiVersion !== 'string'
-		) {
+		if (!isVersionResponse(payload)) {
 			return {
 				compatible: false,
 				reason: 'malformed',
 				expectedVersion,
-				message: 'Daemon version payload is missing required apiVersion field',
+				message: 'Daemon version payload is missing required VersionResponse fields',
 				upgradePrompt: '调度服务未暴露有效的 API 版本号。请升级调度服务至兼容版本。',
 			};
 		}
 
-		const data = payload as {
-			apiVersion: string;
-			daemon?: string;
-			node?: string;
-		};
-
-		const serverApiVersion = data.apiVersion.trim();
+		const serverApiVersion = payload.apiVersion.trim();
 		const compatible = isApiVersionCompatible(serverApiVersion, expectedVersion);
 
 		if (!compatible) {
@@ -182,8 +189,8 @@ export async function checkDesktopApiVersion(
 		return {
 			compatible: true,
 			apiVersion: serverApiVersion,
-			daemonVersion: data.daemon,
-			nodeVersion: data.node,
+			daemonVersion: payload.daemon,
+			nodeVersion: payload.node,
 		};
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -197,10 +204,6 @@ export async function checkDesktopApiVersion(
 	}
 }
 
-/**
- * Generates upgrade prompt HTML when two ends have mismatched API versions (E-14).
- * Uses CSS variables conforming to project token specifications.
- */
 export function generateVersionIncompatibleHtml(options: {
 	readonly apiVersion?: string;
 	readonly expectedVersion: string;

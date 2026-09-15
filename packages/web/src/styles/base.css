@@ -32,10 +32,17 @@ body {
 	box-shadow: 0 0 0 3px var(--needs-soft);
 }
 
-/* Monospace text rules */
+/* Monospace text rules. Column widths use ch so layout survives font fallback (E-174). */
 pre,
 code,
 kbd,
 samp {
 	font-family: var(--font-mono);
+}
+
+.mono-col {
+	font-family: var(--font-mono);
+	width: 12ch;
+	max-width: 100%;
+	box-sizing: content-box;
 }

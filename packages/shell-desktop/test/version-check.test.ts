@@ -1,12 +1,28 @@
+import { CURRENT_API_VERSION, type VersionResponse } from '@agent-scheduler/shared/api/system';
 import { describe, expect, it } from 'vitest';
 import { createConnectionUiController } from '../src/connection-ui.ts';
+import { createDesktopStartupContext } from '../src/launch-spec.ts';
 import {
-	SUPPORTED_API_VERSION,
 	checkDesktopApiVersion,
 	extractMajorVersion,
 	generateVersionIncompatibleHtml,
 	isApiVersionCompatible,
 } from '../src/version-check.ts';
+
+const STARTUP_BASE = {
+	currentExe: '/opt/scheduler/bin/scheduler',
+	resourceDir: '/opt/scheduler/lib',
+	hostPlatform: 'linux',
+};
+
+function versionBody(overrides: Partial<VersionResponse> = {}): VersionResponse {
+	return {
+		daemon: '0.1.0',
+		apiVersion: CURRENT_API_VERSION,
+		node: '22.17.0',
+		...overrides,
+	};
+}
 
 describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 	describe('extractMajorVersion', () => {
@@ -31,7 +47,7 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 			expect(isApiVersionCompatible('v1', 'v1')).toBe(true);
 			expect(isApiVersionCompatible('1.0.0', 'v1')).toBe(true);
 			expect(isApiVersionCompatible('v1.5.0', '1.0.0')).toBe(true);
-			expect(isApiVersionCompatible(SUPPORTED_API_VERSION)).toBe(true);
+			expect(isApiVersionCompatible(CURRENT_API_VERSION)).toBe(true);
 		});
 
 		it('AC 1 & E-14: returns false when major versions differ (incompatible API versions)', () => {
@@ -51,51 +67,56 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 	describe('checkDesktopApiVersion', () => {
 		it('AC 1: returns compatible true when daemon apiVersion matches client expected version', async () => {
 			const mockFetcher = async () =>
-				new Response(
-					JSON.stringify({
-						apiVersion: 'v1',
-						daemon: '0.1.0',
-						node: '22.17.0',
-					}),
-					{ status: 200, headers: { 'Content-Type': 'application/json' } },
-				);
+				new Response(JSON.stringify(versionBody()), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
 
 			const result = await checkDesktopApiVersion({
 				fetcher: mockFetcher,
-				baseUrl: 'http://127.0.0.1:7817',
+				baseUrl: 'http://lan-host:7817',
 			});
 
 			expect(result.compatible).toBe(true);
 			if (result.compatible) {
-				expect(result.apiVersion).toBe('v1');
+				expect(result.apiVersion).toBe(CURRENT_API_VERSION);
 				expect(result.daemonVersion).toBe('0.1.0');
 				expect(result.nodeVersion).toBe('22.17.0');
 			}
 		});
 
+		it('treats missing baseUrl as unreachable without guessing loopback', async () => {
+			const result = await checkDesktopApiVersion({
+				baseUrl: null,
+				fetcher: async () => {
+					throw new Error('fetcher must not run without a host hint');
+				},
+			});
+			expect(result.compatible).toBe(false);
+			if (!result.compatible) {
+				expect(result.reason).toBe('unreachable');
+				expect(result.upgradePrompt).toContain('电脑上的调度服务未启动');
+			}
+		});
+
 		it('AC 1 & E-14: prompts upgrade instead of throwing when apiVersion is incompatible', async () => {
 			const mockFetcher = async () =>
-				new Response(
-					JSON.stringify({
-						apiVersion: 'v2',
-						daemon: '0.2.0',
-						node: '22.17.0',
-					}),
-					{ status: 200, headers: { 'Content-Type': 'application/json' } },
-				);
+				new Response(JSON.stringify(versionBody({ apiVersion: 'v2', daemon: '0.2.0' })), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
 
-			// Must NOT throw: returns structured result with upgrade prompt
 			const result = await checkDesktopApiVersion({
 				fetcher: mockFetcher,
-				baseUrl: 'http://127.0.0.1:7817',
-				expectedVersion: 'v1',
+				baseUrl: 'http://lan-host:7817',
+				expectedVersion: CURRENT_API_VERSION,
 			});
 
 			expect(result.compatible).toBe(false);
 			if (!result.compatible) {
 				expect(result.reason).toBe('incompatible');
 				expect(result.apiVersion).toBe('v2');
-				expect(result.expectedVersion).toBe('v1');
+				expect(result.expectedVersion).toBe(CURRENT_API_VERSION);
 				expect(result.upgradePrompt).toContain('两端版本不一致');
 				expect(result.upgradePrompt).toContain('升级');
 			}
@@ -103,12 +124,12 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 
 		it('AC 1 & E-14: handles daemon unreachable/offline gracefully without throwing bottom-level errors', async () => {
 			const mockFetcher = async () => {
-				throw new Error('ECONNREFUSED 127.0.0.1:7817');
+				throw new Error('ECONNREFUSED lan-host:7817');
 			};
 
 			const result = await checkDesktopApiVersion({
 				fetcher: mockFetcher,
-				baseUrl: 'http://127.0.0.1:7817',
+				baseUrl: 'http://lan-host:7817',
 			});
 
 			expect(result.compatible).toBe(false);
@@ -124,6 +145,7 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 
 			const result500 = await checkDesktopApiVersion({
 				fetcher: mockFetcher500,
+				baseUrl: 'http://lan-host:7817',
 			});
 			expect(result500.compatible).toBe(false);
 			if (!result500.compatible) {
@@ -138,6 +160,7 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 
 			const resultBadJson = await checkDesktopApiVersion({
 				fetcher: mockFetcherBadJson,
+				baseUrl: 'http://lan-host:7817',
 			});
 			expect(resultBadJson.compatible).toBe(false);
 			if (!resultBadJson.compatible) {
@@ -152,6 +175,7 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 
 			const resultMissingField = await checkDesktopApiVersion({
 				fetcher: mockFetcherMissingApiVersion,
+				baseUrl: 'http://lan-host:7817',
 			});
 			expect(resultMissingField.compatible).toBe(false);
 			if (!resultMissingField.compatible) {
@@ -164,19 +188,73 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 		it('generates well-formed HTML displaying server version, expected version, and upgrade advice', () => {
 			const html = generateVersionIncompatibleHtml({
 				apiVersion: 'v2',
-				expectedVersion: 'v1',
-				baseUrl: 'http://127.0.0.1:7817',
+				expectedVersion: CURRENT_API_VERSION,
+				baseUrl: 'http://lan-host:7817',
 			});
 
 			expect(html).toContain('E-14');
 			expect(html).toContain('两端版本不兼容，需要升级');
 			expect(html).toContain('v2');
-			expect(html).toContain('v1');
-			expect(html).toContain('http://127.0.0.1:7817');
-			// Verifies CSS variable token adherence
+			expect(html).toContain(CURRENT_API_VERSION);
+			expect(html).toContain('http://lan-host:7817');
 			expect(html).toContain('--page: #0F1213');
 			expect(html).toContain('--needs: #F0B03C');
 			expect(html).toContain('--font-mono');
+		});
+	});
+
+	describe('createDesktopStartupContext version wiring (AC 1, E-14, R3)', () => {
+		it('v2 response sets incompatible and yields upgrade HTML', async () => {
+			const fetcher = async () =>
+				new Response(JSON.stringify(versionBody({ apiVersion: 'v2' })), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			const context = createDesktopStartupContext({
+				...STARTUP_BASE,
+				hostHint: () => 'http://lan-host:7817',
+				versionFetcher: fetcher,
+			});
+			const result = await context.versionCheckPromise;
+			expect(result.compatible).toBe(false);
+			if (!result.compatible) {
+				expect(result.reason).toBe('incompatible');
+			}
+			expect(context.connectionController.getState().status).toBe('incompatible');
+			const html = generateVersionIncompatibleHtml({
+				apiVersion: 'v2',
+				expectedVersion: CURRENT_API_VERSION,
+				baseUrl: 'http://lan-host:7817',
+			});
+			expect(html).toContain('两端版本不兼容，需要升级');
+		});
+
+		it('HTTP 500 or bad JSON is malformed, never thrown', async () => {
+			const context = createDesktopStartupContext({
+				...STARTUP_BASE,
+				hostHint: () => 'http://lan-host:7817',
+				versionFetcher: async () => new Response('Internal Server Error', { status: 500 }),
+			});
+			const result = await context.versionCheckPromise;
+			expect(result.compatible).toBe(false);
+			if (!result.compatible) {
+				expect(result.reason).toBe('malformed');
+			}
+		});
+
+		it('network failure is unreachable without a reconnect loop', async () => {
+			const context = createDesktopStartupContext({
+				...STARTUP_BASE,
+				hostHint: () => 'http://lan-host:7817',
+				versionFetcher: async () => {
+					throw new Error('network down');
+				},
+			});
+			const result = await context.versionCheckPromise;
+			expect(result.compatible).toBe(false);
+			if (!result.compatible) {
+				expect(result.reason).toBe('unreachable');
+			}
 		});
 	});
 
@@ -191,11 +269,11 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 			const controller = createConnectionUiController(spec);
 			expect(controller.getState().status).toBe('idle');
 
-			controller.setIncompatible('v2', 'v1');
+			controller.setIncompatible('v2', CURRENT_API_VERSION);
 			const state = controller.getState();
 			expect(state.status).toBe('incompatible');
 			expect(state.apiVersion).toBe('v2');
-			expect(state.expectedVersion).toBe('v1');
+			expect(state.expectedVersion).toBe(CURRENT_API_VERSION);
 			expect(state.errorMessage).toContain('API version mismatch');
 		});
 	});
