@@ -1,0 +1,23 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T5": {
+      "contractHash": "997ac4066d30258451fe0b43d2a546daf171dbfb437a786ac43a389c928dce9f",
+      "verdict": "pass",
+      "evidence": [
+        "契约核对：19 节第 76 行 M8-T5 行（产出 `POST /runs/:id/rerun` 与换 agent 重派、前置 M8-T3、2 人天）与任务笔记、派发包一致；有效路径只有 packages/daemon/src/service/rerun.ts，本层新增该文件 + 把 dispatch.ts 原 rerunRun 抽出改为委托（dispatch.ts:411、426），未动路由表、共享类型、迁移；task-contracts.json 的 contractHash 与 status 输出一致，未擅改任务定义。",
+        "验收标准 1（换 agent 重派新建运行、旧运行只读留存、默认 fresh worktree）：rerun.ts:395 redispatchRun 新建 attempt N+1 运行、不 update/delete 旧行（测试断言 2 行并存），rerun.ts:445 worktreeMode 缺省 'fresh'、仅显式 'reuse' 才在原改动上继续，写入 launch_spec_json（rerun.ts:449-456）；客户端既有入口仍是 POST /runs 的 worktreeMode（shared/api/runs.ts:12、dispatch.ts:327）。",
+        "验收标准 2（原样重跑严格复用原派发载荷、无选择器、一次确认的服务端侧）：请求体只有 idempotencyKey（shared/api/runs.ts:82、97，additionalProperties:false），无 agent/模型/权限/batch 选择器；rerun.ts:320-334 逐字段抄 previousRun 的 agent_id/model_name/permission_tier/kind/snapshot_id，task 与 batch 由 task_id 派生不变；idempotencyKey 唯一约束拦截重复提交（rerun.ts:244、347）。与 19 节 M8-T9 行「rerun 复用原 snapshot_id、不新建快照（决策 129）」一致。",
+        "验收标准 3（原 agent 不在线立即失败、禁止静默回退）：rerun.ts:294-305 用原派发载荷的 previousRun.agent_id 判可达（dispatch.ts:244 的 isAgentDispatchable），不可达抛 E_AGENT_UNAVAILABLE（codes.ts:25，409）并带 details.agentId；本文件与调用链中不存在换 agent/换模型的回落分支。",
+        "验收标准 4（文档快照已变更禁止重跑）：rerun.ts:269 调 checkDocSnapshotStale（rerun.ts:84），按决策 13 的三个标记 has_accept_changed / has_prompt_changed / is_removed_from_doc（migrations/0001_init.sql:44-47、repo/dispatch-snapshots.ts:497）任一为 1 抛 E_SNAPSHOT_STALE（codes.ts:23，409；10 节第 430 行登记「手机端禁止重跑」）；rerun 复用旧快照与 E-180「拿旧快照盲跑」语义一致。",
+        "验收标准 5（批次被超越允许重跑但提示错位）：rerun.ts:109-146 按同文档批次中 batch_no 更大且 state≠idle（0001_init.sql:20 的状态域 running/paused/done）判定被超越，返回 taskBatchNo/currentMaxBatchNo 与错位文案；rerun.ts:308-311 只告警不阻断，rerun.ts:369-382 把错位信息随 run.state_changed 事件下发。",
+        "验收标准 6（模型名失效不前置白名单、直接透传、失败后标记且不占窗口名额）：rerun.ts:328 逐字复用原 model_name、rerun.ts:456 redispatch 逐字透传输入 model，全文件无模型清单校验；rerun.ts:542-575 handleModelInvalid 把运行终态化为 failed 并写 queued_reason「派发失败·模型无效」+ 原样带 agentStderrTail，运行退出 active 集合（repo/runs.ts:129）即不占窗口名额（测试断言 findActiveByTaskId 变 null）。",
+        "边界逐条：E-121 rerun.ts:395/445（E-121 归属 M6，本层做服务端换 agent 路径）；E-177 rerun.ts:244+275（幂等键与活动运行双拦截，绝不产生第二次运行，返回值即既有 run）；E-178 rerun.ts:294；E-179 rerun.ts:109+308；E-180 rerun.ts:84+269；E-36 rerun.ts:328+542。",
+        "接口与错误体系：路由已在 50-routes.ts:75 注册并指向 http/routes/runs.ts:310-322（与 shared/api/routes.ts 的 rerunRun 项 method+path 一致，arch/routes.test.ts 的注册集合断言除 Windows 环境权限用例外的项通过）；用到的错误码 E_SNAPSHOT_STALE/E_AGENT_UNAVAILABLE/E_DOC_SOURCE_UNREADABLE/E_DOC_CONTRACT_PENDING/E_TASK_REMOVED_FROM_DOC 全部在 packages/shared/src/errors/codes.ts 登记，AppError 不携带 HTTP 状态码，状态映射仍只在 errors/http-status.ts。",
+        "分层与共用约定：rerun.ts 只 import repo/db/errors/events 与 shared 类型，未 import fastify、未出现 SQL、未读 process.env/process.platform、事务只经 unitOfWork.run（rerun.ts:341）、bus.publish 在事务回调外（rerun.ts:369）；文件 kebab-case、无 barrel、无 class、无 process.exit；biome ci 与 tsc -b --noEmit 通过，arch/layering.test.ts 通过。",
+        "验证运行：packages/daemon/test/unit/rerun.test.ts（15 例，覆盖 AC1-6 与 E-121/177/178/179/180/36，含真实 SQLite 迁移与 repo 断言，无模块 mock）通过；packages/daemon/test/unit/dispatch-contract.test.ts（含 M8-T3 的 rerun 两例）通过；packages/daemon/test/arch/layering.test.ts 通过。",
+        "已知红测（非本层、main@572e0ae 上同样红）：test/unit/sse.test.ts 等 15 个文件把迁移写死为 readDirectory: () => ['0001_init.sql']（sse.test.ts:469），缺 0002 的 bug_prompt 列而失败；test/unit/devices.test.ts、arch/routes.test.ts 的 pairing 用例在 Windows 断言 POSIX 0600 失败。均已用 git show 572e0ae:<file> 确认与本 PR diff（rerun.ts/dispatch.ts/rerun.test.ts/M8-T5.md）无关，记入 FOLLOW_UP，不做本层改动。"
+      ]
+    }
+  }
+}
