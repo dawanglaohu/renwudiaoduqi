@@ -15315,8 +15315,10 @@
     "_run/task-contracts.json": "bab21710b3c701225d865667fc66caeab3fb830f93149295525cf6b371177c78"
   },
   "sourceVersion": "908d432da71e413d6c685da4d39a93bf44660feca9a393780e787aa4ce8076a9",
-  "status": "synced",
+  "status": "verified",
   "synced": "2026-09-15T11:58:36.593594+00:00",
   "task": "M6-T7",
-  "verifiedTasks": []
+  "verifiedTasks": [
+    "M6-T7"
+  ]
 }

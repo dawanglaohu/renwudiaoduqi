@@ -708,6 +708,23 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M6-T7": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "618718ab94de9df6c56e0e8a94410e5b08dc13ffbabf39578ff4d59c222b591f",
+    "evidence": [
+      "AC1(E-115)满足：run.ts:687-731 handleEventStateWiring 只读归一化 requiresReply/isQuestion 转 awaiting_reply，reason=RUN_TRANSITION_REASONS.AGENT_QUESTION；提问判别已收口在 adapters/generic-acp/map-events.ts:298-327、adapters/codex/map-events.ts:211-278、adapters/grok/map-events.ts:413-442、adapters/dsh/map-events.ts:125-183。证据：corepack pnpm -w vitest run packages/daemon/test/unit/run-service.test.ts packages/daemon/test/unit/generic-acp-adapter.test.ts packages/daemon/test/unit/codex-adapter.test.ts packages/daemon/test/unit/grok-adapter.test.ts → 13/13、19/19、35/35、37/37 全过",
+      "AC1 并发与停滞满足：domain/run-state-machine.ts:171（awaiting_reply 不在 EXCLUDED_FROM_CONCURRENCY_STATES，countsTowardAgentConcurrency 为 true）、jobs/stall-detector.ts:269-312（awaiting_reply 归 waiting_human 弱提示不误报停滞），本层未改其语义；run-service 断言 laneNo 保持 2 不释放泳道",
+      "AC2(E-134)满足：适配器把联网装依赖归一化为 run.permission_blocked + blockedCategory='network_dependency'（generic-acp:298、grok:413、codex:211），run.ts:687-731 据此转 awaiting_reply；grep autoAllow|allowNetwork|auto_allow|allow_network 于 packages/daemon/src 零命中——不存在「自动放行网络」开关；新增用例证明普通 tool_call 保持 running 不触发阻断",
+      "AC3(E-133)满足：run.ts:718-731 权限受阻只转 awaiting_reply 不进 failed；run.ts:767-800 elevateRunOnce 用内存 Set 做仅本次运行提升（不落库），run.ts:620-623 与 run.ts:638 在 exited/终态/关流时清除。证据：run-service.test.ts 用真实 SQLite runs 表断言 permission_tier 仍为 workspaceWrite、exited 后 isTemporarilyElevated 为 false",
+      "第1轮 R1/R2 阻断项已修：run.ts 中 'tool_call' 字面量 0 处、无厂商工具名/命令名正则；corepack pnpm -w vitest run packages/daemon/test/unit/generic-acp-adapter.test.ts → 厂商事件字符串隔离用例转绿（19/19）",
+      "第1轮 R3 阻断项已修：临时提升有真实生命周期（内存标定、结束失效、事件留痕，断言走真实 repo/DB 而非测试替身字段）；run.ts:23-24 的 permissionTier/permission_tier 双份 Row 字段已删除；事件 reason 统一走 RUN_TRANSITION_REASONS 常量",
+      "范围核对：git diff --name-only 5766641..HEAD 为 4 个 adapters/*/map-events.ts、service/run.ts、4 个单测、任务笔记，全部落在补丁 m6-t7-vendor-classification-scope 扩定的有效范围内，无范围外改动",
+      "既有噪声核对：corepack pnpm -w check 仍红，但对比本层加改动前为 16 文件 80 条失败、改后为 15 文件 79 条失败，唯一差异是本层修好的 generic-acp-adapter.test.ts，未引入新红；dsh-adapter 的版本探测失败在本层改动前的基线上同样存在（git diff 未触及该处）"
+    ],
+    "reviewed": "2026-09-15T14:22:18.485217+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M6-T8": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "31e79a02d32297a3872a3401901204b1506d247fb21e949d244adb100e6d3bd5",
