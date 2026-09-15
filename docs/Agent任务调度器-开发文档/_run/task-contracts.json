@@ -253,6 +253,11 @@
         "packages/web/tsconfig.json"
       ]
     },
+    "M9-T5": {
+      "supportPaths": [
+        "packages/web/test/sse-client.test.ts"
+      ]
+    },
     "M3-T6": {
       "requires": [
         {
