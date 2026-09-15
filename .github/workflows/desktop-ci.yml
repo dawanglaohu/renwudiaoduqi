@@ -79,32 +79,16 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      - name: Pin MSVC toolchain for native modules (Windows only)
-        # better-sqlite3 has no prebuilt binary for Node 22, so pnpm falls back to
-        # node-gyp. The bundled node-gyp 10.3 asks PowerShell for the Visual Studio
-        # version and dies with ERR_CHILD_PROCESS_STDIO_MAXBUFFER on the VS 18 install
-        # that windows-latest now ships, then reports 'unknown version "undefined"'.
-        # Feed it the version from vswhere directly so the version probe never runs.
-        if: matrix.platform == 'win32'
-        run: |
-          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-          $install = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          if (-not $install) { throw 'No Visual Studio C++ toolchain found on the runner.' }
-          $version = & $vswhere -latest -products * -property installationVersion
-          $major = ([version]$version).Major
-          # node-gyp 10.3 only knows the 2017/2019/2022 slots; feeding it "18.0" makes
-          # it join the value onto the package dir and look for a Visual Studio install
-          # at better-sqlite3/18.0. Declare the 2022 slot but point the override at the
-          # real VS 18 tree, which is what gyp actually consumes.
-          "GYP_MSVS_VERSION=2022" >> $env:GITHUB_ENV
-          "GYP_MSVS_OVERRIDE_PATH=$install" >> $env:GITHUB_ENV
-          "npm_config_msvs_version=2022" >> $env:GITHUB_ENV
-          Write-Host "node-gyp pinned to Visual Studio at $install (version $version, slot 2022)"
-        shell: pwsh
-
       - name: Materialise the MSVC dev shell (Windows only)
+        # better-sqlite3 has no prebuilt binary for Node 22, so its install script runs
+        # node-gyp. Setting GYP_MSVS_VERSION / GYP_MSVS_OVERRIDE_PATH was tried and made
+        # things worse: it bypasses node-gyp's own VS discovery and then trips over the
+        # VS 18 version string. Give gyp a ready dev shell instead and let it detect the
+        # toolchain the same way a local developer does.
         if: matrix.platform == 'win32'
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
       - name: Cache pnpm store
         uses: actions/cache@v4
