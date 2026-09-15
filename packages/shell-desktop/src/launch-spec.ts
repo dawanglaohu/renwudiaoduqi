@@ -147,7 +147,10 @@ export function createDesktopStartupContext(options: DesktopStartupOptions): Des
 			});
 		})
 		.then((result) => {
-			if (!result.compatible) {
+			// E-146 vs E-14: only a reachable-but-mismatched (or unusable) version
+			// endpoint switches the shell to the upgrade view. An unreachable daemon
+			// keeps the connection-failed view with its 「启动 daemon」 button.
+			if (!result.compatible && result.reason !== 'unreachable') {
 				connectionController.setIncompatible(
 					result.apiVersion ?? 'unknown',
 					result.expectedVersion,
@@ -157,7 +160,6 @@ export function createDesktopStartupContext(options: DesktopStartupOptions): Des
 		})
 		.catch((error: unknown) => {
 			const message = error instanceof Error ? error.message : String(error);
-			connectionController.setIncompatible('unknown', CURRENT_API_VERSION);
 			return {
 				compatible: false as const,
 				reason: 'unreachable' as const,

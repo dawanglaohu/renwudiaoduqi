@@ -252,6 +252,32 @@ export function validateNoExternalCdn(repoRoot: string): {
 	};
 }
 
+const WOFF2_SIGNATURE = 'wOF2';
+const WOFF2_HEADER_BYTES = 48;
+
+/**
+ * A latin subset of a real text face carries tens of KB of sfnt data; a header-only
+ * placeholder (empty glyf/cmap, ~600 bytes) is rejected. Coarse on purpose: the check
+ * only needs to catch stub binaries that would silently fall back at runtime (E-176).
+ */
+const MIN_EMBEDDED_SFNT_BYTES = 4096;
+
+function readWoff2Header(filePath: string): {
+	readonly fileBytes: number;
+	readonly declaredLength: number;
+	readonly totalSfntSize: number;
+} | null {
+	const buffer = readFileSync(filePath);
+	if (buffer.length < WOFF2_HEADER_BYTES || buffer.toString('ascii', 0, 4) !== WOFF2_SIGNATURE) {
+		return null;
+	}
+	return {
+		fileBytes: buffer.length,
+		declaredLength: buffer.readUInt32BE(8),
+		totalSfntSize: buffer.readUInt32BE(16),
+	};
+}
+
 export function validateFontFallbackAndChMetrics(repoRoot: string): {
 	readonly valid: boolean;
 	readonly errors: readonly string[];
@@ -311,6 +337,22 @@ export function validateFontFallbackAndChMetrics(repoRoot: string): {
 		for (const file of declared) {
 			if (!publicFiles.includes(file)) {
 				errors.push(`declared font ${file} is missing from packages/web/public/fonts`);
+				continue;
+			}
+			const header = readWoff2Header(join(publicFontsDir, file));
+			if (!header) {
+				errors.push(`${file} is not a woff2 payload (missing 'wOF2' signature)`);
+				continue;
+			}
+			if (header.declaredLength !== header.fileBytes) {
+				errors.push(
+					`${file} declares ${header.declaredLength} bytes but the file is ${header.fileBytes} bytes`,
+				);
+			}
+			if (header.totalSfntSize < MIN_EMBEDDED_SFNT_BYTES) {
+				errors.push(
+					`${file} carries only ${header.totalSfntSize} bytes of sfnt data; a real latin subset is tens of KB, so this is a placeholder font (E-176)`,
+				);
 			}
 		}
 

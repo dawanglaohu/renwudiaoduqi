@@ -255,6 +255,9 @@ describe('Desktop Shell Version Check & Compatibility (AC 1, E-14)', () => {
 			if (!result.compatible) {
 				expect(result.reason).toBe('unreachable');
 			}
+			// E-146: an unreachable daemon keeps the connection-failed view with its
+			// 「启动 daemon」按钮 — it must not be replaced by the version upgrade view.
+			expect(context.connectionController.getState().status).not.toBe('incompatible');
 		});
 	});
 

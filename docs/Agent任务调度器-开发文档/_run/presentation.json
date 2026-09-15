@@ -457,6 +457,7 @@
         "packages/web/dist",
         "packages/web/public/fonts/",
         "packages/web/src/main.tsx",
+        "packages/web/src/styles/base.css",
         "packages/web/src/styles/fonts.css",
         "packages/web/vite.config.ts",
         "pnpm-lock.yaml"

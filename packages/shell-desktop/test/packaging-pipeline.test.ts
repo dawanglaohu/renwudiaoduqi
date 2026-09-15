@@ -99,6 +99,30 @@ describe('Shared Packaging Pipeline Validation (AC 2-6, E-174..E-176)', () => {
 		expect(result.errors.some((err) => err.includes('commit-mono-latin-400.woff2'))).toBe(true);
 	});
 
+	it('FAILS when a declared woff2 is only a placeholder stub (E-176)', () => {
+		const root = scratchRoot();
+		mkdirSync(join(root, 'packages/web/src/styles'), { recursive: true });
+		mkdirSync(join(root, 'packages/web/public/fonts'), { recursive: true });
+		writeFileSync(
+			join(root, 'packages/web/src/styles/fonts.css'),
+			'@font-face { font-weight: 400; src: url("./fonts/commit-mono-latin-400.woff2"); }\n',
+		);
+		writeFileSync(
+			join(root, 'packages/web/src/styles/tokens.css'),
+			':root { --font-mono: "Commit Mono", ui-monospace, monospace; }\n',
+		);
+		writeFileSync(join(root, 'packages/web/src/styles/base.css'), '.mono-col { width: 12ch; }\n');
+		// Header-only woff2: correct signature, 620 bytes of "sfnt", zero glyph outlines.
+		const stub = Buffer.alloc(288);
+		stub.write('wOF2', 0, 'ascii');
+		stub.writeUInt32BE(288, 8);
+		stub.writeUInt32BE(620, 16);
+		writeFileSync(join(root, 'packages/web/public/fonts/commit-mono-latin-400.woff2'), stub);
+		const result = validateFontFallbackAndChMetrics(root);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((err) => err.includes('placeholder font'))).toBe(true);
+	});
+
 	it("FAILS when vite base is '/'", () => {
 		const root = scratchRoot();
 		mkdirSync(join(root, 'packages/web'), { recursive: true });
