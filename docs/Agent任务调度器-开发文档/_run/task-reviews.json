@@ -1157,6 +1157,20 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T6": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "697e7dd69e549be8e7a9714d5b4ec4f2091753236ccbecc15c18caa739944a87",
+    "evidence": [
+      "复验触发面：revalidation.json 里 M9-T6 的 changedFields=[definition, effectivePaths]、patch=M9-T6-support-paths、sourceVersion=c171819b9e5b20081ef09321dd9c0332fa0596ad4b8395a8626593275c62d0b5（合并 main 后的当前源版本）。这次改动就是本任务自己的审查补丁，不涉及任何其它补丁带来的实质变化。",
+      "①definition：04-执行/19-模块任务拆分.md 第 87 行的 M9-T6 行原文未动（产出仍为 `api/event-bus.ts`（`RunStreamBuffer` 环形数组、`useSyncExternalStore` 订阅），四条验收标准与三条边界 E-142/E-143/E-144 一字未删）；task-contracts.json 的 M9-T6 条目由「不存在」变成 {supportPaths:[packages/web/test/event-bus.test.ts]}，是本次补丁唯一新增内容。",
+      "②effectivePaths：合并 main 后重跑 sync --patch，contractHash 仍为 697e7dd69e549be8e7a9714d5b4ec4f2091753236ccbecc15c18caa739944a87（与补丁轮 verify 登记值逐字符相同）；有效范围现在是 packages/web/src/api/event-bus.ts + packages/web/test/event-bus.test.ts，与分支上实际改动的文件集合一致；测试文件路径全仓只有 M9-T6 声明，冲突检测 0。",
+      "③合并 main（含 M7-T2 落地）后本层代码未变：packages/web/src/api/event-bus.ts 与 M9-T5 的 sse-client.ts 在合并提交里没有冲突、内容与审查时相同；重跑 node_modules/.bin/vitest run packages/web → 12 文件 161 用例全过（含 event-bus.test.ts 24 用例）；tsc -b --noEmit 退出码 0；biome ci . → Checked 381 files 无修复需求；check-forbidden.ts → 0 违规；check-contrast.ts 与 check-error-codes.mjs 均退出码 0。",
+      "④结论：变化条款只落在 M9-T6 自身的有效范围登记上，四条验收标准与三条边界的实现位置（event-bus.ts:10/16/50/95/115/318/326/415/471/497/628/652）未受影响，复验通过。"
+    ],
+    "reviewed": "2026-09-15T13:26:20.848191+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T9": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "962ce7ca834d665694ef3a7fee2064b5a5ab908c82d3b795cc09234a0182715d",
