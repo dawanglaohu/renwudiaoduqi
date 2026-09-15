@@ -418,7 +418,7 @@ export const ROUTES: readonly RouteDefinition[] = [
 		auth: 'device',
 		reqType: 'void',
 		resType: 'PurgeRunLogsResponse',
-		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_INTERNAL'],
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_VALIDATION', 'E_INTERNAL'],
 	},
 	{
 		method: 'GET',
