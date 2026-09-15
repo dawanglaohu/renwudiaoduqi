@@ -63,7 +63,9 @@ describe('Pairing & Devices HTTP Routes Integration (M2-T2, E-07, E-127, E-226)'
 
 	afterEach(() => {
 		db.close();
-		rmSync(testDir, { recursive: true, force: true });
+		// macOS keeps the SQLite -wal/-shm files briefly visible after close, so a single
+		// rmdir can hit ENOTEMPTY; retrying is what Node's own docs recommend for rmSync.
+		rmSync(testDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 	});
 
 	function makeServer(options?: { clock?: { now: () => string } }) {

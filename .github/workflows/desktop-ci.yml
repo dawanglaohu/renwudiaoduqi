@@ -81,17 +81,18 @@ jobs:
 
       - name: Pin MSVC toolchain for native modules (Windows only)
         # better-sqlite3 has no prebuilt binary for Node 22, so pnpm falls back to
-        # node-gyp; the bundled node-gyp 10.3 cannot auto-detect the VS 18 install on
-        # the windows-latest image ("could not find a version of Visual Studio").
-        # Pin the version and materialise the MSVC dev-shell env for the gyp child process.
+        # node-gyp. The bundled node-gyp 10.3 cannot read the version of the VS 18
+        # install on the windows-latest image ("unknown version undefined"), so it
+        # needs both a ready dev-shell (PATH/INCLUDE/LIB) and the matching Node headers
+        # handed to it directly — that keeps gyp off the version-detection path.
         if: matrix.platform == 'win32'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Pin node-gyp Visual Studio version (Windows only)
+      - name: Point node-gyp at the Node 22 headers (Windows only)
         if: matrix.platform == 'win32'
         run: |
-          "GYP_MSVS_VERSION=2022" >> $env:GITHUB_ENV
-          "npm_config_msvs_version=2022" >> $env:GITHUB_ENV
+          $nodeDir = Split-Path (Get-Command node).Source -Parent
+          "npm_config_nodedir=$nodeDir" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Cache pnpm store
