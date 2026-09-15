@@ -162,6 +162,22 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M10-T4": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "dc0ce934f22f51712a6971c9ad11f09ca203f255ef27838fd70ea7a33c8cbbf2",
+    "evidence": [
+      "2026-09-14 复核补丁前契约（hash 1c3bf37a）：图谱/任务/M10-T4.md 与 04-执行/19-模块任务拆分.md 的 M10-T4 行逐字一致——前置 M10-T2/M10-T3 均已落地，解锁 M10-T5，覆盖边界 E-14/E-174/E-175/E-176，六条验收标准未增删。补丁后（hash dc0ce934）只改「输入/产出」与 handoff.taskPaths：验收标准与四条边界的文字一字未动，未删验收、未降低边界要求。",
+      "补丁依据（缺口实测，非推测）：① 补丁前实测 GET /api/v1/version 返回 500 E_INTERNAL「handler is not implemented yet」（该路径不在 50-routes.ts 的 customRegisteredPaths），daemon 未暴露 apiVersion；② 同一个真实路由链上 /index.html 与 /assets/* 均 404，80-static.ts 只有占位注释，AC2 的 daemon 腿为空；③ 全仓 0 个 *.woff2，fonts.css 引用的 6 个文件不存在，Vite 在文件缺失时保留绝对 /fonts/…（用包内 vite 5.4.21 实测），AC4/AC6 不成立；④ packages/web 无 index.html/main.tsx 与 build 脚本，vite build 报 Could not resolve entry module。四项都在本任务既定产出（GET /version 校验接线、打包脚本）的下游，而原 taskPaths 只有两个壳与 web/vite.config.ts，实施方无法在不越界的条件下修好。",
+      "补丁内容与影响：presentation.json 的 handoff.taskPaths['M10-T4'] 增加 packages/daemon/src/http/routes/version.ts、packages/daemon/src/http/plugins/{50-routes.ts,80-static.ts}、packages/daemon/package.json、packages/daemon/test/unit/version-route.test.ts、packages/shared/src/api/system.ts、packages/web/{index.html,package.json,dist}、packages/web/public/fonts/、packages/web/src/main.tsx、packages/web/src/styles/{fonts.css,base.css}、pnpm-lock.yaml；19-模块任务拆分.md 的 M10-T4 行「输入/产出」写明 daemon 侧暴露端点、两个壳启动期接线、三处消费同一份 packages/web/dist、字体随产物自托管、web 具备可构建入口。base.css 是 AC5「列宽用 ch 计算」的落点（.mono-col 用 12ch），第一轮返工后补充进有效范围。依据 02-设计/07-前端架构.md:418-442 与 10-接口约定.md:151-158。未新增能力、未改架构、未重做任务拆分；sync 传播的受影响任务只有下游 M10-T5。",
+      "有效路径冲突核对：packages/web/src/main.tsx 与 index.html 在 97 个任务的 taskPaths 中无任何任务声明（grep presentation.json 全表确认），不存在与未落地 M9-*/M10-T5 的并行冲突；packages/web/src/styles/base.css 已被 M9-T1 落地实现占用，未落地的 M9-T19（E-282）后续会在此文件加 @keyframes，本任务先落地，不与其并行；packages/web/dist 与 public/fonts 为构建产物/资源，不产生代码冲突。",
+      "返工复核结论（第二轮）：R1 daemon 已暴露 GET /api/v1/version，实测 200 返回 {daemon:0.0.0, apiVersion:v1, node:v22.17.0}，apiVersion 单点来自 shared 的 CURRENT_API_VERSION；R2 80-static.ts 用 @fastify/static 托管 packages/web/dist，实测 /index.html 200 text/html、/assets/*.js 200 application/javascript、/fonts/*.woff2 200 font/woff2；R3 桌面 createDesktopStartupContext 与手机 initializeMobileShell 都在启动期发起校验并分别产出 incompatible 状态 / upgradeNotice；R4 两个壳不再出现 127.0.0.1:7817，响应类型改用 shared 的 VersionResponse；R5 机检补了 daemon 腿、dist CSS 绝对 url(/…) 与 index.html 绝对 /assets/ 断言、外链面扩到 index.html 与 dist，并新增三条负例（缺 woff2、base '/'、daemon root 指向别处）各自必须 FAIL；R6 补了 index.html/main.tsx 与 build 脚本，vite build 通过。",
+      "审查方在第二轮就地修掉的两处剩余缺陷（见 FIXED_BY_REVIEWER）：① 六个 woff2 原是 288 字节的占位桩（totalSfntSize≈620、Brotli 流解不出 sfnt、无字形），已换成 @fontsource 的真实 SIL OFL 拉丁子集（public-sans 400/500/600 各约 14.6 KB、commit-mono 400/500/600 各约 48 KB，totalSfntSize 30.9 KB / 274.8 KB），并补 OFL 许可文本；打包机检相应加硬：wOF2 签名、头部声明长度 === 文件长度、sfnt ≥ 4096 字节，占位字体一律 FAIL（新增负例覆盖）。② 桌面壳把 unreachable（daemon 未运行）也切成 incompatible，会把 E-146 的「启动 daemon」连接失败页替换成版本升级页；改为只有可达但版本不符/接口不可用时才切 incompatible，并加断言。",
+      "测试证据（task/M10-T4，审查方修复后）：biome ci 0 违规；tsc -b --noEmit 通过；vitest run packages/shell-desktop packages/shell-mobile 22 文件 119 用例全过（含新增占位字体负例与 unreachable 不切 incompatible 断言）；packages/daemon/test/unit/{version-route,static-plugin}.test.ts 通过；两个壳的 scripts/package-pipeline.ts 五项检查全 PASS；vite build 产出 dist（index.html + assets + 6 个 woff2 + 许可文本）。仓库仍有 81 个 daemon 用例红，原因是测试夹具内联 CREATE TABLE 缺 migration 0002 的 bug_prompt 列与 Windows 0600 权限断言，packages/daemon 相对 main 零 diff，与本层无关，另记 FOLLOW_UP。"
+    ],
+    "reviewed": "2026-09-15T02:46:29.834185+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T1": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "a679cdc47a2129f126bb69d455428042f6d5573cd0ed9bffff616c33ea8fafc2",
@@ -848,6 +864,23 @@
       "pnpm -w check 通过：check-error-codes 49 条与 10 节逐行一致、check-contrast 与 check-forbidden 通过、biome ci 239 文件无问题、tsc -b --noEmit 通过、vitest 70 文件 832 通过 / 32 跳过 / 0 失败（864 例），2026-09-13，WSL Ubuntu 20.04（better-sqlite3 源码重编）。修复前 main@131faa2 同一命令在第一步 check-error-codes 即失败（10 节新增三条错误码未投影到 codes.ts，M2-T6 架构测试 AC 5 随之红）；本分支按 M2-T6 的投影职责补齐三条并修正脚本表头判定后全绿。"
     ],
     "reviewed": "2026-09-13T01:57:08.829130+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M8-T3": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "79267cb119de5fdb790eac5ad101e7f373b142641487c60eaf6ce257ce1edb6a",
+    "evidence": [
+      "第 2 轮复核：只核第 1 轮的三条返工与文档补丁后的有效范围，未新增无关条目。契约版本未变（79267cb119de5fdb790eac5ad101e7f373b142641487c60eaf6ce257ce1edb6a）",
+      "文档补丁 m8-t3-wiring-paths 已随本 PR 落地并复验：presentation.json 的 handoff.taskPaths.M8-T3 与 _run/task-contracts.json 的 supportPaths.M8-T3 均含 boot/container.ts 与 http/plugins/50-routes.ts；重生成的实施提示词有效范围 8 条逐字正确；status --task M8-T3 现 ready=true、无 blockers",
+      "R1 已修：boot/container.ts:305 装配 DispatchService 并放进 services.dispatch（注入 unitOfWork/tasks/batches/documents/dispatchSnapshots/runs repo、clock、ids、bus、envelopeFactory、getDispatchHalt、listAgents、listDispatchableAgents）；50-routes.ts:48 调用 registerBatchesRoutes/registerSnapshotRoute 并把本任务 7 条端点补进 customRegisteredPaths；container.ts 的 jobs 由恒空改为 [schedulerTickJob]，main.ts:114 在 listen() 之后逐个 start()。回归证据：test/unit/dispatch-contract.test.ts:819 走真实 createContainer + createHttpServer + inject，断言 container.jobs 含 scheduler-tick、services.dispatch 存在、GET /api/v1/snapshot 与 POST /api/v1/runs 均非 501 且响应 message 不是占位句「not implemented yet」——即端点确实由真实 handler 服务而非 50-routes 的未实现占位",
+      "R2 已修：runs 表的 INSERT/SELECT/UPDATE、预编译语句（repo/runs.ts:192-199 工厂闭包内 prepare 一次复用）与 Row/DTO 映射整体落到 packages/daemon/src/repo/runs.ts；service/dispatch.ts 现零 SQL 字面量、零 db.prepare（只 import type 与 repo 的 isConstraintConflict/toRunDto）；快照 INSERT 与 run INSERT 收进同一个 unitOfWork.run（dispatch.ts:333 persist 同步闭包、:359-363 调用，bus.publish 在 :401 的 run() 返回之后）；并发回退改判 code（dispatch.ts:158 resolveConstraintConflict → repo/runs.ts:316 isConstraintConflict 判 SQLITE_CONSTRAINT / SQLITE_CONSTRAINT_UNIQUE / SQLITE_CONSTRAINT_PRIMARYKEY，不再匹配 err.message）。回归证据：新增 test/arch/service-sql.test.ts:10 扫 service/ 下全部 .ts，断言无 INSERT/SELECT/UPDATE/DELETE 关键字与 db.prepare；dispatch-contract.test.ts 22/22 通过",
+      "R3 已修：dispatch.ts:228 listDispatchableAgents / :235 resolveAgentForTask / :243 isAgentDispatchable 走注入的注册表与可用性，硬编码 'codex' 已删除；tick 在 :817-825 对每个候选取 agentId，取不到或不可用即进 tasksBlocked 且 reason='agent_unavailable'，不落 run；createRun 在 :306 对不可用 agent 抛 E_AGENT_UNAVAILABLE（已登记错误码）；agentLimitFor（:251）不再散落魔法默认值，改由注入的 agentLimits 或注册表 concurrencyLimit 推导。回归证据：dispatch-contract.test.ts:737 空注册表下 tick 产出 0 条 run 且任务出现在 tasksBlocked",
+      "新增/变更文件均在第 1 轮补丁后的有效范围内或由错误修复必然引入：repo/runs.ts（R2 要求把 SQL 移出 service，runs 表仓储按 08 节只能放 repo）、test/arch/service-sql.test.ts（R2 要求的机器断言）、boot/container.ts 与 http/plugins/50-routes.ts（本轮补丁补入）。实施方未擅改任务定义，未动其他任务的公共结构",
+      "本轮检查（task/M8-T3 工作树内）：tsc -b --noEmit 退出 0；biome ci . 346 文件无问题（先清掉两个未跟踪测试残留 agents.json / pairing-code.txt，它们是 Windows 上既有 pairing 0600 断言失败与 agent 探测用例留下的产物，非本层文件）；vitest run packages/daemon/test/unit/dispatch-contract.test.ts packages/daemon/test/arch/service-sql.test.ts → 23/23 通过；全仓 vitest run 79 失败 1163 通过，失败文件（probe/sse/landing/agents-service/http-plugins/devices/dsh-adapter/documents-routes/routes/agents-routes/daemon-runtime/pairing-routes/run-log-routes/disk-full/events-runtime）与第 1 轮同源，全部是 Windows 下 service/pairing.ts 的 POSIX 0600 环境性断言，本层 10 个改动文件无一在列",
+      "回填已随本轮提交更新：图谱/任务/M8-T3.md 的代码位置与实施沉淀按 R1/R2/R3 后的新行号重写，第 1 段不再把幂等防重说成纯应用层逻辑（改为「UNIQUE 约束是最终兜底 + 应用层避免把冲突当正常路径」），新增第 4 段记接线与 agent 取值的坑；回填行号抽查一致（scheduler-tick.ts:34、repo/runs.ts:191、dispatch.ts:268）"
+    ],
+    "reviewed": "2026-09-15T02:57:13.691908+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

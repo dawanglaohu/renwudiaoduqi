@@ -1,19 +1,100 @@
 {
   "scope": "task-contract",
   "tasks": {
+    "M10-T4": {
+      "contractHash": "dc0ce934f22f51712a6971c9ad11f09ca203f255ef27838fd70ea7a33c8cbbf2",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M10-T5": {
+      "contractHash": "5336bb46278d59200d737aa9817e382f9da0ca7948614eb4b27898ff21675331",
+      "evidence": [],
+      "verdict": "pending"
+    },
     "M6-T9": {
       "contractHash": "6bb005306d3ec49ade66dfa1b1411db045780063e5f77175afcd53c0876d2ce2",
-      "verdict": "pass",
-      "evidence": [
-        "补丁必要性：本任务既定产出（19-模块任务拆分.md:63 的产出列「保留策略、searchInRun()、http/routes/runs.ts 的 search 与 DELETE logs 两个端点」）不可能只落在 packages/daemon/src/service/retention.ts。原配置 handoff.taskPaths['M6-T9'] 只列了该一个路径，且 _run/task-contracts.json 里根本没有 M6-T9 条目（patch 前 tasks 有 63 条，无 M6-T9），因此有效路径缺 supportPaths 一侧，两个端点的落点、DI 接线与测试全在范围外。",
-        "补丁内容：在 _run/task-contracts.json 新增 M6-T9 条目，provides=['run-log-retention-search']，supportPaths=['packages/daemon/src/http/routes/runs.ts','packages/daemon/src/http/plugins/50-routes.ts','packages/daemon/src/boot/container.ts','packages/daemon/src/repo/runs-log-repo.ts','packages/shared/src/api/routes.ts','packages/daemon/test/unit/retention.test.ts']，sections 与同模块同契约面的 M6-T10 取同一组 [1,2,5,6,8,9,10,14,16,17]。未改动 handoff.taskPaths（retention.ts 仍是主产出路径），未放宽验收标准，未把整个 test/ 或 src/ 目录放行。",
-        "覆盖核对（逐文件对照本层提交）：git show --stat ebf04e1 共改动 8 个文件。packages/daemon/src/service/retention.ts 命中 taskPaths；packages/daemon/src/http/routes/runs.ts、packages/daemon/src/http/plugins/50-routes.ts、packages/daemon/src/boot/container.ts、packages/daemon/src/repo/runs-log-repo.ts、packages/shared/src/api/routes.ts、packages/daemon/test/unit/retention.test.ts 六项命中新增 supportPaths；docs/Agent任务调度器-开发文档/图谱/任务/M6-T9.md 是回填产物，不受路径清单约束。8/8 有归属，无范围外文件。",
-        "能力归属核对（H02）：全仓 task-contracts.json 与 presentation.json 里没有任何任务 provides 含 retention/search/purge 的能力名，也没有任何任务的 requires 指向 M6-T9 或该能力，故 provides=['run-log-retention-search'] 不产生 H02 多提供方冲突。",
-        "冲突核对：packages/shared/src/api/routes.ts、packages/daemon/src/boot/container.ts、packages/daemon/src/http/plugins/50-routes.ts 是跨任务共享文件，其余任务也有声明（调度器据此避开并行窗口）。本层对它们的改动都是最小接线：shared/api/routes.ts 仅 +1 行（给已存在的 GET /api/v1/runs/:runId/search 条目补 E_LOG_PURGED，见 diff 第 411 行）；50-routes.ts 仅 +4 行 customRegisteredPaths；container.ts 仅 +14 行 retentionService 接线。",
-        "sync 结果核对：sync --patch m6-t9-support-paths 的 affected 只有 M6-T9，未把任何已落地任务标为待复验；重出后 97/97 个任务标了路径，任务数 64 条契约、97 个任务、359 条边界，无 H01/H02/H03/H04 阻断项；status --task M6-T9 的 contractHash 更新为 6bb005306d3ec49ade66dfa1b1411db045780063e5f77175afcd53c0876d2ce2，与证据模板一致，blockers 为空。",
-        "门槛证据（2026-09-15，工作树 ../agent-scheduler-m6-t9 @ ebf04e1）：biome ci 在本层改动的 7 个文件上通过（Checked 7 files，No fixes applied）；tsc -b --noEmit 通过（无输出）；node scripts/check-error-codes.mjs → OK: 49 error codes match perfectly；定点复跑 vitest run packages/daemon/test/unit/retention.test.ts → 1 文件 22 用例全过。全仓 vitest run 为 16 文件 / 80 用例红，红的原因与本层无关且是基线既有（与 M6-T4 本日登记的证据同源）：(a) sse.test.ts 等把迁移目录写死导致 dispatch_snapshots 缺 bug_prompt 列；(b) routes.test.ts / http-plugins.test.ts / probe.test.ts / landing.test.ts 在 Windows 上断言 POSIX 0600 属主权限（AppError: POSIX permission assertion failed for pairing code file: expected 0600, got 666，抛点 pairing.ts:146，与 retention 接线无关）；(c) probe.test.ts 断言 Linux 候选路径 /usr/bin/codex。16 个红文件里没有一个是 retention.ts / runs.ts / runs-log-repo.ts 的消费者，retention.test.ts 独立全绿。",
-        "代码复核待办（本补丁只动契约，不改代码判定）：契约复核通过不等于代码验收通过。本轮对 ebf04e1 的逐条验收与边界核对发现两处阻断项，已在 PR #83 的 REVIEW-ROUND 1 评论里给出 R1（retention.ts:493、:508、:518 在 daemon 里拼中文用户文案，违反 06 节「daemon 的 message 恒为英文开发者短句，中文用户文案只在前端」；中文措辞属 web/src/i18n/error-messages.ts，E_LOG_PURGED 已是明确的独立结果）与 R2（retention.ts:406-433 遍历 run 目录删除除 .purged 外的一切文件，注释自称只清 raw*/events* 但无对应过滤，不满足验收标准 1「清理只清自己捕获的日志正文」；应改用已存在的 logstore/paths.ts:31 parseSegmentFileName 白名单）。修好后按第 2 轮复核。"
-      ]
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M7-T5": {
+      "contractHash": "a76f44e3f1dae3b6e1d59532d1876b1f4ae87affba51bb238940d9df4c7c3177",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M7-T8": {
+      "contractHash": "95df6ec0ea5b23a082d7dea956c85be604586b2eee95553f642b6bb4d0a47e7f",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T3": {
+      "contractHash": "79267cb119de5fdb790eac5ad101e7f373b142641487c60eaf6ce257ce1edb6a",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T4": {
+      "contractHash": "846edff701de84a835400426b82822cac3df49c17df4dcc2edb05e2767877429",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T5": {
+      "contractHash": "997ac4066d30258451fe0b43d2a546daf171dbfb437a786ac43a389c928dce9f",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T6": {
+      "contractHash": "eb6f96d716395edec4eb82130fcca38f845c4fa773ba4dd09a8dcb8b46ec97dd",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T7": {
+      "contractHash": "c55d49453b777acbd24d214916c8074f8cc7bb24779170e43374b93156b27f46",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T8": {
+      "contractHash": "7832dfd2c0978b5de3fd2399bdc250c01612e82ffcf98cd7efcfbdacacae3a30",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T9": {
+      "contractHash": "27ced71243d4aa3e37c5dc237a65667c7b1708103e4eb2306cb2fd5688732dd1",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T10": {
+      "contractHash": "522bb0d6c931a5c32eeb5e130833773d11e7a03fc28845876ca2a0d59b23eea7",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T13": {
+      "contractHash": "91b440312146f816c784f467b84f33aad09ab9c7d565b0478e6692590862522a",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T17": {
+      "contractHash": "f0a709183a51858e20e826c2658178c2951161e10c5c6a75498351dd964f4570",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T20": {
+      "contractHash": "4c2518fc6991e7959a166b6d5d3b304f2dd384a8a7058120d371434442944e65",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T21": {
+      "contractHash": "6e1643404f1203d12c6b42a08386c8aba8043f7f8d59ebb158a35670b2890a57",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T22": {
+      "contractHash": "a5a8c641fdb3d142865dd6650d74a3ee8daeb23bf7cb9c4bac606432089572e9",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "7cc72389834d4358118fb57e40c6c139b0c10b60da3d67389fd1159724bab2f8",
+      "evidence": [],
+      "verdict": "pending"
     }
   }
 }

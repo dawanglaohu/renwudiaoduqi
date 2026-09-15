@@ -230,6 +230,8 @@
     },
     "M8-T3": {
       "supportPaths": [
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
         "packages/daemon/src/http/routes/runs.ts",
         "packages/daemon/src/http/routes/snapshot.ts",
         "packages/daemon/test/unit/dispatch-contract.test.ts"

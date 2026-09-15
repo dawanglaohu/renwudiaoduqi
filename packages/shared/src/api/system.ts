@@ -1,3 +1,9 @@
+/**
+ * Current supported API version (shared by daemon and both shells) (AC 1, E-14).
+ * Single source of truth across daemon, shell-desktop, and shell-mobile.
+ */
+export const CURRENT_API_VERSION = 'v1' as const;
+
 export interface HealthDiagnostics {
 	readonly ok: true;
 	readonly uptimeSec: number;

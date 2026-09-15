@@ -1,7 +1,18 @@
-import type { CreateRunMessageBody } from '@agent-scheduler/shared/api/runs';
-import { createRunMessageBodySchema } from '@agent-scheduler/shared/api/runs';
+import {
+	type CreateRunBody,
+	type CreateRunMessageBody,
+	type CreateRunResponse,
+	type GetRunResponse,
+	type ListRunsResponse,
+	type RerunRunBody,
+	type RerunRunResponse,
+	createRunBodySchema,
+	createRunMessageBodySchema,
+	rerunRunBodySchema,
+} from '@agent-scheduler/shared/api/runs';
 import type { FastifyInstance, RouteHandlerMethod } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
+import type { DispatchService } from '../../service/dispatch.ts';
 import type { MessageService } from '../../service/message.ts';
 import type { RetentionService } from '../../service/retention.ts';
 import type { RunAbortService } from '../../service/run-abort.ts';
@@ -166,6 +177,19 @@ export const purgeRunLogsParamsSchema = {
 	},
 } as const;
 
+export interface SingleRunParams {
+	readonly runId: string;
+}
+
+export const singleRunParamsSchema = {
+	type: 'object',
+	additionalProperties: false,
+	required: ['runId'],
+	properties: {
+		runId: { type: 'string', minLength: 1 },
+	},
+} as const;
+
 export { createRunMessageBodySchema };
 
 export interface GetRunLogQuery {
@@ -201,6 +225,7 @@ export interface RegisterRunsRoutesOptions {
 	readonly messageService?: MessageService;
 	readonly runLogService?: RunLogService;
 	readonly retentionService?: RetentionService;
+	readonly dispatchService?: DispatchService;
 }
 
 interface ContainerWithServices {
@@ -209,7 +234,137 @@ interface ContainerWithServices {
 		readonly message?: MessageService;
 		readonly runLog?: RunLogService;
 		readonly retention?: RetentionService;
+		readonly dispatch?: DispatchService;
 	};
+}
+
+/**
+ * Registers dispatch-related run routes:
+ * - `POST /api/v1/runs`: creates and dispatches a new run (AC 2, AC 5, E-126, E-82)
+ * - `POST /api/v1/runs/:runId/rerun`: reruns a task run (AC 5, E-50, E-82)
+ * - `GET /api/v1/runs`: lists runs
+ * - `GET /api/v1/runs/:runId`: retrieves a single run
+ */
+export function registerDispatchRunsRoutes(
+	instance: FastifyInstance,
+	options?: RegisterRunsRoutesOptions,
+): void {
+	const createRunHandler: RouteHandlerMethod = async (request): Promise<CreateRunResponse> => {
+		const container = request.server.container as ContainerWithServices | undefined;
+		const service = options?.dispatchService ?? container?.services?.dispatch;
+
+		if (!service) {
+			throw new AppError('E_INTERNAL', 'DispatchService is not available in container');
+		}
+
+		const body = request.body as CreateRunBody;
+		const actorDeviceId = (request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
+
+		const result = await service.createRun({
+			taskId: body.taskId,
+			agentId: body.agentId,
+			model: body.model,
+			permissionTier: body.permissionTier,
+			baseRef: body.baseRef,
+			worktreeMode: body.worktreeMode,
+			idempotencyKey: body.idempotencyKey,
+			actorDeviceId,
+		});
+
+		return {
+			run: result.run,
+		};
+	};
+
+	instance.post<{
+		Body: CreateRunBody;
+	}>(
+		'/api/v1/runs',
+		{
+			schema: {
+				body: createRunBodySchema,
+			},
+		},
+		createRunHandler,
+	);
+
+	const rerunRunHandler: RouteHandlerMethod = async (request): Promise<RerunRunResponse> => {
+		const container = request.server.container as ContainerWithServices | undefined;
+		const service = options?.dispatchService ?? container?.services?.dispatch;
+
+		if (!service) {
+			throw new AppError('E_INTERNAL', 'DispatchService is not available in container');
+		}
+
+		const params = request.params as SingleRunParams;
+		const body = request.body as RerunRunBody;
+		const actorDeviceId = (request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
+
+		return await service.rerunRun({
+			runId: params.runId,
+			idempotencyKey: body.idempotencyKey,
+			actorDeviceId,
+		});
+	};
+
+	instance.post<{
+		Params: SingleRunParams;
+		Body: RerunRunBody;
+	}>(
+		'/api/v1/runs/:runId/rerun',
+		{
+			schema: {
+				params: singleRunParamsSchema,
+				body: rerunRunBodySchema,
+			},
+		},
+		rerunRunHandler,
+	);
+
+	const listRunsHandler: RouteHandlerMethod = async (request): Promise<ListRunsResponse> => {
+		const container = request.server.container as ContainerWithServices | undefined;
+		const service = options?.dispatchService ?? container?.services?.dispatch;
+
+		if (!service) {
+			throw new AppError('E_INTERNAL', 'DispatchService is not available in container');
+		}
+
+		const runs = await service.listRuns();
+		return {
+			runs,
+			nextCursor: null,
+		};
+	};
+
+	instance.get('/api/v1/runs', listRunsHandler);
+
+	const getRunHandler: RouteHandlerMethod = async (request): Promise<GetRunResponse> => {
+		const container = request.server.container as ContainerWithServices | undefined;
+		const service = options?.dispatchService ?? container?.services?.dispatch;
+
+		if (!service) {
+			throw new AppError('E_INTERNAL', 'DispatchService is not available in container');
+		}
+
+		const params = request.params as SingleRunParams;
+		const run = await service.getRun(params.runId);
+		return {
+			run,
+			progress: null,
+		};
+	};
+
+	instance.get<{
+		Params: SingleRunParams;
+	}>(
+		'/api/v1/runs/:runId',
+		{
+			schema: {
+				params: singleRunParamsSchema,
+			},
+		},
+		getRunHandler,
+	);
 }
 
 /**
@@ -217,17 +372,20 @@ interface ContainerWithServices {
  * - `POST /api/v1/runs/:id/abort` (10-接口约定 端点总表)
  * - `POST /api/v1/runs/:id/messages` (10-接口约定 端点总表 / M6-T6)
  * - `GET /api/v1/runs/:runId/log` (10-接口约定 端点总表, M6-T8)
+ * - If DispatchService is provided: registers `POST /runs`, `POST /runs/:runId/rerun`, `GET /runs`, `GET /runs/:runId`
  */
 export function registerRunsRoutes(
 	instance: FastifyInstance,
 	options?: RegisterRunsRoutesOptions,
 ): void {
+	registerDispatchRunsRoutes(instance, options);
+
 	const abortHandler: RouteHandlerMethod = async (request) => {
 		const params = request.params as AbortRunParams;
 		const body = (request.body ?? {}) as AbortRunBody;
 
-		const container = request.server.container as ContainerWithServices | undefined;
-		const service = options?.runAbortService ?? container?.services?.runAbort;
+		const currentContainer = request.server.container as ContainerWithServices | undefined;
+		const service = options?.runAbortService ?? currentContainer?.services?.runAbort;
 
 		if (!service) {
 			throw new AppError('E_INTERNAL', 'RunAbortService is not available in container');
@@ -265,8 +423,8 @@ export function registerRunsRoutes(
 		const params = request.params as RunMessageParams;
 		const body = request.body as CreateRunMessageBody;
 
-		const container = request.server.container as ContainerWithServices | undefined;
-		const service = options?.messageService ?? container?.services?.message;
+		const currentContainer = request.server.container as ContainerWithServices | undefined;
+		const service = options?.messageService ?? currentContainer?.services?.message;
 
 		if (!service) {
 			throw new AppError('E_INTERNAL', 'MessageService is not available in container');
@@ -307,8 +465,8 @@ export function registerRunsRoutes(
 		const params = request.params as GetRunLogParams;
 		const query = (request.query ?? {}) as GetRunLogQuery;
 
-		const container = request.server.container as ContainerWithServices | undefined;
-		const service = options?.runLogService ?? container?.services?.runLog;
+		const currentContainer = request.server.container as ContainerWithServices | undefined;
+		const service = options?.runLogService ?? currentContainer?.services?.runLog;
 
 		if (!service) {
 			throw new AppError('E_INTERNAL', 'RunLogService is not available in container');
