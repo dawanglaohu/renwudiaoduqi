@@ -81,28 +81,26 @@ jobs:
 
       - name: Pin MSVC toolchain for native modules (Windows only)
         # better-sqlite3 has no prebuilt binary for Node 22, so pnpm falls back to
-        # node-gyp. The bundled node-gyp 10.3 cannot read the version of the VS 18
-        # install on the windows-latest image ("unknown version undefined"), so it
-        # needs both a ready dev-shell (PATH/INCLUDE/LIB) and the matching Node headers
-        # handed to it directly — that keeps gyp off the version-detection path.
-        if: matrix.platform == 'win32'
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Point node-gyp at the Node 22 headers (Windows only)
-        # node-gyp expects a Node source tree (include/node + Release/node.lib), not the
-        # installed runtime directory, so fetch the matching headers tarball and hand that
-        # to gyp. Combined with the dev-shell above this keeps the rebuild off the
-        # Visual Studio version-detection path that node-gyp 10.3 cannot handle.
+        # node-gyp. The bundled node-gyp 10.3 asks PowerShell for the Visual Studio
+        # version and dies with ERR_CHILD_PROCESS_STDIO_MAXBUFFER on the VS 18 install
+        # that windows-latest now ships, then reports 'unknown version "undefined"'.
+        # Feed it the version from vswhere directly so the version probe never runs.
         if: matrix.platform == 'win32'
         run: |
-          $headers = Join-Path $env:RUNNER_TEMP 'node-headers'
-          $version = (node -p "process.versions.node")
-          $url = "https://nodejs.org/download/release/v$version/node-v$version-headers.tar.gz"
-          New-Item -ItemType Directory -Force -Path $headers | Out-Null
-          Invoke-WebRequest -Uri $url -OutFile (Join-Path $env:RUNNER_TEMP 'headers.tar.gz')
-          tar -xzf (Join-Path $env:RUNNER_TEMP 'headers.tar.gz') -C $headers --strip-components=1
-          "npm_config_nodedir=$headers" >> $env:GITHUB_ENV
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $install = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $install) { throw 'No Visual Studio C++ toolchain found on the runner.' }
+          $version = & $vswhere -latest -products * -property installationVersion
+          $major = ([version]$version).Major
+          "GYP_MSVS_VERSION=$major.0" >> $env:GITHUB_ENV
+          "GYP_MSVS_OVERRIDE_PATH=$install" >> $env:GITHUB_ENV
+          "npm_config_msvs_version=$major.0" >> $env:GITHUB_ENV
+          Write-Host "node-gyp pinned to Visual Studio at $install (version $version)"
         shell: pwsh
+
+      - name: Materialise the MSVC dev shell (Windows only)
+        if: matrix.platform == 'win32'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Cache pnpm store
         uses: actions/cache@v4
