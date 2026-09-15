@@ -1,9 +1,9 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
 import { handleSseStream, resolveReplayEvents } from '../sse.ts';
 
 export function registerEventsRoutes(instance: FastifyInstance): void {
-	instance.get('/api/v1/events', async (request: FastifyRequest, reply) => {
+	instance.get('/api/v1/events', async (request: FastifyRequest, reply: FastifyReply) => {
 		const container = request.server.container;
 		if (!container) {
 			throw new AppError('E_INTERNAL', 'Container is not initialized.');

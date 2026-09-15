@@ -34,12 +34,16 @@ describe('daemon entry', () => {
 });
 
 function nodeExecutable(major: 20): string {
+	// The optionalDependencies in the root package.json are named by Node's own
+	// platform/arch pair (win-x64, darwin-arm64, linux-x64, …), which does not match
+	// `process.arch` on macOS: Apple Silicon reports arm64 for darwin-x64 packages too.
+	const arch = process.arch === 'x64' || process.arch === 'arm64' ? process.arch : 'x64';
 	const platform =
 		process.platform === 'win32'
-			? 'win-x64'
+			? `win-${arch}`
 			: process.platform === 'darwin'
-				? 'darwin-x64'
-				: 'linux-x64';
+				? `darwin-${arch}`
+				: `linux-${arch}`;
 	const executable = process.platform === 'win32' ? 'node.exe' : 'node';
 	return join(repositoryRoot, 'node_modules', `node${major}-${platform}`, 'bin', executable);
 }
