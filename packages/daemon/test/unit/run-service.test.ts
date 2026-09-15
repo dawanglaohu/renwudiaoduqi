@@ -7,6 +7,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { type UnitOfWork, createUnitOfWork } from '../../src/db/unit-of-work.ts';
+import {
+	RUN_TRANSITION_REASONS,
+	countsTowardAgentConcurrency,
+} from '../../src/domain/run-state-machine.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createEventBus } from '../../src/events/bus.ts';
 import { createEnvelopeFactory } from '../../src/events/envelope.ts';
@@ -544,7 +548,7 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 		jsonCb?.({ value: envelope });
 
 		// Allow async fire-and-forget to settle
-		await new Promise((resolve) => setTimeout(resolve, 50));
+		await new Promise((resolve) => setTimeout(resolve, 150));
 
 		// Verify raw.log and events.ndjson
 		const rawContent = await env.fs.readFile(env.paths.segmentPath(runId, 'raw', 0));
@@ -750,5 +754,322 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 
 		await controller.waitForCompletion();
 		controller.detach();
+	});
+
+	describe('M6-T7: 自动模式下的提问处置 (AC 1-3, E-115, E-133, E-134)', () => {
+		it('AC 1 & E-115: 自动模式下 agent 提问时调度器一律不代答，任务转 awaiting_reply 并继续占用 agent 并发额度', async () => {
+			const env = setupTestEnvironment();
+			const publishedEnvelopes: EventEnvelope[] = [];
+			env.bus.subscribe((envelope) => {
+				publishedEnvelopes.push(envelope);
+			});
+
+			const service = createRunService({
+				logstore: env.logstore,
+				bus: env.bus,
+				envelopeFactory: env.envelopeFactory,
+				unitOfWork: env.unitOfWork,
+				runsRepo: env.runsRepo,
+				clock: env.clock,
+			});
+
+			const runId = 'run-e115-test';
+			env.createRun({
+				id: runId,
+				taskId: 'task-e115',
+				state: 'starting',
+				pid: 5501,
+				laneNo: 2,
+			});
+
+			// 1. 收到未标提问字段的普通事件：starting -> running，但绝不转入 awaiting_reply
+			const normalChunkEvent = env.envelopeFactory.createEnvelope({
+				kind: 'agent_message_chunk',
+				runId,
+				taskId: 'task-e115',
+				payload: { chunk: 'Starting analysis...' },
+			});
+			await service.ingestEvent(runId, normalChunkEvent);
+			expect(env.runsRepo.findById(runId)?.state).toBe('running');
+			expect(await service.isAwaitingReply(runId)).toBe(false);
+
+			// 收到未标提问字段的普通 tool_call：保持 running，不进 awaiting_reply
+			const normalToolEvent = env.envelopeFactory.createEnvelope({
+				kind: 'tool_call',
+				runId,
+				taskId: 'task-e115',
+				payload: {
+					callId: 'call-read-1',
+					tool: 'readFile',
+					input: { path: 'src/index.ts' },
+				},
+			});
+			await service.ingestEvent(runId, normalToolEvent);
+			expect(env.runsRepo.findById(runId)?.state).toBe('running');
+			expect(await service.isAwaitingReply(runId)).toBe(false);
+
+			// 2. 收到标有归一化提问字段 (requiresReply / isQuestion) 的事件
+			const questionEvent = env.envelopeFactory.createEnvelope({
+				kind: 'tool_call',
+				runId,
+				taskId: 'task-e115',
+				payload: {
+					callId: 'call-q-1',
+					tool: 'ask_user',
+					input: { question: 'Should we proceed with schema migration?' },
+					requiresReply: true,
+					isQuestion: true,
+				},
+			});
+			await service.ingestEvent(runId, questionEvent);
+
+			// 调度器一律不代答，任务转「等待人回话」
+			const updatedRun = env.runsRepo.findById(runId);
+			expect(updatedRun?.state).toBe('awaiting_reply');
+			expect(await service.isAwaitingReply(runId)).toBe(true);
+
+			// awaiting_reply 状态继续占用 agent 并发额度 (E-115)
+			expect(countsTowardAgentConcurrency('awaiting_reply')).toBe(true);
+
+			// awaiting_reply 不释放泳道、不置空 lane_no (E-326)
+			expect(updatedRun?.laneNo).toBe(2);
+
+			// 状态变更事件已发布且原因标注为 agent_question
+			const stateChanged = publishedEnvelopes.find(
+				(e) =>
+					e.kind === 'run.state_changed' && (e.payload as { to?: string })?.to === 'awaiting_reply',
+			);
+			expect(stateChanged).toBeDefined();
+			expect((stateChanged?.payload as { reason?: string })?.reason).toBe(
+				RUN_TRANSITION_REASONS.AGENT_QUESTION,
+			);
+
+			// markAwaitingReply 幂等性：已处于 awaiting_reply 时再次调用不报错
+			await service.markAwaitingReply(runId);
+			expect(env.runsRepo.findById(runId)?.state).toBe('awaiting_reply');
+		});
+
+		it('AC 2 & E-134: agent 需要联网装依赖时默认拦下并转回话通路由人决策，不提供自动放行网络开关', async () => {
+			const env = setupTestEnvironment();
+			const publishedEnvelopes: EventEnvelope[] = [];
+			env.bus.subscribe((envelope) => {
+				publishedEnvelopes.push(envelope);
+			});
+
+			const service = createRunService({
+				logstore: env.logstore,
+				bus: env.bus,
+				envelopeFactory: env.envelopeFactory,
+				unitOfWork: env.unitOfWork,
+				runsRepo: env.runsRepo,
+				clock: env.clock,
+			});
+
+			const runId = 'run-e134-test';
+			env.createRun({
+				id: runId,
+				taskId: 'task-e134',
+				state: 'running',
+				pid: 5502,
+			});
+
+			// 普通 tool_call 不触发阻断，保持 running
+			const regularToolCall = env.envelopeFactory.createEnvelope({
+				kind: 'tool_call',
+				runId,
+				taskId: 'task-e134',
+				payload: {
+					callId: 'call-grep-1',
+					tool: 'grep',
+					input: { pattern: 'TODO' },
+				},
+			});
+			await service.ingestEvent(runId, regularToolCall);
+			expect(env.runsRepo.findById(runId)?.state).toBe('running');
+			expect(await service.isAwaitingReply(runId)).toBe(false);
+
+			// 适配器将装依赖归一化为 run.permission_blocked 阻断事件并带 blockedCategory
+			const npmBlockedEvent = env.envelopeFactory.createEnvelope({
+				kind: 'run.permission_blocked',
+				runId,
+				taskId: 'task-e134',
+				payload: {
+					tool: 'commandExecution',
+					reason: 'Network dependency install blocked; human decision required',
+					blockedCategory: 'network_dependency',
+				},
+			});
+
+			await service.ingestEvent(runId, npmBlockedEvent);
+
+			// 默认拦下并转 awaiting_reply，原因归为 agent_question
+			expect(env.runsRepo.findById(runId)?.state).toBe('awaiting_reply');
+			expect(await service.isAwaitingReply(runId)).toBe(true);
+
+			const stateChanged = publishedEnvelopes.find(
+				(e) =>
+					e.kind === 'run.state_changed' && (e.payload as { to?: string })?.to === 'awaiting_reply',
+			);
+			expect(stateChanged).toBeDefined();
+			expect((stateChanged?.payload as { reason?: string })?.reason).toBe(
+				RUN_TRANSITION_REASONS.AGENT_QUESTION,
+			);
+		});
+
+		it('AC 3 & E-133: 沙箱拦下越界写入时记「权限受阻」在时间线高亮，不判失败；提供「仅本次运行临时提升」开关', async () => {
+			const env = setupTestEnvironment();
+			const publishedEnvelopes: EventEnvelope[] = [];
+			env.bus.subscribe((envelope) => {
+				publishedEnvelopes.push(envelope);
+			});
+
+			const service = createRunService({
+				logstore: env.logstore,
+				bus: env.bus,
+				envelopeFactory: env.envelopeFactory,
+				unitOfWork: env.unitOfWork,
+				runsRepo: env.runsRepo,
+				clock: env.clock,
+			});
+
+			const runId = 'run-e133-test';
+			env.createRun({
+				id: runId,
+				taskId: 'task-e133',
+				state: 'running',
+				pid: 5503,
+			});
+
+			// 在真实 SQLite runs 表中预置记录，默认权限档位为 workspaceWrite
+			env.db
+				.prepare(
+					"INSERT INTO runs (id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id) VALUES (?, ?, 1, 'implement', 'running', 'codex', 'workspaceWrite', 'snap-1')",
+				)
+				.run(runId, 'task-e133');
+
+			// 沙箱拦下 worktree 之外的写入，产出 run.permission_blocked 阻断事件
+			const permEvent = env.envelopeFactory.createEnvelope({
+				kind: 'run.permission_blocked',
+				runId,
+				taskId: 'task-e133',
+				payload: {
+					tool: 'file_edit',
+					reason: 'Sandbox blocked write outside worktree: /etc/hosts',
+					blockedCategory: 'worktree_out_of_bounds',
+				},
+			});
+
+			await service.ingestEvent(runId, permEvent);
+
+			// 1. 记「权限受阻」事件并在时间线高亮 (milestone=true 写入 events 表与 events.ndjson)
+			const eventsIndexed = env.db
+				.prepare("SELECT * FROM events WHERE run_id = ? AND kind = 'run.permission_blocked'")
+				.all(runId);
+			expect(eventsIndexed).toHaveLength(1);
+
+			// 2. 不判失败：绝不进入 failed，而是转为 awaiting_reply 等待人决策
+			const runInDb = env.runsRepo.findById(runId);
+			expect(runInDb?.state).toBe('awaiting_reply');
+			expect(runInDb?.state).not.toBe('failed');
+
+			// 3. 提供「仅本次运行临时提升」开关 (elevateRunOnce)：不落库、结束失效、事件留痕 (R3, E-133)
+			await service.elevateRunOnce(runId);
+
+			// 仅本次运行处于临时提升生效态
+			expect(service.isTemporarilyElevated(runId)).toBe(true);
+
+			// 运行转回 running 继续执行
+			expect(env.runsRepo.findById(runId)?.state).toBe('running');
+
+			// 绝不改写默认档位：SQLite 数据库中该运行及全局的默认权限档位保持 workspaceWrite，绝不落库
+			const runRow = env.db.prepare('SELECT permission_tier FROM runs WHERE id = ?').get(runId) as {
+				permission_tier: string;
+			};
+			expect(runRow.permission_tier).toBe('workspaceWrite');
+
+			// 事件留痕：发布了带有 human_replied 原因的 state_changed 事件
+			const elevateStateChanged = publishedEnvelopes.filter(
+				(e) => e.kind === 'run.state_changed' && (e.payload as { to?: string })?.to === 'running',
+			);
+			expect(elevateStateChanged.length).toBeGreaterThan(0);
+
+			// 结束失效：运行正常退出到 exited 后，仅本次运行的临时提升标志自动清除
+			await service.transitionState({
+				runId,
+				targetState: 'exited',
+				reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+			});
+			expect(service.isTemporarilyElevated(runId)).toBe(false);
+
+			// 非 awaiting_reply 状态下调用 elevateRunOnce 抛出 E_INVALID_STATE_TRANSITION
+			await expect(service.elevateRunOnce(runId)).rejects.toThrowError(AppError);
+			await expect(service.elevateRunOnce(runId)).rejects.toMatchObject({
+				code: 'E_INVALID_STATE_TRANSITION',
+			});
+		});
+
+		it('Lifecycle: awaiting_reply 出边支持进程自然退出 (exited) 与手动中止 (aborted)', async () => {
+			const env = setupTestEnvironment();
+			const service = createRunService({
+				logstore: env.logstore,
+				bus: env.bus,
+				envelopeFactory: env.envelopeFactory,
+				unitOfWork: env.unitOfWork,
+				runsRepo: env.runsRepo,
+				clock: env.clock,
+			});
+
+			// Case 1: 带着提问结束回合，进程自然退出 -> exited
+			const runId1 = 'run-exit-from-reply';
+			env.createRun({
+				id: runId1,
+				taskId: 'task-1',
+				state: 'awaiting_reply',
+				pid: 6601,
+			});
+
+			let exitCb: ((result: ProcessExitResult) => void) | undefined;
+			const mockProcess = {
+				runId: runId1,
+				pid: 6601,
+				onRaw: () => () => {},
+				onJson: () => () => {},
+				onExit: (cb: (result: ProcessExitResult) => void) => {
+					exitCb = cb;
+					return () => {
+						exitCb = undefined;
+					};
+				},
+			} as unknown as ManagedProcess;
+
+			const controller = service.attachProcess(runId1, mockProcess);
+			exitCb?.({
+				runId: runId1,
+				pid: 6601,
+				exitCode: 0,
+				signal: null,
+				reason: 'exited',
+			});
+			await controller.waitForCompletion();
+			controller.detach();
+
+			expect(env.runsRepo.findById(runId1)?.state).toBe('exited');
+
+			// Case 2: 人在 awaiting_reply 时手动中止 -> aborted
+			const runId2 = 'run-abort-from-reply';
+			env.createRun({
+				id: runId2,
+				taskId: 'task-2',
+				state: 'awaiting_reply',
+				pid: 6602,
+			});
+
+			await service.transitionState({
+				runId: runId2,
+				targetState: 'aborted',
+				reason: 'manual_abort',
+			});
+			expect(env.runsRepo.findById(runId2)?.state).toBe('aborted');
+		});
 	});
 });

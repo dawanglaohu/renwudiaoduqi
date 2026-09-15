@@ -579,4 +579,68 @@ describe('M4-T12: 通用 ACP 适配器与扩展槽 (AC 6, AC 7, AC 8, E-187, E-1
 			expect(violations).toEqual([]);
 		});
 	});
+
+	describe('M6-T7 提问与阻断分类归一化 (R1, R2, E-115, E-134)', () => {
+		it('marks requiresReply and isQuestion for question tools, leaves normal tools unmarked', () => {
+			const questionPacket = {
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-q',
+					update: {
+						sessionUpdate: 'tool_call',
+						toolCallId: 'tc-q-1',
+						title: 'ask_user',
+						rawInput: { question: 'Confirm migration?' },
+					},
+				},
+			};
+			const qEvents = mapGenericAcpEvents(questionPacket, { runId: 'test-run' });
+			expect(qEvents).toHaveLength(1);
+			expect(qEvents[0]?.kind).toBe('tool_call');
+			expect((qEvents[0]?.payload as { requiresReply?: boolean })?.requiresReply).toBe(true);
+			expect((qEvents[0]?.payload as { isQuestion?: boolean })?.isQuestion).toBe(true);
+
+			const normalPacket = {
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-norm',
+					update: {
+						sessionUpdate: 'tool_call',
+						toolCallId: 'tc-n-1',
+						title: 'readFile',
+						rawInput: { path: 'src/main.ts' },
+					},
+				},
+			};
+			const nEvents = mapGenericAcpEvents(normalPacket, { runId: 'test-run' });
+			expect(nEvents).toHaveLength(1);
+			expect(nEvents[0]?.kind).toBe('tool_call');
+			expect((nEvents[0]?.payload as { requiresReply?: boolean })?.requiresReply).toBeUndefined();
+			expect((nEvents[0]?.payload as { isQuestion?: boolean })?.isQuestion).toBeUndefined();
+		});
+
+		it('normalizes dependency install commands to run.permission_blocked with blockedCategory', () => {
+			const npmPacket = {
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					sessionId: 'sess-npm',
+					update: {
+						sessionUpdate: 'tool_call',
+						toolCallId: 'tc-npm-1',
+						title: 'bash',
+						rawInput: { command: 'npm install --save axios' },
+					},
+				},
+			};
+			const events = mapGenericAcpEvents(npmPacket, { runId: 'test-run' });
+			expect(events).toHaveLength(1);
+			expect(events[0]?.kind).toBe('run.permission_blocked');
+			expect((events[0]?.payload as { blockedCategory?: string })?.blockedCategory).toBe(
+				'network_dependency',
+			);
+		});
+	});
 });

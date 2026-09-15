@@ -138,6 +138,22 @@ export interface RunService {
 			readonly actorDeviceId: null;
 		},
 	): Promise<void>;
+	markAwaitingReply(
+		runId: string,
+		details?: {
+			readonly reason?: string;
+			readonly actorDeviceId?: string | null;
+		},
+	): Promise<void>;
+	elevateRunOnce(
+		runId: string,
+		details?: {
+			readonly reason?: string;
+			readonly actorDeviceId?: string | null;
+		},
+	): Promise<void>;
+	isAwaitingReply(runId: string): Promise<boolean>;
+	isTemporarilyElevated(runId: string): boolean;
 }
 
 function normalizeRawLineBytes(rawLine: string | Uint8Array): Uint8Array {
@@ -188,6 +204,7 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
  */
 export function createRunService(deps: RunServiceDeps): RunService {
 	const logFailure = deps.logFailure ?? (() => undefined);
+	const temporarilyElevatedRuns = new Set<string>();
 
 	function getNow(): string {
 		return deps.clock.now();
@@ -233,6 +250,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				byteLen: appendResult.location.byteLen,
 			};
 			deps.bus.publish(envelope, locationRef);
+		}
+
+		// 4. M6-T7 状态接线：从 starting 到 running，以及自动模式下提问/权限受阻转 awaiting_reply
+		if (deps.runsRepo && envelope.kind !== 'run.state_changed') {
+			await handleEventStateWiring(runId, envelope);
 		}
 
 		return appendResult;
@@ -595,6 +617,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			}
 		}
 
+		// 运行退出或进入终态时，临时权限提升失效 (E-133)
+		if (targetState === 'exited' || isTerminal) {
+			temporarilyElevatedRuns.delete(runId);
+		}
+
 		// AC 2 & E-322: 事务后终止残留进程并发布 task.sessions_archived
 		if (archiveContext && deps.sessionArchiveService) {
 			await deps.sessionArchiveService.terminateArchived(archiveContext);
@@ -608,6 +635,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 	async function closeRunStream(runId: string): Promise<void> {
 		if (!runId || typeof runId !== 'string') return;
+		temporarilyElevatedRuns.delete(runId);
 		await deps.logstore.closeWriter(runId);
 	}
 
@@ -656,6 +684,128 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		});
 	}
 
+	async function handleEventStateWiring(
+		runId: string,
+		envelope: EventEnvelopeInput,
+	): Promise<void> {
+		if (!deps.runsRepo || envelope.kind === 'run.state_changed') return;
+
+		let currentRun = deps.runsRepo.findById(runId);
+		if (!currentRun) return;
+
+		// 收到第一条可解析事件，starting -> running (09节状态机与生命周期规范)
+		if (currentRun.state === 'starting') {
+			await transitionState({
+				runId,
+				targetState: 'running',
+				reason: 'first_event_received',
+			});
+			currentRun = deps.runsRepo.findById(runId);
+			if (!currentRun) return;
+		}
+
+		if (currentRun.state === 'running') {
+			const payload = envelope.payload as Record<string, unknown> | undefined;
+			const isBlocked = envelope.kind === 'run.permission_blocked';
+			const isQuestion = Boolean(
+				payload?.requiresReply === true ||
+					payload?.requires_reply === true ||
+					payload?.isQuestion === true ||
+					payload?.is_question === true ||
+					payload?.requiresHumanInput === true,
+			);
+
+			// E-115: 自动模式下 agent 提问一律不代答，转「等待人回话」并计入停滞检测，继续占用该 agent 并发额度
+			// E-133: 沙箱拦下越界写入记「权限受阻」，不判失败
+			// E-134: agent 联网装依赖由适配器归一化为 run.permission_blocked 并转回话通路由人决策
+			if (isBlocked || isQuestion) {
+				await transitionState({
+					runId,
+					targetState: 'awaiting_reply',
+					reason: RUN_TRANSITION_REASONS.AGENT_QUESTION,
+				});
+			}
+		}
+	}
+
+	async function markAwaitingReply(
+		runId: string,
+		details?: {
+			readonly reason?: string;
+			readonly actorDeviceId?: string | null;
+		},
+	): Promise<void> {
+		if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
+			throw new AppError('E_VALIDATION', 'Run ID must be a non-empty string');
+		}
+		const run = deps.runsRepo?.findById(runId);
+		if (!run) {
+			throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
+				details: { runId },
+			});
+		}
+		if (run.state === 'awaiting_reply') {
+			return; // Idempotent: already awaiting reply
+		}
+		const reason = details?.reason ?? RUN_TRANSITION_REASONS.AGENT_QUESTION;
+		if (run.state === 'starting') {
+			await transitionState({
+				runId,
+				targetState: 'running',
+				reason: 'first_event_received',
+				actorDeviceId: details?.actorDeviceId ?? null,
+			});
+		}
+		await transitionState({
+			runId,
+			targetState: 'awaiting_reply',
+			reason,
+			actorDeviceId: details?.actorDeviceId ?? null,
+		});
+	}
+
+	async function elevateRunOnce(
+		runId: string,
+		details?: {
+			readonly reason?: string;
+			readonly actorDeviceId?: string | null;
+		},
+	): Promise<void> {
+		if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
+			throw new AppError('E_VALIDATION', 'Run ID must be a non-empty string');
+		}
+		const run = deps.runsRepo?.findById(runId);
+		if (!run) {
+			throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
+				details: { runId },
+			});
+		}
+		if (run.state !== 'awaiting_reply') {
+			assertValidTransition(run.state, 'running', {
+				reason: details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED,
+			});
+		}
+		// 仅本次运行临时提升，绝不改写默认档位（不落库、结束失效、事件留痕）(E-133)
+		temporarilyElevatedRuns.add(runId);
+		const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
+		await transitionState({
+			runId,
+			targetState: 'running',
+			reason,
+			actorDeviceId: details?.actorDeviceId ?? null,
+		});
+	}
+
+	async function isAwaitingReply(runId: string): Promise<boolean> {
+		if (!runId || typeof runId !== 'string') return false;
+		const run = deps.runsRepo?.findById(runId);
+		return run?.state === 'awaiting_reply';
+	}
+
+	function isTemporarilyElevated(runId: string): boolean {
+		return temporarilyElevatedRuns.has(runId);
+	}
+
 	return Object.freeze({
 		ingestRaw,
 		ingestEvent,
@@ -666,5 +816,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		findInFlightRuns,
 		markInterrupted,
 		markOrphaned,
+		markAwaitingReply,
+		elevateRunOnce,
+		isAwaitingReply,
+		isTemporarilyElevated,
 	});
 }

@@ -144,6 +144,32 @@ function createInput<K extends EventKind>(
 	}) as EventEnvelopeInput<K>;
 }
 
+const NETWORK_DEPENDENCY_COMMAND_REGEX =
+	/(?:^|[;&|]\s*)(?:sudo\s+)?(?:npm\s+(?:i|install|add|update)|pnpm\s+(?:i|install|add|update)|yarn(?:\s+add|\s+install)?|bun\s+(?:add|install)|pip3?\s+install|poetry\s+add|cargo\s+(?:add|install)|go\s+(?:get|install)|apt(?:-get)?\s+install|brew\s+install)(?:\s+|$)/i;
+
+function isQuestionTool(toolName?: string): boolean {
+	if (!toolName) return false;
+	return /^(ask(_user|_followup_question|_human)?|question|prompt_user|request_user_input|user_input)$/i.test(
+		toolName.trim(),
+	);
+}
+
+function isNetworkDependencyCommand(command?: unknown): boolean {
+	if (typeof command === 'string') {
+		return NETWORK_DEPENDENCY_COMMAND_REGEX.test(command.trim());
+	}
+	if (command && typeof command === 'object') {
+		const c =
+			(command as Record<string, unknown>).command ??
+			(command as Record<string, unknown>).cmd ??
+			(command as Record<string, unknown>).input;
+		if (typeof c === 'string') {
+			return NETWORK_DEPENDENCY_COMMAND_REGEX.test(c.trim());
+		}
+	}
+	return false;
+}
+
 interface ItemPayload {
 	readonly id?: string;
 	readonly type?: string;
@@ -182,6 +208,18 @@ function mapItemStarted(
 	switch (itemType) {
 		case 'commandExecution':
 		case 'command_execution': {
+			if (isNetworkDependencyCommand(item.command)) {
+				return createInput(
+					'run.permission_blocked',
+					{
+						tool: 'commandExecution',
+						reason: 'Network dependency install blocked; human decision required',
+						blockedCategory: 'network_dependency',
+						vendor: parsed,
+					},
+					context,
+				);
+			}
 			return createInput(
 				'tool_call',
 				{
@@ -214,12 +252,14 @@ function mapItemStarted(
 		case 'mcpToolCall':
 		case 'mcp_tool_call': {
 			const toolName = item.server ? `${item.server}:${item.tool ?? ''}` : (item.tool ?? 'mcp');
+			const isQuestion = isQuestionTool(toolName) || Boolean(item.isQuestion || item.requiresReply);
 			return createInput(
 				'tool_call',
 				{
 					callId: itemId,
 					tool: toolName,
 					input: item.arguments,
+					...(isQuestion ? { requiresReply: true, isQuestion: true } : {}),
 					vendor: parsed,
 				},
 				context,
@@ -227,12 +267,15 @@ function mapItemStarted(
 		}
 		case 'dynamicToolCall':
 		case 'dynamic_tool_call': {
+			const toolName = item.tool ?? 'dynamicTool';
+			const isQuestion = isQuestionTool(toolName) || Boolean(item.isQuestion || item.requiresReply);
 			return createInput(
 				'tool_call',
 				{
 					callId: itemId,
-					tool: item.tool ?? 'dynamicTool',
+					tool: toolName,
 					input: item.arguments,
+					...(isQuestion ? { requiresReply: true, isQuestion: true } : {}),
 					vendor: parsed,
 				},
 				context,
@@ -804,6 +847,7 @@ function mapParsedObject(
 						'run.permission_blocked',
 						{
 							reason,
+							blockedCategory: 'approval_required',
 							vendor: parsed,
 						},
 						context,
