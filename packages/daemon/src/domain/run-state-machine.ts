@@ -30,6 +30,13 @@ export const TERMINAL_RUN_STATES = ['landed', 'failed', 'aborted', 'interrupted'
 export type TerminalRunState = (typeof TERMINAL_RUN_STATES)[number];
 
 /**
+ * 成功终态集合（09 节数据模型与 E-340）。
+ * 用于 history 模型的 SQL 派生查询。
+ */
+export const SUCCEEDED_RUN_STATES = ['landed'] as const;
+export type SucceededRunState = (typeof SUCCEEDED_RUN_STATES)[number];
+
+/**
  * 不占并发额度的状态集合（09 节数据模型）。
  * awaiting_human 与 orphaned 不计入「每 agent 并发上限」（E-54）；
  * 四个终态进程已结束，同样不占并发额度；

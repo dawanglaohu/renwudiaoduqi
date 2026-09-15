@@ -8,6 +8,7 @@ import {
 	isEffortSupported,
 	isEffortTier,
 	normalizeReportedEffort,
+	remapEffortAcrossAgents,
 	resolveEffortMapping,
 	resolveOptionalEffortMapping,
 } from '../../src/domain/effort-tier.ts';
@@ -110,6 +111,75 @@ describe('effort tier domain', () => {
 			reportedRaw: '   ',
 			reportedNormalized: null,
 		});
+	});
+
+	it('remapEffortAcrossAgents covers six cases (E-342)', () => {
+		const identityMap = { low: 'low', medium: 'medium', high: 'high' } as const;
+		const claudeMap = { low: '2048', medium: '8192', high: '32768' } as const;
+
+		// 1. Same family is identity
+		expect(
+			remapEffortAcrossAgents({
+				effort: { vendor: 'xhigh' },
+				fromAgentId: 'codex',
+				toAgentId: 'codex',
+				fromVendorMap: identityMap,
+				toVendorMap: identityMap,
+			}).effort,
+		).toEqual({ vendor: 'xhigh' });
+
+		// 2. {tier} is preserved across families
+		expect(
+			remapEffortAcrossAgents({
+				effort: { tier: 'high' },
+				fromAgentId: 'codex',
+				toAgentId: 'claude',
+				fromVendorMap: identityMap,
+				toVendorMap: claudeMap,
+			}).effort,
+		).toEqual({ tier: 'high' });
+
+		// 3. Vendor reverse lookup hits
+		expect(
+			remapEffortAcrossAgents({
+				effort: { vendor: '32768' },
+				fromAgentId: 'claude',
+				toAgentId: 'codex',
+				fromVendorMap: claudeMap,
+				toVendorMap: identityMap,
+			}).effort,
+		).toEqual({ tier: 'high' });
+
+		// 4. Vendor reverse lookup misses
+		const miss = remapEffortAcrossAgents({
+			effort: { vendor: 'xhigh' },
+			fromAgentId: 'codex',
+			toAgentId: 'claude',
+			fromVendorMap: identityMap,
+			toVendorMap: claudeMap,
+		});
+		expect(miss).toMatchObject({ effort: null, warning: 'effort_unmappable' });
+
+		// 5. Target map is null
+		const unsupported = remapEffortAcrossAgents({
+			effort: { tier: 'medium' },
+			fromAgentId: 'codex',
+			toAgentId: 'dsh',
+			fromVendorMap: identityMap,
+			toVendorMap: null,
+		});
+		expect(unsupported).toMatchObject({ effort: null, warning: 'effort_unmappable' });
+
+		// 6. from === to is identity even with vendor map differences
+		expect(
+			remapEffortAcrossAgents({
+				effort: { vendor: 'xhigh' },
+				fromAgentId: 'pi',
+				toAgentId: 'pi',
+				fromVendorMap: identityMap,
+				toVendorMap: null,
+			}).effort,
+		).toEqual({ vendor: 'xhigh' });
 	});
 
 	it('has no dependency on outer daemon layers', () => {

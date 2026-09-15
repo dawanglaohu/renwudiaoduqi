@@ -244,7 +244,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			setAgents((prev) =>
 				prev.map((a) => {
 					if (a.id !== agentId) return a;
-					return { ...a, [field]: value };
+					return { ...a, [field]: value } as AgentEntryWithLayers;
 				}),
 			);
 
@@ -339,7 +339,18 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	// R1: 三层值只读 AgentEntryDto.layers（不存在则「内置默认」「你的覆盖」显示「—」）
 	const getFieldLayers = useCallback(
 		(agent: AgentEntryWithLayers, field: AgentFieldKey): FieldLayerValues => {
-			const layer = agent.layers?.[field];
+			const layer = (
+				agent.layers as unknown as Record<
+					string,
+					| {
+							readonly builtin?: unknown;
+							readonly override?: unknown;
+							readonly effective?: unknown;
+							readonly hasOverride?: boolean;
+					  }
+					| undefined
+				>
+			)?.[field];
 
 			const builtInVal =
 				layer?.builtin !== undefined && layer?.builtin !== null ? String(layer.builtin) : '—';

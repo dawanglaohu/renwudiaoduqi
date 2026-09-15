@@ -1,0 +1,2 @@
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{}}}
+{"jsonrpc":"2.0","id":2,"error":{"code":-32000,"message":"Model manager failed to fetch remote models"}}
