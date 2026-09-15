@@ -22,7 +22,9 @@ export function registerEventsRoutes(instance: FastifyInstance): void {
 		);
 
 		// Hijack only after every pre-flight assertion passed; the stream itself never calls reply.send.
-		reply.hijack();
+		// `void` marks it as a deliberately fire-and-forget statement: the source-contracts
+		// architecture test rejects bare thenable call statements (M1-T1, E-213).
+		void reply.hijack();
 
 		handleSseStream({
 			rawRequest: request.raw,

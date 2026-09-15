@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import fastify, { type FastifyInstance } from 'fastify';
@@ -817,7 +817,9 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				},
 			);
 
-			expect(landing.worktreePath).toBe(resolve(prepResult.worktreePath));
+			// macOS reports the mkdtemp path as /var/folders/… while git and the landing
+			// service resolve the same directory through /private/var/…; compare real paths.
+			expect(landing.worktreePath).toBe(realpathSync(prepResult.worktreePath));
 			expect(landing.branchName).toBe('task/M5-T4');
 			expect(landing.diffStat.filesChanged).toBe(1);
 			expect(landing.diffStat.insertions).toBe(2);
