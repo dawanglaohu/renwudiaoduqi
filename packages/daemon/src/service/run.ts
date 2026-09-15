@@ -20,6 +20,8 @@ export interface RunRecord {
 	readonly state: RunState;
 	readonly pid: number | null;
 	readonly kind?: string;
+	readonly permissionTier?: string;
+	readonly permission_tier?: string;
 	readonly sessionArchivedAt?: string | null;
 	readonly session_archived_at?: string | null;
 	readonly laneNo?: number | null;
@@ -138,6 +140,21 @@ export interface RunService {
 			readonly actorDeviceId: null;
 		},
 	): Promise<void>;
+	markAwaitingReply(
+		runId: string,
+		details?: {
+			readonly reason?: string;
+			readonly actorDeviceId?: string | null;
+		},
+	): Promise<void>;
+	elevateRunOnce(
+		runId: string,
+		details?: {
+			readonly reason?: string;
+			readonly actorDeviceId?: string | null;
+		},
+	): Promise<void>;
+	isAwaitingReply(runId: string): Promise<boolean>;
 }
 
 function normalizeRawLineBytes(rawLine: string | Uint8Array): Uint8Array {
@@ -171,6 +188,63 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
 		typeof candidate.seq === 'number' &&
 		'payload' in candidate
 	);
+}
+
+const NETWORK_DEPENDENCY_COMMAND_REGEX =
+	/(?:^|[;&|]\s*)(?:sudo\s+)?(?:npm\s+(?:i|install|add|update)|pnpm\s+(?:i|install|add|update)|yarn(?:\s+add|\s+install)?|bun\s+(?:add|install)|pip3?\s+install|poetry\s+add|cargo\s+(?:add|install)|go\s+(?:get|install)|apt(?:-get)?\s+install|brew\s+install)(?:\s+|$)/i;
+
+function isQuestionEnvelope(envelope: EventEnvelopeInput): boolean {
+	const payload = envelope.payload as Record<string, unknown> | undefined;
+	if (!payload || typeof payload !== 'object') return false;
+
+	if (
+		payload.isQuestion === true ||
+		payload.requiresReply === true ||
+		payload.is_question === true ||
+		payload.requires_reply === true ||
+		payload.requiresHumanInput === true
+	) {
+		return true;
+	}
+
+	if (envelope.kind === 'tool_call') {
+		const tool = typeof payload.tool === 'string' ? payload.tool.trim().toLowerCase() : '';
+		if (
+			tool &&
+			/^(ask(_user|_followup_question|_human)?|question|prompt_user|request_user_input|user_input)$/i.test(
+				tool,
+			)
+		) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+function isNetworkDependencyInstall(payload: unknown): boolean {
+	if (!payload || typeof payload !== 'object') return false;
+	const p = payload as Record<string, unknown>;
+	if (p.requiresNetwork === true || p.requires_network === true) return true;
+
+	const input = p.input;
+	let commandText = '';
+	if (typeof input === 'string') {
+		commandText = input;
+	} else if (input && typeof input === 'object') {
+		const inputObj = input as Record<string, unknown>;
+		if (typeof inputObj.command === 'string') {
+			commandText = inputObj.command;
+		} else if (typeof inputObj.cmd === 'string') {
+			commandText = inputObj.cmd;
+		}
+	}
+
+	if (commandText) {
+		return NETWORK_DEPENDENCY_COMMAND_REGEX.test(commandText.trim());
+	}
+
+	return false;
 }
 
 /**
@@ -233,6 +307,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				byteLen: appendResult.location.byteLen,
 			};
 			deps.bus.publish(envelope, locationRef);
+		}
+
+		// 4. M6-T7 状态接线：从 starting 到 running，以及自动模式下提问/权限受阻转 awaiting_reply
+		if (deps.runsRepo && envelope.kind !== 'run.state_changed') {
+			await handleEventStateWiring(runId, envelope);
 		}
 
 		return appendResult;
@@ -656,6 +735,146 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		});
 	}
 
+	async function handleEventStateWiring(
+		runId: string,
+		envelope: EventEnvelopeInput,
+	): Promise<void> {
+		if (!deps.runsRepo || envelope.kind === 'run.state_changed') return;
+
+		let currentRun = deps.runsRepo.findById(runId);
+		if (!currentRun) return;
+
+		// 收到第一条可解析事件，starting -> running (09节状态机与生命周期规范)
+		if (currentRun.state === 'starting') {
+			await transitionState({
+				runId,
+				targetState: 'running',
+				reason: 'first_event_received',
+			});
+			currentRun = deps.runsRepo.findById(runId);
+			if (!currentRun) return;
+		}
+
+		if (currentRun.state === 'running') {
+			let isBlocked = envelope.kind === 'run.permission_blocked';
+			const isQuestion = isQuestionEnvelope(envelope);
+			let transitionReason: string =
+				(envelope.payload as { reason?: string })?.reason ?? RUN_TRANSITION_REASONS.AGENT_QUESTION;
+
+			// E-134: agent 需要联网装依赖时默认拦下并转回话通路由人决策，不提供「自动放行网络」开关
+			if (
+				!isBlocked &&
+				envelope.kind === 'tool_call' &&
+				isNetworkDependencyInstall(envelope.payload)
+			) {
+				isBlocked = true;
+				transitionReason = 'Network dependency install blocked; human decision required (E-134)';
+				// 记为「权限受阻」事件在时间线高亮，不判失败 (E-133, E-134)
+				const blockedEnvelope = deps.envelopeFactory.createEnvelope({
+					kind: 'run.permission_blocked',
+					runId,
+					taskId: currentRun.taskId ?? null,
+					actorDeviceId: null,
+					payload: {
+						tool: (envelope.payload as { tool?: string })?.tool ?? 'bash',
+						reason: transitionReason,
+					},
+				});
+				const appRes = await deps.logstore.appendEvent(runId, blockedEnvelope);
+				if (deps.bus) {
+					deps.bus.publish(blockedEnvelope, {
+						fileSeq: appRes.location.fileSeq,
+						byteOffset: appRes.location.byteOffset,
+						byteLen: appRes.location.byteLen,
+					});
+				}
+			}
+
+			// E-115: 自动模式下 agent 提问一律不代答，转「等待人回话」并计入停滞检测，继续占用该 agent 并发额度
+			// E-133: 沙箱拦下越界写入记「权限受阻」，不判失败
+			if (isBlocked || isQuestion) {
+				await transitionState({
+					runId,
+					targetState: 'awaiting_reply',
+					reason: transitionReason,
+				});
+			}
+		}
+	}
+
+	async function markAwaitingReply(
+		runId: string,
+		details?: {
+			readonly reason?: string;
+			readonly actorDeviceId?: string | null;
+		},
+	): Promise<void> {
+		if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
+			throw new AppError('E_VALIDATION', 'Run ID must be a non-empty string');
+		}
+		const run = deps.runsRepo?.findById(runId);
+		if (!run) {
+			throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
+				details: { runId },
+			});
+		}
+		if (run.state === 'awaiting_reply') {
+			return; // Idempotent: already awaiting reply
+		}
+		const reason = details?.reason ?? RUN_TRANSITION_REASONS.AGENT_QUESTION;
+		if (run.state === 'starting') {
+			await transitionState({
+				runId,
+				targetState: 'running',
+				reason: 'first_event_received',
+				actorDeviceId: details?.actorDeviceId ?? null,
+			});
+		}
+		await transitionState({
+			runId,
+			targetState: 'awaiting_reply',
+			reason,
+			actorDeviceId: details?.actorDeviceId ?? null,
+		});
+	}
+
+	async function elevateRunOnce(
+		runId: string,
+		details?: {
+			readonly reason?: string;
+			readonly actorDeviceId?: string | null;
+		},
+	): Promise<void> {
+		if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
+			throw new AppError('E_VALIDATION', 'Run ID must be a non-empty string');
+		}
+		const run = deps.runsRepo?.findById(runId);
+		if (!run) {
+			throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
+				details: { runId },
+			});
+		}
+		if (run.state !== 'awaiting_reply') {
+			assertValidTransition(run.state, 'running', {
+				reason: details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED,
+			});
+		}
+		// 仅本次运行临时提升，绝不改写默认档位 (E-133)
+		const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
+		await transitionState({
+			runId,
+			targetState: 'running',
+			reason,
+			actorDeviceId: details?.actorDeviceId ?? null,
+		});
+	}
+
+	async function isAwaitingReply(runId: string): Promise<boolean> {
+		if (!runId || typeof runId !== 'string') return false;
+		const run = deps.runsRepo?.findById(runId);
+		return run?.state === 'awaiting_reply';
+	}
+
 	return Object.freeze({
 		ingestRaw,
 		ingestEvent,
@@ -666,5 +885,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		findInFlightRuns,
 		markInterrupted,
 		markOrphaned,
+		markAwaitingReply,
+		elevateRunOnce,
+		isAwaitingReply,
 	});
 }
