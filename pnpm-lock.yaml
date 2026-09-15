@@ -7,6 +7,19 @@ settings:
 importers:
 
   .:
+    devDependencies:
+      '@biomejs/biome':
+        specifier: ^1.9.4
+        version: 1.9.4
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)
     optionalDependencies:
       node20-darwin-x64:
         specifier: npm:node-darwin-x64@20.19.5
@@ -26,19 +39,6 @@ importers:
       node22-win-x64:
         specifier: npm:node-win-x64@22.17.0
         version: node-win-x64@22.17.0
-    devDependencies:
-      '@biomejs/biome':
-        specifier: ^1.9.4
-        version: 1.9.4
-      '@types/node':
-        specifier: ^22.10.2
-        version: 22.20.1
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.8
-        version: 2.1.9(@types/node@22.20.1)
 
   packages/daemon:
     dependencies:
