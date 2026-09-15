@@ -569,22 +569,59 @@ describe('M9-T6 Event Buffer and Frame-Rate Rendering (event-bus.ts)', () => {
 	});
 
 	describe('attachSseClient & Buffer Reset (E-153)', () => {
-		it('wires SSE event delivery and buffer clear listener to event bus', () => {
-			const sse = createSseClient();
+		it('delivers real SSE frames into the ring, then empties it on the replay-window signal', async () => {
+			vi.useRealTimers();
 			const bus = createEventBus();
+			const received: EventEnvelope[] = [];
+			bus.subscribeAll((event) => received.push(event));
 
+			const encoder = new TextEncoder();
+			const streamOf = (chunk: string) =>
+				new ReadableStream<Uint8Array>({
+					start(controller) {
+						controller.enqueue(encoder.encode(chunk));
+						controller.close();
+					},
+				});
+			const replayExpired =
+				'event: error\ndata: {"error":{"code":"E_REPLAY_WINDOW_EXPIRED","message":"Replay expired"}}\n\n';
+			const firstEvent = createMockEnvelope({ runId: 'run-1', id: 7 });
+			let attempt = 0;
+			const mockFetch: typeof fetch = async () => {
+				attempt += 1;
+				const body =
+					attempt === 1
+						? `id: 7\nevent: run.started\ndata: ${JSON.stringify(firstEvent)}\n\n`
+						: replayExpired;
+				return new Response(streamOf(body), {
+					status: 200,
+					headers: { 'Content-Type': 'text/event-stream' },
+				});
+			};
+
+			const sse = createSseClient({
+				getBaseUrl: () => 'http://localhost:7817',
+				fetchFn: mockFetch,
+				fetchSnapshot: async () => null,
+				backoffDelays: [10],
+				randomJitter: () => 0.5,
+			});
 			const detach = attachSseClient(sse, bus);
+			sse.connect();
 
-			const buf = bus.getOrCreateBuffer('run-sse');
-			buf.push(createMockEnvelope({ runId: 'run-sse', id: 50 }));
-			bus.flush();
-			expect(buf.length).toBe(1);
-
-			// Clear all buffers
-			bus.clearAll();
-			expect(buf.length).toBe(0);
-
+			const started = Date.now();
+			while (
+				Date.now() - started < 2000 &&
+				!(received.length > 0 && bus.getBuffer('run-1')?.length === 0)
+			) {
+				await new Promise((resolve) => setTimeout(resolve, 10));
+			}
+			sse.disconnect();
 			detach();
+
+			expect(received.map((event) => event.id)).toContain(7);
+			expect(bus.getBuffer('run-1')?.length).toBe(0);
+			expect(bus.versionOf('run-1')).toBeGreaterThan(0);
 		});
 
 		it('clearRun empties run buffer and schedules flush', () => {
