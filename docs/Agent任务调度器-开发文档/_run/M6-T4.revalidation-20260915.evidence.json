@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M6-T4": {
+      "contractHash": "44ae5b0d959c276a951a29a0f5b6ca6b4d2e7fafe59af8817488cc373eb2a4ca",
+      "verdict": "pass",
+      "evidence": [
+        "2026-09-15 复验触发面（revalidation.json 记录的 changedFields：definition / effectivePaths）：本次标记不是 M6-T4 自身出了问题，而是 M9-T5 的补丁 M9-T5-support-paths-and-output-scope 在取基线之后，main 合并了 M6-T4 自己的补丁 m6-t4-support-paths（PR 80，status=verified），于是重算契约差异时 M6-T4 的条目相对旧基线发生了变化。只核这条变化，未重开 M6-T4 的验收。",
+        "变化条款逐条核对：m6-t4-support-paths 的 reason 是「产出必需的停滞检测单测 packages/daemon/test/unit/stall-detector.test.ts 未列入有效范围」，其 changes 只涉及 context 文本；落到 task-contracts.json 的实际差异是新增 M6-T4.supportPaths = [\"packages/daemon/test/unit/stall-detector.test.ts\"]，追加式改动、未放行整目录、未降低验收。本分支上该条目原样存在（_run/task-contracts.json 的 M6-T4 条目只有这一项）。",
+        "落点存在性：packages/daemon/test/unit/stall-detector.test.ts 在 main 上存在（本分支合并 main 后同样存在，Test-Path 为 True），与包内既有支持路径写法一致（对照 M9-T4.supportPaths = [packages/web/test/http-client.test.ts, packages/web/tsconfig.json]、M2-T5.supportPaths 的同类先例）。",
+        "M9-T5 的补丁只改 19-模块任务拆分.md 的 M9-T5 / M9-T6 两行与 M9-T5.supportPaths，未触及 M6-T4 的行、路径或代码；两者除共用章节的上下文外没有交集，因此 M6-T4 的契约内容与 main 上一致，待复验标记可以清除。"
+      ]
+    }
+  }
+}
