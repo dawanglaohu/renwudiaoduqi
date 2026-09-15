@@ -89,10 +89,19 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Point node-gyp at the Node 22 headers (Windows only)
+        # node-gyp expects a Node source tree (include/node + Release/node.lib), not the
+        # installed runtime directory, so fetch the matching headers tarball and hand that
+        # to gyp. Combined with the dev-shell above this keeps the rebuild off the
+        # Visual Studio version-detection path that node-gyp 10.3 cannot handle.
         if: matrix.platform == 'win32'
         run: |
-          $nodeDir = Split-Path (Get-Command node).Source -Parent
-          "npm_config_nodedir=$nodeDir" >> $env:GITHUB_ENV
+          $headers = Join-Path $env:RUNNER_TEMP 'node-headers'
+          $version = (node -p "process.versions.node")
+          $url = "https://nodejs.org/download/release/v$version/node-v$version-headers.tar.gz"
+          New-Item -ItemType Directory -Force -Path $headers | Out-Null
+          Invoke-WebRequest -Uri $url -OutFile (Join-Path $env:RUNNER_TEMP 'headers.tar.gz')
+          tar -xzf (Join-Path $env:RUNNER_TEMP 'headers.tar.gz') -C $headers --strip-components=1
+          "npm_config_nodedir=$headers" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Cache pnpm store
