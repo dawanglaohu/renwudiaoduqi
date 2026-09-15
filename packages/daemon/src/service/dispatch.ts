@@ -28,6 +28,7 @@ import {
 	toRunDto,
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
+import { createRerunService } from './rerun.ts';
 
 export type { RunInsertRow, RunRow, RunsRepo };
 export { toRunDto };
@@ -407,63 +408,23 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		};
 	}
 
+	const rerunService = createRerunService({
+		unitOfWork: deps.unitOfWork,
+		runsRepo,
+		tasksRepo: deps.tasksRepo,
+		batchesRepo: deps.batchesRepo,
+		documentsRepo: deps.documentsRepo,
+		dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+		clock: deps.clock,
+		ids: deps.ids,
+		bus: deps.bus,
+		envelopeFactory: deps.envelopeFactory,
+		isAgentDispatchable,
+		listDispatchableAgents,
+	});
+
 	async function rerunRun(input: RerunRunInput): Promise<RerunRunResponse> {
-		const { runId, idempotencyKey } = input;
-		if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
-			throw new AppError('E_VALIDATION', 'runId must be a non-empty string');
-		}
-		if (
-			!idempotencyKey ||
-			typeof idempotencyKey !== 'string' ||
-			idempotencyKey.trim().length === 0
-		) {
-			throw new AppError('E_VALIDATION', 'idempotencyKey must be a non-empty string');
-		}
-
-		const existingByIdempotency = runsRepo.findByIdempotencyKey(idempotencyKey);
-		if (existingByIdempotency) {
-			return {
-				run: toRunDto(existingByIdempotency),
-			};
-		}
-
-		const previousRun = runsRepo.findById(runId);
-		if (!previousRun) {
-			throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
-				details: { runId },
-			});
-		}
-
-		const task = deps.tasksRepo.findById(previousRun.task_id);
-		if (!task) {
-			throw new AppError('E_NOT_FOUND', `Task not found: ${previousRun.task_id}`);
-		}
-
-		checkDocumentReadable(task.doc_id);
-		checkTaskRemoved(task);
-		checkContractReady(task);
-
-		const active = runsRepo.findActiveByTaskId(task.id);
-		if (active) {
-			return {
-				run: toRunDto(active),
-			};
-		}
-
-		const result = await createRun({
-			taskId: task.id,
-			agentId: previousRun.agent_id,
-			model: previousRun.model_name,
-			permissionTier: previousRun.permission_tier as CreateRunBody['permissionTier'],
-			idempotencyKey,
-			actorDeviceId: input.actorDeviceId ?? null,
-			parentRunId: previousRun.id,
-			kind: previousRun.kind as 'implement' | 'review',
-		});
-
-		return {
-			run: result.run,
-		};
+		return await rerunService.rerunRun(input);
 	}
 
 	async function startBatch(input: StartBatchInput): Promise<StartBatchResponse> {
