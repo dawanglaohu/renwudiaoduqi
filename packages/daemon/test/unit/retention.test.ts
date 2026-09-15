@@ -166,9 +166,40 @@ describe('M6-T9 Session Retention Policy and Full-Text Search', () => {
 			const res2 = await service.purgeRunLogs({ runId });
 			expect(res2.purgedBytes).toBe(0);
 		});
-	});
+		it('leaves non-segment files untouched and excludes their bytes from purgedBytes (E-105)', async () => {
+			const runId = 'run-non-seg-1';
+			runsData.set(runId, {
+				id: runId,
+				taskId: 'task-nonseg',
+				state: 'landed',
+			});
+			const rawContent = 'line 1\nline 2\n';
+			const eventsContent = '{"seq":0}\n';
+			const attachContent = 'binary-attachment-data';
+			writeRunFile(runId, 'raw.log', rawContent);
+			writeRunFile(runId, 'events.ndjson', eventsContent);
+			writeRunFile(runId, 'attachment.bin', attachContent);
 
-	describe('AC 2 & E-219: Streaming full-text search with limits, timeouts, and cancellation', () => {
+			const expectedPurgedBytes = Buffer.byteLength(rawContent) + Buffer.byteLength(eventsContent);
+
+			const service = createService();
+			const result = await service.purgeRunLogs({ runId });
+
+			const fs = await import('node:fs');
+			const runDir = logstorePaths.runDir(runId);
+
+			// Segment files deleted
+			expect(fs.existsSync(join(runDir, 'raw.log'))).toBe(false);
+			expect(fs.existsSync(join(runDir, 'events.ndjson'))).toBe(false);
+
+			// Non-segment file remains
+			expect(fs.existsSync(join(runDir, 'attachment.bin'))).toBe(true);
+			expect(fs.readFileSync(join(runDir, 'attachment.bin'), 'utf8')).toBe(attachContent);
+
+			// purgedBytes only counts segment files
+			expect(result.purgedBytes).toBe(expectedPurgedBytes);
+		});
+
 		it('searches line by line and returns matches with line numbers and sequence', async () => {
 			const runId = 'run-search-1';
 			runsData.set(runId, {
@@ -370,6 +401,86 @@ describe('M6-T9 Session Retention Policy and Full-Text Search', () => {
 		});
 	});
 
+	describe('R3: stream filter — raw/events/all (E-219, E-220)', () => {
+		it('default (all) returns hits from both raw and events, with correct h.stream (R3)', async () => {
+			const runId = 'run-stream-all';
+			runsData.set(runId, { id: runId, taskId: 'task-stream', state: 'landed' });
+			writeRunFile(runId, 'raw.log', 'ONLY_IN_RAW_TOKEN\n');
+			writeRunFile(runId, 'events.ndjson', 'ONLY_IN_EVENTS_TOKEN\n');
+
+			const service = createService();
+			const result = await service.searchInRun({ runId, query: 'TOKEN' });
+
+			const streams = result.hits.map((h) => h.stream);
+			expect(streams).toContain('raw');
+			expect(streams).toContain('events');
+			expect(result.hits).toHaveLength(2);
+		});
+
+		it('stream:raw only returns raw hits (R3)', async () => {
+			const runId = 'run-stream-raw';
+			runsData.set(runId, { id: runId, taskId: 'task-stream-raw', state: 'landed' });
+			writeRunFile(runId, 'raw.log', 'ONLY_IN_RAW_TOKEN\n');
+			writeRunFile(runId, 'events.ndjson', 'ONLY_IN_EVENTS_TOKEN\n');
+
+			const service = createService();
+			const result = await service.searchInRun({ runId, query: 'TOKEN', stream: 'raw' });
+
+			expect(result.hits).toHaveLength(1);
+			expect(result.hits[0]?.stream).toBe('raw');
+			expect(result.hits[0]?.line).toContain('ONLY_IN_RAW_TOKEN');
+		});
+
+		it('stream:events only returns events hits (R3)', async () => {
+			const runId = 'run-stream-events';
+			runsData.set(runId, { id: runId, taskId: 'task-stream-events', state: 'landed' });
+			writeRunFile(runId, 'raw.log', 'ONLY_IN_RAW_TOKEN\n');
+			writeRunFile(runId, 'events.ndjson', 'ONLY_IN_EVENTS_TOKEN\n');
+
+			const service = createService();
+			const result = await service.searchInRun({ runId, query: 'TOKEN', stream: 'events' });
+
+			expect(result.hits).toHaveLength(1);
+			expect(result.hits[0]?.stream).toBe('events');
+			expect(result.hits[0]?.line).toContain('ONLY_IN_EVENTS_TOKEN');
+		});
+
+		it('E-220 snapshot still holds with stream:all during concurrent write (R3)', async () => {
+			const runId = 'run-stream-snapshot';
+			runsData.set(runId, { id: runId, taskId: 'task-snapshot2', state: 'running' });
+			const initialLines = 'Initial: TOKEN\n';
+			const filePath = writeRunFile(runId, 'raw.log', initialLines);
+
+			const fs = await import('node:fs');
+			let appended = false;
+			const customFileOps: RetentionFileOps = {
+				existsSync: fs.existsSync,
+				statSync: fs.statSync,
+				readRangeSync(path, start, length) {
+					if (!appended) {
+						appended = true;
+						fs.appendFileSync(filePath, 'Concurrent: TOKEN\n');
+					}
+					const fd = fs.openSync(path, 'r');
+					try {
+						const buf = Buffer.alloc(length);
+						const bytesRead = fs.readSync(fd, buf, 0, length, start);
+						return new Uint8Array(buf.buffer, buf.byteOffset, bytesRead);
+					} finally {
+						fs.closeSync(fd);
+					}
+				},
+			};
+
+			const service = createService({ fileOps: customFileOps });
+			const result = await service.searchInRun({ runId, query: 'TOKEN' });
+
+			// Only the initial line was inside the snapshot boundary
+			expect(result.hits).toHaveLength(1);
+			expect(result.hits[0]?.line).toContain('Initial: TOKEN');
+		});
+	});
+
 	describe('AC 4 & E-221, E-207: Explicit response when log is purged or missing (no 500, no false empty)', () => {
 		it('throws E_LOG_PURGED (410) when target session was purged by retention policy (E-221)', async () => {
 			const runId = 'run-purged-check';
@@ -385,7 +496,6 @@ describe('M6-T9 Session Retention Policy and Full-Text Search', () => {
 
 			await expect(service.searchInRun({ runId, query: 'something' })).rejects.toMatchObject({
 				code: 'E_LOG_PURGED',
-				message: expect.stringContaining('该会话正文已清理'),
 			});
 		});
 

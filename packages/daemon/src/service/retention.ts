@@ -13,6 +13,7 @@ import {
 import { join } from 'node:path';
 import { AppError } from '../errors/app-error.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
+import { parseSegmentFileName } from '../logstore/paths.ts';
 import { splitLines } from '../logstore/read-window.ts';
 import type { LogSegmentsRepo } from '../repo/log-segments-repo.ts';
 import { redactSensitiveLogLine } from './run-log.ts';
@@ -243,84 +244,74 @@ export function createRetentionService(deps: RetentionServiceDeps): RetentionSer
 		return fileOps.existsSync(markerPath);
 	}
 
-	function resolveSegmentSnapshots(run: RetentionRunRecord): readonly SegmentSnapshot[] {
+	function resolveSegmentSnapshots(
+		run: RetentionRunRecord,
+		streamFilter: 'raw' | 'events' | 'vendor' | 'all' = 'all',
+	): readonly SegmentSnapshot[] {
 		const runId = run.id;
 		const snapshots: SegmentSnapshot[] = [];
 
-		// 1. Check registered segments from logSegmentsRepo
+		// Streams to include in the snapshot based on the caller's filter.
+		// 'all' (default) collects both raw and events; 'vendor' is handled below as a fallback.
+		const wantRaw = streamFilter === 'raw' || streamFilter === 'all';
+		const wantEvents = streamFilter === 'events' || streamFilter === 'all';
+
+		// Helper: snapshot one segment path (E-220 – upper bound frozen at invocation time)
+		function snapshotFile(
+			path: string,
+			fileSeq: number,
+			stream: 'raw' | 'events' | 'vendor',
+			byteEnd?: number,
+		): void {
+			if (!fileOps.existsSync(path)) return;
+			try {
+				const stat = fileOps.statSync(path);
+				const maxByteOffset = byteEnd !== undefined ? Math.min(byteEnd, stat.size) : stat.size;
+				if (maxByteOffset > 0) {
+					snapshots.push({ path, fileSeq, maxByteOffset, stream });
+				}
+			} catch {
+				// Unreadable – skip
+			}
+		}
+
+		// Track whether each stream found at least one registered segment,
+		// so the disk-probe fallback runs per-stream independently.
+		let foundRaw = false;
+		let foundEvents = false;
+
+		// 1. Registered segments from logSegmentsRepo (covers multi-segment runs)
 		if (deps.logSegmentsRepo) {
-			const rawSegments = deps.logSegmentsRepo.findByRunStream(runId, 'raw');
-			for (const seg of rawSegments) {
-				if (fileOps.existsSync(seg.path)) {
-					try {
-						const stat = fileOps.statSync(seg.path);
-						// Snapshot upper bound: min between recorded byteEnd and physical file size at start time (E-220)
-						const maxByteOffset = Math.min(seg.byteEnd, stat.size);
-						if (maxByteOffset > 0) {
-							snapshots.push({
-								path: seg.path,
-								fileSeq: seg.fileSeq,
-								maxByteOffset,
-								stream: 'raw',
-							});
-						}
-					} catch {
-						// Ignored if unreadable
-					}
+			if (wantRaw) {
+				for (const seg of deps.logSegmentsRepo.findByRunStream(runId, 'raw')) {
+					const before = snapshots.length;
+					snapshotFile(seg.path, seg.fileSeq, 'raw', seg.byteEnd);
+					if (snapshots.length > before) foundRaw = true;
+				}
+			}
+			if (wantEvents) {
+				for (const seg of deps.logSegmentsRepo.findByRunStream(runId, 'events')) {
+					const before = snapshots.length;
+					snapshotFile(seg.path, seg.fileSeq, 'events', seg.byteEnd);
+					if (snapshots.length > before) foundEvents = true;
 				}
 			}
 		}
 
-		// 2. If no registered segments in repo, probe default raw segment 0 on disk
-		if (snapshots.length === 0) {
-			const defaultRaw = deps.logstorePaths.segmentPath(runId, 'raw', 0);
-			if (fileOps.existsSync(defaultRaw)) {
-				try {
-					const stat = fileOps.statSync(defaultRaw);
-					snapshots.push({
-						path: defaultRaw,
-						fileSeq: 0,
-						maxByteOffset: stat.size,
-						stream: 'raw',
-					});
-				} catch {
-					// Fall through
-				}
-			}
+		// 2. Disk probe fallback – runs independently per stream when no repo segments were found
+		if (!foundRaw && wantRaw) {
+			const before = snapshots.length;
+			snapshotFile(deps.logstorePaths.segmentPath(runId, 'raw', 0), 0, 'raw');
+			if (snapshots.length > before) foundRaw = true;
+		}
+		if (!foundEvents && wantEvents) {
+			snapshotFile(deps.logstorePaths.segmentPath(runId, 'events', 0), 0, 'events');
 		}
 
-		// 3. If raw not found, check default events segment 0
-		if (snapshots.length === 0) {
-			const defaultEvents = deps.logstorePaths.segmentPath(runId, 'events', 0);
-			if (fileOps.existsSync(defaultEvents)) {
-				try {
-					const stat = fileOps.statSync(defaultEvents);
-					snapshots.push({
-						path: defaultEvents,
-						fileSeq: 0,
-						maxByteOffset: stat.size,
-						stream: 'events',
-					});
-				} catch {
-					// Fall through
-				}
-			}
-		}
-
-		// 4. Fallback to vendor session ref if captured files are absent
-		if (snapshots.length === 0 && run.vendorSessionRef) {
-			if (fileOps.existsSync(run.vendorSessionRef)) {
-				try {
-					const stat = fileOps.statSync(run.vendorSessionRef);
-					snapshots.push({
-						path: run.vendorSessionRef,
-						fileSeq: 0,
-						maxByteOffset: stat.size,
-						stream: 'vendor',
-					});
-				} catch {
-					// Fall through
-				}
+		// 3. Vendor session file – only when no captured segments exist and filter allows it
+		if (snapshots.length === 0 && streamFilter !== 'raw' && streamFilter !== 'events') {
+			if (run.vendorSessionRef) {
+				snapshotFile(run.vendorSessionRef, 0, 'vendor');
 			}
 		}
 
@@ -401,10 +392,14 @@ export function createRetentionService(deps: RetentionServiceDeps): RetentionSer
 
 		let totalPurgedBytes = 0;
 
-		// Purge only captured log text files (raw*, events*) (E-105)
-		// Never touch external vendor session file
+		// Purge only captured segment files (raw*.log, events*.ndjson) (E-105).
+		// Files not parseable as segment names (attachments, metadata, etc.) are left untouched.
+		// The vendor session file lives outside runDir and is never deleted here.
 		for (const fileName of filesInDir) {
 			if (fileName === PURGED_MARKER_FILE_NAME) continue;
+
+			// Only delete files that are recognised captured log segments
+			if (!parseSegmentFileName(fileName)) continue;
 
 			const filePath = join(runDir, fileName);
 			let fileSize = 0;
@@ -463,6 +458,7 @@ export function createRetentionService(deps: RetentionServiceDeps): RetentionSer
 			limit: requestedLimit,
 			timeoutMs: requestedTimeout,
 			signal,
+			stream: streamFilter = 'all',
 			isMobileDevice = false,
 		} = options;
 
@@ -490,7 +486,7 @@ export function createRetentionService(deps: RetentionServiceDeps): RetentionSer
 		if (isLogPurged(runId)) {
 			throw new AppError(
 				'E_LOG_PURGED',
-				'该会话正文已清理 (Session log text has been purged by retention policy)',
+				'Captured log text has been purged by the retention policy.',
 				{
 					details: { runId, reason: 'purged' },
 				},
@@ -498,28 +494,20 @@ export function createRetentionService(deps: RetentionServiceDeps): RetentionSer
 		}
 
 		// E-220: Take snapshot of segment boundaries and file sizes at invocation moment
-		const snapshots = resolveSegmentSnapshots(run);
+		const snapshots = resolveSegmentSnapshots(run, streamFilter);
 
 		// E-221 & E-207: Captured log files missing from disk
 		if (snapshots.length === 0) {
 			if (!fileOps.existsSync(runDir)) {
-				throw new AppError(
-					'E_LOG_FILE_MISSING',
-					'该会话正文已清理或文件缺失 (Log files missing from disk)',
-					{
-						details: { runId, orphan: true },
-					},
-				);
+				throw new AppError('E_LOG_FILE_MISSING', 'Captured log files are missing from disk.', {
+					details: { runId, orphan: true },
+				});
 			}
 
 			// Run dir exists but has no readable segment files
-			throw new AppError(
-				'E_LOG_FILE_MISSING',
-				'该会话正文已清理或文件缺失 (No log segments found on disk)',
-				{
-					details: { runId, orphan: true },
-				},
-			);
+			throw new AppError('E_LOG_FILE_MISSING', 'No captured log segments found on disk.', {
+				details: { runId, orphan: true },
+			});
 		}
 
 		const limit = Math.min(
