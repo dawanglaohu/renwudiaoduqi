@@ -22,6 +22,7 @@ import { type RunInsertRow, type RunRow, type RunsRepo, toRunDto } from '../repo
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { DiffFileStat, DiffStatResult } from '../workspace/diff.ts';
 import type { ReviewContext } from './review-context.ts';
+import { assertSessionRefFree } from './session-guard.ts';
 
 /**
  * Annotation required in review verdict when diff exceeds context and pruning is active (AC 3, E-65).
@@ -963,6 +964,15 @@ export async function dispatchReviewRun(
 	// Persist review run record (inside UnitOfWork if provided)
 	if (deps.runsRepo) {
 		const persist = () => {
+			if (deps.runsRepo) {
+				// E-303 / M6-T10 AC6: the same guard every other service insert site performs.
+				// Round 1 has no session ref, so this is a no-op today; it stays correct when a
+				// later round hands the continuation to a ref that belongs to another task.
+				assertSessionRefFree(
+					{ taskId: runInsert.task_id, vendorSessionRef: runInsert.vendor_session_ref },
+					{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
+				);
+			}
 			deps.runsRepo?.insert(runInsert);
 		};
 
