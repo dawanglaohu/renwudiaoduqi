@@ -5,5 +5,5 @@
 		"jsx": "react-jsx",
 		"lib": ["ES2022", "DOM", "DOM.Iterable"]
 	},
-	"include": ["src", "scripts", "test", "../shared/src"]
+	"include": ["src", "scripts", "test", "index.html", "vite.config.ts", "../shared/src"]
 }

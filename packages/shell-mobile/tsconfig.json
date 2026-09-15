@@ -4,5 +4,5 @@
 		"composite": true,
 		"lib": ["ES2022", "DOM", "DOM.Iterable"]
 	},
-	"include": ["src", "test", "capacitor.config.ts"]
+	"include": ["src", "test", "capacitor.config.ts", "../shell-desktop/src/packaging-pipeline.ts"]
 }

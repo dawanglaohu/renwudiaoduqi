@@ -10,10 +10,13 @@
 		"./event-sync": "./src/event-sync.ts",
 		"./notification-adapter": "./src/notification-adapter.ts",
 		"./autostart": "./src/autostart.ts",
-		"./android-env": "./src/android-env.ts"
+		"./android-env": "./src/android-env.ts",
+		"./version-check": "./src/version-check.ts",
+		"./packaging-pipeline": "./src/packaging-pipeline.ts"
 	},
 	"scripts": {
-		"build": "tsc -b"
+		"build": "tsc -b",
+		"verify-pipeline": "node --no-warnings --experimental-strip-types scripts/package-pipeline.ts"
 	},
 	"dependencies": {
 		"@agent-scheduler/shared": "workspace:*",

@@ -1,4 +1,5 @@
 import type { AutostartAdapter } from '@agent-scheduler/daemon/platform/autostart-contract';
+import { CURRENT_API_VERSION } from '@agent-scheduler/shared/api/system';
 import {
 	type DaemonLaunchSpec,
 	isAbsoluteLaunchPath,
@@ -12,6 +13,11 @@ import {
 } from './autostart-handler.ts';
 import { type ConnectionUiController, createConnectionUiController } from './connection-ui.ts';
 import type { LaunchDaemonResult } from './daemon-process.ts';
+import {
+	type VersionCheckOptions,
+	type VersionCheckResult,
+	checkDesktopApiVersion,
+} from './version-check.ts';
 
 export interface ResolveLaunchSpecOptions {
 	readonly currentExe: string;
@@ -94,12 +100,15 @@ export interface DesktopStartupOptions {
 	readonly launcher?: (spec: DaemonLaunchSpec) => LaunchDaemonResult;
 	readonly customDaemonPath?: string;
 	readonly customArguments?: readonly string[];
+	readonly hostHint?: () => Promise<string | null> | string | null;
+	readonly versionFetcher?: VersionCheckOptions['fetcher'];
 }
 
 export interface DesktopStartupContext {
 	readonly spec: DaemonLaunchSpec;
 	readonly connectionController: ConnectionUiController;
 	readonly autostartOutcomePromise?: Promise<SyncAutostartOutcome>;
+	readonly versionCheckPromise: Promise<VersionCheckResult>;
 }
 
 /**
@@ -129,9 +138,41 @@ export function createDesktopStartupContext(options: DesktopStartupOptions): Des
 		});
 	}
 
+	const versionCheckPromise = Promise.resolve()
+		.then(async () => {
+			const hinted = options.hostHint ? await options.hostHint() : null;
+			return checkDesktopApiVersion({
+				baseUrl: hinted,
+				fetcher: options.versionFetcher,
+			});
+		})
+		.then((result) => {
+			// E-146 vs E-14: only a reachable-but-mismatched (or unusable) version
+			// endpoint switches the shell to the upgrade view. An unreachable daemon
+			// keeps the connection-failed view with its 「启动 daemon」 button.
+			if (!result.compatible && result.reason !== 'unreachable') {
+				connectionController.setIncompatible(
+					result.apiVersion ?? 'unknown',
+					result.expectedVersion,
+				);
+			}
+			return result;
+		})
+		.catch((error: unknown) => {
+			const message = error instanceof Error ? error.message : String(error);
+			return {
+				compatible: false as const,
+				reason: 'unreachable' as const,
+				expectedVersion: CURRENT_API_VERSION,
+				message,
+				upgradePrompt: '电脑上的调度服务未启动。请先启动调度服务后再打开桌面客户端。',
+			};
+		});
+
 	return Object.freeze({
 		spec,
 		connectionController,
 		autostartOutcomePromise,
+		versionCheckPromise,
 	});
 }
