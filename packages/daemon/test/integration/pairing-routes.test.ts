@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,7 +54,7 @@ describe('Pairing & Devices HTTP Routes Integration (M2-T2, E-07, E-127, E-226)'
 			clock: { now: () => new Date().toISOString() },
 			database: db,
 			fileSystem: {
-				readDirectory: () => ['0001_init.sql'],
+				readDirectory: () => readdirSync(migrationsDir),
 				readFile: (p: string) => readFileSync(p, 'utf8'),
 			},
 		});

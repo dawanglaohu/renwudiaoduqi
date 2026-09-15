@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -104,7 +104,7 @@ describe('M4-T4 Agents HTTP Routes Integration (R4 Fake Processes)', { timeout: 
 			clock: { now: () => '2026-09-12T02:00:00.000Z' },
 			database: db,
 			fileSystem: {
-				readDirectory: () => ['0001_init.sql'],
+				readDirectory: () => readdirSync(migrationsDir),
 				readFile: (p: string) => readFileSync(p, 'utf8'),
 			},
 		});

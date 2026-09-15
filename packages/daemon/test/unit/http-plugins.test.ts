@@ -362,7 +362,7 @@ describe('M2-T3 Auth Middleware and Whitelist (E-08, E-128)', () => {
 			clock: { now: () => '2026-09-10T12:00:00.000Z' },
 			database: db,
 			fileSystem: {
-				readDirectory: () => ['0001_init.sql'],
+				readDirectory: () => readdirSync(migrationsDir),
 				readFile: (p: string) => readFileSync(p, 'utf8'),
 			},
 		});

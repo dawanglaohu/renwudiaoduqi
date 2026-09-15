@@ -79,6 +79,21 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - name: Pin MSVC toolchain for native modules (Windows only)
+        # better-sqlite3 has no prebuilt binary for Node 22, so pnpm falls back to
+        # node-gyp; the bundled node-gyp 10.3 cannot auto-detect the VS 18 install on
+        # the windows-latest image ("could not find a version of Visual Studio").
+        # Pin the version and materialise the MSVC dev-shell env for the gyp child process.
+        if: matrix.platform == 'win32'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Pin node-gyp Visual Studio version (Windows only)
+        if: matrix.platform == 'win32'
+        run: |
+          "GYP_MSVS_VERSION=2022" >> $env:GITHUB_ENV
+          "npm_config_msvs_version=2022" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Cache pnpm store
         uses: actions/cache@v4
         with:
@@ -93,6 +108,13 @@ jobs:
       - name: Verify Upstream Platform Baselines (AC 8, E-260)
         run: node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/verify-baselines.ts
 
+      # The workspace check builds nothing, but two of its suites assert on the real
+      # artifact: packages/web/test/packaging-pipeline.test.ts and the two shells'
+      # packaging-pipeline tests read packages/web/dist. Produce the single build first
+      # (M10-T4) so `pnpm -w check` sees the same dist the daemon and both shells consume.
+      - name: Build Web Frontend Assets (M10-T4 single build)
+        run: pnpm --filter @agent-scheduler/web build
+
       - name: Workspace Verification Check (pnpm -w check, AC 1, E-265)
         run: pnpm -w check
 
@@ -106,9 +128,6 @@ jobs:
             console.log("Linux precheck exitCode:", outcome.exitCode);
             if (outcome.exitCode !== 0) process.exit(1);
           '
-
-      - name: Build Web Frontend Assets (M10-T4 single build)
-        run: pnpm --filter @agent-scheduler/web build
 
       - name: Verify Packaging Pipeline (M10-T4)
         run: pnpm --filter @agent-scheduler/shell-desktop verify-pipeline

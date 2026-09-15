@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -176,7 +176,7 @@ describe('disk-full & system HTTP routes integration (M1-T5, E-104)', () => {
 				clock: { now: () => new Date().toISOString() },
 				database: db,
 				fileSystem: {
-					readDirectory: () => ['0001_init.sql'],
+					readDirectory: () => readdirSync(migrationsDir),
 					readFile: (p: string) => readFileSync(p, 'utf8'),
 				},
 			});
