@@ -92,10 +92,14 @@ jobs:
           if (-not $install) { throw 'No Visual Studio C++ toolchain found on the runner.' }
           $version = & $vswhere -latest -products * -property installationVersion
           $major = ([version]$version).Major
-          "GYP_MSVS_VERSION=$major.0" >> $env:GITHUB_ENV
+          # node-gyp 10.3 only knows the 2017/2019/2022 slots; feeding it "18.0" makes
+          # it join the value onto the package dir and look for a Visual Studio install
+          # at better-sqlite3/18.0. Declare the 2022 slot but point the override at the
+          # real VS 18 tree, which is what gyp actually consumes.
+          "GYP_MSVS_VERSION=2022" >> $env:GITHUB_ENV
           "GYP_MSVS_OVERRIDE_PATH=$install" >> $env:GITHUB_ENV
-          "npm_config_msvs_version=$major.0" >> $env:GITHUB_ENV
-          Write-Host "node-gyp pinned to Visual Studio at $install (version $version)"
+          "npm_config_msvs_version=2022" >> $env:GITHUB_ENV
+          Write-Host "node-gyp pinned to Visual Studio at $install (version $version, slot 2022)"
         shell: pwsh
 
       - name: Materialise the MSVC dev shell (Windows only)
