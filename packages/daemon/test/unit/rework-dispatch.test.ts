@@ -525,7 +525,7 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 			expect(createdRun?.branch_name).toBe(run.branch_name);
 			expect(createdRun?.worktree_path).toBe(run.worktree_path);
 
-			// AC 4: 事务后发布 run.rework_dispatched{mode: 'new_session'}
+			// AC 4: 事务后发布 run.rework_dispatched{mode: 'new_run'}
 			const reworkEvent = publishedEvents.find((e) => e.kind === 'run.rework_dispatched');
 			expect(reworkEvent).toBeDefined();
 			expect(reworkEvent?.payload.mode).toBe('new_run');
