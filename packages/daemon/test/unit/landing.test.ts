@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -33,6 +34,20 @@ const testIds = { newId: () => 'test-req-id' };
 function hostPlatform(): 'win32' | 'darwin' | 'linux' {
 	const platform = process.platform;
 	return platform === 'win32' || platform === 'darwin' ? platform : 'linux';
+}
+
+/**
+ * On Windows the fixed candidate-path list does not include `C:\Program Files\Git\cmd`,
+ * so `resolveGitExecutable` can't find the system git. We resolve it via `where` once
+ * at module load and pass the result as `gitBinary` to skip the candidate search.
+ */
+function resolveHostGitBinary(): string | undefined {
+	try {
+		const cmd = process.platform === 'win32' ? 'where' : 'which';
+		return execFileSync(cmd, ['git'], { encoding: 'utf8' }).trim().split(/\r?\n/)[0];
+	} catch {
+		return undefined;
+	}
 }
 
 function createMockGitRunner(
@@ -749,6 +764,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			// passing 'linux' made it look for /usr/bin/git on a Windows runner.
 			const gitRunner = createDefaultGitRunner({
 				platform: hostPlatform(),
+				gitBinary: resolveHostGitBinary(),
 				ids: testIds,
 			});
 

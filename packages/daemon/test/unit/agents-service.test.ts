@@ -280,9 +280,10 @@ describe('M4-T4 AgentService and Availability Probing', () => {
 		expect(accessAttempts).toBe(0); // broken link fails before access()
 	});
 
-	it(
+	// Windows without developer mode raises EPERM on symlink creation, so this
+	// end-to-end case (which touches the real filesystem) can only run on POSIX.
+	it.skipIf(process.platform === 'win32')(
 		'R1 E-263 end-to-end: real fs broken/cyclic/directory symlink yields E_AGENT_EXEC_INVALID_TARGET with originalPath and resolvedPath',
-		{ timeout: 30000 },
 		async () => {
 			const tempDir = join(tmpdir(), `test-symlinks-e263-${randomUUID()}`);
 			mkdirSync(tempDir, { recursive: true });
