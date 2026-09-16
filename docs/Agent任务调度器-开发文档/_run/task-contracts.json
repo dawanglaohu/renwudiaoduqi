@@ -275,6 +275,17 @@
         "packages/web/test/spine-row.test.ts"
       ]
     },
+    "M9-T8": {
+      "supportPaths": [
+        "packages/web/test/log-window.test.ts",
+        "packages/web/test/virtual-rows.test.ts",
+        "packages/web/package.json",
+        "pnpm-lock.yaml",
+        "packages/shared/src/api/runs.ts",
+        "packages/daemon/src/http/routes/runs.ts",
+        "packages/daemon/test/unit/run-log.test.ts"
+      ]
+    },
     "M3-T6": {
       "requires": [
         {

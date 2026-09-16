@@ -227,6 +227,9 @@ export interface GetRunLogResponse {
 	readonly totalLines: number;
 	readonly prevCursor: string | null;
 	readonly nextCursor: string | null;
+	readonly isExceedsThreshold?: boolean;
+	readonly originalFilePath?: string | null;
+	readonly openCommand?: string | null;
 }
 
 export interface SearchRunLogResponse {

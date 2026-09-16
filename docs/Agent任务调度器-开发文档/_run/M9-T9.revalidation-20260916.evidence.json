@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T9": {
+      "contractHash": "06a10e2854fb43389c62bca70841bfe2d1494900f8950475646519e8c23759d4",
+      "evidence": [
+        "复验范围（按 _run/revalidation.json 的 changedFields：definition、effectivePaths，来自补丁 m9-t8-log-window-support-paths）：本次只核变化条款，不重跑 M9-T9 整任务。该补丁只改 M9-T8 的任务行（19-模块任务拆分.md:89）与 M9-T8 自己在 _run/task-contracts.json 的 supportPaths；M9-T9 被标记的原因是分支 merge origin/main 后它的 task-contracts 条目出现在补丁基线里（条目与有效范围随之变化），**不是 M9-T9 自身条款或代码变化**。",
+        "代码侧复核（main 上现状）：M9-T9 的 supportPath packages/web/test/stream-column.test.ts 存在；`vitest run packages/web/test/stream-column.test.ts` 25 条用例全绿；其交付物 packages/web/src/components/stream-column.tsx、packages/web/src/hooks/use-breakpoint.ts、packages/web/src/features/run-deck/*（run-deck-container / run-deck-view / use-run-deck / types）均在 main 上，位置与 19 节 M9-T9 行的产出（`stream-column.tsx`、`useDensityTier()`）一致。",
+        "验收侧复核：本次补丁未改动 19 节 M9-T9 行的验收条款（12 条档位/断点要求原文未动），也未改动任何 M9-T9 依赖的共享章节；M9-T9 的验收证据（PR #96 的审查记录与 _run/M9-T9.review-20260916.evidence.json）仍然有效，无需重跑。",
+        "结论：M9-T9 契约与代码一致，变化仅为合并带来的条目/有效范围记录，复验通过；无遗留待复验条款。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
