@@ -119,6 +119,8 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'batch_advanced';
 				case 'agent.availability_changed':
 					return 'agent_avail';
+				case 'settings.gates_changed':
+					return 'settings_gates';
 				case 'system.disk_warning':
 					return 'sys_disk';
 				case 'system.docs_changed':

@@ -1,0 +1,65 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T11": {
+      "contractHash": "cc1e8f4eadb780c2256630fab9a2ad02f29c316932bcd0019192d54247d2892a",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T12": {
+      "contractHash": "59944d70fd37b0cea8eedbb7e8bb708d75f6bb95752cac8b6c364a0806e2f4e0",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T13": {
+      "contractHash": "9d1b78102c86301b27e9ff6165ac4903f961b44f49f53eb634517b8f9e77b61c",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T16": {
+      "contractHash": "5a79d64acf11a765fecc480d22f15c6180073eeb864c0f7510d375b93f832994",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T17": {
+      "contractHash": "6332af6693d034375892018ff3f1d10dce1b04ab81c0f01bf904c7f3dbf0d9c2",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T18": {
+      "contractHash": "906ac0d2df2be4b7a9dc14ac843bc9533028f05e8ade0a981ef191d50da3c537",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T19": {
+      "contractHash": "fc3c46a21c33e1901060b531c9da5bea59c49ef841218a7b28c361ac100d9bce",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T20": {
+      "contractHash": "0201537e550a90b3b9021eb2d9fe0ed070ac53d3c8a74a9a023a83a1a71bc812",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T21": {
+      "contractHash": "b358eca84950f2ec81e5b0d2931fd128e51ea438289d1b61c6c139ecef65a770",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T22": {
+      "contractHash": "7ec77e6cdcf2f181a02a92dbfd3319439b530ceeb10b39f9c9bc779a2f630bd8",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "040723ac049881b9b757ed2a276ac7eba5ef93ba2bc74712cda9cc4575af0847",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T9": {
+      "contractHash": "06a10e2854fb43389c62bca70841bfe2d1494900f8950475646519e8c23759d4",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

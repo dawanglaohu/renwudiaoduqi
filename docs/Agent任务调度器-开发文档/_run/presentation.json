@@ -362,7 +362,9 @@
       "M8-T4": [
         "packages/daemon/src/domain/gates.ts",
         "packages/daemon/src/http/routes/gates.ts",
+        "packages/daemon/src/service/gates.ts",
         "packages/daemon/src/service/settings.ts",
+        "packages/daemon/src/repo/gates.ts",
         "packages/daemon/src/repo/settings.ts",
         "packages/daemon/migrations/"
       ],
