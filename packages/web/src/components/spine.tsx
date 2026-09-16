@@ -227,9 +227,11 @@ function renderShapeNode(
 	}
 
 	// 2. 等你（waiting）：当前点变空心方块 9px（AC 2, 11 节）
-	// 若外部明确指定了 orphaned（失联）或 review_incomplete（审查未完成），优先渲染其专属几何形状
+	// 只要带了非 awaiting_input/waiting 的专属状态形状（orphaned 失联 / review_incomplete 审查未完成 /
+	// partial 部分完成 / unrecognized 未识别），一律优先渲染其专属几何轮廓，绝不让两个状态共用同一个方块
+	// 而只能靠色相区分（AC 6, E-110, E-230）
 	if (kind === 'waiting') {
-		if (shapeId === 'orphaned' || shapeId === 'review_incomplete') {
+		if (shapeId && shapeId !== 'awaiting_input' && shapeId !== 'waiting') {
 			const normState = normalizeStatusState(shapeId);
 			const shapeDef = getStatusShape(normState);
 			return (

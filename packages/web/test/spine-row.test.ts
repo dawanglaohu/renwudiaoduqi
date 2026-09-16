@@ -368,5 +368,39 @@ describe('M9-T7: Spine and StreamRow (AC 1-6, E-110, E-230)', () => {
 			expect(html).toContain('data-shape="unrecognized"');
 			expect(html).not.toContain('data-spine-node="failed-cross"');
 		});
+
+		// partial 也必须保留自己的 ◧ 形状，不得退化成与 awaiting_input 相同的 9px 空心方块
+		// （两个状态共用同一形状又同为暖色，就等于 AC 6 / E-110 禁止的「只靠色相」，实为连色相都分不开）
+		it('partial keeps its own ◧ glyph instead of the awaiting-input hollow square (AC 6, E-230)', () => {
+			const segmentHtml = renderToStaticMarkup(
+				createElement(SpineSegmentView, {
+					segment: { kind: 'waiting', shape: 'partial' },
+					rowHeight: 30,
+				}),
+			);
+			expect(segmentHtml).toContain('data-shape="partial"');
+			expect(segmentHtml).not.toContain('data-spine-node="waiting-square"');
+
+			// 真实条目路径：status='partial' 派生出的轨段同样保留 ◧
+			const rowHtml = renderToStaticMarkup(
+				createElement(StreamRow, {
+					status: 'partial',
+					tool: 'write_file',
+					target: 'src/app.tsx',
+					duration: 4200,
+				}),
+			);
+			expect(rowHtml).toContain('data-spine-node="partial"');
+			expect(rowHtml).not.toContain('data-spine-node="waiting-square"');
+
+			// awaiting_input 仍然是 9px 空心方块，两者不再共用形状
+			const awaitingHtml = renderToStaticMarkup(
+				createElement(SpineSegmentView, {
+					segment: { kind: 'waiting', shape: 'awaiting_input' },
+					rowHeight: 30,
+				}),
+			);
+			expect(awaitingHtml).toContain('data-spine-node="waiting-square"');
+		});
 	});
 });
