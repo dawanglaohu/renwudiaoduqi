@@ -223,7 +223,7 @@ describe('AC 2 & E-62: 审查 agent 崩溃或超时时标「审查未完成」�
 		expect(result.reworkText).toBe('审查子进程执行超时...');
 	});
 
-	it('marks incomplete on exitReason=startup-timeout or idle-timeout', () => {
+	it('marks incomplete on exitReason=startup-timeout or check-timeout', () => {
 		const result = evaluateReviewVerdict({
 			outputText: '',
 			exitReason: 'startup-timeout',
@@ -231,6 +231,36 @@ describe('AC 2 & E-62: 审查 agent 崩溃或超时时标「审查未完成」�
 		expect(result.verdict).toBe('incomplete');
 		expect(result.targetState).toBe('awaiting_human');
 		expect(result.reason).toBe('agent_timed_out');
+	});
+
+	it('marks incomplete on exitReason=wall-clock-timeout even when output has VERDICT: pass (AC 2 / E-62)', () => {
+		const result = evaluateReviewVerdict({
+			outputText: 'VERDICT: pass',
+			exitReason: 'wall-clock-timeout',
+		});
+		expect(result.verdict).toBe('incomplete');
+		expect(result.isStructured).toBe(false);
+		expect(result.tag).toBe(REVIEW_INCOMPLETE_TAG);
+		expect(result.targetState).toBe('awaiting_human');
+		expect(result.shouldAutoRework).toBe(false);
+		expect(result.reworkText).toBe('VERDICT: pass');
+		expect(result.reason).toBe('agent_timed_out');
+	});
+
+	it('marks incomplete when killed by signal even if exitReason is exited (AC 2 / E-62)', () => {
+		const result = evaluateReviewVerdict({
+			outputText: 'VERDICT: pass',
+			exitCode: null,
+			exitReason: 'exited',
+			signal: 'SIGKILL',
+		});
+		expect(result.verdict).toBe('incomplete');
+		expect(result.isStructured).toBe(false);
+		expect(result.tag).toBe(REVIEW_INCOMPLETE_TAG);
+		expect(result.targetState).toBe('awaiting_human');
+		expect(result.shouldAutoRework).toBe(false);
+		expect(result.reworkText).toBe('VERDICT: pass');
+		expect(result.reason).toBe('agent_crashed');
 	});
 
 	it('marks incomplete on process crash / non-zero exit code', () => {

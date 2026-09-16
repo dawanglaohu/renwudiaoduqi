@@ -147,13 +147,15 @@ export interface ReviewEvaluationInput {
 	readonly outputText?: string | null;
 	/** 审查子进程退出码 */
 	readonly exitCode?: number | null;
+	/** 进程接收到的终止信号（如 'SIGKILL', 'SIGTERM'） */
+	readonly signal?: string | null;
 	/** 是否超时（E-62） */
 	readonly timedOut?: boolean;
 	/** 是否崩溃或异常终止（E-62） */
 	readonly crashed?: boolean;
 	/** 致命异常标志 */
 	readonly hasFatalError?: boolean;
-	/** 退出原因 */
+	/** 退出原因（对齐 proc/spawn.ts ProcessExitReason） */
 	readonly exitReason?: string | null;
 	/** 错误对象 */
 	readonly error?: unknown;
@@ -541,11 +543,13 @@ export function evaluateReviewVerdict(input: ReviewEvaluationInput | string): Pa
 	const outputText = input.outputText ?? '';
 
 	// 1. 检查超时（AC 2, E-62）
+	// 对齐 proc/spawn.ts ProcessExitReason：startup-timeout、wall-clock-timeout、check-timeout
 	const isTimedOut =
 		input.timedOut === true ||
-		input.exitReason === 'timeout' ||
 		input.exitReason === 'startup-timeout' ||
-		input.exitReason === 'idle-timeout';
+		input.exitReason === 'wall-clock-timeout' ||
+		input.exitReason === 'check-timeout' ||
+		input.exitReason === 'timeout';
 
 	if (isTimedOut) {
 		return Object.freeze({
@@ -569,13 +573,22 @@ export function evaluateReviewVerdict(input: ReviewEvaluationInput | string): Pa
 	}
 
 	// 2. 检查崩溃或异常终止（AC 2, E-62）
+	// exitCode !== 0、被信号杀死（exitCode 为 null 且存在 signal）、spawn-failed、或非 exited 的非超时 exitReason
+	const isSignalTerminated =
+		(input.exitCode === null || input.exitCode === undefined) &&
+		input.signal !== null &&
+		input.signal !== undefined &&
+		input.signal !== '';
+
 	const isCrashed =
 		input.crashed === true ||
 		input.hasFatalError === true ||
 		(input.exitCode !== null && input.exitCode !== undefined && input.exitCode !== 0) ||
+		isSignalTerminated ||
 		input.exitReason === 'spawn-failed' ||
 		input.exitReason === 'crashed' ||
-		input.exitReason === 'signal';
+		input.exitReason === 'signal' ||
+		(Boolean(input.exitReason) && input.exitReason !== 'exited');
 
 	if (isCrashed) {
 		return Object.freeze({
