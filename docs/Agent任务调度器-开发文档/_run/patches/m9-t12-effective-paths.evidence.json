@@ -21,6 +21,11 @@
       "evidence": [],
       "verdict": "pending"
     },
+    "M9-T11": {
+      "contractHash": "dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69",
+      "evidence": [],
+      "verdict": "pending"
+    },
     "M9-T12": {
       "contractHash": "2ed02209255f9de42804cb94280250210af928fdd1661d25144f9e992c945f92",
       "evidence": [],

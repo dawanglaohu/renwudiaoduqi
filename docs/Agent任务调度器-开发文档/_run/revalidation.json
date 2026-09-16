@@ -9,6 +9,14 @@
         ],
         "patch": "m9-t12-effective-paths",
         "sourceVersion": "f1de7dcb0b892f2b860a9a497cb2787d8e50d6178dad0ae1b64142ce18f854ba"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f4b38c29f913e4a8d3dff956af90c2ee9193cb669e1578a6a2e9c8472695d547"
       }
     ],
     "previousStatus": "done"
@@ -23,6 +31,29 @@
         ],
         "patch": "m9-t12-effective-paths",
         "sourceVersion": "f1de7dcb0b892f2b860a9a497cb2787d8e50d6178dad0ae1b64142ce18f854ba"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f4b38c29f913e4a8d3dff956af90c2ee9193cb669e1578a6a2e9c8472695d547"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T11": {
+    "contractHash": "dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "task"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f4b38c29f913e4a8d3dff956af90c2ee9193cb669e1578a6a2e9c8472695d547"
       }
     ],
     "previousStatus": "done"
@@ -39,6 +70,16 @@
         ],
         "patch": "m9-t12-effective-paths",
         "sourceVersion": "f1de7dcb0b892f2b860a9a497cb2787d8e50d6178dad0ae1b64142ce18f854ba"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "edges",
+          "effectivePaths",
+          "task"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f4b38c29f913e4a8d3dff956af90c2ee9193cb669e1578a6a2e9c8472695d547"
       }
     ],
     "previousStatus": "done"

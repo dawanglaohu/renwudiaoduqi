@@ -1049,6 +1049,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T11": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69",
+    "evidence": [
+      "①本轮（merge main 后重跑）补丁复核：补丁 m9-t11-review-scope 只新增 M9-T11 的有效路径与支持路径，未改任何验收标准与边界。合并 origin/main（10 个提交，含 M7-T5 / M9-T10 落地）后按手册重跑 sync：_run 产物取 main 重生成，task-contracts.json 手工保留双方条目（M9-T10 与新加的 M9-T11 并存，工作树内已核对 M9-T10/M9-T9 等条目齐全），presentation.json 的 M9-T11 taskPaths 五项完整，19 节 M9-T11 行仍是我方修正后的版本。",
+      "②契约哈希稳定：合并前后 M9-T11 契约哈希都是 dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69——本补丁只动 M9-T11 自己的路径与支持路径，19 节 4 条验收标准、E-04/E-12/E-14/E-157 四条边界、依赖 M9-T9/M9-T5、07/11 节共享章节均未因本次修改而变化（affected 列表里其余任务是 main 侧其它任务自己的补丁带来，与本补丁无关）。",
+      "③sync 副作用回滚：重跑 sync 时基线是合并前的旧源，因此把 main 侧 M7-T5 / M9-T10 两个已落地任务的 task-contracts 条目与有效范围变化算进了复验范围（revalidation.json 出现 M7-T5、M9-T10）。这两条不是本补丁造成的（本补丁只碰 M9-T11），按 M7-T5 落地时的先例把 revalidation.json 回滚为 origin/main 的版本（{}），不误标已落地任务。",
+      "④本轮代码侧复核（返工 R1/R2/R3 逐条）：R1 —— connection-store 里的 activeStopIntents 镜像已删净（全仓 grep 仅 api/event-bus.ts 的 localIntents），乐观停止管线落 features/run-deck/use-stop-intent.ts:52（一帧内同步 setLocalIntent + 返回「你在第 N/M 步停止」），服务端事件清 Map 的路径仍在 api/event-bus.ts:419-425，失败 clearLocalIntent + notice-store 回滚横幅（use-stop-intent.ts:73-81），并有 use-stop-intent.test.ts 三条用例分别覆盖一帧/事件清理/POST 失败回滚。R2 —— connection-store.ts 现为 135 行、恰含 07:249 四字段（:19-28）与四个 setter + reset，不 import src/api（connection-store.test.ts:50 有源码扫描断言）；canDispatch 改为纯 selector selectCanDispatch:74 + useCanDispatch:84；回滚横幅落 store/notice-store.ts:62；SSE→store 接线落 features/run-deck/use-connection-state.ts:71（订阅全局唯一 sseClient，unauthorized → setNeedsPairing(true) 按 :84，connected → online 触发一次 triggerResync）。R3 —— offline-banner.tsx 去掉 animate-pulse（:284-291 静态点），间距改用 4px 栅格（px-4/py-2/px-2/py-1/w-2），类名改走 tailwind.config.ts 已映射的 token 工具类（bg-down-soft / text-meta / rounded-sm / bg-panel-2 / text-ink-1 / border-border / bg-stopped / text-needs / font-mono 等，逐个已核在 config 的 colors/fontSize/borderRadius/fontFamily 里存在），formatLastSyncedAt 只剩一份实现（offline-banner.tsx:283 起，别名 :342）。",
+      "⑤检查记录（工作树 D:/xiangmu/agent-scheduler-m9-t11，合并 origin/main 后）：biome ci . 退出码 0（424 文件，0 违反）；tsc -b --noEmit 退出码 0；check-error-codes.mjs / check-contrast.ts / check-forbidden.ts 退出码 0（grep 禁令 0 违反）；vitest run packages/web 21 文件 282 用例全过（含 connection-store 13 / notice-store 6 / offline-banner 12 / use-stop-intent 7 / use-connection-state 9）。全量 vitest run 的 daemon 侧红与主干既有红同源（dispatch_snapshots 缺列等），本层零 daemon 改动。",
+      "⑥结论：契约与有效范围修正后与 07 节一致，4 条验收标准与 4 条边界原文未动，复核通过；代码侧返工条目 R1/R2/R3 已逐条落地并有测试兜住，未发现新阻断，进入落地。"
+    ],
+    "reviewed": "2026-09-16T08:47:40.766167+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T12": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "2ed02209255f9de42804cb94280250210af928fdd1661d25144f9e992c945f92",
@@ -1061,7 +1076,7 @@
       "⑤结论与去向：契约与本层 8 条验收标准、7 条边界、修正后的有效范围一致，登记复核通过。代码侧另查出两处阻断（AC5/E-99 首屏加载量未真正变小且界面断言了未实现的行为；AC6 展开的 payload 仍内联、bottom sheet 无任何打开通路），已按 rework 条目回给实施方，不在本契约复核范围内声明通过。",
       "⑥合并 origin/main（9b3eb8b，含 M9-T16 PR #98）后的复核：run-deck-view.tsx 与 run-detail-container.tsx 两边都改过（M9-T16 把自己的 supportPaths 扩到了这两个文件），冲突按「两种行为都留」手工合并——E-108 零运行空态的四步引导早返回放在全部 hook 之后（泳道数 0 与非 0 之间切换时 hook 数量不变），E-99 的 isMobile 与 E-218 的全会话检索状态并存；_run/ 产物取 main 后重跑 sync --patch 与 build，task-contracts.json 的 M9-T12 条目与 main 上各方条目都保留。合并后重跑：biome ci 0、tsc -b --noEmit 0、check-error-codes / check-contrast / check-forbidden 全 0 违反、vitest run packages/web 19 文件 / 313 用例全过。"
     ],
-    "reviewed": "2026-09-16T08:53:05.433166+00:00",
+    "reviewed": "2026-09-16T08:55:47.838882+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
