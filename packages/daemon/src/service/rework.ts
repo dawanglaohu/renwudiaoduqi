@@ -448,7 +448,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		// AC 3 & E-59: 人工打回时必须附一句话意见；任何来源的返工文本均不得为空
 		if (typeof input.reworkText !== 'string' || input.reworkText.trim().length === 0) {
 			const message = isManual
-				? 'Manual rework requires an attached comment (一句话意见).'
+				? 'Manual rework requires an attached comment.'
 				: 'Rework text cannot be empty or whitespace only.';
 			throw new AppError('E_VALIDATION', message, {
 				details: {
