@@ -820,7 +820,7 @@
       "路径冲突已核：M7-T4 与同批 M7-T6／M8-T4／M9-T7 无交集；新增 container.ts 与 M8-T3／M9-T19～T22 之外的批次无同批争用；M7-T5 补 repo/runs.ts 是为其验收 4) 三分支计数与 INSERT 返工运行",
       "本轮结论：契约复核 pass（补丁后契约自洽、可实施）；代码缺陷另见 PR 94 的 REWORK 条目 R1／R2，与本项通过不冲突"
     ],
-    "reviewed": "2026-09-16T03:36:13.622629+00:00",
+    "reviewed": "2026-09-16T05:53:25.563233+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
