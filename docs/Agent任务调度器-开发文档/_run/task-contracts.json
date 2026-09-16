@@ -1,6 +1,11 @@
 {
   "schemaVersion": 1,
   "tasks": {
+    "M9-T10": {
+      "supportPaths": [
+        "packages/web/test/gate-card.test.ts"
+      ]
+    },
     "M9-T9": {
       "supportPaths": [
         "packages/web/test/stream-column.test.ts"
