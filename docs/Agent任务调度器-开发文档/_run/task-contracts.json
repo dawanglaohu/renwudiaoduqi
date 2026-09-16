@@ -474,6 +474,14 @@
         17
       ]
     },
+    "M9-T16": {
+      "supportPaths": [
+        "packages/web/src/main.tsx",
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-detail/run-detail-container.tsx",
+        "packages/web/test/landing-onboarding.test.ts"
+      ]
+    },
     "M9-T19": {
       "supportPaths": [
         "packages/web/src/api/cache-invalidation.ts",
