@@ -57,6 +57,32 @@ export function isKnownGrokEventType(type: string): boolean {
 	return KNOWN_GROK_EVENT_TYPES.has(type);
 }
 
+const NETWORK_DEPENDENCY_COMMAND_REGEX =
+	/(?:^|[;&|]\s*)(?:sudo\s+)?(?:npm\s+(?:i|install|add|update)|pnpm\s+(?:i|install|add|update)|yarn(?:\s+add|\s+install)?|bun\s+(?:add|install)|pip3?\s+install|poetry\s+add|cargo\s+(?:add|install)|go\s+(?:get|install)|apt(?:-get)?\s+install|brew\s+install)(?:\s+|$)/i;
+
+function isQuestionTool(toolName?: string): boolean {
+	if (!toolName) return false;
+	return /^(ask(_user|_followup_question|_human)?|question|prompt_user|request_user_input|user_input)$/i.test(
+		toolName.trim(),
+	);
+}
+
+function isNetworkDependencyCommand(command?: unknown): boolean {
+	if (typeof command === 'string') {
+		return NETWORK_DEPENDENCY_COMMAND_REGEX.test(command.trim());
+	}
+	if (command && typeof command === 'object') {
+		const c =
+			(command as Record<string, unknown>).command ??
+			(command as Record<string, unknown>).cmd ??
+			(command as Record<string, unknown>).input;
+		if (typeof c === 'string') {
+			return NETWORK_DEPENDENCY_COMMAND_REGEX.test(c.trim());
+		}
+	}
+	return false;
+}
+
 export interface GrokEventTracker {
 	readonly unmappedCount: number;
 	readonly unmappedTypes: readonly string[];
@@ -383,6 +409,29 @@ function mapParsedGrokObject(
 			const input = updateObj.rawInput ?? updateObj.input ?? updateObj.args ?? updateObj.arguments;
 			const status = updateObj.status;
 
+			// E-134: agent 需要联网装依赖时归一化为阻断事件并带机器可读分类
+			if (isNetworkDependencyCommand(input) || updateObj.blockedCategory === 'network_dependency') {
+				envelopes.push({
+					kind: 'run.permission_blocked',
+					payload: {
+						tool: tool || undefined,
+						reason: 'Network dependency install blocked; human decision required',
+						blockedCategory: 'network_dependency',
+						vendor: vendorWithToken,
+					},
+					runId,
+					taskId,
+					actorDeviceId,
+					scope: 'run',
+				});
+				break;
+			}
+
+			// E-115: 提问类工具标归一化字段 requiresReply / isQuestion
+			const isQuestion =
+				Boolean(updateObj.isQuestion || updateObj.requiresReply || updateObj.requiresHumanInput) ||
+				isQuestionTool(tool);
+
 			envelopes.push({
 				kind: 'tool_call',
 				payload: {
@@ -390,6 +439,7 @@ function mapParsedGrokObject(
 					tool: tool || undefined,
 					input,
 					status: status !== undefined ? status : undefined,
+					...(isQuestion ? { requiresReply: true, isQuestion: true } : {}),
 					vendor: vendorWithToken,
 				},
 				runId,
@@ -501,12 +551,19 @@ function mapParsedGrokObject(
 					: typeof updateObj.message === 'string'
 						? updateObj.message
 						: undefined;
+			const blockedCategory =
+				typeof updateObj.blockedCategory === 'string'
+					? updateObj.blockedCategory
+					: typeof updateObj.category === 'string'
+						? updateObj.category
+						: 'permission_blocked';
 
 			envelopes.push({
 				kind: 'run.permission_blocked',
 				payload: {
 					tool,
 					reason,
+					blockedCategory,
 					vendor: vendorWithToken,
 				},
 				runId,

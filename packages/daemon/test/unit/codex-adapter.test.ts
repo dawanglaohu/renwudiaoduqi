@@ -828,6 +828,57 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(typeof readCodexModels).toBe('function');
 		});
 	});
+
+	describe('M6-T7 提问与阻断分类归一化 (R1, R2, E-115, E-134)', () => {
+		it('marks requiresReply and isQuestion for question tools, leaves normal tools unmarked', () => {
+			const questionLine = JSON.stringify({
+				type: 'item.started',
+				item: {
+					id: 'mcp-q-1',
+					type: 'mcpToolCall',
+					tool: 'ask_user',
+					arguments: { question: 'Approve this change?' },
+				},
+			});
+			const res = mapCodexEvents(questionLine, { runId: 'run-codex-1' });
+			expect(res).toHaveLength(1);
+			expect(res[0]?.kind).toBe('tool_call');
+			expect((res[0]?.payload as { requiresReply?: boolean })?.requiresReply).toBe(true);
+			expect((res[0]?.payload as { isQuestion?: boolean })?.isQuestion).toBe(true);
+
+			const normalLine = JSON.stringify({
+				type: 'item.started',
+				item: {
+					id: 'mcp-norm-1',
+					type: 'mcpToolCall',
+					tool: 'readFile',
+					arguments: { path: 'src/main.ts' },
+				},
+			});
+			const resNorm = mapCodexEvents(normalLine, { runId: 'run-codex-1' });
+			expect(resNorm).toHaveLength(1);
+			expect(resNorm[0]?.kind).toBe('tool_call');
+			expect((resNorm[0]?.payload as { requiresReply?: boolean })?.requiresReply).toBeUndefined();
+			expect((resNorm[0]?.payload as { isQuestion?: boolean })?.isQuestion).toBeUndefined();
+		});
+
+		it('normalizes dependency install commands to run.permission_blocked with blockedCategory', () => {
+			const npmLine = JSON.stringify({
+				type: 'item.started',
+				item: {
+					id: 'cmd-1',
+					type: 'commandExecution',
+					command: 'npm i --save lodash',
+				},
+			});
+			const res = mapCodexEvents(npmLine, { runId: 'run-codex-1' });
+			expect(res).toHaveLength(1);
+			expect(res[0]?.kind).toBe('run.permission_blocked');
+			expect((res[0]?.payload as { blockedCategory?: string })?.blockedCategory).toBe(
+				'network_dependency',
+			);
+		});
+	});
 });
 
 function collectTypeScriptFiles(dir: string): string[] {

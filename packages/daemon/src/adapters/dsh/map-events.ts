@@ -122,6 +122,7 @@ export function parseAndMapDshLine(
 								: typeof obj.message === 'string'
 									? obj.message
 									: '';
+					const isQuestion = Boolean(obj.isQuestion || obj.requiresReply || obj.requiresHumanInput);
 					if (text.length > 0 && !isBannerOrProgressLine(text)) {
 						return Object.freeze({
 							events: Object.freeze([
@@ -131,6 +132,7 @@ export function parseAndMapDshLine(
 										chunk: text,
 										content: text,
 										delta: text,
+										...(isQuestion ? { requiresReply: true, isQuestion: true } : {}),
 										vendor: vendorLine,
 									},
 									runId,
@@ -169,6 +171,7 @@ export function parseAndMapDshLine(
 						: undefined;
 
 		if (text !== undefined && text.length > 0 && !isBannerOrProgressLine(text)) {
+			const isQuestion = Boolean(obj.isQuestion || obj.requiresReply || obj.requiresHumanInput);
 			return Object.freeze({
 				events: Object.freeze([
 					{
@@ -177,6 +180,7 @@ export function parseAndMapDshLine(
 							chunk: text,
 							content: text,
 							delta: text,
+							...(isQuestion ? { requiresReply: true, isQuestion: true } : {}),
 							vendor: vendorLine,
 						},
 						runId,

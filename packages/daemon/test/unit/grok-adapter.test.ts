@@ -845,4 +845,65 @@ SESSION ID                            CREATED     UPDATED     STATUS      SUMMAR
 			}
 		});
 	});
+
+	describe('M6-T7 提问与阻断分类归一化 (R1, R2, E-115, E-134)', () => {
+		it('marks requiresReply and isQuestion for question tools, leaves normal tools unmarked', () => {
+			const questionLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					update: {
+						sessionUpdate: 'tool_call',
+						toolCallId: 'tc-q-1',
+						title: 'ask_user',
+						rawInput: { question: 'Should we proceed?' },
+					},
+				},
+			});
+			const res = mapGrokEvents(questionLine, { runId: 'run-grok-1' });
+			expect(res).toHaveLength(1);
+			expect(res[0]?.kind).toBe('tool_call');
+			expect((res[0]?.payload as { requiresReply?: boolean })?.requiresReply).toBe(true);
+			expect((res[0]?.payload as { isQuestion?: boolean })?.isQuestion).toBe(true);
+
+			const normalLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					update: {
+						sessionUpdate: 'tool_call',
+						toolCallId: 'tc-norm-1',
+						title: 'readFile',
+						rawInput: { path: 'package.json' },
+					},
+				},
+			});
+			const resNorm = mapGrokEvents(normalLine, { runId: 'run-grok-1' });
+			expect(resNorm).toHaveLength(1);
+			expect(resNorm[0]?.kind).toBe('tool_call');
+			expect((resNorm[0]?.payload as { requiresReply?: boolean })?.requiresReply).toBeUndefined();
+			expect((resNorm[0]?.payload as { isQuestion?: boolean })?.isQuestion).toBeUndefined();
+		});
+
+		it('normalizes dependency install commands to run.permission_blocked with blockedCategory', () => {
+			const npmLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'session/update',
+				params: {
+					update: {
+						sessionUpdate: 'tool_call',
+						toolCallId: 'tc-npm-1',
+						title: 'bash',
+						rawInput: { command: 'pnpm add axios' },
+					},
+				},
+			});
+			const res = mapGrokEvents(npmLine, { runId: 'run-grok-1' });
+			expect(res).toHaveLength(1);
+			expect(res[0]?.kind).toBe('run.permission_blocked');
+			expect((res[0]?.payload as { blockedCategory?: string })?.blockedCategory).toBe(
+				'network_dependency',
+			);
+		});
+	});
 });
