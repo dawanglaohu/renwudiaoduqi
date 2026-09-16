@@ -8,6 +8,11 @@
         "packages/web/test/log-window.test.ts"
       ]
     },
+    "M9-T10": {
+      "supportPaths": [
+        "packages/web/test/gate-card.test.ts"
+      ]
+    },
     "M9-T9": {
       "supportPaths": [
         "packages/web/test/stream-column.test.ts"
@@ -348,6 +353,7 @@
       "supportPaths": [
         "packages/daemon/test/unit/rework-dispatch.test.ts",
         "packages/daemon/test/unit/rework-prompt.test.ts",
+        "packages/daemon/test/unit/events.test.ts",
         "packages/daemon/migrations/",
         "packages/shared/src/api/events.ts",
         "packages/shared/src/api/runs.ts"
@@ -479,6 +485,14 @@
         10,
         14,
         17
+      ]
+    },
+    "M9-T16": {
+      "supportPaths": [
+        "packages/web/src/main.tsx",
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-detail/run-detail-container.tsx",
+        "packages/web/test/landing-onboarding.test.ts"
       ]
     },
     "M9-T19": {

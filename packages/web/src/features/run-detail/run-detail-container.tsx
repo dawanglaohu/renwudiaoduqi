@@ -13,15 +13,23 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ROUTES } from '../../../../shared/src/api/routes.ts';
+import type { SearchRunLogResponse } from '../../../../shared/src/api/runs.ts';
+import { httpClient } from '../../api/http-client.ts';
 import {
 	LogBottomNotice,
 	LogLine,
 	LogLoadNewerBar,
 	LogThresholdBanner,
 } from '../../components/log-lines.tsx';
+import { SessionSearchEntrance } from '../../components/session-search-entrance.tsx';
 import { VirtualRows, type VirtualRowsHandle } from '../../components/virtual-rows.tsx';
 import { useDensityTier } from '../../hooks/use-breakpoint.ts';
 import { useLogWindow } from './use-log-window.ts';
+
+const searchRunRoute = ROUTES.find(
+	(r) => r.method === 'GET' && r.path === '/api/v1/runs/:runId/search',
+);
 
 export interface RunDetailContainerProps {
 	/** 运行编号 */
@@ -50,6 +58,31 @@ export function RunDetailContainer({
 	// 档位仍由单点计算器 useDensityTier() 给出（E-235），这里只是消费它，不另立判定。
 	const { tier } = useDensityTier();
 	const isMobileTier = tier === 'phone' || tier === 'phone-xs';
+
+	// E-218: 会话视图显式全会话检索状态（AC 5, M6-T9）
+	const [searchResult, setSearchResult] = useState<SearchRunLogResponse | null>(null);
+	const [isSearching, setIsSearching] = useState<boolean>(false);
+	const [searchError, setSearchError] = useState<string | null>(null);
+
+	const handleSearch = useCallback(
+		async (query: string) => {
+			if (!query.trim() || !searchRunRoute) return;
+			setIsSearching(true);
+			setSearchError(null);
+			try {
+				const res = await httpClient.callRoute<SearchRunLogResponse>(searchRunRoute, {
+					params: { runId },
+					query: { q: query },
+				});
+				setSearchResult(res);
+			} catch (err) {
+				setSearchError(err instanceof Error ? err.message : String(err));
+			} finally {
+				setIsSearching(false);
+			}
+		},
+		[runId],
+	);
 
 	const {
 		state,
@@ -111,6 +144,14 @@ export function RunDetailContainer({
 
 	return (
 		<div className={`flex flex-col h-full gap-2 relative ${className ?? ''}`}>
+			{/* E-218 顶部显式「在整个会话中查找」入口 */}
+			<SessionSearchEntrance
+				onSearch={handleSearch}
+				isSearching={isSearching}
+				searchResult={searchResult}
+				error={searchError}
+			/>
+
 			{/* E-98 顶部体积警告与历史分段加载栏 */}
 			<LogThresholdBanner
 				hasOlder={state.hasOlder}

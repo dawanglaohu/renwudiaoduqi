@@ -18,6 +18,7 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode, useCallback } from 'react';
+import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
 import { StreamColumn } from '../../components/stream-column.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
@@ -180,6 +181,24 @@ export function RunDeckView(props: RunDeckViewProps) {
 		},
 		[selectMobileLane, onSelectTask, isMobileMode, setPane],
 	);
+
+	// E-108: 零运行空态直接呈现四步引导控制台，而非插画（M9-T16）。
+	// 必须放在全部 hook 之后：泳道数在 0 与非 0 之间变化时 hook 数量不能变。
+	if (streamCount === 0) {
+		return (
+			<section
+				data-run-deck="true"
+				data-tier={tier}
+				data-stream-count={0}
+				className={[
+					'flex flex-col h-full w-full bg-[var(--page)] text-[var(--ink-1)] select-none overflow-y-auto p-4',
+					className ?? '',
+				].join(' ')}
+			>
+				<EmptyOnboarding />
+			</section>
+		);
+	}
 
 	// ─── 桌面/宽屏布局容器样式 ───
 	const getDeckLayoutClass = (): string => {
