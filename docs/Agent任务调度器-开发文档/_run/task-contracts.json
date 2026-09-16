@@ -346,6 +346,7 @@
       "supportPaths": [
         "packages/daemon/test/unit/rework-dispatch.test.ts",
         "packages/daemon/test/unit/rework-prompt.test.ts",
+        "packages/daemon/test/unit/events.test.ts",
         "packages/daemon/migrations/",
         "packages/shared/src/api/events.ts",
         "packages/shared/src/api/runs.ts"
