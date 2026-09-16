@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { platformPathAdapter, takePlatformHostInputs } from '../../src/platform/host.ts';
+import { hasUnexpandedPathToken } from '../../src/platform/contract.ts';
 import { resolveExecutable } from '../../src/platform/resolve-executable.ts';
 import {
 	classifyWindowsPath,
@@ -16,6 +17,28 @@ import {
 describe('host adapter', () => {
 	it('routes win32 to the Windows adapter', () => {
 		expect(platformPathAdapter('win32').platform).toBe('win32');
+	});
+});
+
+describe('hasUnexpandedPathToken', () => {
+	it('accepts Windows 8.3 short names, whose tilde is not a shell expansion', () => {
+		// Regression: `includes('~')` rejected the runner's own temp directory
+		// (C:\Users\RUNNER~1\AppData\Local\Temp) and every install under PROGRA~1, so the
+		// daemon refused to boot on an ordinary Windows machine.
+		expect(hasUnexpandedPathToken('C:\\Users\\RUNNER~1\\AppData\\Local\\Temp')).toBe(false);
+		expect(hasUnexpandedPathToken('C:\\PROGRA~1\\app\\data')).toBe(false);
+		expect(hasUnexpandedPathToken('/home/user~backup/data')).toBe(false);
+	});
+
+	it('still rejects a leading tilde, which a shell would expand', () => {
+		expect(hasUnexpandedPathToken('~')).toBe(true);
+		expect(hasUnexpandedPathToken('~/data')).toBe(true);
+		expect(hasUnexpandedPathToken('~user/data')).toBe(true);
+	});
+
+	it('still rejects ${...} and %...% tokens', () => {
+		expect(hasUnexpandedPathToken('${HOME}/data')).toBe(true);
+		expect(hasUnexpandedPathToken('%APPDATA%\\data')).toBe(true);
 	});
 });
 

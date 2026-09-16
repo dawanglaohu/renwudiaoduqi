@@ -8,7 +8,7 @@ import {
 	statSync,
 	writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { posix, win32 } from 'node:path';
 import type { DeviceDto } from '@agent-scheduler/shared/api/devices';
 import { AppError } from '../errors/app-error.ts';
 import type { SupportedPlatform } from '../platform/contract.ts';
@@ -100,7 +100,10 @@ export function createPairingService(deps: PairingServiceDeps): PairingService {
 	const fs = deps.fs ?? DEFAULT_FS;
 	const effectivePlatform: SupportedPlatform = deps.platform ?? 'linux';
 	const printConsole = deps.printConsole ?? console.log;
-	const codeFilePath = join(deps.dataDir, 'pairing-code.txt');
+	// Join with the *simulated* platform's rules, not the host's: on Windows the bare
+	// `join` would turn a posix dataDir like /app/data into \app\data\pairing-code.txt.
+	const platformPath = effectivePlatform === 'win32' ? win32 : posix;
+	const codeFilePath = platformPath.join(deps.dataDir, 'pairing-code.txt');
 
 	let currentPairingCode: { code: string; expiresAtMs: number } | null = null;
 	const activeConnections = new Map<string, Set<(error: AppError) => void>>();

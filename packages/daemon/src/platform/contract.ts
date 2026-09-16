@@ -112,5 +112,9 @@ export type ResolveExecutableResult =
 	  };
 
 export function hasUnexpandedPathToken(value: string): boolean {
-	return value.includes('~') || /\$\{[^}]*\}/.test(value) || /%[^%]+%/.test(value);
+	// Shell tilde expansion only fires on a leading word: `~`, `~user`, `~/x`. A tilde
+	// anywhere else is literal text — most importantly the Windows 8.3 short names the
+	// runner and many real installs use (`C:\Users\RUNNER~1\…`, `C:\PROGRA~1\…`). Testing
+	// with `includes('~')` rejected those and stopped the daemon from booting at all.
+	return /^~/.test(value) || /\$\{[^}]*\}/.test(value) || /%[^%]+%/.test(value);
 }

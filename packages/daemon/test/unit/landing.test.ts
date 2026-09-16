@@ -26,6 +26,15 @@ import {
 
 const testIds = { newId: () => 'test-req-id' };
 
+/**
+ * The real-git integration case below drives the host's actual `git`, so it must declare
+ * the host platform. Hardcoding 'linux' made it look for /usr/bin/git on a Windows runner.
+ */
+function hostPlatform(): 'win32' | 'darwin' | 'linux' {
+	const platform = process.platform;
+	return platform === 'win32' || platform === 'darwin' ? platform : 'linux';
+}
+
 function createMockGitRunner(
 	handler: (args: readonly string[], cwd: string) => GitCommandResult | Promise<GitCommandResult>,
 ): GitRunner {
@@ -736,8 +745,10 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 
 	describe('Real Git Repository Integration (E-73, E-74 lifecycle)', () => {
 		it('full lifecycle: prepare worktree -> inspect landing diff & commands -> explicit cleanup -> retry rebuilds worktree (E-73, E-74)', async () => {
+			// This case runs the host's real `git`, so it must be told the host platform —
+			// passing 'linux' made it look for /usr/bin/git on a Windows runner.
 			const gitRunner = createDefaultGitRunner({
-				platform: 'linux',
+				platform: hostPlatform(),
 				ids: testIds,
 			});
 
@@ -789,7 +800,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				},
 				gitRunner,
 				{
-					platform: 'linux',
+					platform: hostPlatform(),
 					ids: testIds,
 					gitRunner,
 				},
@@ -877,7 +888,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				},
 				gitRunner,
 				{
-					platform: 'linux',
+					platform: hostPlatform(),
 					ids: testIds,
 					gitRunner,
 				},
