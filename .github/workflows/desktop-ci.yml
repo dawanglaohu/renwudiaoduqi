@@ -17,19 +17,19 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # The deployed daemon distribution the staged smoke check expands (AC 2). This is the
-  # exact tree the installer carries inside the desktop resources: the daemon plus its
-  # runtime dependencies and a bundled Node runtime.
-  DAEMON_DEPLOY_DIR: ${{ github.workspace }}/.desktop-artifacts/daemon
+permissions:
+  contents: read
+  # The release gate reads the per-platform job and step conclusions of this run.
+  actions: read
 
 jobs:
   # ============================================================================
   # Matrix: Windows, macOS, Ubuntu (AC 1, E-265)
-  # Every runner must pass check, platform tests, staged smoke, and desktop build.
-  # Any failure halts and blocks the entire release (E-265).
-  # Note: CI does NOT claim automated end-to-end GUI interaction;
-  # manual GUI verification is recorded separately per platform (AC 4, E-266).
+  # Every runner must pass the workspace check, the platform integration tests, the
+  # desktop shell build and the staged smoke of the shipped daemon. Any failure blocks
+  # the release; the gate job names the platform and the step (E-265).
+  # CI does NOT claim automated end-to-end GUI interaction; GUI behaviour is recorded in
+  # the manual acceptance checklist per platform (AC 4, E-266).
   # ============================================================================
   desktop-matrix:
     name: Desktop CI / ${{ matrix.name }}
@@ -43,7 +43,7 @@ jobs:
             name: Windows (x64)
           - os: macos-latest
             platform: darwin
-            name: macOS (Apple Silicon / x64)
+            name: macOS (Apple Silicon)
           - os: ubuntu-latest
             platform: linux
             name: Linux (Ubuntu LTS x64)
@@ -64,8 +64,6 @@ jobs:
 
       - name: Setup Rust toolchain for Tauri v2
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'darwin' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install Linux system dependencies (Ubuntu baseline, AC 3, E-258, E-268)
         if: matrix.platform == 'linux'
@@ -86,6 +84,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/shell-desktop/src-tauri/target/release/deps
+            packages/shell-desktop/src-tauri/target/release/build
+            packages/shell-desktop/src-tauri/target/release/.fingerprint
+          key: ${{ runner.os }}-cargo-${{ hashFiles('packages/shell-desktop/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -102,6 +113,12 @@ jobs:
       - name: Workspace Verification Check (pnpm -w check, AC 1, E-265)
         run: pnpm -w check
 
+      # Native path, process-group and autostart adapters of this host (17 节「平台集成」).
+      # They are part of `pnpm -w check` too; this step gives them their own verdict so the
+      # release gate can name them when they are what failed.
+      - name: Platform Integration Tests (AC 1, E-265)
+        run: pnpm exec vitest run packages/daemon/test/platform
+
       - name: Linux Launcher & Pre-Flight Dependency Probing (AC 3, E-258)
         if: matrix.platform == 'linux'
         run: |
@@ -116,30 +133,38 @@ jobs:
       - name: Verify Packaging Pipeline (M10-T4)
         run: pnpm --filter @agent-scheduler/shell-desktop verify-pipeline
 
-      # Produce the real desktop daemon payload the staged smoke check expands. No stub
-      # stands in for it (AC 2, E-209, E-257).
-      - name: Produce Deployed Daemon Distribution (AC 2, E-209)
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf "$DAEMON_DEPLOY_DIR"
-          mkdir -p "$(dirname "$DAEMON_DEPLOY_DIR")"
-          pnpm --filter @agent-scheduler/daemon deploy --legacy --prod \
-            --config.node-linker=hoisted "$DAEMON_DEPLOY_DIR"
-          # Keep only this runner's runtime; a packaged product ships one platform.
-          node packages/shell-desktop/launchers/prepare-daemon-package.mjs "$DAEMON_DEPLOY_DIR"
-          # The staged smoke step consumes the distribution through the environment.
-          echo "DESKTOP_DAEMON_PACKAGE_DIR=$DAEMON_DEPLOY_DIR" >> "$GITHUB_ENV"
+      # The daemon distribution the installation carries under resources/daemon-runtime:
+      # the daemon with its production dependencies and the pinned Node 22 runtime
+      # (AC 2, E-209, E-257, E-260). tauri.conf.json lists it as a bundle resource.
+      - name: Build Daemon Distribution (AC 2, E-257, E-260)
+        run: pnpm --filter @agent-scheduler/shell-desktop build-daemon-distribution
 
-      - name: Staged Unpack, Launch Spec & Real Daemon Smoke (AC 2, E-209, E-257, E-265)
-        run: node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
-
-      # `cargo build --release` links the native shell; packaging is verified by the
-      # M10-T4 pipeline step above. It is not presented as a packaging step (AC 1).
+      # `cargo build --release` links the native shell and lets tauri-build lay the
+      # bundle resources (daemon-runtime, web/dist) out next to the executable, exactly
+      # as an installation carries them. Installer bundling (`tauri bundle`) is not run
+      # here; the artifacts are build verification only (AC 1, E-265, E-267).
       - name: Build Tauri Desktop Shell (AC 1, E-265)
         run: |
           cd packages/shell-desktop/src-tauri
           cargo build --release
+
+      # Expands the installation payload into a temporary root with spaces and Unicode,
+      # resolves the frozen launch spec from the expanded current_exe/resource_dir the way
+      # the native shell does, and really starts the shipped daemon through it until its
+      # health endpoint answers. The daemon's machine-wide instance lock lives in a
+      # root-owned directory on POSIX (/var/lib on Linux, /Library/Application Support on
+      # macOS), so the check runs with sudo there; the Windows runner is already elevated.
+      - name: Staged Unpack, Launch Spec & Real Daemon Smoke (AC 2, E-209, E-257, E-265)
+        shell: bash
+        env:
+          DESKTOP_SMOKE_PORT: '7817'
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = "win32" ]; then
+            node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
+          else
+            sudo -E "$(command -v node)" --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
+          fi
 
       - name: Evaluate macOS Signing & Notarization (AC 6, E-267)
         if: matrix.platform == 'darwin'
@@ -162,14 +187,18 @@ jobs:
             echo "artifact_label=构建验证件" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload Build Verification Artifacts (AC 4, E-266)
+      - name: Upload Build Verification Artifacts (AC 4, E-266, E-267)
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-${{ matrix.platform }}
-          if-no-files-found: ignore
+          name: desktop-build-verification-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 7
           path: |
-            ${{ env.DAEMON_DEPLOY_DIR }}
-            packages/shell-desktop/src-tauri/target/release/desktop-shell*
+            packages/shell-desktop/src-tauri/target/release/desktop-shell
+            packages/shell-desktop/src-tauri/target/release/desktop-shell.exe
+            packages/shell-desktop/src-tauri/target/release/daemon-runtime/package.json
+            packages/shell-desktop/src-tauri/target/release/daemon-runtime/bootstrap.mjs
+            packages/shell-desktop/src-tauri/target/release/web/dist/index.html
 
   # ============================================================================
   # macOS signing/notarization gate (AC 6, E-267).
@@ -191,7 +220,9 @@ jobs:
           echo "Signing and notarization credentials present."
 
   # ============================================================================
-  # Release Gate: Evaluates all matrix results and release policies (AC 1, AC 6, E-265, E-267)
+  # Release Gate: reads every platform job and its steps back from the API and feeds
+  # the real conclusions to assertReleaseVerification, so a failing platform is named
+  # together with the step that failed (AC 1, AC 6, E-265, E-267).
   # ============================================================================
   release-verification:
     name: Release Gate Evaluation
@@ -207,47 +238,13 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.3
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Collect platform job conclusions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" > "${{ runner.temp }}/jobs.json"
 
       - name: Evaluate Three-Platform Release Matrix (AC 1, AC 6, E-265, E-267)
         env:
-          MATRIX_RESULT: ${{ needs.desktop-matrix.result }}
-          SIGNING_RESULT: ${{ needs.macos-signing-gate.result }}
+          SIGNING_GATE_RESULT: ${{ needs.macos-signing-gate.result }}
           FORMAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_release || false }}
-        run: |
-          node --no-warnings --experimental-strip-types -e '
-            import { assertReleaseVerification } from "./packages/shell-desktop/src/platform-support.ts";
-
-            const matrixPassed = process.env.MATRIX_RESULT === "success";
-            if (!matrixPassed) {
-              console.error(`Matrix did not pass (result=${process.env.MATRIX_RESULT}) - one or more platform jobs failed.`);
-              process.exit(1);
-            }
-
-            const isFormal = process.env.FORMAL_RELEASE === "true";
-            const signingGate = process.env.SIGNING_RESULT;
-            const signingSatisfied = signingGate === "success";
-            if (isFormal && !signingSatisfied) {
-              console.error(`Formal release requires the macOS signing/notarization gate (result=${signingGate}).`);
-              process.exit(1);
-            }
-
-            // Reaching this point means every platform job passed, so every step in
-            // every job (workspace check, platform tests, staged smoke, shell build)
-            // succeeded.
-            const outcomes = [
-              { platform: "win32", hostLabel: "windows-latest", workspaceCheckPassed: true, platformTestsPassed: true, smokePassed: true, shellBuildPassed: true },
-              { platform: "darwin", hostLabel: "macos-latest", workspaceCheckPassed: true, platformTestsPassed: true, smokePassed: true, shellBuildPassed: true, isSigned: signingSatisfied, isNotarized: signingSatisfied },
-              { platform: "linux", hostLabel: "ubuntu-latest", workspaceCheckPassed: true, platformTestsPassed: true, smokePassed: true, shellBuildPassed: true },
-            ];
-
-            console.log(`Matrix result: ${process.env.MATRIX_RESULT}; formal release: ${isFormal}; signing gate: ${signingGate}`);
-            assertReleaseVerification(outcomes, { isFormalRelease: isFormal });
-            console.log("Matrix gate passed. Full three-platform coverage verified.");
-          '
+        run: node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/evaluate-release-gate.ts "${{ runner.temp }}/jobs.json"

@@ -13,7 +13,7 @@
 | **Windows** | Windows 10 (1809+) / Windows 11 | **x64** | **支持** | `agsched-desktop_x64-setup.exe` / `.msi` | 依赖 Edge WebView2 Runtime (Evergreen) (E-148) |
 | **Windows** | Windows 11 | **arm64** | **未覆盖** | *(无资产)* | 未进入当前构建矩阵。**禁止向 arm64 提供 x64 模拟包** (E-259) |
 | **macOS** | macOS 11.0+ (Big Sur 及更高) | **arm64** (Apple Silicon) | **支持** | `agsched-desktop_aarch64.dmg` | 原生 Apple Silicon 架构产物 |
-| **macOS** | macOS 11.0+ (Big Sur 及更高) | **x64** (Intel) | **支持** | `agsched-desktop_x64.dmg` | Intel 64 位架构产物 |
+| **macOS** | macOS 11.0+ (Big Sur 及更高) | **x64** (Intel) | **未覆盖** | *(无资产)* | CI 唯一的 macOS runner 是 Apple Silicon，Intel 产物未进入构建矩阵。**禁止向 Intel 机器提供 arm64 包** (E-259) |
 | **Linux** | Ubuntu 22.04 LTS 及更高 | **x64** (x86_64) | **支持** | `agsched-desktop_amd64.deb` / `.AppImage` | 官方 CI 验证基线；依赖 WebKitGTK 4.1/4.0 与 GTK3 (E-258, E-268) |
 | **Linux** | Linux (全发行版) | **arm64** (aarch64) | **未覆盖** | *(无资产)* | 未进入当前构建矩阵。**禁止向 arm64 提供 x64 安装包** (E-259) |
 
@@ -27,7 +27,7 @@
 
 - **已验证基线 (Verified Baseline)**：
   - **Ubuntu 22.04 LTS / 24.04 LTS** (glibc 2.35+)
-  - 纳入 GitHub Actions Ubuntu runner 自动化矩阵，进行安装包验证、依赖探测与 daemon smoke 测试。
+  - 纳入 GitHub Actions Ubuntu runner 自动化矩阵，进行安装载荷展开、依赖探测与随包 daemon 的真实启动 smoke。
 - **尽力兼容 (Best-Effort Compatibility)**：
   - Debian 12+、Fedora 39+、Arch Linux、openSUSE Tumbleweed / Leap 15.5+、RHEL/CentOS 9+
   - 依赖用户系统具备兼容的 GTK3 与 WebKitGTK 运行库。
@@ -73,6 +73,7 @@
 - **Node.js 运行时基线**：**Node.js 22 LTS** (`>=22.0.0`)
   - 对应 `package.json` 的 `engines.node`
   - CI 所有 runner 均固定使用 Node.js 22
+  - **随包运行时**：安装包自带 daemon 运行所需的 Node，版本钉在 `packages/shell-desktop/daemon-runtime.json`（当前 **22.17.0**）；`verify-baselines` 断言该文件是 22.x 且本文档写有同一版本号，升级运行时而不改本文档即失败 (E-260)
 - **桌面壳框架基线**：**Tauri v2** (`src-tauri/Cargo.toml`)
   - 采用 Rust stable 工具链
   - 前端静态资源由 `packages/web/dist` 单一产物直供 (M10-T4)
@@ -83,20 +84,43 @@
 
 ---
 
-## 5. 三平台 CI 矩阵与自动化边界 (Three-Platform CI Matrix)
+## 5. 安装布局与 daemon 启动契约 (Installed Layout & Daemon Launch Contract)
+
+> 遵循 **E-209**：桌面壳每次启动只根据本次实际的 `current_exe` / `resource_dir` 解析 `DaemonLaunchSpec`，安装包不预写任何绝对路径。
+
+daemon 是 Node 应用（入口 `bootstrap.mjs`，需要 Node >= 22），安装包把它连同运行时一起放在资源目录下：
+
+```
+<resource_dir>/
+  daemon-runtime/            # pnpm deploy --prod 产出的 daemon 及其运行依赖（scripts/build-daemon-distribution.mjs）
+    bootstrap.mjs            # 唯一入口
+    runtime/node[.exe]       # 随包 Node 运行时（版本见 daemon-runtime.json）
+    src/、migrations/、node_modules/
+  web/dist/                  # M10-T4 的单次 Web 构建，daemon 的静态插件从 daemon-runtime/../web/dist 解析
+```
+
+启动契约固定为 `{ file: <resource_dir>/daemon-runtime/runtime/node[.exe], args: [<resource_dir>/daemon-runtime/bootstrap.mjs], cwd: <resource_dir> }`，由 `packages/shell-desktop/src/launch-spec.ts` 的 `resolveShippedDaemonLayout` 与 `src-tauri/src/lib.rs` 各自按同一布局推导；桌面按钮与原生自启共用同一个冻结对象，恒不经 shell。`tauri.conf.json` 的 `bundle.resources` 把这两个目录声明为随包资源，`cargo build` 即把它们复制到可执行文件旁。
+
+daemon 的机器级单实例锁位于系统目录（Linux `/var/lib/agent-scheduler`、macOS `/Library/Application Support/agent-scheduler`、Windows `%ProgramData%gent-scheduler`，均要求 root / Administrators 权限，见 08 节），因此 CI 的 smoke 在 POSIX runner 上以 `sudo` 执行；这不改变 `file/args/cwd`。
+
+---
+
+## 6. 三平台 CI 矩阵与自动化边界 (Three-Platform CI Matrix)
 
 > 遵循 **E-265** 与 **E-209**、**E-257**：
 > - Windows (`windows-latest`)、macOS (`macos-latest`)、Ubuntu (`ubuntu-latest`) 三个 runner 均执行：
 >   1. `pnpm -w check`（静态检查、类型检查、单元测试）
->   2. 平台专属集成测试
->   3. 临时目录安装展开与 daemon smoke 测试（路径包含空格与 Unicode 字符）
->   4. Tauri 桌面壳构建
-> - 任一平台失败，直接阻断整个版本发布，不得降级为可忽略项 (E-265)。
-> - 安装包不得包含构建机硬编码绝对路径 (E-209)；daemon、路径适配器、桌面壳任一产品层缺失均阻断发布 (E-257)。
+>   2. 平台集成测试（`packages/daemon/test/platform/`，本机原生适配器）
+>   3. 随包 daemon 分发构建 + Tauri 桌面壳构建（`cargo build --release`，tauri-build 同时落下随包资源）
+>   4. 安装载荷展开到含空格与 Unicode 的临时根目录 → 产品层检查 → 构建机路径残留检查 → 按上一节契约解析启动清单 → **真正启动随包 daemon** 并探活 `/api/v1/health`
+> - 发布门禁从 GitHub API 读回每个平台 job 的各步骤结论，逐平台逐步骤喂给 `assertReleaseVerification`：任一平台任一步骤失败，直接阻断整个版本发布并点名失败的平台与步骤，不得降级为可忽略项 (E-265)。
+> - 展开后的安装载荷不得包含构建机绝对路径 (E-209)；daemon（含随包运行时与 `web/dist`）、路径适配器、桌面壳二进制任一产品层缺失均阻断发布并列出缺失项 (E-257)。
+> - CI 只做 `cargo build`，不跑 `tauri bundle`：上传的产物是**构建验证件**，不是可分发安装包；macOS 正式发布另由签名/公证门禁放行 (E-267)。
+> - 壳能否真的创建窗口、通知与自启是否生效，CI 不作声明，见第 7 节人工验收 (E-266)。
 
 ---
 
-## 6. 人工 GUI 验收记录模板 (Manual GUI Acceptance Template)
+## 7. 人工 GUI 验收记录模板 (Manual GUI Acceptance Template)
 
 > 遵循 **E-266**：CI 环境由于缺少稳定桌面图形会话与通知系统交互，**绝不声称自动完成端到端 GUI 交互测试**。
 > 每个平台在正式发布前必须由人工执行并记录以下验收项：

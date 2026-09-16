@@ -38,11 +38,15 @@ describe('M10-T5: Platform and Architecture Support Matrix (AC 1, AC 5-8, E-257,
 		expect(macArm?.status).toBe('支持');
 		expect(macArm?.assetPattern).toBe('agsched-desktop_aarch64.dmg');
 
+		// The CI matrix has one macOS runner (Apple Silicon); Intel builds are not produced,
+		// so the matrix must say so instead of offering the arm64 image (E-259).
 		const macX64 = PLATFORM_ARCHITECTURE_MATRIX.find(
 			(e) => e.platform === 'darwin' && e.arch === 'x64',
 		);
-		expect(macX64?.covered).toBe(true);
-		expect(macX64?.status).toBe('支持');
+		expect(macX64?.covered).toBe(false);
+		expect(macX64?.status).toBe('未覆盖');
+		expect(macX64?.assetPattern).toBeNull();
+		expect(resolvePlatformAsset({ platform: 'darwin', arch: 'x64' }).assetName).toBeNull();
 
 		const linuxX64 = PLATFORM_ARCHITECTURE_MATRIX.find(
 			(e) => e.platform === 'linux' && e.arch === 'x64',
@@ -204,12 +208,17 @@ describe('M10-T5: Platform and Architecture Support Matrix (AC 1, AC 5-8, E-257,
 			'utf8',
 		);
 		const platformDocContent = readFileSync(resolve(repoRoot, 'docs/platform-support.md'), 'utf8');
+		const daemonRuntimeManifestContent = readFileSync(
+			resolve(repoRoot, 'packages/shell-desktop/daemon-runtime.json'),
+			'utf8',
+		);
 
 		const report = validateUpstreamBaselineSync({
 			packageJsonContent,
 			cargoTomlContent,
 			ciWorkflowContent,
 			platformDocContent,
+			daemonRuntimeManifestContent,
 		});
 
 		expect(report.synchronized).toBe(true);
@@ -232,5 +241,27 @@ describe('M10-T5: Platform and Architecture Support Matrix (AC 1, AC 5-8, E-257,
 		});
 		expect(badCiReport.synchronized).toBe(false);
 		expect(badCiReport.issues.some((i) => i.includes('Node.js version 22'))).toBe(true);
+
+		// Fails if the shipped runtime is bumped without the docs following (E-260)
+		const bumpedRuntime = validateUpstreamBaselineSync({
+			packageJsonContent,
+			cargoTomlContent,
+			ciWorkflowContent,
+			platformDocContent,
+			daemonRuntimeManifestContent: JSON.stringify({ node: '22.99.0' }),
+		});
+		expect(bumpedRuntime.synchronized).toBe(false);
+		expect(bumpedRuntime.issues.some((i) => i.includes('22.99.0'))).toBe(true);
+
+		// Fails if the shipped runtime leaves the promised major
+		const wrongMajor = validateUpstreamBaselineSync({
+			packageJsonContent,
+			cargoTomlContent,
+			ciWorkflowContent,
+			platformDocContent,
+			daemonRuntimeManifestContent: JSON.stringify({ node: '24.1.0' }),
+		});
+		expect(wrongMajor.synchronized).toBe(false);
+		expect(wrongMajor.issues.some((i) => i.includes('Node 22.x'))).toBe(true);
 	});
 });

@@ -1,197 +1,223 @@
-import { type ChildProcess, execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import type { spawn } from 'node:child_process';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
-	buildDaemonStartTarget,
+	DEFAULT_STAGING_FOLDER,
 	evaluateStagedProductSupport,
 	inspectProductLayers,
-	locateBundledRuntime,
 	stageInstalledProduct,
 } from '../src/artifact-staging.ts';
+import { resolveLaunchSpec } from '../src/launch-spec.ts';
 import {
 	executeDaemonSmoke,
 	inspectBuildPathResidue,
 	resolveStagedLaunchSpec,
 } from '../src/staging-smoke.ts';
 
+const HOST_PLATFORM: 'win32' | 'darwin' | 'linux' =
+	process.platform === 'win32' || process.platform === 'darwin' ? process.platform : 'linux';
+
 interface FixtureOptions {
-	readonly hostPlatform?: 'win32' | 'darwin' | 'linux';
-	readonly arch?: string;
 	readonly withRuntime?: boolean;
 	readonly withDaemonManifest?: boolean;
 	readonly withDaemonEntry?: boolean;
 	readonly withPathAdapter?: boolean;
+	readonly withWebDist?: boolean;
+	readonly withShellBinary?: boolean;
 	readonly residue?: string;
+	/** Source of `bootstrap.mjs`; the default only prints and exits. */
+	readonly daemonEntrySource?: string;
+	/** Copies the host Node into `runtime/` so the entry really executes. */
+	readonly realRuntime?: boolean;
+}
+
+interface Fixture {
+	readonly daemonDistributionDir: string;
+	readonly webDistDir: string;
+	readonly desktopShellBinary: string;
 }
 
 /**
- * Builds a deployed daemon distribution shaped like the packager output: the daemon
- * entry, its manifest, the platform adapter sources, and an optional bundled Node
- * runtime under `node_modules/node22-<platform>-<arch>/bin`.
+ * Builds packager output shaped like `build-daemon-distribution.mjs` + `cargo build`:
+ * the daemon entry, its manifest, the platform adapter sources, the runtime under
+ * `runtime/`, the web build, and the shell executable.
  */
-function createDistributionFixture(root: string, options: FixtureOptions = {}): string {
-	const platform = options.hostPlatform ?? (process.platform as 'win32' | 'darwin' | 'linux');
-	const arch = options.arch ?? process.arch;
-	const deployDir = join(root, 'deploy');
-	mkdirSync(join(deployDir, 'src', 'platform'), { recursive: true });
+function createFixture(root: string, options: FixtureOptions = {}): Fixture {
+	const daemonDistributionDir = join(root, 'daemon-runtime');
+	const webDistDir = join(root, 'web', 'dist');
+	const desktopShellBinary = join(
+		root,
+		HOST_PLATFORM === 'win32' ? 'desktop-shell.exe' : 'desktop-shell',
+	);
+	mkdirSync(join(daemonDistributionDir, 'src', 'platform'), { recursive: true });
 
 	if (options.withDaemonManifest !== false) {
 		writeFileSync(
-			join(deployDir, 'package.json'),
+			join(daemonDistributionDir, 'package.json'),
 			JSON.stringify({ name: '@agent-scheduler/daemon', type: 'module' }),
 			'utf8',
 		);
 	}
 	if (options.withDaemonEntry !== false) {
-		writeFileSync(join(deployDir, 'bootstrap.mjs'), 'console.log("daemon");\n', 'utf8');
-	}
-	if (options.withPathAdapter !== false) {
-		writeFileSync(join(deployDir, 'src', 'platform', 'host.ts'), 'export {};\n', 'utf8');
-		writeFileSync(join(deployDir, 'src', 'platform', 'lock.ts'), 'export {};\n', 'utf8');
-	}
-	if (options.withRuntime !== false) {
-		const packagePlatform = platform === 'win32' ? 'win' : platform;
-		const runtimePackage = join(
-			deployDir,
-			'node_modules',
-			`node22-${packagePlatform}-${arch}`,
-			'bin',
-		);
-		mkdirSync(runtimePackage, { recursive: true });
 		writeFileSync(
-			join(runtimePackage, platform === 'win32' ? 'node.exe' : 'node'),
-			'#!/bin/sh\nexit 1\n',
+			join(daemonDistributionDir, 'bootstrap.mjs'),
+			options.daemonEntrySource ?? 'console.log("daemon");\n',
 			'utf8',
 		);
 	}
+	if (options.withPathAdapter !== false) {
+		writeFileSync(join(daemonDistributionDir, 'src', 'platform', 'host.ts'), 'export {};\n');
+		writeFileSync(join(daemonDistributionDir, 'src', 'platform', 'lock.ts'), 'export {};\n');
+	}
+	if (options.withRuntime !== false) {
+		const runtimeDir = join(daemonDistributionDir, 'runtime');
+		mkdirSync(runtimeDir, { recursive: true });
+		const runtime = join(runtimeDir, HOST_PLATFORM === 'win32' ? 'node.exe' : 'node');
+		if (options.realRuntime) {
+			cpSync(process.execPath, runtime);
+		} else {
+			writeFileSync(runtime, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+		}
+	}
+	if (options.withWebDist !== false) {
+		mkdirSync(webDistDir, { recursive: true });
+		writeFileSync(join(webDistDir, 'index.html'), '<!doctype html><title>ui</title>\n');
+	}
+	if (options.withShellBinary !== false) {
+		writeFileSync(desktopShellBinary, 'shell executable placeholder\n', { mode: 0o755 });
+	}
 	if (options.residue) {
 		writeFileSync(
-			join(deployDir, 'config.json'),
+			join(daemonDistributionDir, 'config.json'),
 			JSON.stringify({ path: options.residue }),
 			'utf8',
 		);
 	}
-	return deployDir;
+	return { daemonDistributionDir, webDistDir, desktopShellBinary };
 }
 
 function makeTempRoot(): string {
 	return mkdtempSync(join(tmpdir(), 'agsched-artifact-'));
 }
 
-const HOST_PLATFORM = process.platform as 'win32' | 'darwin' | 'linux';
+function stage(root: string, fixture: Fixture, stageRoot = join(root, 'stage')) {
+	return stageInstalledProduct({
+		sources: fixture,
+		rootDir: stageRoot,
+		hostPlatform: HOST_PLATFORM,
+	});
+}
+
+/** A daemon entry that serves the health endpoint on the port the product env names. */
+const HEALTH_STUB_ENTRY = [
+	'import { createServer } from "node:http";',
+	'const port = Number.parseInt(process.env.AGSCHED_PORT ?? "", 10);',
+	'if (!Number.isInteger(port)) { console.error("AGSCHED_PORT missing"); process.exit(1); }',
+	'createServer((req, res) => {',
+	'  if (req.url === "/api/v1/health") { res.writeHead(200); res.end("{}"); return; }',
+	'  res.writeHead(404); res.end();',
+	'}).listen(port, "127.0.0.1");',
+	'',
+].join('\n');
 
 describe('M10-T5: installed product staging (AC 2, E-209, E-257)', () => {
-	it('expands the deployed daemon into a path with spaces and non-ASCII characters', () => {
+	it('expands the packager output into a path with spaces and non-ASCII characters', () => {
 		const root = makeTempRoot();
 		try {
-			const distribution = createDistributionFixture(root);
-			const layout = stageInstalledProduct({
-				distribution: { rootDir: distribution },
-				rootDir: root,
-				hostPlatform: HOST_PLATFORM,
-			});
-
-			expect(layout.stageDir).toContain('调度服务 桌面产物 (Unicode & Spaces)');
+			const layout = stage(root, createFixture(root));
+			expect(layout.stageDir).toContain(DEFAULT_STAGING_FOLDER);
 			expect(layout.stageDir).toContain(' ');
-			expect(layout.resourceDir.endsWith('resources')).toBe(true);
-			expect(layout.runtimeDir.endsWith('daemon-runtime')).toBe(true);
-			expect(layout.daemonEntry).toContain('bootstrap.mjs');
-			expect(layout.runtimeExecutable).toContain('runtime');
+			expect(layout.resourceDir).toBe(join(layout.stageDir, 'resources'));
+			expect(existsSync(layout.daemonEntry)).toBe(true);
+			expect(existsSync(layout.runtimeExecutable)).toBe(true);
+			expect(existsSync(join(layout.webDistDir, 'index.html'))).toBe(true);
+			expect(existsSync(layout.currentExe)).toBe(true);
+			// The web build sits where the daemon's static plugin resolves it from the
+			// daemon-runtime source layout: `<daemon-runtime>/../web/dist`.
+			expect(layout.webDistDir).toBe(join(layout.resourceDir, 'web', 'dist'));
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
 
-	it('refuses to stage a distribution that does not bundle a runtime (E-257)', () => {
+	it('resolves the frozen launch spec from the expanded coordinates exactly as the shell does', () => {
 		const root = makeTempRoot();
 		try {
-			const distribution = createDistributionFixture(root, { withRuntime: false });
-			expect(() =>
-				stageInstalledProduct({
-					distribution: { rootDir: distribution },
-					rootDir: root,
-					hostPlatform: HOST_PLATFORM,
-				}),
-			).toThrow(/does not bundle a Node runtime/);
-		} finally {
-			rmSync(root, { recursive: true, force: true });
-		}
-	});
-
-	it('locates only the runtime matching the requested platform and architecture', () => {
-		const root = makeTempRoot();
-		try {
-			const distribution = createDistributionFixture(root, { hostPlatform: 'linux', arch: 'x64' });
-			expect(locateBundledRuntime({ rootDir: distribution }, 'linux', 'x64')).toBeDefined();
-			expect(locateBundledRuntime({ rootDir: distribution }, 'win32', 'x64')).toBeUndefined();
-		} finally {
-			rmSync(root, { recursive: true, force: true });
-		}
-	});
-
-	it('derives the frozen launch spec from the expanded coordinates only', () => {
-		const root = makeTempRoot();
-		try {
-			const distribution = createDistributionFixture(root, { hostPlatform: HOST_PLATFORM });
-			const layout = stageInstalledProduct({
-				distribution: { rootDir: distribution },
-				rootDir: root,
-				hostPlatform: HOST_PLATFORM,
-			});
-
-			const target = buildDaemonStartTarget(layout, { port: 7817 });
-			expect(target.launchArguments).toEqual([layout.daemonEntry, '--port', '7817']);
-
-			const spec = resolveStagedLaunchSpec({
+			const layout = stage(root, createFixture(root));
+			const spec = resolveLaunchSpec({
 				currentExe: layout.currentExe,
 				resourceDir: layout.resourceDir,
 				hostPlatform: HOST_PLATFORM,
-				customDaemonPath: target.runtimeExecutable,
-				customArguments: target.launchArguments,
 			});
-
 			expect(spec.file).toBe(layout.runtimeExecutable);
+			expect(spec.args).toEqual([layout.daemonEntry]);
 			expect(spec.cwd).toBe(layout.resourceDir);
-			expect(spec.args).toEqual([layout.daemonEntry, '--port', '7817']);
 			expect(spec.file.startsWith(layout.stageDir)).toBe(true);
 			expect(Object.isFrozen(spec)).toBe(true);
+
+			const validated = resolveStagedLaunchSpec({
+				currentExe: layout.currentExe,
+				resourceDir: layout.resourceDir,
+				hostPlatform: HOST_PLATFORM,
+			});
+			expect(validated).toEqual(spec);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
 
-	it('reads product layers from the expanded content and reports the missing ones (E-257)', () => {
+	it('reads every product layer from the expanded files and names what is missing (E-257)', () => {
 		const root = makeTempRoot();
 		try {
-			const complete = createDistributionFixture(join(root, 'complete'), {
-				hostPlatform: HOST_PLATFORM,
+			const complete = inspectProductLayers(stage(root, createFixture(join(root, 'ok'))));
+			expect(complete).toEqual({
+				hasDaemonSupport: true,
+				hasPathAdapter: true,
+				hasDesktopShell: true,
+				missing: [],
 			});
-			const completeLayout = stageInstalledProduct({
-				distribution: { rootDir: complete },
-				rootDir: join(root, 'complete-stage'),
-				hostPlatform: HOST_PLATFORM,
-			});
-			const completeEvidence = inspectProductLayers(completeLayout);
-			expect(completeEvidence.hasDaemonSupport).toBe(true);
-			expect(completeEvidence.hasPathAdapter).toBe(true);
-			expect(completeEvidence.hasDesktopShell).toBe(true);
-			expect(completeEvidence.missing).toEqual([]);
 
-			const incomplete = createDistributionFixture(join(root, 'incomplete'), {
-				hostPlatform: HOST_PLATFORM,
-				withDaemonEntry: false,
-			});
-			const incompleteLayout = stageInstalledProduct({
-				distribution: { rootDir: incomplete },
-				rootDir: join(root, 'incomplete-stage'),
-				hostPlatform: HOST_PLATFORM,
-				requireDaemonEntry: false,
-			});
-			const support = evaluateStagedProductSupport(incompleteLayout, HOST_PLATFORM);
-			expect(support.layers.hasDaemonSupport).toBe(false);
-			expect(support.missing).toContain('daemon');
+			const noRuntime = evaluateStagedProductSupport(
+				stage(
+					root,
+					createFixture(join(root, 'no-runtime'), { withRuntime: false }),
+					join(root, 's1'),
+				),
+				HOST_PLATFORM,
+			);
+			expect(noRuntime.layers.hasDaemonSupport).toBe(false);
+			expect(noRuntime.missing.join(';')).toContain('daemon-runtime/runtime/node');
+
+			const noWebDist = evaluateStagedProductSupport(
+				stage(root, createFixture(join(root, 'no-web'), { withWebDist: false }), join(root, 's2')),
+				HOST_PLATFORM,
+			);
+			expect(noWebDist.layers.hasDaemonSupport).toBe(false);
+			expect(noWebDist.missing.join(';')).toContain('web/dist/index.html');
+
+			const noShell = evaluateStagedProductSupport(
+				stage(
+					root,
+					createFixture(join(root, 'no-shell'), { withShellBinary: false }),
+					join(root, 's3'),
+				),
+				HOST_PLATFORM,
+			);
+			expect(noShell.layers.hasDesktopShell).toBe(false);
+			expect(noShell.missing.join(';')).toContain('desktop-shell');
+
+			const noAdapter = evaluateStagedProductSupport(
+				stage(
+					root,
+					createFixture(join(root, 'no-adapter'), { withPathAdapter: false }),
+					join(root, 's4'),
+				),
+				HOST_PLATFORM,
+			);
+			expect(noAdapter.layers.hasPathAdapter).toBe(false);
+			expect(noAdapter.missing.join(';')).toContain('path-adapter');
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
@@ -201,21 +227,15 @@ describe('M10-T5: installed product staging (AC 2, E-209, E-257)', () => {
 		const root = makeTempRoot();
 		try {
 			const builderRoot = join(root, 'builder-checkout');
-			const clean = createDistributionFixture(join(root, 'clean'));
-			const cleanLayout = stageInstalledProduct({
-				distribution: { rootDir: clean },
-				rootDir: join(root, 'clean-stage'),
-				hostPlatform: HOST_PLATFORM,
-			});
-			expect(inspectBuildPathResidue(cleanLayout.stageDir, [builderRoot]).isClean).toBe(true);
+			const clean = stage(root, createFixture(join(root, 'clean')), join(root, 'clean-stage'));
+			expect(inspectBuildPathResidue(clean.stageDir, [builderRoot]).isClean).toBe(true);
 
-			const dirty = createDistributionFixture(join(root, 'dirty'), { residue: builderRoot });
-			const dirtyLayout = stageInstalledProduct({
-				distribution: { rootDir: dirty },
-				rootDir: join(root, 'dirty-stage'),
-				hostPlatform: HOST_PLATFORM,
-			});
-			const report = inspectBuildPathResidue(dirtyLayout.stageDir, [builderRoot]);
+			const dirty = stage(
+				root,
+				createFixture(join(root, 'dirty'), { residue: builderRoot }),
+				join(root, 'dirty-stage'),
+			);
+			const report = inspectBuildPathResidue(dirty.stageDir, [builderRoot]);
 			expect(report.isClean).toBe(false);
 			// Paths are compared and reported separator-insensitively.
 			expect(report.violations[0]).toContain(builderRoot.replace(/\\/g, '/'));
@@ -232,22 +252,14 @@ describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {
 		const probeMock = vi.fn().mockResolvedValue(true);
 		const spec = Object.freeze({
 			file: '/opt/scheduler/resources/daemon-runtime/runtime/node',
-			args: Object.freeze([
-				'/opt/scheduler/resources/daemon-runtime/bootstrap.mjs',
-				'--port',
-				'7817',
-			]),
+			args: Object.freeze(['/opt/scheduler/resources/daemon-runtime/bootstrap.mjs']),
 			cwd: '/opt/scheduler/resources',
 		});
 
 		const outcome = await executeDaemonSmoke(spec, {
 			port: 7817,
 			timeoutMs: 2000,
-			customSpawn: spawnMock as unknown as (
-				file: string,
-				args: readonly string[],
-				opts: { cwd: string; shell: boolean; stdio: 'ignore' | 'pipe' | 'inherit' },
-			) => ChildProcess,
+			customSpawn: spawnMock as unknown as typeof spawn,
 			probeEndpoint: probeMock,
 		});
 
@@ -284,11 +296,7 @@ describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {
 		const outcome = await executeDaemonSmoke(spec, {
 			port: 7898,
 			timeoutMs: 1500,
-			customSpawn: spawnMock as unknown as (
-				file: string,
-				args: readonly string[],
-				opts: { cwd: string; shell: boolean; stdio: 'ignore' | 'pipe' | 'inherit' },
-			) => ChildProcess,
+			customSpawn: spawnMock as unknown as typeof spawn,
 			probeEndpoint: async () => false,
 		});
 
@@ -296,12 +304,60 @@ describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {
 		expect(outcome.error).toContain('Health check probe failed');
 	});
 
-	it('resolves a real host executable so the fixtures cannot silently pass', () => {
-		const locator = process.platform === 'win32' ? 'where' : 'which';
-		const resolved = execFileSync(locator, ['node'], { encoding: 'utf8' })
-			.split(/\r?\n/)
-			.map((line) => line.trim())
-			.find((line) => line.length > 0);
-		expect(resolved).toBeTruthy();
-	});
+	it(
+		'really starts the expanded entry through the shipped runtime with the product env (AC 2)',
+		{ timeout: 30_000 },
+		async () => {
+			const root = makeTempRoot();
+			try {
+				const layout = stage(
+					root,
+					createFixture(root, { realRuntime: true, daemonEntrySource: HEALTH_STUB_ENTRY }),
+				);
+				const spec = resolveLaunchSpec({
+					currentExe: layout.currentExe,
+					resourceDir: layout.resourceDir,
+					hostPlatform: HOST_PLATFORM,
+				});
+				const port = 7900 + Math.floor(Math.random() * 500);
+				const outcome = await executeDaemonSmoke(spec, {
+					port,
+					timeoutMs: 15_000,
+					env: { ...(process.env as Record<string, string>), AGSCHED_PORT: String(port) },
+				});
+				expect(outcome.error).toBeUndefined();
+				expect(outcome.success).toBe(true);
+				expect(outcome.endpointStatus).toBe(200);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
+
+	it(
+		'reports the exit code when the shipped entry dies before becoming healthy',
+		{ timeout: 30_000 },
+		async () => {
+			const root = makeTempRoot();
+			try {
+				const layout = stage(
+					root,
+					createFixture(root, {
+						realRuntime: true,
+						daemonEntrySource: 'console.error("refusing to start"); process.exit(3);\n',
+					}),
+				);
+				const spec = resolveLaunchSpec({
+					currentExe: layout.currentExe,
+					resourceDir: layout.resourceDir,
+					hostPlatform: HOST_PLATFORM,
+				});
+				const outcome = await executeDaemonSmoke(spec, { port: 7897, timeoutMs: 15_000 });
+				expect(outcome.success).toBe(false);
+				expect(outcome.error).toContain('exited with code 3');
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
 });

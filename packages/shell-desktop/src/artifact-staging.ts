@@ -1,132 +1,52 @@
-import {
-	cpSync,
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	readdirSync,
-	rmSync,
-	writeFileSync,
-} from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import {
-	type DaemonLaunchSpec,
-	isAbsoluteLaunchPath,
-	parseDaemonLaunchSpec,
-} from '@agent-scheduler/shared/shell/daemon-launch-spec';
+import { resolveShippedDaemonLayout } from './launch-spec.ts';
 import { type PlatformProductLayers, evaluatePlatformSupport } from './platform-support.ts';
 
 /**
- * A deployed daemon distribution: `pnpm --filter @agent-scheduler/daemon deploy --prod`
- * output, i.e. the daemon application plus its runtime dependencies resolved into a
- * single directory. This is what the installer carries inside the desktop resources.
+ * The three product layers as they leave the packager (AC 2, E-257):
+ * the daemon distribution (`pnpm deploy --prod` output plus the bundled Node runtime),
+ * the single web build the daemon serves, and the native desktop shell executable.
+ * A missing source is not an error here; the layer inspection reports it as missing so
+ * the release check can name the layer instead of failing on a copy error.
  */
-export interface DaemonDistribution {
-	/** Root of the deployed daemon distribution. */
-	readonly rootDir: string;
-	/** Node runtime root name inside `node_modules` when the distribution bundles one. */
-	readonly bundledRuntimeDir?: string;
+export interface InstalledProductSources {
+	/** Root of the daemon distribution: `bootstrap.mjs`, `src/`, `node_modules/`, `runtime/`. */
+	readonly daemonDistributionDir: string;
+	/** `packages/web/dist` as built once for the daemon, the desktop shell and the mobile shell. */
+	readonly webDistDir?: string;
+	/** The linked desktop shell executable produced by `cargo build --release`. */
+	readonly desktopShellBinary?: string;
 }
 
 export interface StageInstalledProductOptions {
-	readonly distribution: DaemonDistribution;
-	/** Temporary root that receives the extracted installation. */
+	readonly sources: InstalledProductSources;
+	/** Temporary root that receives the expanded installation. */
 	readonly rootDir: string;
 	readonly hostPlatform: 'win32' | 'darwin' | 'linux';
-	readonly arch?: string;
 	readonly folderName?: string;
-	readonly desktopShellName?: string;
-	/**
-	 * Fails when the distribution has no `bootstrap.mjs`. Layer verification wants to
-	 * inspect an incomplete package instead of being stopped at expansion time.
-	 */
-	readonly requireDaemonEntry?: boolean;
 }
 
 export interface InstalledProductLayout {
 	readonly stageDir: string;
+	/** `<stageDir>/bin/<shell executable>`; only exists when a shell binary was supplied. */
 	readonly currentExe: string;
+	/** `<stageDir>/resources`, the directory the native shell reports as `resource_dir`. */
 	readonly resourceDir: string;
-	/** `<resourceDir>/daemon-runtime` — the daemon application as shipped. */
-	readonly runtimeDir: string;
-	/** Bundled runtime executable used to start the daemon (`node`/`node.exe`). */
+	/** `<resourceDir>/daemon-runtime`, the daemon application as shipped. */
+	readonly daemonDir: string;
+	/** `<daemonDir>/runtime/node[.exe]`, the launch target of the frozen spec. */
 	readonly runtimeExecutable: string;
-	/** `bootstrap.mjs` entry inside the shipped daemon application. */
+	/** `<daemonDir>/bootstrap.mjs`, the single argument of the frozen spec. */
 	readonly daemonEntry: string;
+	/** `<resourceDir>/web/dist`, where the daemon's static plugin looks for the UI. */
+	readonly webDistDir: string;
 }
 
-const RUNTIME_DIR_NAME = 'daemon-runtime';
-const DAEMON_ENTRY_NAME = 'bootstrap.mjs';
-const RUNTIME_EXECUTABLE_BASE = 'node';
-const CONVENTION_DIRS = ['bin', 'resources', 'resources/daemon-runtime', 'lib'];
+export const DEFAULT_STAGING_FOLDER = '调度服务 桌面产物 (Unicode & Spaces) 1.0.0';
 
-function platformExecutableSuffix(platform: 'win32' | 'darwin' | 'linux'): string {
-	return platform === 'win32' ? '.exe' : '';
-}
-
-function joinFor(platform: 'win32' | 'darwin' | 'linux', ...parts: string[]): string {
-	const separator = platform === 'win32' ? '\\' : '/';
-	return parts.join(separator);
-}
-
-/** Node runtime packages name the Windows platform `win`, not `win32`. */
-function runtimePackagePlatform(platform: 'win32' | 'darwin' | 'linux'): string {
-	return platform === 'win32' ? 'win' : platform;
-}
-
-/**
- * Locates the Node runtime executable inside a deployed distribution.
- *
- * The distribution may bundle the runtime through the `node<major>-<platform>-<arch>`
- * optional dependency packages (which carry `<pkg>/bin/node[.exe]`); when it does not,
- * only a host runtime is available and `undefined` is returned so the caller can fall
- * back explicitly instead of silently producing a non-shippable launch target.
- */
-export function locateBundledRuntime(
-	distribution: DaemonDistribution,
-	platform: 'win32' | 'darwin' | 'linux',
-	arch: string,
-): string | undefined {
-	const nodeModules = join(distribution.rootDir, 'node_modules');
-	if (!existsSync(nodeModules)) return undefined;
-
-	const requested = `${runtimePackagePlatform(platform)}-${arch}`;
-	const candidates = readdirSync(nodeModules)
-		.filter((entry) => /^node\d+-/.test(entry))
-		.sort((a, b) => b.localeCompare(a, 'en', { numeric: true }));
-
-	const matching = candidates.filter((entry) => entry.endsWith(requested));
-	for (const name of matching) {
-		const candidate = join(
-			nodeModules,
-			name,
-			'bin',
-			`${RUNTIME_EXECUTABLE_BASE}${platformExecutableSuffix(platform)}`,
-		);
-		if (existsSync(candidate)) return candidate;
-	}
-	return undefined;
-}
-
-function copyDistribution(distribution: DaemonDistribution, targetDir: string): void {
-	const packageManagerMetadata = new Set(['.pnpm', '.bin', '.modules.yaml', '.npmrc']);
-	mkdirSync(targetDir, { recursive: true });
-	cpSync(distribution.rootDir, targetDir, {
-		recursive: true,
-		dereference: true,
-		filter: (source) => {
-			const relative = relativeTo(distribution.rootDir, source).replace(/\\/g, '/');
-			if (relative === '') return true;
-			// Package-manager metadata lives at the root of the deployed tree; nested
-			// directories that merely share a name (the runtime's own `bin`) are product
-			// content and must be kept.
-			if (packageManagerMetadata.has(relative)) return false;
-			if (relative === 'test' || relative.startsWith('test/')) return false;
-			// Build-machine leftovers: caches and incremental build info.
-			if (relative.endsWith('.tsbuildinfo')) return false;
-			if (relative === 'dist' || relative.startsWith('dist/')) return false;
-			return true;
-		},
-	});
+function desktopShellFileName(platform: 'win32' | 'darwin' | 'linux'): string {
+	return platform === 'win32' ? 'desktop-shell.exe' : 'desktop-shell';
 }
 
 function relativeTo(baseDir: string, target: string): string {
@@ -140,103 +60,80 @@ function relativeTo(baseDir: string, target: string): string {
 }
 
 /**
- * Expands a deployed daemon distribution into a simulated installation root, the same
- * shape the packager produces: `<root>/bin/<shell>` plus
- * `<root>/resources/daemon-runtime/**` (AC 2, E-209).
+ * Copies the daemon distribution without the build machine's own leftovers. Package
+ * manager metadata records absolute build paths, tests and incremental build info are
+ * not product content, and none of them is present in a shipped installation.
+ */
+function copyDaemonDistribution(sourceDir: string, targetDir: string): void {
+	const packageManagerMetadata = new Set(['.pnpm', '.bin', '.modules.yaml', '.npmrc']);
+	mkdirSync(targetDir, { recursive: true });
+	cpSync(sourceDir, targetDir, {
+		recursive: true,
+		dereference: true,
+		filter: (source) => {
+			const relative = relativeTo(sourceDir, source).replace(/\\/g, '/');
+			if (relative === '') return true;
+			if (relative.startsWith('node_modules/')) {
+				const inner = relative.slice('node_modules/'.length);
+				if (packageManagerMetadata.has(inner)) return false;
+			}
+			if (relative === 'test' || relative.startsWith('test/')) return false;
+			if (relative.endsWith('.tsbuildinfo')) return false;
+			if (relative === 'dist' || relative.startsWith('dist/')) return false;
+			return true;
+		},
+	});
+}
+
+/**
+ * Expands the packager output into a simulated installation root (AC 2, E-209):
+ * `<root>/bin/<shell>` plus `<root>/resources/{daemon-runtime,web/dist}`, the layout
+ * `resolveShippedDaemonLayout` and the native shell both derive the launch spec from.
  *
- * The expansion target always contains a space and a non-ASCII character so the
- * unpack path itself is exercised, not just the file names inside it.
+ * The expansion target always contains a space and non-ASCII characters so the unpack
+ * path itself is exercised, not just the file names inside it.
  */
 export function stageInstalledProduct(
 	options: StageInstalledProductOptions,
 ): InstalledProductLayout {
 	const platform = options.hostPlatform;
-	const arch = options.arch ?? process.arch;
-	const folderName = options.folderName ?? '调度服务 桌面产物 (Unicode & Spaces) 1.0.0';
+	const folderName = options.folderName ?? DEFAULT_STAGING_FOLDER;
 	const stageDir = resolve(options.rootDir, folderName);
 	const binDir = join(stageDir, 'bin');
 	const resourceDir = join(stageDir, 'resources');
-	const runtimeDir = join(resourceDir, RUNTIME_DIR_NAME);
+	const shipped = resolveShippedDaemonLayout(resourceDir, platform);
+	const daemonDir = shipped.daemonDir;
+	const webDistDir = join(resourceDir, 'web', 'dist');
+	const currentExe = join(binDir, desktopShellFileName(platform));
 
-	for (const directory of CONVENTION_DIRS) {
-		mkdirSync(join(stageDir, directory), { recursive: true });
-	}
-
-	copyDistribution(options.distribution, runtimeDir);
-
-	const runtimeExecutable = locateBundledRuntime(options.distribution, platform, arch);
-	if (!runtimeExecutable) {
+	if (!existsSync(options.sources.daemonDistributionDir)) {
 		throw new Error(
-			`The deployed daemon distribution does not bundle a Node runtime for ${platform}-${arch}; the installation would depend on a runtime that is not part of the product (E-257).`,
+			`The daemon distribution does not exist: ${options.sources.daemonDistributionDir}`,
 		);
 	}
-	const shippedRuntime = join(
-		runtimeDir,
-		'runtime',
-		`${RUNTIME_EXECUTABLE_BASE}${platformExecutableSuffix(platform)}`,
-	);
-	mkdirSync(join(runtimeDir, 'runtime'), { recursive: true });
-	cpSync(runtimeExecutable, shippedRuntime);
 
-	const daemonEntry = join(runtimeDir, DAEMON_ENTRY_NAME);
-	if (!existsSync(daemonEntry) && options.requireDaemonEntry !== false) {
-		throw new Error(`The deployed daemon distribution is missing ${DAEMON_ENTRY_NAME}.`);
+	mkdirSync(binDir, { recursive: true });
+	mkdirSync(resourceDir, { recursive: true });
+	copyDaemonDistribution(options.sources.daemonDistributionDir, daemonDir);
+
+	const webDistSource = options.sources.webDistDir;
+	if (webDistSource && existsSync(webDistSource)) {
+		cpSync(webDistSource, webDistDir, { recursive: true, dereference: true });
 	}
 
-	const shellName = options.desktopShellName ?? `scheduler${platformExecutableSuffix(platform)}`;
-	const currentExe = joinFor(platform, binDir, shellName);
-	writeFileSync(currentExe, 'desktop shell placeholder produced by the packager\n', 'utf8');
+	const shellSource = options.sources.desktopShellBinary;
+	if (shellSource && existsSync(shellSource)) {
+		cpSync(shellSource, currentExe);
+	}
 
 	return Object.freeze({
 		stageDir,
 		currentExe,
 		resourceDir,
-		runtimeDir,
-		runtimeExecutable: shippedRuntime,
-		daemonEntry,
-	});
-}
-
-export interface DaemonStartTarget {
-	readonly launchFile: string;
-	readonly launchArguments: readonly string[];
-	readonly runtimeExecutable: string;
-	readonly daemonEntry: string;
-}
-
-/**
- * Derives the frozen `{file, args[], cwd}` the desktop shell hands to `spawn`.
- *
- * The desktop shell starts the shipped daemon as
- * `<bundled node runtime> <resources>/daemon-runtime/bootstrap.mjs` — the same way the
- * native shell in `src-tauri/src/lib.rs` does — so the smoke check drives exactly that
- * target instead of substituting the build machine's Node (AC 2, E-209).
- */
-export function buildDaemonStartTarget(
-	layout: InstalledProductLayout,
-	options?: { readonly port?: number },
-): DaemonStartTarget {
-	const args: string[] = ['--port', String(options?.port ?? 7817)];
-	const specCandidate = {
-		file: layout.runtimeExecutable,
-		args: [layout.daemonEntry, ...args],
-		cwd: layout.resourceDir,
-	};
-
-	const validation = parseDaemonLaunchSpec(specCandidate);
-	if (!validation.ok) {
-		const issues = validation.issues.map((issue) => `${issue.path}: ${issue.reason}`).join(', ');
-		throw new Error(`Shipped daemon launch spec failed schema validation: ${issues}`);
-	}
-	if (!isAbsoluteLaunchPath(layout.daemonEntry)) {
-		throw new Error(`The shipped daemon entry must be absolute: ${layout.daemonEntry}`);
-	}
-
-	return Object.freeze({
-		launchFile: layout.runtimeExecutable,
-		launchArguments: Object.freeze([layout.daemonEntry, ...args]),
-		runtimeExecutable: layout.runtimeExecutable,
-		daemonEntry: layout.daemonEntry,
+		daemonDir,
+		runtimeExecutable: shipped.runtimeExecutable,
+		daemonEntry: shipped.daemonEntry,
+		webDistDir,
 	});
 }
 
@@ -244,58 +141,65 @@ export interface ProductLayerEvidence {
 	readonly hasDaemonSupport: boolean;
 	readonly hasPathAdapter: boolean;
 	readonly hasDesktopShell: boolean;
+	/** Human-readable description of every missing piece, grouped by layer. */
 	readonly missing: readonly string[];
 }
 
+function readManifestName(daemonDir: string): string | undefined {
+	try {
+		const manifest = JSON.parse(readFileSync(join(daemonDir, 'package.json'), 'utf8')) as {
+			name?: unknown;
+		};
+		return typeof manifest.name === 'string' ? manifest.name : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 /**
- * Reads the actual product layers out of the expanded installation (E-257).
+ * Reads the product layers out of the expanded installation (E-257).
  *
- * Every flag here is derived from files that exist on disk; nothing is assumed from
- * the fact that the pipeline got this far. A missing layer is returned as missing, and
- * `evaluatePlatformSupport` then refuses to mark the platform fully supported.
+ * Every flag is derived from files on disk; nothing is assumed from the fact that the
+ * pipeline got this far. The web build counts towards the daemon layer because the
+ * daemon refuses to start without it.
  */
 export function inspectProductLayers(layout: InstalledProductLayout): ProductLayerEvidence {
 	const missing: string[] = [];
 
-	const daemonEntryPresent = existsSync(layout.daemonEntry);
-	let daemonManifestOk = false;
-	try {
-		const manifest = JSON.parse(readFileSync(join(layout.runtimeDir, 'package.json'), 'utf8')) as {
-			name?: string;
-		};
-		daemonManifestOk = manifest.name === '@agent-scheduler/daemon';
-	} catch {
-		daemonManifestOk = false;
+	const daemonProblems: string[] = [];
+	if (!existsSync(layout.daemonEntry)) daemonProblems.push('daemon-runtime/bootstrap.mjs');
+	if (readManifestName(layout.daemonDir) !== '@agent-scheduler/daemon') {
+		daemonProblems.push('daemon-runtime/package.json (@agent-scheduler/daemon)');
 	}
-	const runtimePresent = existsSync(layout.runtimeExecutable);
-	if (!daemonEntryPresent || !daemonManifestOk || !runtimePresent) {
-		missing.push('daemon');
-	}
+	if (!existsSync(layout.runtimeExecutable)) daemonProblems.push('daemon-runtime/runtime/node');
+	if (!existsSync(join(layout.webDistDir, 'index.html')))
+		daemonProblems.push('web/dist/index.html');
+	const hasDaemonSupport = daemonProblems.length === 0;
+	if (!hasDaemonSupport) missing.push(`daemon (${daemonProblems.join(', ')})`);
 
-	const pathAdapterPresent =
-		existsSync(join(layout.runtimeDir, 'src', 'platform', 'host.ts')) &&
-		existsSync(join(layout.runtimeDir, 'src', 'platform', 'lock.ts'));
-	if (!pathAdapterPresent) {
-		missing.push('path-adapter');
+	const adapterProblems: string[] = [];
+	for (const file of ['host.ts', 'lock.ts']) {
+		if (!existsSync(join(layout.daemonDir, 'src', 'platform', file))) {
+			adapterProblems.push(`daemon-runtime/src/platform/${file}`);
+		}
 	}
+	const hasPathAdapter = adapterProblems.length === 0;
+	if (!hasPathAdapter) missing.push(`path-adapter (${adapterProblems.join(', ')})`);
 
-	const desktopShellPresent =
-		existsSync(layout.currentExe) && existsSync(join(layout.stageDir, 'resources'));
-	if (!desktopShellPresent) {
-		missing.push('desktop-shell');
-	}
+	const hasDesktopShell = existsSync(layout.currentExe);
+	if (!hasDesktopShell) missing.push(`desktop-shell (${layout.currentExe})`);
 
 	return Object.freeze({
-		hasDaemonSupport: daemonEntryPresent && daemonManifestOk && runtimePresent,
-		hasPathAdapter: pathAdapterPresent,
-		hasDesktopShell: desktopShellPresent,
+		hasDaemonSupport,
+		hasPathAdapter,
+		hasDesktopShell,
 		missing: Object.freeze(missing),
 	});
 }
 
 /**
- * Expands the installation, reads the real layer evidence, and lets
- * `evaluatePlatformSupport` decide whether the platform counts as fully covered.
+ * Lets `evaluatePlatformSupport` decide whether the expanded installation counts as
+ * fully covered, and returns what is missing when it does not (E-257).
  */
 export function evaluateStagedProductSupport(
 	layout: InstalledProductLayout,
@@ -317,10 +221,4 @@ export function evaluateStagedProductSupport(
 /** Removes a previously staged installation (used to keep temporary roots small). */
 export function removeStagedProduct(stageDir: string): void {
 	rmSync(stageDir, { recursive: true, force: true });
-}
-
-/** Convenience re-export so callers can type an end-to-end result without extra imports. */
-export interface StagedDaemonLaunch {
-	readonly spec: DaemonLaunchSpec;
-	readonly target: DaemonStartTarget;
 }

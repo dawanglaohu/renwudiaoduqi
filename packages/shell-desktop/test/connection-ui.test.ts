@@ -54,7 +54,7 @@ describe('desktop connection-ui (AC 2, E-146, R8)', () => {
 		});
 
 		expect(htmlDefault).not.toContain('127.0.0.1:7817');
-		expect(htmlDefault).toContain('/opt/scheduler/lib/daemon');
+		expect(htmlDefault).toContain('/opt/scheduler/lib/daemon-runtime/runtime/node');
 		expect(htmlDefault).toContain('<button id="start-btn">Start Daemon</button>');
 		expect(htmlDefault).toContain('var(--bg)');
 		expect(htmlDefault).toContain('var(--accent)');

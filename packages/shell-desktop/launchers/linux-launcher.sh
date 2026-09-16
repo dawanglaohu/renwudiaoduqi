@@ -6,12 +6,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GUI_BIN="${SCRIPT_DIR}/../src-tauri/target/release/desktop_shell"
+GUI_BIN="${SCRIPT_DIR}/../src-tauri/target/release/desktop-shell"
 
 if [[ ! -x "${GUI_BIN}" ]]; then
   # Fallback to local sibling executable if installed
-  if [[ -x "${SCRIPT_DIR}/desktop_shell" ]]; then
-    GUI_BIN="${SCRIPT_DIR}/desktop_shell"
+  if [[ -x "${SCRIPT_DIR}/desktop-shell" ]]; then
+    GUI_BIN="${SCRIPT_DIR}/desktop-shell"
   fi
 fi
 

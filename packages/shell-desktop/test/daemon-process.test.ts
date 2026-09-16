@@ -23,13 +23,17 @@ describe('desktop daemon-process (AC 2, E-146, E-209)', () => {
 		expect(result.success).toBe(true);
 		expect(result.pid).toBe(12345);
 		expect(unrefMock).toHaveBeenCalled();
-		expect(mockSpawn).toHaveBeenCalledWith('/opt/scheduler/lib/daemon', ['--port', '7817'], {
-			cwd: '/opt/scheduler/lib',
-			shell: false,
-			windowsHide: true,
-			detached: true,
-			stdio: 'ignore',
-		});
+		expect(mockSpawn).toHaveBeenCalledWith(
+			'/opt/scheduler/lib/daemon-runtime/runtime/node',
+			['/opt/scheduler/lib/daemon-runtime/bootstrap.mjs', '--port', '7817'],
+			{
+				cwd: '/opt/scheduler/lib',
+				shell: false,
+				windowsHide: true,
+				detached: true,
+				stdio: 'ignore',
+			},
+		);
 	});
 
 	it('returns structured failure when spawn throws without uncaught exceptions', () => {

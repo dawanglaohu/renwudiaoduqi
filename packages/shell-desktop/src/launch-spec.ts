@@ -27,6 +27,51 @@ export interface ResolveLaunchSpecOptions {
 	readonly customArguments?: readonly string[];
 }
 
+/** Directory under `resource_dir` that carries the shipped daemon application. */
+export const DAEMON_RUNTIME_DIR_NAME = 'daemon-runtime';
+
+/** Directory inside the daemon application that carries the bundled Node runtime. */
+export const BUNDLED_RUNTIME_DIR_NAME = 'runtime';
+
+/** Entry script of the shipped daemon application. */
+export const DAEMON_ENTRY_FILE_NAME = 'bootstrap.mjs';
+
+export interface ShippedDaemonLayout {
+	/** `<resource_dir>/daemon-runtime` */
+	readonly daemonDir: string;
+	/** `<daemonDir>/runtime/node[.exe]`: the launch target. */
+	readonly runtimeExecutable: string;
+	/** `<daemonDir>/bootstrap.mjs`: the only argument handed to the runtime. */
+	readonly daemonEntry: string;
+}
+
+export function bundledRuntimeExecutableName(hostPlatform: string): string {
+	return hostPlatform === 'win32' ? 'node.exe' : 'node';
+}
+
+/**
+ * Where the shipped daemon lives relative to `resource_dir` (AC 2, E-209).
+ *
+ * The daemon is a Node application, so the installation carries the runtime it needs
+ * next to it instead of borrowing whatever Node the machine happens to have: the shell
+ * starts `<resource_dir>/daemon-runtime/runtime/node[.exe]` with
+ * `<resource_dir>/daemon-runtime/bootstrap.mjs` as its single argument. The native shell
+ * in `src-tauri/src/lib.rs` derives the identical layout; both sides change together.
+ */
+export function resolveShippedDaemonLayout(
+	resourceDir: string,
+	hostPlatform: string,
+): ShippedDaemonLayout {
+	const separator = hostPlatform === 'win32' ? '\\' : '/';
+	const trimmedResource = resourceDir.endsWith(separator) ? resourceDir.slice(0, -1) : resourceDir;
+	const daemonDir = `${trimmedResource}${separator}${DAEMON_RUNTIME_DIR_NAME}`;
+	return Object.freeze({
+		daemonDir,
+		runtimeExecutable: `${daemonDir}${separator}${BUNDLED_RUNTIME_DIR_NAME}${separator}${bundledRuntimeExecutableName(hostPlatform)}`,
+		daemonEntry: `${daemonDir}${separator}${DAEMON_ENTRY_FILE_NAME}`,
+	});
+}
+
 function normalizeAbsolutePath(rawPath: string): string {
 	const cleaned = rawPath.trim();
 	if (!cleaned || cleaned.includes('\0')) {
@@ -39,7 +84,7 @@ function normalizeAbsolutePath(rawPath: string): string {
  * Resolves and validates a frozen DaemonLaunchSpec based on actual current_exe and resource_dir.
  *
  * Requirements (AC 2, E-146, E-209):
- * - Resolves absolute file, args[], absolute cwd.
+ * - Resolves absolute file, args[], absolute cwd from the shipped layout only.
  * - Freezes the returned launch specification.
  * - Prohibits shell strings or relative paths.
  */
@@ -55,21 +100,19 @@ export function resolveLaunchSpec(options: ResolveLaunchSpecOptions): DaemonLaun
 	}
 
 	const platform = options.hostPlatform;
-	const isWindows = platform === 'win32';
+	const extraArguments = options.customArguments ? [...options.customArguments] : [];
 
 	let daemonFile: string;
+	let args: readonly string[];
 	if (options.customDaemonPath) {
 		daemonFile = normalizeAbsolutePath(options.customDaemonPath);
+		args = Object.freeze(extraArguments);
 	} else {
-		const separator = isWindows ? '\\' : '/';
-		const binaryName = isWindows ? 'daemon.exe' : 'daemon';
-		const trimmedResource = resourceDir.endsWith(separator)
-			? resourceDir.slice(0, -1)
-			: resourceDir;
-		daemonFile = `${trimmedResource}${separator}${binaryName}`;
+		const layout = resolveShippedDaemonLayout(resourceDir, platform);
+		daemonFile = layout.runtimeExecutable;
+		args = Object.freeze([layout.daemonEntry, ...extraArguments]);
 	}
 
-	const args = Object.freeze(options.customArguments ? [...options.customArguments] : []);
 	const cwd = resourceDir;
 
 	const candidate = {

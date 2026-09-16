@@ -43,10 +43,11 @@ export const PLATFORM_ARCHITECTURE_MATRIX: readonly ArchitectureSupportEntry[] =
 	{
 		platform: 'darwin',
 		arch: 'x64',
-		covered: true,
-		status: '支持',
+		covered: false,
+		status: '未覆盖',
 		baseline: 'macOS 11+ (Intel)',
-		assetPattern: 'agsched-desktop_x64.dmg',
+		assetPattern: null,
+		note: 'Intel macOS is not in the CI build matrix (the macOS runner is Apple Silicon); downloads must not provide the arm64 package to Intel machines (E-259).',
 	},
 	{
 		platform: 'linux',
@@ -337,6 +338,8 @@ export interface BaselineSyncInput {
 	readonly cargoTomlContent: string;
 	readonly ciWorkflowContent: string;
 	readonly platformDocContent: string;
+	/** `packages/shell-desktop/daemon-runtime.json`: the Node build the installation ships. */
+	readonly daemonRuntimeManifestContent?: string;
 }
 
 export interface BaselineSyncReport {
@@ -371,6 +374,24 @@ export function validateUpstreamBaselineSync(input: BaselineSyncInput): Baseline
 		!input.platformDocContent.includes('Node 22')
 	) {
 		issues.push('docs/platform-support.md must document Node.js 22 LTS baseline');
+	}
+
+	// 3b. The shipped runtime must be the same major the workspace and the docs promise,
+	// and the docs must name the exact build so a bump is visible in the release notes.
+	if (input.daemonRuntimeManifestContent !== undefined) {
+		let pinned: unknown;
+		try {
+			pinned = (JSON.parse(input.daemonRuntimeManifestContent) as { node?: unknown }).node;
+		} catch {
+			pinned = undefined;
+		}
+		if (typeof pinned !== 'string' || !/^22\.\d+\.\d+$/.test(pinned)) {
+			issues.push('daemon-runtime.json must pin a Node 22.x build for the shipped runtime');
+		} else if (!input.platformDocContent.includes(pinned)) {
+			issues.push(
+				`docs/platform-support.md must document the shipped Node runtime ${pinned} (E-260)`,
+			);
+		}
 	}
 
 	// 4. Tauri v2 in Cargo.toml

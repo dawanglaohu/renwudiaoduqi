@@ -138,6 +138,13 @@ export interface SmokeOutcome {
 	readonly error?: string;
 }
 
+export interface SmokeSpawnOptions {
+	readonly cwd: string;
+	readonly shell: boolean;
+	readonly stdio: 'ignore' | 'pipe' | 'inherit';
+	readonly env?: Readonly<Record<string, string>>;
+}
+
 export interface ExecuteSmokeOptions {
 	readonly port?: number;
 	readonly timeoutMs?: number;
@@ -145,8 +152,20 @@ export interface ExecuteSmokeOptions {
 	readonly customSpawn?: (
 		file: string,
 		args: readonly string[],
-		opts: { cwd: string; shell: boolean; stdio: 'ignore' | 'pipe' | 'inherit' },
+		opts: SmokeSpawnOptions,
 	) => ChildProcess;
+	/**
+	 * Streams the daemon's own stdout/stderr into this process instead of discarding it.
+	 * A daemon that refuses to start explains why on stderr, and a silent failure is not
+	 * actionable (AC 2). Off by default so unit tests stay quiet.
+	 */
+	readonly inheritStdio?: boolean;
+	/**
+	 * Environment handed to the daemon. The frozen spec fixes `file/args/cwd`; the
+	 * product's own `AGSCHED_*` variables (port, data directory) are how a smoke check
+	 * keeps the daemon away from the machine's real port and data directory.
+	 */
+	readonly env?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -164,16 +183,19 @@ export async function executeDaemonSmoke(
 	const healthUrl = `http://127.0.0.1:${port}/api/v1/health`;
 
 	const spawnFunction = options?.customSpawn ?? nodeSpawn;
+	const stdioMode: 'ignore' | 'inherit' = options?.inheritStdio ? 'inherit' : 'ignore';
+	const spawnOptions: SmokeSpawnOptions = {
+		cwd: spec.cwd,
+		shell: false,
+		stdio: stdioMode,
+		...(options?.env ? { env: options.env } : {}),
+	};
 	let child: ChildProcess | undefined;
 	let spawnFailure: string | undefined;
 	let processExited: number | null | undefined;
 
 	try {
-		child = spawnFunction(spec.file, spec.args, {
-			cwd: spec.cwd,
-			shell: false,
-			stdio: 'ignore',
-		});
+		child = spawnFunction(spec.file, spec.args, spawnOptions);
 		// A spawn that cannot start, or a process that dies immediately, must fail the
 		// check instead of surfacing as an unhandled error or a misleading timeout.
 		// Test doubles may provide a minimal process object without event emitters.
