@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T12": {
+      "contractHash": "2ed02209255f9de42804cb94280250210af928fdd1661d25144f9e992c945f92",
+      "verdict": "pass",
+      "evidence": [
+        "复核范围与前置：M9-T12「手机端布局与拇指区」（任务笔记 图谱/任务/M9-T12.md，模块 图谱/模块/M9.md，19-模块任务拆分.md 第 93 行）。唯一前置 M9-T9「多流甲板与密度档」已落地（PR #96 MERGED），输入能力在主干上存在——packages/web/src/components/stream-column.tsx、packages/web/src/hooks/use-breakpoint.ts 的 computeDensityTier（phone-xs = 触控且 width<400）与 packages/web/src/features/run-deck/*。本分支父提交即当前主干 9ec8bb8，无需合并；status 报 stale=[]、runtimeDrift=[]，契约版本与本任务派发包一致（补丁前 272280532a1125163d92f6a736a4abb604710b4c41bf0a31832ede2ae94dffa3）。",
+        "①验收标准逐条与 19 节 M9-T12 行原文一致，未删改任何一条：1)～8) 原文照抄（E-145/E-107/E-240/E-124/E-99/AC6/E-13/E-58），本轮只在其后补记第 9) 条「AC5/AC6 的落点与接线责任」，原文 1–8) 一字未动。边界 E-107/E-124/E-13/E-145/E-240/E-58/E-99 七条在 13 节行与其 covered_by 中的归属未变，仍全部由 M9-T12 兜底（E-13 另有 M9-T19）。",
+        "②有效范围修正（补丁 m9-t12-effective-paths）：原有效范围只有 packages/web/src/components/thumb-bar.tsx 与 packages/web/src/features/run-deck/，而验收标准 5) 的首屏加载量落点在 packages/web/src/features/run-detail/use-log-window.ts（全仓唯一发起 GET /api/v1/runs/:runId/log 首屏请求的地方，daemon 侧 GetRunLogQuery 只收行数 limit、无字节参数），6) 的「展开的 tool payload 不内联」内联点在 packages/web/src/components/stream-row.tsx（展开区 <pre data-step-payload>），且行组件与甲板之间需要一个不属于 components/features 的转接点（07 节禁止 components import features）落在 packages/web/src/hooks/use-payload-sheet.ts。按 M9-T9 先例把这三条补进 presentation.json 的 handoff.taskPaths.M9-T12，并把本分支已改但未登记的必需支持文件 packages/web/test/thumb-bar.test.ts 与 R1/R2 需要的 packages/web/test/spine-row.test.ts、packages/web/test/log-window.test.ts 补进 _run/task-contracts.json 的 M9-T12.supportPaths。补丁前 contractHash=272280532a1125163d92f6a736a4abb604710b4c41bf0a31832ede2ae94dffa3，补丁后=2ed02209255f9de42804cb94280250210af928fdd1661d25144f9e992c945f92。路径冲突检测：packages/web/src/components/stream-row.tsx 原属 M9-T7（已落地）、packages/web/src/features/run-detail/ 原属 M9-T8（已落地）与 M9-T13（本层的直接下游，未开工，且 M9-T13 依赖 M9-T12，两者顺序执行不并行），packages/web/src/hooks/use-payload-sheet.ts 为新文件、全仓无人声明；无并行任务争用。",
+        "③接口字段与共用约定：本层是纯前端展示/容器层，未新增任何与后端对应的 DTO——DeckStreamLane / MobileBatchItem / ToolPayloadSheetData 都只描述呈现所需字段与插槽，不是 daemon DTO 的复刻；批次四个数字（taskCount/landedCount/runningCount/waitingCount）与 defaultExpanded 由 props 下发，MobileBatchList 内不计算（E-272/E-284 呈现侧）；未 import src/api、未出现 fetch(（check-forbidden 0 违反）、未直读 process.env / import.meta.env、未新增 src 顶层目录与 index.ts、未引第五个 UI/图标库、颜色一律走 tokens.css 变量（check-forbidden 与 check-contrast 均 0 违反）；单栏切换走 hash query #/?pane=tasks|stream|detail 并统一经 navigateTo()，未新增路由、未在组件里写 location.hash。",
+        "④检查记录（工作树 D:/xiangmu/agent-scheduler-m9-t12，分支 task/M9-T12@142e3d1）：node scripts/check-error-codes.mjs 退出码 0（49 个错误码一致）；packages/web/scripts/check-contrast.ts 退出码 0；packages/web/scripts/check-forbidden.ts 退出码 0（0 违反）；biome ci . 退出码 0（420 文件）；tsc -b --noEmit 退出码 0；vitest run packages/web 17 文件 / 264 用例全过（含 thumb-bar.test.ts 29 条）。全量 vitest run 里 20 个红文件全部在 daemon 侧（dispatch_snapshots has no column named bug_prompt、POSIX 0600 权限断言、Windows symlink EPERM、cmd.exe 超时等），与 M9-T9 审查记录里「主干检出同样复现」的既有红一致，本层零 daemon/shared 改动（git diff origin/main...HEAD --stat 只含 packages/web 与知识库），不构成本层回归。（本机 pnpm 垫片损坏 D:\\.pnpm-store 链接缺失，pnpm -w check 的各步以 node_modules/.bin 直接执行，结论等价。）",
+        "⑤结论与去向：契约与本层 8 条验收标准、7 条边界、修正后的有效范围一致，登记复核通过。代码侧另查出两处阻断（AC5/E-99 首屏加载量未真正变小且界面断言了未实现的行为；AC6 展开的 payload 仍内联、bottom sheet 无任何打开通路），已按 rework 条目回给实施方，不在本契约复核范围内声明通过。"
+      ]
+    }
+  }
+}
