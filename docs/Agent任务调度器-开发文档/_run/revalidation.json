@@ -1,1 +1,16 @@
-{}
+{
+  "M9-T9": {
+    "contractHash": "06a10e2854fb43389c62bca70841bfe2d1494900f8950475646519e8c23759d4",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m9-t8-log-window-support-paths",
+        "sourceVersion": "b7991ac6be145b605915e922d3eb5b853576742cdd12ea4a413a58942595b76f"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}
