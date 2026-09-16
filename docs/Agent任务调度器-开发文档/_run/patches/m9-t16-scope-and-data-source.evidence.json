@@ -1,0 +1,48 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T16": {
+      "contractHash": "858cc9b78c7fa7266b54f0daf7f7da6e2504cada9079e17cca9bb7ab8e8f50fd",
+      "evidence": [
+        "前置闭包：依赖 M9-T9（多流甲板与密度档）与 M5-T4（落地清单与 worktree 处置）status 均为 done 且已在 main；输入 M5-T4 的 GetTaskLandingResponse 字段齐备，无条件缺口。",
+        "有效范围：19 节 M9-T16 产出补 session-search-entrance.tsx、features/landing/use-landing.ts + landing-container.tsx、app/app.tsx；task-contracts.json 的 supportPaths 补 packages/web/src/main.tsx、features/run-deck/run-deck-view.tsx、features/run-detail/run-detail-container.tsx、packages/web/test/landing-onboarding.test.ts。冲突检查：features/run-deck 与 features/run-detail 下的容器/视图文件在 19 节仅 M9-T8 声明且已落地，未落地任务无人声明这四个文件，无并行窗口冲突。",
+        "13 节边界逐条存在且与任务笔记一致：E-108（零运行空态为四步引导非插画）、E-110（深色默认+等宽+不只靠色相）、E-111（四个数字+汇总条不挤占主位）、E-19（快照与「文档已更新，与派发时不一致」）、E-218（原文点名「会话视图必须另给一个显式的『在整个会话中查找』入口」）、E-74（只读清单，复制而不执行）。M9 模块行与 19 节任务行的边界集合一致。",
+        "接口字段（两侧核对）：shared routes.ts:425 注册 GET /api/v1/tasks/:taskId/landing，出参 GetTaskLandingResponse{worktreePath,branchName,diffStat{filesChanged,insertions,deletions},commands}（shared/src/api/tasks.ts:13-22）与 daemon workspace/landing.ts:108-116 生成的 commands[0]=gh stack、commands[1]=build_docs.py --landed 一致；E-218 的检索侧走 shared routes.ts:402 GET /api/v1/runs/:runId/search，出参 SearchRunLogResponse{hits,truncated,scannedUntilSeq,canceled}（shared/src/api/runs.ts:235-240，M6-T9 已落地）。",
+        "17 节对应要求：17 节测试矩阵未为 E-108/E-111/E-218 单列行，测试义务按 19 节第 7 条与 pnpm -w check（含 check-contrast.ts、check-forbidden.ts 两脚本）执行；本层新增 packages/web/test/landing-onboarding.test.ts 11 例通过，biome ci 与 tsc -b --noEmit 在改动范围内通过。全仓另有 24 个 daemon/shell 测试文件失败，已在 main（9ec8bb8）原始检出复核为同样失败（better-sqlite3 原生模块、POSIX 权限用例、缺 packages/web/dist、打包管线），属环境基线，非本层引入。",
+        "验收阶段与落点裁定：19 节第 7 条补记明确第三步逐任务指派面板与第四步并发瓶颈说明的正文归 M9-T18（assign-panel.tsx），本任务只交四步外壳、步骤槽位、已完成步回显与派发动作；空态接入（features/run-deck/run-deck-view.tsx）与路由装配（app/app.tsx 先接 #/landing/:taskId 与零运行空态）补进本任务，使 AC 1/3/4 在真实产物中可达、可录 GIF。",
+        "代码侧结论（不影响本契约复核登记）：本轮 PR REVIEW-ROUND 1 判 rework——R1 pages 层直接 import src/api 并 useEffect 取数、R2 catch 内伪造缺省落地清单、R3 E-218 入口落错视图且以随机数冒充检索结果、R4 前端 Math.min 自算并发瓶颈、R5 内置演示用文档/批次/任务/agent/模型清单与计数且第二步未按 docId 过滤批次。契约（补丁后）本身可实施，故 task-contract 复核登记为 pass；代码缺陷按原 PR 返工条目处理。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T18": {
+      "contractHash": "8c6b10c5dfc7344c6d69e9eaab84e381ff072c58333a2b6bb244cab3d6dd7b47",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T19": {
+      "contractHash": "8bc65b675d48ddec4dcf376fda931202eefa0f91cdf5048f8467980d0bd656cb",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T20": {
+      "contractHash": "65d3dea7358176d807b8e2aad49ae838f1bcaf408c4579beb5b64861b8604a18",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T21": {
+      "contractHash": "5cbb874b57be54a3015d432eb84a1642777c9cea8608cc5cd5ae57e18d58a3c3",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T22": {
+      "contractHash": "5121c1aa8a2e5776c83ca170153cbe3ef52f908306aba965d17fbe774020f8dc",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "e363ba4755bea8ec5f94b59660bc5feafe0c549ecd7e1dc1da929dbf807b3a94",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}
