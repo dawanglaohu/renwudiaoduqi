@@ -10,8 +10,10 @@
 	},
 	"dependencies": {
 		"@agent-scheduler/shared": "workspace:*",
+		"@tanstack/react-virtual": "^3.13.2",
 		"react": "^18.3.1",
-		"react-dom": "^18.3.1"
+		"react-dom": "^18.3.1",
+		"zustand": "^5.0.15"
 	},
 	"devDependencies": {
 		"@types/react": "^18.3.18",

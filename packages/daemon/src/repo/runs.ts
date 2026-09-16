@@ -41,6 +41,8 @@ export interface RunRow {
 	readonly review_round?: number | null;
 	readonly continued_from_run_id?: string | null;
 	readonly assignment_source?: string | null;
+	readonly origin?: string;
+	readonly spawned_by_run_id?: string | null;
 }
 
 export interface RunInsertRow {
@@ -81,6 +83,8 @@ export interface RunInsertRow {
 	readonly review_round?: number | null;
 	readonly continued_from_run_id?: string | null;
 	readonly assignment_source?: string | null;
+	readonly origin?: string;
+	readonly spawned_by_run_id?: string | null;
 }
 
 export interface RunsRepo {
@@ -115,6 +119,14 @@ export interface RunsRepo {
 		readonly exitCode?: number | null;
 		readonly exitSignal?: string | null;
 		readonly actorDeviceId?: string | null;
+		readonly reworkCount?: number;
+	}) => void;
+	readonly updateReworkCount: (input: {
+		readonly id: string;
+		readonly reworkCount: number;
+		readonly state?: string;
+		readonly reviewVerdict?: string | null;
+		readonly reworkText?: string | null;
 	}) => void;
 }
 
@@ -215,7 +227,15 @@ const UPDATE_RUN_STATE_SQL = `
 UPDATE runs
 SET state = @state,
     queued_reason = @queued_reason,
-    ended_at = @ended_at
+    ended_at = @ended_at,
+    rework_count = CASE WHEN @rework_count IS NOT NULL THEN @rework_count ELSE rework_count END
+WHERE id = @id
+`;
+
+const UPDATE_REWORK_COUNT_SQL = `
+UPDATE runs
+SET rework_count = @rework_count,
+    state = CASE WHEN @state IS NOT NULL THEN @state ELSE state END
 WHERE id = @id
 `;
 
@@ -273,6 +293,8 @@ export function toRunDto(row: RunRow): RunDto {
 		endedAt: row.ended_at ?? null,
 		laneNo: row.lane_no ?? null,
 		sessionArchivedAt: row.session_archived_at ?? null,
+		origin: (row.origin as RunDto['origin']) ?? 'dispatch',
+		spawnedByRunId: row.spawned_by_run_id ?? null,
 	});
 }
 
@@ -283,6 +305,8 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	let hasReviewRound = false;
 	let hasContinuedFromRunId = false;
 	let hasAssignmentSource = false;
+	let hasOrigin = false;
+	let hasSpawnedByRunId = false;
 	try {
 		const tableInfo = db.prepare<[], { name: string }>('PRAGMA table_info(runs)').all();
 		hasSessionArchivedAt = tableInfo.some((col) => col.name === 'session_archived_at');
@@ -291,6 +315,8 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		hasReviewRound = tableInfo.some((col) => col.name === 'review_round');
 		hasContinuedFromRunId = tableInfo.some((col) => col.name === 'continued_from_run_id');
 		hasAssignmentSource = tableInfo.some((col) => col.name === 'assignment_source');
+		hasOrigin = tableInfo.some((col) => col.name === 'origin');
+		hasSpawnedByRunId = tableInfo.some((col) => col.name === 'spawned_by_run_id');
 	} catch {}
 
 	const baseInsertCols = [
@@ -333,6 +359,8 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	if (hasReviewRound) extraInsertCols.push('review_round');
 	if (hasContinuedFromRunId) extraInsertCols.push('continued_from_run_id');
 	if (hasAssignmentSource) extraInsertCols.push('assignment_source');
+	if (hasOrigin) extraInsertCols.push('origin');
+	if (hasSpawnedByRunId) extraInsertCols.push('spawned_by_run_id');
 
 	const allInsertCols = [...baseInsertCols, ...extraInsertCols];
 	const dynamicInsertSql = `INSERT INTO runs (${allInsertCols.join(', ')}) VALUES (${allInsertCols.map((col) => `@${col}`).join(', ')})`;
@@ -346,6 +374,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const selectAllStmt = db.prepare(SELECT_ALL_RUNS_SQL);
 	const selectSucceededModelNamesStmt = db.prepare(SELECT_SUCCEEDED_MODEL_NAMES_SQL);
 	const updateStateStmt = db.prepare(UPDATE_RUN_STATE_SQL);
+	const updateReworkCountStmt = db.prepare(UPDATE_REWORK_COUNT_SQL);
 	const selectUnarchivedStmt = hasSessionArchivedAt
 		? db.prepare(SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL)
 		: null;
@@ -404,6 +433,12 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				}
 				if (hasAssignmentSource) {
 					params.assignment_source = row.assignment_source ?? null;
+				}
+				if (hasOrigin) {
+					params.origin = row.origin ?? 'dispatch';
+				}
+				if (hasSpawnedByRunId) {
+					params.spawned_by_run_id = row.spawned_by_run_id ?? null;
 				}
 				insertStmt.run(params);
 			} catch (cause) {
@@ -544,8 +579,13 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 			readonly id: string;
 			readonly state?: string;
 			readonly toState?: string;
+			readonly fromState?: string;
 			readonly queuedReason?: string | null;
 			readonly endedAt?: string | null;
+			readonly exitCode?: number | null;
+			readonly exitSignal?: string | null;
+			readonly actorDeviceId?: string | null;
+			readonly reworkCount?: number;
 		}): void {
 			try {
 				const state = input.state ?? input.toState;
@@ -554,9 +594,28 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 					state,
 					queued_reason: input.queuedReason ?? null,
 					ended_at: input.endedAt ?? null,
+					rework_count: input.reworkCount ?? null,
 				});
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update run state: ${input.id}`);
+			}
+		},
+
+		updateReworkCount(input: {
+			readonly id: string;
+			readonly reworkCount: number;
+			readonly state?: string;
+			readonly reviewVerdict?: string | null;
+			readonly reworkText?: string | null;
+		}): void {
+			try {
+				updateReworkCountStmt.run({
+					id: input.id,
+					rework_count: input.reworkCount,
+					state: input.state ?? null,
+				});
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update run rework count: ${input.id}`);
 			}
 		},
 	});

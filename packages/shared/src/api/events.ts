@@ -1,6 +1,7 @@
 import type { LoginState } from './agents.ts';
+import type { GateSettings } from './settings.ts';
 
-export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system' | 'lane';
+export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system' | 'lane' | 'settings';
 
 export const EVENT_SCOPES = [
 	'run',
@@ -9,6 +10,7 @@ export const EVENT_SCOPES = [
 	'agent',
 	'system',
 	'lane',
+	'settings',
 ] as const satisfies readonly EventScope[];
 
 /**
@@ -34,6 +36,7 @@ export const EVENT_DEFINITIONS = {
 	'run.remote_push_detected': { scope: 'run', milestone: true },
 	'run.message_delivered': { scope: 'run', milestone: true },
 	'run.message_undelivered': { scope: 'run', milestone: true },
+	'run.rework_dispatched': { scope: 'run', milestone: true },
 	'task.gate_waiting': { scope: 'task', milestone: true },
 	'task.gate_passed': { scope: 'task', milestone: true },
 	'task.review_verdict': { scope: 'task', milestone: true },
@@ -42,6 +45,7 @@ export const EVENT_DEFINITIONS = {
 	'lane.released': { scope: 'lane', milestone: true },
 	'batch.advanced': { scope: 'batch', milestone: true },
 	'agent.availability_changed': { scope: 'agent', milestone: true },
+	'settings.gates_changed': { scope: 'settings', milestone: true },
 	'system.disk_warning': { scope: 'system', milestone: true },
 	'system.docs_changed': { scope: 'system', milestone: true },
 } as const;
@@ -65,6 +69,7 @@ const EVENT_KIND_VALUES = [
 	'run.remote_push_detected',
 	'run.message_delivered',
 	'run.message_undelivered',
+	'run.rework_dispatched',
 	'task.gate_waiting',
 	'task.gate_passed',
 	'task.review_verdict',
@@ -73,6 +78,7 @@ const EVENT_KIND_VALUES = [
 	'lane.released',
 	'batch.advanced',
 	'agent.availability_changed',
+	'settings.gates_changed',
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
@@ -106,6 +112,7 @@ export const PRODUCT_EVENT_KINDS = [
 	'run.remote_push_detected',
 	'run.message_delivered',
 	'run.message_undelivered',
+	'run.rework_dispatched',
 	'task.gate_waiting',
 	'task.gate_passed',
 	'task.review_verdict',
@@ -114,6 +121,7 @@ export const PRODUCT_EVENT_KINDS = [
 	'lane.released',
 	'batch.advanced',
 	'agent.availability_changed',
+	'settings.gates_changed',
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
@@ -234,6 +242,17 @@ export interface RunMessageUndeliveredPayload {
 	readonly [key: string]: unknown;
 }
 
+export interface RunReworkDispatchedPayload {
+	readonly mode: 'inject' | 'resume' | 'new_run';
+	readonly source: 'review' | 'human' | 'manual' | 'wrapup';
+	readonly targetRunId?: string;
+	readonly reviewRunId?: string | null;
+	readonly reworkRunId?: string;
+	readonly reworkCount?: number;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
 export interface TaskGateWaitingPayload {
 	readonly gate: string;
 	readonly vendor?: unknown;
@@ -256,6 +275,14 @@ export interface TaskReviewVerdictPayload {
 export interface TaskLandedPayload {
 	readonly branch?: string;
 	readonly prUrl?: string;
+	readonly by?: 'auto' | 'human';
+	readonly gateId?: string;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface SettingsGatesChangedPayload {
+	readonly gates: GateSettings;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }
@@ -328,6 +355,7 @@ export interface EventPayloadMap {
 	readonly 'run.remote_push_detected': RunRemotePushDetectedPayload;
 	readonly 'run.message_delivered': RunMessageDeliveredPayload;
 	readonly 'run.message_undelivered': RunMessageUndeliveredPayload;
+	readonly 'run.rework_dispatched': RunReworkDispatchedPayload;
 	readonly 'task.gate_waiting': TaskGateWaitingPayload;
 	readonly 'task.gate_passed': TaskGatePassedPayload;
 	readonly 'task.review_verdict': TaskReviewVerdictPayload;
@@ -336,6 +364,7 @@ export interface EventPayloadMap {
 	readonly 'lane.released': LaneReleasedPayload;
 	readonly 'batch.advanced': BatchAdvancedPayload;
 	readonly 'agent.availability_changed': AgentAvailabilityChangedPayload;
+	readonly 'settings.gates_changed': SettingsGatesChangedPayload;
 	readonly 'system.disk_warning': SystemDiskWarningPayload;
 	readonly 'system.docs_changed': SystemDocsChangedPayload;
 }

@@ -1,6 +1,6 @@
 export interface GateDto {
 	readonly id: string;
-	readonly taskId: string;
+	readonly taskId: string | null;
 	readonly runId: string | null;
 	readonly kind: 'dispatch' | 'review' | 'landing';
 	readonly state: 'waiting' | 'decided';

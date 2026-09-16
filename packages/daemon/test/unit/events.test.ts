@@ -103,6 +103,8 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'run_msg_delivered';
 				case 'run.message_undelivered':
 					return 'run_msg_undelivered';
+				case 'run.rework_dispatched':
+					return 'run_rework_dispatched';
 				case 'task.gate_waiting':
 					return 'task_gate_waiting';
 				case 'task.gate_passed':
@@ -119,6 +121,8 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'batch_advanced';
 				case 'agent.availability_changed':
 					return 'agent_avail';
+				case 'settings.gates_changed':
+					return 'settings_gates';
 				case 'system.disk_warning':
 					return 'sys_disk';
 				case 'system.docs_changed':

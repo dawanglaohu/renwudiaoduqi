@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { RouterView } from './app/routes.tsx';
+import { App } from './app/app.tsx';
 import { ThemeProvider } from './app/theme-provider.tsx';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -12,7 +12,7 @@ if (rootElement) {
 	root.render(
 		<React.StrictMode>
 			<ThemeProvider>
-				<RouterView />
+				<App />
 			</ThemeProvider>
 		</React.StrictMode>,
 	);
