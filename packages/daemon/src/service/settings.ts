@@ -12,7 +12,12 @@ export interface SettingsServiceDeps {
 	readonly bus: EventBus;
 	readonly envelopeFactory: EnvelopeFactory;
 	readonly unitOfWork: UnitOfWork;
-	readonly logger?: { readonly warn: (message: string, ...args: unknown[]) => void };
+	readonly warn?: (message: string, ...args: unknown[]) => void;
+	readonly onGatesUpdated?: (
+		newGates: GateSettings,
+		previousGates: GateSettings,
+		actorDeviceId: string | null,
+	) => void;
 }
 
 export interface PipelineSettingsSummary {
@@ -32,6 +37,12 @@ export interface SettingsService {
 }
 
 export function createSettingsService(deps: SettingsServiceDeps): SettingsService {
+	const logWarn =
+		deps.warn ??
+		((message: string, ...args: unknown[]) => {
+			console.warn(`[settings] ${message}`, ...args);
+		});
+
 	return Object.freeze({
 		/**
 		 * Retrieves gate settings (E-292):
@@ -53,12 +64,12 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 						landing: parsed.landing,
 					});
 				}
-				deps.logger?.warn(
+				logWarn(
 					`Settings row for key='gates' contains invalid fields: ${row.value_json}. Falling back to default.`,
 				);
 				return DEFAULT_GATE_SETTINGS;
 			} catch (cause) {
-				deps.logger?.warn(
+				logWarn(
 					`Settings row for key='gates' has corrupted JSON: ${row.value_json}. Falling back to default.`,
 					cause,
 				);
@@ -67,11 +78,12 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 		},
 
 		/**
-		 * Updates gate settings (E-292, AC 1, AC 2):
+		 * Updates gate settings (E-292, AC 1, AC 2, E-56):
 		 * - Requires all three fields ('dispatch', 'review', 'landing') present and strictly 'auto' | 'manual'.
 		 * - Rejects missing fields or invalid values with E_VALIDATION.
 		 * - Persists atomically in a transaction.
 		 * - Emits `settings.gates_changed` event after transaction commits.
+		 * - Triggers re-evaluation of waiting gates for changed kinds without restarting batches (E-56).
 		 */
 		updateGates(input: unknown, actorDeviceId: string | null): GateSettings {
 			if (!isValidGateSettings(input)) {
@@ -81,6 +93,7 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 				);
 			}
 
+			const previous = this.getGates();
 			const updated: GateSettings = Object.freeze({
 				dispatch: input.dispatch,
 				review: input.review,
@@ -105,6 +118,9 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 
 			deps.bus.publish(envelope);
 
+			// R2 & E-56: Re-evaluate waiting gates for changed kinds without restarting batches
+			deps.onGatesUpdated?.(updated, previous, actorDeviceId);
+
 			return updated;
 		},
 
@@ -124,7 +140,7 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 				const wrapupMode = parsed.wrapupMode === 'manual' ? 'manual' : 'auto';
 				return Object.freeze({ bughunt, wrapupMode });
 			} catch (cause) {
-				deps.logger?.warn(
+				logWarn(
 					`Settings row for key='pipeline' has corrupted JSON. Falling back to default.`,
 					cause,
 				);

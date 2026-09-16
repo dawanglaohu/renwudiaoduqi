@@ -368,6 +368,8 @@ export function createContainer(input: {
 			},
 		});
 
+	const gateServiceHolder: { current?: GateService } = {};
+
 	const settingsService =
 		input.settingsService ??
 		createSettingsService({
@@ -376,6 +378,13 @@ export function createContainer(input: {
 			bus,
 			envelopeFactory,
 			unitOfWork,
+			warn: (message: string) => {
+				input.logViolation?.(`[WARN] ${message}`);
+				console.warn(`[daemon] ${message}`);
+			},
+			onGatesUpdated: (newGates, previousGates, actorDeviceId) => {
+				gateServiceHolder.current?.reEvaluateWaitingGates(newGates, previousGates, actorDeviceId);
+			},
 		});
 
 	const gateService =
@@ -389,7 +398,10 @@ export function createContainer(input: {
 			envelopeFactory,
 			unitOfWork,
 			settingsService,
+			getBatchGateOverrides: (batchId: string) => dispatchService.getBatchGateOverrides(batchId),
 		});
+
+	gateServiceHolder.current = gateService;
 
 	const services: ContainerServices = Object.freeze({
 		system: systemService,

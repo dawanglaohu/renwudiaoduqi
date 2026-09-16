@@ -73,7 +73,7 @@ describe('M8-T4 Settings & Gates Configuration (AC 1, AC 2, E-53, E-56, E-292)',
 				bus,
 				envelopeFactory,
 				unitOfWork,
-				logger: opts?.warnFn ? { warn: opts.warnFn } : undefined,
+				warn: opts?.warnFn,
 			});
 
 			return { service, repo, bus };
@@ -108,8 +108,9 @@ describe('M8-T4 Settings & Gates Configuration (AC 1, AC 2, E-53, E-56, E-292)',
 
 			const gates = service.getGates();
 			expect(gates).toEqual(DEFAULT_GATE_SETTINGS);
-			expect(warnCalls.length).toBeGreaterThan(0);
-			expect(warnCalls[0]).toContain("key='gates' has corrupted JSON");
+			expect(warnCalls.length).toBe(1);
+			expect(warnCalls[0]).toContain("key='gates'");
+			expect(warnCalls[0]).toContain('corrupted JSON');
 
 			// Ensure the bad row is NOT overwritten in DB
 			const row = repo.get('gates');
@@ -131,8 +132,9 @@ describe('M8-T4 Settings & Gates Configuration (AC 1, AC 2, E-53, E-56, E-292)',
 
 			const gates = service.getGates();
 			expect(gates).toEqual(DEFAULT_GATE_SETTINGS);
-			expect(warnCalls.length).toBeGreaterThan(0);
-			expect(warnCalls[0]).toContain("key='gates' contains invalid fields");
+			expect(warnCalls.length).toBe(1);
+			expect(warnCalls[0]).toContain("key='gates'");
+			expect(warnCalls[0]).toContain('contains invalid fields');
 
 			// Ensure raw value is retained until next PATCH
 			const row = repo.get('gates');
