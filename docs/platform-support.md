@@ -101,7 +101,7 @@ daemon 是 Node 应用（入口 `bootstrap.mjs`，需要 Node >= 22），安装�
 
 启动契约固定为 `{ file: <resource_dir>/daemon-runtime/runtime/node[.exe], args: [<resource_dir>/daemon-runtime/bootstrap.mjs], cwd: <resource_dir> }`，由 `packages/shell-desktop/src/launch-spec.ts` 的 `resolveShippedDaemonLayout` 与 `src-tauri/src/lib.rs` 各自按同一布局推导；桌面按钮与原生自启共用同一个冻结对象，恒不经 shell。`tauri.conf.json` 的 `bundle.resources` 把这两个目录声明为随包资源，`cargo build` 即把它们复制到可执行文件旁。
 
-daemon 的机器级单实例锁位于系统目录（Linux `/var/lib/agent-scheduler`、macOS `/Library/Application Support/agent-scheduler`、Windows `%ProgramData%gent-scheduler`，均要求 root / Administrators 权限，见 08 节），因此 CI 的 smoke 在 POSIX runner 上以 `sudo` 执行；这不改变 `file/args/cwd`。
+daemon 的机器级单实例锁位于系统目录（Linux `/var/lib/agent-scheduler`、macOS `/Library/Application Support/agent-scheduler`、Windows `%ProgramData%\agent-scheduler`，均要求 root / Administrators 权限，见 08 节），因此 CI 的 smoke 在 POSIX runner 上以 `sudo` 执行；这不改变 `file/args/cwd`。
 
 ---
 
