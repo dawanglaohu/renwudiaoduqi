@@ -1,6 +1,17 @@
 {
   "schemaVersion": 1,
   "tasks": {
+    "M9-T11": {
+      "supportPaths": [
+        "packages/web/package.json",
+        "pnpm-lock.yaml",
+        "packages/web/test/connection-store.test.ts",
+        "packages/web/test/notice-store.test.ts",
+        "packages/web/test/offline-banner.test.ts",
+        "packages/web/test/use-connection-state.test.ts",
+        "packages/web/test/use-stop-intent.test.ts"
+      ]
+    },
     "M9-T10": {
       "supportPaths": [
         "packages/web/test/gate-card.test.ts"

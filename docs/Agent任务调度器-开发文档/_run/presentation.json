@@ -414,7 +414,10 @@
       ],
       "M9-T11": [
         "packages/web/src/components/offline-banner.tsx",
-        "packages/web/src/store/connection-store.ts"
+        "packages/web/src/features/run-deck/use-connection-state.ts",
+        "packages/web/src/features/run-deck/use-stop-intent.ts",
+        "packages/web/src/store/connection-store.ts",
+        "packages/web/src/store/notice-store.ts"
       ],
       "M9-T12": [
         "packages/web/src/components/thumb-bar.tsx",
