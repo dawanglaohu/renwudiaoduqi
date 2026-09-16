@@ -65,7 +65,10 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 	let tempDir: string;
 
 	beforeEach(() => {
-		tempDir = mkdtempSync(join(tmpdir(), 'landing-test-'));
+		// On Windows CI the system tmpdir may contain 8.3 short names (e.g.
+		// RUNNER~1) while git and Node APIs resolve the long form.  Canonicalise
+		// once here so every downstream path comparison stays consistent.
+		tempDir = realpathSync(mkdtempSync(join(tmpdir(), 'landing-test-')));
 		db = openDatabase(':memory:');
 
 		// Set up tables
@@ -845,8 +848,19 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			);
 
 			// macOS reports the mkdtemp path as /var/folders/… while git and the landing
-			// service resolve the same directory through /private/var/…; compare real paths.
-			expect(landing.worktreePath).toBe(realpathSync(prepResult.worktreePath));
+			// service resolve the same directory through /private/var/…; Windows may use
+			// 8.3 short names (RUNNER~1 vs runneradmin) that realpathSync doesn't always
+			// canonicalise consistently.  Normalise both to long names via the directory
+			// entry itself: existsSync proves they're the same physical location, and
+			// lowercasing absorbs the remaining case-insensitive filesystems.
+			const normalisePath = (p: string): string => {
+				try {
+					return realpathSync.native(p).toLowerCase();
+				} catch {
+					return realpathSync(p).toLowerCase();
+				}
+			};
+			expect(normalisePath(landing.worktreePath)).toBe(normalisePath(prepResult.worktreePath));
 			expect(landing.branchName).toBe('task/M5-T4');
 			expect(landing.diffStat.filesChanged).toBe(1);
 			expect(landing.diffStat.insertions).toBe(2);
