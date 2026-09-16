@@ -501,5 +501,62 @@ NEXT
 			);
 			expect(parseTestsSection('没有任何状态关键词').tests.status).toBe('unknown');
 		});
+
+		it('R1: parseTestsSection 优先使用显式状态声明行，明细行含失败词不误判 (E-286)', () => {
+			// 显式 pass 声明行，后续明细行即使包含 "失败" 也保持 pass
+			const resPass = parseTestsSection('pass\n- 失败用例：无');
+			expect(resPass.tests.status).toBe('pass');
+			expect(resPass.unassigned).toHaveLength(0);
+
+			// 反向不误伤：显式 fail 声明行
+			const resFail = parseTestsSection('fail\n- 3 个用例失败');
+			expect(resFail.tests.status).toBe('fail');
+
+			// 显式 fail 且未标注任务号的失败行进入 unassigned
+			const resFailUnassigned = parseTestsSection(
+				'fail\n- test_suite_db.test.ts failed: database disk image is malformed',
+			);
+			expect(resFailUnassigned.tests.status).toBe('fail');
+			expect(resFailUnassigned.unassigned).toContain(
+				'- test_suite_db.test.ts failed: database disk image is malformed',
+			);
+		});
+
+		it('R1: 八段完整且 TESTS 段为 pass + 0 failed 报告判定 clean 而非 open (E-286)', () => {
+			const text = `
+BATCH_SUMMARY
+全批次验收完成
+
+TESTS
+pass
+- pnpm -w check 全绿：biome ci 无告警；tsc --noEmit 无错误；vitest run 1187 passed / 0 failed
+
+BUGS
+- none
+
+FIXED
+- none
+
+NOT_FIXED
+- none
+
+SUSPECT
+- none
+
+RECORD
+verdict: clean
+
+NEXT
+收口完毕
+`;
+			const result = parseWrapupReport(text);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+
+			expect(result.tests.status).toBe('pass');
+			expect(result.unassigned).toHaveLength(0);
+			expect(result.verdict).toBe('clean');
+			expect(result.declaredVerdict).toBe('clean');
+		});
 	});
 });

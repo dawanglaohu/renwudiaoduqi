@@ -621,6 +621,18 @@ export function parseFixedSection(text: string): readonly WrapupFixedItem[] {
 	return Object.freeze(items);
 }
 
+const STATUS_LINE_REGEX =
+	/^(?:status\s*[:：]\s*)?(pass(?:ed)?|fail(?:ed)?|skip(?:ped)?|unknown)[.!?。！？]?$/i;
+
+function normalizeStatusToken(token: string): TestsStatus {
+	const lower = token.toLowerCase();
+	if (lower === 'pass' || lower === 'passed') return 'pass';
+	if (lower === 'fail' || lower === 'failed') return 'fail';
+	if (lower === 'skip' || lower === 'skipped') return 'skipped';
+	if (lower === 'unknown') return 'unknown';
+	return 'unknown';
+}
+
 /**
  * 解析 TESTS 段（状态识别与失败条目提取，E-290）。
  */
@@ -640,14 +652,29 @@ export function parseTestsSection(text: string): {
 	const lines = text.split(/\r?\n/);
 	let status: TestsStatus = 'unknown';
 
-	// 1. 判断总体 status
-	const lower = text.toLowerCase();
-	if (/(?:^|\s|\b)(?:fail|failed|failure|错误|失败)(?:\s|\b|$|[:：])/i.test(lower)) {
-		status = 'fail';
-	} else if (/(?:^|\s|\b)(?:skipped|skip|跳过)(?:\s|\b|$|[:：])/i.test(lower)) {
-		status = 'skipped';
-	} else if (/(?:^|\s|\b)(?:pass|passed|通过)(?:\s|\b|$|[:：])/i.test(lower)) {
-		status = 'pass';
+	// 1. 优先按「整行只有状态词」找显式声明行，取第一条命中定 status
+	let foundExplicitStatus = false;
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (!trimmed) continue;
+		const match = STATUS_LINE_REGEX.exec(trimmed);
+		if (match?.[1]) {
+			status = normalizeStatusToken(match[1]);
+			foundExplicitStatus = true;
+			break;
+		}
+	}
+
+	// 2. 找不到声明行才退回整段关键词扫描，判序保持 fail → skipped → pass
+	if (!foundExplicitStatus) {
+		const lower = text.toLowerCase();
+		if (/(?:^|\s|\b)(?:fail|failed|failure|错误|失败)(?:\s|\b|$|[:：])/i.test(lower)) {
+			status = 'fail';
+		} else if (/(?:^|\s|\b)(?:skipped|skip|跳过)(?:\s|\b|$|[:：])/i.test(lower)) {
+			status = 'skipped';
+		} else if (/(?:^|\s|\b)(?:pass|passed|通过)(?:\s|\b|$|[:：])/i.test(lower)) {
+			status = 'pass';
+		}
 	}
 
 	const items: string[] = [];
@@ -663,7 +690,7 @@ export function parseTestsSection(text: string): {
 		}
 
 		// 跳过单独的 status 声明行，如 "fail" / "status: fail" / "pass"
-		if (/^(?:status\s*[:：]\s*)?(?:pass|fail|skipped|unknown)$/i.test(trimmed)) {
+		if (STATUS_LINE_REGEX.test(trimmed)) {
 			continue;
 		}
 
