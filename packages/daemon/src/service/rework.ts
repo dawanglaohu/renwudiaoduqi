@@ -4,13 +4,14 @@ import type { UnitOfWork } from '../db/unit-of-work.ts';
 import {
 	RUN_TRANSITION_REASONS,
 	type RunState,
+	assertValidTransition,
 	isTerminalRunState,
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
-import type { RunRow } from '../repo/runs.ts';
+import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import {
 	type AgentMessageCapabilities,
 	type MessageService,
@@ -164,31 +165,6 @@ export type DispatchReworkResult =
 	  };
 
 /**
- * 运行仓储抽象（只依赖已定查询与更新接口）。
- */
-export interface ReworkRunsRepo {
-	findById(id: string): RunRow | null;
-	updateState?(input: {
-		readonly id: string;
-		readonly state?: string;
-		readonly toState?: string;
-		readonly fromState?: string;
-		readonly queuedReason?: string | null;
-		readonly endedAt?: string | null;
-		readonly exitCode?: number | null;
-		readonly exitSignal?: string | null;
-		readonly actorDeviceId?: string | null;
-	}): void;
-	updateReworkCount?(input: {
-		readonly id: string;
-		readonly reworkCount: number;
-		readonly state?: string;
-		readonly reviewVerdict?: string | null;
-		readonly reworkText?: string | null;
-	}): void;
-}
-
-/**
  * 派发快照仓储抽象（用于按快照读取被审运行的 launch_spec_json.adapterKind，E-93）。
  */
 export interface ReworkSnapshotsRepo {
@@ -199,7 +175,7 @@ export interface ReworkSnapshotsRepo {
  * ReworkService 依赖接口。
  */
 export interface ReworkServiceDeps {
-	readonly runsRepo: ReworkRunsRepo;
+	readonly runsRepo: RunsRepo;
 	readonly messageService: MessageService;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
@@ -474,10 +450,13 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 		// 2. 检查自动重试上限（AC 1, E-55, E-68）
 		// 不管改动是否缩小或回退，重试计数同等累计；超限必须转「待人确认」，不无限自动改
+		// 上限只拦自动审查那条路（from === 'reviewing'，与 run-state-machine.ts:215 及 09 节数据模型一致）；
+		// 人工/手动来源照常回灌、计数照加（E-59）
 		const currentReworkCount = targetRun.rework_count ?? 0;
 		const maxReworkCount = input.maxReworkCount ?? deps.maxReworkCount ?? DEFAULT_MAX_REWORK_COUNT;
+		const isAutoReview = !isManual && targetRun.state === 'reviewing';
 
-		if (currentReworkCount >= maxReworkCount) {
+		if (isAutoReview && currentReworkCount >= maxReworkCount) {
 			const now = deps.clock.now();
 			const pendingEvents: EventEnvelope[] = [];
 
@@ -487,16 +466,20 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					targetRun.state !== 'awaiting_human' &&
 					!isTerminalRunState(targetRun.state as RunState)
 				) {
-					if (deps.runsRepo.updateState) {
-						deps.runsRepo.updateState({
-							id: targetRun.id,
-							state: 'awaiting_human',
-							fromState: targetRun.state,
-							toState: 'awaiting_human',
-							queuedReason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
-							actorDeviceId: input.actorDeviceId ?? null,
-						});
-					}
+					assertValidTransition(targetRun.state as RunState, 'awaiting_human', {
+						reason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
+						reworkCount: currentReworkCount,
+						maxReworkCount,
+					});
+
+					deps.runsRepo.updateState({
+						id: targetRun.id,
+						state: 'awaiting_human',
+						fromState: targetRun.state,
+						toState: 'awaiting_human',
+						queuedReason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
+						actorDeviceId: input.actorDeviceId ?? null,
+					});
 
 					if (deps.envelopeFactory) {
 						pendingEvents.push(
@@ -523,16 +506,20 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 						reviewRun.state !== 'awaiting_human' &&
 						!isTerminalRunState(reviewRun.state as RunState)
 					) {
-						if (deps.runsRepo.updateState) {
-							deps.runsRepo.updateState({
-								id: reviewRun.id,
-								state: 'awaiting_human',
-								fromState: reviewRun.state,
-								toState: 'awaiting_human',
-								queuedReason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
-								actorDeviceId: input.actorDeviceId ?? null,
-							});
-						}
+						assertValidTransition(reviewRun.state as RunState, 'awaiting_human', {
+							reason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
+							reworkCount: currentReworkCount,
+							maxReworkCount,
+						});
+
+						deps.runsRepo.updateState({
+							id: reviewRun.id,
+							state: 'awaiting_human',
+							fromState: reviewRun.state,
+							toState: 'awaiting_human',
+							queuedReason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
+							actorDeviceId: input.actorDeviceId ?? null,
+						});
 
 						if (deps.envelopeFactory) {
 							pendingEvents.push(
@@ -623,23 +610,18 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		const pendingEvents: EventEnvelope[] = [];
 
 		const persistReinjection = () => {
+			assertValidTransition(targetRun.state as RunState, 'reworking', {
+				reason: transitionReason,
+				reworkCount: currentReworkCount,
+				maxReworkCount,
+			});
+
 			// 重试计数 +1，状态切至 reworking
-			if (deps.runsRepo.updateReworkCount) {
-				deps.runsRepo.updateReworkCount({
-					id: targetRun.id,
-					reworkCount: nextReworkCount,
-					state: 'reworking',
-				});
-			} else if (deps.runsRepo.updateState) {
-				deps.runsRepo.updateState({
-					id: targetRun.id,
-					state: 'reworking',
-					fromState: targetRun.state,
-					toState: 'reworking',
-					queuedReason: transitionReason,
-					actorDeviceId: input.actorDeviceId ?? null,
-				});
-			}
+			deps.runsRepo.updateReworkCount({
+				id: targetRun.id,
+				reworkCount: nextReworkCount,
+				state: 'reworking',
+			});
 
 			if (deps.envelopeFactory) {
 				pendingEvents.push(
@@ -684,16 +666,18 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			// 投递失败：由独立事务将状态切至 awaiting_human（E-112, E-113）
 			const failEvents: EventEnvelope[] = [];
 			const persistFailure = () => {
-				if (deps.runsRepo.updateState) {
-					deps.runsRepo.updateState({
-						id: targetRun.id,
-						state: 'awaiting_human',
-						fromState: 'reworking',
-						toState: 'awaiting_human',
-						queuedReason: REWORK_TRANSITION_REASONS.INJECTION_FAILED,
-						actorDeviceId: input.actorDeviceId ?? null,
-					});
-				}
+				assertValidTransition('reworking', 'awaiting_human', {
+					reason: REWORK_TRANSITION_REASONS.INJECTION_FAILED,
+				});
+
+				deps.runsRepo.updateState({
+					id: targetRun.id,
+					state: 'awaiting_human',
+					fromState: 'reworking',
+					toState: 'awaiting_human',
+					queuedReason: REWORK_TRANSITION_REASONS.INJECTION_FAILED,
+					actorDeviceId: input.actorDeviceId ?? null,
+				});
 
 				if (deps.envelopeFactory) {
 					failEvents.push(
@@ -730,16 +714,18 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		// 意见回灌原会话成功：reworking --> running（09 节数据模型与 E-59）
 		const postDeliveryEvents: EventEnvelope[] = [];
 		const persistRunning = () => {
-			if (deps.runsRepo.updateState) {
-				deps.runsRepo.updateState({
-					id: targetRun.id,
-					state: 'running',
-					fromState: 'reworking',
-					toState: 'running',
-					queuedReason: transitionReason,
-					actorDeviceId: input.actorDeviceId ?? null,
-				});
-			}
+			assertValidTransition('reworking', 'running', {
+				reason: transitionReason,
+			});
+
+			deps.runsRepo.updateState({
+				id: targetRun.id,
+				state: 'running',
+				fromState: 'reworking',
+				toState: 'running',
+				queuedReason: transitionReason,
+				actorDeviceId: input.actorDeviceId ?? null,
+			});
 
 			if (deps.envelopeFactory) {
 				postDeliveryEvents.push(

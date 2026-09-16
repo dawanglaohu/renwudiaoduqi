@@ -1,19 +1,28 @@
 import type { ChildProcess } from 'node:child_process';
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import type { Writable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMigrationRunner } from '../../src/db/migrate.ts';
+import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import type { UnitOfWork } from '../../src/db/unit-of-work.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import type { EventBus } from '../../src/events/bus.ts';
 import type { EnvelopeFactory } from '../../src/events/envelope.ts';
 import type { ProcessRegistry } from '../../src/proc/registry.ts';
 import type { ManagedProcess } from '../../src/proc/spawn.ts';
-import type { RunRow } from '../../src/repo/runs.ts';
+import {
+	type RunInsertRow,
+	type RunRow,
+	type RunsRepo,
+	createRunsRepo,
+} from '../../src/repo/runs.ts';
 import type { MessageService } from '../../src/service/message.ts';
 import {
 	DEFAULT_MAX_REWORK_COUNT,
 	REWORK_TRANSITION_REASONS,
 	type ReworkHandoverPayload,
-	type ReworkRunsRepo,
 	type ReworkSnapshotsRepo,
 	createReworkService,
 	evaluateDiffRegression,
@@ -48,7 +57,7 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 	}>;
 	let mockProcessRegistry: Map<string, ManagedProcess>;
 	let mockMessageService: MessageService;
-	let mockRunsRepo: ReworkRunsRepo;
+	let mockRunsRepo: RunsRepo;
 	let mockSnapshotsRepo: ReworkSnapshotsRepo;
 	let mockUnitOfWork: UnitOfWork;
 	let mockBus: EventBus;
@@ -61,7 +70,7 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 			attempt_no: 1,
 			kind: 'implement',
 			parent_run_id: null,
-			state: 'running',
+			state: 'reviewing',
 			review_verdict: null,
 			agent_id: 'codex',
 			model_name: 'gpt-5-codex',
@@ -91,6 +100,13 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 			session_archived_at: null,
 			...overrides,
 		};
+	}
+
+	function setRunState(runId: string, state: RunRow['state']) {
+		const existing = runsStore.get(runId);
+		if (existing) {
+			runsStore.set(runId, { ...existing, state });
+		}
 	}
 
 	function createMockProcess(runId: string, alive = true): ManagedProcess {
@@ -141,16 +157,49 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 		mockProcessRegistry = new Map();
 
 		mockRunsRepo = {
+			insert: (row: RunInsertRow) => {
+				runsStore.set(row.id, { ...row } as RunRow);
+			},
 			findById: (id: string) => runsStore.get(id) ?? null,
+			findByIdempotencyKey: (key: string) => {
+				for (const r of runsStore.values()) {
+					if (r.idempotency_key === key) return r;
+				}
+				return null;
+			},
+			findByVendorSessionRef: (ref: string) => {
+				for (const r of runsStore.values()) {
+					if (r.vendor_session_ref === ref) return r;
+				}
+				return null;
+			},
+			findActiveByTaskId: (taskId: string) => {
+				for (const r of runsStore.values()) {
+					if (r.task_id === taskId) return r;
+				}
+				return null;
+			},
+			listByTaskId: (taskId: string) => {
+				return Array.from(runsStore.values()).filter((r) => r.task_id === taskId);
+			},
+			listByTask: (taskId: string) => {
+				return Array.from(runsStore.values()).filter((r) => r.task_id === taskId);
+			},
+			listActive: () => Array.from(runsStore.values()),
+			listAll: () => Array.from(runsStore.values()),
+			markSessionsArchived: () => ({ runIds: [], runs: [], changes: 0 }),
+			listSucceededModelNames: () => [],
 			updateState: (input) => {
 				const existing = runsStore.get(input.id);
 				if (existing) {
 					runsStore.set(input.id, {
 						...existing,
-						state: input.state ?? existing.state,
+						state: input.state ?? input.toState ?? existing.state,
 						queued_reason:
 							input.queuedReason !== undefined ? input.queuedReason : existing.queued_reason,
 						ended_at: input.endedAt !== undefined ? input.endedAt : existing.ended_at,
+						rework_count:
+							input.reworkCount !== undefined ? input.reworkCount : existing.rework_count,
 					});
 				}
 			},
@@ -285,7 +334,7 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 
 		it('defaults automatic retry limit to 2 and transfers to awaiting_human when reached (E-55)', async () => {
 			// Current rework_count is already 2 (limit reached)
-			const targetRun = createDummyRun({ rework_count: 2, state: 'running' });
+			const targetRun = createDummyRun({ rework_count: 2, state: 'reviewing' });
 			const reviewRun = createDummyRun({
 				id: 'run-rev-1',
 				kind: 'review',
@@ -365,6 +414,9 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 			expect(result.success).toBe(true);
 			expect(result.reworkCount).toBe(2);
 
+			// Implementation finishes, exits, and enters review
+			setRunState(run.id, 'reviewing');
+
 			// Next attempt will hit limit
 			const nextResult = await service.dispatchRework({
 				targetRunId: run.id,
@@ -375,6 +427,124 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 			expect(nextResult.success).toBe(false);
 			expect(nextResult.action).toBe('awaiting_human');
 			expect(nextResult.reworkCount).toBe(2);
+		});
+
+		it('R1: asserts rework_count 0 -> 1 -> 2 truly persists in repo and 3rd automatic review turns awaiting_human', async () => {
+			const run = createDummyRun({ rework_count: 0, state: 'reviewing' });
+			runsStore.set(run.id, run);
+			mockProcessRegistry.set(run.id, createMockProcess(run.id, true));
+
+			const service = makeService();
+
+			// Round 1: count 0 -> 1
+			const res1 = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '- R1: 修复第 1 次问题',
+				source: 'review',
+			});
+			expect(res1.success).toBe(true);
+			expect(res1.action).toBe('injected');
+			expect(res1.reworkCount).toBe(1);
+			expect(runsStore.get(run.id)?.rework_count).toBe(1);
+			expect(runsStore.get(run.id)?.state).toBe('running');
+
+			// Implementation finishes, exits, and enters review
+			setRunState(run.id, 'reviewing');
+
+			// Round 2: count 1 -> 2
+			const res2 = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '- R1: 修复第 2 次问题',
+				source: 'review',
+			});
+			expect(res2.success).toBe(true);
+			expect(res2.action).toBe('injected');
+			expect(res2.reworkCount).toBe(2);
+			expect(runsStore.get(run.id)?.rework_count).toBe(2);
+			expect(runsStore.get(run.id)?.state).toBe('running');
+
+			// Implementation finishes, exits, and enters review
+			setRunState(run.id, 'reviewing');
+
+			// Round 3: count is already 2 (at limit), automatic review turns awaiting_human
+			const res3 = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '- R1: 修复第 3 次问题',
+				source: 'review',
+			});
+			expect(res3.success).toBe(false);
+			expect(res3.action).toBe('awaiting_human');
+			expect(res3.reworkCount).toBe(2);
+			expect(runsStore.get(run.id)?.rework_count).toBe(2);
+			expect(runsStore.get(run.id)?.state).toBe('awaiting_human');
+			expect(runsStore.get(run.id)?.queued_reason).toBe(
+				REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
+			);
+			expect(mockMessageService.sendMessage).toHaveBeenCalledTimes(2);
+		});
+
+		it('R2: rework_count=2, state=awaiting_human, source=human with comment -> action=injected and count+1 (not blocked by E-55)', async () => {
+			const run = createDummyRun({ rework_count: 2, state: 'awaiting_human' });
+			runsStore.set(run.id, run);
+			mockProcessRegistry.set(run.id, createMockProcess(run.id, true));
+
+			const service = makeService();
+			const result = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '人工打回意见：请重构处理逻辑。',
+				source: 'human',
+				actorDeviceId: 'device-human-1',
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.action).toBe('injected');
+			expect(result.reworkCount).toBe(3);
+			expect(runsStore.get(run.id)?.rework_count).toBe(3);
+			expect(runsStore.get(run.id)?.state).toBe('running');
+			expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					runId: run.id,
+					text: '人工打回意见：请重构处理逻辑。',
+					kind: 'reply',
+					actorDeviceId: 'device-human-1',
+				}),
+			);
+		});
+
+		it('R2: state=reviewing, rework_count=2, source=review -> action=awaiting_human', async () => {
+			const run = createDummyRun({ rework_count: 2, state: 'reviewing' });
+			runsStore.set(run.id, run);
+			mockProcessRegistry.set(run.id, createMockProcess(run.id, true));
+
+			const service = makeService();
+			const result = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '自动审查打回意见',
+				source: 'review',
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.action).toBe('awaiting_human');
+			expect(result.reworkCount).toBe(2);
+			expect(runsStore.get(run.id)?.state).toBe('awaiting_human');
+		});
+
+		it('R3: throws E_INVALID_STATE_TRANSITION when target run is in running state', async () => {
+			const run = createDummyRun({ rework_count: 0, state: 'running' });
+			runsStore.set(run.id, run);
+			mockProcessRegistry.set(run.id, createMockProcess(run.id, true));
+
+			const service = makeService();
+
+			await expect(
+				service.dispatchRework({
+					targetRunId: run.id,
+					reworkText: '- R1: 试图对运行中任务判返工',
+					source: 'review',
+				}),
+			).rejects.toMatchObject({
+				code: 'E_INVALID_STATE_TRANSITION',
+			});
 		});
 	});
 
@@ -430,6 +600,9 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 			expect(result1.diffRegression?.isRegressed).toBe(true);
 			expect(result1.diffRegression?.reason).toBe('diff_shrunk');
 
+			// Implementation finishes, exits, and enters review
+			setRunState(run.id, 'reviewing');
+
 			// Attempt 3: diff reverted to 0, hits retry limit (2), must transfer to human
 			const result2 = await service.dispatchRework({
 				targetRunId: run.id,
@@ -450,7 +623,7 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 
 	describe('AC 3 & E-59: user manual rework with attached comment', () => {
 		it('requires a non-empty comment for manual rework (E-59)', async () => {
-			const run = createDummyRun();
+			const run = createDummyRun({ state: 'awaiting_human' });
 			runsStore.set(run.id, run);
 			mockProcessRegistry.set(run.id, createMockProcess(run.id, true));
 
@@ -717,6 +890,82 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 			const check2 = await service.checkRetryLimit('r-2');
 			expect(check2.atLimit).toBe(true);
 			expect(check2.currentCount).toBe(2);
+		});
+	});
+
+	describe('Real RunsRepo SQLite persistence for rework_count (R1)', () => {
+		const migrationsDirectory = resolve(
+			dirname(fileURLToPath(import.meta.url)),
+			'../../migrations',
+		);
+
+		function setupRealTestDb(): DatabaseConnection {
+			const db = openDatabase(':memory:');
+			const runner = createMigrationRunner({
+				database: db,
+				clock: { now: () => '2026-09-15T12:00:00.000Z' },
+				fileSystem: {
+					readDirectory: (p: string) => readdirSync(p),
+					readFile: (p: string) => readFileSync(p, 'utf8'),
+				},
+			});
+			runner.run(migrationsDirectory);
+
+			db.prepare(
+				"INSERT INTO documents (id, docs_path, project_name, content_fingerprint, imported_at, last_seen_at) VALUES ('doc-1', '/doc/path', 'project', 'hash1', '2026-09-15T12:00:00.000Z', '2026-09-15T12:00:00.000Z')",
+			).run();
+			db.prepare(
+				"INSERT INTO tasks (id, doc_id, task_key, title, module_key, deps_json, contract_hash, contract_reasons_json) VALUES ('task-uuid-1', 'doc-1', 'M7-T4', 'title', 'M7', '[]', 'hash', '[]')",
+			).run();
+			db.prepare(
+				"INSERT INTO dispatch_snapshots (id, task_id, contract_hash, task_paths_json, launch_spec_json, created_at) VALUES ('snap-001', 'task-uuid-1', 'hash', '[]', '{}', '2026-09-15T12:00:00.000Z')",
+			).run();
+			db.prepare(
+				"INSERT INTO runs (id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id, rework_count) VALUES ('run-sql-1', 'task-uuid-1', 1, 'implement', 'reviewing', 'codex', 'workspaceWrite', 'snap-001', 0)",
+			).run();
+			return db;
+		}
+
+		it('persists rework_count updates into SQLite via updateReworkCount and updateState', () => {
+			const db = setupRealTestDb();
+			const repo = createRunsRepo(db);
+
+			// Initial state
+			const initial = repo.findById('run-sql-1');
+			expect(initial).not.toBeNull();
+			expect(initial?.rework_count).toBe(0);
+			expect(initial?.state).toBe('reviewing');
+
+			// 0 -> 1 via updateReworkCount
+			repo.updateReworkCount({
+				id: 'run-sql-1',
+				reworkCount: 1,
+				state: 'reworking',
+			});
+			const step1 = repo.findById('run-sql-1');
+			expect(step1?.rework_count).toBe(1);
+			expect(step1?.state).toBe('reworking');
+
+			// 1 -> 2 via updateState with reworkCount
+			repo.updateState({
+				id: 'run-sql-1',
+				state: 'running',
+				reworkCount: 2,
+			});
+			const step2 = repo.findById('run-sql-1');
+			expect(step2?.rework_count).toBe(2);
+			expect(step2?.state).toBe('running');
+
+			// updateState without reworkCount should preserve existing rework_count
+			repo.updateState({
+				id: 'run-sql-1',
+				state: 'reviewing',
+			});
+			const step3 = repo.findById('run-sql-1');
+			expect(step3?.rework_count).toBe(2);
+			expect(step3?.state).toBe('reviewing');
+
+			db.close();
 		});
 	});
 });
