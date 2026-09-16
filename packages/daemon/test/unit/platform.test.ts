@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { platformPathAdapter, takePlatformHostInputs } from '../../src/platform/host.ts';
 import { hasUnexpandedPathToken } from '../../src/platform/contract.ts';
+import { platformPathAdapter, takePlatformHostInputs } from '../../src/platform/host.ts';
 import { resolveExecutable } from '../../src/platform/resolve-executable.ts';
 import {
 	classifyWindowsPath,
