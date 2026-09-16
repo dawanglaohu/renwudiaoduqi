@@ -81,7 +81,7 @@ export function executeOptimisticStop(
 		}
 	})();
 
-	Object.assign(promise, { stepText });
+	void Object.assign(promise, { stepText });
 	return promise as Promise<OptimisticStopResult> & { stepText: string };
 }
 

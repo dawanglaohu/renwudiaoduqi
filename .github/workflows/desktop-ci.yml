@@ -128,6 +128,8 @@ jobs:
             --config.node-linker=hoisted "$DAEMON_DEPLOY_DIR"
           # Keep only this runner's runtime; a packaged product ships one platform.
           node packages/shell-desktop/launchers/prepare-daemon-package.mjs "$DAEMON_DEPLOY_DIR"
+          # The staged smoke step consumes the distribution through the environment.
+          echo "DESKTOP_DAEMON_PACKAGE_DIR=$DAEMON_DEPLOY_DIR" >> "$GITHUB_ENV"
 
       - name: Staged Unpack, Launch Spec & Real Daemon Smoke (AC 2, E-209, E-257, E-265)
         run: node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts

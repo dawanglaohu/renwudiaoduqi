@@ -552,7 +552,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 						isStopping={currentMobileLane ? stoppingLanes.has(currentMobileLane.laneNo) : false}
 						onStop={() => {
 							if (currentMobileLane) {
-								handleStopLane(
+								void handleStopLane(
 									currentMobileLane.laneNo,
 									currentMobileLane.currentRunId,
 									currentMobileLane.taskKey,
@@ -563,7 +563,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 						isApproving={isApproving}
 						onApprove={() => {
 							if (currentMobileLane && handleApproveLane) {
-								handleApproveLane(currentMobileLane.laneNo, currentMobileLane.currentRunId);
+								void handleApproveLane(currentMobileLane.laneNo, currentMobileLane.currentRunId);
 							}
 						}}
 						waitingCount={effectiveTotalWaitingCount}
