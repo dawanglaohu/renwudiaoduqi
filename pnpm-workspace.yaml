@@ -1,11 +1,20 @@
 packages:
   - "packages/*"
 
-# pnpm 10 blocks dependency build scripts unless they are listed here. better-sqlite3
-# and esbuild ship platform binaries through their install scripts, and biome's
-# postinstall picks the matching native binary — blocking them makes tests fail with
-# "Could not locate the bindings file" instead of a clear install error.
+# pnpm 10 blocks dependency build scripts unless they are listed here. biome's
+# postinstall picks the matching native binary and esbuild fetches its platform
+# binary, so both must be allowed to run.
 onlyBuiltDependencies:
   - "@biomejs/biome"
-  - better-sqlite3
   - esbuild
+
+# better-sqlite3 13.x ships prebuilds/ for win32-x64, win32-arm64, darwin-x64,
+# darwin-arm64, linux-x64, linux-arm64 and the musl pair, and lib/binding.js prefers
+# them over build/Release. Its package.json has no install script and sets
+# gypfile: false, so pnpm only comes here because it found binding.gyp and added an
+# implicit node-gyp rebuild. That rebuild never compiles anything — but node-gyp
+# probes Visual Studio *before* it reads the gyp file, and that probe fails outright
+# on a machine with only VS 18, which is what windows-latest ships. Ignoring the
+# build keeps the prebuilds and removes the probe from the install path entirely.
+ignoredBuiltDependencies:
+  - better-sqlite3

@@ -79,17 +79,6 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      - name: Materialise the MSVC dev shell (Windows only)
-        # better-sqlite3 has no prebuilt binary for Node 22, so its install script runs
-        # node-gyp. Setting GYP_MSVS_VERSION / GYP_MSVS_OVERRIDE_PATH was tried and made
-        # things worse: it bypasses node-gyp's own VS discovery and then trips over the
-        # VS 18 version string. Give gyp a ready dev shell instead and let it detect the
-        # toolchain the same way a local developer does.
-        if: matrix.platform == 'win32'
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
       - name: Cache pnpm store
         uses: actions/cache@v4
         with:
