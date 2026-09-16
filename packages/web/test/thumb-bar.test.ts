@@ -496,7 +496,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 			expect(html).toContain('README.md');
 		});
 
-		it('RunDeckView with real StreamRow in lane.bodySlot opens MobileBottomSheet and suppresses inline data-step-payload in mobile tier (R1, AC 6)', () => {
+		it('RunDeckView suppresses inline data-step-payload for a real StreamRow in lane.bodySlot on mobile tier (R1, AC 6)', () => {
 			const lanes: DeckStreamLane[] = [
 				{
 					laneNo: 1,
@@ -520,9 +520,32 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 				}),
 			);
 
-			// DOM 中没有内联 data-step-payload
+			// 手机档不许把 payload 内联在步骤展开区（AC 6 的「不内联」半边）
 			expect(html).not.toContain('data-step-payload="true"');
-			// data-mobile-bottom-sheet 被打开
+			// 步骤本身仍在屏上，只是载荷改由甲板的 sheet 承接
+			expect(html).toContain('read_file config.json');
+		});
+
+		it('RunDeckView passes the deck-provided payload into the bottom sheet (R1, AC 6)', () => {
+			const lanes: DeckStreamLane[] = [{ laneNo: 1, taskKey: 'M9-T12', status: 'streaming' }];
+
+			const html = renderToStaticMarkup(
+				createElement(RunDeckView, {
+					...createMockDeckProps(lanes, 'phone-xs'),
+					tier: 'phone-xs',
+					width: 375,
+					activePane: 'stream',
+					activeToolPayload: {
+						title: 'read_file config.json',
+						toolName: 'read_file',
+						inputPayload: '{"path": "config.json"}',
+					},
+				}),
+			);
+
+			// 甲板自己的 sheet 承接行组件送来的载荷（行→甲板那一步由 use-payload-sheet 的
+			// Provider 契约与 buildPayloadSheetData 单测覆盖：本仓 vitest 跑在 node 环境，
+			// useEffect 不执行，渲染断言看不到「展开动作触发打开」这一帧）
 			expect(html).toContain('data-mobile-bottom-sheet="true"');
 			expect(html).toContain('read_file config.json');
 			expect(html).toContain('config.json');

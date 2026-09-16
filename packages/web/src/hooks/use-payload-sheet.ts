@@ -16,7 +16,7 @@ import {
 	createElement,
 	useCallback,
 	useContext,
-	useRef,
+	useMemo,
 	useState,
 } from 'react';
 
@@ -38,6 +38,32 @@ export interface ToolPayloadSheetData {
 	readonly raw?: unknown;
 }
 
+export interface BuildPayloadSheetDataInput {
+	/** 步骤标签（工具 + 对象） */
+	readonly label: string;
+	/** 工具名称 */
+	readonly tool?: string;
+	/** 已格式化的耗时文本（无数据显示 '—'） */
+	readonly durationText?: string;
+	/** 原始载荷 */
+	readonly payload: unknown;
+}
+
+/**
+ * 把一条运行流步骤的载荷映射成抽屉数据（纯函数，便于单测，AC 6）。
+ * 无数据返回 '—' 的耗时不进抽屉（07 节：无数据不许显示 0）。
+ */
+export function buildPayloadSheetData(input: BuildPayloadSheetDataInput): ToolPayloadSheetData {
+	const { label, tool, durationText, payload } = input;
+	return {
+		title: label,
+		toolName: tool,
+		durationText: durationText !== undefined && durationText !== '—' ? durationText : undefined,
+		inputPayload: typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2),
+		raw: payload,
+	};
+}
+
 export interface PayloadSheetContextValue {
 	/** 是否处于手机/触控模式（展开时应走 bottom sheet） */
 	readonly isMobile: boolean;
@@ -47,8 +73,6 @@ export interface PayloadSheetContextValue {
 	readonly openPayloadSheet: (data: ToolPayloadSheetData) => void;
 	/** 关闭 Tool Payload 抽屉 */
 	readonly closePayloadSheet: () => void;
-	/** 供 SSR 或子组件渲染后即时读取当前挂载的 payload */
-	readonly getPayload?: () => ToolPayloadSheetData | null;
 }
 
 const PayloadSheetContext = createContext<PayloadSheetContextValue | null>(null);
@@ -74,11 +98,9 @@ export function PayloadSheetProvider({
 	children,
 }: PayloadSheetProviderProps) {
 	const [internalPayload, setInternalPayload] = useState<ToolPayloadSheetData | null>(null);
-	const renderedPayloadRef = useRef<ToolPayloadSheetData | null>(null);
 
 	const openPayloadSheet = useCallback(
 		(data: ToolPayloadSheetData) => {
-			renderedPayloadRef.current = data;
 			if (onOpenPayload) {
 				onOpenPayload(data);
 			} else {
@@ -89,7 +111,6 @@ export function PayloadSheetProvider({
 	);
 
 	const closePayloadSheet = useCallback(() => {
-		renderedPayloadRef.current = null;
 		if (onClosePayload) {
 			onClosePayload();
 		} else {
@@ -97,18 +118,21 @@ export function PayloadSheetProvider({
 		}
 	}, [onClosePayload]);
 
-	const effectivePayload =
-		externalPayload !== undefined
-			? externalPayload
-			: (internalPayload ?? renderedPayloadRef.current);
+	// 外部受控（甲板下发 activeToolPayload）时以外部值为唯一真相源，
+	// 免得外部清空后内部还留着上一次的载荷。
+	const effectivePayload = externalPayload !== undefined ? externalPayload : internalPayload;
 
-	const value: PayloadSheetContextValue = {
-		isMobile,
-		activePayload: effectivePayload,
-		openPayloadSheet,
-		closePayloadSheet,
-		getPayload: () => renderedPayloadRef.current ?? effectivePayload,
-	};
+	// 上下文值必须记忆化：消费它的行组件在 useEffect 依赖里持有它，
+	// 每次渲染都换引用会让「展开→打开抽屉」的副作用反复触发（R1 审查修复）。
+	const value: PayloadSheetContextValue = useMemo(
+		() => ({
+			isMobile,
+			activePayload: effectivePayload,
+			openPayloadSheet,
+			closePayloadSheet,
+		}),
+		[isMobile, effectivePayload, openPayloadSheet, closePayloadSheet],
+	);
 
 	return createElement(PayloadSheetContext.Provider, { value }, children);
 }

@@ -30,10 +30,9 @@ export interface MobileBottomSheetProps {
  */
 export function MobileBottomSheet({ isOpen, payload, onClose, className }: MobileBottomSheetProps) {
 	const payloadSheet = usePayloadSheet();
-	const activePayload =
-		payload !== undefined
-			? payload
-			: (payloadSheet?.getPayload?.() ?? payloadSheet?.activePayload ?? null);
+	// 未受控时以 Provider 的 activePayload 为准（它镜像甲板下发的 activeToolPayload）；
+	// 不要回退到「上次打开过什么」，否则外部把 payload 清空后抽屉会永远留在屏上。
+	const activePayload = payload !== undefined ? payload : (payloadSheet?.activePayload ?? null);
 
 	const activeIsOpen =
 		isOpen !== undefined
