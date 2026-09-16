@@ -3,6 +3,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { Spine, type SpineSegment, SpineSegmentView } from '../src/components/spine.tsx';
 import { StreamRow } from '../src/components/stream-row.tsx';
+import {
+	PayloadSheetProvider,
+	type ToolPayloadSheetData,
+	buildPayloadSheetData,
+	usePayloadSheet,
+} from '../src/hooks/use-payload-sheet.ts';
 
 describe('M9-T7: Spine and StreamRow (AC 1-6, E-110, E-230)', () => {
 	// ─── AC 1: 运行轨贯穿整栏全高含未来步骤的虚线段 ───
@@ -313,6 +319,114 @@ describe('M9-T7: Spine and StreamRow (AC 1-6, E-110, E-230)', () => {
 			// 提供「从这一步重试」按钮
 			expect(html).toContain('data-action="retry-step"');
 			expect(html).toContain('从这一步重试');
+		});
+
+		it('renders inline payload on desktop tier (isTouch: false)', () => {
+			const html = renderToStaticMarkup(
+				createElement(StreamRow, {
+					tool: 'write_file',
+					target: 'package.json',
+					expanded: true,
+					payload: { name: 'test-app' },
+					isTouch: false,
+				}),
+			);
+			expect(html).toContain('data-step-payload="true"');
+			expect(html).toContain('test-app');
+		});
+
+		it('suppresses inline payload on mobile touch tier (isTouch: true) (AC 6 / R1)', () => {
+			const html = renderToStaticMarkup(
+				createElement(StreamRow, {
+					tool: 'write_file',
+					target: 'package.json',
+					expanded: true,
+					payload: { name: 'test-app' },
+					isTouch: true,
+				}),
+			);
+			expect(html).not.toContain('data-step-payload="true"');
+		});
+
+		it('suppresses inline payload when inside mobile PayloadSheetProvider', () => {
+			const html = renderToStaticMarkup(
+				createElement(
+					PayloadSheetProvider,
+					{ isMobile: true },
+					createElement(StreamRow, {
+						tool: 'exec_command',
+						target: 'pnpm test',
+						expanded: true,
+						payload: { command: 'pnpm test' },
+						isTouch: false,
+					}),
+				),
+			);
+			expect(html).not.toContain('data-step-payload="true"');
+		});
+
+		// 本仓测试环境是 node（无 jsdom），useEffect 不会执行，「展开→请求打开抽屉」这一步
+		// 无法用渲染断言覆盖；这里改为直接覆盖它调用的两段契约：纯映射函数与 Provider 转发。
+		it('maps a step payload into sheet data and drops the no-data duration placeholder (AC 6 / R1)', () => {
+			const mapped = buildPayloadSheetData({
+				label: 'exec_command pnpm test',
+				tool: 'exec_command',
+				durationText: '1.2s',
+				payload: { command: 'pnpm test' },
+			});
+			expect(mapped.title).toBe('exec_command pnpm test');
+			expect(mapped.toolName).toBe('exec_command');
+			expect(mapped.durationText).toBe('1.2s');
+			expect(mapped.inputPayload).toContain('pnpm test');
+
+			const withoutDuration = buildPayloadSheetData({
+				label: 'read_file config.json',
+				payload: 'raw text payload',
+			});
+			expect(withoutDuration.durationText).toBeUndefined();
+			expect(withoutDuration.inputPayload).toBe('raw text payload');
+			expect(withoutDuration.toolName).toBeUndefined();
+		});
+
+		it('forwards openPayloadSheet to the deck callback exactly once per call (AC 6 / R1)', () => {
+			const opened: ToolPayloadSheetData[] = [];
+			let capturedOpen: ((data: ToolPayloadSheetData) => void) | null = null;
+
+			function ContextProbe() {
+				const sheet = usePayloadSheet();
+				capturedOpen = sheet?.openPayloadSheet ?? null;
+				return null;
+			}
+
+			renderToStaticMarkup(
+				createElement(
+					PayloadSheetProvider,
+					{
+						isMobile: true,
+						onOpenPayload: (data: ToolPayloadSheetData) => {
+							opened.push(data);
+						},
+					},
+					createElement(ContextProbe),
+				),
+			);
+
+			const open = capturedOpen as ((data: ToolPayloadSheetData) => void) | null;
+			if (!open) {
+				throw new Error('expected captured openPayloadSheet');
+			}
+			open(
+				buildPayloadSheetData({
+					label: 'exec_command pnpm test',
+					tool: 'exec_command',
+					durationText: '—',
+					payload: { command: 'pnpm test' },
+				}),
+			);
+			expect(opened).toHaveLength(1);
+			expect(opened[0]?.toolName).toBe('exec_command');
+			expect(opened[0]?.durationText).toBeUndefined();
+			expect(opened[0]?.inputPayload).toContain('pnpm test');
 		});
 	});
 

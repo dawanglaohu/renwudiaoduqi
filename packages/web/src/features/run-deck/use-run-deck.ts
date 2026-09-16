@@ -1,22 +1,34 @@
 /**
  * packages/web/src/features/run-deck/use-run-deck.ts
  *
- * 运行甲板状态管理 Hook（M9-T9 / AC 1, AC 3, AC 7, AC 10, E-165, E-167, E-238）
+ * 运行甲板状态管理 Hook（M9-T9, M9-T12 / AC 1-12, E-13, E-58, E-99, E-107, E-124, E-145, E-240）
  *
- * 规范依据：
+ * 规范依据（11 节 UI 与 07 节前端架构）：
  * - 档位通过 useDensityTier() 单点计算下传（AC 1, E-235）
- * - 紧凑档支持点开一条细看并占满宽度，其余流留在同屏绝不折叠消失（AC 3, E-165）
- * - 拖动窗口切换档位时不重挂虚拟列表、不弹回顶部、不中断跟随（AC 7, E-238）
- * - 完整档横向滚动时若视野外某条流转成「要你」，视口左右边缘常驻计数标记（AC 10, E-167）
- * - 停止操作支持乐观呈现态（07 节约定）
+ * - 手机竖屏 < 400px 降级为单栏切换（任务列表 / 运行流 / 详情），不横向滚动（E-145）
+ * - 手机窄屏三栏切换走 hash query #/?pane=tasks|stream|detail，不新增路由（07 节）
+ * - 手机端中止需二次确认防口袋误触（E-124）
+ * - 单栏切换到「任务列表」时若某条流转「等你」，必须有可见的未处理计数徽标（E-240）
+ * - app 曾退到后台时重回前台拉未读列表，等待中的确认项不过期、不自动放行（E-58）
+ * - 首屏加载量显著更小（尾部 32KB），切后台再回前台不重拉全量（E-99）
+ * - 展开的 tool payload 走 bottom sheet 不内联（AC 6）
+ * - 停止与批准固定在拇指区（E-107）
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { navigateTo } from '../../app/routes.tsx';
 import { type DensityTier, useDensityTier } from '../../hooks/use-breakpoint.ts';
-import type { DeckStreamLane, OffScreenWaitingState, RunDeckProps } from './types.ts';
+import {
+	type DeckStreamLane,
+	MOBILE_INITIAL_TAIL_BYTES,
+	type MobilePane,
+	type OffScreenWaitingState,
+	type RunDeckProps,
+	type ToolPayloadSheetData,
+} from './types.ts';
 
 /**
- * 判断流是否处于「要你 / 等你审批」状态（E-167）。
+ * 判断流是否处于「要你 / 等你审批」状态（E-167, E-240）。
  */
 export function isWaitingApproval(lane: DeckStreamLane): boolean {
 	if (lane.needsApproval) {
@@ -24,6 +36,30 @@ export function isWaitingApproval(lane: DeckStreamLane): boolean {
 	}
 	const s = lane.status;
 	return s === 'awaiting_input' || s === 'waiting' || s === 'gate_waiting';
+}
+
+/**
+ * 从当前 window.location.hash 解析单栏 pane 参数（E-145, 07 节约定）。
+ */
+export function getPaneFromHash(): MobilePane {
+	if (typeof window === 'undefined' || !window.location) {
+		return 'stream';
+	}
+	const hash = window.location.hash || '';
+	const questionIndex = hash.indexOf('?');
+	if (questionIndex === -1) {
+		return 'stream';
+	}
+	try {
+		const searchParams = new URLSearchParams(hash.slice(questionIndex + 1));
+		const pane = searchParams.get('pane');
+		if (pane === 'tasks' || pane === 'stream' || pane === 'detail') {
+			return pane;
+		}
+	} catch {
+		// 忽略异常参数
+	}
+	return 'stream';
 }
 
 /**
@@ -42,8 +78,12 @@ export interface UseRunDeckResult {
 	readonly toggleExpandLane: (laneNo: number) => void;
 	/** 处于停止中（乐观呈现态）的泳道编号集合 */
 	readonly stoppingLanes: ReadonlySet<number>;
-	/** 触发停止泳道 */
-	readonly handleStopLane: (laneNo: number, runId?: string | null) => Promise<void>;
+	/** 触发停止泳道（桌面直接中止，手机端需二次确认，E-124） */
+	readonly handleStopLane: (
+		laneNo: number,
+		runId?: string | null,
+		taskKey?: string,
+	) => Promise<void>;
 	/** 用户偏好设置（'full' | 'compact' | 'auto'） */
 	readonly userPreference: string;
 	/** 切换偏好设置 */
@@ -54,20 +94,88 @@ export interface UseRunDeckResult {
 	readonly offScreenWaiting: OffScreenWaitingState;
 	/** 滚动至指定泳道 */
 	readonly scrollToLane: (laneNo: number) => void;
+
+	// ─── 手机端布局与拇指区扩展（M9-T12） ───
+	/** 当前单栏切换的激活项（'tasks' | 'stream' | 'detail'，E-145） */
+	readonly activePane?: MobilePane;
+	/** 切换单栏视图（通过 hash query #/?pane=...，E-145） */
+	readonly setPane?: (pane: MobilePane) => void;
+	/** 手机端当前查看的泳道号（1-based） */
+	readonly activeMobileLaneNo?: number;
+	/** 切换到上一条手机泳道 */
+	readonly handlePrevMobileLane?: () => void;
+	/** 切换到下一条手机泳道 */
+	readonly handleNextMobileLane?: () => void;
+	/** 选择特定泳道 */
+	readonly selectMobileLane?: (laneNo: number) => void;
+	/** 当前手机泳道流数据 */
+	readonly currentMobileLane?: DeckStreamLane | undefined;
+
+	/** 处于等待审批状态的泳道总计数（E-240） */
+	readonly totalWaitingCount?: number;
+	/** 当前手机泳道是否处于等待审批状态 */
+	readonly isCurrentLaneWaiting?: boolean;
+
+	/** 批准操作处理中状态 */
+	readonly isApproving?: boolean;
+	/** 触发批准当前泳道 */
+	readonly handleApproveLane?: (laneNo?: number, runId?: string | null) => Promise<void>;
+
+	/** 手机端停止二次确认弹窗状态（E-124） */
+	readonly stopConfirmOpen?: boolean;
+	/** 待二次确认的停止目标信息 */
+	readonly stopConfirmTarget?: {
+		laneNo: number;
+		runId?: string | null;
+		taskKey?: string;
+	} | null;
+	/** 确认停止执行 */
+	readonly confirmStop?: () => Promise<void>;
+	/** 取消停止执行 */
+	readonly cancelStop?: () => void;
+
+	/** 当前展开的 Tool Payload Sheet 数据（AC 6） */
+	readonly activeToolPayload?: ToolPayloadSheetData | null;
+	/** 打开 Tool Payload Sheet */
+	readonly openToolPayloadSheet?: (payload: ToolPayloadSheetData) => void;
+	/** 关闭 Tool Payload Sheet */
+	readonly closeToolPayloadSheet?: () => void;
+
+	/** 手机端日志加载尾部字节限制（E-99，默认 32KB） */
+	readonly tailBytes?: number;
+	/** 是否仅拉取尾部切片（E-99） */
+	readonly isTailOnly?: boolean;
 }
 
 export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
-	const { lanes, densityTier: overrideTier, onStopLane } = props;
+	const {
+		lanes,
+		densityTier: overrideTier,
+		onStopLane,
+		onApproveLane,
+		activePane: overridePane,
+		onPaneChange,
+		onFetchUnread,
+		tailBytes: overrideTailBytes,
+		activeToolPayload: externalPayload,
+		onOpenToolPayload,
+		onCloseToolPayload,
+	} = props;
 
 	// 单点计算密度档位（AC 1, E-235）
 	const density = useDensityTier({ streamCount: lanes.length });
 	const tier: DensityTier = overrideTier ?? density.tier;
+
+	const isMobileTier = tier === 'phone' || tier === 'phone-xs' || density.isTouch;
 
 	// 紧凑档展开某条流（AC 3, E-165）
 	const [expandedLaneNo, setExpandedLaneNo] = useState<number | null>(null);
 
 	// 乐观停止状态集合（07 节约定）
 	const [stoppingLanes, setStoppingLanes] = useState<ReadonlySet<number>>(() => new Set());
+
+	// 批准处理中状态
+	const [isApproving, setIsApproving] = useState<boolean>(false);
 
 	// 滚动容器引用与视野外待审批流统计（AC 10, E-167）
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -76,13 +184,79 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 		right: 0,
 	});
 
-	// 切换展开状态
-	const toggleExpandLane = useCallback((laneNo: number) => {
-		setExpandedLaneNo((prev) => (prev === laneNo ? null : laneNo));
+	// ─── 手机端单栏切换状态（E-145, 07 节） ───
+	const [internalPane, setInternalPane] = useState<MobilePane>(() => getPaneFromHash());
+	const activePane: MobilePane = overridePane ?? internalPane;
+
+	// 监听 hashchange 同步 pane
+	useEffect(() => {
+		if (typeof window === 'undefined') {
+			return;
+		}
+
+		const handleHashChange = () => {
+			const nextPane = getPaneFromHash();
+			setInternalPane(nextPane);
+		};
+
+		window.addEventListener('hashchange', handleHashChange);
+		return () => window.removeEventListener('hashchange', handleHashChange);
 	}, []);
 
-	// 停止操作触发（带本地乐观呈现态）
-	const handleStopLane = useCallback(
+	// 切换单栏视图（通过 navigateTo 更新 hash query，实现 Android 返回键天然回上一 pane，07 节）
+	const setPane = useCallback(
+		(pane: MobilePane) => {
+			setInternalPane(pane);
+			if (onPaneChange) {
+				onPaneChange(pane);
+			}
+			navigateTo(`#/?pane=${pane}`);
+		},
+		[onPaneChange],
+	);
+
+	// ─── 手机端当前查看的泳道序号（1-based） ───
+	const [activeMobileLaneNo, setActiveMobileLaneNo] = useState<number>(1);
+
+	const handlePrevMobileLane = useCallback(() => {
+		setActiveMobileLaneNo((prev) => (prev > 1 ? prev - 1 : lanes.length || 1));
+	}, [lanes.length]);
+
+	const handleNextMobileLane = useCallback(() => {
+		setActiveMobileLaneNo((prev) => (prev < lanes.length ? prev + 1 : 1));
+	}, [lanes.length]);
+
+	const selectMobileLane = useCallback((laneNo: number) => {
+		setActiveMobileLaneNo(laneNo);
+	}, []);
+
+	// 当前正在查看的手机泳道流
+	const currentMobileLane = useMemo(() => {
+		return lanes.find((l) => l.laneNo === activeMobileLaneNo) ?? lanes[0];
+	}, [lanes, activeMobileLaneNo]);
+
+	// 统计处于等待审批状态的泳道总计数（E-240）
+	const totalWaitingCount = useMemo(() => {
+		let count = 0;
+		for (const lane of lanes) {
+			if (isWaitingApproval(lane)) {
+				count += 1;
+			}
+		}
+		return count;
+	}, [lanes]);
+
+	const isCurrentLaneWaiting = currentMobileLane ? isWaitingApproval(currentMobileLane) : false;
+
+	// ─── 手机端停止二次确认防误触状态（E-124） ───
+	const [stopConfirmTarget, setStopConfirmTarget] = useState<{
+		laneNo: number;
+		runId?: string | null;
+		taskKey?: string;
+	} | null>(null);
+
+	// 执行实际停止调用（带乐观呈现态）
+	const executeStopLane = useCallback(
 		async (laneNo: number, runId?: string | null) => {
 			setStoppingLanes((prev) => {
 				const next = new Set(prev);
@@ -95,7 +269,7 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 					await onStopLane(laneNo, runId);
 				}
 			} finally {
-				// 服务端状态或事件到达后解除乐观态，这里保留防御性恢复
+				// 服务端状态或事件到达后解除乐观态
 				setStoppingLanes((prev) => {
 					if (!prev.has(laneNo)) {
 						return prev;
@@ -108,6 +282,111 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 		},
 		[onStopLane],
 	);
+
+	// 触发停止：在手机档下先打开二次确认弹窗（E-124），桌面端直接执行
+	const handleStopLane = useCallback(
+		async (laneNo: number, runId?: string | null, taskKey?: string) => {
+			if (isMobileTier) {
+				// 手机端拦截并打开二次确认
+				setStopConfirmTarget({ laneNo, runId, taskKey });
+				return;
+			}
+			// 桌面端直接执行
+			await executeStopLane(laneNo, runId);
+		},
+		[isMobileTier, executeStopLane],
+	);
+
+	// 确认停止
+	const confirmStop = useCallback(async () => {
+		if (!stopConfirmTarget) {
+			return;
+		}
+		const { laneNo, runId } = stopConfirmTarget;
+		setStopConfirmTarget(null);
+		await executeStopLane(laneNo, runId);
+	}, [stopConfirmTarget, executeStopLane]);
+
+	// 取消停止
+	const cancelStop = useCallback(() => {
+		setStopConfirmTarget(null);
+	}, []);
+
+	// 触发批准当前泳道
+	const handleApproveLane = useCallback(
+		async (targetLaneNo?: number, targetRunId?: string | null) => {
+			const laneNo = targetLaneNo ?? activeMobileLaneNo;
+			const target = lanes.find((l) => l.laneNo === laneNo) ?? currentMobileLane;
+			const runId = targetRunId ?? target?.currentRunId;
+
+			setIsApproving(true);
+			try {
+				if (onApproveLane) {
+					await onApproveLane(laneNo, runId);
+				}
+			} finally {
+				setIsApproving(false);
+			}
+		},
+		[activeMobileLaneNo, lanes, currentMobileLane, onApproveLane],
+	);
+
+	// ─── Tool Payload 底部抽屉状态（AC 6） ───
+	const [internalPayload, setInternalPayload] = useState<ToolPayloadSheetData | null>(null);
+	const activeToolPayload = externalPayload !== undefined ? externalPayload : internalPayload;
+
+	const openToolPayloadSheet = useCallback(
+		(payload: ToolPayloadSheetData) => {
+			if (onOpenToolPayload) {
+				onOpenToolPayload(payload);
+			} else {
+				setInternalPayload(payload);
+			}
+		},
+		[onOpenToolPayload],
+	);
+
+	const closeToolPayloadSheet = useCallback(() => {
+		if (onCloseToolPayload) {
+			onCloseToolPayload();
+		} else {
+			setInternalPayload(null);
+		}
+	}, [onCloseToolPayload]);
+
+	// ─── app 曾退到后台时重回前台处理（E-58 & E-99） ───
+	const hasBeenBackgroundedRef = useRef<boolean>(false);
+
+	useEffect(() => {
+		if (typeof document === 'undefined') {
+			return;
+		}
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'hidden') {
+				hasBeenBackgroundedRef.current = true;
+			} else if (document.visibilityState === 'visible' && hasBeenBackgroundedRef.current) {
+				// E-58: 重回前台拉未读列表
+				if (onFetchUnread) {
+					onFetchUnread();
+				}
+				// E-58 规则硬性约束：等待中的确认项不过期、不自动放行。
+				// 前端绝不通过计时器或切前台事件将 awaiting_input / gate_waiting 自动变更为通过。
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+	}, [onFetchUnread]);
+
+	// ─── 手机端首屏尾部加载量限制（E-99） ───
+	const tailBytes = overrideTailBytes ?? MOBILE_INITIAL_TAIL_BYTES;
+	const isTailOnly = isMobileTier;
+
+	// 切换展开状态
+	const toggleExpandLane = useCallback((laneNo: number) => {
+		setExpandedLaneNo((prev) => (prev === laneNo ? null : laneNo));
+	}, []);
 
 	// 视野外「要你」检测逻辑（AC 10, E-167）
 	const updateOffScreenWaiting = useCallback(() => {
@@ -206,5 +485,27 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 		scrollContainerRef,
 		offScreenWaiting,
 		scrollToLane,
+
+		// 手机端能力
+		activePane,
+		setPane,
+		activeMobileLaneNo,
+		handlePrevMobileLane,
+		handleNextMobileLane,
+		selectMobileLane,
+		currentMobileLane,
+		totalWaitingCount,
+		isCurrentLaneWaiting,
+		isApproving,
+		handleApproveLane,
+		stopConfirmOpen: stopConfirmTarget !== null,
+		stopConfirmTarget,
+		confirmStop,
+		cancelStop,
+		activeToolPayload,
+		openToolPayloadSheet,
+		closeToolPayloadSheet,
+		tailBytes,
+		isTailOnly,
 	};
 }

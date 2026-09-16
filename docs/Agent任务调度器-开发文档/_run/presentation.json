@@ -421,7 +421,10 @@
       ],
       "M9-T12": [
         "packages/web/src/components/thumb-bar.tsx",
-        "packages/web/src/features/run-deck/"
+        "packages/web/src/components/stream-row.tsx",
+        "packages/web/src/hooks/use-payload-sheet.ts",
+        "packages/web/src/features/run-deck/",
+        "packages/web/src/features/run-detail/use-log-window.ts"
       ],
       "M9-T13": [
         "packages/web/src/features/run-detail/"

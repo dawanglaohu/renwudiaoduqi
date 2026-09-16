@@ -24,6 +24,7 @@ import {
 } from '../../components/log-lines.tsx';
 import { SessionSearchEntrance } from '../../components/session-search-entrance.tsx';
 import { VirtualRows, type VirtualRowsHandle } from '../../components/virtual-rows.tsx';
+import { useDensityTier } from '../../hooks/use-breakpoint.ts';
 import { useLogWindow } from './use-log-window.ts';
 
 const searchRunRoute = ROUTES.find(
@@ -52,6 +53,11 @@ export function RunDetailContainer({
 	const [expandedProgressIndices, setExpandedProgressIndices] = useState<ReadonlySet<number>>(
 		() => new Set(),
 	);
+
+	// E-99：手机档首屏只拉尾部轻量窗口（32KB 量级），桌面档保持 2000 行。
+	// 档位仍由单点计算器 useDensityTier() 给出（E-235），这里只是消费它，不另立判定。
+	const { tier } = useDensityTier();
+	const isMobileTier = tier === 'phone' || tier === 'phone-xs';
 
 	// E-218: 会话视图显式全会话检索状态（AC 5, M6-T9）
 	const [searchResult, setSearchResult] = useState<SearchRunLogResponse | null>(null);
@@ -86,7 +92,7 @@ export function RunDetailContainer({
 		loadNewer,
 		handleScroll,
 		handleResetUnread,
-	} = useLogWindow({ runId });
+	} = useLogWindow({ runId, isMobile: isMobileTier });
 
 	// R1 (AC 3 / E-100): 贴底且尾部增长时自动跟随；isAtBottom 为 false 时绝不跳底。
 	// 审查方修正：增长信号取 state.totalLines——它单调递增且把被折叠的刷新行也计进去；

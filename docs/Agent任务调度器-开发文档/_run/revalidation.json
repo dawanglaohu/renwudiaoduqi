@@ -1,1 +1,87 @@
-{}
+{
+  "M7-T5": {
+    "contractHash": "03585a5028cdf40ce8e49bb8b984afb3b77fb9db127d06a93b2e14f1fa950999",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f1de7dcb0b892f2b860a9a497cb2787d8e50d6178dad0ae1b64142ce18f854ba"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f4b38c29f913e4a8d3dff956af90c2ee9193cb669e1578a6a2e9c8472695d547"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T10": {
+    "contractHash": "4aed937cf6a10df2f2c9ad9094dc90ec75c6c555829996dfb2da6744e8560ad2",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f1de7dcb0b892f2b860a9a497cb2787d8e50d6178dad0ae1b64142ce18f854ba"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f4b38c29f913e4a8d3dff956af90c2ee9193cb669e1578a6a2e9c8472695d547"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T11": {
+    "contractHash": "dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "task"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f4b38c29f913e4a8d3dff956af90c2ee9193cb669e1578a6a2e9c8472695d547"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T16": {
+    "contractHash": "858cc9b78c7fa7266b54f0daf7f7da6e2504cada9079e17cca9bb7ab8e8f50fd",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "edges",
+          "effectivePaths",
+          "task"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f1de7dcb0b892f2b860a9a497cb2787d8e50d6178dad0ae1b64142ce18f854ba"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "edges",
+          "effectivePaths",
+          "task"
+        ],
+        "patch": "m9-t12-effective-paths",
+        "sourceVersion": "f4b38c29f913e4a8d3dff956af90c2ee9193cb669e1578a6a2e9c8472695d547"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}

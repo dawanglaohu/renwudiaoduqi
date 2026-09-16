@@ -1,6 +1,13 @@
 {
   "schemaVersion": 1,
   "tasks": {
+    "M9-T12": {
+      "supportPaths": [
+        "packages/web/test/thumb-bar.test.ts",
+        "packages/web/test/spine-row.test.ts",
+        "packages/web/test/log-window.test.ts"
+      ]
+    },
     "M9-T11": {
       "supportPaths": [
         "packages/web/package.json",

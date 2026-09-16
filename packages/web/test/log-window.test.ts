@@ -4,10 +4,12 @@
  * M9-T8 日志窗口与分段内存管理测试（AC 1-5, E-100, E-101, E-102, E-143, E-98, R1-R6）
  */
 
+import type { GetRunLogResponse } from '@agent-scheduler/shared/api/runs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RunStreamBuffer } from '../src/api/event-bus.ts';
+import { httpClient } from '../src/api/http-client.ts';
 import {
 	LINE_COLLAPSED_MAX_CHARS,
 	LINE_EXPANDED_MAX_CHARS,
@@ -29,7 +31,12 @@ import {
 	SEGMENT_MAX_LINES,
 } from '../src/features/run-detail/log-window.ts';
 import { RunDetailContainer } from '../src/features/run-detail/run-detail-container.tsx';
-import { seedStreamWatermark } from '../src/features/run-detail/use-log-window.ts';
+import {
+	DESKTOP_LOG_SEGMENT_LIMIT,
+	MOBILE_LOG_TAIL_LINES,
+	seedStreamWatermark,
+	useLogWindow,
+} from '../src/features/run-detail/use-log-window.ts';
 
 describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, E-98, R1-R6)', () => {
 	// ─── 容器渲染稳定性 ───
@@ -648,6 +655,109 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			);
 			expect(html).toContain('data-load-newer="true"');
 			expect(html).toContain('向下重新加载较新日志');
+		});
+	});
+
+	// ─── AC 5 & E-99: 手机档首屏轻量加载与切前台不重拉全量 ───
+	describe('AC 5 & E-99: Mobile initial log window is lightweight and incremental on resume', () => {
+		it('requests significantly smaller initial segment limit on mobile tier compared to desktop (E-99)', async () => {
+			const calls: Array<{ runId?: string; limit?: number }> = [];
+			const spy = vi.spyOn(httpClient, 'callRoute').mockImplementation(async (_route, options) => {
+				const opt = options as
+					| { params?: { runId?: string }; query?: { limit?: number } }
+					| undefined;
+				calls.push({ runId: opt?.params?.runId, limit: opt?.query?.limit });
+				const mockResp: GetRunLogResponse = {
+					lines: ['line 1', 'line 2'],
+					totalLines: 2,
+					prevCursor: null,
+					nextCursor: null,
+				};
+				return mockResp as unknown as never;
+			});
+
+			let desktopHook!: ReturnType<typeof useLogWindow>;
+			let mobileHook!: ReturnType<typeof useLogWindow>;
+
+			function DesktopConsumer() {
+				desktopHook = useLogWindow({ runId: 'run-desktop', isMobile: false });
+				return createElement('div', null, 'desktop');
+			}
+
+			function MobileConsumer() {
+				mobileHook = useLogWindow({ runId: 'run-mobile', isMobile: true });
+				return createElement('div', null, 'mobile');
+			}
+
+			// 桌面档渲染
+			renderToStaticMarkup(createElement(DesktopConsumer));
+			// 手机档渲染
+			renderToStaticMarkup(createElement(MobileConsumer));
+
+			await desktopHook.loadInitial();
+			await mobileHook.loadInitial();
+
+			// 验证常量关系：手机档首屏窗口 32KB 量级（300 行），明显小于桌面档（2000 行）
+			expect(MOBILE_LOG_TAIL_LINES).toBeLessThan(DESKTOP_LOG_SEGMENT_LIMIT);
+			expect(MOBILE_LOG_TAIL_LINES).toBe(300);
+			expect(DESKTOP_LOG_SEGMENT_LIMIT).toBe(2000);
+
+			const desktopCall = calls.find((c) => c.runId === 'run-desktop');
+			const mobileCall = calls.find((c) => c.runId === 'run-mobile');
+
+			expect(desktopCall?.limit).toBe(2000);
+			expect(mobileCall?.limit).toBe(300);
+			if (typeof desktopCall?.limit === 'number' && typeof mobileCall?.limit === 'number') {
+				expect(mobileCall.limit).toBeLessThan(desktopCall.limit);
+			}
+
+			spy.mockRestore();
+		});
+
+		it('does not re-issue initial full log request after hide -> show visibility cycle (E-99, E-58)', async () => {
+			let callCount = 0;
+			const spy = vi.spyOn(httpClient, 'callRoute').mockImplementation(async () => {
+				callCount++;
+				const mockResp: GetRunLogResponse = {
+					lines: ['log line 1'],
+					totalLines: 1,
+					prevCursor: null,
+					nextCursor: null,
+				};
+				return mockResp as unknown as never;
+			});
+
+			let harnessHook!: ReturnType<typeof useLogWindow>;
+			function TestHarness() {
+				harnessHook = useLogWindow({ runId: 'run-visibility-test', isMobile: true });
+				return createElement('div', null, 'content');
+			}
+
+			// 初始挂载渲染
+			renderToStaticMarkup(createElement(TestHarness));
+			await harnessHook.loadInitial();
+			expect(callCount).toBe(1);
+
+			// 模拟切后台（visibilityState = 'hidden'）再回前台（visibilityState = 'visible'）
+			if (typeof document !== 'undefined') {
+				Object.defineProperty(document, 'visibilityState', {
+					value: 'hidden',
+					configurable: true,
+				});
+				document.dispatchEvent(new Event('visibilitychange'));
+
+				Object.defineProperty(document, 'visibilityState', {
+					value: 'visible',
+					configurable: true,
+				});
+				document.dispatchEvent(new Event('visibilitychange'));
+			}
+
+			// 再次触发加载（模拟切前台后生命周期）：切后台再回前台不得重发首屏全量
+			await harnessHook.loadInitial();
+			expect(callCount).toBe(1);
+
+			spy.mockRestore();
 		});
 	});
 });

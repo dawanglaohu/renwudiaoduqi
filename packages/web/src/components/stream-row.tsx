@@ -21,8 +21,11 @@ import {
 	type MouseEvent,
 	type ReactNode,
 	useCallback,
+	useEffect,
+	useRef,
 	useState,
 } from 'react';
+import { buildPayloadSheetData, usePayloadSheet } from '../hooks/use-payload-sheet.ts';
 import {
 	type StatusState,
 	type StepType,
@@ -220,6 +223,45 @@ export function StreamRow({
 	const isControlled = expanded !== undefined;
 	const isExpanded = isControlled ? expanded : uncontrolledExpanded;
 
+	const payloadSheet = usePayloadSheet();
+	const isMobilePayloadMode = Boolean(isTouch || payloadSheet?.isMobile);
+
+	// AC 4: 标签严格为「工具 + 对象」
+	let displayLabel = label;
+	if (tool && target) {
+		displayLabel = `${tool} ${target}`;
+	} else if (tool) {
+		displayLabel = tool;
+	} else if (!displayLabel && stepType) {
+		const shapeDef = getStepShape(stepType as StepType);
+		displayLabel = shapeDef.defaultText;
+	} else if (!displayLabel) {
+		displayLabel = '—';
+	}
+
+	// AC 3: 每一步都显示耗时，无数据返回 '—' 禁止返回 0
+	const displayDuration = formatDurationMs(duration);
+
+	// 手机档展开时把 payload 送入 bottom sheet（AC 6 / R1）。
+	// 只在「折叠 → 展开」这一帧触发一次：不允许在渲染期调用（会 setState 到别的组件并死循环），
+	// 也不允许每次依赖变化都重开（用户手动关掉抽屉后不该被立刻弹回来）。
+	const wasExpandedRef = useRef<boolean>(false);
+	useEffect(() => {
+		const justExpanded = isExpanded && !wasExpandedRef.current;
+		wasExpandedRef.current = isExpanded;
+		if (!justExpanded || payload === undefined || !isMobilePayloadMode || !payloadSheet) {
+			return;
+		}
+		payloadSheet.openPayloadSheet(
+			buildPayloadSheetData({
+				label: displayLabel,
+				tool,
+				durationText: displayDuration,
+				payload,
+			}),
+		);
+	}, [isExpanded, payload, isMobilePayloadMode, payloadSheet, displayLabel, tool, displayDuration]);
+
 	const handleToggleExpand = useCallback(() => {
 		const nextState = !isExpanded;
 		if (!isControlled) {
@@ -249,22 +291,6 @@ export function StreamRow({
 		},
 		[onRetry],
 	);
-
-	// AC 4: 标签严格为「工具 + 对象」
-	let displayLabel = label;
-	if (tool && target) {
-		displayLabel = `${tool} ${target}`;
-	} else if (tool) {
-		displayLabel = tool;
-	} else if (!displayLabel && stepType) {
-		const shapeDef = getStepShape(stepType as StepType);
-		displayLabel = shapeDef.defaultText;
-	} else if (!displayLabel) {
-		displayLabel = '—';
-	}
-
-	// AC 3: 每一步都显示耗时，无数据返回 '—' 禁止返回 0
-	const displayDuration = formatDurationMs(duration);
 
 	// 高度约束：折叠 30px，触摸档 44px（AC 3）
 	const rowHeight = isTouch ? 44 : 30;
@@ -426,8 +452,8 @@ export function StreamRow({
 						</div>
 					)}
 
-					{/* 载荷/参数输出（等宽字体展示，E-110） */}
-					{payload !== undefined && (
+					{/* 载荷/参数输出（等宽字体展示，E-110；手机档/触控档不内联，走 bottom sheet，AC 6） */}
+					{payload !== undefined && !isMobilePayloadMode && (
 						<pre
 							data-step-payload="true"
 							className="font-mono text-log p-2 rounded-[9px] bg-panel-2 border border-border text-ink-2 overflow-x-auto whitespace-pre-wrap select-text max-h-[160px]"

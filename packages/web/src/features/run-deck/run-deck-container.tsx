@@ -1,7 +1,7 @@
 /**
  * packages/web/src/features/run-deck/run-deck-container.tsx
  *
- * 运行甲板多流监看容器组件（M9-T9 / 07 节前端架构）
+ * 运行甲板多流监看与手机单栏容器组件（M9-T9, M9-T12 / 07 节前端架构）
  *
  * 规范依据（07 节前端架构）：
  * - features 是容器层，每域固定 use-<域>.ts + <域>-container.tsx 两类文件
@@ -21,6 +21,8 @@ export function RunDeckContainer(props: RunDeckProps) {
 			<RunDeckView
 				{...deckState}
 				lanes={props.lanes}
+				batches={props.batches}
+				onSelectTask={props.onSelectTask}
 				toolbarSlot={props.toolbarSlot}
 				className={props.className}
 			/>
