@@ -243,7 +243,7 @@ export interface RunMessageUndeliveredPayload {
 }
 
 export interface RunReworkDispatchedPayload {
-	readonly mode: 'inject' | 'resume' | 'new_session';
+	readonly mode: 'inject' | 'resume' | 'new_run';
 	readonly source: 'review' | 'human' | 'manual' | 'wrapup';
 	readonly targetRunId?: string;
 	readonly reviewRunId?: string | null;

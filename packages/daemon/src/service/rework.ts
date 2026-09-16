@@ -62,7 +62,7 @@ export type ReworkSource = 'review' | 'human' | 'manual' | 'wrapup';
  * - 'awaiting_human': 达到重试上限或原分支丢失时转人（E-55, E-277）
  * - 'handover': 兼容 M7-T4 委托载荷
  */
-export type ReworkMode = 'inject' | 'resume' | 'new_session' | 'awaiting_human' | 'handover';
+export type ReworkMode = 'inject' | 'resume' | 'new_run' | 'awaiting_human' | 'handover';
 
 /**
  * 工作区 diff 统计数据接口（用于 E-68 diff 缩小或回退判定）。
@@ -168,7 +168,7 @@ export type DispatchReworkResult =
 	| {
 			readonly success: true;
 			readonly action: 'new_session_spawned';
-			readonly mode: 'new_session';
+			readonly mode: 'new_run';
 			readonly targetRunId: string;
 			readonly newRunId: string;
 			readonly reviewRunId?: string | null;
@@ -1375,7 +1375,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				taskId: targetRun.task_id,
 				actorDeviceId: input.actorDeviceId ?? null,
 				payload: {
-					mode: 'new_session',
+					mode: 'new_run',
 					source: input.source,
 					targetRunId: targetRun.id,
 					reviewRunId: input.reviewRunId ?? null,
@@ -1389,7 +1389,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		return Object.freeze({
 			success: true,
 			action: 'new_session_spawned',
-			mode: 'new_session',
+			mode: 'new_run',
 			targetRunId: targetRun.id,
 			newRunId,
 			reviewRunId: input.reviewRunId ?? null,

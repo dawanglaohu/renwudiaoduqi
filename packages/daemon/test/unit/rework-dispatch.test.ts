@@ -507,7 +507,7 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 
 			expect(result.success).toBe(true);
 			expect(result.action).toBe('new_session_spawned');
-			expect(result.mode).toBe('new_session');
+			expect(result.mode).toBe('new_run');
 			if (result.action === 'new_session_spawned') {
 				expect(result.newRunId).toBe('new-run-id-789');
 				expect(result.reworkCount).toBe(1);
@@ -528,7 +528,7 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 			// AC 4: 事务后发布 run.rework_dispatched{mode: 'new_session'}
 			const reworkEvent = publishedEvents.find((e) => e.kind === 'run.rework_dispatched');
 			expect(reworkEvent).toBeDefined();
-			expect(reworkEvent?.payload.mode).toBe('new_session');
+			expect(reworkEvent?.payload.mode).toBe('new_run');
 			expect(reworkEvent?.payload.source).toBe('review');
 			expect(reworkEvent?.payload.reworkRunId).toBe('new-run-id-789');
 		});
@@ -552,7 +552,7 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 
 			// 因为快照中为 generic-acp，即便 agentId 是 codex，也强制走分支三（new_session）
 			expect(result.action).toBe('new_session_spawned');
-			expect(result.mode).toBe('new_session');
+			expect(result.mode).toBe('new_run');
 			expect(mockMessageService.sendMessage).not.toHaveBeenCalled();
 		});
 	});
