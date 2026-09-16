@@ -1194,6 +1194,20 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T7": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "7c84ce2780dec848a2aab112fab4482c3baeb8c41f3ac9e441ce51fe219b2077",
+    "evidence": [
+      "复验触发面：revalidation.json 里 M9-T7 的 changedFields=[definition, effectivePaths]、patch=m9-t7-support-paths、sourceVersion=59abe0ae4bd2b7c8b78d48658d6497b23de8e1ed4958e812a85a9a0a3d6fdfdc（合并 main 后的当前源版本）。这次变化就是本任务自己的审查补丁，另有 M7-T3 落地带来的共享章节与 _run 产物变化；合并 main 时 _run 产物冲突按手册取 main 后重跑 sync --patch 重建，contractHash 与补丁轮 verify 登记值逐字符相同（7c84ce2780dec848a2aab112fab4482c3baeb8c41f3ac9e441ce51fe219b2077）。",
+      "①definition：04-执行/19-模块任务拆分.md 的 M9-T7 行原文未动——产出仍为 `components/spine.tsx`、`stream-row.tsx`，前置仍为 M9-T2（形状枚举与状态徽标）与 M9-T6（事件缓冲与按帧渲染），六条验收标准（全高贯穿含未来虚线／六种轨段形态／30px 与 44px 网格与每步耗时／工具+对象标签与折叠默认值与重试／内嵌焦点环／共用形状枚举）与两条边界 E-110、E-230 一字未删。",
+      "②effectivePaths：task-contracts.json 的 M9-T7 条目本次新增 {supportPaths:[packages/web/test/spine-row.test.ts]}，是补丁唯一内容；有效范围现在是 packages/web/src/components/spine.tsx + packages/web/src/components/stream-row.tsx + packages/web/test/spine-row.test.ts，与分支上实际改动的文件集合一致。该测试路径全仓只被 M9-T7 声明，与 M9-T8/M9-T9/M9-T10/M9-T21 冲突检测为 0。",
+      "③合并 main（含 M7-T3 落地）后本层代码与合并前一致：packages/web/src/components/{spine.tsx,stream-row.tsx} 与 packages/web/test/spine-row.test.ts 在合并提交里没有冲突、内容与审查落地时相同（含审查方 review-fix 提交 222d891 的 partial 形状修正）。重跑 vitest run packages/web → 13 文件 183 用例全过（spine-row.test.ts 22 条）；biome ci . → 386 文件无修复需求；tsc -b --noEmit → 退出码 0；check-error-codes.mjs（49 码一致）、check-contrast.ts、check-forbidden.ts → 0 违规。",
+      "④结论：变化条款只落在 M9-T7 自身的有效范围登记上，六条验收标准与两条边界的实现位置（spine.tsx:32/162/233/397/579，stream-row.tsx:83/206/306/373/395）未受影响，复验通过，清除待复验标记。"
+    ],
+    "reviewed": "2026-09-16T03:27:13.374530+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T9": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "962ce7ca834d665694ef3a7fee2064b5a5ab908c82d3b795cc09234a0182715d",
