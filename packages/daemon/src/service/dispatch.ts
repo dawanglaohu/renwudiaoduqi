@@ -153,6 +153,8 @@ export interface DispatchService {
 	listRuns(): Promise<readonly RunDto[]>;
 	getSnapshot(): Promise<SnapshotResponse>;
 	tick(): Promise<SchedulerTickResult>;
+	getBatchGateOverrides(batchId: string): BatchGateOverrides | undefined;
+	setBatchGateOverrides(batchId: string, overrides: BatchGateOverrides): void;
 }
 
 const DEFAULT_AGENT_CONCURRENCY_LIMIT = 2;
@@ -169,6 +171,7 @@ function resolveConstraintConflict(
 
 export function createDispatchService(deps: DispatchServiceDeps): DispatchService {
 	const runsRepo = deps.runsRepo;
+	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
 	let isTicking = false;
 
 	function checkContractReady(task: TaskRow): void {
@@ -433,7 +436,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	}
 
 	async function startBatch(input: StartBatchInput): Promise<StartBatchResponse> {
-		const { batchId } = input;
+		const { batchId, gateOverrides } = input;
 		if (!batchId || typeof batchId !== 'string' || batchId.trim().length === 0) {
 			throw new AppError('E_VALIDATION', 'batchId must be a non-empty string');
 		}
@@ -491,6 +494,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		});
 
 		const batchTasks = deps.tasksRepo.listByBatchId(batchId);
+		if (gateOverrides && Object.keys(gateOverrides).length > 0) {
+			batchGateOverridesMap.set(batchId, Object.freeze({ ...gateOverrides }));
+		}
 		const activeRunTaskIds = new Set(runsRepo.listActive().map((r) => r.task_id));
 		const queuedCount = batchTasks.filter(
 			(t) =>
@@ -860,6 +866,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 	}
 
+	function getBatchGateOverrides(batchId: string): BatchGateOverrides | undefined {
+		return batchGateOverridesMap.get(batchId);
+	}
+
+	function setBatchGateOverrides(batchId: string, overrides: BatchGateOverrides): void {
+		batchGateOverridesMap.set(batchId, Object.freeze({ ...overrides }));
+	}
+
 	return Object.freeze({
 		createRun,
 		rerunRun,
@@ -869,5 +883,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		listRuns,
 		getSnapshot,
 		tick,
+		getBatchGateOverrides,
+		setBatchGateOverrides,
 	});
 }

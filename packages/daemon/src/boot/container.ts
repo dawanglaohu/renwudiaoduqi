@@ -24,21 +24,26 @@ import {
 } from '../repo/dispatch-snapshots.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
+import { type GatesRepo, createGatesRepo } from '../repo/gates.ts';
 import { type LogSegmentsRepo, createLogSegmentsRepo } from '../repo/log-segments-repo.ts';
 import { type RunMessagesRepo, createSqliteRunMessagesRepo } from '../repo/run-messages-repo.ts';
 import { type RunsAbortRepo, createSqliteRunsAbortRepo } from '../repo/runs-abort-repo.ts';
 import { type RunsLogRepo, createSqliteRunsLogRepo } from '../repo/runs-log-repo.ts';
 import { type RunsRepo, createRunsRepo } from '../repo/runs.ts';
+import { type SettingsRepo, createSettingsRepo } from '../repo/settings.ts';
 import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
 import { type DispatchService, createDispatchService } from '../service/dispatch.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
+import { type GateService, createGateService } from '../service/gates.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RetentionService, createRetentionService } from '../service/retention.ts';
+import { type ReworkService, createReworkService } from '../service/rework.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
+import { type SettingsService, createSettingsService } from '../service/settings.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 
 export interface ContainerJob {
@@ -59,6 +64,8 @@ export interface ContainerRepos {
 	readonly tasks: TasksRepo;
 	readonly runs: RunsRepo;
 	readonly batches: BatchesRepo;
+	readonly gates?: GatesRepo;
+	readonly settings?: SettingsRepo;
 	readonly [key: string]: unknown;
 }
 
@@ -80,6 +87,9 @@ export interface ContainerServices {
 	readonly message: MessageService;
 	readonly retention: RetentionService;
 	readonly dispatch: DispatchService;
+	readonly rework: ReworkService;
+	readonly settings: SettingsService;
+	readonly gates: GateService;
 }
 
 export interface AppContainer {
@@ -136,7 +146,12 @@ export function createContainer(input: {
 	readonly landingService?: LandingService;
 	readonly runsRepo?: RunsRepo;
 	readonly batchesRepo?: BatchesRepo;
+	readonly gatesRepo?: GatesRepo;
+	readonly settingsRepo?: SettingsRepo;
+	readonly settingsService?: SettingsService;
+	readonly gateService?: GateService;
 	readonly dispatchService?: DispatchService;
+	readonly reworkService?: ReworkService;
 	readonly schedulerTickJob?: ContainerJob;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
@@ -155,6 +170,8 @@ export function createContainer(input: {
 	const tasks = input.tasksRepo ?? createTasksRepo(input.database);
 	const runs = input.runsRepo ?? createRunsRepo(input.database);
 	const batches = input.batchesRepo ?? createBatchesRepo(input.database);
+	const gates = input.gatesRepo ?? createGatesRepo(input.database);
+	const settings = input.settingsRepo ?? createSettingsRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
 		eventSeq,
 		runsAbort,
@@ -167,6 +184,8 @@ export function createContainer(input: {
 		tasks,
 		runs,
 		batches,
+		gates,
+		settings,
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
@@ -295,6 +314,20 @@ export function createContainer(input: {
 			unitOfWork,
 		});
 
+	const reworkService =
+		input.reworkService ??
+		createReworkService({
+			runsRepo: runs,
+			snapshotsRepo: dispatchSnapshots,
+			processRegistry,
+			messageService,
+			unitOfWork,
+			bus,
+			envelopeFactory,
+			clock: input.clock,
+			ids,
+		});
+
 	const runLogService =
 		input.runLogService ??
 		createRunLogService({
@@ -352,6 +385,45 @@ export function createContainer(input: {
 			},
 		});
 
+	const gateServiceHolder: { current?: GateService } = {};
+
+	const settingsService =
+		input.settingsService ??
+		createSettingsService({
+			settingsRepo: settings,
+			clock: input.clock,
+			bus,
+			envelopeFactory,
+			unitOfWork,
+			warn: (message: string) => {
+				input.logViolation?.(`[WARN] ${message}`);
+				console.warn(`[daemon] ${message}`);
+			},
+			// Shares the settings write's single transaction; returns events to publish afterwards.
+			onGatesUpdated: (newGates, previousGates, actorDeviceId) =>
+				gateServiceHolder.current?.reEvaluateWaitingGatesInTx(
+					newGates,
+					previousGates,
+					actorDeviceId,
+				) ?? [],
+		});
+
+	const gateService =
+		input.gateService ??
+		createGateService({
+			gatesRepo: gates,
+			tasksRepo: tasks,
+			clock: input.clock,
+			ids,
+			bus,
+			envelopeFactory,
+			unitOfWork,
+			settingsService,
+			getBatchGateOverrides: (batchId: string) => dispatchService.getBatchGateOverrides(batchId),
+		});
+
+	gateServiceHolder.current = gateService;
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
@@ -363,6 +435,9 @@ export function createContainer(input: {
 		landing: landingService,
 		message: messageService,
 		dispatch: dispatchService,
+		rework: reworkService,
+		settings: settingsService,
+		gates: gateService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([schedulerTickJob]);
