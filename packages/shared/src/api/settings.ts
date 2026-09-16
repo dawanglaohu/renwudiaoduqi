@@ -1,7 +1,13 @@
+export interface GateSettings {
+	readonly dispatch: 'auto' | 'manual';
+	readonly review: 'auto' | 'manual';
+	readonly landing: 'auto' | 'manual';
+}
+
 export interface UpdateGateSettingsBody {
 	readonly dispatch: 'auto' | 'manual';
 	readonly review: 'auto' | 'manual';
-	readonly landing: 'manual';
+	readonly landing: 'auto' | 'manual';
 }
 
 export const UPDATE_GATE_SETTINGS_BODY_KEYS = [
@@ -24,14 +30,10 @@ export const updateGateSettingsBodySchema = {
 	properties: {
 		dispatch: { type: 'string', enum: ['auto', 'manual'] },
 		review: { type: 'string', enum: ['auto', 'manual'] },
-		landing: { type: 'string', enum: ['manual'] },
+		landing: { type: 'string', enum: ['auto', 'manual'] },
 	},
 } as const;
 
 export interface UpdateGateSettingsResponse {
-	readonly gates: {
-		readonly dispatch: 'auto' | 'manual';
-		readonly review: 'auto' | 'manual';
-		readonly landing: 'manual';
-	};
+	readonly gates: GateSettings;
 }

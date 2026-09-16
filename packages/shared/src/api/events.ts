@@ -1,6 +1,7 @@
 import type { LoginState } from './agents.ts';
+import type { GateSettings } from './settings.ts';
 
-export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system' | 'lane';
+export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system' | 'lane' | 'settings';
 
 export const EVENT_SCOPES = [
 	'run',
@@ -9,6 +10,7 @@ export const EVENT_SCOPES = [
 	'agent',
 	'system',
 	'lane',
+	'settings',
 ] as const satisfies readonly EventScope[];
 
 /**
@@ -42,6 +44,7 @@ export const EVENT_DEFINITIONS = {
 	'lane.released': { scope: 'lane', milestone: true },
 	'batch.advanced': { scope: 'batch', milestone: true },
 	'agent.availability_changed': { scope: 'agent', milestone: true },
+	'settings.gates_changed': { scope: 'settings', milestone: true },
 	'system.disk_warning': { scope: 'system', milestone: true },
 	'system.docs_changed': { scope: 'system', milestone: true },
 } as const;
@@ -73,6 +76,7 @@ const EVENT_KIND_VALUES = [
 	'lane.released',
 	'batch.advanced',
 	'agent.availability_changed',
+	'settings.gates_changed',
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
@@ -114,6 +118,7 @@ export const PRODUCT_EVENT_KINDS = [
 	'lane.released',
 	'batch.advanced',
 	'agent.availability_changed',
+	'settings.gates_changed',
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
@@ -256,6 +261,14 @@ export interface TaskReviewVerdictPayload {
 export interface TaskLandedPayload {
 	readonly branch?: string;
 	readonly prUrl?: string;
+	readonly by?: 'auto' | 'human';
+	readonly gateId?: string;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface SettingsGatesChangedPayload {
+	readonly gates: GateSettings;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }
@@ -336,6 +349,7 @@ export interface EventPayloadMap {
 	readonly 'lane.released': LaneReleasedPayload;
 	readonly 'batch.advanced': BatchAdvancedPayload;
 	readonly 'agent.availability_changed': AgentAvailabilityChangedPayload;
+	readonly 'settings.gates_changed': SettingsGatesChangedPayload;
 	readonly 'system.disk_warning': SystemDiskWarningPayload;
 	readonly 'system.docs_changed': SystemDocsChangedPayload;
 }

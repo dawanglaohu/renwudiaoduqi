@@ -1,0 +1,303 @@
+import type {
+	DecideGateResponse,
+	GateDto,
+	ListGatesResponse,
+} from '@agent-scheduler/shared/api/gates';
+import type { UnitOfWork } from '../db/unit-of-work.ts';
+import {
+	type GateOverrides,
+	type ResolveAfterReviewResult,
+	resolveAfterReview,
+} from '../domain/gates.ts';
+import { AppError } from '../errors/app-error.ts';
+import type { EventBus } from '../events/bus.ts';
+import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { GateRow, GatesRepo } from '../repo/gates.ts';
+import type { TasksRepo } from '../repo/tasks.ts';
+import type { SettingsService } from './settings.ts';
+
+export interface GateServiceDeps {
+	readonly gatesRepo: GatesRepo;
+	readonly tasksRepo?: TasksRepo;
+	readonly clock: { readonly now: () => string };
+	readonly ids: { readonly newId: () => string };
+	readonly bus: EventBus;
+	readonly envelopeFactory: EnvelopeFactory;
+	readonly unitOfWork: UnitOfWork;
+	readonly settingsService: SettingsService;
+}
+
+export interface GateService {
+	readonly decideGate: (input: {
+		readonly gateId: string;
+		readonly decision: 'pass' | 'reject';
+		readonly comment?: string;
+		readonly actorDeviceId: string | null;
+	}) => Promise<DecideGateResponse>;
+	readonly listGates: (params?: { readonly pendingOnly?: boolean }) => Promise<ListGatesResponse>;
+	readonly createWaitingGate: (input: {
+		readonly taskId: string;
+		readonly runId?: string | null;
+		readonly kind: 'dispatch' | 'review' | 'landing';
+		readonly comment?: string;
+	}) => Promise<GateDto>;
+	readonly resolveAfterReviewAndApply: (input: {
+		readonly taskId: string;
+		readonly runId: string;
+		readonly reviewVerdict: string;
+		readonly overrides?: GateOverrides | null;
+	}) => Promise<ResolveAfterReviewResult>;
+}
+
+function rowToGateDto(row: GateRow): GateDto {
+	return Object.freeze({
+		id: row.id,
+		taskId: row.task_id,
+		runId: row.run_id,
+		kind: row.kind as 'dispatch' | 'review' | 'landing',
+		state: row.state as 'waiting' | 'decided',
+		decision: row.decision as 'pass' | 'rework' | 'reject' | null,
+		comment: row.comment,
+		decidedByDeviceId: row.decided_by_device_id,
+		createdAt: row.created_at,
+		decidedAt: row.decided_at,
+	});
+}
+
+export function createGateService(deps: GateServiceDeps): GateService {
+	return Object.freeze({
+		/**
+		 * Decides a waiting gate (AC 1, AC 2b, AC 5, AC 6, E-05, E-53, E-57):
+		 * - If gate not found: returns 404 E_NOT_FOUND.
+		 * - If gate is already decided: idempotent 409 E_GATE_ALREADY_DECIDED with prior details (E-57).
+		 * - Updates gate state to 'decided' within transaction.
+		 * - If kind is 'landing' and decision is 'pass': marks task landed, emits task.landed with by='human' and gateId (AC 2b).
+		 * - Emits task.gate_passed or records human rejection without auto-rescheduling (E-05).
+		 */
+		async decideGate(input: {
+			readonly gateId: string;
+			readonly decision: 'pass' | 'reject';
+			readonly comment?: string;
+			readonly actorDeviceId: string | null;
+		}): Promise<DecideGateResponse> {
+			const gate = deps.gatesRepo.findById(input.gateId);
+			if (!gate) {
+				throw new AppError('E_NOT_FOUND', `Gate ${input.gateId} not found.`);
+			}
+
+			// E-57 Idempotency: second decision returns E_GATE_ALREADY_DECIDED with prior decider details
+			if (gate.state === 'decided') {
+				throw new AppError('E_GATE_ALREADY_DECIDED', 'Gate already decided by another device.', {
+					details: {
+						decidedByDeviceId: gate.decided_by_device_id,
+						decidedAt: gate.decided_at,
+						decision: gate.decision,
+						gateId: gate.id,
+					},
+				});
+			}
+
+			const now = deps.clock.now();
+			const comment = input.comment ?? null;
+
+			deps.unitOfWork.run(() => {
+				deps.gatesRepo.updateDecision(
+					input.gateId,
+					input.decision,
+					comment,
+					input.actorDeviceId,
+					now,
+				);
+
+				if (input.decision === 'pass' && gate.kind === 'landing' && deps.tasksRepo) {
+					deps.tasksRepo.updateManualState(gate.task_id, 'landed');
+				} else if (input.decision === 'reject' && deps.tasksRepo) {
+					// E-05: Human rejection sets manual state, automatic dispatch must not override human judgment
+					deps.tasksRepo.updateManualState(gate.task_id, 'paused');
+				}
+			});
+
+			// Outside transaction: publish events
+			if (input.decision === 'pass') {
+				if (gate.kind === 'landing') {
+					const landedEnvelope = deps.envelopeFactory.createEnvelope({
+						kind: 'task.landed',
+						taskId: gate.task_id,
+						runId: gate.run_id,
+						actorDeviceId: input.actorDeviceId,
+						payload: {
+							by: 'human',
+							gateId: gate.id,
+						},
+					});
+					deps.bus.publish(landedEnvelope);
+				}
+
+				const passedEnvelope = deps.envelopeFactory.createEnvelope({
+					kind: 'task.gate_passed',
+					taskId: gate.task_id,
+					runId: gate.run_id,
+					actorDeviceId: input.actorDeviceId,
+					payload: {
+						gate: gate.kind,
+					},
+				});
+				deps.bus.publish(passedEnvelope);
+			}
+
+			return Object.freeze({ applied: true as const });
+		},
+
+		/**
+		 * Lists all gates with optional filter for pending (waiting) gates.
+		 */
+		async listGates(params?: { readonly pendingOnly?: boolean }): Promise<ListGatesResponse> {
+			const rows = deps.gatesRepo.list(params);
+			return Object.freeze({
+				gates: rows.map(rowToGateDto),
+			});
+		},
+
+		/**
+		 * Creates a new waiting gate (E-54: releases concurrency, does not occupy running slot).
+		 */
+		async createWaitingGate(input: {
+			readonly taskId: string;
+			readonly runId?: string | null;
+			readonly kind: 'dispatch' | 'review' | 'landing';
+			readonly comment?: string;
+		}): Promise<GateDto> {
+			const gateId = deps.ids.newId();
+			const now = deps.clock.now();
+
+			deps.unitOfWork.run(() => {
+				deps.gatesRepo.create({
+					id: gateId,
+					task_id: input.taskId,
+					run_id: input.runId ?? null,
+					kind: input.kind,
+					state: 'waiting',
+					comment: input.comment ?? null,
+					created_at: now,
+				});
+			});
+
+			const envelope = deps.envelopeFactory.createEnvelope({
+				kind: 'task.gate_waiting',
+				taskId: input.taskId,
+				runId: input.runId ?? null,
+				actorDeviceId: null,
+				payload: {
+					gate: input.kind,
+				},
+			});
+			deps.bus.publish(envelope);
+
+			const created = deps.gatesRepo.findById(gateId);
+			if (!created) {
+				throw new AppError('E_INTERNAL', `Failed to create gate ${gateId}`);
+			}
+			return rowToGateDto(created);
+		},
+
+		/**
+		 * Evaluates post-review progression using resolveAfterReview domain logic (AC 1, AC 2, AC 2b):
+		 * - If resolved to 'landed' (auto review + auto landing):
+		 *   marks task landed, creates decided landing gate, publishes task.landed with by='auto' and gateId.
+		 * - If resolved to 'await_human':
+		 *   creates waiting gate, releases concurrency (AC 3, E-54), publishes task.gate_waiting.
+		 */
+		async resolveAfterReviewAndApply(input: {
+			readonly taskId: string;
+			readonly runId: string;
+			readonly reviewVerdict: string;
+			readonly overrides?: GateOverrides | null;
+		}): Promise<ResolveAfterReviewResult> {
+			const settings = deps.settingsService.getGates();
+			const result = resolveAfterReview({
+				reviewVerdict: input.reviewVerdict,
+				settings,
+				overrides: input.overrides,
+			});
+
+			const now = deps.clock.now();
+
+			if (result.outcome === 'landed') {
+				// AC 1 & AC 2b: automatic pass lands directly with zero git operations
+				const gateId = deps.ids.newId();
+				deps.unitOfWork.run(() => {
+					deps.gatesRepo.create({
+						id: gateId,
+						task_id: input.taskId,
+						run_id: input.runId,
+						kind: 'landing',
+						state: 'decided',
+						decision: 'pass',
+						comment: 'auto_landing_gate',
+						decided_by_device_id: null,
+						created_at: now,
+						decided_at: now,
+					});
+
+					if (deps.tasksRepo) {
+						deps.tasksRepo.updateManualState(input.taskId, 'landed');
+					}
+				});
+
+				const landedEnvelope = deps.envelopeFactory.createEnvelope({
+					kind: 'task.landed',
+					taskId: input.taskId,
+					runId: input.runId,
+					actorDeviceId: null,
+					payload: {
+						by: 'auto',
+						gateId,
+					},
+				});
+				deps.bus.publish(landedEnvelope);
+
+				const passedEnvelope = deps.envelopeFactory.createEnvelope({
+					kind: 'task.gate_passed',
+					taskId: input.taskId,
+					runId: input.runId,
+					actorDeviceId: null,
+					payload: {
+						gate: 'landing',
+					},
+				});
+				deps.bus.publish(passedEnvelope);
+			} else {
+				// Stays in awaiting_human; creates waiting gate (AC 3, E-54)
+				const gateId = deps.ids.newId();
+				deps.unitOfWork.run(() => {
+					deps.gatesRepo.create({
+						id: gateId,
+						task_id: input.taskId,
+						run_id: input.runId,
+						kind: result.gateKind,
+						state: 'waiting',
+						comment: result.reason,
+						created_at: now,
+					});
+
+					if (deps.tasksRepo) {
+						deps.tasksRepo.updateManualState(input.taskId, 'awaiting_human');
+					}
+				});
+
+				const waitingEnvelope = deps.envelopeFactory.createEnvelope({
+					kind: 'task.gate_waiting',
+					taskId: input.taskId,
+					runId: input.runId,
+					actorDeviceId: null,
+					payload: {
+						gate: result.gateKind,
+					},
+				});
+				deps.bus.publish(waitingEnvelope);
+			}
+
+			return result;
+		},
+	});
+}
