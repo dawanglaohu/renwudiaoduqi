@@ -833,14 +833,17 @@
     "verdict": "pass"
   },
   "M7-T6": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "765d80ebee27298cfaac8a0495e8ca3cd9e04dd7d61c509f06b4fccd1b36d538",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "86855930ed649af7d1f9436a568f6a3e4dac8d924098811d919357560809f3b1",
     "evidence": [
-      "19 节 M7-T6 行：只依赖 M7-T3（解析器结构）；产出 domain/wrapup-report.ts 纯函数在 taskPaths，fixtures 与单测在 supportPaths；requires M7-T3 的 review-verdict 在闭包内",
-      "验收 1)～5) 对应 E-274（八段缺一不猜）、E-290（无主进 unassigned）、E-286（有效裁定由内容算出）；解析规则与 08 节 domain 清单、09 节 batch_wrapups.findings_json/unassigned_json 字段一致；17 节列出了全部单测用例",
-      "接缝：M8-T6 调 parseWrapupReport/deriveWrapupVerdict/planWrapupFixes（requires wrapup-report）；条目正则的 S1／S2／S3 写法与决策 61 的八段格式一致"
+      "契约版本核对（工作树 D:/xiangmu/agent-scheduler-m7-t6 @ task/M7-T6，b292423）：status 给出的 contractHash 86855930… 与派发提示词引用的任务契约版本 86855930ed649af7d1f9436a568f6a3e4dac8d924098811d919357560809f3b1 逐字一致；blockers / stale / runtimeDrift 均为空，唯一原因是「任务契约待语义复核」。相对旧记录（_run/M7-T6.evidence.json，765d80eb…，任务拆分那次生成）差异只来自共享章节重算，本任务 context 未偏离：验收标准 1)～5)、边界 E-274/E-286/E-290、预估 1 人天、前置 M7-T3 与 图谱/任务/M7-T6.md:28-50、19-模块任务拆分.md:70 的 M7-T6 行逐字一致，无需补丁。",
+      "有效范围核对：presentation.json 的 handoff.taskPaths[M7-T6] = packages/daemon/src/domain/wrapup-report.ts；task-contracts.json 的 supportPaths = packages/daemon/test/unit/wrapup-report.test.ts 与 packages/daemon/test/fixtures/wrapup/，与提示词列出的三条有效路径一致，无漏列、无冲突（本层不与 M7-T4/M7-T7/M7-T8 争用同一文件；M8-T6 的 supportPaths 也含 packages/daemon/test/fixtures/wrapup/，本层预置的四份收口 fixture 正是 17 节 line 92-93 要求的集成剧本素材，不算越界）。provides=[wrapup-report] 与 M8-T6 的 requires=[{task:M7-T6,capability:wrapup-report}] 对齐；M7-T8 的 supportPaths 已含 packages/daemon/src/domain/wrapup-report.ts，故 08 节「bughunt 复用收口段头切分与 B 条目解析器」有落点，不需为本层补路径。",
+      "对应要求核对：19 节 M7-T6 行（04-执行/19-模块任务拆分.md:70）的五条与任务笔记验收标准逐字一致；17 节的 wrapup-report 单测清单 11 项（03-质量/17-测试策略.md:71）在 test/unit/wrapup-report.test.ts 全部有对应用例；13 节 E-274（03-质量/13-边界问题与异常处理.md:287）、E-286（:299）、E-290（:303）与 图谱/边界/E-274.md、E-286.md、E-290.md 的触发与期望对得上；决策 61（05-附录/22-决策记录.md:89）的八段名与顺序、条目格式 `B〈n〉 [S1|S2|S3] 涉及 〈任务ID〉（跨批）：现象 → 复现 → 根因 → 文件:行` 与本层 WRAPUP_SECTIONS / parseBugItem 一致。",
+      "接口字段核对：本层解析产物与 09-数据模型.md:139-142 的 batch_wrapups 列同形——tests_json `{status, items}` ↔ WrapupTestsSummary、findings_json `{id, kind:'bug'|'not_fixed'|'test_failure', severity, taskKey, crossBatch, isFixed, isWellFormed, raw}` ↔ WrapupFinding、unassigned_json ↔ ParsedWrapupReport.unassigned；09-数据模型.md:136 的 verdict「由 domain/wrapup-report.ts 从内容算出，不是 agent 自报（E-286）」与 declared_verdict 双字段在本层是分开的两个输出，M8-T6 可直接消费；planWrapupFixes 的 groups/unassigned/totalOpenCount 足以支撑 M8-T7 的「分组派修复」与 E-290 的「可派修复条目为零才 needs_attention」。",
+      "共享约定核对（06/08 节）：packages/daemon/src/domain/wrapup-report.ts 全文件零 import（domain 零依赖叶子的最严形态），不 import fastify/db/repo/service/proc/adapters/events；无事务、无 SQL、无 fs/net/子进程、无 process.env、无 process.platform、无 Date.now/Math.random/crypto（纯函数，重复调用结果相等有单测）；无 throw、无 catch、无 E_ 字面量、不自定义错误（解析失败是类型化返回值 ok:false 而不是异常）；文件名 kebab-case、无 barrel、无 utils/、常量 as const、布尔 isXxx、类型无 I 前缀、模块顶层只有纯常量与纯函数（无连接/定时器/文件读取）；daemon 侧唯一产出文案是英文短句 'Missing required wrapup report sections: …'，无中文用户文案。结论：契约与实现均无需文档补丁，本轮 R1 是代码侧判定缺陷，不属文档问题。",
+      "测试证据（本机 Windows，worktree）：vitest run packages/daemon/test/unit/wrapup-report.test.ts → 32/32 通过；vitest run packages/daemon/test/unit → 10 files failed / 63 passed（73 files），与同一命令在主干检出 D:/xiangmu/renwudiaoduqi @ main（40a6648）的 10 failed / 62 passed（72 files）失败集合完全相同（Windows POSIX 0600 权限断言、缺 packages/web/dist、测试库 schema 落后等），本层新增文件全绿；biome ci 两文件无告警；tsc -b --noEmit 退出码 0。"
     ],
-    "reviewed": "2026-09-10T20:08:04.776156+00:00",
+    "reviewed": "2026-09-16T02:18:26.120404+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1200,15 +1203,32 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T7": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "7c84ce2780dec848a2aab112fab4482c3baeb8c41f3ac9e441ce51fe219b2077",
+    "evidence": [
+      "复验触发面：revalidation.json 里 M9-T7 的 changedFields=[definition, effectivePaths]、patch=m9-t7-support-paths、sourceVersion=59abe0ae4bd2b7c8b78d48658d6497b23de8e1ed4958e812a85a9a0a3d6fdfdc（合并 main 后的当前源版本）。这次变化就是本任务自己的审查补丁，另有 M7-T3 落地带来的共享章节与 _run 产物变化；合并 main 时 _run 产物冲突按手册取 main 后重跑 sync --patch 重建，contractHash 与补丁轮 verify 登记值逐字符相同（7c84ce2780dec848a2aab112fab4482c3baeb8c41f3ac9e441ce51fe219b2077）。",
+      "①definition：04-执行/19-模块任务拆分.md 的 M9-T7 行原文未动——产出仍为 `components/spine.tsx`、`stream-row.tsx`，前置仍为 M9-T2（形状枚举与状态徽标）与 M9-T6（事件缓冲与按帧渲染），六条验收标准（全高贯穿含未来虚线／六种轨段形态／30px 与 44px 网格与每步耗时／工具+对象标签与折叠默认值与重试／内嵌焦点环／共用形状枚举）与两条边界 E-110、E-230 一字未删。",
+      "②effectivePaths：task-contracts.json 的 M9-T7 条目本次新增 {supportPaths:[packages/web/test/spine-row.test.ts]}，是补丁唯一内容；有效范围现在是 packages/web/src/components/spine.tsx + packages/web/src/components/stream-row.tsx + packages/web/test/spine-row.test.ts，与分支上实际改动的文件集合一致。该测试路径全仓只被 M9-T7 声明，与 M9-T8/M9-T9/M9-T10/M9-T21 冲突检测为 0。",
+      "③合并 main（含 M7-T3 落地）后本层代码与合并前一致：packages/web/src/components/{spine.tsx,stream-row.tsx} 与 packages/web/test/spine-row.test.ts 在合并提交里没有冲突、内容与审查落地时相同（含审查方 review-fix 提交 222d891 的 partial 形状修正）。重跑 vitest run packages/web → 13 文件 183 用例全过（spine-row.test.ts 22 条）；biome ci . → 386 文件无修复需求；tsc -b --noEmit → 退出码 0；check-error-codes.mjs（49 码一致）、check-contrast.ts、check-forbidden.ts → 0 违规。",
+      "④结论：变化条款只落在 M9-T7 自身的有效范围登记上，六条验收标准与两条边界的实现位置（spine.tsx:32/162/233/397/579，stream-row.tsx:83/206/306/373/395）未受影响，复验通过，清除待复验标记。"
+    ],
+    "reviewed": "2026-09-16T03:27:13.374530+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T9": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "962ce7ca834d665694ef3a7fee2064b5a5ab908c82d3b795cc09234a0182715d",
+    "contractHash": "06a10e2854fb43389c62bca70841bfe2d1494900f8950475646519e8c23759d4",
     "evidence": [
-      "本轮只改 19 节 M9-T9 行（第 87 行）新增第 12) 条：stream-column.tsx 是泳道外壳（五段网格、停止键与审批槽位在所有 kind/档位分支之外）、流数恒等于 lanes[] 长度、一条流就是一个任务槽位、阶段链由 M9-T21 填进 body（E-311、E-317 的呈现侧）；原 1)～11) 条与 taskPaths（stream-column.tsx、use-breakpoint.ts、features/run-deck/）未动，依赖 M9-T7 未变",
-      "受影响条款核对：07 节泳道组件清单第一条 stream-column 五段网格与 props 形状；11 节「任务流水线泳道」头部/底部沿用 --stream-head-h / --stream-foot-h、紧凑档换行网格与 E-165 展开态不变、E-236 逐档断言加泳道维度（17 节）；决策 87、95",
-      "接缝：M9-T21 是 stream-column 的调用方（pipeline-lane → body 插槽），M9-T20 的收口头部分支仍在 stream-column 的 kind 分支内；本任务不引入 stage/lanes/StageRow（07 节禁令）"
+      "复核范围与前置：M9-T9「多流甲板与密度档」（任务笔记 图谱/任务/M9-T9.md，模块 图谱/模块/M9.md，19-模块任务拆分.md 第 90 行）。唯一前置 M9-T7「运行轨与运行流条目」已落地（PR #92 MERGED），输入能力在主干上存在——packages/web/src/components/spine.tsx、stream-row.tsx 与 packages/web/src/lib/spine-shape.ts（12 状态形状表、normalizeStatusState 对未知/缺失输入降级为 unrecognized）。源码版本 59abe0ae4bd2b7c8b78d48658d6497b23de8e1ed4958e812a85a9a0a3d6fdfdc，status 报 stale=[]、runtimeDrift=[]，本任务确有可用前置契约。分支 task/M9-T9 的父提交即当前主干 1c73b48，无需合并。",
+      "①验收标准逐条与契约一致（12 条均在 19 节 M9-T9 行原文中未被删改，本任务按原文核对）：档位枚举与单点计算落在 hooks/use-breakpoint.ts 的 computeDensityTier（full/compact/narrow/phone/phone-xs 五值，仅输入 width + (pointer: coarse) + lanes.length + 本地偏好），useDensityTier 是唯一 hook 出口并以 tier prop 下传（AC1/E-235）；流数 ≥4 或 <4 的默认档、auto-fill 换行网格 minmax(260px,1fr)、展开条 col-span-full 与其余条保持 260px 同屏、完整档左右视野外「要你」常驻计数、<1100px 单列、≤3 流且 ≥1440px 完整档且偏好写入 localStorage（AC2/3/4/9/10/11 + E-164/165/166/163/167/168）；停止控件与审批槽位无条件渲染在档位/kind 分支之外并有 5 档 × (停止键 + 审批槽位) 逐档断言单测（AC5/AC6 + E-236/237/106）；档位切换不换子树、key 稳定、无虚拟列表重挂（AC7/E-238）；档位判定不读 navigator.userAgent，触屏窄窗仍走 narrow 只放大命中区至 44px（AC8/E-239）；stream-column.tsx 五段 [head][refBar][body][afterBody][foot] 且 body 留作 M9-T21 的阶段链插槽（AC12/E-311、E-317 呈现侧）。",
+      "②有效路径修正（补丁 m9-t9-support-paths）：原有效范围只有 packages/web/src/components/stream-column.tsx、packages/web/src/hooks/use-breakpoint.ts、packages/web/src/features/run-deck/，而分支实际改动还包含本任务必需的支持文件 packages/web/test/stream-column.test.ts（25 条用例，其中 AC5 的 5 档逐档矩阵单测是验收标准 5) 明文要求的机检）。按 M9-T6/M9-T7 先例把该文件登记进 _run/task-contracts.json 的 M9-T9.supportPaths（此前无 M9-T9 条目，本次只新增一项，未改其它任务）。补丁前 contractHash=41b13529e30deec68136eebae01dacae2da7c2ffe00b06ba9b33449f8cc855d7，补丁后=06a10e2854fb43389c62bca70841bfe2d1494900f8950475646519e8c23759d4。路径冲突检测：packages/web/test/stream-column.test.ts 全仓只被本任务声明；下游 M9-T20/M9-T21 声明的是 packages/web/test/stream-column.test.tsx（另一文件），不冲突。",
+      "③接口字段与共用约定：本层是展示/容器层，未新增任何与后端对应的 DTO——lanes 以 props 进入（features/run-deck/types.ts 的 DeckStreamLane 只描述呈现所需字段与插槽，不是 daemon DTO 的复刻；daemon 侧 lanes[] 由 M8-T8／M9-T21 落地，当前 shared/api/snapshot.ts 尚无 lanes 字段，M9-T9 也不是它的定义方）；未 import src/api、src/store、src/shell，未出现 fetch(（全仓唯一出口仍是 api/http-client.ts），未直读 process.env / import.meta.env，未新增 src 顶层目录与 index.ts，颜色一律走 tokens.css 变量（check-forbidden 0 违反），localStorage 只写白名单内的 density（agsched.ui.density）。E-317 的算法归属被守住：前端不计算槽位、不推阶段，只按 laneNo 排列并渲染 lanes[]。",
+      "④检查记录（工作树 D:/xiangmu/agent-scheduler-m9-t9，分支 task/M9-T9@0c6a7e4）：biome ci . 退出码 0（397 文件）；tsc -b --noEmit 退出码 0；node scripts/check-error-codes.mjs、packages/web/scripts/check-contrast.ts、packages/web/scripts/check-forbidden.ts 退出码均 0（0 违反）；web 定向 vitest run packages/web 14 文件 / 208 用例全过（含本次新增 stream-column.test.ts 25 条）。全量 vitest run 里 16 个文件红全部在 daemon 侧（static-plugin 需先 vite build、sse/其它用例 dispatch_snapshots has no column named bug_prompt），与 M9-T7 审查记录中「主干检出同样复现」的既有红一致、本层零 daemon 改动，不构成本层回归。（本机 pnpm 垫片损坏，pnpm -w check 的各步以 node_modules/.bin 直接执行，结论等价。）",
+      "⑤结论与去向：契约与本层 12 条验收标准、13 条边界、有效路径（含本轮补进的支持文件）一致，登记复核通过；代码侧另查出一处非阻断的「缺失字段被前端补齐」问题（status 缺省为 queued），按审查方可修范围在本层顺手改掉并补断言，不影响契约结论。"
     ],
-    "reviewed": "2026-09-12T17:05:46.905794+00:00",
+    "reviewed": "2026-09-16T04:08:36.977037+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

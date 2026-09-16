@@ -1,6 +1,11 @@
 {
   "schemaVersion": 1,
   "tasks": {
+    "M9-T9": {
+      "supportPaths": [
+        "packages/web/test/stream-column.test.ts"
+      ]
+    },
     "M1-T10": {
       "provides": [
         "daemon-http-runtime"
@@ -263,6 +268,11 @@
     "M9-T6": {
       "supportPaths": [
         "packages/web/test/event-bus.test.ts"
+      ]
+    },
+    "M9-T7": {
+      "supportPaths": [
+        "packages/web/test/spine-row.test.ts"
       ]
     },
     "M3-T6": {
