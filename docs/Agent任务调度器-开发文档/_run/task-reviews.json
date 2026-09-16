@@ -825,14 +825,20 @@
     "verdict": "pass"
   },
   "M7-T5": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "bf029e5f56f1eef4552df6942cf84e656f1551cb576fd382050cbe749c6425b7",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "03585a5028cdf40ce8e49bb8b984afb3b77fb9db127d06a93b2e14f1fa950999",
     "evidence": [
-      "19 节 M7-T5 行：依赖 M7-T4（交来的返工载荷）、M8-T5（新建运行路径）、M5-T2（base）；派发快照的 adapterKind 由 M3-T3（M8-T5 闭包内）提供；产出 service/rework.ts + domain/rework-prompt.ts 在 taskPaths；迁移目录与 shared events/runs 在 supportPaths（runs 加 origin/spawned_by_run_id 列由本任务的迁移先落）",
-      "验收 1)～5) 对应 E-279（能力位三选一、自包含提示词）、E-277（worktree 已清理重建于原分支）、E-55（计数继承、达上限直接转人）、E-112、E-59；与 09 节 runs.origin/spawned_by_run_id/rework_count 注释、08 节「finalizeReviewRun 事务前后」一致",
-      "接缝：M7-T4 修改后的验收 4) 明确把非回灌分支交本任务；M8-T7 消费本任务的 assembleReworkPrompt 组修复提示词（requires rework-dispatch）；run.rework_dispatched payload 在 08 节事件清单与 shared events.ts 一致"
+      "前置能力：M7-T4（rework 回灌与重试上限）、M8-T5（重派/换 agent/原样重跑）、M5-T2（base 选择与上游产出校验）均已落地；status 输出 blockers 为空，唯一原因是「任务契约待语义复核」，本轮核对后登记。",
+      "有效路径核对：本层 diff 命中 taskPaths packages/daemon/migrations/、src/domain/rework-prompt.ts、src/repo/runs.ts、src/service/rework.ts、test/unit/rework-dispatch.test.ts、test/unit/rework-prompt.test.ts 与 supportPaths packages/shared/src/api/events.ts、packages/shared/src/api/runs.ts；唯一范围外文件 packages/daemon/test/unit/events.test.ts 是新增事件 kind 的必需支持文件（该文件第 71-131 行是按 EVENT_KINDS 穷尽的 switch + assertNever，不补 case 则 tsc 报错），已按 supportPaths 漏列走定点补丁 M7-T5-review-events-test-20260916 补入配置。",
+      "19 节 M7-T5 行与验收阶段核对：产出仍是 service/rework.ts 的 dispatchRework() 三分支、domain/rework-prompt.ts 的 assembleReworkPrompt()、run.rework_dispatched 事件；1 人天、前置 M7-T4/M8-T5/M5-T2、解锁 M8-T7/M8-T9 与任务笔记头部一致，无新增义务。",
+      "13 节边界核对：E-93（能力位只读被审运行快照 launch_spec_json.adapterKind）、E-112（已结束且 canResume → 恢复后回灌 + 新运行记录）、E-279（都不能 → 新开 origin=rework、attempt_no+1、spawned_by_run_id=审查运行、同 worktree 与分支 + 自包含提示词）、E-277（worktree 目录缺失走 M5-T1 reuse 重建；分支缺失转 awaiting_human 且闸门 comment 写 branch_missing，不开干净 worktree）、E-55（上限 2、三种投递同一计数、超限不进任何分支）、E-59（人工打回附一句话意见走同一入口），条款本身无需改动。",
+      "17 节测试策略核对：E-277/E-279/E-55 那行要求的场景（无 canReply/canResume → 新 run origin=rework/同 worktree/rework_count=1/inject/resume/worktree 重建/旧计数 2 → awaiting_human）在 test/unit/rework-dispatch.test.ts 逐条有对应用例；其中该行写的 run.rework_dispatched{mode:'new_run'} 与 08 节 520 行的事件 payload 枚举一致，而实现与测试当前写的是 'new_session'——属本层代码对已定契约的偏离，已作为本轮 R1 返工条目，不改测试要求迁就实现。",
+      "接口字段核对：RunDto 新增 origin('dispatch'|'rework'|'wrapup-fix')/spawnedByRunId（packages/shared/src/api/runs.ts:196-197），runs 表新增 origin（默认 'dispatch'、NOT NULL）与 spawned_by_run_id（migrations/0005），Row snake_case 与 DTO camelCase 分离、由 toRunDto 映射，符合 06 节共享类型约定；事件 kind run.rework_dispatched 为 <scope>.<过去式> 形状，登记在 EVENT_DEFINITIONS/EVENT_KIND_VALUES/PRODUCT_EVENT_KINDS/EventPayloadMap 四处且带 milestone，符合 08 节事件清单。",
+      "本层实跑证据（D:/xiangmu/agent-scheduler-m7-t5 @ 5d90925）：pnpm -w check 的 check-error-codes/check-contrast/check-forbidden/biome ci/tsc -b --noEmit 全部通过；test/unit/rework-dispatch.test.ts 与 test/unit/rework-prompt.test.ts 全部用例通过（分支一 inject、分支二 resume、分支三 new_session、快照 adapterKind 覆盖运行时能力、内置四句回退、E-277 两条、E-55 两条、E-59 两条）。",
+      "测试红的口径：同一命令在分支与基线 main @ 9ec8bb8 上均为 21 个测试文件 / 88 个用例失败（dispatch_snapshots 缺 bug_prompt 列、缺失 packages/web/dist、平台探测类夹具），数量逐项一致，本层未新增失败；该既有红与本层无关，记入 FOLLOW_UP 交后续任务，不作为本层阻断。",
+      "补丁 M7-T5-review-events-test-20260916 只动 packages/daemon/test/unit/events.test.ts 的 supportPaths 归属与随之生成的 _run 产物；无已落地任务因本补丁被标待复验（revalidation.json 仍为空），受影响的下游 M8-T7/M8-T9/M9-T17/M9-T23 尚未落地，契约哈希随 M7-T5 变更重新生成。"
     ],
-    "reviewed": "2026-09-10T20:07:57.850918+00:00",
+    "reviewed": "2026-09-16T07:40:18.195060+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
