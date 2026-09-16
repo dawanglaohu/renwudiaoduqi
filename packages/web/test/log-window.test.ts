@@ -7,6 +7,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { RunStreamBuffer } from '../src/api/event-bus.ts';
 import {
 	LINE_COLLAPSED_MAX_CHARS,
 	LINE_EXPANDED_MAX_CHARS,
@@ -28,6 +29,7 @@ import {
 	SEGMENT_MAX_LINES,
 } from '../src/features/run-detail/log-window.ts';
 import { RunDetailContainer } from '../src/features/run-detail/run-detail-container.tsx';
+import { seedStreamWatermark } from '../src/features/run-detail/use-log-window.ts';
 
 describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, E-98, R1-R6)', () => {
 	// ─── 容器渲染稳定性 ───
@@ -122,6 +124,61 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			expect(manager.getState().lines).toHaveLength(6);
 			expect(manager.getState().lines[5]?.text).toBe('Chunk 2 line E');
 		});
+
+		it('seeds the watermark from the current buffer tail so buffered history is not replayed as new lines', () => {
+			const buffer = new RunStreamBuffer('run-seed', 600);
+			expect(seedStreamWatermark(buffer)).toEqual({ id: null, seq: null });
+
+			for (const id of [101, 102, 103]) {
+				buffer.push({
+					id,
+					ts: '2026-09-16T00:00:00.000Z',
+					runId: 'run-seed',
+					taskId: null,
+					scope: 'run',
+					kind: 'agent_message_chunk',
+					seq: id - 100,
+					actorDeviceId: null,
+					payload: { chunk: `buffered ${id}` },
+				} as never);
+			}
+
+			// 订阅起点水位 = 缓冲末尾，挂载前已在缓冲里的 3 条不再当新行重放（与 REST 尾部去重）
+			const seed = seedStreamWatermark(buffer);
+			expect(seed).toEqual({ id: 103, seq: 3 });
+
+			const consumed = (watermark: number | null) => {
+				const appended: string[] = [];
+				let last = watermark;
+				for (const event of buffer.getItems()) {
+					const id = typeof event.id === 'number' ? event.id : null;
+					if (id === null || (last !== null && id <= last)) {
+						continue;
+					}
+					last = id;
+					appended.push(String((event.payload as { chunk: string }).chunk));
+				}
+				return { appended, last };
+			};
+
+			const first = consumed(seed.id);
+			expect(first.appended).toEqual([]);
+
+			buffer.push({
+				id: 104,
+				ts: '2026-09-16T00:00:01.000Z',
+				runId: 'run-seed',
+				taskId: null,
+				scope: 'run',
+				kind: 'agent_message_chunk',
+				seq: 4,
+				actorDeviceId: null,
+				payload: { chunk: 'fresh 104' },
+			} as never);
+
+			const second = consumed(first.last);
+			expect(second.appended).toEqual(['fresh 104']);
+		});
 	});
 
 	// ─── R1: 容器贴底与新增行跟随 ───
@@ -163,6 +220,29 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 
 			expect(scrollTriggered).toBe(1); // 未增加
 			expect(manager.getState().unreadNewCount).toBe(3);
+		});
+
+		it('uses the monotonic totalLines signal: a folded refresh line grows totalLines while retainedLinesCount stands still', () => {
+			const manager = new LogWindowManager();
+			manager.loadInitial({
+				lines: ['ready'],
+				totalLines: 1,
+				prevCursor: null,
+				nextCursor: null,
+			});
+			manager.setAtBottom(true);
+
+			manager.appendLiveLines(['Downloading 10%\rDownloading 20%']);
+			const afterFirst = manager.getState();
+			manager.appendLiveLines(['Downloading 30%\rDownloading 40%']);
+			const afterSecond = manager.getState();
+
+			// 第二条刷新行被折叠进同一行：驻留行数不增长……
+			expect(afterSecond.retainedLinesCount).toBe(afterFirst.retainedLinesCount);
+			// ……但总行数单调增长，贴底跟随必须看它，否则进度条刷新期间会停止跟随
+			expect(afterSecond.totalLines).toBeGreaterThan(afterFirst.totalLines);
+			expect(afterSecond.isAtBottom).toBe(true);
+			expect(afterSecond.lines[afterSecond.lines.length - 1]?.refreshCount).toBe(2);
 		});
 	});
 

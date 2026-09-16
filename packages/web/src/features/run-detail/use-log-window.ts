@@ -23,7 +23,7 @@ import {
 	useSyncExternalStore,
 } from 'react';
 import { ROUTES } from '../../../../shared/src/api/routes.ts';
-import { eventBus } from '../../api/event-bus.ts';
+import { type RunStreamBuffer, eventBus } from '../../api/event-bus.ts';
 import { httpClient } from '../../api/http-client.ts';
 import type { VirtualScrollInfo } from '../../components/virtual-rows.tsx';
 import { LogWindowManager, type LogWindowState } from './log-window.ts';
@@ -132,6 +132,16 @@ export function useLogWindow({
 	useEffect(() => {
 		if (!autoSubscribeEvents) {
 			return;
+		}
+
+		// 审查方修正：以订阅瞬间缓冲末尾为水位起点。挂载前已在缓冲里的事件（最多 600 条）
+		// 本来就在 REST 尾部片段里，重放会把日志尾部整段显示两遍。
+		const seed = seedStreamWatermark(eventBus.getBuffer(runId));
+		if (seed.id !== null) {
+			lastConsumedIdRef.current = Math.max(lastConsumedIdRef.current ?? -1, seed.id);
+		}
+		if (seed.seq !== null) {
+			lastConsumedSeqRef.current = Math.max(lastConsumedSeqRef.current ?? -1, seed.seq);
 		}
 
 		// 订阅 eventBus 针对本 runId 的事件更新
@@ -286,5 +296,20 @@ export function useLogWindow({
 		handleScroll,
 		handleResetUnread,
 		appendLiveLines,
+	};
+}
+
+/**
+ * 订阅起点水位（审查方补充，R4）。
+ * 取缓冲当前末尾事件的 id/seq；缓冲为空返回 null，表示全部事件都按新事件处理。
+ */
+export function seedStreamWatermark(buffer: RunStreamBuffer | undefined): {
+	readonly id: number | null;
+	readonly seq: number | null;
+} {
+	const tail = buffer?.last();
+	return {
+		id: typeof tail?.id === 'number' ? tail.id : null,
+		seq: typeof tail?.seq === 'number' ? tail.seq : null,
 	};
 }

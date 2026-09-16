@@ -55,16 +55,18 @@ export function RunDetailContainer({
 		handleResetUnread,
 	} = useLogWindow({ runId });
 
-	// R1 (AC 3 / E-100): 贴底且行数增长时自动跟随；isAtBottom 为 false 时绝不跳底
-	const prevCountRef = useRef(state.retainedLinesCount);
+	// R1 (AC 3 / E-100): 贴底且尾部增长时自动跟随；isAtBottom 为 false 时绝不跳底。
+	// 审查方修正：增长信号取 state.totalLines——它单调递增且把被折叠的刷新行也计进去；
+	// 原先用 retainedLinesCount 时，进度条刷新行折叠不增计数、满 6 段驱逐头部还会让计数下降，
+	// 两种情况都会漏掉尾部跟随。
+	const prevTotalRef = useRef(-1);
 	useEffect(() => {
-		if (state.retainedLinesCount > prevCountRef.current) {
-			if (state.isAtBottom) {
-				virtualRef.current?.scrollToBottom();
-			}
+		const hasGrown = state.totalLines > prevTotalRef.current;
+		prevTotalRef.current = state.totalLines;
+		if (hasGrown && state.isAtBottom) {
+			virtualRef.current?.scrollToBottom();
 		}
-		prevCountRef.current = state.retainedLinesCount;
-	}, [state.retainedLinesCount, state.isAtBottom]);
+	}, [state.totalLines, state.isAtBottom]);
 
 	const handleScrollToBottom = useCallback(() => {
 		virtualRef.current?.scrollToBottom();
