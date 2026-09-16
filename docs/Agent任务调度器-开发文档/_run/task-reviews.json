@@ -794,14 +794,17 @@
     "verdict": "pass"
   },
   "M7-T3": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "0399bc1e585281715acf0b91c1a977e655cf2bfe8d25487b1624662abbe099b0",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "984d7e48939c93dbd584692ba10f317790f66604eb5c4d7453ecdc9a100acafc",
     "evidence": [
-      "改动：验收新增 4)（返工块三处提取、未结构化标 incomplete、pass 带 R 条目按 incomplete、关键词判 rework 的路径不存在），预估 1→1.5d；supportPaths 补 review-verdict.test.ts 与 migrations/（rework_text 列若由本任务先落）",
-      "对应 E-278、E-63；与 09 节 runs.rework_text/review_verdict 注释、08 节 domain 清单 review-verdict 描述一致；决策 59 原文",
-      "接缝：M7-T5 消费 reworkText/isStructured；M9-T20 的「投递原文」按钮读 review_verdict='incomplete' && rework_text"
+      "契约版本核对（工作树 D:/xiangmu/agent-scheduler-m7-t3 @ task/M7-T3，cfc8b77）：status 给出的 contractHash 984d7e48… 与派发提示词引用的版本一致；status 的 blockers 为空、stale 为空、runtimeDrift 为空，唯一原因是「任务契约待语义复核」。相对旧记录（_run/M7-T3.evidence.json，0399bc…）只有共享 handoff 配置导致的重算，本任务 context 字段未再变：验收标准 1-4、边界 E-278/E-62/E-63/E-64、预估 1.5 人天、前置 M7-T2 与 图谱/任务/M7-T3.md:24-50、19-模块任务拆分.md 的 M7-T3 行逐字一致。",
+      "有效范围核对：presentation.json 的 handoff.taskPaths[M7-T3] = packages/daemon/src/domain/review-verdict.ts；task-contracts.json 的 supportPaths = packages/daemon/test/unit/review-verdict.test.ts 与 packages/daemon/migrations/；与提示词列出的三条有效路径一致，无漏列、无冲突（本层不与 M7-T4/M7-T6/M7-T8 争用同一文件）。provides=[review-verdict] 与 M7-T6 的 requires=[{task:M7-T3,capability:review-verdict}] 对齐，下游接口（M7-T5 消费 reworkText/isStructured、M9-T20 读 review_verdict='incomplete' && rework_text 显示「投递原文到实施会话」）所需字段在本层都有落点。",
+      "对应要求核对：13 节 E-63（13-边界问题与异常处理.md:76）、E-278（:291）与 图谱/边界/E-62.md、E-63.md、E-64.md、E-278.md 的触发与期望逐条对得上；17 节 review-verdict 单测清单 9 项（03-质量/17-测试策略.md:72）在本层测试里全部有对应用例；12 节流程四（02-设计/12-UX.md:150-175）的三态分支、崩溃/超时分支、doc-issue 分支、未结构化分支与 E-53 落地分支不依赖本层的额外产出。",
+      "数据模型与接缝：09-数据模型.md:231-232 的 runs.review_verdict 四值（含 incomplete）与 rework_text「围栏优先、其次条目全文、未结构化存原文不截断」正是本层输出；rework_text 列不在 migrations/0001_init.sql 内（0001 只有 review_verdict），由 M8-T6 的四表重建交付（图谱/任务/M8-T6.md:22、09-数据模型.md:608），故本任务不动迁移、supportPaths 里的 migrations/ 本次无需使用，不构成契约缺口；08-后端架构.md:199 要求解析发生在事务之前，与本层「零依赖纯函数、不碰 db/proc」的定位一致。",
+      "共享约定核对（06/08 节）：唯一 import 是同层 domain/run-state-machine.ts（type-only），domain 是零依赖叶子、不 import fastify/db/proc/adapters/events，无反向依赖；无事务、无 SQL、无 fs/net/子进程、无 process.env 与 process.platform 直读、无 Date.now/Math.random（时钟与 id 均未使用，函数确定）；无 E_ 字面量、不自定义错误、无 throw、无 catch 空吞；文件名 kebab-case、无 barrel、无 utils/；常量 as const、布尔 isXxx、类型无 I 前缀。结论：契约本身无需补丁，本轮给出的 R1 是代码实现侧与 proc 的 ProcessExitReason 词表不一致，不属契约或文档缺陷。",
+      "测试证据（本机 Windows，worktree）：vitest run packages/daemon/test/unit/review-verdict.test.ts → 23/23 通过；test/arch 6 个文件 5 通过、1 失败（routes.test.ts 的 POSIX 权限断言 expected 0600 got 666，Windows 文件系统语义，与本层无 import 关系）；pnpm -w check 的 biome ci 与 tsc -b --noEmit 两段通过，vitest 段在本机环境另有 88 例与本层无 import 关系的预存在失败（POSIX 权限断言、缺 packages/web/dist、测试库 schema 落后），本 PR 只新增 3 个文件（git log -1 --stat）。"
     ],
-    "reviewed": "2026-09-10T20:08:39.744227+00:00",
+    "reviewed": "2026-09-16T00:41:47.581697+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
