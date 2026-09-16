@@ -7,11 +7,12 @@
  * Architecture rules:
  * - Pure presentation component: props in / callback out (07-前端架构).
  * - Strictly prohibited from importing store, api, features, or shell.
- * - All colors must use tokens from tokens.css (var(--down), var(--needs), var(--panel-2), etc.).
+ * - All colors and tokens must use token utility classes (bg-down-soft, text-meta, rounded-sm, etc.).
  * - AC 1 / E-157: Presents rollback notice when optimistic stop fails.
  * - AC 2 / E-12: Displays 「离线，最后同步于 X」 when disconnected.
  * - AC 3 / E-04: Displays 「电脑上的调度服务未启动」 when daemon is unreachable, NOT "连接超时".
  * - AC 4 / E-14: Displays upgrade prompt on version mismatch without throwing bottom-layer errors.
+ * - 11 节: No continuous animations except run-deck pulse; 4px grid throughout.
  */
 
 import { type MouseEvent, useCallback } from 'react';
@@ -53,9 +54,260 @@ export interface OfflineBannerProps {
 	readonly className?: string;
 }
 
+export function OfflineBanner({
+	status = 'online',
+	lastSyncedAt,
+	isDaemonRunning = true,
+	daemonErrorReason,
+	isVersionCompatible = true,
+	versionInfo,
+	rollbackNotice,
+	onDismissRollback,
+	onRetry,
+	className = '',
+}: OfflineBannerProps) {
+	const handleRetryClick = useCallback(
+		(e: MouseEvent<HTMLButtonElement>) => {
+			e.stopPropagation();
+			onRetry?.();
+		},
+		[onRetry],
+	);
+
+	const handleDismissClick = useCallback(
+		(e: MouseEvent<HTMLButtonElement>) => {
+			e.stopPropagation();
+			onDismissRollback?.();
+		},
+		[onDismissRollback],
+	);
+
+	// Priority 1: Optimistic stop failure rollback notice (AC 1, E-157)
+	if (rollbackNotice) {
+		return (
+			<div
+				role="alert"
+				aria-live="assertive"
+				data-component="offline-banner"
+				data-banner-kind="rollback"
+				data-testid="rollback-banner"
+				className={`
+					w-full min-h-[32px] px-4 py-2 flex items-center justify-between gap-3
+					bg-down-soft text-down border-b border-down
+					text-meta font-ui select-none
+					${className}
+				`}
+			>
+				<div className="flex items-center gap-2 min-w-0">
+					{/* Flat alert square glyph (11 节: 矩形非药丸，状态字形来自几何形状，4px 栅格) */}
+					<span
+						aria-hidden="true"
+						className="inline-block w-2 h-2 bg-current rounded-[1px] shrink-0"
+					/>
+					<span className="truncate font-medium">
+						{rollbackNotice.message || '中止任务失败，已恢复原状态'}
+					</span>
+				</div>
+
+				<div className="flex items-center gap-2 shrink-0">
+					{onRetry && (
+						<button
+							type="button"
+							onClick={handleRetryClick}
+							className="
+								px-2 py-1 rounded-sm text-meta font-medium
+								bg-panel-2 text-ink-1 border border-border
+								hover:brightness-105 active:brightness-95 cursor-pointer
+							"
+						>
+							重试
+						</button>
+					)}
+					{onDismissRollback && (
+						<button
+							type="button"
+							onClick={handleDismissClick}
+							aria-label="关闭横幅"
+							className="
+								px-2 py-1 rounded-sm text-meta font-medium text-down
+								hover:bg-panel-2 active:brightness-90 cursor-pointer
+							"
+						>
+							✕
+						</button>
+					)}
+				</div>
+			</div>
+		);
+	}
+
+	// Priority 2: Daemon not running (AC 3, E-04)
+	if (isDaemonRunning === false || daemonErrorReason === 'daemon_down') {
+		return (
+			<div
+				aria-live="polite"
+				data-component="offline-banner"
+				data-banner-kind="daemon-down"
+				data-testid="daemon-down-banner"
+				className={`
+					w-full min-h-[32px] px-4 py-2 flex items-center justify-between gap-3
+					bg-down-soft text-down border-b border-down
+					text-meta font-ui select-none
+					${className}
+				`}
+			>
+				<div className="flex items-center gap-2 min-w-0">
+					<span
+						aria-hidden="true"
+						className="inline-block w-2 h-2 bg-current rounded-[1px] shrink-0"
+					/>
+					<span className="truncate font-medium">电脑上的调度服务未启动</span>
+					<span className="hidden sm:inline text-ink-2 text-meta">
+						（请在电脑上启动调度服务后重试）
+					</span>
+				</div>
+
+				{onRetry && (
+					<button
+						type="button"
+						onClick={handleRetryClick}
+						className="
+							px-2 py-1 rounded-sm text-meta font-medium
+							bg-panel-2 text-ink-1 border border-border
+							hover:brightness-105 active:brightness-95 cursor-pointer shrink-0
+						"
+					>
+						重试连接
+					</button>
+				)}
+			</div>
+		);
+	}
+
+	// Priority 3: Version incompatible (AC 4, E-14)
+	if (isVersionCompatible === false) {
+		const expectedVer = versionInfo?.expected ?? '';
+		const actualVer = versionInfo?.actual ?? '';
+		return (
+			<div
+				aria-live="polite"
+				data-component="offline-banner"
+				data-banner-kind="version-incompatible"
+				data-testid="version-incompatible-banner"
+				className={`
+					w-full min-h-[32px] px-4 py-2 flex items-center justify-between gap-3
+					bg-needs-soft text-needs border-b border-needs
+					text-meta font-ui select-none
+					${className}
+				`}
+			>
+				<div className="flex items-center gap-2 min-w-0">
+					<span
+						aria-hidden="true"
+						className="inline-block w-2 h-2 bg-current rounded-[1px] shrink-0"
+					/>
+					<span className="truncate font-medium">版本不兼容，请升级客户端应用</span>
+					{expectedVer && (
+						<span className="hidden sm:inline font-mono text-meta text-ink-2">
+							[要求 {expectedVer}
+							{actualVer ? ` / 服务端 ${actualVer}` : ''}]
+						</span>
+					)}
+				</div>
+
+				{onRetry && (
+					<button
+						type="button"
+						onClick={handleRetryClick}
+						className="
+							px-2 py-1 rounded-sm text-meta font-medium
+							bg-panel-2 text-ink-1 border border-border
+							hover:brightness-105 active:brightness-95 cursor-pointer shrink-0
+						"
+					>
+						重新校验
+					</button>
+				)}
+			</div>
+		);
+	}
+
+	// Priority 4: Disconnected / Offline (AC 2, E-12)
+	if (status === 'offline') {
+		const timeDisplay = formatBannerLastSynced(lastSyncedAt);
+		return (
+			<div
+				aria-live="polite"
+				data-component="offline-banner"
+				data-banner-kind="offline"
+				data-testid="offline-banner"
+				className={`
+					w-full min-h-[32px] px-4 py-2 flex items-center justify-between gap-3
+					bg-panel-2 text-ink-2 border-b border-border-strong
+					text-meta font-ui select-none
+					${className}
+				`}
+			>
+				<div className="flex items-center gap-2 min-w-0">
+					<span
+						aria-hidden="true"
+						className="inline-block w-2 h-2 rounded-[1px] bg-stopped shrink-0"
+					/>
+					<span className="truncate">
+						离线，最后同步于 <span className="font-mono text-ink-1">{timeDisplay}</span>
+					</span>
+				</div>
+
+				{onRetry && (
+					<button
+						type="button"
+						onClick={handleRetryClick}
+						className="
+							px-2 py-1 rounded-sm text-meta font-medium
+							bg-panel-2 text-ink-1 border border-border
+							hover:brightness-105 active:brightness-95 cursor-pointer shrink-0
+						"
+					>
+						重试连接
+					</button>
+				)}
+			</div>
+		);
+	}
+
+	// Priority 5: Reconnecting (AC 2, E-12; 11 节: 去掉 animate-pulse，全页唯一连续动画是运行轨呼吸环)
+	if (status === 'reconnecting') {
+		return (
+			<div
+				aria-live="polite"
+				data-component="offline-banner"
+				data-banner-kind="reconnecting"
+				data-testid="reconnecting-banner"
+				className={`
+					w-full min-h-[32px] px-4 py-2 flex items-center justify-between gap-3
+					bg-panel-2 text-needs border-b border-border-strong
+					text-meta font-ui select-none
+					${className}
+				`}
+			>
+				<div className="flex items-center gap-2 min-w-0">
+					<span
+						aria-hidden="true"
+						className="inline-block w-2 h-2 rounded-[1px] bg-needs shrink-0"
+					/>
+					<span className="truncate">正在重新连接调度服务...</span>
+				</div>
+			</div>
+		);
+	}
+
+	// Normal online state: banner is hidden
+	return null;
+}
+
 /**
  * Format ISO timestamp, Date, or string into readable time string (AC 2, E-12).
- * Private pure function placed at bottom/near component (07-前端架构).
+ * Private pure function placed at bottom of presentation component (07-前端架构).
  */
 export function formatBannerLastSynced(
 	timestamp: string | number | Date | null | undefined,
@@ -86,255 +338,5 @@ export function formatBannerLastSynced(
 	}
 }
 
-export function OfflineBanner({
-	status = 'online',
-	lastSyncedAt,
-	isDaemonRunning = true,
-	daemonErrorReason,
-	isVersionCompatible = true,
-	versionInfo,
-	rollbackNotice,
-	onDismissRollback,
-	onRetry,
-	className = '',
-}: OfflineBannerProps) {
-	const handleRetryClick = useCallback(
-		(e: MouseEvent<HTMLButtonElement>) => {
-			e.stopPropagation();
-			onRetry?.();
-		},
-		[onRetry],
-	);
-
-	const handleDismissClick = useCallback(
-		(e: MouseEvent<HTMLButtonElement>) => {
-			e.stopPropagation();
-			onDismissRollback?.();
-		},
-		[onDismissRollback],
-	);
-
-	// Determine active banner priority
-	// Priority 1: Optimistic stop failure rollback notice (AC 1, E-157)
-	if (rollbackNotice) {
-		return (
-			<div
-				role="alert"
-				aria-live="assertive"
-				data-component="offline-banner"
-				data-banner-kind="rollback"
-				data-testid="rollback-banner"
-				className={`
-					w-full min-h-[32px] px-4 py-1.5 flex items-center justify-between gap-3
-					bg-[var(--down-soft)] text-[var(--down)] border-b border-[var(--down)]
-					text-xs font-[var(--font-ui)] select-none
-					${className}
-				`}
-			>
-				<div className="flex items-center gap-2 min-w-0">
-					{/* Flat alert square glyph (11 节: 矩形非药丸，状态字形来自几何形状) */}
-					<span
-						aria-hidden="true"
-						className="inline-block w-2.5 h-2.5 bg-current rounded-[1px] flex-shrink-0"
-					/>
-					<span className="truncate font-medium">
-						{rollbackNotice.message || '中止任务失败，已恢复原状态'}
-					</span>
-				</div>
-
-				<div className="flex items-center gap-2 flex-shrink-0">
-					{onRetry && (
-						<button
-							type="button"
-							onClick={handleRetryClick}
-							className="
-								px-2 py-0.5 rounded-[var(--r-sm)] text-xs font-medium
-								bg-[var(--panel-2)] text-[var(--ink-1)] border border-[var(--border)]
-								hover:brightness-105 active:brightness-95 cursor-pointer
-							"
-						>
-							重试
-						</button>
-					)}
-					{onDismissRollback && (
-						<button
-							type="button"
-							onClick={handleDismissClick}
-							aria-label="关闭横幅"
-							className="
-								px-1.5 py-0.5 rounded-[var(--r-sm)] text-xs font-medium text-[var(--down)]
-								hover:bg-[var(--panel-2)] active:brightness-90 cursor-pointer
-							"
-						>
-							✕
-						</button>
-					)}
-				</div>
-			</div>
-		);
-	}
-
-	// Priority 2: Daemon not running (AC 3, E-04)
-	if (isDaemonRunning === false || daemonErrorReason === 'daemon_down') {
-		return (
-			<div
-				aria-live="polite"
-				data-component="offline-banner"
-				data-banner-kind="daemon-down"
-				data-testid="daemon-down-banner"
-				className={`
-					w-full min-h-[32px] px-4 py-1.5 flex items-center justify-between gap-3
-					bg-[var(--down-soft)] text-[var(--down)] border-b border-[var(--down)]
-					text-xs font-[var(--font-ui)] select-none
-					${className}
-				`}
-			>
-				<div className="flex items-center gap-2 min-w-0">
-					<span
-						aria-hidden="true"
-						className="inline-block w-2.5 h-2.5 bg-current rounded-[1px] flex-shrink-0"
-					/>
-					<span className="truncate font-medium">电脑上的调度服务未启动</span>
-					<span className="hidden sm:inline text-[var(--ink-2)] text-[11px]">
-						（请在电脑上启动调度服务后重试）
-					</span>
-				</div>
-
-				{onRetry && (
-					<button
-						type="button"
-						onClick={handleRetryClick}
-						className="
-							px-2.5 py-0.5 rounded-[var(--r-sm)] text-xs font-medium
-							bg-[var(--panel-2)] text-[var(--ink-1)] border border-[var(--border)]
-							hover:brightness-105 active:brightness-95 cursor-pointer flex-shrink-0
-						"
-					>
-						重试连接
-					</button>
-				)}
-			</div>
-		);
-	}
-
-	// Priority 3: Version incompatible (AC 4, E-14)
-	if (isVersionCompatible === false) {
-		const expectedVer = versionInfo?.expected ?? '';
-		const actualVer = versionInfo?.actual ?? '';
-		return (
-			<div
-				aria-live="polite"
-				data-component="offline-banner"
-				data-banner-kind="version-incompatible"
-				data-testid="version-incompatible-banner"
-				className={`
-					w-full min-h-[32px] px-4 py-1.5 flex items-center justify-between gap-3
-					bg-[var(--needs-soft)] text-[var(--needs)] border-b border-[var(--needs)]
-					text-xs font-[var(--font-ui)] select-none
-					${className}
-				`}
-			>
-				<div className="flex items-center gap-2 min-w-0">
-					<span
-						aria-hidden="true"
-						className="inline-block w-2.5 h-2.5 bg-current rounded-[1px] flex-shrink-0"
-					/>
-					<span className="truncate font-medium">版本不兼容，请升级客户端应用</span>
-					{expectedVer && (
-						<span className="hidden sm:inline font-[var(--font-mono)] text-[11px] text-[var(--ink-2)]">
-							[要求 {expectedVer}
-							{actualVer ? ` / 服务端 ${actualVer}` : ''}]
-						</span>
-					)}
-				</div>
-
-				{onRetry && (
-					<button
-						type="button"
-						onClick={handleRetryClick}
-						className="
-							px-2.5 py-0.5 rounded-[var(--r-sm)] text-xs font-medium
-							bg-[var(--panel-2)] text-[var(--ink-1)] border border-[var(--border)]
-							hover:brightness-105 active:brightness-95 cursor-pointer flex-shrink-0
-						"
-					>
-						重新校验
-					</button>
-				)}
-			</div>
-		);
-	}
-
-	// Priority 4: Disconnected / Offline (AC 2, E-12)
-	if (status === 'offline') {
-		const timeDisplay = formatBannerLastSynced(lastSyncedAt);
-		return (
-			<div
-				aria-live="polite"
-				data-component="offline-banner"
-				data-banner-kind="offline"
-				data-testid="offline-banner"
-				className={`
-					w-full min-h-[32px] px-4 py-1.5 flex items-center justify-between gap-3
-					bg-[var(--panel-2)] text-[var(--ink-2)] border-b border-[var(--border-strong)]
-					text-xs font-[var(--font-ui)] select-none
-					${className}
-				`}
-			>
-				<div className="flex items-center gap-2 min-w-0">
-					<span
-						aria-hidden="true"
-						className="inline-block w-2 h-2 rounded-[1px] bg-[var(--stopped)] flex-shrink-0"
-					/>
-					<span className="truncate">
-						离线，最后同步于{' '}
-						<span className="font-[var(--font-mono)] text-[var(--ink-1)]">{timeDisplay}</span>
-					</span>
-				</div>
-
-				{onRetry && (
-					<button
-						type="button"
-						onClick={handleRetryClick}
-						className="
-							px-2 py-0.5 rounded-[var(--r-sm)] text-xs font-medium
-							bg-[var(--panel-2)] text-[var(--ink-1)] border border-[var(--border)]
-							hover:brightness-105 active:brightness-95 cursor-pointer flex-shrink-0
-						"
-					>
-						重试连接
-					</button>
-				)}
-			</div>
-		);
-	}
-
-	// Priority 5: Reconnecting
-	if (status === 'reconnecting') {
-		return (
-			<div
-				aria-live="polite"
-				data-component="offline-banner"
-				data-banner-kind="reconnecting"
-				data-testid="reconnecting-banner"
-				className={`
-					w-full min-h-[32px] px-4 py-1.5 flex items-center justify-between gap-3
-					bg-[var(--panel-2)] text-[var(--needs)] border-b border-[var(--border-strong)]
-					text-xs font-[var(--font-ui)] select-none
-					${className}
-				`}
-			>
-				<div className="flex items-center gap-2 min-w-0">
-					<span
-						aria-hidden="true"
-						className="inline-block w-2 h-2 rounded-[1px] bg-[var(--needs)] flex-shrink-0 animate-pulse"
-					/>
-					<span className="truncate">正在重新连接调度服务...</span>
-				</div>
-			</div>
-		);
-	}
-
-	// Normal online state: banner is hidden
-	return null;
-}
+/** Alias for backward compatibility in tests and callers */
+export const formatLastSyncedAt = formatBannerLastSynced;
