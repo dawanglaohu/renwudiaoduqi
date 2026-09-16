@@ -1,18 +1,19 @@
 /**
  * packages/web/src/components/empty-onboarding.tsx
  *
- * 空态四步引导与文档变更横幅组件（M9-T16 / AC 1, AC 4, E-108, E-19, E-110）
+ * 空态四步引导与文档变更横幅组件（M9-T16 / AC 1, AC 4, E-108, E-19, E-110, E-52, E-47）
  *
  * 规范依据（11 节 UI 与 07 节前端架构）：
  * - 空态是「选文档 → 选批次 → 逐任务指派 → 派发」四步引导，当前步高亮、已完成步显示所选值可点回改，不是插画（AC 1, E-108）
- * - 四步引导第三步是逐任务指派而不是「给整批选一个模型」：每行一个任务，各自选 agent／模型／思考强度，已指派行显示所选值可点回改（E-108, E-31, 决策 52）
- * - 第四步显示并发与瓶颈说明，明确指出是并行窗口、agent 上限还是用户配置成为瓶颈（E-52）
+ * - 四步引导第三步与第四步并发说明正文留给 M9-T18（assign-panel.tsx），本任务只保留四步外壳、步骤槽位、已完成步回显、派发动作
+ * - 并发说明与瓶颈来源一律读 daemon 下发字段（props），缺失显示「—」，严禁前端自行计算（E-52, E-47）
+ * - 删掉所有内置演示用的文档/批次/任务/agent/模型清单与假计数，第二步须按 batch.docId === selectedDocId 联动过滤
  * - 文档变更横幅显示「本文档已更新，N 个任务的依据已变」并可进入受影响任务的过滤列表（AC 4, E-19）
  * - 长时间盯屏下深色为默认、路径与代码等宽（AC 6, E-110）
  * - 纯展示组件（components 纯 props in / callback out），颜色全走 CSS 变量（check-forbidden 机检）
  */
 
-import { useId, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 /**
  * 文档选项数据模型。
@@ -32,15 +33,10 @@ export interface OnboardingBatchOption {
 	readonly id: string;
 	readonly name: string;
 	readonly docId: string;
-	readonly taskCount: number;
-	readonly moduleKeys: readonly string[];
+	readonly taskCount?: number;
+	readonly moduleKeys?: readonly string[];
 	readonly description?: string;
 }
-
-/**
- * 思考强度档位（决策 52 / E-254：三档抽象 + 留空）。
- */
-export type ReasoningEffortTier = 'low' | 'medium' | 'high' | 'none';
 
 /**
  * 单个任务的指派草稿。
@@ -51,7 +47,7 @@ export interface TaskAssignmentDraft {
 	readonly title: string;
 	readonly agentKey: string;
 	readonly modelName: string;
-	readonly effortTier: ReasoningEffortTier;
+	readonly effortTier?: string;
 }
 
 /**
@@ -65,20 +61,33 @@ export interface DocChangeNotice {
 }
 
 export interface EmptyOnboardingProps {
-	/** 可选文档列表（未传时提供演示内置默认） */
+	/** 初始激活步骤（默认为 0） */
+	readonly initialStep?: number;
+	/** 当前激活步骤（受控模式，0=选文档, 1=选批次, 2=逐任务指派, 3=派发） */
+	readonly currentStep?: number;
+	/** 步骤切换回调 */
+	readonly onStepChange?: (step: number) => void;
+	/** 可选文档列表（必填 props，缺失或空时渲染「—」） */
 	readonly documents?: readonly OnboardingDocOption[];
-	/** 可选批次列表（未传时提供演示内置默认） */
+	/** 可选批次列表（第二步按 selectedDocId 过滤，缺失或空时渲染「—」） */
 	readonly batches?: readonly OnboardingBatchOption[];
-	/** 当前已配置或待指派的任务清单 */
+	/** 当前待指派的任务清单（用于槽位回显或派发） */
 	readonly tasks?: readonly { id: string; taskKey: string; title: string }[];
-	/** 可用的 Agent 标识清单 */
-	readonly availableAgents?: readonly { key: string; name: string }[];
-	/** 可用的模型清单 */
-	readonly availableModels?: readonly string[];
-	/** 并行窗口上限配置（用于第 4 步并发瓶颈说明，E-52） */
-	readonly laneCount?: number;
-	/** Agent 单体并发上限（用于第 4 步并发瓶颈说明，E-47, E-52） */
-	readonly agentConcurrencyLimit?: number;
+	/** 步骤 3 槽位（正文由 M9-T18 assign-panel.tsx 提供，本任务保留外壳与槽位） */
+	readonly step3Slot?: ReactNode;
+	/** 步骤 3 已完成步回显文案（例如 "8 个任务已分别指派"） */
+	readonly step3Summary?: string;
+	/** 步骤 4 槽位（正文由 M9-T18 扩展，本任务保留外壳与槽位） */
+	readonly step4Slot?: ReactNode;
+	/** 有效并行并发容量（读 daemon 下发字段，缺失显示「—」，严禁前端计算） */
+	readonly effectiveCapacity?: number | string | null;
+	/** 并行窗口数上限（读 daemon 下发字段，缺失显示「—」） */
+	readonly laneCount?: number | string | null;
+	/** Agent 单体并发上限（读 daemon 下发字段，缺失显示「—」） */
+	readonly agentConcurrencyLimit?: number | string | null;
+	/** 瓶颈标识或瓶颈描述（读 daemon 下发字段，缺失显示「—」） */
+	readonly bottleneckSource?: string | null;
+	readonly bottleneckDescription?: string | null;
 	/** 文档变更横幅信息（AC 4 / E-19） */
 	readonly docChangeNotice?: DocChangeNotice | null;
 	/** 查看受影响任务列表回调（AC 4 / E-19） */
@@ -87,70 +96,11 @@ export interface EmptyOnboardingProps {
 	readonly onDispatch?: (payload: {
 		docId: string;
 		batchId: string;
-		assignments: readonly TaskAssignmentDraft[];
+		assignments?: readonly TaskAssignmentDraft[];
 	}) => void;
 	/** 样式自定义扩展 */
 	readonly className?: string;
 }
-
-const DEFAULT_DOCUMENTS: readonly OnboardingDocOption[] = Object.freeze([
-	{
-		id: 'doc-main',
-		title: 'Agent任务调度器-开发文档',
-		path: 'docs/Agent任务调度器-开发文档',
-		batchCount: 6,
-		totalTasks: 97,
-	},
-]);
-
-const DEFAULT_BATCHES: readonly OnboardingBatchOption[] = Object.freeze([
-	{
-		id: 'batch-1',
-		name: '第 1 批 (M1, M2)',
-		docId: 'doc-main',
-		taskCount: 8,
-		moduleKeys: ['M1', 'M2'],
-		description: '基础骨架与 REST/SSE 服务端管线',
-	},
-	{
-		id: 'batch-2',
-		name: '第 2 批 (M3, M4)',
-		docId: 'doc-main',
-		taskCount: 12,
-		moduleKeys: ['M3', 'M4'],
-		description: '文档导入与 Agent 适配器层',
-	},
-	{
-		id: 'batch-3',
-		name: '第 3 批 (M5, M6)',
-		docId: 'doc-main',
-		taskCount: 14,
-		moduleKeys: ['M5', 'M6'],
-		description: 'Git 工作树与运行日志管理',
-	},
-]);
-
-const DEFAULT_TASKS = Object.freeze([
-	{ id: 't-1', taskKey: 'M1-T1', title: '全项目目录结构与 workspace 骨架' },
-	{ id: 't-2', taskKey: 'M1-T2', title: '配置集中加载与 5 个环境变量' },
-	{ id: 't-3', taskKey: 'M1-T3', title: 'SQLite 迁移执行器与 WAL 模式' },
-]);
-
-const DEFAULT_AGENTS = Object.freeze([
-	{ key: 'codex', name: 'Codex' },
-	{ key: 'claude', name: 'Claude Code' },
-	{ key: 'dsh', name: 'dsh Headless' },
-	{ key: 'pi', name: 'Pi Agent' },
-]);
-
-const DEFAULT_MODELS = Object.freeze(['gpt-4o', 'claude-3-5-sonnet', 'o3-mini', 'default']);
-
-const EFFORT_OPTIONS: readonly { tier: ReasoningEffortTier; label: string }[] = Object.freeze([
-	{ tier: 'none', label: '— 不传' },
-	{ tier: 'low', label: '低 (low)' },
-	{ tier: 'medium', label: '中 (medium)' },
-	{ tier: 'high', label: '高 (high)' },
-]);
 
 /**
  * 文档变更横幅组件（AC 4, E-19 独立导出）。
@@ -209,103 +159,113 @@ export function DocChangeBanner({
 }
 
 /**
- * 空态四步引导控制台（AC 1, E-108）。
+ * 空态四步引导控制台（AC 1, E-108, E-52, E-47）。
  * 选文档 → 选批次 → 逐任务指派 → 派发。
  */
 export function EmptyOnboarding({
-	documents = DEFAULT_DOCUMENTS,
-	batches = DEFAULT_BATCHES,
-	tasks: initialTasks = DEFAULT_TASKS,
-	availableAgents = DEFAULT_AGENTS,
-	availableModels = DEFAULT_MODELS,
-	laneCount = 3,
-	agentConcurrencyLimit = 2,
+	initialStep = 0,
+	currentStep: controlledStep,
+	onStepChange,
+	documents,
+	batches,
+	tasks,
+	step3Slot,
+	step3Summary,
+	step4Slot,
+	effectiveCapacity = null,
+	laneCount = null,
+	agentConcurrencyLimit = null,
+	bottleneckSource = null,
+	bottleneckDescription = null,
 	docChangeNotice,
 	onViewAffectedTasks,
 	onDispatch,
 	className = '',
 }: EmptyOnboardingProps) {
-	const componentId = useId();
-
 	// 步进索引：0=选文档, 1=选批次, 2=逐任务指派, 3=派发
-	const [currentStep, setCurrentStep] = useState<number>(0);
+	const [internalStep, setInternalStep] = useState<number>(initialStep);
+	const currentStep = controlledStep !== undefined ? controlledStep : internalStep;
 
-	// 第一步：选定文档
-	const [selectedDocId, setSelectedDocId] = useState<string>(documents[0]?.id ?? '');
-
-	// 第二步：选定批次
-	const [selectedBatchId, setSelectedBatchId] = useState<string>(batches[0]?.id ?? '');
-
-	// 第三步：逐任务指派状态记录（E-108 / E-31 / 决策 52）
-	const [assignments, setAssignments] = useState<Record<string, TaskAssignmentDraft>>(() => {
-		const initial: Record<string, TaskAssignmentDraft> = {};
-		for (const task of initialTasks) {
-			initial[task.id] = {
-				taskId: task.id,
-				taskKey: task.taskKey,
-				title: task.title,
-				agentKey: availableAgents[0]?.key ?? 'codex',
-				modelName: availableModels[0] ?? 'default',
-				effortTier: 'none',
-			};
-		}
-		return initial;
-	});
-
-	// 当前正在行内编辑指派的任务 ID（null 表示全部完成预览）
-	const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-
-	const selectedDoc = documents.find((d) => d.id === selectedDocId) ?? documents[0];
-	const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? batches[0];
-	const taskList = initialTasks;
-
-	// 处理某行指派字段更新
-	const handleUpdateAssignment = (
-		taskId: string,
-		field: 'agentKey' | 'modelName' | 'effortTier',
-		value: string,
-	) => {
-		setAssignments((prev) => {
-			const current = prev[taskId];
-			if (!current) return prev;
-			return {
-				...prev,
-				[taskId]: {
-					...current,
-					[field]: value,
-				},
-			};
-		});
+	const changeStep = (next: number) => {
+		setInternalStep(next);
+		onStepChange?.(next);
 	};
 
-	// 最终派发
+	// 第一步：选定文档（初始为空或首个传入的真实文档）
+	const [selectedDocId, setSelectedDocId] = useState<string>(() => documents?.[0]?.id ?? '');
+
+	// 第二步：选定批次（联动：初始选对应文档的第一个批次）
+	const [selectedBatchId, setSelectedBatchId] = useState<string>(() => {
+		const docId = documents?.[0]?.id ?? '';
+		const firstMatchingBatch = batches?.find((b) => b.docId === docId);
+		return firstMatchingBatch?.id ?? '';
+	});
+
+	const selectedDoc = documents?.find((d) => d.id === selectedDocId);
+
+	// R5: 第二步按 batch.docId === selectedDocId 过滤批次
+	const visibleBatches = batches ? batches.filter((b) => b.docId === selectedDocId) : [];
+	const selectedBatch = visibleBatches.find((b) => b.id === selectedBatchId) ?? visibleBatches[0];
+
+	// 切换选中文档时联动更新批次选择
+	const handleSelectDoc = (docId: string) => {
+		setSelectedDocId(docId);
+		const matchingBatch = batches?.find((b) => b.docId === docId);
+		setSelectedBatchId(matchingBatch?.id ?? '');
+	};
+
+	// 派发触发
 	const handleTriggerDispatch = () => {
 		onDispatch?.({
 			docId: selectedDocId,
 			batchId: selectedBatchId,
-			assignments: Object.values(assignments),
 		});
 	};
 
-	// 计算并发瓶颈（E-52）
-	const effectiveBottleneck = Math.min(laneCount, agentConcurrencyLimit);
-	const isWindowBottleneck = laneCount <= agentConcurrencyLimit;
+	// R4: 并发字段缺失显示「—」，严禁使用前端计算瓶颈
+	const capacityText =
+		effectiveCapacity !== null && effectiveCapacity !== undefined
+			? typeof effectiveCapacity === 'number'
+				? `${effectiveCapacity} 路`
+				: String(effectiveCapacity)
+			: '—';
+
+	const laneCountText =
+		laneCount !== null && laneCount !== undefined
+			? typeof laneCount === 'number'
+				? `${laneCount} 路`
+				: String(laneCount)
+			: '—';
+
+	const agentLimitText =
+		agentConcurrencyLimit !== null && agentConcurrencyLimit !== undefined
+			? typeof agentConcurrencyLimit === 'number'
+				? `${agentConcurrencyLimit} 路`
+				: String(agentConcurrencyLimit)
+			: '—';
+
+	const bottleneckText =
+		bottleneckDescription ??
+		(bottleneckSource !== null && bottleneckSource !== undefined
+			? `当前瓶颈：${bottleneckSource}`
+			: '—');
 
 	// 步骤元数据
 	const steps = [
 		{
 			title: '选文档',
-			completedSummary: selectedDoc ? selectedDoc.title : undefined,
+			completedSummary: selectedDoc ? selectedDoc.title : '—',
 		},
 		{
 			title: '选批次',
 			completedSummary: selectedBatch
-				? `${selectedBatch.name} (${selectedBatch.taskCount} 项)`
-				: undefined,
+				? `${selectedBatch.name} (${selectedBatch.taskCount !== undefined ? `${selectedBatch.taskCount} 项` : '—'})`
+				: '—',
 		},
 		{
 			title: '逐任务指派',
-			completedSummary: `${taskList.length} 个任务已分别指派`,
+			completedSummary:
+				step3Summary ?? (tasks && tasks.length > 0 ? `${tasks.length} 个任务已分别指派` : '—'),
 		},
 		{
 			title: '派发',
@@ -367,7 +327,7 @@ export function EmptyOnboarding({
 							disabled={isPending}
 							onClick={() => {
 								if (isCompleted) {
-									setCurrentStep(idx);
+									changeStep(idx);
 								}
 							}}
 							className={[
@@ -434,50 +394,61 @@ export function EmptyOnboarding({
 					</div>
 
 					<div className="flex flex-col gap-2">
-						{documents.map((doc) => {
-							const isSelected = doc.id === selectedDocId;
-							return (
-								<button
-									type="button"
-									key={doc.id}
-									data-doc-id={doc.id}
-									data-selected={isSelected ? 'true' : 'false'}
-									onClick={() => setSelectedDocId(doc.id)}
-									className={[
-										'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
-										isSelected
-											? 'border-needs bg-panel-2'
-											: 'border-border bg-bg hover:border-border-strong',
-									].join(' ')}
-								>
-									<div className="flex flex-col">
-										<span className="font-ui text-dense font-semibold text-ink-1">{doc.title}</span>
-										<span className="font-mono text-micro text-ink-3">{doc.path}</span>
-									</div>
-									<div className="flex items-center gap-3 text-micro text-ink-2 font-mono">
-										{doc.batchCount !== undefined && <span>{doc.batchCount} 个批次</span>}
-										{doc.totalTasks !== undefined && <span>{doc.totalTasks} 个任务</span>}
-										<div
-											className={[
-												'h-4 w-4 rounded-sm border flex items-center justify-center font-bold text-micro',
-												isSelected
-													? 'border-needs bg-needs text-on-needs'
-													: 'border-border text-transparent',
-											].join(' ')}
-										>
-											✓
+						{documents && documents.length > 0 ? (
+							documents.map((doc) => {
+								const isSelected = doc.id === selectedDocId;
+								return (
+									<button
+										type="button"
+										key={doc.id}
+										data-doc-id={doc.id}
+										data-selected={isSelected ? 'true' : 'false'}
+										onClick={() => handleSelectDoc(doc.id)}
+										className={[
+											'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
+											isSelected
+												? 'border-needs bg-panel-2'
+												: 'border-border bg-bg hover:border-border-strong',
+										].join(' ')}
+									>
+										<div className="flex flex-col">
+											<span className="font-ui text-dense font-semibold text-ink-1">
+												{doc.title}
+											</span>
+											<span className="font-mono text-micro text-ink-3">{doc.path}</span>
 										</div>
-									</div>
-								</button>
-							);
-						})}
+										<div className="flex items-center gap-3 text-micro text-ink-2 font-mono">
+											{doc.batchCount !== undefined && <span>{doc.batchCount} 个批次</span>}
+											{doc.totalTasks !== undefined && <span>{doc.totalTasks} 个任务</span>}
+											<div
+												className={[
+													'h-4 w-4 rounded-sm border flex items-center justify-center font-bold text-micro',
+													isSelected
+														? 'border-needs bg-needs text-on-needs'
+														: 'border-border text-transparent',
+												].join(' ')}
+											>
+												✓
+											</div>
+										</div>
+									</button>
+								);
+							})
+						) : (
+							<div
+								data-testid="empty-documents"
+								className="p-6 text-center font-mono text-meta text-ink-3"
+							>
+								—
+							</div>
+						)}
 					</div>
 
 					<div className="flex justify-end pt-2">
 						<button
 							type="button"
 							data-action="next-step-1"
-							onClick={() => setCurrentStep(1)}
+							onClick={() => changeStep(1)}
 							className="h-btn px-5 rounded-sm bg-needs text-on-needs font-semibold text-dense transition-colors hover:brightness-105"
 						>
 							下一步：选批次 →
@@ -487,7 +458,7 @@ export function EmptyOnboarding({
 			)}
 
 			{/* ─────────────────────────────────────────────────────────────
-			    步骤 2 内容区：选批次（E-108）
+			    步骤 2 内容区：选批次（E-108, R5: 按 selectedDocId 联动过滤）
 			    ───────────────────────────────────────────────────────────── */}
 			{currentStep === 1 && (
 				<section
@@ -505,58 +476,69 @@ export function EmptyOnboarding({
 					</div>
 
 					<div className="flex flex-col gap-2">
-						{batches.map((batch) => {
-							const isSelected = batch.id === selectedBatchId;
-							return (
-								<button
-									type="button"
-									key={batch.id}
-									data-batch-id={batch.id}
-									data-selected={isSelected ? 'true' : 'false'}
-									onClick={() => setSelectedBatchId(batch.id)}
-									className={[
-										'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
-										isSelected
-											? 'border-needs bg-panel-2'
-											: 'border-border bg-bg hover:border-border-strong',
-									].join(' ')}
-								>
-									<div className="flex flex-col">
-										<div className="flex items-center gap-2">
-											<span className="font-ui text-dense font-semibold text-ink-1">
-												{batch.name}
-											</span>
-											<span className="font-mono text-micro text-ink-3 px-1.5 py-0.5 rounded bg-panel-2 border border-border">
-												{batch.moduleKeys.join(', ')}
-											</span>
+						{visibleBatches.length > 0 ? (
+							visibleBatches.map((batch) => {
+								const isSelected = batch.id === selectedBatchId;
+								return (
+									<button
+										type="button"
+										key={batch.id}
+										data-batch-id={batch.id}
+										data-selected={isSelected ? 'true' : 'false'}
+										onClick={() => setSelectedBatchId(batch.id)}
+										className={[
+											'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
+											isSelected
+												? 'border-needs bg-panel-2'
+												: 'border-border bg-bg hover:border-border-strong',
+										].join(' ')}
+									>
+										<div className="flex flex-col">
+											<div className="flex items-center gap-2">
+												<span className="font-ui text-dense font-semibold text-ink-1">
+													{batch.name}
+												</span>
+												{batch.moduleKeys && batch.moduleKeys.length > 0 && (
+													<span className="font-mono text-micro text-ink-3 px-1.5 py-0.5 rounded bg-panel-2 border border-border">
+														{batch.moduleKeys.join(', ')}
+													</span>
+												)}
+											</div>
+											{batch.description && (
+												<span className="text-meta text-ink-3 mt-0.5">{batch.description}</span>
+											)}
 										</div>
-										{batch.description && (
-											<span className="text-meta text-ink-3 mt-0.5">{batch.description}</span>
-										)}
-									</div>
-									<div className="flex items-center gap-3 text-micro text-ink-2 font-mono">
-										<span>{batch.taskCount} 个任务</span>
-										<div
-											className={[
-												'h-4 w-4 rounded-sm border flex items-center justify-center font-bold text-micro',
-												isSelected
-													? 'border-needs bg-needs text-on-needs'
-													: 'border-border text-transparent',
-											].join(' ')}
-										>
-											✓
+										<div className="flex items-center gap-3 text-micro text-ink-2 font-mono">
+											{batch.taskCount !== undefined && <span>{batch.taskCount} 个任务</span>}
+											<div
+												className={[
+													'h-4 w-4 rounded-sm border flex items-center justify-center font-bold text-micro',
+													isSelected
+														? 'border-needs bg-needs text-on-needs'
+														: 'border-border text-transparent',
+												].join(' ')}
+											>
+												✓
+											</div>
 										</div>
-									</div>
-								</button>
-							);
-						})}
+									</button>
+								);
+							})
+						) : (
+							<div
+								data-testid="empty-batches"
+								className="p-6 text-center font-mono text-meta text-ink-3"
+							>
+								—
+							</div>
+						)}
 					</div>
 
 					<div className="flex items-center justify-between pt-2">
 						<button
 							type="button"
 							data-action="prev-step"
-							onClick={() => setCurrentStep(0)}
+							onClick={() => changeStep(0)}
 							className="h-btn px-4 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense"
 						>
 							← 返回选文档
@@ -564,7 +546,7 @@ export function EmptyOnboarding({
 						<button
 							type="button"
 							data-action="next-step-2"
-							onClick={() => setCurrentStep(2)}
+							onClick={() => changeStep(2)}
 							className="h-btn px-5 rounded-sm bg-needs text-on-needs font-semibold text-dense transition-colors hover:brightness-105"
 						>
 							下一步：逐任务指派 →
@@ -574,8 +556,7 @@ export function EmptyOnboarding({
 			)}
 
 			{/* ─────────────────────────────────────────────────────────────
-			    步骤 3 内容区：逐任务指派（AC 1, E-108, E-31, 决策 52）
-			    每行一个任务，各自选 agent／模型／思考强度，已指派行显示所选值可点回改
+			    步骤 3 内容区：逐任务指派（外壳与步骤槽位，正文由 M9-T18 提供）
 			    ───────────────────────────────────────────────────────────── */}
 			{currentStep === 2 && (
 				<section
@@ -585,137 +566,48 @@ export function EmptyOnboarding({
 				>
 					<div className="flex items-center justify-between">
 						<div>
-							<h3 className="text-dense font-semibold text-ink-1">
-								第三步：逐任务独立指派 Agent、模型与思考强度
-							</h3>
+							<h3 className="text-dense font-semibold text-ink-1">第三步：逐任务指派</h3>
 							<p className="text-meta text-ink-2">
-								严禁「给整批一键统一套用模型」；每个任务独立指定会话参数，支持同一 Agent
-								开设多个会话（决策 52 / E-31）。
+								严禁「给整批一键统一套用模型」；每个任务独立指定会话参数（19 节第 7 条归 M9-T18）。
 							</p>
 						</div>
 					</div>
 
-					{/* 任务行清单 */}
-					<div className="flex flex-col gap-2.5">
-						{taskList.map((task) => {
-							const draft = assignments[task.id] ?? {
-								taskId: task.id,
-								taskKey: task.taskKey,
-								title: task.title,
-								agentKey: availableAgents[0]?.key ?? 'codex',
-								modelName: availableModels[0] ?? 'default',
-								effortTier: 'none',
-							};
-
-							const isEditing = editingTaskId === task.id;
-
-							return (
-								<div
-									key={task.id}
-									data-task-row={task.taskKey}
-									className="flex flex-col gap-2 p-3 rounded border border-border bg-page"
-								>
-									{/* 任务标识行 */}
-									<div className="flex flex-wrap items-center justify-between gap-2">
-										<div className="flex items-center gap-2">
-											<span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded bg-panel-2 text-ink-1 border border-border">
-												{task.taskKey}
-											</span>
-											<span className="font-ui text-dense font-medium text-ink-1">
-												{task.title}
-											</span>
-										</div>
-
-										{/* 已指派概要摘要与修改入口（AC 1） */}
-										{!isEditing && (
-											<button
-												type="button"
-												data-action={`edit-task-${task.taskKey}`}
-												onClick={() => setEditingTaskId(task.id)}
-												className="flex items-center gap-2 text-micro text-ink-2 font-mono hover:text-needs cursor-pointer"
-											>
-												<span>
-													{draft.agentKey} · {draft.modelName} ·{' '}
-													{draft.effortTier === 'none' ? '—' : draft.effortTier}
+					<div data-slot="step-3-assign" className="flex flex-col gap-2.5">
+						{step3Slot ?? (
+							<div
+								data-testid="step-3-placeholder"
+								className="p-6 rounded border border-border bg-page text-center font-mono text-meta text-ink-3"
+							>
+								{tasks && tasks.length > 0 ? (
+									<div className="flex flex-col gap-2">
+										<span className="font-semibold text-ink-2">
+											就绪任务清单 ({tasks.length} 项)
+										</span>
+										<div className="flex flex-wrap gap-2 justify-center">
+											{tasks.map((t) => (
+												<span
+													key={t.id}
+													data-task-row={t.taskKey}
+													className="px-2 py-1 rounded bg-panel-2 border border-border text-micro text-ink-1"
+												>
+													{t.taskKey}: {t.title}
 												</span>
-												<span className="text-needs underline">改动</span>
-											</button>
-										)}
+											))}
+										</div>
 									</div>
-
-									{/* 展开编辑表单行（或默认平铺展示） */}
-									<div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-border">
-										{/* 1. Agent 选择 */}
-										<label className="flex flex-col gap-1">
-											<span className="text-micro text-ink-3">执行 Agent</span>
-											<select
-												data-field={`agent-${task.taskKey}`}
-												value={draft.agentKey}
-												onChange={(e) =>
-													handleUpdateAssignment(task.id, 'agentKey', e.target.value)
-												}
-												className="h-btn-sm rounded-sm bg-panel-2 border border-border px-2 text-meta text-ink-1 font-mono focus-visible:border-needs"
-											>
-												{availableAgents.map((ag) => (
-													<option key={ag.key} value={ag.key}>
-														{ag.name}
-													</option>
-												))}
-											</select>
-										</label>
-
-										{/* 2. 模型选择 */}
-										<label className="flex flex-col gap-1">
-											<span className="text-micro text-ink-3">模型配置</span>
-											<select
-												data-field={`model-${task.taskKey}`}
-												value={draft.modelName}
-												onChange={(e) =>
-													handleUpdateAssignment(task.id, 'modelName', e.target.value)
-												}
-												className="h-btn-sm rounded-sm bg-panel-2 border border-border px-2 text-meta text-ink-1 font-mono focus-visible:border-needs"
-											>
-												{availableModels.map((m) => (
-													<option key={m} value={m}>
-														{m}
-													</option>
-												))}
-											</select>
-										</label>
-
-										{/* 3. 思考强度选择（三档抽象 + 留空，决策 52 / E-254） */}
-										<label className="flex flex-col gap-1">
-											<span className="text-micro text-ink-3">思考强度 (Reasoning)</span>
-											<select
-												data-field={`effort-${task.taskKey}`}
-												value={draft.effortTier}
-												onChange={(e) =>
-													handleUpdateAssignment(
-														task.id,
-														'effortTier',
-														e.target.value as ReasoningEffortTier,
-													)
-												}
-												className="h-btn-sm rounded-sm bg-panel-2 border border-border px-2 text-meta text-ink-1 font-mono focus-visible:border-needs"
-											>
-												{EFFORT_OPTIONS.map((opt) => (
-													<option key={opt.tier} value={opt.tier}>
-														{opt.label}
-													</option>
-												))}
-											</select>
-										</label>
-									</div>
-								</div>
-							);
-						})}
+								) : (
+									'—'
+								)}
+							</div>
+						)}
 					</div>
 
 					<div className="flex items-center justify-between pt-2">
 						<button
 							type="button"
 							data-action="prev-step"
-							onClick={() => setCurrentStep(1)}
+							onClick={() => changeStep(1)}
 							className="h-btn px-4 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense"
 						>
 							← 返回选批次
@@ -723,7 +615,7 @@ export function EmptyOnboarding({
 						<button
 							type="button"
 							data-action="next-step-3"
-							onClick={() => setCurrentStep(3)}
+							onClick={() => changeStep(3)}
 							className="h-btn px-5 rounded-sm bg-needs text-on-needs font-semibold text-dense transition-colors hover:brightness-105"
 						>
 							下一步：检查并发与派发 →
@@ -733,7 +625,7 @@ export function EmptyOnboarding({
 			)}
 
 			{/* ─────────────────────────────────────────────────────────────
-			    步骤 4 内容区：并发瓶颈说明与确认派发（AC 1, E-108, E-52, E-47）
+			    步骤 4 内容区：并发限制审计与确认派发（AC 1, E-108, E-52, E-47）
 			    ───────────────────────────────────────────────────────────── */}
 			{currentStep === 3 && (
 				<section
@@ -747,57 +639,55 @@ export function EmptyOnboarding({
 								第四步：并发限制审计与启动派发
 							</h3>
 							<p className="text-meta text-ink-2">
-								调度器执行并发三者取 min 规则，明确列出当前并发瓶颈来源（E-52）。
+								调度器遵循并发限制，呈现当前有效容量与瓶颈说明（E-52, E-47）。
 							</p>
 						</div>
 					</div>
 
-					{/* 并发说明卡片（E-52 / E-47） */}
-					<div
-						data-testid="concurrency-bottleneck-card"
-						className="flex flex-col gap-3 p-3.5 rounded border border-border bg-panel-2 text-meta"
-					>
-						<div className="flex items-center justify-between">
-							<span className="font-semibold text-ink-1">有效并行并发容量</span>
-							<span className="font-mono text-num font-bold text-needs">
-								{effectiveBottleneck} 路
-							</span>
-						</div>
-
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-micro font-mono">
-							<div className="flex justify-between p-2 rounded bg-bg border border-border">
-								<span className="text-ink-3">并行窗口数 (调度器)</span>
-								<span className="text-ink-1 font-bold">{laneCount} 路</span>
+					{/* 并发说明卡片（读 daemon 下发字段，缺失显示「—」，R4） */}
+					{step4Slot ?? (
+						<div
+							data-testid="concurrency-bottleneck-card"
+							className="flex flex-col gap-3 p-3.5 rounded border border-border bg-panel-2 text-meta"
+						>
+							<div className="flex items-center justify-between">
+								<span className="font-semibold text-ink-1">有效并行并发容量</span>
+								<span className="font-mono text-num font-bold text-needs">{capacityText}</span>
 							</div>
-							<div className="flex justify-between p-2 rounded bg-bg border border-border">
-								<span className="text-ink-3">Agent 基础并发上限</span>
-								<span className="text-ink-1 font-bold">{agentConcurrencyLimit} 路</span>
+
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-micro font-mono">
+								<div className="flex justify-between p-2 rounded bg-bg border border-border">
+									<span className="text-ink-3">并行窗口数 (调度器)</span>
+									<span className="text-ink-1 font-bold">{laneCountText}</span>
+								</div>
+								<div className="flex justify-between p-2 rounded bg-bg border border-border">
+									<span className="text-ink-3">Agent 基础并发上限</span>
+									<span className="text-ink-1 font-bold">{agentLimitText}</span>
+								</div>
+							</div>
+
+							<div className="text-micro text-ink-2 border-t border-border pt-2">
+								<span className="text-needs font-semibold font-mono">瓶颈分析：</span>
+								<span>{bottleneckText}</span>
 							</div>
 						</div>
-
-						{/* 明确瓶颈判定说明（E-52） */}
-						<div className="text-micro text-ink-2 border-t border-border pt-2">
-							<span className="text-needs font-semibold font-mono">瓶颈分析：</span>
-							{isWindowBottleneck ? (
-								<span>
-									当前受限于系统配置的并行窗口数（{laneCount} 路），该 Agent 剩余配额仍可接单。
-								</span>
-							) : (
-								<span>
-									当前受限于 Agent 单体并发限制（{agentConcurrencyLimit}{' '}
-									路），空闲窗口将优先分配给其余 Agent（E-47）。
-								</span>
-							)}
-						</div>
-					</div>
+					)}
 
 					{/* 派发清单摘要 */}
 					<div className="flex items-center justify-between text-meta text-ink-2 p-3 rounded border border-border bg-page">
 						<div>
 							<span className="text-ink-3">就绪任务：</span>
-							<span className="font-mono font-bold text-ink-1 ml-1">{taskList.length} 个</span>
+							<span className="font-mono font-bold text-ink-1 ml-1">
+								{tasks && tasks.length > 0 ? `${tasks.length} 个` : '—'}
+							</span>
 							<span className="text-ink-3 ml-3">所属文档：</span>
-							<span className="font-mono text-ink-1 ml-1">{selectedDoc?.title}</span>
+							<span className="font-mono text-ink-1 ml-1">
+								{selectedDoc ? selectedDoc.title : '—'}
+							</span>
+							<span className="text-ink-3 ml-3">所属批次：</span>
+							<span className="font-mono text-ink-1 ml-1">
+								{selectedBatch ? selectedBatch.name : '—'}
+							</span>
 						</div>
 						<div className="font-mono text-micro text-ink-3">状态: 待派发</div>
 					</div>
@@ -806,7 +696,7 @@ export function EmptyOnboarding({
 						<button
 							type="button"
 							data-action="prev-step"
-							onClick={() => setCurrentStep(2)}
+							onClick={() => changeStep(2)}
 							className="h-btn px-4 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense"
 						>
 							← 返回修改指派
@@ -817,7 +707,7 @@ export function EmptyOnboarding({
 							onClick={handleTriggerDispatch}
 							className="h-btn-lg px-8 rounded-sm bg-needs text-on-needs font-bold text-body shadow-glow transition-all hover:brightness-105 active:scale-98"
 						>
-							启动批次派发 (开启 {effectiveBottleneck} 路)
+							启动批次派发
 						</button>
 					</div>
 				</section>

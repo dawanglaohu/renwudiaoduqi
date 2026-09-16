@@ -6,25 +6,25 @@
  * 规范依据（11 节 UI 与 07 节前端架构）：
  * - 批次汇总条是四个数字 + 一条比例条，不得升格成饼图或环形图挤占运行流主位（AC 2, E-111）
  * - 四个数字固定为：进行中 / 待审批 / 已落地 / 失败（E-111）
- * - 紧凑高度（~44px），定位在批次流上方或左栏顶，绝不抢占实时运行流主视觉
+ * - 纯展示组件（components 纯 props in / callback out），一律读 daemon 下发字段
+ * - 缺失显示「—」，总数缺失显示「—」而不以前端求和冒充（R5）
  * - 状态区分不能只靠色相，必须同时具有专属形状字形或明确文字（E-110）
  * - 大数采用 Commit Mono 等宽字体（font-mono），UI 标签 Public Sans（font-ui）
  * - 所有颜色引用 tokens.css 的 CSS 变量，严禁硬编码颜色字面量（check-forbidden 机检）
- * - 纯展示组件（components 纯 props in / callback out），禁止内部副作用或取数
  */
 
 import type { CSSProperties, HTMLAttributes } from 'react';
 import { getStatusShape } from '../lib/spine-shape.ts';
 
 export interface BatchSummaryCounts {
-	/** 进行中的任务数（流处于运行、排队或思考阶段） */
-	readonly running: number;
-	/** 待人工确认/审批的任务数（人工闸门拦截） */
-	readonly awaiting: number;
-	/** 已验收/已落地的任务数 */
-	readonly landed: number;
-	/** 执行失败/异常退出的任务数 */
-	readonly failed: number;
+	/** 进行中的任务数（流处于运行、排队或思考阶段，缺失为 null/undefined） */
+	readonly running?: number | null;
+	/** 待人工确认/审批的任务数（人工闸门拦截，缺失为 null/undefined） */
+	readonly awaiting?: number | null;
+	/** 已验收/已落地的任务数（缺失为 null/undefined） */
+	readonly landed?: number | null;
+	/** 执行失败/异常退出的任务数（缺失为 null/undefined） */
+	readonly failed?: number | null;
 }
 
 export interface BatchSummaryBarProps extends HTMLAttributes<HTMLDivElement> {
@@ -33,9 +33,9 @@ export interface BatchSummaryBarProps extends HTMLAttributes<HTMLDivElement> {
 	/** 批次友好显示名称 */
 	readonly batchName?: string;
 	/** 四项核心状态计数（AC 2, E-111） */
-	readonly counts: BatchSummaryCounts;
-	/** 总任务数（可选，未传时由四项计数之和派生） */
-	readonly totalTasks?: number;
+	readonly counts?: BatchSummaryCounts | null;
+	/** 总任务数（读 daemon 字段，缺失显示「—」，严禁前端求和冒充） */
+	readonly totalTasks?: number | null;
 	/** 是否支持收口操作（收口闸门状态） */
 	readonly canWrapUp?: boolean;
 	/** 收口触发回调 */
@@ -91,19 +91,29 @@ export function BatchSummaryBar({
 	className = '',
 	...rest
 }: BatchSummaryBarProps) {
-	const running = Math.max(0, counts?.running ?? 0);
-	const awaiting = Math.max(0, counts?.awaiting ?? 0);
-	const landed = Math.max(0, counts?.landed ?? 0);
-	const failed = Math.max(0, counts?.failed ?? 0);
+	// R5: 四个数字与总数一律读 daemon 下发字段，缺失显示「—」，严禁 ?? 0 与自算求和
+	const hasRunning = typeof counts?.running === 'number' && !Number.isNaN(counts.running);
+	const hasAwaiting = typeof counts?.awaiting === 'number' && !Number.isNaN(counts.awaiting);
+	const hasLanded = typeof counts?.landed === 'number' && !Number.isNaN(counts.landed);
+	const hasFailed = typeof counts?.failed === 'number' && !Number.isNaN(counts.failed);
 
-	const sum = running + awaiting + landed + failed;
-	const total = explicitTotal !== undefined && explicitTotal > sum ? explicitTotal : sum;
+	const runningText = hasRunning ? String(counts.running) : '—';
+	const awaitingText = hasAwaiting ? String(counts.awaiting) : '—';
+	const landedText = hasLanded ? String(counts.landed) : '—';
+	const failedText = hasFailed ? String(counts.failed) : '—';
 
-	// 计算比例条各段百分比（总和等于 100%）
-	const landedPercent = total > 0 ? (landed / total) * 100 : 0;
-	const runningPercent = total > 0 ? (running / total) * 100 : 0;
-	const awaitingPercent = total > 0 ? (awaiting / total) * 100 : 0;
-	const failedPercent = total > 0 ? (failed / total) * 100 : 0;
+	// 总数严格读 props，缺失显示「—」，不求和
+	const hasTotal = typeof explicitTotal === 'number' && !Number.isNaN(explicitTotal);
+	const total = hasTotal ? explicitTotal : null;
+	const totalText = hasTotal ? String(explicitTotal) : '—';
+
+	// 计算比例条各段百分比（仅当 total 明确且 > 0 时计算）
+	const landedPercent = total && total > 0 && hasLanded ? ((counts?.landed ?? 0) / total) * 100 : 0;
+	const runningPercent =
+		total && total > 0 && hasRunning ? ((counts?.running ?? 0) / total) * 100 : 0;
+	const awaitingPercent =
+		total && total > 0 && hasAwaiting ? ((counts?.awaiting ?? 0) / total) * 100 : 0;
+	const failedPercent = total && total > 0 && hasFailed ? ((counts?.failed ?? 0) / total) * 100 : 0;
 
 	return (
 		<section
@@ -122,7 +132,7 @@ export function BatchSummaryBar({
 				{batchName && (
 					<div className="flex items-center gap-1.5 font-semibold text-ink-1">
 						<span className="font-mono text-dense text-ink-2">{batchName}</span>
-						{total > 0 && <span className="font-mono text-micro text-ink-3">(共 {total} 项)</span>}
+						<span className="font-mono text-micro text-ink-3">(共 {totalText} 项)</span>
 					</div>
 				)}
 
@@ -134,45 +144,45 @@ export function BatchSummaryBar({
 					{/* 1. 进行中 */}
 					<div
 						data-stat="running"
-						title={`进行中: ${running} 个`}
+						title={`进行中: ${runningText} 个`}
 						className="flex items-center gap-1 text-ink-1"
 					>
 						<SummaryGlyph status="streaming" />
 						<span className="text-micro text-ink-2">进行中</span>
-						<span className="font-mono font-semibold text-dense text-ink-1">{running}</span>
+						<span className="font-mono font-semibold text-dense text-ink-1">{runningText}</span>
 					</div>
 
 					{/* 2. 待审批 */}
 					<div
 						data-stat="awaiting"
-						title={`待审批: ${awaiting} 个`}
+						title={`待审批: ${awaitingText} 个`}
 						className="flex items-center gap-1 text-needs"
 					>
 						<SummaryGlyph status="awaiting_input" />
 						<span className="text-micro text-needs">待审批</span>
-						<span className="font-mono font-semibold text-dense text-needs">{awaiting}</span>
+						<span className="font-mono font-semibold text-dense text-needs">{awaitingText}</span>
 					</div>
 
 					{/* 3. 已落地 */}
 					<div
 						data-stat="landed"
-						title={`已落地: ${landed} 个`}
+						title={`已落地: ${landedText} 个`}
 						className="flex items-center gap-1 text-auto"
 					>
 						<SummaryGlyph status="succeeded" />
 						<span className="text-micro text-auto">已落地</span>
-						<span className="font-mono font-semibold text-dense text-auto">{landed}</span>
+						<span className="font-mono font-semibold text-dense text-auto">{landedText}</span>
 					</div>
 
 					{/* 4. 失败 */}
 					<div
 						data-stat="failed"
-						title={`失败: ${failed} 个`}
+						title={`失败: ${failedText} 个`}
 						className="flex items-center gap-1 text-down"
 					>
 						<SummaryGlyph status="failed" />
 						<span className="text-micro text-down">失败</span>
-						<span className="font-mono font-semibold text-dense text-down">{failed}</span>
+						<span className="font-mono font-semibold text-dense text-down">{failedText}</span>
 					</div>
 				</div>
 
@@ -194,10 +204,10 @@ export function BatchSummaryBar({
 				data-testid="batch-proportional-bar"
 				role="progressbar"
 				tabIndex={0}
-				aria-valuenow={landed}
+				aria-valuenow={hasLanded ? (counts?.landed ?? 0) : undefined}
 				aria-valuemin={0}
-				aria-valuemax={total}
-				aria-label={`批次进度比例: 已落地 ${landed} / ${total}`}
+				aria-valuemax={total ?? undefined}
+				aria-label={`批次进度比例: 已落地 ${landedText} / ${totalText}`}
 				className="relative h-1.5 w-full overflow-hidden rounded-pill bg-panel-2 border border-border flex"
 			>
 				{/* 已落地比例 (绿色 --auto) */}
@@ -240,8 +250,10 @@ export function BatchSummaryBar({
 					/>
 				)}
 
-				{/* 全空态占位 */}
-				{total === 0 && <div data-bar-segment="empty" className="h-full w-full bg-panel-2" />}
+				{/* 全空态或无总数占位 */}
+				{(!total || total <= 0) && (
+					<div data-bar-segment="empty" className="h-full w-full bg-panel-2" />
+				)}
 			</div>
 		</section>
 	);

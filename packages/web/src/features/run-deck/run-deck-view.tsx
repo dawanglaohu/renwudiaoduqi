@@ -18,6 +18,7 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode, useCallback, useState } from 'react';
+import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
 import { StreamColumn } from '../../components/stream-column.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import type { DeckStreamLane } from './types.ts';
@@ -133,6 +134,23 @@ export function RunDeckView(props: RunDeckViewProps) {
 	};
 
 	const streamCount = lanes.length;
+
+	// E-108: 零运行空态直接呈现四步引导控制台，而非插画
+	if (streamCount === 0) {
+		return (
+			<section
+				data-run-deck="true"
+				data-tier={tier}
+				data-stream-count={0}
+				className={[
+					'flex flex-col h-full w-full bg-[var(--page)] text-[var(--ink-1)] select-none overflow-y-auto p-4',
+					className ?? '',
+				].join(' ')}
+			>
+				<EmptyOnboarding />
+			</section>
+		);
+	}
 
 	// ─── 布局容器样式决定 ───
 	// 保持单一 DOM 容器与稳定 key，确保拖动窗口切换档位时不重挂虚拟列表、不打断 SSE 跟随（AC 7, E-238）
