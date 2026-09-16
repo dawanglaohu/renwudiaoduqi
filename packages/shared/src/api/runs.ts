@@ -193,6 +193,8 @@ export interface RunDto {
 	readonly endedAt: string | null;
 	readonly laneNo?: number | null;
 	readonly sessionArchivedAt?: string | null;
+	readonly origin?: 'dispatch' | 'rework' | 'wrapup-fix';
+	readonly spawnedByRunId?: string | null;
 }
 
 export interface CreateRunResponse {
