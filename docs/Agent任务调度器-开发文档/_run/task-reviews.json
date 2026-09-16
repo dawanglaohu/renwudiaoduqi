@@ -1026,6 +1026,22 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T11": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69",
+    "evidence": [
+      "①补丁范围与依据：原有效范围只有 packages/web/src/components/offline-banner.tsx、packages/web/src/store/connection-store.ts（presentation.json handoff.taskPaths）。按 07 节已定约定，本层既定产出必需的三个落点放不进原范围：07:72「features 是唯一允许 import src/api、订阅 store、订阅 event-bus 的一层」→ 一帧内写 local-intent（07:86-88）与「SSE 状态/事件 → connection-store」的接线只能在 features 层；07:249 connection-store 只有 status/lastSyncedAt/lastEventId/needsPairing 四个字段、07:298 禁止在 store 里存派生值、07:300 禁止一份数据两处缓存 → 乐观停止的 zustand 镜像与 canDispatch 派生值必须移出 store；07:252 横幅列表归 notice slice。补丁只新增路径，不改任何验收标准与边界。",
+      "②新增有效路径（taskPaths）：packages/web/src/store/notice-store.ts（回滚横幅，07:252）、packages/web/src/features/run-deck/use-stop-intent.ts（一帧内置态 + 失败清 intent + 横幅回滚，07:86-89、07:243）、packages/web/src/features/run-deck/use-connection-state.ts（订阅 sse-client 状态与事件，写 connection-store 四个 setter；401 → setNeedsPairing 按 07:390，重连 → 触发一次补拉按 07:276）。",
+      "③补登支持路径（supportPaths）：packages/web/package.json 与 pnpm-lock.yaml（新增 zustand 依赖，按 M9-T1/M9-T8 先例）、packages/web/test/connection-store.test.ts、packages/web/test/offline-banner.test.ts（本层已交付的 27 条用例）、packages/web/test/notice-store.test.ts、packages/web/test/use-stop-intent.test.ts、packages/web/test/use-connection-state.test.ts（返工需补的用例）。",
+      "④路径冲突核查：features/run-deck/ 目录被 M9-T12（thumb-bar.tsx + features/run-deck/）声明，新增文件名 use-stop-intent.ts / use-connection-state.ts 与其布局文件不重合，同名文件零冲突；packages/web/src/api/event-bus.ts 归 M9-T19（本补丁不动它，连接接线改走 features 层）；store/notice-store.ts 全仓无人声明（M9-T21 声明的是 selection-store.ts / ui-prefs-store.ts）；packages/web/package.json + pnpm-lock.yaml 与 M9-T23 共享，按共享清单叠加处理。",
+      "⑤未受影响部分：19 节 M9-T11 行 4 条验收标准与 E-04/E-12/E-14/E-157 四条边界原文未改（只在交付物列补齐落点），依赖 M9-T9/M9-T5 未变，其他任务契约哈希未变。contractHash bf4cc9870cbe68196f7ec5d4c6503d85070192f0fe5e3fe9cc0e88ea2f4e6cd8 → dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69。",
+      "⑥本轮检查（工作树 D:/xiangmu/agent-scheduler-m9-t11，分支 task/M9-T11 @ 5aff44c）：biome ci . 0 违反（418 文件）、tsc -b --noEmit 退出码 0、check-error-codes.mjs / check-contrast.ts / check-forbidden.ts 退出码 0、web 定向 vitest run packages/web 18 文件 262 用例全过（含本层新增 connection-store.test.ts 15 条、offline-banner.test.ts 12 条）；全量 vitest run 的 18 个红文件全部在 daemon 侧（dispatch_snapshots has no column named bug_prompt / routing fixtures），与本层零 daemon 改动无关，与 M9-T7/M9-T9 审查记录中的既有红一致。",
+      "⑦结论：契约与有效范围已按 07 节修正并同步（sync 输出「已同步，待真实复核：M9-T11」），代码侧另给 rework 条目（见 PR REVIEW-ROUND 1），本补丁不降低任何验收要求。"
+    ],
+    "reviewed": "2026-09-16T07:32:09.282533+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T14": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "5642a1916f8401a25d3b782955ab753a708592e4396784e1e8614a9be3d5cdd4",
