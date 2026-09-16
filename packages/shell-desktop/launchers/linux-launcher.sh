@@ -5,6 +5,14 @@
 # ==============================================================================
 set -euo pipefail
 
+# `--check-only` runs the dependency probe and exits without starting the GUI; CI uses it
+# because a runner has no display to hand the WebView to (E-266).
+CHECK_ONLY=0
+if [[ "${1:-}" == "--check-only" ]]; then
+  CHECK_ONLY=1
+  shift
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUI_BIN="${SCRIPT_DIR}/../src-tauri/target/release/desktop-shell"
 
@@ -100,7 +108,7 @@ if [[ "${DISTRO_ID}" != "ubuntu"* ]]; then
   echo "       Distribution '${DISTRO_ID}' is supported on a best-effort basis." >&2
 fi
 
-if [[ -x "${GUI_BIN}" ]]; then
+if [[ ${CHECK_ONLY} -eq 0 && -x "${GUI_BIN}" ]]; then
   exec "${GUI_BIN}" "$@"
 else
   echo "[OK] Pre-flight dependency check passed: WebKitGTK and GTK3 are available."

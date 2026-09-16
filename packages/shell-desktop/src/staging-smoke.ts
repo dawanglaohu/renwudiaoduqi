@@ -283,6 +283,20 @@ export async function executeDaemonSmoke(
 			} catch {
 				// Clean exit ignore
 			}
+			// Let the process release its working directory before the caller removes the
+			// staging root; Windows reports EBUSY on a directory a live process still holds.
+			await waitForExit(child, 5000);
 		}
 	}
+}
+
+function waitForExit(child: ChildProcess, timeoutMs: number): Promise<void> {
+	if (child.exitCode !== null || typeof child.once !== 'function') return Promise.resolve();
+	return new Promise((resolveWait) => {
+		const timer = setTimeout(resolveWait, timeoutMs);
+		child.once('exit', () => {
+			clearTimeout(timer);
+			resolveWait();
+		});
+	});
 }

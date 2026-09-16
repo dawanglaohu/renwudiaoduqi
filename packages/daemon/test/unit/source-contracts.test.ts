@@ -101,11 +101,19 @@ function sourceFiles(): string[] {
 	return typescriptFiles(packagesRoot).filter((file) => repositoryPath(file).includes('/src/'));
 }
 
+/**
+ * Build outputs are products, not sources: the desktop shell's `src-tauri/gen` and
+ * `src-tauri/target` carry a full copy of the daemon (the shipped daemon distribution),
+ * and scanning that copy would report the approved boundaries a second time.
+ */
+const BUILD_OUTPUT_DIRECTORIES = new Set(['node_modules', 'dist', 'target', 'gen']);
+
 function typescriptFiles(directory: string): string[] {
 	const files: string[] = [];
 	for (const entry of readdirSync(directory, { withFileTypes: true })) {
 		const path = join(directory, entry.name);
 		if (entry.isDirectory()) {
+			if (BUILD_OUTPUT_DIRECTORIES.has(entry.name)) continue;
 			files.push(...typescriptFiles(path));
 		} else if (['.cts', '.mts', '.ts', '.tsx'].includes(extname(entry.name))) {
 			files.push(path);

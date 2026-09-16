@@ -122,7 +122,7 @@ jobs:
       - name: Linux Launcher & Pre-Flight Dependency Probing (AC 3, E-258)
         if: matrix.platform == 'linux'
         run: |
-          bash packages/shell-desktop/launchers/linux-launcher.sh
+          bash packages/shell-desktop/launchers/linux-launcher.sh --check-only
           node --no-warnings --experimental-strip-types -e '
             import { executeLinuxPrecheck } from "./packages/shell-desktop/launchers/linux-launcher.ts";
             const outcome = executeLinuxPrecheck();

@@ -201,6 +201,7 @@ export async function executeStagingSmokeCheck(
 			env: {
 				...(process.env as Record<string, string>),
 				AGSCHED_PORT: String(port),
+				AGSCHED_BIND: '127.0.0.1',
 				AGSCHED_DATA_DIR: dataDir,
 			},
 		});
