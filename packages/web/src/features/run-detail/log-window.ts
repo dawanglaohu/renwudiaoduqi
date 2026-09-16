@@ -6,12 +6,14 @@
  * 规范依据（07 节前端架构与 06 节共用约定）：
  * - 十万行日志只挂载可视窗口，任何时候不把全量放进 DOM 或 store（AC 1, E-143）
  * - 内存只保留 6 段（每段 ≤2000 行），滚出窗口即丢弃并可重拉（AC 2, E-98 客户端侧）
- * - 用户滚到中部时新事件到达不自动跳底，显示「N 条新事件」，仅贴底才跟随（AC 3, E-100）
- * - 大会话体积超阈值（>20MB 或 50 万字）默认加载尾部片段，顶部提供「向上加载更多」与「用系统默认程序打开原始文件」（E-98）
- * - 高频事件流不进 zustand 也不进 React state，日志正文只在内存窗口维护（07 节状态管理）
+ * - 命名按 07-前端架构.md:284 规范为 LOG_SEGMENT_MAX_IN_MEMORY（R6）
+ * - 管理器内部持 version 与缓存快照，只在变更时重建，getState() 返回同一引用（R2）
+ * - 按 isProgressLine 折叠相邻刷新行，保持原文落盘，FlattenedLogLine 带 refreshCount（R3）
+ * - 契约直接使用 GetRunLogResponse，禁止前端自造 DTO 与文本嗅探（R5 c）
  */
 
 import type { GetRunLogResponse } from '@agent-scheduler/shared/api/runs';
+import { isProgressLine } from '../../components/log-lines.tsx';
 
 /**
  * 单段最大行数（daemon GET /api/v1/runs/:runId/log 单次分段上限）。
@@ -19,22 +21,27 @@ import type { GetRunLogResponse } from '@agent-scheduler/shared/api/runs';
 export const SEGMENT_MAX_LINES = 2000;
 
 /**
- * 客户端内存中允许保留的最大分段数（AC 2 / E-98 / 07 节状态管理）。
+ * 客户端内存中允许保留的最大分段数（07-前端架构.md:284 / AC 2 / R6）。
  */
-export const MAX_RETAINED_SEGMENTS = 6;
+export const LOG_SEGMENT_MAX_IN_MEMORY = 6;
+
+/**
+ * 兼容旧命名的别名导出。
+ */
+export const MAX_RETAINED_SEGMENTS = LOG_SEGMENT_MAX_IN_MEMORY;
 
 /**
  * 内存中驻留的日志行数理论上限（6 段 × 2000 行 = 12000 行）。
  */
-export const MAX_RETAINED_LINES = SEGMENT_MAX_LINES * MAX_RETAINED_SEGMENTS;
+export const MAX_RETAINED_LINES = SEGMENT_MAX_LINES * LOG_SEGMENT_MAX_IN_MEMORY;
 
 /**
- * 日志响应输入类型（兼顾 shared DTO 与守护进程扩展的 E-98 体积超限字段）。
+ * 内存中保留的单条日志条目（支持相邻进度行折叠）。
  */
-export interface ExtendedLogResponse extends GetRunLogResponse {
-	readonly isExceedsThreshold?: boolean;
-	readonly originalFilePath?: string | null;
-	readonly openCommand?: string | null;
+export interface LogEntry {
+	readonly text: string;
+	readonly refreshCount?: number;
+	readonly collapsedLines?: readonly string[];
 }
 
 /**
@@ -45,8 +52,8 @@ export interface LogWindowSegment {
 	readonly id: string;
 	/** 该段首行在全局日志流中的起始行索引（0-based） */
 	readonly startLineIndex: number;
-	/** 本段实际持有的日志行数组（≤2000 行） */
-	readonly lines: readonly string[];
+	/** 本段实际持有的日志条目数组（≤2000 行） */
+	readonly entries: readonly LogEntry[];
 	/** 向前翻页的字节游标（取自 daemon） */
 	readonly prevCursor: string | null;
 	/** 向后翻页的字节游标（取自 daemon） */
@@ -59,10 +66,14 @@ export interface LogWindowSegment {
 export interface FlattenedLogLine {
 	/** 全局行索引（0-based） */
 	readonly globalIndex: number;
-	/** 行内文本内容 */
+	/** 行内文本内容（若发生折叠，为最新一行内容） */
 	readonly text: string;
 	/** 所属片段编号 */
 	readonly segmentId: string;
+	/** 折叠的刷新次数（>1 表示有相邻刷新行折叠） */
+	readonly refreshCount?: number;
+	/** 折叠的全部原始行内容列表 */
+	readonly collapsedLines?: readonly string[];
 }
 
 /**
@@ -75,7 +86,7 @@ export interface LogWindowState {
 	readonly retainedSegmentsCount: number;
 	/** 内存当前保留的总行数（严格 ≤ 12,000） */
 	readonly retainedLinesCount: number;
-	/** 是否因超出 20MB 或 50 万字而默认截取尾部（E-98） */
+	/** 是否因超出 20MB 或 50 万字而默认截取尾部（E-98，取自服务端契约字段） */
 	readonly isExceedsThreshold: boolean;
 	/** 原始日志落盘路径（E-98 提供外部程序打开） */
 	readonly originalFilePath: string | null;
@@ -96,6 +107,34 @@ export interface LogWindowState {
 type Listener = () => void;
 
 /**
+ * 将原始行列表中的相邻进度行（isProgressLine）进行就地合并折叠（AC 4 / E-101 / R3）。
+ */
+function foldAdjacentProgressLines(rawLines: readonly string[]): LogEntry[] {
+	const entries: LogEntry[] = [];
+	for (const line of rawLines) {
+		if (isProgressLine(line) && entries.length > 0) {
+			const last = entries[entries.length - 1];
+			if (last && isProgressLine(last.text)) {
+				const prevCount = last.refreshCount ?? 1;
+				const prevList = last.collapsedLines ?? [last.text];
+				entries[entries.length - 1] = {
+					text: line,
+					refreshCount: prevCount + 1,
+					collapsedLines: [...prevList, line],
+				};
+				continue;
+			}
+		}
+		entries.push({
+			text: line,
+			refreshCount: 1,
+			collapsedLines: [line],
+		});
+	}
+	return entries;
+}
+
+/**
  * 日志窗口分段管理器（AC 1, AC 2, AC 3, E-98, E-100, E-143）。
  * 纯类实现，独立于 React 组件生命周期，严格控制内存开销。
  */
@@ -112,18 +151,27 @@ export class LogWindowManager {
 	private nextSegmentSeq = 0;
 	private readonly listeners = new Set<Listener>();
 
+	// R2: 管理器内持版本号与缓存快照，只在状态变更时更新
+	private version = 0;
+	private cachedState: LogWindowState | null = null;
+
 	/**
-	 * 获取当前不可变状态快照。
+	 * 构建当前不可变状态快照。
 	 */
-	getState(): LogWindowState {
+	private buildState(): LogWindowState {
 		const lines: FlattenedLogLine[] = [];
 		for (const seg of this.segments) {
-			for (let i = 0; i < seg.lines.length; i++) {
-				lines.push({
-					globalIndex: seg.startLineIndex + i,
-					text: seg.lines[i] ?? '',
-					segmentId: seg.id,
-				});
+			for (let i = 0; i < seg.entries.length; i++) {
+				const entry = seg.entries[i];
+				if (entry) {
+					lines.push({
+						globalIndex: seg.startLineIndex + i,
+						text: entry.text,
+						segmentId: seg.id,
+						refreshCount: entry.refreshCount,
+						collapsedLines: entry.collapsedLines,
+					});
+				}
 			}
 		}
 
@@ -143,6 +191,23 @@ export class LogWindowManager {
 	}
 
 	/**
+	 * 获取当前不可变状态快照（R2: 同一状态多次调用返回同一对象引用）。
+	 */
+	getState(): LogWindowState {
+		if (this.cachedState === null) {
+			this.cachedState = this.buildState();
+		}
+		return this.cachedState;
+	}
+
+	/**
+	 * 获取当前管理器数据版本号。
+	 */
+	getVersion(): number {
+		return this.version;
+	}
+
+	/**
 	 * 订阅状态变更。
 	 */
 	subscribe(listener: Listener): () => void {
@@ -152,25 +217,23 @@ export class LogWindowManager {
 		};
 	}
 
-	private notify(): void {
+	private invalidateAndNotify(): void {
+		this.version += 1;
+		this.cachedState = null;
 		for (const listener of this.listeners) {
 			listener();
 		}
 	}
 
 	/**
-	 * 装载首屏快照分段（E-98 / AC 1 / AC 2）。
-	 * 若会话超限默认加载尾部片段；切分为至多 6 段。
+	 * 装载首屏快照分段（E-98 / AC 1 / AC 2 / R5 c）。
+	 * 读服务端契约字段，禁止前端自行正文嗅探。
 	 */
-	loadInitial(res: ExtendedLogResponse): void {
+	loadInitial(res: GetRunLogResponse): void {
 		this.segments = [];
 		this.totalLines = Math.max(res.totalLines || 0, res.lines.length);
-
-		// 判定是否超限（支持字段或根据首行提示文本回落识别）
-		const hasExceedHint = res.lines.some(
-			(l) => l.includes('20MB') || l.includes('50 万字') || l.includes('E-98'),
-		);
-		this.isExceedsThreshold = Boolean(res.isExceedsThreshold || hasExceedHint);
+		// R5 c: 直接读取服务端契约字段，不从正文包含文本嗅探
+		this.isExceedsThreshold = Boolean(res.isExceedsThreshold);
 		this.originalFilePath = res.originalFilePath ?? null;
 		this.openCommand = res.openCommand ?? null;
 		this.hasOlder = Boolean(res.prevCursor);
@@ -178,7 +241,7 @@ export class LogWindowManager {
 		this.unreadNewCount = 0;
 
 		if (res.lines.length === 0) {
-			this.notify();
+			this.invalidateAndNotify();
 			return;
 		}
 
@@ -186,54 +249,55 @@ export class LogWindowManager {
 		const isTailLoad = Boolean(res.prevCursor) || this.isExceedsThreshold;
 		const baseStartLine = isTailLoad ? Math.max(0, this.totalLines - res.lines.length) : 0;
 
-		// 将输入行以 SEGMENT_MAX_LINES (2000) 为单位切片
-		const incomingLines = [...res.lines];
+		// 将输入行按 isProgressLine 折叠相邻刷新行（R3）
+		const foldedEntries = foldAdjacentProgressLines(res.lines);
 		const chunked: LogWindowSegment[] = [];
 
-		for (let offset = 0; offset < incomingLines.length; offset += SEGMENT_MAX_LINES) {
-			const slice = incomingLines.slice(offset, offset + SEGMENT_MAX_LINES);
+		for (let offset = 0; offset < foldedEntries.length; offset += SEGMENT_MAX_LINES) {
+			const slice = foldedEntries.slice(offset, offset + SEGMENT_MAX_LINES);
 			const segStart = baseStartLine + offset;
 			this.nextSegmentSeq += 1;
 			chunked.push({
 				id: `seg-${this.nextSegmentSeq}`,
 				startLineIndex: segStart,
-				lines: Object.freeze(slice),
+				entries: Object.freeze(slice),
 				prevCursor: offset === 0 ? res.prevCursor : null,
-				nextCursor: offset + SEGMENT_MAX_LINES >= incomingLines.length ? res.nextCursor : null,
+				nextCursor: offset + SEGMENT_MAX_LINES >= foldedEntries.length ? res.nextCursor : null,
 			});
 		}
 
-		// AC 2: 内存只保留 6 段，多出的片段驱逐
-		while (chunked.length > MAX_RETAINED_SEGMENTS) {
+		// AC 2 / R6: 内存只保留 LOG_SEGMENT_MAX_IN_MEMORY (6) 段
+		while (chunked.length > LOG_SEGMENT_MAX_IN_MEMORY) {
 			chunked.shift();
 			this.hasOlder = true;
 		}
 
 		this.segments = chunked;
-		this.notify();
+		this.invalidateAndNotify();
 	}
 
 	/**
 	 * 向上加载历史片段（E-143 / E-98 / AC 2）。
 	 * 向头部插入新段；超过 6 段时自动驱逐尾部段，丢弃的段可重新向后拉取。
 	 */
-	prependOlderSegment(res: ExtendedLogResponse): void {
+	prependOlderSegment(res: GetRunLogResponse): void {
 		if (res.lines.length === 0) {
 			this.hasOlder = false;
-			this.notify();
+			this.invalidateAndNotify();
 			return;
 		}
 
+		const foldedEntries = foldAdjacentProgressLines(res.lines);
 		const currentFirst = this.segments[0];
 		const startLine = currentFirst
-			? Math.max(0, currentFirst.startLineIndex - res.lines.length)
+			? Math.max(0, currentFirst.startLineIndex - foldedEntries.length)
 			: 0;
 
 		this.nextSegmentSeq += 1;
 		const newSeg: LogWindowSegment = {
 			id: `seg-${this.nextSegmentSeq}`,
 			startLineIndex: startLine,
-			lines: Object.freeze([...res.lines]),
+			entries: Object.freeze(foldedEntries),
 			prevCursor: res.prevCursor,
 			nextCursor: res.nextCursor,
 		};
@@ -241,34 +305,35 @@ export class LogWindowManager {
 		this.segments.unshift(newSeg);
 		this.hasOlder = Boolean(res.prevCursor);
 
-		// AC 2: 超过 6 段，丢弃尾部段（滚出窗口即丢弃，并可重拉）
-		while (this.segments.length > MAX_RETAINED_SEGMENTS) {
+		// AC 2 / R6: 超过 6 段，丢弃尾部段
+		while (this.segments.length > LOG_SEGMENT_MAX_IN_MEMORY) {
 			this.segments.pop();
-			this.hasNewer = true; // 尾部被丢弃，标记可向后重拉
+			this.hasNewer = true;
 		}
 
-		this.notify();
+		this.invalidateAndNotify();
 	}
 
 	/**
 	 * 向下重新加载较新片段（AC 2 / E-98 滚出重拉）。
 	 * 向尾部插入新段；超过 6 段时自动驱逐头部段。
 	 */
-	appendNewerSegment(res: ExtendedLogResponse): void {
+	appendNewerSegment(res: GetRunLogResponse): void {
 		if (res.lines.length === 0) {
 			this.hasNewer = false;
-			this.notify();
+			this.invalidateAndNotify();
 			return;
 		}
 
+		const foldedEntries = foldAdjacentProgressLines(res.lines);
 		const currentLast = this.segments[this.segments.length - 1];
-		const startLine = currentLast ? currentLast.startLineIndex + currentLast.lines.length : 0;
+		const startLine = currentLast ? currentLast.startLineIndex + currentLast.entries.length : 0;
 
 		this.nextSegmentSeq += 1;
 		const newSeg: LogWindowSegment = {
 			id: `seg-${this.nextSegmentSeq}`,
 			startLineIndex: startLine,
-			lines: Object.freeze([...res.lines]),
+			entries: Object.freeze(foldedEntries),
 			prevCursor: res.prevCursor,
 			nextCursor: res.nextCursor,
 		};
@@ -276,71 +341,90 @@ export class LogWindowManager {
 		this.segments.push(newSeg);
 		this.hasNewer = Boolean(res.nextCursor);
 
-		// AC 2: 超过 6 段，丢弃头部段
-		while (this.segments.length > MAX_RETAINED_SEGMENTS) {
+		// AC 2 / R6: 超过 6 段，丢弃头部段
+		while (this.segments.length > LOG_SEGMENT_MAX_IN_MEMORY) {
 			this.segments.shift();
-			this.hasOlder = true; // 头部被丢弃，标记可向前重拉
+			this.hasOlder = true;
 		}
 
-		this.notify();
+		this.invalidateAndNotify();
 	}
 
 	/**
-	 * 追加实时运行日志行（AC 3 / E-100 / AC 2）。
-	 * 仅贴底时自动跟随；滚到中部时新事件到达不自动跳底，累加 unreadNewCount。
+	 * 追加实时运行日志行（AC 3 / E-100 / AC 2 / R3）。
+	 * 折叠相邻进度刷新行（保留最新文本 + 计数），不让高频进度条打爆行数。
 	 */
 	appendLiveLines(newLines: readonly string[]): void {
 		if (newLines.length === 0) {
 			return;
 		}
 
-		// 如果内存尚无片段，建立第一个片段
 		if (this.segments.length === 0) {
 			this.nextSegmentSeq += 1;
 			this.segments.push({
 				id: `seg-${this.nextSegmentSeq}`,
 				startLineIndex: 0,
-				lines: Object.freeze([]),
+				entries: Object.freeze([]),
 				prevCursor: null,
 				nextCursor: null,
 			});
 		}
 
-		let pendingLines = [...newLines];
-
-		while (pendingLines.length > 0) {
-			const activeSeg = this.segments[this.segments.length - 1];
+		for (const rawLine of newLines) {
+			const activeSegIndex = this.segments.length - 1;
+			const activeSeg = this.segments[activeSegIndex];
 			if (!activeSeg) {
 				break;
 			}
-			const currentLines = activeSeg.lines;
-			const availableSpace = SEGMENT_MAX_LINES - currentLines.length;
 
-			if (availableSpace > 0) {
-				const takeCount = Math.min(availableSpace, pendingLines.length);
-				const toAppend = pendingLines.slice(0, takeCount);
-				pendingLines = pendingLines.slice(takeCount);
+			const currentEntries = [...activeSeg.entries];
+			const lastEntry =
+				currentEntries.length > 0 ? currentEntries[currentEntries.length - 1] : undefined;
 
-				const updatedSeg: LogWindowSegment = {
-					...activeSeg,
-					lines: Object.freeze([...currentLines, ...toAppend]),
+			// R3: 探测相邻进度刷新行，如果前一行也是进度行，则在原地折叠更新
+			if (isProgressLine(rawLine) && lastEntry && isProgressLine(lastEntry.text)) {
+				const prevCount = lastEntry.refreshCount ?? 1;
+				const prevCollapsed = lastEntry.collapsedLines ?? [lastEntry.text];
+				currentEntries[currentEntries.length - 1] = {
+					text: rawLine,
+					refreshCount: prevCount + 1,
+					collapsedLines: [...prevCollapsed, rawLine],
 				};
-				this.segments[this.segments.length - 1] = updatedSeg;
+				this.segments[activeSegIndex] = {
+					...activeSeg,
+					entries: Object.freeze(currentEntries),
+				};
+				continue;
+			}
+
+			// 普通新增行或首个进度行
+			const newEntry: LogEntry = {
+				text: rawLine,
+				refreshCount: 1,
+				collapsedLines: [rawLine],
+			};
+
+			if (currentEntries.length < SEGMENT_MAX_LINES) {
+				currentEntries.push(newEntry);
+				this.segments[activeSegIndex] = {
+					...activeSeg,
+					entries: Object.freeze(currentEntries),
+				};
 			} else {
-				// 当前尾部段已满 2000 行，开启新分段
+				// 当前段已满 2000 行，开新段
 				this.nextSegmentSeq += 1;
-				const startLine = activeSeg.startLineIndex + activeSeg.lines.length;
+				const startLine = activeSeg.startLineIndex + activeSeg.entries.length;
 				const newSeg: LogWindowSegment = {
 					id: `seg-${this.nextSegmentSeq}`,
 					startLineIndex: startLine,
-					lines: Object.freeze([]),
+					entries: Object.freeze([newEntry]),
 					prevCursor: null,
 					nextCursor: null,
 				};
 				this.segments.push(newSeg);
 
-				// AC 2: 超过 6 段，驱逐头部段
-				while (this.segments.length > MAX_RETAINED_SEGMENTS) {
+				// 超过 6 段，驱逐头部段
+				while (this.segments.length > LOG_SEGMENT_MAX_IN_MEMORY) {
 					this.segments.shift();
 					this.hasOlder = true;
 				}
@@ -356,7 +440,7 @@ export class LogWindowManager {
 			this.unreadNewCount += newLines.length;
 		}
 
-		this.notify();
+		this.invalidateAndNotify();
 	}
 
 	/**
@@ -370,7 +454,7 @@ export class LogWindowManager {
 		if (atBottom) {
 			this.unreadNewCount = 0;
 		}
-		this.notify();
+		this.invalidateAndNotify();
 	}
 
 	/**
@@ -379,7 +463,7 @@ export class LogWindowManager {
 	resetUnreadCount(): void {
 		this.unreadNewCount = 0;
 		this.isAtBottom = true;
-		this.notify();
+		this.invalidateAndNotify();
 	}
 
 	/**
@@ -409,7 +493,7 @@ export class LogWindowManager {
 	getRetainedLineCount(): number {
 		let sum = 0;
 		for (const seg of this.segments) {
-			sum += seg.lines.length;
+			sum += seg.entries.length;
 		}
 		return sum;
 	}

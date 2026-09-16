@@ -193,7 +193,7 @@ export const singleRunParamsSchema = {
 export { createRunMessageBodySchema };
 
 export interface GetRunLogQuery {
-	readonly fromSeq?: number;
+	readonly fromSeq?: number | string;
 	readonly direction?: 'forward' | 'backward';
 	readonly limit?: number;
 	readonly deviceType?: string;
@@ -212,7 +212,12 @@ export const getRunLogQuerySchema = {
 	type: 'object',
 	additionalProperties: false,
 	properties: {
-		fromSeq: { type: 'integer', minimum: 0 },
+		fromSeq: {
+			anyOf: [
+				{ type: 'integer', minimum: 0 },
+				{ type: 'string', pattern: '^\\d+:\\d+$' },
+			],
+		},
 		direction: { type: 'string', enum: ['forward', 'backward'] },
 		limit: { type: 'integer', minimum: 1, maximum: 2000 },
 		deviceType: { type: 'string' },
@@ -501,6 +506,9 @@ export function registerRunsRoutes(
 			totalLines: result.totalLines,
 			prevCursor: result.prevCursor,
 			nextCursor: result.nextCursor,
+			isExceedsThreshold: result.isExceedsThreshold ?? false,
+			originalFilePath: result.originalFilePath ?? null,
+			openCommand: result.openCommand ?? null,
 		};
 	};
 

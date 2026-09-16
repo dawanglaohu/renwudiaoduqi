@@ -281,6 +281,8 @@ export interface LogLineProps extends Omit<HTMLAttributes<HTMLDivElement>, 'chil
 	readonly refreshCount?: number;
 	/** 切换进度刷新行折叠展开回调 */
 	readonly onToggleProgressCollapse?: (index: number) => void;
+	/** 折叠的全部原始行内容列表 */
+	readonly collapsedLines?: readonly string[];
 }
 
 /**
@@ -296,6 +298,7 @@ export function LogLine({
 	isProgressCollapsed = false,
 	refreshCount,
 	onToggleProgressCollapse,
+	collapsedLines,
 	className,
 	style,
 	...rest
@@ -425,6 +428,28 @@ export function LogLine({
 							: `[展开中 / 共 ${refreshCount} 次刷新]`}
 					</button>
 				)}
+
+				{/* 展开后的进度刷新历史行明细 */}
+				{!isProgressCollapsed && collapsedLines && collapsedLines.length > 1 && (
+					<div
+						className="mt-1 pl-2 flex flex-col gap-0.5"
+						style={{
+							borderLeft: '1px solid var(--border)',
+							opacity: 0.85,
+						}}
+					>
+						{collapsedLines.map((colLine, colIdx) => (
+							<div
+								// biome-ignore lint/suspicious/noArrayIndexKey: 历史刷新行切片稳定
+								key={colIdx}
+								className="text-xs font-mono whitespace-pre-wrap"
+								style={{ color: 'var(--ink-2)' }}
+							>
+								{resolveCarriageReturns(colLine)}
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -456,7 +481,7 @@ export function LogBottomNotice({ unreadCount, onClick, className }: LogBottomNo
 			<button
 				type="button"
 				onClick={onClick}
-				className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
+				className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full shadow-lg transition-[filter] hover:brightness-[1.04] active:brightness-95"
 				style={{
 					backgroundColor: 'var(--panel-2)',
 					border: '1px solid var(--needs)',
@@ -493,8 +518,41 @@ export interface LogThresholdBannerProps {
 }
 
 /**
- * 顶部向上加载与体积超限提示栏（E-98）。
+ * 向下重新拉取较新日志片段按钮栏属性（AC 2 滚出重拉 / R5 e）。
  */
+export interface LogLoadNewerBarProps {
+	/** 是否正在向下拉取中 */
+	readonly isLoading?: boolean;
+	/** 点击加载回调 */
+	readonly onClick: () => void;
+	/** 自定义类名 */
+	readonly className?: string;
+}
+
+/**
+ * 底部向下重新加载较新分段按钮栏（AC 2 / R5 e）。
+ */
+export function LogLoadNewerBar({ isLoading = false, onClick, className }: LogLoadNewerBarProps) {
+	return (
+		<div className={`flex justify-center py-1 shrink-0 ${className ?? ''}`}>
+			<button
+				type="button"
+				disabled={isLoading}
+				onClick={onClick}
+				className="px-3 py-1 text-xs rounded border transition-opacity hover:opacity-90 disabled:opacity-50"
+				style={{
+					backgroundColor: 'var(--panel-2)',
+					borderColor: 'var(--border-strong)',
+					color: 'var(--ink-1)',
+				}}
+				data-load-newer="true"
+			>
+				{isLoading ? '加载较新分段中…' : '向下重新加载较新日志'}
+			</button>
+		</div>
+	);
+}
+
 export function LogThresholdBanner({
 	hasOlder,
 	isExceedsThreshold = false,

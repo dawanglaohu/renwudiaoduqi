@@ -550,4 +550,56 @@ describe('M6-T8 Fastify HTTP Route Integration: GET /api/v1/runs/:runId/log', ()
 		});
 		expect(invalidLimitRes.statusCode).toBe(400);
 	});
+
+	it('M9-T8 & E-143 & E-98: accepts string cursor (fileSeq:byteOffset) in fromSeq and exposes isExceedsThreshold, originalFilePath, and openCommand', async () => {
+		const app = Fastify();
+		const seen: unknown[] = [];
+		const mockService = {
+			getRunLog: async (opts: {
+				runId: string;
+				fromSeq?: number | string | null;
+				direction?: 'forward' | 'backward';
+				limit?: number;
+			}) => {
+				seen.push(opts.fromSeq);
+				return {
+					lines: ['line 1'],
+					totalLines: 100_000,
+					prevCursor: '0:9',
+					nextCursor: '1:2000',
+					isExceedsThreshold: true,
+					originalFilePath: '/path/to/raw.log',
+					openCommand: 'notepad /path/to/raw.log',
+				};
+			},
+			assertVendorSessionRefReadOnly: () => undefined,
+		};
+
+		registerRunsRoutes(app, { runLogService: mockService as never });
+
+		// String cursor "0:9"
+		const stringRes = await app.inject({
+			method: 'GET',
+			url: '/api/v1/runs/run-123/log?fromSeq=0:9&direction=backward&limit=2000',
+		});
+		expect(stringRes.statusCode).toBe(200);
+		const stringBody = stringRes.json();
+		expect(stringBody.lines).toEqual(['line 1']);
+		expect(stringBody.totalLines).toBe(100_000);
+		expect(stringBody.prevCursor).toBe('0:9');
+		expect(stringBody.nextCursor).toBe('1:2000');
+		expect(stringBody.isExceedsThreshold).toBe(true);
+		expect(stringBody.originalFilePath).toBe('/path/to/raw.log');
+		expect(stringBody.openCommand).toBe('notepad /path/to/raw.log');
+
+		// Integer offset 9
+		const intRes = await app.inject({
+			method: 'GET',
+			url: '/api/v1/runs/run-123/log?fromSeq=9&direction=backward&limit=2000',
+		});
+		expect(intRes.statusCode).toBe(200);
+
+		// Verify service saw both cursors
+		expect(seen).toEqual(['0:9', 9]);
+	});
 });

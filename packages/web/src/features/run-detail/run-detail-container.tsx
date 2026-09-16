@@ -7,12 +7,18 @@
  * - features 容器层：只负责拼装展示组件与连接数据源
  * - 容器里只许写 grid/flex/gap，禁止写颜色字号圆角（07 节架构硬性规则）
  * - 虚拟滚动经 components/virtual-rows.tsx 使用（AC 6）
- * - 十万行日志只挂载可视窗口，任何时候不把全量放进 DOM 或 store（AC 1, E-143）
- * - 内存只保留 6 段，用户滚到中部时新事件到达不自动跳底，显示「N 条新事件」（AC 2, AC 3, E-100）
+ * - 贴底时行数增长自动跟随；中部时绝不跳底（AC 3 / E-100 / R1）
+ * - 透传 refreshCount 与折叠状态给 LogLine（AC 4 / E-101 / R3）
+ * - 连接 loadNewer 触发点供滚出重拉（AC 2 / R5 e）
  */
 
-import { useCallback, useRef, useState } from 'react';
-import { LogBottomNotice, LogLine, LogThresholdBanner } from '../../components/log-lines.tsx';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+	LogBottomNotice,
+	LogLine,
+	LogLoadNewerBar,
+	LogThresholdBanner,
+} from '../../components/log-lines.tsx';
 import { VirtualRows, type VirtualRowsHandle } from '../../components/virtual-rows.tsx';
 import { useLogWindow } from './use-log-window.ts';
 
@@ -35,10 +41,30 @@ export function RunDetailContainer({
 }: RunDetailContainerProps) {
 	const virtualRef = useRef<VirtualRowsHandle | null>(null);
 	const [expandedIndices, setExpandedIndices] = useState<ReadonlySet<number>>(() => new Set());
+	const [expandedProgressIndices, setExpandedProgressIndices] = useState<ReadonlySet<number>>(
+		() => new Set(),
+	);
 
-	const { state, isLoadingOlder, loadOlder, handleScroll, handleResetUnread } = useLogWindow({
-		runId,
-	});
+	const {
+		state,
+		isLoadingOlder,
+		isLoadingNewer,
+		loadOlder,
+		loadNewer,
+		handleScroll,
+		handleResetUnread,
+	} = useLogWindow({ runId });
+
+	// R1 (AC 3 / E-100): 贴底且行数增长时自动跟随；isAtBottom 为 false 时绝不跳底
+	const prevCountRef = useRef(state.retainedLinesCount);
+	useEffect(() => {
+		if (state.retainedLinesCount > prevCountRef.current) {
+			if (state.isAtBottom) {
+				virtualRef.current?.scrollToBottom();
+			}
+		}
+		prevCountRef.current = state.retainedLinesCount;
+	}, [state.retainedLinesCount, state.isAtBottom]);
 
 	const handleScrollToBottom = useCallback(() => {
 		virtualRef.current?.scrollToBottom();
@@ -47,6 +73,18 @@ export function RunDetailContainer({
 
 	const handleToggleExpand = useCallback((index: number) => {
 		setExpandedIndices((prev) => {
+			const next = new Set(prev);
+			if (next.has(index)) {
+				next.delete(index);
+			} else {
+				next.add(index);
+			}
+			return next;
+		});
+	}, []);
+
+	const handleToggleProgressCollapse = useCallback((index: number) => {
+		setExpandedProgressIndices((prev) => {
 			const next = new Set(prev);
 			if (next.has(index)) {
 				next.delete(index);
@@ -93,6 +131,10 @@ export function RunDetailContainer({
 								text={line.text}
 								isExpanded={expandedIndices.has(index)}
 								onToggleExpand={handleToggleExpand}
+								refreshCount={line.refreshCount}
+								isProgressCollapsed={!expandedProgressIndices.has(index)}
+								onToggleProgressCollapse={handleToggleProgressCollapse}
+								collapsedLines={line.collapsedLines}
 							/>
 						);
 					}}
@@ -105,6 +147,9 @@ export function RunDetailContainer({
 					<LogBottomNotice unreadCount={state.unreadNewCount} onClick={handleScrollToBottom} />
 				)}
 			</div>
+
+			{/* R5 e: 底部向下重新加载较新分段触发点（AC 2 滚出重拉） */}
+			{state.hasNewer && <LogLoadNewerBar isLoading={isLoadingNewer} onClick={loadNewer} />}
 		</div>
 	);
 }

@@ -9,6 +9,8 @@
  * - 向上滚动时通过 prevCursor 向 daemon 按段请求历史片段（E-143）
  * - 处于中部时不自动跳底，累加 unreadNewCount（E-100）
  * - 单会话体积超阈值时提供尾部片段加载与原始文件打开能力（E-98）
+ * - 请求改走 ROUTES + httpClient.callRoute，禁止硬编码 URL 字面量（R5 d）
+ * - 按已消费水位顺序追加所有新增事件正文，杜绝 flush 漏丢中间事件（R4）
  */
 
 import type { GetRunLogResponse } from '@agent-scheduler/shared/api/runs';
@@ -20,10 +22,15 @@ import {
 	useState,
 	useSyncExternalStore,
 } from 'react';
+import { ROUTES } from '../../../../shared/src/api/routes.ts';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient } from '../../api/http-client.ts';
 import type { VirtualScrollInfo } from '../../components/virtual-rows.tsx';
-import { type ExtendedLogResponse, LogWindowManager, type LogWindowState } from './log-window.ts';
+import { LogWindowManager, type LogWindowState } from './log-window.ts';
+
+const getRunLogRoute = ROUTES.find(
+	(r) => r.method === 'GET' && r.path === '/api/v1/runs/:runId/log',
+);
 
 export interface UseLogWindowOptions {
 	/** 运行编号 */
@@ -73,20 +80,30 @@ export function useLogWindow({
 	const [isLoadingNewer, setIsLoadingNewer] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	// 通过 useSyncExternalStore 订阅 LogWindowManager 状态变化
+	// 水位记录，保证多条 chunk 在一次 flush 内不漏且不重（R4）
+	const lastConsumedIdRef = useRef<number | null>(null);
+	const lastConsumedSeqRef = useRef<number | null>(null);
+
+	// 通过 useSyncExternalStore 订阅 LogWindowManager 状态变化（R2: 返回同一引用快照）
+	const getSnapshot = useCallback(() => manager.getState(), [manager]);
 	const state = useSyncExternalStore(
 		useCallback((notify) => manager.subscribe(notify), [manager]),
-		useCallback(() => manager.getState(), [manager]),
+		getSnapshot,
+		getSnapshot,
 	);
 
-	// 1. 首屏加载
+	// 1. 首屏加载（R5 d: callRoute）
 	useEffect(() => {
+		if (!getRunLogRoute) {
+			throw new Error('getRunLogRoute missing from ROUTES');
+		}
+
 		let isCurrent = true;
 		setIsLoadingInitial(true);
 		setError(null);
 
 		httpClient
-			.get<ExtendedLogResponse>('/api/v1/runs/:runId/log', {
+			.callRoute<GetRunLogResponse>(getRunLogRoute, {
 				params: { runId },
 				query: { limit: segmentLimit },
 			})
@@ -111,7 +128,7 @@ export function useLogWindow({
 		};
 	}, [runId, segmentLimit, manager]);
 
-	// 2. 实时流事件订阅（AC 3 / E-100）
+	// 2. 实时流事件订阅（AC 3 / E-100 / R4）
 	useEffect(() => {
 		if (!autoSubscribeEvents) {
 			return;
@@ -124,25 +141,51 @@ export function useLogWindow({
 				return;
 			}
 
-			// 读取最新事件中产生的输出行
+			// 读取所有事件并在水位之后顺序提取（R4）
 			const events = buffer.getItems();
 			if (events.length === 0) {
 				return;
 			}
 
-			const lastEvent = events[events.length - 1];
-			if (!lastEvent) {
-				return;
+			const newLines: string[] = [];
+			for (const event of events) {
+				const id = typeof event.id === 'number' ? event.id : null;
+				const seq = typeof event.seq === 'number' ? event.seq : null;
+
+				const isNew =
+					id !== null
+						? lastConsumedIdRef.current === null || id > lastConsumedIdRef.current
+						: seq !== null
+							? lastConsumedSeqRef.current === null || seq > lastConsumedSeqRef.current
+							: true;
+
+				if (isNew) {
+					if (id !== null) {
+						lastConsumedIdRef.current = Math.max(lastConsumedIdRef.current ?? -1, id);
+					}
+					if (seq !== null) {
+						lastConsumedSeqRef.current = Math.max(lastConsumedSeqRef.current ?? -1, seq);
+					}
+
+					if (
+						event.kind === 'agent_message_chunk' ||
+						event.kind === 'agent_thought_chunk' ||
+						event.kind === 'run.stderr_line'
+					) {
+						const payload = event.payload as
+							| { chunk?: string; text?: string; line?: string }
+							| undefined;
+						const chunk = payload?.chunk ?? payload?.text ?? payload?.line;
+						if (typeof chunk === 'string' && chunk.length > 0) {
+							const splitLines = chunk.split('\n');
+							newLines.push(...splitLines);
+						}
+					}
+				}
 			}
 
-			// 提取 chunk 或文本行
-			const payload = lastEvent.payload as
-				| { chunk?: string; text?: string; line?: string }
-				| undefined;
-			const chunk = payload?.chunk ?? payload?.text ?? payload?.line;
-			if (typeof chunk === 'string' && chunk.length > 0) {
-				const splitLines = chunk.split('\n');
-				manager.appendLiveLines(splitLines);
+			if (newLines.length > 0) {
+				manager.appendLiveLines(newLines);
 			}
 		});
 
@@ -151,8 +194,12 @@ export function useLogWindow({
 		};
 	}, [runId, autoSubscribeEvents, manager]);
 
-	// 3. 向上加载更多（E-143 / E-98 / AC 2）
+	// 3. 向上加载更多（E-143 / E-98 / AC 2 / R5 d）
 	const loadOlder = useCallback(async () => {
+		if (!getRunLogRoute) {
+			throw new Error('getRunLogRoute missing from ROUTES');
+		}
+
 		const cursor = manager.getOldestCursor();
 		if (!cursor || isLoadingOlder) {
 			return;
@@ -160,7 +207,7 @@ export function useLogWindow({
 
 		setIsLoadingOlder(true);
 		try {
-			const res = await httpClient.get<GetRunLogResponse>('/api/v1/runs/:runId/log', {
+			const res = await httpClient.callRoute<GetRunLogResponse>(getRunLogRoute, {
 				params: { runId },
 				query: {
 					fromSeq: cursor,
@@ -177,8 +224,12 @@ export function useLogWindow({
 		}
 	}, [runId, segmentLimit, manager, isLoadingOlder]);
 
-	// 4. 向下重拉已驱逐的较新片段（AC 2 滚出重拉）
+	// 4. 向下重拉已驱逐的较新片段（AC 2 滚出重拉 / R5 d）
 	const loadNewer = useCallback(async () => {
+		if (!getRunLogRoute) {
+			throw new Error('getRunLogRoute missing from ROUTES');
+		}
+
 		const cursor = manager.getNewestCursor();
 		if (!cursor || isLoadingNewer) {
 			return;
@@ -186,7 +237,7 @@ export function useLogWindow({
 
 		setIsLoadingNewer(true);
 		try {
-			const res = await httpClient.get<GetRunLogResponse>('/api/v1/runs/:runId/log', {
+			const res = await httpClient.callRoute<GetRunLogResponse>(getRunLogRoute, {
 				params: { runId },
 				query: {
 					fromSeq: cursor,

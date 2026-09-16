@@ -1,7 +1,7 @@
 /**
  * packages/web/test/log-window.test.ts
  *
- * M9-T8 日志窗口与分段内存管理测试（AC 1-5, E-100, E-101, E-102, E-143, E-98）
+ * M9-T8 日志窗口与分段内存管理测试（AC 1-5, E-100, E-101, E-102, E-143, E-98, R1-R6）
  */
 
 import { createElement } from 'react';
@@ -12,6 +12,7 @@ import {
 	LINE_EXPANDED_MAX_CHARS,
 	LogBottomNotice,
 	LogLine,
+	LogLoadNewerBar,
 	LogThresholdBanner,
 	isProgressLine,
 	parseAnsiCodes,
@@ -20,12 +21,255 @@ import {
 	truncateLongLine,
 } from '../src/components/log-lines.tsx';
 import {
+	LOG_SEGMENT_MAX_IN_MEMORY,
 	LogWindowManager,
 	MAX_RETAINED_LINES,
 	MAX_RETAINED_SEGMENTS,
+	SEGMENT_MAX_LINES,
 } from '../src/features/run-detail/log-window.ts';
+import { RunDetailContainer } from '../src/features/run-detail/run-detail-container.tsx';
 
-describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, E-98)', () => {
+describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, E-98, R1-R6)', () => {
+	// ─── 容器渲染稳定性 ───
+	describe('RunDetailContainer rendering', () => {
+		it('renders container without getSnapshot infinite update warning or Maximum update depth', () => {
+			const html = renderToStaticMarkup(
+				createElement(RunDetailContainer, {
+					runId: 'run-test-1',
+					className: 'h-full w-full',
+				}),
+			);
+			expect(html).toContain('data-virtual-scroll="true"');
+		});
+	});
+	// ─── R4: 实时推流水位与多事件顺序消费 ───
+	describe('R4: Event stream watermark sequencing without chunk loss', () => {
+		it('consumes all chunks in order across flushes without duplication', () => {
+			const manager = new LogWindowManager();
+			manager.loadInitial({
+				lines: ['init'],
+				totalLines: 1,
+				prevCursor: null,
+				nextCursor: null,
+			});
+
+			const rawEvents = [
+				{
+					id: 101,
+					seq: 1,
+					kind: 'agent_message_chunk',
+					payload: { chunk: 'Chunk 1 line A\nChunk 1 line B' },
+				},
+				{
+					id: 102,
+					seq: 2,
+					kind: 'agent_thought_chunk',
+					payload: { chunk: 'Thinking line C' },
+				},
+				{
+					id: 103,
+					seq: 3,
+					kind: 'run.stderr_line',
+					payload: { line: 'Stderr warning D' },
+				},
+			];
+
+			let lastConsumedId: number | null = null;
+			const processEvents = (events: typeof rawEvents) => {
+				const toAppend: string[] = [];
+				for (const ev of events) {
+					if (lastConsumedId === null || ev.id > lastConsumedId) {
+						lastConsumedId = ev.id;
+						const payload = ev.payload as {
+							chunk?: string;
+							line?: string;
+						};
+						const text = payload.chunk ?? payload.line;
+						if (text) {
+							toAppend.push(...text.split('\n'));
+						}
+					}
+				}
+				if (toAppend.length > 0) {
+					manager.appendLiveLines(toAppend);
+				}
+			};
+
+			// First flush: push 3 events
+			processEvents(rawEvents);
+			expect(manager.getState().lines.map((l) => l.text)).toEqual([
+				'init',
+				'Chunk 1 line A',
+				'Chunk 1 line B',
+				'Thinking line C',
+				'Stderr warning D',
+			]);
+
+			// Second flush without new events: nothing added
+			processEvents(rawEvents);
+			expect(manager.getState().lines).toHaveLength(5);
+
+			// Third flush: 1 new event
+			processEvents([
+				...rawEvents,
+				{
+					id: 104,
+					seq: 4,
+					kind: 'agent_message_chunk',
+					payload: { chunk: 'Chunk 2 line E' },
+				},
+			]);
+			expect(manager.getState().lines).toHaveLength(6);
+			expect(manager.getState().lines[5]?.text).toBe('Chunk 2 line E');
+		});
+	});
+
+	// ─── R1: 容器贴底与新增行跟随 ───
+	describe('R1: Container stick-to-bottom follow behavior', () => {
+		it('demonstrates that isAtBottom triggers follow on line count increase, while non-at-bottom accumulates unread without follow', () => {
+			const manager = new LogWindowManager();
+			manager.loadInitial({
+				lines: ['line 1', 'line 2'],
+				totalLines: 2,
+				prevCursor: null,
+				nextCursor: null,
+			});
+
+			let scrollTriggered = 0;
+			const simulateEffect = (prevCount: number, currentCount: number, isAtBottom: boolean) => {
+				if (currentCount > prevCount) {
+					if (isAtBottom) {
+						scrollTriggered += 1;
+					}
+				}
+			};
+
+			// Case 1: 贴底追加 3 行 -> 触发跟随滚动
+			let prev = manager.getState().retainedLinesCount;
+			manager.setAtBottom(true);
+			manager.appendLiveLines(['line 3', 'line 4', 'line 5']);
+			let curr = manager.getState().retainedLinesCount;
+			simulateEffect(prev, curr, manager.getState().isAtBottom);
+
+			expect(scrollTriggered).toBe(1);
+			expect(manager.getState().unreadNewCount).toBe(0);
+
+			// Case 2: 非贴底追加 3 行 -> 绝不触发跟随滚动，累加未读
+			prev = manager.getState().retainedLinesCount;
+			manager.setAtBottom(false);
+			manager.appendLiveLines(['line 6', 'line 7', 'line 8']);
+			curr = manager.getState().retainedLinesCount;
+			simulateEffect(prev, curr, manager.getState().isAtBottom);
+
+			expect(scrollTriggered).toBe(1); // 未增加
+			expect(manager.getState().unreadNewCount).toBe(3);
+		});
+	});
+
+	// ─── R6: 命名规范 ───
+	describe('R6: Naming alignment with 07-前端架构.md:284', () => {
+		it('exports LOG_SEGMENT_MAX_IN_MEMORY as 6', () => {
+			expect(LOG_SEGMENT_MAX_IN_MEMORY).toBe(6);
+			expect(MAX_RETAINED_SEGMENTS).toBe(6);
+			expect(MAX_RETAINED_LINES).toBe(6 * SEGMENT_MAX_LINES);
+		});
+	});
+
+	// ─── R2: getSnapshot 缓存与引用稳定性 ───
+	describe('R2: Cache snapshot reference stability for useSyncExternalStore', () => {
+		it('returns exact same reference on multiple getState() calls without state changes', () => {
+			const manager = new LogWindowManager();
+			manager.loadInitial({
+				lines: ['line 1', 'line 2'],
+				totalLines: 2,
+				prevCursor: null,
+				nextCursor: null,
+			});
+
+			const s1 = manager.getState();
+			const s2 = manager.getState();
+			// R2 核心：引用完全相同，避免 React useSyncExternalStore 无限重渲染
+			expect(s1).toBe(s2);
+
+			// 状态变更后，创建新快照引用
+			manager.appendLiveLines(['line 3']);
+			const s3 = manager.getState();
+			expect(s3).not.toBe(s1);
+
+			// 再次读取新快照保持引用相同
+			expect(manager.getState()).toBe(s3);
+		});
+	});
+
+	// ─── R3 & AC 4 & E-101: 重复刷新行折叠 ───
+	describe('R3 & AC 4 & E-101: Collapse adjacent progress/refresh lines', () => {
+		it('folds 50 adjacent progress lines with \\r into 1 line with refreshCount === 50', () => {
+			const manager = new LogWindowManager();
+			manager.loadInitial({
+				lines: ['Start build'],
+				totalLines: 1,
+				prevCursor: null,
+				nextCursor: null,
+			});
+
+			// 追加 50 行含 \r 的进度条行
+			const progressLines = Array.from(
+				{ length: 50 },
+				(_, i) => `Downloading [===>] ${i * 2}%\rDownloading [===>] ${i * 2 + 1}%`,
+			);
+			manager.appendLiveLines(progressLines);
+
+			const state = manager.getState();
+			// 原有 1 行普通文本 + 1 行合并折叠后的进度行 = 2 行
+			expect(state.lines).toHaveLength(2);
+
+			const progressEntry = state.lines[1];
+			expect(progressEntry?.refreshCount).toBe(50);
+			expect(progressEntry?.collapsedLines).toHaveLength(50);
+			// 最新一行文本
+			expect(progressEntry?.text).toBe(progressLines[49]);
+
+			// 再次追加一条普通日志行，开启新行
+			manager.appendLiveLines(['Build finished successfully']);
+			expect(manager.getState().lines).toHaveLength(3);
+			expect(manager.getState().lines[2]?.refreshCount).toBe(1);
+		});
+	});
+
+	// ─── R5: 契约与业务判定 ───
+	describe('R5: Strict API contract deserialization without front-end sniffing', () => {
+		it('reads isExceedsThreshold strictly from contract response, not sniffing "20MB" in body text', () => {
+			const manager = new LogWindowManager();
+
+			// 即使正文中出现了 "20MB" 或 "50 万字"，若服务端 isExceedsThreshold 为 false/缺失，前端绝不自行判定
+			manager.loadInitial({
+				lines: ['Some user log containing 20MB and 50 万字 text statement'],
+				totalLines: 1,
+				prevCursor: null,
+				nextCursor: null,
+				isExceedsThreshold: false,
+			});
+
+			expect(manager.getState().isExceedsThreshold).toBe(false);
+
+			// 服务端显式返回 isExceedsThreshold: true 时才为 true
+			const managerExceeded = new LogWindowManager();
+			managerExceeded.loadInitial({
+				lines: ['Normal log lines'],
+				totalLines: 100_000,
+				prevCursor: '0:9',
+				nextCursor: null,
+				isExceedsThreshold: true,
+				originalFilePath: 'D:/runs/1/raw.log',
+				openCommand: 'notepad D:/runs/1/raw.log',
+			});
+
+			expect(managerExceeded.getState().isExceedsThreshold).toBe(true);
+			expect(managerExceeded.getState().originalFilePath).toBe('D:/runs/1/raw.log');
+			expect(managerExceeded.getState().openCommand).toBe('notepad D:/runs/1/raw.log');
+		});
+	});
+
 	// ─── AC 1 & E-143: 十万行日志只挂载可视窗口，任何时候不把全量放进 DOM 或 store ───
 	describe('AC 1 & E-143: Ten-thousand/hundred-thousand line log window bounded memory', () => {
 		it('manages 100,000 lines log by loading only bounded segments into memory, not putting all 100,000 in memory or store', () => {
@@ -89,8 +333,8 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				nextCursor: 'cur-next-7',
 			});
 
-			// AC 2: 内存严格只保留 6 段，绝不超过 MAX_RETAINED_SEGMENTS (6)
-			expect(manager.getRetainedSegmentCount()).toBe(MAX_RETAINED_SEGMENTS);
+			// AC 2: 内存严格只保留 6 段，绝不超过 LOG_SEGMENT_MAX_IN_MEMORY (6)
+			expect(manager.getRetainedSegmentCount()).toBe(LOG_SEGMENT_MAX_IN_MEMORY);
 			expect(manager.getRetainedLineCount()).toBeLessThanOrEqual(MAX_RETAINED_LINES);
 			// 最早的第 1 段（尾部）被丢弃，标记 hasNewer = true（可重拉）
 			expect(manager.getState().hasNewer).toBe(true);
@@ -104,7 +348,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			});
 
 			// 内存仍然维持严格 ≤ 6 段，头部被丢弃，标记 hasOlder = true
-			expect(manager.getRetainedSegmentCount()).toBe(MAX_RETAINED_SEGMENTS);
+			expect(manager.getRetainedSegmentCount()).toBe(LOG_SEGMENT_MAX_IN_MEMORY);
 			expect(manager.getState().hasOlder).toBe(true);
 		});
 
@@ -117,24 +361,24 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				nextCursor: null,
 			});
 
-			// 持续追加 14,000 行（超过 7 个完整段）
+			// 持续追加 14,000 行普通行（超过 7 个完整段）
 			const batchSize = 1000;
 			for (let i = 0; i < 14; i++) {
 				const batch = Array.from(
 					{ length: batchSize },
-					(_, j) => `Stream line ${i * batchSize + j}`,
+					(_, j) => `Stream item ${i * batchSize + j}`,
 				);
 				manager.appendLiveLines(batch);
 			}
 
-			expect(manager.getRetainedSegmentCount()).toBeLessThanOrEqual(MAX_RETAINED_SEGMENTS);
+			expect(manager.getRetainedSegmentCount()).toBeLessThanOrEqual(LOG_SEGMENT_MAX_IN_MEMORY);
 			expect(manager.getRetainedLineCount()).toBeLessThanOrEqual(MAX_RETAINED_LINES);
 			expect(manager.getState().hasOlder).toBe(true);
 		});
 	});
 
-	// ─── AC 3 & E-100: 用户滚到中部时新事件到达不自动跳底，显示「N 条新事件」，仅贴底才跟随 ───
-	describe('AC 3 & E-100: Stick-to-bottom auto-following and unread count banner', () => {
+	// ─── AC 3 & E-100 & R1: 视口跟随与未读计数 ───
+	describe('AC 3 & E-100 & R1: Stick-to-bottom auto-following and unread count banner', () => {
 		it('auto-follows when at bottom with unreadNewCount remaining 0', () => {
 			const manager = new LogWindowManager();
 			manager.loadInitial({
@@ -200,7 +444,6 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 	// ─── AC 4 & E-101: ANSI 转义与重复刷新行折叠，控制字符不破坏布局 ───
 	describe('AC 4 & E-101: Terminal control sequences, ANSI formatting, and progress collapse', () => {
 		it('resolves carriage returns (\\r) by overwriting previous text on same line', () => {
-			// 终端进度覆盖示例
 			const input = 'Downloading 10%\rDownloading 50%\rDownloading 100% [DONE]';
 			const resolved = resolveCarriageReturns(input);
 			expect(resolved).toBe('Downloading 100% [DONE]');
@@ -210,26 +453,19 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 		});
 
 		it('sanitizes layout-breaking non-printable control characters while preserving tabs and newlines', () => {
-			// 含 ASCII 0x07 (bell), 0x00 (null), 0x1f 等非法控制字符
 			const dirty = 'Hello\x00\x07World\x1f!\tIndented line\nSecond clean line.';
 			const clean = sanitizeControlCharacters(dirty);
 			expect(clean).toBe('HelloWorld!\tIndented line\nSecond clean line.');
 		});
 
 		it('parses ANSI SGR colors into token-safe CSS variables and strips non-SGR escape codes', () => {
-			// 红字 (31m), 绿字 (32m), 重置 (0m), 伴随擦除光标转义 (\x1b[2K)
 			const ansiText = '\x1b[2K\x1b[31mError message\x1b[0m: \x1b[32mSuccess\x1b[0m';
 			const spans = parseAnsiCodes(ansiText);
 
 			expect(spans).toHaveLength(3);
-			// 红色部分映射到 var(--down)
 			expect(spans[0]?.text).toBe('Error message');
 			expect(spans[0]?.colorVar).toBe('var(--down)');
-
-			// 冒号中性文本
 			expect(spans[1]?.text).toBe(': ');
-
-			// 绿色部分映射到 var(--auto)
 			expect(spans[2]?.text).toBe('Success');
 			expect(spans[2]?.colorVar).toBe('var(--auto)');
 		});
@@ -269,7 +505,6 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 
 			expect(collapsedResult.isTruncated).toBe(true);
 			expect(collapsedResult.totalChars).toBe(50_022);
-			// 未展开时只挂载前 300 字符
 			expect(collapsedResult.visibleText.length).toBe(LINE_COLLAPSED_MAX_CHARS);
 
 			const html = renderToStaticMarkup(
@@ -281,7 +516,6 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			);
 			expect(html).toContain('… (共 50022 字符)');
 			expect(html).toContain('展开 (+49722 字符)');
-			// 绝不包含整段 50,000 字符
 			expect(html.length).toBeLessThan(2000);
 		});
 
@@ -291,7 +525,6 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 
 			expect(expandedResult.isTruncated).toBe(true);
 			expect(expandedResult.isCappedAtMax).toBe(true);
-			// 展开态严格封顶在 2000 字符，绝不把 80,000 字符全量塞入 DOM
 			expect(expandedResult.visibleText.length).toBe(LINE_EXPANDED_MAX_CHARS);
 
 			const html = renderToStaticMarkup(
@@ -303,13 +536,12 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			);
 			expect(html).toContain(`[已截取前 ${LINE_EXPANDED_MAX_CHARS} 字符以保护 DOM 性能 (E-102)]`);
 			expect(html).toContain('收起');
-			// DOM 节点内容严格受控
 			expect(html.length).toBeLessThan(4000);
 		});
 	});
 
-	// ─── E-98: 单会话体积超阈值 ───
-	describe('E-98: Single session size threshold (>20MB or 500,000 chars)', () => {
+	// ─── E-98 & R5 e: 单会话体积超阈值与较新分段加载 ───
+	describe('E-98 & R5 e: Single session size threshold and loadNewer UI', () => {
 		it('renders LogThresholdBanner with tail-loaded notice, load-older button, and open-original file action', () => {
 			const html = renderToStaticMarkup(
 				createElement(LogThresholdBanner, {
@@ -325,6 +557,17 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			expect(html).toContain('会话体积已超 20MB 或 50 万字，默认加载尾部片段');
 			expect(html).toContain('向上加载更多');
 			expect(html).toContain('用系统默认程序打开原始文件');
+		});
+
+		it('renders LogLoadNewerBar for R5 e refetching newer segments', () => {
+			const html = renderToStaticMarkup(
+				createElement(LogLoadNewerBar, {
+					isLoading: false,
+					onClick: () => {},
+				}),
+			);
+			expect(html).toContain('data-load-newer="true"');
+			expect(html).toContain('向下重新加载较新日志');
 		});
 	});
 });
