@@ -3,8 +3,14 @@ name: Desktop Shell CI & Release Verification
 on:
   push:
     branches: [main]
+    paths-ignore:
+      # The knowledge base changes on every landing and never affects the product build.
+      # docs/platform-support.md stays in scope: verify-baselines reads it (E-260).
+      - 'docs/Agent任务调度器-开发文档/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/Agent任务调度器-开发文档/**'
   workflow_dispatch:
     inputs:
       formal_release:
