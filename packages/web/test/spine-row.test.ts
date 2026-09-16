@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { Spine, type SpineSegment, SpineSegmentView } from '../src/components/spine.tsx';
 import { StreamRow } from '../src/components/stream-row.tsx';
+import { PayloadSheetProvider, type ToolPayloadSheetData } from '../src/hooks/use-payload-sheet.ts';
 
 describe('M9-T7: Spine and StreamRow (AC 1-6, E-110, E-230)', () => {
 	// ─── AC 1: 运行轨贯穿整栏全高含未来步骤的虚线段 ───
@@ -313,6 +314,62 @@ describe('M9-T7: Spine and StreamRow (AC 1-6, E-110, E-230)', () => {
 			// 提供「从这一步重试」按钮
 			expect(html).toContain('data-action="retry-step"');
 			expect(html).toContain('从这一步重试');
+		});
+
+		it('renders inline payload on desktop tier (isTouch: false)', () => {
+			const html = renderToStaticMarkup(
+				createElement(StreamRow, {
+					tool: 'write_file',
+					target: 'package.json',
+					expanded: true,
+					payload: { name: 'test-app' },
+					isTouch: false,
+				}),
+			);
+			expect(html).toContain('data-step-payload="true"');
+			expect(html).toContain('test-app');
+		});
+
+		it('suppresses inline payload on mobile touch tier (isTouch: true) (AC 6 / R1)', () => {
+			const html = renderToStaticMarkup(
+				createElement(StreamRow, {
+					tool: 'write_file',
+					target: 'package.json',
+					expanded: true,
+					payload: { name: 'test-app' },
+					isTouch: true,
+				}),
+			);
+			expect(html).not.toContain('data-step-payload="true"');
+		});
+
+		it('suppresses inline payload when inside mobile PayloadSheetProvider and transfers payload', () => {
+			let captured: ToolPayloadSheetData | null = null;
+			const html = renderToStaticMarkup(
+				createElement(
+					PayloadSheetProvider,
+					{
+						isMobile: true,
+						onOpenPayload: (p) => {
+							captured = p;
+						},
+					},
+					createElement(StreamRow, {
+						tool: 'exec_command',
+						target: 'pnpm test',
+						expanded: true,
+						payload: { command: 'pnpm test' },
+						isTouch: false,
+					}),
+				),
+			);
+			expect(html).not.toContain('data-step-payload="true"');
+			const result = captured as ToolPayloadSheetData | null;
+			if (!result) {
+				throw new Error('expected captured payload');
+			}
+			expect(result.toolName).toBe('exec_command');
+			expect(result.inputPayload).toContain('pnpm test');
 		});
 	});
 

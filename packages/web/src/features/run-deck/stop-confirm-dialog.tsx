@@ -9,7 +9,7 @@
  * - 仅使用 tokens.css 变量，禁止任何颜色字面量（check-forbidden）
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export interface StopConfirmDialogProps {
 	/** 是否处于打开状态 */
@@ -37,6 +37,14 @@ export function StopConfirmDialog({
 	onConfirm,
 	onCancel,
 }: StopConfirmDialogProps) {
+	const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+	// 初始焦点聚焦到取消按钮，防误触确认
+	useEffect(() => {
+		if (isOpen) {
+			cancelButtonRef.current?.focus();
+		}
+	}, [isOpen]);
 	// 监听 Escape 键取消
 	useEffect(() => {
 		if (!isOpen) {
@@ -60,6 +68,9 @@ export function StopConfirmDialog({
 	return (
 		<div
 			data-stop-confirm-dialog="true"
+			// biome-ignore lint/a11y/useSemanticElements: custom dialog
+			role="dialog"
+			aria-modal="true"
 			aria-labelledby="stop-dialog-title"
 			aria-describedby="stop-dialog-desc"
 			className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none"
@@ -74,7 +85,7 @@ export function StopConfirmDialog({
 			/>
 
 			{/* 对话框主体 */}
-			<div className="relative z-10 w-full max-w-sm rounded-[14px] bg-[var(--bg)] border border-[var(--border-strong)] p-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+			<div className="relative z-10 w-full max-w-sm rounded-[14px] bg-[var(--bg)] border border-[var(--border-strong)] p-5 shadow-2xl">
 				<div className="flex flex-col gap-2">
 					<h3
 						id="stop-dialog-title"
@@ -106,6 +117,7 @@ export function StopConfirmDialog({
 				{/* 动作按钮组（高度 >= 44px 满足触控） */}
 				<div className="flex items-center justify-end gap-3 mt-6">
 					<button
+						ref={cancelButtonRef}
 						type="button"
 						data-action="cancel-stop"
 						onClick={onCancel}

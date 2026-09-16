@@ -97,54 +97,54 @@ export interface UseRunDeckResult {
 
 	// ─── 手机端布局与拇指区扩展（M9-T12） ───
 	/** 当前单栏切换的激活项（'tasks' | 'stream' | 'detail'，E-145） */
-	readonly activePane: MobilePane;
+	readonly activePane?: MobilePane;
 	/** 切换单栏视图（通过 hash query #/?pane=...，E-145） */
-	readonly setPane: (pane: MobilePane) => void;
+	readonly setPane?: (pane: MobilePane) => void;
 	/** 手机端当前查看的泳道号（1-based） */
-	readonly activeMobileLaneNo: number;
+	readonly activeMobileLaneNo?: number;
 	/** 切换到上一条手机泳道 */
-	readonly handlePrevMobileLane: () => void;
+	readonly handlePrevMobileLane?: () => void;
 	/** 切换到下一条手机泳道 */
-	readonly handleNextMobileLane: () => void;
+	readonly handleNextMobileLane?: () => void;
 	/** 选择特定泳道 */
-	readonly selectMobileLane: (laneNo: number) => void;
+	readonly selectMobileLane?: (laneNo: number) => void;
 	/** 当前手机泳道流数据 */
-	readonly currentMobileLane: DeckStreamLane | undefined;
+	readonly currentMobileLane?: DeckStreamLane | undefined;
 
 	/** 处于等待审批状态的泳道总计数（E-240） */
-	readonly totalWaitingCount: number;
+	readonly totalWaitingCount?: number;
 	/** 当前手机泳道是否处于等待审批状态 */
-	readonly isCurrentLaneWaiting: boolean;
+	readonly isCurrentLaneWaiting?: boolean;
 
 	/** 批准操作处理中状态 */
-	readonly isApproving: boolean;
+	readonly isApproving?: boolean;
 	/** 触发批准当前泳道 */
-	readonly handleApproveLane: (laneNo?: number, runId?: string | null) => Promise<void>;
+	readonly handleApproveLane?: (laneNo?: number, runId?: string | null) => Promise<void>;
 
 	/** 手机端停止二次确认弹窗状态（E-124） */
-	readonly stopConfirmOpen: boolean;
+	readonly stopConfirmOpen?: boolean;
 	/** 待二次确认的停止目标信息 */
-	readonly stopConfirmTarget: {
+	readonly stopConfirmTarget?: {
 		laneNo: number;
 		runId?: string | null;
 		taskKey?: string;
 	} | null;
 	/** 确认停止执行 */
-	readonly confirmStop: () => Promise<void>;
+	readonly confirmStop?: () => Promise<void>;
 	/** 取消停止执行 */
-	readonly cancelStop: () => void;
+	readonly cancelStop?: () => void;
 
 	/** 当前展开的 Tool Payload Sheet 数据（AC 6） */
-	readonly activeToolPayload: ToolPayloadSheetData | null;
+	readonly activeToolPayload?: ToolPayloadSheetData | null;
 	/** 打开 Tool Payload Sheet */
-	readonly openToolPayloadSheet: (payload: ToolPayloadSheetData) => void;
+	readonly openToolPayloadSheet?: (payload: ToolPayloadSheetData) => void;
 	/** 关闭 Tool Payload Sheet */
-	readonly closeToolPayloadSheet: () => void;
+	readonly closeToolPayloadSheet?: () => void;
 
 	/** 手机端日志加载尾部字节限制（E-99，默认 32KB） */
-	readonly tailBytes: number;
+	readonly tailBytes?: number;
 	/** 是否仅拉取尾部切片（E-99） */
-	readonly isTailOnly: boolean;
+	readonly isTailOnly?: boolean;
 }
 
 export function useRunDeck(props: RunDeckProps): UseRunDeckResult {

@@ -32,6 +32,18 @@ const getRunLogRoute = ROUTES.find(
 	(r) => r.method === 'GET' && r.path === '/api/v1/runs/:runId/log',
 );
 
+/**
+ * 手机端首屏日志默认尾部行数限制（E-99 / AC 5）。
+ *
+ * 换算说明：
+ * daemon 的 GetRunLogQuery 仅接收行数 limit，不直接接收字节数。
+ * 按单行日志平均 100 字节估算，32KB（32,768 字节）折合约 300~350 行。
+ * 桌面端默认 limit: 2000 行（约 200KB，上限维持 2000 不变）；
+ * 手机端（isMobile）首屏仅请求 300 行尾部窗口（32KB 量级），显著降低移动端首屏加载量。
+ */
+export const MOBILE_LOG_TAIL_LINES = 300;
+export const DESKTOP_LOG_SEGMENT_LIMIT = 2000;
+
 export interface UseLogWindowOptions {
 	/** 运行编号 */
 	readonly runId: string;
@@ -39,6 +51,8 @@ export interface UseLogWindowOptions {
 	readonly autoSubscribeEvents?: boolean;
 	/** 初始每段请求行数限制（默认 2000） */
 	readonly segmentLimit?: number;
+	/** 是否为手机端模式（E-99: 首屏尾部轻量加载 32KB 量级，折合 300 行） */
+	readonly isMobile?: boolean;
 }
 
 export interface UseLogWindowReturn {
@@ -52,6 +66,8 @@ export interface UseLogWindowReturn {
 	readonly isLoadingNewer: boolean;
 	/** 错误信息文案 */
 	readonly error: string | null;
+	/** 触发首屏加载（useEffect 默认自动触发，切后台回前台防重拉） */
+	readonly loadInitial: () => Promise<void>;
 	/** 向上加载更早历史分段 */
 	readonly loadOlder: () => Promise<void>;
 	/** 向下重新加载较新分段 */
@@ -67,7 +83,8 @@ export interface UseLogWindowReturn {
 export function useLogWindow({
 	runId,
 	autoSubscribeEvents = true,
-	segmentLimit = 2000,
+	segmentLimit = DESKTOP_LOG_SEGMENT_LIMIT,
+	isMobile = false,
 }: UseLogWindowOptions): UseLogWindowReturn {
 	const managerRef = useRef<LogWindowManager | null>(null);
 	if (!managerRef.current) {
@@ -84,6 +101,19 @@ export function useLogWindow({
 	const lastConsumedIdRef = useRef<number | null>(null);
 	const lastConsumedSeqRef = useRef<number | null>(null);
 
+	// 首屏已拉取标记（E-99: 切后台回前台不得重发首屏全量）
+	const hasFetchedInitialRef = useRef<boolean>(false);
+	const prevRunIdRef = useRef<string>(runId);
+	if (prevRunIdRef.current !== runId) {
+		prevRunIdRef.current = runId;
+		hasFetchedInitialRef.current = false;
+	}
+
+	// E-99: 手机档首屏日志请求带显著更小的尾部窗口（32KB 量级，折合约 300 行）；桌面档行为不变（上限 2000 行不变）
+	const effectiveInitialLimit = isMobile
+		? Math.min(MOBILE_LOG_TAIL_LINES, segmentLimit)
+		: Math.min(segmentLimit, DESKTOP_LOG_SEGMENT_LIMIT);
+
 	// 通过 useSyncExternalStore 订阅 LogWindowManager 状态变化（R2: 返回同一引用快照）
 	const getSnapshot = useCallback(() => manager.getState(), [manager]);
 	const state = useSyncExternalStore(
@@ -92,41 +122,40 @@ export function useLogWindow({
 		getSnapshot,
 	);
 
-	// 1. 首屏加载（R5 d: callRoute）
-	useEffect(() => {
+	// 1. 首屏加载（R5 d: callRoute, E-99）
+	const loadInitial = useCallback(async () => {
 		if (!getRunLogRoute) {
 			throw new Error('getRunLogRoute missing from ROUTES');
 		}
 
-		let isCurrent = true;
+		// 切后台再回前台不得重发首屏全量（E-99）
+		if (hasFetchedInitialRef.current) {
+			return;
+		}
+		hasFetchedInitialRef.current = true;
+
 		setIsLoadingInitial(true);
 		setError(null);
 
-		httpClient
-			.callRoute<GetRunLogResponse>(getRunLogRoute, {
+		try {
+			const res = await httpClient.callRoute<GetRunLogResponse>(getRunLogRoute, {
 				params: { runId },
-				query: { limit: segmentLimit },
-			})
-			.then((res) => {
-				if (!isCurrent) {
-					return;
-				}
-				manager.loadInitial(res);
-				setIsLoadingInitial(false);
-			})
-			.catch((err) => {
-				if (!isCurrent) {
-					return;
-				}
-				const message = err instanceof Error ? err.message : String(err);
-				setError(message);
-				setIsLoadingInitial(false);
+				query: { limit: effectiveInitialLimit },
 			});
+			manager.loadInitial(res);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			setError(message);
+		} finally {
+			setIsLoadingInitial(false);
+		}
+	}, [runId, effectiveInitialLimit, manager]);
 
-		return () => {
-			isCurrent = false;
-		};
-	}, [runId, segmentLimit, manager]);
+	useEffect(() => {
+		if (!hasFetchedInitialRef.current) {
+			void loadInitial();
+		}
+	}, [loadInitial]);
 
 	// 2. 实时流事件订阅（AC 3 / E-100 / R4）
 	useEffect(() => {
@@ -291,6 +320,7 @@ export function useLogWindow({
 		isLoadingOlder,
 		isLoadingNewer,
 		error,
+		loadInitial,
 		loadOlder,
 		loadNewer,
 		handleScroll,

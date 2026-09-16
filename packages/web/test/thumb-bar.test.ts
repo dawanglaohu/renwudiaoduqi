@@ -8,15 +8,59 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { StreamRow } from '../src/components/stream-row.tsx';
 import { ThumbBar } from '../src/components/thumb-bar.tsx';
 import { MobileBatchList } from '../src/features/run-deck/mobile-batch-list.tsx';
 import { MobileBottomSheet } from '../src/features/run-deck/mobile-bottom-sheet.tsx';
 import { MobilePaneSwitcher } from '../src/features/run-deck/mobile-pane-switcher.tsx';
-import { RunDeckView } from '../src/features/run-deck/run-deck-view.tsx';
+import { RunDeckView, type RunDeckViewProps } from '../src/features/run-deck/run-deck-view.tsx';
 import { StopConfirmDialog } from '../src/features/run-deck/stop-confirm-dialog.tsx';
 import type { DeckStreamLane, MobileBatchItem } from '../src/features/run-deck/types.ts';
 import { isWaitingApproval } from '../src/features/run-deck/use-run-deck.ts';
-import { computeDensityTier } from '../src/hooks/use-breakpoint.ts';
+import { type DensityTier, computeDensityTier } from '../src/hooks/use-breakpoint.ts';
+
+function createMockDeckProps(
+	lanes: readonly DeckStreamLane[],
+	tier: DensityTier = 'phone-xs',
+): RunDeckViewProps {
+	return {
+		lanes,
+		tier,
+		isTouch: true,
+		width: 375,
+		expandedLaneNo: null,
+		toggleExpandLane: vi.fn(),
+		stoppingLanes: new Set<number>(),
+		handleStopLane: vi.fn().mockResolvedValue(undefined),
+		userPreference: 'auto',
+		togglePreference: vi.fn(),
+		scrollContainerRef: { current: null },
+		offScreenWaiting: { left: 0, right: 0 },
+		scrollToLane: vi.fn(),
+
+		activePane: 'stream',
+		setPane: vi.fn(),
+		activeMobileLaneNo: 1,
+		handlePrevMobileLane: vi.fn(),
+		handleNextMobileLane: vi.fn(),
+		selectMobileLane: vi.fn(),
+		currentMobileLane: lanes[0],
+		totalWaitingCount: undefined,
+		isCurrentLaneWaiting: undefined,
+		isApproving: false,
+		handleApproveLane: vi.fn().mockResolvedValue(undefined),
+		stopConfirmOpen: false,
+		stopConfirmTarget: null,
+		confirmStop: vi.fn().mockResolvedValue(undefined),
+		cancelStop: vi.fn(),
+		activeToolPayload: null,
+		openToolPayloadSheet: vi.fn(),
+		closeToolPayloadSheet: vi.fn(),
+		tailBytes: 32768,
+		isTailOnly: true,
+		batches: [],
+	};
+}
 
 describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, E-124, E-145, E-240)', () => {
 	// ─────────────────────────────────────────────────────────────────────────────
@@ -35,7 +79,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					width: 375,
 					activePane: 'stream',
@@ -59,7 +103,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					width: 375,
 					activePane: 'tasks',
@@ -78,7 +122,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					width: 375,
 					activePane: 'detail',
@@ -98,7 +142,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					width: 360,
 					activePane: 'stream',
@@ -191,7 +235,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone'),
 					tier: 'phone',
 					width: 480,
 					activePane: 'stream',
@@ -271,7 +315,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					width: 375,
 					activePane: 'tasks',
@@ -304,6 +348,8 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 			);
 
 			expect(html).toContain('data-stop-confirm-dialog="true"');
+			expect(html).toContain('role="dialog"');
+			expect(html).toContain('aria-modal="true"');
 			expect(html).toContain('确认中止运行？');
 			expect(html).toContain('M9-T12');
 			expect(html).toContain('data-action="cancel-stop"');
@@ -328,7 +374,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					stopConfirmOpen: true,
 					stopConfirmTarget: { laneNo: 1, taskKey: 'M9-T12' },
@@ -349,7 +395,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					tailBytes: 32768,
 					isTailOnly: true,
@@ -360,12 +406,12 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 			expect(html).toContain('data-tail-only="true"');
 		});
 
-		it('renders 32KB tail notice in detail pane when no slot provided', () => {
+		it('renders fallback detail pane without unverified marketing claims (R2, E-99)', () => {
 			const lanes: DeckStreamLane[] = [{ laneNo: 1, taskKey: 'M9-T12', status: 'streaming' }];
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					activePane: 'detail',
 					tailBytes: 32768,
@@ -373,7 +419,12 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 				}),
 			);
 
-			expect(html).toContain('首屏尾部加载 32KB (E-99)');
+			expect(html).toContain('data-pane-view="detail"');
+			expect(html).toContain('会话详情 · M9-T12');
+			// R2: 删掉 run-deck-view.tsx:410-416 那段「首屏尾部加载 32KB (E-99)」文案——要么真做，要么不写
+			expect(html).not.toContain('首屏尾部加载 32KB (E-99)');
+			expect(html).not.toContain('手机端网络环境下自动开启尾部轻量加载');
+			expect(html).toContain('暂无详情内容');
 		});
 	});
 
@@ -430,7 +481,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					activeToolPayload: {
 						title: '读取文档',
@@ -443,6 +494,38 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 			expect(html).toContain('data-mobile-bottom-sheet="true"');
 			expect(html).toContain('读取文档');
 			expect(html).toContain('README.md');
+		});
+
+		it('RunDeckView with real StreamRow in lane.bodySlot opens MobileBottomSheet and suppresses inline data-step-payload in mobile tier (R1, AC 6)', () => {
+			const lanes: DeckStreamLane[] = [
+				{
+					laneNo: 1,
+					taskKey: 'M9-T12',
+					status: 'streaming',
+					bodySlot: createElement(StreamRow, {
+						tool: 'read_file',
+						target: 'config.json',
+						payload: { path: 'config.json', mode: 'utf-8' },
+						expanded: true,
+					}),
+				},
+			];
+
+			const html = renderToStaticMarkup(
+				createElement(RunDeckView, {
+					...createMockDeckProps(lanes, 'phone-xs'),
+					tier: 'phone-xs',
+					width: 375,
+					activePane: 'stream',
+				}),
+			);
+
+			// DOM 中没有内联 data-step-payload
+			expect(html).not.toContain('data-step-payload="true"');
+			// data-mobile-bottom-sheet 被打开
+			expect(html).toContain('data-mobile-bottom-sheet="true"');
+			expect(html).toContain('read_file config.json');
+			expect(html).toContain('config.json');
 		});
 	});
 
@@ -548,7 +631,7 @@ describe('M9-T12: Mobile layout and thumb bar (AC 1-8, E-13, E-58, E-99, E-107, 
 
 			const html = renderToStaticMarkup(
 				createElement(RunDeckView, {
-					lanes,
+					...createMockDeckProps(lanes, 'phone-xs'),
 					tier: 'phone-xs',
 					activePane: 'stream',
 				}),

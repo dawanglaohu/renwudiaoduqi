@@ -6,7 +6,10 @@
 
 import type { ReactNode } from 'react';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
+import type { ToolPayloadSheetData } from '../../hooks/use-payload-sheet.ts';
 import type { StatusState } from '../../lib/spine-shape.ts';
+
+export type { ToolPayloadSheetData } from '../../hooks/use-payload-sheet.ts';
 
 /**
  * 手机端单栏切换的栏位定义（E-145）。
@@ -59,22 +62,6 @@ export interface MobileBatchItem {
 	readonly tasks?: readonly MobileBatchTaskItem[];
 	/** 是否默认展开 */
 	readonly defaultExpanded?: boolean;
-}
-
-/**
- * Tool Payload 底部抽屉数据模型（AC 6）。
- */
-export interface ToolPayloadSheetData {
-	/** 标题（如工具名称或步骤标签） */
-	readonly title: string;
-	/** 工具名称（如 bash / read / edit） */
-	readonly toolName?: string;
-	/** 耗时说明 */
-	readonly durationText?: string;
-	/** 输入参数（JSON 或文本内容） */
-	readonly inputPayload?: string | null;
-	/** 输出结果（JSON 或文本内容） */
-	readonly outputPayload?: string | null;
 }
 
 /**

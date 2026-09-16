@@ -21,6 +21,7 @@ import { Component, type ErrorInfo, type ReactNode, useCallback } from 'react';
 import { StreamColumn } from '../../components/stream-column.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
+import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
 import { MobileBatchList } from './mobile-batch-list.tsx';
 import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
 import { MobilePaneSwitcher } from './mobile-pane-switcher.tsx';
@@ -88,7 +89,7 @@ class StreamErrorBoundary extends Component<StreamErrorBoundaryProps, StreamErro
 /**
  * 运行甲板视图属性。
  */
-export interface RunDeckViewProps extends Partial<UseRunDeckResult> {
+export interface RunDeckViewProps extends UseRunDeckResult {
 	/** 泳道数组（流数恒等于 lanes.length，AC 12） */
 	readonly lanes: readonly DeckStreamLane[];
 	/** 批次折叠列表数据（E-13） */
@@ -104,39 +105,40 @@ export interface RunDeckViewProps extends Partial<UseRunDeckResult> {
 export function RunDeckView(props: RunDeckViewProps) {
 	const {
 		lanes,
-		tier = 'full',
-		isTouch = false,
-		width = 1200,
-		expandedLaneNo = null,
-		toggleExpandLane = () => {},
-		stoppingLanes = new Set<number>(),
-		handleStopLane = async () => {},
-		userPreference = 'auto',
-		togglePreference = () => {},
-		scrollContainerRef = { current: null },
-		offScreenWaiting = { left: 0, right: 0 },
-		scrollToLane = () => {},
+		tier,
+		isTouch,
+		width,
+		expandedLaneNo,
+		toggleExpandLane,
+		stoppingLanes,
+		handleStopLane,
+		userPreference,
+		togglePreference,
+		scrollContainerRef,
+		offScreenWaiting,
+		scrollToLane,
 		toolbarSlot,
 		className,
 
 		// 手机端能力（M9-T12）
 		activePane = 'stream',
-		setPane = () => {},
+		setPane,
 		activeMobileLaneNo = 1,
-		handlePrevMobileLane = () => {},
-		handleNextMobileLane = () => {},
-		selectMobileLane = () => {},
+		handlePrevMobileLane,
+		handleNextMobileLane,
+		selectMobileLane,
 		currentMobileLane = lanes[0],
 		totalWaitingCount,
 		isCurrentLaneWaiting,
 		isApproving = false,
-		handleApproveLane = async () => {},
+		handleApproveLane,
 		stopConfirmOpen = false,
 		stopConfirmTarget = null,
-		confirmStop = async () => {},
-		cancelStop = () => {},
+		confirmStop,
+		cancelStop,
 		activeToolPayload = null,
-		closeToolPayloadSheet = () => {},
+		openToolPayloadSheet,
+		closeToolPayloadSheet,
 		tailBytes = 32768,
 		isTailOnly = false,
 		batches = [],
@@ -161,21 +163,19 @@ export function RunDeckView(props: RunDeckViewProps) {
 
 	// 是否为手机档位（phone 或极窄 phone-xs，或者宽度 < 600px 且触控）
 	const isMobileMode = tier === 'phone-xs' || tier === 'phone';
-	// 特别判定极窄手机屏（< 400px，E-145）
-	const isUltraNarrowPhone = tier === 'phone-xs' || (isMobileMode && width < 400);
 
 	// 切换任务并联动切换到运行流 pane
 	const handleSelectTaskAndJump = useCallback(
 		(taskId: string, laneNo?: number) => {
 			if (laneNo !== undefined) {
-				selectMobileLane(laneNo);
+				selectMobileLane?.(laneNo);
 			}
 			if (onSelectTask) {
 				onSelectTask(taskId, laneNo);
 			}
 			// 在手机单栏模式下，选完任务自动跳到运行流查看
 			if (isMobileMode) {
-				setPane('stream');
+				setPane?.('stream');
 			}
 		},
 		[selectMobileLane, onSelectTask, isMobileMode, setPane],
@@ -206,103 +206,111 @@ export function RunDeckView(props: RunDeckViewProps) {
 	};
 
 	return (
-		<section
-			data-run-deck="true"
-			data-tier={tier}
-			data-stream-count={streamCount}
-			data-tail-bytes={tailBytes}
-			data-tail-only={isTailOnly ? 'true' : 'false'}
-			className={[
-				'flex flex-col h-full w-full bg-[var(--page)] text-[var(--ink-1)] select-none relative overflow-hidden',
-				className ?? '',
-			].join(' ')}
+		<PayloadSheetProvider
+			isMobile={isMobileMode || isTouch}
+			activePayload={activeToolPayload}
+			onOpenPayload={openToolPayloadSheet}
+			onClosePayload={closeToolPayloadSheet}
 		>
-			{/* ─────────────────────────────────────────────────────────────
+			<section
+				data-run-deck="true"
+				data-tier={tier}
+				data-stream-count={streamCount}
+				data-tail-bytes={tailBytes}
+				data-tail-only={isTailOnly ? 'true' : 'false'}
+				className={[
+					'flex flex-col h-full w-full bg-[var(--page)] text-[var(--ink-1)] select-none relative overflow-hidden',
+					className ?? '',
+				].join(' ')}
+			>
+				{/* ─────────────────────────────────────────────────────────────
 			    顶栏：在手机模式下渲染单栏切换器（E-145, E-240）；
 			    在桌面模式下渲染状态与密度切换（AC 1, AC 9）
 			    ───────────────────────────────────────────────────────────── */}
-			{isMobileMode ? (
-				<header className="flex flex-col w-full flex-shrink-0 z-30">
-					{/* 单栏切换器（任务列表 / 运行流 / 详情，E-145），带未处理计数徽标（E-240） */}
-					<MobilePaneSwitcher
-						activePane={activePane}
-						onPaneChange={setPane}
-						waitingCount={effectiveTotalWaitingCount}
-					/>
+				{isMobileMode ? (
+					<header className="flex flex-col w-full flex-shrink-0 z-30">
+						{/* 单栏切换器（任务列表 / 运行流 / 详情，E-145），带未处理计数徽标（E-240） */}
+						<MobilePaneSwitcher
+							activePane={activePane}
+							onPaneChange={setPane ?? (() => {})}
+							waitingCount={effectiveTotalWaitingCount}
+						/>
 
-					{/* 手机运行条（44px 高度）：单流全屏时常驻，显示当前泳道与 ◀ ▶ 切换器（11 节 UI / 决策 97） */}
-					{activePane === 'stream' && (
-						<div
-							data-lane-run-strip="true"
-							className="flex items-center justify-between gap-2 px-3 min-h-[44px] h-[44px] bg-[var(--panel-2)] border-b border-[var(--border)] font-ui text-[13px]"
-						>
-							<button
-								type="button"
-								data-action="prev-lane"
-								disabled={streamCount <= 1}
-								onClick={handlePrevMobileLane}
-								aria-label="查看上一条泳道"
-								className="min-h-[44px] min-w-[44px] h-[44px] w-[44px] rounded-[6px] text-[var(--ink-2)] hover:text-[var(--ink-1)] flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+						{/* 手机运行条（--runstrip-h Token 高度）：单流全屏时常驻，显示当前泳道与 ◀ ▶ 切换器（11 节 UI / 决策 97） */}
+						{activePane === 'stream' && (
+							<div
+								data-lane-run-strip="true"
+								className="flex items-center justify-between gap-2 px-3 min-h-[var(--runstrip-h,44px)] h-[var(--runstrip-h,44px)] bg-[var(--panel-2)] border-b border-[var(--border)] font-ui text-[13px]"
 							>
-								◀
-							</button>
+								<button
+									type="button"
+									data-action="prev-lane"
+									disabled={streamCount <= 1}
+									onClick={handlePrevMobileLane}
+									aria-label="查看上一条泳道"
+									className="min-h-[44px] min-w-[44px] h-[44px] w-[44px] rounded-[6px] text-[var(--ink-2)] hover:text-[var(--ink-1)] flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+								>
+									◀
+								</button>
 
-							<div className="flex items-center gap-2 min-w-0 px-1 truncate">
-								<span className="font-mono text-[12px] text-[var(--ink-3)] flex-shrink-0">
-									泳道 {activeMobileLaneNo}/{streamCount || 1}
-								</span>
-								<span className="font-mono font-semibold text-[var(--ink-1)] truncate">
-									{currentMobileLane?.taskKey ?? '—'}
-								</span>
-								{currentMobileLane?.title && (
-									<span className="text-[var(--ink-2)] truncate">· {currentMobileLane.title}</span>
-								)}
+								<div className="flex items-center gap-2 min-w-0 px-1 truncate">
+									<span className="font-mono text-[12px] text-[var(--ink-3)] flex-shrink-0">
+										泳道 {activeMobileLaneNo}/{streamCount || 1}
+									</span>
+									<span className="font-mono font-semibold text-[var(--ink-1)] truncate">
+										{currentMobileLane?.taskKey ?? '—'}
+									</span>
+									{currentMobileLane?.title && (
+										<span className="text-[var(--ink-2)] truncate">
+											· {currentMobileLane.title}
+										</span>
+									)}
+								</div>
+
+								<button
+									type="button"
+									data-action="next-lane"
+									disabled={streamCount <= 1}
+									onClick={handleNextMobileLane}
+									aria-label="查看下一条泳道"
+									className="min-h-[44px] min-w-[44px] h-[44px] w-[44px] rounded-[6px] text-[var(--ink-2)] hover:text-[var(--ink-1)] flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+								>
+									▶
+								</button>
 							</div>
-
-							<button
-								type="button"
-								data-action="next-lane"
-								disabled={streamCount <= 1}
-								onClick={handleNextMobileLane}
-								aria-label="查看下一条泳道"
-								className="min-h-[44px] min-w-[44px] h-[44px] w-[44px] rounded-[6px] text-[var(--ink-2)] hover:text-[var(--ink-1)] flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-							>
-								▶
-							</button>
-						</div>
-					)}
-				</header>
-			) : (
-				// 桌面顶栏
-				<div
-					data-deck-toolbar="true"
-					className="flex items-center justify-between gap-3 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg)] min-h-[44px] flex-shrink-0"
-				>
-					<div className="flex items-center gap-3 text-[12px] font-mono text-[var(--ink-2)]">
-						<span data-indicator="stream-count" className="font-semibold text-[var(--ink-1)]">
-							并行流数: {streamCount}
-						</span>
-						<span className="text-[var(--border-strong)]">|</span>
-						<span data-indicator="current-tier">当前档位: {tierDisplayMap[tier]}</span>
-						{isTouch && (
-							<span
-								data-indicator="touch-mode"
-								className="px-1.5 py-0.5 rounded-[4px] bg-[var(--panel-2)] text-[var(--ink-3)] text-[11px]"
-							>
-								触控优化 (44px)
-							</span>
 						)}
-						{toolbarSlot}
-					</div>
+					</header>
+				) : (
+					// 桌面顶栏
+					<div
+						data-deck-toolbar="true"
+						className="flex items-center justify-between gap-3 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg)] min-h-[44px] flex-shrink-0"
+					>
+						<div className="flex items-center gap-3 text-[12px] font-mono text-[var(--ink-2)]">
+							<span data-indicator="stream-count" className="font-semibold text-[var(--ink-1)]">
+								并行流数: {streamCount}
+							</span>
+							<span className="text-[var(--border-strong)]">|</span>
+							<span data-indicator="current-tier">当前档位: {tierDisplayMap[tier]}</span>
+							{isTouch && (
+								<span
+									data-indicator="touch-mode"
+									className="px-1.5 py-0.5 rounded-[4px] bg-[var(--panel-2)] text-[var(--ink-3)] text-[11px]"
+								>
+									触控优化 (44px)
+								</span>
+							)}
+							{toolbarSlot}
+						</div>
 
-					<div className="flex items-center gap-2">
-						{(tier === 'full' || tier === 'compact') && (
-							<button
-								type="button"
-								data-action="toggle-density"
-								onClick={togglePreference}
-								title={`切换至${tier === 'compact' ? '完整档' : '紧凑档'}`}
-								className={`
+						<div className="flex items-center gap-2">
+							{(tier === 'full' || tier === 'compact') && (
+								<button
+									type="button"
+									data-action="toggle-density"
+									onClick={togglePreference}
+									title={`切换至${tier === 'compact' ? '完整档' : '紧凑档'}`}
+									className={`
 									inline-flex items-center gap-1.5 px-3 rounded-[9px]
 									font-ui text-[12px] font-medium transition-colors
 									border border-[var(--border-strong)] bg-[var(--panel-2)]
@@ -310,264 +318,269 @@ export function RunDeckView(props: RunDeckViewProps) {
 									focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_var(--needs-soft)]
 									cursor-pointer ${isTouch ? 'h-[44px]' : 'h-[32px]'}
 								`}
-							>
-								<span className="text-[var(--ink-3)] font-mono text-[11px]">档位:</span>
-								<span>{tier === 'compact' ? '切换完整档' : '切换紧凑档'}</span>
-							</button>
-						)}
+								>
+									<span className="text-[var(--ink-3)] font-mono text-[11px]">档位:</span>
+									<span>{tier === 'compact' ? '切换完整档' : '切换紧凑档'}</span>
+								</button>
+							)}
+						</div>
 					</div>
-				</div>
-			)}
+				)}
 
-			{/* ─────────────────────────────────────────────────────────────
+				{/* ─────────────────────────────────────────────────────────────
 			    主体内容区：
 			    手机模式下根据 activePane 渲染单栏，绝不横向滚动或并排三栏（E-145）；
 			    桌面模式下渲染完整/紧凑/单列列表（E-163, E-164, E-168）。
 			    ───────────────────────────────────────────────────────────── */}
-			<div
-				className={[
-					'relative flex-1 flex flex-col min-h-0 overflow-hidden',
-					// 在手机端为底部拇指栏留出固定间距（60px + safe-area），确保内容不被遮盖 (E-107)
-					isMobileMode ? 'pb-[calc(var(--thumbbar-h,60px)+env(safe-area-inset-bottom)+12px)]' : '',
-				].join(' ')}
-			>
-				{/* 手机模式分支 */}
-				{isMobileMode ? (
-					<>
-						{/* 栏位 1：任务列表（批次表格在小屏降级为可折叠列表，E-13, E-145） */}
-						{activePane === 'tasks' && (
-							<div
-								data-pane-view="tasks"
-								className="flex flex-col h-full w-full overflow-y-auto flex-1"
-							>
-								<MobileBatchList batches={batches} onSelectTask={handleSelectTaskAndJump} />
-							</div>
-						)}
+				<div
+					className={[
+						'relative flex-1 flex flex-col min-h-0 overflow-hidden',
+						// 在手机端为底部拇指栏留出固定间距（60px + safe-area），确保内容不被遮盖 (E-107)
+						isMobileMode
+							? 'pb-[calc(var(--thumbbar-h,60px)+env(safe-area-inset-bottom)+12px)]'
+							: '',
+					].join(' ')}
+				>
+					{/* 手机模式分支 */}
+					{isMobileMode ? (
+						<>
+							{/* 栏位 1：任务列表（批次表格在小屏降级为可折叠列表，E-13, E-145） */}
+							{activePane === 'tasks' && (
+								<div
+									data-pane-view="tasks"
+									className="flex flex-col h-full w-full overflow-y-auto flex-1"
+								>
+									<MobileBatchList batches={batches} onSelectTask={handleSelectTaskAndJump} />
+								</div>
+							)}
 
-						{/* 栏位 2：运行流（单流全屏，一次一条泳道，E-107, E-145） */}
-						{activePane === 'stream' && (
-							<div
-								data-pane-view="stream"
-								className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
-							>
-								{currentMobileLane ? (
-									<StreamErrorBoundary laneNo={currentMobileLane.laneNo}>
-										<StreamColumn
-											laneNo={currentMobileLane.laneNo}
-											laneId={currentMobileLane.id}
-											currentRunId={currentMobileLane.currentRunId}
-											taskKey={currentMobileLane.taskKey}
-											title={currentMobileLane.title}
-											status={currentMobileLane.status}
-											tier={tier}
-											isExpanded={true}
-											onStop={() =>
-												handleStopLane(
-													currentMobileLane.laneNo,
-													currentMobileLane.currentRunId,
-													currentMobileLane.taskKey,
-												)
-											}
-											isStopping={stoppingLanes.has(currentMobileLane.laneNo)}
-											agentMonogram={currentMobileLane.agentMonogram}
-											agentName={currentMobileLane.agentName}
-											modelName={currentMobileLane.modelName}
-											refSource={currentMobileLane.refSource}
-											duration={currentMobileLane.duration}
-											tokenCount={currentMobileLane.tokenCount}
-											cost={currentMobileLane.cost}
-											errorMessage={currentMobileLane.errorMessage}
-											isTouch={true}
-											bodySlot={currentMobileLane.bodySlot}
-											gateSlot={currentMobileLane.gateSlot}
-											refBarSlot={currentMobileLane.refBarSlot}
-											footSlot={currentMobileLane.footSlot}
-										/>
-									</StreamErrorBoundary>
-								) : (
-									<div className="flex flex-col items-center justify-center p-8 text-center text-[var(--ink-3)] font-ui text-[13px] flex-1">
-										当前无可用泳道流
-									</div>
-								)}
-							</div>
-						)}
-
-						{/* 栏位 3：运行详情（包含尾部 32KB 会话/日志，E-99, E-145） */}
-						{activePane === 'detail' && (
-							<div
-								data-pane-view="detail"
-								className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3"
-							>
-								{currentMobileLane?.detailSlot ? (
-									currentMobileLane.detailSlot
-								) : (
-									<div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg)] border border-[var(--border)] p-4 font-ui text-[13px]">
-										<div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-											<span className="font-semibold text-[var(--ink-1)]">
-												会话详情 · {currentMobileLane?.taskKey ?? '—'}
-											</span>
-											<span className="font-mono text-[11px] text-[var(--ink-3)]">
-												首屏尾部加载 {Math.round(tailBytes / 1024)}KB (E-99)
-											</span>
-										</div>
-										<p className="text-[var(--ink-2)] text-[12px] leading-relaxed">
-											手机端网络环境下自动开启尾部轻量加载（{Math.round(tailBytes / 1024)}
-											KB），切后台再回前台不重拉全量。
-										</p>
-										{currentMobileLane?.currentRunId && (
-											<div className="font-mono text-[11px] text-[var(--ink-3)]">
-												运行 ID: {currentMobileLane.currentRunId}
-											</div>
-										)}
-									</div>
-								)}
-							</div>
-						)}
-					</>
-				) : (
-					// 桌面端监看区（维持已有紧凑/完整/单列多流网格）
-					<>
-						{tier === 'full' && offScreenWaiting.left > 0 && (
-							<button
-								type="button"
-								data-offscreen="left"
-								data-waiting-count={offScreenWaiting.left}
-								onClick={() => {
-									if (offScreenWaiting.firstLeftLaneNo !== undefined) {
-										scrollToLane(offScreenWaiting.firstLeftLaneNo);
-									}
-								}}
-								aria-label={`左侧有 ${offScreenWaiting.left} 条待处理泳道，点击滚入查看`}
-								className="absolute left-3 top-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] bg-[var(--needs)] text-[var(--on-needs)] font-ui font-semibold text-[12.5px] shadow-lg cursor-pointer hover:brightness-105 active:scale-98 transition-transform"
-							>
-								<span>←</span>
-								<span>{offScreenWaiting.left} 条待处理</span>
-							</button>
-						)}
-
-						<div ref={scrollContainerRef} className={getDeckLayoutClass()}>
-							{lanes.map((lane) => {
-								const isColumnExpanded = expandedLaneNo === lane.laneNo;
-
-								return (
-									<div
-										key={lane.laneNo}
-										data-lane-deck-slot={lane.laneNo}
-										className={[
-											tier === 'full' && streamCount > 3 ? 'flex-shrink-0 w-[380px] h-full' : '',
-											isColumnExpanded ? 'col-span-full' : '',
-											'flex flex-col h-full min-h-[360px]',
-										]
-											.filter(Boolean)
-											.join(' ')}
-									>
-										<StreamErrorBoundary laneNo={lane.laneNo}>
+							{/* 栏位 2：运行流（单流全屏，一次一条泳道，E-107, E-145） */}
+							{activePane === 'stream' && (
+								<div
+									data-pane-view="stream"
+									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
+								>
+									{currentMobileLane ? (
+										<StreamErrorBoundary laneNo={currentMobileLane.laneNo}>
 											<StreamColumn
-												laneNo={lane.laneNo}
-												laneId={lane.id}
-												currentRunId={lane.currentRunId}
-												taskKey={lane.taskKey}
-												title={lane.title}
-												status={lane.status}
+												laneNo={currentMobileLane.laneNo}
+												laneId={currentMobileLane.id}
+												currentRunId={currentMobileLane.currentRunId}
+												taskKey={currentMobileLane.taskKey}
+												title={currentMobileLane.title}
+												status={currentMobileLane.status}
 												tier={tier}
-												isExpanded={isColumnExpanded}
-												onToggleExpand={() => toggleExpandLane(lane.laneNo)}
-												onStop={() => handleStopLane(lane.laneNo, lane.currentRunId, lane.taskKey)}
-												isStopping={stoppingLanes.has(lane.laneNo)}
-												agentMonogram={lane.agentMonogram}
-												agentName={lane.agentName}
-												modelName={lane.modelName}
-												refSource={lane.refSource}
-												duration={lane.duration}
-												tokenCount={lane.tokenCount}
-												cost={lane.cost}
-												errorMessage={lane.errorMessage}
-												isTouch={isTouch}
-												bodySlot={lane.bodySlot}
-												gateSlot={lane.gateSlot}
-												refBarSlot={lane.refBarSlot}
-												footSlot={lane.footSlot}
+												isExpanded={true}
+												onStop={() =>
+													handleStopLane(
+														currentMobileLane.laneNo,
+														currentMobileLane.currentRunId,
+														currentMobileLane.taskKey,
+													)
+												}
+												isStopping={stoppingLanes.has(currentMobileLane.laneNo)}
+												agentMonogram={currentMobileLane.agentMonogram}
+												agentName={currentMobileLane.agentName}
+												modelName={currentMobileLane.modelName}
+												refSource={currentMobileLane.refSource}
+												duration={currentMobileLane.duration}
+												tokenCount={currentMobileLane.tokenCount}
+												cost={currentMobileLane.cost}
+												errorMessage={currentMobileLane.errorMessage}
+												isTouch={true}
+												bodySlot={currentMobileLane.bodySlot}
+												gateSlot={currentMobileLane.gateSlot}
+												refBarSlot={currentMobileLane.refBarSlot}
+												footSlot={currentMobileLane.footSlot}
 											/>
 										</StreamErrorBoundary>
-									</div>
-								);
-							})}
-						</div>
+									) : (
+										<div className="flex flex-col items-center justify-center p-8 text-center text-[var(--ink-3)] font-ui text-[13px] flex-1">
+											当前无可用泳道流
+										</div>
+									)}
+								</div>
+							)}
 
-						{tier === 'full' && offScreenWaiting.right > 0 && (
-							<button
-								type="button"
-								data-offscreen="right"
-								data-waiting-count={offScreenWaiting.right}
-								onClick={() => {
-									if (offScreenWaiting.firstRightLaneNo !== undefined) {
-										scrollToLane(offScreenWaiting.firstRightLaneNo);
-									}
-								}}
-								aria-label={`右侧有 ${offScreenWaiting.right} 条待处理泳道，点击滚入查看`}
-								className="absolute right-3 top-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] bg-[var(--needs)] text-[var(--on-needs)] font-ui font-semibold text-[12.5px] shadow-lg cursor-pointer hover:brightness-105 active:scale-98 transition-transform"
-							>
-								<span>{offScreenWaiting.right} 条待处理</span>
-								<span>→</span>
-							</button>
-						)}
-					</>
-				)}
-			</div>
+							{/* 栏位 3：运行详情（包含尾部 32KB 会话/日志，E-99, E-145） */}
+							{activePane === 'detail' && (
+								<div
+									data-pane-view="detail"
+									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3"
+								>
+									{currentMobileLane?.detailSlot ? (
+										currentMobileLane.detailSlot
+									) : (
+										<div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg)] border border-[var(--border)] p-4 font-ui text-[13px]">
+											<div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+												<span className="font-semibold text-[var(--ink-1)]">
+													会话详情 · {currentMobileLane?.taskKey ?? '—'}
+												</span>
+												{currentMobileLane?.currentRunId && (
+													<span className="font-mono text-[11px] text-[var(--ink-3)]">
+														运行 ID: {currentMobileLane.currentRunId}
+													</span>
+												)}
+											</div>
+											<p className="text-[var(--ink-3)] text-[12px] leading-relaxed">
+												暂无详情内容
+											</p>
+										</div>
+									)}
+								</div>
+							)}
+						</>
+					) : (
+						// 桌面端监看区（维持已有紧凑/完整/单列多流网格）
+						<>
+							{tier === 'full' && offScreenWaiting.left > 0 && (
+								<button
+									type="button"
+									data-offscreen="left"
+									data-waiting-count={offScreenWaiting.left}
+									onClick={() => {
+										if (offScreenWaiting.firstLeftLaneNo !== undefined) {
+											scrollToLane(offScreenWaiting.firstLeftLaneNo);
+										}
+									}}
+									aria-label={`左侧有 ${offScreenWaiting.left} 条待处理泳道，点击滚入查看`}
+									className="absolute left-3 top-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] bg-[var(--needs)] text-[var(--on-needs)] font-ui font-semibold text-[12.5px] shadow-lg cursor-pointer hover:brightness-105 active:scale-98 transition-transform"
+								>
+									<span>←</span>
+									<span>{offScreenWaiting.left} 条待处理</span>
+								</button>
+							)}
 
-			{/* ─────────────────────────────────────────────────────────────
+							<div ref={scrollContainerRef} className={getDeckLayoutClass()}>
+								{lanes.map((lane) => {
+									const isColumnExpanded = expandedLaneNo === lane.laneNo;
+
+									return (
+										<div
+											key={lane.laneNo}
+											data-lane-deck-slot={lane.laneNo}
+											className={[
+												tier === 'full' && streamCount > 3 ? 'flex-shrink-0 w-[380px] h-full' : '',
+												isColumnExpanded ? 'col-span-full' : '',
+												'flex flex-col h-full min-h-[360px]',
+											]
+												.filter(Boolean)
+												.join(' ')}
+										>
+											<StreamErrorBoundary laneNo={lane.laneNo}>
+												<StreamColumn
+													laneNo={lane.laneNo}
+													laneId={lane.id}
+													currentRunId={lane.currentRunId}
+													taskKey={lane.taskKey}
+													title={lane.title}
+													status={lane.status}
+													tier={tier}
+													isExpanded={isColumnExpanded}
+													onToggleExpand={() => toggleExpandLane(lane.laneNo)}
+													onStop={() =>
+														handleStopLane(lane.laneNo, lane.currentRunId, lane.taskKey)
+													}
+													isStopping={stoppingLanes.has(lane.laneNo)}
+													agentMonogram={lane.agentMonogram}
+													agentName={lane.agentName}
+													modelName={lane.modelName}
+													refSource={lane.refSource}
+													duration={lane.duration}
+													tokenCount={lane.tokenCount}
+													cost={lane.cost}
+													errorMessage={lane.errorMessage}
+													isTouch={isTouch}
+													bodySlot={lane.bodySlot}
+													gateSlot={lane.gateSlot}
+													refBarSlot={lane.refBarSlot}
+													footSlot={lane.footSlot}
+												/>
+											</StreamErrorBoundary>
+										</div>
+									);
+								})}
+							</div>
+
+							{tier === 'full' && offScreenWaiting.right > 0 && (
+								<button
+									type="button"
+									data-offscreen="right"
+									data-waiting-count={offScreenWaiting.right}
+									onClick={() => {
+										if (offScreenWaiting.firstRightLaneNo !== undefined) {
+											scrollToLane(offScreenWaiting.firstRightLaneNo);
+										}
+									}}
+									aria-label={`右侧有 ${offScreenWaiting.right} 条待处理泳道，点击滚入查看`}
+									className="absolute right-3 top-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] bg-[var(--needs)] text-[var(--on-needs)] font-ui font-semibold text-[12.5px] shadow-lg cursor-pointer hover:brightness-105 active:scale-98 transition-transform"
+								>
+									<span>{offScreenWaiting.right} 条待处理</span>
+									<span>→</span>
+								</button>
+							)}
+						</>
+					)}
+				</div>
+
+				{/* ─────────────────────────────────────────────────────────────
 			    手机端常驻底部拇指栏（AC 2, E-107）：
 			    停止与批准固定在拇指区、分置两端或间距 >= 24px、各 >= 44x44px，不随日志滚动移出视野
 			    ───────────────────────────────────────────────────────────── */}
-			{isMobileMode && (
-				<ThumbBar
-					canStop={Boolean(currentMobileLane)}
-					isStopping={currentMobileLane ? stoppingLanes.has(currentMobileLane.laneNo) : false}
-					onStop={() => {
-						if (currentMobileLane) {
-							handleStopLane(
-								currentMobileLane.laneNo,
-								currentMobileLane.currentRunId,
-								currentMobileLane.taskKey,
-							);
+				{isMobileMode && (
+					<ThumbBar
+						canStop={Boolean(currentMobileLane)}
+						isStopping={currentMobileLane ? stoppingLanes.has(currentMobileLane.laneNo) : false}
+						onStop={() => {
+							if (currentMobileLane) {
+								handleStopLane(
+									currentMobileLane.laneNo,
+									currentMobileLane.currentRunId,
+									currentMobileLane.taskKey,
+								);
+							}
+						}}
+						canApprove={effectiveIsCurrentLaneWaiting && Boolean(handleApproveLane)}
+						isApproving={isApproving}
+						onApprove={() => {
+							if (currentMobileLane && handleApproveLane) {
+								handleApproveLane(currentMobileLane.laneNo, currentMobileLane.currentRunId);
+							}
+						}}
+						waitingCount={effectiveTotalWaitingCount}
+						middleSlot={
+							<span className="font-mono text-[11px] text-[var(--ink-3)] truncate">
+								{currentMobileLane?.taskKey ?? ''}
+							</span>
 						}
-					}}
-					canApprove={effectiveIsCurrentLaneWaiting}
-					isApproving={isApproving}
-					onApprove={() => {
-						if (currentMobileLane) {
-							handleApproveLane(currentMobileLane.laneNo, currentMobileLane.currentRunId);
-						}
-					}}
-					waitingCount={effectiveTotalWaitingCount}
-					middleSlot={
-						<span className="font-mono text-[11px] text-[var(--ink-3)] truncate">
-							{currentMobileLane?.taskKey ?? ''}
-						</span>
-					}
-				/>
-			)}
+					/>
+				)}
 
-			{/* ─────────────────────────────────────────────────────────────
+				{/* ─────────────────────────────────────────────────────────────
 			    手机端中止二次确认对话框（AC 4, E-124 口袋防误触）
 			    ───────────────────────────────────────────────────────────── */}
-			<StopConfirmDialog
-				isOpen={stopConfirmOpen}
-				laneNo={stopConfirmTarget?.laneNo}
-				taskKey={stopConfirmTarget?.taskKey}
-				runId={stopConfirmTarget?.runId}
-				onConfirm={confirmStop}
-				onCancel={cancelStop}
-			/>
+				<StopConfirmDialog
+					isOpen={stopConfirmOpen}
+					laneNo={stopConfirmTarget?.laneNo}
+					taskKey={stopConfirmTarget?.taskKey}
+					runId={stopConfirmTarget?.runId}
+					onConfirm={() => {
+						confirmStop?.();
+					}}
+					onCancel={() => {
+						cancelStop?.();
+					}}
+				/>
 
-			{/* ─────────────────────────────────────────────────────────────
+				{/* ─────────────────────────────────────────────────────────────
 			    展开的 Tool Payload 底部抽屉（AC 6 不内联）
 			    ───────────────────────────────────────────────────────────── */}
-			<MobileBottomSheet
-				isOpen={activeToolPayload !== null}
-				payload={activeToolPayload}
-				onClose={closeToolPayloadSheet}
-			/>
-		</section>
+				<MobileBottomSheet
+					isOpen={activeToolPayload !== null && activeToolPayload !== undefined ? true : undefined}
+					payload={activeToolPayload ?? undefined}
+					onClose={closeToolPayloadSheet}
+				/>
+			</section>
+		</PayloadSheetProvider>
 	);
 }

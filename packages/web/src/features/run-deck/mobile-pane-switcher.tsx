@@ -93,7 +93,7 @@ export function MobilePaneSwitcher({
 								data-indicator="unhandled-waiting-badge"
 								data-waiting-count={waitingCount}
 								aria-label={`有 ${waitingCount} 项运行流正在等待审批`}
-								className="inline-flex items-center justify-center px-1.5 py-0.2 min-w-[18px] h-[18px] rounded-[6px] bg-[var(--needs)] text-[var(--on-needs)] font-mono text-[11px] font-bold leading-none animate-pulse flex-shrink-0 shadow-sm"
+								className="inline-flex items-center justify-center px-1.5 py-0.2 min-w-[18px] h-[18px] rounded-[6px] bg-[var(--needs)] text-[var(--on-needs)] font-mono text-[11px] font-bold leading-none flex-shrink-0 shadow-sm"
 							>
 								{waitingCount}
 							</span>

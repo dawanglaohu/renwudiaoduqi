@@ -121,7 +121,7 @@ export function ThumbBar({
 						data-thumb-waiting-pill="true"
 						className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-[var(--needs-soft)] text-[var(--needs)] font-ui text-[12px] font-semibold truncate"
 					>
-						<span className="w-2 h-2 rounded-full bg-[var(--needs)] animate-pulse" />
+						<span className="w-2 h-2 rounded-full bg-[var(--needs)]" />
 						<span>{waitingCount} 项待处理</span>
 					</div>
 				) : (
