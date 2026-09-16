@@ -156,9 +156,171 @@ function renderShapeNode(
 	const nodeSize = level === 'stage' ? 12 : 8;
 	const halfSize = nodeSize / 2;
 
-	// 1. 若指定了专属字形（E-110, E-230, AC 6）：
+	// 1. 当前步心跳点（live / AC 2, 11 节）：必须渲染 1.6s 呼吸环（--spine-live/--auto）
+	// 呼吸环是全页唯一连续动画，时长 1.6s 且共用 --pulse（R1, R2）
+	// 步骤类型字形可与环共存，但绝不得吞掉环
+	if (kind === 'live') {
+		let innerNode = (
+			<circle
+				cx={centerX}
+				cy={centerY}
+				r={4}
+				fill="var(--auto)"
+				style={{ vectorEffect: 'non-scaling-stroke' }}
+			/>
+		);
+
+		// 若指定了步骤类型字形（如 tool ⬡, file_write ▤, network ⌁ 等），内嵌共存且不吞掉外层呼吸环
+		if (shapeId && shapeId !== 'live' && shapeId !== 'thinking' && shapeId !== 'streaming') {
+			const normState = normalizeStatusState(shapeId);
+			const isRegisteredState = normState in STATUS_SHAPES && normState !== 'unrecognized';
+			const shapeDef = isRegisteredState
+				? getStatusShape(normState)
+				: (STEP_SHAPES[shapeId as StepType] ?? getStatusShape(normState));
+
+			innerNode = (
+				<svg
+					x={centerX - halfSize}
+					y={centerY - halfSize}
+					width={nodeSize}
+					height={nodeSize}
+					viewBox={shapeDef.viewBox}
+					data-shape={shapeDef.id}
+					aria-hidden="true"
+					fill="none"
+					stroke="var(--auto)"
+					style={{
+						color: 'var(--auto)',
+						vectorEffect: 'non-scaling-stroke',
+						overflow: 'visible',
+					}}
+				>
+					{shapeDef.elements.map((el, idx) => {
+						const Tag = el.tag;
+						return <Tag key={`${shapeDef.id}-${idx}`} {...el.attrs} />;
+					})}
+				</svg>
+			);
+		}
+
+		return (
+			<g data-spine-node="pulse-live">
+				{/* 1.6s 呼吸外环，明确消费 var(--pulse, 1.6s)（R2, 11 节） */}
+				<circle
+					cx={centerX}
+					cy={centerY}
+					r={7}
+					data-pulse="1.6s"
+					className="animate-[pulse_var(--pulse,1.6s)_cubic-bezier(0.4,0,0.6,1)_infinite]"
+					fill="var(--auto-soft)"
+					stroke="var(--auto)"
+					strokeWidth={1}
+					style={{
+						animationDuration: 'var(--pulse, 1.6s)',
+						vectorEffect: 'non-scaling-stroke',
+						transformOrigin: `${centerX}px ${centerY}px`,
+					}}
+				/>
+				{innerNode}
+			</g>
+		);
+	}
+
+	// 2. 等你（waiting）：当前点变空心方块 9px（AC 2, 11 节）
+	// 若外部明确指定了 orphaned（失联）或 review_incomplete（审查未完成），优先渲染其专属几何形状
+	if (kind === 'waiting') {
+		if (shapeId === 'orphaned' || shapeId === 'review_incomplete') {
+			const normState = normalizeStatusState(shapeId);
+			const shapeDef = getStatusShape(normState);
+			return (
+				<svg
+					x={centerX - halfSize}
+					y={centerY - halfSize}
+					width={nodeSize}
+					height={nodeSize}
+					viewBox={shapeDef.viewBox}
+					data-shape={shapeDef.id}
+					data-spine-node={shapeDef.id}
+					aria-hidden="true"
+					fill="none"
+					stroke="var(--spine-needs)"
+					style={{
+						color: 'var(--spine-needs)',
+						vectorEffect: 'non-scaling-stroke',
+						overflow: 'visible',
+					}}
+				>
+					{shapeDef.elements.map((el, idx) => {
+						const Tag = el.tag;
+						return <Tag key={`${shapeDef.id}-${idx}`} {...el.attrs} />;
+					})}
+				</svg>
+			);
+		}
+
+		const boxSize = 9;
+		const offset = boxSize / 2;
+		return (
+			<rect
+				data-spine-node="waiting-square"
+				x={centerX - offset}
+				y={centerY - offset}
+				width={boxSize}
+				height={boxSize}
+				rx={1.5}
+				fill="none"
+				stroke="var(--spine-needs)"
+				strokeWidth={1.75}
+				style={{ vectorEffect: 'non-scaling-stroke' }}
+			/>
+		);
+	}
+
+	// 3. 失败（failed）：对角叉号 ✕（AC 2, 11 节）
+	if (kind === 'failed') {
+		const crossOffset = 4;
+		return (
+			<g
+				data-spine-node="failed-cross"
+				stroke="var(--down)"
+				strokeWidth={1.75}
+				strokeLinecap="round"
+				style={{ vectorEffect: 'non-scaling-stroke' }}
+			>
+				<line
+					x1={centerX - crossOffset}
+					y1={centerY - crossOffset}
+					x2={centerX + crossOffset}
+					y2={centerY + crossOffset}
+				/>
+				<line
+					x1={centerX + crossOffset}
+					y1={centerY - crossOffset}
+					x2={centerX - crossOffset}
+					y2={centerY + crossOffset}
+				/>
+			</g>
+		);
+	}
+
+	// 4. 已停止（stopped）：水平横杠 ▬（AC 2, 11 节）
+	if (kind === 'stopped') {
+		return (
+			<rect
+				data-spine-node="stopped-bar"
+				x={centerX - 5}
+				y={centerY - 1.5}
+				width={10}
+				height={3}
+				rx={1}
+				fill="var(--stopped)"
+				style={{ vectorEffect: 'non-scaling-stroke' }}
+			/>
+		);
+	}
+
+	// 5. 若指定了其他专属字形（E-110, E-230, AC 6）：
 	// 「失联」「审查未完成」「未识别/降级」等态各有专属形状而非复用失败形状
-	// 当传入具体形状且非纯 awaiting_input / waiting 时，优先渲染其专属几何形状
 	if (shapeId && shapeId !== 'awaiting_input' && shapeId !== 'waiting') {
 		const normState = normalizeStatusState(shapeId);
 		const isRegisteredState = normState in STATUS_SHAPES && normState !== 'unrecognized';
@@ -166,18 +328,11 @@ function renderShapeNode(
 			? getStatusShape(normState)
 			: (STEP_SHAPES[shapeId as StepType] ?? getStatusShape(normState));
 
-		const strokeColor =
-			isWarm || kind === 'waiting'
-				? 'var(--spine-needs)'
-				: kind === 'done'
-					? 'var(--spine-done)'
-					: kind === 'pending'
-						? 'var(--spine-pending)'
-						: kind === 'failed'
-							? 'var(--down)'
-							: kind === 'stopped'
-								? 'var(--stopped)'
-								: 'currentColor';
+		const strokeColor = isWarm
+			? 'var(--spine-needs)'
+			: kind === 'done'
+				? 'var(--spine-done)'
+				: 'var(--spine-pending)';
 
 		return (
 			<svg
@@ -202,99 +357,6 @@ function renderShapeNode(
 					return <Tag key={`${shapeDef.id}-${idx}`} {...el.attrs} />;
 				})}
 			</svg>
-		);
-	}
-
-	// 2. 等你（waiting）：当前点变空心方块 9px（AC 2, 11 节）
-	if (kind === 'waiting') {
-		const boxSize = 9;
-		const offset = boxSize / 2;
-		return (
-			<rect
-				data-spine-node="waiting-square"
-				x={centerX - offset}
-				y={centerY - offset}
-				width={boxSize}
-				height={boxSize}
-				rx={1.5}
-				fill="none"
-				stroke="var(--spine-needs)"
-				strokeWidth={1.75}
-				style={{ vectorEffect: 'non-scaling-stroke' }}
-			/>
-		);
-	}
-
-	// 3. 当前步心跳点（live）：实心圆点 8px + 1.6s 呼吸环（AC 2, 11 节）
-	if (kind === 'live') {
-		return (
-			<g data-spine-node="pulse-live">
-				{/* 呼吸外环（全页唯一连续动画类，只动 opacity 与 scale） */}
-				<circle
-					cx={centerX}
-					cy={centerY}
-					r={7}
-					className="animate-pulse"
-					fill="var(--auto-soft)"
-					stroke="var(--auto)"
-					strokeWidth={1}
-					style={{
-						vectorEffect: 'non-scaling-stroke',
-						transformOrigin: `${centerX}px ${centerY}px`,
-					}}
-				/>
-				{/* 实心中心圆点 8px（半径 4px） */}
-				<circle
-					cx={centerX}
-					cy={centerY}
-					r={4}
-					fill="var(--auto)"
-					style={{ vectorEffect: 'non-scaling-stroke' }}
-				/>
-			</g>
-		);
-	}
-
-	// 4. 已停止（stopped）：水平横杠 ▬（AC 2, 11 节）
-	if (kind === 'stopped') {
-		return (
-			<rect
-				data-spine-node="stopped-bar"
-				x={centerX - 5}
-				y={centerY - 1.5}
-				width={10}
-				height={3}
-				rx={1}
-				fill="var(--stopped)"
-				style={{ vectorEffect: 'non-scaling-stroke' }}
-			/>
-		);
-	}
-
-	// 5. 失败（failed）：对角叉号 ✕（AC 2, 11 节）
-	if (kind === 'failed') {
-		const crossOffset = 4;
-		return (
-			<g
-				data-spine-node="failed-cross"
-				stroke="var(--down)"
-				strokeWidth={1.75}
-				strokeLinecap="round"
-				style={{ vectorEffect: 'non-scaling-stroke' }}
-			>
-				<line
-					x1={centerX - crossOffset}
-					y1={centerY - crossOffset}
-					x2={centerX + crossOffset}
-					y2={centerY + crossOffset}
-				/>
-				<line
-					x1={centerX + crossOffset}
-					y1={centerY - crossOffset}
-					x2={centerX - crossOffset}
-					y2={centerY + crossOffset}
-				/>
-			</g>
 		);
 	}
 

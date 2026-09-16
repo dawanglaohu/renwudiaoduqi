@@ -30,6 +30,7 @@ import {
 	normalizeStatusState,
 } from '../lib/spine-shape.ts';
 import { type SpineSegment, SpineSegmentView } from './spine.tsx';
+import { StatusIcon } from './status-badge.tsx';
 
 /**
  * 运行流条目组件属性。
@@ -358,22 +359,50 @@ export function StreamRow({
 				</div>
 			</div>
 
-			{/* 展开区域：显示详情、错误信息及「从这一步重试」（AC 4） */}
+			{/* 展开区域：显示详情、错误信息及「从这一步重试」（AC 4, AC 1 / R3） */}
 			{isExpanded && (
 				<div
 					data-stream-row-body="true"
-					className="w-full pl-[28px] pr-2 pb-2 pt-1 flex flex-col gap-2 overflow-hidden"
+					className="relative w-full pl-[28px] pr-2 pb-2 pt-1 flex flex-col gap-2 overflow-hidden"
 					onClick={(e) => e.stopPropagation()}
 					onKeyDown={(e) => e.stopPropagation()}
 				>
-					{/* 失败状态信息与「从这一步重试」按钮（AC 4） */}
+					{/* AC 1 / R3: 展开区左缘补 2px 延续轨（left:11px、覆盖展开区全高、颜色接当前段形态） */}
+					<div
+						aria-hidden="true"
+						data-spine-expansion-line="true"
+						className="absolute top-0 bottom-0 pointer-events-none select-none"
+						style={{
+							left: '11px',
+							width: '2px',
+							transform: 'translateX(-50%)',
+							backgroundColor:
+								activeSegment.kind === 'failed'
+									? 'var(--spine-dead)'
+									: activeSegment.kind === 'waiting'
+										? 'var(--spine-needs)'
+										: activeSegment.kind === 'stopped'
+											? 'var(--stopped)'
+											: activeSegment.kind === 'live' || activeSegment.kind === 'pending'
+												? 'var(--spine-pending)'
+												: 'var(--spine-done)',
+						}}
+					/>
+
+					{/* 失败状态信息与「从这一步重试」按钮（AC 4, R4） */}
 					{isFailed && (
 						<div
 							data-step-error-banner="true"
 							className="flex items-center justify-between gap-3 p-2 rounded-[9px] bg-panel-2 border border-down-soft"
 						>
 							<div className="flex items-center gap-2 min-w-0 text-meta text-down">
-								<span className="font-semibold shrink-0">✕</span>
+								{/* R4: 禁止裸字符 ✕，统一使用 StatusIcon 内联 SVG path */}
+								<StatusIcon
+									state="failed"
+									size={12}
+									className="shrink-0 text-down"
+									ariaHidden={true}
+								/>
 								<span className="font-mono text-log truncate">
 									{errorMessage ?? '步骤执行失败'}
 								</span>

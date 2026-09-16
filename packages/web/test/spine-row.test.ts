@@ -78,8 +78,9 @@ describe('M9-T7: Spine and StreamRow (AC 1-6, E-110, E-230)', () => {
 			);
 			expect(html).toContain('data-kind="live"');
 			expect(html).toContain('data-spine-node="pulse-live"');
-			// 呼吸环带有 animate-pulse 类、半径 7
-			expect(html).toContain('animate-pulse');
+			// 呼吸环消费 --pulse 且标记 1.6s 时长（R2）
+			expect(html).toContain('data-pulse="1.6s"');
+			expect(html).toContain('var(--pulse');
 			expect(html).toContain('r="7"');
 			expect(html).toContain('fill="var(--auto-soft)"');
 			expect(html).toContain('stroke="var(--auto)"');
@@ -89,6 +90,26 @@ describe('M9-T7: Spine and StreamRow (AC 1-6, E-110, E-230)', () => {
 			// 下半段为虚线
 			expect(html).toContain('stroke-dasharray="3 3"');
 			expect(html).toContain('stroke="var(--spine-pending)"');
+		});
+
+		// 2b. 当前步带 stepType 形状：呼吸环不被吞掉，与形状共存（R1, R2）
+		it('renders 1.6s pulse breathing ring even when combined with a stepType shape (R1, R2)', () => {
+			const html = renderToStaticMarkup(
+				createElement(SpineSegmentView, {
+					segment: { kind: 'live', shape: 'tool' },
+					rowHeight: 30,
+				}),
+			);
+			expect(html).toContain('data-kind="live"');
+			// 呼吸环绝不被吞掉（R1）
+			expect(html).toContain('data-spine-node="pulse-live"');
+			expect(html).toContain('data-pulse="1.6s"');
+			expect(html).toContain('var(--pulse');
+			expect(html).toContain('r="7"');
+			expect(html).toContain('fill="var(--auto-soft)"');
+			expect(html).toContain('stroke="var(--auto)"');
+			// 步骤类型字形内嵌共存
+			expect(html).toContain('data-shape="tool"');
 		});
 
 		// 3. 未执行虚线
@@ -281,6 +302,14 @@ describe('M9-T7: Spine and StreamRow (AC 1-6, E-110, E-230)', () => {
 			expect(html).toContain('data-stream-row-body="true"');
 			expect(html).toContain('data-step-error-banner="true"');
 			expect(html).toContain('Compilation error: missing lifetime specifier');
+			// R3: 展开区左缘补 2px 延续轨，覆盖全高
+			expect(html).toContain('data-spine-expansion-line="true"');
+			expect(html).toContain('left:11px');
+			expect(html).toContain('width:2px');
+			expect(html).toContain('var(--spine-dead)');
+			// R4: 禁止裸字符 ✕，使用 StatusIcon 内联 SVG path
+			expect(html).not.toContain('>✕<');
+			expect(html).toContain('d="M 4.5 4.5 L 11.5 11.5 M 11.5 4.5 L 4.5 11.5"');
 			// 提供「从这一步重试」按钮
 			expect(html).toContain('data-action="retry-step"');
 			expect(html).toContain('从这一步重试');
