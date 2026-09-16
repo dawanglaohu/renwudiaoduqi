@@ -1,1 +1,925 @@
-{}
+{
+  "M1-T1": {
+    "contractHash": "fae9cb0ba22555a77dd3b8a6243102f8d286fb1c9044e79134107f234d890fd4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T10": {
+    "contractHash": "c1e2a6bb5e3a36427f9401fa9fa64bee0d465c5ced81f5773b81e7b68b6ae70a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T2": {
+    "contractHash": "8b5abf033ba75682a61ecb7df76e10d1b1c6cd41d17d1a2ff3d8f520baaaa0e5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T3": {
+    "contractHash": "eb0003c94a5ab14e8e45b6303ac5e3a16b7b601ab04d6e63c37b16f7bfa9f71e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T4": {
+    "contractHash": "10b879da3818713cdbc5c6eb9f1533b6e4d6b057e7567ed82071e47c6e43e087",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T5": {
+    "contractHash": "8d8362f24f7e42193537c8f684d978108d26db4a028a01a7bb2199d755a92c30",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T6": {
+    "contractHash": "7f6adb99b82aae9f7c2b551c575ddc4a61c4119ed8b3970f887f86e4b9e4478f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T7": {
+    "contractHash": "b16079433625073fadc75f3f62b37eec9e4947b6d12c0c0d48117a866800dae8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T8": {
+    "contractHash": "40dda41ff6a3527effddd938923a5bd84b0c8640ad5d8671ed9c82675ce08e3e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T9": {
+    "contractHash": "ffe6f19a655c1a454aea00271de2287ea699b7095a0f8bdd19dfa9a1e8654ebd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T1": {
+    "contractHash": "49d052ca6556a7f7e40a6cc4cbc65760ff67a1995c7d4b881b5f4030368ed63c",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T2": {
+    "contractHash": "16d03bde2509d34b5c16d03c01f68adf8b030787684adbb57cecbc12d74cad1d",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T3": {
+    "contractHash": "9da6f3486f9e39a6339ccfeedb91eb88624fb211b51b1f17fb9b0f4398be7c55",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T4": {
+    "contractHash": "25856ecb98d639df6799f0e39bda437b34311d47e3e28b600815c86d0b747eb1",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T1": {
+    "contractHash": "3d0b01b2e63c23af9c1a2ea3d5883b6437fc7a27357f2f9e511b57c9591a1d85",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T2": {
+    "contractHash": "ecfae8e177c23a59db1f8c3ecbac792cb9a7471f47eca897a4266091b139f9d0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T3": {
+    "contractHash": "cb751c05853a32b7f66007610504a901108b92582ab8588017581f33035da282",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T4": {
+    "contractHash": "fee9aefb82515f9644c9411e7dea1ad4564a05483270cb00d7678f293e72b7de",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T5": {
+    "contractHash": "e081d7a43844a8463884683d1a09a3113f498f93d542c5ea4712a4d88c91f8bd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T6": {
+    "contractHash": "8e98f08017f2a699dd7fe4be7df6709606612cd23262076b7d0dfde4eec13036",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T1": {
+    "contractHash": "7dab5590747e6066e8ef357e49cdd121feba5bccb118dfd908f4ce8c4e53ce3b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T2": {
+    "contractHash": "a117a6b5f9d9b5eb88d58a0150e7f7ebe7381347393df4b809f651abce4c3b06",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T3": {
+    "contractHash": "bfb848afb8ff3ceb14fccbb5e16d4693802545c85a16e8dd0acdcfee01390f2f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T4": {
+    "contractHash": "036c36ba7fbd6b47c160c48490987dc60a6a706ccb7ccf20b272bea88cc8946b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T5": {
+    "contractHash": "3dcdd442f489866e3671422f4c9c5c71d2953ff5ab1616083b411fb445ed65ba",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T6": {
+    "contractHash": "d3b5fda84e7584c184d3755ee8b2d6ac499072db816845d2dcdef58e2db415da",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T7": {
+    "contractHash": "b6767911d3f0b1373e99e5b2125b0d7367ed0cb4ea245c8d1eaa68b96dda9162",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T1": {
+    "contractHash": "8a8ad204fd3b53ce476dbf3df17aba91acdb325419da38a8779d6416902640f8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T10": {
+    "contractHash": "bfe6b288fa66de1120520e7f9d2028f0ea0064dab40f1096c4d1e1e197112125",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T11": {
+    "contractHash": "ef905471d8b9acdab8b73163f7d51b974af7015b4bae4207af48de41fcc1aa1c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T12": {
+    "contractHash": "b17d77792ce3233170b57b4955a44dccdb2093e1f44c9df73d587fd4f6acc4d0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T13": {
+    "contractHash": "b3b2ac588b5ffe01031b65d104aa3c223beb3946fd6668710812f3fd13b5c127",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T14": {
+    "contractHash": "1892c129c1040bfe85276e5ae08841379284b64bfbcd0f19cae0b07f9cd62bd4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T2": {
+    "contractHash": "4fff86c4148d836bf4011e1361d7ffc889caa9ac690c2a9666459b0425f3a1a9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T3": {
+    "contractHash": "1f20594e4901a7ca4810d8a47413c0a8f3c487779c42cf31823291161e9951a0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T4": {
+    "contractHash": "174c7d413adfa9d1f9dcf9f0f966d5aae58bf62ded198b54e7d388180f12893a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T5": {
+    "contractHash": "305a2cc71dd5e7c80e602a642dbf885912766fcb59fe74b94e2f730282fcf508",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T6": {
+    "contractHash": "d7b9ae542a8242462f5d6ace80f28b39565302dbb2fb95374a13646c4e2de35d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T7": {
+    "contractHash": "88f95e7702a3a2e3d4d7c3e2525c438441e041d9bf34276aa1dcb8d0d8fb87a2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T8": {
+    "contractHash": "b7f71c3476798123636f1a6c146b1074fb1a4781da06030f8ec7f5915566d8bb",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T9": {
+    "contractHash": "4dcc20e9e69ee6782ddd244f4268eb9c872c3f7685a6cc7da232210efdeb4831",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T1": {
+    "contractHash": "64c688d76035bbda618489c70d0a41317a1de1374ce1c5857376b0595478e104",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T2": {
+    "contractHash": "565398877ade87ef0423b3c81b9084252bdca24bee703dbe58ca1dcb48004b6f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T3": {
+    "contractHash": "3c6014f416ef6d9372d714a6c4dae1f65d235ffcf9fe2886f3bd0d0c5576112e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T4": {
+    "contractHash": "e361a4c07410c3310192cf9792a580c619fc6ef4963e02c7c01eb37b34d755d3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T5": {
+    "contractHash": "91c71ff362a4afecb813ddecbb0ffe73bba95953446b83743af8387deb5447b0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T1": {
+    "contractHash": "3dfd9a27996dd105b932479edce6255b17cdb94e5e01beaf839aa756df594d2b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T10": {
+    "contractHash": "9f6c3934936b40203f1cd6ed2e0aa5666d89ba440caa4aa67baf67e82695118f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T2": {
+    "contractHash": "1adb095990bfc77188f28f4a46c41e3ec3ea39f45af64f478fc28fc4789b7431",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T3": {
+    "contractHash": "51301b217bd43452741ff2e24339711c49ac4330eccf37e679f6210aa5b787cd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T4": {
+    "contractHash": "bc12e1565fa893467bb016bc1d0216fa72a0410dd538175baa29b74ac368055c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T5": {
+    "contractHash": "b4518b6080faff4c41c4b347e94401accd2c82ba84091b9c15e213e0016b575f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T6": {
+    "contractHash": "9ed844a0e99fc52e2939f14381884c042dd4eff0f35fb2f1a74d9a1c4e18afe2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T7": {
+    "contractHash": "65ce5636b511c4172ca94636b223a027bb0245dafe8b719a9531f3f160700057",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T8": {
+    "contractHash": "b789eeb860e80a3a37251366af29d4cf001c50693aa8be2640caab3073f3d766",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T9": {
+    "contractHash": "b60915513f03f4c32bbf67e586c55bb518ea3d59457a9db788fc8a9399de4d27",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T1": {
+    "contractHash": "9f7e45e5460d2850dbbb9461bf790a5edc570104cc050ac477a57ee57066c369",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T2": {
+    "contractHash": "c18cfdbdd5cf7b935249a320156d8676dc750d846e4ccaaa36f49f0d622331f7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T3": {
+    "contractHash": "2078662764f15e2c7b4034583f0ea954fb4feebcc719b13cba0a1451feda75df",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T1": {
+    "contractHash": "ebec65b742c3ac8c0e73cf8229fe7f2a7f7ce30296d627e1c1692310a8029c46",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T2": {
+    "contractHash": "8dcdfe6cf255ae7c89746d944741ce6cd5aa7c889f6ce0d6bd66338d971196c6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T3": {
+    "contractHash": "7fe588563427005255997fd68cd876e71a4790be4ee89d12476a3e9175c4f100",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T5": {
+    "contractHash": "2b5dddc69cbc5ecc3b25563e92a1892e1063c1fb563ed7238af619a5ff95997a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T1": {
+    "contractHash": "cdc019322b81a7808ea7ef735f2623b9c76361abb617dcefa978b1a30cd63744",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T14": {
+    "contractHash": "b77bac7320c1917cd8a6f4802f12cd89954f0d10857ce098418dcf18f261cb85",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T15": {
+    "contractHash": "b7843313be772e327d42c1e9510c1cc1526fcc6b313f472fa3061e2e764ae65c",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T2": {
+    "contractHash": "d8c19381f374a3b1ca51bd075a600166207bdcbf73d446b82abb94a89c4bfee2",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T3": {
+    "contractHash": "2e62425716e36ce50be562c93383e1fc1b24177d50c6e86a5a2bc31cc2703edf",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T4": {
+    "contractHash": "1131b2e6866c2eb3448683f6a1707a928e892f094b5280c54a7f9d37f78b3d71",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T5": {
+    "contractHash": "80c1f48da2ee062f57e3608287fa59b858ed363c2cfbd11fed0c2d58ca48e150",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T6": {
+    "contractHash": "33bef4ad95b411a46fbb62452dea80afe77c1d89fd43acb099c202b9a07a3309",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "M7-T4-rework-scope-and-tx-owner-20260916",
+        "sourceVersion": "b001883a6b15a5a0a7eca45a7044db9c4da5d8f3eac86d299a19f7bfc2963181"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}

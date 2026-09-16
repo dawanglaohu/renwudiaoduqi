@@ -342,7 +342,9 @@
         "packages/daemon/src/domain/review-verdict.ts"
       ],
       "M7-T4": [
-        "packages/daemon/src/service/rework.ts"
+        "packages/daemon/src/service/rework.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/boot/container.ts"
       ],
       "M8-T1": [
         "packages/daemon/src/domain/concurrency.ts"
@@ -488,7 +490,8 @@
       ],
       "M7-T5": [
         "packages/daemon/src/service/rework.ts",
-        "packages/daemon/src/domain/rework-prompt.ts"
+        "packages/daemon/src/domain/rework-prompt.ts",
+        "packages/daemon/src/repo/runs.ts"
       ],
       "M7-T6": [
         "packages/daemon/src/domain/wrapup-report.ts"
