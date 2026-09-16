@@ -809,14 +809,18 @@
     "verdict": "pass"
   },
   "M7-T4": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "d2cddd8872515bb27a363f82e9301a0c5f19b2a76c00f9a68e5ac2294664b80e",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "384a691ccbe3cfab9599935082538cb406bd61de6b6b762c3e1e9194d8124788",
     "evidence": [
-      "改动：验收新增 4)（只负责活会话回灌分支，其余交 M7-T5，不做先试后降级），预估不变 1d；依赖不变",
-      "对应 E-279 入口侧、E-55、E-59；决策 60 三分支中的第一分支归本任务",
-      "接缝：与 M7-T5 的交接载荷 {reviewRunId, targetRunId, reworkText, source} 在两行验收里同名"
+      "复核范围：验收 1)～4)、边界 E-279／E-55／E-59／E-68、前置 M7-T3 与 M6-T6、有效路径，逐条与源文档比对（09 节状态机 502/503/507/508/510 行、08 节事务边界、13 节边界表、06 节错误体系与环境变量禁令）",
+      "验收 1)「回灌原会话 + 重试计数 +1，上限默认 2 超限转待人确认」前提可成立：补丁给 M7-T4 补 packages/daemon/src/repo/runs.ts（RunsRepo 原有 updateState 只写 state／queued_reason／ended_at，没有任何写 rework_count 的方法，原有效范围只有 service/rework.ts 时该验收无法落地）",
+      "验收 1) 的闭环前提可成立：补 packages/daemon/src/boot/container.ts 注册 createReworkService，与 M6-T6 建 service/message.ts 同时挂 boot/container.ts 的先例一致；未注册则 rework 循环无人构造，验收 1) 不可达",
+      "边界 E-59／E-55 与 09 节 510 行对齐：awaiting_human → reworking 是人打回附意见的合法迁移、不带上限条件，E-55 的上限只挂在 reviewing → reworking（09 节 502/503 行与 domain/run-state-machine.ts:215 的 canTransition 同义）；M8-T8 的「计数照加不受 E-55 拦截」据此成立",
+      "修正源条款：08 节原写「reviewService.finalizeReviewRun() 事务内写被审运行迁移、（新开分支时）INSERT 返工运行」且「reworkService 不自己开事务」，与 M7-T4／M7-T5 验收「三分支都 rework_count + 1」矛盾且会让调用方与 dispatchRework 重复计数；补丁把返工写入事务的唯一归属写成 reworkService.dispatchRework()，并写死调用方（finalizeReviewRun 与人工打回路径）只写 review_verdict／rework_text 与闸门裁定、不得重复写 rework_count、不得把 dispatchRework 包进自己的事务",
+      "路径冲突已核：M7-T4 与同批 M7-T6／M8-T4／M9-T7 无交集；新增 container.ts 与 M8-T3／M9-T19～T22 之外的批次无同批争用；M7-T5 补 repo/runs.ts 是为其验收 4) 三分支计数与 INSERT 返工运行",
+      "本轮结论：契约复核 pass（补丁后契约自洽、可实施）；代码缺陷另见 PR 94 的 REWORK 条目 R1／R2，与本项通过不冲突"
     ],
-    "reviewed": "2026-09-10T20:08:47.128612+00:00",
+    "reviewed": "2026-09-16T05:53:25.563233+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

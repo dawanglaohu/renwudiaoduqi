@@ -318,6 +318,11 @@
         17
       ]
     },
+    "M7-T4": {
+      "supportPaths": [
+        "packages/daemon/test/unit/rework.test.ts"
+      ]
+    },
     "M7-T5": {
       "provides": [
         "rework-dispatch"

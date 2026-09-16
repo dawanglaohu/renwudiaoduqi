@@ -40,6 +40,7 @@ import { type LandingService, createLandingService } from '../service/landing.ts
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RetentionService, createRetentionService } from '../service/retention.ts';
+import { type ReworkService, createReworkService } from '../service/rework.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
 import { type SettingsService, createSettingsService } from '../service/settings.ts';
@@ -86,6 +87,7 @@ export interface ContainerServices {
 	readonly message: MessageService;
 	readonly retention: RetentionService;
 	readonly dispatch: DispatchService;
+	readonly rework: ReworkService;
 	readonly settings: SettingsService;
 	readonly gates: GateService;
 }
@@ -149,6 +151,7 @@ export function createContainer(input: {
 	readonly settingsService?: SettingsService;
 	readonly gateService?: GateService;
 	readonly dispatchService?: DispatchService;
+	readonly reworkService?: ReworkService;
 	readonly schedulerTickJob?: ContainerJob;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
@@ -311,6 +314,20 @@ export function createContainer(input: {
 			unitOfWork,
 		});
 
+	const reworkService =
+		input.reworkService ??
+		createReworkService({
+			runsRepo: runs,
+			snapshotsRepo: dispatchSnapshots,
+			processRegistry,
+			messageService,
+			unitOfWork,
+			bus,
+			envelopeFactory,
+			clock: input.clock,
+			ids,
+		});
+
 	const runLogService =
 		input.runLogService ??
 		createRunLogService({
@@ -418,6 +435,7 @@ export function createContainer(input: {
 		landing: landingService,
 		message: messageService,
 		dispatch: dispatchService,
+		rework: reworkService,
 		settings: settingsService,
 		gates: gateService,
 	});

@@ -115,6 +115,14 @@ export interface RunsRepo {
 		readonly exitCode?: number | null;
 		readonly exitSignal?: string | null;
 		readonly actorDeviceId?: string | null;
+		readonly reworkCount?: number;
+	}) => void;
+	readonly updateReworkCount: (input: {
+		readonly id: string;
+		readonly reworkCount: number;
+		readonly state?: string;
+		readonly reviewVerdict?: string | null;
+		readonly reworkText?: string | null;
 	}) => void;
 }
 
@@ -215,7 +223,15 @@ const UPDATE_RUN_STATE_SQL = `
 UPDATE runs
 SET state = @state,
     queued_reason = @queued_reason,
-    ended_at = @ended_at
+    ended_at = @ended_at,
+    rework_count = CASE WHEN @rework_count IS NOT NULL THEN @rework_count ELSE rework_count END
+WHERE id = @id
+`;
+
+const UPDATE_REWORK_COUNT_SQL = `
+UPDATE runs
+SET rework_count = @rework_count,
+    state = CASE WHEN @state IS NOT NULL THEN @state ELSE state END
 WHERE id = @id
 `;
 
@@ -346,6 +362,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const selectAllStmt = db.prepare(SELECT_ALL_RUNS_SQL);
 	const selectSucceededModelNamesStmt = db.prepare(SELECT_SUCCEEDED_MODEL_NAMES_SQL);
 	const updateStateStmt = db.prepare(UPDATE_RUN_STATE_SQL);
+	const updateReworkCountStmt = db.prepare(UPDATE_REWORK_COUNT_SQL);
 	const selectUnarchivedStmt = hasSessionArchivedAt
 		? db.prepare(SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL)
 		: null;
@@ -544,8 +561,13 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 			readonly id: string;
 			readonly state?: string;
 			readonly toState?: string;
+			readonly fromState?: string;
 			readonly queuedReason?: string | null;
 			readonly endedAt?: string | null;
+			readonly exitCode?: number | null;
+			readonly exitSignal?: string | null;
+			readonly actorDeviceId?: string | null;
+			readonly reworkCount?: number;
 		}): void {
 			try {
 				const state = input.state ?? input.toState;
@@ -554,9 +576,28 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 					state,
 					queued_reason: input.queuedReason ?? null,
 					ended_at: input.endedAt ?? null,
+					rework_count: input.reworkCount ?? null,
 				});
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update run state: ${input.id}`);
+			}
+		},
+
+		updateReworkCount(input: {
+			readonly id: string;
+			readonly reworkCount: number;
+			readonly state?: string;
+			readonly reviewVerdict?: string | null;
+			readonly reworkText?: string | null;
+		}): void {
+			try {
+				updateReworkCountStmt.run({
+					id: input.id,
+					rework_count: input.reworkCount,
+					state: input.state ?? null,
+				});
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update run rework count: ${input.id}`);
 			}
 		},
 	});
