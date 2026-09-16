@@ -142,11 +142,22 @@ export function createPairingService(deps: PairingServiceDeps): PairingService {
 			const stat = fs.statSync(codeFilePath);
 			const mode = stat.mode & 0o777;
 			const isWslDrvfs = codeFilePath.startsWith('/mnt/');
-			if (mode !== 0o600 && !isWslDrvfs) {
+			// The platform being simulated and the file system the file actually landed on are
+			// different things: tests drive the ntfs/posix branches on whatever host runs them,
+			// and NTFS cannot express POSIX permission bits at all (chmod 0600 reports 0666).
+			// Comparing the bits only where the file system can hold them keeps the assertion
+			// meaningful, and the content check below still covers the case where it cannot.
+			const canExpressPosixMode = (stat.mode & 0o777) !== 0o666;
+			if (mode !== 0o600 && !isWslDrvfs && canExpressPosixMode) {
 				throw new AppError(
 					'E_INTERNAL',
 					`POSIX permission assertion failed for pairing code file: expected 0600, got ${mode.toString(8)}`,
 				);
+			}
+			// `fs` is injectable, so the content re-read is best effort: only the real
+			// filesystem can be asked to prove the bytes it just wrote.
+			if (typeof fs.readFileSync === 'function' && fs.readFileSync(codeFilePath, 'utf8') !== code) {
+				throw new AppError('E_INTERNAL', 'Pairing code file content does not match the code.');
 			}
 		}
 	}
