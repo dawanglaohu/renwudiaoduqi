@@ -1,1 +1,925 @@
-{}
+{
+  "M1-T1": {
+    "contractHash": "28f1e05ffe480414a662cfa2413b8e87851c465bddea5e21c3625704a95f395a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T10": {
+    "contractHash": "eb7448f18f6a2fbd536c66c0d259708044ddd5f6447fd904c2a332e0036871a0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T2": {
+    "contractHash": "f9fa96a71eabb193886b9545cf3ef66294b35c4011a0bfb58522026f6b6f9efe",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T3": {
+    "contractHash": "8ea0930bf7389ea673d06203f5dabe9cc84e2bdd2cd064ce3a06a88aa6332e00",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T4": {
+    "contractHash": "88ac7647d710e96fbfefac21eadbe7d47392c8a1a3e6472d8491e4cdb8c2e66c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T5": {
+    "contractHash": "b23ef0a387ce0966db7269949e5b98056c58b0c82cf3c58942bbb397d8e5d938",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T6": {
+    "contractHash": "7703fe38552ae6b4bb541253c441038fc66810e6edb1f7906756f080f79972dd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T7": {
+    "contractHash": "6934b7ae9ddaeb52e726bc98e5657c5bd9f51604ea08eeca4a51739a4b605cb8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T8": {
+    "contractHash": "c5a1a7dff7197f3891c45e02d97540894817555389bf6ce8c99df6b6c37bf3b2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T9": {
+    "contractHash": "0d8596240433191b5eb4199d236e0bd7f1f759eb083a8fb3dcb9a0fa84a90d90",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T1": {
+    "contractHash": "386e64d2819d586f1110879e5761a607fdbc1a2d29010d2cc62ef2b5c1495324",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T2": {
+    "contractHash": "400def0b8e474a08efff011406eec2252dde40a2b4a1f42afd018d1a4595edf0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T3": {
+    "contractHash": "86806e5f9fcf18c95a0ef2169466959491a5c46776ded42969a157cd0b8e5e36",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T4": {
+    "contractHash": "feeb6a1010f39e14c95ee3a32ffeab01cab3cb3771d8a169561b38972d7c5455",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T1": {
+    "contractHash": "cec15b441c62c46a0472e8b1bb34ec5c1769d6d8ddf27b8c678a0972d46432e7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T2": {
+    "contractHash": "cfa544771739ef7e66d011f865b69b3af395d426100407ec9586b1f59fea6cb7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T3": {
+    "contractHash": "4eb11480dfe70c81a41d97d4d86966926622ee393b98dc9804c4d32fa99b5236",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T4": {
+    "contractHash": "02e6a9d4b80f8a266262adca667530b3ddd93a0962911a4467ef4161e7654cfd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T5": {
+    "contractHash": "b15f8d3df4f0fae067ee82060c327c7d35918a1a43489eecf4a78de958d4508e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T6": {
+    "contractHash": "9e5b22611c96dbb0b7dbf80756e3bf850d78e4c76042efc198615935144890f0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T1": {
+    "contractHash": "c2d4f1b90a6499e94eb9b30a4820b298c5452a9126e0593750f0f38c4d19a4bd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T2": {
+    "contractHash": "3b852c9cdbbb9156c672bf4cff7db7eb98a633e42b31cca629d548a5ffabe22b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T3": {
+    "contractHash": "9fbd54a0a8d8964a471f26362a4072d0ea40b3aabc1a188662a5e8149b5b27bb",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T4": {
+    "contractHash": "1dffa3e0b124bab312e5411b709198178db86c13632119d161311250d9f834c0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T5": {
+    "contractHash": "626017cd60f8bb7f93fcbd58aa2b46572a7928dcedbc5c7eb0b0c598a71cf0e5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T6": {
+    "contractHash": "b69a044d27dcbfb1e49aa5de2b9cd89c3f968acf809304735b4a388e12ed2c04",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T7": {
+    "contractHash": "e712888fcf40e33c6617f02d172d268521f0f1034935f44c09bb172d808e60d3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T1": {
+    "contractHash": "7c801215215d99d4b3ece1bc74d599f732dad10280f7861b0d29bfdbc13a07f1",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T10": {
+    "contractHash": "bc27c8c406130027fdd3757d098f52b310e2521aa748b7885dc09878480ef35d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T11": {
+    "contractHash": "837bd9c9c460086b3280813aa5def5496cd062d2dc69ae31c443aa39817f110b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T12": {
+    "contractHash": "4a0044135483abc26cf564add776be50b79103b1e6759b9ddf53a2fb994259c8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T13": {
+    "contractHash": "e681510d46749e64e551d991e585873651fcc821a89b69f400c962a4a1413e78",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T14": {
+    "contractHash": "94807defb0cc42fb7172af34ab05d34751a4e4264cbc2a1295905c8f12488ad9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T2": {
+    "contractHash": "c31d5f38f86295bc51ea6bc6370bf6deaf98b6e2efa1256e5c3301a2a4f00d71",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T3": {
+    "contractHash": "d243f21d196b962eecb00296587c5d1dfb5f1d79b105d08bc52480186b0efff0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T4": {
+    "contractHash": "673d71dd2fa17da857d156a5320f16705d0a1b58474728f50be7a698b73d2798",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T5": {
+    "contractHash": "bcaefe0ae69e71500149df61859659bd4cb061a0683b7b149587cea96f395103",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T6": {
+    "contractHash": "8b2b0883949f84e3ce58e58dde3199bda23ccaceb89524070d0c57b500ca154b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T7": {
+    "contractHash": "f38aae4f116da8c430b0c3998d949aaa2aca6e3b5c4937a45d3d92851a5214f3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T8": {
+    "contractHash": "61653960b2826f6d7de18bd5a785fecf9af2bc23b99412f6b3d8746471823f8e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T9": {
+    "contractHash": "9870a57c707400e20daec549f25a428670e63e66a07ab9b19bdcb11479411124",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T1": {
+    "contractHash": "123fe32f914a1bfd72f86a1c230e143a9aecd40dc81789353d6cae0b7c34f99b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T2": {
+    "contractHash": "82b7fab5b6991afd972e59854fb7faf74a689515ec8ed406e12534214b535566",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T3": {
+    "contractHash": "4d4b0861b6394caa47b14219213016653369573e2e347b58605d0e52bf5da50d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T4": {
+    "contractHash": "01611cd2ad91cc7fd57954295282fb470d4982061f6fea619e28592ccc68962f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T5": {
+    "contractHash": "1854dcc6985e84a57eebac51b5a59177f6a589d37449f9d7f94c60aa060c3f3b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T1": {
+    "contractHash": "3bebc8a91e50b326ee256b36b0ff83699ab02641ef95923fe19a226c09d0492a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T10": {
+    "contractHash": "b1f6f26f51842e46c261e652fa513edf57c353dc4a034e2ce80b93a9cb18c107",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T2": {
+    "contractHash": "a09454c949cda11b196d1f85dddbffb66f40616876c144c86cab24a305421d68",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T3": {
+    "contractHash": "71e951077c7efd09739305389767ba956001e9fec5a7ac03761ae84a5c560f3e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T4": {
+    "contractHash": "dd601dd66465bf0ae2cf5835f0f52d0933977087dee208917115dfe5483b984e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T5": {
+    "contractHash": "e8ad5565963b57f26465697db2f2ee1d0fe392398619b8cd7ee1f9292ac52152",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T6": {
+    "contractHash": "b93d25718481a15291cf0e4cdbace6513705d92db32bbef141db8db86b905183",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T7": {
+    "contractHash": "b9484167a88f290c778eb475b7b70d046112310c67ceaac52a739501fad6adb1",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T8": {
+    "contractHash": "6301916592e1b40d2e4ad1c6b9eb1480df9ac40127c02d33d33726a2e3252f30",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T9": {
+    "contractHash": "ebbd8ed0c6c97c0e1b8a477ff5c1ccb38efbbb2b667a9102bc3c94a7fbcddf3e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T1": {
+    "contractHash": "aabbdc3fd6cc783784d5aab3f83e4fa83f8c05d1499196af4970254d9a1178de",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T2": {
+    "contractHash": "b50d4bcaaa89cb6d65df370e1d3c05d7e4403a9fe35521fac0c22e631e2990da",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T3": {
+    "contractHash": "d78a594193f47b63d4c9802c0460d16466ecdfc7104560164a09b11d15c1c953",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T1": {
+    "contractHash": "62100251a0582bb14fb822a0410f4858e48020f53654c937b19cf9f069665828",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T2": {
+    "contractHash": "dc20fafb6f351276e805c41f801d60297a82eb145e8e6c6fed8ce11d1aa3c3ae",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T3": {
+    "contractHash": "d267b42c5ddfad8e7459e636e7d259ff22f134106ffbced6533a4d81023e0b58",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T5": {
+    "contractHash": "5519411dddfead3c2696580986e0339c3976a3e831f763e1d4250c34f2c9f7d7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md,02-设计/08-后端架构.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T1": {
+    "contractHash": "72931b1da32b00a3c931ade4a5b4800c9c27174a21ee4406cc2338badedf7c58",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T14": {
+    "contractHash": "cafa4a14c69e8ba501b4dd71c40661cf38b60526bbdc3c9df19b179044a2b19f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T15": {
+    "contractHash": "c2d4cfc251ecf06d466f4cb045f766b17f171ef98912dfb5fd05991e88de6447",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T2": {
+    "contractHash": "efd713c0291f38cc5d09b7fdae8a1169d5d50884b4cf157d3885c163b242fecd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T3": {
+    "contractHash": "8c6d6feacda3d260040547f47b5dd3c6b607ac9cd4dc3bbc07c62054ffca3517",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T4": {
+    "contractHash": "117294a4489c4dacdcc7c4a467085b40c349c376aa7a0de922ee8a7e89e17a81",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T5": {
+    "contractHash": "5befbf83aff09a077cedd39527f4c861b26d543b9b7a92a5cc9e724ce9a4aeab",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T6": {
+    "contractHash": "6acf95c7c5b09e7124cda18febdcd7345a02897c8d526f160cb8b4137c793da9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/06-系统架构与模块划分.md"
+        ],
+        "patch": "m10-t5-tilde-expansion-scope",
+        "sourceVersion": "07df27185b478055329862aab9b286c139e5f798672b712f0eddb4e65efc5f31"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}
