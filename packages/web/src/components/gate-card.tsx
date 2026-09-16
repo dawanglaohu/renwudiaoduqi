@@ -67,7 +67,7 @@ export interface GateCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'tit
 	readonly what?: ReactNode;
 
 	// ── 第 2 段：影响什么 ──
-	/** 吓人的指标数值（26px 等宽，--needs 或 --down） */
+	/** 吓人的指标数值（26px 等宽，--needs 或 --down）；未提供时显示「—」 */
 	readonly impactValue?: string | number;
 	/** 指标数值单位（如 "个文件", "token", "项改动"） */
 	readonly impactUnit?: string;
@@ -206,6 +206,9 @@ function resolveWhatText(
 
 /**
  * 默认推导「影响什么」描述与指标。
+ *
+ * 指标数值只来自 daemon 下发的字段；调用方未提供时显示「—」，不用前端常量补齐（07 节：缺失就显示「—」）。
+ * 不可逆标记按闸门性质给出保守默认：分支落地合入主干不可撤销，其余闸门按调用方传入值。
  */
 function resolveImpactDefaults(
 	gateKind: 'dispatch' | 'review' | 'landing',
@@ -231,29 +234,25 @@ function resolveImpactDefaults(
 	switch (gateKind) {
 		case 'dispatch':
 			return {
-				value: 1,
-				unit: '个运行会话',
+				value: '—',
 				description: impactDescription ?? '将在本泳道创建进程并启动 Agent 自主实施',
 				irreversible: false,
 			};
 		case 'review':
 			return {
-				value: 1,
-				unit: '个审查阶段',
+				value: '—',
 				description: impactDescription ?? '确认验收证据并推进至查 bug 或落地环节',
 				irreversible: false,
 			};
 		case 'landing':
 			return {
-				value: 1,
-				unit: '个分支合并',
+				value: '—',
 				description: impactDescription ?? '改动将合入主干并在知识库沉淀记录（不可逆）',
 				irreversible: true,
 			};
 		default:
 			return {
-				value: 1,
-				unit: '项流程',
+				value: '—',
 				description: impactDescription ?? '放行当前受阻的任务流水线',
 				irreversible: Boolean(isIrreversible),
 			};
@@ -707,7 +706,7 @@ export function GateCard(props: GateCardProps) {
 							'rounded-[var(--r-sm,9px)] px-3',
 							isTouchTarget ? 'min-h-[var(--h-btn-lg,44px)]' : 'h-[var(--h-btn,32px)]',
 							'hover:text-[var(--ink-1)] hover:border-[var(--border-strong)] hover:brightness-105 active:scale-[0.98]',
-							'focus-visible:ring-2 focus-visible:ring-[var(--border-strong)] focus-visible:outline-none',
+							'focus-visible:ring-2 focus-visible:ring-[var(--needs)] focus-visible:outline-none',
 							'disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100',
 							'transition-all duration-[var(--dur-fast,120ms)] cursor-pointer select-none',
 						].join(' ')}
@@ -750,7 +749,7 @@ export function GateCard(props: GateCardProps) {
 							'rounded-[var(--r-sm,9px)] px-3',
 							isTouchTarget ? 'min-h-[var(--h-btn-lg,44px)]' : 'h-[var(--h-btn,32px)]',
 							'hover:text-[var(--ink-1)] hover:border-[var(--border-strong)] active:scale-[0.98]',
-							'focus-visible:ring-2 focus-visible:ring-[var(--border-strong)] focus-visible:outline-none',
+							'focus-visible:ring-2 focus-visible:ring-[var(--needs)] focus-visible:outline-none',
 							'disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100',
 							'transition-all duration-[var(--dur-fast,120ms)] cursor-pointer select-none',
 						].join(' ')}
@@ -836,8 +835,9 @@ export function GatePendingBadge(props: GatePendingBadgeProps) {
 			].join(' ')}
 			{...rest}
 		>
+			{/* 静态暖点：呼吸环是全页唯一的连续动画，只出现在运行轨当前步与批次树执行行（11 节） */}
 			<span
-				className="w-1.5 h-1.5 rounded-full bg-[var(--needs)] animate-pulse flex-shrink-0"
+				className="w-1.5 h-1.5 rounded-full bg-[var(--needs)] flex-shrink-0"
 				aria-hidden="true"
 			/>
 			<span>{count}</span>
