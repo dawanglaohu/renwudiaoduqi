@@ -1188,6 +1188,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T7": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "7c84ce2780dec848a2aab112fab4482c3baeb8c41f3ac9e441ce51fe219b2077",
+    "evidence": [
+      "复核范围与前置：M9-T7「运行轨与运行流条目」（任务笔记 图谱/任务/M9-T7.md，图谱/模块/M9.md）。两个前置均已落地——M9-T2「形状枚举与状态徽标」PR #45 MERGED、M9-T6「事件缓冲与按帧渲染」PR #89 MERGED，输入能力（lib/spine-shape.ts 的 12 状态形状字典、api/event-bus.ts 的分帧缓冲）在 main 上存在，本任务确有可用的前置契约。源码版本 3a00614541a7698884311c96b150d780eae3d565c0a006c56f414289b3f0ea6e，stale=[]、runtimeDrift=[]。",
+      "①验收标准逐条与契约一致：AC1「轨贯穿整栏全高含未来虚线段」对应 spine.tsx 的 Spine 组件（segments＋尾部 flex-1 未来虚线，segs 到 failed/stopped 才截断）；AC2 六种轨段形态在 spine.tsx:32-38 的 SpineSegmentKind 枚举与 350-495 的绘制分支各有一处；AC3 网格与高度在 stream-row.tsx:305-306；AC4 标签与默认展开在 stream-row.tsx:216/252-263；AC5 内嵌焦点环在 stream-row.tsx:295；AC6 与 E-110/E-230 在 spine.tsx:20-27 复用 M9-T2 同一张形状枚举。六条验收标准与两条边界 E-110/E-230 均在 19-模块任务拆分.md 的 M9-T7 行原文中未被删改。",
+      "②有效路径修正（补丁 m9-t7-support-paths）：原有效范围只有产出两条 packages/web/src/components/spine.tsx、packages/web/src/components/stream-row.tsx，但分支实际改动还包含本任务必需的支持文件 packages/web/test/spine-row.test.ts（20 条用例，覆盖 AC1-AC6 与 E-110/E-230），且 web 包同类展示层组件（status-badge、sse-client、event-bus）历来把单测登记进 supportPaths。本轮按 M9-T6 先例把该测试文件登记进 task-contracts.json 的 M9-T7.supportPaths（task-contracts.json 此前无 M9-T7 条目，本次新增一项，未改其它任务）。补丁后 contractHash=7c84ce2780dec848a2aab112fab4482c3baeb8c41f3ac9e441ce51fe219b2077（补丁前 2cb81190b326c341c72459f170cc2027831cc343b11816ab039f902147689b3d）。路径冲突检测：packages/web/test/spine-row.test.ts 全仓只被 M9-T7 声明，与 M9-T8/M9-T9/M9-T10/M9-T21 无冲突。",
+      "③接口与共用约定：两条产出均为展示层组件，只 import react 与 src/lib/spine-shape.ts、彼此 import，未 import api/store/features/shell（07 节分层），未出现 fetch(、@radix-ui/、颜色字面量、中文以外的新常量（check-forbidden 规则面）；未定义任何与后端对应的 DTO，未新增 src 顶层目录或 index.ts；未直读 process.env / import.meta.env。故本次契约复核不触发 06/07/08 的任何共用约定改动。",
+      "④检查记录（工作树 D:/xiangmu/agent-scheduler-m9-t7，分支 task/M9-T7@481b614）：pnpm -w check 的 biome ci . 与 tsc -b --noEmit 两步退出码 0；web 定向 vitest run packages/web/test/{spine-row,spine-shape,status-badge}.test.ts → 3 文件 37 用例全过（spine-row 20 条）。同一次 -w check 里 daemon 用例红的是 packages/daemon/test/unit/static-plugin.test.ts（Web distribution directory not found，需先 vite build）与 sse.test.ts（dispatch_snapshots has no column named bug_prompt），在主干检出 D:/xiangmu/renwudiaoduqi 上重跑 static-plugin.test.ts 同样 2 failed，与 M9-T7 改动无关，不构成本层回归。",
+      "⑤结论与去向：契约与本层验收标准、边界、有效路径（含本轮补进的支持文件）一致，登记复核通过。代码侧另查出阻断项（StreamRow 派生 live 轨段时 shape 一旦给出即吞掉心跳环，呼吸环在运行流条目里永不渲染等），已在 PR #92 以 REVIEW-ROUND 1 给出返工条目，不影响本次契约复核结论。"
+    ],
+    "reviewed": "2026-09-16T01:49:45.095517+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T9": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "962ce7ca834d665694ef3a7fee2064b5a5ab908c82d3b795cc09234a0182715d",
