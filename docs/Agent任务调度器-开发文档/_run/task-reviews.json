@@ -825,14 +825,20 @@
     "verdict": "pass"
   },
   "M7-T5": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "bf029e5f56f1eef4552df6942cf84e656f1551cb576fd382050cbe749c6425b7",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "03585a5028cdf40ce8e49bb8b984afb3b77fb9db127d06a93b2e14f1fa950999",
     "evidence": [
-      "19 节 M7-T5 行：依赖 M7-T4（交来的返工载荷）、M8-T5（新建运行路径）、M5-T2（base）；派发快照的 adapterKind 由 M3-T3（M8-T5 闭包内）提供；产出 service/rework.ts + domain/rework-prompt.ts 在 taskPaths；迁移目录与 shared events/runs 在 supportPaths（runs 加 origin/spawned_by_run_id 列由本任务的迁移先落）",
-      "验收 1)～5) 对应 E-279（能力位三选一、自包含提示词）、E-277（worktree 已清理重建于原分支）、E-55（计数继承、达上限直接转人）、E-112、E-59；与 09 节 runs.origin/spawned_by_run_id/rework_count 注释、08 节「finalizeReviewRun 事务前后」一致",
-      "接缝：M7-T4 修改后的验收 4) 明确把非回灌分支交本任务；M8-T7 消费本任务的 assembleReworkPrompt 组修复提示词（requires rework-dispatch）；run.rework_dispatched payload 在 08 节事件清单与 shared events.ts 一致"
+      "前置能力：M7-T4（rework 回灌与重试上限）、M8-T5（重派/换 agent/原样重跑）、M5-T2（base 选择与上游产出校验）均已落地；status 输出 blockers 为空，唯一原因是「任务契约待语义复核」，本轮核对后登记。",
+      "有效路径核对：本层 diff 命中 taskPaths packages/daemon/migrations/、src/domain/rework-prompt.ts、src/repo/runs.ts、src/service/rework.ts、test/unit/rework-dispatch.test.ts、test/unit/rework-prompt.test.ts 与 supportPaths packages/shared/src/api/events.ts、packages/shared/src/api/runs.ts；唯一范围外文件 packages/daemon/test/unit/events.test.ts 是新增事件 kind 的必需支持文件（该文件第 71-131 行是按 EVENT_KINDS 穷尽的 switch + assertNever，不补 case 则 tsc 报错），已按 supportPaths 漏列走定点补丁 M7-T5-review-events-test-20260916 补入配置。",
+      "19 节 M7-T5 行与验收阶段核对：产出仍是 service/rework.ts 的 dispatchRework() 三分支、domain/rework-prompt.ts 的 assembleReworkPrompt()、run.rework_dispatched 事件；1 人天、前置 M7-T4/M8-T5/M5-T2、解锁 M8-T7/M8-T9 与任务笔记头部一致，无新增义务。",
+      "13 节边界核对：E-93（能力位只读被审运行快照 launch_spec_json.adapterKind）、E-112（已结束且 canResume → 恢复后回灌 + 新运行记录）、E-279（都不能 → 新开 origin=rework、attempt_no+1、spawned_by_run_id=审查运行、同 worktree 与分支 + 自包含提示词）、E-277（worktree 目录缺失走 M5-T1 reuse 重建；分支缺失转 awaiting_human 且闸门 comment 写 branch_missing，不开干净 worktree）、E-55（上限 2、三种投递同一计数、超限不进任何分支）、E-59（人工打回附一句话意见走同一入口），条款本身无需改动。",
+      "17 节测试策略核对：E-277/E-279/E-55 那行要求的场景（无 canReply/canResume → 新 run origin=rework/同 worktree/rework_count=1/inject/resume/worktree 重建/旧计数 2 → awaiting_human）在 test/unit/rework-dispatch.test.ts 逐条有对应用例；其中该行写的 run.rework_dispatched{mode:'new_run'} 与 08 节 520 行的事件 payload 枚举一致，而实现与测试当前写的是 'new_session'——属本层代码对已定契约的偏离，已作为本轮 R1 返工条目，不改测试要求迁就实现。",
+      "接口字段核对：RunDto 新增 origin('dispatch'|'rework'|'wrapup-fix')/spawnedByRunId（packages/shared/src/api/runs.ts:196-197），runs 表新增 origin（默认 'dispatch'、NOT NULL）与 spawned_by_run_id（migrations/0005），Row snake_case 与 DTO camelCase 分离、由 toRunDto 映射，符合 06 节共享类型约定；事件 kind run.rework_dispatched 为 <scope>.<过去式> 形状，登记在 EVENT_DEFINITIONS/EVENT_KIND_VALUES/PRODUCT_EVENT_KINDS/EventPayloadMap 四处且带 milestone，符合 08 节事件清单。",
+      "本层实跑证据（D:/xiangmu/agent-scheduler-m7-t5 @ 5d90925）：pnpm -w check 的 check-error-codes/check-contrast/check-forbidden/biome ci/tsc -b --noEmit 全部通过；test/unit/rework-dispatch.test.ts 与 test/unit/rework-prompt.test.ts 全部用例通过（分支一 inject、分支二 resume、分支三 new_session、快照 adapterKind 覆盖运行时能力、内置四句回退、E-277 两条、E-55 两条、E-59 两条）。",
+      "测试红的口径：同一命令在分支与基线 main @ 9ec8bb8 上均为 21 个测试文件 / 88 个用例失败（dispatch_snapshots 缺 bug_prompt 列、缺失 packages/web/dist、平台探测类夹具），数量逐项一致，本层未新增失败；该既有红与本层无关，记入 FOLLOW_UP 交后续任务，不作为本层阻断。",
+      "补丁 M7-T5-review-events-test-20260916 只动 packages/daemon/test/unit/events.test.ts 的 supportPaths 归属与随之生成的 _run 产物；无已落地任务因本补丁被标待复验（revalidation.json 仍为空），受影响的下游 M8-T7/M8-T9/M9-T17/M9-T23 尚未落地，契约哈希随 M7-T5 变更重新生成。"
     ],
-    "reviewed": "2026-09-10T20:07:57.850918+00:00",
+    "reviewed": "2026-09-16T07:40:18.195060+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1026,19 +1032,20 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
-  "M9-T11": {
+  "M9-T10": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69",
+    "contractHash": "4aed937cf6a10df2f2c9ad9094dc90ec75c6c555829996dfb2da6744e8560ad2",
     "evidence": [
-      "①补丁范围与依据：原有效范围只有 packages/web/src/components/offline-banner.tsx、packages/web/src/store/connection-store.ts（presentation.json handoff.taskPaths）。按 07 节已定约定，本层既定产出必需的三个落点放不进原范围：07:72「features 是唯一允许 import src/api、订阅 store、订阅 event-bus 的一层」→ 一帧内写 local-intent（07:86-88）与「SSE 状态/事件 → connection-store」的接线只能在 features 层；07:249 connection-store 只有 status/lastSyncedAt/lastEventId/needsPairing 四个字段、07:298 禁止在 store 里存派生值、07:300 禁止一份数据两处缓存 → 乐观停止的 zustand 镜像与 canDispatch 派生值必须移出 store；07:252 横幅列表归 notice slice。补丁只新增路径，不改任何验收标准与边界。",
-      "②新增有效路径（taskPaths）：packages/web/src/store/notice-store.ts（回滚横幅，07:252）、packages/web/src/features/run-deck/use-stop-intent.ts（一帧内置态 + 失败清 intent + 横幅回滚，07:86-89、07:243）、packages/web/src/features/run-deck/use-connection-state.ts（订阅 sse-client 状态与事件，写 connection-store 四个 setter；401 → setNeedsPairing 按 07:390，重连 → 触发一次补拉按 07:276）。",
-      "③补登支持路径（supportPaths）：packages/web/package.json 与 pnpm-lock.yaml（新增 zustand 依赖，按 M9-T1/M9-T8 先例）、packages/web/test/connection-store.test.ts、packages/web/test/offline-banner.test.ts（本层已交付的 27 条用例）、packages/web/test/notice-store.test.ts、packages/web/test/use-stop-intent.test.ts、packages/web/test/use-connection-state.test.ts（返工需补的用例）。",
-      "④路径冲突核查：features/run-deck/ 目录被 M9-T12（thumb-bar.tsx + features/run-deck/）声明，新增文件名 use-stop-intent.ts / use-connection-state.ts 与其布局文件不重合，同名文件零冲突；packages/web/src/api/event-bus.ts 归 M9-T19（本补丁不动它，连接接线改走 features 层）；store/notice-store.ts 全仓无人声明（M9-T21 声明的是 selection-store.ts / ui-prefs-store.ts）；packages/web/package.json + pnpm-lock.yaml 与 M9-T23 共享，按共享清单叠加处理。",
-      "⑤未受影响部分：19 节 M9-T11 行 4 条验收标准与 E-04/E-12/E-14/E-157 四条边界原文未改（只在交付物列补齐落点），依赖 M9-T9/M9-T5 未变，其他任务契约哈希未变。contractHash bf4cc9870cbe68196f7ec5d4c6503d85070192f0fe5e3fe9cc0e88ea2f4e6cd8 → dbf9254c1f5b69ac30f6f99aa2cbe4b950c06a2a031055cbf6701368a13e8d69。",
-      "⑥本轮检查（工作树 D:/xiangmu/agent-scheduler-m9-t11，分支 task/M9-T11 @ 5aff44c）：biome ci . 0 违反（418 文件）、tsc -b --noEmit 退出码 0、check-error-codes.mjs / check-contrast.ts / check-forbidden.ts 退出码 0、web 定向 vitest run packages/web 18 文件 262 用例全过（含本层新增 connection-store.test.ts 15 条、offline-banner.test.ts 12 条）；全量 vitest run 的 18 个红文件全部在 daemon 侧（dispatch_snapshots has no column named bug_prompt / routing fixtures），与本层零 daemon 改动无关，与 M9-T7/M9-T9 审查记录中的既有红一致。",
-      "⑦结论：契约与有效范围已按 07 节修正并同步（sync 输出「已同步，待真实复核：M9-T11」），代码侧另给 rework 条目（见 PR REVIEW-ROUND 1），本补丁不降低任何验收要求。"
+      "复核范围与前置：M9-T10「审批卡与闸门交互」（任务笔记 图谱/任务/M9-T10.md、模块 图谱/模块/M9.md、19-模块任务拆分.md 第 91 行）。两个前置均已落地：M9-T7「运行轨与运行流条目」status=done（PR #92），M8-T4「三个闸门与预设组合」status=done，输入侧 packages/shared/src/api/gates.ts 的 GateDto（kind: 'dispatch'|'review'|'landing'、state、decision、comment）与 packages/daemon/src/domain/gates.ts 在主干上存在，本任务确有可用前置契约。基线 sourceVersion=a9596618ebdb293ebfcf6d037bcd570ee0d856476fe0537b2f01529cffba1b5a，status 报 stale=[]、runtimeDrift=[]。",
+      "①验收标准逐条与契约一致（5 条均在 19 节 M9-T10 行原文中未被删改，逐条指到代码）：1) 就地内联、无模态 —— packages/web/src/components/gate-card.tsx:267 的 GateCard 返回普通 <section>，根节点 :389 带 data-component=\"gate-card\" 与 data-resident-card=\"true\"，整个文件的 import 只有 :16 的 shared GateDto 类型、react（:17-25）与 :26 的 hooks/use-breakpoint 类型；全文无 dialog 组件 import、无 createPortal、无 role=\"dialog\"、无 fixed inset-0（check-forbidden 与 test/gate-card.test.ts:42-46 双向断言）。2) 四段固定顺序 + 「改一下」不可省 —— DOM 次序 what(:408) → impact(:440) → why(:505) → actions(:674) → 底部策略(:766)，test/gate-card.test.ts:68-89 按 indexOf 断言该次序；第 3 段内含可点回溯链接 data-action=\"goto-step\"（:521-562，有 stepHref 时为 <a>，否则为 <button> 走 onStepClick）；三个固定动作 [批准并继续]/[批准派发](:678)、[改一下](:700，editLabel 默认「改一下」:295)、[拒绝](:721) 常驻，唯一例外是零产出退出手机档按 E-359 不渲染第二个按钮。3) 底部策略 —— :303 默认 timeoutPolicyText='无人应答不会自动批准，任务保持等待'，渲染在 :766-775 的 footer，test/gate-card.test.ts:240-251 逐字断言。4) 全局单一未处理计数徽标 —— gate-card.tsx:798 导出 GatePendingBadge（:801-803 count<=0 渲染 null，:809 data-pending-badge，:825 aria-label「有 N 项待处理审批」，矩形 6px 非药丸），全仓 grep「未处理/待处理/pending-badge」确认这是唯一一处全局未处理计数徽标（run-deck-view.tsx:256/333 的「N 条待处理」是 M9-T9 的 E-167 视口边缘滚入标记，按泳道计数并带「条」字，不是全局审批计数）。5) 手机派发闸门文案 —— resolveApproveActionLabel（:153-180）在 isMobileView && isDispatchGate 时无条件返回「批准派发」，且显式把外部误传的「同意」清洗掉；调用点 :337-342，isPhoneView 由 isMobile 或 tier ∈ {phone, phone-xs} 得出（:331），test/gate-card.test.ts:294-346 覆盖三档与「同意」清洗。",
+      "②边界逐条：E-109（半自动命中审批点）—— 卡片是泳道内联 section，无 portal/无全局浮层，其余流不受阻（同 ①-1 的代码位置；test:23-47）；全局提示只由 GatePendingBadge 一个组件承担（:798）。E-182（审批文案含糊）—— 手机 + 派发前闸门文案恒为「批准派发」，绝不出现「同意」（:153-180、:337-342，test:294-346 含 approveLabel=\"同意\" 的负例）。",
+      "③接口字段与共用约定：本层是纯展示层，类型只从 @agent-scheduler/shared/api/gates 取（GateDto），未定义任何与后端对应的 DTO，未新增 src 顶层目录与 index.ts；未 import src/api、src/store、src/features、src/shell，未出现 fetch(，未出现 @radix-ui/，未直读 process.env / import.meta.env / AGSCHED_，无未登记 E_ 字面量，无颜色字面量（全部走 tokens.css 变量，check-forbidden 0 违反）；组件内 useState 只有两处纯 UI 展开态（:314/:320），无 useEffect、无取数。props 形状 what/evidence/stepId/impactValue 等由调用方（M9-T20 的 use-gate-card.ts）下传，本层不推断 daemon 未给的业务结论。",
+      "④有效路径修正（补丁 m9-t10-support-paths）：原有效范围只有产出 packages/web/src/components/gate-card.tsx（19 节 M9-T10 行与 presentation.json 的 handoff.taskPaths 一致），而分支实际改动还包含本任务必需的支持文件 packages/web/test/gate-card.test.ts（24 条用例，覆盖 5 条验收标准与两条边界）。按 M9-T6/M9-T7/M9-T9 先例把该文件登记进 _run/task-contracts.json 的 M9-T10.supportPaths（此前无 M9-T10 条目，本次只新增一项，未改其它任务）。补丁前 contractHash=825e191244140d0a805cedeefd246f078276d7e4b6a55c6e77844ed43946b841，补丁后=4aed937cf6a10df2f2c9ad9094dc90ec75c6c555829996dfb2da6744e8560ad2。路径冲突检测：packages/web/test/gate-card.test.ts 全仓只被本任务声明；下游 M9-T20 与 M9-T23 声明的是 packages/web/test/gate-card.test.tsx（另一文件），M9-T21 声明的是 stream-column.test.tsx，均不冲突。sync 因契约哈希向依赖者传播把 M9-T20/T21/T22/T23 列为待复核条目，但 revalidation.json 仍为 {}（这些任务未落地，不产生复验负担），已落地的任务无一受影响。",
+      "⑤检查记录（工作树 D:/xiangmu/agent-scheduler-m9-t10，分支 task/M9-T10@47c50af + 本轮改动）：biome ci 对两个改动文件退出码 0；tsc -b --noEmit 退出码 0；node scripts/check-error-codes.mjs（49 个错误码一致）、packages/web/scripts/check-contrast.ts（深浅两套全过）、packages/web/scripts/check-forbidden.ts（0 违反）退出码均 0；定向 vitest run packages/web → 17 文件 / 259 用例全过（含新增 gate-card.test.ts 24 条），改动后复跑仍 259/259。全量 pnpm -w check 里红的 20 个文件全部在 daemon/shared 侧（probe.test.ts 的 /usr/bin 路径、sse.test.ts 的 dispatch_snapshots has no column named bug_prompt、static-plugin.test.ts 缺 packages/web/dist），在主干检出 D:/xiangmu/renwudiaoduqi 上重跑同一命令 24 文件 / 92 用例红，红面更大，与本层零后端改动一致，不构成本层回归（与 M9-T7/M9-T9 审查记录结论相同）。",
+      "⑥审查方顺手改的三处非阻断项（均不动接口与数据结构，改完 biome/tsc/web 全部用例仍绿）：a) gate-card.tsx:840 去掉 GatePendingBadge 暖点上的 Tailwind `animate-pulse` —— 11 节规定呼吸环是全页唯一的连续动画且只出现在运行轨当前步与批次树执行行、共用 --pulse 与 base.css 的 keyframe，徽标上的 2s pulse 是第二处连续动画且绕过 --pulse，也没有 prefers-reduced-motion 兜底；b) gate-card.tsx:709/:752 两处 ghost 按钮的 focus-visible 环由 --border-strong（rgba(214,232,229,.16)，深色底上合成对比约 1.5:1）改为 --needs，键盘焦点原本几乎不可见；c) resolveImpactDefaults 在调用方未提供 impactValue 时不再用前端常量补「1 个运行会话 / 1 个审查阶段 / 1 个分支合并」，改为按 07 节「缺失就显示「—」，不得用前端逻辑补齐」渲染「—」。三处都不改组件对外的 props 与回调契约。",
+      "⑦结论与去向：契约与本层 5 条验收标准、2 条边界、有效路径（含本轮补进的支持文件）一致，登记复核通过，代码侧无阻断项，按 pass 落地。留一条给下游任务的提醒（不进本层返工）：零产出退出（context 非 null）分支的主按钮文案与手机原位提示按 11 节第 330 行属 M9-T23 的增量，本层已实现该分支但主按钮仍走通用文案，由 M9-T23 接线时按 [重跑]/[换 agent 重派]/[标失败] 收口。"
     ],
-    "reviewed": "2026-09-16T07:32:09.282533+00:00",
+    "reviewed": "2026-09-16T07:37:21.824131+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

@@ -12,6 +12,11 @@
         "packages/web/test/use-stop-intent.test.ts"
       ]
     },
+    "M9-T10": {
+      "supportPaths": [
+        "packages/web/test/gate-card.test.ts"
+      ]
+    },
     "M9-T9": {
       "supportPaths": [
         "packages/web/test/stream-column.test.ts"
@@ -352,6 +357,7 @@
       "supportPaths": [
         "packages/daemon/test/unit/rework-dispatch.test.ts",
         "packages/daemon/test/unit/rework-prompt.test.ts",
+        "packages/daemon/test/unit/events.test.ts",
         "packages/daemon/migrations/",
         "packages/shared/src/api/events.ts",
         "packages/shared/src/api/runs.ts"
