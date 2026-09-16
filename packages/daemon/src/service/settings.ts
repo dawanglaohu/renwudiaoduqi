@@ -1,3 +1,4 @@
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { GateSettings } from '@agent-scheduler/shared/api/settings';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { DEFAULT_GATE_SETTINGS, isValidGateSettings } from '../domain/gates.ts';
@@ -13,11 +14,16 @@ export interface SettingsServiceDeps {
 	readonly envelopeFactory: EnvelopeFactory;
 	readonly unitOfWork: UnitOfWork;
 	readonly warn?: (message: string, ...args: unknown[]) => void;
+	/**
+	 * Runs inside the same `unitOfWork.run` as the settings write (08 节：一个 HTTP 请求最多开一次
+	 * 事务，跨 service 的复合写必须聚进同一个 run)。Must not open a transaction of its own and
+	 * must not publish; returns the events the caller publishes after the transaction returns.
+	 */
 	readonly onGatesUpdated?: (
 		newGates: GateSettings,
 		previousGates: GateSettings,
 		actorDeviceId: string | null,
-	) => void;
+	) => readonly EventEnvelope[];
 }
 
 export interface PipelineSettingsSummary {
@@ -102,10 +108,13 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 
 			const valueJson = JSON.stringify(updated);
 			const now = deps.clock.now();
+			const pendingEvents: EventEnvelope[] = [];
 
-			// Strictly respect transaction boundary: DB write inside transaction, event publish outside
+			// Strictly respect transaction boundary: DB writes inside one transaction, every event
+			// published only after it returns. The gate re-evaluation (R2, E-56) shares this run.
 			deps.unitOfWork.run(() => {
 				deps.settingsRepo.set('gates', valueJson, now);
+				pendingEvents.push(...(deps.onGatesUpdated?.(updated, previous, actorDeviceId) ?? []));
 			});
 
 			const envelope = deps.envelopeFactory.createEnvelope({
@@ -118,8 +127,9 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 
 			deps.bus.publish(envelope);
 
-			// R2 & E-56: Re-evaluate waiting gates for changed kinds without restarting batches
-			deps.onGatesUpdated?.(updated, previous, actorDeviceId);
+			for (const pending of pendingEvents) {
+				deps.bus.publish(pending);
+			}
 
 			return updated;
 		},

@@ -382,9 +382,13 @@ export function createContainer(input: {
 				input.logViolation?.(`[WARN] ${message}`);
 				console.warn(`[daemon] ${message}`);
 			},
-			onGatesUpdated: (newGates, previousGates, actorDeviceId) => {
-				gateServiceHolder.current?.reEvaluateWaitingGates(newGates, previousGates, actorDeviceId);
-			},
+			// Shares the settings write's single transaction; returns events to publish afterwards.
+			onGatesUpdated: (newGates, previousGates, actorDeviceId) =>
+				gateServiceHolder.current?.reEvaluateWaitingGatesInTx(
+					newGates,
+					previousGates,
+					actorDeviceId,
+				) ?? [],
 		});
 
 	const gateService =

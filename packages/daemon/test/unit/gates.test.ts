@@ -97,16 +97,26 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 		});
 
 		const gateServiceHolder: { current?: GateService } = {};
+		let transactionCount = 0;
+		const countingUnitOfWork = {
+			run: <T>(fn: () => T): T => {
+				transactionCount += 1;
+				return unitOfWork.run(fn);
+			},
+		};
 
 		const settingsService = createSettingsService({
 			settingsRepo,
 			clock: { now: () => '2026-09-12T12:00:00.000Z' },
 			bus,
 			envelopeFactory,
-			unitOfWork,
-			onGatesUpdated: (newGates, previousGates, actorDeviceId) => {
-				gateServiceHolder.current?.reEvaluateWaitingGates(newGates, previousGates, actorDeviceId);
-			},
+			unitOfWork: countingUnitOfWork,
+			onGatesUpdated: (newGates, previousGates, actorDeviceId) =>
+				gateServiceHolder.current?.reEvaluateWaitingGatesInTx(
+					newGates,
+					previousGates,
+					actorDeviceId,
+				) ?? [],
 		});
 
 		const gateService = createGateService({
@@ -116,7 +126,7 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 			ids,
 			bus,
 			envelopeFactory,
-			unitOfWork,
+			unitOfWork: countingUnitOfWork,
 			settingsService,
 			getBatchGateOverrides: (batchId: string) => dispatchService.getBatchGateOverrides(batchId),
 		});
@@ -134,6 +144,10 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 			settingsService,
 			gateService,
 			bus,
+			getTransactionCount: () => transactionCount,
+			resetTransactionCount: () => {
+				transactionCount = 0;
+			},
 		};
 	}
 
@@ -583,7 +597,8 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 		});
 
 		it('R2 & E-56: PATCH /settings/gates re-evaluates waiting gates immediately for changed kind without restarting batches', async () => {
-			const { app, gateService, batchesRepo, bus } = await createTestApp();
+			const { app, gateService, batchesRepo, bus, getTransactionCount, resetTransactionCount } =
+				await createTestApp();
 			const events: unknown[] = [];
 			bus.subscribe((e) => events.push(e));
 
@@ -603,6 +618,8 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 			});
 			expect(waitingReviewGate.state).toBe('waiting');
 
+			resetTransactionCount();
+
 			// PATCH settings to auto review, but manual landing
 			const patchRes = await app.inject({
 				method: 'PATCH',
@@ -614,6 +631,9 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 				},
 			});
 			expect(patchRes.statusCode).toBe(200);
+
+			// 08 节：一个 HTTP 请求最多开一次事务——settings 写入与闸门重裁决必须共用同一个 run
+			expect(getTransactionCount()).toBe(1);
 
 			// Original review gate is no longer waiting; was auto-released
 			const allGates = await gateService.listGates();

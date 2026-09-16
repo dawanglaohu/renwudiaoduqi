@@ -52,11 +52,18 @@ export interface GateService {
 		readonly reviewVerdict: string;
 		readonly overrides?: GateOverrides | null;
 	}) => Promise<ResolveAfterReviewResult>;
-	readonly reEvaluateWaitingGates: (
+	/**
+	 * Releases waiting gates for kinds that just switched to 'auto' (R2, E-56).
+	 *
+	 * Runs inside the caller's `unitOfWork.run` — it opens no transaction of its own and
+	 * publishes nothing (08 节：一个 HTTP 请求最多开一次事务，跨 service 的复合写必须聚进
+	 * 同一个 run；事件一律在事务返回后由调用方 publish)。Returns the events to publish.
+	 */
+	readonly reEvaluateWaitingGatesInTx: (
 		newGates: GateSettings,
-		previousGates?: GateSettings,
-		actorDeviceId?: string | null,
-	) => void;
+		previousGates: GateSettings | undefined,
+		actorDeviceId: string | null,
+	) => readonly EventEnvelope[];
 	readonly setBatchGateOverrides: (batchId: string, overrides: BatchGateOverrides) => void;
 	readonly getBatchGateOverrides: (batchId: string) => BatchGateOverrides | undefined;
 }
@@ -327,13 +334,14 @@ export function createGateService(deps: GateServiceDeps): GateService {
 		 * Re-evaluates waiting gates when gate settings change (R2, E-56):
 		 * - For gate kinds changed to 'auto': immediately releases waiting gates without restarting batches.
 		 * - For gate kinds remaining 'manual': keeps waiting without rollback or disturbance.
-		 * - DB updates happen within unitOfWork.run, event publishing outside.
+		 * - Caller owns the transaction and the publishing; this method only writes rows and
+		 *   returns the events to publish.
 		 */
-		reEvaluateWaitingGates(
+		reEvaluateWaitingGatesInTx(
 			newGates: GateSettings,
-			previousGates?: GateSettings,
-			actorDeviceId: string | null = null,
-		): void {
+			previousGates: GateSettings | undefined,
+			actorDeviceId: string | null,
+		): readonly EventEnvelope[] {
 			const now = deps.clock.now();
 			const eventsToPublish: EventEnvelope[] = [];
 
@@ -349,122 +357,64 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			}
 
 			if (kindsToCheck.length === 0) {
-				return;
+				return eventsToPublish;
 			}
 
-			deps.unitOfWork.run(() => {
-				const waitingGates = deps.gatesRepo.list({ pendingOnly: true });
+			const waitingGates = deps.gatesRepo.list({ pendingOnly: true });
 
-				for (const kind of kindsToCheck) {
-					const matchingGates = waitingGates.filter((g) => g.kind === kind);
+			for (const kind of kindsToCheck) {
+				const matchingGates = waitingGates.filter((g) => g.kind === kind);
 
-					for (const gate of matchingGates) {
-						if (kind === 'dispatch') {
-							deps.gatesRepo.updateDecision(
-								gate.id,
-								'pass',
-								'auto_released_on_settings_change',
+				for (const gate of matchingGates) {
+					if (kind === 'dispatch') {
+						deps.gatesRepo.updateDecision(
+							gate.id,
+							'pass',
+							'auto_released_on_settings_change',
+							actorDeviceId,
+							now,
+						);
+						eventsToPublish.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'task.gate_passed',
+								taskId: gate.task_id,
+								runId: gate.run_id,
 								actorDeviceId,
-								now,
-							);
-							eventsToPublish.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'task.gate_passed',
-									taskId: gate.task_id,
-									runId: gate.run_id,
-									actorDeviceId,
-									payload: { gate: 'dispatch' },
-								}),
-							);
-						} else if (kind === 'review') {
-							deps.gatesRepo.updateDecision(
-								gate.id,
-								'pass',
-								'auto_released_on_settings_change',
+								payload: { gate: 'dispatch' },
+							}),
+						);
+					} else if (kind === 'review') {
+						deps.gatesRepo.updateDecision(
+							gate.id,
+							'pass',
+							'auto_released_on_settings_change',
+							actorDeviceId,
+							now,
+						);
+						eventsToPublish.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'task.gate_passed',
+								taskId: gate.task_id,
+								runId: gate.run_id,
 								actorDeviceId,
-								now,
-							);
-							eventsToPublish.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'task.gate_passed',
-									taskId: gate.task_id,
-									runId: gate.run_id,
-									actorDeviceId,
-									payload: { gate: 'review' },
-								}),
-							);
+								payload: { gate: 'review' },
+							}),
+						);
 
-							if (newGates.landing === 'auto') {
-								const landingGateId = deps.ids.newId();
-								deps.gatesRepo.create({
-									id: landingGateId,
-									task_id: gate.task_id,
-									run_id: gate.run_id,
-									kind: 'landing',
-									state: 'decided',
-									decision: 'pass',
-									comment: 'auto_released_on_settings_change',
-									decided_by_device_id: actorDeviceId,
-									created_at: now,
-									decided_at: now,
-								});
-
-								if (deps.tasksRepo) {
-									deps.tasksRepo.updateManualState(gate.task_id, 'landed');
-								}
-
-								eventsToPublish.push(
-									deps.envelopeFactory.createEnvelope({
-										kind: 'task.landed',
-										taskId: gate.task_id,
-										runId: gate.run_id,
-										actorDeviceId,
-										payload: { by: 'auto', gateId: landingGateId },
-									}),
-								);
-								eventsToPublish.push(
-									deps.envelopeFactory.createEnvelope({
-										kind: 'task.gate_passed',
-										taskId: gate.task_id,
-										runId: gate.run_id,
-										actorDeviceId,
-										payload: { gate: 'landing' },
-									}),
-								);
-							} else {
-								const landingGateId = deps.ids.newId();
-								deps.gatesRepo.create({
-									id: landingGateId,
-									task_id: gate.task_id,
-									run_id: gate.run_id,
-									kind: 'landing',
-									state: 'waiting',
-									comment: 'landing_manual_gate',
-									created_at: now,
-								});
-
-								if (deps.tasksRepo) {
-									deps.tasksRepo.updateManualState(gate.task_id, 'awaiting_human');
-								}
-
-								eventsToPublish.push(
-									deps.envelopeFactory.createEnvelope({
-										kind: 'task.gate_waiting',
-										taskId: gate.task_id,
-										runId: gate.run_id,
-										actorDeviceId,
-										payload: { gate: 'landing' },
-									}),
-								);
-							}
-						} else if (kind === 'landing') {
-							deps.gatesRepo.updateDecision(
-								gate.id,
-								'pass',
-								'auto_released_on_settings_change',
-								actorDeviceId,
-								now,
-							);
+						if (newGates.landing === 'auto') {
+							const landingGateId = deps.ids.newId();
+							deps.gatesRepo.create({
+								id: landingGateId,
+								task_id: gate.task_id,
+								run_id: gate.run_id,
+								kind: 'landing',
+								state: 'decided',
+								decision: 'pass',
+								comment: 'auto_released_on_settings_change',
+								decided_by_device_id: actorDeviceId,
+								created_at: now,
+								decided_at: now,
+							});
 
 							if (deps.tasksRepo) {
 								deps.tasksRepo.updateManualState(gate.task_id, 'landed');
@@ -476,7 +426,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 									taskId: gate.task_id,
 									runId: gate.run_id,
 									actorDeviceId,
-									payload: { by: 'auto', gateId: gate.id },
+									payload: { by: 'auto', gateId: landingGateId },
 								}),
 							);
 							eventsToPublish.push(
@@ -488,14 +438,68 @@ export function createGateService(deps: GateServiceDeps): GateService {
 									payload: { gate: 'landing' },
 								}),
 							);
+						} else {
+							const landingGateId = deps.ids.newId();
+							deps.gatesRepo.create({
+								id: landingGateId,
+								task_id: gate.task_id,
+								run_id: gate.run_id,
+								kind: 'landing',
+								state: 'waiting',
+								comment: 'landing_manual_gate',
+								created_at: now,
+							});
+
+							if (deps.tasksRepo) {
+								deps.tasksRepo.updateManualState(gate.task_id, 'awaiting_human');
+							}
+
+							eventsToPublish.push(
+								deps.envelopeFactory.createEnvelope({
+									kind: 'task.gate_waiting',
+									taskId: gate.task_id,
+									runId: gate.run_id,
+									actorDeviceId,
+									payload: { gate: 'landing' },
+								}),
+							);
 						}
+					} else if (kind === 'landing') {
+						deps.gatesRepo.updateDecision(
+							gate.id,
+							'pass',
+							'auto_released_on_settings_change',
+							actorDeviceId,
+							now,
+						);
+
+						if (deps.tasksRepo) {
+							deps.tasksRepo.updateManualState(gate.task_id, 'landed');
+						}
+
+						eventsToPublish.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'task.landed',
+								taskId: gate.task_id,
+								runId: gate.run_id,
+								actorDeviceId,
+								payload: { by: 'auto', gateId: gate.id },
+							}),
+						);
+						eventsToPublish.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'task.gate_passed',
+								taskId: gate.task_id,
+								runId: gate.run_id,
+								actorDeviceId,
+								payload: { gate: 'landing' },
+							}),
+						);
 					}
 				}
-			});
-
-			for (const envelope of eventsToPublish) {
-				deps.bus.publish(envelope);
 			}
+
+			return eventsToPublish;
 		},
 
 		setBatchGateOverrides(batchId: string, overrides: BatchGateOverrides): void {
