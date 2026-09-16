@@ -1,97 +1,12 @@
 import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import {
 	type DaemonLaunchSpec,
 	isAbsoluteLaunchPath,
 	parseDaemonLaunchSpec,
 } from '@agent-scheduler/shared/shell/daemon-launch-spec';
 import { resolveLaunchSpec } from './launch-spec.ts';
-import { type PlatformProductLayers, evaluatePlatformSupport } from './platform-support.ts';
-
-export const DEFAULT_SIMULATED_STAGING_FOLDER = '调度服务 桌面产物 (Unicode & Spaces) 1.0.0';
-
-/**
- * File name written into the staging resource directory as the runnable health-probe stub.
- * smoke-runner launches this via `process.execPath <script> --port <port>` (R3 fix).
- */
-export const SMOKE_STUB_SCRIPT_NAME = 'daemon-smoke-stub.mjs';
-
-/**
- * Minimal Node.js ESM script written as the daemon stub in staging.
- * Starts an HTTP server on the port given via `--port <n>` and serves /api/v1/health.
- */
-export const SMOKE_STUB_SCRIPT_CONTENT = [
-	'import { createServer } from "node:http";',
-	'const args = process.argv.slice(2);',
-	'const portIdx = args.indexOf("--port");',
-	'const port = portIdx >= 0 ? parseInt(args[portIdx + 1], 10) : 7817;',
-	'const server = createServer((req, res) => {',
-	'  if (req.url === "/api/v1/health") {',
-	'    res.writeHead(200, { "Content-Type": "application/json" });',
-	'    res.end(JSON.stringify({ ok: true, smokeStub: true }));',
-	'  } else { res.writeHead(404); res.end(); }',
-	'});',
-	'server.listen(port, "127.0.0.1");',
-].join('\n');
-
-export interface StagingLayout {
-	readonly stageDir: string;
-	readonly currentExe: string;
-	readonly resourceDir: string;
-	readonly daemonFile: string;
-	/** Absolute path to the runnable health-probe ESM script inside the staging resource dir (R3). */
-	readonly stubScriptFile: string;
-}
-
-export interface CreateStagingOptions {
-	readonly rootDir: string;
-	readonly folderName?: string;
-	readonly hostPlatform?: string;
-	readonly daemonContent?: string;
-}
-
-/**
- * Creates simulated staging layout in a temporary root containing spaces and Unicode (AC 2, E-209).
- */
-export function createSimulatedStaging(options: CreateStagingOptions): StagingLayout {
-	const folderName = options.folderName ?? DEFAULT_SIMULATED_STAGING_FOLDER;
-	const stageDir = resolve(options.rootDir, folderName);
-	const binDir = join(stageDir, 'bin');
-	const resourceDir = join(stageDir, 'resources');
-
-	mkdirSync(binDir, { recursive: true });
-	mkdirSync(resourceDir, { recursive: true });
-
-	const isWin = (options.hostPlatform ?? process.platform) === 'win32';
-	const exeName = isWin ? 'scheduler.exe' : 'scheduler';
-	const daemonName = isWin ? 'daemon.exe' : 'daemon';
-	const separator = isWin ? '\\' : '/';
-
-	const currentExe = `${binDir}${separator}${exeName}`;
-	const daemonFile = `${resourceDir}${separator}${daemonName}`;
-
-	const stubContent = options.daemonContent ?? SMOKE_STUB_SCRIPT_CONTENT;
-	// Also write the runnable health-stub script alongside the platform-named daemon file (R3)
-	const stubScriptFile = join(resourceDir, SMOKE_STUB_SCRIPT_NAME);
-	if (!existsSync(currentExe)) {
-		writeFileSync(currentExe, 'stub-desktop-binary\n', 'utf8');
-	}
-	if (!existsSync(daemonFile)) {
-		writeFileSync(daemonFile, stubContent, 'utf8');
-	}
-	if (!existsSync(stubScriptFile)) {
-		writeFileSync(stubScriptFile, SMOKE_STUB_SCRIPT_CONTENT, 'utf8');
-	}
-
-	return Object.freeze({
-		stageDir,
-		currentExe,
-		resourceDir,
-		daemonFile,
-		stubScriptFile,
-	});
-}
 
 export interface ResolveStagedSpecOptions {
 	readonly currentExe: string;
@@ -102,7 +17,11 @@ export interface ResolveStagedSpecOptions {
 }
 
 /**
- * Resolves absolute DaemonLaunchSpec from staged layout and validates against shared schema (AC 2, E-209).
+ * Resolves the absolute `DaemonLaunchSpec` from the expanded installation coordinates
+ * and rejects anything the shared schema does not accept (AC 2, E-209).
+ *
+ * Only `current_exe` and `resource_dir` of the expanded product feed this call; no value
+ * may be carried over from the build machine.
  */
 export function resolveStagedLaunchSpec(options: ResolveStagedSpecOptions): DaemonLaunchSpec {
 	const spec = resolveLaunchSpec({
@@ -149,8 +68,32 @@ function collectTextFiles(dir: string): string[] {
 	return results;
 }
 
+/** Rewrites separators to `/` and lowercases so comparisons work on every host. */
+function normalizeForComparison(value: string): string {
+	return value.replace(/\\/g, '/').toLowerCase();
+}
+
+/** Absolute path-like tokens embedded in a packaged text asset. */
+function extractAbsolutePathTokens(content: string): string[] {
+	const tokens = new Set<string>();
+	// JSON-escaped Windows paths arrive as `C:\\dir\\file`; fold the escape so the token
+	// can be compared like a real path.
+	const candidates = content.replace(/\\\\/g, '/');
+	const windowsPath = /[A-Za-z]:[^\s,;:="<>|]+(?:[\\\/][^\s,;:="<>|]+)*/g;
+	for (const match of candidates.matchAll(windowsPath)) {
+		tokens.add(match[0]);
+	}
+	for (const match of candidates.matchAll(/\/(?:[\w.@+-]+\/)+[\w.@+-]+/g)) {
+		tokens.add(match[0]);
+	}
+	return [...tokens];
+}
+
 /**
- * Inspects staged package assets to ensure no hardcoded builder machine paths are present (AC 2, E-209).
+ * Inspects an expanded installation for paths that point back at the build machine.
+ * A shipped package must not embed them (AC 2, E-209). Path comparison is case and
+ * separator insensitive so the same location cannot slip through as `C:/Users/...`
+ * when the forbidden prefix is `C:\Users\...`.
  */
 export function inspectBuildPathResidue(
 	stageDir: string,
@@ -158,6 +101,9 @@ export function inspectBuildPathResidue(
 ): PathResidueReport {
 	const files = collectTextFiles(stageDir);
 	const violations: string[] = [];
+	const forbidden = forbiddenPathPrefixes
+		.filter((prefix) => prefix.length > 0)
+		.map(normalizeForComparison);
 
 	for (const file of files) {
 		let content = '';
@@ -167,9 +113,13 @@ export function inspectBuildPathResidue(
 			continue;
 		}
 
-		for (const prefix of forbiddenPathPrefixes) {
-			if (prefix && content.includes(prefix)) {
-				violations.push(`File "${file}" contains hardcoded builder path: "${prefix}"`);
+		for (const token of extractAbsolutePathTokens(content)) {
+			const normalized = normalizeForComparison(token);
+			const hit = forbidden.find((prefix) => normalized.startsWith(prefix));
+			if (hit) {
+				violations.push(
+					`File "${file}" contains hardcoded builder path: "${token}" (forbidden prefix "${hit}")`,
+				);
 			}
 		}
 	}
@@ -200,8 +150,9 @@ export interface ExecuteSmokeOptions {
 }
 
 /**
- * Executes the daemon smoke check using the identical frozen launch spec (AC 2, E-209, E-265).
- * Connects to health endpoint and stops the spawned process cleanly.
+ * Starts the daemon from the identical frozen launch spec and waits for its health
+ * endpoint (AC 2, E-209, E-265). The injection points exist for unit tests; the default
+ * path really spawns the shipped launch target and really probes the endpoint.
  */
 export async function executeDaemonSmoke(
 	spec: DaemonLaunchSpec,
@@ -214,6 +165,8 @@ export async function executeDaemonSmoke(
 
 	const spawnFunction = options?.customSpawn ?? nodeSpawn;
 	let child: ChildProcess | undefined;
+	let spawnFailure: string | undefined;
+	let processExited: number | null | undefined;
 
 	try {
 		child = spawnFunction(spec.file, spec.args, {
@@ -221,6 +174,17 @@ export async function executeDaemonSmoke(
 			shell: false,
 			stdio: 'ignore',
 		});
+		// A spawn that cannot start, or a process that dies immediately, must fail the
+		// check instead of surfacing as an unhandled error or a misleading timeout.
+		// Test doubles may provide a minimal process object without event emitters.
+		if (typeof child.once === 'function') {
+			child.once('error', (error: Error) => {
+				spawnFailure = error.message;
+			});
+			child.once('exit', (code: number | null) => {
+				processExited = code;
+			});
+		}
 
 		const probeFn =
 			options?.probeEndpoint ??
@@ -233,16 +197,40 @@ export async function executeDaemonSmoke(
 				}
 			});
 
-		// Poll health endpoint until healthy or timeout
 		const deadline = Date.now() + timeoutMs;
 		let isHealthy = false;
 
 		while (Date.now() < deadline) {
+			if (spawnFailure) {
+				return Object.freeze({
+					success: false,
+					pid: child.pid,
+					durationMs: Date.now() - startTime,
+					error: `The launch target could not be started: ${spawnFailure}`,
+				});
+			}
+			if (processExited !== undefined && processExited !== 0) {
+				return Object.freeze({
+					success: false,
+					pid: child.pid,
+					durationMs: Date.now() - startTime,
+					error: `The daemon process exited with code ${processExited} before becoming healthy`,
+				});
+			}
 			isHealthy = await probeFn(healthUrl);
 			if (isHealthy) {
 				break;
 			}
 			await new Promise((resolveSleep) => setTimeout(resolveSleep, 200));
+		}
+
+		if (spawnFailure) {
+			return Object.freeze({
+				success: false,
+				pid: child.pid,
+				durationMs: Date.now() - startTime,
+				error: `The launch target could not be started: ${spawnFailure}`,
+			});
 		}
 
 		if (!isHealthy) {
@@ -275,98 +263,4 @@ export async function executeDaemonSmoke(
 			}
 		}
 	}
-}
-
-export interface VerifyStagedDeploymentOptions {
-	readonly rootDir: string;
-	readonly hostPlatform: 'win32' | 'darwin' | 'linux';
-	readonly layers: PlatformProductLayers;
-	readonly forbiddenPrefixes?: readonly string[];
-	readonly customDaemonPath?: string;
-	readonly customArguments?: readonly string[];
-	readonly executeSmoke?: boolean;
-	readonly smokeOptions?: ExecuteSmokeOptions;
-}
-
-export interface StagedDeploymentReport {
-	readonly passed: boolean;
-	readonly stageLayout: StagingLayout;
-	readonly spec: DaemonLaunchSpec;
-	readonly pathResidueClean: boolean;
-	readonly smokeOutcome?: SmokeOutcome;
-	readonly layerReport: ReturnType<typeof evaluatePlatformSupport>;
-	readonly errors: readonly string[];
-}
-
-/**
- * Full verification pipeline for staged installation (AC 2, E-209, E-257).
- * Unpacks to Unicode/spaces path, inspects build path residue, resolves frozen launch spec,
- * verifies product layers, and executes daemon smoke test.
- */
-export async function verifyStagedDeployment(
-	options: VerifyStagedDeploymentOptions,
-): Promise<StagedDeploymentReport> {
-	const errors: string[] = [];
-
-	// 1. Verify product layers completeness (E-257)
-	const layerReport = evaluatePlatformSupport(options.hostPlatform, options.layers);
-	if (!layerReport.isFullySupported) {
-		errors.push(
-			`Product layers incomplete for ${options.hostPlatform} (E-257): daemon=${options.layers.hasDaemonSupport}, pathAdapter=${options.layers.hasPathAdapter}, desktopShell=${options.layers.hasDesktopShell}`,
-		);
-	}
-
-	// 2. Stage to directory with Unicode and spaces (AC 2, E-209)
-	const stageLayout = createSimulatedStaging({
-		rootDir: options.rootDir,
-		hostPlatform: options.hostPlatform,
-	});
-
-	// 3. Check for hardcoded builder machine paths (AC 2)
-	const forbidden = options.forbiddenPrefixes ?? [];
-	const residueReport = inspectBuildPathResidue(stageLayout.stageDir, forbidden);
-	if (!residueReport.isClean) {
-		errors.push(...residueReport.violations);
-	}
-
-	// 4. Resolve absolute launch spec (AC 2, E-209)
-	let spec: DaemonLaunchSpec;
-	try {
-		spec = resolveStagedLaunchSpec({
-			currentExe: stageLayout.currentExe,
-			resourceDir: stageLayout.resourceDir,
-			hostPlatform: options.hostPlatform,
-			customDaemonPath: options.customDaemonPath,
-			customArguments: options.customArguments,
-		});
-	} catch (specErr) {
-		const message = specErr instanceof Error ? specErr.message : String(specErr);
-		errors.push(`Launch spec resolution failure: ${message}`);
-		spec = {
-			file: stageLayout.daemonFile,
-			args: [],
-			cwd: stageLayout.resourceDir,
-		};
-	}
-
-	// 5. Execute smoke test if requested (AC 2, E-209)
-	let smokeOutcome: SmokeOutcome | undefined;
-	if (options.executeSmoke) {
-		smokeOutcome = await executeDaemonSmoke(spec, options.smokeOptions);
-		if (!smokeOutcome.success) {
-			errors.push(`Daemon smoke execution failed: ${smokeOutcome.error}`);
-		}
-	}
-
-	const passed = errors.length === 0;
-
-	return Object.freeze({
-		passed,
-		stageLayout,
-		spec,
-		pathResidueClean: residueReport.isClean,
-		smokeOutcome,
-		layerReport,
-		errors: Object.freeze(errors),
-	});
 }

@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M10-T5": {
+      "contractHash": "d2f7bb7a14ddd346af60824b891c32faf38733377fad2357ae27e8890b8d2ee4",
+      "evidence": [
+        "2026-09-16 语义复核（第 6 轮，PR #87）：`status --task M10-T5` 报 ready=false，唯一原因「任务契约待语义复核」，blockers 为空，stale 为空，contractHash d2f7bb7a…d2ee4 与 status 输出一致。本轮先把 main（fd8d812，比分支基点 40a6648 多 79 个提交）并入分支，再在合并后的源上复核，契约内容与第 1 轮核对过的定义一致，没有因合并而漂移。",
+        "条款一致性：图谱/任务/M10-T5.md 与 04-执行/19-模块任务拆分.md 的 M10-T5 行一致；派发包「本任务」段的模块定位、输入（M10-T4 的共享打包管线；17 节测试矩阵）、产出（三平台 workflow、运行时启动清单解析器与前置检查 launcher、平台/架构支持清单、人工 GUI 验收模板）与源文档逐字一致；八条验收标准未增删；九条边界 E-209/E-257/E-258/E-259/E-260/E-265/E-266/E-267/E-268 全部登记，covered_by 仍含 M10-T5，表述无矛盾；本任务不卡下游。",
+        "有效路径与范围：派发包「只改这些路径」四条（.github/workflows/、docs/platform-support.md、packages/shell-desktop/、packages/shell-desktop/launchers/）与 task-contracts 的 effectivePaths 逐字相同，未缺列。本层相对 main 的改动全部落在该子树内（新增 src/artifact-staging.ts 与 launchers/prepare-daemon-package.mjs，改写 launchers/smoke-runner.ts 与 src/staging-smoke.ts，重写 test/staging-smoke.test.ts，改写 .github/workflows/desktop-ci.yml），另含合并带入的仓库级测试夹具修正与 daemon 既有测试的平台守卫（14 个文件），后者是 AC1「三平台 pnpm -w check 全绿」的必要条件，由审查方在轮次中逐条记录。",
+        "接口与依赖方向：DaemonLaunchSpec 仍唯一来自 packages/shared/src/shell/daemon-launch-spec.ts 的 {file,args[],cwd}，本层只消费、未新增类型；壳→界面依赖方向未反转（新增 artifact-staging 只被 launchers 与壳测试消费）；daemon/web 源码未新增产品逻辑改动。13/17/19 对应要求核对无冲突：17 节测试矩阵的三平台 check / 平台集成测试 / daemon smoke / 桌面壳构建与验收标准 1 一一对应。",
+        "文档补丁：第 3 轮登记过的 m10-t5-tilde-expansion-scope 补丁已于本轮按收窄口径处置——E-271 边界笔记与 13 节保留了「~ 禁令只针对词首展开符」的裁定，06/08 两个共享章节的重复措辞回退，补丁记录随之撤销，`maintain_docs.py build` 后 sourceVersion 10e919a8…c61、stale 为空，`--landed` 不再有补丁前置。",
+        "结论：契约本身正确且可实现，本轮登记语义复核。代码是否满足契约由同一轮的代码审查独立判定，见 PR #87 的 REVIEW-ROUND 6 评论；契约判定与代码判定互不影响。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

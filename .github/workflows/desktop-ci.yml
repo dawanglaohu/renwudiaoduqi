@@ -17,10 +17,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The deployed daemon distribution the staged smoke check expands (AC 2). This is the
+  # exact tree the installer carries inside the desktop resources: the daemon plus its
+  # runtime dependencies and a bundled Node runtime.
+  DAEMON_DEPLOY_DIR: ${{ github.workspace }}/.desktop-artifacts/daemon
+
 jobs:
   # ============================================================================
   # Matrix: Windows, macOS, Ubuntu (AC 1, E-265)
-  # Every runner must pass check, platform tests, smoke, and desktop build.
+  # Every runner must pass check, platform tests, staged smoke, and desktop build.
   # Any failure halts and blocks the entire release (E-265).
   # Note: CI does NOT claim automated end-to-end GUI interaction;
   # manual GUI verification is recorded separately per platform (AC 4, E-266).
@@ -41,13 +47,6 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             name: Linux (Ubuntu LTS x64)
-
-    # Expose macOS signing status so the release gate can read it (R4).
-    # For matrix jobs GitHub captures the output of the last job to set each key;
-    # only the darwin runner sets these, so the value survives correctly.
-    outputs:
-      macos_is_signed: ${{ steps.macos-signing.outputs.is_signed }}
-      macos_artifact_label: ${{ steps.macos-signing.outputs.artifact_label }}
 
     steps:
       - name: Checkout repository
@@ -106,7 +105,7 @@ jobs:
       - name: Linux Launcher & Pre-Flight Dependency Probing (AC 3, E-258)
         if: matrix.platform == 'linux'
         run: |
-          bash packages/shell-desktop/launchers/linux-launcher.sh || true
+          bash packages/shell-desktop/launchers/linux-launcher.sh
           node --no-warnings --experimental-strip-types -e '
             import { executeLinuxPrecheck } from "./packages/shell-desktop/launchers/linux-launcher.ts";
             const outcome = executeLinuxPrecheck();
@@ -117,11 +116,24 @@ jobs:
       - name: Verify Packaging Pipeline (M10-T4)
         run: pnpm --filter @agent-scheduler/shell-desktop verify-pipeline
 
-      - name: Staged Unpack & Daemon Smoke Test (AC 2, E-209, E-257)
+      # Produce the real desktop daemon payload the staged smoke check expands. No stub
+      # stands in for it (AC 2, E-209, E-257).
+      - name: Produce Deployed Daemon Distribution (AC 2, E-209)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$DAEMON_DEPLOY_DIR"
+          mkdir -p "$(dirname "$DAEMON_DEPLOY_DIR")"
+          pnpm --filter @agent-scheduler/daemon deploy --legacy --prod \
+            --config.node-linker=hoisted "$DAEMON_DEPLOY_DIR"
+          # Keep only this runner's runtime; a packaged product ships one platform.
+          node packages/shell-desktop/launchers/prepare-daemon-package.mjs "$DAEMON_DEPLOY_DIR"
+
+      - name: Staged Unpack, Launch Spec & Real Daemon Smoke (AC 2, E-209, E-257, E-265)
         run: node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
 
-      # R1 fix: use `cargo build --release` to produce a fully linked binary, not just type-check.
-      # `cargo check` compiles but does not link and does not produce a usable artifact (AC 1, E-265).
+      # `cargo build --release` links the native shell; packaging is verified by the
+      # M10-T4 pipeline step above. It is not presented as a packaging step (AC 1).
       - name: Build Tauri Desktop Shell (AC 1, E-265)
         run: |
           cd packages/shell-desktop/src-tauri
@@ -131,21 +143,58 @@ jobs:
         if: matrix.platform == 'darwin'
         id: macos-signing
         run: |
-          if [ -z "${{ secrets.APPLE_CERTIFICATE }}" ] || [ -z "${{ secrets.APPLE_ID }}" ]; then
-            echo "::warning::macOS signing credentials not configured. Marking output as 构建验证件 (build verification artifact) (E-267)."
-            echo "is_signed=false" >> $GITHUB_OUTPUT
-            echo "artifact_label=构建验证件" >> $GITHUB_OUTPUT
-          else
-            echo "is_signed=true" >> $GITHUB_OUTPUT
-            echo "artifact_label=正式签名件" >> $GITHUB_OUTPUT
+          signed=false
+          notarized=false
+          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then signed=true; fi
+          if [ "$signed" = "true" ] && [ -n "${{ secrets.APPLE_ID }}" ] && [ -n "${{ secrets.APPLE_TEAM_ID }}" ]; then
+            notarized=true
           fi
+          if [ "$signed" != "true" ] || [ "$notarized" != "true" ]; then
+            echo "::warning::macOS signing/notarization credentials missing. Artifacts are build verification only (E-267)."
+          fi
+          echo "is_signed=$signed" >> "$GITHUB_OUTPUT"
+          echo "is_notarized=$notarized" >> "$GITHUB_OUTPUT"
+          if [ "$signed" = "true" ] && [ "$notarized" = "true" ]; then
+            echo "artifact_label=正式签名件" >> "$GITHUB_OUTPUT"
+          else
+            echo "artifact_label=构建验证件" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload Build Verification Artifacts (AC 4, E-266)
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          if-no-files-found: ignore
+          path: |
+            ${{ env.DAEMON_DEPLOY_DIR }}
+            packages/shell-desktop/src-tauri/target/release/desktop-shell*
+
+  # ============================================================================
+  # macOS signing/notarization gate (AC 6, E-267).
+  # Kept as its own job so signing and notarization are both required explicitly
+  # instead of one being inferred from the other.
+  # ============================================================================
+  macos-signing-gate:
+    name: macOS Signing & Notarization Gate
+    needs: [desktop-matrix]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_release == true }}
+    runs-on: macos-latest
+    steps:
+      - name: Require signing and notarization credentials (E-267)
+        run: |
+          if [ -z "${{ secrets.APPLE_CERTIFICATE }}" ] || [ -z "${{ secrets.APPLE_ID }}" ] || [ -z "${{ secrets.APPLE_TEAM_ID }}" ]; then
+            echo "::error::Formal release requested without macOS signing and notarization credentials; signed and notarized artifacts cannot be produced (E-267)."
+            exit 1
+          fi
+          echo "Signing and notarization credentials present."
 
   # ============================================================================
   # Release Gate: Evaluates all matrix results and release policies (AC 1, AC 6, E-265, E-267)
   # ============================================================================
   release-verification:
     name: Release Gate Evaluation
-    needs: [desktop-matrix]
+    needs: [desktop-matrix, macos-signing-gate]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -164,63 +213,39 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Evaluate Three-Platform Release Matrix & macOS Signing (AC 1, AC 6, E-265, E-267)
+      - name: Evaluate Three-Platform Release Matrix (AC 1, AC 6, E-265, E-267)
+        env:
+          MATRIX_RESULT: ${{ needs.desktop-matrix.result }}
+          SIGNING_RESULT: ${{ needs.macos-signing-gate.result }}
+          FORMAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_release || false }}
         run: |
           node --no-warnings --experimental-strip-types -e '
             import { assertReleaseVerification } from "./packages/shell-desktop/src/platform-support.ts";
 
-            const isFormal = "${{ github.event.inputs.formal_release }}" === "true";
-
-            // R1/R4 fix: matrix result drives all boolean flags.
-            // `needs.desktop-matrix.result` is "success" only when every platform job passed;
-            // any step failure in any runner causes it to be "failure" or "cancelled".
-            const matrixPassed = "${{ needs.desktop-matrix.result }}" === "success";
-
-            // R4 fix: read macOS signing status from the darwin runner output (propagated via job
-            // outputs). Non-darwin runners leave these empty strings; the darwin runner sets them.
-            const macosIsSignedRaw = "${{ needs.desktop-matrix.outputs.macos_is_signed }}";
-            const macosIsSigned = macosIsSignedRaw === "true";
-            const macosIsNotarized = macosIsSigned; // notarization requires signing; same secret gate
-
+            const matrixPassed = process.env.MATRIX_RESULT === "success";
             if (!matrixPassed) {
-              console.error("Matrix did not pass — one or more platform jobs failed.");
+              console.error(`Matrix did not pass (result=${process.env.MATRIX_RESULT}) - one or more platform jobs failed.`);
               process.exit(1);
             }
 
-            // Construct per-platform outcomes from the matrix result.
-            // All four steps (check, tests, smoke, build) are encoded in matrixPassed:
-            // if the matrix job succeeded, every step in that job succeeded.
+            const isFormal = process.env.FORMAL_RELEASE === "true";
+            const signingGate = process.env.SIGNING_RESULT;
+            const signingSatisfied = signingGate === "success";
+            if (isFormal && !signingSatisfied) {
+              console.error(`Formal release requires the macOS signing/notarization gate (result=${signingGate}).`);
+              process.exit(1);
+            }
+
+            // Reaching this point means every platform job passed, so every step in
+            // every job (workspace check, platform tests, staged smoke, shell build)
+            // succeeded.
             const outcomes = [
-              {
-                platform: "win32",
-                hostLabel: "windows-latest",
-                workspaceCheckPassed: true,
-                platformTestsPassed: true,
-                smokePassed: true,
-                shellBuildPassed: true,
-              },
-              {
-                platform: "darwin",
-                hostLabel: "macos-latest",
-                workspaceCheckPassed: true,
-                platformTestsPassed: true,
-                smokePassed: true,
-                shellBuildPassed: true,
-                isSigned: macosIsSigned,
-                isNotarized: macosIsNotarized,
-              },
-              {
-                platform: "linux",
-                hostLabel: "ubuntu-latest",
-                workspaceCheckPassed: true,
-                platformTestsPassed: true,
-                smokePassed: true,
-                shellBuildPassed: true,
-              },
+              { platform: "win32", hostLabel: "windows-latest", workspaceCheckPassed: true, platformTestsPassed: true, smokePassed: true, shellBuildPassed: true },
+              { platform: "darwin", hostLabel: "macos-latest", workspaceCheckPassed: true, platformTestsPassed: true, smokePassed: true, shellBuildPassed: true, isSigned: signingSatisfied, isNotarized: signingSatisfied },
+              { platform: "linux", hostLabel: "ubuntu-latest", workspaceCheckPassed: true, platformTestsPassed: true, smokePassed: true, shellBuildPassed: true },
             ];
 
-            console.log("Evaluating three-platform matrix results...");
-            console.log("macOS is_signed:", macosIsSignedRaw, "→", macosIsSigned);
+            console.log(`Matrix result: ${process.env.MATRIX_RESULT}; formal release: ${isFormal}; signing gate: ${signingGate}`);
             assertReleaseVerification(outcomes, { isFormalRelease: isFormal });
             console.log("Matrix gate passed. Full three-platform coverage verified.");
           '

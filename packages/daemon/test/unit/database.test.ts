@@ -154,6 +154,8 @@ describe('migration runner', () => {
 				'0002_add_bug_prompt.sql',
 				'0003_add_runs_effort_vendor.sql',
 				'0003_add_session_archive_and_lanes.sql',
+				'0004_create_settings.sql',
+				'0005_add_runs_origin_and_spawned_by.sql',
 			],
 		});
 		expect(readTableNames(database)).toEqual([
@@ -168,6 +170,7 @@ describe('migration runner', () => {
 			'run_messages',
 			'runs',
 			'schema_migrations',
+			'settings',
 			'tasks',
 		]);
 		expect(runner.run(migrationsDirectory)).toEqual({ appliedVersions: [] });
@@ -183,6 +186,11 @@ describe('migration runner', () => {
 			{ version: '0003_add_runs_effort_vendor.sql', applied_at: '2026-09-04T03:00:00.000Z' },
 			{
 				version: '0003_add_session_archive_and_lanes.sql',
+				applied_at: '2026-09-04T03:00:00.000Z',
+			},
+			{ version: '0004_create_settings.sql', applied_at: '2026-09-04T03:00:00.000Z' },
+			{
+				version: '0005_add_runs_origin_and_spawned_by.sql',
 				applied_at: '2026-09-04T03:00:00.000Z',
 			},
 		]);
