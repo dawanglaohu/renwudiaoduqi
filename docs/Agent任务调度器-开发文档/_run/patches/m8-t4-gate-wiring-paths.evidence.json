@@ -1,0 +1,65 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T8": {
+      "contractHash": "8a7385fff0a9dc4e51c4d1e04a75c966f0da300fc084ff04895023ed9b515430",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T4": {
+      "contractHash": "5a117f48848bfad5186fce4e5c8d16f1f077965e9135c1d9e5897c8483e9268e",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T6": {
+      "contractHash": "c1f588f9d65a6c4912a97b3ac21bc29c94b4919a0dcd5d4de165ed400cea3d0a",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T7": {
+      "contractHash": "085349984dafa3b085f82245dedb736d09481114dcd58c1421b18cf891049765",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T8": {
+      "contractHash": "571dcf3e51779eab762fbcd01cab9033ada17dabb5964565e467b95638a8bb4c",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T9": {
+      "contractHash": "783d430dbed823a52b5b9096509daa13762f4e98d0b7b9784cd613a728f5b806",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T10": {
+      "contractHash": "35695f0e3c08237c31cf33eeb85d297d564231d8b2f44f78ea7813684ba0db1b",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T17": {
+      "contractHash": "2ec69a3c56e718ca1fe1f31518c058aa21d2848f1cc3a7e28645bf5b6a4e1a7f",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T20": {
+      "contractHash": "d037ed14cdefdfa7fb5b4d3daf15a6d209e8b0e3b935fb5560310d67f4560c7f",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T21": {
+      "contractHash": "21dff301aade18b7946772f99412e944e07c0fe2f4bf108bd36c4a7c9e1cb280",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T22": {
+      "contractHash": "494693f943e3c6096d736348a7008172bd01c7bd8eeb4d71f7fc2a9288db1123",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "b8c1c8bdfb243bf3d3c2908b3f4e6045942992102f4484b3dd9029b466b2457a",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

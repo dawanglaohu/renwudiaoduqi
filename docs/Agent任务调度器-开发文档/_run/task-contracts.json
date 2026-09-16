@@ -499,9 +499,14 @@
       "supportPaths": [
         "packages/shared/src/api/settings.ts",
         "packages/shared/src/api/gates.ts",
+        "packages/shared/src/api/batches.ts",
         "packages/shared/src/api/events.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/service/dispatch.ts",
         "packages/daemon/test/unit/gates.test.ts",
-        "packages/daemon/test/unit/settings.test.ts"
+        "packages/daemon/test/unit/settings.test.ts",
+        "packages/daemon/test/unit/events.test.ts"
       ]
     },
     "M5-T4": {
