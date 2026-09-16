@@ -5,6 +5,7 @@ import {
 	RUN_TRANSITION_REASONS,
 	type RunState,
 	assertValidTransition,
+	canTransition,
 	isTerminalRunState,
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
@@ -498,20 +499,19 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					}
 				}
 
-				// 审查运行（若存在且未在终态/未在 awaiting_human）转 awaiting_human
+				// 审查行：收工后停在 exited／running 是常态，09 节白名单只让 reviewing／reworking
+				// 迁进 awaiting_human，所以这里按 canTransition 尽力收——不合法就不动它。
+				// 「超限转待人确认」落在被审实施行上（上面那条），审查行自身归审查流水线处置。
 				if (input.reviewRunId) {
 					const reviewRun = deps.runsRepo.findById(input.reviewRunId);
 					if (
 						reviewRun &&
 						reviewRun.state !== 'awaiting_human' &&
-						!isTerminalRunState(reviewRun.state as RunState)
-					) {
-						assertValidTransition(reviewRun.state as RunState, 'awaiting_human', {
-							reason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
+						canTransition(reviewRun.state as RunState, 'awaiting_human', {
 							reworkCount: currentReworkCount,
 							maxReworkCount,
-						});
-
+						})
+					) {
 						deps.runsRepo.updateState({
 							id: reviewRun.id,
 							state: 'awaiting_human',

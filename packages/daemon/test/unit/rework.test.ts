@@ -379,6 +379,41 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 			expect(limitEvents[0]?.payload.to).toBe('awaiting_human');
 		});
 
+		it('limit reached with a review run already exited still parks the reviewed run without throwing (E-55)', async () => {
+			// 审查行收工后停在 exited 是常态；09 节白名单不允许 exited → awaiting_human，
+			// 所以这一行只尽力收，不能因此抛错把「超限转待人确认」整条结果打掉。
+			const targetRun = createDummyRun({ rework_count: 2, state: 'reviewing' });
+			const reviewRun = createDummyRun({
+				id: 'run-rev-exited',
+				kind: 'review',
+				state: 'exited',
+				rework_count: 2,
+			});
+			runsStore.set(targetRun.id, targetRun);
+			runsStore.set(reviewRun.id, reviewRun);
+			mockProcessRegistry.set(targetRun.id, createMockProcess(targetRun.id, true));
+
+			const service = makeService();
+			const result = await service.dispatchRework({
+				reviewRunId: reviewRun.id,
+				targetRunId: targetRun.id,
+				reworkText: '- R1: 已达上限',
+				source: 'review',
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.action).toBe('awaiting_human');
+			if (result.action === 'awaiting_human') {
+				expect(result.reason).toBe('rework_limit_reached');
+			}
+
+			// 被审实施行照样转 awaiting_human
+			expect(runsStore.get(targetRun.id)?.state).toBe('awaiting_human');
+			// 审查行状态不动（非法迁移不落库）
+			expect(runsStore.get(reviewRun.id)?.state).toBe('exited');
+			expect(mockMessageService.sendMessage).not.toHaveBeenCalled();
+		});
+
 		it('supports configurable custom maxReworkCount (e.g. max 1 retry)', async () => {
 			const run = createDummyRun({ rework_count: 1 });
 			runsStore.set(run.id, run);
