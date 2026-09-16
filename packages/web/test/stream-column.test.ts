@@ -626,6 +626,10 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 			expect(html).not.toContain('Tokens: 0');
 			expect(html).toContain('费用: —');
 			expect(html).toContain('来源: —');
+
+			// 状态缺失时不得由前端补齐成 queued，走 E-230/E-234 的降级形状「未识别」
+			expect(html).toContain('data-status="unrecognized"');
+			expect(html).not.toContain('data-status="queued"');
 		});
 	});
 });

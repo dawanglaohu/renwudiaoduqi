@@ -39,7 +39,7 @@ export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id
 	readonly taskKey?: string;
 	/** 任务标题 */
 	readonly title?: string;
-	/** 运行状态（九个标准状态或扩展状态） */
+	/** 运行状态（九个标准状态或扩展状态；缺失一律降级为「未识别」，禁止用前端默认值补齐） */
 	readonly status?: StatusState | string;
 	/** 密度档位（由 useDensityTier() 单点计算下传，AC 1, E-235） */
 	readonly tier?: DensityTier;
@@ -101,7 +101,7 @@ export function StreamColumn(props: StreamColumnProps) {
 		currentRunId,
 		taskKey,
 		title,
-		status = 'queued',
+		status,
 		tier = 'full',
 		isExpanded = false,
 		onToggleExpand,
