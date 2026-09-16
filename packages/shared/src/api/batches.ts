@@ -10,7 +10,21 @@ export interface BatchDto {
 export interface BatchGateOverrides {
 	readonly dispatch?: 'auto' | 'manual';
 	readonly review?: 'auto' | 'manual';
+	readonly landing?: 'auto' | 'manual';
 }
+
+export const BATCH_GATE_OVERRIDES_KEYS = [
+	'dispatch',
+	'landing',
+	'review',
+] as const satisfies readonly (keyof BatchGateOverrides)[];
+
+type AssertBatchGateOverridesExhaustive = [
+	Exclude<keyof BatchGateOverrides, (typeof BATCH_GATE_OVERRIDES_KEYS)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertBatchGateOverrides: AssertBatchGateOverridesExhaustive = true;
 
 export interface StartBatchBody {
 	readonly gateOverrides?: BatchGateOverrides;
@@ -37,6 +51,7 @@ export const startBatchBodySchema = {
 			properties: {
 				dispatch: { type: 'string', enum: ['auto', 'manual'] },
 				review: { type: 'string', enum: ['auto', 'manual'] },
+				landing: { type: 'string', enum: ['auto', 'manual'] },
 			},
 		},
 	},

@@ -6,6 +6,7 @@ import { registerBatchesRoutes } from '../routes/batches.ts';
 import { registerDeviceRoutes } from '../routes/devices.ts';
 import { registerDocumentRoutes } from '../routes/documents.ts';
 import { registerEventsRoutes } from '../routes/events.ts';
+import { registerGateRoutes } from '../routes/gates.ts';
 import { registerHealthRoute } from '../routes/health.ts';
 import { registerPairRoutes } from '../routes/pair.ts';
 import { registerRunsRoutes } from '../routes/runs.ts';
@@ -56,6 +57,7 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerAgentRoutes(target);
 	registerEventsRoutes(target);
 	registerTasksRoutes(target);
+	registerGateRoutes(target);
 
 	const customRegisteredPaths = new Set<string>([
 		'GET /api/v1/health',
@@ -92,6 +94,9 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'GET /api/v1/agents/:agentId/models',
 		'GET /api/v1/tasks/:taskId/landing',
 		'POST /api/v1/tasks/:taskId/worktree/cleanup',
+		'GET /api/v1/gates',
+		'POST /api/v1/gates/:gateId/decide',
+		'PATCH /api/v1/settings/gates',
 	]);
 
 	for (const route of ROUTES) {
