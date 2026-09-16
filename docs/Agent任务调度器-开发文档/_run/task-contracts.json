@@ -265,6 +265,11 @@
         "packages/web/test/event-bus.test.ts"
       ]
     },
+    "M9-T7": {
+      "supportPaths": [
+        "packages/web/test/spine-row.test.ts"
+      ]
+    },
     "M3-T6": {
       "requires": [
         {
