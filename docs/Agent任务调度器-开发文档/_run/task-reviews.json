@@ -931,7 +931,7 @@
       "测试证据（本机 Windows 11 + Node 22.17，worktree D:/xiangmu/agent-scheduler-m8-t4）：vitest run packages/daemon/test/unit/gates.test.ts settings.test.ts events.test.ts → 34/34 通过；test/arch 6 文件 25/27，2 例失败均为 pairing bootstrap 的 POSIX 0600 断言（service/pairing.ts:146，Windows 文件系统语义，与本层无 import 关系）；pnpm -w check 的 biome ci 与 tsc -b --noEmit 两段通过，vitest 段 16 文件 80 例失败（POSIX 权限、缺 packages/web/dist、测试库 schema 落后等环境性失败），同一命令在未改动的 main 检出（40a6648）为 21 文件 91 例失败，故本层未引入测试回归。",
       "结论：补丁只补有效范围与消费点，不改任何验收或边界要求；契约本身自洽可实施，登记 pass。代码侧仍有两处验收标准未满足（R1 gateOverrides 的 landing 面与消费点、R2 中途改开关对已在闸门前等待任务的立即放行），另有一处边界要求未落地（R3 坏值 warn 无落点），已在 PR #95 的 REVIEW-ROUND 1 里给出精确返工条目。"
     ],
-    "reviewed": "2026-09-16T03:35:46.892046+00:00",
+    "reviewed": "2026-09-16T05:49:28.238127+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

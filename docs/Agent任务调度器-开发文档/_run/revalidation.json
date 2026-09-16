@@ -1,1 +1,30 @@
-{}
+{
+  "M9-T7": {
+    "contractHash": "7c84ce2780dec848a2aab112fab4482c3baeb8c41f3ac9e441ce51fe219b2077",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m8-t4-gate-wiring-paths",
+        "sourceVersion": "333b261843e8db98582d530494b45395607ab42f263476b0728293aa51297afb"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T9": {
+    "contractHash": "06a10e2854fb43389c62bca70841bfe2d1494900f8950475646519e8c23759d4",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths"
+        ],
+        "patch": "m8-t4-gate-wiring-paths",
+        "sourceVersion": "333b261843e8db98582d530494b45395607ab42f263476b0728293aa51297afb"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}
