@@ -1,9 +1,24 @@
 import { type DatabaseConnection, toDatabaseError } from '../db/open-database.ts';
 import { AppError } from '../errors/app-error.ts';
 
-export type BatchState = 'idle' | 'running' | 'paused' | 'done';
+export type BatchState =
+	| 'idle'
+	| 'running'
+	| 'paused'
+	| 'awaiting_landing'
+	| 'wrapping'
+	| 'needs_attention'
+	| 'done';
 
-export const VALID_BATCH_STATES = ['idle', 'running', 'paused', 'done'] as const;
+export const VALID_BATCH_STATES = [
+	'idle',
+	'running',
+	'paused',
+	'awaiting_landing',
+	'wrapping',
+	'needs_attention',
+	'done',
+] as const;
 
 export interface BatchRow {
 	readonly id: string;

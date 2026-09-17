@@ -2,7 +2,7 @@ import type { DatabaseConnection } from '../db/open-database.ts';
 
 export interface GateRow {
 	readonly id: string;
-	readonly task_id: string;
+	readonly task_id: string | null;
 	readonly run_id: string | null;
 	readonly kind: string;
 	readonly state: string;
@@ -15,7 +15,7 @@ export interface GateRow {
 
 export interface GateInsertRow {
 	readonly id: string;
-	readonly task_id: string;
+	readonly task_id: string | null;
 	readonly run_id?: string | null;
 	readonly kind: string;
 	readonly state: string;
@@ -29,6 +29,8 @@ export interface GateInsertRow {
 export interface GatesRepo {
 	readonly findById: (id: string) => GateRow | null;
 	readonly findLatestByTaskIdAndKind: (taskId: string, kind: string) => GateRow | null;
+	readonly findLatestByRunId?: (runId: string) => GateRow | null;
+	readonly findPendingByRunId?: (runId: string) => GateRow | null;
 	readonly list: (params?: { pendingOnly?: boolean }) => readonly GateRow[];
 	readonly create: (gate: GateInsertRow) => void;
 	readonly updateDecision: (
@@ -38,12 +40,29 @@ export interface GatesRepo {
 		decidedByDeviceId: string | null,
 		decidedAt: string,
 	) => boolean;
+	readonly supersedePendingByRunIds?: (runIds: readonly string[], supersededAt: string) => void;
 }
 
 const SELECT_BY_ID_SQL = `
 SELECT id, task_id, run_id, kind, state, decision, comment, decided_by_device_id, created_at, decided_at
 FROM gates
 WHERE id = ?
+`;
+
+const SELECT_LATEST_BY_RUN_ID_SQL = `
+SELECT id, task_id, run_id, kind, state, decision, comment, decided_by_device_id, created_at, decided_at
+FROM gates
+WHERE run_id = ?
+ORDER BY created_at DESC
+LIMIT 1
+`;
+
+const SELECT_PENDING_BY_RUN_ID_SQL = `
+SELECT id, task_id, run_id, kind, state, decision, comment, decided_by_device_id, created_at, decided_at
+FROM gates
+WHERE run_id = ? AND state = 'waiting'
+ORDER BY created_at DESC
+LIMIT 1
 `;
 
 const SELECT_LATEST_BY_TASK_AND_KIND_SQL = `
@@ -88,13 +107,15 @@ export function createGatesRepo(db: DatabaseConnection): GatesRepo {
 	const selectLatestStmt = db.prepare<[string, string], GateRow>(
 		SELECT_LATEST_BY_TASK_AND_KIND_SQL,
 	);
+	const selectLatestByRunIdStmt = db.prepare<[string], GateRow>(SELECT_LATEST_BY_RUN_ID_SQL);
+	const selectPendingByRunIdStmt = db.prepare<[string], GateRow>(SELECT_PENDING_BY_RUN_ID_SQL);
 	const selectAllStmt = db.prepare<[], GateRow>(SELECT_ALL_SQL);
 	const selectPendingStmt = db.prepare<[], GateRow>(SELECT_PENDING_SQL);
 	const insertStmt =
 		db.prepare<
 			[
 				string,
-				string,
+				string | null,
 				string | null,
 				string,
 				string,
@@ -119,6 +140,16 @@ export function createGatesRepo(db: DatabaseConnection): GatesRepo {
 			return row ?? null;
 		},
 
+		findLatestByRunId(runId: string): GateRow | null {
+			const row = selectLatestByRunIdStmt.get(runId);
+			return row ?? null;
+		},
+
+		findPendingByRunId(runId: string): GateRow | null {
+			const row = selectPendingByRunIdStmt.get(runId);
+			return row ?? null;
+		},
+
 		list(params?: { pendingOnly?: boolean }): readonly GateRow[] {
 			if (params?.pendingOnly) {
 				return selectPendingStmt.all();
@@ -129,7 +160,7 @@ export function createGatesRepo(db: DatabaseConnection): GatesRepo {
 		create(gate: GateInsertRow): void {
 			insertStmt.run(
 				gate.id,
-				gate.task_id,
+				gate.task_id ?? null,
 				gate.run_id ?? null,
 				gate.kind,
 				gate.state,
@@ -150,6 +181,14 @@ export function createGatesRepo(db: DatabaseConnection): GatesRepo {
 		): boolean {
 			const result = updateDecisionStmt.run(decision, comment, decidedByDeviceId, decidedAt, id);
 			return result.changes > 0;
+		},
+
+		supersedePendingByRunIds(runIds: readonly string[], supersededAt: string): void {
+			if (runIds.length === 0) return;
+			const placeholders = runIds.map(() => '?').join(', ');
+			db.prepare(
+				`UPDATE gates SET state = 'decided', decision = NULL, comment = 'superseded', decided_at = ? WHERE state = 'waiting' AND run_id IN (${placeholders})`,
+			).run(supersededAt, ...runIds);
 		},
 	});
 }

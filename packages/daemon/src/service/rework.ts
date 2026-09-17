@@ -545,7 +545,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		if (deps.repoPath) {
 			return deps.repoPath;
 		}
-		if (deps.tasksRepo && deps.documentsRepo) {
+		if (deps.tasksRepo && deps.documentsRepo && targetRun.task_id) {
 			const task = deps.tasksRepo.findById(targetRun.task_id);
 			if (task) {
 				const doc = deps.documentsRepo.findById(task.doc_id);
@@ -591,6 +591,10 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				details: { runId: input.targetRunId },
 			});
 		}
+		if (!targetRun.task_id) {
+			throw new AppError('E_VALIDATION', 'Cannot dispatch rework for run without task_id');
+		}
+		const taskId = targetRun.task_id;
 
 		// 会话归档后严格只读，禁止回灌或再进入返工（AC 4 / E-302 / M6-T10）
 		assertNotArchived(targetRun);
@@ -632,7 +636,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 							deps.envelopeFactory.createEnvelope({
 								kind: 'run.state_changed',
 								runId: targetRun.id,
-								taskId: targetRun.task_id,
+								taskId,
 								actorDeviceId: input.actorDeviceId ?? null,
 								payload: {
 									from: targetRun.state as RunState,
@@ -791,7 +795,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 						deps.envelopeFactory.createEnvelope({
 							kind: 'run.state_changed',
 							runId: targetRun.id,
-							taskId: targetRun.task_id,
+							taskId,
 							actorDeviceId: input.actorDeviceId ?? null,
 							payload: {
 								from: targetRun.state as RunState,
@@ -846,7 +850,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 							deps.envelopeFactory.createEnvelope({
 								kind: 'run.state_changed',
 								runId: targetRun.id,
-								taskId: targetRun.task_id,
+								taskId,
 								actorDeviceId: input.actorDeviceId ?? null,
 								payload: {
 									from: 'reworking',
@@ -1000,10 +1004,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 					// 在闸门 comment 写 branch_missing（E-277）
 					if (deps.gatesRepo) {
-						const existingGate = deps.gatesRepo.findLatestByTaskIdAndKind(
-							targetRun.task_id,
-							'review',
-						);
+						const existingGate = deps.gatesRepo.findLatestByTaskIdAndKind(taskId, 'review');
 						if (existingGate && existingGate.state === 'waiting') {
 							deps.gatesRepo.updateDecision(
 								existingGate.id,
@@ -1015,7 +1016,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 						} else {
 							deps.gatesRepo.create({
 								id: deps.ids.newId(),
-								task_id: targetRun.task_id,
+								task_id: taskId,
 								run_id: targetRun.id,
 								kind: 'review',
 								state: 'waiting',
@@ -1114,7 +1115,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 			const persistResume = () => {
 				assertSessionRefFree(
-					{ taskId: targetRun.task_id, vendorSessionRef: newRunInsert.vendor_session_ref ?? null },
+					{ taskId, vendorSessionRef: newRunInsert.vendor_session_ref ?? null },
 					{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
 				);
 				deps.runsRepo.insert(newRunInsert);
@@ -1124,7 +1125,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 						deps.envelopeFactory.createEnvelope({
 							kind: 'run.state_changed',
 							runId: newRunId,
-							taskId: targetRun.task_id,
+							taskId,
 							actorDeviceId: input.actorDeviceId ?? null,
 							payload: {
 								from: targetRun.state as RunState,
@@ -1300,7 +1301,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 		const persistNewSession = () => {
 			assertSessionRefFree(
-				{ taskId: targetRun.task_id, vendorSessionRef: newRunInsert.vendor_session_ref ?? null },
+				{ taskId, vendorSessionRef: newRunInsert.vendor_session_ref ?? null },
 				{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
 			);
 			deps.runsRepo.insert(newRunInsert);
@@ -1310,7 +1311,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					deps.envelopeFactory.createEnvelope({
 						kind: 'run.state_changed',
 						runId: newRunId,
-						taskId: targetRun.task_id,
+						taskId,
 						actorDeviceId: input.actorDeviceId ?? null,
 						payload: {
 							from: targetRun.state as RunState,
