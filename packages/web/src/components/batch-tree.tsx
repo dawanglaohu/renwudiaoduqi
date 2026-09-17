@@ -3,47 +3,34 @@
  *
  * 批次树组件（M9-T19 / AC 1, AC 4, AC 5, E-13, E-272, E-282, E-284, E-298）
  *
- * 规范依据（07 节前端架构、11 节 UI、12 节 UX）：
+ * 规范依据（07 节前端架构、11 节 UI、12 节 UX 与返工要求 R1, R5）：
+ * - 只消费 shared/daemon 的 BatchDto 与 TaskDto 字段，不自造冗余模型，不进行业务判定
  * - 纯 props in / callback out 组件，禁止内部使用 useState 存展开集，禁止内部计算任何计数
  * - 折叠的批不渲染子行（不是 display:none，DOM 中根本不创建子节点）
- * - 标题计数「已落地 x/n · 在跑 y · 等你 z」，waitingCount > 0 时只有「等你 z」一段转 --needs
+ * - 标题计数「已落地 x/n · 在跑 y · 等你 z」，字段缺失显示「—」，绝不猜测默认值
+ * - waitingCount > 0 时只有「等你 z」一段转 --needs
  * - 批次标题行网格：16px minmax(0,1fr) auto auto（开合槽 · 「第 N 批」+ 计数 · 收口徽标 · 收口按钮槽）
  * - 任务行网格：20px minmax(0,1fr) auto 7ch（呼吸点槽 · taskKey + 标题截断 · 状态徽标 · 进 HEAD 标记）
  * - 行高：桌面 30px（--row-h），phone/phone-xs/touch 44px（--row-h-touch）；开合槽在触摸档撑到 44×44
  * - 呼吸点：任务行第 1 列放 PulseDot，live 呼吸、waiting 静态暖点、终态与 queued 无点；标题行不放呼吸点
- * - 进 HEAD 标记：三态同色（--ink-3）、固定 7ch，false 时 title 显示判定方法
+ * - 进 HEAD 标记：三态同色（--ink-3）、固定 7ch，false 时 title 显示判定方法（无方法不猜测默认）
  * - 跨批修复：任务行标题后 20px 高矩形 chip「跨批修复」，批次标题追加「· 含跨批修复」
  * - 收口行：批次标题下第一行「批次收口 · 第 N 轮」，第 1 列按收口运行状态呼吸，点击进该运行详情
  * - 收口按钮：.btn-ghost 高 --h-btn-sm 在第 4 槽，只在 canWrapup 且非手机档时渲染
  * - role="tree" 键盘可达：Enter/Space 开合，Arrow 键在可见项间导航，焦点使用内嵌 2px 环
  */
 
+import type { BatchDto } from '@agent-scheduler/shared/api/batches';
+import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { pulseForRun } from '../lib/run-pulse.ts';
 import { PulseDot } from './pulse-dot.tsx';
 import { StatusBadge } from './status-badge.tsx';
 
 /**
- * 任务行条目数据模型。
+ * 任务行条目数据模型（直接消费 TaskDto，R1）。
  */
-export interface BatchTreeTaskItem {
-	/** 任务唯一标识 */
-	readonly id: string;
-	/** 任务代号（如 M9-T19） */
-	readonly taskKey: string;
-	/** 任务标题 */
-	readonly title: string;
-	/** 运行状态（用于状态徽标与呼吸点映射） */
-	readonly state?: string;
-	/** 进 HEAD 标记三态：true=进 HEAD, false=未进 HEAD, null/undefined=—（E-298） */
-	readonly inHead?: boolean | null;
-	/** false 时的判定方法，用于 title 显示（如 "git merge-base --is-ancestor"） */
-	readonly inHeadMethod?: string | null;
-	/** 是否为跨批修复任务（E-298） */
-	readonly isCrossBatchFix?: boolean;
-	/** 关联泳道编号（可选） */
-	readonly laneNo?: number | null;
-}
+export type BatchTreeTaskItem = TaskDto;
 
 /**
  * 收口运行行数据模型。
@@ -73,23 +60,23 @@ export interface BatchTreeWrapupBadge {
 }
 
 /**
- * 批次树单个批次数据模型（数据字段全部来自 daemon，AC 1）。
+ * 批次树单个批次数据模型（继承 BatchDto，数据字段全部来自 shared/daemon，R1）。
  */
-export interface BatchTreeItem {
+export interface BatchTreeItem extends Partial<BatchDto> {
 	/** 批次唯一标识 */
 	readonly id: string;
-	/** 批次序号（如 1） */
+	/** 批次序号 */
 	readonly batchNo: number;
 	/** 批次标题（可选） */
 	readonly title?: string;
-	/** 任务总数（daemon 下发） */
-	readonly taskCount: number;
-	/** 已落地任务数（daemon 下发） */
-	readonly landedCount: number;
-	/** 在跑任务数（daemon 下发） */
-	readonly runningCount: number;
-	/** 等待/等你任务数（daemon 下发） */
-	readonly waitingCount: number;
+	/** 任务总数（daemon 下发，缺失显示「—」） */
+	readonly taskCount?: number;
+	/** 已落地任务数（daemon 下发，缺失显示「—」） */
+	readonly landedCount?: number;
+	/** 在跑任务数（daemon 下发，缺失显示「—」） */
+	readonly runningCount?: number;
+	/** 等待/等你任务数（daemon 下发，缺失显示「—」） */
+	readonly waitingCount?: number;
 	/** 未进 HEAD 任务数（daemon 下发，E-272） */
 	readonly notInHeadCount?: number;
 	/** 默认展开（daemon 计算） */
@@ -134,16 +121,20 @@ export interface BatchTreeProps {
 
 /**
  * 渲染收口徽标（E-272, 决策 85）。
+ * 不猜测任何默认值，缺失数字显示「—」（R5）。
  */
-function renderWrapupBadge(badge: BatchTreeWrapupBadge | null | undefined) {
-	if (!badge) return null;
+function renderWrapupBadge(batch: BatchTreeItem) {
+	const badge = batch.wrapupBadge;
+	// 若无直接 wrapupBadge，但 batch.state === 'awaiting_landing'，根据 daemon 状态派生徽标呈现
+	const kind = badge?.kind ?? (batch.state === 'awaiting_landing' ? 'awaiting_landing' : null);
+	if (!kind && !badge) return null;
 
-	const roundText = badge.round && badge.round >= 2 ? ` · 第 ${badge.round} 轮` : '';
-	const roundTitle = badge.round && badge.round >= 2 ? `第 ${badge.round} 轮收口` : undefined;
+	const roundText = badge?.round && badge.round >= 2 ? ` · 第 ${badge.round} 轮` : '';
+	const roundTitle = badge?.round && badge.round >= 2 ? `第 ${badge.round} 轮收口` : undefined;
 
-	switch (badge.kind) {
+	switch (kind) {
 		case 'wrapping': {
-			const label = badge.text ?? `收口中${roundText}`;
+			const label = badge?.text ?? `收口中${roundText}`;
 			return (
 				<span
 					data-badge="wrapping"
@@ -156,7 +147,7 @@ function renderWrapupBadge(badge: BatchTreeWrapupBadge | null | undefined) {
 			);
 		}
 		case 'done_clean': {
-			const label = badge.text ?? `已收口 · 干净${roundText}`;
+			const label = badge?.text ?? `已收口 · 干净${roundText}`;
 			return (
 				<StatusBadge
 					state="succeeded"
@@ -168,7 +159,7 @@ function renderWrapupBadge(badge: BatchTreeWrapupBadge | null | undefined) {
 			);
 		}
 		case 'done_fixed': {
-			const label = badge.text ?? `已收口 · 已修${roundText}`;
+			const label = badge?.text ?? `已收口 · 已修${roundText}`;
 			return (
 				<StatusBadge
 					state="succeeded"
@@ -180,8 +171,9 @@ function renderWrapupBadge(badge: BatchTreeWrapupBadge | null | undefined) {
 			);
 		}
 		case 'open': {
-			const count = badge.remainingCount ?? 1;
-			const label = badge.text ?? `有遗留 · ${count} 条${roundText}`;
+			const count = badge?.remainingCount;
+			const countText = count != null ? `${count}` : '—';
+			const label = badge?.text ?? `有遗留 · ${countText} 条${roundText}`;
 			return (
 				<StatusBadge
 					state="partial"
@@ -193,7 +185,7 @@ function renderWrapupBadge(badge: BatchTreeWrapupBadge | null | undefined) {
 			);
 		}
 		case 'needs_attention': {
-			const label = badge.text ?? `收口等你${roundText}`;
+			const label = badge?.text ?? `收口等你${roundText}`;
 			return (
 				<StatusBadge
 					state="awaiting_input"
@@ -205,8 +197,10 @@ function renderWrapupBadge(badge: BatchTreeWrapupBadge | null | undefined) {
 			);
 		}
 		case 'awaiting_landing': {
-			const count = badge.notInHeadCount ?? 1;
-			const label = badge.text ?? `等你落地 ${count} 个${roundText}`;
+			// notInHeadCount 优先读 badge，其次读 batch.notInHeadCount，缺失严格显示「—」（R5）
+			const count = badge?.notInHeadCount ?? batch.notInHeadCount;
+			const countText = count != null ? `${count}` : '—';
+			const label = badge?.text ?? `等你落地 ${countText} 个${roundText}`;
 			return (
 				<StatusBadge
 					state="awaiting_input"
@@ -369,8 +363,14 @@ export function BatchTree({
 		>
 			{batches.map((batch) => {
 				const isExpanded = expandedIds.has(batch.id);
-				const hasWaiting = batch.waitingCount > 0;
+				const hasWaiting = typeof batch.waitingCount === 'number' && batch.waitingCount > 0;
 				const hasCrossBatchFix = Boolean(batch.hasCrossBatchFix);
+
+				// R5: 删除计数的猜测默认值，缺失严格显示「—」
+				const landedText = batch.landedCount != null ? batch.landedCount : '—';
+				const totalText = batch.taskCount != null ? batch.taskCount : '—';
+				const runningText = batch.runningCount != null ? batch.runningCount : '—';
+				const waitingText = batch.waitingCount != null ? batch.waitingCount : '—';
 
 				return (
 					<div
@@ -420,7 +420,7 @@ export function BatchTree({
 								</svg>
 							</button>
 
-							{/* 第 2 列：「第 N 批」+ 固定格式标题计数（tabular monospace） */}
+							{/* 第 2 列：「第 N 批」+ 固定格式标题计数（tabular monospace, R5 缺失显示「—」） */}
 							<button
 								type="button"
 								onClick={() => onToggleBatch?.(batch.id)}
@@ -431,17 +431,15 @@ export function BatchTree({
 									第 {batch.batchNo} 批{hasCrossBatchFix ? ' · 含跨批修复' : ''}
 								</span>
 								<span className="font-mono text-[12px] tabular-nums text-ink-3 truncate">
-									已落地 {batch.landedCount}/{batch.taskCount} · 在跑 {batch.runningCount} ·{' '}
+									已落地 {landedText}/{totalText} · 在跑 {runningText} ·{' '}
 									<span className={hasWaiting ? 'text-needs' : 'text-ink-3'}>
-										等你 {batch.waitingCount}
+										等你 {waitingText}
 									</span>
 								</span>
 							</button>
 
 							{/* 第 3 列：收口徽标（E-272, 决策 85） */}
-							<div className="flex items-center shrink-0">
-								{renderWrapupBadge(batch.wrapupBadge)}
-							</div>
+							<div className="flex items-center shrink-0">{renderWrapupBadge(batch)}</div>
 
 							{/* 第 4 列：收口按钮（非手机档且 canWrapup 为真时渲染，决策 32） */}
 							<div className="flex items-center shrink-0">
@@ -537,14 +535,14 @@ export function BatchTree({
 									const pulse = pulseForRun(task.state);
 									const isSelected = selectedTaskId === task.id;
 
-									// 进 HEAD 标记三态判定（E-298）
+									// 进 HEAD 标记三态判定（E-298, R5: 绝不猜测默认 inHeadMethod）
 									let inHeadText = '—';
 									let inHeadTitle: string | undefined;
 									if (task.inHead === true) {
 										inHeadText = '进 HEAD';
 									} else if (task.inHead === false) {
 										inHeadText = '未进 HEAD';
-										inHeadTitle = task.inHeadMethod ?? 'git merge-base --is-ancestor';
+										inHeadTitle = task.inHeadMethod ? task.inHeadMethod : undefined;
 									}
 
 									return (

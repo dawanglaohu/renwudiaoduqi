@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BatchTree, type BatchTreeItem } from '../src/components/batch-tree.tsx';
 
-describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E-284, E-298)', () => {
+describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E-284, E-298, R5)', () => {
 	const sampleBatches: readonly BatchTreeItem[] = [
 		{
 			id: 'batch-1',
@@ -17,6 +17,11 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 			tasks: [
 				{
 					id: 't-1',
+					docId: 'doc-1',
+					moduleKey: 'M9',
+					deps: [],
+					estDays: null,
+					batchId: 'batch-1',
 					taskKey: 'M9-T1',
 					title: 'Web 骨架、token 层与主题',
 					state: 'landed',
@@ -24,6 +29,11 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 				},
 				{
 					id: 't-2',
+					docId: 'doc-1',
+					moduleKey: 'M9',
+					deps: [],
+					estDays: null,
+					batchId: 'batch-1',
 					taskKey: 'M9-T2',
 					title: '形状枚举与状态徽标',
 					state: 'running',
@@ -32,6 +42,11 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 				},
 				{
 					id: 't-3',
+					docId: 'doc-1',
+					moduleKey: 'M9',
+					deps: [],
+					estDays: null,
+					batchId: 'batch-1',
 					taskKey: 'M9-T3',
 					title: '自写 hash 路由与守卫',
 					state: 'awaiting_reply',
@@ -40,6 +55,11 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 				},
 				{
 					id: 't-4',
+					docId: 'doc-1',
+					moduleKey: 'M9',
+					deps: [],
+					estDays: null,
+					batchId: 'batch-1',
 					taskKey: 'M9-T4',
 					title: 'HTTP 客户端',
 					state: 'queued',
@@ -63,6 +83,11 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 			tasks: [
 				{
 					id: 't-5',
+					docId: 'doc-1',
+					moduleKey: 'M9',
+					deps: [],
+					estDays: null,
+					batchId: 'batch-2',
 					taskKey: 'M9-T5',
 					title: '自写 SSE 客户端',
 					state: 'landed',
@@ -138,6 +163,43 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 		expect(html).toContain('data-badge="awaiting_landing"');
 	});
 
+	// ─── E-272 & R5: 计数与 notInHeadCount 缺失严格显示「—」，绝不猜测默认值 ───
+	it('renders "—" for missing counts and missing notInHeadCount without guessing defaults (E-272, R5)', () => {
+		const missingDataBatches: readonly BatchTreeItem[] = [
+			{
+				id: 'batch-missing',
+				batchNo: 9,
+				// 计数完全缺失（模拟 daemon 尚未上报或返回 null/undefined）
+				taskCount: undefined,
+				landedCount: undefined,
+				runningCount: undefined,
+				waitingCount: undefined,
+				notInHeadCount: undefined,
+				wrapupBadge: {
+					kind: 'awaiting_landing',
+					// notInHeadCount 缺失
+					notInHeadCount: undefined,
+				},
+				tasks: [],
+			},
+		];
+
+		const html = renderToStaticMarkup(
+			createElement(BatchTree, {
+				batches: missingDataBatches,
+				expandedIds: new Set<string>(),
+			}),
+		);
+
+		// 标题计数缺失必须显示「—」，绝不写成 0/0 或 undefined
+		expect(html).toContain('已落地 —/— · 在跑 — ·');
+		expect(html).toContain('等你 —');
+
+		// awaiting_landing 徽标在 notInHeadCount 缺失时显示「等你落地 — 个」，绝不猜测 1
+		expect(html).toContain('等你落地 — 个');
+		expect(html).not.toContain('等你落地 1 个');
+	});
+
 	// ─── AC 1: 能否收口按钮（canWrapup） ───
 	it('renders wrapup button only when canWrapup is true and not phone tier', () => {
 		const desktopHtml = renderToStaticMarkup(
@@ -185,6 +247,48 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 		// 7ch 列宽与 ink-3 同色
 		expect(html).toContain('w-[7ch]');
 		expect(html).toContain('text-ink-3');
+	});
+
+	// ─── E-298 & R5: inHeadMethod 缺失时绝不猜测默认判定方法 ───
+	it('omits title attribute when inHeadMethod is absent on false inHead (E-298, R5)', () => {
+		const customBatch: readonly BatchTreeItem[] = [
+			{
+				id: 'batch-test-inhead',
+				batchNo: 1,
+				taskCount: 1,
+				landedCount: 1,
+				runningCount: 0,
+				waitingCount: 0,
+				tasks: [
+					{
+						id: 't-no-method',
+						docId: 'doc-1',
+						moduleKey: 'M9',
+						deps: [],
+						estDays: null,
+						batchId: 'batch-test-inhead',
+						taskKey: 'M9-T99',
+						title: '测试任务',
+						state: 'landed',
+						inHead: false,
+						// inHeadMethod 为 undefined
+						inHeadMethod: undefined,
+					},
+				],
+			},
+		];
+
+		const html = renderToStaticMarkup(
+			createElement(BatchTree, {
+				batches: customBatch,
+				expandedIds: new Set<string>(['batch-test-inhead']),
+			}),
+		);
+
+		expect(html).toContain('未进 HEAD');
+		// 严禁猜测默认值 git merge-base --is-ancestor
+		expect(html).not.toContain('title="git merge-base --is-ancestor"');
+		expect(html).not.toContain('title=');
 	});
 
 	// ─── AC 4 & E-298: 跨批修复 chip ───
@@ -264,6 +368,11 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 				tasks: [
 					{
 						id: 't-w1',
+						docId: 'doc-1',
+						moduleKey: 'M9',
+						deps: [],
+						estDays: null,
+						batchId: 'batch-w',
 						taskKey: 'M9-T20',
 						title: '收口泳道',
 						state: 'landed',

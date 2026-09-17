@@ -1,7 +1,7 @@
 /**
  * packages/web/src/features/run-deck/batch-expansion.ts
  *
- * 批次树展开集模块级管理（M9-T19 / AC 2, E-284）
+ * 批次树展开集模块级管理（M9-T19 / AC 2, E-284, 返工 R3）
  *
  * 规范依据（07 节前端架构与边界 E-284）：
  * - 展开集存放在本模块模块级 Set，左栏批次树与任务列表页完全共用
@@ -9,6 +9,7 @@
  * - batch.advanced 到达且 to ∈ {running, wrapping, awaiting_landing, needs_attention} 时并入展开集
  * - 任何事件永不从集合删除元素（除切换文档整体清空与用户手动折叠 toggle）
  * - 手动折叠后，同批若再有上述 advanced 事件到达，仍会自动展开（E-284）
+ * - 修复 useSyncExternalStore 响应性：每次集合变更生成新的只读快照引用，确保 React 严格触发重渲染（R3）
  * - 纯内存暂存，不进 zustand store、不进任何 localStorage 持久化键，刷新后回到 daemon defaultExpanded
  */
 
@@ -26,8 +27,9 @@ export const AUTO_EXPAND_BATCH_STATES = [
 
 export type AutoExpandBatchState = (typeof AUTO_EXPAND_BATCH_STATES)[number];
 
-// 模块级单例展开集合与监听器集合
+// 模块级单例展开集合与快照
 const expandedBatchIds = new Set<string>();
+let expandedSnapshot: ReadonlySet<string> = new Set<string>();
 const listeners = new Set<() => void>();
 
 let currentDocId: string | null = null;
@@ -35,6 +37,8 @@ let isDocSeeded = false;
 let eventBusUnsubscribe: (() => void) | null = null;
 
 function notifyListeners(): void {
+	// R3: 每次集合产生有效变动，重新生成不可变 Set 快照，满足 useSyncExternalStore 的引用比较
+	expandedSnapshot = new Set(expandedBatchIds);
 	for (const listener of listeners) {
 		try {
 			listener();
@@ -45,10 +49,10 @@ function notifyListeners(): void {
 }
 
 /**
- * 获取当前已展开批次 ID 集合快照（只读）。
+ * 获取当前已展开批次 ID 集合快照（只读，具有稳定的引用，每次变动返回新引用，R3）。
  */
 export function getExpandedBatchIds(): ReadonlySet<string> {
-	return expandedBatchIds;
+	return expandedSnapshot;
 }
 
 /**

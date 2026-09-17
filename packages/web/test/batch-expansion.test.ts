@@ -14,7 +14,7 @@ import {
 	toggleBatchExpansion,
 } from '../src/features/run-deck/batch-expansion.ts';
 
-describe('features/run-deck/batch-expansion (M9-T19, AC 2, E-284)', () => {
+describe('features/run-deck/batch-expansion (M9-T19, AC 2, E-284, R3)', () => {
 	beforeEach(() => {
 		clearBatchExpansion();
 	});
@@ -148,6 +148,54 @@ describe('features/run-deck/batch-expansion (M9-T19, AC 2, E-284)', () => {
 
 		expect(getExpandedBatchIds().has('batch-milestone-1')).toBe(true);
 
+		cleanup();
+	});
+
+	// ─── 8. R3: useSyncExternalStore 快照不可变引用更新，确保每次变动触发消费者重渲染 ───
+	it('updates snapshot reference on toggleBatchExpansion so useSyncExternalStore re-renders (R3)', () => {
+		const initialSnapshot = getExpandedBatchIds();
+		const listener = vi.fn();
+		const unsub = subscribeBatchExpansion(listener);
+
+		toggleBatchExpansion('batch-rerender');
+		const nextSnapshot = getExpandedBatchIds();
+
+		// 快照对象引用必须变化，否则 Object.is 判定相等将吞掉重渲染
+		expect(nextSnapshot).not.toBe(initialSnapshot);
+		expect(nextSnapshot.has('batch-rerender')).toBe(true);
+		expect(listener).toHaveBeenCalled();
+
+		unsub();
+	});
+
+	it('updates snapshot reference on batch.advanced so useSyncExternalStore re-renders (R3)', () => {
+		const bus = createEventBus();
+		const cleanup = initBatchExpansionSubscription(bus);
+		const initialSnapshot = getExpandedBatchIds();
+		const listener = vi.fn();
+		const unsub = subscribeBatchExpansion(listener);
+
+		bus.push({
+			id: 202,
+			ts: new Date().toISOString(),
+			runId: null,
+			taskId: null,
+			scope: 'batch',
+			kind: 'batch.advanced',
+			seq: 2,
+			actorDeviceId: null,
+			payload: {
+				batchId: 'batch-rerender-advanced',
+				to: 'running',
+			},
+		});
+
+		const nextSnapshot = getExpandedBatchIds();
+		expect(nextSnapshot).not.toBe(initialSnapshot);
+		expect(nextSnapshot.has('batch-rerender-advanced')).toBe(true);
+		expect(listener).toHaveBeenCalled();
+
+		unsub();
 		cleanup();
 	});
 });

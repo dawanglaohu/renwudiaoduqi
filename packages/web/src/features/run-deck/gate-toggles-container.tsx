@@ -12,8 +12,25 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { eventBus } from '../../api/event-bus.ts';
-import { httpClient } from '../../api/http-client.ts';
+import {
+	SESSION_STORAGE_TOKEN_KEY,
+	getCachedToken,
+	httpClient,
+	setCachedToken,
+} from '../../api/http-client.ts';
 import { type GateSettingsValues, GateToggles } from '../../components/gate-toggles.tsx';
+
+// 模块加载时若 sessionStorage 中存在设备令牌，自动同步至内存缓存，确保路由守卫通过（07 节前端架构）
+if (typeof sessionStorage !== 'undefined') {
+	try {
+		const stored = sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY);
+		if (stored && !getCachedToken()) {
+			setCachedToken(stored);
+		}
+	} catch {
+		// 忽略无权限或隐私模式异常
+	}
+}
 
 export interface GateTogglesContainerProps {
 	/** 外部注入的初始闸门配置（可选，优先于异步拉取） */
@@ -27,6 +44,12 @@ export interface GateTogglesContainerProps {
 	readonly patcher?: (body: GateSettingsValues) => Promise<{ readonly gates: GateSettingsValues }>;
 }
 
+const DEFAULT_GATES: GateSettingsValues = {
+	dispatch: 'manual',
+	review: 'manual',
+	landing: 'manual',
+};
+
 /**
  * 闸门开关容器。
  */
@@ -37,7 +60,7 @@ export function GateTogglesContainer({
 	fetcher,
 	patcher,
 }: GateTogglesContainerProps) {
-	const [gates, setGates] = useState<GateSettingsValues | null>(initialGates);
+	const [gates, setGates] = useState<GateSettingsValues | null>(initialGates ?? DEFAULT_GATES);
 	const [isPending, setIsPending] = useState<boolean>(false);
 
 	// 1. 初始化拉取闸门状态
@@ -51,6 +74,15 @@ export function GateTogglesContainer({
 					if (isMounted && res?.gates) {
 						setGates(res.gates);
 					}
+					return;
+				}
+
+				const token = getCachedToken();
+				if (
+					!token &&
+					typeof sessionStorage !== 'undefined' &&
+					!sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY)
+				) {
 					return;
 				}
 
@@ -93,29 +125,23 @@ export function GateTogglesContainer({
 		};
 	}, []);
 
-	// 3. 提交全量三值 PATCH 更新（不乐观翻转，等服务端回流，E-299）
+	// 3. 提交全量三值 PATCH 更新（不翻转状态、不提前结束 pending，只等事件回流，R4, E-299）
 	const handleChange = useCallback(
 		async (nextValues: GateSettingsValues) => {
 			setIsPending(true);
 
 			try {
 				if (patcher) {
-					const res = await patcher(nextValues);
-					if (res?.gates) {
-						setGates(res.gates);
-					}
+					await patcher(nextValues);
 				} else {
-					const res = await httpClient.patch<{ readonly gates: GateSettingsValues }>(
+					await httpClient.patch<{ readonly gates: GateSettingsValues }>(
 						'/api/v1/settings/gates',
 						nextValues,
 					);
-					if (res?.gates) {
-						setGates(res.gates);
-					}
 				}
+				// 注意：PATCH 成功响应后绝不翻转状态，也不结束 pending（R4），严格等待 settings.gates_changed 回流
 			} catch {
-				// 更新失败恢复 pending 态，保持服务端当前真实数据
-			} finally {
+				// 仅在网络或服务端报错失败时恢复 pending 态，保持服务端当前真实数据
 				setIsPending(false);
 			}
 		},

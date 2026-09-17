@@ -1,7 +1,7 @@
 /**
  * packages/web/src/features/task-list/task-list-container.tsx
  *
- * 任务列表页容器组件（M9-T19 / AC 2, AC 5, E-13, E-284）
+ * 任务列表页容器组件（M9-T19 / AC 2, AC 5, E-13, E-284, R2）
  *
  * 规范依据（07 节前端架构）：
  * - features 容器层：只许写 grid/flex/gap，禁止写颜色字号圆角
@@ -13,7 +13,7 @@ import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { useTaskList } from './use-task-list.ts';
 
 export interface TaskListContainerProps {
-	/** 全部批次列表 */
+	/** 全部批次列表（可选，未传入时自动从快照获取） */
 	readonly batches?: readonly BatchTreeItem[];
 	/** 当前文档 ID */
 	readonly docId?: string;
@@ -36,18 +36,23 @@ export interface TaskListContainerProps {
 /**
  * 任务列表容器组件。
  */
-export function TaskListContainer({
-	batches = [],
-	docId,
-	selectedTaskId,
-	densityTier,
-	isTouch,
-	onSelectTask,
-	onWrapup,
-	onOpenWrapupRun,
-	className = '',
-}: TaskListContainerProps) {
-	const { expandedIds, toggleBatch } = useTaskList({ batches, docId });
+export function TaskListContainer(props: TaskListContainerProps) {
+	const {
+		batches: explicitBatches,
+		docId,
+		selectedTaskId,
+		densityTier,
+		isTouch,
+		onSelectTask,
+		onWrapup,
+		onOpenWrapupRun,
+		className = '',
+	} = props;
+
+	const { batches, expandedIds, toggleBatch } = useTaskList({
+		batches: explicitBatches,
+		docId,
+	});
 
 	return (
 		<div className={['flex flex-col gap-3 w-full', className].filter(Boolean).join(' ')}>

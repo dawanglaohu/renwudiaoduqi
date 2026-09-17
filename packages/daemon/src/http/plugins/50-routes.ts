@@ -96,6 +96,7 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'POST /api/v1/tasks/:taskId/worktree/cleanup',
 		'GET /api/v1/gates',
 		'POST /api/v1/gates/:gateId/decide',
+		'GET /api/v1/settings/gates',
 		'PATCH /api/v1/settings/gates',
 	]);
 

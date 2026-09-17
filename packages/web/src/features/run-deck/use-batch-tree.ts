@@ -50,7 +50,11 @@ export function useBatchTree(options: UseBatchTreeOptions = {}): UseBatchTreeRes
 	const { batches, docId } = options;
 
 	// 订阅模块级 Set，保持与全应用（左栏 + 任务列表页）状态同步
-	const expandedIds = useSyncExternalStore(subscribeBatchExpansion, getExpandedBatchIds);
+	const expandedIds = useSyncExternalStore(
+		subscribeBatchExpansion,
+		getExpandedBatchIds,
+		getExpandedBatchIds,
+	);
 
 	// 若提供了 batches，按 defaultExpanded 进行首次 seed（或切文档 seed）
 	useEffect(() => {

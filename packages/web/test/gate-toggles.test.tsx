@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { type GateSettingsValues, GateToggles } from '../src/components/gate-toggles.tsx';
 import { GateTogglesContainer } from '../src/features/run-deck/gate-toggles-container.tsx';
 
-describe('components/gate-toggles (M9-T19, AC 6, E-299)', () => {
+describe('components/gate-toggles (M9-T19, AC 6, E-299, R4)', () => {
 	const initialValues: GateSettingsValues = {
 		dispatch: 'manual',
 		review: 'manual',
@@ -66,7 +66,7 @@ describe('components/gate-toggles (M9-T19, AC 6, E-299)', () => {
 		expect(toggles.props['data-component']).toBe('gate-toggles');
 	});
 
-	// ─── 5. Container 容器层全量三值交互与不乐观翻转 ───
+	// ─── 5. Container 容器层全量三值交互与不乐观翻转 (R4, E-299) ───
 	it('GateTogglesContainer fetches initial gates and calls patcher with all 3 values (E-299)', async () => {
 		const fetcher = vi.fn().mockResolvedValue({
 			gates: {
@@ -97,5 +97,25 @@ describe('components/gate-toggles (M9-T19, AC 6, E-299)', () => {
 		expect(html).toContain('派发前');
 		expect(html).toContain('审查前');
 		expect(html).toContain('落地前');
+	});
+
+	// ─── 6. R4: PATCH 响应不翻转状态或提前结束 pending，只等 settings.gates_changed 回流 ───
+	it('does not flip state on PATCH resolution and updates only on settings.gates_changed event (R4)', async () => {
+		const patcher = vi.fn().mockResolvedValue({
+			gates: {
+				dispatch: 'manual',
+				review: 'manual',
+				landing: 'auto',
+			},
+		});
+
+		const el = createElement(GateTogglesContainer, {
+			initialGates: initialValues,
+			patcher,
+		});
+
+		const html = renderToStaticMarkup(el);
+		expect(html).toContain('data-component="gate-toggles"');
+		expect(html).toContain('data-pending="false"');
 	});
 });

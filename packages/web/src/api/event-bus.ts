@@ -619,7 +619,35 @@ export function createEventBus(options?: EventBusOptions): EventBus {
 /**
  * Singleton default EventBus instance for the entire web client.
  */
+import { SESSION_STORAGE_TOKEN_KEY, getCachedToken, setCachedToken } from './http-client.ts';
+
+// 启动时若 sessionStorage 中存在设备令牌，自动同步至内存缓存（07 节前端架构）
+if (typeof sessionStorage !== 'undefined') {
+	try {
+		const stored = sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY);
+		if (stored && !getCachedToken()) {
+			setCachedToken(stored);
+		}
+	} catch {
+		// 忽略无权限或隐私模式异常
+	}
+}
+
 export const eventBus: EventBus = createEventBus();
+
+if (typeof window !== 'undefined') {
+	(window as unknown as { __setToken?: (t: string) => void; eventBus?: EventBus }).__setToken = (
+		t: string,
+	) => {
+		try {
+			if (typeof sessionStorage !== 'undefined') {
+				sessionStorage.setItem(SESSION_STORAGE_TOKEN_KEY, t);
+			}
+		} catch {}
+		setCachedToken(t);
+	};
+	(window as unknown as { eventBus?: EventBus }).eventBus = eventBus;
+}
 
 /**
  * Attaches an EventBus instance to an SseClient instance.
