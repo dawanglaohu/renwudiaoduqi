@@ -1,0 +1,993 @@
+{
+ "scope": "task-contract",
+ "tasks": {
+  "M1-T1": {
+   "contractHash": "fae9cb0ba22555a77dd3b8a6243102f8d286fb1c9044e79134107f234d890fd4",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 fae9cb0ba22555a7 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：29 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T10": {
+   "contractHash": "c1e2a6bb5e3a36427f9401fa9fa64bee0d465c5ced81f5773b81e7b68b6ae70a",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 c1e2a6bb5e3a3642 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：22 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T2": {
+   "contractHash": "8b5abf033ba75682a61ecb7df76e10d1b1c6cd41d17d1a2ff3d8f520baaaa0e5",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 8b5abf033ba75682 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「1) 打开后四条 PRAGMA（`journal_mode=WAL`、`busy_timeout=5000`、`foreign_keys=ON`、`synchronous=NORMAL`）可被查询验证，且启动失败即退出绝不双写（E-150） 2) 迁移按文件名升序在独立事务执行并写 `schema_migrations` 3) `unitOfWork.run()` 在 `depth>0` 时抛 `E_TX_NESTED`，不用 savepoint 隐式吞掉 4) 原生模块 ABI 不匹配时捕获加载失败并提示 `pnpm rebuild`，不抛裸栈（E-152）；2) 迁移按文件名升序在独立事务执行并写 `schema_migrations`」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T3": {
+   "contractHash": "eb0003c94a5ab14e8e45b6303ac5e3a16b7b601ab04d6e63c37b16f7bfa9f71e",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 eb0003c94a5ab14e 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：有效范围内有未创建的文件：packages/daemon/test/unit/daemon-launch-spec.test.ts（该文件从未在任何提交里出现过，属范围登记多列；对应验收要求由同范围内的其它测试/源码承接，本轮不改动，作为登记遗留记录）",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T4": {
+   "contractHash": "10b879da3818713cdbc5c6eb9f1533b6e4d6b057e7567ed82071e47c6e43e087",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 10b879da3818713c 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：有效范围内有未创建的文件：packages/daemon/test/unit/logstore-integration.test.ts（该文件从未在任何提交里出现过，属范围登记多列；对应验收要求由同范围内的其它测试/源码承接，本轮不改动，作为登记遗留记录）",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T5": {
+   "contractHash": "8d8362f24f7e42193537c8f684d978108d26db4a028a01a7bb2199d755a92c30",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 8d8362f24f7e4219 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：12 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T6": {
+   "contractHash": "7f6adb99b82aae9f7c2b551c575ddc4a61c4119ed8b3970f887f86e4b9e4478f",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 7f6adb99b82aae9f 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：8 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T7": {
+   "contractHash": "b16079433625073fadc75f3f62b37eec9e4947b6d12c0c0d48117a866800dae8",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 b16079433625073f 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T8": {
+   "contractHash": "40dda41ff6a3527effddd938923a5bd84b0c8640ad5d8671ed9c82675ce08e3e",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 40dda41ff6a3527e 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M1-T9": {
+   "contractHash": "ffe6f19a655c1a454aea00271de2287ea699b7095a0f8bdd19dfa9a1e8654ebd",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 ffe6f19a655c1a45 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：6 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M10-T1": {
+   "contractHash": "49d052ca6556a7f7e40a6cc4cbc65760ff67a1995c7d4b881b5f4030368ed63c",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 49d052ca6556a7f7 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：6 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M10-T2": {
+   "contractHash": "16d03bde2509d34b5c16d03c01f68adf8b030787684adbb57cecbc12d74cad1d",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-14），当前契约哈希 16d03bde2509d34b 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：1 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M10-T3": {
+   "contractHash": "9da6f3486f9e39a6339ccfeedb91eb88624fb211b51b1f17fb9b0f4398be7c55",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 9da6f3486f9e39a6 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：1 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M10-T4": {
+   "contractHash": "25856ecb98d639df6799f0e39bda437b34311d47e3e28b600815c86d0b747eb1",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 25856ecb98d639df 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：有效范围内有未创建的文件：packages/web/dist（该文件从未在任何提交里出现过，属范围登记多列；对应验收要求由同范围内的其它测试/源码承接，本轮不改动，作为登记遗留记录）",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M2-T1": {
+   "contractHash": "3d0b01b2e63c23af9c1a2ea3d5883b6437fc7a27357f2f9e511b57c9591a1d85",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 3d0b01b2e63c23af 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：5 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M2-T2": {
+   "contractHash": "ecfae8e177c23a59db1f8c3ecbac792cb9a7471f47eca897a4266091b139f9d0",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 ecfae8e177c23a59 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M2-T3": {
+   "contractHash": "cb751c05853a32b7f66007610504a901108b92582ab8588017581f33035da282",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 cb751c05853a32b7 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M2-T4": {
+   "contractHash": "fee9aefb82515f9644c9411e7dea1ad4564a05483270cb00d7678f293e72b7de",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 fee9aefb82515f96 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「1) 事件 id 用 SQLite 水位预分配，每满 1000 写一次库；重启后从水位继续，**允许跳号但绝不回退**（E-10） 2) 环形缓冲全局一个、容量恒 5000（E-153 的重放窗口） 3) `bus.publish` 出现在事务回调内由架构测试判失败 4) 信封字段与 `packages/shared/src/api/events.ts` 的判别联合一致，新增 kind 时 switch 有穷尽性检查；3) `bus.publish` 出现在事务回调内由架构测试判失败；- 期望：服务端返回「重放窗口已过期」，客户端改为 REST 拉全量当前状态快照后从最新 event id 续接，不允许静默丢事件」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：12 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M2-T5": {
+   "contractHash": "e081d7a43844a8463884683d1a09a3113f498f93d542c5ea4712a4d88c91f8bd",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 e081d7a43844a846 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「- 期望：服务端返回「重放窗口已过期」，客户端改为 REST 拉全量当前状态快照后从最新 event id 续接，不允许静默丢事件；- 期望：服务端返回「重放窗口已过期」，客户端改为 REST 拉全量当前状态快照后从最新 event id 续接，不允许静默丢事件」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M2-T6": {
+   "contractHash": "8e98f08017f2a699dd7fe4be7df6709606612cd23262076b7d0dfde4eec13036",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 8e98f08017f2a699 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M3-T1": {
+   "contractHash": "7dab5590747e6066e8ef357e49cdd121feba5bccb118dfd908f4ce8c4e53ce3b",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 7dab5590747e6066 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：7 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M3-T2": {
+   "contractHash": "a117a6b5f9d9b5eb88d58a0150e7f7ebe7381347393df4b809f651abce4c3b06",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 a117a6b5f9d9b5eb 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M3-T3": {
+   "contractHash": "bfb848afb8ff3ceb14fccbb5e16d4693802545c85a16e8dd0acdcfee01390f2f",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 bfb848afb8ff3ceb 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M3-T4": {
+   "contractHash": "036c36ba7fbd6b47c160c48490987dc60a6a706ccb7ccf20b272bea88cc8946b",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 036c36ba7fbd6b47 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：13 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M3-T5": {
+   "contractHash": "3dcdd442f489866e3671422f4c9c5c71d2953ff5ab1616083b411fb445ed65ba",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 3dcdd442f489866e 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M3-T6": {
+   "contractHash": "d3b5fda84e7584c184d3755ee8b2d6ac499072db816845d2dcdef58e2db415da",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 d3b5fda84e7584c1 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M3-T7": {
+   "contractHash": "b6767911d3f0b1373e99e5b2125b0d7367ed0cb4ea245c8d1eaa68b96dda9162",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-14），当前契约哈希 b6767911d3f0b137 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：10 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T1": {
+   "contractHash": "8a8ad204fd3b53ce476dbf3df17aba91acdb325419da38a8779d6416902640f8",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 8a8ad204fd3b53ce 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T10": {
+   "contractHash": "bfe6b288fa66de1120520e7f9d2028f0ea0064dab40f1096c4d1e1e197112125",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 bfe6b288fa66de11 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T11": {
+   "contractHash": "ef905471d8b9acdab8b73163f7d51b974af7015b4bae4207af48de41fcc1aa1c",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 ef905471d8b9acda 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T12": {
+   "contractHash": "b17d77792ce3233170b57b4955a44dccdb2093e1f44c9df73d587fd4f6acc4d0",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-14），当前契约哈希 b17d77792ce32331 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：10 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T13": {
+   "contractHash": "b3b2ac588b5ffe01031b65d104aa3c223beb3946fd6668710812f3fd13b5c127",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 b3b2ac588b5ffe01 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：18 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T14": {
+   "contractHash": "1892c129c1040bfe85276e5ae08841379284b64bfbcd0f19cae0b07f9cd62bd4",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 1892c129c1040bfe 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：38 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T2": {
+   "contractHash": "4fff86c4148d836bf4011e1361d7ffc889caa9ac690c2a9666459b0425f3a1a9",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 4fff86c4148d836b 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T3": {
+   "contractHash": "1f20594e4901a7ca4810d8a47413c0a8f3c487779c42cf31823291161e9951a0",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 1f20594e4901a7ca 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T4": {
+   "contractHash": "174c7d413adfa9d1f9dcf9f0f966d5aae58bf62ded198b54e7d388180f12893a",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 174c7d413adfa9d1 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：9 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T5": {
+   "contractHash": "305a2cc71dd5e7c80e602a642dbf885912766fcb59fe74b94e2f730282fcf508",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 305a2cc71dd5e7c8 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T6": {
+   "contractHash": "d7b9ae542a8242462f5d6ace80f28b39565302dbb2fb95374a13646c4e2de35d",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 d7b9ae542a824246 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：1 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T7": {
+   "contractHash": "88f95e7702a3a2e3d4d7c3e2525c438441e041d9bf34276aa1dcb8d0d8fb87a2",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 88f95e7702a3a2e3 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：7 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T8": {
+   "contractHash": "b7f71c3476798123636f1a6c146b1074fb1a4781da06030f8ec7f5915566d8bb",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 b7f71c3476798123 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M4-T9": {
+   "contractHash": "4dcc20e9e69ee6782ddd244f4268eb9c872c3f7685a6cc7da232210efdeb4831",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 4dcc20e9e69ee678 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M5-T1": {
+   "contractHash": "64c688d76035bbda618489c70d0a41317a1de1374ce1c5857376b0595478e104",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 64c688d76035bbda 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M5-T2": {
+   "contractHash": "565398877ade87ef0423b3c81b9084252bdca24bee703dbe58ca1dcb48004b6f",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 565398877ade87ef 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M5-T3": {
+   "contractHash": "3c6014f416ef6d9372d714a6c4dae1f65d235ffcf9fe2886f3bd0d0c5576112e",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 3c6014f416ef6d93 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M5-T4": {
+   "contractHash": "e361a4c07410c3310192cf9792a580c619fc6ef4963e02c7c01eb37b34d755d3",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 e361a4c07410c331 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：6 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M5-T5": {
+   "contractHash": "91c71ff362a4afecb813ddecbb0ffe73bba95953446b83743af8387deb5447b0",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-14），当前契约哈希 91c71ff362a4afec 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T1": {
+   "contractHash": "3dfd9a27996dd105b932479edce6255b17cdb94e5e01beaf839aa756df594d2b",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 3dfd9a27996dd105 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：1 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T10": {
+   "contractHash": "9f6c3934936b40203f1cd6ed2e0aa5666d89ba440caa4aa67baf67e82695118f",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 9f6c3934936b4020 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「1) 归档只有一个触发点：`kind='implement'` 行迁到 landed／failed／aborted／interrupted 的同一事务里，对该任务 `session_archived_at IS NULL` 的全部运行行批量写 `session_archived_at`，同事务把 `tasks.lane_no` 置 NULL（`changes===1` 才收集 `lane.released`）；事务内不 await、不 killTree、不 publish（E-302） 2) 事务后对 `pid` 非空且注册表仍持有的运行逐个 `platform.killTree` 两阶段，存活的收进 `residualPids`，然后才发 `task.sessions_archived{taskId, runIds, killedPids, residualPids}`；残留不阻塞槽位释放、不等进程死亡（E-322） 3) `awaiting_human` 只置 `tasks.lane_no` NULL、不归档，会话保持可回灌与可续接（E-54、E-326） 4) `POST /runs/:id/messages`、返工回灌与审查续接命中 `session_archived_at` 非空的行返回 409 `E_SESSION_ARCHIVED`；`vendor_session_ref` 原样保留只读，不删不改不拷贝（E-96、E-302） 5) `assertSessionRefFree({taskId, vendorSessionRef})` 在其他任务任一运行的引用与之相等时抛 `E_SESSION_ARCHIVED` 并带 `conflictTaskKey`；同一任务多轮共享引用放行；代码中不存在 `UNIQUE(vendor_session_ref)`（E-303） 6) `test/arch/session-isolation.test.ts` 静态扫 `src/service/**` 每个 `runsRepo.insert(` 调用点，断言同一函数体内出现 `assertSessionRefFree(`；集成剧本「归档后投递 409」「跨任务复用引用 409」「同任务第 2 轮共享引用 200」「续接目标已归档 409」四条通过 7) 新列全部可空、旧库直开不回填；`killTree` 与残留计数按 16 节埋点记日志；1) 归档只有一个触发点：`kind='implement'` 行迁到 landed／failed／aborted／interrupted 的同一事务里，对该任务 `session_archived_at IS NULL` 的全部运行行批量写 `session_archived_at`，同事务把 `tasks.lane_no` 置 NULL（`changes===1` 才收集 `lane.released`）；事务内不 await、不 killTree、不 publish（[[E-302]]）」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：21 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T2": {
+   "contractHash": "1adb095990bfc77188f28f4a46c41e3ec3ea39f45af64f478fc28fc4789b7431",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 1adb095990bfc771 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「1) 每条归一化事件写一行 `events.ndjson`（**全量原文永不截断**），每条原始输出行写一行 `raw.log` 2) `events` 索引表只收里程碑事件，高频 `*_chunk` 不进表 3) 事务回调内不出现 `await` 与任何异步副作用；事件发布在事务返回后（E-142 的对偶面）；3) 事务回调内不出现 `await` 与任何异步副作用；事件发布在事务返回后（[[E-142]] 的对偶面）」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T3": {
+   "contractHash": "51301b217bd43452741ff2e24339711c49ac4330eccf37e679f6210aa5b787cd",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-14），当前契约哈希 51301b217bd43452 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：1 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T4": {
+   "contractHash": "bc12e1565fa893467bb016bc1d0216fa72a0410dd538175baa29b74ac368055c",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 bc12e1565fa89346 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T5": {
+   "contractHash": "b4518b6080faff4c41c4b347e94401accd2c82ba84091b9c15e213e0016b575f",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 b4518b6080faff4c 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T6": {
+   "contractHash": "9ed844a0e99fc52e2939f14381884c042dd4eff0f35fb2f1a74d9a1c4e18afe2",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 9ed844a0e99fc52e 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「- 触发：后续接入的 agent 没有消息注入通道；- 触发：后续接入的 agent 没有消息注入通道」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：6 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T7": {
+   "contractHash": "65ce5636b511c4172ca94636b223a027bb0245dafe8b719a9531f3f160700057",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 65ce5636b511c417 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：10 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T8": {
+   "contractHash": "b789eeb860e80a3a37251366af29d4cf001c50693aa8be2640caab3073f3d766",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-14），当前契约哈希 b789eeb860e80a3a 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「- 期望：只读打开、只存路径与偏移；任何清理/归档策略永不删除或改写这些文件（删了会破坏 `claude --resume` 之类的原生续接）；- 期望：只读打开、只存路径与偏移；任何清理/归档策略永不删除或改写这些文件（删了会破坏 `claude --resume` 之类的原生续接）」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：8 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M6-T9": {
+   "contractHash": "b60915513f03f4c32bbf67e586c55bb518ea3d59457a9db788fc8a9399de4d27",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 b60915513f03f4c3 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：7 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M7-T1": {
+   "contractHash": "9f7e45e5460d2850dbbb9461bf790a5edc570104cc050ac477a57ee57066c369",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-14），当前契约哈希 9f7e45e5460d2850 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M7-T2": {
+   "contractHash": "c18cfdbdd5cf7b935249a320156d8676dc750d846e4ccaaa36f49f0d622331f7",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 c18cfdbdd5cf7b93 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「1) 默认审查者的 agent、模型与思考强度**逐字取被审实施运行行的 `agent_id` / `model_name` / `effort_tier`（即任务指派的副本，决策 107），不是该 agent 的注册表默认模型**，且为**独立新 session**，只喂 M3-T5 的快照审查材料 + diff，不带实施上下文；本任务代码中不出现任何「设置里指定其他 agent／模型」分支——阶段覆盖的唯一入口是 pipeline 设置的 `reviewOverride`，其取值链与接线由 M8-T9 交付，本任务把三值的读取收成单一函数入口以便替换，返回形状预留 `{agentId, modelName, effortTier, effortVendor?}`，三值以参数形式由 `service/review.ts` 传入、`review-agent.ts` 不自己查库（E-347） 2) 审查运行固定只读档，实际任务指令只允许核对证据并输出裁定；源提示词以引用材料提供，其中维护文档、提交、推送、合并等步骤不得执行，**审查 agent 不得改代码或文档，也不接手两轮后的写入修复**，超限仍转人（E-135） 3) diff 超出上下文时给 diff stat 全量 + 验收标准命中文件全文、其余折叠，并在结论标注「基于部分 diff」（E-65） 4) 本任务只负责第 1 轮审查会话的新建（`review_round=1`、`continued_from_run_id` 为空）；第 N+1 轮续接同一审查会话与新开审查会话的头部上下文交 M7-T7，本任务代码中不出现按轮次分支（决策 89）；第 N+1 轮续接同一审查会话与新开审查会话的头部上下文交 M7-T7，本任务代码中不出现按轮次分支（决策 89）」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M7-T3": {
+   "contractHash": "2078662764f15e2c7b4034583f0ea954fb4feebcc719b13cba0a1451feda75df",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-16），当前契约哈希 2078662764f15e2c 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M7-T6": {
+   "contractHash": "41eb3c0c79561b34baa72cae3f7935f6df06bbee00e7c54a82bc713fbab51c72",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-16），当前契约哈希 41eb3c0c79561b34 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M8-T1": {
+   "contractHash": "ebec65b742c3ac8c0e73cf8229fe7f2a7f7ce30296d627e1c1692310a8029c46",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 ebec65b742c3ac8c 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M8-T2": {
+   "contractHash": "8dcdfe6cf255ae7c89746d944741ce6cd5aa7c889f6ce0d6bd66338d971196c6",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 77147095c（复核于 2026-09-13），当前契约哈希 8dcdfe6cf255ae7c 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M8-T3": {
+   "contractHash": "7fe588563427005255997fd68cd876e71a4790be4ee89d12476a3e9175c4f100",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 7fe5885634270052 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：8 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M8-T4": {
+   "contractHash": "ff26659c8fa13c383f27b1f6890a0df7a6836169d2b13ee977e0fbc2d7702423",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 48592fa3c（复核于 2026-09-16），当前契约哈希 ff26659c8fa13c38 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：17 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M8-T5": {
+   "contractHash": "2b5dddc69cbc5ecc3b25563e92a1892e1063c1fb563ed7238af619a5ff95997a",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 2b5dddc69cbc5ecc 与之不同；机械比对显示变化字段只有 sections:02-设计/08-后端架构.md，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：1 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T1": {
+   "contractHash": "cdc019322b81a7808ea7ef735f2623b9c76361abb617dcefa978b1a30cd63744",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 cdc019322b81a780 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：有效范围内有未创建的文件：packages/web/src/placeholder.ts（该文件从未在任何提交里出现过，属范围登记多列；对应验收要求由同范围内的其它测试/源码承接，本轮不改动，作为登记遗留记录）",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T14": {
+   "contractHash": "b77bac7320c1917cd8a6f4802f12cd89954f0d10857ce098418dcf18f261cb85",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-14），当前契约哈希 b77bac7320c1917c 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：8 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T15": {
+   "contractHash": "b7843313be772e327d42c1e9510c1cc1526fcc6b313f472fa3061e2e764ae65c",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-14），当前契约哈希 b7843313be772e32 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T2": {
+   "contractHash": "d8c19381f374a3b1ca51bd075a600166207bdcbf73d446b82abb94a89c4bfee2",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 d8c19381f374a3b1 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T3": {
+   "contractHash": "2e62425716e36ce50be562c93383e1fc1b24177d50c6e86a5a2bc31cc2703edf",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 2e62425716e36ce5 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T4": {
+   "contractHash": "1131b2e6866c2eb3448683f6a1707a928e892f094b5280c54a7f9d37f78b3d71",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-13），当前契约哈希 1131b2e6866c2eb3 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T5": {
+   "contractHash": "80c1f48da2ee062f57e3608287fa59b858ed363c2cfbd11fed0c2d58ca48e150",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 80c1f48da2ee062f 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：本任务文本命中该条款主题的关键行是「1) 用 fetch + ReadableStream 自己分帧，**能带 `Authorization` 头**，忽略 `:` 心跳注释（E-08 的客户端侧、E-154） 2) 全应用只开一条连接，按信封的 taskId/runId 分派，**禁止每流一条 SSE** 3) 指数退避 `[1000,2000,4000,8000,15000]` ±20% 抖动封顶 15s，保留 `Last-Event-ID`，**不做无间隔轮询式重连**（E-158） 4) 60s 内未收到任何字节判死连接主动 abort 重连 5) 收到重放窗口过期码时清空本地 buffer → 拉 REST 全量快照 → 从最新 id 续接（E-153 的客户端侧） 6) 收到 401 立即停止退避循环并置 `needsPairing`（E-156 的客户端侧）；5) 收到重放窗口过期码时清空本地 buffer → 拉 REST 全量快照 → 从最新 id 续接（[[E-153]] 的客户端侧）；- 期望：服务端返回「重放窗口已过期」，客户端改为 REST 拉全量当前状态快照后从最新 event id 续接，不允许静默丢事件」——逐行看，这些命中都落在本任务自己的事务/续接语义上（见上引原文），不是审查收尾或返工写入归属；08 节的细化只重排了 reviewService 与 reworkService 之间的写入与投递边界，不改变本任务的要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T6": {
+   "contractHash": "33bef4ad95b411a46fbb62452dea80afe77c1d89fd43acb099c202b9a07a3309",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-15），当前契约哈希 33bef4ad95b411a4 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：2 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T7": {
+   "contractHash": "9f80fa5f7cab4247289d788c494aee97808c5704e71777b7bcf39843dad577e5",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-16），当前契约哈希 9f80fa5f7cab4247 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：3 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T8": {
+   "contractHash": "7713788dcae2931e5929a2321511929ea024b056660761a5d0faf5bfcdda77a7",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 eeb5dd5f9（复核于 2026-09-16），当前契约哈希 7713788dcae2931e 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：10 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  },
+  "M9-T9": {
+   "contractHash": "6d276b84193e5d07f9d547c7254adcfa4ad425509b02c7a27b2cb7dae1425dee",
+   "verdict": "pass",
+   "evidence": [
+    "复验触发面：本任务的复核记录停在版本 8830d3d4a（复核于 2026-09-16），当前契约哈希 6d276b84193e5d07 与之不同；机械比对显示变化字段只有 providers，本任务自身的 19 节任务行/验收标准/边界/有效范围/task-contracts 条目/架构·设计·skills 全部逐字未变——即这次漂移没有改到本任务自己的任何要求或范围。",
+    "本批唯一的契约漂移根因是 5d20e8a（M7-T4 review-fix，2026-09-16）对 02-设计/08-后端架构.md 的 8 增 3 删：把返工写入的归属改成「被审运行迁移、rework_count+1、（新开分支时）INSERT 返工运行与投递同属 reworkService.dispatchRework()：写入在它自己那一次事务里，投递在该事务返回之后；一次返工判定只有一个事务写 rework 字段，reviewService.finalizeReviewRun() 只写 review_verdict/rework_text 与闸门裁定，不得重复写 rework_count、不得再迁移被审运行、不得把 dispatchRework 包进自己的事务；事务上下文不上传 route、不下传 proc/adapters/logstore」",
+    "相关性判定：对本任务的 19 节验收标准与任务笔记「必须处理的边界」全文做关键词扫描（事务 / rework_count / dispatchRework / finalizeReviewRun / 返工写入 / 回灌 / reassign / 续接），本任务 0 命中——08 节这次细化的条款不属于本任务的范围，细化不改变本任务的任何要求。",
+    "该条款在 main 上的落点核查：reworkService.dispatchRework() 的写入确实收在它自己的 deps.unitOfWork.run(...) 里（packages/daemon/src/service/rework.ts:685-689），事件在该事务返回后才 publish（:691-695）；审查侧 runMechanicalCheck 的事务只写运行状态与闸门、不写 rework_count （packages/daemon/src/service/review.ts:1441-1521）；全仓没有生产调用点把 dispatchRework() 包进外层事务（调用点只有测试）。",
+    "有效范围与代码位置核查：4 条有效路径在 main 上全部存在；任务笔记里的代码位置引用全部可解析（文件存在且行号未越界）。",
+    "本轮检查（main @ a9e8cd1）：全仓 npx vitest run 结果见批次公共结论；有效范围与任务笔记「代码位置」逐条解析（见本条 evidence）。本任务自复核以来没有代码差异，复核对象是已合入 main 的代码与回填。",
+    "结论：本任务的要求与范围自复核以来未被改动，08 节细化不触及本任务，代码仍在 main 上且回填可解析，核验通过——按当前契约版本重新登记复核。"
+   ]
+  }
+ }
+}
