@@ -257,6 +257,10 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			});
 		}
 
+		if (!previousRun.task_id) {
+			throw new AppError('E_VALIDATION', 'Cannot rerun a run without task_id');
+		}
+
 		const task = tasksRepo.findById(previousRun.task_id);
 		if (!task) {
 			throw new AppError('E_NOT_FOUND', `Task not found: ${previousRun.task_id}`, {

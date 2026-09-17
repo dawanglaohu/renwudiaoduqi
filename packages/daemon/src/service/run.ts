@@ -16,7 +16,7 @@ import type { ArchiveTaskContext, SessionArchiveService } from './session-archiv
 
 export interface RunRecord {
 	readonly id: string;
-	readonly taskId: string;
+	readonly taskId: string | null;
 	readonly state: RunState;
 	readonly pid: number | null;
 	readonly kind?: string;
@@ -50,7 +50,7 @@ export interface RunsRepo {
 
 export interface ReconcileRunRecord {
 	readonly id: string;
-	readonly taskId: string;
+	readonly taskId: string | null;
 	readonly pid: number | null;
 	readonly state: RunState;
 }
@@ -92,6 +92,10 @@ export interface RunServiceDeps {
 	readonly sessionArchiveService?: SessionArchiveService;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 	readonly logFailure?: (error: unknown) => void;
+	readonly finalizeWrapup?: (input: {
+		readonly runId: string;
+		readonly exitCode: number | null;
+	}) => Promise<void>;
 }
 
 export interface RunService {
@@ -449,8 +453,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				options?.onExit?.(result);
 
 				void (async () => {
+					let run: RunRecord | null = null;
 					try {
-						const run = deps.runsRepo?.findById(runId);
+						run = deps.runsRepo?.findById(runId) ?? null;
 						if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
 							await transitionState({
 								runId,
@@ -460,10 +465,13 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								exitSignal: result.signal ? String(result.signal) : null,
 							});
 						}
+						await closeRunStream(runId);
+						if (run?.kind === 'wrapup' && deps.finalizeWrapup) {
+							await deps.finalizeWrapup({ runId, exitCode: result.exitCode });
+						}
 					} catch (err) {
 						logFailure(err);
 					} finally {
-						await closeRunStream(runId).catch((err) => logFailure(err));
 						completionResolve(result);
 					}
 				})();
@@ -506,7 +514,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		const previousState = run.state;
 		assertValidTransition(previousState, targetState, { reason });
 
-		const taskId = run.taskId ?? (run as { task_id?: string }).task_id;
+		const taskId = run.taskId ?? (run as { task_id?: string | null }).task_id;
 		const now = getNow();
 		const endedAt =
 			isTerminalRunState(targetState) || targetState === 'exited' ? (input.endedAt ?? now) : null;

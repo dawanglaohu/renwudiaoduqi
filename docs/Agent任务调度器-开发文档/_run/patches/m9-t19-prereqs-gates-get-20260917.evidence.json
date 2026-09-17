@@ -322,7 +322,7 @@
       "verdict": "pending"
     },
     "M7-T8": {
-      "contractHash": "48f414144e50a89b73dcd93c8fd0b53e61d7366ce0ecb9cdaaf03832b5ede179",
+      "contractHash": "41183797767dff14128d79dd151d4604c27ed1acaee35182a001584017e0a80f",
       "evidence": [],
       "verdict": "pending"
     },
@@ -352,22 +352,22 @@
       "verdict": "pending"
     },
     "M8-T6": {
-      "contractHash": "cba807f97bf7a276412dc78734a25cbc071c1df55c4f78ce7d28241ef72b2051",
+      "contractHash": "2157adb935c5b9308b6056d52f3e4205c1e20106054e0fcd15102e87fd338834",
       "evidence": [],
       "verdict": "pending"
     },
     "M8-T7": {
-      "contractHash": "e6ac6dea20a6a9c22354292f7488de472fe5315a35594198e22a1086157292ce",
+      "contractHash": "92a7ed74e3b1a2b4f2369b7f2e1635b564ef0aa58c1592aaa1a3ca0afb00f9f6",
       "evidence": [],
       "verdict": "pending"
     },
     "M8-T8": {
-      "contractHash": "25d2d1cdf64f883052205d63dd1df047eb84f701ac1e6ba4f615b8633466436c",
+      "contractHash": "3cd10653aa45e1a503a7f7091884c57c4ea7e19518f86fac8748552f66ac55e6",
       "evidence": [],
       "verdict": "pending"
     },
     "M8-T9": {
-      "contractHash": "f23781a30c649f56fce20d8fe6bda857586e0f827b18aff8a2dc53c1c2a8eeb6",
+      "contractHash": "4966180aa2d2a7f255a6e87cb77b85f91f3d36c2f4436c4c0958b9f24d9575d2",
       "evidence": [],
       "verdict": "pending"
     },
@@ -412,7 +412,7 @@
       "verdict": "pending"
     },
     "M9-T17": {
-      "contractHash": "0253731279b1621c382663fb03a19471050f1941df33ae1a3c69136545cff18d",
+      "contractHash": "f74bf6203520de31a0c7832703a1cee0f0ed5225fef1c446daea66dbc41b4f6e",
       "evidence": [],
       "verdict": "pending"
     },
@@ -422,15 +422,9 @@
       "verdict": "pending"
     },
     "M9-T19": {
-      "contractHash": "10b6f099ab50dd7f8082c8d8725bfc74e5138604fa830c4e5af4867f50e67ab4",
-      "evidence": [
-        "2026-09-17 对照 04-执行/19-模块任务拆分、07-前端架构、09-数据模型、10-接口约定、11-UI、12-UX 与 E-13/E-272/E-282/E-284/E-298/E-299 逐条复核；六条验收标准和六条边界均未删除、弱化或改写。",
-        "前置修正为 M8-T6/M8-T7/M9-T16/M9-T2/M9-T5：M8-T6 是 BatchDto 七态、canWrapup/notInHeadCount 及批次派生数据的后端所有者，M8-T7 是 TaskDto.inHead/inHeadMethod/crossBatchFix 的后端所有者，消除前端在字段落地前自造影子契约的空档。",
-        "10 节补入 GET /api/v1/settings/gates 返回当前三值；PATCH 仍要求 dispatch/review/landing 全量写入并由 settings.gates_changed 回流。supportPaths 只增加 shared/daemon 路由与对应 gates/routes 测试，没有开放整个后端目录。",
-        "有效路径补入 app/app.tsx、task-list-page.tsx、run-deck-view/container/types、mobile-batch-list.tsx 与 vitest.config.ts，分别承接任务列表路由、顶栏装配、手机 pane 替换和 TSX/lib 测试发现；其余生产路径仍受原 taskPaths 限制。",
-        "补丁同步后 contractHash=10b6f099ab50dd7f8082c8d8725bfc74e5138604fa830c4e5af4867f50e67ab4，stale=[]、runtimeDrift=[]；pnpm -w check 通过（151 files, 1842 passed, 2 skipped），Web production build 通过。"
-      ],
-      "verdict": "pass"
+      "contractHash": "09922e63a81c1f76466794145fd4c646ee1385485d786827913b0db1d6802186",
+      "evidence": [],
+      "verdict": "pending"
     },
     "M9-T2": {
       "contractHash": "5b00df05e969f6ea56460876e885230c6d76ba59f88f42e58ec9087060f0f310",
@@ -438,22 +432,22 @@
       "verdict": "pending"
     },
     "M9-T20": {
-      "contractHash": "deb48b8940ccb1d83f7a2fd31bcc36e226c913b0d3c339a1e4ca008b06bc116c",
+      "contractHash": "82b97cf483b20de272320ae31c812344e17c2144e5d960a79d24f274740dc4ec",
       "evidence": [],
       "verdict": "pending"
     },
     "M9-T21": {
-      "contractHash": "691a08cad7e92e0e2a6ffa53070b3a2f1d293a6c1e422959b30c6d04bf070ae9",
+      "contractHash": "b7cc8c3a767ff5f9420409e9650e79bf689ee6b8102899e81b76b9715d6167e8",
       "evidence": [],
       "verdict": "pending"
     },
     "M9-T22": {
-      "contractHash": "7be034df11a1685d0404c939db6a4280b94fee10ab6abb824f047b1bb265adda",
+      "contractHash": "5a6d25e814e5bdb6d446ac4c1094425321e3fa11bb88b1b118021e616f4222be",
       "evidence": [],
       "verdict": "pending"
     },
     "M9-T23": {
-      "contractHash": "693e3a3ee8b727133d67b5b3cfd3e4e41d74aff32f8cda595eabf663ce33e676",
+      "contractHash": "22fd1ed081b14c39eae16faea01658fddf63fa344ea744e821a3beef9cfd9ee9",
       "evidence": [],
       "verdict": "pending"
     },

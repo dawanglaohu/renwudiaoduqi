@@ -1,3 +1,5 @@
+import type { RunDto } from './runs.ts';
+
 export type BatchState =
 	| 'idle'
 	| 'running'
@@ -26,12 +28,6 @@ export interface BatchDto {
 	readonly finishedAt: string | null;
 	readonly canWrapup?: boolean;
 	readonly notInHeadCount?: number;
-	readonly taskCount?: number;
-	readonly landedCount?: number;
-	readonly runningCount?: number;
-	readonly waitingCount?: number;
-	readonly defaultExpanded?: boolean;
-	readonly hasCrossBatchFix?: boolean;
 }
 
 export interface BatchGateOverrides {
@@ -91,4 +87,84 @@ export interface StartBatchResponse {
 
 export interface PauseBatchResponse {
 	readonly paused: true;
+}
+
+export interface BatchWrapupLandingDto {
+	readonly worktreePath: string | null;
+	readonly branchName: string | null;
+	readonly diffStat: string | null;
+}
+
+export interface BatchWrapupDto {
+	readonly id: string;
+	readonly batchId: string;
+	readonly batchNo: number;
+	readonly tasks: readonly string[];
+	readonly round: number;
+	readonly runId: string;
+	readonly verdict: 'clean' | 'fixed' | 'open';
+	readonly declaredVerdict: 'clean' | 'fixed' | 'open' | null;
+	readonly isHumanVerdict: boolean;
+	readonly promptSource: 'docs' | 'builtin';
+	readonly tests: {
+		readonly status: 'pass' | 'fail' | 'skipped' | 'unknown';
+		readonly items: readonly string[];
+	};
+	readonly summaryText: string;
+	readonly findings: readonly unknown[];
+	readonly unassigned: readonly string[];
+	readonly fixRunIds: readonly string[];
+	readonly reportText: string;
+	readonly createdAt: string;
+	readonly landing?: BatchWrapupLandingDto | null;
+}
+
+export interface WrapupBatchBody {
+	readonly idempotencyKey: string;
+	readonly agentId?: string;
+	readonly model?: string | null;
+	readonly effortTier?: 'low' | 'medium' | 'high' | null;
+}
+
+export const WRAPUP_BATCH_BODY_KEYS = [
+	'agentId',
+	'effortTier',
+	'idempotencyKey',
+	'model',
+] as const satisfies readonly (keyof WrapupBatchBody)[];
+
+type AssertWrapupBatchBodyExhaustive = [
+	Exclude<keyof WrapupBatchBody, (typeof WRAPUP_BATCH_BODY_KEYS)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertWrapupBatchBody: AssertWrapupBatchBodyExhaustive = true;
+
+export const wrapupBatchBodySchema = {
+	type: 'object',
+	additionalProperties: false,
+	required: ['idempotencyKey'],
+	properties: {
+		idempotencyKey: {
+			type: 'string',
+			minLength: 8,
+			maxLength: 128,
+			pattern: '^[A-Za-z0-9_-]+$',
+		},
+		agentId: { type: 'string', minLength: 1, maxLength: 64 },
+		model: { type: ['string', 'null'], maxLength: 256 },
+		effortTier: {
+			type: ['string', 'null'],
+			enum: ['low', 'medium', 'high', null],
+		},
+	},
+} as const;
+
+export interface WrapupBatchResponse {
+	readonly run: RunDto;
+	readonly batch: BatchDto;
+}
+
+export interface GetBatchWrapupsResponse {
+	readonly wrapups: readonly BatchWrapupDto[];
 }

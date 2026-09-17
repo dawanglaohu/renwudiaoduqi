@@ -8,10 +8,6 @@ export interface TaskDto {
 	readonly estDays: number | null;
 	readonly batchId: string | null;
 	readonly state: string;
-	readonly inHead?: boolean | null;
-	readonly inHeadMethod?: string | null;
-	readonly isCrossBatchFix?: boolean;
-	readonly laneNo?: number | null;
 }
 
 export interface GetTaskLandingResponse {

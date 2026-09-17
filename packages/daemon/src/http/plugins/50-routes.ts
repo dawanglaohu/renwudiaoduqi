@@ -79,6 +79,8 @@ export const routesPlugin: FastifyPluginAsync = async (
 		'GET /api/v1/runs/:runId',
 		'POST /api/v1/batches/:batchId/start',
 		'POST /api/v1/batches/:batchId/pause',
+		'POST /api/v1/batches/:batchId/wrapup',
+		'GET /api/v1/batches/:batchId/wrapups',
 		'GET /api/v1/snapshot',
 		'POST /api/v1/pair/claim',
 		'POST /api/v1/pair/code',
