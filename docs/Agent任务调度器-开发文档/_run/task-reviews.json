@@ -1305,14 +1305,16 @@
     "verdict": "pass"
   },
   "M9-T19": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "7f924480a446c81a41d56bd34570d4f49d600494647d1c25d3a4778035f6773e",
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "10b6f099ab50dd7f8082c8d8725bfc74e5138604fa830c4e5af4867f50e67ab4",
     "evidence": [
-      "19 节 M9-T19 行：依赖 M9-T16（左栏与批次汇总条）、M9-T2（形状）、M9-T5（SSE/event-bus）；19 条有效路径覆盖 batch-tree/pulse-dot/gate-toggles 组件、lib/run-pulse、features/run-deck 三个文件、task-list 目录、base.css、check-forbidden、cache-invalidation/keys、spine.tsx（改为 import pulse-dot）与五个测试文件；sections 含 11、12",
-      "验收 1)～6) 对应 E-284（展开集只增不减、不持久化）、E-272/E-298（daemon 字段与进 HEAD 三态）、E-282（一个 pulse-dot、keyframe 唯一、13 状态映射、reduced-motion）、E-13（手机档取代折叠列表）、E-299（闸门开关）；11 节「批次树」小节、07 节「批次树的展开集」小节与 lib/components 清单已写明；决策 71/85/86 的取值已进文档",
-      "接缝：BatchDto 新字段（defaultExpanded/canWrapup/四计数/notInHeadCount）由 M8-T6 在 shared batches.ts 落，本任务只读；`settings.gates_changed` 由 M8-T4 发；前端不算任何业务判定（07 节「批次树同样不算」）"
+      "2026-09-17 对照 04-执行/19-模块任务拆分、07-前端架构、09-数据模型、10-接口约定、11-UI、12-UX 与 E-13/E-272/E-282/E-284/E-298/E-299 逐条复核；六条验收标准和六条边界均未删除、弱化或改写。",
+      "前置修正为 M8-T6/M8-T7/M9-T16/M9-T2/M9-T5：M8-T6 是 BatchDto 七态、canWrapup/notInHeadCount 及批次派生数据的后端所有者，M8-T7 是 TaskDto.inHead/inHeadMethod/crossBatchFix 的后端所有者，消除前端在字段落地前自造影子契约的空档。",
+      "10 节补入 GET /api/v1/settings/gates 返回当前三值；PATCH 仍要求 dispatch/review/landing 全量写入并由 settings.gates_changed 回流。supportPaths 只增加 shared/daemon 路由与对应 gates/routes 测试，没有开放整个后端目录。",
+      "有效路径补入 app/app.tsx、task-list-page.tsx、run-deck-view/container/types、mobile-batch-list.tsx 与 vitest.config.ts，分别承接任务列表路由、顶栏装配、手机 pane 替换和 TSX/lib 测试发现；其余生产路径仍受原 taskPaths 限制。",
+      "补丁同步后 contractHash=10b6f099ab50dd7f8082c8d8725bfc74e5138604fa830c4e5af4867f50e67ab4，stale=[]、runtimeDrift=[]；pnpm -w check 通过（151 files, 1842 passed, 2 skipped），Web production build 通过。"
     ],
-    "reviewed": "2026-09-10T20:08:25.984292+00:00",
+    "reviewed": "2026-09-17T05:58:10.741008+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
