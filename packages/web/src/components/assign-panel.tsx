@@ -3,16 +3,17 @@
  *
  * 逐任务指派面板与并发瓶颈说明组件（M9-T18 / AC 1-4, E-108, E-31, E-47, E-52）
  *
- * 规范依据（11 节 UI 与 07 节前端架构）：
- * - 四步引导第三步是「逐任务指派」而不是「给整批选一个模型」：每行一个任务，各自选 agent／模型／思考强度，已指派行显示所选值可点回改（AC 1, E-108）
- * - 同一个 agent 允许被指派多次，每次是一个独立会话并显示将要使用的会话序号（AC 2, E-31, 决策 7, 决策 52）
- * - 第四步显示并发三者取 min 的结果，并明确指出是并行窗口、该 agent 上限还是用户设定成了瓶颈，不只给一个可放行数字（AC 3, E-52）
- * - 某 agent 已达并发上限时其余任务仍可指派给别家，不空转等待（AC 4, E-47 的呈现侧）
- * - 用户可向下调用户设定，向上超过窗口数需显式解锁并提示后果（E-52）
- * - 模型下拉只列当前 agent 的清单，切换 agent 时清空覆盖（M4-T6, E-34）
- * - 不支持思考强度的 agent 显示「—」，绝不补默认档冒充（M4-T6, E-254）
- * - 模型为空时允许留空表示「跟随 agent 配置」（E-35, E-41）
- * - 纯展示组件（components 纯 props in / callback out），颜色全走 CSS 变量（check-forbidden 机检）
+ * 规范依据（11 节 UI 与 07 节前端架构，返工第 1 轮 R1-R3）：
+ * - R1: 彻底删除组件层对默认 agent／模型／思考强度、会话序号、Agent 容量、用户并发缺省和越界能力的补算。
+ *   全部由 daemon/feature 明确下发 props，缺失统一显示「—」（严格禁绝前端造假默认值与业务判定）。
+ * - R2: 通过 EmptyOnboarding 的 step3Slot/step4Slot 接入真实零运行流程；从 PR 当前 head 的真实服务录制 GIF 并嵌入 PR body。
+ * - R3: 全部交互控件补规定的 focus-visible 环（box-shadow 0 0 0 3px var(--needs-soft)），彻底移除无替代的 outline-none；
+ *   手机档点击目标至少 44×44（min-h-[44px] min-w-[44px]），并补键盘和窄屏证据。
+ * - 四步引导第三步是逐任务指派，每行一个任务，各自选 agent／模型／思考强度，已指派行显示所选值可点回改（AC 1, E-108）。
+ * - 同一个 agent 允许被指派多次，每次是一个独立会话并显示将要使用的会话序号（AC 2, E-31, 决策 7, 决策 52）。
+ * - 第四步显示并发三者取 min 的结果，并明确指出是并行窗口、该 agent 上限还是用户设定成了瓶颈（AC 3, E-52）。
+ * - 某 agent 已达并发上限时其余任务仍可指派给别家，不空转等待（AC 4, E-47 的呈现侧）。
+ * - 纯展示组件（components 纯 props in / callback out），颜色全走 CSS 变量（check-forbidden 机检）。
  */
 
 import { useId, useMemo, useState } from 'react';
@@ -26,9 +27,20 @@ export interface TaskItem {
 	readonly title: string;
 	readonly moduleKey?: string;
 	readonly description?: string;
-	readonly defaultAgentId?: string;
+	readonly defaultAgentId?: string | null;
 	readonly defaultModel?: string | null;
 	readonly defaultEffortTier?: string | null;
+	/** daemon/feature 下发的会话序号，缺失显示「—」，严禁前端补算 (R1) */
+	readonly sessionIndex?: number | null;
+}
+
+/**
+ * 可指派 Agent 容量状态。
+ */
+export interface AgentCapacityInfo {
+	readonly used?: number | null;
+	readonly max?: number | null;
+	readonly isFull?: boolean | null;
 }
 
 /**
@@ -41,7 +53,13 @@ export interface AssignableAgent {
 	readonly isAvailable?: boolean;
 	readonly defaultModel?: string | null;
 	readonly defaultEffortTier?: string | null;
-	readonly maxConcurrency: number;
+	readonly maxConcurrency?: number | null;
+	/** daemon/feature 下发的当前占用数，缺失显示「—」，严禁组件层自算 (R1) */
+	readonly usedConcurrency?: number | null;
+	/** daemon/feature 下发的满额状态 (R1) */
+	readonly isLimitReached?: boolean | null;
+	/** daemon/feature 下发将分配的下一会话序号，缺失显示「—」 (R1) */
+	readonly nextSessionIndex?: number | null;
 	readonly supportsEffort?: boolean;
 	readonly models?: readonly string[];
 }
@@ -56,7 +74,8 @@ export interface TaskAssignmentDraft {
 	readonly agentKey: string;
 	readonly modelName: string;
 	readonly effortTier?: string | null;
-	readonly sessionIndex?: number;
+	/** daemon/feature 明确下发的独立会话序号，缺失显示「—」 (R1) */
+	readonly sessionIndex?: number | null;
 }
 
 /**
@@ -74,7 +93,7 @@ export type ConcurrencyBottleneckType =
 	(typeof CONCURRENCY_BOTTLENECK_TYPES)[keyof typeof CONCURRENCY_BOTTLENECK_TYPES];
 
 /**
- * 并发审计与瓶颈数据。
+ * 并发审计与瓶颈数据（全部读 daemon 字段，缺失显示「—」，R1）。
  */
 export interface ConcurrencyAuditData {
 	/** 实际有效并发容量：min(窗口数, 每 agent 上限, 用户设定...)，读 daemon 字段 */
@@ -83,7 +102,7 @@ export interface ConcurrencyAuditData {
 	readonly windowCount?: number | string | null;
 	/** 活跃 Agent 单体并发上限 */
 	readonly agentLimit?: number | string | null;
-	/** 用户设定并发上限 */
+	/** 用户设定并发上限，缺失显示「—」，严禁组件层补 2 缺省 (R1) */
 	readonly userSetting?: number | null;
 	/** 瓶颈标识 */
 	readonly bottleneckSource?: ConcurrencyBottleneckType | string | null;
@@ -91,6 +110,8 @@ export interface ConcurrencyAuditData {
 	readonly bottleneckDescription?: string | null;
 	/** 是否退化为纯串行 (E-48) */
 	readonly isDegradedToSerial?: boolean;
+	/** 是否越界超过窗口数，由 daemon/feature 下发，严禁组件层自算比较 (R1) */
+	readonly isExceedingWindow?: boolean | null;
 	/** 是否显式解锁超过窗口数 (E-52) */
 	readonly isUnlockedAboveWindow?: boolean;
 }
@@ -105,6 +126,8 @@ export interface TaskAssignmentListProps {
 	readonly agents?: readonly AssignableAgent[];
 	/** 已存在的指派记录 */
 	readonly assignments?: Readonly<Record<string, TaskAssignmentDraft>>;
+	/** Agent 容量覆盖（可选显式下发） */
+	readonly agentCapacities?: Readonly<Record<string, AgentCapacityInfo>>;
 	/** 单任务指派完成或更新回调 */
 	readonly onAssignTask?: (taskId: string, draft: TaskAssignmentDraft) => void;
 	/** 单任务清除或重置回调 */
@@ -119,19 +142,21 @@ export interface TaskAssignmentListProps {
 export interface ConcurrencyBottleneckCardProps {
 	/** 并发审计数据（读 daemon 下发字段） */
 	readonly audit?: ConcurrencyAuditData;
-	/** 直接传入有效并发容量（当未传 audit 对象时兜底） */
+	/** 直接传入有效并发容量（缺失显示「—」） */
 	readonly effectiveCapacity?: number | string | null;
-	/** 直接传入并行窗口数 */
+	/** 直接传入并行窗口数（缺失显示「—」） */
 	readonly windowCount?: number | string | null;
-	/** 直接传入 Agent 单体并发上限 */
+	/** 直接传入 Agent 单体并发上限（缺失显示「—」） */
 	readonly agentLimit?: number | string | null;
-	/** 直接传入用户设定并发上限 */
+	/** 直接传入用户设定并发上限（缺失显示「—」，禁补缺省 2） */
 	readonly userSetting?: number | null;
 	/** 直接传入瓶颈标识 */
 	readonly bottleneckSource?: ConcurrencyBottleneckType | string | null;
 	/** 直接传入瓶颈描述 */
 	readonly bottleneckDescription?: string | null;
-	/** 是否显式解锁超过窗口数 */
+	/** 是否越界，由 daemon/feature 明确下发，禁前端比较 (R1) */
+	readonly isExceedingWindow?: boolean | null;
+	/** 是否显式解锁超过窗口数 (E-52) */
 	readonly isUnlockedAboveWindow?: boolean;
 	/** 用户修改设定回调 (E-52) */
 	readonly onChangeUserSetting?: (setting: number) => void;
@@ -155,6 +180,8 @@ export interface AssignPanelProps {
 	readonly agents?: readonly AssignableAgent[];
 	/** 已存在的指派记录 */
 	readonly assignments?: Readonly<Record<string, TaskAssignmentDraft>>;
+	/** Agent 容量显式下发 */
+	readonly agentCapacities?: Readonly<Record<string, AgentCapacityInfo>>;
 	/** 单任务指派回调 */
 	readonly onAssignTask?: (taskId: string, draft: TaskAssignmentDraft) => void;
 	/** 重置单任务指派 */
@@ -168,6 +195,7 @@ export interface AssignPanelProps {
 	readonly userSetting?: number | null;
 	readonly bottleneckSource?: ConcurrencyBottleneckType | string | null;
 	readonly bottleneckDescription?: string | null;
+	readonly isExceedingWindow?: boolean | null;
 	readonly isUnlockedAboveWindow?: boolean;
 	readonly onChangeUserSetting?: (setting: number) => void;
 	readonly onToggleUnlockAboveWindow?: (unlocked: boolean) => void;
@@ -181,7 +209,7 @@ export interface AssignPanelProps {
 const EMPTY_VALUE_FALLBACK = '—';
 
 /**
- * 格式化数值字段，缺失时显示「—」（严格禁绝前端造假默认值）。
+ * 格式化数值字段，缺失时显示「—」（严格禁绝前端造假默认值，R1）。
  */
 function renderFieldOrFallback(val: number | string | null | undefined): string {
 	if (val === null || val === undefined || val === '') {
@@ -191,7 +219,7 @@ function renderFieldOrFallback(val: number | string | null | undefined): string 
 }
 
 /**
- * 依据瓶颈标识派生人类可读中文说明（E-52）。
+ * 依据瓶颈标识派生人类可读中文说明（E-52，字段缺失显示「—」）。
  */
 function deriveBottleneckSummary(
 	source: ConcurrencyBottleneckType | string | null | undefined,
@@ -249,14 +277,21 @@ function deriveBottleneckSummary(
 }
 
 /**
- * 单任务指派行编辑状态管理（私有行组件）。
+ * 焦点环与无障碍样式（R3: 规定的 focus-visible 环，移除无替代的 outline-none）。
+ */
+const FOCUS_VISIBLE_RING_CLASS =
+	'focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_var(--needs-soft)]';
+
+/**
+ * 单任务指派行组件。
+ * R1: 删除组件层对默认 agent／模型／思考强度、会话序号的补算，全部读 props，缺失显示「—」。
+ * R3: 交互按钮在手机端触控区至少 44×44。
  */
 interface TaskAssignRowProps {
 	readonly task: TaskItem;
 	readonly agents: readonly AssignableAgent[];
 	readonly assignment?: TaskAssignmentDraft;
-	readonly assignedSessionIndex: number;
-	readonly agentUsageCounts: Readonly<Record<string, number>>;
+	readonly agentCapacities?: Readonly<Record<string, AgentCapacityInfo>>;
 	readonly onSave: (draft: TaskAssignmentDraft) => void;
 	readonly onReset?: () => void;
 }
@@ -265,93 +300,104 @@ function TaskAssignRow({
 	task,
 	agents,
 	assignment,
-	assignedSessionIndex,
-	agentUsageCounts,
+	agentCapacities,
 	onSave,
 	onReset,
 }: TaskAssignRowProps) {
 	const rowId = useId();
 	const isAlreadyAssigned = Boolean(assignment);
-	// 是否处于修改回改模式（AC 1: 已指派行显示所选值可点回改）
 	const [isEditing, setIsEditing] = useState<boolean>(!isAlreadyAssigned);
 
-	// 当前选择的 agent
-	const initialAgentId = assignment?.agentKey ?? task.defaultAgentId ?? agents[0]?.id ?? '';
+	// R1: 删除组件层对默认 agent 的补算（不使用 agents[0] 垫背），缺失即未选
+	const initialAgentId = assignment?.agentKey ?? task.defaultAgentId ?? '';
 	const [selectedAgentId, setSelectedAgentId] = useState<string>(initialAgentId);
 
-	// 查找所选 Agent 对象
+	// 查找所选 Agent
 	const currentAgent = useMemo(() => {
-		return agents.find((a) => a.id === selectedAgentId) ?? agents[0] ?? null;
+		if (!selectedAgentId) return null;
+		return agents.find((a) => a.id === selectedAgentId) ?? null;
 	}, [agents, selectedAgentId]);
 
-	// 当前 Agent 的可用模型列表（M4-T6, E-34: 下拉只列当前 agent 清单，切 agent 清空）
+	// 可用模型清单
 	const availableModels = useMemo(() => {
 		return currentAgent?.models ?? [];
 	}, [currentAgent]);
 
-	// 模型名称（空字符串代表「跟随 agent 配置」，E-35, E-41）
-	const initialModel =
-		assignment?.modelName ?? task.defaultModel ?? currentAgent?.defaultModel ?? '';
+	// R1: 删除组件层对默认模型的补算，缺失即空，显示「跟随 agent 配置」
+	const initialModel = assignment?.modelName ?? task.defaultModel ?? '';
 	const [selectedModel, setSelectedModel] = useState<string>(initialModel);
 
-	// 思考强度（支持 low / medium / high / null，E-254）
+	// R1: 删除组件层对思考强度的补算（不私自补 medium），不支持或未指定则为 null
 	const supportsEffort = currentAgent?.supportsEffort ?? false;
 	const initialEffort =
-		assignment?.effortTier ?? (supportsEffort ? (task.defaultEffortTier ?? 'medium') : null);
+		assignment?.effortTier ?? (supportsEffort ? (task.defaultEffortTier ?? null) : null);
 	const [selectedEffort, setSelectedEffort] = useState<string | null>(initialEffort);
 
 	// 切换 Agent 联动（M4-T6, E-34, E-254）
 	const handleAgentChange = (newAgentId: string) => {
 		setSelectedAgentId(newAgentId);
 		const newAgent = agents.find((a) => a.id === newAgentId);
-		// 切换 agent 时清空单任务模型覆盖，回落该 agent 默认（E-34）
-		setSelectedModel(newAgent?.defaultModel ?? '');
-		// 思考强度同构处理：不支持则置为 null，绝不伪造默认档（E-254）
+		// 切换 agent 清空模型覆盖（E-34）
+		setSelectedModel('');
+		// 不支持思考强度置 null，严禁前端补默认档（E-254）
 		if (newAgent?.supportsEffort) {
-			setSelectedEffort(newAgent.defaultEffortTier ?? 'medium');
+			setSelectedEffort(newAgent.defaultEffortTier ?? null);
 		} else {
 			setSelectedEffort(null);
 		}
 	};
 
+	// R1: 会话序号直接读下发 props，严禁组件层自算；如果 assignment 显式提供了 sessionIndex (包含 null)，优先采用
+	const effectiveSessionIndex =
+		assignment && 'sessionIndex' in assignment
+			? assignment.sessionIndex
+			: (task.sessionIndex ?? null);
+	const sessionDisplay =
+		effectiveSessionIndex !== null && effectiveSessionIndex !== undefined
+			? `会话 #${effectiveSessionIndex}`
+			: EMPTY_VALUE_FALLBACK;
+
+	// 下一会话序号预告：读 Agent 显式下发字段，缺失显示「—」
+	const nextSessionDisplay =
+		currentAgent?.nextSessionIndex !== null && currentAgent?.nextSessionIndex !== undefined
+			? `将分配会话 #${currentAgent.nextSessionIndex}`
+			: `会话序号: ${EMPTY_VALUE_FALLBACK}`;
+
+	// R1: Agent 容量与满额状态读下发 props，严禁组件层自算
+	const capacityInfo = currentAgent ? agentCapacities?.[currentAgent.id] : undefined;
+	const isAgentLimitExceeded = Boolean(
+		currentAgent?.isLimitReached ?? capacityInfo?.isFull ?? false,
+	);
+	const agentMaxConcurrency = currentAgent?.maxConcurrency ?? capacityInfo?.max ?? null;
+	const agentUsedConcurrency = currentAgent?.usedConcurrency ?? capacityInfo?.used ?? null;
+
 	// 保存指派
 	const handleSave = () => {
-		if (!currentAgent) return;
+		if (!selectedAgentId) return;
 		const draft: TaskAssignmentDraft = {
 			taskId: task.id,
 			taskKey: task.taskKey,
 			title: task.title,
-			agentKey: currentAgent.id,
+			agentKey: selectedAgentId,
 			modelName: selectedModel,
-			effortTier: currentAgent.supportsEffort ? selectedEffort : null,
-			sessionIndex: assignedSessionIndex,
+			effortTier: supportsEffort ? selectedEffort : null,
+			sessionIndex: effectiveSessionIndex,
 		};
 		onSave(draft);
 		setIsEditing(false);
 	};
 
-	// 针对当前选定 Agent 统计已占用会话数
-	const currentAgentUsedCount = currentAgent ? (agentUsageCounts[currentAgent.id] ?? 0) : 0;
-	// 若当前任务原本已指派给该 Agent，则编辑时不重复计算自身
-	const effectiveAgentUsed =
-		isAlreadyAssigned && assignment?.agentKey === currentAgent?.id
-			? currentAgentUsedCount
-			: currentAgentUsedCount + 1;
-	const isAgentLimitExceeded = currentAgent
-		? effectiveAgentUsed > currentAgent.maxConcurrency
-		: false;
-
 	// ─────────────────────────────────────────────────────────────
-	// 态 1：已指派展示态（回显所选值，提供回改入口，AC 1, AC 2, E-108, E-31）
+	// 态 1：已指派展示态（回显所选值，提供回改入口，AC 1, AC 2, E-108, E-31, R1-R3）
 	// ─────────────────────────────────────────────────────────────
 	if (isAlreadyAssigned && !isEditing && assignment) {
 		const assignedAgentObj = agents.find((a) => a.id === assignment.agentKey);
 		const agentMonogram =
-			assignedAgentObj?.monogram ?? assignment.agentKey.slice(0, 2).toUpperCase();
-		const agentName = assignedAgentObj?.name ?? assignment.agentKey;
+			assignedAgentObj?.monogram ??
+			(assignment.agentKey ? assignment.agentKey.slice(0, 2).toUpperCase() : EMPTY_VALUE_FALLBACK);
+		const agentName = assignedAgentObj?.name ?? assignment.agentKey ?? EMPTY_VALUE_FALLBACK;
 		const modelDisplay = assignment.modelName ? assignment.modelName : '跟随 agent 配置';
 		const effortDisplay = assignment.effortTier ? assignment.effortTier : EMPTY_VALUE_FALLBACK;
-		const sessionDisplay = assignment.sessionIndex ?? assignedSessionIndex;
 
 		return (
 			<div
@@ -380,13 +426,13 @@ function TaskAssignRow({
 							</span>
 							<span className="font-ui text-ink-1">{agentName}</span>
 						</span>
-						{/* 独立会话序号徽标（AC 2, E-31, 决策 7） */}
+						{/* 独立会话序号徽标（AC 2, E-31，R1: 读下发 props，缺失显示 —） */}
 						<span
-							data-session-badge={sessionDisplay}
+							data-session-badge={effectiveSessionIndex ?? EMPTY_VALUE_FALLBACK}
 							className="px-2 py-0.5 rounded border border-auto-soft bg-auto-soft text-auto font-bold text-micro"
-							title={`同一个 agent 允许多次指派，此任务为独立会话 #${sessionDisplay}（E-31）`}
+							title="同一个 agent 允许多次指派，独立会话序号读 daemon 字段（E-31）"
 						>
-							会话 #{sessionDisplay}
+							{sessionDisplay}
 						</span>
 						<span className="text-ink-3">|</span>
 						<span className="text-ink-2" title={`模型: ${modelDisplay}`}>
@@ -399,13 +445,13 @@ function TaskAssignRow({
 					</div>
 				</div>
 
-				{/* 回改修改动作按钮（AC 1: 已指派行显示所选值可点回改） */}
+				{/* 回改修改动作按钮（AC 1, R3: 44x44 触控目标与 focus-visible 环） */}
 				<div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
 					<button
 						type="button"
 						data-action="edit-assignment"
 						onClick={() => setIsEditing(true)}
-						className="h-btn px-3 rounded-sm border border-border bg-bg text-ink-2 hover:text-ink-1 hover:border-needs text-dense transition-colors"
+						className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 px-3 rounded-sm border border-border bg-bg text-ink-2 hover:text-ink-1 hover:border-needs text-dense transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 						aria-label={`修改任务 ${task.taskKey} 的指派`}
 					>
 						修改指派
@@ -415,7 +461,7 @@ function TaskAssignRow({
 							type="button"
 							data-action="reset-assignment"
 							onClick={() => onReset()}
-							className="h-btn px-2 rounded-sm border border-transparent text-ink-3 hover:text-down text-micro transition-colors"
+							className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 px-2 rounded-sm border border-transparent text-ink-3 hover:text-down text-micro transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 							aria-label={`重置任务 ${task.taskKey} 的指派`}
 						>
 							重置
@@ -427,7 +473,7 @@ function TaskAssignRow({
 	}
 
 	// ─────────────────────────────────────────────────────────────
-	// 态 2：编辑指派表单态（逐任务单独指派，AC 1, AC 2, AC 4, E-47, E-108）
+	// 态 2：编辑指派表单态（逐任务单独指派，AC 1, AC 2, AC 4, E-47, E-108, R1-R3）
 	// ─────────────────────────────────────────────────────────────
 	return (
 		<div
@@ -449,31 +495,32 @@ function TaskAssignRow({
 					)}
 				</div>
 				<div className="flex items-center gap-2">
-					{/* 即将分配的会话序号预告（AC 2, E-31） */}
+					{/* 即将分配的会话序号预告（AC 2, E-31，R1: 读下发字段，缺失显示 —） */}
 					<span
-						data-next-session-preview={assignedSessionIndex}
+						data-next-session-preview={currentAgent?.nextSessionIndex ?? EMPTY_VALUE_FALLBACK}
 						className="text-micro font-mono text-auto bg-auto-soft border border-auto-soft px-2 py-0.5 rounded"
 					>
-						将分配会话 #{assignedSessionIndex}
+						{nextSessionDisplay}
 					</span>
 				</div>
 			</div>
 
-			{/* Agent 已达上限提示条（AC 4, E-47 呈现侧：某 agent 已达并发上限时其余任务仍可指派给别家，不空转等待） */}
+			{/* Agent 满额提示条（AC 4, E-47，R1: 读 daemon 字段，缺失不妄判） */}
 			{isAgentLimitExceeded && currentAgent && (
 				<div
 					data-testid="agent-limit-warning"
 					className="flex items-center justify-between text-micro text-needs p-2 rounded bg-needs-soft border border-needs font-mono"
 				>
 					<span>
-						⚠️ Agent「{currentAgent.name}」已达并发上限 ({currentAgent.maxConcurrency}/
-						{currentAgent.maxConcurrency})。本任务启动时需排队；其余任务可继续指派给别家
-						Agent，不空转等待（E-47）。
+						⚠️ Agent「{currentAgent.name}」已达并发上限 (
+						{renderFieldOrFallback(agentUsedConcurrency)}/
+						{renderFieldOrFallback(agentMaxConcurrency)}
+						)。本任务启动时需排队；其余任务可继续指派给别家 Agent，不空转等待（E-47）。
 					</span>
 				</div>
 			)}
 
-			{/* 表单控件区：三联控件（Agent / 模型 / 思考强度） */}
+			{/* 表单控件区：三联控件（Agent / 模型 / 思考强度，R3: 44px 触控目标 + focus-visible 环） */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
 				{/* 1. 选择 Agent */}
 				<div className="flex flex-col gap-1">
@@ -485,15 +532,18 @@ function TaskAssignRow({
 						data-testid={`select-agent-${task.taskKey}`}
 						value={selectedAgentId}
 						onChange={(e) => handleAgentChange(e.target.value)}
-						className="h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono focus:border-needs outline-none transition-colors"
+						className={`min-h-[44px] sm:min-h-[32px] h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono transition-colors ${FOCUS_VISIBLE_RING_CLASS}`}
 					>
+						<option value="">请选择 Agent...</option>
 						{agents.map((ag) => {
-							const used = agentUsageCounts[ag.id] ?? 0;
-							const isFull = used >= ag.maxConcurrency;
+							const cap = agentCapacities?.[ag.id];
+							const usedStr = renderFieldOrFallback(ag.usedConcurrency ?? cap?.used);
+							const maxStr = renderFieldOrFallback(ag.maxConcurrency ?? cap?.max);
+							const fullMark = (ag.isLimitReached ?? cap?.isFull) ? ' [已满额]' : ' [可用]';
 							return (
 								<option key={ag.id} value={ag.id}>
-									{ag.name} ({ag.monogram}) — {used}/{ag.maxConcurrency}
-									{isFull ? ' [已满额]' : ' [可用]'}
+									{ag.name} ({ag.monogram}) — {usedStr}/{maxStr}
+									{fullMark}
 								</option>
 							);
 						})}
@@ -510,7 +560,7 @@ function TaskAssignRow({
 						data-testid={`select-model-${task.taskKey}`}
 						value={selectedModel}
 						onChange={(e) => setSelectedModel(e.target.value)}
-						className="h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono focus:border-needs outline-none transition-colors"
+						className={`min-h-[44px] sm:min-h-[32px] h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono transition-colors ${FOCUS_VISIBLE_RING_CLASS}`}
 					>
 						<option value="">跟随 agent 默认配置 (不传 --model)</option>
 						{availableModels.map((m) => (
@@ -532,8 +582,9 @@ function TaskAssignRow({
 							data-testid={`select-effort-${task.taskKey}`}
 							value={selectedEffort ?? ''}
 							onChange={(e) => setSelectedEffort(e.target.value || null)}
-							className="h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono focus:border-needs outline-none transition-colors"
+							className={`min-h-[44px] sm:min-h-[32px] h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono transition-colors ${FOCUS_VISIBLE_RING_CLASS}`}
 						>
+							<option value="">未指定 (跟随默认)</option>
 							<option value="low">低档 (low)</option>
 							<option value="medium">中档 (medium)</option>
 							<option value="high">高档 (high)</option>
@@ -542,7 +593,7 @@ function TaskAssignRow({
 						<div
 							id={`effort-select-${rowId}`}
 							data-testid={`effort-unsupported-${task.taskKey}`}
-							className="flex h-input items-center px-2.5 rounded-sm border border-border bg-panel-2 text-ink-3 font-mono text-dense select-none cursor-not-allowed"
+							className="flex min-h-[44px] sm:min-h-[32px] h-input items-center px-2.5 rounded-sm border border-border bg-panel-2 text-ink-3 font-mono text-dense select-none cursor-not-allowed"
 							title="该 Agent 原生不支持思考强度参数，UI 显示 —，派发不传参（E-254）"
 						>
 							<span>{EMPTY_VALUE_FALLBACK}</span>
@@ -552,7 +603,7 @@ function TaskAssignRow({
 				</div>
 			</div>
 
-			{/* 底部确认与取消 */}
+			{/* 底部确认与取消（R3: 44px 触控目标与 focus-visible 环） */}
 			<div className="flex items-center justify-between pt-1 border-t border-border mt-1">
 				<div className="text-micro text-ink-3 font-mono">
 					{isAlreadyAssigned ? '修改单任务指派' : '逐任务独立指定，严禁整批统一套用'}
@@ -562,7 +613,7 @@ function TaskAssignRow({
 						<button
 							type="button"
 							onClick={() => setIsEditing(false)}
-							className="h-btn px-3 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense"
+							className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 px-3 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 						>
 							取消
 						</button>
@@ -571,7 +622,7 @@ function TaskAssignRow({
 						type="button"
 						data-action="confirm-task-assign"
 						onClick={handleSave}
-						className="h-btn px-4 rounded-sm bg-needs text-on-needs font-bold text-dense hover:brightness-105 transition-colors"
+						className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 px-4 rounded-sm bg-needs text-on-needs font-bold text-dense hover:brightness-105 transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 					>
 						确认指派
 					</button>
@@ -590,38 +641,11 @@ export function TaskAssignmentList({
 	tasks = [],
 	agents = [],
 	assignments = {},
+	agentCapacities,
 	onAssignTask,
 	onResetAssignment,
 	className = '',
 }: TaskAssignmentListProps) {
-	// 统计各 Agent 已指派的任务数（用于容量分配与 E-47 满额呈现）
-	const agentUsageCounts = useMemo(() => {
-		const counts: Record<string, number> = {};
-		for (const draft of Object.values(assignments)) {
-			if (draft.agentKey) {
-				counts[draft.agentKey] = (counts[draft.agentKey] ?? 0) + 1;
-			}
-		}
-		return counts;
-	}, [assignments]);
-
-	// 计算某一特定任务归属 Agent 的独立会话序号（AC 2, E-31）
-	const getSessionIndexForTask = (taskId: string, agentKey: string): number => {
-		let count = 0;
-		for (const t of tasks) {
-			const a = assignments[t.id];
-			if (a && a.agentKey === agentKey) {
-				count++;
-				if (t.id === taskId) {
-					return count;
-				}
-			}
-		}
-		// 若当前尚未正式入库，则序号为已存在数 + 1
-		return (agentUsageCounts[agentKey] ?? 0) + 1;
-	};
-
-	// 汇总已指派和待指派数量
 	const assignedCount = Object.keys(assignments).length;
 	const totalTasks = tasks.length;
 
@@ -630,7 +654,7 @@ export function TaskAssignmentList({
 			data-testid="task-assignment-list"
 			className={`flex flex-col gap-3 rounded border border-border bg-bg p-4 ${className}`}
 		>
-			{/* 顶栏：指派进度与容量总览（AC 1, AC 4, E-47） */}
+			{/* 顶栏：指派进度与容量总览（AC 1, AC 4, E-47, R1: 读下发字段，缺失显示 —） */}
 			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-border">
 				<div>
 					<h4 className="text-dense font-semibold text-ink-1">
@@ -640,14 +664,16 @@ export function TaskAssignmentList({
 						每行任务独立配置 Agent、模型与思考强度；已指派行可随时点回改（E-108）。
 					</p>
 				</div>
-				{/* 动态 Agent 容量指标行（AC 4, E-47） */}
+				{/* 动态 Agent 容量指标行（AC 4, E-47，R1: 读下发字段，缺失显示 —） */}
 				<div
 					data-testid="agent-capacity-overview"
 					className="flex items-center gap-2 flex-wrap text-micro font-mono"
 				>
 					{agents.map((ag) => {
-						const used = agentUsageCounts[ag.id] ?? 0;
-						const isFull = used >= ag.maxConcurrency;
+						const cap = agentCapacities?.[ag.id];
+						const usedStr = renderFieldOrFallback(ag.usedConcurrency ?? cap?.used);
+						const maxStr = renderFieldOrFallback(ag.maxConcurrency ?? cap?.max);
+						const isFull = Boolean(ag.isLimitReached ?? cap?.isFull);
 						return (
 							<span
 								key={ag.id}
@@ -659,11 +685,11 @@ export function TaskAssignmentList({
 								}`}
 								title={
 									isFull
-										? `${ag.name} 单体并发已满 (${used}/${ag.maxConcurrency})，空位顺延给其他 Agent，不空转等待（E-47）`
-										: `${ag.name} 当前已分配 ${used}/${ag.maxConcurrency}`
+										? `${ag.name} 单体并发已满 (${usedStr}/${maxStr})，空位顺延给其他 Agent，不空转等待（E-47）`
+										: `${ag.name} 当前已分配 ${usedStr}/${maxStr}`
 								}
 							>
-								{ag.name}: {used}/{ag.maxConcurrency}
+								{ag.name}: {usedStr}/{maxStr}
 								{isFull ? ' (已满)' : ''}
 							</span>
 						);
@@ -676,9 +702,6 @@ export function TaskAssignmentList({
 				<div className="flex flex-col gap-2.5">
 					{tasks.map((task) => {
 						const currentAssignment = assignments[task.id];
-						const agentKeyForTask =
-							currentAssignment?.agentKey ?? task.defaultAgentId ?? agents[0]?.id ?? '';
-						const sessionIndex = getSessionIndexForTask(task.id, agentKeyForTask);
 
 						return (
 							<TaskAssignRow
@@ -686,8 +709,7 @@ export function TaskAssignmentList({
 								task={task}
 								agents={agents}
 								assignment={currentAssignment}
-								assignedSessionIndex={sessionIndex}
-								agentUsageCounts={agentUsageCounts}
+								agentCapacities={agentCapacities}
 								onSave={(draft) => onAssignTask?.(task.id, draft)}
 								onReset={() => onResetAssignment?.(task.id)}
 							/>
@@ -708,7 +730,7 @@ export function TaskAssignmentList({
 
 /**
  * ─────────────────────────────────────────────────────────────
- * 并发限制审计与瓶颈归因卡片（AC 3, E-52, E-47, E-48）
+ * 并发限制审计与瓶颈归因卡片（AC 3, E-52, E-47, E-48, R1-R3）
  * ─────────────────────────────────────────────────────────────
  */
 export function ConcurrencyBottleneckCard({
@@ -719,19 +741,23 @@ export function ConcurrencyBottleneckCard({
 	userSetting,
 	bottleneckSource,
 	bottleneckDescription,
+	isExceedingWindow,
 	isUnlockedAboveWindow = false,
 	onChangeUserSetting,
 	onToggleUnlockAboveWindow,
 	className = '',
 }: ConcurrencyBottleneckCardProps) {
 	// 属性融合（优先读 audit 字段，无则读平铺 props）
-	const effCap = audit?.effectiveCapacity ?? effectiveCapacity;
-	const winCount = audit?.windowCount ?? windowCount;
-	const agLimit = audit?.agentLimit ?? agentLimit;
-	const usrSet = audit?.userSetting ?? userSetting ?? 2;
+	const effCap = audit?.effectiveCapacity ?? effectiveCapacity ?? null;
+	const winCount = audit?.windowCount ?? windowCount ?? null;
+	const agLimit = audit?.agentLimit ?? agentLimit ?? null;
+	// R1: 彻底删除用户设定补 2 缺省，缺失即为 null，渲染「—」
+	const usrSet = audit?.userSetting ?? userSetting ?? null;
 	const bSource = audit?.bottleneckSource ?? bottleneckSource ?? null;
 	const bDesc = audit?.bottleneckDescription ?? bottleneckDescription ?? null;
 	const isUnlocked = audit?.isUnlockedAboveWindow ?? isUnlockedAboveWindow;
+	// R1: 越界能力读 daemon/feature 显式字段，严禁组件层自算比较
+	const isExceeding = Boolean(audit?.isExceedingWindow ?? isExceedingWindow ?? false);
 
 	// 解析瓶颈分析人类说明
 	const bottleneckInfo = deriveBottleneckSummary(bSource, {
@@ -740,33 +766,17 @@ export function ConcurrencyBottleneckCard({
 		userSetting: usrSet,
 	});
 
-	// 用户上调是否越界（E-52: 向上超过窗口数需显式解锁并提示后果）
-	const numericWinCount = typeof winCount === 'number' ? winCount : Number(winCount);
-	const isExceedingWindow =
-		!Number.isNaN(numericWinCount) && numericWinCount > 0 && usrSet > numericWinCount;
-
-	// 用户调节设定动作
+	// 用户调节设定动作（仅在 usrSet 具备有效数值时可操作）
 	const handleDecrease = () => {
-		if (onChangeUserSetting && usrSet > 1) {
+		if (onChangeUserSetting && typeof usrSet === 'number' && usrSet > 1) {
 			onChangeUserSetting(usrSet - 1);
 		}
 	};
 
 	const handleIncrease = () => {
-		if (!onChangeUserSetting) return;
+		if (!onChangeUserSetting || typeof usrSet !== 'number') return;
 		if (usrSet >= 6) return;
-		// 若增加后将超过窗口数且尚未解锁，则提示必须显式解锁
-		const nextVal = usrSet + 1;
-		if (
-			!Number.isNaN(numericWinCount) &&
-			numericWinCount > 0 &&
-			nextVal > numericWinCount &&
-			!isUnlocked
-		) {
-			// 未解锁时阻止继续上调
-			return;
-		}
-		onChangeUserSetting(nextVal);
+		onChangeUserSetting(usrSet + 1);
 	};
 
 	return (
@@ -774,7 +784,7 @@ export function ConcurrencyBottleneckCard({
 			data-testid="concurrency-bottleneck-card"
 			className={`flex flex-col gap-4 p-4 rounded border border-border bg-panel-2 text-meta ${className}`}
 		>
-			{/* 头部：有效并发容量（min 三者取 min 结果） */}
+			{/* 头部：有效并发容量（min 三者取 min 结果，R1: 缺失显示 —） */}
 			<div className="flex items-center justify-between border-b border-border pb-3">
 				<div>
 					<span className="font-semibold text-ink-1 text-dense">有效并行并发容量</span>
@@ -793,7 +803,7 @@ export function ConcurrencyBottleneckCard({
 				</div>
 			</div>
 
-			{/* 三因子对比网格（明确指出三者数值与哪一个是瓶颈，AC 3, E-52） */}
+			{/* 三因子对比网格（明确指出三者数值与哪一个是瓶颈，AC 3, E-52, R1: 缺失显示 —） */}
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 font-mono text-micro">
 				{/* 因子 1：并行窗口数 */}
 				<div
@@ -847,7 +857,7 @@ export function ConcurrencyBottleneckCard({
 					<span className="text-micro text-ink-3 mt-1">单 Agent 最大会话配额</span>
 				</div>
 
-				{/* 因子 3：用户设定上限（可调节，E-52） */}
+				{/* 因子 3：用户设定上限（可调节，E-52, R1: 缺失显示 —, R3: 44x44 触控目标） */}
 				<div
 					data-factor="user_setting"
 					className={`flex flex-col justify-between p-2.5 rounded bg-bg border ${
@@ -880,8 +890,8 @@ export function ConcurrencyBottleneckCard({
 									type="button"
 									data-action="decrease-user-setting"
 									onClick={handleDecrease}
-									disabled={usrSet <= 1}
-									className="h-6 w-6 flex items-center justify-center text-ink-2 hover:text-ink-1 disabled:opacity-30"
+									disabled={typeof usrSet !== 'number' || usrSet <= 1}
+									className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center text-ink-2 hover:text-ink-1 disabled:opacity-30 rounded-sm ${FOCUS_VISIBLE_RING_CLASS}`}
 									aria-label="调小用户并发设定"
 								>
 									-
@@ -890,14 +900,8 @@ export function ConcurrencyBottleneckCard({
 									type="button"
 									data-action="increase-user-setting"
 									onClick={handleIncrease}
-									disabled={
-										usrSet >= 6 ||
-										(!isUnlocked &&
-											!Number.isNaN(numericWinCount) &&
-											numericWinCount > 0 &&
-											usrSet >= numericWinCount)
-									}
-									className="h-6 w-6 flex items-center justify-center text-ink-2 hover:text-ink-1 disabled:opacity-30"
+									disabled={typeof usrSet !== 'number' || usrSet >= 6}
+									className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center text-ink-2 hover:text-ink-1 disabled:opacity-30 rounded-sm ${FOCUS_VISIBLE_RING_CLASS}`}
 									aria-label="调大用户并发设定"
 								>
 									+
@@ -928,29 +932,31 @@ export function ConcurrencyBottleneckCard({
 				</p>
 			</div>
 
-			{/* 向上超过窗口数显式解锁与后果提示（E-52） */}
+			{/* 向上超过窗口数显式解锁与后果提示（E-52, R1: 读下发 isExceedingWindow, R3: 44px 触控目标） */}
 			{onChangeUserSetting && onToggleUnlockAboveWindow && (
 				<div
 					data-testid="unlock-above-window-container"
 					className="flex flex-col gap-2 p-2.5 rounded bg-bg border border-border text-micro font-mono"
 				>
-					<label className="flex items-center gap-2 cursor-pointer text-ink-1">
+					<label className="flex items-center gap-2 cursor-pointer text-ink-1 min-h-[44px] py-1">
 						<input
 							type="checkbox"
 							data-action="toggle-unlock-above-window"
 							checked={isUnlocked}
 							onChange={(e) => onToggleUnlockAboveWindow(e.target.checked)}
-							className="h-4 w-4 rounded border-border bg-panel-2 text-needs focus:ring-0 cursor-pointer"
+							className={`h-5 w-5 rounded border-border bg-panel-2 text-needs cursor-pointer ${FOCUS_VISIBLE_RING_CLASS}`}
 						/>
-						<span className="font-semibold">显式解锁超过并行窗口数设定 (E-52)</span>
+						<span className="font-semibold select-none">显式解锁超过并行窗口数设定 (E-52)</span>
 					</label>
 
-					{isExceedingWindow && (
+					{/* R1: isExceeding 读下发字段 */}
+					{isExceeding && (
 						<div
 							data-testid="exceed-window-warning"
 							className="text-needs bg-needs-soft border border-needs p-2 rounded text-micro"
 						>
-							⚠️ 后果提示：当前用户设定 ({usrSet}) 已超过依赖窗口数 ({winCount}
+							⚠️ 后果提示：当前用户设定 ({renderFieldOrFallback(usrSet)}) 已超过依赖窗口数 (
+							{renderFieldOrFallback(winCount)}
 							)。实际运行受任务前后依赖与路径冲突限制，超出部分将排队，并不会带来额外的物理并发加速。
 						</div>
 					)}
@@ -971,6 +977,7 @@ export function AssignPanel({
 	tasks = [],
 	agents = [],
 	assignments = {},
+	agentCapacities,
 	onAssignTask,
 	onResetAssignment,
 	audit,
@@ -980,6 +987,7 @@ export function AssignPanel({
 	userSetting,
 	bottleneckSource,
 	bottleneckDescription,
+	isExceedingWindow,
 	isUnlockedAboveWindow,
 	onChangeUserSetting,
 	onToggleUnlockAboveWindow,
@@ -996,6 +1004,7 @@ export function AssignPanel({
 					tasks={tasks}
 					agents={agents}
 					assignments={assignments}
+					agentCapacities={agentCapacities}
 					onAssignTask={onAssignTask}
 					onResetAssignment={onResetAssignment}
 				/>
@@ -1011,6 +1020,7 @@ export function AssignPanel({
 					userSetting={userSetting}
 					bottleneckSource={bottleneckSource}
 					bottleneckDescription={bottleneckDescription}
+					isExceedingWindow={isExceedingWindow}
 					isUnlockedAboveWindow={isUnlockedAboveWindow}
 					onChangeUserSetting={onChangeUserSetting}
 					onToggleUnlockAboveWindow={onToggleUnlockAboveWindow}

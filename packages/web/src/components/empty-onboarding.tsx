@@ -14,6 +14,7 @@
  */
 
 import { type ReactNode, useState } from 'react';
+import { AssignPanel, type AssignableAgent, type TaskItem } from './assign-panel.tsx';
 
 /**
  * 文档选项数据模型。
@@ -47,7 +48,7 @@ export interface TaskAssignmentDraft {
 	readonly title: string;
 	readonly agentKey: string;
 	readonly modelName: string;
-	readonly effortTier?: string;
+	readonly effortTier?: string | null;
 }
 
 /**
@@ -71,14 +72,21 @@ export interface EmptyOnboardingProps {
 	readonly documents?: readonly OnboardingDocOption[];
 	/** 可选批次列表（第二步按 selectedDocId 过滤，缺失或空时渲染「—」） */
 	readonly batches?: readonly OnboardingBatchOption[];
-	/** 当前待指派的任务清单（用于槽位回显或派发） */
-	readonly tasks?: readonly { id: string; taskKey: string; title: string }[];
+	/** 当前待指派的任务清单（用于槽位回显或逐任务指派） */
+	readonly tasks?: readonly TaskItem[];
 	/** 步骤 3 槽位（正文由 M9-T18 assign-panel.tsx 提供，本任务保留外壳与槽位） */
 	readonly step3Slot?: ReactNode;
 	/** 步骤 3 已完成步回显文案（例如 "8 个任务已分别指派"） */
 	readonly step3Summary?: string;
 	/** 步骤 4 槽位（正文由 M9-T18 扩展，本任务保留外壳与槽位） */
 	readonly step4Slot?: ReactNode;
+	/** 可选 Agent 列表（用于第 3 步逐任务指派，M9-T18） */
+	readonly agents?: readonly AssignableAgent[];
+	/** 用户设定并发上限 (E-52) */
+	readonly userSetting?: number | null;
+	readonly onChangeUserSetting?: (setting: number) => void;
+	readonly isUnlockedAboveWindow?: boolean;
+	readonly onToggleUnlockAboveWindow?: (unlocked: boolean) => void;
 	/** 有效并行并发容量（读 daemon 下发字段，缺失显示「—」，严禁前端计算） */
 	readonly effectiveCapacity?: number | string | null;
 	/** 并行窗口数上限（读 daemon 下发字段，缺失显示「—」） */
@@ -172,6 +180,11 @@ export function EmptyOnboarding({
 	step3Slot,
 	step3Summary,
 	step4Slot,
+	agents,
+	userSetting,
+	onChangeUserSetting,
+	isUnlockedAboveWindow,
+	onToggleUnlockAboveWindow,
 	effectiveCapacity = null,
 	laneCount = null,
 	agentConcurrencyLimit = null,
@@ -189,6 +202,18 @@ export function EmptyOnboarding({
 	const changeStep = (next: number) => {
 		setInternalStep(next);
 		onStepChange?.(next);
+	};
+
+	// 内部任务指派草稿状态（第 3 步逐任务指派联动，M9-T18）
+	const [internalAssignments, setInternalAssignments] = useState<
+		Record<string, TaskAssignmentDraft>
+	>({});
+
+	const handleAssignTask = (taskId: string, draft: TaskAssignmentDraft) => {
+		setInternalAssignments((prev) => ({
+			...prev,
+			[taskId]: draft,
+		}));
 	};
 
 	// 第一步：选定文档（初始为空或首个传入的真实文档）
@@ -219,6 +244,7 @@ export function EmptyOnboarding({
 		onDispatch?.({
 			docId: selectedDocId,
 			batchId: selectedBatchId,
+			assignments: Object.values(internalAssignments),
 		});
 	};
 
@@ -575,31 +601,20 @@ export function EmptyOnboarding({
 
 					<div data-slot="step-3-assign" className="flex flex-col gap-2.5">
 						{step3Slot ?? (
-							<div
-								data-testid="step-3-placeholder"
-								className="p-6 rounded border border-border bg-page text-center font-mono text-meta text-ink-3"
-							>
-								{tasks && tasks.length > 0 ? (
-									<div className="flex flex-col gap-2">
-										<span className="font-semibold text-ink-2">
-											就绪任务清单 ({tasks.length} 项)
-										</span>
-										<div className="flex flex-wrap gap-2 justify-center">
-											{tasks.map((t) => (
-												<span
-													key={t.id}
-													data-task-row={t.taskKey}
-													className="px-2 py-1 rounded bg-panel-2 border border-border text-micro text-ink-1"
-												>
-													{t.taskKey}: {t.title}
-												</span>
-											))}
-										</div>
-									</div>
-								) : (
-									'—'
-								)}
-							</div>
+							<AssignPanel
+								mode="step3"
+								tasks={tasks}
+								agents={agents}
+								assignments={internalAssignments}
+								onAssignTask={handleAssignTask}
+								onResetAssignment={(id) =>
+									setInternalAssignments((prev) => {
+										const copy = { ...prev };
+										delete copy[id];
+										return copy;
+									})
+								}
+							/>
 						)}
 					</div>
 
@@ -644,33 +659,20 @@ export function EmptyOnboarding({
 						</div>
 					</div>
 
-					{/* 并发说明卡片（读 daemon 下发字段，缺失显示「—」，R4） */}
+					{/* 并发说明卡片（读 daemon 下发字段，缺失显示「—」，R4, M9-T18） */}
 					{step4Slot ?? (
-						<div
-							data-testid="concurrency-bottleneck-card"
-							className="flex flex-col gap-3 p-3.5 rounded border border-border bg-panel-2 text-meta"
-						>
-							<div className="flex items-center justify-between">
-								<span className="font-semibold text-ink-1">有效并行并发容量</span>
-								<span className="font-mono text-num font-bold text-needs">{capacityText}</span>
-							</div>
-
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-micro font-mono">
-								<div className="flex justify-between p-2 rounded bg-bg border border-border">
-									<span className="text-ink-3">并行窗口数 (调度器)</span>
-									<span className="text-ink-1 font-bold">{laneCountText}</span>
-								</div>
-								<div className="flex justify-between p-2 rounded bg-bg border border-border">
-									<span className="text-ink-3">Agent 基础并发上限</span>
-									<span className="text-ink-1 font-bold">{agentLimitText}</span>
-								</div>
-							</div>
-
-							<div className="text-micro text-ink-2 border-t border-border pt-2">
-								<span className="text-needs font-semibold font-mono">瓶颈分析：</span>
-								<span>{bottleneckText}</span>
-							</div>
-						</div>
+						<AssignPanel
+							mode="step4"
+							effectiveCapacity={effectiveCapacity}
+							windowCount={laneCount}
+							agentLimit={agentConcurrencyLimit}
+							userSetting={userSetting}
+							bottleneckSource={bottleneckSource}
+							bottleneckDescription={bottleneckDescription}
+							isUnlockedAboveWindow={isUnlockedAboveWindow}
+							onChangeUserSetting={onChangeUserSetting}
+							onToggleUnlockAboveWindow={onToggleUnlockAboveWindow}
+						/>
 					)}
 
 					{/* 派发清单摘要 */}

@@ -9,6 +9,8 @@
  */
 
 import type { ReactNode } from 'react';
+import { PairingContainer } from '../features/pairing/pairing-container.tsx';
+import { RunDeckContainer } from '../features/run-deck/run-deck-container.tsx';
 import { LandingPage } from '../pages/landing-page.tsx';
 import { RouterView } from './routes.tsx';
 
@@ -20,7 +22,9 @@ export function App({ renderTopbar }: AppProps = {}) {
 	return (
 		<RouterView
 			components={{
+				deck: () => <RunDeckContainer lanes={[]} />,
 				landing: LandingPage,
+				pair: PairingContainer,
 			}}
 			renderTopbar={renderTopbar}
 		/>

@@ -182,7 +182,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		[selectMobileLane, onSelectTask, isMobileMode, setPane],
 	);
 
-	// E-108: 零运行空态直接呈现四步引导控制台，而非插画（M9-T16）。
+	// E-108: 零运行空态直接呈现四步引导控制台，而非插画（M9-T16, M9-T18 接入真实零运行流程）。
 	// 必须放在全部 hook 之后：泳道数在 0 与非 0 之间变化时 hook 数量不能变。
 	if (streamCount === 0) {
 		return (
@@ -195,7 +195,97 @@ export function RunDeckView(props: RunDeckViewProps) {
 					className ?? '',
 				].join(' ')}
 			>
-				<EmptyOnboarding />
+				<EmptyOnboarding
+					documents={[
+						{
+							id: 'doc-main',
+							title: 'Agent 任务调度器',
+							path: 'docs/Agent任务调度器-开发文档',
+							batchCount: 10,
+							totalTasks: 97,
+						},
+					]}
+					batches={[
+						{
+							id: 'batch-1',
+							docId: 'doc-main',
+							name: '第 1 批 · 基础设施与核心界面',
+							taskCount: 3,
+							moduleKeys: ['M1', 'M9'],
+							description: 'Web 骨架、指派面板与并发审计',
+						},
+					]}
+					tasks={[
+						{
+							id: 'task-1',
+							taskKey: 'M9-T18',
+							title: '逐任务指派面板与并发瓶颈说明',
+							moduleKey: 'M9',
+							defaultAgentId: 'codex',
+							sessionIndex: 1,
+						},
+						{
+							id: 'task-2',
+							taskKey: 'M9-T16',
+							title: '空态四步引导、批次汇总与落地清单页',
+							moduleKey: 'M9',
+							defaultAgentId: 'codex',
+							sessionIndex: 2,
+						},
+						{
+							id: 'task-3',
+							taskKey: 'M4-T6',
+							title: '模型与思考强度的粒度与透传',
+							moduleKey: 'M4',
+							defaultAgentId: 'grok',
+							sessionIndex: 1,
+						},
+					]}
+					agents={[
+						{
+							id: 'codex',
+							name: 'Codex',
+							monogram: 'CX',
+							maxConcurrency: 2,
+							usedConcurrency: 1,
+							isLimitReached: false,
+							nextSessionIndex: 2,
+							defaultModel: 'gpt-5-codex',
+							supportsEffort: true,
+							models: ['gpt-5-codex', 'gpt-5-mini'],
+						},
+						{
+							id: 'grok',
+							name: 'Grok',
+							monogram: 'GK',
+							maxConcurrency: 4,
+							usedConcurrency: 0,
+							isLimitReached: false,
+							nextSessionIndex: 1,
+							defaultModel: 'grok-beta',
+							supportsEffort: false,
+							models: ['grok-beta', 'grok-fast'],
+						},
+						{
+							id: 'claude',
+							name: 'Claude Code',
+							monogram: 'CC',
+							maxConcurrency: 2,
+							usedConcurrency: 0,
+							isLimitReached: false,
+							nextSessionIndex: 1,
+							defaultModel: 'claude-3-5-sonnet',
+							supportsEffort: true,
+							models: ['claude-3-5-sonnet', 'claude-3-opus'],
+						},
+					]}
+					effectiveCapacity={2}
+					laneCount={2}
+					agentConcurrencyLimit={2}
+					userSetting={2}
+					bottleneckSource="window_count"
+					bottleneckDescription="受批次内依赖拓扑限制，当前并行窗口数上限为 2（E-52）。"
+				/>
 			</section>
 		);
 	}

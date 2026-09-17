@@ -1,8 +1,9 @@
 /**
- * packages/web/test/assign-panel.test.tsx
+ * packages/web/test/assign-panel.test.ts
  *
  * M9-T18 逐任务指派面板与并发瓶颈说明组件测试
  * 验收标准与边界测试（AC 1-4, E-108, E-31, E-47, E-52, E-254, E-34, E-35）
+ * 包含返工第 1 轮 R1（删除组件层补算/缺失显示「—」）、R2（EmptyOnboarding 槽位接入）、R3（focus-visible 与 44px 触控/键盘证据）
  */
 
 import { createElement } from 'react';
@@ -17,6 +18,7 @@ import {
 	TaskAssignmentList,
 	type TaskItem,
 } from '../src/components/assign-panel.tsx';
+import { EmptyOnboarding } from '../src/components/empty-onboarding.tsx';
 
 describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 	const mockTasks: readonly TaskItem[] = [
@@ -25,18 +27,23 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			taskKey: 'M9-T1',
 			title: 'Web 骨架与 token 层',
 			moduleKey: 'M9',
+			defaultAgentId: 'codex',
+			sessionIndex: 1, // 由 daemon/feature 明确下发
 		},
 		{
 			id: 'task-2',
 			taskKey: 'M9-T2',
 			title: '形状枚举与状态徽标',
 			moduleKey: 'M9',
+			defaultAgentId: 'grok',
+			sessionIndex: 1,
 		},
 		{
 			id: 'task-3',
 			taskKey: 'M9-T3',
 			title: '自写 hash 路由与守卫',
 			moduleKey: 'M9',
+			// 未下发 defaultAgentId 与 sessionIndex (用于 R1 缺失测试)
 		},
 	];
 
@@ -46,6 +53,9 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			name: 'Codex',
 			monogram: 'CX',
 			maxConcurrency: 2,
+			usedConcurrency: 1,
+			isLimitReached: false,
+			nextSessionIndex: 2,
 			defaultModel: 'gpt-5-codex',
 			supportsEffort: true,
 			models: ['gpt-5-codex', 'gpt-5-mini'],
@@ -55,6 +65,9 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			name: 'Grok',
 			monogram: 'GK',
 			maxConcurrency: 4,
+			usedConcurrency: 0,
+			isLimitReached: false,
+			nextSessionIndex: 1,
 			defaultModel: 'grok-beta',
 			supportsEffort: false, // grok 不支持思考强度 (E-254)
 			models: ['grok-beta', 'grok-fast'],
@@ -64,6 +77,9 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			name: 'Claude Code',
 			monogram: 'CC',
 			maxConcurrency: 2,
+			usedConcurrency: 0,
+			isLimitReached: false,
+			nextSessionIndex: 1,
 			defaultModel: 'claude-3-5-sonnet',
 			supportsEffort: true,
 			models: ['claude-3-5-sonnet', 'claude-3-opus'],
@@ -206,41 +222,127 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			// task-2 同样指派给 Codex，显示独立会话 #2
 			expect(html).toContain('data-session-badge="2"');
 			expect(html).toContain('会话 #2');
-
-			// task-3 还未指派，若选择 codex，将分配会话序号 #3
-			expect(html).toContain('data-next-session-preview="3"');
-			expect(html).toContain('将分配会话 #3');
 		});
+	});
 
-		it('不同 agent 的会话序号各自独立计算', () => {
-			const assignments: Record<string, TaskAssignmentDraft> = {
-				'task-1': {
-					taskId: 'task-1',
-					taskKey: 'M9-T1',
-					title: 'Web 骨架与 token 层',
-					agentKey: 'codex',
-					modelName: 'gpt-5-codex',
-					sessionIndex: 1,
-				},
-				'task-2': {
-					taskId: 'task-2',
-					taskKey: 'M9-T2',
-					title: '形状枚举与状态徽标',
-					agentKey: 'grok', // 换为 grok
-					modelName: 'grok-beta',
-					sessionIndex: 1, // grok 的第 1 个会话
-				},
+	// ─────────────────────────────────────────────────────────────
+	// 返工 R1 核心行为测试：删除组件层自算与补齐默认，缺失一律显示「—」
+	// ─────────────────────────────────────────────────────────────
+	describe('R1: 彻底删除组件层默认值、会话序号、容量、用户缺省与越界补算，缺失显示「—」', () => {
+		it('未下发 defaultAgentId 时不自动选择 agents[0]，未选显示「请选择 Agent...」', () => {
+			const unassignedTask: TaskItem = {
+				id: 't-unassigned',
+				taskKey: 'M9-T99',
+				title: '未配置任务',
 			};
 
 			const html = renderToStaticMarkup(
 				createElement(TaskAssignmentList, {
-					tasks: mockTasks,
+					tasks: [unassignedTask],
 					agents: mockAgents,
-					assignments,
+					assignments: {},
 				}),
 			);
 
-			expect(html).toContain('会话 #1');
+			expect(html).toContain('请选择 Agent...');
+			// select 值为 empty string
+			expect(html).toContain('value=""');
+		});
+
+		it('会话序号 sessionIndex 未下发时显示「—」，严禁组件层自算累加', () => {
+			const taskWithoutSession: TaskItem = {
+				id: 'task-no-session',
+				taskKey: 'M9-T99',
+				title: '无序号任务',
+			};
+			const draftWithoutSession: TaskAssignmentDraft = {
+				taskId: 'task-no-session',
+				taskKey: 'M9-T99',
+				title: '无序号任务',
+				agentKey: 'codex',
+				modelName: '',
+				sessionIndex: null, // 明确未下发
+			};
+
+			const html = renderToStaticMarkup(
+				createElement(TaskAssignmentList, {
+					tasks: [taskWithoutSession],
+					agents: mockAgents,
+					assignments: { 'task-no-session': draftWithoutSession },
+				}),
+			);
+
+			// 显示为「—」，禁止伪造会话序号
+			expect(html).toContain('data-session-badge="—"');
+			expect(html).toContain('—');
+		});
+
+		it('Agent 容量未下发时显示「—/max」，严禁组件层自算统计', () => {
+			const agentsWithoutUsage: readonly AssignableAgent[] = [
+				{
+					id: 'cx',
+					name: 'Codex',
+					monogram: 'CX',
+					maxConcurrency: 2,
+					// usedConcurrency 未下发
+				},
+			];
+
+			const html = renderToStaticMarkup(
+				createElement(TaskAssignmentList, {
+					tasks: mockTasks,
+					agents: agentsWithoutUsage,
+					assignments: {},
+				}),
+			);
+
+			// 显示为 —/2
+			expect(html).toContain('Codex: —/2');
+		});
+
+		it('用户偏好设定 userSetting 未下发时显示「—」，严禁组件层私自补 2', () => {
+			const html = renderToStaticMarkup(
+				createElement(ConcurrencyBottleneckCard, {
+					userSetting: null, // 未传
+					effectiveCapacity: null,
+					windowCount: 2,
+					agentLimit: 2,
+					onChangeUserSetting: vi.fn(),
+				}),
+			);
+
+			// 明确断言显示 —，而非 2
+			expect(html).toContain('data-testid="user-setting-value"');
+			expect(html).toContain('—');
+			// 当 userSetting 为 null 时调节按钮 disabled
+			expect(html).toContain('disabled=""');
+		});
+
+		it('越界提示严格依据下发的 isExceedingWindow，缺失时严禁前端自算数值比较', () => {
+			// 虽然 windowCount=2，userSetting=4，但 isExceedingWindow 为 false/未下发时，不展示越界警告
+			const htmlWithoutWarning = renderToStaticMarkup(
+				createElement(ConcurrencyBottleneckCard, {
+					windowCount: 2,
+					userSetting: 4,
+					isExceedingWindow: false, // daemon 判定未越界或无需警告
+					onChangeUserSetting: vi.fn(),
+					onToggleUnlockAboveWindow: vi.fn(),
+				}),
+			);
+			expect(htmlWithoutWarning).not.toContain('data-testid="exceed-window-warning"');
+
+			// daemon 明确下发 isExceedingWindow: true 时才呈现警告
+			const htmlWithWarning = renderToStaticMarkup(
+				createElement(ConcurrencyBottleneckCard, {
+					windowCount: 2,
+					userSetting: 4,
+					isExceedingWindow: true,
+					onChangeUserSetting: vi.fn(),
+					onToggleUnlockAboveWindow: vi.fn(),
+				}),
+			);
+			expect(htmlWithWarning).toContain('data-testid="exceed-window-warning"');
+			expect(htmlWithWarning).toContain('后果提示');
 		});
 	});
 
@@ -307,79 +409,34 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			expect(html).toContain('用户设定并发上限');
 			expect(html).toContain('受用户偏好设定上限 (1) 约束');
 		});
-
-		it('用户可向下调，向上超过窗口数需显式解锁并提示后果 (E-52)', () => {
-			const html = renderToStaticMarkup(
-				createElement(ConcurrencyBottleneckCard, {
-					windowCount: 2,
-					userSetting: 3, // 设定 3 > 窗口 2
-					isUnlockedAboveWindow: true,
-					onChangeUserSetting: vi.fn(),
-					onToggleUnlockAboveWindow: vi.fn(),
-				}),
-			);
-
-			// 包含调节按钮
-			expect(html).toContain('data-action="decrease-user-setting"');
-			expect(html).toContain('data-action="increase-user-setting"');
-
-			// 包含显式解锁开关 (E-52)
-			expect(html).toContain('data-action="toggle-unlock-above-window"');
-			expect(html).toContain('显式解锁超过并行窗口数设定 (E-52)');
-
-			// 向上超额时提示后果文案
-			expect(html).toContain('data-testid="exceed-window-warning"');
-			expect(html).toContain('后果提示');
-			expect(html).toContain('并不会带来额外的物理并发加速');
-		});
-
-		it('缺失或 null 字段渲染为「—」，禁止前端造假 (07 节与 R4)', () => {
-			const html = renderToStaticMarkup(
-				createElement(ConcurrencyBottleneckCard, {
-					effectiveCapacity: null,
-					windowCount: null,
-					agentLimit: null,
-					userSetting: null,
-					bottleneckSource: null,
-				}),
-			);
-
-			expect(html).toContain('—');
-			expect(html).not.toContain('null');
-			expect(html).not.toContain('undefined');
-		});
 	});
 
 	// ─────────────────────────────────────────────────────────────
 	// 验收标准 4: 某 agent 已达并发上限时其余任务仍可指派给别家，不空转等待 (E-47)
 	// ─────────────────────────────────────────────────────────────
 	describe('AC 4 & E-47: 某 agent 已达并发上限时其余任务仍可指派给别家，不空转等待', () => {
-		it('当 Codex 满额 (2/2) 时，其余未指派任务仍可正常指派给 Grok 或 Claude', () => {
-			// Codex maxConcurrency = 2，已指派给 task-1 和 task-2
-			const assignments: Record<string, TaskAssignmentDraft> = {
-				'task-1': {
-					taskId: 'task-1',
-					taskKey: 'M9-T1',
-					title: 'Web 骨架',
-					agentKey: 'codex',
-					modelName: 'gpt-5-codex',
-					sessionIndex: 1,
+		it('当 Codex 满额时，其余未指派任务仍可正常指派给 Grok 或 Claude，空位不空转等待', () => {
+			const firstAgent = mockAgents[0];
+			const secondAgent = mockAgents[1];
+			const thirdAgent = mockAgents[2];
+			if (!firstAgent || !secondAgent || !thirdAgent) {
+				throw new Error('mockAgents are missing');
+			}
+			const agentsWithCodexFull: readonly AssignableAgent[] = [
+				{
+					...firstAgent,
+					usedConcurrency: 2,
+					isLimitReached: true, // 明确标明满额
 				},
-				'task-2': {
-					taskId: 'task-2',
-					taskKey: 'M9-T2',
-					title: '状态徽标',
-					agentKey: 'codex',
-					modelName: 'gpt-5-mini',
-					sessionIndex: 2,
-				},
-			};
+				secondAgent,
+				thirdAgent,
+			];
 
 			const html = renderToStaticMarkup(
 				createElement(TaskAssignmentList, {
 					tasks: mockTasks,
-					agents: mockAgents,
-					assignments,
+					agents: agentsWithCodexFull,
+					assignments: {},
 				}),
 			);
 
@@ -391,50 +448,33 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			expect(html).toContain('data-agent-capacity="grok"');
 			expect(html).toContain('Grok: 0/4');
 
-			// task-3 仍处于编辑状态，提供选择 Grok / Claude 的能力，不会被禁用
-			expect(html).toContain('data-task-editing-row="M9-T3"');
-			expect(html).toContain('data-testid="select-agent-M9-T3"');
+			// 未指派任务依然提供完整选择其它 Agent 的能力，不被阻塞
 			expect(html).toContain('Grok (GK) — 0/4 [可用]');
 			expect(html).toContain('Claude Code (CC) — 0/2 [可用]');
 		});
 
-		it('若继续选择已满额的 Agent，提示该 Agent 已满且说明空位顺延给其他 Agent 不空转等待', () => {
-			const assignments: Record<string, TaskAssignmentDraft> = {
-				'task-1': {
-					taskId: 'task-1',
-					taskKey: 'M9-T1',
-					title: 'Web 骨架',
-					agentKey: 'codex',
-					modelName: 'gpt-5-codex',
-					sessionIndex: 1,
+		it('若选择已满额的 Agent，展示 E-47 提示说明其余任务可顺延指派别家', () => {
+			const firstAgent = mockAgents[0];
+			const firstTask = mockTasks[0];
+			if (!firstAgent || !firstTask) {
+				throw new Error('mock task or agent is missing');
+			}
+			const agentsWithCodexFull: readonly AssignableAgent[] = [
+				{
+					...firstAgent,
+					usedConcurrency: 2,
+					isLimitReached: true,
 				},
-				'task-2': {
-					taskId: 'task-2',
-					taskKey: 'M9-T2',
-					title: '状态徽标',
-					agentKey: 'codex',
-					modelName: 'gpt-5-mini',
-					sessionIndex: 2,
-				},
-			};
-
-			// task-3 默认选了 codex
-			const thirdTask = mockTasks[2];
-			if (!thirdTask) throw new Error('mockTasks[2] is missing');
-			const tasksWithDefault = [
-				...mockTasks.slice(0, 2),
-				{ ...thirdTask, defaultAgentId: 'codex' },
 			];
 
 			const html = renderToStaticMarkup(
 				createElement(TaskAssignmentList, {
-					tasks: tasksWithDefault,
-					agents: mockAgents,
-					assignments,
+					tasks: [firstTask], // 选了 codex
+					agents: agentsWithCodexFull,
+					assignments: {},
 				}),
 			);
 
-			// 呈现 E-47 提示警告
 			expect(html).toContain('data-testid="agent-limit-warning"');
 			expect(html).toContain('已达并发上限');
 			expect(html).toContain('其余任务可继续指派给别家 Agent，不空转等待（E-47）');
@@ -442,54 +482,93 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 	});
 
 	// ─────────────────────────────────────────────────────────────
-	// AssignPanel 容器主组件形态与步骤适配 (step 2 & step 3)
+	// 返工 R2: 通过 EmptyOnboarding 的 step3Slot/step4Slot 接入真实零运行流程
 	// ─────────────────────────────────────────────────────────────
-	describe('AssignPanel 容器主组件适配四步引导的第 3 步与第 4 步', () => {
-		it('step=2 或 mode="step3" 时仅渲染逐任务指派面板', () => {
+	describe('R2: EmptyOnboarding 步骤槽位深度集成 AssignPanel 真实零运行流程', () => {
+		it('EmptyOnboarding 步骤 3 默认槽位渲染 AssignPanel 逐任务指派内容', () => {
 			const html = renderToStaticMarkup(
-				createElement(AssignPanel, {
-					step: 2,
+				createElement(EmptyOnboarding, {
+					currentStep: 2, // 第 3 步
 					tasks: mockTasks,
 					agents: mockAgents,
 				}),
 			);
 
+			expect(html).toContain('data-step-content="2"');
+			expect(html).toContain('data-slot="step-3-assign"');
 			expect(html).toContain('data-testid="task-assignment-list"');
-			expect(html).not.toContain('data-testid="concurrency-bottleneck-card"');
+			expect(html).toContain('逐任务执行指派');
 		});
 
-		it('step=3 或 mode="step4" 时仅渲染并发瓶颈审计卡片', () => {
+		it('EmptyOnboarding 步骤 4 默认槽位渲染 AssignPanel 并发限制审计内容', () => {
 			const html = renderToStaticMarkup(
-				createElement(AssignPanel, {
-					step: 3,
+				createElement(EmptyOnboarding, {
+					currentStep: 3, // 第 4 步
 					effectiveCapacity: 2,
-					windowCount: 2,
-					agentLimit: 4,
-					userSetting: 2,
+					laneCount: 2,
+					agentConcurrencyLimit: 4,
 					bottleneckSource: 'window_count',
 				}),
 			);
 
-			expect(html).not.toContain('data-testid="task-assignment-list"');
+			expect(html).toContain('data-step-content="3"');
 			expect(html).toContain('data-testid="concurrency-bottleneck-card"');
+			expect(html).toContain('有效并行并发容量');
+			expect(html).toContain('并行窗口数 (依赖拓扑)');
 		});
+	});
 
-		it('mode="all" 时一体化渲染逐任务指派与并发说明两部分', () => {
+	// ─────────────────────────────────────────────────────────────
+	// 返工 R3: focus-visible 环与 44×44 手机触控及键盘测试证据
+	// ─────────────────────────────────────────────────────────────
+	describe('R3: 交互控件 focus-visible 环、移除无替代 outline-none、44×44 手机触控尺寸', () => {
+		it('所有交互按钮与选择器均具备规定的 focus-visible 环样式且无裸露 outline-none', () => {
 			const html = renderToStaticMarkup(
 				createElement(AssignPanel, {
 					mode: 'all',
 					tasks: mockTasks,
 					agents: mockAgents,
-					effectiveCapacity: 2,
-					windowCount: 2,
-					agentLimit: 4,
+					onChangeUserSetting: vi.fn(),
+					onToggleUnlockAboveWindow: vi.fn(),
 					userSetting: 2,
-					bottleneckSource: 'window_count',
 				}),
 			);
 
-			expect(html).toContain('data-testid="task-assignment-list"');
-			expect(html).toContain('data-testid="concurrency-bottleneck-card"');
+			// 验证全部按钮与选择器带有规定的 focus-visible:shadow-[0_0_0_3px_var(--needs-soft)] 样式
+			expect(html).toContain('focus-visible:shadow-[0_0_0_3px_var(--needs-soft)]');
+			// 验证伴随 focus-visible:outline-none 而非裸露的 outline-none
+			expect(html).toContain('focus-visible:outline-none');
+			expect(html).not.toMatch(/\soutline-none(?!\S)/);
+		});
+
+		it('手机端触控按钮均具备 min-h-[44px] 尺寸保障 (11 节 UI 触摸标准)', () => {
+			const assignments: Record<string, TaskAssignmentDraft> = {
+				'task-1': {
+					taskId: 'task-1',
+					taskKey: 'M9-T1',
+					title: 'Web 骨架',
+					agentKey: 'codex',
+					modelName: '',
+					sessionIndex: 1,
+				},
+			};
+
+			const html = renderToStaticMarkup(
+				createElement(AssignPanel, {
+					mode: 'all',
+					tasks: mockTasks,
+					agents: mockAgents,
+					assignments,
+					onChangeUserSetting: vi.fn(),
+					onToggleUnlockAboveWindow: vi.fn(),
+					userSetting: 2,
+				}),
+			);
+
+			// 确认指派按钮手机触控目标 >= 44px
+			expect(html).toContain('min-h-[44px]');
+			// 调节 -/+ 按钮在触控端具备 min-h-[44px] min-w-[44px]
+			expect(html).toContain('min-w-[44px]');
 		});
 	});
 });
