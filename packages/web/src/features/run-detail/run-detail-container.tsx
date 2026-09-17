@@ -77,7 +77,7 @@ export function RunDetailContainer({
 	const { tier } = useDensityTier();
 	const isMobileTier = isMobile ?? (tier === 'phone' || tier === 'phone-xs');
 
-	// M9-T13: 手机原样重跑逻辑与状态连接（AC 1, AC 3, E-177, E-181）
+	// M9-T13: 手机原样重跑逻辑与状态连接（AC 1, AC 3, E-177, E-181, R2, R3）
 	const {
 		run: currentRun,
 		isTerminalFailureOrAborted,
@@ -86,6 +86,8 @@ export function RunDetailContainer({
 		hasActiveRun,
 		isConfirmOpen,
 		error: rerunError,
+		techError: rerunTechError,
+		requestId: rerunRequestId,
 		openConfirm,
 		closeConfirm,
 		executeRerun,
@@ -237,8 +239,8 @@ export function RunDetailContainer({
 			{/* R5 e: 底部向下重新加载较新分段触发点（AC 2 滚出重拉） */}
 			{state.hasNewer && <LogLoadNewerBar isLoading={isLoadingNewer} onClick={loadNewer} />}
 
-			{/* M9-T13 / AC 1-5, E-177, E-181: 流详情页日志末尾整宽重跑入口（不进拇指条） */}
-			{isTerminalFailureOrAborted && (
+			{/* M9-T13 / AC 1-5, E-177, E-181, R3: 流详情页日志末尾整宽重跑入口（仅限手机端，不进拇指条） */}
+			{isMobileTier && isTerminalFailureOrAborted && (
 				<MobileRerunBar
 					isTerminalFailureOrAborted={isTerminalFailureOrAborted}
 					canRerun={canRerun}
@@ -247,6 +249,8 @@ export function RunDetailContainer({
 					isMobile={isMobileTier}
 					onTriggerRerun={openConfirm}
 					error={rerunError}
+					techError={rerunTechError}
+					requestId={rerunRequestId}
 				/>
 			)}
 
