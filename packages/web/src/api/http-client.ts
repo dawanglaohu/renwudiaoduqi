@@ -114,21 +114,7 @@ export function registerTokenProvider(provider: TokenProvider | null): void {
 }
 
 export function getCachedToken(): string | null {
-	if (!cachedToken && typeof sessionStorage !== 'undefined') {
-		try {
-			cachedToken = sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY);
-			if (cachedToken) {
-				hasLoadedToken = true;
-			}
-		} catch {
-			// ignore sessionStorage security exceptions
-		}
-	}
 	return cachedToken;
-}
-
-if (typeof window !== 'undefined') {
-	(window as unknown as { agschedSetToken?: (t: string | null) => void }).agschedSetToken = setCachedToken;
 }
 
 export function setCachedToken(token: string | null): void {
