@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T7": {
+      "contractHash": "8a883ed9aa20ca6ea1938a89f03bbe12ec537446d76e68db07b663ab0054859e",
+      "evidence": [
+        "Tested E-330 behavior using simulated message_undelivered and timed_out events.",
+        "Tested resume and reply fallback logic and verified runsRepo records.",
+        "Verified readOnly permission tier for review runs."
+      ],
+      "verdict": "pass"
+    }
+  }
+}

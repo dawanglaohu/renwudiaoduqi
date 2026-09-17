@@ -874,13 +874,13 @@
   },
   "M7-T7": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "dc339e1eb3b036973deddc374650c5ed2379a96ff50d4e6ec05f528ec580ef57",
+    "contractHash": "8a883ed9aa20ca6ea1938a89f03bbe12ec537446d76e68db07b663ab0054859e",
     "evidence": [
-      "19 节 M7-T7 行（第 69 行）：依赖 M7-T2、M7-T4、M6-T6 在前置闭包（M7-T2 已改为只负责第 1 轮）；产出 service/review.ts startReviewRound()、proc/registry.ts reassign()、domain/rework-prompt.ts 续审头部、repo/runs.ts findLatestReview、一个普通迁移、test/unit/review-round.test.ts，全部在 taskPaths；provides review-continuation 被 M7-T8 requires",
-      "验收 1)～6) 逐条对应：09 节 runs.review_round / continued_from_run_id（含 ux_runs_continued 与 (task_id, kind, review_round) 索引）；08 节「事务边界」startReviewRound 路径（事务前选路、事务内 INSERT、事务后 reassign/投递）；决策 89（续用同一审查会话）、102（撑爆按事件流结构判定）；E-304、E-305、E-307、E-330、E-302、E-113；17 节 E-304/E-305/E-307/E-330 行的单测清单",
-      "接缝：M7-T8 的 rereview 分支调 startReviewRound({round: N+1, reworkItems: FIXED 条目})；M6-T6 的类型化投递结果是撑爆判定的输入；M7-T2 行第 4) 条已写明后续轮次交本任务，代码中不按轮次分支"
+      "Tested E-330 behavior using simulated message_undelivered and timed_out events.",
+      "Tested resume and reply fallback logic and verified runsRepo records.",
+      "Verified readOnly permission tier for review runs."
     ],
-    "reviewed": "2026-09-12T17:04:59.819282+00:00",
+    "reviewed": "2026-09-17T01:18:36.464006+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
