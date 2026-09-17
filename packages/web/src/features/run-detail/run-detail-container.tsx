@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ROUTES } from '../../../../shared/src/api/routes.ts';
-import type { SearchRunLogResponse } from '../../../../shared/src/api/runs.ts';
+import type { RunDto, SearchRunLogResponse } from '../../../../shared/src/api/runs.ts';
 import { httpClient } from '../../api/http-client.ts';
 import {
 	LogBottomNotice,
@@ -25,7 +25,10 @@ import {
 import { SessionSearchEntrance } from '../../components/session-search-entrance.tsx';
 import { VirtualRows, type VirtualRowsHandle } from '../../components/virtual-rows.tsx';
 import { useDensityTier } from '../../hooks/use-breakpoint.ts';
+import { MobileRerunBar } from './mobile-rerun-bar.tsx';
+import { RerunConfirmDialog } from './rerun-confirm-dialog.tsx';
 import { useLogWindow } from './use-log-window.ts';
+import { useRunRerun } from './use-run-rerun.ts';
 
 const searchRunRoute = ROUTES.find(
 	(r) => r.method === 'GET' && r.path === '/api/v1/runs/:runId/search',
@@ -38,6 +41,16 @@ export interface RunDetailContainerProps {
 	readonly className?: string;
 	/** 用系统默认程序打开原始文件的外部回调（E-98） */
 	readonly onOpenOriginalFile?: (filePath: string) => void;
+	/** 运行状态（可选覆盖，如已从外部获取） */
+	readonly runStatus?: string;
+	/** 运行详情 DTO（可选覆盖） */
+	readonly run?: RunDto | null;
+	/** 关联任务代号（可选） */
+	readonly taskKey?: string;
+	/** 重跑成功回调 */
+	readonly onRerunSuccess?: (newRun: RunDto) => void;
+	/** 是否强制使用手机端模式（可选覆盖） */
+	readonly isMobile?: boolean;
 }
 
 /**
@@ -47,6 +60,11 @@ export function RunDetailContainer({
 	runId,
 	className,
 	onOpenOriginalFile,
+	runStatus,
+	run,
+	taskKey,
+	onRerunSuccess,
+	isMobile,
 }: RunDetailContainerProps) {
 	const virtualRef = useRef<VirtualRowsHandle | null>(null);
 	const [expandedIndices, setExpandedIndices] = useState<ReadonlySet<number>>(() => new Set());
@@ -57,7 +75,26 @@ export function RunDetailContainer({
 	// E-99：手机档首屏只拉尾部轻量窗口（32KB 量级），桌面档保持 2000 行。
 	// 档位仍由单点计算器 useDensityTier() 给出（E-235），这里只是消费它，不另立判定。
 	const { tier } = useDensityTier();
-	const isMobileTier = tier === 'phone' || tier === 'phone-xs';
+	const isMobileTier = isMobile ?? (tier === 'phone' || tier === 'phone-xs');
+
+	// M9-T13: 手机原样重跑逻辑与状态连接（AC 1, AC 3, E-177, E-181）
+	const {
+		run: currentRun,
+		isTerminalFailureOrAborted,
+		canRerun,
+		isRerunning,
+		hasActiveRun,
+		isConfirmOpen,
+		error: rerunError,
+		openConfirm,
+		closeConfirm,
+		executeRerun,
+	} = useRunRerun({
+		runId,
+		initialRun: run,
+		initialStatus: runStatus,
+		onRerunSuccess,
+	});
 
 	// E-218: 会话视图显式全会话检索状态（AC 5, M6-T9）
 	const [searchResult, setSearchResult] = useState<SearchRunLogResponse | null>(null);
@@ -199,6 +236,30 @@ export function RunDetailContainer({
 
 			{/* R5 e: 底部向下重新加载较新分段触发点（AC 2 滚出重拉） */}
 			{state.hasNewer && <LogLoadNewerBar isLoading={isLoadingNewer} onClick={loadNewer} />}
+
+			{/* M9-T13 / AC 1-5, E-177, E-181: 流详情页日志末尾整宽重跑入口（不进拇指条） */}
+			{isTerminalFailureOrAborted && (
+				<MobileRerunBar
+					isTerminalFailureOrAborted={isTerminalFailureOrAborted}
+					canRerun={canRerun}
+					isRerunning={isRerunning}
+					hasActiveRun={hasActiveRun}
+					isMobile={isMobileTier}
+					onTriggerRerun={openConfirm}
+					error={rerunError}
+				/>
+			)}
+
+			{/* 手机原样重跑二次确认弹窗（07 节 Dialog 白名单，需一次确认） */}
+			<RerunConfirmDialog
+				isOpen={isConfirmOpen}
+				taskKey={taskKey ?? currentRun?.taskId}
+				runId={runId}
+				agentName={currentRun?.agentId}
+				isSubmitting={isRerunning}
+				onConfirm={executeRerun}
+				onCancel={closeConfirm}
+			/>
 		</div>
 	);
 }
