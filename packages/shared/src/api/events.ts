@@ -44,6 +44,8 @@ export const EVENT_DEFINITIONS = {
 	'task.sessions_archived': { scope: 'task', milestone: true },
 	'lane.released': { scope: 'lane', milestone: true },
 	'batch.advanced': { scope: 'batch', milestone: true },
+	'batch.wrapup_started': { scope: 'batch', milestone: true },
+	'batch.wrapup_finished': { scope: 'batch', milestone: true },
 	'agent.availability_changed': { scope: 'agent', milestone: true },
 	'settings.gates_changed': { scope: 'settings', milestone: true },
 	'system.disk_warning': { scope: 'system', milestone: true },
@@ -77,6 +79,8 @@ const EVENT_KIND_VALUES = [
 	'task.sessions_archived',
 	'lane.released',
 	'batch.advanced',
+	'batch.wrapup_started',
+	'batch.wrapup_finished',
 	'agent.availability_changed',
 	'settings.gates_changed',
 	'system.disk_warning',
@@ -120,6 +124,8 @@ export const PRODUCT_EVENT_KINDS = [
 	'task.sessions_archived',
 	'lane.released',
 	'batch.advanced',
+	'batch.wrapup_started',
+	'batch.wrapup_finished',
 	'agent.availability_changed',
 	'settings.gates_changed',
 	'system.disk_warning',
@@ -318,6 +324,28 @@ export interface BatchAdvancedPayload {
 	readonly [key: string]: unknown;
 }
 
+export interface BatchWrapupStartedPayload {
+	readonly batchId: string;
+	readonly batchNo: number;
+	readonly runId: string;
+	readonly round: number;
+	readonly agentId: string;
+	readonly trigger: 'auto' | 'manual';
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface BatchWrapupFinishedPayload {
+	readonly batchId: string;
+	readonly batchNo: number;
+	readonly runId: string;
+	readonly round: number;
+	readonly verdict: string;
+	readonly isHumanVerdict?: boolean;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
 export interface AgentAvailabilityChangedPayload {
 	readonly agentId: string;
 	readonly available: boolean;
@@ -368,6 +396,8 @@ export interface EventPayloadMap {
 	readonly 'task.sessions_archived': TaskSessionsArchivedPayload;
 	readonly 'lane.released': LaneReleasedPayload;
 	readonly 'batch.advanced': BatchAdvancedPayload;
+	readonly 'batch.wrapup_started': BatchWrapupStartedPayload;
+	readonly 'batch.wrapup_finished': BatchWrapupFinishedPayload;
 	readonly 'agent.availability_changed': AgentAvailabilityChangedPayload;
 	readonly 'settings.gates_changed': SettingsGatesChangedPayload;
 	readonly 'system.disk_warning': SystemDiskWarningPayload;

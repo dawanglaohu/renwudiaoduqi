@@ -1,8 +1,10 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { execSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastify, { type FastifyInstance } from 'fastify';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AppContainer } from '../../src/boot/container.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
@@ -23,10 +25,49 @@ import { type DispatchService, createDispatchService } from '../../src/service/d
 import type { DocsService } from '../../src/service/docs.ts';
 import { type GateService, createGateService } from '../../src/service/gates.ts';
 import { type WrapupService, createWrapupService } from '../../src/service/wrapup.ts';
+import { type InHeadCheckMethod, isBranchInHead } from '../../src/workspace/in-head.ts';
+import { createWorktreeManager } from '../../src/workspace/worktree.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = resolve(currentDir, '../../migrations');
 const fixturesDir = resolve(currentDir, '../fixtures/wrapup');
+
+const tempDirectories: string[] = [];
+
+function createTempGitRepo(prefix: string): string {
+	const dir = mkdtempSync(join(tmpdir(), prefix));
+	tempDirectories.push(dir);
+	try {
+		execSync('git init -b main', { cwd: dir, stdio: 'ignore' });
+		execSync('git config user.name "Tester"', { cwd: dir, stdio: 'ignore' });
+		execSync('git config user.email "test@example.com"', { cwd: dir, stdio: 'ignore' });
+		writeFileSync(join(dir, 'README.md'), '# Initial Repo\n');
+		execSync('git add README.md && git commit -m "initial commit"', {
+			cwd: dir,
+			stdio: 'ignore',
+		});
+	} catch (err) {
+		// Fallback without -b main for older git
+		execSync('git init', { cwd: dir, stdio: 'ignore' });
+		execSync('git checkout -b main', { cwd: dir, stdio: 'ignore' });
+		execSync('git config user.name "Tester"', { cwd: dir, stdio: 'ignore' });
+		execSync('git config user.email "test@example.com"', { cwd: dir, stdio: 'ignore' });
+		writeFileSync(join(dir, 'README.md'), '# Initial Repo\n');
+		execSync('git add README.md && git commit -m "initial commit"', {
+			cwd: dir,
+			stdio: 'ignore',
+		});
+	}
+	return dir;
+}
+
+afterEach(() => {
+	for (const dir of tempDirectories.splice(0)) {
+		try {
+			rmSync(dir, { force: true, recursive: true });
+		} catch {}
+	}
+});
 
 function setupTestDatabase(): DatabaseConnection {
 	const db = openDatabase(':memory:');
@@ -61,7 +102,8 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 	let gateService: GateService;
 	let docsService: DocsService;
 	let testTime = '2026-09-17T10:00:00.000Z';
-	let inHeadResult = false;
+	let inHeadMockResult: { inHead: boolean; method: string } | null = null;
+	let gitRepoDir: string;
 	let app: FastifyInstance;
 
 	const clock = {
@@ -74,9 +116,11 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 
 	beforeEach(async () => {
 		idCounter = 1;
-		inHeadResult = false;
+		inHeadMockResult = null;
 		testTime = '2026-09-17T10:00:00.000Z';
 		db = setupTestDatabase();
+		gitRepoDir = createTempGitRepo('sched-git-repo-');
+
 		documentsRepo = createDocumentsRepo(db);
 		batchesRepo = createBatchesRepo(db);
 		tasksRepo = createTasksRepo(db);
@@ -109,7 +153,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				ts: testTime,
 				runId: input.runId ?? null,
 				taskId: input.taskId ?? null,
-				scope: input.scope ?? 'run',
+				scope: input.scope ?? 'batch',
 				kind: input.kind,
 				seq: 1,
 				actorDeviceId: input.actorDeviceId ?? null,
@@ -137,7 +181,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				level: 0,
 				wrapup: readFileSync(resolve(fixturesDir, 'clean-report.md'), 'utf8'),
 				promptSource: 'docs' as const,
-				tasks: [{ taskId: 't1', title: 'Task 1' }],
+				tasks: [{ taskId: 'task-1', title: 'Task 1' }],
 			}),
 		} as unknown as DocsService;
 
@@ -193,11 +237,13 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				typeof createWrapupService
 			>[0]['agentService'],
 			workspace: {
-				prepareWrapupWorktree: async () => ({
-					worktreePath: '/tmp/wrapup-worktree',
-					branchName: 'wrapup/batch-1-r1',
-					baseSha: 'sha-main',
-				}),
+				prepareWrapupWorktree: async (input) => {
+					const manager = createWorktreeManager({
+						platform: process.platform === 'win32' ? 'win32' : 'linux',
+						ids,
+					});
+					return await manager.prepareWrapupWorktree(input);
+				},
 				getDiffStat: async () => ' 2 files changed, 20 insertions(+)',
 			},
 		});
@@ -208,6 +254,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			runsRepo,
 			batchesRepo,
 			batchWrapupsRepo,
+			batchService,
 			clock,
 			ids,
 			bus: fakeBus as unknown as Parameters<typeof createGateService>[0]['bus'],
@@ -231,7 +278,16 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			batchWrapupsRepo,
 			batchService,
 			wrapupService,
-			isBranchInHead: async () => ({ inHead: inHeadResult, method: 'ancestor' }),
+			isBranchInHead: async (input) => {
+				if (inHeadMockResult !== null) {
+					return {
+						inHead: inHeadMockResult.inHead,
+						method: inHeadMockResult.method as InHeadCheckMethod,
+						tipSha: 'sha-tip',
+					};
+				}
+				return await isBranchInHead(input);
+			},
 			clock,
 			ids,
 			bus: fakeBus as unknown as Parameters<typeof createDispatchService>[0]['bus'],
@@ -241,7 +297,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			listDispatchableAgents: () => [{ agentId: 'codex', canDispatch: true }],
 		});
 
-		// Build Fastify App for HTTP route integration tests
+		// Fastify server configuration (R2)
 		app = fastify();
 		app.decorate('container', {
 			services: {
@@ -261,7 +317,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				) {
 					statusCode = 409;
 				}
-				void reply.status(statusCode).send({
+				reply.status(statusCode).send({
 					error: {
 						code: error.code,
 						message: error.message,
@@ -271,11 +327,11 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				return;
 			}
 			const message = error instanceof Error ? error.message : String(error);
-			void reply.status(500).send({ error: { code: 'E_INTERNAL', message } });
+			reply.status(500).send({ error: { code: 'E_INTERNAL', message } });
 		});
 		await app.ready();
 
-		// Seed Document, Batch, Tasks, Device
+		// Seed Document, Batch, Tasks, Devices
 		db.exec(`
 			INSERT INTO devices (id, name, token_hash, token_salt, paired_at, last_seen_at)
 			VALUES ('dev-1', 'Test Device', 'hash', 'salt', '${testTime}', '${testTime}');
@@ -285,7 +341,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			id: 'doc-1',
 			docs_path: '/docs',
 			project_name: 'test-project',
-			repo_path: '/repo',
+			repo_path: gitRepoDir,
 			main_branch: 'main',
 			branch_prefix: 'task/',
 			lane_count: 2,
@@ -351,7 +407,6 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 	});
 
 	it('E-272: when all tasks landed but branches not in HEAD, transitions batch to awaiting_landing and does not trigger wrapup', async () => {
-		// Task 1 & 2 landed, but is_in_head = 0
 		runsRepo.insert({
 			id: 'run-t1',
 			task_id: 'task-1',
@@ -382,15 +437,13 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			ended_at: '2026-09-17T10:20:00.000Z',
 		});
 
-		inHeadResult = false;
-		const tickRes = await dispatchService.tick();
+		inHeadMockResult = { inHead: false, method: 'unmerged' };
+		await dispatchService.tick();
 
 		const batch = batchesRepo.findById('batch-1');
 		expect(batch?.state).toBe('awaiting_landing');
-		// No wrapup run dispatched
 		expect(runsRepo.findActiveWrapupByBatchId?.('batch-1')).toBeNull();
 
-		// Check batch DTO
 		const batchDto = await batchService.getBatch('batch-1');
 		expect(batchDto.state).toBe('awaiting_landing');
 		expect(batchDto.notInHeadCount).toBe(2);
@@ -398,7 +451,6 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 	});
 
 	it('AC 1 & E-283 & E-287: when branches merged into HEAD, tick triggers exactly one wrapup run following latest ended_at implementation run', async () => {
-		// Both landed
 		runsRepo.insert({
 			id: 'run-t1',
 			task_id: 'task-1',
@@ -426,14 +478,12 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			permission_tier: 'workspaceWrite',
 			snapshot_id: 'snap-2',
 			branch_name: 'task/m1-t2',
-			ended_at: '2026-09-17T10:20:00.000Z', // Ended later than run-t1!
+			ended_at: '2026-09-17T10:20:00.000Z', // Ended later than run-t1
 		});
 
-		// Branches now in HEAD!
-		inHeadResult = true;
+		inHeadMockResult = { inHead: true, method: 'ancestor' };
 		const tickRes = await dispatchService.tick();
 
-		// Tick should have dispatched wrapup and returned immediately without dispatching other runs
 		expect(tickRes.runsDispatched.length).toBe(1);
 		const wrapupRunId = tickRes.runsDispatched[0];
 		if (!wrapupRunId) throw new Error('wrapup run id missing');
@@ -444,7 +494,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		expect(wrapupRun?.task_id).toBeNull();
 		expect(wrapupRun?.permission_tier).toBe('workspaceWrite');
 		expect(wrapupRun?.state).toBe('queued');
-		// E-287: follows run-t2 because it ended at 10:20:00 > 10:10:00
+		// E-287: follows run-t2
 		expect(wrapupRun?.agent_id).toBe('claude');
 		expect(wrapupRun?.model_name).toBe('claude-3-7-sonnet');
 		expect(wrapupRun?.effort_tier).toBe('medium');
@@ -454,7 +504,6 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 	});
 
 	it('AC 4 & E-294: clean wrapup report transitions batch to done and wrapup run to landed, even if diff is empty', async () => {
-		// Prepare in-head landed tasks
 		runsRepo.insert({
 			id: 'run-t1',
 			task_id: 'task-1',
@@ -480,7 +529,6 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			ended_at: '2026-09-17T10:20:00.000Z',
 		});
 
-		// Trigger wrapup manually or via service
 		const { run: wrapupRun } = await wrapupService.triggerWrapup({
 			batchId: 'batch-1',
 			trigger: 'manual',
@@ -488,8 +536,8 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		});
 
 		expect(wrapupRun.kind).toBe('wrapup');
+		expect(wrapupRun.taskId).toBeNull();
 
-		// Now simulate process exiting with exitCode 0 and clean 8-section report
 		const cleanReportText = readFileSync(resolve(fixturesDir, 'clean-report.md'), 'utf8');
 		await wrapupService.recordWrapupResult({
 			runId: wrapupRun.id,
@@ -497,23 +545,19 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			exitCode: 0,
 		});
 
-		// Verify wrapup record inserted
 		const wrapupRecord = batchWrapupsRepo.findByRunId(wrapupRun.id);
 		expect(wrapupRecord).toBeDefined();
 		expect(wrapupRecord?.verdict).toBe('clean');
 		expect(wrapupRecord?.is_human_verdict).toBe(0);
 
-		// Verify batch reached 'done'
 		const batch = batchesRepo.findById('batch-1');
 		expect(batch?.state).toBe('done');
 
-		// Verify wrapup run is landed
 		const updatedRun = runsRepo.findById(wrapupRun.id);
 		expect(updatedRun?.state).toBe('landed');
 	});
 
 	it('AC 4 & AC 5 & E-274 & E-288: unparsable wrapup report creates batch-level gate, needs_attention, and pass requires comment', async () => {
-		// Prepare in-head landed tasks
 		runsRepo.insert({
 			id: 'run-t1',
 			task_id: 'task-1',
@@ -544,7 +588,6 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			trigger: 'manual',
 		});
 
-		// Report with missing NEXT section (E-274)
 		const missingNextText = readFileSync(resolve(fixturesDir, 'missing-next.md'), 'utf8');
 		await wrapupService.recordWrapupResult({
 			runId: wrapupRun.id,
@@ -552,15 +595,12 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			exitCode: 0,
 		});
 
-		// Batch transitions to needs_attention
 		const batch = batchesRepo.findById('batch-1');
 		expect(batch?.state).toBe('needs_attention');
 
-		// Run transitions to awaiting_human
 		const runAfterFailure = runsRepo.findById(wrapupRun.id);
 		expect(runAfterFailure?.state).toBe('awaiting_human');
 
-		// Batch-level review gate created with task_id = null
 		const gate = gatesRepo.findPendingByRunId?.(wrapupRun.id);
 		expect(gate).toBeDefined();
 		if (!gate) throw new Error('Gate must exist');
@@ -596,7 +636,6 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 	});
 
 	it('AC 5: duplicate idempotencyKey on POST /api/v1/batches/:batchId/wrapup returns 409 E_RUN_ALREADY_EXISTS with existing run in details', async () => {
-		// Prepare in-head landed tasks
 		runsRepo.insert({
 			id: 'run-t1',
 			task_id: 'task-1',
@@ -622,7 +661,6 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			ended_at: '2026-09-17T10:20:00.000Z',
 		});
 
-		// 1st request
 		const res1 = await app.inject({
 			method: 'POST',
 			url: '/api/v1/batches/batch-1/wrapup',
@@ -651,14 +689,12 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		expect(body2.error.details.run.id).toBe(body1.run.id);
 	});
 
-	it('AC 5 & E-288: manual wrapup from needs_attention allows rounds beyond auto limit up to hard ceiling (6) then returns E_WRAPUP_ROUND_LIMIT', async () => {
-		// Set batch to needs_attention
+	it('R4: failed wrapup runs do not consume valid auto rounds; manual wrapup allows rounds up to physical hard ceiling (6)', async () => {
 		batchesRepo.updateState({
 			id: 'batch-1',
 			state: 'needs_attention',
 		});
 
-		// Insert fake implementation runs to satisfy wrappable check
 		runsRepo.insert({
 			id: 'run-t1',
 			task_id: 'task-1',
@@ -684,32 +720,27 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			ended_at: '2026-09-17T10:20:00.000Z',
 		});
 
-		// Trigger round 1 manually from needs_attention
+		// Trigger round 1 -> fail
 		const { run: r1 } = await wrapupService.triggerWrapup({
 			batchId: 'batch-1',
 			trigger: 'manual',
 		});
 		expect(r1.attemptNo).toBe(1);
-		// Simulate fail -> back to needs_attention
 		await wrapupService.recordWrapupResult({ runId: r1.id, exitCode: 1 });
 
-		// Trigger round 2
+		// Since r1 failed, validRoundCount in batch_wrapups is 0 (E-274: failure does not consume auto round)
+		expect(batchWrapupsRepo.getMaxRound('batch-1')).toBe(0);
+
+		// Trigger round 2 -> fail
 		const { run: r2 } = await wrapupService.triggerWrapup({
 			batchId: 'batch-1',
 			trigger: 'manual',
 		});
 		expect(r2.attemptNo).toBe(2);
 		await wrapupService.recordWrapupResult({ runId: r2.id, exitCode: 1 });
+		expect(batchWrapupsRepo.getMaxRound('batch-1')).toBe(0);
 
-		// Auto trigger should now be BLOCKED by AUTO_WRAPUP_ROUND_LIMIT (2)
-		await expect(
-			wrapupService.triggerWrapup({
-				batchId: 'batch-1',
-				trigger: 'auto',
-			}),
-		).rejects.toThrowError(AppError);
-
-		// But manual trigger IS ALLOWED up to 6 rounds! (AC 5, E-288)
+		// Trigger manual runs up to hard physical ceiling of 6
 		const { run: r3 } = await wrapupService.triggerWrapup({
 			batchId: 'batch-1',
 			trigger: 'manual',
@@ -738,7 +769,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		expect(r6.attemptNo).toBe(6);
 		await wrapupService.recordWrapupResult({ runId: r6.id, exitCode: 1 });
 
-		// Now attempt round 7 manually -> hits HARD_WRAPUP_ROUND_LIMIT (6) -> E_WRAPUP_ROUND_LIMIT
+		// 7th manual trigger exceeds HARD_WRAPUP_ROUND_LIMIT (6)
 		try {
 			await wrapupService.triggerWrapup({ batchId: 'batch-1', trigger: 'manual' });
 			expect.unreachable();
@@ -747,6 +778,102 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			expect(error.code).toBe('E_WRAPUP_ROUND_LIMIT');
 			expect((error.details as Record<string, unknown>)?.hardLimit).toBe(6);
 		}
+	});
+
+	it('R3 & E-301: cross-repo in-head refresh and consecutive error warnings', async () => {
+		// Create second git repository
+		const gitRepoDirB = createTempGitRepo('sched-git-repo-b-');
+		documentsRepo.insert({
+			id: 'doc-2',
+			docs_path: '/docs-2',
+			project_name: 'test-project-2',
+			repo_path: gitRepoDirB,
+			main_branch: 'main',
+			branch_prefix: 'task/',
+			lane_count: 2,
+			content_fingerprint: 'fp-2',
+			is_source_readable: 1,
+			is_takeover_notified: 0,
+			imported_at: testTime,
+			last_seen_at: testTime,
+		});
+
+		batchesRepo.insert({
+			id: 'batch-2',
+			doc_id: 'doc-2',
+			batch_no: 1,
+			state: 'running',
+			started_at: testTime,
+			finished_at: null,
+		});
+
+		tasksRepo.insert({
+			id: 'task-b1',
+			doc_id: 'doc-2',
+			task_key: 'M2-T1',
+			title: 'Task B1',
+			module_key: 'M2',
+			deps_json: '[]',
+			contract_hash: 'hb1',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+			batch_id: 'batch-2',
+		});
+
+		runsRepo.insert({
+			id: 'run-b1',
+			task_id: 'task-b1',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'landed',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-1',
+			branch_name: 'task/m2-t1',
+			is_in_head: 0,
+			ended_at: '2026-09-17T10:05:00.000Z',
+		});
+
+		runsRepo.insert({
+			id: 'run-a1',
+			task_id: 'task-1',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'landed',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-1',
+			branch_name: 'task/m1-t1',
+			is_in_head: 0,
+			ended_at: '2026-09-17T10:00:00.000Z',
+		});
+
+		// 1. Simulate git error on run-a1 for 3 consecutive ticks (E-301)
+		inHeadMockResult = { inHead: false, method: 'error' };
+
+		testTime = '2026-09-17T10:31:00.000Z'; // > 30s throttle
+		await dispatchService.tick();
+		expect(dispatchService.getInHeadWarning('run-a1')).toBeNull();
+
+		testTime = '2026-09-17T10:32:00.000Z';
+		await dispatchService.tick();
+		expect(dispatchService.getInHeadWarning('run-a1')).toBeNull();
+
+		testTime = '2026-09-17T10:33:00.000Z';
+		await dispatchService.tick();
+		// 3 consecutive errors triggers warning banner! (E-301)
+		expect(dispatchService.getInHeadWarning('run-a1')).toBe('无法判定分支是否已合入');
+
+		// 2. Both repos recover and branches are in HEAD
+		inHeadMockResult = { inHead: true, method: 'ancestor' };
+		testTime = '2026-09-17T10:34:00.000Z';
+		await dispatchService.tick();
+
+		// Warning cleared
+		expect(dispatchService.getInHeadWarning('run-a1')).toBeNull();
+		// Both runs in different repos successfully marked in_head
+		expect(runsRepo.findById('run-a1')?.is_in_head).toBe(1);
+		expect(runsRepo.findById('run-b1')?.is_in_head).toBe(1);
 	});
 
 	it('E-301: is_in_head monotonicity: once 1, never resets to 0', async () => {
@@ -763,7 +890,6 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			ended_at: testTime,
 		});
 
-		// Attempt to update with isInHead = 0
 		runsRepo.updateInHead?.({
 			id: 'run-mono',
 			isInHead: 0,
@@ -772,14 +898,14 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		});
 
 		const run = runsRepo.findById('run-mono');
-		expect(run?.is_in_head).toBe(1); // Monotonicity preserved!
+		expect(run?.is_in_head).toBe(1); // Monotonicity preserved
 		expect(run?.branch_tip_sha).toBe('sha-tip');
 	});
 
 	it('HTTP GET /api/v1/batches/:batchId/wrapups returns wrapups list', async () => {
 		runsRepo.insert({
 			id: 'run-w-1',
-			task_id: null as unknown as string,
+			task_id: null,
 			attempt_no: 1,
 			kind: 'wrapup',
 			state: 'landed',

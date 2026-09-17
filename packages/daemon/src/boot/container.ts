@@ -465,6 +465,7 @@ export function createContainer(input: {
 			runsRepo: runs,
 			batchesRepo: batches,
 			batchWrapupsRepo: batchWrapups,
+			batchService,
 			clock: input.clock,
 			ids,
 			bus,

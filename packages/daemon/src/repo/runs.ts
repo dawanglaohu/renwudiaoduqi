@@ -5,7 +5,7 @@ import { AppError } from '../errors/app-error.ts';
 
 export interface RunRow {
 	readonly id: string;
-	readonly task_id: string;
+	readonly task_id: string | null;
 	readonly attempt_no: number;
 	readonly kind: string;
 	readonly parent_run_id: string | null;
@@ -52,7 +52,7 @@ export interface RunRow {
 
 export interface RunInsertRow {
 	readonly id: string;
-	readonly task_id: string;
+	readonly task_id: string | null;
 	readonly attempt_no: number;
 	readonly kind: string;
 	readonly parent_run_id?: string | null;
@@ -472,6 +472,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const selectLandedNotInHeadRunsStmt = db.prepare(`
 		SELECT * FROM runs
 		WHERE state = 'landed' AND is_in_head = 0
+		  AND kind IN ('implement', 'wrapup')
 		  AND (in_head_checked_at IS NULL OR in_head_checked_at <= ?)
 		ORDER BY ended_at ASC NULLS LAST
 		LIMIT ?

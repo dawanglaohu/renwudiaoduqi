@@ -7,7 +7,6 @@ import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
-import { assertCanTransitionBatch } from '../domain/batch-state-machine.ts';
 import { assertWrapupRoundAllowed } from '../domain/wrapup-policy.ts';
 import { type WrapupTaskItem, assembleWrapupPrompt } from '../domain/wrapup-prompt.ts';
 import { parseWrapupReport } from '../domain/wrapup-report.ts';
@@ -312,16 +311,24 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				});
 			}
 
-			// 2. Round limit check (AC 5, E-276, E-288)
-			const latestWrapup = deps.runsRepo.findLatestWrapupByBatchId?.(batchId) ?? null;
-			const currentRound = latestWrapup ? latestWrapup.attempt_no : 0;
-			const nextRound = currentRound + 1;
-			assertWrapupRoundAllowed({ currentRound, trigger });
+			// 2. Round limit check (R4, AC 5, E-274, E-276, E-288)
+			const validRoundCount = deps.batchWrapupsRepo.getMaxRound(batchId);
+			const wrapupRuns = deps.runsRepo.listWrapupsByBatchId?.(batchId) ?? [];
+			const physicalAttempts = wrapupRuns.length;
+			const nextAttemptNo = physicalAttempts + 1;
+			const nextRound = validRoundCount + 1;
+			const latestWrapup = wrapupRuns.length > 0 ? wrapupRuns[wrapupRuns.length - 1] : null;
+
+			assertWrapupRoundAllowed({
+				validRound: validRoundCount,
+				physicalAttempts,
+				trigger,
+			});
 
 			// 3. Resolve assignment (AC 2, E-287, E-344)
 			let assignment: ReturnType<typeof resolveWrapupAssignment>;
 			try {
-				assignment = resolveWrapupAssignment(batchId, nextRound, latestWrapup, {
+				assignment = resolveWrapupAssignment(batchId, nextAttemptNo, latestWrapup ?? null, {
 					agentId: input.agentId,
 					model: input.model,
 					effortTier: input.effortTier,
@@ -473,58 +480,73 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					{ taskId: runId, vendorSessionRef: null },
 					{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
 				);
-				deps.runsRepo.insert({
-					id: runId,
-					task_id: null as unknown as string,
-					batch_id: batchId,
-					attempt_no: nextRound,
-					kind: 'wrapup',
-					state: 'queued',
-					agent_id: assignment.agentId,
-					model_name: assignment.modelName,
-					effort_tier: assignment.effortTier,
-					permission_tier: 'workspaceWrite',
-					snapshot_id: snapshotId,
-					worktree_path: worktreePath,
-					branch_name: branchName,
-					idempotency_key: generatedIdempotencyKey,
-					actor_device_id: actorDeviceId ?? null,
-					started_at: null,
-					last_event_at: now,
-					origin: 'dispatch',
-					prompt_source: wrapupContext.promptSource,
-					assignment_source: assignment.source,
-				});
+				try {
+					deps.runsRepo.insert({
+						id: runId,
+						task_id: null,
+						batch_id: batchId,
+						attempt_no: nextAttemptNo,
+						kind: 'wrapup',
+						state: 'queued',
+						agent_id: assignment.agentId,
+						model_name: assignment.modelName,
+						effort_tier: assignment.effortTier,
+						permission_tier: 'workspaceWrite',
+						snapshot_id: snapshotId,
+						worktree_path: worktreePath,
+						branch_name: branchName,
+						idempotency_key: generatedIdempotencyKey,
+						actor_device_id: actorDeviceId ?? null,
+						started_at: null,
+						last_event_at: now,
+						origin: 'dispatch',
+						prompt_source: wrapupContext.promptSource,
+						assignment_source: assignment.source,
+					});
+				} catch (cause) {
+					if (idempotencyKey) {
+						const existing = deps.runsRepo.findByIdempotencyKey(idempotencyKey.trim());
+						if (existing && existing.batch_id === batchId) {
+							throw new AppError(
+								'E_RUN_ALREADY_EXISTS',
+								`Run already exists for idempotency key: ${idempotencyKey}`,
+								{
+									details: { run: toRunDto(existing) },
+									cause,
+								},
+							);
+						}
+					}
+					throw cause;
+				}
 
 				createdRunRow = deps.runsRepo.findById(runId);
 
-				// Transition batch to wrapping
+				// Transition batch to wrapping via batchService (R1)
 				const currentBatch = deps.batchesRepo.findById(batchId);
 				if (currentBatch && currentBatch.state !== 'wrapping') {
-					assertCanTransitionBatch(currentBatch.state, 'wrapping');
-					deps.batchesRepo.updateState({
-						id: batchId,
-						state: 'wrapping',
-						started_at: currentBatch.started_at ?? now,
-					});
-
-					if (deps.bus && deps.envelopeFactory) {
-						pendingEnvelopes.push(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'batch.advanced',
-								payload: {
-									batchId,
-									batchNo: currentBatch.batch_no,
-									from: currentBatch.state,
-									to: 'wrapping',
-									reason: 'wrapup_dispatched',
-								},
-							}),
-						);
-					}
+					const transRes = deps.batchService.transitionBatchInTx(
+						batchId,
+						'wrapping',
+						'wrapup_dispatched',
+					);
+					pendingEnvelopes.push(transRes.envelope);
 				}
 
 				if (deps.bus && deps.envelopeFactory) {
+					pendingEnvelopes.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'batch.wrapup_started',
+							payload: {
+								batchId,
+								batchNo: currentBatch?.batch_no ?? batch.batch_no,
+								runId,
+								round: nextRound,
+								agentId: assignment.agentId,
+								trigger,
+							},
+						}),
+					);
 					pendingEnvelopes.push(
 						deps.envelopeFactory.createEnvelope({
 							kind: 'run.state_changed',
@@ -623,28 +645,14 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						created_at: now,
 					});
 
-					// Batch transitions to needs_attention (E-274, E-295)
+					// Batch transitions to needs_attention via batchService (R1)
 					if (batch.state !== 'needs_attention') {
-						assertCanTransitionBatch(batch.state, 'needs_attention');
-						deps.batchesRepo.updateState({
-							id: batchId,
-							state: 'needs_attention',
-						});
-
-						if (deps.bus && deps.envelopeFactory) {
-							pendingEnvelopes.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'batch.advanced',
-									payload: {
-										batchId,
-										batchNo: batch.batch_no,
-										from: batch.state,
-										to: 'needs_attention',
-										reason: 'wrapup_run_failed',
-									},
-								}),
-							);
-						}
+						const transRes = deps.batchService.transitionBatchInTx(
+							batchId,
+							'needs_attention',
+							'wrapup_run_failed',
+						);
+						pendingEnvelopes.push(transRes.envelope);
 					}
 
 					if (deps.bus && deps.envelopeFactory) {
@@ -694,26 +702,12 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					});
 
 					if (batch.state !== 'needs_attention') {
-						assertCanTransitionBatch(batch.state, 'needs_attention');
-						deps.batchesRepo.updateState({
-							id: batchId,
-							state: 'needs_attention',
-						});
-
-						if (deps.bus && deps.envelopeFactory) {
-							pendingEnvelopes.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'batch.advanced',
-									payload: {
-										batchId,
-										batchNo: batch.batch_no,
-										from: batch.state,
-										to: 'needs_attention',
-										reason: 'wrapup_report_unparsable',
-									},
-								}),
-							);
-						}
+						const transRes = deps.batchService.transitionBatchInTx(
+							batchId,
+							'needs_attention',
+							'wrapup_report_unparsable',
+						);
+						pendingEnvelopes.push(transRes.envelope);
 					}
 
 					if (deps.bus && deps.envelopeFactory) {
@@ -742,6 +736,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 
 			// Case 3: Parse succeeded! Insert batch_wrapups, transition run to landed, transition batch (AC 4, E-294)
 			const effectiveVerdict = parsed.verdict;
+			const nextValidRound = deps.batchWrapupsRepo.getMaxRound(batchId) + 1;
 			const wrapupRecordId = `wrapup_${deps.ids.newId().slice(0, 16)}`;
 			const tasks = deps.tasksRepo.listByBatchId(batchId);
 			const taskKeys = tasks.map((t) => t.task_key);
@@ -756,7 +751,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					batch_id: batchId,
 					batch_no: batch.batch_no,
 					tasks_json: JSON.stringify(taskKeys),
-					round: run.attempt_no,
+					round: nextValidRound,
 					run_id: runId,
 					verdict: effectiveVerdict,
 					declared_verdict: parsed.declaredVerdict ?? null,
@@ -793,38 +788,24 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					);
 				}
 
-				// Evaluate verdict: clean | fixed -> done (AC 4, E-286, E-294)
+				// Evaluate verdict via batchService (R1): clean | fixed -> done (AC 4, E-286, E-294)
 				if (effectiveVerdict === 'clean' || effectiveVerdict === 'fixed') {
-					assertCanTransitionBatch(batch.state, 'done');
-					deps.batchesRepo.updateState({
-						id: batchId,
-						state: 'done',
-						finished_at: now,
-					});
-
-					if (deps.bus && deps.envelopeFactory) {
-						pendingEnvelopes.push(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'batch.advanced',
-								payload: {
-									batchId,
-									batchNo: batch.batch_no,
-									from: batch.state,
-									to: 'done',
-									reason: `wrapup_${effectiveVerdict}`,
-								},
-							}),
-						);
-					}
+					const transRes = deps.batchService.transitionBatchInTx(
+						batchId,
+						'done',
+						`wrapup_${effectiveVerdict}`,
+					);
+					pendingEnvelopes.push(transRes.envelope);
 				} else {
 					// Verdict is 'open'
 					// If round 2 is still open, transition to needs_attention (E-276, E-288)
 					if (run.attempt_no >= 2) {
-						assertCanTransitionBatch(batch.state, 'needs_attention');
-						deps.batchesRepo.updateState({
-							id: batchId,
-							state: 'needs_attention',
-						});
+						const transRes = deps.batchService.transitionBatchInTx(
+							batchId,
+							'needs_attention',
+							'wrapup_round_limit_reached',
+						);
+						pendingEnvelopes.push(transRes.envelope);
 
 						const gateId = `gate_${deps.ids.newId().slice(0, 16)}`;
 						deps.gatesRepo.create({
@@ -835,45 +816,31 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							state: 'waiting',
 							created_at: now,
 						});
-
-						if (deps.bus && deps.envelopeFactory) {
-							pendingEnvelopes.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'batch.advanced',
-									payload: {
-										batchId,
-										batchNo: batch.batch_no,
-										from: batch.state,
-										to: 'needs_attention',
-										reason: 'wrapup_round_limit_reached',
-									},
-								}),
-							);
-						}
 					} else {
 						// Round 1 open: in M8-T6, delegate to M8-T7, batch returns to running when fixes dispatched
-						// If fix dispatch is handled by M8-T7, we transition batch to running or needs_attention
-						assertCanTransitionBatch(batch.state, 'running');
-						deps.batchesRepo.updateState({
-							id: batchId,
-							state: 'running',
-						});
-
-						if (deps.bus && deps.envelopeFactory) {
-							pendingEnvelopes.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'batch.advanced',
-									payload: {
-										batchId,
-										batchNo: batch.batch_no,
-										from: batch.state,
-										to: 'running',
-										reason: 'wrapup_fixes_pending',
-									},
-								}),
-							);
-						}
+						const transRes = deps.batchService.transitionBatchInTx(
+							batchId,
+							'running',
+							'wrapup_fixes_pending',
+						);
+						pendingEnvelopes.push(transRes.envelope);
 					}
+				}
+
+				if (deps.bus && deps.envelopeFactory) {
+					pendingEnvelopes.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'batch.wrapup_finished',
+							payload: {
+								batchId,
+								batchNo: batch.batch_no,
+								runId,
+								round: run.attempt_no,
+								verdict: effectiveVerdict,
+								isHumanVerdict: false,
+							},
+						}),
+					);
 				}
 			});
 

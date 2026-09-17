@@ -25,12 +25,24 @@ export interface TransitionBatchInput {
 	readonly reason: string;
 }
 
+export interface TransitionBatchInTxResult {
+	readonly updatedBatch: BatchRow;
+	readonly envelope: EventEnvelope;
+	readonly fromState: BatchState;
+	readonly toState: BatchState;
+}
+
 export interface BatchService {
 	readonly transitionBatch: (
 		batchId: string,
 		toState: BatchState,
 		reason: string,
 	) => Promise<BatchRow>;
+	readonly transitionBatchInTx: (
+		batchId: string,
+		toState: BatchState,
+		reason: string,
+	) => TransitionBatchInTxResult;
 	readonly getBatch: (batchId: string) => Promise<BatchDto>;
 	readonly listBatches: (docId: string) => Promise<readonly BatchDto[]>;
 	readonly toDto: (
@@ -56,57 +68,92 @@ export function toBatchDto(
 }
 
 export function createBatchService(deps: BatchServiceDeps): BatchService {
+	function transitionBatchInTx(
+		batchId: string,
+		toState: BatchState,
+		reason: string,
+	): TransitionBatchInTxResult {
+		const current = deps.batchesRepo.findById(batchId);
+		if (!current) {
+			throw new AppError('E_NOT_FOUND', `Batch not found: ${batchId}`);
+		}
+
+		assertCanTransitionBatch(current.state, toState);
+
+		const now = deps.clock.now();
+		const startedAt = toState === 'running' && !current.started_at ? now : current.started_at;
+		const finishedAt = toState === 'done' ? (current.finished_at ?? now) : null;
+
+		deps.batchesRepo.updateState({
+			id: batchId,
+			state: toState,
+			started_at: startedAt,
+			finished_at: finishedAt,
+		});
+
+		const updated = deps.batchesRepo.findById(batchId);
+		if (!updated) {
+			throw new AppError('E_INTERNAL', `Failed to retrieve updated batch: ${batchId}`);
+		}
+
+		const envelope = deps.envelopeFactory
+			? deps.envelopeFactory.createEnvelope({
+					kind: 'batch.advanced',
+					payload: {
+						batchId,
+						batchNo: current.batch_no,
+						from: current.state,
+						to: toState,
+						reason,
+					},
+				})
+			: ({
+					id: 0,
+					ts: now,
+					runId: null,
+					taskId: null,
+					scope: 'batch',
+					kind: 'batch.advanced',
+					seq: 1,
+					actorDeviceId: null,
+					payload: {
+						batchId,
+						batchNo: current.batch_no,
+						from: current.state,
+						to: toState,
+						reason,
+					},
+				} as EventEnvelope);
+
+		return {
+			updatedBatch: updated,
+			envelope,
+			fromState: current.state,
+			toState,
+		};
+	}
+
 	return Object.freeze({
 		toDto: toBatchDto,
 
+		transitionBatchInTx,
+
 		async transitionBatch(batchId: string, toState: BatchState, reason: string): Promise<BatchRow> {
-			let updatedRow: BatchRow | null = null;
-			let pendingEnvelope: EventEnvelope | null = null;
+			let result: TransitionBatchInTxResult | null = null;
 
 			// All mutations must occur within a single UnitOfWork transaction, no await/bus.publish inside tx (08 节, AC 1, AC 7)
 			deps.unitOfWork.run(() => {
-				const current = deps.batchesRepo.findById(batchId);
-				if (!current) {
-					throw new AppError('E_NOT_FOUND', `Batch not found: ${batchId}`);
-				}
-
-				assertCanTransitionBatch(current.state, toState);
-
-				const now = deps.clock.now();
-				const startedAt = toState === 'running' && !current.started_at ? now : current.started_at;
-				const finishedAt = toState === 'done' ? (current.finished_at ?? now) : null;
-
-				deps.batchesRepo.updateState({
-					id: batchId,
-					state: toState,
-					started_at: startedAt,
-					finished_at: finishedAt,
-				});
-
-				updatedRow = deps.batchesRepo.findById(batchId);
-
-				if (deps.bus && deps.envelopeFactory) {
-					pendingEnvelope = deps.envelopeFactory.createEnvelope({
-						kind: 'batch.advanced',
-						payload: {
-							batchId,
-							batchNo: current.batch_no,
-							from: current.state,
-							to: toState,
-							reason,
-						},
-					});
-				}
+				result = transitionBatchInTx(batchId, toState, reason);
 			});
 
-			if (pendingEnvelope && deps.bus) {
-				deps.bus.publish(pendingEnvelope);
+			if (result && deps.bus) {
+				deps.bus.publish((result as TransitionBatchInTxResult).envelope);
 			}
 
-			if (!updatedRow) {
+			if (!result) {
 				throw new AppError('E_INTERNAL', `Failed to retrieve updated batch: ${batchId}`);
 			}
-			return updatedRow;
+			return (result as TransitionBatchInTxResult).updatedBatch;
 		},
 
 		async getBatch(batchId: string): Promise<BatchDto> {

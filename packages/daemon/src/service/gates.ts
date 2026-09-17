@@ -7,7 +7,6 @@ import type {
 } from '@agent-scheduler/shared/api/gates';
 import type { GateSettings } from '@agent-scheduler/shared/api/settings';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
-import { assertCanTransitionBatch } from '../domain/batch-state-machine.ts';
 import {
 	type GateKind,
 	type GateOverrides,
@@ -22,6 +21,7 @@ import type { BatchesRepo } from '../repo/batches.ts';
 import type { GateRow, GatesRepo } from '../repo/gates.ts';
 import type { RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
+import type { BatchService } from './batch.ts';
 import type { SettingsService } from './settings.ts';
 
 export interface GateServiceDeps {
@@ -30,6 +30,7 @@ export interface GateServiceDeps {
 	readonly runsRepo?: RunsRepo;
 	readonly batchesRepo?: BatchesRepo;
 	readonly batchWrapupsRepo?: BatchWrapupsRepo;
+	readonly batchService?: BatchService;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly bus: EventBus;
@@ -175,28 +176,29 @@ export function createGateService(deps: GateServiceDeps): GateService {
 									});
 								}
 
-								// Batch transitions to done
-								if (batch.state !== 'done') {
-									assertCanTransitionBatch(batch.state, 'done');
-									deps.batchesRepo?.updateState({
-										id: batch.id,
-										state: 'done',
-										finished_at: now,
-									});
-
-									pendingEnvelopes.push(
-										deps.envelopeFactory.createEnvelope({
-											kind: 'batch.advanced',
-											payload: {
-												batchId: batch.id,
-												batchNo: batch.batch_no,
-												from: batch.state,
-												to: 'done',
-												reason: 'human_wrapup_passed',
-											},
-										}),
+								// Batch transitions to done via batchService (R1)
+								if (deps.batchService && batch.state !== 'done') {
+									const transRes = deps.batchService.transitionBatchInTx(
+										batch.id,
+										'done',
+										'human_wrapup_passed',
 									);
+									pendingEnvelopes.push(transRes.envelope);
 								}
+
+								pendingEnvelopes.push(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'batch.wrapup_finished',
+										payload: {
+											batchId: batch.id,
+											batchNo: batch.batch_no,
+											runId: wrapupRun.id,
+											round: wrapupRun.attempt_no,
+											verdict: 'clean',
+											isHumanVerdict: true,
+										},
+									}),
+								);
 
 								// Wrapup run transitions to landed
 								deps.runsRepo?.updateState({

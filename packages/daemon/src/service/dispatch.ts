@@ -30,7 +30,7 @@ import {
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 import { isBranchInHead } from '../workspace/in-head.ts';
-import type { BatchService } from './batch.ts';
+import { type BatchService, createBatchService } from './batch.ts';
 import { createRerunService } from './rerun.ts';
 import { assertSessionRefFree } from './session-guard.ts';
 import type { WrapupService } from './wrapup.ts';
@@ -163,6 +163,7 @@ export interface DispatchService {
 	tick(): Promise<SchedulerTickResult>;
 	getBatchGateOverrides(batchId: string): BatchGateOverrides | undefined;
 	setBatchGateOverrides(batchId: string, overrides: BatchGateOverrides): void;
+	getInHeadWarning(runId: string): string | null;
 }
 
 const DEFAULT_AGENT_CONCURRENCY_LIMIT = 2;
@@ -180,7 +181,20 @@ function resolveConstraintConflict(
 export function createDispatchService(deps: DispatchServiceDeps): DispatchService {
 	const runsRepo = deps.runsRepo;
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
+	const consecutiveInHeadErrors = new Map<string, number>();
 	let isTicking = false;
+
+	const effectiveBatchService =
+		deps.batchService ??
+		createBatchService({
+			batchesRepo: deps.batchesRepo,
+			tasksRepo: deps.tasksRepo,
+			runsRepo: deps.runsRepo,
+			unitOfWork: deps.unitOfWork ?? { run: (fn) => fn() },
+			clock: deps.clock,
+			bus: deps.bus,
+			envelopeFactory: deps.envelopeFactory,
+		});
 
 	function checkContractReady(task: TaskRow): void {
 		if (task.is_contract_ready !== 1) {
@@ -492,14 +506,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 		}
 
-		const now = deps.clock.now();
-		const startedAt = batch.started_at ?? now;
-		deps.batchesRepo.updateState({
-			id: batchId,
-			state: 'running',
-			started_at: startedAt,
-			finished_at: null,
-		});
+		await effectiveBatchService.transitionBatch(batchId, 'running', 'batch_start');
 
 		const batchTasks = deps.tasksRepo.listByBatchId(batchId);
 		if (gateOverrides && Object.keys(gateOverrides).length > 0) {
@@ -532,12 +539,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 
-		deps.batchesRepo.updateState({
-			id: batchId,
-			state: 'paused',
-			started_at: batch.started_at,
-			finished_at: batch.finished_at,
-		});
+		await effectiveBatchService.transitionBatch(batchId, 'paused', 'batch_pause');
 
 		return { paused: true };
 	}
@@ -621,39 +623,101 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			const tasksBlocked: { taskId: string; reason: string }[] = [];
 			const tasksDeferred: { taskId: string; reason: string }[] = [];
 
+			// Global Step 1: In-Head refresh (R3: per repo, implement/wrapup only, global limit <= 20, per run >= 30s, sequential git, single tx write back, E-301)
+			const nowMs = Date.parse(deps.clock.now()) || Date.now();
+			const thirtySecAgo = new Date(nowMs - 30_000).toISOString();
+			const unmergedRuns = deps.runsRepo.findLandedNotInHeadRuns?.(20, thirtySecAgo) ?? [];
+			const checkInHead = deps.isBranchInHead ?? isBranchInHead;
+
+			const inHeadResults: Array<{
+				runId: string;
+				isInHead: number;
+				tipSha: string | null;
+				isError: boolean;
+			}> = [];
+
+			for (const r of unmergedRuns) {
+				if (!r.branch_name) continue;
+				let repoPath: string | null = null;
+				if (r.task_id) {
+					const task = deps.tasksRepo.findById(r.task_id);
+					if (task) {
+						const doc = deps.documentsRepo.findById(task.doc_id);
+						repoPath = doc?.repo_path ?? null;
+					}
+				} else if (r.batch_id) {
+					const batch = deps.batchesRepo.findById(r.batch_id);
+					if (batch) {
+						const doc = deps.documentsRepo.findById(batch.doc_id);
+						repoPath = doc?.repo_path ?? null;
+					}
+				}
+
+				if (!repoPath) continue;
+
+				try {
+					const checkResult = await checkInHead({
+						repoPath,
+						branchName: r.branch_name,
+						worktreePath: r.worktree_path ?? undefined,
+						tipSha: r.branch_tip_sha ?? undefined,
+					});
+
+					if (checkResult.method === 'error') {
+						const count = (consecutiveInHeadErrors.get(r.id) ?? 0) + 1;
+						consecutiveInHeadErrors.set(r.id, count);
+						inHeadResults.push({
+							runId: r.id,
+							isInHead: 0,
+							tipSha: checkResult.tipSha ?? r.branch_tip_sha ?? null,
+							isError: true,
+						});
+					} else {
+						consecutiveInHeadErrors.delete(r.id);
+						inHeadResults.push({
+							runId: r.id,
+							isInHead: checkResult.inHead ? 1 : 0,
+							tipSha: checkResult.tipSha ?? r.branch_tip_sha ?? null,
+							isError: false,
+						});
+					}
+				} catch {
+					const count = (consecutiveInHeadErrors.get(r.id) ?? 0) + 1;
+					consecutiveInHeadErrors.set(r.id, count);
+					inHeadResults.push({
+						runId: r.id,
+						isInHead: 0,
+						tipSha: r.branch_tip_sha ?? null,
+						isError: true,
+					});
+				}
+			}
+
+			// Single transaction write back (R3)
+			if (inHeadResults.length > 0 && deps.runsRepo.updateInHead) {
+				const nowIso = deps.clock.now();
+				const writeBack = () => {
+					for (const item of inHeadResults) {
+						deps.runsRepo.updateInHead?.({
+							id: item.runId,
+							isInHead: item.isInHead,
+							checkedAt: nowIso,
+							branchTipSha: item.tipSha,
+						});
+					}
+				};
+
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(writeBack);
+				} else {
+					writeBack();
+				}
+			}
+
 			const documents = deps.documentsRepo.listAll();
 			for (const doc of documents) {
 				if (doc.is_source_readable === 0) {
 					continue;
-				}
-
-				// Step 1: In-Head refresh (throttled: >=30s per run, <=20 runs per tick, AC 1, E-272, E-301)
-				if (doc.repo_path) {
-					const nowMs = Date.parse(deps.clock.now()) || Date.now();
-					const thirtySecAgo = new Date(nowMs - 30_000).toISOString();
-					const unmergedRuns = deps.runsRepo.findLandedNotInHeadRuns?.(20, thirtySecAgo) ?? [];
-					const checkInHead = deps.isBranchInHead ?? isBranchInHead;
-
-					for (const r of unmergedRuns) {
-						if (!r.branch_name) continue;
-						try {
-							const checkResult = await checkInHead({
-								repoPath: doc.repo_path,
-								branchName: r.branch_name,
-								worktreePath: r.worktree_path ?? undefined,
-								tipSha: r.branch_tip_sha ?? undefined,
-							});
-							const nowIso = deps.clock.now();
-							deps.runsRepo.updateInHead?.({
-								id: r.id,
-								isInHead: checkResult.inHead ? 1 : 0,
-								checkedAt: nowIso,
-								branchTipSha: checkResult.tipSha ?? r.branch_tip_sha ?? null,
-							});
-						} catch {
-							// E-301: error handling, do not throw or infer as merged
-						}
-					}
 				}
 
 				// Step 2: Batch progression & wrap-up trigger (AC 1, AC 2, E-272, E-283)
@@ -695,18 +759,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						if (notInHeadCount > 0) {
 							// E-272: 全部 landed 但有未进 HEAD -> awaiting_landing
 							if (batch.state === 'running') {
-								if (deps.batchService) {
-									await deps.batchService.transitionBatch(
-										batch.id,
-										'awaiting_landing',
-										'waiting_for_branches_in_head',
-									);
-								} else {
-									deps.batchesRepo.updateState({
-										id: batch.id,
-										state: 'awaiting_landing',
-									});
-								}
+								await effectiveBatchService.transitionBatch(
+									batch.id,
+									'awaiting_landing',
+									'waiting_for_branches_in_head',
+								);
 								batchesAdvanced.push(batch.id);
 							}
 							continue;
@@ -742,23 +799,17 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 						if (!deps.wrapupService && !activeWrapup) {
 							// Fallback if wrapupService not wired
-							const now = deps.clock.now();
-							deps.batchesRepo.updateState({
-								id: batch.id,
-								state: 'done',
-								started_at: batch.started_at,
-								finished_at: now,
-							});
+							await effectiveBatchService.transitionBatch(
+								batch.id,
+								'done',
+								'all_landed_and_in_head',
+							);
 							batchesAdvanced.push(batch.id);
 							continue;
 						}
 					} else if (batch.state === 'awaiting_landing') {
 						// A task reopened or reworked -> return to running (E-59, E-121)
-						if (deps.batchService) {
-							await deps.batchService.transitionBatch(batch.id, 'running', 'task_reopened');
-						} else {
-							deps.batchesRepo.updateState({ id: batch.id, state: 'running' });
-						}
+						await effectiveBatchService.transitionBatch(batch.id, 'running', 'task_reopened');
 						batchesAdvanced.push(batch.id);
 					}
 
@@ -850,25 +901,28 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						};
 					});
 
-					const activeDescriptors = activeRuns.map((r) => {
-						const task = deps.tasksRepo.findById(r.task_id);
-						let taskPaths: string[] = [];
-						if (task?.task_paths_json) {
-							try {
-								taskPaths = JSON.parse(task.task_paths_json);
-							} catch {
-								taskPaths = [];
+					const activeDescriptors = activeRuns
+						.filter((r) => r.task_id !== null)
+						.map((r) => {
+							const taskId = r.task_id as string;
+							const task = deps.tasksRepo.findById(taskId);
+							let taskPaths: string[] = [];
+							if (task?.task_paths_json) {
+								try {
+									taskPaths = JSON.parse(task.task_paths_json);
+								} catch {
+									taskPaths = [];
+								}
 							}
-						}
-						return {
-							taskId: r.task_id,
-							taskKey: task?.task_key ?? r.task_id,
-							taskPaths: Object.freeze(taskPaths),
-							batchId: task?.batch_id ?? undefined,
-							state: r.state,
-							runId: r.id,
-						};
-					});
+							return {
+								taskId,
+								taskKey: task?.task_key ?? taskId,
+								taskPaths: Object.freeze(taskPaths),
+								batchId: task?.batch_id ?? undefined,
+								state: r.state,
+								runId: r.id,
+							};
+						});
 
 					const pathClashResult = evaluatePathClashQueue({
 						candidates: candidateDescriptors,
@@ -981,6 +1035,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		batchGateOverridesMap.set(batchId, Object.freeze({ ...overrides }));
 	}
 
+	function getInHeadWarning(runId: string): string | null {
+		const count = consecutiveInHeadErrors.get(runId) ?? 0;
+		return count >= 3 ? '无法判定分支是否已合入' : null;
+	}
+
 	return Object.freeze({
 		createRun,
 		rerunRun,
@@ -992,5 +1051,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		tick,
 		getBatchGateOverrides,
 		setBatchGateOverrides,
+		getInHeadWarning,
 	});
 }
