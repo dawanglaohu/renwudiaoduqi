@@ -1,4 +1,12 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	statSync,
+} from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { resolveShippedDaemonLayout } from './launch-spec.ts';
 import { type PlatformProductLayers, evaluatePlatformSupport } from './platform-support.ts';
@@ -60,28 +68,49 @@ function relativeTo(baseDir: string, target: string): string {
 }
 
 /**
+ * Recursive copy that follows symbolic links and preserves file modes, written out
+ * instead of `fs.cpSync` because the C++ implementation `cpSync` uses for unfiltered
+ * directory copies mishandles non-ASCII destination paths on some Node 22 releases on
+ * Windows; the staging root always contains such characters on purpose.
+ */
+function copyTree(
+	sourceRoot: string,
+	targetRoot: string,
+	keep: (relativePosix: string) => boolean,
+	currentDir = sourceRoot,
+): void {
+	const targetDir = join(targetRoot, relativeTo(sourceRoot, currentDir));
+	mkdirSync(targetDir, { recursive: true });
+	for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+		const source = join(currentDir, entry.name);
+		const relative = relativeTo(sourceRoot, source).replace(/\\/g, '/');
+		if (!keep(relative)) continue;
+		// statSync follows links: an installation carries real files, never links back
+		// into the build machine.
+		if (statSync(source).isDirectory()) {
+			copyTree(sourceRoot, targetRoot, keep, source);
+		} else {
+			copyFileSync(source, join(targetDir, entry.name));
+		}
+	}
+}
+
+/**
  * Copies the daemon distribution without the build machine's own leftovers. Package
  * manager metadata records absolute build paths, tests and incremental build info are
  * not product content, and none of them is present in a shipped installation.
  */
 function copyDaemonDistribution(sourceDir: string, targetDir: string): void {
 	const packageManagerMetadata = new Set(['.pnpm', '.bin', '.modules.yaml', '.npmrc']);
-	mkdirSync(targetDir, { recursive: true });
-	cpSync(sourceDir, targetDir, {
-		recursive: true,
-		dereference: true,
-		filter: (source) => {
-			const relative = relativeTo(sourceDir, source).replace(/\\/g, '/');
-			if (relative === '') return true;
-			if (relative.startsWith('node_modules/')) {
-				const inner = relative.slice('node_modules/'.length);
-				if (packageManagerMetadata.has(inner)) return false;
-			}
-			if (relative === 'test' || relative.startsWith('test/')) return false;
-			if (relative.endsWith('.tsbuildinfo')) return false;
-			if (relative === 'dist' || relative.startsWith('dist/')) return false;
-			return true;
-		},
+	copyTree(sourceDir, targetDir, (relative) => {
+		if (relative.startsWith('node_modules/')) {
+			const inner = relative.slice('node_modules/'.length);
+			if (packageManagerMetadata.has(inner)) return false;
+		}
+		if (relative === 'test' || relative.startsWith('test/')) return false;
+		if (relative.endsWith('.tsbuildinfo')) return false;
+		if (relative === 'dist' || relative.startsWith('dist/')) return false;
+		return true;
 	});
 }
 
@@ -118,12 +147,12 @@ export function stageInstalledProduct(
 
 	const webDistSource = options.sources.webDistDir;
 	if (webDistSource && existsSync(webDistSource)) {
-		cpSync(webDistSource, webDistDir, { recursive: true, dereference: true });
+		copyTree(webDistSource, webDistDir, () => true);
 	}
 
 	const shellSource = options.sources.desktopShellBinary;
 	if (shellSource && existsSync(shellSource)) {
-		cpSync(shellSource, currentExe);
+		copyFileSync(shellSource, currentExe);
 	}
 
 	return Object.freeze({
