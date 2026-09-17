@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import tailwindcss from 'tailwindcss';
 import { defineConfig } from 'vite';
 
 function getAppVersion(): string {
@@ -23,6 +24,11 @@ function getBuildId(): string {
 
 export default defineConfig({
 	base: './',
+	css: {
+		postcss: {
+			plugins: [tailwindcss()],
+		},
+	},
 	build: {
 		outDir: 'dist',
 		target: 'es2020',

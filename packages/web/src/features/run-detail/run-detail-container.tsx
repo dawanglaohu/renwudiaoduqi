@@ -47,8 +47,6 @@ export interface RunDetailContainerProps {
 	readonly run?: RunDto | null;
 	/** 关联任务代号（可选） */
 	readonly taskKey?: string;
-	/** 重跑成功回调 */
-	readonly onRerunSuccess?: (newRun: RunDto) => void;
 	/** 是否强制使用手机端模式（可选覆盖） */
 	readonly isMobile?: boolean;
 }
@@ -63,7 +61,6 @@ export function RunDetailContainer({
 	runStatus,
 	run,
 	taskKey,
-	onRerunSuccess,
 	isMobile,
 }: RunDetailContainerProps) {
 	const virtualRef = useRef<VirtualRowsHandle | null>(null);
@@ -95,7 +92,6 @@ export function RunDetailContainer({
 		runId,
 		initialRun: run,
 		initialStatus: runStatus,
-		onRerunSuccess,
 	});
 
 	// E-218: 会话视图显式全会话检索状态（AC 5, M6-T9）

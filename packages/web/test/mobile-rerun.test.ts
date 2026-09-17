@@ -4,6 +4,7 @@
  * M9-T13 手机原样重跑入口单元测试（AC 1-5, E-177, E-181, R1, R2, R3）
  */
 
+import { readFileSync } from 'node:fs';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -21,6 +22,7 @@ import {
 } from '../src/features/run-detail/use-run-rerun.ts';
 import { getErrorMessage } from '../src/i18n/error-messages.ts';
 import { RunDetailPage } from '../src/pages/run-detail-page.tsx';
+import viteConfig from '../vite.config.ts';
 
 describe('M9-T13: Mobile Rerun Entrance (AC 1-5, E-177, E-181, R1-R3)', () => {
 	beforeEach(() => {
@@ -319,6 +321,20 @@ describe('M9-T13: Mobile Rerun Entrance (AC 1-5, E-177, E-181, R1-R3)', () => {
 	// R2 & E-177: 识别同任务已有 active run 并预先置灰；rerun POST 返回 200 + 既有 active run 处理
 	// ─────────────────────────────────────────────────────────────────────────────
 	describe('R2 & E-177: Active run detection, pre-disabling, and safe 200 handling without run replacement', () => {
+		it('never mutates the viewed run from a rerun POST response', () => {
+			const source = readFileSync(
+				new URL('../src/features/run-detail/use-run-rerun.ts', import.meta.url),
+				'utf8',
+			);
+			const executeStart = source.indexOf('const executeRerun = useCallback');
+			const executeEnd = source.indexOf('\n\treturn {', executeStart);
+			const executeSource = source.slice(executeStart, executeEnd);
+
+			expect(executeSource).not.toContain('setRun(res.run)');
+			expect(executeSource).not.toContain('onRerunSuccess?.');
+			expect(executeSource).toContain('setHasActiveRun(true)');
+		});
+
 		it('disables button and updates label to "任务已在运行中" when task already has active run', () => {
 			const html = renderToStaticMarkup(
 				createElement(MobileRerunBar, {
@@ -438,6 +454,19 @@ describe('M9-T13: Mobile Rerun Entrance (AC 1-5, E-177, E-181, R1-R3)', () => {
 			expect(html).toContain('文档快照已变更，重跑请到桌面端处理');
 			expect(html).toContain('Task contract has changed since dispatch (E-180)');
 			expect(html).toContain('req_stale_123');
+		});
+	});
+
+	describe('R4: Production CSS includes Tailwind utilities', () => {
+		it('registers the Tailwind PostCSS plugin in the Vite build', () => {
+			const config = viteConfig as unknown as {
+				readonly css?: {
+					readonly postcss?: { readonly plugins?: readonly { readonly postcssPlugin?: string }[] };
+				};
+			};
+			const plugins = config.css?.postcss?.plugins ?? [];
+
+			expect(plugins.some((plugin) => plugin.postcssPlugin === 'tailwindcss')).toBe(true);
 		});
 	});
 });

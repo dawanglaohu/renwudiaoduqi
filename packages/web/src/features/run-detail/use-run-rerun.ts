@@ -78,8 +78,6 @@ export interface UseRunRerunOptions {
 	readonly initialRun?: RunDto | null;
 	/** 初始运行状态（可选，由外部传入避免初次闪烁） */
 	readonly initialStatus?: string;
-	/** 重跑成功回调（仅在真正生成新重跑且非既有在跑时触发，R2） */
-	readonly onRerunSuccess?: (newRun: RunDto) => void;
 }
 
 export interface UseRunRerunReturn {
@@ -123,7 +121,6 @@ export function useRunRerun({
 	runId,
 	initialRun = null,
 	initialStatus,
-	onRerunSuccess,
 }: UseRunRerunOptions): UseRunRerunReturn {
 	const [run, setRun] = useState<RunDto | null>(initialRun);
 	const [isLoadingRun, setIsLoadingRun] = useState<boolean>(false);
@@ -246,23 +243,9 @@ export function useRunRerun({
 			setIsConfirmOpen(false);
 
 			if (res?.run) {
-				// R2 修正 E-177：识别返回的是否为既有 active run
-				const isExistingActiveRun =
-					res.run.id !== runId && res.run.parentRunId !== runId && isActiveRunState(res.run.state);
-
-				if (isExistingActiveRun) {
-					// 命中服务端既有在跑拦截：不得当作新运行成功或替换当前详情/日志，接受后置灰并等待 SSE/REST (R2)
-					setHasActiveRun(true);
-					setErrorState({
-						code: 'E_RUN_ALREADY_EXISTS',
-						userMessage: getErrorMessage('E_RUN_ALREADY_EXISTS'),
-					});
-					return res.run;
-				}
-
-				// 真正的新运行派发成功
-				setRun(res.run);
-				onRerunSuccess?.(res.run);
+				// 写请求响应只表示服务端已接受。无论它是新建运行还是返回既有 active run，
+				// 都保留当前终态详情与日志，仅置灰入口，等待 SSE/REST 权威状态回流（R2 / E-157）。
+				setHasActiveRun(true);
 				return res.run;
 			}
 			return null;
@@ -291,7 +274,7 @@ export function useRunRerun({
 		} finally {
 			setIsRerunning(false);
 		}
-	}, [runId, canRerun, onRerunSuccess]);
+	}, [runId, canRerun]);
 
 	return {
 		run,

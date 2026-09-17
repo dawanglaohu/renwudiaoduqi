@@ -41,7 +41,6 @@ export function RunDetailPage(props: RunDetailPageProps) {
 		runStatus,
 		run,
 		taskKey,
-		onRerunSuccess,
 		isMobile,
 	} = props;
 
@@ -91,7 +90,6 @@ export function RunDetailPage(props: RunDetailPageProps) {
 					runStatus={runStatus}
 					run={run}
 					taskKey={taskKey}
-					onRerunSuccess={onRerunSuccess}
 					isMobile={isMobile}
 					className="h-full w-full"
 				/>

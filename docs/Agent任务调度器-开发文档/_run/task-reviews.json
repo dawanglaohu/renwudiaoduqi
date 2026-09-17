@@ -1241,13 +1241,13 @@
   },
   "M9-T13": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "8d0eec3db65e57fb1c7480df084306d0415d036fe9c928b18e1192badba7eef0",
+    "contractHash": "58afdf1b15d93947a481d5f5080b0dd61314b931bb9ce3a43ac7ca0ab56dc14d",
     "evidence": [
-      "任务定义仍为手机原样重跑入口，五条验收标准与 E-177、E-181 原文未改；前置 M9-T12 与 M8-T5 均已落地，接口仍为 POST /api/v1/runs/:runId/rerun 且请求体只有 idempotencyKey。",
-      "有效路径仅补入既定产出可达与错误体系所必需的 packages/web/src/app/app.tsx、packages/web/src/pages/run-detail-page.tsx、packages/web/src/i18n/error-messages.ts 与 packages/web/test/mobile-rerun.test.ts；任务主路径仍是 packages/web/src/features/run-detail/，没有开放其他业务目录。",
-      "路径冲突复核：app/app.tsx 的现有所有者 M9-T16 已落地；run-detail-page.tsx 与 error-messages.ts 是本任务按既定架构新增的装配/错误映射文件；mobile-rerun.test.ts 为本任务专属测试。补丁不与当前在途 M9-T18、M9-T19 的有效路径重叠。"
+      "任务定义、五条验收标准、E-177 与 E-181 原文未改；本轮仅继续原补丁补入生产样式接线所需的 packages/web/vite.config.ts。",
+      "Vite 配置属于 AC5 的直接运行依赖：补丁前生产 CSS 原样保留 @tailwind 且不含 .w-full，整宽、44px 触控高度与拇指条间距均不生效；显式接入 tailwindcss PostCSS 后，构建 CSS 不含 @tailwind、包含 .w-full，体积从 5.3KB 增至 34.8KB。",
+      "路径冲突复核：vite.config.ts 的既有所有者 M10-T4 已落地，当前在途 M9-T18、M9-T19 均不修改该文件；其余有效路径保持 app/app.tsx、run-detail-page.tsx、error-messages.ts、本任务测试与 features/run-detail。"
     ],
-    "reviewed": "2026-09-17T06:12:43.239949+00:00",
+    "reviewed": "2026-09-17T09:55:39.442586+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
