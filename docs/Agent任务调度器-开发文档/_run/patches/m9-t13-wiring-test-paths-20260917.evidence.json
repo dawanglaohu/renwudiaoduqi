@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T13": {
+      "contractHash": "fb784bec903279a30ba8ba907351ee3b0f02e13ae6f413dbfde992ad6b39a201",
+      "evidence": [
+        "任务定义仍为手机原样重跑入口，五条验收标准与 E-177、E-181 原文未改；前置 M9-T12 与 M8-T5 均已落地，接口仍为 POST /api/v1/runs/:runId/rerun 且请求体只有 idempotencyKey。",
+        "有效路径仅补入既定产出可达所必需的 packages/web/src/app/app.tsx、packages/web/src/pages/run-detail-page.tsx 与 packages/web/test/mobile-rerun.test.ts；任务主路径仍是 packages/web/src/features/run-detail/，没有开放其他业务目录。",
+        "路径冲突复核：app/app.tsx 的现有所有者 M9-T16 已落地；run-detail-page.tsx 为新增页面装配件；mobile-rerun.test.ts 为本任务专属测试。补丁不与当前在途 M9-T18、M9-T19 的有效路径重叠。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

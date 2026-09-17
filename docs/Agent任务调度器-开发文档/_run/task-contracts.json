@@ -1,6 +1,13 @@
 {
   "schemaVersion": 1,
   "tasks": {
+    "M9-T13": {
+      "supportPaths": [
+        "packages/web/src/app/app.tsx",
+        "packages/web/src/pages/run-detail-page.tsx",
+        "packages/web/test/mobile-rerun.test.ts"
+      ]
+    },
     "M9-T12": {
       "supportPaths": [
         "packages/web/test/thumb-bar.test.ts",
