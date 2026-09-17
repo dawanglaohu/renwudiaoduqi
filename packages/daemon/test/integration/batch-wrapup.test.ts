@@ -261,7 +261,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				) {
 					statusCode = 409;
 				}
-				reply.status(statusCode).send({
+				void reply.status(statusCode).send({
 					error: {
 						code: error.code,
 						message: error.message,
@@ -271,7 +271,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				return;
 			}
 			const message = error instanceof Error ? error.message : String(error);
-			reply.status(500).send({ error: { code: 'E_INTERNAL', message } });
+			void reply.status(500).send({ error: { code: 'E_INTERNAL', message } });
 		});
 		await app.ready();
 
