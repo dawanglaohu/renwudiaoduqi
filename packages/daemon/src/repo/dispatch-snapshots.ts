@@ -16,6 +16,7 @@ import { AppError } from '../errors/app-error.ts';
 export interface DispatchSnapshotRow {
 	readonly id: string;
 	readonly task_id: string;
+	readonly batch_id?: string | null;
 	readonly input_text: string | null;
 	readonly output_text: string | null;
 	readonly accept_text: string | null;
@@ -25,12 +26,15 @@ export interface DispatchSnapshotRow {
 	readonly contract_hash: string;
 	readonly task_paths_json: string;
 	readonly launch_spec_json: string;
+	readonly assignment_json?: string | null;
+	readonly parent_snapshot_id?: string | null;
 	readonly created_at: string;
 }
 
 export interface DispatchSnapshotInsertRow {
 	readonly id: string;
-	readonly task_id: string;
+	readonly task_id: string | null;
+	readonly batch_id?: string | null;
 	readonly input_text?: string | null;
 	readonly output_text?: string | null;
 	readonly accept_text?: string | null;
@@ -40,6 +44,8 @@ export interface DispatchSnapshotInsertRow {
 	readonly contract_hash: string;
 	readonly task_paths_json: string;
 	readonly launch_spec_json: string;
+	readonly assignment_json?: string | null;
+	readonly parent_snapshot_id?: string | null;
 	readonly created_at: string;
 }
 
@@ -369,7 +375,27 @@ WHERE task_id = ?
 `;
 
 export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSnapshotsRepo {
-	const insertSnapshotStmt = db.prepare(INSERT_SNAPSHOT_SQL);
+	let hasBatchId = false;
+	try {
+		const tableInfo = db
+			.prepare<[], { name: string }>('PRAGMA table_info(dispatch_snapshots)')
+			.all();
+		hasBatchId = tableInfo.some((col) => col.name === 'batch_id');
+	} catch {}
+
+	const dynamicInsertSql = hasBatchId
+		? `INSERT INTO dispatch_snapshots (
+			id, task_id, batch_id, input_text, output_text, accept_text,
+			impl_prompt, review_prompt, bug_prompt, contract_hash,
+			task_paths_json, launch_spec_json, assignment_json, parent_snapshot_id, created_at
+		) VALUES (
+			@id, @task_id, @batch_id, @input_text, @output_text, @accept_text,
+			@impl_prompt, @review_prompt, @bug_prompt, @contract_hash,
+			@task_paths_json, @launch_spec_json, @assignment_json, @parent_snapshot_id, @created_at
+		)`
+		: INSERT_SNAPSHOT_SQL;
+
+	const insertSnapshotStmt = db.prepare(dynamicInsertSql);
 	const selectSnapshotByIdStmt = db.prepare(SELECT_SNAPSHOT_BY_ID_SQL);
 	const selectLatestSnapshotByTaskIdStmt = db.prepare(SELECT_LATEST_SNAPSHOT_BY_TASK_ID_SQL);
 	const selectAllSnapshotsByTaskIdStmt = db.prepare(SELECT_ALL_SNAPSHOTS_BY_TASK_ID_SQL);
@@ -384,6 +410,7 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 		return Object.freeze({
 			id: row.id,
 			task_id: row.task_id,
+			batch_id: row.batch_id ?? null,
 			input_text: row.input_text ?? null,
 			output_text: row.output_text ?? null,
 			accept_text: row.accept_text ?? null,
@@ -393,15 +420,17 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 			contract_hash: row.contract_hash,
 			task_paths_json: row.task_paths_json,
 			launch_spec_json: row.launch_spec_json,
+			assignment_json: row.assignment_json ?? null,
+			parent_snapshot_id: row.parent_snapshot_id ?? null,
 			created_at: row.created_at,
 		});
 	}
 
 	function insertSnapshotInternal(snapshot: DispatchSnapshotInsertRow): void {
 		try {
-			insertSnapshotStmt.run({
+			const params: Record<string, unknown> = {
 				id: snapshot.id,
-				task_id: snapshot.task_id,
+				task_id: snapshot.task_id ?? null,
 				input_text: snapshot.input_text ?? null,
 				output_text: snapshot.output_text ?? null,
 				accept_text: snapshot.accept_text ?? null,
@@ -412,7 +441,13 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 				task_paths_json: snapshot.task_paths_json,
 				launch_spec_json: snapshot.launch_spec_json,
 				created_at: snapshot.created_at,
-			});
+			};
+			if (hasBatchId) {
+				params.batch_id = snapshot.batch_id ?? null;
+				params.assignment_json = snapshot.assignment_json ?? null;
+				params.parent_snapshot_id = snapshot.parent_snapshot_id ?? null;
+			}
+			insertSnapshotStmt.run(params);
 		} catch (cause) {
 			throw toDatabaseError(
 				cause,
@@ -675,6 +710,7 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 
 			return rowToSnapshot({
 				...snapshotRow,
+				task_id: snapshotRow.task_id ?? '',
 				input_text: snapshotRow.input_text ?? null,
 				output_text: snapshotRow.output_text ?? null,
 				accept_text: snapshotRow.accept_text ?? null,

@@ -162,9 +162,9 @@ export const createRunMessageBodySchema = {
 
 export interface RunDto {
 	readonly id: string;
-	readonly taskId: string;
+	readonly taskId: string | null;
 	readonly attemptNo: number;
-	readonly kind: 'implement' | 'review';
+	readonly kind: 'implement' | 'review' | 'wrapup' | 'bughunt';
 	readonly parentRunId: string | null;
 	readonly state: string;
 	readonly reviewVerdict: 'pass' | 'rework' | 'doc_issue' | 'incomplete' | null;
@@ -197,6 +197,17 @@ export interface RunDto {
 	readonly spawnedByRunId?: string | null;
 	readonly reviewRound?: number | null;
 	readonly continuedFromRunId?: string | null;
+	readonly batchId?: string | null;
+	readonly isInHead?: boolean;
+	readonly inHeadCheckedAt?: string | null;
+	readonly branchTipSha?: string | null;
+	readonly promptSource?: 'docs' | 'builtin' | null;
+	readonly assignmentSource?:
+		| 'task'
+		| 'review_override'
+		| 'wrapup_settings'
+		| 'agent_default'
+		| null;
 }
 
 export interface CreateRunResponse {

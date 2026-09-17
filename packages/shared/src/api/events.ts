@@ -308,7 +308,12 @@ export interface TaskSessionsArchivedPayload {
 
 export interface BatchAdvancedPayload {
 	readonly batchId: string;
+	readonly from?: string;
+	readonly to?: string;
+	readonly reason?: string;
+	readonly batchNo?: number;
 	readonly stage?: string;
+	readonly state?: string;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }

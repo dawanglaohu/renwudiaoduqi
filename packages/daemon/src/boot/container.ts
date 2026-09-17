@@ -16,6 +16,7 @@ import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
 import { createDefaultProcessOps } from '../proc/spawn.ts';
+import { type BatchWrapupsRepo, createBatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import { type BatchesRepo, createBatchesRepo } from '../repo/batches.ts';
 import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
 import {
@@ -33,6 +34,7 @@ import { type RunsRepo, createRunsRepo } from '../repo/runs.ts';
 import { type SettingsRepo, createSettingsRepo } from '../repo/settings.ts';
 import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
+import { type BatchService, createBatchService } from '../service/batch.ts';
 import { type DispatchService, createDispatchService } from '../service/dispatch.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type GateService, createGateService } from '../service/gates.ts';
@@ -45,6 +47,7 @@ import { type RunAbortService, createRunAbortService } from '../service/run-abor
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
 import { type SettingsService, createSettingsService } from '../service/settings.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
+import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
 
 export interface ContainerJob {
 	readonly name: string;
@@ -64,6 +67,7 @@ export interface ContainerRepos {
 	readonly tasks: TasksRepo;
 	readonly runs: RunsRepo;
 	readonly batches: BatchesRepo;
+	readonly batchWrapups?: BatchWrapupsRepo;
 	readonly gates?: GatesRepo;
 	readonly settings?: SettingsRepo;
 	readonly [key: string]: unknown;
@@ -90,6 +94,8 @@ export interface ContainerServices {
 	readonly rework: ReworkService;
 	readonly settings: SettingsService;
 	readonly gates: GateService;
+	readonly batch?: BatchService;
+	readonly wrapup?: WrapupService;
 }
 
 export interface AppContainer {
@@ -146,12 +152,15 @@ export function createContainer(input: {
 	readonly landingService?: LandingService;
 	readonly runsRepo?: RunsRepo;
 	readonly batchesRepo?: BatchesRepo;
+	readonly batchWrapupsRepo?: BatchWrapupsRepo;
 	readonly gatesRepo?: GatesRepo;
 	readonly settingsRepo?: SettingsRepo;
 	readonly settingsService?: SettingsService;
 	readonly gateService?: GateService;
 	readonly dispatchService?: DispatchService;
 	readonly reworkService?: ReworkService;
+	readonly batchService?: BatchService;
+	readonly wrapupService?: WrapupService;
 	readonly schedulerTickJob?: ContainerJob;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
@@ -170,6 +179,7 @@ export function createContainer(input: {
 	const tasks = input.tasksRepo ?? createTasksRepo(input.database);
 	const runs = input.runsRepo ?? createRunsRepo(input.database);
 	const batches = input.batchesRepo ?? createBatchesRepo(input.database);
+	const batchWrapups = input.batchWrapupsRepo ?? createBatchWrapupsRepo(input.database);
 	const gates = input.gatesRepo ?? createGatesRepo(input.database);
 	const settings = input.settingsRepo ?? createSettingsRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
@@ -184,6 +194,7 @@ export function createContainer(input: {
 		tasks,
 		runs,
 		batches,
+		batchWrapups,
 		gates,
 		settings,
 	});
@@ -348,6 +359,41 @@ export function createContainer(input: {
 			clock: input.clock,
 		});
 
+	const batchService =
+		input.batchService ??
+		createBatchService({
+			batchesRepo: batches,
+			tasksRepo: tasks,
+			runsRepo: runs,
+			unitOfWork,
+			clock: input.clock,
+			bus,
+			envelopeFactory,
+		});
+
+	const wrapupService =
+		input.wrapupService ??
+		createWrapupService({
+			batchesRepo: batches,
+			tasksRepo: tasks,
+			runsRepo: runs,
+			dispatchSnapshotsRepo: dispatchSnapshots,
+			batchWrapupsRepo: batchWrapups,
+			gatesRepo: gates,
+			documentsRepo: documents,
+			batchService,
+			docsService,
+			unitOfWork,
+			clock: input.clock,
+			ids,
+			bus,
+			envelopeFactory,
+			agentRegistry,
+			agentService,
+			logstorePaths,
+			logFs,
+		});
+
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
@@ -357,6 +403,9 @@ export function createContainer(input: {
 			documentsRepo: documents,
 			dispatchSnapshotsRepo: dispatchSnapshots,
 			runsRepo: runs,
+			batchWrapupsRepo: batchWrapups,
+			batchService,
+			wrapupService,
 			clock: input.clock,
 			ids,
 			bus,
@@ -413,6 +462,9 @@ export function createContainer(input: {
 		createGateService({
 			gatesRepo: gates,
 			tasksRepo: tasks,
+			runsRepo: runs,
+			batchesRepo: batches,
+			batchWrapupsRepo: batchWrapups,
 			clock: input.clock,
 			ids,
 			bus,
@@ -438,6 +490,8 @@ export function createContainer(input: {
 		rework: reworkService,
 		settings: settingsService,
 		gates: gateService,
+		batch: batchService,
+		wrapup: wrapupService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([schedulerTickJob]);

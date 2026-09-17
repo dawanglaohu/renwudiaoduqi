@@ -16,6 +16,7 @@ import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
@@ -28,8 +29,11 @@ import {
 	toRunDto,
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
+import { isBranchInHead } from '../workspace/in-head.ts';
+import type { BatchService } from './batch.ts';
 import { createRerunService } from './rerun.ts';
 import { assertSessionRefFree } from './session-guard.ts';
+import type { WrapupService } from './wrapup.ts';
 
 export type { RunInsertRow, RunRow, RunsRepo };
 export { toRunDto };
@@ -132,6 +136,10 @@ export interface DispatchServiceDeps {
 	readonly documentsRepo: DocumentsRepo;
 	readonly dispatchSnapshotsRepo: DispatchSnapshotsRepo;
 	readonly runsRepo: RunsRepo;
+	readonly batchWrapupsRepo?: BatchWrapupsRepo;
+	readonly batchService?: BatchService;
+	readonly wrapupService?: WrapupService;
+	readonly isBranchInHead?: typeof isBranchInHead;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly bus?: EventBus;
@@ -619,49 +627,148 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					continue;
 				}
 
-				const batches = deps.batchesRepo.listByDocId(doc.id);
-				const runningBatches = batches.filter((b) => b.state === 'running');
+				// Step 1: In-Head refresh (throttled: >=30s per run, <=20 runs per tick, AC 1, E-272, E-301)
+				if (doc.repo_path) {
+					const nowMs = Date.parse(deps.clock.now()) || Date.now();
+					const thirtySecAgo = new Date(nowMs - 30_000).toISOString();
+					const unmergedRuns = deps.runsRepo.findLandedNotInHeadRuns?.(20, thirtySecAgo) ?? [];
+					const checkInHead = deps.isBranchInHead ?? isBranchInHead;
 
-				for (const batch of runningBatches) {
+					for (const r of unmergedRuns) {
+						if (!r.branch_name) continue;
+						try {
+							const checkResult = await checkInHead({
+								repoPath: doc.repo_path,
+								branchName: r.branch_name,
+								worktreePath: r.worktree_path ?? undefined,
+								tipSha: r.branch_tip_sha ?? undefined,
+							});
+							const nowIso = deps.clock.now();
+							deps.runsRepo.updateInHead?.({
+								id: r.id,
+								isInHead: checkResult.inHead ? 1 : 0,
+								checkedAt: nowIso,
+								branchTipSha: checkResult.tipSha ?? r.branch_tip_sha ?? null,
+							});
+						} catch {
+							// E-301: error handling, do not throw or infer as merged
+						}
+					}
+				}
+
+				// Step 2: Batch progression & wrap-up trigger (AC 1, AC 2, E-272, E-283)
+				const batches = deps.batchesRepo.listByDocId(doc.id);
+				const activeBatches = batches.filter(
+					(b) => b.state === 'running' || b.state === 'awaiting_landing',
+				);
+
+				for (const batch of activeBatches) {
 					const tasks = deps.tasksRepo.listByBatchId(batch.id);
 					if (tasks.length === 0) continue;
 
-					const allLanded = tasks.every((t) => isTaskFinishedOrLanded(t));
-					if (allLanded) {
-						const now = deps.clock.now();
-						deps.batchesRepo.updateState({
-							id: batch.id,
-							state: 'done',
-							started_at: batch.started_at,
-							finished_at: now,
-						});
-						batchesAdvanced.push(batch.id);
-						if (deps.bus && deps.envelopeFactory) {
-							const env = deps.envelopeFactory.createEnvelope({
-								kind: 'batch.advanced',
-								payload: {
-									batchId: batch.id,
-									batchNo: batch.batch_no,
-									state: 'done',
-								},
-							});
-							deps.bus.publish(env);
+					const allRunsForDoc = runsRepo.listAll();
+					const latestRunByTaskId = new Map<string, RunRow>();
+					for (const r of allRunsForDoc) {
+						if (!r.task_id) continue;
+						const existing = latestRunByTaskId.get(r.task_id);
+						if (!existing || r.attempt_no > existing.attempt_no) {
+							latestRunByTaskId.set(r.task_id, r);
 						}
+					}
+
+					let landedCount = 0;
+					let notInHeadCount = 0;
+					for (const t of tasks) {
+						const r = latestRunByTaskId.get(t.id);
+						if (r && r.state === 'landed') {
+							landedCount++;
+							if (r.is_in_head === 0) {
+								notInHeadCount++;
+							}
+						} else if (t.manual_state === 'landed') {
+							landedCount++;
+						}
+					}
+
+					const allLanded = landedCount === tasks.length;
+					if (allLanded) {
+						if (notInHeadCount > 0) {
+							// E-272: 全部 landed 但有未进 HEAD -> awaiting_landing
+							if (batch.state === 'running') {
+								if (deps.batchService) {
+									await deps.batchService.transitionBatch(
+										batch.id,
+										'awaiting_landing',
+										'waiting_for_branches_in_head',
+									);
+								} else {
+									deps.batchesRepo.updateState({
+										id: batch.id,
+										state: 'awaiting_landing',
+									});
+								}
+								batchesAdvanced.push(batch.id);
+							}
+							continue;
+						}
+
+						// 全部进 HEAD (notInHeadCount === 0)
+						const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(batch.id);
+						const latestWrapup = deps.runsRepo.findLatestWrapupByBatchId?.(batch.id);
+						const currentRound = deps.batchWrapupsRepo
+							? deps.batchWrapupsRepo.getMaxRound(batch.id)
+							: (latestWrapup?.attempt_no ?? 0);
+
+						if (!activeWrapup && currentRound < 2 && deps.wrapupService) {
+							// 自动派收口运行，且本 tick 不再派发 (AC 1, E-283)
+							try {
+								const wrapupResult = await deps.wrapupService.triggerWrapup({
+									batchId: batch.id,
+									trigger: 'auto',
+								});
+								runsDispatched.push(wrapupResult.run.id);
+								batchesAdvanced.push(batch.id);
+								return {
+									executed: true,
+									batchesAdvanced: Object.freeze(batchesAdvanced),
+									runsDispatched: Object.freeze(runsDispatched),
+									tasksBlocked: Object.freeze(tasksBlocked),
+									tasksDeferred: Object.freeze(tasksDeferred),
+								};
+							} catch {
+								// wrapup failed to trigger or turned needs_attention
+							}
+						}
+
+						if (!deps.wrapupService && !activeWrapup) {
+							// Fallback if wrapupService not wired
+							const now = deps.clock.now();
+							deps.batchesRepo.updateState({
+								id: batch.id,
+								state: 'done',
+								started_at: batch.started_at,
+								finished_at: now,
+							});
+							batchesAdvanced.push(batch.id);
+							continue;
+						}
+					} else if (batch.state === 'awaiting_landing') {
+						// A task reopened or reworked -> return to running (E-59, E-121)
+						if (deps.batchService) {
+							await deps.batchService.transitionBatch(batch.id, 'running', 'task_reopened');
+						} else {
+							deps.batchesRepo.updateState({ id: batch.id, state: 'running' });
+						}
+						batchesAdvanced.push(batch.id);
+					}
+
+					if (batch.state !== 'running') {
 						continue;
 					}
 
 					const taskByKey = new Map<string, TaskRow>();
 					for (const t of tasks) {
 						taskByKey.set(t.task_key, t);
-					}
-
-					const allRunsForDoc = runsRepo.listAll();
-					const latestRunByTaskId = new Map<string, RunRow>();
-					for (const r of allRunsForDoc) {
-						const existing = latestRunByTaskId.get(r.task_id);
-						if (!existing || r.attempt_no > existing.attempt_no) {
-							latestRunByTaskId.set(r.task_id, r);
-						}
 					}
 
 					const activeRuns = runsRepo.listActive();

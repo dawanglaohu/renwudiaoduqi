@@ -7,6 +7,7 @@ import type {
 } from '@agent-scheduler/shared/api/gates';
 import type { GateSettings } from '@agent-scheduler/shared/api/settings';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { assertCanTransitionBatch } from '../domain/batch-state-machine.ts';
 import {
 	type GateKind,
 	type GateOverrides,
@@ -16,13 +17,19 @@ import {
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
+import type { BatchesRepo } from '../repo/batches.ts';
 import type { GateRow, GatesRepo } from '../repo/gates.ts';
+import type { RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { SettingsService } from './settings.ts';
 
 export interface GateServiceDeps {
 	readonly gatesRepo: GatesRepo;
 	readonly tasksRepo?: TasksRepo;
+	readonly runsRepo?: RunsRepo;
+	readonly batchesRepo?: BatchesRepo;
+	readonly batchWrapupsRepo?: BatchWrapupsRepo;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly bus: EventBus;
@@ -121,6 +128,112 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			const now = deps.clock.now();
 			const comment = input.comment ?? null;
 
+			// AC 5, E-288: Batch-level wrapup gate (task_id IS NULL)
+			if (!gate.task_id && gate.run_id) {
+				if (input.decision === 'pass') {
+					if (!comment || comment.trim().length === 0) {
+						throw new AppError(
+							'E_VALIDATION',
+							'Comment is required when passing a batch wrapup gate.',
+							{
+								details: { field: 'comment' },
+							},
+						);
+					}
+
+					const pendingEnvelopes: EventEnvelope[] = [];
+					deps.unitOfWork.run(() => {
+						deps.gatesRepo.updateDecision(input.gateId, 'pass', comment, input.actorDeviceId, now);
+
+						const runId = gate.run_id;
+						const wrapupRun = runId ? deps.runsRepo?.findById(runId) : null;
+						if (wrapupRun?.batch_id) {
+							const batch = deps.batchesRepo?.findById(wrapupRun.batch_id);
+							if (batch) {
+								// Write human verdict wrapup record
+								if (deps.batchWrapupsRepo) {
+									const tasks = deps.tasksRepo?.listByBatchId(batch.id) ?? [];
+									const taskKeys = tasks.map((t) => t.task_key);
+									deps.batchWrapupsRepo.insert({
+										id: `wrapup_${deps.ids.newId().slice(0, 16)}`,
+										batch_id: batch.id,
+										batch_no: batch.batch_no,
+										tasks_json: JSON.stringify(taskKeys),
+										round: wrapupRun.attempt_no,
+										run_id: wrapupRun.id,
+										verdict: 'clean',
+										declared_verdict: null,
+										is_human_verdict: 1,
+										prompt_source: (wrapupRun.prompt_source as 'docs' | 'builtin') ?? 'docs',
+										tests_json: JSON.stringify({ status: 'pass', items: [] }),
+										summary_text: comment,
+										findings_json: '[]',
+										unassigned_json: '[]',
+										fix_run_ids_json: '[]',
+										report_text: comment,
+										created_at: now,
+									});
+								}
+
+								// Batch transitions to done
+								if (batch.state !== 'done') {
+									assertCanTransitionBatch(batch.state, 'done');
+									deps.batchesRepo?.updateState({
+										id: batch.id,
+										state: 'done',
+										finished_at: now,
+									});
+
+									pendingEnvelopes.push(
+										deps.envelopeFactory.createEnvelope({
+											kind: 'batch.advanced',
+											payload: {
+												batchId: batch.id,
+												batchNo: batch.batch_no,
+												from: batch.state,
+												to: 'done',
+												reason: 'human_wrapup_passed',
+											},
+										}),
+									);
+								}
+
+								// Wrapup run transitions to landed
+								deps.runsRepo?.updateState({
+									id: wrapupRun.id,
+									toState: 'landed',
+									endedAt: now,
+								});
+
+								pendingEnvelopes.push(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'run.state_changed',
+										runId: wrapupRun.id,
+										taskId: null,
+										payload: {
+											from: wrapupRun.state,
+											to: 'landed',
+											reason: 'human_wrapup_passed',
+										},
+									}),
+								);
+							}
+						}
+					});
+
+					for (const env of pendingEnvelopes) {
+						deps.bus.publish(env);
+					}
+					return Object.freeze({ applied: true as const });
+				}
+
+				// Reject on batch-level gate: only close the gate, leave batch in needs_attention (AC 5, E-288)
+				deps.unitOfWork.run(() => {
+					deps.gatesRepo.updateDecision(input.gateId, 'reject', comment, input.actorDeviceId, now);
+				});
+				return Object.freeze({ applied: true as const });
+			}
+
 			deps.unitOfWork.run(() => {
 				deps.gatesRepo.updateDecision(
 					input.gateId,
@@ -130,9 +243,14 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					now,
 				);
 
-				if (input.decision === 'pass' && gate.kind === 'landing' && deps.tasksRepo) {
+				if (
+					input.decision === 'pass' &&
+					gate.kind === 'landing' &&
+					deps.tasksRepo &&
+					gate.task_id
+				) {
 					deps.tasksRepo.updateManualState(gate.task_id, 'landed');
-				} else if (input.decision === 'reject' && deps.tasksRepo) {
+				} else if (input.decision === 'reject' && deps.tasksRepo && gate.task_id) {
 					// E-05: Human rejection sets manual state, automatic dispatch must not override human judgment
 					deps.tasksRepo.updateManualState(gate.task_id, 'paused');
 				}
@@ -416,7 +534,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 								decided_at: now,
 							});
 
-							if (deps.tasksRepo) {
+							if (deps.tasksRepo && gate.task_id) {
 								deps.tasksRepo.updateManualState(gate.task_id, 'landed');
 							}
 
@@ -450,7 +568,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 								created_at: now,
 							});
 
-							if (deps.tasksRepo) {
+							if (deps.tasksRepo && gate.task_id) {
 								deps.tasksRepo.updateManualState(gate.task_id, 'awaiting_human');
 							}
 
@@ -473,7 +591,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 							now,
 						);
 
-						if (deps.tasksRepo) {
+						if (deps.tasksRepo && gate.task_id) {
 							deps.tasksRepo.updateManualState(gate.task_id, 'landed');
 						}
 

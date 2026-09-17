@@ -43,6 +43,11 @@ export interface RunRow {
 	readonly assignment_source?: string | null;
 	readonly origin?: string;
 	readonly spawned_by_run_id?: string | null;
+	readonly batch_id?: string | null;
+	readonly is_in_head?: number;
+	readonly in_head_checked_at?: string | null;
+	readonly branch_tip_sha?: string | null;
+	readonly prompt_source?: string | null;
 }
 
 export interface RunInsertRow {
@@ -85,6 +90,11 @@ export interface RunInsertRow {
 	readonly assignment_source?: string | null;
 	readonly origin?: string;
 	readonly spawned_by_run_id?: string | null;
+	readonly batch_id?: string | null;
+	readonly is_in_head?: number;
+	readonly in_head_checked_at?: string | null;
+	readonly branch_tip_sha?: string | null;
+	readonly prompt_source?: string | null;
 }
 
 export interface RunsRepo {
@@ -129,6 +139,20 @@ export interface RunsRepo {
 		readonly state?: string;
 		readonly reviewVerdict?: string | null;
 		readonly reworkText?: string | null;
+	}) => void;
+	readonly findActiveWrapupByBatchId?: (batchId: string) => RunRow | null;
+	readonly findLatestWrapupByBatchId?: (batchId: string) => RunRow | null;
+	readonly listWrapupsByBatchId?: (batchId: string) => readonly RunRow[];
+	readonly findLandedImplementationRunsByBatchId?: (batchId: string) => readonly RunRow[];
+	readonly findLandedNotInHeadRuns?: (
+		limit: number,
+		olderThanIso?: string | null,
+	) => readonly RunRow[];
+	readonly updateInHead?: (input: {
+		readonly id: string;
+		readonly isInHead: number;
+		readonly checkedAt: string;
+		readonly branchTipSha?: string | null;
 	}) => void;
 }
 
@@ -312,6 +336,12 @@ export function toRunDto(row: RunRow): RunDto {
 		spawnedByRunId: row.spawned_by_run_id ?? null,
 		reviewRound: row.review_round ?? null,
 		continuedFromRunId: row.continued_from_run_id ?? null,
+		batchId: row.batch_id ?? null,
+		isInHead: row.is_in_head === 1,
+		inHeadCheckedAt: row.in_head_checked_at ?? null,
+		branchTipSha: row.branch_tip_sha ?? null,
+		promptSource: (row.prompt_source as RunDto['promptSource']) ?? null,
+		assignmentSource: (row.assignment_source as RunDto['assignmentSource']) ?? null,
 	});
 }
 
@@ -324,6 +354,11 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	let hasAssignmentSource = false;
 	let hasOrigin = false;
 	let hasSpawnedByRunId = false;
+	let hasBatchId = false;
+	let hasIsInHead = false;
+	let hasInHeadCheckedAt = false;
+	let hasBranchTipSha = false;
+	let hasPromptSource = false;
 	try {
 		const tableInfo = db.prepare<[], { name: string }>('PRAGMA table_info(runs)').all();
 		hasSessionArchivedAt = tableInfo.some((col) => col.name === 'session_archived_at');
@@ -334,6 +369,11 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		hasAssignmentSource = tableInfo.some((col) => col.name === 'assignment_source');
 		hasOrigin = tableInfo.some((col) => col.name === 'origin');
 		hasSpawnedByRunId = tableInfo.some((col) => col.name === 'spawned_by_run_id');
+		hasBatchId = tableInfo.some((col) => col.name === 'batch_id');
+		hasIsInHead = tableInfo.some((col) => col.name === 'is_in_head');
+		hasInHeadCheckedAt = tableInfo.some((col) => col.name === 'in_head_checked_at');
+		hasBranchTipSha = tableInfo.some((col) => col.name === 'branch_tip_sha');
+		hasPromptSource = tableInfo.some((col) => col.name === 'prompt_source');
 	} catch {}
 
 	const baseInsertCols = [
@@ -378,6 +418,11 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	if (hasAssignmentSource) extraInsertCols.push('assignment_source');
 	if (hasOrigin) extraInsertCols.push('origin');
 	if (hasSpawnedByRunId) extraInsertCols.push('spawned_by_run_id');
+	if (hasBatchId) extraInsertCols.push('batch_id');
+	if (hasIsInHead) extraInsertCols.push('is_in_head');
+	if (hasInHeadCheckedAt) extraInsertCols.push('in_head_checked_at');
+	if (hasBranchTipSha) extraInsertCols.push('branch_tip_sha');
+	if (hasPromptSource) extraInsertCols.push('prompt_source');
 
 	const allInsertCols = [...baseInsertCols, ...extraInsertCols];
 	const dynamicInsertSql = `INSERT INTO runs (${allInsertCols.join(', ')}) VALUES (${allInsertCols.map((col) => `@${col}`).join(', ')})`;
@@ -394,6 +439,51 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const updateStateStmt = db.prepare(UPDATE_RUN_STATE_SQL);
 	const updateReworkCountStmt = db.prepare(UPDATE_REWORK_COUNT_SQL);
 	const updateReviewRoundStmt = db.prepare(UPDATE_REVIEW_ROUND_SQL);
+
+	const selectActiveWrapupByBatchIdStmt = db.prepare(`
+		SELECT * FROM runs
+		WHERE batch_id = ? AND kind = 'wrapup'
+		  AND state IN ('queued', 'starting', 'running', 'awaiting_reply', 'reviewing', 'reworking')
+		LIMIT 1
+	`);
+
+	const selectLatestWrapupByBatchIdStmt = db.prepare(`
+		SELECT * FROM runs
+		WHERE batch_id = ? AND kind = 'wrapup'
+		ORDER BY attempt_no DESC, started_at DESC
+		LIMIT 1
+	`);
+
+	const selectListWrapupsByBatchIdStmt = db.prepare(`
+		SELECT * FROM runs
+		WHERE batch_id = ? AND kind = 'wrapup'
+		ORDER BY attempt_no ASC
+	`);
+
+	const selectLandedImplementationRunsByBatchIdStmt = db.prepare(`
+		SELECT r.* FROM runs r
+		LEFT JOIN tasks t ON r.task_id = t.id
+		WHERE (r.batch_id = ? OR t.batch_id = ?)
+		  AND r.kind = 'implement'
+		  AND r.state = 'landed'
+		ORDER BY r.ended_at DESC NULLS LAST, r.id DESC
+	`);
+
+	const selectLandedNotInHeadRunsStmt = db.prepare(`
+		SELECT * FROM runs
+		WHERE state = 'landed' AND is_in_head = 0
+		  AND (in_head_checked_at IS NULL OR in_head_checked_at <= ?)
+		ORDER BY ended_at ASC NULLS LAST
+		LIMIT ?
+	`);
+
+	const updateInHeadStmt = db.prepare(`
+		UPDATE runs
+		SET is_in_head = CASE WHEN is_in_head = 1 THEN 1 ELSE @is_in_head END,
+		    in_head_checked_at = @in_head_checked_at,
+		    branch_tip_sha = COALESCE(@branch_tip_sha, branch_tip_sha)
+		WHERE id = @id
+	`);
 	const selectUnarchivedStmt = hasSessionArchivedAt
 		? db.prepare(SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL)
 		: null;
@@ -458,6 +548,21 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				}
 				if (hasSpawnedByRunId) {
 					params.spawned_by_run_id = row.spawned_by_run_id ?? null;
+				}
+				if (hasBatchId) {
+					params.batch_id = row.batch_id ?? null;
+				}
+				if (hasIsInHead) {
+					params.is_in_head = row.is_in_head ?? 0;
+				}
+				if (hasInHeadCheckedAt) {
+					params.in_head_checked_at = row.in_head_checked_at ?? null;
+				}
+				if (hasBranchTipSha) {
+					params.branch_tip_sha = row.branch_tip_sha ?? null;
+				}
+				if (hasPromptSource) {
+					params.prompt_source = row.prompt_source ?? null;
 				}
 				insertStmt.run(params);
 			} catch (cause) {
@@ -651,6 +756,73 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				});
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update run rework count: ${input.id}`);
+			}
+		},
+
+		findActiveWrapupByBatchId(batchId: string): RunRow | null {
+			try {
+				const row = selectActiveWrapupByBatchIdStmt.get(batchId) as RunRow | undefined;
+				return row ? freezeRunRow(row) : null;
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to find active wrapup run for batch: ${batchId}`);
+			}
+		},
+
+		findLatestWrapupByBatchId(batchId: string): RunRow | null {
+			try {
+				const row = selectLatestWrapupByBatchIdStmt.get(batchId) as RunRow | undefined;
+				return row ? freezeRunRow(row) : null;
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to find latest wrapup run for batch: ${batchId}`);
+			}
+		},
+
+		listWrapupsByBatchId(batchId: string): readonly RunRow[] {
+			try {
+				const rows = selectListWrapupsByBatchIdStmt.all(batchId) as RunRow[];
+				return Object.freeze(rows.map(freezeRunRow));
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to list wrapup runs for batch: ${batchId}`);
+			}
+		},
+
+		findLandedImplementationRunsByBatchId(batchId: string): readonly RunRow[] {
+			try {
+				const rows = selectLandedImplementationRunsByBatchIdStmt.all(batchId, batchId) as RunRow[];
+				return Object.freeze(rows.map(freezeRunRow));
+			} catch (cause) {
+				throw toDatabaseError(
+					cause,
+					`Failed to find landed implementation runs for batch: ${batchId}`,
+				);
+			}
+		},
+
+		findLandedNotInHeadRuns(limit: number, olderThanIso?: string | null): readonly RunRow[] {
+			try {
+				const threshold = olderThanIso ?? new Date().toISOString();
+				const rows = selectLandedNotInHeadRunsStmt.all(threshold, limit) as RunRow[];
+				return Object.freeze(rows.map(freezeRunRow));
+			} catch (cause) {
+				throw toDatabaseError(cause, 'Failed to find landed not-in-head runs');
+			}
+		},
+
+		updateInHead(input: {
+			readonly id: string;
+			readonly isInHead: number;
+			readonly checkedAt: string;
+			readonly branchTipSha?: string | null;
+		}): void {
+			try {
+				updateInHeadStmt.run({
+					id: input.id,
+					is_in_head: input.isInHead,
+					in_head_checked_at: input.checkedAt,
+					branch_tip_sha: input.branchTipSha ?? null,
+				});
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update in_head for run: ${input.id}`);
 			}
 		},
 	});

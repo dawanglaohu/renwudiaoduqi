@@ -58,8 +58,18 @@ export function createMigrationRunner(dependencies: MigrationRunnerDependencies)
 					.sort(compareFileNames);
 				const appliedVersions: string[] = [];
 				const applyMigration = dependencies.database.transaction(
-					(version: string, source: string, appliedAt: string) => {
+					(version: string, source: string, appliedAt: string, requiresForeignKeysOff: boolean) => {
 						dependencies.database.exec(source);
+						if (requiresForeignKeysOff) {
+							const violations = dependencies.database.pragma(
+								'foreign_key_check',
+							) as readonly unknown[];
+							if (violations && violations.length > 0) {
+								throw new Error(
+									`foreign_key_check failed after migration ${version}: ${JSON.stringify(violations)}`,
+								);
+							}
+						}
 						recordMigration.run(version, appliedAt);
 					},
 				);
@@ -67,8 +77,20 @@ export function createMigrationRunner(dependencies: MigrationRunnerDependencies)
 				for (const fileName of migrationFiles) {
 					if (applied.has(fileName)) continue;
 					const source = dependencies.fileSystem.readFile(join(directory, fileName));
+					const firstLine = source.split(/\r?\n/)[0]?.trim();
+					const requiresForeignKeysOff = firstLine === '-- requires: foreign_keys=off';
 					const appliedAt = dependencies.clock.now();
-					applyMigration.immediate(fileName, source, appliedAt);
+
+					if (requiresForeignKeysOff) {
+						dependencies.database.pragma('foreign_keys = OFF');
+						try {
+							applyMigration.immediate(fileName, source, appliedAt, true);
+						} finally {
+							dependencies.database.pragma('foreign_keys = ON');
+						}
+					} else {
+						applyMigration.immediate(fileName, source, appliedAt, false);
+					}
 					appliedVersions.push(fileName);
 				}
 
