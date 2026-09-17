@@ -24,7 +24,6 @@ import { StreamColumn } from '../../components/stream-column.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
-import { GateTogglesContainer } from './gate-toggles-container.tsx';
 import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
 import { MobilePaneSwitcher } from './mobile-pane-switcher.tsx';
 import { StopConfirmDialog } from './stop-confirm-dialog.tsx';
@@ -95,8 +94,8 @@ class StreamErrorBoundary extends Component<StreamErrorBoundaryProps, StreamErro
 export interface RunDeckViewProps extends UseRunDeckResult {
 	/** 泳道数组（流数恒等于 lanes.length，AC 12） */
 	readonly lanes: readonly DeckStreamLane[];
-	/** 批次折叠列表数据（E-13） */
-	readonly batches?: readonly MobileBatchItem[];
+	/** 批次数据（E-13, R2） */
+	readonly batches?: readonly (BatchTreeItem | MobileBatchItem)[];
 	/** 选择任务项回调 */
 	readonly onSelectTask?: (taskId: string, laneNo?: number) => void;
 	/** 顶部工具栏自定扩展 */
@@ -144,7 +143,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		closeToolPayloadSheet,
 		tailBytes = 32768,
 		isTailOnly = false,
-		batches = [],
+		batches,
 		onSelectTask,
 	} = props;
 
@@ -164,32 +163,14 @@ export function RunDeckView(props: RunDeckViewProps) {
 
 	const streamCount = lanes.length;
 
-	// 批次数据映射至 BatchTreeItem (R1, R2)
-	const treeBatches: readonly BatchTreeItem[] = batches.map((b) => ({
-		id: b.id,
-		batchNo: b.batchNo,
-		title: b.title,
-		taskCount: b.taskCount,
-		landedCount: b.landedCount,
-		runningCount: b.runningCount,
-		waitingCount: b.waitingCount,
-		defaultExpanded: b.defaultExpanded,
-		tasks: (b.tasks ?? []).map((t) => ({
-			id: t.id,
-			docId: 'current',
-			moduleKey: 'M9',
-			deps: [],
-			estDays: null,
-			batchId: b.id,
-			taskKey: t.taskKey,
-			title: t.title,
-			state: typeof t.status === 'string' ? t.status : 'pending',
-			inHead: t.isLanded === true ? true : null,
-			laneNo: t.laneNo,
-		})),
-	}));
-
-	const { expandedIds, toggleBatch } = useBatchTree({ batches: treeBatches });
+	// 纯消费 daemon 字段，未显式传入时由 useBatchTree 从快照拉取，前端绝不推导计算（R1, R2, R5）
+	const {
+		batches: treeBatches,
+		expandedIds,
+		toggleBatch,
+	} = useBatchTree({
+		batches: batches as readonly BatchTreeItem[] | undefined,
+	});
 
 	// 是否为手机档位（phone 或极窄 phone-xs，或者宽度 < 600px 且触控）
 	const isMobileMode = tier === 'phone-xs' || tier === 'phone';
@@ -210,24 +191,6 @@ export function RunDeckView(props: RunDeckViewProps) {
 		},
 		[selectMobileLane, onSelectTask, isMobileMode, setPane],
 	);
-
-	// E-108: 零运行空态直接呈现四步引导控制台，而非插画（M9-T16）。
-	// 必须放在全部 hook 之后：泳道数在 0 与非 0 之间变化时 hook 数量不能变。
-	if (streamCount === 0) {
-		return (
-			<section
-				data-run-deck="true"
-				data-tier={tier}
-				data-stream-count={0}
-				className={[
-					'flex flex-col h-full w-full bg-[var(--page)] text-[var(--ink-1)] select-none overflow-y-auto p-4',
-					className ?? '',
-				].join(' ')}
-			>
-				<EmptyOnboarding />
-			</section>
-		);
-	}
 
 	// ─── 桌面/宽屏布局容器样式 ───
 	const getDeckLayoutClass = (): string => {
@@ -352,7 +315,6 @@ export function RunDeckView(props: RunDeckViewProps) {
 						</div>
 
 						<div className="flex items-center gap-3">
-							<GateTogglesContainer layout="topbar" />
 							{(tier === 'full' || tier === 'compact') && (
 								<button
 									type="button"
@@ -416,7 +378,9 @@ export function RunDeckView(props: RunDeckViewProps) {
 									data-pane-view="stream"
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
 								>
-									{currentMobileLane ? (
+									{streamCount === 0 ? (
+										<EmptyOnboarding />
+									) : currentMobileLane ? (
 										<StreamErrorBoundary laneNo={currentMobileLane.laneNo}>
 											<StreamColumn
 												laneNo={currentMobileLane.laneNo}
@@ -527,58 +491,64 @@ export function RunDeckView(props: RunDeckViewProps) {
 									</button>
 								)}
 
-								<div ref={scrollContainerRef} className={getDeckLayoutClass()}>
-									{lanes.map((lane) => {
-										const isColumnExpanded = expandedLaneNo === lane.laneNo;
+								{streamCount === 0 ? (
+									<div className="flex flex-col flex-1 p-4 overflow-y-auto">
+										<EmptyOnboarding />
+									</div>
+								) : (
+									<div ref={scrollContainerRef} className={getDeckLayoutClass()}>
+										{lanes.map((lane) => {
+											const isColumnExpanded = expandedLaneNo === lane.laneNo;
 
-										return (
-											<div
-												key={lane.laneNo}
-												data-lane-deck-slot={lane.laneNo}
-												className={[
-													tier === 'full' && streamCount > 3
-														? 'flex-shrink-0 w-[380px] h-full'
-														: '',
-													isColumnExpanded ? 'col-span-full' : '',
-													'flex flex-col h-full min-h-[360px]',
-												]
-													.filter(Boolean)
-													.join(' ')}
-											>
-												<StreamErrorBoundary laneNo={lane.laneNo}>
-													<StreamColumn
-														laneNo={lane.laneNo}
-														laneId={lane.id}
-														currentRunId={lane.currentRunId}
-														taskKey={lane.taskKey}
-														title={lane.title}
-														status={lane.status}
-														tier={tier}
-														isExpanded={isColumnExpanded}
-														onToggleExpand={() => toggleExpandLane(lane.laneNo)}
-														onStop={() =>
-															handleStopLane(lane.laneNo, lane.currentRunId, lane.taskKey)
-														}
-														isStopping={stoppingLanes.has(lane.laneNo)}
-														agentMonogram={lane.agentMonogram}
-														agentName={lane.agentName}
-														modelName={lane.modelName}
-														refSource={lane.refSource}
-														duration={lane.duration}
-														tokenCount={lane.tokenCount}
-														cost={lane.cost}
-														errorMessage={lane.errorMessage}
-														isTouch={isTouch}
-														bodySlot={lane.bodySlot}
-														gateSlot={lane.gateSlot}
-														refBarSlot={lane.refBarSlot}
-														footSlot={lane.footSlot}
-													/>
-												</StreamErrorBoundary>
-											</div>
-										);
-									})}
-								</div>
+											return (
+												<div
+													key={lane.laneNo}
+													data-lane-deck-slot={lane.laneNo}
+													className={[
+														tier === 'full' && streamCount > 3
+															? 'flex-shrink-0 w-[380px] h-full'
+															: '',
+														isColumnExpanded ? 'col-span-full' : '',
+														'flex flex-col h-full min-h-[360px]',
+													]
+														.filter(Boolean)
+														.join(' ')}
+												>
+													<StreamErrorBoundary laneNo={lane.laneNo}>
+														<StreamColumn
+															laneNo={lane.laneNo}
+															laneId={lane.id}
+															currentRunId={lane.currentRunId}
+															taskKey={lane.taskKey}
+															title={lane.title}
+															status={lane.status}
+															tier={tier}
+															isExpanded={isColumnExpanded}
+															onToggleExpand={() => toggleExpandLane(lane.laneNo)}
+															onStop={() =>
+																handleStopLane(lane.laneNo, lane.currentRunId, lane.taskKey)
+															}
+															isStopping={stoppingLanes.has(lane.laneNo)}
+															agentMonogram={lane.agentMonogram}
+															agentName={lane.agentName}
+															modelName={lane.modelName}
+															refSource={lane.refSource}
+															duration={lane.duration}
+															tokenCount={lane.tokenCount}
+															cost={lane.cost}
+															errorMessage={lane.errorMessage}
+															isTouch={isTouch}
+															bodySlot={lane.bodySlot}
+															gateSlot={lane.gateSlot}
+															refBarSlot={lane.refBarSlot}
+															footSlot={lane.footSlot}
+														/>
+													</StreamErrorBoundary>
+												</div>
+											);
+										})}
+									</div>
+								)}
 
 								{tier === 'full' && offScreenWaiting.right > 0 && (
 									<button

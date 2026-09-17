@@ -10,9 +10,7 @@
  * - 未显式传入 batches 时，自动调用 /api/v1/snapshot 拉取批次与任务数据
  */
 
-import type { BatchDto } from '@agent-scheduler/shared/api/batches';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
-import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { httpClient } from '../../api/http-client.ts';
 import type { BatchTreeItem } from '../../components/batch-tree.tsx';
@@ -22,10 +20,13 @@ import {
 	expandBatch,
 	expandBatches,
 	getExpandedBatchIds,
+	mapSnapshotToBatches,
 	seedBatchExpansion,
 	subscribeBatchExpansion,
 	toggleBatchExpansion,
 } from '../run-deck/batch-expansion.ts';
+
+export { mapSnapshotToBatches };
 
 export interface UseTaskListOptions {
 	readonly batches?: readonly BatchTreeItem[];
@@ -40,33 +41,6 @@ export interface UseTaskListResult {
 	readonly expandBatches: (batchIds: readonly string[]) => void;
 	readonly collapseBatch: (batchId: string) => void;
 	readonly clearExpansion: () => void;
-}
-
-function mapSnapshotToBatches(snapshot: SnapshotResponse): readonly BatchTreeItem[] {
-	const rawBatches = (snapshot.batches ?? []) as readonly BatchDto[];
-	const rawTasks = (snapshot.tasks ?? []) as readonly TaskDto[];
-
-	return rawBatches.map((b) => {
-		const bTasks = rawTasks.filter((t) => t.batchId === b.id);
-		const landedCount = bTasks.filter((t) => t.state === 'landed').length;
-		const runningCount = bTasks.filter((t) => t.state === 'running').length;
-		const waitingCount = bTasks.filter(
-			(t) => t.state === 'awaiting_reply' || t.state === 'awaiting_human',
-		).length;
-		const notInHeadCount = b.notInHeadCount ?? bTasks.filter((t) => t.inHead === false).length;
-
-		return {
-			...b,
-			taskCount: bTasks.length,
-			landedCount,
-			runningCount,
-			waitingCount,
-			notInHeadCount,
-			defaultExpanded:
-				b.defaultExpanded ?? (b.state === 'running' || b.state === 'awaiting_landing'),
-			tasks: bTasks,
-		};
-	});
 }
 
 /**

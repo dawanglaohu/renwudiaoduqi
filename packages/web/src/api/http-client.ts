@@ -108,6 +108,18 @@ let cachedToken: string | null = null;
 let hasLoadedToken = false;
 let registeredTokenProvider: TokenProvider | null = null;
 
+if (typeof sessionStorage !== 'undefined') {
+	try {
+		const stored = sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY);
+		if (stored) {
+			cachedToken = stored;
+			hasLoadedToken = true;
+		}
+	} catch {
+		// Ignore
+	}
+}
+
 export function registerTokenProvider(provider: TokenProvider | null): void {
 	registeredTokenProvider = provider;
 	hasLoadedToken = false;

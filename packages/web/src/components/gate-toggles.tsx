@@ -12,15 +12,11 @@
  * - value === null 时展示加载占位或置灰
  */
 
+import type { GateSettings } from '@agent-scheduler/shared/api/settings';
 import type { HTMLAttributes } from 'react';
 
 export type GateMode = 'auto' | 'manual';
-
-export interface GateSettingsValues {
-	readonly dispatch: GateMode;
-	readonly review: GateMode;
-	readonly landing: GateMode;
-}
+export type GateSettingsValues = GateSettings;
 
 export interface GateTogglesProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onChange'> {
 	/** 三个闸门当前生效值（由 daemon 下发） */

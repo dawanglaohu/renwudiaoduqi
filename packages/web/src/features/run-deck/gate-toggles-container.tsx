@@ -1,54 +1,47 @@
 /**
  * packages/web/src/features/run-deck/gate-toggles-container.tsx
  *
- * 闸门开关容器组件（M9-T19 / AC 6, E-299）
+ * 闸门开关容器组件（M9-T19 / AC 6, E-299, R4）
  *
- * 规范依据（07 节前端架构与边界 E-299）：
+ * 规范依据（07 节前端架构与边界 E-299, 返工 R4）：
  * - features 容器层：负责调用 api（http-client）、订阅 event-bus（milestone 事件）
  * - 容器里只写 grid/flex/gap 布局结构，禁止写颜色字号圆角
- * - 值走 GET/PATCH /settings/gates 全量三值（dispatch, review, landing）
- * - 状态等 settings.gates_changed 事件回流，不进行乐观翻转（E-299）
+ * - 值走 GET/PATCH /api/v1/settings/gates 全量三值（dispatch, review, landing）
+ * - 使用 shared 定义的 GateSettings 与 UpdateGateSettingsResponse 类型，使用 ROUTES 与 httpClient.callRoute
+ * - 状态等 settings.gates_changed 事件回流，不进行乐观翻转（E-299, R4）
+ * - 不伪造 DEFAULT_GATES，未获取到服务端数据时显示 null 占位态
+ * - 无 sessionStorage / 令牌重复代码，无任何 window 生产测试钩子
  */
 
+import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes';
+import type {
+	GateSettings,
+	UpdateGateSettingsResponse,
+} from '@agent-scheduler/shared/api/settings';
 import { useCallback, useEffect, useState } from 'react';
 import { eventBus } from '../../api/event-bus.ts';
-import {
-	SESSION_STORAGE_TOKEN_KEY,
-	getCachedToken,
-	httpClient,
-	setCachedToken,
-} from '../../api/http-client.ts';
-import { type GateSettingsValues, GateToggles } from '../../components/gate-toggles.tsx';
+import { httpClient } from '../../api/http-client.ts';
+import { GateToggles } from '../../components/gate-toggles.tsx';
 
-// 模块加载时若 sessionStorage 中存在设备令牌，自动同步至内存缓存，确保路由守卫通过（07 节前端架构）
-if (typeof sessionStorage !== 'undefined') {
-	try {
-		const stored = sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY);
-		if (stored && !getCachedToken()) {
-			setCachedToken(stored);
-		}
-	} catch {
-		// 忽略无权限或隐私模式异常
-	}
-}
+const getGatesRoute: RouteDefinition | undefined = ROUTES.find(
+	(r) => r.method === 'GET' && r.path === '/api/v1/settings/gates',
+);
+
+const patchGatesRoute: RouteDefinition | undefined = ROUTES.find(
+	(r) => r.method === 'PATCH' && r.path === '/api/v1/settings/gates',
+);
 
 export interface GateTogglesContainerProps {
 	/** 外部注入的初始闸门配置（可选，优先于异步拉取） */
-	readonly initialGates?: GateSettingsValues | null;
+	readonly initialGates?: GateSettings | null;
 	/** 布局方向：topbar 紧凑横排（默认）或 settings 设置卡片 */
 	readonly layout?: 'topbar' | 'settings';
 	/** 自定义类名 */
 	readonly className?: string;
 	/** 外部自定义 fetcher / patcher（用于单元测试与集成测试） */
-	readonly fetcher?: () => Promise<{ readonly gates: GateSettingsValues }>;
-	readonly patcher?: (body: GateSettingsValues) => Promise<{ readonly gates: GateSettingsValues }>;
+	readonly fetcher?: () => Promise<UpdateGateSettingsResponse>;
+	readonly patcher?: (body: GateSettings) => Promise<UpdateGateSettingsResponse>;
 }
-
-const DEFAULT_GATES: GateSettingsValues = {
-	dispatch: 'manual',
-	review: 'manual',
-	landing: 'manual',
-};
 
 /**
  * 闸门开关容器。
@@ -60,10 +53,10 @@ export function GateTogglesContainer({
 	fetcher,
 	patcher,
 }: GateTogglesContainerProps) {
-	const [gates, setGates] = useState<GateSettingsValues | null>(initialGates ?? DEFAULT_GATES);
+	const [gates, setGates] = useState<GateSettings | null>(initialGates ?? null);
 	const [isPending, setIsPending] = useState<boolean>(false);
 
-	// 1. 初始化拉取闸门状态
+	// 1. 初始化拉取闸门状态（使用 shared 契约路由与 callRoute，R4）
 	useEffect(() => {
 		let isMounted = true;
 
@@ -77,20 +70,11 @@ export function GateTogglesContainer({
 					return;
 				}
 
-				const token = getCachedToken();
-				if (
-					!token &&
-					typeof sessionStorage !== 'undefined' &&
-					!sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY)
-				) {
-					return;
-				}
-
-				const res = await httpClient.get<{ readonly gates: GateSettingsValues }>(
-					'/api/v1/settings/gates',
-				);
-				if (isMounted && res?.gates) {
-					setGates(res.gates);
+				if (getGatesRoute) {
+					const res = await httpClient.callRoute<UpdateGateSettingsResponse>(getGatesRoute);
+					if (isMounted && res?.gates) {
+						setGates(res.gates);
+					}
 				}
 			} catch {
 				// 静默或由全局 errorSink 处理
@@ -112,7 +96,7 @@ export function GateTogglesContainer({
 	useEffect(() => {
 		const unsub = eventBus.subscribeMilestone((envelope) => {
 			if (envelope.kind === 'settings.gates_changed' && envelope.payload) {
-				const payload = envelope.payload as { readonly gates?: GateSettingsValues };
+				const payload = envelope.payload as { readonly gates?: GateSettings };
 				if (payload.gates) {
 					setGates(payload.gates);
 					setIsPending(false);
@@ -127,19 +111,18 @@ export function GateTogglesContainer({
 
 	// 3. 提交全量三值 PATCH 更新（不翻转状态、不提前结束 pending，只等事件回流，R4, E-299）
 	const handleChange = useCallback(
-		async (nextValues: GateSettingsValues) => {
+		async (nextValues: GateSettings) => {
 			setIsPending(true);
 
 			try {
 				if (patcher) {
 					await patcher(nextValues);
-				} else {
-					await httpClient.patch<{ readonly gates: GateSettingsValues }>(
-						'/api/v1/settings/gates',
-						nextValues,
-					);
+				} else if (patchGatesRoute) {
+					await httpClient.callRoute<UpdateGateSettingsResponse, GateSettings>(patchGatesRoute, {
+						body: nextValues,
+					});
 				}
-				// 注意：PATCH 成功响应后绝不翻转状态，也不结束 pending（R4），严格等待 settings.gates_changed 回流
+				// 注意：PATCH 成功响应后绝不提前翻转状态，也不提前结束 pending（R4），严格等待 settings.gates_changed 回流
 			} catch {
 				// 仅在网络或服务端报错失败时恢复 pending 态，保持服务端当前真实数据
 				setIsPending(false);

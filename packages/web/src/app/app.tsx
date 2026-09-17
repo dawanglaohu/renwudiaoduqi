@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
+import { sseClient } from '../api/sse-client.ts';
 import { PairPage } from '../features/pairing/pairing-container.tsx';
 import { GateTogglesContainer } from '../features/run-deck/gate-toggles-container.tsx';
 import { DeckPage } from '../pages/deck-page.tsx';
 import { LandingPage } from '../pages/landing-page.tsx';
 import { TasksPage } from '../pages/tasks-page.tsx';
+import { hasDeviceToken } from './route-guard.tsx';
 import { RouterView } from './routes.tsx';
 
 export interface AppProps {
@@ -11,6 +13,15 @@ export interface AppProps {
 }
 
 export function App({ renderTopbar }: AppProps = {}) {
+	useEffect(() => {
+		if (hasDeviceToken()) {
+			sseClient.connect();
+		}
+		return () => {
+			sseClient.disconnect();
+		};
+	}, []);
+
 	return (
 		<RouterView
 			components={{

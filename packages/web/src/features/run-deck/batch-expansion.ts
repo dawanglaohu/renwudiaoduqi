@@ -13,7 +13,25 @@
  * - 纯内存暂存，不进 zustand store、不进任何 localStorage 持久化键，刷新后回到 daemon defaultExpanded
  */
 
+import type { BatchDto } from '@agent-scheduler/shared/api/batches';
+import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
+import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { type EventBus, eventBus } from '../../api/event-bus.ts';
+import type { BatchTreeItem } from '../../components/batch-tree.tsx';
+
+/**
+ * 将快照数据映射为 BatchTreeItem（R1, R5）。
+ * 纯粹消费 daemon 原样字段，前端绝不推导、伪造计数或展开状态。
+ */
+export function mapSnapshotToBatches(snapshot: SnapshotResponse): readonly BatchTreeItem[] {
+	const rawBatches = (snapshot.batches ?? []) as readonly BatchDto[];
+	const rawTasks = (snapshot.tasks ?? []) as readonly TaskDto[];
+
+	return rawBatches.map((b) => ({
+		...b,
+		tasks: rawTasks.filter((t) => t.batchId === b.id),
+	}));
+}
 
 /**
  * 自动展开触发的目标状态枚举（E-284, AC 2）。

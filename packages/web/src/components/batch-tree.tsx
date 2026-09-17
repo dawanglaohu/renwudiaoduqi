@@ -28,9 +28,13 @@ import { PulseDot } from './pulse-dot.tsx';
 import { StatusBadge } from './status-badge.tsx';
 
 /**
- * 任务行条目数据模型（直接消费 TaskDto，R1）。
+ * 任务行条目数据模型（继承 TaskDto，支持可选的进 HEAD 与跨批修复字段，R1, R5）。
  */
-export type BatchTreeTaskItem = TaskDto;
+export interface BatchTreeTaskItem extends TaskDto {
+	readonly inHead?: boolean | null;
+	readonly inHeadMethod?: string | null;
+	readonly isCrossBatchFix?: boolean;
+}
 
 /**
  * 收口运行行数据模型。
@@ -356,6 +360,7 @@ export function BatchTree({
 			role="tree"
 			aria-label="批次任务树"
 			data-testid="batch-tree"
+			data-component="batch-tree"
 			data-density-tier={densityTier}
 			className={['flex flex-col gap-1 w-full select-none m-0 p-0', className]
 				.filter(Boolean)

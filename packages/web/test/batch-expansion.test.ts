@@ -1,5 +1,7 @@
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createEventBus } from '../src/api/event-bus.ts';
+import { createEventBus, eventBus } from '../src/api/event-bus.ts';
 import {
 	AUTO_EXPAND_BATCH_STATES,
 	clearBatchExpansion,
@@ -13,10 +15,129 @@ import {
 	subscribeBatchExpansion,
 	toggleBatchExpansion,
 } from '../src/features/run-deck/batch-expansion.ts';
+import { useBatchTree } from '../src/features/run-deck/use-batch-tree.ts';
+import { useTaskList } from '../src/features/task-list/use-task-list.ts';
+
+// ─── DOM 模拟环境（用于挂载真实消费者并验证 React 实际重渲染，R3） ───
+class TestDOMElement {
+	nodeType = 1;
+	tagName: string;
+	attributes: Record<string, string> = {};
+	childNodes: (TestDOMElement | { nodeType: 3; textContent: string })[] = [];
+	parentNode: TestDOMElement | null = null;
+	listeners: Record<string, ((e: unknown) => void)[]> = {};
+
+	constructor(tag = 'div') {
+		this.tagName = tag.toUpperCase();
+	}
+
+	setAttribute(k: string, v: unknown) {
+		this.attributes[k] = String(v);
+	}
+	getAttribute(k: string): string | null {
+		return this.attributes[k] ?? null;
+	}
+	hasAttribute(k: string): boolean {
+		return k in this.attributes;
+	}
+	removeAttribute(k: string) {
+		delete this.attributes[k];
+	}
+	appendChild(c: TestDOMElement | { nodeType: 3; textContent: string }) {
+		if ('parentNode' in c) c.parentNode = this;
+		this.childNodes.push(c);
+		return c;
+	}
+	removeChild(c: TestDOMElement | { nodeType: 3; textContent: string }) {
+		const idx = this.childNodes.indexOf(c);
+		if (idx >= 0) {
+			if ('parentNode' in c) c.parentNode = null;
+			this.childNodes.splice(idx, 1);
+		}
+		return c;
+	}
+	insertBefore(
+		c: TestDOMElement | { nodeType: 3; textContent: string },
+		ref: TestDOMElement | { nodeType: 3; textContent: string },
+	) {
+		const idx = this.childNodes.indexOf(ref);
+		if (idx >= 0) this.childNodes.splice(idx, 0, c);
+		else this.childNodes.push(c);
+		if ('parentNode' in c) c.parentNode = this;
+		return c;
+	}
+	addEventListener(t: string, f: (e: unknown) => void) {
+		if (!this.listeners[t]) this.listeners[t] = [];
+		this.listeners[t].push(f);
+	}
+	removeEventListener(t: string, f: (e: unknown) => void) {
+		if (!this.listeners[t]) return;
+		this.listeners[t] = this.listeners[t].filter((x) => x !== f);
+	}
+	dispatchEvent(ev: {
+		type: string;
+		bubbles?: boolean;
+		target?: unknown;
+		currentTarget?: unknown;
+	}) {
+		ev.target = ev.target || this;
+		ev.currentTarget = this;
+		for (const f of this.listeners[ev.type] || []) f(ev);
+		if (this.parentNode && ev.bubbles) this.parentNode.dispatchEvent(ev);
+	}
+	querySelector(sel: string): TestDOMElement | null {
+		const attrMatch = sel.match(/^\[([a-zA-Z0-9_-]+)(?:="?([^"]+)"?)?\]$/);
+		if (attrMatch) {
+			const [, attr, val] = attrMatch;
+			if (attr) {
+				if (val !== undefined) {
+					if (this.getAttribute(attr) === val) return this;
+				} else if (this.hasAttribute(attr)) {
+					return this;
+				}
+			}
+		}
+		for (const child of this.childNodes) {
+			if ('nodeType' in child && child.nodeType === 1) {
+				const found = (child as TestDOMElement).querySelector(sel);
+				if (found) return found;
+			}
+		}
+		return null;
+	}
+}
+
+function setupMockDom() {
+	(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+	(globalThis as unknown as { HTMLIFrameElement: unknown }).HTMLIFrameElement = class {};
+	(globalThis as unknown as { HTMLElement: unknown }).HTMLElement = class {};
+	(globalThis as unknown as { Element: unknown }).Element = class {};
+	(globalThis as unknown as { Node: unknown }).Node = class {};
+
+	const doc = {
+		nodeType: 9,
+		nodeName: '#document',
+		createElement: (tag: string) => new TestDOMElement(tag),
+		createTextNode: (text: string) => ({ nodeType: 3 as const, textContent: text }),
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		defaultView: globalThis,
+	};
+	(globalThis as unknown as { window: unknown }).window = globalThis;
+	(globalThis as unknown as { document: unknown }).document = doc;
+
+	const container = doc.createElement('div');
+	(container as unknown as { ownerDocument: unknown }).ownerDocument = doc;
+	return { container, root: createRoot(container as unknown as HTMLElement) };
+}
 
 describe('features/run-deck/batch-expansion (M9-T19, AC 2, E-284, R3)', () => {
+	let busCleanup: (() => void) | null = null;
+
 	beforeEach(() => {
 		clearBatchExpansion();
+		busCleanup?.();
+		busCleanup = initBatchExpansionSubscription(eventBus);
 	});
 
 	// ─── 1. 首次按 defaultExpanded seed ───
@@ -197,5 +318,174 @@ describe('features/run-deck/batch-expansion (M9-T19, AC 2, E-284, R3)', () => {
 
 		unsub();
 		cleanup();
+	});
+
+	// ─── 9. R3 核心：挂载真实 useBatchTree 消费者，验证 toggle 与 batch.advanced 触发实际 React 重渲染与 DOM 输出变动 ───
+	it('triggers actual React re-renders and DOM output changes for mounted useBatchTree consumer (R3)', async () => {
+		const { container, root } = setupMockDom();
+		let renderCount = 0;
+		let lastRenderedBatchIds: string[] = [];
+
+		const sampleBatches = [
+			{ id: 'batch-c1', batchNo: 1, defaultExpanded: false },
+			{ id: 'batch-c2', batchNo: 2, defaultExpanded: false },
+		];
+
+		function BatchTreeConsumer() {
+			const { expandedIds } = useBatchTree({ batches: sampleBatches });
+			renderCount += 1;
+			lastRenderedBatchIds = Array.from(expandedIds).sort();
+
+			return createElement('div', {
+				'data-component': 'batch-tree-consumer',
+				'data-render-count': renderCount,
+				'data-expanded-ids': lastRenderedBatchIds.join(','),
+			});
+		}
+
+		try {
+			await act(async () => {
+				root.render(createElement(BatchTreeConsumer));
+			});
+
+			const el = container.querySelector('[data-component="batch-tree-consumer"]');
+			expect(el).not.toBeNull();
+			const initialCount = renderCount;
+			expect(el?.getAttribute('data-expanded-ids')).toBe('');
+
+			// 1. 用户点击开合 toggleBatch
+			await act(async () => {
+				toggleBatchExpansion('batch-c1');
+			});
+
+			// 必须触发 React 实际重渲染且输出已变更！
+			expect(renderCount).toBe(initialCount + 1);
+			expect(el?.getAttribute('data-render-count')).toBe(String(initialCount + 1));
+			expect(el?.getAttribute('data-expanded-ids')).toBe('batch-c1');
+			expect(lastRenderedBatchIds).toEqual(['batch-c1']);
+
+			// 2. 真实 milestone 事件 batch.advanced 到达
+			await act(async () => {
+				eventBus.push({
+					id: 303,
+					ts: new Date().toISOString(),
+					runId: null,
+					taskId: null,
+					scope: 'batch',
+					kind: 'batch.advanced',
+					seq: 1,
+					actorDeviceId: null,
+					payload: {
+						batchId: 'batch-c2',
+						to: 'running',
+					},
+				});
+			});
+
+			// 必须触发下一次重渲染，且输出包含 batch-c1 与 batch-c2！
+			expect(renderCount).toBe(initialCount + 2);
+			expect(el?.getAttribute('data-render-count')).toBe(String(initialCount + 2));
+			expect(el?.getAttribute('data-expanded-ids')).toBe('batch-c1,batch-c2');
+			expect(lastRenderedBatchIds).toEqual(['batch-c1', 'batch-c2']);
+
+			// 3. 到达非自动展开状态（例如 done），只增不减（E-284）
+			await act(async () => {
+				eventBus.push({
+					id: 304,
+					ts: new Date().toISOString(),
+					runId: null,
+					taskId: null,
+					scope: 'batch',
+					kind: 'batch.advanced',
+					seq: 2,
+					actorDeviceId: null,
+					payload: {
+						batchId: 'batch-c1',
+						to: 'done',
+					},
+				});
+			});
+
+			// 不删除任何元素，保持已展开项
+			expect(lastRenderedBatchIds).toEqual(['batch-c1', 'batch-c2']);
+		} finally {
+			await act(async () => {
+				root.unmount();
+			});
+		}
+	});
+
+	// ─── 10. R3 核心：挂载真实 useTaskList 消费者，验证 toggle 与 batch.advanced 触发实际 React 重渲染与 DOM 输出变动 ───
+	it('triggers actual React re-renders and DOM output changes for mounted useTaskList consumer (R3)', async () => {
+		const { container, root } = setupMockDom();
+		let taskListRenderCount = 0;
+		let taskListExpandedIds: string[] = [];
+
+		const sampleBatches = [
+			{ id: 'batch-t1', batchNo: 1, defaultExpanded: true },
+			{ id: 'batch-t2', batchNo: 2, defaultExpanded: false },
+		];
+
+		function TaskListConsumer() {
+			const { expandedIds } = useTaskList({ batches: sampleBatches, docId: 'doc-tl-1' });
+			taskListRenderCount += 1;
+			taskListExpandedIds = Array.from(expandedIds).sort();
+
+			return createElement('div', {
+				'data-component': 'task-list-consumer',
+				'data-render-count': taskListRenderCount,
+				'data-expanded-ids': taskListExpandedIds.join(','),
+			});
+		}
+
+		try {
+			await act(async () => {
+				root.render(createElement(TaskListConsumer));
+			});
+
+			const el = container.querySelector('[data-component="task-list-consumer"]');
+			expect(el).not.toBeNull();
+			const initialCount = taskListRenderCount;
+			expect(el?.getAttribute('data-expanded-ids')).toBe('batch-t1');
+
+			// 1. 用户点击开合 toggleBatch
+			await act(async () => {
+				toggleBatchExpansion('batch-t2');
+			});
+
+			// 必须触发 React 实际重渲染且输出已变更！
+			expect(taskListRenderCount).toBe(initialCount + 1);
+			expect(el?.getAttribute('data-render-count')).toBe(String(initialCount + 1));
+			expect(el?.getAttribute('data-expanded-ids')).toBe('batch-t1,batch-t2');
+			expect(taskListExpandedIds).toEqual(['batch-t1', 'batch-t2']);
+
+			// 2. 真实 milestone 事件 batch.advanced 到达
+			await act(async () => {
+				eventBus.push({
+					id: 404,
+					ts: new Date().toISOString(),
+					runId: null,
+					taskId: null,
+					scope: 'batch',
+					kind: 'batch.advanced',
+					seq: 3,
+					actorDeviceId: null,
+					payload: {
+						batchId: 'batch-t3',
+						to: 'awaiting_landing',
+					},
+				});
+			});
+
+			// 必须触发下一次重渲染，且输出包含新展开的 batch-t3！
+			expect(taskListRenderCount).toBe(initialCount + 2);
+			expect(el?.getAttribute('data-render-count')).toBe(String(initialCount + 2));
+			expect(el?.getAttribute('data-expanded-ids')).toBe('batch-t1,batch-t2,batch-t3');
+			expect(taskListExpandedIds).toEqual(['batch-t1', 'batch-t2', 'batch-t3']);
+		} finally {
+			await act(async () => {
+				root.unmount();
+			});
+		}
 	});
 });
