@@ -127,3 +127,18 @@ export function assembleReworkPrompt(input: AssembleReworkPromptInput): string {
 
 	return `${sections.join('\n\n')}\n`;
 }
+
+export interface AssembleReviewRoundPromptInput {
+	readonly round: number;
+	readonly previousReviewRunId: string;
+	readonly reworkItems: readonly string[];
+	readonly isBugHuntFix?: boolean;
+}
+
+export function assembleReviewRoundPrompt(input: AssembleReviewRoundPromptInput): string {
+	const itemsText = input.reworkItems.join('\n');
+	if (input.isBugHuntFix) {
+		return `第 ${input.round} 轮，只核查 bug 阶段的修改：\n${itemsText}\n`;
+	}
+	return `第 ${input.round} 轮，只核上一轮的 R 条目：\n${itemsText}\n`;
+}

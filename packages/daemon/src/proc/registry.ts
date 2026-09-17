@@ -40,6 +40,20 @@ export function createProcessRegistry(): ProcessRegistry {
 			return byPid.has(pid);
 		},
 
+		reassign(prevRunId: string, newRunId: string): void {
+			const process = byRunId.get(prevRunId);
+			if (process === undefined) {
+				throw new Error(`Process with runId ${prevRunId} not found in registry`);
+			}
+			byRunId.delete(prevRunId);
+			byRunId.set(newRunId, process);
+			// Process runId property is read-only, but we only map it by newRunId.
+			// Actually we need to make sure the process has its runId updated if needed.
+			// Let's proxy or redefine the runId property if necessary, or just rely on the map.
+			// Since JavaScript allows redefining:
+			Object.defineProperty(process, 'runId', { value: newRunId, writable: false, configurable: true });
+		},
+
 		unregister(runId: string): boolean {
 			const process = byRunId.get(runId);
 			if (process === undefined) return false;

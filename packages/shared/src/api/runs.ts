@@ -195,6 +195,8 @@ export interface RunDto {
 	readonly sessionArchivedAt?: string | null;
 	readonly origin?: 'dispatch' | 'rework' | 'wrapup-fix';
 	readonly spawnedByRunId?: string | null;
+	readonly reviewRound?: number | null;
+	readonly continuedFromRunId?: string | null;
 }
 
 export interface CreateRunResponse {

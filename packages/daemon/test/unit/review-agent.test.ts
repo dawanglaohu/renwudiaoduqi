@@ -42,8 +42,6 @@ function setupTestDb(): DatabaseConnection {
 	runner.run(migrationsDirectory);
 
 	try {
-		db.prepare('ALTER TABLE runs ADD COLUMN review_round INTEGER').run();
-		db.prepare('ALTER TABLE runs ADD COLUMN continued_from_run_id TEXT').run();
 		db.prepare('ALTER TABLE runs ADD COLUMN assignment_source TEXT').run();
 	} catch {}
 

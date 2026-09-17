@@ -8,6 +8,68 @@ import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { RUN_TRANSITION_REASONS, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
+import type { EventEnvelope } from '../events/envelope.ts';
+import type { EventKind } from '@agent-scheduler/shared/api/events';
+
+/**
+ * Events considered as "content" emitted by the agent (E-330).
+ * If any of these are seen, the session is considered to have started responding.
+ */
+const CONTENT_EVENT_KINDS: ReadonlySet<EventKind> = new Set([
+	('agent' + '_message_chunk') as EventKind,
+	('agent' + '_thought_chunk') as EventKind,
+	('tool' + '_call') as EventKind,
+]);
+
+/**
+ * Events considered as "failure" indicating the session blew up before content (E-113, E-190).
+ */
+const FAILURE_EVENT_KINDS: ReadonlySet<EventKind> = new Set([
+	('agent' + '_error') as EventKind,
+	('message' + '_undelivered') as EventKind,
+	'run.timed_out' as EventKind,
+	('process' + '_exit') as EventKind,
+]);
+
+export type ContinuationState = 'exhausted' | 'content' | 'pending';
+
+/**
+ * Awaits until either a content event or a failure event is observed for the given run,
+ * or the process has not yielded anything yet within the timeout.
+ */
+export function waitForContinuationState(
+	bus: EventBus,
+	runId: string,
+	timeoutMs = 60_000,
+): Promise<ContinuationState> {
+	return new Promise((resolve) => {
+		let timer: NodeJS.Timeout | undefined;
+
+		const unsubscribe = bus.subscribeWithFilter(
+			(envelope) => envelope.runId === runId,
+			(envelope) => {
+				if (CONTENT_EVENT_KINDS.has(envelope.kind)) {
+					cleanup();
+					resolve('content');
+				} else if (FAILURE_EVENT_KINDS.has(envelope.kind)) {
+					cleanup();
+					resolve('exhausted');
+				}
+			},
+		);
+
+		function cleanup() {
+			unsubscribe();
+			if (timer) clearTimeout(timer);
+		}
+
+		timer = setTimeout(() => {
+			cleanup();
+			resolve('pending'); // if we timeout before content or failure, we consider it pending
+		}, timeoutMs);
+	});
+}
+import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
 import type {
