@@ -9,9 +9,8 @@ import {
 	createDispatchSnapshotsRepo,
 } from '../repo/dispatch-snapshots.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
-import type { RunsRepo } from '../repo/runs.ts';
 import { type TaskRow, type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
-import { createBatchService } from './batch.ts';
+import type { BatchService } from './batch.ts';
 
 export interface GetReviewContextOptions {
 	/**
@@ -78,6 +77,7 @@ export interface ReviewContextServiceDeps {
 	readonly bus?: EventBus;
 	readonly envelopeFactory?: EnvelopeFactory;
 	readonly clock?: { readonly now: () => string };
+	readonly batchService?: BatchService;
 }
 
 export interface ReviewContextService {
@@ -154,6 +154,7 @@ export function createReviewContextService(deps: ReviewContextServiceDeps): Revi
 		deps.documentsRepo ?? (deps.db ? createDocumentsRepo(deps.db) : undefined);
 
 	const getNow = deps.clock?.now ?? (() => new Date().toISOString());
+	const batchService = deps.batchService;
 
 	function resolveTask(rawTaskId: string): {
 		taskRow: TaskRow | null;
@@ -256,19 +257,13 @@ export function createReviewContextService(deps: ReviewContextServiceDeps): Revi
 
 		// 1. 查找当前文档下所有处于 'running' 状态的批次并置为 'paused'（E-50）
 		if (batchesRepo) {
-			const batchService = createBatchService({
-				batchesRepo,
-				tasksRepo: tasksRepo ?? ({} as unknown as TasksRepo),
-				runsRepo: {} as unknown as RunsRepo,
-				unitOfWork: { run: (fn) => fn() },
-				clock: { now: getNow },
-				bus: deps.bus,
-				envelopeFactory: deps.envelopeFactory,
-			});
+			if (!batchService) {
+				throw new AppError('E_INTERNAL', 'BatchService is required for batch state changes.');
+			}
 			const batches = batchesRepo.listByDocId(params.docId);
 			for (const batch of batches) {
 				if (batch.state === 'running') {
-					void batchService.transitionBatch(
+					batchService.transitionBatch(
 						batch.id,
 						'paused',
 						params.reason ?? 'doc_fingerprint_changed',
@@ -322,35 +317,15 @@ export function createReviewContextService(deps: ReviewContextServiceDeps): Revi
 			);
 		}
 
-		const batchService = createBatchService({
-			batchesRepo,
-			tasksRepo: tasksRepo ?? ({} as unknown as TasksRepo),
-			runsRepo: {} as unknown as RunsRepo,
-			unitOfWork: { run: (fn) => fn() },
-			clock: { now: getNow },
-			bus: deps.bus,
-			envelopeFactory: deps.envelopeFactory,
-		});
+		if (!batchService) {
+			throw new AppError('E_INTERNAL', 'BatchService is required for batch state changes.');
+		}
 
-		void batchService.transitionBatch(batchId, 'running', 'human_confirmed_doc_change');
+		batchService.transitionBatch(batchId, 'running', 'human_confirmed_doc_change');
 
 		const updated = batchesRepo.findById(batchId);
 		if (!updated) {
 			throw new AppError('E_INTERNAL', `Failed to retrieve resumed batch ${batchId}`);
-		}
-
-		if (deps.bus && deps.envelopeFactory) {
-			deps.bus.publish(
-				deps.envelopeFactory.createEnvelope({
-					kind: 'batch.advanced',
-					payload: {
-						batchId: updated.id,
-						batchNo: updated.batch_no,
-						state: 'running',
-						reason: 'human_confirmed_doc_change',
-					},
-				}),
-			);
 		}
 
 		return updated;

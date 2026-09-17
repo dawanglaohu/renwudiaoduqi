@@ -357,30 +357,61 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			let branchName = `wrapup/batch-${batch.batch_no}-r${nextRound}`;
 			let baseSha = 'HEAD';
 
-			if (deps.workspace?.prepareWrapupWorktree && repoPath) {
-				try {
-					const prepared = await deps.workspace.prepareWrapupWorktree({
-						repoPath,
-						batchId: batch.batch_no,
-						round: nextRound,
-					});
-					worktreePath = prepared.worktreePath;
-					branchName = prepared.branchName;
-					if (prepared.baseSha) baseSha = prepared.baseSha;
-				} catch {
-					worktreePath = repoPath;
+			if (!repoPath || !deps.workspace?.prepareWrapupWorktree) {
+				if (batch.state !== 'needs_attention') {
+					deps.batchService.transitionBatch(
+						batchId,
+						'needs_attention',
+						'wrapup_workspace_unavailable',
+					);
 				}
-			} else {
-				worktreePath = repoPath;
+				throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Wrapup workspace is not available.', {
+					details: { batchId, repoPath: repoPath || null },
+				});
+			}
+
+			try {
+				const prepared = await deps.workspace.prepareWrapupWorktree({
+					repoPath,
+					batchId: batch.batch_no,
+					round: nextRound,
+				});
+				worktreePath = prepared.worktreePath;
+				branchName = prepared.branchName;
+				if (prepared.baseSha) baseSha = prepared.baseSha;
+			} catch (cause) {
+				if (batch.state !== 'needs_attention') {
+					deps.batchService.transitionBatch(
+						batchId,
+						'needs_attention',
+						'wrapup_workspace_unavailable',
+					);
+				}
+				throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Failed to prepare wrapup workspace.', {
+					cause,
+					details: { batchId, repoPath },
+				});
 			}
 
 			let diffStat = '';
-			if (deps.workspace?.getDiffStat && worktreePath) {
-				try {
-					diffStat = await deps.workspace.getDiffStat(worktreePath);
-				} catch {
-					diffStat = '';
+			if (!deps.workspace.getDiffStat) {
+				if (batch.state !== 'needs_attention') {
+					deps.batchService.transitionBatch(batchId, 'needs_attention', 'wrapup_diff_unavailable');
 				}
+				throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Wrapup diff reader is not available.', {
+					details: { batchId, worktreePath },
+				});
+			}
+			try {
+				diffStat = await deps.workspace.getDiffStat(worktreePath);
+			} catch (cause) {
+				if (batch.state !== 'needs_attention') {
+					deps.batchService.transitionBatch(batchId, 'needs_attention', 'wrapup_diff_unavailable');
+				}
+				throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Failed to read wrapup diff stat.', {
+					cause,
+					details: { batchId, worktreePath },
+				});
 			}
 
 			// If round >= 2, retrieve previous wrapup report for section 3
@@ -542,8 +573,9 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 								batchNo: currentBatch?.batch_no ?? batch.batch_no,
 								runId,
 								round: nextRound,
-								agentId: assignment.agentId,
 								trigger,
+								promptSource: wrapupContext.promptSource,
+								branchName,
 							},
 						}),
 					);
@@ -676,6 +708,25 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						deps.bus.publish(env);
 					}
 				}
+				if (deps.bus && deps.envelopeFactory) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'batch.wrapup_finished',
+							payload: {
+								batchId,
+								batchNo: batch.batch_no,
+								runId,
+								round: deps.batchWrapupsRepo.getMaxRound(batchId) + 1,
+								wrapupId: null,
+								verdict: 'unparsed',
+								declaredVerdict: null,
+								fixRunIds: [],
+								unassignedCount: 0,
+								batchState: 'needs_attention',
+							},
+						}),
+					);
+				}
 				return;
 			}
 
@@ -731,6 +782,25 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						deps.bus.publish(env);
 					}
 				}
+				if (deps.bus && deps.envelopeFactory) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'batch.wrapup_finished',
+							payload: {
+								batchId,
+								batchNo: batch.batch_no,
+								runId,
+								round: deps.batchWrapupsRepo.getMaxRound(batchId) + 1,
+								wrapupId: null,
+								verdict: 'unparsed',
+								declaredVerdict: null,
+								fixRunIds: [],
+								unassignedCount: 0,
+								batchState: 'needs_attention',
+							},
+						}),
+					);
+				}
 				return;
 			}
 
@@ -744,6 +814,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 
 			const pendingEnvelopes: EventEnvelope[] = [];
 
+			let finalBatchState = batch.state;
 			deps.unitOfWork.run(() => {
 				// insert batch_wrapups
 				deps.batchWrapupsRepo.insert({
@@ -796,16 +867,18 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						`wrapup_${effectiveVerdict}`,
 					);
 					pendingEnvelopes.push(transRes.envelope);
+					finalBatchState = transRes.updatedBatch.state;
 				} else {
 					// Verdict is 'open'
 					// If round 2 is still open, transition to needs_attention (E-276, E-288)
-					if (run.attempt_no >= 2) {
+					if (nextValidRound >= 2) {
 						const transRes = deps.batchService.transitionBatchInTx(
 							batchId,
 							'needs_attention',
 							'wrapup_round_limit_reached',
 						);
 						pendingEnvelopes.push(transRes.envelope);
+						finalBatchState = transRes.updatedBatch.state;
 
 						const gateId = `gate_${deps.ids.newId().slice(0, 16)}`;
 						deps.gatesRepo.create({
@@ -824,6 +897,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							'wrapup_fixes_pending',
 						);
 						pendingEnvelopes.push(transRes.envelope);
+						finalBatchState = transRes.updatedBatch.state;
 					}
 				}
 
@@ -835,8 +909,13 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 								batchId,
 								batchNo: batch.batch_no,
 								runId,
-								round: run.attempt_no,
+								round: nextValidRound,
+								wrapupId: wrapupRecordId,
 								verdict: effectiveVerdict,
+								declaredVerdict: parsed.declaredVerdict,
+								fixRunIds: [],
+								unassignedCount: parsed.unassigned.length,
+								batchState: finalBatchState,
 								isHumanVerdict: false,
 							},
 						}),

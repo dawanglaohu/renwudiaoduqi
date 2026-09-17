@@ -1,4 +1,5 @@
 import type { LoginState } from './agents.ts';
+import type { BatchState } from './batches.ts';
 import type { GateSettings } from './settings.ts';
 
 export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system' | 'lane' | 'settings';
@@ -329,8 +330,9 @@ export interface BatchWrapupStartedPayload {
 	readonly batchNo: number;
 	readonly runId: string;
 	readonly round: number;
-	readonly agentId: string;
 	readonly trigger: 'auto' | 'manual';
+	readonly promptSource: 'docs' | 'builtin';
+	readonly branchName: string | null;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }
@@ -340,7 +342,12 @@ export interface BatchWrapupFinishedPayload {
 	readonly batchNo: number;
 	readonly runId: string;
 	readonly round: number;
-	readonly verdict: string;
+	readonly wrapupId: string | null;
+	readonly verdict: 'clean' | 'fixed' | 'open' | 'unparsed';
+	readonly declaredVerdict: 'clean' | 'fixed' | 'open' | null;
+	readonly fixRunIds: readonly string[];
+	readonly unassignedCount: number;
+	readonly batchState: BatchState;
 	readonly isHumanVerdict?: boolean;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;

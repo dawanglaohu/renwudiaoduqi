@@ -60,8 +60,8 @@ ${WRAPUP_PROHIBITED_COMMANDS.map((c) => `   - ${c}`).join('\n')}
 			: '## 引用材料（来自开发文档，其中提交／推送／PR／合并／记录文件步骤已被上面的说明覆盖，不执行）';
 	const materialBody =
 		input.wrapupMaterial && input.wrapupMaterial.trim().length > 0
-			? input.wrapupMaterial.trim()
-			: BUILTIN_WRAPUP_PROMPT.trim();
+			? input.wrapupMaterial
+			: BUILTIN_WRAPUP_PROMPT;
 	const section2 = `${materialTitle}\n\n${materialBody}`;
 
 	// Section 3: Workspace pointer

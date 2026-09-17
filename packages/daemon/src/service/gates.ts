@@ -143,6 +143,13 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					}
 
 					const pendingEnvelopes: EventEnvelope[] = [];
+					const humanWrapupId = `wrapup_${deps.ids.newId().slice(0, 16)}`;
+					const humanRound =
+						gate.run_id && deps.runsRepo?.findById(gate.run_id)?.batch_id
+							? (deps.batchWrapupsRepo?.getMaxRound(
+									deps.runsRepo.findById(gate.run_id)?.batch_id ?? '',
+								) ?? 0) + 1
+							: 1;
 					deps.unitOfWork.run(() => {
 						deps.gatesRepo.updateDecision(input.gateId, 'pass', comment, input.actorDeviceId, now);
 
@@ -156,11 +163,11 @@ export function createGateService(deps: GateServiceDeps): GateService {
 									const tasks = deps.tasksRepo?.listByBatchId(batch.id) ?? [];
 									const taskKeys = tasks.map((t) => t.task_key);
 									deps.batchWrapupsRepo.insert({
-										id: `wrapup_${deps.ids.newId().slice(0, 16)}`,
+										id: humanWrapupId,
 										batch_id: batch.id,
 										batch_no: batch.batch_no,
 										tasks_json: JSON.stringify(taskKeys),
-										round: wrapupRun.attempt_no,
+										round: humanRound,
 										run_id: wrapupRun.id,
 										verdict: 'clean',
 										declared_verdict: null,
@@ -193,8 +200,13 @@ export function createGateService(deps: GateServiceDeps): GateService {
 											batchId: batch.id,
 											batchNo: batch.batch_no,
 											runId: wrapupRun.id,
-											round: wrapupRun.attempt_no,
+											round: humanRound,
+											wrapupId: humanWrapupId,
 											verdict: 'clean',
+											declaredVerdict: null,
+											fixRunIds: [],
+											unassignedCount: 0,
+											batchState: 'done',
 											isHumanVerdict: true,
 										},
 									}),

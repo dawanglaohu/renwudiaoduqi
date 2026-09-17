@@ -107,6 +107,9 @@ export interface RunsRepo {
 	readonly listByTask: (taskId: string) => readonly RunRow[];
 	readonly listActive: () => readonly RunRow[];
 	readonly listAll: () => readonly RunRow[];
+	readonly findInFlight?: () => readonly RunRow[];
+	readonly updateLastEventAt?: (id: string, lastEventAt: string) => void;
+	readonly incrementUnmappedEventCount?: (id: string) => void;
 	readonly findLatestReview: (taskId: string) => RunRow | null;
 	readonly markSessionsArchived: (input: {
 		readonly taskId: string;
@@ -263,6 +266,14 @@ SET state = @state,
     ended_at = @ended_at,
     rework_count = CASE WHEN @rework_count IS NOT NULL THEN @rework_count ELSE rework_count END
 WHERE id = @id
+`;
+
+const UPDATE_LAST_EVENT_AT_SQL = `
+UPDATE runs SET last_event_at = ? WHERE id = ?
+`;
+
+const INCREMENT_UNMAPPED_EVENT_COUNT_SQL = `
+UPDATE runs SET unmapped_event_count = unmapped_event_count + 1 WHERE id = ?
 `;
 
 const UPDATE_REWORK_COUNT_SQL = `
@@ -437,6 +448,8 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const selectAllStmt = db.prepare(SELECT_ALL_RUNS_SQL);
 	const selectSucceededModelNamesStmt = db.prepare(SELECT_SUCCEEDED_MODEL_NAMES_SQL);
 	const updateStateStmt = db.prepare(UPDATE_RUN_STATE_SQL);
+	const updateLastEventAtStmt = db.prepare(UPDATE_LAST_EVENT_AT_SQL);
+	const incrementUnmappedEventCountStmt = db.prepare(INCREMENT_UNMAPPED_EVENT_COUNT_SQL);
 	const updateReworkCountStmt = db.prepare(UPDATE_REWORK_COUNT_SQL);
 	const updateReviewRoundStmt = db.prepare(UPDATE_REVIEW_ROUND_SQL);
 
@@ -651,6 +664,26 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				return Object.freeze(rows.map(freezeRunRow));
 			} catch (cause) {
 				throw toDatabaseError(cause, 'Failed to list all runs');
+			}
+		},
+
+		findInFlight(): readonly RunRow[] {
+			return this.listActive();
+		},
+
+		updateLastEventAt(id: string, lastEventAt: string): void {
+			try {
+				updateLastEventAtStmt.run(lastEventAt, id);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update last_event_at for run: ${id}`);
+			}
+		},
+
+		incrementUnmappedEventCount(id: string): void {
+			try {
+				incrementUnmappedEventCountStmt.run(id);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to increment unmapped event count for run: ${id}`);
 			}
 		},
 

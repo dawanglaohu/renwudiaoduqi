@@ -9,6 +9,7 @@ import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
 import { type RingBuffer, createRingBuffer } from '../events/ring-buffer.ts';
 import { createSchedulerTickJob } from '../jobs/scheduler-tick.ts';
+import { createAppendQueue } from '../logstore/append-queue.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
@@ -25,6 +26,7 @@ import {
 } from '../repo/dispatch-snapshots.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
+import { createEventsIndexRepo } from '../repo/events-index-repo.ts';
 import { type GatesRepo, createGatesRepo } from '../repo/gates.ts';
 import { type LogSegmentsRepo, createLogSegmentsRepo } from '../repo/log-segments-repo.ts';
 import { type RunMessagesRepo, createSqliteRunMessagesRepo } from '../repo/run-messages-repo.ts';
@@ -39,15 +41,25 @@ import { type DispatchService, createDispatchService } from '../service/dispatch
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type GateService, createGateService } from '../service/gates.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
+import { createLogstoreService } from '../service/logstore.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RetentionService, createRetentionService } from '../service/retention.ts';
 import { type ReworkService, createReworkService } from '../service/rework.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
+import {
+	type RunsRepo as RunLifecycleRepo,
+	type RunRecord,
+	type RunService,
+	createRunService,
+} from '../service/run.ts';
+import { createSessionArchiveService } from '../service/session-archive.ts';
 import { type SettingsService, createSettingsService } from '../service/settings.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
+import { getDiffStat } from '../workspace/diff.ts';
+import { type WorktreeManager, createWorktreeManager } from '../workspace/worktree.ts';
 
 export interface ContainerJob {
 	readonly name: string;
@@ -80,6 +92,10 @@ export interface ContainerEvents {
 	readonly bus: EventBus;
 }
 
+export interface ContainerWorkspace {
+	readonly worktrees: WorktreeManager;
+}
+
 export interface ContainerServices {
 	readonly system: SystemService;
 	readonly runAbort: RunAbortService;
@@ -96,6 +112,7 @@ export interface ContainerServices {
 	readonly gates: GateService;
 	readonly batch?: BatchService;
 	readonly wrapup?: WrapupService;
+	readonly run: RunService;
 }
 
 export interface AppContainer {
@@ -116,7 +133,7 @@ export interface AppContainer {
 	readonly events: ContainerEvents;
 	readonly proc: Record<string, never>;
 	readonly adapters: Record<string, never>;
-	readonly workspace: Record<string, never>;
+	readonly workspace: ContainerWorkspace;
 	readonly services: ContainerServices;
 	readonly jobs: readonly ContainerJob[];
 	readonly instanceLock: LockFileHandle;
@@ -161,6 +178,8 @@ export function createContainer(input: {
 	readonly reworkService?: ReworkService;
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
+	readonly runService?: RunService;
+	readonly worktreeManager?: WorktreeManager;
 	readonly schedulerTickJob?: ContainerJob;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
@@ -168,6 +187,7 @@ export function createContainer(input: {
 	const empty = Object.freeze({});
 
 	const eventSeq = createEventSeqRepo(input.database);
+	const eventsIndex = createEventsIndexRepo(input.database);
 	const runsAbort = input.runsAbortRepo ?? createSqliteRunsAbortRepo(input.database);
 	const runsLog = input.runsLogRepo ?? createSqliteRunsLogRepo(input.database);
 	const dispatchSnapshots =
@@ -211,9 +231,25 @@ export function createContainer(input: {
 		bus,
 	});
 
+	const ids = Object.freeze({
+		newId: () => `req_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+	});
 	const logstorePaths =
 		input.logstorePaths ?? createLogstorePaths(join(input.config.dataDir, 'runs'));
 	const logFs = input.logFs ?? createNodeLogFileSystem();
+	const unitOfWork = createUnitOfWork(input.database);
+	const appendQueue = createAppendQueue({
+		appendFile: (path, data) => logFs.appendFile(path, data),
+	});
+	const logstoreService = createLogstoreService({
+		fs: logFs,
+		paths: logstorePaths,
+		queue: appendQueue,
+		ids,
+		unitOfWork,
+		eventsIndexRepo: eventsIndex,
+		segmentsRepo: logSegments,
+	});
 	const systemService =
 		input.systemService ??
 		createSystemService({
@@ -224,7 +260,6 @@ export function createContainer(input: {
 			logViolation: input.logViolation,
 		});
 
-	const unitOfWork = createUnitOfWork(input.database);
 	const processOps = createDefaultProcessOps(input.hostInputs.platform);
 	const runAbortService =
 		input.runAbortService ??
@@ -238,9 +273,13 @@ export function createContainer(input: {
 			platform: input.hostInputs.platform,
 		});
 
-	const ids = Object.freeze({
-		newId: () => `req_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+	const worktreeDeps = Object.freeze({
+		platform: input.hostInputs.platform,
+		hostInputs: input.hostInputs,
+		ids,
 	});
+	const worktreeManager = input.worktreeManager ?? createWorktreeManager(worktreeDeps);
+	const workspace: ContainerWorkspace = Object.freeze({ worktrees: worktreeManager });
 
 	const pairingService =
 		input.pairingService ??
@@ -311,6 +350,16 @@ export function createContainer(input: {
 		});
 
 	const processRegistry = input.processRegistry ?? createProcessRegistry();
+	const sessionArchiveService = createSessionArchiveService({
+		runsRepo: runs,
+		tasksRepo: tasks,
+		processRegistry,
+		clock: input.clock,
+		envelopeFactory,
+		bus,
+		processOps,
+		platform: input.hostInputs.platform,
+	});
 	const messageService =
 		input.messageService ??
 		createMessageService({
@@ -390,8 +439,84 @@ export function createContainer(input: {
 			envelopeFactory,
 			agentRegistry,
 			agentService,
+			workspace: {
+				prepareWrapupWorktree: async (params) => {
+					const prepared = await worktreeManager.prepareWrapupWorktree(params);
+					return {
+						worktreePath: prepared.worktreePath,
+						branchName: prepared.branchName,
+						baseSha: prepared.baseRef,
+					};
+				},
+				getDiffStat: async (worktreePath) => {
+					const stat = await getDiffStat(worktreePath, { deps: worktreeDeps });
+					const files = stat.files.map(
+						(file) => `${file.path} | +${file.insertions} -${file.deletions} | ${file.status}`,
+					);
+					return [
+						...files,
+						`Total: ${stat.filesChanged} files, +${stat.insertions} -${stat.deletions}`,
+					].join('\n');
+				},
+			},
 			logstorePaths,
 			logFs,
+		});
+
+	const runLifecycleRepo: RunLifecycleRepo = Object.freeze({
+		findById(id: string): RunRecord | null {
+			const row = runs.findById(id);
+			return row
+				? {
+						id: row.id,
+						taskId: row.task_id,
+						state: row.state as RunRecord['state'],
+						pid: row.pid,
+						kind: row.kind,
+						session_archived_at: row.session_archived_at ?? null,
+						lane_no: row.lane_no ?? null,
+						lastEventAt: row.last_event_at,
+						unmappedEventCount: row.unmapped_event_count,
+						exitCode: row.exit_code,
+						exitSignal: row.exit_signal,
+						endedAt: row.ended_at,
+						actorDeviceId: row.actor_device_id,
+					}
+				: null;
+		},
+		updateState(input: Parameters<RunLifecycleRepo['updateState']>[0]) {
+			runs.updateState(input);
+		},
+		updateLastEventAt(id: string, lastEventAt: string) {
+			runs.updateLastEventAt?.(id, lastEventAt);
+		},
+		incrementUnmappedEventCount(id: string) {
+			runs.incrementUnmappedEventCount?.(id);
+		},
+		findInFlight() {
+			return (runs.findInFlight?.() ?? runs.listActive()).map((row) => ({
+				id: row.id,
+				taskId: row.task_id,
+				state: row.state as RunRecord['state'],
+				pid: row.pid,
+				kind: row.kind,
+			}));
+		},
+	});
+	const runService =
+		input.runService ??
+		createRunService({
+			logstore: logstoreService,
+			clock: input.clock,
+			envelopeFactory,
+			bus,
+			unitOfWork,
+			runsRepo: runLifecycleRepo,
+			tasksRepo: tasks,
+			sessionArchiveService,
+			finalizeWrapup: (params) => wrapupService.recordWrapupResult(params),
+			logFailure: (error) =>
+				input.logViolation?.(error instanceof Error ? error.message : String(error)),
 		});
 
 	const dispatchService =
@@ -493,6 +618,7 @@ export function createContainer(input: {
 		gates: gateService,
 		batch: batchService,
 		wrapup: wrapupService,
+		run: runService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([schedulerTickJob]);
@@ -512,7 +638,7 @@ export function createContainer(input: {
 		events,
 		proc: empty,
 		adapters: empty,
-		workspace: empty,
+		workspace,
 		services,
 		jobs,
 		instanceLock: input.instanceLock,

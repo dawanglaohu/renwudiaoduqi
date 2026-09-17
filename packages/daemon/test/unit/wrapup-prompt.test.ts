@@ -66,6 +66,22 @@ describe('domain/wrapup-prompt (AC 3, E-285, E-296)', () => {
 		expect(prompt).toContain(BUILTIN_WRAPUP_PROMPT.trim());
 	});
 
+	it('preserves document wrapup material byte-for-byte, including leading and trailing whitespace', () => {
+		const material = '\n  exact material\nwith trailing spaces  \n';
+		const prompt = assembleWrapupPrompt({
+			worktreePath: '/worktrees/batch-1',
+			branchName: 'wrapup/b1-r1',
+			wrapupMaterial: material,
+			promptSource: 'docs',
+			tasks: [],
+			round: 1,
+		});
+
+		expect(prompt).toContain(
+			`## 引用材料（来自开发文档，其中提交／推送／PR／合并／记录文件步骤已被上面的说明覆盖，不执行）\n\n${material}`,
+		);
+	});
+
 	it('includes round 2 review notice and previous report in section 3 when round >= 2', () => {
 		const prompt = assembleWrapupPrompt({
 			worktreePath: '/worktrees/batch-1',

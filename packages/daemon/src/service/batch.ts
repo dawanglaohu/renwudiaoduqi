@@ -33,11 +33,7 @@ export interface TransitionBatchInTxResult {
 }
 
 export interface BatchService {
-	readonly transitionBatch: (
-		batchId: string,
-		toState: BatchState,
-		reason: string,
-	) => Promise<BatchRow>;
+	readonly transitionBatch: (batchId: string, toState: BatchState, reason: string) => BatchRow;
 	readonly transitionBatchInTx: (
 		batchId: string,
 		toState: BatchState,
@@ -138,7 +134,7 @@ export function createBatchService(deps: BatchServiceDeps): BatchService {
 
 		transitionBatchInTx,
 
-		async transitionBatch(batchId: string, toState: BatchState, reason: string): Promise<BatchRow> {
+		transitionBatch(batchId: string, toState: BatchState, reason: string): BatchRow {
 			let result: TransitionBatchInTxResult | null = null;
 
 			// All mutations must occur within a single UnitOfWork transaction, no await/bus.publish inside tx (08 节, AC 1, AC 7)

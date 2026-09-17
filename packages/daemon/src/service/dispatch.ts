@@ -554,12 +554,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				details: { runId },
 			});
 		}
-		return toRunDto(run);
+		return toRunDtoWithInHeadWarning(run);
 	}
 
 	async function listRuns(): Promise<readonly RunDto[]> {
 		const runs = runsRepo.listAll();
-		return runs.map(toRunDto);
+		return runs.map(toRunDtoWithInHeadWarning);
 	}
 
 	async function getSnapshot(): Promise<SnapshotResponse> {
@@ -578,7 +578,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 		}
 
-		const runs = runsRepo.listAll().map(toRunDto);
+		const runs = runsRepo.listAll().map(toRunDtoWithInHeadWarning);
 		const agents = deps.listAgents ? await deps.listAgents() : [];
 		const latestEventId = deps.eventSeqRepo?.getWatermark('events') ?? null;
 
@@ -624,7 +624,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			const tasksDeferred: { taskId: string; reason: string }[] = [];
 
 			// Global Step 1: In-Head refresh (R3: per repo, implement/wrapup only, global limit <= 20, per run >= 30s, sequential git, single tx write back, E-301)
-			const nowMs = Date.parse(deps.clock.now()) || Date.now();
+			const nowIsoForRefresh = deps.clock.now();
+			const nowMs = Date.parse(nowIsoForRefresh);
+			if (Number.isNaN(nowMs)) {
+				throw new AppError('E_INTERNAL', 'Injected clock returned an invalid timestamp.', {
+					details: { value: nowIsoForRefresh },
+				});
+			}
 			const thirtySecAgo = new Date(nowMs - 30_000).toISOString();
 			const unmergedRuns = deps.runsRepo.findLandedNotInHeadRuns?.(20, thirtySecAgo) ?? [];
 			const checkInHead = deps.isBranchInHead ?? isBranchInHead;
@@ -1038,6 +1044,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	function getInHeadWarning(runId: string): string | null {
 		const count = consecutiveInHeadErrors.get(runId) ?? 0;
 		return count >= 3 ? '无法判定分支是否已合入' : null;
+	}
+
+	function toRunDtoWithInHeadWarning(row: RunRow): RunDto {
+		return Object.freeze({
+			...toRunDto(row),
+			inHeadWarning: getInHeadWarning(row.id),
+		});
 	}
 
 	return Object.freeze({

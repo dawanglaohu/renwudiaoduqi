@@ -201,6 +201,7 @@ export interface RunDto {
 	readonly isInHead?: boolean;
 	readonly inHeadCheckedAt?: string | null;
 	readonly branchTipSha?: string | null;
+	readonly inHeadWarning?: string | null;
 	readonly promptSource?: 'docs' | 'builtin' | null;
 	readonly assignmentSource?:
 		| 'task'

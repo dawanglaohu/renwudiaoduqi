@@ -12,9 +12,18 @@ export type { BatchState } from '@agent-scheduler/shared/api/batches';
 export const BATCH_STATE_TRANSITIONS: Readonly<Record<BatchState, readonly BatchState[]>> =
 	Object.freeze({
 		idle: Object.freeze<readonly BatchState[]>(['running']),
-		running: Object.freeze<readonly BatchState[]>(['paused', 'awaiting_landing', 'wrapping']),
+		running: Object.freeze<readonly BatchState[]>([
+			'paused',
+			'awaiting_landing',
+			'wrapping',
+			'needs_attention',
+		]),
 		paused: Object.freeze<readonly BatchState[]>(['running']),
-		awaiting_landing: Object.freeze<readonly BatchState[]>(['wrapping', 'running']),
+		awaiting_landing: Object.freeze<readonly BatchState[]>([
+			'wrapping',
+			'running',
+			'needs_attention',
+		]),
 		wrapping: Object.freeze<readonly BatchState[]>([
 			'done',
 			'running',

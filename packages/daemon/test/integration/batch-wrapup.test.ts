@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -26,7 +26,6 @@ import type { DocsService } from '../../src/service/docs.ts';
 import { type GateService, createGateService } from '../../src/service/gates.ts';
 import { type WrapupService, createWrapupService } from '../../src/service/wrapup.ts';
 import { type InHeadCheckMethod, isBranchInHead } from '../../src/workspace/in-head.ts';
-import { createWorktreeManager } from '../../src/workspace/worktree.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = resolve(currentDir, '../../migrations');
@@ -238,13 +237,20 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			>[0]['agentService'],
 			workspace: {
 				prepareWrapupWorktree: async (input) => {
-					const manager = createWorktreeManager({
-						platform: process.platform === 'win32' ? 'win32' : 'linux',
-						ids,
+					const branchName = `wrapup/${input.batchId}-${input.round}-${ids.newId()}`;
+					const worktreePath = join(tmpdir(), `sched-wrapup-${ids.newId()}`);
+					tempDirectories.push(worktreePath);
+					execFileSync('git', ['worktree', 'add', '-b', branchName, worktreePath, 'HEAD'], {
+						cwd: input.repoPath,
+						stdio: 'ignore',
 					});
-					return await manager.prepareWrapupWorktree(input);
+					return { worktreePath, branchName, baseSha: 'HEAD' };
 				},
-				getDiffStat: async () => ' 2 files changed, 20 insertions(+)',
+				getDiffStat: async (worktreePath) =>
+					execFileSync('git', ['diff', '--stat', 'HEAD'], {
+						cwd: worktreePath,
+						encoding: 'utf8',
+					}),
 			},
 		});
 
@@ -317,7 +323,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				) {
 					statusCode = 409;
 				}
-				reply.status(statusCode).send({
+				void reply.status(statusCode).send({
 					error: {
 						code: error.code,
 						message: error.message,
@@ -327,7 +333,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 				return;
 			}
 			const message = error instanceof Error ? error.message : String(error);
-			reply.status(500).send({ error: { code: 'E_INTERNAL', message } });
+			void reply.status(500).send({ error: { code: 'E_INTERNAL', message } });
 		});
 		await app.ready();
 
@@ -863,6 +869,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		await dispatchService.tick();
 		// 3 consecutive errors triggers warning banner! (E-301)
 		expect(dispatchService.getInHeadWarning('run-a1')).toBe('无法判定分支是否已合入');
+		expect((await dispatchService.getRun('run-a1')).inHeadWarning).toBe('无法判定分支是否已合入');
 
 		// 2. Both repos recover and branches are in HEAD
 		inHeadMockResult = { inHead: true, method: 'ancestor' };
