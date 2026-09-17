@@ -101,7 +101,7 @@ export const useConnectionStore = create<ConnectionStore>((set, get) => ({
 
 		// Trigger resync when transitioning from offline/reconnecting to online (AC 2, E-12)
 		if (status === 'online' && prev !== 'online') {
-			triggerResync();
+			void triggerResync();
 		}
 	},
 

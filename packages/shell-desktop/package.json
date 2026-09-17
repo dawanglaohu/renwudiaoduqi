@@ -13,10 +13,17 @@
 		"./platform-support": "./src/platform-support.ts",
 		"./connection-ui": "./src/connection-ui.ts",
 		"./version-check": "./src/version-check.ts",
-		"./packaging-pipeline": "./src/packaging-pipeline.ts"
+		"./packaging-pipeline": "./src/packaging-pipeline.ts",
+		"./staging-smoke": "./src/staging-smoke.ts",
+		"./artifact-staging": "./src/artifact-staging.ts",
+		"./launchers/linux-launcher": "./launchers/linux-launcher.ts"
 	},
 	"scripts": {
-		"verify-pipeline": "node --no-warnings --experimental-strip-types scripts/package-pipeline.ts"
+		"verify-pipeline": "node --no-warnings --experimental-strip-types scripts/package-pipeline.ts",
+		"verify-baselines": "node --no-warnings --experimental-strip-types launchers/verify-baselines.ts",
+		"build-daemon-distribution": "node scripts/build-daemon-distribution.mjs",
+		"smoke-runner": "node --no-warnings --experimental-strip-types launchers/smoke-runner.ts",
+		"evaluate-release-gate": "node --no-warnings --experimental-strip-types launchers/evaluate-release-gate.ts"
 	},
 	"dependencies": {
 		"@agent-scheduler/daemon": "workspace:*",

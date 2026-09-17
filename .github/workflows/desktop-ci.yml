@@ -1,0 +1,256 @@
+name: Desktop Shell CI & Release Verification
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      # The knowledge base changes on every landing and never affects the product build.
+      # docs/platform-support.md stays in scope: verify-baselines reads it (E-260).
+      - 'docs/Agent任务调度器-开发文档/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/Agent任务调度器-开发文档/**'
+  workflow_dispatch:
+    inputs:
+      formal_release:
+        description: 'Enforce formal release gates including Apple signing/notarization (E-267)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # The release gate reads the per-platform job and step conclusions of this run.
+  actions: read
+
+jobs:
+  # ============================================================================
+  # Matrix: Windows, macOS, Ubuntu (AC 1, E-265)
+  # Every runner must pass the workspace check, the platform integration tests, the
+  # desktop shell build and the staged smoke of the shipped daemon. Any failure blocks
+  # the release; the gate job names the platform and the step (E-265).
+  # CI does NOT claim automated end-to-end GUI interaction; GUI behaviour is recorded in
+  # the manual acceptance checklist per platform (AC 4, E-266).
+  # ============================================================================
+  desktop-matrix:
+    name: Desktop CI / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32
+            name: Windows (x64)
+          - os: macos-latest
+            platform: darwin
+            name: macOS (Apple Silicon)
+          - os: ubuntu-latest
+            platform: linux
+            name: Linux (Ubuntu LTS x64)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS (E-260)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+
+      - name: Setup Rust toolchain for Tauri v2
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system dependencies (Ubuntu baseline, AC 3, E-258, E-268)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/shell-desktop/src-tauri/target/release/deps
+            packages/shell-desktop/src-tauri/target/release/build
+            packages/shell-desktop/src-tauri/target/release/.fingerprint
+          key: ${{ runner.os }}-cargo-${{ hashFiles('packages/shell-desktop/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Upstream Platform Baselines (AC 8, E-260)
+        run: node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/verify-baselines.ts
+
+      # The workspace check builds nothing, but two of its suites assert on the real
+      # artifact: packages/web/test/packaging-pipeline.test.ts and the two shells'
+      # packaging-pipeline tests read packages/web/dist. Produce the single build first
+      # (M10-T4) so `pnpm -w check` sees the same dist the daemon and both shells consume.
+      - name: Build Web Frontend Assets (M10-T4 single build)
+        run: pnpm --filter @agent-scheduler/web build
+
+      - name: Workspace Verification Check (pnpm -w check, AC 1, E-265)
+        run: pnpm -w check
+
+      # Native path, process-group and autostart adapters of this host (17 节「平台集成」).
+      # They are part of `pnpm -w check` too; this step gives them their own verdict so the
+      # release gate can name them when they are what failed.
+      - name: Platform Integration Tests (AC 1, E-265)
+        run: pnpm exec vitest run packages/daemon/test/platform
+
+      - name: Linux Launcher & Pre-Flight Dependency Probing (AC 3, E-258)
+        if: matrix.platform == 'linux'
+        run: |
+          bash packages/shell-desktop/launchers/linux-launcher.sh --check-only
+          node --no-warnings --experimental-strip-types -e '
+            import { executeLinuxPrecheck } from "./packages/shell-desktop/launchers/linux-launcher.ts";
+            const outcome = executeLinuxPrecheck();
+            console.log("Linux precheck exitCode:", outcome.exitCode);
+            if (outcome.exitCode !== 0) process.exit(1);
+          '
+
+      - name: Verify Packaging Pipeline (M10-T4)
+        run: pnpm --filter @agent-scheduler/shell-desktop verify-pipeline
+
+      # The daemon distribution the installation carries under resources/daemon-runtime:
+      # the daemon with its production dependencies and the pinned Node 22 runtime
+      # (AC 2, E-209, E-257, E-260). tauri.conf.json lists it as a bundle resource.
+      - name: Build Daemon Distribution (AC 2, E-257, E-260)
+        run: pnpm --filter @agent-scheduler/shell-desktop build-daemon-distribution
+
+      # `cargo build --release` links the native shell and lets tauri-build lay the
+      # bundle resources (daemon-runtime, web/dist) out next to the executable, exactly
+      # as an installation carries them. Installer bundling (`tauri bundle`) is not run
+      # here; the artifacts are build verification only (AC 1, E-265, E-267).
+      - name: Build Tauri Desktop Shell (AC 1, E-265)
+        run: |
+          cd packages/shell-desktop/src-tauri
+          cargo build --release
+
+      # Expands the installation payload into a temporary root with spaces and Unicode,
+      # resolves the frozen launch spec from the expanded current_exe/resource_dir the way
+      # the native shell does, and really starts the shipped daemon through it until its
+      # health endpoint answers. The daemon's machine-wide instance lock lives in a
+      # root-owned directory on POSIX (/var/lib on Linux, /Library/Application Support on
+      # macOS), so the check runs with sudo there; the Windows runner is already elevated.
+      - name: Staged Unpack, Launch Spec & Real Daemon Smoke (AC 2, E-209, E-257, E-265)
+        shell: bash
+        env:
+          DESKTOP_SMOKE_PORT: '7817'
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = "win32" ]; then
+            node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
+          else
+            sudo -E "$(command -v node)" --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
+          fi
+
+      - name: Evaluate macOS Signing & Notarization (AC 6, E-267)
+        if: matrix.platform == 'darwin'
+        id: macos-signing
+        run: |
+          signed=false
+          notarized=false
+          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then signed=true; fi
+          if [ "$signed" = "true" ] && [ -n "${{ secrets.APPLE_ID }}" ] && [ -n "${{ secrets.APPLE_TEAM_ID }}" ]; then
+            notarized=true
+          fi
+          if [ "$signed" != "true" ] || [ "$notarized" != "true" ]; then
+            echo "::warning::macOS signing/notarization credentials missing. Artifacts are build verification only (E-267)."
+          fi
+          echo "is_signed=$signed" >> "$GITHUB_OUTPUT"
+          echo "is_notarized=$notarized" >> "$GITHUB_OUTPUT"
+          if [ "$signed" = "true" ] && [ "$notarized" = "true" ]; then
+            echo "artifact_label=正式签名件" >> "$GITHUB_OUTPUT"
+          else
+            echo "artifact_label=构建验证件" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload Build Verification Artifacts (AC 4, E-266, E-267)
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-build-verification-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            packages/shell-desktop/src-tauri/target/release/desktop-shell
+            packages/shell-desktop/src-tauri/target/release/desktop-shell.exe
+            packages/shell-desktop/src-tauri/target/release/daemon-runtime/package.json
+            packages/shell-desktop/src-tauri/target/release/daemon-runtime/bootstrap.mjs
+            packages/shell-desktop/src-tauri/target/release/web/dist/index.html
+
+  # ============================================================================
+  # macOS signing/notarization gate (AC 6, E-267).
+  # Kept as its own job so signing and notarization are both required explicitly
+  # instead of one being inferred from the other.
+  # ============================================================================
+  macos-signing-gate:
+    name: macOS Signing & Notarization Gate
+    needs: [desktop-matrix]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_release == true }}
+    runs-on: macos-latest
+    steps:
+      - name: Require signing and notarization credentials (E-267)
+        run: |
+          if [ -z "${{ secrets.APPLE_CERTIFICATE }}" ] || [ -z "${{ secrets.APPLE_ID }}" ] || [ -z "${{ secrets.APPLE_TEAM_ID }}" ]; then
+            echo "::error::Formal release requested without macOS signing and notarization credentials; signed and notarized artifacts cannot be produced (E-267)."
+            exit 1
+          fi
+          echo "Signing and notarization credentials present."
+
+  # ============================================================================
+  # Release Gate: reads every platform job and its steps back from the API and feeds
+  # the real conclusions to assertReleaseVerification, so a failing platform is named
+  # together with the step that failed (AC 1, AC 6, E-265, E-267).
+  # ============================================================================
+  release-verification:
+    name: Release Gate Evaluation
+    needs: [desktop-matrix, macos-signing-gate]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Collect platform job conclusions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" > "${{ runner.temp }}/jobs.json"
+
+      - name: Evaluate Three-Platform Release Matrix (AC 1, AC 6, E-265, E-267)
+        env:
+          SIGNING_GATE_RESULT: ${{ needs.macos-signing-gate.result }}
+          FORMAL_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_release || false }}
+        run: node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/evaluate-release-gate.ts "${{ runner.temp }}/jobs.json"

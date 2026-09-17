@@ -500,7 +500,7 @@ export function createSseClient(options?: SseClientOptions): SseClient {
 										} else if (code === 'E_REPLAY_WINDOW_EXPIRED') {
 											const details = (errorPayload?.error as { details?: Record<string, unknown> })
 												?.details;
-											handleReplayWindowExpired(details).catch((err) => {
+											void handleReplayWindowExpired(details).catch((err) => {
 												console.error('Failed to handle in-stream replay expired:', err);
 											});
 										}
@@ -569,7 +569,7 @@ export function createSseClient(options?: SseClientOptions): SseClient {
 		}
 		needsPairing = false;
 		shouldConnect = true;
-		runLoop().catch((err) => {
+		void runLoop().catch((err) => {
 			console.error('Unexpected error in SSE runLoop:', err);
 		});
 	}

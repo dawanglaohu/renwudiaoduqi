@@ -15,7 +15,8 @@
 		"@agent-scheduler/shared": "workspace:*",
 		"@fastify/static": "^10.1.3",
 		"better-sqlite3": "13.0.3",
-		"fastify": "^5.12.3"
+		"fastify": "^5.12.3",
+		"typescript": "^5.7.2"
 	},
 	"devDependencies": {
 		"@types/better-sqlite3": "9.6.0"

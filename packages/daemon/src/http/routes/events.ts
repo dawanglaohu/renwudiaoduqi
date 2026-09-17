@@ -1,9 +1,9 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
 import { handleSseStream, resolveReplayEvents } from '../sse.ts';
 
 export function registerEventsRoutes(instance: FastifyInstance): void {
-	instance.get('/api/v1/events', async (request: FastifyRequest, reply) => {
+	instance.get('/api/v1/events', async (request: FastifyRequest, reply: FastifyReply) => {
 		const container = request.server.container;
 		if (!container) {
 			throw new AppError('E_INTERNAL', 'Container is not initialized.');
@@ -22,7 +22,9 @@ export function registerEventsRoutes(instance: FastifyInstance): void {
 		);
 
 		// Hijack only after every pre-flight assertion passed; the stream itself never calls reply.send.
-		reply.hijack();
+		// `void` marks it as a deliberately fire-and-forget statement: the source-contracts
+		// architecture test rejects bare thenable call statements (M1-T1, E-213).
+		void reply.hijack();
 
 		handleSseStream({
 			rawRequest: request.raw,

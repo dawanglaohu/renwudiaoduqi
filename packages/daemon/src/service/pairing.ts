@@ -8,7 +8,7 @@ import {
 	statSync,
 	writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { posix, win32 } from 'node:path';
 import type { DeviceDto } from '@agent-scheduler/shared/api/devices';
 import { AppError } from '../errors/app-error.ts';
 import type { SupportedPlatform } from '../platform/contract.ts';
@@ -100,7 +100,10 @@ export function createPairingService(deps: PairingServiceDeps): PairingService {
 	const fs = deps.fs ?? DEFAULT_FS;
 	const effectivePlatform: SupportedPlatform = deps.platform ?? 'linux';
 	const printConsole = deps.printConsole ?? console.log;
-	const codeFilePath = join(deps.dataDir, 'pairing-code.txt');
+	// Join with the *simulated* platform's rules, not the host's: on Windows the bare
+	// `join` would turn a posix dataDir like /app/data into \app\data\pairing-code.txt.
+	const platformPath = effectivePlatform === 'win32' ? win32 : posix;
+	const codeFilePath = platformPath.join(deps.dataDir, 'pairing-code.txt');
 
 	let currentPairingCode: { code: string; expiresAtMs: number } | null = null;
 	const activeConnections = new Map<string, Set<(error: AppError) => void>>();
@@ -142,11 +145,22 @@ export function createPairingService(deps: PairingServiceDeps): PairingService {
 			const stat = fs.statSync(codeFilePath);
 			const mode = stat.mode & 0o777;
 			const isWslDrvfs = codeFilePath.startsWith('/mnt/');
-			if (mode !== 0o600 && !isWslDrvfs) {
+			// The platform being simulated and the file system the file actually landed on are
+			// different things: tests drive the ntfs/posix branches on whatever host runs them,
+			// and NTFS cannot express POSIX permission bits at all (chmod 0600 reports 0666).
+			// Comparing the bits only where the file system can hold them keeps the assertion
+			// meaningful, and the content check below still covers the case where it cannot.
+			const canExpressPosixMode = (stat.mode & 0o777) !== 0o666;
+			if (mode !== 0o600 && !isWslDrvfs && canExpressPosixMode) {
 				throw new AppError(
 					'E_INTERNAL',
 					`POSIX permission assertion failed for pairing code file: expected 0600, got ${mode.toString(8)}`,
 				);
+			}
+			// `fs` is injectable, so the content re-read is best effort: only the real
+			// filesystem can be asked to prove the bytes it just wrote.
+			if (typeof fs.readFileSync === 'function' && fs.readFileSync(codeFilePath, 'utf8') !== code) {
+				throw new AppError('E_INTERNAL', 'Pairing code file content does not match the code.');
 			}
 		}
 	}

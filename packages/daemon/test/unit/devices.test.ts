@@ -1,4 +1,4 @@
-import { readFileSync, unlinkSync } from 'node:fs';
+import { readFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +20,7 @@ function createTestDb(dbPath: string): DatabaseConnection {
 		clock: { now: () => new Date().toISOString() },
 		database: db,
 		fileSystem: {
-			readDirectory: () => ['0001_init.sql'],
+			readDirectory: () => readdirSync(migrationsDir),
 			readFile: (p: string) => readFileSync(p, 'utf8'),
 		},
 	});

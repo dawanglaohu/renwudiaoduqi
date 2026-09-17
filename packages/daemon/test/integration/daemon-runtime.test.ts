@@ -1,10 +1,12 @@
-import { mkdtempSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join, win32 } from 'node:path';
+import { dirname, join, win32 } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { HealthProbe, ProcessLivenessProbe } from '../../src/boot/lock.ts';
 import type { EnvironmentSnapshot } from '../../src/config/env.ts';
+import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
@@ -20,6 +22,8 @@ import { WINDOWS_SYSTEM_ROOT_FALLBACK, createNativeLockAdapter } from '../../src
 import { runLockCommand } from '../../src/proc/lock-command.ts';
 
 const temporaryDirectories: string[] = [];
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
 
 afterEach(() => {
 	for (const directory of temporaryDirectories.splice(0)) {
@@ -308,9 +312,18 @@ function dependencies(input: {
 		openDatabase: () => {
 			events.push('database.open');
 			const database = openDatabase(':memory:');
-			database.exec(
-				'CREATE TABLE event_seq (name TEXT PRIMARY KEY, watermark INTEGER NOT NULL CHECK (watermark >= 0))',
-			);
+			// The container prepares statements against the production schema, so the
+			// in-memory database must carry the same migrations the real boot applies
+			// (event_seq included — creating it by hand too would collide).
+			const migrationsDirectory = join(currentDir, '../../migrations');
+			createMigrationRunner({
+				clock: { now: () => '2026-09-07T01:02:03.004Z' },
+				database,
+				fileSystem: {
+					readDirectory: () => readdirSync(migrationsDirectory),
+					readFile: (path) => readFileSync(path, 'utf8'),
+				},
+			}).run(migrationsDirectory);
 			return database;
 		},
 		runMigrations: () => events.push('migrations.run'),

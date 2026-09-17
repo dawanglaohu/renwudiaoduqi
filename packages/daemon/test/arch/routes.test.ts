@@ -24,6 +24,16 @@ import type {
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(currentDir, '../../../..');
 
+/**
+ * The container's pairing bootstrap asserts POSIX 0600 on the pairing-code file
+ * unless the host platform is win32, so the fixture must declare the platform it
+ * actually runs on; hardcoding 'linux' made the whole container unusable on Windows.
+ */
+function hostPlatform(): 'win32' | 'darwin' | 'linux' {
+	const platform = process.platform;
+	return platform === 'win32' || platform === 'darwin' ? platform : 'linux';
+}
+
 function createMemoryLockAdapter(): NativeLockAdapter {
 	let lockContents: string | undefined;
 	const missing = (): NativeLockFailure => ({
@@ -94,7 +104,7 @@ function makeTestContainer() {
 			dev: false,
 		},
 		database: db,
-		hostInputs: { platform: 'linux', homedir: dataDir },
+		hostInputs: { platform: hostPlatform(), homedir: dataDir },
 		lockAdapter,
 		instanceLock: { release: () => undefined } as unknown as LockFileHandle,
 		clock: { now: () => '2026-09-09T12:00:00.000Z' },
@@ -123,7 +133,16 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 
 		await server.instance.ready();
 
-		const actualSet = new Set(registeredRoutes.map((r) => `${r.method.toUpperCase()} ${r.url}`));
+		// `@fastify/static` (80-static.ts, wildcard: true, prefix: '/') registers the SPA
+		// fallback `GET /*` whenever packages/web/dist exists — i.e. on every machine that
+		// ran `vite build` first, which is exactly what CI does. It is a static file route,
+		// not part of the API contract in routes.ts, so compare the contract surface only.
+		const STATIC_FALLBACK_ROUTE = 'GET /*';
+		const actualSet = new Set(
+			registeredRoutes
+				.map((r) => `${r.method.toUpperCase()} ${r.url}`)
+				.filter((route) => route !== STATIC_FALLBACK_ROUTE),
+		);
 		const expectedSet = new Set(
 			ROUTES.map((r: RouteDefinition) => `${r.method.toUpperCase()} ${r.path}`),
 		);

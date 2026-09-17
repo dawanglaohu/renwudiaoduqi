@@ -6,7 +6,7 @@ import {
 	realpath as nodeRealpath,
 	stat as nodeStat,
 } from 'node:fs/promises';
-import { isAbsolute, join, normalize, delimiter as pathDelimiter, win32 } from 'node:path';
+import { posix, win32 } from 'node:path';
 import type { AgentConfig, ResolvedAgentConfig } from '../config/defaults.ts';
 import type {
 	ExecutableFileSystem,
@@ -274,7 +274,11 @@ export async function probeAgent(options: ProbeAgentOptions): Promise<ProbeAgent
 		});
 	}
 
-	const pathIsAbsolute = platform === 'win32' ? win32.isAbsolute : isAbsolute;
+	// The target platform and the host running this code are different things. Node's bare
+	// `node:path` helpers follow the *host*, so on Windows the "posix" branch was really
+	// win32. Pick one whole flavour explicitly so the simulated platform is honest.
+	const platformPath = platform === 'win32' ? win32 : posix;
+	const pathIsAbsolute = platformPath.isAbsolute;
 
 	// 2. Resolve executable path
 	let targetExecutablePath: string | undefined;
@@ -691,6 +695,11 @@ export async function findExecutableCandidates(input: {
 	const fileSystem = input.fileSystem ?? DEFAULT_FILE_SYSTEM;
 	const adapter = platformPathAdapter(hostInputs.platform);
 	const platform = hostInputs.platform;
+	// The target platform and the host running this code are different things. Node's bare
+	// `node:path` helpers follow the *host*, so on Windows the "posix" branch was really
+	// win32: PATH was split on ';' instead of ':' and candidates joined with '\'. Pick one
+	// whole flavour explicitly so the simulated platform is honest.
+	const platformPath = platform === 'win32' ? win32 : posix;
 
 	const searchDirectories: string[] = [];
 
@@ -717,7 +726,7 @@ export async function findExecutableCandidates(input: {
 		}
 	}
 	if (rawPath !== undefined && rawPath.length > 0) {
-		const segments = rawPath.split(platform === 'win32' ? ';' : pathDelimiter);
+		const segments = rawPath.split(platformPath.delimiter);
 		for (const segment of segments) {
 			const trimmed = segment.trim();
 			if (trimmed.length > 0) {
@@ -733,8 +742,8 @@ export async function findExecutableCandidates(input: {
 	const candidatePathsToTest: string[] = [];
 	const seenPaths = new Set<string>();
 
-	const pathJoin = platform === 'win32' ? win32.join : join;
-	const pathNormalize = platform === 'win32' ? win32.normalize : normalize;
+	const pathJoin = platformPath.join;
+	const pathNormalize = platformPath.normalize;
 
 	const addCandidate = (cand: string) => {
 		const normalized = pathNormalize(cand);

@@ -178,6 +178,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M10-T5": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "5492d6acca1f63273919eaa69dd734fd650a7123e9a9ad427a7b74fca0219664",
+    "evidence": [
+      "2026-09-17 语义复核（第 6 轮，PR #87，补丁 m10-t5-ci-support-paths-and-e271-scope）：sync 后 `status --task M10-T5` 报 ready=false，唯一原因「任务契约待语义复核」，blockers 为空、stale 为空，contractHash 5492d6ac…9664 与证据模板一致；补丁只改 M10-T5 自己的 task-contracts.json 条目，sync 列出的受影响任务只有 M10-T5，revalidation.json 未新增任何待复验任务。",
+      "条款一致性：19 节 M10-T5 行与图谱任务笔记未改；八条验收标准与九条边界（E-209/E-257/E-258/E-259/E-260/E-265/E-266/E-267/E-268）与第 1 轮核对的定义逐字相同；输入（M10-T4 的共享打包管线；17 节测试矩阵）与产出（三平台 workflow、启动清单解析器与前置检查 launcher、支持清单、人工 GUI 验收模板）未变。",
+      "有效范围修正：taskPaths 四条（.github/workflows/、docs/platform-support.md、packages/shell-desktop/、packages/shell-desktop/launchers/）保留；新登记 33 条 supportPaths，全部是验收标准 1「三平台 pnpm -w check 全绿」的必要条件而非本层产出：(a) daemon 测试夹具内联过期迁移列表、缺 bug_prompt 列（10 个 daemon 测试文件）；(b) Windows 宿主差异：pairing.ts 的 POSIX 0600 断言按文件系统能力判定、probe.ts / registry.ts / pairing.ts 按被模拟平台选 posix/win32 path、contract.ts 的 ~ 判定只看词首、landing/agents-service/daemon-entry 测试按宿主定位 git 与 Node 20、source-contracts 扫描跳过构建产物目录；(c) 工具链：pnpm-workspace.yaml 的 ignoredBuiltDependencies 绕开 better-sqlite3 在 VS 18 上的隐式 node-gyp 探测、pnpm 10.18.3 与 packageManager 同步、biome 忽略 Rust 产物目录、daemon 自带 typescript 供独立部署；(d) E-170 机检要求的 web 三处 void 标记。每个文件的改动都在 PR 评论第 3、5 轮与本轮逐条记录，且与开放 PR 无路径冲突（当前仅 #87 开放）。",
+      "共享条款处置：第 3 轮曾把「~ 禁令只针对词首展开符」写进 13 节 E-271 行、E-271.md 与 M1-T3.md 而未走补丁登记。本轮把三处回退到 main：原条款「不得把 ~、${...}、%...% 当路径交给文件系统」与实现 /^~/ 并不矛盾（以 ~ 开头的值才是「把 ~ 当路径」，RUNNER~1 不是），回归由 packages/daemon/test/unit/platform.test.ts 的三条用例钉住，不必为一处措辞澄清把 M1-T3 及其全部下游标成待复验。",
+      "接口与依赖方向：DaemonLaunchSpec 仍只来自 packages/shared/src/shell/daemon-launch-spec.ts，本层未新增共享类型；启动目标布局由 packages/shell-desktop/src/launch-spec.ts 的 resolveShippedDaemonLayout 定义、src-tauri/src/lib.rs 用同一组常量推导，测试断言两侧字面一致；壳→界面依赖方向未反转；daemon 源码改动全是平台正确性修正，未新增产品逻辑。13/17/19 对应要求核对无冲突：17 节的平台集成测试在 workflow 里单独成步，与验收标准 1 的四项一一对应。",
+      "结论：契约本身正确且可实现，有效范围经补丁补齐后覆盖了本 PR 的全部改动，本轮登记语义复核；代码是否满足契约由同一轮的代码审查独立判定，见 PR #87 的 REVIEW-ROUND 6 评论。"
+    ],
+    "reviewed": "2026-09-16T23:45:18.548831+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M2-T1": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
     "contractHash": "a679cdc47a2129f126bb69d455428042f6d5573cd0ed9bffff616c33ea8fafc2",

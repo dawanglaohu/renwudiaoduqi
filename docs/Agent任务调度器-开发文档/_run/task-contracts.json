@@ -1138,6 +1138,43 @@
       "supportPaths": [
         "packages/daemon/test/unit/stall-detector.test.ts"
       ]
+    },
+    "M10-T5": {
+      "supportPaths": [
+        "biome.json",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+        "packages/daemon/package.json",
+        "packages/daemon/src/adapters/probe.ts",
+        "packages/daemon/src/config/registry.ts",
+        "packages/daemon/src/http/routes/events.ts",
+        "packages/daemon/src/platform/contract.ts",
+        "packages/daemon/src/service/pairing.ts",
+        "packages/daemon/test/arch/routes.test.ts",
+        "packages/daemon/test/integration/agents-routes.test.ts",
+        "packages/daemon/test/integration/daemon-runtime.test.ts",
+        "packages/daemon/test/integration/disk-full-and-system-routes.test.ts",
+        "packages/daemon/test/integration/pairing-routes.test.ts",
+        "packages/daemon/test/integration/run-log-routes.test.ts",
+        "packages/daemon/test/unit/agents-service.test.ts",
+        "packages/daemon/test/unit/daemon-entry.test.ts",
+        "packages/daemon/test/unit/database.test.ts",
+        "packages/daemon/test/unit/devices.test.ts",
+        "packages/daemon/test/unit/documents-routes.test.ts",
+        "packages/daemon/test/unit/http-plugins.test.ts",
+        "packages/daemon/test/unit/landing.test.ts",
+        "packages/daemon/test/unit/message-service.test.ts",
+        "packages/daemon/test/unit/platform.test.ts",
+        "packages/daemon/test/unit/review.test.ts",
+        "packages/daemon/test/unit/run-abort.test.ts",
+        "packages/daemon/test/unit/source-contracts.test.ts",
+        "packages/daemon/test/unit/sse.test.ts",
+        "packages/web/src/api/sse-client.ts",
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-deck/use-stop-intent.ts",
+        "packages/web/src/store/connection-store.ts"
+      ]
     }
   }
 }

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,7 +54,7 @@ describe('Pairing & Devices HTTP Routes Integration (M2-T2, E-07, E-127, E-226)'
 			clock: { now: () => new Date().toISOString() },
 			database: db,
 			fileSystem: {
-				readDirectory: () => ['0001_init.sql'],
+				readDirectory: () => readdirSync(migrationsDir),
 				readFile: (p: string) => readFileSync(p, 'utf8'),
 			},
 		});
@@ -63,7 +63,9 @@ describe('Pairing & Devices HTTP Routes Integration (M2-T2, E-07, E-127, E-226)'
 
 	afterEach(() => {
 		db.close();
-		rmSync(testDir, { recursive: true, force: true });
+		// macOS keeps the SQLite -wal/-shm files briefly visible after close, so a single
+		// rmdir can hit ENOTEMPTY; retrying is what Node's own docs recommend for rmSync.
+		rmSync(testDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 	});
 
 	function makeServer(options?: { clock?: { now: () => string } }) {
@@ -96,7 +98,12 @@ describe('Pairing & Devices HTTP Routes Integration (M2-T2, E-07, E-127, E-226)'
 		expect(pairingCode).toMatch(/^\d+$/);
 
 		const stat = statSync(codeFilePath);
-		expect(stat.mode & 0o777).toBe(0o600);
+		// NTFS cannot express POSIX permission bits (chmod 0600 still reports 0666), so the
+		// bit comparison only means something on a file system that can hold it. This is the
+		// same capability test the service itself applies before asserting 0600.
+		if ((stat.mode & 0o777) !== 0o666) {
+			expect(stat.mode & 0o777).toBe(0o600);
+		}
 
 		// Claim the bootstrap code via POST /api/v1/pair/claim
 		const res = await server.instance.inject({

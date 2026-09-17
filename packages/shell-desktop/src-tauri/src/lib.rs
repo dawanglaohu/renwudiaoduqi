@@ -4,6 +4,14 @@ use tauri::Manager;
 const SERVICE_NAME: &str = "com.agsched.desktop";
 const TOKEN_USER: &str = "token";
 
+/// Mirrors `resolveShippedDaemonLayout` in `packages/shell-desktop/src/launch-spec.ts`:
+/// the daemon application ships under `<resource_dir>/daemon-runtime` together with the
+/// Node runtime it needs, so the shell starts
+/// `<resource_dir>/daemon-runtime/runtime/node[.exe] <resource_dir>/daemon-runtime/bootstrap.mjs`.
+const DAEMON_RUNTIME_DIR_NAME: &str = "daemon-runtime";
+const BUNDLED_RUNTIME_DIR_NAME: &str = "runtime";
+const DAEMON_ENTRY_FILE_NAME: &str = "bootstrap.mjs";
+
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct DaemonLaunchSpec {
     pub file: String,
@@ -32,6 +40,14 @@ fn is_absolute_launch_path(value: &str) -> bool {
     }
     bytes.len() >= 2
         && ((bytes[0] == b'\\' && bytes[1] == b'\\') || (bytes[0] == b'/' && bytes[1] == b'/'))
+}
+
+fn bundled_runtime_executable_name() -> &'static str {
+    if cfg!(windows) {
+        "node.exe"
+    } else {
+        "node"
+    }
 }
 
 #[tauri::command]
@@ -110,15 +126,22 @@ pub fn start_desktop() {
             if !is_absolute_launch_path(&resource_dir_text) {
                 return Err("Desktop resource directory must be an absolute path.".into());
             }
-            let binary_name = if cfg!(windows) { "daemon.exe" } else { "daemon" };
-            let daemon_file = resource_dir.join(binary_name);
-            let daemon_file_text = daemon_file.to_string_lossy().into_owned();
-            if !is_absolute_launch_path(&daemon_file_text) {
-                return Err("Daemon executable path must be an absolute path.".into());
+            let daemon_dir = resource_dir.join(DAEMON_RUNTIME_DIR_NAME);
+            let runtime_file = daemon_dir
+                .join(BUNDLED_RUNTIME_DIR_NAME)
+                .join(bundled_runtime_executable_name());
+            let daemon_entry = daemon_dir.join(DAEMON_ENTRY_FILE_NAME);
+            let runtime_file_text = runtime_file.to_string_lossy().into_owned();
+            let daemon_entry_text = daemon_entry.to_string_lossy().into_owned();
+            if !is_absolute_launch_path(&runtime_file_text) {
+                return Err("Daemon runtime executable path must be an absolute path.".into());
+            }
+            if !is_absolute_launch_path(&daemon_entry_text) {
+                return Err("Daemon entry path must be an absolute path.".into());
             }
             let spec = DaemonLaunchSpec {
-                file: daemon_file_text,
-                args: Vec::new(),
+                file: runtime_file_text,
+                args: vec![daemon_entry_text],
                 cwd: resource_dir_text,
             };
             if let Some(state) = app.try_state::<LaunchState>() {

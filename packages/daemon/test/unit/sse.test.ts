@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -466,7 +466,7 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 				clock: { now: () => '2026-09-12T12:00:00.000Z' },
 				database: db,
 				fileSystem: {
-					readDirectory: () => ['0001_init.sql'],
+					readDirectory: () => readdirSync(migrationsDir),
 					readFile: (p: string) => readFileSync(p, 'utf8'),
 				},
 			});

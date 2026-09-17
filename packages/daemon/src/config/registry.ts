@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { watch } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, posix, win32 } from 'node:path';
 import type {
 	BuiltinModelDto,
 	EffortValue,
@@ -363,7 +363,13 @@ const NODE_TIMERS: AgentRegistryTimers = Object.freeze({
 });
 
 export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentRegistry {
-	const configPath = join(options.dataDir, AGENTS_FILE_NAME);
+	// Join with the *simulated* platform's rules, not the host's: on Windows the bare `join`
+	// turns a posix dataDir like /test/data into \test\data\agents.json, so the registry then
+	// reads a path nobody wrote and every override silently disappears.
+	const configPath = (options.platform === 'win32' ? win32 : posix).join(
+		options.dataDir,
+		AGENTS_FILE_NAME,
+	);
 	const fileSystem = options.fileSystem ?? NODE_FILE_SYSTEM;
 	const timers = options.timers ?? NODE_TIMERS;
 	const builtInDefaults = freezeAgentConfigRecord(

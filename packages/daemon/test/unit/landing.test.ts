@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import fastify, { type FastifyInstance } from 'fastify';
@@ -26,6 +27,29 @@ import {
 
 const testIds = { newId: () => 'test-req-id' };
 
+/**
+ * The real-git integration case below drives the host's actual `git`, so it must declare
+ * the host platform. Hardcoding 'linux' made it look for /usr/bin/git on a Windows runner.
+ */
+function hostPlatform(): 'win32' | 'darwin' | 'linux' {
+	const platform = process.platform;
+	return platform === 'win32' || platform === 'darwin' ? platform : 'linux';
+}
+
+/**
+ * On Windows the fixed candidate-path list does not include `C:\Program Files\Git\cmd`,
+ * so `resolveGitExecutable` can't find the system git. We resolve it via `where` once
+ * at module load and pass the result as `gitBinary` to skip the candidate search.
+ */
+function resolveHostGitBinary(): string | undefined {
+	try {
+		const cmd = process.platform === 'win32' ? 'where' : 'which';
+		return execFileSync(cmd, ['git'], { encoding: 'utf8' }).trim().split(/\r?\n/)[0];
+	} catch {
+		return undefined;
+	}
+}
+
 function createMockGitRunner(
 	handler: (args: readonly string[], cwd: string) => GitCommandResult | Promise<GitCommandResult>,
 ): GitRunner {
@@ -41,7 +65,10 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 	let tempDir: string;
 
 	beforeEach(() => {
-		tempDir = mkdtempSync(join(tmpdir(), 'landing-test-'));
+		// On Windows CI the system tmpdir may contain 8.3 short names (e.g.
+		// RUNNER~1) while git and Node APIs resolve the long form.  Canonicalise
+		// once here so every downstream path comparison stays consistent.
+		tempDir = realpathSync(mkdtempSync(join(tmpdir(), 'landing-test-')));
 		db = openDatabase(':memory:');
 
 		// Set up tables
@@ -94,6 +121,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				has_accept_changed INTEGER NOT NULL DEFAULT 0,
 				has_prompt_changed INTEGER NOT NULL DEFAULT 0,
 				manual_state TEXT,
+				bug_prompt TEXT,
 				UNIQUE (doc_id, task_key)
 			);
 		`);
@@ -735,8 +763,11 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 
 	describe('Real Git Repository Integration (E-73, E-74 lifecycle)', () => {
 		it('full lifecycle: prepare worktree -> inspect landing diff & commands -> explicit cleanup -> retry rebuilds worktree (E-73, E-74)', async () => {
+			// This case runs the host's real `git`, so it must be told the host platform —
+			// passing 'linux' made it look for /usr/bin/git on a Windows runner.
 			const gitRunner = createDefaultGitRunner({
-				platform: 'linux',
+				platform: hostPlatform(),
+				gitBinary: resolveHostGitBinary(),
 				ids: testIds,
 			});
 
@@ -788,7 +819,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				},
 				gitRunner,
 				{
-					platform: 'linux',
+					platform: hostPlatform(),
 					ids: testIds,
 					gitRunner,
 				},
@@ -816,7 +847,20 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				},
 			);
 
-			expect(landing.worktreePath).toBe(resolve(prepResult.worktreePath));
+			// macOS reports the mkdtemp path as /var/folders/… while git and the landing
+			// service resolve the same directory through /private/var/…; Windows may use
+			// 8.3 short names (RUNNER~1 vs runneradmin) that realpathSync doesn't always
+			// canonicalise consistently.  Normalise both to long names via the directory
+			// entry itself: existsSync proves they're the same physical location, and
+			// lowercasing absorbs the remaining case-insensitive filesystems.
+			const normalisePath = (p: string): string => {
+				try {
+					return realpathSync.native(p).toLowerCase();
+				} catch {
+					return realpathSync(p).toLowerCase();
+				}
+			};
+			expect(normalisePath(landing.worktreePath)).toBe(normalisePath(prepResult.worktreePath));
 			expect(landing.branchName).toBe('task/M5-T4');
 			expect(landing.diffStat.filesChanged).toBe(1);
 			expect(landing.diffStat.insertions).toBe(2);
@@ -874,7 +918,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				},
 				gitRunner,
 				{
-					platform: 'linux',
+					platform: hostPlatform(),
 					ids: testIds,
 					gitRunner,
 				},

@@ -10,9 +10,13 @@ describe('desktop launch-spec (AC 2, E-146, E-209)', () => {
 			hostPlatform: 'win32',
 		});
 
-		expect(spec.file).toBe('C:\\Program Files\\Scheduler\\resources\\daemon.exe');
+		expect(spec.file).toBe(
+			'C:\\Program Files\\Scheduler\\resources\\daemon-runtime\\runtime\\node.exe',
+		);
 		expect(spec.cwd).toBe('C:\\Program Files\\Scheduler\\resources');
-		expect(spec.args).toEqual([]);
+		expect(spec.args).toEqual([
+			'C:\\Program Files\\Scheduler\\resources\\daemon-runtime\\bootstrap.mjs',
+		]);
 		expect(Object.isFrozen(spec)).toBe(true);
 		expect(Object.isFrozen(spec.args)).toBe(true);
 	});
@@ -24,9 +28,9 @@ describe('desktop launch-spec (AC 2, E-146, E-209)', () => {
 			hostPlatform: 'linux',
 		});
 
-		expect(spec.file).toBe('/opt/scheduler/lib/daemon');
+		expect(spec.file).toBe('/opt/scheduler/lib/daemon-runtime/runtime/node');
 		expect(spec.cwd).toBe('/opt/scheduler/lib');
-		expect(spec.args).toEqual([]);
+		expect(spec.args).toEqual(['/opt/scheduler/lib/daemon-runtime/bootstrap.mjs']);
 		expect(Object.isFrozen(spec)).toBe(true);
 	});
 
@@ -103,12 +107,16 @@ describe('desktop launch-spec (AC 2, E-146, E-209)', () => {
 
 		// 1. File and cwd must be absolute paths
 		expect(context.spec.file).toBe(
-			'C:\\Program Files (x86)\\调度器 任务中心\\resources\\daemon.exe',
+			'C:\\Program Files (x86)\\调度器 任务中心\\resources\\daemon-runtime\\runtime\\node.exe',
 		);
 		expect(context.spec.cwd).toBe('C:\\Program Files (x86)\\调度器 任务中心\\resources');
 
-		// 2. Args must be preserved as-is
-		expect(context.spec.args).toEqual(['--mode', 'background']);
+		// 2. The shipped entry comes first, extra arguments are preserved as-is
+		expect(context.spec.args).toEqual([
+			'C:\\Program Files (x86)\\调度器 任务中心\\resources\\daemon-runtime\\bootstrap.mjs',
+			'--mode',
+			'background',
+		]);
 
 		// 3. Spec is frozen
 		expect(Object.isFrozen(context.spec)).toBe(true);
