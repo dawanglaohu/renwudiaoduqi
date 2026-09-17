@@ -1,19 +1,23 @@
 import { promises as nodeFs } from 'node:fs';
 import { resolve as nodeResolve } from 'node:path';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
+import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import type { EffortTier } from '../domain/effort-tier.ts';
+import { assembleReviewRoundPrompt } from '../domain/rework-prompt.ts';
 import {
 	RUN_TRANSITION_REASONS,
 	type RunState,
 	assertValidTransition,
+	isValidRunState,
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { MessageService } from './message.ts';
-import type { ProcessRegistry } from '../proc/registry.ts';
+import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { PlatformHostInputs, SupportedPlatform } from '../platform/contract.ts';
 import { platformPathAdapter, takePlatformHostInputs } from '../platform/host.ts';
 import { resolveExecutable } from '../platform/resolve-executable.ts';
+import type { ProcessRegistry } from '../proc/registry.ts';
 import {
 	type LaunchSpec,
 	type ManagedProcess,
@@ -22,11 +26,8 @@ import {
 	spawnManaged,
 } from '../proc/spawn.ts';
 import { DEFAULT_CHECK_TIMEOUT_MS, type LaunchTimeouts } from '../proc/timers.ts';
-import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
-import { waitForContinuationState } from './message.ts';
-import type { AgentRegistry } from '../config/agent-registry.ts';
-import { assembleReviewRoundPrompt } from '../domain/rework-prompt.ts';
+import type { RunInsertRow, RunRow } from '../repo/runs.ts';
 import {
 	type DiffStatResult,
 	type GitRunner,
@@ -34,8 +35,14 @@ import {
 	getDiffStat,
 	getDiffText,
 } from '../workspace/diff.ts';
+import type { MessageService, ResumeSessionInput, ResumeSessionResult } from './message.ts';
+import { waitForContinuationState } from './message.ts';
+import { type ReviewAgentAssignment, buildReviewLaunchSpec } from './review-agent.ts';
 
 export { DEFAULT_CHECK_TIMEOUT_MS };
+
+/** E-330 判定窗口：投递后等首条内容事件或失败类事件的上限。 */
+const CONTINUATION_TIMEOUT_MS = 180_000;
 
 /**
  * UI / State machine tags and notices for mechanical check (AC 1-4, E-60, E-61, E-66, E-67).
@@ -266,15 +273,45 @@ export interface MechanicalCheckResult {
 
 /**
  * Minimal run record needed by review service for state evaluation.
- * Uses RunsAbortRepo contract from repo/runs-abort-repo.ts (R3).
+ * 结构化子集：真实 RunsRepo 的 RunRow 满足它，单测可以只造这几个字段。
  */
-export type ReviewRunRecord = RunRow;
+export type ReviewRunRecord = {
+	readonly id: string;
+	readonly state: string;
+	/** RunsRepo 的 RunRow 用 snake_case；老的 RunsAbortRepo 记录用 camelCase，两种都接。 */
+	readonly task_id?: string;
+	readonly worktree_path?: string | null;
+	readonly pid?: number | null;
+	readonly changed_file_count?: number | null;
+	readonly taskId?: string;
+	readonly worktreePath?: string | null;
+	readonly changedFileCount?: number | null;
+};
 
 /**
  * Repository interface for updating run states during review.
- * Strictly adheres to RunsAbortRepo contract (endedAt required, R3).
+ * 只声明 review 真正用到的成员；M7-T7 的续接入口用到的三个方法可缺省（老测试桩不实现它们）。
  */
-export type ReviewRunsRepo = RunsRepo;
+export interface ReviewRunsRepo {
+	readonly findById: (id: string) => ReviewRunRecord | null;
+	readonly updateState: (input: {
+		readonly id: string;
+		readonly state?: string;
+		readonly fromState: RunState;
+		readonly toState: RunState;
+		readonly endedAt: string;
+		readonly queuedReason?: string | null;
+		readonly changedFileCount?: number | null;
+		readonly exitCode?: number | null;
+		readonly exitSignal?: string | null;
+		readonly actorDeviceId?: string | null;
+		readonly reworkCount?: number;
+	}) => void;
+	/** M7-T7 续接：上一轮审查行（按 review_round DESC 取最新）。 */
+	readonly findLatestReview?: (taskId: string) => RunRow | null;
+	readonly insert?: (row: RunInsertRow) => void;
+	readonly updateReviewRound?: (id: string, reviewRound: number | null) => void;
+}
 
 /**
  * Repository interface for recording human review gates.
@@ -319,6 +356,8 @@ export interface ReviewServiceDeps extends MechanicalCheckDeps {
 	readonly spawnManagedFn?: typeof spawnManaged;
 	readonly agentRegistry?: AgentRegistry;
 	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+	/** 续接撑爆时改走恢复分支：与 rework.ts 的 resumeSession 同一约定。 */
+	readonly resumeSession?: (input: ResumeSessionInput) => Promise<ResumeSessionResult>;
 }
 
 export interface EvaluateMechanicalCheckInput {
@@ -1409,8 +1448,8 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			}
 		}
 
-		const previousState: RunState = run?.state ?? 'exited';
-		const worktreePath = input.worktreePath ?? run?.worktreePath ?? '';
+		const previousState: RunState = run && isValidRunState(run.state) ? run.state : 'exited';
+		const worktreePath = input.worktreePath ?? run?.worktree_path ?? run?.worktreePath ?? '';
 		// R4: exitCode from input or run; do NOT default to 0!
 		const exitCode =
 			input.exitCode !== undefined
@@ -1470,7 +1509,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					if (deps.gatesRepo) {
 						deps.gatesRepo.insert({
 							id: `gate_${ids.newId()}`,
-							taskId: input.taskId ?? run?.taskId ?? '',
+							taskId: input.taskId ?? run?.task_id ?? run?.taskId ?? '',
 							runId: input.runId,
 							kind: 'review',
 							state: 'waiting',
@@ -1497,7 +1536,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					if (deps.gatesRepo) {
 						deps.gatesRepo.insert({
 							id: `gate_${ids.newId()}`,
-							taskId: input.taskId ?? run?.taskId ?? '',
+							taskId: input.taskId ?? run?.task_id ?? run?.taskId ?? '',
 							runId: input.runId,
 							kind: 'review',
 							state: 'waiting',
@@ -1531,51 +1570,52 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 	return Object.freeze({
 		runMechanicalCheck: performCheck,
 		async startReviewRound(input: StartReviewRoundInput): Promise<string> {
-			const { taskId, implRunId, round, reworkItems, isBugHuntFix } = input;
+			const { taskId, reworkItems, isBugHuntFix } = input;
 
 			if (!deps.runsRepo) throw new Error('runsRepo missing');
-			if (!deps.processRegistry) throw new Error('processRegistry missing');
-			if (!deps.messageService) throw new Error('messageService missing');
-			if (!deps.bus) throw new Error('bus missing');
-			if (!deps.unitOfWork) throw new Error('unitOfWork missing');
 
-			const prevReview = deps.runsRepo.findLatestReview(taskId);
+			const findLatestReview = deps.runsRepo.findLatestReview;
+			const insertRun = deps.runsRepo.insert;
+			const updateReviewRound = deps.runsRepo.updateReviewRound;
+			if (!findLatestReview || !insertRun || !updateReviewRound) {
+				throw new Error('runsRepo missing review-round methods');
+			}
+
+			const prevReview = findLatestReview(taskId);
 			if (!prevReview) {
 				throw new AppError('E_VALIDATION', 'No previous review run found for task');
 			}
+			// AC 4 / E-302：目标会话已归档，先拒绝。
 			if (prevReview.session_archived_at) {
 				throw new AppError('E_SESSION_ARCHIVED', 'Session archived');
 			}
-			
+			// AC 1 / 决策 89：续接目标必须是同一任务的 review 行。
 			if (prevReview.task_id !== taskId || prevReview.kind !== 'review') {
-				throw new AppError('E_VALIDATION', 'continued_from_run_id must point to a review run of the same task');
+				throw new AppError(
+					'E_VALIDATION',
+					'continued_from_run_id must point to a review run of the same task',
+				);
 			}
 
-			const newRunId = (deps.ids?.newId ?? (() => Math.random().toString(36).slice(2, 10)))();
-			const reviewRound = (prevReview.review_round ?? 0) + 1;
-			
-			const promptPrefix = assembleReviewRoundPrompt({ round: reviewRound, previousReviewRunId: prevReview.id, reworkItems, isBugHuntFix });
+			const nextId = () => (deps.ids?.newId ?? (() => Math.random().toString(36).slice(2, 10)))();
+			// AC 5 / AC 6：轮次写死为上一轮 + 1；旧行 review_round 为 NULL 时读侧按 1 处理、不回填。
+			const reviewRound = (prevReview.review_round ?? 1) + 1;
+			const promptPrefix = assembleReviewRoundPrompt({
+				round: reviewRound,
+				previousReviewRunId: prevReview.id,
+				reworkItems,
+				isBugHuntFix,
+			});
+			const startedAt = clock.now();
 
-			let route: 'reply' | 'resume' | 'new_session' = 'new_session';
-			let fallbackToNewSession = false;
-
-			const hasProcess = deps.processRegistry.has(prevReview.id);
-			const caps = deps.messageService.getCapabilities(prevReview.agent_id);
-
-			if (hasProcess && caps.canReply) {
-				route = 'reply';
-			} else if (!hasProcess && caps.canResume && prevReview.vendor_session_ref) {
-				route = 'resume';
-			}
-
-			const insertRow = (r: 'reply'|'resume'|'new_session', rid: string, vendorRef: string | null) => {
-				const rowToInsert: RunInsertRow = {
-					id: rid,
+			const insertRoundRow = (runId: string, vendorSessionRef: string | null) => {
+				const row: RunInsertRow = {
+					id: runId,
 					task_id: taskId,
 					attempt_no: prevReview.attempt_no,
 					kind: 'review',
 					parent_run_id: prevReview.parent_run_id,
-					state: 'created',
+					state: 'starting',
 					agent_id: prevReview.agent_id,
 					model_name: prevReview.model_name,
 					effort_tier: prevReview.effort_tier,
@@ -1584,111 +1624,151 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					snapshot_id: prevReview.snapshot_id,
 					worktree_path: prevReview.worktree_path,
 					branch_name: prevReview.branch_name,
+					vendor_session_ref: vendorSessionRef,
+					lane_no: prevReview.lane_no,
 					review_round: reviewRound,
 					continued_from_run_id: prevReview.id,
-					vendor_session_ref: vendorRef,
+					started_at: startedAt,
 				};
-				deps.runsRepo!.insert(rowToInsert);
+				insertRun(row);
 			};
 
-			if (route === 'reply') {
-				deps.unitOfWork.transaction(() => {
-					insertRow('reply', newRunId, prevReview.vendor_session_ref ?? null);
-				});
-				deps.processRegistry.reassign(prevReview.id, newRunId);
-
-				const deliverRes = await deps.messageService.deliverMessage({
-					runId: newRunId,
-					role: 'user',
-					content: promptPrefix,
-				});
-
-				if (!deliverRes.delivered) {
-					fallbackToNewSession = true;
+			// 08 节：写入收在一次事务里，spawn / 投递 / publish 都在事务返回之后。
+			const persistRound = (runId: string, vendorSessionRef: string | null) => {
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(() => insertRoundRow(runId, vendorSessionRef));
 				} else {
-					const state = await waitForContinuationState(deps.bus, newRunId, 180_000);
-					if (state === 'exhausted') fallbackToNewSession = true;
+					insertRoundRow(runId, vendorSessionRef);
 				}
-			} else if (route === 'resume') {
-				deps.unitOfWork.transaction(() => {
-					insertRow('resume', newRunId, prevReview.vendor_session_ref ?? null);
-				});
+			};
 
-				if (deps.messageService.resumeSession) {
-					const resumeRes = await deps.messageService.resumeSession({
-						runId: newRunId,
-						vendorSessionRef: prevReview.vendor_session_ref!,
-						worktreePath: prevReview.worktree_path!,
-						injectedPrompt: promptPrefix,
+			const publishStarted = (runId: string) => {
+				if (!deps.bus || !deps.envelopeFactory) return;
+				deps.bus.publish(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'run.started',
+						runId,
+						taskId,
+						payload: {
+							runId,
+							taskId,
+							attemptNo: prevReview.attempt_no,
+							kind: 'review',
+							agentId: prevReview.agent_id,
+							model: prevReview.model_name,
+							effortTier: prevReview.effort_tier,
+							parentRunId: prevReview.parent_run_id,
+							isPartialDiff: false,
+						},
+					}),
+				);
+			};
+
+			// AC 2 的 new_session 分支：独立新会话，vendor_session_ref 为空，提示词头部自带轮次与 R 条目。
+			const spawnNewSession = (runId: string, prompt: string) => {
+				const spawn = deps.spawnManagedFn ?? deps.spawnManaged;
+				if (!spawn) return;
+				const assignment: ReviewAgentAssignment = {
+					agentId: prevReview.agent_id,
+					modelName: prevReview.model_name,
+					effortTier: prevReview.effort_tier as EffortTier | null,
+					...(prevReview.effort_vendor ? { effortVendor: prevReview.effort_vendor } : {}),
+				};
+				const launchSpec = buildReviewLaunchSpec({
+					runId,
+					taskId,
+					worktreePath: prevReview.worktree_path ?? '',
+					assignment,
+					prompt,
+				});
+				const hostResult = takePlatformHostInputs({});
+				const platform = deps.platform ?? (hostResult.ok ? hostResult.value.platform : 'win32');
+				deps.processRegistry?.register(spawn(launchSpec, { platform }));
+			};
+
+			// AC 2：按能力位选路，不试了再降级。
+			const caps = deps.messageService?.getCapabilities(prevReview.agent_id);
+			const processAlive = deps.processRegistry?.has(prevReview.id) ?? false;
+			const canReply = processAlive && (caps?.canReply ?? false);
+			const canResume =
+				!processAlive && (caps?.canResume ?? false) && Boolean(prevReview.vendor_session_ref);
+
+			if (!canReply && !canResume) {
+				const newRunId = nextId();
+				persistRound(newRunId, null);
+				spawnNewSession(newRunId, promptPrefix);
+				publishStarted(newRunId);
+				return newRunId;
+			}
+
+			const runId = nextId();
+			let exhausted = false;
+			if (canReply) {
+				persistRound(runId, prevReview.vendor_session_ref ?? null);
+				deps.processRegistry?.reassign(prevReview.id, runId);
+				publishStarted(runId);
+				const delivered = await deps.messageService?.deliverMessage({
+					runId,
+					text: promptPrefix,
+					kind: 'reply',
+				});
+				if (delivered?.delivered === true && deps.bus) {
+					// E-330：投递后、该轮首条内容事件前出现失败类事件 → 判撑爆，只降级一次。
+					exhausted =
+						(await waitForContinuationState(deps.bus, runId, CONTINUATION_TIMEOUT_MS)) ===
+						'exhausted';
+				} else if (delivered?.delivered !== true) {
+					exhausted = true;
+				}
+			} else {
+				persistRound(runId, prevReview.vendor_session_ref ?? null);
+				publishStarted(runId);
+				if (deps.resumeSession) {
+					const resumed = await deps.resumeSession({
+						runId,
+						taskId,
 						agentId: prevReview.agent_id,
+						text: promptPrefix,
+						kind: 'reply',
 					});
-					if (!resumeRes.success) {
-						fallbackToNewSession = true;
-					} else {
-						const state = await waitForContinuationState(deps.bus, newRunId, 180_000);
-						if (state === 'exhausted') fallbackToNewSession = true;
+					if (resumed.delivered && deps.bus) {
+						exhausted =
+							(await waitForContinuationState(
+								deps.bus,
+								resumed.newRunId,
+								CONTINUATION_TIMEOUT_MS,
+							)) === 'exhausted';
+					} else if (!resumed.delivered) {
+						exhausted = true;
 					}
 				} else {
-					fallbackToNewSession = true;
+					exhausted = true;
 				}
 			}
 
-			if (route === 'new_session' || fallbackToNewSession) {
-				const fallbackRunId = fallbackToNewSession ? (deps.ids?.newId ?? (() => Math.random().toString(36).slice(2, 10)))() : newRunId;
-				
-				deps.unitOfWork.transaction(() => {
-					if (fallbackToNewSession) {
-						// Mark the failed attempt
-						deps.runsRepo!.updateState({
-							id: newRunId,
-							fromState: 'created', // or whatever state it reached
-							toState: 'failed',
-							endedAt: clock.now(),
-							queuedReason: 'continuation_exhausted',
-						});
-						deps.runsRepo!.updateReviewRound(newRunId, null);
-					}
-					insertRow('new_session', fallbackRunId, null);
+			if (!exhausted) return runId;
+
+			// E-330：降级恰一次——恢复分支的失败行标 failed + continuation_exhausted，不计入 review_round。
+			const fallbackRunId = nextId();
+			const persistFallback = () => {
+				deps.runsRepo?.updateState({
+					id: runId,
+					fromState: 'starting',
+					toState: 'failed',
+					endedAt: clock.now(),
+					queuedReason: 'continuation_exhausted',
 				});
-
-				// We need to fetch the previous review prompt and assemble the full new_session prompt
-				const snap = deps.dispatchSnapshotsRepo?.findById(prevReview.snapshot_id);
-				
-				// Wait, the new prompt needs to be injected via spawnManaged?
-				// Yes.
-				if (deps.spawnManagedFn) {
-					// How to get launchSpec?
-					// Use snap.launch_spec_json
-					if (snap) {
-						const launchSpec = JSON.parse(snap.launch_spec_json) as LaunchSpec;
-						
-						// The original launchSpec for review probably contained the diff. But for continuation:
-						// 提示词头部为自包含块 {round, previousReviewRunId, reworkItems[]}，上一轮 REWORK 条目原文逐字
-						const reworkPrompt = assembleReviewRoundPrompt({ round: reviewRound, previousReviewRunId: prevReview.id, reworkItems, isBugHuntFix });
-						
-						// The full prompt for new_session? Wait. The contract says:
-						// "都不 → new_session，vendor_session_ref 为空、提示词头部为自包含块 {round, previousReviewRunId, reworkItems[]}，上一轮 REWORK 条目原文逐字（E-304）"
-						// So we set `launchSpec.prompt`?
-						
-						const finalPrompt = reworkPrompt;
-
-						const process = deps.spawnManagedFn(
-							{ ...launchSpec, prompt: finalPrompt },
-							{
-								runId: fallbackRunId,
-								worktreePath: launchSpec.cwd,
-								bus: deps.bus,
-								agentId: prevReview.agent_id,
-							}
-						);
-						deps.processRegistry.register(process);
-					}
-				}
-
-				return fallbackRunId;
+				updateReviewRound(runId, null);
+				insertRoundRow(fallbackRunId, null);
+			};
+			if (deps.unitOfWork) {
+				deps.unitOfWork.run(persistFallback);
+			} else {
+				persistFallback();
 			}
-
-			return newRunId;
+			spawnNewSession(fallbackRunId, promptPrefix);
+			publishStarted(fallbackRunId);
+			return fallbackRunId;
 		},
 
 		evaluateMechanicalCheck,

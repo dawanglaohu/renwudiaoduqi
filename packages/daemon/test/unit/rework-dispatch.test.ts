@@ -183,6 +183,8 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 			listByTaskId: vi.fn().mockImplementation((taskId: string) => {
 				return Array.from(runsStore.values()).filter((r) => r.task_id === taskId);
 			}),
+			findLatestReview: () => null,
+			updateReviewRound: () => {},
 			updateReworkCount: vi.fn().mockImplementation((input) => {
 				const existing = runsStore.get(input.id);
 				if (existing) {

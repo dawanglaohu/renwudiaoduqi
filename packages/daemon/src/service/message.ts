@@ -1,4 +1,4 @@
-import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
+import { EVENT_DEFINITIONS, type EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { getClaudeCapabilities } from '../adapters/claude/capabilities.ts';
 import { getCodexCapabilities } from '../adapters/codex/capabilities.ts';
 import { getGrokCapabilities } from '../adapters/grok/capabilities.ts';
@@ -7,68 +7,6 @@ import { type AdapterKind, BUILT_IN_AGENT_IDS } from '../config/defaults.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { RUN_TRANSITION_REASONS, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
-import type { EventBus } from '../events/bus.ts';
-import type { EventEnvelope } from '../events/envelope.ts';
-import type { EventKind } from '@agent-scheduler/shared/api/events';
-
-/**
- * Events considered as "content" emitted by the agent (E-330).
- * If any of these are seen, the session is considered to have started responding.
- */
-const CONTENT_EVENT_KINDS: ReadonlySet<EventKind> = new Set([
-	('agent' + '_message_chunk') as EventKind,
-	('agent' + '_thought_chunk') as EventKind,
-	('tool' + '_call') as EventKind,
-]);
-
-/**
- * Events considered as "failure" indicating the session blew up before content (E-113, E-190).
- */
-const FAILURE_EVENT_KINDS: ReadonlySet<EventKind> = new Set([
-	('agent' + '_error') as EventKind,
-	('message' + '_undelivered') as EventKind,
-	'run.timed_out' as EventKind,
-	('process' + '_exit') as EventKind,
-]);
-
-export type ContinuationState = 'exhausted' | 'content' | 'pending';
-
-/**
- * Awaits until either a content event or a failure event is observed for the given run,
- * or the process has not yielded anything yet within the timeout.
- */
-export function waitForContinuationState(
-	bus: EventBus,
-	runId: string,
-	timeoutMs = 60_000,
-): Promise<ContinuationState> {
-	return new Promise((resolve) => {
-		let timer: NodeJS.Timeout | undefined;
-
-		const unsubscribe = bus.subscribeWithFilter(
-			(envelope) => envelope.runId === runId,
-			(envelope) => {
-				if (CONTENT_EVENT_KINDS.has(envelope.kind)) {
-					cleanup();
-					resolve('content');
-				} else if (FAILURE_EVENT_KINDS.has(envelope.kind)) {
-					cleanup();
-					resolve('exhausted');
-				}
-			},
-		);
-
-		function cleanup() {
-			unsubscribe();
-			if (timer) clearTimeout(timer);
-		}
-
-		timer = setTimeout(() => {
-			cleanup();
-			resolve('pending'); // if we timeout before content or failure, we consider it pending
-		}, timeoutMs);
-	});
-}
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
@@ -80,6 +18,66 @@ import type {
 } from '../repo/run-messages-repo.ts';
 
 export type { MessageKind, MessageRunRecord, RunMessageRecord } from '../repo/run-messages-repo.ts';
+
+/**
+ * E-330 的内容类事件：agent 已经开始产出（撑住）的标志。
+ * 名字从 shared 的 EVENT_DEFINITIONS 派生，不在服务层写死与厂商 wire 名同形的字面量
+ * —— 架构测试 generic-acp-adapter 会扫 service/jobs/http 里的厂商字符串。
+ */
+const CONTENT_EVENT_KINDS: ReadonlySet<string> = new Set(
+	(Object.keys(EVENT_DEFINITIONS) as string[]).filter(
+		(kind) => (kind.startsWith('agent_') || kind.startsWith('tool_')) && !kind.endsWith('_update'),
+	),
+);
+
+/** 未送达（E-113）、启动超时/进程退出/错误类（E-190）都归一化成这几个 kind。 */
+const FAILURE_EVENT_KINDS: ReadonlySet<string> = new Set([
+	'run.message_undelivered',
+	'run.exited',
+	'run.aborted',
+]);
+
+export type ContinuationState = 'exhausted' | 'content' | 'pending';
+
+/**
+ * E-330：等该轮的首条内容事件（撑住）或内容前的失败事件（撑爆）。
+ * 投递成功但既无事件也不退出 → 返回 'pending'，交给停滞检测（E-120），不算撑爆。
+ */
+export function waitForContinuationState(
+	bus: EventBus,
+	runId: string,
+	timeoutMs = 60_000,
+): Promise<ContinuationState> {
+	return new Promise((resolve) => {
+		const ctx: { done: boolean; unsubscribe?: () => void } = { done: false };
+
+		function settle(value: ContinuationState) {
+			if (ctx.done) {
+				return;
+			}
+			ctx.done = true;
+			clearTimeout(timer);
+			ctx.unsubscribe?.();
+			resolve(value);
+		}
+
+		const timer = setTimeout(() => {
+			settle('pending');
+		}, timeoutMs);
+
+		ctx.unsubscribe = bus.subscribeWithFilter(
+			(envelope) => envelope.runId === runId,
+			(envelope) => {
+				const kind = String(envelope.kind);
+				if (CONTENT_EVENT_KINDS.has(kind)) {
+					settle('content');
+				} else if (FAILURE_EVENT_KINDS.has(kind)) {
+					settle('exhausted');
+				}
+			},
+		);
+	});
+}
 
 export const DEFAULT_MAX_MESSAGE_LENGTH = 32_768;
 
