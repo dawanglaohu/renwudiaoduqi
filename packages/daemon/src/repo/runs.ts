@@ -97,6 +97,7 @@ export interface RunsRepo {
 	readonly listByTask: (taskId: string) => readonly RunRow[];
 	readonly listActive: () => readonly RunRow[];
 	readonly listAll: () => readonly RunRow[];
+	readonly findLatestReview: (taskId: string) => RunRow | null;
 	readonly markSessionsArchived: (input: {
 		readonly taskId: string;
 		readonly archivedAt: string;
@@ -121,6 +122,7 @@ export interface RunsRepo {
 		readonly actorDeviceId?: string | null;
 		readonly reworkCount?: number;
 	}) => void;
+	readonly updateReviewRound: (id: string, reviewRound: number | null) => void;
 	readonly updateReworkCount: (input: {
 		readonly id: string;
 		readonly reworkCount: number;
@@ -168,6 +170,13 @@ INSERT INTO runs (
 	@rework_count, @queued_reason, @idempotency_key, @actor_device_id,
 	@started_at, @last_event_at, @ended_at, @lane_no, @session_archived_at
 )
+`;
+
+const SELECT_LATEST_REVIEW_SQL = `
+SELECT * FROM runs
+WHERE task_id = ? AND kind = 'review'
+ORDER BY review_round DESC NULLS LAST, started_at DESC, id DESC
+LIMIT 1
 `;
 
 const SELECT_RUN_BY_ID_SQL = `
@@ -239,6 +248,12 @@ SET rework_count = @rework_count,
 WHERE id = @id
 `;
 
+const UPDATE_REVIEW_ROUND_SQL = `
+UPDATE runs
+SET review_round = ?
+WHERE id = ?
+`;
+
 function freezeRunRow(row: RunRow): RunRow {
 	return Object.freeze({ ...row });
 }
@@ -295,6 +310,8 @@ export function toRunDto(row: RunRow): RunDto {
 		sessionArchivedAt: row.session_archived_at ?? null,
 		origin: (row.origin as RunDto['origin']) ?? 'dispatch',
 		spawnedByRunId: row.spawned_by_run_id ?? null,
+		reviewRound: row.review_round ?? null,
+		continuedFromRunId: row.continued_from_run_id ?? null,
 	});
 }
 
@@ -366,6 +383,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const dynamicInsertSql = `INSERT INTO runs (${allInsertCols.join(', ')}) VALUES (${allInsertCols.map((col) => `@${col}`).join(', ')})`;
 	const insertStmt = db.prepare(dynamicInsertSql);
 	const selectByIdStmt = db.prepare(SELECT_RUN_BY_ID_SQL);
+	const selectLatestReviewStmt = db.prepare(SELECT_LATEST_REVIEW_SQL);
 	const selectByIdempotencyKeyStmt = db.prepare(SELECT_RUN_BY_IDEMPOTENCY_KEY_SQL);
 	const selectByVendorSessionRefStmt = db.prepare(SELECT_RUN_BY_VENDOR_SESSION_REF_SQL);
 	const selectActiveByTaskIdStmt = db.prepare(SELECT_ACTIVE_RUN_BY_TASK_ID_SQL);
@@ -375,6 +393,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const selectSucceededModelNamesStmt = db.prepare(SELECT_SUCCEEDED_MODEL_NAMES_SQL);
 	const updateStateStmt = db.prepare(UPDATE_RUN_STATE_SQL);
 	const updateReworkCountStmt = db.prepare(UPDATE_REWORK_COUNT_SQL);
+	const updateReviewRoundStmt = db.prepare(UPDATE_REVIEW_ROUND_SQL);
 	const selectUnarchivedStmt = hasSessionArchivedAt
 		? db.prepare(SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL)
 		: null;
@@ -452,6 +471,14 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				return row ? freezeRunRow(row) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find run by id: ${id}`);
+			}
+		},
+		findLatestReview(taskId: string): RunRow | null {
+			try {
+				const row = selectLatestReviewStmt.get(taskId) as RunRow | undefined;
+				return row ? freezeRunRow(row) : null;
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to find latest review for task: ${taskId}`);
 			}
 		},
 
@@ -598,6 +625,14 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				});
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update run state: ${input.id}`);
+			}
+		},
+
+		updateReviewRound(id: string, reviewRound: number | null): void {
+			try {
+				updateReviewRoundStmt.run(reviewRound, id);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update review_round for run: ${id}`);
 			}
 		},
 

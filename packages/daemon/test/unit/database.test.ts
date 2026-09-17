@@ -156,6 +156,7 @@ describe('migration runner', () => {
 				'0003_add_session_archive_and_lanes.sql',
 				'0004_create_settings.sql',
 				'0005_add_runs_origin_and_spawned_by.sql',
+				'0006_add_review_rounds.sql',
 			],
 		});
 		expect(readTableNames(database)).toEqual([
@@ -191,6 +192,10 @@ describe('migration runner', () => {
 			{ version: '0004_create_settings.sql', applied_at: '2026-09-04T03:00:00.000Z' },
 			{
 				version: '0005_add_runs_origin_and_spawned_by.sql',
+				applied_at: '2026-09-04T03:00:00.000Z',
+			},
+			{
+				version: '0006_add_review_rounds.sql',
 				applied_at: '2026-09-04T03:00:00.000Z',
 			},
 		]);
