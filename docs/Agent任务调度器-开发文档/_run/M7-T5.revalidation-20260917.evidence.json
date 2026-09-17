@@ -1,0 +1,19 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T5": {
+      "contractHash": "03585a5028cdf40ce8e49bb8b984afb3b77fb9db127d06a93b2e14f1fa950999",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发面（_run/revalidation.json 的 M7-T5 条目）：patches 两条都指向补丁 m9-t12-effective-paths，changedFields=[definition, effectivePaths]，previousStatus=done，contractHash=03585a5028cdf40ce8e49bb8b984afb3b77fb9db127d06a93b2e14f1fa950999（与当前契约逐字符相同）。补丁记录里 changes.M7-T5 的 before→after 只差一处：supportPaths 与 effectivePaths 新增 packages/daemon/test/unit/events.test.ts；task（19 节 M7-T5 行）、edges、sections、architecture、handoff、design 全部逐字未变，因此本次只核「该支持路径是否忠实描述已落地工作」，不重开验收。",
+        "台账溯源（本次标记是重复记账，不是新的代码审查）：这条变化由 M7-T5 自己的审查补丁 m7-t5-review-events-test-20260916 引入（PR 102，status=verified，verifiedTasks=[M7-T5]，reason=本任务新增 run.rework_dispatched 事件 kind 必须扩展 events.test.ts 的穷尽 switch，supportPaths 漏列），并已在那一轮复核通过。m9-t12-effective-paths 的 begin 基线（2026-09-16T07:28）早于该补丁落地，sync 时按契约哈希传播把这条已复核的变化再记一次待复验。task-reviews.json 的 M7-T5 记录 contractHash 就是当前值 03585a50…（reviewed 2026-09-16T07:40），即该契约版本已语义复核过。",
+        "变化条款核对（代码 + git）：packages/daemon/test/unit/events.test.ts:106-107 正是 M7-T5 的贡献 case 'run.rework_dispatched': return 'run_rework_dispatched';（git show 5d90925 -- 该文件只有 +2 行）；:71 的用例名声明穷尽 EVENT_KINDS 的 switch，:130-131 用 assertNever 收尾，:146-161 是反例（非穷尽 switch 必须编译失败），所以 M7-T5 一旦在 packages/shared/src/api/events.ts:39 登记新 kind，本文件不加 case 会让 tsc 全仓失败——这条路径是由本任务强制产生的，不是顺手改。静态交叉核对：EVENT_DEFINITIONS 的 28 个 kind 在该 switch 里全部有 case。该文件是事件类任务共用的支持文件（M2-T4、M6-T10、M8-T4 的 supportPaths 同样列出），加入 M7-T5 不产生路径独占冲突。",
+        "验收标准与边界未动、且在当前 main 仍成立（逐条指到代码）：AC1 只读快照能力位的三分支——packages/daemon/src/service/rework.ts:355（extractAdapterKindFromSnapshot）、:719（isProcessAlive/canReply）、:761-763；AC2 自足的新会话提示词——src/domain/rework-prompt.ts:16、:32、:99，调用点 rework.ts:1247-1253；AC3 复用或重建 worktree 与 branch_missing 落 awaiting_human——rework.ts:956、:960、:963-1064、:1077；AC4 三分支 rework_count+1、上限 2 时 reviewing→awaiting_human 且不投事件——rework.ts:602-705、:765、:785、:1108、:1294、:1358，事件 :922/:1209/:1373；AC5 human 打回与审查返工同入口、只按 source 区分——rework.ts:572。9 条有效路径在 main 全部存在。",
+        "检查记录（工作树 D:/xiangmu/agent-scheduler-revalidate-20260917 @ 713feea，npx pnpm@10.18.3 install --frozen-lockfile 装齐依赖后）：npx vitest run 八个受影响测试文件 → 8 passed / 97 tests passed（其中 packages/daemon/test/unit/events.test.ts 10 条全过）；npx tsc -p packages/web/tsconfig.json --noEmit → 退出码 0；node scripts/check-error-codes.mjs（49 码一致）、check-contrast.ts、check-forbidden.ts → 0 违规。",
+        "另注一（不属本任务变化条款，不阻断本次复验）：复验期间发现 main 上 M7-T7（PR #103）留下的 daemon 侧红：tsc -p packages/daemon/tsconfig.json --noEmit 报 packages/daemon/src/service/review.ts:28 引用的 ../config/agent-registry.ts 不存在、:316 使用未导入的 EnvelopeFactory，packages/daemon/src/service/message.ts:11 与 :1 重复声明 EventEnvelope，packages/daemon/src/proc/registry.ts:43 的 reassign 未进 ProcessRegistry 接口；npx biome ci . 的 32 个错误全在 daemon 且集中在 M7-T7 改动的 review.ts / message.ts / review-round.test.ts / proc/registry.ts（0 处在 packages/web）。这些与本任务的变化条款无关，另行上报。",
+        "另注二：rework-dispatch.test.ts 与 rework.test.ts 在 daemon 侧 tsc 报 RunsRepo mock 缺 findLatestReview/updateReviewRound，同样是 M7-T7 改 RunsRepo 接口未同步测试 mock 造成；这两个文件的运行期用例本次全过。",
+        "结论：变化条款只落在有效范围登记（新增一个共用测试支持文件），19 节 M7-T5 行、五条验收标准与边界逐字未动，实现位置未漂移，已在 main 上对照代码与测试核实，复验通过，清除本任务的待复验标记。"
+      ]
+    }
+  }
+}
