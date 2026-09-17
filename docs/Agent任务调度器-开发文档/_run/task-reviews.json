@@ -1304,6 +1304,20 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T18": {
+    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
+    "contractHash": "5c1b808a0a9a695fdf3fcfcd749efe9860b0fa3f1db09c5cbdf9d7551f972ce3",
+    "evidence": [
+      "前置与职责：M9-T16 提供四步外壳和 step3/step4 槽位，M4-T6 提供模型与思考强度取值链，M8-T2 提供窗口计算；M9-T18 只交付逐任务指派和瓶颈说明展示，不提前承担 M9-T23 的登录态、分组清单与刷新。",
+      "验收与边界：四条验收分别覆盖逐任务独立选择与回改、同 agent 多会话序号、daemon 下发的有效并发与瓶颈三因子、单 agent 满额时其他 agent 仍可选；E-108/E-31/E-47/E-52 与 07/11/12 节要求一致。",
+      "有效范围：主产出 packages/web/src/components/assign-panel.tsx；必要行为测试 packages/web/test/assign-panel.test.ts 已补入 supportPaths，避免测试被错误判为越界。",
+      "架构约束：components 必须保持 props in/callback out；会话序号、agent 容量、瓶颈、默认模型与思考强度等服务端事实不得在组件层补算，缺失显示「—」；中文可见文案与焦点/手机状态仍按 07/11/12 节审查。",
+      "证据要求：本任务是用户可见 GUI 变更，审查须验证真实分支服务上的 GIF；单元测试只能证明静态渲染，不替代真实页面接线与交互证据。"
+    ],
+    "reviewed": "2026-09-17T06:13:16.859581+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T19": {
     "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
     "contractHash": "7f924480a446c81a41d56bd34570d4f49d600494647d1c25d3a4778035f6773e",
@@ -1370,7 +1384,7 @@
   },
   "M9-T23": {
     "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "8bef70b295469a1dd048294b4fdd27f569553f8571b0c34b8f5b82edbc0b2f5c",
+    "contractHash": "4b78d36f934b6ad8fa0da08f829e6136bdf61d029c4d641c691a5ba437795e47",
     "evidence": [
       "前置闭包：依赖 M9-T18、M9-T14、M9-T22、M4-T13、M4-T14、M8-T9；输入列的 assign-panel.tsx ← M9-T18、settings-agents-page ← M9-T14、use-pipeline-settings.ts ← M9-T22、AgentEntryDto.login 与 login_changed ← M4-T13、GET /agents/:id/models 新结构 / EffortValue / layers / clearOverrides / MODEL_SOURCES ← M4-T14、PipelineSettings 四键 ← M8-T9，全部能指到产出列（前端审查 BLOCKING 2 由 M4-T14 补齐后闭合）。",
       "layers 读法：19 节验收 7 与 11 节设置页段改为「内置默认／你的覆盖」读 layers.X.builtin / .override、「当前生效」读顶层字段，与 10 节 layers 契约（{builtin, config, override, hasOverride}）和决策 128 一致（前端 BLOCKING 1 修正）。",
@@ -1379,9 +1393,10 @@
       "测试清单可判定：17 节新增「E-335～E-339 / E-350 / E-351 / E-355～E-359（前端侧）」一行逐文件列出断言，验收 9 引用该行；use-minute-tick 与 agent-card 两个测试文件加进 taskPaths；GIF 只覆盖可达流程、不可达态以单测为准写进验收 9 与 17 节（前端 BLOCKING 5 与 NON_BLOCKING 采纳）。",
       "登录态单一来源：验收 5 改为 login_changed 到达只经 cache-invalidation 失效 agents key 重拉，不重拉 /snapshot、不重探；08 节与决策 130 措辞同步为「失效重拉」，07 节 resource-cache 写明无 patch 接口且 read() 以最后一次 fetcher 为准（前端 NON_BLOCKING 采纳）。",
       "有效范围：supportPaths 补 packages/web/package.json、pnpm-lock.yaml、ui/shadcn/select.tsx、api/resource-cache.ts、api/runs.ts、features/run-deck/batch-expansion.ts；验收 6 写明 onEdit 由 use-gate-card.ts 先调 batch-expansion 再调 openReassign（store 不 import features）。token 名核对：11 节与 19 节用到的 token 除新增两个尺寸 token 外均在 main tokens.css。",
-      "边界：E-254、E-335、E-336、E-338、E-339、E-348、E-350、E-351、E-355～E-359 均在 13 节；E-347「agent_default」措辞已对齐为「来源：任务指派（agent 默认）」；决策 134 表外来源归「其他」组已进验收 2。"
+      "边界：E-254、E-335、E-336、E-338、E-339、E-348、E-350、E-351、E-355～E-359 均在 13 节；E-347「agent_default」措辞已对齐为「来源：任务指派（agent 默认）」；决策 134 表外来源归「其他」组已进验收 2。",
+      "本补丁只把 assign-panel 增量测试支持路径从不存在的 packages/web/test/assign-panel.test.tsx 校正为 M9-T18 已创建的 packages/web/test/assign-panel.test.ts；其余依赖、验收与范围不变。"
     ],
-    "reviewed": "2026-09-12T21:48:14.941061+00:00",
+    "reviewed": "2026-09-17T06:16:58.865401+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

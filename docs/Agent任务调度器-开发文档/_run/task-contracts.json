@@ -506,6 +506,11 @@
         "packages/web/test/landing-onboarding.test.ts"
       ]
     },
+    "M9-T18": {
+      "supportPaths": [
+        "packages/web/test/assign-panel.test.ts"
+      ]
+    },
     "M9-T19": {
       "supportPaths": [
         "packages/web/src/api/cache-invalidation.ts",
@@ -1057,7 +1062,7 @@
         "packages/web/src/lib/model-groups.test.ts",
         "packages/web/src/lib/effort-options.test.ts",
         "packages/web/src/lib/login-freshness.test.ts",
-        "packages/web/test/assign-panel.test.tsx",
+        "packages/web/test/assign-panel.test.ts",
         "packages/web/test/stream-head-meta.test.tsx",
         "packages/web/test/gate-card.test.tsx",
         "packages/web/test/cache-invalidation.test.ts",
