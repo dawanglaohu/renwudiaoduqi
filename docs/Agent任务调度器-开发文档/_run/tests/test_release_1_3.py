@@ -138,7 +138,7 @@ class BatchWrapupTests(unittest.TestCase):
         self.assertEqual(dispatch['batches'], payload['dispatchBatches'])
         self.assertEqual(set(dispatch['tasks']), {'M1-T1', 'M1-T2', 'M1-T3'})
         self.assertEqual(set(dispatch['tasks']['M1-T1']),
-                         {'contractHash', 'implementation', 'review', 'resume', 'bug'})
+                         {'contractHash', 'implementation', 'review', 'resume', 'bug', 'sections'})
         # 收口提示词是纯函数：落地前后、有没有记录，导出的 wrapup 都一样
         self.verify_task('M1-T1'); self.land('M1-T1')
         self.write_record()
@@ -180,6 +180,7 @@ class BatchWrapupTests(unittest.TestCase):
     def test_handbody_renders_batch_button(self):
         self.run_build()
         payload = self.payload()
+        payload['pres']['handoff']['wrapupGate'] = False  # Explicit 1.3 compatibility.
         # 让 M1-T3 依赖 M1-T1、M1-T2，分成两批；第 1 批全落地，第 2 批没有
         for t in payload['data']['tasks']:
             if t['id'] == 'M1-T3':

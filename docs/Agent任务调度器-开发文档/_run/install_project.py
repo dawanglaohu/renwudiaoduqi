@@ -13,9 +13,10 @@ import uuid
 from handoff_contract import VERSION, read_json, write_json, write_text
 
 RUNTIME = ('build_docs.py', 'review.py', 'check_stale.py', 'handoff_contract.py',
-           'maintain_docs.py', 'compile_prompts.js', 'install_project.py')
+           'maintain_docs.py', 'compile_prompts.js', 'install_project.py', 'stage.py')
 TESTS = ('test_maintenance.py', 'test_prompt_routing.py', 'test_release_1_2.py', 'test_release_1_3.py',
-         'test_release_1_3_tools.py')
+         'test_release_1_3_tools.py', 'test_stage.py', 'test_release_1_4_contract.py',
+         'test_release_1_4_prompts.py', 'test_release_1_4_gate.py')
 MANUAL = 'handoff-manual.md'
 HANDOFF_BEGIN, HANDOFF_END = '<!-- handoff:begin -->', '<!-- handoff:end -->'
 

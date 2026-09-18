@@ -56,6 +56,8 @@ for (const task of input.payload.data.tasks) {
     state: context.stOf(task.id), fileState: context.fileSt(task.id),
     compiled: {contractHash: input.payload.handoff.contracts[task.id].hash,
       implementation: context.buildImpl(task), review: context.buildReview(task),
+      sections: {implementation: context.sectionLengths(context.implSections(task)),
+        review: context.sectionLengths(context.promptSections(context.buildReview(task)))},
       resume: context.buildResume(task), bug: context.bugPrompt(task, false)}
   };
 }
@@ -108,8 +110,11 @@ def payload_for(*ids, deps=None, readiness=None):
 def chain():
     """M1-T1 ← M1-T2 ← M1-T4；M1-T3 与 M1-T2 同批（都只依赖 M1-T1）。四个任务都还没登记语义复核。"""
     ids = ("M1-T1", "M1-T2", "M1-T3", "M1-T4")
-    return payload_for(*ids, deps={"M1-T2": ["M1-T1"], "M1-T3": ["M1-T1"], "M1-T4": ["M1-T2"]},
-                       readiness={tid: SEMANTIC_PENDING for tid in ids})
+    payload = payload_for(*ids, deps={"M1-T2": ["M1-T1"], "M1-T3": ["M1-T1"], "M1-T4": ["M1-T2"]},
+                          readiness={tid: SEMANTIC_PENDING for tid in ids})
+    # These routing regressions exercise the 1.3 opt-out; P5 tests cover the default gate.
+    payload["pres"]["handoff"]["wrapupGate"] = False
+    return payload
 
 
 class PromptRoutingTests(unittest.TestCase):
@@ -238,7 +243,7 @@ class PromptRoutingTests(unittest.TestCase):
         for tid in exported["tasks"]:
             with self.subTest(task=tid):
                 self.assertEqual(set(exported["tasks"][tid]),
-                                 {"contractHash", "implementation", "review", "resume", "bug"})
+                                 {"contractHash", "implementation", "review", "resume", "bug", "sections"})
                 self.assertEqual(exported["tasks"][tid], browser["tasks"][tid]["compiled"])
         self.assertIn("本任务尚未开始实现", browser["tasks"]["M1-T1"]["review"])
         # Exports keep the existing code-review field; pre-start UI routing is separate.
@@ -373,6 +378,7 @@ class PromptRoutingTests(unittest.TestCase):
     def test_landing_record_in_payload_unlocks_downstream_without_progress_js(self):
         payload = payload_for("M1-T1", "M1-T2", deps={"M1-T2": ["M1-T1"]},
                               readiness={"M1-T2": SEMANTIC_PENDING})
+        payload["pres"]["handoff"]["wrapupGate"] = False
         payload["progress"] = {"M1-T1": "done"}          # 随 docs-data.js 进仓库的落地记录
         result = self.browser(payload, progress={})      # 新检出：没有本机 _run/progress.js
         self.assertEqual(result["tasks"]["M1-T1"]["state"], "done")
@@ -401,10 +407,26 @@ class PromptRoutingTests(unittest.TestCase):
                        "git worktree prune", "落地后当场删工作树、分支和 planning 目录"):
             self.assertIn(needle, kick)
 
+    def test_frontend_task_prompts_forbid_preview_pages(self):
+        payload = payload_for("M1-T1")
+        payload["pres"]["handoff"]["frontendModules"] = ["M1"]
+        payload["pres"]["handoff"]["design"] = {"register": "product", "tokens": "--a:#000;"}
+        result = self.browser(payload)
+        task = result["tasks"]["M1-T1"]
+        for impl in (task["implementation"], task["compiled"]["implementation"]):
+            self.assertIn("不出预览页", impl)
+            self.assertIn("register：product", impl)
+            self.assertIn("--a:#000;", impl)
+            self.assertIn("finesse-ui", impl)
+            self.assertNotIn("先出一屏", impl)
+        self.assertIn("audit", task["compiled"]["review"])
+        for review in (task["review"], task["compiled"]["review"]):
+            self.assertNotIn("先出一屏", review)
+
     def test_dispatch_copy_and_batch_copy_follow_landed_semantics(self):
         # 契约复核不是派发条件：批次标题与锁住时的 title 都不再提「契约复核后」
         result = self.browser(chain(), progress={"M1-T1": "done"})
-        self.assertIn("派发本身只看前置是否落地", self.browser(payload_for("M1-T9"))["tasks"]["M1-T9"]["review"])
+        self.assertIn("派发本身按前置落地与收口闸门解锁，不要求提前登记语义复核", self.browser(payload_for("M1-T9"))["tasks"]["M1-T9"]["review"])
         # 批次标题与按钮 title 在 handBody 里，不在 core 范围内，查整份 HTML
         self.assertNotIn("契约复核后可开工", self.html)
         self.assertNotIn("前置未落地或任务要求待复核", self.html)
@@ -421,7 +443,7 @@ class PromptRoutingTests(unittest.TestCase):
         self.assertIn("M1-T1", result["batch0"])
         self.assertEqual(result["batch1"], "")                       # 第 2 批（M1-T2、M1-T3）还没落地
         self.assertEqual({tid: t["locked"] for tid, t in result["tasks"].items()}, before)
-        self.assertFalse(result["tasks"]["M1-T2"]["locked"])         # 收口不是闸门
+        self.assertFalse(result["tasks"]["M1-T2"]["locked"])         # wrapupGate:false 保留 1.3 行为
         # 第 2 批全部落地后才给；第 1 批的提示词列出前置为空、第 2 批列出前置批次
         landed = self.browser(chain(), progress={"M1-T1": "done", "M1-T2": "done", "M1-T3": "done"})
         self.assertIn("# 第 2 批收口", landed["batch1"])
