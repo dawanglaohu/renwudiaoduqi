@@ -663,6 +663,101 @@
         "packages/daemon/test/unit/assignment.test.ts",
         "packages/daemon/test/unit/review-zero-output.test.ts",
         "packages/daemon/test/integration/agents-models-login.test.ts"
+      ],
+      "M1-T11": [
+        "e2e/",
+        "vitest.e2e.config.ts",
+        "package.json",
+        "pnpm-lock.yaml",
+        ".gitignore",
+        ".github/workflows/desktop-ci.yml"
+      ],
+      "M2-T7": [
+        "packages/daemon/src/http/routes/documents.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/src/service/docs.ts",
+        "packages/daemon/src/service/batch.ts",
+        "packages/daemon/src/domain/task-state.ts",
+        "packages/daemon/src/repo/tasks.ts",
+        "packages/shared/src/api/documents.ts",
+        "packages/daemon/test/integration/documents-routes.test.ts",
+        "packages/daemon/test/arch/routes.test.ts"
+      ],
+      "M2-T8": [
+        "packages/shared/src/api/runs.ts",
+        "packages/shared/src/api/tasks.ts",
+        "packages/shared/src/api/snapshot.ts",
+        "packages/shared/src/api/batches.ts",
+        "packages/shared/src/lib/is-record.ts",
+        "packages/daemon/src/domain/run-state-machine.ts",
+        "packages/web/src/lib/spine-shape.ts",
+        "packages/daemon/test/arch/shared-contracts.test.ts",
+        "packages/web/test/spine-shape.test.ts"
+      ],
+      "M7-T9": [
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/main.ts",
+        "packages/daemon/src/service/run.ts",
+        "packages/daemon/test/integration/container-wiring.test.ts",
+        "packages/daemon/test/arch/container-jobs.test.ts"
+      ],
+      "M8-T10": [
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/test/integration/dispatch-spawn.test.ts",
+        "packages/daemon/test/fixtures/dispatch/",
+        "packages/daemon/test/arch/dispatch-proc.test.ts"
+      ],
+      "M8-T11": [
+        "packages/daemon/src/http/routes/batches.ts",
+        "packages/daemon/src/service/assignments.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/repo/tasks.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/migrations/",
+        "packages/shared/src/api/batches.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/shared/src/api/routes.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/test/integration/batch-assignments.test.ts",
+        "packages/daemon/test/unit/assignments.test.ts"
+      ],
+      "M9-T24": [
+        "packages/web/postcss.config.cjs",
+        "packages/web/tailwind.config.ts",
+        "packages/web/vite.config.ts",
+        "packages/web/package.json",
+        "pnpm-lock.yaml",
+        "packages/web/src/app/theme-provider.tsx",
+        "packages/web/test/style-pipeline.test.ts"
+      ],
+      "M9-T25": [
+        "packages/web/src/app/app.tsx",
+        "packages/web/src/app/routes.tsx",
+        "packages/web/src/pages/",
+        "packages/web/test/route-entries.test.tsx"
+      ],
+      "M9-T26": [
+        "packages/web/src/main.tsx",
+        "packages/web/src/app/bootstrap.ts",
+        "packages/web/src/shell/shell-bridge.ts",
+        "packages/web/src/api/base-url.ts",
+        "packages/web/src/api/http-client.ts",
+        "packages/web/src/features/run-deck/use-connection-state.ts",
+        "packages/web/test/bootstrap.test.ts",
+        "packages/web/test/wiring-arch.test.ts",
+        "packages/shell-desktop/test/tauri-commands.test.ts"
+      ],
+      "M10-T6": [
+        "packages/shell-desktop/src-tauri/src/lib.rs",
+        "packages/shell-desktop/src/desktop-bridge.ts",
+        "packages/shell-desktop/launchers/smoke-runner.ts",
+        "packages/shared/src/shell/bridge-contract.ts",
+        "packages/web/src/shell/shell-bridge.ts",
+        "packages/web/src/app/connect-failed.tsx",
+        ".github/workflows/desktop-ci.yml",
+        "packages/shell-desktop/test/",
+        "docs/platform-support.md"
       ]
     },
     "taskSkills": {
@@ -688,7 +783,42 @@
         }
       ]
     },
-    "conventions": "错误响应固定 {error:{code,message,requestId,details?}}；时间一律 ISO8601 文本（含毫秒）存储与传输，不存 unix 秒；数据库表名列名 snake_case、时间列 _at 后缀、布尔列 0/1 且带 is_/has_ 前缀；API DTO 一律 camelCase 且与 Row 严格分开；文件与目录一律 kebab-case，禁止 barrel index.ts；子进程一律 shell:false + 参数数组；**每个任务的验收命令必须包含 `pnpm -w check`**"
+    "conventions": "错误响应固定 {error:{code,message,requestId,details?}}；时间一律 ISO8601 文本（含毫秒）存储与传输，不存 unix 秒；数据库表名列名 snake_case、时间列 _at 后缀、布尔列 0/1 且带 is_/has_ 前缀；API DTO 一律 camelCase 且与 Row 严格分开；文件与目录一律 kebab-case，禁止 barrel index.ts；子进程一律 shell:false + 参数数组；**每个任务的验收命令必须包含 `pnpm -w check`**",
+    "wiring": {
+      "backendRoutes": [
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/shared/src/api/routes.ts"
+      ],
+      "container": [
+        "packages/daemon/src/boot/container.ts"
+      ],
+      "frontendRoutes": [
+        "packages/web/src/app/app.tsx",
+        "packages/web/src/app/routes.tsx"
+      ],
+      "buildPipeline": [
+        "packages/web/vite.config.ts",
+        "packages/web/postcss.config.cjs",
+        "packages/web/tailwind.config.ts"
+      ],
+      "sharedTypes": [
+        "packages/shared/src/api/"
+      ],
+      "eventKinds": [
+        "packages/shared/src/api/events.ts"
+      ],
+      "migrations": [
+        "packages/daemon/migrations/"
+      ],
+      "jobs": [
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/jobs/"
+      ],
+      "shellBridge": [
+        "packages/web/src/shell/shell-bridge.ts",
+        "packages/shell-desktop/src-tauri/src/lib.rs"
+      ]
+    }
   },
   "blocks": [
     {
