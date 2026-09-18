@@ -1,0 +1,845 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T1": {
+      "contractHash": "987ad22bba76f29cf75be6a2a278a335b4869d95eb01e505d3346ea584a44a52",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 fae9cb0ba225 变为 987ad22bba76；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T10": {
+      "contractHash": "1d8a03854946454a74aa334ee453d8923c0f9c093e67410e583fd44d08288b37",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 c1e2a6bb5e3a 变为 1d8a03854946；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T2": {
+      "contractHash": "197ab67e7c4198f9d5404d98f75bd9ce151235e4b77215170599c724239563cb",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8b5abf033ba7 变为 197ab67e7c41；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T3": {
+      "contractHash": "d3b2e8bc650c3832663f7406efbbec713943d9cc32a91cae182e041f7ca28aaf",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 eb0003c94a5a 变为 d3b2e8bc650c；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T4": {
+      "contractHash": "a74b44b6699ad15a2dbc88af602d7e29307a1a2ea689852f5564e4aecdfe4d14",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 10b879da3818 变为 a74b44b6699a；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T5": {
+      "contractHash": "9dc090a67a1e77f5fcb7f1e04c58786efd5eb04f7346d5a3749cd73c1ed08a8b",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8d8362f24f7e 变为 9dc090a67a1e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T6": {
+      "contractHash": "5321e731f292bbb04e36dc4c561d7a1fe08746d6b8bd40f36be8c831c191e9f9",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 7f6adb99b82a 变为 5321e731f292；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T7": {
+      "contractHash": "71162014a8bd60264481eb8f2623d893eeba66fc0e216b3284ac09658daacd16",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b16079433625 变为 71162014a8bd；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T8": {
+      "contractHash": "f6e78c84a5c6fc61c2414dbd3963fd0c7b498595a2fa007e25949fa6d73ee41e",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 40dda41ff6a3 变为 f6e78c84a5c6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M1-T9": {
+      "contractHash": "09605727afb65d52c43329e93815b86901f11595a79bf885333652b87790eb95",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ffe6f19a655c 变为 09605727afb6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M10-T1": {
+      "contractHash": "cd209170e2b4e97b8026e2e648b058dfc63d7638636b6ac441a7709aa3165b69",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 49d052ca6556 变为 cd209170e2b4；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M10-T2": {
+      "contractHash": "8659d2ba58d9508521fa091d6303502368edf9f07d23d4c0bbb30362bb8be655",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 16d03bde2509 变为 8659d2ba58d9；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M10-T3": {
+      "contractHash": "089af5de0efb3a4fe53856227b88e7ae24c645951b6aa23f0bfb065417a8f413",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9da6f3486f9e 变为 089af5de0efb；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M10-T4": {
+      "contractHash": "16cf031632621bc11c4cf96b720a968f7a092425889e495af05aeed7fa5a6667",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 25856ecb98d6 变为 16cf03163262；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M10-T5": {
+      "contractHash": "a0a57274e5b239f4c0ba851fe0edf48b72797f70d9bbc4a5481c3974044eeedc",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 5492d6acca1f 变为 a0a57274e5b2；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M2-T1": {
+      "contractHash": "ab7871b4f77f17e7e7dcacb28884017ec3c13e9f6fe8f3803ef636d3db2a7f73",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 3d0b01b2e63c 变为 ab7871b4f77f；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M2-T2": {
+      "contractHash": "82f7681375e697325fb911f4af4125b690820fff84cd4fc96ba1f3e722e5c0e1",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ecfae8e177c2 变为 82f7681375e6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M2-T3": {
+      "contractHash": "5db131a3c70cc56088f2bb017d45695df70d202f7b3e74742a91d00f5c23043b",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 cb751c05853a 变为 5db131a3c70c；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M2-T4": {
+      "contractHash": "6cf2440b67e6aec0426c5a6d001418db1aa7e492101683bae624d8ddf82cb99b",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 fee9aefb8251 变为 6cf2440b67e6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M2-T5": {
+      "contractHash": "f8d1a891c0803b8bb04c7867429e4d863bfc6ab2b0b6e7da5d597e912aaaa4d6",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 e081d7a43844 变为 f8d1a891c080；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M2-T6": {
+      "contractHash": "71dfaf5d193110a196c4fd9be919ac9db1249c9382cd90a38d14030bf4c33654",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8e98f08017f2 变为 71dfaf5d1931；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M3-T1": {
+      "contractHash": "07e4460012c9a4dd89a72d404bf9206e3bf94c27acb147edcd748137ddd7bdaa",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 7dab5590747e 变为 07e4460012c9；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M3-T2": {
+      "contractHash": "f833db5b29a421bd9099a5e4948b1cd6b89ebca102258494c04b93a4a517f9bf",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 a117a6b5f9d9 变为 f833db5b29a4；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M3-T3": {
+      "contractHash": "db5817b942a974fe4ca29996ed808dce850f21d1b3345ead865558b09fde6e5f",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 bfb848afb8ff 变为 db5817b942a9；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M3-T4": {
+      "contractHash": "a1f41445c2f70bdbbcc8ae0acff434db357ba4e139253920dcc412ae6d6169d6",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 036c36ba7fbd 变为 a1f41445c2f7；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M3-T5": {
+      "contractHash": "e4a25d31dab18e2052c4c256bb4dd87f1a3eeeffe1a59ea68a066047e4931cb0",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 3dcdd442f489 变为 e4a25d31dab1；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M3-T6": {
+      "contractHash": "c0b922407fb9264899c5ba6400e6479f46e97bc9b88a32119c96c8ed86676203",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 d3b5fda84e75 变为 c0b922407fb9；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M3-T7": {
+      "contractHash": "99f3a33bbb577d9919b13594765e9ff5da5a4a4f6760c738742e9a8b6961e1be",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b6767911d3f0 变为 99f3a33bbb57；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T1": {
+      "contractHash": "1af0ea047d18114b7efb511dbab9700dd6afc812cfbe2c6af1783ce9c1720308",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8a8ad204fd3b 变为 1af0ea047d18；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T10": {
+      "contractHash": "043e11150a099520efbcd24fb608015217ca40224ebbdacbe5038e08eb21e7b6",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 bfe6b288fa66 变为 043e11150a09；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T11": {
+      "contractHash": "b6e3ecc4a6b7ed32face4a471763fcb697834282f16cd48c9ff3c01fee867f52",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ef905471d8b9 变为 b6e3ecc4a6b7；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T12": {
+      "contractHash": "85e1bc942355e3f003b65eeb1abea3bb6056356a30562431f5d5c516c53c9f67",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b17d77792ce3 变为 85e1bc942355；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T13": {
+      "contractHash": "ce379287826b86981b1c83feba86122ab65313a12b2bf75d8ef97bf25f38dc32",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b3b2ac588b5f 变为 ce379287826b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T14": {
+      "contractHash": "c99a2ffb496bde76d6c4b51333481b94720d58d0f4ad9a695f4c23266f8f9c74",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 1892c129c104 变为 c99a2ffb496b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T2": {
+      "contractHash": "ee648e1da90edf8eed4bb11f4ad43290dcf56636039b02ebdaee60550de9538f",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 4fff86c4148d 变为 ee648e1da90e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T3": {
+      "contractHash": "818ead0818116d2c31a662c3676608e0febd6979b390cc70307c991146e2e23e",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 1f20594e4901 变为 818ead081811；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T4": {
+      "contractHash": "169fd418d65f2c309d4f839f4aa0d454129acb3d4a1ba710259afd97b56faf41",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 174c7d413adf 变为 169fd418d65f；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T5": {
+      "contractHash": "89b78901469e231a6fb1fe4b2cc7b5d0145583b73f19093a7f29dfacbdfb4b66",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 305a2cc71dd5 变为 89b78901469e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T6": {
+      "contractHash": "2867047463f00eaf90d046532d9244b591ea10ab076db65b1209ea9c2b57f5e2",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 d7b9ae542a82 变为 2867047463f0；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T7": {
+      "contractHash": "5a1ad20a78676e5745904913cd25f741681f6c76dff9b8fe100fb5cbcd166779",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 88f95e7702a3 变为 5a1ad20a7867；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T8": {
+      "contractHash": "070b61b44617098d34939aff4d20c0f7ddca7a78b39470ec5bc8de7b88ffefd6",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b7f71c347679 变为 070b61b44617；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M4-T9": {
+      "contractHash": "4c9b5a55cbfcc0d59666ba6c99d8c4a5d25e892560a71f769047726224e24102",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 4dcc20e9e69e 变为 4c9b5a55cbfc；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M5-T1": {
+      "contractHash": "7f21ae96c87c1e6fe325c5d5f14442af30651a1f45da2c64c0542f0d2213ec6b",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 64c688d76035 变为 7f21ae96c87c；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M5-T2": {
+      "contractHash": "c3d01e36ccfba8188dad7741e3bf802bbccc405958444b40b3b2d033113f9ed8",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 565398877ade 变为 c3d01e36ccfb；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M5-T3": {
+      "contractHash": "49f14303f6e6ae81e6ae4bb1cc8084ecd0fe5e54a5433e0110a2b0902c2bd615",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 3c6014f416ef 变为 49f14303f6e6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M5-T4": {
+      "contractHash": "4d84740c79810759e72b34a191de2d32d9b5566ed5a2db833b5a6038a368ba21",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 e361a4c07410 变为 4d84740c7981；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M5-T5": {
+      "contractHash": "45a62929679e13768dc3787fb2a9822ca459d05cf8ac53a70d5b5a52b84ea643",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 91c71ff362a4 变为 45a62929679e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T1": {
+      "contractHash": "764798f449b36846c92db3626ed30fc31703571835a05c6cef71235e69d787ee",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 3dfd9a27996d 变为 764798f449b3；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T10": {
+      "contractHash": "c2ded4aad5da62569f1fe7ec5f05343d864a460f9dff85c6dcbd5402e95ca39a",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9f6c3934936b 变为 c2ded4aad5da；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T2": {
+      "contractHash": "f6469a10aa7915eecfdd68f212254b0ed88d2a3b60b3218cbbb2d3735dc7c771",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 1adb095990bf 变为 f6469a10aa79；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T3": {
+      "contractHash": "c3d8ac473303165fc127e4cddec908c2b777881c59d0941a9be33ca7060f6ff4",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 51301b217bd4 变为 c3d8ac473303；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T4": {
+      "contractHash": "04f8a8418eb246270cb9978f13531b2645bce62f4dd10db6b6328b4c05a3cd75",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 bc12e1565fa8 变为 04f8a8418eb2；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T5": {
+      "contractHash": "bf6247e78fb678bdd49f7fc85c754e4b44dba734a25024fb01f7c93d5a9e9393",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b4518b6080fa 变为 bf6247e78fb6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T6": {
+      "contractHash": "4e465e19c214115d68049d28bbb9f69a5f30e20a9c0d35530d9a003fc6919dfb",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9ed844a0e99f 变为 4e465e19c214；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T7": {
+      "contractHash": "6e7c7b1165c3d9528dbb8c8310ad062e48c038cc10d4c0a5b9d13bc0153a2206",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 65ce5636b511 变为 6e7c7b1165c3；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T8": {
+      "contractHash": "58c2212be9c8ba12f1194a5bc31ff157932e6197513d9d39e61a3aa7634898a8",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b789eeb860e8 变为 58c2212be9c8；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M6-T9": {
+      "contractHash": "c7bd55f68d4b50da6ab1a8da4fb27ec6404f10af28cd463442ddd287dc9c79d5",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b60915513f03 变为 c7bd55f68d4b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M7-T1": {
+      "contractHash": "a9cc01fa6a2ff71f1fe2a4bfa9fcfcac5df5c2df832c444030bf00f07a1fb257",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9f7e45e5460d 变为 a9cc01fa6a2f；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M7-T2": {
+      "contractHash": "918ccb848fbf354f820696c1dc15a48c321723908abd4daaac35dbe61b910888",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 c18cfdbdd5cf 变为 918ccb848fbf；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M7-T3": {
+      "contractHash": "75e2ab2f5f3200dda1099b65c5523abd44d7efcaa8bc3cf416826744aee85b2b",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 2078662764f1 变为 75e2ab2f5f32；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M7-T4": {
+      "contractHash": "004008e454a4814d31dbf92c654a1ad9e701ef9c81361b950762ec26dda0815c",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 384a691ccbe3 变为 004008e454a4；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M7-T5": {
+      "contractHash": "746da9e5cb48c79c601f388e2997c49b7777b20cf937dc6fafbca090f78b2c49",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 03585a5028cd 变为 746da9e5cb48；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M7-T6": {
+      "contractHash": "d0718ce3568835753fb8aa105137f075c9e92b15d4ee005f1d11cb25ef342ed4",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 41eb3c0c7956 变为 d0718ce35688；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M7-T7": {
+      "contractHash": "b930f754139bbd387fbff6b768d1f1074ae150e8e78b55a916befb414acb8842",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8a883ed9aa20 变为 b930f754139b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M8-T1": {
+      "contractHash": "8dd04375ee9b682094b674c4d5ac740b0bfcbb1020273efbea939458513fe519",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ebec65b742c3 变为 8dd04375ee9b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M8-T2": {
+      "contractHash": "64299453331009724b0fde5eb4166a1f22effc80f8abd3b946f57b30c69cefb5",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8dcdfe6cf255 变为 642994533310；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M8-T3": {
+      "contractHash": "80da6c1865de9a09e1e64173d66ce82daedf1eb23d81673557a2d3c119d553c9",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 7fe588563427 变为 80da6c1865de；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M8-T4": {
+      "contractHash": "ecd0a07e01f021f954ad7883d06a5b52baab41ef9fec8f37c5f01d175d86765e",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ff26659c8fa1 变为 ecd0a07e01f0；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M8-T5": {
+      "contractHash": "be57c74afc66fcf8e7de7d82a139cfa2f86086776d84dd379024d67018067a97",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 2b5dddc69cbc 变为 be57c74afc66；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M8-T6": {
+      "contractHash": "225c43ceeb9d223502fb46dc9c99eaa518c068d98f486ee7a509987e757acb28",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8e6e7ca88d5c 变为 225c43ceeb9d；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T1": {
+      "contractHash": "8323782cb519a4115497e1ace47d4d2d37f0a95c6fe14de690a7b5072d580a6d",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 cdc019322b81 变为 8323782cb519；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T10": {
+      "contractHash": "adadbe9356904c4e794f4a1023f632781ff98b3125360e310c82a6267aab729f",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 4aed937cf6a1 变为 adadbe935690；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T11": {
+      "contractHash": "32d76bc3bec56a36ee983f7ffe2e7b0bf36a63a687c47ecb621e0a1ae56a64f4",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 dbf9254c1f5b 变为 32d76bc3bec5；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T12": {
+      "contractHash": "58728ca4b5fa9142324808a34ebd6ccc64069d101653fd88253afa1db875ddc1",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 2ed02209255f 变为 58728ca4b5fa；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T14": {
+      "contractHash": "22ab983047ded3527e1181eae52a18edb01b3bd639001110bd8a5a9b885a0bfe",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b77bac7320c1 变为 22ab983047de；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T15": {
+      "contractHash": "06aa508bee6da8e567ab1abff31510a3eeb9b95ea9fa6fe17b69e67a4f942ed2",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b7843313be77 变为 06aa508bee6d；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T2": {
+      "contractHash": "b4c3b3ed5d4e95e4852e03ee56dbf1db5d9ae2eeb38b0629362592b57932631c",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 d8c19381f374 变为 b4c3b3ed5d4e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T3": {
+      "contractHash": "060dda2b88455c70ec86772fef720c44b9c88f46c8f1cf00c02f41cced3966cd",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 2e62425716e3 变为 060dda2b8845；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T4": {
+      "contractHash": "cd863fd2a5ab14eb779909b72b36b74b449f345097bc1ea916d0c8f878a61f64",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 1131b2e6866c 变为 cd863fd2a5ab；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T5": {
+      "contractHash": "b66e536d5cef58df485269827811a0e7b807fd92675cb6fa5225d3c4af5cd833",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 80c1f48da2ee 变为 b66e536d5cef；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T6": {
+      "contractHash": "57fb01deb6d3ae0d34d1af3b74369bbe07011491aeac767cb128506696828914",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 33bef4ad95b4 变为 57fb01deb6d3；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T7": {
+      "contractHash": "c7a70bb1890c1ca931be69c2ab7f78c79cc211a2c0924f01aafa7d1af4486db9",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9f80fa5f7cab 变为 c7a70bb1890c；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T8": {
+      "contractHash": "a95845bbdcc55deb152e016eb7ff854ca9788673d660cb2ceac5eb9638a36119",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 7713788dcae2 变为 a95845bbdcc5；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    },
+    "M9-T9": {
+      "contractHash": "2763eafee133b02e7a81fe2889e6e84f0d422e8826d59e4723508e1c48e49ec9",
+      "verdict": "pass",
+      "evidence": [
+        "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 6d276b84193e 变为 2763eafee133；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
+        "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      ]
+    }
+  }
+}
