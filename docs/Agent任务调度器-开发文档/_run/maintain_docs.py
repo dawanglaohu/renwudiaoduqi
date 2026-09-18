@@ -35,7 +35,7 @@ def state(root):
     _, sections = build_docs.collect(str(root))
     data = build_docs.extract(sections)
     pres = read_json(root / '_run/presentation.json', {})
-    checked = analyze(root, data['tasks'], pres, data['edges'])
+    checked = analyze(root, data['tasks'], pres, data['edges'], data['endpoints'])
     return data, checked
 
 
@@ -190,7 +190,7 @@ def describe_fields(fields):
         return '仅共享章节 ' + fields[0][len('sections:'):].replace(',', '、') + ' 变化'
     names = {'providers': '前置任务契约变化', 'task': '19 节任务行', 'edges': '13 节边界行', 'effectivePaths': '有效范围',
              'definition': 'task-contracts.json 条目', 'architecture': '架构约定', 'design': '视觉方向',
-             'handoff': 'handoff 配置', 'skills': '点名技能'}
+             'handoff': 'handoff 配置', 'skills': '点名技能', 'wiring': '接线注册点'}
     return '、'.join('共享章节 ' + f[len('sections:'):].replace(',', '、') if f.startswith('sections:') else names.get(f, f)
                     for f in fields)
 
