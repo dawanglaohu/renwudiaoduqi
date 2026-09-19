@@ -4,6 +4,8 @@
  * M9-T8 日志窗口与分段内存管理测试（AC 1-5, E-100, E-101, E-102, E-143, E-98, R1-R6）
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { GetRunLogResponse } from '@agent-scheduler/shared/api/runs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -39,6 +41,71 @@ import {
 } from '../src/features/run-detail/use-log-window.ts';
 
 describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, E-98, R1-R6)', () => {
+	describe('batch 11 correction: actual client-side log seams', () => {
+		it('requests the tail on first load, even for sessions below the threshold', () => {
+			const source = readFileSync(
+				resolve(__dirname, '../src/features/run-detail/use-log-window.ts'),
+				'utf8',
+			);
+			expect(source).toMatch(
+				/query:\s*\{\s*direction:\s*'backward',\s*limit:\s*effectiveInitialLimit/,
+			);
+		});
+
+		it('coalesces token deltas until a newline, counting logical lines rather than chunks', () => {
+			const manager = new LogWindowManager();
+			manager.loadInitial({
+				lines: ['previous'],
+				totalLines: 1,
+				prevCursor: null,
+				nextCursor: null,
+			});
+			manager.setAtBottom(false);
+			manager.appendLiveChunk('Hello ', 'agent_message_chunk');
+			manager.appendLiveChunk('world', 'agent_message_chunk');
+			expect(manager.getState().lines.map((line) => line.text)).toEqual([
+				'previous',
+				'Hello world',
+			]);
+			expect(manager.getState().unreadNewCount).toBe(1);
+			manager.appendLiveChunk('\nNext', 'agent_message_chunk');
+			manager.appendLiveChunk(' line\n', 'agent_message_chunk');
+			expect(manager.getState().lines.map((line) => line.text)).toEqual([
+				'previous',
+				'Hello world',
+				'Next line',
+			]);
+			expect(manager.getState().unreadNewCount).toBe(2);
+			manager.appendLiveChunk('third', 'agent_message_chunk');
+			expect(
+				manager
+					.getState()
+					.lines.map((line) => line.text)
+					.at(-1),
+			).toBe('third');
+			manager.appendLiveChunk('thought', 'agent_thought_chunk');
+			expect(
+				manager
+					.getState()
+					.lines.map((line) => line.text)
+					.at(-1),
+			).toBe('thought');
+		});
+
+		it('offers a tail re-anchor when all REST segments are evicted by live events', () => {
+			const manager = new LogWindowManager();
+			manager.loadInitial({
+				lines: ['old'],
+				totalLines: 14001,
+				prevCursor: '0:500',
+				nextCursor: null,
+			});
+			manager.appendLiveLines(Array.from({ length: 14000 }, (_, i) => `line-${i}`));
+			expect(manager.getState().hasOlder).toBe(true);
+			expect(manager.getOldestCursor()).toBeNull();
+			expect(manager.needsTailReload()).toBe(true);
+		});
+	});
 	// ─── 容器渲染稳定性 ───
 	describe('RunDetailContainer rendering', () => {
 		it('renders container without getSnapshot infinite update warning or Maximum update depth', () => {

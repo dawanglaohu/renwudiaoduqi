@@ -140,7 +140,7 @@ export function useLogWindow({
 		try {
 			const res = await httpClient.callRoute<GetRunLogResponse>(getRunLogRoute, {
 				params: { runId },
-				query: { limit: effectiveInitialLimit },
+				query: { direction: 'backward', limit: effectiveInitialLimit },
 			});
 			manager.loadInitial(res);
 		} catch (err) {
@@ -186,7 +186,6 @@ export function useLogWindow({
 				return;
 			}
 
-			const newLines: string[] = [];
 			for (const event of events) {
 				const id = typeof event.id === 'number' ? event.id : null;
 				const seq = typeof event.seq === 'number' ? event.seq : null;
@@ -216,15 +215,14 @@ export function useLogWindow({
 							| undefined;
 						const chunk = payload?.chunk ?? payload?.text ?? payload?.line;
 						if (typeof chunk === 'string' && chunk.length > 0) {
-							const splitLines = chunk.split('\n');
-							newLines.push(...splitLines);
+							if (event.kind === 'run.stderr_line') {
+								manager.appendLiveLines([chunk]);
+							} else {
+								manager.appendLiveChunk(chunk, event.kind);
+							}
 						}
 					}
 				}
-			}
-
-			if (newLines.length > 0) {
-				manager.appendLiveLines(newLines);
 			}
 		});
 
@@ -240,7 +238,7 @@ export function useLogWindow({
 		}
 
 		const cursor = manager.getOldestCursor();
-		if (!cursor || isLoadingOlder) {
+		if ((!cursor && !manager.needsTailReload()) || isLoadingOlder) {
 			return;
 		}
 
@@ -249,12 +247,15 @@ export function useLogWindow({
 			const res = await httpClient.callRoute<GetRunLogResponse>(getRunLogRoute, {
 				params: { runId },
 				query: {
-					fromSeq: cursor,
+					...(cursor ? { fromSeq: cursor } : {}),
 					direction: 'backward',
 					limit: segmentLimit,
 				},
 			});
-			manager.prependOlderSegment(res);
+			// There is no byte cursor on SSE deltas. Once every REST segment was evicted,
+			// reload a real REST tail rather than leaving the visible “load older” button inert.
+			if (cursor) manager.prependOlderSegment(res);
+			else manager.loadInitial(res);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			setError(message);
