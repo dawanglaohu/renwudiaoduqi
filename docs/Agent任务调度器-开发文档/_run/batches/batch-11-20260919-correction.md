@@ -4,7 +4,7 @@ tasks: M7-T5, M7-T7, M8-T6, M9-T10, M9-T8, M9-T9
 date: 2026-09-19
 verdict: fixed
 tests: pass
-pr: none
+pr: https://github.com/dawanglaohu/renwudiaoduqi/pull/117
 note: 更正 2026-09-19 收口记录的三项误报，并真正补齐日志尾读/delta 合行/重拉与多流档位单点判定。
 ---
 
