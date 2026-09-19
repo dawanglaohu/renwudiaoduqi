@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { toDatabaseError } from '../db/open-database.ts';
 import { batchNoOf } from '../domain/layer-of.ts';
+import { AppError } from '../errors/app-error.ts';
 import { type BatchRow, type BatchesRepo, createBatchesRepo } from './batches.ts';
 
 export interface TaskRow {
@@ -29,6 +30,8 @@ export interface TaskRow {
 	readonly has_prompt_changed: number;
 	readonly manual_state: string | null;
 	readonly lane_no?: number | null;
+	/** Per-task assignment draft JSON written by `POST /batches/:id/assignments` (M8-T11). */
+	readonly assignment_draft_json?: string | null;
 }
 
 export interface TaskInsertRow {
@@ -344,6 +347,12 @@ SET is_removed_from_doc = 1
 WHERE id = ?
 `;
 
+const UPDATE_ASSIGNMENT_DRAFT_SQL = `
+UPDATE tasks
+SET assignment_draft_json = ?
+WHERE id = ?
+`;
+
 const DELETE_BY_ID_SQL = `
 DELETE FROM tasks
 WHERE id = ?
@@ -506,17 +515,32 @@ export interface TasksRepo {
 		readonly docId: string | null;
 	};
 	readonly setLaneNo: (taskId: string, laneNo: number) => void;
+	/**
+	 * Overwrites one task's assignment draft; `null` clears it (M8-T11, E-108).
+	 * Callers overwrite a whole batch by calling this per task inside one unit of work.
+	 */
+	readonly setAssignmentDraft: (taskId: string, draftJson: string | null) => void;
 	readonly deleteById: (id: string) => void;
 	readonly deleteByDocId: (docId: string) => void;
+}
+
+function freezeTaskRow(row: TaskRow): TaskRow {
+	return Object.freeze({
+		...row,
+		lane_no: row.lane_no ?? null,
+		assignment_draft_json: row.assignment_draft_json ?? null,
+	});
 }
 
 export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 	let hasBugPrompt = false;
 	let hasLaneNo = false;
+	let hasAssignmentDraft = false;
 	try {
 		const tableInfo = db.prepare<[], { name: string }>('PRAGMA table_info(tasks)').all();
 		hasBugPrompt = tableInfo.some((col) => col.name === 'bug_prompt');
 		hasLaneNo = tableInfo.some((col) => col.name === 'lane_no');
+		hasAssignmentDraft = tableInfo.some((col) => col.name === 'assignment_draft_json');
 	} catch {}
 
 	let insertSql = INSERT_SQL;
@@ -537,6 +561,9 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		if (hasLaneNo) {
 			sql = sql.replace('\tmanual_state\n', '\tmanual_state,\n\tlane_no\n');
 		}
+		if (hasAssignmentDraft) {
+			sql = sql.replace('\nFROM tasks\n', ',\n\tassignment_draft_json\nFROM tasks\n');
+		}
 		return sql;
 	}
 
@@ -553,6 +580,9 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		? db.prepare('UPDATE tasks SET lane_no = NULL WHERE id = ? AND lane_no IS NOT NULL')
 		: null;
 	const setLaneNoStmt = hasLaneNo ? db.prepare('UPDATE tasks SET lane_no = ? WHERE id = ?') : null;
+	const setAssignmentDraftStmt = hasAssignmentDraft
+		? db.prepare(UPDATE_ASSIGNMENT_DRAFT_SQL)
+		: null;
 	const deleteByIdStmt = db.prepare(DELETE_BY_ID_SQL);
 	const deleteByDocIdStmt = db.prepare(DELETE_BY_DOC_ID_SQL);
 
@@ -615,7 +645,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		findById(id: string): TaskRow | null {
 			try {
 				const row = selectByIdStmt.get(id) as TaskRow | undefined;
-				return row ? Object.freeze({ ...row, lane_no: row.lane_no ?? null }) : null;
+				return row ? freezeTaskRow(row) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find task by id: ${id}`);
 			}
@@ -624,7 +654,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		findByDocAndKey(docId: string, taskKey: string): TaskRow | null {
 			try {
 				const row = selectByDocAndKeyStmt.get(docId, taskKey) as TaskRow | undefined;
-				return row ? Object.freeze({ ...row, lane_no: row.lane_no ?? null }) : null;
+				return row ? freezeTaskRow(row) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find task by docId and key: ${docId}, ${taskKey}`);
 			}
@@ -633,9 +663,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		listByDocId(docId: string): readonly TaskRow[] {
 			try {
 				const rows = selectByDocIdStmt.all(docId) as TaskRow[];
-				return Object.freeze(
-					rows.map((row) => Object.freeze({ ...row, lane_no: row.lane_no ?? null })),
-				);
+				return Object.freeze(rows.map(freezeTaskRow));
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to list tasks by docId: ${docId}`);
 			}
@@ -644,9 +672,7 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		listByBatchId(batchId: string): readonly TaskRow[] {
 			try {
 				const rows = selectByBatchIdStmt.all(batchId) as TaskRow[];
-				return Object.freeze(
-					rows.map((row) => Object.freeze({ ...row, lane_no: row.lane_no ?? null })),
-				);
+				return Object.freeze(rows.map(freezeTaskRow));
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to list tasks by batchId: ${batchId}`);
 			}
@@ -744,6 +770,21 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 				setLaneNoStmt.run(laneNo, taskId);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to set lane_no for task: ${taskId}`);
+			}
+		},
+
+		setAssignmentDraft(taskId: string, draftJson: string | null): void {
+			if (!setAssignmentDraftStmt) {
+				throw new AppError(
+					'E_INTERNAL',
+					'tasks.assignment_draft_json column is missing; migrations have not been applied.',
+					{ details: { taskId } },
+				);
+			}
+			try {
+				setAssignmentDraftStmt.run(draftJson, taskId);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to set assignment draft for task: ${taskId}`);
 			}
 		},
 

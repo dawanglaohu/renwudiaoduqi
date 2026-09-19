@@ -1,3 +1,4 @@
+import type { EffortValue } from './agents.ts';
 import type { RunDto } from './runs.ts';
 
 export type BatchState =
@@ -167,4 +168,143 @@ export interface WrapupBatchResponse {
 
 export interface GetBatchWrapupsResponse {
 	readonly wrapups: readonly BatchWrapupDto[];
+}
+
+/**
+ * Per-task assignment draft written by `POST /api/v1/batches/:batchId/assignments` (M8-T11).
+ * `taskId` must belong to the batch and must not have been dispatched yet; `agentId` must exist in
+ * the registry (a `logged_out` agent is accepted, E-336).
+ */
+export interface TaskAssignmentDraft {
+	readonly taskId: string;
+	readonly agentId: string;
+	readonly model?: string | null;
+	readonly effort?: EffortValue;
+}
+
+export const TASK_ASSIGNMENT_DRAFT_KEYS = [
+	'agentId',
+	'effort',
+	'model',
+	'taskId',
+] as const satisfies readonly (keyof TaskAssignmentDraft)[];
+
+type AssertTaskAssignmentDraftExhaustive = [
+	Exclude<keyof TaskAssignmentDraft, (typeof TASK_ASSIGNMENT_DRAFT_KEYS)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertTaskAssignmentDraft: AssertTaskAssignmentDraftExhaustive = true;
+
+export interface PutAssignmentsBody {
+	readonly assignments: readonly TaskAssignmentDraft[];
+}
+
+export const PUT_ASSIGNMENTS_BODY_KEYS = [
+	'assignments',
+] as const satisfies readonly (keyof PutAssignmentsBody)[];
+
+type AssertPutAssignmentsBodyExhaustive = [
+	Exclude<keyof PutAssignmentsBody, (typeof PUT_ASSIGNMENTS_BODY_KEYS)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertPutAssignmentsBody: AssertPutAssignmentsBodyExhaustive = true;
+
+export const putAssignmentsBodySchema = {
+	type: 'object',
+	additionalProperties: false,
+	required: ['assignments'],
+	properties: {
+		assignments: {
+			type: 'array',
+			maxItems: 500,
+			items: {
+				type: 'object',
+				additionalProperties: false,
+				required: ['taskId', 'agentId'],
+				properties: {
+					taskId: { type: 'string', minLength: 1, maxLength: 64 },
+					agentId: { type: 'string', minLength: 1, maxLength: 64 },
+					model: { type: ['string', 'null'], maxLength: 256 },
+					effort: {
+						anyOf: [
+							{ type: 'null' },
+							{
+								type: 'object',
+								additionalProperties: false,
+								required: ['tier'],
+								properties: {
+									tier: { type: 'string', enum: ['low', 'medium', 'high'] },
+								},
+							},
+							{
+								type: 'object',
+								additionalProperties: false,
+								required: ['vendor'],
+								properties: {
+									vendor: { type: 'string', minLength: 1, maxLength: 256 },
+								},
+							},
+						],
+					},
+				},
+			},
+		},
+	},
+} as const;
+
+/**
+ * Draft as read back: `sessionNo` is the agent's concurrency-occupying run count plus the draft's
+ * rank among the same agent's drafts in taskKey order (from 1), i.e. which session of that agent
+ * the task will become once dispatched (E-31). Tasks without a draft are not listed.
+ */
+export interface TaskAssignmentDto {
+	readonly taskId: string;
+	readonly taskKey: string;
+	readonly agentId: string;
+	readonly model: string | null;
+	readonly effort: EffortValue;
+	readonly sessionNo: number;
+	readonly draftedAt: string;
+}
+
+export const CONCURRENCY_PREVIEW_BOTTLENECKS = [
+	'window_count',
+	'agent_limit',
+	'user_setting',
+] as const;
+
+export type ConcurrencyPreviewBottleneck = (typeof CONCURRENCY_PREVIEW_BOTTLENECKS)[number];
+
+export interface AgentCapacityPreview {
+	readonly agentId: string;
+	/** Runs of this agent that currently occupy a concurrency slot. */
+	readonly active: number;
+	/** Registry `maxConcurrency`. */
+	readonly limit: number;
+	/** Pending drafts pointing at this agent. */
+	readonly drafted: number;
+	/** `active + drafted >= limit` (E-47). */
+	readonly isFull: boolean;
+}
+
+/**
+ * Concurrency preview computed by the daemon from `calculateBatchConcurrency()`; the web displays
+ * it and never recomputes (E-52, E-245).
+ */
+export interface ConcurrencyPreview {
+	/** Tasks of this batch that can be released right now (M8-T1 `windowCount` semantics). */
+	readonly windowCount: number;
+	/** `documents.lane_count`, never rewritten by the runtime (E-245). */
+	readonly userSetting: number;
+	readonly agentCapacities: readonly AgentCapacityPreview[];
+	readonly effectiveConcurrency: number;
+	readonly bottleneck: ConcurrencyPreviewBottleneck;
+	readonly exceedsWindowCount: boolean;
+}
+
+export interface BatchAssignmentsResponse {
+	readonly drafts: readonly TaskAssignmentDto[];
+	readonly preview: ConcurrencyPreview;
 }

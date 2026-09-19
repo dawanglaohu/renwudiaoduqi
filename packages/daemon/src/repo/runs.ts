@@ -48,6 +48,7 @@ export interface RunRow {
 	readonly in_head_checked_at?: string | null;
 	readonly branch_tip_sha?: string | null;
 	readonly prompt_source?: string | null;
+	readonly session_no?: number | null;
 }
 
 export interface RunInsertRow {
@@ -95,6 +96,7 @@ export interface RunInsertRow {
 	readonly in_head_checked_at?: string | null;
 	readonly branch_tip_sha?: string | null;
 	readonly prompt_source?: string | null;
+	readonly session_no?: number | null;
 }
 
 export interface RunsRepo {
@@ -353,6 +355,7 @@ export function toRunDto(row: RunRow): RunDto {
 		branchTipSha: row.branch_tip_sha ?? null,
 		promptSource: (row.prompt_source as RunDto['promptSource']) ?? null,
 		assignmentSource: (row.assignment_source as RunDto['assignmentSource']) ?? null,
+		sessionNo: row.session_no ?? null,
 	});
 }
 
@@ -370,6 +373,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	let hasInHeadCheckedAt = false;
 	let hasBranchTipSha = false;
 	let hasPromptSource = false;
+	let hasSessionNo = false;
 	try {
 		const tableInfo = db.prepare<[], { name: string }>('PRAGMA table_info(runs)').all();
 		hasSessionArchivedAt = tableInfo.some((col) => col.name === 'session_archived_at');
@@ -385,6 +389,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		hasInHeadCheckedAt = tableInfo.some((col) => col.name === 'in_head_checked_at');
 		hasBranchTipSha = tableInfo.some((col) => col.name === 'branch_tip_sha');
 		hasPromptSource = tableInfo.some((col) => col.name === 'prompt_source');
+		hasSessionNo = tableInfo.some((col) => col.name === 'session_no');
 	} catch {}
 
 	const baseInsertCols = [
@@ -434,6 +439,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	if (hasInHeadCheckedAt) extraInsertCols.push('in_head_checked_at');
 	if (hasBranchTipSha) extraInsertCols.push('branch_tip_sha');
 	if (hasPromptSource) extraInsertCols.push('prompt_source');
+	if (hasSessionNo) extraInsertCols.push('session_no');
 
 	const allInsertCols = [...baseInsertCols, ...extraInsertCols];
 	const dynamicInsertSql = `INSERT INTO runs (${allInsertCols.join(', ')}) VALUES (${allInsertCols.map((col) => `@${col}`).join(', ')})`;
@@ -577,6 +583,9 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				}
 				if (hasPromptSource) {
 					params.prompt_source = row.prompt_source ?? null;
+				}
+				if (hasSessionNo) {
+					params.session_no = row.session_no ?? null;
 				}
 				insertStmt.run(params);
 			} catch (cause) {
