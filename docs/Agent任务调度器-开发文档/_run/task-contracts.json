@@ -1314,7 +1314,9 @@
       "supportPaths": [
         "packages/daemon/src/domain/concurrency.ts",
         "packages/daemon/src/boot/container.ts",
-        "packages/daemon/test/arch/routes.test.ts"
+        "packages/daemon/test/arch/routes.test.ts",
+        "packages/daemon/test/unit/database.test.ts",
+        "packages/daemon/test/integration/migrate-rebuild.test.ts"
       ],
       "requires": [
         {
