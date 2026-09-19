@@ -95,9 +95,9 @@ describe('M7-T5 AC 2 & E-279: assembleReworkPrompt and extractReworkRules', () =
 		// 2. 内置四句回落
 		expect(result).toContain('只改指令列出的编号条目，不借机重构；');
 		expect(result).toContain('哪条不成立就在回报里写理由，不默默跳过、也不照改你认为错的方案；');
-		expect(result).toContain(
-			'改完新提交（不 amend、不 force）再 gh stack push；回报按编号写改了哪个文件哪一行、加了什么测试。',
-		);
+		expect(result).toContain('回报按编号写改了哪个文件哪一行、加了什么测试。');
+		// 08 节：内置四句 = 只改列出条目、不重构、哪条不成立写理由、不 commit/push——不能反过来要求推送
+		expect(BUILTIN_REWORK_RULES).not.toMatch(/push|提交/);
 		expect(result).toContain('在你原来的工作树里改，不要再开一个。');
 
 		// 3. 工作区指针

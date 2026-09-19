@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import * as nodeFs from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import type { DatabaseConnection } from '../db/open-database.ts';
+import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { type DocsFingerprintHasher, computeDocsFingerprint } from '../domain/docs-fingerprint.ts';
 import { batchNoOf, layerOf } from '../domain/layer-of.ts';
 import {
@@ -21,7 +22,12 @@ import {
 	createDispatchSnapshotsRepo,
 } from '../repo/dispatch-snapshots.ts';
 import type { DocumentMetadataUpdateRow, DocumentRow, DocumentsRepo } from '../repo/documents.ts';
-import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
+import {
+	type DependencyValidationReport,
+	type TasksRepo,
+	createTasksRepo,
+	importDocTasks,
+} from '../repo/tasks.ts';
 
 export interface ParsedDocTask {
 	readonly id: string;
@@ -119,6 +125,8 @@ export interface DocsServiceDeps {
 	readonly tasksRepo?: TasksRepo;
 	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
 	readonly db?: DatabaseConnection;
+	/** 任务与批次落库走一次事务（08 节：只有 service 层能开事务）；缺省时逐条执行。 */
+	readonly unitOfWork?: UnitOfWork;
 }
 
 export interface ImportDocumentResult {
@@ -126,6 +134,10 @@ export interface ImportDocumentResult {
 	readonly parsed: ParsedDocData;
 	readonly hasChanged: boolean;
 	readonly isNew: boolean;
+	/** 任务与批次是否已写进 tasks / batches 表（容器注入了 db 或两个 repo 时恒为 true）。 */
+	readonly tasksImported: boolean;
+	/** M3-T2 导入报告：幽灵依赖与成环任务，阻断自动批次派发（E-20、E-241、E-242）。 */
+	readonly dependencyReport: DependencyValidationReport | null;
 }
 
 export interface OpenReaderResult {
@@ -659,6 +671,53 @@ export async function parseDocsDataFile(
 	return parseDocsDataContent(content, { docsPath: filePath, hasher });
 }
 
+/**
+ * 把解析出的任务落进 tasks / batches 表（M3-T2 的 importDocTasks），随文档导入一起做。
+ * 容器没注入 db 也没注入两个 repo 时（只做解析的单测场景）跳过并如实返回 tasksImported=false。
+ */
+function persistParsedTasks(
+	deps: DocsServiceDeps,
+	docId: string,
+	parsed: ParsedDocData,
+): {
+	readonly tasksImported: boolean;
+	readonly dependencyReport: DependencyValidationReport | null;
+} {
+	const db = deps.db ?? null;
+	const tasksRepo = deps.tasksRepo ?? (db ? createTasksRepo(db) : undefined);
+	const batchesRepo = deps.batchesRepo ?? (db ? createBatchesRepo(db) : undefined);
+	if (!tasksRepo || !batchesRepo) {
+		return { tasksImported: false, dependencyReport: null };
+	}
+	const taskInputs = parsed.tasks.map((task) => ({
+		id: task.id,
+		title: task.title,
+		module: task.module,
+		deps: task.deps,
+		input: task.input,
+		output: task.output,
+		accept: task.accept,
+		estDays: task.estDays,
+		edgeIds: task.edgeIds,
+		contractHash: task.contractHash,
+		isContractReady: task.isContractReady,
+		contractReasons: task.contractReasons,
+		taskPaths: task.taskPaths,
+		implPrompt: task.implPrompt,
+		reviewPrompt: task.reviewPrompt,
+		resumePrompt: task.resumePrompt,
+		bugPrompt: task.bugPrompt,
+	}));
+	const run = () =>
+		importDocTasks(
+			db,
+			{ docId, tasks: taskInputs, idGenerator: () => deps.ids.newId() },
+			{ tasksRepo, batchesRepo },
+		);
+	const result = deps.unitOfWork ? deps.unitOfWork.run(run) : run();
+	return { tasksImported: true, dependencyReport: result.report };
+}
+
 export function createDocsService(deps: DocsServiceDeps): DocsService {
 	const fileSystem = deps.fs ?? DEFAULT_FS;
 	const hasher = deps.hasher ?? defaultSha256Hasher;
@@ -739,6 +798,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 					last_seen_at: now,
 				};
 				deps.documentsRepo.insert(newRow);
+				const imported = persistParsedTasks(deps, newDocId, parsed);
 
 				const row = deps.documentsRepo.findById(newDocId);
 				if (!row) {
@@ -762,6 +822,8 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 					parsed,
 					hasChanged: true,
 					isNew: true,
+					tasksImported: imported.tasksImported,
+					dependencyReport: imported.dependencyReport,
 				});
 			}
 
@@ -780,6 +842,8 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				last_seen_at: now,
 			};
 			deps.documentsRepo.updateMetadata(updateRow);
+			// 每次重新导入按当前分层重算批次归属并 upsert 任务行（E-243）；同指纹时也补齐早先漏落库的行。
+			const imported = persistParsedTasks(deps, existingRow.id, parsed);
 
 			const row = deps.documentsRepo.findById(existingRow.id);
 			if (!row) {
@@ -803,6 +867,8 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				parsed,
 				hasChanged,
 				isNew: false,
+				tasksImported: imported.tasksImported,
+				dependencyReport: imported.dependencyReport,
 			});
 		},
 

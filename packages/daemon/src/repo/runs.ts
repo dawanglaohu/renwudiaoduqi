@@ -137,7 +137,15 @@ export interface RunsRepo {
 		readonly actorDeviceId?: string | null;
 		readonly reworkCount?: number;
 	}) => void;
-	readonly updateReviewRound: (id: string, reviewRound: number | null) => void;
+	/**
+	 * 改写审查轮次；第三参给了（含 null）就一并改写 continued_from_run_id——E-330 降级时把失败行的续接指针
+	 * 让给新开行，否则 `ux_runs_continued` 唯一部分索引不允许两行指向同一上一轮。
+	 */
+	readonly updateReviewRound: (
+		id: string,
+		reviewRound: number | null,
+		continuedFromRunId?: string | null,
+	) => void;
 	readonly updateReworkCount: (input: {
 		readonly id: string;
 		readonly reworkCount: number;
@@ -288,6 +296,12 @@ WHERE id = @id
 const UPDATE_REVIEW_ROUND_SQL = `
 UPDATE runs
 SET review_round = ?
+WHERE id = ?
+`;
+
+const UPDATE_REVIEW_ROUND_AND_CONTINUATION_SQL = `
+UPDATE runs
+SET review_round = ?, continued_from_run_id = ?
 WHERE id = ?
 `;
 
@@ -458,6 +472,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const incrementUnmappedEventCountStmt = db.prepare(INCREMENT_UNMAPPED_EVENT_COUNT_SQL);
 	const updateReworkCountStmt = db.prepare(UPDATE_REWORK_COUNT_SQL);
 	const updateReviewRoundStmt = db.prepare(UPDATE_REVIEW_ROUND_SQL);
+	const updateReviewRoundAndContinuationStmt = db.prepare(UPDATE_REVIEW_ROUND_AND_CONTINUATION_SQL);
 
 	const selectActiveWrapupByBatchIdStmt = db.prepare(`
 		SELECT * FROM runs
@@ -484,16 +499,34 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		LEFT JOIN tasks t ON r.task_id = t.id
 		WHERE (r.batch_id = ? OR t.batch_id = ?)
 		  AND r.kind = 'implement'
-		  AND r.state = 'landed'
+		  AND (r.state = 'landed' OR t.manual_state = 'landed')
+		  AND r.attempt_no = (
+		    SELECT MAX(r2.attempt_no) FROM runs r2
+		    WHERE r2.task_id = r.task_id AND r2.kind = 'implement'
+		  )
 		ORDER BY r.ended_at DESC NULLS LAST, r.id DESC
 	`);
 
+	// 已验收但未进 HEAD 的运行：运行行本身 landed，或任务被人工裁定 landed（闸门 pass 只写
+	// tasks.manual_state）且这是该任务 attempt 最大的实施运行——两种「已验收」都要做进 HEAD 判定（E-272）。
 	const selectLandedNotInHeadRunsStmt = db.prepare(`
-		SELECT * FROM runs
-		WHERE state = 'landed' AND is_in_head = 0
-		  AND kind IN ('implement', 'wrapup')
-		  AND (in_head_checked_at IS NULL OR in_head_checked_at <= ?)
-		ORDER BY ended_at ASC NULLS LAST
+		SELECT r.* FROM runs r
+		WHERE r.is_in_head = 0
+		  AND r.kind IN ('implement', 'wrapup')
+		  AND (
+		    r.state = 'landed'
+		    OR (
+		      r.kind = 'implement'
+		      AND r.task_id IS NOT NULL
+		      AND EXISTS (SELECT 1 FROM tasks t WHERE t.id = r.task_id AND t.manual_state = 'landed')
+		      AND r.attempt_no = (
+		        SELECT MAX(r2.attempt_no) FROM runs r2
+		        WHERE r2.task_id = r.task_id AND r2.kind = 'implement'
+		      )
+		    )
+		  )
+		  AND (r.in_head_checked_at IS NULL OR r.in_head_checked_at <= ?)
+		ORDER BY r.ended_at ASC NULLS LAST
 		LIMIT ?
 	`);
 
@@ -776,9 +809,17 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 			}
 		},
 
-		updateReviewRound(id: string, reviewRound: number | null): void {
+		updateReviewRound(
+			id: string,
+			reviewRound: number | null,
+			continuedFromRunId?: string | null,
+		): void {
 			try {
-				updateReviewRoundStmt.run(reviewRound, id);
+				if (continuedFromRunId === undefined) {
+					updateReviewRoundStmt.run(reviewRound, id);
+				} else {
+					updateReviewRoundAndContinuationStmt.run(reviewRound, continuedFromRunId, id);
+				}
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update review_round for run: ${id}`);
 			}

@@ -1,12 +1,13 @@
 import type { BatchDto, BatchState } from '@agent-scheduler/shared/api/batches';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { summarizeBatchLanding } from '../domain/batch-landing.ts';
 import { assertCanTransitionBatch } from '../domain/batch-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
-import type { RunRow, RunsRepo } from '../repo/runs.ts';
+import type { RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 
 export interface BatchServiceDeps {
@@ -159,66 +160,24 @@ export function createBatchService(deps: BatchServiceDeps): BatchService {
 			}
 
 			const tasks = deps.tasksRepo.listByBatchId(batchId);
-			const runs = deps.runsRepo.listAll();
-			const latestRunByTaskId = new Map<string, RunRow>();
-			for (const r of runs) {
-				if (!r.task_id) continue;
-				const existing = latestRunByTaskId.get(r.task_id);
-				if (!existing || r.attempt_no > existing.attempt_no) {
-					latestRunByTaskId.set(r.task_id, r);
-				}
-			}
-
-			let landedCount = 0;
-			let notInHeadCount = 0;
-			for (const t of tasks) {
-				const r = latestRunByTaskId.get(t.id);
-				if (r && r.state === 'landed') {
-					landedCount++;
-					if (r.is_in_head === 0) {
-						notInHeadCount++;
-					}
-				}
-			}
-
-			const allLanded = tasks.length > 0 && landedCount === tasks.length;
-			const allInHead = allLanded && notInHeadCount === 0;
+			// 与 tick / triggerWrapup 同一判定（domain/batch-landing.ts）
+			const landing = summarizeBatchLanding(tasks, deps.runsRepo.listAll());
 			const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(batchId);
 			const canWrapup =
-				allInHead && !activeWrapup && batch.state !== 'done' && batch.state !== 'wrapping';
+				landing.allInHead && !activeWrapup && batch.state !== 'done' && batch.state !== 'wrapping';
 
-			return toBatchDto(batch, { canWrapup, notInHeadCount });
+			return toBatchDto(batch, { canWrapup, notInHeadCount: landing.notInHeadCount });
 		},
 
 		async listBatches(docId: string): Promise<readonly BatchDto[]> {
 			const batches = deps.batchesRepo.listByDocId(docId);
 			const result: BatchDto[] = [];
+			const runs = deps.runsRepo.listAll();
 			for (const b of batches) {
 				const tasks = deps.tasksRepo.listByBatchId(b.id);
-				const runs = deps.runsRepo.listAll();
-				const latestRunByTaskId = new Map<string, RunRow>();
-				for (const r of runs) {
-					if (!r.task_id) continue;
-					const existing = latestRunByTaskId.get(r.task_id);
-					if (!existing || r.attempt_no > existing.attempt_no) {
-						latestRunByTaskId.set(r.task_id, r);
-					}
-				}
-
-				let landedCount = 0;
-				let notInHeadCount = 0;
-				for (const t of tasks) {
-					const r = latestRunByTaskId.get(t.id);
-					if (r && r.state === 'landed') {
-						landedCount++;
-						if (r.is_in_head === 0) {
-							notInHeadCount++;
-						}
-					}
-				}
-
-				const allLanded = tasks.length > 0 && landedCount === tasks.length;
-				const allInHead = allLanded && notInHeadCount === 0;
+				const landing = summarizeBatchLanding(tasks, runs);
+				const allInHead = landing.allInHead;
+				const notInHeadCount = landing.notInHeadCount;
 				const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(b.id);
 				const canWrapup =
 					allInHead && !activeWrapup && b.state !== 'done' && b.state !== 'wrapping';

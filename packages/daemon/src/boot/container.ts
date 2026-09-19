@@ -300,6 +300,11 @@ export function createContainer(input: {
 		input.docsService ??
 		createDocsService({
 			documentsRepo: documents,
+			tasksRepo: tasks,
+			batchesRepo: batches,
+			dispatchSnapshotsRepo: dispatchSnapshots,
+			db: input.database,
+			unitOfWork,
 			clock: input.clock,
 			ids,
 			bus,
@@ -539,6 +544,8 @@ export function createContainer(input: {
 			bus,
 			envelopeFactory,
 			eventSeqRepo: eventSeq,
+			// 快照游标必须是真正发出去的最后一条事件 id（E-153）：event_seq 只是预留水位，不是事件 id。
+			getLatestEventId: () => ringBuffer.latest()?.id ?? null,
 			getDispatchHalt: () => systemService.isDispatchHalted(),
 			listAgents: () => agentService.listAgents(),
 			listDispatchableAgents: () => {
