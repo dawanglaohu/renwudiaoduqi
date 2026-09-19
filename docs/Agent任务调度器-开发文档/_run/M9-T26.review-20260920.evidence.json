@@ -1,0 +1,21 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T26": {
+      "contractHash": "cdc898bea9f89f168a46ea319308217318c2711a553df2cd29659990769ef0c4",
+      "verdict": "pass",
+      "evidence": [
+        "PR #115 第 1 轮审查；契约 status 返回 ready=true、stale=[]、runtimeDrift=[]，任务定义、前置、有效路径、5 条验收标准与 E-08/E-10/E-12/E-156/E-158/E-200/E-227 均与派发包一致。",
+        "AC1：packages/web/src/app/bootstrap.ts:94-143 是启动序列唯一所有者；tokenStore.get → registerTokenProvider/setCachedToken → registerShellHostHint/resolveBaseUrl → 单一 sseClient.connect。packages/web/test/wiring-arch.test.ts 机检 src 下 connect 仅命中 bootstrap.ts；bootstrap.test.ts 覆盖固定顺序、无令牌不连接、配对后开流、吊销后停流并清壳存储。",
+        "AC2/E-10/E-12/E-158：packages/web/test/bootstrap.test.ts 用真实 Node HTTP SSE 服务端发送 run.state_changed，断言 lastEventId=4242、html data-connection-status=online、顶栏含最后同步于；断流后为 reconnecting 且服务端请求数仍为 1。use-connection-state.ts:72-117 映射状态与事件游标，connection-store.ts:74-79 使离线/重连不可派发。",
+        "AC3/E-227：shell-bridge.ts:278-304 的 Tauri 适配器只经 invoke 读写 get_token/set_token/clear_token/get_host_hint；shell-bridge.test.ts:351-430 证明壳模式清旧 sessionStorage、set_token 恰一次、hostHint 正确，并覆盖 Capacitor Preferences。tauri-commands.test.ts:30-40 断言 WebView 四命令与 Rust generate_handler 注册集合一致，同时保留 get_launch_spec/launch_service。",
+        "AC4/E-200：wiring-arch.test.ts 证明 registerNativeShellAdapter/registerTokenProvider/registerShellHostHint 都有生产调用，__TAURI_INTERNALS__/window.Capacitor 只在 src/shell/detect-shell.ts 与 shell-bridge.ts；浏览器模式继续走 sessionStorage 与 location.origin，无壳可用。",
+        "AC5：bootstrap.ts:79-91 将 authoritative connection-store 状态镜像到 html data-connection-status；main.tsx:11-26 等待 bootstrap 后挂载并在顶栏只读投影 OfflineBanner，为 M10-T6/M1-T11 的外部冒烟提供稳定 DOM 观察点。",
+        "反造假扫描：有效生产路径未命中 not implemented/placeholder/stub/TODO/待接入/后续接入；无硬编码 true 探测、无 window.__x/globalThis.__x 测试钩子；共享事件契约、sseClient、eventBus、令牌缓存和壳桥接均复用前置实现，没有重造 DTO/枚举/工具。",
+        "最终 head fde9578f1ac1e8202d0ad4a892fd1b9b89a2b3d7 合入 main 2d9d0e47 后验证：聚焦 8 文件 77/77；Web 生产构建成功；pnpm -w check 158/158 测试文件、1861 通过、32 平台跳过，49 错误码、对比度、架构禁令、479 文件 Biome、TypeScript 全通过。",
+        "真实服务证据：最终 head 以隔离 dataDir 和真实 daemon 运行，真实一次性配对、设备令牌、SSE 设置事件及 daemon 断流；DOM 状态 offline→online→reconnecting，每帧 data-style-loaded=true、--page=#ecefee。GIF 已覆盖发布到 agent-scheduler-assets/m9-t26-sse-shell-wiring.gif，远端 blob 与本地 SHA-256 均为 900498653d678372dc42def10b6c60889190ba395e1261a60cab33cd29695949。",
+        "任务笔记 code/notes 已回填且保留全部既定命题：唯一开流、原生存储清理、自安装适配器、DOM 镜像、Rust 命令分组与 dist 构建前置均可指到当前代码；未夹带会话过程、道歉、自我评价或临时路径。"
+      ]
+    }
+  }
+}
