@@ -9,6 +9,7 @@ import type { CreateRunBody, RerunRunResponse, RunDto } from '@agent-scheduler/s
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { summarizeBatchLanding } from '../domain/batch-landing.ts';
 import {
 	DEFAULT_AGENT_CONCURRENCY_LIMIT,
 	allocateConcurrencySlots,
@@ -154,6 +155,13 @@ export interface DispatchServiceDeps {
 	readonly bus?: EventBus;
 	readonly envelopeFactory?: EnvelopeFactory;
 	readonly eventSeqRepo?: EventSeqRepo;
+	/**
+	 * 最近一条真正发布的事件 id（环形缓冲的 latest）。快照的 latestEventId 给 SSE 续接当游标用，
+	 * 必须是事件 id 而不是 event_seq 预留水位——水位比真实 id 大得多，续接会把之后的事件全丢掉（E-153）。
+	 */
+	readonly getLatestEventId?: () => number | null;
+	/** tick 内部被吞的异常（收口触发失败等）走这里记日志，缺省丢弃。 */
+	readonly logFailure?: (error: unknown) => void;
 	readonly getDispatchHalt?: () => boolean;
 	readonly agentLimits?: number | Record<string, number> | ((agentId: string) => number);
 	readonly listAgents?: () => Promise<readonly unknown[]> | readonly unknown[];
@@ -186,6 +194,7 @@ function resolveConstraintConflict(
 }
 
 export function createDispatchService(deps: DispatchServiceDeps): DispatchService {
+	const logFailure = deps.logFailure ?? (() => undefined);
 	const runsRepo = deps.runsRepo;
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
 	const consecutiveInHeadErrors = new Map<string, number>();
@@ -614,7 +623,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		const runs = runsRepo.listAll().map(toRunDtoWithInHeadWarning);
 		const agents = deps.listAgents ? await deps.listAgents() : [];
-		const latestEventId = deps.eventSeqRepo?.getWatermark('events') ?? null;
+		const latestEventId = deps.getLatestEventId ? deps.getLatestEventId() : null;
 
 		return Object.freeze({
 			documents: Object.freeze(documents),
@@ -770,33 +779,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const tasks = deps.tasksRepo.listByBatchId(batch.id);
 					if (tasks.length === 0) continue;
 
-					const allRunsForDoc = runsRepo.listAll();
-					const latestRunByTaskId = new Map<string, RunRow>();
-					for (const r of allRunsForDoc) {
-						if (!r.task_id) continue;
-						const existing = latestRunByTaskId.get(r.task_id);
-						if (!existing || r.attempt_no > existing.attempt_no) {
-							latestRunByTaskId.set(r.task_id, r);
-						}
-					}
+					// 与 triggerWrapup() / getBatch() 共用同一把尺子（domain/batch-landing.ts）：
+					// 只看 kind='implement' 的最大 attempt，manual_state='landed' 算已验收。
+					const landing = summarizeBatchLanding(tasks, runsRepo.listAll());
 
-					let landedCount = 0;
-					let notInHeadCount = 0;
-					for (const t of tasks) {
-						const r = latestRunByTaskId.get(t.id);
-						if (r && r.state === 'landed') {
-							landedCount++;
-							if (r.is_in_head === 0) {
-								notInHeadCount++;
-							}
-						} else if (t.manual_state === 'landed') {
-							landedCount++;
-						}
-					}
-
-					const allLanded = landedCount === tasks.length;
-					if (allLanded) {
-						if (notInHeadCount > 0) {
+					if (landing.allLanded) {
+						if (landing.notInHeadCount > 0) {
 							// E-272: 全部 landed 但有未进 HEAD -> awaiting_landing
 							if (batch.state === 'running') {
 								await effectiveBatchService.transitionBatch(
@@ -832,8 +820,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 									tasksBlocked: Object.freeze(tasksBlocked),
 									tasksDeferred: Object.freeze(tasksDeferred),
 								};
-							} catch {
-								// wrapup failed to trigger or turned needs_attention
+							} catch (error) {
+								// 触发失败（条件不满足 / agent 不可用 → 批次已转 needs_attention）：记日志，不吞掉
+								logFailure(error);
 							}
 						}
 
@@ -865,6 +854,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const activeRuns = runsRepo.listActive();
 					const activeTaskIds = new Set(activeRuns.map((r) => r.task_id));
 					const candidateTasks: TaskRow[] = [];
+					// 派发候选判定沿用「该任务 attempt 最大的任意运行」（终态即不再自动重派，E-51）
+					const latestRunByTaskId = new Map<string, RunRow>();
+					for (const r of runsRepo.listAll()) {
+						if (!r.task_id) continue;
+						const existing = latestRunByTaskId.get(r.task_id);
+						if (!existing || r.attempt_no > existing.attempt_no) {
+							latestRunByTaskId.set(r.task_id, r);
+						}
+					}
 
 					for (const t of tasks) {
 						if (isTaskFinishedOrLanded(t) || activeTaskIds.has(t.id)) {
@@ -1013,8 +1011,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 					const activeRunCount = activeRuns.filter((r) => isTaskPathHolding(r.state)).length;
 					const availableSlots = Math.max(0, doc.lane_count - activeRunCount);
+					// 每 agent 并发只数真正占额度的状态（E-54：awaiting_human / orphaned 不计），
+					// 与 M8-T11 预览的 `active` 口径一致，否则预览说未满而 tick 仍 defer。
 					const activeRunsByAgent: Record<string, number> = {};
 					for (const r of activeRuns) {
+						if (!countsTowardAgentConcurrency(r.state as RunState)) continue;
 						activeRunsByAgent[r.agent_id] = (activeRunsByAgent[r.agent_id] ?? 0) + 1;
 					}
 

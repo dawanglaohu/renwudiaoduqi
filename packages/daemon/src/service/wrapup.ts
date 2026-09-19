@@ -3,10 +3,14 @@ import type {
 	BatchWrapupDto,
 	BatchWrapupLandingDto,
 } from '@agent-scheduler/shared/api/batches';
-import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
+import {
+	AGENT_MESSAGE_CHUNK_EVENT_KIND,
+	type EventEnvelope,
+} from '@agent-scheduler/shared/api/events';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { latestImplementationRunByTaskId, summarizeBatchLanding } from '../domain/batch-landing.ts';
 import { assertWrapupRoundAllowed } from '../domain/wrapup-policy.ts';
 import { type WrapupTaskItem, assembleWrapupPrompt } from '../domain/wrapup-prompt.ts';
 import { parseWrapupReport } from '../domain/wrapup-report.ts';
@@ -59,6 +63,55 @@ export interface WrapupServiceDeps {
 	readonly logstorePaths?: LogstorePaths;
 	readonly logFs?: LogFileSystem;
 	readonly nudgeTick?: () => void;
+}
+
+/**
+ * 收口运行的最终文本（E-274 解析输入）。
+ * 逐段读 events 流，把 `agent_message_chunk.payload.chunk` 按顺序拼起来；一条内容事件都没有时回落到 raw 流。
+ * 段文件按 fileSeq 递增直到读不到为止（200 MiB 轮转后最终文本可能在 fileSeq ≥ 1）。
+ */
+export async function readWrapupReportText(
+	paths: LogstorePaths,
+	fs: LogFileSystem,
+	runId: string,
+): Promise<string> {
+	const readStream = async (stream: 'events' | 'raw'): Promise<string[]> => {
+		const chunks: string[] = [];
+		for (let fileSeq = 0; ; fileSeq += 1) {
+			let bytes: Uint8Array;
+			try {
+				bytes = await fs.readFile(paths.segmentPath(runId, stream, fileSeq));
+			} catch {
+				break;
+			}
+			chunks.push(Buffer.from(bytes).toString('utf8'));
+		}
+		return chunks;
+	};
+
+	const eventSegments = await readStream('events');
+	const messageParts: string[] = [];
+	for (const segment of eventSegments) {
+		for (const line of segment.split('\n')) {
+			if (line.trim().length === 0) continue;
+			let envelope: { kind?: unknown; payload?: { chunk?: unknown } } | null = null;
+			try {
+				envelope = JSON.parse(line) as { kind?: unknown; payload?: { chunk?: unknown } };
+			} catch {
+				continue;
+			}
+			if (
+				envelope?.kind === AGENT_MESSAGE_CHUNK_EVENT_KIND &&
+				typeof envelope.payload?.chunk === 'string'
+			) {
+				messageParts.push(envelope.payload.chunk);
+			}
+		}
+	}
+	if (messageParts.length > 0) {
+		return messageParts.join('');
+	}
+	return (await readStream('raw')).join('');
 }
 
 export interface TriggerWrapupInput {
@@ -245,29 +298,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				});
 			}
 
-			// Check task landed & in_head statuses
+			// Check task landed & in_head statuses — 与 tick / getBatch 同一判定（domain/batch-landing.ts）
 			const tasks = deps.tasksRepo.listByBatchId(batchId);
-			const allRuns = deps.runsRepo.listAll();
-			const latestRunByTaskId = new Map<string, RunRow>();
-			for (const r of allRuns) {
-				if (!r.task_id) continue;
-				const existing = latestRunByTaskId.get(r.task_id);
-				if (!existing || r.attempt_no > existing.attempt_no) {
-					latestRunByTaskId.set(r.task_id, r);
-				}
-			}
-
-			const notLandedTaskKeys: string[] = [];
-			const notInHeadTaskKeys: string[] = [];
-
-			for (const t of tasks) {
-				const r = latestRunByTaskId.get(t.id);
-				if (!r || r.state !== 'landed') {
-					notLandedTaskKeys.push(t.task_key);
-				} else if (r.is_in_head === 0) {
-					notInHeadTaskKeys.push(t.task_key);
-				}
-			}
+			const landing = summarizeBatchLanding(tasks, deps.runsRepo.listAll());
+			const notLandedTaskKeys = [...landing.notLandedTaskKeys];
+			const notInHeadTaskKeys = [...landing.notInHeadTaskKeys];
 
 			if (notLandedTaskKeys.length > 0) {
 				throw new AppError('E_BATCH_NOT_WRAPPABLE', 'Not all tasks in batch are landed.', {
@@ -422,8 +457,9 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			}
 
 			// 6. Assemble wrapup prompt (AC 3, E-285, E-296)
+			const latestImplRunByTaskId = latestImplementationRunByTaskId(deps.runsRepo.listAll());
 			const taskItems: WrapupTaskItem[] = tasks.map((t) => {
-				const run = latestRunByTaskId.get(t.id);
+				const run = latestImplRunByTaskId.get(t.id);
 				return {
 					taskId: t.id,
 					taskKey: t.task_key,
@@ -636,16 +672,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				throw new AppError('E_NOT_FOUND', `Batch not found: ${batchId}`);
 			}
 
-			// Read report text
+			// Read report text：先从 events 流拼 agent 的最终文本（所有受支持 agent 的 stdout 都是 JSON 行流，
+			// 八段段头只出现在 agent_message_chunk 里）；没有内容事件时（纯文本 agent）才回落到 raw 流原文。
 			let rawText = input.rawText ?? '';
 			if (!rawText && deps.logstorePaths && deps.logFs) {
-				try {
-					const rawLogPath = deps.logstorePaths.segmentPath(runId, 'raw', 0);
-					const bytes = await deps.logFs.readFile(rawLogPath);
-					rawText = Buffer.from(bytes).toString('utf8');
-				} catch {
-					rawText = '';
-				}
+				rawText = await readWrapupReportText(deps.logstorePaths, deps.logFs, runId);
 			}
 
 			const now = deps.clock.now();
