@@ -1,7 +1,14 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-	content: ['./index.html', './src/**/*.{ts,tsx,css}'],
+	// `relative: true` resolves the globs against this file rather than process.cwd(): Vite runs
+	// from packages/web, but postcss.config.cjs is also loaded from the workspace root by the
+	// style-pipeline test, and a cwd-relative scan from there would find no source and emit no
+	// utilities (M9-T24).
+	content: {
+		files: ['./index.html', './src/**/*.{ts,tsx,css}'],
+		relative: true,
+	},
 	darkMode: ['class', '[data-theme="dark"]'],
 	theme: {
 		extend: {
@@ -65,6 +72,11 @@ const config: Config = {
 				'spine-needs': 'var(--spine-needs)',
 				'spine-dead': 'var(--spine-dead)',
 				'row-hover': 'var(--row-hover)',
+			},
+			// Preflight paints every element's default border-color from `borderColor.DEFAULT`, so a
+			// bare `border` utility must land on the token and not on the framework's grey (M9-T24).
+			borderColor: {
+				DEFAULT: 'var(--border)',
 			},
 			boxShadow: {
 				DEFAULT: 'var(--shadow)',

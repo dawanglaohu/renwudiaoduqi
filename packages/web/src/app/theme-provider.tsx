@@ -46,6 +46,27 @@ export function applyThemeToDocument(resolvedTheme: ResolvedTheme): void {
 	root.style.colorScheme = resolvedTheme;
 }
 
+/**
+ * Records on <html> that the token layer is really in effect (M9-T24, E-159).
+ *
+ * `--page` is the page background declared in styles/tokens.css, so its computed value is
+ * non-empty only once the built stylesheet applies. A bundle that never arrived (a shell loading
+ * the wrong path, a static host missing the asset) leaves `data-style-loaded` unset rather than
+ * faking success; the shell smoke (M10-T6) polls this attribute. Returns whether it was written.
+ */
+export function markStyleLoaded(): boolean {
+	if (typeof document === 'undefined' || typeof window === 'undefined') {
+		return false;
+	}
+	const root = document.documentElement;
+	const pageToken = window.getComputedStyle(root).getPropertyValue('--page').trim();
+	if (pageToken === '') {
+		return false;
+	}
+	root.dataset.styleLoaded = 'true';
+	return true;
+}
+
 function getSystemPrefersDark(): boolean {
 	if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
 		return true; // default to dark in non-browser or fallback
@@ -98,6 +119,11 @@ export function ThemeProvider({ children, defaultTheme }: ThemeProviderProps) {
 	useEffect(() => {
 		applyThemeToDocument(resolvedTheme);
 	}, [resolvedTheme]);
+
+	// Stamp the document once per mount, after the stylesheet had its chance to apply (M9-T24)
+	useEffect(() => {
+		markStyleLoaded();
+	}, []);
 
 	// Listen for system color-scheme changes when in 'system' mode
 	useEffect(() => {
