@@ -15,10 +15,46 @@ export const SESSION_STORAGE_TOKEN_KEY = 'agsched.token' as const;
  */
 export const CURRENT_DEVICE_ID_STORAGE_KEY = 'agsched.current_device_id' as const;
 
+/**
+ * Tauri command names the web adapter invokes (07-前端架构 §注入点).
+ * `packages/shell-desktop/test/tauri-commands.test.ts` asserts every name here is registered in
+ * `lib.rs` `generate_handler!`; a name missing on either side fails that test.
+ */
+const TAURI_COMMANDS = {
+	getToken: 'get_token',
+	setToken: 'set_token',
+	clearToken: 'clear_token',
+	getHostHint: 'get_host_hint',
+} as const;
+
+/**
+ * Capacitor Preferences keys. They mirror `packages/shell-mobile/src/preferences-store.ts`
+ * (`MOBILE_TOKEN_STORAGE_KEY`) and `mobile-bridge.ts` (`hostStorageKey` default): the same web
+ * bundle runs inside the Android shell, so both sides must read the same native entries.
+ */
+const CAPACITOR_TOKEN_KEY = 'agsched.token' as const;
+const CAPACITOR_HOST_KEY = 'agsched.host' as const;
+
 export interface NativeShellAdapter {
 	readonly tokenStore?: Partial<ShellTokenStore>;
 	notify?(options: ShellNotificationOptions): Promise<void> | void;
 	hostHint?(): Promise<string | null> | string | null;
+}
+
+type TauriInvoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+
+interface CapacitorPreferencesPlugin {
+	get(options: { key: string }): Promise<{ value: string | null }>;
+	set(options: { key: string; value: string }): Promise<void>;
+	remove(options: { key: string }): Promise<void>;
+}
+
+/**
+ * The two shell globals this module may read (07-前端架构: only `src/shell/` touches them).
+ */
+interface ShellGlobals {
+	__TAURI_INTERNALS__?: { invoke?: TauriInvoke };
+	Capacitor?: { Plugins?: { Preferences?: CapacitorPreferencesPlugin } };
 }
 
 type NotificationFallbackListener = (options: ShellNotificationOptions) => void;
@@ -234,6 +270,96 @@ export function readCurrentDeviceId(): string | null {
 }
 
 /**
+ * Tauri v2 adapter: token store and host hint go through `window.__TAURI_INTERNALS__.invoke`
+ * to the commands `lib.rs` registers (E-227: the OS credential store is the only token copy).
+ * A failed read degrades to "no token" (the UI then asks to pair); failed writes propagate so
+ * a token that never reached the credential store is not silently treated as saved.
+ */
+export function createTauriShellAdapter(invoke: TauriInvoke): NativeShellAdapter {
+	return {
+		tokenStore: {
+			async get(): Promise<string | null> {
+				try {
+					const token = await invoke(TAURI_COMMANDS.getToken);
+					return typeof token === 'string' && token.length > 0 ? token : null;
+				} catch {
+					return null;
+				}
+			},
+			async set(token: string): Promise<void> {
+				await invoke(TAURI_COMMANDS.setToken, { token });
+			},
+			async clear(): Promise<void> {
+				await invoke(TAURI_COMMANDS.clearToken);
+			},
+		},
+		async hostHint(): Promise<string | null> {
+			try {
+				const hint = await invoke(TAURI_COMMANDS.getHostHint);
+				return typeof hint === 'string' && hint.trim().length > 0 ? hint.trim() : null;
+			} catch {
+				return null;
+			}
+		},
+	};
+}
+
+/**
+ * Capacitor adapter: token store and host hint go through `window.Capacitor.Plugins.Preferences`
+ * (Android SharedPreferences), the same entries `packages/shell-mobile` writes.
+ */
+export function createCapacitorShellAdapter(
+	preferences: CapacitorPreferencesPlugin,
+): NativeShellAdapter {
+	return {
+		tokenStore: {
+			async get(): Promise<string | null> {
+				try {
+					const { value } = await preferences.get({ key: CAPACITOR_TOKEN_KEY });
+					return value && value.length > 0 ? value : null;
+				} catch {
+					return null;
+				}
+			},
+			async set(token: string): Promise<void> {
+				await preferences.set({ key: CAPACITOR_TOKEN_KEY, value: token });
+			},
+			async clear(): Promise<void> {
+				await preferences.remove({ key: CAPACITOR_TOKEN_KEY });
+			},
+		},
+		async hostHint(): Promise<string | null> {
+			try {
+				const { value } = await preferences.get({ key: CAPACITOR_HOST_KEY });
+				return value && value.trim().length > 0 ? value.trim() : null;
+			} catch {
+				return null;
+			}
+		},
+	};
+}
+
+/**
+ * Pick the adapter for the detected platform from the shell globals, or null in browser mode
+ * and when the shell global lacks the entry point the adapter needs (then shell mode simply has
+ * no token, which is the honest answer — the browser fallback must not be used inside a shell).
+ */
+export function createPlatformShellAdapter(
+	platform: ShellPlatform,
+	globals: ShellGlobals | undefined,
+): NativeShellAdapter | null {
+	if (platform === 'tauri') {
+		const invoke = globals?.__TAURI_INTERNALS__?.invoke;
+		return typeof invoke === 'function' ? createTauriShellAdapter(invoke) : null;
+	}
+	if (platform === 'capacitor') {
+		const preferences = globals?.Capacitor?.Plugins?.Preferences;
+		return preferences ? createCapacitorShellAdapter(preferences) : null;
+	}
+	return null;
+}
+
+/**
  * The unified shell bridge instance.
  */
 export const shellBridge: ShellBridge = {
@@ -247,3 +373,15 @@ export const shellBridge: ShellBridge = {
 	notify,
 	hostHint,
 };
+
+/**
+ * 注入点（07-前端架构 §注入点，M9-T26）：同一份 web 产物在 daemon 的 `/`、`tauri://localhost`、
+ * `https://localhost` 三处加载，壳包无法把适配器 import 进来，所以按 `SHELL.platform` 在模块加载期自装。
+ */
+const platformAdapter = createPlatformShellAdapter(
+	SHELL.platform,
+	typeof window !== 'undefined' ? (window as unknown as ShellGlobals) : undefined,
+);
+if (platformAdapter) {
+	registerNativeShellAdapter(platformAdapter);
+}
