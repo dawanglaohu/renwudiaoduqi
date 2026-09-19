@@ -188,6 +188,35 @@ describe('M8-T6 Database Migration & Rebuild (AC 6, E-291)', () => {
 		expect(db.pragma('foreign_key_check')).toEqual([]);
 	});
 
+	it('0009 (E-288): one wrapup run may carry a machine verdict row and a human verdict row, but not two of the same kind', () => {
+		const db = new Database(':memory:');
+		db.pragma('foreign_keys = ON');
+		createRunner(db).run(MIGRATIONS_DIR);
+
+		db.exec(`
+			INSERT INTO documents (id, docs_path, project_name, content_fingerprint, imported_at, last_seen_at)
+			VALUES ('doc-1', '/path/to/docs', 'p', 'fp-1', '2026-09-17T10:00:00.000Z', '2026-09-17T10:00:00.000Z');
+			INSERT INTO batches (id, doc_id, batch_no, state, started_at, finished_at)
+			VALUES ('batch-1', 'doc-1', 1, 'needs_attention', '2026-09-17T10:00:00.000Z', NULL);
+			INSERT INTO dispatch_snapshots (id, task_id, batch_id, contract_hash, task_paths_json, launch_spec_json, created_at)
+			VALUES ('snap-w', NULL, 'batch-1', 'wrapup', '[]', '{}', '2026-09-17T10:00:00.000Z');
+			INSERT INTO runs (id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id, batch_id, started_at)
+			VALUES ('run-w1', NULL, 1, 'wrapup', 'awaiting_human', 'codex', 'workspaceWrite', 'snap-w', 'batch-1', '2026-09-17T10:00:00.000Z');
+		`);
+		const insert = db.prepare(`
+			INSERT INTO batch_wrapups (id, batch_id, batch_no, tasks_json, round, run_id, verdict, declared_verdict, is_human_verdict,
+				prompt_source, tests_json, summary_text, findings_json, unassigned_json, fix_run_ids_json, report_text, created_at)
+			VALUES (?, 'batch-1', 1, '[]', ?, 'run-w1', ?, NULL, ?, 'docs', '{}', 's', '[]', '[]', '[]', 'r', '2026-09-17T10:00:00.000Z')
+		`);
+		insert.run('w-machine', 2, 'open', 0);
+		insert.run('w-human', 3, 'clean', 1);
+		expect(
+			db.prepare('SELECT COUNT(*) AS c FROM batch_wrapups WHERE run_id = ?').get('run-w1'),
+		).toEqual({ c: 2 });
+		expect(() => insert.run('w-human-2', 4, 'clean', 1)).toThrowError(/UNIQUE/);
+		expect(db.pragma('foreign_key_check')).toEqual([]);
+	});
+
 	it('produces identical sqlite_master schema between fresh migration and upgraded database', () => {
 		const freshDb = new Database(':memory:');
 		freshDb.pragma('foreign_keys = ON');

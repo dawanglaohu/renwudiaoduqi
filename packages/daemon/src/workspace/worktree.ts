@@ -473,7 +473,7 @@ function categorizeWorktreeCreationError(
 export async function prepareWorktree(
 	input: PrepareWorktreeInput,
 	runner: GitRunner,
-	_deps: WorktreeManagerDeps,
+	deps: WorktreeManagerDeps,
 ): Promise<PrepareWorktreeResult> {
 	const repoPath = nodePath.resolve(input.repoPath);
 	const taskId = input.taskId.trim();
@@ -487,7 +487,7 @@ export async function prepareWorktree(
 	const mode = input.worktreeMode ?? 'fresh';
 	const existingWorktrees = await listWorktrees(repoPath, runner);
 
-	// 2. If reuse mode requested (E-121)
+	// 2. If reuse mode requested (E-121 / E-277)
 	if (mode === 'reuse') {
 		const expectedPrefix = input.branchPrefix ?? 'task/';
 		const targetBranch = input.preferredBranchName ?? `${expectedPrefix}${taskId}`;
@@ -497,10 +497,62 @@ export async function prepareWorktree(
 				(input.targetWorktreePath &&
 					nodePath.resolve(wt.path) === nodePath.resolve(input.targetWorktreePath)),
 		);
-		if (matching) {
+		const registeredDirectoryExists = matching
+			? await worktreeDirectoryExists(matching.path, deps)
+			: false;
+		if (matching && !matching.isPrunable && registeredDirectoryExists) {
 			return Object.freeze({
 				worktreePath: matching.path,
 				branchName: matching.branch ?? targetBranch,
+				baseRef: input.baseRef ?? 'HEAD',
+				isReused: true,
+			});
+		}
+
+		// E-277：目录被删但登记还在（prunable），或登记也没了但分支仍在——都在原分支上重建，
+		// 不 `-b` 新分支、不换 base。旧版 Git 对 prunable 登记执行 `worktree add --force` 可能成功退出却
+		// 不重建目录，所以先精确 remove 这一条登记；绝不对全仓执行 worktree prune。
+		const reuseBranch = matching?.branch ?? targetBranch;
+		const branchExists =
+			matching !== undefined || (await listAllBranchNames(repoPath, runner)).has(reuseBranch);
+		if (branchExists) {
+			const reusePath = matching
+				? nodePath.resolve(matching.path)
+				: input.targetWorktreePath
+					? nodePath.resolve(input.targetWorktreePath)
+					: resolveDefaultWorktreePath(repoPath, taskId, undefined, input.worktreesDir);
+			if (matching) {
+				const removeResult = await runner.run(
+					['worktree', 'remove', '--force', matching.path],
+					repoPath,
+				);
+				if (removeResult.exitCode !== 0) {
+					throw categorizeWorktreeCreationError(
+						new Error(removeResult.stderr || removeResult.stdout),
+						repoPath,
+						reusePath,
+						reuseBranch,
+					);
+				}
+			}
+			const reuseArgs = ['worktree', 'add', reusePath, reuseBranch];
+			let reuseResult: GitCommandResult;
+			try {
+				reuseResult = await runner.run(reuseArgs, repoPath);
+			} catch (cause) {
+				throw categorizeWorktreeCreationError(cause, repoPath, reusePath, reuseBranch);
+			}
+			if (reuseResult.exitCode !== 0) {
+				throw categorizeWorktreeCreationError(
+					new Error(reuseResult.stderr || reuseResult.stdout),
+					repoPath,
+					reusePath,
+					reuseBranch,
+				);
+			}
+			return Object.freeze({
+				worktreePath: reusePath,
+				branchName: reuseBranch,
 				baseRef: input.baseRef ?? 'HEAD',
 				isReused: true,
 			});
@@ -559,6 +611,16 @@ export async function prepareWorktree(
 		baseRef,
 		isReused: false,
 	});
+}
+
+async function worktreeDirectoryExists(path: string, deps: WorktreeManagerDeps): Promise<boolean> {
+	const stat = deps.fs?.stat ?? nodeFs.stat;
+	try {
+		return (await stat(path)).isDirectory();
+	} catch (cause) {
+		if ((cause as { code?: string })?.code === 'ENOENT') return false;
+		throw categorizeWorktreeCreationError(cause, path, path, 'unknown');
+	}
 }
 
 export async function removeWorktree(

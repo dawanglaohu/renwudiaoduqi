@@ -509,6 +509,168 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		expect(batch?.state).toBe('wrapping');
 	});
 
+	it('F1 (E-272 / E-283): a review run with a higher attempt_no must not hide the landed implementation run', async () => {
+		// 实施行 landed 且已进 HEAD；随后的审查行（attempt 2，停在 exited）与它共用 task_id
+		runsRepo.insert({
+			id: 'run-t1',
+			task_id: 'task-1',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'landed',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-1',
+			branch_name: 'task/m1-t1',
+			is_in_head: 1,
+			ended_at: '2026-09-17T10:10:00.000Z',
+		});
+		runsRepo.insert({
+			id: 'run-t1-review',
+			task_id: 'task-1',
+			attempt_no: 2,
+			kind: 'review',
+			parent_run_id: 'run-t1',
+			state: 'exited',
+			agent_id: 'codex',
+			permission_tier: 'readOnly',
+			snapshot_id: 'snap-1',
+			ended_at: '2026-09-17T10:15:00.000Z',
+		});
+		runsRepo.insert({
+			id: 'run-t2',
+			task_id: 'task-2',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'landed',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-2',
+			branch_name: 'task/m1-t2',
+			is_in_head: 1,
+			ended_at: '2026-09-17T10:20:00.000Z',
+		});
+
+		const dto = await batchService.getBatch('batch-1');
+		expect(dto.canWrapup).toBe(true);
+		expect(dto.notInHeadCount).toBe(0);
+
+		inHeadMockResult = { inHead: true, method: 'ancestor' };
+		const tickRes = await dispatchService.tick();
+		expect(tickRes.runsDispatched.length).toBe(1);
+		expect(runsRepo.findById(tickRes.runsDispatched[0] ?? '')?.kind).toBe('wrapup');
+		expect(batchesRepo.findById('batch-1')?.state).toBe('wrapping');
+	});
+
+	it('F1 (E-272): tasks landed by a human gate (manual_state) count for tick AND triggerWrapup, and their branches still get the in-HEAD check', async () => {
+		// M8-T4 闸门 pass 的真实产物：tasks.manual_state='landed'，实施行停在 awaiting_human
+		tasksRepo.updateManualState('task-1', 'landed');
+		tasksRepo.updateManualState('task-2', 'landed');
+		runsRepo.insert({
+			id: 'run-t1',
+			task_id: 'task-1',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'awaiting_human',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-1',
+			branch_name: 'task/m1-t1',
+			ended_at: '2026-09-17T10:10:00.000Z',
+		});
+		runsRepo.insert({
+			id: 'run-t2',
+			task_id: 'task-2',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'awaiting_human',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-2',
+			branch_name: 'task/m1-t2',
+			ended_at: '2026-09-17T10:20:00.000Z',
+		});
+
+		// 分支未进 HEAD：tick 必须把批次转 awaiting_landing（而不是吞掉 not_all_landed 停在 running）
+		inHeadMockResult = { inHead: false, method: 'unmerged' };
+		await dispatchService.tick();
+		expect(batchesRepo.findById('batch-1')?.state).toBe('awaiting_landing');
+		const waiting = await batchService.getBatch('batch-1');
+		expect(waiting.notInHeadCount).toBe(2);
+		await expect(
+			wrapupService.triggerWrapup({ batchId: 'batch-1', trigger: 'manual' }),
+		).rejects.toMatchObject({ code: 'E_BATCH_NOT_WRAPPABLE', details: { reason: 'not_in_head' } });
+
+		// 分支合入后：下一 tick（节流 30s 后）刷新 is_in_head 并派收口
+		inHeadMockResult = { inHead: true, method: 'ancestor' };
+		testTime = '2026-09-17T10:31:00.000Z';
+		const tickRes = await dispatchService.tick();
+		expect(tickRes.runsDispatched.length).toBe(1);
+		expect(batchesRepo.findById('batch-1')?.state).toBe('wrapping');
+	});
+
+	it('F3 (E-288): after round 2 is still open, the human pass on the batch gate lands beside the machine verdict row', async () => {
+		runsRepo.insert({
+			id: 'run-t1',
+			task_id: 'task-1',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'landed',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-1',
+			is_in_head: 1,
+			ended_at: '2026-09-17T10:10:00.000Z',
+		});
+		runsRepo.insert({
+			id: 'run-t2',
+			task_id: 'task-2',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'landed',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-2',
+			is_in_head: 1,
+			ended_at: '2026-09-17T10:20:00.000Z',
+		});
+		const openReport = readFileSync(resolve(fixturesDir, 'open-unfixed-bug.md'), 'utf8');
+
+		const { run: round1 } = await wrapupService.triggerWrapup({
+			batchId: 'batch-1',
+			trigger: 'manual',
+		});
+		await wrapupService.recordWrapupResult({ runId: round1.id, rawText: openReport, exitCode: 0 });
+		expect(batchWrapupsRepo.getMaxRound('batch-1')).toBe(1);
+		expect(batchesRepo.findById('batch-1')?.state).toBe('running');
+
+		const { run: round2 } = await wrapupService.triggerWrapup({
+			batchId: 'batch-1',
+			trigger: 'manual',
+		});
+		await wrapupService.recordWrapupResult({ runId: round2.id, rawText: openReport, exitCode: 0 });
+		expect(batchesRepo.findById('batch-1')?.state).toBe('needs_attention');
+		const machineRow = batchWrapupsRepo.findByRunId(round2.id);
+		expect(machineRow?.verdict).toBe('open');
+		expect(machineRow?.is_human_verdict).toBe(0);
+
+		const gate = gatesRepo.findPendingByRunId?.(round2.id);
+		if (!gate) throw new Error('batch-level gate must exist after round 2 open');
+		await gateService.decideGate({
+			gateId: gate.id,
+			decision: 'pass',
+			comment: '剩余 B2 已另开任务承接，本批放行。',
+			actorDeviceId: 'dev-1',
+		});
+
+		const rows = batchWrapupsRepo.listByBatchId('batch-1');
+		const humanRow = rows.find((r) => r.is_human_verdict === 1);
+		expect(humanRow?.run_id).toBe(round2.id);
+		expect(humanRow?.verdict).toBe('clean');
+		expect(rows.filter((r) => r.run_id === round2.id)).toHaveLength(2);
+		expect(batchesRepo.findById('batch-1')?.state).toBe('done');
+		expect(gatesRepo.findById(gate.id)?.state).toBe('decided');
+	});
+
 	it('AC 4 & E-294: clean wrapup report transitions batch to done and wrapup run to landed, even if diff is empty', async () => {
 		runsRepo.insert({
 			id: 'run-t1',

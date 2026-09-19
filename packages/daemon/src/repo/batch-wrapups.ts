@@ -70,7 +70,7 @@ SELECT * FROM batch_wrapups WHERE id = ? LIMIT 1
 `;
 
 const SELECT_BY_RUN_ID_SQL = `
-SELECT * FROM batch_wrapups WHERE run_id = ? LIMIT 1
+SELECT * FROM batch_wrapups WHERE run_id = ? ORDER BY is_human_verdict ASC, created_at ASC LIMIT 1
 `;
 
 const SELECT_BY_BATCH_ID_SQL = `

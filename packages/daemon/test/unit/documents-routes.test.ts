@@ -265,6 +265,61 @@ describe(
 			expect(doc2?.isTakeoverNotified).toBe(true);
 		});
 
+		it('接缝（M3-T2 ↔ M3-T4）：POST /documents 把任务与批次落进 tasks / batches 表，GET /snapshot 能看到', async () => {
+			const { server, container } = setupTestServer();
+			const authToken = await getAuthToken(container);
+			await server.instance.ready();
+
+			const docFolder = join(testDir, 'my-doc-import');
+			mkdirSync(docFolder, { recursive: true });
+			const docsDataPath = join(docFolder, 'docs-data.js');
+			writeFileSync(docsDataPath, createSampleDocsDataJs('import'), 'utf8');
+
+			const importRes = await server.instance.inject({
+				method: 'POST',
+				url: '/api/v1/documents',
+				headers: { authorization: authToken },
+				payload: { docsPath: docsDataPath },
+			});
+			expect(importRes.statusCode).toBe(200);
+			const importData = JSON.parse(importRes.body) as CreateDocumentResponse;
+			expect(importData.taskCount).toBe(1);
+			const docId = importData.document.id;
+
+			// 落库：一个任务、第 1 批，任务归属该批
+			const tasks = container.repos.tasks.listByDocId(docId);
+			expect(tasks.map((t) => t.task_key)).toEqual(['T-1']);
+			const batches = container.repos.batches.listByDocId(docId);
+			expect(batches.map((b) => b.batch_no)).toEqual([1]);
+			expect(tasks[0]?.batch_id).toBe(batches[0]?.id);
+			expect(tasks[0]?.impl_prompt).toBe('实现提示词');
+
+			// 快照从表里读，不是从解析结果读
+			const snapshotRes = await server.instance.inject({
+				method: 'GET',
+				url: '/api/v1/snapshot',
+				headers: { authorization: authToken },
+			});
+			expect(snapshotRes.statusCode).toBe(200);
+			const snapshot = JSON.parse(snapshotRes.body) as {
+				tasks: Array<{ taskKey: string; batchId: string | null }>;
+				batches: Array<{ id: string }>;
+			};
+			expect(snapshot.tasks.map((t) => t.taskKey)).toEqual(['T-1']);
+			expect(snapshot.batches).toHaveLength(1);
+
+			// 重新导入同一份文档：幂等，不重复插行
+			const reimportRes = await server.instance.inject({
+				method: 'POST',
+				url: '/api/v1/documents',
+				headers: { authorization: authToken },
+				payload: { docsPath: docsDataPath },
+			});
+			expect(reimportRes.statusCode).toBe(200);
+			expect(container.repos.tasks.listByDocId(docId)).toHaveLength(1);
+			expect(container.repos.batches.listByDocId(docId)).toHaveLength(1);
+		});
+
 		it('AC 2 & E-83: scheduler never reads or writes reader localStorage', async () => {
 			const { server, container } = setupTestServer();
 			const authToken = await getAuthToken(container);

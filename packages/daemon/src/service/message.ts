@@ -30,14 +30,44 @@ const CONTENT_EVENT_KINDS: ReadonlySet<string> = new Set(
 	),
 );
 
-/** 未送达（E-113）、启动超时/进程退出/错误类（E-190）都归一化成这几个 kind。 */
-const FAILURE_EVENT_KINDS: ReadonlySet<string> = new Set([
-	'run.message_undelivered',
-	'run.exited',
-	'run.aborted',
+/** 未送达（E-113）、进程退出（含 codex 映射器直接产出的 run.exited）归一化成这几个 kind。 */
+const FAILURE_EVENT_KINDS: ReadonlySet<string> = new Set(['run.message_undelivered', 'run.exited']);
+
+/**
+ * 产品自己的退出信号是 `run.state_changed{to}`（service/run.ts 的 onExit、proc/spawn.ts 的启动超时都走它，
+ * 只有 codex 映射器会另发 run.exited）：这些目标态在首条内容事件之前出现同样算「会话不可续」。
+ */
+const FAILURE_TARGET_STATES: ReadonlySet<string> = new Set([
+	'exited',
+	'failed',
+	'interrupted',
+	'orphaned',
 ]);
 
-export type ContinuationState = 'exhausted' | 'content' | 'pending';
+/**
+ * - `exhausted`：内容前出现未送达 / 退出 / 错误类事件（E-330 撑爆）
+ * - `content`：首条内容事件已到（撑住）
+ * - `pending`：既无事件也不退出，交给停滞检测（E-120）
+ * - `aborted`：人手动中止了这条运行——不是撑爆，调用方不得据此新开会话
+ */
+export type ContinuationState = 'exhausted' | 'content' | 'pending' | 'aborted';
+
+function classifyContinuationEvent(envelope: {
+	readonly kind: unknown;
+	readonly payload?: unknown;
+}): ContinuationState | null {
+	const kind = String(envelope.kind);
+	if (CONTENT_EVENT_KINDS.has(kind)) return 'content';
+	if (FAILURE_EVENT_KINDS.has(kind)) return 'exhausted';
+	if (kind === 'run.aborted') return 'aborted';
+	if (kind === 'run.state_changed') {
+		const target = (envelope.payload as { to?: unknown } | undefined)?.to;
+		if (typeof target !== 'string') return null;
+		if (target === 'aborted') return 'aborted';
+		if (FAILURE_TARGET_STATES.has(target)) return 'exhausted';
+	}
+	return null;
+}
 
 /**
  * E-330：等该轮的首条内容事件（撑住）或内容前的失败事件（撑爆）。
@@ -68,11 +98,10 @@ export function waitForContinuationState(
 		ctx.unsubscribe = bus.subscribeWithFilter(
 			(envelope) => envelope.runId === runId,
 			(envelope) => {
-				const kind = String(envelope.kind);
-				if (CONTENT_EVENT_KINDS.has(kind)) {
-					settle('content');
-				} else if (FAILURE_EVENT_KINDS.has(kind)) {
-					settle('exhausted');
+				// 只读归一化事件的种类与目标状态，厂商错误串一概不看（E-330）。
+				const state = classifyContinuationEvent(envelope);
+				if (state !== null) {
+					settle(state);
 				}
 			},
 		);

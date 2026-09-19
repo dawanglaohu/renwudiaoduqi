@@ -609,6 +609,36 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 		});
 	});
 
+	describe('E-54 seam (M8-T3 ↔ M8-T11): agent concurrency counts only slot-holding states', () => {
+		it('does not count awaiting_human runs against the per-agent limit', async () => {
+			documentsRepo.updateLaneCount('doc-1', 6);
+			seedBatch({ id: 'batch-1', batchNo: 1, state: 'running' });
+			seedTask({ id: 'task-h1', taskKey: 'H1', batchId: 'batch-1', taskPaths: ['path/h1.ts'] });
+			seedTask({ id: 'task-h2', taskKey: 'H2', batchId: 'batch-1', taskPaths: ['path/h2.ts'] });
+			seedTask({ id: 'task-n1', taskKey: 'N1', batchId: 'batch-1', taskPaths: ['path/n1.ts'] });
+			seedTask({ id: 'task-n2', taskKey: 'N2', batchId: 'batch-1', taskPaths: ['path/n2.ts'] });
+			for (const taskId of ['task-h1', 'task-h2']) {
+				runsRepo.insert({
+					id: `run-${taskId}`,
+					task_id: taskId,
+					attempt_no: 1,
+					kind: 'implement',
+					state: 'awaiting_human',
+					agent_id: 'codex',
+					permission_tier: 'workspaceWrite',
+					snapshot_id: seedSnapshot(taskId),
+				});
+			}
+
+			// agentLimits = 2：两条 awaiting_human 不占 codex 的额度（E-54），两个新任务都该派出去
+			const tickResult = await dispatchService.tick();
+			expect(tickResult.runsDispatched.length).toBe(2);
+			expect(tickResult.tasksDeferred.filter((d) => d.reason === 'agent_limit_reached')).toEqual(
+				[],
+			);
+		});
+	});
+
 	describe('HTTP Routes Integration (Fastify)', () => {
 		let app: FastifyInstance;
 
@@ -865,6 +895,26 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 			const snapshotBody = JSON.parse(snapshotRes.body);
 			expect(snapshotBody.error?.message ?? '').not.toMatch(/not implemented yet/i);
 
+			// E-153 接缝（M8-T3 ↔ M2-T5）：latestEventId 必须是最后一条真正发出的事件 id，
+			// 不是 event_seq 的预留水位（1000）——SSE 客户端拿它当 Last-Event-ID 续接，偏大就会静默丢事件。
+			const publishedEnvelope = container.events.envelopeFactory.createEnvelope({
+				kind: 'system.docs_changed',
+				payload: { docsPath: '/abs/path/docs', fingerprint: 'fp-x' },
+			});
+			container.events.bus.publish(publishedEnvelope);
+			const published = publishedEnvelope;
+			const afterPublishRes = await server.instance.inject({
+				method: 'GET',
+				url: '/api/v1/snapshot',
+				headers: { authorization: 'Bearer mock-valid-token' },
+			});
+			const afterPublish = JSON.parse(afterPublishRes.body) as { latestEventId: number | null };
+			// 容器后台任务可在两次读取之间继续发布 agent availability 等事件；快照游标可以推进，
+			// 但绝不能倒退到本测试刚发布的事件之前，更不能返回 event_seq 的预留水位。
+			expect(afterPublish.latestEventId).not.toBeNull();
+			expect(afterPublish.latestEventId ?? 0).toBeGreaterThanOrEqual(published.id);
+			expect(afterPublish.latestEventId).toBeLessThan(1000);
+
 			const createRes = await server.instance.inject({
 				method: 'POST',
 				url: '/api/v1/runs',
@@ -879,6 +929,6 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 			expect(createBody.error?.message ?? '').not.toMatch(/not implemented yet/i);
 
 			await server.close();
-		});
+		}, 30_000);
 	});
 });

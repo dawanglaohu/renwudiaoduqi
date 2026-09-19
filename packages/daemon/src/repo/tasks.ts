@@ -806,6 +806,16 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 	});
 }
 
+function requireDatabase(db: DatabaseConnection | null, repoName: string): DatabaseConnection {
+	if (!db) {
+		throw new AppError(
+			'E_INTERNAL',
+			`importDocTasks needs either a database handle or an injected ${repoName}.`,
+		);
+	}
+	return db;
+}
+
 /**
  * 导入文档任务与批次（M3-T2）：
  * 1. 校验任务依赖，产生导入报告（幽灵依赖、成环任务列出，阻断自动批次派发，E-20、E-241、E-242）；
@@ -817,15 +827,15 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
  * 6. ready=false 的合法任务正常落库但 is_contract_ready=0，带阻断原因（E-17、E-82）。
  */
 export function importDocTasks(
-	db: DatabaseConnection,
+	db: DatabaseConnection | null,
 	params: ImportDocTasksParams,
 	repos?: {
 		readonly tasksRepo?: TasksRepo;
 		readonly batchesRepo?: BatchesRepo;
 	},
 ): ImportDocTasksResult {
-	const tasksRepo = repos?.tasksRepo ?? createTasksRepo(db);
-	const batchesRepo = repos?.batchesRepo ?? createBatchesRepo(db);
+	const tasksRepo = repos?.tasksRepo ?? createTasksRepo(requireDatabase(db, 'tasksRepo'));
+	const batchesRepo = repos?.batchesRepo ?? createBatchesRepo(requireDatabase(db, 'batchesRepo'));
 	const idGenerator = params.idGenerator ?? randomUUID;
 
 	// 1. 依赖校验：找出幽灵依赖与成环任务（E-20、E-241、E-242）
