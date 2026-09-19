@@ -202,6 +202,11 @@ export interface RunDto {
 	readonly inHeadCheckedAt?: string | null;
 	readonly branchTipSha?: string | null;
 	readonly inHeadWarning?: string | null;
+	/**
+	 * Session ordinal of this run among the agent's concurrent sessions, read from
+	 * `runs.session_no` (E-31). Rows written before the column existed read as `null`.
+	 */
+	readonly sessionNo?: number | null;
 	readonly promptSource?: 'docs' | 'builtin' | null;
 	readonly assignmentSource?:
 		| 'task'

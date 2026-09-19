@@ -196,12 +196,13 @@ describe('M8-T6 Database Migration & Rebuild (AC 6, E-291)', () => {
 
 		const upgradeDb = new Database(':memory:');
 		upgradeDb.pragma('foreign_keys = ON');
-		// Step 1: run 0001..0006
+		// Step 1: run 0001..0006 (everything before the 0007 rebuild; later ADD COLUMN
+		// migrations such as 0008 must run after it, as they do on a real upgrade)
 		const partialRunner = createMigrationRunner({
 			clock: { now: () => '2026-09-17T12:00:00.000Z' },
 			database: upgradeDb,
 			fileSystem: {
-				readDirectory: (dir) => readdirSync(dir).filter((file) => !file.startsWith('0007')),
+				readDirectory: (dir) => readdirSync(dir).filter((file) => file < '0007'),
 				readFile: (path) => readFileSync(path, 'utf8'),
 			},
 		});

@@ -36,6 +36,7 @@ import { type RunsRepo, createRunsRepo } from '../repo/runs.ts';
 import { type SettingsRepo, createSettingsRepo } from '../repo/settings.ts';
 import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
+import { type AssignmentsService, createAssignmentsService } from '../service/assignments.ts';
 import { type BatchService, createBatchService } from '../service/batch.ts';
 import { type DispatchService, createDispatchService } from '../service/dispatch.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
@@ -107,6 +108,7 @@ export interface ContainerServices {
 	readonly message: MessageService;
 	readonly retention: RetentionService;
 	readonly dispatch: DispatchService;
+	readonly assignments: AssignmentsService;
 	readonly rework: ReworkService;
 	readonly settings: SettingsService;
 	readonly gates: GateService;
@@ -175,6 +177,7 @@ export function createContainer(input: {
 	readonly settingsService?: SettingsService;
 	readonly gateService?: GateService;
 	readonly dispatchService?: DispatchService;
+	readonly assignmentsService?: AssignmentsService;
 	readonly reworkService?: ReworkService;
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
@@ -540,13 +543,47 @@ export function createContainer(input: {
 			listAgents: () => agentService.listAgents(),
 			listDispatchableAgents: () => {
 				const snapshot = agentRegistry.getSnapshot();
-				return Object.keys(snapshot.agents).map((agentId) => {
+				return Object.entries(snapshot.agents).map(([agentId, agentConfig]) => {
 					const availability = agentService.getAvailability(agentId);
 					return {
 						agentId,
 						canDispatch: availability?.canDispatch === true,
+						// Registry maxConcurrency is the per-agent limit the tick and the preview share (E-47).
+						concurrencyLimit: agentConfig.maxConcurrency,
 					};
 				});
+			},
+		});
+
+	const assignmentsService =
+		input.assignmentsService ??
+		createAssignmentsService({
+			unitOfWork,
+			tasksRepo: tasks,
+			batchesRepo: batches,
+			documentsRepo: documents,
+			runsRepo: runs,
+			clock: input.clock,
+			// Every registered agent is draftable, login state included (E-336).
+			listRegistryAgents: () =>
+				Object.entries(agentRegistry.getSnapshot().agents).map(([agentId, agentConfig]) => ({
+					agentId,
+					maxConcurrency: agentConfig.maxConcurrency,
+					effortVendorMap: agentConfig.effortVendorMap,
+				})),
+			listVendorEffortDomain: async (agentId) => {
+				const catalog = await agentService.listAgentModels(agentId);
+				const domain = new Set<string>();
+				const configEffort = catalog.currentConfig.effort;
+				if (configEffort && 'vendor' in configEffort) {
+					domain.add(configEffort.vendor);
+				}
+				for (const model of catalog.models) {
+					for (const option of model.effortOptions ?? []) {
+						domain.add(option);
+					}
+				}
+				return Array.from(domain);
 			},
 		});
 
@@ -613,6 +650,7 @@ export function createContainer(input: {
 		landing: landingService,
 		message: messageService,
 		dispatch: dispatchService,
+		assignments: assignmentsService,
 		rework: reworkService,
 		settings: settingsService,
 		gates: gateService,

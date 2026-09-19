@@ -9,9 +9,17 @@ import type { CreateRunBody, RerunRunResponse, RunDto } from '@agent-scheduler/s
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
-import { allocateConcurrencySlots } from '../domain/concurrency.ts';
+import {
+	DEFAULT_AGENT_CONCURRENCY_LIMIT,
+	allocateConcurrencySlots,
+} from '../domain/concurrency.ts';
+import { toEffortColumns } from '../domain/effort-value.ts';
 import { evaluatePathClashQueue, isTaskLanded, isTaskPathHolding } from '../domain/path-clash.ts';
-import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
+import {
+	type RunState,
+	countsTowardAgentConcurrency,
+	isTerminalRunState,
+} from '../domain/run-state-machine.ts';
 import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
@@ -30,6 +38,7 @@ import {
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 import { isBranchInHead } from '../workspace/in-head.ts';
+import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
 import { type BatchService, createBatchService } from './batch.ts';
 import { createRerunService } from './rerun.ts';
 import { assertSessionRefFree } from './session-guard.ts';
@@ -166,8 +175,6 @@ export interface DispatchService {
 	getInHeadWarning(runId: string): string | null;
 }
 
-const DEFAULT_AGENT_CONCURRENCY_LIMIT = 2;
-
 function resolveConstraintConflict(
 	error: unknown,
 	fallback: () => CreateRunResult | null,
@@ -259,12 +266,35 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return Object.freeze([]);
 	}
 
+	/**
+	 * Agent for an implementation run: the task's assignment draft wins (M8-T11); a task without a
+	 * draft falls back to the first dispatchable agent (M8-T3). A drafted agent is returned even
+	 * when it cannot dispatch, so the caller reports `agent_unavailable` for the drafted agent
+	 * rather than re-routing the task to another one.
+	 */
 	function resolveAgentForTask(task: TaskRow): string | null {
 		if (deps.resolveAgentForTask) {
 			return deps.resolveAgentForTask(task);
 		}
+		const draft = parseAssignmentDraft(task.assignment_draft_json);
+		if (draft) {
+			return draft.agentId;
+		}
 		const available = listDispatchableAgents().find((agent) => agent.canDispatch);
 		return available?.agentId ?? null;
+	}
+
+	/**
+	 * Session ordinal of a run about to be inserted (E-31): concurrency-occupying runs of the same
+	 * agent plus one. Read inside the insert transaction so two dispatches cannot share a number.
+	 */
+	function nextSessionNoFor(agentId: string): number {
+		const occupying = runsRepo
+			.listActive()
+			.filter(
+				(run) => run.agent_id === agentId && countsTowardAgentConcurrency(run.state as RunState),
+			).length;
+		return occupying + 1;
 	}
 
 	function isAgentDispatchable(agentId: string): boolean {
@@ -345,6 +375,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		const now = deps.clock.now();
+		const effortColumns = toEffortColumns(input.effort ?? null);
 		const launchSpecJson = JSON.stringify({
 			agentId,
 			model: input.model ?? null,
@@ -372,11 +403,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				state: 'starting',
 				agent_id: agentId,
 				model_name: input.model ?? null,
+				effort_tier: effortColumns.effort_tier,
+				effort_vendor: effortColumns.effort_vendor,
 				permission_tier: input.permissionTier ?? 'workspaceWrite',
 				snapshot_id: snapshot.id,
 				idempotency_key: idempotencyKey,
 				actor_device_id: input.actorDeviceId ?? null,
 				started_at: now,
+				session_no: nextSessionNoFor(agentId),
 			};
 			assertSessionRefFree(
 				{ taskId, vendorSessionRef: undefined },
@@ -951,7 +985,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						continue;
 					}
 
-					const assigned: Array<{ readonly task: TaskRow; readonly agentId: string }> = [];
+					const assigned: Array<{
+						readonly task: TaskRow;
+						readonly agentId: string;
+						readonly draft: StoredAssignmentDraft | null;
+					}> = [];
 					for (const t of dispatchableTasks) {
 						const agentId = resolveAgentForTask(t);
 						if (!agentId || !isAgentDispatchable(agentId)) {
@@ -961,7 +999,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 							continue;
 						}
-						assigned.push({ task: t, agentId });
+						const draft = parseAssignmentDraft(t.assignment_draft_json);
+						assigned.push({
+							task: t,
+							agentId,
+							draft: draft && draft.agentId === agentId ? draft : null,
+						});
 					}
 
 					if (assigned.length === 0) {
@@ -979,6 +1022,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						readonly id: string;
 						readonly agentId: string;
 						readonly task: TaskRow;
+						readonly draft: StoredAssignmentDraft | null;
 						readonly [key: string]: unknown;
 					}
 
@@ -987,6 +1031,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							id: item.task.id,
 							agentId: item.agentId,
 							task: item.task,
+							draft: item.draft,
 						})),
 						availableSlots,
 						agentLimits: agentLimitFor,
@@ -1004,9 +1049,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						const task = item.task;
 						const idempotencyKey = `auto_${task.id}_${deps.ids.newId()}`;
 						try {
+							// The draft's model and effort travel verbatim into the run (AC 5, E-31).
 							const runResult = await createRun({
 								taskId: task.id,
 								agentId: item.agentId,
+								model: item.draft?.model ?? null,
+								effort: item.draft?.effort ?? null,
 								idempotencyKey,
 								permissionTier: 'workspaceWrite',
 							});
