@@ -209,7 +209,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 
 		// 2. 完整档（AC 9, AC 10, E-163, E-167）
 		if (tier === 'full') {
-			if (streamCount <= 3 && width >= 1440) {
+			if (streamCount <= 3) {
 				return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 overflow-y-auto flex-1 auto-rows-fr';
 			}
 			return 'relative flex flex-row gap-4 p-4 overflow-auto flex-1';
