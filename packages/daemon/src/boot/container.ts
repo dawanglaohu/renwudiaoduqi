@@ -654,6 +654,7 @@ export function createContainer(input: {
 			documentsRepo: documents,
 			dispatchSnapshotsRepo: dispatchSnapshots,
 			runsRepo: runs,
+			gatesRepo: gates,
 			batchWrapupsRepo: batchWrapups,
 			batchService,
 			wrapupService,

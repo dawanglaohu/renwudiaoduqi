@@ -280,6 +280,7 @@ function setupTestEnvironment(
 	overrides: {
 		readonly prepareWorktreeFail?: boolean;
 		readonly codexAvailable?: boolean;
+		readonly availableAgentIds?: readonly string[];
 		readonly exitCode?: number;
 		readonly stderrTail?: string;
 		readonly spawnThrow?: boolean;
@@ -353,15 +354,17 @@ function setupTestEnvironment(
 		},
 	};
 
+	const availableAgentIds = new Set(
+		overrides.availableAgentIds ?? (overrides.codexAvailable === false ? [] : ['codex']),
+	);
 	const fakeAgentService = {
 		start: async () => {},
 		stop: async () => {},
-		listAgents: async () => [
-			{ id: 'codex', canDispatch: overrides.codexAvailable !== false, maxConcurrency: 2 },
-		],
+		listAgents: async () =>
+			Array.from(availableAgentIds).map((id) => ({ id, canDispatch: true, maxConcurrency: 2 })),
 		getAvailability: (agentId: string) => {
-			if (agentId === 'codex') {
-				return { canDispatch: overrides.codexAvailable !== false, isReady: true, status: 'ready' };
+			if (availableAgentIds.has(agentId)) {
+				return { canDispatch: true, isReady: true, status: 'ready' };
 			}
 			return { canDispatch: false, isReady: false, status: 'not_found' };
 		},
@@ -1141,7 +1144,8 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 
 		attempts = 0;
 		while (
-			container.repos.runs.findById(original.run.id)?.state !== 'awaiting_human' &&
+			(container.repos.runs.findById(original.run.id)?.state !== 'awaiting_human' ||
+				!container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review')) &&
 			attempts < 50
 		) {
 			await new Promise((resolve) => setTimeout(resolve, 20));
@@ -1172,6 +1176,18 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 
 		expect(rerun?.state).toBe('running');
 		expect(rerun?.pid).toBe(88888);
+		expect(container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review')?.state).toBe(
+			'decided',
+		);
+		const duplicate = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/runs/${original.run.id}/rerun`,
+			headers: { authorization: token },
+			payload: { idempotencyKey: 'idemp-b1-rerun' },
+		});
+		expect(duplicate.statusCode).toBe(200);
+		expect((JSON.parse(duplicate.body) as CreateRunResponse).run.id).toBe(body.run.id);
+		expect(container.repos.runs.listByTaskId('task-1')).toHaveLength(2);
 		await server.instance.close();
 	});
 
@@ -1236,6 +1252,84 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(rerun?.pid).toBe(88888);
 		expect(rerun?.model_name).toBe('gpt-5-rerun');
 		expect(rerun?.permission_tier).toBe('workspaceWrite');
+		await server.instance.close();
+	});
+
+	it('B2: POST /runs reassigns an awaiting_human task to the selected agent and launches it', async () => {
+		const env = setupTestEnvironment({ availableAgentIds: ['codex', 'claude'] });
+		const { container, getLatestProc } = env;
+		const server = createHttpServer({ container });
+		await server.instance.ready();
+		const token = await getAuthToken(container);
+
+		const original = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'codex',
+			idempotencyKey: 'idemp-b2-original',
+		});
+		let attempts = 0;
+		while (!getLatestProc() && attempts < 50) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+		getLatestProc()?.emitExit(0);
+		attempts = 0;
+		while (
+			(container.repos.runs.findById(original.run.id)?.state !== 'awaiting_human' ||
+				!container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review')) &&
+			attempts < 50
+		) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+
+		const response = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs',
+			headers: { authorization: token },
+			payload: {
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'claude-reassign-model',
+				worktreeMode: 'fresh',
+				idempotencyKey: 'idemp-b2-reassign',
+			},
+		});
+
+		expect(response.statusCode).toBe(200);
+		const body = JSON.parse(response.body) as CreateRunResponse;
+		expect(body.run.id).not.toBe(original.run.id);
+
+		attempts = 0;
+		let reassigned = container.repos.runs.findById(body.run.id);
+		while ((reassigned?.state !== 'running' || reassigned.pid === null) && attempts < 50) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			reassigned = container.repos.runs.findById(body.run.id);
+			attempts++;
+		}
+
+		expect(reassigned?.agent_id).toBe('claude');
+		expect(reassigned?.model_name).toBe('claude-reassign-model');
+		expect(reassigned?.state).toBe('running');
+		expect(reassigned?.pid).toBe(88888);
+		expect(getLatestProc()?.lastLaunchSpec.file).toBe('claude');
+		expect(container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review')?.state).toBe(
+			'decided',
+		);
+		const duplicate = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs',
+			headers: { authorization: token },
+			payload: {
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'claude-reassign-model',
+				idempotencyKey: 'idemp-b2-reassign',
+			},
+		});
+		expect(duplicate.statusCode).toBe(200);
+		expect((JSON.parse(duplicate.body) as CreateRunResponse).run.id).toBe(body.run.id);
+		expect(container.repos.runs.listByTaskId('task-1')).toHaveLength(2);
 		await server.instance.close();
 	});
 
