@@ -20,6 +20,9 @@ export interface RunRecord {
 	readonly state: RunState;
 	readonly pid: number | null;
 	readonly kind?: string;
+	readonly origin?: string;
+	readonly agentId?: string;
+	readonly agent_id?: string;
 	readonly sessionArchivedAt?: string | null;
 	readonly session_archived_at?: string | null;
 	readonly laneNo?: number | null;
@@ -38,10 +41,14 @@ export interface RunsRepo {
 		readonly id: string;
 		readonly fromState: RunState;
 		readonly toState: RunState;
+		readonly queuedReason?: string | null;
 		readonly endedAt?: string | null;
 		readonly exitCode?: number | null;
 		readonly exitSignal?: string | null;
 		readonly actorDeviceId?: string | null;
+		readonly pid?: number | null;
+		readonly worktreePath?: string | null;
+		readonly branchName?: string | null;
 	}): void;
 	updateLastEventAt(id: string, lastEventAt: string): void;
 	incrementUnmappedEventCount(id: string): void;
@@ -64,7 +71,7 @@ export interface IngestLineResult {
 
 export interface AttachProcessOptions {
 	readonly onEvent?: (envelope: EventEnvelope) => void;
-	readonly onExit?: (result: ProcessExitResult) => void;
+	readonly onExit?: (result: ProcessExitResult) => Promise<void> | void;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 	readonly acceptsPlainText?: boolean;
 }
@@ -96,6 +103,31 @@ export interface RunServiceDeps {
 		readonly runId: string;
 		readonly exitCode: number | null;
 	}) => Promise<void>;
+	readonly agentService?: {
+		readonly refreshLogin: (
+			agentId: string,
+			options?: {
+				readonly force?: boolean;
+				readonly trigger?:
+					| 'exited_before_output'
+					| 'probe'
+					| 'models_refresh'
+					| 'availability_changed';
+			},
+		) => Promise<unknown>;
+	};
+	readonly gatesRepo?: {
+		readonly create: (gate: {
+			readonly id: string;
+			readonly task_id: string | null;
+			readonly run_id?: string | null;
+			readonly kind: string;
+			readonly state: string;
+			readonly comment?: string | null;
+			readonly created_at: string;
+		}) => void;
+	};
+	readonly ids?: { readonly newId: () => string };
 }
 
 export interface RunService {
@@ -124,6 +156,9 @@ export interface RunService {
 		readonly exitSignal?: string | null;
 		readonly endedAt?: string | null;
 		readonly actorDeviceId?: string | null;
+		readonly pid?: number | null;
+		readonly worktreePath?: string | null;
+		readonly branchName?: string | null;
 	}): Promise<{ readonly previousState: RunState; readonly currentState: RunState }>;
 	closeRunStream(runId: string): Promise<void>;
 	findInFlightRuns(): Promise<readonly ReconcileRunRecord[]>;
@@ -193,6 +228,16 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
 	);
 }
 
+const CONTENT_EVENT_KINDS: ReadonlySet<string> = new Set(
+	(Object.keys(EVENT_DEFINITIONS) as string[]).filter(
+		(kind) => (kind.startsWith('agent_') || kind.startsWith('tool_')) && !kind.endsWith('_update'),
+	),
+);
+
+function isContentEventKind(kind: string): boolean {
+	return CONTENT_EVENT_KINDS.has(kind);
+}
+
 /**
  * Service for run stream orchestration and disk wiring (M6-T2).
  *
@@ -209,6 +254,7 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
 export function createRunService(deps: RunServiceDeps): RunService {
 	const logFailure = deps.logFailure ?? (() => undefined);
 	const temporarilyElevatedRuns = new Set<string>();
+	const runsWithContent = new Set<string>();
 
 	function getNow(): string {
 		return deps.clock.now();
@@ -226,21 +272,53 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		runId: string,
 		envelope: EventEnvelopeInput,
 	): Promise<AppendEventResult> {
+		if (isContentEventKind(envelope.kind)) {
+			runsWithContent.add(runId);
+		}
 		if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
 			throw new AppError('E_VALIDATION', 'Run ID must be a non-empty string');
 		}
 
+		let fullEnvelope: EventEnvelope;
+		const candidate = envelope as {
+			readonly id?: unknown;
+			readonly seq?: unknown;
+			readonly ts?: unknown;
+		};
+		if (
+			'id' in envelope &&
+			typeof candidate.id === 'number' &&
+			'seq' in envelope &&
+			'ts' in envelope
+		) {
+			fullEnvelope = envelope as EventEnvelope;
+		} else {
+			const run = deps.runsRepo?.findById(runId) as
+				| (RunRecord & {
+						readonly task_id?: string | null;
+						readonly actor_device_id?: string | null;
+				  })
+				| null;
+			fullEnvelope = deps.envelopeFactory.createEnvelope({
+				kind: envelope.kind as Parameters<EnvelopeFactory['createEnvelope']>[0]['kind'],
+				runId,
+				taskId: envelope.taskId ?? run?.taskId ?? run?.task_id ?? null,
+				actorDeviceId: envelope.actorDeviceId ?? run?.actorDeviceId ?? run?.actor_device_id ?? null,
+				payload: envelope.payload as Parameters<EnvelopeFactory['createEnvelope']>[0]['payload'],
+			}) as EventEnvelope;
+		}
+
 		// 1. 落盘：全量原文写入 events.ndjson；里程碑写入 events 索引表，*_chunk 不进索引表 (AC 1, AC 2)
-		const appendResult = await deps.logstore.appendEvent(runId, envelope);
+		const appendResult = await deps.logstore.appendEvent(runId, fullEnvelope);
 
 		// 2. 更新运行元数据中的 last_event_at (若提供了仓储)
 		if (deps.runsRepo) {
 			if (deps.unitOfWork) {
 				deps.unitOfWork.run(() => {
-					deps.runsRepo?.updateLastEventAt(runId, envelope.ts);
+					deps.runsRepo?.updateLastEventAt(runId, fullEnvelope.ts);
 				});
 			} else {
-				deps.runsRepo.updateLastEventAt(runId, envelope.ts);
+				deps.runsRepo.updateLastEventAt(runId, fullEnvelope.ts);
 			}
 		}
 
@@ -253,12 +331,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				byteOffset: appendResult.location.byteOffset,
 				byteLen: appendResult.location.byteLen,
 			};
-			deps.bus.publish(envelope, locationRef);
+			deps.bus.publish(fullEnvelope, locationRef);
 		}
 
 		// 4. M6-T7 状态接线：从 starting 到 running，以及自动模式下提问/权限受阻转 awaiting_reply
-		if (deps.runsRepo && envelope.kind !== 'run.state_changed') {
-			await handleEventStateWiring(runId, envelope);
+		if (deps.runsRepo && fullEnvelope.kind !== 'run.state_changed') {
+			await handleEventStateWiring(runId, fullEnvelope);
 		}
 
 		return appendResult;
@@ -376,6 +454,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		options?: AttachProcessOptions,
 	): AttachedProcessController {
 		let detached = false;
+		let hasContent = false;
 		const cleanups: Array<() => void> = [];
 
 		cleanups.push(
@@ -389,6 +468,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						if (mapper) {
 							const mapped = mapper(line.text);
 							for (const env of mapped) {
+								if (isContentEventKind(env.kind)) {
+									hasContent = true;
+									runsWithContent.add(runId);
+								}
 								void ingestEvent(runId, env)
 									.then(() => {
 										options?.onEvent?.(env);
@@ -409,6 +492,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					const mapped = mapper(parsed.value);
 					if (mapped.length > 0) {
 						for (const env of mapped) {
+							if (isContentEventKind(env.kind)) {
+								hasContent = true;
+								runsWithContent.add(runId);
+							}
 							void ingestEvent(runId, env)
 								.then(() => {
 									options?.onEvent?.(env);
@@ -430,6 +517,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					}
 				} else if (isCanonicalEnvelopeCandidate(parsed.value)) {
 					const env = parsed.value;
+					if (isContentEventKind(env.kind)) {
+						hasContent = true;
+						runsWithContent.add(runId);
+					}
 					void ingestEvent(runId, env)
 						.then(() => {
 							options?.onEvent?.(env);
@@ -450,12 +541,158 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					completionResolve(result);
 					return;
 				}
-				options?.onExit?.(result);
 
 				void (async () => {
 					let run: RunRecord | null = null;
 					try {
 						run = deps.runsRepo?.findById(runId) ?? null;
+						const isStarting = run?.state === 'starting';
+
+						// 1. spawn 抛错、启动超时及 starting 状态抢先退出必须落定 starting → failed (R3)
+						if (isStarting) {
+							const failureReason =
+								result.reason === 'startup-timeout'
+									? 'startup_timeout'
+									: result.reason === 'spawn-failed'
+										? 'spawn_failed'
+										: 'premature_exit';
+							if (run && !isTerminalRunState(run.state)) {
+								await transitionState({
+									runId,
+									targetState: 'failed',
+									reason: failureReason,
+									exitCode: result.exitCode,
+									exitSignal: result.signal ? String(result.signal) : null,
+								});
+							}
+							const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+								kind: 'run.exited',
+								runId,
+								taskId: run?.taskId ?? null,
+								actorDeviceId: run?.actorDeviceId ?? null,
+								payload: {
+									exitCode: result.exitCode,
+									signal: result.signal ? String(result.signal) : null,
+									stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+								},
+							});
+							await ingestEvent(runId, exitedEnvelope);
+							await closeRunStream(runId);
+							return;
+						}
+
+						const contentProduced = hasContent || runsWithContent.has(runId);
+
+						// 2. 零产出退出 (E-348 / R3)
+						if (!contentProduced) {
+							const isImplementLike =
+								run?.kind === 'implement' ||
+								run?.origin === 'rework' ||
+								run?.origin === 'wrapup-fix';
+
+							if (isImplementLike) {
+								if (run && !isTerminalRunState(run.state)) {
+									if (run.state !== 'exited') {
+										await transitionState({
+											runId,
+											targetState: 'exited',
+											reason: 'exited_before_output',
+											exitCode: result.exitCode,
+											exitSignal: result.signal ? String(result.signal) : null,
+										});
+									}
+									// 第一跳: exited -> reviewing
+									await transitionState({
+										runId,
+										targetState: 'reviewing',
+										reason: 'exited_before_output',
+									});
+									// 第二跳: reviewing -> awaiting_human (自动清 lane_no 并发 lane.released)
+									await transitionState({
+										runId,
+										targetState: 'awaiting_human',
+										reason: 'exited_before_output',
+									});
+								}
+
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+
+								// 事务后复探登录态（dsh 不探）
+								const agentId = run?.agent_id ?? run?.agentId;
+								if (agentId && agentId !== 'dsh' && deps.agentService) {
+									try {
+										await deps.agentService.refreshLogin(agentId, {
+											force: true,
+											trigger: 'exited_before_output',
+										});
+									} catch (err) {
+										logFailure(err);
+									}
+								}
+
+								// Gate context is assembled on reads by M8-T9 from the final run.exited event.
+								if (deps.gatesRepo) {
+									const gateId = deps.ids
+										? `gate_${deps.ids.newId()}`
+										: `gate_${runId.slice(0, 12)}`;
+									deps.gatesRepo.create({
+										id: gateId,
+										task_id: run?.taskId ?? null,
+										run_id: runId,
+										kind: 'review',
+										state: 'waiting',
+										comment: 'exited_before_output',
+										created_at: deps.clock.now(),
+									});
+								}
+
+								// 不跑机械检查、不派审查、不增加 rework_count
+								return;
+							}
+
+							if (run?.kind === 'wrapup') {
+								if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
+									await transitionState({
+										runId,
+										targetState: 'exited',
+										reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+								if (deps.finalizeWrapup) {
+									await deps.finalizeWrapup({ runId, exitCode: result.exitCode });
+								}
+								return;
+							}
+						}
+
+						// 3. 内容后退出才走既有机械检查/失败路径 (R3)
 						if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
 							await transitionState({
 								runId,
@@ -465,9 +702,24 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								exitSignal: result.signal ? String(result.signal) : null,
 							});
 						}
+						const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+							kind: 'run.exited',
+							runId,
+							taskId: run?.taskId ?? null,
+							actorDeviceId: run?.actorDeviceId ?? null,
+							payload: {
+								exitCode: result.exitCode,
+								signal: result.signal ? String(result.signal) : null,
+								stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+							},
+						});
+						await ingestEvent(runId, exitedEnvelope);
 						await closeRunStream(runId);
 						if (run?.kind === 'wrapup' && deps.finalizeWrapup) {
 							await deps.finalizeWrapup({ runId, exitCode: result.exitCode });
+						}
+						if (options?.onExit) {
+							await options.onExit(result);
 						}
 					} catch (err) {
 						logFailure(err);
@@ -502,6 +754,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		readonly exitSignal?: string | null;
 		readonly endedAt?: string | null;
 		readonly actorDeviceId?: string | null;
+		readonly pid?: number | null;
+		readonly worktreePath?: string | null;
+		readonly branchName?: string | null;
 	}): Promise<{ readonly previousState: RunState; readonly currentState: RunState }> {
 		const { runId, targetState, reason, exitCode, exitSignal, actorDeviceId } = input;
 		const run = deps.runsRepo?.findById(runId);
@@ -547,10 +802,14 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					id: runId,
 					fromState: previousState,
 					toState: targetState,
+					queuedReason: reason ?? null,
 					endedAt,
 					exitCode: exitCode ?? null,
 					exitSignal: exitSignal ?? null,
 					actorDeviceId: actorDeviceId ?? null,
+					pid: input.pid ?? null,
+					worktreePath: input.worktreePath ?? null,
+					branchName: input.branchName ?? null,
 				});
 			}
 			pendingEvents.push(stateChangedEnvelope);
@@ -644,6 +903,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 	async function closeRunStream(runId: string): Promise<void> {
 		if (!runId || typeof runId !== 'string') return;
 		temporarilyElevatedRuns.delete(runId);
+		runsWithContent.delete(runId);
 		await deps.logstore.closeWriter(runId);
 	}
 
@@ -696,7 +956,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		runId: string,
 		envelope: EventEnvelopeInput,
 	): Promise<void> {
-		if (!deps.runsRepo || envelope.kind === 'run.state_changed') return;
+		if (!deps.runsRepo || envelope.kind === 'run.state_changed' || envelope.kind === 'run.started')
+			return;
 
 		let currentRun = deps.runsRepo.findById(runId);
 		if (!currentRun) return;

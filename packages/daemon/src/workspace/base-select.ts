@@ -599,22 +599,31 @@ export async function prepareTaskWorkspace(
 	}
 
 	// Other agents use git worktree fallback (AC 3, E-31)
-	const worktreeResult = await prepareWorktree(
-		{
-			repoPath: input.repoPath,
-			taskId,
-			baseRef: baseResolution.resolvedBase,
-			worktreeMode: input.worktreeMode,
-			targetWorktreePath: input.targetWorktreePath,
-			worktreesDir: input.worktreesDir,
-		},
-		runner,
-		deps.worktreeDeps ?? {
-			platform: deps.platform ?? 'linux',
-			gitRunner: runner,
-			ids: deps.ids ?? { newId: () => sessionId },
-		},
-	);
+	const worktreeResult = deps.worktreeManager
+		? await deps.worktreeManager.prepareWorktree({
+				repoPath: input.repoPath,
+				taskId,
+				baseRef: baseResolution.resolvedBase,
+				worktreeMode: input.worktreeMode,
+				targetWorktreePath: input.targetWorktreePath,
+				worktreesDir: input.worktreesDir,
+			})
+		: await prepareWorktree(
+				{
+					repoPath: input.repoPath,
+					taskId,
+					baseRef: baseResolution.resolvedBase,
+					worktreeMode: input.worktreeMode,
+					targetWorktreePath: input.targetWorktreePath,
+					worktreesDir: input.worktreesDir,
+				},
+				runner,
+				deps.worktreeDeps ?? {
+					platform: deps.platform ?? 'linux',
+					gitRunner: runner,
+					ids: deps.ids ?? { newId: () => sessionId },
+				},
+			);
 
 	return Object.freeze({
 		taskId,

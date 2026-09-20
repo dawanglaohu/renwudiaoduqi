@@ -517,9 +517,9 @@ export async function prepareWorktree(
 			matching !== undefined || (await listAllBranchNames(repoPath, runner)).has(reuseBranch);
 		if (branchExists) {
 			const reusePath = matching
-				? nodePath.resolve(matching.path)
+				? matching.path
 				: input.targetWorktreePath
-					? nodePath.resolve(input.targetWorktreePath)
+					? input.targetWorktreePath
 					: resolveDefaultWorktreePath(repoPath, taskId, undefined, input.worktreesDir);
 			if (matching) {
 				const removeResult = await runner.run(
