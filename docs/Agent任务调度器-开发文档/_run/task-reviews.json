@@ -27,24 +27,12 @@
   },
   "M1-T11": {
     "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "7a93b9204d776909d797bd1565f44e94ea095f283b2a20af47addf795c592766",
+    "contractHash": "39ac8626e8550c488007da19d1c7010ce67496354f64ead820e0e735f5e9c022",
     "evidence": [
-      "前置：M1-T10、M2-T2、M2-T5、M10-T4、M10-T5、M9-T24、M9-T25、M9-T26、M8-T10、M7-T9；其中已落地 5 个，未落地的 M9-T24、M9-T25、M9-T26、M8-T10、M7-T9 均为本补丁新增或同批接线任务，是验收可达的必要前置（M1-T11 端到端冒烟与 M10-T6 壳 smoke 必须在接线任务之后）。",
-      "验收标准引用边界 E-10、E-31、E-108、E-135、E-139、E-159、E-175、E-226、E-265，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/web/vite.config.ts（类别 buildPipeline）",
-      "注册点文件已核存在于 packages/web/postcss.config.cjs（类别 buildPipeline）——本任务负责新建，尚不存在",
-      "注册点文件已核存在于 packages/web/tailwind.config.ts（类别 buildPipeline）",
-      "注册点文件已核存在于 packages/web/src/app/app.tsx（类别 frontendRoutes）",
-      "注册点文件已核存在于 packages/web/src/app/routes.tsx（类别 frontendRoutes）",
-      "注册点文件已核存在于 packages/daemon/src/http/plugins/50-routes.ts（类别 backendRoutes）",
-      "注册点文件已核存在于 packages/shared/src/api/routes.ts（类别 backendRoutes）",
-      "注册点文件已核存在于 packages/daemon/src/boot/container.ts（类别 container）",
-      "注册点文件已核存在于 packages/shared/src/api/events.ts（类别 eventKinds）",
-      "有效范围 18 条：.github/workflows/desktop-ci.yml；.gitignore；e2e/；package.json；packages/daemon/src/boot/container.ts；packages/daemon/src/http/plugins/50-routes.ts；packages/daemon/src/http/plugins/80-static.ts；packages/shared/src/api/events.ts；packages/shared/src/api/routes.ts；packages/web/postcss.config.cjs；packages/web/src/app/app.tsx；packages/web/src/app/bootstrap.ts；packages/web/src/app/routes.tsx；packages/web/src/app/theme-provider.tsx；packages/web/tailwind.config.ts；packages/web/vite.config.ts；pnpm-lock.yaml；vitest.e2e.config.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：e2e/、packages/web/postcss.config.cjs、packages/web/src/app/bootstrap.ts、vitest.e2e.config.ts。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "补丁只向前置 M8-T10 的 supportPaths 增加 packages/daemon/src/repo/runs.ts；M1-T11 自身任务定义、验收标准、边界、有效路径与接线要求均未改变，仅依赖契约哈希按前置传播。",
+      "M1-T11 的端到端冒烟仍消费 M8-T10 的真实 spawn 产出；将 runs.pid 持久化落点纳入 M8-T10 范围不会给 M1-T11 增加实现义务，也不降低其真进程、真浏览器验收标准。"
     ],
-    "reviewed": "2026-09-18T18:33:24.871781+00:00",
+    "reviewed": "2026-09-20T04:01:33.695004+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -947,16 +935,14 @@
   },
   "M8-T10": {
     "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "ecb18c4f06c82a474b18d837efbed16730542d56c9eadf6ddeacc38f8edeede7",
+    "contractHash": "e678a0248104ae780bfb1298edc71c739d0966ec105851ec43bce0fb8768de25",
     "evidence": [
-      "前置：M1-T8、M4-T4、M4-T8、M4-T12、M5-T1、M5-T2、M6-T2、M6-T5、M8-T3；其中已落地 9 个。",
-      "验收标准引用边界 E-10、E-40、E-42、E-70、E-76、E-140、E-142、E-348，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/daemon/src/boot/container.ts（类别 container）",
-      "有效范围 10 条：packages/daemon/src/adapters/codex/；packages/daemon/src/boot/container.ts；packages/daemon/src/proc/spawn.ts；packages/daemon/src/service/dispatch.ts；packages/daemon/src/service/run.ts；packages/daemon/src/workspace/worktree.ts；packages/daemon/test/arch/dispatch-proc.test.ts；packages/daemon/test/fixtures/dispatch/；packages/daemon/test/integration/dispatch-spawn.test.ts；packages/daemon/test/unit/dispatch-contract.test.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/daemon/test/arch/dispatch-proc.test.ts、packages/daemon/test/fixtures/dispatch/、packages/daemon/test/integration/dispatch-spawn.test.ts。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "当前任务契约哈希与 maintain_docs.py status 输出一致；前置任务、有效路径、验收标准和 E-10/E-140/E-142/E-348/E-40/E-42/E-70/E-76 已逐项复核。",
+      "补丁 m8-t10-runs-repo-support-20260920 只把 packages/daemon/src/repo/runs.ts 加入 M8-T10.supportPaths；该文件是 runs.pid/worktree_path/branch_name 持久化的必要 repo 层落点，未改变验收标准、边界、依赖或接口。补丁同步后 M1-T11 仅因依赖契约哈希传播受影响。",
+      "packages/daemon/test/arch/dispatch-proc.test.ts 与 packages/daemon/test/integration/dispatch-spawn.test.ts 已执行，结果为 2 个文件、6 个测试全部通过；pnpm exec tsc -b --noEmit 与 Biome 定向检查通过。",
+      "语义审查发现真实阻断项：真实 proc 注入缺少 SpawnManagedOptions.platform；launchRun 未接入 M5-T2 的 base 解析校验；spawn 失败和零产出退出未按 E-348 处理；因此代码验收结论为 rework，不能落地。"
     ],
-    "reviewed": "2026-09-18T18:32:00.345175+00:00",
+    "reviewed": "2026-09-20T03:54:42.274439+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
