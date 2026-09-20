@@ -6,6 +6,7 @@ import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
+import type { GatesRepo } from '../repo/gates.ts';
 import { type RunInsertRow, type RunsRepo, isConstraintConflict, toRunDto } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 import { assertSessionRefFree } from './session-guard.ts';
@@ -58,6 +59,7 @@ export interface HandleModelInvalidInput {
 export interface RerunServiceDeps {
 	readonly unitOfWork?: UnitOfWork;
 	readonly runsRepo: RunsRepo;
+	readonly gatesRepo?: GatesRepo;
 	readonly tasksRepo: TasksRepo;
 	readonly batchesRepo: BatchesRepo;
 	readonly documentsRepo: DocumentsRepo;
@@ -278,7 +280,11 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 		// AC 2 & E-177: Check if task already has an active run (intercept duplicate run)
 		const active = runsRepo.findActiveByTaskId(task.id);
-		if (active) {
+		const isRetryableZeroOutputWait =
+			active?.id === previousRun.id &&
+			previousRun.state === 'awaiting_human' &&
+			previousRun.queued_reason === 'exited_before_output';
+		if (active && !isRetryableZeroOutputWait) {
 			return {
 				run: toRunDto(active),
 			};
@@ -344,6 +350,9 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 				{ runsRepo, tasksRepo },
 			);
 			runsRepo.insert(runInsert);
+			if (isRetryableZeroOutputWait) {
+				deps.gatesRepo?.supersedePendingByRunIds?.([previousRun.id], now);
+			}
 		};
 
 		try {
@@ -443,7 +452,10 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		}
 
 		const activeRun = runsRepo.findActiveByTaskId(taskId);
-		if (activeRun) {
+		if (
+			activeRun &&
+			!(activeRun.state === 'awaiting_human' && activeRun.queued_reason === 'exited_before_output')
+		) {
 			return {
 				run: toRunDto(activeRun),
 				isExisting: true,
@@ -494,6 +506,9 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 				{ runsRepo, tasksRepo },
 			);
 			runsRepo.insert(runInsert);
+			if (activeRun?.state === 'awaiting_human') {
+				deps.gatesRepo?.supersedePendingByRunIds?.([activeRun.id], now);
+			}
 			return { snapshotId: snapshot.id };
 		};
 

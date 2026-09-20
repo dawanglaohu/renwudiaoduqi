@@ -273,6 +273,33 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 			const allRuns = runsRepo.listByTaskId('task-1');
 			expect(allRuns.length).toBe(1);
 		});
+
+		it('keeps an ordinary awaiting_human review gate parked when another dispatch is requested', async () => {
+			seedBatch({ id: 'batch-1', batchNo: 1, state: 'running' });
+			seedTask({ id: 'task-1', taskKey: 'T1', batchId: 'batch-1' });
+			const snapshotId = seedSnapshot('task-1');
+			runsRepo.insert({
+				id: 'waiting-for-review',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'awaiting_human',
+				queued_reason: 'review_gate_waiting',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: snapshotId,
+			});
+
+			const result = await dispatchService.createRun({
+				taskId: 'task-1',
+				agentId: 'codex',
+				idempotencyKey: 'new-dispatch-on-waiting',
+			});
+
+			expect(result.isExisting).toBe(true);
+			expect(result.run.id).toBe('waiting-for-review');
+			expect(runsRepo.listByTaskId('task-1')).toHaveLength(1);
+		});
 	});
 
 	describe('AC 3, E-49 & E-281: Batch progression, failure isolation & previous batch checks', () => {

@@ -36,6 +36,7 @@ import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { EventSeqRepo } from '../repo/event-seq-repo.ts';
+import type { GatesRepo } from '../repo/gates.ts';
 import {
 	type RunInsertRow,
 	type RunRow,
@@ -175,6 +176,7 @@ export interface DispatchServiceDeps {
 	readonly documentsRepo: DocumentsRepo;
 	readonly dispatchSnapshotsRepo: DispatchSnapshotsRepo;
 	readonly runsRepo: RunsRepo;
+	readonly gatesRepo?: GatesRepo;
 	readonly batchWrapupsRepo?: BatchWrapupsRepo;
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
@@ -422,7 +424,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		const activeRun = runsRepo.findActiveByTaskId(taskId);
-		if (activeRun) {
+		if (
+			activeRun &&
+			!(activeRun.state === 'awaiting_human' && activeRun.queued_reason === 'exited_before_output')
+		) {
 			return {
 				run: toRunDto(activeRun),
 				isExisting: true,
@@ -472,6 +477,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				{ runsRepo, tasksRepo: deps.tasksRepo },
 			);
 			runsRepo.insert(runInsert);
+			if (activeRun?.state === 'awaiting_human') {
+				deps.gatesRepo?.supersedePendingByRunIds?.([activeRun.id], now);
+			}
 			return { snapshotId: snapshot.id };
 		};
 
@@ -540,6 +548,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	const rerunService = createRerunService({
 		unitOfWork: deps.unitOfWork,
 		runsRepo,
+		gatesRepo: deps.gatesRepo,
 		tasksRepo: deps.tasksRepo,
 		batchesRepo: deps.batchesRepo,
 		documentsRepo: deps.documentsRepo,
@@ -553,7 +562,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	});
 
 	async function rerunRun(input: RerunRunInput): Promise<RerunRunResponse> {
-		return await rerunService.rerunRun(input);
+		const result = await rerunService.rerunRun(input);
+		if (result.run.id !== input.runId && result.run.state === 'starting') {
+			void launchRun(result.run.id).catch((err) => {
+				logFailure(err);
+			});
+		}
+		return result;
 	}
 
 	async function startBatch(input: StartBatchInput): Promise<StartBatchResponse> {
