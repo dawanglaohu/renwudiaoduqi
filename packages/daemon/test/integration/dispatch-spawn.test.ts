@@ -1089,7 +1089,16 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 
 		// Exit code 0 WITHOUT producing content
 		proc?.emitExit(0);
-		await new Promise((resolve) => setTimeout(resolve, 150));
+		attempts = 0;
+		while (
+			(container.repos.runs.findById(createRes.run.id)?.state !== 'awaiting_human' ||
+				!busEvents.some((event) => event.kind === 'lane.released') ||
+				!container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review')) &&
+			attempts < 100
+		) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
 
 		const run = container.repos.runs.findById(createRes.run.id);
 		expect(run?.state).toBe('awaiting_human');
@@ -1108,6 +1117,126 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(gate).not.toBeNull();
 		expect(gate?.state).toBe('waiting');
 		expect(gate?.comment).toBe('exited_before_output');
+	});
+
+	it('B1: POST rerun after exited_before_output creates a new run and launches its process', async () => {
+		const env = setupTestEnvironment({ exitCode: 0 });
+		const { container, getLatestProc } = env;
+		const server = createHttpServer({ container });
+		await server.instance.ready();
+		const token = await getAuthToken(container);
+
+		const original = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'codex',
+			idempotencyKey: 'idemp-b1-original',
+		});
+
+		let attempts = 0;
+		while (!getLatestProc() && attempts < 50) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+		getLatestProc()?.emitExit(0);
+
+		attempts = 0;
+		while (
+			container.repos.runs.findById(original.run.id)?.state !== 'awaiting_human' &&
+			attempts < 50
+		) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+		expect(container.repos.runs.findById(original.run.id)?.queued_reason).toBe(
+			'exited_before_output',
+		);
+
+		const response = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/runs/${original.run.id}/rerun`,
+			headers: { authorization: token },
+			payload: { idempotencyKey: 'idemp-b1-rerun' },
+		});
+
+		expect(response.statusCode).toBe(200);
+		const body = JSON.parse(response.body) as CreateRunResponse;
+		expect(body.run.id).not.toBe(original.run.id);
+
+		attempts = 0;
+		let rerun = container.repos.runs.findById(body.run.id);
+		while ((rerun?.state !== 'running' || rerun.pid === null) && attempts < 50) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			rerun = container.repos.runs.findById(body.run.id);
+			attempts++;
+		}
+
+		expect(rerun?.state).toBe('running');
+		expect(rerun?.pid).toBe(88888);
+		await server.instance.close();
+	});
+
+	it('B1: POST rerun for a failed run launches through the same process path', async () => {
+		const env = setupTestEnvironment();
+		const { container } = env;
+		const server = createHttpServer({ container });
+		await server.instance.ready();
+		const token = await getAuthToken(container);
+
+		const snapshotsRepo = container.repos.dispatchSnapshots;
+		expect(snapshotsRepo).toBeDefined();
+		if (!snapshotsRepo) {
+			throw new Error('dispatchSnapshots repo is unavailable');
+		}
+		const snapshot = snapshotsRepo.takeSnapshotForTask({
+			taskId: 'task-1',
+			launchSpecJson: JSON.stringify({
+				agentId: 'codex',
+				model: 'gpt-5-rerun',
+				permissionTier: 'workspaceWrite',
+				baseRef: { kind: 'head' },
+				worktreeMode: 'fresh',
+			}),
+			createdAt: env.clock.now(),
+		});
+		container.repos.runs.insert({
+			id: 'failed-run-for-rerun',
+			task_id: 'task-1',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'failed',
+			agent_id: 'codex',
+			model_name: 'gpt-5-rerun',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: snapshot.id,
+			idempotency_key: 'idemp-b1-failed-original',
+			started_at: env.clock.now(),
+			ended_at: env.clock.now(),
+		});
+
+		const response = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs/failed-run-for-rerun/rerun',
+			headers: { authorization: token },
+			payload: { idempotencyKey: 'idemp-b1-failed-rerun' },
+		});
+
+		expect(response.statusCode).toBe(200);
+		const body = JSON.parse(response.body) as CreateRunResponse;
+		expect(body.run.id).not.toBe('failed-run-for-rerun');
+
+		let attempts = 0;
+		let rerun = container.repos.runs.findById(body.run.id);
+		while ((rerun?.state !== 'running' || rerun.pid === null) && attempts < 50) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			rerun = container.repos.runs.findById(body.run.id);
+			attempts++;
+		}
+
+		expect(rerun?.state).toBe('running');
+		expect(rerun?.pid).toBe(88888);
+		expect(rerun?.model_name).toBe('gpt-5-rerun');
+		expect(rerun?.permission_tier).toBe('workspaceWrite');
+		await server.instance.close();
 	});
 
 	it('R3: E-348 zero output exit code non-0 transitions to awaiting_human, no mechanical check, gate has stderrTail', async () => {

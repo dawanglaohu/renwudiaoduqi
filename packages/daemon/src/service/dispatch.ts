@@ -553,7 +553,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	});
 
 	async function rerunRun(input: RerunRunInput): Promise<RerunRunResponse> {
-		return await rerunService.rerunRun(input);
+		const result = await rerunService.rerunRun(input);
+		if (result.run.id !== input.runId && result.run.state === 'starting') {
+			void launchRun(result.run.id).catch((err) => {
+				logFailure(err);
+			});
+		}
+		return result;
 	}
 
 	async function startBatch(input: StartBatchInput): Promise<StartBatchResponse> {

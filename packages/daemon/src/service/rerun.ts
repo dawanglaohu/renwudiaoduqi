@@ -278,7 +278,11 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 		// AC 2 & E-177: Check if task already has an active run (intercept duplicate run)
 		const active = runsRepo.findActiveByTaskId(task.id);
-		if (active) {
+		const isRetryableZeroOutputWait =
+			active?.id === previousRun.id &&
+			previousRun.state === 'awaiting_human' &&
+			previousRun.queued_reason === 'exited_before_output';
+		if (active && !isRetryableZeroOutputWait) {
 			return {
 				run: toRunDto(active),
 			};
