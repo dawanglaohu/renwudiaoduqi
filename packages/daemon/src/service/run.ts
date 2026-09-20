@@ -11,7 +11,6 @@ import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { AppendResult } from '../logstore/run-writer.ts';
 import type { ManagedProcess, ProcessExitResult } from '../proc/spawn.ts';
-import { isContentEventKind } from '../domain/content-events.ts';
 import type { AppendEventResult, EventEnvelopeInput, LogstoreService } from './logstore.ts';
 import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 
@@ -116,7 +115,6 @@ export interface RunServiceDeps {
 					| 'availability_changed';
 			},
 		) => Promise<unknown>;
-		readonly getLogin?: (agentId: string) => unknown;
 	};
 	readonly gatesRepo?: {
 		readonly create: (gate: {
@@ -228,6 +226,16 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
 		typeof candidate.seq === 'number' &&
 		'payload' in candidate
 	);
+}
+
+const CONTENT_EVENT_KINDS: ReadonlySet<string> = new Set(
+	(Object.keys(EVENT_DEFINITIONS) as string[]).filter(
+		(kind) => (kind.startsWith('agent_') || kind.startsWith('tool_')) && !kind.endsWith('_update'),
+	),
+);
+
+function isContentEventKind(kind: string): boolean {
+	return CONTENT_EVENT_KINDS.has(kind);
 }
 
 /**
@@ -538,10 +546,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					let run: RunRecord | null = null;
 					try {
 						run = deps.runsRepo?.findById(runId) ?? null;
-						const isStarting =
-							run?.state === 'starting' ||
-							result.reason === 'spawn-failed' ||
-							result.reason === 'startup-timeout';
+						const isStarting = run?.state === 'starting';
 
 						// 1. spawn 抛错、启动超时及 starting 状态抢先退出必须落定 starting → failed (R3)
 						if (isStarting) {
@@ -551,7 +556,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									: result.reason === 'spawn-failed'
 										? 'spawn_failed'
 										: 'premature_exit';
-							if (run && !isTerminalRunState(run.state) && run.state !== 'failed') {
+							if (run && !isTerminalRunState(run.state)) {
 								await transitionState({
 									runId,
 									targetState: 'failed',
@@ -580,11 +585,6 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 						// 2. 零产出退出 (E-348 / R3)
 						if (!contentProduced) {
-							const rawStderr = process.stderrTail || (result.error ? result.error.message : '');
-							const stderrLines = rawStderr.split('\n').filter((l) => l.trim().length > 0);
-							const stderrTail =
-								stderrLines.length > 0 ? stderrLines.slice(-20).join('\n') : '无记录（旧运行）';
-
 							const isImplementLike =
 								run?.kind === 'implement' ||
 								run?.origin === 'rework' ||
@@ -630,11 +630,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								await closeRunStream(runId);
 
 								// 事务后复探登录态（dsh 不探）
-								let probedLogin: unknown = null;
 								const agentId = run?.agent_id ?? run?.agentId;
 								if (agentId && agentId !== 'dsh' && deps.agentService) {
 									try {
-										probedLogin = await deps.agentService.refreshLogin(agentId, {
+										await deps.agentService.refreshLogin(agentId, {
 											force: true,
 											trigger: 'exited_before_output',
 										});
@@ -643,19 +642,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									}
 								}
 
-								// 生成规定审批上下文并创建 review gate
+								// Gate context is assembled on reads by M8-T9 from the final run.exited event.
 								if (deps.gatesRepo) {
-									const gateContext = {
-										exitCode: result.exitCode,
-										exitSignal: result.signal ? String(result.signal) : null,
-										stderrTail,
-										loginState:
-											probedLogin ??
-											(agentId ? deps.agentService?.getLogin?.(agentId) ?? null : null),
-										message:
-											'agent 未产出任何内容就退出，常见原因：未登录、模型名不可用、参数被拒',
-										actions: ['rerun', 'reassign', 'mark_failed'],
-									};
 									const gateId = deps.ids
 										? `gate_${deps.ids.newId()}`
 										: `gate_${runId.slice(0, 12)}`;
@@ -665,97 +653,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
 										run_id: runId,
 										kind: 'review',
 										state: 'waiting',
-										comment: JSON.stringify(gateContext),
+										comment: 'exited_before_output',
 										created_at: deps.clock.now(),
 									});
 								}
 
 								// 不跑机械检查、不派审查、不增加 rework_count
-								return;
-							}
-
-							if (run?.kind === 'review') {
-								if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
-									await transitionState({
-										runId,
-										targetState: 'exited',
-										reason: 'agent_crashed',
-										exitCode: result.exitCode,
-										exitSignal: result.signal ? String(result.signal) : null,
-									});
-								}
-								await transitionState({
-									runId,
-									targetState: 'awaiting_human',
-									reason: 'review_incomplete',
-								});
-								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
-									kind: 'run.exited',
-									runId,
-									taskId: run?.taskId ?? null,
-									actorDeviceId: run?.actorDeviceId ?? null,
-									payload: {
-										exitCode: result.exitCode,
-										signal: result.signal ? String(result.signal) : null,
-										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
-									},
-								});
-								await ingestEvent(runId, exitedEnvelope);
-								await closeRunStream(runId);
-								if (deps.gatesRepo) {
-									const gateId = deps.ids
-										? `gate_${deps.ids.newId()}`
-										: `gate_${runId.slice(0, 12)}`;
-									deps.gatesRepo.create({
-										id: gateId,
-										task_id: run?.taskId ?? null,
-										run_id: runId,
-										kind: 'review',
-										state: 'waiting',
-										comment: '审查未完成',
-										created_at: deps.clock.now(),
-									});
-								}
-								return;
-							}
-
-							if (run?.kind === 'bughunt') {
-								if (run && !isTerminalRunState(run.state)) {
-									await transitionState({
-										runId,
-										targetState: 'failed',
-										reason: 'bughunt_failed',
-										exitCode: result.exitCode,
-										exitSignal: result.signal ? String(result.signal) : null,
-									});
-								}
-								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
-									kind: 'run.exited',
-									runId,
-									taskId: run?.taskId ?? null,
-									actorDeviceId: run?.actorDeviceId ?? null,
-									payload: {
-										exitCode: result.exitCode,
-										signal: result.signal ? String(result.signal) : null,
-										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
-									},
-								});
-								await ingestEvent(runId, exitedEnvelope);
-								await closeRunStream(runId);
-								if (deps.gatesRepo) {
-									const gateId = deps.ids
-										? `gate_${deps.ids.newId()}`
-										: `gate_${runId.slice(0, 12)}`;
-									deps.gatesRepo.create({
-										id: gateId,
-										task_id: run?.taskId ?? null,
-										run_id: runId,
-										kind: 'review',
-										state: 'waiting',
-										comment: 'bughunt_failed',
-										created_at: deps.clock.now(),
-									});
-								}
 								return;
 							}
 
@@ -1000,6 +903,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 	async function closeRunStream(runId: string): Promise<void> {
 		if (!runId || typeof runId !== 'string') return;
 		temporarilyElevatedRuns.delete(runId);
+		runsWithContent.delete(runId);
 		await deps.logstore.closeWriter(runId);
 	}
 

@@ -35,7 +35,6 @@ import {
 	createDefaultProcessOps,
 	spawnManaged,
 } from '../proc/spawn.ts';
-import { type BaseSelector, createBaseSelector } from '../workspace/base-select.ts';
 import { type BatchWrapupsRepo, createBatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import { type BatchesRepo, createBatchesRepo } from '../repo/batches.ts';
 import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
@@ -84,6 +83,7 @@ import { createSessionArchiveService } from '../service/session-archive.ts';
 import { type SettingsService, createSettingsService } from '../service/settings.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
+import { type BaseSelector, createBaseSelector } from '../workspace/base-select.ts';
 import { getDiffStat } from '../workspace/diff.ts';
 import { type WorktreeManager, createWorktreeManager } from '../workspace/worktree.ts';
 

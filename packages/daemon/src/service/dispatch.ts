@@ -5,7 +5,12 @@ import type {
 	StartBatchResponse,
 } from '@agent-scheduler/shared/api/batches';
 import type { DocumentDto } from '@agent-scheduler/shared/api/documents';
-import type { CreateRunBody, RerunRunResponse, RunBaseRef, RunDto } from '@agent-scheduler/shared/api/runs';
+import type {
+	CreateRunBody,
+	RerunRunResponse,
+	RunBaseRef,
+	RunDto,
+} from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -1284,8 +1289,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					return;
 				}
 			} catch (err) {
-				const isUpstreamMissing =
-					err instanceof AppError && err.code === 'E_UPSTREAM_BASE_MISSING';
+				const isUpstreamMissing = err instanceof AppError && err.code === 'E_UPSTREAM_BASE_MISSING';
 				await deps.runService.transitionState({
 					runId,
 					targetState: 'failed',
@@ -1293,14 +1297,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				});
 				throw err instanceof AppError
 					? err
-					: new AppError(
-							'E_WORKSPACE_UNAVAILABLE',
-							`Worktree preparation failed: ${String(err)}`,
-							{
-								cause: err,
-								details: { runId, taskId: task.id },
-							},
-						);
+					: new AppError('E_WORKSPACE_UNAVAILABLE', `Worktree preparation failed: ${String(err)}`, {
+							cause: err,
+							details: { runId, taskId: task.id },
+						});
 			}
 
 			const adapter = deps.adapters?.[run.agent_id];
@@ -1355,7 +1355,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			deps.runService.attachProcess(runId, managed, {
 				eventMapper: adapter.mapEvents,
 				onExit: async (result) => {
-					if (result.exitCode === 0 && deps.reviewService) {
+					const isImplementLike =
+						run.kind === 'implement' || run.origin === 'rework' || run.origin === 'wrapup-fix';
+					if (isImplementLike && result.exitCode === 0 && deps.reviewService) {
 						try {
 							await deps.reviewService.evaluateMechanicalCheck({ runId });
 						} catch (err) {

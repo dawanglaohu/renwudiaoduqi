@@ -1,6 +1,9 @@
+import type { ChildProcess, SpawnOptions, spawn as nodeSpawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { CreateRunResponse } from '@agent-scheduler/shared/api/runs';
@@ -14,9 +17,15 @@ import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import type { ParsedJsonLine, ReadLine } from '../../src/proc/line-reader.ts';
-import { type LaunchSpec, type ManagedProcess, type ProcessExitResult, spawnManaged } from '../../src/proc/spawn.ts';
-import { type GitRunner, createBaseSelector } from '../../src/workspace/base-select.ts';
+import {
+	type LaunchSpec,
+	type ManagedProcess,
+	type ProcessExitResult,
+	spawnManaged,
+} from '../../src/proc/spawn.ts';
+import { createBaseSelector } from '../../src/workspace/base-select.ts';
 import type {
+	GitRunner,
 	PrepareWorktreeInput,
 	PrepareWorktreeResult,
 	WorktreeManager,
@@ -358,7 +367,6 @@ function setupTestEnvironment(
 		},
 		listAgentModels: async () => ({ models: [], currentConfig: {} }),
 		refreshLogin: async () => null,
-		getLogin: () => null,
 	} as unknown as import('../../src/service/agents.ts').AgentService;
 
 	const container = createContainer({
@@ -611,7 +619,9 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(proc1).not.toBeNull();
 
 		// Emit content event so that exit code 0 enters mechanical check (R3: 内容后退出才走既有机械检查路径)
-		proc1?.emitLine('{"method":"item/agentMessage/delta","params":{"delta":"Implementing task M8-T10..."}}');
+		proc1?.emitLine(
+			'{"method":"item/agentMessage/delta","params":{"delta":"Implementing task M8-T10..."}}',
+		);
 		await new Promise((r) => setTimeout(r, 20));
 
 		proc1?.emitExit(0);
@@ -645,7 +655,9 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const proc2 = getProc2();
 		expect(proc2).not.toBeNull();
 		// Emit content before exit so it follows existing failed exit path
-		proc2?.emitLine('{"method":"item/agentMessage/delta","params":{"delta":"Implementing task M8-T10..."}}');
+		proc2?.emitLine(
+			'{"method":"item/agentMessage/delta","params":{"delta":"Implementing task M8-T10..."}}',
+		);
 		await new Promise((r) => setTimeout(r, 20));
 		proc2?.emitExit(1);
 		await new Promise((resolve) => setTimeout(resolve, 100));
@@ -756,17 +768,16 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		}).toThrow();
 
 		// 2. Bound container proc has host platform and passes shell: false to spawn options
-		let capturedSpawnOptions: { shell?: boolean } | null = null;
-		const fakeSpawnFn = ((_file: string, _args: string[], options: { shell?: boolean }) => {
+		let capturedSpawnOptions: SpawnOptions | null = null;
+		const fakeSpawnFn = ((_file: string, _args: readonly string[], options: SpawnOptions) => {
 			capturedSpawnOptions = options;
-			const { EventEmitter } = require('node:events');
-			const cp = new EventEmitter();
-			cp.pid = 99999;
-			cp.stdout = new EventEmitter();
-			cp.stderr = new EventEmitter();
-			cp.stdin = { write: () => true, end: () => {} };
-			return cp;
-		}) as any;
+			return Object.assign(new EventEmitter(), {
+				pid: 99999,
+				stdout: new PassThrough(),
+				stderr: new PassThrough(),
+				stdin: new PassThrough(),
+			}) as unknown as ChildProcess;
+		}) as typeof nodeSpawn;
 
 		const { tempDir, db, clock } = setupTestEnvironment();
 
@@ -780,8 +791,7 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		});
 		realContainer.proc.spawnManaged(dummySpec, { spawnFn: fakeSpawnFn });
 
-		expect(capturedSpawnOptions).not.toBeNull();
-		expect(capturedSpawnOptions?.shell).toBe(false);
+		expect(capturedSpawnOptions).toEqual(expect.objectContaining({ shell: false }));
 	});
 
 	it('R2: upstream output not in HEAD without explicit upstreamBranch throws E_UPSTREAM_BASE_MISSING, explains "下游 base 缺上游产出", does not create worktree', async () => {
@@ -892,11 +902,12 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(run?.queued_reason).toBe('upstream_base_missing');
 
 		// Calling launchRun directly on a starting run rejects with E_UPSTREAM_BASE_MISSING (R2)
-		const snapshot = container.repos.dispatchSnapshots.takeSnapshotForTask({
+		const snapshot = container.repos.dispatchSnapshots?.takeSnapshotForTask({
 			taskId: 'task-downstream',
 			launchSpecJson: JSON.stringify({ baseRef: { kind: 'head' } }),
 			createdAt: clock.now(),
 		});
+		expect(snapshot).toBeDefined();
 
 		const directRunId = 'direct-run-r2';
 		container.repos.runs.insert({
@@ -913,7 +924,7 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 			effort_tier: null,
 			reported_effort: null,
 			permission_tier: 'workspaceWrite',
-			snapshot_id: snapshot.id,
+			snapshot_id: snapshot?.id ?? '',
 			worktree_path: null,
 			branch_name: null,
 			pid: null,
@@ -1088,21 +1099,20 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		// Lane released
 		const laneReleased = busEvents.find((e) => e.kind === 'lane.released');
 		expect(laneReleased).toBeDefined();
-		expect((laneReleased?.payload as any)?.reason).toBe('awaiting_human');
+		expect((laneReleased?.payload as { reason?: unknown } | undefined)?.reason).toBe(
+			'awaiting_human',
+		);
 
 		// Gate created with context
-		const gate = container.repos.gates.findLatestByTaskIdAndKind('task-1', 'review');
+		const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
 		expect(gate).not.toBeNull();
 		expect(gate?.state).toBe('waiting');
-		const gateContext = JSON.parse(gate?.comment ?? '{}');
-		expect(gateContext.exitCode).toBe(0);
-		expect(gateContext.message).toContain('agent 未产出任何内容就退出');
-		expect(gateContext.actions).toEqual(['rerun', 'reassign', 'mark_failed']);
+		expect(gate?.comment).toBe('exited_before_output');
 	});
 
 	it('R3: E-348 zero output exit code non-0 transitions to awaiting_human, no mechanical check, gate has stderrTail', async () => {
 		const env = setupTestEnvironment({ exitCode: 1, stderrTail: 'Fatal: login token expired' });
-		const { container, getLatestProc, getMechanicalCheckCalls } = env;
+		const { container, getLatestProc, getMechanicalCheckCalls, tempDir } = env;
 
 		const createRes = await container.services.dispatch.createRun({
 			taskId: 'task-1',
@@ -1127,11 +1137,18 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(run?.state).toBe('awaiting_human');
 		expect(getMechanicalCheckCalls()).toBe(0);
 
-		const gate = container.repos.gates.findLatestByTaskIdAndKind('task-1', 'review');
+		const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
 		expect(gate).not.toBeNull();
-		const gateContext = JSON.parse(gate?.comment ?? '{}');
-		expect(gateContext.exitCode).toBe(1);
-		expect(gateContext.stderrTail).toContain('Fatal: login token expired');
+		expect(gate?.comment).toBe('exited_before_output');
+
+		const eventsPath = join(tempDir, 'runs', createRes.run.id, 'events.ndjson');
+		const exitedEvents = readFileSync(eventsPath, 'utf8')
+			.split('\n')
+			.filter(Boolean)
+			.map((line) => JSON.parse(line) as { kind?: string; payload?: { stderrTail?: string } })
+			.filter((event) => event.kind === 'run.exited');
+		const exitedEvent = exitedEvents[exitedEvents.length - 1];
+		expect(exitedEvent?.payload?.stderrTail).toContain('Fatal: login token expired');
 	});
 
 	it('R3: spawn throws error transitions starting -> failed with spawn_failed', async () => {

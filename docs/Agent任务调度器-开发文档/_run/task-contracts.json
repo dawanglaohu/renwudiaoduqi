@@ -1290,6 +1290,7 @@
         "packages/daemon/src/repo/runs.ts",
         "packages/daemon/src/service/run.ts",
         "packages/daemon/src/proc/spawn.ts",
+        "packages/daemon/src/workspace/base-select.ts",
         "packages/daemon/src/workspace/worktree.ts",
         "packages/daemon/src/adapters/codex/",
         "packages/daemon/test/unit/dispatch-contract.test.ts"
