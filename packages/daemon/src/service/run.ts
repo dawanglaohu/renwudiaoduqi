@@ -11,6 +11,7 @@ import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { AppendResult } from '../logstore/run-writer.ts';
 import type { ManagedProcess, ProcessExitResult } from '../proc/spawn.ts';
+import { isContentEventKind } from '../domain/content-events.ts';
 import type { AppendEventResult, EventEnvelopeInput, LogstoreService } from './logstore.ts';
 import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 
@@ -20,6 +21,9 @@ export interface RunRecord {
 	readonly state: RunState;
 	readonly pid: number | null;
 	readonly kind?: string;
+	readonly origin?: string;
+	readonly agentId?: string;
+	readonly agent_id?: string;
 	readonly sessionArchivedAt?: string | null;
 	readonly session_archived_at?: string | null;
 	readonly laneNo?: number | null;
@@ -38,6 +42,7 @@ export interface RunsRepo {
 		readonly id: string;
 		readonly fromState: RunState;
 		readonly toState: RunState;
+		readonly queuedReason?: string | null;
 		readonly endedAt?: string | null;
 		readonly exitCode?: number | null;
 		readonly exitSignal?: string | null;
@@ -99,6 +104,32 @@ export interface RunServiceDeps {
 		readonly runId: string;
 		readonly exitCode: number | null;
 	}) => Promise<void>;
+	readonly agentService?: {
+		readonly refreshLogin: (
+			agentId: string,
+			options?: {
+				readonly force?: boolean;
+				readonly trigger?:
+					| 'exited_before_output'
+					| 'probe'
+					| 'models_refresh'
+					| 'availability_changed';
+			},
+		) => Promise<unknown>;
+		readonly getLogin?: (agentId: string) => unknown;
+	};
+	readonly gatesRepo?: {
+		readonly create: (gate: {
+			readonly id: string;
+			readonly task_id: string | null;
+			readonly run_id?: string | null;
+			readonly kind: string;
+			readonly state: string;
+			readonly comment?: string | null;
+			readonly created_at: string;
+		}) => void;
+	};
+	readonly ids?: { readonly newId: () => string };
 }
 
 export interface RunService {
@@ -215,6 +246,7 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
 export function createRunService(deps: RunServiceDeps): RunService {
 	const logFailure = deps.logFailure ?? (() => undefined);
 	const temporarilyElevatedRuns = new Set<string>();
+	const runsWithContent = new Set<string>();
 
 	function getNow(): string {
 		return deps.clock.now();
@@ -232,6 +264,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		runId: string,
 		envelope: EventEnvelopeInput,
 	): Promise<AppendEventResult> {
+		if (isContentEventKind(envelope.kind)) {
+			runsWithContent.add(runId);
+		}
 		if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
 			throw new AppError('E_VALIDATION', 'Run ID must be a non-empty string');
 		}
@@ -411,6 +446,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		options?: AttachProcessOptions,
 	): AttachedProcessController {
 		let detached = false;
+		let hasContent = false;
 		const cleanups: Array<() => void> = [];
 
 		cleanups.push(
@@ -424,6 +460,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						if (mapper) {
 							const mapped = mapper(line.text);
 							for (const env of mapped) {
+								if (isContentEventKind(env.kind)) {
+									hasContent = true;
+									runsWithContent.add(runId);
+								}
 								void ingestEvent(runId, env)
 									.then(() => {
 										options?.onEvent?.(env);
@@ -444,6 +484,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					const mapped = mapper(parsed.value);
 					if (mapped.length > 0) {
 						for (const env of mapped) {
+							if (isContentEventKind(env.kind)) {
+								hasContent = true;
+								runsWithContent.add(runId);
+							}
 							void ingestEvent(runId, env)
 								.then(() => {
 									options?.onEvent?.(env);
@@ -465,6 +509,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					}
 				} else if (isCanonicalEnvelopeCandidate(parsed.value)) {
 					const env = parsed.value;
+					if (isContentEventKind(env.kind)) {
+						hasContent = true;
+						runsWithContent.add(runId);
+					}
 					void ingestEvent(runId, env)
 						.then(() => {
 							options?.onEvent?.(env);
@@ -490,6 +538,258 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					let run: RunRecord | null = null;
 					try {
 						run = deps.runsRepo?.findById(runId) ?? null;
+						const isStarting =
+							run?.state === 'starting' ||
+							result.reason === 'spawn-failed' ||
+							result.reason === 'startup-timeout';
+
+						// 1. spawn 抛错、启动超时及 starting 状态抢先退出必须落定 starting → failed (R3)
+						if (isStarting) {
+							const failureReason =
+								result.reason === 'startup-timeout'
+									? 'startup_timeout'
+									: result.reason === 'spawn-failed'
+										? 'spawn_failed'
+										: 'premature_exit';
+							if (run && !isTerminalRunState(run.state) && run.state !== 'failed') {
+								await transitionState({
+									runId,
+									targetState: 'failed',
+									reason: failureReason,
+									exitCode: result.exitCode,
+									exitSignal: result.signal ? String(result.signal) : null,
+								});
+							}
+							const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+								kind: 'run.exited',
+								runId,
+								taskId: run?.taskId ?? null,
+								actorDeviceId: run?.actorDeviceId ?? null,
+								payload: {
+									exitCode: result.exitCode,
+									signal: result.signal ? String(result.signal) : null,
+									stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+								},
+							});
+							await ingestEvent(runId, exitedEnvelope);
+							await closeRunStream(runId);
+							return;
+						}
+
+						const contentProduced = hasContent || runsWithContent.has(runId);
+
+						// 2. 零产出退出 (E-348 / R3)
+						if (!contentProduced) {
+							const rawStderr = process.stderrTail || (result.error ? result.error.message : '');
+							const stderrLines = rawStderr.split('\n').filter((l) => l.trim().length > 0);
+							const stderrTail =
+								stderrLines.length > 0 ? stderrLines.slice(-20).join('\n') : '无记录（旧运行）';
+
+							const isImplementLike =
+								run?.kind === 'implement' ||
+								run?.origin === 'rework' ||
+								run?.origin === 'wrapup-fix';
+
+							if (isImplementLike) {
+								if (run && !isTerminalRunState(run.state)) {
+									if (run.state !== 'exited') {
+										await transitionState({
+											runId,
+											targetState: 'exited',
+											reason: 'exited_before_output',
+											exitCode: result.exitCode,
+											exitSignal: result.signal ? String(result.signal) : null,
+										});
+									}
+									// 第一跳: exited -> reviewing
+									await transitionState({
+										runId,
+										targetState: 'reviewing',
+										reason: 'exited_before_output',
+									});
+									// 第二跳: reviewing -> awaiting_human (自动清 lane_no 并发 lane.released)
+									await transitionState({
+										runId,
+										targetState: 'awaiting_human',
+										reason: 'exited_before_output',
+									});
+								}
+
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+
+								// 事务后复探登录态（dsh 不探）
+								let probedLogin: unknown = null;
+								const agentId = run?.agent_id ?? run?.agentId;
+								if (agentId && agentId !== 'dsh' && deps.agentService) {
+									try {
+										probedLogin = await deps.agentService.refreshLogin(agentId, {
+											force: true,
+											trigger: 'exited_before_output',
+										});
+									} catch (err) {
+										logFailure(err);
+									}
+								}
+
+								// 生成规定审批上下文并创建 review gate
+								if (deps.gatesRepo) {
+									const gateContext = {
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+										stderrTail,
+										loginState:
+											probedLogin ??
+											(agentId ? deps.agentService?.getLogin?.(agentId) ?? null : null),
+										message:
+											'agent 未产出任何内容就退出，常见原因：未登录、模型名不可用、参数被拒',
+										actions: ['rerun', 'reassign', 'mark_failed'],
+									};
+									const gateId = deps.ids
+										? `gate_${deps.ids.newId()}`
+										: `gate_${runId.slice(0, 12)}`;
+									deps.gatesRepo.create({
+										id: gateId,
+										task_id: run?.taskId ?? null,
+										run_id: runId,
+										kind: 'review',
+										state: 'waiting',
+										comment: JSON.stringify(gateContext),
+										created_at: deps.clock.now(),
+									});
+								}
+
+								// 不跑机械检查、不派审查、不增加 rework_count
+								return;
+							}
+
+							if (run?.kind === 'review') {
+								if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
+									await transitionState({
+										runId,
+										targetState: 'exited',
+										reason: 'agent_crashed',
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								await transitionState({
+									runId,
+									targetState: 'awaiting_human',
+									reason: 'review_incomplete',
+								});
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+								if (deps.gatesRepo) {
+									const gateId = deps.ids
+										? `gate_${deps.ids.newId()}`
+										: `gate_${runId.slice(0, 12)}`;
+									deps.gatesRepo.create({
+										id: gateId,
+										task_id: run?.taskId ?? null,
+										run_id: runId,
+										kind: 'review',
+										state: 'waiting',
+										comment: '审查未完成',
+										created_at: deps.clock.now(),
+									});
+								}
+								return;
+							}
+
+							if (run?.kind === 'bughunt') {
+								if (run && !isTerminalRunState(run.state)) {
+									await transitionState({
+										runId,
+										targetState: 'failed',
+										reason: 'bughunt_failed',
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+								if (deps.gatesRepo) {
+									const gateId = deps.ids
+										? `gate_${deps.ids.newId()}`
+										: `gate_${runId.slice(0, 12)}`;
+									deps.gatesRepo.create({
+										id: gateId,
+										task_id: run?.taskId ?? null,
+										run_id: runId,
+										kind: 'review',
+										state: 'waiting',
+										comment: 'bughunt_failed',
+										created_at: deps.clock.now(),
+									});
+								}
+								return;
+							}
+
+							if (run?.kind === 'wrapup') {
+								if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
+									await transitionState({
+										runId,
+										targetState: 'exited',
+										reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+								if (deps.finalizeWrapup) {
+									await deps.finalizeWrapup({ runId, exitCode: result.exitCode });
+								}
+								return;
+							}
+						}
+
+						// 3. 内容后退出才走既有机械检查/失败路径 (R3)
 						if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
 							await transitionState({
 								runId,
@@ -599,6 +899,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					id: runId,
 					fromState: previousState,
 					toState: targetState,
+					queuedReason: reason ?? null,
 					endedAt,
 					exitCode: exitCode ?? null,
 					exitSignal: exitSignal ?? null,

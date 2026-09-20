@@ -5,7 +5,7 @@ import type {
 	StartBatchResponse,
 } from '@agent-scheduler/shared/api/batches';
 import type { DocumentDto } from '@agent-scheduler/shared/api/documents';
-import type { CreateRunBody, RerunRunResponse, RunDto } from '@agent-scheduler/shared/api/runs';
+import type { CreateRunBody, RerunRunResponse, RunBaseRef, RunDto } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -25,7 +25,7 @@ import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
-import type { LaunchSpec, spawnManaged } from '../proc/spawn.ts';
+import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../proc/spawn.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
@@ -39,6 +39,11 @@ import {
 	toRunDto,
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
+import {
+	type BaseSelector,
+	type UpstreamTaskInfo,
+	createBaseSelector,
+} from '../workspace/base-select.ts';
 import { isBranchInHead } from '../workspace/in-head.ts';
 import type { PrepareWorktreeInput, PrepareWorktreeResult } from '../workspace/worktree.ts';
 import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
@@ -186,11 +191,15 @@ export interface DispatchServiceDeps {
 	readonly listAgents?: () => Promise<readonly unknown[]> | readonly unknown[];
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
 	readonly resolveAgentForTask?: (task: TaskRow) => string | null;
+	readonly baseSelector?: BaseSelector;
 	readonly workspace?: {
 		readonly prepareWorktree: (input: PrepareWorktreeInput) => Promise<PrepareWorktreeResult>;
 	};
 	readonly proc?: {
-		readonly spawnManaged: typeof spawnManaged;
+		readonly spawnManaged: (
+			spec: LaunchSpec,
+			options?: Partial<SpawnManagedOptions>,
+		) => ManagedProcess;
 	};
 	readonly adapters?: Readonly<Record<string, DispatchAdapter>>;
 	readonly runService?: RunService;
@@ -1207,33 +1216,91 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 			}
 
-			// E-76: 准备 worktree
-			let preparedWorktree: PrepareWorktreeResult;
+			// 准备直接上游信息与 Base 解析 (M5-T2, E-70)
+			let depKeys: string[] = [];
 			try {
-				const baseRef =
-					typeof launchSpecData.baseRef === 'string'
-						? launchSpecData.baseRef
-						: (launchSpecData.baseRef?.branchName ?? 'HEAD');
-				preparedWorktree = await deps.workspace.prepareWorktree({
-					repoPath: doc.repo_path,
-					taskId: task.task_key || task.id,
-					branchPrefix: doc.branch_prefix ?? 'task/',
-					worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
-					baseRef,
-				});
+				depKeys = JSON.parse(task.deps_json);
+			} catch {
+				depKeys = [];
+			}
+			const upstreamTasks: UpstreamTaskInfo[] = depKeys.map((depKey) => {
+				const depTask =
+					deps.tasksRepo.findByDocAndKey(task.doc_id, depKey) ?? deps.tasksRepo.findById(depKey);
+				const key = depTask?.task_key ?? depKey;
+				const branchPrefix = doc.branch_prefix ?? 'task/';
+				const branchName = `${branchPrefix}${key}`;
+				const isLanded = depTask?.manual_state === 'landed';
+				return {
+					taskId: key,
+					branchName,
+					isLanded,
+				};
+			});
+
+			let preparedWorktree: {
+				readonly worktreePath: string;
+				readonly branchName: string;
+				readonly baseRef: string;
+			};
+			try {
+				const baseRefInput =
+					typeof launchSpecData.baseRef === 'object' && launchSpecData.baseRef !== null
+						? (launchSpecData.baseRef as RunBaseRef)
+						: undefined;
+
+				if (deps.baseSelector) {
+					preparedWorktree = await deps.baseSelector.prepareTaskWorkspace({
+						repoPath: doc.repo_path,
+						taskId: task.task_key || task.id,
+						agentId: run.agent_id,
+						sessionId: runId,
+						upstreamTasks,
+						baseRef: baseRefInput,
+						worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+					});
+				} else if (deps.workspace) {
+					let resolvedBase = 'HEAD';
+					if (upstreamTasks.length > 0 || baseRefInput?.kind === 'upstreamBranch') {
+						const defaultSelector = createBaseSelector({
+							ids: deps.ids,
+							clock: deps.clock,
+						});
+						const resolution = await defaultSelector.resolveTaskBase({
+							repoPath: doc.repo_path,
+							taskId: task.task_key || task.id,
+							upstreamTasks,
+							baseRef: baseRefInput,
+						});
+						resolvedBase = resolution.resolvedBase;
+					}
+					preparedWorktree = await deps.workspace.prepareWorktree({
+						repoPath: doc.repo_path,
+						taskId: task.task_key || task.id,
+						branchPrefix: doc.branch_prefix ?? 'task/',
+						worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+						baseRef: resolvedBase,
+					});
+				} else {
+					return;
+				}
 			} catch (err) {
-				// prepareWorktree 失败 -> 运行 failed, E_WORKSPACE_UNAVAILABLE, 槽位释放且下一 tick 派下一个任务 (E-76)
+				const isUpstreamMissing =
+					err instanceof AppError && err.code === 'E_UPSTREAM_BASE_MISSING';
 				await deps.runService.transitionState({
 					runId,
 					targetState: 'failed',
-					reason: 'workspace_unavailable',
+					reason: isUpstreamMissing ? 'upstream_base_missing' : 'workspace_unavailable',
 				});
 				throw err instanceof AppError
 					? err
-					: new AppError('E_WORKSPACE_UNAVAILABLE', `Worktree preparation failed: ${String(err)}`, {
-							cause: err,
-							details: { runId, taskId: task.id },
-						});
+					: new AppError(
+							'E_WORKSPACE_UNAVAILABLE',
+							`Worktree preparation failed: ${String(err)}`,
+							{
+								cause: err,
+								details: { runId, taskId: task.id },
+							},
+						);
 			}
 
 			const adapter = deps.adapters?.[run.agent_id];
@@ -1261,9 +1328,31 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				prompt: undefined,
 			});
 
-			const process = deps.proc.spawnManaged(launchSpec, {} as never);
+			let managed: ManagedProcess;
+			try {
+				managed = deps.proc.spawnManaged(launchSpec);
+			} catch (spawnErr) {
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'failed',
+					reason: 'spawn_failed',
+				});
+				throw spawnErr;
+			}
 
-			deps.runService.attachProcess(runId, process, {
+			// E-348 / R3: starting 状态抢先退出必须落定 starting → failed
+			if (managed.isExited) {
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'failed',
+					reason: 'premature_exit',
+					exitCode: managed.exitResult?.exitCode ?? null,
+					exitSignal: managed.exitResult?.signal ? String(managed.exitResult.signal) : null,
+				});
+				return;
+			}
+
+			deps.runService.attachProcess(runId, managed, {
 				eventMapper: adapter.mapEvents,
 				onExit: async (result) => {
 					if (result.exitCode === 0 && deps.reviewService) {
@@ -1276,11 +1365,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				},
 			});
 
+			const latestRun = deps.runsRepo.findById(runId);
+			if (latestRun && isTerminalRunState(latestRun.state as RunState)) {
+				return;
+			}
+
 			await deps.runService.transitionState({
 				runId,
 				targetState: 'running',
 				reason: 'process_spawned',
-				pid: process.pid,
+				pid: managed.pid,
 				worktreePath: preparedWorktree.worktreePath,
 				branchName: preparedWorktree.branchName,
 			});

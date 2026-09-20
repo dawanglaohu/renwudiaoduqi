@@ -28,8 +28,14 @@ import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
-import { createDefaultProcessOps } from '../proc/spawn.ts';
-import { spawnManaged } from '../proc/spawn.ts';
+import {
+	type LaunchSpec,
+	type ManagedProcess,
+	type SpawnManagedOptions,
+	createDefaultProcessOps,
+	spawnManaged,
+} from '../proc/spawn.ts';
+import { type BaseSelector, createBaseSelector } from '../workspace/base-select.ts';
 import { type BatchWrapupsRepo, createBatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import { type BatchesRepo, createBatchesRepo } from '../repo/batches.ts';
 import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
@@ -82,7 +88,10 @@ import { getDiffStat } from '../workspace/diff.ts';
 import { type WorktreeManager, createWorktreeManager } from '../workspace/worktree.ts';
 
 export interface ContainerProc {
-	readonly spawnManaged: typeof spawnManaged;
+	readonly spawnManaged: (
+		spec: LaunchSpec,
+		options?: Partial<SpawnManagedOptions>,
+	) => ManagedProcess;
 }
 
 export type ContainerAdapter = DispatchAdapter;
@@ -213,6 +222,7 @@ export function createContainer(input: {
 		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
 	};
 	readonly worktreeManager?: WorktreeManager;
+	readonly baseSelector?: BaseSelector;
 	readonly proc?: ContainerProc;
 	readonly spawnManaged?: typeof spawnManaged;
 	readonly adapters?: ContainerAdapters;
@@ -390,11 +400,25 @@ export function createContainer(input: {
 			ids,
 		});
 
-	const proc: ContainerProc =
-		input.proc ??
-		Object.freeze({
-			spawnManaged: input.spawnManaged ?? spawnManaged,
-		});
+	const processRegistry = input.processRegistry ?? createProcessRegistry();
+
+	const baseSpawn = input.spawnManaged ?? input.proc?.spawnManaged ?? spawnManaged;
+	const boundSpawnManaged = (
+		spec: LaunchSpec,
+		overrides?: Partial<SpawnManagedOptions>,
+	): ManagedProcess => {
+		const options: SpawnManagedOptions = {
+			platform: input.hostInputs.platform,
+			processOps,
+			registry: processRegistry,
+			clock: input.clock,
+			...overrides,
+		};
+		return baseSpawn(spec, options);
+	};
+	const proc: ContainerProc = Object.freeze({
+		spawnManaged: boundSpawnManaged,
+	});
 
 	const defaultAdapters: ContainerAdapters = Object.freeze({
 		codex: Object.freeze({
@@ -436,7 +460,6 @@ export function createContainer(input: {
 	});
 	const adapters: ContainerAdapters = input.adapters ?? defaultAdapters;
 
-	const processRegistry = input.processRegistry ?? createProcessRegistry();
 	const sessionArchiveService = createSessionArchiveService({
 		runsRepo: runs,
 		tasksRepo: tasks,
@@ -560,6 +583,9 @@ export function createContainer(input: {
 						state: row.state as RunRecord['state'],
 						pid: row.pid,
 						kind: row.kind,
+						origin: row.origin,
+						agentId: row.agent_id,
+						agent_id: row.agent_id,
 						session_archived_at: row.session_archived_at ?? null,
 						lane_no: row.lane_no ?? null,
 						lastEventAt: row.last_event_at,
@@ -604,6 +630,19 @@ export function createContainer(input: {
 			finalizeWrapup: (params) => wrapupService.recordWrapupResult(params),
 			logFailure: (error) =>
 				input.logViolation?.(error instanceof Error ? error.message : String(error)),
+			agentService,
+			gatesRepo: gates,
+			ids,
+		});
+
+	const baseSelector =
+		input.baseSelector ??
+		createBaseSelector({
+			platform: input.hostInputs.platform,
+			worktreeManager,
+			ids,
+			clock: input.clock,
+			worktreeDeps,
 		});
 
 	const dispatchService =
@@ -639,6 +678,7 @@ export function createContainer(input: {
 					};
 				});
 			},
+			baseSelector,
 			workspace: worktreeManager,
 			proc,
 			adapters,
