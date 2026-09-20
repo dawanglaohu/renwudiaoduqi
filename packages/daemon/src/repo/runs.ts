@@ -136,6 +136,15 @@ export interface RunsRepo {
 		readonly exitSignal?: string | null;
 		readonly actorDeviceId?: string | null;
 		readonly reworkCount?: number;
+		readonly pid?: number | null;
+		readonly worktreePath?: string | null;
+		readonly branchName?: string | null;
+	}) => void;
+	readonly updateSpawnedProcess?: (input: {
+		readonly id: string;
+		readonly pid: number;
+		readonly worktreePath?: string | null;
+		readonly branchName?: string | null;
 	}) => void;
 	/**
 	 * 改写审查轮次；第三参给了（含 null）就一并改写 continued_from_run_id——E-330 降级时把失败行的续接指针
@@ -274,7 +283,18 @@ UPDATE runs
 SET state = @state,
     queued_reason = @queued_reason,
     ended_at = @ended_at,
+    pid = CASE WHEN @pid IS NOT NULL THEN @pid ELSE pid END,
+    worktree_path = CASE WHEN @worktree_path IS NOT NULL THEN @worktree_path ELSE worktree_path END,
+    branch_name = CASE WHEN @branch_name IS NOT NULL THEN @branch_name ELSE branch_name END,
     rework_count = CASE WHEN @rework_count IS NOT NULL THEN @rework_count ELSE rework_count END
+WHERE id = @id
+`;
+
+const UPDATE_SPAWNED_PROCESS_SQL = `
+UPDATE runs
+SET pid = @pid,
+    worktree_path = CASE WHEN @worktree_path IS NOT NULL THEN @worktree_path ELSE worktree_path END,
+    branch_name = CASE WHEN @branch_name IS NOT NULL THEN @branch_name ELSE branch_name END
 WHERE id = @id
 `;
 
@@ -468,6 +488,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const selectAllStmt = db.prepare(SELECT_ALL_RUNS_SQL);
 	const selectSucceededModelNamesStmt = db.prepare(SELECT_SUCCEEDED_MODEL_NAMES_SQL);
 	const updateStateStmt = db.prepare(UPDATE_RUN_STATE_SQL);
+	const updateSpawnedProcessStmt = db.prepare(UPDATE_SPAWNED_PROCESS_SQL);
 	const updateLastEventAtStmt = db.prepare(UPDATE_LAST_EVENT_AT_SQL);
 	const incrementUnmappedEventCountStmt = db.prepare(INCREMENT_UNMAPPED_EVENT_COUNT_SQL);
 	const updateReworkCountStmt = db.prepare(UPDATE_REWORK_COUNT_SQL);
@@ -794,6 +815,9 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 			readonly exitSignal?: string | null;
 			readonly actorDeviceId?: string | null;
 			readonly reworkCount?: number;
+			readonly pid?: number | null;
+			readonly worktreePath?: string | null;
+			readonly branchName?: string | null;
 		}): void {
 			try {
 				const state = input.state ?? input.toState;
@@ -803,9 +827,30 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 					queued_reason: input.queuedReason ?? null,
 					ended_at: input.endedAt ?? null,
 					rework_count: input.reworkCount ?? null,
+					pid: input.pid ?? null,
+					worktree_path: input.worktreePath ?? null,
+					branch_name: input.branchName ?? null,
 				});
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update run state: ${input.id}`);
+			}
+		},
+
+		updateSpawnedProcess(input: {
+			readonly id: string;
+			readonly pid: number;
+			readonly worktreePath?: string | null;
+			readonly branchName?: string | null;
+		}): void {
+			try {
+				updateSpawnedProcessStmt.run({
+					id: input.id,
+					pid: input.pid,
+					worktree_path: input.worktreePath ?? null,
+					branch_name: input.branchName ?? null,
+				});
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update spawned process info for run: ${input.id}`);
 			}
 		},
 

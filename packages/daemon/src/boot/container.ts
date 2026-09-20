@@ -1,5 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import { buildClaudeLaunchSpec } from '../adapters/claude/build-launch-spec.ts';
+import { mapEvents as mapClaudeEvents } from '../adapters/claude/map-events.ts';
+import { buildCodexLaunchSpec } from '../adapters/codex/build-launch-spec.ts';
+import { mapCodexEvents } from '../adapters/codex/map-events.ts';
+import { buildDshLaunchSpec } from '../adapters/dsh/build-launch-spec.ts';
+import { mapDshEvents } from '../adapters/dsh/map-events.ts';
+import { buildGenericAcpLaunchSpec } from '../adapters/generic-acp/build-launch-spec.ts';
+import { mapGenericAcpEvents } from '../adapters/generic-acp/map-events.ts';
+import { buildGrokLaunchSpec } from '../adapters/grok/build-launch-spec.ts';
+import { mapGrokEvents } from '../adapters/grok/map-events.ts';
+import { buildPiLaunchSpec } from '../adapters/pi/build-launch-spec.ts';
+import { mapPiEvents } from '../adapters/pi/map-events.ts';
 import type { ProcessConfig } from '../config/env.ts';
 import { type AgentRegistry, createAgentRegistry } from '../config/registry.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
@@ -17,6 +29,7 @@ import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
 import { createDefaultProcessOps } from '../proc/spawn.ts';
+import { spawnManaged } from '../proc/spawn.ts';
 import { type BatchWrapupsRepo, createBatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import { type BatchesRepo, createBatchesRepo } from '../repo/batches.ts';
 import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
@@ -38,10 +51,16 @@ import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
 import { type AssignmentsService, createAssignmentsService } from '../service/assignments.ts';
 import { type BatchService, createBatchService } from '../service/batch.ts';
-import { type DispatchService, createDispatchService } from '../service/dispatch.ts';
+import {
+	type BuildLaunchSpecInput,
+	type DispatchAdapter,
+	type DispatchService,
+	createDispatchService,
+} from '../service/dispatch.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type GateService, createGateService } from '../service/gates.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
+import type { EventEnvelopeInput } from '../service/logstore.ts';
 import { createLogstoreService } from '../service/logstore.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
@@ -61,6 +80,14 @@ import { type SystemService, createSystemService } from '../service/system.ts';
 import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
 import { getDiffStat } from '../workspace/diff.ts';
 import { type WorktreeManager, createWorktreeManager } from '../workspace/worktree.ts';
+
+export interface ContainerProc {
+	readonly spawnManaged: typeof spawnManaged;
+}
+
+export type ContainerAdapter = DispatchAdapter;
+
+export type ContainerAdapters = Readonly<Record<string, ContainerAdapter>>;
 
 export interface ContainerJob {
 	readonly name: string;
@@ -133,8 +160,8 @@ export interface AppContainer {
 	readonly repos: ContainerRepos;
 	readonly logstore: Record<string, never>;
 	readonly events: ContainerEvents;
-	readonly proc: Record<string, never>;
-	readonly adapters: Record<string, never>;
+	readonly proc: ContainerProc;
+	readonly adapters: ContainerAdapters;
 	readonly workspace: ContainerWorkspace;
 	readonly services: ContainerServices;
 	readonly jobs: readonly ContainerJob[];
@@ -182,7 +209,13 @@ export function createContainer(input: {
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
 	readonly runService?: RunService;
+	readonly reviewService?: {
+		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
+	};
 	readonly worktreeManager?: WorktreeManager;
+	readonly proc?: ContainerProc;
+	readonly spawnManaged?: typeof spawnManaged;
+	readonly adapters?: ContainerAdapters;
 	readonly schedulerTickJob?: ContainerJob;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
@@ -356,6 +389,52 @@ export function createContainer(input: {
 			hostInputs: input.hostInputs,
 			ids,
 		});
+
+	const proc: ContainerProc =
+		input.proc ??
+		Object.freeze({
+			spawnManaged: input.spawnManaged ?? spawnManaged,
+		});
+
+	const defaultAdapters: ContainerAdapters = Object.freeze({
+		codex: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildCodexLaunchSpec(options as Parameters<typeof buildCodexLaunchSpec>[0]),
+			mapEvents: (line: unknown) => mapCodexEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		claude: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildClaudeLaunchSpec({
+					...(options as Parameters<typeof buildClaudeLaunchSpec>[0]),
+					model: options.model ?? undefined,
+				}),
+			mapEvents: (line: unknown) => mapClaudeEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		dsh: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildDshLaunchSpec(options as Parameters<typeof buildDshLaunchSpec>[0]),
+			mapEvents: (line: unknown) => mapDshEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		'generic-acp': Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildGenericAcpLaunchSpec(options as Parameters<typeof buildGenericAcpLaunchSpec>[0]),
+			mapEvents: (line: unknown) => mapGenericAcpEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		grok: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildGrokLaunchSpec(options as Parameters<typeof buildGrokLaunchSpec>[0]),
+			mapEvents: (line: unknown) => mapGrokEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		pi: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildPiLaunchSpec({
+					...(options as Parameters<typeof buildPiLaunchSpec>[0]),
+					model: options.model ?? undefined,
+				}),
+			mapEvents: (line: unknown) => mapPiEvents(line) as readonly EventEnvelopeInput[],
+		}),
+	});
+	const adapters: ContainerAdapters = input.adapters ?? defaultAdapters;
 
 	const processRegistry = input.processRegistry ?? createProcessRegistry();
 	const sessionArchiveService = createSessionArchiveService({
@@ -560,6 +639,11 @@ export function createContainer(input: {
 					};
 				});
 			},
+			workspace: worktreeManager,
+			proc,
+			adapters,
+			runService,
+			reviewService: input.reviewService,
 		});
 
 	const assignmentsService =
@@ -681,8 +765,8 @@ export function createContainer(input: {
 		repos,
 		logstore: empty,
 		events,
-		proc: empty,
-		adapters: empty,
+		proc,
+		adapters,
 		workspace,
 		services,
 		jobs,

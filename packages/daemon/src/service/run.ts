@@ -42,6 +42,9 @@ export interface RunsRepo {
 		readonly exitCode?: number | null;
 		readonly exitSignal?: string | null;
 		readonly actorDeviceId?: string | null;
+		readonly pid?: number | null;
+		readonly worktreePath?: string | null;
+		readonly branchName?: string | null;
 	}): void;
 	updateLastEventAt(id: string, lastEventAt: string): void;
 	incrementUnmappedEventCount(id: string): void;
@@ -64,7 +67,7 @@ export interface IngestLineResult {
 
 export interface AttachProcessOptions {
 	readonly onEvent?: (envelope: EventEnvelope) => void;
-	readonly onExit?: (result: ProcessExitResult) => void;
+	readonly onExit?: (result: ProcessExitResult) => Promise<void> | void;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 	readonly acceptsPlainText?: boolean;
 }
@@ -124,6 +127,9 @@ export interface RunService {
 		readonly exitSignal?: string | null;
 		readonly endedAt?: string | null;
 		readonly actorDeviceId?: string | null;
+		readonly pid?: number | null;
+		readonly worktreePath?: string | null;
+		readonly branchName?: string | null;
 	}): Promise<{ readonly previousState: RunState; readonly currentState: RunState }>;
 	closeRunStream(runId: string): Promise<void>;
 	findInFlightRuns(): Promise<readonly ReconcileRunRecord[]>;
@@ -230,17 +236,46 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			throw new AppError('E_VALIDATION', 'Run ID must be a non-empty string');
 		}
 
+		let fullEnvelope: EventEnvelope;
+		const candidate = envelope as {
+			readonly id?: unknown;
+			readonly seq?: unknown;
+			readonly ts?: unknown;
+		};
+		if (
+			'id' in envelope &&
+			typeof candidate.id === 'number' &&
+			'seq' in envelope &&
+			'ts' in envelope
+		) {
+			fullEnvelope = envelope as EventEnvelope;
+		} else {
+			const run = deps.runsRepo?.findById(runId) as
+				| (RunRecord & {
+						readonly task_id?: string | null;
+						readonly actor_device_id?: string | null;
+				  })
+				| null;
+			fullEnvelope = deps.envelopeFactory.createEnvelope({
+				kind: envelope.kind as Parameters<EnvelopeFactory['createEnvelope']>[0]['kind'],
+				runId,
+				taskId: envelope.taskId ?? run?.taskId ?? run?.task_id ?? null,
+				actorDeviceId: envelope.actorDeviceId ?? run?.actorDeviceId ?? run?.actor_device_id ?? null,
+				payload: envelope.payload as Parameters<EnvelopeFactory['createEnvelope']>[0]['payload'],
+			}) as EventEnvelope;
+		}
+
 		// 1. 落盘：全量原文写入 events.ndjson；里程碑写入 events 索引表，*_chunk 不进索引表 (AC 1, AC 2)
-		const appendResult = await deps.logstore.appendEvent(runId, envelope);
+		const appendResult = await deps.logstore.appendEvent(runId, fullEnvelope);
 
 		// 2. 更新运行元数据中的 last_event_at (若提供了仓储)
 		if (deps.runsRepo) {
 			if (deps.unitOfWork) {
 				deps.unitOfWork.run(() => {
-					deps.runsRepo?.updateLastEventAt(runId, envelope.ts);
+					deps.runsRepo?.updateLastEventAt(runId, fullEnvelope.ts);
 				});
 			} else {
-				deps.runsRepo.updateLastEventAt(runId, envelope.ts);
+				deps.runsRepo.updateLastEventAt(runId, fullEnvelope.ts);
 			}
 		}
 
@@ -253,12 +288,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				byteOffset: appendResult.location.byteOffset,
 				byteLen: appendResult.location.byteLen,
 			};
-			deps.bus.publish(envelope, locationRef);
+			deps.bus.publish(fullEnvelope, locationRef);
 		}
 
 		// 4. M6-T7 状态接线：从 starting 到 running，以及自动模式下提问/权限受阻转 awaiting_reply
-		if (deps.runsRepo && envelope.kind !== 'run.state_changed') {
-			await handleEventStateWiring(runId, envelope);
+		if (deps.runsRepo && fullEnvelope.kind !== 'run.state_changed') {
+			await handleEventStateWiring(runId, fullEnvelope);
 		}
 
 		return appendResult;
@@ -450,7 +485,6 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					completionResolve(result);
 					return;
 				}
-				options?.onExit?.(result);
 
 				void (async () => {
 					let run: RunRecord | null = null;
@@ -465,9 +499,24 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								exitSignal: result.signal ? String(result.signal) : null,
 							});
 						}
+						const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+							kind: 'run.exited',
+							runId,
+							taskId: run?.taskId ?? null,
+							actorDeviceId: run?.actorDeviceId ?? null,
+							payload: {
+								exitCode: result.exitCode,
+								signal: result.signal ? String(result.signal) : null,
+								stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+							},
+						});
+						await ingestEvent(runId, exitedEnvelope);
 						await closeRunStream(runId);
 						if (run?.kind === 'wrapup' && deps.finalizeWrapup) {
 							await deps.finalizeWrapup({ runId, exitCode: result.exitCode });
+						}
+						if (options?.onExit) {
+							await options.onExit(result);
 						}
 					} catch (err) {
 						logFailure(err);
@@ -502,6 +551,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		readonly exitSignal?: string | null;
 		readonly endedAt?: string | null;
 		readonly actorDeviceId?: string | null;
+		readonly pid?: number | null;
+		readonly worktreePath?: string | null;
+		readonly branchName?: string | null;
 	}): Promise<{ readonly previousState: RunState; readonly currentState: RunState }> {
 		const { runId, targetState, reason, exitCode, exitSignal, actorDeviceId } = input;
 		const run = deps.runsRepo?.findById(runId);
@@ -551,6 +603,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					exitCode: exitCode ?? null,
 					exitSignal: exitSignal ?? null,
 					actorDeviceId: actorDeviceId ?? null,
+					pid: input.pid ?? null,
+					worktreePath: input.worktreePath ?? null,
+					branchName: input.branchName ?? null,
 				});
 			}
 			pendingEvents.push(stateChangedEnvelope);
@@ -696,7 +751,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		runId: string,
 		envelope: EventEnvelopeInput,
 	): Promise<void> {
-		if (!deps.runsRepo || envelope.kind === 'run.state_changed') return;
+		if (!deps.runsRepo || envelope.kind === 'run.state_changed' || envelope.kind === 'run.started')
+			return;
 
 		let currentRun = deps.runsRepo.findById(runId);
 		if (!currentRun) return;

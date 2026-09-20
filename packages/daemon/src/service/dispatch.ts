@@ -25,6 +25,7 @@ import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { LaunchSpec, spawnManaged } from '../proc/spawn.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
@@ -39,9 +40,12 @@ import {
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 import { isBranchInHead } from '../workspace/in-head.ts';
+import type { PrepareWorktreeInput, PrepareWorktreeResult } from '../workspace/worktree.ts';
 import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
 import { type BatchService, createBatchService } from './batch.ts';
+import type { EventEnvelopeInput } from './logstore.ts';
 import { createRerunService } from './rerun.ts';
+import type { RunService } from './run.ts';
 import { assertSessionRefFree } from './session-guard.ts';
 import type { WrapupService } from './wrapup.ts';
 
@@ -139,6 +143,21 @@ export interface DispatchableAgent {
 	readonly concurrencyLimit?: number;
 }
 
+export interface BuildLaunchSpecInput {
+	readonly runId: string;
+	readonly cwd: string;
+	readonly model?: string | null;
+	readonly effortTier?: unknown;
+	readonly permissionTier?: unknown;
+	readonly prompt?: string;
+	readonly [key: string]: unknown;
+}
+
+export interface DispatchAdapter {
+	readonly buildLaunchSpec: (options: BuildLaunchSpecInput) => LaunchSpec;
+	readonly mapEvents: (vendorLine: unknown) => readonly EventEnvelopeInput[];
+}
+
 export interface DispatchServiceDeps {
 	readonly unitOfWork?: UnitOfWork;
 	readonly tasksRepo: TasksRepo;
@@ -167,6 +186,17 @@ export interface DispatchServiceDeps {
 	readonly listAgents?: () => Promise<readonly unknown[]> | readonly unknown[];
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
 	readonly resolveAgentForTask?: (task: TaskRow) => string | null;
+	readonly workspace?: {
+		readonly prepareWorktree: (input: PrepareWorktreeInput) => Promise<PrepareWorktreeResult>;
+	};
+	readonly proc?: {
+		readonly spawnManaged: typeof spawnManaged;
+	};
+	readonly adapters?: Readonly<Record<string, DispatchAdapter>>;
+	readonly runService?: RunService;
+	readonly reviewService?: {
+		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
+	};
 }
 
 export interface DispatchService {
@@ -178,6 +208,7 @@ export interface DispatchService {
 	listRuns(): Promise<readonly RunDto[]>;
 	getSnapshot(): Promise<SnapshotResponse>;
 	tick(): Promise<SchedulerTickResult>;
+	launchRun(runId: string): Promise<void>;
 	getBatchGateOverrides(batchId: string): BatchGateOverrides | undefined;
 	setBatchGateOverrides(batchId: string, overrides: BatchGateOverrides): void;
 	getInHeadWarning(runId: string): string | null;
@@ -198,6 +229,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	const runsRepo = deps.runsRepo;
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
 	const consecutiveInHeadErrors = new Map<string, number>();
+	const inFlightLaunches = new Set<string>();
 	let isTicking = false;
 
 	const effectiveBatchService =
@@ -458,7 +490,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			throw new AppError('E_INTERNAL', `Failed to retrieve created run: ${runId}`);
 		}
 
-		if (deps.bus && deps.envelopeFactory) {
+		if (deps.envelopeFactory) {
 			const envelope = deps.envelopeFactory.createEnvelope({
 				kind: 'run.started',
 				runId,
@@ -472,7 +504,17 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					model: input.model ?? null,
 				},
 			});
-			deps.bus.publish(envelope);
+			if (deps.runService) {
+				await deps.runService.ingestEvent(runId, envelope);
+			} else if (deps.bus) {
+				deps.bus.publish(envelope);
+			}
+		}
+
+		if (deps.proc && deps.workspace && deps.runService) {
+			void launchRun(runId).catch((err) => {
+				logFailure(err);
+			});
 		}
 
 		return {
@@ -1082,6 +1124,174 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 	}
 
+	async function launchRun(runId: string): Promise<void> {
+		if (inFlightLaunches.has(runId)) {
+			return;
+		}
+		inFlightLaunches.add(runId);
+		try {
+			const run = runsRepo.findById(runId);
+			if (!run) {
+				throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
+					details: { runId },
+				});
+			}
+
+			if (run.state !== 'starting') {
+				return;
+			}
+
+			if (!run.task_id) {
+				throw new AppError('E_VALIDATION', `Run ${runId} has no associated task`, {
+					details: { runId },
+				});
+			}
+
+			const task = deps.tasksRepo.findById(run.task_id);
+			if (!task) {
+				throw new AppError('E_NOT_FOUND', `Task not found: ${run.task_id}`, {
+					details: { taskId: run.task_id, runId },
+				});
+			}
+
+			const doc = deps.documentsRepo.findById(task.doc_id);
+			if (!doc) {
+				throw new AppError('E_NOT_FOUND', `Document not found: ${task.doc_id}`, {
+					details: { docId: task.doc_id, runId },
+				});
+			}
+
+			if (!doc.repo_path) {
+				throw new AppError('E_VALIDATION', `Document ${doc.id} has no repository path`, {
+					details: { docId: doc.id, runId },
+				});
+			}
+
+			// E-40: 校验 agent 可用性
+			if (!isAgentDispatchable(run.agent_id)) {
+				if (deps.runService) {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'agent_unavailable',
+					});
+				}
+				throw new AppError(
+					'E_AGENT_UNAVAILABLE',
+					`Agent ${run.agent_id} is not available for dispatch`,
+					{
+						details: { agentId: run.agent_id, taskId: task.id },
+					},
+				);
+			}
+
+			if (!deps.workspace || !deps.proc || !deps.runService) {
+				return;
+			}
+
+			let launchSpecData: {
+				model?: string | null;
+				effort?: string | null;
+				permissionTier?: string;
+				baseRef?: string | { kind?: string; branchName?: string };
+				worktreeMode?: 'fresh' | 'reuse';
+			} = {};
+			if (run.snapshot_id && deps.dispatchSnapshotsRepo) {
+				const snap = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
+				if (snap?.launch_spec_json) {
+					try {
+						launchSpecData = JSON.parse(snap.launch_spec_json);
+					} catch {
+						launchSpecData = {};
+					}
+				}
+			}
+
+			// E-76: 准备 worktree
+			let preparedWorktree: PrepareWorktreeResult;
+			try {
+				const baseRef =
+					typeof launchSpecData.baseRef === 'string'
+						? launchSpecData.baseRef
+						: (launchSpecData.baseRef?.branchName ?? 'HEAD');
+				preparedWorktree = await deps.workspace.prepareWorktree({
+					repoPath: doc.repo_path,
+					taskId: task.task_key || task.id,
+					branchPrefix: doc.branch_prefix ?? 'task/',
+					worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+					baseRef,
+				});
+			} catch (err) {
+				// prepareWorktree 失败 -> 运行 failed, E_WORKSPACE_UNAVAILABLE, 槽位释放且下一 tick 派下一个任务 (E-76)
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'failed',
+					reason: 'workspace_unavailable',
+				});
+				throw err instanceof AppError
+					? err
+					: new AppError('E_WORKSPACE_UNAVAILABLE', `Worktree preparation failed: ${String(err)}`, {
+							cause: err,
+							details: { runId, taskId: task.id },
+						});
+			}
+
+			const adapter = deps.adapters?.[run.agent_id];
+			if (!adapter) {
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'failed',
+					reason: 'agent_unavailable',
+				});
+				throw new AppError(
+					'E_AGENT_UNAVAILABLE',
+					`No adapter configured for agent: ${run.agent_id}`,
+					{
+						details: { agentId: run.agent_id, runId },
+					},
+				);
+			}
+
+			const launchSpec = adapter.buildLaunchSpec({
+				runId,
+				cwd: preparedWorktree.worktreePath,
+				model: run.model_name ?? launchSpecData.model ?? null,
+				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
+				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
+				prompt: undefined,
+			});
+
+			const process = deps.proc.spawnManaged(launchSpec, {} as never);
+
+			deps.runService.attachProcess(runId, process, {
+				eventMapper: adapter.mapEvents,
+				onExit: async (result) => {
+					if (result.exitCode === 0 && deps.reviewService) {
+						try {
+							await deps.reviewService.evaluateMechanicalCheck({ runId });
+						} catch (err) {
+							logFailure(err);
+						}
+					}
+				},
+			});
+
+			await deps.runService.transitionState({
+				runId,
+				targetState: 'running',
+				reason: 'process_spawned',
+				pid: process.pid,
+				worktreePath: preparedWorktree.worktreePath,
+				branchName: preparedWorktree.branchName,
+			});
+		} catch (error) {
+			logFailure(error);
+			throw error;
+		} finally {
+			inFlightLaunches.delete(runId);
+		}
+	}
+
 	function getBatchGateOverrides(batchId: string): BatchGateOverrides | undefined {
 		return batchGateOverridesMap.get(batchId);
 	}
@@ -1111,6 +1321,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		listRuns,
 		getSnapshot,
 		tick,
+		launchRun,
 		getBatchGateOverrides,
 		setBatchGateOverrides,
 		getInHeadWarning,
