@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M10-T5": {
+      "contractHash": "f2d4414ad328620be27c90533e4ffb106e62dea9ad5ad8bf6edddfd299656844",
+      "verdict": "pass",
+      "evidence": [
+        "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+        "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
+        "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
+      ]
+    }
+  }
+}

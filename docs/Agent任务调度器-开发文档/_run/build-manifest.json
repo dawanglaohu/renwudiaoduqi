@@ -13,7 +13,7 @@
     "02-设计/10-接口约定.md": "c349ce74bc226bb5dc44bbcf13da41933ae537dfbc4afd5e77d606b33b732793",
     "02-设计/11-UI.md": "6633f85a9bf5da5b161d4b426c7a2bb6deec9ad4496edad1e3d1874b4e7d66b8",
     "02-设计/12-UX.md": "4d67a71c2a9a0e7e462c1d8f0a796a365a994ba5be04e7885d4757f7f72d2421",
-    "03-质量/13-边界问题与异常处理.md": "7a9709e07dc7b07603f319e8aa10b5da51375e7e7b964760b694759354b91b31",
+    "03-质量/13-边界问题与异常处理.md": "5f22b41c222cbc1caf0d5f4b39384faed858b7eddea5301ca9280cb0d4cd6c7b",
     "03-质量/14-安全与权限.md": "93da63b2bd6d07cc06bfd665ebf2355ac05c4b1503c92b4c24c6a562b201ab3f",
     "03-质量/15-性能与容量假设.md": "c83ca990917e8b34af6b803929eb2f30086f7549450c5ecb29a8c445b80b62d0",
     "03-质量/16-可观测性.md": "31e39822fc55ae28bcec422765abe985b13ec51f58c7369ccb087d585a4615dd",
@@ -26,17 +26,18 @@
     "05-附录/23-变更记录.md": "5d013213b4d615a396c10ca5301d08a226338e9b3253f9b81771692f303ecd2f",
     "05-附录/24-参考资料.md": "eec613e723bff7847e309724b2c12f0d8eb447a3b1cff7ce169eae0bd02cc070",
     "README.md": "449e8971a4884cab4ad6bd71e0ed8d88166999fba8e4c20e3b446a6b898c3559",
+    "_run/batches/batch-8-20260922.md": "a105889d07a9a83829268449892d4f81fbb630d849eaa53e37ad7641848d3749",
     "_run/presentation.json": "7bc4a2750015ba454c28ed4b2776bd5ffbe2f8724f761b35f2debd53787f1660",
     "_run/task-contracts.json": "3fa6ee8770396aa7b2694d569dbe264b942a30ff949bce60467e9799b25751e8"
   },
   "products": {
     "_MOC.md": "325993513261fe854426169a7e2bbb44a7e7da69de6cc942cb73a7a76414085d",
-    "_run/dispatch.json": "467dbddae1a184232bf45a32fdbc2747e7fa0aad4942126cd63a161f73a62cc9",
-    "_run/review.json": "cf77507cd1c0ae1bdd78a2c1f6c9405c35fbbb17f5be226498085f362e8fc8f6",
-    "_run/task-reviews.json": "6c53f0135fc21c80b540de17c0b2c366dd4fbdbd0dfb810e23821cdbf0e68f08",
-    "docs-data.js": "f90a4fe9f492173cb1e7fc56bc941b1a216ae64355639efed9709c5ec23aacc9",
+    "_run/dispatch.json": "10712e5c569cb0fcc5dc22a0f31eacf27e5797d593b2fb6796ca9ba083807822",
+    "_run/review.json": "fd72eb21b1cbfe70179e7be18609f318260091e65d1562e9601907664f6abc4c",
+    "_run/task-reviews.json": "d41738de8352fa406ea37620c4bda1f92a1968e66af40066e9104a49e9a2dfb7",
+    "docs-data.js": "e37723576c754b0aa7e0d45077a5b1ce9067b969947ae5df8e2a6c73206f6a90",
     "index.html": "afd746e48f30467e7e1fc7f5d4f63b687f64c30000479747a08354cb217d6a6e"
   },
   "schemaVersion": 1,
-  "sourceVersion": "1c56e4f45249dd99c8a8f8d008871e33ecb0a11831337179ddc23b02e822e756"
+  "sourceVersion": "066b2dbd11bc4ec981664ec6750d4069b41b371c6aef01ddbf8251f9c612e799"
 }
