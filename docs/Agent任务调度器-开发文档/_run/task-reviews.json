@@ -26,16 +26,13 @@
     "verdict": "pass"
   },
   "M1-T11": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "259983ee38dcaf6fe1cfbea2b416638144af924e5182f998af922706af951b84",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "1489c77a5e91626d352427186fc0c4eb4a0a61861e64ee86158e037689bfd455",
     "evidence": [
-      "变化范围：本次补丁只在 19 节 M1-T11 行的依赖列增加 M9-T27、输入栏增加「M9-T27 的生产配对入口冒烟与 Playwright 依赖」、产出栏根 package.json 的 e2e 脚本改为复用 M9-T27 的 playwright devDependency；五条验收标准、边界 E-226/E-139/E-159/E-175/E-108/E-10/E-31/E-135 原文不变。契约 requires 新增 {task: M9-T27, capability: production-pairing-entry}，与 M9-T27 的 provides 对应。",
-      "依赖与分层：M9-T27 在第 14 层，M1-T11 由第 14 层移到第 15 层（与 M9-T17、M9-T21 同层），其余前置 M1-T10、M2-T2、M2-T5、M10-T4、M10-T5、M9-T24、M9-T25、M9-T26、M8-T10、M7-T9 未变；20 节接线顺序改为 M8-T11 → M9-T27 → M1-T11 → M10-T6，与 19 节一致，无环。",
-      "接口与分工：M9-T27 只证明配对入口可见与一次性码消费（E-265 明写不冒充主流程），M1-T11 验收第 2 条「打开 #/pair 手填地址与配对码完成配对后落到 #/」在 M9-T27 落地后有真实页面可用，避免 M1-T11 自己修装配；两者产出路径不重叠（M9-T27 为 e2e/pairing-entry.test.ts 与 vitest.pairing.config.ts，M1-T11 为 e2e/smoke.test.ts、e2e/fixtures/*、vitest.e2e.config.ts）。",
-      "有效路径：supportPaths 保持 bootstrap.ts、theme-provider.tsx、80-static.ts；wiring 保持 buildPipeline/frontendRoutes/backendRoutes/container/eventKinds；仓库当前无 e2e/ 目录，新增产出不与开放 PR 冲突。",
-      "验收阶段：本次不改验收项、不降低边界标准；只登记契约复核，不执行 --landed。"
+      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
     ],
-    "reviewed": "2026-09-21T15:55:29.624284+00:00",
+    "reviewed": "2026-09-21T17:14:47.205697+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -183,44 +180,39 @@
     "verdict": "pass"
   },
   "M10-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "16cf031632621bc11c4cf96b720a968f7a092425889e495af05aeed7fa5a6667",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "cb3765af1e8ac5faf60ff33e8adff5b3e98663eae4628f15c182f1e0f13b77d3",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 25856ecb98d6 变为 16cf03163262；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "13 节 E-176 行（03-质量/13-边界问题与异常处理.md:189）已改为与 11 节字体表（02-设计/11-UI.md:92 「字重 400 / 500 / 600」，:97 「只打包实际用到的字重（E-176）」）一致；revalidation.json 记本任务 changedFields=['edges']，只核 E-176 这一条。",
+      "代码对照：packages/web/src/styles/fonts.css:5-58 恰好六条 @font-face（Commit Mono 与 Public Sans 各 400/500/600），src 全部为同源 /fonts/*.woff2，无 CDN；packages/web/public/fonts/ 恰好六个 woff2 加两份 LICENSE，没有 700 或其他字重文件，不是全家族。",
+      "字重确实都在用：packages/web/src 里 font-medium(500) 47 处、font-semibold(600) 88 处（grep -rhoE 统计），与补丁后 E-176 的「实际用到」口径一致。",
+      "打包断言未变且仍通过：packages/web/test/style-pipeline.test.ts:156 断言构建产物 CSS 引用 ../fonts/public-sans-latin-400.woff2（相对路径、自托管）；packages/daemon/test/unit/static-plugin.test.ts:33 断言 daemon 静态托管能取到 commit-mono-latin-400.woff2；本次第 8 批收口在 WSL 跑 pnpm -w check 全量（结果见 batch-8-20260922.md 测试段）。",
+      "Jev 裁决：adjudicate pick=A(high 0.75) spec_change=yes needs_owner=no adopt=take(A)，model=jev-1.13.0，记录在 _run/judgments.jsonl（label batch-8:wrapup:e176）；A = 只改文档、代码与产物不动。"
     ],
-    "reviewed": "2026-09-18T18:37:08.071036+00:00",
+    "reviewed": "2026-09-21T17:16:48.113304+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "a0a57274e5b239f4c0ba851fe0edf48b72797f70d9bbc4a5481c3974044eeedc",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "f2d4414ad328620be27c90533e4ffb106e62dea9ad5ad8bf6edddfd299656844",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 5492d6acca1f 变为 a0a57274e5b2；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
+      "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
     ],
-    "reviewed": "2026-09-18T18:37:21.550972+00:00",
+    "reviewed": "2026-09-21T17:17:03.629029+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "a6fbc40c47c190f8656042d7dbbcb46dd765798e871cfe9893627a28328682a1",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "eac017ccbd732165e3096271bfeec4258502622c365f5fdd8e3a0ce9c01500f1",
     "evidence": [
-      "前置：M10-T1、M10-T2、M10-T4、M10-T5、M9-T24、M9-T26；其中已落地 4 个，未落地的 M9-T24、M9-T26 均为本补丁新增或同批接线任务，是验收可达的必要前置（M1-T11 端到端冒烟与 M10-T6 壳 smoke 必须在接线任务之后）。",
-      "验收标准引用边界 E-04、E-146、E-200、E-224、E-257、E-265、E-266，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/web/src/shell/shell-bridge.ts（类别 shellBridge）",
-      "注册点文件已核存在于 packages/shell-desktop/src-tauri/src/lib.rs（类别 shellBridge）",
-      "有效范围 16 条：.github/workflows/desktop-ci.yml；docs/platform-support.md；packages/shared/src/shell/bridge-contract.ts；packages/shell-desktop/launchers/smoke-runner.ts；packages/shell-desktop/src-tauri/Cargo.toml；packages/shell-desktop/src-tauri/src/lib.rs；packages/shell-desktop/src-tauri/tauri.conf.json；packages/shell-desktop/src/connection-ui.ts；packages/shell-desktop/src/daemon-process.ts；packages/shell-desktop/src/desktop-bridge.ts；packages/shell-desktop/src/launch-spec.ts；packages/shell-desktop/test/；packages/web/src/api/base-url.ts；packages/web/src/app/bootstrap.ts；packages/web/src/app/connect-failed.tsx；packages/web/src/shell/shell-bridge.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/web/src/app/bootstrap.ts、packages/web/src/app/connect-failed.tsx。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
     ],
-    "reviewed": "2026-09-18T18:33:10.609895+00:00",
+    "reviewed": "2026-09-21T17:15:31.317677+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1277,19 +1269,14 @@
     "verdict": "pass"
   },
   "M9-T24": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "28d3bbac502de43a1e4e62f6d35f346551496d2be3a94cf5e60b3ba25858fe99",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "cdbd86c4b6056325e4b64c64d6ff3da7bb5daf970bf71e59b9ef6dc831869766",
     "evidence": [
-      "前置：M9-T1、M10-T4；其中已落地 2 个。",
-      "验收标准引用边界 E-159、E-175、E-224，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/web/vite.config.ts（类别 buildPipeline）",
-      "注册点文件已核存在于 packages/web/postcss.config.cjs（类别 buildPipeline）——本任务负责新建，尚不存在",
-      "注册点文件已核存在于 packages/web/tailwind.config.ts（类别 buildPipeline）",
-      "有效范围 10 条：packages/web/package.json；packages/web/postcss.config.cjs；packages/web/scripts/check-forbidden.ts；packages/web/src/app/theme-provider.tsx；packages/web/src/styles/base.css；packages/web/tailwind.config.ts；packages/web/test/check-forbidden.test.ts；packages/web/test/style-pipeline.test.ts；packages/web/vite.config.ts；pnpm-lock.yaml。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/web/postcss.config.cjs、packages/web/test/style-pipeline.test.ts。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
+      "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
     ],
-    "reviewed": "2026-09-18T18:31:18.595597+00:00",
+    "reviewed": "2026-09-21T17:17:18.488911+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1310,37 +1297,25 @@
     "verdict": "pass"
   },
   "M9-T26": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "cdc898bea9f89f168a46ea319308217318c2711a553df2cd29659990769ef0c4",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "da2b999edb665bde5d21686bb464ad6ec6ec013d3562fc52889158aa3bbc59ba",
     "evidence": [
-      "PR #115 第 1 轮审查；契约 status 返回 ready=true、stale=[]、runtimeDrift=[]，任务定义、前置、有效路径、5 条验收标准与 E-08/E-10/E-12/E-156/E-158/E-200/E-227 均与派发包一致。",
-      "AC1：packages/web/src/app/bootstrap.ts:94-143 是启动序列唯一所有者；tokenStore.get → registerTokenProvider/setCachedToken → registerShellHostHint/resolveBaseUrl → 单一 sseClient.connect。packages/web/test/wiring-arch.test.ts 机检 src 下 connect 仅命中 bootstrap.ts；bootstrap.test.ts 覆盖固定顺序、无令牌不连接、配对后开流、吊销后停流并清壳存储。",
-      "AC2/E-10/E-12/E-158：packages/web/test/bootstrap.test.ts 用真实 Node HTTP SSE 服务端发送 run.state_changed，断言 lastEventId=4242、html data-connection-status=online、顶栏含最后同步于；断流后为 reconnecting 且服务端请求数仍为 1。use-connection-state.ts:72-117 映射状态与事件游标，connection-store.ts:74-79 使离线/重连不可派发。",
-      "AC3/E-227：shell-bridge.ts:278-304 的 Tauri 适配器只经 invoke 读写 get_token/set_token/clear_token/get_host_hint；shell-bridge.test.ts:351-430 证明壳模式清旧 sessionStorage、set_token 恰一次、hostHint 正确，并覆盖 Capacitor Preferences。tauri-commands.test.ts:30-40 断言 WebView 四命令与 Rust generate_handler 注册集合一致，同时保留 get_launch_spec/launch_service。",
-      "AC4/E-200：wiring-arch.test.ts 证明 registerNativeShellAdapter/registerTokenProvider/registerShellHostHint 都有生产调用，__TAURI_INTERNALS__/window.Capacitor 只在 src/shell/detect-shell.ts 与 shell-bridge.ts；浏览器模式继续走 sessionStorage 与 location.origin，无壳可用。",
-      "AC5：bootstrap.ts:79-91 将 authoritative connection-store 状态镜像到 html data-connection-status；main.tsx:11-26 等待 bootstrap 后挂载并在顶栏只读投影 OfflineBanner，为 M10-T6/M1-T11 的外部冒烟提供稳定 DOM 观察点。",
-      "反造假扫描：有效生产路径未命中 not implemented/placeholder/stub/TODO/待接入/后续接入；无硬编码 true 探测、无 window.__x/globalThis.__x 测试钩子；共享事件契约、sseClient、eventBus、令牌缓存和壳桥接均复用前置实现，没有重造 DTO/枚举/工具。",
-      "最终 head fde9578f1ac1e8202d0ad4a892fd1b9b89a2b3d7 合入 main 2d9d0e47 后验证：聚焦 8 文件 77/77；Web 生产构建成功；pnpm -w check 158/158 测试文件、1861 通过、32 平台跳过，49 错误码、对比度、架构禁令、479 文件 Biome、TypeScript 全通过。",
-      "真实服务证据：最终 head 以隔离 dataDir 和真实 daemon 运行，真实一次性配对、设备令牌、SSE 设置事件及 daemon 断流；DOM 状态 offline→online→reconnecting，每帧 data-style-loaded=true、--page=#ecefee。GIF 已覆盖发布到 agent-scheduler-assets/m9-t26-sse-shell-wiring.gif，远端 blob 与本地 SHA-256 均为 900498653d678372dc42def10b6c60889190ba395e1261a60cab33cd29695949。",
-      "任务笔记 code/notes 已回填且保留全部既定命题：唯一开流、原生存储清理、自安装适配器、DOM 镜像、Rust 命令分组与 dist 构建前置均可指到当前代码；未夹带会话过程、道歉、自我评价或临时路径。"
+      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
+      "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
     ],
-    "reviewed": "2026-09-19T18:06:10.019882+00:00",
+    "reviewed": "2026-09-21T17:17:33.357472+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T27": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "5b5b1aead30d1eadeea5a732b3b9606619cdfab972a25bd976f5f5e1f6a15441",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "6bb6cca09c01d2b40e5283b7a5bd4c4748d14ee97f3f02e1aaabce4013d43b85",
     "evidence": [
-      "范围与任务：19 节新增 M9-T27 行（模块 M9、2 人天、依赖 M1-T10/M2-T2/M9-T24/M9-T25/M9-T26/M10-T4、边界 E-06/E-175/E-224/E-226/E-265），四条验收标准均可判真假；20 节人天 161.5→163.5、第六批 50→52、接线顺序插在 M8-T11 之后 M1-T11 之前；_MOC 与 AGENTS/CLAUDE 规模行同步为 108 任务。图谱/边界/E-06、E-175、E-224、E-226、E-265 五个笔记均存在。",
-      "缺陷事实：主干 e5084d7 上 packages/web/src/app/app.tsx:23 只注册 landing（文件头注释第 8 行自述「其余路径由 RouterView 保持占位」），packages/web/src/app/routes.tsx:287 已匹配 #/pair 并在 :110–:122 做 E-224 归一化，但 pages/ 目录只有 landing-page.tsx 与 settings-agents-page.tsx，没有 pair 页面；因此真浏览器看到 hash 占位是装配缺失而非路由匹配错误，与任务输入栏的诊断一致。",
-      "依赖与分层：pair-page.tsx 与 pairing-container.tsx 出现在开放 PR #118（M9-T25，状态 CONFLICTING）的文件列表中，契约 requires 正确指向 M9-T25/M9-T26，supportPaths 只登记 pair-page.tsx、pairing-container.tsx、bootstrap.ts、route-entries.test.tsx 四处支撑路径；M9-T27 排在第 14 层，M9-T25 在第 13 层，M1-T11 在第 15 层，依赖方向无环。前置 M1-T10、M2-T2、M9-T24、M9-T26、M10-T4 任务笔记均为 done，M9-T25 为 todo 属预期。",
-      "接口与契约：07 节 :195/:202 规定 #/pair 为七条扁平 hash 路由之一且唯一免守卫；10 节 :18 POST /api/v1/pair/claim 免鉴权、:69 配对码打印到控制台并写 pairing-code.txt、:139 一次性用后失效；08 节 :159 免鉴权白名单三条与 packages/daemon/src/http/plugins/30-auth.ts:10 的 AUTH_WHITELIST 一致。验收第 2 条「码用后失效、不得绕过配对」与 E-226「不得新增第四个免鉴权端点」直接对应，未新增接口。",
-      "有效路径：产出栏列 e2e/pairing-entry.test.ts、vitest.pairing.config.ts、根 smoke:pair 脚本与 playwright devDependency、Ubuntu CI job；仓库根当前无 e2e/ 目录、无 vitest.e2e.config.ts、根 package.json 无 e2e/smoke:pair 脚本与 playwright 依赖，均为新建，不与任何开放 PR 冲突。.github/workflows/desktop-ci.yml 已有 ubuntu-latest 矩阵项与 release-verification job，可挂配对冒烟 job。wiring 登记 frontendRoutes，与 06 节接线注册表分类一致。",
-      "验收阶段：验收第 4 条明确本任务不冒充 M1-T11 的导入/派发/SSE 主流程（E-265），第 3 条复用 M9-T24 已验证的 data-style-loaded 与 computed --page 断言，与 17 节端到端冒烟小节分工一致。本次只登记契约复核，不执行 --landed，不代替代码测试。",
-      "裁决记录：本任务是否保留为原任务还是改为 1.6.0 返工任务，已交 Jev（typesafe_ask.py run adjudicate，state 存 D:/opuent/output/m9-t27-20260921/jev-state.json）：line=adjudicate: pick=B(low 0.37) spec_change=no(0.20) outside_stack=no(0.21) needs_owner=no(0.10) reversible=yes(0.81) adopt=take(B)，model=jev-1.13.0。采纳 B：保留 M9-T27，撤回对历史收口记录 batch-9-20260921.md 的改动（1.6.0 规定旧记录不改，实测追记留待再收口新记录）；低置信记为风险。"
+      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
     ],
-    "reviewed": "2026-09-21T15:55:16.219868+00:00",
+    "reviewed": "2026-09-21T17:16:17.986557+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
