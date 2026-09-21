@@ -559,7 +559,7 @@ function textW(s, px){
 
 /* SVG 文本里的 E-XX / M#-T# 单独拆成可点 tspan。
    chipify 明确跳过 svg（走 DOM 替换会打乱 SVG 布局），所以这里得自己挂 */
-var SVGID = /\b(E-\d{2,3}|M\d{1,2}-T\d{1,3})\b/g;
+var SVGID = /\b(E-\d{2,3}|M\d{1,2}-T\d{1,3}|R\d{1,3}-T\d{1,8})\b/g;
 function svgTx(s){
   s = String(s==null?"":s);
   var out = "", last = 0, m;
@@ -958,7 +958,7 @@ function mmdState(src){
 }
 
 /* ── ID 芯片：正文里的 E-01 / M1-T2 变成可点的定义入口 ── */
-var IDRE = /\b(E-\d{2,3}|M\d{1,2}-T\d{1,3})\b/g;
+var IDRE = /\b(E-\d{2,3}|M\d{1,2}-T\d{1,3}|R\d{1,3}-T\d{1,8})\b/g;
 function chipify(root){
   var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), hit=[], n;
   while((n = w.nextNode())){
@@ -1262,7 +1262,7 @@ function layerOf(ids, depsOf){
 /* 交接台的「第 N 批」：lv 是任务 → 0 起层号，by[k] 是该层任务（按 ID 排序）。
    Python 端 task_layers 用同一算法，--landed 才能报「哪批已全部落地」 */
 function batchLayers(){
-  var tasks = DT.tasks || [];
+  var tasks = (DT.tasks || []).filter(function(t){ return !t.repair; });
   var lv = layerOf(tasks.map(function(t){ return t.id; }), function(id){
     var t = taskById(id); return (t && t.deps) || [];
   });
@@ -1364,10 +1364,12 @@ function skillsFor(t, side){
     S.push(["dsh-trim-cot-leakage", "沉淀写完后", "清掉「本来想…后来改成」这类只有在场者才解析得了的话"]);
     if(fe) S.push(["finesse-ui", "写组件与样式时", "把既定 token 落成组件、覆盖八态与手机档；register 与方向已定死，不重判、不重定、不出预览页"]);
     if(fe) S.push(["record-browser-gif", "交审查前", "从真实服务录 GIF，等待条件用 DOM 状态不用固定延时；没有 GIF 的界面任务多半被打回"]);
+    if(hasJudgments(t)) S.push(["typesafe-ai", "写判断层时", "先读 live docs 的 API/SDK 页与最近的 cookbook；一题一判断、criteria 带兜底、独立问题一次送、概率与 confidence 分开用；问题与阈值常量只放注册表文件，密钥只从服务端配置读"]);
   }else{
     S.push(["dsh-code-review", "打完勾之后", "接口两侧契约、生命周期与并发、绕过校验的入口、测试是否只把实现重写一遍；不调会放过「每条都做了但合起来是错的」"]);
     if(fe) S.push(["finesse-ui", "看 GIF 之前", "audit 只读命令：组件八态、对比度与焦点顺序、偷懒默认、手机六类硬伤"]);
     if(fe) S.push(["record-browser-gif", "要验收证据时", "GIF 必须来自真实服务与真实轮次，不许 fixture 或 mock"]);
+    if(hasJudgments(t)) S.push(["typesafe-ai", "核判断层时", "对照 10 节语义判断契约核问题 ID、原语、criteria 兜底与阈值来源；一次真实调用记录的 model 字段才是证据，录制应答不算；TYPESAFE_API_KEY 未设置不判 pass"]);
     S.push(["dsh-prose-standard", "核回填时", "原有命题有没有被删掉"]);
     S.push(["dsh-trim-cot-leakage", "核回填时", "8 类会话残渣要清，9 类不算残渣要留"]);
     S.push(["dsh-pre-push-checks", "落地前", "按 outgoing diff 挑最小充分证据集；不许 --passWithNoTests、不许裸 --force"]);
@@ -1417,8 +1419,10 @@ function wrapupNotice(){
   }).sort(function(a, b){ return a - b; });
   if(!unwrapped.length) return "";
   var open = unwrapped.some(function(k){ var rec = batchRecord(k); return rec && rec.verdict === "open"; });
+  var legacy = unwrapped.some(function(k){ var rec = batchRecord(k); return rec && rec.repairWarning; });
   return "　<b>" + unwrapped.length + "</b> 批已全部落地、尚未收口" + (open ? "或收口有遗留" : "") +
     "：第 " + unwrapped.map(function(k){ return k + 1; }).join("、") + " 批，点该批标题右侧「批次收口」。" +
+    (legacy ? "<b>旧版 open 记录没有自动生成返工任务，重收口并补返工任务清单。</b>" : "") +
     (HO.wrapupGate !== false ? "<b>下一批的实施因此上锁</b>（仅紧邻下一批，不追溯更早批次）。" : "");
 }
 /* 实施按钮的闸门：本任务还是待派、前置全部已落地、契约没有明确错误；紧邻上一批落齐时须收口通过。行里和弹卡里共用这一个判断。
@@ -1599,8 +1603,19 @@ function designBlock(mod){
   }
   if(d.components){ L.push(""); L.push("组件规范：" + String(d.components)); }
   L.push("");
-  L.push("完整说明在 11 节「视觉方向」。查组件写法调 finesse-ui，但不许它重判 register、重定方向、不出预览页——直接在产品代码里把 token 落成组件。");
+  L.push("完整说明在 11 节「视觉方向」。查组件写法调 finesse-ui，但不许它重判 register、重定方向、不出预览页——直接在产品代码里把 token 落成组件。未定的 UI/UX 取舍写成 2–5 个选项，交 Jev 的 design 模板裁决，不交用户选择。");
   return L.join("\n");
+}
+
+/* 所有任务角色共享同一裁决协议；Jev 只选有限选项，任务方负责陈述事实与执行结果。 */
+function jevAdjudication(label){
+  return ["## 自行裁决：交 Jev，不交用户",
+    "实施、审查、查 bug、批次收口过程中出现的每一条「自行裁决」，以及验收冲突、文档缺口、栈外依赖、UI/UX 未定项，都先列出 2–5 个真实可行的选项；不能把你想要的答案当唯一候选。",
+    "把原始需求、任务标题与验收、冲突和选项忠实译成英文写入 state.json（文档与回报仍用中文）；UI/UX 取舍使用 design，其余使用 adjudicate。",
+    "运行 python \"" + HDOCS + "/_run/typesafe_ask.py\" --log \"" + HDOCS + "/_run/judgments.jsonl\" --label \"" + label + "\" run adjudicate --state <state.json>；UI/UX 将 adjudicate 换成 design。若 language_warning 提示中文过多，重译后重跑。",
+    "仅 status=ok 且 verdicts.adopt.action=take 才按 option 执行；confidence=low 仍用 Jev 的 option，记低置信风险。spec_change=yes 走文档补丁，outside_stack=yes 在回报点名，不自动扩权。",
+    "adopt=red_line 仅涉及付费、不可逆删除、改变已定范围或对外承诺时请求用户授权；status=skipped/error 或缺有效 pick 时留下待 Jev 裁决，不得由人代答、判 pass、声称已落地或写 clean/fixed。",
+    "回报逐条写：冲突 → 全部候选 → Jev line/model/采纳的 option → 代码或文档动作；没有写「无」。"] .join("\n");
 }
 
 /* 三段结构的字段名 → 提示词里的中文标签。顺序就是出现顺序：先定死放哪，再是每天都要碰的，最后是收尾的。
@@ -1611,11 +1626,11 @@ var ARCH_LABEL = {
   ui: "组件库", state: "状态管理", route: "路由", tier: "组件分层",
   api: "API 客户端层", data: "数据层", middleware: "中间件链", tx: "事务边界",
   utils: "工具层", config: "配置装载", di: "依赖注入",
-  build: "构建产物", jobs: "后台任务"
+  build: "构建产物", jobs: "后台任务", judgments: "语义判断层"
 };
 var ARCH_ORDER = ["layout", "layers", "tier", "ui", "route", "state", "api", "data",
                   "middleware", "tx", "utils", "errors", "env", "config", "di",
-                  "build", "jobs"];
+                  "build", "jobs", "judgments"];
 
 /* 字符串形式原样输出（旧配置兼容），对象形式按 ARCH_ORDER 一项一行 */
 function archLines(seg){
@@ -1695,7 +1710,7 @@ function roleBlock(t, side){
     L.push("本项目的" + who + "开发工程师。" +
            (has ? "架构在 " + sec + " 与 06 节共用约定里已定死（下面有摘要）；" : "约定以开发文档为准；") +
            "你的活是在既定约定内实现这一个任务，不重新设计、不顺手重构。" +
-           "被架构约定挡住（照约定做不到、只能违反 06/08 节才能完成）才停下，在回报里说明，别绕过去另起一套——下一个任务不知道，第三个又会起第三套。" +
+           "被架构约定挡住（照约定做不到、只能违反 06/08 节才能完成）也不自行停下或绕过去另起一套：列出候选交 Jev，按 spec_change 标记走文档补丁，并写进回报——下一个任务不知道，第三个又会起第三套。" +
            "工具报错、仓库现状与本提示词对不上这类事，「步骤」里都写了怎么办：照做并记进回报，不停下来问。");
   }else{
     L.push("本项目的" + who + "架构师。除了功能做没做，还要审这一层守没守住" +
@@ -1761,12 +1776,15 @@ function wiringBlock(t){
   var criteria = {
     backendRoutes: "路由已注册并返回真实数据", frontendRoutes: "页面已挂进装配件可导航",
     container: "service 已注册并被路由或 job 调用", eventKinds: "事件从产生到订阅端到端",
-    buildPipeline: "构建产物在浏览器里样式已加载"
+    buildPipeline: "构建产物在浏览器里样式已加载",
+    judgments: "问题与阈值常量集中于此、与 10 节语义判断契约同 ID、一次真实调用记录了 model"
   };
   return ["", "## 接线要求（做完必须从入口可达）"].concat(keys.map(function(k){
     return "- " + k + "：" + wiring[k].join("、") + "；" + (criteria[k] || "已登记且被消费");
   })).join("\n");
 }
+/* 判断层任务：有效范围覆盖了 wiring.judgments 登记的文件，或契约里点名了该类别 */
+function hasJudgments(t){ return !!wiringFor(t).judgments; }
 function depCodeBlock(t){
   var L = [];
   (t.deps || []).forEach(function(id){
@@ -1836,7 +1854,7 @@ function implSections(t){
   L.push("");
   L.push("本会话无人值守：权限已经全给你了，不要停下来要授权、要确认，也不要以提问收尾。" +
          "提示词与仓库现状对不上时按下面写好的办法自己定，把怎么定的写进回报的「自行裁决」段。" +
-         "只有三种情况停：验收标准之间互相矛盾；不改开发文档就做不完；必须引入技术栈之外的依赖。");
+         "现成办法解不了的岔路口交 Jev 裁决；只有明确的授权红线才问用户。");
   L.push("");
   L.push(promptHead(t));
   L.push("任务契约版本：" + ((HC.contracts[t.id] || {}).hash || "未建立") + "；提示词生成器 " + (HC.version || "旧版"));
@@ -1897,7 +1915,7 @@ function implSections(t){
   L.push("");
   L.push("## 不要做");
   L.push("- 实施方不擅改任务定义；文档问题回报具体条款，审查方可按既定要求在原 PR 定点修补。派生正文由脚本同步，受保护回填区可编辑。");
-  L.push("- 不做别的任务、不提前做后面的；技术栈已列的依赖直接加，技术栈之外的不引入——确实绕不开才停下说明");
+  L.push("- 不做别的任务、不提前做后面的；技术栈已列的依赖直接加，技术栈外是否必需交 Jev 裁，不能借裁决擅自扩大已授权范围");
   L.push("");
   L.push("## 收到返工指令时");
   L.push("只改指令列出的编号条目，不借机重构；哪条不成立就在回报里写理由，不默默跳过、也不照改你认为错的方案；" +
@@ -1907,9 +1925,10 @@ function implSections(t){
   L.push("");
   L.push("## 回报");
   L.push("改了哪些文件；每条验收标准落在哪个文件哪一行；每条边界怎么处理的；回填了没有；有没有偏离文档。含糊会被打回。");
-  L.push("「自行裁决」一段：提示词与现状对不上时你怎么定的、动了哪些清单外的文件（依赖、测试、共享文件）及理由；没有就写「无」。审查方据此判范围，不写等于越界。");
+  L.push("「自行裁决」一段：逐条写冲突、选项、Jev 的 line/model/option、采纳动作及清单外文件与理由；没有就写「无」。审查方逐条复核，缺项不能判通过。");
   L.push("入口可达证据：<从哪个入口怎么到达本任务产出，命令或路径>；没有接线要求写「无」");
   L.push("末行：READY_FOR_REVIEW: " + br + " <PR 链接>");
+  L.push(jevAdjudication(t.id + ":impl"));
   var appendix = appendixBlock(t); if(appendix) L.push(appendix);
   return promptSections(L.join("\n"));
 }
@@ -1968,10 +1987,16 @@ function buildReview(t){
   L.push("7. 打完勾再调 dsh-code-review 补语义评审——「做了，但做对了没」，逐条打勾发现不了");
   L.push("核对最终任务包的前置能力、有效路径、13/17/19 对应要求、接口字段与验收阶段；完成后填写 status 给出的 task-contract 证据模板，运行 maintain_docs.py verify --task " + t.id + " --evidence <证据JSON>（带同一文档目录）。脚本只登记真实复核，不自动证明语义通过。");
   if(fe) L.push("8. 界面任务必须有从真实服务录的 GIF（record-browser-gif 核它）；没有不算 pass");
-  L.push((fe ? "9" : "8") + ". 反造假扫描：① 在有效路径内 grep `not implemented|placeholder|stub|TODO|待接入|后续接入`，命中生产文件即阻断；② 门禁 / 闸门 / 探测函数返回硬编码 `true`/固定值即阻断；③ 注册表（接线要求段列的文件）里没有本任务条目即未接线、阻断；④ 前置代码位置里已有的类型 / 枚举 / 工具在本任务被另写一套即阻断；⑤ 界面任务 GIF 必须显示已加载样式（token 类的 computed style 生效），默认控件外观 = 未加载 = 阻断；⑥ 测试钩子（`window.__x`、`globalThis.__x`）出现在生产代码即阻断。");
+  L.push((fe ? "9" : "8") + ". 反造假扫描：① 在有效路径内 grep `not implemented|placeholder|stub|TODO|待接入|后续接入`，命中生产文件即阻断；② 门禁 / 闸门 / 探测函数返回硬编码 `true`/固定值即阻断；③ 注册表（接线要求段列的文件）里没有本任务条目即未接线、阻断；④ 前置代码位置里已有的类型 / 枚举 / 工具在本任务被另写一套即阻断；⑤ 界面任务 GIF 必须显示已加载样式（token 类的 computed style 生效），默认控件外观 = 未加载 = 阻断；⑥ 测试钩子（`window.__x`、`globalThis.__x`）出现在生产代码即阻断。" +
+         (hasJudgments(t) ? "⑦ 判断层：TypeSafe 客户端在生产代码里被固定应答替换、阈值门禁恒返回通过、消费方只取 argmax 无视 confidence 分支，任一命中即阻断；验收证据是一次真实调用记录的 model 字段，测试全绿不算。" : ""));
+  if(hasJudgments(t)) L.push((fe ? "10" : "9") + ". 判断层：TYPESAFE_API_KEY 未设置就不给结论，NEXT 写「请把 TYPESAFE_API_KEY 放进 .env（不进仓库）后再点『审查』」；设了就按 10 节语义判断契约逐问题核 ID、原语、criteria 兜底与阈值来源，并跑 17 节的判断用例集。");
   L.push("");
+  L.push("   TypeSafe 复核（可选，第二意见不替代上面任何一步）：把 gh pr diff 的正文与你回报里的断言写成 state（断言翻成英文，diff 原样；Jev 英文最准），跑 python \"" + HDOCS + "/_run/typesafe_ask.py\" --log \"" + HDOCS + "/_run/judgments.jsonl\" --label " + t.id + " run review --state <文件>；" +
+         "五个造假 noul 任一 yes 就回去人工核那一处，claim_* 为 contradicts/absent 的断言不许写进 EVIDENCE；输出 skipped（没密钥）照常继续，在回报 TS_CHECK 行写 skipped。");
+  L.push((fe ? (hasJudgments(t) ? "11" : "10") : (hasJudgments(t) ? "10" : "9")) + ". 审查实施方的「自行裁决」：每条复用它列出的全部候选，补入你从 diff 得到的新事实，运行 adjudicate（UI/UX 用 design）。Jev 与实施方不一致时以本次 Jev option 为准；漏列候选、无 Jev model/line、skipped/error 或裁决动作未落到 diff，均为阻断。审查任务自己产生的岔路口也按同一协议裁，不能在 NEXT 里把普通技术或 UI/UX 选择交给用户。");
+  L.push(jevAdjudication(t.id + ":review"));
   L.push("## 分级：只有阻断项才打回");
-  L.push("阻断项：验收标准不满足；边界没处理；范围外改动且影响别的任务；违反 06/07/08 的分层与共用约定；数据会丢或错、权限能绕；测试红；生产文件命中占位/桩词；门禁/闸门/探测硬编码 true 或固定值；注册表缺本任务条目；重复实现前置已有类型/枚举/工具；GIF 样式未加载（token 类 computed style 未生效）；生产代码含 window.__x/globalThis.__x 测试钩子。");
+  L.push("阻断项：验收标准不满足；边界没处理；范围外改动且影响别的任务；违反 06/07/08 的分层与共用约定；数据会丢或错、权限能绕；测试红；生产文件命中占位/桩词；门禁/闸门/探测硬编码 true 或固定值；注册表缺本任务条目；重复实现前置已有类型/枚举/工具；GIF 样式未加载（token 类 computed style 未生效）；生产代码含 window.__x/globalThis.__x 测试钩子" + (hasJudgments(t) ? "；判断层客户端被固定应答替换、阈值门禁恒通过、无视 confidence 分支" : "") + "。");
   L.push("非阻断项（命名、注释、小重复、格式、回填措辞、几行改完且不改行为的小毛病）不构成 rework：" +
          "不超过约 30 行、不动接口与数据结构的你自己顺手改——切到 " + br +
          " → 改 → git commit -m \"" + t.id + " review-fix: <改了什么>\" → gh stack push；更大的进 FOLLOW_UP，之后单开任务。「感觉还能更好」不是阻断项。");
@@ -1981,7 +2006,7 @@ function buildReview(t){
   L.push("- rework：有阻断项 → REWORK 写成 R1、R2…；末尾附「返工指令」（模板见下）；贴到 PR 留档：gh pr comment " + br +
          " --body-file <文件>（首行 REVIEW-ROUND N）；然后停下，等实施方推送、用户再点「审查」。");
   L.push("  第 2 轮只核上一轮条目，不新增无关阻断项。**最多两轮**：之后剩的具体代码错误由你改掉、加测试、提交、push，" +
-         "记进 FIXED_BY_REVIEWER，按 pass 落地；剩的是方向性问题（方案不对、任务定义不可实现）→ doc-issue 或停下报给用户。");
+         "记进 FIXED_BY_REVIEWER，按 pass 落地；剩的是方向性问题（方案不对、任务定义不可实现）→ 列候选交 Jev 裁决，再按 spec_change 标记走补丁；只有授权红线才问用户。");
   L.push("- 局部文档问题：先走下面的 DOC_PATCH，在原任务分支修补对应源条款、任务和有效范围，同步并复验；代码符合既定要求即 pass，继续本 PR 的 commit/push/落地。普通补丁不重跑需求、架构、任务拆分或整套 skill，不重新派发整个任务。");
   L.push("- doc-issue 仅用于补丁后仍缺必要裁定或没有可行契约的情形。列具体冲突与影响，只暂停受影响任务；不得降低验收迁就代码。补丁已修而代码仍有缺陷则保留补丁，给原 PR 精确 rework 条目。");
   L.push(docPatchBlock(t));
@@ -2022,6 +2047,8 @@ function buildReview(t){
   L.push("- 代码位置：已回填 / 未回填　｜　实施沉淀：已回填 / 未回填");
   L.push("OUT_OF_SCOPE");
   L.push("- 范围外改动；没有写 none");
+  L.push("ADJUDICATION");
+  L.push("- 每条：来源（实施/审查）→ 候选 → Jev line/model/option → 一致或改正 → 动作；没有写 none");
   L.push("DOC_ISSUE");
   L.push("- 文档本身的问题；没有写 none");
   L.push("REWORK");
@@ -2032,7 +2059,7 @@ function buildReview(t){
   L.push("- 之后单开任务的事；没有写 none");
   L.push("NEXT");
   L.push("- 一行给用户，三选一：「把下面的返工指令发给实施模型，它推送后再点「审查」」｜" +
-         "「已 merge 并记录落地，刷新交接台；一批全部落地后先收口再派下一批（没变就手点状态标签）」｜「文档补丁已同步并继续原 PR」或「尚缺裁定：<具体问题与影响>」");
+         "「已 merge 并记录落地，刷新交接台；一批全部落地后先收口再派下一批（没变就手点状态标签）」｜「文档补丁已同步并继续原 PR」或「Jev 待恢复：<state 路径与错误>」；普通技术或 UI/UX 选择不得写成让用户裁决");
   L.push("");
   L.push("rework 时末尾附，原样可粘（围栏语言固定为 rework，下游靠它定位返工块）：");
   L.push("```rework");
@@ -2053,7 +2080,8 @@ function buildContractReview(t){
     "有效范围：", pathsOf(t.id).join("\n"),
     "运行 python \"" + HDOCS + "/_run/maintain_docs.py\" \"" + HDOCS + "\" status --task " + t.id + " 读取当前版本与证据模板。",
     "要求一致则填写真实证据并运行同一命令的 verify --task " + t.id + " --evidence <JSON>。派发本身按前置落地与收口闸门解锁，不要求提前登记语义复核，这一步提前做完可以让审查阶段少一道工序。",
-    "发现文档局部问题则按 references/doc-maintenance.md 保存基线并定点修补、同步、复核；没有代码 PR 时不伪造 PR 号。不得放宽验收标准。"
+    "发现文档局部问题则按 references/doc-maintenance.md 保存基线并定点修补、同步、复核；没有代码 PR 时不伪造 PR 号。不得放宽验收标准。",
+    jevAdjudication(t.id + ":contract-review")
   ].join("\n");
 }
 function docPatchBlock(t){
@@ -2081,7 +2109,7 @@ function buildLandedReview(t, resume){
     "契约复核完成后，用同一维护命令的 verify --task " + t.id + " --evidence <证据JSON> 登记真实证据。verify 只登记文档契约复核，不证明代码验收或 CI 通过，也不清除代码复验标记。",
     "无需代码修改时，直接复验已合入代码并记录必要检查结果，不为复验补开代码 PR。确有代码差异才按正常修复流程处理：沿用本次修复的工作树和开放 PR；没有时使用实际修复分支和新 PR，不继续已经 MERGED 的历史 PR。",
     "只有代码完成实际验收、必要检查通过，且所需修复已确认合入 " + HMAIN + " 后，才运行 python \"" + HDOCS + "/_run/build_docs.py\" \"" + HDOCS + "\" --landed " + t.id + " 清除本任务的代码复验标记；没有代码差异时以当前已合入代码为依据。不能靠手点状态、删除标记或契约 pass 代替代码验收。",
-    "输出 VERDICT: pass | rework | doc-issue；列明变化条款、代码位置、必要检查结果和代码复验是否完成。剩余代码错误给精确 rework；缺少必要裁定给 doc-issue，不因已有 done 历史自动判 pass。", appendixBlock(t)
+    "输出 VERDICT: pass | rework | doc-issue；列明变化条款、代码位置、必要检查结果和代码复验是否完成。剩余代码错误给精确 rework；普通岔路口交 Jev，只有授权红线才给用户，不因已有 done 历史自动判 pass。", jevAdjudication(t.id + ":landed-review"), appendixBlock(t)
   ].join("\n");
 }
 function buildResume(t){
@@ -2092,7 +2120,8 @@ function buildResume(t){
     "读取 _run/patches/ 中本次补丁的差异和复验清单，只处理列出的条目及其直接影响。没有差异说明时先核对现有 PR 的返工记录，不按完整实施流程重做。",
     "修正后的验收：", acceptLines(t.accept).join("\n"),
     "有效范围：", pathsOf(t.id).join("\n"),
-    "保留已有代码和回填；修改后运行必要检查、追加提交并 push，继续原 PR 审查。"
+    "保留已有代码和回填；修改后运行必要检查、追加提交并 push，继续原 PR 审查。",
+    jevAdjudication(t.id + ":resume")
   ].join("\n");
 }
 
@@ -2125,6 +2154,7 @@ function buildKickoff(){
   L.push("2. 只有两节需要整节读：02 非目标、05 技术栈。其余按需顺链接取。");
   L.push("3. 按技术栈搭好工程骨架，初始化 git，提交一个基线。");
   L.push("4. 确认栈工具可用：gh stack --version。不可用就停下来说一声，别退回 git merge——整套落地流程都建立在官方栈上。");
+  if(HO.wiring && HO.wiring.judgments) L.push("5. 本项目接了 TypeSafe 判断层（System One，注册表 " + [].concat(HO.wiring.judgments).join("、") + "）：TYPESAFE_API_KEY 由用户在 https://console.typesafe.ai/keys 创建、放进 .env（不进仓库、不进前端产物）；没拿到也照做判断层任务——单测用录制应答（只许放测试目录），真实调用留给审查，回报「自行裁决」写明密钥缺失。");
   L.push("");
   L.push("项目根的 AGENTS.md 里写着同一套规矩。你的工具如果会自动读它，那你已经知道了。");
   L.push("");
@@ -2133,6 +2163,9 @@ function buildKickoff(){
   L.push("- `gh-stack`　栈命令与非交互标志；不带标志会卡死在全屏 TUI，还不报错");
   L.push("- `dsh-prose-standard`　写实施沉淀时判断「写够了没有」——单纯变短不算改进");
   L.push("- `dsh-trim-cot-leakage`　沉淀写完过一遍，清掉只有当时在场的人才解析得了的话");
+  if(HO.wiring && HO.wiring.judgments){
+    L.push("- `typesafe-ai`　判断层任务：三种原语怎么选、问题怎么写、概率与 confidence 怎么用；正本是 live docs，不凭记忆编请求字段。Claude Code 装 `claude plugin marketplace add typesafe-ai/skills && claude plugin install typesafe@typesafe-ai`，别的 agent 用 `npx skills add typesafe-ai/skills --skill typesafe-ai`");
+  }
   if((HO.frontendModules||[]).length){
     L.push("- `record-browser-gif`　界面任务的验收证据：从真实服务录一段 GIF，不许 mock");
   }
@@ -2145,7 +2178,7 @@ function buildKickoff(){
          "一个任务只允许这两个仓库外目录：不许 git clone 一份仓库，不许自造 ../" + HREPO + "-review-<id>、../<ID>-review.<随机> 之类目录；审查方在同一个工作树里干活。" +
          "Windows 侧绝不跑 git worktree prune——WSL 建的活工作树在 Windows 显示 prunable，prune 会打断别人的会话。落地后当场删工作树、分支和 planning 目录。");
   L.push("- 派给你的任务前置都已合进 " + HMAIN + "，所以每个任务都是新栈最底层：gh stack init。gh stack add 报 All branches in this stack have been merged 就是该 init，不用问。");
-  L.push("- 无人值守：不要停下来要授权或确认；提示词写好的处理办法照做，自己定的写进回报「自行裁决」。");
+  L.push("- 无人值守：不要停下来要授权或确认；提示词写好的处理办法照做；普通技术、审查、BUG、收口与 UI/UX 岔路口都交 Jev，只有付费、不可逆删除、改变已定范围、对外承诺才问用户。");
   L.push("- gh stack 命令一律带非交互标志：view 用 --json、submit 用 --auto、merge 用 --yes。");
   L.push("- 只做当前任务范围内的事，不提前做后面的；不引入技术栈之外的依赖。");
   L.push("- 不改开发文档，也不手改 `图谱/` 下笔记的正文——那些是脚本派生的，重跑就没。文档有问题就说出来。");
@@ -2162,6 +2195,7 @@ function buildKickoff(){
   if(HO.conventions){ L.push(""); L.push("## 本项目约定"); L.push(HO.conventions); }
   L.push("");
   L.push("准备好了回一句「就绪」，我发第一个任务。");
+  L.push(jevAdjudication("kickoff"));
   return L.join("\n");
 }
 
@@ -2208,7 +2242,7 @@ function bugPrompt(t, landed){
   if(fe) L.push("5. 界面：组件八态（默认/悬停/聚焦/按下/禁用/加载/错误/空）有没有漏、键盘能不能走完、窄屏有没有横向溢出、" +
                 "请求失败与空数据时长什么样。起真实服务点一遍。");
   L.push((fe ? "6" : "5") + ". 调 dsh-code-review 再扫一遍：接口两侧契约、生命周期与并发、绕过路径、借用 vs 拥有的状态、测试是否只重写实现。");
-  L.push((fe ? "7" : "6") + ". 占位与桩扫描：① 在有效路径内 grep `not implemented|placeholder|stub|TODO|待接入|后续接入`，命中生产文件即阻断；② 门禁 / 闸门 / 探测函数返回硬编码 `true`/固定值即阻断；③ 按接线要求核注册表文件，没有本任务条目即未接线、阻断；④ 测试钩子（`window.__x`、`globalThis.__x`）出现在生产代码即阻断。记录扫描命中位置。");
+  L.push((fe ? "7" : "6") + ". 占位与桩扫描：① 在有效路径内 grep `not implemented|placeholder|stub|TODO|待接入|后续接入`，命中生产文件即阻断；② 门禁 / 闸门 / 探测函数返回硬编码 `true`/固定值即阻断；③ 按接线要求核注册表文件，没有本任务条目即未接线、阻断；④ 测试钩子（`window.__x`、`globalThis.__x`）出现在生产代码即阻断" + (hasJudgments(t) ? "；⑤ 判断层：生产代码里 TypeSafe 客户端被固定应答替换、阈值门禁恒通过、只取 argmax 无视 confidence 分支即阻断，并构造低置信输入看它走不走人工/降级分支" : "") + "。记录扫描命中位置。");
   L.push("");
   L.push("## 找到之后");
   L.push("- 先写复现（输入 → 实际 → 期望）再修；复现不出来的写进 SUSPECT，不算 bug。");
@@ -2220,6 +2254,7 @@ function bugPrompt(t, landed){
         "): <现象>\" → gh stack push && gh stack submit --auto --open"
       : "- 代码还在 " + br + "，就在这一层修：git commit -m \"fix(" + t.id + "): <现象>\" → gh stack push。不 amend 别人的提交，不 force。");
   L.push("- 不改开发文档；根因是文档写错或没写的，记进 NOT_FIXED 标「doc-issue」。");
+  L.push(jevAdjudication(t.id + ":bug"));
   L.push("");
   L.push("## 输出格式（严格遵守）");
   L.push("BUGS");
@@ -2228,7 +2263,7 @@ function bugPrompt(t, landed){
   L.push("FIXED");
   L.push("- B1 → commit <hash>：改了什么、加了哪个测试");
   L.push("NOT_FIXED");
-  L.push("- B2 → 为什么不修（根因在范围外 / 要改文档 / 要用户决定）→ 建议");
+  L.push("- B2 → 为什么不修（根因在范围外 / 要改文档 / Jev 裁成 red_line / Jev 暂不可用）→ 建议；不得把普通修复选择交给用户");
   L.push("SUSPECT");
   L.push("- 怀疑但没复现的；没有写 none");
   L.push("NEXT");
@@ -2287,6 +2322,7 @@ function buildBugAll(){
          "-fix-<日期> origin/" + HMAIN + " → cd 进去 → gh stack init --base " + HMAIN + " fix/<日期>-<一两个词>；相关的几处修在同一层，不相关的各起一层（gh stack add）。" +
          "提交写 fix(<任务ID>): <现象>；改完 gh stack push && gh stack submit --auto --open。不直接推主干。");
   L.push("- 不改开发文档；根因在文档的记进 NOT_FIXED 标「doc-issue」。调 dsh-code-review 的检查项扫接缝；挑测试集见 dsh-pre-push-checks。");
+  L.push(jevAdjudication("project-bug"));
   L.push("");
   L.push("## 输出格式（严格遵守）");
   L.push("BUGS");
@@ -2295,7 +2331,7 @@ function buildBugAll(){
   L.push("FIXED");
   L.push("- B1 → commit <hash>：改了什么、加了哪个测试");
   L.push("NOT_FIXED");
-  L.push("- B2 → 为什么不修（要改文档 / 要用户决定 / 牵动太大该单开任务）→ 建议");
+  L.push("- B2 → 为什么不修（要改文档 / Jev 裁成 red_line / Jev 暂不可用 / 牵动太大该单开任务）→ 建议；普通选择不得交用户");
   L.push("SUSPECT");
   L.push("- 怀疑但没复现的；没有写 none");
   L.push("NEXT");
@@ -2362,7 +2398,16 @@ function batchRecordsOf(k){
 }
 function batchRecord(k){
   var rs = batchRecordsOf(k);
-  return rs.length ? rs[rs.length - 1] : null;
+  if(!rs.length) return null;
+  var rec = rs[rs.length - 1];
+  var source = (batchLayers().by[k] || []).map(function(t){ return t.id; }).sort().join("\n");
+  var pending = (DT.tasks || []).filter(function(t){
+    return t.repair && (t.sourceBatchTasks || []).slice().sort().join("\n") === source && !isLanded(t.id);
+  });
+  if(pending.length && (rec.verdict === "clean" || rec.verdict === "fixed")){
+    rec = Object.assign({}, rec, {verdict:"open", note:"返工任务未落地：" + pending.map(function(t){ return t.id; }).join("、")});
+  }
+  return rec;
 }
 var VERDICT_TEXT = {clean:"干净", fixed:"已修", open:"有遗留"};
 function batchLabel(rec){
@@ -2377,7 +2422,7 @@ function batchPrompt(k){
   var ids = g.map(function(t){ return t.id; });
   var slug = "batch-" + N, wt = "../" + HREPO + "-" + slug, plans = "../.codex-plans/" + HREPO + "-" + slug + "/";
   var br = "batch/" + N + "-<YYYYMMDD>", rec = HDOCS + "/_run/batches/batch-" + N + "-<YYYYMMDD>.md";
-  var fe = g.some(function(t){ return isFrontend(t.module); });
+  var fe = g.some(function(t){ return isFrontend(t.module); }), judg = g.some(hasJudgments);
   var L = [];
   L.push("# 第 " + N + " 批收口：批次小结 · 测试 · 查 bug");
   L.push("");
@@ -2385,7 +2430,7 @@ function batchPrompt(k){
          "这一步把整批当整体验一遍，并给下一批留一份小结。假设一定有 bug，去证明它错；证明不了才算干净。");
   L.push("");
   L.push("本会话无人值守：权限已经全给你了，不要停下来要授权、要确认，也不要以提问收尾。" +
-         "提示词与仓库现状对不上时按下面写好的办法自己定，把怎么定的写进回报的「自行裁决」段。");
+         "提示词与仓库现状对不上时先列选项交 Jev 裁决，把结果写进回报的「自行裁决」段；只有授权红线才问用户。");
   L.push("");
   L.push("## 项目");
   L.push("- 项目：" + D.project + (HO.stack ? "　｜　技术栈：" + HO.stack : "") + "　｜　主干：" + HMAIN);
@@ -2445,6 +2490,7 @@ function batchPrompt(k){
   L.push("   建栈：git config rerere.enabled true && git config remote.pushDefault origin && gh stack init --base " + HMAIN + " " + br);
   L.push("1. 先跑现有全部测试与 lint（命令在 17-测试策略；没写就 TESTS 记 skipped 并写明原因，不猜命令）。红的先记下来，别顺手修——它可能就是线索。");
   L.push("   跑 17 节的端到端冒烟：真起服务、真浏览器打开首页、断言样式已加载（token 类的 computed style 生效）、走一遍主流程；没有这条冒烟就记 NOT_FIXED 标 doc-issue。");
+  if(judg) L.push("   本批含判断层任务：跑 17 节的判断用例集并做一次真实调用（TYPESAFE_API_KEY 未设置就 TESTS 记 skipped 并写明原因，不用录制应答冒充）；核每个问题只有一个归属任务、ID 与 10 节语义判断契约一致。");
   L.push("2. 逐任务在 " + HMAIN + " 上过一遍上面的复核清单：每条验收标准、每条边界指到 文件:行；指不到的就是 bug。");
   L.push("3. 查五类接缝，范围限本批内部与本批对前置批次的接口：");
   L.push("   1) 模块之间的调用：A 产出的字段、错误码、枚举、时间格式、精度，B 读的时候是不是同一套。判据是 10-接口约定。");
@@ -2452,17 +2498,21 @@ function batchPrompt(k){
   L.push("   3) 共用约定（06 节）的执行：错误体系、环境变量、共享类型，有没有哪个模块自己另立一套。");
   L.push("   4) 跨任务的状态与并发：一个任务写、另一个任务读的表或缓存，读到的是不是权威来源；两个入口同时改一条记录会怎样。");
   L.push("   5) 主流程端到端跑一遍（09 节 UX 主路径 + 12 节时序图）中本批覆盖的段：起真实服务，不 mock；每个失败分支都走一次。");
+  L.push("   TypeSafe 复核（可选）：对本批每个任务，把它的验收标准与它引用的边界忠实翻成英文写成 state 跑 python \"" + HDOCS + "/_run/typesafe_ask.py\" --log \"" + HDOCS + "/_run/judgments.jsonl\" run coverage --state <文件>；covered_E-XX 为 no 的边界优先人工复核；skipped 照常继续。");
   L.push("4. 找到 bug 先写复现再修，只改根因不重构；每个修复配一个修复前失败、修复后通过的测试。根因在前置批次代码里的也修，条目标「跨批」；" +
-         "根因在文档的记进 NOT_FIXED 标「doc-issue」，不改开发文档。提交写 fix(<任务ID>): <现象>，相关的几处修在同一个提交。" +
+         "根因在文档的记进 NOT_FIXED 标「doc-issue」，不改开发文档。能在本次安全修复的就提交 fix(<任务ID>): <现象>；仍不通过、未修、修复失败或需要独立范围的每个问题，都必须按下面 TASKS 格式登记为新任务，不能只写 NOT_FIXED。" +
          "收工前调 dsh-pre-push-checks 按本次改动挑最小充分测试集跑一遍。");
-  L.push("5. 写记录文件 " + rec + "（模板见下，<YYYYMMDD> 与分支同一个日期）→ python " + HDOCS + "/_run/build_docs.py " + HDOCS + " --batches" +
-         " → git add -- " + rec + " " + HDOCS + "/docs-data.js " + HDOCS + "/_run/build-manifest.json 与修复的文件（不用 git add -A）" +
+  L.push(jevAdjudication("batch-" + N + ":wrapup"));
+  L.push("5. 写记录文件 " + rec + "（模板见下，<YYYYMMDD> 与分支同一个日期）→ python " + HDOCS + "/_run/build_docs.py " + HDOCS + " --batches。" +
+         "若有返工任务，--batches 会完整构建，打印新 R<批>-T<编号> 并生成任务笔记、dispatch.json、index.html；运行 git status --short，" +
+         "git add -- " + rec + " " + HDOCS + "/docs-data.js " + HDOCS + "/_run/build-manifest.json " +
+         HDOCS + "/_run/dispatch.json " + HDOCS + "/_run/review.json " + HDOCS + "/index.html <本次新 R-ID 的图谱/任务/*.md> 与修复的文件（不用 git add -A，核对后只加实际改动的文件）" +
          " → git commit -m \"第 " + N + " 批收口小结\" → gh stack push && gh stack submit --auto --open。没有修复也要提 PR：记录文件本身就要进仓库。");
   L.push("6. PR 按审查提示词的方式核了再合：gh stack view --json 只有这一个 → gh pr merge <号> --merge；等它报 MERGED。" +
          "合并后清理：gh pr list --state open --base " + br + " --json number --jq length 是 0 才删；git worktree remove " + wt +
          "（node_modules 报 not empty 就 rm -rf " + wt + "）→ git branch -d " + br + " → rm -rf " + plans + "。主检出 git pull 后刷新交接台，该批标题会显示「已收口」。");
   L.push("");
-  L.push("## 记录文件模板（原样写，front matter 七个字段一个不少）");
+  L.push("## 记录文件模板（七个业务字段 + repair_schema 一个不少；有遗留时追加 task 围栏）");
   L.push("```markdown");
   L.push("---");
   L.push("batch: " + N);
@@ -2472,6 +2522,7 @@ function batchPrompt(k){
   L.push("tests: <pass | fail | skipped>");
   L.push("pr: <PR 链接或 none>");
   L.push("note: <给下一批的一句提醒，可空>");
+  L.push("repair_schema: 1");
   L.push("---");
   L.push("");
   L.push("## 交付了什么");
@@ -2486,6 +2537,24 @@ function batchPrompt(k){
   L.push("## 遗留");
   L.push("没修的与为什么；没有写 none。");
   L.push("");
+  L.push("## 返工任务");
+  L.push("verdict=open 时，每个未通过的已复现 bug / 问题写一个 `task` 围栏，字段必须齐全；同一问题重跑收口沿用 stable-key，--batches 会去重并保留已做状态：");
+  L.push("```task");
+  L.push("stable-key: <稳定短键，如 api-timeout-retry；同一问题永不改>");
+  L.push("title: <动作 + 可观察结果>");
+  L.push("module: <M1>");
+  L.push("source-tasks: <M1-T1, M1-T2>");
+  L.push("depends-on: <M1-T1, M1-T2；通常是涉及的原任务>");
+  L.push("input: <复现、证据、相关原任务与接口>");
+  L.push("output: <要改的仓库相对路径或产物>");
+  L.push("acceptance: <编号化、可判真假的验收；含回归测试与真实入口证据>");
+  L.push("edges: <E-01, E-02；没有写 none>");
+  L.push("paths: <仓库相对路径，逗号分隔；不得通配>");
+  L.push("estimate: <0.5d|1d|1.5d|2d>");
+  L.push("severity: <S1|S2|S3>");
+  L.push("jev: <本问题最终 Jev line/model/option；无普通裁决写 none>");
+  L.push("```");
+  L.push("");
   L.push("## 给下一批的提醒");
   L.push("接口、约定、坑：下一批开工前该知道的一两句。");
   L.push("```");
@@ -2495,6 +2564,7 @@ function batchPrompt(k){
   L.push("- `dsh-code-review`　查接缝时 — 接口两侧契约、生命周期与并发、绕过校验的入口；不调会放过「每条都做了但合起来是错的」");
   L.push("- `dsh-pre-push-checks`　收工前 — 按 outgoing diff 挑最小充分证据集；不许 --passWithNoTests、不许裸 --force");
   L.push("- `dsh-merging-stacked-prs`　合并时 — 先认单 PR 情形（base 是主干、没人叠在上面 → 普通 gh pr merge）；等 MERGED、零依赖才删分支");
+  if(judg) L.push("- `typesafe-ai`　核判断层接缝时 — 问题归属、criteria 兜底、阈值来源、低置信分支；真实调用的 model 记录才是证据");
   if(fe){
     L.push("- `record-browser-gif`　端到端跑主流程时 — 从真实服务录 GIF 作证据，等待条件用 DOM 状态不用固定延时");
     L.push("- `finesse-ui`　看界面时 — 只用 audit 只读命令：组件八态、对比度与焦点顺序、偷懒默认、手机六类硬伤");
@@ -2511,7 +2581,9 @@ function batchPrompt(k){
   L.push("FIXED");
   L.push("- B1 → commit <hash>：改了什么、加了哪个测试");
   L.push("NOT_FIXED");
-  L.push("- B2 [S1|S2|S3] 涉及 <任务ID>（跨批时加「跨批」）：现象 → 复现 → 根因 → 文件:行 → 为什么不修（doc-issue / 要用户决定 / 牵动太大该单开任务）");
+  L.push("- B2 [S1|S2|S3] 涉及 <任务ID>（跨批时加「跨批」）：现象 → 复现 → 根因 → 文件:行 → 为什么不修（doc-issue / Jev red_line / Jev 暂不可用 / 牵动太大）；每条必须在 TASKS 有同一 stable-key 的新任务");
+  L.push("TASKS");
+  L.push("- <stable-key> → <title> → source-tasks → paths → acceptance；没有遗留写 none");
   L.push("SUSPECT");
   L.push("- 怀疑但没复现的；没有写 none");
   L.push("RECORD");
@@ -2519,7 +2591,7 @@ function batchPrompt(k){
   L.push("NEXT");
   L.push("- 一行给用户：「收口 PR 已提：<链接>，按审查方式核了再合；合并后 git pull 刷新交接台」");
   L.push("");
-  L.push("「自行裁决」一段：提示词与现状对不上时你怎么定的；没有就写「无」。");
+  L.push("「自行裁决」一段：逐条写冲突、全部候选、Jev line/model/option 与动作；没有写「无」。普通技术或 UI/UX 选择不得交给用户。");
   return L.join("\n");
 }
 
@@ -2856,6 +2928,25 @@ function handBody(){
     });
     h += "</div></div>";
   });
+  var repairs = tasks.filter(function(t){ return t.repair; });
+  if(repairs.length){
+    h += '<div class="hbatch open repair" data-batch="repair"><h5><span class="tg"><span class="tri">▾</span>' +
+         '批次收口返工 · ' + repairs.length + ' 个未落地任务 · 来自 open 收口记录</span></h5><div class="hbody">';
+    repairs.forEach(function(t){
+      var id = esc(t.id), st = stOf(t.id), wait = waitingOn(t);
+      h += '<div class="htask ' + st + (nextIds[t.id] ? ' now' : '') + '" data-t="' + id + '">' +
+        (fileLanded(t.id) ? '<button class="st" disabled title="已记录落地">' : '<button class="st" data-act="st">') +
+        ST_TEXT[st] + '</button><span class="hid"><button class="chip" data-id="' + id + '">' + id + '</button></span>' +
+        '<span class="htt">' + esc(t.title) + ' <small>第 ' + esc(t.sourceBatch) + ' 批 · ' + esc(t.severity || '') + '</small></span>' +
+        (st === 'todo' && wait.length ? '<span class="wait">等 ' + esc(wait.join('、')) + '</span>' : '') +
+        '<span class="hd">' + (t.est ? t.est + 'd' : '—') + '</span>' +
+        '<button class="cp" data-kind="impl" data-task="' + id + '"' + (implLocked(t.id) ? ' disabled title="' + esc(implLockTitle(t.id)).replace(/"/g, '&quot;') + '"' : '') + '>实施</button>' +
+        '<button class="cp" data-kind="review" data-task="' + id + '">审查</button>' +
+        ((st === 'doing' || st === 'review') ? '<button class="cp" data-kind="resume" data-task="' + id + '">续做</button>' : '') +
+        '<button class="cp bug" data-kind="bug" data-task="' + id + '">查 bug</button></div>';
+    });
+    h += '</div></div>';
+  }
   return h;
 }
 

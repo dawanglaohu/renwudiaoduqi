@@ -56,7 +56,7 @@
     {
       "code": "H12",
       "level": "WARN",
-      "msg": "M1-T9 疑似接线任务未列注册点（命中：事件）",
+      "msg": "M1-T9 疑似接线任务未列注册点（命中：事件、判断）",
       "taskIds": [
         "M1-T9"
       ],
@@ -324,6 +324,6 @@
       "where": "M10-T3"
     }
   ],
-  "sourceVersion": "6e2f697b1f38ff96e119fb47d51b4f14df44be54d55ce2607e671de93c8b08ee",
+  "sourceVersion": "1c56e4f45249dd99c8a8f8d008871e33ecb0a11831337179ddc23b02e822e756",
   "warn": 33
 }
