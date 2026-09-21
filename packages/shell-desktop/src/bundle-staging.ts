@@ -11,7 +11,7 @@ export interface StageTauriBundleOptions {
 	readonly folderName?: string;
 }
 
-function run(command: string, args: readonly string[]): void {
+function executeCommand(command: string, args: readonly string[]): void {
 	const result = spawnSync(command, [...args], { stdio: 'inherit', shell: false });
 	if (result.error) throw result.error;
 	if (result.status !== 0) {
@@ -38,7 +38,12 @@ function extractBundle(bundlePath: string, outputDir: string, platform: string):
 	const extension = bundlePath.toLowerCase();
 	if (extension.endsWith('.msi')) {
 		if (platform !== 'win32') throw new Error('An MSI bundle can only be expanded on Windows.');
-		run('msiexec.exe', ['/a', resolve(bundlePath), '/qn', `TARGETDIR=${resolve(outputDir)}`]);
+		executeCommand('msiexec.exe', [
+			'/a',
+			resolve(bundlePath),
+			'/qn',
+			`TARGETDIR=${resolve(outputDir)}`,
+		]);
 		return;
 	}
 
@@ -47,7 +52,7 @@ function extractBundle(bundlePath: string, outputDir: string, platform: string):
 		const mountDir = `${outputDir}.mounted`;
 		mkdirSync(mountDir, { recursive: true });
 		try {
-			run('hdiutil', [
+			executeCommand('hdiutil', [
 				'attach',
 				resolve(bundlePath),
 				'-readonly',
@@ -64,7 +69,7 @@ function extractBundle(bundlePath: string, outputDir: string, platform: string):
 
 	if (extension.endsWith('.deb')) {
 		if (platform !== 'linux') throw new Error('A deb bundle can only be expanded on Linux.');
-		run('dpkg-deb', ['--extract', resolve(bundlePath), resolve(outputDir)]);
+		executeCommand('dpkg-deb', ['--extract', resolve(bundlePath), resolve(outputDir)]);
 		return;
 	}
 
