@@ -569,6 +569,41 @@ describe('M9-T6 Event Buffer and Frame-Rate Rendering (event-bus.ts)', () => {
 	});
 
 	describe('attachSseClient & Buffer Reset (E-153)', () => {
+		it('drops every archived task run buffer when task.sessions_archived arrives (E-142, E-143)', () => {
+			const bus = createEventBus();
+			bus.push(createMockEnvelope({ runId: 'run-a', taskId: 'task-1', id: 1 }));
+			bus.push(createMockEnvelope({ runId: 'run-b', taskId: 'task-1', id: 2 }));
+			bus.push(createMockEnvelope({ runId: 'run-c', taskId: 'task-2', id: 3 }));
+			setLocalIntent({ runId: 'run-a', kind: 'stopping' });
+			bus.flush();
+
+			expect(bus.getBuffer('run-a')).toBeDefined();
+			expect(bus.getBuffer('run-b')).toBeDefined();
+			expect(bus.getBuffer('run-c')).toBeDefined();
+
+			bus.push({
+				id: 4,
+				ts: '2026-09-21T00:00:00.000Z',
+				runId: 'run-b',
+				taskId: 'task-1',
+				scope: 'task',
+				kind: 'task.sessions_archived',
+				seq: 0,
+				actorDeviceId: 'dev-001',
+				payload: {
+					taskId: 'task-1',
+					runIds: ['run-a', 'run-b'],
+					killedPids: [],
+					residualPids: [],
+				},
+			});
+
+			expect(bus.getBuffer('run-a')).toBeUndefined();
+			expect(bus.getBuffer('run-b')).toBeUndefined();
+			expect(bus.getBuffer('run-c')).toBeDefined();
+			expect(getLocalIntent('run-a')).toBeUndefined();
+		});
+
 		it('delivers real SSE frames into the ring, then empties it on the replay-window signal', async () => {
 			vi.useRealTimers();
 			const bus = createEventBus();

@@ -16,9 +16,11 @@
 		"./packaging-pipeline": "./src/packaging-pipeline.ts",
 		"./staging-smoke": "./src/staging-smoke.ts",
 		"./artifact-staging": "./src/artifact-staging.ts",
+		"./bundle-staging": "./src/bundle-staging.ts",
 		"./launchers/linux-launcher": "./launchers/linux-launcher.ts"
 	},
 	"scripts": {
+		"tauri": "tauri",
 		"verify-pipeline": "node --no-warnings --experimental-strip-types scripts/package-pipeline.ts",
 		"verify-baselines": "node --no-warnings --experimental-strip-types launchers/verify-baselines.ts",
 		"build-daemon-distribution": "node scripts/build-daemon-distribution.mjs",
@@ -28,5 +30,8 @@
 	"dependencies": {
 		"@agent-scheduler/daemon": "workspace:*",
 		"@agent-scheduler/shared": "workspace:*"
+	},
+	"devDependencies": {
+		"@tauri-apps/cli": "2.11.5"
 	}
 }

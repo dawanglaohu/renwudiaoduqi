@@ -177,9 +177,9 @@ export function calculateConcurrencyLimit(inputs: ConcurrencyInputs): Concurrenc
 	if (
 		typeof inputs.agentLimit !== 'number' ||
 		!Number.isFinite(inputs.agentLimit) ||
-		inputs.agentLimit < 1
+		inputs.agentLimit < 0
 	) {
-		throw new AppError('E_VALIDATION', 'agentLimit must be a positive integer >= 1');
+		throw new AppError('E_VALIDATION', 'agentLimit must be a non-negative integer >= 0');
 	}
 	if (
 		inputs.machineResource !== undefined &&
@@ -313,7 +313,9 @@ export function calculateBatchConcurrency(inputs: BatchConcurrencyInputs): Batch
 	let aggregateAgentCapacity = 0;
 
 	for (const [agentId, assignedCount] of Object.entries(countsByAgent)) {
-		const maxConcurrency = Math.max(1, Math.floor(getLimit(agentId)));
+		// Registry values <= 0 disable an agent (E-91). Preserve zero instead of silently
+		// inventing one slot, otherwise the assignment preview advertises work that dispatch rejects.
+		const maxConcurrency = Math.max(0, Math.floor(getLimit(agentId)));
 		const effectiveLimit = Math.min(assignedCount, maxConcurrency);
 		agentCapacities[agentId] = Object.freeze({
 			assignedCount,
@@ -404,7 +406,8 @@ export function allocateConcurrencySlots<T extends CandidateTask = CandidateTask
 		if (agentCurrentActive[agentId] === undefined) {
 			agentCurrentActive[agentId] = Math.max(0, Math.floor(getActiveRuns(agentId)));
 		}
-		const limit = Math.max(1, Math.floor(getLimit(agentId)));
+		// A zero limit is a disabled agent, not a one-slot agent (E-91).
+		const limit = Math.max(0, Math.floor(getLimit(agentId)));
 
 		if (openSlots <= 0) {
 			deferred.push(
@@ -594,7 +597,7 @@ export function buildConcurrencyPreview(inputs: ConcurrencyPreviewInputs): Concu
 
 	const agentCapacities: AgentCapacityPreview[] = orderedAgentIds.map((agentId) => {
 		const active = Math.max(0, Math.floor(inputs.activeRunsByAgent(agentId)));
-		const limit = Math.max(1, Math.floor(inputs.agentLimits(agentId)));
+		const limit = Math.max(0, Math.floor(inputs.agentLimits(agentId)));
 		const drafted = draftedByAgent.get(agentId) ?? 0;
 		return Object.freeze({
 			agentId,

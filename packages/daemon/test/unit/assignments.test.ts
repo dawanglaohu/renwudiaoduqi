@@ -516,6 +516,25 @@ describe('M8-T11 assignments service (unit)', () => {
 			});
 		});
 
+		it('reports a disabled registry agent with limit 0 and zero effective concurrency (E-91)', () => {
+			const preview = previewWith({
+				userSetting: 2,
+				windowCount: 1,
+				drafts: [{ taskId: 'a', agentId: 'codex' }],
+				limits: { codex: 0 },
+			});
+
+			expect(preview.effectiveConcurrency).toBe(0);
+			expect(preview.bottleneck).toBe('agent_limit');
+			expect(preview.agentCapacities[0]).toEqual({
+				agentId: 'codex',
+				active: 0,
+				limit: 0,
+				drafted: 1,
+				isFull: true,
+			});
+		});
+
 		it('service preview: windowCount is the releasable task count, userSetting is lane_count', async () => {
 			seedTask({ id: 'task-a', taskKey: 'M1-T1' });
 			seedTask({ id: 'task-b', taskKey: 'M1-T2' });

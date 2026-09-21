@@ -1,4 +1,5 @@
 import type { spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +10,7 @@ import {
 	inspectProductLayers,
 	stageInstalledProduct,
 } from '../src/artifact-staging.ts';
+import { stageTauriBundle } from '../src/bundle-staging.ts';
 import { resolveLaunchSpec } from '../src/launch-spec.ts';
 import {
 	executeDaemonSmoke,
@@ -123,6 +125,52 @@ const HEALTH_STUB_ENTRY = [
 ].join('\n');
 
 describe('M10-T5: installed product staging (AC 2, E-209, E-257)', () => {
+	it.skipIf(process.platform !== 'linux')(
+		'expands a real deb installer and derives current_exe/resource_dir from installed files',
+		() => {
+			const root = makeTempRoot();
+			try {
+				const packageRoot = join(root, 'package');
+				const appRoot = join(packageRoot, 'usr', 'lib', 'agent-scheduler');
+				const resourceDir = join(appRoot, 'resources');
+				const daemonDir = join(resourceDir, 'daemon-runtime');
+				mkdirSync(join(packageRoot, 'DEBIAN'), { recursive: true });
+				mkdirSync(join(appRoot, 'resources', 'daemon-runtime', 'runtime'), { recursive: true });
+				mkdirSync(join(resourceDir, 'web', 'dist'), { recursive: true });
+				writeFileSync(
+					join(packageRoot, 'DEBIAN', 'control'),
+					'Package: agent-scheduler-test\nVersion: 1.0.0\nArchitecture: amd64\nMaintainer: test\nDescription: test\n',
+				);
+				writeFileSync(join(appRoot, 'desktop-shell'), 'shell', { mode: 0o755 });
+				writeFileSync(join(daemonDir, 'bootstrap.mjs'), 'export {};\n');
+				writeFileSync(join(daemonDir, 'runtime', 'node'), 'node', { mode: 0o755 });
+				writeFileSync(join(daemonDir, 'package.json'), '{"name":"@agent-scheduler/daemon"}\n');
+				writeFileSync(join(resourceDir, 'web', 'dist', 'index.html'), '<!doctype html>\n');
+
+				const bundlePath = join(root, 'agent-scheduler-test.deb');
+				execFileSync('dpkg-deb', ['--build', packageRoot, bundlePath], { stdio: 'pipe' });
+				const layout = stageTauriBundle({
+					bundlePath,
+					rootDir: join(root, 'expanded'),
+					hostPlatform: 'linux',
+				});
+
+				expect(layout.stageDir).toContain('Unicode & Spaces');
+				expect(layout.currentExe).toBe(
+					join(layout.stageDir, 'usr', 'lib', 'agent-scheduler', 'desktop-shell'),
+				);
+				expect(layout.resourceDir).toBe(
+					join(layout.stageDir, 'usr', 'lib', 'agent-scheduler', 'resources'),
+				);
+				expect(layout.daemonEntry).toBe(
+					join(layout.resourceDir, 'daemon-runtime', 'bootstrap.mjs'),
+				);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
+
 	it('expands the packager output into a path with spaces and non-ASCII characters', () => {
 		const root = makeTempRoot();
 		try {
