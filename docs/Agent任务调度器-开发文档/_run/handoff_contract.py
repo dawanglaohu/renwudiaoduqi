@@ -8,16 +8,17 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-VERSION = '1.4.0'
+VERSION = '1.6.0'
 SCHEMA_VERSION = 1
-TASK_RE = re.compile(r'M\d{1,2}-T\d{1,3}')
+TASK_RE = re.compile(r'(?:M\d{1,2}-T\d{1,3}|R\d{1,3}-T\d{1,8})')
 # handoff.wiring 与任务 wiring 共用的类别。
 WIRING_KEYS = ('backendRoutes', 'container', 'frontendRoutes', 'buildPipeline', 'sharedTypes',
-               'eventKinds', 'migrations', 'jobs', 'shellBridge')
+               'eventKinds', 'migrations', 'jobs', 'shellBridge', 'judgments')
 # H12 的关键词表：任务标题/产出/验收命中即「疑似接线任务」，大小写不敏感
-WIRING_HINT_RE = re.compile(r'路由|接口|端点|/api/|页面|挂到|挂进|路由表|service|服务|job|后台任务|事件|kind|迁移|migration|壳|bridge', re.I)
+WIRING_HINT_RE = re.compile(r'路由|接口|端点|/api/|页面|挂到|挂进|路由表|service|服务|job|后台任务|事件|kind|迁移|migration|壳|bridge|判断|judgment|typesafe|置信|confidence', re.I)
 SOURCE_EXCLUDES = {'_run', '图谱', '.obsidian'}
-COMPILERS = ('handoff_contract.py', 'build_docs.py', 'compile_prompts.js', 'review.py', 'maintain_docs.py')
+COMPILERS = ('handoff_contract.py', 'build_docs.py', 'compile_prompts.js', 'review.py', 'maintain_docs.py',
+             'typesafe_ask.py')
 
 
 def read_json(path, default=None):
@@ -66,6 +67,13 @@ def input_hashes(root):
         p = root / '_run' / name
         if p.exists():
             result['_run/' + name] = digest(read_json(p))
+    # 收口记录通常只是状态；只有带 task 围栏时才成为返工任务的规范来源，必须进入版本指纹。
+    batches = root / '_run' / 'batches'
+    if batches.is_dir():
+        for p in sorted(batches.glob('*.md')):
+            text = p.read_text(encoding='utf-8-sig')
+            if re.search(r'```task\s*\n', text, re.I):
+                result['_run/batches/' + p.name] = digest(text)
     return result
 
 
@@ -148,7 +156,7 @@ def mentions(text, path):
                      + r'(?![A-Za-z0-9_/.:{}%~\-])', text or '') is not None
 
 
-def analyze(root, tasks, pres, edges=None, endpoints=None):
+def analyze(root, tasks, pres, edges=None, endpoints=None, repair_contracts=None):
     """可确定的关系作阻断；缺少结构化约束不编造通过，交逐任务语义复核。
     H12（疑似接线任务未列注册点）与 H13（消费端点但提供方不在前置）是 WARN，不锁派发；
     H14（wiring 未知类别）阻断。endpoints 是 10 节接口总表，缺省时不做 H13。"""
@@ -167,6 +175,11 @@ def analyze(root, tasks, pres, edges=None, endpoints=None):
     definitions = config.get('tasks') or {}
     if not isinstance(definitions, dict):
         raise ValueError('task-contracts.json tasks 必须是对象')
+    definitions = dict(definitions)
+    for tid, spec in (repair_contracts or {}).items():
+        if tid in definitions:
+            raise ValueError('返工任务与 task-contracts.json ID 冲突：' + tid)
+        definitions[tid] = spec
     edge_map = {e['id']: e for e in (edges or [])}
     issues, contexts, paths, owners = [], {}, {}, {}
     section_cache = {}

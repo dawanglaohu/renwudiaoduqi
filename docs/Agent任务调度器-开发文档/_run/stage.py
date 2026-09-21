@@ -36,9 +36,9 @@ OWNED = {'S1': (1, 2, 3, 4, 5), 'S2': (6, 7, 8, 9, 10), 'S3': (11, 12),
 COMMON_CODES = ('S1', 'S2', 'S3', 'S5', 'P1')
 # 各阶段额外要清零的 review 代码（review.py 里多数只是 WARN，在拥有它的阶段升为关卡）
 STAGE_CODES = {'S1': ('X1',),
-               'S2': ('X5', 'X6', 'X7', 'X8', 'X9', 'X10', 'X11', 'X12', 'X15'),
+               'S2': ('X5', 'X6', 'X7', 'X8', 'X9', 'X10', 'X11', 'X12', 'X15', 'X19'),
                'S3': ('X13', 'X14'),
-               'S4': ('X2', 'X16', 'X18', 'E1', 'E2', 'E3', 'E5'),
+               'S4': ('X2', 'X16', 'X18', 'X20', 'E1', 'E2', 'E3', 'E5'),
                'S5': (), 'S6': ()}
 SHARED_KEYS = ('errors', 'env', 'types', 'naming')
 DESIGN_KEYS = ('register', 'dials', 'tokens', 'components')
@@ -78,7 +78,8 @@ PROMPTS = {
         '只读输入：`_run/context.md`、`_run/decisions.md`、01/02/05 节全文、03/04 节的标题行；'
         '引用其中的取值一律打开文件读，不凭记忆复述。',
         '产出：06–10 节；`_run/presentation.json` 的 `handoff.architecture`（`shared` 四键 errors/env/types/naming 齐，'
-        '07/08 非「不适用」时 `frontend`/`backend` 非空）与 `handoff.wiring`（接线注册表，至少一键）；'
+        '07/08 非「不适用」时 `frontend`/`backend` 非空）与 `handoff.wiring`（接线注册表，至少一键；'
+        '接了 TypeSafe 判断层的项目登记 `judgments` = 问题与阈值常量文件，10 节末尾写「语义判断契约」小节，读 references/typesafe.md）；'
         '架构师交回的 OPEN_CHOICES / CONFLICTS 经代理用户裁决后追加进 `decisions.md`、`edges.md`。',
         '不写 11 节之后的任何文件，不拆任务。',
     ]),
@@ -101,7 +102,7 @@ PROMPTS = {
         '只读输入：`_run/edges.md`、`_run/decisions.md`、04/05 节全文、06 节模块表、09 节实体与状态机、'
         '10 节接口总表与错误码表、07/08 节的目录树小节。',
         '产出：13–18 节。13 节的 E-XX 与 `edges.md` 一一对应（编号照抄不重排）；15 节要么有数字要么写「未评估」；'
-        '17 节含端到端冒烟；18 节含「分发形态」小节。',
+        '17 节含端到端冒烟；18 节含「分发形态」小节；接了 TypeSafe 判断层的项目 17 节含判断用例集、18 节配置项列 TYPESAFE_API_KEY。',
         '不写 19 节之后的任何文件。',
     ]),
     'S5': '\n'.join([
@@ -112,7 +113,7 @@ PROMPTS = {
         '`_run/decisions.md`（22 节照抄，低置信行进 21 节）。',
         '产出：19–24 节；`handoff.taskPaths`（每个任务都有）、`taskSkills`（按需）、`_run/task-contracts.json`；'
         '`python "<docs>/_run/review.py" "<docs>"` 跑到 0 阻断（含 X17：验收标准不许写占位/桩/待接入；'
-        'H12/H13 是提醒，逐条核对谁接线、提供方是否在前置）。',
+        'H12/H13 是提醒，逐条核对谁接线、提供方是否在前置）；判断层任务声明 `wiring: ["judgments"]`，一个问题只归一个任务。',
         '不跑 build、不建知识库、不写审查记录。',
     ]),
     'S6': '\n'.join([

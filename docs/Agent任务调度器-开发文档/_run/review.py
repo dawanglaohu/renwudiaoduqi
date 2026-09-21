@@ -468,7 +468,36 @@ def has_tree(body):
     return len(re.findall(r"[\w.-]+/[\w.*-]*", body)) >= 3
 
 
+def uses_typesafe(smap, root):
+    """项目接了 TypeSafe 判断层：handoff.wiring 登记了 judgments，或 05 节技术栈点名了它。"""
+    pres = read_json(os.path.join(root, "_run", "presentation.json"), {}) or {}
+    wiring = (pres.get("handoff") or {}).get("wiring") or {}
+    if isinstance(wiring, dict) and wiring.get("judgments"):
+        return True
+    stack = smap.get(SEC_STACK)
+    return bool(stack and re.search(r"typesafe|system one|jev-", stack["body"], re.I))
+
+
+def check_typesafe(rep, smap, root):
+    """X19/X20：接了判断层的项目，10 节要有「语义判断契约」小节，18 节配置项要列 TYPESAFE_API_KEY。
+    没接判断层的项目两条都不查——大多数项目用不到，查了只会淹没真正的告警。"""
+    if not uses_typesafe(smap, root):
+        return
+    api = smap.get(SEC_API)
+    if api and not is_na(api) and not has_heading(api["body"], "语义判断契约"):
+        rep.warn("X19", "接了 TypeSafe 判断层，但 10 节缺「语义判断契约」小节（问题 ID、原语、state 字段、"
+                        "instructions、criteria、阈值与低置信处理、消费方）；问题散在代码里没人核对", loc(api))
+    ops = smap.get(SEC_OPS)
+    if ops and "TYPESAFE_API_KEY" not in ops["body"]:
+        rep.warn("X20", "接了 TypeSafe 判断层，但 18 节配置项清单没列 TYPESAFE_API_KEY（必填、缺失时的行为）", loc(ops))
+
+
 def has_wiring_heading(body):
+    return has_heading(body, "接线注册表")
+
+
+def has_heading(body, word):
+    """正文里有含 word 的二至六级标题；代码围栏里的示例标题不算。"""
     fence = None
     for line in body.splitlines():
         marker = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
@@ -479,7 +508,7 @@ def has_wiring_heading(body):
             elif token[0] == fence[0] and len(token) >= len(fence) and not line[marker.end():].strip():
                 fence = None
             continue
-        if fence is None and re.search(r"^ {0,3}#{2,6}\s+[^\n]*接线注册表", line):
+        if fence is None and re.search(r"^ {0,3}#{2,6}\s+[^\n]*" + re.escape(word), line):
             return True
     return False
 
@@ -619,6 +648,7 @@ def review(path):
                 risk["body"] if risk else "")
     check_extras(rep, smap, root, multi)
     if multi:
+        check_typesafe(rep, smap, root)
         # 与生成器复用同一结构解析，最终路径和能力配置也属于审查输入。
         try:
             from build_docs import collect, extract
