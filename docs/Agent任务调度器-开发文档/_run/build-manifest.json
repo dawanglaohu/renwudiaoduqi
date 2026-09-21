@@ -19,24 +19,24 @@
     "03-质量/16-可观测性.md": "31e39822fc55ae28bcec422765abe985b13ec51f58c7369ccb087d585a4615dd",
     "03-质量/17-测试策略.md": "5f9b5ac17bf4c5345a86c8d48dd34ae01b39766f20fc9ae43818cc6da4ccec84",
     "04-执行/18-部署与运维.md": "786beb5a984dd6abb88421a6dd106763e3a3b19fd20e3173811097ccffdb0ae6",
-    "04-执行/19-模块任务拆分.md": "04c2e6859018f7ed5d9aad6a64c7e515284ab16bbb227a1bc5963d715e02bdba",
-    "04-执行/20-里程碑与交付顺序.md": "2115e27861ecb541b5775a3f32872eaa1eb155c3be1f88bfc69b620ffce4a5e5",
+    "04-执行/19-模块任务拆分.md": "49d312495b0bc34123ad764a2201db9b1c467ac67efcc591afca07aa569588a8",
+    "04-执行/20-里程碑与交付顺序.md": "d184752ddf3429eb26c7be1463eb36986b758dcd97d7e241edb6450d9c9a61f7",
     "04-执行/21-风险与未决事项.md": "fd98aed14af37c360f9df49ee829fc2ffabf6bd53a19f1fe55e4382b87dd8617",
     "05-附录/22-决策记录.md": "6f255b47023960119a696076a1520cc1960d936fd63fac37495b84a310654974",
     "05-附录/23-变更记录.md": "8bf036bed49b709088b2b85cf46ecb954604312562ae3bbaef0bca1320d52cc5",
     "05-附录/24-参考资料.md": "eec613e723bff7847e309724b2c12f0d8eb447a3b1cff7ce169eae0bd02cc070",
     "README.md": "449e8971a4884cab4ad6bd71e0ed8d88166999fba8e4c20e3b446a6b898c3559",
-    "_run/presentation.json": "890c4019a0f39069d54231b1e72e7102bbaadd0a4acc77bde95a0532c6cc641e",
-    "_run/task-contracts.json": "22d7320ea68acccdb1ad0e3da393b965c745f551d5e6543914e5ede577caccb6"
+    "_run/presentation.json": "7bc4a2750015ba454c28ed4b2776bd5ffbe2f8724f761b35f2debd53787f1660",
+    "_run/task-contracts.json": "3fa6ee8770396aa7b2694d569dbe264b942a30ff949bce60467e9799b25751e8"
   },
   "products": {
-    "_MOC.md": "7c49e65f727b751b898680b516a27c1a753f41f06a5002c150718f99b0ed0cf6",
-    "_run/dispatch.json": "e2af51de4a49273d4568fdc4e894b537ee04ba5de97f2bd7a512a2f0615cce74",
-    "_run/review.json": "55e536b40adcd4c1b603fd29ffa7633b20e054e69fd1c003051eec2c13730f40",
-    "_run/task-reviews.json": "77e1f132351f97ff101f52e758d2f954d5f692c6cf7de7232a63264868c439bb",
-    "docs-data.js": "e47986390b317369d6ca1c520194c23bbde29137cd744325e7811c75fea4466b",
+    "_MOC.md": "325993513261fe854426169a7e2bbb44a7e7da69de6cc942cb73a7a76414085d",
+    "_run/dispatch.json": "01a52da17706abf086e318475a59541bfaf414dca43ed1b35f37f7e218eb9a4a",
+    "_run/review.json": "e6236cd1991e0046d958bd9881e7f057754c1e44d083c1481bfda6cbed5c6114",
+    "_run/task-reviews.json": "6c53f0135fc21c80b540de17c0b2c366dd4fbdbd0dfb810e23821cdbf0e68f08",
+    "docs-data.js": "271ff25e2207b12f2bede1af7dcc4a8b26e3ce6e85eba85ed23921515a488652",
     "index.html": "dfb492c6a2966fa7fdc13ecfe2a309ede4b9aba8d31d7b4683da2f513a55b936"
   },
   "schemaVersion": 1,
-  "sourceVersion": "0e764dcb2481d1908269a0eef006a1a914bee651e0eacf0cce68963bdcb72bf1"
+  "sourceVersion": "6e2f697b1f38ff96e119fb47d51b4f14df44be54d55ce2607e671de93c8b08ee"
 }

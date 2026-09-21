@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "259983ee38dcaf6fe1cfbea2b416638144af924e5182f998af922706af951b84",
+      "verdict": "pass",
+      "evidence": [
+        "变化范围：本次补丁只在 19 节 M1-T11 行的依赖列增加 M9-T27、输入栏增加「M9-T27 的生产配对入口冒烟与 Playwright 依赖」、产出栏根 package.json 的 e2e 脚本改为复用 M9-T27 的 playwright devDependency；五条验收标准、边界 E-226/E-139/E-159/E-175/E-108/E-10/E-31/E-135 原文不变。契约 requires 新增 {task: M9-T27, capability: production-pairing-entry}，与 M9-T27 的 provides 对应。",
+        "依赖与分层：M9-T27 在第 14 层，M1-T11 由第 14 层移到第 15 层（与 M9-T17、M9-T21 同层），其余前置 M1-T10、M2-T2、M2-T5、M10-T4、M10-T5、M9-T24、M9-T25、M9-T26、M8-T10、M7-T9 未变；20 节接线顺序改为 M8-T11 → M9-T27 → M1-T11 → M10-T6，与 19 节一致，无环。",
+        "接口与分工：M9-T27 只证明配对入口可见与一次性码消费（E-265 明写不冒充主流程），M1-T11 验收第 2 条「打开 #/pair 手填地址与配对码完成配对后落到 #/」在 M9-T27 落地后有真实页面可用，避免 M1-T11 自己修装配；两者产出路径不重叠（M9-T27 为 e2e/pairing-entry.test.ts 与 vitest.pairing.config.ts，M1-T11 为 e2e/smoke.test.ts、e2e/fixtures/*、vitest.e2e.config.ts）。",
+        "有效路径：supportPaths 保持 bootstrap.ts、theme-provider.tsx、80-static.ts；wiring 保持 buildPipeline/frontendRoutes/backendRoutes/container/eventKinds；仓库当前无 e2e/ 目录，新增产出不与开放 PR 冲突。",
+        "验收阶段：本次不改验收项、不降低边界标准；只登记契约复核，不执行 --landed。"
+      ]
+    }
+  }
+}

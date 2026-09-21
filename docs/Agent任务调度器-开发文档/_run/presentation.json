@@ -748,6 +748,16 @@
         "packages/web/test/wiring-arch.test.ts",
         "packages/shell-desktop/test/tauri-commands.test.ts"
       ],
+      "M9-T27": [
+        "e2e/pairing-entry.test.ts",
+        "vitest.pairing.config.ts",
+        "package.json",
+        "pnpm-lock.yaml",
+        ".gitignore",
+        ".github/workflows/desktop-ci.yml",
+        "packages/web/src/app/app.tsx",
+        "packages/web/src/app/routes.tsx"
+      ],
       "M10-T6": [
         "packages/shell-desktop/src-tauri/src/lib.rs",
         "packages/shell-desktop/src/desktop-bridge.ts",

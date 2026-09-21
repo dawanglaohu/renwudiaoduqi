@@ -1200,6 +1200,10 @@
       ],
       "requires": [
         {
+          "task": "M9-T27",
+          "capability": "production-pairing-entry"
+        },
+        {
           "task": "M9-T24"
         },
         {
@@ -1400,6 +1404,40 @@
         {
           "task": "M10-T2"
         }
+      ]
+    },
+    "M9-T27": {
+      "provides": [
+        "production-pairing-entry"
+      ],
+      "wiring": [
+        "frontendRoutes"
+      ],
+      "requires": [
+        {
+          "task": "M9-T25"
+        },
+        {
+          "task": "M9-T26"
+        }
+      ],
+      "supportPaths": [
+        "packages/web/src/pages/pair-page.tsx",
+        "packages/web/src/features/pairing/pairing-container.tsx",
+        "packages/web/src/app/bootstrap.ts",
+        "packages/web/test/route-entries.test.tsx"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
       ]
     },
     "M10-T6": {
