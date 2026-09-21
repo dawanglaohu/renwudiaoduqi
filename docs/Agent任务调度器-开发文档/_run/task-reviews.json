@@ -27,26 +27,15 @@
   },
   "M1-T11": {
     "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "5c2116594581891ed87c0dcd1a0e5769b673ab2ffffb63b338f655eb8eb565f5",
+    "contractHash": "259983ee38dcaf6fe1cfbea2b416638144af924e5182f998af922706af951b84",
     "evidence": [
-      "前置：M1-T10、M2-T2、M2-T5、M10-T4、M10-T5、M9-T24、M9-T25、M9-T26、M8-T10、M7-T9；其中已落地 5 个，未落地的 M9-T24、M9-T25、M9-T26、M8-T10、M7-T9 均为本补丁新增或同批接线任务，是验收可达的必要前置（M1-T11 端到端冒烟与 M10-T6 壳 smoke 必须在接线任务之后）。",
-      "验收标准引用边界 E-10、E-31、E-108、E-135、E-139、E-159、E-175、E-226、E-265，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/web/vite.config.ts（类别 buildPipeline）",
-      "注册点文件已核存在于 packages/web/postcss.config.cjs（类别 buildPipeline）——本任务负责新建，尚不存在",
-      "注册点文件已核存在于 packages/web/tailwind.config.ts（类别 buildPipeline）",
-      "注册点文件已核存在于 packages/web/src/app/app.tsx（类别 frontendRoutes）",
-      "注册点文件已核存在于 packages/web/src/app/routes.tsx（类别 frontendRoutes）",
-      "注册点文件已核存在于 packages/daemon/src/http/plugins/50-routes.ts（类别 backendRoutes）",
-      "注册点文件已核存在于 packages/shared/src/api/routes.ts（类别 backendRoutes）",
-      "注册点文件已核存在于 packages/daemon/src/boot/container.ts（类别 container）",
-      "注册点文件已核存在于 packages/shared/src/api/events.ts（类别 eventKinds）",
-      "有效范围 18 条：.github/workflows/desktop-ci.yml；.gitignore；e2e/；package.json；packages/daemon/src/boot/container.ts；packages/daemon/src/http/plugins/50-routes.ts；packages/daemon/src/http/plugins/80-static.ts；packages/shared/src/api/events.ts；packages/shared/src/api/routes.ts；packages/web/postcss.config.cjs；packages/web/src/app/app.tsx；packages/web/src/app/bootstrap.ts；packages/web/src/app/routes.tsx；packages/web/src/app/theme-provider.tsx；packages/web/tailwind.config.ts；packages/web/vite.config.ts；pnpm-lock.yaml；vitest.e2e.config.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：e2e/、packages/web/postcss.config.cjs、packages/web/src/app/bootstrap.ts、vitest.e2e.config.ts。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "补丁 m8-t10-runs-repo-support-20260920 只向前置 M8-T10 的 supportPaths 增加 packages/daemon/src/repo/runs.ts；M1-T11 自身任务定义、验收标准、边界、有效路径与接线要求均未改变，仅依赖契约哈希按前置传播。",
-      "补丁 m8-t10-base-selector-support-20260920 再向前置 M8-T10 增加 packages/daemon/src/workspace/base-select.ts；M1-T11 仍只发生前置哈希传播，真进程、真浏览器与派发主流程的验收义务没有变化。"
+      "变化范围：本次补丁只在 19 节 M1-T11 行的依赖列增加 M9-T27、输入栏增加「M9-T27 的生产配对入口冒烟与 Playwright 依赖」、产出栏根 package.json 的 e2e 脚本改为复用 M9-T27 的 playwright devDependency；五条验收标准、边界 E-226/E-139/E-159/E-175/E-108/E-10/E-31/E-135 原文不变。契约 requires 新增 {task: M9-T27, capability: production-pairing-entry}，与 M9-T27 的 provides 对应。",
+      "依赖与分层：M9-T27 在第 14 层，M1-T11 由第 14 层移到第 15 层（与 M9-T17、M9-T21 同层），其余前置 M1-T10、M2-T2、M2-T5、M10-T4、M10-T5、M9-T24、M9-T25、M9-T26、M8-T10、M7-T9 未变；20 节接线顺序改为 M8-T11 → M9-T27 → M1-T11 → M10-T6，与 19 节一致，无环。",
+      "接口与分工：M9-T27 只证明配对入口可见与一次性码消费（E-265 明写不冒充主流程），M1-T11 验收第 2 条「打开 #/pair 手填地址与配对码完成配对后落到 #/」在 M9-T27 落地后有真实页面可用，避免 M1-T11 自己修装配；两者产出路径不重叠（M9-T27 为 e2e/pairing-entry.test.ts 与 vitest.pairing.config.ts，M1-T11 为 e2e/smoke.test.ts、e2e/fixtures/*、vitest.e2e.config.ts）。",
+      "有效路径：supportPaths 保持 bootstrap.ts、theme-provider.tsx、80-static.ts；wiring 保持 buildPipeline/frontendRoutes/backendRoutes/container/eventKinds；仓库当前无 e2e/ 目录，新增产出不与开放 PR 冲突。",
+      "验收阶段：本次不改验收项、不降低边界标准；只登记契约复核，不执行 --landed。"
     ],
-    "reviewed": "2026-09-20T12:33:48.226518+00:00",
+    "reviewed": "2026-09-21T15:55:29.624284+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1336,6 +1325,22 @@
       "任务笔记 code/notes 已回填且保留全部既定命题：唯一开流、原生存储清理、自安装适配器、DOM 镜像、Rust 命令分组与 dist 构建前置均可指到当前代码；未夹带会话过程、道歉、自我评价或临时路径。"
     ],
     "reviewed": "2026-09-19T18:06:10.019882+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T27": {
+    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
+    "contractHash": "5b5b1aead30d1eadeea5a732b3b9606619cdfab972a25bd976f5f5e1f6a15441",
+    "evidence": [
+      "范围与任务：19 节新增 M9-T27 行（模块 M9、2 人天、依赖 M1-T10/M2-T2/M9-T24/M9-T25/M9-T26/M10-T4、边界 E-06/E-175/E-224/E-226/E-265），四条验收标准均可判真假；20 节人天 161.5→163.5、第六批 50→52、接线顺序插在 M8-T11 之后 M1-T11 之前；_MOC 与 AGENTS/CLAUDE 规模行同步为 108 任务。图谱/边界/E-06、E-175、E-224、E-226、E-265 五个笔记均存在。",
+      "缺陷事实：主干 e5084d7 上 packages/web/src/app/app.tsx:23 只注册 landing（文件头注释第 8 行自述「其余路径由 RouterView 保持占位」），packages/web/src/app/routes.tsx:287 已匹配 #/pair 并在 :110–:122 做 E-224 归一化，但 pages/ 目录只有 landing-page.tsx 与 settings-agents-page.tsx，没有 pair 页面；因此真浏览器看到 hash 占位是装配缺失而非路由匹配错误，与任务输入栏的诊断一致。",
+      "依赖与分层：pair-page.tsx 与 pairing-container.tsx 出现在开放 PR #118（M9-T25，状态 CONFLICTING）的文件列表中，契约 requires 正确指向 M9-T25/M9-T26，supportPaths 只登记 pair-page.tsx、pairing-container.tsx、bootstrap.ts、route-entries.test.tsx 四处支撑路径；M9-T27 排在第 14 层，M9-T25 在第 13 层，M1-T11 在第 15 层，依赖方向无环。前置 M1-T10、M2-T2、M9-T24、M9-T26、M10-T4 任务笔记均为 done，M9-T25 为 todo 属预期。",
+      "接口与契约：07 节 :195/:202 规定 #/pair 为七条扁平 hash 路由之一且唯一免守卫；10 节 :18 POST /api/v1/pair/claim 免鉴权、:69 配对码打印到控制台并写 pairing-code.txt、:139 一次性用后失效；08 节 :159 免鉴权白名单三条与 packages/daemon/src/http/plugins/30-auth.ts:10 的 AUTH_WHITELIST 一致。验收第 2 条「码用后失效、不得绕过配对」与 E-226「不得新增第四个免鉴权端点」直接对应，未新增接口。",
+      "有效路径：产出栏列 e2e/pairing-entry.test.ts、vitest.pairing.config.ts、根 smoke:pair 脚本与 playwright devDependency、Ubuntu CI job；仓库根当前无 e2e/ 目录、无 vitest.e2e.config.ts、根 package.json 无 e2e/smoke:pair 脚本与 playwright 依赖，均为新建，不与任何开放 PR 冲突。.github/workflows/desktop-ci.yml 已有 ubuntu-latest 矩阵项与 release-verification job，可挂配对冒烟 job。wiring 登记 frontendRoutes，与 06 节接线注册表分类一致。",
+      "验收阶段：验收第 4 条明确本任务不冒充 M1-T11 的导入/派发/SSE 主流程（E-265），第 3 条复用 M9-T24 已验证的 data-style-loaded 与 computed --page 断言，与 17 节端到端冒烟小节分工一致。本次只登记契约复核，不执行 --landed，不代替代码测试。",
+      "裁决记录：本任务是否保留为原任务还是改为 1.6.0 返工任务，已交 Jev（typesafe_ask.py run adjudicate，state 存 D:/opuent/output/m9-t27-20260921/jev-state.json）：line=adjudicate: pick=B(low 0.37) spec_change=no(0.20) outside_stack=no(0.21) needs_owner=no(0.10) reversible=yes(0.81) adopt=take(B)，model=jev-1.13.0。采纳 B：保留 M9-T27，撤回对历史收口记录 batch-9-20260921.md 的改动（1.6.0 规定旧记录不改，实测追记留待再收口新记录）；低置信记为风险。"
+    ],
+    "reviewed": "2026-09-21T15:55:16.219868+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
