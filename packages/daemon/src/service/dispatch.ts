@@ -364,20 +364,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 	function agentLimitFor(agentId: string): number {
 		if (typeof deps.agentLimits === 'function') {
-			return Math.max(1, Math.floor(deps.agentLimits(agentId)));
+			return Math.max(0, Math.floor(deps.agentLimits(agentId)));
 		}
 		if (typeof deps.agentLimits === 'number') {
-			return Math.max(1, Math.floor(deps.agentLimits));
+			return Math.max(0, Math.floor(deps.agentLimits));
 		}
 		if (deps.agentLimits && typeof deps.agentLimits === 'object') {
 			const mapped = deps.agentLimits[agentId];
 			if (typeof mapped === 'number') {
-				return Math.max(1, Math.floor(mapped));
+				return Math.max(0, Math.floor(mapped));
 			}
 		}
 		const listed = listDispatchableAgents().find((agent) => agent.agentId === agentId);
 		if (typeof listed?.concurrencyLimit === 'number') {
-			return Math.max(1, Math.floor(listed.concurrencyLimit));
+			return Math.max(0, Math.floor(listed.concurrencyLimit));
 		}
 		return DEFAULT_AGENT_CONCURRENCY_LIMIT;
 	}
