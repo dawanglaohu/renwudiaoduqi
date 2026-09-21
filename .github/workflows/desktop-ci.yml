@@ -47,12 +47,18 @@ jobs:
           - os: windows-latest
             platform: win32
             name: Windows (x64)
+            bundles: nsis,msi
+            smoke_extension: msi
           - os: macos-latest
             platform: darwin
             name: macOS (Apple Silicon)
+            bundles: app,dmg
+            smoke_extension: dmg
           - os: ubuntu-latest
             platform: linux
             name: Linux (Ubuntu LTS x64)
+            bundles: deb,appimage
+            smoke_extension: deb
 
     steps:
       - name: Checkout repository
@@ -145,14 +151,72 @@ jobs:
       - name: Build Daemon Distribution (AC 2, E-257, E-260)
         run: pnpm --filter @agent-scheduler/shell-desktop build-daemon-distribution
 
-      # `cargo build --release` links the native shell and lets tauri-build lay the
-      # bundle resources (daemon-runtime, web/dist) out next to the executable, exactly
-      # as an installation carries them. Installer bundling (`tauri bundle`) is not run
-      # here; the artifacts are build verification only (AC 1, E-265, E-267).
-      - name: Build Tauri Desktop Shell (AC 1, E-265)
+      - name: Import Apple signing certificate for formal release (E-267)
+        if: ${{ matrix.platform == 'darwin' && github.event_name == 'workflow_dispatch' && inputs.formal_release == true }}
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cd packages/shell-desktop/src-tauri
-          cargo build --release
+          set -euo pipefail
+          test -n "$APPLE_CERTIFICATE"
+          test -n "$APPLE_CERTIFICATE_PASSWORD"
+          test -n "$APPLE_ID"
+          test -n "$APPLE_PASSWORD"
+          test -n "$APPLE_TEAM_ID"
+          keychain_password="$(openssl rand -hex 24)"
+          certificate_path="${RUNNER_TEMP}/agent-scheduler-certificate.p12"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$keychain_password" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$keychain_password" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import "$certificate_path" -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" build.keychain
+          signing_identity="$(security find-identity -v -p codesigning build.keychain | awk -F\" '/Developer ID Application/ {print $2; exit}')"
+          test -n "$signing_identity"
+          echo "APPLE_SIGNING_IDENTITY=$signing_identity" >> "$GITHUB_ENV"
+
+      # Build the actual installer formats named in docs/platform-support.md. The staged
+      # smoke below expands one of these bundles, rather than a cargo build directory, so
+      # the release gate verifies the installation layout users receive (E-209, E-257).
+      - name: Build Tauri Desktop Shell (AC 1, E-265)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm --filter @agent-scheduler/shell-desktop tauri build --bundles "${{ matrix.bundles }}" --ci
+
+      - name: Verify and Name Installer Assets (E-259, E-265)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle_root=packages/shell-desktop/src-tauri/target/release/bundle
+          mkdir -p release-assets
+          case "${{ matrix.platform }}" in
+            win32)
+              nsis="$(find "$bundle_root/nsis" -maxdepth 1 -type f -name '*-setup.exe' -print -quit)"
+              msi="$(find "$bundle_root/msi" -maxdepth 1 -type f -name '*.msi' -print -quit)"
+              test -n "$nsis" && test -n "$msi"
+              cp "$nsis" release-assets/agsched-desktop_x64-setup.exe
+              cp "$msi" release-assets/agsched-desktop_x64.msi
+              ;;
+            darwin)
+              dmg="$(find "$bundle_root/dmg" -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+              test -n "$dmg"
+              cp "$dmg" release-assets/agsched-desktop_aarch64.dmg
+              ;;
+            linux)
+              deb="$(find "$bundle_root/deb" -maxdepth 1 -type f -name '*.deb' -print -quit)"
+              appimage="$(find "$bundle_root/appimage" -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+              test -n "$deb" && test -n "$appimage"
+              cp "$deb" release-assets/agsched-desktop_amd64.deb
+              cp "$appimage" release-assets/agsched-desktop_amd64.AppImage
+              ;;
+            *) echo "Unsupported platform: ${{ matrix.platform }}" >&2; exit 1 ;;
+          esac
 
       # Expands the installation payload into a temporary root with spaces and Unicode,
       # resolves the frozen launch spec from the expanded current_exe/resource_dir the way
@@ -166,31 +230,23 @@ jobs:
           DESKTOP_SMOKE_PORT: '7817'
         run: |
           set -euo pipefail
+          bundle_path="$(find release-assets -maxdepth 1 -type f -name '*.${{ matrix.smoke_extension }}' -print -quit)"
+          test -n "$bundle_path"
+          echo "Using real Tauri bundle: $bundle_path"
+          export DESKTOP_BUNDLE_PATH="$bundle_path"
           if [ "${{ matrix.platform }}" = "win32" ]; then
             node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
           else
             sudo -E "$(command -v node)" --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
           fi
 
-      - name: Evaluate macOS Signing & Notarization (AC 6, E-267)
+      - name: Label macOS Signing & Notarization Status (AC 6, E-267)
         if: matrix.platform == 'darwin'
-        id: macos-signing
         run: |
-          signed=false
-          notarized=false
-          if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then signed=true; fi
-          if [ "$signed" = "true" ] && [ -n "${{ secrets.APPLE_ID }}" ] && [ -n "${{ secrets.APPLE_TEAM_ID }}" ]; then
-            notarized=true
-          fi
-          if [ "$signed" != "true" ] || [ "$notarized" != "true" ]; then
+          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.formal_release || false }}" != "true" ]; then
             echo "::warning::macOS signing/notarization credentials missing. Artifacts are build verification only (E-267)."
-          fi
-          echo "is_signed=$signed" >> "$GITHUB_OUTPUT"
-          echo "is_notarized=$notarized" >> "$GITHUB_OUTPUT"
-          if [ "$signed" = "true" ] && [ "$notarized" = "true" ]; then
-            echo "artifact_label=正式签名件" >> "$GITHUB_OUTPUT"
           else
-            echo "artifact_label=构建验证件" >> "$GITHUB_OUTPUT"
+            echo "Formal release requested; the macOS signing gate will verify codesign, Gatekeeper and stapling against the built bundle."
           fi
 
       - name: Upload Build Verification Artifacts (AC 4, E-266, E-267)
@@ -200,11 +256,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: |
-            packages/shell-desktop/src-tauri/target/release/desktop-shell
-            packages/shell-desktop/src-tauri/target/release/desktop-shell.exe
-            packages/shell-desktop/src-tauri/target/release/daemon-runtime/package.json
-            packages/shell-desktop/src-tauri/target/release/daemon-runtime/bootstrap.mjs
-            packages/shell-desktop/src-tauri/target/release/web/dist/index.html
+            release-assets/**
 
   # ============================================================================
   # macOS signing/notarization gate (AC 6, E-267).
@@ -214,16 +266,29 @@ jobs:
   macos-signing-gate:
     name: macOS Signing & Notarization Gate
     needs: [desktop-matrix]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_release == true }}
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.formal_release == true }}
     runs-on: macos-latest
     steps:
-      - name: Require signing and notarization credentials (E-267)
+      - name: Download built macOS bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-build-verification-darwin
+          path: ${{ runner.temp }}/macos-bundle
+
+      - name: Verify signing, Gatekeeper assessment and notarization ticket (E-267)
         run: |
-          if [ -z "${{ secrets.APPLE_CERTIFICATE }}" ] || [ -z "${{ secrets.APPLE_ID }}" ] || [ -z "${{ secrets.APPLE_TEAM_ID }}" ]; then
-            echo "::error::Formal release requested without macOS signing and notarization credentials; signed and notarized artifacts cannot be produced (E-267)."
-            exit 1
-          fi
-          echo "Signing and notarization credentials present."
+          set -euo pipefail
+          dmg_path="$(find "${RUNNER_TEMP}/macos-bundle" -type f -name '*.dmg' -print -quit)"
+          test -n "$dmg_path"
+          mkdir -p "${RUNNER_TEMP}/mounted"
+          hdiutil attach "$dmg_path" -readonly -nobrowse -mountpoint "${RUNNER_TEMP}/mounted"
+          trap 'hdiutil detach "${RUNNER_TEMP}/mounted" -force' EXIT
+          app_path="$(find "${RUNNER_TEMP}/mounted" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          test -n "$app_path"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          spctl --assess --type execute --verbose=2 "$app_path"
+          xcrun stapler validate "$app_path"
+          xcrun stapler validate "$dmg_path"
 
   # ============================================================================
   # Release Gate: reads every platform job and its steps back from the API and feeds
