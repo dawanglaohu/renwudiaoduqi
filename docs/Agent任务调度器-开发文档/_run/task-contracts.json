@@ -834,11 +834,15 @@
       "supportPaths": [
         "packages/daemon/src/domain/run-state-machine.ts",
         "packages/daemon/src/domain/wrapup-report.ts",
+        "packages/daemon/src/domain/wrapup-prompt.ts",
+        "packages/daemon/src/domain/rework-prompt.ts",
         "packages/daemon/src/repo/runs.ts",
         "packages/daemon/src/service/settings.ts",
         "packages/shared/src/api/runs.ts",
         "packages/shared/src/errors/codes.ts",
         "packages/daemon/test/unit/bughunt-prompt.test.ts",
+        "packages/daemon/test/unit/rework-prompt.test.ts",
+        "packages/daemon/test/unit/database.test.ts",
         "packages/daemon/src/workspace/in-head.ts"
       ],
       "sections": [
