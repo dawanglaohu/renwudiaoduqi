@@ -306,6 +306,44 @@ WHERE batch_id = ?
 ORDER BY task_key ASC
 `;
 
+const SELECT_TASKS_WITH_STATE_SQL = `
+SELECT
+	t.id,
+	t.doc_id,
+	t.task_key,
+	t.title,
+	t.module_key,
+	t.deps_json,
+	t.input_text,
+	t.output_text,
+	t.accept_text,
+	t.edge_ids_json,
+	t.task_paths_json,
+	t.contract_hash,
+	t.is_contract_ready,
+	t.contract_reasons_json,
+	t.est_days,
+	t.batch_id,
+	t.impl_prompt,
+	t.review_prompt,
+	t.bug_prompt,
+	t.is_removed_from_doc,
+	t.has_accept_changed,
+	t.has_prompt_changed,
+	t.manual_state,
+	COALESCE(t.manual_state, r.state, 'never_dispatched') AS derived_state
+FROM tasks t
+LEFT JOIN runs r ON r.task_id = t.id AND r.attempt_no = (
+	SELECT MAX(r2.attempt_no) FROM runs r2 WHERE r2.task_id = t.id
+)
+WHERE t.doc_id = ?
+	AND (? IS NULL OR t.batch_id = ?)
+	AND (? IS NULL OR COALESCE(t.manual_state, r.state, 'never_dispatched') = ?)
+	AND (? IS NULL OR t.task_key > ?)
+ORDER BY t.task_key ASC
+LIMIT ?
+`;
+
 const UPDATE_DOC_FIELDS_SQL = `
 UPDATE tasks
 SET
@@ -498,6 +536,18 @@ export function validateTaskDependencies(
 	});
 }
 
+export interface ListTasksFilter {
+	readonly docId: string;
+	readonly batchId?: string | null;
+	readonly state?: string | null;
+	readonly cursor?: string | null;
+	readonly limit: number;
+}
+
+export interface TaskWithDerivedStateRow extends TaskRow {
+	readonly derived_state: string;
+}
+
 export interface TasksRepo {
 	readonly insert: (row: TaskInsertRow) => void;
 	readonly insertMany: (rows: readonly TaskInsertRow[]) => void;
@@ -505,6 +555,9 @@ export interface TasksRepo {
 	readonly findByDocAndKey: (docId: string, taskKey: string) => TaskRow | null;
 	readonly listByDocId: (docId: string) => readonly TaskRow[];
 	readonly listByBatchId: (batchId: string) => readonly TaskRow[];
+	readonly listTasksWithDerivedState: (
+		filter: ListTasksFilter,
+	) => readonly TaskWithDerivedStateRow[];
 	readonly updateDocFields: (row: TaskUpdateDocFieldsRow) => void;
 	readonly updateBatchId: (id: string, batchId: string | null) => void;
 	readonly updateManualState: (id: string, manualState: string | null) => void;
@@ -567,11 +620,34 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		return sql;
 	}
 
+	function adjustJoinSelectSql(baseSql: string) {
+		let sql = baseSql;
+		if (!hasBugPrompt) {
+			sql = sql.replace('\tt.bug_prompt,\n', '');
+		}
+		if (hasLaneNo) {
+			sql = sql.replace('\tt.manual_state,\n', '\tt.manual_state,\n\tt.lane_no,\n');
+		}
+		if (hasAssignmentDraft) {
+			sql = sql.replace('\nFROM tasks t\n', ',\n\tt.assignment_draft_json\nFROM tasks t\n');
+		}
+		return sql;
+	}
+
 	const insertStmt = db.prepare(insertSql);
 	const selectByIdStmt = db.prepare(adjustSelectSql(SELECT_BY_ID_SQL));
 	const selectByDocAndKeyStmt = db.prepare(adjustSelectSql(SELECT_BY_DOC_AND_KEY_SQL));
 	const selectByDocIdStmt = db.prepare(adjustSelectSql(SELECT_BY_DOC_ID_SQL));
 	const selectByBatchIdStmt = db.prepare(adjustSelectSql(SELECT_BY_BATCH_ID_SQL));
+	let listTasksWithDerivedStateStmt: ReturnType<
+		typeof db.prepare<unknown[], TaskRow & { derived_state: string }>
+	> | null = null;
+	function getListTasksWithDerivedStateStmt() {
+		if (!listTasksWithDerivedStateStmt) {
+			listTasksWithDerivedStateStmt = db.prepare(adjustJoinSelectSql(SELECT_TASKS_WITH_STATE_SQL));
+		}
+		return listTasksWithDerivedStateStmt;
+	}
 	const updateDocFieldsStmt = db.prepare(UPDATE_DOC_FIELDS_SQL);
 	const updateBatchIdStmt = db.prepare(UPDATE_BATCH_ID_SQL);
 	const updateManualStateStmt = db.prepare(UPDATE_MANUAL_STATE_SQL);
@@ -675,6 +751,43 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 				return Object.freeze(rows.map(freezeTaskRow));
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to list tasks by batchId: ${batchId}`);
+			}
+		},
+
+		listTasksWithDerivedState(filter: ListTasksFilter): readonly TaskWithDerivedStateRow[] {
+			try {
+				let cursorTaskKey = filter.cursor ?? null;
+				if (cursorTaskKey) {
+					const task = selectByIdStmt.get(cursorTaskKey) as TaskRow | undefined;
+					if (task) {
+						cursorTaskKey = task.task_key;
+					}
+				}
+
+				const rows = getListTasksWithDerivedStateStmt().all(
+					filter.docId,
+					filter.batchId ?? null,
+					filter.batchId ?? null,
+					filter.state ?? null,
+					filter.state ?? null,
+					cursorTaskKey,
+					cursorTaskKey,
+					filter.limit,
+				) as (TaskRow & { derived_state: string })[];
+
+				return Object.freeze(
+					rows.map((row) =>
+						Object.freeze({
+							...freezeTaskRow(row),
+							derived_state: row.derived_state,
+						}),
+					),
+				);
+			} catch (cause) {
+				throw toDatabaseError(
+					cause,
+					`Failed to list tasks with derived state: docId=${filter.docId}`,
+				);
 			}
 		},
 

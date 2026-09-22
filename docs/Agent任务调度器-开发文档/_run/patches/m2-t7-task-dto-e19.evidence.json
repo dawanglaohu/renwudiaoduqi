@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M2-T7": {
+      "contractHash": "dec39b067039b221efec624559e3fe5114bdba3dff40c45558cb59af4ec7cc31",
+      "evidence": [
+        "本补丁只给 M2-T7 的 supportPaths 增加 packages/shared/src/api/tasks.ts；M2-T7 原有验收 1-5、E-08/E-17/E-19/E-215/E-216/E-82、前置与其他有效路径未改，未放宽行为要求。",
+        "E-19 原文要求派发后 input/output/accept 变化可在列表逐任务标记；当前 TaskDto 唯一定义在 packages/shared/src/api/tasks.ts，服务端 docs.ts 的 toTaskDto 正消费此 DTO，因此加入此路径是必要且局部的类型契约支持。",
+        "sync 的 changes 只影响 M2-T7；并发范围核对后，新共享 DTO 路径由本任务认领，未扩展其他任务。当前 PR 的代码语义仍有阻断项，契约复核不表示代码验收通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
