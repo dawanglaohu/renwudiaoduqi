@@ -269,4 +269,52 @@ describe('M9-T26 application bootstrap', () => {
 			await closeServer(fakeServer.server);
 		}
 	});
+
+	it('delivers each envelope exactly once through the production default SSE client', async () => {
+		const fakeServer = await startFakeSseServer();
+		const shell: ShellBridge = {
+			...createShell('bootstrap-token'),
+			hostHint: async () => fakeServer.url,
+		};
+		let boot: Awaited<ReturnType<typeof bootstrap>> | undefined;
+		let response: ServerResponse | undefined;
+		try {
+			boot = await bootstrap({
+				shell,
+				resolveBaseUrl: async () => fakeServer.url,
+			});
+			response = await fakeServer.connected;
+			await waitForConnectionState((state) => state.status === 'online', 'online');
+
+			const runId = 'run-default-sse-1';
+			const event: EventEnvelope = {
+				id: 5252,
+				ts: '2026-09-22T02:00:00.000Z',
+				runId,
+				taskId: 'M9-T5',
+				scope: 'run',
+				kind: 'run.state_changed',
+				seq: 1,
+				actorDeviceId: 'device-bootstrap-test',
+				payload: { from: 'running', to: 'reviewing' },
+			};
+			response.write(`id: ${event.id}\nevent: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`);
+			await waitForConnectionState(
+				(state) => state.lastEventId === event.id,
+				'default SSE event cursor',
+			);
+
+			expect(fakeServer.requestCount()).toBe(1);
+			expect(
+				eventBus
+					.getBuffer(runId)
+					?.getItems()
+					.map((item) => item.id),
+			).toEqual([event.id]);
+		} finally {
+			boot?.teardown();
+			response?.end();
+			await closeServer(fakeServer.server);
+		}
+	});
 });

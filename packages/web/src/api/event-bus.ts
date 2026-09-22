@@ -658,9 +658,6 @@ export function attachSseClient(
 	};
 }
 
-// Auto-wire default singleton eventBus to default sseClient
-attachSseClient(sseClient, eventBus);
-
 /**
  * React hook subscribing to a run stream buffer's integer version number (AC 1, AC 2, AC 3).
  * getSnapshot strictly returns only an integer, never an array or object.
