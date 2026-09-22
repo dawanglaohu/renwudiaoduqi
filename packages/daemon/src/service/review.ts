@@ -29,6 +29,7 @@ import {
 import { DEFAULT_CHECK_TIMEOUT_MS, type LaunchTimeouts } from '../proc/timers.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { RunInsertRow, RunRow } from '../repo/runs.ts';
+import type { SettingsRepo } from '../repo/settings.ts';
 import {
 	type DiffStatResult,
 	type GitRunner,
@@ -36,9 +37,12 @@ import {
 	getDiffStat,
 	getDiffText,
 } from '../workspace/diff.ts';
+import type { BughuntService } from './bughunt.ts';
+import type { GateService } from './gates.ts';
 import type { MessageService, ResumeSessionInput, ResumeSessionResult } from './message.ts';
 import { waitForContinuationState } from './message.ts';
 import { type ReviewAgentAssignment, buildReviewLaunchSpec } from './review-agent.ts';
+import type { SettingsService } from './settings.ts';
 
 export { DEFAULT_CHECK_TIMEOUT_MS };
 
@@ -283,6 +287,7 @@ export type ReviewRunRecord = {
 	readonly state: string;
 	/** RunsRepo 的 RunRow 用 snake_case；老的 RunsAbortRepo 记录用 camelCase，两种都接。 */
 	readonly task_id?: string | null;
+	readonly parent_run_id?: string | null;
 	readonly kind?: string;
 	readonly worktree_path?: string | null;
 	readonly pid?: number | null;
@@ -321,6 +326,7 @@ export interface ReviewRunsRepo {
 		reviewRound: number | null,
 		continuedFromRunId?: string | null,
 	) => void;
+	readonly findByParentRunIdAndKind?: (parentRunId: string, kind: string) => RunRow | null;
 	/** 同任务全部运行行：新一轮的 attempt_no 取最大值 + 1（`UNIQUE (task_id, attempt_no)`）。 */
 	readonly listByTaskId?: (taskId: string) => readonly { readonly attempt_no: number }[];
 }
@@ -368,6 +374,10 @@ export interface ReviewServiceDeps extends MechanicalCheckDeps {
 	readonly spawnManagedFn?: typeof spawnManaged;
 	readonly agentRegistry?: AgentRegistry;
 	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+	readonly bughuntService?: BughuntService;
+	readonly settingsRepo?: SettingsRepo;
+	readonly settingsService?: SettingsService;
+	readonly gatesService?: GateService;
 	/** 续接撑爆时改走恢复分支：与 rework.ts 的 resumeSession 同一约定。 */
 	readonly resumeSession?: (input: ResumeSessionInput) => Promise<ResumeSessionResult>;
 }
@@ -404,12 +414,32 @@ export interface StartReviewRoundInput {
 	readonly isBugHuntFix?: boolean;
 }
 
+export interface FinalizeReviewRunInput {
+	readonly reviewRunId: string;
+	readonly verdict: 'pass' | 'rework' | 'doc_issue' | 'incomplete';
+	readonly outputText?: string;
+	readonly reworkText?: string;
+	readonly actorDeviceId?: string | null;
+}
+
+export interface FinalizeReviewRunResult {
+	readonly action:
+		| 'bughunt_dispatched'
+		| 'landing_gate'
+		| 'rework'
+		| 'doc_issue'
+		| 'awaiting_human';
+	readonly bughuntRunId?: string;
+	readonly gateId?: string;
+}
+
 export interface ReviewService {
 	readonly runMechanicalCheck: (input: MechanicalCheckInput) => Promise<MechanicalCheckResult>;
 	readonly evaluateMechanicalCheck: (
 		input: EvaluateMechanicalCheckInput,
 	) => Promise<EvaluateMechanicalCheckResult>;
 	readonly startReviewRound: (input: StartReviewRoundInput) => Promise<string>;
+	readonly finalizeReviewRun: (input: FinalizeReviewRunInput) => Promise<FinalizeReviewRunResult>;
 }
 
 /**
@@ -1888,5 +1918,85 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		},
 
 		evaluateMechanicalCheck,
+
+		async finalizeReviewRun(input: FinalizeReviewRunInput): Promise<FinalizeReviewRunResult> {
+			if (!deps.runsRepo) throw new Error('runsRepo missing');
+
+			const reviewRun = deps.runsRepo.findById(input.reviewRunId);
+			if (!reviewRun) {
+				throw new AppError('E_NOT_FOUND', `Review run not found: ${input.reviewRunId}`);
+			}
+			const implRunId = reviewRun.parent_run_id ?? reviewRun.id;
+			const implRun = deps.runsRepo.findById(implRunId);
+			if (!implRun) {
+				throw new AppError('E_NOT_FOUND', `Implementation run not found: ${implRunId}`);
+			}
+			const taskId =
+				implRun.task_id ?? reviewRun.task_id ?? implRun.taskId ?? reviewRun.taskId ?? '';
+
+			if (input.verdict === 'pass') {
+				// AC 1: finalizeReviewRun() 判 pass 后读 settings.pipeline.bughunt（每次读库、不缓存、不进快照）
+				let bughuntEnabled = false;
+				if (deps.settingsService) {
+					const pipeline = deps.settingsService.getPipeline();
+					bughuntEnabled = pipeline.bughunt === 1;
+				} else if (deps.settingsRepo) {
+					const row = deps.settingsRepo.get('pipeline');
+					if (row) {
+						try {
+							const parsed = JSON.parse(row.value_json);
+							bughuntEnabled = parsed.bughunt === 1;
+						} catch {
+							bughuntEnabled = false;
+						}
+					}
+				}
+
+				// 为 1 且该实施运行尚无 bughunt 行 → 事务内插入 kind='bughunt' 行，实施行保持 reviewing
+				const existingBughunt = deps.runsRepo.findByParentRunIdAndKind
+					? deps.runsRepo.findByParentRunIdAndKind(implRun.id, 'bughunt')
+					: null;
+
+				if (bughuntEnabled && !existingBughunt && deps.bughuntService) {
+					const dispatchResult = await deps.bughuntService.dispatchBughunt({
+						implRunId: implRun.id,
+						actorDeviceId: input.actorDeviceId,
+					});
+					if (dispatchResult.action === 'dispatched') {
+						return {
+							action: 'bughunt_dispatched',
+							bughuntRunId: dispatchResult.bughuntRun?.id,
+						};
+					}
+					if (dispatchResult.action === 'agent_unavailable') {
+						return {
+							action: 'awaiting_human',
+							gateId: dispatchResult.gateId,
+						};
+					}
+				}
+
+				// 为 0 或已有 bughunt 行 → 走既有落地闸门
+				if (deps.gatesService) {
+					await deps.gatesService.resolveAfterReviewAndApply({
+						taskId,
+						runId: implRun.id,
+						reviewVerdict: 'pass',
+					});
+					return { action: 'landing_gate' };
+				}
+
+				return { action: 'landing_gate' };
+			}
+
+			return {
+				action:
+					input.verdict === 'rework'
+						? 'rework'
+						: input.verdict === 'doc_issue'
+							? 'doc_issue'
+							: 'awaiting_human',
+			};
+		},
 	});
 }

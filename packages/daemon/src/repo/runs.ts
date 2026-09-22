@@ -113,6 +113,8 @@ export interface RunsRepo {
 	readonly updateLastEventAt?: (id: string, lastEventAt: string) => void;
 	readonly incrementUnmappedEventCount?: (id: string) => void;
 	readonly findLatestReview: (taskId: string) => RunRow | null;
+	readonly findByParentRunIdAndKind?: (parentRunId: string, kind: string) => RunRow | null;
+	readonly listByParentRunIdAndKind?: (parentRunId: string, kind: string) => readonly RunRow[];
 	readonly markSessionsArchived: (input: {
 		readonly taskId: string;
 		readonly archivedAt: string;
@@ -265,6 +267,10 @@ const SELECT_ALL_RUNS_SQL = `
 SELECT * FROM runs ORDER BY started_at DESC
 `;
 
+const SELECT_RUNS_BY_PARENT_RUN_ID_AND_KIND_SQL = `
+SELECT * FROM runs WHERE parent_run_id = ? AND kind = ? ORDER BY attempt_no DESC
+`;
+
 const SUCCEEDED_STATE_PLACEHOLDERS = SUCCEEDED_RUN_STATES.map(() => '?').join(', ');
 
 const SELECT_SUCCEEDED_MODEL_NAMES_SQL = `
@@ -350,7 +356,7 @@ export function toRunDto(row: RunRow): RunDto {
 		id: row.id,
 		taskId: row.task_id,
 		attemptNo: row.attempt_no,
-		kind: row.kind as 'implement' | 'review',
+		kind: row.kind as RunDto['kind'],
 		parentRunId: row.parent_run_id ?? null,
 		state: row.state as RunDto['state'],
 		reviewVerdict: (row.review_verdict as RunDto['reviewVerdict']) ?? null,
@@ -562,6 +568,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		? db.prepare(SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL)
 		: null;
 	const markArchivedStmt = hasSessionArchivedAt ? db.prepare(MARK_SESSIONS_ARCHIVED_SQL) : null;
+	const runsByParentRunIdAndKindStmt = db.prepare(SELECT_RUNS_BY_PARENT_RUN_ID_AND_KIND_SQL);
 
 	return Object.freeze({
 		insert(row: RunInsertRow): void {
@@ -661,6 +668,31 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				return row ? freezeRunRow(row) : null;
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to find latest review for task: ${taskId}`);
+			}
+		},
+
+		findByParentRunIdAndKind(parentRunId: string, kind: string): RunRow | null {
+			try {
+				const rows = runsByParentRunIdAndKindStmt.all(parentRunId, kind) as RunRow[];
+				const row = rows[0];
+				return row ? freezeRunRow(row) : null;
+			} catch (cause) {
+				throw toDatabaseError(
+					cause,
+					`Failed to find run by parent_run_id and kind: ${parentRunId}, ${kind}`,
+				);
+			}
+		},
+
+		listByParentRunIdAndKind(parentRunId: string, kind: string): readonly RunRow[] {
+			try {
+				const rows = runsByParentRunIdAndKindStmt.all(parentRunId, kind) as RunRow[];
+				return Object.freeze(rows.map(freezeRunRow));
+			} catch (cause) {
+				throw toDatabaseError(
+					cause,
+					`Failed to list runs by parent_run_id and kind: ${parentRunId}, ${kind}`,
+				);
 			}
 		},
 
