@@ -1453,6 +1453,7 @@ function skillsFor(t, side){
     S.push(["dsh-trim-cot-leakage", "沉淀写完后", "清掉「本来想…后来改成」这类只有在场者才解析得了的话"]);
     if(fe) S.push(["finesse-ui", "写组件与样式时", "把既定 token 落成组件、覆盖八态与手机档；register 与方向已定死，不重判、不重定、不出预览页"]);
     if(fe) S.push(["record-browser-gif", "交审查前", "从真实服务录 GIF，等待条件用 DOM 状态不用固定延时；没有 GIF 的界面任务多半被打回"]);
+    S.push(["dsh-pre-push-checks", "推送前", "按本层 diff 挑最小充分测试集跑一遍；不许 --passWithNoTests、不许裸 --force"]);
     if(hasJudgments(t)) S.push(["typesafe-ai", "写判断层时", "先读 live docs 的 API/SDK 页与最近的 cookbook；一题一判断、criteria 带兜底、独立问题一次送、概率与 confidence 分开用；问题与阈值常量只放注册表文件，密钥只从服务端配置读"]);
   }else{
     S.push(["dsh-code-review", "打完勾之后", "接口两侧契约、生命周期与并发、绕过校验的入口、测试是否只把实现重写一遍；不调会放过「每条都做了但合起来是错的」"]);
@@ -1987,7 +1988,7 @@ function implSections(t){
          "别用 gh stack add：它只能往开放的栈上叠层，前置的 PR 已合并、栈已关闭，会报 All branches in this stack have been merged——看到这句就是该走 init，不是要问人。" +
          (hasDeps ? "唯一例外：gh pr list --state open --head " + HPRE + "<前置ID> 显示某个前置的 PR 还开着，说明交接台状态被手点过了，那就叠上去：" +
                     "gh stack checkout " + HPRE + "<前置ID> && gh stack add " + br + "，并写进「自行裁决」）" : "）"));
-  L.push("2. 实现，逐条对照验收标准与边界自检。");
+  L.push("2. 实现，逐条对照验收标准与边界自检；然后跑测试：本任务有效路径下的测试文件 + 验收引用的 E-XX 对应用例必跑，其余按 dsh-pre-push-checks 挑最小充分集；lint 与测试命令在 17-测试策略，没写就 TESTS 记 skipped 并写明原因、回报里记一条 doc-issue，不猜命令。红的先修再交，别带着红提 PR。");
   L.push("3. 提交、推送、开 PR（审查方靠 PR 看 diff，没有 PR 它无从下手）：");
   L.push("   git status --short 核对后只加本任务的文件：git add -- <路径…>（不用 git add -A，会把工作文件和别的会话的东西带进去）");
   L.push("   git commit -m \"" + t.id + " " + shq(t.title) + "\"");
@@ -2016,6 +2017,7 @@ function implSections(t){
   L.push("改了哪些文件；每条验收标准落在哪个文件哪一行；每条边界怎么处理的；回填了没有；有没有偏离文档。含糊会被打回。");
   L.push("「自行裁决」一段：逐条写冲突、选项、Jev 的 line/model/option、采纳动作及清单外文件与理由；没有就写「无」。审查方逐条复核，缺项不能判通过。");
   L.push("入口可达证据：<从哪个入口怎么到达本任务产出，命令或路径>；没有接线要求写「无」");
+  L.push("TESTS: <pass | fail | skipped> → 跑的命令与结果；skipped 写原因（17 节没命令就记 doc-issue）");
   L.push("末行：READY_FOR_REVIEW: " + br + " <PR 链接>");
   L.push(jevAdjudication(t.id + ":impl"));
   var appendix = appendixBlock(t); if(appendix) L.push(appendix);
@@ -2067,7 +2069,7 @@ function buildReview(t){
          "Windows 侧绝不跑 git worktree prune——WSL 建的活工作树在 Windows 显示 prunable，prune 会打断正在干活的会话。");
   L.push("0. 轮次：gh pr view " + br + " --comments。有「REVIEW-ROUND」评论 → 第 N+1 轮，只核那些条目，每条写已修/未修；没有 → 第 1 轮，跑全清单。");
   L.push("   没有 PR 就自己补开，不算实施方的错：切到 " + br + " → gh stack submit --auto --open");
-  L.push("1. gh pr diff " + br + "（栈里每层 PR 只含本层，正是要审的范围）");
+  L.push("1. gh pr diff " + br + "（栈里每层 PR 只含本层，正是要审的范围）；在该分支上复跑测试与 lint（命令在 17-测试策略；本任务有效路径下的测试文件 + 验收引用的 E-XX 对应用例必跑，其余按 dsh-pre-push-checks 挑）。红即阻断项，进 REWORK；17 节没命令就 TESTS 记 skipped 并写进 DOC_ISSUE，不猜命令。");
   L.push("2. 逐条验收标准 → 指出文件:行；指不出来就是不满足");
   L.push("3. 逐条边界 → 指出文件:行；找不到就是漏了");
   L.push("4. 范围外改动" + (ps.length ? "（路径清单之外的文件）" : ""));
@@ -2106,7 +2108,7 @@ function buildReview(t){
   L.push("2. 记录落地：python " + HDOCS + "/_run/build_docs.py " + HDOCS + " --landed " + t.id +
          "　（写进任务笔记的 status、docs-data.js 的 progress 与本机 _run/progress.js；交接台刷新后这一行变「已落地」，下游按前置与收口闸门解锁）");
   L.push("3. 一起进仓库：切到 " + br + " → git add " + HDOCS + " && git commit -m \"" + t.id + " 回填知识库并记录落地\" && gh stack push");
-  L.push("4. 证据：调 dsh-pre-push-checks 按本层改动挑最小充分测试集跑一遍；红了回头按阻断项处理");
+  L.push("4. 证据：第 1 步已跑过的测试不重复跑；只对落地前新增的改动（回填、rebase）按 dsh-pre-push-checks 补跑；红了回头按阻断项处理");
   L.push("5. 还是 draft 就 gh pr ready " + br);
   L.push("6. 先数栈里开放的 PR：gh stack view --json。只有本层这一个（base 是主干、上面没叠别层）→ GitHub 不会为单个 PR 建栈对象，按普通 PR 合：gh pr merge <本层 PR 号> --merge，" +
          "这是前置都已落地的任务的常态，不要为了凑栈去等下一个任务或开空 PR；两个以上 → gh stack merge <本层 PR 号> --yes --merge，" + (up.length
@@ -2134,6 +2136,10 @@ function buildReview(t){
   L.push("- E-XX 已处理 → 文件:行　｜　未处理 → 缺什么");
   L.push("VAULT");
   L.push("- 代码位置：已回填 / 未回填　｜　实施沉淀：已回填 / 未回填");
+  L.push("TESTS");
+  L.push("- pass | fail | skipped → 跑的命令与结果；fail 即阻断，skipped 写原因");
+  L.push("TS_CHECK");
+  L.push("- run review 返回的 line，或 skipped");
   L.push("OUT_OF_SCOPE");
   L.push("- 范围外改动；没有写 none");
   L.push("ADJUDICATION");
@@ -2327,7 +2333,7 @@ function bugPrompt(t, landed){
          "事务外的副作用（发了通知没落库、落库了没发通知）；没释放的资源（连接、文件、定时器、监听）。");
   L.push("3. 和前置任务" + ((t.deps||[]).length ? "（" + t.deps.join("、") + "）" : "") +
          "的接缝：字段名、空值、错误码、枚举、时间格式、金额精度，两边是不是同一套。");
-  L.push("4. 跑现有测试与 lint（命令在 17-测试策略；没写就记进 NOT_FIXED，不要猜一条来跑）。");
+  L.push("4. 跑现有测试与 lint（命令在 17-测试策略；没写就 TESTS 记 skipped 并写明原因、NOT_FIXED 记一条 doc-issue，不猜命令）。");
   if(fe) L.push("5. 界面：组件八态（默认/悬停/聚焦/按下/禁用/加载/错误/空）有没有漏、键盘能不能走完、窄屏有没有横向溢出、" +
                 "请求失败与空数据时长什么样。起真实服务点一遍。");
   L.push((fe ? "6" : "5") + ". 调 dsh-code-review 再扫一遍：接口两侧契约、生命周期与并发、绕过路径、借用 vs 拥有的状态、测试是否只重写实现。");
@@ -2346,6 +2352,8 @@ function bugPrompt(t, landed){
   L.push(jevAdjudication(t.id + ":bug"));
   L.push("");
   L.push("## 输出格式（严格遵守）");
+  L.push("TESTS");
+  L.push("- pass | fail | skipped → 跑的命令与结果；skipped 写原因");
   L.push("BUGS");
   L.push("- B1 [S1 数据错或丢、权限能绕 | S2 功能错 | S3 体验与边角] 现象 → 复现 → 根因 → 文件:行");
   L.push("  没有写 none，并列出跑过的用例——没有证据的「没找到」不算");
@@ -2405,7 +2413,7 @@ function buildBugAll(){
   L.push("6. 占位与桩扫描：对上列任务逐个读取契约的有效路径与接线要求；① 在有效路径内 grep `not implemented|placeholder|stub|TODO|待接入|后续接入`，命中生产文件即阻断；② 门禁 / 闸门 / 探测函数返回硬编码 `true`/固定值即阻断；③ 按接线要求核注册表文件，没有本任务条目即未接线、阻断；④ 测试钩子（`window.__x`、`globalThis.__x`）出现在生产代码即阻断。记录扫描命中位置。");
   L.push("");
   L.push("## 怎么做");
-  L.push("- 先跑现有全部测试与 lint（命令在 17-测试策略）。红的先记下来，别顺手修——它可能就是线索。");
+  L.push("- 先跑现有全部测试与 lint（命令在 17-测试策略；没写就 TESTS 记 skipped 并写明原因、NOT_FIXED 记一条 doc-issue，不猜命令）。红的先记下来，别顺手修——它可能就是线索。");
   L.push("- 每个 bug 先写复现再修；修根因不重构；每个修复配一个修复前失败、修复后通过的测试。");
   L.push("- 修复统一开一条栈，先开自己的工作树：git fetch origin " + HMAIN + " && git worktree add -b fix/<日期>-<一两个词> ../" + HREPO +
          "-fix-<日期> origin/" + HMAIN + " → cd 进去 → gh stack init --base " + HMAIN + " fix/<日期>-<一两个词>；相关的几处修在同一层，不相关的各起一层（gh stack add）。" +
@@ -2414,6 +2422,8 @@ function buildBugAll(){
   L.push(jevAdjudication("project-bug"));
   L.push("");
   L.push("## 输出格式（严格遵守）");
+  L.push("TESTS");
+  L.push("- pass | fail | skipped → 跑的命令与结果；skipped 写原因");
   L.push("BUGS");
   L.push("- B1 [S1 数据错或丢、权限能绕 | S2 功能错 | S3 体验与边角] 涉及 <任务ID>：现象 → 复现 → 根因 → 文件:行");
   L.push("  没有写 none，并列出跑过的用例——没有证据的「没找到」不算");
@@ -2577,7 +2587,7 @@ function batchPrompt(k){
   L.push("   本次只允许这两个仓库外目录：工作树 " + wt + " 与 planning " + plans + "。不许 git clone 一份仓库，不许自造别的目录。" +
          "Windows 侧绝不跑 git worktree prune——WSL 建的活工作树在 Windows 显示 prunable，prune 会打断正在干活的会话。");
   L.push("   建栈：git config rerere.enabled true && git config remote.pushDefault origin && gh stack init --base " + HMAIN + " " + br);
-  L.push("1. 先跑现有全部测试与 lint（命令在 17-测试策略；没写就 TESTS 记 skipped 并写明原因，不猜命令）。红的先记下来，别顺手修——它可能就是线索。");
+  L.push("1. 先跑现有全部测试与 lint（命令在 17-测试策略；没写就 TESTS 记 skipped 并写明原因、NOT_FIXED 记一条 doc-issue，不猜命令）。红的先记下来，别顺手修——它可能就是线索。");
   L.push("   跑 17 节的端到端冒烟：真起服务、真浏览器打开首页、断言样式已加载（token 类的 computed style 生效）、走一遍主流程；没有这条冒烟就记 NOT_FIXED 标 doc-issue。");
   if(judg) L.push("   本批含判断层任务：跑 17 节的判断用例集并做一次真实调用（TYPESAFE_API_KEY 未设置就 TESTS 记 skipped 并写明原因，不用录制应答冒充）；核每个问题只有一个归属任务、ID 与 10 节语义判断契约一致。");
   L.push("2. 逐任务在 " + HMAIN + " 上过一遍上面的复核清单：每条验收标准、每条边界指到 文件:行；指不到的就是 bug。");
@@ -2609,6 +2619,7 @@ function batchPrompt(k){
   L.push("date: <YYYY-MM-DD>");
   L.push("verdict: <clean | fixed | open>");
   L.push("tests: <pass | fail | skipped>");
+  L.push("skip_reason: <只在 tests 为 skipped 且 verdict 为 clean/fixed 时写，说明为何无测试仍可收口（如纯文档批次）；其余情况删掉这行>");
   L.push("pr: <PR 链接或 none>");
   L.push("note: <给下一批的一句提醒，可空>");
   L.push("repair_schema: 1");
@@ -3959,9 +3970,13 @@ def read_batch_records(root):
             raise ValueError('%s 的 verdict=open 但没有 ```task 返工任务；按新模板为每条遗留问题补齐稳定键、路径和验收' % f)
         if fm.get("tests") == "fail" and verdict in ("clean", "fixed"):
             raise ValueError('%s 的测试未通过，verdict 不能是 clean/fixed；登记 open 和返工任务' % f)
+        if fm.get("tests") == "skipped" and verdict in ("clean", "fixed") and not fm.get("skip_reason"):
+            raise ValueError('%s 的 tests 为 skipped 却判 clean/fixed；补跑测试，或在 front matter 写 skip_reason 说明为何无测试仍可收口' % f)
         out[f[:-3]] = {"batch": batch, "tasks": tasks, "date": fm.get("date", ""),
                        "verdict": fm.get("verdict", ""), "tests": fm.get("tests", ""),
                        "pr": fm.get("pr", ""), "note": fm.get("note", "")}
+        if fm.get("skip_reason"):
+            out[f[:-3]]["skipReason"] = fm.get("skip_reason")
         if repair_schema:
             out[f[:-3]]["repairSchema"] = int(repair_schema)
         if repairs:

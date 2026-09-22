@@ -76,7 +76,7 @@ class AdjudicationTests(unittest.TestCase):
             typesafe_ask.t_adjudicate({'requirement': 'r', 'task': {}, 'conflict': 'c', 'options': {'A': 'only'}})
 
     def test_release_installs_its_regression_and_reports_1_6(self):
-        self.assertEqual(hc.VERSION, '1.6.0')
+        self.assertEqual(hc.VERSION, '1.6.1')
         self.assertIn('test_release_1_6_adjudication.py', install_project.TESTS)
         self.assertEqual(len(typesafe_ask.TEMPLATES), 13)
 
