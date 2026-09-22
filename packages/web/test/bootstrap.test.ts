@@ -8,6 +8,7 @@ import { act } from 'react';
 import { type Root, createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearCachedToken, setCachedToken } from '../src/api/http-client.ts';
+import { eventBus } from '../src/api/event-bus.ts';
 import { type SseClient, createSseClient } from '../src/api/sse-client.ts';
 import { bootstrap } from '../src/app/bootstrap.ts';
 import { ConnectionStatusBanner } from '../src/features/run-deck/use-connection-state.ts';
@@ -243,6 +244,11 @@ describe('M9-T26 application bootstrap', () => {
 			});
 
 			expect(useConnectionStore.getState().lastEventId).toBe(4242);
+			// The single production stream must also feed the M9-T6 ring buffer: the run-detail log
+			// window subscribes to eventBus, so an envelope that only reaches connection-store is lost.
+			const streamBuffer = eventBus.getBuffer('run-bootstrap-1');
+			expect(streamBuffer?.length).toBe(1);
+			expect(streamBuffer?.lastEventId).toBe(event.id);
 			expect(document.documentElement.dataset.connectionStatus).toBe('online');
 			expect(container.textContent).toContain('最后同步于');
 			expect(container.querySelector('[data-connection-status="online"]')).not.toBeNull();
