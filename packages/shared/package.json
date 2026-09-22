@@ -18,6 +18,7 @@
 		"./api/gates": "./src/api/gates.ts",
 		"./api/settings": "./src/api/settings.ts",
 		"./api/snapshot": "./src/api/snapshot.ts",
+		"./lib/is-record": "./src/lib/is-record.ts",
 		"./shell/daemon-launch-spec": "./src/shell/daemon-launch-spec.ts",
 		"./shell/bridge-contract": "./src/shell/bridge-contract.ts"
 	}

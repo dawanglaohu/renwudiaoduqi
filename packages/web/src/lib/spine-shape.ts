@@ -14,6 +14,48 @@
  * - 覆盖 07 节与 11 节约定的 6 个步骤类型形状
  */
 
+import type { RunState } from '@agent-scheduler/shared/api/runs';
+
+/**
+ * 运行状态到状态徽标的 13 态映射表（M2-T8 / E-234）。
+ * 以 satisfies 覆盖全部 13 个 RunState，删去任一键即 tsc 报错。
+ */
+export const RUN_STATE_TO_STATUS = {
+	queued: 'queued',
+	starting: 'thinking',
+	running: 'thinking',
+	awaiting_reply: 'awaiting_input',
+	exited: 'succeeded',
+	reviewing: 'thinking',
+	reworking: 'thinking',
+	awaiting_human: 'awaiting_input',
+	orphaned: 'orphaned',
+	landed: 'succeeded',
+	failed: 'failed',
+	aborted: 'stopped',
+	interrupted: 'stopped',
+} as const satisfies Record<RunState, string>;
+
+/**
+ * 非运行状态映射的额外前端状态（步骤类型与专属边界态）。
+ */
+export const EXTRA_STATUS_STATES = [
+	'tool',
+	'streaming',
+	'partial',
+	'review_incomplete',
+	'unrecognized',
+] as const;
+
+export type RunDerivedStatus = (typeof RUN_STATE_TO_STATUS)[RunState];
+export type ExtraStatusState = (typeof EXTRA_STATUS_STATES)[number];
+
+/**
+ * 运行状态徽标的标准状态枚举类型：
+ * 由 RUN_STATE_TO_STATUS 派生的运行状态与 EXTRA_STATUS_STATES 联合构成。
+ */
+export type StatusState = RunDerivedStatus | ExtraStatusState;
+
 /**
  * 运行状态徽标的 12 个标准状态枚举（11 节状态表 9 态 + E-230 补齐 3 态）。
  * 顺序固定，与 STATUS_SHAPES 严格 1:1 对应。
@@ -31,9 +73,15 @@ export const STATUS_STATES = [
 	'orphaned',
 	'review_incomplete',
 	'unrecognized',
-] as const;
+] as const satisfies readonly StatusState[];
 
-export type StatusState = (typeof STATUS_STATES)[number];
+type AssertStatusStatesExhaustive = [
+	Exclude<StatusState, (typeof STATUS_STATES)[number]>,
+	Exclude<(typeof STATUS_STATES)[number], StatusState>,
+] extends [never, never]
+	? true
+	: never;
+const _assertStatusStatesExhaustive: AssertStatusStatesExhaustive = true;
 
 /**
  * 运行流步骤的 6 个类型枚举（07 节与 11 节）。
@@ -578,20 +626,11 @@ export const STEP_SHAPES: Readonly<Record<StepType, SpineShapeDefinition>> = Obj
  * 别名映射字典（包含中划线别名、ReviewVerdict 别名与后端 RunState 映射）。
  */
 const STATUS_STATE_ALIASES: Readonly<Record<string, StatusState>> = Object.freeze({
+	...RUN_STATE_TO_STATUS,
 	'awaiting-input': 'awaiting_input',
-	awaiting_reply: 'awaiting_input',
-	awaiting_human: 'awaiting_input',
 	incomplete: 'review_incomplete',
 	degraded: 'unrecognized',
 	unknown: 'unrecognized',
-	landed: 'succeeded',
-	aborted: 'stopped',
-	interrupted: 'stopped',
-	starting: 'thinking',
-	running: 'thinking',
-	reviewing: 'thinking',
-	reworking: 'thinking',
-	exited: 'succeeded',
 });
 
 /**
