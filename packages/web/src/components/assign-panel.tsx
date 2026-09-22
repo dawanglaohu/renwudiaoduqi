@@ -282,12 +282,19 @@ function bottleneckSummaryOf(
 				)}。`,
 			};
 		case 'agent_limit':
-			return {
-				label: 'Agent 单体并发上限',
-				explanation: `瓶颈归因：所指派 Agent 的单体最大并发上限为 ${renderFieldOrFallback(
-					details?.agentLimit,
-				)}，已满额时空位可顺延给别家（E-47）。`,
-			};
+			return details?.agentLimit === null || details?.agentLimit === undefined
+				? {
+						// 逐 agent 数值由 daemon 的 preview.agentCapacities 列出，这里不替它合成一个标量
+						label: 'Agent 单体并发上限',
+						explanation:
+							'瓶颈归因：所指派 Agent 的单体并发上限是三者中最小的一项（逐 agent 数值见上方因子），已满额时空位可顺延给别家（E-47）。',
+					}
+				: {
+						label: 'Agent 单体并发上限',
+						explanation: `瓶颈归因：所指派 Agent 的单体最大并发上限为 ${renderFieldOrFallback(
+							details.agentLimit,
+						)}，已满额时空位可顺延给别家（E-47）。`,
+					};
 		case 'user_setting':
 			return {
 				label: '用户设定并发上限',
@@ -601,12 +608,13 @@ function TaskAssignRow({
 					</select>
 				</div>
 
-				{/* 3. 选择思考强度（若不支持显示「—」，绝不补假默认档，M4-T6, E-254） */}
+				{/* 3. 选择思考强度（未选 agent 不下结论；不支持时显示「—」，绝不补假默认档，M4-T6, E-254） */}
 				<div className="flex flex-col gap-1">
 					<label htmlFor={`effort-select-${rowId}`} className="text-micro text-ink-3 font-mono">
-						思考强度 {supportsEffort ? '(可调)' : '(不支持)'}
+						思考强度{' '}
+						{currentAgent === null ? '(请先选择 Agent)' : supportsEffort ? '(可调)' : '(不支持)'}
 					</label>
-					{supportsEffort ? (
+					{currentAgent !== null && supportsEffort ? (
 						<select
 							id={`effort-select-${rowId}`}
 							data-testid={`select-effort-${task.taskKey}`}
@@ -622,12 +630,22 @@ function TaskAssignRow({
 					) : (
 						<div
 							id={`effort-select-${rowId}`}
-							data-testid={`effort-unsupported-${task.taskKey}`}
+							data-testid={
+								currentAgent === null
+									? `effort-pending-${task.taskKey}`
+									: `effort-unsupported-${task.taskKey}`
+							}
 							className="flex min-h-[44px] sm:min-h-[32px] h-input items-center px-2.5 rounded-sm border border-border bg-panel-2 text-ink-3 font-mono text-dense select-none cursor-not-allowed"
-							title="该 Agent 原生不支持思考强度参数，UI 显示 —，派发不传参（E-254）"
+							title={
+								currentAgent === null
+									? '尚未选择执行 Agent，思考强度档位等 daemon 下发的能力位（E-254）'
+									: '该 Agent 原生不支持思考强度参数，UI 显示 —，派发不传参（E-254）'
+							}
 						>
 							<span>{EMPTY_VALUE_FALLBACK}</span>
-							<span className="text-micro ml-2 text-ink-3">(不支持思考档位)</span>
+							<span className="text-micro ml-2 text-ink-3">
+								{currentAgent === null ? '(待选择 Agent)' : '(不支持思考档位)'}
+							</span>
 						</div>
 					)}
 				</div>
@@ -884,11 +902,15 @@ export function ConcurrencyBottleneckCard({
 							</span>
 						)}
 					</div>
-					<div className="text-dense font-bold text-ink-1 mt-2">
-						{renderFieldOrFallback(agLimit)}
-					</div>
-					{/* 逐 agent 容量：daemon `preview.agentCapacities` 原样列出（E-47） */}
-					<span data-testid="agent-capacity-factors" className="text-micro text-ink-3 mt-1">
+					{/* 逐 agent 容量：daemon `preview.agentCapacities` 原样列出（E-47）；无标量时以它作为因子值 */}
+					<div
+						data-testid="agent-capacity-factors"
+						className={
+							agLimit === null || agLimit === undefined
+								? 'text-micro font-bold text-ink-1 mt-2'
+								: 'text-micro text-ink-3 mt-1'
+						}
+					>
 						{capacities.length > 0
 							? capacities
 									.map(
@@ -899,7 +921,10 @@ export function ConcurrencyBottleneckCard({
 									)
 									.join(' · ')
 							: EMPTY_VALUE_FALLBACK}
-					</span>
+					</div>
+					{(agLimit === null || agLimit === undefined) && (
+						<span className="text-micro text-ink-3 mt-1">单 Agent 最大会话配额</span>
+					)}
 				</div>
 
 				{/* 因子 3：用户设定上限（可调节，E-52, R1: 缺失显示 —, R3: 44x44 触控目标） */}

@@ -299,6 +299,22 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			expect(html).toContain('—');
 		});
 
+		it('未选择 Agent 时不替 daemon 断言「不支持思考强度」(E-254)', () => {
+			const firstTask = mockTasks[0];
+			if (!firstTask) throw new Error('mockTasks[0] is missing');
+			const html = renderToStaticMarkupOf(
+				createElement(TaskAssignmentList, {
+					tasks: [firstTask],
+					agents: mockAgents,
+					assignments: {},
+				}),
+			);
+
+			expect(html).toContain('(请先选择 Agent)');
+			expect(html).toContain('(待选择 Agent)');
+			expect(html).not.toContain('不支持思考档位');
+		});
+
 		it('Agent 容量未下发时显示「—/max」，严禁组件层自算统计', () => {
 			const agentsWithoutUsage: readonly AssignableAgent[] = [
 				{
@@ -439,6 +455,22 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			expect(html).toContain('data-testid="bottleneck-badge-user"');
 			expect(html).toContain('用户设定并发上限');
 			expect(html).toContain('受用户偏好设定上限 (1) 约束');
+		});
+
+		it('agent 上限标量缺失时不合成数字，逐 agent 数值仍来自 daemon', () => {
+			const html = renderToStaticMarkupOf(
+				createElement(ConcurrencyBottleneckCard, {
+					effectiveCapacity: 1,
+					windowCount: 4,
+					userSetting: 3,
+					bottleneckSource: 'agent_limit',
+					agentCapacities: [{ agentId: 'codex', active: 0, limit: 1, drafted: 1, isFull: true }],
+				}),
+			);
+
+			expect(html).toContain('codex 1/1 已满额');
+			expect(html).not.toContain('单体最大并发上限为 —');
+			expect(html).toContain('是三者中最小的一项');
 		});
 
 		it('逐 agent 容量直接列出 daemon preview.agentCapacities（含满额标记）', () => {
