@@ -1113,6 +1113,20 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T13": {
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "39f801d08638003b1e8a4bd32af4f5958634651f52f93a06d0588f490a2163cf",
+    "evidence": [
+      "当前 19 节任务行、五条验收标准与 E-177/E-181 原文保持不变；presentation.json 的 taskPaths 仍只把 packages/web/src/features/run-detail/ 作为任务主范围，task-contracts.json 只追加页面装配、错误文案、Vite 入口和本任务测试所需的五条 supportPaths。",
+      "当前 M8-T5 服务契约仍满足本任务输入：packages/daemon/src/service/rerun.ts:233-252 先按 idempotencyKey 返回既有运行，:281-301 在任务已有 active run 或原运行仍活跃时返回既有运行，:330-342 严格复用原 task/agent/model/permission/snapshot 载荷；packages/daemon/src/http/routes/runs.ts:296-327 由公开 POST /api/v1/runs/:runId/rerun 接入该服务。",
+      "当前前端实现逐条保持语义：use-run-rerun.ts 只开放 failed/aborted/interrupted/stopped，稳定持有幂等键，并在写请求成功后只置灰入口、不替换当前详情；mobile-rerun-bar.tsx 仅手机档渲染日志末尾整宽按钮、桌面端提示且无批量入口；rerun-confirm-dialog.tsx 只有一次确认且没有 Agent/模型选择器。",
+      "main 已落地 M9-T24 正式样式管线：packages/web/vite.config.ts:26-30 指向 packages/web/postcss.config.cjs，后者只注册 tailwindcss 与 autoprefixer；packages/web/test/style-pipeline.test.ts 同时验证 @tailwind 被编译掉和生产工具类存在。M9-T13 不再以内联 Vite 插件覆盖该共享配置，真实 390x844 daemon 页面仍显示整宽 44px 按钮和防误触间距。",
+      "审查第 3 轮的真实证据来自当前分支代码启动的正常 daemon：公开 POST /api/v1/runs 创建运行、公开 POST /api/v1/runs/:id/abort 得到 aborted，再由页面确认真实 rerun；远端 GIF 与本地验收副本 SHA-256 一致。有效路径反造假扫描未命中生产占位、硬编码 gate、window/globalThis 测试钩子或 fetch 绕过。"
+    ],
+    "reviewed": "2026-09-22T07:19:29.177437+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T14": {
     "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
     "contractHash": "22ab983047ded3527e1181eae52a18edb01b3bd639001110bd8a5a9b885a0bfe",
