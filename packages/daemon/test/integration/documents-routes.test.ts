@@ -20,6 +20,10 @@ import type {
 	NativeLockReadResult,
 	NativeLockWriteResult,
 } from '../../src/platform/lock-contract.ts';
+import {
+	type DispatchSnapshotsRepo,
+	createDispatchSnapshotsRepo,
+} from '../../src/repo/dispatch-snapshots.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const testDir = resolve(currentDir, '../fixtures/documents-routes-integration-test');
@@ -220,7 +224,9 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		rmSync(testDir, { recursive: true, force: true });
 	});
 
-	function setupServer() {
+	function setupServer(options?: {
+		dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+	}) {
 		const lockAdapter = createMemoryLockAdapter();
 		const container = createContainer({
 			config: {
@@ -235,6 +241,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 			lockAdapter,
 			instanceLock: { release: () => undefined } as unknown as LockFileHandle,
 			clock: { now: () => '2026-09-10T12:00:00.000Z' },
+			dispatchSnapshotsRepo: options?.dispatchSnapshotsRepo,
 		});
 
 		const server = createHttpServer({ container });
@@ -347,7 +354,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		const docFolder = join(testDir, 'refresh-test-doc');
 		mkdirSync(docFolder, { recursive: true });
 		const docsDataPath = join(docFolder, 'docs-data.js');
-		writeFileSync(docsDataPath, createDocsDataJs({ hashSuffix: 'v1' }), 'utf8');
+		writeFileSync(docsDataPath, createDocsDataJs({ hashSuffix: 'v1', extraTasks: true }), 'utf8');
 		writeFileSync(join(docFolder, 'index.html'), '<html>Reader</html>', 'utf8');
 
 		// 1. Initial import
@@ -399,7 +406,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		// 3. Update task accept text in docs-data.js and refresh -> changed: true, flags.hasAcceptChanged: true, emits system.docs_changed
 		writeFileSync(
 			docsDataPath,
-			createDocsDataJs({ hashSuffix: 'v2', t1Accept: '2) 验收已被修改的新要求' }),
+			createDocsDataJs({ hashSuffix: 'v2', t1Accept: '2) 验收已被修改的新要求', extraTasks: true }),
 			'utf8',
 		);
 		const refreshChangedRes = await server.instance.inject({
@@ -414,6 +421,25 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 
 		const docsChangedEvents = emittedEvents.filter((e) => e.kind === 'system.docs_changed');
 		expect(docsChangedEvents.length).toBeGreaterThanOrEqual(1);
+
+		// E-19 & R1: Verify GET /documents/:docId/tasks projects per-task change flags (only T-1 is marked hasAcceptChanged)
+		const listTasksRes = await server.instance.inject({
+			method: 'GET',
+			url: `/api/v1/documents/${docId}/tasks`,
+			headers: { authorization: authToken },
+		});
+		expect(listTasksRes.statusCode).toBe(200);
+		const listTasksBody = JSON.parse(listTasksRes.body) as ListDocumentTasksResponse;
+		const taskT1Dto = listTasksBody.tasks.find((t) => t.taskKey === 'T-1');
+		const taskT2Dto = listTasksBody.tasks.find((t) => t.taskKey === 'T-2');
+		expect(taskT1Dto).toBeDefined();
+		expect(taskT2Dto).toBeDefined();
+		expect(taskT1Dto?.hasAcceptChanged).toBe(true);
+		expect(taskT1Dto?.hasPromptChanged).toBe(true);
+		expect(taskT1Dto?.isRemovedFromDoc).toBe(false);
+		expect(taskT2Dto?.hasAcceptChanged).toBe(false);
+		expect(taskT2Dto?.hasPromptChanged).toBe(false);
+		expect(taskT2Dto?.isRemovedFromDoc).toBe(false);
 
 		// 4. File unreadable: remove docs-data.js -> 409 E_DOC_SOURCE_UNREADABLE, is_source_readable = 0, existing records not deleted
 		rmSync(docsDataPath);
@@ -636,5 +662,135 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 			expect(typeof batch.canWrapup).toBe('boolean');
 			expect(typeof batch.notInHeadCount).toBe('number');
 		}
+	});
+
+	it('R2 regression: refreshDocument rolls back metadata, tasks, and flags on late-stage failure and recovers on retry', async () => {
+		let shouldFail = true;
+		const realSnapshotsRepo = createDispatchSnapshotsRepo(db);
+		const controlledSnapshotsRepo: DispatchSnapshotsRepo = {
+			...realSnapshotsRepo,
+			refreshDocDiff(targetDocId: string, activeTaskKeys?: readonly string[]) {
+				if (shouldFail) {
+					throw new AppError('E_INTERNAL', 'Simulated late-stage failure in refreshDocDiff');
+				}
+				return realSnapshotsRepo.refreshDocDiff(targetDocId, activeTaskKeys);
+			},
+		};
+
+		const { server, container } = setupServer({
+			dispatchSnapshotsRepo: controlledSnapshotsRepo,
+		});
+		const authToken = await getAuthToken(container);
+		await server.instance.ready();
+
+		const docFolder = join(testDir, 'rollback-test-doc');
+		mkdirSync(docFolder, { recursive: true });
+		const docsDataPath = join(docFolder, 'docs-data.js');
+		writeFileSync(docsDataPath, createDocsDataJs({ hashSuffix: 'v1', extraTasks: true }), 'utf8');
+		writeFileSync(join(docFolder, 'index.html'), '<html>Reader</html>', 'utf8');
+
+		// 1. Initial import
+		const importRes = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers: { authorization: authToken },
+			payload: { docsPath: docsDataPath },
+		});
+		expect(importRes.statusCode).toBe(200);
+		const docId = (JSON.parse(importRes.body) as CreateDocumentResponse).document.id;
+
+		const docBefore = container.repos.documents.findById(docId);
+		expect(docBefore).not.toBeNull();
+		if (!docBefore) throw new Error('docBefore not found');
+		const initialFingerprint = docBefore.content_fingerprint;
+
+		// Snapshot T-1
+		const taskT1 = container.repos.tasks.findByDocAndKey(docId, 'T-1');
+		expect(taskT1).not.toBeNull();
+		if (!taskT1) throw new Error('taskT1 not found');
+		const snapshotsRepo = container.repos.dispatchSnapshots;
+		if (!snapshotsRepo) throw new Error('dispatchSnapshots repo not found');
+		snapshotsRepo.takeSnapshotForTask({
+			taskId: taskT1.id,
+			launchSpecJson: JSON.stringify({ adapter: 'process', command: 'echo', args: [] }),
+			createdAt: new Date().toISOString(),
+		});
+
+		// Subscribe to events
+		const emittedEvents: Array<{ kind: string; payload: unknown }> = [];
+		container.events.bus.subscribe((envelope) => {
+			emittedEvents.push({ kind: envelope.kind, payload: envelope.payload });
+		});
+
+		// 2. Prepare v2 docs-data.js with modified accept text for T-1
+		writeFileSync(
+			docsDataPath,
+			createDocsDataJs({ hashSuffix: 'v2', t1Accept: '2) 验收已被修改的新要求', extraTasks: true }),
+			'utf8',
+		);
+
+		// 3. Attempt refresh -> fails in late stage (refreshDocDiff throws)
+		const failedRefreshRes = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers: { authorization: authToken },
+		});
+		expect(failedRefreshRes.statusCode).toBe(500);
+
+		// Verify atomic rollback:
+		// - metadata content_fingerprint was rolled back to initialFingerprint
+		const docAfterRollback = container.repos.documents.findById(docId);
+		expect(docAfterRollback).not.toBeNull();
+		if (!docAfterRollback) throw new Error('docAfterRollback not found');
+		expect(docAfterRollback.content_fingerprint).toBe(initialFingerprint);
+
+		// - tasks row has_accept_changed is NOT set
+		const taskAfterRollback = container.repos.tasks.findByDocAndKey(docId, 'T-1');
+		expect(taskAfterRollback).not.toBeNull();
+		if (!taskAfterRollback) throw new Error('taskAfterRollback not found');
+		expect(taskAfterRollback.has_accept_changed).toBe(0);
+
+		// - NO system.docs_changed event was published
+		expect(emittedEvents.filter((e) => e.kind === 'system.docs_changed')).toHaveLength(0);
+
+		// 4. Recover and retry: disable failure simulation
+		shouldFail = false;
+
+		const retryRefreshRes = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers: { authorization: authToken },
+		});
+		expect(retryRefreshRes.statusCode).toBe(200);
+		const retryBody = JSON.parse(retryRefreshRes.body) as RefreshDocumentResponse;
+		expect(retryBody.changed).toBe(true);
+		expect(retryBody.flags.hasAcceptChanged).toBe(true);
+
+		// Verify DB updated after successful retry:
+		const docAfterRetry = container.repos.documents.findById(docId);
+		expect(docAfterRetry).not.toBeNull();
+		if (!docAfterRetry) throw new Error('docAfterRetry not found');
+		expect(docAfterRetry.content_fingerprint).not.toBe(initialFingerprint);
+
+		const taskAfterRetry = container.repos.tasks.findByDocAndKey(docId, 'T-1');
+		expect(taskAfterRetry).not.toBeNull();
+		if (!taskAfterRetry) throw new Error('taskAfterRetry not found');
+		expect(taskAfterRetry.has_accept_changed).toBe(1);
+
+		// Event published once on successful retry
+		expect(emittedEvents.filter((e) => e.kind === 'system.docs_changed')).toHaveLength(1);
+
+		// Tasks list shows T-1 marked hasAcceptChanged = true, T-2 marked false
+		const tasksListRes = await server.instance.inject({
+			method: 'GET',
+			url: `/api/v1/documents/${docId}/tasks`,
+			headers: { authorization: authToken },
+		});
+		expect(tasksListRes.statusCode).toBe(200);
+		const tasksListBody = JSON.parse(tasksListRes.body) as ListDocumentTasksResponse;
+		const t1Dto = tasksListBody.tasks.find((t) => t.taskKey === 'T-1');
+		const t2Dto = tasksListBody.tasks.find((t) => t.taskKey === 'T-2');
+		expect(t1Dto?.hasAcceptChanged).toBe(true);
+		expect(t2Dto?.hasAcceptChanged).toBe(false);
 	});
 });

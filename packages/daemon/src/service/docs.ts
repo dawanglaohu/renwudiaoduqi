@@ -264,6 +264,9 @@ function toTaskDto(row: TaskRow & { derived_state?: string }): TaskDto {
 		estDays: row.est_days,
 		batchId: row.batch_id,
 		state,
+		hasAcceptChanged: row.has_accept_changed === 1,
+		hasPromptChanged: row.has_prompt_changed === 1,
+		isRemovedFromDoc: row.is_removed_from_doc === 1,
 	});
 }
 
@@ -719,6 +722,7 @@ function persistParsedTasks(
 	deps: DocsServiceDeps,
 	docId: string,
 	parsed: ParsedDocData,
+	skipUnitOfWork = false,
 ): {
 	readonly tasksImported: boolean;
 	readonly dependencyReport: DependencyValidationReport | null;
@@ -754,7 +758,7 @@ function persistParsedTasks(
 			{ docId, tasks: taskInputs, idGenerator: () => deps.ids.newId() },
 			{ tasksRepo, batchesRepo },
 		);
-	const result = deps.unitOfWork ? deps.unitOfWork.run(run) : run();
+	const result = deps.unitOfWork && !skipUnitOfWork ? deps.unitOfWork.run(run) : run();
 	return { tasksImported: true, dependencyReport: result.report };
 }
 
@@ -955,8 +959,6 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				is_source_readable: 1,
 				last_seen_at: now,
 			};
-			deps.documentsRepo.updateMetadata(updateRow);
-			persistParsedTasks(deps, existingRow.id, parsed);
 
 			let flags = {
 				hasAcceptChanged: false,
@@ -964,16 +966,27 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				isRemovedFromDoc: false,
 			};
 
-			if (deps.dispatchSnapshotsRepo) {
-				const banner = deps.dispatchSnapshotsRepo.refreshDocDiff(
-					existingRow.id,
-					parsed.tasks.map((t) => t.id),
-				);
-				flags = {
-					hasAcceptChanged: banner.acceptChangedCount > 0,
-					hasPromptChanged: banner.promptChangedCount > 0,
-					isRemovedFromDoc: banner.removedTaskCount > 0,
-				};
+			const performDatabaseRefresh = () => {
+				deps.documentsRepo.updateMetadata(updateRow);
+				persistParsedTasks(deps, existingRow.id, parsed, true);
+
+				if (deps.dispatchSnapshotsRepo) {
+					const banner = deps.dispatchSnapshotsRepo.refreshDocDiff(
+						existingRow.id,
+						parsed.tasks.map((t) => t.id),
+					);
+					flags = {
+						hasAcceptChanged: banner.acceptChangedCount > 0,
+						hasPromptChanged: banner.promptChangedCount > 0,
+						isRemovedFromDoc: banner.removedTaskCount > 0,
+					};
+				}
+			};
+
+			if (deps.unitOfWork) {
+				deps.unitOfWork.run(performDatabaseRefresh);
+			} else {
+				performDatabaseRefresh();
 			}
 
 			if (hasChanged && deps.bus && deps.envelopeFactory) {
