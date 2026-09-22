@@ -1,11 +1,6 @@
-import { RUN_STATES } from './run-state-machine.ts';
+import { TASK_STATES, type TaskState } from '@agent-scheduler/shared/api/tasks';
 
-/**
- * 任务状态值域（09 节数据模型）：13 个运行状态 + never_dispatched。
- */
-export const TASK_STATES = [...RUN_STATES, 'never_dispatched'] as const;
-
-export type TaskState = (typeof TASK_STATES)[number];
+export { TASK_STATES, type TaskState };
 
 export function isTaskState(state: unknown): state is TaskState {
 	return typeof state === 'string' && (TASK_STATES as readonly string[]).includes(state);

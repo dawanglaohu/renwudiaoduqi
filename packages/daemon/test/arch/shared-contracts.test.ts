@@ -130,29 +130,115 @@ describe('M2-T8 Architecture: Contract Enum Tightening & Named Snapshot Arrays',
 		expect(RUN_STATES).toEqual(expected09RunStates);
 	});
 
-	it('AC 2 & E-234: daemon and web src/ contain no union types assembled from status literals', () => {
+	it('AC 2 & E-234: daemon and web src/ contain no union types assembled from status literals or duplicate status array definitions', () => {
 		const daemonFiles = collectFiles(daemonSrcRoot);
 		const webFiles = collectFiles(webSrcRoot);
 		const targetFiles = [...daemonFiles, ...webFiles];
 
-		// 检查是否有直接用 'queued' | 'starting' | 'running' 等运行态字面量拼装联合类型的声明
-		// 或 const RUN_STATES = ['queued', ...] 的重新定义
-		const unionPattern =
-			/(?:type\s+\w+\s*=\s*(?:[^\n;]*['"]queued['"][^\n;]*\||['"]starting['"][^\n;]*\||['"]running['"][^\n;]*\|))|const\s+RUN_STATES\s*=\s*\[/;
+		// 检查状态联合类型声明与数组定义：
+		// 1) 严禁在 daemon/web src/ 中声明 type RunState / BatchState / TaskState = ...
+		// 2) 严禁重新定义状态数组：const RUN_STATES/BATCH_STATES/TASK_STATES/VALID_BATCH_STATES = [...] 或 [...RUN_STATES, ...]
+		// 3) 严禁在本地拼装调度器运行状态、批次状态或任务状态的联合类型（单行或多行）
+		const forbiddenTypeDefNames = /\btype\s+(?:RunState|BatchState|TaskState)\s*=/;
+		const forbiddenArrayDefPattern =
+			/\b(?:const|let|var)\s+(?:RUN_STATES|BATCH_STATES|TASK_STATES|VALID_BATCH_STATES)\s*=\s*\[/;
+		const forbiddenSpreadPattern = /\[\s*\.\.\.\s*RUN_STATES/;
+
+		const multilineTypeUnionRegex = /\btype\s+(\w+)\s*=\s*([^;]+);/gs;
+
+		const runStateLiterals = new Set([
+			'queued',
+			'starting',
+			'running',
+			'awaiting_reply',
+			'exited',
+			'reviewing',
+			'reworking',
+			'awaiting_human',
+			'orphaned',
+			'landed',
+			'failed',
+			'aborted',
+			'interrupted',
+		]);
+
+		const batchSpecificLiterals = new Set([
+			'idle',
+			'paused',
+			'awaiting_landing',
+			'wrapping',
+			'needs_attention',
+		]);
+
+		const batchStateLiterals = new Set([...batchSpecificLiterals, 'running', 'done']);
 
 		const violations: { file: string; line: number; text: string }[] = [];
 
 		for (const file of targetFiles) {
 			const content = readFileSync(file, 'utf8');
 			const lines = content.split('\n');
+			const relPath = relative(repositoryRoot, file).replace(/\\/g, '/');
+
 			for (let i = 0; i < lines.length; i++) {
 				const line = lines[i] ?? '';
-				if (unionPattern.test(line)) {
+				if (forbiddenTypeDefNames.test(line)) {
 					violations.push({
-						file: relative(repositoryRoot, file).replace(/\\/g, '/'),
+						file: relPath,
 						line: i + 1,
 						text: line.trim(),
 					});
+				}
+				if (forbiddenArrayDefPattern.test(line)) {
+					violations.push({
+						file: relPath,
+						line: i + 1,
+						text: line.trim(),
+					});
+				}
+				if (forbiddenSpreadPattern.test(line)) {
+					violations.push({
+						file: relPath,
+						line: i + 1,
+						text: line.trim(),
+					});
+				}
+			}
+
+			const matches = Array.from(content.matchAll(multilineTypeUnionRegex));
+			for (const match of matches) {
+				const typeName = match[1] ?? '';
+				const typeBody = match[2] ?? '';
+				if (typeBody.includes('|')) {
+					const quotedLiterals = Array.from(typeBody.matchAll(/['"]([a-z_]+)['"]/g)).map(
+						(m) => m[1] ?? '',
+					);
+
+					const matchedRunLiterals = quotedLiterals.filter((lit) => runStateLiterals.has(lit));
+					const matchedBatchLiterals = quotedLiterals.filter((lit) => batchStateLiterals.has(lit));
+					const hasBatchSpecific = quotedLiterals.some((lit) => batchSpecificLiterals.has(lit));
+					const hasNeverDispatched = quotedLiterals.includes('never_dispatched');
+
+					// 判定是否为状态联合类型定义：
+					// - 包含 3 个及以上运行态
+					// - 或包含 3 个及以上批次态且含批次特有态
+					// - 或包含 never_dispatched
+					const isStatusUnion =
+						matchedRunLiterals.length >= 3 ||
+						(matchedBatchLiterals.length >= 3 && hasBatchSpecific) ||
+						hasNeverDispatched;
+
+					if (isStatusUnion) {
+						const matchIndex = match.index ?? 0;
+						const lineNumber = content.slice(0, matchIndex).split('\n').length;
+						const text = match[0].split('\n')[0]?.trim() ?? '';
+						if (!violations.some((v) => v.file === relPath && v.line === lineNumber)) {
+							violations.push({
+								file: relPath,
+								line: lineNumber,
+								text: `${text}...`,
+							});
+						}
+					}
 				}
 			}
 		}
@@ -161,6 +247,39 @@ describe('M2-T8 Architecture: Contract Enum Tightening & Named Snapshot Arrays',
 			violations,
 			`Found status union or re-definition in daemon/web src/: ${JSON.stringify(violations, null, 2)}`,
 		).toEqual([]);
+	});
+
+	it('AC 2 & E-234: architecture test catches multiline status unions and derived status arrays', () => {
+		const sampleMultilineBatchState = `
+			export type BatchState =
+				| 'idle'
+				| 'running'
+				| 'paused'
+				| 'awaiting_landing'
+				| 'wrapping'
+				| 'needs_attention'
+				| 'done';
+			export const VALID_BATCH_STATES = [
+				'idle',
+				'running',
+				'paused',
+			] as const;
+		`;
+		const sampleDerivedTaskState = `
+			export const TASK_STATES = [...RUN_STATES, 'never_dispatched'] as const;
+			export type TaskState = (typeof TASK_STATES)[number];
+		`;
+
+		const forbiddenTypeDefNames = /\btype\s+(?:RunState|BatchState|TaskState)\s*=/;
+		const forbiddenArrayDefPattern =
+			/\b(?:const|let|var)\s+(?:RUN_STATES|BATCH_STATES|TASK_STATES|VALID_BATCH_STATES)\s*=\s*\[/;
+		const forbiddenSpreadPattern = /\[\s*\.\.\.\s*RUN_STATES/;
+
+		expect(forbiddenTypeDefNames.test(sampleMultilineBatchState)).toBe(true);
+		expect(forbiddenArrayDefPattern.test(sampleMultilineBatchState)).toBe(true);
+		expect(forbiddenTypeDefNames.test(sampleDerivedTaskState)).toBe(true);
+		expect(forbiddenArrayDefPattern.test(sampleDerivedTaskState)).toBe(true);
+		expect(forbiddenSpreadPattern.test(sampleDerivedTaskState)).toBe(true);
 	});
 
 	// ─── AC 3: function isRecord 全仓恰 1 处且 packages/shared dependencies 为空 ───
