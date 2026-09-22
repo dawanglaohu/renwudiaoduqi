@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-VERSION = '1.6.0'
+VERSION = '1.6.1'
 SCHEMA_VERSION = 1
 TASK_RE = re.compile(r'(?:M\d{1,2}-T\d{1,3}|R\d{1,3}-T\d{1,8})')
 # handoff.wiring 与任务 wiring 共用的类别。
