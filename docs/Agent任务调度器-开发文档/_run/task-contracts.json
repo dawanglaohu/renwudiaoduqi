@@ -526,7 +526,20 @@
     },
     "M9-T18": {
       "supportPaths": [
-        "packages/web/test/assign-panel.test.ts"
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-deck/use-assign-panel.ts",
+        "packages/web/src/components/empty-onboarding.tsx",
+        "packages/web/src/api/batches.ts",
+        "packages/web/src/api/cache-keys.ts",
+        "packages/web/src/api/cache-invalidation.ts",
+        "packages/web/src/store/selection-store.ts",
+        "packages/web/test/assign-panel.test.ts",
+        "packages/web/src/app/app.tsx"
+      ],
+      "requires": [
+        {
+          "task": "M8-T11"
+        }
       ]
     },
     "M9-T19": {
@@ -1485,23 +1498,6 @@
         },
         {
           "task": "M9-T26"
-        }
-      ]
-    },
-    "M9-T18": {
-      "supportPaths": [
-        "packages/web/src/features/run-deck/run-deck-view.tsx",
-        "packages/web/src/features/run-deck/use-assign-panel.ts",
-        "packages/web/src/components/empty-onboarding.tsx",
-        "packages/web/src/api/batches.ts",
-        "packages/web/src/api/cache-keys.ts",
-        "packages/web/src/api/cache-invalidation.ts",
-        "packages/web/src/store/selection-store.ts",
-        "packages/web/test/assign-panel.test.ts"
-      ],
-      "requires": [
-        {
-          "task": "M8-T11"
         }
       ]
     }
