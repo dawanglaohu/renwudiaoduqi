@@ -112,11 +112,15 @@ function makeTestContainer() {
 }
 
 describe('M2-T6 Route consistency, request validation, and contract assertions', () => {
-	it('AC 1: Fastify registered method+path set === routes.ts constant table exactly (no more, no less)', async () => {
+	it('AC 1: Fastify registered method+path set === routes.ts constant table exactly (no more, no less) and no two routes share handler', async () => {
 		const container = makeTestContainer();
 		const server = createHttpServer({ container });
 
-		const registeredRoutes: Array<{ method: string; url: string }> = [];
+		const registeredRoutes: Array<{
+			method: string;
+			url: string;
+			handler: (...args: unknown[]) => unknown;
+		}> = [];
 		server.instance.addHook('onRoute', (routeOptions) => {
 			const methods = Array.isArray(routeOptions.method)
 				? routeOptions.method
@@ -126,6 +130,7 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 					registeredRoutes.push({
 						method,
 						url: routeOptions.url,
+						handler: routeOptions.handler as (...args: unknown[]) => unknown,
 					});
 				}
 			}
@@ -138,11 +143,10 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 		// ran `vite build` first, which is exactly what CI does. It is a static file route,
 		// not part of the API contract in routes.ts, so compare the contract surface only.
 		const STATIC_FALLBACK_ROUTE = 'GET /*';
-		const actualSet = new Set(
-			registeredRoutes
-				.map((r) => `${r.method.toUpperCase()} ${r.url}`)
-				.filter((route) => route !== STATIC_FALLBACK_ROUTE),
+		const contractRoutes = registeredRoutes.filter(
+			(r) => `${r.method.toUpperCase()} ${r.url}` !== STATIC_FALLBACK_ROUTE,
 		);
+		const actualSet = new Set(contractRoutes.map((r) => `${r.method.toUpperCase()} ${r.url}`));
 		const expectedSet = new Set(
 			ROUTES.map((r: RouteDefinition) => `${r.method.toUpperCase()} ${r.path}`),
 		);
@@ -161,6 +165,13 @@ describe('M2-T6 Route consistency, request validation, and contract assertions',
 		).toEqual([]);
 		expect(actualSet.size).toBe(ROUTES.length);
 		expect(actualSet).toEqual(expectedSet);
+
+		// E-215, E-216: 断言没有任何两条路由共用同一个 handler 函数对象
+		const handlerSet = new Set(contractRoutes.map((r) => r.handler));
+		expect(
+			handlerSet.size,
+			`Expected every route to have a distinct handler function object, but found duplicates: ${contractRoutes.length} routes, ${handlerSet.size} unique handlers`,
+		).toBe(contractRoutes.length);
 	});
 
 	it('AC 2 & E-215: Key list constants are exhaustive for every request body interface', () => {

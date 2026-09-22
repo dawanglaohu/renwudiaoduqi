@@ -295,18 +295,14 @@
     "verdict": "pass"
   },
   "M2-T7": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "70dbfd4dee132cec1374a8ad4f53142e92779856c1ed1a677e594de2cb578f94",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "dec39b067039b221efec624559e3fe5114bdba3dff40c45558cb59af4ec7cc31",
     "evidence": [
-      "前置：M2-T6、M3-T2、M3-T3、M3-T4、M8-T3、M8-T6；其中已落地 6 个。",
-      "验收标准引用边界 E-08、E-17、E-19、E-82、E-215、E-216，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/daemon/src/http/plugins/50-routes.ts（类别 backendRoutes）",
-      "注册点文件已核存在于 packages/shared/src/api/routes.ts（类别 backendRoutes）",
-      "有效范围 14 条：packages/daemon/src/boot/container.ts；packages/daemon/src/domain/task-state.ts；packages/daemon/src/http/plugins/50-routes.ts；packages/daemon/src/http/routes/documents.ts；packages/daemon/src/repo/batches.ts；packages/daemon/src/repo/runs.ts；packages/daemon/src/repo/tasks.ts；packages/daemon/src/service/batch.ts；packages/daemon/src/service/docs.ts；packages/daemon/test/arch/routes.test.ts；packages/daemon/test/integration/documents-routes.test.ts；packages/daemon/test/unit/documents-routes.test.ts；packages/shared/src/api/documents.ts；packages/shared/src/api/routes.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/daemon/src/domain/task-state.ts、packages/daemon/test/integration/documents-routes.test.ts。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "本补丁只给 M2-T7 的 supportPaths 增加 packages/shared/src/api/tasks.ts；M2-T7 原有验收 1-5、E-08/E-17/E-19/E-215/E-216/E-82、前置与其他有效路径未改，未放宽行为要求。",
+      "E-19 原文要求派发后 input/output/accept 变化可在列表逐任务标记；当前 TaskDto 唯一定义在 packages/shared/src/api/tasks.ts，服务端 docs.ts 的 toTaskDto 正消费此 DTO，因此加入此路径是必要且局部的类型契约支持。",
+      "sync 的 changes 只影响 M2-T7；并发范围核对后，新共享 DTO 路径由本任务认领，未扩展其他任务。当前 PR 的代码语义仍有阻断项，契约复核不表示代码验收通过。"
     ],
-    "reviewed": "2026-09-18T18:32:42.482558+00:00",
+    "reviewed": "2026-09-22T03:23:47.878106+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
