@@ -18,7 +18,9 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode, useCallback } from 'react';
+import { AssignPanel } from '../../components/assign-panel.tsx';
 import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
+import { InlineNotice } from '../../components/inline-notice.tsx';
 import { StreamColumn } from '../../components/stream-column.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
@@ -28,6 +30,7 @@ import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
 import { MobilePaneSwitcher } from './mobile-pane-switcher.tsx';
 import { StopConfirmDialog } from './stop-confirm-dialog.tsx';
 import type { DeckStreamLane, MobileBatchItem } from './types.ts';
+import { useAssignPanel } from './use-assign-panel.ts';
 import { type UseRunDeckResult, isWaitingApproval } from './use-run-deck.ts';
 
 /**
@@ -182,8 +185,10 @@ export function RunDeckView(props: RunDeckViewProps) {
 		[selectMobileLane, onSelectTask, isMobileMode, setPane],
 	);
 
-	// E-108: 零运行空态直接呈现四步引导控制台，而非插画（M9-T16）。
+	// E-108: 零运行空态直接呈现四步引导控制台，而非插画（M9-T16, M9-T18 接入真实零运行流程）。
 	// 必须放在全部 hook 之后：泳道数在 0 与非 0 之间变化时 hook 数量不能变。
+	const assignPanel = useAssignPanel({ enabled: streamCount === 0 });
+
 	if (streamCount === 0) {
 		return (
 			<section
@@ -195,7 +200,55 @@ export function RunDeckView(props: RunDeckViewProps) {
 					className ?? '',
 				].join(' ')}
 			>
-				<EmptyOnboarding />
+				{/* 取数失败就地提示，不整页替换（07 节错误体系） */}
+				{assignPanel.error && (
+					<div className="mb-3 w-full max-w-4xl mx-auto">
+						<InlineNotice
+							tone="down"
+							testId="assign-panel-error"
+							message={assignPanel.error.message}
+							technical={assignPanel.error.technical}
+						/>
+					</div>
+				)}
+				<EmptyOnboarding
+					documents={assignPanel.documents}
+					batches={assignPanel.batches}
+					tasks={assignPanel.tasks}
+					selectedDocId={assignPanel.selectedDocId ?? undefined}
+					selectedBatchId={assignPanel.selectedBatchId ?? undefined}
+					onSelectDoc={assignPanel.selectDoc}
+					onSelectBatch={assignPanel.selectBatch}
+					step3Summary={assignPanel.step3Summary}
+					step3Slot={
+						<AssignPanel
+							mode="step3"
+							tasks={assignPanel.tasks}
+							agents={assignPanel.agents}
+							assignments={assignPanel.assignments}
+							agentCapacities={assignPanel.agentCapacities}
+							onAssignTask={(taskId, selection) => {
+								void assignPanel.assignTask(taskId, selection);
+							}}
+							onResetAssignment={(taskId) => {
+								void assignPanel.resetAssignment(taskId);
+							}}
+						/>
+					}
+					step4Slot={
+						<AssignPanel
+							mode="step4"
+							audit={assignPanel.audit}
+							isUnlockedAboveWindow={assignPanel.isUnlockedAboveWindow}
+							canIncreaseUserSetting={assignPanel.canIncreaseUserSetting}
+							canDecreaseUserSetting={assignPanel.canDecreaseUserSetting}
+							onChangeUserSetting={(laneCount) => {
+								void assignPanel.changeUserSetting(laneCount);
+							}}
+							onToggleUnlockAboveWindow={assignPanel.toggleUnlockAboveWindow}
+						/>
+					}
+				/>
 			</section>
 		);
 	}

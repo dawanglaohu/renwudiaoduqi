@@ -39,18 +39,6 @@ export interface OnboardingBatchOption {
 }
 
 /**
- * 单个任务的指派草稿。
- */
-export interface TaskAssignmentDraft {
-	readonly taskId: string;
-	readonly taskKey: string;
-	readonly title: string;
-	readonly agentKey: string;
-	readonly modelName: string;
-	readonly effortTier?: string;
-}
-
-/**
  * 文档变更横幅数据模型（AC 4, E-19）。
  */
 export interface DocChangeNotice {
@@ -92,12 +80,19 @@ export interface EmptyOnboardingProps {
 	readonly docChangeNotice?: DocChangeNotice | null;
 	/** 查看受影响任务列表回调（AC 4 / E-19） */
 	readonly onViewAffectedTasks?: (taskIds: readonly string[]) => void;
-	/** 派发成功提交回调 */
+	/** 派发成功提交回调（指派草稿已在第三步直接写入 daemon，这里只回报选中的文档与批次） */
 	readonly onDispatch?: (payload: {
 		docId: string;
 		batchId: string;
-		assignments?: readonly TaskAssignmentDraft[];
 	}) => void;
+	/** 受控选中文档（不传则组件内部自持，供独立渲染与测试） */
+	readonly selectedDocId?: string;
+	/** 受控选中批次（不传则组件内部自持） */
+	readonly selectedBatchId?: string;
+	/** 选中文档回调：真实取数与指派草稿由 feature 层按该选择加载 */
+	readonly onSelectDoc?: (docId: string) => void;
+	/** 选中批次回调 */
+	readonly onSelectBatch?: (batchId: string) => void;
 	/** 样式自定义扩展 */
 	readonly className?: string;
 }
@@ -180,6 +175,10 @@ export function EmptyOnboarding({
 	docChangeNotice,
 	onViewAffectedTasks,
 	onDispatch,
+	selectedDocId: controlledDocId,
+	selectedBatchId: controlledBatchId,
+	onSelectDoc,
+	onSelectBatch,
 	className = '',
 }: EmptyOnboardingProps) {
 	// 步进索引：0=选文档, 1=选批次, 2=逐任务指派, 3=派发
@@ -191,15 +190,18 @@ export function EmptyOnboarding({
 		onStepChange?.(next);
 	};
 
-	// 第一步：选定文档（初始为空或首个传入的真实文档）
-	const [selectedDocId, setSelectedDocId] = useState<string>(() => documents?.[0]?.id ?? '');
+	// 第一步：选定文档（受控时以 props 为准，独立渲染时内部自持）
+	const [internalDocId, setInternalDocId] = useState<string>(() => documents?.[0]?.id ?? '');
 
 	// 第二步：选定批次（联动：初始选对应文档的第一个批次）
-	const [selectedBatchId, setSelectedBatchId] = useState<string>(() => {
+	const [internalBatchId, setInternalBatchId] = useState<string>(() => {
 		const docId = documents?.[0]?.id ?? '';
 		const firstMatchingBatch = batches?.find((b) => b.docId === docId);
 		return firstMatchingBatch?.id ?? '';
 	});
+
+	const selectedDocId = controlledDocId ?? internalDocId;
+	const selectedBatchId = controlledBatchId ?? internalBatchId;
 
 	const selectedDoc = documents?.find((d) => d.id === selectedDocId);
 
@@ -209,9 +211,15 @@ export function EmptyOnboarding({
 
 	// 切换选中文档时联动更新批次选择
 	const handleSelectDoc = (docId: string) => {
-		setSelectedDocId(docId);
+		setInternalDocId(docId);
 		const matchingBatch = batches?.find((b) => b.docId === docId);
-		setSelectedBatchId(matchingBatch?.id ?? '');
+		setInternalBatchId(matchingBatch?.id ?? '');
+		onSelectDoc?.(docId);
+	};
+
+	const handleSelectBatch = (batchId: string) => {
+		setInternalBatchId(batchId);
+		onSelectBatch?.(batchId);
 	};
 
 	// 派发触发
@@ -485,7 +493,7 @@ export function EmptyOnboarding({
 										key={batch.id}
 										data-batch-id={batch.id}
 										data-selected={isSelected ? 'true' : 'false'}
-										onClick={() => setSelectedBatchId(batch.id)}
+										onClick={() => handleSelectBatch(batch.id)}
 										className={[
 											'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
 											isSelected
@@ -576,7 +584,7 @@ export function EmptyOnboarding({
 					<div data-slot="step-3-assign" className="flex flex-col gap-2.5">
 						{step3Slot ?? (
 							<div
-								data-testid="step-3-placeholder"
+								data-testid="step-3-fallback"
 								className="p-6 rounded border border-border bg-page text-center font-mono text-meta text-ink-3"
 							>
 								{tasks && tasks.length > 0 ? (
