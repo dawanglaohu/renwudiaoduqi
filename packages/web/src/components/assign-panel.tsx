@@ -16,6 +16,11 @@
  * - 纯展示组件（components 纯 props in / callback out），颜色全走 CSS 变量（check-forbidden 机检）。
  */
 
+import type { EffortTier, EffortValue } from '@agent-scheduler/shared/api/agents';
+import {
+	CONCURRENCY_PREVIEW_BOTTLENECKS,
+	type ConcurrencyPreviewBottleneck,
+} from '@agent-scheduler/shared/api/batches';
 import { useId, useMemo, useState } from 'react';
 
 /**
@@ -58,62 +63,66 @@ export interface AssignableAgent {
 	readonly usedConcurrency?: number | null;
 	/** daemon/feature 下发的满额状态 (R1) */
 	readonly isLimitReached?: boolean | null;
-	/** daemon/feature 下发将分配的下一会话序号，缺失显示「—」 (R1) */
-	readonly nextSessionIndex?: number | null;
 	readonly supportsEffort?: boolean;
 	readonly models?: readonly string[];
 }
 
 /**
- * 单个任务的指派草稿。
+ * 单个任务的指派记录——字段与 daemon `TaskAssignmentDto` 同名同义，
+ * `sessionNo` 即该任务派发后将使用的独立会话序号（E-31），由 daemon 下发，前端不推导。
  */
-export interface TaskAssignmentDraft {
+export interface TaskAssignmentSelection {
 	readonly taskId: string;
 	readonly taskKey: string;
-	readonly title: string;
-	readonly agentKey: string;
-	readonly modelName: string;
-	readonly effortTier?: string | null;
-	/** daemon/feature 明确下发的独立会话序号，缺失显示「—」 (R1) */
-	readonly sessionIndex?: number | null;
+	readonly agentId: string;
+	readonly model: string | null;
+	/** daemon 原样下发的思考强度三态（10 节 `EffortValue`） */
+	readonly effort: EffortValue;
+	/** daemon 下发的会话序号，缺失显示「—」 (R1) */
+	readonly sessionNo: number | null;
 }
 
 /**
- * 并发瓶颈分类枚举（与 daemon CONCURRENCY_BOTTLENECKS 一致）。
+ * 并发瓶颈三值域来自 shared 契约（`CONCURRENCY_PREVIEW_BOTTLENECKS`），
+ * 组件不另立枚举：M8-T1 的五值瓶颈由 daemon 收窄后才下发，越界即 E_INTERNAL。
  */
-export const CONCURRENCY_BOTTLENECK_TYPES = {
-	USER_SETTING: 'user_setting',
-	WINDOW_COUNT: 'window_count',
-	AGENT_LIMIT: 'agent_limit',
-	MACHINE_RESOURCE: 'machine_resource',
-	PATH_CONFLICT: 'path_conflict',
-} as const;
+export type ConcurrencyBottleneckType = ConcurrencyPreviewBottleneck;
 
-export type ConcurrencyBottleneckType =
-	(typeof CONCURRENCY_BOTTLENECK_TYPES)[keyof typeof CONCURRENCY_BOTTLENECK_TYPES];
+/**
+ * 单个 agent 的并发容量（daemon `preview.agentCapacities[]` 原样呈现）。
+ */
+export interface AgentCapacityEntry {
+	readonly agentId: string;
+	readonly active: number;
+	readonly limit: number;
+	readonly drafted: number;
+	readonly isFull: boolean;
+}
 
 /**
  * 并发审计与瓶颈数据（全部读 daemon 字段，缺失显示「—」，R1）。
  */
 export interface ConcurrencyAuditData {
-	/** 实际有效并发容量：min(窗口数, 每 agent 上限, 用户设定...)，读 daemon 字段 */
+	/** 实际有效并发容量：daemon `preview.effectiveConcurrency` */
 	readonly effectiveCapacity?: number | string | null;
-	/** 拓扑并行窗口数 */
+	/** daemon `preview.windowCount`（本批此刻可放行任务数） */
 	readonly windowCount?: number | string | null;
 	/** 活跃 Agent 单体并发上限 */
 	readonly agentLimit?: number | string | null;
 	/** 用户设定并发上限，缺失显示「—」，严禁组件层补 2 缺省 (R1) */
 	readonly userSetting?: number | null;
-	/** 瓶颈标识 */
+	/** daemon `preview.bottleneck` */
 	readonly bottleneckSource?: ConcurrencyBottleneckType | string | null;
 	/** 瓶颈详细说明文案 */
 	readonly bottleneckDescription?: string | null;
 	/** 是否退化为纯串行 (E-48) */
 	readonly isDegradedToSerial?: boolean;
-	/** 是否越界超过窗口数，由 daemon/feature 下发，严禁组件层自算比较 (R1) */
+	/** daemon `preview.exceedsWindowCount`，严禁组件层自算比较 (R1) */
 	readonly isExceedingWindow?: boolean | null;
 	/** 是否显式解锁超过窗口数 (E-52) */
 	readonly isUnlockedAboveWindow?: boolean;
+	/** daemon `preview.agentCapacities`，逐 agent 原样呈现 (E-47) */
+	readonly agentCapacities?: readonly AgentCapacityEntry[];
 }
 
 /**
@@ -125,11 +134,11 @@ export interface TaskAssignmentListProps {
 	/** 可选 Agent 列表 */
 	readonly agents?: readonly AssignableAgent[];
 	/** 已存在的指派记录 */
-	readonly assignments?: Readonly<Record<string, TaskAssignmentDraft>>;
+	readonly assignments?: Readonly<Record<string, TaskAssignmentSelection>>;
 	/** Agent 容量覆盖（可选显式下发） */
 	readonly agentCapacities?: Readonly<Record<string, AgentCapacityInfo>>;
 	/** 单任务指派完成或更新回调 */
-	readonly onAssignTask?: (taskId: string, draft: TaskAssignmentDraft) => void;
+	readonly onAssignTask?: (taskId: string, selection: TaskAssignmentSelection) => void;
 	/** 单任务清除或重置回调 */
 	readonly onResetAssignment?: (taskId: string) => void;
 	/** 样式自定义类名 */
@@ -158,6 +167,12 @@ export interface ConcurrencyBottleneckCardProps {
 	readonly isExceedingWindow?: boolean | null;
 	/** 是否显式解锁超过窗口数 (E-52) */
 	readonly isUnlockedAboveWindow?: boolean;
+	/** 逐 agent 容量（daemon `preview.agentCapacities`，缺失显示「—」） */
+	readonly agentCapacities?: readonly AgentCapacityEntry[];
+	/** 能否上调用户设定，由 daemon/feature 判定后下发；缺失显示「—」，组件不自行比较 (R1) */
+	readonly canIncreaseUserSetting?: boolean | null;
+	/** 能否下调用户设定，由 daemon/feature 判定后下发；缺失显示「—」 (R1) */
+	readonly canDecreaseUserSetting?: boolean | null;
 	/** 用户修改设定回调 (E-52) */
 	readonly onChangeUserSetting?: (setting: number) => void;
 	/** 切换解锁超过窗口数开关回调 (E-52) */
@@ -179,11 +194,11 @@ export interface AssignPanelProps {
 	/** 可选 Agent 列表 */
 	readonly agents?: readonly AssignableAgent[];
 	/** 已存在的指派记录 */
-	readonly assignments?: Readonly<Record<string, TaskAssignmentDraft>>;
+	readonly assignments?: Readonly<Record<string, TaskAssignmentSelection>>;
 	/** Agent 容量显式下发 */
 	readonly agentCapacities?: Readonly<Record<string, AgentCapacityInfo>>;
 	/** 单任务指派回调 */
-	readonly onAssignTask?: (taskId: string, draft: TaskAssignmentDraft) => void;
+	readonly onAssignTask?: (taskId: string, selection: TaskAssignmentSelection) => void;
 	/** 重置单任务指派 */
 	readonly onResetAssignment?: (taskId: string) => void;
 	/** 并发审计数据 */
@@ -197,6 +212,8 @@ export interface AssignPanelProps {
 	readonly bottleneckDescription?: string | null;
 	readonly isExceedingWindow?: boolean | null;
 	readonly isUnlockedAboveWindow?: boolean;
+	readonly canIncreaseUserSetting?: boolean | null;
+	readonly canDecreaseUserSetting?: boolean | null;
 	readonly onChangeUserSetting?: (setting: number) => void;
 	readonly onToggleUnlockAboveWindow?: (unlocked: boolean) => void;
 	/** 样式类名 */
@@ -219,7 +236,7 @@ function renderFieldOrFallback(val: number | string | null | undefined): string 
 }
 
 /**
- * 依据瓶颈标识派生人类可读中文说明（E-52，字段缺失显示「—」）。
+ * 依据 daemon 下发的瓶颈标识（三值域）派生中文说明（E-52，字段缺失显示「—」）。
  */
 function deriveBottleneckSummary(
 	source: ConcurrencyBottleneckType | string | null | undefined,
@@ -235,43 +252,48 @@ function deriveBottleneckSummary(
 			explanation: '当前未报告明确并发瓶颈，调度器将按就绪状态顺序放行。',
 		};
 	}
+	// 域外的值直接原样呈现：既不猜含义，也不落进某个已知瓶颈的文案
+	return isPreviewBottleneck(source)
+		? bottleneckSummaryOf(source, details)
+		: { label: String(source), explanation: `瓶颈归因：${String(source)}` };
+}
 
+function isPreviewBottleneck(value: string): value is ConcurrencyPreviewBottleneck {
+	return (CONCURRENCY_PREVIEW_BOTTLENECKS as readonly string[]).includes(value);
+}
+
+/**
+ * 三值瓶颈各自的文案；无 default 分支，daemon 域加值即由 tsc 报缺分支。
+ */
+function bottleneckSummaryOf(
+	source: ConcurrencyPreviewBottleneck,
+	details?: {
+		windowCount?: number | string | null;
+		agentLimit?: number | string | null;
+		userSetting?: number | string | null;
+	},
+): { readonly label: string; readonly explanation: string } {
 	switch (source) {
-		case CONCURRENCY_BOTTLENECK_TYPES.WINDOW_COUNT:
+		case 'window_count':
 			return {
 				label: '并行窗口数 (依赖拓扑)',
 				explanation: `瓶颈归因：受批次内任务依赖或路径冲突限制，并行窗口上限为 ${renderFieldOrFallback(
 					details?.windowCount,
 				)}。`,
 			};
-		case CONCURRENCY_BOTTLENECK_TYPES.AGENT_LIMIT:
+		case 'agent_limit':
 			return {
 				label: 'Agent 单体并发上限',
 				explanation: `瓶颈归因：所指派 Agent 的单体最大并发上限为 ${renderFieldOrFallback(
 					details?.agentLimit,
 				)}，已满额时空位可顺延给别家（E-47）。`,
 			};
-		case CONCURRENCY_BOTTLENECK_TYPES.USER_SETTING:
+		case 'user_setting':
 			return {
 				label: '用户设定并发上限',
 				explanation: `瓶颈归因：受用户偏好设定上限 (${renderFieldOrFallback(
 					details?.userSetting,
 				)}) 约束，可按需在下方调节上限。`,
-			};
-		case CONCURRENCY_BOTTLENECK_TYPES.MACHINE_RESOURCE:
-			return {
-				label: '宿主机系统资源',
-				explanation: '瓶颈归因：宿主机 CPU / 内存资源限制，调度器自动降低并发上限以保障稳定性。',
-			};
-		case CONCURRENCY_BOTTLENECK_TYPES.PATH_CONFLICT:
-			return {
-				label: '同批任务路径冲突 (E-46)',
-				explanation: '瓶颈归因：同批任务间修改的文件路径存在交集，排队等待前置任务落地后方可放行。',
-			};
-		default:
-			return {
-				label: String(source),
-				explanation: `瓶颈归因：${String(source)}`,
 			};
 	}
 }
@@ -290,9 +312,9 @@ const FOCUS_VISIBLE_RING_CLASS =
 interface TaskAssignRowProps {
 	readonly task: TaskItem;
 	readonly agents: readonly AssignableAgent[];
-	readonly assignment?: TaskAssignmentDraft;
+	readonly assignment?: TaskAssignmentSelection;
 	readonly agentCapacities?: Readonly<Record<string, AgentCapacityInfo>>;
-	readonly onSave: (draft: TaskAssignmentDraft) => void;
+	readonly onSave: (selection: TaskAssignmentSelection) => void;
 	readonly onReset?: () => void;
 }
 
@@ -309,7 +331,7 @@ function TaskAssignRow({
 	const [isEditing, setIsEditing] = useState<boolean>(!isAlreadyAssigned);
 
 	// R1: 删除组件层对默认 agent 的补算（不使用 agents[0] 垫背），缺失即未选
-	const initialAgentId = assignment?.agentKey ?? task.defaultAgentId ?? '';
+	const initialAgentId = assignment?.agentId ?? task.defaultAgentId ?? '';
 	const [selectedAgentId, setSelectedAgentId] = useState<string>(initialAgentId);
 
 	// 查找所选 Agent
@@ -324,44 +346,40 @@ function TaskAssignRow({
 	}, [currentAgent]);
 
 	// R1: 删除组件层对默认模型的补算，缺失即空，显示「跟随 agent 配置」
-	const initialModel = assignment?.modelName ?? task.defaultModel ?? '';
+	const initialModel = assignment?.model ?? task.defaultModel ?? '';
 	const [selectedModel, setSelectedModel] = useState<string>(initialModel);
 
 	// R1: 删除组件层对思考强度的补算（不私自补 medium），不支持或未指定则为 null
 	const supportsEffort = currentAgent?.supportsEffort ?? false;
-	const initialEffort =
-		assignment?.effortTier ?? (supportsEffort ? (task.defaultEffortTier ?? null) : null);
-	const [selectedEffort, setSelectedEffort] = useState<string | null>(initialEffort);
+	const assignedEffort: EffortValue = assignment?.effort ?? null;
+	const initialEffortTier: EffortTier | null =
+		assignedEffort !== null && 'tier' in assignedEffort
+			? assignedEffort.tier
+			: supportsEffort
+				? ((task.defaultEffortTier as EffortTier | null | undefined) ?? null)
+				: null;
+	const [selectedEffortTier, setSelectedEffortTier] = useState<EffortTier | null>(
+		initialEffortTier,
+	);
 
 	// 切换 Agent 联动（M4-T6, E-34, E-254）
 	const handleAgentChange = (newAgentId: string) => {
 		setSelectedAgentId(newAgentId);
-		const newAgent = agents.find((a) => a.id === newAgentId);
 		// 切换 agent 清空模型覆盖（E-34）
 		setSelectedModel('');
 		// 不支持思考强度置 null，严禁前端补默认档（E-254）
-		if (newAgent?.supportsEffort) {
-			setSelectedEffort(newAgent.defaultEffortTier ?? null);
-		} else {
-			setSelectedEffort(null);
-		}
+		setSelectedEffortTier(null);
 	};
 
-	// R1: 会话序号直接读下发 props，严禁组件层自算；如果 assignment 显式提供了 sessionIndex (包含 null)，优先采用
-	const effectiveSessionIndex =
-		assignment && 'sessionIndex' in assignment
-			? assignment.sessionIndex
-			: (task.sessionIndex ?? null);
+	// R1: 会话序号直接读 daemon 下发的草稿字段，严禁组件层自算
+	const effectiveSessionNo = assignment ? assignment.sessionNo : (task.sessionIndex ?? null);
 	const sessionDisplay =
-		effectiveSessionIndex !== null && effectiveSessionIndex !== undefined
-			? `会话 #${effectiveSessionIndex}`
-			: EMPTY_VALUE_FALLBACK;
+		effectiveSessionNo === null || effectiveSessionNo === undefined
+			? EMPTY_VALUE_FALLBACK
+			: `会话 #${effectiveSessionNo}`;
 
-	// 下一会话序号预告：读 Agent 显式下发字段，缺失显示「—」
-	const nextSessionDisplay =
-		currentAgent?.nextSessionIndex !== null && currentAgent?.nextSessionIndex !== undefined
-			? `将分配会话 #${currentAgent.nextSessionIndex}`
-			: `会话序号: ${EMPTY_VALUE_FALLBACK}`;
+	// 编辑态里的会话序号同样来自 daemon：草稿未写入前 daemon 还没有编号，显示「—」
+	const pendingSessionDisplay = `${EMPTY_VALUE_FALLBACK}`;
 
 	// R1: Agent 容量与满额状态读下发 props，严禁组件层自算
 	const capacityInfo = currentAgent ? agentCapacities?.[currentAgent.id] : undefined;
@@ -371,19 +389,18 @@ function TaskAssignRow({
 	const agentMaxConcurrency = currentAgent?.maxConcurrency ?? capacityInfo?.max ?? null;
 	const agentUsedConcurrency = currentAgent?.usedConcurrency ?? capacityInfo?.used ?? null;
 
-	// 保存指派
+	// 保存指派：只回报用户原始意图，序号与容量等事实等 daemon 返回值刷新
 	const handleSave = () => {
 		if (!selectedAgentId) return;
-		const draft: TaskAssignmentDraft = {
+		const selection: TaskAssignmentSelection = {
 			taskId: task.id,
 			taskKey: task.taskKey,
-			title: task.title,
-			agentKey: selectedAgentId,
-			modelName: selectedModel,
-			effortTier: supportsEffort ? selectedEffort : null,
-			sessionIndex: effectiveSessionIndex,
+			agentId: selectedAgentId,
+			model: selectedModel.length > 0 ? selectedModel : null,
+			effort: supportsEffort && selectedEffortTier ? { tier: selectedEffortTier } : null,
+			sessionNo: effectiveSessionNo,
 		};
-		onSave(draft);
+		onSave(selection);
 		setIsEditing(false);
 	};
 
@@ -391,13 +408,18 @@ function TaskAssignRow({
 	// 态 1：已指派展示态（回显所选值，提供回改入口，AC 1, AC 2, E-108, E-31, R1-R3）
 	// ─────────────────────────────────────────────────────────────
 	if (isAlreadyAssigned && !isEditing && assignment) {
-		const assignedAgentObj = agents.find((a) => a.id === assignment.agentKey);
+		const assignedAgentObj = agents.find((a) => a.id === assignment.agentId);
 		const agentMonogram =
 			assignedAgentObj?.monogram ??
-			(assignment.agentKey ? assignment.agentKey.slice(0, 2).toUpperCase() : EMPTY_VALUE_FALLBACK);
-		const agentName = assignedAgentObj?.name ?? assignment.agentKey ?? EMPTY_VALUE_FALLBACK;
-		const modelDisplay = assignment.modelName ? assignment.modelName : '跟随 agent 配置';
-		const effortDisplay = assignment.effortTier ? assignment.effortTier : EMPTY_VALUE_FALLBACK;
+			(assignment.agentId ? assignment.agentId.slice(0, 2).toUpperCase() : EMPTY_VALUE_FALLBACK);
+		const agentName = assignedAgentObj?.name ?? assignment.agentId ?? EMPTY_VALUE_FALLBACK;
+		const modelDisplay = assignment.model ? assignment.model : '跟随 agent 配置';
+		const effortDisplay =
+			assignment.effort === null
+				? EMPTY_VALUE_FALLBACK
+				: 'tier' in assignment.effort
+					? assignment.effort.tier
+					: assignment.effort.vendor;
 
 		return (
 			<div
@@ -428,7 +450,7 @@ function TaskAssignRow({
 						</span>
 						{/* 独立会话序号徽标（AC 2, E-31，R1: 读下发 props，缺失显示 —） */}
 						<span
-							data-session-badge={effectiveSessionIndex ?? EMPTY_VALUE_FALLBACK}
+							data-session-badge={effectiveSessionNo ?? EMPTY_VALUE_FALLBACK}
 							className="px-2 py-0.5 rounded border border-auto-soft bg-auto-soft text-auto font-bold text-micro"
 							title="同一个 agent 允许多次指派，独立会话序号读 daemon 字段（E-31）"
 						>
@@ -495,12 +517,13 @@ function TaskAssignRow({
 					)}
 				</div>
 				<div className="flex items-center gap-2">
-					{/* 即将分配的会话序号预告（AC 2, E-31，R1: 读下发字段，缺失显示 —） */}
+					{/* 会话序号：草稿写入后由 daemon 编号，未写入前显示「—」（E-31, R1） */}
 					<span
-						data-next-session-preview={currentAgent?.nextSessionIndex ?? EMPTY_VALUE_FALLBACK}
+						data-next-session-preview={pendingSessionDisplay}
 						className="text-micro font-mono text-auto bg-auto-soft border border-auto-soft px-2 py-0.5 rounded"
+						title="会话序号由调度器在下发草稿时编号（E-31）"
 					>
-						{nextSessionDisplay}
+						会话序号: {pendingSessionDisplay}
 					</span>
 				</div>
 			</div>
@@ -539,7 +562,14 @@ function TaskAssignRow({
 							const cap = agentCapacities?.[ag.id];
 							const usedStr = renderFieldOrFallback(ag.usedConcurrency ?? cap?.used);
 							const maxStr = renderFieldOrFallback(ag.maxConcurrency ?? cap?.max);
-							const fullMark = (ag.isLimitReached ?? cap?.isFull) ? ' [已满额]' : ' [可用]';
+							// daemon 未下发满额状态时不替它下结论，显示「—」
+							const fullState = ag.isLimitReached ?? cap?.isFull ?? null;
+							const fullMark =
+								fullState === null
+									? ` [${EMPTY_VALUE_FALLBACK}]`
+									: fullState
+										? ' [已满额]'
+										: ' [可用]';
 							return (
 								<option key={ag.id} value={ag.id}>
 									{ag.name} ({ag.monogram}) — {usedStr}/{maxStr}
@@ -580,8 +610,8 @@ function TaskAssignRow({
 						<select
 							id={`effort-select-${rowId}`}
 							data-testid={`select-effort-${task.taskKey}`}
-							value={selectedEffort ?? ''}
-							onChange={(e) => setSelectedEffort(e.target.value || null)}
+							value={selectedEffortTier ?? ''}
+							onChange={(e) => setSelectedEffortTier((e.target.value || null) as EffortTier | null)}
 							className={`min-h-[44px] sm:min-h-[32px] h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono transition-colors ${FOCUS_VISIBLE_RING_CLASS}`}
 						>
 							<option value="">未指定 (跟随默认)</option>
@@ -743,6 +773,9 @@ export function ConcurrencyBottleneckCard({
 	bottleneckDescription,
 	isExceedingWindow,
 	isUnlockedAboveWindow = false,
+	agentCapacities,
+	canIncreaseUserSetting,
+	canDecreaseUserSetting,
 	onChangeUserSetting,
 	onToggleUnlockAboveWindow,
 	className = '',
@@ -756,8 +789,13 @@ export function ConcurrencyBottleneckCard({
 	const bSource = audit?.bottleneckSource ?? bottleneckSource ?? null;
 	const bDesc = audit?.bottleneckDescription ?? bottleneckDescription ?? null;
 	const isUnlocked = audit?.isUnlockedAboveWindow ?? isUnlockedAboveWindow;
+	// daemon `preview.agentCapacities` 原样呈现（E-47），组件不聚合、不取最小值
+	const capacities = audit?.agentCapacities ?? agentCapacities ?? [];
 	// R1: 越界能力读 daemon/feature 显式字段，严禁组件层自算比较
 	const isExceeding = Boolean(audit?.isExceedingWindow ?? isExceedingWindow ?? false);
+	// R1: 能否增减读 daemon/feature 下发字段；缺失即不可点，不替调度器判断
+	const canIncrease = canIncreaseUserSetting ?? false;
+	const canDecrease = canDecreaseUserSetting ?? false;
 
 	// 解析瓶颈分析人类说明
 	const bottleneckInfo = deriveBottleneckSummary(bSource, {
@@ -766,16 +804,15 @@ export function ConcurrencyBottleneckCard({
 		userSetting: usrSet,
 	});
 
-	// 用户调节设定动作（仅在 usrSet 具备有效数值时可操作）
+	// 用户调节设定动作：回调只传原始意图，越界与上限由 daemon 裁定
 	const handleDecrease = () => {
-		if (onChangeUserSetting && typeof usrSet === 'number' && usrSet > 1) {
+		if (onChangeUserSetting && typeof usrSet === 'number' && canDecrease) {
 			onChangeUserSetting(usrSet - 1);
 		}
 	};
 
 	const handleIncrease = () => {
-		if (!onChangeUserSetting || typeof usrSet !== 'number') return;
-		if (usrSet >= 6) return;
+		if (!onChangeUserSetting || typeof usrSet !== 'number' || !canIncrease) return;
 		onChangeUserSetting(usrSet + 1);
 	};
 
@@ -809,14 +846,12 @@ export function ConcurrencyBottleneckCard({
 				<div
 					data-factor="window_count"
 					className={`flex flex-col justify-between p-2.5 rounded bg-bg border ${
-						bSource === CONCURRENCY_BOTTLENECK_TYPES.WINDOW_COUNT
-							? 'border-needs bg-needs-soft'
-							: 'border-border'
+						bSource === 'window_count' ? 'border-needs bg-needs-soft' : 'border-border'
 					}`}
 				>
 					<div className="flex items-center justify-between">
 						<span className="text-ink-3">并行窗口数</span>
-						{bSource === CONCURRENCY_BOTTLENECK_TYPES.WINDOW_COUNT && (
+						{bSource === 'window_count' && (
 							<span
 								data-testid="bottleneck-badge-window"
 								className="px-1 py-0.2 rounded bg-needs text-on-needs font-bold text-micro"
@@ -835,14 +870,12 @@ export function ConcurrencyBottleneckCard({
 				<div
 					data-factor="agent_limit"
 					className={`flex flex-col justify-between p-2.5 rounded bg-bg border ${
-						bSource === CONCURRENCY_BOTTLENECK_TYPES.AGENT_LIMIT
-							? 'border-needs bg-needs-soft'
-							: 'border-border'
+						bSource === 'agent_limit' ? 'border-needs bg-needs-soft' : 'border-border'
 					}`}
 				>
 					<div className="flex items-center justify-between">
 						<span className="text-ink-3">Agent 基础上限</span>
-						{bSource === CONCURRENCY_BOTTLENECK_TYPES.AGENT_LIMIT && (
+						{bSource === 'agent_limit' && (
 							<span
 								data-testid="bottleneck-badge-agent"
 								className="px-1 py-0.2 rounded bg-needs text-on-needs font-bold text-micro"
@@ -854,21 +887,31 @@ export function ConcurrencyBottleneckCard({
 					<div className="text-dense font-bold text-ink-1 mt-2">
 						{renderFieldOrFallback(agLimit)}
 					</div>
-					<span className="text-micro text-ink-3 mt-1">单 Agent 最大会话配额</span>
+					{/* 逐 agent 容量：daemon `preview.agentCapacities` 原样列出（E-47） */}
+					<span data-testid="agent-capacity-factors" className="text-micro text-ink-3 mt-1">
+						{capacities.length > 0
+							? capacities
+									.map(
+										(capacity) =>
+											`${capacity.agentId} ${capacity.active + capacity.drafted}/${capacity.limit}${
+												capacity.isFull ? ' 已满额' : ''
+											}`,
+									)
+									.join(' · ')
+							: EMPTY_VALUE_FALLBACK}
+					</span>
 				</div>
 
 				{/* 因子 3：用户设定上限（可调节，E-52, R1: 缺失显示 —, R3: 44x44 触控目标） */}
 				<div
 					data-factor="user_setting"
 					className={`flex flex-col justify-between p-2.5 rounded bg-bg border ${
-						bSource === CONCURRENCY_BOTTLENECK_TYPES.USER_SETTING
-							? 'border-needs bg-needs-soft'
-							: 'border-border'
+						bSource === 'user_setting' ? 'border-needs bg-needs-soft' : 'border-border'
 					}`}
 				>
 					<div className="flex items-center justify-between">
 						<span className="text-ink-3">用户偏好设定</span>
-						{bSource === CONCURRENCY_BOTTLENECK_TYPES.USER_SETTING && (
+						{bSource === 'user_setting' && (
 							<span
 								data-testid="bottleneck-badge-user"
 								className="px-1 py-0.2 rounded bg-needs text-on-needs font-bold text-micro"
@@ -890,7 +933,7 @@ export function ConcurrencyBottleneckCard({
 									type="button"
 									data-action="decrease-user-setting"
 									onClick={handleDecrease}
-									disabled={typeof usrSet !== 'number' || usrSet <= 1}
+									disabled={!canDecrease}
 									className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center text-ink-2 hover:text-ink-1 disabled:opacity-30 rounded-sm ${FOCUS_VISIBLE_RING_CLASS}`}
 									aria-label="调小用户并发设定"
 								>
@@ -900,7 +943,7 @@ export function ConcurrencyBottleneckCard({
 									type="button"
 									data-action="increase-user-setting"
 									onClick={handleIncrease}
-									disabled={typeof usrSet !== 'number' || usrSet >= 6}
+									disabled={!canIncrease}
 									className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center text-ink-2 hover:text-ink-1 disabled:opacity-30 rounded-sm ${FOCUS_VISIBLE_RING_CLASS}`}
 									aria-label="调大用户并发设定"
 								>
@@ -989,6 +1032,8 @@ export function AssignPanel({
 	bottleneckDescription,
 	isExceedingWindow,
 	isUnlockedAboveWindow,
+	canIncreaseUserSetting,
+	canDecreaseUserSetting,
 	onChangeUserSetting,
 	onToggleUnlockAboveWindow,
 	className = '',
@@ -1022,6 +1067,8 @@ export function AssignPanel({
 					bottleneckDescription={bottleneckDescription}
 					isExceedingWindow={isExceedingWindow}
 					isUnlockedAboveWindow={isUnlockedAboveWindow}
+					canIncreaseUserSetting={canIncreaseUserSetting}
+					canDecreaseUserSetting={canDecreaseUserSetting}
 					onChangeUserSetting={onChangeUserSetting}
 					onToggleUnlockAboveWindow={onToggleUnlockAboveWindow}
 				/>
