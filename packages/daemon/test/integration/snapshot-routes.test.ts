@@ -7,6 +7,7 @@ import { createContainer } from '../../src/boot/container.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
+import type { HttpServer } from '../../src/http/server.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type {
 	LockFileHandle,
@@ -70,8 +71,12 @@ function createMemoryLockAdapter(): NativeLockAdapter {
 
 describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snapshot', () => {
 	let db: DatabaseConnection;
+	let server: HttpServer | undefined;
+	let container: ReturnType<typeof createContainer> | undefined;
 
 	beforeEach(() => {
+		server = undefined;
+		container = undefined;
 		rmSync(testDir, { recursive: true, force: true });
 		mkdirSync(testDir, { recursive: true });
 		db = openDatabase(dbPath);
@@ -86,14 +91,16 @@ describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snap
 		runner.run(migrationsDir);
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
+		container?.services.agents.stop();
+		await server?.close();
 		db.close();
 		rmSync(testDir, { recursive: true, force: true });
 	});
 
 	function setupServer() {
 		const lockAdapter = createMemoryLockAdapter();
-		const container = createContainer({
+		container = createContainer({
 			config: {
 				port: 7818,
 				bind: '127.0.0.1',
@@ -108,7 +115,7 @@ describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snap
 			clock: { now: () => '2026-09-10T12:00:00.000Z' },
 		});
 
-		const server = createHttpServer({ container });
+		server = createHttpServer({ container });
 		return { server, container };
 	}
 
@@ -136,12 +143,11 @@ describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snap
 		expect(body.error.code).toBe('E_UNAUTHORIZED');
 	});
 
-	it('R2: /api/v1/snapshot task.state derives manual_state -> max attempt_no run.state -> never_dispatched across three branches', async () => {
+	it('/api/v1/snapshot derives task.state as manual_state -> max attempt_no run.state -> never_dispatched', async () => {
 		const { server, container } = setupServer();
 		await server.instance.ready();
 		const token = await getAuthToken(container);
 
-		// 1. Seed document
 		db.prepare(
 			`INSERT INTO documents (
 				id, docs_path, project_name, repo_path, main_branch, branch_prefix,
@@ -163,10 +169,7 @@ describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snap
 			'2026-09-10T12:00:00.000Z',
 		);
 
-		// 2. Seed tasks for the three branches:
-		// - Task 1: manual_state = 'landed', runs exist (attempt 1 failed, attempt 2 running) -> state must be 'landed' (branch 1)
-		// - Task 2: manual_state = NULL, runs exist (attempt 1 failed, attempt 2 running) -> state must be 'running' (branch 2)
-		// - Task 3: manual_state = NULL, no runs -> state must be 'never_dispatched' (branch 3)
+		// These rows pin all three precedence levels of the Section 09 derived-state contract.
 		const insertTaskStmt = db.prepare(
 			`INSERT INTO tasks (
 				id, doc_id, task_key, title, module_key, deps_json, est_days, contract_hash, contract_reasons_json, manual_state
@@ -218,15 +221,11 @@ describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snap
 		insertSnapshotStmt.run('snap-1', 'task-1', 'hash-1', '[]', '{}', '2026-09-10T12:00:00.000Z');
 		insertSnapshotStmt.run('snap-2', 'task-2', 'hash-2', '[]', '{}', '2026-09-10T12:00:00.000Z');
 
-		// Seed runs:
-		// For Task 1: attempt 1 failed, attempt 2 running, attempt 3 failed (even with runs, manual_state 'landed' wins)
-		// For Task 2: attempt 1 failed, attempt 2 running (attempt 2 is max attempt -> 'running' wins)
 		const insertRunStmt = db.prepare(
 			`INSERT INTO runs (
 				id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		);
-		// Task 1 runs
 		insertRunStmt.run(
 			'run-t1-1',
 			'task-1',
@@ -248,7 +247,6 @@ describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snap
 			'snap-1',
 		);
 
-		// Task 2 runs: attempt 1 = 'failed', attempt 2 = 'running'
 		insertRunStmt.run(
 			'run-t2-1',
 			'task-2',
@@ -270,7 +268,6 @@ describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snap
 			'snap-2',
 		);
 
-		// 3. Query GET /api/v1/snapshot
 		const res = await server.instance.inject({
 			method: 'GET',
 			url: '/api/v1/snapshot',
@@ -284,26 +281,23 @@ describe('M2-T8 Snapshot Routes Integration: Task State Derivation & Global Snap
 
 		expect(snapshot.documents).toHaveLength(1);
 		expect(snapshot.documents[0]?.id).toBe('doc-snap-1');
-
 		expect(snapshot.tasks).toHaveLength(3);
+		expect(Array.isArray(snapshot.batches)).toBe(true);
+		expect(snapshot.runs).toHaveLength(4);
+		expect(Array.isArray(snapshot.gates)).toBe(true);
+		expect(Array.isArray(snapshot.agents)).toBe(true);
 
 		const task1 = snapshot.tasks.find((t) => t.id === 'task-1');
 		const task2 = snapshot.tasks.find((t) => t.id === 'task-2');
 		const task3 = snapshot.tasks.find((t) => t.id === 'task-3');
 
-		// Branch 1: manual_state takes precedence over runs
 		expect(task1).toBeDefined();
 		expect(task1?.state).toBe('landed');
 
-		// Branch 2: max attempt_no run state ('running')
 		expect(task2).toBeDefined();
 		expect(task2?.state).toBe('running');
 
-		// Branch 3: never dispatched -> 'never_dispatched'
 		expect(task3).toBeDefined();
 		expect(task3?.state).toBe('never_dispatched');
-
-		// Agents array is strongly typed and returned
-		expect(Array.isArray(snapshot.agents)).toBe(true);
 	});
 });
