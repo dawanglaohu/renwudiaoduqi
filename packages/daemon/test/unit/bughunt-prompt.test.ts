@@ -38,6 +38,8 @@ describe('domain/bughunt-prompt (AC 2, E-316, E-329, 08 节)', () => {
 		for (const cmd of WRAPUP_PROHIBITED_COMMANDS) {
 			expect(prompt).toContain(cmd);
 		}
+		// 08 节 / 决策 101 的完整禁令清单（共用收口常量）：git 子命令末尾含 reset
+		expect(prompt).toContain('stash/merge/rebase/reset');
 		// Does NOT contain "允许 commit"
 		expect(prompt).not.toContain('允许 commit');
 

@@ -1,7 +1,7 @@
 import { BUILTIN_WRAPUP_PROMPT } from './wrapup-builtin-prompt.ts';
 
 export const WRAPUP_PROHIBITED_COMMANDS = [
-	'禁止 git commit/push/checkout/branch/worktree/stash/merge/rebase',
+	'禁止 git commit/push/checkout/branch/worktree/stash/merge/rebase/reset',
 	'禁止 gh 任何子命令',
 	'禁止建新分支或新目录',
 	'禁止运行 build_docs.py / maintain_docs.py / build_vault.py',

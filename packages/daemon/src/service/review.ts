@@ -1920,7 +1920,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		evaluateMechanicalCheck,
 
 		async finalizeReviewRun(input: FinalizeReviewRunInput): Promise<FinalizeReviewRunResult> {
-			if (!deps.runsRepo) throw new Error('runsRepo missing');
+			if (!deps.runsRepo) throw new AppError('E_INTERNAL', 'runsRepo missing');
 
 			const reviewRun = deps.runsRepo.findById(input.reviewRunId);
 			if (!reviewRun) {

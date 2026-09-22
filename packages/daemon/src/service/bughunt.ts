@@ -529,6 +529,15 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			}
 
 			// outcome === 'gate'：干净或只剩 S3，走落地闸门（AC 4, E-308, E-321）
+			const gatesService = deps.gatesService;
+			if (!gatesService) {
+				// 落地闸门是唯一出口：缺依赖时报错，绝不直落（落地闸门默认「等我确认」，E-53）。
+				throw new AppError(
+					'E_INTERNAL',
+					'gatesService is required to route a clean bughunt run to the landing gate.',
+				);
+			}
+
 			deps.unitOfWork.run(() => {
 				deps.runsRepo.updateState({
 					id: bughuntRun.id,
@@ -542,23 +551,11 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				});
 			});
 
-			if (deps.gatesService) {
-				await deps.gatesService.resolveAfterReviewAndApply({
-					taskId,
-					runId: implRun.id,
-					reviewVerdict: 'pass',
-				});
-			} else {
-				deps.unitOfWork.run(() => {
-					deps.runsRepo.updateState({
-						id: implRun.id,
-						fromState: implRun.state,
-						toState: 'landed',
-						endedAt: now,
-						actorDeviceId: input.actorDeviceId ?? null,
-					});
-				});
-			}
+			await gatesService.resolveAfterReviewAndApply({
+				taskId,
+				runId: implRun.id,
+				reviewVerdict: 'pass',
+			});
 
 			return Object.freeze({
 				action: 'gate',
