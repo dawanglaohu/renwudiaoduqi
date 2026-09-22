@@ -9,7 +9,7 @@
 
 **动手写任何代码之前，先读 `docs/Agent任务调度器-开发文档/_MOC.md`**。它是总索引，告诉你查什么去哪找。
 
-规模：10 个模块 · 97 个任务 · 359 条边界。
+规模：10 个模块 · 108 个任务 · 359 条边界。
 
 ### 查东西去哪
 
@@ -55,23 +55,23 @@ _本段由 build_vault.py 生成，重跑会覆盖；这两个标记之外的内
 ### 1. 交接台怎么读
 
 - 入口：`docs/Agent任务调度器-开发文档/index.html`（双击或本地静态服务打开）→ 侧栏「任务交接台」。
-- **批次**（第 N 批）= 依赖层级，只表示「谁必须等谁」。**窗口**（lane）= 把未落地任务排进 N 个会话，同时避开 `taskPaths + supportPaths` 的文件冲突。两者只管顺序与并行，都不是闸门。
+- **批次**（第 N 批）= 依赖层级，只表示「谁必须等谁」。**窗口**（lane）= 把未落地任务排进 N 个会话，同时避开 `taskPaths + supportPaths` 的文件冲突。窗口用于顺序与工期预测；批次收口默认作为紧邻下一批的实施闸门。
 - 状态五格显示：待派 → 进行中 → 审查中 → 已落地，外加「已落地·待复验」。来源三处：任务笔记头部 `status`（随代码进仓库，`build_docs.py` 把它写进 `docs-data.js` 的 `progress`，本机 `_run/progress.js` 只是覆盖）、`_run/maintenance.js`（进仓库：`pendingTasks` 补丁同步锁、`needsReview` 待复验）、浏览器 localStorage（手点或复制提示词自动推进）。显示取更靠后的一格；`pendingTasks` 里的任务显示「审查中」。
-- **「实施」按钮亮的条件**（生成器 `implLocked`，行、任务卡、复制入口共用）：本任务是待派；前置**全部**已落地（含「已落地·待复验」）；契约没有明确错误（`task-contracts.json` 的 H01–H11 检查）、结构检查没过期、本任务不在同步中的文档补丁里。**语义复核不是派发条件，是审查第一步**：审查提示词让审查方在本轮登记 `verify`，`--landed` 拒绝没登记的任务。同批次其他任务在进行中、审查中都不影响本任务。
-- 两句提示怎么读：「N 个还没落地」= 有任务在途；「当前没有可派任务」= 前置没落地、补丁在同步或契约有明确错误，点该行「审查」看原因。「N 个已落地任务待复验」= 被补丁 `sync` 标为待复验，**仍算已落地、不锁下游**，处理见第 4 节。
+- **「实施」按钮亮的条件**（生成器 `implLocked`，行、任务卡、复制入口共用）：本任务是待派；前置**全部**已落地（含「已落地·待复验」）；契约没有明确错误（`task-contracts.json` 的 H01–H11 检查）、结构检查没过期、本任务不在同步中的文档补丁里；紧邻上一批全部落地时，其最新收口记录须为 `clean`/`fixed`（`open` 或无记录上锁；`handoff.wrapupGate:false` 可关闭，不追溯更早批次）。**语义复核不是派发条件，是审查第一步**：审查提示词让审查方在本轮登记 `verify`，`--landed` 拒绝没登记的任务。同批次其他任务在进行中、审查中都不影响本任务。
+- 两句提示怎么读：「N 个还没落地」= 有任务在途；「当前没有可派任务」= 前置没落地、紧邻上一批未收口或有遗留、补丁在同步或契约有明确错误；收口看批次标题，其他原因点该行「审查」。「N 个已落地任务待复验」= 被补丁 `sync` 标为待复验，**仍算已落地、不锁下游**，处理见第 4 节。
 - 顶部「任务契约已复核 N/M」只是统计，不参与解锁。
-- 每批标题行右侧有「批次收口」：该批全部任务已落地（含「已落地·待复验」）才亮，未落齐灰掉、title 列出未落地任务。标题三种显示：未落齐不追加；落齐无记录追加「· 可收口」；有记录时按钮变「再收口一次」、标题追加「· 已收口 <日期> · 干净|已修|有遗留」。顶部提示句列出「已全部落地、尚未收口」的批次。批次可折叠：含在跑或可派任务的批默认展开，全落地的批默认折叠，手动开合记本机，复制「实施」自动展开该批、不折叠别的；进行中 / 审查中的状态标签带呼吸点，`prefers-reduced-motion` 下关闭。**收口不是闸门**：不影响「实施」解锁、可派集合与窗口调度，复制不改状态。
+- 每批标题行右侧有「批次收口」：该批全部任务已落地（含「已落地·待复验」）才亮，未落齐灰掉、title 列出未落地任务。标题三种显示：未落齐不追加；落齐无记录追加「· 可收口」；有记录时按钮变「再收口一次」、标题追加「· 已收口 <日期> · 干净|已修|有遗留」。顶部提示句列出「已全部落地、尚未收口」的批次。批次可折叠：含在跑或可派任务的批默认展开，全落地的批默认折叠，手动开合记本机，复制「实施」自动展开该批、不折叠别的；进行中 / 审查中的状态标签带呼吸点，`prefers-reduced-motion` 下关闭。**默认是闸门（1.4.0）**：只检查紧邻的上一批；上一批全部落地但无收口记录或最新记录的 `verdict` 为 `open` 时，紧邻的下一批「实施」上锁并从可派集合排除，直到记录为 `clean`/`fixed`。不递归追溯更早批次；`handoff.wrapupGate:false` 退回 1.3 行为。窗口工期预测不变，复制收口提示词不改任务状态。
 
 ### 2. 一个任务的完整生命周期
 
 0. **派发前核对（可选）**：待派任务的「审查」按钮给出「派发前核对任务要求」提示词，`python docs/Agent任务调度器-开发文档/_run/maintain_docs.py docs/Agent任务调度器-开发文档 status --task <ID>` 拿证据模板，核对后 `verify --task <ID> --evidence <JSON>`。提前做完只是让审查阶段少一道工序，不做也能派。
 1. **实施**：复制「实施」发给实施模型（状态自动推到进行中）。实施方在自己的工作树里做：`git fetch origin main && git worktree add -b task/<ID> ../agent-scheduler-<id> origin/main`，进去后按 05 节技术栈装依赖，`gh stack init --base main task/<ID>`，实现并自检，`git add -- <路径…>`（不用 `git add -A`），`git commit`，`gh stack push && gh stack submit --auto --open`，回填任务笔记两个受保护区块后 `python docs/Agent任务调度器-开发文档/_run/build_vault.py docs/Agent任务调度器-开发文档`，回报末行 `READY_FOR_REVIEW`。不合并。
-2. **审查**：复制「审查」发给审查模型（自动推到审查中）。审查方：`maintain_docs.py docs/Agent任务调度器-开发文档 status --task <ID>` 核契约，`gh pr diff task/<ID>` 逐条验收标准与边界指到文件:行，只有阻断项打回，最多两轮；在本轮把契约复核登记掉（`verify --task <ID> --evidence <JSON>`），`--landed` 会拒绝没登记的任务。局部文档问题走第 4 节的补丁。
+2. **审查**：复制「审查」发给审查模型（自动推到审查中）。审查方：`maintain_docs.py docs/Agent任务调度器-开发文档 status --task <ID>` 核契约，`gh pr diff task/<ID>` 逐条验收标准与边界指到文件:行，执行反造假扫描；判断层任务再核真实调用与低置信分支。实施方回报的每条「自行裁决」都复用全部候选、补入 diff 事实，跑 `typesafe_ask.py run adjudicate`（UI/UX 用 `design`）；普通技术与 UI/UX 选择不交用户，缺真实 model/line、skipped/error 或动作未落实均不判 pass。`run review` 仍只是代码断言的第二意见。只有阻断项打回，最多两轮；本轮登记契约复核，`--landed` 会拒绝没登记的任务。局部文档问题走第 4 节补丁。
 3. **落地**（审查方 pass 后一口气做完，都在该任务的工作树里）：回填质量核查 → `build_vault.py docs/Agent任务调度器-开发文档` → `python docs/Agent任务调度器-开发文档/_run/build_docs.py docs/Agent任务调度器-开发文档 --landed <ID>`（写任务笔记 `status`、`docs-data.js` 的 `progress` 与本机 `progress.js`）→ `git add docs/Agent任务调度器-开发文档 && git commit -m "<ID> 回填知识库并记录落地" && gh stack push` → 跑最小充分测试 → 单 PR `gh pr merge <N> --merge`，两层以上 `gh stack merge <N> --yes --merge` → 每个 PR 都报 MERGED 才算落地。
 4. **清理**（落地当场做，不留到以后）：`gh pr list --state open --base task/<ID> --json number --jq length` 为 0 → `git worktree remove ../agent-scheduler-<id>`（node_modules 报 not empty 就再 `rm -rf` 该目录）→ `git branch -d task/<ID>` → `rm -rf ../.codex-plans/agent-scheduler-<id>`。漏了哪些用 `maintain_docs.py docs/Agent任务调度器-开发文档 workspace` 列出（只打印命令，不删）。
-5. **主检出同步**：在 `D:/xiangmu/renwudiaoduqi` 里 `git pull`，刷新交接台即可——落地记录随 `docs-data.js` 进了仓库，换检出目录不必重跑 `--landed`。下游解锁，派下一批。
+5. **主检出同步**：在 `D:/xiangmu/renwudiaoduqi` 里 `git pull`，刷新交接台即可——落地记录随 `docs-data.js` 进了仓库，换检出目录不必重跑 `--landed`。下游按前置与收口闸门解锁；本批落齐先执行第 7 步。
 6. **查 bug** 是独立动作，不改状态：某层落地前想再扫一遍，或一批落地后查跨模块接缝，点它。
-7. **批次收口**（一批全部落地后、派下一批之前）：复制该批标题右侧的「批次收口」发给新会话。收口方在 `../agent-scheduler-batch-<n>` 里做（`git fetch origin main && git worktree add -b batch/<N>-<日期> ../agent-scheduler-batch-<n> origin/main`，planning 放 `../.codex-plans/agent-scheduler-batch-<n>/`）：跑 17 节全部测试与 lint → 逐任务在 main 上复核验收标准与边界 → 查本批内部与本批对前置批次的接缝 → 修 bug（先写复现测试；根因在前置批次的也修并标「跨批」，根因在文档的记 `NOT_FIXED` 标 `doc-issue`）→ 写 `docs/Agent任务调度器-开发文档/_run/batches/batch-<N>-<日期>.md`（front matter `batch`/`tasks`/`date`/`verdict`/`tests`/`pr`/`note`，正文五段：交付了什么 / 测试 / 发现与修复 / 遗留 / 给下一批的提醒）→ `python docs/Agent任务调度器-开发文档/_run/build_docs.py docs/Agent任务调度器-开发文档 --batches` → 提交记录、`docs-data.js`、`build-manifest.json` 与修复，`gh stack init --base main batch/<N>-<日期> && gh stack push && gh stack submit --auto --open` → PR 按第 2 步的审查方式核后 `gh pr merge <PR号> --merge`（没有修复也提 PR，记录必须进仓库）→ 按第 4 步清理 `../agent-scheduler-batch-<n>` 与 planning 目录 → 主检出 `git pull`，刷新后该批标题显示「已收口」。回报固定八段 `BATCH_SUMMARY / TESTS / BUGS / FIXED / NOT_FIXED / SUSPECT / RECORD / NEXT`。不改状态、不锁下游。
+7. **批次收口**（一批全部落地后、派下一批之前；默认为闸门）：复制该批标题右侧的「批次收口」发给新会话。收口方跑全量测试、真实端到端冒烟、逐任务复核与接缝检查；能安全修的当场修。每个仍未通过、未修或需独立范围的问题都在记录的「返工任务」下写一个完整 `task` 围栏，普通技术或 UI/UX 岔路口先交 Jev，不交用户。`python docs/Agent任务调度器-开发文档/_run/build_docs.py docs/Agent任务调度器-开发文档 --batches` 会为围栏生成稳定的 `R<批>-T<编号>` 未落地任务、契约、任务笔记和派发提示词，并在交接台单列「批次收口返工」；原任务状态和原批次集合不改。返工任务逐个实施、审查、`--landed` 后再收口，新的 `clean`/`fixed` 记录才能解锁下一批。没有遗留时仍提交收口记录；旧版 open 没围栏会显示迁移提醒，必须重收口补任务，不能直接写 fixed 绕过。
 
 ### 3. 工作目录纪律
 
@@ -89,9 +89,9 @@ _本段由 build_vault.py 生成，重跑会覆盖；这两个标记之外的内
 
 ### 5. 生成器与工具链的改动规则
 
-- `_run/build_docs.py`、`handoff_contract.py`、`maintain_docs.py`、`review.py`、`compile_prompts.js`、`build_vault.py` 是流程本身，**改了必须当场提交进 main**。`status`、`build` 和 Stop hook 会报「生成器有未提交改动」「生成器与 tool-version.json 不一致」，不阻断但 `status` 退出码非 0；看到就处理。
+- `_run/build_docs.py`、`handoff_contract.py`、`maintain_docs.py`、`review.py`、`compile_prompts.js`、`build_vault.py`、`stage.py`、`typesafe_ask.py` 是流程本身，**改了必须当场提交进 main**。`status`、`build` 和 Stop hook 会报「生成器有未提交改动」「生成器与 tool-version.json 不一致」，不阻断但 `status` 退出码非 0；看到就处理。
 - 改前后都跑 `python -B -m unittest discover -s docs/Agent任务调度器-开发文档/_run/tests -p "test_*.py"`；改解锁/路由规则先加回归用例。
 - 生成器指纹只进构建清单，不进任务契约哈希：升级生成器后 `status` 报 `stale=['生成器版本已变更']`，跑一次 `maintain_docs.py docs/Agent任务调度器-开发文档 build` 即可，已有复核记录全部保留，不需要逐任务重新 `verify`。
 - 任务分支合并 main 时 `_run/` 产物几乎必冲突：`task-contracts.json` 手工保留双方条目，其余产物取 main，再在分支上重跑 `sync --patch`（无补丁时 `build`）让产物与源一致；**生成器脚本本身取更新的一方，绝不拿旧版覆盖**。
-- `_run/batches/*.md`（批次收口记录）是源不是产物，随收口 PR 提交；`docs-data.js` 的 `batchRecords` 由它派生（`build_docs.py --batches` 只改写该键与清单指纹，完整 `build` 也写），`dispatchBatches` 与 `dispatch.json` 的 `batches` 由生成器导出。`_run/batches/` 不在 `input_hashes` 里，写记录不会让产物过期。
+- `_run/batches/*.md`（批次收口记录）是源不是产物，随收口 PR 提交；普通记录只派生 `batchRecords`，含 `task` 围栏的 `open` 记录还派生 `repairTasks`、`R<批>-T<编号>` 任务、契约、任务笔记和 dispatch，并因此进入输入指纹。`dispatchBatches` 始终只描述 19 节原任务批次，返工任务不会改写历史批次集合。
 <!-- handoff:end -->

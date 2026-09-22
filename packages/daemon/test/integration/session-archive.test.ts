@@ -211,7 +211,7 @@ describe('M6-T10 Integration: Task Session Archiving and Isolation Assertion', (
 				if (!r) return null;
 				return {
 					id: r.id,
-					taskId: r.task_id,
+					taskId: r.task_id ?? '',
 					state: r.state as RunState,
 					pid: r.pid,
 					kind: r.kind,
@@ -362,7 +362,7 @@ describe('M6-T10 Integration: Task Session Archiving and Isolation Assertion', (
 				if (!r) return null;
 				return {
 					id: r.id,
-					taskId: r.task_id,
+					taskId: r.task_id ?? '',
 					state: r.state as RunState,
 					pid: r.pid,
 					kind: r.kind,
@@ -485,7 +485,7 @@ describe('M6-T10 Integration: Task Session Archiving and Isolation Assertion', (
 				if (!r) return null;
 				return {
 					id: r.id,
-					taskId: r.task_id,
+					taskId: r.task_id ?? '',
 					state: r.state as RunState,
 					pid: r.pid,
 					kind: r.kind,

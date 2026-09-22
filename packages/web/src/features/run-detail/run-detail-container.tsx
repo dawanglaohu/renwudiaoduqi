@@ -253,7 +253,7 @@ export function RunDetailContainer({
 			{/* 手机原样重跑二次确认弹窗（07 节 Dialog 白名单，需一次确认） */}
 			<RerunConfirmDialog
 				isOpen={isConfirmOpen}
-				taskKey={taskKey ?? currentRun?.taskId}
+				taskKey={taskKey ?? currentRun?.taskId ?? undefined}
 				runId={runId}
 				agentName={currentRun?.agentId}
 				isSubmitting={isRerunning}

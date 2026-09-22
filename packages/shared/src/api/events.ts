@@ -1,4 +1,5 @@
 import type { LoginState } from './agents.ts';
+import type { BatchState } from './batches.ts';
 import type { GateSettings } from './settings.ts';
 
 export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system' | 'lane' | 'settings';
@@ -44,6 +45,8 @@ export const EVENT_DEFINITIONS = {
 	'task.sessions_archived': { scope: 'task', milestone: true },
 	'lane.released': { scope: 'lane', milestone: true },
 	'batch.advanced': { scope: 'batch', milestone: true },
+	'batch.wrapup_started': { scope: 'batch', milestone: true },
+	'batch.wrapup_finished': { scope: 'batch', milestone: true },
 	'agent.availability_changed': { scope: 'agent', milestone: true },
 	'settings.gates_changed': { scope: 'settings', milestone: true },
 	'system.disk_warning': { scope: 'system', milestone: true },
@@ -51,6 +54,14 @@ export const EVENT_DEFINITIONS = {
 } as const;
 
 export type EventKind = keyof typeof EVENT_DEFINITIONS;
+
+/**
+ * Normalized assistant-text event kind.
+ *
+ * Consumers outside adapter/domain layers use this semantic constant instead of
+ * repeating the ACP wire spelling, so vendor protocol strings stay isolated.
+ */
+export const AGENT_MESSAGE_CHUNK_EVENT_KIND = 'agent_message_chunk' as const satisfies EventKind;
 
 const EVENT_KIND_VALUES = [
 	'agent_message_chunk',
@@ -77,6 +88,8 @@ const EVENT_KIND_VALUES = [
 	'task.sessions_archived',
 	'lane.released',
 	'batch.advanced',
+	'batch.wrapup_started',
+	'batch.wrapup_finished',
 	'agent.availability_changed',
 	'settings.gates_changed',
 	'system.disk_warning',
@@ -120,6 +133,8 @@ export const PRODUCT_EVENT_KINDS = [
 	'task.sessions_archived',
 	'lane.released',
 	'batch.advanced',
+	'batch.wrapup_started',
+	'batch.wrapup_finished',
 	'agent.availability_changed',
 	'settings.gates_changed',
 	'system.disk_warning',
@@ -308,7 +323,40 @@ export interface TaskSessionsArchivedPayload {
 
 export interface BatchAdvancedPayload {
 	readonly batchId: string;
+	readonly from?: string;
+	readonly to?: string;
+	readonly reason?: string;
+	readonly batchNo?: number;
 	readonly stage?: string;
+	readonly state?: string;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface BatchWrapupStartedPayload {
+	readonly batchId: string;
+	readonly batchNo: number;
+	readonly runId: string;
+	readonly round: number;
+	readonly trigger: 'auto' | 'manual';
+	readonly promptSource: 'docs' | 'builtin';
+	readonly branchName: string | null;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface BatchWrapupFinishedPayload {
+	readonly batchId: string;
+	readonly batchNo: number;
+	readonly runId: string;
+	readonly round: number;
+	readonly wrapupId: string | null;
+	readonly verdict: 'clean' | 'fixed' | 'open' | 'unparsed';
+	readonly declaredVerdict: 'clean' | 'fixed' | 'open' | null;
+	readonly fixRunIds: readonly string[];
+	readonly unassignedCount: number;
+	readonly batchState: BatchState;
+	readonly isHumanVerdict?: boolean;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }
@@ -363,6 +411,8 @@ export interface EventPayloadMap {
 	readonly 'task.sessions_archived': TaskSessionsArchivedPayload;
 	readonly 'lane.released': LaneReleasedPayload;
 	readonly 'batch.advanced': BatchAdvancedPayload;
+	readonly 'batch.wrapup_started': BatchWrapupStartedPayload;
+	readonly 'batch.wrapup_finished': BatchWrapupFinishedPayload;
 	readonly 'agent.availability_changed': AgentAvailabilityChangedPayload;
 	readonly 'settings.gates_changed': SettingsGatesChangedPayload;
 	readonly 'system.disk_warning': SystemDiskWarningPayload;

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import type { DatabaseConnection } from '../../src/db/open-database.ts';
 import { openDatabase } from '../../src/db/open-database.ts';
+import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { type EventBus, createEventBus } from '../../src/events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../../src/events/envelope.ts';
@@ -16,7 +17,9 @@ import {
 	createDispatchSnapshotsRepo,
 } from '../../src/repo/dispatch-snapshots.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../../src/repo/documents.ts';
+import { createRunsRepo } from '../../src/repo/runs.ts';
 import { type TasksRepo, createTasksRepo } from '../../src/repo/tasks.ts';
+import { createBatchService } from '../../src/service/batch.ts';
 import { createReviewContextService, getReviewContext } from '../../src/service/review-context.ts';
 
 const openDatabases: DatabaseConnection[] = [];
@@ -139,6 +142,18 @@ describe('M3-T5 review-context service and getReviewContext', () => {
 		return task;
 	}
 
+	function createTestBatchService(bus?: EventBus, envelopeFactory?: EnvelopeFactory) {
+		return createBatchService({
+			batchesRepo,
+			tasksRepo,
+			runsRepo: createRunsRepo(db),
+			unitOfWork: createUnitOfWork(db),
+			clock: { now: () => '2026-09-08T12:00:00.000Z' },
+			bus,
+			envelopeFactory,
+		});
+	}
+
 	it('AC 1: returns reviewPrompt, contractHash, and dispatch snapshot acceptText, NOT current document values', () => {
 		setupTask();
 
@@ -155,6 +170,7 @@ describe('M3-T5 review-context service and getReviewContext', () => {
 			tasksRepo,
 			batchesRepo,
 			documentsRepo: docsRepo,
+			batchService: createTestBatchService(),
 		});
 
 		// 1. Initial review context before any doc change
@@ -280,6 +296,7 @@ describe('M3-T5 review-context service and getReviewContext', () => {
 			tasksRepo,
 			batchesRepo,
 			documentsRepo: docsRepo,
+			batchService: createTestBatchService(),
 		});
 
 		// Verify task-inflight has active runs
@@ -491,6 +508,7 @@ describe('M3-T5 review-context service and getReviewContext', () => {
 			documentsRepo: docsRepo,
 			bus,
 			envelopeFactory,
+			batchService: createTestBatchService(bus, envelopeFactory),
 		});
 
 		expect(batchesRepo.findById('batch-1')?.state).toBe('running');

@@ -16,6 +16,26 @@ const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, '../../..');
 
 describe('M10-T5: Platform and Architecture Support Matrix (AC 1, AC 5-8, E-257, E-259, E-260, E-265, E-267, E-268)', () => {
+	it('AC 2 & E-209: CI builds, unpacks, smokes, and uploads real Tauri installer bundles', () => {
+		const ciWorkflowContent = readFileSync(
+			resolve(repoRoot, '.github/workflows/desktop-ci.yml'),
+			'utf8',
+		);
+		expect(ciWorkflowContent).toContain('tauri build --bundles');
+		expect(ciWorkflowContent).toContain('--ci');
+		expect(ciWorkflowContent).toContain('DESKTOP_BUNDLE_PATH');
+		expect(ciWorkflowContent).toContain('target/release/bundle');
+		expect(ciWorkflowContent).toContain('release-assets/agsched-desktop_x64-setup.exe');
+		expect(ciWorkflowContent).toContain('release-assets/agsched-desktop_aarch64.dmg');
+		expect(ciWorkflowContent).toContain('release-assets/agsched-desktop_amd64.deb');
+		expect(ciWorkflowContent).toContain('APPLE_CERTIFICATE_PASSWORD');
+		expect(ciWorkflowContent).toContain('APPLE_PASSWORD');
+		expect(ciWorkflowContent).toContain('codesign --verify --deep --strict');
+		expect(ciWorkflowContent).toContain('spctl --assess --type execute');
+		expect(ciWorkflowContent).toContain('xcrun stapler validate');
+		expect(ciWorkflowContent).not.toContain('Installer bundling (`tauri bundle`) is not run');
+	});
+
 	it('AC 5 & E-259: defines architecture matrix with Windows, macOS, Linux and marks arm64 uncovered on Windows/Linux', () => {
 		const winX64 = PLATFORM_ARCHITECTURE_MATRIX.find(
 			(e) => e.platform === 'win32' && e.arch === 'x64',

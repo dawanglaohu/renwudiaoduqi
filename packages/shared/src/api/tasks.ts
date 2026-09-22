@@ -8,6 +8,9 @@ export interface TaskDto {
 	readonly estDays: number | null;
 	readonly batchId: string | null;
 	readonly state: string;
+	readonly hasAcceptChanged?: boolean;
+	readonly hasPromptChanged?: boolean;
+	readonly isRemovedFromDoc?: boolean;
 }
 
 export interface GetTaskLandingResponse {

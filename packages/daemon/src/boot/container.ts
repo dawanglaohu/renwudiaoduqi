@@ -1,5 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import { buildClaudeLaunchSpec } from '../adapters/claude/build-launch-spec.ts';
+import { mapEvents as mapClaudeEvents } from '../adapters/claude/map-events.ts';
+import { buildCodexLaunchSpec } from '../adapters/codex/build-launch-spec.ts';
+import { mapCodexEvents } from '../adapters/codex/map-events.ts';
+import { buildDshLaunchSpec } from '../adapters/dsh/build-launch-spec.ts';
+import { mapDshEvents } from '../adapters/dsh/map-events.ts';
+import { buildGenericAcpLaunchSpec } from '../adapters/generic-acp/build-launch-spec.ts';
+import { mapGenericAcpEvents } from '../adapters/generic-acp/map-events.ts';
+import { buildGrokLaunchSpec } from '../adapters/grok/build-launch-spec.ts';
+import { mapGrokEvents } from '../adapters/grok/map-events.ts';
+import { buildPiLaunchSpec } from '../adapters/pi/build-launch-spec.ts';
+import { mapPiEvents } from '../adapters/pi/map-events.ts';
 import type { ProcessConfig } from '../config/env.ts';
 import { type AgentRegistry, createAgentRegistry } from '../config/registry.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
@@ -9,13 +21,21 @@ import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
 import { type RingBuffer, createRingBuffer } from '../events/ring-buffer.ts';
 import { createSchedulerTickJob } from '../jobs/scheduler-tick.ts';
+import { createAppendQueue } from '../logstore/append-queue.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
-import { createDefaultProcessOps } from '../proc/spawn.ts';
+import {
+	type LaunchSpec,
+	type ManagedProcess,
+	type SpawnManagedOptions,
+	createDefaultProcessOps,
+	spawnManaged,
+} from '../proc/spawn.ts';
+import { type BatchWrapupsRepo, createBatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import { type BatchesRepo, createBatchesRepo } from '../repo/batches.ts';
 import { type DevicesRepo, createDevicesRepo } from '../repo/devices.ts';
 import {
@@ -24,6 +44,7 @@ import {
 } from '../repo/dispatch-snapshots.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
+import { createEventsIndexRepo } from '../repo/events-index-repo.ts';
 import { type GatesRepo, createGatesRepo } from '../repo/gates.ts';
 import { type LogSegmentsRepo, createLogSegmentsRepo } from '../repo/log-segments-repo.ts';
 import { type RunMessagesRepo, createSqliteRunMessagesRepo } from '../repo/run-messages-repo.ts';
@@ -33,18 +54,49 @@ import { type RunsRepo, createRunsRepo } from '../repo/runs.ts';
 import { type SettingsRepo, createSettingsRepo } from '../repo/settings.ts';
 import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
-import { type DispatchService, createDispatchService } from '../service/dispatch.ts';
+import { type AssignmentsService, createAssignmentsService } from '../service/assignments.ts';
+import { type BatchService, createBatchService } from '../service/batch.ts';
+import {
+	type BuildLaunchSpecInput,
+	type DispatchAdapter,
+	type DispatchService,
+	createDispatchService,
+} from '../service/dispatch.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type GateService, createGateService } from '../service/gates.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
+import type { EventEnvelopeInput } from '../service/logstore.ts';
+import { createLogstoreService } from '../service/logstore.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RetentionService, createRetentionService } from '../service/retention.ts';
 import { type ReworkService, createReworkService } from '../service/rework.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
+import {
+	type RunsRepo as RunLifecycleRepo,
+	type RunRecord,
+	type RunService,
+	createRunService,
+} from '../service/run.ts';
+import { createSessionArchiveService } from '../service/session-archive.ts';
 import { type SettingsService, createSettingsService } from '../service/settings.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
+import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
+import { type BaseSelector, createBaseSelector } from '../workspace/base-select.ts';
+import { getDiffStat } from '../workspace/diff.ts';
+import { type WorktreeManager, createWorktreeManager } from '../workspace/worktree.ts';
+
+export interface ContainerProc {
+	readonly spawnManaged: (
+		spec: LaunchSpec,
+		options?: Partial<SpawnManagedOptions>,
+	) => ManagedProcess;
+}
+
+export type ContainerAdapter = DispatchAdapter;
+
+export type ContainerAdapters = Readonly<Record<string, ContainerAdapter>>;
 
 export interface ContainerJob {
 	readonly name: string;
@@ -64,6 +116,7 @@ export interface ContainerRepos {
 	readonly tasks: TasksRepo;
 	readonly runs: RunsRepo;
 	readonly batches: BatchesRepo;
+	readonly batchWrapups?: BatchWrapupsRepo;
 	readonly gates?: GatesRepo;
 	readonly settings?: SettingsRepo;
 	readonly [key: string]: unknown;
@@ -74,6 +127,10 @@ export interface ContainerEvents {
 	readonly envelopeFactory: EnvelopeFactory;
 	readonly ringBuffer: RingBuffer;
 	readonly bus: EventBus;
+}
+
+export interface ContainerWorkspace {
+	readonly worktrees: WorktreeManager;
 }
 
 export interface ContainerServices {
@@ -87,9 +144,13 @@ export interface ContainerServices {
 	readonly message: MessageService;
 	readonly retention: RetentionService;
 	readonly dispatch: DispatchService;
+	readonly assignments: AssignmentsService;
 	readonly rework: ReworkService;
 	readonly settings: SettingsService;
 	readonly gates: GateService;
+	readonly batch?: BatchService;
+	readonly wrapup?: WrapupService;
+	readonly run: RunService;
 }
 
 export interface AppContainer {
@@ -108,9 +169,9 @@ export interface AppContainer {
 	readonly repos: ContainerRepos;
 	readonly logstore: Record<string, never>;
 	readonly events: ContainerEvents;
-	readonly proc: Record<string, never>;
-	readonly adapters: Record<string, never>;
-	readonly workspace: Record<string, never>;
+	readonly proc: ContainerProc;
+	readonly adapters: ContainerAdapters;
+	readonly workspace: ContainerWorkspace;
 	readonly services: ContainerServices;
 	readonly jobs: readonly ContainerJob[];
 	readonly instanceLock: LockFileHandle;
@@ -146,12 +207,25 @@ export function createContainer(input: {
 	readonly landingService?: LandingService;
 	readonly runsRepo?: RunsRepo;
 	readonly batchesRepo?: BatchesRepo;
+	readonly batchWrapupsRepo?: BatchWrapupsRepo;
 	readonly gatesRepo?: GatesRepo;
 	readonly settingsRepo?: SettingsRepo;
 	readonly settingsService?: SettingsService;
 	readonly gateService?: GateService;
 	readonly dispatchService?: DispatchService;
+	readonly assignmentsService?: AssignmentsService;
 	readonly reworkService?: ReworkService;
+	readonly batchService?: BatchService;
+	readonly wrapupService?: WrapupService;
+	readonly runService?: RunService;
+	readonly reviewService?: {
+		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
+	};
+	readonly worktreeManager?: WorktreeManager;
+	readonly baseSelector?: BaseSelector;
+	readonly proc?: ContainerProc;
+	readonly spawnManaged?: typeof spawnManaged;
+	readonly adapters?: ContainerAdapters;
 	readonly schedulerTickJob?: ContainerJob;
 	/** Sink for E-206 violation lines; main.ts hands in the daemon run log. */
 	readonly logViolation?: (message: string) => void;
@@ -159,6 +233,7 @@ export function createContainer(input: {
 	const empty = Object.freeze({});
 
 	const eventSeq = createEventSeqRepo(input.database);
+	const eventsIndex = createEventsIndexRepo(input.database);
 	const runsAbort = input.runsAbortRepo ?? createSqliteRunsAbortRepo(input.database);
 	const runsLog = input.runsLogRepo ?? createSqliteRunsLogRepo(input.database);
 	const dispatchSnapshots =
@@ -170,6 +245,7 @@ export function createContainer(input: {
 	const tasks = input.tasksRepo ?? createTasksRepo(input.database);
 	const runs = input.runsRepo ?? createRunsRepo(input.database);
 	const batches = input.batchesRepo ?? createBatchesRepo(input.database);
+	const batchWrapups = input.batchWrapupsRepo ?? createBatchWrapupsRepo(input.database);
 	const gates = input.gatesRepo ?? createGatesRepo(input.database);
 	const settings = input.settingsRepo ?? createSettingsRepo(input.database);
 	const repos: ContainerRepos = Object.freeze({
@@ -184,6 +260,7 @@ export function createContainer(input: {
 		tasks,
 		runs,
 		batches,
+		batchWrapups,
 		gates,
 		settings,
 	});
@@ -200,9 +277,25 @@ export function createContainer(input: {
 		bus,
 	});
 
+	const ids = Object.freeze({
+		newId: () => `req_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+	});
 	const logstorePaths =
 		input.logstorePaths ?? createLogstorePaths(join(input.config.dataDir, 'runs'));
 	const logFs = input.logFs ?? createNodeLogFileSystem();
+	const unitOfWork = createUnitOfWork(input.database);
+	const appendQueue = createAppendQueue({
+		appendFile: (path, data) => logFs.appendFile(path, data),
+	});
+	const logstoreService = createLogstoreService({
+		fs: logFs,
+		paths: logstorePaths,
+		queue: appendQueue,
+		ids,
+		unitOfWork,
+		eventsIndexRepo: eventsIndex,
+		segmentsRepo: logSegments,
+	});
 	const systemService =
 		input.systemService ??
 		createSystemService({
@@ -213,7 +306,6 @@ export function createContainer(input: {
 			logViolation: input.logViolation,
 		});
 
-	const unitOfWork = createUnitOfWork(input.database);
 	const processOps = createDefaultProcessOps(input.hostInputs.platform);
 	const runAbortService =
 		input.runAbortService ??
@@ -227,9 +319,13 @@ export function createContainer(input: {
 			platform: input.hostInputs.platform,
 		});
 
-	const ids = Object.freeze({
-		newId: () => `req_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+	const worktreeDeps = Object.freeze({
+		platform: input.hostInputs.platform,
+		hostInputs: input.hostInputs,
+		ids,
 	});
+	const worktreeManager = input.worktreeManager ?? createWorktreeManager(worktreeDeps);
+	const workspace: ContainerWorkspace = Object.freeze({ worktrees: worktreeManager });
 
 	const pairingService =
 		input.pairingService ??
@@ -247,6 +343,11 @@ export function createContainer(input: {
 		input.docsService ??
 		createDocsService({
 			documentsRepo: documents,
+			tasksRepo: tasks,
+			batchesRepo: batches,
+			dispatchSnapshotsRepo: dispatchSnapshots,
+			db: input.database,
+			unitOfWork,
 			clock: input.clock,
 			ids,
 			bus,
@@ -300,6 +401,75 @@ export function createContainer(input: {
 		});
 
 	const processRegistry = input.processRegistry ?? createProcessRegistry();
+
+	const baseSpawn = input.spawnManaged ?? input.proc?.spawnManaged ?? spawnManaged;
+	const boundSpawnManaged = (
+		spec: LaunchSpec,
+		overrides?: Partial<SpawnManagedOptions>,
+	): ManagedProcess => {
+		const options: SpawnManagedOptions = {
+			platform: input.hostInputs.platform,
+			processOps,
+			registry: processRegistry,
+			clock: input.clock,
+			...overrides,
+		};
+		return baseSpawn(spec, options);
+	};
+	const proc: ContainerProc = Object.freeze({
+		spawnManaged: boundSpawnManaged,
+	});
+
+	const defaultAdapters: ContainerAdapters = Object.freeze({
+		codex: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildCodexLaunchSpec(options as Parameters<typeof buildCodexLaunchSpec>[0]),
+			mapEvents: (line: unknown) => mapCodexEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		claude: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildClaudeLaunchSpec({
+					...(options as Parameters<typeof buildClaudeLaunchSpec>[0]),
+					model: options.model ?? undefined,
+				}),
+			mapEvents: (line: unknown) => mapClaudeEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		dsh: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildDshLaunchSpec(options as Parameters<typeof buildDshLaunchSpec>[0]),
+			mapEvents: (line: unknown) => mapDshEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		'generic-acp': Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildGenericAcpLaunchSpec(options as Parameters<typeof buildGenericAcpLaunchSpec>[0]),
+			mapEvents: (line: unknown) => mapGenericAcpEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		grok: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildGrokLaunchSpec(options as Parameters<typeof buildGrokLaunchSpec>[0]),
+			mapEvents: (line: unknown) => mapGrokEvents(line) as readonly EventEnvelopeInput[],
+		}),
+		pi: Object.freeze({
+			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
+				buildPiLaunchSpec({
+					...(options as Parameters<typeof buildPiLaunchSpec>[0]),
+					model: options.model ?? undefined,
+				}),
+			mapEvents: (line: unknown) => mapPiEvents(line) as readonly EventEnvelopeInput[],
+		}),
+	});
+	const adapters: ContainerAdapters = input.adapters ?? defaultAdapters;
+
+	const sessionArchiveService = createSessionArchiveService({
+		runsRepo: runs,
+		tasksRepo: tasks,
+		processRegistry,
+		clock: input.clock,
+		envelopeFactory,
+		bus,
+		processOps,
+		platform: input.hostInputs.platform,
+	});
 	const messageService =
 		input.messageService ??
 		createMessageService({
@@ -348,6 +518,133 @@ export function createContainer(input: {
 			clock: input.clock,
 		});
 
+	const batchService =
+		input.batchService ??
+		createBatchService({
+			batchesRepo: batches,
+			tasksRepo: tasks,
+			runsRepo: runs,
+			unitOfWork,
+			clock: input.clock,
+			bus,
+			envelopeFactory,
+		});
+
+	const wrapupService =
+		input.wrapupService ??
+		createWrapupService({
+			batchesRepo: batches,
+			tasksRepo: tasks,
+			runsRepo: runs,
+			dispatchSnapshotsRepo: dispatchSnapshots,
+			batchWrapupsRepo: batchWrapups,
+			gatesRepo: gates,
+			documentsRepo: documents,
+			batchService,
+			docsService,
+			unitOfWork,
+			clock: input.clock,
+			ids,
+			bus,
+			envelopeFactory,
+			agentRegistry,
+			agentService,
+			workspace: {
+				prepareWrapupWorktree: async (params) => {
+					const prepared = await worktreeManager.prepareWrapupWorktree(params);
+					return {
+						worktreePath: prepared.worktreePath,
+						branchName: prepared.branchName,
+						baseSha: prepared.baseRef,
+					};
+				},
+				getDiffStat: async (worktreePath) => {
+					const stat = await getDiffStat(worktreePath, { deps: worktreeDeps });
+					const files = stat.files.map(
+						(file) => `${file.path} | +${file.insertions} -${file.deletions} | ${file.status}`,
+					);
+					return [
+						...files,
+						`Total: ${stat.filesChanged} files, +${stat.insertions} -${stat.deletions}`,
+					].join('\n');
+				},
+			},
+			logstorePaths,
+			logFs,
+		});
+
+	const runLifecycleRepo: RunLifecycleRepo = Object.freeze({
+		findById(id: string): RunRecord | null {
+			const row = runs.findById(id);
+			return row
+				? {
+						id: row.id,
+						taskId: row.task_id,
+						state: row.state as RunRecord['state'],
+						pid: row.pid,
+						kind: row.kind,
+						origin: row.origin,
+						agentId: row.agent_id,
+						agent_id: row.agent_id,
+						session_archived_at: row.session_archived_at ?? null,
+						lane_no: row.lane_no ?? null,
+						lastEventAt: row.last_event_at,
+						unmappedEventCount: row.unmapped_event_count,
+						exitCode: row.exit_code,
+						exitSignal: row.exit_signal,
+						endedAt: row.ended_at,
+						actorDeviceId: row.actor_device_id,
+					}
+				: null;
+		},
+		updateState(input: Parameters<RunLifecycleRepo['updateState']>[0]) {
+			runs.updateState(input);
+		},
+		updateLastEventAt(id: string, lastEventAt: string) {
+			runs.updateLastEventAt?.(id, lastEventAt);
+		},
+		incrementUnmappedEventCount(id: string) {
+			runs.incrementUnmappedEventCount?.(id);
+		},
+		findInFlight() {
+			return (runs.findInFlight?.() ?? runs.listActive()).map((row) => ({
+				id: row.id,
+				taskId: row.task_id,
+				state: row.state as RunRecord['state'],
+				pid: row.pid,
+				kind: row.kind,
+			}));
+		},
+	});
+	const runService =
+		input.runService ??
+		createRunService({
+			logstore: logstoreService,
+			clock: input.clock,
+			envelopeFactory,
+			bus,
+			unitOfWork,
+			runsRepo: runLifecycleRepo,
+			tasksRepo: tasks,
+			sessionArchiveService,
+			finalizeWrapup: (params) => wrapupService.recordWrapupResult(params),
+			logFailure: (error) =>
+				input.logViolation?.(error instanceof Error ? error.message : String(error)),
+			agentService,
+			gatesRepo: gates,
+			ids,
+		});
+
+	const baseSelector =
+		input.baseSelector ??
+		createBaseSelector({
+			platform: input.hostInputs.platform,
+			worktreeManager,
+			ids,
+			clock: input.clock,
+			worktreeDeps,
+		});
+
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
@@ -357,22 +654,68 @@ export function createContainer(input: {
 			documentsRepo: documents,
 			dispatchSnapshotsRepo: dispatchSnapshots,
 			runsRepo: runs,
+			gatesRepo: gates,
+			batchWrapupsRepo: batchWrapups,
+			batchService,
+			wrapupService,
 			clock: input.clock,
 			ids,
 			bus,
 			envelopeFactory,
 			eventSeqRepo: eventSeq,
+			// 快照游标必须是真正发出去的最后一条事件 id（E-153）：event_seq 只是预留水位，不是事件 id。
+			getLatestEventId: () => ringBuffer.latest()?.id ?? null,
 			getDispatchHalt: () => systemService.isDispatchHalted(),
 			listAgents: () => agentService.listAgents(),
 			listDispatchableAgents: () => {
 				const snapshot = agentRegistry.getSnapshot();
-				return Object.keys(snapshot.agents).map((agentId) => {
+				return Object.entries(snapshot.agents).map(([agentId, agentConfig]) => {
 					const availability = agentService.getAvailability(agentId);
 					return {
 						agentId,
 						canDispatch: availability?.canDispatch === true,
+						// Registry maxConcurrency is the per-agent limit the tick and the preview share (E-47).
+						concurrencyLimit: agentConfig.maxConcurrency,
 					};
 				});
+			},
+			baseSelector,
+			workspace: worktreeManager,
+			proc,
+			adapters,
+			runService,
+			reviewService: input.reviewService,
+		});
+
+	const assignmentsService =
+		input.assignmentsService ??
+		createAssignmentsService({
+			unitOfWork,
+			tasksRepo: tasks,
+			batchesRepo: batches,
+			documentsRepo: documents,
+			runsRepo: runs,
+			clock: input.clock,
+			// Every registered agent is draftable, login state included (E-336).
+			listRegistryAgents: () =>
+				Object.entries(agentRegistry.getSnapshot().agents).map(([agentId, agentConfig]) => ({
+					agentId,
+					maxConcurrency: agentConfig.maxConcurrency,
+					effortVendorMap: agentConfig.effortVendorMap,
+				})),
+			listVendorEffortDomain: async (agentId) => {
+				const catalog = await agentService.listAgentModels(agentId);
+				const domain = new Set<string>();
+				const configEffort = catalog.currentConfig.effort;
+				if (configEffort && 'vendor' in configEffort) {
+					domain.add(configEffort.vendor);
+				}
+				for (const model of catalog.models) {
+					for (const option of model.effortOptions ?? []) {
+						domain.add(option);
+					}
+				}
+				return Array.from(domain);
 			},
 		});
 
@@ -413,6 +756,10 @@ export function createContainer(input: {
 		createGateService({
 			gatesRepo: gates,
 			tasksRepo: tasks,
+			runsRepo: runs,
+			batchesRepo: batches,
+			batchWrapupsRepo: batchWrapups,
+			batchService,
 			clock: input.clock,
 			ids,
 			bus,
@@ -435,9 +782,13 @@ export function createContainer(input: {
 		landing: landingService,
 		message: messageService,
 		dispatch: dispatchService,
+		assignments: assignmentsService,
 		rework: reworkService,
 		settings: settingsService,
 		gates: gateService,
+		batch: batchService,
+		wrapup: wrapupService,
+		run: runService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([schedulerTickJob]);
@@ -455,9 +806,9 @@ export function createContainer(input: {
 		repos,
 		logstore: empty,
 		events,
-		proc: empty,
-		adapters: empty,
-		workspace: empty,
+		proc,
+		adapters,
+		workspace,
 		services,
 		jobs,
 		instanceLock: input.instanceLock,

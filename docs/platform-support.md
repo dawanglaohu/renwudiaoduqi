@@ -54,7 +54,7 @@
 > 遵循 **E-267**：macOS 客户端受 Apple Gatekeeper 安全机制约束。
 
 - **构建验证件 (Build Verification Artifact)**：
-  - 当 CI 缺少 Apple Developer 证书凭据（未配置 `APPLE_CERTIFICATE` / `APPLE_ID`）时，构建出的产物仅标记为 `构建验证件`（资产名如 `agsched-desktop_macos-build-verification.zip`）。
+  - 当 CI 缺少 Apple Developer 证书与公证凭据（`APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`）时，构建出的产物仅标记为 `构建验证件`。
   - 该产物仅用于内部开发联调与流水线验证，不作为对外分发的正式安装包。
 - **正式发布门禁 (Formal Release Gate)**：
   - 正式发布版本必须且只能由通过 Apple Developer ID 签名并完成 Apple 公证（Notarization Ticket 注入）的产物放行。
@@ -111,11 +111,11 @@ daemon 的机器级单实例锁位于系统目录（Linux `/var/lib/agent-schedu
 > - Windows (`windows-latest`)、macOS (`macos-latest`)、Ubuntu (`ubuntu-latest`) 三个 runner 均执行：
 >   1. `pnpm -w check`（静态检查、类型检查、单元测试）
 >   2. 平台集成测试（`packages/daemon/test/platform/`，本机原生适配器）
->   3. 随包 daemon 分发构建 + Tauri 桌面壳构建（`cargo build --release`，tauri-build 同时落下随包资源）
->   4. 安装载荷展开到含空格与 Unicode 的临时根目录 → 产品层检查 → 构建机路径残留检查 → 按上一节契约解析启动清单 → **真正启动随包 daemon** 并探活 `/api/v1/health`
+>   3. 随包 daemon 分发构建 + Tauri installer 构建（Windows NSIS/MSI、macOS app/DMG、Linux deb/AppImage）
+>   4. 从真实 MSI/DMG/deb 解包到含空格与 Unicode 的临时根目录 → 产品层检查 → 构建机路径残留检查 → 按上一节契约解析启动清单 → **真正启动随包 daemon** 并探活 `/api/v1/health`
 > - 发布门禁从 GitHub API 读回每个平台 job 的各步骤结论，逐平台逐步骤喂给 `assertReleaseVerification`：任一平台任一步骤失败，直接阻断整个版本发布并点名失败的平台与步骤，不得降级为可忽略项 (E-265)。
 > - 展开后的安装载荷不得包含构建机绝对路径 (E-209)；daemon（含随包运行时与 `web/dist`）、路径适配器、桌面壳二进制任一产品层缺失均阻断发布并列出缺失项 (E-257)。
-> - CI 只做 `cargo build`，不跑 `tauri bundle`：上传的产物是**构建验证件**，不是可分发安装包；macOS 正式发布另由签名/公证门禁放行 (E-267)。
+> - CI 用 Tauri CLI 生成并上传真实安装包；Windows/Linux 产物通过构建与解包 smoke，macOS 缺签名/公证凭据时仍只标**构建验证件**，正式发布另由签名/公证门禁放行 (E-267)。
 > - 壳能否真的创建窗口、通知与自启是否生效，CI 不作声明，见第 7 节人工验收 (E-266)。
 
 ---

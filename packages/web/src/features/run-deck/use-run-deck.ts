@@ -166,7 +166,7 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 	const density = useDensityTier({ streamCount: lanes.length });
 	const tier: DensityTier = overrideTier ?? density.tier;
 
-	const isMobileTier = tier === 'phone' || tier === 'phone-xs' || density.isTouch;
+	const isMobileTier = tier === 'phone' || tier === 'phone-xs';
 
 	// 紧凑档展开某条流（AC 3, E-165）
 	const [expandedLaneNo, setExpandedLaneNo] = useState<number | null>(null);

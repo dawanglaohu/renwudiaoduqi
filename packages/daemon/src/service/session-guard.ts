@@ -24,7 +24,7 @@ export interface SessionGuardService {
 			| {
 					readonly id: string;
 					readonly session_archived_at?: string | null;
-					readonly task_id?: string;
+					readonly task_id?: string | null;
 			  }
 			| string,
 	): void;
@@ -53,8 +53,8 @@ export function assertSessionRefFree(
 	}
 
 	// Different task collision: reject with E_SESSION_ARCHIVED and conflictTaskKey
-	const conflictTask = deps.tasksRepo?.findById(existing.task_id);
-	const conflictTaskKey = conflictTask?.task_key ?? existing.task_id;
+	const conflictTask = existing.task_id ? deps.tasksRepo?.findById(existing.task_id) : null;
+	const conflictTaskKey = conflictTask?.task_key ?? existing.task_id ?? 'unknown';
 
 	throw new AppError(
 		'E_SESSION_ARCHIVED',
@@ -80,7 +80,7 @@ export function assertNotArchived(
 		| {
 				readonly id: string;
 				readonly session_archived_at?: string | null;
-				readonly task_id?: string;
+				readonly task_id?: string | null;
 		  }
 		| string,
 	deps?: SessionGuardDeps,
@@ -88,8 +88,8 @@ export function assertNotArchived(
 	let run: {
 		readonly id: string;
 		readonly session_archived_at?: string | null;
-		readonly task_id?: string;
-	} | null;
+		readonly task_id?: string | null;
+	} | null = null;
 
 	if (typeof runOrId === 'string') {
 		if (!deps?.runsRepo?.findById) {
@@ -105,7 +105,7 @@ export function assertNotArchived(
 		run = runOrId;
 	}
 
-	if (run.session_archived_at !== null && run.session_archived_at !== undefined) {
+	if (run && run.session_archived_at !== null && run.session_archived_at !== undefined) {
 		throw new AppError(
 			'E_SESSION_ARCHIVED',
 			`Session for run '${run.id}' has been archived and is read-only.`,
@@ -131,7 +131,7 @@ export function createSessionGuardService(deps: SessionGuardDeps): SessionGuardS
 				| {
 						readonly id: string;
 						readonly session_archived_at?: string | null;
-						readonly task_id?: string;
+						readonly task_id?: string | null;
 				  }
 				| string,
 		): void {

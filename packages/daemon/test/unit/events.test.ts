@@ -119,6 +119,10 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'lane_released';
 				case 'batch.advanced':
 					return 'batch_advanced';
+				case 'batch.wrapup_started':
+					return 'batch_wrapup_started';
+				case 'batch.wrapup_finished':
+					return 'batch_wrapup_finished';
 				case 'agent.availability_changed':
 					return 'agent_avail';
 				case 'settings.gates_changed':

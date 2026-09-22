@@ -1,7 +1,6 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import tailwindcss from 'tailwindcss';
 import { defineConfig } from 'vite';
 
 function getAppVersion(): string {
@@ -25,9 +24,9 @@ function getBuildId(): string {
 export default defineConfig({
 	base: './',
 	css: {
-		postcss: {
-			plugins: [tailwindcss()],
-		},
+		// The build reads its PostCSS pipeline (tailwindcss + autoprefixer) from this one file; the
+		// style-pipeline test feeds the same file to PostCSS directly (M9-T24).
+		postcss: resolve(__dirname, 'postcss.config.cjs'),
 	},
 	build: {
 		outDir: 'dist',

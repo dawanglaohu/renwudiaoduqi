@@ -22,7 +22,6 @@ import {
 } from '../src/features/run-detail/use-run-rerun.ts';
 import { getErrorMessage } from '../src/i18n/error-messages.ts';
 import { RunDetailPage } from '../src/pages/run-detail-page.tsx';
-import viteConfig from '../vite.config.ts';
 
 describe('M9-T13: Mobile Rerun Entrance (AC 1-5, E-177, E-181, R1-R3)', () => {
 	beforeEach(() => {
@@ -454,19 +453,6 @@ describe('M9-T13: Mobile Rerun Entrance (AC 1-5, E-177, E-181, R1-R3)', () => {
 			expect(html).toContain('文档快照已变更，重跑请到桌面端处理');
 			expect(html).toContain('Task contract has changed since dispatch (E-180)');
 			expect(html).toContain('req_stale_123');
-		});
-	});
-
-	describe('R4: Production CSS includes Tailwind utilities', () => {
-		it('registers the Tailwind PostCSS plugin in the Vite build', () => {
-			const config = viteConfig as unknown as {
-				readonly css?: {
-					readonly postcss?: { readonly plugins?: readonly { readonly postcssPlugin?: string }[] };
-				};
-			};
-			const plugins = config.css?.postcss?.plugins ?? [];
-
-			expect(plugins.some((plugin) => plugin.postcssPlugin === 'tailwindcss')).toBe(true);
 		});
 	});
 });

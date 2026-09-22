@@ -2,7 +2,7 @@
 """收尾只提示过期产物；真正的派发门槛由契约版本与维护状态执行。"""
 from pathlib import Path
 import sys
-from handoff_contract import runtime_drift, stale_reasons
+from handoff_contract import read_json, runtime_drift, stale_reasons
 
 
 def stale_docs(directory):
@@ -42,6 +42,10 @@ def main():
         leftovers = workspace_report(root)
         if leftovers:
             print('[工作区] ' + str(root) + '：已落地任务遗留 ' + str(leftovers) + ' 个目录；' + prefix + ' workspace 列出删除命令')
+        stage = read_json(root / '_run/stage.json', {}) or {}
+        if stage.get('next') and stage.get('next') != 'done':
+            print('[文档生成] ' + str(root) + '：停在 ' + str(stage['next']) + '，下一步 python "'
+                  + (root / '_run/stage.py').as_posix() + '" "' + root.as_posix() + '"')
 
 
 if __name__ == '__main__':

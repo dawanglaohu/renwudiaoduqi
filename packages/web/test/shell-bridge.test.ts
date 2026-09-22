@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SHELL, detectShell } from '../src/shell/detect-shell.ts';
 import {
 	SESSION_STORAGE_TOKEN_KEY,
+	createCapacitorShellAdapter,
 	getBrowserUnreadNotificationCount,
 	onNotificationFallback,
 	registerNativeShellAdapter,
@@ -348,44 +349,46 @@ describe('M10-T1 Shell Bridge & Capability Detection', () => {
 	});
 
 	describe('E-227: Sole source of truth when native shell adapter is present', () => {
-		it('delegates all three capabilities to the native adapter and never writes sessionStorage', async () => {
+		it('self-installs the Tauri adapter and never writes sessionStorage', async () => {
 			// The platform is frozen at module load, so the shell branch is only reachable by importing
 			// the module again with the shell global already in place.
 			sessionStorage.setItem(SESSION_STORAGE_TOKEN_KEY, 'stale-browser-copy');
-			(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+			let nativeToken: string | null = 'native-keychain-token';
+			const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+				switch (command) {
+					case 'get_token':
+						return nativeToken;
+					case 'set_token':
+						nativeToken = String(args?.token ?? '');
+						return null;
+					case 'clear_token':
+						nativeToken = null;
+						return null;
+					case 'get_host_hint':
+						return 'http://127.0.0.1:7817';
+					default:
+						throw new Error(`Unexpected Tauri command: ${command}`);
+				}
+			});
+			(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {
+				invoke,
+			};
 			vi.resetModules();
 			const nativeShell = await import('../src/shell/shell-bridge.ts');
 			expect(nativeShell.shellBridge.platform).toBe('tauri');
+			expect(nativeShell.shellBridge.capabilities.hasSecureStorage).toBe(true);
 			// E-227: startup in the shell drops the stale browser copy instead of dual-writing.
 			expect(sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY)).toBeNull();
 
-			let nativeToken: string | null = 'native-keychain-token';
-			const nativeStore = {
-				get: vi.fn(async () => nativeToken),
-				set: vi.fn(async (next: string) => {
-					nativeToken = next;
-				}),
-				clear: vi.fn(async () => {
-					nativeToken = null;
-				}),
-			};
-			const nativeNotify = vi.fn(async (_options: ShellNotificationOptions) => {});
-			const nativeHostHint = vi.fn(async () => 'http://127.0.0.1:7817');
-			nativeShell.registerNativeShellAdapter({
-				tokenStore: nativeStore,
-				notify: nativeNotify,
-				hostHint: nativeHostHint,
-			});
-
 			expect(await nativeShell.shellBridge.tokenStore.get()).toBe('native-keychain-token');
 			await nativeShell.shellBridge.tokenStore.set('rotated-token');
-			expect(nativeStore.set).toHaveBeenCalledWith('rotated-token');
+			expect(invoke).toHaveBeenCalledWith('set_token', { token: 'rotated-token' });
+			expect(invoke.mock.calls.filter(([command]) => command === 'set_token')).toHaveLength(1);
 			expect(await nativeShell.shellBridge.tokenStore.get()).toBe('rotated-token');
 			await nativeShell.shellBridge.tokenStore.clear();
-			expect(nativeStore.clear).toHaveBeenCalled();
-			await nativeShell.shellBridge.notify({ title: 'Native Notification' });
-			expect(nativeNotify).toHaveBeenCalledWith({ title: 'Native Notification' });
+			expect(invoke).toHaveBeenCalledWith('clear_token');
 			expect(await nativeShell.shellBridge.hostHint()).toBe('http://127.0.0.1:7817');
+			expect(invoke).toHaveBeenCalledWith('get_host_hint');
 			expect(sessionStorage.setItem).not.toHaveBeenCalledWith(
 				SESSION_STORAGE_TOKEN_KEY,
 				'rotated-token',
@@ -393,6 +396,37 @@ describe('M10-T1 Shell Bridge & Capability Detection', () => {
 
 			(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = undefined;
 			vi.resetModules();
+		});
+
+		it('uses Capacitor Preferences for the token and host without a session copy', async () => {
+			const values = new Map<string, string>([
+				['agsched.token', 'mobile-native-token'],
+				['agsched.host', ' https://daemon.example.test/ '],
+			]);
+			const preferences = {
+				get: vi.fn(async ({ key }: { key: string }) => ({ value: values.get(key) ?? null })),
+				set: vi.fn(async ({ key, value }: { key: string; value: string }) => {
+					values.set(key, value);
+				}),
+				remove: vi.fn(async ({ key }: { key: string }) => {
+					values.delete(key);
+				}),
+			};
+			const adapter = createCapacitorShellAdapter(preferences);
+
+			expect(await adapter.tokenStore?.get?.()).toBe('mobile-native-token');
+			await adapter.tokenStore?.set?.('mobile-rotated-token');
+			expect(preferences.set).toHaveBeenCalledWith({
+				key: 'agsched.token',
+				value: 'mobile-rotated-token',
+			});
+			expect(await adapter.hostHint?.()).toBe('https://daemon.example.test/');
+			await adapter.tokenStore?.clear?.();
+			expect(preferences.remove).toHaveBeenCalledWith({ key: 'agsched.token' });
+			expect(sessionStorage.setItem).not.toHaveBeenCalledWith(
+				SESSION_STORAGE_TOKEN_KEY,
+				'mobile-rotated-token',
+			);
 		});
 	});
 });
