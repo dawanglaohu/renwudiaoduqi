@@ -1,5 +1,16 @@
+import type {
+	AgentCapacityPreview,
+	ConcurrencyPreview,
+	ConcurrencyPreviewBottleneck,
+} from '@agent-scheduler/shared/api/batches';
 import { AppError } from '../errors/app-error.ts';
 import { type RunState, countsTowardAgentConcurrency } from './run-state-machine.ts';
+
+/**
+ * Per-agent concurrency limit used when neither the registry nor the caller supplies one.
+ * The dispatch tick and the assignment preview both read it so their fallback agrees (E-47).
+ */
+export const DEFAULT_AGENT_CONCURRENCY_LIMIT = 2;
 
 /**
  * Concurrency bottleneck categories (E-52, E-245).
@@ -166,9 +177,9 @@ export function calculateConcurrencyLimit(inputs: ConcurrencyInputs): Concurrenc
 	if (
 		typeof inputs.agentLimit !== 'number' ||
 		!Number.isFinite(inputs.agentLimit) ||
-		inputs.agentLimit < 1
+		inputs.agentLimit < 0
 	) {
-		throw new AppError('E_VALIDATION', 'agentLimit must be a positive integer >= 1');
+		throw new AppError('E_VALIDATION', 'agentLimit must be a non-negative integer >= 0');
 	}
 	if (
 		inputs.machineResource !== undefined &&
@@ -302,7 +313,9 @@ export function calculateBatchConcurrency(inputs: BatchConcurrencyInputs): Batch
 	let aggregateAgentCapacity = 0;
 
 	for (const [agentId, assignedCount] of Object.entries(countsByAgent)) {
-		const maxConcurrency = Math.max(1, Math.floor(getLimit(agentId)));
+		// Registry values <= 0 disable an agent (E-91). Preserve zero instead of silently
+		// inventing one slot, otherwise the assignment preview advertises work that dispatch rejects.
+		const maxConcurrency = Math.max(0, Math.floor(getLimit(agentId)));
 		const effectiveLimit = Math.min(assignedCount, maxConcurrency);
 		agentCapacities[agentId] = Object.freeze({
 			assignedCount,
@@ -393,7 +406,8 @@ export function allocateConcurrencySlots<T extends CandidateTask = CandidateTask
 		if (agentCurrentActive[agentId] === undefined) {
 			agentCurrentActive[agentId] = Math.max(0, Math.floor(getActiveRuns(agentId)));
 		}
-		const limit = Math.max(1, Math.floor(getLimit(agentId)));
+		// A zero limit is a disabled agent, not a one-slot agent (E-91).
+		const limit = Math.max(0, Math.floor(getLimit(agentId)));
 
 		if (openSlots <= 0) {
 			deferred.push(
@@ -445,4 +459,161 @@ export function countActiveRunsForAgent(states: readonly (RunState | string)[]):
  */
 export function canIncreaseWithoutUnlock(userSetting: number, windowCount: number): boolean {
 	return userSetting < windowCount;
+}
+
+/**
+ * A task of the batch as seen by the preview: dependency keys plus the three facts that decide
+ * whether it can be released right now.
+ */
+export interface ReleasableTaskCandidate {
+	readonly taskId: string;
+	readonly taskKey: string;
+	readonly deps: readonly string[];
+	/** Landed by manual state or by a landed run; never released again. */
+	readonly isLanded: boolean;
+	/** Has a run in a non-terminal state; occupies its slot already. */
+	readonly hasActiveRun: boolean;
+	/** Removed from the document (E-77); never dispatched. */
+	readonly isRemovedFromDoc: boolean;
+	/** Latest run ended in a terminal failure; the scheduler does not auto-redispatch (E-51). */
+	readonly isTerminalFailed: boolean;
+}
+
+/**
+ * Lists the batch tasks that the scheduler could release right now: pending, not removed,
+ * not already running, not parked after a terminal failure, and with every dependency landed.
+ * Its size is the `windowCount` of the concurrency preview (M8-T1 semantics, E-52).
+ */
+export function listReleasableTaskIds(
+	tasks: readonly ReleasableTaskCandidate[],
+	landedTaskKeys: ReadonlySet<string>,
+): readonly string[] {
+	const releasable: string[] = [];
+	for (const task of tasks) {
+		if (task.isLanded || task.hasActiveRun || task.isRemovedFromDoc || task.isTerminalFailed) {
+			continue;
+		}
+		if (task.deps.every((depKey) => landedTaskKeys.has(depKey))) {
+			releasable.push(task.taskId);
+		}
+	}
+	return Object.freeze(releasable);
+}
+
+export interface DraftSessionInput {
+	readonly taskId: string;
+	readonly taskKey: string;
+	readonly agentId: string;
+}
+
+/**
+ * Session ordinal each draft will receive once dispatched (E-31):
+ * the agent's concurrency-occupying run count plus the draft's rank among the same agent's
+ * drafts in taskKey order, starting at 1. Two drafts of one agent therefore preview as
+ * consecutive session numbers, and an agent with no drafts contributes nothing.
+ */
+export function numberDraftSessions(
+	drafts: readonly DraftSessionInput[],
+	activeRunsByAgent: (agentId: string) => number,
+): ReadonlyMap<string, number> {
+	const byAgent = new Map<string, DraftSessionInput[]>();
+	for (const draft of drafts) {
+		const bucket = byAgent.get(draft.agentId);
+		if (bucket) {
+			bucket.push(draft);
+		} else {
+			byAgent.set(draft.agentId, [draft]);
+		}
+	}
+	const sessionNoByTaskId = new Map<string, number>();
+	for (const [agentId, bucket] of byAgent) {
+		const active = Math.max(0, Math.floor(activeRunsByAgent(agentId)));
+		const ordered = [...bucket].sort((a, b) =>
+			a.taskKey < b.taskKey ? -1 : a.taskKey > b.taskKey ? 1 : 0,
+		);
+		ordered.forEach((draft, index) => {
+			sessionNoByTaskId.set(draft.taskId, active + index + 1);
+		});
+	}
+	return sessionNoByTaskId;
+}
+
+export interface ConcurrencyPreviewInputs {
+	/** `documents.lane_count`; reported back untouched (E-245). */
+	readonly userSetting: number;
+	/** Releasable task count of the batch right now. */
+	readonly windowCount: number;
+	/** Pending drafts, in taskKey order. */
+	readonly drafts: readonly TaskAssignment[];
+	/** Agents to report capacities for, e.g. every registry agent. */
+	readonly agentIds: readonly string[];
+	readonly activeRunsByAgent: (agentId: string) => number;
+	/** Registry `maxConcurrency` per agent. */
+	readonly agentLimits: (agentId: string) => number;
+}
+
+const PREVIEW_BOTTLENECKS: readonly ConcurrencyPreviewBottleneck[] = Object.freeze([
+	CONCURRENCY_BOTTLENECKS.WINDOW_COUNT,
+	CONCURRENCY_BOTTLENECKS.AGENT_LIMIT,
+	CONCURRENCY_BOTTLENECKS.USER_SETTING,
+]);
+
+function toPreviewBottleneck(bottleneck: ConcurrencyBottleneck): ConcurrencyPreviewBottleneck {
+	if ((PREVIEW_BOTTLENECKS as readonly string[]).includes(bottleneck)) {
+		return bottleneck as ConcurrencyPreviewBottleneck;
+	}
+	throw new AppError(
+		'E_INTERNAL',
+		`Concurrency preview received a bottleneck outside its three-value domain: ${bottleneck}`,
+		{ details: { bottleneck } },
+	);
+}
+
+/**
+ * Builds the concurrency preview of a batch from `calculateBatchConcurrency()` (E-52, E-245):
+ * `effectiveConcurrency` and `bottleneck` come from that calculation unchanged, the user setting
+ * is reported as given, and each agent's `isFull` is `active + drafted >= limit` so the panel can
+ * tell which agent's tasks will queue while other agents' tasks still go out (E-47).
+ * Agents are listed in order of first appearance among the drafts, then the rest alphabetically.
+ */
+export function buildConcurrencyPreview(inputs: ConcurrencyPreviewInputs): ConcurrencyPreview {
+	const result = calculateBatchConcurrency({
+		userSetting: inputs.userSetting,
+		windowCount: inputs.windowCount,
+		assignments: inputs.drafts,
+		agentLimits: inputs.agentLimits,
+	});
+
+	const draftedByAgent = new Map<string, number>();
+	for (const draft of inputs.drafts) {
+		draftedByAgent.set(draft.agentId, (draftedByAgent.get(draft.agentId) ?? 0) + 1);
+	}
+	const orderedAgentIds = [...draftedByAgent.keys()];
+	for (const agentId of [...inputs.agentIds].sort()) {
+		if (!draftedByAgent.has(agentId)) {
+			orderedAgentIds.push(agentId);
+		}
+	}
+
+	const agentCapacities: AgentCapacityPreview[] = orderedAgentIds.map((agentId) => {
+		const active = Math.max(0, Math.floor(inputs.activeRunsByAgent(agentId)));
+		const limit = Math.max(0, Math.floor(inputs.agentLimits(agentId)));
+		const drafted = draftedByAgent.get(agentId) ?? 0;
+		return Object.freeze({
+			agentId,
+			active,
+			limit,
+			drafted,
+			isFull: active + drafted >= limit,
+		});
+	});
+
+	return Object.freeze({
+		windowCount: result.factors.windowCount,
+		userSetting: result.userSetting,
+		agentCapacities: Object.freeze(agentCapacities),
+		effectiveConcurrency: result.effectiveConcurrency,
+		bottleneck: toPreviewBottleneck(result.bottleneck),
+		exceedsWindowCount: result.exceedsWindowCount,
+	});
 }

@@ -2,15 +2,20 @@ import {
 	type CreateDocumentBody,
 	type CreateDocumentResponse,
 	type DocumentDto,
+	type ListDocumentBatchesResponse,
+	type ListDocumentTasksResponse,
 	type ListDocumentsResponse,
 	type OpenReaderResponse,
+	type RefreshDocumentResponse,
 	type UpdateDocumentSettingsBody,
 	type UpdateDocumentSettingsResponse,
 	createDocumentBodySchema,
 	updateDocumentSettingsBodySchema,
 } from '@agent-scheduler/shared/api/documents';
 import type { FastifyInstance, RouteHandlerMethod } from 'fastify';
+import { TASK_STATES } from '../../domain/task-state.ts';
 import { AppError } from '../../errors/app-error.ts';
+import type { BatchService } from '../../service/batch.ts';
 import type { DocsService, DocumentRecord } from '../../service/docs.ts';
 
 export interface DocumentParams {
@@ -42,14 +47,37 @@ export const UPDATE_DOCUMENT_SETTINGS_QUERY_SCHEMA = {
 	},
 } as const;
 
+export interface ListDocumentTasksQuery {
+	readonly batchId?: string;
+	readonly state?: string;
+	readonly cursor?: string;
+	readonly limit?: number;
+}
+
+export const LIST_DOCUMENT_TASKS_QUERY_SCHEMA = {
+	type: 'object',
+	additionalProperties: false,
+	properties: {
+		batchId: { type: 'string' },
+		state: {
+			type: 'string',
+			enum: TASK_STATES,
+		},
+		cursor: { type: 'string' },
+		limit: { type: 'integer', minimum: 1, maximum: 200 },
+	},
+} as const;
+
 export interface RegisterDocumentRoutesOptions {
 	readonly docsService?: DocsService;
+	readonly batchService?: BatchService;
 	readonly openBrowser?: (targetPath: string) => Promise<void> | void;
 }
 
 interface ContainerWithDocs {
 	readonly services?: {
 		readonly docs?: DocsService;
+		readonly batch?: BatchService;
 		readonly pairing?: {
 			readonly authenticateToken: (authHeader?: string) => { readonly deviceId: string };
 		};
@@ -74,6 +102,25 @@ function resolveDocsService(
 		return docsFromDecorated;
 	}
 	throw new AppError('E_INTERNAL', 'DocsService is not available in container');
+}
+
+function resolveBatchService(
+	instance: FastifyInstance,
+	options?: RegisterDocumentRoutesOptions,
+): BatchService {
+	const container = instance.server?.listening
+		? (instance.container as ContainerWithDocs | undefined)
+		: undefined;
+	const service = options?.batchService ?? container?.services?.batch;
+	if (service) {
+		return service;
+	}
+	const decorated = (instance as unknown as { container?: ContainerWithDocs }).container;
+	const batchFromDecorated = decorated?.services?.batch;
+	if (batchFromDecorated) {
+		return batchFromDecorated;
+	}
+	throw new AppError('E_INTERNAL', 'BatchService is not available in container');
 }
 
 function authenticateDevice(request: Parameters<RouteHandlerMethod>[0]): string {
@@ -193,6 +240,63 @@ export function registerDocumentRoutes(
 			}
 
 			return { document: toDocumentDto(updated) };
+		},
+	);
+
+	// POST /api/v1/documents/:docId/refresh
+	instance.post<{ Params: DocumentParams }>(
+		'/api/v1/documents/:docId/refresh',
+		{
+			schema: {
+				params: DOCUMENT_PARAMS_SCHEMA,
+			},
+		},
+		async (request): Promise<RefreshDocumentResponse> => {
+			authenticateDevice(request);
+			const docsService = options?.docsService ?? resolveDocsService(instance, options);
+			return docsService.refreshDocument(request.params.docId);
+		},
+	);
+
+	// GET /api/v1/documents/:docId/tasks
+	instance.get<{
+		Params: DocumentParams;
+		Querystring: ListDocumentTasksQuery;
+	}>(
+		'/api/v1/documents/:docId/tasks',
+		{
+			schema: {
+				params: DOCUMENT_PARAMS_SCHEMA,
+				querystring: LIST_DOCUMENT_TASKS_QUERY_SCHEMA,
+			},
+		},
+		async (request): Promise<ListDocumentTasksResponse> => {
+			authenticateDevice(request);
+			const docsService = options?.docsService ?? resolveDocsService(instance, options);
+			return docsService.listTasks(request.params.docId, request.query);
+		},
+	);
+
+	// GET /api/v1/documents/:docId/batches
+	instance.get<{ Params: DocumentParams }>(
+		'/api/v1/documents/:docId/batches',
+		{
+			schema: {
+				params: DOCUMENT_PARAMS_SCHEMA,
+			},
+		},
+		async (request): Promise<ListDocumentBatchesResponse> => {
+			authenticateDevice(request);
+			const docsService = options?.docsService ?? resolveDocsService(instance, options);
+			const doc = docsService.getDocumentById(request.params.docId);
+			if (!doc) {
+				throw new AppError('E_NOT_FOUND', `Document not found: ${request.params.docId}`, {
+					details: { docId: request.params.docId },
+				});
+			}
+			const batchService = options?.batchService ?? resolveBatchService(instance, options);
+			const batches = await batchService.listBatches(request.params.docId);
+			return { batches };
 		},
 	);
 }

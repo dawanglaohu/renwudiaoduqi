@@ -1,3 +1,6 @@
+import type { BatchDto } from './batches.ts';
+import type { TaskDto } from './tasks.ts';
+
 export interface DocumentDto {
 	readonly id: string;
 	readonly docsPath: string;
@@ -84,12 +87,12 @@ export interface UpdateDocumentSettingsResponse {
 }
 
 export interface ListDocumentTasksResponse {
-	readonly tasks: readonly unknown[];
+	readonly tasks: readonly TaskDto[];
 	readonly nextCursor: string | null;
 }
 
 export interface ListDocumentBatchesResponse {
-	readonly batches: readonly unknown[];
+	readonly batches: readonly BatchDto[];
 }
 
 export interface ListDocumentsResponse {

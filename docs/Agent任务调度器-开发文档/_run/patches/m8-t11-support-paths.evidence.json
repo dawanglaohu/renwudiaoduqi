@@ -1,0 +1,45 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T11": {
+      "contractHash": "87039ceea719dba2086bfd0a7aea90a4164b47c9c06a76eb444d94610aa4d35f",
+      "verdict": "pass",
+      "evidence": [
+        "契约与依据核对：对照 02-设计/09-数据模型.md:191（tasks.assignment_draft_json）、:230（runs.session_no）、:611（兼容策略第 9 条）与 02-设计/10-接口约定.md:29-30（端点表）、:180-183（assignments[] / drafts[] / preview / sessionNo 四行字段级契约）、:357-371（示例），确认任务产出、五条验收标准与六条边界的依据；前置 M3-T2、M4-T6、M4-T14、M8-T1、M8-T3 全部已落地（任务笔记 status=done）。",
+        "有效范围补丁（m8-t11-support-paths，PR #113）：实施必需的 packages/daemon/test/unit/database.test.ts（迁移文件清单钉死，每个新增迁移的任务都要登记，M8-T6/M4-T14/M10-T5 等先例均列在 supportPaths）与 packages/daemon/test/integration/migrate-rebuild.test.ts（分段升级夹具原用 !startsWith('0007') 表示「0007 之前」，0008 一出现就跑在重建之前导致 fresh/upgraded schema 不等，改为 file < '0007'）未列入本任务 supportPaths，定点补入 _run/task-contracts.json 的 tasks['M8-T11'].supportPaths。冲突核对：两文件的既有占用者 M8-T6、M3-T7、M6-T10、M4-T14、M10-T5 均已落地；在飞分支 task/M9-T13、task/M9-T18 对 database.test.ts 的 -6 行差异是它们落后于 main 的历史差（基于旧 main），非本任务冲突；task/M9-T19、task/M9-T24、batch/11-20260919 不碰这两个文件。未放行整个 test/ 目录。",
+        "契约语义复核：接线要求四个注册点均已含本任务条目——packages/daemon/src/http/plugins/50-routes.ts:84-85（customRegisteredPaths 两条）、packages/shared/src/api/routes.ts:79（REQUEST_BODY_SCHEMAS putAssignments）与 :305-321（ROUTES GET/POST）、packages/daemon/migrations/0008_add_assignment_drafts_and_session_no.sql（database.test.ts:161 清单与 migrate-rebuild 夹具消费，repo 层按 PRAGMA table_info 探测后读写）、packages/shared/src/api/batches.ts:178-311（TaskAssignmentDraft / PutAssignmentsBody / TaskAssignmentDto / ConcurrencyPreview / BatchAssignmentsResponse，被 routes/batches.ts、service/assignments.ts、domain/concurrency.ts 消费）与 packages/shared/src/api/runs.ts:209（RunDto.sessionNo，repo/runs.ts:358 填充）。字段与 10 节逐项一致：TaskAssignmentDraft 四键、TaskAssignmentDto 七键、ConcurrencyPreview 六键与 agentCapacities 五键、bottleneck 三值。",
+        "验收阶段核对（pnpm -w check 在 WSL 全绿：153 files、1826 passed / 32 skipped、CHECK_EXIT=0）：AC 1 → service/assignments.ts:342 putDrafts 先全量校验（:309 rejectTask 给 details.field:'assignments[i].taskId'，:372 agent_not_registered 给 assignments[i].agentId）再在一个 unitOfWork.run 内对每个待派任务 setAssignmentDraft(json|null)（:404-412），单测 assignments.test.ts:188-357、集成 batch-assignments.test.ts:213/:305；AC 2 → domain/concurrency.ts:512 numberDraftSessions + service/assignments.ts:231 countActiveRunsByAgent（countsTowardAgentConcurrency 过滤），单测 :360（codex 1 活跃两草稿 → 2、3，claude → 1）；AC 3 → domain/concurrency.ts:576 buildConcurrencyPreview 直接调 calculateBatchConcurrency()，windowCount=listReleasableTaskIds().length（service :275）、userSetting=doc.lane_count（:301）、isFull=active+drafted>=limit（:607），三种瓶颈单测 :459/:483/:499，exceedsWindowCount :483/:540；AC 4 → 集成 :363（codex 两条活跃、claude 空闲，start 后 tick 派 claude、codex 记 agent_limit_reached，二次 tick 不重派），依赖 boot/container.ts:552 把注册表 maxConcurrency 交给 tick 的 agentLimitFor；AC 5 → dispatch.ts:275 resolveAgentForTask 先读草稿、:1056 createRun 带草稿 model/effort、:291 nextSessionNoFor 在 INSERT 事务内取、:413 写 session_no、repo/runs.ts:358 下发 sessionNo，集成 :417（agent_id/model_name/effort 逐字、session_no=预览 2/1、GET /runs/:id 同值、旧行 null）、:490 无草稿回落 codex。tick 的候选顺序来自 repo/tasks.ts SELECT_BY_BATCH_ID_SQL 的 ORDER BY task_key ASC，与预览按 taskKey 编号同序。",
+        "边界核对：E-108 → 空数组清空全部草稿（service :404，单测 :219），GET 返回 drafts:[] 与预览供四步引导；E-245 → userSetting 只读 documents.lane_count 原样回传、无任何写路径，单测 :540 断言 lane_count 仍为 6；E-31 → runs.session_no 由 nextSessionNoFor 在 INSERT 事务内取，预览按 taskKey 序编号，集成 :417；E-336 → listRegistryAgents 只投影 agentId/maxConcurrency/effortVendorMap（container.ts:566），service 拿不到登录态，单测 :302 静态断言 service/assignments.ts 与 service/dispatch.ts 不出现 logged_out|getLogin(|loginCache|refreshLogin，既有 login-probe.test.ts:645 覆盖 assertCanDispatch() 不按登录态拒绝；草稿 agent 不可派时 tick 报 agent_unavailable 不改派（集成 :505）；E-47 → 预览逐 agent isFull（单测 :655），tick 沿用 M8-T1 allocateConcurrencySlots 让位（集成 :363）；E-52 → bottleneck 直接取 calculateBatchConcurrency() 结果并经 toPreviewBottleneck 收窄到契约三值（domain :558）、exceedsWindowCount 提示需显式解锁。",
+        "反造假扫描：① 有效路径内 diff 新增行无 not implemented|placeholder|stub|TODO|待接入|后续接入（既有命中 50-routes.ts:124 的占位处理器与 repo/runs.ts:251 的 SQL 占位符生成属未改动的旧代码）；② 无门禁/探测返回硬编码 true 或固定值，isFull/bottleneck/exceedsWindowCount 均为计算值；③ 四个注册点均有本任务条目；④ 复用前置的 calculateBatchConcurrency/allocateConcurrencySlots/countsTowardAgentConcurrency/isTerminalRunState/isEffortTier/assertVendorEffortInDomain/toEffortColumns/isTaskLanded，DEFAULT_AGENT_CONCURRENCY_LIMIT 为迁移而非重造；⑤ 非界面任务无 GIF；⑥ 生产代码无 window.__x/globalThis.__x。08 节：service 无 SQL 关键字与 fastify 引用（arch/service-sql 通过），事务只在 service 层 unitOfWork.run 内且回调无 await，错误一律 AppError 带已登记 code，clock 注入、无 process.env/Date.now。"
+      ]
+    },
+    "M9-T18": {
+      "contractHash": "2df6433d57a2461c9b0fe7747bea74a8fb49a50539fb34cded5599a5a38900eb",
+      "verdict": "pass",
+      "evidence": [
+        "前置：M9-T16、M4-T6、M8-T2、M8-T11；其中已落地 3 个，未落地的 M8-T11 均为本补丁新增或同批接线任务，是验收可达的必要前置（M1-T11 端到端冒烟与 M10-T6 壳 smoke 必须在接线任务之后）。",
+        "验收标准引用边界 E-31、E-47、E-52、E-108，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
+        "有效范围 9 条：packages/web/src/api/batches.ts；packages/web/src/api/cache-invalidation.ts；packages/web/src/api/cache-keys.ts；packages/web/src/components/assign-panel.tsx；packages/web/src/components/empty-onboarding.tsx；packages/web/src/features/run-deck/run-deck-view.tsx；packages/web/src/features/run-deck/use-assign-panel.ts；packages/web/src/store/selection-store.ts；packages/web/test/assign-panel.test.ts。",
+        "有效范围内尚不存在、由本任务新建的文件：packages/web/src/api/batches.ts、packages/web/src/api/cache-invalidation.ts、packages/web/src/api/cache-keys.ts、packages/web/src/components/assign-panel.tsx、packages/web/src/features/run-deck/use-assign-panel.ts、packages/web/src/store/selection-store.ts、packages/web/test/assign-panel.test.ts。",
+        "依赖加 M8-T11、输入加 GET/POST /api/v1/batches/:batchId/assignments、产出加 use-assign-panel.ts / api/batches.ts / selection-store.ts、验收加第 5 条数据来源与写入路径；supportPaths 补 PR #107 两轮审查证明需要的 run-deck-view.tsx / empty-onboarding.tsx / 测试路径。契约缺口（指派草稿、会话序号、并发预览）已在 09/10 节补齐，决策 136。",
+        "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
+        "补丁 m8-t11-support-paths 只改动上游 M8-T11 的 supportPaths（补两处 daemon 测试文件）；对 M9-T18 契约做 before/after 逐字段比对，除 hash 因前置 M8-T11 契约变化而传播外无任何字段变化（definition、effectivePaths、wiring、context 均相同）。M9-T18 消费的 GET/POST /api/v1/batches/:batchId/assignments 契约（10 节 :29-30、:180-183）本补丁未动；2026-09-18 的语义复核结论保持有效。"
+      ]
+    },
+    "M9-T23": {
+      "contractHash": "f6e90ccba3c2c8d3e6b296222dff71a618470fa00f7105f8b5ca5c3cb139c4a8",
+      "verdict": "pass",
+      "evidence": [
+        "前置闭包：依赖 M9-T18、M9-T14、M9-T22、M4-T13、M4-T14、M8-T9；输入列的 assign-panel.tsx ← M9-T18、settings-agents-page ← M9-T14、use-pipeline-settings.ts ← M9-T22、AgentEntryDto.login 与 login_changed ← M4-T13、GET /agents/:id/models 新结构 / EffortValue / layers / clearOverrides / MODEL_SOURCES ← M4-T14、PipelineSettings 四键 ← M8-T9，全部能指到产出列（前端审查 BLOCKING 2 由 M4-T14 补齐后闭合）。",
+        "layers 读法：19 节验收 7 与 11 节设置页段改为「内置默认／你的覆盖」读 layers.X.builtin / .override、「当前生效」读顶层字段，与 10 节 layers 契约（{builtin, config, override, hasOverride}）和决策 128 一致（前端 BLOCKING 1 修正）。",
+        "unknown 文案：验收 1 补 unknown → 「登录态未知：确认后点刷新」并写明三态徽标文案「已登录／未登录／无法判定」、状态谓词放 lib/login-freshness.ts，与 11 节引导行、E-335 一致（前端 BLOCKING 6 修正）。",
+        "pipeline PATCH 四键：10 节字段级契约 bughunt/wrapupMode 行、11 节顶栏开关段、M9-T22 验收 2 都改为「容器补齐后四键全量」，与 M9-T23 验收 8、E-356 一致（前端 BLOCKING 7 修正）。",
+        "测试清单可判定：17 节新增「E-335～E-339 / E-350 / E-351 / E-355～E-359（前端侧）」一行逐文件列出断言，验收 9 引用该行；use-minute-tick 与 agent-card 两个测试文件加进 taskPaths；GIF 只覆盖可达流程、不可达态以单测为准写进验收 9 与 17 节（前端 BLOCKING 5 与 NON_BLOCKING 采纳）。",
+        "登录态单一来源：验收 5 改为 login_changed 到达只经 cache-invalidation 失效 agents key 重拉，不重拉 /snapshot、不重探；08 节与决策 130 措辞同步为「失效重拉」，07 节 resource-cache 写明无 patch 接口且 read() 以最后一次 fetcher 为准（前端 NON_BLOCKING 采纳）。",
+        "有效范围：supportPaths 补 packages/web/package.json、pnpm-lock.yaml、ui/shadcn/select.tsx、api/resource-cache.ts、api/runs.ts、features/run-deck/batch-expansion.ts；验收 6 写明 onEdit 由 use-gate-card.ts 先调 batch-expansion 再调 openReassign（store 不 import features）。token 名核对：11 节与 19 节用到的 token 除新增两个尺寸 token 外均在 main tokens.css。",
+        "边界：E-254、E-335、E-336、E-338、E-339、E-348、E-350、E-351、E-355～E-359 均在 13 节；E-347「agent_default」措辞已对齐为「来源：任务指派（agent 默认）」；决策 134 表外来源归「其他」组已进验收 2。",
+        "补丁 m8-t11-support-paths 只改动上游 M8-T11 的 supportPaths（补两处 daemon 测试文件）；对 M9-T23 契约做 before/after 逐字段比对，除 hash 因前置链上 M8-T11 契约变化而传播外无任何字段变化。M9-T23 自身定义、有效路径与接线要求未变；此前的语义复核结论保持有效。"
+      ]
+    }
+  }
+}

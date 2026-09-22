@@ -1,6 +1,4 @@
-import { ROUTES } from '@agent-scheduler/shared/api/routes';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import { AppError } from '../../errors/app-error.ts';
 import { registerAgentRoutes } from '../routes/agents.ts';
 import { registerBatchesRoutes } from '../routes/batches.ts';
 import { registerDeviceRoutes } from '../routes/devices.ts';
@@ -58,67 +56,4 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerEventsRoutes(target);
 	registerTasksRoutes(target);
 	registerGateRoutes(target);
-
-	const customRegisteredPaths = new Set<string>([
-		'GET /api/v1/health',
-		'GET /api/v1/version',
-		'GET /api/v1/events',
-		'GET /api/v1/system/usage',
-		'POST /api/v1/runs/:runId/abort',
-		'POST /api/v1/runs/:id/abort',
-		'POST /api/v1/runs/:runId/messages',
-		'POST /api/v1/runs/:id/messages',
-		'GET /api/v1/runs/:runId/log',
-		'GET /api/v1/runs/:runId/search',
-		'GET /api/v1/runs/:id/search',
-		'DELETE /api/v1/runs/:runId/logs',
-		'DELETE /api/v1/runs/:id/logs',
-		'POST /api/v1/runs',
-		'POST /api/v1/runs/:runId/rerun',
-		'GET /api/v1/runs',
-		'GET /api/v1/runs/:runId',
-		'POST /api/v1/batches/:batchId/start',
-		'POST /api/v1/batches/:batchId/pause',
-		'GET /api/v1/snapshot',
-		'POST /api/v1/pair/claim',
-		'POST /api/v1/pair/code',
-		'GET /api/v1/devices',
-		'DELETE /api/v1/devices/:deviceId',
-		'GET /api/v1/documents',
-		'POST /api/v1/documents',
-		'POST /api/v1/documents/:docId/open-reader',
-		'PATCH /api/v1/documents/:docId/settings',
-		'GET /api/v1/agents',
-		'PATCH /api/v1/agents/:agentId',
-		'POST /api/v1/agents/:agentId/probe',
-		'GET /api/v1/agents/:agentId/models',
-		'GET /api/v1/tasks/:taskId/landing',
-		'POST /api/v1/tasks/:taskId/worktree/cleanup',
-		'GET /api/v1/gates',
-		'POST /api/v1/gates/:gateId/decide',
-		'PATCH /api/v1/settings/gates',
-	]);
-
-	for (const route of ROUTES) {
-		const key = `${route.method} ${route.path}`;
-		if (customRegisteredPaths.has(key)) {
-			continue;
-		}
-
-		const method = route.method.toLowerCase() as 'get' | 'post' | 'patch' | 'delete';
-		const opts = route.bodySchema
-			? {
-					schema: {
-						body: route.bodySchema,
-					},
-				}
-			: {};
-
-		target[method](route.path, opts, async (request) => {
-			throw new AppError(
-				'E_INTERNAL',
-				`Route ${request.method} ${request.url} handler is not implemented yet.`,
-			);
-		});
-	}
 };

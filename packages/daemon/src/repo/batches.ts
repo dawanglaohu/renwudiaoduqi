@@ -1,9 +1,9 @@
+import { BATCH_STATES, type BatchState } from '@agent-scheduler/shared/api/batches';
 import { type DatabaseConnection, toDatabaseError } from '../db/open-database.ts';
 import { AppError } from '../errors/app-error.ts';
 
-export type BatchState = 'idle' | 'running' | 'paused' | 'done';
-
-export const VALID_BATCH_STATES = ['idle', 'running', 'paused', 'done'] as const;
+export { BATCH_STATES, type BatchState };
+export const VALID_BATCH_STATES = BATCH_STATES;
 
 export interface BatchRow {
 	readonly id: string;

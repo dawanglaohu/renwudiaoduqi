@@ -34,8 +34,11 @@ def git_info(root):
 def state(root):
     _, sections = build_docs.collect(str(root))
     data = build_docs.extract(sections)
+    records = build_docs.read_batch_records(str(root))
+    repairs, repair_contracts = build_docs.inject_repair_tasks(data, records)
+    build_docs.ensure_repair_notes(root, repairs)
     pres = read_json(root / '_run/presentation.json', {})
-    checked = analyze(root, data['tasks'], pres, data['edges'])
+    checked = analyze(root, data['tasks'], pres, data['edges'], data['endpoints'], repair_contracts)
     return data, checked
 
 
@@ -98,7 +101,7 @@ def migrate_reviews(root, analysis):
 
 def build(root, selected=None):
     expected = source_version(root)
-    _, analysis = state(root)
+    data, analysis = state(root)
     migrate_reviews(root, analysis)
     write_json(root / '_run/build-state.json', {'status': 'building', 'sourceVersion': expected,
                'tasks': sorted(selected or analysis['contracts'])})
@@ -113,10 +116,14 @@ def build(root, selected=None):
         vault = Path(__file__).resolve().parents[2] / 'obsidian-vault/scripts/build_vault.py'
     if not vault.exists():
         raise ValueError('缺少 build_vault.py；请从配套 obsidian-vault 技能复制到文档 _run/')
-    cmd = [sys.executable, '-B', str(vault), str(root)]
-    if selected:
-        cmd += ['--tasks', ','.join(sorted(selected))]
-    commands.append(cmd)
+    original_ids = {task['id'] for task in data['tasks'] if not task.get('repair')}
+    vault_selected = set(selected or []) & original_ids
+    # 返工任务笔记由 build_docs 从收口记录生成；build_vault 只认识 19 节原任务。
+    if not selected or vault_selected:
+        cmd = [sys.executable, '-B', str(vault), str(root)]
+        if selected:
+            cmd += ['--tasks', ','.join(sorted(vault_selected))]
+        commands.append(cmd)
     for cmd in commands:
         # build_vault 在大项目上要 70 到 120 秒，60 秒会让 verify 与 --landed 每次中途回滚
         result = subprocess.run(cmd, text=True, encoding='utf-8', capture_output=True, timeout=600)
@@ -190,7 +197,7 @@ def describe_fields(fields):
         return '仅共享章节 ' + fields[0][len('sections:'):].replace(',', '、') + ' 变化'
     names = {'providers': '前置任务契约变化', 'task': '19 节任务行', 'edges': '13 节边界行', 'effectivePaths': '有效范围',
              'definition': 'task-contracts.json 条目', 'architecture': '架构约定', 'design': '视觉方向',
-             'handoff': 'handoff 配置', 'skills': '点名技能'}
+             'handoff': 'handoff 配置', 'skills': '点名技能', 'wiring': '接线注册点'}
     return '、'.join('共享章节 ' + f[len('sections:'):].replace(',', '、') if f.startswith('sections:') else names.get(f, f)
                     for f in fields)
 

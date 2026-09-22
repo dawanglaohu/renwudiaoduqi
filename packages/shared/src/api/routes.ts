@@ -1,6 +1,13 @@
 import type { ErrorCode } from '../errors/codes.ts';
 import { UPDATE_AGENT_BODY_KEYS, updateAgentBodySchema } from './agents.ts';
-import { START_BATCH_BODY_KEYS, startBatchBodySchema } from './batches.ts';
+import {
+	PUT_ASSIGNMENTS_BODY_KEYS,
+	START_BATCH_BODY_KEYS,
+	WRAPUP_BATCH_BODY_KEYS,
+	putAssignmentsBodySchema,
+	startBatchBodySchema,
+	wrapupBatchBodySchema,
+} from './batches.ts';
 import {
 	CREATE_DOCUMENT_BODY_KEYS,
 	UPDATE_DOCUMENT_SETTINGS_BODY_KEYS,
@@ -60,6 +67,20 @@ export const REQUEST_BODY_SCHEMAS = [
 		method: 'POST' as const,
 		schema: startBatchBodySchema,
 		keys: START_BATCH_BODY_KEYS,
+	},
+	{
+		name: 'wrapupBatch',
+		path: '/api/v1/batches/:batchId/wrapup',
+		method: 'POST' as const,
+		schema: wrapupBatchBodySchema,
+		keys: WRAPUP_BATCH_BODY_KEYS,
+	},
+	{
+		name: 'putAssignments',
+		path: '/api/v1/batches/:batchId/assignments',
+		method: 'POST' as const,
+		schema: putAssignmentsBodySchema,
+		keys: PUT_ASSIGNMENTS_BODY_KEYS,
 	},
 	{
 		name: 'updateAgent',
@@ -252,6 +273,52 @@ export const ROUTES: readonly RouteDefinition[] = [
 		reqType: 'void',
 		resType: 'PauseBatchResponse',
 		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_INTERNAL'],
+	},
+	{
+		method: 'POST',
+		path: '/api/v1/batches/:batchId/wrapup',
+		auth: 'device',
+		reqType: 'WrapupBatchBody',
+		resType: 'WrapupBatchResponse',
+		errors: [
+			'E_UNAUTHORIZED',
+			'E_DEVICE_REVOKED',
+			'E_NOT_FOUND',
+			'E_VALIDATION',
+			'E_RUN_ALREADY_EXISTS',
+			'E_BATCH_NOT_WRAPPABLE',
+			'E_WRAPUP_ROUND_LIMIT',
+			'E_AGENT_UNAVAILABLE',
+			'E_INTERNAL',
+		],
+		bodySchema: wrapupBatchBodySchema,
+		bodyKeys: WRAPUP_BATCH_BODY_KEYS,
+	},
+	{
+		method: 'GET',
+		path: '/api/v1/batches/:batchId/wrapups',
+		auth: 'device',
+		reqType: 'void',
+		resType: 'GetBatchWrapupsResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_INTERNAL'],
+	},
+	{
+		method: 'GET',
+		path: '/api/v1/batches/:batchId/assignments',
+		auth: 'device',
+		reqType: 'void',
+		resType: 'BatchAssignmentsResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_INTERNAL'],
+	},
+	{
+		method: 'POST',
+		path: '/api/v1/batches/:batchId/assignments',
+		auth: 'device',
+		reqType: 'PutAssignmentsBody',
+		resType: 'BatchAssignmentsResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_VALIDATION', 'E_INTERNAL'],
+		bodySchema: putAssignmentsBodySchema,
+		bodyKeys: PUT_ASSIGNMENTS_BODY_KEYS,
 	},
 	{
 		method: 'GET',

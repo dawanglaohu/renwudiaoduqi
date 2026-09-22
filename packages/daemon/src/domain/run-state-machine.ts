@@ -1,25 +1,7 @@
+import { RUN_STATES, type RunState } from '@agent-scheduler/shared/api/runs';
 import { AppError } from '../errors/app-error.ts';
 
-/**
- * 运行状态机的 13 个合法状态（09 节数据模型与 migrations/0001_init.sql）。
- */
-export const RUN_STATES = [
-	'queued',
-	'starting',
-	'running',
-	'awaiting_reply',
-	'exited',
-	'reviewing',
-	'reworking',
-	'awaiting_human',
-	'orphaned',
-	'landed',
-	'failed',
-	'aborted',
-	'interrupted',
-] as const;
-
-export type RunState = (typeof RUN_STATES)[number];
+export { RUN_STATES, type RunState };
 
 /**
  * 四个终态：零出边、不可逆（09 节非法迁移表）。

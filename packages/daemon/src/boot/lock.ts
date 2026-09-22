@@ -1,3 +1,4 @@
+import { isRecord } from '@agent-scheduler/shared/lib/is-record';
 import type {
 	LockFileHandle,
 	LockMetadata,
@@ -313,8 +314,4 @@ function formatHost(host: string): string {
 function getErrorCode(cause: unknown): string | undefined {
 	if (typeof cause !== 'object' || cause === null || !('code' in cause)) return undefined;
 	return typeof cause.code === 'string' ? cause.code : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

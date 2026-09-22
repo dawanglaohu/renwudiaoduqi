@@ -7,6 +7,7 @@ import {
 	evaluateStagedProductSupport,
 	stageInstalledProduct,
 } from '../src/artifact-staging.ts';
+import { stageTauriBundle } from '../src/bundle-staging.ts';
 import { resolveLaunchSpec } from '../src/launch-spec.ts';
 import { executeDaemonSmoke, inspectBuildPathResidue } from '../src/staging-smoke.ts';
 
@@ -19,6 +20,9 @@ export const WEB_DIST_ENV = 'DESKTOP_WEB_DIST_DIR';
 /** The linked desktop shell executable produced by `cargo build --release`. */
 export const DESKTOP_SHELL_BINARY_ENV = 'DESKTOP_SHELL_BINARY';
 
+/** Real Tauri installer bundle to expand for release verification (MSI/DMG/deb). */
+export const DESKTOP_BUNDLE_PATH_ENV = 'DESKTOP_BUNDLE_PATH';
+
 /** Optional probe port override; the daemon's `AGSCHED_PORT` and the probe use the same value. */
 export const SMOKE_PORT_ENV = 'DESKTOP_SMOKE_PORT';
 
@@ -29,6 +33,7 @@ export interface StagedSmokeOptions {
 	readonly daemonDistributionDir?: string;
 	readonly webDistDir?: string;
 	readonly desktopShellBinary?: string;
+	readonly bundlePath?: string;
 	readonly rootDir?: string;
 	readonly hostPlatform?: 'win32' | 'darwin' | 'linux';
 	readonly port?: number;
@@ -124,12 +129,13 @@ export async function executeStagingSmokeCheck(
 		options?.desktopShellBinary ??
 		process.env[DESKTOP_SHELL_BINARY_ENV] ??
 		defaults.desktopShellBinary;
+	const bundlePath = options?.bundlePath ?? process.env[DESKTOP_BUNDLE_PATH_ENV];
 	const rootDir = options?.rootDir ?? defaultRootDir();
 	const ownsRoot = options?.rootDir === undefined;
 	const keepStaging = resolveKeepStaging(options);
 	const port = resolvePort(options);
 
-	if (!existsSync(daemonDistributionDir)) {
+	if (!bundlePath && !existsSync(daemonDistributionDir)) {
 		return {
 			ok: false,
 			message: `The daemon distribution does not exist: ${daemonDistributionDir} (build it with \`pnpm --filter @agent-scheduler/shell-desktop build-daemon-distribution\` and \`cargo build --release\`, or point ${DAEMON_DISTRIBUTION_ENV} at it).`,
@@ -139,15 +145,17 @@ export async function executeStagingSmokeCheck(
 	let layout: InstalledProductLayout | undefined;
 	try {
 		console.log(`[smoke-runner] Expanding installed product for ${platform}...`);
-		layout = stageInstalledProduct({
-			sources: {
-				daemonDistributionDir: resolve(daemonDistributionDir),
-				webDistDir: resolve(webDistDir),
-				desktopShellBinary: resolve(desktopShellBinary),
-			},
-			rootDir,
-			hostPlatform: platform,
-		});
+		layout = bundlePath
+			? stageTauriBundle({ bundlePath: resolve(bundlePath), rootDir, hostPlatform: platform })
+			: stageInstalledProduct({
+					sources: {
+						daemonDistributionDir: resolve(daemonDistributionDir),
+						webDistDir: resolve(webDistDir),
+						desktopShellBinary: resolve(desktopShellBinary),
+					},
+					rootDir,
+					hostPlatform: platform,
+				});
 		console.log(`[smoke-runner] Expanded installation to "${layout.stageDir}"`);
 		console.log(
 			`[smoke-runner] current_exe="${layout.currentExe}" resource_dir="${layout.resourceDir}"`,

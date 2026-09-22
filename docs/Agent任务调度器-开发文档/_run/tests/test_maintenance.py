@@ -280,7 +280,8 @@ vm.createContext(c);vm.runInContext(x.core,c);console.log(JSON.stringify({state:
 
     def test_real_git_branch_mismatch_does_not_update_patch(self):
         base=self.doc.parents[1]
-        subprocess.run(['git','init','-b','task/M1-T1',str(base)],check=True,capture_output=True)
+        subprocess.run(['git','init',str(base)],check=True,capture_output=True)
+        subprocess.run(['git','-C',str(base),'symbolic-ref','HEAD','refs/heads/task/M1-T1'],check=True,capture_output=True)
         self.begin()
         baseline=(self.doc/'_run/patches/P1.json').read_bytes()
         subprocess.run(['git','-C',str(base),'switch','--orphan','task/other'],check=True,capture_output=True)

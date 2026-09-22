@@ -969,7 +969,7 @@ export async function dispatchReviewRun(
 				// Round 1 has no session ref, so this is a no-op today; it stays correct when a
 				// later round hands the continuation to a ref that belongs to another task.
 				assertSessionRefFree(
-					{ taskId: runInsert.task_id, vendorSessionRef: runInsert.vendor_session_ref },
+					{ taskId: runInsert.task_id ?? '', vendorSessionRef: runInsert.vendor_session_ref },
 					{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
 				);
 			}

@@ -1,0 +1,67 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "1489c77a5e91626d352427186fc0c4eb4a0a61861e64ee86158e037689bfd455",
+      "verdict": "pass",
+      "evidence": [
+        "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+        "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
+      ]
+    },
+    "M10-T4": {
+      "contractHash": "cb3765af1e8ac5faf60ff33e8adff5b3e98663eae4628f15c182f1e0f13b77d3",
+      "verdict": "pass",
+      "evidence": [
+        "13 节 E-176 行（03-质量/13-边界问题与异常处理.md:189）已改为与 11 节字体表（02-设计/11-UI.md:92 「字重 400 / 500 / 600」，:97 「只打包实际用到的字重（E-176）」）一致；revalidation.json 记本任务 changedFields=['edges']，只核 E-176 这一条。",
+        "代码对照：packages/web/src/styles/fonts.css:5-58 恰好六条 @font-face（Commit Mono 与 Public Sans 各 400/500/600），src 全部为同源 /fonts/*.woff2，无 CDN；packages/web/public/fonts/ 恰好六个 woff2 加两份 LICENSE，没有 700 或其他字重文件，不是全家族。",
+        "字重确实都在用：packages/web/src 里 font-medium(500) 47 处、font-semibold(600) 88 处（grep -rhoE 统计），与补丁后 E-176 的「实际用到」口径一致。",
+        "打包断言未变且仍通过：packages/web/test/style-pipeline.test.ts:156 断言构建产物 CSS 引用 ../fonts/public-sans-latin-400.woff2（相对路径、自托管）；packages/daemon/test/unit/static-plugin.test.ts:33 断言 daemon 静态托管能取到 commit-mono-latin-400.woff2；本次第 8 批收口在 WSL 跑 pnpm -w check 全量（结果见 batch-8-20260922.md 测试段）。",
+        "Jev 裁决：adjudicate pick=A(high 0.75) spec_change=yes needs_owner=no adopt=take(A)，model=jev-1.13.0，记录在 _run/judgments.jsonl（label batch-8:wrapup:e176）；A = 只改文档、代码与产物不动。"
+      ]
+    },
+    "M10-T5": {
+      "contractHash": "f2d4414ad328620be27c90533e4ffb106e62dea9ad5ad8bf6edddfd299656844",
+      "verdict": "pass",
+      "evidence": [
+        "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+        "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
+        "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
+      ]
+    },
+    "M10-T6": {
+      "contractHash": "eac017ccbd732165e3096271bfeec4258502622c365f5fdd8e3a0ce9c01500f1",
+      "verdict": "pass",
+      "evidence": [
+        "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+        "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
+      ]
+    },
+    "M9-T24": {
+      "contractHash": "cdbd86c4b6056325e4b64c64d6ff3da7bb5daf970bf71e59b9ef6dc831869766",
+      "verdict": "pass",
+      "evidence": [
+        "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+        "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
+        "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
+      ]
+    },
+    "M9-T26": {
+      "contractHash": "da2b999edb665bde5d21686bb464ad6ec6ec013d3562fc52889158aa3bbc59ba",
+      "verdict": "pass",
+      "evidence": [
+        "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+        "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
+        "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
+      ]
+    },
+    "M9-T27": {
+      "contractHash": "6bb6cca09c01d2b40e5283b7a5bd4c4748d14ee97f3f02e1aaabce4013d43b85",
+      "verdict": "pass",
+      "evidence": [
+        "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
+        "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
+      ]
+    }
+  }
+}

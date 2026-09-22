@@ -285,6 +285,26 @@ describe('domain/concurrency (M8-T1)', () => {
 	});
 
 	describe('Batch concurrency calculation with multi-agent assignments', () => {
+		it('treats maxConcurrency <= 0 as a disabled agent with zero capacity (E-91)', () => {
+			const assignments = [{ taskId: 'm8-t11', agentId: 'disabled-agent' }];
+
+			const result = calculateBatchConcurrency({
+				userSetting: 2,
+				windowCount: 1,
+				assignments,
+				agentLimits: { 'disabled-agent': 0 },
+			});
+
+			expect(result.aggregateAgentCapacity).toBe(0);
+			expect(result.effectiveConcurrency).toBe(0);
+			expect(result.bottleneck).toBe(CONCURRENCY_BOTTLENECKS.AGENT_LIMIT);
+			expect(result.agentCapacities['disabled-agent']).toEqual({
+				assignedCount: 1,
+				maxConcurrency: 0,
+				effectiveLimit: 0,
+			});
+		});
+
 		it('computes aggregate agent capacity and identifies agent_limit when all tasks use codex (limit 1)', () => {
 			const assignments = [
 				{ taskId: 'm8-t1', agentId: 'codex' },
@@ -328,6 +348,26 @@ describe('domain/concurrency (M8-T1)', () => {
 			expect(result.agentCapacities.codex?.effectiveLimit).toBe(1);
 			expect(result.agentCapacities.claude?.effectiveLimit).toBe(1);
 			expect(result.agentCapacities.pi?.effectiveLimit).toBe(1);
+		});
+	});
+
+	describe('Slot allocation', () => {
+		it('never admits a task assigned to an agent disabled with limit 0 (E-91)', () => {
+			const result = allocateConcurrencySlots({
+				candidates: [{ id: 'task-disabled', agentId: 'disabled-agent' }],
+				availableSlots: 1,
+				agentLimits: { 'disabled-agent': 0 },
+			});
+
+			expect(result.admitted).toEqual([]);
+			expect(result.deferred).toEqual([
+				{
+					task: { id: 'task-disabled', agentId: 'disabled-agent' },
+					reason: 'agent_limit_reached',
+					agentId: 'disabled-agent',
+				},
+			]);
+			expect(result.remainingSlots).toBe(1);
 		});
 	});
 
@@ -386,7 +426,7 @@ describe('domain/concurrency (M8-T1)', () => {
 				calculateConcurrencyLimit({
 					userSetting: 2,
 					windowCount: 2,
-					agentLimit: 0,
+					agentLimit: -1,
 				}),
 			).toThrowError();
 		});

@@ -1,0 +1,49 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T8": {
+      "contractHash": "33a693313f2732bb998549fde30bbbf5c45c07fe0f2786cb493aab1916cd9d6b",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T6": {
+      "contractHash": "8e6e7ca88d5c178750d424ca41584e03e7682be8f2c4208df256a1e9c0fd88bd",
+      "evidence": [
+        "新增 supportPaths 只覆盖 M8-T6 既定产出的必要接线：boot/container.ts 装配服务与 workspace，http/plugins/50-routes.ts 注册两条路由，service/run.ts 在收口运行退出后转交八段解析，workspace/worktree.ts 与 workspace/diff.ts 提供收口工作树和 diff stat。",
+        "service/review-context.ts、service/dispatch.ts、service/gates.ts 与 service/wrapup.ts 都会迁移 batches.state，纳入范围后才能按验收 1 统一到 BatchService；repo/dispatch-snapshots.ts 与 test/unit/database.test.ts 分别承载收口快照和迁移清单。",
+        "以上均直接对应验收 1 至 7，不新增需求或降低标准；其余受影响任务只因共享有效路径哈希变化进入待复验。"
+      ],
+      "verdict": "pass"
+    },
+    "M8-T7": {
+      "contractHash": "f4e3c8e7d3b740cb541fe48e5c9c6449d6169a7d81aa91ab0d62d3de0b03a0d3",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T8": {
+      "contractHash": "1defd50db875b50e0b83d5a24b93f9a10056d02300f717e896c698797d5cfc44",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T9": {
+      "contractHash": "c4248899447c2f0a3cda30fa251162b414951c2b5f791dc7758deed9d3153c12",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T17": {
+      "contractHash": "8c4580e2c491c9e0c3212c1780bf2b591f4887ef5ffa518caa6778bb5fe746a9",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T22": {
+      "contractHash": "f1eb1c58233f4b625d8dae3b99a9eeac928a9a5923fd5452dd4bca243150e706",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "0214daa5d2d2c89be601466b9a353a59e4821708c05ae1554bc350b6371b0f2f",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

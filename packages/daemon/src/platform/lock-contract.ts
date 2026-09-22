@@ -1,3 +1,4 @@
+import { isRecord } from '@agent-scheduler/shared/lib/is-record';
 import type { AppError } from '../errors/app-error.ts';
 import type { SupportedPlatform } from './contract.ts';
 
@@ -175,10 +176,6 @@ export function combineProbeResults(
 		bothDead,
 		keepExisting: !bothAlive && !bothDead,
 	};
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isPositiveInteger(value: unknown): value is number {

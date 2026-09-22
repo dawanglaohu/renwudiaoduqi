@@ -304,6 +304,119 @@ detached
 		});
 	});
 
+	describe('E-277 / E-121: reuse mode rebuilds the worktree on the original branch', () => {
+		function createReuseRunner(listStdout: string, branches: string) {
+			const executed: Array<readonly string[]> = [];
+			const runner = createMockGitRunner((args) => {
+				executed.push(args);
+				if (args[0] === 'rev-parse') {
+					return { exitCode: 0, stdout: 'true\n/repo', stderr: '' };
+				}
+				if (args[0] === 'worktree' && args[1] === 'list') {
+					return { exitCode: 0, stdout: listStdout, stderr: '' };
+				}
+				if (args[0] === 'for-each-ref') {
+					return { exitCode: 0, stdout: branches, stderr: '' };
+				}
+				return { exitCode: 0, stdout: '', stderr: '' };
+			});
+			return { runner, executed };
+		}
+
+		const directoryPresentFs = {
+			stat: async () => ({ isDirectory: () => true }),
+		};
+		const directoryMissingFs = {
+			stat: async () => {
+				throw Object.assign(new Error('missing worktree directory'), { code: 'ENOENT' });
+			},
+		};
+
+		it('returns the registered worktree untouched when its directory still exists', async () => {
+			const { runner, executed } = createReuseRunner(
+				'worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /wt/task-1\nHEAD def\nbranch refs/heads/task/M7-T5',
+				'main\ntask/M7-T5',
+			);
+			const result = await prepareWorktree(
+				{ repoPath: '/repo', taskId: 'M7-T5', worktreeMode: 'reuse' },
+				runner,
+				{ platform: 'linux', gitRunner: runner, ids: defaultTestIds, fs: directoryPresentFs },
+			);
+			expect(result).toMatchObject({
+				worktreePath: '/wt/task-1',
+				branchName: 'task/M7-T5',
+				isReused: true,
+			});
+			expect(executed.some((args) => args[0] === 'worktree' && args[1] === 'add')).toBe(false);
+		});
+
+		it('removes the exact prunable registration, then re-adds the same path on the same branch', async () => {
+			const { runner, executed } = createReuseRunner(
+				'worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /wt/task-1\nHEAD def\nbranch refs/heads/task/M7-T5\nprunable gitdir file points to non-existent location',
+				'main\ntask/M7-T5',
+			);
+			const result = await prepareWorktree(
+				{ repoPath: '/repo', taskId: 'M7-T5', worktreeMode: 'reuse' },
+				runner,
+				{ platform: 'linux', gitRunner: runner, ids: defaultTestIds, fs: directoryMissingFs },
+			);
+			expect(result.branchName).toBe('task/M7-T5');
+			expect(result.isReused).toBe(true);
+			const remove = executed.find((args) => args[0] === 'worktree' && args[1] === 'remove');
+			expect(remove).toEqual(['worktree', 'remove', '--force', '/wt/task-1']);
+			const add = executed.find((args) => args[0] === 'worktree' && args[1] === 'add');
+			expect(add).toBeDefined();
+			expect(add).not.toContain('--force');
+			expect(add).not.toContain('-b');
+			expect(add?.[add.length - 1]).toBe('task/M7-T5');
+		});
+
+		it('rebuilds a missing registered directory even when old Git omits the prunable marker', async () => {
+			const { runner, executed } = createReuseRunner(
+				'worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /wt/task-1\nHEAD def\nbranch refs/heads/task/M7-T5',
+				'main\ntask/M7-T5',
+			);
+			const result = await prepareWorktree(
+				{ repoPath: '/repo', taskId: 'M7-T5', worktreeMode: 'reuse' },
+				runner,
+				{ platform: 'linux', gitRunner: runner, ids: defaultTestIds, fs: directoryMissingFs },
+			);
+			expect(result).toMatchObject({
+				worktreePath: '/wt/task-1',
+				branchName: 'task/M7-T5',
+				isReused: true,
+			});
+			expect(executed).toContainEqual(['worktree', 'remove', '--force', '/wt/task-1']);
+			expect(executed).toContainEqual(['worktree', 'add', '/wt/task-1', 'task/M7-T5']);
+		});
+
+		it('checks out the existing branch into a new worktree when the registration is gone, never a fresh branch from HEAD', async () => {
+			const { runner, executed } = createReuseRunner(
+				'worktree /repo\nHEAD abc\nbranch refs/heads/main',
+				'main\ntask/M7-T5',
+			);
+			const result = await prepareWorktree(
+				{
+					repoPath: '/repo',
+					taskId: 'M7-T5',
+					worktreeMode: 'reuse',
+					preferredBranchName: 'task/M7-T5',
+					targetWorktreePath: '/wt/task-1',
+				},
+				runner,
+				{ platform: 'linux', gitRunner: runner, ids: defaultTestIds, fs: directoryMissingFs },
+			);
+			expect(result.branchName).toBe('task/M7-T5');
+			expect(result.isReused).toBe(true);
+			const add = executed.find((args) => args[0] === 'worktree' && args[1] === 'add');
+			expect(add).toBeDefined();
+			expect(add).not.toContain('-b');
+			expect(add).not.toContain('--force');
+			expect(add?.[add.length - 1]).toBe('task/M7-T5');
+			expect(add?.some((arg) => arg === 'HEAD')).toBe(false);
+		});
+	});
+
 	describe('AC 3 & E-72: Main worktree with uncommitted changes', () => {
 		it('does NOT stash, reset, or modify main repository when preparing worktree', async () => {
 			const executedCommands: string[][] = [];
@@ -811,6 +924,32 @@ detached
 				const inspectModified = await manager.inspect(prep1.worktreePath);
 				expect(inspectModified.hasChanges).toBe(true);
 				expect(inspectModified.changedFileCount).toBe(1);
+
+				// E-277: commit on the task branch, delete the directory behind git's back, then reuse-rebuild
+				await defaultRunner.run(['add', 'new-file.txt'], prep1.worktreePath);
+				await defaultRunner.run(['commit', '-m', 'work on task branch'], prep1.worktreePath);
+				rmSync(prep1.worktreePath, { recursive: true, force: true });
+				const rebuilt = await manager.prepareWorktree({
+					repoPath: mainRepo,
+					taskId: 'M5-T1',
+					worktreesDir: tempBase,
+					worktreeMode: 'reuse',
+					preferredBranchName: prep1.branchName,
+					targetWorktreePath: prep1.worktreePath,
+				});
+				expect(rebuilt.isReused).toBe(true);
+				expect(rebuilt.branchName).toBe('task/M5-T1');
+				expect(rebuilt.worktreePath).toBe(prep1.worktreePath);
+				const headBranch = await defaultRunner.run(
+					['rev-parse', '--abbrev-ref', 'HEAD'],
+					rebuilt.worktreePath,
+				);
+				expect(headBranch.stdout.trim()).toBe('task/M5-T1');
+				const lsResult = await defaultRunner.run(
+					['ls-files', 'new-file.txt'],
+					rebuilt.worktreePath,
+				);
+				expect(lsResult.stdout.trim()).toBe('new-file.txt');
 
 				// Reclamation: remove worktree
 				const cleanup1 = await manager.removeWorktree({

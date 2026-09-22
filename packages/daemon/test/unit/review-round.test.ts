@@ -410,10 +410,10 @@ describe('Review Round Integration (M7-T7)', () => {
 						setTimeout(() => {
 							bus.publish(
 								envelopeFactory.createEnvelope({
-									kind: 'run.aborted',
+									kind: 'run.state_changed',
 									runId: firstRunId,
 									taskId: 'task-1',
-									payload: { reason: 'continuation_exhausted' },
+									payload: { from: 'starting', to: 'failed', reason: 'spawn_failed' },
 								}),
 							);
 						}, 0);

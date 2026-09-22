@@ -140,6 +140,8 @@ function foldAdjacentProgressLines(rawLines: readonly string[]): LogEntry[] {
  */
 export class LogWindowManager {
 	private segments: LogWindowSegment[] = [];
+	/** Kind of the unfinished SSE text line; null after a newline or REST window reset. */
+	private pendingLiveKind: string | null = null;
 	private totalLines = 0;
 	private isExceedsThreshold = false;
 	private originalFilePath: string | null = null;
@@ -231,6 +233,7 @@ export class LogWindowManager {
 	 */
 	loadInitial(res: GetRunLogResponse): void {
 		this.segments = [];
+		this.pendingLiveKind = null;
 		this.totalLines = Math.max(res.totalLines || 0, res.lines.length);
 		// R5 c: 直接读取服务端契约字段，不从正文包含文本嗅探
 		this.isExceedsThreshold = Boolean(res.isExceedsThreshold);
@@ -319,6 +322,7 @@ export class LogWindowManager {
 	 * 向尾部插入新段；超过 6 段时自动驱逐头部段。
 	 */
 	appendNewerSegment(res: GetRunLogResponse): void {
+		this.pendingLiveKind = null;
 		if (res.lines.length === 0) {
 			this.hasNewer = false;
 			this.invalidateAndNotify();
@@ -358,6 +362,7 @@ export class LogWindowManager {
 		if (newLines.length === 0) {
 			return;
 		}
+		this.pendingLiveKind = null;
 
 		if (this.segments.length === 0) {
 			this.nextSegmentSeq += 1;
@@ -444,6 +449,42 @@ export class LogWindowManager {
 	}
 
 	/**
+	 * SSE message/thought events carry token deltas, not completed lines. Extend the current
+	 * unfinished line in place; only a newline (or a change of event kind) starts another row.
+	 * REST segments are never used as the unfinished line, even if their final text lacks a newline.
+	 */
+	appendLiveChunk(chunk: string, kind: string): void {
+		if (!chunk) return;
+		if (this.pendingLiveKind !== kind) this.pendingLiveKind = null;
+		const pieces = chunk.split('\n');
+		for (let index = 0; index < pieces.length; index += 1) {
+			const piece = pieces[index] ?? '';
+			const terminatesLine = index < pieces.length - 1;
+			if (this.pendingLiveKind === kind && index === 0) {
+				if (piece) {
+					const tailIndex = this.segments.length - 1;
+					const tail = this.segments[tailIndex];
+					if (tail?.entries.length) {
+						const entries = [...tail.entries];
+						const previous = entries[entries.length - 1];
+						if (previous) {
+							const text = previous.text + piece;
+							entries[entries.length - 1] = { ...previous, text, collapsedLines: [text] };
+							this.segments[tailIndex] = { ...tail, entries: Object.freeze(entries) };
+							this.invalidateAndNotify();
+						}
+					}
+				}
+			} else if (piece || terminatesLine) {
+				this.appendLiveLines([piece]);
+			}
+			// A trailing newline closes the row. Its empty final split piece must not make
+			// the next token append to the already-completed line.
+			this.pendingLiveKind = terminatesLine || !piece ? null : kind;
+		}
+	}
+
+	/**
 	 * 更新用户的视口贴底状态（AC 3 / E-100）。
 	 */
 	setAtBottom(atBottom: boolean): void {
@@ -471,6 +512,11 @@ export class LogWindowManager {
 	 */
 	getOldestCursor(): string | null {
 		return this.segments[0]?.prevCursor ?? null;
+	}
+
+	/** SSE chunks lack raw-file byte cursors: re-anchor from REST tail after it evicts every REST segment. */
+	needsTailReload(): boolean {
+		return this.hasOlder && this.getOldestCursor() === null;
 	}
 
 	/**

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { posix, win32 } from 'node:path';
+import { isRecord } from '@agent-scheduler/shared/lib/is-record';
 import type { SupportedPlatform } from '../platform/contract.ts';
 import { hasUnexpandedPathToken } from '../platform/contract.ts';
 
@@ -318,10 +319,6 @@ function invalid(variable: string, expected: string, actual: string) {
 
 function nonEmpty(value: string | undefined): string | undefined {
 	return value === undefined || value === '' ? undefined : value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function getErrorCode(cause: unknown): string | undefined {

@@ -401,7 +401,7 @@ export function useRoute(): RouteMatch {
 	return useSyncExternalStore(
 		subscribeRoute,
 		() => currentCachedMatch,
-		() => matchRoute('#/'),
+		() => currentCachedMatch,
 	);
 }
 

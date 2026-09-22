@@ -576,6 +576,56 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 		controller.detach();
 	});
 
+	it('wrapup process exit finalizes through the wrapup result callback after closing the stream', async () => {
+		const env = setupTestEnvironment();
+		const finalized: Array<{ runId: string; exitCode: number | null }> = [];
+		const service = createRunService({
+			logstore: env.logstore,
+			bus: env.bus,
+			envelopeFactory: env.envelopeFactory,
+			unitOfWork: env.unitOfWork,
+			runsRepo: env.runsRepo,
+			clock: env.clock,
+			finalizeWrapup: async (input) => {
+				finalized.push(input);
+			},
+		});
+
+		const runId = 'run-wrapup-exit';
+		env.createRun({
+			id: runId,
+			taskId: null,
+			kind: 'wrapup',
+			state: 'running',
+			pid: 9911,
+		});
+
+		let exitCb: ((result: ProcessExitResult) => void) | undefined;
+		const mockProcess = {
+			onRaw: () => () => {},
+			onJson: () => () => {},
+			onExit: (cb: (result: ProcessExitResult) => void) => {
+				exitCb = cb;
+				return () => {
+					exitCb = undefined;
+				};
+			},
+		} as unknown as ManagedProcess;
+
+		const controller = service.attachProcess(runId, mockProcess);
+		exitCb?.({
+			runId,
+			pid: 9911,
+			exitCode: 0,
+			signal: null,
+			reason: 'exited',
+		});
+		await controller.waitForCompletion();
+
+		expect(finalized).toEqual([{ runId, exitCode: 0 }]);
+		expect(env.runsRepo.findById(runId)?.state).toBe('exited');
+	});
+
 	it('Reconcile runs service integration (findInFlightRuns, markInterrupted, markOrphaned)', async () => {
 		const env = setupTestEnvironment();
 		const service = createRunService({

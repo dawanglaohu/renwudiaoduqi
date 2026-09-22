@@ -1,0 +1,22 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "39ac8626e8550c488007da19d1c7010ce67496354f64ead820e0e735f5e9c022",
+      "verdict": "pass",
+      "evidence": [
+        "补丁只向前置 M8-T10 的 supportPaths 增加 packages/daemon/src/repo/runs.ts；M1-T11 自身任务定义、验收标准、边界、有效路径与接线要求均未改变，仅依赖契约哈希按前置传播。",
+        "M1-T11 的端到端冒烟仍消费 M8-T10 的真实 spawn 产出；将 runs.pid 持久化落点纳入 M8-T10 范围不会给 M1-T11 增加实现义务，也不降低其真进程、真浏览器验收标准。"
+      ]
+    },
+    "M8-T10": {
+      "contractHash": "e678a0248104ae780bfb1298edc71c739d0966ec105851ec43bce0fb8768de25",
+      "verdict": "pass",
+      "evidence": [
+        "补丁只把 packages/daemon/src/repo/runs.ts 加入 M8-T10.supportPaths；该文件是 runs.pid/worktree_path/branch_name 持久化的必要 repo 层落点，未改变验收标准、边界、依赖、接口或接线责任。",
+        "范围冲突核对：repo/runs.ts 是 M8-T3 已落地的仓储文件；当前在途的 M9-T13、M9-T18、M9-T19、M9-T25 均不修改该文件，本补丁未放行整个 repo 目录。",
+        "代码语义审查仍有真实阻断项：proc 绑定缺 SpawnManagedOptions.platform，launchRun 绕过 M5-T2 base 解析，E-348 零产出及启动失败生命周期缺失；代码结论保持 rework，契约复核不冒充代码通过。"
+      ]
+    }
+  }
+}

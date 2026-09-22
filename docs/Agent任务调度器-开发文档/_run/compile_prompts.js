@@ -12,8 +12,10 @@ const context = {
 vm.createContext(context, {codeGeneration: {strings: false, wasm: false}});
 vm.runInContext(input.core, context, {timeout: 5000});
 vm.runInContext(`result = {tasks: {}, batches: {}}; (DT.tasks || []).forEach(function(t) {
+  var impl = implSections(t), review = buildReview(t);
   result.tasks[t.id] = {contractHash: D.handoff.contracts[t.id].hash,
-    implementation: buildImpl(t), review: buildReview(t), resume: buildResume(t),
+    implementation: impl.map(function(s){ return s[1]; }).join("\\n"), review: review, resume: buildResume(t),
+    sections: {implementation: sectionLengths(impl), review: sectionLengths(promptSections(review))},
     // 查 bug 一律用未落地措辞：产品在任务落地前、在该任务工作树里派它运行，代码还在栈分支上
     bug: bugPrompt(t, false)};
 });
