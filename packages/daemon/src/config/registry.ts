@@ -7,6 +7,7 @@ import type {
 	EffortValue,
 	EffortVendorMap,
 } from '@agent-scheduler/shared/api/agents';
+import { isRecord } from '@agent-scheduler/shared/lib/is-record';
 import { isEffortTier } from '../domain/effort-tier.ts';
 import {
 	type PlatformTarget,
@@ -2225,10 +2226,6 @@ function isAdapterKind(input: unknown): input is AdapterKind {
 
 function isSafeInteger(input: unknown): input is number {
 	return typeof input === 'number' && Number.isSafeInteger(input);
-}
-
-function isRecord(input: unknown): input is Record<string, unknown> {
-	return typeof input === 'object' && input !== null && !Array.isArray(input);
 }
 
 function isFileNotFound(cause: unknown): boolean {

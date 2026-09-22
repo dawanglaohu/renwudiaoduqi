@@ -178,8 +178,15 @@ export interface ToolCallUpdatePayload {
 	readonly [key: string]: unknown;
 }
 
+export interface PlanEntryDto {
+	readonly content?: unknown;
+	readonly status?: unknown;
+	readonly priority?: unknown;
+	readonly [key: string]: unknown;
+}
+
 export interface PlanPayload {
-	readonly entries?: readonly unknown[];
+	readonly entries?: readonly PlanEntryDto[];
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }

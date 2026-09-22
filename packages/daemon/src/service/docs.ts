@@ -263,7 +263,7 @@ function toTaskDto(row: TaskRow & { derived_state?: string }): TaskDto {
 		deps: Object.freeze(deps),
 		estDays: row.est_days,
 		batchId: row.batch_id,
-		state,
+		state: state as TaskDto['state'],
 		hasAcceptChanged: row.has_accept_changed === 1,
 		hasPromptChanged: row.has_prompt_changed === 1,
 		isRemovedFromDoc: row.is_removed_from_doc === 1,

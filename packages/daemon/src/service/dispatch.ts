@@ -1,3 +1,4 @@
+import type { AgentEntryDto } from '@agent-scheduler/shared/api/agents';
 import type {
 	BatchDto,
 	BatchGateOverrides,
@@ -90,7 +91,7 @@ export function toTaskDto(row: TaskRow): TaskDto {
 		deps: Object.freeze(deps),
 		estDays: row.est_days ?? null,
 		batchId: row.batch_id ?? null,
-		state: row.manual_state ?? 'pending',
+		state: (row.manual_state ?? 'never_dispatched') as TaskDto['state'],
 	});
 }
 
@@ -702,7 +703,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			tasks: Object.freeze(allTasks),
 			runs: Object.freeze(runs),
 			gates: Object.freeze([]),
-			agents: Object.freeze(agents),
+			agents: Object.freeze(agents as readonly AgentEntryDto[]),
 			latestEventId,
 		});
 	}

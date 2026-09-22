@@ -96,6 +96,23 @@ export interface BatchWrapupLandingDto {
 	readonly diffStat: string | null;
 }
 
+export type FindingKind = 'bug' | 'not_fixed' | 'test_failure';
+
+export interface WrapupFindingDto {
+	readonly id: string;
+	readonly kind: FindingKind;
+	readonly severity: string | null;
+	readonly taskKey: string | null;
+	readonly crossBatch: boolean;
+	readonly isFixed: boolean;
+	readonly isWellFormed: boolean;
+	readonly raw: string;
+	readonly symptom?: string;
+	readonly reproduction?: string;
+	readonly rootCause?: string;
+	readonly location?: string;
+}
+
 export interface BatchWrapupDto {
 	readonly id: string;
 	readonly batchId: string;
@@ -112,7 +129,7 @@ export interface BatchWrapupDto {
 		readonly items: readonly string[];
 	};
 	readonly summaryText: string;
-	readonly findings: readonly unknown[];
+	readonly findings: readonly WrapupFindingDto[];
 	readonly unassigned: readonly string[];
 	readonly fixRunIds: readonly string[];
 	readonly reportText: string;

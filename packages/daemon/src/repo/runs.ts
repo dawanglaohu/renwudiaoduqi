@@ -352,7 +352,7 @@ export function toRunDto(row: RunRow): RunDto {
 		attemptNo: row.attempt_no,
 		kind: row.kind as 'implement' | 'review',
 		parentRunId: row.parent_run_id ?? null,
-		state: row.state,
+		state: row.state as RunDto['state'],
 		reviewVerdict: (row.review_verdict as RunDto['reviewVerdict']) ?? null,
 		agentId: row.agent_id,
 		modelName: row.model_name ?? null,
