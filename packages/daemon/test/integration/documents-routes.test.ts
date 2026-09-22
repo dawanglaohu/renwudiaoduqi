@@ -708,6 +708,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		const taskT1 = container.repos.tasks.findByDocAndKey(docId, 'T-1');
 		expect(taskT1).not.toBeNull();
 		if (!taskT1) throw new Error('taskT1 not found');
+		const initialAcceptText = taskT1.accept_text;
 		const snapshotsRepo = container.repos.dispatchSnapshots;
 		if (!snapshotsRepo) throw new Error('dispatchSnapshots repo not found');
 		snapshotsRepo.takeSnapshotForTask({
@@ -749,6 +750,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		expect(taskAfterRollback).not.toBeNull();
 		if (!taskAfterRollback) throw new Error('taskAfterRollback not found');
 		expect(taskAfterRollback.has_accept_changed).toBe(0);
+		expect(taskAfterRollback.accept_text).toBe(initialAcceptText);
 
 		// - NO system.docs_changed event was published
 		expect(emittedEvents.filter((e) => e.kind === 'system.docs_changed')).toHaveLength(0);
@@ -776,6 +778,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		expect(taskAfterRetry).not.toBeNull();
 		if (!taskAfterRetry) throw new Error('taskAfterRetry not found');
 		expect(taskAfterRetry.has_accept_changed).toBe(1);
+		expect(taskAfterRetry.accept_text).toBe('2) 验收已被修改的新要求');
 
 		// Event published once on successful retry
 		expect(emittedEvents.filter((e) => e.kind === 'system.docs_changed')).toHaveLength(1);
