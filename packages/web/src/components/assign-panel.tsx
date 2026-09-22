@@ -766,7 +766,7 @@ export function TaskAssignmentList({
 				</div>
 			) : (
 				<div
-					data-testid="empty-tasks-placeholder"
+					data-testid="empty-tasks"
 					className="p-8 text-center font-mono text-meta text-ink-3 rounded border border-border bg-page"
 				>
 					{EMPTY_VALUE_FALLBACK}

@@ -584,7 +584,7 @@ export function EmptyOnboarding({
 					<div data-slot="step-3-assign" className="flex flex-col gap-2.5">
 						{step3Slot ?? (
 							<div
-								data-testid="step-3-placeholder"
+								data-testid="step-3-fallback"
 								className="p-6 rounded border border-border bg-page text-center font-mono text-meta text-ink-3"
 							>
 								{tasks && tasks.length > 0 ? (
