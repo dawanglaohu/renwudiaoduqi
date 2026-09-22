@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto';
 import * as nodeFs from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import type { RefreshDocumentResponse } from '@agent-scheduler/shared/api/documents';
+import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { type DocsFingerprintHasher, computeDocsFingerprint } from '../domain/docs-fingerprint.ts';
 import { batchNoOf, layerOf } from '../domain/layer-of.ts';
+import { deriveTaskState, isTaskState } from '../domain/task-state.ts';
 import {
 	BUILTIN_WRAPUP_PROMPT,
 	PROMPT_SOURCE_BUILTIN,
@@ -24,6 +27,7 @@ import {
 import type { DocumentMetadataUpdateRow, DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import {
 	type DependencyValidationReport,
+	type TaskRow,
 	type TasksRepo,
 	createTasksRepo,
 	importDocTasks,
@@ -145,10 +149,24 @@ export interface OpenReaderResult {
 	readonly readerPath: string;
 }
 
+export interface ListTasksQuery {
+	readonly batchId?: string;
+	readonly state?: string;
+	readonly cursor?: string;
+	readonly limit?: number;
+}
+
+export interface ListTasksResult {
+	readonly tasks: readonly TaskDto[];
+	readonly nextCursor: string | null;
+}
+
 export interface DocsService {
 	readonly parseContent: (content: string, options?: { docsPath?: string }) => ParsedDocData;
 	readonly parseFile: (filePath: string) => Promise<ParsedDocData>;
 	readonly importDocument: (docsPath: string) => Promise<ImportDocumentResult>;
+	readonly refreshDocument: (docId: string) => Promise<RefreshDocumentResponse>;
+	readonly listTasks: (docId: string, query?: ListTasksQuery) => Promise<ListTasksResult>;
 	readonly getDocumentById: (id: string) => DocumentRecord | null;
 	readonly getDocumentByPath: (docsPath: string) => DocumentRecord | null;
 	readonly listDocuments: () => readonly DocumentRecord[];
@@ -224,6 +242,28 @@ export function mapDocumentRow(row: DocumentRow): DocumentRecord {
 		isTakeoverNotified: row.is_takeover_notified === 1,
 		importedAt: row.imported_at,
 		lastSeenAt: row.last_seen_at,
+	});
+}
+
+function toTaskDto(row: TaskRow & { derived_state?: string }): TaskDto {
+	let deps: readonly string[];
+	try {
+		const parsed = JSON.parse(row.deps_json);
+		deps = Array.isArray(parsed) ? parsed : [];
+	} catch {
+		deps = [];
+	}
+	const state = row.derived_state ?? deriveTaskState(row.manual_state, null);
+	return Object.freeze({
+		id: row.id,
+		docId: row.doc_id,
+		taskKey: row.task_key,
+		title: row.title,
+		moduleKey: row.module_key,
+		deps: Object.freeze(deps),
+		estDays: row.est_days,
+		batchId: row.batch_id,
+		state,
 	});
 }
 
@@ -869,6 +909,140 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				isNew: false,
 				tasksImported: imported.tasksImported,
 				dependencyReport: imported.dependencyReport,
+			});
+		},
+
+		async refreshDocument(docId: string): Promise<RefreshDocumentResponse> {
+			const existingRow = deps.documentsRepo.findById(docId);
+			if (!existingRow) {
+				throw new AppError('E_NOT_FOUND', `Document not found: ${docId}`, {
+					details: { docId },
+				});
+			}
+
+			let parsed: ParsedDocData;
+			try {
+				parsed = await parseDocsDataFile(existingRow.docs_path, fileSystem, hasher);
+				recordParsedDoc(parsed);
+			} catch (error) {
+				const appError =
+					error instanceof AppError
+						? error
+						: new AppError(
+								'E_DOC_SOURCE_UNREADABLE',
+								`Cannot read docs-data.js from ${existingRow.docs_path}`,
+								{
+									cause: error,
+									details: { docsPath: existingRow.docs_path },
+								},
+							);
+
+				// E-82: 源不可读时只置不可读标记，既有任务和派发快照保持不变。
+				deps.documentsRepo.markSourceUnreadable(existingRow.id, deps.clock.now());
+				throw appError;
+			}
+
+			const now = deps.clock.now();
+			const hasChanged = existingRow.content_fingerprint !== parsed.contentFingerprint;
+
+			const updateRow: DocumentMetadataUpdateRow = {
+				id: existingRow.id,
+				project_name: parsed.projectName,
+				repo_path: parsed.repoPath,
+				main_branch: parsed.mainBranch,
+				branch_prefix: parsed.branchPrefix,
+				content_fingerprint: parsed.contentFingerprint,
+				is_source_readable: 1,
+				last_seen_at: now,
+			};
+			deps.documentsRepo.updateMetadata(updateRow);
+			persistParsedTasks(deps, existingRow.id, parsed);
+
+			let flags = {
+				hasAcceptChanged: false,
+				hasPromptChanged: false,
+				isRemovedFromDoc: false,
+			};
+
+			if (deps.dispatchSnapshotsRepo) {
+				const banner = deps.dispatchSnapshotsRepo.refreshDocDiff(
+					existingRow.id,
+					parsed.tasks.map((t) => t.id),
+				);
+				flags = {
+					hasAcceptChanged: banner.acceptChangedCount > 0,
+					hasPromptChanged: banner.promptChangedCount > 0,
+					isRemovedFromDoc: banner.removedTaskCount > 0,
+				};
+			}
+
+			if (hasChanged && deps.bus && deps.envelopeFactory) {
+				deps.bus.publish(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'system.docs_changed',
+						payload: {
+							docsPath: existingRow.docs_path,
+							fingerprint: parsed.contentFingerprint,
+						},
+					}),
+				);
+			}
+
+			return Object.freeze({
+				changed: hasChanged,
+				flags: Object.freeze(flags),
+			});
+		},
+
+		async listTasks(docId: string, query?: ListTasksQuery): Promise<ListTasksResult> {
+			const existing = deps.documentsRepo.findById(docId);
+			if (!existing) {
+				throw new AppError('E_NOT_FOUND', `Document not found: ${docId}`, {
+					details: { docId },
+				});
+			}
+
+			if (query?.state !== undefined && !isTaskState(query.state)) {
+				throw new AppError('E_VALIDATION', `Invalid task state filter: ${query.state}`, {
+					details: { state: query.state },
+				});
+			}
+
+			const rawLimit = query?.limit;
+			if (
+				rawLimit !== undefined &&
+				(!Number.isInteger(rawLimit) || rawLimit < 1 || rawLimit > 200)
+			) {
+				throw new AppError(
+					'E_VALIDATION',
+					`Invalid limit: ${rawLimit}; must be an integer between 1 and 200`,
+					{ details: { limit: rawLimit } },
+				);
+			}
+			const limit = rawLimit ?? 50;
+
+			const tasksRepo = deps.tasksRepo ?? (deps.db ? createTasksRepo(deps.db) : undefined);
+			if (!tasksRepo) {
+				throw new AppError('E_INTERNAL', 'TasksRepo is not available in DocsService');
+			}
+
+			const rows = tasksRepo.listTasksWithDerivedState({
+				docId,
+				batchId: query?.batchId ?? null,
+				state: query?.state ?? null,
+				cursor: query?.cursor ?? null,
+				limit: limit + 1,
+			});
+
+			const hasMore = rows.length > limit;
+			const pagedRows = hasMore ? rows.slice(0, limit) : rows;
+			const lastRow = pagedRows[pagedRows.length - 1];
+			const nextCursor = hasMore && lastRow ? lastRow.task_key : null;
+			const tasks = Object.freeze(pagedRows.map(toTaskDto));
+
+			return Object.freeze({
+				tasks,
+				nextCursor,
 			});
 		},
 
