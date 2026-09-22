@@ -3,7 +3,7 @@
  *
  * 启动序列的唯一实现（07-前端架构 §注入点，M9-T26）。顺序固定：
  *   探壳 → `tokenStore.get()` 并 `registerTokenProvider()` → `registerShellHostHint()` 后
- *   `resolveBaseUrl()` → 有令牌才开流，无令牌置 `needsPairing`。
+ *   `resolveBaseUrl()` → 把 event-bus 挂到 sseClient → 有令牌才开流，无令牌置 `needsPairing`。
  * SSE 的生产开流调用在 `packages/web/src` 下只许出现一处（`test/wiring-arch.test.ts` 机检）。
  *
  * 开流的唯一闸门是「模块缓存里有没有令牌」——没有按主机、网段或 loopback 放行的分支，
@@ -16,7 +16,7 @@ import type {
 	ShellPlatform,
 } from '@agent-scheduler/shared/shell/bridge-contract';
 import { registerShellHostHint, resolveBaseUrl } from '../api/base-url.ts';
-import { eventBus } from '../api/event-bus.ts';
+import { attachSseClient, eventBus } from '../api/event-bus.ts';
 import { onTokenChange, registerTokenProvider, setCachedToken } from '../api/http-client.ts';
 import { type SseClient, sseClient as defaultSseClient } from '../api/sse-client.ts';
 import { bindConnectionState } from '../features/run-deck/use-connection-state.ts';
@@ -114,6 +114,9 @@ export async function bootstrap(overrides: Partial<BootstrapDeps> = {}): Promise
 	// 4. 连接状态：SSE 状态与事件单向映射进 store，再镜像到 <html data-connection-status>
 	const unbindConnectionState = bindConnectionState(sseClient);
 	const unmirror = mirrorConnectionStatus(resolveConnectionStatusRoot());
+	// 4b. 事件本体：同一条流按信封的 runId 分派进 event-bus 的环形缓冲（07 节），features 层只订阅
+	// event-bus 而不碰 sseClient；不挂这一步，run-detail 的日志窗口只会看到首屏 HTTP 拉的那一段。
+	const detachEventBus = attachSseClient(sseClient, eventBus);
 
 	// 5. 有令牌才开流；无令牌只置 needsPairing，守卫会把用户送去 #/pair（E-156）
 	const startStream = (): void => {
@@ -152,6 +155,7 @@ export async function bootstrap(overrides: Partial<BootstrapDeps> = {}): Promise
 			unsubscribeToken();
 			unmirror();
 			unbindConnectionState();
+			detachEventBus();
 			sseClient.disconnect();
 			eventBus.clearAll();
 			registerShellHostHint(null);
