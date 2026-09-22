@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M2-T8": {
+      "contractHash": "25fbff46b506164ff95e8496732fed600d5096375137dbeb35f30be06a2dee5c",
+      "evidence": [
+        "源条款：04-执行/19-模块任务拆分.md 的 M2-T8 行原定 shared 单一状态定义、具名快照 DTO、E-234 形状穷尽；补丁保留五条验收及 13 态，只补既有 daemon 状态源去重和快照端点集成断言。",
+        "冲突依据：02-设计/09-数据模型.md 的 tasks 派生规则明确 manual_state → 最大 attempt 的 runs.state → never_dispatched；当前 service/dispatch.ts:94 旧基线把空 manual_state 输出 pending，现 PR 改为 never_dispatched 仍忽略已有运行。此为旧快照与已定数据模型冲突，不把当前 PR 认作实现通过。",
+        "契约纠偏：19 节 M2-T8 只允许 09 节完整任务状态派生导致的既有快照响应修正；其他运行时行为不变，既有集成测试不改，新快照端点集成断言锁定手工状态、最新 attempt 和从未派发三支。Jev adjudicate line pick=B(high 0.81), model=jev-1.13.0, adopt=take(B)，记录于 _run/judgments.jsonl 的 M2-T8:review。",
+        "有效路径：_run/task-contracts.json 的 M2-T8 supportPaths 定点补 shared/package.json、daemon domain/task-state.ts、repo/batches.ts、repo/runs.ts、repo/batch-wrapups.ts、service/dispatch.ts、service/docs.ts 与 snapshot-routes.test.ts；原 taskPaths 和其余 supportPaths 不删除，仍仅本任务必要消费者。",
+        "sync --patch m2-t8-state-scope-20260922 只列 M2-T8 待真实复核；status --task M2-T8 显示当前 hash 25fbff46b506164ff95e8496732fed600d5096375137dbeb35f30be06a2dee5c、stale=[]、runtimeDrift=[]、blockers=[]；代码仍有本轮 REVIEW-ROUND 1 阻断，verify 仅登记契约语义，不宣称代码 pass 或落地。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

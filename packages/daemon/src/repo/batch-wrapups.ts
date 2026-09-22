@@ -1,4 +1,8 @@
-import type { BatchWrapupDto, BatchWrapupLandingDto } from '@agent-scheduler/shared/api/batches';
+import type {
+	BatchWrapupDto,
+	BatchWrapupLandingDto,
+	WrapupFindingDto,
+} from '@agent-scheduler/shared/api/batches';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { toDatabaseError } from '../db/open-database.ts';
 
@@ -107,9 +111,9 @@ export function toBatchWrapupDto(
 		tests = { status: 'unknown', items: [] };
 	}
 
-	let findings: readonly unknown[] = [];
+	let findings: readonly WrapupFindingDto[] = [];
 	try {
-		findings = JSON.parse(row.findings_json);
+		findings = JSON.parse(row.findings_json) as readonly WrapupFindingDto[];
 	} catch {
 		findings = [];
 	}

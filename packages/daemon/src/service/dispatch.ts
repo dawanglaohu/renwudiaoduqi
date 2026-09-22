@@ -1,3 +1,4 @@
+import type { AgentEntryDto } from '@agent-scheduler/shared/api/agents';
 import type {
 	BatchDto,
 	BatchGateOverrides,
@@ -26,6 +27,7 @@ import {
 	countsTowardAgentConcurrency,
 	isTerminalRunState,
 } from '../domain/run-state-machine.ts';
+import { deriveTaskState } from '../domain/task-state.ts';
 import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
@@ -74,7 +76,7 @@ export function toBatchDto(row: BatchRow): BatchDto {
 	});
 }
 
-export function toTaskDto(row: TaskRow): TaskDto {
+export function toTaskDto(row: TaskRow, latestRunState?: string | null): TaskDto {
 	let deps: string[] = [];
 	try {
 		deps = JSON.parse(row.deps_json);
@@ -90,7 +92,7 @@ export function toTaskDto(row: TaskRow): TaskDto {
 		deps: Object.freeze(deps),
 		estDays: row.est_days ?? null,
 		batchId: row.batch_id ?? null,
-		state: row.manual_state ?? 'pending',
+		state: deriveTaskState(row.manual_state, latestRunState),
 	});
 }
 
@@ -195,7 +197,7 @@ export interface DispatchServiceDeps {
 	readonly logFailure?: (error: unknown) => void;
 	readonly getDispatchHalt?: () => boolean;
 	readonly agentLimits?: number | Record<string, number> | ((agentId: string) => number);
-	readonly listAgents?: () => Promise<readonly unknown[]> | readonly unknown[];
+	readonly listAgents?: () => Promise<readonly AgentEntryDto[]> | readonly AgentEntryDto[];
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
 	readonly resolveAgentForTask?: (task: TaskRow) => string | null;
 	readonly baseSelector?: BaseSelector;
@@ -681,6 +683,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		const allBatches: BatchDto[] = [];
 		const allTasks: TaskDto[] = [];
 
+		const allRunRows = runsRepo.listAll();
+		const latestRunByTaskId = new Map<string, RunRow>();
+		for (const r of allRunRows) {
+			if (!r.task_id) continue;
+			const existing = latestRunByTaskId.get(r.task_id);
+			if (!existing || r.attempt_no > existing.attempt_no) {
+				latestRunByTaskId.set(r.task_id, r);
+			}
+		}
+
 		for (const doc of documents) {
 			const bRows = deps.batchesRepo.listByDocId(doc.id);
 			for (const b of bRows) {
@@ -688,11 +700,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 			const tRows = deps.tasksRepo.listByDocId(doc.id);
 			for (const t of tRows) {
-				allTasks.push(toTaskDto(t));
+				const latestRun = latestRunByTaskId.get(t.id);
+				allTasks.push(toTaskDto(t, latestRun?.state ?? null));
 			}
 		}
 
-		const runs = runsRepo.listAll().map(toRunDtoWithInHeadWarning);
+		const runs = allRunRows.map(toRunDtoWithInHeadWarning);
 		const agents = deps.listAgents ? await deps.listAgents() : [];
 		const latestEventId = deps.getLatestEventId ? deps.getLatestEventId() : null;
 

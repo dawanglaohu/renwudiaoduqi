@@ -19,7 +19,7 @@
     "03-质量/16-可观测性.md": "31e39822fc55ae28bcec422765abe985b13ec51f58c7369ccb087d585a4615dd",
     "03-质量/17-测试策略.md": "5f9b5ac17bf4c5345a86c8d48dd34ae01b39766f20fc9ae43818cc6da4ccec84",
     "04-执行/18-部署与运维.md": "786beb5a984dd6abb88421a6dd106763e3a3b19fd20e3173811097ccffdb0ae6",
-    "04-执行/19-模块任务拆分.md": "49d312495b0bc34123ad764a2201db9b1c467ac67efcc591afca07aa569588a8",
+    "04-执行/19-模块任务拆分.md": "9203cbcb02ecb921006fa7281646eeacae4b27266b7064fe721d9ac8df9e57c8",
     "04-执行/20-里程碑与交付顺序.md": "d184752ddf3429eb26c7be1463eb36986b758dcd97d7e241edb6450d9c9a61f7",
     "04-执行/21-风险与未决事项.md": "fd98aed14af37c360f9df49ee829fc2ffabf6bd53a19f1fe55e4382b87dd8617",
     "05-附录/22-决策记录.md": "6f255b47023960119a696076a1520cc1960d936fd63fac37495b84a310654974",
@@ -29,16 +29,16 @@
     "_run/batches/batch-8-20260922-r3.md": "3b5ef6a0f09bd96c34496700e635c3ac2ba0fc0742a5a895950e519440955da6",
     "_run/batches/batch-8-20260922.md": "a105889d07a9a83829268449892d4f81fbb630d849eaa53e37ad7641848d3749",
     "_run/presentation.json": "7bc4a2750015ba454c28ed4b2776bd5ffbe2f8724f761b35f2debd53787f1660",
-    "_run/task-contracts.json": "8be2811e9f688bc73a1552a672f8c0255cf87403f73b4773280e0d8391468d51"
+    "_run/task-contracts.json": "76b9de354f74ee36a8212ece633d114a40d6e0fbe7c7d9f81c490f3a290bfd88"
   },
   "products": {
     "_MOC.md": "325993513261fe854426169a7e2bbb44a7e7da69de6cc942cb73a7a76414085d",
-    "_run/dispatch.json": "70bdf7a27c364239f670d11a022356ecc7ec6b7018cc5a6e48d788722f984211",
-    "_run/review.json": "33be356ca45311210d0d4727ee39d91cbb18459402125f6a6655d75461db32fe",
-    "_run/task-reviews.json": "6d955e05a3800ff3447199521c503fba49fc50bb2d9e914c5eaa47e115f93a6c",
-    "docs-data.js": "54d44be89a6ef7b702cbcfa02fb086542f3c60cf3a702cae84d1a0a4f4d1c439",
+    "_run/dispatch.json": "636ef14233734567b3f9ecd0000645e652791290da8616c3fb126617b9f38479",
+    "_run/review.json": "f370b77552acaf0fdd82eea4f873e72731aded1709f686f6bb75f4bf85e9d625",
+    "_run/task-reviews.json": "453202f33b0aceed89a11e46ae38ec137c3812e68c6fc8728b9771603369d7b5",
+    "docs-data.js": "7087bbaff250844b7cc3e2013f420c664a6a0f292e748834d0955fb547bc65d9",
     "index.html": "afd746e48f30467e7e1fc7f5d4f63b687f64c30000479747a08354cb217d6a6e"
   },
   "schemaVersion": 1,
-  "sourceVersion": "7dd86e62c71ea83893bbfc384288874bae5cd1e9edaa7cf841aa31770bdb8912"
+  "sourceVersion": "c01cef69c6d40ddd1103904bc1842aa504f0e02577f73bf88a127c76769d3c1c"
 }

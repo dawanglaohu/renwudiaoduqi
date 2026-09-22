@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	RUN_STATE_TO_STATUS,
 	STATUS_SHAPES,
 	STATUS_STATES,
 	STEP_SHAPES,
@@ -210,5 +211,34 @@ describe('spine-shape (M9-T2 / E-110, E-172, E-230, E-231, E-232, E-233, E-234)'
 		expect(svgStr).toContain('class="icon-check"');
 		expect(svgStr).toContain('vector-effect="non-scaling-stroke"');
 		expect(svgStr).toContain('stroke="currentColor"');
+	});
+
+	// ─── M2-T8 / E-234: RUN_STATE_TO_STATUS 覆盖 13 态且 STATUS_STATES 1:1 形状机检 ───
+	it('AC 4 & E-234: RUN_STATE_TO_STATUS covers all 13 RunStates and maps to valid StatusStates', () => {
+		const expectedRunStates = [
+			'queued',
+			'starting',
+			'running',
+			'awaiting_reply',
+			'exited',
+			'reviewing',
+			'reworking',
+			'awaiting_human',
+			'orphaned',
+			'landed',
+			'failed',
+			'aborted',
+			'interrupted',
+		] as const;
+
+		const mappedKeys = Object.keys(RUN_STATE_TO_STATUS) as (keyof typeof RUN_STATE_TO_STATUS)[];
+		expect(mappedKeys).toHaveLength(13);
+		expect([...mappedKeys].sort()).toEqual([...expectedRunStates].sort());
+
+		for (const [runState, status] of Object.entries(RUN_STATE_TO_STATUS)) {
+			expect(STATUS_STATES).toContain(status);
+			// 验证 normalizeStatusState 对每一个 RunState 都能正确转换
+			expect(normalizeStatusState(runState)).toBe(status);
+		}
 	});
 });

@@ -307,17 +307,16 @@
     "verdict": "pass"
   },
   "M2-T8": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "015256dbb843b65f05053a8194931b1503ce7db59130931bd71bb0965e8af560",
+    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
+    "contractHash": "25fbff46b506164ff95e8496732fed600d5096375137dbeb35f30be06a2dee5c",
     "evidence": [
-      "前置：M2-T6、M3-T2、M4-T4、M6-T1、M8-T4、M8-T6、M9-T2；其中已落地 7 个。",
-      "验收标准引用边界 E-234，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/shared/src/api/（类别 sharedTypes）",
-      "有效范围 19 条：packages/daemon/src/boot/lock.ts；packages/daemon/src/config/env.ts；packages/daemon/src/config/registry.ts；packages/daemon/src/domain/run-state-machine.ts；packages/daemon/src/platform/lock-contract.ts；packages/daemon/test/arch/shared-contracts.test.ts；packages/shared/src/api/；packages/shared/src/api/agents.ts；packages/shared/src/api/batches.ts；packages/shared/src/api/documents.ts；packages/shared/src/api/gates.ts；packages/shared/src/api/runs.ts；packages/shared/src/api/snapshot.ts；packages/shared/src/api/tasks.ts；packages/shared/src/lib/is-record.ts；packages/shared/src/shell/daemon-launch-spec.ts；packages/web/src/components/stream-row.tsx；packages/web/src/lib/spine-shape.ts；packages/web/test/spine-shape.test.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/daemon/test/arch/shared-contracts.test.ts、packages/shared/src/lib/is-record.ts。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "源条款：04-执行/19-模块任务拆分.md 的 M2-T8 行原定 shared 单一状态定义、具名快照 DTO、E-234 形状穷尽；补丁保留五条验收及 13 态，只补既有 daemon 状态源去重和快照端点集成断言。",
+      "冲突依据：02-设计/09-数据模型.md 的 tasks 派生规则明确 manual_state → 最大 attempt 的 runs.state → never_dispatched；当前 service/dispatch.ts:94 旧基线把空 manual_state 输出 pending，现 PR 改为 never_dispatched 仍忽略已有运行。此为旧快照与已定数据模型冲突，不把当前 PR 认作实现通过。",
+      "契约纠偏：19 节 M2-T8 只允许 09 节完整任务状态派生导致的既有快照响应修正；其他运行时行为不变，既有集成测试不改，新快照端点集成断言锁定手工状态、最新 attempt 和从未派发三支。Jev adjudicate line pick=B(high 0.81), model=jev-1.13.0, adopt=take(B)，记录于 _run/judgments.jsonl 的 M2-T8:review。",
+      "有效路径：_run/task-contracts.json 的 M2-T8 supportPaths 定点补 shared/package.json、daemon domain/task-state.ts、repo/batches.ts、repo/runs.ts、repo/batch-wrapups.ts、service/dispatch.ts、service/docs.ts 与 snapshot-routes.test.ts；原 taskPaths 和其余 supportPaths 不删除，仍仅本任务必要消费者。",
+      "sync --patch m2-t8-state-scope-20260922 只列 M2-T8 待真实复核；status --task M2-T8 显示当前 hash 25fbff46b506164ff95e8496732fed600d5096375137dbeb35f30be06a2dee5c、stale=[]、runtimeDrift=[]、blockers=[]；代码仍有本轮 REVIEW-ROUND 1 阻断，verify 仅登记契约语义，不宣称代码 pass 或落地。"
     ],
-    "reviewed": "2026-09-18T18:32:56.211890+00:00",
+    "reviewed": "2026-09-22T06:28:33.448074+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

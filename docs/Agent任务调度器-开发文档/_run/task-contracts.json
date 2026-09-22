@@ -1254,6 +1254,14 @@
         "sharedTypes"
       ],
       "supportPaths": [
+        "packages/shared/package.json",
+        "packages/daemon/src/domain/task-state.ts",
+        "packages/daemon/src/repo/batches.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/repo/batch-wrapups.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/service/docs.ts",
+        "packages/daemon/test/integration/snapshot-routes.test.ts",
         "packages/shared/src/api/documents.ts",
         "packages/shared/src/api/gates.ts",
         "packages/shared/src/api/agents.ts",

@@ -1,3 +1,5 @@
+import { isRecord } from '../lib/is-record.ts';
+
 export interface DaemonLaunchSpec {
 	readonly file: string;
 	readonly args: readonly string[];
@@ -101,8 +103,4 @@ function issue(
 	reason: DaemonLaunchSpecIssue['reason'],
 ): DaemonLaunchSpecIssue {
 	return Object.freeze({ path, reason });
-}
-
-function isRecord(input: unknown): input is Record<string, unknown> {
-	return typeof input === 'object' && input !== null && !Array.isArray(input);
 }
