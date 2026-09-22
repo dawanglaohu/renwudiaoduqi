@@ -1228,7 +1228,8 @@
         "packages/daemon/src/repo/batches.ts",
         "packages/daemon/src/repo/runs.ts",
         "packages/daemon/src/boot/container.ts",
-        "packages/daemon/test/unit/documents-routes.test.ts"
+        "packages/daemon/test/unit/documents-routes.test.ts",
+        "packages/shared/src/api/tasks.ts"
       ],
       "requires": [
         {
