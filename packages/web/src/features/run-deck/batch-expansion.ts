@@ -7,9 +7,10 @@
  * - 展开集存放在本模块模块级 Set，左栏批次树与任务列表页完全共用
  * - 首次按 daemon 下发的 defaultExpanded 进行 seed
  * - batch.advanced 到达且 to ∈ {running, wrapping, awaiting_landing, needs_attention} 时并入展开集
- * - 任何事件永不从集合删除元素（除切换文档整体清空与用户手动折叠 toggle）
+ * - 任何事件永不从集合删除元素（除切换文档整体清空与用户手动折叠 toggle）；不提供独立的 collapse 入口
  * - 手动折叠后，同批若再有上述 advanced 事件到达，仍会自动展开（E-284）
- * - 修复 useSyncExternalStore 响应性：每次集合变更生成新的只读快照引用，确保 React 严格触发重渲染（R3）
+ * - 订阅快照是整数 version（07 节：getSnapshot 只返回数字），集合本身经 getExpandedBatchIds() 另行读取；
+ *   每次有效变更同时生成新的只读 Set 快照，两种读法都能让 useSyncExternalStore 触发重渲染（R3）
  * - 纯内存暂存，不进 zustand store、不进任何 localStorage 持久化键，刷新后回到 daemon defaultExpanded
  */
 
@@ -45,9 +46,10 @@ export const AUTO_EXPAND_BATCH_STATES = [
 
 export type AutoExpandBatchState = (typeof AUTO_EXPAND_BATCH_STATES)[number];
 
-// 模块级单例展开集合与快照
+// 模块级单例展开集合、只读快照与整数 version
 const expandedBatchIds = new Set<string>();
 let expandedSnapshot: ReadonlySet<string> = new Set<string>();
+let expansionVersion = 0;
 const listeners = new Set<() => void>();
 
 let currentDocId: string | null = null;
@@ -55,7 +57,8 @@ let isDocSeeded = false;
 let eventBusUnsubscribe: (() => void) | null = null;
 
 function notifyListeners(): void {
-	// R3: 每次集合产生有效变动，重新生成不可变 Set 快照，满足 useSyncExternalStore 的引用比较
+	// R3: 每次集合产生有效变动，version 自增并重新生成不可变 Set 快照
+	expansionVersion += 1;
 	expandedSnapshot = new Set(expandedBatchIds);
 	for (const listener of listeners) {
 		try {
@@ -71,6 +74,13 @@ function notifyListeners(): void {
  */
 export function getExpandedBatchIds(): ReadonlySet<string> {
 	return expandedSnapshot;
+}
+
+/**
+ * 展开集的整数 version：useSyncExternalStore 的 getSnapshot 只返回这个数字（07 节）。
+ */
+export function getBatchExpansionVersion(): number {
+	return expansionVersion;
 }
 
 /**
@@ -121,15 +131,6 @@ export function expandBatches(batchIds: readonly string[]): void {
 	if (changed) {
 		notifyListeners();
 	}
-}
-
-/**
- * 折叠特定批次。
- */
-export function collapseBatch(batchId: string): void {
-	if (!batchId || !expandedBatchIds.has(batchId)) return;
-	expandedBatchIds.delete(batchId);
-	notifyListeners();
 }
 
 /**

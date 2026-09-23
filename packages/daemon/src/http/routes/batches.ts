@@ -1,15 +1,19 @@
 import {
+	type BatchAssignmentsResponse,
 	type GetBatchWrapupsResponse,
 	type PauseBatchResponse,
+	type PutAssignmentsBody,
 	type StartBatchBody,
 	type StartBatchResponse,
 	type WrapupBatchBody,
 	type WrapupBatchResponse,
+	putAssignmentsBodySchema,
 	startBatchBodySchema,
 	wrapupBatchBodySchema,
 } from '@agent-scheduler/shared/api/batches';
 import type { FastifyInstance, FastifyRequest, RouteHandlerMethod } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
+import type { AssignmentsService } from '../../service/assignments.ts';
 import type { DispatchService } from '../../service/dispatch.ts';
 import type { WrapupService } from '../../service/wrapup.ts';
 
@@ -33,12 +37,14 @@ export const batchRouteParamsSchema = {
 export interface RegisterBatchesRoutesOptions {
 	readonly dispatchService?: DispatchService;
 	readonly wrapupService?: WrapupService;
+	readonly assignmentsService?: AssignmentsService;
 }
 
 interface ContainerWithBatchServices {
 	readonly services?: {
 		readonly dispatch?: DispatchService;
 		readonly wrapup?: WrapupService;
+		readonly assignments?: AssignmentsService;
 	};
 }
 
@@ -82,6 +88,26 @@ function resolveWrapupService(
 	return service;
 }
 
+function resolveAssignmentsService(
+	request: FastifyRequest,
+	instance: FastifyInstance,
+	options?: RegisterBatchesRoutesOptions,
+): AssignmentsService {
+	if (options?.assignmentsService) {
+		return options.assignmentsService;
+	}
+
+	const container =
+		(request.server as unknown as { container?: ContainerWithBatchServices })?.container ??
+		(instance as unknown as { container?: ContainerWithBatchServices })?.container;
+
+	const service = container?.services?.assignments;
+	if (!service) {
+		throw new AppError('E_INTERNAL', 'AssignmentsService is not available in container');
+	}
+	return service;
+}
+
 function readBatchId(request: FastifyRequest): string {
 	const params = request.params as BatchRouteParams | undefined;
 	if (!params || typeof params.batchId !== 'string' || params.batchId.trim().length === 0) {
@@ -94,6 +120,8 @@ function readBatchId(request: FastifyRequest): string {
  * Registers batch management routes (M8-T3, AC 3, E-49, E-281):
  * - `POST /api/v1/batches/:batchId/start`: starts a batch if previous batch is done
  * - `POST /api/v1/batches/:batchId/pause`: pauses a batch
+ * - `GET /api/v1/batches/:batchId/assignments`: per-task drafts plus concurrency preview (M8-T11)
+ * - `POST /api/v1/batches/:batchId/assignments`: whole-batch draft overwrite, same response (M8-T11)
  */
 export function registerBatchesRoutes(
 	instance: FastifyInstance,
@@ -150,6 +178,29 @@ export function registerBatchesRoutes(
 		return Object.freeze({ wrapups });
 	};
 
+	const readAssignmentsHandler: RouteHandlerMethod = async (
+		request,
+	): Promise<BatchAssignmentsResponse> => {
+		const batchId = readBatchId(request);
+		const service = resolveAssignmentsService(request, instance, options);
+		return service.readAssignments(batchId);
+	};
+
+	const putAssignmentsHandler: RouteHandlerMethod = async (
+		request,
+	): Promise<BatchAssignmentsResponse> => {
+		const batchId = readBatchId(request);
+		const body = request.body as PutAssignmentsBody;
+		const service = resolveAssignmentsService(request, instance, options);
+		const actorDeviceId = (request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
+
+		return await service.putDrafts({
+			batchId,
+			assignments: body.assignments,
+			actorDeviceId,
+		});
+	};
+
 	instance.post<{
 		Params: BatchRouteParams;
 		Body: StartBatchBody;
@@ -200,5 +251,31 @@ export function registerBatchesRoutes(
 			},
 		},
 		listWrapupsHandler,
+	);
+
+	instance.get<{
+		Params: BatchRouteParams;
+	}>(
+		'/api/v1/batches/:batchId/assignments',
+		{
+			schema: {
+				params: batchRouteParamsSchema,
+			},
+		},
+		readAssignmentsHandler,
+	);
+
+	instance.post<{
+		Params: BatchRouteParams;
+		Body: PutAssignmentsBody;
+	}>(
+		'/api/v1/batches/:batchId/assignments',
+		{
+			schema: {
+				params: batchRouteParamsSchema,
+				body: putAssignmentsBodySchema,
+			},
+		},
+		putAssignmentsHandler,
 	);
 }

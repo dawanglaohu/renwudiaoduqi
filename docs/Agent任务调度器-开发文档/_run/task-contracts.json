@@ -1,6 +1,15 @@
 {
   "schemaVersion": 1,
   "tasks": {
+    "M9-T13": {
+      "supportPaths": [
+        "packages/web/src/app/app.tsx",
+        "packages/web/src/i18n/error-messages.ts",
+        "packages/web/src/pages/run-detail-page.tsx",
+        "packages/web/vite.config.ts",
+        "packages/web/test/mobile-rerun.test.ts"
+      ]
+    },
     "M9-T12": {
       "supportPaths": [
         "packages/web/test/thumb-bar.test.ts",
@@ -515,6 +524,24 @@
         "packages/web/test/landing-onboarding.test.ts"
       ]
     },
+    "M9-T18": {
+      "supportPaths": [
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-deck/use-assign-panel.ts",
+        "packages/web/src/components/empty-onboarding.tsx",
+        "packages/web/src/api/batches.ts",
+        "packages/web/src/api/cache-keys.ts",
+        "packages/web/src/api/cache-invalidation.ts",
+        "packages/web/src/store/selection-store.ts",
+        "packages/web/test/assign-panel.test.ts",
+        "packages/web/src/app/app.tsx"
+      ],
+      "requires": [
+        {
+          "task": "M8-T11"
+        }
+      ]
+    },
     "M9-T19": {
       "supportPaths": [
         "packages/shared/src/api/settings.ts",
@@ -847,11 +874,15 @@
       "supportPaths": [
         "packages/daemon/src/domain/run-state-machine.ts",
         "packages/daemon/src/domain/wrapup-report.ts",
+        "packages/daemon/src/domain/wrapup-prompt.ts",
+        "packages/daemon/src/domain/rework-prompt.ts",
         "packages/daemon/src/repo/runs.ts",
         "packages/daemon/src/service/settings.ts",
         "packages/shared/src/api/runs.ts",
         "packages/shared/src/errors/codes.ts",
         "packages/daemon/test/unit/bughunt-prompt.test.ts",
+        "packages/daemon/test/unit/rework-prompt.test.ts",
+        "packages/daemon/test/unit/database.test.ts",
         "packages/daemon/src/workspace/in-head.ts"
       ],
       "sections": [
@@ -1079,7 +1110,7 @@
         "packages/web/src/lib/model-groups.test.ts",
         "packages/web/src/lib/effort-options.test.ts",
         "packages/web/src/lib/login-freshness.test.ts",
-        "packages/web/test/assign-panel.test.tsx",
+        "packages/web/test/assign-panel.test.ts",
         "packages/web/test/stream-head-meta.test.tsx",
         "packages/web/test/gate-card.test.tsx",
         "packages/web/test/cache-invalidation.test.ts",
@@ -1196,6 +1227,295 @@
         "packages/web/src/features/run-deck/run-deck-view.tsx",
         "packages/web/src/features/run-deck/use-stop-intent.ts",
         "packages/web/src/store/connection-store.ts"
+      ]
+    },
+    "M1-T11": {
+      "wiring": [
+        "buildPipeline",
+        "frontendRoutes",
+        "backendRoutes",
+        "container",
+        "eventKinds"
+      ],
+      "supportPaths": [
+        "packages/web/src/app/bootstrap.ts",
+        "packages/web/src/app/theme-provider.tsx",
+        "packages/daemon/src/http/plugins/80-static.ts"
+      ],
+      "requires": [
+        {
+          "task": "M9-T27",
+          "capability": "production-pairing-entry"
+        },
+        {
+          "task": "M9-T24"
+        },
+        {
+          "task": "M9-T25"
+        },
+        {
+          "task": "M9-T26"
+        },
+        {
+          "task": "M8-T10"
+        },
+        {
+          "task": "M7-T9"
+        }
+      ]
+    },
+    "M2-T7": {
+      "wiring": [
+        "backendRoutes"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/repo/batches.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/test/unit/documents-routes.test.ts",
+        "packages/shared/src/api/tasks.ts"
+      ],
+      "requires": [
+        {
+          "task": "M3-T4"
+        },
+        {
+          "task": "M8-T6"
+        }
+      ]
+    },
+    "M2-T8": {
+      "wiring": [
+        "sharedTypes"
+      ],
+      "supportPaths": [
+        "packages/shared/package.json",
+        "packages/daemon/src/domain/task-state.ts",
+        "packages/daemon/src/repo/batches.ts",
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/repo/batch-wrapups.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/service/docs.ts",
+        "packages/daemon/test/integration/snapshot-routes.test.ts",
+        "packages/shared/src/api/documents.ts",
+        "packages/shared/src/api/gates.ts",
+        "packages/shared/src/api/agents.ts",
+        "packages/daemon/src/boot/lock.ts",
+        "packages/daemon/src/config/env.ts",
+        "packages/daemon/src/config/registry.ts",
+        "packages/daemon/src/platform/lock-contract.ts",
+        "packages/shared/src/shell/daemon-launch-spec.ts",
+        "packages/web/src/components/stream-row.tsx"
+      ],
+      "requires": [
+        {
+          "task": "M6-T1"
+        },
+        {
+          "task": "M9-T2"
+        }
+      ]
+    },
+    "M7-T9": {
+      "wiring": [
+        "container",
+        "jobs"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/src/service/gates.ts",
+        "packages/daemon/src/jobs/reconcile-runs.ts",
+        "packages/daemon/src/jobs/log-index-repair.ts",
+        "packages/daemon/src/jobs/stall-detector.ts",
+        "packages/daemon/src/jobs/disk-watch.ts",
+        "packages/daemon/src/boot/shutdown.ts"
+      ],
+      "requires": [
+        {
+          "task": "M7-T2"
+        },
+        {
+          "task": "M8-T4"
+        }
+      ]
+    },
+    "M8-T10": {
+      "wiring": [
+        "container"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/repo/runs.ts",
+        "packages/daemon/src/service/run.ts",
+        "packages/daemon/src/proc/spawn.ts",
+        "packages/daemon/src/workspace/base-select.ts",
+        "packages/daemon/src/workspace/worktree.ts",
+        "packages/daemon/src/adapters/codex/",
+        "packages/daemon/test/unit/dispatch-contract.test.ts"
+      ],
+      "requires": [
+        {
+          "task": "M8-T3"
+        },
+        {
+          "task": "M6-T2"
+        },
+        {
+          "task": "M1-T8"
+        }
+      ]
+    },
+    "M8-T11": {
+      "wiring": [
+        "backendRoutes",
+        "migrations",
+        "sharedTypes"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/domain/concurrency.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/test/arch/routes.test.ts",
+        "packages/daemon/test/unit/database.test.ts",
+        "packages/daemon/test/integration/migrate-rebuild.test.ts"
+      ],
+      "requires": [
+        {
+          "task": "M8-T1"
+        },
+        {
+          "task": "M8-T3"
+        },
+        {
+          "task": "M4-T14"
+        }
+      ]
+    },
+    "M9-T24": {
+      "wiring": [
+        "buildPipeline"
+      ],
+      "supportPaths": [
+        "packages/web/src/styles/base.css",
+        "packages/web/scripts/check-forbidden.ts",
+        "packages/web/test/check-forbidden.test.ts"
+      ],
+      "requires": [
+        {
+          "task": "M9-T1"
+        },
+        {
+          "task": "M10-T4"
+        }
+      ]
+    },
+    "M9-T25": {
+      "wiring": [
+        "frontendRoutes"
+      ],
+      "supportPaths": [
+        "packages/web/src/features/run-deck/mobile-batch-list.tsx",
+        "packages/web/src/features/run-deck/run-deck-container.tsx",
+        "packages/web/src/features/run-detail/run-detail-container.tsx",
+        "packages/web/src/features/pairing/pairing-container.tsx",
+        "packages/web/src/features/settings-devices/settings-devices-container.tsx",
+        "packages/web/src/features/settings-agents/settings-agents-container.tsx",
+        "packages/web/test/routes.test.ts"
+      ],
+      "requires": [
+        {
+          "task": "M9-T3"
+        },
+        {
+          "task": "M9-T16"
+        },
+        {
+          "task": "M9-T15"
+        }
+      ]
+    },
+    "M9-T26": {
+      "wiring": [
+        "shellBridge",
+        "eventKinds"
+      ],
+      "supportPaths": [
+        "packages/web/src/shell/detect-shell.ts",
+        "packages/web/src/api/sse-client.ts",
+        "packages/web/src/api/event-bus.ts",
+        "packages/web/src/store/connection-store.ts",
+        "packages/web/src/components/offline-banner.tsx",
+        "packages/shell-desktop/src/desktop-bridge.ts",
+        "packages/web/test/shell-bridge.test.ts",
+        "packages/web/test/sse-client.test.ts"
+      ],
+      "requires": [
+        {
+          "task": "M9-T5"
+        },
+        {
+          "task": "M10-T1"
+        },
+        {
+          "task": "M10-T2"
+        }
+      ]
+    },
+    "M9-T27": {
+      "provides": [
+        "production-pairing-entry"
+      ],
+      "wiring": [
+        "frontendRoutes"
+      ],
+      "requires": [
+        {
+          "task": "M9-T25"
+        },
+        {
+          "task": "M9-T26"
+        }
+      ],
+      "supportPaths": [
+        "packages/web/src/pages/pair-page.tsx",
+        "packages/web/src/features/pairing/pairing-container.tsx",
+        "packages/web/src/app/bootstrap.ts",
+        "packages/web/test/route-entries.test.tsx"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
+      ]
+    },
+    "M10-T6": {
+      "wiring": [
+        "shellBridge"
+      ],
+      "supportPaths": [
+        "packages/web/src/app/bootstrap.ts",
+        "packages/web/src/api/base-url.ts",
+        "packages/shell-desktop/src/connection-ui.ts",
+        "packages/shell-desktop/src/daemon-process.ts",
+        "packages/shell-desktop/src/launch-spec.ts",
+        "packages/shell-desktop/src-tauri/tauri.conf.json",
+        "packages/shell-desktop/src-tauri/Cargo.toml"
+      ],
+      "requires": [
+        {
+          "task": "M10-T2"
+        },
+        {
+          "task": "M10-T5"
+        },
+        {
+          "task": "M9-T26"
+        }
       ]
     }
   }

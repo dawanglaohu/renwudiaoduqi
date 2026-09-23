@@ -1,5 +1,23 @@
 import type { EffortValue } from './agents.ts';
 
+export const RUN_STATES = [
+	'queued',
+	'starting',
+	'running',
+	'awaiting_reply',
+	'exited',
+	'reviewing',
+	'reworking',
+	'awaiting_human',
+	'orphaned',
+	'landed',
+	'failed',
+	'aborted',
+	'interrupted',
+] as const;
+
+export type RunState = (typeof RUN_STATES)[number];
+
 export interface RunBaseRef {
 	readonly kind: 'head' | 'upstreamBranch';
 	readonly taskKey?: string;
@@ -166,7 +184,7 @@ export interface RunDto {
 	readonly attemptNo: number;
 	readonly kind: 'implement' | 'review' | 'wrapup' | 'bughunt';
 	readonly parentRunId: string | null;
-	readonly state: string;
+	readonly state: RunState;
 	readonly reviewVerdict: 'pass' | 'rework' | 'doc_issue' | 'incomplete' | null;
 	readonly agentId: string;
 	readonly modelName: string | null;
@@ -202,6 +220,11 @@ export interface RunDto {
 	readonly inHeadCheckedAt?: string | null;
 	readonly branchTipSha?: string | null;
 	readonly inHeadWarning?: string | null;
+	/**
+	 * Session ordinal of this run among the agent's concurrent sessions, read from
+	 * `runs.session_no` (E-31). Rows written before the column existed read as `null`.
+	 */
+	readonly sessionNo?: number | null;
 	readonly promptSource?: 'docs' | 'builtin' | null;
 	readonly assignmentSource?:
 		| 'task'
@@ -248,8 +271,15 @@ export interface GetRunLogResponse {
 	readonly openCommand?: string | null;
 }
 
+export interface SearchHitDto {
+	readonly line: string;
+	readonly lineNo: number;
+	readonly seq: number;
+	readonly stream: 'raw' | 'events' | 'vendor';
+}
+
 export interface SearchRunLogResponse {
-	readonly hits: readonly unknown[];
+	readonly hits: readonly SearchHitDto[];
 	readonly truncated: boolean;
 	readonly scannedUntilSeq: number;
 	readonly canceled: boolean;

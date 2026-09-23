@@ -1,3 +1,12 @@
+import { RUN_STATES, type RunState } from './runs.ts';
+
+export type TaskState = RunState | 'never_dispatched';
+
+export const TASK_STATES = [
+	'never_dispatched',
+	...RUN_STATES,
+] as const satisfies readonly TaskState[];
+
 export interface TaskDto {
 	readonly id: string;
 	readonly docId: string;
@@ -7,7 +16,10 @@ export interface TaskDto {
 	readonly deps: readonly string[];
 	readonly estDays: number | null;
 	readonly batchId: string | null;
-	readonly state: string;
+	readonly state: TaskState;
+	readonly hasAcceptChanged?: boolean;
+	readonly hasPromptChanged?: boolean;
+	readonly isRemovedFromDoc?: boolean;
 }
 
 export interface GetTaskLandingResponse {

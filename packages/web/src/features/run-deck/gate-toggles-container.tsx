@@ -11,6 +11,7 @@
  * - 状态等 settings.gates_changed 事件回流，不进行乐观翻转（E-299, R4）
  * - 不伪造 DEFAULT_GATES，未获取到服务端数据时显示 null 占位态
  * - 无 sessionStorage / 令牌重复代码，无任何 window 生产测试钩子
+ * - 读取或 PATCH 失败就地 InlineNotice，不 toast、不整页替换（07 节错误体系）
  */
 
 import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes';
@@ -20,8 +21,10 @@ import type {
 } from '@agent-scheduler/shared/api/settings';
 import { useCallback, useEffect, useState } from 'react';
 import { eventBus } from '../../api/event-bus.ts';
-import { httpClient } from '../../api/http-client.ts';
+import { httpClient, isApiError } from '../../api/http-client.ts';
 import { GateToggles } from '../../components/gate-toggles.tsx';
+import { InlineNotice } from '../../components/inline-notice.tsx';
+import { getErrorMessage } from '../../i18n/error-messages.ts';
 
 const getGatesRoute: RouteDefinition | undefined = ROUTES.find(
 	(r) => r.method === 'GET' && r.path === '/api/v1/settings/gates',
@@ -30,6 +33,25 @@ const getGatesRoute: RouteDefinition | undefined = ROUTES.find(
 const patchGatesRoute: RouteDefinition | undefined = ROUTES.find(
 	(r) => r.method === 'PATCH' && r.path === '/api/v1/settings/gates',
 );
+
+/** 就地提示用的错误：中文文案 + 可展开的技术详情（07 节错误体系）。 */
+interface GateTogglesError {
+	readonly message: string;
+	readonly technical: string;
+}
+
+function toGateTogglesError(error: unknown, fallback: string): GateTogglesError {
+	if (isApiError(error)) {
+		return {
+			message: getErrorMessage(error.code),
+			technical: `${error.code} · ${error.message}${error.requestId ? ` · requestId=${error.requestId}` : ''}`,
+		};
+	}
+	return {
+		message: fallback,
+		technical: error instanceof Error ? error.message : String(error),
+	};
+}
 
 export interface GateTogglesContainerProps {
 	/** 外部注入的初始闸门配置（可选，优先于异步拉取） */
@@ -55,6 +77,7 @@ export function GateTogglesContainer({
 }: GateTogglesContainerProps) {
 	const [gates, setGates] = useState<GateSettings | null>(initialGates ?? null);
 	const [isPending, setIsPending] = useState<boolean>(false);
+	const [error, setError] = useState<GateTogglesError | null>(null);
 
 	// 1. 初始化拉取闸门状态（使用 shared 契约路由与 callRoute，R4）
 	useEffect(() => {
@@ -76,8 +99,10 @@ export function GateTogglesContainer({
 						setGates(res.gates);
 					}
 				}
-			} catch {
-				// 静默或由全局 errorSink 处理
+			} catch (cause: unknown) {
+				if (isMounted) {
+					setError(toGateTogglesError(cause, '读取闸门设置失败，请稍后重试'));
+				}
 			}
 		};
 
@@ -100,6 +125,7 @@ export function GateTogglesContainer({
 				if (payload.gates) {
 					setGates(payload.gates);
 					setIsPending(false);
+					setError(null);
 				}
 			}
 		});
@@ -113,6 +139,7 @@ export function GateTogglesContainer({
 	const handleChange = useCallback(
 		async (nextValues: GateSettings) => {
 			setIsPending(true);
+			setError(null);
 
 			try {
 				if (patcher) {
@@ -123,9 +150,10 @@ export function GateTogglesContainer({
 					});
 				}
 				// 注意：PATCH 成功响应后绝不提前翻转状态，也不提前结束 pending（R4），严格等待 settings.gates_changed 回流
-			} catch {
-				// 仅在网络或服务端报错失败时恢复 pending 态，保持服务端当前真实数据
+			} catch (cause: unknown) {
+				// 失败才解除 pending，保持服务端当前真实值，错误就地提示（E-299、07 节错误体系）
 				setIsPending(false);
+				setError(toGateTogglesError(cause, '闸门设置未能保存，请稍后重试'));
 			}
 		},
 		[patcher],
@@ -134,6 +162,14 @@ export function GateTogglesContainer({
 	return (
 		<div className={['flex flex-col gap-1', className].filter(Boolean).join(' ')}>
 			<GateToggles value={gates} isPending={isPending} layout={layout} onChange={handleChange} />
+			{error && (
+				<InlineNotice
+					tone="down"
+					testId="gate-toggles-error"
+					message={error.message}
+					technical={error.technical}
+				/>
+			)}
 		</div>
 	);
 }

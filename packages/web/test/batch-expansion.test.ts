@@ -5,7 +5,6 @@ import { createEventBus, eventBus } from '../src/api/event-bus.ts';
 import {
 	AUTO_EXPAND_BATCH_STATES,
 	clearBatchExpansion,
-	collapseBatch,
 	expandBatch,
 	expandBatches,
 	getExpandedBatchIds,
@@ -174,9 +173,6 @@ describe('features/run-deck/batch-expansion (M9-T19, AC 2, E-284, R3)', () => {
 
 		expandBatch('batch-2');
 		expect(getExpandedBatchIds().has('batch-2')).toBe(true);
-
-		collapseBatch('batch-2');
-		expect(getExpandedBatchIds().has('batch-2')).toBe(false);
 
 		expandBatches(['batch-3', 'batch-4']);
 		expect(getExpandedBatchIds().has('batch-3')).toBe(true);

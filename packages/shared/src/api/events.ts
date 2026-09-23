@@ -55,6 +55,14 @@ export const EVENT_DEFINITIONS = {
 
 export type EventKind = keyof typeof EVENT_DEFINITIONS;
 
+/**
+ * Normalized assistant-text event kind.
+ *
+ * Consumers outside adapter/domain layers use this semantic constant instead of
+ * repeating the ACP wire spelling, so vendor protocol strings stay isolated.
+ */
+export const AGENT_MESSAGE_CHUNK_EVENT_KIND = 'agent_message_chunk' as const satisfies EventKind;
+
 const EVENT_KIND_VALUES = [
 	'agent_message_chunk',
 	'agent_thought_chunk',
@@ -170,8 +178,15 @@ export interface ToolCallUpdatePayload {
 	readonly [key: string]: unknown;
 }
 
+export interface PlanEntryDto {
+	readonly content?: unknown;
+	readonly status?: unknown;
+	readonly priority?: unknown;
+	readonly [key: string]: unknown;
+}
+
 export interface PlanPayload {
-	readonly entries?: readonly unknown[];
+	readonly entries?: readonly PlanEntryDto[];
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }

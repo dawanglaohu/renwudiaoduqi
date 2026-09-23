@@ -251,7 +251,8 @@ review:c.promptFor('review','M1-T1'),resume:c.promptFor('resume','M1-T1'),impl:c
         import install_project
         with contextlib.redirect_stdout(io.StringIO()):
             install_project.install(self.doc, root=self.base)
-        git(self.base, 'init', '-b', 'main')
+        git(self.base, 'init')
+        git(self.base, 'symbolic-ref', 'HEAD', 'refs/heads/main')
         run = self.tool('build'); self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         code, st, err = self.status_json()
         self.assertTrue(any('未提交' in s and '未跟踪' in s for s in st['runtimeDrift']))   # 还没 add
@@ -300,7 +301,8 @@ review:c.promptFor('review','M1-T1'),resume:c.promptFor('resume','M1-T1'),impl:c
     # ---- 第 8 项：工作区清理清单 ----
     def test_workspace_lists_leftovers_of_landed_tasks_only(self):
         import install_project
-        git(self.base, 'init', '-b', 'main')
+        git(self.base, 'init')
+        git(self.base, 'symbolic-ref', 'HEAD', 'refs/heads/main')
         with contextlib.redirect_stdout(io.StringIO()):
             install_project.install(self.doc, root=self.base)
         self.run_build()

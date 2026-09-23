@@ -1,19 +1,28 @@
 {
   "files": {
-    "build_docs.py": "f8dbded620cddb5315e17f17f185e55a0c01cc2cffe32a4389a3961e732f1da3",
+    "build_docs.py": "22200b6bc37164b6ecc707e3699def486b08a87a58a3bd358284f819a92ba8e3",
     "build_vault.py": "d627d6e278e8c920b47a3a75693c90662a7b13b6ce8f0a835b439a66b6336a65",
-    "check_stale.py": "407d3dd10721752cd35c77daac9f34ecdc5828d5bf6c257f6723cb6207d6575c",
-    "compile_prompts.js": "9cad4c6d38ddf364cedae6f528802e1ffdde3db4e681d3dabdd0be5c6497c3d4",
-    "handoff-manual.md": "21c3024dccaf9fa535c6a26dc74460c6d0644665bc9f0e7913b7beaf29877454",
-    "handoff_contract.py": "c525a0280471f4ebc39107b15550b39e86710b41b3dc8f655c1d65451e09da5c",
-    "install_project.py": "e8537024cc7f4e663fb553c40e5fb61b9a878913f9d624175fe55b80a2954e2d",
-    "maintain_docs.py": "a82117b61030174d5806e6c5a7b67481a11727ea60601808ab0558a8060ee2ca",
-    "review.py": "018bc787fb39ba0d4199b57df5ed67992c0fe2471daa90bf1e1255176e48236b",
-    "tests/test_maintenance.py": "51c3a2d09577bd36b4cf1032fa486976a28dfd23df1c629a25a6ff7f891d6747",
-    "tests/test_prompt_routing.py": "8697892348c58df175b9781d36697ff9a6aac85512d8d9467b4597d21ce0e344",
-    "tests/test_release_1_2.py": "7220728b1d712962430ecaeec385f1cd0762ce31fa3757038ee4146c30878985",
-    "tests/test_release_1_3.py": "bd9adecfa6d6447695f9d3ed9509c97a1a58df9e3f9d2ccea1a233672570f433",
-    "tests/test_release_1_3_tools.py": "19214373e583eff3792f341ac9898151bc2b91abcf5f8dda19e9915d273321b9"
+    "check_stale.py": "88d2ed43b826c35e249ea7503c92ed16cfe9f4f11b3c7e09b98ec16d4684310d",
+    "compile_prompts.js": "cf52dd3065904b092f1357ced88d41f79f1c7ff43778ab406fd9a0a9e5317c8b",
+    "handoff-manual.md": "2a6eb73d18b8f61ae67f381346ca1181a2ffc39c7390160885c0bdb5462bf03c",
+    "handoff_contract.py": "fdeb0b71cea283ce902ff5b86665f6c62ac367257c3afef6184be4122d40c9bb",
+    "install_project.py": "28bef4c50aa9df62f896f12e099c77e3d9f3ef33e5bf8b479207b84176a8f921",
+    "maintain_docs.py": "b1362deb4c0302ad031cfef39097d8d70d2489aeb97a944593827937978fa3c7",
+    "review.py": "56e1f822876ffc1b6c71cbe03395e5e5a6d0db99cba5c7bed478bdd4c5a4e8aa",
+    "stage.py": "97101ecaff54fbe42ce02ae9ed0daddd746b4aeac4da2bb9aaae0af8d7f15015",
+    "tests/test_maintenance.py": "f4a7b849eb04e71646b5aba0a3f916be71ed4c3652d7404b61d025b58e3501ac",
+    "tests/test_prompt_routing.py": "27d76d385224f21eb3eb280a1c1e6d141e844b46e4297c48b8ad771c554c8c29",
+    "tests/test_release_1_2.py": "75b4d444f6500432289885e16fab2467948e575bd04046ba4f6d5a00b43f322a",
+    "tests/test_release_1_3.py": "04a2b7687fb163b709690f39e0ba11089ebf675442d347764dca6e817c14e7c8",
+    "tests/test_release_1_3_tools.py": "453bb57ceccfad5a68d9803887ead9379fa3d032ab76dd7debe64ffc6b3774fa",
+    "tests/test_release_1_4_contract.py": "55e2586aeced9ebccd2609aa6a3cc18dbecbbb05e081129841acf5f0e0fdde95",
+    "tests/test_release_1_4_gate.py": "266dab0e20713fde088ac0c381b77e6484b56d787f7bed0158120c0aa29ad532",
+    "tests/test_release_1_4_prompts.py": "f5f9e9e61a808ffa2725049fab014c5cd858b00b5e4809d107f232718c36b0e3",
+    "tests/test_release_1_5_typesafe.py": "7beaf0753cea7280d8a2caa9cf14e5ff330ffd9c522ef3e21bd56a6ff230776b",
+    "tests/test_release_1_6_1_tests.py": "124afe5a6d3ce2d723bbf9dd983c014b1a11919b82e674ac130db26ed0ffea09",
+    "tests/test_release_1_6_adjudication.py": "703a5f88a820316d4816448dba034705385aba6dfb48a80c2096102109252e21",
+    "tests/test_stage.py": "7ef011340a114e029f20f137077f7b2b9f3dee576c1e3a61e3494c07c41976ba",
+    "typesafe_ask.py": "a735c1e6c1fa76961a552eb4871af984e55c0603cc2c8523247101b3ca5584c5"
   },
-  "version": "1.3.1"
+  "version": "1.6.1"
 }

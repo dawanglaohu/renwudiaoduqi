@@ -28,12 +28,13 @@ import { PulseDot } from './pulse-dot.tsx';
 import { StatusBadge } from './status-badge.tsx';
 
 /**
- * 任务行条目数据模型（继承 TaskDto，支持可选的进 HEAD 与跨批修复字段，R1, R5）。
+ * 任务行条目：TaskDto 之上按 07 节字段名声明尚未进入 shared 的可选字段（inHead / inHeadMethod / crossBatchFix），
+ * 由 M8-T7 在 daemon 侧产出；缺失时本组件显示「—」，不推断。
  */
 export interface BatchTreeTaskItem extends TaskDto {
 	readonly inHead?: boolean | null;
 	readonly inHeadMethod?: string | null;
-	readonly isCrossBatchFix?: boolean;
+	readonly crossBatchFix?: boolean;
 }
 
 /**
@@ -586,7 +587,7 @@ export function BatchTree({
 													<span className="font-ui text-[13px] text-ink-1 truncate">
 														{task.title}
 													</span>
-													{task.isCrossBatchFix && (
+													{task.crossBatchFix && (
 														<span
 															data-chip="cross-batch-fix"
 															className="h-[20px] px-1.5 inline-flex items-center rounded-sm bg-panel-2 border border-border text-[11px] text-ink-3 shrink-0 select-none"

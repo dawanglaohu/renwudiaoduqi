@@ -18,7 +18,7 @@ import { App } from '../src/app/app.tsx';
 import { navigateTo } from '../src/app/routes.tsx';
 import { RunDeckView } from '../src/features/run-deck/run-deck-view.tsx';
 import type { DeckStreamLane } from '../src/features/run-deck/types.ts';
-import { TasksPage } from '../src/pages/tasks-page.tsx';
+import { TaskListPage } from '../src/pages/task-list-page.tsx';
 
 describe('R2: 路由入口真实渲染接线测试', () => {
 	beforeEach(() => {
@@ -158,9 +158,9 @@ describe('R2: 路由入口真实渲染接线测试', () => {
 		expect(html).toContain('data-component="batch-tree"');
 	});
 
-	// ─── 6. 接线断言：若 TasksPage 移除 TaskListContainer，页面失去批次树 ───
+	// ─── 6. 接线断言：若 TaskListPage 移除 TaskListContainer，页面失去批次树 ───
 	it('fails when tasks page wiring is missing (R2 assertion)', () => {
-		const html = renderToStaticMarkup(createElement(TasksPage));
+		const html = renderToStaticMarkup(createElement(TaskListPage));
 		expect(html).toContain('data-component="batch-tree"');
 	});
 });

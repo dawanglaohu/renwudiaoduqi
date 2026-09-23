@@ -13,6 +13,8 @@
  * - AC 3 / E-04: Displays 「电脑上的调度服务未启动」 when daemon is unreachable, NOT "连接超时".
  * - AC 4 / E-14: Displays upgrade prompt on version mismatch without throwing bottom-layer errors.
  * - 11 节: No continuous animations except run-deck pulse; 4px grid throughout.
+ * - M9-T26: every rendered root carries `data-connection-status` (the connection-store status verbatim),
+ *   and an online connection with a known sync point renders the quiet 「最后同步于 X」 readout.
  */
 
 import { type MouseEvent, useCallback } from 'react';
@@ -22,7 +24,8 @@ export type OfflineBannerKind =
 	| 'daemon-down'
 	| 'version-incompatible'
 	| 'offline'
-	| 'reconnecting';
+	| 'reconnecting'
+	| 'online';
 
 export interface OfflineBannerProps {
 	/** Connection status: 'online' | 'reconnecting' | 'offline' (AC 2, E-12) */
@@ -89,6 +92,7 @@ export function OfflineBanner({
 				role="alert"
 				aria-live="assertive"
 				data-component="offline-banner"
+				data-connection-status={status}
 				data-banner-kind="rollback"
 				data-testid="rollback-banner"
 				className={`
@@ -147,6 +151,7 @@ export function OfflineBanner({
 			<div
 				aria-live="polite"
 				data-component="offline-banner"
+				data-connection-status={status}
 				data-banner-kind="daemon-down"
 				data-testid="daemon-down-banner"
 				className={`
@@ -192,6 +197,7 @@ export function OfflineBanner({
 			<div
 				aria-live="polite"
 				data-component="offline-banner"
+				data-connection-status={status}
 				data-banner-kind="version-incompatible"
 				data-testid="version-incompatible-banner"
 				className={`
@@ -239,6 +245,7 @@ export function OfflineBanner({
 			<div
 				aria-live="polite"
 				data-component="offline-banner"
+				data-connection-status={status}
 				data-banner-kind="offline"
 				data-testid="offline-banner"
 				className={`
@@ -281,6 +288,7 @@ export function OfflineBanner({
 			<div
 				aria-live="polite"
 				data-component="offline-banner"
+				data-connection-status={status}
 				data-banner-kind="reconnecting"
 				data-testid="reconnecting-banner"
 				className={`
@@ -301,7 +309,35 @@ export function OfflineBanner({
 		);
 	}
 
-	// Normal online state: banner is hidden
+	// Online with a known sync point (M9-T26, E-12): the quiet 「最后同步于 X」 readout.
+	// Normal progress gets no hue (11 节): ink-3 text, no border, no background.
+	if (status === 'online' && lastSyncedAt) {
+		const timeDisplay = formatBannerLastSynced(lastSyncedAt);
+		return (
+			<div
+				aria-live="off"
+				data-component="offline-banner"
+				data-connection-status="online"
+				data-banner-kind="online"
+				data-testid="online-indicator"
+				className={`
+					inline-flex items-center gap-2 px-4 min-h-[20px]
+					text-ink-3 text-meta font-ui select-none
+					${className}
+				`}
+			>
+				<span
+					aria-hidden="true"
+					className="inline-block w-2 h-2 rounded-[1px] bg-current shrink-0"
+				/>
+				<span className="truncate">
+					最后同步于 <span className="font-mono text-ink-2">{timeDisplay}</span>
+				</span>
+			</div>
+		);
+	}
+
+	// Online without any sync point yet: nothing to report
 	return null;
 }
 

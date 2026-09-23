@@ -16,8 +16,9 @@
  */
 
 import { CURRENT_API_VERSION } from '@agent-scheduler/shared/api/system';
-import { useEffect } from 'react';
+import { createElement, useEffect } from 'react';
 import { type SseClient, type SseConnectionStatus, sseClient } from '../../api/sse-client.ts';
+import { OfflineBanner } from '../../components/offline-banner.tsx';
 import { useCanDispatch, useConnectionStore } from '../../store/connection-store.ts';
 
 export interface VersionInfo {
@@ -137,4 +138,14 @@ export function useConnectionState(client: SseClient = sseClient) {
 		needsPairing,
 		canDispatch,
 	};
+}
+
+/**
+ * Topbar connection readout. Bootstrap owns the SSE subscriptions; this component only projects
+ * the authoritative low-frequency store into the existing App topbar slot.
+ */
+export function ConnectionStatusBanner() {
+	const status = useConnectionStore((state) => state.status);
+	const lastSyncedAt = useConnectionStore((state) => state.lastSyncedAt);
+	return createElement(OfflineBanner, { status, lastSyncedAt });
 }

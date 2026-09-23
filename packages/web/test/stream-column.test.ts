@@ -4,6 +4,8 @@
  * M9-T9 多流甲板与密度档单元测试（AC 1-12, E-106, E-163..E-168, E-235..E-239, E-311, E-317）
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -23,6 +25,21 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 	// AC 1 & E-235: 档位是单点计算的枚举（full/compact/narrow/phone/phone-xs）并以 prop 下传
 	// ─────────────────────────────────────────────────────────────────────────────
 	describe('AC 1 & E-235: Density tier single-point computation', () => {
+		it('uses the tier prop, not a second raw-width threshold, for full three-lane layout', () => {
+			const source = readFileSync(
+				resolve(__dirname, '../src/features/run-deck/run-deck-view.tsx'),
+				'utf8',
+			);
+			expect(source).not.toMatch(/streamCount\s*<=\s*3\s*&&\s*width\s*>=\s*1440/);
+		});
+
+		it('does not treat a coarse pointer in a desktop tier as a phone session', () => {
+			const source = readFileSync(
+				resolve(__dirname, '../src/features/run-deck/use-run-deck.ts'),
+				'utf8',
+			);
+			expect(source).not.toMatch(/isMobileTier\s*=\s*[^;]*density\.isTouch/);
+		});
 		it('strictly computes one of the five enum values without scattering', () => {
 			const tiers: DensityTier[] = [
 				computeDensityTier({ width: 1600, streamCount: 2 }), // full

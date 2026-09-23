@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T18": {
+      "contractHash": "488e250e80491de24d5f63014189e0771c9dce39179cacae253c89bedcdb8df3",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "9095cd407d3e937b9a83084aba2b63ea2056013c554d93c40f7bfb1ff5cad170",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import type { AgentEntryDto } from '@agent-scheduler/shared/api/agents';
 import type {
 	BatchDto,
 	BatchGateOverrides,
@@ -5,22 +6,39 @@ import type {
 	StartBatchResponse,
 } from '@agent-scheduler/shared/api/batches';
 import type { DocumentDto } from '@agent-scheduler/shared/api/documents';
-import type { CreateRunBody, RerunRunResponse, RunDto } from '@agent-scheduler/shared/api/runs';
+import type {
+	CreateRunBody,
+	RerunRunResponse,
+	RunBaseRef,
+	RunDto,
+} from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
-import { allocateConcurrencySlots } from '../domain/concurrency.ts';
+import { summarizeBatchLanding } from '../domain/batch-landing.ts';
+import {
+	DEFAULT_AGENT_CONCURRENCY_LIMIT,
+	allocateConcurrencySlots,
+} from '../domain/concurrency.ts';
+import { toEffortColumns } from '../domain/effort-value.ts';
 import { evaluatePathClashQueue, isTaskLanded, isTaskPathHolding } from '../domain/path-clash.ts';
-import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
+import {
+	type RunState,
+	countsTowardAgentConcurrency,
+	isTerminalRunState,
+} from '../domain/run-state-machine.ts';
+import { deriveTaskState } from '../domain/task-state.ts';
 import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../proc/spawn.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { EventSeqRepo } from '../repo/event-seq-repo.ts';
+import type { GatesRepo } from '../repo/gates.ts';
 import {
 	type RunInsertRow,
 	type RunRow,
@@ -29,9 +47,18 @@ import {
 	toRunDto,
 } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
+import {
+	type BaseSelector,
+	type UpstreamTaskInfo,
+	createBaseSelector,
+} from '../workspace/base-select.ts';
 import { isBranchInHead } from '../workspace/in-head.ts';
+import type { PrepareWorktreeInput, PrepareWorktreeResult } from '../workspace/worktree.ts';
+import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
 import { type BatchService, createBatchService } from './batch.ts';
+import type { EventEnvelopeInput } from './logstore.ts';
 import { createRerunService } from './rerun.ts';
+import type { RunService } from './run.ts';
 import { assertSessionRefFree } from './session-guard.ts';
 import type { WrapupService } from './wrapup.ts';
 
@@ -49,7 +76,7 @@ export function toBatchDto(row: BatchRow): BatchDto {
 	});
 }
 
-export function toTaskDto(row: TaskRow): TaskDto {
+export function toTaskDto(row: TaskRow, latestRunState?: string | null): TaskDto {
 	let deps: string[] = [];
 	try {
 		deps = JSON.parse(row.deps_json);
@@ -65,7 +92,7 @@ export function toTaskDto(row: TaskRow): TaskDto {
 		deps: Object.freeze(deps),
 		estDays: row.est_days ?? null,
 		batchId: row.batch_id ?? null,
-		state: row.manual_state ?? 'pending',
+		state: deriveTaskState(row.manual_state, latestRunState),
 	});
 }
 
@@ -129,6 +156,21 @@ export interface DispatchableAgent {
 	readonly concurrencyLimit?: number;
 }
 
+export interface BuildLaunchSpecInput {
+	readonly runId: string;
+	readonly cwd: string;
+	readonly model?: string | null;
+	readonly effortTier?: unknown;
+	readonly permissionTier?: unknown;
+	readonly prompt?: string;
+	readonly [key: string]: unknown;
+}
+
+export interface DispatchAdapter {
+	readonly buildLaunchSpec: (options: BuildLaunchSpecInput) => LaunchSpec;
+	readonly mapEvents: (vendorLine: unknown) => readonly EventEnvelopeInput[];
+}
+
 export interface DispatchServiceDeps {
 	readonly unitOfWork?: UnitOfWork;
 	readonly tasksRepo: TasksRepo;
@@ -136,6 +178,7 @@ export interface DispatchServiceDeps {
 	readonly documentsRepo: DocumentsRepo;
 	readonly dispatchSnapshotsRepo: DispatchSnapshotsRepo;
 	readonly runsRepo: RunsRepo;
+	readonly gatesRepo?: GatesRepo;
 	readonly batchWrapupsRepo?: BatchWrapupsRepo;
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
@@ -145,11 +188,33 @@ export interface DispatchServiceDeps {
 	readonly bus?: EventBus;
 	readonly envelopeFactory?: EnvelopeFactory;
 	readonly eventSeqRepo?: EventSeqRepo;
+	/**
+	 * 最近一条真正发布的事件 id（环形缓冲的 latest）。快照的 latestEventId 给 SSE 续接当游标用，
+	 * 必须是事件 id 而不是 event_seq 预留水位——水位比真实 id 大得多，续接会把之后的事件全丢掉（E-153）。
+	 */
+	readonly getLatestEventId?: () => number | null;
+	/** tick 内部被吞的异常（收口触发失败等）走这里记日志，缺省丢弃。 */
+	readonly logFailure?: (error: unknown) => void;
 	readonly getDispatchHalt?: () => boolean;
 	readonly agentLimits?: number | Record<string, number> | ((agentId: string) => number);
-	readonly listAgents?: () => Promise<readonly unknown[]> | readonly unknown[];
+	readonly listAgents?: () => Promise<readonly AgentEntryDto[]> | readonly AgentEntryDto[];
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
 	readonly resolveAgentForTask?: (task: TaskRow) => string | null;
+	readonly baseSelector?: BaseSelector;
+	readonly workspace?: {
+		readonly prepareWorktree: (input: PrepareWorktreeInput) => Promise<PrepareWorktreeResult>;
+	};
+	readonly proc?: {
+		readonly spawnManaged: (
+			spec: LaunchSpec,
+			options?: Partial<SpawnManagedOptions>,
+		) => ManagedProcess;
+	};
+	readonly adapters?: Readonly<Record<string, DispatchAdapter>>;
+	readonly runService?: RunService;
+	readonly reviewService?: {
+		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
+	};
 }
 
 export interface DispatchService {
@@ -161,12 +226,11 @@ export interface DispatchService {
 	listRuns(): Promise<readonly RunDto[]>;
 	getSnapshot(): Promise<SnapshotResponse>;
 	tick(): Promise<SchedulerTickResult>;
+	launchRun(runId: string): Promise<void>;
 	getBatchGateOverrides(batchId: string): BatchGateOverrides | undefined;
 	setBatchGateOverrides(batchId: string, overrides: BatchGateOverrides): void;
 	getInHeadWarning(runId: string): string | null;
 }
-
-const DEFAULT_AGENT_CONCURRENCY_LIMIT = 2;
 
 function resolveConstraintConflict(
 	error: unknown,
@@ -179,9 +243,11 @@ function resolveConstraintConflict(
 }
 
 export function createDispatchService(deps: DispatchServiceDeps): DispatchService {
+	const logFailure = deps.logFailure ?? (() => undefined);
 	const runsRepo = deps.runsRepo;
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
 	const consecutiveInHeadErrors = new Map<string, number>();
+	const inFlightLaunches = new Set<string>();
 	let isTicking = false;
 
 	const effectiveBatchService =
@@ -259,12 +325,35 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return Object.freeze([]);
 	}
 
+	/**
+	 * Agent for an implementation run: the task's assignment draft wins (M8-T11); a task without a
+	 * draft falls back to the first dispatchable agent (M8-T3). A drafted agent is returned even
+	 * when it cannot dispatch, so the caller reports `agent_unavailable` for the drafted agent
+	 * rather than re-routing the task to another one.
+	 */
 	function resolveAgentForTask(task: TaskRow): string | null {
 		if (deps.resolveAgentForTask) {
 			return deps.resolveAgentForTask(task);
 		}
+		const draft = parseAssignmentDraft(task.assignment_draft_json);
+		if (draft) {
+			return draft.agentId;
+		}
 		const available = listDispatchableAgents().find((agent) => agent.canDispatch);
 		return available?.agentId ?? null;
+	}
+
+	/**
+	 * Session ordinal of a run about to be inserted (E-31): concurrency-occupying runs of the same
+	 * agent plus one. Read inside the insert transaction so two dispatches cannot share a number.
+	 */
+	function nextSessionNoFor(agentId: string): number {
+		const occupying = runsRepo
+			.listActive()
+			.filter(
+				(run) => run.agent_id === agentId && countsTowardAgentConcurrency(run.state as RunState),
+			).length;
+		return occupying + 1;
 	}
 
 	function isAgentDispatchable(agentId: string): boolean {
@@ -277,20 +366,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 	function agentLimitFor(agentId: string): number {
 		if (typeof deps.agentLimits === 'function') {
-			return Math.max(1, Math.floor(deps.agentLimits(agentId)));
+			return Math.max(0, Math.floor(deps.agentLimits(agentId)));
 		}
 		if (typeof deps.agentLimits === 'number') {
-			return Math.max(1, Math.floor(deps.agentLimits));
+			return Math.max(0, Math.floor(deps.agentLimits));
 		}
 		if (deps.agentLimits && typeof deps.agentLimits === 'object') {
 			const mapped = deps.agentLimits[agentId];
 			if (typeof mapped === 'number') {
-				return Math.max(1, Math.floor(mapped));
+				return Math.max(0, Math.floor(mapped));
 			}
 		}
 		const listed = listDispatchableAgents().find((agent) => agent.agentId === agentId);
 		if (typeof listed?.concurrencyLimit === 'number') {
-			return Math.max(1, Math.floor(listed.concurrencyLimit));
+			return Math.max(0, Math.floor(listed.concurrencyLimit));
 		}
 		return DEFAULT_AGENT_CONCURRENCY_LIMIT;
 	}
@@ -337,7 +426,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		const activeRun = runsRepo.findActiveByTaskId(taskId);
-		if (activeRun) {
+		if (
+			activeRun &&
+			!(activeRun.state === 'awaiting_human' && activeRun.queued_reason === 'exited_before_output')
+		) {
 			return {
 				run: toRunDto(activeRun),
 				isExisting: true,
@@ -345,6 +437,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		const now = deps.clock.now();
+		const effortColumns = toEffortColumns(input.effort ?? null);
 		const launchSpecJson = JSON.stringify({
 			agentId,
 			model: input.model ?? null,
@@ -372,17 +465,23 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				state: 'starting',
 				agent_id: agentId,
 				model_name: input.model ?? null,
+				effort_tier: effortColumns.effort_tier,
+				effort_vendor: effortColumns.effort_vendor,
 				permission_tier: input.permissionTier ?? 'workspaceWrite',
 				snapshot_id: snapshot.id,
 				idempotency_key: idempotencyKey,
 				actor_device_id: input.actorDeviceId ?? null,
 				started_at: now,
+				session_no: nextSessionNoFor(agentId),
 			};
 			assertSessionRefFree(
 				{ taskId, vendorSessionRef: undefined },
 				{ runsRepo, tasksRepo: deps.tasksRepo },
 			);
 			runsRepo.insert(runInsert);
+			if (activeRun?.state === 'awaiting_human') {
+				deps.gatesRepo?.supersedePendingByRunIds?.([activeRun.id], now);
+			}
 			return { snapshotId: snapshot.id };
 		};
 
@@ -415,7 +514,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			throw new AppError('E_INTERNAL', `Failed to retrieve created run: ${runId}`);
 		}
 
-		if (deps.bus && deps.envelopeFactory) {
+		if (deps.envelopeFactory) {
 			const envelope = deps.envelopeFactory.createEnvelope({
 				kind: 'run.started',
 				runId,
@@ -429,7 +528,17 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					model: input.model ?? null,
 				},
 			});
-			deps.bus.publish(envelope);
+			if (deps.runService) {
+				await deps.runService.ingestEvent(runId, envelope);
+			} else if (deps.bus) {
+				deps.bus.publish(envelope);
+			}
+		}
+
+		if (deps.proc && deps.workspace && deps.runService) {
+			void launchRun(runId).catch((err) => {
+				logFailure(err);
+			});
 		}
 
 		return {
@@ -441,6 +550,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	const rerunService = createRerunService({
 		unitOfWork: deps.unitOfWork,
 		runsRepo,
+		gatesRepo: deps.gatesRepo,
 		tasksRepo: deps.tasksRepo,
 		batchesRepo: deps.batchesRepo,
 		documentsRepo: deps.documentsRepo,
@@ -454,7 +564,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	});
 
 	async function rerunRun(input: RerunRunInput): Promise<RerunRunResponse> {
-		return await rerunService.rerunRun(input);
+		const result = await rerunService.rerunRun(input);
+		if (result.run.id !== input.runId && result.run.state === 'starting') {
+			void launchRun(result.run.id).catch((err) => {
+				logFailure(err);
+			});
+		}
+		return result;
 	}
 
 	async function startBatch(input: StartBatchInput): Promise<StartBatchResponse> {
@@ -567,6 +683,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		const allBatches: BatchDto[] = [];
 		const allTasks: TaskDto[] = [];
 
+		const allRunRows = runsRepo.listAll();
+		const latestRunByTaskId = new Map<string, RunRow>();
+		for (const r of allRunRows) {
+			if (!r.task_id) continue;
+			const existing = latestRunByTaskId.get(r.task_id);
+			if (!existing || r.attempt_no > existing.attempt_no) {
+				latestRunByTaskId.set(r.task_id, r);
+			}
+		}
+
 		for (const doc of documents) {
 			const bRows = deps.batchesRepo.listByDocId(doc.id);
 			for (const b of bRows) {
@@ -574,13 +700,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 			const tRows = deps.tasksRepo.listByDocId(doc.id);
 			for (const t of tRows) {
-				allTasks.push(toTaskDto(t));
+				const latestRun = latestRunByTaskId.get(t.id);
+				allTasks.push(toTaskDto(t, latestRun?.state ?? null));
 			}
 		}
 
-		const runs = runsRepo.listAll().map(toRunDtoWithInHeadWarning);
+		const runs = allRunRows.map(toRunDtoWithInHeadWarning);
 		const agents = deps.listAgents ? await deps.listAgents() : [];
-		const latestEventId = deps.eventSeqRepo?.getWatermark('events') ?? null;
+		const latestEventId = deps.getLatestEventId ? deps.getLatestEventId() : null;
 
 		return Object.freeze({
 			documents: Object.freeze(documents),
@@ -736,33 +863,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const tasks = deps.tasksRepo.listByBatchId(batch.id);
 					if (tasks.length === 0) continue;
 
-					const allRunsForDoc = runsRepo.listAll();
-					const latestRunByTaskId = new Map<string, RunRow>();
-					for (const r of allRunsForDoc) {
-						if (!r.task_id) continue;
-						const existing = latestRunByTaskId.get(r.task_id);
-						if (!existing || r.attempt_no > existing.attempt_no) {
-							latestRunByTaskId.set(r.task_id, r);
-						}
-					}
+					// 与 triggerWrapup() / getBatch() 共用同一把尺子（domain/batch-landing.ts）：
+					// 只看 kind='implement' 的最大 attempt，manual_state='landed' 算已验收。
+					const landing = summarizeBatchLanding(tasks, runsRepo.listAll());
 
-					let landedCount = 0;
-					let notInHeadCount = 0;
-					for (const t of tasks) {
-						const r = latestRunByTaskId.get(t.id);
-						if (r && r.state === 'landed') {
-							landedCount++;
-							if (r.is_in_head === 0) {
-								notInHeadCount++;
-							}
-						} else if (t.manual_state === 'landed') {
-							landedCount++;
-						}
-					}
-
-					const allLanded = landedCount === tasks.length;
-					if (allLanded) {
-						if (notInHeadCount > 0) {
+					if (landing.allLanded) {
+						if (landing.notInHeadCount > 0) {
 							// E-272: 全部 landed 但有未进 HEAD -> awaiting_landing
 							if (batch.state === 'running') {
 								await effectiveBatchService.transitionBatch(
@@ -798,8 +904,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 									tasksBlocked: Object.freeze(tasksBlocked),
 									tasksDeferred: Object.freeze(tasksDeferred),
 								};
-							} catch {
-								// wrapup failed to trigger or turned needs_attention
+							} catch (error) {
+								// 触发失败（条件不满足 / agent 不可用 → 批次已转 needs_attention）：记日志，不吞掉
+								logFailure(error);
 							}
 						}
 
@@ -831,6 +938,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const activeRuns = runsRepo.listActive();
 					const activeTaskIds = new Set(activeRuns.map((r) => r.task_id));
 					const candidateTasks: TaskRow[] = [];
+					// 派发候选判定沿用「该任务 attempt 最大的任意运行」（终态即不再自动重派，E-51）
+					const latestRunByTaskId = new Map<string, RunRow>();
+					for (const r of runsRepo.listAll()) {
+						if (!r.task_id) continue;
+						const existing = latestRunByTaskId.get(r.task_id);
+						if (!existing || r.attempt_no > existing.attempt_no) {
+							latestRunByTaskId.set(r.task_id, r);
+						}
+					}
 
 					for (const t of tasks) {
 						if (isTaskFinishedOrLanded(t) || activeTaskIds.has(t.id)) {
@@ -951,7 +1067,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						continue;
 					}
 
-					const assigned: Array<{ readonly task: TaskRow; readonly agentId: string }> = [];
+					const assigned: Array<{
+						readonly task: TaskRow;
+						readonly agentId: string;
+						readonly draft: StoredAssignmentDraft | null;
+					}> = [];
 					for (const t of dispatchableTasks) {
 						const agentId = resolveAgentForTask(t);
 						if (!agentId || !isAgentDispatchable(agentId)) {
@@ -961,7 +1081,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 							continue;
 						}
-						assigned.push({ task: t, agentId });
+						const draft = parseAssignmentDraft(t.assignment_draft_json);
+						assigned.push({
+							task: t,
+							agentId,
+							draft: draft && draft.agentId === agentId ? draft : null,
+						});
 					}
 
 					if (assigned.length === 0) {
@@ -970,8 +1095,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 					const activeRunCount = activeRuns.filter((r) => isTaskPathHolding(r.state)).length;
 					const availableSlots = Math.max(0, doc.lane_count - activeRunCount);
+					// 每 agent 并发只数真正占额度的状态（E-54：awaiting_human / orphaned 不计），
+					// 与 M8-T11 预览的 `active` 口径一致，否则预览说未满而 tick 仍 defer。
 					const activeRunsByAgent: Record<string, number> = {};
 					for (const r of activeRuns) {
+						if (!countsTowardAgentConcurrency(r.state as RunState)) continue;
 						activeRunsByAgent[r.agent_id] = (activeRunsByAgent[r.agent_id] ?? 0) + 1;
 					}
 
@@ -979,6 +1107,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						readonly id: string;
 						readonly agentId: string;
 						readonly task: TaskRow;
+						readonly draft: StoredAssignmentDraft | null;
 						readonly [key: string]: unknown;
 					}
 
@@ -987,6 +1116,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							id: item.task.id,
 							agentId: item.agentId,
 							task: item.task,
+							draft: item.draft,
 						})),
 						availableSlots,
 						agentLimits: agentLimitFor,
@@ -1004,9 +1134,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						const task = item.task;
 						const idempotencyKey = `auto_${task.id}_${deps.ids.newId()}`;
 						try {
+							// The draft's model and effort travel verbatim into the run (AC 5, E-31).
 							const runResult = await createRun({
 								taskId: task.id,
 								agentId: item.agentId,
+								model: item.draft?.model ?? null,
+								effort: item.draft?.effort ?? null,
 								idempotencyKey,
 								permissionTier: 'workspaceWrite',
 							});
@@ -1030,6 +1163,256 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			};
 		} finally {
 			isTicking = false;
+		}
+	}
+
+	async function launchRun(runId: string): Promise<void> {
+		if (inFlightLaunches.has(runId)) {
+			return;
+		}
+		inFlightLaunches.add(runId);
+		try {
+			const run = runsRepo.findById(runId);
+			if (!run) {
+				throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
+					details: { runId },
+				});
+			}
+
+			if (run.state !== 'starting') {
+				return;
+			}
+
+			if (!run.task_id) {
+				throw new AppError('E_VALIDATION', `Run ${runId} has no associated task`, {
+					details: { runId },
+				});
+			}
+
+			const task = deps.tasksRepo.findById(run.task_id);
+			if (!task) {
+				throw new AppError('E_NOT_FOUND', `Task not found: ${run.task_id}`, {
+					details: { taskId: run.task_id, runId },
+				});
+			}
+
+			const doc = deps.documentsRepo.findById(task.doc_id);
+			if (!doc) {
+				throw new AppError('E_NOT_FOUND', `Document not found: ${task.doc_id}`, {
+					details: { docId: task.doc_id, runId },
+				});
+			}
+
+			if (!doc.repo_path) {
+				throw new AppError('E_VALIDATION', `Document ${doc.id} has no repository path`, {
+					details: { docId: doc.id, runId },
+				});
+			}
+
+			// E-40: 校验 agent 可用性
+			if (!isAgentDispatchable(run.agent_id)) {
+				if (deps.runService) {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'agent_unavailable',
+					});
+				}
+				throw new AppError(
+					'E_AGENT_UNAVAILABLE',
+					`Agent ${run.agent_id} is not available for dispatch`,
+					{
+						details: { agentId: run.agent_id, taskId: task.id },
+					},
+				);
+			}
+
+			if (!deps.workspace || !deps.proc || !deps.runService) {
+				return;
+			}
+
+			let launchSpecData: {
+				model?: string | null;
+				effort?: string | null;
+				permissionTier?: string;
+				baseRef?: string | { kind?: string; branchName?: string };
+				worktreeMode?: 'fresh' | 'reuse';
+			} = {};
+			if (run.snapshot_id && deps.dispatchSnapshotsRepo) {
+				const snap = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
+				if (snap?.launch_spec_json) {
+					try {
+						launchSpecData = JSON.parse(snap.launch_spec_json);
+					} catch {
+						launchSpecData = {};
+					}
+				}
+			}
+
+			// 准备直接上游信息与 Base 解析 (M5-T2, E-70)
+			let depKeys: string[] = [];
+			try {
+				depKeys = JSON.parse(task.deps_json);
+			} catch {
+				depKeys = [];
+			}
+			const upstreamTasks: UpstreamTaskInfo[] = depKeys.map((depKey) => {
+				const depTask =
+					deps.tasksRepo.findByDocAndKey(task.doc_id, depKey) ?? deps.tasksRepo.findById(depKey);
+				const key = depTask?.task_key ?? depKey;
+				const branchPrefix = doc.branch_prefix ?? 'task/';
+				const branchName = `${branchPrefix}${key}`;
+				const isLanded = depTask?.manual_state === 'landed';
+				return {
+					taskId: key,
+					branchName,
+					isLanded,
+				};
+			});
+
+			let preparedWorktree: {
+				readonly worktreePath: string;
+				readonly branchName: string;
+				readonly baseRef: string;
+			};
+			try {
+				const baseRefInput =
+					typeof launchSpecData.baseRef === 'object' && launchSpecData.baseRef !== null
+						? (launchSpecData.baseRef as RunBaseRef)
+						: undefined;
+
+				if (deps.baseSelector) {
+					preparedWorktree = await deps.baseSelector.prepareTaskWorkspace({
+						repoPath: doc.repo_path,
+						taskId: task.task_key || task.id,
+						agentId: run.agent_id,
+						sessionId: runId,
+						upstreamTasks,
+						baseRef: baseRefInput,
+						worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+					});
+				} else if (deps.workspace) {
+					let resolvedBase = 'HEAD';
+					if (upstreamTasks.length > 0 || baseRefInput?.kind === 'upstreamBranch') {
+						const defaultSelector = createBaseSelector({
+							ids: deps.ids,
+							clock: deps.clock,
+						});
+						const resolution = await defaultSelector.resolveTaskBase({
+							repoPath: doc.repo_path,
+							taskId: task.task_key || task.id,
+							upstreamTasks,
+							baseRef: baseRefInput,
+						});
+						resolvedBase = resolution.resolvedBase;
+					}
+					preparedWorktree = await deps.workspace.prepareWorktree({
+						repoPath: doc.repo_path,
+						taskId: task.task_key || task.id,
+						branchPrefix: doc.branch_prefix ?? 'task/',
+						worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+						baseRef: resolvedBase,
+					});
+				} else {
+					return;
+				}
+			} catch (err) {
+				const isUpstreamMissing = err instanceof AppError && err.code === 'E_UPSTREAM_BASE_MISSING';
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'failed',
+					reason: isUpstreamMissing ? 'upstream_base_missing' : 'workspace_unavailable',
+				});
+				throw err instanceof AppError
+					? err
+					: new AppError('E_WORKSPACE_UNAVAILABLE', `Worktree preparation failed: ${String(err)}`, {
+							cause: err,
+							details: { runId, taskId: task.id },
+						});
+			}
+
+			const adapter = deps.adapters?.[run.agent_id];
+			if (!adapter) {
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'failed',
+					reason: 'agent_unavailable',
+				});
+				throw new AppError(
+					'E_AGENT_UNAVAILABLE',
+					`No adapter configured for agent: ${run.agent_id}`,
+					{
+						details: { agentId: run.agent_id, runId },
+					},
+				);
+			}
+
+			const launchSpec = adapter.buildLaunchSpec({
+				runId,
+				cwd: preparedWorktree.worktreePath,
+				model: run.model_name ?? launchSpecData.model ?? null,
+				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
+				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
+				prompt: undefined,
+			});
+
+			let managed: ManagedProcess;
+			try {
+				managed = deps.proc.spawnManaged(launchSpec);
+			} catch (spawnErr) {
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'failed',
+					reason: 'spawn_failed',
+				});
+				throw spawnErr;
+			}
+
+			// E-348 / R3: starting 状态抢先退出必须落定 starting → failed
+			if (managed.isExited) {
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'failed',
+					reason: 'premature_exit',
+					exitCode: managed.exitResult?.exitCode ?? null,
+					exitSignal: managed.exitResult?.signal ? String(managed.exitResult.signal) : null,
+				});
+				return;
+			}
+
+			deps.runService.attachProcess(runId, managed, {
+				eventMapper: adapter.mapEvents,
+				onExit: async (result) => {
+					const isImplementLike =
+						run.kind === 'implement' || run.origin === 'rework' || run.origin === 'wrapup-fix';
+					if (isImplementLike && result.exitCode === 0 && deps.reviewService) {
+						try {
+							await deps.reviewService.evaluateMechanicalCheck({ runId });
+						} catch (err) {
+							logFailure(err);
+						}
+					}
+				},
+			});
+
+			const latestRun = deps.runsRepo.findById(runId);
+			if (latestRun && isTerminalRunState(latestRun.state as RunState)) {
+				return;
+			}
+
+			await deps.runService.transitionState({
+				runId,
+				targetState: 'running',
+				reason: 'process_spawned',
+				pid: managed.pid,
+				worktreePath: preparedWorktree.worktreePath,
+				branchName: preparedWorktree.branchName,
+			});
+		} catch (error) {
+			logFailure(error);
+			throw error;
+		} finally {
+			inFlightLaunches.delete(runId);
 		}
 	}
 
@@ -1062,6 +1445,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		listRuns,
 		getSnapshot,
 		tick,
+		launchRun,
 		getBatchGateOverrides,
 		setBatchGateOverrides,
 		getInHeadWarning,

@@ -398,3 +398,33 @@ export async function isBranchInHead(
 		});
 	}
 }
+
+export interface WorktreeStartingBaseline {
+	readonly headSha: string;
+	readonly treeSha: string;
+}
+
+/**
+ * 读工作区的起点树基线（HEAD SHA 与工作区树对象，E-329）。
+ * 供查 bug 阶段判定 FIXED、再审 diff 与自审查 pass 以来工作区 diff 的基线。
+ * 不在 service 拼 git 命令，全走 runner。
+ */
+export async function readWorktreeStartingBaseline(
+	worktreePath: string,
+	depsOrRunner?: GitRunner | IsBranchInHeadDeps,
+): Promise<WorktreeStartingBaseline> {
+	const { runner } = resolveGitRunner(depsOrRunner);
+	const resolvedPath = nodePath.resolve(worktreePath);
+
+	const headResult = await runner.run(['rev-parse', 'HEAD'], resolvedPath);
+	if (headResult.exitCode !== 0) {
+		return Object.freeze({ headSha: 'HEAD', treeSha: 'HEAD' });
+	}
+	const headSha = headResult.stdout.trim() || 'HEAD';
+
+	const treeResult = await runner.run(['rev-parse', 'HEAD^{tree}'], resolvedPath);
+	const treeSha =
+		treeResult.exitCode === 0 && treeResult.stdout.trim() ? treeResult.stdout.trim() : headSha;
+
+	return Object.freeze({ headSha, treeSha });
+}

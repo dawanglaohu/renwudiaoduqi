@@ -11,20 +11,7 @@
  * - 四个终态（landed / failed / aborted / interrupted）与 queued / exited 无点（none）
  */
 
-export type RunState =
-	| 'queued'
-	| 'starting'
-	| 'running'
-	| 'awaiting_reply'
-	| 'exited'
-	| 'reviewing'
-	| 'reworking'
-	| 'awaiting_human'
-	| 'orphaned'
-	| 'landed'
-	| 'failed'
-	| 'aborted'
-	| 'interrupted';
+import type { RunState } from '@agent-scheduler/shared/api/runs';
 
 export type PulseVariant = 'live' | 'waiting' | 'none';
 

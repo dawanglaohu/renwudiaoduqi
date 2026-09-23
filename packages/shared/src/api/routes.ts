@@ -1,8 +1,10 @@
 import type { ErrorCode } from '../errors/codes.ts';
 import { UPDATE_AGENT_BODY_KEYS, updateAgentBodySchema } from './agents.ts';
 import {
+	PUT_ASSIGNMENTS_BODY_KEYS,
 	START_BATCH_BODY_KEYS,
 	WRAPUP_BATCH_BODY_KEYS,
+	putAssignmentsBodySchema,
 	startBatchBodySchema,
 	wrapupBatchBodySchema,
 } from './batches.ts';
@@ -72,6 +74,13 @@ export const REQUEST_BODY_SCHEMAS = [
 		method: 'POST' as const,
 		schema: wrapupBatchBodySchema,
 		keys: WRAPUP_BATCH_BODY_KEYS,
+	},
+	{
+		name: 'putAssignments',
+		path: '/api/v1/batches/:batchId/assignments',
+		method: 'POST' as const,
+		schema: putAssignmentsBodySchema,
+		keys: PUT_ASSIGNMENTS_BODY_KEYS,
 	},
 	{
 		name: 'updateAgent',
@@ -292,6 +301,24 @@ export const ROUTES: readonly RouteDefinition[] = [
 		reqType: 'void',
 		resType: 'GetBatchWrapupsResponse',
 		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_INTERNAL'],
+	},
+	{
+		method: 'GET',
+		path: '/api/v1/batches/:batchId/assignments',
+		auth: 'device',
+		reqType: 'void',
+		resType: 'BatchAssignmentsResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_INTERNAL'],
+	},
+	{
+		method: 'POST',
+		path: '/api/v1/batches/:batchId/assignments',
+		auth: 'device',
+		reqType: 'PutAssignmentsBody',
+		resType: 'BatchAssignmentsResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_VALIDATION', 'E_INTERNAL'],
+		bodySchema: putAssignmentsBodySchema,
+		bodyKeys: PUT_ASSIGNMENTS_BODY_KEYS,
 	},
 	{
 		method: 'GET',

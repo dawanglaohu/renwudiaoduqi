@@ -158,6 +158,9 @@ describe('migration runner', () => {
 				'0005_add_runs_origin_and_spawned_by.sql',
 				'0006_add_review_rounds.sql',
 				'0007_rebuild_tables_for_wrapup.sql',
+				'0008_add_assignment_drafts_and_session_no.sql',
+				'0009_batch_wrapups_human_verdict.sql',
+				'0010_bughunt_stage.sql',
 			],
 		});
 		expect(readTableNames(database)).toEqual([
@@ -202,6 +205,18 @@ describe('migration runner', () => {
 			},
 			{
 				version: '0007_rebuild_tables_for_wrapup.sql',
+				applied_at: '2026-09-04T03:00:00.000Z',
+			},
+			{
+				version: '0008_add_assignment_drafts_and_session_no.sql',
+				applied_at: '2026-09-04T03:00:00.000Z',
+			},
+			{
+				version: '0009_batch_wrapups_human_verdict.sql',
+				applied_at: '2026-09-04T03:00:00.000Z',
+			},
+			{
+				version: '0010_bughunt_stage.sql',
 				applied_at: '2026-09-04T03:00:00.000Z',
 			},
 		]);

@@ -466,6 +466,22 @@ class EventBusImpl implements EventBus {
 				}
 			}
 		}
+
+		// Session archival is the daemon's authoritative point that every run of the task is
+		// historical. Drop those per-run rings after delivering the archival event so a long-lived
+		// client retains only active/unresolved streams instead of one 600-entry buffer forever for
+		// every completed run (E-142, E-143).
+		if (
+			event.kind === 'task.sessions_archived' &&
+			'runIds' in event.payload &&
+			Array.isArray(event.payload.runIds)
+		) {
+			for (const archivedRunId of event.payload.runIds) {
+				if (typeof archivedRunId === 'string') {
+					this.deleteRun(archivedRunId);
+				}
+			}
+		}
 	}
 
 	private scheduleFlush(): void {
@@ -641,9 +657,6 @@ export function attachSseClient(
 		unsubClear();
 	};
 }
-
-// Auto-wire default singleton eventBus to default sseClient
-attachSseClient(sseClient, eventBus);
 
 /**
  * React hook subscribing to a run stream buffer's integer version number (AC 1, AC 2, AC 3).

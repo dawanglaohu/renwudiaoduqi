@@ -16,7 +16,7 @@
 export const BUILTIN_REWORK_RULES = [
 	'只改指令列出的编号条目，不借机重构；',
 	'哪条不成立就在回报里写理由，不默默跳过、也不照改你认为错的方案；',
-	'改完新提交（不 amend、不 force）再 gh stack push；回报按编号写改了哪个文件哪一行、加了什么测试。',
+	'回报按编号写改了哪个文件哪一行、加了什么测试。',
 	'在你原来的工作树里改，不要再开一个。',
 ].join('\n');
 
@@ -85,6 +85,11 @@ export interface AssembleReworkPromptInput {
 	 * 任务 ID（可选）
 	 */
 	readonly taskId?: string | null;
+
+	/**
+	 * 查 bug 阶段遗留未提交改动文件数（可选，E-329）
+	 */
+	readonly bugHuntUncommittedFiles?: number;
 }
 
 /**
@@ -101,6 +106,13 @@ export function assembleReworkPrompt(input: AssembleReworkPromptInput): string {
 	const rulesText = extractReworkRules(input.implPrompt) ?? BUILTIN_REWORK_RULES;
 
 	const sections: string[] = [];
+
+	// E-329：查 bug 后人工打回时返工文本头部附未提交文件提示（在任何 ## 段之前）
+	if (typeof input.bugHuntUncommittedFiles === 'number' && input.bugHuntUncommittedFiles > 0) {
+		sections.push(
+			`工作区已有查 bug 阶段未提交改动 ${input.bugHuntUncommittedFiles} 个文件，先看 git status 再改`,
+		);
+	}
 
 	// 标题
 	const taskLabel = input.taskId ? `（任务 ${input.taskId}）` : '';

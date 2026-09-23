@@ -23,6 +23,11 @@ function getBuildId(): string {
 
 export default defineConfig({
 	base: './',
+	css: {
+		// The build reads its PostCSS pipeline (tailwindcss + autoprefixer) from this one file; the
+		// style-pipeline test feeds the same file to PostCSS directly (M9-T24).
+		postcss: resolve(__dirname, 'postcss.config.cjs'),
+	},
 	build: {
 		outDir: 'dist',
 		target: 'es2020',

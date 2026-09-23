@@ -10,6 +10,7 @@
  */
 
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
+import { InlineNotice } from '../../components/inline-notice.tsx';
 import { useTaskList } from './use-task-list.ts';
 
 export interface TaskListContainerProps {
@@ -49,13 +50,22 @@ export function TaskListContainer(props: TaskListContainerProps) {
 		className = '',
 	} = props;
 
-	const { batches, expandedIds, toggleBatch } = useTaskList({
+	const { batches, expandedIds, error, toggleBatch } = useTaskList({
 		batches: explicitBatches,
 		docId,
 	});
 
 	return (
 		<div className={['flex flex-col gap-3 w-full', className].filter(Boolean).join(' ')}>
+			{/* 快照拉取失败就地提示，不整页替换（07 节错误体系） */}
+			{error && (
+				<InlineNotice
+					tone="down"
+					testId="task-list-error"
+					message={error.message}
+					technical={error.technical}
+				/>
+			)}
 			<BatchTree
 				batches={batches}
 				expandedIds={expandedIds}

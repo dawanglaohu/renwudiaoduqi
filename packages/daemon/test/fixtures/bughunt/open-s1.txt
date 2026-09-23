@@ -1,0 +1,14 @@
+BUGS
+- B1 [S1] 涉及 M7-T8：鉴权绕过缺陷 → 复现：伪造头部 → 根因：中间件顺序错 → src/auth.ts:15
+
+FIXED
+- none
+
+NOT_FIXED
+- B1 [S1] 涉及 M7-T8：根因涉及上游架构需用户决定 → 用户确认后修复 → 建议转人工复核 → src/auth.ts:15
+
+SUSPECT
+- none
+
+NEXT
+- 存在 S1 未修缺陷，转人工处理。

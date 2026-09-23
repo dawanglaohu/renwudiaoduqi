@@ -108,17 +108,9 @@ let cachedToken: string | null = null;
 let hasLoadedToken = false;
 let registeredTokenProvider: TokenProvider | null = null;
 
-if (typeof sessionStorage !== 'undefined') {
-	try {
-		const stored = sessionStorage.getItem(SESSION_STORAGE_TOKEN_KEY);
-		if (stored) {
-			cachedToken = stored;
-			hasLoadedToken = true;
-		}
-	} catch {
-		// Ignore
-	}
-}
+export type TokenChangeListener = (token: string | null) => void;
+
+const tokenChangeListeners = new Set<TokenChangeListener>();
 
 export function registerTokenProvider(provider: TokenProvider | null): void {
 	registeredTokenProvider = provider;
@@ -129,14 +121,44 @@ export function getCachedToken(): string | null {
 	return cachedToken;
 }
 
+/**
+ * Observe the module token cache. The startup sequence (`app/bootstrap.ts`) is the only place
+ * allowed to open the SSE stream, so it learns here that pairing put a token into the cache
+ * (`use-pairing.ts` calls `setCachedToken`) or that a 401 path emptied it (`clearCachedToken`).
+ */
+export function onTokenChange(listener: TokenChangeListener): () => void {
+	tokenChangeListeners.add(listener);
+	return () => {
+		tokenChangeListeners.delete(listener);
+	};
+}
+
+function notifyTokenChange(token: string | null): void {
+	for (const listener of Array.from(tokenChangeListeners)) {
+		try {
+			listener(token);
+		} catch (err) {
+			console.error('Error in token change listener:', err);
+		}
+	}
+}
+
 export function setCachedToken(token: string | null): void {
+	const changed = cachedToken !== token;
 	cachedToken = token;
 	hasLoadedToken = true;
+	if (changed) {
+		notifyTokenChange(token);
+	}
 }
 
 export function clearCachedToken(): void {
+	const changed = cachedToken !== null;
 	cachedToken = null;
 	hasLoadedToken = false;
+	if (changed) {
+		notifyTokenChange(null);
+	}
 }
 
 export function generateIdempotencyKey(): string {

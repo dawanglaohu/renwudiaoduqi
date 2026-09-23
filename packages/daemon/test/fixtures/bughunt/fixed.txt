@@ -1,0 +1,14 @@
+BUGS
+- B1 [S2] 涉及 M7-T8：边界值校验缺失导致空指针 → 复现：传入空对象 → 根因：未判空 → src/service.ts:42
+
+FIXED
+- B1 → 增加了空值检查并补充了测试 test/unit/service.test.ts
+
+NOT_FIXED
+- none
+
+SUSPECT
+- none
+
+NEXT
+- 请审查会话核对 B1 修复。

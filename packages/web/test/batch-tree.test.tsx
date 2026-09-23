@@ -51,7 +51,7 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 					title: '自写 hash 路由与守卫',
 					state: 'awaiting_reply',
 					inHead: null,
-					isCrossBatchFix: true,
+					crossBatchFix: true,
 				},
 				{
 					id: 't-4',

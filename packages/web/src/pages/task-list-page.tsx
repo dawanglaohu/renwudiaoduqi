@@ -1,5 +1,5 @@
 /**
- * packages/web/src/pages/tasks-page.tsx
+ * packages/web/src/pages/task-list-page.tsx
  *
  * 任务列表页面装配件（M9-T19 / R2, 07 节前端架构, 11 节 UI）
  *
@@ -11,7 +11,7 @@
 import { ROUTE_PATHS, navigateTo } from '../app/routes.tsx';
 import { TaskListContainer } from '../features/task-list/task-list-container.tsx';
 
-export function TasksPage() {
+export function TaskListPage() {
 	return (
 		<div className="flex flex-col bg-page text-ink-1 font-ui select-none">
 			<div className="flex items-center justify-between px-6 py-3 border-b border-border bg-panel-2/30">
@@ -36,4 +36,4 @@ export function TasksPage() {
 	);
 }
 
-export default TasksPage;
+export default TaskListPage;

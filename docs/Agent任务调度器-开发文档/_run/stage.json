@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "stages": {
+    "S1": {
+      "done": "2026-09-18T18:39:37.024949+00:00",
+      "sourceVersion": "edcddd8115d2d45a28f1e5d6c9cb6c0f09a70553ed59f15014bcd7295a19eab8"
+    },
+    "S2": {
+      "done": "2026-09-18T18:39:37.024949+00:00",
+      "sourceVersion": "edcddd8115d2d45a28f1e5d6c9cb6c0f09a70553ed59f15014bcd7295a19eab8"
+    },
+    "S3": {
+      "done": "2026-09-18T18:39:37.024949+00:00",
+      "sourceVersion": "edcddd8115d2d45a28f1e5d6c9cb6c0f09a70553ed59f15014bcd7295a19eab8"
+    },
+    "S4": {
+      "done": "2026-09-18T18:39:37.024949+00:00",
+      "sourceVersion": "edcddd8115d2d45a28f1e5d6c9cb6c0f09a70553ed59f15014bcd7295a19eab8"
+    },
+    "S5": {
+      "done": "2026-09-18T18:39:37.024949+00:00",
+      "sourceVersion": "edcddd8115d2d45a28f1e5d6c9cb6c0f09a70553ed59f15014bcd7295a19eab8"
+    },
+    "S6": {
+      "done": "2026-09-18T18:39:37.024949+00:00",
+      "sourceVersion": "edcddd8115d2d45a28f1e5d6c9cb6c0f09a70553ed59f15014bcd7295a19eab8"
+    }
+  },
+  "next": "done"
+}

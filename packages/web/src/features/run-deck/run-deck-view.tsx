@@ -18,8 +18,10 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode, useCallback } from 'react';
+import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
+import { InlineNotice } from '../../components/inline-notice.tsx';
 import { StreamColumn } from '../../components/stream-column.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
@@ -28,6 +30,7 @@ import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
 import { MobilePaneSwitcher } from './mobile-pane-switcher.tsx';
 import { StopConfirmDialog } from './stop-confirm-dialog.tsx';
 import type { DeckStreamLane, MobileBatchItem } from './types.ts';
+import { useAssignPanel } from './use-assign-panel.ts';
 import { useBatchTree } from './use-batch-tree.ts';
 import { type UseRunDeckResult, isWaitingApproval } from './use-run-deck.ts';
 
@@ -167,6 +170,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 	const {
 		batches: treeBatches,
 		expandedIds,
+		error: batchTreeError,
 		toggleBatch,
 	} = useBatchTree({
 		batches: batches as readonly BatchTreeItem[] | undefined,
@@ -192,6 +196,64 @@ export function RunDeckView(props: RunDeckViewProps) {
 		[selectMobileLane, onSelectTask, isMobileMode, setPane],
 	);
 
+	// E-108: 零运行空态呈现四步引导控制台，而非插画（M9-T16, M9-T18 接入真实零运行流程）。
+	// 零流与有流都保留左栏批次树与顶栏（M9-T19 R2），所以这里不再提前 return，只准备空态控制台节点。
+	const assignPanel = useAssignPanel({ enabled: streamCount === 0 });
+
+	const emptyConsole = (
+		<>
+			{/* 取数失败就地提示，不整页替换（07 节错误体系） */}
+			{assignPanel.error && (
+				<div className="mb-3 w-full max-w-4xl mx-auto">
+					<InlineNotice
+						tone="down"
+						testId="assign-panel-error"
+						message={assignPanel.error.message}
+						technical={assignPanel.error.technical}
+					/>
+				</div>
+			)}
+			<EmptyOnboarding
+				documents={assignPanel.documents}
+				batches={assignPanel.batches}
+				tasks={assignPanel.tasks}
+				selectedDocId={assignPanel.selectedDocId ?? undefined}
+				selectedBatchId={assignPanel.selectedBatchId ?? undefined}
+				onSelectDoc={assignPanel.selectDoc}
+				onSelectBatch={assignPanel.selectBatch}
+				step3Summary={assignPanel.step3Summary}
+				step3Slot={
+					<AssignPanel
+						mode="step3"
+						tasks={assignPanel.tasks}
+						agents={assignPanel.agents}
+						assignments={assignPanel.assignments}
+						agentCapacities={assignPanel.agentCapacities}
+						onAssignTask={(taskId, selection) => {
+							void assignPanel.assignTask(taskId, selection);
+						}}
+						onResetAssignment={(taskId) => {
+							void assignPanel.resetAssignment(taskId);
+						}}
+					/>
+				}
+				step4Slot={
+					<AssignPanel
+						mode="step4"
+						audit={assignPanel.audit}
+						isUnlockedAboveWindow={assignPanel.isUnlockedAboveWindow}
+						canIncreaseUserSetting={assignPanel.canIncreaseUserSetting}
+						canDecreaseUserSetting={assignPanel.canDecreaseUserSetting}
+						onChangeUserSetting={(laneCount) => {
+							void assignPanel.changeUserSetting(laneCount);
+						}}
+						onToggleUnlockAboveWindow={assignPanel.toggleUnlockAboveWindow}
+					/>
+				}
+			/>
+		</>
+	);
+
 	// ─── 桌面/宽屏布局容器样式 ───
 	const getDeckLayoutClass = (): string => {
 		// 1. 紧凑档（AC 2, E-164）
@@ -201,7 +263,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 
 		// 2. 完整档（AC 9, AC 10, E-163, E-167）
 		if (tier === 'full') {
-			if (streamCount <= 3 && width >= 1440) {
+			if (streamCount <= 3) {
 				return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 overflow-y-auto flex-1 auto-rows-fr';
 			}
 			return 'relative flex flex-row gap-4 p-4 overflow-auto flex-1';
@@ -361,6 +423,14 @@ export function RunDeckView(props: RunDeckViewProps) {
 									data-pane-view="tasks"
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3 select-none"
 								>
+									{batchTreeError && (
+										<InlineNotice
+											tone="down"
+											testId="batch-tree-error"
+											message={batchTreeError.message}
+											technical={batchTreeError.technical}
+										/>
+									)}
 									<BatchTree
 										batches={treeBatches}
 										expandedIds={expandedIds}
@@ -379,7 +449,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
 								>
 									{streamCount === 0 ? (
-										<EmptyOnboarding />
+										emptyConsole
 									) : currentMobileLane ? (
 										<StreamErrorBoundary laneNo={currentMobileLane.laneNo}>
 											<StreamColumn
@@ -461,6 +531,14 @@ export function RunDeckView(props: RunDeckViewProps) {
 								<div className="font-ui text-dense font-semibold text-[var(--ink-1)] px-1">
 									批次与任务
 								</div>
+								{batchTreeError && (
+									<InlineNotice
+										tone="down"
+										testId="batch-tree-error"
+										message={batchTreeError.message}
+										technical={batchTreeError.technical}
+									/>
+								)}
 								<BatchTree
 									batches={treeBatches}
 									expandedIds={expandedIds}
@@ -492,9 +570,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 								)}
 
 								{streamCount === 0 ? (
-									<div className="flex flex-col flex-1 p-4 overflow-y-auto">
-										<EmptyOnboarding />
-									</div>
+									<div className="flex flex-col flex-1 p-4 overflow-y-auto">{emptyConsole}</div>
 								) : (
 									<div ref={scrollContainerRef} className={getDeckLayoutClass()}>
 										{lanes.map((lane) => {

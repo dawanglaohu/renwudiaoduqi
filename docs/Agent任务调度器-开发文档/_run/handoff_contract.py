@@ -8,11 +8,17 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-VERSION = '1.3.1'
+VERSION = '1.6.1'
 SCHEMA_VERSION = 1
-TASK_RE = re.compile(r'M\d{1,2}-T\d{1,3}')
+TASK_RE = re.compile(r'(?:M\d{1,2}-T\d{1,3}|R\d{1,3}-T\d{1,8})')
+# handoff.wiring 与任务 wiring 共用的类别。
+WIRING_KEYS = ('backendRoutes', 'container', 'frontendRoutes', 'buildPipeline', 'sharedTypes',
+               'eventKinds', 'migrations', 'jobs', 'shellBridge', 'judgments')
+# H12 的关键词表：任务标题/产出/验收命中即「疑似接线任务」，大小写不敏感
+WIRING_HINT_RE = re.compile(r'路由|接口|端点|/api/|页面|挂到|挂进|路由表|service|服务|job|后台任务|事件|kind|迁移|migration|壳|bridge|判断|judgment|typesafe|置信|confidence', re.I)
 SOURCE_EXCLUDES = {'_run', '图谱', '.obsidian'}
-COMPILERS = ('handoff_contract.py', 'build_docs.py', 'compile_prompts.js', 'review.py', 'maintain_docs.py')
+COMPILERS = ('handoff_contract.py', 'build_docs.py', 'compile_prompts.js', 'review.py', 'maintain_docs.py',
+             'typesafe_ask.py')
 
 
 def read_json(path, default=None):
@@ -61,6 +67,13 @@ def input_hashes(root):
         p = root / '_run' / name
         if p.exists():
             result['_run/' + name] = digest(read_json(p))
+    # 收口记录通常只是状态；只有带 task 围栏时才成为返工任务的规范来源，必须进入版本指纹。
+    batches = root / '_run' / 'batches'
+    if batches.is_dir():
+        for p in sorted(batches.glob('*.md')):
+            text = p.read_text(encoding='utf-8-sig')
+            if re.search(r'```task\s*\n', text, re.I):
+                result['_run/batches/' + p.name] = digest(text)
     return result
 
 
@@ -112,8 +125,41 @@ def under(path, scope):
     return path == scope or path.startswith(scope.rstrip('/') + '/')
 
 
-def analyze(root, tasks, pres, edges=None):
-    """可确定的关系作阻断；缺少结构化约束不编造通过，交逐任务语义复核。"""
+def wiring_registry(ho):
+    """handoff.wiring 归一成 {类别: [路径]}。未知类别由 analyze 报 H14；取值类型不对直接拒绝。"""
+    raw = ho.get('wiring', {})
+    if not isinstance(raw, dict):
+        raise ValueError('handoff.wiring 必须是对象（类别 → 路径或路径数组）')
+    registry = {}
+    for key, value in raw.items():
+        values = value if isinstance(value, list) else [value]
+        if not all(isinstance(v, str) for v in values):
+            raise ValueError('handoff.wiring.' + str(key) + ' 必须是路径或路径数组')
+        registry[str(key)] = list(dict.fromkeys(values))
+    return registry
+
+
+def endpoint_paths(endpoints):
+    """10 节接口总表的路径集合：去掉围住路径的反引号与空白，只收以 / 开头的。"""
+    out = []
+    for e in endpoints or []:
+        path = (e.get('path') if isinstance(e, dict) else e) or ''
+        path = str(path).strip().strip('`').strip()
+        if path.startswith('/') and path not in out:
+            out.append(path)
+    return out
+
+
+def mentions(text, path):
+    """文本里出现了这条端点路径（后面不接路径字符，/api/x 不算提到 /api/x/y）。"""
+    return re.search(r'(?<![A-Za-z0-9_/.:{}%~\-])' + re.escape(path)
+                     + r'(?![A-Za-z0-9_/.:{}%~\-])', text or '') is not None
+
+
+def analyze(root, tasks, pres, edges=None, endpoints=None, repair_contracts=None):
+    """可确定的关系作阻断；缺少结构化约束不编造通过，交逐任务语义复核。
+    H12（疑似接线任务未列注册点）与 H13（消费端点但提供方不在前置）是 WARN，不锁派发；
+    H14（wiring 未知类别）阻断。endpoints 是 10 节接口总表，缺省时不做 H13。"""
     root = Path(root)
     by_id = {t['id']: t for t in tasks}
     if not isinstance(pres, dict):
@@ -129,22 +175,45 @@ def analyze(root, tasks, pres, edges=None):
     definitions = config.get('tasks') or {}
     if not isinstance(definitions, dict):
         raise ValueError('task-contracts.json tasks 必须是对象')
+    definitions = dict(definitions)
+    for tid, spec in (repair_contracts or {}).items():
+        if tid in definitions:
+            raise ValueError('返工任务与 task-contracts.json ID 冲突：' + tid)
+        definitions[tid] = spec
     edge_map = {e['id']: e for e in (edges or [])}
     issues, contexts, paths, owners = [], {}, {}, {}
     section_cache = {}
+    registry = wiring_registry(ho)
+    api_paths = endpoint_paths(endpoints)
 
-    def issue(code, text, ids):
-        issues.append({'level': 'BLOCK', 'code': code, 'msg': text,
+    def issue(code, text, ids, level='BLOCK'):
+        issues.append({'level': level, 'code': code, 'msg': text,
                        'where': ', '.join(ids), 'taskIds': ids})
 
     for tid in sorted(set(definitions) - set(by_id)):
         issue('H01', '契约引用了不存在的任务 ' + tid, [tid])
+    for key in sorted(set(registry) - set(WIRING_KEYS)):
+        issue('H14', 'wiring 未知类别 ' + key + '（handoff.wiring 只允许 ' + '/'.join(WIRING_KEYS) + '）', [])
+    registry_files = []
+    for key in sorted(registry):
+        for p in registry[key]:
+            if not path_valid(p):
+                issue('H03', 'handoff.wiring.' + key + ' 范围须为无通配符的仓库相对路径：' + str(p), [])
+            elif key in WIRING_KEYS and p not in registry_files:
+                registry_files.append(p)
+    # 优先采用明确产出端点的任务；没有产出提供方时才从验收列回退识别。
+    providers_of = {}
+    for path in api_paths:
+        providers_of[path] = ([t['id'] for t in tasks if mentions(t.get('output', ''), path)]
+                              or [t['id'] for t in tasks if mentions(t.get('accept', ''), path)])
     for tid, spec in definitions.items():
         if not isinstance(spec, dict):
             raise ValueError(tid + ' 契约必须是对象')
-        for key in ('provides', 'requires', 'supportPaths', 'outputPaths', 'sections'):
+        for key in ('provides', 'requires', 'supportPaths', 'outputPaths', 'sections', 'wiring'):
             if key in spec and not isinstance(spec[key], list):
                 raise ValueError(tid + ' ' + key + ' 必须是数组')
+        if not all(isinstance(c, str) for c in spec.get('wiring', [])):
+            raise ValueError(tid + ' wiring 必须是类别字符串数组')
         if spec.get('stage') not in (None, 'primitive', 'integration'):
             raise ValueError(tid + ' stage 只允许 primitive/integration')
         if 'integrationTask' in spec and not isinstance(spec['integrationTask'], str):
@@ -169,10 +238,35 @@ def analyze(root, tasks, pres, edges=None):
                 issue('H03', tid + ' 范围须为无通配符的仓库相对路径：' + str(p), [tid])
             elif p not in effective:
                 effective.append(p)
+        # 任务声明的接线类别：对应注册点并入有效范围（来源 wiring），并进契约 context
+        wired = {}
+        for cat in spec.get('wiring', []):
+            if cat not in WIRING_KEYS:
+                issue('H14', tid + ' wiring 未知类别 ' + cat + '（只允许 ' + '/'.join(WIRING_KEYS) + '）', [tid])
+            elif not registry.get(cat):
+                issue('H14', tid + ' wiring 类别 ' + cat + ' 未在 handoff.wiring 登记非空路径', [tid])
+            else:
+                wired[cat] = list(registry[cat])
+                for p in registry[cat]:
+                    if path_valid(p) and p not in effective:
+                        effective.append(p)
         paths[tid] = sorted(effective)
         if not effective:
             issue('H04', tid + ' 未声明有效改动路径', [tid])
         closure = ancestors(tid, by_id)
+        if registry_files and not spec.get('wiring'):
+            hint_text = ' '.join((t.get('title', ''), t.get('output', ''), t.get('accept', '')))
+            hits = sorted(set(m.group(0).lower() for m in WIRING_HINT_RE.finditer(hint_text)))
+            if hits and not any(under(w, s) for w in registry_files for s in effective):
+                issue('H12', tid + ' 疑似接线任务未列注册点（命中：' + '、'.join(hits) + '）', [tid], 'WARN')
+        if api_paths:
+            use_text = ' '.join((t.get('title', ''), t.get('input', ''), t.get('output', ''), t.get('accept', '')))
+            for path in api_paths:
+                if not mentions(use_text, path) or tid in providers_of[path]:
+                    continue
+                providers = providers_of[path]
+                if providers and not any(p in closure for p in providers):
+                    issue('H13', tid + ' 消费端点 ' + path + ' 但提供方 ' + providers[0] + ' 不在前置', [tid], 'WARN')
         # 输入列是已声明的供给；产出/验收提到的未来消费者不自动变成依赖。
         required = [{'task': x} for x in sorted(set(TASK_RE.findall(t.get('input', ''))) - {tid})]
         required += spec.get('requires', [])
@@ -227,6 +321,9 @@ def analyze(root, tasks, pres, edges=None):
                          'module': module, 'project': pres.get('project'),
                          'handoff': {k: ho.get(k) for k in ('stack', 'docsPath', 'repo', 'branchPrefix', 'mainBranch', 'conventions')},
                          'skills': (ho.get('taskSkills') or {}).get(tid)}
+        # 不给旧任务增加空 wiring 键，保留原有契约哈希。
+        if wired:
+            contexts[tid]['wiring'] = wired
     bases = {k: digest(v) for k, v in contexts.items()}
     contracts = {}
     for tid, context in contexts.items():
@@ -242,15 +339,19 @@ def readiness(root, analysis, structural=None):
     records = read_json(Path(root) / '_run/task-reviews.json', {})
     checks = {}
     for tid, contract in analysis['contracts'].items():
-        errors = [i['msg'] for i in analysis['issues'] if tid in i.get('taskIds', [])]
-        errors += [i['msg'] for i in (structural or []) if i['level'] == 'BLOCK' and not i.get('taskIds')]
+        errors = [i['msg'] for i in analysis['issues'] if i['level'] == 'BLOCK'
+                  and (not i.get('taskIds') or tid in i['taskIds'])]
+        errors += [i['msg'] for i in (structural or []) if i['level'] == 'BLOCK'
+                   and (not i.get('taskIds') or tid in i['taskIds']) and i['msg'] not in errors]
+        # WARN（H12/H13）只进 reasons 提醒审查方，不进 blockers、不锁派发
+        warnings = [i['msg'] for i in analysis['issues'] if tid in i.get('taskIds', []) and i['level'] == 'WARN']
         record = records.get(tid, {})
         verified = (record.get('contractHash') == contract['hash'] and record.get('verdict') == 'pass'
                     and bool(record.get('evidence')))
         # blockers 只收明确的契约错误；语义复核待办不在其中，由审查阶段登记，不锁派发。
         checks[tid] = {'ready': verified and not errors, 'contractHash': contract['hash'],
                        'blockers': list(errors),
-                       'reasons': list(errors) or ([] if verified else ['任务契约待语义复核；可在当前审查内完成，无需重跑生成流程'])}
+                       'reasons': (list(errors) or ([] if verified else ['任务契约待语义复核；可在当前审查内完成，无需重跑生成流程'])) + warnings}
     return checks
 
 

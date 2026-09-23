@@ -71,6 +71,7 @@ SEC_EDGES, SEC_TASKS, SEC_ARCH = 13, 19, 6
 SEC_STACK, SEC_PERF, SEC_RISK, SEC_DEC = 5, 15, 21, 22
 SEC_FE_ARCH, SEC_BE_ARCH, SEC_API = 7, 8, 10
 SEC_UI = 11
+SEC_TEST, SEC_OPS = 17, 18
 
 # build_vault.py 的派生物。它们不是源文件，不参与本脚本的任何检查
 DERIVED_DIRS = {"图谱"}
@@ -82,6 +83,9 @@ VAGUE_WORDS = [
     "良好", "合理", "流畅", "友好", "美观", "尽量", "适当", "优化",
     "稳定", "快速", "方便", "完善", "健壮", "清晰", "正常工作", "体验好",
 ]
+
+# X17 与 T9 一样逐词检查验收列；否定句里的禁用词也算命中。
+STUB_WORDS = ["占位", "桩", "待接入", "后续任务接", "后续接入", "TODO"]
 
 BANNED_TITLE_PATTERNS = [
     (r"^实现\S{0,12}模块$", "「实现X模块」是模块不是任务"),
@@ -111,11 +115,14 @@ class Report:
     def __init__(self):
         self.items = []
 
-    def add(self, level, code, msg, where=None):
-        self.items.append({"level": level, "code": code, "msg": msg, "where": where})
+    def add(self, level, code, msg, where=None, task_ids=None):
+        item = {"level": level, "code": code, "msg": msg, "where": where}
+        if task_ids:
+            item["taskIds"] = list(task_ids)
+        self.items.append(item)
 
-    def block(self, code, msg, where=None):
-        self.add(BLOCK, code, msg, where)
+    def block(self, code, msg, where=None, task_ids=None):
+        self.add(BLOCK, code, msg, where, task_ids)
 
     def warn(self, code, msg, where=None):
         self.add(WARN, code, msg, where)
@@ -283,6 +290,14 @@ def check_sections(rep, smap, multi):
                      % (num, name, sec["group"], SECTION_GROUP[num]), loc(sec))
 
 
+def without_route_parameters(line):
+    """HTTP 路径中的 Flask 变量是接口契约；同一行的其他尖括号仍须检查。"""
+    def clean(match):
+        path = re.sub(r"<(?:[A-Za-z_][A-Za-z_0-9]*:)?[A-Za-z_][A-Za-z_0-9]*>", "{param}", match.group(2))
+        return match.group(1) + path
+    return re.sub(r"(\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(?:\|\s*)?`?)(/[^\s`|、，；。]+)", clean, line)
+
+
 def check_placeholders(rep, units, risk_file):
     for u in units:
         in_fence = False
@@ -292,8 +307,9 @@ def check_placeholders(rep, units, risk_file):
                 continue
             if in_fence:
                 continue
+            checked_line = without_route_parameters(ln)
             for pat, desc in PLACEHOLDER_PATTERNS:
-                if re.search(pat, ln):
+                if re.search(pat, checked_line):
                     rep.block("P1", "%s：%s" % (desc, ln.strip()[:60]),
                               "%s:%d" % (u["file"], i + 1))
                     break
@@ -371,6 +387,14 @@ def check_tasks(rep, sec, module_ids, edges, risk_body):
             if w in accept:
                 rep.block("T9", "%s 验收标准含无法客观判定的词「%s」：%s" % (tid, w, accept[:50]), where)
                 break
+        for w in STUB_WORDS:
+            # TODO 标记须独立于文件路径和标识符，如 todo/web.py、TODO_SECRET_KEY。
+            matched = (re.search(r"(?<![A-Za-z0-9_./\\-])TODO(?![A-Za-z0-9_./\\-])", accept, re.I)
+                       if w == "TODO" else w.lower() in accept.lower())
+            if matched:
+                rep.block("X17", "%s 验收标准含禁止的接线延后词「%s」：%s"
+                          % (tid, w, accept[:50]), where, task_ids=[tid])
+                break
         found = re.findall(r"E-\d{1,3}", accept)
         if not found:
             rep.warn("T10", "%s 验收标准没有引用任何边界编号" % tid, where)
@@ -444,6 +468,51 @@ def has_tree(body):
     return len(re.findall(r"[\w.-]+/[\w.*-]*", body)) >= 3
 
 
+def uses_typesafe(smap, root):
+    """项目接了 TypeSafe 判断层：handoff.wiring 登记了 judgments，或 05 节技术栈点名了它。"""
+    pres = read_json(os.path.join(root, "_run", "presentation.json"), {}) or {}
+    wiring = (pres.get("handoff") or {}).get("wiring") or {}
+    if isinstance(wiring, dict) and wiring.get("judgments"):
+        return True
+    stack = smap.get(SEC_STACK)
+    return bool(stack and re.search(r"typesafe|system one|jev-", stack["body"], re.I))
+
+
+def check_typesafe(rep, smap, root):
+    """X19/X20：接了判断层的项目，10 节要有「语义判断契约」小节，18 节配置项要列 TYPESAFE_API_KEY。
+    没接判断层的项目两条都不查——大多数项目用不到，查了只会淹没真正的告警。"""
+    if not uses_typesafe(smap, root):
+        return
+    api = smap.get(SEC_API)
+    if api and not is_na(api) and not has_heading(api["body"], "语义判断契约"):
+        rep.warn("X19", "接了 TypeSafe 判断层，但 10 节缺「语义判断契约」小节（问题 ID、原语、state 字段、"
+                        "instructions、criteria、阈值与低置信处理、消费方）；问题散在代码里没人核对", loc(api))
+    ops = smap.get(SEC_OPS)
+    if ops and "TYPESAFE_API_KEY" not in ops["body"]:
+        rep.warn("X20", "接了 TypeSafe 判断层，但 18 节配置项清单没列 TYPESAFE_API_KEY（必填、缺失时的行为）", loc(ops))
+
+
+def has_wiring_heading(body):
+    return has_heading(body, "接线注册表")
+
+
+def has_heading(body, word):
+    """正文里有含 word 的二至六级标题；代码围栏里的示例标题不算。"""
+    fence = None
+    for line in body.splitlines():
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
+        if marker:
+            token = marker.group(1)
+            if fence is None:
+                fence = token
+            elif token[0] == fence[0] and len(token) >= len(fence) and not line[marker.end():].strip():
+                fence = None
+            continue
+        if fence is None and re.search(r"^ {0,3}#{2,6}\s+[^\n]*" + re.escape(word), line):
+            return True
+    return False
+
+
 def check_extras(rep, smap, root, multi):
     stack = smap.get(SEC_STACK)
     if stack and "被否" not in stack["body"] and "否决" not in stack["body"]:
@@ -468,6 +537,8 @@ def check_extras(rep, smap, root, multi):
         if miss:
             rep.warn("X10", "架构章节没写全项目共用约定（缺 %s）。这几条前后端必须一致，"
                             "分开写进 07/08 迟早写出两套" % "、".join(miss), loc(arch))
+    if arch and not has_wiring_heading(arch["body"]):
+        rep.warn("X15", "06 节缺「接线注册表」小节", loc(arch))
 
     fe = smap.get(SEC_FE_ARCH)
     if fe and not is_na(fe):
@@ -500,6 +571,19 @@ def check_extras(rep, smap, root, multi):
             rep.warn("X8", "接口约定里没有请求/响应示例，字段级契约只能靠猜", loc(api))
         if not re.search(r"错误码|错误代码|error\s*code", api["body"], re.I):
             rep.warn("X9", "接口约定缺少错误码表", loc(api))
+
+    # 关键词只核对测试与分发约定是否写出；真实入口仍须语义审查。
+    test = smap.get(SEC_TEST)
+    if test:
+        body = test["body"]
+        named = re.search(r"端到端|\be2e\b|冒烟", body, re.I)
+        real = re.search(r"浏览器|真起|真实启动|真正启动|playwright|puppeteer|cypress", body, re.I)
+        if not named or not real:
+            rep.warn("X16", "17 节缺端到端冒烟（真起服务 + 浏览器 + 样式断言）", loc(test))
+    ops = smap.get(SEC_OPS)
+    if ops:
+        if not re.search(r"分发形态|随包|安装包|打包形态", ops["body"]):
+            rep.warn("X18", "18 节缺分发形态（分发形态 / 随包 / 安装包 / 打包形态）", loc(ops))
 
     # UI：register 是后面每条 UI 决策的前提，而它判错了不会以任何形式报错——
     # 界面每一项都对，做出来是另一个产品。所以这里只查「判没判」，判得对不对
@@ -564,13 +648,14 @@ def review(path):
                 risk["body"] if risk else "")
     check_extras(rep, smap, root, multi)
     if multi:
+        check_typesafe(rep, smap, root)
         # 与生成器复用同一结构解析，最终路径和能力配置也属于审查输入。
         try:
             from build_docs import collect, extract
             _, numbered = collect(root)
             data = extract(numbered)
             pres = read_json(os.path.join(root, "_run", "presentation.json"), {})
-            checked = analyze(root, data["tasks"], pres, data["edges"])
+            checked = analyze(root, data["tasks"], pres, data["edges"], data["endpoints"])
             rep.items.extend(checked["issues"])
         except (ValueError, TypeError, KeyError) as exc:
             rep.block("H00", "任务契约配置无法读取：" + str(exc))

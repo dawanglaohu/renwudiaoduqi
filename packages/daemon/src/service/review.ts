@@ -1,5 +1,6 @@
 import { promises as nodeFs } from 'node:fs';
 import { resolve as nodeResolve } from 'node:path';
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -28,6 +29,7 @@ import {
 import { DEFAULT_CHECK_TIMEOUT_MS, type LaunchTimeouts } from '../proc/timers.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { RunInsertRow, RunRow } from '../repo/runs.ts';
+import type { SettingsRepo } from '../repo/settings.ts';
 import {
 	type DiffStatResult,
 	type GitRunner,
@@ -35,14 +37,19 @@ import {
 	getDiffStat,
 	getDiffText,
 } from '../workspace/diff.ts';
+import type { BughuntService } from './bughunt.ts';
+import type { GateService } from './gates.ts';
 import type { MessageService, ResumeSessionInput, ResumeSessionResult } from './message.ts';
 import { waitForContinuationState } from './message.ts';
 import { type ReviewAgentAssignment, buildReviewLaunchSpec } from './review-agent.ts';
+import type { SettingsService } from './settings.ts';
 
 export { DEFAULT_CHECK_TIMEOUT_MS };
 
 /** E-330 判定窗口：投递后等首条内容事件或失败类事件的上限。 */
 const CONTINUATION_TIMEOUT_MS = 180_000;
+/** E-330：新开的审查会话再次在内容前失败时写进运行行与闸门 comment 的原因串。 */
+export const REVIEW_CONTINUATION_FAILED = 'review_continuation_failed' as const;
 
 /**
  * UI / State machine tags and notices for mechanical check (AC 1-4, E-60, E-61, E-66, E-67).
@@ -279,13 +286,17 @@ export type ReviewRunRecord = {
 	readonly id: string;
 	readonly state: string;
 	/** RunsRepo 的 RunRow 用 snake_case；老的 RunsAbortRepo 记录用 camelCase，两种都接。 */
-	readonly task_id?: string;
+	readonly task_id?: string | null;
+	readonly parent_run_id?: string | null;
+	readonly kind?: string;
 	readonly worktree_path?: string | null;
 	readonly pid?: number | null;
 	readonly changed_file_count?: number | null;
+	readonly rework_count?: number;
 	readonly taskId?: string;
 	readonly worktreePath?: string | null;
 	readonly changedFileCount?: number | null;
+	readonly reworkCount?: number;
 };
 
 /**
@@ -310,7 +321,14 @@ export interface ReviewRunsRepo {
 	/** M7-T7 续接：上一轮审查行（按 review_round DESC 取最新）。 */
 	readonly findLatestReview?: (taskId: string) => RunRow | null;
 	readonly insert?: (row: RunInsertRow) => void;
-	readonly updateReviewRound?: (id: string, reviewRound: number | null) => void;
+	readonly updateReviewRound?: (
+		id: string,
+		reviewRound: number | null,
+		continuedFromRunId?: string | null,
+	) => void;
+	readonly findByParentRunIdAndKind?: (parentRunId: string, kind: string) => RunRow | null;
+	/** 同任务全部运行行：新一轮的 attempt_no 取最大值 + 1（`UNIQUE (task_id, attempt_no)`）。 */
+	readonly listByTaskId?: (taskId: string) => readonly { readonly attempt_no: number }[];
 }
 
 /**
@@ -356,6 +374,10 @@ export interface ReviewServiceDeps extends MechanicalCheckDeps {
 	readonly spawnManagedFn?: typeof spawnManaged;
 	readonly agentRegistry?: AgentRegistry;
 	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+	readonly bughuntService?: BughuntService;
+	readonly settingsRepo?: SettingsRepo;
+	readonly settingsService?: SettingsService;
+	readonly gatesService?: GateService;
 	/** 续接撑爆时改走恢复分支：与 rework.ts 的 resumeSession 同一约定。 */
 	readonly resumeSession?: (input: ResumeSessionInput) => Promise<ResumeSessionResult>;
 }
@@ -392,12 +414,32 @@ export interface StartReviewRoundInput {
 	readonly isBugHuntFix?: boolean;
 }
 
+export interface FinalizeReviewRunInput {
+	readonly reviewRunId: string;
+	readonly verdict: 'pass' | 'rework' | 'doc_issue' | 'incomplete';
+	readonly outputText?: string;
+	readonly reworkText?: string;
+	readonly actorDeviceId?: string | null;
+}
+
+export interface FinalizeReviewRunResult {
+	readonly action:
+		| 'bughunt_dispatched'
+		| 'landing_gate'
+		| 'rework'
+		| 'doc_issue'
+		| 'awaiting_human';
+	readonly bughuntRunId?: string;
+	readonly gateId?: string;
+}
+
 export interface ReviewService {
 	readonly runMechanicalCheck: (input: MechanicalCheckInput) => Promise<MechanicalCheckResult>;
 	readonly evaluateMechanicalCheck: (
 		input: EvaluateMechanicalCheckInput,
 	) => Promise<EvaluateMechanicalCheckResult>;
 	readonly startReviewRound: (input: StartReviewRoundInput) => Promise<string>;
+	readonly finalizeReviewRun: (input: FinalizeReviewRunInput) => Promise<FinalizeReviewRunResult>;
 }
 
 /**
@@ -1597,9 +1639,27 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				);
 			}
 
+			// AC 1：parent_run_id 指向被审的实施运行（M7-T5 新开的返工运行之后就不再是第 N 轮那一条）；
+			// AC 5：review_round = rework_count + 1 写死，rework_count 来自实施运行行。
+			const implRun = deps.runsRepo.findById(input.implRunId);
+			if (implRun && (implRun.task_id ?? implRun.taskId ?? taskId) !== taskId) {
+				throw new AppError('E_VALIDATION', 'implRunId must belong to the same task', {
+					details: { taskId, implRunId: input.implRunId },
+				});
+			}
+			const parentRunId = implRun ? implRun.id : prevReview.parent_run_id;
+			const implReworkCount = implRun
+				? (implRun.rework_count ?? implRun.reworkCount ?? null)
+				: null;
+			// AC 6：拿不到实施行计数时（老库 / 假仓储）退回「上一轮 + 1」，旧行 review_round 为 NULL 读作 1、不回填。
+			const reviewRound =
+				implReworkCount !== null ? implReworkCount + 1 : (prevReview.review_round ?? 1) + 1;
+			// `UNIQUE (task_id, attempt_no)`：新一轮是同任务的新一次尝试，不能照抄上一轮的 attempt_no。
+			const nextAttemptNo = deps.runsRepo.listByTaskId
+				? Math.max(0, ...deps.runsRepo.listByTaskId(taskId).map((row) => row.attempt_no)) + 1
+				: prevReview.attempt_no + 1;
+
 			const nextId = () => (deps.ids?.newId ?? (() => Math.random().toString(36).slice(2, 10)))();
-			// AC 5 / AC 6：轮次写死为上一轮 + 1；旧行 review_round 为 NULL 时读侧按 1 处理、不回填。
-			const reviewRound = (prevReview.review_round ?? 1) + 1;
 			const promptPrefix = assembleReviewRoundPrompt({
 				round: reviewRound,
 				previousReviewRunId: prevReview.id,
@@ -1612,9 +1672,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				const row: RunInsertRow = {
 					id: runId,
 					task_id: taskId,
-					attempt_no: prevReview.attempt_no,
+					attempt_no: nextAttemptNo,
 					kind: 'review',
-					parent_run_id: prevReview.parent_run_id,
+					parent_run_id: parentRunId,
 					state: 'starting',
 					agent_id: prevReview.agent_id,
 					model_name: prevReview.model_name,
@@ -1652,12 +1712,12 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						payload: {
 							runId,
 							taskId,
-							attemptNo: prevReview.attempt_no,
+							attemptNo: nextAttemptNo,
 							kind: 'review',
 							agentId: prevReview.agent_id,
 							model: prevReview.model_name,
 							effortTier: prevReview.effort_tier,
-							parentRunId: prevReview.parent_run_id,
+							parentRunId,
 							isPartialDiff: false,
 						},
 					}),
@@ -1748,7 +1808,8 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 
 			if (!exhausted) return runId;
 
-			// E-330：降级恰一次——恢复分支的失败行标 failed + continuation_exhausted，不计入 review_round。
+			// E-330：降级恰一次——恢复分支的失败行标 failed + continuation_exhausted，不计入 review_round，
+			// 并把它的续接指针清掉：`ux_runs_continued` 只允许一行指向第 N 轮，那一行必须是新开的会话。
 			const fallbackRunId = nextId();
 			const persistFallback = () => {
 				deps.runsRepo?.updateState({
@@ -1758,7 +1819,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					endedAt: clock.now(),
 					queuedReason: 'continuation_exhausted',
 				});
-				updateReviewRound(runId, null);
+				updateReviewRound(runId, null, null);
 				insertRoundRow(fallbackRunId, null);
 			};
 			if (deps.unitOfWork) {
@@ -1768,9 +1829,174 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			}
 			spawnNewSession(fallbackRunId, promptPrefix);
 			publishStarted(fallbackRunId);
+
+			// E-330 末句：新开的会话再次在内容前失败 → 不再新开，转人并在闸门 comment 写 review_continuation_failed。
+			// 观察在事务外异步进行，函数本身立即返回新行 id。
+			if (deps.bus) {
+				const bus = deps.bus;
+				void waitForContinuationState(bus, fallbackRunId, CONTINUATION_TIMEOUT_MS)
+					.then((state) => {
+						if (state !== 'exhausted') return;
+						handOverContinuationFailure(fallbackRunId, parentRunId ?? null);
+					})
+					.catch(() => undefined);
+			}
 			return fallbackRunId;
+
+			function handOverContinuationFailure(
+				failedReviewRunId: string,
+				implRunId: string | null,
+			): void {
+				const now = clock.now();
+				const implRow = implRunId ? deps.runsRepo?.findById(implRunId) : null;
+				const pendingEnvelopes: EventEnvelope[] = [];
+				const persist = () => {
+					deps.runsRepo?.updateState({
+						id: failedReviewRunId,
+						fromState: 'starting',
+						toState: 'failed',
+						endedAt: now,
+						queuedReason: REVIEW_CONTINUATION_FAILED,
+					});
+					if (implRow && implRow.state === 'reviewing') {
+						assertValidTransition('reviewing', 'awaiting_human', {
+							reason: REVIEW_CONTINUATION_FAILED,
+						});
+						deps.runsRepo?.updateState({
+							id: implRow.id,
+							fromState: 'reviewing',
+							toState: 'awaiting_human',
+							endedAt: now,
+							queuedReason: REVIEW_CONTINUATION_FAILED,
+						});
+						if (deps.envelopeFactory) {
+							pendingEnvelopes.push(
+								deps.envelopeFactory.createEnvelope({
+									kind: 'run.state_changed',
+									runId: implRow.id,
+									taskId,
+									payload: {
+										from: 'reviewing',
+										to: 'awaiting_human',
+										reason: REVIEW_CONTINUATION_FAILED,
+									},
+								}),
+							);
+						}
+					}
+					if (deps.gatesRepo) {
+						deps.gatesRepo.insert({
+							id: `gate_${ids.newId()}`,
+							taskId,
+							runId: implRow?.id ?? failedReviewRunId,
+							kind: 'review',
+							state: 'waiting',
+							comment: REVIEW_CONTINUATION_FAILED,
+							createdAt: now,
+						});
+						if (deps.envelopeFactory) {
+							pendingEnvelopes.push(
+								deps.envelopeFactory.createEnvelope({
+									kind: 'task.gate_waiting',
+									runId: implRow?.id ?? failedReviewRunId,
+									taskId,
+									payload: { gate: 'review', comment: REVIEW_CONTINUATION_FAILED },
+								}),
+							);
+						}
+					}
+				};
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(persist);
+				} else {
+					persist();
+				}
+				for (const envelope of pendingEnvelopes) {
+					deps.bus?.publish(envelope);
+				}
+			}
 		},
 
 		evaluateMechanicalCheck,
+
+		async finalizeReviewRun(input: FinalizeReviewRunInput): Promise<FinalizeReviewRunResult> {
+			if (!deps.runsRepo) throw new AppError('E_INTERNAL', 'runsRepo missing');
+
+			const reviewRun = deps.runsRepo.findById(input.reviewRunId);
+			if (!reviewRun) {
+				throw new AppError('E_NOT_FOUND', `Review run not found: ${input.reviewRunId}`);
+			}
+			const implRunId = reviewRun.parent_run_id ?? reviewRun.id;
+			const implRun = deps.runsRepo.findById(implRunId);
+			if (!implRun) {
+				throw new AppError('E_NOT_FOUND', `Implementation run not found: ${implRunId}`);
+			}
+			const taskId =
+				implRun.task_id ?? reviewRun.task_id ?? implRun.taskId ?? reviewRun.taskId ?? '';
+
+			if (input.verdict === 'pass') {
+				// AC 1: finalizeReviewRun() 判 pass 后读 settings.pipeline.bughunt（每次读库、不缓存、不进快照）
+				let bughuntEnabled = false;
+				if (deps.settingsService) {
+					const pipeline = deps.settingsService.getPipeline();
+					bughuntEnabled = pipeline.bughunt === 1;
+				} else if (deps.settingsRepo) {
+					const row = deps.settingsRepo.get('pipeline');
+					if (row) {
+						try {
+							const parsed = JSON.parse(row.value_json);
+							bughuntEnabled = parsed.bughunt === 1;
+						} catch {
+							bughuntEnabled = false;
+						}
+					}
+				}
+
+				// 为 1 且该实施运行尚无 bughunt 行 → 事务内插入 kind='bughunt' 行，实施行保持 reviewing
+				const existingBughunt = deps.runsRepo.findByParentRunIdAndKind
+					? deps.runsRepo.findByParentRunIdAndKind(implRun.id, 'bughunt')
+					: null;
+
+				if (bughuntEnabled && !existingBughunt && deps.bughuntService) {
+					const dispatchResult = await deps.bughuntService.dispatchBughunt({
+						implRunId: implRun.id,
+						actorDeviceId: input.actorDeviceId,
+					});
+					if (dispatchResult.action === 'dispatched') {
+						return {
+							action: 'bughunt_dispatched',
+							bughuntRunId: dispatchResult.bughuntRun?.id,
+						};
+					}
+					if (dispatchResult.action === 'agent_unavailable') {
+						return {
+							action: 'awaiting_human',
+							gateId: dispatchResult.gateId,
+						};
+					}
+				}
+
+				// 为 0 或已有 bughunt 行 → 走既有落地闸门
+				if (deps.gatesService) {
+					await deps.gatesService.resolveAfterReviewAndApply({
+						taskId,
+						runId: implRun.id,
+						reviewVerdict: 'pass',
+					});
+					return { action: 'landing_gate' };
+				}
+
+				return { action: 'landing_gate' };
+			}
+
+			return {
+				action:
+					input.verdict === 'rework'
+						? 'rework'
+						: input.verdict === 'doc_issue'
+							? 'doc_issue'
+							: 'awaiting_human',
+			};
+		},
 	});
 }

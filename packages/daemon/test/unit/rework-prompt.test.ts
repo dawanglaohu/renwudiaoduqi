@@ -95,9 +95,9 @@ describe('M7-T5 AC 2 & E-279: assembleReworkPrompt and extractReworkRules', () =
 		// 2. 内置四句回落
 		expect(result).toContain('只改指令列出的编号条目，不借机重构；');
 		expect(result).toContain('哪条不成立就在回报里写理由，不默默跳过、也不照改你认为错的方案；');
-		expect(result).toContain(
-			'改完新提交（不 amend、不 force）再 gh stack push；回报按编号写改了哪个文件哪一行、加了什么测试。',
-		);
+		expect(result).toContain('回报按编号写改了哪个文件哪一行、加了什么测试。');
+		// 08 节：内置四句 = 只改列出条目、不重构、哪条不成立写理由、不 commit/push——不能反过来要求推送
+		expect(BUILTIN_REWORK_RULES).not.toMatch(/push|提交/);
 		expect(result).toContain('在你原来的工作树里改，不要再开一个。');
 
 		// 3. 工作区指针
@@ -106,5 +106,48 @@ describe('M7-T5 AC 2 & E-279: assembleReworkPrompt and extractReworkRules', () =
 
 		// 4. 「只改列出条目、不 commit/push」约束
 		expect(result).toContain(REWORK_COMMIT_PUSH_CONSTRAINT);
+	});
+
+	it('prepends bughunt uncommitted files notice at the very top before any ## sections when bugHuntUncommittedFiles > 0 (E-329)', () => {
+		const result = assembleReworkPrompt({
+			reworkText: sampleReworkText,
+			implPrompt: null,
+			worktreePath: '/var/worktrees/task-1',
+			branchName: 'task/M1-T1',
+			bugHuntUncommittedFiles: 3,
+		});
+
+		const expectedNotice = '工作区已有查 bug 阶段未提交改动 3 个文件，先看 git status 再改';
+		expect(result.startsWith(expectedNotice)).toBe(true);
+
+		const noticeIndex = result.indexOf(expectedNotice);
+		const firstH2Index = result.indexOf('##');
+		expect(noticeIndex).toBe(0);
+		expect(noticeIndex).toBeLessThan(firstH2Index);
+	});
+
+	it('interpolates N correctly and omits notice when bugHuntUncommittedFiles <= 0 or undefined (E-329)', () => {
+		const resultWith1 = assembleReworkPrompt({
+			reworkText: sampleReworkText,
+			implPrompt: null,
+			worktreePath: '/var/worktrees/task-1',
+			bugHuntUncommittedFiles: 1,
+		});
+		expect(resultWith1).toContain('工作区已有查 bug 阶段未提交改动 1 个文件，先看 git status 再改');
+
+		const resultWith0 = assembleReworkPrompt({
+			reworkText: sampleReworkText,
+			implPrompt: null,
+			worktreePath: '/var/worktrees/task-1',
+			bugHuntUncommittedFiles: 0,
+		});
+		expect(resultWith0).not.toContain('工作区已有查 bug 阶段未提交改动');
+
+		const resultWithUndefined = assembleReworkPrompt({
+			reworkText: sampleReworkText,
+			implPrompt: null,
+			worktreePath: '/var/worktrees/task-1',
+		});
+		expect(resultWithUndefined).not.toContain('工作区已有查 bug 阶段未提交改动');
 	});
 });

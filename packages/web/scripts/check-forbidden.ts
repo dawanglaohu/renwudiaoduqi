@@ -17,6 +17,45 @@ export interface CheckForbiddenReport {
 
 const INDIGO_VIOLET_HEXES = ['#6366f1', '#5e6ad2', '#635bff', '#7c3aed'];
 
+/** Build configs that alias tokens for Tailwind and PostCSS and may declare none (M9-T24, E-159). */
+const BUILD_CONFIG_FILE_NAMES = ['tailwind.config.ts', 'postcss.config.cjs'] as const;
+
+const GENERIC_FONT_FAMILY_REGEX =
+	/\b(?:sans-serif|serif|monospace|system-ui|ui-sans-serif|ui-serif|ui-monospace|ui-rounded|cursive|fantasy|emoji|fangsong)\b/g;
+const STRING_LITERAL_REGEX = /'[^'\n]*'|"[^"\n]*"|`[^`\n]*`/g;
+const TOKEN_ALIAS_REGEX = /^var\(--[\w-]+\)$/;
+
+/** Blanks comment bodies with spaces (string literals kept) so line numbers survive the scan. */
+function blankComments(source: string): string {
+	return source.replace(
+		/('[^'\n]*'|"[^"\n]*"|`[^`\n]*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g,
+		(match, literal?: string) => literal ?? match.replace(/[^\n]/g, ' '),
+	);
+}
+
+/**
+ * Line numbers of font stacks in a build config (M9-T24, E-159). A generic family keyword
+ * anywhere, or a `fontFamily` entry that is not a `var(--…)` alias, both count: typefaces are
+ * declared in tokens.css and reach Tailwind only through that alias.
+ */
+export function findFontStacks(source: string): number[] {
+	const code = blankComments(source);
+	const lineOf = (index: number): number => code.slice(0, index).split('\n').length;
+	const lines = new Set<number>();
+	for (const match of code.matchAll(GENERIC_FONT_FAMILY_REGEX)) {
+		lines.add(lineOf(match.index ?? 0));
+	}
+	for (const block of code.matchAll(/\bfontFamily\s*:\s*\{([^}]*)\}/g)) {
+		const bodyStart = (block.index ?? 0) + block[0].indexOf('{') + 1;
+		for (const literal of (block[1] ?? '').matchAll(STRING_LITERAL_REGEX)) {
+			if (!TOKEN_ALIAS_REGEX.test(literal[0].slice(1, -1))) {
+				lines.add(lineOf(bodyStart + (literal.index ?? 0)));
+			}
+		}
+	}
+	return [...lines].sort((a, b) => a - b);
+}
+
 /**
  * Line numbers of `html` / `:root` rule blocks that lock the root font size (E-15).
  * Matching has to cover the whole declaration block: the formatter puts the declaration on its
@@ -75,10 +114,13 @@ function walkFiles(dir: string, filter?: (path: string) => boolean): string[] {
 	return results;
 }
 
-export function runForbiddenCheck(projectRootPath?: string): CheckForbiddenReport {
+export function runForbiddenCheck(
+	projectRootPath?: string,
+	webDirPath?: string,
+): CheckForbiddenReport {
 	const scriptDir =
 		typeof __dirname !== 'undefined' ? __dirname : dirname(fileURLToPath(import.meta.url));
-	const webDir = resolve(scriptDir, '..');
+	const webDir = webDirPath ?? resolve(scriptDir, '..');
 	const rootDir = projectRootPath ?? resolve(webDir, '../..');
 
 	const violations: ForbiddenViolation[] = [];
@@ -121,11 +163,11 @@ export function runForbiddenCheck(projectRootPath?: string): CheckForbiddenRepor
 
 	// 3. Scan packages/web source files for forbidden patterns
 	const webSourceFiles = walkFiles(join(webDir, 'src'), (f) => /\.(ts|tsx|css|js|jsx)$/.test(f));
-	// Also include tailwind.config.ts
-	const tailwindConfig = join(webDir, 'tailwind.config.ts');
-	if (existsSync(tailwindConfig)) {
-		webSourceFiles.push(tailwindConfig);
-	}
+	// Both build configs go through the same colour rules as src/ (M9-T24)
+	const buildConfigFiles = BUILD_CONFIG_FILE_NAMES.map((name) => join(webDir, name)).filter(
+		(file) => existsSync(file),
+	);
+	webSourceFiles.push(...buildConfigFiles);
 
 	const tokensCssPath = resolve(webDir, 'src/styles/tokens.css');
 
@@ -322,7 +364,21 @@ export function runForbiddenCheck(projectRootPath?: string): CheckForbiddenRepor
 			}
 		}
 
-		// Check 8: @keyframes must only appear in base.css and nowhere else (AC 3, E-282)
+		// Check 8: Font stacks in the build configs (M9-T24, E-159)
+		if (buildConfigFiles.includes(file)) {
+			for (const line of findFontStacks(content)) {
+				violations.push({
+					rule: 'FONT_STACK_IN_BUILD_CONFIG',
+					file: relPath,
+					line,
+					snippet: lines[line - 1]?.trim(),
+					message:
+						'Font stacks live in src/styles/tokens.css only; tailwind.config.ts and postcss.config.cjs must alias var(--font-*) (E-159).',
+				});
+			}
+		}
+
+		// Check 9: @keyframes must only appear in base.css and nowhere else (AC 3, E-282)
 		const isBaseCss = resolve(file) === resolve(webDir, 'src/styles/base.css');
 		if (!isBaseCss) {
 			const cleanContent = content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
@@ -343,7 +399,7 @@ export function runForbiddenCheck(projectRootPath?: string): CheckForbiddenRepor
 			}
 		}
 
-		// Check 9: animation: properties must not appear outside src/styles/ (AC 3, E-282)
+		// Check 10: animation: properties must not appear outside src/styles/ (AC 3, E-282)
 		const isStylesFile = file.includes('/src/styles/') || file.includes('\\src\\styles\\');
 		if (!isStylesFile) {
 			const cleanContent = content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
@@ -369,7 +425,8 @@ export function runForbiddenCheck(projectRootPath?: string): CheckForbiddenRepor
 		}
 	}
 
-	// Check 10: @keyframes must appear exactly once across base.css (AC 3, E-282)
+	// Check 11: @keyframes must appear exactly once across base.css (AC 3, E-282).
+	// Only the real stylesheet is judged; a scan of a synthetic web dir without base.css is not a violation.
 	const baseCssPath = resolve(webDir, 'src/styles/base.css');
 	if (existsSync(baseCssPath)) {
 		const baseContent = readFileSync(baseCssPath, 'utf8');
@@ -382,12 +439,6 @@ export function runForbiddenCheck(projectRootPath?: string): CheckForbiddenRepor
 				message: `@keyframes must appear exactly once in base.css and define agsched-pulse (found: ${keyframesMatches.join(', ') || 'none'}).`,
 			});
 		}
-	} else {
-		violations.push({
-			rule: 'KEYFRAMES_BASE_CSS_MISSING',
-			file: 'packages/web/src/styles/base.css',
-			message: 'packages/web/src/styles/base.css not found.',
-		});
 	}
 
 	return {
@@ -399,7 +450,9 @@ export function runForbiddenCheck(projectRootPath?: string): CheckForbiddenRepor
 // Standalone CLI execution
 if (process.argv[1]?.endsWith('check-forbidden.ts')) {
 	const report = runForbiddenCheck();
-	console.log('\n=== Architecture Forbidden Patterns Verification (M9-T1 / E-170, E-15) ===\n');
+	console.log(
+		'\n=== Architecture Forbidden Patterns Verification (M9-T1, M9-T24 / E-170, E-15, E-159) ===\n',
+	);
 
 	if (report.violations.length === 0) {
 		console.log('All architecture grep and token restrictions passed cleanly. (0 violations) ✓\n');

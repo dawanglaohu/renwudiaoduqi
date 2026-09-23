@@ -1,25 +1,7 @@
+import { RUN_STATES, type RunState } from '@agent-scheduler/shared/api/runs';
 import { AppError } from '../errors/app-error.ts';
 
-/**
- * 运行状态机的 13 个合法状态（09 节数据模型与 migrations/0001_init.sql）。
- */
-export const RUN_STATES = [
-	'queued',
-	'starting',
-	'running',
-	'awaiting_reply',
-	'exited',
-	'reviewing',
-	'reworking',
-	'awaiting_human',
-	'orphaned',
-	'landed',
-	'failed',
-	'aborted',
-	'interrupted',
-] as const;
-
-export type RunState = (typeof RUN_STATES)[number];
+export { RUN_STATES, type RunState };
 
 /**
  * 四个终态：零出边、不可逆（09 节非法迁移表）。
@@ -129,6 +111,20 @@ export const RUN_TRANSITION_REASONS = {
 	HUMAN_REJECTED: 'human_rejected',
 	// human kill orphaned
 	HUMAN_KILLED: 'human_killed',
+	// E-328
+	BUGHUNT_AGENT_UNAVAILABLE: 'bughunt_agent_unavailable',
+	// E-307
+	BUGHUNT_FIXED_OVER_LIMIT: 'bughunt_fixed_over_limit',
+	// E-308
+	BUGHUNT_OPEN_FINDINGS: 'bughunt_open_findings',
+	// E-320
+	BUGHUNT_UNPARSED: 'bughunt_unparsed',
+	// E-323
+	BUGHUNT_FAILED: 'bughunt_failed',
+	// E-307
+	BUGHUNT_REREVIEW: 'bughunt_rereview',
+	// E-321
+	BUGHUNT_CLEAN: 'bughunt_clean',
 } as const;
 
 export type RunTransitionReason =
