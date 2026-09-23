@@ -1425,6 +1425,11 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 						onLine: () => () => {},
 						onRaw: () => () => {},
 						onStderr: () => () => {},
+						// runService.attachProcess 会订阅 onJson/onExit，缺了会抛
+						// "process.onJson is not a function" 并被 fire-and-forget 的 launchRun 吞成
+						// unhandled rejection，污染整轮测试报告
+						onJson: () => () => {},
+						onExit: () => () => {},
 					}) as never,
 			},
 			runService,
