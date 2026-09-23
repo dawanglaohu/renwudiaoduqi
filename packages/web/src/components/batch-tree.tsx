@@ -26,6 +26,7 @@ import type { KeyboardEvent, MouseEvent } from 'react';
 import { pulseForRun } from '../lib/run-pulse.ts';
 import { PulseDot } from './pulse-dot.tsx';
 import { StatusBadge } from './status-badge.tsx';
+import { BatchWrapupFailureLine, type BatchWrapupFailureView } from './wrapup-report.tsx';
 
 /**
  * 任务行直接消费 shared TaskDto；进 HEAD 与跨批修复字段由 daemon 产出。
@@ -114,6 +115,13 @@ export interface BatchTreeProps {
 	readonly onSelectTask?: (taskId: string, batchId?: string) => void;
 	/** 点击收口按钮回调 */
 	readonly onWrapup?: (batchId: string) => void;
+	/**
+	 * 正在收口的批次 ID（请求在途 / 已接受、等 `batch.wrapup_started` 回流）：
+	 * 该批的「收口」按钮禁用，其余批不受影响（E-157）。
+	 */
+	readonly wrapupPendingBatchId?: string | null;
+	/** 每批最近一次收口被拒的具名原因，贴在该批标题行之下（E-157） */
+	readonly wrapupFailureByBatch?: ReadonlyMap<string, BatchWrapupFailureView>;
 	/** 点击收口运行行回调 */
 	readonly onOpenWrapupRun?: (runId: string, batchId: string) => void;
 	/** 外部自定义类名 */
@@ -230,6 +238,8 @@ export function BatchTree({
 	onSelectTask,
 	onWrapup,
 	onOpenWrapupRun,
+	wrapupPendingBatchId = null,
+	wrapupFailureByBatch,
 	className = '',
 }: BatchTreeProps) {
 	const isPhoneTier = densityTier === 'phone' || densityTier === 'phone-xs';
@@ -365,6 +375,8 @@ export function BatchTree({
 		>
 			{batches.map((batch) => {
 				const isExpanded = expandedIds.has(batch.id);
+				const isWrapupPending = wrapupPendingBatchId === batch.id;
+				const batchFailure = wrapupFailureByBatch?.get(batch.id) ?? null;
 				const hasWaiting = typeof batch.waitingCount === 'number' && batch.waitingCount > 0;
 				const hasCrossBatchFix = Boolean(batch.hasCrossBatchFix);
 
@@ -443,23 +455,43 @@ export function BatchTree({
 							{/* 第 3 列：收口徽标（E-272, 决策 85） */}
 							<div className="flex items-center shrink-0">{renderWrapupBadge(batch)}</div>
 
-							{/* 第 4 列：收口按钮（非手机档且 canWrapup 为真时渲染，决策 32） */}
+							{/* 第 4 列：收口按钮（非手机档且 canWrapup 为真时渲染，决策 32）
+							    请求在途 / 已接受待回流时禁用；一屏里只有这一颗收口按钮（E-157、E-297） */}
 							<div className="flex items-center shrink-0">
 								{batch.canWrapup && !isPhoneTier && (
 									<button
 										type="button"
 										data-action="wrapup-batch"
+										data-pending={isWrapupPending ? 'true' : 'false'}
+										disabled={isWrapupPending}
+										title={
+											isWrapupPending
+												? '收口请求已接受，等待 batch.wrapup_started 回流'
+												: `对第 ${batch.batchNo} 批发起一轮收口`
+										}
 										onClick={(e: MouseEvent) => {
 											e.stopPropagation();
-											onWrapup?.(batch.id);
+											if (!isWrapupPending) {
+												onWrapup?.(batch.id);
+											}
 										}}
-										className="h-btn-sm px-2 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 hover:border-border-strong font-ui text-micro font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--needs)]"
+										className={[
+											'h-btn-sm px-2 rounded-sm border border-border bg-panel-2 font-ui text-micro font-medium transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--needs)]',
+											isWrapupPending
+												? 'text-stopped cursor-not-allowed opacity-80'
+												: 'text-ink-2 hover:text-ink-1 hover:border-border-strong cursor-pointer',
+										].join(' ')}
 									>
-										收口
+										{isWrapupPending ? '收口中…' : '收口'}
 									</button>
 								)}
 							</div>
 						</div>
+
+						{/* 收口被拒的具名原因：贴在该批标题行之下，不重复画按钮（E-157） */}
+						{batchFailure && (
+							<BatchWrapupFailureLine failure={batchFailure} className="mx-2 mb-2" />
+						)}
 
 						{/* ─────────────────────────────────────────────────────────────
 						    子行区：折叠的批不渲染子行（AC 1 硬指标：非 display:none）

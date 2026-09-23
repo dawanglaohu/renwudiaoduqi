@@ -1,4 +1,4 @@
-﻿/**
+/**
  * packages/web/src/components/wrapup-report.tsx
  *
  * 收口报告面板与批次收口控件（M9-T20 / AC 2, AC 3, E-286, E-297, E-157）
@@ -17,7 +17,7 @@
  */
 
 import type { BatchWrapupDto, WrapupFindingDto } from '@agent-scheduler/shared/api/batches';
-import type { HTMLAttributes, MouseEvent, ReactNode } from 'react';
+import type { HTMLAttributes, MouseEvent } from 'react';
 import type { DensityTier } from '../hooks/use-breakpoint.ts';
 import type { WrapupFailureReason } from '../i18n/error-messages.ts';
 import type { StatusState } from '../lib/spine-shape.ts';
@@ -488,7 +488,7 @@ function WrapupLandingField(props: WrapupLandingFieldProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 批次收口控件（挂在批次标题下：按钮 + 具名拒绝原因）
+// 批次收口拒绝行（挂在批次标题下：只呈现，按钮归批次树）
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** 收口被拒的就地提示内容（文案由 i18n/error-messages.ts 生成，组件只呈现）。 */
@@ -501,110 +501,198 @@ export interface BatchWrapupFailureView {
 	readonly technical?: string;
 }
 
-export interface BatchWrapupControlProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
-	/** daemon 下发的能否收口（缺失一律按不可收口处理，不用前端逻辑补齐） */
-	readonly canWrapup?: boolean;
-	/** 是否手机档（手机端不出「收口」按钮，E-297） */
-	readonly isPhoneTier?: boolean;
-	/** 请求是否在途 / 已接受待回流事件（在途禁用，E-157） */
-	readonly isPending?: boolean;
-	/** 上次收口被拒的具名原因 */
+export interface BatchWrapupFailureLineProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
+	/** 上次收口被拒的具名原因；null 时整行不渲染 */
 	readonly failure?: BatchWrapupFailureView | null;
-	/** 点击「收口」回调（发起 POST，不在本组件里改任何状态） */
-	readonly onWrapup?: () => void;
-	/** 粗指针触控环境 */
-	readonly isTouch?: boolean;
-	/** 按钮文案（默认「收口」） */
-	readonly wrapupLabel?: string;
-	/** 在途文案（默认「收口中…」） */
-	readonly pendingLabel?: string;
-	/** 附加说明（如批次号） */
-	readonly children?: ReactNode;
 }
 
 /**
- * 批次收口控件：按钮只在 canWrapup 且非手机档渲染；请求在途禁用；
- * 具名拒绝原因贴在该批标题下（`data-placement="under-batch-title"`）。最终状态等 `batch.wrapup_started`。
+ * 批次收口被拒的具名原因行，直接渲染在该批标题行之下（`data-placement="under-batch-title"`）。
+ *
+ * 收口按钮本身归批次树（`batch-tree.tsx` 第 4 槽的既有按钮），这里只画拒绝原因，
+ * 保证一屏里不会出现两颗「收口」按钮（E-157、E-297）。
  */
-export function BatchWrapupControl(props: BatchWrapupControlProps) {
-	const {
-		canWrapup = false,
-		isPhoneTier = false,
-		isPending = false,
-		failure = null,
-		onWrapup,
-		isTouch = false,
-		wrapupLabel = '收口',
-		pendingLabel = '收口中…',
-		children,
-		className,
-		...rest
-	} = props;
+export function BatchWrapupFailureLine(props: BatchWrapupFailureLineProps) {
+	const { failure = null, className, ...rest } = props;
 
-	const showButton = Boolean(canWrapup) && !isPhoneTier;
-
-	if (!showButton && !failure) {
+	if (!failure) {
 		return null;
 	}
+
+	return (
+		<div
+			data-region="batch-wrapup-failure"
+			data-placement="under-batch-title"
+			data-failure-reason={failure.reason ?? 'unknown'}
+			className={[
+				'flex flex-col gap-1 rounded-[var(--r-sm,9px)] border border-[var(--down)] bg-[var(--down-soft)] px-2 py-1.5 font-ui text-[12px] text-[var(--down)]',
+				className ?? '',
+			]
+				.join(' ')
+				.trim()}
+			{...rest}
+		>
+			<span data-field="wrapup-failure-message">{failure.message}</span>
+			{failure.technical && (
+				<details className="text-[11px] text-[var(--ink-3)]">
+					<summary className="cursor-pointer hover:text-[var(--ink-2)]">技术详情</summary>
+					<div className="font-mono break-all">{failure.technical}</div>
+				</details>
+			)}
+		</div>
+	);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 批次级落地清单（E-74 批次侧：每轮收口一行 + 各修复分支一行，复制而不执行）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 批次级落地清单的一行（行数据由 features 层从 daemon 的收口记录与运行行拼出）。 */
+export interface BatchLandingChecklistRow {
+	readonly id: string;
+	readonly kind: 'wrapup' | 'fix';
+	readonly round: number;
+	readonly label: string;
+	readonly branchName: string | null;
+	readonly worktreePath: string | null;
+	readonly diffStat: string | null;
+	/** daemon 的 RunDto.isInHead，缺失一律 null（不在前端推断是否进 HEAD） */
+	readonly inHead: boolean | null;
+	/** 可一键复制的命令文本（只生成，绝不执行） */
+	readonly command: string;
+	readonly runId: string | null;
+}
+
+export interface BatchLandingChecklistProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
+	readonly batchNo?: number | null;
+	readonly rows: readonly BatchLandingChecklistRow[];
+	/** 复制回调（token, text） */
+	readonly onCopyField?: (token: string, text: string) => void;
+	/** 当前已复制的 token */
+	readonly copiedToken?: string | null;
+	readonly isTouch?: boolean;
+}
+
+/**
+ * 批次级只读落地清单：逐轮收口分支与各修复分支各一行，`inHead` 为真的行打勾，命令可复制不可执行（E-74）。
+ */
+export function BatchLandingChecklist(props: BatchLandingChecklistProps) {
+	const { batchNo, rows, onCopyField, copiedToken, isTouch = false, className, ...rest } = props;
 
 	const touchClass = isTouch ? 'min-h-[var(--h-btn-lg,44px)]' : 'h-[var(--h-btn,32px)]';
 
 	return (
-		<div
-			data-region="batch-wrapup"
-			data-placement="under-batch-title"
-			data-can-wrapup={canWrapup ? 'true' : 'false'}
-			data-phone-tier={isPhoneTier ? 'true' : 'false'}
-			className={['flex flex-col gap-1.5', className ?? ''].join(' ').trim()}
+		<section
+			data-component="batch-landing-list"
+			data-batch-no={batchNo ?? 'null'}
+			data-row-count={rows.length}
+			className={['flex flex-col gap-3', className ?? ''].join(' ').trim()}
 			{...rest}
 		>
-			{showButton && (
+			<div className="flex flex-col gap-1 border-b border-[var(--border)] pb-2">
 				<div className="flex items-center gap-2">
-					{children}
-					<button
-						type="button"
-						data-action="wrapup-batch"
-						data-pending={isPending ? 'true' : 'false'}
-						disabled={isPending}
-						title={
-							isPending ? '收口请求已接受，等待 batch.wrapup_started 回流' : '对本批发起一轮收口'
-						}
-						onClick={() => {
-							if (!isPending) {
-								onWrapup?.();
-							}
-						}}
-						className={[
-							'inline-flex items-center justify-center ml-auto px-2.5 rounded-[var(--r-sm,9px)]',
-							'border border-[var(--border)] bg-[var(--panel-2)] font-ui text-[12px] font-medium',
-							isPending
-								? 'text-[var(--stopped)] cursor-not-allowed opacity-80'
-								: 'text-[var(--ink-1)] cursor-pointer hover:border-[var(--border-strong)]',
-							'focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_var(--needs-soft)]',
-							touchClass,
-						].join(' ')}
-					>
-						{isPending ? pendingLabel : wrapupLabel}
-					</button>
+					<span className="font-mono text-[14px] font-bold text-[var(--needs)]">
+						{batchNo !== null && batchNo !== undefined ? `第 ${batchNo} 批` : '—'}
+					</span>
+					<span className="text-[var(--ink-3)]">·</span>
+					<span className="text-[14px] text-[var(--ink-2)]">批次级落地清单</span>
 				</div>
-			)}
+				<p className="text-[12px] text-[var(--ink-3)] m-0">
+					每轮收口分支与各修复分支各一行，命令只供复制、系统不代为执行（E-74）。
+				</p>
+			</div>
 
-			{failure && (
+			{rows.length === 0 ? (
 				<div
-					data-region="batch-wrapup-failure"
-					data-failure-reason={failure.reason ?? 'unknown'}
-					className="flex flex-col gap-1 rounded-[var(--r-sm,9px)] border border-[var(--down)] bg-[var(--down-soft)] px-2 py-1.5 font-ui text-[12px] text-[var(--down)]"
+					data-testid="batch-landing-empty"
+					className="rounded-[var(--r-sm,9px)] border border-[var(--border)] bg-[var(--bg)] p-4 font-mono text-[12px] text-[var(--ink-3)]"
 				>
-					<span data-field="wrapup-failure-message">{failure.message}</span>
-					{failure.technical && (
-						<details className="text-[11px] text-[var(--ink-3)]">
-							<summary className="cursor-pointer hover:text-[var(--ink-2)]">技术详情</summary>
-							<div className="font-mono break-all">{failure.technical}</div>
-						</details>
-					)}
+					该批还没有可落地的收口分支
 				</div>
+			) : (
+				<ul className="flex flex-col gap-2 list-none m-0 p-0">
+					{rows.map((row) => {
+						const inHeadText =
+							row.inHead === true ? '✓ 已进 HEAD' : row.inHead === false ? '未进 HEAD' : '—';
+						const commandToken = `batch-landing:${row.id}`;
+						const canCopy = Boolean(onCopyField);
+						return (
+							<li
+								key={row.id}
+								data-batch-landing-row={row.kind}
+								data-round={row.round}
+								data-run-id={row.runId ?? ''}
+								data-in-head={
+									row.inHead === true ? 'true' : row.inHead === false ? 'false' : 'null'
+								}
+								className="flex flex-col gap-2 rounded-[var(--r-sm,9px)] border border-[var(--border)] bg-[var(--bg)] p-3"
+							>
+								<div className="flex items-center gap-2 flex-wrap">
+									<span className="font-ui text-[14px] font-semibold text-[var(--ink-1)]">
+										{row.label}
+									</span>
+									<span
+										data-field="batch-landing-in-head"
+										className={
+											row.inHead === true
+												? 'font-mono text-[12px] text-[var(--auto)]'
+												: 'font-mono text-[12px] text-[var(--ink-3)]'
+										}
+									>
+										{inHeadText}
+									</span>
+								</div>
+
+								<div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-mono text-[12.5px]">
+									<div data-field="batch-landing-branch" className="truncate text-[var(--ink-1)]">
+										<span className="text-[var(--ink-3)] font-ui text-[12px]">分支 </span>
+										{row.branchName ?? '—'}
+									</div>
+									<div data-field="batch-landing-worktree" className="truncate text-[var(--ink-2)]">
+										<span className="text-[var(--ink-3)] font-ui text-[12px]">worktree </span>
+										{row.worktreePath ?? '—'}
+									</div>
+									<div data-field="batch-landing-diff" className="truncate text-[var(--ink-2)]">
+										<span className="text-[var(--ink-3)] font-ui text-[12px]">diff </span>
+										{row.diffStat ?? '—'}
+									</div>
+								</div>
+
+								<div className="flex items-center gap-2">
+									<pre
+										data-field="batch-landing-command"
+										className="flex-1 m-0 rounded-[var(--r-sm,9px)] bg-[var(--panel-2)] border border-[var(--border)] p-2 font-mono text-[12.5px] text-[var(--ink-1)] overflow-x-auto select-all"
+									>
+										{row.command}
+									</pre>
+									<button
+										type="button"
+										data-copy-token={commandToken}
+										disabled={!canCopy}
+										onClick={() => {
+											if (canCopy) {
+												onCopyField?.(commandToken, row.command);
+											}
+										}}
+										className={[
+											'shrink-0 px-3 rounded-[var(--r-sm,9px)] border border-[var(--border-strong)] bg-[var(--panel-2)]',
+											'font-mono text-[12px]',
+											canCopy
+												? 'text-[var(--ink-1)] hover:border-[var(--needs)] cursor-pointer'
+												: 'text-[var(--stopped)] cursor-not-allowed opacity-80',
+											'focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_var(--needs-soft)]',
+											touchClass,
+										].join(' ')}
+									>
+										{copiedToken === commandToken ? '✓ 已复制' : '复制命令'}
+									</button>
+								</div>
+							</li>
+						);
+					})}
+				</ul>
 			)}
-		</div>
+		</section>
 	);
 }
 

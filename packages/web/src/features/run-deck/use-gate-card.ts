@@ -26,18 +26,30 @@ import {
 	getErrorMessage,
 } from '../../i18n/error-messages.ts';
 
-const RUN_MESSAGES_PATH = '/api/v1/runs/:runId/messages' as const;
-
-function findRoute(method: 'POST', path: string): RouteDefinition {
-	const route = ROUTES.find((entry) => entry.method === method && entry.path === path);
+/**
+ * 按共享路由表自身的字段取路由定义（R5）：不重复写 URL 字面量。
+ * `reqType` 与 shared 的类型名同名且唯一，契约变了这里立刻抛错而不是静默走错路径。
+ */
+function findRouteByTypes(
+	method: 'POST',
+	types: { readonly resType?: string; readonly reqType?: string },
+): RouteDefinition {
+	const route = ROUTES.find(
+		(entry) =>
+			entry.method === method &&
+			(types.resType === undefined || entry.resType === types.resType) &&
+			(types.reqType === undefined || entry.reqType === types.reqType),
+	);
 	if (!route) {
 		// 契约表缺失时立刻暴露，而不是退回硬编码 URL（07 节：禁止 URL 字面量）
-		throw new Error(`${method} ${path} is missing from the shared ROUTES table`);
+		throw new Error(
+			`${method} route with ${JSON.stringify(types)} is missing from the shared ROUTES table`,
+		);
 	}
 	return route;
 }
 
-const POST_RUN_MESSAGE_ROUTE = findRoute('POST', RUN_MESSAGES_PATH);
+const POST_RUN_MESSAGE_ROUTE = findRouteByTypes('POST', { reqType: 'CreateRunMessageBody' });
 
 /** 投递实现（单测注入假实现，生产走默认实现）。 */
 export type DeliverRawSender = (
