@@ -85,6 +85,11 @@ export interface AssembleReworkPromptInput {
 	 * 任务 ID（可选）
 	 */
 	readonly taskId?: string | null;
+
+	/**
+	 * 查 bug 阶段遗留未提交改动文件数（可选，E-329）
+	 */
+	readonly bugHuntUncommittedFiles?: number;
 }
 
 /**
@@ -101,6 +106,13 @@ export function assembleReworkPrompt(input: AssembleReworkPromptInput): string {
 	const rulesText = extractReworkRules(input.implPrompt) ?? BUILTIN_REWORK_RULES;
 
 	const sections: string[] = [];
+
+	// E-329：查 bug 后人工打回时返工文本头部附未提交文件提示（在任何 ## 段之前）
+	if (typeof input.bugHuntUncommittedFiles === 'number' && input.bugHuntUncommittedFiles > 0) {
+		sections.push(
+			`工作区已有查 bug 阶段未提交改动 ${input.bugHuntUncommittedFiles} 个文件，先看 git status 再改`,
+		);
+	}
 
 	// 标题
 	const taskLabel = input.taskId ? `（任务 ${input.taskId}）` : '';

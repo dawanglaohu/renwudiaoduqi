@@ -1,0 +1,14 @@
+BUGS
+- none
+
+FIXED
+- none
+
+NOT_FIXED
+- none
+
+SUSPECT
+- none
+
+NEXT
+- 全部测试通过，可以落地。

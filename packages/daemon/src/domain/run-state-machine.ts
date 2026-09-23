@@ -111,6 +111,20 @@ export const RUN_TRANSITION_REASONS = {
 	HUMAN_REJECTED: 'human_rejected',
 	// human kill orphaned
 	HUMAN_KILLED: 'human_killed',
+	// E-328
+	BUGHUNT_AGENT_UNAVAILABLE: 'bughunt_agent_unavailable',
+	// E-307
+	BUGHUNT_FIXED_OVER_LIMIT: 'bughunt_fixed_over_limit',
+	// E-308
+	BUGHUNT_OPEN_FINDINGS: 'bughunt_open_findings',
+	// E-320
+	BUGHUNT_UNPARSED: 'bughunt_unparsed',
+	// E-323
+	BUGHUNT_FAILED: 'bughunt_failed',
+	// E-307
+	BUGHUNT_REREVIEW: 'bughunt_rereview',
+	// E-321
+	BUGHUNT_CLEAN: 'bughunt_clean',
 } as const;
 
 export type RunTransitionReason =
