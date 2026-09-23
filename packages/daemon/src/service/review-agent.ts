@@ -933,6 +933,7 @@ export function prepareReviewRun(
  */
 export interface DispatchReviewRunInput extends PrepareReviewRunInput {
 	readonly autoSpawn?: boolean;
+	readonly onRunInserted?: (runId: string) => void;
 }
 
 /**
@@ -981,6 +982,7 @@ export async function dispatchReviewRun(
 		} else {
 			persist();
 		}
+		input.onRunInserted?.(runInsert.id);
 	}
 
 	// Publish run.started event on EventBus after transaction finishes

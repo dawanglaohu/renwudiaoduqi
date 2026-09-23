@@ -113,6 +113,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 		await server.listen({ host: config.bind, port: config.port });
 		for (const job of container.jobs) {
 			job.start();
+			console.log(`job started name=${job.name}`);
 		}
 		dependencies.writeRunLog(
 			`daemon ready pid=${dependencies.pid} bind=${config.bind} port=${config.port}`,

@@ -10,6 +10,7 @@ import {
 	checkTaskPathClash,
 	doPathSetsClash,
 	evaluatePathClashQueue,
+	evaluateWrapupFixSerialization,
 	findPathClashes,
 	getPathSegments,
 	isPathClash,
@@ -513,6 +514,86 @@ describe('M8-T2 domain/path-clash: 路径冲突检测与排队', () => {
 
 			expect(isWrapupFixSerialReason('path_conflict:task-1')).toBe(false);
 			expect(parseWrapupFixSerialReason('path_conflict:task-1')).toBeNull();
+		});
+
+		it('evaluates wrapup fix serialization: same wrapup candidates serialize behind each other (AC 2, E-280)', () => {
+			const c1 = {
+				runId: 'run-fix-1',
+				taskId: 'task-1',
+				taskPaths: ['src/a.ts'],
+				spawnedByRunId: 'run-wrapup-1',
+			};
+			const c2 = {
+				runId: 'run-fix-2',
+				taskId: 'task-2',
+				taskPaths: ['src/b.ts'],
+				spawnedByRunId: 'run-wrapup-1',
+			};
+			const c3 = {
+				runId: 'run-fix-3',
+				taskId: 'task-3',
+				taskPaths: ['src/c.ts'],
+				spawnedByRunId: 'run-wrapup-1',
+			};
+
+			const result = evaluateWrapupFixSerialization([c1, c2, c3]);
+
+			// First is runnable
+			expect(result.runnable).toHaveLength(1);
+			expect(result.runnable[0]?.runId).toBe('run-fix-1');
+
+			// Subsequent are serialized
+			expect(result.serialized).toHaveLength(2);
+			expect(result.serialized[0]?.candidate.runId).toBe('run-fix-2');
+			expect(result.serialized[0]?.waitingForRunId).toBe('run-fix-1');
+			expect(result.serialized[0]?.queuedReason).toBe('wrapup-fix-serial:run-fix-1');
+
+			expect(result.serialized[1]?.candidate.runId).toBe('run-fix-3');
+			expect(result.serialized[1]?.waitingForRunId).toBe('run-fix-2');
+			expect(result.serialized[1]?.queuedReason).toBe('wrapup-fix-serial:run-fix-2');
+		});
+
+		it('evaluates wrapup fix serialization: waits for active holding run from same wrapup', () => {
+			const activeRun = {
+				runId: 'run-fix-active',
+				taskId: 'task-1',
+				spawnedByRunId: 'run-wrapup-1',
+				state: 'running',
+			};
+			const c1 = {
+				runId: 'run-fix-2',
+				taskId: 'task-2',
+				taskPaths: ['src/b.ts'],
+				spawnedByRunId: 'run-wrapup-1',
+			};
+
+			const result = evaluateWrapupFixSerialization([c1], [activeRun]);
+
+			expect(result.runnable).toHaveLength(0);
+			expect(result.serialized).toHaveLength(1);
+			expect(result.serialized[0]?.candidate.runId).toBe('run-fix-2');
+			expect(result.serialized[0]?.waitingForRunId).toBe('run-fix-active');
+			expect(result.serialized[0]?.queuedReason).toBe('wrapup-fix-serial:run-fix-active');
+		});
+
+		it('evaluates wrapup fix serialization: does not serialize across different wrapup runs', () => {
+			const c1 = {
+				runId: 'run-fix-1',
+				taskId: 'task-1',
+				taskPaths: ['src/a.ts'],
+				spawnedByRunId: 'run-wrapup-1',
+			};
+			const c2 = {
+				runId: 'run-fix-2',
+				taskId: 'task-2',
+				taskPaths: ['src/b.ts'],
+				spawnedByRunId: 'run-wrapup-2',
+			};
+
+			const result = evaluateWrapupFixSerialization([c1, c2]);
+
+			expect(result.runnable).toHaveLength(2);
+			expect(result.serialized).toHaveLength(0);
 		});
 
 		it('throws AppError E_VALIDATION on invalid inputs to builders', () => {
