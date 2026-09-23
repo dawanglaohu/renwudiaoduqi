@@ -116,7 +116,8 @@ export function useBatchTree(options: UseBatchTreeOptions = {}): UseBatchTreeRes
 				const items = mapSnapshotToBatches(snapshot);
 				setFetchedBatches(items);
 				setError(null);
-				seedBatchExpansion(items, docId);
+				// 未显式给 docId 时用快照里批次所属的文档：每个 docId 只 seed 一次，切文档整体清空重 seed（07 节）
+				seedBatchExpansion(items, docId ?? items[0]?.docId);
 			} catch (cause: unknown) {
 				if (isMounted) {
 					setError(toBatchTreeError(cause));

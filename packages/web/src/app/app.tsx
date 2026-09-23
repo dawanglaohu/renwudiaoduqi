@@ -44,7 +44,8 @@ function AppTopbar({ match, banner }: AppTopbarProps) {
 				<div className="flex items-center gap-3">
 					<span className="font-mono text-dense font-semibold text-ink-1">Agent 任务调度器</span>
 				</div>
-				<div className="flex items-center gap-3">
+				{/* 手机档（< 600px）顶栏放不下三个开关，闸门只在设置页可切（11 节顶栏开关条款） */}
+				<div className="hidden min-[600px]:flex items-center gap-3">
 					{showGates && <GateTogglesContainer layout="topbar" />}
 				</div>
 			</header>
