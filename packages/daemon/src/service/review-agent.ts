@@ -1012,15 +1012,9 @@ export async function dispatchReviewRun(
 		const hostResult = takePlatformHostInputs({});
 		const effectivePlatform =
 			deps.platform ?? (hostResult.ok ? hostResult.value.platform : 'win32');
-		try {
-			managedProcess = deps.spawnManaged(launchSpec, {
-				platform: effectivePlatform,
-			});
-		} catch (spawnErr) {
-			const err = spawnErr instanceof Error ? spawnErr : new Error(String(spawnErr));
-			Object.assign(err, { runId: runInsert.id });
-			throw err;
-		}
+		managedProcess = deps.spawnManaged(launchSpec, {
+			platform: effectivePlatform,
+		});
 	}
 
 	// Construct RunRow representation for DTO mapping

@@ -1990,20 +1990,10 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				const failureReason = 'review_dispatch_failed';
 				const errorComment = `${failureReason}: ${errMessage}`;
 
-				const targetReviewRunId =
-					reviewRunId ??
-					(dispatchErr && typeof dispatchErr === 'object' && 'runId' in dispatchErr
-						? (dispatchErr as { runId?: string }).runId
-						: undefined) ??
-					(deps.runsRepo?.findLatestReview
-						? deps.runsRepo.findLatestReview(taskId)?.id
-						: undefined);
-				reviewRunId = targetReviewRunId;
+				const targetReviewRunId = reviewRunId;
 
-				let reviewStateEvent: EventEnvelope | null = null;
-				let implStateEvent: EventEnvelope | null = null;
-				let laneReleasedEvent: EventEnvelope | null = null;
-				let gateWaitingEvent: EventEnvelope | null = null;
+				const pendingEvents: Array<() => EventEnvelope> = [];
+				const envelopeFactory = deps.envelopeFactory;
 
 				const executeRecoveryInTx = () => {
 					// 1. 如果已创建审查运行，将其落到 failed
@@ -2017,18 +2007,20 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								endedAt: now,
 								queuedReason: errorComment,
 							});
-							if (deps.envelopeFactory) {
-								reviewStateEvent = deps.envelopeFactory.createEnvelope({
-									kind: 'run.state_changed',
-									runId: targetReviewRunId,
-									taskId,
-									payload: {
-										from: createdReviewRun.state,
-										to: 'failed',
-										reason: failureReason,
-										error: errMessage,
-									},
-								});
+							if (envelopeFactory) {
+								pendingEvents.push(() =>
+									envelopeFactory.createEnvelope({
+										kind: 'run.state_changed',
+										runId: targetReviewRunId,
+										taskId,
+										payload: {
+											from: createdReviewRun.state,
+											to: 'failed',
+											reason: failureReason,
+											error: errMessage,
+										},
+									}),
+								);
 							}
 						}
 					}
@@ -2047,45 +2039,55 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						});
 						currentState = 'awaiting_human';
 
-						if (deps.envelopeFactory) {
-							implStateEvent = deps.envelopeFactory.createEnvelope({
-								kind: 'run.state_changed',
-								runId: run.id,
-								taskId,
-								payload: {
-									from: 'reviewing',
-									to: 'awaiting_human',
-									reason: failureReason,
-									error: errMessage,
-								},
-							});
+						if (envelopeFactory) {
+							pendingEvents.push(() =>
+								envelopeFactory.createEnvelope({
+									kind: 'run.state_changed',
+									runId: run.id,
+									taskId,
+									payload: {
+										from: 'reviewing',
+										to: 'awaiting_human',
+										reason: failureReason,
+										error: errMessage,
+									},
+								}),
+							);
 						}
 					}
 
 					// 3. 释放 lane
 					if (deps.tasksRepo && taskId && run) {
 						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
-						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
-								kind: 'lane.released',
-								taskId,
-								runId: run.id,
-								payload: {
-									docId: laneRes.docId,
-									laneNo: laneRes.previousLaneNo,
+						if (laneRes && laneRes.changes === 1 && envelopeFactory) {
+							pendingEvents.push(() =>
+								envelopeFactory.createEnvelope({
+									kind: 'lane.released',
 									taskId,
 									runId: run.id,
-									reason: 'awaiting_human',
-								},
-							});
+									payload: {
+										docId: laneRes.docId,
+										laneNo: laneRes.previousLaneNo,
+										taskId,
+										runId: run.id,
+										reason: 'awaiting_human',
+									},
+								}),
+							);
 						}
 					}
 
 					// 4. 闸门落到 waiting 可恢复状态并留错误证据（幂等检查防残留）
 					if (deps.gatesRepo && run) {
 						const implRunId = run.id;
+						const pendingForRun = deps.gatesRepo.findPendingByRunId?.(implRunId) as
+							| { kind?: string; state?: string }
+							| null
+							| undefined;
 						const existingPendingGate =
-							deps.gatesRepo.findPendingByRunId?.(implRunId) ??
+							(pendingForRun?.kind === 'review' && pendingForRun.state === 'waiting'
+								? pendingForRun
+								: null) ??
 							deps.gatesRepo.list?.({ pendingOnly: true })?.find((g) => {
 								if (!g || typeof g !== 'object') return false;
 								const candidate = g as {
@@ -2125,16 +2127,18 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							}
 							gateCreated = true;
 
-							if (deps.envelopeFactory) {
-								gateWaitingEvent = deps.envelopeFactory.createEnvelope({
-									kind: 'task.gate_waiting',
-									runId: run.id,
-									taskId,
-									payload: {
-										gate: 'review',
-										comment: errorComment,
-									},
-								});
+							if (envelopeFactory) {
+								pendingEvents.push(() =>
+									envelopeFactory.createEnvelope({
+										kind: 'task.gate_waiting',
+										runId: run.id,
+										taskId,
+										payload: {
+											gate: 'review',
+											comment: errorComment,
+										},
+									}),
+								);
 							}
 						}
 					}
@@ -2147,10 +2151,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				}
 
 				if (deps.bus) {
-					if (reviewStateEvent) deps.bus.publish(reviewStateEvent);
-					if (implStateEvent) deps.bus.publish(implStateEvent);
-					if (laneReleasedEvent) deps.bus.publish(laneReleasedEvent);
-					if (gateWaitingEvent) deps.bus.publish(gateWaitingEvent);
+					for (const buildEvent of pendingEvents) deps.bus.publish(buildEvent());
 				}
 			}
 		}
