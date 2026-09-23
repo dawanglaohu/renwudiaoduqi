@@ -78,6 +78,15 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 		access?: (path: string) => Promise<void>;
 	};
 	let resumeSessionMock: ReturnType<typeof vi.fn>;
+	let spawnReworkRunMock: ReturnType<typeof vi.fn>;
+
+	/** 模拟生产投递器：把已 INSERT 的返工运行真的拉起来（starting → running）。 */
+	function markRunRunning(runId: string): void {
+		const row = runsStore.get(runId);
+		if (row) {
+			runsStore.set(runId, { ...row, state: 'running' });
+		}
+	}
 
 	function createDummyRun(overrides?: Partial<RunRow>): RunRow {
 		return {
@@ -349,10 +358,19 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 			access: vi.fn().mockResolvedValue(undefined),
 		};
 
-		resumeSessionMock = vi.fn().mockResolvedValue({
-			newRunId: 'run-resume-1',
-			messageId: 'msg-resume-1',
-			delivered: true,
+		resumeSessionMock = vi.fn().mockImplementation(async (input: { readonly runId: string }) => {
+			// 生产约定：恢复回调负责把这条运行真的拉起来（starting → running）。
+			markRunRunning(input.runId);
+			return {
+				newRunId: input.runId,
+				messageId: 'msg-resume-1',
+				delivered: true,
+			};
+		});
+
+		spawnReworkRunMock = vi.fn().mockImplementation(async (input: { readonly run: RunRow }) => {
+			// 生产约定：新开回调负责启动进程；只有真的起来了才算派发成功。
+			markRunRunning(input.run.id);
 		});
 	});
 
@@ -374,6 +392,7 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 			worktreeManager: mockWorktreeManager,
 			fs: mockFs,
 			resumeSession: resumeSessionMock,
+			spawnReworkRun: spawnReworkRunMock,
 			clock: { now: () => '2026-09-16T08:10:00.000Z' },
 			ids: { newId: () => 'new-run-id-789' },
 			enableSessionDispatch: true,
@@ -533,6 +552,128 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 			expect(reworkEvent?.payload.mode).toBe('new_run');
 			expect(reworkEvent?.payload.source).toBe('review');
 			expect(reworkEvent?.payload.reworkRunId).toBe('new-run-id-789');
+		});
+
+		it('#136: never reports success when the new-run callback never starts the process', async () => {
+			const run = createDummyRun({ agent_id: 'dsh', state: 'reviewing', rework_count: 0 });
+			runsStore.set(run.id, run);
+			snapshotsStore.set('snap-1', {
+				launch_spec_json: JSON.stringify({ adapterKind: 'native', agentId: 'dsh' }),
+			});
+
+			// 回调吞掉一切、什么也不做：这正是「无人消费的假成功」的形状。
+			const noopSpawn = vi.fn().mockResolvedValue(undefined);
+			const service = makeService({ spawnReworkRun: noopSpawn });
+
+			const result = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '- R1: 新开运行没有真的起来',
+				source: 'review',
+			});
+
+			expect(noopSpawn).toHaveBeenCalledTimes(1);
+			expect(result.success).toBe(false);
+			expect(result.action).toBe('undeliverable');
+			if (result.action === 'undeliverable') {
+				expect(result.reason).toBe('delivery_not_confirmed');
+				expect(result.reworkRunId).toBe('new-run-id-789');
+			}
+
+			// 留下可恢复状态：新开运行行落 failed 并带类型化原因，实施行仍留在 reviewing 等重试。
+			const createdRun = runsStore.get('new-run-id-789');
+			expect(createdRun?.state).toBe('failed');
+			expect(createdRun?.queued_reason).toBe('rework_delivery_failed:delivery_not_confirmed');
+			expect(publishedEvents.some((e) => e.kind === 'run.rework_dispatched')).toBe(false);
+		});
+
+		it('#136: never reports success when the resume callback reports undelivered', async () => {
+			const run = createDummyRun({
+				agent_id: 'codex',
+				state: 'exited',
+				rework_count: 0,
+				vendor_session_ref: 'session-ref-original',
+			});
+			runsStore.set(run.id, run);
+			snapshotsStore.set('snap-1', {
+				launch_spec_json: JSON.stringify({ adapterKind: 'native', agentId: 'codex' }),
+			});
+			mockProcessRegistry.set(run.id, createMockProcess(run.id, false));
+
+			const undeliveredResume = vi.fn().mockResolvedValue({
+				newRunId: 'new-run-id-789',
+				messageId: 'msg-undelivered',
+				delivered: false,
+			});
+			const service = makeService({ resumeSession: undeliveredResume });
+
+			const result = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '- R1: 恢复没送达',
+				source: 'review',
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.action).toBe('undeliverable');
+			if (result.action === 'undeliverable') {
+				expect(result.reason).toBe('delivery_not_confirmed');
+				expect(result.reworkRunId).toBe('new-run-id-789');
+			}
+			expect(runsStore.get('new-run-id-789')?.state).toBe('failed');
+			expect(publishedEvents.some((e) => e.kind === 'run.rework_dispatched')).toBe(false);
+		});
+
+		it('#136: missing resume callback is a typed undeliverable and inserts no ghost run row', async () => {
+			const run = createDummyRun({
+				agent_id: 'codex',
+				state: 'exited',
+				rework_count: 0,
+				vendor_session_ref: 'session-ref-original',
+			});
+			runsStore.set(run.id, run);
+			snapshotsStore.set('snap-1', {
+				launch_spec_json: JSON.stringify({ adapterKind: 'native', agentId: 'codex' }),
+			});
+			mockProcessRegistry.set(run.id, createMockProcess(run.id, false));
+
+			const service = makeService({ resumeSession: undefined });
+			const result = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '- R1: 没有恢复回调',
+				source: 'review',
+			});
+
+			expect(result.success).toBe(false);
+			if (result.action === 'undeliverable') {
+				expect(result.reason).toBe('session_resume_unavailable');
+				expect(result.reworkRunId).toBeNull();
+			} else {
+				throw new Error(`expected undeliverable, got ${result.action}`);
+			}
+			expect(runsStore.has('new-run-id-789')).toBe(false);
+		});
+
+		it('#136: missing new-run callback is a typed undeliverable and inserts no ghost run row', async () => {
+			const run = createDummyRun({ agent_id: 'dsh', state: 'reviewing', rework_count: 0 });
+			runsStore.set(run.id, run);
+			snapshotsStore.set('snap-1', {
+				launch_spec_json: JSON.stringify({ adapterKind: 'native', agentId: 'dsh' }),
+			});
+
+			const service = makeService({ spawnReworkRun: undefined });
+			const result = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '- R1: 没有新开回调',
+				source: 'review',
+			});
+
+			expect(result.success).toBe(false);
+			if (result.action === 'undeliverable') {
+				expect(result.reason).toBe('session_dispatch_unavailable');
+				expect(result.reworkRunId).toBeNull();
+			} else {
+				throw new Error(`expected undeliverable, got ${result.action}`);
+			}
+			expect(runsStore.has('new-run-id-789')).toBe(false);
 		});
 
 		it('AC 1 & E-93: reads capability bit from snapshot launch_spec_json.adapterKind, ignoring runtime agent capability changes', async () => {

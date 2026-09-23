@@ -417,49 +417,290 @@ function setupWiringEnvironment(
 	};
 }
 
+const REWORK_COMMENT = 'Please repair the parser boundary.';
+
+interface ReworkDecisionSeed {
+	readonly snapshotId?: string;
+	readonly agentId?: string;
+	readonly vendorSessionRef?: string | null;
+	readonly runState?: string;
+}
+
+/**
+ * 造出 E-327 的前置：一条已结束的实施运行 + 停在 awaiting_human 的任务 + 一张 waiting 的人工审查闸门。
+ * 这些都是"人在界面上点了打回"之前生产库里就有的行。
+ */
+function seedHumanReworkDecision(
+	env: ReturnType<typeof setupWiringEnvironment>,
+	seed: ReworkDecisionSeed = {},
+): void {
+	const { container, clock, tempDir } = env;
+	const worktreePath = join(tempDir, 'worktrees', 'task-1');
+	mkdirSync(worktreePath, { recursive: true });
+
+	container.repos.runs.insert({
+		id: 'ended-impl-run',
+		task_id: 'task-1',
+		attempt_no: 1,
+		kind: 'implement',
+		state: seed.runState ?? 'awaiting_human',
+		agent_id: seed.agentId ?? 'codex',
+		model_name: 'o3-mini',
+		effort_tier: 'high',
+		permission_tier: 'workspaceWrite',
+		snapshot_id: seed.snapshotId ?? 'snap-1',
+		worktree_path: worktreePath,
+		branch_name: 'task/M7-T9',
+		vendor_session_ref:
+			seed.vendorSessionRef === undefined ? 'vendor-session-1' : seed.vendorSessionRef,
+		started_at: clock.now(),
+	});
+	container.repos.tasks.updateManualState('task-1', 'awaiting_human');
+	const gatesRepo = container.repos.gates;
+	if (!gatesRepo) throw new Error('Gates repo missing from container');
+	gatesRepo.create({
+		id: 'human-review-gate',
+		task_id: 'task-1',
+		run_id: 'ended-impl-run',
+		kind: 'review',
+		state: 'waiting',
+		created_at: clock.now(),
+	});
+}
+
+async function postReworkDecision(
+	server: ReturnType<typeof createHttpServer>,
+	token: string,
+	gateId: string,
+	comment: string,
+) {
+	return await server.instance.inject({
+		method: 'POST',
+		url: `/api/v1/gates/${gateId}/decide`,
+		headers: { authorization: token },
+		payload: { decision: 'reject', comment },
+	});
+}
+
+async function waitFor(predicate: () => boolean, attempts = 80, delayMs = 20): Promise<boolean> {
+	for (let attempt = 0; attempt < attempts; attempt++) {
+		if (predicate()) return true;
+		await new Promise((r) => setTimeout(r, delayMs));
+	}
+	return predicate();
+}
+
 describe(
 	'M7-T9 Integration: Container Wiring (AC 2, AC 3, AC 4, E-53, E-57, E-104, E-120, E-123)',
 	{ timeout: 25000 },
 	() => {
-		it('E-327: real container reports an undelivered human rework decision and records one count', async () => {
-			const { container, clock } = setupWiringEnvironment();
+		it('E-327 / #136: real container delivers a human rework into an ended codex session by resuming it', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses } = env;
 			const server = createHttpServer({ container });
 			await server.instance.ready();
 			const token = await getAuthToken(container);
-			const gatesRepo = container.repos.gates;
-			if (!gatesRepo) throw new Error('Gates repo missing from container');
 
-			container.repos.runs.insert({
-				id: 'ended-impl-run',
-				task_id: 'task-1',
-				attempt_no: 1,
-				kind: 'implement',
-				state: 'awaiting_human',
-				agent_id: 'codex',
-				permission_tier: 'workspaceWrite',
-				snapshot_id: 'snap-1',
-				started_at: clock.now(),
+			const publishedEvents: Array<{ kind: string; payload: Record<string, unknown> }> = [];
+			container.events.bus.subscribe((envelope) => {
+				publishedEvents.push({
+					kind: envelope.kind,
+					payload: envelope.payload as Record<string, unknown>,
+				});
 			});
-			container.repos.tasks.updateManualState('task-1', 'awaiting_human');
-			gatesRepo.create({
-				id: 'human-review-gate',
+
+			seedHumanReworkDecision(env);
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+
+			// 有空槽 → 当场入道并投递成功，公开接口不再是 E_MESSAGE_UNDELIVERED。
+			expect(response.statusCode).toBe(200);
+			expect(response.json()).toEqual({ applied: true });
+
+			const decidedGate = container.repos.gates?.findById('human-review-gate');
+			expect(decidedGate?.decision).toBe('reject');
+			expect(decidedGate?.comment).toBe(REWORK_COMMENT);
+
+			// 人工决定当场计数一次；实施行迁 reworking 并当场拿到泳道。
+			const implRun = container.repos.runs.findById('ended-impl-run');
+			expect(implRun?.rework_count).toBe(1);
+			expect(implRun?.state).toBe('reworking');
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBe(1);
+
+			// 恢复分支：新运行继承计数与厂商会话引用，进程真的起来了。
+			const reworkRun = container.repos.runs
+				.listByTaskId('task-1')
+				.find((run) => run.origin === 'rework');
+			expect(reworkRun).toBeDefined();
+			expect(reworkRun?.state).toBe('running');
+			expect(reworkRun?.rework_count).toBe(1);
+			expect(reworkRun?.vendor_session_ref).toBe('vendor-session-1');
+			expect(reworkRun?.worktree_path).toBe(join(env.tempDir, 'worktrees', 'task-1'));
+
+			// 假进程可观察：返工意见与会话引用都进了启动参数。
+			const reworkProc = spawnedProcesses.find((p) => p.launchSpec.runId === reworkRun?.id);
+			expect(reworkProc).toBeDefined();
+			const args = reworkProc?.launchSpec.args ?? [];
+			expect(args[0]).toBe('exec');
+			expect(args).toContain('resume');
+			expect(args).toContain('vendor-session-1');
+			expect(args).toContain(REWORK_COMMENT);
+			expect(reworkProc?.launchSpec.cwd).toBe(join(env.tempDir, 'worktrees', 'task-1'));
+
+			// AC 4：事务后发 run.rework_dispatched{mode:'resume'}
+			const dispatched = publishedEvents.find((e) => e.kind === 'run.rework_dispatched');
+			expect(dispatched?.payload.mode).toBe('resume');
+			expect(dispatched?.payload.source).toBe('human');
+		});
+
+		it('E-327 / E-279 / #136: real container opens a new origin=rework run when the agent can neither reply nor resume', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses, clock } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			// generic-acp 收窄能力位：canReply=false、canResume=false（E-186 / E-279）
+			container.repos.dispatchSnapshots?.insert({
+				id: 'snap-generic',
 				task_id: 'task-1',
-				run_id: 'ended-impl-run',
-				kind: 'review',
-				state: 'waiting',
+				contract_hash: 'contract-hash-task-1',
+				task_paths_json: '[]',
+				launch_spec_json: JSON.stringify({ adapterKind: 'generic-acp' }),
 				created_at: clock.now(),
 			});
 
-			const response = await server.instance.inject({
-				method: 'POST',
-				url: '/api/v1/gates/human-review-gate/decide',
-				headers: { authorization: token },
-				payload: { decision: 'reject', comment: 'Please repair the implementation.' },
+			seedHumanReworkDecision(env, { snapshotId: 'snap-generic', vendorSessionRef: null });
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(response.statusCode).toBe(200);
+
+			const reworkRun = container.repos.runs
+				.listByTaskId('task-1')
+				.find((run) => run.origin === 'rework');
+			expect(reworkRun).toBeDefined();
+			expect(reworkRun?.state).toBe('running');
+			expect(reworkRun?.rework_count).toBe(1);
+			expect(reworkRun?.vendor_session_ref).toBeNull();
+
+			const reworkProc = spawnedProcesses.find((p) => p.launchSpec.runId === reworkRun?.id);
+			expect(reworkProc).toBeDefined();
+			const args = reworkProc?.launchSpec.args ?? [];
+			// E-279：无续接能力 → codex 走 exec 模式，自包含提示词必须进启动参数。
+			expect(args[0]).toBe('exec');
+			expect(args).not.toContain('resume');
+			const prompt = args.at(-1) ?? '';
+			expect(prompt).toContain(REWORK_COMMENT);
+			expect(prompt).toContain('收到返工指令时');
+			expect(prompt).toContain('- 工作区目录:');
+			expect(prompt).toContain('不 commit/push');
+		});
+
+		it('E-327 / #136: a rework parked for a lane is delivered by the scheduler tick once a slot frees, before new tasks', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses, clock } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			// laneCount=1，槽位被另一个停靠任务占着（E-326 / E-327）
+			container.repos.documents.updateLaneCount('doc-1', 1);
+			container.repos.tasks.insert({
+				id: 'task-holder',
+				doc_id: 'doc-1',
+				task_key: 'M8-T0',
+				title: 'Lane holder',
+				module_key: 'M8',
+				deps_json: '[]',
+				est_days: 1,
+				batch_id: 'batch-1',
+				manual_state: 'paused',
+				contract_hash: 'contract-hash-holder',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				has_accept_changed: 0,
+				has_prompt_changed: 0,
+				is_removed_from_doc: 0,
 			});
-			expect(response.statusCode).toBe(422);
-			expect(response.json().error.code).toBe('E_MESSAGE_UNDELIVERED');
-			expect(gatesRepo.findById('human-review-gate')?.decision).toBe('reject');
+			container.repos.tasks.assignLaneNo('task-holder', 1);
+
+			seedHumanReworkDecision(env);
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			// 无空槽：闸门决定成功但返工排队，不报投递失败，也绝不假装已投递。
+			expect(response.statusCode).toBe(200);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			expect(container.repos.runs.findById('ended-impl-run')?.state).toBe('reworking');
+			expect(container.repos.runs.findById('ended-impl-run')?.queued_reason).toBe('lane_full');
+			expect(spawnedProcesses.length).toBe(0);
+
+			// 槽位空出 → 下一次 tick 先于新任务把返工入道
+			container.repos.tasks.clearLaneNo('task-holder');
+			await container.services.dispatch.tick();
+
+			const delivered = await waitFor(() =>
+				spawnedProcesses.some((p) => p.launchSpec.args.includes(REWORK_COMMENT)),
+			);
+			expect(delivered).toBe(true);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBe(1);
 			expect(container.repos.runs.findById('ended-impl-run')?.rework_count).toBe(1);
+		});
+
+		it('E-327 / #136: a paused batch keeps the rework queued and the next tick delivers it after the batch resumes', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			container.repos.batches.updateState({ id: 'batch-1', state: 'paused' });
+			seedHumanReworkDecision(env);
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(response.statusCode).toBe(200);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			expect(container.repos.runs.findById('ended-impl-run')?.queued_reason).toBe('batch_paused');
+			expect(spawnedProcesses.length).toBe(0);
+
+			container.repos.batches.updateState({ id: 'batch-1', state: 'running' });
+			await container.services.dispatch.tick();
+
+			const delivered = await waitFor(() =>
+				spawnedProcesses.some((p) => p.launchSpec.args.includes(REWORK_COMMENT)),
+			);
+			expect(delivered).toBe(true);
+			expect(container.repos.runs.findById('ended-impl-run')?.rework_count).toBe(1);
+		});
+
+		it('E-327 / #136: the rework run that exits cleanly continues into the next review round', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			seedHumanReworkDecision(env);
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(response.statusCode).toBe(200);
+
+			const reworkRun = container.repos.runs
+				.listByTaskId('task-1')
+				.find((run) => run.origin === 'rework');
+			const reworkProc = spawnedProcesses.find((p) => p.launchSpec.runId === reworkRun?.id);
+			expect(reworkProc).toBeDefined();
+
+			reworkProc?.emitLine(
+				'{"method":"item/agentMessage/delta","params":{"delta":"Rework applied."}}',
+			);
+			await new Promise((r) => setTimeout(r, 30));
+			reworkProc?.emitExit(0);
+
+			const continued = await waitFor(() =>
+				container.repos.runs
+					.listByTaskId('task-1')
+					.some((run) => run.kind === 'review' && run.parent_run_id === reworkRun?.id),
+			);
+			expect(continued).toBe(true);
 		});
 
 		it('AC 2 & E-53 & E-57: Real container + fake process: exit 0 -> evaluateMechanicalCheck called -> kind=review inserted -> review verdict pass -> waiting gate -> POST decide -> landed by:human', async () => {

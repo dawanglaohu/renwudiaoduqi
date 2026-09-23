@@ -328,6 +328,10 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 			gatesRepo,
 			documentsRepo,
 			enableSessionDispatch: true,
+			// 与生产接线同约定（#136）：新开回调必须真的把这条运行拉起来，否则服务给类型化失败。
+			spawnReworkRun: async ({ run }: { run: { readonly id: string } }) => {
+				runsRepo.updateState({ id: run.id, state: 'running' });
+			},
 			// 强制走「分支三：新开实施运行」，让计数只在投递路径加一次，断言最干净
 			getAgentCapabilities: () => ({ canReply: false, canResume: false }),
 			worktreeManager: {

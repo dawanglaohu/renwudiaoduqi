@@ -492,6 +492,19 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			if (input.decision === 'reject') {
 				if (reworkDeliveryInput && deps.reworkService) {
 					const result = await deps.reworkService.dispatchRework(reworkDeliveryInput);
+					// #136：handover 与 undeliverable 都是「没人接住这次返工」。
+					// 闸门决定与计数已经落库，但投递没成功，必须回类型化错误，不能报成功。
+					if (result.mode === 'undeliverable') {
+						throw new AppError('E_MESSAGE_UNDELIVERED', result.message, {
+							details: {
+								gateId: gate.id,
+								decisionApplied: true,
+								targetRunId: result.targetRunId,
+								reworkRunId: result.reworkRunId ?? null,
+								reason: result.reason,
+							},
+						});
+					}
 					if (result.mode === 'handover') {
 						throw new AppError(
 							'E_MESSAGE_UNDELIVERED',
@@ -501,6 +514,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 									gateId: gate.id,
 									decisionApplied: true,
 									targetRunId: result.handover.targetRunId,
+									reason: 'session_dispatch_unavailable',
 								},
 							},
 						);

@@ -60,9 +60,53 @@ export type ReworkSource = 'review' | 'human' | 'manual' | 'wrapup';
  * - 'resume': 进程已结束且支持 canResume，恢复后回灌并明示新运行（AC 1, E-112）
  * - 'new_session': 既不能回灌也不能恢复，新开实施运行并自包含提示词（AC 1, E-279）
  * - 'awaiting_human': 达到重试上限或原分支丢失时转人（E-55, E-277）
- * - 'handover': 兼容 M7-T4 委托载荷
+ * - 'undeliverable': 没有任何投递器接住这次返工（缺回调 / 启动失败 / 送达未确认，E-112、E-279）
+ * - 'handover': 兼容 M7-T4 委托载荷（只在注入了 delegateToSessionRework 时出现）
  */
-export type ReworkMode = 'inject' | 'resume' | 'new_run' | 'awaiting_human' | 'handover';
+export type ReworkMode =
+	| 'inject'
+	| 'resume'
+	| 'new_run'
+	| 'awaiting_human'
+	| 'undeliverable'
+	| 'handover';
+
+/**
+ * 返工投递失败的类型化原因（E-112、E-279）。
+ * 与 `session-resume.ts` 的 `SessionResumeFailureReason` 同词表，外加服务层的两种：
+ * 没有投递器（`session_dispatch_unavailable`）与回调没把进程拉起来（`delivery_not_confirmed`）。
+ */
+export type ReworkUndeliverableReason =
+	| 'session_dispatch_unavailable'
+	| 'vendor_session_missing'
+	| 'session_resume_unavailable'
+	| 'session_resume_spec_failed'
+	| 'spawn_failed'
+	| 'premature_exit'
+	| 'delivery_not_confirmed';
+
+const UNDELIVERABLE_REASONS: ReadonlySet<string> = new Set([
+	'session_dispatch_unavailable',
+	'vendor_session_missing',
+	'session_resume_unavailable',
+	'session_resume_spec_failed',
+	'spawn_failed',
+	'premature_exit',
+	'delivery_not_confirmed',
+]);
+
+/**
+ * 从投递器抛出的错误里取类型化原因；取不到就归为「送达未确认」。
+ * 只读自身错误的结构，不解析厂商错误串。
+ */
+function undeliverableReasonFromError(error: unknown): ReworkUndeliverableReason {
+	const details = (error as { readonly details?: { readonly reason?: unknown } } | null)?.details;
+	const reason = details?.reason;
+	if (typeof reason === 'string' && UNDELIVERABLE_REASONS.has(reason)) {
+		return reason as ReworkUndeliverableReason;
+	}
+	return 'delivery_not_confirmed';
+}
 
 /**
  * 工作区 diff 统计数据接口（用于 E-68 diff 缩小或回退判定）。
@@ -187,6 +231,20 @@ export type DispatchReworkResult =
 			readonly reviewRunId?: string | null;
 			readonly reworkCount: number;
 			readonly reason: 'rework_limit_reached' | 'branch_missing';
+			readonly message: string;
+			readonly source: ReworkSource;
+			readonly diffRegression?: DiffRegressionEvaluation;
+	  }
+	| {
+			readonly success: false;
+			readonly action: 'undeliverable';
+			readonly mode: 'undeliverable';
+			readonly targetRunId: string;
+			readonly reviewRunId?: string | null;
+			/** 已落库的返工运行行（恢复/新开分支才会产生），失败后落在 `failed` 供人查看。 */
+			readonly reworkRunId?: string | null;
+			readonly reworkCount: number;
+			readonly reason: ReworkUndeliverableReason;
 			readonly message: string;
 			readonly source: ReworkSource;
 			readonly diffRegression?: DiffRegressionEvaluation;
@@ -559,6 +617,89 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		return undefined;
 	}
 
+	/**
+	 * 投递失败的类型化结果（E-112、E-279）。
+	 * 目标实施运行保持在调用方写下的 `reworking`，下一 tick 因此还能把它当返工重新入道（可恢复）。
+	 */
+	function buildUndeliverableResult(params: {
+		readonly targetRunId: string;
+		readonly reviewRunId: string | null;
+		readonly reworkRunId?: string | null;
+		readonly reworkCount: number;
+		readonly reason: ReworkUndeliverableReason;
+		readonly message: string;
+		readonly source: ReworkSource;
+		readonly diffRegression: DiffRegressionEvaluation;
+	}): DispatchReworkResult {
+		return Object.freeze({
+			success: false,
+			action: 'undeliverable',
+			mode: 'undeliverable',
+			targetRunId: params.targetRunId,
+			reviewRunId: params.reviewRunId,
+			reworkRunId: params.reworkRunId ?? null,
+			reworkCount: params.reworkCount,
+			reason: params.reason,
+			message: params.message,
+			source: params.source,
+			diffRegression: params.diffRegression,
+		});
+	}
+
+	/**
+	 * 把已落库的返工运行行落成 `failed` 并带上类型化原因，事件在事务后发。
+	 * 不留 `starting` 幽灵行：那一行既没有进程也没有终态，谁也说不清它是什么。
+	 */
+	function markReworkRunFailed(reworkRunId: string, reason: ReworkUndeliverableReason): void {
+		const row = deps.runsRepo.findById(reworkRunId);
+		if (!row || isTerminalRunState(row.state as RunState)) {
+			return;
+		}
+
+		const now = deps.clock.now();
+		const pendingEvents: EventEnvelope[] = [];
+
+		const persistFailure = () => {
+			deps.runsRepo.updateState({
+				id: reworkRunId,
+				state: 'failed',
+				fromState: row.state,
+				toState: 'failed',
+				queuedReason: `rework_delivery_failed:${reason}`,
+				endedAt: now,
+				actorDeviceId: null,
+			});
+
+			if (deps.envelopeFactory) {
+				pendingEvents.push(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'run.state_changed',
+						runId: reworkRunId,
+						taskId: row.task_id,
+						actorDeviceId: null,
+						payload: {
+							from: row.state as RunState,
+							to: 'failed',
+							reason: `rework_delivery_failed:${reason}`,
+						},
+					}),
+				);
+			}
+		};
+
+		if (deps.unitOfWork) {
+			deps.unitOfWork.run(persistFailure);
+		} else {
+			persistFailure();
+		}
+
+		if (deps.bus) {
+			for (const ev of pendingEvents) {
+				deps.bus.publish(ev);
+			}
+		}
+	}
+
 	async function dispatchRework(input: DispatchReworkInput): Promise<DispatchReworkResult> {
 		// 1. 校验输入
 		if (
@@ -747,13 +888,16 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				);
 
 			if (!isSessionDispatchEnabled) {
-				return Object.freeze({
-					success: true,
-					action: 'handover_to_m7_t5',
-					mode: 'handover',
-					handover: handoverPayload,
-					reason: !isProcessAlive ? 'process_ended' : 'capability_unsupported',
+				// #136：没有消费者时 handover 不是成功。进程已结束/无回话能力又没有任何投递器，
+				// 只能留下类型化失败，由闸门或补位方报 E_MESSAGE_UNDELIVERED，状态仍可恢复。
+				return buildUndeliverableResult({
+					targetRunId: targetRun.id,
+					reviewRunId: input.reviewRunId ?? null,
 					reworkCount: currentReworkCount,
+					reason: 'session_dispatch_unavailable',
+					message: `Rework for run '${targetRun.id}' has no session dispatcher: the process is ${
+						isProcessAlive ? 'alive but cannot reply' : 'ended'
+					} and no resume / new-run callback is wired.`,
 					source: input.source,
 					diffRegression,
 				});
@@ -1087,6 +1231,19 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 		// ========== 分支二：恢复后回灌并明示新运行（resume, E-112） ==========
 		if (isBranchTwo) {
+			// #136：缺恢复回调时不得先插一行再假装恢复成功——直接给类型化失败。
+			if (!deps.resumeSession) {
+				return buildUndeliverableResult({
+					targetRunId: targetRun.id,
+					reviewRunId: input.reviewRunId ?? null,
+					reworkCount: currentReworkCount,
+					reason: 'session_resume_unavailable',
+					message: `Run '${targetRun.id}' supports resume but no resumeSession callback is wired.`,
+					source: input.source,
+					diffRegression,
+				});
+			}
+
 			const newRunId = deps.ids.newId();
 			const existingRuns = deps.runsRepo.listByTaskId(targetRun.task_id);
 			const attemptNo = existingRuns.length + 1;
@@ -1155,10 +1312,11 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				}
 			}
 
-			// 事务提交后执行恢复投递
+			// 事务提交后执行恢复投递；只有进程真的起来且意见进了启动参数才算送达
 			let resumeMessageId: string | undefined = undefined;
-			if (deps.resumeSession) {
-				const resumeResult = await deps.resumeSession({
+			let resumeResult: ResumeSessionResult;
+			try {
+				resumeResult = await deps.resumeSession({
 					runId: newRunId,
 					taskId: targetRun.task_id,
 					agentId: targetRun.agent_id,
@@ -1166,9 +1324,56 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					kind: 'reply',
 					actorDeviceId: input.actorDeviceId ?? null,
 				});
-				resumeMessageId = resumeResult.messageId;
+			} catch (error) {
+				const reason = undeliverableReasonFromError(error);
+				markReworkRunFailed(newRunId, reason);
+				return buildUndeliverableResult({
+					targetRunId: targetRun.id,
+					reviewRunId: input.reviewRunId ?? null,
+					reworkRunId: newRunId,
+					reworkCount: currentReworkCount,
+					reason,
+					message: `Resuming the session for run '${targetRun.id}' failed: ${
+						error instanceof Error ? error.message : String(error)
+					}`,
+					source: input.source,
+					diffRegression,
+				});
+			}
 
-				// 恢复后状态切入 running
+			if (resumeResult.delivered !== true) {
+				markReworkRunFailed(newRunId, 'delivery_not_confirmed');
+				return buildUndeliverableResult({
+					targetRunId: targetRun.id,
+					reviewRunId: input.reviewRunId ?? null,
+					reworkRunId: newRunId,
+					reworkCount: currentReworkCount,
+					reason: 'delivery_not_confirmed',
+					message: `Resumed session for run '${targetRun.id}' did not confirm delivery.`,
+					source: input.source,
+					diffRegression,
+				});
+			}
+			resumeMessageId = resumeResult.messageId;
+
+			// 恢复回调必须真的把进程拉起来；仍停在 starting 说明它什么都没做。
+			const spawnedResumeRun = deps.runsRepo.findById(newRunId);
+			if (!spawnedResumeRun || spawnedResumeRun.state === 'starting') {
+				markReworkRunFailed(newRunId, 'delivery_not_confirmed');
+				return buildUndeliverableResult({
+					targetRunId: targetRun.id,
+					reviewRunId: input.reviewRunId ?? null,
+					reworkRunId: newRunId,
+					reworkCount: currentReworkCount,
+					reason: 'delivery_not_confirmed',
+					message: `Resume callback for run '${targetRun.id}' reported delivery but never started the process.`,
+					source: input.source,
+					diffRegression,
+				});
+			}
+
+			// 恢复后状态切入 running（投递器若已迁到 running 就不重复写、不重复发事件）
+			if (spawnedResumeRun.state === 'starting') {
 				const startEvents: EventEnvelope[] = [];
 				const persistRunning = () => {
 					deps.runsRepo.updateState({
@@ -1245,6 +1450,19 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 		// ========== 分支三：新开实施运行（new_session, E-279） ==========
 		// 既不能回灌也不能恢复：新开实施运行（origin='rework'、同任务 attempt_no+1、spawned_by_run_id=审查运行、同 worktree 与分支）
+		// #136：缺新开回调时不得先插一行再假装派发成功——直接给类型化失败。
+		if (!deps.spawnReworkRun) {
+			return buildUndeliverableResult({
+				targetRunId: targetRun.id,
+				reviewRunId: input.reviewRunId ?? null,
+				reworkCount: currentReworkCount,
+				reason: 'session_dispatch_unavailable',
+				message: `Run '${targetRun.id}' can neither reply nor resume and no spawnReworkRun callback is wired.`,
+				source: input.source,
+				diffRegression,
+			});
+		}
+
 		const newRunId = deps.ids.newId();
 		const existingRuns = deps.runsRepo.listByTaskId(targetRun.task_id);
 		const attemptNo = existingRuns.length + 1;
@@ -1343,8 +1561,8 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			}
 		}
 
-		// 事务提交后执行新运行派发回调（若注入）
-		if (deps.spawnReworkRun) {
+		// 事务提交后执行新运行派发回调；只有进程真的起来才算派发成功
+		try {
 			await deps.spawnReworkRun({
 				run: {
 					...newRunInsert,
@@ -1373,6 +1591,37 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					review_verdict: null,
 				},
 				reworkPrompt,
+			});
+		} catch (error) {
+			const reason = undeliverableReasonFromError(error);
+			markReworkRunFailed(newRunId, reason);
+			return buildUndeliverableResult({
+				targetRunId: targetRun.id,
+				reviewRunId: input.reviewRunId ?? null,
+				reworkRunId: newRunId,
+				reworkCount: currentReworkCount,
+				reason,
+				message: `Spawning the new rework run for '${targetRun.id}' failed: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+				source: input.source,
+				diffRegression,
+			});
+		}
+
+		// 派发回调必须真的把进程拉起来；仍停在 starting 说明它什么都没做。
+		const spawnedReworkRun = deps.runsRepo.findById(newRunId);
+		if (!spawnedReworkRun || spawnedReworkRun.state === 'starting') {
+			markReworkRunFailed(newRunId, 'delivery_not_confirmed');
+			return buildUndeliverableResult({
+				targetRunId: targetRun.id,
+				reviewRunId: input.reviewRunId ?? null,
+				reworkRunId: newRunId,
+				reworkCount: currentReworkCount,
+				reason: 'delivery_not_confirmed',
+				message: `Rework run '${newRunId}' was inserted but no process was started for it.`,
+				source: input.source,
+				diffRegression,
 			});
 		}
 

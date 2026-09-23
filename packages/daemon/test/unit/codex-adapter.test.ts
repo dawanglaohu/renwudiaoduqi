@@ -180,6 +180,35 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(spec.args[1]).toBe('--json');
 		});
 
+		it('E-112: resumes an ended session with `exec resume <SESSION_ID> <PROMPT>` (prompt in argv)', () => {
+			const spec = buildCodexLaunchSpec({
+				runId: 'run-resume-1',
+				cwd: '/workspace/project',
+				mode: 'exec',
+				model: 'o3-mini',
+				prompt: '- R1: 修好 parser.ts',
+				resumeSessionRef: 'thread-abc-123',
+			});
+
+			expect(spec.args[0]).toBe('exec');
+			expect(spec.args).toContain('resume');
+			expect(spec.args.indexOf('resume')).toBeLessThan(spec.args.indexOf('thread-abc-123'));
+			expect(spec.args.indexOf('thread-abc-123')).toBeLessThan(
+				spec.args.indexOf('- R1: 修好 parser.ts'),
+			);
+		});
+
+		it('E-112: refuses to fake a resume on app-server mode instead of silently starting a new session', () => {
+			expect(() =>
+				buildCodexLaunchSpec({
+					runId: 'run-resume-2',
+					cwd: '/workspace/project',
+					prompt: '- R1: 修好 parser.ts',
+					resumeSessionRef: 'thread-abc-123',
+				}),
+			).toThrowError(/resume/i);
+		});
+
 		it('marks isAcp=true when adapterKind is generic-acp', () => {
 			const spec = buildLaunchSpec({
 				runId: 'run-005',

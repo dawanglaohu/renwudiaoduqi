@@ -87,6 +87,7 @@ import {
 	createRunService,
 } from '../service/run.ts';
 import { createSessionArchiveService } from '../service/session-archive.ts';
+import { createSessionResumeDispatcher } from '../service/session-resume.ts';
 import { type SettingsService, createSettingsService } from '../service/settings.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
@@ -517,20 +518,6 @@ export function createContainer(input: {
 			unitOfWork,
 		});
 
-	const reworkService =
-		input.reworkService ??
-		createReworkService({
-			runsRepo: runs,
-			snapshotsRepo: dispatchSnapshots,
-			processRegistry,
-			messageService,
-			unitOfWork,
-			bus,
-			envelopeFactory,
-			clock: input.clock,
-			ids,
-		});
-
 	const runLogService =
 		input.runLogService ??
 		createRunLogService({
@@ -690,6 +677,85 @@ export function createContainer(input: {
 			ids,
 		});
 
+	/**
+	 * #136：返工投递的生产接线。
+	 *
+	 * - `resumeSession`：按被审运行快照的能力位选中「恢复」分支时，真的把厂商会话拉起来
+	 *   并把返工意见交给它（提示词进启动参数），失败抛 `E_MESSAGE_UNDELIVERED` 并留可恢复状态。
+	 * - `launchReworkRun`：选中「新开 `origin='rework'` 实施运行」分支时走既有的生产派发路径
+	 *   （`dispatchService.launchRun`：复用 worktree、挂进程、退出后自动续接下一轮审查），
+	 *   启动后回读运行行确认进程真的起来了，任何一步没起来就抛类型化错误。
+	 */
+	const dispatchServiceHolder: { current?: DispatchService } = {};
+
+	const resumeSessionDispatcher = createSessionResumeDispatcher({
+		runsRepo: runs,
+		tasksRepo: tasks,
+		documentsRepo: documents,
+		runMessagesRepo: runMessages,
+		processRegistry,
+		runService,
+		proc,
+		adapters,
+		bus,
+		envelopeFactory,
+		unitOfWork,
+		clock: input.clock,
+		ids,
+		logFailure: (error) =>
+			input.logViolation?.(error instanceof Error ? error.message : String(error)),
+	});
+
+	async function launchReworkRun(runId: string): Promise<void> {
+		const dispatcher = dispatchServiceHolder.current;
+		if (!dispatcher) {
+			throw new AppError('E_MESSAGE_UNDELIVERED', 'Dispatch service is not initialized yet.', {
+				details: { runId, reason: 'session_dispatch_unavailable' },
+			});
+		}
+
+		await dispatcher.launchRun(runId);
+
+		const row = runs.findById(runId);
+		if (!row || row.state === 'starting') {
+			throw new AppError(
+				'E_MESSAGE_UNDELIVERED',
+				`Rework run '${runId}' was inserted but its process never started.`,
+				{
+					details: {
+						runId,
+						reason: row ? 'delivery_not_confirmed' : 'run_missing',
+						state: row?.state ?? null,
+					},
+				},
+			);
+		}
+	}
+
+	const reworkService =
+		input.reworkService ??
+		createReworkService({
+			runsRepo: runs,
+			snapshotsRepo: dispatchSnapshots,
+			processRegistry,
+			messageService,
+			unitOfWork,
+			bus,
+			envelopeFactory,
+			clock: input.clock,
+			ids,
+			// #136：返工承接需要的任务 / 文档 / 工作区依赖，与恢复、新开两条投递通路。
+			tasksRepo: tasks,
+			gatesRepo: gates,
+			documentsRepo: documents,
+			worktreeManager,
+			gitRunner: input.gitRunner,
+			resumeSession: (resumeInput) => resumeSessionDispatcher(resumeInput),
+			spawnReworkRun: async (spawnInput) => {
+				await launchReworkRun(spawnInput.run.id);
+			},
+		});
+
 	const baseSelector =
 		input.baseSelector ??
 		createBaseSelector({
@@ -766,6 +832,9 @@ export function createContainer(input: {
 				},
 			},
 		});
+
+	// #136：返工「新开运行」分支通过这个 holder 拿到同一份生产派发路径（launchRun）。
+	dispatchServiceHolder.current = dispatchService;
 
 	const wrappedDispatchService: DispatchService = Object.freeze({
 		...dispatchService,

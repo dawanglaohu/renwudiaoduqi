@@ -440,6 +440,42 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return DEFAULT_AGENT_CONCURRENCY_LIMIT;
 	}
 
+	/**
+	 * 某个 agent 当前占用的并发名额（E-47 / E-54）。
+	 *
+	 * 被同任务后续实施运行取代的返工行（`kind='implement'`、`state='reworking'`，且同任务已有
+	 * `attempt_no` 更大的实施运行）不再计数：它的进程已经死了，返工工作交给后来那条运行，
+	 * 继续给它记一个名额等于把同一条流水线算两次。默认注册表里每个 agent 的 `maxConcurrency`
+	 * 都是 1，不排除这种行时，E-327 经 tick 的补位投递会被自己那条旧行永久挡住。
+	 */
+	function countAgentConcurrency(runs: readonly RunRow[], agentId: string): number {
+		const latestImplementAttempt = new Map<string, number>();
+		for (const run of runs) {
+			if (run.kind !== 'implement' || !run.task_id) continue;
+			const attempt = run.attempt_no ?? 0;
+			const current = latestImplementAttempt.get(run.task_id) ?? 0;
+			if (attempt > current) {
+				latestImplementAttempt.set(run.task_id, attempt);
+			}
+		}
+
+		let count = 0;
+		for (const run of runs) {
+			if (run.agent_id !== agentId) continue;
+			if (!countsTowardAgentConcurrency(run.state as RunState)) continue;
+			if (
+				run.kind === 'implement' &&
+				run.state === 'reworking' &&
+				run.task_id &&
+				(run.attempt_no ?? 0) < (latestImplementAttempt.get(run.task_id) ?? 0)
+			) {
+				continue;
+			}
+			count += 1;
+		}
+		return count;
+	}
+
 	async function createRun(input: CreateRunInput): Promise<CreateRunResult> {
 		const { taskId, agentId, idempotencyKey } = input;
 		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
@@ -1028,6 +1064,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								countAlreadyApplied: rw.countAlreadyApplied,
 							})
 							.then((result) => {
+								// #136：补位派出的返工同样不允许假成功——handover 与 undeliverable
+								// 都说明没人接住这次投递，记日志并让下一次 tick 再试（实施行留在 reworking）。
 								if (result?.mode === 'handover') {
 									logFailure(
 										new AppError(
@@ -1037,6 +1075,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 												details: { targetRunId: rw.targetRunId },
 											},
 										),
+									);
+								} else if (result?.mode === 'undeliverable') {
+									logFailure(
+										new AppError('E_MESSAGE_UNDELIVERED', result.message, {
+											details: {
+												targetRunId: result.targetRunId,
+												reworkRunId: result.reworkRunId ?? null,
+												reason: result.reason,
+											},
+										}),
 									);
 								}
 							})
@@ -1424,15 +1472,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 					// 4. 每 agent 并发上限（E-54）
 					const queuedAgentLimit = agentLimitFor(queuedRun.agent_id);
-					const queuedAgentActive = countActiveRunsForAgent(
-						allRuns
-							.filter(
-								(r) =>
-									r.agent_id === queuedRun.agent_id &&
-									r.id !== queuedRun.id &&
-									countsTowardAgentConcurrency(r.state as RunState),
-							)
-							.map((r) => r.state),
+					const queuedAgentActive = countAgentConcurrency(
+						allRuns.filter((r) => r.id !== queuedRun.id),
+						queuedRun.agent_id,
 					);
 					if (queuedAgentActive >= queuedAgentLimit) {
 						tasksDeferred.push({
@@ -1623,14 +1665,25 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					item: a,
 				}));
 
+				// E-327：被返工的那条实施运行此刻进程已死（进程还活着时走回灌，不进补位队列），
+				// 它不该再给这个 agent 记一个名额——返工是替换它，不是与它并排。不排除的话，
+				// agent 上限为 1（默认注册表就是 1）时补位队列里的返工永远拿不到名额。
+				const supersededReworkRunIds = new Set<string>();
+				for (const candidate of combinedCandidates) {
+					if (candidate.isRework && candidate.reworkRun) {
+						supersededReworkRunIds.add(candidate.reworkRun.id);
+					}
+				}
+
 				const allocation = allocateConcurrencySlots({
 					candidates: candidatesForAllocation,
 					availableSlots: free.length,
 					agentLimits: (agentId: string) => agentLimitFor(agentId),
 					activeRunsByAgent: (agentId: string) =>
-						allRuns.filter(
-							(r) => r.agent_id === agentId && countsTowardAgentConcurrency(r.state as RunState),
-						).length,
+						countAgentConcurrency(
+							allRuns.filter((run) => !supersededReworkRunIds.has(run.id)),
+							agentId,
+						),
 				});
 
 				for (const deferred of allocation.deferred) {
@@ -2148,7 +2201,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
 				prompt: runPrompt,
-				...(run.origin === 'wrapup-fix' && run.agent_id === 'codex' ? { mode: 'exec' } : {}),
+				// E-279 / #136：返工新开的实施会话与收口修复一样，提示词必须真的进启动参数，
+				// 否则新会话收不到任何返工意见。codex 只有 exec 模式把提示词放进 argv。
+				...((run.origin === 'wrapup-fix' || run.origin === 'rework') && run.agent_id === 'codex'
+					? { mode: 'exec' }
+					: {}),
 			});
 
 			let managed: ManagedProcess;
