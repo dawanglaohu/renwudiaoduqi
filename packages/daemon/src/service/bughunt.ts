@@ -231,9 +231,17 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				assertSessionRefFree({ taskId, vendorSessionRef: null }, { runsRepo: deps.runsRepo });
 
 				if (deps.dispatchSnapshotsRepo) {
+					// 子快照（09 节）：文本列与契约信息逐字复制实施快照，只把 impl_prompt 换成四段查 bug 提示词；
+					// 「最近快照」类查询按 parent_snapshot_id IS NULL 跳过子快照，子快照不参与契约/提示词是否变化的判断。
 					deps.dispatchSnapshotsRepo.insert({
 						id: snapshotId,
 						task_id: taskId,
+						parent_snapshot_id: implRun.snapshot_id ?? null,
+						input_text: implSnapshot?.input_text ?? null,
+						output_text: implSnapshot?.output_text ?? null,
+						accept_text: implSnapshot?.accept_text ?? null,
+						review_prompt: implSnapshot?.review_prompt ?? null,
+						bug_prompt: implSnapshot?.bug_prompt ?? null,
 						impl_prompt: bughuntPrompt,
 						launch_spec_json: launchSpecJson,
 						assignment_json: assignmentJson,

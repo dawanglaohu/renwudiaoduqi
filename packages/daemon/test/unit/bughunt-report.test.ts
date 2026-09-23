@@ -540,13 +540,29 @@ NEXT
 				}),
 			];
 
+			const implSnapshotRow: DispatchSnapshotInsertRow = {
+				id: 'snap-impl-orig',
+				task_id: 'task-1',
+				impl_prompt: '原始实施提示词',
+				review_prompt: '原始审查提示词',
+				bug_prompt: '文档提供的查 bug 提示词',
+				accept_text: '验收标准原文',
+				input_text: '输入段原文',
+				output_text: '输出段原文',
+				contract_hash: 'hash-impl',
+				task_paths_json: '["packages/daemon/src/service/bughunt.ts"]',
+				launch_spec_json: '{"agentId":"online-agent"}',
+				created_at: '2026-09-21T00:00:00.000Z',
+			};
 			const snapshots: DispatchSnapshotInsertRow[] = [];
 			const mockSnapshotsRepo: Partial<DispatchSnapshotsRepo> = {
 				insert: (row) => {
 					snapshots.push(row);
 				},
 				findById: (id: string) =>
-					(snapshots.find((s) => s.id === id) as DispatchSnapshotRow) ?? null,
+					id === implSnapshotRow.id
+						? (implSnapshotRow as DispatchSnapshotRow)
+						: ((snapshots.find((s) => s.id === id) as DispatchSnapshotRow) ?? null),
 			};
 
 			const mockRunsRepo: Partial<RunsRepo> = {
@@ -626,6 +642,20 @@ NEXT
 			expect(bughuntRun?.snapshot_id).toBe(newSnapshot?.id);
 			const implRun = runs.find((r) => r.id === 'impl-1');
 			expect(bughuntRun?.snapshot_id).not.toBe(implRun?.snapshot_id);
+
+			// 子快照：parent 指向实施快照，文本列与契约信息逐字复制（09 节，「最近快照」查询按 parent_snapshot_id IS NULL 跳过）
+			expect(newSnapshot?.parent_snapshot_id).toBe('snap-impl-orig');
+			expect(newSnapshot?.bug_prompt).toBe('文档提供的查 bug 提示词');
+			expect(newSnapshot?.review_prompt).toBe('原始审查提示词');
+			expect(newSnapshot?.accept_text).toBe('验收标准原文');
+			expect(newSnapshot?.contract_hash).toBe('hash-impl');
+			expect(newSnapshot?.task_paths_json).toBe('["packages/daemon/src/service/bughunt.ts"]');
+			expect(newSnapshot?.impl_prompt).not.toBe('原始实施提示词');
+
+			// 第二次派发仍从实施快照取文档材料（E-316：取派发快照那一刻的文档，不回落内置版）
+			const second = await service.dispatchBughunt({ implRunId: 'impl-1' });
+			expect(second.action).toBe('already_exists');
+			expect(snapshots).toHaveLength(1);
 		});
 	});
 
