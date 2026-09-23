@@ -1,7 +1,8 @@
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
-import type { GateSettings } from '@agent-scheduler/shared/api/settings';
+import type { GateSettings, PipelineSettings } from '@agent-scheduler/shared/api/settings';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { DEFAULT_GATE_SETTINGS, isValidGateSettings } from '../domain/gates.ts';
+import { isValidPipelineSettings, parsePipelineSettings } from '../domain/pipeline-settings.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
@@ -14,6 +15,7 @@ export interface SettingsServiceDeps {
 	readonly envelopeFactory: EnvelopeFactory;
 	readonly unitOfWork: UnitOfWork;
 	readonly warn?: (message: string, ...args: unknown[]) => void;
+	readonly nudgeTick?: () => void;
 	/**
 	 * Runs inside the same `unitOfWork.run` as the settings write (08 节：一个 HTTP 请求最多开一次
 	 * 事务，跨 service 的复合写必须聚进同一个 run)。Must not open a transaction of its own and
@@ -26,20 +28,13 @@ export interface SettingsServiceDeps {
 	) => readonly EventEnvelope[];
 }
 
-export interface PipelineSettingsSummary {
-	readonly bughunt: number;
-	readonly wrapupMode: 'auto' | 'manual';
-}
-
-const DEFAULT_PIPELINE_SETTINGS: PipelineSettingsSummary = Object.freeze({
-	bughunt: 0,
-	wrapupMode: 'auto',
-});
+export type PipelineSettingsSummary = PipelineSettings;
 
 export interface SettingsService {
 	readonly getGates: () => GateSettings;
 	readonly updateGates: (input: unknown, actorDeviceId: string | null) => GateSettings;
-	readonly getPipeline: () => PipelineSettingsSummary;
+	readonly getPipeline: () => PipelineSettings;
+	readonly updatePipeline: (input: unknown, actorDeviceId: string | null) => PipelineSettings;
 }
 
 export function createSettingsService(deps: SettingsServiceDeps): SettingsService {
@@ -135,27 +130,55 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 		},
 
 		/**
-		 * Safe reader for pipeline settings (M7-T8, M8-T8, E-356):
-		 * - Returns built-in default `{bughunt: 0, wrapupMode: 'auto'}` when row is absent or invalid.
+		 * Safe reader for pipeline settings (M7-T8, M8-T8, E-318, E-356):
+		 * - Returns built-in default `{bughunt: 0, wrapupMode: 'auto'}` when row is absent or invalid without inserting.
+		 * - Warns on corrupted/invalid values without overwriting the row.
 		 */
-		getPipeline(): PipelineSettingsSummary {
+		getPipeline(): PipelineSettings {
 			const row = deps.settingsRepo.get('pipeline');
-			if (!row) {
-				return DEFAULT_PIPELINE_SETTINGS;
+			return parsePipelineSettings(row?.value_json, logWarn);
+		},
+
+		/**
+		 * Updates pipeline settings (AC 5, E-318):
+		 * - Rejects missing fields or invalid values or additional properties with E_VALIDATION.
+		 * - Atomically persists in single transaction.
+		 * - Does not write to gates, documents, or dispatch_snapshots.
+		 * - Emits `settings.pipeline_changed` event after transaction.
+		 * - Triggers nudgeTick after transaction.
+		 */
+		updatePipeline(input: unknown, actorDeviceId: string | null): PipelineSettings {
+			if (!isValidPipelineSettings(input)) {
+				throw new AppError(
+					'E_VALIDATION',
+					'Invalid pipeline settings: all fields (bughunt: 0 | 1, wrapupMode: "auto" | "manual") must be provided with no additional properties.',
+				);
 			}
 
-			try {
-				const parsed = JSON.parse(row.value_json) as Record<string, unknown>;
-				const bughunt = parsed.bughunt === 1 ? 1 : 0;
-				const wrapupMode = parsed.wrapupMode === 'manual' ? 'manual' : 'auto';
-				return Object.freeze({ bughunt, wrapupMode });
-			} catch (cause) {
-				logWarn(
-					`Settings row for key='pipeline' has corrupted JSON. Falling back to default.`,
-					cause,
-				);
-				return DEFAULT_PIPELINE_SETTINGS;
-			}
+			const updated: PipelineSettings = Object.freeze({
+				bughunt: input.bughunt,
+				wrapupMode: input.wrapupMode,
+			});
+
+			const valueJson = JSON.stringify(updated);
+			const now = deps.clock.now();
+
+			deps.unitOfWork.run(() => {
+				deps.settingsRepo.set('pipeline', valueJson, now);
+			});
+
+			const envelope = deps.envelopeFactory.createEnvelope({
+				kind: 'settings.pipeline_changed',
+				actorDeviceId,
+				payload: {
+					pipeline: updated,
+				},
+			});
+
+			deps.bus.publish(envelope);
+			deps.nudgeTick?.();
+
+			return updated;
 		},
 	});
 }

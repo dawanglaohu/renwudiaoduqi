@@ -26,7 +26,12 @@ import {
 	createRunMessageBodySchema,
 	rerunRunBodySchema,
 } from './runs.ts';
-import { UPDATE_GATE_SETTINGS_BODY_KEYS, updateGateSettingsBodySchema } from './settings.ts';
+import {
+	UPDATE_GATE_SETTINGS_BODY_KEYS,
+	UPDATE_PIPELINE_SETTINGS_BODY_KEYS,
+	updateGateSettingsBodySchema,
+	updatePipelineSettingsBodySchema,
+} from './settings.ts';
 
 export interface RouteDefinition {
 	readonly method: 'GET' | 'POST' | 'DELETE' | 'PATCH';
@@ -130,6 +135,13 @@ export const REQUEST_BODY_SCHEMAS = [
 		method: 'PATCH' as const,
 		schema: updateGateSettingsBodySchema,
 		keys: UPDATE_GATE_SETTINGS_BODY_KEYS,
+	},
+	{
+		name: 'updatePipelineSettings',
+		path: '/api/v1/settings/pipeline',
+		method: 'PATCH' as const,
+		schema: updatePipelineSettingsBodySchema,
+		keys: UPDATE_PIPELINE_SETTINGS_BODY_KEYS,
 	},
 ] as const;
 
@@ -545,6 +557,24 @@ export const ROUTES: readonly RouteDefinition[] = [
 		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_VALIDATION', 'E_INTERNAL'],
 		bodySchema: updateGateSettingsBodySchema,
 		bodyKeys: UPDATE_GATE_SETTINGS_BODY_KEYS,
+	},
+	{
+		method: 'GET',
+		path: '/api/v1/settings/pipeline',
+		auth: 'device',
+		reqType: 'void',
+		resType: 'GetPipelineSettingsResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_INTERNAL'],
+	},
+	{
+		method: 'PATCH',
+		path: '/api/v1/settings/pipeline',
+		auth: 'device',
+		reqType: 'UpdatePipelineSettingsBody',
+		resType: 'UpdatePipelineSettingsResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_VALIDATION', 'E_INTERNAL'],
+		bodySchema: updatePipelineSettingsBodySchema,
+		bodyKeys: UPDATE_PIPELINE_SETTINGS_BODY_KEYS,
 	},
 	{
 		method: 'GET',

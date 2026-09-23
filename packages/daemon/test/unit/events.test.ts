@@ -115,6 +115,8 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'task_landed';
 				case 'task.sessions_archived':
 					return 'task_sessions_archived';
+				case 'lane.assigned':
+					return 'lane_assigned';
 				case 'lane.released':
 					return 'lane_released';
 				case 'batch.advanced':
@@ -127,6 +129,10 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'agent_avail';
 				case 'settings.gates_changed':
 					return 'settings_gates';
+				case 'settings.pipeline_changed':
+					return 'settings_pipeline';
+				case 'document.settings_changed':
+					return 'doc_settings';
 				case 'system.disk_warning':
 					return 'sys_disk';
 				case 'system.docs_changed':

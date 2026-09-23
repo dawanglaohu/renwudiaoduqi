@@ -54,3 +54,30 @@ export function assertWrapupRoundAllowed(options: AssertWrapupRoundOptions): voi
 		);
 	}
 }
+
+export interface CanWrapupOptions {
+	readonly allLanded: boolean;
+	readonly notInHeadCount: number;
+	readonly hasActiveWrapup: boolean;
+	readonly physicalAttempts?: number;
+}
+
+/**
+ * Determines whether a batch is eligible for wrapup (AC 6, E-312):
+ * - All tasks in batch must be landed.
+ * - All branches must be merged into HEAD (notInHeadCount === 0).
+ * - No active wrapup run currently in flight.
+ * - Physical attempts must be strictly below hard ceiling (6).
+ */
+export function canWrapup(options: CanWrapupOptions): boolean {
+	if (!options.allLanded || options.notInHeadCount > 0 || options.hasActiveWrapup) {
+		return false;
+	}
+	if (
+		options.physicalAttempts !== undefined &&
+		options.physicalAttempts >= HARD_WRAPUP_ROUND_LIMIT
+	) {
+		return false;
+	}
+	return true;
+}

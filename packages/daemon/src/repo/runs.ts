@@ -123,6 +123,7 @@ export interface RunsRepo {
 		readonly runs: readonly { readonly id: string; readonly pid: number | null }[];
 		readonly changes: number;
 	};
+	readonly updateLaneNo?: (runId: string, laneNo: number | null) => void;
 	readonly listSucceededModelNames: (params: {
 		readonly agentId: string;
 		readonly limit?: number;
@@ -568,6 +569,9 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		? db.prepare(SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL)
 		: null;
 	const markArchivedStmt = hasSessionArchivedAt ? db.prepare(MARK_SESSIONS_ARCHIVED_SQL) : null;
+	const updateLaneNoStmt = hasLaneNo
+		? db.prepare('UPDATE runs SET lane_no = ? WHERE id = ?')
+		: null;
 	const runsByParentRunIdAndKindStmt = db.prepare(SELECT_RUNS_BY_PARENT_RUN_ID_AND_KIND_SQL);
 
 	return Object.freeze({
@@ -836,6 +840,15 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 			}
 		},
 
+		updateLaneNo(runId: string, laneNo: number | null): void {
+			if (!updateLaneNoStmt) return;
+			try {
+				updateLaneNoStmt.run(laneNo, runId);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update lane_no for run: ${runId}`);
+			}
+		},
+
 		updateState(input: {
 			readonly id: string;
 			readonly state?: string;
@@ -852,7 +865,11 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 			readonly branchName?: string | null;
 		}): void {
 			try {
-				const state = input.state ?? input.toState;
+				let state = input.state ?? input.toState;
+				if (!state) {
+					const existing = selectByIdStmt.get(input.id) as RunRow | undefined;
+					state = existing?.state ?? 'running';
+				}
 				updateStateStmt.run({
 					id: input.id,
 					state,

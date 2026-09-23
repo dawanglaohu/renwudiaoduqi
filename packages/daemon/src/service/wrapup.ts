@@ -11,6 +11,8 @@ import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { latestImplementationRunByTaskId, summarizeBatchLanding } from '../domain/batch-landing.ts';
+import { freeLaneNumbers } from '../domain/lane-slots.ts';
+import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { assertWrapupRoundAllowed } from '../domain/wrapup-policy.ts';
 import { type WrapupTaskItem, assembleWrapupPrompt } from '../domain/wrapup-prompt.ts';
 import { parseWrapupReport } from '../domain/wrapup-report.ts';
@@ -25,6 +27,7 @@ import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GatesRepo } from '../repo/gates.ts';
 import { type RunRow, type RunsRepo, toRunDto } from '../repo/runs.ts';
+import type { SettingsRepo } from '../repo/settings.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { AgentService } from './agents.ts';
 import type { BatchService } from './batch.ts';
@@ -39,6 +42,7 @@ export interface WrapupServiceDeps {
 	readonly batchWrapupsRepo: BatchWrapupsRepo;
 	readonly gatesRepo: GatesRepo;
 	readonly documentsRepo: DocumentsRepo;
+	readonly settingsRepo?: SettingsRepo;
 	readonly batchService: BatchService;
 	readonly docsService: DocsService;
 	readonly unitOfWork: UnitOfWork;
@@ -256,6 +260,34 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						`Run already exists for idempotency key: ${idempotencyKey}`,
 						{
 							details: { run: toRunDto(existingRun) },
+						},
+					);
+				}
+			}
+
+			// Mode validation (AC 6, E-312):
+			// triggerWrapup({trigger:'auto'}) in manual mode throws E_PIPELINE_STAGE_DISABLED{stage:'wrapup'}
+			if (trigger === 'auto') {
+				let wrapupMode: 'auto' | 'manual' = 'auto';
+				if (deps.settingsRepo) {
+					const row = deps.settingsRepo.get('pipeline');
+					if (row) {
+						try {
+							const parsed = JSON.parse(row.value_json);
+							if (parsed.wrapupMode === 'manual') {
+								wrapupMode = 'manual';
+							}
+						} catch {
+							// Corrupted row falls back to auto
+						}
+					}
+				}
+				if (wrapupMode === 'manual') {
+					throw new AppError(
+						'E_PIPELINE_STAGE_DISABLED',
+						'Automated wrap-up is disabled because pipeline wrapupMode is manual (AC 6, E-312)',
+						{
+							details: { stage: 'wrapup' },
 						},
 					);
 				}
@@ -542,6 +574,32 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					created_at: now,
 				});
 
+				// Slot allocation for wrapup run (AC 6, E-283):
+				// If free lane available, hold slot immediately; otherwise queued_reason='lane_full'
+				const doc = deps.documentsRepo.findById(batch.doc_id);
+				const docLaneCount = doc?.lane_count ?? 2;
+				const docTasks = deps.tasksRepo.listByDocId(batch.doc_id);
+				const docRuns = deps.runsRepo.listAll();
+				const occupiedLanes = new Set<number>();
+				for (const t of docTasks) {
+					if (typeof t.lane_no === 'number' && t.lane_no >= 1) {
+						occupiedLanes.add(t.lane_no);
+					}
+				}
+				for (const r of docRuns) {
+					if (
+						r.kind === 'wrapup' &&
+						typeof r.lane_no === 'number' &&
+						r.lane_no >= 1 &&
+						!isTerminalRunState(r.state as RunState)
+					) {
+						occupiedLanes.add(r.lane_no);
+					}
+				}
+				const availableLanes = freeLaneNumbers(docLaneCount, occupiedLanes);
+				const allocatedLaneNo = availableLanes.length > 0 ? (availableLanes[0] ?? null) : null;
+				const queuedReason = allocatedLaneNo === null ? 'lane_full' : null;
+
 				// insert wrapup run (AC 2: kind='wrapup', task_id=null, permission_tier='workspaceWrite', queued)
 				assertSessionRefFree(
 					{ taskId: runId, vendorSessionRef: null },
@@ -555,6 +613,8 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						attempt_no: nextAttemptNo,
 						kind: 'wrapup',
 						state: 'queued',
+						queued_reason: queuedReason,
+						lane_no: allocatedLaneNo,
 						agent_id: assignment.agentId,
 						model_name: assignment.modelName,
 						effort_tier: assignment.effortTier,
@@ -615,6 +675,21 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							},
 						}),
 					);
+
+					if (allocatedLaneNo !== null) {
+						pendingEnvelopes.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'lane.assigned',
+								actorDeviceId: actorDeviceId ?? null,
+								payload: {
+									docId: batch.doc_id,
+									laneNo: allocatedLaneNo,
+									taskId: null,
+									runId,
+								},
+							}),
+						);
+					}
 					pendingEnvelopes.push(
 						deps.envelopeFactory.createEnvelope({
 							kind: 'run.state_changed',
@@ -875,6 +950,22 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					endedAt: now,
 				});
 
+				if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
+					pendingEnvelopes.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'lane.released',
+							actorDeviceId: null,
+							payload: {
+								docId: batch.doc_id,
+								laneNo: run.lane_no,
+								taskId: null,
+								runId: run.id,
+								reason: 'landed',
+							},
+						}),
+					);
+				}
+
 				if (deps.bus && deps.envelopeFactory) {
 					pendingEnvelopes.push(
 						deps.envelopeFactory.createEnvelope({
@@ -959,6 +1050,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					deps.bus.publish(env);
 				}
 			}
+			deps.nudgeTick?.();
 		},
 
 		async listWrapups(batchId: string): Promise<readonly BatchWrapupDto[]> {
