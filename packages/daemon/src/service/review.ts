@@ -14,6 +14,7 @@ import {
 	RUN_TRANSITION_REASONS,
 	type RunState,
 	assertValidTransition,
+	isTerminalRunState,
 	isValidRunState,
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
@@ -370,6 +371,8 @@ export interface ReviewRunsRepo {
  * Repository interface for recording human review gates.
  */
 export interface ReviewGatesRepo {
+	findPendingByRunId?(runId: string): unknown | null;
+	list?(params?: { pendingOnly?: boolean }): readonly unknown[];
 	insert?(input: {
 		readonly id: string;
 		readonly taskId: string;
@@ -1587,6 +1590,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		}
 
 		const previousState: RunState = run && isValidRunState(run.state) ? run.state : 'exited';
+
 		const worktreePath = input.worktreePath ?? run?.worktree_path ?? run?.worktreePath ?? '';
 		// R4: exitCode from input or run; do NOT default to 0!
 		const exitCode =
@@ -1611,6 +1615,17 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			diffText: input.diffText,
 			timeoutMs: input.timeoutMs,
 		});
+
+		// 防御性前置检查：若运行已在 awaiting_human 或终态，直接返回，重复触发不产生残留
+		if (previousState === 'awaiting_human' || isTerminalRunState(previousState)) {
+			return Object.freeze({
+				result: checkResult,
+				previousState,
+				currentState: previousState,
+				gateCreated: false,
+				reviewRunId: undefined,
+			});
+		}
 
 		let currentState: RunState = previousState;
 		let gateCreated = false;
@@ -1708,7 +1723,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 
 			// 3. 真实 diff 检查 (R1: 删除假 diff，按真实 diff 校验，缺失时类型化转人工)
 			if (!missingMaterialTag) {
-				const hasChanges = Boolean(diffStat && diffStat.hasChanges && diffStat.filesChanged > 0);
+				const hasChanges = Boolean(diffStat?.hasChanges && diffStat.filesChanged > 0);
 				const hasText = Boolean(diffText && diffText.trim().length > 0);
 				if (!hasChanges || !hasText) {
 					missingMaterialTag = 'diff_missing';
@@ -1930,6 +1945,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					diffText,
 					diffStat,
 					autoSpawn: true,
+					onRunInserted: (insertedId) => {
+						reviewRunId = insertedId;
+					},
 				};
 
 				const hostInputsRes = takePlatformHostInputs({});
@@ -1966,28 +1984,43 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					});
 				}
 			} catch (dispatchErr) {
-				// R3: 审查派发失败不能空吞；两条运行与闸门须落到可恢复状态，并留错误证据。
+				// R3: 审查派发失败不能空吞；两条运行与闸门须在 service 事务内一致落到可恢复状态，并留错误证据。
 				const now = clock.now();
 				const errMessage = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
 				const failureReason = 'review_dispatch_failed';
 				const errorComment = `${failureReason}: ${errMessage}`;
 
-				// 1. 如果已创建审查运行，将其落到 failed
-				if (reviewRunId && deps.runsRepo) {
-					const createdReviewRun = deps.runsRepo.findById(reviewRunId);
-					if (createdReviewRun && !isTerminalRunState(createdReviewRun.state)) {
-						deps.runsRepo.updateState({
-							id: reviewRunId,
-							fromState: createdReviewRun.state as RunState,
-							toState: 'failed',
-							endedAt: now,
-							queuedReason: errorComment,
-						});
-						if (deps.bus && deps.envelopeFactory) {
-							deps.bus.publish(
-								deps.envelopeFactory.createEnvelope({
+				const targetReviewRunId =
+					reviewRunId ??
+					(dispatchErr && typeof dispatchErr === 'object' && 'runId' in dispatchErr
+						? (dispatchErr as { runId?: string }).runId
+						: undefined) ??
+					(deps.runsRepo?.findLatestReview
+						? deps.runsRepo.findLatestReview(taskId)?.id
+						: undefined);
+				reviewRunId = targetReviewRunId;
+
+				let reviewStateEvent: EventEnvelope | null = null;
+				let implStateEvent: EventEnvelope | null = null;
+				let laneReleasedEvent: EventEnvelope | null = null;
+				let gateWaitingEvent: EventEnvelope | null = null;
+
+				const executeRecoveryInTx = () => {
+					// 1. 如果已创建审查运行，将其落到 failed
+					if (targetReviewRunId && deps.runsRepo) {
+						const createdReviewRun = deps.runsRepo.findById(targetReviewRunId);
+						if (createdReviewRun && !isTerminalRunState(createdReviewRun.state as RunState)) {
+							deps.runsRepo.updateState({
+								id: targetReviewRunId,
+								fromState: createdReviewRun.state as RunState,
+								toState: 'failed',
+								endedAt: now,
+								queuedReason: errorComment,
+							});
+							if (deps.envelopeFactory) {
+								reviewStateEvent = deps.envelopeFactory.createEnvelope({
 									kind: 'run.state_changed',
-									runId: reviewRunId,
+									runId: targetReviewRunId,
 									taskId,
 									payload: {
 										from: createdReviewRun.state,
@@ -1995,30 +2028,45 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 										reason: failureReason,
 										error: errMessage,
 									},
-								}),
-							);
+								});
+							}
 						}
 					}
-				}
 
-				// 2. 实施运行落到可恢复的 awaiting_human
-				assertValidTransition('reviewing', 'awaiting_human', {
-					reason: failureReason,
-				});
-				deps.runsRepo?.updateState({
-					id: run.id,
-					fromState: 'reviewing',
-					toState: 'awaiting_human',
-					endedAt: now,
-					queuedReason: errorComment,
-				});
-				currentState = 'awaiting_human';
+					// 2. 实施运行落到可恢复的 awaiting_human
+					if (run) {
+						assertValidTransition('reviewing', 'awaiting_human', {
+							reason: failureReason,
+						});
+						deps.runsRepo?.updateState({
+							id: run.id,
+							fromState: 'reviewing',
+							toState: 'awaiting_human',
+							endedAt: now,
+							queuedReason: errorComment,
+						});
+						currentState = 'awaiting_human';
 
-				if (deps.tasksRepo && taskId) {
-					const laneRes = deps.tasksRepo.clearLaneNo(taskId);
-					if (laneRes && laneRes.changes === 1 && deps.bus && deps.envelopeFactory) {
-						deps.bus.publish(
-							deps.envelopeFactory.createEnvelope({
+						if (deps.envelopeFactory) {
+							implStateEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId: run.id,
+								taskId,
+								payload: {
+									from: 'reviewing',
+									to: 'awaiting_human',
+									reason: failureReason,
+									error: errMessage,
+								},
+							});
+						}
+					}
+
+					// 3. 释放 lane
+					if (deps.tasksRepo && taskId && run) {
+						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
 								kind: 'lane.released',
 								taskId,
 								runId: run.id,
@@ -2029,66 +2077,80 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 									runId: run.id,
 									reason: 'awaiting_human',
 								},
-							}),
-						);
+							});
+						}
 					}
-				}
 
-				// 3. 闸门落到 waiting 可恢复状态并留错误证据
-				if (deps.gatesRepo) {
-					const gateId = `gate_${ids.newId()}`;
-					if (deps.gatesRepo.create) {
-						deps.gatesRepo.create({
-							id: gateId,
-							task_id: taskId,
-							run_id: run.id,
-							kind: 'review',
-							state: 'waiting',
-							comment: errorComment,
-							created_at: now,
-						});
-					} else if (deps.gatesRepo.insert) {
-						deps.gatesRepo.insert({
-							id: gateId,
-							taskId,
-							runId: run.id,
-							kind: 'review',
-							state: 'waiting',
-							comment: errorComment,
-							createdAt: now,
-						});
-					}
-					gateCreated = true;
-
-					if (deps.bus && deps.envelopeFactory) {
-						deps.bus.publish(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'task.gate_waiting',
-								runId: run.id,
-								taskId,
-								payload: {
-									gate: 'review',
+					// 4. 闸门落到 waiting 可恢复状态并留错误证据（幂等检查防残留）
+					if (deps.gatesRepo && run) {
+						const implRunId = run.id;
+						const existingPendingGate =
+							deps.gatesRepo.findPendingByRunId?.(implRunId) ??
+							deps.gatesRepo.list?.({ pendingOnly: true })?.find((g) => {
+								if (!g || typeof g !== 'object') return false;
+								const candidate = g as {
+									run_id?: string | null;
+									runId?: string | null;
+									kind?: string;
+									state?: string;
+								};
+								return (
+									(candidate.run_id === implRunId || candidate.runId === implRunId) &&
+									candidate.kind === 'review' &&
+									candidate.state === 'waiting'
+								);
+							});
+						if (!existingPendingGate) {
+							const gateId = `gate_${ids.newId()}`;
+							if (deps.gatesRepo.create) {
+								deps.gatesRepo.create({
+									id: gateId,
+									task_id: taskId,
+									run_id: run.id,
+									kind: 'review',
+									state: 'waiting',
 									comment: errorComment,
-								},
-							}),
-						);
+									created_at: now,
+								});
+							} else if (deps.gatesRepo.insert) {
+								deps.gatesRepo.insert({
+									id: gateId,
+									taskId,
+									runId: run.id,
+									kind: 'review',
+									state: 'waiting',
+									comment: errorComment,
+									createdAt: now,
+								});
+							}
+							gateCreated = true;
+
+							if (deps.envelopeFactory) {
+								gateWaitingEvent = deps.envelopeFactory.createEnvelope({
+									kind: 'task.gate_waiting',
+									runId: run.id,
+									taskId,
+									payload: {
+										gate: 'review',
+										comment: errorComment,
+									},
+								});
+							}
+						}
 					}
+				};
+
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(executeRecoveryInTx);
+				} else {
+					executeRecoveryInTx();
 				}
 
-				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: run.id,
-							taskId,
-							payload: {
-								from: 'reviewing',
-								to: 'awaiting_human',
-								reason: failureReason,
-								error: errMessage,
-							},
-						}),
-					);
+				if (deps.bus) {
+					if (reviewStateEvent) deps.bus.publish(reviewStateEvent);
+					if (implStateEvent) deps.bus.publish(implStateEvent);
+					if (laneReleasedEvent) deps.bus.publish(laneReleasedEvent);
+					if (gateWaitingEvent) deps.bus.publish(gateWaitingEvent);
 				}
 			}
 		}

@@ -461,9 +461,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				const existingRun = input.runId ? deps.runsRepo?.findById(input.runId) : null;
 				const existingTask = deps.tasksRepo?.findById(input.taskId);
 				if (existingRun?.state === 'landed' || existingTask?.manual_state === 'landed') {
-					return {
-						outcome: 'landed',
-					};
+					return result;
 				}
 
 				// AC 1 & AC 2b: automatic pass lands directly with zero git operations

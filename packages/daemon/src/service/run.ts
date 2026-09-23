@@ -478,9 +478,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		const cleanups: Array<() => void> = [];
 		const pendingWrites = new Set<Promise<unknown>>();
 		const trackWrite = <T>(p: Promise<T>): Promise<T> => {
-			const settled = p.catch(() => undefined).finally(() => {
-				pendingWrites.delete(settled);
-			});
+			const settled = p
+				.catch(() => undefined)
+				.finally(() => {
+					pendingWrites.delete(settled);
+				});
 			pendingWrites.add(settled);
 			return p;
 		};

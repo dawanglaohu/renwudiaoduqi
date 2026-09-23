@@ -3,20 +3,20 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createAppendQueue } from '../../src/logstore/append-queue.ts';
-import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
-import { createLogstorePaths } from '../../src/logstore/paths.ts';
-import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
-import { createEventsIndexRepo } from '../../src/repo/events-index-repo.ts';
-import { createLogSegmentsRepo } from '../../src/repo/log-segments-repo.ts';
-import { createLogstoreService, type LogstoreService } from '../../src/service/logstore.ts';
 import { createContainer } from '../../src/boot/container.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type { ProcessLiveness } from '../../src/jobs/reconcile-runs.ts';
+import { createAppendQueue } from '../../src/logstore/append-queue.ts';
+import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
+import { createLogstorePaths } from '../../src/logstore/paths.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import type { LaunchSpec, ManagedProcess, ProcessExitResult } from '../../src/proc/spawn.ts';
+import { createEventsIndexRepo } from '../../src/repo/events-index-repo.ts';
+import { createLogSegmentsRepo } from '../../src/repo/log-segments-repo.ts';
+import { type LogstoreService, createLogstoreService } from '../../src/service/logstore.ts';
 import type {
 	GitCommandResult,
 	PrepareWorktreeInput,
@@ -802,7 +802,10 @@ describe(
 			expect(runRow?.queued_reason).toBe('missing_dispatch_snapshot');
 
 			// Verify review waiting gate was created with typed comment 'snapshot_missing'
-			const gates = container.repos.gates.list({ pendingOnly: true });
+			const gatesRepo = container.repos.gates;
+			expect(gatesRepo).toBeDefined();
+			if (!gatesRepo) throw new Error('gatesRepo missing');
+			const gates = gatesRepo.list({ pendingOnly: true });
 			const gate = gates.find((g) => g.run_id === 'run-missing-snap');
 			expect(gate).toBeDefined();
 			expect(gate?.kind).toBe('review');
@@ -835,6 +838,8 @@ describe(
 				waitAttempts++;
 			}
 			const implProc = spawnedProcesses[0];
+			expect(implProc).toBeDefined();
+			if (!implProc) throw new Error('implProc missing');
 			implProc.emitLine('{"method":"item/agentMessage/delta","params":{"delta":"Done."}}');
 			implProc.emitExit(0);
 
@@ -848,16 +853,32 @@ describe(
 			expect(reviewProc).toBeDefined();
 			if (!reviewProc) return;
 
+			// Listen for real completion signal (task.review_verdict)
+			const verdictPromise = new Promise<{ verdict: string }>((resolve, reject) => {
+				const timer = setTimeout(() => {
+					reject(new Error('Timeout waiting for task.review_verdict completion signal'));
+				}, 5000);
+				const unsub = container.events.bus.subscribe((envelope) => {
+					if (envelope.kind === 'task.review_verdict') {
+						clearTimeout(timer);
+						unsub();
+						resolve(envelope.payload as { verdict: string });
+					}
+				});
+			});
+
 			// Review process emits output with verdict pass, then IMMEDIATELY emits exit(0)
 			reviewProc.emitLine('VERDICT: pass\nImplementation verified cleanly.');
 			reviewProc.emitExit(0);
 
-			// Wait for exit handler to settle
-			await new Promise((r) => setTimeout(r, 400));
+			// Wait for real completion signal
+			const verdictPayload = await verdictPromise;
+			expect(verdictPayload.verdict).toBe('pass');
 
 			// Verify task.review_verdict was emitted with pass (not failed or unparsed)
 			const verdictEvent = publishedEvents.find(
-				(e) => e.kind === 'task.review_verdict' && (e.payload as { verdict: string }).verdict === 'pass',
+				(e) =>
+					e.kind === 'task.review_verdict' && (e.payload as { verdict: string }).verdict === 'pass',
 			);
 			expect(verdictEvent).toBeDefined();
 		});
@@ -876,9 +897,13 @@ describe(
 			});
 			const { container, spawnedProcesses } = env;
 
-			const publishedEvents: Array<{ kind: string; payload: unknown }> = [];
+			const publishedEvents: Array<{ kind: string; runId?: string | null; payload: unknown }> = [];
 			container.events.bus.subscribe((envelope) => {
-				publishedEvents.push({ kind: envelope.kind, payload: envelope.payload });
+				publishedEvents.push({
+					kind: envelope.kind,
+					runId: envelope.runId,
+					payload: envelope.payload,
+				});
 			});
 
 			const createRes = await container.services.dispatch.createRun({
@@ -895,27 +920,53 @@ describe(
 				waitAttempts++;
 			}
 			const implProc = spawnedProcesses[0];
+			expect(implProc).toBeDefined();
+			if (!implProc) throw new Error('implProc missing');
 			implProc.emitLine('{"method":"item/agentMessage/delta","params":{"delta":"Done."}}');
 			await new Promise((r) => setTimeout(r, 30));
+
+			const failSettlePromise = new Promise<void>((resolve, reject) => {
+				const timer = setTimeout(() => {
+					reject(new Error('Timeout waiting for awaiting_human state change'));
+				}, 5000);
+				const unsub = container.events.bus.subscribe((envelope) => {
+					if (
+						envelope.kind === 'run.state_changed' &&
+						envelope.runId === implRunId &&
+						(envelope.payload as { to?: string })?.to === 'awaiting_human'
+					) {
+						clearTimeout(timer);
+						unsub();
+						resolve();
+					}
+				});
+			});
 
 			// Now enable spawn failure before implementation process exits
 			shouldFailSpawn = true;
 			implProc.emitExit(0);
 
 			// Wait for exit evaluation to settle
-			await new Promise((r) => setTimeout(r, 300));
+			await failSettlePromise;
 
 			// 1. Implementation run must NOT be stuck in reviewing; must be in awaiting_human
 			const implRun = container.repos.runs.findById(implRunId);
 			expect(implRun?.state).toBe('awaiting_human');
-			expect(implRun?.queued_reason).toContain('review_dispatch_failed: Adapter failed to allocate resources');
+			expect(implRun?.queued_reason).toContain(
+				'review_dispatch_failed: Adapter failed to allocate resources',
+			);
 
 			// 2. Waiting gate must be created with error evidence
-			const gates = container.repos.gates.list({ pendingOnly: true });
+			const gatesRepo = container.repos.gates;
+			expect(gatesRepo).toBeDefined();
+			if (!gatesRepo) throw new Error('gatesRepo missing');
+			const gates = gatesRepo.list({ pendingOnly: true });
 			const reviewGate = gates.find((g) => g.run_id === implRunId && g.kind === 'review');
 			expect(reviewGate).toBeDefined();
 			expect(reviewGate?.state).toBe('waiting');
-			expect(reviewGate?.comment).toContain('review_dispatch_failed: Adapter failed to allocate resources');
+			expect(reviewGate?.comment).toContain(
+				'review_dispatch_failed: Adapter failed to allocate resources',
+			);
 
 			// 3. Events must have been published
 			const gateWaitingEvent = publishedEvents.find((e) => e.kind === 'task.gate_waiting');
@@ -923,10 +974,46 @@ describe(
 			const stateChangedEvent = publishedEvents.find(
 				(e) =>
 					e.kind === 'run.state_changed' &&
+					e.runId === implRunId &&
 					(e.payload as { to: string }).to === 'awaiting_human' &&
 					(e.payload as { reason: string }).reason === 'review_dispatch_failed',
 			);
 			expect(stateChangedEvent).toBeDefined();
+
+			// 4. Review run must NOT be stuck in starting; must be transitioned to failed with error reason
+			const runsForTask = container.repos.runs.listByTaskId('task-1');
+			const reviewRuns = runsForTask.filter((r) => r.kind === 'review');
+			expect(reviewRuns).toHaveLength(1);
+			const failedReviewRun = reviewRuns[0];
+			expect(failedReviewRun?.state).toBe('failed');
+			expect(failedReviewRun?.queued_reason).toContain(
+				'review_dispatch_failed: Adapter failed to allocate resources',
+			);
+			const reviewFailedEvent = publishedEvents.find(
+				(e) =>
+					e.kind === 'run.state_changed' &&
+					e.runId === failedReviewRun?.id &&
+					(e.payload as { to: string }).to === 'failed' &&
+					(e.payload as { reason: string }).reason === 'review_dispatch_failed',
+			);
+			expect(reviewFailedEvent).toBeDefined();
+
+			// 5. Repeat trigger must not produce residual runs or duplicate gates
+			await container.services.review.evaluateMechanicalCheck({
+				runId: implRunId,
+			});
+
+			const runsAfterRepeat = container.repos.runs.listByTaskId('task-1');
+			const reviewRunsAfterRepeat = runsAfterRepeat.filter((r) => r.kind === 'review');
+			expect(reviewRunsAfterRepeat).toHaveLength(1);
+			expect(reviewRunsAfterRepeat[0]?.id).toBe(failedReviewRun?.id);
+			expect(reviewRunsAfterRepeat[0]?.state).toBe('failed');
+
+			const gatesAfterRepeat = gatesRepo.list({ pendingOnly: true });
+			const reviewGatesAfterRepeat = gatesAfterRepeat.filter(
+				(g) => g.run_id === implRunId && g.kind === 'review',
+			);
+			expect(reviewGatesAfterRepeat).toHaveLength(1);
 		});
 
 		it('R4: automatic and human landed both complete session archival, slot release, and terminal events with idempotency', async () => {
@@ -997,7 +1084,8 @@ describe(
 
 			// Assert terminal events: lane.released, task.landed (by: auto), task.sessions_archived
 			const autoLaneReleased = publishedEvents.find(
-				(e) => e.kind === 'lane.released' && (e.payload as { taskId: string }).taskId === 'task-auto',
+				(e) =>
+					e.kind === 'lane.released' && (e.payload as { taskId: string }).taskId === 'task-auto',
 			);
 			expect(autoLaneReleased).toBeDefined();
 
@@ -1007,7 +1095,9 @@ describe(
 			expect(autoLandedEvent).toBeDefined();
 
 			const autoSessionsArchived = publishedEvents.find(
-				(e) => e.kind === 'task.sessions_archived' && (e.payload as { taskId: string }).taskId === 'task-auto',
+				(e) =>
+					e.kind === 'task.sessions_archived' &&
+					(e.payload as { taskId: string }).taskId === 'task-auto',
 			);
 			expect(autoSessionsArchived).toBeDefined();
 
@@ -1059,7 +1149,10 @@ describe(
 				started_at: now,
 			});
 
-			container.repos.gates.create({
+			const gatesRepo = container.repos.gates;
+			expect(gatesRepo).toBeDefined();
+			if (!gatesRepo) throw new Error('gatesRepo missing');
+			gatesRepo.create({
 				id: 'gate-manual-landing',
 				task_id: 'task-manual',
 				run_id: 'run-manual-1',
@@ -1089,7 +1182,8 @@ describe(
 
 			// Assert terminal events: lane.released, task.landed (by: human), task.sessions_archived
 			const manualLaneReleased = publishedEvents.find(
-				(e) => e.kind === 'lane.released' && (e.payload as { taskId: string }).taskId === 'task-manual',
+				(e) =>
+					e.kind === 'lane.released' && (e.payload as { taskId: string }).taskId === 'task-manual',
 			);
 			expect(manualLaneReleased).toBeDefined();
 
@@ -1099,7 +1193,9 @@ describe(
 			expect(manualLandedEvent).toBeDefined();
 
 			const manualSessionsArchived = publishedEvents.find(
-				(e) => e.kind === 'task.sessions_archived' && (e.payload as { taskId: string }).taskId === 'task-manual',
+				(e) =>
+					e.kind === 'task.sessions_archived' &&
+					(e.payload as { taskId: string }).taskId === 'task-manual',
 			);
 			expect(manualSessionsArchived).toBeDefined();
 

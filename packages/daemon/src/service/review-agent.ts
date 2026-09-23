@@ -933,6 +933,7 @@ export function prepareReviewRun(
  */
 export interface DispatchReviewRunInput extends PrepareReviewRunInput {
 	readonly autoSpawn?: boolean;
+	readonly onRunInserted?: (runId: string) => void;
 }
 
 /**
@@ -981,6 +982,7 @@ export async function dispatchReviewRun(
 		} else {
 			persist();
 		}
+		input.onRunInserted?.(runInsert.id);
 	}
 
 	// Publish run.started event on EventBus after transaction finishes
@@ -1010,9 +1012,15 @@ export async function dispatchReviewRun(
 		const hostResult = takePlatformHostInputs({});
 		const effectivePlatform =
 			deps.platform ?? (hostResult.ok ? hostResult.value.platform : 'win32');
-		managedProcess = deps.spawnManaged(launchSpec, {
-			platform: effectivePlatform,
-		});
+		try {
+			managedProcess = deps.spawnManaged(launchSpec, {
+				platform: effectivePlatform,
+			});
+		} catch (spawnErr) {
+			const err = spawnErr instanceof Error ? spawnErr : new Error(String(spawnErr));
+			Object.assign(err, { runId: runInsert.id });
+			throw err;
+		}
 	}
 
 	// Construct RunRow representation for DTO mapping
