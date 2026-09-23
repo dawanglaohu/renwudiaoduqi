@@ -2,18 +2,31 @@
  * packages/web/test/gate-card.test.tsx
  *
  * M9-T10 审批卡与闸门交互单元测试（AC 1..5, E-109, E-182）
+ * M9-T20 AC 4：第四个条件动作「投递原文到实施会话」与投递链路（E-278, E-117, E-113, E-157）
  */
 
+// @vitest-environment jsdom
+
 import type { GateDto } from '@agent-scheduler/shared/api/gates';
-import { createElement } from 'react';
+import { ROUTES } from '@agent-scheduler/shared/api/routes';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../src/api/http-client.ts';
 import {
 	GateCard,
 	GatePendingBadge,
 	PendingApprovalBadge,
 	resolveApproveActionLabel,
 } from '../src/components/gate-card.tsx';
+import {
+	type UseGateCardOptions,
+	type UseGateCardResult,
+	useGateCard,
+} from '../src/features/run-deck/use-gate-card.ts';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('M9-T10: 审批卡与闸门交互 (AC 1..5, E-109, E-182)', () => {
 	// ─────────────────────────────────────────────────────────────────────────────
@@ -228,7 +241,7 @@ describe('M9-T10: 审批卡与闸门交互 (AC 1..5, E-109, E-182)', () => {
 					canReply: false,
 				}),
 			);
-			expect(disabledHtml).toContain('title="目标运行不支持回话"');
+			expect(disabledHtml).toContain('capabilities.canReply=false');
 			expect(disabledHtml).toContain('disabled=""');
 		});
 	});
@@ -552,4 +565,287 @@ describe('M9-T10: 审批卡与闸门交互 (AC 1..5, E-109, E-182)', () => {
 			expect(html).toContain('批准合并分支并将改动记录落地');
 		});
 	});
+
+	// ─────────────────────────────────────────────────────────────────────────────
+	// M9-T20 AC 4（E-278 / E-117 / E-113 / E-157）：第四个条件动作的投递原文链路
+	// ─────────────────────────────────────────────────────────────────────────────
+	describe('M9-T20 AC 4: conditional [投递原文到实施会话] action (E-278, E-117, E-113, E-157)', () => {
+		it('appears only when reviewVerdict=incomplete AND reworkText is non-empty', () => {
+			const withBoth = renderToStaticMarkup(
+				createElement(GateCard, {
+					taskKey: 'M9-T20',
+					reviewVerdict: 'incomplete',
+					reworkText: 'R1 第一段原文',
+					onDeliverRaw: () => {},
+					canReply: true,
+				}),
+			);
+			expect(withBoth).toContain('data-action="deliver-raw"');
+
+			// 裁定不是 incomplete：不出条件动作
+			const otherVerdict = renderToStaticMarkup(
+				createElement(GateCard, {
+					taskKey: 'M9-T20',
+					reviewVerdict: 'rework',
+					reworkText: 'R1 第一段原文',
+					onDeliverRaw: () => {},
+					canReply: true,
+				}),
+			);
+			expect(otherVerdict).not.toContain('data-action="deliver-raw"');
+
+			// incomplete 但原文为空：不出条件动作（不猜语义、不裁剪）
+			const emptyText = renderToStaticMarkup(
+				createElement(GateCard, {
+					taskKey: 'M9-T20',
+					reviewVerdict: 'incomplete',
+					reworkText: '   ',
+					onDeliverRaw: () => {},
+					canReply: true,
+				}),
+			);
+			expect(emptyText).not.toContain('data-action="deliver-raw"');
+		});
+
+		it('greys out the button with a capability-bit title when canReply is false (E-117)', () => {
+			const html = renderToStaticMarkup(
+				createElement(GateCard, {
+					taskKey: 'M9-T20',
+					reviewVerdict: 'incomplete',
+					reworkText: 'R1 原文',
+					onDeliverRaw: () => {},
+					canReply: false,
+				}),
+			);
+
+			const buttonHtml = html.slice(html.indexOf('data-action="deliver-raw"'));
+			expect(buttonHtml).toContain('disabled=""');
+			expect(buttonHtml).toContain('capabilities.canReply=false');
+		});
+
+		it('renders the fourth action as a ghost button after reject (11 节)', () => {
+			const html = renderToStaticMarkup(
+				createElement(GateCard, {
+					taskKey: 'M9-T20',
+					reviewVerdict: 'incomplete',
+					reworkText: 'R1 原文',
+					onDeliverRaw: () => {},
+					canReply: true,
+				}),
+			);
+
+			expect(html.indexOf('data-action="reject"')).toBeLessThan(
+				html.indexOf('data-action="deliver-raw"'),
+			);
+			const buttonHtml = html.slice(html.indexOf('data-action="deliver-raw"'));
+			expect(buttonHtml).toContain('bg-transparent');
+			expect(buttonHtml).not.toContain('--glow');
+		});
+
+		it('shows an in-card notice with a copyable original text when undelivered (E-113)', () => {
+			const onCopyReworkText = vi.fn();
+			const html = renderToStaticMarkup(
+				createElement(GateCard, {
+					taskKey: 'M9-T20',
+					reviewVerdict: 'incomplete',
+					reworkText: 'R1 未满足验收标准第 2 条',
+					onDeliverRaw: () => {},
+					onCopyReworkText,
+					canReply: true,
+					deliveryNotice: {
+						kind: 'undelivered',
+						message: '原文未送达（进程已死或管道已断），原文保留在卡片内，可复制后手动投递',
+						technical: 'E_MESSAGE_UNDELIVERED · pipeline closed · requestId=req-1',
+					},
+				}),
+			);
+
+			expect(html).toContain('data-region="delivery-notice"');
+			expect(html).toContain('data-delivery-kind="undelivered"');
+			expect(html).toContain('原文未送达');
+			expect(html).toContain('data-action="copy-rework-text"');
+			expect(html).toContain('复制原文');
+			// 原文仍在卡内（第 3 段默认折叠块），绝不静默丢弃
+			expect(html).toContain('data-field="rework-text-block"');
+			expect(html).toContain('R1 未满足验收标准第 2 条');
+		});
+
+		it('renders no notice region at all when nothing was delivered yet', () => {
+			const html = renderToStaticMarkup(
+				createElement(GateCard, {
+					taskKey: 'M9-T20',
+					reviewVerdict: 'incomplete',
+					reworkText: 'R1 原文',
+					onDeliverRaw: () => {},
+					canReply: true,
+				}),
+			);
+			expect(html).not.toContain('data-region="delivery-notice"');
+		});
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────────
+	// M9-T20 AC 4（E-157 / E-117 / E-113）：useGateCard 写操作与能力位
+	// ─────────────────────────────────────────────────────────────────────────────
+	describe('M9-T20 AC 4: useGateCard delivery pipeline (E-157, E-117, E-113)', () => {
+		beforeEach(() => {
+			Object.defineProperty(navigator, 'clipboard', {
+				value: { writeText: vi.fn().mockResolvedValue(undefined) },
+				configurable: true,
+			});
+		});
+
+		it('registers the message route as POST /api/v1/runs/:runId/messages in the shared table', () => {
+			const route = ROUTES.find((entry) => entry.path === '/api/v1/runs/:runId/messages');
+			expect(route).toBeDefined();
+			expect(route?.method).toBe('POST');
+			expect(route?.reqType).toBe('CreateRunMessageBody');
+			expect(route?.resType).toBe('CreateRunMessageResponse');
+		});
+
+		it('treats a missing capability bit as not-replyable and never calls the sender (E-117)', async () => {
+			const sender = vi.fn();
+			const probe = await mountGateCardHook({
+				runId: 'run-1',
+				reviewVerdict: 'incomplete',
+				reworkText: 'R1 原文',
+				canReply: null,
+				sender,
+			});
+
+			expect(probe.current().canReply).toBe(false);
+			let accepted = true;
+			await act(async () => {
+				accepted = await probe.current().deliverRaw();
+			});
+			expect(accepted).toBe(false);
+			expect(sender).not.toHaveBeenCalled();
+			expect(probe.current().deliveryNotice?.kind).toBe('unsupported');
+			await probe.unmount();
+		});
+
+		it('posts the raw text verbatim and reports undelivered without pretending it was sent (E-113)', async () => {
+			const raw = 'R1 未满足验收标准第 2 条 → 复现 → 根因 → a.ts:12';
+			const sender = vi.fn().mockResolvedValue({ delivered: false, messageId: 'msg-1' });
+			const probe = await mountGateCardHook({
+				runId: 'run-42',
+				reviewVerdict: 'incomplete',
+				reworkText: raw,
+				canReply: true,
+				sender,
+			});
+
+			let accepted = true;
+			await act(async () => {
+				accepted = await probe.current().deliverRaw();
+			});
+
+			expect(sender).toHaveBeenCalledWith('run-42', { text: raw, kind: 'reply' });
+			expect(accepted).toBe(false);
+			expect(probe.current().deliveryNotice?.kind).toBe('undelivered');
+			expect(probe.current().deliveryNotice?.message).toContain('原文保留在卡片内');
+			await probe.unmount();
+		});
+
+		it('maps E_MESSAGE_UNDELIVERED to the undelivered notice with technical details', async () => {
+			const sender = vi.fn().mockRejectedValue(
+				new ApiError({
+					code: 'E_MESSAGE_UNDELIVERED',
+					message: 'Pipeline is closed',
+					requestId: 'req-9',
+				}),
+			);
+			const probe = await mountGateCardHook({
+				runId: 'run-43',
+				reviewVerdict: 'incomplete',
+				reworkText: 'R1 原文',
+				canReply: true,
+				sender,
+			});
+
+			await act(async () => {
+				await probe.current().deliverRaw();
+			});
+
+			expect(probe.current().deliveryNotice?.kind).toBe('undelivered');
+			expect(probe.current().deliveryNotice?.technical).toContain('E_MESSAGE_UNDELIVERED');
+			expect(probe.current().deliveryNotice?.technical).toContain('requestId=req-9');
+			await probe.unmount();
+		});
+
+		it('on success says the run state follows the回流 event, never the response body (E-157)', async () => {
+			const sender = vi.fn().mockResolvedValue({ delivered: true, messageId: 'msg-2' });
+			const probe = await mountGateCardHook({
+				runId: 'run-44',
+				reviewVerdict: 'incomplete',
+				reworkText: 'R1 原文',
+				canReply: true,
+				sender,
+			});
+
+			let accepted = false;
+			await act(async () => {
+				accepted = await probe.current().deliverRaw();
+			});
+
+			expect(accepted).toBe(true);
+			expect(probe.current().deliveryNotice?.kind).toBe('delivered');
+			expect(probe.current().deliveryNotice?.message).toContain('回流事件');
+			await probe.unmount();
+		});
+
+		it('copies the original text so it is never lost on failure (E-113)', async () => {
+			const raw = 'R1 原文全文';
+			const probe = await mountGateCardHook({
+				runId: 'run-45',
+				reviewVerdict: 'incomplete',
+				reworkText: raw,
+				canReply: true,
+				sender: vi.fn(),
+			});
+
+			let copied = false;
+			await act(async () => {
+				copied = await probe.current().copyReworkText();
+			});
+
+			expect(copied).toBe(true);
+			expect(navigator.clipboard.writeText).toHaveBeenCalledWith(raw);
+			expect(probe.current().isReworkTextCopied).toBe(true);
+			await probe.unmount();
+		});
+	});
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// useGateCard 测试挂载辅助
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface MountedGateCardHook {
+	readonly current: () => UseGateCardResult;
+	readonly unmount: () => Promise<void>;
+}
+
+async function mountGateCardHook(options: UseGateCardOptions): Promise<MountedGateCardHook> {
+	const observed: { value?: UseGateCardResult } = {};
+	function Probe() {
+		observed.value = useGateCard(options);
+		return createElement('div', null, observed.value.deliveryNotice?.kind ?? '');
+	}
+	const container = document.createElement('div');
+	document.body.appendChild(container);
+	const root = createRoot(container);
+	await act(async () => {
+		root.render(createElement(Probe));
+	});
+	return {
+		current: () => {
+			if (!observed.value) throw new Error('Probe did not render');
+			return observed.value;
+		},
+		unmount: async () => {
+			await act(async () => root.unmount());
+			container.remove();
+		},
+	};
+}
