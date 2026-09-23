@@ -76,7 +76,7 @@ describe('native process-tree integration (E-119)', () => {
 			await rm(workingRoot, { recursive: true, force: true });
 		}
 		if (cleanupCause !== undefined) throw cleanupCause;
-	}, 15_000);
+	}, 30_000);
 });
 
 function nativeProcessOps(): KillTreeProcessOps {

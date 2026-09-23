@@ -15,7 +15,9 @@ import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { useCallback, useEffect, useState } from 'react';
 import { ROUTES } from '../../../../shared/src/api/routes.ts';
-import { httpClient } from '../../api/http-client.ts';
+import { resolveBaseUrl } from '../../api/base-url.ts';
+import { httpClient, isApiError } from '../../api/http-client.ts';
+import { reportFirstScreenFailure } from '../../app/bootstrap.ts';
 import { BatchSummaryBar } from '../../components/batch-summary-bar.tsx';
 import { StatusBadge } from '../../components/status-badge.tsx';
 import type { MobileBatchItem, MobileBatchTaskItem } from './types.ts';
@@ -264,7 +266,7 @@ async function fetchSnapshot(): Promise<SnapshotResponse> {
 	return httpClient.callRoute<SnapshotResponse>(snapshotRoute);
 }
 
-function useTasksSnapshot(fetcher: SnapshotFetcher = fetchSnapshot): TasksSnapshotState {
+export function useTasksSnapshot(fetcher: SnapshotFetcher = fetchSnapshot): TasksSnapshotState {
 	const [state, setState] = useState<TasksSnapshotState>({
 		batches: [],
 		isLoading: true,
@@ -274,8 +276,49 @@ function useTasksSnapshot(fetcher: SnapshotFetcher = fetchSnapshot): TasksSnapsh
 		setState((current) => ({ ...current, isLoading: true, error: null }));
 		try {
 			const snapshot = await fetcher();
+			reportFirstScreenFailure(null);
 			setState({ batches: mapSnapshotBatches(snapshot), isLoading: false, error: null });
 		} catch (error) {
+			const isNetwork =
+				(isApiError(error) && (error.code === 'E_NETWORK' || error.code === 'E_TIMEOUT')) ||
+				(typeof error === 'object' &&
+					error !== null &&
+					'code' in error &&
+					((error as { code: unknown }).code === 'E_NETWORK' ||
+						(error as { code: unknown }).code === 'E_TIMEOUT'));
+
+			if (isNetwork) {
+				let baseUrl = '';
+				if (
+					isApiError(error) &&
+					typeof error.details === 'object' &&
+					error.details &&
+					'baseUrl' in error.details &&
+					typeof (error.details as Record<string, unknown>).baseUrl === 'string'
+				) {
+					baseUrl = (error.details as Record<string, unknown>).baseUrl as string;
+				}
+				if (!baseUrl) {
+					try {
+						baseUrl = await resolveBaseUrl();
+					} catch {
+						baseUrl = '';
+					}
+				}
+				const code = isApiError(error)
+					? error.code
+					: ((error as { code?: string }).code ?? 'E_NETWORK');
+				const requestId = isApiError(error) ? error.requestId : null;
+				reportFirstScreenFailure({
+					code,
+					requestId,
+					baseUrl,
+					retry: () => {
+						void refresh();
+					},
+				});
+			}
+
 			setState({
 				batches: [],
 				isLoading: false,

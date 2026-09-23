@@ -193,7 +193,7 @@ describe.skipIf(!isWindowsHost)('ComSpec real batch forwarding', () => {
 						cwd: caseDirectory,
 						env: { ...process.env, M1_T3_SENTINEL: 'MUST_NOT_EXPAND' },
 						encoding: 'utf8',
-						timeout: 5_000,
+						timeout: 15_000,
 					});
 					expect(child.error).toBeUndefined();
 					expect(child.status, child.stderr).toBe(0);

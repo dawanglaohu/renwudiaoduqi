@@ -15,7 +15,11 @@
 import type { LaunchServiceResult } from '@agent-scheduler/shared/shell/bridge-contract';
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { setManualHost } from '../api/base-url.ts';
-import { getErrorMessage } from '../i18n/error-messages.ts';
+import {
+	SERVICE_NOT_RUNNING_TITLE,
+	getErrorMessage,
+	getLaunchErrorMessage,
+} from '../i18n/error-messages.ts';
 import { shellBridge } from '../shell/shell-bridge.ts';
 import {
 	type FirstScreenFailure,
@@ -23,10 +27,8 @@ import {
 	subscribeFirstScreenFailure,
 } from './bootstrap.ts';
 
-/**
- * E-04 要求的文案：说清「什么没启动」，而不是「连接超时」。
- */
-export const SERVICE_NOT_RUNNING_TITLE = '电脑上的调度服务未启动' as const;
+// 重新导出，保持向后兼容（E-04 要求的文案：说清「什么没启动」，而不是「连接超时」）。
+export { SERVICE_NOT_RUNNING_TITLE };
 
 export type LaunchServiceUiState = 'idle' | 'launching' | 'launched' | 'failed';
 
@@ -86,7 +88,7 @@ export function ConnectFailedScreen({
 			onRetry();
 		} catch (error: unknown) {
 			setLaunchState('failed');
-			setLaunchError(error instanceof Error ? error.message : String(error));
+			setLaunchError(getLaunchErrorMessage(error));
 		} finally {
 			inFlightRef.current = false;
 		}
@@ -101,6 +103,9 @@ export function ConnectFailedScreen({
 		setIsEditingHost(false);
 		onRetry();
 	}, [hostDraft, onRetry]);
+
+	// 地址示例优先使用运行时 baseUrl（07 节运行时发现 / R2，不在源码硬编码 7817）
+	const displayExampleHost = baseUrl && baseUrl.trim().length > 0 ? baseUrl : 'http://127.0.0.1';
 
 	return (
 		<div
@@ -178,7 +183,7 @@ export function ConnectFailedScreen({
 					{isEditingHost ? (
 						<div className="flex flex-col gap-2">
 							<label className="text-meta text-ink-3" htmlFor="connect-failed-host">
-								调度服务地址（例如 http://127.0.0.1:7817）
+								调度服务地址（例如 {displayExampleHost}）
 							</label>
 							<div className="flex gap-2">
 								<input
@@ -186,7 +191,7 @@ export function ConnectFailedScreen({
 									data-testid="host-input"
 									value={hostDraft}
 									onChange={(event) => setHostDraft(event.target.value)}
-									placeholder="http://127.0.0.1:7817"
+									placeholder={displayExampleHost}
 									className="h-input flex-1 rounded-sm border border-border bg-panel-2 px-3 font-mono text-body text-ink-1 placeholder:text-ink-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-needs-soft"
 								/>
 								<button

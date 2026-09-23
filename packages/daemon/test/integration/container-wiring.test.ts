@@ -496,12 +496,27 @@ describe(
 			const reviewProc = spawnedProcesses.find((p) => p.launchSpec.runId === reviewRun?.id);
 			expect(reviewProc).toBeDefined();
 
+			// Listen for real completion signal (task.review_verdict)
+			const verdictPromise = new Promise<{ verdict: string }>((resolve, reject) => {
+				const timer = setTimeout(() => {
+					reject(new Error('Timeout waiting for task.review_verdict completion signal'));
+				}, 10000);
+				const unsub = container.events.bus.subscribe((envelope) => {
+					if (envelope.kind === 'task.review_verdict') {
+						clearTimeout(timer);
+						unsub();
+						resolve(envelope.payload as { verdict: string });
+					}
+				});
+			});
+
 			// Review process emits VERDICT: pass and exits 0
 			reviewProc?.emitLine('VERDICT: pass\nAll acceptance criteria met.');
 			await new Promise((r) => setTimeout(r, 30));
 
 			reviewProc?.emitExit(0);
-			await new Promise((r) => setTimeout(r, 200));
+			const verdictPayload = await verdictPromise;
+			expect(verdictPayload.verdict).toBe('pass');
 
 			// Verify task.review_verdict was emitted
 			const reviewVerdictEvent = publishedEvents.find((e) => e.kind === 'task.review_verdict');

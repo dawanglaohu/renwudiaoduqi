@@ -20,6 +20,7 @@ import {
 	SERVICE_NOT_RUNNING_TITLE,
 	useFirstScreenFailure,
 } from '../src/app/connect-failed.tsx';
+import { LAUNCH_SERVICE_FAILED_MESSAGE } from '../src/i18n/error-messages.ts';
 import { shellBridge } from '../src/shell/shell-bridge.ts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -186,9 +187,34 @@ describe('M10-T6 AC 1: connect-failed screen', () => {
 
 		const notice = document.querySelector('[data-testid="launch-error"]');
 		expect(notice).not.toBeNull();
-		expect(notice?.textContent).toContain('spawn failed: ENOENT');
+		// R2: shows Chinese error text from i18n, never raw Rust/English error
+		expect(notice?.textContent).toContain(LAUNCH_SERVICE_FAILED_MESSAGE);
+		expect(notice?.textContent).not.toContain('spawn failed: ENOENT');
 		expect(document.querySelector('[data-testid="launch-pid"]')).toBeNull();
 		expect(onRetry).not.toHaveBeenCalled();
+	});
+
+	it('uses runtime baseUrl for the example address in label and placeholder without hardcoded 7817', () => {
+		render(
+			createElement(ConnectFailedScreen, {
+				code: 'E_NETWORK',
+				requestId: 'req-dyn',
+				baseUrl: 'http://127.0.0.1:7900',
+				onRetry: () => {},
+			}),
+		);
+		const editButton = document.querySelector('[data-testid="edit-host"]');
+		expect(editButton).not.toBeNull();
+		act(() => {
+			editButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		});
+
+		const label = document.querySelector('label[for="connect-failed-host"]');
+		expect(label?.textContent).toContain('http://127.0.0.1:7900');
+		expect(label?.textContent).not.toContain('7817');
+
+		const input = document.querySelector('[data-testid="host-input"]') as HTMLInputElement | null;
+		expect(input?.placeholder).toBe('http://127.0.0.1:7900');
 	});
 
 	it('writes a changed address before retrying', async () => {
@@ -281,6 +307,106 @@ describe('M10-T6 AC 1: the failure channel is reachable from the app entry', () 
 			});
 		});
 		expect(document.querySelector('[data-testid="probe"]')?.textContent).toBe('E_NETWORK');
+	});
+
+	it('R1: real production entry captures snapshot E_NETWORK, shows failure screen, launches via invoke, and recovers cleanly on snapshot retry', async () => {
+		const invoke = vi.fn(async (command: string) => {
+			if (command === 'launch_service') {
+				return 54321;
+			}
+			if (command === 'get_host_hint') {
+				return 'http://127.0.0.1:7817';
+			}
+			throw new Error(`Unexpected Tauri command: ${command}`);
+		});
+		installTauriGlobals(invoke);
+		const { App: DynamicApp } = await import('../src/app/app.tsx');
+		const { setCachedToken } = await import('../src/api/http-client.ts');
+
+		setCachedToken('test-device-token');
+		window.location.hash = '#/tasks';
+
+		let failFetch = true;
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			const urlStr = String(input);
+			if (urlStr.includes('/api/v1/snapshot')) {
+				if (failFetch) {
+					throw new TypeError('Failed to fetch');
+				}
+				// Slight delay so the launched state with pid is visible before snapshot clears failure
+				await new Promise((r) => setTimeout(r, 40));
+				return new Response(
+					JSON.stringify({
+						tasks: [
+							{
+								id: 'task-real-1',
+								taskKey: 'M10-T6',
+								title: 'Shell smoke wiring',
+								batchId: 'batch-real-1',
+								state: 'landed',
+							},
+						],
+						batches: [
+							{
+								id: 'batch-real-1',
+								docId: 'doc-1',
+								batchNo: 1,
+								state: 'done',
+							},
+						],
+						latestEventId: 1,
+					}),
+					{
+						status: 200,
+						headers: { 'Content-Type': 'application/json' },
+					},
+				);
+			}
+			return originalFetch ? originalFetch(input, init) : new Response('{}');
+		});
+
+		try {
+			render(createElement(DynamicApp));
+
+			// 1. Wait for real snapshot fetcher to fail and ConnectFailedScreen to mount at app root
+			await vi.waitFor(
+				() => {
+					const failureScreen = document.querySelector('[data-testid="connect-failed-screen"]');
+					expect(failureScreen).not.toBeNull();
+					expect(failureScreen?.textContent).toContain(SERVICE_NOT_RUNNING_TITLE);
+				},
+				{ timeout: 4000, interval: 50 },
+			);
+
+			// 2. Button is rendered under Tauri
+			const launchButton = document.querySelector('[data-testid="launch-service"]');
+			expect(launchButton).not.toBeNull();
+			expect(launchButton?.textContent).toContain('启动调度服务');
+
+			// 3. Next fetch attempt should succeed
+			failFetch = false;
+
+			// 4. Click launch button: exactly one invoke call, returns pid
+			await click(launchButton);
+
+			expect(invoke.mock.calls.filter(([command]) => command === 'launch_service')).toHaveLength(1);
+
+			// 5. On snapshot retry success, failure screen is cleared and tasks page is restored
+			await vi.waitFor(
+				() => {
+					expect(document.querySelector('[data-testid="connect-failed-screen"]')).toBeNull();
+					const tasksContainer = document.querySelector('[data-component="tasks-page-container"]');
+					expect(tasksContainer).not.toBeNull();
+					expect(tasksContainer?.textContent).toContain('M10-T6');
+				},
+				{ timeout: 4000, interval: 50 },
+			);
+		} finally {
+			globalThis.fetch = originalFetch;
+			setCachedToken(null);
+			window.location.hash = '';
+		}
 	});
 });
 
