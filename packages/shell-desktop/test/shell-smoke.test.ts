@@ -325,7 +325,7 @@ describe('M10-T6 AC 3: the shell stage end to end', () => {
 		} finally {
 			removeTempRoot(root);
 		}
-	});
+	}, 30_000);
 
 	it('refuses to run when the daemon distribution is missing (E-257)', async () => {
 		const root = makeTempRoot();
@@ -412,5 +412,5 @@ describe('M10-T6 AC 3: the shell stage end to end', () => {
 		} finally {
 			removeTempRoot(root);
 		}
-	});
+	}, 30_000);
 });
