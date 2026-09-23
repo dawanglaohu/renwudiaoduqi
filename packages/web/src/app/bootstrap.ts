@@ -107,8 +107,9 @@ export async function bootstrap(overrides: Partial<BootstrapDeps> = {}): Promise
 	// previous authenticated bootstrap; a missing native credential must never inherit that token.
 	setCachedToken(token);
 
-	// 3. 先把壳的 hostHint 挂进三级发现，再解析 baseUrl
-	registerShellHostHint(() => shell.hostHint());
+	// 3. 原生壳地址（Level 1 壳注入）具有最高优先级；免壳浏览器模式不得把 location.origin
+	// 作为壳 hint 注册，否则会压制 Level 2 的 E-06 用户手填地址（预期顺序：原生壳地址 → 手填地址 → 页面 origin）。
+	registerShellHostHint(platform === 'browser' ? null : () => shell.hostHint());
 	const baseUrl = await deps.resolveBaseUrl();
 
 	// 4. 连接状态：SSE 状态与事件单向映射进 store，再镜像到 <html data-connection-status>

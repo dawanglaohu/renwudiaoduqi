@@ -1036,14 +1036,14 @@
     "verdict": "pass"
   },
   "M8-T7": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "d393b5c413d9b0d94b1683cac25009a77220b0588ec80be3c458269d7e076ac0",
+    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
+    "contractHash": "3552a153c4937cde6d6473621c9890499a2d9a72b9cac44c51405415a3a9dd32",
     "evidence": [
-      "19 节 M8-T7 行：依赖 M8-T6（有效裁定与开放项）与 M7-T5（返工提示词）；产出 service/wrapup.ts 修复段、domain/task-state.ts、domain/path-clash.ts、routes/tasks.ts 在 taskPaths；shared tasks.ts/codes.ts/routes.ts 在 supportPaths（E_FIX_RUN_IN_FLIGHT 与 recall 路由）",
-      "验收 1)～6) 对应 E-275（修复运行字段与跨批语义）、E-280（同收口串行、E-46 排队）、E-276/E-290（第 2 轮与无主）、E-293/E-300（撤回与在途冲突）、E-298（inHead 派生）；10 节已加 POST /tasks/:taskId/recall 与三个错误码；决策 70 写明不为 wrapup-fix 跳过审查",
-      "接缝：与 M9-T20 的批次级落地清单消费同一 GET /batches/:id/wrapups[].landing；TaskDto.inHead/crossBatchFix 字段由本任务在 shared tasks.ts 落，M9-T19 只读"
+      "PR #131 round 2: the six M8-T7 acceptance clauses and E-275/E-276/E-280/E-290/E-293/E-298/E-300/E-46/E-55 remain unchanged; prerequisites M8-T6 and M7-T5 are landed. This patch adds only production paths required to expose duplicate fix items in the landing checklist: boot/container.ts, service/landing.ts, and web landing-container.tsx.",
+      "The R5 test creates two wrapup reports targeting one task, confirms a single fix run, a persisted appended prompt, and landingHints containing the later item. The R6 route tests cover missing comment, no landed run, manually landed run rejection, automatic landing gate success, in-flight normal run rejection, and duplicate recall rejection.",
+      "Windows pnpm -w check passed before reviewer fixes (169 files, 2047 tests passed, 3 skipped); after the fixes, focused M8-T7/M8-T10/Codex tests, Biome and TypeScript were rerun. Code and scope changes stay in the original PR #131."
     ],
-    "reviewed": "2026-09-10T20:08:19.105424+00:00",
+    "reviewed": "2026-09-23T05:52:31.271030+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1213,16 +1213,16 @@
     "verdict": "pass"
   },
   "M9-T19": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "10b6f099ab50dd7f8082c8d8725bfc74e5138604fa830c4e5af4867f50e67ab4",
+    "compiler": "477f5cd7c1230e69e61d653e3e3f728376a14da5d118f96b5bc01474638d354b",
+    "contractHash": "5fceee3dffa2dcbfacf3a7dc4ae33e9df02036b2e1756bf34b9a25b6dad514a7",
     "evidence": [
-      "2026-09-17 对照 04-执行/19-模块任务拆分、07-前端架构、09-数据模型、10-接口约定、11-UI、12-UX 与 E-13/E-272/E-282/E-284/E-298/E-299 逐条复核；六条验收标准和六条边界均未删除、弱化或改写。",
-      "前置修正为 M8-T6/M8-T7/M9-T16/M9-T2/M9-T5：M8-T6 是 BatchDto 七态、canWrapup/notInHeadCount 及批次派生数据的后端所有者，M8-T7 是 TaskDto.inHead/inHeadMethod/crossBatchFix 的后端所有者，消除前端在字段落地前自造影子契约的空档。",
-      "10 节补入 GET /api/v1/settings/gates 返回当前三值；PATCH 仍要求 dispatch/review/landing 全量写入并由 settings.gates_changed 回流。supportPaths 只增加 shared/daemon 路由与对应 gates/routes 测试，没有开放整个后端目录。",
-      "有效路径补入 app/app.tsx、task-list-page.tsx、run-deck-view/container/types、mobile-batch-list.tsx 与 vitest.config.ts，分别承接任务列表路由、顶栏装配、手机 pane 替换和 TSX/lib 测试发现；其余生产路径仍受原 taskPaths 限制。",
-      "补丁同步后 contractHash=10b6f099ab50dd7f8082c8d8725bfc74e5138604fa830c4e5af4867f50e67ab4，stale=[]、runtimeDrift=[]；pnpm -w check 通过（151 files, 1842 passed, 2 skipped），Web production build 通过。"
+      "2026-09-23 对照任务笔记六条验收与 E-13/E-272/E-282/E-284/E-298/E-299：批次树只消费 BatchDto/TaskDto，缺失计数显示 —，折叠后不创建子行；展开集为模块级 Set 且 batch.advanced 只增不减。对应 batch-tree.tsx、batch-expansion.ts、use-batch-tree.ts。",
+      "已落地 M8-T7 的 shared TaskDto 与 daemon docs/dispatch 投影提供 inHead、inHeadMethod、crossBatchFix；M8-T6 的 BatchDto/批次服务提供 canWrapup 与 notInHeadCount。M9-T19 不在前端猜这些字段。",
+      "M9-T25 七路由接线合入后，app.tsx 保留完整组件表并只装配一组 GateTogglesContainer；#/tasks 指向 TaskListContainer 与同一 BatchTree，phone/coarse pointer 传入 44px 档。配对页及无设备令牌时不挂闸门。",
+      "GET/PATCH /api/v1/settings/gates 均在 shared 路由表与 daemon gates.ts 注册；前端 PATCH 全量三值并等 settings.gates_changed 回流。PulseDot 被 spine 与批次树共用，RUN_PULSE 穷尽 13 态，base.css 唯一 keyframe 与 reduced-motion，check-forbidden 通过。",
+      "合并 origin/main 后 Windows pnpm -w check 零退出：177 个文件、2120 passed、3 skipped；Web 生产构建通过。之后手机任务路由调整的聚焦 route-entries/batch-tree 测试 20/20、Biome 与 TypeScript 通过。maintain_docs status 报 stale=[]、runtimeDrift=[]。"
     ],
-    "reviewed": "2026-09-17T05:58:10.741008+00:00",
+    "reviewed": "2026-09-23T12:45:47.471559+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1306,18 +1306,14 @@
     "verdict": "pass"
   },
   "M9-T25": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "2da02dfd124539a4a0da5911d73cdf78c00cddab45c3be9abc36ac922723944c",
+    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
+    "contractHash": "3f7eeb1bf7629a2bdbf1f6b6c9ec46c2df24d36e480f75f9b26715775bfe3ec0",
     "evidence": [
-      "前置：M9-T3、M9-T8、M9-T9、M9-T12、M9-T14、M9-T15、M9-T16；其中已落地 7 个。",
-      "验收标准引用边界 E-06、E-222、E-223、E-224，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/web/src/app/app.tsx（类别 frontendRoutes）",
-      "注册点文件已核存在于 packages/web/src/app/routes.tsx（类别 frontendRoutes）",
-      "有效范围 11 条：packages/web/src/app/app.tsx；packages/web/src/app/routes.tsx；packages/web/src/features/pairing/pairing-container.tsx；packages/web/src/features/run-deck/mobile-batch-list.tsx；packages/web/src/features/run-deck/run-deck-container.tsx；packages/web/src/features/run-detail/run-detail-container.tsx；packages/web/src/features/settings-agents/settings-agents-container.tsx；packages/web/src/features/settings-devices/settings-devices-container.tsx；packages/web/src/pages/；packages/web/test/route-entries.test.tsx；packages/web/test/routes.test.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/web/test/route-entries.test.tsx。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "R4 scope correction only: supportPaths now explicitly lists packages/daemon/test/unit/diff.test.ts and packages/daemon/test/unit/landing.test.ts; both were changed solely to stabilize real git describe test timeouts.",
+      "M9-T25 five acceptance clauses and E-06/E-222/E-223/E-224 remain unchanged; R1 browser host precedence and R2 run detail cancellation are covered by packages/web/test/bootstrap.test.ts and route-entries.test.tsx.",
+      "After merge of origin/main, pnpm -w check passed: 171 test files, 2070 passed, 3 skipped; Biome and TypeScript completed within the same zero-exit gate."
     ],
-    "reviewed": "2026-09-18T18:31:32.648537+00:00",
+    "reviewed": "2026-09-23T07:30:33.271273+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

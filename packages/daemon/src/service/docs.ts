@@ -7,7 +7,13 @@ import type { DatabaseConnection } from '../db/open-database.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { type DocsFingerprintHasher, computeDocsFingerprint } from '../domain/docs-fingerprint.ts';
 import { batchNoOf, layerOf } from '../domain/layer-of.ts';
-import { deriveTaskState, isTaskState } from '../domain/task-state.ts';
+import {
+	deriveTaskCrossBatchFix,
+	deriveTaskInHead,
+	deriveTaskInHeadMethod,
+	deriveTaskState,
+	isTaskState,
+} from '../domain/task-state.ts';
 import {
 	BUILTIN_WRAPUP_PROMPT,
 	PROMPT_SOURCE_BUILTIN,
@@ -25,6 +31,7 @@ import {
 	createDispatchSnapshotsRepo,
 } from '../repo/dispatch-snapshots.ts';
 import type { DocumentMetadataUpdateRow, DocumentRow, DocumentsRepo } from '../repo/documents.ts';
+import { type RunRow, type RunsRepo, createRunsRepo } from '../repo/runs.ts';
 import {
 	type DependencyValidationReport,
 	type TaskRow,
@@ -127,6 +134,7 @@ export interface DocsServiceDeps {
 	readonly fileExists?: (path: string) => Promise<boolean> | boolean;
 	readonly batchesRepo?: BatchesRepo;
 	readonly tasksRepo?: TasksRepo;
+	readonly runsRepo?: RunsRepo;
 	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
 	readonly db?: DatabaseConnection;
 	/** 任务与批次落库走一次事务（08 节：只有 service 层能开事务）；缺省时逐条执行。 */
@@ -245,7 +253,10 @@ export function mapDocumentRow(row: DocumentRow): DocumentRecord {
 	});
 }
 
-function toTaskDto(row: TaskRow & { derived_state?: string }): TaskDto {
+function toTaskDto(
+	row: TaskRow & { derived_state?: string },
+	runsForTask?: readonly RunRow[],
+): TaskDto {
 	let deps: readonly string[];
 	try {
 		const parsed = JSON.parse(row.deps_json);
@@ -254,6 +265,30 @@ function toTaskDto(row: TaskRow & { derived_state?: string }): TaskDto {
 		deps = [];
 	}
 	const state = row.derived_state ?? deriveTaskState(row.manual_state, null);
+	const implRuns = runsForTask?.filter((r) => r.kind === 'implement') ?? [];
+	const latestImplRun =
+		implRuns.length > 0
+			? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
+			: null;
+	const inHead = deriveTaskInHead({
+		manualState: row.manual_state,
+		latestImplementationRun: latestImplRun
+			? { state: latestImplRun.state, is_in_head: latestImplRun.is_in_head }
+			: null,
+	});
+	const inHeadMethod = deriveTaskInHeadMethod(
+		{
+			manualState: row.manual_state,
+			latestImplementationRun: latestImplRun
+				? { state: latestImplRun.state, is_in_head: latestImplRun.is_in_head }
+				: null,
+		},
+		row.manual_state,
+	);
+	const crossBatchFix = runsForTask
+		? deriveTaskCrossBatchFix({ taskBatchId: row.batch_id, runs: runsForTask })
+		: false;
+
 	return Object.freeze({
 		id: row.id,
 		docId: row.doc_id,
@@ -267,6 +302,9 @@ function toTaskDto(row: TaskRow & { derived_state?: string }): TaskDto {
 		hasAcceptChanged: row.has_accept_changed === 1,
 		hasPromptChanged: row.has_prompt_changed === 1,
 		isRemovedFromDoc: row.is_removed_from_doc === 1,
+		inHead,
+		inHeadMethod,
+		crossBatchFix,
 	});
 }
 
@@ -1051,7 +1089,17 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			const pagedRows = hasMore ? rows.slice(0, limit) : rows;
 			const lastRow = pagedRows[pagedRows.length - 1];
 			const nextCursor = hasMore && lastRow ? lastRow.task_key : null;
-			const tasks = Object.freeze(pagedRows.map(toTaskDto));
+
+			const runsRepo = deps.runsRepo ?? (deps.db ? createRunsRepo(deps.db) : undefined);
+			const allRuns = runsRepo ? runsRepo.listAll() : [];
+			const runsByTaskId = new Map<string, RunRow[]>();
+			for (const r of allRuns) {
+				if (!r.task_id) continue;
+				const list = runsByTaskId.get(r.task_id) ?? [];
+				list.push(r);
+				runsByTaskId.set(r.task_id, list);
+			}
+			const tasks = Object.freeze(pagedRows.map((r) => toTaskDto(r, runsByTaskId.get(r.id))));
 
 			return Object.freeze({
 				tasks,

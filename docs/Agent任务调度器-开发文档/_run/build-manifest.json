@@ -26,19 +26,20 @@
     "05-附录/23-变更记录.md": "7cd7a276a67c97a1ca3498ce7f9be6e4c22ce1c2c1d50c7223f3049ba3a6a535",
     "05-附录/24-参考资料.md": "eec613e723bff7847e309724b2c12f0d8eb447a3b1cff7ce169eae0bd02cc070",
     "README.md": "449e8971a4884cab4ad6bd71e0ed8d88166999fba8e4c20e3b446a6b898c3559",
+    "_run/batches/batch-12-20260923.md": "5fc4486fcd79dbd7a6e3482a84da0651808f037654d3e747359804a73a2dcf16",
     "_run/batches/batch-8-20260922-r3.md": "3b5ef6a0f09bd96c34496700e635c3ac2ba0fc0742a5a895950e519440955da6",
     "_run/batches/batch-8-20260922.md": "a105889d07a9a83829268449892d4f81fbb630d849eaa53e37ad7641848d3749",
     "_run/presentation.json": "7bc4a2750015ba454c28ed4b2776bd5ffbe2f8724f761b35f2debd53787f1660",
-    "_run/task-contracts.json": "b816cb030bdad070342d436df874fa7782d75a1ba8684811b3337651164038ec"
+    "_run/task-contracts.json": "713db833c221725e8f3ca46c5a9de2c33f89120ff6c89dded9f46e4e874331e2"
   },
   "products": {
     "_MOC.md": "325993513261fe854426169a7e2bbb44a7e7da69de6cc942cb73a7a76414085d",
-    "_run/dispatch.json": "142fd577ce4796106715c040a2e51e91b46ab69a95ade3b0523a75ee6add36a5",
-    "_run/review.json": "16219364d096a393bf76b7f734cf9b9308bb1c81be03fa6a35e69e58c592a46a",
-    "_run/task-reviews.json": "58fd0f4c789149a27e59b1f03e03bea33339e8194e26e2ee3937966d4816dd2d",
-    "docs-data.js": "a861b4ac43cc25e21132e6fb18a3664c15dd6c23b625b9a41f979069898cac71",
+    "_run/dispatch.json": "9efb26d0ae0ab24b90a5a83d4b05367d27cb43037f37ba466ba747a2b357a9d1",
+    "_run/review.json": "d135e939c868e24afae7874a7cdb4fcb0167415f1245b83f917a0873317b2cee",
+    "_run/task-reviews.json": "09bf78844a29a4496df1cd10b8efcb79141712ee7d7693cb0535d335d4fec2b1",
+    "docs-data.js": "4f816f296ccd58720b5a5e125f90f8a6052a0458156b10ed3c0276f9141c0d86",
     "index.html": "7dd1d4f8ec70782277114b47054ce6f79cd2ba70af1f809a3cdaf4625435985b"
   },
   "schemaVersion": 1,
-  "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+  "sourceVersion": "08adb5bc48572824ef8ead20753d1c9d4ea8141d7fe55fe69a08c54fc01fdca4"
 }

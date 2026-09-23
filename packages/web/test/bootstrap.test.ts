@@ -7,8 +7,9 @@ import { createElement } from 'react';
 import { act } from 'react';
 import { type Root, createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearManualHost, setManualHost } from '../src/api/base-url.ts';
 import { eventBus } from '../src/api/event-bus.ts';
-import { clearCachedToken, setCachedToken } from '../src/api/http-client.ts';
+import { clearCachedToken, httpClient, setCachedToken } from '../src/api/http-client.ts';
 import { type SseClient, createSseClient } from '../src/api/sse-client.ts';
 import { bootstrap } from '../src/app/bootstrap.ts';
 import { ConnectionStatusBanner } from '../src/features/run-deck/use-connection-state.ts';
@@ -136,14 +137,17 @@ async function closeServer(server: Server): Promise<void> {
 describe('M9-T26 application bootstrap', () => {
 	beforeEach(() => {
 		clearCachedToken();
+		clearManualHost();
 		useConnectionStore.getState().reset();
 		delete document.documentElement.dataset.connectionStatus;
 	});
 
 	afterEach(() => {
 		clearCachedToken();
+		clearManualHost();
 		useConnectionStore.getState().reset();
 		delete document.documentElement.dataset.connectionStatus;
+		vi.restoreAllMocks();
 	});
 
 	it('reads the shell token before resolving the base URL and opening the one SSE stream', async () => {
@@ -274,6 +278,7 @@ describe('M9-T26 application bootstrap', () => {
 		const fakeServer = await startFakeSseServer();
 		const shell: ShellBridge = {
 			...createShell('bootstrap-token'),
+			platform: 'tauri',
 			hostHint: async () => fakeServer.url,
 		};
 		let boot: Awaited<ReturnType<typeof bootstrap>> | undefined;
@@ -315,6 +320,50 @@ describe('M9-T26 application bootstrap', () => {
 			boot?.teardown();
 			response?.end();
 			await closeServer(fakeServer.server);
+		}
+	});
+	it('R1 / E-06: routes pairing request to manual daemon host instead of page origin in browser mode', async () => {
+		const pageOrigin = 'http://192.168.1.10:3000';
+		const daemonHost = '192.168.1.50:7817';
+		setManualHost(daemonHost);
+
+		const browserShell: ShellBridge = {
+			platform: 'browser',
+			capabilities: { hasSecureStorage: false, hasNativeNotification: false },
+			tokenStore: {
+				get: async () => null,
+				set: async () => {},
+				clear: async () => {},
+			},
+			notify: async () => {},
+			hostHint: async () => pageOrigin,
+		};
+
+		const boot = await bootstrap({ shell: browserShell });
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ token: 'paired-token', deviceId: 'dev-r1' }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			}),
+		);
+
+		try {
+			expect(boot.baseUrl).toBe('http://192.168.1.50:7817');
+
+			await httpClient.post(
+				'/api/v1/pair/claim',
+				{ code: '654321', deviceName: 'Browser Test Device' },
+				{ auth: 'none' },
+			);
+
+			expect(fetchSpy).toHaveBeenCalledWith(
+				'http://192.168.1.50:7817/api/v1/pair/claim',
+				expect.objectContaining({
+					method: 'POST',
+				}),
+			);
+		} finally {
+			boot.teardown();
 		}
 	});
 });

@@ -11,6 +11,7 @@
 
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
+import { useBreakpoint } from '../../hooks/use-breakpoint.ts';
 import { useTaskList } from './use-task-list.ts';
 
 export interface TaskListContainerProps {
@@ -49,6 +50,7 @@ export function TaskListContainer(props: TaskListContainerProps) {
 		onOpenWrapupRun,
 		className = '',
 	} = props;
+	const viewport = useBreakpoint();
 
 	const { batches, expandedIds, error, toggleBatch } = useTaskList({
 		batches: explicitBatches,
@@ -70,8 +72,8 @@ export function TaskListContainer(props: TaskListContainerProps) {
 				batches={batches}
 				expandedIds={expandedIds}
 				selectedTaskId={selectedTaskId}
-				densityTier={densityTier}
-				isTouch={isTouch}
+				densityTier={densityTier ?? viewport.tier}
+				isTouch={isTouch ?? viewport.isTouch}
 				onToggleBatch={toggleBatch}
 				onSelectTask={onSelectTask}
 				onWrapup={onWrapup}

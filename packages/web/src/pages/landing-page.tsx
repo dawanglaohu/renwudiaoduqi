@@ -51,6 +51,7 @@ export function LandingPage(props: LandingPageProps) {
 
 	return (
 		<div
+			data-component="landing-page"
 			data-testid="task-landing-page"
 			data-task-id={taskId}
 			className={[

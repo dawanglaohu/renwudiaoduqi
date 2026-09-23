@@ -1,6 +1,12 @@
+import {
+	type RecallTaskBody,
+	type RecallTaskResponse,
+	recallTaskBodySchema,
+} from '@agent-scheduler/shared/api/tasks';
 import type { FastifyInstance, FastifyRequest, RouteHandlerMethod } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
 import type { LandingService } from '../../service/landing.ts';
+import type { WrapupService } from '../../service/wrapup.ts';
 
 export interface TaskRouteParams {
 	readonly taskId: string;
@@ -21,11 +27,13 @@ export const taskRouteParamsSchema = {
 
 export interface RegisterTasksRoutesOptions {
 	readonly landingService?: LandingService;
+	readonly wrapupService?: WrapupService;
 }
 
-interface ContainerWithLandingService {
+interface ContainerWithTaskServices {
 	readonly services?: {
 		readonly landing?: LandingService;
+		readonly wrapup?: WrapupService;
 	};
 }
 
@@ -39,12 +47,32 @@ function resolveLandingService(
 	}
 
 	const container =
-		(request.server as unknown as { container?: ContainerWithLandingService })?.container ??
-		(instance as unknown as { container?: ContainerWithLandingService })?.container;
+		(request.server as unknown as { container?: ContainerWithTaskServices })?.container ??
+		(instance as unknown as { container?: ContainerWithTaskServices })?.container;
 
 	const service = container?.services?.landing;
 	if (!service) {
 		throw new AppError('E_INTERNAL', 'Landing service is not registered in the container');
+	}
+	return service;
+}
+
+function resolveWrapupService(
+	request: FastifyRequest,
+	instance: FastifyInstance,
+	options?: RegisterTasksRoutesOptions,
+): WrapupService {
+	if (options?.wrapupService) {
+		return options.wrapupService;
+	}
+
+	const container =
+		(request.server as unknown as { container?: ContainerWithTaskServices })?.container ??
+		(instance as unknown as { container?: ContainerWithTaskServices })?.container;
+
+	const service = container?.services?.wrapup;
+	if (!service) {
+		throw new AppError('E_INTERNAL', 'Wrapup service is not registered in the container');
 	}
 	return service;
 }
@@ -61,6 +89,7 @@ function readTaskId(request: FastifyRequest): string {
  * Registers task routes:
  * - `GET /api/v1/tasks/:taskId/landing`: read-only landing checklist with diff and copyable commands (AC 1, AC 3, E-74)
  * - `POST /api/v1/tasks/:taskId/worktree/cleanup`: explicit worktree reclamation (AC 2, E-73)
+ * - `POST /api/v1/tasks/:taskId/recall`: manual recall creating wrapup-fix run (AC 5, E-293, E-300)
  */
 export function registerTasksRoutes(
 	instance: FastifyInstance,
@@ -76,6 +105,19 @@ export function registerTasksRoutes(
 		const taskId = readTaskId(request);
 		const service = resolveLandingService(request, instance, options);
 		return service.cleanupWorktree({ taskId });
+	};
+
+	const recallTaskHandler: RouteHandlerMethod = async (request): Promise<RecallTaskResponse> => {
+		const taskId = readTaskId(request);
+		const body = request.body as RecallTaskBody;
+		const service = resolveWrapupService(request, instance, options);
+		const actorDeviceId = (request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
+		return service.recallTask({
+			taskId,
+			comment: body.comment,
+			idempotencyKey: body.idempotencyKey,
+			actorDeviceId,
+		});
 	};
 
 	instance.get(
@@ -96,5 +138,16 @@ export function registerTasksRoutes(
 			},
 		},
 		cleanupWorktreeHandler,
+	);
+
+	instance.post(
+		'/api/v1/tasks/:taskId/recall',
+		{
+			schema: {
+				params: taskRouteParamsSchema,
+				body: recallTaskBodySchema,
+			},
+		},
+		recallTaskHandler,
 	);
 }

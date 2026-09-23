@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { RunState } from '@agent-scheduler/shared/api/runs';
+import { describe, expect, it } from 'vitest';
 import { RUN_PULSE, pulseForRun } from './run-pulse.ts';
 
 describe('lib/run-pulse (M9-T19, AC 3, E-282)', () => {

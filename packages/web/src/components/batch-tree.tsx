@@ -28,14 +28,10 @@ import { PulseDot } from './pulse-dot.tsx';
 import { StatusBadge } from './status-badge.tsx';
 
 /**
- * 任务行条目：TaskDto 之上按 07 节字段名声明尚未进入 shared 的可选字段（inHead / inHeadMethod / crossBatchFix），
- * 由 M8-T7 在 daemon 侧产出；缺失时本组件显示「—」，不推断。
+ * 任务行直接消费 shared TaskDto；进 HEAD 与跨批修复字段由 daemon 产出。
+ * 缺失时显示「—」，不从分支名或运行状态推断。
  */
-export interface BatchTreeTaskItem extends TaskDto {
-	readonly inHead?: boolean | null;
-	readonly inHeadMethod?: string | null;
-	readonly crossBatchFix?: boolean;
-}
+export type BatchTreeTaskItem = TaskDto;
 
 /**
  * 收口运行行数据模型。

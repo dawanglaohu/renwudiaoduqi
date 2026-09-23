@@ -1,0 +1,24 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "781934d14c9488df773748d45d810787d2a6ad8ba5879fa04f571852bcb22e9d",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T25": {
+      "contractHash": "3f7eeb1bf7629a2bdbf1f6b6c9ec46c2df24d36e480f75f9b26715775bfe3ec0",
+      "evidence": [
+        "R4 scope correction only: supportPaths now explicitly lists packages/daemon/test/unit/diff.test.ts and packages/daemon/test/unit/landing.test.ts; both were changed solely to stabilize real git describe test timeouts.",
+        "M9-T25 five acceptance clauses and E-06/E-222/E-223/E-224 remain unchanged; R1 browser host precedence and R2 run detail cancellation are covered by packages/web/test/bootstrap.test.ts and route-entries.test.tsx.",
+        "After merge of origin/main, pnpm -w check passed: 171 test files, 2070 passed, 3 skipped; Biome and TypeScript completed within the same zero-exit gate."
+      ],
+      "verdict": "pass"
+    },
+    "M9-T27": {
+      "contractHash": "885594c08f966556263459503ca507617a2821f05c5e32f2a2bbccb7fb6d3fe7",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}
