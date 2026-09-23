@@ -23,6 +23,10 @@ function createShell(token: string | null, order?: string[]): ShellBridge {
 		capabilities: {
 			hasSecureStorage: false,
 			hasNativeNotification: false,
+			canLaunchService: false,
+		},
+		async launchService() {
+			throw new Error('E_SHELL_UNAVAILABLE');
 		},
 		tokenStore: {
 			async get() {

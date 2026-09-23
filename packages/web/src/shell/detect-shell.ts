@@ -45,11 +45,14 @@ export function detectShell(win?: unknown): DetectedShell {
 
 	const hasNative = platform !== 'browser';
 
+	// Only the desktop container can spawn the local scheduler service (E-146, E-200):
+	// the browser has nothing to start it with and Android has no daemon of its own.
 	return Object.freeze({
 		platform,
 		capabilities: Object.freeze({
 			hasSecureStorage: hasNative,
 			hasNativeNotification: hasNative,
+			canLaunchService: platform === 'tauri',
 		}),
 	});
 }

@@ -86,7 +86,8 @@ jobs:
             libgtk-3-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            xvfb
 
       - name: Cache pnpm store
         uses: actions/cache@v4
@@ -238,6 +239,30 @@ jobs:
             node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
           else
             sudo -E "$(command -v node)" --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts
+          fi
+
+      # M10-T6 AC 3 (E-257, E-265): the real shell executable against the real shipped
+      # daemon. The stage starts the daemon from the same frozen launch spec, pairs a real
+      # device over POST /api/v1/pair/claim, then starts the shell with AGSCHED_SMOKE=1
+      # (through xvfb-run on Linux, which has no X display). The shell itself polls
+      # data-style-loaded and data-connection-status out of the loaded page and exits 0
+      # only when both hold within 20s.
+      # It asserts nothing about clicks, notifications or window behaviour: those stay on
+      # the per-platform manual checklist (E-266).
+      - name: Desktop Shell Smoke (AC 3, E-257, E-265, E-266)
+        shell: bash
+        env:
+          DESKTOP_SMOKE_PORT: '7817'
+        run: |
+          set -euo pipefail
+          bundle_path="$(find release-assets -maxdepth 1 -type f -name '*.${{ matrix.smoke_extension }}' -print -quit)"
+          test -n "$bundle_path"
+          echo "Using real Tauri bundle for the shell smoke: $bundle_path"
+          export DESKTOP_BUNDLE_PATH="$bundle_path"
+          if [ "${{ matrix.platform }}" = "win32" ]; then
+            node --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts shell
+          else
+            sudo -E "$(command -v node)" --no-warnings --experimental-strip-types packages/shell-desktop/launchers/smoke-runner.ts shell
           fi
 
       - name: Label macOS Signing & Notarization Status (AC 6, E-267)

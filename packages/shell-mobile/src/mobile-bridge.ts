@@ -47,9 +47,12 @@ export interface InitializedMobileShell {
 	readonly destroy: () => void;
 }
 
+// Android has no local scheduler service to start: the phone talks to the desktop daemon,
+// so the fourth capability is permanently false here (E-146, E-200).
 const MOBILE_CAPABILITIES: ShellCapabilities = Object.freeze({
 	hasSecureStorage: true,
 	hasNativeNotification: true,
+	canLaunchService: false,
 });
 
 /**
@@ -73,12 +76,30 @@ export function createMobileShellBridge(options: MobileBridgeOptions = {}): Shel
 		}
 	}
 
+	/**
+	 * Fourth capability (M10-T6, E-146, E-200): Android has no local scheduler service to
+	 * start - the phone talks to the daemon running on the desktop. The bridge still answers
+	 * the call, with the same client error shape the web side uses, so a caller that ignores
+	 * `capabilities.canLaunchService` gets a code it can branch on instead of a silent no-op.
+	 */
+	async function launchService(): Promise<never> {
+		const error = new Error('launchService requires the desktop shell container') as Error & {
+			code: string;
+			requestId: string;
+		};
+		error.name = 'ApiError';
+		error.code = 'E_SHELL_UNAVAILABLE';
+		error.requestId = 'shell-unavailable';
+		throw error;
+	}
+
 	return Object.freeze({
 		platform: 'capacitor' as ShellPlatform,
 		capabilities: MOBILE_CAPABILITIES,
 		tokenStore,
 		notify,
 		hostHint,
+		launchService,
 	});
 }
 

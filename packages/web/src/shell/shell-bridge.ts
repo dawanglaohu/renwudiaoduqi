@@ -1,10 +1,12 @@
 import type {
+	LaunchServiceResult,
 	ShellBridge,
 	ShellCapabilities,
 	ShellNotificationOptions,
 	ShellPlatform,
 	ShellTokenStore,
 } from '@agent-scheduler/shared/shell/bridge-contract';
+import { ApiError, generateIdempotencyKey } from '../api/http-client.ts';
 import { SHELL } from './detect-shell.ts';
 
 export const SESSION_STORAGE_TOKEN_KEY = 'agsched.token' as const;
@@ -25,7 +27,20 @@ const TAURI_COMMANDS = {
 	setToken: 'set_token',
 	clearToken: 'clear_token',
 	getHostHint: 'get_host_hint',
+	launchService: 'launch_service',
 } as const;
+
+/**
+ * Client-side error raised when a host without the capability is asked to start the local
+ * service (E-146, E-200). Carries `code` so the UI keeps branching on error codes only.
+ */
+export function createShellUnavailableError(action: string): ApiError {
+	return new ApiError({
+		code: 'E_SHELL_UNAVAILABLE',
+		message: `${action} requires the desktop shell container`,
+		requestId: generateIdempotencyKey(),
+	});
+}
 
 /**
  * Capacitor Preferences keys. They mirror `packages/shell-mobile/src/preferences-store.ts`
@@ -39,6 +54,8 @@ export interface NativeShellAdapter {
 	readonly tokenStore?: Partial<ShellTokenStore>;
 	notify?(options: ShellNotificationOptions): Promise<void> | void;
 	hostHint?(): Promise<string | null> | string | null;
+	/** Only the tauri adapter supplies it; the bridge throws without it (E-146, E-200). */
+	launchService?(): Promise<LaunchServiceResult>;
 }
 
 type TauriInvoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -242,6 +259,21 @@ async function hostHint(): Promise<string | null> {
 }
 
 /**
+ * Fourth capability (E-146, E-200, 决策 135): start the local scheduler service.
+ *
+ * Only the tauri adapter answers it. Every other host throws `E_SHELL_UNAVAILABLE`, so a
+ * button that should have been hidden by `capabilities.canLaunchService` can never turn
+ * into an action that silently does nothing. The shell spawns once and returns the pid;
+ * retrying the first-screen snapshot stays the Web UI's job.
+ */
+async function launchService(): Promise<LaunchServiceResult> {
+	if (SHELL.platform !== 'browser' && nativeAdapter?.launchService) {
+		return nativeAdapter.launchService();
+	}
+	throw createShellUnavailableError('launchService');
+}
+
+/**
  * Check if the application is running in un-shelled browser mode (E-229).
  */
 export function isBrowserMode(): boolean {
@@ -300,6 +332,15 @@ export function createTauriShellAdapter(invoke: TauriInvoke): NativeShellAdapter
 			} catch {
 				return null;
 			}
+		},
+		async launchService(): Promise<LaunchServiceResult> {
+			// The shell spawns once and reports the pid; a failed spawn must reach the UI
+			// instead of being swallowed as "launched" (E-146).
+			const pid = await invoke(TAURI_COMMANDS.launchService);
+			if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) {
+				throw new Error(`launch_service returned an unusable pid: ${String(pid)}`);
+			}
+			return Object.freeze({ pid });
 		},
 	};
 }
@@ -372,6 +413,7 @@ export const shellBridge: ShellBridge = {
 	tokenStore,
 	notify,
 	hostHint,
+	launchService,
 };
 
 /**
