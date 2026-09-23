@@ -457,10 +457,9 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			const now = deps.clock.now();
 
 			if (result.outcome === 'landed') {
-				// R4: 幂等检查：已处于 landed 状态的运行或任务直接返回
-				const existingRun = input.runId ? deps.runsRepo?.findById(input.runId) : null;
+				// A landed run may still need its landing gate and task state recorded.
 				const existingTask = deps.tasksRepo?.findById(input.taskId);
-				if (existingRun?.state === 'landed' || existingTask?.manual_state === 'landed') {
+				if (existingTask?.manual_state === 'landed') {
 					return result;
 				}
 
