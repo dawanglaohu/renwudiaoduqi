@@ -1495,7 +1495,15 @@
         "shellBridge"
       ],
       "supportPaths": [
+        "packages/shell-desktop/launchers/evaluate-release-gate.ts",
+        "packages/shell-desktop/src/platform-support.ts",
+        "packages/shell-mobile/src/mobile-bridge.ts",
+        "packages/web/src/app/app.tsx",
         "packages/web/src/app/bootstrap.ts",
+        "packages/web/src/features/run-deck/mobile-batch-list.tsx",
+        "packages/web/src/i18n/error-messages.ts",
+        "packages/web/src/shell/detect-shell.ts",
+        "packages/web/test/",
         "packages/web/src/api/base-url.ts",
         "packages/shell-desktop/src/connection-ui.ts",
         "packages/shell-desktop/src/daemon-process.ts",
