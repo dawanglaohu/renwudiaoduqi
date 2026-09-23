@@ -291,22 +291,31 @@ def sync(root, args):
 
 
 def verify(root, args):
+    tasks = [args.task] if args.task else [t.strip() for t in (getattr(args, 'tasks', '') or '').split(',')]
+    if not tasks or any(not t for t in tasks) or len(tasks) != len(set(tasks)):
+        raise ValueError('须提供不重复的任务 ID')
+    if args.patch and len(tasks) != 1:
+        raise ValueError('补丁复核只接受单个任务')
     _, checked = state(root)
-    if args.task not in checked['contracts']:
-        raise ValueError('未知任务 ' + args.task)
+    unknown = [t for t in tasks if t not in checked['contracts']]
+    if unknown:
+        raise ValueError('未知任务 ' + '、'.join(unknown))
     report = review.review(str(root))
     blockers = [i for i in report.items if i['level'] == 'BLOCK' and
-                (not i.get('taskIds') or args.task in i.get('taskIds', []))]
+                (not i.get('taskIds') or any(t in i.get('taskIds', []) for t in tasks))]
     if blockers:
-        raise ValueError('该任务尚有阻断：' + '; '.join(i['msg'] for i in blockers))
+        raise ValueError('任务尚有阻断：' + '; '.join(i['msg'] for i in blockers))
     submitted = read_json(Path(args.evidence), {})
-    item = (submitted.get('tasks') or {}).get(args.task, {})
-    if submitted.get('scope') != 'task-contract' or item.get('contractHash') != checked['contracts'][args.task]['hash']:
-        raise ValueError('证据的范围或任务契约版本不匹配；先读取 status 的当前版本')
-    evidence = item.get('evidence')
-    if (item.get('verdict') != 'pass' or not isinstance(evidence, list) or not evidence
-            or not all(isinstance(x, str) and x.strip() and x.strip().lower() not in ('todo', 'none', 'pending') for x in evidence)):
-        raise ValueError('须由审查方填写 pass 和非空真实证据；模板不代表通过')
+    items = {}
+    for task in tasks:
+        item = (submitted.get('tasks') or {}).get(task, {})
+        if submitted.get('scope') != 'task-contract' or item.get('contractHash') != checked['contracts'][task]['hash']:
+            raise ValueError(task + '：证据的范围或任务契约版本不匹配；先读取 status 的当前版本')
+        evidence = item.get('evidence')
+        if (item.get('verdict') != 'pass' or not isinstance(evidence, list) or not evidence
+                or not all(isinstance(x, str) and x.strip() and x.strip().lower() not in ('todo', 'none', 'pending') for x in evidence)):
+            raise ValueError(task + '：须由审查方填写 pass 和非空真实证据；模板不代表通过')
+        items[task] = item
     # 全部前置验证完成后才写复核记录，错误参数不得留下半份通过。
     record, path = None, None
     if args.patch:
@@ -317,23 +326,25 @@ def verify(root, args):
         check_branch(root, record)
         if record.get('sourceVersion') != checked['sourceVersion']:
             raise ValueError('补丁之后源又变了；先 sync 当前版本')
-        record['verifiedTasks'] = sorted(set(record.get('verifiedTasks', [])) | {args.task})
+        record['verifiedTasks'] = sorted(set(record.get('verifiedTasks', [])) | set(tasks))
         if record['task'] in record['verifiedTasks']:
             record['status'] = 'verified'
     records = read_json(root / '_run/task-reviews.json', {})
     old_records = dict(records)
-    records[args.task] = {**item, 'scope': 'task-contract', 'reviewed': now(), 'compiler': compiler_hash()}
+    reviewed = now()
+    for task, item in items.items():
+        records[task] = {**item, 'scope': 'task-contract', 'reviewed': reviewed, 'compiler': compiler_hash()}
     write_json(root / '_run/task-reviews.json', records)
     # 文档契约复核不冒充代码通过；revalidation 由代码验收后的 --landed 消除。
     try:
-        build(root, {args.task})
+        build(root, set(tasks))
     except Exception:
         write_json(root / '_run/task-reviews.json', old_records)
         raise
     if record:
         write_json(path, record)
     marker(root)
-    print('任务契约已复核。继续原 PR 的代码验收、回填、commit/push 与落地。')
+    print('任务契约已复核（%d 个）。继续代码验收、回填、commit/push 与落地。' % len(tasks))
     return 0
 
 
@@ -440,7 +451,8 @@ def main():
     p.add_argument('--task', required=True); p.add_argument('--patch', required=True)
     p.add_argument('--pr'); p.add_argument('--reason', required=True)
     p = sub.add_parser('sync'); p.add_argument('--patch', required=True)
-    p = sub.add_parser('verify'); p.add_argument('--task', required=True)
+    p = sub.add_parser('verify'); task_group = p.add_mutually_exclusive_group(required=True)
+    task_group.add_argument('--task'); task_group.add_argument('--tasks', help='逗号分隔的任务 ID；一次验证全部证据并同步一次')
     p.add_argument('--evidence', required=True); p.add_argument('--patch')
     p = sub.add_parser('status'); p.add_argument('--task')
     sub.add_parser('workspace', help='列出已落地任务遗留的工作树与 planning 目录，只打印删除命令不执行；'
