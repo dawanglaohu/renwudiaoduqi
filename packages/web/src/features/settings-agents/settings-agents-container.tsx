@@ -82,7 +82,11 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 
 	if (isLoading && agents.length === 0) {
 		return (
-			<div data-testid="settings-agents-container" className="flex flex-col gap-4">
+			<div
+				data-component="settings-agents-container"
+				data-testid="settings-agents-container"
+				className="flex flex-col gap-4"
+			>
 				<div className="flex items-center justify-center p-8">
 					<InlineNotice tone="muted" message="正在加载 Agent 注册表..." />
 				</div>
@@ -91,7 +95,11 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 	}
 
 	return (
-		<div data-testid="settings-agents-container" className="flex flex-col gap-6">
+		<div
+			data-component="settings-agents-container"
+			data-testid="settings-agents-container"
+			className="flex flex-col gap-6"
+		>
 			{/* 错误提示：中文文案在展示层，daemon 英文 message 只进技术详情 */}
 			{error && (
 				<div className="flex flex-col gap-2">

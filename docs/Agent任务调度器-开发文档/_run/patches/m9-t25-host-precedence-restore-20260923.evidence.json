@@ -1,0 +1,23 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "7d97b5ae4ca30a0abd842d06de9ddbb73799fbe953a4b82397be7db08a418629",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T25": {
+      "contractHash": "78f118049d2f0ff3545dd9c74159b8e2a459d5023656df58bc60de9b1ef067f8",
+      "evidence": [
+        "E-06 requires a usable manual host fallback. The current browser bootstrap registers location.origin as the shell hint at packages/web/src/app/bootstrap.ts:111, which takes precedence over the saved manual host in packages/web/src/api/base-url.ts. The prior task commit 7a2c8d9 contained the browser null-hint fix; the current PR head a98b7353 lost it after updating from main.",
+        "The patch changes only M9-T25 effective paths: packages/web/src/app/bootstrap.ts and packages/web/test/bootstrap.test.ts are now allowed for restoring the existing E-06 behavior and testing the production bootstrap path. Acceptance criteria and other task scopes remain unchanged. M1-T11 and M9-T27 hashes propagate this upstream path change; their own contracts are unchanged and will be reviewed when implemented."
+      ],
+      "verdict": "pass"
+    },
+    "M9-T27": {
+      "contractHash": "57e2a1a8520a60529afdafe2eaa1544dac171db7a377500fb6ec5c640e1b3801",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

@@ -1304,18 +1304,14 @@
     "verdict": "pass"
   },
   "M9-T25": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "2da02dfd124539a4a0da5911d73cdf78c00cddab45c3be9abc36ac922723944c",
+    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
+    "contractHash": "3f7eeb1bf7629a2bdbf1f6b6c9ec46c2df24d36e480f75f9b26715775bfe3ec0",
     "evidence": [
-      "前置：M9-T3、M9-T8、M9-T9、M9-T12、M9-T14、M9-T15、M9-T16；其中已落地 7 个。",
-      "验收标准引用边界 E-06、E-222、E-223、E-224，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/web/src/app/app.tsx（类别 frontendRoutes）",
-      "注册点文件已核存在于 packages/web/src/app/routes.tsx（类别 frontendRoutes）",
-      "有效范围 11 条：packages/web/src/app/app.tsx；packages/web/src/app/routes.tsx；packages/web/src/features/pairing/pairing-container.tsx；packages/web/src/features/run-deck/mobile-batch-list.tsx；packages/web/src/features/run-deck/run-deck-container.tsx；packages/web/src/features/run-detail/run-detail-container.tsx；packages/web/src/features/settings-agents/settings-agents-container.tsx；packages/web/src/features/settings-devices/settings-devices-container.tsx；packages/web/src/pages/；packages/web/test/route-entries.test.tsx；packages/web/test/routes.test.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/web/test/route-entries.test.tsx。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "R4 scope correction only: supportPaths now explicitly lists packages/daemon/test/unit/diff.test.ts and packages/daemon/test/unit/landing.test.ts; both were changed solely to stabilize real git describe test timeouts.",
+      "M9-T25 five acceptance clauses and E-06/E-222/E-223/E-224 remain unchanged; R1 browser host precedence and R2 run detail cancellation are covered by packages/web/test/bootstrap.test.ts and route-entries.test.tsx.",
+      "After merge of origin/main, pnpm -w check passed: 171 test files, 2070 passed, 3 skipped; Biome and TypeScript completed within the same zero-exit gate."
     ],
-    "reviewed": "2026-09-18T18:31:32.648537+00:00",
+    "reviewed": "2026-09-23T07:30:33.271273+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
