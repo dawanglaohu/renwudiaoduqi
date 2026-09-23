@@ -13,6 +13,11 @@ import {
 } from '../../src/domain/bughunt-report.ts';
 import { RUN_TRANSITION_REASONS } from '../../src/domain/run-state-machine.ts';
 import { WRAPUP_PROHIBITED_COMMANDS } from '../../src/domain/wrapup-prompt.ts';
+import type {
+	DispatchSnapshotInsertRow,
+	DispatchSnapshotRow,
+	DispatchSnapshotsRepo,
+} from '../../src/repo/dispatch-snapshots.ts';
 import type { GateInsertRow, GatesRepo } from '../../src/repo/gates.ts';
 import type { RunInsertRow, RunRow, RunsRepo } from '../../src/repo/runs.ts';
 import type { BughuntService } from '../../src/service/bughunt.ts';
@@ -518,6 +523,109 @@ NEXT
 			// Implementation run stays reviewing
 			const impl = runs.find((r) => r.id === 'impl-1');
 			expect(impl?.state).toBe('reviewing');
+		});
+
+		it('creates dedicated snapshot with 4-section prompt and associates bughunt run (R1, AC 1, AC 2, E-316, E-329)', async () => {
+			const runs: TestRunRecord[] = [
+				createTestRunRecord({
+					id: 'impl-1',
+					agent_id: 'online-agent',
+					model_name: 'gpt-4o-custom',
+					effort_tier: 'high',
+					effort_vendor: 'xhigh',
+					worktree_path: '/wt/1',
+					branch_name: 'task/1',
+					snapshot_id: 'snap-impl-orig',
+					lane_no: 2,
+				}),
+			];
+
+			const snapshots: DispatchSnapshotInsertRow[] = [];
+			const mockSnapshotsRepo: Partial<DispatchSnapshotsRepo> = {
+				insert: (row) => {
+					snapshots.push(row);
+				},
+				findById: (id: string) =>
+					(snapshots.find((s) => s.id === id) as DispatchSnapshotRow) ?? null,
+			};
+
+			const mockRunsRepo: Partial<RunsRepo> = {
+				findById: (id: string) => (runs.find((r) => r.id === id) as RunRow) ?? null,
+				findByParentRunIdAndKind: (pid: string, k: string) =>
+					(runs.find((r) => r.parent_run_id === pid && r.kind === k) as RunRow) ?? null,
+				listByTaskId: (tid: string) => runs.filter((r) => r.task_id === tid) as RunRow[],
+				insert: (row: RunInsertRow) => {
+					runs.push(
+						createTestRunRecord({
+							id: row.id,
+							task_id: row.task_id,
+							attempt_no: row.attempt_no,
+							kind: row.kind,
+							parent_run_id: row.parent_run_id ?? null,
+							state: row.state,
+							agent_id: row.agent_id,
+							model_name: row.model_name ?? null,
+							effort_tier: row.effort_tier ?? null,
+							effort_vendor: row.effort_vendor ?? null,
+							snapshot_id: row.snapshot_id,
+							worktree_path: row.worktree_path ?? null,
+							branch_name: row.branch_name ?? null,
+							lane_no: row.lane_no ?? null,
+						}),
+					);
+				},
+			};
+
+			const mockAgentRegistry: Partial<AgentRegistry> = {
+				getSnapshot: () =>
+					({
+						version: 1,
+						agents: {
+							'online-agent': {
+								id: 'online-agent',
+								name: 'Online Agent',
+								command: 'agent',
+								args: [],
+								env: {},
+								capabilities: [],
+							},
+						},
+						defaults: { defaultModel: 'm', defaultEffortTier: 'low' },
+					}) as unknown as ReturnType<AgentRegistry['getSnapshot']>,
+			};
+
+			const mockUnitOfWork: UnitOfWork = {
+				run: <T>(fn: () => T): T => fn(),
+			};
+
+			let idCounter = 0;
+			const service = createBughuntService({
+				runsRepo: mockRunsRepo as RunsRepo,
+				dispatchSnapshotsRepo: mockSnapshotsRepo as DispatchSnapshotsRepo,
+				agentRegistry: mockAgentRegistry as AgentRegistry,
+				unitOfWork: mockUnitOfWork,
+				clock: { now: () => '2026-09-22T00:00:00.000Z' },
+				ids: { newId: () => `id-${++idCounter}` },
+			});
+
+			const result = await service.dispatchBughunt({ implRunId: 'impl-1' });
+			expect(result.action).toBe('dispatched');
+
+			// 新快照存在且包含四段提示词
+			expect(snapshots).toHaveLength(1);
+			const newSnapshot = snapshots[0];
+			expect(newSnapshot).toBeDefined();
+			expect(newSnapshot?.impl_prompt).toContain('# 查 bug 执行指令');
+			expect(newSnapshot?.impl_prompt).toContain('## 引用材料');
+			expect(newSnapshot?.impl_prompt).toContain('## 工作区指针与测试指令');
+			expect(newSnapshot?.impl_prompt).toContain('不要提问、不要等待确认。');
+
+			// bughunt 运行行关联到新快照，不再复用实施运行快照
+			const bughuntRun = runs.find((r) => r.kind === 'bughunt');
+			expect(bughuntRun).toBeDefined();
+			expect(bughuntRun?.snapshot_id).toBe(newSnapshot?.id);
+			const implRun = runs.find((r) => r.id === 'impl-1');
+			expect(bughuntRun?.snapshot_id).not.toBe(implRun?.snapshot_id);
 		});
 	});
 

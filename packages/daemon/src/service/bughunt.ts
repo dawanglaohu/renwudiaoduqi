@@ -11,6 +11,7 @@ import {
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { GatesRepo } from '../repo/gates.ts';
 import { type RunInsertRow, type RunsRepo, toRunDto } from '../repo/runs.ts';
 import type { SettingsRepo } from '../repo/settings.ts';
@@ -35,6 +36,7 @@ export interface BughuntServiceDeps {
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
 	readonly bughuntContextService?: BughuntContextService;
+	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
 	readonly gatesRepo?: GatesRepo;
 	readonly gatesService?: GateService;
 	readonly reviewService?: ReviewService;
@@ -181,7 +183,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					).catch(() => ({ headSha: 'HEAD', treeSha: 'HEAD' }))
 				: { headSha: 'HEAD', treeSha: 'HEAD' };
 
-			assembleBughuntPrompt({
+			const bughuntPrompt = assembleBughuntPrompt({
 				worktreePath: implRun.worktree_path ?? '',
 				branchName: implRun.branch_name ?? '',
 				baseSha: baseline.headSha,
@@ -196,13 +198,51 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				},
 			});
 
+			const implSnapshot =
+				implRun.snapshot_id && deps.dispatchSnapshotsRepo?.findById
+					? deps.dispatchSnapshotsRepo.findById(implRun.snapshot_id)
+					: null;
+
+			let launchSpecJson = implSnapshot?.launch_spec_json ?? '{}';
+			if (launchSpecJson === '{}' && deps.agentRegistry) {
+				const snapshot = deps.agentRegistry.getSnapshot();
+				const entry = snapshot.agents[agentId];
+				if (entry) {
+					launchSpecJson = JSON.stringify(entry);
+				}
+			}
+
+			const assignmentJson = JSON.stringify({
+				agentId,
+				modelName,
+				effortTier,
+				effortVendor,
+				source: 'task',
+				capturedAt: now,
+			});
+
+			const snapshotId = deps.ids.newId();
 			const allRuns = deps.runsRepo.listByTaskId(taskId);
 			const nextAttemptNo = Math.max(0, ...allRuns.map((r) => r.attempt_no)) + 1;
 			const bughuntRunId = deps.ids.newId();
 
-			// 事务内插入 kind='bughunt' 行，实施行保持 reviewing（AC 1）
+			// 事务内插入快照与 kind='bughunt' 行，实施行保持 reviewing（AC 1, AC 2, E-316, E-329）
 			deps.unitOfWork.run(() => {
 				assertSessionRefFree({ taskId, vendorSessionRef: null }, { runsRepo: deps.runsRepo });
+
+				if (deps.dispatchSnapshotsRepo) {
+					deps.dispatchSnapshotsRepo.insert({
+						id: snapshotId,
+						task_id: taskId,
+						impl_prompt: bughuntPrompt,
+						launch_spec_json: launchSpecJson,
+						assignment_json: assignmentJson,
+						task_paths_json: implSnapshot?.task_paths_json ?? '[]',
+						contract_hash: implSnapshot?.contract_hash ?? 'bughunt',
+						created_at: now,
+					});
+				}
+
 				const row: RunInsertRow = {
 					id: bughuntRunId,
 					task_id: taskId,
@@ -215,7 +255,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					effort_tier: effortTier,
 					effort_vendor: effortVendor,
 					permission_tier: 'workspaceWrite',
-					snapshot_id: implRun.snapshot_id,
+					snapshot_id: snapshotId,
 					worktree_path: implRun.worktree_path,
 					branch_name: implRun.branch_name,
 					origin: 'dispatch',

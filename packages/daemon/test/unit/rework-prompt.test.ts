@@ -107,4 +107,47 @@ describe('M7-T5 AC 2 & E-279: assembleReworkPrompt and extractReworkRules', () =
 		// 4. 「只改列出条目、不 commit/push」约束
 		expect(result).toContain(REWORK_COMMIT_PUSH_CONSTRAINT);
 	});
+
+	it('prepends bughunt uncommitted files notice at the very top before any ## sections when bugHuntUncommittedFiles > 0 (E-329)', () => {
+		const result = assembleReworkPrompt({
+			reworkText: sampleReworkText,
+			implPrompt: null,
+			worktreePath: '/var/worktrees/task-1',
+			branchName: 'task/M1-T1',
+			bugHuntUncommittedFiles: 3,
+		});
+
+		const expectedNotice = '工作区已有查 bug 阶段未提交改动 3 个文件，先看 git status 再改';
+		expect(result.startsWith(expectedNotice)).toBe(true);
+
+		const noticeIndex = result.indexOf(expectedNotice);
+		const firstH2Index = result.indexOf('##');
+		expect(noticeIndex).toBe(0);
+		expect(noticeIndex).toBeLessThan(firstH2Index);
+	});
+
+	it('interpolates N correctly and omits notice when bugHuntUncommittedFiles <= 0 or undefined (E-329)', () => {
+		const resultWith1 = assembleReworkPrompt({
+			reworkText: sampleReworkText,
+			implPrompt: null,
+			worktreePath: '/var/worktrees/task-1',
+			bugHuntUncommittedFiles: 1,
+		});
+		expect(resultWith1).toContain('工作区已有查 bug 阶段未提交改动 1 个文件，先看 git status 再改');
+
+		const resultWith0 = assembleReworkPrompt({
+			reworkText: sampleReworkText,
+			implPrompt: null,
+			worktreePath: '/var/worktrees/task-1',
+			bugHuntUncommittedFiles: 0,
+		});
+		expect(resultWith0).not.toContain('工作区已有查 bug 阶段未提交改动');
+
+		const resultWithUndefined = assembleReworkPrompt({
+			reworkText: sampleReworkText,
+			implPrompt: null,
+			worktreePath: '/var/worktrees/task-1',
+		});
+		expect(resultWithUndefined).not.toContain('工作区已有查 bug 阶段未提交改动');
+	});
 });
