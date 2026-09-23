@@ -1036,14 +1036,14 @@
     "verdict": "pass"
   },
   "M8-T7": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "d393b5c413d9b0d94b1683cac25009a77220b0588ec80be3c458269d7e076ac0",
+    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
+    "contractHash": "76f9fc6e4221c890812a5eaa2e9c73dc89f05c2e4acb4679b7879dad06f30729",
     "evidence": [
-      "19 节 M8-T7 行：依赖 M8-T6（有效裁定与开放项）与 M7-T5（返工提示词）；产出 service/wrapup.ts 修复段、domain/task-state.ts、domain/path-clash.ts、routes/tasks.ts 在 taskPaths；shared tasks.ts/codes.ts/routes.ts 在 supportPaths（E_FIX_RUN_IN_FLIGHT 与 recall 路由）",
-      "验收 1)～6) 对应 E-275（修复运行字段与跨批语义）、E-280（同收口串行、E-46 排队）、E-276/E-290（第 2 轮与无主）、E-293/E-300（撤回与在途冲突）、E-298（inHead 派生）；10 节已加 POST /tasks/:taskId/recall 与三个错误码；决策 70 写明不为 wrapup-fix 跳过审查",
-      "接缝：与 M9-T20 的批次级落地清单消费同一 GET /batches/:id/wrapups[].landing；TaskDto.inHead/crossBatchFix 字段由本任务在 shared tasks.ts 落，M9-T19 只读"
+      "2026-09-23 PR #131: prerequisite M8-T6 and M7-T5 are landed; the six acceptance clauses and E-275/E-276/E-280/E-290/E-293/E-298/E-300/E-46/E-55 remain unchanged in task note and section 19. This verification records the contract only; the code review found blockers and returns rework.",
+      "Patch m8-t7-review-wiring-scope-20260923 adds only three necessary support paths: service/dispatch.ts for queued fix launch and round gating, service/docs.ts for TaskDto projection, and domain/batch-landing.ts for cross-batch counts and second-round eligibility. Section 09 and section 17 require these seams; existing taskPaths and supportPaths retain the other implementation and test files.",
+      "Open PR diff paths for M7-T9, M9-T25, and M9-T19 contain none of these three added support files. M9-T25 and M9-T19 also edit shared generated task-contracts.json, so their worktrees must sync after this patch lands; no acceptance clause or boundary was relaxed."
     ],
-    "reviewed": "2026-09-10T20:08:19.105424+00:00",
+    "reviewed": "2026-09-23T04:00:42.391774+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

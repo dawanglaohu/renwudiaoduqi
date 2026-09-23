@@ -1,0 +1,29 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T7": {
+      "contractHash": "76f9fc6e4221c890812a5eaa2e9c73dc89f05c2e4acb4679b7879dad06f30729",
+      "evidence": [
+        "2026-09-23 PR #131: prerequisite M8-T6 and M7-T5 are landed; the six acceptance clauses and E-275/E-276/E-280/E-290/E-293/E-298/E-300/E-46/E-55 remain unchanged in task note and section 19. This verification records the contract only; the code review found blockers and returns rework.",
+        "Patch m8-t7-review-wiring-scope-20260923 adds only three necessary support paths: service/dispatch.ts for queued fix launch and round gating, service/docs.ts for TaskDto projection, and domain/batch-landing.ts for cross-batch counts and second-round eligibility. Section 09 and section 17 require these seams; existing taskPaths and supportPaths retain the other implementation and test files.",
+        "Open PR diff paths for M7-T9, M9-T25, and M9-T19 contain none of these three added support files. M9-T25 and M9-T19 also edit shared generated task-contracts.json, so their worktrees must sync after this patch lands; no acceptance clause or boundary was relaxed."
+      ],
+      "verdict": "pass"
+    },
+    "M8-T9": {
+      "contractHash": "56173074530a680b50720ace3df1fe21163e105ad9839e6d7b55bed9fd652066",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T17": {
+      "contractHash": "6b136b7c645e38c9f6c6c44c9b540ed371d638b756196e75c03dab15233b6c75",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "c2776a520b4b23c15f9fafe9ce47e01a573e05c3e4dbef0fc75bf30733645e6f",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}
