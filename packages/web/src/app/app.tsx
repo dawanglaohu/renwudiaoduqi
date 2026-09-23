@@ -9,8 +9,7 @@
  *   零运行四步引导（M9-T16）、逐任务指派面板（M9-T18）、批次树与任务列表页（M9-T19）必须经真实服务可达；
  *   M9-T25 落地时把这里补齐为七键必填表
  * - 顶栏由这里统一装配：调用方给的 renderTopbar（连接状态横幅）叠在 52px 顶栏之上，
- *   顶栏右侧常驻唯一一组闸门开关（M9-T19 AC 6）；#/pair 是唯一免守卫路由，尚无令牌时不挂闸门容器，
- *   避免在配对前发起鉴权请求
+ *   顶栏右侧常驻唯一一组闸门开关（M9-T19 AC 6）；#/pair 与尚无令牌的首屏不挂闸门容器，避免在配对前发起鉴权请求
  */
 
 import type { ReactNode } from 'react';
@@ -20,6 +19,7 @@ import { RunDeckContainer } from '../features/run-deck/run-deck-container.tsx';
 import { LandingPage } from '../pages/landing-page.tsx';
 import { RunDetailPage } from '../pages/run-detail-page.tsx';
 import { TaskListPage } from '../pages/task-list-page.tsx';
+import { hasDeviceToken } from './route-guard.tsx';
 import { type RouteMatch, RouterView } from './routes.tsx';
 
 export interface AppProps {
@@ -32,7 +32,8 @@ interface AppTopbarProps {
 }
 
 function AppTopbar({ match, banner }: AppTopbarProps) {
-	const isPairRoute = !match.isUnknown && match.id === 'pair';
+	// 守卫把无令牌的访问送去 #/pair 之前，顶栏不能先替它发一次鉴权请求（route-guard 是唯一的令牌判定点，这里只复用它）
+	const showGates = !(!match.isUnknown && match.id === 'pair') && hasDeviceToken();
 	return (
 		<>
 			{banner}
@@ -44,7 +45,7 @@ function AppTopbar({ match, banner }: AppTopbarProps) {
 					<span className="font-mono text-dense font-semibold text-ink-1">Agent 任务调度器</span>
 				</div>
 				<div className="flex items-center gap-3">
-					{!isPairRoute && <GateTogglesContainer layout="topbar" />}
+					{showGates && <GateTogglesContainer layout="topbar" />}
 				</div>
 			</header>
 		</>
