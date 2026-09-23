@@ -10,6 +10,7 @@ import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { registerBatchesRoutes } from '../../src/http/routes/batches.ts';
+import { registerTasksRoutes } from '../../src/http/routes/tasks.ts';
 import { type BatchWrapupsRepo, createBatchWrapupsRepo } from '../../src/repo/batch-wrapups.ts';
 import { type BatchesRepo, createBatchesRepo } from '../../src/repo/batches.ts';
 import {
@@ -313,15 +314,28 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			},
 		} as unknown as AppContainer);
 		registerBatchesRoutes(app);
+		registerTasksRoutes(app);
 		app.setErrorHandler((error: unknown, _request, reply) => {
+			if ('validation' in (error as Record<string, unknown>)) {
+				void reply.status(400).send({
+					error: {
+						code: 'E_VALIDATION',
+						message: (error as Error).message,
+					},
+				});
+				return;
+			}
 			if (error instanceof AppError) {
 				let statusCode = 400;
 				if (
 					error.code === 'E_RUN_ALREADY_EXISTS' ||
 					error.code === 'E_BATCH_NOT_WRAPPABLE' ||
-					error.code === 'E_WRAPUP_ROUND_LIMIT'
+					error.code === 'E_WRAPUP_ROUND_LIMIT' ||
+					error.code === 'E_FIX_RUN_IN_FLIGHT'
 				) {
 					statusCode = 409;
+				} else if (error.code === 'E_NOT_FOUND') {
+					statusCode = 404;
 				}
 				void reply.status(statusCode).send({
 					error: {
@@ -609,6 +623,38 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 	});
 
 	it('F3 (E-288): after round 2 is still open, the human pass on the batch gate lands beside the machine verdict row', async () => {
+		batchesRepo.insert({
+			id: 'batch-2',
+			doc_id: 'doc-1',
+			batch_no: 2,
+			state: 'done',
+			started_at: testTime,
+			finished_at: testTime,
+		});
+		tasksRepo.insert({
+			id: 'task-m3-t6',
+			doc_id: 'doc-1',
+			task_key: 'M3-T6',
+			title: 'Task M3-T6',
+			module_key: 'M3',
+			deps_json: '[]',
+			contract_hash: 'h-m3t6',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+			batch_id: 'batch-2',
+		});
+		runsRepo.insert({
+			id: 'run-m3-t6',
+			task_id: 'task-m3-t6',
+			attempt_no: 1,
+			kind: 'implement',
+			state: 'landed',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-1',
+			is_in_head: 1,
+			ended_at: '2026-09-17T09:00:00.000Z',
+		});
 		runsRepo.insert({
 			id: 'run-t1',
 			task_id: 'task-1',
@@ -1113,5 +1159,598 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		expect(body.wrapups).toHaveLength(1);
 		expect(body.wrapups[0].verdict).toBe('clean');
 		expect(body.wrapups[0].landing.branchName).toBe('wrapup/b1-r1');
+	});
+
+	describe('M8-T7 Integration: Wrapup Fix Dispatch, Cross-Batch Semantics, and Manual Recall (AC 1-6, E-275, E-276, E-280, E-290, E-293, E-298, E-300, E-46, E-55)', () => {
+		it('AC 1 & AC 2 & E-275 & E-280: Open wrapup report dispatches fix runs grouped by task, serializes them, and reuses worktree', async () => {
+			runsRepo.insert({
+				id: 'run-t1-orig',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				model_name: 'gpt-4o',
+				effort_tier: 'high',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				worktree_path: '/worktrees/task-1',
+				branch_name: 'task/M1-T1',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:10:00.000Z',
+			});
+			runsRepo.insert({
+				id: 'run-t2-orig',
+				task_id: 'task-2',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				model_name: 'gpt-4o',
+				effort_tier: 'high',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-2',
+				worktree_path: '/worktrees/task-2',
+				branch_name: 'task/M1-T2',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:20:00.000Z',
+			});
+
+			const { run: wrapupRun } = await wrapupService.triggerWrapup({
+				batchId: 'batch-1',
+				trigger: 'manual',
+			});
+
+			// Wrapup report with open findings for both task-1 and task-2
+			const openReport = `## BATCH_SUMMARY
+发现 2 处未修复问题
+
+## TESTS
+pass
+
+## BUGS
+- B1 [S2] 涉及 M1-T1: 鉴权失败 → login → 401 → auth.ts:10
+- B2 [S1] 涉及 M1-T2: 格式解析错误 → parse → NaN → parser.ts:25
+
+## FIXED
+- none
+
+## NOT_FIXED
+- none
+
+## SUSPECT
+- none
+
+## RECORD
+verdict: open
+
+## NEXT
+需由 M8-T7 派发修复运行。`;
+
+			await wrapupService.recordWrapupResult({
+				runId: wrapupRun.id,
+				rawText: openReport,
+				exitCode: 0,
+			});
+
+			// 1. Verify batch wrapup record
+			const wrapupRecord = batchWrapupsRepo.findByRunId(wrapupRun.id);
+			expect(wrapupRecord).toBeDefined();
+			expect(wrapupRecord?.verdict).toBe('open');
+			const fixRunIds: string[] = JSON.parse(wrapupRecord?.fix_run_ids_json ?? '[]');
+			expect(fixRunIds).toHaveLength(2);
+
+			// 2. Verify fix runs created for each task (AC 1)
+			const fixRun1 = runsRepo.findById(fixRunIds[0] ?? '');
+			const fixRun2 = runsRepo.findById(fixRunIds[1] ?? '');
+			expect(fixRun1).toBeDefined();
+			expect(fixRun2).toBeDefined();
+
+			// Task 1 fix run assertions
+			expect(fixRun1?.task_id).toBe('task-1');
+			expect(fixRun1?.batch_id).toBe('batch-1');
+			expect(fixRun1?.origin).toBe('wrapup-fix');
+			expect(fixRun1?.spawned_by_run_id).toBe(wrapupRun.id);
+			expect(fixRun1?.attempt_no).toBe(2);
+			expect(fixRun1?.rework_count).toBe(0);
+			expect(fixRun1?.permission_tier).toBe('workspaceWrite');
+			expect(fixRun1?.worktree_path).toBe(wrapupRun.worktreePath); // Reuses wrapup worktree! (E-280)
+			expect(fixRun1?.branch_name).toBe(wrapupRun.branchName);
+			expect(fixRun1?.agent_id).toBe('codex');
+			expect(fixRun1?.model_name).toBe('gpt-4o');
+			expect(fixRun1?.effort_tier).toBe('high');
+			expect(fixRun1?.queued_reason).toBeNull(); // First fix run has no clash
+
+			// Task 2 fix run assertions (AC 2, E-280 serialization)
+			expect(fixRun2?.task_id).toBe('task-2');
+			expect(fixRun2?.origin).toBe('wrapup-fix');
+			expect(fixRun2?.spawned_by_run_id).toBe(wrapupRun.id);
+			expect(fixRun2?.attempt_no).toBe(2);
+			expect(fixRun2?.rework_count).toBe(0);
+			expect(fixRun2?.worktree_path).toBe(wrapupRun.worktreePath); // Reuses wrapup worktree!
+			// Second fix run is serialized behind first fix run (AC 2, E-280)
+			expect(fixRun2?.queued_reason).toBe(`wrapup-fix-serial:${fixRun1?.id}`);
+
+			// Verify prompt structure (AC 1, E-275): R item text + rework rules
+			const snap1 = dispatchSnapshotsRepo.findById(fixRun1?.snapshot_id ?? '');
+			expect(snap1?.impl_prompt).toContain('R1');
+			expect(snap1?.impl_prompt).toContain('鉴权失败');
+			expect(snap1?.impl_prompt).toContain('收到返工指令时');
+			expect(snap1?.impl_prompt).toContain('只改列出条目、不 commit/push');
+
+			// Batch returns to running (wrapup_fixes_pending)
+			const batch = batchesRepo.findById('batch-1');
+			expect(batch?.state).toBe('running');
+		});
+
+		it('AC 2 & E-46: First fix run queues behind active task touching the same taskPaths', async () => {
+			// Update task-1 to declare taskPaths
+			tasksRepo.updateDocFields({
+				id: 'task-1',
+				title: 'Task 1',
+				module_key: 'M1',
+				deps_json: '[]',
+				input_text: null,
+				output_text: null,
+				accept_text: null,
+				edge_ids_json: null,
+				task_paths_json: JSON.stringify(['src/shared-worker.ts']),
+				contract_hash: 'h1',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				est_days: null,
+				batch_id: 'batch-1',
+				impl_prompt: null,
+				review_prompt: null,
+				is_removed_from_doc: 0,
+			});
+
+			runsRepo.insert({
+				id: 'run-t1-active-1',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:10:00.000Z',
+			});
+			runsRepo.insert({
+				id: 'run-t2-active-1',
+				task_id: 'task-2',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-2',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:20:00.000Z',
+			});
+
+			// An unrelated in-flight task in another batch touches src/shared-worker.ts
+			batchesRepo.insert({
+				id: 'batch-blocking',
+				doc_id: 'doc-1',
+				batch_no: 3,
+				state: 'running',
+				started_at: testTime,
+				finished_at: null,
+			});
+			tasksRepo.insert({
+				id: 'task-blocking',
+				doc_id: 'doc-1',
+				task_key: 'M9-T99',
+				title: 'Blocking Task',
+				module_key: 'M9',
+				deps_json: '[]',
+				contract_hash: 'hb',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				task_paths_json: JSON.stringify(['src/shared-worker.ts']),
+				batch_id: 'batch-blocking',
+			});
+			runsRepo.insert({
+				id: 'run-blocking-active',
+				task_id: 'task-blocking',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'running', // in flight!
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				batch_id: 'batch-blocking',
+			});
+
+			const { run: wrapupRun } = await wrapupService.triggerWrapup({
+				batchId: 'batch-1',
+				trigger: 'manual',
+			});
+
+			const openReport = `## BATCH_SUMMARY
+发现问题
+
+## TESTS
+pass
+
+## BUGS
+- B1 [S2] 涉及 M1-T1: 冲突测试 → test → clash → shared-worker.ts:5
+
+## FIXED
+- none
+
+## NOT_FIXED
+- none
+
+## SUSPECT
+- none
+
+## RECORD
+verdict: open
+
+## NEXT
+修复。`;
+
+			await wrapupService.recordWrapupResult({
+				runId: wrapupRun.id,
+				rawText: openReport,
+				exitCode: 0,
+			});
+
+			const wrapupRecord = batchWrapupsRepo.findByRunId(wrapupRun.id);
+			const fixRunIds: string[] = JSON.parse(wrapupRecord?.fix_run_ids_json ?? '[]');
+			expect(fixRunIds).toHaveLength(1);
+
+			const fixRun = runsRepo.findById(fixRunIds[0] ?? '');
+			// Should be blocked by path clash against task-blocking (E-46)
+			expect(fixRun?.queued_reason).toContain('path_conflict:');
+			expect(fixRun?.queued_reason).toContain('task-blocking');
+		});
+
+		it('AC 3 & E-290: Open wrapup report with all unassigned open items transitions directly to needs_attention without dispatching fix runs', async () => {
+			runsRepo.insert({
+				id: 'run-t1-unassigned',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:10:00.000Z',
+			});
+			runsRepo.insert({
+				id: 'run-t2-unassigned',
+				task_id: 'task-2',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-2',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:20:00.000Z',
+			});
+
+			const { run: wrapupRun } = await wrapupService.triggerWrapup({
+				batchId: 'batch-1',
+				trigger: 'manual',
+			});
+
+			// Tests fail without task attribution + bugs without task attribution (E-290)
+			const unassignedReport = `## BATCH_SUMMARY
+收口测试失败，但未指明任务
+
+## TESTS
+fail
+- test_unattributed_suite failed
+
+## BUGS
+- B1 [S2]: 未归属任务的 bug → root cause → file.ts:1
+
+## FIXED
+- none
+
+## NOT_FIXED
+- none
+
+## SUSPECT
+- none
+
+## RECORD
+verdict: open
+
+## NEXT
+待人工确认。`;
+
+			await wrapupService.recordWrapupResult({
+				runId: wrapupRun.id,
+				rawText: unassignedReport,
+				exitCode: 0,
+			});
+
+			const batch = batchesRepo.findById('batch-1');
+			expect(batch?.state).toBe('needs_attention');
+
+			const wrapupRecord = batchWrapupsRepo.findByRunId(wrapupRun.id);
+			const fixRunIds: string[] = JSON.parse(wrapupRecord?.fix_run_ids_json ?? '[]');
+			expect(fixRunIds).toHaveLength(0); // No fix runs dispatched
+
+			// Gate created with task_id: null
+			const gate = gatesRepo.findPendingByRunId?.(wrapupRun.id);
+			expect(gate).toBeDefined();
+			expect(gate?.task_id).toBeNull();
+		});
+
+		it('AC 4 & E-275: Cross-batch fix runs are attributed to triggering batch without rolling back prior batch done state', async () => {
+			// Seed batch-2 (triggering batch) and batch-0 (prior done batch)
+			batchesRepo.insert({
+				id: 'batch-prior',
+				doc_id: 'doc-1',
+				batch_no: 99,
+				state: 'done',
+				started_at: testTime,
+				finished_at: testTime,
+			});
+
+			tasksRepo.insert({
+				id: 'task-prior-1',
+				doc_id: 'doc-1',
+				task_key: 'M0-T1',
+				title: 'Prior Task',
+				module_key: 'M0',
+				deps_json: '[]',
+				contract_hash: 'h0',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				batch_id: 'batch-prior',
+			});
+
+			runsRepo.insert({
+				id: 'run-prior-impl',
+				task_id: 'task-prior-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				is_in_head: 1,
+				ended_at: '2026-09-17T09:00:00.000Z',
+			});
+
+			runsRepo.insert({
+				id: 'run-t1-cb',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:10:00.000Z',
+			});
+			runsRepo.insert({
+				id: 'run-t2-cb',
+				task_id: 'task-2',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-2',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:20:00.000Z',
+			});
+
+			// Batch-1 wraps up and discovers bug in prior batch's M0-T1
+			const { run: wrapupRun } = await wrapupService.triggerWrapup({
+				batchId: 'batch-1',
+				trigger: 'manual',
+			});
+
+			const crossBatchReport = `## BATCH_SUMMARY
+跨批问题发现
+
+## TESTS
+pass
+
+## BUGS
+- B1 [S1] 涉及 M0-T1（跨批）：前置批次接口字段缺失 → call → undefined → api.ts:40
+
+## FIXED
+- none
+
+## NOT_FIXED
+- none
+
+## SUSPECT
+- none
+
+## RECORD
+verdict: open
+
+## NEXT
+修复 M0-T1。`;
+
+			await wrapupService.recordWrapupResult({
+				runId: wrapupRun.id,
+				rawText: crossBatchReport,
+				exitCode: 0,
+			});
+
+			// Prior batch remains 'done' (AC 4, E-275)
+			const priorBatch = batchesRepo.findById('batch-prior');
+			expect(priorBatch?.state).toBe('done');
+
+			// Fix run is attributed to batch-1 (triggering batch)
+			const wrapupRecord = batchWrapupsRepo.findByRunId(wrapupRun.id);
+			const fixRunIds: string[] = JSON.parse(wrapupRecord?.fix_run_ids_json ?? '[]');
+			expect(fixRunIds).toHaveLength(1);
+
+			const fixRun = runsRepo.findById(fixRunIds[0] ?? '');
+			expect(fixRun?.task_id).toBe('task-prior-1');
+			expect(fixRun?.batch_id).toBe('batch-1'); // Belongs to triggering batch!
+			expect(fixRun?.origin).toBe('wrapup-fix');
+			expect(fixRun?.spawned_by_run_id).toBe(wrapupRun.id);
+
+			// Task row still belongs to its original batch (AC 4)
+			const taskPrior = tasksRepo.findById('task-prior-1');
+			expect(taskPrior?.batch_id).toBe('batch-prior');
+		});
+
+		it('AC 5 & E-293 & E-300: POST /api/v1/tasks/:taskId/recall creates wrapup-fix run and enforces validations', async () => {
+			runsRepo.insert({
+				id: 'run-t1-recall-base',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				model_name: 'gpt-4o',
+				effort_tier: 'medium',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				worktree_path: '/worktrees/task-1',
+				branch_name: 'task/M1-T1',
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:10:00.000Z',
+			});
+
+			// 1. Missing comment -> 400 E_VALIDATION
+			const resNoComment = await app.inject({
+				method: 'POST',
+				url: '/api/v1/tasks/task-1/recall',
+				payload: {
+					comment: '',
+					idempotencyKey: 'recall-idemp-1',
+				},
+			});
+			expect(resNoComment.statusCode).toBe(400);
+			expect(JSON.parse(resNoComment.body).error.code).toBe('E_VALIDATION');
+
+			// 2. Missing idempotencyKey -> 400 E_VALIDATION
+			const resNoKey = await app.inject({
+				method: 'POST',
+				url: '/api/v1/tasks/task-1/recall',
+				payload: {
+					comment: 'Review was incorrect, recall task',
+				},
+			});
+			expect(resNoKey.statusCode).toBe(400);
+			expect(JSON.parse(resNoKey.body).error.code).toBe('E_VALIDATION');
+
+			// 3. Nonexistent task -> 404 E_NOT_FOUND
+			const resNotFound = await app.inject({
+				method: 'POST',
+				url: '/api/v1/tasks/nonexistent-task/recall',
+				payload: {
+					comment: 'Review was incorrect',
+					idempotencyKey: 'recall-idemp-2',
+				},
+			});
+			expect(resNotFound.statusCode).toBe(404);
+			expect(JSON.parse(resNotFound.body).error.code).toBe('E_NOT_FOUND');
+
+			// 4. Successful recall
+			const resSuccess = await app.inject({
+				method: 'POST',
+				url: '/api/v1/tasks/task-1/recall',
+				payload: {
+					comment: '人工发现审查误判，需重新修复鉴权模块',
+					idempotencyKey: 'recall-idemp-success',
+				},
+			});
+			expect(resSuccess.statusCode).toBe(200);
+			const recalledRun = JSON.parse(resSuccess.body).run;
+			expect(recalledRun).toBeDefined();
+			expect(recalledRun.taskId).toBe('task-1');
+			expect(recalledRun.origin).toBe('wrapup-fix');
+			expect(recalledRun.spawnedByRunId).toBeNull(); // AC 5: spawned_by_run_id 为空
+			expect(recalledRun.attemptNo).toBe(2);
+			expect(recalledRun.reworkCount).toBe(0); // AC 5: 不计入 E-55 计数
+			expect(recalledRun.worktreePath).toBe('/worktrees/task-1');
+			expect(recalledRun.branchName).toBe('task/M1-T1');
+
+			// Prompt contains comment and rework rules
+			const recalledRunRow = runsRepo.findById(recalledRun.id);
+			const snapRecall = dispatchSnapshotsRepo.findById(recalledRunRow?.snapshot_id ?? '');
+			expect(snapRecall?.impl_prompt).toContain('人工发现审查误判');
+			expect(snapRecall?.impl_prompt).toContain('收到返工指令时');
+
+			// 5. Duplicate idempotencyKey -> 409 E_RUN_ALREADY_EXISTS with existing run in details
+			const resDuplicate = await app.inject({
+				method: 'POST',
+				url: '/api/v1/tasks/task-1/recall',
+				payload: {
+					comment: '人工发现审查误判，需重新修复鉴权模块',
+					idempotencyKey: 'recall-idemp-success',
+				},
+			});
+			expect(resDuplicate.statusCode).toBe(409);
+			const dupBody = JSON.parse(resDuplicate.body);
+			expect(dupBody.error.code).toBe('E_RUN_ALREADY_EXISTS');
+			expect(dupBody.error.details.run.id).toBe(recalledRun.id);
+
+			// 6. Another recall attempt with different key while fix run is in flight -> 409 E_FIX_RUN_IN_FLIGHT (E-300)
+			const resInFlight = await app.inject({
+				method: 'POST',
+				url: '/api/v1/tasks/task-1/recall',
+				payload: {
+					comment: 'Another recall while in flight',
+					idempotencyKey: 'recall-idemp-second',
+				},
+			});
+			expect(resInFlight.statusCode).toBe(409);
+			expect(JSON.parse(resInFlight.body).error.code).toBe('E_FIX_RUN_IN_FLIGHT');
+		});
+
+		it('AC 5: POST /tasks/:taskId/recall returns 409 E_FIX_RUN_IN_FLIGHT when batch wrapup is in flight', async () => {
+			runsRepo.insert({
+				id: 'run-t2-recall-base',
+				task_id: 'task-2',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-2',
+				is_in_head: 1,
+			});
+			runsRepo.insert({
+				id: 'run-t1-recall-base-2',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				is_in_head: 1,
+			});
+
+			// Trigger wrapup for batch-1
+			await wrapupService.triggerWrapup({
+				batchId: 'batch-1',
+				trigger: 'manual',
+			});
+
+			// Now attempt recall on task-2
+			const res = await app.inject({
+				method: 'POST',
+				url: '/api/v1/tasks/task-2/recall',
+				payload: {
+					comment: 'Recall during wrapup',
+					idempotencyKey: 'recall-during-wrapup',
+				},
+			});
+
+			expect(res.statusCode).toBe(409);
+			expect(JSON.parse(res.body).error.code).toBe('E_FIX_RUN_IN_FLIGHT');
+		});
 	});
 });

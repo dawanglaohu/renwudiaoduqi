@@ -446,6 +446,122 @@ export function parseWrapupFixSerialReason(
 }
 
 /**
+ * Wrapup-fix candidate descriptor for serial queue evaluation (M8-T7, E-280).
+ */
+export interface WrapupFixQueueCandidate {
+	readonly runId: string;
+	readonly taskId: string;
+	readonly taskKey?: string;
+	readonly taskPaths: readonly string[];
+	readonly spawnedByRunId: string;
+	readonly batchId?: string | null;
+}
+
+export interface WrapupFixQueueActiveRun {
+	readonly runId: string;
+	readonly taskId?: string | null;
+	readonly spawnedByRunId?: string | null;
+	readonly state?: string;
+}
+
+export interface SerializedWrapupFixRun {
+	readonly candidate: WrapupFixQueueCandidate;
+	readonly queuedReason: string;
+	readonly waitingForRunId: string;
+}
+
+export interface EvaluateWrapupFixSerialResult {
+	/**
+	 * Fix runs that are not serialized behind another fix run from the same wrapup.
+	 * (They may still face path conflict against unrelated active tasks).
+	 */
+	readonly runnable: readonly WrapupFixQueueCandidate[];
+	/**
+	 * Fix runs serialized behind earlier fix runs from the same wrapup run.
+	 */
+	readonly serialized: readonly SerializedWrapupFixRun[];
+}
+
+/**
+ * Evaluates wrapup-fix runs for mutual serialization (AC 2, E-280).
+ *
+ * Rules:
+ * 1. All fix runs dispatched from the SAME wrapup run (sharing spawned_by_run_id / worktree)
+ *    must execute serially.
+ * 2. If an existing active fix run from the same wrapup is still in-flight (not landed, not terminal),
+ *    all candidates from that wrapup are serialized behind it (queued_reason = wrapup-fix-serial:<activeRunId>).
+ * 3. Among new candidates from the same wrapup run:
+ *    - The first candidate is runnable (free of serial block).
+ *    - Subsequent candidates serialize behind the preceding candidate
+ *      (queued_reason = wrapup-fix-serial:<priorCandidateRunId>).
+ * 4. Fix runs from differing wrapup runs do not serialize against each other
+ *    (though they still observe normal E-46 path conflicts).
+ */
+export function evaluateWrapupFixSerialization(
+	candidates: readonly WrapupFixQueueCandidate[],
+	activeRuns?: readonly WrapupFixQueueActiveRun[],
+): EvaluateWrapupFixSerialResult {
+	if (!candidates || candidates.length === 0) {
+		return Object.freeze({ runnable: Object.freeze([]), serialized: Object.freeze([]) });
+	}
+
+	// Group active in-flight runs by spawnedByRunId
+	const activeByWrapup = new Map<string, string>();
+	if (activeRuns) {
+		for (const r of activeRuns) {
+			if (r.spawnedByRunId && isTaskPathHolding(r.state)) {
+				if (!activeByWrapup.has(r.spawnedByRunId)) {
+					activeByWrapup.set(r.spawnedByRunId, r.runId);
+				}
+			}
+		}
+	}
+
+	const runnable: WrapupFixQueueCandidate[] = [];
+	const serialized: SerializedWrapupFixRun[] = [];
+	const lastRunIdByWrapup = new Map<string, string>();
+
+	for (const candidate of candidates) {
+		const wrapupId = candidate.spawnedByRunId;
+
+		// Check if an existing in-flight run from the same wrapup is holding
+		const activeRunId = activeByWrapup.get(wrapupId);
+		if (activeRunId) {
+			const waitingForRunId = lastRunIdByWrapup.get(wrapupId) ?? activeRunId;
+			const queuedReason = buildWrapupFixSerialReason(waitingForRunId);
+			serialized.push({
+				candidate,
+				queuedReason,
+				waitingForRunId,
+			});
+			lastRunIdByWrapup.set(wrapupId, candidate.runId);
+			continue;
+		}
+
+		// Check if an earlier candidate from the same wrapup was already made runnable
+		const priorCandidateRunId = lastRunIdByWrapup.get(wrapupId);
+		if (priorCandidateRunId) {
+			const queuedReason = buildWrapupFixSerialReason(priorCandidateRunId);
+			serialized.push({
+				candidate,
+				queuedReason,
+				waitingForRunId: priorCandidateRunId,
+			});
+			lastRunIdByWrapup.set(wrapupId, candidate.runId);
+		} else {
+			// First candidate for this wrapup run is runnable!
+			runnable.push(candidate);
+			lastRunIdByWrapup.set(wrapupId, candidate.runId);
+		}
+	}
+
+	return Object.freeze({
+		runnable: Object.freeze(runnable),
+		serialized: Object.freeze(serialized),
+	});
+}
+
+/**
  * Checks path conflict between two specific tasks (AC 1, AC 2, AC 3, E-46).
  *
  * - AC 1: Evaluates path overlap.

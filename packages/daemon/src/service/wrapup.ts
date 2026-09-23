@@ -8,12 +8,24 @@ import {
 	type EventEnvelope,
 } from '@agent-scheduler/shared/api/events';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
+import type { RecallTaskResponse } from '@agent-scheduler/shared/api/tasks';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { latestImplementationRunByTaskId, summarizeBatchLanding } from '../domain/batch-landing.ts';
+import {
+	buildWrapupFixSerialReason,
+	evaluatePathClashQueue,
+	parseTaskPaths,
+} from '../domain/path-clash.ts';
+import {
+	BUILTIN_REWORK_RULES,
+	REWORK_COMMIT_PUSH_CONSTRAINT,
+	extractReworkRules,
+} from '../domain/rework-prompt.ts';
+import { TERMINAL_RUN_STATES } from '../domain/run-state-machine.ts';
 import { assertWrapupRoundAllowed } from '../domain/wrapup-policy.ts';
 import { type WrapupTaskItem, assembleWrapupPrompt } from '../domain/wrapup-prompt.ts';
-import { parseWrapupReport } from '../domain/wrapup-report.ts';
+import { type WrapupFixItem, parseWrapupReport, planWrapupFixes } from '../domain/wrapup-report.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
@@ -25,7 +37,7 @@ import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GatesRepo } from '../repo/gates.ts';
 import { type RunRow, type RunsRepo, toRunDto } from '../repo/runs.ts';
-import type { TasksRepo } from '../repo/tasks.ts';
+import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 import type { AgentService } from './agents.ts';
 import type { BatchService } from './batch.ts';
 import type { DocsService } from './docs.ts';
@@ -130,12 +142,20 @@ export interface RecordWrapupResultInput {
 	readonly exitCode?: number | null;
 }
 
+export interface RecallTaskInput {
+	readonly taskId: string;
+	readonly comment: string;
+	readonly idempotencyKey: string;
+	readonly actorDeviceId?: string | null;
+}
+
 export interface WrapupService {
 	readonly triggerWrapup: (
 		input: TriggerWrapupInput,
 	) => Promise<{ readonly run: RunDto; readonly batch: BatchDto }>;
 	readonly recordWrapupResult: (input: RecordWrapupResultInput) => Promise<void>;
 	readonly listWrapups: (batchId: string) => Promise<readonly BatchWrapupDto[]>;
+	readonly recallTask: (input: RecallTaskInput) => Promise<RecallTaskResponse>;
 }
 
 export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
@@ -214,26 +234,31 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 		};
 	}
 
-	function assertAgentAvailable(agentId: string): void {
+	function isAgentAvailable(agentId: string): boolean {
 		if (deps.agentRegistry) {
 			const snapshot = deps.agentRegistry.getSnapshot();
 			if (!snapshot.agents[agentId]) {
-				throw new AppError('E_AGENT_UNAVAILABLE', `Agent '${agentId}' is not found in registry.`, {
-					details: { reason: 'agent_unavailable', agentId },
-				});
+				return false;
 			}
 		}
 		if (deps.agentService) {
 			const availability = deps.agentService.getAvailability(agentId);
 			if (availability && !availability.canDispatch) {
-				throw new AppError(
-					'E_AGENT_UNAVAILABLE',
-					`Agent '${agentId}' is not available for dispatch.`,
-					{
-						details: { reason: 'agent_unavailable', agentId },
-					},
-				);
+				return false;
 			}
+		}
+		return true;
+	}
+
+	function assertAgentAvailable(agentId: string): void {
+		if (!isAgentAvailable(agentId)) {
+			throw new AppError(
+				'E_AGENT_UNAVAILABLE',
+				`Agent '${agentId}' is not available for dispatch.`,
+				{
+					details: { reason: 'agent_unavailable', agentId },
+				},
+			);
 		}
 	}
 
@@ -353,6 +378,29 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const nextAttemptNo = physicalAttempts + 1;
 			const nextRound = validRoundCount + 1;
 			const latestWrapup = wrapupRuns.length > 0 ? wrapupRuns[wrapupRuns.length - 1] : null;
+
+			// AC 3 & E-272: For auto trigger, if round >= 1, previous wrapup run branch must be merged into HEAD (is_in_head=1)
+			if (
+				trigger === 'auto' &&
+				validRoundCount >= 1 &&
+				latestWrapup &&
+				latestWrapup.is_in_head !== 1
+			) {
+				throw new AppError(
+					'E_BATCH_NOT_WRAPPABLE',
+					'Previous wrapup branch has not been merged into HEAD.',
+					{
+						details: {
+							state: batch.state,
+							reason: 'not_in_head',
+							notLandedTaskKeys: [],
+							notInHeadTaskKeys: [],
+							activeWrapupRunId: null,
+							wrapupRunId: latestWrapup.id,
+						},
+					},
+				);
+			}
 
 			assertWrapupRoundAllowed({
 				validRound: validRoundCount,
@@ -843,6 +891,202 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const taskKeys = tasks.map((t) => t.task_key);
 			const allFindings = [...parsed.bugs, ...parsed.notFixed];
 
+			const fixRunIds: string[] = [];
+			let finalUnassigned: string[] = [...parsed.unassigned];
+			const fixRunsToInsert: Array<{
+				runRow: Parameters<typeof deps.runsRepo.insert>[0];
+				taskId: string;
+			}> = [];
+			let openShouldNeedAttention = false;
+
+			if (effectiveVerdict === 'open') {
+				if (nextValidRound >= 2) {
+					// Round 2 open -> needs_attention (E-276)
+					openShouldNeedAttention = true;
+				} else {
+					// Round 1 open -> plan wrapup fixes (AC 1, AC 3, E-275, E-280, E-290)
+					const allDocTasks = deps.tasksRepo.listByDocId(batch.doc_id);
+					const knownTaskKeys = new Set(allDocTasks.map((t) => t.task_key));
+					const planned = planWrapupFixes(parsed, { knownTaskKeys });
+					finalUnassigned = [...planned.unassigned];
+
+					const fixCandidates: Array<{
+						task: TaskRow;
+						items: readonly WrapupFixItem[];
+						agentId: string;
+						modelName: string | null;
+						effortTier: string | null;
+						latestImplRun: RunRow | null;
+					}> = [];
+
+					for (const group of planned.groups) {
+						const task = allDocTasks.find((t) => t.task_key === group.taskKey);
+						if (!task) {
+							for (const item of group.items) {
+								finalUnassigned.push(item.raw);
+							}
+							continue;
+						}
+
+						const taskRuns = deps.runsRepo.listByTaskId(task.id);
+						const implRuns = taskRuns.filter((r) => r.kind === 'implement');
+						const latestImplRun =
+							implRuns.length > 0
+								? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
+								: null;
+
+						const agentId = latestImplRun?.agent_id;
+						if (!agentId || !isAgentAvailable(agentId)) {
+							// AC 1: agent 不可用则该组不派并计入 unassigned
+							for (const item of group.items) {
+								finalUnassigned.push(item.raw);
+							}
+							continue;
+						}
+
+						// E-300: 每任务同时只允许一条在途修复运行；后到的合并进落地清单提示而不再派
+						const hasInFlightFix = taskRuns.some((r) => {
+							const isFix = r.origin === 'wrapup-fix';
+							const isInFlight =
+								!(TERMINAL_RUN_STATES as readonly string[]).includes(r.state) &&
+								r.state !== 'landed';
+							return isFix && isInFlight;
+						});
+
+						if (hasInFlightFix) {
+							continue;
+						}
+
+						fixCandidates.push({
+							task,
+							items: group.items,
+							agentId,
+							modelName: latestImplRun?.model_name ?? null,
+							effortTier: latestImplRun?.effort_tier ?? null,
+							latestImplRun,
+						});
+					}
+
+					if (fixCandidates.length === 0) {
+						// E-290: 全部开放项无主才 needs_attention（可派修复条目为零）
+						openShouldNeedAttention = true;
+					} else {
+						let priorFixRunId: string | null = null;
+						for (let idx = 0; idx < fixCandidates.length; idx++) {
+							const candidate = fixCandidates[idx];
+							if (!candidate) continue;
+							const fixRunId = `run_${deps.ids.newId().slice(0, 16)}`;
+							const taskRuns = deps.runsRepo.listByTaskId(candidate.task.id);
+							const nextAttemptNo =
+								(taskRuns.length > 0 ? Math.max(...taskRuns.map((r) => r.attempt_no)) : 0) + 1;
+
+							const rItemsText = candidate.items
+								.map((item) => {
+									const itemText = item.raw.replace(/^[-\s*]+/, '').trim();
+									return itemText.startsWith(item.id)
+										? `- ${itemText}`
+										: `- ${item.id}: ${itemText}`;
+								})
+								.join('\n');
+
+							const prevSnapshot = candidate.latestImplRun?.snapshot_id
+								? deps.dispatchSnapshotsRepo.findById(candidate.latestImplRun.snapshot_id)
+								: null;
+							const reworkRules =
+								extractReworkRules(prevSnapshot?.impl_prompt ?? candidate.task.impl_prompt) ??
+								BUILTIN_REWORK_RULES;
+							const fixPrompt = `# 收口修复指令（任务 ${candidate.task.task_key}）\n\n## 修复要求\n${rItemsText}\n\n## 收到返工指令时\n${reworkRules}\n\n## 约束要求\n- ${REWORK_COMMIT_PUSH_CONSTRAINT}\n`;
+
+							let fixSnapshotId = candidate.latestImplRun?.snapshot_id ?? '';
+							if (deps.dispatchSnapshotsRepo) {
+								fixSnapshotId = `snap_${deps.ids.newId().slice(0, 16)}`;
+								deps.dispatchSnapshotsRepo.insert({
+									id: fixSnapshotId,
+									task_id: candidate.task.id,
+									batch_id: null, // dispatch_snapshots CHECK ((task_id IS NOT NULL) <> (batch_id IS NOT NULL))
+									input_text: prevSnapshot?.input_text ?? candidate.task.input_text,
+									output_text: prevSnapshot?.output_text ?? candidate.task.output_text,
+									accept_text: prevSnapshot?.accept_text ?? candidate.task.accept_text,
+									impl_prompt: fixPrompt,
+									review_prompt: prevSnapshot?.review_prompt ?? candidate.task.review_prompt,
+									bug_prompt: prevSnapshot?.bug_prompt ?? candidate.task.bug_prompt,
+									contract_hash: candidate.task.contract_hash,
+									task_paths_json: candidate.task.task_paths_json ?? '[]',
+									launch_spec_json: prevSnapshot?.launch_spec_json ?? '{}',
+									created_at: now,
+								});
+							}
+
+							let queuedReason: string | null = null;
+							if (priorFixRunId !== null) {
+								// Serialized behind prior fix run from same wrapup (AC 2, E-280)
+								queuedReason = buildWrapupFixSerialReason(priorFixRunId);
+							} else {
+								// First candidate: check path clash against active tasks (E-46)
+								const activeTasks = (deps.runsRepo.listActive?.() ?? []).map((r) => ({
+									taskId: r.task_id ?? '',
+									taskKey: undefined,
+									taskPaths: parseTaskPaths(
+										r.task_id ? deps.tasksRepo.findById(r.task_id)?.task_paths_json : null,
+									),
+									state: r.state,
+									runId: r.id,
+									batchId: r.batch_id,
+								}));
+
+								const firstCandidateTask = {
+									taskId: candidate.task.id,
+									taskKey: candidate.task.task_key,
+									taskPaths: parseTaskPaths(candidate.task.task_paths_json),
+									state: 'queued',
+									batchId,
+								};
+
+								const clashResult = evaluatePathClashQueue({
+									activeTasks,
+									candidates: [firstCandidateTask],
+									sameBatchOnly: false,
+								});
+
+								if (clashResult.blocked.length > 0) {
+									queuedReason = clashResult.blocked[0]?.queuedReason ?? null;
+								}
+							}
+
+							fixRunsToInsert.push({
+								runRow: {
+									id: fixRunId,
+									task_id: candidate.task.id,
+									batch_id: batchId, // 归触发批次 (AC 1, AC 4, E-275)
+									attempt_no: nextAttemptNo,
+									kind: 'implement',
+									origin: 'wrapup-fix',
+									spawned_by_run_id: runId, // 收口运行 (AC 1)
+									state: 'queued',
+									rework_count: 0, // rework_count = 0 (AC 1)
+									permission_tier: 'workspaceWrite',
+									worktree_path: run.worktree_path, // 复用收口 worktree (AC 1, E-280)
+									branch_name: run.branch_name,
+									agent_id: candidate.agentId,
+									model_name: candidate.modelName,
+									effort_tier: candidate.effortTier,
+									snapshot_id: fixSnapshotId,
+									queued_reason: queuedReason,
+									idempotency_key: `wrapup-fix-${runId}-${candidate.task.id}`,
+									actor_device_id: null,
+									started_at: null,
+									ended_at: null,
+								},
+								taskId: candidate.task.id,
+							});
+
+							fixRunIds.push(fixRunId);
+							priorFixRunId = fixRunId;
+						}
+					}
+				}
+			}
+
 			const pendingEnvelopes: EventEnvelope[] = [];
 
 			let finalBatchState = batch.state;
@@ -862,8 +1106,8 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					tests_json: JSON.stringify(parsed.tests),
 					summary_text: parsed.summaryText,
 					findings_json: JSON.stringify(allFindings),
-					unassigned_json: JSON.stringify(parsed.unassigned),
-					fix_run_ids_json: '[]',
+					unassigned_json: JSON.stringify(finalUnassigned),
+					fix_run_ids_json: JSON.stringify(fixRunIds),
 					report_text: rawText,
 					created_at: now,
 				});
@@ -890,6 +1134,30 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					);
 				}
 
+				// Insert planned fix runs into runs table (AC 1)
+				for (const fixItem of fixRunsToInsert) {
+					assertSessionRefFree(
+						{ taskId: fixItem.taskId, vendorSessionRef: null },
+						{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
+					);
+					deps.runsRepo.insert(fixItem.runRow);
+					if (deps.bus && deps.envelopeFactory) {
+						pendingEnvelopes.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId: fixItem.runRow.id,
+								taskId: fixItem.taskId,
+								actorDeviceId: null,
+								payload: {
+									from: 'none',
+									to: 'queued',
+									reason: 'wrapup_fix_dispatched',
+								},
+							}),
+						);
+					}
+				}
+
 				// Evaluate verdict via batchService (R1): clean | fixed -> done (AC 4, E-286, E-294)
 				if (effectiveVerdict === 'clean' || effectiveVerdict === 'fixed') {
 					const transRes = deps.batchService.transitionBatchInTx(
@@ -901,12 +1169,15 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					finalBatchState = transRes.updatedBatch.state;
 				} else {
 					// Verdict is 'open'
-					// If round 2 is still open, transition to needs_attention (E-276, E-288)
-					if (nextValidRound >= 2) {
+					if (openShouldNeedAttention) {
+						const reason =
+							nextValidRound >= 2
+								? 'wrapup_round_limit_reached'
+								: 'wrapup_all_open_items_unassigned';
 						const transRes = deps.batchService.transitionBatchInTx(
 							batchId,
 							'needs_attention',
-							'wrapup_round_limit_reached',
+							reason,
 						);
 						pendingEnvelopes.push(transRes.envelope);
 						finalBatchState = transRes.updatedBatch.state;
@@ -921,7 +1192,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							created_at: now,
 						});
 					} else {
-						// Round 1 open: in M8-T6, delegate to M8-T7, batch returns to running when fixes dispatched
+						// Round 1 open with dispatched fixes -> batch returns to running
 						const transRes = deps.batchService.transitionBatchInTx(
 							batchId,
 							'running',
@@ -944,8 +1215,8 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 								wrapupId: wrapupRecordId,
 								verdict: effectiveVerdict,
 								declaredVerdict: parsed.declaredVerdict,
-								fixRunIds: [],
-								unassignedCount: parsed.unassigned.length,
+								fixRunIds,
+								unassignedCount: finalUnassigned.length,
 								batchState: finalBatchState,
 								isHumanVerdict: false,
 							},
@@ -959,6 +1230,218 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					deps.bus.publish(env);
 				}
 			}
+
+			// Nudge tick if fix runs were dispatched
+			if (fixRunIds.length > 0) {
+				deps.nudgeTick?.();
+			}
+		},
+
+		async recallTask(input: RecallTaskInput): Promise<RecallTaskResponse> {
+			const { taskId, comment, idempotencyKey, actorDeviceId } = input;
+			if (!comment || comment.trim().length === 0) {
+				throw new AppError('E_VALIDATION', 'Comment is required');
+			}
+			if (!idempotencyKey || idempotencyKey.trim().length === 0) {
+				throw new AppError('E_VALIDATION', 'Idempotency key is required');
+			}
+
+			const task = deps.tasksRepo.findById(taskId);
+			if (!task) {
+				throw new AppError('E_NOT_FOUND', `Task not found: ${taskId}`, {
+					details: { taskId },
+				});
+			}
+
+			// Idempotency check: duplicate idempotencyKey returns 409 E_RUN_ALREADY_EXISTS with existing run in details (AC 5, 10 节)
+			const existingRun = deps.runsRepo.findByIdempotencyKey(idempotencyKey.trim());
+			if (existingRun && existingRun.task_id === taskId) {
+				throw new AppError(
+					'E_RUN_ALREADY_EXISTS',
+					`Run already exists for idempotency key: ${idempotencyKey}`,
+					{
+						details: { run: toRunDto(existingRun) },
+					},
+				);
+			}
+
+			// E-293 / E-300: Check if task already has an in-flight fix or rework run
+			const taskRuns = deps.runsRepo.listByTaskId(taskId);
+			const inFlightFixOrRework = taskRuns.find((r) => {
+				const isFixOrRework = r.origin === 'wrapup-fix' || r.origin === 'rework';
+				const isInFlight =
+					!(TERMINAL_RUN_STATES as readonly string[]).includes(r.state) && r.state !== 'landed';
+				return isFixOrRework && isInFlight;
+			});
+
+			if (inFlightFixOrRework) {
+				throw new AppError(
+					'E_FIX_RUN_IN_FLIGHT',
+					`Task '${taskId}' already has a fix or rework run in flight: ${inFlightFixOrRework.id}`,
+					{
+						details: { taskId, runId: inFlightFixOrRework.id },
+					},
+				);
+			}
+
+			// E-293: Check if batch wrapup run is currently in flight
+			if (task.batch_id) {
+				const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(task.batch_id);
+				if (activeWrapup) {
+					throw new AppError(
+						'E_FIX_RUN_IN_FLIGHT',
+						`Wrapup run is already in flight for batch: ${task.batch_id}`,
+						{
+							details: { taskId, batchId: task.batch_id, wrapupRunId: activeWrapup.id },
+						},
+					);
+				}
+			}
+
+			const implRuns = taskRuns.filter((r) => r.kind === 'implement');
+			const latestImplRun =
+				implRuns.length > 0
+					? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
+					: null;
+
+			const agentId = latestImplRun?.agent_id;
+			if (!agentId || !isAgentAvailable(agentId)) {
+				throw new AppError('E_AGENT_UNAVAILABLE', `Agent '${agentId}' is unavailable`, {
+					details: { agentId },
+				});
+			}
+
+			const now = deps.clock.now();
+			const nextAttemptNo =
+				(taskRuns.length > 0 ? Math.max(...taskRuns.map((r) => r.attempt_no)) : 0) + 1;
+			const runId = `run_${deps.ids.newId().slice(0, 16)}`;
+
+			const worktreePath = latestImplRun?.worktree_path ?? null;
+			const branchName = latestImplRun?.branch_name ?? null;
+
+			const prevSnapshot = latestImplRun?.snapshot_id
+				? deps.dispatchSnapshotsRepo.findById(latestImplRun.snapshot_id)
+				: null;
+			const reworkRules =
+				extractReworkRules(prevSnapshot?.impl_prompt ?? task.impl_prompt) ?? BUILTIN_REWORK_RULES;
+			const recallPrompt = `# 任务撤回修复指令（任务 ${task.task_key}）\n\n## 撤回原因与修复要求\n${comment.trim()}\n\n## 收到返工指令时\n${reworkRules}\n\n## 约束要求\n- ${REWORK_COMMIT_PUSH_CONSTRAINT}\n`;
+
+			let snapshotId = latestImplRun?.snapshot_id ?? '';
+			if (deps.dispatchSnapshotsRepo) {
+				snapshotId = `snap_${deps.ids.newId().slice(0, 16)}`;
+				deps.dispatchSnapshotsRepo.insert({
+					id: snapshotId,
+					task_id: taskId,
+					batch_id: null, // dispatch_snapshots CHECK ((task_id IS NOT NULL) <> (batch_id IS NOT NULL))
+					input_text: prevSnapshot?.input_text ?? task.input_text,
+					output_text: prevSnapshot?.output_text ?? task.output_text,
+					accept_text: prevSnapshot?.accept_text ?? task.accept_text,
+					impl_prompt: recallPrompt,
+					review_prompt: prevSnapshot?.review_prompt ?? task.review_prompt,
+					bug_prompt: prevSnapshot?.bug_prompt ?? task.bug_prompt,
+					contract_hash: task.contract_hash,
+					task_paths_json: task.task_paths_json ?? '[]',
+					launch_spec_json: prevSnapshot?.launch_spec_json ?? '{}',
+					created_at: now,
+				});
+			}
+
+			// Check path clash against active tasks
+			const activeTasks = (deps.runsRepo.listActive?.() ?? []).map((r) => ({
+				taskId: r.task_id ?? '',
+				taskKey: undefined,
+				taskPaths: parseTaskPaths(
+					r.task_id ? deps.tasksRepo.findById(r.task_id)?.task_paths_json : null,
+				),
+				state: r.state,
+				runId: r.id,
+				batchId: r.batch_id,
+			}));
+
+			const candidateTask = {
+				taskId: task.id,
+				taskKey: task.task_key,
+				taskPaths: parseTaskPaths(task.task_paths_json),
+				state: 'queued',
+				runId,
+				batchId: task.batch_id,
+			};
+
+			const clashResult = evaluatePathClashQueue({
+				activeTasks,
+				candidates: [candidateTask],
+				sameBatchOnly: false,
+			});
+
+			let queuedReason: string | null = null;
+			if (clashResult.blocked.length > 0) {
+				queuedReason = clashResult.blocked[0]?.queuedReason ?? null;
+			}
+
+			let createdRunRow: RunRow | null = null;
+			const pendingEnvelopes: EventEnvelope[] = [];
+
+			deps.unitOfWork.run(() => {
+				assertSessionRefFree(
+					{ taskId, vendorSessionRef: null },
+					{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
+				);
+				deps.runsRepo.insert({
+					id: runId,
+					task_id: taskId,
+					batch_id: task.batch_id,
+					attempt_no: nextAttemptNo,
+					kind: 'implement',
+					origin: 'wrapup-fix',
+					spawned_by_run_id: null, // AC 5: spawned_by_run_id 为空
+					state: 'queued',
+					rework_count: 0, // AC 5: 不计入 E-55 计数
+					permission_tier: 'workspaceWrite',
+					worktree_path: worktreePath,
+					branch_name: branchName,
+					agent_id: agentId,
+					model_name: latestImplRun?.model_name ?? null,
+					effort_tier: latestImplRun?.effort_tier ?? null,
+					snapshot_id: snapshotId,
+					queued_reason: queuedReason,
+					idempotency_key: idempotencyKey.trim(),
+					actor_device_id: actorDeviceId ?? null,
+					started_at: null,
+					ended_at: null,
+				});
+
+				createdRunRow = deps.runsRepo.findById(runId);
+
+				if (deps.bus && deps.envelopeFactory) {
+					pendingEnvelopes.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'run.state_changed',
+							runId,
+							taskId,
+							actorDeviceId: actorDeviceId ?? null,
+							payload: {
+								from: 'none',
+								to: 'queued',
+								reason: 'task_recalled',
+							},
+						}),
+					);
+				}
+			});
+
+			if (deps.bus && pendingEnvelopes.length > 0) {
+				for (const env of pendingEnvelopes) {
+					deps.bus.publish(env);
+				}
+			}
+
+			deps.nudgeTick?.();
+
+			if (!createdRunRow) {
+				throw new AppError('E_INTERNAL', 'Failed to retrieve created recalled run.');
+			}
+
+			return Object.freeze({ run: toRunDto(createdRunRow) });
 		},
 
 		async listWrapups(batchId: string): Promise<readonly BatchWrapupDto[]> {
