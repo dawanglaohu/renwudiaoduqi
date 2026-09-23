@@ -23,6 +23,8 @@ export interface RunRecord {
 	readonly origin?: string;
 	readonly agentId?: string;
 	readonly agent_id?: string;
+	readonly startedAt?: string | null;
+	readonly started_at?: string | null;
 	readonly sessionArchivedAt?: string | null;
 	readonly session_archived_at?: string | null;
 	readonly laneNo?: number | null;
@@ -57,9 +59,12 @@ export interface RunsRepo {
 
 export interface ReconcileRunRecord {
 	readonly id: string;
-	readonly taskId: string | null;
+	readonly taskId: string;
 	readonly pid: number | null;
 	readonly state: RunState;
+	readonly agentId: string;
+	readonly startedAt?: string | null;
+	readonly lastEventAt?: string | null;
 }
 
 export interface IngestLineResult {
@@ -103,6 +108,14 @@ export interface RunServiceDeps {
 		readonly runId: string;
 		readonly exitCode: number | null;
 	}) => Promise<void>;
+	readonly finalizeReview?: (input: {
+		readonly runId: string;
+		readonly exitCode: number | null;
+	}) => Promise<unknown>;
+	readonly evaluateMechanicalCheck?: (input: {
+		readonly runId: string;
+		readonly exitCode?: number | null;
+	}) => Promise<unknown>;
 	readonly agentService?: {
 		readonly refreshLogin: (
 			agentId: string,
@@ -162,6 +175,13 @@ export interface RunService {
 	}): Promise<{ readonly previousState: RunState; readonly currentState: RunState }>;
 	closeRunStream(runId: string): Promise<void>;
 	findInFlightRuns(): Promise<readonly ReconcileRunRecord[]>;
+	publishStalledSuspected?: (eventInput: {
+		readonly kind: 'run.stalled_suspected';
+		readonly runId: string;
+		readonly taskId: string;
+		readonly actorDeviceId?: string | null;
+		readonly payload: unknown;
+	}) => Promise<void>;
 	markInterrupted(
 		runId: string,
 		details: {
@@ -718,8 +738,29 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						if (run?.kind === 'wrapup' && deps.finalizeWrapup) {
 							await deps.finalizeWrapup({ runId, exitCode: result.exitCode });
 						}
+						if (run?.kind === 'review' && deps.finalizeReview) {
+							await deps.finalizeReview({ runId, exitCode: result.exitCode });
+						}
+
+						const isImplementLike =
+							run?.kind === 'implement' ||
+							run?.origin === 'rework' ||
+							run?.origin === 'wrapup-fix' ||
+							(!run?.kind && Boolean(run?.taskId));
+
+						let evaluatedInOnExit = false;
 						if (options?.onExit) {
 							await options.onExit(result);
+							evaluatedInOnExit = true;
+						}
+
+						if (
+							!evaluatedInOnExit &&
+							isImplementLike &&
+							result.exitCode === 0 &&
+							deps.evaluateMechanicalCheck
+						) {
+							await deps.evaluateMechanicalCheck({ runId, exitCode: result.exitCode });
 						}
 					} catch (err) {
 						logFailure(err);
@@ -912,12 +953,34 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			const runs = deps.runsRepo.findInFlight();
 			return runs.map((r) => ({
 				id: r.id,
-				taskId: r.taskId,
+				taskId: r.taskId ?? '',
 				pid: r.pid,
 				state: r.state,
+				agentId: r.agentId ?? r.agent_id ?? 'unknown',
+				startedAt: r.startedAt ?? r.started_at ?? null,
+				lastEventAt: r.lastEventAt ?? null,
 			}));
 		}
 		return [];
+	}
+
+	async function publishStalledSuspected(eventInput: {
+		readonly kind: 'run.stalled_suspected';
+		readonly runId: string;
+		readonly taskId: string;
+		readonly actorDeviceId?: string | null;
+		readonly payload: unknown;
+	}): Promise<void> {
+		if (deps.envelopeFactory && deps.bus) {
+			const envelope = deps.envelopeFactory.createEnvelope({
+				kind: 'run.stalled_suspected',
+				runId: eventInput.runId,
+				taskId: eventInput.taskId,
+				actorDeviceId: eventInput.actorDeviceId ?? null,
+				payload: eventInput.payload as never,
+			});
+			deps.bus.publish(envelope);
+		}
 	}
 
 	async function markInterrupted(
@@ -1083,6 +1146,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		transitionState,
 		closeRunStream,
 		findInFlightRuns,
+		publishStalledSuspected,
 		markInterrupted,
 		markOrphaned,
 		markAwaitingReply,

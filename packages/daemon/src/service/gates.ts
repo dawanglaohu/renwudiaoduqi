@@ -257,13 +257,17 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					now,
 				);
 
-				if (
-					input.decision === 'pass' &&
-					gate.kind === 'landing' &&
-					deps.tasksRepo &&
-					gate.task_id
-				) {
-					deps.tasksRepo.updateManualState(gate.task_id, 'landed');
+				if (input.decision === 'pass' && gate.kind === 'landing' && gate.task_id) {
+					if (deps.tasksRepo) {
+						deps.tasksRepo.updateManualState(gate.task_id, 'landed');
+					}
+					if (deps.runsRepo && gate.run_id) {
+						deps.runsRepo.updateState({
+							id: gate.run_id,
+							toState: 'landed',
+							endedAt: now,
+						});
+					}
 				} else if (input.decision === 'reject' && deps.tasksRepo && gate.task_id) {
 					// E-05: Human rejection sets manual state, automatic dispatch must not override human judgment
 					deps.tasksRepo.updateManualState(gate.task_id, 'paused');
@@ -273,6 +277,21 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			// Outside transaction: publish events
 			if (input.decision === 'pass') {
 				if (gate.kind === 'landing') {
+					if (gate.run_id) {
+						const stateEnvelope = deps.envelopeFactory.createEnvelope({
+							kind: 'run.state_changed',
+							runId: gate.run_id,
+							taskId: gate.task_id,
+							actorDeviceId: input.actorDeviceId,
+							payload: {
+								from: 'reviewing',
+								to: 'landed',
+								reason: 'human_landing_gate_passed',
+							},
+						});
+						deps.bus.publish(stateEnvelope);
+					}
+
 					const landedEnvelope = deps.envelopeFactory.createEnvelope({
 						kind: 'task.landed',
 						taskId: gate.task_id,
@@ -404,7 +423,29 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					if (deps.tasksRepo) {
 						deps.tasksRepo.updateManualState(input.taskId, 'landed');
 					}
+					if (deps.runsRepo && input.runId) {
+						deps.runsRepo.updateState({
+							id: input.runId,
+							toState: 'landed',
+							endedAt: now,
+						});
+					}
 				});
+
+				if (input.runId) {
+					const stateEnvelope = deps.envelopeFactory.createEnvelope({
+						kind: 'run.state_changed',
+						runId: input.runId,
+						taskId: input.taskId,
+						actorDeviceId: null,
+						payload: {
+							from: 'reviewing',
+							to: 'landed',
+							reason: 'auto_landing_gate_passed',
+						},
+					});
+					deps.bus.publish(stateEnvelope);
+				}
 
 				const landedEnvelope = deps.envelopeFactory.createEnvelope({
 					kind: 'task.landed',

@@ -40,9 +40,12 @@ export function createLogIndexRepairJob(deps: {
 			if (inFlight !== null) return;
 			const task = (async () => {
 				try {
-					return await runOnceInternal();
+					const result = await runOnceInternal();
+					stopRequested = true;
+					return result;
 				} catch (error) {
 					logFailure(error);
+					stopRequested = true;
 					return [] as readonly RepairRunReport[];
 				} finally {
 					inFlight = null;

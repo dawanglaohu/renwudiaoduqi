@@ -16,11 +16,16 @@ import type { ProcessConfig } from '../config/env.ts';
 import { type AgentRegistry, createAgentRegistry } from '../config/registry.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { createUnitOfWork } from '../db/unit-of-work.ts';
+import { AppError } from '../errors/app-error.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
 import { type RingBuffer, createRingBuffer } from '../events/ring-buffer.ts';
+import { createDiskWatchJob } from '../jobs/disk-watch.ts';
+import { createLogIndexRepairJob } from '../jobs/log-index-repair.ts';
+import { type ProcessLivenessProbe, createReconcileRunsJob } from '../jobs/reconcile-runs.ts';
 import { createSchedulerTickJob } from '../jobs/scheduler-tick.ts';
+import { createStallDetectorJob } from '../jobs/stall-detector.ts';
 import { createAppendQueue } from '../logstore/append-queue.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
@@ -70,6 +75,7 @@ import { createLogstoreService } from '../service/logstore.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RetentionService, createRetentionService } from '../service/retention.ts';
+import { type ReviewService, createReviewService } from '../service/review.ts';
 import { type ReworkService, createReworkService } from '../service/rework.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
@@ -85,7 +91,12 @@ import { type SystemService, createSystemService } from '../service/system.ts';
 import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
 import { type BaseSelector, createBaseSelector } from '../workspace/base-select.ts';
 import { getDiffStat } from '../workspace/diff.ts';
-import { type WorktreeManager, createWorktreeManager } from '../workspace/worktree.ts';
+import {
+	type GitRunner,
+	type WorktreeManager,
+	createWorktreeManager,
+} from '../workspace/worktree.ts';
+import { createSystemProcessLivenessProbe } from './lock.ts';
 
 export interface ContainerProc {
 	readonly spawnManaged: (
@@ -148,6 +159,7 @@ export interface ContainerServices {
 	readonly rework: ReworkService;
 	readonly settings: SettingsService;
 	readonly gates: GateService;
+	readonly review: ReviewService;
 	readonly batch?: BatchService;
 	readonly wrapup?: WrapupService;
 	readonly run: RunService;
@@ -218,9 +230,20 @@ export function createContainer(input: {
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
 	readonly runService?: RunService;
-	readonly reviewService?: {
-		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
-	};
+	readonly reviewService?:
+		| ReviewService
+		| {
+				readonly evaluateMechanicalCheck: (input: {
+					readonly runId: string;
+					readonly exitCode?: number | null;
+				}) => Promise<unknown>;
+		  };
+	readonly reconcileRunsJob?: ContainerJob;
+	readonly logIndexRepairJob?: ContainerJob;
+	readonly stallDetectorJob?: ContainerJob;
+	readonly diskWatchJob?: ContainerJob;
+	readonly processProbe?: ProcessLivenessProbe;
+	readonly gitRunner?: GitRunner;
 	readonly worktreeManager?: WorktreeManager;
 	readonly baseSelector?: BaseSelector;
 	readonly proc?: ContainerProc;
@@ -323,6 +346,7 @@ export function createContainer(input: {
 		platform: input.hostInputs.platform,
 		hostInputs: input.hostInputs,
 		ids,
+		gitRunner: input.gitRunner,
 	});
 	const worktreeManager = input.worktreeManager ?? createWorktreeManager(worktreeDeps);
 	const workspace: ContainerWorkspace = Object.freeze({ worktrees: worktreeManager });
@@ -615,9 +639,15 @@ export function createContainer(input: {
 				state: row.state as RunRecord['state'],
 				pid: row.pid,
 				kind: row.kind,
+				agentId: row.agent_id,
+				agent_id: row.agent_id,
+				startedAt: row.started_at,
+				lastEventAt: row.last_event_at,
 			}));
 		},
 	});
+	const reviewServiceHolder: { current?: ReviewService } = {};
+
 	const runService =
 		input.runService ??
 		createRunService({
@@ -630,6 +660,12 @@ export function createContainer(input: {
 			tasksRepo: tasks,
 			sessionArchiveService,
 			finalizeWrapup: (params) => wrapupService.recordWrapupResult(params),
+			finalizeReview: async (params) => {
+				await reviewServiceHolder.current?.finalizeReview?.(params);
+			},
+			evaluateMechanicalCheck: async (params) => {
+				await reviewServiceHolder.current?.evaluateMechanicalCheck(params);
+			},
 			logFailure: (error) =>
 				input.logViolation?.(error instanceof Error ? error.message : String(error)),
 			agentService,
@@ -686,8 +722,38 @@ export function createContainer(input: {
 			proc,
 			adapters,
 			runService,
-			reviewService: input.reviewService,
+			logFailure: (error) => {
+				input.logViolation?.(error instanceof Error ? error.message : String(error));
+			},
+			reviewService: {
+				evaluateMechanicalCheck: async (params: {
+					readonly runId: string;
+					readonly exitCode?: number | null;
+				}) => {
+					await (reviewServiceHolder.current ?? input.reviewService)?.evaluateMechanicalCheck({
+						...params,
+						exitCode: params.exitCode !== undefined ? params.exitCode : 0,
+					});
+				},
+			},
 		});
+
+	const wrappedDispatchService: DispatchService = Object.freeze({
+		...dispatchService,
+		async createRun(createInput: Parameters<DispatchService['createRun']>[0]) {
+			if (systemService.isDispatchHalted()) {
+				const halt = systemService.getDispatchHalt();
+				throw new AppError(
+					'E_DISK_FULL',
+					halt?.message ?? 'Dispatch halted: disk space critical.',
+					{
+						details: { cause: halt?.cause },
+					},
+				);
+			}
+			return await dispatchService.createRun(createInput);
+		},
+	});
 
 	const assignmentsService =
 		input.assignmentsService ??
@@ -773,6 +839,88 @@ export function createContainer(input: {
 
 	gateServiceHolder.current = gateService;
 
+	const baseReviewService =
+		input.reviewService && 'runMechanicalCheck' in input.reviewService
+			? input.reviewService
+			: createReviewService({
+					runsRepo: runs,
+					gatesRepo: gates,
+					tasksRepo: tasks,
+					unitOfWork,
+					bus,
+					envelopeFactory,
+					messageService,
+					processRegistry,
+					spawnManaged: boundSpawnManaged,
+					spawnManagedFn: baseSpawn,
+					agentRegistry,
+					dispatchSnapshotsRepo: dispatchSnapshots,
+					platform: input.hostInputs.platform,
+					hostInputs: input.hostInputs,
+					clock: input.clock,
+					ids,
+					settingsRepo: settings,
+					settingsService,
+					gatesService: gateService,
+					runService,
+					gitRunner: input.gitRunner,
+					logstorePaths,
+					logFs,
+					worktreeDeps,
+				});
+
+	const reviewService: ReviewService =
+		input.reviewService && !('runMechanicalCheck' in input.reviewService)
+			? Object.freeze({
+					...baseReviewService,
+					evaluateMechanicalCheck: input.reviewService
+						.evaluateMechanicalCheck as ReviewService['evaluateMechanicalCheck'],
+				})
+			: baseReviewService;
+
+	reviewServiceHolder.current = reviewService;
+
+	const processProbe = input.processProbe ?? createSystemProcessLivenessProbe();
+	const reconcileRunsJob =
+		input.reconcileRunsJob ??
+		createReconcileRunsJob({
+			service: runService,
+			processProbe,
+			clock: input.clock,
+			logFailure: (error) => {
+				input.logViolation?.(error instanceof Error ? error.message : String(error));
+			},
+		});
+
+	const logIndexRepairJob =
+		input.logIndexRepairJob ??
+		createLogIndexRepairJob({
+			service: logstoreService,
+			logFailure: (error) => {
+				input.logViolation?.(error instanceof Error ? error.message : String(error));
+			},
+		});
+
+	const stallDetectorJob =
+		input.stallDetectorJob ??
+		createStallDetectorJob({
+			service: runService,
+			clock: input.clock,
+			processRegistry,
+			logFailure: (error) => {
+				input.logViolation?.(error instanceof Error ? error.message : String(error));
+			},
+		});
+
+	const diskWatchJob =
+		input.diskWatchJob ??
+		createDiskWatchJob({
+			service: systemService,
+			logFailure: (error) => {
+				input.logViolation?.(error instanceof Error ? error.message : String(error));
+			},
+		});
+
 	const services: ContainerServices = Object.freeze({
 		system: systemService,
 		runAbort: runAbortService,
@@ -783,17 +931,24 @@ export function createContainer(input: {
 		agents: agentService,
 		landing: landingService,
 		message: messageService,
-		dispatch: dispatchService,
+		dispatch: wrappedDispatchService,
 		assignments: assignmentsService,
 		rework: reworkService,
 		settings: settingsService,
 		gates: gateService,
+		review: reviewService,
 		batch: batchService,
 		wrapup: wrapupService,
 		run: runService,
 	});
 
-	const jobs: readonly ContainerJob[] = Object.freeze([schedulerTickJob]);
+	const jobs: readonly ContainerJob[] = Object.freeze([
+		reconcileRunsJob,
+		logIndexRepairJob,
+		stallDetectorJob,
+		schedulerTickJob,
+		diskWatchJob,
+	]);
 	const parsedStartedAt = Date.parse(input.clock.now());
 	const startedAtMs = Number.isNaN(parsedStartedAt) ? Date.now() : parsedStartedAt;
 
