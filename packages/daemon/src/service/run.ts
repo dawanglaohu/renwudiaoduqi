@@ -490,7 +490,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		cleanups.push(
 			process.onRaw((line) => {
 				if (detached) return;
-				trackWrite(ingestRaw(runId, line.text)).catch((err) => logFailure(err));
+				void trackWrite(ingestRaw(runId, line.text)).catch((err) => logFailure(err));
 				if (options?.acceptsPlainText) {
 					const trimmed = line.text.trim();
 					if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
@@ -502,7 +502,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									hasContent = true;
 									runsWithContent.add(runId);
 								}
-								trackWrite(
+								void trackWrite(
 									ingestEvent(runId, env).then(() => {
 										options?.onEvent?.(env);
 									}),
@@ -526,7 +526,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								hasContent = true;
 								runsWithContent.add(runId);
 							}
-							trackWrite(
+							void trackWrite(
 								ingestEvent(runId, env).then(() => {
 									options?.onEvent?.(env);
 								}),
@@ -551,7 +551,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						hasContent = true;
 						runsWithContent.add(runId);
 					}
-					trackWrite(
+					void trackWrite(
 						ingestEvent(runId, env).then(() => {
 							options?.onEvent?.(env);
 						}),
