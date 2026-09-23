@@ -1399,12 +1399,14 @@
         "frontendRoutes"
       ],
       "supportPaths": [
+        "packages/web/src/app/bootstrap.ts",
         "packages/web/src/features/run-deck/mobile-batch-list.tsx",
         "packages/web/src/features/run-deck/run-deck-container.tsx",
         "packages/web/src/features/run-detail/run-detail-container.tsx",
         "packages/web/src/features/pairing/pairing-container.tsx",
         "packages/web/src/features/settings-devices/settings-devices-container.tsx",
         "packages/web/src/features/settings-agents/settings-agents-container.tsx",
+        "packages/web/test/bootstrap.test.ts",
         "packages/web/test/routes.test.ts"
       ],
       "requires": [

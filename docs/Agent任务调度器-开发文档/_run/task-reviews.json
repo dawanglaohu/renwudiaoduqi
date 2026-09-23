@@ -1304,18 +1304,13 @@
     "verdict": "pass"
   },
   "M9-T25": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "2da02dfd124539a4a0da5911d73cdf78c00cddab45c3be9abc36ac922723944c",
+    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
+    "contractHash": "78f118049d2f0ff3545dd9c74159b8e2a459d5023656df58bc60de9b1ef067f8",
     "evidence": [
-      "前置：M9-T3、M9-T8、M9-T9、M9-T12、M9-T14、M9-T15、M9-T16；其中已落地 7 个。",
-      "验收标准引用边界 E-06、E-222、E-223、E-224，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/web/src/app/app.tsx（类别 frontendRoutes）",
-      "注册点文件已核存在于 packages/web/src/app/routes.tsx（类别 frontendRoutes）",
-      "有效范围 11 条：packages/web/src/app/app.tsx；packages/web/src/app/routes.tsx；packages/web/src/features/pairing/pairing-container.tsx；packages/web/src/features/run-deck/mobile-batch-list.tsx；packages/web/src/features/run-deck/run-deck-container.tsx；packages/web/src/features/run-detail/run-detail-container.tsx；packages/web/src/features/settings-agents/settings-agents-container.tsx；packages/web/src/features/settings-devices/settings-devices-container.tsx；packages/web/src/pages/；packages/web/test/route-entries.test.tsx；packages/web/test/routes.test.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/web/test/route-entries.test.tsx。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "E-06 requires a usable manual host fallback. The current browser bootstrap registers location.origin as the shell hint at packages/web/src/app/bootstrap.ts:111, which takes precedence over the saved manual host in packages/web/src/api/base-url.ts. The prior task commit 7a2c8d9 contained the browser null-hint fix; the current PR head a98b7353 lost it after updating from main.",
+      "The patch changes only M9-T25 effective paths: packages/web/src/app/bootstrap.ts and packages/web/test/bootstrap.test.ts are now allowed for restoring the existing E-06 behavior and testing the production bootstrap path. Acceptance criteria and other task scopes remain unchanged. M1-T11 and M9-T27 hashes propagate this upstream path change; their own contracts are unchanged and will be reviewed when implemented."
     ],
-    "reviewed": "2026-09-18T18:31:32.648537+00:00",
+    "reviewed": "2026-09-23T04:58:14.751859+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
