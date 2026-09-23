@@ -136,6 +136,8 @@ export interface DispatchReworkInput {
 	 */
 	readonly previousDiff?: DiffStatLike | null;
 	readonly currentDiff?: DiffStatLike | null;
+	/** The human gate already charged this decision while the task waited for a lane. */
+	readonly countAlreadyApplied?: boolean;
 }
 
 /**
@@ -766,7 +768,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		const isBranchTwo = !isBranchOne && canResume;
 		const isBranchThree = !isBranchOne && !isBranchTwo;
 
-		const nextReworkCount = currentReworkCount + 1;
+		const nextReworkCount = input.countAlreadyApplied ? currentReworkCount : currentReworkCount + 1;
 		const now = deps.clock.now();
 
 		// ========== 分支一：回灌（inject） ==========

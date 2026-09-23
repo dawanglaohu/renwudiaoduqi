@@ -267,6 +267,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				readonly reworkText: string;
 				readonly source: 'human';
 				readonly actorDeviceId?: string | null;
+				readonly countAlreadyApplied: true;
 			} | null = null;
 
 			deps.unitOfWork.run(() => {
@@ -333,8 +334,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				} else if (input.decision === 'reject' && deps.tasksRepo && gate.task_id) {
 					// E-327: 人工打回进入返工。
 					// 这里只做闸门决定、意见落库、运行状态与泳道归属，全部在同一事务里；
-					// rework_count 一律由投递路径（reworkService.dispatchRework）加一次，
-					// 本处不得再自行 +1，否则一次打回会吃掉两轮返工额度。
+					// 人工决定当场计数；等泳道或批次恢复后投递不得再消耗一次额度。
 					const task = deps.tasksRepo.findById(gate.task_id);
 					const doc = task && deps.documentsRepo ? deps.documentsRepo.findById(task.doc_id) : null;
 					const reworkText = comment || 'Rejected by human';
@@ -355,10 +355,21 @@ export function createGateService(deps: GateServiceDeps): GateService {
 							);
 						}
 					}
+					if (targetRun && deps.runsRepo) {
+						deps.runsRepo.updateReworkCount({
+							id: targetRun.id,
+							reworkCount: (targetRun.rework_count ?? 0) + 1,
+						});
+					}
 
 					const docLaneCount = doc?.lane_count ?? 2;
 					const docTasks = task ? deps.tasksRepo.listByDocId(task.doc_id) : [];
 					const allRuns = deps.runsRepo?.listAll() ?? [];
+					const docBatchIds = new Set(
+						task && deps.batchesRepo
+							? deps.batchesRepo.listByDocId(task.doc_id).map((batch) => batch.id)
+							: [],
+					);
 					const occupiedLanes = new Set<number>();
 					for (const t of docTasks) {
 						if (typeof t.lane_no === 'number' && t.lane_no >= 1) {
@@ -368,6 +379,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					for (const r of allRuns) {
 						if (
 							r.kind === 'wrapup' &&
+							Boolean(r.batch_id && docBatchIds.has(r.batch_id)) &&
 							typeof r.lane_no === 'number' &&
 							r.lane_no >= 1 &&
 							!isTerminalRunState(r.state as RunState) &&
@@ -432,6 +444,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 										reworkText,
 										source: 'human',
 										actorDeviceId: input.actorDeviceId,
+										countAlreadyApplied: true,
 									}
 								: null;
 					} else {
@@ -478,7 +491,20 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			}
 			if (input.decision === 'reject') {
 				if (reworkDeliveryInput && deps.reworkService) {
-					await deps.reworkService.dispatchRework(reworkDeliveryInput);
+					const result = await deps.reworkService.dispatchRework(reworkDeliveryInput);
+					if (result.mode === 'handover') {
+						throw new AppError(
+							'E_MESSAGE_UNDELIVERED',
+							'Rework was recorded but no session dispatcher accepted it.',
+							{
+								details: {
+									gateId: gate.id,
+									decisionApplied: true,
+									targetRunId: result.handover.targetRunId,
+								},
+							},
+						);
+					}
 				}
 				deps.nudgeTick?.();
 			}

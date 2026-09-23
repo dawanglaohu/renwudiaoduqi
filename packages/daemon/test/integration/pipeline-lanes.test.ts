@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { buildCodexLaunchSpec } from '../../src/adapters/codex/build-launch-spec.ts';
 import type { AgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
@@ -1143,11 +1144,10 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		});
 		expect(res.statusCode).toBe(200);
 
-		// 一次打回只消耗一轮返工额度：旧实现闸门 +1、投递路径再 +1，会变成 2
+		// 一次打回只消耗一轮返工额度；新运行继承同一计数，不代表再次扣额。
 		const runs = runsRepo.listByTaskId(taskId);
 		const counts = runs.map((r) => r.rework_count ?? 0);
-		expect(Math.max(...counts)).toBe(1);
-		expect(counts.filter((c) => c === 1)).toHaveLength(1);
+		expect(counts.every((count) => count === 1)).toBe(true);
 
 		// 意见落库、运行迁 reworking、有槽当场入道
 		const gateAfter = gatesRepo.findById(gateId);
@@ -1183,6 +1183,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		const parked = runsRepo.findById(runId);
 		expect(parked?.state).toBe('reworking');
 		expect(parked?.queued_reason).toBe('batch_paused');
+		expect(parked?.rework_count).toBe(1);
 
 		// 暂停期间不投递：没有产生新的返工运行
 		expect(runsRepo.listByTaskId(taskId)).toHaveLength(1);
@@ -1195,6 +1196,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		db.prepare('UPDATE batches SET state = ? WHERE id = ?').run('running', 'batch-1');
 		const newcomerIds = ['M8-T9', 'M8-T10', 'M8-T11', 'M8-T12', 'M8-T13'].map((k) => insertTask(k));
 		await dispatchService.tick();
+		expect(runsRepo.listByTaskId(taskId).every((run) => run.rework_count === 1)).toBe(true);
 
 		expect(tasksRepo.findById(taskId)?.lane_no).not.toBeNull();
 		const occupied = ['task-m8-t1', ...newcomerIds].filter(
@@ -1361,7 +1363,11 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 	// Round-3 R1: 收口运行必须拿到快照里冻结的收口提示词
 	// =========================================================================
 	it('Round-3 R1: the launched wrap-up run receives the frozen eight-section prompt (AC 6, E-283)', async () => {
-		const capturedSpecs: Array<{ readonly prompt?: string; readonly runId: string }> = [];
+		const capturedSpecs: Array<{
+			readonly prompt?: string;
+			readonly runId: string;
+			readonly args: readonly string[];
+		}> = [];
 
 		const launchDispatch = createDispatchService({
 			unitOfWork,
@@ -1389,15 +1395,23 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 				['codex', 'claude'].map((agentId) => [
 					agentId,
 					{
-						buildLaunchSpec: (input: { runId: string; prompt?: string }) => {
-							capturedSpecs.push({ runId: input.runId, prompt: input.prompt });
-							return {
-								runId: input.runId,
-								file: agentId,
-								args: [],
-								cwd: gitRepoPath,
-								env: {},
-							} as never;
+						buildLaunchSpec: (input: {
+							runId: string;
+							cwd: string;
+							prompt?: string;
+							mode?: 'exec';
+						}) => {
+							const spec =
+								agentId === 'codex'
+									? buildCodexLaunchSpec(input)
+									: {
+											runId: input.runId,
+											file: agentId,
+											args: [],
+											cwd: gitRepoPath,
+										};
+							capturedSpecs.push({ runId: input.runId, prompt: input.prompt, args: spec.args });
+							return spec as never;
 						},
 						mapEvents: () => [],
 					},
@@ -1477,6 +1491,8 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		expect(capturedSpecs[0]?.runId).toBe(wrapupRun?.id);
 		expect(capturedSpecs[0]?.prompt).toBe(snapshot?.impl_prompt);
 		expect(capturedSpecs[0]?.prompt ?? '').toContain('# 批次收口执行指令');
+		expect(capturedSpecs[0]?.args[0]).toBe('exec');
+		expect(capturedSpecs[0]?.args).toContain(snapshot?.impl_prompt);
 
 		// 收口运行必须真的被启动（而不是只插了一行排队）
 		expect(runsRepo.findById(wrapupRun?.id ?? '')?.state).not.toBe('queued');

@@ -78,6 +78,7 @@ import { type BatchService, createBatchService } from './batch.ts';
 import type { LanesService } from './lanes.ts';
 import type { EventEnvelopeInput } from './logstore.ts';
 import { createRerunService } from './rerun.ts';
+import type { ReworkService } from './rework.ts';
 import type { RunService } from './run.ts';
 import { assertSessionRefFree } from './session-guard.ts';
 import type { WrapupService } from './wrapup.ts';
@@ -236,15 +237,7 @@ export interface DispatchServiceDeps {
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
 	readonly lanesService?: LanesService;
-	readonly reworkService?: {
-		readonly dispatchRework: (input: {
-			readonly reviewRunId?: string | null;
-			readonly targetRunId: string;
-			readonly reworkText: string;
-			readonly source: 'human';
-			readonly actorDeviceId?: string | null;
-		}) => Promise<unknown>;
-	};
+	readonly reworkService?: Pick<ReworkService, 'dispatchRework'>;
 	readonly isBranchInHead?: typeof isBranchInHead;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
@@ -980,6 +973,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				readonly reviewRunId?: string | null;
 				readonly reworkText: string;
 				readonly actorDeviceId?: string | null;
+				readonly countAlreadyApplied: true;
 			}> = [];
 
 			/**
@@ -1024,13 +1018,29 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						void launchRun(runId);
 					}
 					for (const rw of pendingReworksToDispatch) {
-						void deps.reworkService?.dispatchRework({
-							targetRunId: rw.targetRunId,
-							reviewRunId: rw.reviewRunId,
-							reworkText: rw.reworkText,
-							source: 'human',
-							actorDeviceId: rw.actorDeviceId,
-						});
+						void deps.reworkService
+							?.dispatchRework({
+								targetRunId: rw.targetRunId,
+								reviewRunId: rw.reviewRunId,
+								reworkText: rw.reworkText,
+								source: 'human',
+								actorDeviceId: rw.actorDeviceId,
+								countAlreadyApplied: rw.countAlreadyApplied,
+							})
+							.then((result) => {
+								if (result?.mode === 'handover') {
+									logFailure(
+										new AppError(
+											'E_MESSAGE_UNDELIVERED',
+											'Queued rework has no session dispatcher.',
+											{
+												details: { targetRunId: rw.targetRunId },
+											},
+										),
+									);
+								}
+							})
+							.catch(logFailure);
 					}
 				}
 
@@ -1677,6 +1687,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								reviewRunId: rejectedGate?.run_id,
 								reworkText,
 								actorDeviceId: null,
+								countAlreadyApplied: true,
 							});
 						} else {
 							const task = candidate.task;
@@ -1890,6 +1901,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
 					permissionTier: 'workspaceWrite',
 					prompt: wrapupPrompt,
+					...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
 				});
 
 				let managed: ManagedProcess;

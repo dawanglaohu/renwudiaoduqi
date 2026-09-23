@@ -421,6 +421,47 @@ describe(
 	'M7-T9 Integration: Container Wiring (AC 2, AC 3, AC 4, E-53, E-57, E-104, E-120, E-123)',
 	{ timeout: 25000 },
 	() => {
+		it('E-327: real container reports an undelivered human rework decision and records one count', async () => {
+			const { container, clock } = setupWiringEnvironment();
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+			const gatesRepo = container.repos.gates;
+			if (!gatesRepo) throw new Error('Gates repo missing from container');
+
+			container.repos.runs.insert({
+				id: 'ended-impl-run',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'awaiting_human',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				started_at: clock.now(),
+			});
+			container.repos.tasks.updateManualState('task-1', 'awaiting_human');
+			gatesRepo.create({
+				id: 'human-review-gate',
+				task_id: 'task-1',
+				run_id: 'ended-impl-run',
+				kind: 'review',
+				state: 'waiting',
+				created_at: clock.now(),
+			});
+
+			const response = await server.instance.inject({
+				method: 'POST',
+				url: '/api/v1/gates/human-review-gate/decide',
+				headers: { authorization: token },
+				payload: { decision: 'reject', comment: 'Please repair the implementation.' },
+			});
+			expect(response.statusCode).toBe(422);
+			expect(response.json().error.code).toBe('E_MESSAGE_UNDELIVERED');
+			expect(gatesRepo.findById('human-review-gate')?.decision).toBe('reject');
+			expect(container.repos.runs.findById('ended-impl-run')?.rework_count).toBe(1);
+		});
+
 		it('AC 2 & E-53 & E-57: Real container + fake process: exit 0 -> evaluateMechanicalCheck called -> kind=review inserted -> review verdict pass -> waiting gate -> POST decide -> landed by:human', async () => {
 			const env = setupWiringEnvironment();
 			const { container, spawnedProcesses } = env;
