@@ -301,28 +301,42 @@ export function useRunDetailPage(
 		isMissing: false,
 		error: null,
 	});
-	const load = useCallback(async () => {
-		if (skipInitialLoad) return;
-		setState({ isLoading: true, isMissing: false, error: null });
-		try {
-			await fetcher(runId);
-			setState({ isLoading: false, isMissing: false, error: null });
-		} catch (error) {
-			if (isApiError(error) && error.code === 'E_NOT_FOUND') {
-				setState({ isLoading: false, isMissing: true, error: null });
-				return;
-			}
-			setState({
-				isLoading: false,
-				isMissing: false,
-				error: error instanceof Error ? error.message : String(error),
-			});
-		}
-	}, [fetcher, runId, skipInitialLoad]);
 
 	useEffect(() => {
-		void load();
-	}, [load]);
+		if (skipInitialLoad) {
+			setState({ isLoading: false, isMissing: false, error: null });
+			return;
+		}
+
+		let isCancelled = false;
+		setState({ isLoading: true, isMissing: false, error: null });
+
+		void (async () => {
+			try {
+				await fetcher(runId);
+				if (!isCancelled) {
+					setState({ isLoading: false, isMissing: false, error: null });
+				}
+			} catch (error) {
+				if (!isCancelled) {
+					if (isApiError(error) && error.code === 'E_NOT_FOUND') {
+						setState({ isLoading: false, isMissing: true, error: null });
+						return;
+					}
+					setState({
+						isLoading: false,
+						isMissing: false,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+			}
+		})();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [fetcher, runId, skipInitialLoad]);
+
 	return state;
 }
 

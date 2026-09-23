@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { GetRunResponse } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -13,8 +14,10 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { getManualHost, resolveBaseUrl } from '../src/api/base-url.ts';
 import { ApiError, clearCachedToken, httpClient, setCachedToken } from '../src/api/http-client.ts';
 import { App } from '../src/app/app.tsx';
-import { ROUTE_PATHS, navigateTo } from '../src/app/routes.tsx';
+import { ROUTE_PATHS, matchRoute, navigateTo } from '../src/app/routes.tsx';
 import { mapSnapshotBatches } from '../src/features/run-deck/mobile-batch-list.tsx';
+import type { RunFetcher } from '../src/features/run-detail/run-detail-container.tsx';
+import { RunDetailPage } from '../src/pages/run-detail-page.tsx';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -242,6 +245,97 @@ describe('M9-T25 seven route entries', () => {
 		const batchList = document.querySelector('[data-component="mobile-batch-list"]');
 		expect(batchList).not.toBeNull();
 		expect(batchList?.textContent).toContain('—/—');
+	});
+
+	it('R2 / E-223: avoids race condition where delayed response from run A overwrites run B', async () => {
+		await preloadLazyPages();
+
+		let rejectRunA!: (error: unknown) => void;
+		const delayedRunAPromise = new Promise<never>((_, reject) => {
+			rejectRunA = reject;
+		});
+
+		const runFetcher = vi.fn<RunFetcher>(async (runId: string) => {
+			if (runId === 'run-a') {
+				return delayedRunAPromise;
+			}
+			if (runId === 'run-b') {
+				return {
+					run: { id: 'run-b', state: 'running' } as unknown as GetRunResponse['run'],
+					progress: null,
+				};
+			}
+			throw new ApiError({
+				code: 'E_NOT_FOUND',
+				message: 'Run not found',
+				requestId: 'req-missing',
+			});
+		});
+
+		const root = createRoot(document.getElementById('root') as HTMLElement);
+		cleanupFns.push(async () => act(async () => root.unmount()));
+
+		// Start on run-a
+		await act(async () => {
+			root.render(
+				createElement(RunDetailPage, {
+					match: {
+						...matchRoute('#/run/run-a'),
+						id: 'runDetail',
+						isUnknown: false,
+						auth: true,
+						lazy: false,
+						path: '#/run/run-a',
+					},
+					params: { runId: 'run-a' },
+					query: {},
+					runFetcher,
+				}),
+			);
+			await flushReact();
+		});
+
+		expect(document.querySelector('[data-run-missing="true"]')).toBeNull();
+
+		// Switch to run-b
+		await act(async () => {
+			root.render(
+				createElement(RunDetailPage, {
+					match: {
+						...matchRoute('#/run/run-b'),
+						id: 'runDetail',
+						isUnknown: false,
+						auth: true,
+						lazy: false,
+						path: '#/run/run-b',
+					},
+					params: { runId: 'run-b' },
+					query: {},
+					runFetcher,
+				}),
+			);
+			await flushReact();
+		});
+
+		// run-b loaded successfully, shows run-detail-container
+		expect(document.querySelector('[data-component="run-detail-container"]')).not.toBeNull();
+		expect(document.querySelector('[data-run-missing="true"]')).toBeNull();
+
+		// Now delayed run-a finally responds with E_NOT_FOUND
+		await act(async () => {
+			rejectRunA(
+				new ApiError({
+					code: 'E_NOT_FOUND',
+					message: 'Run A not found or purged',
+					requestId: 'req-run-a-purged',
+				}),
+			);
+			await flushReact();
+		});
+
+		// Run B must NOT be overwritten by run A delayed response!
+		expect(document.querySelector('[data-component="run-detail-container"]')).not.toBeNull();
+		expect(document.querySelector('[data-run-missing="true"]')).toBeNull();
 	});
 
 	it('lets the run page, not the router, render a purged run as missing (E-223)', async () => {

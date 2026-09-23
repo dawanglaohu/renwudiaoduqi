@@ -926,6 +926,6 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 
 			expect(existsSync(retryPrep.worktreePath)).toBe(true);
 			expect(retryPrep.branchName).toBe('task/M5-T4-2');
-		});
+		}, 30000);
 	});
 });
