@@ -1,4 +1,4 @@
-﻿/**
+/**
  * packages/web/src/features/run-deck/wrapup-panel-container.tsx
  *
  * 收口报告面板容器与批次收口动作（M9-T20 / AC 2, AC 3, AC 5, E-157, E-297, E-74 批次侧）
@@ -231,7 +231,11 @@ export interface WrapupPanelContainerProps {
 	readonly isTouch?: boolean;
 	/** 是否手机档（不出「收口」按钮，E-297） */
 	readonly isPhoneTier?: boolean;
-	/** 预填收口记录（单测或静态装配，给了就不发首次请求） */
+	/**
+	 * 预填收口记录：只当一次性种子，给了就不发首次请求。
+	 * 之后的变化不重放（否则调用方每次传新数组都会自激重渲染）；要刷新走 `refetch()`，
+	 * 或让 daemon 的 `batch.wrapup_*` 事件回流——收口轮次本来就是事件驱动新增的。
+	 */
 	readonly initialWrapups?: readonly BatchWrapupDto[];
 	/** 初始拒绝提示（单测用） */
 	readonly initialFailure?: BatchWrapupFailureView | null;
