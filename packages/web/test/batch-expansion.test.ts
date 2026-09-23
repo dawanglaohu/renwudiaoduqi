@@ -191,6 +191,20 @@ describe('features/run-deck/batch-expansion (M9-T19, AC 2, E-284, R3)', () => {
 		expect(getExpandedBatchIds().has('batch-2')).toBe(true);
 	});
 
+	it('clears the published snapshot when the next document has no default-expanded batch', () => {
+		seedBatchExpansion([{ id: 'batch-1', defaultExpanded: true }], 'doc-1');
+		seedBatchExpansion([{ id: 'batch-2', defaultExpanded: false }], 'doc-2');
+		expect([...getExpandedBatchIds()]).toEqual([]);
+	});
+
+	it('does not undo a manual collapse when the same batch is seeded again', () => {
+		const batches = [{ id: 'batch-1', defaultExpanded: true }];
+		seedBatchExpansion(batches, 'doc-1');
+		toggleBatchExpansion('batch-1');
+		seedBatchExpansion([...batches], 'doc-1');
+		expect(getExpandedBatchIds().has('batch-1')).toBe(false);
+	});
+
 	// ─── 4. batch.advanced 到达且 to ∈ {running, wrapping, awaiting_landing, needs_attention} 时自动并入 ───
 	it('auto-expands for all target states in AUTO_EXPAND_BATCH_STATES', () => {
 		for (const targetState of AUTO_EXPAND_BATCH_STATES) {
