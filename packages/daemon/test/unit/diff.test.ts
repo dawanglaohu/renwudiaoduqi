@@ -686,142 +686,149 @@ R  old.ts -> new.ts
 		});
 	});
 
-	describe('End-to-End Real Git Integration (AC 1, AC 2, AC 3, E-72, E-75)', () => {
-		it('executes getDiffStat, getDiffText, and detectRemotePush on a real git worktree', async (ctx) => {
-			const hostInputsResult = takePlatformHostInputs({});
-			if (!hostInputsResult.ok) {
-				ctx.skip();
-				return;
-			}
-			const hostInputs = hostInputsResult.value;
-
-			let gitExecutable: import('../../src/platform/contract.ts').ResolvedExecutable | undefined =
-				undefined;
-			const initialResolution = await resolveExecutable({
-				hostInputs,
-				executableName: 'git',
-			});
-			if (initialResolution.ok) {
-				gitExecutable = initialResolution.executable;
-			} else {
-				const candidates = [
-					'D:\\Program Files\\Git\\cmd\\git.exe',
-					'C:\\Program Files\\Git\\cmd\\git.exe',
-					'C:\\Program Files (x86)\\Git\\cmd\\git.exe',
-					'/usr/bin/git',
-					'/usr/local/bin/git',
-				];
-				for (const cand of candidates) {
-					try {
-						if (existsSync(cand)) {
-							const candRes = await resolveExecutable({
-								hostInputs,
-								executableName: 'git',
-								configuredPath: cand,
-							});
-							if (candRes.ok) {
-								gitExecutable = candRes.executable;
-								break;
-							}
-						}
-					} catch {}
+	describe(
+		'End-to-End Real Git Integration (AC 1, AC 2, AC 3, E-72, E-75)',
+		{ timeout: 60000 },
+		() => {
+			it('executes getDiffStat, getDiffText, and detectRemotePush on a real git worktree', async (ctx) => {
+				const hostInputsResult = takePlatformHostInputs({});
+				if (!hostInputsResult.ok) {
+					ctx.skip();
+					return;
 				}
-			}
+				const hostInputs = hostInputsResult.value;
 
-			if (!gitExecutable) {
-				ctx.skip();
-				return;
-			}
+				let gitExecutable: import('../../src/platform/contract.ts').ResolvedExecutable | undefined =
+					undefined;
+				const initialResolution = await resolveExecutable({
+					hostInputs,
+					executableName: 'git',
+				});
+				if (initialResolution.ok) {
+					gitExecutable = initialResolution.executable;
+				} else {
+					const candidates = [
+						'D:\\Program Files\\Git\\cmd\\git.exe',
+						'C:\\Program Files\\Git\\cmd\\git.exe',
+						'C:\\Program Files (x86)\\Git\\cmd\\git.exe',
+						'/usr/bin/git',
+						'/usr/local/bin/git',
+					];
+					for (const cand of candidates) {
+						try {
+							if (existsSync(cand)) {
+								const candRes = await resolveExecutable({
+									hostInputs,
+									executableName: 'git',
+									configuredPath: cand,
+								});
+								if (candRes.ok) {
+									gitExecutable = candRes.executable;
+									break;
+								}
+							}
+						} catch {}
+					}
+				}
 
-			const tempBase = mkdtempSync(join(tmpdir(), 'sched-diff-real-'));
-			const remoteRepo = join(tempBase, 'remote.git');
-			const mainRepo = join(tempBase, 'main-repo');
-			const worktreePath = join(tempBase, 'task-wt');
-			mkdirSync(remoteRepo, { recursive: true });
-			mkdirSync(mainRepo, { recursive: true });
+				if (!gitExecutable) {
+					ctx.skip();
+					return;
+				}
 
-			const runner = createDefaultGitRunner({
-				platform: hostInputs.platform,
-				gitBinary: gitExecutable,
-				ids: { newId: () => 'e2e-git' },
-			});
+				const tempBase = mkdtempSync(join(tmpdir(), 'sched-diff-real-'));
+				const remoteRepo = join(tempBase, 'remote.git');
+				const mainRepo = join(tempBase, 'main-repo');
+				const worktreePath = join(tempBase, 'task-wt');
+				mkdirSync(remoteRepo, { recursive: true });
+				mkdirSync(mainRepo, { recursive: true });
 
-			try {
-				// 1. Initialize bare remote and local clone
-				await runner.run(['init', '--bare'], remoteRepo);
-				await runner.run(['init'], mainRepo);
-				await runner.run(['checkout', '-B', 'main'], mainRepo);
-				await runner.run(['config', 'user.name', 'test'], mainRepo);
-				await runner.run(['config', 'user.email', 'test@example.com'], mainRepo);
-				await runner.run(['remote', 'add', 'origin', remoteRepo], mainRepo);
+				const runner = createDefaultGitRunner({
+					platform: hostInputs.platform,
+					gitBinary: gitExecutable,
+					ids: { newId: () => 'e2e-git' },
+				});
 
-				// 2. Create initial commit and push to remote
-				writeFileSync(join(mainRepo, 'initial.txt'), 'line 1\nline 2\n');
-				await runner.run(['add', 'initial.txt'], mainRepo);
-				await runner.run(['commit', '-m', 'initial commit'], mainRepo);
-				await runner.run(['push', '-u', 'origin', 'main'], mainRepo);
+				try {
+					// 1. Initialize bare remote and local clone
+					await runner.run(['init', '--bare'], remoteRepo);
+					await runner.run(['init'], mainRepo);
+					await runner.run(['checkout', '-B', 'main'], mainRepo);
+					await runner.run(['config', 'user.name', 'test'], mainRepo);
+					await runner.run(['config', 'user.email', 'test@example.com'], mainRepo);
+					await runner.run(['remote', 'add', 'origin', remoteRepo], mainRepo);
 
-				// 3. Create independent task worktree
-				await runner.run(['worktree', 'add', '-b', 'task/M5-T3', worktreePath, 'main'], mainRepo);
+					// 2. Create initial commit and push to remote
+					writeFileSync(join(mainRepo, 'initial.txt'), 'line 1\nline 2\n');
+					await runner.run(['add', 'initial.txt'], mainRepo);
+					await runner.run(['commit', '-m', 'initial commit'], mainRepo);
+					await runner.run(['push', '-u', 'origin', 'main'], mainRepo);
 
-				// Verify clean worktree initially has 0 diff
-				const initialStat = await getDiffStat(worktreePath, { runner });
-				expect(initialStat.hasChanges).toBe(false);
-				expect(initialStat.filesChanged).toBe(0);
-				expect(initialStat.insertions).toBe(0);
-				expect(initialStat.deletions).toBe(0);
+					// 3. Create independent task worktree
+					await runner.run(['worktree', 'add', '-b', 'task/M5-T3', worktreePath, 'main'], mainRepo);
 
-				const initialDiff = await getDiffText(worktreePath, { runner });
-				expect(initialDiff).toBe('');
+					// Verify clean worktree initially has 0 diff
+					const initialStat = await getDiffStat(worktreePath, { runner });
+					expect(initialStat.hasChanges).toBe(false);
+					expect(initialStat.filesChanged).toBe(0);
+					expect(initialStat.insertions).toBe(0);
+					expect(initialStat.deletions).toBe(0);
 
-				// 4. AC 1: Modify a tracked file and add an untracked file in the worktree
-				writeFileSync(join(worktreePath, 'initial.txt'), 'line 1\nmodified line 2\nline 3\n');
-				writeFileSync(join(worktreePath, 'untracked.txt'), 'untracked 1\nuntracked 2\n');
+					const initialDiff = await getDiffText(worktreePath, { runner });
+					expect(initialDiff).toBe('');
 
-				const statWithChanges = await getDiffStat(worktreePath, { runner });
-				expect(statWithChanges.hasChanges).toBe(true);
-				expect(statWithChanges.filesChanged).toBe(2);
-				expect(statWithChanges.insertions).toBeGreaterThanOrEqual(3);
+					// 4. AC 1: Modify a tracked file and add an untracked file in the worktree
+					writeFileSync(join(worktreePath, 'initial.txt'), 'line 1\nmodified line 2\nline 3\n');
+					writeFileSync(join(worktreePath, 'untracked.txt'), 'untracked 1\nuntracked 2\n');
 
-				const diffTextWithChanges = await getDiffText(worktreePath, { runner });
-				expect(diffTextWithChanges).toContain('initial.txt');
-				expect(diffTextWithChanges).toContain('+modified line 2');
-				expect(diffTextWithChanges).toContain('untracked.txt');
-				expect(diffTextWithChanges).toContain('+untracked 1');
+					const statWithChanges = await getDiffStat(worktreePath, { runner });
+					expect(statWithChanges.hasChanges).toBe(true);
+					expect(statWithChanges.filesChanged).toBe(2);
+					expect(statWithChanges.insertions).toBeGreaterThanOrEqual(3);
 
-				// 5. AC 2 & E-72: User modifies main working tree with uncommitted changes
-				writeFileSync(join(mainRepo, 'initial.txt'), 'MAIN REPO UNCOMMITTED CONFLICTING CHANGE\n');
-				writeFileSync(join(mainRepo, 'main-untracked.txt'), 'user personal scratchpad\n');
+					const diffTextWithChanges = await getDiffText(worktreePath, { runner });
+					expect(diffTextWithChanges).toContain('initial.txt');
+					expect(diffTextWithChanges).toContain('+modified line 2');
+					expect(diffTextWithChanges).toContain('untracked.txt');
+					expect(diffTextWithChanges).toContain('+untracked 1');
 
-				// Worktree diff must be completely isolated and must NOT contain main repo changes
-				const isolatedStat = await getDiffStat(worktreePath, { runner });
-				expect(isolatedStat.filesChanged).toBe(2);
-				expect(isolatedStat.files.some((f) => f.path.includes('main-untracked'))).toBe(false);
+					// 5. AC 2 & E-72: User modifies main working tree with uncommitted changes
+					writeFileSync(
+						join(mainRepo, 'initial.txt'),
+						'MAIN REPO UNCOMMITTED CONFLICTING CHANGE\n',
+					);
+					writeFileSync(join(mainRepo, 'main-untracked.txt'), 'user personal scratchpad\n');
 
-				const isolatedDiff = await getDiffText(worktreePath, { runner });
-				expect(isolatedDiff).not.toContain('MAIN REPO UNCOMMITTED');
-				expect(isolatedDiff).not.toContain('main-untracked');
+					// Worktree diff must be completely isolated and must NOT contain main repo changes
+					const isolatedStat = await getDiffStat(worktreePath, { runner });
+					expect(isolatedStat.filesChanged).toBe(2);
+					expect(isolatedStat.files.some((f) => f.path.includes('main-untracked'))).toBe(false);
 
-				// 6. AC 3 & E-75: Remote push detection
-				// Before push: pushed is false
-				const beforePush = await detectRemotePush(worktreePath, { runner });
-				expect(beforePush.pushed).toBe(false);
+					const isolatedDiff = await getDiffText(worktreePath, { runner });
+					expect(isolatedDiff).not.toContain('MAIN REPO UNCOMMITTED');
+					expect(isolatedDiff).not.toContain('main-untracked');
 
-				// Agent commits and pushes in worktree
-				await runner.run(['add', '.'], worktreePath);
-				await runner.run(['commit', '-m', 'agent commit on branch'], worktreePath);
-				await runner.run(['push', 'origin', 'task/M5-T3'], worktreePath);
+					// 6. AC 3 & E-75: Remote push detection
+					// Before push: pushed is false
+					const beforePush = await detectRemotePush(worktreePath, { runner });
+					expect(beforePush.pushed).toBe(false);
 
-				// After push: detectRemotePush returns pushed: true with details
-				const afterPush = await detectRemotePush(worktreePath, { runner });
-				expect(afterPush.pushed).toBe(true);
-				expect(afterPush.branch).toBe('task/M5-T3');
-				expect(afterPush.remote).toBe('origin');
-				expect(afterPush.commit).toBeDefined();
-				expect(afterPush.remoteRef).toContain('task/M5-T3');
-			} finally {
-				rmSync(tempBase, { recursive: true, force: true });
-			}
-		}, 30000);
-	});
+					// Agent commits and pushes in worktree
+					await runner.run(['add', '.'], worktreePath);
+					await runner.run(['commit', '-m', 'agent commit on branch'], worktreePath);
+					await runner.run(['push', 'origin', 'task/M5-T3'], worktreePath);
+
+					// After push: detectRemotePush returns pushed: true with details
+					const afterPush = await detectRemotePush(worktreePath, { runner });
+					expect(afterPush.pushed).toBe(true);
+					expect(afterPush.branch).toBe('task/M5-T3');
+					expect(afterPush.remote).toBe('origin');
+					expect(afterPush.commit).toBeDefined();
+					expect(afterPush.remoteRef).toContain('task/M5-T3');
+				} finally {
+					rmSync(tempBase, { recursive: true, force: true });
+				}
+			}, 30000);
+		},
+	);
 });

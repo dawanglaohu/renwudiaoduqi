@@ -26,19 +26,20 @@
     "05-附录/23-变更记录.md": "7cd7a276a67c97a1ca3498ce7f9be6e4c22ce1c2c1d50c7223f3049ba3a6a535",
     "05-附录/24-参考资料.md": "eec613e723bff7847e309724b2c12f0d8eb447a3b1cff7ce169eae0bd02cc070",
     "README.md": "449e8971a4884cab4ad6bd71e0ed8d88166999fba8e4c20e3b446a6b898c3559",
+    "_run/batches/batch-12-20260923.md": "5fc4486fcd79dbd7a6e3482a84da0651808f037654d3e747359804a73a2dcf16",
     "_run/batches/batch-8-20260922-r3.md": "3b5ef6a0f09bd96c34496700e635c3ac2ba0fc0742a5a895950e519440955da6",
     "_run/batches/batch-8-20260922.md": "a105889d07a9a83829268449892d4f81fbb630d849eaa53e37ad7641848d3749",
     "_run/presentation.json": "7bc4a2750015ba454c28ed4b2776bd5ffbe2f8724f761b35f2debd53787f1660",
-    "_run/task-contracts.json": "89aeaadd994a506e6bc188c42903862d0abf3a2d18a1e479fbadf74964db10e9"
+    "_run/task-contracts.json": "c3102a7c3a9cab762d74c914e2866f30b19ae21047ae506a0ae43cde54e36ab3"
   },
   "products": {
     "_MOC.md": "325993513261fe854426169a7e2bbb44a7e7da69de6cc942cb73a7a76414085d",
-    "_run/dispatch.json": "14727712309621fa2dcb40cbe3d809ba2222568e2f5ccd58f87fe4e8aff87901",
-    "_run/review.json": "579515a6358e5add43e64b1cbaab5cd09233d8518af7545b3dfb78dcb42c87c9",
-    "_run/task-reviews.json": "64cfd3570b5af39bd35a089164bd86d11a0b6cc28815b93726a7e34735f6cd09",
-    "docs-data.js": "77388b38b2d8b46d72050b0c6993fb4e48a3b1a0f1db25f4f749fce3d0fd259e",
+    "_run/dispatch.json": "a3649a19ebac9cbc1a771acc516f4271d87e1eca63c54c4edf00dc371eebfb3a",
+    "_run/review.json": "ef4df6fb303337fdf559b77412f3555ee8f6533c246393cffecc5558c970f0b6",
+    "_run/task-reviews.json": "a884708d15f305c0e09459e0102300d50937b4d30c517663b2257abf543807a7",
+    "docs-data.js": "8f07ffd17cafe363ebb7cc491b3975d50ce82b99467c8d63d8de04d3888d6397",
     "index.html": "7dd1d4f8ec70782277114b47054ce6f79cd2ba70af1f809a3cdaf4625435985b"
   },
   "schemaVersion": 1,
-  "sourceVersion": "75bc6090908cede9e2708bbce20b3532ae1a1c63aa12bcb34eb1ab01984dae87"
+  "sourceVersion": "52cc6f65a874dd072f94c04ceb9acc66e7519f04677cee1e0627dcad705e8ab3"
 }

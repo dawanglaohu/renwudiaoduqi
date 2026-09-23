@@ -108,9 +108,11 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			instanceLock: lock,
 			clock: Object.freeze({ now: dependencies.now }),
 			logViolation: dependencies.writeRunLog,
+			bootstrapPairing: false,
 		});
 		server = dependencies.createServer({ container });
 		await server.listen({ host: config.bind, port: config.port });
+		container.services.pairing.bootstrapIfNeeded();
 		for (const job of container.jobs) {
 			job.start();
 			console.log(`job started name=${job.name}`);

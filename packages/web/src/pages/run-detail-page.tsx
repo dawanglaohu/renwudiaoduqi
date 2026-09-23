@@ -17,8 +17,9 @@ import {
 	navigateTo,
 } from '../app/routes.tsx';
 import {
-	RunDetailContainer,
 	type RunDetailContainerProps,
+	RunDetailPageContainer,
+	type RunFetcher,
 } from '../features/run-detail/run-detail-container.tsx';
 
 export interface RunDetailPageProps
@@ -26,6 +27,7 @@ export interface RunDetailPageProps
 		Partial<RunDetailContainerProps> {
 	/** 外部自定义 class */
 	readonly className?: string;
+	readonly runFetcher?: RunFetcher;
 }
 
 /**
@@ -42,6 +44,7 @@ export function RunDetailPage(props: RunDetailPageProps) {
 		run,
 		taskKey,
 		isMobile,
+		runFetcher,
 	} = props;
 
 	const runId = explicitRunId ?? params?.runId ?? match?.params?.runId;
@@ -52,6 +55,7 @@ export function RunDetailPage(props: RunDetailPageProps) {
 
 	return (
 		<div
+			data-component="run-detail-page"
 			data-testid="run-detail-page"
 			className={`flex min-h-screen flex-col bg-[var(--page)] text-[var(--ink-1)] font-ui ${className}`}
 		>
@@ -84,8 +88,9 @@ export function RunDetailPage(props: RunDetailPageProps) {
 
 			{/* 主内容区：装配运行详情容器 */}
 			<main className="flex-1 min-h-0 flex flex-col p-3 overflow-hidden">
-				<RunDetailContainer
+				<RunDetailPageContainer
 					runId={runId}
+					runFetcher={runFetcher}
 					onOpenOriginalFile={onOpenOriginalFile}
 					runStatus={runStatus}
 					run={run}

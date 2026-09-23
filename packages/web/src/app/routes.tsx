@@ -461,7 +461,7 @@ export function UnknownRouteView({ match }: { match?: RouteMatch }) {
 }
 
 export interface RouterProps {
-	components?: Partial<Record<RouteId, ComponentType<RouteComponentProps>>>;
+	components: Record<RouteId, ComponentType<RouteComponentProps>>;
 	guard?: boolean;
 	hasToken?: () => boolean;
 	renderUnknown?: (match: RouteMatch) => ReactNode;
@@ -485,18 +485,8 @@ export function RouterView({
 		return renderUnknown ? <>{renderUnknown(match)}</> : <UnknownRouteView match={match} />;
 	}
 
-	const Component = components?.[match.id];
-	const routeContent = Component ? (
-		<Component match={match} params={match.params} query={match.query} />
-	) : (
-		<div
-			data-testid={`route-page-${match.id}`}
-			data-route-id={match.id}
-			className="p-6 text-ink-1 bg-page min-h-[calc(100vh-var(--topbar-h))]"
-		>
-			<div className="font-mono text-meta text-ink-3 mb-2">{match.path}</div>
-		</div>
-	);
+	const Component = components[match.id];
+	const routeContent = <Component match={match} params={match.params} query={match.query} />;
 
 	const guardedContent = guard ? (
 		<RouteGuard currentRoute={match} hasToken={hasToken}>

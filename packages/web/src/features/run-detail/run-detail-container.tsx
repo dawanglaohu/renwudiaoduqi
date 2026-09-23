@@ -14,8 +14,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ROUTES } from '../../../../shared/src/api/routes.ts';
-import type { RunDto, SearchRunLogResponse } from '../../../../shared/src/api/runs.ts';
-import { httpClient } from '../../api/http-client.ts';
+import type {
+	GetRunResponse,
+	RunDto,
+	SearchRunLogResponse,
+} from '../../../../shared/src/api/runs.ts';
+import { httpClient, isApiError } from '../../api/http-client.ts';
 import {
 	LogBottomNotice,
 	LogLine,
@@ -178,7 +182,10 @@ export function RunDetailContainer({
 	}, [state.originalFilePath, onOpenOriginalFile]);
 
 	return (
-		<div className={`flex flex-col h-full gap-2 relative ${className ?? ''}`}>
+		<div
+			data-component="run-detail-container"
+			className={`flex flex-col h-full gap-2 relative ${className ?? ''}`}
+		>
 			{/* E-218 顶部显式「在整个会话中查找」入口 */}
 			<SessionSearchEntrance
 				onSearch={handleSearch}
@@ -266,3 +273,106 @@ export function RunDetailContainer({
 
 // 同时导出别名 LogWindowContainer 以便按语境调用
 export { RunDetailContainer as LogWindowContainer };
+
+const getRunRoute = ROUTES.find(
+	(route) => route.method === 'GET' && route.path === '/api/v1/runs/:runId',
+);
+
+export type RunFetcher = (runId: string) => Promise<GetRunResponse>;
+
+interface RunDetailPageState {
+	readonly isLoading: boolean;
+	readonly isMissing: boolean;
+	readonly error: string | null;
+}
+
+async function fetchRun(runId: string): Promise<GetRunResponse> {
+	if (!getRunRoute) throw new Error('Get run route is missing from shared ROUTES');
+	return httpClient.callRoute<GetRunResponse>(getRunRoute, { params: { runId } });
+}
+
+export function useRunDetailPage(
+	runId: string,
+	fetcher: RunFetcher = fetchRun,
+	skipInitialLoad = false,
+): RunDetailPageState {
+	const [state, setState] = useState<RunDetailPageState>({
+		isLoading: !skipInitialLoad,
+		isMissing: false,
+		error: null,
+	});
+
+	useEffect(() => {
+		if (skipInitialLoad) {
+			setState({ isLoading: false, isMissing: false, error: null });
+			return;
+		}
+
+		let isCancelled = false;
+		setState({ isLoading: true, isMissing: false, error: null });
+
+		void (async () => {
+			try {
+				await fetcher(runId);
+				if (!isCancelled) {
+					setState({ isLoading: false, isMissing: false, error: null });
+				}
+			} catch (error) {
+				if (!isCancelled) {
+					if (isApiError(error) && error.code === 'E_NOT_FOUND') {
+						setState({ isLoading: false, isMissing: true, error: null });
+						return;
+					}
+					setState({
+						isLoading: false,
+						isMissing: false,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+			}
+		})();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [fetcher, runId, skipInitialLoad]);
+
+	return state;
+}
+
+export function RunDetailPageContainer({
+	runId,
+	runFetcher,
+	...containerProps
+}: {
+	readonly runId: string;
+	readonly runFetcher?: RunFetcher;
+} & Omit<RunDetailContainerProps, 'runId'>) {
+	const hasInitialRun = Boolean(containerProps.run);
+	const state = useRunDetailPage(runId, runFetcher, hasInitialRun);
+	if (!hasInitialRun && state.isLoading) return <p className="p-4 text-ink-3">正在加载运行…</p>;
+	if (state.isMissing) {
+		return (
+			<output
+				data-run-missing="true"
+				className="flex flex-col items-center justify-center p-8 text-center text-ink-2 gap-2"
+			>
+				<h1 className="text-lead font-semibold text-ink-1">该运行不存在或已被清理</h1>
+				<p className="font-mono text-meta text-ink-3">{runId || '—'}</p>
+			</output>
+		);
+	}
+	if (!hasInitialRun && state.error)
+		return (
+			<p role="alert" className="p-4 text-warn">
+				加载运行失败：{state.error}
+			</p>
+		);
+	return (
+		<RunDetailContainer
+			runId={runId}
+			{...containerProps}
+			className={`min-h-0 flex-1 ${containerProps.className ?? ''}`}
+		/>
+	);
+}

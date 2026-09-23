@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, win32 } from 'node:path';
@@ -32,6 +32,41 @@ afterEach(() => {
 });
 
 describe('minimal daemon runtime', () => {
+	it('creates the initial pairing code after HTTP listen so slow startup cannot expire it', async () => {
+		let now = '2026-09-07T01:02:03.004Z';
+		const base = dependencies({
+			lockAdapter: createMemoryLockAdapter(),
+			port: await availablePort(),
+		});
+		const codeFilePath = join(base.defaultDataDir, 'pairing-code.txt');
+		const runtime = await startDaemon({
+			...base,
+			now: () => now,
+			createServer: (input) => {
+				const server = base.createServer(input);
+				return {
+					...server,
+					listen: async (options) => {
+						expect(existsSync(codeFilePath)).toBe(false);
+						now = '2026-09-07T01:04:03.004Z';
+						return await server.listen(options);
+					},
+				};
+			},
+		});
+		try {
+			const code = readFileSync(codeFilePath, 'utf8').trim();
+			const claim = await runtime.server.instance.inject({
+				method: 'POST',
+				url: '/api/v1/pair/claim',
+				payload: { code, deviceName: 'Slow startup regression' },
+			});
+			expect(claim.statusCode).toBe(200);
+		} finally {
+			await runtime.stop();
+		}
+	});
+
 	it('starts in order, serves health, and rejects a second user even with another port', async () => {
 		const lockAdapter = createMemoryLockAdapter();
 		const firstPort = await availablePort();

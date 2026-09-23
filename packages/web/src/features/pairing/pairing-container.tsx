@@ -15,7 +15,10 @@ export function PairingContainer({ options }: PairingContainerProps) {
 	const pairing = usePairing(options);
 
 	return (
-		<div className="flex flex-col gap-6 w-full max-w-xl mx-auto p-4 sm:p-6 items-center justify-center min-h-[calc(100vh-var(--topbar-h))]">
+		<div
+			data-component="pairing-container"
+			className="flex flex-col gap-6 w-full max-w-xl mx-auto p-4 sm:p-6 items-center justify-center min-h-[calc(100vh-var(--topbar-h))]"
+		>
 			<PairingView pairing={pairing} />
 		</div>
 	);
