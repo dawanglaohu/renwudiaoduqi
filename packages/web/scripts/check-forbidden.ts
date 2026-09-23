@@ -377,6 +377,68 @@ export function runForbiddenCheck(
 				});
 			}
 		}
+
+		// Check 9: @keyframes must only appear in base.css and nowhere else (AC 3, E-282)
+		const isBaseCss = resolve(file) === resolve(webDir, 'src/styles/base.css');
+		if (!isBaseCss) {
+			const cleanContent = content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+			const cleanLines = cleanContent.split('\n');
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				const stripped = line.replace(/\/\/.*/g, '');
+				if (/@keyframes\b/i.test(stripped)) {
+					violations.push({
+						rule: 'KEYFRAMES_OUTSIDE_BASE_CSS',
+						file: relPath,
+						line: i + 1,
+						snippet: line.trim(),
+						message:
+							'@keyframes declarations are strictly prohibited outside packages/web/src/styles/base.css (AC 3, E-282).',
+					});
+				}
+			}
+		}
+
+		// Check 10: animation: properties must not appear outside src/styles/ (AC 3, E-282)
+		const isStylesFile = file.includes('/src/styles/') || file.includes('\\src\\styles\\');
+		if (!isStylesFile) {
+			const cleanContent = content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+			const cleanLines = cleanContent.split('\n');
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				const stripped = line.replace(/\/\/.*/g, '');
+				if (
+					/\banimation(?:-[a-z]+)?\s*:/i.test(stripped) ||
+					/\banimationDuration\s*:/i.test(stripped) ||
+					/\banimationName\s*:/i.test(stripped)
+				) {
+					violations.push({
+						rule: 'ANIMATION_OUTSIDE_STYLES',
+						file: relPath,
+						line: i + 1,
+						snippet: line.trim(),
+						message:
+							'animation: properties are prohibited outside packages/web/src/styles/. Use CSS classes from styles/ (AC 3, E-282).',
+					});
+				}
+			}
+		}
+	}
+
+	// Check 11: @keyframes must appear exactly once across base.css (AC 3, E-282).
+	// Only the real stylesheet is judged; a scan of a synthetic web dir without base.css is not a violation.
+	const baseCssPath = resolve(webDir, 'src/styles/base.css');
+	if (existsSync(baseCssPath)) {
+		const baseContent = readFileSync(baseCssPath, 'utf8');
+		const cleanBase = baseContent.replace(/\/\*[\s\S]*?\*\//g, '');
+		const keyframesMatches = cleanBase.match(/@keyframes\s+([a-zA-Z0-9_-]+)/g) ?? [];
+		if (keyframesMatches.length !== 1 || !keyframesMatches[0]?.includes('agsched-pulse')) {
+			violations.push({
+				rule: 'KEYFRAMES_EXACTLY_ONE_BASE_CSS',
+				file: relative(rootDir, baseCssPath),
+				message: `@keyframes must appear exactly once in base.css and define agsched-pulse (found: ${keyframesMatches.join(', ') || 'none'}).`,
+			});
+		}
 	}
 
 	return {

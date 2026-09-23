@@ -209,6 +209,7 @@ export function createContainer(input: {
 	readonly runLogService?: RunLogService;
 	readonly retentionService?: RetentionService;
 	readonly pairingService?: PairingService;
+	readonly bootstrapPairing?: boolean;
 	readonly docsService?: DocsService;
 	readonly documentsRepo?: DocumentsRepo;
 	readonly runMessagesRepo?: RunMessagesRepo;
@@ -364,7 +365,7 @@ export function createContainer(input: {
 			platform: input.hostInputs.platform,
 		});
 
-	pairingService.bootstrapIfNeeded();
+	if (input.bootstrapPairing !== false) pairingService.bootstrapIfNeeded();
 
 	const docsService =
 		input.docsService ??

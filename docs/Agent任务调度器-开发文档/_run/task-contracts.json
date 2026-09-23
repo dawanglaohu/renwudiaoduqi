@@ -550,6 +550,18 @@
     },
     "M9-T19": {
       "supportPaths": [
+        "packages/shared/src/api/settings.ts",
+        "packages/shared/src/api/routes.ts",
+        "packages/daemon/src/http/routes/gates.ts",
+        "packages/daemon/src/http/plugins/50-routes.ts",
+        "packages/daemon/test/unit/gates.test.ts",
+        "packages/daemon/test/arch/routes.test.ts",
+        "packages/web/src/app/app.tsx",
+        "packages/web/src/pages/task-list-page.tsx",
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-deck/run-deck-container.tsx",
+        "packages/web/src/features/run-deck/types.ts",
+        "packages/web/src/features/run-deck/mobile-batch-list.tsx",
         "packages/web/src/api/cache-invalidation.ts",
         "packages/web/src/api/cache-keys.ts",
         "packages/web/src/api/event-bus.ts",
@@ -559,7 +571,8 @@
         "packages/web/test/batch-tree.test.tsx",
         "packages/web/test/pulse-dot.test.tsx",
         "packages/web/test/batch-expansion.test.ts",
-        "packages/web/test/gate-toggles.test.tsx"
+        "packages/web/test/gate-toggles.test.tsx",
+        "vitest.config.ts"
       ],
       "sections": [
         1,
