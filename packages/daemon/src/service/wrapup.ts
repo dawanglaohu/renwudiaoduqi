@@ -12,6 +12,7 @@ import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { latestImplementationRunByTaskId, summarizeBatchLanding } from '../domain/batch-landing.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
+import { parsePipelineSettings } from '../domain/pipeline-settings.ts';
 import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { assertWrapupRoundAllowed } from '../domain/wrapup-policy.ts';
 import { type WrapupTaskItem, assembleWrapupPrompt } from '../domain/wrapup-prompt.ts';
@@ -271,16 +272,8 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				let wrapupMode: 'auto' | 'manual' = 'auto';
 				if (deps.settingsRepo) {
 					const row = deps.settingsRepo.get('pipeline');
-					if (row) {
-						try {
-							const parsed = JSON.parse(row.value_json);
-							if (parsed.wrapupMode === 'manual') {
-								wrapupMode = 'manual';
-							}
-						} catch {
-							// Corrupted row falls back to auto
-						}
-					}
+					const settings = parsePipelineSettings(row?.value_json);
+					wrapupMode = settings.wrapupMode;
 				}
 				if (wrapupMode === 'manual') {
 					throw new AppError(
@@ -807,6 +800,22 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							}),
 						);
 					}
+
+					if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
+						pendingEnvelopes.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								actorDeviceId: null,
+								payload: {
+									docId: batch.doc_id,
+									laneNo: run.lane_no,
+									taskId: null,
+									runId: run.id,
+									reason: 'awaiting_human',
+								},
+							}),
+						);
+					}
 				});
 
 				if (deps.bus && pendingEnvelopes.length > 0) {
@@ -814,6 +823,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						deps.bus.publish(env);
 					}
 				}
+				deps.nudgeTick?.();
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
 						deps.envelopeFactory.createEnvelope({
@@ -881,6 +891,22 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							}),
 						);
 					}
+
+					if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
+						pendingEnvelopes.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								actorDeviceId: null,
+								payload: {
+									docId: batch.doc_id,
+									laneNo: run.lane_no,
+									taskId: null,
+									runId: run.id,
+									reason: 'awaiting_human',
+								},
+							}),
+						);
+					}
 				});
 
 				if (deps.bus && pendingEnvelopes.length > 0) {
@@ -888,6 +914,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						deps.bus.publish(env);
 					}
 				}
+				deps.nudgeTick?.();
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
 						deps.envelopeFactory.createEnvelope({

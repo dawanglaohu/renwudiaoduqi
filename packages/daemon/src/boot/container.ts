@@ -65,6 +65,7 @@ import {
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type GateService, createGateService } from '../service/gates.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
+import { type LanesService, createLanesService } from '../service/lanes.ts';
 import type { EventEnvelopeInput } from '../service/logstore.ts';
 import { createLogstoreService } from '../service/logstore.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
@@ -148,6 +149,7 @@ export interface ContainerServices {
 	readonly rework: ReworkService;
 	readonly settings: SettingsService;
 	readonly gates: GateService;
+	readonly lanes?: LanesService;
 	readonly batch?: BatchService;
 	readonly wrapup?: WrapupService;
 	readonly run: RunService;
@@ -215,6 +217,7 @@ export function createContainer(input: {
 	readonly dispatchService?: DispatchService;
 	readonly assignmentsService?: AssignmentsService;
 	readonly reworkService?: ReworkService;
+	readonly lanesService?: LanesService;
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
 	readonly runService?: RunService;
@@ -530,6 +533,11 @@ export function createContainer(input: {
 			envelopeFactory,
 		});
 
+	const schedulerTickJobHolder: { current?: ContainerJob & { trigger?: () => void } } = {};
+	const nudgeTick = () => {
+		schedulerTickJobHolder.current?.trigger?.();
+	};
+
 	const wrapupService =
 		input.wrapupService ??
 		createWrapupService({
@@ -549,6 +557,7 @@ export function createContainer(input: {
 			envelopeFactory,
 			agentRegistry,
 			agentService,
+			nudgeTick,
 			workspace: {
 				prepareWrapupWorktree: async (params) => {
 					const prepared = await worktreeManager.prepareWrapupWorktree(params);
@@ -645,6 +654,15 @@ export function createContainer(input: {
 			worktreeDeps,
 		});
 
+	const lanesService =
+		input.lanesService ??
+		createLanesService({
+			documentsRepo: documents,
+			tasksRepo: tasks,
+			runsRepo: runs,
+			batchesRepo: batches,
+		});
+
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
@@ -655,9 +673,12 @@ export function createContainer(input: {
 			dispatchSnapshotsRepo: dispatchSnapshots,
 			runsRepo: runs,
 			gatesRepo: gates,
+			settingsRepo: settings,
 			batchWrapupsRepo: batchWrapups,
 			batchService,
 			wrapupService,
+			lanesService,
+			reworkService,
 			clock: input.clock,
 			ids,
 			bus,
@@ -728,6 +749,8 @@ export function createContainer(input: {
 			},
 		});
 
+	schedulerTickJobHolder.current = schedulerTickJob;
+
 	const gateServiceHolder: { current?: GateService } = {};
 
 	const settingsService =
@@ -738,6 +761,7 @@ export function createContainer(input: {
 			bus,
 			envelopeFactory,
 			unitOfWork,
+			nudgeTick,
 			warn: (message: string) => {
 				input.logViolation?.(`[WARN] ${message}`);
 				console.warn(`[daemon] ${message}`);
@@ -760,6 +784,9 @@ export function createContainer(input: {
 			batchesRepo: batches,
 			batchWrapupsRepo: batchWrapups,
 			batchService,
+			documentsRepo: documents,
+			reworkService,
+			nudgeTick,
 			clock: input.clock,
 			ids,
 			bus,
@@ -786,6 +813,7 @@ export function createContainer(input: {
 		rework: reworkService,
 		settings: settingsService,
 		gates: gateService,
+		lanes: lanesService,
 		batch: batchService,
 		wrapup: wrapupService,
 		run: runService,

@@ -13,15 +13,19 @@ import {
 	type ResolveAfterReviewResult,
 	resolveAfterReview,
 } from '../domain/gates.ts';
+import { freeLaneNumbers } from '../domain/lane-slots.ts';
+import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
+import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GateRow, GatesRepo } from '../repo/gates.ts';
-import type { RunsRepo } from '../repo/runs.ts';
+import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { BatchService } from './batch.ts';
+import type { ReworkService } from './rework.ts';
 import type { SettingsService } from './settings.ts';
 
 export interface GateServiceDeps {
@@ -31,6 +35,9 @@ export interface GateServiceDeps {
 	readonly batchesRepo?: BatchesRepo;
 	readonly batchWrapupsRepo?: BatchWrapupsRepo;
 	readonly batchService?: BatchService;
+	readonly documentsRepo?: DocumentsRepo;
+	readonly reworkService?: ReworkService;
+	readonly nudgeTick?: () => void;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly bus: EventBus;
@@ -248,6 +255,16 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				return Object.freeze({ applied: true as const });
 			}
 
+			let laneAssignedEnvelope: EventEnvelope | null = null;
+			let reworkStateEnvelope: EventEnvelope | null = null;
+			let reworkDeliveryInput: {
+				readonly reviewRunId?: string | null;
+				readonly targetRunId: string;
+				readonly reworkText: string;
+				readonly source: 'human';
+				readonly actorDeviceId?: string | null;
+			} | null = null;
+
 			deps.unitOfWork.run(() => {
 				deps.gatesRepo.updateDecision(
 					input.gateId,
@@ -265,12 +282,157 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				) {
 					deps.tasksRepo.updateManualState(gate.task_id, 'landed');
 				} else if (input.decision === 'reject' && deps.tasksRepo && gate.task_id) {
-					// E-05: Human rejection sets manual state, automatic dispatch must not override human judgment
-					deps.tasksRepo.updateManualState(gate.task_id, 'paused');
+					// E-327: Human rejection enters rework.
+					const task = deps.tasksRepo.findById(gate.task_id);
+					const doc = task && deps.documentsRepo ? deps.documentsRepo.findById(task.doc_id) : null;
+					const reworkText = comment || 'Rejected by human';
+
+					let targetRun: RunRow | null = null;
+					if (gate.run_id && deps.runsRepo) {
+						const run = deps.runsRepo.findById(gate.run_id);
+						if (run && run.kind === 'implement') {
+							targetRun = run;
+						}
+					}
+					if (!targetRun && deps.runsRepo) {
+						const runs = deps.runsRepo.listByTaskId(gate.task_id);
+						const implRuns = runs.filter((r) => r.kind === 'implement');
+						if (implRuns.length > 0) {
+							targetRun = implRuns.reduce((prev, curr) =>
+								curr.attempt_no > prev.attempt_no ? curr : prev,
+							);
+						}
+					}
+
+					const docLaneCount = doc?.lane_count ?? 2;
+					const docTasks = task ? deps.tasksRepo.listByDocId(task.doc_id) : [];
+					const allRuns = deps.runsRepo?.listAll() ?? [];
+					const occupiedLanes = new Set<number>();
+					for (const t of docTasks) {
+						if (typeof t.lane_no === 'number' && t.lane_no >= 1) {
+							occupiedLanes.add(t.lane_no);
+						}
+					}
+					for (const r of allRuns) {
+						if (
+							r.kind === 'wrapup' &&
+							typeof r.lane_no === 'number' &&
+							r.lane_no >= 1 &&
+							!isTerminalRunState(r.state as RunState) &&
+							r.state !== 'awaiting_human' &&
+							r.state !== 'orphaned'
+						) {
+							occupiedLanes.add(r.lane_no);
+						}
+					}
+					const freeLanes = freeLaneNumbers(docLaneCount, occupiedLanes);
+
+					if (freeLanes.length > 0) {
+						const allocatedLaneNo = freeLanes[0] ?? 1;
+						deps.tasksRepo.assignLaneNo(gate.task_id, allocatedLaneNo);
+						deps.tasksRepo.updateManualState(gate.task_id, null);
+
+						if (targetRun && deps.runsRepo) {
+							deps.runsRepo.updateLaneNo?.(targetRun.id, allocatedLaneNo);
+							const nextReworkCount = (targetRun.rework_count ?? 0) + 1;
+							deps.runsRepo.updateReworkCount?.({
+								id: targetRun.id,
+								reworkCount: nextReworkCount,
+								state: 'reworking',
+							});
+							deps.runsRepo.updateState({
+								id: targetRun.id,
+								state: 'reworking',
+								queuedReason: null,
+							});
+						}
+
+						if (deps.envelopeFactory) {
+							laneAssignedEnvelope = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.assigned',
+								actorDeviceId: input.actorDeviceId,
+								payload: {
+									docId: task?.doc_id ?? '',
+									laneNo: allocatedLaneNo,
+									taskId: gate.task_id,
+									runId: targetRun?.id ?? gate.run_id ?? '',
+								},
+							});
+							if (targetRun) {
+								reworkStateEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.state_changed',
+									runId: targetRun.id,
+									taskId: gate.task_id,
+									actorDeviceId: input.actorDeviceId,
+									payload: {
+										from: targetRun.state as RunState,
+										to: 'reworking',
+										reason: 'human_rework',
+									},
+								});
+							}
+						}
+
+						reworkDeliveryInput =
+							targetRun && deps.reworkService
+								? {
+										reviewRunId: gate.run_id,
+										targetRunId: targetRun.id,
+										reworkText,
+										source: 'human',
+										actorDeviceId: input.actorDeviceId,
+									}
+								: null;
+					} else {
+						// Full lanes: task kept outside lanes (E-326, E-327)
+						deps.tasksRepo.clearLaneNo(gate.task_id);
+						deps.tasksRepo.updateManualState(gate.task_id, null);
+
+						if (targetRun && deps.runsRepo) {
+							deps.runsRepo.updateLaneNo?.(targetRun.id, null);
+							const nextReworkCount = (targetRun.rework_count ?? 0) + 1;
+							deps.runsRepo.updateReworkCount?.({
+								id: targetRun.id,
+								reworkCount: nextReworkCount,
+								state: 'reworking',
+							});
+							deps.runsRepo.updateState({
+								id: targetRun.id,
+								state: 'reworking',
+								queuedReason: 'lane_full',
+							});
+						}
+
+						if (targetRun && deps.envelopeFactory) {
+							reworkStateEnvelope = deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId: targetRun.id,
+								taskId: gate.task_id,
+								actorDeviceId: input.actorDeviceId,
+								payload: {
+									from: targetRun.state as RunState,
+									to: 'reworking',
+									reason: 'human_rework',
+								},
+							});
+						}
+					}
 				}
 			});
 
 			// Outside transaction: publish events
+			if (laneAssignedEnvelope) {
+				deps.bus.publish(laneAssignedEnvelope);
+			}
+			if (reworkStateEnvelope) {
+				deps.bus.publish(reworkStateEnvelope);
+			}
+			if (input.decision === 'reject') {
+				if (reworkDeliveryInput && deps.reworkService) {
+					await deps.reworkService.dispatchRework(reworkDeliveryInput);
+				}
+				deps.nudgeTick?.();
+			}
 			if (input.decision === 'pass') {
 				if (gate.kind === 'landing') {
 					const landedEnvelope = deps.envelopeFactory.createEnvelope({

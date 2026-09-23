@@ -33,6 +33,7 @@ export interface DeriveLanesInput {
 	readonly tasks: readonly TaskDescriptor[];
 	readonly runs: readonly RunDescriptor[];
 	readonly candidateTaskIds?: readonly string[];
+	readonly activeBatchIds?: ReadonlySet<string> | readonly string[];
 }
 
 function isTaskFinishedOrLanded(
@@ -89,7 +90,9 @@ export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 			typeof r.lane_no === 'number' &&
 			Number.isInteger(r.lane_no) &&
 			r.lane_no >= 1 &&
-			!isTerminalRunState(r.state as RunState)
+			!isTerminalRunState(r.state as RunState) &&
+			r.state !== 'awaiting_human' &&
+			r.state !== 'orphaned'
 		) {
 			activeWrapupByLane.set(r.lane_no, r);
 			occupiedLanes.add(r.lane_no);
@@ -109,6 +112,12 @@ export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 		readonly blockedBy: readonly string[];
 	}> = [];
 
+	const activeBatchIdSet = input.activeBatchIds
+		? input.activeBatchIds instanceof Set
+			? input.activeBatchIds
+			: new Set(input.activeBatchIds)
+		: null;
+
 	if (input.candidateTaskIds) {
 		const candidateIdSet = new Set(input.candidateTaskIds);
 		candidateQueue = sortedTasks.filter((t) => candidateIdSet.has(t.id));
@@ -117,7 +126,45 @@ export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 			if (t.is_removed_from_doc === 1) continue;
 			if (isTaskFinishedOrLanded(t, runsByTaskId)) continue;
 			if (typeof t.lane_no === 'number' && t.lane_no >= 1) continue;
-			if (t.manual_state === 'paused') continue;
+			if (t.manual_state === 'paused' || t.manual_state === 'awaiting_human') continue;
+
+			// If activeBatchIds is specified, only consider tasks in active batches (E-319)
+			if (activeBatchIdSet && t.batch_id && !activeBatchIdSet.has(t.batch_id)) {
+				continue;
+			}
+
+			// Check if task has any active or parked run (E-326)
+			const taskRuns = runsByTaskId.get(t.id) ?? [];
+			const hasActiveOrParkedRun = taskRuns.some((r) =>
+				[
+					'queued',
+					'starting',
+					'running',
+					'awaiting_reply',
+					'reviewing',
+					'reworking',
+					'awaiting_human',
+					'orphaned',
+				].includes(r.state),
+			);
+			if (hasActiveOrParkedRun) {
+				continue;
+			}
+
+			// Check if latest run is terminal failed (E-51: no auto-redispatch after terminal failure unless reworked)
+			const latestRun = taskRuns.reduce<RunDescriptor | null>((prev, curr) => {
+				if (!prev) return curr;
+				const currAttempt = curr.attempt_no ?? 0;
+				const prevAttempt = prev.attempt_no ?? 0;
+				return currAttempt > prevAttempt ? curr : prev;
+			}, null);
+			if (
+				latestRun &&
+				isTerminalRunState(latestRun.state as RunState) &&
+				latestRun.state !== 'landed'
+			) {
+				continue;
+			}
 
 			let depKeys: string[] = [];
 			if (t.deps_json) {

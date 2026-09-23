@@ -6,6 +6,7 @@ import type {
 	StartBatchResponse,
 } from '@agent-scheduler/shared/api/batches';
 import type { DocumentDto } from '@agent-scheduler/shared/api/documents';
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type {
 	CreateRunBody,
 	RerunRunResponse,
@@ -19,18 +20,19 @@ import { summarizeBatchLanding } from '../domain/batch-landing.ts';
 import {
 	DEFAULT_AGENT_CONCURRENCY_LIMIT,
 	allocateConcurrencySlots,
+	countActiveRunsForAgent,
 } from '../domain/concurrency.ts';
 import { toEffortColumns } from '../domain/effort-value.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import { deriveLanes } from '../domain/lanes.ts';
 import { evaluatePathClashQueue, isTaskLanded } from '../domain/path-clash.ts';
+import { parsePipelineSettings } from '../domain/pipeline-settings.ts';
 import {
 	type RunState,
 	countsTowardAgentConcurrency,
 	isTerminalRunState,
 } from '../domain/run-state-machine.ts';
 import { deriveTaskState } from '../domain/task-state.ts';
-import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
@@ -189,6 +191,15 @@ export interface DispatchServiceDeps {
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
 	readonly lanesService?: LanesService;
+	readonly reworkService?: {
+		readonly dispatchRework: (input: {
+			readonly reviewRunId?: string | null;
+			readonly targetRunId: string;
+			readonly reworkText: string;
+			readonly source: 'human';
+			readonly actorDeviceId?: string | null;
+		}) => Promise<unknown>;
+	};
 	readonly isBranchInHead?: typeof isBranchInHead;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
@@ -730,12 +741,29 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		const tasksForLanes = targetDoc
 			? deps.tasksRepo.listByDocId(targetDoc.id)
 			: documents.flatMap((d) => deps.tasksRepo.listByDocId(d.id));
+		const docTaskIds = new Set(tasksForLanes.map((t) => t.id));
+
+		const docBatches =
+			targetDoc && deps.batchesRepo ? deps.batchesRepo.listByDocId(targetDoc.id) : [];
+		const docBatchIds = new Set(docBatches.map((b) => b.id));
+		const activeBatchIds = new Set(
+			docBatches
+				.filter((b) => b.state === 'running' || b.state === 'awaiting_landing')
+				.map((b) => b.id),
+		);
+
+		const docRuns = allRunRows.filter(
+			(r) =>
+				(r.task_id && docTaskIds.has(r.task_id)) || (r.batch_id && docBatchIds.has(r.batch_id)),
+		);
+
 		const lanes = deps.lanesService
-			? deps.lanesService.getLanes(docId)
+			? deps.lanesService.getLanes(targetDoc?.id)
 			: deriveLanes({
 					laneCount,
 					tasks: tasksForLanes,
-					runs: allRunRows,
+					runs: docRuns,
+					activeBatchIds: activeBatchIds.size > 0 ? activeBatchIds : undefined,
 				});
 
 		return Object.freeze({
@@ -764,6 +792,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		isTicking = true;
 		try {
+			// Yield to the microtask queue so concurrent tick() calls see isTicking=true
+			await Promise.resolve();
 			if (deps.getDispatchHalt?.()) {
 				return {
 					executed: false,
@@ -912,20 +942,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						}
 
 						// 全部进 HEAD (notInHeadCount === 0)
-						// AC 6 & E-312: 读 wrapupMode，manual 模式下不调 triggerWrapup、不迁批次状态、canWrapup 由 wrapup-policy.canWrapup() 算为 true
+						// AC 6 & E-312: 读 wrapupMode，使用严格 parsePipelineSettings
 						let wrapupMode: 'auto' | 'manual' = 'auto';
 						if (deps.settingsRepo) {
 							const pRow = deps.settingsRepo.get('pipeline');
-							if (pRow) {
-								try {
-									const parsed = JSON.parse(pRow.value_json);
-									if (parsed.wrapupMode === 'manual') {
-										wrapupMode = 'manual';
-									}
-								} catch {
-									// fallback auto
-								}
-							}
+							const pipelineSettings = parsePipelineSettings(pRow?.value_json, (msg) => {
+								logFailure(msg);
+							});
+							wrapupMode = pipelineSettings.wrapupMode;
 						}
 
 						if (wrapupMode === 'manual') {
@@ -968,65 +992,66 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								'all_landed_and_in_head',
 							);
 							batchesAdvanced.push(batch.id);
-							continue;
 						}
 					} else if (batch.state === 'awaiting_landing') {
 						// A task reopened or reworked -> return to running (E-59, E-121)
 						await effectiveBatchService.transitionBatch(batch.id, 'running', 'task_reopened');
 						batchesAdvanced.push(batch.id);
 					}
+				}
 
-					if (batch.state !== 'running') {
-						continue;
+				// Step 3: 按槽位补位 (AC 2, AC 3, E-309, E-310, E-311, E-327)
+				const docTasks = deps.tasksRepo.listByDocId(doc.id);
+				const allRuns = runsRepo.listAll();
+				const docBatches = deps.batchesRepo ? deps.batchesRepo.listByDocId(doc.id) : batches;
+				const docBatchIds = new Set(docBatches.map((b) => b.id));
+				const docTaskIds = new Set(docTasks.map((t) => t.id));
+				const docRuns = allRuns.filter((r) => {
+					if (r.task_id) return docTaskIds.has(r.task_id);
+					if (r.batch_id) return docBatchIds.has(r.batch_id);
+					return false;
+				});
+
+				const occupiedLanes = new Set<number>();
+				for (const t of docTasks) {
+					if (typeof t.lane_no === 'number' && t.lane_no >= 1) {
+						occupiedLanes.add(t.lane_no);
 					}
-
-					// Step 3: 按槽位补位 (AC 2, AC 3, E-309, E-310, E-311, E-327)
-					const docTasks = deps.tasksRepo.listByDocId(doc.id);
-					const allRuns = runsRepo.listAll();
-					const docRuns = allRuns.filter((r) => {
-						if (r.task_id) return docTasks.some((t) => t.id === r.task_id);
-						if (r.batch_id) return batches.some((b) => b.id === r.batch_id);
-						return false;
-					});
-
-					const occupiedLanes = new Set<number>();
-					for (const t of docTasks) {
-						if (typeof t.lane_no === 'number' && t.lane_no >= 1) {
-							occupiedLanes.add(t.lane_no);
-						}
+				}
+				for (const r of docRuns) {
+					if (
+						r.kind === 'wrapup' &&
+						typeof r.lane_no === 'number' &&
+						r.lane_no >= 1 &&
+						!isTerminalRunState(r.state as RunState) &&
+						r.state !== 'awaiting_human' &&
+						r.state !== 'orphaned'
+					) {
+						occupiedLanes.add(r.lane_no);
 					}
-					for (const r of docRuns) {
-						if (
-							r.kind === 'wrapup' &&
-							typeof r.lane_no === 'number' &&
-							r.lane_no >= 1 &&
-							!isTerminalRunState(r.state as RunState)
-						) {
-							occupiedLanes.add(r.lane_no);
-						}
-					}
+				}
 
-					const free = freeLaneNumbers(doc.lane_count, occupiedLanes);
+				const free = freeLaneNumbers(doc.lane_count, occupiedLanes);
 
-					// AC 6 & E-312 & E-283: 收口运行有空槽即持槽，无空槽 queued_reason='lane_full' 由 tick 先于新任务分槽
-					const queuedWrapups = docRuns.filter(
-						(r) =>
-							r.kind === 'wrapup' &&
-							r.state === 'queued' &&
-							r.queued_reason === 'lane_full' &&
-							(r.lane_no === null || r.lane_no === undefined),
-					);
+				// AC 6 & E-312 & E-283: 收口运行有空槽即持槽，无空槽 queued_reason='lane_full' 由 tick 先于新任务分槽
+				const queuedWrapups = docRuns.filter((r) => r.kind === 'wrapup' && r.state === 'queued');
 
-					for (const wRun of queuedWrapups) {
+				for (const wRun of queuedWrapups) {
+					if (!wRun.batch_id) continue;
+
+					// If wrapup has no lane, allocate from free if available
+					if (wRun.lane_no === null || wRun.lane_no === undefined) {
 						const allocatedLaneNo = free.shift();
-						if (allocatedLaneNo === undefined) break;
+						if (allocatedLaneNo === undefined) {
+							continue;
+						}
 						occupiedLanes.add(allocatedLaneNo);
 						if (deps.unitOfWork) {
 							deps.unitOfWork.run(() => {
 								runsRepo.updateLaneNo?.(wRun.id, allocatedLaneNo);
 								runsRepo.updateState({
 									id: wRun.id,
-									state: 'starting',
+									state: 'queued',
 									queuedReason: null,
 								});
 							});
@@ -1034,7 +1059,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							runsRepo.updateLaneNo?.(wRun.id, allocatedLaneNo);
 							runsRepo.updateState({
 								id: wRun.id,
-								state: 'starting',
+								state: 'queued',
 								queuedReason: null,
 							});
 						}
@@ -1052,52 +1077,115 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								}),
 							);
 						}
-						void launchRun(wRun.id);
 					}
 
-					if (free.length === 0) {
-						// 槽位已满，停止补位（E-309）
+					// Check batch (at most 1 active starting/running wrapup per batch)
+					const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(wRun.batch_id);
+					if (
+						activeWrapup &&
+						activeWrapup.id !== wRun.id &&
+						(activeWrapup.state === 'starting' || activeWrapup.state === 'running')
+					) {
 						continue;
 					}
 
-					// 打回后等泳道的返工排在全部新任务之前（按打回时间先后，E-327）
-					const reworkTasks: Array<{ readonly task: TaskRow; readonly run: RunRow }> = [];
-					for (const t of tasks) {
-						if (t.lane_no !== null && t.lane_no !== undefined) continue;
-						const tRuns = docRuns.filter((r) => r.task_id === t.id && r.kind === 'implement');
-						if (tRuns.length === 0) continue;
-						const latestImpl = tRuns.reduce((prev, curr) =>
-							curr.attempt_no > prev.attempt_no ? curr : prev,
-						);
-						if (latestImpl.state === 'reworking') {
-							reworkTasks.push({ task: t, run: latestImpl });
-						}
-					}
-					reworkTasks.sort((a, b) => {
-						const timeA = a.run.started_at ?? a.run.last_event_at ?? '';
-						const timeB = b.run.started_at ?? b.run.last_event_at ?? '';
-						return timeA.localeCompare(timeB);
-					});
+					// Check agent capacity (E-283)
+					const agentLimit = agentLimitFor(wRun.agent_id);
+					const activeRunsForAgent = countActiveRunsForAgent(
+						allRuns
+							.filter(
+								(r) =>
+									r.agent_id === wRun.agent_id &&
+									r.id !== wRun.id &&
+									countsTowardAgentConcurrency(r.state as RunState),
+							)
+							.map((r) => r.state),
+					);
 
+					if (activeRunsForAgent < agentLimit) {
+						if (deps.unitOfWork) {
+							deps.unitOfWork.run(() => {
+								runsRepo.updateState({
+									id: wRun.id,
+									state: 'starting',
+									queuedReason: null,
+								});
+							});
+						} else {
+							runsRepo.updateState({
+								id: wRun.id,
+								state: 'starting',
+								queuedReason: null,
+							});
+						}
+
+						if (deps.bus && deps.envelopeFactory) {
+							deps.bus.publish(
+								deps.envelopeFactory.createEnvelope({
+									kind: 'run.state_changed',
+									runId: wRun.id,
+									taskId: null,
+									payload: {
+										from: 'queued',
+										to: 'starting',
+										reason: 'dispatched',
+									},
+								}),
+							);
+						}
+
+						runsDispatched.push(wRun.id);
+						void launchRun(wRun.id);
+					}
+				}
+
+				if (free.length === 0) {
+					continue;
+				}
+
+				// 打回后等泳道的返工排在全部新任务之前（按打回时间先后，E-327）
+				const reworkTasks: Array<{ readonly task: TaskRow; readonly run: RunRow }> = [];
+				for (const t of docTasks) {
+					if (t.lane_no !== null && t.lane_no !== undefined) continue;
+					const tRuns = docRuns.filter((r) => r.task_id === t.id && r.kind === 'implement');
+					if (tRuns.length === 0) continue;
+					const latestImpl = tRuns.reduce((prev, curr) =>
+						curr.attempt_no > prev.attempt_no ? curr : prev,
+					);
+					if (latestImpl.state === 'reworking') {
+						reworkTasks.push({ task: t, run: latestImpl });
+					}
+				}
+				reworkTasks.sort((a, b) => {
+					const timeA = a.run.started_at ?? a.run.last_event_at ?? '';
+					const timeB = b.run.started_at ?? b.run.last_event_at ?? '';
+					return timeA.localeCompare(timeB);
+				});
+
+				const activeBatchesInDoc = docBatches.filter(
+					(b) => b.state === 'running' || b.state === 'awaiting_landing',
+				);
+
+				const activeRuns = runsRepo.listActive();
+				const activeTaskIds = new Set(activeRuns.map((r) => r.task_id));
+				const candidateTasks: TaskRow[] = [];
+				const latestRunByTaskId = new Map<string, RunRow>();
+				for (const r of allRuns) {
+					if (!r.task_id) continue;
+					const existing = latestRunByTaskId.get(r.task_id);
+					if (!existing || r.attempt_no > existing.attempt_no) {
+						latestRunByTaskId.set(r.task_id, r);
+					}
+				}
+
+				for (const b of activeBatchesInDoc) {
+					const bTasks = deps.tasksRepo.listByBatchId(b.id);
 					const taskByKey = new Map<string, TaskRow>();
-					for (const t of tasks) {
+					for (const t of bTasks) {
 						taskByKey.set(t.task_key, t);
 					}
 
-					const activeRuns = runsRepo.listActive();
-					const activeTaskIds = new Set(activeRuns.map((r) => r.task_id));
-					const candidateTasks: TaskRow[] = [];
-					// 派发候选判定沿用「该任务 attempt 最大的任意运行」（终态即不再自动重派，E-51）
-					const latestRunByTaskId = new Map<string, RunRow>();
-					for (const r of allRuns) {
-						if (!r.task_id) continue;
-						const existing = latestRunByTaskId.get(r.task_id);
-						if (!existing || r.attempt_no > existing.attempt_no) {
-							latestRunByTaskId.set(r.task_id, r);
-						}
-					}
-
-					for (const t of tasks) {
+					for (const t of bTasks) {
 						if (isTaskFinishedOrLanded(t) || activeTaskIds.has(t.id)) {
 							continue;
 						}
@@ -1117,7 +1205,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							}
 						}
 
-						let depsSatisfied = true;
 						let depKeys: string[] = [];
 						try {
 							depKeys = JSON.parse(t.deps_json);
@@ -1125,6 +1212,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							depKeys = [];
 						}
 
+						let depsSatisfied = true;
 						for (const depKey of depKeys) {
 							const depTask = taskByKey.get(depKey);
 							if (!depTask || !isTaskFinishedOrLanded(depTask)) {
@@ -1155,226 +1243,289 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 						candidateTasks.push(t);
 					}
+				}
 
-					if (candidateTasks.length === 0 && reworkTasks.length === 0) {
-						continue;
+				if (candidateTasks.length === 0 && reworkTasks.length === 0) {
+					continue;
+				}
+
+				const candidateDescriptors = candidateTasks.map((t) => {
+					let taskPaths: string[] = [];
+					try {
+						taskPaths = JSON.parse(t.task_paths_json ?? '[]');
+					} catch {
+						taskPaths = [];
 					}
+					return {
+						taskId: t.id,
+						taskKey: t.task_key,
+						taskPaths: Object.freeze(taskPaths),
+						batchId: t.batch_id ?? undefined,
+					};
+				});
 
-					const candidateDescriptors = candidateTasks.map((t) => {
+				const activeDescriptors = activeRuns
+					.filter((r) => r.task_id !== null)
+					.map((r) => {
+						const taskId = r.task_id as string;
+						const task = deps.tasksRepo.findById(taskId);
 						let taskPaths: string[] = [];
-						try {
-							taskPaths = JSON.parse(t.task_paths_json ?? '[]');
-						} catch {
-							taskPaths = [];
+						if (task?.task_paths_json) {
+							try {
+								taskPaths = JSON.parse(task.task_paths_json);
+							} catch {
+								taskPaths = [];
+							}
 						}
 						return {
-							taskId: t.id,
-							taskKey: t.task_key,
+							taskId,
+							taskKey: task?.task_key ?? taskId,
 							taskPaths: Object.freeze(taskPaths),
-							batchId: batch.id,
+							batchId: task?.batch_id ?? undefined,
+							state: r.state,
+							runId: r.id,
 						};
 					});
 
-					const activeDescriptors = activeRuns
-						.filter((r) => r.task_id !== null)
-						.map((r) => {
-							const taskId = r.task_id as string;
-							const task = deps.tasksRepo.findById(taskId);
-							let taskPaths: string[] = [];
-							if (task?.task_paths_json) {
-								try {
-									taskPaths = JSON.parse(task.task_paths_json);
-								} catch {
-									taskPaths = [];
-								}
-							}
-							return {
-								taskId,
-								taskKey: task?.task_key ?? taskId,
-								taskPaths: Object.freeze(taskPaths),
-								batchId: task?.batch_id ?? undefined,
-								state: r.state,
-								runId: r.id,
-							};
-						});
+				const pathClashResult = evaluatePathClashQueue({
+					candidates: candidateDescriptors,
+					activeTasks: activeDescriptors,
+					batchId: candidateDescriptors[0]?.batchId,
+				});
 
-					const pathClashResult = evaluatePathClashQueue({
-						candidates: candidateDescriptors,
-						activeTasks: activeDescriptors,
-						batchId: batch.id,
+				for (const blocked of pathClashResult.blocked) {
+					tasksBlocked.push({
+						taskId: blocked.task.taskId,
+						reason: blocked.queuedReason,
 					});
+				}
 
-					for (const blocked of pathClashResult.blocked) {
+				const dispatchableTasks = candidateTasks.filter((t) =>
+					pathClashResult.dispatchable.some((d) => d.taskId === t.id),
+				);
+
+				dispatchableTasks.sort((a, b) => a.task_key.localeCompare(b.task_key));
+
+				const combinedCandidates: Array<{
+					readonly task: TaskRow;
+					readonly isRework: boolean;
+					readonly reworkRun?: RunRow;
+				}> = [
+					...reworkTasks.map((rw) => ({ task: rw.task, isRework: true, reworkRun: rw.run })),
+					...dispatchableTasks.map((t) => ({ task: t, isRework: false })),
+				];
+
+				const assigned: Array<{
+					readonly candidate: (typeof combinedCandidates)[number];
+					readonly agentId: string;
+					readonly draft: StoredAssignmentDraft | null;
+				}> = [];
+				for (const item of combinedCandidates) {
+					const agentId = item.isRework
+						? (item.reworkRun?.agent_id ?? null)
+						: resolveAgentForTask(item.task);
+
+					if (!agentId || !isAgentDispatchable(agentId)) {
 						tasksBlocked.push({
-							taskId: blocked.task.taskId,
-							reason: blocked.queuedReason,
+							taskId: item.task.id,
+							reason: 'agent_unavailable',
 						});
-					}
-
-					const dispatchableTasks = candidateTasks.filter((t) =>
-						pathClashResult.dispatchable.some((d) => d.taskId === t.id),
-					);
-
-					// 新任务排序：taskKey 字典序
-					dispatchableTasks.sort((a, b) => a.task_key.localeCompare(b.task_key));
-
-					// 组合任务列表：返工任务排在全部新任务之前！
-					const combinedCandidates: Array<{
-						readonly task: TaskRow;
-						readonly isRework: boolean;
-						readonly reworkRun?: RunRow;
-					}> = [
-						...reworkTasks.map((rw) => ({ task: rw.task, isRework: true, reworkRun: rw.run })),
-						...dispatchableTasks.map((t) => ({ task: t, isRework: false })),
-					];
-
-					const assigned: Array<{
-						readonly candidate: (typeof combinedCandidates)[number];
-						readonly agentId: string;
-						readonly draft: StoredAssignmentDraft | null;
-					}> = [];
-					for (const item of combinedCandidates) {
-						const agentId = item.isRework
-							? (item.reworkRun?.agent_id ?? null)
-							: resolveAgentForTask(item.task);
-
-						if (!agentId || !isAgentDispatchable(agentId)) {
-							tasksBlocked.push({
-								taskId: item.task.id,
-								reason: 'agent_unavailable',
-							});
-							continue;
-						}
-						const draft = parseAssignmentDraft(item.task.assignment_draft_json);
-						assigned.push({
-							candidate: item,
-							agentId,
-							draft: draft && draft.agentId === agentId ? draft : null,
-						});
-					}
-
-					if (assigned.length === 0) {
 						continue;
 					}
-
-					const activeRunsByAgent: Record<string, number> = {};
-					for (const r of activeRuns) {
-						if (!countsTowardAgentConcurrency(r.state as RunState)) continue;
-						activeRunsByAgent[r.agent_id] = (activeRunsByAgent[r.agent_id] ?? 0) + 1;
-					}
-
-					interface SlotCandidate {
-						readonly id: string;
-						readonly agentId: string;
-						readonly candidate: (typeof combinedCandidates)[number];
-						readonly draft: StoredAssignmentDraft | null;
-						readonly [key: string]: unknown;
-					}
-
-					const slotResult = allocateConcurrencySlots<SlotCandidate>({
-						candidates: assigned.map((item) => ({
-							id: item.candidate.task.id,
-							agentId: item.agentId,
-							candidate: item.candidate,
-							draft: item.draft,
-						})),
-						availableSlots: free.length,
-						agentLimits: agentLimitFor,
-						activeRunsByAgent,
+					const draft = parseAssignmentDraft(item.task.assignment_draft_json);
+					assigned.push({
+						candidate: item,
+						agentId,
+						draft,
 					});
+				}
 
-					for (const deferred of slotResult.deferred) {
-						tasksDeferred.push({
-							taskId: deferred.task.candidate.task.id,
-							reason: deferred.reason,
-						});
-					}
+				const candidatesForAllocation = assigned.map((a) => ({
+					id: a.candidate.task.id,
+					agentId: a.agentId,
+					item: a,
+				}));
 
-					for (const item of slotResult.admitted) {
-						const allocatedLaneNo = free.shift();
+				const allocation = allocateConcurrencySlots({
+					candidates: candidatesForAllocation,
+					availableSlots: free.length,
+					agentLimits: (agentId: string) => agentLimitFor(agentId),
+					activeRunsByAgent: (agentId: string) =>
+						allRuns.filter(
+							(r) => r.agent_id === agentId && countsTowardAgentConcurrency(r.state as RunState),
+						).length,
+				});
+
+				for (const deferred of allocation.deferred) {
+					tasksDeferred.push({
+						taskId: deferred.task.id,
+						reason: deferred.reason,
+					});
+				}
+
+				const admitted = allocation.admitted.map((a) => a.item);
+
+				// R5: All slot assignments in this tick executed in ONE atomic transaction!
+				const pendingEnvelopes: EventEnvelope[] = [];
+				const runsToLaunch: string[] = [];
+				const reworksToDispatch: Array<{
+					readonly targetRunId: string;
+					readonly reviewRunId?: string | null;
+					readonly reworkText: string;
+					readonly actorDeviceId?: string | null;
+				}> = [];
+
+				const assignAllInTx = () => {
+					for (let i = 0; i < admitted.length; i++) {
+						const allocatedLaneNo = free[i];
 						if (allocatedLaneNo === undefined) break;
+
+						const item = admitted[i];
+						if (!item) continue;
 						const candidate = item.candidate;
 
 						if (candidate.isRework && candidate.reworkRun) {
-							// 返工入槽 (E-327)
 							const reworkRun = candidate.reworkRun;
-							try {
-								if (deps.unitOfWork) {
-									deps.unitOfWork.run(() => {
-										const changes = deps.tasksRepo.assignLaneNo?.(
-											candidate.task.id,
-											allocatedLaneNo,
-										);
-										if (changes === 0) {
-											return;
-										}
-										runsRepo.updateLaneNo?.(reworkRun.id, allocatedLaneNo);
-									});
-								} else {
-									const changes = deps.tasksRepo.assignLaneNo?.(candidate.task.id, allocatedLaneNo);
-									if (changes === 0) {
-										continue;
-									}
-									runsRepo.updateLaneNo?.(reworkRun.id, allocatedLaneNo);
-								}
-
-								if (deps.bus && deps.envelopeFactory) {
-									deps.bus.publish(
-										deps.envelopeFactory.createEnvelope({
-											kind: 'lane.assigned',
-											payload: {
-												docId: doc.id,
-												laneNo: allocatedLaneNo,
-												taskId: candidate.task.id,
-												runId: reworkRun.id,
-											},
-										}),
-									);
-								}
-							} catch (err) {
-								tasksBlocked.push({
-									taskId: candidate.task.id,
-									reason: isAppError(err) ? err.code : 'rework_lane_failed',
-								});
+							const changes = deps.tasksRepo.assignLaneNo?.(candidate.task.id, allocatedLaneNo);
+							if (changes === 0) {
+								continue;
 							}
+							runsRepo.updateLaneNo?.(reworkRun.id, allocatedLaneNo);
+
+							if (deps.envelopeFactory) {
+								pendingEnvelopes.push(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'lane.assigned',
+										payload: {
+											docId: doc.id,
+											laneNo: allocatedLaneNo,
+											taskId: candidate.task.id,
+											runId: reworkRun.id,
+										},
+									}),
+								);
+							}
+
+							const rejectedGate =
+								deps.gatesRepo?.findLatestByTaskIdAndKind?.(candidate.task.id, 'review') ??
+								deps.gatesRepo?.findLatestByTaskIdAndKind?.(candidate.task.id, 'landing');
+							const reworkText = rejectedGate?.comment || 'Rework requested';
+							reworksToDispatch.push({
+								targetRunId: reworkRun.id,
+								reviewRunId: rejectedGate?.run_id,
+								reworkText,
+								actorDeviceId: null,
+							});
 						} else {
-							// 新任务入槽 (AC 2)
 							const task = candidate.task;
 							const idempotencyKey = `auto_${task.id}_${deps.ids.newId()}`;
-							try {
-								const runResult = await createRun({
-									taskId: task.id,
-									agentId: item.agentId,
-									model: item.draft?.model ?? null,
-									effort: item.draft?.effort ?? null,
-									idempotencyKey,
-									permissionTier: 'workspaceWrite',
-									laneNo: allocatedLaneNo,
-								});
-								runsDispatched.push(runResult.run.id);
+							const existingRuns = runsRepo.listByTaskId(task.id);
+							const attemptNo = existingRuns.length + 1;
+							const runId = deps.ids.newId();
 
-								if (deps.bus && deps.envelopeFactory) {
-									deps.bus.publish(
-										deps.envelopeFactory.createEnvelope({
-											kind: 'lane.assigned',
-											payload: {
-												docId: doc.id,
-												laneNo: allocatedLaneNo,
-												taskId: task.id,
-												runId: runResult.run.id,
-											},
-										}),
-									);
-								}
-								void launchRun(runResult.run.id);
-							} catch (err) {
-								tasksBlocked.push({
-									taskId: task.id,
-									reason: isAppError(err) ? err.code : 'dispatch_failed',
-								});
+							const changes = deps.tasksRepo.assignLaneNo?.(task.id, allocatedLaneNo);
+							if (changes === 0) {
+								continue;
+							}
+
+							const effortColumns = toEffortColumns(item.draft?.effort ?? null);
+							const launchSpecJson = JSON.stringify({
+								agentId: item.agentId,
+								model: item.draft?.model ?? null,
+								permissionTier: 'workspaceWrite',
+								baseRef: { kind: 'head' },
+								worktreeMode: 'fresh',
+							});
+							const snapshot = deps.dispatchSnapshotsRepo.takeSnapshotForTask({
+								taskId: task.id,
+								launchSpecJson,
+								createdAt: deps.clock.now(),
+							});
+
+							const runInsert: RunInsertRow = {
+								id: runId,
+								task_id: task.id,
+								attempt_no: attemptNo,
+								kind: 'implement',
+								parent_run_id: null,
+								state: 'starting',
+								agent_id: item.agentId,
+								model_name: item.draft?.model ?? null,
+								effort_tier: effortColumns.effort_tier,
+								effort_vendor: effortColumns.effort_vendor,
+								permission_tier: 'workspaceWrite',
+								snapshot_id: snapshot.id,
+								idempotency_key: idempotencyKey,
+								actor_device_id: null,
+								started_at: deps.clock.now(),
+								session_no: nextSessionNoFor(item.agentId),
+								lane_no: allocatedLaneNo,
+							};
+
+							assertSessionRefFree(
+								{ taskId: task.id, vendorSessionRef: undefined },
+								{ runsRepo, tasksRepo: deps.tasksRepo },
+							);
+							runsRepo.insert(runInsert);
+
+							runsDispatched.push(runId);
+							runsToLaunch.push(runId);
+
+							if (deps.envelopeFactory) {
+								pendingEnvelopes.push(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'lane.assigned',
+										payload: {
+											docId: doc.id,
+											laneNo: allocatedLaneNo,
+											taskId: task.id,
+											runId,
+										},
+									}),
+								);
+								pendingEnvelopes.push(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'run.state_changed',
+										runId,
+										taskId: task.id,
+										payload: {
+											from: 'none',
+											to: 'starting',
+											reason: 'dispatched',
+										},
+									}),
+								);
 							}
 						}
 					}
+				};
+
+				try {
+					if (deps.unitOfWork) {
+						deps.unitOfWork.run(assignAllInTx);
+					} else {
+						assignAllInTx();
+					}
+
+					if (deps.bus) {
+						for (const env of pendingEnvelopes) {
+							deps.bus.publish(env);
+						}
+					}
+					for (const runId of runsToLaunch) {
+						void launchRun(runId);
+					}
+					for (const rw of reworksToDispatch) {
+						void deps.reworkService?.dispatchRework({
+							targetRunId: rw.targetRunId,
+							reviewRunId: rw.reviewRunId,
+							reworkText: rw.reworkText,
+							source: 'human',
+							actorDeviceId: rw.actorDeviceId,
+						});
+					}
+				} catch (err) {
+					logFailure(err);
 				}
 			}
 
@@ -1404,6 +1555,114 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 
 			if (run.state !== 'starting') {
+				return;
+			}
+
+			if (run.kind === 'wrapup') {
+				if (!run.batch_id) {
+					throw new AppError('E_VALIDATION', `Wrapup run ${runId} has no associated batch`, {
+						details: { runId },
+					});
+				}
+				const batch = deps.batchesRepo.findById(run.batch_id);
+				if (!batch) {
+					throw new AppError('E_NOT_FOUND', `Batch not found: ${run.batch_id}`, {
+						details: { batchId: run.batch_id, runId },
+					});
+				}
+				const doc = deps.documentsRepo.findById(batch.doc_id);
+				if (!doc) {
+					throw new AppError('E_NOT_FOUND', `Document not found: ${batch.doc_id}`, {
+						details: { docId: batch.doc_id, runId },
+					});
+				}
+				if (!isAgentDispatchable(run.agent_id)) {
+					if (deps.runService) {
+						await deps.runService.transitionState({
+							runId,
+							targetState: 'failed',
+							reason: 'agent_unavailable',
+						});
+					}
+					throw new AppError(
+						'E_AGENT_UNAVAILABLE',
+						`Agent ${run.agent_id} is not available for dispatch`,
+						{
+							details: { agentId: run.agent_id, runId },
+						},
+					);
+				}
+
+				if (!deps.proc || !deps.runService) {
+					return;
+				}
+
+				const adapter = deps.adapters?.[run.agent_id];
+				if (!adapter) {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'agent_unavailable',
+					});
+					throw new AppError(
+						'E_AGENT_UNAVAILABLE',
+						`No adapter configured for agent: ${run.agent_id}`,
+						{
+							details: { agentId: run.agent_id, runId },
+						},
+					);
+				}
+
+				const worktreePath = run.worktree_path ?? doc.repo_path ?? '';
+				const launchSpec = adapter.buildLaunchSpec({
+					runId,
+					cwd: worktreePath,
+					model: run.model_name ?? null,
+					effortTier: run.effort_tier ?? null,
+					permissionTier: 'workspaceWrite',
+					prompt: undefined,
+				});
+
+				let managed: ManagedProcess;
+				try {
+					managed = deps.proc.spawnManaged(launchSpec);
+				} catch (spawnErr) {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'spawn_failed',
+					});
+					throw spawnErr;
+				}
+
+				if (managed.isExited) {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'premature_exit',
+						exitCode: managed.exitResult?.exitCode ?? null,
+						exitSignal: managed.exitResult?.signal ? String(managed.exitResult.signal) : null,
+					});
+					return;
+				}
+
+				deps.runService.attachProcess(runId, managed, {
+					eventMapper: adapter.mapEvents,
+				});
+
+				const latestRun = runsRepo.findById(runId);
+				if (latestRun && isTerminalRunState(latestRun.state as RunState)) {
+					return;
+				}
+
+				await deps.runService.transitionState({
+					runId,
+					targetState: 'running',
+					reason: 'process_spawned',
+					pid: managed.pid,
+					worktreePath,
+					branchName: run.branch_name,
+				});
 				return;
 			}
 

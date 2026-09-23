@@ -37,7 +37,9 @@ export function countLaneSlots(input: CountLaneSlotsInput): number {
 			r.kind === 'wrapup' &&
 			r.lane_no !== null &&
 			r.lane_no !== undefined &&
-			!isTerminalRunState(r.state as RunState),
+			!isTerminalRunState(r.state as RunState) &&
+			r.state !== 'awaiting_human' &&
+			r.state !== 'orphaned',
 	).length;
 
 	return taskSlots + wrapupSlots;

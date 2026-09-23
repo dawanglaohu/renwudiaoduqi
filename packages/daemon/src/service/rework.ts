@@ -778,11 +778,13 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			const pendingEvents: EventEnvelope[] = [];
 
 			const persistReinjection = () => {
-				assertValidTransition(targetRun.state as RunState, 'reworking', {
-					reason: transitionReason,
-					reworkCount: currentReworkCount,
-					maxReworkCount,
-				});
+				if (targetRun.state !== 'reworking') {
+					assertValidTransition(targetRun.state as RunState, 'reworking', {
+						reason: transitionReason,
+						reworkCount: currentReworkCount,
+						maxReworkCount,
+					});
+				}
 
 				deps.runsRepo.updateReworkCount({
 					id: targetRun.id,
@@ -1086,6 +1088,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			const newRunId = deps.ids.newId();
 			const existingRuns = deps.runsRepo.listByTaskId(targetRun.task_id);
 			const attemptNo = existingRuns.length + 1;
+			const targetTask = deps.tasksRepo?.findById(targetRun.task_id);
 
 			const newRunInsert: RunInsertRow = {
 				id: newRunId,
@@ -1109,6 +1112,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				rework_count: nextReworkCount,
 				actor_device_id: input.actorDeviceId ?? null,
 				started_at: now,
+				lane_no: targetTask?.lane_no ?? targetRun.lane_no ?? null,
 			};
 
 			const resumeEvents: EventEnvelope[] = [];
@@ -1274,6 +1278,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			snapshotIdToUse = newSnapshotId;
 		}
 
+		const targetTask = deps.tasksRepo?.findById(targetRun.task_id);
 		const newRunInsert: RunInsertRow = {
 			id: newRunId,
 			task_id: targetRun.task_id,
@@ -1295,6 +1300,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			rework_count: nextReworkCount,
 			actor_device_id: input.actorDeviceId ?? null,
 			started_at: now,
+			lane_no: targetTask?.lane_no ?? targetRun.lane_no ?? null,
 		};
 
 		const newSessionEvents: EventEnvelope[] = [];
