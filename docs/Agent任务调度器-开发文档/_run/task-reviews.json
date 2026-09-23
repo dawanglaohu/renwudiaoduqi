@@ -1049,13 +1049,13 @@
   },
   "M8-T8": {
     "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
-    "contractHash": "dcb0d50968201f829e44da5bb5b475ff4d71b2889947d34c1c942c1f31a15aba",
+    "contractHash": "d4d4644e4b760d4d0cf7c67af65aba643042d63df399eb322ede587fb01361cc",
     "evidence": [
-      "04-执行/19-模块任务拆分.md M8-T8 AC4 now resolves the full-lane case consistently with 图谱/边界/E-327.md: human rework waits outside lanes when full and takes the smallest free lane ahead of new work. Jev adjudicate M8-T8:review selected option A (jev-1.13.0, adopt=take).",
-      "_run/task-contracts.json M8-T8 supportPaths includes the real human gate and rework entrypoint (service/gates.ts, service/rework.ts, boot/container.ts, http/routes/gates.ts, container-wiring.test.ts), plus the required shared package export and events test. Current PR #132 also changes gates.ts and container.ts, so its head must be reconciled before implementation merges.",
-      "The task still depends on M8-T3, M8-T6, M7-T8 and M6-T10. The retained acceptance clauses and all fifteen listed E-283 through E-334 boundary notes remain in scope. This verifies the task definition, not the code in PR #133."
+      "E-327 requires an ended human-rejected implementation session to be resumed or replaced through the production container. PR #137 adds service/session-resume.ts and changes both Codex and Grok build-launch-spec.ts files to pass the vendor session reference and rework prompt to a real process; these three source paths are necessary support for M8-T8 public delivery.",
+      "The four focused unit tests for Codex, Grok, rework dispatch, and rework behavior are also added as supportPaths. The existing M8-T8 dispatch and public pipeline-lanes paths remain in scope. No acceptance clause or E-327 requirement was removed. This verifies the effective task path contract only; PR #137 code acceptance remains blocked on the reviewed failure path.",
+      "The E-327 verification note now names PR #137 as pending review rather than claiming that #136 has landed. Focused container and unit tests passed 104/104 on the reviewed head before this source-only contract patch."
     ],
-    "reviewed": "2026-09-23T05:50:37.637773+00:00",
+    "reviewed": "2026-09-23T14:39:46.523619+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
