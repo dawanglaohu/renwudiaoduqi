@@ -1305,12 +1305,13 @@
   },
   "M9-T25": {
     "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
-    "contractHash": "78f118049d2f0ff3545dd9c74159b8e2a459d5023656df58bc60de9b1ef067f8",
+    "contractHash": "3f7eeb1bf7629a2bdbf1f6b6c9ec46c2df24d36e480f75f9b26715775bfe3ec0",
     "evidence": [
-      "E-06 requires a usable manual host fallback. The current browser bootstrap registers location.origin as the shell hint at packages/web/src/app/bootstrap.ts:111, which takes precedence over the saved manual host in packages/web/src/api/base-url.ts. The prior task commit 7a2c8d9 contained the browser null-hint fix; the current PR head a98b7353 lost it after updating from main.",
-      "The patch changes only M9-T25 effective paths: packages/web/src/app/bootstrap.ts and packages/web/test/bootstrap.test.ts are now allowed for restoring the existing E-06 behavior and testing the production bootstrap path. Acceptance criteria and other task scopes remain unchanged. M1-T11 and M9-T27 hashes propagate this upstream path change; their own contracts are unchanged and will be reviewed when implemented."
+      "R4 scope correction only: supportPaths now explicitly lists packages/daemon/test/unit/diff.test.ts and packages/daemon/test/unit/landing.test.ts; both were changed solely to stabilize real git describe test timeouts.",
+      "M9-T25 five acceptance clauses and E-06/E-222/E-223/E-224 remain unchanged; R1 browser host precedence and R2 run detail cancellation are covered by packages/web/test/bootstrap.test.ts and route-entries.test.tsx.",
+      "After merge of origin/main, pnpm -w check passed: 171 test files, 2070 passed, 3 skipped; Biome and TypeScript completed within the same zero-exit gate."
     ],
-    "reviewed": "2026-09-23T04:58:14.751859+00:00",
+    "reviewed": "2026-09-23T07:30:33.271273+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
