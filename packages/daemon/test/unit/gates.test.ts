@@ -424,6 +424,22 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 			return { app, ...harness };
 		}
 
+		it('GET /api/v1/settings/gates: returns current gate settings', async () => {
+			const { app } = await createTestApp();
+
+			const res = await app.inject({
+				method: 'GET',
+				url: '/api/v1/settings/gates',
+			});
+
+			expect(res.statusCode).toBe(200);
+			const body = JSON.parse(res.body);
+			expect(body.gates).toBeDefined();
+			expect(body.gates).toHaveProperty('dispatch');
+			expect(body.gates).toHaveProperty('review');
+			expect(body.gates).toHaveProperty('landing');
+		});
+
 		it('PATCH /api/v1/settings/gates: updates gate settings with all 3 fields', async () => {
 			const { app } = await createTestApp();
 

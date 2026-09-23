@@ -15,7 +15,7 @@ import { getManualHost, resolveBaseUrl } from '../src/api/base-url.ts';
 import { ApiError, clearCachedToken, httpClient, setCachedToken } from '../src/api/http-client.ts';
 import { App } from '../src/app/app.tsx';
 import { ROUTE_PATHS, matchRoute, navigateTo } from '../src/app/routes.tsx';
-import { mapSnapshotBatches } from '../src/features/run-deck/mobile-batch-list.tsx';
+import { mapSnapshotToBatches } from '../src/features/run-deck/batch-expansion.ts';
 import type { RunFetcher } from '../src/features/run-detail/run-detail-container.tsx';
 import { RunDetailPage } from '../src/pages/run-detail-page.tsx';
 
@@ -126,6 +126,7 @@ afterEach(async () => {
 	for (const cleanup of cleanupFns.splice(0)) await cleanup();
 	clearCachedToken();
 	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
 });
 
 afterAll(() => {
@@ -144,7 +145,7 @@ describe('M9-T25 seven route entries', () => {
 
 		const routes: ReadonlyArray<readonly [string, string]> = [
 			[ROUTE_PATHS.deck, '[data-component="run-deck-container"]'],
-			[ROUTE_PATHS.tasks, '[data-component="mobile-batch-list"]'],
+			[ROUTE_PATHS.tasks, '[data-component="batch-tree"]'],
 			['#/run/run-existing', '[data-component="run-detail-container"]'],
 			['#/landing/task-m9-t25', '[data-component="landing-page"]'],
 			[ROUTE_PATHS.settingsAgents, '[data-component="settings-agents-container"]'],
@@ -157,6 +158,9 @@ describe('M9-T25 seven route entries', () => {
 				await flushReact();
 			});
 			expect(document.querySelector(selector), `${hash} -> ${selector}`).not.toBeNull();
+			expect(document.querySelectorAll('[data-component="gate-toggles"]')).toHaveLength(
+				hash === ROUTE_PATHS.pair ? 0 : 1,
+			);
 		}
 	});
 
@@ -220,18 +224,15 @@ describe('M9-T25 seven route entries', () => {
 		);
 	});
 
-	it('projects only snapshot fields on the tasks page and renders missing counts as dashes', async () => {
-		const mapped = mapSnapshotBatches(snapshotFixture());
+	it('projects only snapshot fields into the shared batch tree and renders missing counts as dashes', async () => {
+		const mapped = mapSnapshotToBatches(snapshotFixture());
 		expect(mapped).toEqual([
 			expect.objectContaining({
 				id: 'batch-13',
-				taskCount: null,
-				landedCount: null,
-				runningCount: null,
-				waitingCount: null,
-				tasks: [expect.objectContaining({ taskKey: 'M9-T25', status: 'running' })],
+				tasks: [expect.objectContaining({ taskKey: 'M9-T25', state: 'running' })],
 			}),
 		]);
+		expect(mapped[0]).not.toHaveProperty('taskCount');
 
 		await preloadLazyPages();
 		navigateTo(ROUTE_PATHS.tasks);
@@ -242,9 +243,28 @@ describe('M9-T25 seven route entries', () => {
 			await flushReact();
 		});
 
-		const batchList = document.querySelector('[data-component="mobile-batch-list"]');
+		const batchList = document.querySelector('[data-component="batch-tree"]');
 		expect(batchList).not.toBeNull();
 		expect(batchList?.textContent).toContain('—/—');
+	});
+
+	it('uses 44px tree rows on the real tasks route at a coarse-pointer phone viewport', async () => {
+		vi.stubGlobal('innerWidth', 390);
+		vi.stubGlobal('matchMedia', (query: string) => ({
+			matches: query === '(pointer: coarse)',
+			addEventListener: () => {},
+			removeEventListener: () => {},
+		}));
+		navigateTo(ROUTE_PATHS.tasks);
+		const root = createRoot(document.getElementById('root') as HTMLElement);
+		cleanupFns.push(async () => act(async () => root.unmount()));
+		await act(async () => {
+			root.render(createElement(App));
+			await flushReact();
+		});
+		const tree = document.querySelector('[data-component="batch-tree"]');
+		expect(tree?.getAttribute('data-density-tier')).toBe('phone-xs');
+		expect(tree?.querySelector('[data-action="toggle-batch"]')?.className).toContain('w-[44px]');
 	});
 
 	it('R2 / E-223: avoids race condition where delayed response from run A overwrites run B', async () => {

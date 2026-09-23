@@ -25,6 +25,7 @@ import {
 	getStatusShape,
 	normalizeStatusState,
 } from '../lib/spine-shape.ts';
+import { PulseDot } from './pulse-dot.tsx';
 
 /**
  * 运行轨的六种轨段形态枚举（AC 2, 11 节）。
@@ -203,27 +204,7 @@ function renderShapeNode(
 			);
 		}
 
-		return (
-			<g data-spine-node="pulse-live">
-				{/* 1.6s 呼吸外环，明确消费 var(--pulse, 1.6s)（R2, 11 节） */}
-				<circle
-					cx={centerX}
-					cy={centerY}
-					r={7}
-					data-pulse="1.6s"
-					className="animate-[pulse_var(--pulse,1.6s)_cubic-bezier(0.4,0,0.6,1)_infinite]"
-					fill="var(--auto-soft)"
-					stroke="var(--auto)"
-					strokeWidth={1}
-					style={{
-						animationDuration: 'var(--pulse, 1.6s)',
-						vectorEffect: 'non-scaling-stroke',
-						transformOrigin: `${centerX}px ${centerY}px`,
-					}}
-				/>
-				{innerNode}
-			</g>
-		);
+		return <PulseDot variant="live" asSvg cx={centerX} cy={centerY} innerNode={innerNode} />;
 	}
 
 	// 2. 等你（waiting）：当前点变空心方块 9px（AC 2, 11 节）

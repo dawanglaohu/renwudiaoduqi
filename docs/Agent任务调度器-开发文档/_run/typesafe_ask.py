@@ -105,7 +105,9 @@ def base_url(env=None):
 def http(method, url, key, body=None, timeout=30.0, opener=None, attempts=4):
     """urllib 请求；429/529 退避重试并尊重 Retry-After。返回 (status, json)。"""
     data = json.dumps(body, ensure_ascii=False).encode('utf-8') if body is not None else None
-    headers = {'Authorization': 'Bearer ' + key, 'Accept': 'application/json'}
+    # Cloudflare 拒绝 urllib 的默认签名（Error 1010），必须自报 User-Agent
+    headers = {'Authorization': 'Bearer ' + key, 'Accept': 'application/json',
+               'User-Agent': 'unattended-run-typesafe/1.6.1 (+python-urllib)'}
     if data is not None:
         headers['Content-Type'] = 'application/json'
     opener = opener or urllib.request.urlopen

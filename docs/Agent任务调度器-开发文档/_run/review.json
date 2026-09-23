@@ -290,15 +290,6 @@
     {
       "code": "H12",
       "level": "WARN",
-      "msg": "M9-T19 疑似接线任务未列注册点（命中：事件）",
-      "taskIds": [
-        "M9-T19"
-      ],
-      "where": "M9-T19"
-    },
-    {
-      "code": "H12",
-      "level": "WARN",
       "msg": "M9-T20 疑似接线任务未列注册点（命中：kind）",
       "taskIds": [
         "M9-T20"
@@ -315,6 +306,6 @@
       "where": "M10-T3"
     }
   ],
-  "sourceVersion": "dee101d521eab0985b5722fb67da462f3b173151e9fc70fe9e0dcdc9ef645b08",
-  "warn": 32
+  "sourceVersion": "60ad401b3feea6eb566ede18dadff7fa09b0c20e05945b64792f606c2e0a3f2d",
+  "warn": 31
 }

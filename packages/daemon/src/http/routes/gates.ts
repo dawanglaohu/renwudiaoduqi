@@ -113,6 +113,14 @@ export function registerGateRoutes(
 	instance: FastifyInstance,
 	options?: RegisterGateRoutesOptions,
 ): void {
+	const getGateSettingsHandler: RouteHandlerMethod = async (
+		request,
+	): Promise<UpdateGateSettingsResponse> => {
+		const service = resolveSettingsService(request, instance, options);
+		const gates = service.getGates();
+		return { gates };
+	};
+
 	const updateGateSettingsHandler: RouteHandlerMethod = async (
 		request,
 	): Promise<UpdateGateSettingsResponse> => {
@@ -145,6 +153,8 @@ export function registerGateRoutes(
 
 		return await service.listGates({ pendingOnly });
 	};
+
+	instance.get('/api/v1/settings/gates', getGateSettingsHandler);
 
 	instance.patch<{
 		Body: UpdateGateSettingsBody;

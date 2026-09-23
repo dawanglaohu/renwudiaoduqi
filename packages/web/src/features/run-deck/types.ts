@@ -5,6 +5,7 @@
  */
 
 import type { ReactNode } from 'react';
+import type { BatchTreeItem } from '../../components/batch-tree.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import type { ToolPayloadSheetData } from '../../hooks/use-payload-sheet.ts';
 import type { StatusState } from '../../lib/spine-shape.ts';
@@ -148,8 +149,8 @@ export interface RunDeckProps {
 	readonly activePane?: MobilePane;
 	/** 手机栏位切换回调 */
 	readonly onPaneChange?: (pane: MobilePane) => void;
-	/** 批次折叠列表数据（小屏降级为可折叠列表，E-13） */
-	readonly batches?: readonly MobileBatchItem[];
+	/** 批次折叠列表数据（小屏降级为可折叠列表，E-13, R2） */
+	readonly batches?: readonly (BatchTreeItem | MobileBatchItem)[];
 	/** 选择任务项回调 */
 	readonly onSelectTask?: (taskId: string, laneNo?: number) => void;
 	/** 切回前台拉取未读列表回调（E-58） */
