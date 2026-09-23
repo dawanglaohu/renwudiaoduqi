@@ -591,9 +591,19 @@
       "supportPaths": [
         "packages/web/src/i18n/error-messages.ts",
         "packages/web/src/api/cache-keys.ts",
+        "packages/web/src/components/batch-tree.tsx",
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-deck/run-deck-container.tsx",
+        "packages/web/src/features/run-deck/types.ts",
+        "packages/web/src/pages/deck-page.tsx",
+        "packages/web/src/features/task-list/task-list-container.tsx",
+        "packages/web/src/features/landing/landing-container.tsx",
+        "packages/shared/src/api/runs.ts",
+        "packages/daemon/src/http/routes/runs.ts",
+        "packages/daemon/src/service/message.ts",
         "packages/web/test/wrapup-report.test.tsx",
-        "packages/web/test/gate-card.test.tsx",
-        "packages/web/test/stream-column.test.tsx"
+        "packages/web/test/gate-card.test.ts",
+        "packages/web/test/stream-column.test.ts"
       ],
       "sections": [
         1,
