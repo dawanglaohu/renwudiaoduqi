@@ -17,7 +17,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 	const deckState = useRunDeck(props);
 
 	return (
-		<div className="flex flex-col h-full w-full gap-2">
+		<div data-component="run-deck-container" className="flex flex-col h-full w-full gap-2">
 			<RunDeckView
 				{...deckState}
 				lanes={props.lanes}

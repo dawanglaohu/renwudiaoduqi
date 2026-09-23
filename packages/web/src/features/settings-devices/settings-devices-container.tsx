@@ -13,7 +13,10 @@ export function SettingsDevicesContainer(_props: SettingsDevicesContainerProps) 
 	const devicesState = useSettingsDevices();
 
 	return (
-		<div className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-4 sm:p-6 min-h-[calc(100vh-var(--topbar-h))]">
+		<div
+			data-component="settings-devices-container"
+			className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-4 sm:p-6 min-h-[calc(100vh-var(--topbar-h))]"
+		>
 			<DeviceListView devicesState={devicesState} />
 		</div>
 	);

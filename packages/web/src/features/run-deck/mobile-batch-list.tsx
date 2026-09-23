@@ -10,13 +10,29 @@
  * - 仅使用 tokens.css 变量，禁止任何颜色字面量
  */
 
-import { useState } from 'react';
+import type { BatchDto } from '@agent-scheduler/shared/api/batches';
+import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
+import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
+import { useCallback, useEffect, useState } from 'react';
+import { ROUTES } from '../../../../shared/src/api/routes.ts';
+import { httpClient } from '../../api/http-client.ts';
+import { BatchSummaryBar } from '../../components/batch-summary-bar.tsx';
 import { StatusBadge } from '../../components/status-badge.tsx';
 import type { MobileBatchItem, MobileBatchTaskItem } from './types.ts';
 
+export type MobileBatchListItem = Omit<
+	MobileBatchItem,
+	'taskCount' | 'landedCount' | 'runningCount' | 'waitingCount'
+> & {
+	readonly taskCount: number | null;
+	readonly landedCount: number | null;
+	readonly runningCount: number | null;
+	readonly waitingCount: number | null;
+};
+
 export interface MobileBatchListProps {
 	/** 批次数据列表 */
-	readonly batches?: readonly MobileBatchItem[];
+	readonly batches?: readonly MobileBatchListItem[];
 	/** 点击选择具体任务 */
 	readonly onSelectTask?: (taskId: string, laneNo?: number) => void;
 	/** 自定义类名 */
@@ -31,7 +47,11 @@ export function MobileBatchList({ batches = [], onSelectTask, className }: Mobil
 	const [expandedBatchIds, setExpandedBatchIds] = useState<ReadonlySet<string>>(() => {
 		const initial = new Set<string>();
 		for (const b of batches) {
-			if (b.defaultExpanded || b.runningCount > 0 || b.waitingCount > 0) {
+			if (
+				b.defaultExpanded ||
+				(typeof b.runningCount === 'number' && b.runningCount > 0) ||
+				(typeof b.waitingCount === 'number' && b.waitingCount > 0)
+			) {
 				initial.add(b.id);
 			}
 		}
@@ -57,6 +77,7 @@ export function MobileBatchList({ batches = [], onSelectTask, className }: Mobil
 	if (batches.length === 0) {
 		return (
 			<div
+				data-component="mobile-batch-list"
 				data-mobile-batch-empty="true"
 				className="flex flex-col items-center justify-center p-8 text-center text-[var(--ink-3)] font-ui text-[13px] flex-1"
 			>
@@ -67,6 +88,7 @@ export function MobileBatchList({ batches = [], onSelectTask, className }: Mobil
 
 	return (
 		<div
+			data-component="mobile-batch-list"
 			data-mobile-batch-list="true"
 			className={[
 				'flex flex-col gap-3 p-3 w-full overflow-y-auto flex-1 select-none',
@@ -109,12 +131,12 @@ export function MobileBatchList({ batches = [], onSelectTask, className }: Mobil
 							{/* 批次汇总指标（落地 / 在跑 / 等你，E-13, E-272） */}
 							<div className="flex items-center gap-2 font-mono text-[11px] text-[var(--ink-3)] flex-shrink-0">
 								<span>
-									{batch.landedCount}/{batch.taskCount}
+									{formatCount(batch.landedCount)}/{formatCount(batch.taskCount)}
 								</span>
-								{batch.runningCount > 0 && (
+								{typeof batch.runningCount === 'number' && batch.runningCount > 0 && (
 									<span className="text-[var(--auto)]">在跑 {batch.runningCount}</span>
 								)}
-								{batch.waitingCount > 0 && (
+								{typeof batch.waitingCount === 'number' && batch.waitingCount > 0 && (
 									<span className="text-[var(--needs)] font-semibold">
 										等你 {batch.waitingCount}
 									</span>
@@ -174,6 +196,125 @@ export function MobileBatchList({ batches = [], onSelectTask, className }: Mobil
 					</div>
 				);
 			})}
+		</div>
+	);
+}
+
+function formatCount(value: number | null | undefined): string {
+	return typeof value === 'number' && Number.isFinite(value) ? String(value) : '—';
+}
+
+const snapshotRoute = ROUTES.find(
+	(route) => route.method === 'GET' && route.path === '/api/v1/snapshot',
+);
+
+export type SnapshotFetcher = () => Promise<SnapshotResponse>;
+
+interface TasksSnapshotState {
+	readonly batches: readonly MobileBatchListItem[];
+	readonly isLoading: boolean;
+	readonly error: string | null;
+}
+
+function isBatchDto(value: unknown): value is BatchDto {
+	if (typeof value !== 'object' || value === null) return false;
+	const batch = value as Readonly<Record<string, unknown>>;
+	return (
+		typeof batch.id === 'string' &&
+		typeof batch.docId === 'string' &&
+		typeof batch.batchNo === 'number' &&
+		typeof batch.state === 'string'
+	);
+}
+
+function isTaskDto(value: unknown): value is TaskDto {
+	if (typeof value !== 'object' || value === null) return false;
+	const task = value as Readonly<Record<string, unknown>>;
+	return (
+		typeof task.id === 'string' &&
+		typeof task.taskKey === 'string' &&
+		typeof task.title === 'string' &&
+		(typeof task.batchId === 'string' || task.batchId === null) &&
+		typeof task.state === 'string'
+	);
+}
+
+export function mapSnapshotBatches(snapshot: SnapshotResponse): readonly MobileBatchListItem[] {
+	const tasks = snapshot.tasks.filter(isTaskDto);
+	return snapshot.batches.filter(isBatchDto).map((batch) => ({
+		id: batch.id,
+		batchNo: batch.batchNo,
+		taskCount: null,
+		landedCount: null,
+		runningCount: null,
+		waitingCount: null,
+		tasks: tasks
+			.filter((task) => task.batchId === batch.id)
+			.map((task) => ({
+				id: task.id,
+				taskKey: task.taskKey,
+				title: task.title,
+				status: task.state || '—',
+			})),
+	}));
+}
+
+async function fetchSnapshot(): Promise<SnapshotResponse> {
+	if (!snapshotRoute) throw new Error('Snapshot route is missing from shared ROUTES');
+	return httpClient.callRoute<SnapshotResponse>(snapshotRoute);
+}
+
+function useTasksSnapshot(fetcher: SnapshotFetcher = fetchSnapshot): TasksSnapshotState {
+	const [state, setState] = useState<TasksSnapshotState>({
+		batches: [],
+		isLoading: true,
+		error: null,
+	});
+	const refresh = useCallback(async () => {
+		setState((current) => ({ ...current, isLoading: true, error: null }));
+		try {
+			const snapshot = await fetcher();
+			setState({ batches: mapSnapshotBatches(snapshot), isLoading: false, error: null });
+		} catch (error) {
+			setState({
+				batches: [],
+				isLoading: false,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}, [fetcher]);
+
+	useEffect(() => {
+		void refresh();
+	}, [refresh]);
+	return state;
+}
+
+export function TasksPageContainer({
+	snapshotFetcher,
+}: { readonly snapshotFetcher?: SnapshotFetcher }) {
+	const state = useTasksSnapshot(snapshotFetcher);
+	return (
+		<div data-component="tasks-page-container" className="flex flex-col gap-3">
+			{state.error && <p role="alert">加载任务快照失败：{state.error}</p>}
+			{state.isLoading && state.batches.length === 0 ? (
+				<p>正在加载批次与任务…</p>
+			) : (
+				<>
+					<div className="flex flex-col gap-2">
+						{state.batches.map((batch) => (
+							<BatchSummaryBar
+								key={batch.id}
+								batchId={batch.id}
+								batchName={`第 ${batch.batchNo} 批`}
+								counts={{ running: null, awaiting: null, landed: null, failed: null }}
+								totalTasks={null}
+							/>
+						))}
+					</div>
+					<MobileBatchList batches={state.batches} />
+				</>
+			)}
 		</div>
 	);
 }

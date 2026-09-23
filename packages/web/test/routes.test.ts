@@ -1,6 +1,11 @@
+// @vitest-environment jsdom
+
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import './route-entries.test.tsx';
 import { clearCachedToken, setCachedToken } from '../src/api/http-client.ts';
 import {
 	RouteGuard,
@@ -21,6 +26,13 @@ import {
 } from '../src/app/routes.tsx';
 
 describe('M9-T3 hash router and route guard', () => {
+	it('M9-T25 requires the complete route component table and has no empty route placeholder', () => {
+		const source = readFileSync(resolve(__dirname, '../src/app/routes.tsx'), 'utf8');
+		expect(source).toContain('components: Record<RouteId, ComponentType<RouteComponentProps>>');
+		expect(source).not.toContain('route-page-${match.id}');
+		expect(source).not.toMatch(/components\?\.\[match\.id\]/);
+	});
+
 	beforeEach(() => {
 		clearCachedToken();
 		vi.restoreAllMocks();
