@@ -1,1 +1,3067 @@
-{}
+{
+  "M1-T1": {
+    "contractHash": "ee8c15caead44a27cc3ad9b1a0dfdae27638ee4bd49e6c04058d193db1e3c98d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T10": {
+    "contractHash": "7e7da30312b3f934b246224c42865984720531caa62297945554aed99680ac12",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T2": {
+    "contractHash": "04eae5cc00788415769fb25601f7498e94f41aafd245a0f00c38bd4cb8239e5a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T3": {
+    "contractHash": "d0c8521051f3e3b10a3f271c38de5fd3e530b613575708c1f228c410025bbb4d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T4": {
+    "contractHash": "5c05082c9861dee30f180453df7526ae432fcc05145eddfb3b641ae4fd9c1570",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T5": {
+    "contractHash": "3eeb5b9fd1583e7ee81fbe7bd6694f3668c60eab914b113ba5433c0f52253b49",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T6": {
+    "contractHash": "eb3b65e9b8fc8be04dc29fec9f12719833c964ea3677464bc88e4e8933da234b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T7": {
+    "contractHash": "a2c332298f8a9148750038d9e2fde2dd018e5f81be028552e17d59e8b015db85",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T8": {
+    "contractHash": "a4c76214457c0138c56097104d22319b03f597a801467c7da8dad9004b624f01",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T9": {
+    "contractHash": "459a729534b869acc125a40ab5a558f478fd97ef2087a44c0b82e540f6ae62fb",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T1": {
+    "contractHash": "a14b31bf0968679bf7be6ef00e31599ad7ef9d4c67c8f044f8530318deea5723",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T2": {
+    "contractHash": "d3e789bb7a1fbd40412bd5c7e8e1ea9286015d46bc205f6730ccd99aab515be4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T3": {
+    "contractHash": "947cf9a8116d2938f66d46079f457d6cede786db9059fda622058c10d2b872eb",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T4": {
+    "contractHash": "7679c6f3a93214a4a716ec2fdd5da387c70265521f99df8c3c9f459b0a7516e2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T5": {
+    "contractHash": "6112ddb0fb5974e31e8969e872d08a561d8a374272415d19c81dc0f526fb065a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T1": {
+    "contractHash": "3a81f29a56e308b92f7e721d13b125c0ffa6a0434d6a66ef3e4b06fa877a7912",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T2": {
+    "contractHash": "2bdff5133068c60ebacd10e0f16aa4252cc3b2ca19b3715f2bf575ab4f5cf692",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T3": {
+    "contractHash": "aedaa7004de1ce9e3c8fbf72074a4ebceccce3ecd0ec5112e882c8fb31cc44f4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T4": {
+    "contractHash": "0052b08cb6ff3d208845d9619865cb9396466df113712d46e999c87f075510ae",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T5": {
+    "contractHash": "d0a23b25a717e604d54c69952dc9d11f21b411d0147c2337958c16b75fb69ee2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T6": {
+    "contractHash": "07f2a788bcfbcb8f0224ef1d191f8daaaa5f1b645bdb60f32b69d40e8dd60264",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T7": {
+    "contractHash": "03afd253732a8c9580110d7a73a5cf3eb904ee2d085802a12ff8e70e7e945a51",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T8": {
+    "contractHash": "91cc69b8071f7bb7288e7b6a7fd9e9e9190650e935b3431e9112dd37ff580bf1",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T1": {
+    "contractHash": "b757d209bd700f0fbbe1bf96c9818575ce1ee6696fd75c2dff1da92da1fd2a1e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T2": {
+    "contractHash": "2ab11c908948a47a50cc390920936cb3a77fd0b8f54c3cf44a1aad4f9a605779",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T3": {
+    "contractHash": "97005809d737ca778b4854eb0b4f2d5e37ecae0aeb76cb598df8ca63c8d422d0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T4": {
+    "contractHash": "a9816b78fc880dbf8ca4dc491f5f162cca174b6dc0dc1c41032e01dd834e2c8a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T5": {
+    "contractHash": "194ced0b6c2275f5903930e05b3e321ec4614cb1ef2a5bb90407f152ca81519d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T6": {
+    "contractHash": "e2c45af9e7bb424d27a943a0600b80355402353342795d78226c8116a29043b4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T7": {
+    "contractHash": "25d0e38de4bbacf9d980f76349ff9d49e0fc999e7257a6dacccc52155c318c42",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T1": {
+    "contractHash": "e2aa464823d7f46f299b6c8a572b0c6e72d90b632577f228f4f8c14a0f0a059c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T10": {
+    "contractHash": "27c70a9170ebb269239dbebdd92fe5a3be96991ed12fd8298846f06db078f17d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T11": {
+    "contractHash": "84106c9712a8127555cbe56c6cd68fc8fb4e29bff0979bea067fbe88ce00945d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T12": {
+    "contractHash": "247300850659dfd98e8c7edd85217c00801908f46b5ee4d44247785e78e0b37d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T13": {
+    "contractHash": "9b79bfc8048d63c841a1bb051ec6cdcdb7f6d49d8909304bf286ead87fb0b4ba",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T14": {
+    "contractHash": "f8b40d4fb2886be33f233042fddfb5b85d98c8330861ab7cd6dd77ecb7c66ae2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T2": {
+    "contractHash": "e83a62c224c14a4b904d46ca72bcfb6915d3496850c984c43b665b649bb5aa3c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T3": {
+    "contractHash": "32c2effd8ec3e4baafe99f22eb6f5f5c7a9fe42436a2813d97b700f60bcde35f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T4": {
+    "contractHash": "834ae935d5e24b655ec1c9e1a33b27fc3b06920328b5b63fdc22dfd9e4efc931",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T5": {
+    "contractHash": "12e85ce03da25c96283f126eba687a14878c673c5be5e1fa98c2aab0d98b51d0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T6": {
+    "contractHash": "18b7f416f06218eadbd83b2ed6cf501ab62895b563c0e65229a85a7d710febf3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T7": {
+    "contractHash": "76f18c2f9518bd2a472a4c2864fa0d0c2bf9605bcbba064f2fd4286c65590b73",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T8": {
+    "contractHash": "b220b44eae724a3e397569804bcc839417b8be8a91d33105d17513a73ea0e55c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T9": {
+    "contractHash": "8a9750e015d5606add3842839cdd0f073e5a70f154ea89af753b603862dcd127",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T1": {
+    "contractHash": "e9ddb9966780c660eda21ff1fd97153bf299b8c56be5fbc1cf1c07c4590db640",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T2": {
+    "contractHash": "b7191d1ddcad168d62190e9e607154b3bd810fb14d73e377c9c3fbd7dc3cc5f6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T3": {
+    "contractHash": "a2015a9e719dbf3c6ad9a817a7cb5f0158cc592ffd4e8049c83789ce7ad17c8e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T4": {
+    "contractHash": "bd858b0a63839aa60a758d5d0e834917506cb49a7dbe228ba264cfbe2dec760d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T5": {
+    "contractHash": "083d008a0dc440dc180976f01713dcd0622480e1364d7bcfecc2a508b6cefa28",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T1": {
+    "contractHash": "1da78bdf629866d629221b99d853ca8c9eb3ec1a2e32cd2ac1615c0d45336105",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T10": {
+    "contractHash": "a14af9a896cebc50747ceeaf6822b1328ffee1d440d1e817b687ac0a5ea09da2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T2": {
+    "contractHash": "36e5248539abfe30a17a1c453d7838f6c9b00a7ceeef2a5f6489ab4447122921",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T3": {
+    "contractHash": "120bba2f2fa1f161e46b47646a2d2b48c5d59bdcf23273b5f09d64711de08ab3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T4": {
+    "contractHash": "dc3f9c0579f9370b83d61398e112d83bbcf733060a61ab9425a1f96a60df07cd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T5": {
+    "contractHash": "fccf223abf9feec3476cbebfcc577d83aa131b403942bf18f9b40289c68608e6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T6": {
+    "contractHash": "96f32d32deead3b045c09f61ee839557eab785269659346df2566eb67c5b4a32",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T7": {
+    "contractHash": "c11ac74762b482f74d1cbeb9f0b537f4b101f56aef9f771b7d464f4fd85b733f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T8": {
+    "contractHash": "da000adb7e4f4738b4b88b2a02ddcb06d80efef647ad4f678bfdaecb071ee37a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T9": {
+    "contractHash": "2dcec63f430a21ab8409c6da5f04e21f9f624d7148272a85e52a6deabe021294",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T1": {
+    "contractHash": "b276bf0ef67f34a46cdb9e2bafaf33ec4414eae4a91aa0ed10f5867bf34a77b2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T2": {
+    "contractHash": "97ec9ea07b318d1c976eed5b52bf07c4437ed21bdd44ad3503c42b77adb716bb",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T3": {
+    "contractHash": "1cfe32958810491f29c9069895fb6d010b007803836019261297625cf1c00e34",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T4": {
+    "contractHash": "d32e002643ed11152bd34ec5873631758b4e99a46520072c78568adb1df17edc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T5": {
+    "contractHash": "b8d50c4d6a711c6830495a214ff1c4636e44c3bda8fe583166f46f338f79be21",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T6": {
+    "contractHash": "d9fa173ab32b70fe71fa76a5ed156fe8ced0ef79a2d015a04933e156b2fe94f6",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T7": {
+    "contractHash": "1c76e02210705ca4fc527904b3b1c774505c542c390eb68ca2047af8f13ad1d0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T8": {
+    "contractHash": "56d779ed59b82e0fc2ad1e82eb41a2f080f75ffc175ccebbc4544f23ebd57416",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T1": {
+    "contractHash": "a234ae3abf8426610e441152dcaf30b199ed8eec1a1b413cf4472696e8855f0e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T10": {
+    "contractHash": "daabf0a3dd6a32038fbdaa7f70e7ab97542af9c5a8f34d112773d77f70a5c82d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T11": {
+    "contractHash": "ca6a57984837f90d6096a50f810c7ef691b0a50d8dcb6ddbd4353b0a59f703a5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T2": {
+    "contractHash": "ce6868c0355e830a2e285128923392ddf0ab98dd8374a7e06fa145385233fe2a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T3": {
+    "contractHash": "f5c339f1b4ac991f969eb983f13efc3194f133db4cbc906b4f1b45102081cb83",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T4": {
+    "contractHash": "394c0f109573c60f01f26c53752b35e3fed6830015bbec0efa60b9bfa686f5d4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T5": {
+    "contractHash": "d175127876e831baaa434edd8ce385380a5628201c9e94241e3abfbe205ba769",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T6": {
+    "contractHash": "5167e92f4d4ff155a095626b307201cafdca052c211ff11a7b1e44e43183730a",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T1": {
+    "contractHash": "f3bbb848cfdd839cda60a7fb4fded02d01b1289345f724b1a12ecb00634183a9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T10": {
+    "contractHash": "896767d09da359c840779d7a3d61a7d337fa744822f1d98563b7fc0aef574e2f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T11": {
+    "contractHash": "26cd277c2aa71cf89a7aea2daf11ecf2d440408370f8c9bcbe56a765156588af",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T12": {
+    "contractHash": "de3e9d34c460cf3f076b11acc71f7bc15cb18b8dee5a70917d22e903a2f06b4a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T13": {
+    "contractHash": "2b0178a6790402960bc080ea99f3065860e10ac1d7ad73a55009205e0674a794",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T14": {
+    "contractHash": "57b203f335e66f11734d179044501e1b23372e649590b46ce982b9b62505dd70",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T15": {
+    "contractHash": "fbc9addbd7f60d5d64221339eeb6b1aa7221f5b087359039f7073b217cf7bd4c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T16": {
+    "contractHash": "7ff1a24fa8174dd6255bb7f5159b2cc1f1371fd477c810c1f7f8b12106480d0b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T18": {
+    "contractHash": "054ba7507c43ef5e5239aa3715e3a36d8b3e65598229837f0d4a3a4ecdf2864d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T2": {
+    "contractHash": "7219483a0c1994d75ec1a4d229ed8f2514df7fb3b9f33e23a68e9d3a17f05430",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T24": {
+    "contractHash": "c2fd4d42080ffadf38256e08c0ae473cf042010aa2512dbc012195cba57400e6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T26": {
+    "contractHash": "e400d8196ac64b11a9696cc77b55be0cf7d163e5e8ef7d72b8a05e99362abdb3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T3": {
+    "contractHash": "c46c3482b9365a4f56a0895d25d8a4ac21d95d520762810094d40d0a3a6c180e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T4": {
+    "contractHash": "8edc3efa5a2f9f97a1c230deb91dbf50432532f15596960885010a64dbb64efd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T5": {
+    "contractHash": "678c5f2ba8716aaef0f4209be739ecb230b83175b2b023135eba4fe17822f6cc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T6": {
+    "contractHash": "21b8f3bab485bb24911fa56e1c16bea92862a649cc1e99d2ad18ba8db3f8ca90",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T7": {
+    "contractHash": "c70e27b55c3dc3b0c179d4d3721c5cf951a326f307590f508ed292ca40f5b8cf",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T8": {
+    "contractHash": "4a3d76b029cec1686b7ecfe53295fdad4a1fe6907f22e3b86f94288a1dabfc63",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T9": {
+    "contractHash": "369cc4cdf2a51e89b85166a199516e6012f8883470593e3f8e429db1ec2fe948",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "768dfb9402a88529479e7ce606820620ff3ac98b622322d7234ed29f0e122346"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260917",
+        "sourceVersion": "224e48465b22abdc673e1895dcad0ff3720f15ca69a8b689757bae0ce754ecab"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "3d351ca9b125fdf476d7fb349f792e3679da4b3b90548983cbe940259b9829ba"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "m9-t19-prereqs-gates-get-20260923",
+        "sourceVersion": "0575d07ce16bd300bb600e635e316540a6ebcf844b76f27f1c14252d2c54789d"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}

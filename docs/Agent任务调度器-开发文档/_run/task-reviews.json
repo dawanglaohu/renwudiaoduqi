@@ -1213,14 +1213,16 @@
     "verdict": "pass"
   },
   "M9-T19": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "7f924480a446c81a41d56bd34570d4f49d600494647d1c25d3a4778035f6773e",
+    "compiler": "477f5cd7c1230e69e61d653e3e3f728376a14da5d118f96b5bc01474638d354b",
+    "contractHash": "5fceee3dffa2dcbfacf3a7dc4ae33e9df02036b2e1756bf34b9a25b6dad514a7",
     "evidence": [
-      "19 节 M9-T19 行：依赖 M9-T16（左栏与批次汇总条）、M9-T2（形状）、M9-T5（SSE/event-bus）；19 条有效路径覆盖 batch-tree/pulse-dot/gate-toggles 组件、lib/run-pulse、features/run-deck 三个文件、task-list 目录、base.css、check-forbidden、cache-invalidation/keys、spine.tsx（改为 import pulse-dot）与五个测试文件；sections 含 11、12",
-      "验收 1)～6) 对应 E-284（展开集只增不减、不持久化）、E-272/E-298（daemon 字段与进 HEAD 三态）、E-282（一个 pulse-dot、keyframe 唯一、13 状态映射、reduced-motion）、E-13（手机档取代折叠列表）、E-299（闸门开关）；11 节「批次树」小节、07 节「批次树的展开集」小节与 lib/components 清单已写明；决策 71/85/86 的取值已进文档",
-      "接缝：BatchDto 新字段（defaultExpanded/canWrapup/四计数/notInHeadCount）由 M8-T6 在 shared batches.ts 落，本任务只读；`settings.gates_changed` 由 M8-T4 发；前端不算任何业务判定（07 节「批次树同样不算」）"
+      "2026-09-23 对照任务笔记六条验收与 E-13/E-272/E-282/E-284/E-298/E-299：批次树只消费 BatchDto/TaskDto，缺失计数显示 —，折叠后不创建子行；展开集为模块级 Set 且 batch.advanced 只增不减。对应 batch-tree.tsx、batch-expansion.ts、use-batch-tree.ts。",
+      "已落地 M8-T7 的 shared TaskDto 与 daemon docs/dispatch 投影提供 inHead、inHeadMethod、crossBatchFix；M8-T6 的 BatchDto/批次服务提供 canWrapup 与 notInHeadCount。M9-T19 不在前端猜这些字段。",
+      "M9-T25 七路由接线合入后，app.tsx 保留完整组件表并只装配一组 GateTogglesContainer；#/tasks 指向 TaskListContainer 与同一 BatchTree，phone/coarse pointer 传入 44px 档。配对页及无设备令牌时不挂闸门。",
+      "GET/PATCH /api/v1/settings/gates 均在 shared 路由表与 daemon gates.ts 注册；前端 PATCH 全量三值并等 settings.gates_changed 回流。PulseDot 被 spine 与批次树共用，RUN_PULSE 穷尽 13 态，base.css 唯一 keyframe 与 reduced-motion，check-forbidden 通过。",
+      "合并 origin/main 后 Windows pnpm -w check 零退出：177 个文件、2120 passed、3 skipped；Web 生产构建通过。之后手机任务路由调整的聚焦 route-entries/batch-tree 测试 20/20、Biome 与 TypeScript 通过。maintain_docs status 报 stale=[]、runtimeDrift=[]。"
     ],
-    "reviewed": "2026-09-10T20:08:25.984292+00:00",
+    "reviewed": "2026-09-23T12:45:47.471559+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

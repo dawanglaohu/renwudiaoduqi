@@ -22,7 +22,7 @@
     "tests/test_release_1_6_1_tests.py": "124afe5a6d3ce2d723bbf9dd983c014b1a11919b82e674ac130db26ed0ffea09",
     "tests/test_release_1_6_adjudication.py": "703a5f88a820316d4816448dba034705385aba6dfb48a80c2096102109252e21",
     "tests/test_stage.py": "7ef011340a114e029f20f137077f7b2b9f3dee576c1e3a61e3494c07c41976ba",
-    "typesafe_ask.py": "858031e2fa87995ed88d65f8854f9c450ec8df6c67482511769df129e73067d9"
+    "typesafe_ask.py": "a735c1e6c1fa76961a552eb4871af984e55c0603cc2c8523247101b3ca5584c5"
   },
   "version": "1.6.1"
 }

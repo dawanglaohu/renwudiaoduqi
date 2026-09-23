@@ -46,3 +46,63 @@ samp {
 	max-width: 100%;
 	box-sizing: content-box;
 }
+
+/* 呼吸环是全页唯一的连续动画种类，共用 @keyframes agsched-pulse 与 --pulse（E-282, 11 节 UI） */
+@keyframes agsched-pulse {
+	0% {
+		transform: scale(0.95);
+		opacity: 0.8;
+	}
+	50% {
+		transform: scale(2.2);
+		opacity: 0.15;
+	}
+	100% {
+		transform: scale(0.95);
+		opacity: 0.8;
+	}
+}
+
+.pulse-dot {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 8px;
+	height: 8px;
+	border-radius: 9999px;
+	flex-shrink: 0;
+}
+
+.pulse-dot-live {
+	background-color: var(--auto);
+}
+
+.pulse-dot-live::after {
+	content: "";
+	position: absolute;
+	inset: -3px;
+	border-radius: 9999px;
+	background-color: var(--auto-soft);
+	border: 1px solid var(--auto);
+	animation: agsched-pulse var(--pulse, 1.6s) cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+	pointer-events: none;
+	box-sizing: border-box;
+}
+
+.agsched-pulse-ring {
+	animation: agsched-pulse var(--pulse, 1.6s) cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pulse-dot-live::after,
+	.agsched-pulse-ring {
+		animation: none !important;
+		opacity: 0.4 !important;
+		transform: scale(1.2) !important;
+	}
+}
+
+.pulse-dot-waiting {
+	background-color: var(--needs);
+}

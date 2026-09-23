@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "defaults": {
+    "codex": {
+      "execPath": "codex",
+      "argsTemplate": [
+        "exec",
+        "--json",
+        "--model",
+        "{model}"
+      ],
+      "maxConcurrency": 1,
+      "defaultModel": null,
+      "permissionTier": "workspaceWrite",
+      "monogram": "CX",
+      "adapterKind": "native",
+      "timeouts": {
+        "startupTimeoutMs": 60000,
+        "idleTimeoutMs": 900000,
+        "hardWallClockMs": 0
+      },
+      "versionFingerprint": {
+        "args": [
+          "--version"
+        ],
+        "expectedPattern": "\\bcodex\\b"
+      },
+      "loginProbe": {
+        "args": [
+          "login",
+          "status"
+        ],
+        "parser": "codex_login_status",
+        "loggedInPattern": "^Logged in",
+        "loggedOutPattern": "not logged in",
+        "loginCommandHint": "codex login"
+      },
+      "modelsLive": {
+        "kind": "codex_app_server",
+        "args": [
+          "app-server"
+        ],
+        "parser": "codex_model_list_jsonrpc",
+        "timeoutMs": 10000
+      },
+      "builtinModels": [],
+      "defaultEffortTier": null,
+      "effortVendorMap": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      }
+    },
+    "claude": {
+      "execPath": "claude",
+      "argsTemplate": [
+        "--print",
+        "--output-format",
+        "stream-json",
+        "--model",
+        "{model}"
+      ],
+      "maxConcurrency": 1,
+      "defaultModel": null,
+      "permissionTier": "workspaceWrite",
+      "monogram": "CL",
+      "adapterKind": "native",
+      "timeouts": {
+        "startupTimeoutMs": 60000,
+        "idleTimeoutMs": 900000,
+        "hardWallClockMs": 0
+      },
+      "versionFingerprint": {
+        "args": [
+          "--version"
+        ],
+        "expectedPattern": "\\bClaude Code\\b"
+      },
+      "loginProbe": {
+        "args": [
+          "auth",
+          "status"
+        ],
+        "parser": "claude_auth_json",
+        "loggedInPattern": null,
+        "loggedOutPattern": null,
+        "loginCommandHint": "claude auth login"
+      },
+      "modelsLive": {
+        "kind": "none",
+        "args": [],
+        "parser": "none",
+        "timeoutMs": 5000
+      },
+      "builtinModels": [
+        {
+          "name": "opus",
+          "note": "别名，实际可用由登录账号决定"
+        },
+        {
+          "name": "sonnet",
+          "note": "别名，实际可用由登录账号决定"
+        },
+        {
+          "name": "haiku",
+          "note": "别名，实际可用由登录账号决定"
+        },
+        {
+          "name": "opus[1m]",
+          "note": "别名，实际可用由登录账号决定"
+        }
+      ],
+      "defaultEffortTier": null,
+      "effortVendorMap": {
+        "low": "2048",
+        "medium": "8192",
+        "high": "32768"
+      }
+    },
+    "pi": {
+      "execPath": "pi",
+      "argsTemplate": [
+        "--print",
+        "--mode",
+        "rpc",
+        "--model",
+        "{model}",
+        "--session-dir",
+        "{session_dir}"
+      ],
+      "maxConcurrency": 1,
+      "defaultModel": null,
+      "permissionTier": "workspaceWrite",
+      "monogram": "PI",
+      "adapterKind": "native",
+      "timeouts": {
+        "startupTimeoutMs": 60000,
+        "idleTimeoutMs": 900000,
+        "hardWallClockMs": 0
+      },
+      "versionFingerprint": {
+        "args": [
+          "--version"
+        ],
+        "expectedPattern": "\\bpi\\b"
+      },
+      "loginProbe": {
+        "args": [
+          "auth",
+          "check",
+          "--provider",
+          "{provider}",
+          "--json"
+        ],
+        "parser": "pi_auth_check",
+        "loggedInPattern": null,
+        "loggedOutPattern": null,
+        "loginCommandHint": null
+      },
+      "modelsLive": {
+        "kind": "command",
+        "args": [
+          "--list-models"
+        ],
+        "parser": "pi_list_models_table",
+        "timeoutMs": 5000
+      },
+      "builtinModels": [],
+      "defaultEffortTier": null,
+      "effortVendorMap": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      }
+    },
+    "grok": {
+      "execPath": "grok",
+      "argsTemplate": [
+        "--single",
+        "--output-format",
+        "streaming-json",
+        "--model",
+        "{model}"
+      ],
+      "maxConcurrency": 1,
+      "defaultModel": null,
+      "permissionTier": "workspaceWrite",
+      "monogram": "GK",
+      "adapterKind": "native",
+      "timeouts": {
+        "startupTimeoutMs": 60000,
+        "idleTimeoutMs": 900000,
+        "hardWallClockMs": 0
+      },
+      "versionFingerprint": {
+        "args": [
+          "--version"
+        ],
+        "expectedPattern": "\\bgrok\\b"
+      },
+      "loginProbe": {
+        "args": [
+          "models"
+        ],
+        "parser": "grok_models_exit",
+        "loggedInPattern": null,
+        "loggedOutPattern": null,
+        "loginCommandHint": "grok login"
+      },
+      "modelsLive": {
+        "kind": "command",
+        "args": [
+          "models"
+        ],
+        "parser": "grok_models_text",
+        "timeoutMs": 5000
+      },
+      "builtinModels": [],
+      "defaultEffortTier": null,
+      "effortVendorMap": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      }
+    },
+    "dsh": {
+      "execPath": "resources/host/node_modules/@deepseek-ai/dsh/lib/bin.js",
+      "argsTemplate": [
+        "--profile",
+        "headless",
+        "--model",
+        "{model}"
+      ],
+      "maxConcurrency": 1,
+      "defaultModel": "deepseek-chat",
+      "permissionTier": "workspaceWrite",
+      "monogram": "DS",
+      "adapterKind": "native",
+      "timeouts": {
+        "startupTimeoutMs": 60000,
+        "idleTimeoutMs": 900000,
+        "hardWallClockMs": 0
+      },
+      "versionFingerprint": {
+        "args": [
+          "--version"
+        ],
+        "expectedPattern": "\\bdsh\\b"
+      },
+      "versionRange": {
+        "min": "0.1.0",
+        "max": "0.1.2"
+      },
+      "loginProbe": {
+        "args": [],
+        "parser": "none",
+        "loggedInPattern": null,
+        "loggedOutPattern": null,
+        "loginCommandHint": null
+      },
+      "modelsLive": {
+        "kind": "none",
+        "args": [],
+        "parser": "none",
+        "timeoutMs": 5000
+      },
+      "builtinModels": [],
+      "defaultEffortTier": null,
+      "effortVendorMap": null
+    }
+  },
+  "overrides": {}
+}

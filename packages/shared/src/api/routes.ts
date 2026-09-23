@@ -563,6 +563,14 @@ export const ROUTES: readonly RouteDefinition[] = [
 		bodyKeys: DECIDE_GATE_BODY_KEYS,
 	},
 	{
+		method: 'GET',
+		path: '/api/v1/settings/gates',
+		auth: 'device',
+		reqType: 'void',
+		resType: 'UpdateGateSettingsResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_INTERNAL'],
+	},
+	{
 		method: 'PATCH',
 		path: '/api/v1/settings/gates',
 		auth: 'device',
