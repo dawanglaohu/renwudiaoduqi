@@ -1048,14 +1048,14 @@
     "verdict": "pass"
   },
   "M8-T8": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "ce703a06b65ef96af0c169c47c4e1f9fbb3acb63a005d346bf0cc96d7252899c",
+    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
+    "contractHash": "dcb0d50968201f829e44da5bb5b475ff4d71b2889947d34c1c942c1f31a15aba",
     "evidence": [
-      "19 节 M8-T8 行（第 78 行）：依赖 M8-T3、M8-T6、M7-T8、M6-T10 在前置闭包，requires bughunt-stage / session-archive / batch-wrapup 各有唯一提供方；产出 domain/lanes.ts、lane-slots.ts、pipeline-settings.ts、wrapup-policy.ts canWrapup、service/lanes.ts、settings.ts、dispatch.ts 补位段、wrapup.ts 模式校验、jobs/scheduler-tick.ts 第②③步、三个路由文件、shared api/lanes.ts、四个测试文件，全部在 taskPaths；shared settings/events/routes/snapshot/documents/codes 与 concurrency.ts、path-clash.ts、session-guard.ts 在 supportPaths",
-      "验收 1)～7) 逐条对应：08 节 scheduler-tick 第 ②③ 步改写（第 373 行起：手动模式不触发、槽位补位、返工优先、agent 上限按运行）、事件清单八值 scope 与 lane.*/document.settings_changed/settings.pipeline_changed；09 节 settings.pipeline、tasks.lane_no、「泳道槽位与会话归档」小节（LANE_STAGES 七值、PIPELINE_STAGES、deriveLanes 派生不落表）、批次状态机手动模式说明；10 节 GET/PATCH /settings/pipeline、snapshot lanes 字段契约与示例、documents/:id/settings laneCount 1–6、E_PIPELINE_STAGE_DISABLED；决策 87、92、93、99、104、105、106；E-303、E-306、E-309～E-312、E-317、E-318、E-319、E-326、E-327、E-332、E-334；17 节 pipeline-lanes 十四条集成断言",
-      "接缝：M8-T1 的 calculateConcurrencyLimit / countsTowardAgentConcurrency 已核实按运行计数（packages/daemon/src/domain/concurrency.ts、run-state-machine.ts），本任务新增 countLaneSlots 按任务槽位计、不改其签名（E-311）；M9-T21 只消费 lanes[] 与 shared PIPELINE_STAGES，不算槽位（E-317）；M9-T22 消费 GET/PATCH /settings/pipeline 与 settings.pipeline_changed"
+      "04-执行/19-模块任务拆分.md M8-T8 AC4 now resolves the full-lane case consistently with 图谱/边界/E-327.md: human rework waits outside lanes when full and takes the smallest free lane ahead of new work. Jev adjudicate M8-T8:review selected option A (jev-1.13.0, adopt=take).",
+      "_run/task-contracts.json M8-T8 supportPaths includes the real human gate and rework entrypoint (service/gates.ts, service/rework.ts, boot/container.ts, http/routes/gates.ts, container-wiring.test.ts), plus the required shared package export and events test. Current PR #132 also changes gates.ts and container.ts, so its head must be reconciled before implementation merges.",
+      "The task still depends on M8-T3, M8-T6, M7-T8 and M6-T10. The retained acceptance clauses and all fifteen listed E-283 through E-334 boundary notes remain in scope. This verifies the task definition, not the code in PR #133."
     ],
-    "reviewed": "2026-09-12T17:05:15.065355+00:00",
+    "reviewed": "2026-09-23T05:50:37.637773+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
