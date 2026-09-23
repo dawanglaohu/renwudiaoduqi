@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T13": {
+      "contractHash": "58afdf1b15d93947a481d5f5080b0dd61314b931bb9ce3a43ac7ca0ab56dc14d",
+      "evidence": [
+        "任务定义、五条验收标准、E-177 与 E-181 原文未改；本轮仅继续原补丁补入生产样式接线所需的 packages/web/vite.config.ts。",
+        "Vite 配置属于 AC5 的直接运行依赖：补丁前生产 CSS 原样保留 @tailwind 且不含 .w-full，整宽、44px 触控高度与拇指条间距均不生效；显式接入 tailwindcss PostCSS 后，构建 CSS 不含 @tailwind、包含 .w-full，体积从 5.3KB 增至 34.8KB。",
+        "路径冲突复核：vite.config.ts 的既有所有者 M10-T4 已落地，当前在途 M9-T18、M9-T19 均不修改该文件；其余有效路径保持 app/app.tsx、run-detail-page.tsx、error-messages.ts、本任务测试与 features/run-detail。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

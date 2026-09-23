@@ -1,0 +1,25 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T18": {
+      "contractHash": "488e250e80491de24d5f63014189e0771c9dce39179cacae253c89bedcdb8df3",
+      "evidence": [
+        "本次补丁不改 M9-T18 的五条验收标准与 E-108/E-31/E-47/E-52 边界原文，只在 task-contracts.json 的 supportPaths 追加 packages/web/src/app/app.tsx：该文件是 #/ 运行甲板的唯一装配点，不接线则零运行四步引导与逐任务指派面板在真实服务上不可达，验收标准 5 的「接进真实零运行流程」与真实服务 GIF 都无从满足。七键必填表与其余五条路由的装配仍归 M9-T25，本任务只加 deck 与 pair 两个键。",
+        "读侧与契约一致：packages/web/src/api/batches.ts:41 的 readAssignments() 与 :51 的 putAssignments() 都经 httpClient.callRoute + shared ROUTES 表访问 GET/POST /api/v1/batches/:batchId/assignments，无 URL 字面量与第二套 fetch；packages/web/src/features/run-deck/use-assign-panel.ts:147 把 drafts[] 逐字段（含 sessionNo）透传为展示记录，:174 把 preview.agentCapacities 的 active/limit/isFull 透传为 agent 容量，:591 的有效并发、瓶颈来源与是否越过窗口原样来自 preview，全文件没有 Math.min 或按数组顺序的序号推导。",
+        "写侧与决策 136 一致：use-assign-panel.ts:450 的 writeAssignments() 每次改选都把当前草稿集合整批 POST 到同一端点，并用返回值同时刷新 selection-store 与预览；被 daemon 拒绝时保持服务端原状只就地提示（assign-panel.test.ts:565 起的四个用例覆盖读回、覆写刷新、重置、用户设定改写与拒绝路径）。run-deck-view.tsx:190 的零运行分支只消费该 hook，文件内不存在文档/批次/任务/agent 演示数组，接线由 assign-panel.test.ts:867 的两个源码断言固定。",
+        "真实服务复核：用本分支工作树的 daemon 运行时（真 SQLite/WAL、真迁移、真 HTTP）启动服务，经公开 POST /api/v1/pair/claim 配对后以公开 POST /api/v1/documents 导入仓库自己的 docs/Agent任务调度器-开发文档/docs-data.js（110 个任务、17 个批次、注册表 5 个 agent），再走四步引导。观测到 daemon 给出的独立会话序号（同一 codex 的 M1-T2=会话 #1、M1-T3=会话 #2）、codex 满额提示、以及两个批次不同的瓶颈判定（第 2 批 window_count/有效并发 0；第 1 批 agent_limit/有效并发 1），GIF 从这次运行录制，computed style 断言 document.body 背景为 rgb(15, 18, 19)（tokens 生效）。",
+        "反造假扫描干净：有效路径内 grep not implemented|placeholder|stub|TODO|待接入|后续接入 无命中（两处 data-testid 里的 placeholder 字样已改名），无 window.__x/globalThis.__x 测试钩子，无 src/api 之外的 fetch，无硬编码 true 的门禁或探测分支；组件层原先自立的五值瓶颈枚举与同名 TaskAssignmentDraft 类型已删除，改为 import shared 的 CONCURRENCY_PREVIEW_BOTTLENECKS 与单一 TaskAssignmentSelection 定义。",
+        "测试：packages/web/test/assign-panel.test.ts 31 例与 M9-T16 的 landing-onboarding.test.ts 16 例全绿；pnpm -w check 的 biome/tsc/check-forbidden/check-contrast 全过，全量 vitest 除两个 Windows 进程树 spawn 计时用例（kill-tree-native、platform.test.ts）并行负载下超时外全绿，单独重跑该两文件 43 例全过。",
+        "GIF 录制环境说明（写进 PR body 溯源）：非提权会话无法既满足 Windows 机器级实例锁对 C:\\ProgramData\\agent-scheduler 的 ACL 要求又保持自身可写，故 daemon 以真实运行时启动、仅把实例锁适配器换成可用替身；其余（鉴权、配对、文档导入、指派读写、并发预览）全部走真实服务与真实 HTTP。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T23": {
+      "contractHash": "9095cd407d3e937b9a83084aba2b63ea2056013c554d93c40f7bfb1ff5cad170",
+      "evidence": [
+        "本次补丁的差异只在 task-contracts.json 内 M9-T18 条目（追加 packages/web/src/app/app.tsx）与其重复条目的去重；逐字段比对当前 M9-T23 条目与 main：requires 完全一致，supportPaths 唯一差异是 packages/web/test/assign-panel.test.tsx → packages/web/test/assign-panel.test.ts，该更正来自先前已复核的补丁 m9-t18-test-support-20260917，不是本次补丁引入。M9-T23 的任务行、验收标准与有效范围未变，故本次只做传播口径复核，不改变其派发条件。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

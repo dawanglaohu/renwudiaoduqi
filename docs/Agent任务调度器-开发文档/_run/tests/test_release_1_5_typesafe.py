@@ -126,7 +126,7 @@ class TypeSafeDocChecks(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             install_project.install(self.doc, root=Path(self.temp.name))
         self.assertTrue((self.doc / '_run/tests/test_release_1_5_typesafe.py').is_file())
-        self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.6.0')
+        self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.6.1')
 
 
 class TypeSafePromptTests(unittest.TestCase):

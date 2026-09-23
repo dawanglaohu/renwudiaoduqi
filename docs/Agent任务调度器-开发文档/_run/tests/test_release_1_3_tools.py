@@ -62,10 +62,10 @@ class Release13ToolTests(unittest.TestCase):
     # ---- 版本号 ----
     def test_version_is_1_3_1(self):
         import install_project
-        self.assertEqual(hc.VERSION, '1.6.0')
+        self.assertEqual(hc.VERSION, '1.6.1')
         with contextlib.redirect_stdout(io.StringIO()):
             install_project.install(self.doc, root=self.base)
-        self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.6.0')
+        self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.6.1')
 
     # ---- build 子进程超时 ----
     def test_build_subprocess_timeout_is_600(self):
