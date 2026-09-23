@@ -30,6 +30,7 @@ import {
 } from '../../src/service/dispatch.ts';
 import type { DocsService } from '../../src/service/docs.ts';
 import { type GateService, createGateService } from '../../src/service/gates.ts';
+import { createLandingService } from '../../src/service/landing.ts';
 import { type WrapupService, createWrapupService } from '../../src/service/wrapup.ts';
 import { type InHeadCheckMethod, isBranchInHead } from '../../src/workspace/in-head.ts';
 
@@ -1674,6 +1675,11 @@ verdict: open
 			expect(JSON.parse(resNotFound.body).error.code).toBe('E_NOT_FOUND');
 
 			// 4. Successful recall
+			await gateService.resolveAfterReviewAndApply({
+				taskId: 'task-1',
+				runId: 'run-t1-recall-base',
+				reviewVerdict: 'pass',
+			});
 			const resSuccess = await app.inject({
 				method: 'POST',
 				url: '/api/v1/tasks/task-1/recall',
@@ -1891,6 +1897,7 @@ verdict: open
 
 			// 3. Wire real-like execution environment in dispatchService
 			const spawnedCwds: string[] = [];
+			const launchedPrompts: string[] = [];
 			const mockProc = {
 				spawnManaged: (spec: { cwd: string; runId: string }) => {
 					spawnedCwds.push(spec.cwd);
@@ -1947,14 +1954,18 @@ verdict: open
 				>[0]['runService'],
 				adapters: {
 					codex: {
-						buildLaunchSpec: (params: BuildLaunchSpecInput) => ({
-							runId: params.runId,
-							file: 'codex',
-							cwd: params.cwd,
-							command: 'codex',
-							args: [],
-							env: {},
-						}),
+						buildLaunchSpec: (params: BuildLaunchSpecInput) => {
+							launchedPrompts.push(params.prompt ?? '');
+							expect(params.mode).toBe('exec');
+							return {
+								runId: params.runId,
+								file: 'codex',
+								cwd: params.cwd,
+								command: 'codex',
+								args: [],
+								env: {},
+							};
+						},
 						mapEvents: () => [],
 					},
 				},
@@ -1975,6 +1986,7 @@ verdict: open
 
 			// R2: fixRun1 used wrapup worktree and uncommitted changes are intact!
 			expect(spawnedCwds).toContain(wrapupWorktree);
+			expect(launchedPrompts[0]).toContain('B1 [S1] 涉及 M1-T1');
 			expect(readFileSync(uncommittedFilePath, 'utf8')).toBe('uncommitted-changes-from-wrapup');
 
 			// 5. R4: Verify API projection (inHead, inHeadMethod, crossBatchFix) and batch counts
@@ -2008,6 +2020,7 @@ verdict: open
 			expect(fixRun2AfterTick2?.state).toBe('running');
 			expect(spawnedCwds).toHaveLength(2);
 			expect(spawnedCwds[1]).toBe(wrapupWorktree);
+			expect(launchedPrompts[1]).toContain('B2 [S1] 涉及 M0-T1');
 
 			// 8. R3: Round 2 does NOT trigger while fixRun2 is still in-flight
 			await liveDispatchService.tick();
@@ -2223,6 +2236,17 @@ verdict: open
 			const snapAfter = dispatchSnapshotsRepo.findById(fixRunAfter?.snapshot_id ?? '');
 			expect(snapAfter?.impl_prompt).toContain('B1 [S1] 涉及 M1-T1');
 			expect(snapAfter?.impl_prompt).toContain('B2 [S1] 涉及 M1-T1');
+			const landing = await createLandingService({
+				tasksRepo,
+				documentsRepo,
+				runsRepo,
+				dispatchSnapshotsRepo,
+			}).getLanding({
+				taskId: 'task-1',
+				worktreePath: join(tmpdir(), 'missing-r5-landing-worktree'),
+				allowMissingWorktree: true,
+			});
+			expect(landing.landingHints).toEqual([expect.stringContaining('B2 [S1] 涉及 M1-T1')]);
 
 			// R5: wrapup 2 tracks the in-flight fix run in fix_run_ids_json
 			const wrapup2Record = batchWrapupsRepo.findByRunId(wrapupRun2.id);
@@ -2258,6 +2282,35 @@ verdict: open
 			});
 			expect(resUnlanded.statusCode).toBe(400);
 			expect(JSON.parse(resUnlanded.body).error.code).toBe('E_VALIDATION');
+
+			// A manually landed task is outside the automatic recall path.
+			runsRepo.insert({
+				id: 'run-t3-manual-landed',
+				task_id: 'task-3',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+			});
+			gatesRepo.create({
+				id: 'gate-t3-manual',
+				task_id: 'task-3',
+				run_id: 'run-t3-manual-landed',
+				kind: 'landing',
+				state: 'decided',
+				decision: 'pass',
+				comment: 'Manually approved',
+				created_at: testTime,
+			});
+			const resManual = await app.inject({
+				method: 'POST',
+				url: '/api/v1/tasks/task-3/recall',
+				payload: { comment: 'Recall manually landed task', idempotencyKey: 'recall-manual' },
+			});
+			expect(resManual.statusCode).toBe(400);
+			expect(JSON.parse(resManual.body).error.code).toBe('E_VALIDATION');
 
 			// Task 4: currently running implementation run -> cannot be recalled (409 E_FIX_RUN_IN_FLIGHT)
 			tasksRepo.insert({

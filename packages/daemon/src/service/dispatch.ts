@@ -1464,6 +1464,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				return;
 			}
 
+			let runPrompt = task.impl_prompt ?? undefined;
 			let launchSpecData: {
 				model?: string | null;
 				effort?: string | null;
@@ -1475,6 +1476,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			} = {};
 			if (run.snapshot_id && deps.dispatchSnapshotsRepo) {
 				const snap = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
+				runPrompt = snap?.impl_prompt ?? runPrompt;
 				if (snap?.launch_spec_json) {
 					try {
 						launchSpecData = JSON.parse(snap.launch_spec_json);
@@ -1614,7 +1616,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				model: run.model_name ?? launchSpecData.model ?? null,
 				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
-				prompt: undefined,
+				prompt: runPrompt,
+				...(run.origin === 'wrapup-fix' && run.agent_id === 'codex' ? { mode: 'exec' } : {}),
 			});
 
 			let managed: ManagedProcess;

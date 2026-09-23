@@ -28,6 +28,7 @@ export interface TaskDto {
 export interface GetTaskLandingResponse {
 	readonly worktreePath: string;
 	readonly branchName: string;
+	readonly landingHints?: readonly string[];
 	readonly diffStat: {
 		readonly filesChanged: number;
 		readonly insertions: number;

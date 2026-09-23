@@ -1376,25 +1376,24 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				implRuns.length > 0
 					? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
 					: null;
-			const nonFixImplRuns = implRuns.filter((r) => r.origin !== 'wrapup-fix');
-			const latestNonFixImplRun =
-				nonFixImplRuns.length > 0
-					? nonFixImplRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
-					: null;
-
-			// E-293 / R6: Check if task has already landed. Recall is only permitted for tasks that are landed!
-			const hasLanded =
-				task.manual_state === 'landed' ||
-				(latestNonFixImplRun && latestNonFixImplRun.state === 'landed');
-			if (!hasLanded) {
+			const landingGate = deps.gatesRepo.findLatestByTaskIdAndKind(taskId, 'landing');
+			const wasAutomaticallyLanded =
+				latestImplRun !== null &&
+				(task.manual_state === 'landed' || latestImplRun.state === 'landed') &&
+				landingGate?.run_id === latestImplRun.id &&
+				landingGate.state === 'decided' &&
+				landingGate.decision === 'pass' &&
+				(landingGate.comment === 'auto_landing_gate' ||
+					landingGate.comment === 'auto_released_on_settings_change');
+			if (!wasAutomaticallyLanded) {
 				throw new AppError(
 					'E_VALIDATION',
-					`Task '${taskId}' cannot be recalled because it has not landed.`,
+					`Task '${taskId}' cannot be recalled because it was not automatically landed.`,
 					{
 						details: {
 							taskId,
 							manualState: task.manual_state,
-							latestRunState: latestNonFixImplRun?.state ?? null,
+							latestRunState: latestImplRun?.state ?? null,
 						},
 					},
 				);

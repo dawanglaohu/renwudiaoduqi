@@ -164,6 +164,22 @@ export function LandingContainer({
 				</div>
 			) : (
 				<div className="flex flex-col gap-4">
+					{data?.landingHints && data.landingHints.length > 0 && (
+						<section
+							data-testid="duplicate-fix-landing-hints"
+							className="rounded border border-needs bg-panel-2 p-4"
+						>
+							<h2 className="text-dense font-semibold text-ink-1">补充修复要求</h2>
+							<p className="mt-1 text-meta text-ink-2">
+								同一任务在修复期间再次被收口判定，落地前请核对这些条目：
+							</p>
+							<ul className="mt-2 list-disc space-y-1 pl-5 text-meta text-ink-1">
+								{data.landingHints.map((hint, index) => (
+									<li key={`${index}:${hint}`}>{hint.replace(/^-\s*/, '')}</li>
+								))}
+							</ul>
+						</section>
+					)}
 					{/* ─────────────────────────────────────────────────────
 					    条目 1: Worktree 绝对路径（AC 3, E-74）
 					    ───────────────────────────────────────────────────── */}

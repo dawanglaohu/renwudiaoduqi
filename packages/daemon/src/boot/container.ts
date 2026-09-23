@@ -395,6 +395,8 @@ export function createContainer(input: {
 		createLandingService({
 			tasksRepo: tasks,
 			documentsRepo: documents,
+			runsRepo: runs,
+			dispatchSnapshotsRepo: dispatchSnapshots,
 			platform: input.hostInputs.platform,
 			hostInputs: input.hostInputs,
 			ids,
