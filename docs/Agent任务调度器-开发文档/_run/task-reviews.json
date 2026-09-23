@@ -1036,14 +1036,14 @@
     "verdict": "pass"
   },
   "M8-T7": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "d393b5c413d9b0d94b1683cac25009a77220b0588ec80be3c458269d7e076ac0",
+    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
+    "contractHash": "3552a153c4937cde6d6473621c9890499a2d9a72b9cac44c51405415a3a9dd32",
     "evidence": [
-      "19 节 M8-T7 行：依赖 M8-T6（有效裁定与开放项）与 M7-T5（返工提示词）；产出 service/wrapup.ts 修复段、domain/task-state.ts、domain/path-clash.ts、routes/tasks.ts 在 taskPaths；shared tasks.ts/codes.ts/routes.ts 在 supportPaths（E_FIX_RUN_IN_FLIGHT 与 recall 路由）",
-      "验收 1)～6) 对应 E-275（修复运行字段与跨批语义）、E-280（同收口串行、E-46 排队）、E-276/E-290（第 2 轮与无主）、E-293/E-300（撤回与在途冲突）、E-298（inHead 派生）；10 节已加 POST /tasks/:taskId/recall 与三个错误码；决策 70 写明不为 wrapup-fix 跳过审查",
-      "接缝：与 M9-T20 的批次级落地清单消费同一 GET /batches/:id/wrapups[].landing；TaskDto.inHead/crossBatchFix 字段由本任务在 shared tasks.ts 落，M9-T19 只读"
+      "PR #131 round 2: the six M8-T7 acceptance clauses and E-275/E-276/E-280/E-290/E-293/E-298/E-300/E-46/E-55 remain unchanged; prerequisites M8-T6 and M7-T5 are landed. This patch adds only production paths required to expose duplicate fix items in the landing checklist: boot/container.ts, service/landing.ts, and web landing-container.tsx.",
+      "The R5 test creates two wrapup reports targeting one task, confirms a single fix run, a persisted appended prompt, and landingHints containing the later item. The R6 route tests cover missing comment, no landed run, manually landed run rejection, automatic landing gate success, in-flight normal run rejection, and duplicate recall rejection.",
+      "Windows pnpm -w check passed before reviewer fixes (169 files, 2047 tests passed, 3 skipped); after the fixes, focused M8-T7/M8-T10/Codex tests, Biome and TypeScript were rerun. Code and scope changes stay in the original PR #131."
     ],
-    "reviewed": "2026-09-10T20:08:19.105424+00:00",
+    "reviewed": "2026-09-23T05:52:31.271030+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

@@ -26,6 +26,7 @@ import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { BatchService } from './batch.ts';
 import type { ReworkService } from './rework.ts';
+import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 import type { SettingsService } from './settings.ts';
 
 export interface GateServiceDeps {
@@ -45,6 +46,7 @@ export interface GateServiceDeps {
 	readonly unitOfWork: UnitOfWork;
 	readonly settingsService: SettingsService;
 	readonly getBatchGateOverrides?: (batchId: string) => BatchGateOverrides | undefined;
+	readonly sessionArchiveService?: SessionArchiveService;
 }
 
 export interface GateService {
@@ -255,6 +257,8 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				return Object.freeze({ applied: true as const });
 			}
 
+			let archiveContext: ArchiveTaskContext | null = null;
+			let laneReleasedEvent: EventEnvelope | null = null;
 			let laneAssignedEnvelope: EventEnvelope | null = null;
 			let reworkStateEnvelope: EventEnvelope | null = null;
 			let reworkDeliveryInput: {
@@ -274,15 +278,63 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					now,
 				);
 
-				if (
-					input.decision === 'pass' &&
-					gate.kind === 'landing' &&
-					deps.tasksRepo &&
-					gate.task_id
-				) {
-					deps.tasksRepo.updateManualState(gate.task_id, 'landed');
+				if (input.decision === 'pass' && gate.kind === 'landing' && gate.task_id) {
+					if (deps.tasksRepo) {
+						deps.tasksRepo.updateManualState(gate.task_id, 'landed');
+					}
+					if (deps.runsRepo && gate.run_id) {
+						deps.runsRepo.updateState({
+							id: gate.run_id,
+							toState: 'landed',
+							endedAt: now,
+						});
+					}
+					// R4: 人工 landed 完成会话归档与槽位释放
+					if (deps.sessionArchiveService && gate.task_id) {
+						archiveContext = deps.sessionArchiveService.archiveTaskInTx({
+							taskId: gate.task_id,
+							runId: gate.run_id ?? '',
+							actorDeviceId: input.actorDeviceId,
+							now,
+						});
+						if (archiveContext.laneReleased) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId: gate.task_id,
+								runId: gate.run_id ?? '',
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									docId: archiveContext.docId,
+									laneNo: archiveContext.laneNo,
+									taskId: gate.task_id,
+									runId: gate.run_id ?? '',
+									reason: 'landed',
+								},
+							});
+						}
+					} else if (deps.tasksRepo && gate.task_id) {
+						const laneRes = deps.tasksRepo.clearLaneNo(gate.task_id);
+						if (laneRes.changes === 1) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId: gate.task_id,
+								runId: gate.run_id ?? '',
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId: gate.task_id,
+									runId: gate.run_id ?? '',
+									reason: 'landed',
+								},
+							});
+						}
+					}
 				} else if (input.decision === 'reject' && deps.tasksRepo && gate.task_id) {
-					// E-327: Human rejection enters rework.
+					// E-327: 人工打回进入返工。
+					// 这里只做闸门决定、意见落库、运行状态与泳道归属，全部在同一事务里；
+					// rework_count 一律由投递路径（reworkService.dispatchRework）加一次，
+					// 本处不得再自行 +1，否则一次打回会吃掉两轮返工额度。
 					const task = deps.tasksRepo.findById(gate.task_id);
 					const doc = task && deps.documentsRepo ? deps.documentsRepo.findById(task.doc_id) : null;
 					const reworkText = comment || 'Rejected by human';
@@ -327,19 +379,18 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					}
 					const freeLanes = freeLaneNumbers(docLaneCount, occupiedLanes);
 
-					if (freeLanes.length > 0) {
+					// E-327: 批次暂停期间一律不入道（哪怕有空槽），等恢复后由 tick 先于新任务入道
+					const batch =
+						task?.batch_id && deps.batchesRepo ? deps.batchesRepo.findById(task.batch_id) : null;
+					const batchPaused = batch?.state === 'paused';
+
+					if (!batchPaused && freeLanes.length > 0) {
 						const allocatedLaneNo = freeLanes[0] ?? 1;
 						deps.tasksRepo.assignLaneNo(gate.task_id, allocatedLaneNo);
 						deps.tasksRepo.updateManualState(gate.task_id, null);
 
 						if (targetRun && deps.runsRepo) {
 							deps.runsRepo.updateLaneNo?.(targetRun.id, allocatedLaneNo);
-							const nextReworkCount = (targetRun.rework_count ?? 0) + 1;
-							deps.runsRepo.updateReworkCount?.({
-								id: targetRun.id,
-								reworkCount: nextReworkCount,
-								state: 'reworking',
-							});
 							deps.runsRepo.updateState({
 								id: targetRun.id,
 								state: 'reworking',
@@ -384,22 +435,17 @@ export function createGateService(deps: GateServiceDeps): GateService {
 									}
 								: null;
 					} else {
-						// Full lanes: task kept outside lanes (E-326, E-327)
+						// 无空槽或批次暂停：任务留在泳道外（E-326, E-327），
+						// 恢复/空槽后由 tick 先于新任务入道并按 M7-T5 三分支投递
 						deps.tasksRepo.clearLaneNo(gate.task_id);
 						deps.tasksRepo.updateManualState(gate.task_id, null);
 
 						if (targetRun && deps.runsRepo) {
 							deps.runsRepo.updateLaneNo?.(targetRun.id, null);
-							const nextReworkCount = (targetRun.rework_count ?? 0) + 1;
-							deps.runsRepo.updateReworkCount?.({
-								id: targetRun.id,
-								reworkCount: nextReworkCount,
-								state: 'reworking',
-							});
 							deps.runsRepo.updateState({
 								id: targetRun.id,
 								state: 'reworking',
-								queuedReason: 'lane_full',
+								queuedReason: batchPaused ? 'batch_paused' : 'lane_full',
 							});
 						}
 
@@ -421,6 +467,9 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			});
 
 			// Outside transaction: publish events
+			if (laneReleasedEvent) {
+				deps.bus.publish(laneReleasedEvent);
+			}
 			if (laneAssignedEnvelope) {
 				deps.bus.publish(laneAssignedEnvelope);
 			}
@@ -435,6 +484,21 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			}
 			if (input.decision === 'pass') {
 				if (gate.kind === 'landing') {
+					if (gate.run_id) {
+						const stateEnvelope = deps.envelopeFactory.createEnvelope({
+							kind: 'run.state_changed',
+							runId: gate.run_id,
+							taskId: gate.task_id,
+							actorDeviceId: input.actorDeviceId,
+							payload: {
+								from: 'reviewing',
+								to: 'landed',
+								reason: 'human_landing_gate_passed',
+							},
+						});
+						deps.bus.publish(stateEnvelope);
+					}
+
 					const landedEnvelope = deps.envelopeFactory.createEnvelope({
 						kind: 'task.landed',
 						taskId: gate.task_id,
@@ -458,6 +522,10 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					},
 				});
 				deps.bus.publish(passedEnvelope);
+
+				if (archiveContext && deps.sessionArchiveService) {
+					await deps.sessionArchiveService.terminateArchived(archiveContext);
+				}
 			}
 
 			return Object.freeze({ applied: true as const });
@@ -547,8 +615,17 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			const now = deps.clock.now();
 
 			if (result.outcome === 'landed') {
+				// A landed run may still need its landing gate and task state recorded.
+				const existingTask = deps.tasksRepo?.findById(input.taskId);
+				if (existingTask?.manual_state === 'landed') {
+					return result;
+				}
+
 				// AC 1 & AC 2b: automatic pass lands directly with zero git operations
 				const gateId = deps.ids.newId();
+				let archiveContext: ArchiveTaskContext | null = null;
+				let laneReleasedEvent: EventEnvelope | null = null;
+
 				deps.unitOfWork.run(() => {
 					deps.gatesRepo.create({
 						id: gateId,
@@ -566,7 +643,73 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					if (deps.tasksRepo) {
 						deps.tasksRepo.updateManualState(input.taskId, 'landed');
 					}
+					if (deps.runsRepo && input.runId) {
+						deps.runsRepo.updateState({
+							id: input.runId,
+							toState: 'landed',
+							endedAt: now,
+						});
+					}
+
+					// R4: 自动 landed 完成会话归档与槽位释放
+					if (deps.sessionArchiveService) {
+						archiveContext = deps.sessionArchiveService.archiveTaskInTx({
+							taskId: input.taskId,
+							runId: input.runId ?? '',
+							now,
+						});
+						if (archiveContext.laneReleased) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId: input.taskId,
+								runId: input.runId ?? '',
+								actorDeviceId: null,
+								payload: {
+									docId: archiveContext.docId,
+									laneNo: archiveContext.laneNo,
+									taskId: input.taskId,
+									runId: input.runId ?? '',
+									reason: 'landed',
+								},
+							});
+						}
+					} else if (deps.tasksRepo) {
+						const laneRes = deps.tasksRepo.clearLaneNo(input.taskId);
+						if (laneRes.changes === 1) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId: input.taskId,
+								runId: input.runId ?? '',
+								actorDeviceId: null,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId: input.taskId,
+									runId: input.runId ?? '',
+									reason: 'landed',
+								},
+							});
+						}
+					}
 				});
+
+				if (laneReleasedEvent) {
+					deps.bus.publish(laneReleasedEvent);
+				}
+				if (input.runId) {
+					const stateEnvelope = deps.envelopeFactory.createEnvelope({
+						kind: 'run.state_changed',
+						runId: input.runId,
+						taskId: input.taskId,
+						actorDeviceId: null,
+						payload: {
+							from: 'reviewing',
+							to: 'landed',
+							reason: 'auto_landing_gate_passed',
+						},
+					});
+					deps.bus.publish(stateEnvelope);
+				}
 
 				const landedEnvelope = deps.envelopeFactory.createEnvelope({
 					kind: 'task.landed',
@@ -590,6 +733,10 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					},
 				});
 				deps.bus.publish(passedEnvelope);
+
+				if (archiveContext && deps.sessionArchiveService) {
+					await deps.sessionArchiveService.terminateArchived(archiveContext);
+				}
 			} else {
 				// Stays in awaiting_human; creates waiting gate (AC 3, E-54)
 				const gateId = deps.ids.newId();

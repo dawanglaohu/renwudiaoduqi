@@ -1,20 +1,27 @@
 import { promises as nodeFs } from 'node:fs';
 import { resolve as nodeResolve } from 'node:path';
-import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
+import {
+	AGENT_MESSAGE_CHUNK_EVENT_KIND,
+	type EventEnvelope,
+} from '@agent-scheduler/shared/api/events';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import type { EffortTier } from '../domain/effort-tier.ts';
+import { evaluateReviewVerdict } from '../domain/review-verdict.ts';
 import { assembleReviewRoundPrompt } from '../domain/rework-prompt.ts';
 import {
 	RUN_TRANSITION_REASONS,
 	type RunState,
 	assertValidTransition,
+	isTerminalRunState,
 	isValidRunState,
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { LogFileSystem } from '../logstore/contract.ts';
+import type { LogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs, SupportedPlatform } from '../platform/contract.ts';
 import { platformPathAdapter, takePlatformHostInputs } from '../platform/host.ts';
 import { resolveExecutable } from '../platform/resolve-executable.ts';
@@ -29,7 +36,9 @@ import {
 import { DEFAULT_CHECK_TIMEOUT_MS, type LaunchTimeouts } from '../proc/timers.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { RunInsertRow, RunRow } from '../repo/runs.ts';
+import type { RunsRepo } from '../repo/runs.ts';
 import type { SettingsRepo } from '../repo/settings.ts';
+import type { TasksRepo } from '../repo/tasks.ts';
 import {
 	type DiffStatResult,
 	type GitRunner,
@@ -41,7 +50,15 @@ import type { BughuntService } from './bughunt.ts';
 import type { GateService } from './gates.ts';
 import type { MessageService, ResumeSessionInput, ResumeSessionResult } from './message.ts';
 import { waitForContinuationState } from './message.ts';
-import { type ReviewAgentAssignment, buildReviewLaunchSpec } from './review-agent.ts';
+import {
+	type DispatchReviewRunInput,
+	type ReviewAgentAssignment,
+	buildReviewLaunchSpec,
+	dispatchReviewRun,
+	readDefaultReviewAssignment,
+} from './review-agent.ts';
+import { type ReviewContext, getReviewContext } from './review-context.ts';
+import type { RunService } from './run.ts';
 import type { SettingsService } from './settings.ts';
 
 export { DEFAULT_CHECK_TIMEOUT_MS };
@@ -276,6 +293,11 @@ export interface MechanicalCheckResult {
 	 * Git diff stat of the worktree changes.
 	 */
 	readonly diffStat?: DiffStatResult;
+
+	/**
+	 * Git diff text of the worktree changes (R1).
+	 */
+	readonly diffText?: string;
 }
 
 /**
@@ -293,8 +315,22 @@ export type ReviewRunRecord = {
 	readonly pid?: number | null;
 	readonly changed_file_count?: number | null;
 	readonly rework_count?: number;
-	readonly taskId?: string;
+	readonly agent_id?: string;
+	readonly agentId?: string;
+	readonly model_name?: string | null;
+	readonly modelName?: string | null;
+	readonly effort_tier?: string | null;
+	readonly effortTier?: string | null;
+	readonly effort_vendor?: string | null;
+	readonly effortVendor?: string | null;
 	readonly worktreePath?: string | null;
+	readonly branch_name?: string | null;
+	readonly branchName?: string | null;
+	readonly snapshot_id?: string;
+	readonly snapshotId?: string;
+	readonly lane_no?: number | null;
+	readonly laneNo?: number | null;
+	readonly taskId?: string;
 	readonly changedFileCount?: number | null;
 	readonly reworkCount?: number;
 };
@@ -335,7 +371,9 @@ export interface ReviewRunsRepo {
  * Repository interface for recording human review gates.
  */
 export interface ReviewGatesRepo {
-	insert(input: {
+	findPendingByRunId?(runId: string): unknown | null;
+	list?(params?: { pendingOnly?: boolean }): readonly unknown[];
+	insert?(input: {
 		readonly id: string;
 		readonly taskId: string;
 		readonly runId: string | null;
@@ -343,6 +381,15 @@ export interface ReviewGatesRepo {
 		readonly state: 'waiting' | 'decided';
 		readonly comment?: string | null;
 		readonly createdAt: string;
+	}): void;
+	create?(input: {
+		readonly id: string;
+		readonly task_id: string | null;
+		readonly run_id?: string | null;
+		readonly kind: string;
+		readonly state: string;
+		readonly comment?: string | null;
+		readonly created_at: string;
 	}): void;
 }
 
@@ -378,6 +425,10 @@ export interface ReviewServiceDeps extends MechanicalCheckDeps {
 	readonly settingsRepo?: SettingsRepo;
 	readonly settingsService?: SettingsService;
 	readonly gatesService?: GateService;
+	readonly runService?: RunService;
+	readonly logstorePaths?: LogstorePaths;
+	readonly logFs?: LogFileSystem;
+	readonly tasksRepo?: TasksRepo;
 	/** 续接撑爆时改走恢复分支：与 rework.ts 的 resumeSession 同一约定。 */
 	readonly resumeSession?: (input: ResumeSessionInput) => Promise<ResumeSessionResult>;
 }
@@ -404,6 +455,7 @@ export interface EvaluateMechanicalCheckResult {
 	readonly previousState: RunState;
 	readonly currentState: RunState;
 	readonly gateCreated: boolean;
+	readonly reviewRunId?: string;
 }
 
 export interface StartReviewRoundInput {
@@ -440,11 +492,56 @@ export interface ReviewService {
 	) => Promise<EvaluateMechanicalCheckResult>;
 	readonly startReviewRound: (input: StartReviewRoundInput) => Promise<string>;
 	readonly finalizeReviewRun: (input: FinalizeReviewRunInput) => Promise<FinalizeReviewRunResult>;
+	readonly finalizeReview?: (input: {
+		readonly runId: string;
+		readonly exitCode?: number | null;
+	}) => Promise<FinalizeReviewRunResult>;
 }
 
-/**
- * Common English stop words filtered out during keyword extraction.
- */
+export async function readReviewReportText(
+	paths: LogstorePaths,
+	fs: LogFileSystem,
+	runId: string,
+): Promise<string> {
+	const readStream = async (stream: 'events' | 'raw'): Promise<string[]> => {
+		const chunks: string[] = [];
+		for (let fileSeq = 0; ; fileSeq += 1) {
+			let bytes: Uint8Array;
+			try {
+				bytes = await fs.readFile(paths.segmentPath(runId, stream, fileSeq));
+			} catch {
+				break;
+			}
+			chunks.push(Buffer.from(bytes).toString('utf8'));
+		}
+		return chunks;
+	};
+
+	const eventSegments = await readStream('events');
+	const messageParts: string[] = [];
+	for (const segment of eventSegments) {
+		for (const line of segment.split('\n')) {
+			if (line.trim().length === 0) continue;
+			let envelope: { kind?: unknown; payload?: { chunk?: unknown } } | null = null;
+			try {
+				envelope = JSON.parse(line) as { kind?: unknown; payload?: { chunk?: unknown } };
+			} catch {
+				continue;
+			}
+			if (
+				envelope?.kind === AGENT_MESSAGE_CHUNK_EVENT_KIND &&
+				typeof envelope.payload?.chunk === 'string'
+			) {
+				messageParts.push(envelope.payload.chunk);
+			}
+		}
+	}
+	if (messageParts.length > 0) {
+		return messageParts.join('');
+	}
+	return (await readStream('raw')).join('');
+}
+
 const COMMON_STOP_WORDS = new Set([
 	'and',
 	'the',
@@ -1344,6 +1441,7 @@ export async function runMechanicalCheck(
 			zeroConfigLayer,
 			projectCommandLayer,
 			diffStat,
+			diffText,
 		});
 	}
 
@@ -1461,6 +1559,7 @@ export async function runMechanicalCheck(
 		zeroConfigLayer,
 		projectCommandLayer,
 		diffStat,
+		diffText,
 	});
 }
 
@@ -1491,14 +1590,15 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		}
 
 		const previousState: RunState = run && isValidRunState(run.state) ? run.state : 'exited';
+
 		const worktreePath = input.worktreePath ?? run?.worktree_path ?? run?.worktreePath ?? '';
 		// R4: exitCode from input or run; do NOT default to 0!
 		const exitCode =
 			input.exitCode !== undefined
 				? input.exitCode
-				: run && 'exitCode' in run
+				: run && 'exitCode' in run && (run as { exitCode?: number | null }).exitCode !== undefined
 					? (run as { exitCode?: number | null }).exitCode
-					: undefined;
+					: ((run as { exit_code?: number | null })?.exit_code ?? undefined);
 
 		// 1. 机械检查在事务外先执行算结论（08节事务边界，R3）
 		const checkResult = await performCheck({
@@ -1516,8 +1616,129 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			timeoutMs: input.timeoutMs,
 		});
 
+		// 防御性前置检查：若运行已在 awaiting_human 或终态，直接返回，重复触发不产生残留
+		if (previousState === 'awaiting_human' || isTerminalRunState(previousState)) {
+			return Object.freeze({
+				result: checkResult,
+				previousState,
+				currentState: previousState,
+				gateCreated: false,
+				reviewRunId: undefined,
+			});
+		}
+
 		let currentState: RunState = previousState;
 		let gateCreated = false;
+		const taskId = input.taskId ?? run?.task_id ?? run?.taskId ?? '';
+		const canSpawnReview = Boolean(deps.spawnManagedFn || deps.spawnManaged);
+
+		let missingMaterialTag: string | null = null;
+		let missingMaterialReason: string | null = null;
+		let snapshotId: string | null = null;
+		let reviewContext: ReviewContext | null = null;
+		let assignment: ReviewAgentAssignment | null = null;
+		const diffStat = input.diffStat ?? checkResult.diffStat;
+		const diffText = input.diffText ?? checkResult.diffText;
+
+		if (checkResult.passed && run && canSpawnReview) {
+			snapshotId =
+				(run as { snapshot_id?: string | null }).snapshot_id ??
+				(run as { snapshotId?: string | null }).snapshotId ??
+				null;
+
+			// 1. 真实快照检查 (R1: 删除假快照，按实施 run.snapshot_id 读取，缺失时类型化转人工)
+			if (!snapshotId || !deps.dispatchSnapshotsRepo || !taskId) {
+				missingMaterialTag = 'snapshot_missing';
+				missingMaterialReason = 'missing_dispatch_snapshot';
+			} else {
+				try {
+					const snapshot = deps.dispatchSnapshotsRepo.findById(snapshotId);
+					if (!snapshot) {
+						missingMaterialTag = 'snapshot_missing';
+						missingMaterialReason = 'missing_dispatch_snapshot';
+					} else {
+						reviewContext = getReviewContext(
+							taskId,
+							{
+								dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+								tasksRepo: deps.tasksRepo,
+							},
+							{
+								snapshotId: snapshot.id,
+							},
+						);
+
+						// 2. 真实指派检查 (R1: 删除固定指派，按 run 或快照取真实指派)
+						try {
+							if (run && (run.agent_id || (run as { agentId?: string }).agentId)) {
+								assignment = readDefaultReviewAssignment(
+									run as Parameters<typeof readDefaultReviewAssignment>[0],
+								);
+							}
+						} catch {
+							assignment = null;
+						}
+						if (!assignment && snapshot.assignment_json) {
+							try {
+								const parsed = JSON.parse(snapshot.assignment_json);
+								const rawId = parsed.agentId ?? parsed.agent_id;
+								if (rawId && typeof rawId === 'string' && rawId.trim().length > 0) {
+									assignment = {
+										agentId: rawId.trim(),
+										modelName: parsed.modelName ?? parsed.model_name ?? null,
+										effortTier: parsed.effortTier ?? parsed.effort_tier ?? null,
+										effortVendor: parsed.effortVendor ?? parsed.effort_vendor ?? null,
+									};
+								}
+							} catch {
+								assignment = null;
+							}
+						}
+						if (!assignment && snapshot.launch_spec_json) {
+							try {
+								const parsed = JSON.parse(snapshot.launch_spec_json);
+								const rawId = parsed.adapterKind ?? parsed.agentId ?? parsed.agent_id;
+								if (rawId && typeof rawId === 'string' && rawId.trim().length > 0) {
+									assignment = {
+										agentId: rawId.trim(),
+										modelName: parsed.model ?? parsed.modelName ?? null,
+										effortTier: parsed.effort ?? parsed.effortTier ?? null,
+										effortVendor: parsed.effortVendor ?? null,
+									};
+								}
+							} catch {
+								assignment = null;
+							}
+						}
+						if (!assignment) {
+							missingMaterialTag = 'assignment_missing';
+							missingMaterialReason = 'missing_assignment';
+						}
+					}
+				} catch {
+					missingMaterialTag = 'snapshot_missing';
+					missingMaterialReason = 'missing_dispatch_snapshot';
+				}
+			}
+
+			// 3. 真实 diff 检查 (R1: 删除假 diff，按真实 diff 校验，缺失时类型化转人工)
+			if (!missingMaterialTag) {
+				const hasChanges = Boolean(diffStat?.hasChanges && diffStat.filesChanged > 0);
+				const hasText = Boolean(diffText && diffText.trim().length > 0);
+				if (!hasChanges || !hasText) {
+					missingMaterialTag = 'diff_missing';
+					missingMaterialReason = 'missing_diff';
+				}
+			}
+		}
+
+		const shouldAwaitHuman = !checkResult.passed || missingMaterialTag !== null;
+		const humanReason = !checkResult.passed
+			? checkResult.reason
+			: (missingMaterialReason ?? 'missing_review_material');
+		const humanTag = !checkResult.passed
+			? checkResult.tag
+			: (missingMaterialTag ?? 'missing_review_material');
 
 		// 2. 两次迁移收进同一个 unitOfWork.run，且每次迁移显式传 clock.now()（R3）
 		const applyTransitions = () => {
@@ -1535,56 +1756,84 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				});
 				currentState = 'reviewing';
 
-				if (!checkResult.passed) {
+				if (shouldAwaitHuman) {
 					assertValidTransition('reviewing', 'awaiting_human', {
-						reason: checkResult.reason,
+						reason: humanReason,
 					});
 					deps.runsRepo?.updateState({
 						id: input.runId,
 						fromState: 'reviewing',
 						toState: 'awaiting_human',
 						endedAt: now,
-						queuedReason: checkResult.reason,
+						queuedReason: humanReason,
 					});
 					currentState = 'awaiting_human';
 
 					if (deps.gatesRepo) {
-						deps.gatesRepo.insert({
-							id: `gate_${ids.newId()}`,
-							taskId: input.taskId ?? run?.task_id ?? run?.taskId ?? '',
-							runId: input.runId,
-							kind: 'review',
-							state: 'waiting',
-							comment: checkResult.tag,
-							createdAt: now,
-						});
+						const gateId = `gate_${ids.newId()}`;
+						const gateTaskId = taskId;
+						if (deps.gatesRepo.insert) {
+							deps.gatesRepo.insert({
+								id: gateId,
+								taskId: gateTaskId,
+								runId: input.runId,
+								kind: 'review',
+								state: 'waiting',
+								comment: humanTag,
+								createdAt: now,
+							});
+						} else if (deps.gatesRepo.create) {
+							deps.gatesRepo.create({
+								id: gateId,
+								task_id: gateTaskId,
+								run_id: input.runId,
+								kind: 'review',
+								state: 'waiting',
+								comment: humanTag,
+								created_at: now,
+							});
+						}
 						gateCreated = true;
 					}
 				}
 			} else if (previousState === 'reviewing') {
-				if (!checkResult.passed) {
+				if (shouldAwaitHuman) {
 					assertValidTransition('reviewing', 'awaiting_human', {
-						reason: checkResult.reason,
+						reason: humanReason,
 					});
 					deps.runsRepo?.updateState({
 						id: input.runId,
 						fromState: 'reviewing',
 						toState: 'awaiting_human',
 						endedAt: now,
-						queuedReason: checkResult.reason,
+						queuedReason: humanReason,
 					});
 					currentState = 'awaiting_human';
 
 					if (deps.gatesRepo) {
-						deps.gatesRepo.insert({
-							id: `gate_${ids.newId()}`,
-							taskId: input.taskId ?? run?.task_id ?? run?.taskId ?? '',
-							runId: input.runId,
-							kind: 'review',
-							state: 'waiting',
-							comment: checkResult.tag,
-							createdAt: now,
-						});
+						const gateId = `gate_${ids.newId()}`;
+						const gateTaskId = taskId;
+						if (deps.gatesRepo.insert) {
+							deps.gatesRepo.insert({
+								id: gateId,
+								taskId: gateTaskId,
+								runId: input.runId,
+								kind: 'review',
+								state: 'waiting',
+								comment: humanTag,
+								createdAt: now,
+							});
+						} else if (deps.gatesRepo.create) {
+							deps.gatesRepo.create({
+								id: gateId,
+								task_id: gateTaskId,
+								run_id: input.runId,
+								kind: 'review',
+								state: 'waiting',
+								comment: humanTag,
+								created_at: now,
+							});
+						}
 						gateCreated = true;
 					}
 				}
@@ -1601,11 +1850,318 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			}
 		}
 
+		if (shouldAwaitHuman) {
+			if (deps.tasksRepo && taskId) {
+				const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+				if (laneRes && laneRes.changes === 1 && deps.bus && deps.envelopeFactory) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'lane.released',
+							taskId,
+							runId: input.runId,
+							payload: {
+								docId: laneRes.docId,
+								laneNo: laneRes.previousLaneNo,
+								taskId,
+								runId: input.runId,
+								reason: 'awaiting_human',
+							},
+						}),
+					);
+				}
+			}
+			if (deps.bus && deps.envelopeFactory) {
+				deps.bus.publish(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'run.state_changed',
+						runId: input.runId,
+						taskId,
+						payload: {
+							from: 'reviewing',
+							to: 'awaiting_human',
+							reason: humanReason,
+						},
+					}),
+				);
+				if (gateCreated) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'task.gate_waiting',
+							runId: input.runId,
+							taskId,
+							payload: {
+								gate: 'review',
+								comment: humanTag,
+							},
+						}),
+					);
+				}
+			}
+		}
+
+		let reviewRunId: string | undefined;
+		if (
+			!shouldAwaitHuman &&
+			run &&
+			reviewContext &&
+			assignment &&
+			diffStat &&
+			diffText &&
+			(deps.spawnManagedFn || deps.spawnManaged)
+		) {
+			try {
+				const dispatchInput: DispatchReviewRunInput = {
+					implRun: {
+						id: run.id,
+						taskId,
+						task_id: taskId,
+						attemptNo:
+							(run as { attempt_no?: number; attemptNo?: number }).attempt_no ??
+							(run as { attemptNo?: number }).attemptNo ??
+							1,
+						attempt_no:
+							(run as { attempt_no?: number; attemptNo?: number }).attempt_no ??
+							(run as { attemptNo?: number }).attemptNo ??
+							1,
+						agentId: assignment.agentId,
+						agent_id: assignment.agentId,
+						modelName: assignment.modelName ?? null,
+						model_name: assignment.modelName ?? null,
+						effortTier: assignment.effortTier ?? null,
+						effort_tier: assignment.effortTier ?? null,
+						effortVendor: assignment.effortVendor ?? null,
+						effort_vendor: assignment.effortVendor ?? null,
+						worktreePath,
+						worktree_path: worktreePath,
+						branchName: (run as { branch_name?: string | null }).branch_name ?? null,
+						branch_name: (run as { branch_name?: string | null }).branch_name ?? null,
+						snapshotId: reviewContext.snapshotId,
+						snapshot_id: reviewContext.snapshotId,
+						laneNo: (run as { lane_no?: number | null }).lane_no ?? null,
+						lane_no: (run as { lane_no?: number | null }).lane_no ?? null,
+					},
+					assignment,
+					reviewContext,
+					diffText,
+					diffStat,
+					autoSpawn: true,
+					onRunInserted: (insertedId) => {
+						reviewRunId = insertedId;
+					},
+				};
+
+				const hostInputsRes = takePlatformHostInputs({});
+				const effectivePlatform =
+					deps.platform ?? (hostInputsRes.ok ? hostInputsRes.value.platform : 'win32');
+				const reviewAgentDeps = {
+					ids,
+					clock,
+					runsRepo: deps.runsRepo as unknown as RunsRepo,
+					tasksRepo: deps.tasksRepo,
+					unitOfWork: deps.unitOfWork,
+					bus: deps.bus,
+					envelopeFactory: deps.envelopeFactory,
+					platform: deps.platform,
+					spawnManaged: (spec: LaunchSpec, options?: Parameters<typeof spawnManaged>[1]) => {
+						const fn = deps.spawnManagedFn ?? deps.spawnManaged;
+						if (!fn) throw new Error('spawnManaged missing');
+						return fn(spec, { platform: effectivePlatform, ...options });
+					},
+				};
+
+				const dispatchResult = await dispatchReviewRun(dispatchInput, reviewAgentDeps);
+				reviewRunId = dispatchResult.run.id;
+
+				if (dispatchResult.managedProcess && deps.runService) {
+					deps.runService.attachProcess(dispatchResult.run.id, dispatchResult.managedProcess);
+					await deps.runService.transitionState({
+						runId: dispatchResult.run.id,
+						targetState: 'running',
+						reason: 'process_spawned',
+						pid: dispatchResult.managedProcess.pid,
+						worktreePath: dispatchResult.run.worktreePath ?? worktreePath,
+						branchName: dispatchResult.run.branchName ?? null,
+					});
+				}
+			} catch (dispatchErr) {
+				// R3: 审查派发失败不能空吞；两条运行与闸门须在 service 事务内一致落到可恢复状态，并留错误证据。
+				const now = clock.now();
+				const errMessage = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+				const failureReason = 'review_dispatch_failed';
+				const errorComment = `${failureReason}: ${errMessage}`;
+
+				const targetReviewRunId = reviewRunId;
+
+				const pendingEvents: Array<() => EventEnvelope> = [];
+				const envelopeFactory = deps.envelopeFactory;
+
+				const executeRecoveryInTx = () => {
+					// 1. 如果已创建审查运行，将其落到 failed
+					if (targetReviewRunId && deps.runsRepo) {
+						const createdReviewRun = deps.runsRepo.findById(targetReviewRunId);
+						if (createdReviewRun && !isTerminalRunState(createdReviewRun.state as RunState)) {
+							deps.runsRepo.updateState({
+								id: targetReviewRunId,
+								fromState: createdReviewRun.state as RunState,
+								toState: 'failed',
+								endedAt: now,
+								queuedReason: errorComment,
+							});
+							if (envelopeFactory) {
+								pendingEvents.push(() =>
+									envelopeFactory.createEnvelope({
+										kind: 'run.state_changed',
+										runId: targetReviewRunId,
+										taskId,
+										payload: {
+											from: createdReviewRun.state,
+											to: 'failed',
+											reason: failureReason,
+											error: errMessage,
+										},
+									}),
+								);
+							}
+						}
+					}
+
+					// 2. 实施运行落到可恢复的 awaiting_human
+					if (run) {
+						assertValidTransition('reviewing', 'awaiting_human', {
+							reason: failureReason,
+						});
+						deps.runsRepo?.updateState({
+							id: run.id,
+							fromState: 'reviewing',
+							toState: 'awaiting_human',
+							endedAt: now,
+							queuedReason: errorComment,
+						});
+						currentState = 'awaiting_human';
+
+						if (envelopeFactory) {
+							pendingEvents.push(() =>
+								envelopeFactory.createEnvelope({
+									kind: 'run.state_changed',
+									runId: run.id,
+									taskId,
+									payload: {
+										from: 'reviewing',
+										to: 'awaiting_human',
+										reason: failureReason,
+										error: errMessage,
+									},
+								}),
+							);
+						}
+					}
+
+					// 3. 释放 lane
+					if (deps.tasksRepo && taskId && run) {
+						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+						if (laneRes && laneRes.changes === 1 && envelopeFactory) {
+							pendingEvents.push(() =>
+								envelopeFactory.createEnvelope({
+									kind: 'lane.released',
+									taskId,
+									runId: run.id,
+									payload: {
+										docId: laneRes.docId,
+										laneNo: laneRes.previousLaneNo,
+										taskId,
+										runId: run.id,
+										reason: 'awaiting_human',
+									},
+								}),
+							);
+						}
+					}
+
+					// 4. 闸门落到 waiting 可恢复状态并留错误证据（幂等检查防残留）
+					if (deps.gatesRepo && run) {
+						const implRunId = run.id;
+						const pendingForRun = deps.gatesRepo.findPendingByRunId?.(implRunId) as
+							| { kind?: string; state?: string }
+							| null
+							| undefined;
+						const existingPendingGate =
+							(pendingForRun?.kind === 'review' && pendingForRun.state === 'waiting'
+								? pendingForRun
+								: null) ??
+							deps.gatesRepo.list?.({ pendingOnly: true })?.find((g) => {
+								if (!g || typeof g !== 'object') return false;
+								const candidate = g as {
+									run_id?: string | null;
+									runId?: string | null;
+									kind?: string;
+									state?: string;
+								};
+								return (
+									(candidate.run_id === implRunId || candidate.runId === implRunId) &&
+									candidate.kind === 'review' &&
+									candidate.state === 'waiting'
+								);
+							});
+						if (!existingPendingGate) {
+							const gateId = `gate_${ids.newId()}`;
+							if (deps.gatesRepo.create) {
+								deps.gatesRepo.create({
+									id: gateId,
+									task_id: taskId,
+									run_id: run.id,
+									kind: 'review',
+									state: 'waiting',
+									comment: errorComment,
+									created_at: now,
+								});
+							} else if (deps.gatesRepo.insert) {
+								deps.gatesRepo.insert({
+									id: gateId,
+									taskId,
+									runId: run.id,
+									kind: 'review',
+									state: 'waiting',
+									comment: errorComment,
+									createdAt: now,
+								});
+							}
+							gateCreated = true;
+
+							if (envelopeFactory) {
+								pendingEvents.push(() =>
+									envelopeFactory.createEnvelope({
+										kind: 'task.gate_waiting',
+										runId: run.id,
+										taskId,
+										payload: {
+											gate: 'review',
+											comment: errorComment,
+										},
+									}),
+								);
+							}
+						}
+					}
+				};
+
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(executeRecoveryInTx);
+				} else {
+					executeRecoveryInTx();
+				}
+
+				if (deps.bus) {
+					for (const buildEvent of pendingEvents) deps.bus.publish(buildEvent());
+				}
+			}
+		}
+
 		return Object.freeze({
 			result: checkResult,
 			previousState,
 			currentState,
 			gateCreated,
+			reviewRunId,
 		});
 	}
 
@@ -1690,6 +2246,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					continued_from_run_id: prevReview.id,
 					started_at: startedAt,
 				};
+				if (!insertRun) throw new Error('runsRepo missing insert method');
 				insertRun(row);
 			};
 
@@ -1885,15 +2442,29 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						}
 					}
 					if (deps.gatesRepo) {
-						deps.gatesRepo.insert({
-							id: `gate_${ids.newId()}`,
-							taskId,
-							runId: implRow?.id ?? failedReviewRunId,
-							kind: 'review',
-							state: 'waiting',
-							comment: REVIEW_CONTINUATION_FAILED,
-							createdAt: now,
-						});
+						const gateId = `gate_${ids.newId()}`;
+						const gateRunId = implRow?.id ?? failedReviewRunId;
+						if (deps.gatesRepo.insert) {
+							deps.gatesRepo.insert({
+								id: gateId,
+								taskId,
+								runId: gateRunId,
+								kind: 'review',
+								state: 'waiting',
+								comment: REVIEW_CONTINUATION_FAILED,
+								createdAt: now,
+							});
+						} else if (deps.gatesRepo.create) {
+							deps.gatesRepo.create({
+								id: gateId,
+								task_id: taskId,
+								run_id: gateRunId,
+								kind: 'review',
+								state: 'waiting',
+								comment: REVIEW_CONTINUATION_FAILED,
+								created_at: now,
+							});
+						}
 						if (deps.envelopeFactory) {
 							pendingEnvelopes.push(
 								deps.envelopeFactory.createEnvelope({
@@ -1997,6 +2568,52 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							? 'doc_issue'
 							: 'awaiting_human',
 			};
+		},
+
+		async finalizeReview(input: {
+			readonly runId: string;
+			readonly exitCode?: number | null;
+		}): Promise<FinalizeReviewRunResult> {
+			const { runId, exitCode = 0 } = input;
+			if (deps.runService?.closeRunStream) {
+				await deps.runService.closeRunStream(runId);
+			}
+			let outputText = '';
+			if (deps.logstorePaths && deps.logFs) {
+				try {
+					outputText = await readReviewReportText(deps.logstorePaths, deps.logFs, runId);
+				} catch {
+					outputText = '';
+				}
+			}
+
+			const parsedVerdict = evaluateReviewVerdict({
+				outputText,
+				exitCode: exitCode ?? 0,
+			});
+
+			const reviewRun = deps.runsRepo?.findById(input.runId);
+			const taskId = reviewRun?.task_id ?? reviewRun?.taskId ?? null;
+
+			if (deps.bus && deps.envelopeFactory && taskId) {
+				const envelope = deps.envelopeFactory.createEnvelope({
+					kind: 'task.review_verdict',
+					taskId,
+					runId,
+					actorDeviceId: null,
+					payload: {
+						verdict: parsedVerdict.verdict,
+						details: parsedVerdict,
+					},
+				});
+				deps.bus.publish(envelope);
+			}
+
+			return await this.finalizeReviewRun({
+				reviewRunId: runId,
+				verdict: parsedVerdict.verdict,
+				outputText,
+			});
 		},
 	});
 }

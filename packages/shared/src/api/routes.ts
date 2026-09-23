@@ -32,6 +32,7 @@ import {
 	updateGateSettingsBodySchema,
 	updatePipelineSettingsBodySchema,
 } from './settings.ts';
+import { RECALL_TASK_BODY_KEYS, recallTaskBodySchema } from './tasks.ts';
 
 export interface RouteDefinition {
 	readonly method: 'GET' | 'POST' | 'DELETE' | 'PATCH';
@@ -142,6 +143,13 @@ export const REQUEST_BODY_SCHEMAS = [
 		method: 'PATCH' as const,
 		schema: updatePipelineSettingsBodySchema,
 		keys: UPDATE_PIPELINE_SETTINGS_BODY_KEYS,
+	},
+	{
+		name: 'recallTask',
+		path: '/api/v1/tasks/:taskId/recall',
+		method: 'POST' as const,
+		schema: recallTaskBodySchema,
+		keys: RECALL_TASK_BODY_KEYS,
 	},
 ] as const;
 
@@ -514,6 +522,24 @@ export const ROUTES: readonly RouteDefinition[] = [
 		reqType: 'void',
 		resType: 'CleanupTaskWorktreeResponse',
 		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_INTERNAL'],
+	},
+	{
+		method: 'POST',
+		path: '/api/v1/tasks/:taskId/recall',
+		auth: 'device',
+		reqType: 'RecallTaskBody',
+		resType: 'RecallTaskResponse',
+		errors: [
+			'E_UNAUTHORIZED',
+			'E_DEVICE_REVOKED',
+			'E_NOT_FOUND',
+			'E_VALIDATION',
+			'E_RUN_ALREADY_EXISTS',
+			'E_FIX_RUN_IN_FLIGHT',
+			'E_INTERNAL',
+		],
+		bodySchema: recallTaskBodySchema,
+		bodyKeys: RECALL_TASK_BODY_KEYS,
 	},
 	{
 		method: 'GET',

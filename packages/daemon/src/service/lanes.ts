@@ -1,4 +1,5 @@
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
+import { computeDispatchCandidates } from '../domain/dispatch-candidates.ts';
 import { deriveLanes } from '../domain/lanes.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
@@ -47,16 +48,27 @@ export function createLanesService(deps: LanesServiceDeps): LanesService {
 			);
 
 			const allRuns = deps.runsRepo.listAll();
+			// 运行历史必须按文档作用域裁：别的文档的活动收口运行不得占本文档的泳道（E-317）
 			const runs = allRuns.filter(
 				(r) =>
 					(r.task_id && docTaskIds.has(r.task_id)) || (r.batch_id && docBatchIds.has(r.batch_id)),
 			);
 
+			// 与 tick 同一份可派队列：契约未就绪、文档待确认、停靠/未来批次、前置未落地都在这里判掉
+			const candidates = computeDispatchCandidates({
+				tasks,
+				runs,
+				activeBatchIds,
+			});
+
 			return deriveLanes({
 				laneCount,
 				tasks,
 				runs,
-				activeBatchIds: activeBatchIds.size > 0 ? activeBatchIds : undefined,
+				// 空集合也要传：它表示"当前没有活动批次"，而不是"不过滤"
+				activeBatchIds,
+				candidateTaskIds: candidates.eligibleTaskIds,
+				blockedCandidates: candidates.waitingOnDeps,
 			});
 		},
 	});

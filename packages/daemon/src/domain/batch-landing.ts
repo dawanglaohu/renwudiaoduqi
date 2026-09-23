@@ -25,17 +25,28 @@ export interface BatchLandingSummary {
 }
 
 export type LandingTask = Pick<TaskRow, 'id' | 'task_key' | 'manual_state'>;
-export type LandingRun = Pick<RunRow, 'task_id' | 'kind' | 'attempt_no' | 'state' | 'is_in_head'>;
+export type LandingRun = Pick<
+	RunRow,
+	'task_id' | 'kind' | 'attempt_no' | 'state' | 'is_in_head'
+> & { readonly origin?: string | null };
 
 /**
  * 每个任务 `kind='implement'` 且 `attempt_no` 最大的运行行。
+ * 批次级计数口径（E-275, 09 节）：
+ * 忽略处于在途状态的 wrapup-fix 运行（origin === 'wrapup-fix' 且 state !== 'landed'），
+ * 避免已验收任务因收口修复临时退出已落地计数。
  */
 export function latestImplementationRunByTaskId<R extends LandingRun>(
 	runs: readonly R[],
+	options?: { readonly ignoreWrapupFix?: boolean },
 ): ReadonlyMap<string, R> {
 	const latest = new Map<string, R>();
+	const ignoreFix = options?.ignoreWrapupFix ?? true;
 	for (const run of runs) {
 		if (!run.task_id || run.kind !== 'implement') continue;
+		if (ignoreFix && run.origin === 'wrapup-fix' && run.state !== 'landed') {
+			continue;
+		}
 		const existing = latest.get(run.task_id);
 		if (!existing || run.attempt_no > existing.attempt_no) {
 			latest.set(run.task_id, run);

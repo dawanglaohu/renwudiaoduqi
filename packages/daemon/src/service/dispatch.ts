@@ -22,17 +22,31 @@ import {
 	allocateConcurrencySlots,
 	countActiveRunsForAgent,
 } from '../domain/concurrency.ts';
+import { computeDispatchCandidates } from '../domain/dispatch-candidates.ts';
 import { toEffortColumns } from '../domain/effort-value.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import { deriveLanes } from '../domain/lanes.ts';
-import { evaluatePathClashQueue, isTaskLanded } from '../domain/path-clash.ts';
+import {
+	type TaskPathDescriptor,
+	checkTaskPathClash,
+	evaluatePathClashQueue,
+	isTaskLanded,
+	isTaskPathHolding,
+	parseWrapupFixSerialReason,
+} from '../domain/path-clash.ts';
 import { parsePipelineSettings } from '../domain/pipeline-settings.ts';
 import {
 	type RunState,
+	TERMINAL_RUN_STATES,
 	countsTowardAgentConcurrency,
 	isTerminalRunState,
 } from '../domain/run-state-machine.ts';
-import { deriveTaskState } from '../domain/task-state.ts';
+import {
+	deriveTaskCrossBatchFix,
+	deriveTaskInHead,
+	deriveTaskInHeadMethod,
+	deriveTaskState,
+} from '../domain/task-state.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
@@ -82,13 +96,41 @@ export function toBatchDto(row: BatchRow): BatchDto {
 	});
 }
 
-export function toTaskDto(row: TaskRow, latestRunState?: string | null): TaskDto {
+export function toTaskDto(
+	row: TaskRow,
+	latestRunState?: string | null,
+	runsForTask?: readonly RunRow[],
+): TaskDto {
 	let deps: string[] = [];
 	try {
 		deps = JSON.parse(row.deps_json);
 	} catch {
 		deps = [];
 	}
+	const implRuns = runsForTask?.filter((r) => r.kind === 'implement') ?? [];
+	const latestImplRun =
+		implRuns.length > 0
+			? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
+			: null;
+	const inHead = deriveTaskInHead({
+		manualState: row.manual_state,
+		latestImplementationRun: latestImplRun
+			? { state: latestImplRun.state, is_in_head: latestImplRun.is_in_head }
+			: null,
+	});
+	const inHeadMethod = deriveTaskInHeadMethod(
+		{
+			manualState: row.manual_state,
+			latestImplementationRun: latestImplRun
+				? { state: latestImplRun.state, is_in_head: latestImplRun.is_in_head }
+				: null,
+		},
+		row.manual_state,
+	);
+	const crossBatchFix = runsForTask
+		? deriveTaskCrossBatchFix({ taskBatchId: row.batch_id, runs: runsForTask })
+		: false;
+
 	return Object.freeze({
 		id: row.id,
 		docId: row.doc_id,
@@ -99,6 +141,9 @@ export function toTaskDto(row: TaskRow, latestRunState?: string | null): TaskDto
 		estDays: row.est_days ?? null,
 		batchId: row.batch_id ?? null,
 		state: deriveTaskState(row.manual_state, latestRunState),
+		inHead,
+		inHeadMethod,
+		crossBatchFix,
 	});
 }
 
@@ -710,8 +755,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		const allRunRows = runsRepo.listAll();
 		const latestRunByTaskId = new Map<string, RunRow>();
+		const runsByTaskId = new Map<string, RunRow[]>();
 		for (const r of allRunRows) {
 			if (!r.task_id) continue;
+			const list = runsByTaskId.get(r.task_id) ?? [];
+			list.push(r);
+			runsByTaskId.set(r.task_id, list);
+
 			const existing = latestRunByTaskId.get(r.task_id);
 			if (!existing || r.attempt_no > existing.attempt_no) {
 				latestRunByTaskId.set(r.task_id, r);
@@ -726,7 +776,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			const tRows = deps.tasksRepo.listByDocId(doc.id);
 			for (const t of tRows) {
 				const latestRun = latestRunByTaskId.get(t.id);
-				allTasks.push(toTaskDto(t, latestRun?.state ?? null));
+				const tRuns = runsByTaskId.get(t.id) ?? [];
+				allTasks.push(toTaskDto(t, latestRun?.state ?? null, tRuns));
 			}
 		}
 
@@ -757,13 +808,22 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				(r.task_id && docTaskIds.has(r.task_id)) || (r.batch_id && docBatchIds.has(r.batch_id)),
 		);
 
+		// 与 tick 同一份可派队列；作用域一律按目标文档裁，空 activeBatchIds 也要传（E-317 / E-319）
+		const snapshotCandidates = computeDispatchCandidates({
+			tasks: tasksForLanes,
+			runs: docRuns,
+			activeBatchIds,
+		});
+
 		const lanes = deps.lanesService
 			? deps.lanesService.getLanes(targetDoc?.id)
 			: deriveLanes({
 					laneCount,
 					tasks: tasksForLanes,
 					runs: docRuns,
-					activeBatchIds: activeBatchIds.size > 0 ? activeBatchIds : undefined,
+					activeBatchIds,
+					candidateTaskIds: snapshotCandidates.eligibleTaskIds,
+					blockedCandidates: snapshotCandidates.waitingOnDeps,
 				});
 
 		return Object.freeze({
@@ -908,6 +968,75 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 
 			const documents = deps.documentsRepo.listAll();
+
+			// R5: 整轮 tick 的槽位分配必须在同一个事务里提交。
+			// 某个候选撞唯一索引（lane_no）时，先前文档/候选已经写下的 tasks.lane_no、runs 行、
+			// 以及待发事件与待启动列表都必须一起回滚，否则数据库、事件与返回值三者不一致。
+			const pendingAssignmentTx: Array<() => void> = [];
+			const pendingAssignmentEnvelopes: EventEnvelope[] = [];
+			const pendingRunsToLaunch: string[] = [];
+			const pendingReworksToDispatch: Array<{
+				readonly targetRunId: string;
+				readonly reviewRunId?: string | null;
+				readonly reworkText: string;
+				readonly actorDeviceId?: string | null;
+			}> = [];
+
+			/**
+			 * R5: 把本轮登记的全部槽位分配一次性提交。
+			 * 任何一处唯一索引冲突都回滚全部已登记分配，并同步撤销 runsDispatched 里那些根本没提交成功的
+			 * run id、丢弃待发事件与待启动列表，保证数据库、事件、返回值三者一致。
+			 */
+			const commitPendingAssignments = () => {
+				if (pendingAssignmentTx.length === 0) {
+					return;
+				}
+				const runsDispatchedBeforeTx = runsDispatched.length;
+				let assignmentCommitted = false;
+				try {
+					const runAllAssignments = () => {
+						for (const assign of pendingAssignmentTx) {
+							assign();
+						}
+					};
+					if (deps.unitOfWork) {
+						deps.unitOfWork.run(runAllAssignments);
+					} else {
+						runAllAssignments();
+					}
+					assignmentCommitted = true;
+				} catch (err) {
+					// 回滚后不得发布任何 lane.assigned / run.state_changed，也不得启动任何进程
+					runsDispatched.length = runsDispatchedBeforeTx;
+					pendingAssignmentEnvelopes.length = 0;
+					pendingRunsToLaunch.length = 0;
+					pendingReworksToDispatch.length = 0;
+					logFailure(err);
+				}
+
+				if (assignmentCommitted) {
+					if (deps.bus) {
+						for (const env of pendingAssignmentEnvelopes) {
+							deps.bus.publish(env);
+						}
+					}
+					for (const runId of pendingRunsToLaunch) {
+						void launchRun(runId);
+					}
+					for (const rw of pendingReworksToDispatch) {
+						void deps.reworkService?.dispatchRework({
+							targetRunId: rw.targetRunId,
+							reviewRunId: rw.reviewRunId,
+							reworkText: rw.reworkText,
+							source: 'human',
+							actorDeviceId: rw.actorDeviceId,
+						});
+					}
+				}
+
+				pendingAssignmentTx.length = 0;
+			};
+
 			for (const doc of documents) {
 				if (doc.is_source_readable === 0) {
 					continue;
@@ -928,70 +1057,107 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const landing = summarizeBatchLanding(tasks, runsRepo.listAll());
 
 					if (landing.allLanded) {
-						if (landing.notInHeadCount > 0) {
-							// E-272: 全部 landed 但有未进 HEAD -> awaiting_landing
-							if (batch.state === 'running') {
+						// 上一轮收口派出的修复运行是否都已落地（M7-T9 R3）
+						const latestWrapupRecord = deps.batchWrapupsRepo?.findLatestByBatchId(batch.id);
+						let fixRunsLanded = true;
+						if (latestWrapupRecord) {
+							let fixRunIds: string[] = [];
+							try {
+								fixRunIds = JSON.parse(latestWrapupRecord.fix_run_ids_json || '[]');
+							} catch {
+								fixRunIds = [];
+							}
+							for (const fixId of fixRunIds) {
+								const fixRun = runsRepo.findById(fixId);
+								if (!fixRun || fixRun.state !== 'landed') {
+									fixRunsLanded = false;
+									break;
+								}
+							}
+						}
+
+						if (fixRunsLanded) {
+							// 上一轮收口运行本身是否已进 HEAD（M7-T9 R3）
+							const latestWrapupRun = deps.runsRepo.findLatestWrapupByBatchId?.(batch.id);
+							const prevWrapupInHead = !latestWrapupRun || latestWrapupRun.is_in_head === 1;
+
+							if (landing.notInHeadCount > 0 || !prevWrapupInHead) {
+								// E-272 & R3: 全部 landed 但有未进 HEAD -> awaiting_landing
+								if (batch.state === 'running') {
+									await effectiveBatchService.transitionBatch(
+										batch.id,
+										'awaiting_landing',
+										'waiting_for_branches_in_head',
+									);
+									batchesAdvanced.push(batch.id);
+								}
+								continue;
+							}
+
+							// 全部进 HEAD (notInHeadCount === 0 && prevWrapupInHead)
+							// AC 6 & E-312 / E-318: 统一走严格 parsePipelineSettings，损坏行告警后回落默认
+							let wrapupMode: 'auto' | 'manual' = 'auto';
+							if (deps.settingsRepo) {
+								const pRow = deps.settingsRepo.get('pipeline');
+								const pipelineSettings = parsePipelineSettings(pRow?.value_json, (msg) => {
+									logFailure(msg);
+								});
+								wrapupMode = pipelineSettings.wrapupMode;
+							}
+
+							if (wrapupMode === 'manual') {
+								continue;
+							}
+
+							const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(batch.id);
+							const latestWrapup = deps.runsRepo.findLatestWrapupByBatchId?.(batch.id);
+							const currentRound = deps.batchWrapupsRepo
+								? deps.batchWrapupsRepo.getMaxRound(batch.id)
+								: (latestWrapup?.attempt_no ?? 0);
+
+							if (!activeWrapup && currentRound < 2 && deps.wrapupService) {
+								// 自动派收口运行，且本 tick 不再派发 (AC 1, E-283)
+								try {
+									const wrapupResult = await deps.wrapupService.triggerWrapup({
+										batchId: batch.id,
+										trigger: 'auto',
+									});
+									runsDispatched.push(wrapupResult.run.id);
+									batchesAdvanced.push(batch.id);
+									// 本 tick 到此为止：先落盘前面文档已登记的槽位分配，再返回
+									commitPendingAssignments();
+									return {
+										executed: true,
+										batchesAdvanced: Object.freeze(batchesAdvanced),
+										runsDispatched: Object.freeze(runsDispatched),
+										tasksBlocked: Object.freeze(tasksBlocked),
+										tasksDeferred: Object.freeze(tasksDeferred),
+									};
+								} catch (error) {
+									// 触发失败（条件不满足 / agent 不可用 → 批次已转 needs_attention）：记日志，不吞掉
+									logFailure(error);
+								}
+							}
+
+							if (!deps.wrapupService && !activeWrapup) {
+								// Fallback if wrapupService not wired
 								await effectiveBatchService.transitionBatch(
 									batch.id,
-									'awaiting_landing',
-									'waiting_for_branches_in_head',
+									'done',
+									'all_landed_and_in_head',
 								);
 								batchesAdvanced.push(batch.id);
 							}
-							continue;
-						}
-
-						// 全部进 HEAD (notInHeadCount === 0)
-						// AC 6 & E-312: 读 wrapupMode，使用严格 parsePipelineSettings
-						let wrapupMode: 'auto' | 'manual' = 'auto';
-						if (deps.settingsRepo) {
-							const pRow = deps.settingsRepo.get('pipeline');
-							const pipelineSettings = parsePipelineSettings(pRow?.value_json, (msg) => {
-								logFailure(msg);
-							});
-							wrapupMode = pipelineSettings.wrapupMode;
-						}
-
-						if (wrapupMode === 'manual') {
-							continue;
-						}
-
-						const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(batch.id);
-						const latestWrapup = deps.runsRepo.findLatestWrapupByBatchId?.(batch.id);
-						const currentRound = deps.batchWrapupsRepo
-							? deps.batchWrapupsRepo.getMaxRound(batch.id)
-							: (latestWrapup?.attempt_no ?? 0);
-
-						if (!activeWrapup && currentRound < 2 && deps.wrapupService) {
-							// 自动派收口运行，且本 tick 不再派发 (AC 1, E-283)
-							try {
-								const wrapupResult = await deps.wrapupService.triggerWrapup({
-									batchId: batch.id,
-									trigger: 'auto',
-								});
-								runsDispatched.push(wrapupResult.run.id);
+						} else {
+							// 上一轮修复运行仍在飞 -> 批次回到 running 等它们落地
+							if (batch.state === 'awaiting_landing') {
+								await effectiveBatchService.transitionBatch(
+									batch.id,
+									'running',
+									'fix_runs_pending',
+								);
 								batchesAdvanced.push(batch.id);
-								return {
-									executed: true,
-									batchesAdvanced: Object.freeze(batchesAdvanced),
-									runsDispatched: Object.freeze(runsDispatched),
-									tasksBlocked: Object.freeze(tasksBlocked),
-									tasksDeferred: Object.freeze(tasksDeferred),
-								};
-							} catch (error) {
-								// 触发失败（条件不满足 / agent 不可用 → 批次已转 needs_attention）：记日志，不吞掉
-								logFailure(error);
 							}
-						}
-
-						if (!deps.wrapupService && !activeWrapup) {
-							// Fallback if wrapupService not wired
-							await effectiveBatchService.transitionBatch(
-								batch.id,
-								'done',
-								'all_landed_and_in_head',
-							);
-							batchesAdvanced.push(batch.id);
 						}
 					} else if (batch.state === 'awaiting_landing') {
 						// A task reopened or reworked -> return to running (E-59, E-121)
@@ -1003,6 +1169,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				// Step 3: 按槽位补位 (AC 2, AC 3, E-309, E-310, E-311, E-327)
 				const docTasks = deps.tasksRepo.listByDocId(doc.id);
 				const allRuns = runsRepo.listAll();
+				const activeRuns = runsRepo.listActive();
 				const docBatches = deps.batchesRepo ? deps.batchesRepo.listByDocId(doc.id) : batches;
 				const docBatchIds = new Set(docBatches.map((b) => b.id));
 				const docTaskIds = new Set(docTasks.map((t) => t.id));
@@ -1139,14 +1306,180 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					}
 				}
 
+				// 已排队任务运行出队（收口修复 / 撤回，M7-T9 R1）：泳道优先于返工与新任务
+				const queuedTaskRuns = docRuns.filter(
+					(r) => r.state === 'queued' && r.task_id !== null && r.kind !== 'wrapup',
+				);
+
+				for (const queuedRun of queuedTaskRuns) {
+					const qTaskId = queuedRun.task_id as string;
+					const qTask = docTasks.find((t) => t.id === qTaskId);
+					if (!qTask) continue;
+
+					if (!isAgentDispatchable(queuedRun.agent_id)) {
+						tasksBlocked.push({
+							taskId: qTaskId,
+							reason: 'agent_unavailable',
+						});
+						continue;
+					}
+
+					// 1. 串行约束（E-280 / M7-T9 R1）
+					const parsedSerial = parseWrapupFixSerialReason(queuedRun.queued_reason);
+					if (parsedSerial) {
+						const blocker = runsRepo.findById(parsedSerial.runId);
+						if (!blocker || blocker.state !== 'landed') {
+							continue;
+						}
+					}
+
+					if (queuedRun.spawned_by_run_id) {
+						const priorFixHolding = activeRuns.some(
+							(other) =>
+								other.id !== queuedRun.id &&
+								other.spawned_by_run_id === queuedRun.spawned_by_run_id &&
+								other.state !== 'queued' &&
+								other.state !== 'landed' &&
+								!(TERMINAL_RUN_STATES as readonly string[]).includes(other.state),
+						);
+						if (priorFixHolding) {
+							continue;
+						}
+					}
+
+					// 2. 路径冲突检查（E-46）
+					let qPaths: string[] = [];
+					try {
+						qPaths = JSON.parse(qTask.task_paths_json ?? '[]');
+					} catch {
+						qPaths = [];
+					}
+					const queuedDesc: TaskPathDescriptor = {
+						taskId: qTask.id,
+						taskKey: qTask.task_key,
+						taskPaths: Object.freeze(qPaths),
+						batchId: qTask.batch_id ?? undefined,
+						state: 'queued',
+						runId: queuedRun.id,
+					};
+					let hasClash = false;
+					for (const holding of activeRuns) {
+						if (holding.id === queuedRun.id || holding.state === 'queued') continue;
+						if (!holding.task_id || !isTaskPathHolding(holding.state)) continue;
+						const hTask = deps.tasksRepo.findById(holding.task_id);
+						let hPaths: string[] = [];
+						try {
+							hPaths = JSON.parse(hTask?.task_paths_json ?? '[]');
+						} catch {
+							hPaths = [];
+						}
+						const clashRes = checkTaskPathClash(
+							{
+								taskId: holding.task_id,
+								taskKey: hTask?.task_key,
+								taskPaths: Object.freeze(hPaths),
+								runId: holding.id,
+							},
+							queuedDesc,
+							{ sameBatchOnly: false },
+						);
+						if (clashRes.hasClash) {
+							hasClash = true;
+							tasksBlocked.push({
+								taskId: qTaskId,
+								reason: clashRes.queuedReason ?? 'path_clash',
+							});
+							break;
+						}
+					}
+					if (hasClash) {
+						continue;
+					}
+
+					// 3. 泳道：已占槽直接出队，否则取一个空槽（E-309 / E-310 / E-326）
+					let laneNo =
+						typeof qTask.lane_no === 'number' && qTask.lane_no >= 1 ? qTask.lane_no : null;
+					if (laneNo === null) {
+						const allocatedLaneNo = free.shift();
+						if (allocatedLaneNo === undefined) {
+							tasksDeferred.push({
+								taskId: qTaskId,
+								reason: 'lane_full',
+							});
+							continue;
+						}
+						laneNo = allocatedLaneNo;
+						occupiedLanes.add(allocatedLaneNo);
+					}
+
+					// 4. 每 agent 并发上限（E-54）
+					const queuedAgentLimit = agentLimitFor(queuedRun.agent_id);
+					const queuedAgentActive = countActiveRunsForAgent(
+						allRuns
+							.filter(
+								(r) =>
+									r.agent_id === queuedRun.agent_id &&
+									r.id !== queuedRun.id &&
+									countsTowardAgentConcurrency(r.state as RunState),
+							)
+							.map((r) => r.state),
+					);
+					if (queuedAgentActive >= queuedAgentLimit) {
+						tasksDeferred.push({
+							taskId: qTaskId,
+							reason: 'agent_concurrency_limit_reached',
+						});
+						continue;
+					}
+
+					const persistDequeue = () => {
+						deps.tasksRepo.assignLaneNo(qTaskId, laneNo as number);
+						runsRepo.updateLaneNo?.(queuedRun.id, laneNo as number);
+						runsRepo.updateState({
+							id: queuedRun.id,
+							state: 'starting',
+							queuedReason: null,
+						});
+					};
+					if (deps.unitOfWork) {
+						deps.unitOfWork.run(persistDequeue);
+					} else {
+						persistDequeue();
+					}
+
+					if (deps.bus && deps.envelopeFactory) {
+						deps.bus.publish(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'lane.assigned',
+								payload: {
+									docId: doc.id,
+									laneNo: laneNo as number,
+									taskId: qTaskId,
+									runId: queuedRun.id,
+								},
+							}),
+						);
+					}
+
+					runsDispatched.push(queuedRun.id);
+					void launchRun(queuedRun.id);
+				}
+
 				if (free.length === 0) {
 					continue;
 				}
 
-				// 打回后等泳道的返工排在全部新任务之前（按打回时间先后，E-327）
+				const activeBatchesInDoc = docBatches.filter(
+					(b) => b.state === 'running' || b.state === 'awaiting_landing',
+				);
+				const activeBatchIdSetForRework = new Set(activeBatchesInDoc.map((b) => b.id));
+
+				// 打回后等泳道的返工排在全部新任务之前（按打回时间先后，E-327）。
+				// 批次暂停/未激活时不入道：停靠中的返工不得占本文档的泳道（E-326 / E-327）。
 				const reworkTasks: Array<{ readonly task: TaskRow; readonly run: RunRow }> = [];
 				for (const t of docTasks) {
 					if (t.lane_no !== null && t.lane_no !== undefined) continue;
+					if (!t.batch_id || !activeBatchIdSetForRework.has(t.batch_id)) continue;
 					const tRuns = docRuns.filter((r) => r.task_id === t.id && r.kind === 'implement');
 					if (tRuns.length === 0) continue;
 					const latestImpl = tRuns.reduce((prev, curr) =>
@@ -1162,88 +1495,22 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					return timeA.localeCompare(timeB);
 				});
 
-				const activeBatchesInDoc = docBatches.filter(
-					(b) => b.state === 'running' || b.state === 'awaiting_landing',
-				);
-
-				const activeRuns = runsRepo.listActive();
-				const activeTaskIds = new Set(activeRuns.map((r) => r.task_id));
-				const candidateTasks: TaskRow[] = [];
-				const latestRunByTaskId = new Map<string, RunRow>();
-				for (const r of allRuns) {
-					if (!r.task_id) continue;
-					const existing = latestRunByTaskId.get(r.task_id);
-					if (!existing || r.attempt_no > existing.attempt_no) {
-						latestRunByTaskId.set(r.task_id, r);
-					}
+				// 可派队列只由 domain/dispatch-candidates.ts 判一次：tick 与泳道快照共用同一份（E-319 / E-326）
+				const activeBatchIdsInDoc = new Set(activeBatchesInDoc.map((b) => b.id));
+				const dispatchCandidates = computeDispatchCandidates({
+					tasks: docTasks,
+					runs: allRuns,
+					activeBatchIds: activeBatchIdsInDoc,
+					excludeTaskIds: reworkTasks.map((rw) => rw.task.id),
+				});
+				for (const blockedItem of dispatchCandidates.blocked) {
+					tasksBlocked.push({
+						taskId: blockedItem.taskId,
+						reason: blockedItem.reason,
+					});
 				}
-
-				for (const b of activeBatchesInDoc) {
-					const bTasks = deps.tasksRepo.listByBatchId(b.id);
-					const taskByKey = new Map<string, TaskRow>();
-					for (const t of bTasks) {
-						taskByKey.set(t.task_key, t);
-					}
-
-					for (const t of bTasks) {
-						if (isTaskFinishedOrLanded(t) || activeTaskIds.has(t.id)) {
-							continue;
-						}
-						if (reworkTasks.some((rw) => rw.task.id === t.id)) {
-							continue;
-						}
-
-						const latestRun = latestRunByTaskId.get(t.id);
-						if (latestRun && isTerminalRunState(latestRun.state as RunState)) {
-							if (
-								latestRun.state === 'failed' ||
-								latestRun.state === 'interrupted' ||
-								latestRun.state === 'orphaned' ||
-								latestRun.state === 'aborted'
-							) {
-								continue;
-							}
-						}
-
-						let depKeys: string[] = [];
-						try {
-							depKeys = JSON.parse(t.deps_json);
-						} catch {
-							depKeys = [];
-						}
-
-						let depsSatisfied = true;
-						for (const depKey of depKeys) {
-							const depTask = taskByKey.get(depKey);
-							if (!depTask || !isTaskFinishedOrLanded(depTask)) {
-								depsSatisfied = false;
-								break;
-							}
-						}
-
-						if (!depsSatisfied) {
-							continue;
-						}
-
-						if (t.is_contract_ready !== 1) {
-							tasksBlocked.push({
-								taskId: t.id,
-								reason: 'contract_not_ready',
-							});
-							continue;
-						}
-
-						if (t.has_accept_changed === 1 || t.has_prompt_changed === 1) {
-							tasksBlocked.push({
-								taskId: t.id,
-								reason: 'doc_changed_pending_confirmation',
-							});
-							continue;
-						}
-
-						candidateTasks.push(t);
-					}
-				}
+				const eligibleTaskIdSet = new Set(dispatchCandidates.eligibleTaskIds);
+				const candidateTasks: TaskRow[] = docTasks.filter((t) => eligibleTaskIdSet.has(t.id));
 
 				if (candidateTasks.length === 0 && reworkTasks.length === 0) {
 					continue;
@@ -1365,15 +1632,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 				const admitted = allocation.admitted.map((a) => a.item);
 
-				// R5: All slot assignments in this tick executed in ONE atomic transaction!
-				const pendingEnvelopes: EventEnvelope[] = [];
-				const runsToLaunch: string[] = [];
-				const reworksToDispatch: Array<{
-					readonly targetRunId: string;
-					readonly reviewRunId?: string | null;
-					readonly reworkText: string;
-					readonly actorDeviceId?: string | null;
-				}> = [];
+				// R5: 分配动作只登记，不在这里提交——整轮 tick 的分配统一在文档循环之后一次性提交。
+				const pendingEnvelopes = pendingAssignmentEnvelopes;
+				const runsToLaunch = pendingRunsToLaunch;
+				const reworksToDispatch = pendingReworksToDispatch;
 
 				const assignAllInTx = () => {
 					for (let i = 0; i < admitted.length; i++) {
@@ -1500,34 +1762,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					}
 				};
 
-				try {
-					if (deps.unitOfWork) {
-						deps.unitOfWork.run(assignAllInTx);
-					} else {
-						assignAllInTx();
-					}
-
-					if (deps.bus) {
-						for (const env of pendingEnvelopes) {
-							deps.bus.publish(env);
-						}
-					}
-					for (const runId of runsToLaunch) {
-						void launchRun(runId);
-					}
-					for (const rw of reworksToDispatch) {
-						void deps.reworkService?.dispatchRework({
-							targetRunId: rw.targetRunId,
-							reviewRunId: rw.reviewRunId,
-							reworkText: rw.reworkText,
-							source: 'human',
-							actorDeviceId: rw.actorDeviceId,
-						});
-					}
-				} catch (err) {
-					logFailure(err);
-				}
+				// 事务边界在文档循环之外（R5）：这里只登记本轮的分配动作。
+				pendingAssignmentTx.push(assignAllInTx);
 			}
+
+			commitPendingAssignments();
 
 			return {
 				executed: true,
@@ -1614,13 +1853,43 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 
 				const worktreePath = run.worktree_path ?? doc.repo_path ?? '';
+				// R1: 收口运行必须交付快照里冻结的八段收口提示词，否则 agent 收不到任何指令
+				let wrapupPrompt: string | undefined;
+				let wrapupLaunchSpecData: {
+					model?: string | null;
+					effort?: string | null;
+					permissionTier?: string;
+				} = {};
+				if (run.snapshot_id && deps.dispatchSnapshotsRepo) {
+					const snap = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
+					wrapupPrompt = snap?.impl_prompt ?? undefined;
+					if (snap?.launch_spec_json) {
+						try {
+							wrapupLaunchSpecData = JSON.parse(snap.launch_spec_json);
+						} catch {
+							wrapupLaunchSpecData = {};
+						}
+					}
+				}
+				if (!wrapupPrompt || wrapupPrompt.trim().length === 0) {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'wrapup_prompt_missing',
+					});
+					throw new AppError(
+						'E_VALIDATION',
+						`Wrapup run ${runId} has no frozen wrapup prompt in its dispatch snapshot`,
+						{ details: { runId, snapshotId: run.snapshot_id } },
+					);
+				}
 				const launchSpec = adapter.buildLaunchSpec({
 					runId,
 					cwd: worktreePath,
-					model: run.model_name ?? null,
-					effortTier: run.effort_tier ?? null,
+					model: run.model_name ?? wrapupLaunchSpecData.model ?? null,
+					effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
 					permissionTier: 'workspaceWrite',
-					prompt: undefined,
+					prompt: wrapupPrompt,
 				});
 
 				let managed: ManagedProcess;
@@ -1714,15 +1983,19 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				return;
 			}
 
+			let runPrompt = task.impl_prompt ?? undefined;
 			let launchSpecData: {
 				model?: string | null;
 				effort?: string | null;
 				permissionTier?: string;
 				baseRef?: string | { kind?: string; branchName?: string };
 				worktreeMode?: 'fresh' | 'reuse';
+				targetWorktreePath?: string;
+				preferredBranchName?: string;
 			} = {};
 			if (run.snapshot_id && deps.dispatchSnapshotsRepo) {
 				const snap = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
+				runPrompt = snap?.impl_prompt ?? runPrompt;
 				if (snap?.launch_spec_json) {
 					try {
 						launchSpecData = JSON.parse(snap.launch_spec_json);
@@ -1758,13 +2031,39 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				readonly branchName: string;
 				readonly baseRef: string;
 			};
+			const targetWorktreePath = run.worktree_path ?? launchSpecData.targetWorktreePath;
+			const preferredBranchName = run.branch_name ?? launchSpecData.preferredBranchName;
+			const effectiveWorktreeMode =
+				launchSpecData.worktreeMode ??
+				(run.origin === 'wrapup-fix' || targetWorktreePath ? 'reuse' : 'fresh');
+
 			try {
 				const baseRefInput =
 					typeof launchSpecData.baseRef === 'object' && launchSpecData.baseRef !== null
 						? (launchSpecData.baseRef as RunBaseRef)
 						: undefined;
 
-				if (deps.baseSelector) {
+				if (effectiveWorktreeMode === 'reuse' && targetWorktreePath) {
+					// R2: 自动修复复用收口 worktree，撤回复用原任务 worktree
+					if (deps.workspace) {
+						preparedWorktree = await deps.workspace.prepareWorktree({
+							repoPath: doc.repo_path,
+							taskId: task.task_key || task.id,
+							branchPrefix: doc.branch_prefix ?? 'task/',
+							worktreeMode: 'reuse',
+							targetWorktreePath,
+							preferredBranchName,
+							baseRef: 'HEAD',
+						});
+					} else {
+						preparedWorktree = {
+							worktreePath: targetWorktreePath,
+							branchName:
+								preferredBranchName ?? `${doc.branch_prefix ?? 'task/'}${task.task_key || task.id}`,
+							baseRef: 'HEAD',
+						};
+					}
+				} else if (deps.baseSelector) {
 					preparedWorktree = await deps.baseSelector.prepareTaskWorkspace({
 						repoPath: doc.repo_path,
 						taskId: task.task_key || task.id,
@@ -1772,7 +2071,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						sessionId: runId,
 						upstreamTasks,
 						baseRef: baseRefInput,
-						worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+						worktreeMode: effectiveWorktreeMode,
 					});
 				} else if (deps.workspace) {
 					let resolvedBase = 'HEAD';
@@ -1793,7 +2092,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						repoPath: doc.repo_path,
 						taskId: task.task_key || task.id,
 						branchPrefix: doc.branch_prefix ?? 'task/',
-						worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+						worktreeMode: effectiveWorktreeMode,
 						baseRef: resolvedBase,
 					});
 				} else {
@@ -1836,7 +2135,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				model: run.model_name ?? launchSpecData.model ?? null,
 				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
-				prompt: undefined,
+				prompt: runPrompt,
+				...(run.origin === 'wrapup-fix' && run.agent_id === 'codex' ? { mode: 'exec' } : {}),
 			});
 
 			let managed: ManagedProcess;

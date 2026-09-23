@@ -16,6 +16,7 @@ import type { EventBus } from '../../src/events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../../src/events/envelope.ts';
 import { errorHandlerPlugin } from '../../src/http/plugins/90-error-handler.ts';
 import { registerDocumentRoutes } from '../../src/http/routes/documents.ts';
+import { registerGateRoutes } from '../../src/http/routes/gates.ts';
 import { registerRunsRoutes } from '../../src/http/routes/runs.ts';
 import { registerSnapshotRoute } from '../../src/http/routes/snapshot.ts';
 import { createProcessRegistry } from '../../src/proc/registry.ts';
@@ -39,11 +40,13 @@ import { type GateService, createGateService } from '../../src/service/gates.ts'
 import { type LanesService, createLanesService } from '../../src/service/lanes.ts';
 import type { LogstoreService } from '../../src/service/logstore.ts';
 import { createMessageService } from '../../src/service/message.ts';
+import { createReworkService } from '../../src/service/rework.ts';
 import { createRunService } from '../../src/service/run.ts';
 import { createSessionArchiveService } from '../../src/service/session-archive.ts';
 import { type SettingsService, createSettingsService } from '../../src/service/settings.ts';
 import { type WrapupService, createWrapupService } from '../../src/service/wrapup.ts';
 import type { GitRunner } from '../../src/workspace/diff.ts';
+import type { WorktreeManager } from '../../src/workspace/worktree.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = resolve(currentDir, '../../migrations');
@@ -127,6 +130,10 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 	let dispatchService: DispatchService;
 	let docsService: DocsService;
 	let gateService: GateService;
+	let gateServiceWithRework: GateService;
+	// 收口服务的 nudge 目标可替换：R1 回归要把它指向带 proc/adapters 的调度实例
+	let tickTargetHolder: { current: (() => void) | null };
+	let reworkService: ReturnType<typeof createReworkService>;
 	let settingsService: SettingsService;
 	let lanesService: LanesService;
 	let bughuntService: BughuntService;
@@ -193,6 +200,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 			documentsRepo,
 			tasksRepo,
 			runsRepo,
+			batchesRepo,
 		});
 
 		docsService = createDocsService({
@@ -304,6 +312,60 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 			},
 		};
 
+		// R2：真实返工投递路径（M7-T5 三分支），供「人打回只加一次返工计数」回归用。
+		// 进程注册表为空 => 目标进程已死，走 resume / new_session 分支，都会把计数写成 旧值+1。
+		reworkService = createReworkService({
+			runsRepo,
+			messageService,
+			clock,
+			ids: { newId: () => `rw-${Math.random().toString(36).slice(2)}` },
+			processRegistry,
+			bus,
+			envelopeFactory,
+			unitOfWork,
+			tasksRepo,
+			gatesRepo,
+			documentsRepo,
+			enableSessionDispatch: true,
+			// 强制走「分支三：新开实施运行」，让计数只在投递路径加一次，断言最干净
+			getAgentCapabilities: () => ({ canReply: false, canResume: false }),
+			worktreeManager: {
+				prepareWorktree: async (input: { taskId: string; baseRef?: string }) => ({
+					worktreePath: join(gitRepoPath, 'worktrees', input.taskId),
+					branchName: `task/${input.taskId}`,
+					baseRef: input.baseRef ?? 'HEAD',
+					isReused: true,
+				}),
+				prepareWrapupWorktree: async () => ({
+					worktreePath: gitRepoPath,
+					branchName: 'wrapup/1',
+					baseRef: 'HEAD',
+					isReused: true,
+				}),
+			} as unknown as WorktreeManager,
+			gitRunner: realGitRunner,
+		});
+
+		gateServiceWithRework = createGateService({
+			gatesRepo,
+			tasksRepo,
+			runsRepo,
+			batchesRepo,
+			batchWrapupsRepo,
+			documentsRepo,
+			settingsService,
+			unitOfWork,
+			clock,
+			ids: { newId: () => `id-${Math.random().toString(36).slice(2)}` },
+			bus,
+			envelopeFactory,
+			batchService,
+			reworkService,
+			nudgeTick: () => {
+				void dispatchService.tick();
+			},
+		});
+
 		bughuntService = createBughuntService({
 			runsRepo,
 			dispatchSnapshotsRepo,
@@ -329,6 +391,8 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 				} as Record<string, unknown>,
 			}),
 		} as unknown as AgentRegistry;
+
+		tickTargetHolder = { current: null };
 
 		wrapupService = createWrapupService({
 			batchesRepo,
@@ -356,7 +420,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 				getDiffStat: async () => '1 file changed',
 			},
 			nudgeTick: () => {
-				void dispatchService.tick();
+				void tickTargetHolder.current?.();
 			},
 		});
 
@@ -381,6 +445,9 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 			listDispatchableAgents: () => [{ agentId: 'codex', canDispatch: true, concurrencyLimit: 10 }],
 			agentLimits: () => 10,
 		});
+		tickTargetHolder.current = () => {
+			void dispatchService.tick();
+		};
 
 		// Seed Document (lane_count=4) and Batch
 		documentsRepo.insert({
@@ -431,6 +498,11 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		registerRunsRoutes(app, {
 			dispatchService,
 			messageService,
+		});
+		// R2：打回必须走公开闸门入口 POST /api/v1/gates/:gateId/decide
+		registerGateRoutes(app, {
+			gateService: gateServiceWithRework,
+			settingsService,
 		});
 		await app.ready();
 	});
@@ -1022,5 +1094,386 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		expect(t1Updated?.lane_no).not.toBeNull();
 		// Task 6 is still waiting because rework task took the only available slot
 		expect(t6Updated?.lane_no).toBeNull();
+	});
+
+	// =========================================================================
+	// Round-3 R2: 人工打回只加一次返工计数（走公开闸门入口）
+	// =========================================================================
+	async function parkTaskAtHumanGate(taskKey: string): Promise<{
+		readonly taskId: string;
+		readonly runId: string;
+		readonly gateId: string;
+	}> {
+		const taskId = insertTask(taskKey);
+		await dispatchService.tick();
+		const implRun = runsRepo.listByTaskId(taskId)[0];
+		if (!implRun) throw new Error(`implRun missing for ${taskKey}`);
+
+		runsRepo.updateState({ id: implRun.id, toState: 'awaiting_human', queuedReason: null });
+		// 工作区仍在磁盘上，返工投递不会因 E-277 分支缺失而转人
+		db.prepare('UPDATE runs SET worktree_path = ?, branch_name = ? WHERE id = ?').run(
+			gitRepoPath,
+			'main',
+			implRun.id,
+		);
+		tasksRepo.clearLaneNo(taskId);
+		tasksRepo.updateManualState(taskId, 'awaiting_human');
+
+		const gateId = `gate-review-${taskKey}`;
+		gatesRepo.create({
+			id: gateId,
+			task_id: taskId,
+			run_id: implRun.id,
+			kind: 'review',
+			state: 'waiting',
+			created_at: nowIso,
+		});
+		return { taskId, runId: implRun.id, gateId };
+	}
+
+	it('Round-3 R2: POST /gates/:id/decide reject adds rework_count exactly once (E-327)', async () => {
+		const { taskId, runId, gateId } = await parkTaskAtHumanGate('M8-T1');
+		const before = runsRepo.findById(runId);
+		expect(before?.rework_count ?? 0).toBe(0);
+
+		const res = await app.inject({
+			method: 'POST',
+			url: `/api/v1/gates/${gateId}/decide`,
+			payload: { decision: 'reject', comment: '请按意见返工' },
+		});
+		expect(res.statusCode).toBe(200);
+
+		// 一次打回只消耗一轮返工额度：旧实现闸门 +1、投递路径再 +1，会变成 2
+		const runs = runsRepo.listByTaskId(taskId);
+		const counts = runs.map((r) => r.rework_count ?? 0);
+		expect(Math.max(...counts)).toBe(1);
+		expect(counts.filter((c) => c === 1)).toHaveLength(1);
+
+		// 意见落库、运行迁 reworking、有槽当场入道
+		const gateAfter = gatesRepo.findById(gateId);
+		expect(gateAfter?.decision).toBe('reject');
+		expect(gateAfter?.comment).toBe('请按意见返工');
+		const parked = runsRepo.findById(runId);
+		expect(parked?.state).toBe('reworking');
+		expect(tasksRepo.findById(taskId)?.lane_no).not.toBeNull();
+
+		// 入道事件与运行状态事件都发出去了
+		expect(publishedEvents.some((e) => e.kind === 'lane.assigned')).toBe(true);
+	});
+
+	it('Round-3 R2: reject while batch paused keeps the task outside lanes and defers delivery (E-326, E-327)', async () => {
+		const { taskId, runId, gateId } = await parkTaskAtHumanGate('M8-T1');
+
+		db.prepare('UPDATE batches SET state = ? WHERE id = ?').run('paused', 'batch-1');
+
+		const res = await app.inject({
+			method: 'POST',
+			url: `/api/v1/gates/${gateId}/decide`,
+			payload: { decision: 'reject', comment: '批次暂停期间的打回' },
+		});
+		expect(res.statusCode).toBe(200);
+
+		// 暂停期间不入道：tasks.lane_no 保持 NULL，运行带 batch_paused 排队原因
+		const taskRow = tasksRepo.findById(taskId);
+		expect({
+			batchState: batchesRepo.findById('batch-1')?.state,
+			taskBatchId: taskRow?.batch_id ?? null,
+			laneNo: taskRow?.lane_no ?? null,
+		}).toEqual({ batchState: 'paused', taskBatchId: 'batch-1', laneNo: null });
+		const parked = runsRepo.findById(runId);
+		expect(parked?.state).toBe('reworking');
+		expect(parked?.queued_reason).toBe('batch_paused');
+
+		// 暂停期间不投递：没有产生新的返工运行
+		expect(runsRepo.listByTaskId(taskId)).toHaveLength(1);
+
+		// 快照里也不含它
+		const snap = await dispatchService.getSnapshot('doc-1');
+		expect((snap.lanes ?? []).map((l) => l.taskId)).not.toContain(taskId);
+
+		// 恢复批次后下一 tick 先于新任务入道：4 条泳道被 1 个返工 + 5 个新任务争抢，返工必须先拿到槽
+		db.prepare('UPDATE batches SET state = ? WHERE id = ?').run('running', 'batch-1');
+		const newcomerIds = ['M8-T9', 'M8-T10', 'M8-T11', 'M8-T12', 'M8-T13'].map((k) => insertTask(k));
+		await dispatchService.tick();
+
+		expect(tasksRepo.findById(taskId)?.lane_no).not.toBeNull();
+		const occupied = ['task-m8-t1', ...newcomerIds].filter(
+			(id) => tasksRepo.findById(id)?.lane_no != null,
+		);
+		expect(occupied).toHaveLength(4);
+		expect(newcomerIds.some((id) => tasksRepo.findById(id)?.lane_no == null)).toBe(true);
+	});
+
+	// =========================================================================
+	// Round-3 R3: 快照泳道按文档作用域 + 只推荐可派任务
+	// =========================================================================
+	it('Round-3 R3: GET /snapshot scopes lanes to the document and never advertises parked/future/blocked tasks (E-317, E-319, E-326)', async () => {
+		// 另一个文档：活动收口运行占它自己的 1 号泳道，不得影响本文档
+		documentsRepo.insert({
+			id: 'doc-2',
+			docs_path: 'docs/other',
+			project_name: 'other-project',
+			repo_path: gitRepoPath,
+			main_branch: 'main',
+			branch_prefix: 'task/',
+			lane_count: 2,
+			content_fingerprint: 'fp-2',
+			is_source_readable: 1,
+			is_takeover_notified: 0,
+			imported_at: nowIso,
+			last_seen_at: nowIso,
+		});
+		batchesRepo.insert({
+			id: 'batch-2',
+			doc_id: 'doc-2',
+			batch_no: 1,
+			state: 'running',
+			started_at: nowIso,
+		});
+		dispatchSnapshotsRepo.insert({
+			id: 'snap-wrapup-doc2',
+			task_id: null,
+			batch_id: 'batch-2',
+			input_text: null,
+			output_text: null,
+			accept_text: null,
+			impl_prompt: '# 批次收口执行指令\n',
+			review_prompt: null,
+			contract_hash: 'wrapup',
+			task_paths_json: '[]',
+			launch_spec_json: '{}',
+			created_at: nowIso,
+		});
+		runsRepo.insert({
+			id: 'run-wrapup-doc2',
+			task_id: null,
+			batch_id: 'batch-2',
+			attempt_no: 1,
+			kind: 'wrapup',
+			state: 'running',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-wrapup-doc2',
+			lane_no: 1,
+			idempotency_key: 'wrapup-doc2',
+		});
+
+		// 本文档：一个可派任务
+		const eligible = insertTask('M8-T1');
+
+		// 未来空闲批次里的任务
+		batchesRepo.insert({
+			id: 'batch-future',
+			doc_id: 'doc-1',
+			batch_no: 2,
+			state: 'idle',
+			started_at: null,
+		});
+		tasksRepo.insert({
+			id: 'task-m8-t7',
+			doc_id: 'doc-1',
+			task_key: 'M8-T7',
+			title: 'Task M8-T7',
+			module_key: 'M8',
+			deps_json: '[]',
+			contract_hash: 'hash-ok',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+			batch_id: 'batch-future',
+			is_removed_from_doc: 0,
+			has_accept_changed: 0,
+			has_prompt_changed: 0,
+			bug_prompt: 'Check for bugs',
+		});
+
+		// 停靠任务（awaiting_human）
+		const parked = insertTask('M8-T2');
+		tasksRepo.updateManualState(parked, 'awaiting_human');
+
+		// 契约未就绪任务
+		const contractBlocked = insertTask('M8-T3');
+		db.prepare('UPDATE tasks SET is_contract_ready = 0 WHERE id = ?').run(contractBlocked);
+
+		const res = await app.inject({ method: 'GET', url: '/api/v1/snapshot?docId=doc-1' });
+		expect(res.statusCode).toBe(200);
+		const body = res.json() as {
+			lanes: Array<{ laneNo: number; stage: string; nextTaskId: string | null }>;
+		};
+
+		// 本文档 lane_count=4，且不含 doc-2 的收口运行
+		expect(body.lanes).toHaveLength(4);
+		expect(body.lanes.some((l) => l.stage === 'wrapup')).toBe(false);
+
+		const nextIds = body.lanes.map((l) => l.nextTaskId);
+		expect(nextIds).toContain(eligible);
+		expect(nextIds).not.toContain('task-m8-t7');
+		expect(nextIds).not.toContain(parked);
+		expect(nextIds).not.toContain(contractBlocked);
+	});
+
+	// =========================================================================
+	// Round-3 R5: 整轮 tick 分配事务的一致性（第二候选冲突回归）
+	// =========================================================================
+	it('Round-3 R5: a conflict on the second candidate rolls back the whole tick assignment (AC 2)', async () => {
+		insertTask('M8-T1');
+		insertTask('M8-T2');
+
+		// 让两个候选共用同一个 id：第二个候选插入时必然撞唯一索引
+		const conflictDispatch = createDispatchService({
+			unitOfWork,
+			tasksRepo,
+			batchesRepo,
+			documentsRepo,
+			dispatchSnapshotsRepo,
+			runsRepo,
+			gatesRepo,
+			batchWrapupsRepo,
+			batchService,
+			wrapupService,
+			settingsRepo,
+			lanesService,
+			clock,
+			ids: { newId: () => 'dup-id' },
+			bus,
+			envelopeFactory,
+			listDispatchableAgents: () => [{ agentId: 'codex', canDispatch: true, concurrencyLimit: 10 }],
+			agentLimits: () => 10,
+		});
+
+		const laneAssignedBefore = publishedEvents.filter((e) => e.kind === 'lane.assigned').length;
+		const result = await conflictDispatch.tick();
+
+		// 返回值必须与提交结果一致：回滚后不得报告任何已派发运行
+		expect(result.runsDispatched).toHaveLength(0);
+
+		// 数据库里不得留下任何部分写入：没有分槽、没有运行
+		expect(tasksRepo.findById('task-m8-t1')?.lane_no).toBeNull();
+		expect(tasksRepo.findById('task-m8-t2')?.lane_no).toBeNull();
+		expect(runsRepo.listByTaskId('task-m8-t1')).toHaveLength(0);
+		expect(runsRepo.listByTaskId('task-m8-t2')).toHaveLength(0);
+
+		// 事件也不得发出
+		const laneAssignedAfter = publishedEvents.filter((e) => e.kind === 'lane.assigned').length;
+		expect(laneAssignedAfter).toBe(laneAssignedBefore);
+	});
+
+	// =========================================================================
+	// Round-3 R1: 收口运行必须拿到快照里冻结的收口提示词
+	// =========================================================================
+	it('Round-3 R1: the launched wrap-up run receives the frozen eight-section prompt (AC 6, E-283)', async () => {
+		const capturedSpecs: Array<{ readonly prompt?: string; readonly runId: string }> = [];
+
+		const launchDispatch = createDispatchService({
+			unitOfWork,
+			tasksRepo,
+			batchesRepo,
+			documentsRepo,
+			dispatchSnapshotsRepo,
+			runsRepo,
+			gatesRepo,
+			batchWrapupsRepo,
+			batchService,
+			wrapupService,
+			settingsRepo,
+			lanesService,
+			clock,
+			ids: { newId: () => `launch-${Math.random().toString(36).slice(2)}` },
+			bus,
+			envelopeFactory,
+			listDispatchableAgents: () => [
+				{ agentId: 'codex', canDispatch: true, concurrencyLimit: 10 },
+				{ agentId: 'claude', canDispatch: true, concurrencyLimit: 10 },
+			],
+			agentLimits: () => 10,
+			adapters: Object.fromEntries(
+				['codex', 'claude'].map((agentId) => [
+					agentId,
+					{
+						buildLaunchSpec: (input: { runId: string; prompt?: string }) => {
+							capturedSpecs.push({ runId: input.runId, prompt: input.prompt });
+							return {
+								runId: input.runId,
+								file: agentId,
+								args: [],
+								cwd: gitRepoPath,
+								env: {},
+							} as never;
+						},
+						mapEvents: () => [],
+					},
+				]),
+			),
+			proc: {
+				spawnManaged: (spec: { runId: string }) =>
+					({
+						runId: spec.runId,
+						pid: 4242,
+						file: 'codex',
+						args: [],
+						cwd: gitRepoPath,
+						child: {} as never,
+						stdoutReader: {} as never,
+						stderrReader: {} as never,
+						timers: {} as never,
+						isExited: false,
+						exitResult: undefined,
+						stderrTail: '',
+						attachAppendQueue: () => () => {},
+						waitForStdinDrain: async () => {},
+						onStdinDrain: () => () => {},
+						writeStdin: () => true,
+						onLine: () => () => {},
+						onRaw: () => () => {},
+						onStderr: () => () => {},
+					}) as never,
+			},
+			runService,
+		});
+
+		// 批次全部 landed 且已进 HEAD -> tick 第 ② 步自动派收口运行
+		const t1 = insertTask('M8-T1');
+		await dispatchService.tick();
+		const implRun = runsRepo.listByTaskId(t1)[0];
+		if (!implRun) throw new Error('implRun missing');
+		runsRepo.updateState({ id: implRun.id, toState: 'landed' });
+		runsRepo.updateInHead?.({
+			id: implRun.id,
+			isInHead: 1,
+			checkedAt: nowIso,
+			branchTipSha: 'sha-1',
+		});
+		tasksRepo.clearLaneNo(t1);
+		tasksRepo.updateManualState(t1, 'landed');
+
+		// 让收口触发后的 nudge 也走带 proc/adapters 的实例
+		tickTargetHolder.current = () => {
+			void launchDispatch.tick();
+		};
+
+		// 第一次 tick 触发收口（本 tick 不再派发），第二次 tick 把排队的收口运行真正启动
+		await launchDispatch.tick();
+		const wrapupRun = runsRepo.findActiveWrapupByBatchId?.('batch-1');
+		expect(wrapupRun).toBeTruthy();
+		const snapshot = dispatchSnapshotsRepo.findById(wrapupRun?.snapshot_id ?? '');
+		expect(snapshot?.impl_prompt ?? '').toContain('# 批次收口执行指令');
+
+		await launchDispatch.tick();
+		// launchRun 是异步 fire-and-forget，等一拍让状态迁移落定
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// 收口运行必须真的被启动（而不是只插了一行排队）
+		const wrapupAfter = runsRepo.findById(wrapupRun?.id ?? '');
+		expect(wrapupAfter?.state).not.toBe('queued');
+		expect(wrapupAfter?.agent_id).toBe('codex');
+		expect(wrapupAfter?.lane_no).toBe(1);
+
+		// 真正启动时交付的就是快照里那段冻结文本
+		expect(capturedSpecs).toHaveLength(1);
+		expect(capturedSpecs[0]?.runId).toBe(wrapupRun?.id);
+		expect(capturedSpecs[0]?.prompt).toBe(snapshot?.impl_prompt);
+		expect(capturedSpecs[0]?.prompt ?? '').toContain('# 批次收口执行指令');
+
+		// 收口运行必须真的被启动（而不是只插了一行排队）
+		expect(runsRepo.findById(wrapupRun?.id ?? '')?.state).not.toBe('queued');
 	});
 });

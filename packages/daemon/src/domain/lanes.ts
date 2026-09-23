@@ -33,6 +33,17 @@ export interface DeriveLanesInput {
 	readonly tasks: readonly TaskDescriptor[];
 	readonly runs: readonly RunDescriptor[];
 	readonly candidateTaskIds?: readonly string[];
+	/**
+	 * 前置未落地的未派任务（来自 `computeDispatchCandidates().waitingOnDeps`）。
+	 * 传了 `candidateTaskIds` 时一并传它，空闲槽才有确定性的「等前置」回落（E-319）。
+	 */
+	readonly blockedCandidates?: readonly {
+		readonly taskId: string;
+		readonly blockedBy: readonly string[];
+	}[];
+	/**
+	 * 只在这些批次里挑候选。**空集合表示没有任何活动批次**，不是"不过滤"。
+	 */
 	readonly activeBatchIds?: ReadonlySet<string> | readonly string[];
 }
 
@@ -119,8 +130,14 @@ export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 		: null;
 
 	if (input.candidateTaskIds) {
+		// 可派集合由调用方（`computeDispatchCandidates`）判定，保证与 tick 同一份队列。
 		const candidateIdSet = new Set(input.candidateTaskIds);
 		candidateQueue = sortedTasks.filter((t) => candidateIdSet.has(t.id));
+		for (const item of input.blockedCandidates ?? []) {
+			const task = tasksById.get(item.taskId);
+			if (!task) continue;
+			blockedQueue.push({ task, blockedBy: item.blockedBy });
+		}
 	} else {
 		for (const t of sortedTasks) {
 			if (t.is_removed_from_doc === 1) continue;
@@ -128,8 +145,9 @@ export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 			if (typeof t.lane_no === 'number' && t.lane_no >= 1) continue;
 			if (t.manual_state === 'paused' || t.manual_state === 'awaiting_human') continue;
 
-			// If activeBatchIds is specified, only consider tasks in active batches (E-319)
-			if (activeBatchIdSet && t.batch_id && !activeBatchIdSet.has(t.batch_id)) {
+			// If activeBatchIds is specified, only consider tasks in active batches (E-319).
+			// 空集合 = 没有活动批次，未来空闲批次里的任务不得被推荐。
+			if (activeBatchIdSet && (!t.batch_id || !activeBatchIdSet.has(t.batch_id))) {
 				continue;
 			}
 
