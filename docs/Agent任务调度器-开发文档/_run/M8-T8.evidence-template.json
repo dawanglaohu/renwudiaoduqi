@@ -2,7 +2,7 @@
   "scope": "task-contract",
   "tasks": {
     "M8-T8": {
-      "contractHash": "9f8213861ed451c63e99f82162fffc0e4aeb21a1bc088ff542381d0a58cce251",
+      "contractHash": "de48a7ace69d3eb728b6fea7aeb583bfc6b0a9c3fcf523647e2ed1565a9b00d0",
       "evidence": [],
       "verdict": "pending"
     }

@@ -951,14 +951,19 @@
     "verdict": "pass"
   },
   "M8-T8": {
-    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
-    "contractHash": "d4d4644e4b760d4d0cf7c67af65aba643042d63df399eb322ede587fb01361cc",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "de48a7ace69d3eb728b6fea7aeb583bfc6b0a9c3fcf523647e2ed1565a9b00d0",
     "evidence": [
-      "E-327 requires an ended human-rejected implementation session to be resumed or replaced through the production container. PR #137 adds service/session-resume.ts and changes both Codex and Grok build-launch-spec.ts files to pass the vendor session reference and rework prompt to a real process; these three source paths are necessary support for M8-T8 public delivery.",
-      "The four focused unit tests for Codex, Grok, rework dispatch, and rework behavior are also added as supportPaths. The existing M8-T8 dispatch and public pipeline-lanes paths remain in scope. No acceptance clause or E-327 requirement was removed. This verifies the effective task path contract only; PR #137 code acceptance remains blocked on the reviewed failure path.",
-      "The E-327 verification note now names PR #137 as pending review rather than claiming that #136 has landed. Focused container and unit tests passed 104/104 on the reviewed head before this source-only contract patch."
+      "AC1/E-317/E-319/E-332: domain/lanes.ts:72 derives deterministic lanes from passed rows; shared LANE_STAGES and pipeline-lanes integration cover stage and snapshot projections.",
+      "AC2/AC3/E-303/E-311/E-327: service/dispatch.ts:1590,1729 orders rework ahead of new work and excludes the superseded implementation run from the agent concurrency count; container-wiring tests prove maxConcurrency=1 and lane-full tick delivery.",
+      "AC4/E-326: service/rework.ts:763 parks failed delivery at awaiting_human, clears the lane, publishes lane.released, preserves both sessions and rework_count, and leaves a waiting review gate with a typed reason.",
+      "AC5/E-318: shared pipeline schema, service/settings.ts:137 and http/routes/settings.ts:69 read and persist the two settings through public endpoints and publish settings.pipeline_changed.",
+      "AC6/E-283/E-312: service/wrapup.ts:282 enforces manual versus automatic wrapup, assigns/holds a lane and releases it on completion; pipeline-lanes integration covers the public lifecycle.",
+      "AC7/E-317: service/dispatch.ts:841 and service/lanes.ts:26 derive lanes for GET /snapshot without a read-side git call.",
+      "E-327 delivery contract: service/rework.ts:117,763,882 and boot/container.ts:715 reject starting, queued and failed launch states; public gate tests prove 422 E_MESSAGE_UNDELIVERED on premature exit, no run.rework_dispatched on failure, then human retry to a new review run; tick failure uses the same recovery path.",
+      "Support paths include real session-resume.ts and Codex/Grok launch-spec adapters, and M8-T8 source row was retained while merging current main M8-T7/M9-T19 rows. Full combined static checks passed; one-worker Vitest passed 181 files, 2165 tests, 3 skipped."
     ],
-    "reviewed": "2026-09-23T14:39:46.523619+00:00",
+    "reviewed": "2026-09-23T15:54:31.698070+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
