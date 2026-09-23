@@ -398,9 +398,10 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 			expect(row?.comment).toBe('Need additional boundary tests for corner cases');
 			expect(row?.decided_by_device_id).toBe('dev-desktop');
 
-			// Task manual_state was updated to paused
+			// R2: reject now enters rework path instead of setting paused.
+			// manual_state is cleared (null) because a free lane is allocated.
 			const task = tasksRepo.findById('task-1');
-			expect(task?.manual_state).toBe('paused');
+			expect(task?.manual_state).toBeNull();
 		});
 	});
 

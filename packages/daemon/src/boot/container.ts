@@ -70,13 +70,20 @@ import {
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type GateService, createGateService } from '../service/gates.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
+import { type LanesService, createLanesService } from '../service/lanes.ts';
 import type { EventEnvelopeInput, LogstoreService } from '../service/logstore.ts';
 import { createLogstoreService } from '../service/logstore.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RetentionService, createRetentionService } from '../service/retention.ts';
 import { type ReviewService, createReviewService } from '../service/review.ts';
-import { type ReworkService, createReworkService } from '../service/rework.ts';
+import {
+	type ReworkService,
+	createReworkService,
+	isReworkDeliveryConfirmed,
+	reworkFailureReasonFromRun,
+	undeliverableReasonFromError,
+} from '../service/rework.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
 import {
@@ -86,6 +93,7 @@ import {
 	createRunService,
 } from '../service/run.ts';
 import { createSessionArchiveService } from '../service/session-archive.ts';
+import { createSessionResumeDispatcher } from '../service/session-resume.ts';
 import { type SettingsService, createSettingsService } from '../service/settings.ts';
 import { type SystemService, createSystemService } from '../service/system.ts';
 import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
@@ -159,6 +167,7 @@ export interface ContainerServices {
 	readonly rework: ReworkService;
 	readonly settings: SettingsService;
 	readonly gates: GateService;
+	readonly lanes?: LanesService;
 	readonly review: ReviewService;
 	readonly batch?: BatchService;
 	readonly wrapup?: WrapupService;
@@ -229,6 +238,7 @@ export function createContainer(input: {
 	readonly dispatchService?: DispatchService;
 	readonly assignmentsService?: AssignmentsService;
 	readonly reworkService?: ReworkService;
+	readonly lanesService?: LanesService;
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
 	readonly runService?: RunService;
@@ -514,20 +524,6 @@ export function createContainer(input: {
 			unitOfWork,
 		});
 
-	const reworkService =
-		input.reworkService ??
-		createReworkService({
-			runsRepo: runs,
-			snapshotsRepo: dispatchSnapshots,
-			processRegistry,
-			messageService,
-			unitOfWork,
-			bus,
-			envelopeFactory,
-			clock: input.clock,
-			ids,
-		});
-
 	const runLogService =
 		input.runLogService ??
 		createRunLogService({
@@ -560,6 +556,11 @@ export function createContainer(input: {
 			envelopeFactory,
 		});
 
+	const schedulerTickJobHolder: { current?: ContainerJob & { trigger?: () => void } } = {};
+	const nudgeTick = () => {
+		schedulerTickJobHolder.current?.trigger?.();
+	};
+
 	const wrapupService =
 		input.wrapupService ??
 		createWrapupService({
@@ -579,6 +580,11 @@ export function createContainer(input: {
 			envelopeFactory,
 			agentRegistry,
 			agentService,
+			nudgeTick,
+			warn: (message: string) => {
+				input.logViolation?.(`[WARN] ${message}`);
+				console.warn(`[daemon] ${message}`);
+			},
 			workspace: {
 				prepareWrapupWorktree: async (params) => {
 					const prepared = await worktreeManager.prepareWrapupWorktree(params);
@@ -677,6 +683,96 @@ export function createContainer(input: {
 			ids,
 		});
 
+	/**
+	 * #136：返工投递的生产接线。
+	 *
+	 * - `resumeSession`：按被审运行快照的能力位选中「恢复」分支时，真的把厂商会话拉起来
+	 *   并把返工意见交给它（提示词进启动参数），失败抛 `E_MESSAGE_UNDELIVERED` 并留可恢复状态。
+	 * - `launchReworkRun`：选中「新开 `origin='rework'` 实施运行」分支时走既有的生产派发路径
+	 *   （`dispatchService.launchRun`：复用 worktree、挂进程、退出后自动续接下一轮审查），
+	 *   启动后回读运行行确认进程真的起来了，任何一步没起来就抛类型化错误。
+	 */
+	const dispatchServiceHolder: { current?: DispatchService } = {};
+
+	const resumeSessionDispatcher = createSessionResumeDispatcher({
+		runsRepo: runs,
+		tasksRepo: tasks,
+		documentsRepo: documents,
+		runMessagesRepo: runMessages,
+		processRegistry,
+		runService,
+		proc,
+		adapters,
+		bus,
+		envelopeFactory,
+		unitOfWork,
+		clock: input.clock,
+		ids,
+		logFailure: (error) =>
+			input.logViolation?.(error instanceof Error ? error.message : String(error)),
+	});
+
+	async function launchReworkRun(runId: string): Promise<void> {
+		const dispatcher = dispatchServiceHolder.current;
+		if (!dispatcher) {
+			throw new AppError('E_MESSAGE_UNDELIVERED', 'Dispatch service is not initialized yet.', {
+				details: { runId, reason: 'session_dispatch_unavailable' },
+			});
+		}
+
+		let launchError: unknown = null;
+		try {
+			await dispatcher.launchRun(runId);
+		} catch (error) {
+			// 启动失败已经由 launchRun 落成运行行的失败状态（返工运行不归档、见 dispatch.ts），
+			// 这里只把它换成型别化投递失败抛回去。
+			launchError = error;
+		}
+
+		const row = runs.findById(runId);
+		if (row && isReworkDeliveryConfirmed(row.state)) {
+			return;
+		}
+
+		const reason = reworkFailureReasonFromRun(row) ?? undeliverableReasonFromError(launchError);
+		throw new AppError(
+			'E_MESSAGE_UNDELIVERED',
+			`Rework run '${runId}' did not come up (state '${row?.state ?? 'missing'}', reason '${reason}').`,
+			{
+				cause: launchError ?? undefined,
+				details: {
+					runId,
+					reason,
+					state: row?.state ?? null,
+				},
+			},
+		);
+	}
+
+	const reworkService =
+		input.reworkService ??
+		createReworkService({
+			runsRepo: runs,
+			snapshotsRepo: dispatchSnapshots,
+			processRegistry,
+			messageService,
+			unitOfWork,
+			bus,
+			envelopeFactory,
+			clock: input.clock,
+			ids,
+			// #136：返工承接需要的任务 / 文档 / 工作区依赖，与恢复、新开两条投递通路。
+			tasksRepo: tasks,
+			gatesRepo: gates,
+			documentsRepo: documents,
+			worktreeManager,
+			gitRunner: input.gitRunner,
+			resumeSession: (resumeInput) => resumeSessionDispatcher(resumeInput),
+			spawnReworkRun: async (spawnInput) => {
+				await launchReworkRun(spawnInput.run.id);
+			},
+		});
+
 	const baseSelector =
 		input.baseSelector ??
 		createBaseSelector({
@@ -685,6 +781,15 @@ export function createContainer(input: {
 			ids,
 			clock: input.clock,
 			worktreeDeps,
+		});
+
+	const lanesService =
+		input.lanesService ??
+		createLanesService({
+			documentsRepo: documents,
+			tasksRepo: tasks,
+			runsRepo: runs,
+			batchesRepo: batches,
 		});
 
 	const dispatchService =
@@ -697,9 +802,12 @@ export function createContainer(input: {
 			dispatchSnapshotsRepo: dispatchSnapshots,
 			runsRepo: runs,
 			gatesRepo: gates,
+			settingsRepo: settings,
 			batchWrapupsRepo: batchWrapups,
 			batchService,
 			wrapupService,
+			lanesService,
+			reworkService,
 			clock: input.clock,
 			ids,
 			bus,
@@ -741,6 +849,9 @@ export function createContainer(input: {
 				},
 			},
 		});
+
+	// #136：返工「新开运行」分支通过这个 holder 拿到同一份生产派发路径（launchRun）。
+	dispatchServiceHolder.current = dispatchService;
 
 	const wrappedDispatchService: DispatchService = Object.freeze({
 		...dispatchService,
@@ -800,6 +911,8 @@ export function createContainer(input: {
 			},
 		});
 
+	schedulerTickJobHolder.current = schedulerTickJob;
+
 	const gateServiceHolder: { current?: GateService } = {};
 
 	const settingsService =
@@ -810,6 +923,7 @@ export function createContainer(input: {
 			bus,
 			envelopeFactory,
 			unitOfWork,
+			nudgeTick,
 			warn: (message: string) => {
 				input.logViolation?.(`[WARN] ${message}`);
 				console.warn(`[daemon] ${message}`);
@@ -832,6 +946,9 @@ export function createContainer(input: {
 			batchesRepo: batches,
 			batchWrapupsRepo: batchWrapups,
 			batchService,
+			documentsRepo: documents,
+			reworkService,
+			nudgeTick,
 			clock: input.clock,
 			ids,
 			bus,
@@ -941,6 +1058,7 @@ export function createContainer(input: {
 		rework: reworkService,
 		settings: settingsService,
 		gates: gateService,
+		lanes: lanesService,
 		review: reviewService,
 		batch: batchService,
 		wrapup: wrapupService,

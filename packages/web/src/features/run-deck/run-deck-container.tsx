@@ -16,6 +16,7 @@
 
 import type { BatchDto, GetBatchWrapupsResponse } from '@agent-scheduler/shared/api/batches';
 import type { GateDto, ListGatesResponse } from '@agent-scheduler/shared/api/gates';
+import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
@@ -55,25 +56,17 @@ const RUNS_ROUTE = findRouteByTypes('GET', { resType: 'ListRunsResponse' });
 const GATES_ROUTE = findRouteByTypes('GET', { resType: 'ListGatesResponse' });
 const DECIDE_GATE_ROUTE = findRouteByTypes('POST', { reqType: 'DecideGateBody' });
 
-/** 占一条泳道的运行状态：非终态的运行才在甲板上跑（M9-T21 的「会话已归档」历史行另算）。 */
-export const ACTIVE_LANE_RUN_STATES = [
-	'queued',
-	'starting',
-	'running',
-	'awaiting_reply',
-	'exited',
-	'reviewing',
-	'reworking',
-	'awaiting_human',
-	'orphaned',
-	'failed',
-] as const;
-
 /** 收口报告面板取数实现（单测注入）。 */
 export type DeckWrapupsFetcher = (batchId: string) => Promise<GetBatchWrapupsResponse>;
 
 export interface BuildDeckLanesInput {
-	readonly runs: readonly RunDto[];
+	/**
+	 * daemon 算出的泳道列表（M8-T8 / E-317）。**泳道分配只有这一个来源**：
+	 * 前端不重排、不补号、不合并，`laneNo` 逐字取 `LaneView.laneNo`。
+	 */
+	readonly lanes: readonly LaneView[];
+	/** 运行行（取 `GET /runs` 的那一份：快照里的运行没有 capabilities） */
+	readonly runs?: readonly RunDto[];
 	readonly tasks?: readonly TaskDto[];
 	readonly batches?: readonly BatchDto[];
 	readonly gates?: readonly GateDto[];
@@ -81,30 +74,15 @@ export interface BuildDeckLanesInput {
 	readonly wrapupRoundByRunId?: ReadonlyMap<string, number>;
 }
 
-/** 泳道呈现顺序：daemon 给了 laneNo 就照它排，否则按开始时间 → 运行 ID 稳定排序。 */
-function compareLanes(a: RunDto, b: RunDto): number {
-	const laneA = typeof a.laneNo === 'number' ? a.laneNo : Number.POSITIVE_INFINITY;
-	const laneB = typeof b.laneNo === 'number' ? b.laneNo : Number.POSITIVE_INFINITY;
-	if (laneA !== laneB) {
-		return laneA - laneB;
-	}
-	const startedA = a.startedAt ?? '';
-	const startedB = b.startedAt ?? '';
-	if (startedA !== startedB) {
-		return startedA < startedB ? -1 : 1;
-	}
-	return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-}
-
 /**
- * 由 daemon 的 snapshot / runs / gates 拼出泳道数组（纯函数，便于机检）。
+ * 把 daemon 的泳道列表映射成甲板泳道（纯函数，便于机检）。
  *
- * 逐字消费 daemon 字段：`kind` 取 `RunDto.kind`，任务号与标题取 `TaskDto`，批次序号取 `BatchDto`，
- * 收口轮次取 `wrapupRoundByRunId`（daemon 的收口记录或事件 payload），能力位取目标运行自己的
- * `capabilities.canReply`。缺失一律留 null，由呈现层显示「—」。
+ * 逐字消费 daemon 字段：泳道号取 `LaneView.laneNo`，收口泳道由 `LaneView.stage === 'wrapup'` 判定，
+ * 任务号与标题取 `TaskDto`，批次序号取 `BatchDto`，收口轮次取 `wrapupRoundByRunId`，
+ * 能力位取**目标实施运行**自己的 `capabilities.canReply`。缺失一律留 null，由呈现层显示「—」。
  */
 export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamLane[] {
-	const { runs, tasks = [], batches = [], gates = [], wrapupRoundByRunId } = input;
+	const { lanes, runs = [], tasks = [], batches = [], gates = [], wrapupRoundByRunId } = input;
 
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
 	const batchById = new Map(batches.map((batch) => [batch.id, batch]));
@@ -116,37 +94,35 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 		}
 	}
 
-	const active = runs
-		.filter((run) => (ACTIVE_LANE_RUN_STATES as readonly string[]).includes(run.state))
-		.sort(compareLanes);
-
-	return active.map((run, index) => {
-		const task = run.taskId ? (taskById.get(run.taskId) ?? null) : null;
-		const batch = run.batchId ? (batchById.get(run.batchId) ?? null) : null;
+	return lanes.map((lane) => {
+		const run = lane.currentRunId ? (runById.get(lane.currentRunId) ?? null) : null;
+		const task = lane.taskId ? (taskById.get(lane.taskId) ?? null) : null;
+		const batchId = task?.batchId ?? run?.batchId ?? null;
+		const batch = batchId ? (batchById.get(batchId) ?? null) : null;
 		// 审查留「未结构化」时，原文要投回被审的实施会话（E-278）
-		const targetRun = run.parentRunId ? (runById.get(run.parentRunId) ?? null) : null;
-		const isWrapup = run.kind === 'wrapup';
+		const targetRun = run?.parentRunId ? (runById.get(run.parentRunId) ?? null) : null;
 
 		return Object.freeze({
-			laneNo: index + 1,
-			id: `lane-${run.id}`,
-			kind: isWrapup ? ('wrapup' as const) : ('task' as const),
-			currentRunId: run.id,
-			taskId: run.taskId ?? undefined,
-			taskKey: task?.taskKey ?? undefined,
-			title: task?.title ?? undefined,
-			status: run.state,
-			batchId: run.batchId ?? null,
-			wrapupRound: wrapupRoundByRunId?.get(run.id) ?? null,
+			laneNo: lane.laneNo,
+			id: `lane-${lane.laneNo}`,
+			kind:
+				lane.stage === 'wrapup' ? ('wrapup' as const) : run ? ('task' as const) : ('idle' as const),
+			currentRunId: lane.currentRunId,
+			taskId: lane.taskId ?? undefined,
+			taskKey: task?.taskKey,
+			title: task?.title,
+			status: run?.state,
+			batchId,
+			wrapupRound: run ? (wrapupRoundByRunId?.get(run.id) ?? null) : null,
 			wrapupBatchNo: batch?.batchNo ?? null,
-			gateId: gateByRunId.get(run.id)?.id ?? null,
-			deliverTargetRunId: run.parentRunId ?? null,
+			gateId: run ? (gateByRunId.get(run.id)?.id ?? null) : null,
+			deliverTargetRunId: run?.parentRunId ?? null,
 			deliverTargetCanReply: targetRun?.capabilities?.canReply ?? null,
-			reworkText: run.reworkText ?? null,
-			reviewVerdict: run.reviewVerdict ?? null,
-			agentName: run.agentId,
-			modelName: run.modelName ?? undefined,
-			needsApproval: run.state === 'awaiting_human',
+			reworkText: run?.reworkText ?? null,
+			reviewVerdict: run?.reviewVerdict ?? null,
+			agentName: run?.agentId,
+			modelName: run?.modelName ?? undefined,
+			needsApproval: run?.state === 'awaiting_human',
 		} satisfies DeckStreamLane);
 	});
 }
@@ -181,6 +157,9 @@ export function RunDeckContainer(props: RunDeckProps) {
 			]);
 			setRemote({
 				lanes: buildDeckLanes({
+					// 泳道列表只有 daemon 这一个来源（M8-T8 / E-317）；没有它就渲染空甲板而不自己分泳道
+					lanes: snapshot.lanes ?? [],
+					// 快照里的运行没有 capabilities，能力位取 GET /runs 的那一份（E-117）
 					runs: runsResponse.runs,
 					tasks: snapshot.tasks,
 					batches: snapshot.batches,

@@ -19,6 +19,7 @@ import type {
 	WrapupFindingDto,
 } from '@agent-scheduler/shared/api/batches';
 import type { GateDto } from '@agent-scheduler/shared/api/gates';
+import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { act, createElement } from 'react';
@@ -690,9 +691,26 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 	// ─────────────────────────────────────────────────────────────────────────────
 	// R1 & E-297：收口运行占一条普通泳道，头部写轮次与批次号
 	// ─────────────────────────────────────────────────────────────────────────────
-	describe('R1 & E-297: buildDeckLanes puts a wrapup run on an ordinary lane', () => {
-		it('gives a wrapup run kind=wrapup with the batch number and the round from daemon data', () => {
+	describe('R1 & E-297: buildDeckLanes maps the daemon lane list (E-317)', () => {
+		const lane = (over: Partial<LaneView> = {}): LaneView => ({
+			laneNo: 1,
+			taskId: null,
+			currentRunId: null,
+			stage: 'idle',
+			nextTaskId: null,
+			nextBlockedBy: [],
+			archivedTaskIds: [],
+			archivedWrapupRunId: null,
+			overLimit: false,
+			...over,
+		});
+
+		it('maps a stage=wrapup lane to kind=wrapup with the batch number and the round', () => {
 			const input: BuildDeckLanesInput = {
+				lanes: [
+					lane({ laneNo: 1, taskId: 'task-20', currentRunId: 'run-impl-1', stage: 'implement' }),
+					lane({ laneNo: 2, currentRunId: 'run-wrapup-9', stage: 'wrapup' }),
+				],
 				runs: [
 					makeRun({
 						id: 'run-impl-1',
@@ -700,7 +718,6 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 						taskId: 'task-20',
 						state: 'running',
 						batchId: 'batch-13',
-						startedAt: '2026-09-20T09:00:00.000Z',
 					}),
 					makeRun({
 						id: 'run-wrapup-9',
@@ -708,7 +725,6 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 						taskId: null,
 						state: 'reviewing',
 						batchId: 'batch-13',
-						startedAt: '2026-09-20T09:30:00.000Z',
 					}),
 				],
 				tasks: [makeTask()],
@@ -728,8 +744,10 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 			const lanes = buildDeckLanes(input);
 			expect(lanes).toHaveLength(2);
 			expect(lanes[0]?.kind).toBe('task');
+			expect(lanes[0]?.laneNo).toBe(1);
 			expect(lanes[0]?.taskKey).toBe('M9-T20');
 			expect(lanes[1]?.kind).toBe('wrapup');
+			expect(lanes[1]?.laneNo).toBe(2);
 			expect(lanes[1]?.wrapupRound).toBe(2);
 			expect(lanes[1]?.wrapupBatchNo).toBe(13);
 			expect(lanes[1]?.batchId).toBe('batch-13');
@@ -737,44 +755,44 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 			expect(lanes[1]?.taskKey).toBeUndefined();
 		});
 
-		it('keeps five concurrent runs as five lanes (E-106 多流并置)', () => {
-			const runs = Array.from({ length: 5 }, (_, index) =>
-				makeRun({
-					id: `run-${index}`,
-					kind: 'implement',
-					taskId: `task-${index}`,
-					state: 'running',
-					startedAt: `2026-09-20T09:0${index}:00.000Z`,
-				}),
-			);
-			const lanes = buildDeckLanes({ runs });
+		it('keeps five daemon lanes as five lanes side by side (E-106 多流并置)', () => {
+			const lanes = buildDeckLanes({
+				lanes: Array.from({ length: 5 }, (_, index) =>
+					lane({ laneNo: index + 1, currentRunId: `run-${index}`, stage: 'implement' }),
+				),
+				runs: Array.from({ length: 5 }, (_, index) =>
+					makeRun({
+						id: `run-${index}`,
+						kind: 'implement',
+						taskId: `task-${index}`,
+						state: 'running',
+					}),
+				),
+			});
 			expect(lanes).toHaveLength(5);
-			expect(lanes.map((lane) => lane.laneNo)).toEqual([1, 2, 3, 4, 5]);
+			expect(lanes.map((item) => item.laneNo)).toEqual([1, 2, 3, 4, 5]);
 		});
 
-		it('numbers lanes from the daemon laneNo when it is present', () => {
+		it('never renumbers or reorders the daemon lanes (E-317)', () => {
 			const lanes = buildDeckLanes({
-				runs: [
-					makeRun({ id: 'run-b', state: 'running', laneNo: 2 }),
-					makeRun({ id: 'run-a', state: 'running', laneNo: 1 }),
-				],
+				lanes: [lane({ laneNo: 4 }), lane({ laneNo: 1 }), lane({ laneNo: 2 })],
 			});
-			expect(lanes.map((lane) => lane.currentRunId)).toEqual(['run-a', 'run-b']);
+			// 顺序与编号逐字照 daemon 给的，前端不排序也不补号
+			expect(lanes.map((item) => item.laneNo)).toEqual([4, 1, 2]);
 		});
 
-		it('drops terminal runs from the deck instead of drawing an empty lane', () => {
-			const lanes = buildDeckLanes({
-				runs: [
-					makeRun({ id: 'run-landed', state: 'landed' }),
-					makeRun({ id: 'run-aborted', state: 'aborted' }),
-					makeRun({ id: 'run-live', state: 'running' }),
-				],
-			});
-			expect(lanes.map((lane) => lane.currentRunId)).toEqual(['run-live']);
+		it('marks a lane without a current run as idle instead of inventing a run', () => {
+			const lanes = buildDeckLanes({ lanes: [lane({ laneNo: 3, stage: 'idle' })] });
+			expect(lanes[0]?.kind).toBe('idle');
+			expect(lanes[0]?.currentRunId).toBeNull();
+			expect(lanes[0]?.status).toBeUndefined();
 		});
 
 		it('carries the target implementation run capability bit and the raw text for the card (E-117, E-278)', () => {
 			const lanes = buildDeckLanes({
+				lanes: [
+					lane({ laneNo: 1, taskId: 'task-20', currentRunId: 'run-review-1', stage: 'review' }),
+				],
 				runs: [
 					makeRun({
 						id: 'run-impl-1',
@@ -798,7 +816,7 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 				gates: [makeGate({ id: 'gate-9', runId: 'run-review-1' })],
 			});
 
-			const reviewLane = lanes.find((lane) => lane.currentRunId === 'run-review-1');
+			const reviewLane = lanes.find((item) => item.currentRunId === 'run-review-1');
 			expect(reviewLane?.reworkText).toBe('R1 未满足验收标准第 2 条');
 			expect(reviewLane?.reviewVerdict).toBe('incomplete');
 			// 投递目标是实施会话，能力位取实施运行那一份（不是审查运行的）
@@ -810,6 +828,9 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 
 		it('leaves the capability bit null when the daemon did not send it (不猜能力)', () => {
 			const lanes = buildDeckLanes({
+				lanes: [
+					lane({ laneNo: 1, taskId: 'task-20', currentRunId: 'run-review-1', stage: 'review' }),
+				],
 				runs: [
 					makeRun({
 						id: 'run-impl-1',
@@ -829,7 +850,7 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 				],
 				tasks: [makeTask()],
 			});
-			const reviewLane = lanes.find((lane) => lane.currentRunId === 'run-review-1');
+			const reviewLane = lanes.find((item) => item.currentRunId === 'run-review-1');
 			expect(reviewLane?.deliverTargetCanReply).toBeNull();
 			expect(reviewLane?.gateId).toBeNull();
 		});

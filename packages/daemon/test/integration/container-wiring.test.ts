@@ -4,6 +4,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
+import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
+import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
@@ -200,6 +202,13 @@ function setupWiringEnvironment(
 		readonly processProbe?: { check: (pid: number) => ProcessLiveness };
 		readonly spawnManaged?: (spec: LaunchSpec) => ManagedProcess;
 		readonly appendDelayMs?: number;
+		/**
+		 * 假 spawn 的剧本（每次启动运行前调用一次）：
+		 * `ok` 正常起进程；`throw` 让 spawn 直接抛错；`exit-immediately` 让进程「起来就退出」（E-348 抢先退出）。
+		 */
+		readonly spawnBehavior?: (spec: LaunchSpec) => 'ok' | 'throw' | 'exit-immediately';
+		/** 注册表里的每 agent 并发上限；容器与 tick 都读它（E-47）。默认 2。 */
+		readonly agentMaxConcurrency?: number;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-wiring-'));
@@ -229,10 +238,33 @@ function setupWiringEnvironment(
 		if (overrides.spawnManaged) {
 			return overrides.spawnManaged(spec);
 		}
+		const behavior = overrides.spawnBehavior?.(spec) ?? 'ok';
+		if (behavior === 'throw') {
+			throw new Error(`fake spawn failure for ${spec.runId}`);
+		}
 		const proc = createFakeProcess(spec);
 		spawnedProcesses.push(proc);
+		if (behavior === 'exit-immediately') {
+			proc.emitExit(1);
+		}
 		return proc.managed;
 	}) as unknown as typeof import('../../src/proc/spawn.ts').spawnManaged;
+
+	// 真实注册表 + 只改 codex 的 maxConcurrency：容器与 tick 的并发上限都取自它（E-47），
+	// 这样「默认 1」与「更宽的 2」两种部署形态都能在同一个真容器上验。
+	const codexMaxConcurrency = overrides.agentMaxConcurrency ?? 2;
+	const agentRegistry = createAgentRegistry({
+		dataDir: tempDir,
+		platform: 'posix',
+		publishWarning: () => {},
+		builtInDefaults: {
+			...BUILT_IN_AGENT_DEFAULTS,
+			codex: Object.freeze({
+				...BUILT_IN_AGENT_DEFAULTS.codex,
+				maxConcurrency: codexMaxConcurrency,
+			}),
+		},
+	});
 
 	const fakeWorktreeManager = {
 		prepareWorktree: async (input: PrepareWorktreeInput): Promise<PrepareWorktreeResult> => {
@@ -311,6 +343,7 @@ function setupWiringEnvironment(
 		lockAdapter: dummyLockAdapter,
 		instanceLock: { release: () => undefined } as unknown as LockFileHandle,
 		clock,
+		agentRegistry,
 		spawnManaged: fakeSpawnManaged,
 		worktreeManager: fakeWorktreeManager,
 		agentService: fakeAgentService as never,
@@ -417,10 +450,564 @@ function setupWiringEnvironment(
 	};
 }
 
+const REWORK_COMMENT = 'Please repair the parser boundary.';
+
+interface ReworkDecisionSeed {
+	readonly snapshotId?: string;
+	readonly agentId?: string;
+	readonly vendorSessionRef?: string | null;
+	readonly runState?: string;
+}
+
+/**
+ * 造出 E-327 的前置：一条已结束的实施运行 + 停在 awaiting_human 的任务 + 一张 waiting 的人工审查闸门。
+ * 这些都是"人在界面上点了打回"之前生产库里就有的行。
+ */
+function seedHumanReworkDecision(
+	env: ReturnType<typeof setupWiringEnvironment>,
+	seed: ReworkDecisionSeed = {},
+): void {
+	const { container, clock, tempDir } = env;
+	const worktreePath = join(tempDir, 'worktrees', 'task-1');
+	mkdirSync(worktreePath, { recursive: true });
+
+	container.repos.runs.insert({
+		id: 'ended-impl-run',
+		task_id: 'task-1',
+		attempt_no: 1,
+		kind: 'implement',
+		state: seed.runState ?? 'awaiting_human',
+		agent_id: seed.agentId ?? 'codex',
+		model_name: 'o3-mini',
+		effort_tier: 'high',
+		permission_tier: 'workspaceWrite',
+		snapshot_id: seed.snapshotId ?? 'snap-1',
+		worktree_path: worktreePath,
+		branch_name: 'task/M7-T9',
+		vendor_session_ref:
+			seed.vendorSessionRef === undefined ? 'vendor-session-1' : seed.vendorSessionRef,
+		started_at: clock.now(),
+	});
+	container.repos.tasks.updateManualState('task-1', 'awaiting_human');
+	const gatesRepo = container.repos.gates;
+	if (!gatesRepo) throw new Error('Gates repo missing from container');
+	gatesRepo.create({
+		id: 'human-review-gate',
+		task_id: 'task-1',
+		run_id: 'ended-impl-run',
+		kind: 'review',
+		state: 'waiting',
+		created_at: clock.now(),
+	});
+}
+
+async function postReworkDecision(
+	server: ReturnType<typeof createHttpServer>,
+	token: string,
+	gateId: string,
+	comment: string,
+) {
+	return await server.instance.inject({
+		method: 'POST',
+		url: `/api/v1/gates/${gateId}/decide`,
+		headers: { authorization: token },
+		payload: { decision: 'reject', comment },
+	});
+}
+
+async function waitFor(predicate: () => boolean, attempts = 80, delayMs = 20): Promise<boolean> {
+	for (let attempt = 0; attempt < attempts; attempt++) {
+		if (predicate()) return true;
+		await new Promise((r) => setTimeout(r, delayMs));
+	}
+	return predicate();
+}
+
 describe(
 	'M7-T9 Integration: Container Wiring (AC 2, AC 3, AC 4, E-53, E-57, E-104, E-120, E-123)',
 	{ timeout: 25000 },
 	() => {
+		it('E-327 / #136: real container delivers a human rework into an ended codex session by resuming it', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			const publishedEvents: Array<{ kind: string; payload: Record<string, unknown> }> = [];
+			container.events.bus.subscribe((envelope) => {
+				publishedEvents.push({
+					kind: envelope.kind,
+					payload: envelope.payload as Record<string, unknown>,
+				});
+			});
+
+			seedHumanReworkDecision(env);
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+
+			// 有空槽 → 当场入道并投递成功，公开接口不再是 E_MESSAGE_UNDELIVERED。
+			expect(response.statusCode).toBe(200);
+			expect(response.json()).toEqual({ applied: true });
+
+			const decidedGate = container.repos.gates?.findById('human-review-gate');
+			expect(decidedGate?.decision).toBe('reject');
+			expect(decidedGate?.comment).toBe(REWORK_COMMENT);
+
+			// 人工决定当场计数一次；实施行迁 reworking 并当场拿到泳道。
+			const implRun = container.repos.runs.findById('ended-impl-run');
+			expect(implRun?.rework_count).toBe(1);
+			expect(implRun?.state).toBe('reworking');
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBe(1);
+
+			// 恢复分支：新运行继承计数与厂商会话引用，进程真的起来了。
+			const reworkRun = container.repos.runs
+				.listByTaskId('task-1')
+				.find((run) => run.origin === 'rework');
+			expect(reworkRun).toBeDefined();
+			expect(reworkRun?.state).toBe('running');
+			expect(reworkRun?.rework_count).toBe(1);
+			expect(reworkRun?.vendor_session_ref).toBe('vendor-session-1');
+			expect(reworkRun?.worktree_path).toBe(join(env.tempDir, 'worktrees', 'task-1'));
+
+			// 假进程可观察：返工意见与会话引用都进了启动参数。
+			const reworkProc = spawnedProcesses.find((p) => p.launchSpec.runId === reworkRun?.id);
+			expect(reworkProc).toBeDefined();
+			const args = reworkProc?.launchSpec.args ?? [];
+			expect(args[0]).toBe('exec');
+			expect(args).toContain('resume');
+			expect(args).toContain('vendor-session-1');
+			expect(args).toContain(REWORK_COMMENT);
+			expect(reworkProc?.launchSpec.cwd).toBe(join(env.tempDir, 'worktrees', 'task-1'));
+
+			// AC 4：事务后发 run.rework_dispatched{mode:'resume'}
+			const dispatched = publishedEvents.find((e) => e.kind === 'run.rework_dispatched');
+			expect(dispatched?.payload.mode).toBe('resume');
+			expect(dispatched?.payload.source).toBe('human');
+		});
+
+		it('E-327 / E-279 / #136: real container opens a new origin=rework run when the agent can neither reply nor resume', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses, clock } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			// generic-acp 收窄能力位：canReply=false、canResume=false（E-186 / E-279）
+			container.repos.dispatchSnapshots?.insert({
+				id: 'snap-generic',
+				task_id: 'task-1',
+				contract_hash: 'contract-hash-task-1',
+				task_paths_json: '[]',
+				launch_spec_json: JSON.stringify({ adapterKind: 'generic-acp' }),
+				created_at: clock.now(),
+			});
+
+			seedHumanReworkDecision(env, { snapshotId: 'snap-generic', vendorSessionRef: null });
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(response.statusCode).toBe(200);
+
+			const reworkRun = container.repos.runs
+				.listByTaskId('task-1')
+				.find((run) => run.origin === 'rework');
+			expect(reworkRun).toBeDefined();
+			expect(reworkRun?.state).toBe('running');
+			expect(reworkRun?.rework_count).toBe(1);
+			expect(reworkRun?.vendor_session_ref).toBeNull();
+
+			const reworkProc = spawnedProcesses.find((p) => p.launchSpec.runId === reworkRun?.id);
+			expect(reworkProc).toBeDefined();
+			const args = reworkProc?.launchSpec.args ?? [];
+			// E-279：无续接能力 → codex 走 exec 模式，自包含提示词必须进启动参数。
+			expect(args[0]).toBe('exec');
+			expect(args).not.toContain('resume');
+			const prompt = args.at(-1) ?? '';
+			expect(prompt).toContain(REWORK_COMMENT);
+			expect(prompt).toContain('收到返工指令时');
+			expect(prompt).toContain('- 工作区目录:');
+			expect(prompt).toContain('不 commit/push');
+		});
+
+		it('E-327 / #136: a rework parked for a lane is delivered by the scheduler tick once a slot frees, before new tasks', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses, clock } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			// laneCount=1，槽位被另一个停靠任务占着（E-326 / E-327）
+			container.repos.documents.updateLaneCount('doc-1', 1);
+			container.repos.tasks.insert({
+				id: 'task-holder',
+				doc_id: 'doc-1',
+				task_key: 'M8-T0',
+				title: 'Lane holder',
+				module_key: 'M8',
+				deps_json: '[]',
+				est_days: 1,
+				batch_id: 'batch-1',
+				manual_state: 'paused',
+				contract_hash: 'contract-hash-holder',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				has_accept_changed: 0,
+				has_prompt_changed: 0,
+				is_removed_from_doc: 0,
+			});
+			container.repos.tasks.assignLaneNo('task-holder', 1);
+
+			seedHumanReworkDecision(env);
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			// 无空槽：闸门决定成功但返工排队，不报投递失败，也绝不假装已投递。
+			expect(response.statusCode).toBe(200);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			expect(container.repos.runs.findById('ended-impl-run')?.state).toBe('reworking');
+			expect(container.repos.runs.findById('ended-impl-run')?.queued_reason).toBe('lane_full');
+			expect(spawnedProcesses.length).toBe(0);
+
+			// 槽位空出 → 下一次 tick 先于新任务把返工入道
+			container.repos.tasks.clearLaneNo('task-holder');
+			await container.services.dispatch.tick();
+
+			const delivered = await waitFor(() =>
+				spawnedProcesses.some((p) => p.launchSpec.args.includes(REWORK_COMMENT)),
+			);
+			expect(delivered).toBe(true);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBe(1);
+			expect(container.repos.runs.findById('ended-impl-run')?.rework_count).toBe(1);
+		});
+
+		it('E-327 / #136: a paused batch keeps the rework queued and the next tick delivers it after the batch resumes', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			container.repos.batches.updateState({ id: 'batch-1', state: 'paused' });
+			seedHumanReworkDecision(env);
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(response.statusCode).toBe(200);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			expect(container.repos.runs.findById('ended-impl-run')?.queued_reason).toBe('batch_paused');
+			expect(spawnedProcesses.length).toBe(0);
+
+			container.repos.batches.updateState({ id: 'batch-1', state: 'running' });
+			await container.services.dispatch.tick();
+
+			const delivered = await waitFor(() =>
+				spawnedProcesses.some((p) => p.launchSpec.args.includes(REWORK_COMMENT)),
+			);
+			expect(delivered).toBe(true);
+			expect(container.repos.runs.findById('ended-impl-run')?.rework_count).toBe(1);
+		});
+
+		it('E-327 / #136: a failed rework start is a typed undelivered decision, parks the task at the human gate, and the next decision delivers and continues to review', async () => {
+			let behavior: 'throw' | 'ok' = 'throw';
+			const env = setupWiringEnvironment({ spawnBehavior: () => behavior });
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			const publishedEvents: string[] = [];
+			container.events.bus.subscribe((envelope) => {
+				publishedEvents.push(envelope.kind);
+			});
+
+			// 无续接能力的快照 → 走「新开 origin=rework 实施运行」分支（E-279）
+			container.repos.dispatchSnapshots?.insert({
+				id: 'snap-generic',
+				task_id: 'task-1',
+				contract_hash: 'contract-hash-task-1',
+				task_paths_json: '[]',
+				launch_spec_json: JSON.stringify({ adapterKind: 'generic-acp' }),
+				created_at: env.clock.now(),
+			});
+			seedHumanReworkDecision(env, { snapshotId: 'snap-generic', vendorSessionRef: null });
+
+			// 第一次打回：spawn 直接抛错 → 公开闸门回类型化失败，任务交回人手，绝不假装投递成功
+			const first = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(first.statusCode).toBe(422);
+			const firstError = first.json() as {
+				error: { code: string; details?: { reason?: string; reworkRunId?: string } };
+			};
+			expect(firstError.error.code).toBe('E_MESSAGE_UNDELIVERED');
+			expect(firstError.error.details?.reason).toBe('spawn_failed');
+
+			// 闸门决定与计数只记一次；失败的那条返工行落 failed 带类型化原因
+			const targetAfterFailure = container.repos.runs.findById('ended-impl-run');
+			expect(targetAfterFailure?.rework_count).toBe(1);
+			const failedReworkRun = container.repos.runs
+				.listByTaskId('task-1')
+				.find((run) => run.origin === 'rework');
+			expect(failedReworkRun?.state).toBe('failed');
+			expect(failedReworkRun?.queued_reason).toBe('rework_delivery_failed:spawn_failed');
+			expect(failedReworkRun?.rework_count).toBe(1);
+
+			// 不占槽、不归档仍需恢复的会话、不发成功事件
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			expect(targetAfterFailure?.session_archived_at ?? null).toBeNull();
+			expect(failedReworkRun?.session_archived_at ?? null).toBeNull();
+			expect(publishedEvents).not.toContain('run.rework_dispatched');
+			expect(publishedEvents).toContain('lane.released');
+
+			// 交回人手：任务停在 awaiting_human 带原因，且有一张 waiting 闸门卡当可操作入口
+			expect(targetAfterFailure?.state).toBe('awaiting_human');
+			expect(targetAfterFailure?.queued_reason).toBe('rework_delivery_failed:spawn_failed');
+			const retryGate = container.repos.gates
+				?.list({ pendingOnly: true })
+				.find((gate) => gate.task_id === 'task-1' && gate.state === 'waiting');
+			expect(retryGate).toBeDefined();
+			expect(retryGate?.comment).toBe('rework_delivery_failed:spawn_failed');
+			if (!retryGate) return;
+
+			// 第二次打回（同一个公开入口）：这次进程真的起来 → 意见进启动参数 → 退出后进下一轮审查
+			behavior = 'ok';
+			const second = await postReworkDecision(server, token, retryGate.id, REWORK_COMMENT);
+			expect(second.statusCode).toBe(200);
+
+			const deliveredProc = spawnedProcesses.find((p) =>
+				p.launchSpec.args.some((arg) => arg.includes(REWORK_COMMENT)),
+			);
+			expect(deliveredProc).toBeDefined();
+			if (!deliveredProc) return;
+
+			expect(targetAfterFailure?.rework_count).toBe(1);
+			const landedReworkRun = container.repos.runs.findById(deliveredProc.launchSpec.runId);
+			expect(landedReworkRun?.rework_count).toBe(2);
+			expect(container.repos.runs.findById('ended-impl-run')?.rework_count).toBe(2);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBe(1);
+
+			deliveredProc.emitLine(
+				'{"method":"item/agentMessage/delta","params":{"delta":"Rework applied after retry."}}',
+			);
+			await new Promise((r) => setTimeout(r, 30));
+			deliveredProc.emitExit(0);
+
+			const continued = await waitFor(() =>
+				container.repos.runs
+					.listByTaskId('task-1')
+					.some(
+						(run) => run.kind === 'review' && run.parent_run_id === deliveredProc.launchSpec.runId,
+					),
+			);
+			expect(continued).toBe(true);
+		});
+
+		it('E-327 / #136: when the tick-driven delivery fails, the task parks at the human gate and the retry delivers into the next review round', async () => {
+			let behavior: 'throw' | 'ok' = 'throw';
+			const env = setupWiringEnvironment({ spawnBehavior: () => behavior });
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			const publishedEvents: string[] = [];
+			container.events.bus.subscribe((envelope) => {
+				publishedEvents.push(envelope.kind);
+			});
+
+			// 一个槽位被占住 → 打回只能排队，交付交给调度 tick（E-327）
+			container.repos.documents.updateLaneCount('doc-1', 1);
+			container.repos.tasks.insert({
+				id: 'task-holder',
+				doc_id: 'doc-1',
+				task_key: 'M8-T0',
+				title: 'Lane holder',
+				module_key: 'M8',
+				deps_json: '[]',
+				est_days: 1,
+				batch_id: 'batch-1',
+				manual_state: 'paused',
+				contract_hash: 'contract-hash-holder',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				has_accept_changed: 0,
+				has_prompt_changed: 0,
+				is_removed_from_doc: 0,
+			});
+			container.repos.tasks.assignLaneNo('task-holder', 1);
+			container.repos.dispatchSnapshots?.insert({
+				id: 'snap-generic',
+				task_id: 'task-1',
+				contract_hash: 'contract-hash-task-1',
+				task_paths_json: '[]',
+				launch_spec_json: JSON.stringify({ adapterKind: 'generic-acp' }),
+				created_at: env.clock.now(),
+			});
+			seedHumanReworkDecision(env, { snapshotId: 'snap-generic', vendorSessionRef: null });
+
+			const decision = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(decision.statusCode).toBe(200);
+			expect(container.repos.runs.findById('ended-impl-run')?.queued_reason).toBe('lane_full');
+
+			// 槽位空出 → tick 补位投递 → spawn 抛错：任务交回人手，而不是被那条失败的返工行挡住
+			container.repos.tasks.clearLaneNo('task-holder');
+			await container.services.dispatch.tick();
+			const parked = await waitFor(
+				() => container.repos.runs.findById('ended-impl-run')?.state === 'awaiting_human',
+			);
+			expect(parked).toBe(true);
+
+			expect(publishedEvents).not.toContain('run.rework_dispatched');
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			const targetAfterTickFailure = container.repos.runs.findById('ended-impl-run');
+			expect(targetAfterTickFailure?.queued_reason).toBe('rework_delivery_failed:spawn_failed');
+			expect(targetAfterTickFailure?.rework_count).toBe(1);
+			expect(targetAfterTickFailure?.session_archived_at ?? null).toBeNull();
+
+			const retryGate = container.repos.gates
+				?.list({ pendingOnly: true })
+				.find((gate) => gate.task_id === 'task-1' && gate.state === 'waiting');
+			expect(retryGate?.comment).toBe('rework_delivery_failed:spawn_failed');
+			if (!retryGate) return;
+
+			// 恢复投递：同一个人工入口再打回一次，进程真的起来 → 退出后进下一轮审查
+			behavior = 'ok';
+			const retry = await postReworkDecision(server, token, retryGate.id, REWORK_COMMENT);
+			expect(retry.statusCode).toBe(200);
+
+			const deliveredProc = spawnedProcesses.find((p) =>
+				p.launchSpec.args.some((arg) => arg.includes(REWORK_COMMENT)),
+			);
+			expect(deliveredProc).toBeDefined();
+			if (!deliveredProc) return;
+
+			deliveredProc.emitLine(
+				'{"method":"item/agentMessage/delta","params":{"delta":"Rework applied after tick failure."}}',
+			);
+			await new Promise((r) => setTimeout(r, 30));
+			deliveredProc.emitExit(0);
+
+			const continued = await waitFor(() =>
+				container.repos.runs
+					.listByTaskId('task-1')
+					.some(
+						(run) => run.kind === 'review' && run.parent_run_id === deliveredProc.launchSpec.runId,
+					),
+			);
+			expect(continued).toBe(true);
+		});
+
+		it('E-327 / #136: a rework run that spawns and immediately exits is not a successful delivery either', async () => {
+			const env = setupWiringEnvironment({
+				spawnBehavior: (spec) => (spec.runId === 'ended-impl-run' ? 'ok' : 'exit-immediately'),
+			});
+			const { container } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			const publishedEvents: string[] = [];
+			container.events.bus.subscribe((envelope) => {
+				publishedEvents.push(envelope.kind);
+			});
+
+			container.repos.dispatchSnapshots?.insert({
+				id: 'snap-generic',
+				task_id: 'task-1',
+				contract_hash: 'contract-hash-task-1',
+				task_paths_json: '[]',
+				launch_spec_json: JSON.stringify({ adapterKind: 'generic-acp' }),
+				created_at: env.clock.now(),
+			});
+			seedHumanReworkDecision(env, { snapshotId: 'snap-generic', vendorSessionRef: null });
+
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(response.statusCode).toBe(422);
+			const error = response.json() as { error: { code: string; details?: { reason?: string } } };
+			expect(error.error.code).toBe('E_MESSAGE_UNDELIVERED');
+			expect(error.error.details?.reason).toBe('premature_exit');
+
+			// 启动即退出：不得发 run.rework_dispatched，任务不占槽、停在人工入口
+			expect(publishedEvents).not.toContain('run.rework_dispatched');
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			const target = container.repos.runs.findById('ended-impl-run');
+			expect(target?.state).toBe('awaiting_human');
+			expect(target?.queued_reason).toBe('rework_delivery_failed:premature_exit');
+			expect(target?.rework_count).toBe(1);
+			expect(target?.session_archived_at ?? null).toBeNull();
+		});
+
+		it('E-327 / #136: at agent maxConcurrency=1 the tick still admits a queued rework once a lane frees', async () => {
+			const env = setupWiringEnvironment({ agentMaxConcurrency: 1 });
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			// 默认注册表就是每 agent 1 个名额：被返工的那条旧实施行不该再占住它（E-47 / E-54）
+			container.repos.documents.updateLaneCount('doc-1', 1);
+			container.repos.tasks.insert({
+				id: 'task-holder',
+				doc_id: 'doc-1',
+				task_key: 'M8-T0',
+				title: 'Lane holder',
+				module_key: 'M8',
+				deps_json: '[]',
+				est_days: 1,
+				batch_id: 'batch-1',
+				manual_state: 'paused',
+				contract_hash: 'contract-hash-holder',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				has_accept_changed: 0,
+				has_prompt_changed: 0,
+				is_removed_from_doc: 0,
+			});
+			container.repos.tasks.assignLaneNo('task-holder', 1);
+
+			seedHumanReworkDecision(env);
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(response.statusCode).toBe(200);
+			expect(container.repos.runs.findById('ended-impl-run')?.queued_reason).toBe('lane_full');
+			expect(spawnedProcesses.length).toBe(0);
+
+			container.repos.tasks.clearLaneNo('task-holder');
+			await container.services.dispatch.tick();
+
+			const delivered = await waitFor(() =>
+				spawnedProcesses.some((p) => p.launchSpec.args.includes(REWORK_COMMENT)),
+			);
+			expect(delivered).toBe(true);
+			expect(container.repos.runs.findById('ended-impl-run')?.rework_count).toBe(1);
+		});
+
+		it('E-327 / #136: the rework run that exits cleanly continues into the next review round', async () => {
+			const env = setupWiringEnvironment();
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			seedHumanReworkDecision(env);
+			const response = await postReworkDecision(server, token, 'human-review-gate', REWORK_COMMENT);
+			expect(response.statusCode).toBe(200);
+
+			const reworkRun = container.repos.runs
+				.listByTaskId('task-1')
+				.find((run) => run.origin === 'rework');
+			const reworkProc = spawnedProcesses.find((p) => p.launchSpec.runId === reworkRun?.id);
+			expect(reworkProc).toBeDefined();
+
+			reworkProc?.emitLine(
+				'{"method":"item/agentMessage/delta","params":{"delta":"Rework applied."}}',
+			);
+			await new Promise((r) => setTimeout(r, 30));
+			reworkProc?.emitExit(0);
+
+			const continued = await waitFor(() =>
+				container.repos.runs
+					.listByTaskId('task-1')
+					.some((run) => run.kind === 'review' && run.parent_run_id === reworkRun?.id),
+			);
+			expect(continued).toBe(true);
+		});
+
 		it('AC 2 & E-53 & E-57: Real container + fake process: exit 0 -> evaluateMechanicalCheck called -> kind=review inserted -> review verdict pass -> waiting gate -> POST decide -> landed by:human', async () => {
 			const env = setupWiringEnvironment();
 			const { container, spawnedProcesses } = env;

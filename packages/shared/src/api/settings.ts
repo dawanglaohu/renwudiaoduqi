@@ -37,3 +37,43 @@ export const updateGateSettingsBodySchema = {
 export interface UpdateGateSettingsResponse {
 	readonly gates: GateSettings;
 }
+
+export interface PipelineSettings {
+	readonly bughunt: 0 | 1;
+	readonly wrapupMode: 'auto' | 'manual';
+}
+
+export interface UpdatePipelineSettingsBody {
+	readonly bughunt: 0 | 1;
+	readonly wrapupMode: 'auto' | 'manual';
+}
+
+export const UPDATE_PIPELINE_SETTINGS_BODY_KEYS = [
+	'bughunt',
+	'wrapupMode',
+] as const satisfies readonly (keyof UpdatePipelineSettingsBody)[];
+
+type AssertUpdatePipelineSettingsBodyExhaustive = [
+	Exclude<keyof UpdatePipelineSettingsBody, (typeof UPDATE_PIPELINE_SETTINGS_BODY_KEYS)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertUpdatePipelineSettingsBody: AssertUpdatePipelineSettingsBodyExhaustive = true;
+
+export const updatePipelineSettingsBodySchema = {
+	type: 'object',
+	additionalProperties: false,
+	required: ['bughunt', 'wrapupMode'],
+	properties: {
+		bughunt: { type: 'integer', enum: [0, 1] },
+		wrapupMode: { type: 'string', enum: ['auto', 'manual'] },
+	},
+} as const;
+
+export interface GetPipelineSettingsResponse {
+	readonly pipeline: PipelineSettings;
+}
+
+export interface UpdatePipelineSettingsResponse {
+	readonly pipeline: PipelineSettings;
+}

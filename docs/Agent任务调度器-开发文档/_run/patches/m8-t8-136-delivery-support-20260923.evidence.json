@@ -1,0 +1,34 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T8": {
+      "contractHash": "d4d4644e4b760d4d0cf7c67af65aba643042d63df399eb322ede587fb01361cc",
+      "evidence": [
+        "E-327 requires an ended human-rejected implementation session to be resumed or replaced through the production container. PR #137 adds service/session-resume.ts and changes both Codex and Grok build-launch-spec.ts files to pass the vendor session reference and rework prompt to a real process; these three source paths are necessary support for M8-T8 public delivery.",
+        "The four focused unit tests for Codex, Grok, rework dispatch, and rework behavior are also added as supportPaths. The existing M8-T8 dispatch and public pipeline-lanes paths remain in scope. No acceptance clause or E-327 requirement was removed. This verifies the effective task path contract only; PR #137 code acceptance remains blocked on the reviewed failure path.",
+        "The E-327 verification note now names PR #137 as pending review rather than claiming that #136 has landed. Focused container and unit tests passed 104/104 on the reviewed head before this source-only contract patch."
+      ],
+      "verdict": "pass"
+    },
+    "M8-T9": {
+      "contractHash": "6031fd145033231d21286a881e576790c246363a720ed0e30f7af35ba8b87b09",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T17": {
+      "contractHash": "d2246e87c9d1efd7b13ded8f2bc28afeada5ae58c7f47290c9f4ad40e62e2df0",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T22": {
+      "contractHash": "5dcec73abde06ee7b3f01eea3823ead46792ca449d8cfbab376d62d01578a7b5",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "338f91654d67b8e46dcb01ed5d84082a85a007515a15671a098a62c19a93f0a5",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

@@ -15,6 +15,8 @@ import {
 import type { FastifyInstance, RouteHandlerMethod } from 'fastify';
 import { TASK_STATES } from '../../domain/task-state.ts';
 import { AppError } from '../../errors/app-error.ts';
+import type { EventBus } from '../../events/bus.ts';
+import type { EnvelopeFactory } from '../../events/envelope.ts';
 import type { BatchService } from '../../service/batch.ts';
 import type { DocsService, DocumentRecord } from '../../service/docs.ts';
 
@@ -72,6 +74,9 @@ export interface RegisterDocumentRoutesOptions {
 	readonly docsService?: DocsService;
 	readonly batchService?: BatchService;
 	readonly openBrowser?: (targetPath: string) => Promise<void> | void;
+	readonly eventBus?: EventBus;
+	readonly envelopeFactory?: EnvelopeFactory;
+	readonly nudgeTick?: () => void;
 }
 
 interface ContainerWithDocs {
@@ -81,7 +86,13 @@ interface ContainerWithDocs {
 		readonly pairing?: {
 			readonly authenticateToken: (authHeader?: string) => { readonly deviceId: string };
 		};
+		readonly dispatch?: { readonly tick?: () => Promise<unknown> };
 	};
+	readonly events?: {
+		readonly bus?: EventBus;
+		readonly envelopeFactory?: EnvelopeFactory;
+	};
+	readonly jobs?: readonly { readonly name: string; readonly trigger?: () => void }[];
 }
 
 function resolveDocsService(
@@ -224,6 +235,41 @@ export function registerDocumentRoutes(
 			}
 
 			docsService.updateLaneCount(docId, request.body.laneCount);
+
+			const actorDeviceId =
+				(request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
+			const container =
+				(request.server as unknown as { container?: ContainerWithDocs })?.container ??
+				(instance as unknown as { container?: ContainerWithDocs })?.container;
+
+			const bus = options?.eventBus ?? container?.events?.bus;
+			const envelopeFactory = options?.envelopeFactory ?? container?.events?.envelopeFactory;
+
+			if (bus && envelopeFactory) {
+				const env = envelopeFactory.createEnvelope({
+					kind: 'document.settings_changed',
+					actorDeviceId,
+					payload: {
+						docId,
+						laneCount: request.body.laneCount,
+					},
+				});
+				bus.publish(env);
+			}
+
+			// Nudge tick: 调大立即补位、调小不杀任何运行只停止补位（AC 4, E-309, E-310）
+			if (options?.nudgeTick) {
+				options.nudgeTick();
+			} else {
+				const schedulerTick = container?.jobs?.find(
+					(j: { name: string }) => j.name === 'scheduler-tick',
+				);
+				if (schedulerTick?.trigger) {
+					schedulerTick.trigger();
+				} else if (container?.services?.dispatch?.tick) {
+					void container.services.dispatch.tick();
+				}
+			}
 
 			const query = request.query;
 			if (

@@ -1,0 +1,34 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T8": {
+      "contractHash": "dcb0d50968201f829e44da5bb5b475ff4d71b2889947d34c1c942c1f31a15aba",
+      "evidence": [
+        "04-执行/19-模块任务拆分.md M8-T8 AC4 now resolves the full-lane case consistently with 图谱/边界/E-327.md: human rework waits outside lanes when full and takes the smallest free lane ahead of new work. Jev adjudicate M8-T8:review selected option A (jev-1.13.0, adopt=take).",
+        "_run/task-contracts.json M8-T8 supportPaths includes the real human gate and rework entrypoint (service/gates.ts, service/rework.ts, boot/container.ts, http/routes/gates.ts, container-wiring.test.ts), plus the required shared package export and events test. Current PR #132 also changes gates.ts and container.ts, so its head must be reconciled before implementation merges.",
+        "The task still depends on M8-T3, M8-T6, M7-T8 and M6-T10. The retained acceptance clauses and all fifteen listed E-283 through E-334 boundary notes remain in scope. This verifies the task definition, not the code in PR #133."
+      ],
+      "verdict": "pass"
+    },
+    "M8-T9": {
+      "contractHash": "95c4e8439e58f5c57171444235e4b308111fde28d7f518c321fb863fb583f587",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T17": {
+      "contractHash": "5e5fb920189c123411f6a5c3bfd8e134d185002c96bcf059c4eb58d0519152dd",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T22": {
+      "contractHash": "0750fea9599c338dcbe9c33a6773044f79389c8d9672ea684019c41224ba5889",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "17e0c4b54e107f2cca75762054e194b23a9c96b6281adbebe6aa5a48066ae5d5",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

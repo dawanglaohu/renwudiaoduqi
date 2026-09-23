@@ -19,6 +19,11 @@ export interface BuildGrokLaunchSpecOptions {
 	readonly model?: string | null;
 	readonly sessionId?: string | null;
 	readonly sessionDir?: string | null;
+	/**
+	 * 恢复已结束的厂商会话（E-112）：grok CLI 的 `--resume <SESSION_ID>`。
+	 * 与 `--session-id`（指定/新建会话）分开，恢复走独立开关，不靠猜。
+	 */
+	readonly resumeSessionRef?: string | null;
 	readonly worktree?: string;
 	readonly worktreeRef?: string;
 	readonly permissionTier?: PermissionTier;
@@ -152,6 +157,13 @@ export function buildGrokLaunchSpec(options: BuildGrokLaunchSpecOptions): Launch
 	if (options.sessionId && options.sessionId.trim().length > 0) {
 		if (!args.includes('--session-id') && !args.includes('-s')) {
 			args.push('--session-id', options.sessionId.trim());
+		}
+	}
+
+	// 5b. Resume an ended session (E-112)
+	if (options.resumeSessionRef && options.resumeSessionRef.trim().length > 0) {
+		if (!args.includes('--resume') && !args.includes('-r')) {
+			args.push('--resume', options.resumeSessionRef.trim());
 		}
 	}
 
