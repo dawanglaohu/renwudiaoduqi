@@ -13,15 +13,19 @@ import {
 	type ResolveAfterReviewResult,
 	resolveAfterReview,
 } from '../domain/gates.ts';
+import { freeLaneNumbers } from '../domain/lane-slots.ts';
+import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
+import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GateRow, GatesRepo } from '../repo/gates.ts';
-import type { RunsRepo } from '../repo/runs.ts';
+import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { BatchService } from './batch.ts';
+import type { ReworkService } from './rework.ts';
 import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 import type { SettingsService } from './settings.ts';
 
@@ -32,6 +36,9 @@ export interface GateServiceDeps {
 	readonly batchesRepo?: BatchesRepo;
 	readonly batchWrapupsRepo?: BatchWrapupsRepo;
 	readonly batchService?: BatchService;
+	readonly documentsRepo?: DocumentsRepo;
+	readonly reworkService?: ReworkService;
+	readonly nudgeTick?: () => void;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly bus: EventBus;
@@ -252,6 +259,16 @@ export function createGateService(deps: GateServiceDeps): GateService {
 
 			let archiveContext: ArchiveTaskContext | null = null;
 			let laneReleasedEvent: EventEnvelope | null = null;
+			let laneAssignedEnvelope: EventEnvelope | null = null;
+			let reworkStateEnvelope: EventEnvelope | null = null;
+			let reworkDeliveryInput: {
+				readonly reviewRunId?: string | null;
+				readonly targetRunId: string;
+				readonly reworkText: string;
+				readonly source: 'human';
+				readonly actorDeviceId?: string | null;
+				readonly countAlreadyApplied: true;
+			} | null = null;
 
 			deps.unitOfWork.run(() => {
 				deps.gatesRepo.updateDecision(
@@ -315,14 +332,195 @@ export function createGateService(deps: GateServiceDeps): GateService {
 						}
 					}
 				} else if (input.decision === 'reject' && deps.tasksRepo && gate.task_id) {
-					// E-05: Human rejection sets manual state, automatic dispatch must not override human judgment
-					deps.tasksRepo.updateManualState(gate.task_id, 'paused');
+					// E-327: 人工打回进入返工。
+					// 这里只做闸门决定、意见落库、运行状态与泳道归属，全部在同一事务里；
+					// 人工决定当场计数；等泳道或批次恢复后投递不得再消耗一次额度。
+					const task = deps.tasksRepo.findById(gate.task_id);
+					const doc = task && deps.documentsRepo ? deps.documentsRepo.findById(task.doc_id) : null;
+					const reworkText = comment || 'Rejected by human';
+
+					let targetRun: RunRow | null = null;
+					if (gate.run_id && deps.runsRepo) {
+						const run = deps.runsRepo.findById(gate.run_id);
+						if (run && run.kind === 'implement') {
+							targetRun = run;
+						}
+					}
+					if (!targetRun && deps.runsRepo) {
+						const runs = deps.runsRepo.listByTaskId(gate.task_id);
+						const implRuns = runs.filter((r) => r.kind === 'implement');
+						if (implRuns.length > 0) {
+							targetRun = implRuns.reduce((prev, curr) =>
+								curr.attempt_no > prev.attempt_no ? curr : prev,
+							);
+						}
+					}
+					if (targetRun && deps.runsRepo) {
+						deps.runsRepo.updateReworkCount({
+							id: targetRun.id,
+							reworkCount: (targetRun.rework_count ?? 0) + 1,
+						});
+					}
+
+					const docLaneCount = doc?.lane_count ?? 2;
+					const docTasks = task ? deps.tasksRepo.listByDocId(task.doc_id) : [];
+					const allRuns = deps.runsRepo?.listAll() ?? [];
+					const docBatchIds = new Set(
+						task && deps.batchesRepo
+							? deps.batchesRepo.listByDocId(task.doc_id).map((batch) => batch.id)
+							: [],
+					);
+					const occupiedLanes = new Set<number>();
+					for (const t of docTasks) {
+						if (typeof t.lane_no === 'number' && t.lane_no >= 1) {
+							occupiedLanes.add(t.lane_no);
+						}
+					}
+					for (const r of allRuns) {
+						if (
+							r.kind === 'wrapup' &&
+							Boolean(r.batch_id && docBatchIds.has(r.batch_id)) &&
+							typeof r.lane_no === 'number' &&
+							r.lane_no >= 1 &&
+							!isTerminalRunState(r.state as RunState) &&
+							r.state !== 'awaiting_human' &&
+							r.state !== 'orphaned'
+						) {
+							occupiedLanes.add(r.lane_no);
+						}
+					}
+					const freeLanes = freeLaneNumbers(docLaneCount, occupiedLanes);
+
+					// E-327: 批次暂停期间一律不入道（哪怕有空槽），等恢复后由 tick 先于新任务入道
+					const batch =
+						task?.batch_id && deps.batchesRepo ? deps.batchesRepo.findById(task.batch_id) : null;
+					const batchPaused = batch?.state === 'paused';
+
+					if (!batchPaused && freeLanes.length > 0) {
+						const allocatedLaneNo = freeLanes[0] ?? 1;
+						deps.tasksRepo.assignLaneNo(gate.task_id, allocatedLaneNo);
+						deps.tasksRepo.updateManualState(gate.task_id, null);
+
+						if (targetRun && deps.runsRepo) {
+							deps.runsRepo.updateLaneNo?.(targetRun.id, allocatedLaneNo);
+							deps.runsRepo.updateState({
+								id: targetRun.id,
+								state: 'reworking',
+								queuedReason: null,
+							});
+						}
+
+						if (deps.envelopeFactory) {
+							laneAssignedEnvelope = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.assigned',
+								actorDeviceId: input.actorDeviceId,
+								payload: {
+									docId: task?.doc_id ?? '',
+									laneNo: allocatedLaneNo,
+									taskId: gate.task_id,
+									runId: targetRun?.id ?? gate.run_id ?? '',
+								},
+							});
+							if (targetRun) {
+								reworkStateEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.state_changed',
+									runId: targetRun.id,
+									taskId: gate.task_id,
+									actorDeviceId: input.actorDeviceId,
+									payload: {
+										from: targetRun.state as RunState,
+										to: 'reworking',
+										reason: 'human_rework',
+									},
+								});
+							}
+						}
+
+						reworkDeliveryInput =
+							targetRun && deps.reworkService
+								? {
+										reviewRunId: gate.run_id,
+										targetRunId: targetRun.id,
+										reworkText,
+										source: 'human',
+										actorDeviceId: input.actorDeviceId,
+										countAlreadyApplied: true,
+									}
+								: null;
+					} else {
+						// 无空槽或批次暂停：任务留在泳道外（E-326, E-327），
+						// 恢复/空槽后由 tick 先于新任务入道并按 M7-T5 三分支投递
+						deps.tasksRepo.clearLaneNo(gate.task_id);
+						deps.tasksRepo.updateManualState(gate.task_id, null);
+
+						if (targetRun && deps.runsRepo) {
+							deps.runsRepo.updateLaneNo?.(targetRun.id, null);
+							deps.runsRepo.updateState({
+								id: targetRun.id,
+								state: 'reworking',
+								queuedReason: batchPaused ? 'batch_paused' : 'lane_full',
+							});
+						}
+
+						if (targetRun && deps.envelopeFactory) {
+							reworkStateEnvelope = deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId: targetRun.id,
+								taskId: gate.task_id,
+								actorDeviceId: input.actorDeviceId,
+								payload: {
+									from: targetRun.state as RunState,
+									to: 'reworking',
+									reason: 'human_rework',
+								},
+							});
+						}
+					}
 				}
 			});
 
 			// Outside transaction: publish events
 			if (laneReleasedEvent) {
 				deps.bus.publish(laneReleasedEvent);
+			}
+			if (laneAssignedEnvelope) {
+				deps.bus.publish(laneAssignedEnvelope);
+			}
+			if (reworkStateEnvelope) {
+				deps.bus.publish(reworkStateEnvelope);
+			}
+			if (input.decision === 'reject') {
+				if (reworkDeliveryInput && deps.reworkService) {
+					const result = await deps.reworkService.dispatchRework(reworkDeliveryInput);
+					// #136：handover 与 undeliverable 都是「没人接住这次返工」。
+					// 闸门决定与计数已经落库，但投递没成功，必须回类型化错误，不能报成功。
+					if (result.mode === 'undeliverable') {
+						throw new AppError('E_MESSAGE_UNDELIVERED', result.message, {
+							details: {
+								gateId: gate.id,
+								decisionApplied: true,
+								targetRunId: result.targetRunId,
+								reworkRunId: result.reworkRunId ?? null,
+								reason: result.reason,
+							},
+						});
+					}
+					if (result.mode === 'handover') {
+						throw new AppError(
+							'E_MESSAGE_UNDELIVERED',
+							'Rework was recorded but no session dispatcher accepted it.',
+							{
+								details: {
+									gateId: gate.id,
+									decisionApplied: true,
+									targetRunId: result.handover.targetRunId,
+									reason: 'session_dispatch_unavailable',
+								},
+							},
+						);
+					}
+				}
+				deps.nudgeTick?.();
 			}
 			if (input.decision === 'pass') {
 				if (gate.kind === 'landing') {

@@ -20,9 +20,7 @@ import {
 } from '../../src/repo/runs.ts';
 import type { MessageService } from '../../src/service/message.ts';
 import {
-	DEFAULT_MAX_REWORK_COUNT,
 	REWORK_TRANSITION_REASONS,
-	type ReworkHandoverPayload,
 	type ReworkSnapshotsRepo,
 	createReworkService,
 	evaluateDiffRegression,
@@ -726,7 +724,7 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 	});
 
 	describe('AC 4 & E-279: routing by capability & liveness without try-catch downgrade', () => {
-		it('hands over to M7-T5 immediately when agent cannot reply (canReply=false, e.g. dsh headless) without attempting message delivery', async () => {
+		it('reports a typed undeliverable when agent cannot reply and no dispatcher is wired (no fake handover success)', async () => {
 			// dsh agent cannot reply (canReply=false)
 			const run = createDummyRun({ agent_id: 'dsh', rework_count: 0 });
 			runsStore.set(run.id, run);
@@ -744,26 +742,21 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 				source: 'review',
 			});
 
-			expect(result.success).toBe(true);
-			expect(result.action).toBe('handover_to_m7_t5');
-			expect(result.mode).toBe('handover');
-			if (result.action === 'handover_to_m7_t5') {
-				expect(result.reason).toBe('capability_unsupported');
-				expect(result.handover).toEqual<ReworkHandoverPayload>({
-					reviewRunId: 'run-rev-1',
-					targetRunId: run.id,
-					reworkText: '- R1: dsh 返工意见',
-					source: 'review',
-					actorDeviceId: null,
-					maxReworkCount: DEFAULT_MAX_REWORK_COUNT,
-				});
+			// #136: 没有消费者时 handover 不是成功——必须回类型化失败，让调用方报 E_MESSAGE_UNDELIVERED。
+			expect(result.success).toBe(false);
+			expect(result.action).toBe('undeliverable');
+			expect(result.mode).toBe('undeliverable');
+			if (result.action === 'undeliverable') {
+				expect(result.reason).toBe('session_dispatch_unavailable');
+				expect(result.targetRunId).toBe(run.id);
+				expect(result.reviewRunId).toBe('run-rev-1');
 			}
 
 			// Delivery MUST NOT have been attempted (no trial-and-error downgrade!)
 			expect(mockMessageService.sendMessage).not.toHaveBeenCalled();
 		});
 
-		it('hands over to M7-T5 immediately when process has ended without attempting message delivery', async () => {
+		it('reports a typed undeliverable when the process has ended and no dispatcher is wired', async () => {
 			// codex supports canReply, but process has already exited
 			const run = createDummyRun({ agent_id: 'codex', state: 'exited' });
 			runsStore.set(run.id, run);
@@ -781,13 +774,12 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 				source: 'review',
 			});
 
-			expect(result.success).toBe(true);
-			expect(result.action).toBe('handover_to_m7_t5');
-			expect(result.mode).toBe('handover');
-			if (result.action === 'handover_to_m7_t5') {
-				expect(result.reason).toBe('process_ended');
-				expect(result.handover.targetRunId).toBe(run.id);
-				expect(result.handover.reworkText).toBe('- R1: 进程已结束的返工');
+			expect(result.success).toBe(false);
+			expect(result.action).toBe('undeliverable');
+			expect(result.mode).toBe('undeliverable');
+			if (result.action === 'undeliverable') {
+				expect(result.reason).toBe('session_dispatch_unavailable');
+				expect(result.targetRunId).toBe(run.id);
 			}
 
 			// Delivery MUST NOT have been attempted

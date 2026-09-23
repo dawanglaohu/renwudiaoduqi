@@ -246,6 +246,23 @@ describe('M4-T11 grok 原生适配器', () => {
 			expect(spec.args).toContain('--debug');
 		});
 
+		it('E-112: resumes an ended session with `--resume <SESSION_ID>` and the prompt on argv', () => {
+			const spec = buildGrokLaunchSpec({
+				runId: 'run-resume',
+				cwd: '/workspace/test',
+				execPath: '/custom/bin/grok',
+				prompt: '- R1: 修好 parser.ts',
+				resumeSessionRef: '01a08004-0fbb-78a3-b1f3-a54fbfe035c8',
+			});
+
+			expect(spec.args).toContain('--resume');
+			expect(spec.args[spec.args.indexOf('--resume') + 1]).toBe(
+				'01a08004-0fbb-78a3-b1f3-a54fbfe035c8',
+			);
+			// grok 只读 argv（不读 stdin）：恢复意见必须落在提示词参数上。
+			expect(spec.args).toContain('- R1: 修好 parser.ts');
+		});
+
 		it('exports alias buildLaunchSpec', () => {
 			expect(buildLaunchSpec).toBe(buildGrokLaunchSpec);
 		});
