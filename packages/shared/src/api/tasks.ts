@@ -21,6 +21,7 @@ export interface TaskDto {
 	readonly hasPromptChanged?: boolean;
 	readonly isRemovedFromDoc?: boolean;
 	readonly inHead?: boolean | null;
+	readonly inHeadMethod?: string | null;
 	readonly crossBatchFix?: boolean;
 }
 

@@ -136,6 +136,38 @@ export function deriveTaskInHead(
 	return true;
 }
 
+/**
+ * 任务行的「进 HEAD 判定方式」派生（E-298、R4）：
+ * - true: 'ancestor' (默认成功判定方式)
+ * - false: 'unmerged' (默认未合入判定方式)
+ * - null: 任务未验收或从未派发
+ */
+export function deriveTaskInHeadMethod(
+	inputOrRun?:
+		| TaskInHeadInput
+		| {
+				readonly state?: string | null;
+				readonly is_in_head?: number | null;
+				readonly in_head_method?: string | null;
+		  }
+		| null,
+	manualState?: string | null,
+): string | null {
+	const inHead = deriveTaskInHead(inputOrRun as TaskInHeadInput, manualState);
+	if (inHead === null) {
+		return null;
+	}
+	if (
+		inputOrRun &&
+		typeof inputOrRun === 'object' &&
+		'in_head_method' in inputOrRun &&
+		typeof (inputOrRun as { readonly in_head_method?: unknown }).in_head_method === 'string'
+	) {
+		return (inputOrRun as { readonly in_head_method: string }).in_head_method;
+	}
+	return inHead ? 'ancestor' : 'unmerged';
+}
+
 export interface TaskCrossBatchFixInput {
 	readonly taskBatchId?: string | null;
 	readonly runs?: readonly {

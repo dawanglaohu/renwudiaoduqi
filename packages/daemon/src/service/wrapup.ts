@@ -379,27 +379,54 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const nextRound = validRoundCount + 1;
 			const latestWrapup = wrapupRuns.length > 0 ? wrapupRuns[wrapupRuns.length - 1] : null;
 
-			// AC 3 & E-272: For auto trigger, if round >= 1, previous wrapup run branch must be merged into HEAD (is_in_head=1)
-			if (
-				trigger === 'auto' &&
-				validRoundCount >= 1 &&
-				latestWrapup &&
-				latestWrapup.is_in_head !== 1
-			) {
-				throw new AppError(
-					'E_BATCH_NOT_WRAPPABLE',
-					'Previous wrapup branch has not been merged into HEAD.',
-					{
-						details: {
-							state: batch.state,
-							reason: 'not_in_head',
-							notLandedTaskKeys: [],
-							notInHeadTaskKeys: [],
-							activeWrapupRunId: null,
-							wrapupRunId: latestWrapup.id,
+			// AC 3 & E-272 & R3: For auto trigger, if round >= 1, previous wrapup run branch must be merged into HEAD (is_in_head=1)
+			// AND all fix runs from prior round (including cross-batch) must be landed
+			if (trigger === 'auto' && validRoundCount >= 1) {
+				if (latestWrapup && latestWrapup.is_in_head !== 1) {
+					throw new AppError(
+						'E_BATCH_NOT_WRAPPABLE',
+						'Previous wrapup branch has not been merged into HEAD.',
+						{
+							details: {
+								state: batch.state,
+								reason: 'not_in_head',
+								notLandedTaskKeys: [],
+								notInHeadTaskKeys: [],
+								activeWrapupRunId: null,
+								wrapupRunId: latestWrapup.id,
+							},
 						},
-					},
-				);
+					);
+				}
+
+				const latestWrapupRecord = deps.batchWrapupsRepo.findLatestByBatchId(batchId);
+				if (latestWrapupRecord) {
+					let prevFixRunIds: string[] = [];
+					try {
+						prevFixRunIds = JSON.parse(latestWrapupRecord.fix_run_ids_json);
+					} catch {
+						prevFixRunIds = [];
+					}
+					for (const fixId of prevFixRunIds) {
+						const fixRun = deps.runsRepo.findById(fixId);
+						if (!fixRun || fixRun.state !== 'landed') {
+							throw new AppError(
+								'E_BATCH_NOT_WRAPPABLE',
+								`Fix run '${fixId}' from previous wrapup round is still in flight (state=${fixRun?.state ?? 'unknown'}).`,
+								{
+									details: {
+										state: batch.state,
+										reason: 'fix_runs_in_flight',
+										notLandedTaskKeys: [],
+										notInHeadTaskKeys: [],
+										activeWrapupRunId: null,
+										fixRunId: fixId,
+									},
+								},
+							);
+						}
+					}
+				}
 			}
 
 			assertWrapupRoundAllowed({
@@ -944,8 +971,8 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							continue;
 						}
 
-						// E-300: 每任务同时只允许一条在途修复运行；后到的合并进落地清单提示而不再派
-						const hasInFlightFix = taskRuns.some((r) => {
+						// E-300 / R5: 每任务同时只允许一条在途修复运行；后到的合并进落地清单提示而不再派
+						const inFlightFix = taskRuns.find((r) => {
 							const isFix = r.origin === 'wrapup-fix';
 							const isInFlight =
 								!(TERMINAL_RUN_STATES as readonly string[]).includes(r.state) &&
@@ -953,7 +980,40 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							return isFix && isInFlight;
 						});
 
-						if (hasInFlightFix) {
+						if (inFlightFix) {
+							const existingSnapshot = inFlightFix.snapshot_id
+								? deps.dispatchSnapshotsRepo.findById(inFlightFix.snapshot_id)
+								: null;
+							const existingPrompt = existingSnapshot?.impl_prompt ?? task.impl_prompt ?? '';
+							const additionalRItemsText = group.items
+								.map((item) => {
+									const itemText = item.raw.replace(/^[-\s*]+/, '').trim();
+									return itemText.startsWith(item.id)
+										? `- ${itemText}`
+										: `- ${item.id}: ${itemText}`;
+								})
+								.join('\n');
+							const mergedPrompt = `${existingPrompt}\n\n## 补充修复要求（重复判修）\n${additionalRItemsText}\n`;
+							if (deps.dispatchSnapshotsRepo) {
+								const mergedSnapshotId = `snap_${deps.ids.newId().slice(0, 16)}`;
+								deps.dispatchSnapshotsRepo.insert({
+									id: mergedSnapshotId,
+									task_id: task.id,
+									batch_id: null,
+									input_text: existingSnapshot?.input_text ?? task.input_text,
+									output_text: existingSnapshot?.output_text ?? task.output_text,
+									accept_text: existingSnapshot?.accept_text ?? task.accept_text,
+									impl_prompt: mergedPrompt,
+									review_prompt: existingSnapshot?.review_prompt ?? task.review_prompt,
+									bug_prompt: existingSnapshot?.bug_prompt ?? task.bug_prompt,
+									contract_hash: task.contract_hash,
+									task_paths_json: task.task_paths_json ?? '[]',
+									launch_spec_json: existingSnapshot?.launch_spec_json ?? '{}',
+									created_at: now,
+								});
+								deps.runsRepo.updateSnapshotId?.(inFlightFix.id, mergedSnapshotId);
+							}
+							fixRunIds.push(inFlightFix.id);
 							continue;
 						}
 
@@ -967,7 +1027,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						});
 					}
 
-					if (fixCandidates.length === 0) {
+					if (fixCandidates.length === 0 && fixRunIds.length === 0) {
 						// E-290: 全部开放项无主才 needs_attention（可派修复条目为零）
 						openShouldNeedAttention = true;
 					} else {
@@ -1000,6 +1060,19 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							let fixSnapshotId = candidate.latestImplRun?.snapshot_id ?? '';
 							if (deps.dispatchSnapshotsRepo) {
 								fixSnapshotId = `snap_${deps.ids.newId().slice(0, 16)}`;
+								const prevLaunchSpec = (() => {
+									try {
+										return JSON.parse(prevSnapshot?.launch_spec_json ?? '{}');
+									} catch {
+										return {};
+									}
+								})();
+								const fixLaunchSpec = {
+									...prevLaunchSpec,
+									worktreeMode: 'reuse',
+									targetWorktreePath: run.worktree_path,
+									preferredBranchName: run.branch_name,
+								};
 								deps.dispatchSnapshotsRepo.insert({
 									id: fixSnapshotId,
 									task_id: candidate.task.id,
@@ -1012,7 +1085,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									bug_prompt: prevSnapshot?.bug_prompt ?? candidate.task.bug_prompt,
 									contract_hash: candidate.task.contract_hash,
 									task_paths_json: candidate.task.task_paths_json ?? '[]',
-									launch_spec_json: prevSnapshot?.launch_spec_json ?? '{}',
+									launch_spec_json: JSON.stringify(fixLaunchSpec),
 									created_at: now,
 								});
 							}
@@ -1265,21 +1338,21 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				);
 			}
 
-			// E-293 / E-300: Check if task already has an in-flight fix or rework run
 			const taskRuns = deps.runsRepo.listByTaskId(taskId);
-			const inFlightFixOrRework = taskRuns.find((r) => {
-				const isFixOrRework = r.origin === 'wrapup-fix' || r.origin === 'rework';
-				const isInFlight =
-					!(TERMINAL_RUN_STATES as readonly string[]).includes(r.state) && r.state !== 'landed';
-				return isFixOrRework && isInFlight;
+
+			// E-293 / E-300 / R6: Check if task already has ANY in-flight run (normal implement, review, fix, or rework)
+			const inFlightRun = taskRuns.find((r) => {
+				return (
+					!(TERMINAL_RUN_STATES as readonly string[]).includes(r.state) && r.state !== 'landed'
+				);
 			});
 
-			if (inFlightFixOrRework) {
+			if (inFlightRun) {
 				throw new AppError(
 					'E_FIX_RUN_IN_FLIGHT',
-					`Task '${taskId}' already has a fix or rework run in flight: ${inFlightFixOrRework.id}`,
+					`Task '${taskId}' already has a run in flight: ${inFlightRun.id} (${inFlightRun.state})`,
 					{
-						details: { taskId, runId: inFlightFixOrRework.id },
+						details: { taskId, runId: inFlightRun.id },
 					},
 				);
 			}
@@ -1303,6 +1376,29 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				implRuns.length > 0
 					? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
 					: null;
+			const nonFixImplRuns = implRuns.filter((r) => r.origin !== 'wrapup-fix');
+			const latestNonFixImplRun =
+				nonFixImplRuns.length > 0
+					? nonFixImplRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
+					: null;
+
+			// E-293 / R6: Check if task has already landed. Recall is only permitted for tasks that are landed!
+			const hasLanded =
+				task.manual_state === 'landed' ||
+				(latestNonFixImplRun && latestNonFixImplRun.state === 'landed');
+			if (!hasLanded) {
+				throw new AppError(
+					'E_VALIDATION',
+					`Task '${taskId}' cannot be recalled because it has not landed.`,
+					{
+						details: {
+							taskId,
+							manualState: task.manual_state,
+							latestRunState: latestNonFixImplRun?.state ?? null,
+						},
+					},
+				);
+			}
 
 			const agentId = latestImplRun?.agent_id;
 			if (!agentId || !isAgentAvailable(agentId)) {
@@ -1329,6 +1425,19 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			let snapshotId = latestImplRun?.snapshot_id ?? '';
 			if (deps.dispatchSnapshotsRepo) {
 				snapshotId = `snap_${deps.ids.newId().slice(0, 16)}`;
+				const prevLaunchSpec = (() => {
+					try {
+						return JSON.parse(prevSnapshot?.launch_spec_json ?? '{}');
+					} catch {
+						return {};
+					}
+				})();
+				const recallLaunchSpec = {
+					...prevLaunchSpec,
+					worktreeMode: 'reuse',
+					targetWorktreePath: worktreePath,
+					preferredBranchName: branchName,
+				};
 				deps.dispatchSnapshotsRepo.insert({
 					id: snapshotId,
 					task_id: taskId,
@@ -1341,7 +1450,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					bug_prompt: prevSnapshot?.bug_prompt ?? task.bug_prompt,
 					contract_hash: task.contract_hash,
 					task_paths_json: task.task_paths_json ?? '[]',
-					launch_spec_json: prevSnapshot?.launch_spec_json ?? '{}',
+					launch_spec_json: JSON.stringify(recallLaunchSpec),
 					created_at: now,
 				});
 			}

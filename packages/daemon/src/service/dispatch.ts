@@ -21,13 +21,26 @@ import {
 	allocateConcurrencySlots,
 } from '../domain/concurrency.ts';
 import { toEffortColumns } from '../domain/effort-value.ts';
-import { evaluatePathClashQueue, isTaskLanded, isTaskPathHolding } from '../domain/path-clash.ts';
+import {
+	type TaskPathDescriptor,
+	checkTaskPathClash,
+	evaluatePathClashQueue,
+	isTaskLanded,
+	isTaskPathHolding,
+	parseWrapupFixSerialReason,
+} from '../domain/path-clash.ts';
 import {
 	type RunState,
+	TERMINAL_RUN_STATES,
 	countsTowardAgentConcurrency,
 	isTerminalRunState,
 } from '../domain/run-state-machine.ts';
-import { deriveTaskState } from '../domain/task-state.ts';
+import {
+	deriveTaskCrossBatchFix,
+	deriveTaskInHead,
+	deriveTaskInHeadMethod,
+	deriveTaskState,
+} from '../domain/task-state.ts';
 import { isAppError } from '../errors/app-error.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
@@ -76,13 +89,41 @@ export function toBatchDto(row: BatchRow): BatchDto {
 	});
 }
 
-export function toTaskDto(row: TaskRow, latestRunState?: string | null): TaskDto {
+export function toTaskDto(
+	row: TaskRow,
+	latestRunState?: string | null,
+	runsForTask?: readonly RunRow[],
+): TaskDto {
 	let deps: string[] = [];
 	try {
 		deps = JSON.parse(row.deps_json);
 	} catch {
 		deps = [];
 	}
+	const implRuns = runsForTask?.filter((r) => r.kind === 'implement') ?? [];
+	const latestImplRun =
+		implRuns.length > 0
+			? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
+			: null;
+	const inHead = deriveTaskInHead({
+		manualState: row.manual_state,
+		latestImplementationRun: latestImplRun
+			? { state: latestImplRun.state, is_in_head: latestImplRun.is_in_head }
+			: null,
+	});
+	const inHeadMethod = deriveTaskInHeadMethod(
+		{
+			manualState: row.manual_state,
+			latestImplementationRun: latestImplRun
+				? { state: latestImplRun.state, is_in_head: latestImplRun.is_in_head }
+				: null,
+		},
+		row.manual_state,
+	);
+	const crossBatchFix = runsForTask
+		? deriveTaskCrossBatchFix({ taskBatchId: row.batch_id, runs: runsForTask })
+		: false;
+
 	return Object.freeze({
 		id: row.id,
 		docId: row.doc_id,
@@ -93,6 +134,9 @@ export function toTaskDto(row: TaskRow, latestRunState?: string | null): TaskDto
 		estDays: row.est_days ?? null,
 		batchId: row.batch_id ?? null,
 		state: deriveTaskState(row.manual_state, latestRunState),
+		inHead,
+		inHeadMethod,
+		crossBatchFix,
 	});
 }
 
@@ -685,8 +729,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		const allRunRows = runsRepo.listAll();
 		const latestRunByTaskId = new Map<string, RunRow>();
+		const runsByTaskId = new Map<string, RunRow[]>();
 		for (const r of allRunRows) {
 			if (!r.task_id) continue;
+			const list = runsByTaskId.get(r.task_id) ?? [];
+			list.push(r);
+			runsByTaskId.set(r.task_id, list);
+
 			const existing = latestRunByTaskId.get(r.task_id);
 			if (!existing || r.attempt_no > existing.attempt_no) {
 				latestRunByTaskId.set(r.task_id, r);
@@ -701,7 +750,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			const tRows = deps.tasksRepo.listByDocId(doc.id);
 			for (const t of tRows) {
 				const latestRun = latestRunByTaskId.get(t.id);
-				allTasks.push(toTaskDto(t, latestRun?.state ?? null));
+				const tRuns = runsByTaskId.get(t.id) ?? [];
+				allTasks.push(toTaskDto(t, latestRun?.state ?? null, tRuns));
 			}
 		}
 
@@ -868,57 +918,92 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const landing = summarizeBatchLanding(tasks, runsRepo.listAll());
 
 					if (landing.allLanded) {
-						if (landing.notInHeadCount > 0) {
-							// E-272: 全部 landed 但有未进 HEAD -> awaiting_landing
-							if (batch.state === 'running') {
+						// Check if there are fix runs from prior round that are still in flight (R3)
+						const latestWrapupRecord = deps.batchWrapupsRepo?.findLatestByBatchId(batch.id);
+						let fixRunsLanded = true;
+						if (latestWrapupRecord) {
+							let fixRunIds: string[] = [];
+							try {
+								fixRunIds = JSON.parse(latestWrapupRecord.fix_run_ids_json || '[]');
+							} catch {
+								fixRunIds = [];
+							}
+							for (const fixId of fixRunIds) {
+								const fixRun = runsRepo.findById(fixId);
+								if (!fixRun || fixRun.state !== 'landed') {
+									fixRunsLanded = false;
+									break;
+								}
+							}
+						}
+
+						if (fixRunsLanded) {
+							// Check if previous wrapup run branch is in HEAD (R3)
+							const latestWrapupRun = deps.runsRepo.findLatestWrapupByBatchId?.(batch.id);
+							const prevWrapupInHead = !latestWrapupRun || latestWrapupRun.is_in_head === 1;
+
+							if (landing.notInHeadCount > 0 || !prevWrapupInHead) {
+								// E-272 & R3: 全部 landed 但有未进 HEAD -> awaiting_landing
+								if (batch.state === 'running') {
+									await effectiveBatchService.transitionBatch(
+										batch.id,
+										'awaiting_landing',
+										'waiting_for_branches_in_head',
+									);
+									batchesAdvanced.push(batch.id);
+								}
+								continue;
+							}
+
+							// 全部进 HEAD (notInHeadCount === 0 && prevWrapupInHead)
+							const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(batch.id);
+							const latestWrapup = deps.runsRepo.findLatestWrapupByBatchId?.(batch.id);
+							const currentRound = deps.batchWrapupsRepo
+								? deps.batchWrapupsRepo.getMaxRound(batch.id)
+								: (latestWrapup?.attempt_no ?? 0);
+
+							if (!activeWrapup && currentRound < 2 && deps.wrapupService) {
+								// 自动派收口运行，且本 tick 不再派发 (AC 1, E-283)
+								try {
+									const wrapupResult = await deps.wrapupService.triggerWrapup({
+										batchId: batch.id,
+										trigger: 'auto',
+									});
+									runsDispatched.push(wrapupResult.run.id);
+									batchesAdvanced.push(batch.id);
+									return {
+										executed: true,
+										batchesAdvanced: Object.freeze(batchesAdvanced),
+										runsDispatched: Object.freeze(runsDispatched),
+										tasksBlocked: Object.freeze(tasksBlocked),
+										tasksDeferred: Object.freeze(tasksDeferred),
+									};
+								} catch (error) {
+									// 触发失败（条件不满足 / agent 不可用 → 批次已转 needs_attention）：记日志，不吞掉
+									logFailure(error);
+								}
+							}
+
+							if (!deps.wrapupService && !activeWrapup) {
+								// Fallback if wrapupService not wired
 								await effectiveBatchService.transitionBatch(
 									batch.id,
-									'awaiting_landing',
-									'waiting_for_branches_in_head',
+									'done',
+									'all_landed_and_in_head',
+								);
+								batchesAdvanced.push(batch.id);
+								continue;
+							}
+						} else {
+							// Fix runs from prior round are still in flight -> return to running if awaiting_landing
+							if (batch.state === 'awaiting_landing') {
+								await effectiveBatchService.transitionBatch(
+									batch.id,
+									'running',
+									'fix_runs_pending',
 								);
 								batchesAdvanced.push(batch.id);
 							}
-							continue;
-						}
-
-						// 全部进 HEAD (notInHeadCount === 0)
-						const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(batch.id);
-						const latestWrapup = deps.runsRepo.findLatestWrapupByBatchId?.(batch.id);
-						const currentRound = deps.batchWrapupsRepo
-							? deps.batchWrapupsRepo.getMaxRound(batch.id)
-							: (latestWrapup?.attempt_no ?? 0);
-
-						if (!activeWrapup && currentRound < 2 && deps.wrapupService) {
-							// 自动派收口运行，且本 tick 不再派发 (AC 1, E-283)
-							try {
-								const wrapupResult = await deps.wrapupService.triggerWrapup({
-									batchId: batch.id,
-									trigger: 'auto',
-								});
-								runsDispatched.push(wrapupResult.run.id);
-								batchesAdvanced.push(batch.id);
-								return {
-									executed: true,
-									batchesAdvanced: Object.freeze(batchesAdvanced),
-									runsDispatched: Object.freeze(runsDispatched),
-									tasksBlocked: Object.freeze(tasksBlocked),
-									tasksDeferred: Object.freeze(tasksDeferred),
-								};
-							} catch (error) {
-								// 触发失败（条件不满足 / agent 不可用 → 批次已转 needs_attention）：记日志，不吞掉
-								logFailure(error);
-							}
-						}
-
-						if (!deps.wrapupService && !activeWrapup) {
-							// Fallback if wrapupService not wired
-							await effectiveBatchService.transitionBatch(
-								batch.id,
-								'done',
-								'all_landed_and_in_head',
-							);
-							batchesAdvanced.push(batch.id);
-							continue;
 						}
 					} else if (batch.state === 'awaiting_landing') {
 						// A task reopened or reworked -> return to running (E-59, E-121)
@@ -930,13 +1015,169 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						continue;
 					}
 
+					const activeRuns = runsRepo.listActive();
+
+					// R1: Check queued runs for this batch (wrapup-fix runs or recall runs)
+					const batchQueuedRuns = activeRuns.filter(
+						(r) => r.state === 'queued' && r.task_id !== null && r.batch_id === batch.id,
+					);
+
+					const nonQueuedActiveRunCount = activeRuns.filter(
+						(r) => isTaskPathHolding(r.state) && r.state !== 'queued',
+					).length;
+					let remainingSlots = Math.max(0, doc.lane_count - nonQueuedActiveRunCount);
+
+					// 每 agent 并发只数真正占额度的状态（E-54：awaiting_human / orphaned 不计），
+					// 与 M8-T11 预览的 `active` 口径一致，否则预览说未满而 tick 仍 defer。
+					const activeRunsByAgent: Record<string, number> = {};
+					for (const r of activeRuns) {
+						if (r.state === 'queued') continue;
+						if (!countsTowardAgentConcurrency(r.state as RunState)) continue;
+						activeRunsByAgent[r.agent_id] = (activeRunsByAgent[r.agent_id] ?? 0) + 1;
+					}
+
+					for (const queuedRun of batchQueuedRuns) {
+						if (!queuedRun.task_id) continue;
+						const qTaskId = queuedRun.task_id;
+
+						if (!isAgentDispatchable(queuedRun.agent_id)) {
+							tasksBlocked.push({
+								taskId: qTaskId,
+								reason: 'agent_unavailable',
+							});
+							continue;
+						}
+
+						// 1. Serialization check (E-280 / R1)
+						const parsedSerial = parseWrapupFixSerialReason(queuedRun.queued_reason);
+						if (parsedSerial) {
+							const blocker = runsRepo.findById(parsedSerial.runId);
+							if (!blocker || blocker.state !== 'landed') {
+								// Serial blocker has not landed yet
+								continue;
+							}
+						}
+
+						if (queuedRun.spawned_by_run_id) {
+							const priorFixHolding = activeRuns.some(
+								(other) =>
+									other.id !== queuedRun.id &&
+									other.spawned_by_run_id === queuedRun.spawned_by_run_id &&
+									other.state !== 'queued' &&
+									other.state !== 'landed' &&
+									!(TERMINAL_RUN_STATES as readonly string[]).includes(other.state),
+							);
+							if (priorFixHolding) {
+								continue;
+							}
+						}
+
+						// 2. Path clash check against non-queued active runs (E-46 / R1)
+						const qTask = deps.tasksRepo.findById(qTaskId);
+						if (!qTask) continue;
+						let qPaths: string[] = [];
+						try {
+							qPaths = JSON.parse(qTask.task_paths_json ?? '[]');
+						} catch {
+							qPaths = [];
+						}
+						const queuedDesc: TaskPathDescriptor = {
+							taskId: qTask.id,
+							taskKey: qTask.task_key,
+							taskPaths: Object.freeze(qPaths),
+							batchId: qTask.batch_id ?? undefined,
+							state: 'queued',
+							runId: queuedRun.id,
+						};
+
+						const otherHoldingRuns = activeRuns.filter(
+							(other) =>
+								other.id !== queuedRun.id &&
+								other.state !== 'queued' &&
+								isTaskPathHolding(other.state),
+						);
+						let hasClash = false;
+						for (const holding of otherHoldingRuns) {
+							if (!holding.task_id) continue;
+							const hTask = deps.tasksRepo.findById(holding.task_id);
+							let hPaths: string[] = [];
+							try {
+								hPaths = JSON.parse(hTask?.task_paths_json ?? '[]');
+							} catch {
+								hPaths = [];
+							}
+							const clashRes = checkTaskPathClash(
+								{
+									taskId: holding.task_id,
+									taskKey: hTask?.task_key,
+									taskPaths: Object.freeze(hPaths),
+									runId: holding.id,
+								},
+								queuedDesc,
+								{ sameBatchOnly: false },
+							);
+							if (clashRes.hasClash) {
+								hasClash = true;
+								tasksBlocked.push({
+									taskId: qTask.id,
+									reason: clashRes.queuedReason ?? 'path_clash',
+								});
+								break;
+							}
+						}
+						if (hasClash) {
+							continue;
+						}
+
+						// 3. Concurrency slots & agent quota check
+						if (remainingSlots <= 0) {
+							tasksDeferred.push({
+								taskId: qTask.id,
+								reason: 'concurrency_limit_reached',
+							});
+							continue;
+						}
+
+						const agentLimit = agentLimitFor(queuedRun.agent_id);
+						const currentAgentRuns = activeRunsByAgent[queuedRun.agent_id] ?? 0;
+						if (currentAgentRuns >= agentLimit) {
+							tasksDeferred.push({
+								taskId: qTask.id,
+								reason: 'agent_concurrency_limit_reached',
+							});
+							continue;
+						}
+
+						// 4. Dequeue and launch!
+						remainingSlots -= 1;
+						activeRunsByAgent[queuedRun.agent_id] = currentAgentRuns + 1;
+						if (deps.runService) {
+							await deps.runService.transitionState({
+								runId: queuedRun.id,
+								targetState: 'starting',
+								reason: 'dequeue',
+							});
+						} else {
+							runsRepo.updateState({
+								id: queuedRun.id,
+								toState: 'starting',
+							});
+						}
+						runsDispatched.push(queuedRun.id);
+						if (deps.proc && deps.workspace && deps.runService) {
+							void launchRun(queuedRun.id).catch((err) => {
+								logFailure(err);
+							});
+						}
+					}
+
 					const taskByKey = new Map<string, TaskRow>();
 					for (const t of tasks) {
 						taskByKey.set(t.task_key, t);
 					}
 
-					const activeRuns = runsRepo.listActive();
-					const activeTaskIds = new Set(activeRuns.map((r) => r.task_id));
+					const candidateActiveRuns = runsRepo.listActive();
+					const activeTaskIds = new Set(candidateActiveRuns.map((r) => r.task_id));
 					const candidateTasks: TaskRow[] = [];
 					// 派发候选判定沿用「该任务 attempt 最大的任意运行」（终态即不再自动重派，E-51）
 					const latestRunByTaskId = new Map<string, RunRow>();
@@ -1023,7 +1264,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						};
 					});
 
-					const activeDescriptors = activeRuns
+					const activeDescriptors = candidateActiveRuns
 						.filter((r) => r.task_id !== null)
 						.map((r) => {
 							const taskId = r.task_id as string;
@@ -1093,15 +1334,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						continue;
 					}
 
-					const activeRunCount = activeRuns.filter((r) => isTaskPathHolding(r.state)).length;
-					const availableSlots = Math.max(0, doc.lane_count - activeRunCount);
-					// 每 agent 并发只数真正占额度的状态（E-54：awaiting_human / orphaned 不计），
-					// 与 M8-T11 预览的 `active` 口径一致，否则预览说未满而 tick 仍 defer。
-					const activeRunsByAgent: Record<string, number> = {};
-					for (const r of activeRuns) {
-						if (!countsTowardAgentConcurrency(r.state as RunState)) continue;
-						activeRunsByAgent[r.agent_id] = (activeRunsByAgent[r.agent_id] ?? 0) + 1;
-					}
+					const availableSlots = remainingSlots;
 
 					interface SlotCandidate {
 						readonly id: string;
@@ -1237,6 +1470,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				permissionTier?: string;
 				baseRef?: string | { kind?: string; branchName?: string };
 				worktreeMode?: 'fresh' | 'reuse';
+				targetWorktreePath?: string;
+				preferredBranchName?: string;
 			} = {};
 			if (run.snapshot_id && deps.dispatchSnapshotsRepo) {
 				const snap = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
@@ -1275,13 +1510,39 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				readonly branchName: string;
 				readonly baseRef: string;
 			};
+			const targetWorktreePath = run.worktree_path ?? launchSpecData.targetWorktreePath;
+			const preferredBranchName = run.branch_name ?? launchSpecData.preferredBranchName;
+			const effectiveWorktreeMode =
+				launchSpecData.worktreeMode ??
+				(run.origin === 'wrapup-fix' || targetWorktreePath ? 'reuse' : 'fresh');
+
 			try {
 				const baseRefInput =
 					typeof launchSpecData.baseRef === 'object' && launchSpecData.baseRef !== null
 						? (launchSpecData.baseRef as RunBaseRef)
 						: undefined;
 
-				if (deps.baseSelector) {
+				if (effectiveWorktreeMode === 'reuse' && targetWorktreePath) {
+					// R2: Reuse wrapup worktree for automatic fixes, original task worktree for recall
+					if (deps.workspace) {
+						preparedWorktree = await deps.workspace.prepareWorktree({
+							repoPath: doc.repo_path,
+							taskId: task.task_key || task.id,
+							branchPrefix: doc.branch_prefix ?? 'task/',
+							worktreeMode: 'reuse',
+							targetWorktreePath,
+							preferredBranchName,
+							baseRef: 'HEAD',
+						});
+					} else {
+						preparedWorktree = {
+							worktreePath: targetWorktreePath,
+							branchName:
+								preferredBranchName ?? `${doc.branch_prefix ?? 'task/'}${task.task_key || task.id}`,
+							baseRef: 'HEAD',
+						};
+					}
+				} else if (deps.baseSelector) {
 					preparedWorktree = await deps.baseSelector.prepareTaskWorkspace({
 						repoPath: doc.repo_path,
 						taskId: task.task_key || task.id,
@@ -1289,7 +1550,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						sessionId: runId,
 						upstreamTasks,
 						baseRef: baseRefInput,
-						worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+						worktreeMode: effectiveWorktreeMode,
 					});
 				} else if (deps.workspace) {
 					let resolvedBase = 'HEAD';
@@ -1310,7 +1571,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						repoPath: doc.repo_path,
 						taskId: task.task_key || task.id,
 						branchPrefix: doc.branch_prefix ?? 'task/',
-						worktreeMode: launchSpecData.worktreeMode ?? 'fresh',
+						worktreeMode: effectiveWorktreeMode,
 						baseRef: resolvedBase,
 					});
 				} else {
