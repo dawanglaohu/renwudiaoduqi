@@ -22,6 +22,7 @@ import type { GateRow, GatesRepo } from '../repo/gates.ts';
 import type { RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { BatchService } from './batch.ts';
+import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 import type { SettingsService } from './settings.ts';
 
 export interface GateServiceDeps {
@@ -38,6 +39,7 @@ export interface GateServiceDeps {
 	readonly unitOfWork: UnitOfWork;
 	readonly settingsService: SettingsService;
 	readonly getBatchGateOverrides?: (batchId: string) => BatchGateOverrides | undefined;
+	readonly sessionArchiveService?: SessionArchiveService;
 }
 
 export interface GateService {
@@ -248,6 +250,9 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				return Object.freeze({ applied: true as const });
 			}
 
+			let archiveContext: ArchiveTaskContext | null = null;
+			let laneReleasedEvent: EventEnvelope | null = null;
+
 			deps.unitOfWork.run(() => {
 				deps.gatesRepo.updateDecision(
 					input.gateId,
@@ -268,6 +273,47 @@ export function createGateService(deps: GateServiceDeps): GateService {
 							endedAt: now,
 						});
 					}
+					// R4: 人工 landed 完成会话归档与槽位释放
+					if (deps.sessionArchiveService && gate.task_id) {
+						archiveContext = deps.sessionArchiveService.archiveTaskInTx({
+							taskId: gate.task_id,
+							runId: gate.run_id ?? '',
+							actorDeviceId: input.actorDeviceId,
+							now,
+						});
+						if (archiveContext.laneReleased) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId: gate.task_id,
+								runId: gate.run_id ?? '',
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									docId: archiveContext.docId,
+									laneNo: archiveContext.laneNo,
+									taskId: gate.task_id,
+									runId: gate.run_id ?? '',
+									reason: 'landed',
+								},
+							});
+						}
+					} else if (deps.tasksRepo && gate.task_id) {
+						const laneRes = deps.tasksRepo.clearLaneNo(gate.task_id);
+						if (laneRes.changes === 1) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId: gate.task_id,
+								runId: gate.run_id ?? '',
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId: gate.task_id,
+									runId: gate.run_id ?? '',
+									reason: 'landed',
+								},
+							});
+						}
+					}
 				} else if (input.decision === 'reject' && deps.tasksRepo && gate.task_id) {
 					// E-05: Human rejection sets manual state, automatic dispatch must not override human judgment
 					deps.tasksRepo.updateManualState(gate.task_id, 'paused');
@@ -275,6 +321,9 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			});
 
 			// Outside transaction: publish events
+			if (laneReleasedEvent) {
+				deps.bus.publish(laneReleasedEvent);
+			}
 			if (input.decision === 'pass') {
 				if (gate.kind === 'landing') {
 					if (gate.run_id) {
@@ -315,6 +364,10 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					},
 				});
 				deps.bus.publish(passedEnvelope);
+
+				if (archiveContext && deps.sessionArchiveService) {
+					await deps.sessionArchiveService.terminateArchived(archiveContext);
+				}
 			}
 
 			return Object.freeze({ applied: true as const });
@@ -404,8 +457,20 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			const now = deps.clock.now();
 
 			if (result.outcome === 'landed') {
+				// R4: 幂等检查：已处于 landed 状态的运行或任务直接返回
+				const existingRun = input.runId ? deps.runsRepo?.findById(input.runId) : null;
+				const existingTask = deps.tasksRepo?.findById(input.taskId);
+				if (existingRun?.state === 'landed' || existingTask?.manual_state === 'landed') {
+					return {
+						outcome: 'landed',
+					};
+				}
+
 				// AC 1 & AC 2b: automatic pass lands directly with zero git operations
 				const gateId = deps.ids.newId();
+				let archiveContext: ArchiveTaskContext | null = null;
+				let laneReleasedEvent: EventEnvelope | null = null;
+
 				deps.unitOfWork.run(() => {
 					deps.gatesRepo.create({
 						id: gateId,
@@ -430,8 +495,52 @@ export function createGateService(deps: GateServiceDeps): GateService {
 							endedAt: now,
 						});
 					}
+
+					// R4: 自动 landed 完成会话归档与槽位释放
+					if (deps.sessionArchiveService) {
+						archiveContext = deps.sessionArchiveService.archiveTaskInTx({
+							taskId: input.taskId,
+							runId: input.runId ?? '',
+							now,
+						});
+						if (archiveContext.laneReleased) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId: input.taskId,
+								runId: input.runId ?? '',
+								actorDeviceId: null,
+								payload: {
+									docId: archiveContext.docId,
+									laneNo: archiveContext.laneNo,
+									taskId: input.taskId,
+									runId: input.runId ?? '',
+									reason: 'landed',
+								},
+							});
+						}
+					} else if (deps.tasksRepo) {
+						const laneRes = deps.tasksRepo.clearLaneNo(input.taskId);
+						if (laneRes.changes === 1) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId: input.taskId,
+								runId: input.runId ?? '',
+								actorDeviceId: null,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId: input.taskId,
+									runId: input.runId ?? '',
+									reason: 'landed',
+								},
+							});
+						}
+					}
 				});
 
+				if (laneReleasedEvent) {
+					deps.bus.publish(laneReleasedEvent);
+				}
 				if (input.runId) {
 					const stateEnvelope = deps.envelopeFactory.createEnvelope({
 						kind: 'run.state_changed',
@@ -469,6 +578,10 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					},
 				});
 				deps.bus.publish(passedEnvelope);
+
+				if (archiveContext && deps.sessionArchiveService) {
+					await deps.sessionArchiveService.terminateArchived(archiveContext);
+				}
 			} else {
 				// Stays in awaiting_human; creates waiting gate (AC 3, E-54)
 				const gateId = deps.ids.newId();

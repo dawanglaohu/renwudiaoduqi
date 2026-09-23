@@ -70,7 +70,7 @@ import {
 import { type DocsService, createDocsService } from '../service/docs.ts';
 import { type GateService, createGateService } from '../service/gates.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
-import type { EventEnvelopeInput } from '../service/logstore.ts';
+import type { EventEnvelopeInput, LogstoreService } from '../service/logstore.ts';
 import { createLogstoreService } from '../service/logstore.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
@@ -199,6 +199,7 @@ export function createContainer(input: {
 	readonly clock: { readonly now: () => string };
 	readonly logstorePaths?: LogstorePaths;
 	readonly logFs?: LogFileSystem;
+	readonly logstoreService?: LogstoreService;
 	readonly systemService?: SystemService;
 	readonly runAbortService?: RunAbortService;
 	readonly runsAbortRepo?: RunsAbortRepo;
@@ -310,15 +311,17 @@ export function createContainer(input: {
 	const appendQueue = createAppendQueue({
 		appendFile: (path, data) => logFs.appendFile(path, data),
 	});
-	const logstoreService = createLogstoreService({
-		fs: logFs,
-		paths: logstorePaths,
-		queue: appendQueue,
-		ids,
-		unitOfWork,
-		eventsIndexRepo: eventsIndex,
-		segmentsRepo: logSegments,
-	});
+	const logstoreService =
+		input.logstoreService ??
+		createLogstoreService({
+			fs: logFs,
+			paths: logstorePaths,
+			queue: appendQueue,
+			ids,
+			unitOfWork,
+			eventsIndexRepo: eventsIndex,
+			segmentsRepo: logSegments,
+		});
 	const systemService =
 		input.systemService ??
 		createSystemService({
@@ -835,6 +838,7 @@ export function createContainer(input: {
 			unitOfWork,
 			settingsService,
 			getBatchGateOverrides: (batchId: string) => dispatchService.getBatchGateOverrides(batchId),
+			sessionArchiveService,
 		});
 
 	gateServiceHolder.current = gateService;

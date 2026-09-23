@@ -54,6 +54,7 @@ import {
 	type ReviewAgentAssignment,
 	buildReviewLaunchSpec,
 	dispatchReviewRun,
+	readDefaultReviewAssignment,
 } from './review-agent.ts';
 import { type ReviewContext, getReviewContext } from './review-context.ts';
 import type { RunService } from './run.ts';
@@ -291,6 +292,11 @@ export interface MechanicalCheckResult {
 	 * Git diff stat of the worktree changes.
 	 */
 	readonly diffStat?: DiffStatResult;
+
+	/**
+	 * Git diff text of the worktree changes (R1).
+	 */
+	readonly diffText?: string;
 }
 
 /**
@@ -533,32 +539,6 @@ export async function readReviewReportText(
 	return (await readStream('raw')).join('');
 }
 
-function createFallbackReviewContext(run: ReviewRunRecord, taskId: string): ReviewContext {
-	const snapshotId =
-		(run as { snapshot_id?: string; snapshotId?: string }).snapshot_id ??
-		(run as { snapshotId?: string }).snapshotId ??
-		`snap_${run.id}`;
-	return {
-		taskId,
-		taskKey: taskId,
-		snapshotId,
-		reviewPrompt: 'Please review the implementation against acceptance criteria.',
-		contractHash: 'contract-hash-fallback',
-		acceptText: 'Acceptance criteria passed',
-		inputText: null,
-		outputText: null,
-		taskPaths: [],
-		launchSpecJson: JSON.stringify({
-			adapterKind: 'codex',
-			model: 'o3-mini',
-			effort: 'high',
-		}),
-		createdAt: new Date().toISOString(),
-		isSnapshot: true,
-		isReadOnly: true,
-		docChangedSinceDispatch: false,
-	};
-}
 const COMMON_STOP_WORDS = new Set([
 	'and',
 	'the',
@@ -1458,6 +1438,7 @@ export async function runMechanicalCheck(
 			zeroConfigLayer,
 			projectCommandLayer,
 			diffStat,
+			diffText,
 		});
 	}
 
@@ -1575,6 +1556,7 @@ export async function runMechanicalCheck(
 		zeroConfigLayer,
 		projectCommandLayer,
 		diffStat,
+		diffText,
 	});
 }
 
@@ -1632,6 +1614,116 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 
 		let currentState: RunState = previousState;
 		let gateCreated = false;
+		const taskId = input.taskId ?? run?.task_id ?? run?.taskId ?? '';
+		const canSpawnReview = Boolean(deps.spawnManagedFn || deps.spawnManaged);
+
+		let missingMaterialTag: string | null = null;
+		let missingMaterialReason: string | null = null;
+		let snapshotId: string | null = null;
+		let reviewContext: ReviewContext | null = null;
+		let assignment: ReviewAgentAssignment | null = null;
+		const diffStat = input.diffStat ?? checkResult.diffStat;
+		const diffText = input.diffText ?? checkResult.diffText;
+
+		if (checkResult.passed && run && canSpawnReview) {
+			snapshotId =
+				(run as { snapshot_id?: string | null }).snapshot_id ??
+				(run as { snapshotId?: string | null }).snapshotId ??
+				null;
+
+			// 1. 真实快照检查 (R1: 删除假快照，按实施 run.snapshot_id 读取，缺失时类型化转人工)
+			if (!snapshotId || !deps.dispatchSnapshotsRepo || !taskId) {
+				missingMaterialTag = 'snapshot_missing';
+				missingMaterialReason = 'missing_dispatch_snapshot';
+			} else {
+				try {
+					const snapshot = deps.dispatchSnapshotsRepo.findById(snapshotId);
+					if (!snapshot) {
+						missingMaterialTag = 'snapshot_missing';
+						missingMaterialReason = 'missing_dispatch_snapshot';
+					} else {
+						reviewContext = getReviewContext(
+							taskId,
+							{
+								dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+								tasksRepo: deps.tasksRepo,
+							},
+							{
+								snapshotId: snapshot.id,
+							},
+						);
+
+						// 2. 真实指派检查 (R1: 删除固定指派，按 run 或快照取真实指派)
+						try {
+							if (run && (run.agent_id || (run as { agentId?: string }).agentId)) {
+								assignment = readDefaultReviewAssignment(
+									run as Parameters<typeof readDefaultReviewAssignment>[0],
+								);
+							}
+						} catch {
+							assignment = null;
+						}
+						if (!assignment && snapshot.assignment_json) {
+							try {
+								const parsed = JSON.parse(snapshot.assignment_json);
+								const rawId = parsed.agentId ?? parsed.agent_id;
+								if (rawId && typeof rawId === 'string' && rawId.trim().length > 0) {
+									assignment = {
+										agentId: rawId.trim(),
+										modelName: parsed.modelName ?? parsed.model_name ?? null,
+										effortTier: parsed.effortTier ?? parsed.effort_tier ?? null,
+										effortVendor: parsed.effortVendor ?? parsed.effort_vendor ?? null,
+									};
+								}
+							} catch {
+								assignment = null;
+							}
+						}
+						if (!assignment && snapshot.launch_spec_json) {
+							try {
+								const parsed = JSON.parse(snapshot.launch_spec_json);
+								const rawId = parsed.adapterKind ?? parsed.agentId ?? parsed.agent_id;
+								if (rawId && typeof rawId === 'string' && rawId.trim().length > 0) {
+									assignment = {
+										agentId: rawId.trim(),
+										modelName: parsed.model ?? parsed.modelName ?? null,
+										effortTier: parsed.effort ?? parsed.effortTier ?? null,
+										effortVendor: parsed.effortVendor ?? null,
+									};
+								}
+							} catch {
+								assignment = null;
+							}
+						}
+						if (!assignment) {
+							missingMaterialTag = 'assignment_missing';
+							missingMaterialReason = 'missing_assignment';
+						}
+					}
+				} catch {
+					missingMaterialTag = 'snapshot_missing';
+					missingMaterialReason = 'missing_dispatch_snapshot';
+				}
+			}
+
+			// 3. 真实 diff 检查 (R1: 删除假 diff，按真实 diff 校验，缺失时类型化转人工)
+			if (!missingMaterialTag) {
+				const hasChanges = Boolean(diffStat && diffStat.hasChanges && diffStat.filesChanged > 0);
+				const hasText = Boolean(diffText && diffText.trim().length > 0);
+				if (!hasChanges || !hasText) {
+					missingMaterialTag = 'diff_missing';
+					missingMaterialReason = 'missing_diff';
+				}
+			}
+		}
+
+		const shouldAwaitHuman = !checkResult.passed || missingMaterialTag !== null;
+		const humanReason = !checkResult.passed
+			? checkResult.reason
+			: (missingMaterialReason ?? 'missing_review_material');
+		const humanTag = !checkResult.passed
+			? checkResult.tag
+			: (missingMaterialTag ?? 'missing_review_material');
 
 		// 2. 两次迁移收进同一个 unitOfWork.run，且每次迁移显式传 clock.now()（R3）
 		const applyTransitions = () => {
@@ -1649,22 +1741,22 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				});
 				currentState = 'reviewing';
 
-				if (!checkResult.passed) {
+				if (shouldAwaitHuman) {
 					assertValidTransition('reviewing', 'awaiting_human', {
-						reason: checkResult.reason,
+						reason: humanReason,
 					});
 					deps.runsRepo?.updateState({
 						id: input.runId,
 						fromState: 'reviewing',
 						toState: 'awaiting_human',
 						endedAt: now,
-						queuedReason: checkResult.reason,
+						queuedReason: humanReason,
 					});
 					currentState = 'awaiting_human';
 
 					if (deps.gatesRepo) {
 						const gateId = `gate_${ids.newId()}`;
-						const gateTaskId = input.taskId ?? run?.task_id ?? run?.taskId ?? '';
+						const gateTaskId = taskId;
 						if (deps.gatesRepo.insert) {
 							deps.gatesRepo.insert({
 								id: gateId,
@@ -1672,7 +1764,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								runId: input.runId,
 								kind: 'review',
 								state: 'waiting',
-								comment: checkResult.tag,
+								comment: humanTag,
 								createdAt: now,
 							});
 						} else if (deps.gatesRepo.create) {
@@ -1682,7 +1774,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								run_id: input.runId,
 								kind: 'review',
 								state: 'waiting',
-								comment: checkResult.tag,
+								comment: humanTag,
 								created_at: now,
 							});
 						}
@@ -1690,22 +1782,22 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					}
 				}
 			} else if (previousState === 'reviewing') {
-				if (!checkResult.passed) {
+				if (shouldAwaitHuman) {
 					assertValidTransition('reviewing', 'awaiting_human', {
-						reason: checkResult.reason,
+						reason: humanReason,
 					});
 					deps.runsRepo?.updateState({
 						id: input.runId,
 						fromState: 'reviewing',
 						toState: 'awaiting_human',
 						endedAt: now,
-						queuedReason: checkResult.reason,
+						queuedReason: humanReason,
 					});
 					currentState = 'awaiting_human';
 
 					if (deps.gatesRepo) {
 						const gateId = `gate_${ids.newId()}`;
-						const gateTaskId = input.taskId ?? run?.task_id ?? run?.taskId ?? '';
+						const gateTaskId = taskId;
 						if (deps.gatesRepo.insert) {
 							deps.gatesRepo.insert({
 								id: gateId,
@@ -1713,7 +1805,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								runId: input.runId,
 								kind: 'review',
 								state: 'waiting',
-								comment: checkResult.tag,
+								comment: humanTag,
 								createdAt: now,
 							});
 						} else if (deps.gatesRepo.create) {
@@ -1723,7 +1815,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								run_id: input.runId,
 								kind: 'review',
 								state: 'waiting',
-								comment: checkResult.tag,
+								comment: humanTag,
 								created_at: now,
 							});
 						}
@@ -1743,23 +1835,66 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			}
 		}
 
-		let reviewRunId: string | undefined;
-		if (checkResult.passed && run && (deps.spawnManagedFn || deps.spawnManaged)) {
-			try {
-				const taskId = input.taskId ?? run.task_id ?? run.taskId ?? '';
-				let reviewContext: ReviewContext;
-				if (deps.dispatchSnapshotsRepo && taskId) {
-					try {
-						reviewContext = getReviewContext(taskId, {
-							dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
-						});
-					} catch {
-						reviewContext = createFallbackReviewContext(run, taskId);
-					}
-				} else {
-					reviewContext = createFallbackReviewContext(run, taskId);
+		if (shouldAwaitHuman) {
+			if (deps.tasksRepo && taskId) {
+				const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+				if (laneRes && laneRes.changes === 1 && deps.bus && deps.envelopeFactory) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'lane.released',
+							taskId,
+							runId: input.runId,
+							payload: {
+								docId: laneRes.docId,
+								laneNo: laneRes.previousLaneNo,
+								taskId,
+								runId: input.runId,
+								reason: 'awaiting_human',
+							},
+						}),
+					);
 				}
+			}
+			if (deps.bus && deps.envelopeFactory) {
+				deps.bus.publish(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'run.state_changed',
+						runId: input.runId,
+						taskId,
+						payload: {
+							from: 'reviewing',
+							to: 'awaiting_human',
+							reason: humanReason,
+						},
+					}),
+				);
+				if (gateCreated) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'task.gate_waiting',
+							runId: input.runId,
+							taskId,
+							payload: {
+								gate: 'review',
+								comment: humanTag,
+							},
+						}),
+					);
+				}
+			}
+		}
 
+		let reviewRunId: string | undefined;
+		if (
+			!shouldAwaitHuman &&
+			run &&
+			reviewContext &&
+			assignment &&
+			diffStat &&
+			diffText &&
+			(deps.spawnManagedFn || deps.spawnManaged)
+		) {
+			try {
 				const dispatchInput: DispatchReviewRunInput = {
 					implRun: {
 						id: run.id,
@@ -1773,34 +1908,27 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							(run as { attempt_no?: number; attemptNo?: number }).attempt_no ??
 							(run as { attemptNo?: number }).attemptNo ??
 							1,
-						agentId: run.agent_id ?? (run as { agentId?: string }).agentId ?? 'codex',
-						agent_id: run.agent_id ?? (run as { agentId?: string }).agentId ?? 'codex',
-						modelName: (run as { model_name?: string | null }).model_name ?? null,
-						model_name: (run as { model_name?: string | null }).model_name ?? null,
-						effortTier: (run as { effort_tier?: string | null }).effort_tier ?? null,
-						effort_tier: (run as { effort_tier?: string | null }).effort_tier ?? null,
-						effortVendor: (run as { effort_vendor?: string | null }).effort_vendor ?? null,
-						effort_vendor: (run as { effort_vendor?: string | null }).effort_vendor ?? null,
+						agentId: assignment.agentId,
+						agent_id: assignment.agentId,
+						modelName: assignment.modelName ?? null,
+						model_name: assignment.modelName ?? null,
+						effortTier: assignment.effortTier ?? null,
+						effort_tier: assignment.effortTier ?? null,
+						effortVendor: assignment.effortVendor ?? null,
+						effort_vendor: assignment.effortVendor ?? null,
 						worktreePath,
 						worktree_path: worktreePath,
 						branchName: (run as { branch_name?: string | null }).branch_name ?? null,
 						branch_name: (run as { branch_name?: string | null }).branch_name ?? null,
-						snapshotId: (run as { snapshot_id?: string }).snapshot_id ?? reviewContext.snapshotId,
-						snapshot_id: (run as { snapshot_id?: string }).snapshot_id ?? reviewContext.snapshotId,
+						snapshotId: reviewContext.snapshotId,
+						snapshot_id: reviewContext.snapshotId,
 						laneNo: (run as { lane_no?: number | null }).lane_no ?? null,
 						lane_no: (run as { lane_no?: number | null }).lane_no ?? null,
 					},
+					assignment,
 					reviewContext,
-					diffText: input.diffText ?? '+change\n',
-					diffStat: input.diffStat ?? {
-						files: [],
-						filesChanged: 1,
-						changedFileCount: 1,
-						insertions: 1,
-						deletions: 0,
-						hasChanges: true,
-						baseline: 'HEAD',
-					},
+					diffText,
+					diffStat,
 					autoSpawn: true,
 				};
 
@@ -1837,8 +1965,131 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						branchName: dispatchResult.run.branchName ?? null,
 					});
 				}
-			} catch {
-				// Non-fatal if review dispatch fails
+			} catch (dispatchErr) {
+				// R3: 审查派发失败不能空吞；两条运行与闸门须落到可恢复状态，并留错误证据。
+				const now = clock.now();
+				const errMessage = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);
+				const failureReason = 'review_dispatch_failed';
+				const errorComment = `${failureReason}: ${errMessage}`;
+
+				// 1. 如果已创建审查运行，将其落到 failed
+				if (reviewRunId && deps.runsRepo) {
+					const createdReviewRun = deps.runsRepo.findById(reviewRunId);
+					if (createdReviewRun && !isTerminalRunState(createdReviewRun.state)) {
+						deps.runsRepo.updateState({
+							id: reviewRunId,
+							fromState: createdReviewRun.state as RunState,
+							toState: 'failed',
+							endedAt: now,
+							queuedReason: errorComment,
+						});
+						if (deps.bus && deps.envelopeFactory) {
+							deps.bus.publish(
+								deps.envelopeFactory.createEnvelope({
+									kind: 'run.state_changed',
+									runId: reviewRunId,
+									taskId,
+									payload: {
+										from: createdReviewRun.state,
+										to: 'failed',
+										reason: failureReason,
+										error: errMessage,
+									},
+								}),
+							);
+						}
+					}
+				}
+
+				// 2. 实施运行落到可恢复的 awaiting_human
+				assertValidTransition('reviewing', 'awaiting_human', {
+					reason: failureReason,
+				});
+				deps.runsRepo?.updateState({
+					id: run.id,
+					fromState: 'reviewing',
+					toState: 'awaiting_human',
+					endedAt: now,
+					queuedReason: errorComment,
+				});
+				currentState = 'awaiting_human';
+
+				if (deps.tasksRepo && taskId) {
+					const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+					if (laneRes && laneRes.changes === 1 && deps.bus && deps.envelopeFactory) {
+						deps.bus.publish(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId,
+								runId: run.id,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId,
+									runId: run.id,
+									reason: 'awaiting_human',
+								},
+							}),
+						);
+					}
+				}
+
+				// 3. 闸门落到 waiting 可恢复状态并留错误证据
+				if (deps.gatesRepo) {
+					const gateId = `gate_${ids.newId()}`;
+					if (deps.gatesRepo.create) {
+						deps.gatesRepo.create({
+							id: gateId,
+							task_id: taskId,
+							run_id: run.id,
+							kind: 'review',
+							state: 'waiting',
+							comment: errorComment,
+							created_at: now,
+						});
+					} else if (deps.gatesRepo.insert) {
+						deps.gatesRepo.insert({
+							id: gateId,
+							taskId,
+							runId: run.id,
+							kind: 'review',
+							state: 'waiting',
+							comment: errorComment,
+							createdAt: now,
+						});
+					}
+					gateCreated = true;
+
+					if (deps.bus && deps.envelopeFactory) {
+						deps.bus.publish(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'task.gate_waiting',
+								runId: run.id,
+								taskId,
+								payload: {
+									gate: 'review',
+									comment: errorComment,
+								},
+							}),
+						);
+					}
+				}
+
+				if (deps.bus && deps.envelopeFactory) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'run.state_changed',
+							runId: run.id,
+							taskId,
+							payload: {
+								from: 'reviewing',
+								to: 'awaiting_human',
+								reason: failureReason,
+								error: errMessage,
+							},
+						}),
+					);
+				}
 			}
 		}
 
@@ -2261,6 +2512,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			readonly exitCode?: number | null;
 		}): Promise<FinalizeReviewRunResult> {
 			const { runId, exitCode = 0 } = input;
+			if (deps.runService?.closeRunStream) {
+				await deps.runService.closeRunStream(runId);
+			}
 			let outputText = '';
 			if (deps.logstorePaths && deps.logFs) {
 				try {

@@ -3,6 +3,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createAppendQueue } from '../../src/logstore/append-queue.ts';
+import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
+import { createLogstorePaths } from '../../src/logstore/paths.ts';
+import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
+import { createEventsIndexRepo } from '../../src/repo/events-index-repo.ts';
+import { createLogSegmentsRepo } from '../../src/repo/log-segments-repo.ts';
+import { createLogstoreService, type LogstoreService } from '../../src/service/logstore.ts';
 import { createContainer } from '../../src/boot/container.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
@@ -191,6 +198,8 @@ async function getAuthToken(container: ReturnType<typeof createContainer>): Prom
 function setupWiringEnvironment(
 	overrides: {
 		readonly processProbe?: { check: (pid: number) => ProcessLiveness };
+		readonly spawnManaged?: (spec: LaunchSpec) => ManagedProcess;
+		readonly appendDelayMs?: number;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-wiring-'));
@@ -217,6 +226,9 @@ function setupWiringEnvironment(
 
 	const spawnedProcesses: FakeManagedProcessController[] = [];
 	const fakeSpawnManaged = ((spec: LaunchSpec) => {
+		if (overrides.spawnManaged) {
+			return overrides.spawnManaged(spec);
+		}
 		const proc = createFakeProcess(spec);
 		spawnedProcesses.push(proc);
 		return proc.managed;
@@ -303,6 +315,33 @@ function setupWiringEnvironment(
 		worktreeManager: fakeWorktreeManager,
 		agentService: fakeAgentService as never,
 		processProbe: overrides.processProbe,
+		logstoreService: overrides.appendDelayMs
+			? (() => {
+					const nodeFs = createNodeLogFileSystem();
+					const base = createLogstoreService({
+						fs: nodeFs,
+						paths: createLogstorePaths(join(tempDir, 'runs')),
+						queue: createAppendQueue({
+							appendFile: (path, data) => nodeFs.appendFile(path, data),
+						}),
+						ids: { newId: () => `log_${Math.random().toString(36).slice(2, 10)}` },
+						unitOfWork: createUnitOfWork(db),
+						eventsIndexRepo: createEventsIndexRepo(db),
+						segmentsRepo: createLogSegmentsRepo(db),
+					});
+					return {
+						...base,
+						async appendRaw(runId: string, line: Uint8Array) {
+							await new Promise((r) => setTimeout(r, overrides.appendDelayMs));
+							return await base.appendRaw(runId, line);
+						},
+						async appendEvent(runId: string, env: Parameters<LogstoreService['appendEvent']>[1]) {
+							await new Promise((r) => setTimeout(r, overrides.appendDelayMs));
+							return await base.appendEvent(runId, env);
+						},
+					};
+				})()
+			: undefined,
 		gitRunner: fakeGitRunner,
 		logViolation: (msg: unknown) => {
 			const cause = msg instanceof Error ? (msg as { cause?: unknown }).cause : undefined;
@@ -695,6 +734,383 @@ describe(
 
 			// Subsequent stop call is also safe and idempotent
 			await logRepairJob?.stop();
+		});
+
+		it('R1: missing snapshot or missing diff transfers to awaiting_human with typed gate comment, no fake fallback', async () => {
+			const env = setupWiringEnvironment();
+			const { container } = env;
+
+			// Insert a snapshot that belongs to a different task
+			const now = env.clock.now();
+			container.repos.tasks.insert({
+				id: 'task-other',
+				doc_id: 'doc-1',
+				task_key: 'M7-T9-OTHER',
+				title: 'Other task',
+				module_key: 'M7',
+				deps_json: '[]',
+				est_days: 1,
+				batch_id: 'batch-1',
+				manual_state: 'pending',
+				contract_hash: 'hash-other',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				has_accept_changed: 0,
+				has_prompt_changed: 0,
+				is_removed_from_doc: 0,
+			});
+			container.repos.dispatchSnapshots?.insert({
+				id: 'snap-other',
+				task_id: 'task-other',
+				contract_hash: 'hash-other',
+				task_paths_json: '[]',
+				launch_spec_json: '{}',
+				created_at: now,
+			});
+
+			const worktreePath = join(env.tempDir, 'worktrees', 'task-1');
+			mkdirSync(worktreePath, { recursive: true });
+
+			// Insert a run for task-1 referencing snap-other (valid FK, but snapshot does not match task-1)
+			container.repos.runs.insert({
+				id: 'run-missing-snap',
+				task_id: 'task-1',
+				attempt_no: 50,
+				kind: 'implement',
+				state: 'exited',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-other',
+				worktree_path: worktreePath,
+				started_at: now,
+			});
+
+			const evalResult = await container.services.review.evaluateMechanicalCheck({
+				runId: 'run-missing-snap',
+				exitCode: 0,
+			});
+
+			// Assert mechanical check itself passed, but review material missing transferred to awaiting_human
+			expect(evalResult.result.passed).toBe(true);
+			expect(evalResult.currentState).toBe('awaiting_human');
+			expect(evalResult.gateCreated).toBe(true);
+			expect(evalResult.reviewRunId).toBeUndefined();
+
+			// Verify run row in DB
+			const runRow = container.repos.runs.findById('run-missing-snap');
+			expect(runRow?.state).toBe('awaiting_human');
+			expect(runRow?.queued_reason).toBe('missing_dispatch_snapshot');
+
+			// Verify review waiting gate was created with typed comment 'snapshot_missing'
+			const gates = container.repos.gates.list({ pendingOnly: true });
+			const gate = gates.find((g) => g.run_id === 'run-missing-snap');
+			expect(gate).toBeDefined();
+			expect(gate?.kind).toBe('review');
+			expect(gate?.state).toBe('waiting');
+			expect(gate?.comment).toBe('snapshot_missing');
+		});
+
+		it('R2: waits for delayed review output write to land on disk before closing writer, reading back, and evaluating verdict', async () => {
+			// Set up environment with 60ms append delay
+			const env = setupWiringEnvironment({ appendDelayMs: 60 });
+			const { container, spawnedProcesses } = env;
+
+			const publishedEvents: Array<{ kind: string; payload: unknown }> = [];
+			container.events.bus.subscribe((envelope) => {
+				publishedEvents.push({ kind: envelope.kind, payload: envelope.payload });
+			});
+
+			// Create and launch an implementation run
+			const createRes = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'codex',
+				idempotencyKey: 'r2-wiring-impl',
+			});
+			const implRunId = createRes.run.id;
+			await container.services.dispatch.tick();
+
+			let waitAttempts = 0;
+			while (spawnedProcesses.length === 0 && waitAttempts < 50) {
+				await new Promise((r) => setTimeout(r, 20));
+				waitAttempts++;
+			}
+			const implProc = spawnedProcesses[0];
+			implProc.emitLine('{"method":"item/agentMessage/delta","params":{"delta":"Done."}}');
+			implProc.emitExit(0);
+
+			// Wait for review run to be dispatched
+			let reviewAttempts = 0;
+			while (spawnedProcesses.length < 2 && reviewAttempts < 50) {
+				await new Promise((r) => setTimeout(r, 20));
+				reviewAttempts++;
+			}
+			const reviewProc = spawnedProcesses.find((p) => p.launchSpec.runId !== implRunId);
+			expect(reviewProc).toBeDefined();
+			if (!reviewProc) return;
+
+			// Review process emits output with verdict pass, then IMMEDIATELY emits exit(0)
+			reviewProc.emitLine('VERDICT: pass\nImplementation verified cleanly.');
+			reviewProc.emitExit(0);
+
+			// Wait for exit handler to settle
+			await new Promise((r) => setTimeout(r, 400));
+
+			// Verify task.review_verdict was emitted with pass (not failed or unparsed)
+			const verdictEvent = publishedEvents.find(
+				(e) => e.kind === 'task.review_verdict' && (e.payload as { verdict: string }).verdict === 'pass',
+			);
+			expect(verdictEvent).toBeDefined();
+		});
+
+		it('R3: review dispatch failure is not swallowed; both runs and gate reach recoverable state with error evidence', async () => {
+			let shouldFailSpawn = false;
+			const env = setupWiringEnvironment({
+				spawnManaged: (spec: LaunchSpec) => {
+					if (shouldFailSpawn) {
+						throw new Error('Adapter failed to allocate resources');
+					}
+					const proc = createFakeProcess(spec);
+					env.spawnedProcesses.push(proc);
+					return proc.managed;
+				},
+			});
+			const { container, spawnedProcesses } = env;
+
+			const publishedEvents: Array<{ kind: string; payload: unknown }> = [];
+			container.events.bus.subscribe((envelope) => {
+				publishedEvents.push({ kind: envelope.kind, payload: envelope.payload });
+			});
+
+			const createRes = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'codex',
+				idempotencyKey: 'r3-wiring-impl',
+			});
+			const implRunId = createRes.run.id;
+			await container.services.dispatch.tick();
+
+			let waitAttempts = 0;
+			while (spawnedProcesses.length === 0 && waitAttempts < 50) {
+				await new Promise((r) => setTimeout(r, 20));
+				waitAttempts++;
+			}
+			const implProc = spawnedProcesses[0];
+			implProc.emitLine('{"method":"item/agentMessage/delta","params":{"delta":"Done."}}');
+			await new Promise((r) => setTimeout(r, 30));
+
+			// Now enable spawn failure before implementation process exits
+			shouldFailSpawn = true;
+			implProc.emitExit(0);
+
+			// Wait for exit evaluation to settle
+			await new Promise((r) => setTimeout(r, 300));
+
+			// 1. Implementation run must NOT be stuck in reviewing; must be in awaiting_human
+			const implRun = container.repos.runs.findById(implRunId);
+			expect(implRun?.state).toBe('awaiting_human');
+			expect(implRun?.queued_reason).toContain('review_dispatch_failed: Adapter failed to allocate resources');
+
+			// 2. Waiting gate must be created with error evidence
+			const gates = container.repos.gates.list({ pendingOnly: true });
+			const reviewGate = gates.find((g) => g.run_id === implRunId && g.kind === 'review');
+			expect(reviewGate).toBeDefined();
+			expect(reviewGate?.state).toBe('waiting');
+			expect(reviewGate?.comment).toContain('review_dispatch_failed: Adapter failed to allocate resources');
+
+			// 3. Events must have been published
+			const gateWaitingEvent = publishedEvents.find((e) => e.kind === 'task.gate_waiting');
+			expect(gateWaitingEvent).toBeDefined();
+			const stateChangedEvent = publishedEvents.find(
+				(e) =>
+					e.kind === 'run.state_changed' &&
+					(e.payload as { to: string }).to === 'awaiting_human' &&
+					(e.payload as { reason: string }).reason === 'review_dispatch_failed',
+			);
+			expect(stateChangedEvent).toBeDefined();
+		});
+
+		it('R4: automatic and human landed both complete session archival, slot release, and terminal events with idempotency', async () => {
+			const env = setupWiringEnvironment();
+			const { container, db } = env;
+
+			const publishedEvents: Array<{ kind: string; payload: unknown }> = [];
+			container.events.bus.subscribe((envelope) => {
+				publishedEvents.push({ kind: envelope.kind, payload: envelope.payload });
+			});
+
+			const now = env.clock.now();
+
+			// --- Part 1: Automatic landed ---
+			container.services.settings.updateGates(
+				{ dispatch: 'auto', review: 'auto', landing: 'auto' },
+				null,
+			);
+
+			container.repos.tasks.insert({
+				id: 'task-auto',
+				doc_id: 'doc-1',
+				task_key: 'M7-T9-AUTO',
+				title: 'Auto landing test',
+				module_key: 'M7',
+				deps_json: '[]',
+				est_days: 1,
+				batch_id: 'batch-1',
+				manual_state: 'pending',
+				contract_hash: 'hash-auto',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				has_accept_changed: 0,
+				has_prompt_changed: 0,
+				is_removed_from_doc: 0,
+			});
+			db.prepare("UPDATE tasks SET lane_no = 2 WHERE id = 'task-auto'").run();
+
+			container.repos.runs.insert({
+				id: 'run-auto-1',
+				task_id: 'task-auto',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'reviewing',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				lane_no: 2,
+				started_at: now,
+			});
+
+			const autoRes = await container.services.gates.resolveAfterReviewAndApply({
+				taskId: 'task-auto',
+				runId: 'run-auto-1',
+				reviewVerdict: 'pass',
+			});
+			expect(autoRes.outcome).toBe('landed');
+
+			// Assert session archived
+			const autoRun = container.repos.runs.findById('run-auto-1');
+			expect(autoRun?.state).toBe('landed');
+			expect(autoRun?.session_archived_at).not.toBeNull();
+
+			// Assert lane slot released
+			const autoTask = container.repos.tasks.findById('task-auto');
+			expect(autoTask?.manual_state).toBe('landed');
+			expect(autoTask?.lane_no).toBeNull();
+
+			// Assert terminal events: lane.released, task.landed (by: auto), task.sessions_archived
+			const autoLaneReleased = publishedEvents.find(
+				(e) => e.kind === 'lane.released' && (e.payload as { taskId: string }).taskId === 'task-auto',
+			);
+			expect(autoLaneReleased).toBeDefined();
+
+			const autoLandedEvent = publishedEvents.find(
+				(e) => e.kind === 'task.landed' && (e.payload as { by: string }).by === 'auto',
+			);
+			expect(autoLandedEvent).toBeDefined();
+
+			const autoSessionsArchived = publishedEvents.find(
+				(e) => e.kind === 'task.sessions_archived' && (e.payload as { taskId: string }).taskId === 'task-auto',
+			);
+			expect(autoSessionsArchived).toBeDefined();
+
+			// Idempotency: re-calling resolveAfterReviewAndApply returns landed without duplicating
+			const repeatEventsCount = publishedEvents.filter(
+				(e) => e.kind === 'task.landed' && (e.payload as { by: string }).by === 'auto',
+			).length;
+			const repeatAutoRes = await container.services.gates.resolveAfterReviewAndApply({
+				taskId: 'task-auto',
+				runId: 'run-auto-1',
+				reviewVerdict: 'pass',
+			});
+			expect(repeatAutoRes.outcome).toBe('landed');
+			const newEventsCount = publishedEvents.filter(
+				(e) => e.kind === 'task.landed' && (e.payload as { by: string }).by === 'auto',
+			).length;
+			expect(newEventsCount).toBe(repeatEventsCount);
+
+			// --- Part 2: Human landed ---
+			container.repos.tasks.insert({
+				id: 'task-manual',
+				doc_id: 'doc-1',
+				task_key: 'M7-T9-MANUAL',
+				title: 'Manual landing test',
+				module_key: 'M7',
+				deps_json: '[]',
+				est_days: 1,
+				batch_id: 'batch-1',
+				manual_state: 'pending',
+				contract_hash: 'hash-manual',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+				has_accept_changed: 0,
+				has_prompt_changed: 0,
+				is_removed_from_doc: 0,
+			});
+			db.prepare("UPDATE tasks SET lane_no = 3 WHERE id = 'task-manual'").run();
+
+			container.repos.runs.insert({
+				id: 'run-manual-1',
+				task_id: 'task-manual',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'reviewing',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				lane_no: 3,
+				started_at: now,
+			});
+
+			container.repos.gates.create({
+				id: 'gate-manual-landing',
+				task_id: 'task-manual',
+				run_id: 'run-manual-1',
+				kind: 'landing',
+				state: 'waiting',
+				comment: 'waiting_for_user',
+				created_at: now,
+			});
+
+			const manualDecideRes = await container.services.gates.decideGate({
+				gateId: 'gate-manual-landing',
+				decision: 'pass',
+				comment: 'Manually approved',
+				actorDeviceId: null,
+			});
+			expect(manualDecideRes.applied).toBe(true);
+
+			// Assert session archived
+			const manualRun = container.repos.runs.findById('run-manual-1');
+			expect(manualRun?.state).toBe('landed');
+			expect(manualRun?.session_archived_at).not.toBeNull();
+
+			// Assert lane slot released
+			const manualTask = container.repos.tasks.findById('task-manual');
+			expect(manualTask?.manual_state).toBe('landed');
+			expect(manualTask?.lane_no).toBeNull();
+
+			// Assert terminal events: lane.released, task.landed (by: human), task.sessions_archived
+			const manualLaneReleased = publishedEvents.find(
+				(e) => e.kind === 'lane.released' && (e.payload as { taskId: string }).taskId === 'task-manual',
+			);
+			expect(manualLaneReleased).toBeDefined();
+
+			const manualLandedEvent = publishedEvents.find(
+				(e) => e.kind === 'task.landed' && (e.payload as { by: string }).by === 'human',
+			);
+			expect(manualLandedEvent).toBeDefined();
+
+			const manualSessionsArchived = publishedEvents.find(
+				(e) => e.kind === 'task.sessions_archived' && (e.payload as { taskId: string }).taskId === 'task-manual',
+			);
+			expect(manualSessionsArchived).toBeDefined();
+
+			// Idempotency: deciding again throws E_GATE_ALREADY_DECIDED
+			await expect(
+				container.services.gates.decideGate({
+					gateId: 'gate-manual-landing',
+					decision: 'pass',
+					actorDeviceId: null,
+				}),
+			).rejects.toThrow('Gate already decided');
 		});
 	},
 );

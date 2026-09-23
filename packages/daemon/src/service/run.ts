@@ -476,11 +476,19 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		let detached = false;
 		let hasContent = false;
 		const cleanups: Array<() => void> = [];
+		const pendingWrites = new Set<Promise<unknown>>();
+		const trackWrite = <T>(p: Promise<T>): Promise<T> => {
+			const settled = p.catch(() => undefined).finally(() => {
+				pendingWrites.delete(settled);
+			});
+			pendingWrites.add(settled);
+			return p;
+		};
 
 		cleanups.push(
 			process.onRaw((line) => {
 				if (detached) return;
-				void ingestRaw(runId, line.text).catch((err) => logFailure(err));
+				trackWrite(ingestRaw(runId, line.text)).catch((err) => logFailure(err));
 				if (options?.acceptsPlainText) {
 					const trimmed = line.text.trim();
 					if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
@@ -492,11 +500,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									hasContent = true;
 									runsWithContent.add(runId);
 								}
-								void ingestEvent(runId, env)
-									.then(() => {
+								trackWrite(
+									ingestEvent(runId, env).then(() => {
 										options?.onEvent?.(env);
-									})
-									.catch((err) => logFailure(err));
+									}),
+								).catch((err) => logFailure(err));
 							}
 						}
 					}
@@ -516,11 +524,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								hasContent = true;
 								runsWithContent.add(runId);
 							}
-							void ingestEvent(runId, env)
-								.then(() => {
+							trackWrite(
+								ingestEvent(runId, env).then(() => {
 									options?.onEvent?.(env);
-								})
-								.catch((err) => logFailure(err));
+								}),
+							).catch((err) => logFailure(err));
 						}
 					} else if (deps.runsRepo) {
 						try {
@@ -541,11 +549,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						hasContent = true;
 						runsWithContent.add(runId);
 					}
-					void ingestEvent(runId, env)
-						.then(() => {
+					trackWrite(
+						ingestEvent(runId, env).then(() => {
 							options?.onEvent?.(env);
-						})
-						.catch((err) => logFailure(err));
+						}),
+					).catch((err) => logFailure(err));
 				}
 			}),
 		);
@@ -565,6 +573,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				void (async () => {
 					let run: RunRecord | null = null;
 					try {
+						// 等审查输出落盘后再关闭、回读和裁决 (R2)
+						while (pendingWrites.size > 0) {
+							await Promise.all(Array.from(pendingWrites));
+						}
+
 						run = deps.runsRepo?.findById(runId) ?? null;
 						const isStarting = run?.state === 'starting';
 
