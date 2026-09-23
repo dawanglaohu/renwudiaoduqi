@@ -586,6 +586,51 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 			expect(publishedEvents.some((e) => e.kind === 'run.rework_dispatched')).toBe(false);
 		});
 
+		it('#136: the resume branch applies the same terminal boundary — a dead rework run is not a delivery', async () => {
+			const run = createDummyRun({
+				agent_id: 'codex',
+				state: 'exited',
+				rework_count: 0,
+				vendor_session_ref: 'session-ref-original',
+			});
+			runsStore.set(run.id, run);
+			snapshotsStore.set('snap-1', {
+				launch_spec_json: JSON.stringify({ adapterKind: 'native', agentId: 'codex' }),
+			});
+			mockProcessRegistry.set(run.id, createMockProcess(run.id, false));
+
+			// 恢复回调声称送达，但那条运行已经落成终态失败（启动即退出 / spawn 失败）
+			const deadResume = vi.fn().mockImplementation(async (input: { readonly runId: string }) => {
+				runsStore.set(input.runId, {
+					...(runsStore.get(input.runId) as RunRow),
+					state: 'failed',
+					queued_reason: 'premature_exit',
+				});
+				return {
+					newRunId: input.runId,
+					messageId: 'msg-dead',
+					delivered: true,
+				};
+			});
+			const service = makeService({ resumeSession: deadResume });
+
+			const result = await service.dispatchRework({
+				targetRunId: run.id,
+				reworkText: '- R1: 恢复进程起来就死了',
+				source: 'review',
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.action).toBe('undeliverable');
+			if (result.action === 'undeliverable') {
+				expect(result.reason).toBe('premature_exit');
+				expect(result.reworkRunId).toBe('new-run-id-789');
+			}
+			expect(publishedEvents.some((e) => e.kind === 'run.rework_dispatched')).toBe(false);
+			expect(runsStore.get(run.id)?.state).toBe('awaiting_human');
+			expect(runsStore.get(run.id)?.queued_reason).toBe('rework_delivery_failed:premature_exit');
+		});
+
 		it('#136: never reports success when the resume callback reports undelivered', async () => {
 			const run = createDummyRun({
 				agent_id: 'codex',

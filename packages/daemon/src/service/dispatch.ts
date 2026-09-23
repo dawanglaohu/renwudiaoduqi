@@ -78,7 +78,7 @@ import { type BatchService, createBatchService } from './batch.ts';
 import type { LanesService } from './lanes.ts';
 import type { EventEnvelopeInput } from './logstore.ts';
 import { createRerunService } from './rerun.ts';
-import type { ReworkService } from './rework.ts';
+import { REWORK_DELIVERY_FAILED_PREFIX, type ReworkService } from './rework.ts';
 import type { RunService } from './run.ts';
 import { assertSessionRefFree } from './session-guard.ts';
 import type { WrapupService } from './wrapup.ts';
@@ -474,6 +474,67 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			count += 1;
 		}
 		return count;
+	}
+
+	/**
+	 * 返工运行**启动失败**不按任务失败处理（#136 / E-302、E-327）。
+	 *
+	 * 一次返工投递没成（spawn 抛错、启动即退出、启动超时）只是「这次没送出去」，任务本身没有失败：
+	 * 它必须回到人手入口重试，而那条待恢复的实施会话也要留着恢复。走 `runService.transitionState`
+	 * 会把 `kind='implement'` 的终态当成任务终态，连带把该任务全部会话归档、杀掉进程——那条会话就再也
+	 * 恢复不了了。所以返工运行只落运行行状态与类型化 `queued_reason`，不触发归档。
+	 */
+	function failReworkRunStartup(
+		runId: string,
+		reason: string,
+		exit?: { readonly exitCode?: number | null; readonly signal?: string | null },
+	): void {
+		const row = runsRepo.findById(runId);
+		if (!row || isTerminalRunState(row.state as RunState)) {
+			return;
+		}
+
+		const now = deps.clock.now();
+		const pendingEvents: EventEnvelope[] = [];
+		const marker = `${REWORK_DELIVERY_FAILED_PREFIX}:${reason}`;
+
+		const persist = () => {
+			runsRepo.updateState({
+				id: runId,
+				state: 'failed',
+				fromState: row.state,
+				toState: 'failed',
+				queuedReason: marker,
+				endedAt: now,
+				exitCode: exit?.exitCode ?? null,
+				exitSignal: exit?.signal ?? null,
+				actorDeviceId: null,
+			});
+
+			if (deps.envelopeFactory) {
+				pendingEvents.push(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'run.state_changed',
+						runId,
+						taskId: row.task_id,
+						actorDeviceId: null,
+						payload: { from: row.state as RunState, to: 'failed', reason: marker },
+					}),
+				);
+			}
+		};
+
+		if (deps.unitOfWork) {
+			deps.unitOfWork.run(persist);
+		} else {
+			persist();
+		}
+
+		if (deps.bus) {
+			for (const ev of pendingEvents) {
+				deps.bus.publish(ev);
+			}
+		}
 	}
 
 	async function createRun(input: CreateRunInput): Promise<CreateRunResult> {
@@ -2028,7 +2089,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 			// E-40: 校验 agent 可用性
 			if (!isAgentDispatchable(run.agent_id)) {
-				if (deps.runService) {
+				if (run.origin === 'rework') {
+					failReworkRunStartup(runId, 'agent_unavailable');
+				} else if (deps.runService) {
 					await deps.runService.transitionState({
 						runId,
 						targetState: 'failed',
@@ -2165,11 +2228,18 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 			} catch (err) {
 				const isUpstreamMissing = err instanceof AppError && err.code === 'E_UPSTREAM_BASE_MISSING';
-				await deps.runService.transitionState({
-					runId,
-					targetState: 'failed',
-					reason: isUpstreamMissing ? 'upstream_base_missing' : 'workspace_unavailable',
-				});
+				const workspaceReason = isUpstreamMissing
+					? 'upstream_base_missing'
+					: 'workspace_unavailable';
+				if (run.origin === 'rework') {
+					failReworkRunStartup(runId, workspaceReason);
+				} else {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: workspaceReason,
+					});
+				}
 				throw err instanceof AppError
 					? err
 					: new AppError('E_WORKSPACE_UNAVAILABLE', `Worktree preparation failed: ${String(err)}`, {
@@ -2180,11 +2250,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 			const adapter = deps.adapters?.[run.agent_id];
 			if (!adapter) {
-				await deps.runService.transitionState({
-					runId,
-					targetState: 'failed',
-					reason: 'agent_unavailable',
-				});
+				if (run.origin === 'rework') {
+					failReworkRunStartup(runId, 'agent_unavailable');
+				} else {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'agent_unavailable',
+					});
+				}
 				throw new AppError(
 					'E_AGENT_UNAVAILABLE',
 					`No adapter configured for agent: ${run.agent_id}`,
@@ -2212,23 +2286,34 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			try {
 				managed = deps.proc.spawnManaged(launchSpec);
 			} catch (spawnErr) {
-				await deps.runService.transitionState({
-					runId,
-					targetState: 'failed',
-					reason: 'spawn_failed',
-				});
+				if (run.origin === 'rework') {
+					failReworkRunStartup(runId, 'spawn_failed');
+				} else {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'spawn_failed',
+					});
+				}
 				throw spawnErr;
 			}
 
 			// E-348 / R3: starting 状态抢先退出必须落定 starting → failed
 			if (managed.isExited) {
-				await deps.runService.transitionState({
-					runId,
-					targetState: 'failed',
-					reason: 'premature_exit',
-					exitCode: managed.exitResult?.exitCode ?? null,
-					exitSignal: managed.exitResult?.signal ? String(managed.exitResult.signal) : null,
-				});
+				const exitCode = managed.exitResult?.exitCode ?? null;
+				const exitSignal = managed.exitResult?.signal ? String(managed.exitResult.signal) : null;
+				if (run.origin === 'rework') {
+					// 返工运行「起来就死」只说明这次投递没成，不是任务失败（#136 / E-302）。
+					failReworkRunStartup(runId, 'premature_exit', { exitCode, signal: exitSignal });
+				} else {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'premature_exit',
+						exitCode,
+						exitSignal,
+					});
+				}
 				return;
 			}
 

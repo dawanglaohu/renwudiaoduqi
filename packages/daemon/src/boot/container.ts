@@ -77,7 +77,13 @@ import { type MessageService, createMessageService } from '../service/message.ts
 import { type PairingService, createPairingService } from '../service/pairing.ts';
 import { type RetentionService, createRetentionService } from '../service/retention.ts';
 import { type ReviewService, createReviewService } from '../service/review.ts';
-import { type ReworkService, createReworkService } from '../service/rework.ts';
+import {
+	type ReworkService,
+	createReworkService,
+	isReworkDeliveryConfirmed,
+	reworkFailureReasonFromRun,
+	undeliverableReasonFromError,
+} from '../service/rework.ts';
 import { type RunAbortService, createRunAbortService } from '../service/run-abort.ts';
 import { type RunLogService, createRunLogService } from '../service/run-log.ts';
 import {
@@ -714,22 +720,33 @@ export function createContainer(input: {
 			});
 		}
 
-		await dispatcher.launchRun(runId);
+		let launchError: unknown = null;
+		try {
+			await dispatcher.launchRun(runId);
+		} catch (error) {
+			// 启动失败已经由 launchRun 落成运行行的失败状态（返工运行不归档、见 dispatch.ts），
+			// 这里只把它换成型别化投递失败抛回去。
+			launchError = error;
+		}
 
 		const row = runs.findById(runId);
-		if (!row || row.state === 'starting') {
-			throw new AppError(
-				'E_MESSAGE_UNDELIVERED',
-				`Rework run '${runId}' was inserted but its process never started.`,
-				{
-					details: {
-						runId,
-						reason: row ? 'delivery_not_confirmed' : 'run_missing',
-						state: row?.state ?? null,
-					},
-				},
-			);
+		if (row && isReworkDeliveryConfirmed(row.state)) {
+			return;
 		}
+
+		const reason = reworkFailureReasonFromRun(row) ?? undeliverableReasonFromError(launchError);
+		throw new AppError(
+			'E_MESSAGE_UNDELIVERED',
+			`Rework run '${runId}' did not come up (state '${row?.state ?? 'missing'}', reason '${reason}').`,
+			{
+				cause: launchError ?? undefined,
+				details: {
+					runId,
+					reason,
+					state: row?.state ?? null,
+				},
+			},
+		);
 	}
 
 	const reworkService =
