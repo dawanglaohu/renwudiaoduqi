@@ -91,6 +91,30 @@ class MaintenanceTests(unittest.TestCase):
             maintenance.verify(self.doc,argparse.Namespace(task='M1-T1',evidence=str(path),patch=None))
         self.assertFalse((self.doc/'_run/task-reviews.json').exists())
 
+    def test_batch_verify_checks_every_task_before_writing_and_builds_once(self):
+        self.run_build()
+        contracts=self.state()['contracts']
+        items={tid:{'contractHash':contracts[tid]['hash'],'verdict':'pass',
+                    'evidence':['当前契约与实现已核对。']} for tid in ('M1-T1','M1-T2')}
+        path=self.doc/'_run/batch-evidence.json'
+        items['M1-T2']['contractHash']='wrong-version'
+        hc.write_json(path,{'scope':'task-contract','tasks':items})
+        args=argparse.Namespace(task=None,tasks='M1-T1,M1-T2',evidence=str(path),patch=None)
+        with self.assertRaises(ValueError):
+            maintenance.verify(self.doc,args)
+        self.assertFalse((self.doc/'_run/task-reviews.json').exists())
+        items['M1-T2']['contractHash']=contracts['M1-T2']['hash']
+        hc.write_json(path,{'scope':'task-contract','tasks':items})
+        with patch.object(maintenance,'build',wraps=maintenance.build) as build_once:
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(maintenance.verify(self.doc,args),0)
+            build_once.assert_called_once_with(self.doc,{'M1-T1','M1-T2'})
+        ready=hc.readiness(self.doc,self.state())
+        self.assertTrue(ready['M1-T1']['ready'])
+        self.assertTrue(ready['M1-T2']['ready'])
+        self.assertFalse(ready['M1-T3']['ready'])
+        self.assertEqual(hc.stale_reasons(self.doc),[])
+
     def test_unknown_patch_does_not_write_pass(self):
         self.run_build()
         with self.assertRaises(ValueError):self.verify_task(patch_id='missing')

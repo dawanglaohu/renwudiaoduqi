@@ -19,18 +19,19 @@
 
 import { Component, type ErrorInfo, type ReactNode, useCallback } from 'react';
 import { AssignPanel } from '../../components/assign-panel.tsx';
+import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { StreamColumn } from '../../components/stream-column.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
-import { MobileBatchList } from './mobile-batch-list.tsx';
 import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
 import { MobilePaneSwitcher } from './mobile-pane-switcher.tsx';
 import { StopConfirmDialog } from './stop-confirm-dialog.tsx';
 import type { DeckStreamLane, MobileBatchItem } from './types.ts';
 import { useAssignPanel } from './use-assign-panel.ts';
+import { useBatchTree } from './use-batch-tree.ts';
 import { type UseRunDeckResult, isWaitingApproval } from './use-run-deck.ts';
 
 /**
@@ -96,8 +97,8 @@ class StreamErrorBoundary extends Component<StreamErrorBoundaryProps, StreamErro
 export interface RunDeckViewProps extends UseRunDeckResult {
 	/** 泳道数组（流数恒等于 lanes.length，AC 12） */
 	readonly lanes: readonly DeckStreamLane[];
-	/** 批次折叠列表数据（E-13） */
-	readonly batches?: readonly MobileBatchItem[];
+	/** 批次数据（E-13, R2） */
+	readonly batches?: readonly (BatchTreeItem | MobileBatchItem)[];
 	/** 选择任务项回调 */
 	readonly onSelectTask?: (taskId: string, laneNo?: number) => void;
 	/** 顶部工具栏自定扩展 */
@@ -145,7 +146,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		closeToolPayloadSheet,
 		tailBytes = 32768,
 		isTailOnly = false,
-		batches = [],
+		batches,
 		onSelectTask,
 	} = props;
 
@@ -164,6 +165,16 @@ export function RunDeckView(props: RunDeckViewProps) {
 	};
 
 	const streamCount = lanes.length;
+
+	// 纯消费 daemon 字段，未显式传入时由 useBatchTree 从快照拉取，前端绝不推导计算（R1, R2, R5）
+	const {
+		batches: treeBatches,
+		expandedIds,
+		error: batchTreeError,
+		toggleBatch,
+	} = useBatchTree({
+		batches: batches as readonly BatchTreeItem[] | undefined,
+	});
 
 	// 是否为手机档位（phone 或极窄 phone-xs，或者宽度 < 600px 且触控）
 	const isMobileMode = tier === 'phone-xs' || tier === 'phone';
@@ -185,73 +196,63 @@ export function RunDeckView(props: RunDeckViewProps) {
 		[selectMobileLane, onSelectTask, isMobileMode, setPane],
 	);
 
-	// E-108: 零运行空态直接呈现四步引导控制台，而非插画（M9-T16, M9-T18 接入真实零运行流程）。
-	// 必须放在全部 hook 之后：泳道数在 0 与非 0 之间变化时 hook 数量不能变。
+	// E-108: 零运行空态呈现四步引导控制台，而非插画（M9-T16, M9-T18 接入真实零运行流程）。
+	// 零流与有流都保留左栏批次树与顶栏（M9-T19 R2），所以这里不再提前 return，只准备空态控制台节点。
 	const assignPanel = useAssignPanel({ enabled: streamCount === 0 });
 
-	if (streamCount === 0) {
-		return (
-			<section
-				data-run-deck="true"
-				data-tier={tier}
-				data-stream-count={0}
-				className={[
-					'flex flex-col h-full w-full bg-[var(--page)] text-[var(--ink-1)] select-none overflow-y-auto p-4',
-					className ?? '',
-				].join(' ')}
-			>
-				{/* 取数失败就地提示，不整页替换（07 节错误体系） */}
-				{assignPanel.error && (
-					<div className="mb-3 w-full max-w-4xl mx-auto">
-						<InlineNotice
-							tone="down"
-							testId="assign-panel-error"
-							message={assignPanel.error.message}
-							technical={assignPanel.error.technical}
-						/>
-					</div>
-				)}
-				<EmptyOnboarding
-					documents={assignPanel.documents}
-					batches={assignPanel.batches}
-					tasks={assignPanel.tasks}
-					selectedDocId={assignPanel.selectedDocId ?? undefined}
-					selectedBatchId={assignPanel.selectedBatchId ?? undefined}
-					onSelectDoc={assignPanel.selectDoc}
-					onSelectBatch={assignPanel.selectBatch}
-					step3Summary={assignPanel.step3Summary}
-					step3Slot={
-						<AssignPanel
-							mode="step3"
-							tasks={assignPanel.tasks}
-							agents={assignPanel.agents}
-							assignments={assignPanel.assignments}
-							agentCapacities={assignPanel.agentCapacities}
-							onAssignTask={(taskId, selection) => {
-								void assignPanel.assignTask(taskId, selection);
-							}}
-							onResetAssignment={(taskId) => {
-								void assignPanel.resetAssignment(taskId);
-							}}
-						/>
-					}
-					step4Slot={
-						<AssignPanel
-							mode="step4"
-							audit={assignPanel.audit}
-							isUnlockedAboveWindow={assignPanel.isUnlockedAboveWindow}
-							canIncreaseUserSetting={assignPanel.canIncreaseUserSetting}
-							canDecreaseUserSetting={assignPanel.canDecreaseUserSetting}
-							onChangeUserSetting={(laneCount) => {
-								void assignPanel.changeUserSetting(laneCount);
-							}}
-							onToggleUnlockAboveWindow={assignPanel.toggleUnlockAboveWindow}
-						/>
-					}
-				/>
-			</section>
-		);
-	}
+	const emptyConsole = (
+		<>
+			{/* 取数失败就地提示，不整页替换（07 节错误体系） */}
+			{assignPanel.error && (
+				<div className="mb-3 w-full max-w-4xl mx-auto">
+					<InlineNotice
+						tone="down"
+						testId="assign-panel-error"
+						message={assignPanel.error.message}
+						technical={assignPanel.error.technical}
+					/>
+				</div>
+			)}
+			<EmptyOnboarding
+				documents={assignPanel.documents}
+				batches={assignPanel.batches}
+				tasks={assignPanel.tasks}
+				selectedDocId={assignPanel.selectedDocId ?? undefined}
+				selectedBatchId={assignPanel.selectedBatchId ?? undefined}
+				onSelectDoc={assignPanel.selectDoc}
+				onSelectBatch={assignPanel.selectBatch}
+				step3Summary={assignPanel.step3Summary}
+				step3Slot={
+					<AssignPanel
+						mode="step3"
+						tasks={assignPanel.tasks}
+						agents={assignPanel.agents}
+						assignments={assignPanel.assignments}
+						agentCapacities={assignPanel.agentCapacities}
+						onAssignTask={(taskId, selection) => {
+							void assignPanel.assignTask(taskId, selection);
+						}}
+						onResetAssignment={(taskId) => {
+							void assignPanel.resetAssignment(taskId);
+						}}
+					/>
+				}
+				step4Slot={
+					<AssignPanel
+						mode="step4"
+						audit={assignPanel.audit}
+						isUnlockedAboveWindow={assignPanel.isUnlockedAboveWindow}
+						canIncreaseUserSetting={assignPanel.canIncreaseUserSetting}
+						canDecreaseUserSetting={assignPanel.canDecreaseUserSetting}
+						onChangeUserSetting={(laneCount) => {
+							void assignPanel.changeUserSetting(laneCount);
+						}}
+						onToggleUnlockAboveWindow={assignPanel.toggleUnlockAboveWindow}
+					/>
+				}
+			/>
+		</>
+	);
 
 	// ─── 桌面/宽屏布局容器样式 ───
 	const getDeckLayoutClass = (): string => {
@@ -375,7 +376,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 							{toolbarSlot}
 						</div>
 
-						<div className="flex items-center gap-2">
+						<div className="flex items-center gap-3">
 							{(tier === 'full' || tier === 'compact') && (
 								<button
 									type="button"
@@ -416,13 +417,28 @@ export function RunDeckView(props: RunDeckViewProps) {
 					{/* 手机模式分支 */}
 					{isMobileMode ? (
 						<>
-							{/* 栏位 1：任务列表（批次表格在小屏降级为可折叠列表，E-13, E-145） */}
+							{/* 栏位 1：任务列表（批次树在小屏降级为可折叠列表，E-13, E-145, R2 取代 MobileBatchList） */}
 							{activePane === 'tasks' && (
 								<div
 									data-pane-view="tasks"
-									className="flex flex-col h-full w-full overflow-y-auto flex-1"
+									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3 select-none"
 								>
-									<MobileBatchList batches={batches} onSelectTask={handleSelectTaskAndJump} />
+									{batchTreeError && (
+										<InlineNotice
+											tone="down"
+											testId="batch-tree-error"
+											message={batchTreeError.message}
+											technical={batchTreeError.technical}
+										/>
+									)}
+									<BatchTree
+										batches={treeBatches}
+										expandedIds={expandedIds}
+										densityTier={tier}
+										isTouch={isTouch}
+										onToggleBatch={toggleBatch}
+										onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
+									/>
 								</div>
 							)}
 
@@ -432,7 +448,9 @@ export function RunDeckView(props: RunDeckViewProps) {
 									data-pane-view="stream"
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
 								>
-									{currentMobileLane ? (
+									{streamCount === 0 ? (
+										emptyConsole
+									) : currentMobileLane ? (
 										<StreamErrorBoundary laneNo={currentMobileLane.laneNo}>
 											<StreamColumn
 												laneNo={currentMobileLane.laneNo}
@@ -503,95 +521,130 @@ export function RunDeckView(props: RunDeckViewProps) {
 							)}
 						</>
 					) : (
-						// 桌面端监看区（维持已有紧凑/完整/单列多流网格）
-						<>
-							{tier === 'full' && offScreenWaiting.left > 0 && (
-								<button
-									type="button"
-									data-offscreen="left"
-									data-waiting-count={offScreenWaiting.left}
-									onClick={() => {
-										if (offScreenWaiting.firstLeftLaneNo !== undefined) {
-											scrollToLane(offScreenWaiting.firstLeftLaneNo);
-										}
-									}}
-									aria-label={`左侧有 ${offScreenWaiting.left} 条待处理泳道，点击滚入查看`}
-									className="absolute left-3 top-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] bg-[var(--needs)] text-[var(--on-needs)] font-ui font-semibold text-[12.5px] shadow-lg cursor-pointer hover:brightness-105 active:scale-98 transition-transform"
-								>
-									<span>←</span>
-									<span>{offScreenWaiting.left} 条待处理</span>
-								</button>
-							)}
+						// 桌面端监看区（左栏 272px 批次树 + 泳道流监看区，R2, 11 节 UI）
+						<div className="flex flex-row flex-1 min-h-0 overflow-hidden">
+							{/* 左栏 272px 批次树（AC 1, AC 5, 11 节 UI, R2） */}
+							<aside
+								data-testid="deck-rail"
+								className="w-[var(--rail-w,272px)] min-w-[var(--rail-w,272px)] shrink-0 border-r border-[var(--border)] bg-[var(--bg)] flex flex-col overflow-y-auto p-3 gap-3 select-none"
+							>
+								<div className="font-ui text-dense font-semibold text-[var(--ink-1)] px-1">
+									批次与任务
+								</div>
+								{batchTreeError && (
+									<InlineNotice
+										tone="down"
+										testId="batch-tree-error"
+										message={batchTreeError.message}
+										technical={batchTreeError.technical}
+									/>
+								)}
+								<BatchTree
+									batches={treeBatches}
+									expandedIds={expandedIds}
+									densityTier={tier}
+									isTouch={isTouch}
+									onToggleBatch={toggleBatch}
+									onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
+								/>
+							</aside>
 
-							<div ref={scrollContainerRef} className={getDeckLayoutClass()}>
-								{lanes.map((lane) => {
-									const isColumnExpanded = expandedLaneNo === lane.laneNo;
+							{/* 泳道监看区 */}
+							<div className="relative flex-1 flex flex-col min-h-0 overflow-hidden">
+								{tier === 'full' && offScreenWaiting.left > 0 && (
+									<button
+										type="button"
+										data-offscreen="left"
+										data-waiting-count={offScreenWaiting.left}
+										onClick={() => {
+											if (offScreenWaiting.firstLeftLaneNo !== undefined) {
+												scrollToLane(offScreenWaiting.firstLeftLaneNo);
+											}
+										}}
+										aria-label={`左侧有 ${offScreenWaiting.left} 条待处理泳道，点击滚入查看`}
+										className="absolute left-3 top-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] bg-[var(--needs)] text-[var(--on-needs)] font-ui font-semibold text-[12.5px] shadow-lg cursor-pointer hover:brightness-105 active:scale-98 transition-transform"
+									>
+										<span>←</span>
+										<span>{offScreenWaiting.left} 条待处理</span>
+									</button>
+								)}
 
-									return (
-										<div
-											key={lane.laneNo}
-											data-lane-deck-slot={lane.laneNo}
-											className={[
-												tier === 'full' && streamCount > 3 ? 'flex-shrink-0 w-[380px] h-full' : '',
-												isColumnExpanded ? 'col-span-full' : '',
-												'flex flex-col h-full min-h-[360px]',
-											]
-												.filter(Boolean)
-												.join(' ')}
-										>
-											<StreamErrorBoundary laneNo={lane.laneNo}>
-												<StreamColumn
-													laneNo={lane.laneNo}
-													laneId={lane.id}
-													currentRunId={lane.currentRunId}
-													taskKey={lane.taskKey}
-													title={lane.title}
-													status={lane.status}
-													tier={tier}
-													isExpanded={isColumnExpanded}
-													onToggleExpand={() => toggleExpandLane(lane.laneNo)}
-													onStop={() =>
-														handleStopLane(lane.laneNo, lane.currentRunId, lane.taskKey)
-													}
-													isStopping={stoppingLanes.has(lane.laneNo)}
-													agentMonogram={lane.agentMonogram}
-													agentName={lane.agentName}
-													modelName={lane.modelName}
-													refSource={lane.refSource}
-													duration={lane.duration}
-													tokenCount={lane.tokenCount}
-													cost={lane.cost}
-													errorMessage={lane.errorMessage}
-													isTouch={isTouch}
-													bodySlot={lane.bodySlot}
-													gateSlot={lane.gateSlot}
-													refBarSlot={lane.refBarSlot}
-													footSlot={lane.footSlot}
-												/>
-											</StreamErrorBoundary>
-										</div>
-									);
-								})}
+								{streamCount === 0 ? (
+									<div className="flex flex-col flex-1 p-4 overflow-y-auto">{emptyConsole}</div>
+								) : (
+									<div ref={scrollContainerRef} className={getDeckLayoutClass()}>
+										{lanes.map((lane) => {
+											const isColumnExpanded = expandedLaneNo === lane.laneNo;
+
+											return (
+												<div
+													key={lane.laneNo}
+													data-lane-deck-slot={lane.laneNo}
+													className={[
+														tier === 'full' && streamCount > 3
+															? 'flex-shrink-0 w-[380px] h-full'
+															: '',
+														isColumnExpanded ? 'col-span-full' : '',
+														'flex flex-col h-full min-h-[360px]',
+													]
+														.filter(Boolean)
+														.join(' ')}
+												>
+													<StreamErrorBoundary laneNo={lane.laneNo}>
+														<StreamColumn
+															laneNo={lane.laneNo}
+															laneId={lane.id}
+															currentRunId={lane.currentRunId}
+															taskKey={lane.taskKey}
+															title={lane.title}
+															status={lane.status}
+															tier={tier}
+															isExpanded={isColumnExpanded}
+															onToggleExpand={() => toggleExpandLane(lane.laneNo)}
+															onStop={() =>
+																handleStopLane(lane.laneNo, lane.currentRunId, lane.taskKey)
+															}
+															isStopping={stoppingLanes.has(lane.laneNo)}
+															agentMonogram={lane.agentMonogram}
+															agentName={lane.agentName}
+															modelName={lane.modelName}
+															refSource={lane.refSource}
+															duration={lane.duration}
+															tokenCount={lane.tokenCount}
+															cost={lane.cost}
+															errorMessage={lane.errorMessage}
+															isTouch={isTouch}
+															bodySlot={lane.bodySlot}
+															gateSlot={lane.gateSlot}
+															refBarSlot={lane.refBarSlot}
+															footSlot={lane.footSlot}
+														/>
+													</StreamErrorBoundary>
+												</div>
+											);
+										})}
+									</div>
+								)}
+
+								{tier === 'full' && offScreenWaiting.right > 0 && (
+									<button
+										type="button"
+										data-offscreen="right"
+										data-waiting-count={offScreenWaiting.right}
+										onClick={() => {
+											if (offScreenWaiting.firstRightLaneNo !== undefined) {
+												scrollToLane(offScreenWaiting.firstRightLaneNo);
+											}
+										}}
+										aria-label={`右侧有 ${offScreenWaiting.right} 条待处理泳道，点击滚入查看`}
+										className="absolute right-3 top-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] bg-[var(--needs)] text-[var(--on-needs)] font-ui font-semibold text-[12.5px] shadow-lg cursor-pointer hover:brightness-105 active:scale-98 transition-transform"
+									>
+										<span>{offScreenWaiting.right} 条待处理</span>
+										<span>→</span>
+									</button>
+								)}
 							</div>
-
-							{tier === 'full' && offScreenWaiting.right > 0 && (
-								<button
-									type="button"
-									data-offscreen="right"
-									data-waiting-count={offScreenWaiting.right}
-									onClick={() => {
-										if (offScreenWaiting.firstRightLaneNo !== undefined) {
-											scrollToLane(offScreenWaiting.firstRightLaneNo);
-										}
-									}}
-									aria-label={`右侧有 ${offScreenWaiting.right} 条待处理泳道，点击滚入查看`}
-									className="absolute right-3 top-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] bg-[var(--needs)] text-[var(--on-needs)] font-ui font-semibold text-[12.5px] shadow-lg cursor-pointer hover:brightness-105 active:scale-98 transition-transform"
-								>
-									<span>{offScreenWaiting.right} 条待处理</span>
-									<span>→</span>
-								</button>
-							)}
-						</>
+						</div>
 					)}
 				</div>
 
