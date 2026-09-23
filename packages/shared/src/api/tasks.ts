@@ -1,4 +1,4 @@
-import { RUN_STATES, type RunState } from './runs.ts';
+import { RUN_STATES, type RunDto, type RunState } from './runs.ts';
 
 export type TaskState = RunState | 'never_dispatched';
 
@@ -20,11 +20,15 @@ export interface TaskDto {
 	readonly hasAcceptChanged?: boolean;
 	readonly hasPromptChanged?: boolean;
 	readonly isRemovedFromDoc?: boolean;
+	readonly inHead?: boolean | null;
+	readonly inHeadMethod?: string | null;
+	readonly crossBatchFix?: boolean;
 }
 
 export interface GetTaskLandingResponse {
 	readonly worktreePath: string;
 	readonly branchName: string;
+	readonly landingHints?: readonly string[];
 	readonly diffStat: {
 		readonly filesChanged: number;
 		readonly insertions: number;
@@ -35,4 +39,42 @@ export interface GetTaskLandingResponse {
 
 export interface CleanupTaskWorktreeResponse {
 	readonly removed: true;
+}
+
+export interface RecallTaskBody {
+	readonly comment: string;
+	readonly idempotencyKey: string;
+}
+
+export const RECALL_TASK_BODY_KEYS = [
+	'comment',
+	'idempotencyKey',
+] as const satisfies readonly (keyof RecallTaskBody)[];
+
+type AssertRecallTaskBodyExhaustive = [
+	Exclude<keyof RecallTaskBody, (typeof RECALL_TASK_BODY_KEYS)[number]>,
+] extends [never]
+	? true
+	: never;
+const _assertRecallTaskBody: AssertRecallTaskBodyExhaustive = true;
+
+export const recallTaskBodySchema = {
+	type: 'object',
+	additionalProperties: false,
+	required: ['comment', 'idempotencyKey'],
+	properties: {
+		comment: {
+			type: 'string',
+			minLength: 1,
+		},
+		idempotencyKey: {
+			type: 'string',
+			minLength: 1,
+			maxLength: 128,
+		},
+	},
+} as const;
+
+export interface RecallTaskResponse {
+	readonly run: RunDto;
 }

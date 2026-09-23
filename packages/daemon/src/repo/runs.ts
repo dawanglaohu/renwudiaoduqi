@@ -178,6 +178,7 @@ export interface RunsRepo {
 		readonly checkedAt: string;
 		readonly branchTipSha?: string | null;
 	}) => void;
+	readonly updateSnapshotId?: (id: string, snapshotId: string) => void;
 }
 
 const INSERT_RUN_SQL_BASE = `
@@ -563,6 +564,11 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		    in_head_checked_at = @in_head_checked_at,
 		    branch_tip_sha = COALESCE(@branch_tip_sha, branch_tip_sha)
 		WHERE id = @id
+	`);
+	const updateSnapshotIdStmt = db.prepare(`
+		UPDATE runs
+		SET snapshot_id = ?
+		WHERE id = ?
 	`);
 	const selectUnarchivedStmt = hasSessionArchivedAt
 		? db.prepare(SELECT_UNARCHIVED_RUNS_BY_TASK_ID_SQL)
@@ -984,6 +990,14 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				});
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update in_head for run: ${input.id}`);
+			}
+		},
+
+		updateSnapshotId(id: string, snapshotId: string): void {
+			try {
+				updateSnapshotIdStmt.run(snapshotId, id);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update snapshot_id for run: ${id}`);
 			}
 		},
 	});
