@@ -1,6 +1,6 @@
 import io
 
-D = "D:/xiangmu/renwudiaoduqi/docs/Agent任务调度器-开发文档/"
+D = "D:/workspace/renwudiaoduqi/docs/Agent任务调度器-开发文档/"
 
 def patch(path, pairs):
     p = D + path

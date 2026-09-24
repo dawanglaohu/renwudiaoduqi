@@ -4,7 +4,7 @@
     "M7-T8": {
       "contractHash": "da008f7d33e0c4017c9cb92295d4a053e7f74a12bd05e6498ae97ac5c94442b9",
       "evidence": [
-        "本轮为第 1 轮审查（PR #129 无 REVIEW-ROUND 评论）：分支 task/M7-T8 @ 20f417a，工作树 D:/xiangmu/agent-scheduler-m7-t8，与派发包契约版本 95df0f4ed52626fe68e2a4b7004d75d74eda9e22b8fa8e48cba37c2324376ffc 逐字段一致。",
+        "本轮为第 1 轮审查（PR #129 无 REVIEW-ROUND 评论）：分支 task/M7-T8 @ 20f417a，工作树 D:/workspace/agent-scheduler-m7-t8，与派发包契约版本 95df0f4ed52626fe68e2a4b7004d75d74eda9e22b8fa8e48cba37c2324376ffc 逐字段一致。",
         "文档补丁 m7-t8-edge329-support-paths-20260922 的修正依据：E-329 的实现落点不在原支持路径内——共用禁令常量在 packages/daemon/src/domain/wrapup-prompt.ts:3，查 bug 后人工打回的返工文本头部在 packages/daemon/src/domain/rework-prompt.ts:99，迁移清单断言在 packages/daemon/test/unit/database.test.ts:152 与 :214。补丁把 domain/wrapup-prompt.ts、domain/rework-prompt.ts、test/unit/rework-prompt.test.ts、test/unit/database.test.ts 加入 M7-T8 支持路径。",
         "补丁未改动任务定义、验收条款、边界要求与任何既有标准，只补齐实现必需的支持文件；补丁后 M7-T8 契约版本为 da008f7d33e0c4017c9cb92295d4a053e7f74a12bd05e6498ae97ac5c94442b9。",
         "补丁影响范围：_run/revalidation.json 未新增任何待复验任务；被同批标记的 M8-T8、M8-T9、M9-T17、M9-T22、M9-T23 任务笔记 status 均为 todo（未落地），不触发已落地任务的复验。",

@@ -1,6 +1,6 @@
 import io
 
-P = "D:/xiangmu/renwudiaoduqi/docs/Agent任务调度器-开发文档/04-执行/20-里程碑与交付顺序.md"
+P = "D:/workspace/renwudiaoduqi/docs/Agent任务调度器-开发文档/04-执行/20-里程碑与交付顺序.md"
 s = io.open(P, encoding="utf-8").read()
 
 # build_docs.py 用 fullmatch(r"(第.{1,3}批|B\d+)") 认批次行。

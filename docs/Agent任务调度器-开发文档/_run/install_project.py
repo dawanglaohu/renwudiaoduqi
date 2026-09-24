@@ -7,7 +7,6 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 import shutil
-import subprocess
 import uuid
 
 from handoff_contract import VERSION, read_json, write_json, write_text
@@ -30,17 +29,6 @@ def manual_source(source):
     return None
 
 
-def main_checkout(root):
-    """主检出 = git worktree list 的第一行。在工作树里装工具时，手册仍要指向真正的主检出。"""
-    listed = subprocess.run(['git', '-C', str(root), 'worktree', 'list', '--porcelain'],
-                            capture_output=True, text=True, encoding='utf-8')
-    if listed.returncode == 0:
-        for line in listed.stdout.splitlines():
-            if line.startswith('worktree '):
-                return line[len('worktree '):].strip()
-    return root.as_posix()
-
-
 def render_manual(template, root, docs):
     pres = read_json(docs / '_run/presentation.json', {}) or {}
     ho = pres.get('handoff') or {}
@@ -49,8 +37,7 @@ def render_manual(template, root, docs):
     except ValueError:
         rel = docs.as_posix()
     values = {'<repo>': (ho.get('repo') or 'repo').strip(),
-              '<docs>': (ho.get('docsPath') or rel).strip(),
-              '<主检出>': main_checkout(root)}
+              '<docs>': (ho.get('docsPath') or rel).strip()}
     text = template.replace('\r\n', '\n')
     for key, value in values.items():
         text = text.replace(key, value)

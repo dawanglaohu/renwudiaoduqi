@@ -1,7 +1,7 @@
 import io
 import json
 
-P = "D:/xiangmu/renwudiaoduqi/docs/Agent任务调度器-开发文档/_run/presentation.json"
+P = "D:/workspace/renwudiaoduqi/docs/Agent任务调度器-开发文档/_run/presentation.json"
 d = json.load(io.open(P, encoding="utf-8"))
 c = d["handoff"]["design"]
 
