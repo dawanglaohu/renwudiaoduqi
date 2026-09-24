@@ -1,0 +1,27 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T9": {
+      "contractHash": "d3fc117a9dd6f28904be6ce99ebb69521519ab63508df08c8f00a9b5da76d7d4",
+      "evidence": [
+        "PR #145 审查中补齐两个必要支持测试路径：packages/daemon/test/unit/settings.test.ts 和 packages/daemon/test/integration/pipeline-lanes.test.ts；它们分别承接旧两键 pipeline 默认值和 PATCH 载荷的四键升级，两个文件已在本 PR 定点修改。",
+        "补丁 changes 显示 M8-T9 只新增这两个 effectivePaths，未移除路径、未改变九条验收或边界；main 上已有 assignment_json、parent_snapshot_id、assignment_source 三列。2026-09-24 的 pnpm -w check 通过 185 files / 2262 tests；代码验收另按 REVIEW-ROUND 1 返工，本证据仅复核文档契约。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T17": {
+      "contractHash": "1ad351096b6efbe1885236666938dd019d042e01b8f8295c190748c54a5541ca",
+      "evidence": [
+        "补丁 changes 对 M9-T17 仅改变依赖的任务契约 hash；该任务的验收、边界、effectivePaths、前置能力和正文均与补丁前一致。M8-T9 的两个新增路径都是 daemon 既有测试，不与本前端任务的有效路径冲突。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T23": {
+      "contractHash": "ce6a19750bcdbdf8cae06bdeaf646ad31503ac193974ce5324e14966bdf4b951",
+      "evidence": [
+        "补丁 changes 对 M9-T23 仅改变依赖的任务契约 hash；该任务的验收、边界、effectivePaths、前置能力和正文均与补丁前一致。M8-T9 的两个新增路径都是 daemon 既有测试，不与本前端任务的有效路径冲突。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

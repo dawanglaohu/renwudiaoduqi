@@ -969,13 +969,12 @@
   },
   "M8-T9": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "d00661385f117dd719d810273bf8c7b1f1d92a7bdc6483f4242f73b63b39f165",
+    "contractHash": "d3fc117a9dd6f28904be6ce99ebb69521519ab63508df08c8f00a9b5da76d7d4",
     "evidence": [
-      "2026-09-24 审查 task/M8-T9 PR #145：status 的当前契约哈希与派发包一致，stale/runtimeDrift/blockers 均为空；该 pass 只表示任务定义已复核，不表示代码验收通过。",
-      "图谱/任务/M8-T9.md 的九条验收、E-295/E-304/E-323/E-331/E-341/E-342/E-343/E-344/E-347/E-348/E-352/E-354/E-356/E-357/E-59/E-62/E-93 边界与派发包一致；03-质量/17-测试策略.md 要求 pnpm -w check，04-执行/19-模块任务拆分.md 定义 M8-T9 的后端产出及后续前端任务。",
-      "对照主干与 PR diff 核对了前置快照、运行、审查、查 bug、收口、设置及 shared API 接口；有效路径覆盖本 PR 的代码与测试，现有 0007 迁移已有 assignment_json/parent_snapshot_id/assignment_source 列。代码问题在 REVIEW-ROUND 1 的 PR 评论中另列返工，不降低任务契约。"
+      "PR #145 审查中补齐两个必要支持测试路径：packages/daemon/test/unit/settings.test.ts 和 packages/daemon/test/integration/pipeline-lanes.test.ts；它们分别承接旧两键 pipeline 默认值和 PATCH 载荷的四键升级，两个文件已在本 PR 定点修改。",
+      "补丁 changes 显示 M8-T9 只新增这两个 effectivePaths，未移除路径、未改变九条验收或边界；main 上已有 assignment_json、parent_snapshot_id、assignment_source 三列。2026-09-24 的 pnpm -w check 通过 185 files / 2262 tests；代码验收另按 REVIEW-ROUND 1 返工，本证据仅复核文档契约。"
     ],
-    "reviewed": "2026-09-24T08:09:39.804313+00:00",
+    "reviewed": "2026-09-24T08:17:13.894475+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1076,16 +1075,12 @@
     "verdict": "pass"
   },
   "M9-T17": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "64794bf2a2376c17b7b81d4a8c8b5a0ce4a316d36148182a96d5cf4a65212cf2",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "1ad351096b6efbe1885236666938dd019d042e01b8f8295c190748c54a5541ca",
     "evidence": [
-      "前置闭包：依赖列加 M4-T14（RunDto.effort）与 M8-T9（RunDto.assignmentSource / followedTaskId），contracts 新增 requires model-catalog / assignment-chain，输入列点名两者的产出；不再让实施方在类型不存在时开工（前端审查 BLOCKING 1 按方案 A 修正）。",
-      "有效范围：contracts 新增 supportPaths packages/web/test/stream-head-meta.test.tsx、i18n/ui-strings.ts、shared api/runs.ts；17 节前端行含 stream-head-meta.test.tsx 增量断言（前端 BLOCKING 2 修正）。",
-      "RunDto.effort 已在 10 节字段级契约声明：EffortValue，{tier} 读 effort_tier、{vendor} 读 effort_vendor（fromEffortColumns()），既有 effortTier 保留恒等于 effort.tier ?? null（前端 BLOCKING 3 修正）。",
-      "条款与规格对齐：19 节验收 1 四段网格、第四段来源四值文案 + agent_default 括注 + 缺失「来源：—」+ compact 短文案、{vendor} 原串与 title，与 11 节参照条段（四段）、11 节 L415 已改四段、E-347（措辞已对齐）、E-357 逐句一致。",
-      "边界：E-254、E-37、E-256、E-136、E-31、E-347、E-357 均存在；决策 33、110、111、124、129 均在 22 节；token --needs / --down / --font-mono / --fs-micro / --ink-3 在 main tokens.css 存在。"
+      "补丁 changes 对 M9-T17 仅改变依赖的任务契约 hash；该任务的验收、边界、effectivePaths、前置能力和正文均与补丁前一致。M8-T9 的两个新增路径都是 daemon 既有测试，不与本前端任务的有效路径冲突。"
     ],
-    "reviewed": "2026-09-12T21:48:49.866637+00:00",
+    "reviewed": "2026-09-24T08:17:39.964224+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1172,20 +1167,11 @@
   },
   "M9-T23": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "7b0c4bd88c94d581d46f341bb1b6ba04fb6a988e9b0cf7861b1dffabe76b07b6",
+    "contractHash": "ce6a19750bcdbdf8cae06bdeaf646ad31503ac193974ce5324e14966bdf4b951",
     "evidence": [
-      "前置闭包：依赖 M9-T18、M9-T14、M9-T22、M4-T13、M4-T14、M8-T9；输入列的 assign-panel.tsx ← M9-T18、settings-agents-page ← M9-T14、use-pipeline-settings.ts ← M9-T22、AgentEntryDto.login 与 login_changed ← M4-T13、GET /agents/:id/models 新结构 / EffortValue / layers / clearOverrides / MODEL_SOURCES ← M4-T14、PipelineSettings 四键 ← M8-T9，全部能指到产出列（前端审查 BLOCKING 2 由 M4-T14 补齐后闭合）。",
-      "layers 读法：19 节验收 7 与 11 节设置页段改为「内置默认／你的覆盖」读 layers.X.builtin / .override、「当前生效」读顶层字段，与 10 节 layers 契约（{builtin, config, override, hasOverride}）和决策 128 一致（前端 BLOCKING 1 修正）。",
-      "unknown 文案：验收 1 补 unknown → 「登录态未知：确认后点刷新」并写明三态徽标文案「已登录／未登录／无法判定」、状态谓词放 lib/login-freshness.ts，与 11 节引导行、E-335 一致（前端 BLOCKING 6 修正）。",
-      "pipeline PATCH 四键：10 节字段级契约 bughunt/wrapupMode 行、11 节顶栏开关段、M9-T22 验收 2 都改为「容器补齐后四键全量」，与 M9-T23 验收 8、E-356 一致（前端 BLOCKING 7 修正）。",
-      "测试清单可判定：17 节新增「E-335～E-339 / E-350 / E-351 / E-355～E-359（前端侧）」一行逐文件列出断言，验收 9 引用该行；use-minute-tick 与 agent-card 两个测试文件加进 taskPaths；GIF 只覆盖可达流程、不可达态以单测为准写进验收 9 与 17 节（前端 BLOCKING 5 与 NON_BLOCKING 采纳）。",
-      "登录态单一来源：验收 5 改为 login_changed 到达只经 cache-invalidation 失效 agents key 重拉，不重拉 /snapshot、不重探；08 节与决策 130 措辞同步为「失效重拉」，07 节 resource-cache 写明无 patch 接口且 read() 以最后一次 fetcher 为准（前端 NON_BLOCKING 采纳）。",
-      "有效范围：supportPaths 补 packages/web/package.json、pnpm-lock.yaml、ui/shadcn/select.tsx、api/resource-cache.ts、api/runs.ts、features/run-deck/batch-expansion.ts；验收 6 写明 onEdit 由 use-gate-card.ts 先调 batch-expansion 再调 openReassign（store 不 import features）。token 名核对：11 节与 19 节用到的 token 除新增两个尺寸 token 外均在 main tokens.css。",
-      "边界：E-254、E-335、E-336、E-338、E-339、E-348、E-350、E-351、E-355～E-359 均在 13 节；E-347「agent_default」措辞已对齐为「来源：任务指派（agent 默认）」；决策 134 表外来源归「其他」组已进验收 2。",
-      "补丁 m8-t11-support-paths 只改动上游 M8-T11 的 supportPaths（补两处 daemon 测试文件）；对 M9-T23 契约做 before/after 逐字段比对，除 hash 因前置链上 M8-T11 契约变化而传播外无任何字段变化。M9-T23 自身定义、有效路径与接线要求未变；此前的语义复核结论保持有效。",
-      "只新增 M9-T20 的真实收口消息适配器支持路径；M9-T23 的任务定义与验收条款未改。"
+      "补丁 changes 对 M9-T23 仅改变依赖的任务契约 hash；该任务的验收、边界、effectivePaths、前置能力和正文均与补丁前一致。M8-T9 的两个新增路径都是 daemon 既有测试，不与本前端任务的有效路径冲突。"
     ],
-    "reviewed": "2026-09-24T03:14:21.708381+00:00",
+    "reviewed": "2026-09-24T08:18:06.305831+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

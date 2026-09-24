@@ -1106,6 +1106,8 @@
         "packages/shared/src/api/events.ts",
         "packages/shared/src/api/agents.ts",
         "packages/daemon/test/unit/pipeline-settings.test.ts",
+        "packages/daemon/test/unit/settings.test.ts",
+        "packages/daemon/test/integration/pipeline-lanes.test.ts",
         "packages/daemon/test/unit/review-agent.test.ts",
         "packages/daemon/test/unit/bughunt-report.test.ts",
         "packages/daemon/test/fixtures/login/",
