@@ -71,6 +71,7 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(spec.file).toBe('codex');
 			expect(spec.cwd).toBe('/workspace/project');
 			expect(spec.args[0]).toBe('app-server');
+			expect(spec.stdinMode).toBe('pipe');
 			expect(spec.args[1]).toBe('--listen');
 			expect(spec.args[2]).toBe('stdio://');
 			expect(spec.isAcp).toBeUndefined();
@@ -161,6 +162,7 @@ describe('M4-T8: codex 原生适配器', () => {
 			});
 
 			expect(spec.args[0]).toBe('exec');
+			expect(spec.stdinMode).toBe('closed');
 			expect(spec.args[1]).toBe('--json');
 			expect(spec.args).toContain('--model');
 			expect(spec.args).toContain('o3-mini');

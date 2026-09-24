@@ -1,0 +1,53 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T5": {
+      "contractHash": "b8ed27bec5cc80936c3b8b870bd68abfad0ab8b381096e4fefb09b9676403cc5",
+      "verdict": "pass",
+      "evidence": [
+        "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M1-T5 的原条目未改变。此前临时路径调整已撤回，definition/effectivePaths 的当前值与原任务定义核对一致。",
+        "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
+      ]
+    },
+    "M6-T9": {
+      "contractHash": "8f6c351649ca53a9a99cd846f499c3210f80722f4332cec5383d7a95fc07341f",
+      "verdict": "pass",
+      "evidence": [
+        "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M6-T9 的原条目未改变。此前临时路径调整已撤回，providers 的当前值与原任务定义核对一致。",
+        "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
+      ]
+    },
+    "M7-T5": {
+      "contractHash": "1bdf7c6a53e3fe7fbed5646955cd4edc04afbc271903629bd7c06127019073e8",
+      "verdict": "pass",
+      "evidence": [
+        "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M7-T5 的原条目未改变。此前临时路径调整已撤回，definition/effectivePaths 的当前值与原任务定义核对一致。",
+        "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
+      ]
+    },
+    "M7-T9": {
+      "contractHash": "355662972da2ab82d026236e2945ae2b684449d00eff391a433027eafe935bc2",
+      "verdict": "pass",
+      "evidence": [
+        "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M7-T9 的原条目未改变。此前临时路径调整已撤回，providers 的当前值与原任务定义核对一致。",
+        "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
+      ]
+    },
+    "M8-T7": {
+      "contractHash": "004b88b893ce68462701f3a13826bfd76010f6c9d08477960a8390969d448983",
+      "verdict": "pass",
+      "evidence": [
+        "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M8-T7 的原条目未改变。此前临时路径调整已撤回，providers 的当前值与原任务定义核对一致。",
+        "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
+      ]
+    },
+    "M8-T9": {
+      "contractHash": "ec12c414bdabd46ad0f2a9d5c61dfe04fd1a75c091d4512af86f71f1fb8f6895",
+      "verdict": "pass",
+      "evidence": [
+        "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M8-T9 的原条目未改变。此前临时路径调整已撤回，providers 的当前值与原任务定义核对一致。",
+        "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
+      ]
+    }
+  }
+}

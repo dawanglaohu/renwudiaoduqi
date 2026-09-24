@@ -645,6 +645,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		const launchSpecJson = JSON.stringify({
 			agentId,
+			execPath: deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath,
 			model: resolvedAssignment.modelName ?? null,
 			effort: resolvedAssignment.effortTier ?? null,
 			permissionTier: input.permissionTier ?? 'workspaceWrite',
@@ -1901,6 +1902,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 							const launchSpecJson = JSON.stringify({
 								agentId: item.agentId,
+								execPath: deps.agentRegistry?.getSnapshot().agents[item.agentId]?.execPath,
 								model: tickResolved.modelName ?? null,
 								effort: tickResolved.effortTier ?? null,
 								permissionTier: 'workspaceWrite',
@@ -2210,6 +2212,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 			let runPrompt = task.impl_prompt ?? undefined;
 			let launchSpecData: {
+				execPath?: string;
 				model?: string | null;
 				effort?: string | null;
 				permissionTier?: string;
@@ -2368,15 +2371,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			const launchSpec = adapter.buildLaunchSpec({
 				runId,
 				cwd: preparedWorktree.worktreePath,
+				execPath: launchSpecData.execPath,
 				model: run.model_name ?? launchSpecData.model ?? null,
 				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
 				prompt: runPrompt,
-				// E-279 / #136：返工新开的实施会话与收口修复一样，提示词必须真的进启动参数，
-				// 否则新会话收不到任何返工意见。codex 只有 exec 模式把提示词放进 argv。
-				...((run.origin === 'wrapup-fix' || run.origin === 'rework') && run.agent_id === 'codex'
-					? { mode: 'exec' }
-					: {}),
+				// Codex exec carries the frozen prompt in argv; app-server requires a separate
+				// thread/start handshake that this dispatch path does not perform.
+				...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
 			});
 
 			let managed: ManagedProcess;

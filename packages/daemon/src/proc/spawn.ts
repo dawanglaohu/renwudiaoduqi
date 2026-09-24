@@ -84,6 +84,7 @@ export interface LaunchSpec {
 	readonly timeouts?: LaunchTimeouts;
 	readonly label?: string;
 	readonly isAcp?: boolean;
+	readonly stdinMode?: 'pipe' | 'closed';
 	readonly windowsComSpecPath?: string;
 }
 
@@ -218,7 +219,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		windowsHide: platform === 'win32',
 		windowsVerbatimArguments: platform === 'win32' ? windowsVerbatimArguments : undefined,
 		detached: platform !== 'win32',
-		stdio: ['pipe', 'pipe', 'pipe'],
+		stdio: [spec.stdinMode === 'closed' ? 'ignore' : 'pipe', 'pipe', 'pipe'],
 	};
 
 	const spawnFn = options.spawnFn ?? nodeSpawn;

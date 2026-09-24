@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T21": {
+      "contractHash": "7a5fc78263b5e61f5ef950b341c6dea92fb408cb5263e80f6219319a432b3b87",
+      "evidence": [
+        "合入 main 的 10-接口约定.md 只将接口示例中的本机用户名 admin 改为 example，未改请求、响应、鉴权、泳道字段或任务验收语义。",
+        "M9-T21 的任务笔记、前置、边界和有效路径保留；DeckPage 到 LanesContainer 的真实入口与归档运行、手机泳道、在途失效回归仍在本分支。",
+        "此前本分支完整 pnpm -w check 为 191/191 文件、2335 通过、3 跳过；合入 main 后仍须复跑受影响检查。该契约复核不代替最终真实模型 GIF 门槛。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

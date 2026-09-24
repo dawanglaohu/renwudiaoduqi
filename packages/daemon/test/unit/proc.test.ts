@@ -569,6 +569,26 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		expect(codeFor('EMFILE')).toBe('E_INTERNAL');
 	});
 
+	it('closes stdin for non-interactive launches while keeping stdout and stderr readable', () => {
+		const mockChild = createMockChild();
+		const fakeSpawn = vi.fn(() => mockChild as unknown as ChildProcess);
+		spawnManaged(
+			{
+				runId: 'run-stdin-closed',
+				file: '/opt/agent',
+				args: [],
+				cwd: '/tmp',
+				stdinMode: 'closed',
+			},
+			{ platform: 'linux', spawnFn: fakeSpawn as unknown as SpawnFn },
+		);
+		expect(fakeSpawn).toHaveBeenCalledWith(
+			'/opt/agent',
+			[],
+			expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] }),
+		);
+	});
+
 	it('reports a throwing listener through onError instead of swallowing it', () => {
 		const mockChild = createMockChild();
 		const fakeSpawn = vi.fn(() => mockChild as unknown as ChildProcess);

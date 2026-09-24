@@ -18,14 +18,19 @@
 
 import type { HTMLAttributes } from 'react';
 import {
+	LOOP_PIECES,
 	STATUS_SHAPES,
 	STEP_SHAPES,
+	type SpineLoopPiece,
 	type StatusState,
 	type StepType,
 	getStatusShape,
 	normalizeStatusState,
 } from '../lib/spine-shape.ts';
 import { PulseDot } from './pulse-dot.tsx';
+
+export type { SpineLoopPiece };
+export { LOOP_PIECES };
 
 /**
  * 运行轨的六种轨段形态枚举（AC 2, 11 节）。
@@ -43,16 +48,6 @@ export type SpineSegmentKind =
  * stage 为阶段大节点（12px），step 为运行流步骤小节点（8px）。
  */
 export type SpineSegmentLevel = 'stage' | 'step';
-
-/**
- * 回环片段配置（07 节）。
- * 返工回环按行拆成片段画在 20px 轨列内，不占文字列，不跨行绝对定位。
- */
-export interface SpineLoopPiece {
-	readonly above?: boolean;
-	readonly below?: boolean;
-	readonly hook?: boolean;
-}
 
 /**
  * 单个运行轨片段数据结构（07 节）。
