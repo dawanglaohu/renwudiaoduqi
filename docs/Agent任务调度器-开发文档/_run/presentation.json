@@ -22,6 +22,9 @@
     ]
   },
   "handoff": {
+    "wrapupGateSkipRecords": {
+      "13": "batch-13-20260924"
+    },
     "docsPath": "docs/Agent任务调度器-开发文档",
     "repo": "agent-scheduler",
     "mainBranch": "main",
