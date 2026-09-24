@@ -122,14 +122,14 @@ describe('M8-T2 domain/path-clash: 路径冲突检测与排队', () => {
 				taskId: 'task-101',
 				taskKey: 'M8-T1',
 				taskPaths: ['packages/daemon/src/domain/concurrency.ts'],
-				worktreePath: '/mnt/d/xiangmu/agent-scheduler-m8-t1',
+				worktreePath: '/mnt/d/workspace/agent-scheduler-m8-t1',
 				batchId: 'batch-1',
 			};
 			const taskB: TaskPathDescriptor = {
 				taskId: 'task-102',
 				taskKey: 'M8-T2',
 				taskPaths: ['packages/daemon/src/domain/concurrency.ts'],
-				worktreePath: '/mnt/d/xiangmu/agent-scheduler-m8-t2',
+				worktreePath: '/mnt/d/workspace/agent-scheduler-m8-t2',
 				batchId: 'batch-1',
 			};
 

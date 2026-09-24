@@ -2,7 +2,7 @@
 
 来源：产品顾问子代理。**它没有拍板权**——每条都会在第 2 步交代理用户裁决。
 
-SEARCH_NOTE: 没联网。只在本地看了阅读器生成脚本（`C:\Users\admin\.claude\skills\unattended-run\scripts\build_docs.py`），确认交接台的任务是以 `window.DOCS.tasks` 结构化数组落盘、且阅读器自身已记录每个任务的完成态角标——这一点直接影响 C-05 的判断。竞品调研（第 3 点）和"桌面版能否被外部发派"（第 4 点）由本会话另外三个角色在做，未重复。
+SEARCH_NOTE: 没联网。只在本地看了阅读器生成脚本（`C:\Users\example\.claude\skills\unattended-run\scripts\build_docs.py`），确认交接台的任务是以 `window.DOCS.tasks` 结构化数组落盘、且阅读器自身已记录每个任务的完成态角标——这一点直接影响 C-05 的判断。竞品调研（第 3 点）和"桌面版能否被外部发派"（第 4 点）由本会话另外三个角色在做，未重复。
 
 CANDIDATE C-01
 WHAT: 任务状态机与"完成"的判定口径——agent 进程退出不等于任务做完，需要定义 已派发/运行中/待确认/已验收/失败 各状态由什么信号进入。

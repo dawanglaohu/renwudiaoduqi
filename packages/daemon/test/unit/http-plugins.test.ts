@@ -293,7 +293,7 @@ describe('M2-T1 HTTP Pipeline & Error Handling', () => {
 					details: {
 						observed: 'grok-cli 1.1.7',
 						expected: '^grok \\d+\\.\\d+\\.\\d+',
-						execPath: 'C:/Users/admin/AppData/Roaming/npm/grok.cmd',
+						execPath: 'C:/Users/example/AppData/Roaming/npm/grok.cmd',
 					},
 				},
 			);
@@ -314,7 +314,7 @@ describe('M2-T1 HTTP Pipeline & Error Handling', () => {
 				details: {
 					observed: 'grok-cli 1.1.7',
 					expected: '^grok \\d+\\.\\d+\\.\\d+',
-					execPath: 'C:/Users/admin/AppData/Roaming/npm/grok.cmd',
+					execPath: 'C:/Users/example/AppData/Roaming/npm/grok.cmd',
 				},
 			},
 		});
