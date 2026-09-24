@@ -1488,18 +1488,26 @@ function skillBlock(t, side){
 function waitingOn(t){
   return (t.deps||[]).filter(function(d){ return !isLanded(d); });
 }
+/* 一次跳过只绑定当前 open 记录；重收口出现新记录后自动恢复闸门。批次号按界面的一基编号填写。 */
+function wrapupGateSkipped(k, rec){
+  var skips = HO.wrapupGateSkipRecords;
+  if(!skips || typeof skips !== "object" || Array.isArray(skips) || !rec || rec.verdict !== "open") return false;
+  var source = skips[String(k + 1)];
+  return typeof source === "string" && Object.prototype.hasOwnProperty.call(BR, source) && BR[source] === rec;
+}
 function wrapupBlocked(id){
   if(HO.wrapupGate === false) return null;
   var k = batchLayers().lv[id];
   if(!(k > 0) || !batchComplete(k - 1)) return null;
   var rec = batchRecord(k - 1);
-  return !rec || rec.verdict === "open" ? {batch: k, verdict: rec ? rec.verdict : null} : null;
+  return !rec || (rec.verdict === "open" && !wrapupGateSkipped(k - 1, rec))
+    ? {batch: k, verdict: rec ? rec.verdict : null} : null;
 }
 function implLockTitle(id){
   var block = wrapupBlocked(id);
   if(block) return "第 " + block.batch + " 批已全部落地但" +
     (block.verdict === "open" ? "收口有遗留" : "尚未收口") +
-    '：先点该批标题右侧「批次收口」；要跳过在 presentation.json 的 handoff 里设 "wrapupGate": false';
+    '：先点该批标题右侧「批次收口」；定点跳过可在 handoff.wrapupGateSkipRecords 绑定当前记录，"wrapupGate": false 会关闭全部批次闸门';
   return "前置未落地、文档补丁同步中或任务要求有明确错误；点「审查」看原因";
 }
 function wrapupNotice(){
@@ -1510,10 +1518,13 @@ function wrapupNotice(){
   if(!unwrapped.length) return "";
   var open = unwrapped.some(function(k){ var rec = batchRecord(k); return rec && rec.verdict === "open"; });
   var legacy = unwrapped.some(function(k){ var rec = batchRecord(k); return rec && rec.repairWarning; });
+  var skipped = unwrapped.filter(function(k){ return wrapupGateSkipped(k, batchRecord(k)); });
+  var locked = (DT.tasks || []).some(function(t){ return stOf(t.id) === "todo" && !!wrapupBlocked(t.id); });
   return "　<b>" + unwrapped.length + "</b> 批已全部落地、尚未收口" + (open ? "或收口有遗留" : "") +
     "：第 " + unwrapped.map(function(k){ return k + 1; }).join("、") + " 批，点该批标题右侧「批次收口」。" +
     (legacy ? "<b>旧版 open 记录没有自动生成返工任务，重收口并补返工任务清单。</b>" : "") +
-    (HO.wrapupGate !== false ? "<b>下一批的实施因此上锁</b>（仅紧邻下一批，不追溯更早批次）。" : "");
+    (skipped.length ? "第 " + skipped.map(function(k){ return k + 1; }).join("、") + " 批闸门已跳过，返工任务仍待处理。" : "") +
+    (HO.wrapupGate !== false && locked ? "<b>下一批的实施因此上锁</b>（仅紧邻下一批，不追溯更早批次）。" : "");
 }
 /* 实施按钮的闸门：本任务还是待派、前置全部已落地、契约没有明确错误；紧邻上一批落齐时须收口通过。行里和弹卡里共用这一个判断。
    同批次里别的任务在跑不算前置，不锁；契约待复核也不锁——那一步在审查提示词里做；前置已落地·待复验也不锁 */
@@ -2509,9 +2520,10 @@ function batchRecord(k){
   return rec;
 }
 var VERDICT_TEXT = {clean:"干净", fixed:"已修", open:"有遗留"};
-function batchLabel(rec){
+function batchLabel(rec, k){
   if(!rec) return "";
-  return "已收口 " + (rec.date || "—") + " · " + (VERDICT_TEXT[rec.verdict] || rec.verdict || "—");
+  return "已收口 " + (rec.date || "—") + " · " + (VERDICT_TEXT[rec.verdict] || rec.verdict || "—") +
+    (wrapupGateSkipped(k, rec) ? " · 闸门已跳过" : "");
 }
 /* 纯函数：只依赖任务数据与 handoff 配置，不读 progress、不读 batchRecords——导出用。
    口吻与密度照 buildBugAll，不带架构段 */
@@ -2991,7 +3003,7 @@ function handBody(){
          '<span class="tg" data-act="batchtoggle" data-batch="' + k + '" title="点一下折叠或展开这一批"><span class="tri">' + (isOpen ? "▾" : "▸") + "</span>" +
          "第 " + (k+1) + " 批 · " + g.length + " 个任务 · " + d + " 人天 · " +
          (k === 0 ? "无前置依赖，可立即开工" : (HO.wrapupGate !== false ? "前置全部落地后可开始；紧邻上一批落齐时须收口；同批次其他任务在跑不影响" : "前置全部落地后可开始；同批次其他任务在跑不影响")) +
-         (rec ? " · " + esc(batchLabel(rec)) : full ? " · 可收口" : "") + "</span>" +
+         (rec ? " · " + esc(batchLabel(rec, k)) : full ? " · 可收口" : "") + "</span>" +
          (cnt.length ? '<span class="cnt">' + cnt.join(" · ") + "</span>" : "") +
          '<button class="cp batch" data-kind="batch" data-batch="' + k + '"' +
          (full ? ' title="' + (rec ? "再收口一次：把整批重新验一遍，记录文件新开一份" : "复制收口提示词：整批做小结、跑测试、查批内与跨批接缝，写记录并走一条 PR") + '"'
@@ -4349,10 +4361,20 @@ def mark_landed(root, ids):
     if revalidation:
         print("  仍待复验的已落地任务：%s（交接台显示「已落地·待复验」，点该行「审查」得到复验提示词）" % "、".join(sorted(revalidation)))
     print("  工作树与 planning 目录当场清理；漏了的用 python \"%s/_run/maintain_docs.py\" \"%s\" workspace 列出" % (root, root))
-    wrapup_gate = read_json(os.path.join(root, "_run", "presentation.json"), {}).get("handoff", {}).get("wrapupGate") is not False
-    for n, ids_in in unwrapped_batches(extract(by_num)["tasks"], st, read_batch_records(root), include_open=wrapup_gate):
+    handoff = read_json(os.path.join(root, "_run", "presentation.json"), {}).get("handoff", {})
+    wrapup_gate = handoff.get("wrapupGate") is not False
+    skips = handoff.get("wrapupGateSkipRecords")
+    skips = skips if isinstance(skips, dict) else {}
+    records = read_batch_records(root)
+    for n, ids_in in unwrapped_batches(extract(by_num)["tasks"], st, records, include_open=wrapup_gate):
+        matching = sorted(((name, record) for name, record in records.items()
+                           if record["tasks"] == ids_in),
+                          key=lambda pair: (str(pair[1].get("date", "")), pair[0]))
+        latest = matching[-1] if matching else None
+        skipped = bool(latest and latest[1].get("verdict") == "open" and skips.get(str(n)) == latest[0])
         print("  第 %d 批已全部落地、尚未收口%s（%s）：交接台点该批标题右侧「批次收口」%s" % (
             n, "或收口有遗留" if wrapup_gate else "", "、".join(ids_in),
+            "（当前 open 记录已定点跳过闸门；返工仍待处理）" if skipped else
             "（wrapupGate 开启时下一批的实施已上锁）" if wrapup_gate else ""))
     if bad:
         print("  ! 不在 19 节任务表里，没记：%s" % "、".join(bad))

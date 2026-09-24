@@ -109,6 +109,41 @@ class WrapupGateTests(unittest.TestCase):
                     self.assertNotIn('下一批的实施因此上锁', result['hand'])
                     self.assertIn('尚未收口', result['hand'])
 
+    def test_record_bound_skip_unlocks_only_one_open_batch_and_expires(self):
+        payload = routing.payload_for('M1-T1', 'M1-T2', 'M1-T4',
+                                      deps={'M1-T2': ['M1-T1'], 'M1-T4': ['M1-T2']})
+        payload['batchRecords'] = {'first-open': self.record('open')}
+        payload['pres']['handoff']['wrapupGateSkipRecords'] = {'1': 'first-open'}
+
+        first = self.view(payload, {'M1-T1': 'done'})
+        self.assertFalse(first['tasks']['M1-T2']['locked'])
+        self.assertIsNone(first['tasks']['M1-T2']['block'])
+        self.assertEqual(first['dispatchable'], ['M1-T2'])
+        self.assertIn('闸门已跳过', first['hand'])
+        self.assertNotIn('下一批的实施因此上锁', first['hand'])
+
+        second = self.view(payload, {'M1-T1': 'done', 'M1-T2': 'done'})
+        self.assertEqual(second['tasks']['M1-T4']['block'], {'batch': 2, 'verdict': None})
+
+        payload['batchRecords']['second-open'] = self.record('open', tasks=['M1-T2'], batch=2)
+        payload['pres']['handoff']['wrapupGateSkipRecords']['2'] = 'second-open'
+        del payload['pres']['handoff']['wrapupGateSkipRecords']['1']
+        scoped = self.view(payload, {'M1-T1': 'done', 'M1-T2': 'done'})
+        self.assertFalse(scoped['tasks']['M1-T4']['locked'])
+        self.assertNotIn('下一批的实施因此上锁', scoped['hand'])
+        del payload['batchRecords']['second-open']
+        del payload['pres']['handoff']['wrapupGateSkipRecords']['2']
+        payload['pres']['handoff']['wrapupGateSkipRecords']['1'] = 'first-open'
+
+        payload['batchRecords']['later-open'] = self.record('open', date='2026-09-19')
+        expired = self.view(payload, {'M1-T1': 'done'})
+        self.assertEqual(expired['tasks']['M1-T2']['block'], {'batch': 1, 'verdict': 'open'})
+
+        del payload['batchRecords']['later-open']
+        payload['pres']['handoff']['wrapupGateSkipRecords'] = {'1': 'wrong-record'}
+        invalid = self.view(payload, {'M1-T1': 'done'})
+        self.assertTrue(invalid['tasks']['M1-T2']['locked'])
+
     def test_unlanded_predecessor_is_dependency_block_and_first_batch_is_free(self):
         result = self.view(progress={})
         self.assertFalse(result['tasks']['M1-T1']['locked'])
@@ -267,6 +302,21 @@ class LandingGateTests(unittest.TestCase):
         self.assertNotIn('上锁', out)
         self.write_record(tasks='M1-T1, M1-T2', verdict='open')
         self.assertNotIn('尚未收口', self.land('M1-T2'))
+
+    def test_mark_landed_reports_record_bound_skip_without_claiming_fix(self):
+        self.prepare()
+        self.land('M1-T1', 'M1-T2')
+        self.write_record(tasks='M1-T1, M1-T2', verdict='open')
+        pres_path = self.doc / '_run/presentation.json'
+        pres = release13.hc.read_json(pres_path)
+        pres['handoff']['wrapupGateSkipRecords'] = {'1': 'batch-1-20260901'}
+        release13.hc.write_json(pres_path, pres)
+        result = self.batches_cli()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.run_build()
+        out = self.land('M1-T2')
+        self.assertIn('当前 open 记录已定点跳过闸门；返工仍待处理', out)
+        self.assertNotIn('下一批的实施已上锁', out)
 
 
 if __name__ == '__main__':
