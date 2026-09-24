@@ -463,10 +463,7 @@ export function createContainer(input: {
 	const defaultAdapters: ContainerAdapters = Object.freeze({
 		codex: Object.freeze({
 			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
-				buildCodexLaunchSpec({
-					...options,
-					execPath: agentRegistry.getSnapshot().agents.codex?.execPath,
-				} as Parameters<typeof buildCodexLaunchSpec>[0]),
+				buildCodexLaunchSpec(options as Parameters<typeof buildCodexLaunchSpec>[0]),
 			mapEvents: (line: unknown) => mapCodexEvents(line) as readonly EventEnvelopeInput[],
 		}),
 		claude: Object.freeze({
@@ -807,6 +804,7 @@ export function createContainer(input: {
 			gatesRepo: gates,
 			settingsRepo: settings,
 			batchWrapupsRepo: batchWrapups,
+			agentRegistry,
 			batchService,
 			wrapupService,
 			lanesService,

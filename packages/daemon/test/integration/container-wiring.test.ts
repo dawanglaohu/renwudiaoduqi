@@ -445,6 +445,7 @@ function setupWiringEnvironment(
 
 	return {
 		container,
+		agentRegistry,
 		db,
 		clock,
 		tempDir,
@@ -1012,7 +1013,7 @@ describe(
 
 		it('AC 2 & E-53 & E-57: Real container + fake process: exit 0 -> evaluateMechanicalCheck called -> kind=review inserted -> review verdict pass -> waiting gate -> POST decide -> landed by:human', async () => {
 			const env = setupWiringEnvironment({ codexExecPath: '/opt/codex-custom' });
-			const { container, spawnedProcesses } = env;
+			const { container, spawnedProcesses, agentRegistry } = env;
 			const server = createHttpServer({ container });
 			await server.instance.ready();
 
@@ -1040,6 +1041,10 @@ describe(
 				idempotencyKey: 'wiring-impl-run-1',
 			});
 			const implRunId = createRes.run.id;
+			const configChange = await agentRegistry.updateOverrides('codex', {
+				execPath: '/opt/codex-changed-after-dispatch',
+			});
+			expect(configChange.ok).toBe(true);
 
 			// Trigger tick to launch process
 			await container.services.dispatch.tick();

@@ -71,14 +71,13 @@
     "verdict": "pass"
   },
   "M1-T5": {
-    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
-    "contractHash": "3eeb5b9fd1583e7ee81fbe7bd6694f3668c60eab914b113ba5433c0f52253b49",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "b8ed27bec5cc80936c3b8b870bd68abfad0ab8b381096e4fefb09b9676403cc5",
     "evidence": [
-      "M1-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/logstore/contract.ts:11 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
-      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
-      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
+      "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M1-T5 的原条目未改变。此前临时路径调整已撤回，definition/effectivePaths 的当前值与原任务定义核对一致。",
+      "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
     ],
-    "reviewed": "2026-09-23T14:40:42.067194+00:00",
+    "reviewed": "2026-09-24T17:12:50.728045+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -718,14 +717,13 @@
     "verdict": "pass"
   },
   "M6-T9": {
-    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
-    "contractHash": "2dcec63f430a21ab8409c6da5f04e21f9f624d7148272a85e52a6deabe021294",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "8f6c351649ca53a9a99cd846f499c3210f80722f4332cec5383d7a95fc07341f",
     "evidence": [
-      "M6-T9 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/retention.ts:28 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
-      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
-      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
+      "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M6-T9 的原条目未改变。此前临时路径调整已撤回，providers 的当前值与原任务定义核对一致。",
+      "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
     ],
-    "reviewed": "2026-09-23T14:40:42.067194+00:00",
+    "reviewed": "2026-09-24T17:12:50.728045+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -778,14 +776,13 @@
     "verdict": "pass"
   },
   "M7-T5": {
-    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
-    "contractHash": "b8d50c4d6a711c6830495a214ff1c4636e44c3bda8fe583166f46f338f79be21",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "1bdf7c6a53e3fe7fbed5646955cd4edc04afbc271903629bd7c06127019073e8",
     "evidence": [
-      "M7-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/migrations/0005_add_runs_origin_and_spawned_by.sql:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
-      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
-      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
+      "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M7-T5 的原条目未改变。此前临时路径调整已撤回，definition/effectivePaths 的当前值与原任务定义核对一致。",
+      "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
     ],
-    "reviewed": "2026-09-23T14:40:42.067194+00:00",
+    "reviewed": "2026-09-24T17:12:50.728045+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -826,19 +823,13 @@
     "verdict": "pass"
   },
   "M7-T9": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "719874bfc5eeb84aa381fa420c0357908b0f990980ddf8454b8099ce7c9cc47b",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "355662972da2ab82d026236e2945ae2b684449d00eff391a433027eafe935bc2",
     "evidence": [
-      "前置：M1-T4、M1-T5、M1-T6、M6-T2、M6-T4、M7-T2、M7-T3、M7-T4、M7-T6、M8-T4、M8-T6；其中已落地 11 个。",
-      "验收标准引用边界 E-53、E-57、E-104、E-120、E-123，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/daemon/src/boot/container.ts（类别 container）",
-      "注册点文件已核存在于 packages/daemon/src/boot/container.ts（类别 jobs）",
-      "注册点文件已核存在于 packages/daemon/src/jobs/（类别 jobs）",
-      "有效范围 13 条：packages/daemon/src/boot/container.ts；packages/daemon/src/boot/shutdown.ts；packages/daemon/src/jobs/；packages/daemon/src/jobs/disk-watch.ts；packages/daemon/src/jobs/log-index-repair.ts；packages/daemon/src/jobs/reconcile-runs.ts；packages/daemon/src/jobs/stall-detector.ts；packages/daemon/src/main.ts；packages/daemon/src/service/gates.ts；packages/daemon/src/service/review.ts；packages/daemon/src/service/run.ts；packages/daemon/test/arch/container-jobs.test.ts；packages/daemon/test/integration/container-wiring.test.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：packages/daemon/test/arch/container-jobs.test.ts、packages/daemon/test/integration/container-wiring.test.ts。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M7-T9 的原条目未改变。此前临时路径调整已撤回，providers 的当前值与原任务定义核对一致。",
+      "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
     ],
-    "reviewed": "2026-09-18T18:32:28.889486+00:00",
+    "reviewed": "2026-09-24T17:12:50.728045+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -939,14 +930,13 @@
     "verdict": "pass"
   },
   "M8-T7": {
-    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
-    "contractHash": "3552a153c4937cde6d6473621c9890499a2d9a72b9cac44c51405415a3a9dd32",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "004b88b893ce68462701f3a13826bfd76010f6c9d08477960a8390969d448983",
     "evidence": [
-      "PR #131 round 2: the six M8-T7 acceptance clauses and E-275/E-276/E-280/E-290/E-293/E-298/E-300/E-46/E-55 remain unchanged; prerequisites M8-T6 and M7-T5 are landed. This patch adds only production paths required to expose duplicate fix items in the landing checklist: boot/container.ts, service/landing.ts, and web landing-container.tsx.",
-      "The R5 test creates two wrapup reports targeting one task, confirms a single fix run, a persisted appended prompt, and landingHints containing the later item. The R6 route tests cover missing comment, no landed run, manually landed run rejection, automatic landing gate success, in-flight normal run rejection, and duplicate recall rejection.",
-      "Windows pnpm -w check passed before reviewer fixes (169 files, 2047 tests passed, 3 skipped); after the fixes, focused M8-T7/M8-T10/Codex tests, Biome and TypeScript were rerun. Code and scope changes stay in the original PR #131."
+      "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M8-T7 的原条目未改变。此前临时路径调整已撤回，providers 的当前值与原任务定义核对一致。",
+      "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
     ],
-    "reviewed": "2026-09-23T05:52:31.271030+00:00",
+    "reviewed": "2026-09-24T17:12:50.728045+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -971,10 +961,10 @@
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
     "contractHash": "ec12c414bdabd46ad0f2a9d5c61dfe04fd1a75c091d4512af86f71f1fb8f6895",
     "evidence": [
-      "对照 R1-R7 返工 diff 核对，新增四条精确支持路径分别覆盖容器注入、logstore 有界读取、收口回归和返工回归；九条验收与所有边界要求未修改。",
-      "审查方已补跨分段末条 run.exited 回归并运行 M8-T9 返工测试；主干合入后任务定义仍与当前接口和代码一致。"
+      "补丁最终源差异仅为 task-contracts.json 的 M9-T21.supportPaths 追加十二条；M8-T9 的原条目未改变。此前临时路径调整已撤回，providers 的当前值与原任务定义核对一致。",
+      "已在本分支复跑 pnpm -w check：195 个测试文件通过，2373 条测试通过，2 条跳过；涉及容器、派发、审查、磁盘与真实 Git 工作树的回归均通过。"
     ],
-    "reviewed": "2026-09-24T12:29:07.224440+00:00",
+    "reviewed": "2026-09-24T17:12:50.728045+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1141,13 +1131,14 @@
   },
   "M9-T21": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "7a5fc78263b5e61f5ef950b341c6dea92fb408cb5263e80f6219319a432b3b87",
+    "contractHash": "ed0c29994bc45049d8f92cc34f147f66857b1baf808db2d6b9b3871e17607efd",
     "evidence": [
-      "合入 main 的 10-接口约定.md 只将接口示例中的本机用户名 admin 改为 example，未改请求、响应、鉴权、泳道字段或任务验收语义。",
-      "M9-T21 的任务笔记、前置、边界和有效路径保留；DeckPage 到 LanesContainer 的真实入口与归档运行、手机泳道、在途失效回归仍在本分支。",
-      "此前本分支完整 pnpm -w check 为 191/191 文件、2335 通过、3 跳过；合入 main 后仍须复跑受影响检查。该契约复核不代替最终真实模型 GIF 门槛。"
+      "只给 M9-T21 追加十二个实际 R1 接线及测试支持路径；其他任务的源定义未改，M9-T21 验收条款、边界编号和依赖未降低。",
+      "正式容器在创建及定时派发时将 agents.json 的 Codex 可执行路径冻结进运行快照，启动只读快照；codex exec --json 携带任务提示词并关闭标准输入。集成回归覆盖注册表热更后仍使用冻结路径。",
+      "隔离 Git 仓库的正式 HTTP 服务已派发实际 gpt-6-luna：实施进程写出 demo-output.txt 且产生 command_execution 事件，独立审查进程实际启动、输出裁定并退出；无假 API 响应或伪造事件。",
+      "最终 pnpm -w check 完整执行并通过：195 个测试文件、2373 条通过、2 条跳过，包含真实 Git 工作树集成测试；Biome、TypeScript 和架构检查通过。"
     ],
-    "reviewed": "2026-09-24T12:20:45.025976+00:00",
+    "reviewed": "2026-09-24T17:11:20.442431+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

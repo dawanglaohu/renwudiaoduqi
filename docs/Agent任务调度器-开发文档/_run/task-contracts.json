@@ -762,7 +762,19 @@
         "packages/web/test/cache-invalidation.test.ts",
         "packages/shared/src/api/lanes.ts",
         "packages/shared/src/api/snapshot.ts",
-        "packages/shared/src/api/events.ts"
+        "packages/shared/src/api/events.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/proc/spawn.ts",
+        "packages/daemon/src/adapters/codex/build-launch-spec.ts",
+        "packages/daemon/src/service/review-agent.ts",
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/test/integration/container-wiring.test.ts",
+        "packages/daemon/test/integration/dispatch-spawn.test.ts",
+        "packages/daemon/test/unit/codex-adapter.test.ts",
+        "packages/daemon/test/unit/proc.test.ts",
+        "packages/daemon/test/unit/review-agent.test.ts",
+        "packages/daemon/test/unit/worktree.test.ts"
       ],
       "sections": [
         1,

@@ -645,6 +645,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		const launchSpecJson = JSON.stringify({
 			agentId,
+			execPath: deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath,
 			model: resolvedAssignment.modelName ?? null,
 			effort: resolvedAssignment.effortTier ?? null,
 			permissionTier: input.permissionTier ?? 'workspaceWrite',
@@ -1901,6 +1902,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 							const launchSpecJson = JSON.stringify({
 								agentId: item.agentId,
+								execPath: deps.agentRegistry?.getSnapshot().agents[item.agentId]?.execPath,
 								model: tickResolved.modelName ?? null,
 								effort: tickResolved.effortTier ?? null,
 								permissionTier: 'workspaceWrite',
@@ -2210,6 +2212,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 			let runPrompt = task.impl_prompt ?? undefined;
 			let launchSpecData: {
+				execPath?: string;
 				model?: string | null;
 				effort?: string | null;
 				permissionTier?: string;
@@ -2368,6 +2371,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			const launchSpec = adapter.buildLaunchSpec({
 				runId,
 				cwd: preparedWorktree.worktreePath,
+				execPath: launchSpecData.execPath,
 				model: run.model_name ?? launchSpecData.model ?? null,
 				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
