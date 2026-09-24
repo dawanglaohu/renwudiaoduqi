@@ -2,6 +2,7 @@ import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { FastifyInstance, FastifyRequest, RouteHandlerMethod } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
 import type { DispatchService } from '../../service/dispatch.ts';
+import { registerSettingsRoutes } from './settings.ts';
 
 export interface RegisterSnapshotRouteOptions {
 	readonly dispatchService?: DispatchService;
@@ -41,9 +42,13 @@ export function registerSnapshotRoute(
 	instance: FastifyInstance,
 	options?: RegisterSnapshotRouteOptions,
 ): void {
+	// Register settings routes alongside snapshot routes (adjudicate: S7 implementer decision)
+	registerSettingsRoutes(instance);
+
 	const getSnapshotHandler: RouteHandlerMethod = async (request): Promise<SnapshotResponse> => {
 		const service = resolveDispatchService(request, instance, options);
-		return await service.getSnapshot();
+		const query = request.query as { docId?: string } | undefined;
+		return await service.getSnapshot(query?.docId);
 	};
 
 	instance.get('/api/v1/snapshot', getSnapshotHandler);

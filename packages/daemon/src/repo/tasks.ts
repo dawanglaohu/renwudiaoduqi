@@ -568,6 +568,7 @@ export interface TasksRepo {
 		readonly docId: string | null;
 	};
 	readonly setLaneNo: (taskId: string, laneNo: number) => void;
+	readonly assignLaneNo: (taskId: string, laneNo: number) => number;
 	/**
 	 * Overwrites one task's assignment draft; `null` clears it (M8-T11, E-108).
 	 * Callers overwrite a whole batch by calling this per task inside one unit of work.
@@ -656,6 +657,9 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 		? db.prepare('UPDATE tasks SET lane_no = NULL WHERE id = ? AND lane_no IS NOT NULL')
 		: null;
 	const setLaneNoStmt = hasLaneNo ? db.prepare('UPDATE tasks SET lane_no = ? WHERE id = ?') : null;
+	const assignLaneNoStmt = hasLaneNo
+		? db.prepare('UPDATE tasks SET lane_no = ? WHERE id = ? AND lane_no IS NULL')
+		: null;
 	const setAssignmentDraftStmt = hasAssignmentDraft
 		? db.prepare(UPDATE_ASSIGNMENT_DRAFT_SQL)
 		: null;
@@ -883,6 +887,16 @@ export function createTasksRepo(db: DatabaseConnection): TasksRepo {
 				setLaneNoStmt.run(laneNo, taskId);
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to set lane_no for task: ${taskId}`);
+			}
+		},
+
+		assignLaneNo(taskId: string, laneNo: number): number {
+			if (!assignLaneNoStmt) return 0;
+			try {
+				const info = assignLaneNoStmt.run(laneNo, taskId);
+				return info.changes;
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to assign lane_no for task: ${taskId}`);
 			}
 		},
 

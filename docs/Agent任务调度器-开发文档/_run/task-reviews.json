@@ -1,27 +1,25 @@
 {
   "M1-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "987ad22bba76f29cf75be6a2a278a335b4869d95eb01e505d3346ea584a44a52",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "ee8c15caead44a27cc3ad9b1a0dfdae27638ee4bd49e6c04058d193db1e3c98d",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 fae9cb0ba225 变为 987ad22bba76；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/bootstrap.mjs:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:34:23.839200+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T10": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "1d8a03854946454a74aa334ee453d8923c0f9c093e67410e583fd44d08288b37",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "7e7da30312b3f934b246224c42865984720531caa62297945554aed99680ac12",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 c1e2a6bb5e3a 变为 1d8a03854946；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T10 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/config/env.ts:68 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:34:36.144724+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -37,171 +35,158 @@
     "verdict": "pass"
   },
   "M1-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "197ab67e7c4198f9d5404d98f75bd9ce151235e4b77215170599c724239563cb",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "04eae5cc00788415769fb25601f7498e94f41aafd245a0f00c38bd4cb8239e5a",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8b5abf033ba7 变为 197ab67e7c41；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/db/open-database.ts:7 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:34:48.357603+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "d3b2e8bc650c3832663f7406efbbec713943d9cc32a91cae182e041f7ca28aaf",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "d0c8521051f3e3b10a3f271c38de5fd3e530b613575708c1f228c410025bbb4d",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 eb0003c94a5a 变为 d3b2e8bc650c；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/platform/contract.ts:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:35:01.260100+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "a74b44b6699ad15a2dbc88af602d7e29307a1a2ea689852f5564e4aecdfe4d14",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "5c05082c9861dee30f180453df7526ae432fcc05145eddfb3b641ae4fd9c1570",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 10b879da3818 变为 a74b44b6699a；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/logstore/append-queue.ts:35 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:35:13.870338+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "9dc090a67a1e77f5fcb7f1e04c58786efd5eb04f7346d5a3749cd73c1ed08a8b",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "3eeb5b9fd1583e7ee81fbe7bd6694f3668c60eab914b113ba5433c0f52253b49",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8d8362f24f7e 变为 9dc090a67a1e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/logstore/contract.ts:11 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:35:26.480291+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "5321e731f292bbb04e36dc4c561d7a1fe08746d6b8bd40f36be8c831c191e9f9",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "eb3b65e9b8fc8be04dc29fec9f12719833c964ea3677464bc88e4e8933da234b",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 7f6adb99b82a 变为 5321e731f292；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T6 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/boot/autostart.ts:43 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:35:38.848677+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T7": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "71162014a8bd60264481eb8f2623d893eeba66fc0e216b3284ac09658daacd16",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "a2c332298f8a9148750038d9e2fde2dd018e5f81be028552e17d59e8b015db85",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b16079433625 变为 71162014a8bd；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T7 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/proc/spawn.ts:154 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:35:50.997131+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T8": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "f6e78c84a5c6fc61c2414dbd3963fd0c7b498595a2fa007e25949fa6d73ee41e",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "a4c76214457c0138c56097104d22319b03f597a801467c7da8dad9004b624f01",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 40dda41ff6a3 变为 f6e78c84a5c6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T8 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/proc/timers.ts:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:36:04.384626+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M1-T9": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "09605727afb65d52c43329e93815b86901f11595a79bf885333652b87790eb95",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "459a729534b869acc125a40ab5a558f478fd97ef2087a44c0b82e540f6ae62fb",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ffe6f19a655c 变为 09605727afb6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M1-T9 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/platform/contract.ts:53 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:36:17.362754+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "cd209170e2b4e97b8026e2e648b058dfc63d7638636b6ac441a7709aa3165b69",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "a14b31bf0968679bf7be6ef00e31599ad7ef9d4c67c8f044f8530318deea5723",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 49d052ca6556 变为 cd209170e2b4；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M10-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/shell/bridge-contract.ts:24 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:36:30.116393+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "8659d2ba58d9508521fa091d6303502368edf9f07d23d4c0bbb30362bb8be655",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "d3e789bb7a1fbd40412bd5c7e8e1ea9286015d46bc205f6730ccd99aab515be4",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 16d03bde2509 变为 8659d2ba58d9；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M10-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shell-desktop/src-tauri/Cargo.toml:16 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:36:42.663085+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "089af5de0efb3a4fe53856227b88e7ae24c645951b6aa23f0bfb065417a8f413",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "947cf9a8116d2938f66d46079f457d6cede786db9059fda622058c10d2b872eb",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9da6f3486f9e 变为 089af5de0efb；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M10-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shell-mobile/capacitor.config.ts:3 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:36:54.864557+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T4": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "cb3765af1e8ac5faf60ff33e8adff5b3e98663eae4628f15c182f1e0f13b77d3",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "7679c6f3a93214a4a716ec2fdd5da387c70265521f99df8c3c9f459b0a7516e2",
     "evidence": [
-      "13 节 E-176 行（03-质量/13-边界问题与异常处理.md:189）已改为与 11 节字体表（02-设计/11-UI.md:92 「字重 400 / 500 / 600」，:97 「只打包实际用到的字重（E-176）」）一致；revalidation.json 记本任务 changedFields=['edges']，只核 E-176 这一条。",
-      "代码对照：packages/web/src/styles/fonts.css:5-58 恰好六条 @font-face（Commit Mono 与 Public Sans 各 400/500/600），src 全部为同源 /fonts/*.woff2，无 CDN；packages/web/public/fonts/ 恰好六个 woff2 加两份 LICENSE，没有 700 或其他字重文件，不是全家族。",
-      "字重确实都在用：packages/web/src 里 font-medium(500) 47 处、font-semibold(600) 88 处（grep -rhoE 统计），与补丁后 E-176 的「实际用到」口径一致。",
-      "打包断言未变且仍通过：packages/web/test/style-pipeline.test.ts:156 断言构建产物 CSS 引用 ../fonts/public-sans-latin-400.woff2（相对路径、自托管）；packages/daemon/test/unit/static-plugin.test.ts:33 断言 daemon 静态托管能取到 commit-mono-latin-400.woff2；本次第 8 批收口在 WSL 跑 pnpm -w check 全量（结果见 batch-8-20260922.md 测试段）。",
-      "Jev 裁决：adjudicate pick=A(high 0.75) spec_change=yes needs_owner=no adopt=take(A)，model=jev-1.13.0，记录在 _run/judgments.jsonl（label batch-8:wrapup:e176）；A = 只改文档、代码与产物不动。"
+      "M10-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/api/system.ts:5 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-21T17:16:48.113304+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T5": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "f2d4414ad328620be27c90533e4ffb106e62dea9ad5ad8bf6edddfd299656844",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "6112ddb0fb5974e31e8969e872d08a561d8a374272415d19c81dc0f526fb065a",
     "evidence": [
-      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
-      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
-      "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
+      "M10-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 .github/workflows/desktop-ci.yml:34 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-21T17:17:03.629029+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -218,693 +203,626 @@
     "verdict": "pass"
   },
   "M2-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "ab7871b4f77f17e7e7dcacb28884017ec3c13e9f6fe8f3803ef636d3db2a7f73",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "3a81f29a56e308b92f7e721d13b125c0ffa6a0434d6a66ef3e4b06fa877a7912",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 3d0b01b2e63c 变为 ab7871b4f77f；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M2-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/http/server.ts:20 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:37:35.157686+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "82f7681375e697325fb911f4af4125b690820fff84cd4fc96ba1f3e722e5c0e1",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "2bdff5133068c60ebacd10e0f16aa4252cc3b2ca19b3715f2bf575ab4f5cf692",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ecfae8e177c2 变为 82f7681375e6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M2-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/api/pair.ts:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:37:47.804692+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "5db131a3c70cc56088f2bb017d45695df70d202f7b3e74742a91d00f5c23043b",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "aedaa7004de1ce9e3c8fbf72074a4ebceccce3ecd0ec5112e882c8fb31cc44f4",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 cb751c05853a 变为 5db131a3c70c；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M2-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/http/plugins/30-auth.ts:10 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:38:00.674470+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "6cf2440b67e6aec0426c5a6d001418db1aa7e492101683bae624d8ddf82cb99b",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "0052b08cb6ff3d208845d9619865cb9396466df113712d46e999c87f075510ae",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 fee9aefb8251 变为 6cf2440b67e6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M2-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/api/events.ts:14 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:38:14.406179+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "f8d1a891c0803b8bb04c7867429e4d863bfc6ab2b0b6e7da5d597e912aaaa4d6",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "d0a23b25a717e604d54c69952dc9d11f21b411d0147c2337958c16b75fb69ee2",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 e081d7a43844 变为 f8d1a891c080；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M2-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/http/routes/events.ts:6 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:38:28.348027+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "71dfaf5d193110a196c4fd9be919ac9db1249c9382cd90a38d14030bf4c33654",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "07f2a788bcfbcb8f0224ef1d191f8daaaa5f1b645bdb60f32b69d40e8dd60264",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8e98f08017f2 变为 71dfaf5d1931；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M2-T6 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/api/routes.ts:115 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:38:41.496794+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T7": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "dec39b067039b221efec624559e3fe5114bdba3dff40c45558cb59af4ec7cc31",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "03afd253732a8c9580110d7a73a5cf3eb904ee2d085802a12ff8e70e7e945a51",
     "evidence": [
-      "本补丁只给 M2-T7 的 supportPaths 增加 packages/shared/src/api/tasks.ts；M2-T7 原有验收 1-5、E-08/E-17/E-19/E-215/E-216/E-82、前置与其他有效路径未改，未放宽行为要求。",
-      "E-19 原文要求派发后 input/output/accept 变化可在列表逐任务标记；当前 TaskDto 唯一定义在 packages/shared/src/api/tasks.ts，服务端 docs.ts 的 toTaskDto 正消费此 DTO，因此加入此路径是必要且局部的类型契约支持。",
-      "sync 的 changes 只影响 M2-T7；并发范围核对后，新共享 DTO 路径由本任务认领，未扩展其他任务。当前 PR 的代码语义仍有阻断项，契约复核不表示代码验收通过。"
+      "M2-T7 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/task-state.ts:6 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-22T03:23:47.878106+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M2-T8": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "25fbff46b506164ff95e8496732fed600d5096375137dbeb35f30be06a2dee5c",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "91cc69b8071f7bb7288e7b6a7fd9e9e9190650e935b3431e9112dd37ff580bf1",
     "evidence": [
-      "源条款：04-执行/19-模块任务拆分.md 的 M2-T8 行原定 shared 单一状态定义、具名快照 DTO、E-234 形状穷尽；补丁保留五条验收及 13 态，只补既有 daemon 状态源去重和快照端点集成断言。",
-      "冲突依据：02-设计/09-数据模型.md 的 tasks 派生规则明确 manual_state → 最大 attempt 的 runs.state → never_dispatched；当前 service/dispatch.ts:94 旧基线把空 manual_state 输出 pending，现 PR 改为 never_dispatched 仍忽略已有运行。此为旧快照与已定数据模型冲突，不把当前 PR 认作实现通过。",
-      "契约纠偏：19 节 M2-T8 只允许 09 节完整任务状态派生导致的既有快照响应修正；其他运行时行为不变，既有集成测试不改，新快照端点集成断言锁定手工状态、最新 attempt 和从未派发三支。Jev adjudicate line pick=B(high 0.81), model=jev-1.13.0, adopt=take(B)，记录于 _run/judgments.jsonl 的 M2-T8:review。",
-      "有效路径：_run/task-contracts.json 的 M2-T8 supportPaths 定点补 shared/package.json、daemon domain/task-state.ts、repo/batches.ts、repo/runs.ts、repo/batch-wrapups.ts、service/dispatch.ts、service/docs.ts 与 snapshot-routes.test.ts；原 taskPaths 和其余 supportPaths 不删除，仍仅本任务必要消费者。",
-      "sync --patch m2-t8-state-scope-20260922 只列 M2-T8 待真实复核；status --task M2-T8 显示当前 hash 25fbff46b506164ff95e8496732fed600d5096375137dbeb35f30be06a2dee5c、stale=[]、runtimeDrift=[]、blockers=[]；代码仍有本轮 REVIEW-ROUND 1 阻断，verify 仅登记契约语义，不宣称代码 pass 或落地。"
+      "M2-T8 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/lib/is-record.ts:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-22T06:28:33.448074+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "07e4460012c9a4dd89a72d404bf9206e3bf94c27acb147edcd748137ddd7bdaa",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "b757d209bd700f0fbbe1bf96c9818575ce1ee6696fd75c2dff1da92da1fd2a1e",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 7dab5590747e 变为 07e4460012c9；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M3-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/layer-of.ts:9 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:38:54.315861+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "f833db5b29a421bd9099a5e4948b1cd6b89ebca102258494c04b93a4a517f9bf",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "2ab11c908948a47a50cc390920936cb3a77fd0b8f54c3cf44a1aad4f9a605779",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 a117a6b5f9d9 变为 f833db5b29a4；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M3-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/repo/batches.ts:136 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:39:07.811545+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "db5817b942a974fe4ca29996ed808dce850f21d1b3345ead865558b09fde6e5f",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "97005809d737ca778b4854eb0b4f2d5e37ecae0aeb76cb598df8ca63c8d422d0",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 bfb848afb8ff 变为 db5817b942a9；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M3-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/docs-fingerprint.ts:139 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:39:22.050695+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "a1f41445c2f70bdbbcc8ae0acff434db357ba4e139253920dcc412ae6d6169d6",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "a9816b78fc880dbf8ca4dc491f5f162cca174b6dc0dc1c41032e01dd834e2c8a",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 036c36ba7fbd 变为 a1f41445c2f7；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M3-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/http/routes/documents.ts:112 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:39:35.168771+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "e4a25d31dab18e2052c4c256bb4dd87f1a3eeeffe1a59ea68a066047e4931cb0",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "194ced0b6c2275f5903930e05b3e321ec4614cb1ef2a5bb90407f152ca81519d",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 3dcdd442f489 变为 e4a25d31dab1；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M3-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/review-context.ts:188 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:39:48.353738+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "c0b922407fb9264899c5ba6400e6479f46e97bc9b88a32119c96c8ed86676203",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "e2c45af9e7bb424d27a943a0600b80355402353342795d78226c8116a29043b4",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 d3b5fda84e75 变为 c0b922407fb9；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M3-T6 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/wrapup-builtin-prompt.ts:11 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:40:01.189718+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M3-T7": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "99f3a33bbb577d9919b13594765e9ff5da5a4a4f6760c738742e9a8b6961e1be",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "25d0e38de4bbacf9d980f76349ff9d49e0fc999e7257a6dacccc52155c318c42",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b6767911d3f0 变为 99f3a33bbb57；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M3-T7 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/migrations/0002_add_bug_prompt.sql:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:40:16.616350+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "1af0ea047d18114b7efb511dbab9700dd6afc812cfbe2c6af1783ce9c1720308",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "e2aa464823d7f46f299b6c8a572b0c6e72d90b632577f228f4f8c14a0f0a059c",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8a8ad204fd3b 变为 1af0ea047d18；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/config/defaults.ts:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:40:30.230702+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T10": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "043e11150a099520efbcd24fb608015217ca40224ebbdacbe5038e08eb21e7b6",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "27c70a9170ebb269239dbebdd92fe5a3be96991ed12fd8298846f06db078f17d",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 bfe6b288fa66 变为 043e11150a09；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T10 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/adapters/pi/capabilities.ts:15 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:40:43.005758+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T11": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "b6e3ecc4a6b7ed32face4a471763fcb697834282f16cd48c9ff3c01fee867f52",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "84106c9712a8127555cbe56c6cd68fc8fb4e29bff0979bea067fbe88ce00945d",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ef905471d8b9 变为 b6e3ecc4a6b7；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T11 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/adapters/grok/build-launch-spec.ts:42 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:40:55.464481+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T12": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "85e1bc942355e3f003b65eeb1abea3bb6056356a30562431f5d5c516c53c9f67",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "247300850659dfd98e8c7edd85217c00801908f46b5ee4d44247785e78e0b37d",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b17d77792ce3 变为 85e1bc942355；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T12 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/adapters/dsh/capabilities.ts:13 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:41:08.228485+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T13": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "ce379287826b86981b1c83feba86122ab65313a12b2bf75d8ef97bf25f38dc32",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "9b79bfc8048d63c841a1bb051ec6cdcdb7f6d49d8909304bf286ead87fb0b4ba",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b3b2ac588b5f 变为 ce379287826b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T13 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/api/agents.ts:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:41:21.901598+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T14": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "c99a2ffb496bde76d6c4b51333481b94720d58d0f4ad9a695f4c23266f8f9c74",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "f8b40d4fb2886be33f233042fddfb5b85d98c8330861ab7cd6dd77ecb7c66ae2",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 1892c129c104 变为 c99a2ffb496b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T14 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/adapters/models-live.ts:46 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:41:35.701575+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "ee648e1da90edf8eed4bb11f4ad43290dcf56636039b02ebdaee60550de9538f",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "e83a62c224c14a4b904d46ca72bcfb6915d3496850c984c43b665b649bb5aa3c",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 4fff86c4148d 变为 ee648e1da90e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/launch-template.ts:4 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:41:48.553932+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "818ead0818116d2c31a662c3676608e0febd6979b390cc70307c991146e2e23e",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "32c2effd8ec3e4baafe99f22eb6f5f5c7a9fe42436a2813d97b700f60bcde35f",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 1f20594e4901 变为 818ead081811；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/adapters/probe.ts:44 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:42:01.233832+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "169fd418d65f2c309d4f839f4aa0d454129acb3d4a1ba710259afd97b56faf41",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "834ae935d5e24b655ec1c9e1a33b27fc3b06920328b5b63fdc22dfd9e4efc931",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 174c7d413adf 变为 169fd418d65f；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/agents.ts:110 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:42:14.679072+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "89b78901469e231a6fb1fe4b2cc7b5d0145583b73f19093a7f29dfacbdfb4b66",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "12e85ce03da25c96283f126eba687a14878c673c5be5e1fa98c2aab0d98b51d0",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 305a2cc71dd5 变为 89b78901469e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/adapters/codex/read-models.ts:324 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:42:29.399768+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "2867047463f00eaf90d046532d9244b591ea10ab076db65b1209ea9c2b57f5e2",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "18b7f416f06218eadbd83b2ed6cf501ab62895b563c0e65229a85a7d710febf3",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 d7b9ae542a82 变为 2867047463f0；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T6 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/model-selection.ts:169 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:42:42.783053+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T7": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "5a1ad20a78676e5745904913cd25f741681f6c76dff9b8fe100fb5cbcd166779",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "76f18c2f9518bd2a472a4c2864fa0d0c2bf9605bcbba064f2fd4286c65590b73",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 88f95e7702a3 变为 5a1ad20a7867；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T7 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/permission-tier.ts:2 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:42:55.779547+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T8": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "070b61b44617098d34939aff4d20c0f7ddca7a78b39470ec5bc8de7b88ffefd6",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "b220b44eae724a3e397569804bcc839417b8be8a91d33105d17513a73ea0e55c",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b7f71c347679 变为 070b61b44617；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T8 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/adapters/codex/capabilities.ts:10 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:43:09.841486+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M4-T9": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "4c9b5a55cbfcc0d59666ba6c99d8c4a5d25e892560a71f769047726224e24102",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "8a9750e015d5606add3842839cdd0f073e5a70f154ea89af753b603862dcd127",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 4dcc20e9e69e 变为 4c9b5a55cbfc；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M4-T9 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/adapters/claude/capabilities.ts:14 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:43:24.073034+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M5-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "7f21ae96c87c1e6fe325c5d5f14442af30651a1f45da2c64c0542f0d2213ec6b",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "e9ddb9966780c660eda21ff1fd97153bf299b8c56be5fbc1cf1c07c4590db640",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 64c688d76035 变为 7f21ae96c87c；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M5-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/workspace/worktree.ts:182 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:43:37.938260+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M5-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "c3d01e36ccfba8188dad7741e3bf802bbccc405958444b40b3b2d033113f9ed8",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "b7191d1ddcad168d62190e9e607154b3bd810fb14d73e377c9c3fbd7dc3cc5f6",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 565398877ade 变为 c3d01e36ccfb；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M5-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/workspace/base-select.ts:135 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:43:50.964271+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M5-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "49f14303f6e6ae81e6ae4bb1cc8084ecd0fe5e54a5433e0110a2b0902c2bd615",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "a2015a9e719dbf3c6ad9a817a7cb5f0158cc592ffd4e8049c83789ce7ad17c8e",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 3c6014f416ef 变为 49f14303f6e6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M5-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/workspace/diff.ts:458 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:44:03.748662+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M5-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "4d84740c79810759e72b34a191de2d32d9b5566ed5a2db833b5a6038a368ba21",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "bd858b0a63839aa60a758d5d0e834917506cb49a7dbe228ba264cfbe2dec760d",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 e361a4c07410 变为 4d84740c7981；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M5-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/workspace/landing.ts:108 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:44:17.781286+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M5-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "45a62929679e13768dc3787fb2a9822ca459d05cf8ac53a70d5b5a52b84ea643",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "083d008a0dc440dc180976f01713dcd0622480e1364d7bcfecc2a508b6cefa28",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 91c71ff362a4 变为 45a62929679e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M5-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/workspace/in-head.ts:57 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:44:31.738222+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "764798f449b36846c92db3626ed30fc31703571835a05c6cef71235e69d787ee",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "1da78bdf629866d629221b99d853ca8c9eb3ec1a2e32cd2ac1615c0d45336105",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 3dfd9a27996d 变为 764798f449b3；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/run-state-machine.ts:6 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:44:44.977856+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T10": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "c2ded4aad5da62569f1fe7ec5f05343d864a460f9dff85c6dcbd5402e95ca39a",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "a14af9a896cebc50747ceeaf6822b1328ffee1d440d1e817b687ac0a5ea09da2",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9f6c3934936b 变为 c2ded4aad5da；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T10 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/migrations/0003_add_session_archive_and_lanes.sql:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:44:57.912772+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "f6469a10aa7915eecfdd68f212254b0ed88d2a3b60b3218cbbb2d3735dc7c771",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "36e5248539abfe30a17a1c453d7838f6c9b00a7ceeef2a5f6489ab4447122921",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 1adb095990bf 变为 f6469a10aa79；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/run.ts:180 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:45:10.630814+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "c3d8ac473303165fc127e4cddec908c2b777881c59d0941a9be33ca7060f6ff4",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "120bba2f2fa1f161e46b47646a2d2b48c5d59bdcf23273b5f09d64711de08ab3",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 51301b217bd4 变为 c3d8ac473303；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/progress.ts:118 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:45:24.881667+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "04f8a8418eb246270cb9978f13531b2645bce62f4dd10db6b6328b4c05a3cd75",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "dc3f9c0579f9370b83d61398e112d83bbcf733060a61ab9425a1f96a60df07cd",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 bc12e1565fa8 变为 04f8a8418eb2；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/jobs/stall-detector.ts:19 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:45:38.740610+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "bf6247e78fb678bdd49f7fc85c754e4b44dba734a25024fb01f7c93d5a9e9393",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "fccf223abf9feec3476cbebfcc577d83aa131b403942bf18f9b40289c68608e6",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b4518b6080fa 变为 bf6247e78fb6；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/run-abort.ts:114 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:45:52.477544+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "4e465e19c214115d68049d28bbb9f69a5f30e20a9c0d35530d9a003fc6919dfb",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "96f32d32deead3b045c09f61ee839557eab785269659346df2566eb67c5b4a32",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9ed844a0e99f 变为 4e465e19c214；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T6 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/message.ts:94 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:46:06.791421+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T7": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "6e7c7b1165c3d9528dbb8c8310ad062e48c038cc10d4c0a5b9d13bc0153a2206",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "c11ac74762b482f74d1cbeb9f0b537f4b101f56aef9f771b7d464f4fd85b733f",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 65ce5636b511 变为 6e7c7b1165c3；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T7 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/run.ts:257 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:46:22.532707+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T8": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "58c2212be9c8ba12f1194a5bc31ff157932e6197513d9d39e61a3aa7634898a8",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "da000adb7e4f4738b4b88b2a02ddcb06d80efef647ad4f678bfdaecb071ee37a",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b789eeb860e8 变为 58c2212be9c8；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T8 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/repo/runs-log-repo.ts:26 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:46:37.428514+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M6-T9": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "c7bd55f68d4b50da6ab1a8da4fb27ec6404f10af28cd463442ddd287dc9c79d5",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "2dcec63f430a21ab8409c6da5f04e21f9f624d7148272a85e52a6deabe021294",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b60915513f03 变为 c7bd55f68d4b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M6-T9 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/retention.ts:28 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:46:51.797750+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M7-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "a9cc01fa6a2ff71f1fe2a4bfa9fcfcac5df5c2df832c444030bf00f07a1fb257",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "b276bf0ef67f34a46cdb9e2bafaf33ec4414eae4a91aa0ed10f5867bf34a77b2",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9f7e45e5460d 变为 a9cc01fa6a2f；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M7-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/review.ts:380 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:47:06.010452+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M7-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "918ccb848fbf354f820696c1dc15a48c321723908abd4daaac35dbe61b910888",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "97ec9ea07b318d1c976eed5b52bf07c4437ed21bdd44ad3503c42b77adb716bb",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 c18cfdbdd5cf 变为 918ccb848fbf；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M7-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/review-agent.ts:63 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:47:21.870194+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M7-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "75e2ab2f5f3200dda1099b65c5523abd44d7efcaa8bc3cf416826744aee85b2b",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "1cfe32958810491f29c9069895fb6d010b007803836019261297625cf1c00e34",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 2078662764f1 变为 75e2ab2f5f32；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M7-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/review-verdict.ts:10 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:47:37.105774+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M7-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "004008e454a4814d31dbf92c654a1ad9e701ef9c81361b950762ec26dda0815c",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "d32e002643ed11152bd34ec5873631758b4e99a46520072c78568adb1df17edc",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 384a691ccbe3 变为 004008e454a4；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M7-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/rework.ts:27 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:47:51.345565+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M7-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "746da9e5cb48c79c601f388e2997c49b7777b20cf937dc6fafbca090f78b2c49",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "b8d50c4d6a711c6830495a214ff1c4636e44c3bda8fe583166f46f338f79be21",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 03585a5028cd 变为 746da9e5cb48；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M7-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/migrations/0005_add_runs_origin_and_spawned_by.sql:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:48:05.522924+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M7-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "d0718ce3568835753fb8aa105137f075c9e92b15d4ee005f1d11cb25ef342ed4",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "d9fa173ab32b70fe71fa76a5ed156fe8ced0ef79a2d015a04933e156b2fe94f6",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 41eb3c0c7956 变为 d0718ce35688；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M7-T6 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/wrapup-report.ts:18 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：providers。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "providers 为前置任务契约哈希传播：该补丁的 M7-T6 before/after 自身 context 相同，仅 hash 变化；现有八段报告解析与裁定由 packages/daemon/src/domain/wrapup-report.ts 承担，wrapup-report 单测 34/34 通过。"
     ],
-    "reviewed": "2026-09-18T18:48:19.683763+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M7-T7": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "b930f754139bbd387fbff6b768d1f1074ae150e8e78b55a916befb414acb8842",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "1c76e02210705ca4fc527904b3b1c774505c542c390eb68ca2047af8f13ad1d0",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8a883ed9aa20 变为 b930f754139b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M7-T7 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/migrations/0006_add_review_rounds.sql:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:48:33.379937+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M7-T8": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "da008f7d33e0c4017c9cb92295d4a053e7f74a12bd05e6498ae97ac5c94442b9",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "56d779ed59b82e0fc2ad1e82eb41a2f080f75ffc175ccebbc4544f23ebd57416",
     "evidence": [
-      "本轮为第 1 轮审查（PR #129 无 REVIEW-ROUND 评论）：分支 task/M7-T8 @ 20f417a，工作树 D:/xiangmu/agent-scheduler-m7-t8，与派发包契约版本 95df0f4ed52626fe68e2a4b7004d75d74eda9e22b8fa8e48cba37c2324376ffc 逐字段一致。",
-      "文档补丁 m7-t8-edge329-support-paths-20260922 的修正依据：E-329 的实现落点不在原支持路径内——共用禁令常量在 packages/daemon/src/domain/wrapup-prompt.ts:3，查 bug 后人工打回的返工文本头部在 packages/daemon/src/domain/rework-prompt.ts:99，迁移清单断言在 packages/daemon/test/unit/database.test.ts:152 与 :214。补丁把 domain/wrapup-prompt.ts、domain/rework-prompt.ts、test/unit/rework-prompt.test.ts、test/unit/database.test.ts 加入 M7-T8 支持路径。",
-      "补丁未改动任务定义、验收条款、边界要求与任何既有标准，只补齐实现必需的支持文件；补丁后 M7-T8 契约版本为 da008f7d33e0c4017c9cb92295d4a053e7f74a12bd05e6498ae97ac5c94442b9。",
-      "补丁影响范围：_run/revalidation.json 未新增任何待复验任务；被同批标记的 M8-T8、M8-T9、M9-T17、M9-T22、M9-T23 任务笔记 status 均为 todo（未落地），不触发已落地任务的复验。",
-      "实跑证据（2026-09-22，工作树 task/M7-T8 @ 20f417a + 审查方 review-fix 改动）：npx tsc -b --noEmit 通过；npx biome ci . 通过；npx vitest run packages/daemon/test/unit/bughunt-prompt.test.ts packages/daemon/test/unit/bughunt-report.test.ts packages/daemon/test/unit/wrapup-prompt.test.ts 共 28 例全部通过。",
-      "全量 npx vitest run：166 个测试文件、1959 例通过、3 例跳过；唯一失败是 packages/daemon/test/unit/landing.test.ts 的 M5-T4「full lifecycle」在满负载并行下 5000ms 超时，单独重跑该文件 20 例全绿（该例耗时 3881ms），与本任务改动无因果关系，判为本机负载抖动。",
-      "验收标准 1 满足：service/bughunt.ts:204-229 在同一事务内 INSERT kind='bughunt'（state='queued'、parent_run_id=实施运行、origin='dispatch'、permission_tier='workspaceWrite'、worktree_path/branch_name 逐字取自实施行、prompt_source），实施行保持 reviewing；开关每次读库不缓存（service/review.ts:1938-1953，经 settingsService.getPipeline() 或 settingsRepo.get('pipeline')），为 0 走既有落地闸门 review.ts:1980-1989；packages/shared/src/api/routes.ts 无查 bug 端点；dispatchBughunt 的唯一调用方是 review.ts:1961。",
-      "验收标准 4 满足：domain/bughunt-report.ts:324-382 判四值（rereview / bughunt_open_findings / bughunt_fixed_over_limit / gate），FIXED 非空且 diff 为空按 NOT_FIXED 处理并标「自报已修但无改动」（:330-343）；service/bughunt.ts:424-459 先 +1 再调 startReviewRound({isBugHuntFix:true, reworkItems: FIXED 条目})，已达 2 走 bughunt_fixed_over_limit。",
-      "验收标准 5 满足：bughunt.ts:345-401 不合五段时两行均 awaiting_human（reason bughunt_unparsed）并在查 bug 运行上开 kind='review' 闸门、原文保留不部分解析；bughunt.ts:277-339 失败类（failed/aborted/interrupted/启动超时）只把实施行转 awaiting_human（reason bughunt_failed），rework_count 不动。",
-      "验收标准 6 满足：事务前解析（bughunt.ts:343 parseBughuntReport、:403-416 getDiffStat），事务内迁移（:426、:464、:532 同步闭包，无 await），事务后投递（:446 startReviewRound、:508 bus.publish）；repo/runs.ts:671-700 的 updateState 参数表不含 review_verdict / rework_text，代码中不存在查 bug 行自身计入 rework_count 的路径。",
-      "本任务测试覆盖 17 节清单：test/unit/bughunt-report.test.ts 21 例（完整五段 ok、缺段五例参数化、B〈n〉 [S1/S2/S3] 复用收口解析器、六种组合判定、agent/model/effort 逐字复制与 agent 不可用转人、开关为 0 不建 bughunt 行）+ test/unit/bughunt-prompt.test.ts 3 例（四段顺序、材料逐字、NULL 用内置并 builtin、禁令常量、不含「允许 commit」）。",
-      "反造假扫描：bughunt-prompt.ts / bughunt-report.ts / service/bughunt.ts 无 not implemented、placeholder、stub、TODO、待接入 命中；无 window.__ / globalThis.__ 测试钩子；进 HEAD 扫描 SQL 限定 kind IN ('implement','wrapup')（repo/runs.ts:539-542），不是硬编码放行；未重复实现 wrapup-report.ts 的段头切分与条目解析器（bughunt-report.ts:1-8 直接复用 parseBugSection / parseFixedSection / isNoneIndicator）。",
-      "边界核对：E-306 已处理（review.ts:1938-1953 只影响尚未到达该阶段的任务）；E-307 已处理（bughunt-report.ts:360-375 + bughunt.ts:424-459）；E-308 已处理（bughunt-report.ts:347-357 只把 S1/S2 转人，只剩 S3 视为干净）；E-316 已处理（前置 bughunt-context.ts:156-163 + bughunt-prompt.ts:55-63）；E-320 / E-321 / E-323 已处理（见上）；E-341 已处理（bughunt.ts:106-109、224 assignment_source='task'，不读注册表默认 model/effort）；E-61 已豁免（run.ts:588-591 与 dispatch.ts:1386-1390 只对 implement 类运行生效）。",
-      "未满足项（本轮判 rework）：验收标准 2 未达成——service/bughunt.ts:184-197 调用 assembleBughuntPrompt() 后返回值被丢弃，既不落库也不进 launch spec，且 :218 让查 bug 行复用实施运行的 snapshot_id（其 impl_prompt 是实施提示词），四段提示词送不到查 bug 运行；E-329 的「查 bug 后人工打回时返工文本头部附未提交改动提示」在全部生产代码中无实现。",
-      "接线归属（经 Jev 裁决 domain_only_in_M7_T8）：查 bug 行 queued→starting→running 的启动、service/run.ts 退出后调用 finalizeBughuntRun、agent 并发已满时的 agent_limit_reached 记账，均落在 M8-T9（其产出列 service/run.ts、service/dispatch.ts、service/bughunt.ts 接线，且 depends_on 含 M7-T8）与 M8-T8（tick 第②③步与 service/dispatch.ts 补位段）的有效路径内，本任务不越界改这些共享文件。",
-      "自行裁决复核（协议第 9 条）：实施方迁移裁决（_run/judgments.jsonl 标签 M7-T8:impl，模型 jev-1.13.0，state 哈希 bd0a2d99855bfcfc，pick=omit_redundant_migration 0.98，adopt=take）候选齐全、动作已落到 diff；本轮复用其全部候选并补入新事实后复跑，Jev 改选 add_noop_migration（medium 0.59，标签 M7-T8:review-migration），按协议以本次 Jev option 为准，转为返工 R2。",
-      "本轮新增岔路口裁决：提示词落点候选三选一，Jev 选 insert_dedicated_snapshot（high 0.92，标签 M7-T8:review-prompt-delivery）→ 返工 R1；E-329 与 AC 3 越界条款的归属候选三选一，Jev 选 domain_only_in_M7_T8（low 0.11，标签 M7-T8:review-ownership，记低置信风险）→ 返工 R3 并把启动/退出接线留给 M8-T9。",
-      "审查方本轮顺手修复的非阻断项（FIXED_BY_REVIEWER）：domain/wrapup-prompt.ts:4 共用禁令常量补 reset（对齐 08 节与决策 101 的完整清单，查 bug 与收口共用同一常量）、service/review.ts:1923 裸 throw new Error 改为 AppError（08 节「除 assertNever 外全仓禁止 throw new Error」）、service/bughunt.ts:531-546 去掉绕过落地闸门的直落兜底改为缺依赖即 E_INTERNAL（落地闸门默认「等我确认」，E-53），并在 bughunt-prompt.test.ts 增加 reset 断言。",
-      "本轮结论：契约复核 pass（补丁后任务定义、有效路径、支持文件自洽，无阻断级契约问题）；代码验收判 rework，返工条目 R1-R3 已写入 PR #129 的 REVIEW-ROUND 1 评论，等待实施方推送后复验。"
+      "M7-T8 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/run-state-machine.ts:115 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-22T16:05:29.553728+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -926,113 +844,98 @@
     "verdict": "pass"
   },
   "M8-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "8dd04375ee9b682094b674c4d5ac740b0bfcbb1020273efbea939458513fe519",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "a234ae3abf8426610e441152dcaf30b199ed8eec1a1b413cf4472696e8855f0e",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ebec65b742c3 变为 8dd04375ee9b；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M8-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/concurrency.ts:151 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:48:46.738452+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M8-T10": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "c4220ef4004c56a1cd3258b4c24ab3de35c034936330ca86c4d52a3724457c98",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "daabf0a3dd6a32038fbdaa7f70e7ab97542af9c5a8f34d112773d77f70a5c82d",
     "evidence": [
-      "前置：M1-T8、M4-T4、M4-T8、M4-T12、M5-T1、M5-T2、M6-T2、M6-T5、M8-T3；其中已落地 9 个。",
-      "验收标准引用边界 E-10、E-40、E-42、E-70、E-76、E-140、E-142、E-348，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "注册点文件已核存在于 packages/daemon/src/boot/container.ts（类别 container）。",
-      "有效范围为 taskPaths 加 supportPaths 共 12 条：packages/daemon/src/adapters/codex/；packages/daemon/src/boot/container.ts；packages/daemon/src/proc/spawn.ts；packages/daemon/src/repo/runs.ts；packages/daemon/src/service/dispatch.ts；packages/daemon/src/service/run.ts；packages/daemon/src/workspace/base-select.ts；packages/daemon/src/workspace/worktree.ts；packages/daemon/test/arch/dispatch-proc.test.ts；packages/daemon/test/fixtures/dispatch/；packages/daemon/test/integration/dispatch-spawn.test.ts；packages/daemon/test/unit/dispatch-contract.test.ts。",
-      "有效范围内由本任务新建的文件仍只有 packages/daemon/test/arch/dispatch-proc.test.ts、packages/daemon/test/fixtures/dispatch/、packages/daemon/test/integration/dispatch-spawn.test.ts；返工时曾新增的 domain/content-events.ts 已删除，避免提前占用后续 M8-T9 的既定产出。",
-      "补丁 m8-t10-runs-repo-support-20260920 将 runs.pid/worktree_path/branch_name 的必要 repo 落点纳入范围；补丁 m8-t10-base-selector-support-20260920 将 R2 必须复用的 M5-T2 BaseSelector 纳入范围。两次补丁都只增加必要支持文件，未改验收标准、边界、依赖、接口或接线责任。",
-      "范围冲突核对：repo/runs.ts 与 workspace/base-select.ts 的原任务 M8-T3/M5-T2 均已落地；当前在途 M9-T13、M9-T18、M9-T19、M9-T25 不修改这两处，未放行 repo/ 或 workspace/ 整目录。",
-      "第 2 轮只复核 REVIEW-ROUND 1 的 R1-R3：composition root 已绑定完整 SpawnManagedOptions；launchRun 已接 BaseSelector 并覆盖拒绝旧 HEAD/显式上游分支；零产出实施运行、spawn 抛错与 starting 抢先退出均有状态与事件回归测试。",
-      "聚焦证据：dispatch-spawn、dispatch-proc、run-service 共 27 个测试通过；tsc -b --noEmit 与定向 Biome 通过。完整 pnpm -w check 两次均通过错误码、对比度、禁令、Biome、tsc 及 160/161 个测试文件，剩余失败分别是无关 agents-routes 并发偶发 400 与 landing 真 Git 场景固定 5 秒超时；两者在同一 Windows 环境隔离运行分别 4/4、20/20 通过。"
+      "M8-T10 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/dispatch.ts:1141 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-20T12:33:23.425357+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M8-T11": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "87039ceea719dba2086bfd0a7aea90a4164b47c9c06a76eb444d94610aa4d35f",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "ca6a57984837f90d6096a50f810c7ef691b0a50d8dcb6ddbd4353b0a59f703a5",
     "evidence": [
-      "契约与依据核对：对照 02-设计/09-数据模型.md:191（tasks.assignment_draft_json）、:230（runs.session_no）、:611（兼容策略第 9 条）与 02-设计/10-接口约定.md:29-30（端点表）、:180-183（assignments[] / drafts[] / preview / sessionNo 四行字段级契约）、:357-371（示例），确认任务产出、五条验收标准与六条边界的依据；前置 M3-T2、M4-T6、M4-T14、M8-T1、M8-T3 全部已落地（任务笔记 status=done）。",
-      "有效范围补丁（m8-t11-support-paths，PR #113）：实施必需的 packages/daemon/test/unit/database.test.ts（迁移文件清单钉死，每个新增迁移的任务都要登记，M8-T6/M4-T14/M10-T5 等先例均列在 supportPaths）与 packages/daemon/test/integration/migrate-rebuild.test.ts（分段升级夹具原用 !startsWith('0007') 表示「0007 之前」，0008 一出现就跑在重建之前导致 fresh/upgraded schema 不等，改为 file < '0007'）未列入本任务 supportPaths，定点补入 _run/task-contracts.json 的 tasks['M8-T11'].supportPaths。冲突核对：两文件的既有占用者 M8-T6、M3-T7、M6-T10、M4-T14、M10-T5 均已落地；在飞分支 task/M9-T13、task/M9-T18 对 database.test.ts 的 -6 行差异是它们落后于 main 的历史差（基于旧 main），非本任务冲突；task/M9-T19、task/M9-T24、batch/11-20260919 不碰这两个文件。未放行整个 test/ 目录。",
-      "契约语义复核：接线要求四个注册点均已含本任务条目——packages/daemon/src/http/plugins/50-routes.ts:84-85（customRegisteredPaths 两条）、packages/shared/src/api/routes.ts:79（REQUEST_BODY_SCHEMAS putAssignments）与 :305-321（ROUTES GET/POST）、packages/daemon/migrations/0008_add_assignment_drafts_and_session_no.sql（database.test.ts:161 清单与 migrate-rebuild 夹具消费，repo 层按 PRAGMA table_info 探测后读写）、packages/shared/src/api/batches.ts:178-311（TaskAssignmentDraft / PutAssignmentsBody / TaskAssignmentDto / ConcurrencyPreview / BatchAssignmentsResponse，被 routes/batches.ts、service/assignments.ts、domain/concurrency.ts 消费）与 packages/shared/src/api/runs.ts:209（RunDto.sessionNo，repo/runs.ts:358 填充）。字段与 10 节逐项一致：TaskAssignmentDraft 四键、TaskAssignmentDto 七键、ConcurrencyPreview 六键与 agentCapacities 五键、bottleneck 三值。",
-      "验收阶段核对（pnpm -w check 在 WSL 全绿：153 files、1826 passed / 32 skipped、CHECK_EXIT=0）：AC 1 → service/assignments.ts:342 putDrafts 先全量校验（:309 rejectTask 给 details.field:'assignments[i].taskId'，:372 agent_not_registered 给 assignments[i].agentId）再在一个 unitOfWork.run 内对每个待派任务 setAssignmentDraft(json|null)（:404-412），单测 assignments.test.ts:188-357、集成 batch-assignments.test.ts:213/:305；AC 2 → domain/concurrency.ts:512 numberDraftSessions + service/assignments.ts:231 countActiveRunsByAgent（countsTowardAgentConcurrency 过滤），单测 :360（codex 1 活跃两草稿 → 2、3，claude → 1）；AC 3 → domain/concurrency.ts:576 buildConcurrencyPreview 直接调 calculateBatchConcurrency()，windowCount=listReleasableTaskIds().length（service :275）、userSetting=doc.lane_count（:301）、isFull=active+drafted>=limit（:607），三种瓶颈单测 :459/:483/:499，exceedsWindowCount :483/:540；AC 4 → 集成 :363（codex 两条活跃、claude 空闲，start 后 tick 派 claude、codex 记 agent_limit_reached，二次 tick 不重派），依赖 boot/container.ts:552 把注册表 maxConcurrency 交给 tick 的 agentLimitFor；AC 5 → dispatch.ts:275 resolveAgentForTask 先读草稿、:1056 createRun 带草稿 model/effort、:291 nextSessionNoFor 在 INSERT 事务内取、:413 写 session_no、repo/runs.ts:358 下发 sessionNo，集成 :417（agent_id/model_name/effort 逐字、session_no=预览 2/1、GET /runs/:id 同值、旧行 null）、:490 无草稿回落 codex。tick 的候选顺序来自 repo/tasks.ts SELECT_BY_BATCH_ID_SQL 的 ORDER BY task_key ASC，与预览按 taskKey 编号同序。",
-      "边界核对：E-108 → 空数组清空全部草稿（service :404，单测 :219），GET 返回 drafts:[] 与预览供四步引导；E-245 → userSetting 只读 documents.lane_count 原样回传、无任何写路径，单测 :540 断言 lane_count 仍为 6；E-31 → runs.session_no 由 nextSessionNoFor 在 INSERT 事务内取，预览按 taskKey 序编号，集成 :417；E-336 → listRegistryAgents 只投影 agentId/maxConcurrency/effortVendorMap（container.ts:566），service 拿不到登录态，单测 :302 静态断言 service/assignments.ts 与 service/dispatch.ts 不出现 logged_out|getLogin(|loginCache|refreshLogin，既有 login-probe.test.ts:645 覆盖 assertCanDispatch() 不按登录态拒绝；草稿 agent 不可派时 tick 报 agent_unavailable 不改派（集成 :505）；E-47 → 预览逐 agent isFull（单测 :655），tick 沿用 M8-T1 allocateConcurrencySlots 让位（集成 :363）；E-52 → bottleneck 直接取 calculateBatchConcurrency() 结果并经 toPreviewBottleneck 收窄到契约三值（domain :558）、exceedsWindowCount 提示需显式解锁。",
-      "反造假扫描：① 有效路径内 diff 新增行无 not implemented|placeholder|stub|TODO|待接入|后续接入（既有命中 50-routes.ts:124 的占位处理器与 repo/runs.ts:251 的 SQL 占位符生成属未改动的旧代码）；② 无门禁/探测返回硬编码 true 或固定值，isFull/bottleneck/exceedsWindowCount 均为计算值；③ 四个注册点均有本任务条目；④ 复用前置的 calculateBatchConcurrency/allocateConcurrencySlots/countsTowardAgentConcurrency/isTerminalRunState/isEffortTier/assertVendorEffortInDomain/toEffortColumns/isTaskLanded，DEFAULT_AGENT_CONCURRENCY_LIMIT 为迁移而非重造；⑤ 非界面任务无 GIF；⑥ 生产代码无 window.__x/globalThis.__x。08 节：service 无 SQL 关键字与 fastify 引用（arch/service-sql 通过），事务只在 service 层 unitOfWork.run 内且回调无 await，错误一律 AppError 带已登记 code，clock 注入、无 process.env/Date.now。"
+      "M8-T11 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/migrations/0008_add_assignment_drafts_and_session_no.sql:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-19T06:56:35.798169+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M8-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "64299453331009724b0fde5eb4166a1f22effc80f8abd3b946f57b30c69cefb5",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "ce6868c0355e830a2e285128923392ddf0ab98dd8374a7e06fa145385233fe2a",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8dcdfe6cf255 变为 642994533310；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M8-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/domain/path-clash.ts:24 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:48:59.788853+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M8-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "80da6c1865de9a09e1e64173d66ce82daedf1eb23d81673557a2d3c119d553c9",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "f5c339f1b4ac991f969eb983f13efc3194f133db4cbc906b4f1b45102081cb83",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 7fe588563427 变为 80da6c1865de；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M8-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/jobs/scheduler-tick.ts:34 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:49:12.622863+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M8-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "ecd0a07e01f021f954ad7883d06a5b52baab41ef9fec8f37c5f01d175d86765e",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "394c0f109573c60f01f26c53752b35e3fed6830015bbec0efa60b9bfa686f5d4",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 ff26659c8fa1 变为 ecd0a07e01f0；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M8-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/api/settings.ts:1 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:49:25.842804+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M8-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "be57c74afc66fcf8e7de7d82a139cfa2f86086776d84dd379024d67018067a97",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "d175127876e831baaa434edd8ce385380a5628201c9e94241e3abfbe205ba769",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 2b5dddc69cbc 变为 be57c74afc66；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M8-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/service/rerun.ts:84 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:49:39.799476+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M8-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "225c43ceeb9d223502fb46dc9c99eaa518c068d98f486ee7a509987e757acb28",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "5167e92f4d4ff155a095626b307201cafdca052c211ff11a7b1e44e43183730a",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 8e6e7ca88d5c 变为 225c43ceeb9d；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/08-后端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M8-T6 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/daemon/src/db/migrate.ts:74 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：definition, effectivePaths, sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "definition/effectivePaths 为 M8-T6 任务定义和支持路径扩展；新增支持文件当前均存在，任务笔记的收口生命周期实现已回填，batch-wrapup 集成测试 21/21 通过。"
     ],
-    "reviewed": "2026-09-18T18:49:53.602796+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1049,14 +952,19 @@
     "verdict": "pass"
   },
   "M8-T8": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "ce703a06b65ef96af0c169c47c4e1f9fbb3acb63a005d346bf0cc96d7252899c",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "de48a7ace69d3eb728b6fea7aeb583bfc6b0a9c3fcf523647e2ed1565a9b00d0",
     "evidence": [
-      "19 节 M8-T8 行（第 78 行）：依赖 M8-T3、M8-T6、M7-T8、M6-T10 在前置闭包，requires bughunt-stage / session-archive / batch-wrapup 各有唯一提供方；产出 domain/lanes.ts、lane-slots.ts、pipeline-settings.ts、wrapup-policy.ts canWrapup、service/lanes.ts、settings.ts、dispatch.ts 补位段、wrapup.ts 模式校验、jobs/scheduler-tick.ts 第②③步、三个路由文件、shared api/lanes.ts、四个测试文件，全部在 taskPaths；shared settings/events/routes/snapshot/documents/codes 与 concurrency.ts、path-clash.ts、session-guard.ts 在 supportPaths",
-      "验收 1)～7) 逐条对应：08 节 scheduler-tick 第 ②③ 步改写（第 373 行起：手动模式不触发、槽位补位、返工优先、agent 上限按运行）、事件清单八值 scope 与 lane.*/document.settings_changed/settings.pipeline_changed；09 节 settings.pipeline、tasks.lane_no、「泳道槽位与会话归档」小节（LANE_STAGES 七值、PIPELINE_STAGES、deriveLanes 派生不落表）、批次状态机手动模式说明；10 节 GET/PATCH /settings/pipeline、snapshot lanes 字段契约与示例、documents/:id/settings laneCount 1–6、E_PIPELINE_STAGE_DISABLED；决策 87、92、93、99、104、105、106；E-303、E-306、E-309～E-312、E-317、E-318、E-319、E-326、E-327、E-332、E-334；17 节 pipeline-lanes 十四条集成断言",
-      "接缝：M8-T1 的 calculateConcurrencyLimit / countsTowardAgentConcurrency 已核实按运行计数（packages/daemon/src/domain/concurrency.ts、run-state-machine.ts），本任务新增 countLaneSlots 按任务槽位计、不改其签名（E-311）；M9-T21 只消费 lanes[] 与 shared PIPELINE_STAGES，不算槽位（E-317）；M9-T22 消费 GET/PATCH /settings/pipeline 与 settings.pipeline_changed"
+      "AC1/E-317/E-319/E-332: domain/lanes.ts:72 derives deterministic lanes from passed rows; shared LANE_STAGES and pipeline-lanes integration cover stage and snapshot projections.",
+      "AC2/AC3/E-303/E-311/E-327: service/dispatch.ts:1590,1729 orders rework ahead of new work and excludes the superseded implementation run from the agent concurrency count; container-wiring tests prove maxConcurrency=1 and lane-full tick delivery.",
+      "AC4/E-326: service/rework.ts:763 parks failed delivery at awaiting_human, clears the lane, publishes lane.released, preserves both sessions and rework_count, and leaves a waiting review gate with a typed reason.",
+      "AC5/E-318: shared pipeline schema, service/settings.ts:137 and http/routes/settings.ts:69 read and persist the two settings through public endpoints and publish settings.pipeline_changed.",
+      "AC6/E-283/E-312: service/wrapup.ts:282 enforces manual versus automatic wrapup, assigns/holds a lane and releases it on completion; pipeline-lanes integration covers the public lifecycle.",
+      "AC7/E-317: service/dispatch.ts:841 and service/lanes.ts:26 derive lanes for GET /snapshot without a read-side git call.",
+      "E-327 delivery contract: service/rework.ts:117,763,882 and boot/container.ts:715 reject starting, queued and failed launch states; public gate tests prove 422 E_MESSAGE_UNDELIVERED on premature exit, no run.rework_dispatched on failure, then human retry to a new review run; tick failure uses the same recovery path.",
+      "Support paths include real session-resume.ts and Codex/Grok launch-spec adapters, and M8-T8 source row was retained while merging current main M8-T7/M9-T19 rows. Full combined static checks passed; one-worker Vitest passed 181 files, 2165 tests, 3 skipped."
     ],
-    "reviewed": "2026-09-12T17:05:15.065355+00:00",
+    "reviewed": "2026-09-23T15:54:31.698070+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1077,109 +985,98 @@
     "verdict": "pass"
   },
   "M9-T1": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "8323782cb519a4115497e1ace47d4d2d37f0a95c6fe14de690a7b5072d580a6d",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "f3bbb848cfdd839cda60a7fb4fded02d01b1289345f724b1a12ecb00634183a9",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 cdc019322b81 变为 8323782cb519；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T1 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/styles/tokens.css:4 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:50:07.119778+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T10": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "adadbe9356904c4e794f4a1023f632781ff98b3125360e310c82a6267aab729f",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "896767d09da359c840779d7a3d61a7d337fa744822f1d98563b7fc0aef574e2f",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 4aed937cf6a1 变为 adadbe935690；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T10 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/components/gate-card.tsx:267 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:50:20.559438+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T11": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "32d76bc3bec56a36ee983f7ffe2e7b0bf36a63a687c47ecb621e0a1ae56a64f4",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "26cd277c2aa71cf89a7aea2daf11ecf2d440408370f8c9bcbe56a765156588af",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 dbf9254c1f5b 变为 32d76bc3bec5；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T11 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/store/connection-store.ts:19 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:50:34.747259+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T12": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "58728ca4b5fa9142324808a34ebd6ccc64069d101653fd88253afa1db875ddc1",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "de3e9d34c460cf3f076b11acc71f7bc15cb18b8dee5a70917d22e903a2f06b4a",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 2ed02209255f 变为 58728ca4b5fa；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T12 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/components/thumb-bar.tsx:48 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:50:48.165549+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T13": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "39f801d08638003b1e8a4bd32af4f5958634651f52f93a06d0588f490a2163cf",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "2b0178a6790402960bc080ea99f3065860e10ac1d7ad73a55009205e0674a794",
     "evidence": [
-      "当前 19 节任务行、五条验收标准与 E-177/E-181 原文保持不变；presentation.json 的 taskPaths 仍只把 packages/web/src/features/run-detail/ 作为任务主范围，task-contracts.json 只追加页面装配、错误文案、Vite 入口和本任务测试所需的五条 supportPaths。",
-      "当前 M8-T5 服务契约仍满足本任务输入：packages/daemon/src/service/rerun.ts:233-252 先按 idempotencyKey 返回既有运行，:281-301 在任务已有 active run 或原运行仍活跃时返回既有运行，:330-342 严格复用原 task/agent/model/permission/snapshot 载荷；packages/daemon/src/http/routes/runs.ts:296-327 由公开 POST /api/v1/runs/:runId/rerun 接入该服务。",
-      "当前前端实现逐条保持语义：use-run-rerun.ts 只开放 failed/aborted/interrupted/stopped，稳定持有幂等键，并在写请求成功后只置灰入口、不替换当前详情；mobile-rerun-bar.tsx 仅手机档渲染日志末尾整宽按钮、桌面端提示且无批量入口；rerun-confirm-dialog.tsx 只有一次确认且没有 Agent/模型选择器。",
-      "main 已落地 M9-T24 正式样式管线：packages/web/vite.config.ts:26-30 指向 packages/web/postcss.config.cjs，后者只注册 tailwindcss 与 autoprefixer；packages/web/test/style-pipeline.test.ts 同时验证 @tailwind 被编译掉和生产工具类存在。M9-T13 不再以内联 Vite 插件覆盖该共享配置，真实 390x844 daemon 页面仍显示整宽 44px 按钮和防误触间距。",
-      "审查第 3 轮的真实证据来自当前分支代码启动的正常 daemon：公开 POST /api/v1/runs 创建运行、公开 POST /api/v1/runs/:id/abort 得到 aborted，再由页面确认真实 rerun；远端 GIF 与本地验收副本 SHA-256 一致。有效路径反造假扫描未命中生产占位、硬编码 gate、window/globalThis 测试钩子或 fetch 绕过。"
+      "M9-T13 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/pages/run-detail-page.tsx:34 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-22T07:19:29.177437+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T14": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "22ab983047ded3527e1181eae52a18edb01b3bd639001110bd8a5a9b885a0bfe",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "57b203f335e66f11734d179044501e1b23372e649590b46ce982b9b62505dd70",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b77bac7320c1 变为 22ab983047de；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T14 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/pages/settings-agents-page.tsx:27 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:51:01.767471+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T15": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "06aa508bee6da8e567ab1abff31510a3eeb9b95ea9fa6fe17b69e67a4f942ed2",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "fbc9addbd7f60d5d64221339eeb6b1aa7221f5b087359039f7073b217cf7bd4c",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 b7843313be77 变为 06aa508bee6d；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T15 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/shell/shell-bridge.ts:16 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:51:14.663483+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T16": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "72f7581aea3b028d371258d362b9af8248378e46d4e8f09b69e50ae6100e0407",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "7ff1a24fa8174dd6255bb7f5159b2cc1f1371fd477c810c1f7f8b12106480d0b",
     "evidence": [
-      "前置：M9-T9、M5-T4；其中已落地 2 个。",
-      "验收标准引用边界 E-19、E-47、E-52、E-74、E-108、E-110、E-111、E-218、E-254，全部存在于 13 节；验收列不含 X17 禁词（review.py 本轮 0 BLOCK）。",
-      "有效范围 7 条：packages/web/src/components/batch-summary-bar.tsx；packages/web/src/components/empty-onboarding.tsx；packages/web/src/features/run-deck/run-deck-view.tsx；packages/web/src/features/run-detail/run-detail-container.tsx；packages/web/src/main.tsx；packages/web/src/pages/landing-page.tsx；packages/web/test/landing-onboarding.test.ts。",
-      "有效范围内尚不存在、由本任务新建的文件：无。",
-      "本次只改验收第 7 条末句：「其余路径维持 RouterView 占位，后续任务增量接」改为明确归属 M9-T25 并声明本任务不改它们。main 上 packages/web/src/app/app.tsx:20-27 只挂 landing，与新条款一致，已合入代码无需变更（清 X17）。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。"
+      "M9-T16 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/components/empty-onboarding.tsx:83 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:33:52.987281+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1198,18 +1095,14 @@
     "verdict": "pass"
   },
   "M9-T18": {
-    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
-    "contractHash": "488e250e80491de24d5f63014189e0771c9dce39179cacae253c89bedcdb8df3",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "054ba7507c43ef5e5239aa3715e3a36d8b3e65598229837f0d4a3a4ecdf2864d",
     "evidence": [
-      "本次补丁不改 M9-T18 的五条验收标准与 E-108/E-31/E-47/E-52 边界原文，只在 task-contracts.json 的 supportPaths 追加 packages/web/src/app/app.tsx：该文件是 #/ 运行甲板的唯一装配点，不接线则零运行四步引导与逐任务指派面板在真实服务上不可达，验收标准 5 的「接进真实零运行流程」与真实服务 GIF 都无从满足。七键必填表与其余五条路由的装配仍归 M9-T25，本任务只加 deck 与 pair 两个键。",
-      "读侧与契约一致：packages/web/src/api/batches.ts:41 的 readAssignments() 与 :51 的 putAssignments() 都经 httpClient.callRoute + shared ROUTES 表访问 GET/POST /api/v1/batches/:batchId/assignments，无 URL 字面量与第二套 fetch；packages/web/src/features/run-deck/use-assign-panel.ts:147 把 drafts[] 逐字段（含 sessionNo）透传为展示记录，:174 把 preview.agentCapacities 的 active/limit/isFull 透传为 agent 容量，:591 的有效并发、瓶颈来源与是否越过窗口原样来自 preview，全文件没有 Math.min 或按数组顺序的序号推导。",
-      "写侧与决策 136 一致：use-assign-panel.ts:450 的 writeAssignments() 每次改选都把当前草稿集合整批 POST 到同一端点，并用返回值同时刷新 selection-store 与预览；被 daemon 拒绝时保持服务端原状只就地提示（assign-panel.test.ts:565 起的四个用例覆盖读回、覆写刷新、重置、用户设定改写与拒绝路径）。run-deck-view.tsx:190 的零运行分支只消费该 hook，文件内不存在文档/批次/任务/agent 演示数组，接线由 assign-panel.test.ts:867 的两个源码断言固定。",
-      "真实服务复核：用本分支工作树的 daemon 运行时（真 SQLite/WAL、真迁移、真 HTTP）启动服务，经公开 POST /api/v1/pair/claim 配对后以公开 POST /api/v1/documents 导入仓库自己的 docs/Agent任务调度器-开发文档/docs-data.js（110 个任务、17 个批次、注册表 5 个 agent），再走四步引导。观测到 daemon 给出的独立会话序号（同一 codex 的 M1-T2=会话 #1、M1-T3=会话 #2）、codex 满额提示、以及两个批次不同的瓶颈判定（第 2 批 window_count/有效并发 0；第 1 批 agent_limit/有效并发 1），GIF 从这次运行录制，computed style 断言 document.body 背景为 rgb(15, 18, 19)（tokens 生效）。",
-      "反造假扫描干净：有效路径内 grep not implemented|placeholder|stub|TODO|待接入|后续接入 无命中（两处 data-testid 里的 placeholder 字样已改名），无 window.__x/globalThis.__x 测试钩子，无 src/api 之外的 fetch，无硬编码 true 的门禁或探测分支；组件层原先自立的五值瓶颈枚举与同名 TaskAssignmentDraft 类型已删除，改为 import shared 的 CONCURRENCY_PREVIEW_BOTTLENECKS 与单一 TaskAssignmentSelection 定义。",
-      "测试：packages/web/test/assign-panel.test.ts 31 例与 M9-T16 的 landing-onboarding.test.ts 16 例全绿；pnpm -w check 的 biome/tsc/check-forbidden/check-contrast 全过，全量 vitest 除两个 Windows 进程树 spawn 计时用例（kill-tree-native、platform.test.ts）并行负载下超时外全绿，单独重跑该两文件 43 例全过。",
-      "GIF 录制环境说明（写进 PR body 溯源）：非提权会话无法既满足 Windows 机器级实例锁对 C:\\ProgramData\\agent-scheduler 的 ACL 要求又保持自身可写，故 daemon 以真实运行时启动、仅把实例锁适配器换成可用替身；其余（鉴权、配对、文档导入、指派读写、并发预览）全部走真实服务与真实 HTTP。"
+      "M9-T18 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/api/batches.ts:41 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-22T16:40:08.030436+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1228,15 +1121,14 @@
     "verdict": "pass"
   },
   "M9-T2": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "b4c3b3ed5d4e95e4852e03ee56dbf1db5d9ae2eeb38b0629362592b57932631c",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "7219483a0c1994d75ec1a4d229ed8f2514df7fb3b9f33e23a68e9d3a17f05430",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 d8c19381f374 变为 b4c3b3ed5d4e；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T2 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/lib/spine-shape.ts:21 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:51:27.702242+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1295,14 +1187,14 @@
     "verdict": "pass"
   },
   "M9-T24": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "cdbd86c4b6056325e4b64c64d6ff3da7bb5daf970bf71e59b9ef6dc831869766",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "c2fd4d42080ffadf38256e08c0ae473cf042010aa2512dbc012195cba57400e6",
     "evidence": [
-      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
-      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
-      "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
+      "M9-T24 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/postcss.config.cjs:17 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-21T17:17:18.488911+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1319,14 +1211,14 @@
     "verdict": "pass"
   },
   "M9-T26": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "da2b999edb665bde5d21686bb464ad6ec6ec013d3562fc52889158aa3bbc59ba",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "e400d8196ac64b11a9696cc77b55be0cf7d163e5e8ef7d72b8a05e99362abdb3",
     "evidence": [
-      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
-      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。",
-      "已落地任务复验：main 7333b35 上本任务代码与测试未变，前置 M10-T4 的字体打包产物（packages/web/public/fonts 六个 woff2、fonts.css 六条 @font-face）也未变，补丁只是澄清 E-176 措辞，不改任何被本任务消费的产物。"
+      "M9-T26 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/app/bootstrap.ts:94 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-21T17:17:33.357472+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1342,93 +1234,86 @@
     "verdict": "pass"
   },
   "M9-T3": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "060dda2b88455c70ec86772fef720c44b9c88f46c8f1cf00c02f41cced3966cd",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "c46c3482b9365a4f56a0895d25d8a4ac21d95d520762810094d40d0a3a6c180e",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 2e62425716e3 变为 060dda2b8845；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T3 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/app/routes.tsx:9 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:51:41.765577+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T4": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "cd863fd2a5ab14eb779909b72b36b74b449f345097bc1ea916d0c8f878a61f64",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "8edc3efa5a2f9f97a1c230deb91dbf50432532f15596960885010a64dbb64efd",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 1131b2e6866c 变为 cd863fd2a5ab；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T4 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/api/base-url.ts:18 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:51:55.398925+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T5": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "b66e536d5cef58df485269827811a0e7b807fd92675cb6fa5225d3c4af5cd833",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "678c5f2ba8716aaef0f4209be739ecb230b83175b2b023135eba4fe17822f6cc",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 80c1f48da2ee 变为 b66e536d5cef；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T5 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/api/sse-client.ts:61 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:52:08.762598+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T6": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "57fb01deb6d3ae0d34d1af3b74369bbe07011491aeac767cb128506696828914",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "21b8f3bab485bb24911fa56e1c16bea92862a649cc1e99d2ad18ba8db3f8ca90",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 33bef4ad95b4 变为 57fb01deb6d3；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T6 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/api/event-bus.ts:10 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:52:21.947770+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T7": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "c7a70bb1890c1ca931be69c2ab7f78c79cc211a2c0924f01aafa7d1af4486db9",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "c70e27b55c3dc3b0c179d4d3721c5cf951a326f307590f508ed292ca40f5b8cf",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 9f80fa5f7cab 变为 c7a70bb1890c；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T7 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/components/spine.tsx:32 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:52:36.337635+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T8": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "a95845bbdcc55deb152e016eb7ff854ca9788673d660cb2ceac5eb9638a36119",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "4a3d76b029cec1686b7ecfe53295fdad4a1fe6907f22e3b86f94288a1dabfc63",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 7713788dcae2 变为 a95845bbdcc5；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T8 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/shared/src/api/runs.ts:246 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:52:49.888640+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T9": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "2763eafee133b02e7a81fe2889e6e84f0d422e8826d59e4723508e1c48e49ec9",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+    "contractHash": "369cc4cdf2a51e89b85166a199516e6012f8883470593e3f8e429db1ec2fe948",
     "evidence": [
-      "复验触发：补丁 wiring-audit-20260919 使本任务契约哈希由 6d276b84193e 变为 2763eafee133；机械比对 changes.before/after 的 context，除 sections 外（task 行、edges、effectivePaths、definition、architecture、design、handoff、skills）逐字段相等，本任务自身的要求与范围未变。",
-      "变化的共享章节：02-设计/06-系统架构与模块划分.md、02-设计/07-前端架构.md、02-设计/09-数据模型.md、02-设计/10-接口约定.md、03-质量/17-测试策略.md、04-执行/18-部署与运维.md。",
-      "本补丁对共享章节的改动：06 节末尾新增「接线注册表」小节（九类注册点表）；07 节壳能力加第四件 launchService() 并写死 bootstrap.ts 注入点、目录树 app/ 加 bootstrap；08 节 di 段与后台工作段各加一段「容器装配是接线终点 / 五个 job 必须进 jobs 数组」；09 节 tasks 表加 assignment_draft_json、runs 表加 session_no、兼容策略加第 9 条；10 节端点表加 GET/POST /batches/:batchId/assignments 两行、字段级契约加四行、示例加一段；17 节分层表加「端到端冒烟」一行并新增同名小节；18 节新增「分发形态」小节。以上均为新增段落或新增表行，未删改任何既有条款。",
-      "新增条款的承接方：接线注册表与容器/路由/样式/壳/事件五条链路由本补丁新增的 M1-T11、M2-T7、M2-T8、M7-T9、M8-T10、M8-T11、M9-T24、M9-T25、M9-T26、M10-T6 认领；指派草稿/会话序号/并发预览归 M8-T11 与 M9-T18。以上不给本任务追加任何验收条款，main 上已合入代码不需改动，无代码差异不开新 PR。"
+      "M9-T9 任务笔记为 status: done；当前 HEAD 的回填代码位置 packages/web/src/hooks/use-breakpoint.ts:63 存在且行号有效；本轮只复核 revalidation.json 列出的变化字段：sections:02-设计/10-接口约定.md。",
+      "两次 m9-t19-prereqs-gates-get 补丁的 10 节源差异均仅增列 GET /api/v1/settings/gates，并在闸门三值字段说明增加 GET 返回当前值；共享章节其他条款未变。当前 shared ROUTES、daemon gates 路由和 Web 闸门容器均已接线；路由一致性与闸门组件等聚焦测试 67/67 通过。",
+      "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
-    "reviewed": "2026-09-18T18:53:03.092237+00:00",
+    "reviewed": "2026-09-23T14:40:42.067194+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

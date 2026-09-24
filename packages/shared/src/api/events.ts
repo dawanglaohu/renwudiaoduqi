@@ -1,8 +1,16 @@
 import type { LoginState } from './agents.ts';
 import type { BatchState } from './batches.ts';
-import type { GateSettings } from './settings.ts';
+import type { GateSettings, PipelineSettings } from './settings.ts';
 
-export type EventScope = 'run' | 'task' | 'batch' | 'agent' | 'system' | 'lane' | 'settings';
+export type EventScope =
+	| 'run'
+	| 'task'
+	| 'batch'
+	| 'agent'
+	| 'system'
+	| 'lane'
+	| 'settings'
+	| 'document';
 
 export const EVENT_SCOPES = [
 	'run',
@@ -12,6 +20,7 @@ export const EVENT_SCOPES = [
 	'system',
 	'lane',
 	'settings',
+	'document',
 ] as const satisfies readonly EventScope[];
 
 /**
@@ -43,12 +52,15 @@ export const EVENT_DEFINITIONS = {
 	'task.review_verdict': { scope: 'task', milestone: true },
 	'task.landed': { scope: 'task', milestone: true },
 	'task.sessions_archived': { scope: 'task', milestone: true },
+	'lane.assigned': { scope: 'lane', milestone: true },
 	'lane.released': { scope: 'lane', milestone: true },
 	'batch.advanced': { scope: 'batch', milestone: true },
 	'batch.wrapup_started': { scope: 'batch', milestone: true },
 	'batch.wrapup_finished': { scope: 'batch', milestone: true },
 	'agent.availability_changed': { scope: 'agent', milestone: true },
 	'settings.gates_changed': { scope: 'settings', milestone: true },
+	'settings.pipeline_changed': { scope: 'settings', milestone: true },
+	'document.settings_changed': { scope: 'document', milestone: true },
 	'system.disk_warning': { scope: 'system', milestone: true },
 	'system.docs_changed': { scope: 'system', milestone: true },
 } as const;
@@ -86,12 +98,15 @@ const EVENT_KIND_VALUES = [
 	'task.review_verdict',
 	'task.landed',
 	'task.sessions_archived',
+	'lane.assigned',
 	'lane.released',
 	'batch.advanced',
 	'batch.wrapup_started',
 	'batch.wrapup_finished',
 	'agent.availability_changed',
 	'settings.gates_changed',
+	'settings.pipeline_changed',
+	'document.settings_changed',
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
@@ -131,12 +146,15 @@ export const PRODUCT_EVENT_KINDS = [
 	'task.review_verdict',
 	'task.landed',
 	'task.sessions_archived',
+	'lane.assigned',
 	'lane.released',
 	'batch.advanced',
 	'batch.wrapup_started',
 	'batch.wrapup_finished',
 	'agent.availability_changed',
 	'settings.gates_changed',
+	'settings.pipeline_changed',
+	'document.settings_changed',
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
@@ -309,10 +327,32 @@ export interface SettingsGatesChangedPayload {
 	readonly [key: string]: unknown;
 }
 
+export interface SettingsPipelineChangedPayload {
+	readonly pipeline: PipelineSettings;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface DocumentSettingsChangedPayload {
+	readonly docId: string;
+	readonly laneCount: number;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface LaneAssignedPayload {
+	readonly docId: string | null;
+	readonly laneNo: number;
+	readonly taskId: string | null;
+	readonly runId: string;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
 export interface LaneReleasedPayload {
 	readonly docId: string | null;
 	readonly laneNo: number | null;
-	readonly taskId: string;
+	readonly taskId: string | null;
 	readonly runId: string;
 	readonly reason: 'landed' | 'awaiting_human' | 'failed' | 'aborted' | 'interrupted';
 	readonly vendor?: unknown;
@@ -416,12 +456,15 @@ export interface EventPayloadMap {
 	readonly 'task.review_verdict': TaskReviewVerdictPayload;
 	readonly 'task.landed': TaskLandedPayload;
 	readonly 'task.sessions_archived': TaskSessionsArchivedPayload;
+	readonly 'lane.assigned': LaneAssignedPayload;
 	readonly 'lane.released': LaneReleasedPayload;
 	readonly 'batch.advanced': BatchAdvancedPayload;
 	readonly 'batch.wrapup_started': BatchWrapupStartedPayload;
 	readonly 'batch.wrapup_finished': BatchWrapupFinishedPayload;
 	readonly 'agent.availability_changed': AgentAvailabilityChangedPayload;
 	readonly 'settings.gates_changed': SettingsGatesChangedPayload;
+	readonly 'settings.pipeline_changed': SettingsPipelineChangedPayload;
+	readonly 'document.settings_changed': DocumentSettingsChangedPayload;
 	readonly 'system.disk_warning': SystemDiskWarningPayload;
 	readonly 'system.docs_changed': SystemDocsChangedPayload;
 }
@@ -457,3 +500,20 @@ export function isMilestoneEventKind(kind: string): boolean {
 export function assertNever(value: never, message = 'Unhandled discriminated union member'): never {
 	throw new Error(`${message}: ${JSON.stringify(value)}`);
 }
+
+/**
+ * Machine check for E-334:
+ * The scope of every product event kind (<scope>.<past_tense_verb>) must strictly match its prefix.
+ */
+type CheckProductKindScopePrefix<K extends EventKind> = K extends `${infer S}.${string}`
+	? (typeof EVENT_DEFINITIONS)[K]['scope'] extends S
+		? true
+		: never
+	: true;
+
+type AssertProductKindScopePrefix = [
+	{ [K in EventKind]: CheckProductKindScopePrefix<K> }[EventKind],
+] extends [true]
+	? true
+	: never;
+const _assertProductKindScopePrefix: AssertProductKindScopePrefix = true;

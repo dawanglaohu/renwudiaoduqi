@@ -5,6 +5,7 @@ import {
 	isPermissionTier,
 	resolvePermissionMapping,
 } from '../../domain/permission-tier.ts';
+import { AppError } from '../../errors/app-error.ts';
 import type { LaunchSpec } from '../../proc/spawn.ts';
 
 export type CodexLaunchMode = 'app-server' | 'exec';
@@ -24,6 +25,12 @@ export interface BuildCodexLaunchSpecOptions {
 	readonly envDenylist?: readonly string[];
 	readonly customArgs?: readonly string[];
 	readonly adapterKind?: AdapterKind;
+	/**
+	 * 恢复已结束的厂商会话（E-112）：codex 的恢复形式是 `codex exec resume <SESSION_ID> <PROMPT>`。
+	 * 只有 `exec` 模式能带 `resume` 子命令；app-server 模式的 thread/resume 握手本产品未实现，
+	 * 传入即报错，绝不静默开一个全新会话冒充恢复。
+	 */
+	readonly resumeSessionRef?: string | null;
 	readonly label?: string;
 	readonly windowsComSpecPath?: string;
 }
@@ -47,8 +54,27 @@ export function buildCodexLaunchSpec(options: BuildCodexLaunchSpecOptions): Laun
 	}
 
 	const args: string[] = [];
+	const resumeSessionRef =
+		options.resumeSessionRef && options.resumeSessionRef.trim().length > 0
+			? options.resumeSessionRef.trim()
+			: null;
 
 	if (mode === 'app-server') {
+		if (resumeSessionRef) {
+			throw new AppError(
+				'E_CAPABILITY_UNSUPPORTED',
+				'codex app-server session resume is not implemented; resume requires exec mode.',
+				{
+					details: {
+						agentId: 'codex',
+						mode,
+						capability: 'canResume',
+						resumeSessionRef,
+					},
+				},
+			);
+		}
+
 		// Primary mode: codex app-server --listen stdio://
 		args.push('app-server', '--listen', 'stdio://');
 
@@ -94,6 +120,11 @@ export function buildCodexLaunchSpec(options: BuildCodexLaunchSpecOptions): Laun
 
 		if (options.promptFile && options.promptFile.trim().length > 0) {
 			args.push('--output-schema', options.promptFile.trim());
+		}
+
+		// 恢复会话：`codex exec [OPTIONS] resume <SESSION_ID> <PROMPT>`，会话引用与提示词都进启动参数。
+		if (resumeSessionRef) {
+			args.push('resume', resumeSessionRef);
 		}
 
 		if (options.prompt && options.prompt.trim().length > 0) {
