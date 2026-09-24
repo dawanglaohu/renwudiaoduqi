@@ -191,14 +191,14 @@
     "verdict": "pass"
   },
   "M10-T6": {
-    "compiler": "bd64a57e9ead7044282c5fc5073f33d5e43202f365df4c5218ab8df96300effd",
-    "contractHash": "33b6f49252171dffb79215c92e366663ce0e40aa8256309acc6d25e7cbda6a98",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "357f18beefd97d6f1c95514077fbeb250d1d256323839b8bf59ddb5ed21c369c",
     "evidence": [
-      "2026-09-23 PR #134 第 2 轮：R4 要求完整 pnpm -w check 绿灯；本分支 c1d7e893 对六个 daemon 测试和 vitest.config.ts 的改动均为此门禁的测试稳定性修复，新增的七条 supportPaths 与实际 diff 一一对应，没有放宽生产路径或验收条款。",
-      "sync 后只影响 M10-T6，status 的 stale、runtimeDrift 和 blockers 均为空，契约哈希为 33b6f49252171dffb79215c92e366663ce0e40aa8256309acc6d25e7cbda6a98；五条验收与七条边界均保留。",
-      "本机在 c1d7e893 执行 pnpm -w check 退出 0：Biome、TypeScript 与 173 个测试文件通过，2100 项通过、3 项跳过。M8-T8 在 container-wiring.test.ts 存在并行改动，原 PR 落地前需合并当前 main 并按最终 diff 复跑；其它具体产品验收和三平台 CI 仍由 PR 审查独立判定。"
+      "2026-09-24 PR #134 R4: Windows full check failed at packages/daemon/test/unit/worktree.test.ts:942 because Git porcelain returns forward slashes while node:path.resolve creates backslashes for the same worktree. This is a test path-representation mismatch; the test still checks the rebuilt branch, committed file, and cleanup.",
+      "Added only packages/daemon/test/unit/worktree.test.ts to M10-T6 supportPaths for the final gate repair. The assertion compares node:path.resolve on both returned paths. The focused 26-test worktree file passes on Windows.",
+      "After sync, pnpm -w check exits 0 with error-code scan, contrast, forbidden-pattern scan, Biome, TypeScript, and Vitest all executed: 184 files passed, 2202 tests passed, 2 skipped. This passes the local and contract-patch checks only; final-head GitHub Windows, macOS, and Ubuntu desktop shell smoke is still required before R4 can pass."
     ],
-    "reviewed": "2026-09-23T13:09:48.177233+00:00",
+    "reviewed": "2026-09-24T03:34:21.623697+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

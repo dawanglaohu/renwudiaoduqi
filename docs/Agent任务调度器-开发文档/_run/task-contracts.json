@@ -1528,6 +1528,7 @@
         "packages/daemon/test/unit/diff.test.ts",
         "packages/daemon/test/unit/landing.test.ts",
         "packages/daemon/test/unit/platform.test.ts",
+        "packages/daemon/test/unit/worktree.test.ts",
         "packages/shell-desktop/launchers/evaluate-release-gate.ts",
         "packages/shell-desktop/src/platform-support.ts",
         "packages/shell-mobile/src/mobile-bridge.ts",

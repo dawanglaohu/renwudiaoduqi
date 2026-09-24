@@ -939,7 +939,7 @@ detached
 				});
 				expect(rebuilt.isReused).toBe(true);
 				expect(rebuilt.branchName).toBe('task/M5-T1');
-				expect(rebuilt.worktreePath).toBe(prep1.worktreePath);
+				expect(resolve(rebuilt.worktreePath)).toBe(resolve(prep1.worktreePath));
 				const headBranch = await defaultRunner.run(
 					['rev-parse', '--abbrev-ref', 'HEAD'],
 					rebuilt.worktreePath,
