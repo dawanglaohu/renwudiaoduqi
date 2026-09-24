@@ -945,6 +945,7 @@ export function prepareReviewRun(
 export interface DispatchReviewRunInput extends PrepareReviewRunInput {
 	readonly autoSpawn?: boolean;
 	readonly onRunInserted?: (runId: string) => void;
+	readonly beforeRunInsert?: () => void;
 }
 
 /**
@@ -976,6 +977,7 @@ export async function dispatchReviewRun(
 	// Persist review run record (inside UnitOfWork if provided)
 	if (deps.runsRepo) {
 		const persist = () => {
+			input.beforeRunInsert?.();
 			if (deps.runsRepo) {
 				// E-303 / M6-T10 AC6: the same guard every other service insert site performs.
 				// Round 1 has no session ref, so this is a no-op today; it stays correct when a

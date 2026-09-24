@@ -957,6 +957,9 @@ export function createContainer(input: {
 			settingsService,
 			getBatchGateOverrides: (batchId: string) => dispatchService.getBatchGateOverrides(batchId),
 			sessionArchiveService,
+			logstorePaths,
+			logFs,
+			logstore: logstoreService,
 		});
 
 	gateServiceHolder.current = gateService;

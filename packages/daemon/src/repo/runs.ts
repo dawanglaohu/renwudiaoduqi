@@ -402,7 +402,7 @@ export function toRunDto(row: RunRow): RunDto {
 		inHeadCheckedAt: row.in_head_checked_at ?? null,
 		branchTipSha: row.branch_tip_sha ?? null,
 		promptSource: (row.prompt_source as RunDto['promptSource']) ?? null,
-		assignmentSource: (row.assignment_source as RunDto['assignmentSource']) ?? null,
+		assignmentSource: (row.assignment_source as RunDto['assignmentSource']) ?? 'task',
 		sessionNo: row.session_no ?? null,
 	});
 }
@@ -541,7 +541,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		LEFT JOIN tasks t ON r.task_id = t.id
 		WHERE (r.batch_id = ? OR t.batch_id = ?)
 		  AND r.kind = 'implement'
-		  AND (r.state = 'landed' OR t.manual_state = 'landed')
+		  AND r.state = 'landed'
 		  AND r.attempt_no = (
 		    SELECT MAX(r2.attempt_no) FROM runs r2
 		    WHERE r2.task_id = r.task_id AND r2.kind = 'implement'

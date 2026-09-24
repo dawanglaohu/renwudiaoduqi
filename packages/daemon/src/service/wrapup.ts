@@ -1102,6 +1102,9 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						agentId: string;
 						modelName: string | null;
 						effortTier: string | null;
+						effortVendor: string | null;
+						assignmentSource: string;
+						assignmentSerialized: string;
 						latestImplRun: RunRow | null;
 					}> = [];
 
@@ -1121,7 +1124,19 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 								? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
 								: null;
 
-						const agentId = latestImplRun?.agent_id;
+						const assignmentReader = createAssignmentReader({
+							runsRepo: deps.runsRepo,
+							dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+						});
+						const taskAssignment = latestImplRun
+							? assignmentReader.readTaskAssignment(latestImplRun.id)
+							: null;
+						const resolved = resolveAssignment({
+							stage: 'wrapup-fix',
+							taskAssignment,
+						});
+
+						const agentId = resolved.agentId || latestImplRun?.agent_id;
 						if (!agentId || !isAgentAvailable(agentId)) {
 							// AC 1: agent 不可用则该组不派并计入 unassigned
 							for (const item of group.items) {
@@ -1129,6 +1144,20 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							}
 							continue;
 						}
+
+						const modelName = resolved.modelName ?? null;
+						const effortTier = resolved.effortTier ?? null;
+						const effortVendor = resolved.effortVendor ?? null;
+						const assignmentSource = resolved.source ?? 'task';
+						const assignmentSerialized = assignmentReader.serializeTaskAssignment({
+							agentId,
+							modelName,
+							effortTier,
+							effortVendor,
+							source: assignmentSource,
+							followedTaskId: resolved.followedTaskId ?? null,
+							capturedAt: now,
+						});
 
 						// E-300 / R5: 每任务同时只允许一条在途修复运行；后到的合并进落地清单提示而不再派
 						const inFlightFix = taskRuns.find((r) => {
@@ -1168,6 +1197,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									contract_hash: task.contract_hash,
 									task_paths_json: task.task_paths_json ?? '[]',
 									launch_spec_json: existingSnapshot?.launch_spec_json ?? '{}',
+									assignmentJson: assignmentReader.getRawAssignmentJson(existingSnapshot),
 									created_at: now,
 								});
 								deps.runsRepo.updateSnapshotId?.(inFlightFix.id, mergedSnapshotId);
@@ -1180,8 +1210,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							task,
 							items: group.items,
 							agentId,
-							modelName: latestImplRun?.model_name ?? null,
-							effortTier: latestImplRun?.effort_tier ?? null,
+							modelName,
+							effortTier,
+							effortVendor,
+							assignmentSource,
+							assignmentSerialized,
 							latestImplRun,
 						});
 					}
@@ -1245,6 +1278,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									contract_hash: candidate.task.contract_hash,
 									task_paths_json: candidate.task.task_paths_json ?? '[]',
 									launch_spec_json: JSON.stringify(fixLaunchSpec),
+									assignmentJson: candidate.assignmentSerialized,
 									created_at: now,
 								});
 							}
@@ -1302,10 +1336,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									agent_id: candidate.agentId,
 									model_name: candidate.modelName,
 									effort_tier: candidate.effortTier,
+									effort_vendor: candidate.effortVendor ?? null,
 									snapshot_id: fixSnapshotId,
 									queued_reason: queuedReason,
 									idempotency_key: `wrapup-fix-${runId}-${candidate.task.id}`,
-									assignment_source: 'task',
+									assignment_source: candidate.assignmentSource,
 									actor_device_id: null,
 									started_at: null,
 									ended_at: null,

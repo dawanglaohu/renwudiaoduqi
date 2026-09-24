@@ -25,7 +25,7 @@ import {
 	countActiveRunsForAgent,
 } from '../domain/concurrency.ts';
 import { computeDispatchCandidates } from '../domain/dispatch-candidates.ts';
-import { assertVendorEffortInDomain, toEffortColumns } from '../domain/effort-value.ts';
+import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import { deriveLanes } from '../domain/lanes.ts';
 import {
@@ -633,19 +633,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		const now = deps.clock.now();
-		const effortColumns = toEffortColumns(input.effort ?? null);
-		const launchSpecJson = JSON.stringify({
-			agentId,
-			model: input.model ?? null,
-			permissionTier: input.permissionTier ?? 'workspaceWrite',
-			baseRef: input.baseRef ?? { kind: 'head' },
-			worktreeMode: input.worktreeMode ?? 'fresh',
-		});
-
-		const existingRuns = runsRepo.listByTaskId(taskId);
-		const attemptNo = existingRuns.length + 1;
-		const runId = deps.ids.newId();
-
 		const resolvedAssignment = resolveAssignment({
 			stage: 'implement',
 			body: {
@@ -655,6 +642,19 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			},
 			agentDefaults: createAgentDefaultsLookup(deps.agentRegistry),
 		});
+
+		const launchSpecJson = JSON.stringify({
+			agentId,
+			model: resolvedAssignment.modelName ?? null,
+			effort: resolvedAssignment.effortTier ?? null,
+			permissionTier: input.permissionTier ?? 'workspaceWrite',
+			baseRef: input.baseRef ?? { kind: 'head' },
+			worktreeMode: input.worktreeMode ?? 'fresh',
+		});
+
+		const existingRuns = runsRepo.listByTaskId(taskId);
+		const attemptNo = existingRuns.length + 1;
+		const runId = deps.ids.newId();
 
 		const assignmentSnapshot = {
 			agentId,
@@ -688,9 +688,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				parent_run_id: input.parentRunId ?? null,
 				state: 'starting',
 				agent_id: agentId,
-				model_name: input.model ?? null,
-				effort_tier: effortColumns.effort_tier,
-				effort_vendor: effortColumns.effort_vendor,
+				model_name: resolvedAssignment.modelName ?? null,
+				effort_tier: resolvedAssignment.effortTier ?? null,
+				effort_vendor: resolvedAssignment.effortVendor ?? null,
 				permission_tier: input.permissionTier ?? 'workspaceWrite',
 				snapshot_id: snapshot.id,
 				assignment_source: resolvedAssignment.source ?? 'task',
@@ -751,7 +751,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					taskId,
 					attemptNo,
 					agentId,
-					model: input.model ?? null,
+					model: resolvedAssignment.modelName ?? null,
 				},
 			});
 			if (deps.runService) {
@@ -1890,14 +1890,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								continue;
 							}
 
-							const effortColumns = toEffortColumns(item.draft?.effort ?? null);
-							const launchSpecJson = JSON.stringify({
-								agentId: item.agentId,
-								model: item.draft?.model ?? null,
-								permissionTier: 'workspaceWrite',
-								baseRef: { kind: 'head' },
-								worktreeMode: 'fresh',
-							});
 							const tickResolved = resolveAssignment({
 								stage: 'implement',
 								body: {
@@ -1906,6 +1898,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 									effort: item.draft?.effort ?? null,
 								},
 								agentDefaults: createAgentDefaultsLookup(deps.agentRegistry),
+							});
+							const launchSpecJson = JSON.stringify({
+								agentId: item.agentId,
+								model: tickResolved.modelName ?? null,
+								effort: tickResolved.effortTier ?? null,
+								permissionTier: 'workspaceWrite',
+								baseRef: { kind: 'head' },
+								worktreeMode: 'fresh',
 							});
 							const tickAssignmentSnapshot = {
 								agentId: item.agentId,
@@ -1933,9 +1933,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								parent_run_id: null,
 								state: 'starting',
 								agent_id: item.agentId,
-								model_name: item.draft?.model ?? null,
-								effort_tier: effortColumns.effort_tier,
-								effort_vendor: effortColumns.effort_vendor,
+								model_name: tickResolved.modelName ?? null,
+								effort_tier: tickResolved.effortTier ?? null,
+								effort_vendor: tickResolved.effortVendor ?? null,
 								permission_tier: 'workspaceWrite',
 								snapshot_id: snapshot.id,
 								assignment_source: tickResolved.source ?? 'task',

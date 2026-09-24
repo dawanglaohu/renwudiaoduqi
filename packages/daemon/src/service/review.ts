@@ -1645,6 +1645,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		let missingMaterialReason: string | null = null;
 		let snapshotId: string | null = null;
 		let targetSnapshotId: string | null = null;
+		let pendingSubSnapshotInsert: (() => void) | null = null;
 		let assignmentSource = 'task';
 		let reviewContext: ReviewContext | null = null;
 		let assignment: ReviewAgentAssignment | null = null;
@@ -1759,7 +1760,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 										deps.agentRegistry?.getSnapshot().agents[overrideAgentId] ?? {};
 									const launchSpecJson = JSON.stringify(agentConfig);
 
-									const insertSubSnapshot = () => {
+									pendingSubSnapshotInsert = () => {
 										deps.dispatchSnapshotsRepo?.insert({
 											id: subSnapshotId,
 											task_id: snapshot.task_id,
@@ -1779,11 +1780,6 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 										});
 									};
 
-									if (deps.unitOfWork) {
-										deps.unitOfWork.run(insertSubSnapshot);
-									} else {
-										insertSubSnapshot();
-									}
 									targetSnapshotId = subSnapshotId;
 								}
 							}
@@ -2026,6 +2022,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					diffText,
 					diffStat,
 					autoSpawn: true,
+					beforeRunInsert: pendingSubSnapshotInsert ?? undefined,
 					onRunInserted: (insertedId) => {
 						reviewRunId = insertedId;
 					},

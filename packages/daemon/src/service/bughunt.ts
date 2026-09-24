@@ -117,9 +117,9 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				taskAssignment,
 			});
 			const agentId = resolved.agentId || implRun.agent_id;
-			const modelName = resolved.modelName ?? implRun.model_name ?? null;
+			const modelName = resolved.modelName ?? null;
 			const effortTier = resolved.effortTier ?? null;
-			const effortVendor = resolved.effortVendor ?? implRun.effort_vendor ?? null;
+			const effortVendor = resolved.effortVendor ?? null;
 			const assignmentSource = resolved.source ?? 'task';
 
 			// agent 可用性检查（E-328）

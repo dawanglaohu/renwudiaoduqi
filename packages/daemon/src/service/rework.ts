@@ -1647,6 +1647,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		});
 
 		let assignmentSource = 'task';
+		let resolvedAssignment: ReturnType<typeof resolveAssignment> | null = null;
 		const assignmentReader = deps.snapshotsRepo
 			? createAssignmentReader({
 					runsRepo: deps.runsRepo,
@@ -1655,11 +1656,11 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			: null;
 		if (assignmentReader) {
 			const taskAssignment = assignmentReader.readTaskAssignment(targetRun.id);
-			const resolved = resolveAssignment({
+			resolvedAssignment = resolveAssignment({
 				stage: 'rework',
 				taskAssignment,
 			});
-			assignmentSource = resolved.source ?? 'task';
+			assignmentSource = resolvedAssignment.source ?? 'task';
 		}
 
 		// 若快照仓储支持写入，将新会话自包含提示词固化为新快照
@@ -1679,9 +1680,20 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				task_paths_json: snapshot.task_paths_json ?? '[]',
 				launch_spec_json: snapshot.launch_spec_json,
 				assignmentJson: assignmentReader
-					? assignmentReader.getRawAssignmentJson(
+					? (assignmentReader.getRawAssignmentJson(
 							snapshot as unknown as Parameters<typeof assignmentReader.getRawAssignmentJson>[0],
-						)
+						) ??
+						(resolvedAssignment
+							? assignmentReader.serializeTaskAssignment({
+									agentId: resolvedAssignment.agentId || targetRun.agent_id,
+									modelName: resolvedAssignment.modelName ?? null,
+									effortTier: resolvedAssignment.effortTier ?? null,
+									effortVendor: resolvedAssignment.effortVendor ?? null,
+									source: resolvedAssignment.source ?? 'task',
+									followedTaskId: resolvedAssignment.followedTaskId ?? null,
+									capturedAt: now,
+								})
+							: null))
 					: null,
 				parentSnapshotId: snapshot.id,
 				created_at: now,
@@ -1699,11 +1711,19 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			spawned_by_run_id: input.reviewRunId ?? null,
 			parent_run_id: null,
 			state: 'starting',
-			agent_id: targetRun.agent_id,
-			model_name: targetRun.model_name,
+			agent_id: resolvedAssignment
+				? resolvedAssignment.agentId || targetRun.agent_id
+				: targetRun.agent_id,
+			model_name: resolvedAssignment
+				? (resolvedAssignment.modelName ?? null)
+				: targetRun.model_name,
 			reported_model: targetRun.reported_model,
-			effort_tier: targetRun.effort_tier,
-			effort_vendor: targetRun.effort_vendor ?? null,
+			effort_tier: resolvedAssignment
+				? (resolvedAssignment.effortTier ?? null)
+				: targetRun.effort_tier,
+			effort_vendor: resolvedAssignment
+				? (resolvedAssignment.effortVendor ?? null)
+				: (targetRun.effort_vendor ?? null),
 			reported_effort: targetRun.reported_effort,
 			permission_tier: targetRun.permission_tier,
 			snapshot_id: snapshotIdToUse,

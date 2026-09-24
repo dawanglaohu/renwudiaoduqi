@@ -595,7 +595,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						latestExitedTails.set(runId, stderrTailLines);
 						const eventStderrTail = Array.isArray(process.stderrTailLines)
 							? stderrTailLines
-							: process.stderrTail || stderrTailLines;
+							: typeof process.stderrTail === 'string'
+								? redactSecrets(process.stderrTail)
+								: stderrTailLines;
 
 						// 1. spawn 抛错、启动超时及 starting 状态抢先退出必须落定 starting → failed (R3)
 						if (isStarting) {
@@ -640,55 +642,120 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								run?.origin === 'wrapup-fix';
 
 							if (isImplementLike) {
-								if (run && !isTerminalRunState(run.state)) {
-									if (run.state !== 'exited') {
-										await transitionState({
-											runId,
-											targetState: 'exited',
-											reason: 'exited_before_output',
+								const pendingEnvelopes: EventEnvelope[] = [];
+								const now = deps.clock.now();
+								const taskId = run?.taskId ?? (run as { task_id?: string | null })?.task_id ?? null;
+
+								const executeZeroOutputInTx = () => {
+									const currentRun = deps.runsRepo?.findById(runId);
+									if (!currentRun || isTerminalRunState(currentRun.state)) {
+										return;
+									}
+
+									let state = currentRun.state;
+									if (state !== 'exited') {
+										assertValidTransition(state, 'exited', { reason: 'exited_before_output' });
+										deps.runsRepo?.updateState({
+											id: runId,
+											fromState: state,
+											toState: 'exited',
+											queuedReason: 'exited_before_output',
+											endedAt: now,
 											exitCode: result.exitCode,
 											exitSignal: result.signal ? String(result.signal) : null,
 										});
+										if (deps.envelopeFactory) {
+											pendingEnvelopes.push(
+												deps.envelopeFactory.createEnvelope({
+													kind: 'run.state_changed',
+													runId,
+													taskId,
+													actorDeviceId: run?.actorDeviceId ?? null,
+													payload: {
+														from: state,
+														to: 'exited',
+														reason: 'exited_before_output',
+													},
+												}),
+											);
+										}
+										state = 'exited';
 									}
+
 									// 第一跳: exited -> reviewing
-									await transitionState({
-										runId,
-										targetState: 'reviewing',
-										reason: 'exited_before_output',
+									assertValidTransition('exited', 'reviewing', { reason: 'exited_before_output' });
+									deps.runsRepo?.updateState({
+										id: runId,
+										fromState: 'exited',
+										toState: 'reviewing',
+										queuedReason: 'exited_before_output',
 									});
-									// 第二跳: reviewing -> awaiting_human
-									await transitionState({
-										runId,
-										targetState: 'awaiting_human',
-										reason: 'exited_before_output',
-									});
-								}
-
-								let laneReleasedEnvelope: EventEnvelope | null = null;
-								const now = deps.clock.now();
-								const taskId = run?.taskId ?? null;
-
-								// AC 7: 同一事务内完成：reviewing -> awaiting_human、新建闸门 comment exited_before_output、
-								// lane_no 置 NULL 并收集 lane.released
-								const persistGateAndLane = () => {
-									if (deps.tasksRepo && taskId) {
-										const laneRes = deps.tasksRepo.clearLaneNo(taskId);
-										if (laneRes.changes === 1 && deps.envelopeFactory) {
-											laneReleasedEnvelope = deps.envelopeFactory.createEnvelope({
-												kind: 'lane.released',
-												taskId,
+									if (deps.envelopeFactory) {
+										pendingEnvelopes.push(
+											deps.envelopeFactory.createEnvelope({
+												kind: 'run.state_changed',
 												runId,
+												taskId,
 												actorDeviceId: run?.actorDeviceId ?? null,
 												payload: {
-													docId: laneRes.docId,
-													laneNo: laneRes.previousLaneNo,
+													from: 'exited',
+													to: 'reviewing',
+													reason: 'exited_before_output',
+												},
+											}),
+										);
+									}
+
+									// 第二跳: reviewing -> awaiting_human
+									assertValidTransition('reviewing', 'awaiting_human', {
+										reason: 'exited_before_output',
+									});
+									deps.runsRepo?.updateState({
+										id: runId,
+										fromState: 'reviewing',
+										toState: 'awaiting_human',
+										queuedReason: 'exited_before_output',
+										endedAt: now,
+									});
+									if (deps.envelopeFactory) {
+										pendingEnvelopes.push(
+											deps.envelopeFactory.createEnvelope({
+												kind: 'run.state_changed',
+												runId,
+												taskId,
+												actorDeviceId: run?.actorDeviceId ?? null,
+												payload: {
+													from: 'reviewing',
+													to: 'awaiting_human',
+													reason: 'exited_before_output',
+												},
+											}),
+										);
+									}
+
+									// 释放泳道
+									if (deps.tasksRepo && taskId) {
+										const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+										if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+											pendingEnvelopes.push(
+												deps.envelopeFactory.createEnvelope({
+													kind: 'lane.released',
 													taskId,
 													runId,
-													reason: 'awaiting_human',
-												},
-											});
+													actorDeviceId: run?.actorDeviceId ?? null,
+													payload: {
+														docId: laneRes.docId,
+														laneNo: laneRes.previousLaneNo,
+														taskId,
+														runId,
+														reason: 'awaiting_human',
+													},
+												}),
+											);
 										}
 									}
+
+									// 创建闸门
 									if (deps.gatesRepo) {
 										const gateId = deps.ids
 											? `gate_${deps.ids.newId()}`
@@ -706,15 +773,30 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								};
 
 								if (deps.unitOfWork) {
-									deps.unitOfWork.run(persistGateAndLane);
+									deps.unitOfWork.run(executeZeroOutputInTx);
 								} else {
-									persistGateAndLane();
+									executeZeroOutputInTx();
+								}
+
+								// 事务外：落盘与事件总线发布
+								for (const event of pendingEnvelopes) {
+									const appendResult = await deps.logstore.appendEvent(runId, event);
+									if (deps.bus) {
+										const locationRef = appendResult?.location
+											? {
+													fileSeq: appendResult.location.fileSeq,
+													byteOffset: appendResult.location.byteOffset,
+													byteLen: appendResult.location.byteLen,
+												}
+											: undefined;
+										deps.bus.publish(event, locationRef);
+									}
 								}
 
 								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
 									kind: 'run.exited',
 									runId,
-									taskId: run?.taskId ?? null,
+									taskId,
 									actorDeviceId: run?.actorDeviceId ?? null,
 									payload: {
 										exitCode: result.exitCode,
@@ -724,10 +806,6 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								});
 								await ingestEvent(runId, exitedEnvelope);
 								await closeRunStream(runId);
-
-								if (laneReleasedEnvelope && deps.bus) {
-									deps.bus.publish(laneReleasedEnvelope);
-								}
 
 								// 事务后复探登录态（dsh 不探）
 								const agentId = run?.agent_id ?? run?.agentId;

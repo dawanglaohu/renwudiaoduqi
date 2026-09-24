@@ -1,4 +1,6 @@
+import { join } from 'node:path';
 import { type EventEnvelope, isMilestoneEventKind } from '@agent-scheduler/shared/api/events';
+import type { GateContextStderrTail } from '@agent-scheduler/shared/api/gates';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { AppendQueue } from '../logstore/append-queue.ts';
@@ -13,7 +15,7 @@ import type {
 	SegmentRowLike,
 } from '../logstore/contract.ts';
 import { isEnoent, toFilesystemError } from '../logstore/fs-errors.ts';
-import type { LogstorePaths } from '../logstore/paths.ts';
+import { type LogstorePaths, parseSegmentFileName } from '../logstore/paths.ts';
 import { parseEnvelopeLine, readSegmentPage } from '../logstore/read-window.ts';
 import {
 	type AppendResult,
@@ -84,6 +86,8 @@ export interface LogstoreService {
 	appendEvent(runId: string, envelope: EventEnvelopeInput): Promise<AppendEventResult>;
 	/** Paged read across segments: the cursor always advances; the tail is signalled. */
 	readEventsPage(runId: string, cursor: string | undefined): Promise<ReadSegmentResult>;
+	/** Bounded read of the latest run.exited event stderrTail. */
+	readLatestRunExited?(runId: string): Promise<GateContextStderrTail>;
 	/** Bounded scan-and-repair for one run. */
 	repairRun(runId: string): Promise<RepairRunReport>;
 	/** Bounded scan-and-repair for every run found in log_segments or on disk. */
@@ -417,6 +421,7 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 		appendRaw,
 		appendEvent,
 		readEventsPage,
+		readLatestRunExited: (runId: string) => readRunExitedStderrTail({ paths, fs, runId }),
 		repairRun,
 		repairAll,
 	});
@@ -509,4 +514,113 @@ function splitBytesLines(
 		});
 	}
 	return lines;
+}
+
+export interface ReadRunExitedTailOptions {
+	readonly paths: LogstorePaths;
+	readonly fs: LogFileSystem;
+	readonly runId: string;
+	readonly altRunDir?: string;
+}
+
+const BOUNDED_READ_WINDOW_BYTES = 64 * 1024;
+const MAX_SEARCH_SPAN_BYTES = 256 * 1024;
+
+export async function readRunExitedStderrTail(
+	options: ReadRunExitedTailOptions,
+): Promise<GateContextStderrTail> {
+	const { paths, fs, runId, altRunDir } = options;
+
+	const candidateDirs = [paths.runDir(runId)];
+	if (altRunDir && altRunDir !== paths.runDir(runId)) {
+		candidateDirs.push(altRunDir);
+	}
+
+	let targetFile: string | null = null;
+
+	for (const dir of candidateDirs) {
+		let names: readonly string[] = [];
+		try {
+			names = fs.listDirectory(dir);
+		} catch {
+			continue;
+		}
+
+		const eventFiles: { name: string; fileSeq: number }[] = [];
+		for (const name of names) {
+			const parsed = parseSegmentFileName(name);
+			if (parsed?.stream === 'events') {
+				eventFiles.push({ name, fileSeq: parsed.fileSeq });
+			}
+		}
+
+		if (eventFiles.length > 0) {
+			eventFiles.sort((a, b) => b.fileSeq - a.fileSeq);
+			const top = eventFiles[0];
+			if (top) {
+				targetFile = join(dir, top.name);
+				break;
+			}
+		}
+	}
+
+	if (!targetFile) {
+		return { kind: 'unavailable', reason: 'event_missing', lines: [] };
+	}
+
+	let fileLen: number | null = null;
+	try {
+		fileLen = fs.fileLenSync(targetFile);
+	} catch {
+		return { kind: 'unavailable', reason: 'event_missing', lines: [] };
+	}
+
+	if (fileLen === null || fileLen === 0) {
+		return { kind: 'unavailable', reason: 'event_missing', lines: [] };
+	}
+
+	let currentEnd = fileLen - 1;
+	let totalBytesRead = 0;
+	let residualText = '';
+
+	while (currentEnd >= 0 && totalBytesRead < MAX_SEARCH_SPAN_BYTES) {
+		const chunkSize = Math.min(currentEnd + 1, BOUNDED_READ_WINDOW_BYTES);
+		const start = currentEnd + 1 - chunkSize;
+		let chunkBytes: Uint8Array;
+		try {
+			chunkBytes = await fs.readRange(targetFile, start, currentEnd);
+		} catch {
+			return { kind: 'unavailable', reason: 'event_missing', lines: [] };
+		}
+		totalBytesRead += chunkBytes.length;
+
+		const chunkText = Buffer.from(chunkBytes).toString('utf8') + residualText;
+		const lines = chunkText.split(/\r?\n/);
+		if (start > 0) {
+			residualText = lines.shift() ?? '';
+		} else {
+			residualText = '';
+		}
+
+		for (let i = lines.length - 1; i >= 0; i--) {
+			const line = lines[i]?.trim();
+			if (!line || !line.includes('"run.exited"')) continue;
+			try {
+				const parsed = JSON.parse(line);
+				if (parsed.kind === 'run.exited') {
+					const tail = parsed.payload?.stderrTail;
+					if (Array.isArray(tail)) {
+						return { kind: 'lines', lines: tail };
+					}
+					return { kind: 'unavailable', reason: 'legacy_run', lines: [] };
+				}
+			} catch {
+				// parse failure on incomplete line, continue
+			}
+		}
+
+		currentEnd = start - 1;
+	}
+
+	return { kind: 'unavailable', reason: 'event_missing', lines: [] };
 }

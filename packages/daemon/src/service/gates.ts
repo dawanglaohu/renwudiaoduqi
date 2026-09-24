@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { LoginState } from '@agent-scheduler/shared/api/agents';
 import type { BatchGateOverrides } from '@agent-scheduler/shared/api/batches';
@@ -23,6 +22,9 @@ import { type RunState, isTerminalRunState } from '../domain/run-state-machine.t
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { LogFileSystem } from '../logstore/contract.ts';
+import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
+import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
@@ -31,6 +33,7 @@ import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { AgentService } from './agents.ts';
 import type { BatchService } from './batch.ts';
+import { type LogstoreService, readRunExitedStderrTail } from './logstore.ts';
 import type { ReworkService } from './rework.ts';
 import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 import type { SettingsService } from './settings.ts';
@@ -56,6 +59,9 @@ export interface GateServiceDeps {
 	readonly agentService?: AgentService;
 	readonly getRunExitedTail?: (runId: string) => { readonly stderrTail?: readonly string[] } | null;
 	readonly dataDir?: string;
+	readonly logstorePaths?: LogstorePaths;
+	readonly logFs?: LogFileSystem;
+	readonly logstore?: LogstoreService;
 }
 
 export interface GateService {
@@ -116,10 +122,10 @@ function rowToGateDto(row: GateRow, context?: GateContext | null): GateDto {
 export function createGateService(deps: GateServiceDeps): GateService {
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
 
-	function resolveGateContext(
+	async function resolveGateContext(
 		row: GateRow,
 		overrideAgentService?: AgentService,
-	): GateContext | null {
+	): Promise<GateContext | null> {
 		if (row.comment !== 'exited_before_output') {
 			return null;
 		}
@@ -143,42 +149,25 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				kind: 'lines',
 				lines: memTail.stderrTail,
 			};
+		} else if (deps.logstore?.readLatestRunExited) {
+			stderrTail = await deps.logstore.readLatestRunExited(runId);
 		} else {
-			const candidates = [
-				deps.dataDir ? join(deps.dataDir, runId, 'events.ndjson') : null,
-				deps.dataDir ? join(deps.dataDir, 'runs', runId, 'events.ndjson') : null,
-			].filter((c): c is string => Boolean(c));
-
-			let foundFile = false;
-			for (const path of candidates) {
-				if (existsSync(path)) {
-					foundFile = true;
-					try {
-						const content = readFileSync(path, 'utf8');
-						const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-						for (let i = lines.length - 1; i >= 0; i--) {
-							const line = lines[i];
-							if (line?.includes('"run.exited"')) {
-								try {
-									const parsed = JSON.parse(line);
-									if (parsed.kind === 'run.exited') {
-										const tail = parsed.payload?.stderrTail;
-										if (Array.isArray(tail)) {
-											stderrTail = { kind: 'lines', lines: tail };
-										} else {
-											stderrTail = { kind: 'unavailable', reason: 'legacy_run', lines: [] };
-										}
-										break;
-									}
-								} catch {}
-							}
-						}
-					} catch {}
-					break;
-				}
-			}
-			if (!foundFile && stderrTail.kind === 'unavailable') {
-				stderrTail = { kind: 'unavailable', reason: 'event_missing', lines: [] };
+			const fs = deps.logFs ?? createNodeLogFileSystem();
+			const paths =
+				deps.logstorePaths ??
+				(deps.dataDir
+					? createLogstorePaths(
+							deps.dataDir.endsWith('runs') ? deps.dataDir : join(deps.dataDir, 'runs'),
+						)
+					: null);
+			if (paths) {
+				const altRunDir = deps.dataDir ? join(deps.dataDir, runId) : undefined;
+				stderrTail = await readRunExitedStderrTail({
+					paths,
+					fs,
+					runId,
+					altRunDir,
+				});
 			}
 		}
 
@@ -716,8 +705,13 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			readonly agentService?: AgentService;
 		}): Promise<ListGatesResponse> {
 			const rows = deps.gatesRepo.list(params);
+			const gates = await Promise.all(
+				rows.map(async (row) =>
+					rowToGateDto(row, await resolveGateContext(row, params?.agentService)),
+				),
+			);
 			return Object.freeze({
-				gates: rows.map((row) => rowToGateDto(row, resolveGateContext(row, params?.agentService))),
+				gates,
 			});
 		},
 
