@@ -1150,14 +1150,15 @@
   },
   "M9-T21": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "223c4e44aaf3773b97031d225bd219dee696624c3158296f68d129c09fa99977",
+    "contractHash": "93d8f6e24207ad91d0ca2b7321abc27ec276bf57e40419653a9373fecbf59590",
     "evidence": [
-      "19 节 M9-T21 行（第 99 行）：依赖 M9-T9、M9-T7、M9-T19、M9-T20 在前置闭包；产出 components/pipeline-lane.tsx、stage-chain.tsx、lane-history-row.tsx、lane-run-strip.tsx、stream-column.tsx 外壳改写、spine.tsx 两字段、lib/stage-rows.ts、lib/spine-shape.ts LOOP_PIECES、features/run-deck 三个容器、api/lanes.ts，全部在 taskPaths；cache-keys/cache-invalidation、两个 store、tokens.css、ui-strings、check-forbidden、七个测试文件与 shared lanes/snapshot/events 在 supportPaths；sections 含 7/11/12",
-      "验收 1)～10) 逐条对应：07 节「泳道同样不算」段与「补充需求 2026-09-12 的泳道组件」清单（第 138 行起：props 形状、只读靠无 callback、不测量 DOM、阶段字面量禁令）、缓存失效表五条新映射、lib 清单 stage-rows、check-forbidden 五条新禁令；11 节「运行轨——一个任务的流水线」（含返工回环行）、「任务流水线泳道」四段结构（第 375 行起）、空闲泳道与停靠任务、紧凑档不折（决策 95）、断点表手机运行条；12 节流程六与交互反馈三行；决策 90、95、97、98、104、105；E-306、E-307、E-309、E-313～E-315、E-317、E-319、E-324～E-326、E-332、E-333；17 节 E-313～E-325 行与 E-236 泳道维度矩阵",
-      "接缝：lanes[] 字段（含 nextBlockedBy / archivedWrapupRunId / overLimit）与 10 节快照契约一致；收口泳道沿用 M9-T20 的 StreamColumn kind='wrapup' 头部不重画；pulse-dot 与 @keyframes 沿用 M9-T19 的唯一动画规则（回环无动画）",
-      "只新增 M9-T20 的真实收口消息适配器支持路径；M9-T21 的任务定义与验收条款未改。"
+      "本次仅补既定入口接线所需有效路径，不修改 M9-T21 的产出、验收标准或边界。07-前端架构明确 use-lanes.ts 与 lanes-container.tsx 是泳道唯一容器；甲板当前经 pages/deck-page.tsx:2-12 到 run-deck-container.tsx:291-307，再到 run-deck-view.tsx:585/739，仍只渲染旧 StreamColumn；新增 LanesContainer 与 LaneStepsContainer 没有生产调用方。",
+      "原有效路径缺 run-deck-container.tsx、run-deck-view.tsx、types.ts，入口接线与必要的数据传递无法在范围内完成。已把三项和两个聚焦回归测试路径 lanes-container.test.tsx、lanes-api.test.ts 加入 M9-T21.supportPaths；未开放整个 features 或 test 目录。当前开放 PR #144 只改配对入口、CI 与文档，没有这些路径的交集；M9-T22 尚无开放 PR。",
+      "接口与前置不变：shared LaneView 的 laneNo/taskId/currentRunId/stage/nextTaskId/nextBlockedBy/archivedTaskIds/archivedWrapupRunId/overLimit 与 10 节快照字段一致；事件 kind 已在 shared/api/events.ts 注册。新路径用于消费这些既有字段并保留 M9-T19/M9-T20 的批次树、停止、闸门与收口入口，不改变 daemon 业务判断。",
+      "代码审查结论仍为 rework：入口未接线，步骤容器未接入，历史按 taskId 合并跨泳道运行，手机档有稀疏 laneNo 导航错误，且 PR 尚无真实服务 GIF。契约补丁登记 pass 仅说明任务要求和有效范围已复核，不表示代码验收通过。",
+      "本轮验证：PR #143 head 87bcbf5404d02f1128b9b7875acea18eda97da65；七个本任务聚焦 Vitest 文件 78/78 通过；pnpm -w check 的 error-code、contrast、forbidden、Biome、TypeScript 阶段通过，全量 Vitest 为 188/189 文件通过，diff.test.ts 30 秒超时及 dispatch-spawn 日志清理异常；两文件以 --maxWorkers=1 --minWorkers=1 定点复跑 38/38 通过，说明本次全量失败是并行执行下的环境干扰，未据此归因于 M9-T21。"
     ],
-    "reviewed": "2026-09-24T03:13:46.507291+00:00",
+    "reviewed": "2026-09-24T07:14:08.344834+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
