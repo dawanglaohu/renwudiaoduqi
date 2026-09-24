@@ -188,9 +188,6 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # linuxdeploy's older strip cannot process all system ELF sections on
-          # Ubuntu runners; keep the bundled libraries intact for AppImage.
-          NO_STRIP: ${{ matrix.platform == 'linux' && 'true' || '' }}
         run: pnpm --filter @agent-scheduler/shell-desktop tauri build --bundles "${{ matrix.bundles }}" --ci --verbose
 
       - name: Verify and Name Installer Assets (E-259, E-265)
