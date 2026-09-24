@@ -38,20 +38,24 @@ function extractBundle(bundlePath: string, outputDir: string, platform: string):
 	const extension = bundlePath.toLowerCase();
 	if (extension.endsWith('.msi')) {
 		if (platform !== 'win32') throw new Error('An MSI bundle can only be expanded on Windows.');
+		// Keep the administrative extraction path ASCII. The smoke runs the
+		// extracted product from outputDir, which exercises the Unicode runtime path.
+		const adminDir = join(dirname(outputDir), 'msi-admin-image');
 		const logPath = join(dirname(outputDir), 'msi-extraction.log');
+		mkdirSync(adminDir, { recursive: true });
 		const args = [
 			'/a',
 			resolve(bundlePath),
 			'/qn',
 			'/norestart',
-			`TARGETDIR=${resolve(outputDir)}`,
+			`TARGETDIR=${resolve(adminDir)}`,
 			'/L*V',
 			logPath,
 		];
 		const result = spawnSync('msiexec.exe', args, {
 			stdio: 'inherit',
 			shell: false,
-			timeout: 15 * 60_000,
+			timeout: 5 * 60_000,
 		});
 		if (result.error || result.status !== 0) {
 			const logTail = existsSync(logPath)
@@ -61,6 +65,7 @@ function extractBundle(bundlePath: string, outputDir: string, platform: string):
 				`MSI expansion failed (${result.error?.message ?? `exit ${result.status}`}):\n${logTail}`,
 			);
 		}
+		cpSync(adminDir, outputDir, { recursive: true, force: true });
 		return;
 	}
 
