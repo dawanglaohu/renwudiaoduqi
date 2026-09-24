@@ -1,6 +1,6 @@
 import io
 
-P = "D:/xiangmu/renwudiaoduqi/docs/Agent任务调度器-开发文档/00-概览/01-概述与目标.md"
+P = "D:/workspace/renwudiaoduqi/docs/Agent任务调度器-开发文档/00-概览/01-概述与目标.md"
 s = io.open(P, encoding="utf-8").read()
 
 # 决策 48/49 已推翻决策 9 的前提：docs-data.js 的 payload 里没有批次、也没有窗口数，

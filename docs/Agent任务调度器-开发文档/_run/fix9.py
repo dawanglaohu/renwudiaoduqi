@@ -1,6 +1,6 @@
 import io
 
-D = "D:/xiangmu/renwudiaoduqi/docs/Agent任务调度器-开发文档/"
+D = "D:/workspace/renwudiaoduqi/docs/Agent任务调度器-开发文档/"
 p = D + "04-执行/21-风险与未决事项.md"
 s = io.open(p, encoding="utf-8").read()
 

@@ -503,7 +503,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 
 		const spec: LaunchSpec = {
 			runId: 'run-win-cmd',
-			file: 'C:\\Users\\admin\\AppData\\Roaming\\npm\\grok.cmd',
+			file: 'C:\\Users\\example\\AppData\\Roaming\\npm\\grok.cmd',
 			args: ['--worktree', 'C:\\repo with spaces', '--model', 'grok-2'],
 			cwd: 'C:\\repo',
 			windowsComSpecPath: 'C:\\Windows\\System32\\cmd.exe',
@@ -519,7 +519,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		expect(capturedArgs[1]).toBe('/s');
 		expect(capturedArgs[2]).toBe('/c');
 		// ComSpec command line contains the script and escaped args
-		expect(capturedArgs[3]).toContain('C:\\Users\\admin\\AppData\\Roaming\\npm\\grok.cmd');
+		expect(capturedArgs[3]).toContain('C:\\Users\\example\\AppData\\Roaming\\npm\\grok.cmd');
 		expect(capturedOptions.shell).toBe(false);
 		expect(capturedOptions.windowsHide).toBe(true);
 		expect(capturedOptions.windowsVerbatimArguments).toBe(true); // AC 2

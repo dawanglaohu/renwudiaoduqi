@@ -1,6 +1,6 @@
 import io
 
-D = "D:/xiangmu/renwudiaoduqi/docs/Agent任务调度器-开发文档/"
+D = "D:/workspace/renwudiaoduqi/docs/Agent任务调度器-开发文档/"
 p = D + "02-设计/10-接口约定.md"
 
 lines = io.open(p, encoding="utf-8").read().split("\n")

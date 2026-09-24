@@ -648,7 +648,7 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 		it('E-264: identifies and rejects Windows drive or UNC path on POSIX without converting, keeping value intact', async () => {
 			const config = {
 				...BUILT_IN_AGENT_DEFAULTS.claude,
-				execPath: 'C:\\Users\\admin\\AppData\\Roaming\\npm\\claude.cmd',
+				execPath: 'C:\\Users\\example\\AppData\\Roaming\\npm\\claude.cmd',
 			};
 
 			const result = await probeAgent({

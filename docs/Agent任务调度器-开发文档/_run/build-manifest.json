@@ -4,13 +4,13 @@
     "00-概览/01-概述与目标.md": "215668de16e766e1699a9b736ea876ea1f3c32bda1fcf9713233e0f0403a000f",
     "00-概览/02-非目标.md": "87645b4af715977167fd32376e81f976b733e0872e87e5d7a27a17d3f9d1becc",
     "00-概览/03-术语表.md": "cd45c9a2e0f95ebff27b684b11c4526bc412ee7c35ae04a6232cb8096d10350d",
-    "01-约束/04-开发条件.md": "c4fa311c85a7a7febf5a4495b009361774d284881feee42b25fc9b397c12b1f0",
+    "01-约束/04-开发条件.md": "92765aa262059a7ffc93aad6fe9386d6f0d2136b15b2a198f19106e2dc5954d3",
     "01-约束/05-技术栈.md": "7f840f229df1189ef751eabb939f7847ca5604696ce406446ca00c727eddc51d",
     "02-设计/06-系统架构与模块划分.md": "07ccd0b2651e387907be2abb455f3e5c101688504aa3bff7bacd1b41a64432a8",
     "02-设计/07-前端架构.md": "2955cf76f9ef61edff643bce696ad9326f56bb43f92e12808b7eb5379cb6f4fd",
     "02-设计/08-后端架构.md": "29384f290682bf5b54e6fca5dd3d70fda5e4321a696474c72fe2d657e42f8a7a",
     "02-设计/09-数据模型.md": "f8e1c3d0bfd336d7c3983a97801924df3a4e6dde76757fdd718a1e7a78d6bf7f",
-    "02-设计/10-接口约定.md": "5d9010db859e8fa3c1681d6cb91b01694a8b5f2c929fe75cdec2182bfc360de5",
+    "02-设计/10-接口约定.md": "ccbd73f69e0146a35c81c1467c045e4b7f30c5811d8bc6897d91899077191cb0",
     "02-设计/11-UI.md": "6633f85a9bf5da5b161d4b426c7a2bb6deec9ad4496edad1e3d1874b4e7d66b8",
     "02-设计/12-UX.md": "4d67a71c2a9a0e7e462c1d8f0a796a365a994ba5be04e7885d4757f7f72d2421",
     "03-质量/13-边界问题与异常处理.md": "5f22b41c222cbc1caf0d5f4b39384faed858b7eddea5301ca9280cb0d4cd6c7b",
@@ -21,7 +21,7 @@
     "04-执行/18-部署与运维.md": "786beb5a984dd6abb88421a6dd106763e3a3b19fd20e3173811097ccffdb0ae6",
     "04-执行/19-模块任务拆分.md": "d33682fdd9000d4c6171aa8ad4d3f5d4ea3425e2515d525e3c2f5ddb9c3b907b",
     "04-执行/20-里程碑与交付顺序.md": "d184752ddf3429eb26c7be1463eb36986b758dcd97d7e241edb6450d9c9a61f7",
-    "04-执行/21-风险与未决事项.md": "fd98aed14af37c360f9df49ee829fc2ffabf6bd53a19f1fe55e4382b87dd8617",
+    "04-执行/21-风险与未决事项.md": "efd8b20a095569aa97b1185472b4b0367cff7c7abfe3eaa3326a3f0fc04c1fc9",
     "05-附录/22-决策记录.md": "6f255b47023960119a696076a1520cc1960d936fd63fac37495b84a310654974",
     "05-附录/23-变更记录.md": "7cd7a276a67c97a1ca3498ce7f9be6e4c22ce1c2c1d50c7223f3049ba3a6a535",
     "05-附录/24-参考资料.md": "eec613e723bff7847e309724b2c12f0d8eb447a3b1cff7ce169eae0bd02cc070",
@@ -35,12 +35,12 @@
   },
   "products": {
     "_MOC.md": "325993513261fe854426169a7e2bbb44a7e7da69de6cc942cb73a7a76414085d",
-    "_run/dispatch.json": "12c679e44efac9ee6cb54b6d51c66479a957a9c779876e673a4bf354c6f32052",
-    "_run/review.json": "26c8a2ad8424adf1255ce5e2d0a562140f1890a611ca048191fd9af90decb934",
+    "_run/dispatch.json": "fd1ce8a928e10b9b8ad2a5daaf44184e35033c9c2ca038d96882449b393def3c",
+    "_run/review.json": "422035d1fe1ac0cc3606661e91e79904c731eadac1c1af78a372e50a6ba639be",
     "_run/task-reviews.json": "ecc627fbcecf1fdc73e55668910717895d5c3f85c2ca0051a11ca565d5249eb6",
-    "docs-data.js": "d90b85d7629d646a1b0dde1e8d22f13182ad6fc0c512c574316d851f83f90812",
+    "docs-data.js": "98c1a17e326ca5abb4e4183b4e7c935fc6c5c51805ab008fae888ca7bbbf1094",
     "index.html": "f2ddcba5a883cc52807abedbf664750f4a98c6feb6aff4529051fb3acfbfbb0d"
   },
   "schemaVersion": 1,
-  "sourceVersion": "d8ad3029bd761accbec0c606aa1082bdc527c446e17ee9a34f65a35ad81294db"
+  "sourceVersion": "1a21349ee5c977751da534ef0ab4df8e1c32b1669eb677ca1fd5098c2c050adc"
 }
