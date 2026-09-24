@@ -739,8 +739,10 @@
     },
     "M9-T21": {
       "supportPaths": [
+        "packages/web/src/pages/deck-page.tsx",
         "packages/web/src/features/run-deck/run-deck-container.tsx",
         "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-deck/use-run-deck.ts",
         "packages/web/src/features/run-deck/types.ts",
         "packages/web/test/lanes-container.test.tsx",
         "packages/web/test/lanes-api.test.ts",

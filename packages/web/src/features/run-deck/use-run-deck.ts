@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigateTo } from '../../app/routes.tsx';
 import { type DensityTier, useDensityTier } from '../../hooks/use-breakpoint.ts';
+import { useSelectionStore } from '../../store/selection-store.ts';
 import {
 	type DeckStreamLane,
 	MOBILE_INITIAL_TAIL_BYTES,
@@ -218,7 +219,8 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 	);
 
 	// ─── 手机端当前查看的泳道序号与稀疏导航（AC 1, AC 9, E-324, R3） ───
-	const [activeMobileLaneNo, setActiveMobileLaneNo] = useState<number>(1);
+	const activeMobileLaneNo = useSelectionStore((state) => state.mobileLaneNo);
+	const setActiveMobileLaneNo = useSelectionStore((state) => state.setMobileLaneNo);
 
 	// 按 laneNo 升序排列
 	const sortedLanes = useMemo(() => [...lanes].sort((a, b) => a.laneNo - b.laneNo), [lanes]);
@@ -254,7 +256,7 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 				setActiveMobileLaneNo(targetItem.laneNo);
 			}
 		}
-	}, [sortedLanes, currentSortedIndex, activeMobileLaneNo]);
+	}, [sortedLanes, currentSortedIndex, activeMobileLaneNo, setActiveMobileLaneNo]);
 
 	const currentMobileLane = useMemo(() => {
 		if (sortedLanes.length === 0 || currentSortedIndex < 0) return undefined;
@@ -271,7 +273,7 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 				setActiveMobileLaneNo(prevLane.laneNo);
 			}
 		}
-	}, [currentSortedIndex, sortedLanes]);
+	}, [currentSortedIndex, sortedLanes, setActiveMobileLaneNo]);
 
 	const handleNextMobileLane = useCallback(() => {
 		if (currentSortedIndex >= 0 && currentSortedIndex < sortedLanes.length - 1) {
@@ -280,11 +282,14 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 				setActiveMobileLaneNo(nextLane.laneNo);
 			}
 		}
-	}, [currentSortedIndex, sortedLanes]);
+	}, [currentSortedIndex, sortedLanes, setActiveMobileLaneNo]);
 
-	const selectMobileLane = useCallback((laneNo: number) => {
-		setActiveMobileLaneNo(laneNo);
-	}, []);
+	const selectMobileLane = useCallback(
+		(laneNo: number) => {
+			setActiveMobileLaneNo(laneNo);
+		},
+		[setActiveMobileLaneNo],
+	);
 
 	// 统计处于等待审批状态的泳道总计数（E-240）
 	const totalWaitingCount = useMemo(() => {

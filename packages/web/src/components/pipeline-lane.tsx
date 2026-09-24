@@ -37,6 +37,15 @@ export interface PipelineLaneProps extends HTMLAttributes<HTMLElement> {
 		readonly taskKey?: string;
 		readonly title?: string;
 		readonly bodySlot?: ReactNode;
+		readonly agentMonogram?: string;
+		readonly agentName?: string;
+		readonly modelName?: string;
+		readonly refSource?: string;
+		readonly tokenCount?: number | string | null;
+		readonly cost?: number | string | null;
+		readonly errorMessage?: string;
+		readonly refBarSlot?: ReactNode;
+		readonly footSlot?: ReactNode;
 	};
 	/** 当前运行任务对象（若当前正在跑任务） */
 	readonly task?: TaskDto | null;
@@ -68,6 +77,9 @@ export interface PipelineLaneProps extends HTMLAttributes<HTMLElement> {
 	readonly historyRuns?: readonly RunDto[];
 	/** 历史收口运行对象（若为收口泳道且之前跑过收口） */
 	readonly historyWrapupRun?: RunDto | null;
+	readonly historyWrapupRound?: number | null;
+	readonly historyWrapupBatchNo?: number | null;
+	readonly historyWrapupVerdict?: 'clean' | 'fixed' | 'open' | null;
 	/** 收口所属批次序号 */
 	readonly wrapupBatchNo?: number | null;
 	/** 收口轮次 */
@@ -101,6 +113,9 @@ export function PipelineLane({
 	historyTask,
 	historyRuns = [],
 	historyWrapupRun,
+	historyWrapupRound,
+	historyWrapupBatchNo,
+	historyWrapupVerdict,
 	wrapupBatchNo,
 	wrapupRound,
 	reworkCount,
@@ -136,10 +151,11 @@ export function PipelineLane({
 
 	const latestArchivedRun = findLatestRun(effectiveHistoryRuns);
 
-	const taskReworkCount =
-		reworkCount ?? runs.find((r) => (r.reworkCount ?? 0) > 0)?.reworkCount ?? 0;
-	const historyReworkCount =
-		effectiveHistoryRuns.find((r) => (r.reworkCount ?? 0) > 0)?.reworkCount ?? 0;
+	const taskReworkCount = reworkCount ?? Math.max(0, ...runs.map((run) => run.reworkCount ?? 0));
+	const historyReworkCount = Math.max(
+		0,
+		...effectiveHistoryRuns.map((run) => run.reworkCount ?? 0),
+	);
 
 	// 衍生历史行的阶段链（若存在历史任务）
 	const historyStageRows = hasHistory
@@ -150,7 +166,7 @@ export function PipelineLane({
 				reworkCount: historyReworkCount,
 				readOnly: true,
 				isWrapup: hasArchivedWrapup,
-				wrapupRound: historyWrapupRun?.attemptNo ?? 1,
+				wrapupRound: historyWrapupRound ?? null,
 				currentRunId: hasArchivedWrapup
 					? (lane.archivedWrapupRunId ?? historyWrapupRun?.id ?? null)
 					: null,
@@ -183,9 +199,7 @@ export function PipelineLane({
 			? (getRunDurationMs(historyWrapupRun) ?? 0)
 			: 0
 		: effectiveHistoryRuns.reduce((acc, r) => acc + (getRunDurationMs(r) ?? 0), 0);
-	const historyVerdict = hasArchivedWrapup
-		? (historyWrapupRun?.reviewVerdict as 'clean' | 'fixed' | 'open' | null)
-		: null;
+	const historyVerdict = hasArchivedWrapup ? (historyWrapupVerdict ?? null) : null;
 
 	return (
 		<StreamColumn
@@ -196,9 +210,18 @@ export function PipelineLane({
 			currentRunId={lane.currentRunId}
 			taskKey={task?.taskKey ?? lane.taskKey}
 			title={task?.title ?? lane.title}
-			wrapupRound={isWrapup ? (wrapupRound ?? currentRun?.attemptNo ?? 1) : null}
+			wrapupRound={isWrapup ? wrapupRound : null}
 			wrapupBatchNo={isWrapup ? wrapupBatchNo : null}
 			status={laneStatus}
+			agentMonogram={lane.agentMonogram}
+			agentName={lane.agentName}
+			modelName={lane.modelName}
+			refSource={lane.refSource}
+			tokenCount={lane.tokenCount}
+			cost={lane.cost}
+			errorMessage={lane.errorMessage}
+			refBarSlot={lane.refBarSlot}
+			footSlot={lane.footSlot}
 			tier={tier}
 			isTouch={isTouch}
 			isExpanded={isExpanded}
@@ -226,8 +249,8 @@ export function PipelineLane({
 							stageRows={historyStageRows}
 							onOpenRun={onOpenRun}
 							isWrapup={hasArchivedWrapup}
-							wrapupRound={historyWrapupRun?.attemptNo ?? 1}
-							wrapupBatchNo={wrapupBatchNo}
+							wrapupRound={historyWrapupRound}
+							wrapupBatchNo={historyWrapupBatchNo}
 							wrapupVerdict={historyVerdict}
 							isTouch={isTouch}
 							defaultExpanded={defaultHistoryExpanded}

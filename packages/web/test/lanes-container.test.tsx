@@ -6,6 +6,8 @@
  * 覆盖 R1, R2, R3, R4 阻断项（AC 1, 2, 5, 6, 7b, 8, 9; E-106, E-313, E-314, E-315, E-317, E-319, E-324, E-325, E-333）
  */
 
+import type { BatchWrapupDto } from '@agent-scheduler/shared/api/batches';
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { LaneView, PipelineStage } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
@@ -13,7 +15,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { LaneStepItem } from '../src/features/run-deck/lane-steps-container.tsx';
-import { LanesContainer } from '../src/features/run-deck/lanes-container.tsx';
+import { LanesContainer, mapEventsToLaneSteps } from '../src/features/run-deck/lanes-container.tsx';
 import { RunDeckView } from '../src/features/run-deck/run-deck-view.tsx';
 import type { DeckStreamLane } from '../src/features/run-deck/types.ts';
 import { DeckPage } from '../src/pages/deck-page.tsx';
@@ -38,7 +40,7 @@ function createMockTask(partial: Partial<TaskDto> = {}): TaskDto {
 function createMockRun(
 	partial: Partial<Omit<RunDto, 'parentRunId' | 'reviewVerdict'>> & {
 		parentRunId?: string | null;
-		reviewVerdict?: RunDto['reviewVerdict'] | 'clean' | 'fixed' | 'open';
+		reviewVerdict?: RunDto['reviewVerdict'];
 	} = {},
 ): RunDto {
 	return {
@@ -98,6 +100,15 @@ function createMockSteps(): readonly LaneStepItem[] {
 }
 
 describe('M9-T21 返工 R1: 真实甲板与步骤接线 (AC 1, AC 2, E-315, E-333)', () => {
+	it('tool_call 与 tool_call_update 按 callId 更新同一步骤', () => {
+		const events = [
+			{ id: 1, kind: 'tool_call', payload: { callId: 'call-1', tool: 'read_file' } },
+			{ id: 2, kind: 'tool_call_update', payload: { callId: 'call-1', output: 'done' } },
+		] as EventEnvelope[];
+		expect(mapEventsToLaneSteps(events)).toMatchObject([
+			{ id: 'call-1', tool: 'read_file', status: 'succeeded' },
+		]);
+	});
 	it('紧凑档（compact）下步骤只显示最后一步，展开后显示全部步骤', () => {
 		const steps = createMockSteps();
 		const lane = createMockLane({
@@ -202,6 +213,45 @@ describe('M9-T21 返工 R1: 真实甲板与步骤接线 (AC 1, AC 2, E-315, E-33
 		// 验证 StreamColumn 的停止按钮存在
 		expect(html).toContain('data-action="stop-stream"');
 	});
+
+	it('活动收口泳道在阶段链之外保留报告面板和真实轮次', () => {
+		const html = renderToStaticMarkup(
+			createElement(RunDeckView, {
+				lanes: [
+					{
+						laneNo: 1,
+						kind: 'wrapup',
+						currentRunId: 'run-wrapup',
+						batchId: 'batch-1',
+						wrapupRound: 2,
+						wrapupBatchNo: 3,
+					},
+				],
+				rawLanes: [
+					createMockLane({
+						laneNo: 1,
+						stage: 'wrapup',
+						currentRunId: 'run-wrapup',
+					}),
+				],
+				runs: [createMockRun({ id: 'run-wrapup', kind: 'wrapup', taskId: null })],
+				tier: 'full',
+				isTouch: false,
+				width: 1200,
+				expandedLaneNo: null,
+				toggleExpandLane: vi.fn(),
+				stoppingLanes: new Set<number>(),
+				handleStopLane: vi.fn(),
+				userPreference: 'auto',
+				togglePreference: vi.fn(),
+				scrollContainerRef: { current: null },
+				offScreenWaiting: { left: 0, right: 0 },
+				scrollToLane: vi.fn(),
+			}),
+		);
+		expect(html).toContain('data-component="wrapup-panel"');
+		expect(html).toContain('批次收口 · 第 2 轮 · 第 3 批');
+	});
 });
 
 describe('M9-T21 返工 R2: 实际 run ID、运行时序与归档泳道隔离 (AC 5, AC 6; E-313, E-314, E-325)', () => {
@@ -263,7 +313,6 @@ describe('M9-T21 返工 R2: 实际 run ID、运行时序与归档泳道隔离 (A
 			kind: 'wrapup',
 			attemptNo: 2,
 			state: 'landed',
-			reviewVerdict: 'fixed',
 			startedAt: '2025-01-01T05:00:00.000Z',
 			endedAt: '2025-01-01T05:05:00.000Z',
 		});
@@ -278,6 +327,27 @@ describe('M9-T21 返工 R2: 实际 run ID、运行时序与归档泳道隔离 (A
 			createElement(LanesContainer, {
 				lanes: [lane],
 				runs: [wrapupRun],
+				wrapups: [
+					{
+						id: 'wrapup-1',
+						batchId: 'batch-1',
+						batchNo: 3,
+						tasks: [],
+						round: 2,
+						runId: wrapupRun.id,
+						verdict: 'fixed',
+						declaredVerdict: 'fixed',
+						isHumanVerdict: false,
+						promptSource: 'docs',
+						tests: { status: 'pass', items: [] },
+						summaryText: '',
+						findings: [],
+						unassigned: [],
+						fixRunIds: [],
+						reportText: '',
+						createdAt: '2025-01-01T05:05:00.000Z',
+					},
+				] satisfies BatchWrapupDto[],
 				overrideTier: 'full',
 			}),
 		);
@@ -285,6 +355,7 @@ describe('M9-T21 返工 R2: 实际 run ID、运行时序与归档泳道隔离 (A
 		expect(html).toContain('data-slot="lane-history"');
 		expect(html).toContain('批次收口');
 		expect(html).toContain('第 2 轮');
+		expect(html).toContain('第 3 批');
 		expect(html).toContain('已修');
 	});
 });

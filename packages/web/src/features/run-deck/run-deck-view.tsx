@@ -17,6 +17,7 @@
  * - 甲板严禁出现横向滚动类名（check-forbidden 与 E-145）
  */
 
+import type { BatchWrapupDto } from '@agent-scheduler/shared/api/batches';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
@@ -169,6 +170,7 @@ export interface RunDeckViewProps extends UseRunDeckResult {
 	readonly runs?: readonly RunDto[];
 	/** 原始 LaneView 清单（若可用） */
 	readonly rawLanes?: readonly LaneView[];
+	readonly wrapups?: readonly BatchWrapupDto[];
 	/** 泳道步骤获取回调（R1） */
 	readonly getLaneSteps?: (laneNo: number, runId?: string | null) => readonly LaneStepItem[];
 	/** 审批决定回调（M9-T20 审批卡放行/拒绝） */
@@ -200,6 +202,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		tasks = [],
 		runs = [],
 		rawLanes,
+		wrapups,
 		getLaneSteps,
 
 		// 手机端能力（M9-T12）
@@ -248,6 +251,28 @@ export function RunDeckView(props: RunDeckViewProps) {
 	};
 
 	const streamCount = lanes.length;
+	// Keep the daemon's stage and archive fields alongside the deck's gate and wrapup data.
+	const pipelineLanes = rawLanes
+		? rawLanes.map((rawLane) => {
+				const deckLane = lanes.find((lane) => lane.laneNo === rawLane.laneNo);
+				return {
+					...rawLane,
+					...deckLane,
+					taskId: rawLane.taskId,
+					currentRunId: rawLane.currentRunId,
+					stage: rawLane.stage,
+					archivedTaskIds: rawLane.archivedTaskIds,
+					archivedWrapupRunId: rawLane.archivedWrapupRunId,
+					nextTaskId: rawLane.nextTaskId,
+					nextBlockedBy: rawLane.nextBlockedBy,
+					overLimit: rawLane.overLimit,
+					bodySlot: deckLane ? laneBodySlot(deckLane, tier, isTouch) : null,
+				};
+			})
+		: lanes.map((lane) => ({
+				...lane,
+				bodySlot: laneBodySlot(lane, tier, isTouch),
+			}));
 
 	// 纯消费 daemon 字段，未显式传入时由 useBatchTree 从快照拉取，前端绝不推导计算（R1, R2, R5）
 	const {
@@ -518,9 +543,10 @@ export function RunDeckView(props: RunDeckViewProps) {
 										emptyConsole
 									) : (
 										<LanesContainer
-											lanes={rawLanes && rawLanes.length > 0 ? rawLanes : lanes}
+											lanes={pipelineLanes}
 											tasks={tasks}
 											runs={runs}
+											wrapups={wrapups}
 											isUnavailable={error === '泳道数据不可用'}
 											errorMessage={error}
 											overrideTier={tier}
@@ -638,9 +664,10 @@ export function RunDeckView(props: RunDeckViewProps) {
 									<div className="flex flex-col flex-1 p-4 overflow-y-auto">{emptyConsole}</div>
 								) : (
 									<LanesContainer
-										lanes={rawLanes && rawLanes.length > 0 ? rawLanes : lanes}
+										lanes={pipelineLanes}
 										tasks={tasks}
 										runs={runs}
+										wrapups={wrapups}
 										isUnavailable={error === '泳道数据不可用'}
 										errorMessage={error}
 										overrideTier={tier}

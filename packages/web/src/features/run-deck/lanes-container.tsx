@@ -13,6 +13,7 @@
  * - 把当前运行的事件步骤传给 LaneStepsContainer，紧凑档只显示最后一步、展开后显示全部（R1, AC 2, E-315）
  */
 
+import type { BatchWrapupDto } from '@agent-scheduler/shared/api/batches';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { type LaneView, PIPELINE_STAGES } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
@@ -22,7 +23,6 @@ import { useRunStreamBuffer } from '../../api/event-bus.ts';
 import { LaneRunStrip } from '../../components/lane-run-strip.tsx';
 import { PipelineLane } from '../../components/pipeline-lane.tsx';
 import { type DensityTier, useDensityTier } from '../../hooks/use-breakpoint.ts';
-import type { StatusState } from '../../lib/spine-shape.ts';
 import {
 	type StageRow,
 	findLatestRun,
@@ -99,6 +99,7 @@ export class StreamErrorBoundary extends Component<
  */
 export function mapEventsToLaneSteps(events: readonly EventEnvelope[]): readonly LaneStepItem[] {
 	const steps: LaneStepItem[] = [];
+	const toolStepByCallId = new Map<string, number>();
 	for (let i = 0; i < events.length; i++) {
 		const ev = events[i];
 		if (!ev) continue;
@@ -107,6 +108,7 @@ export function mapEventsToLaneSteps(events: readonly EventEnvelope[]): readonly
 		const stepId = String(rawEv.id ?? rawEv.eventId ?? `step-${i}`);
 
 		if (ev.kind === 'tool_call' || ev.kind === 'tool_call_update') {
+			const callId = typeof p.callId === 'string' ? p.callId : null;
 			const tool =
 				typeof p.tool === 'string' ? p.tool : typeof p.name === 'string' ? p.name : 'tool';
 			const target =
@@ -116,9 +118,11 @@ export function mapEventsToLaneSteps(events: readonly EventEnvelope[]): readonly
 						? p.callId
 						: undefined;
 			const isError = Boolean(p.isError || p.status === 'failed');
-			const status = isError ? 'failed' : ((p.status as StatusState) ?? 'succeeded');
-			steps.push({
-				id: stepId,
+			const status = isError ? 'failed' : ev.kind === 'tool_call' ? 'running' : 'succeeded';
+			const existingIndex = callId ? toolStepByCallId.get(callId) : undefined;
+			const previous = existingIndex === undefined ? undefined : steps[existingIndex];
+			const step: LaneStepItem = {
+				id: previous?.id ?? callId ?? stepId,
 				tool,
 				target,
 				status,
@@ -127,7 +131,14 @@ export function mapEventsToLaneSteps(events: readonly EventEnvelope[]): readonly
 				errorMessage: typeof p.errorMessage === 'string' ? p.errorMessage : undefined,
 				detail: typeof p.detail === 'string' ? p.detail : undefined,
 				payload: p,
-			});
+				...(previous ? { tool: previous.tool, target: previous.target } : {}),
+			};
+			if (existingIndex === undefined) {
+				if (callId) toolStepByCallId.set(callId, steps.length);
+				steps.push(step);
+			} else {
+				steps[existingIndex] = step;
+			}
 		} else if (ev.kind === 'agent_thought_chunk') {
 			steps.push({
 				id: stepId,
@@ -190,6 +201,17 @@ export interface LaneContainerItem extends LaneView {
 	readonly taskKey?: string;
 	readonly title?: string;
 	readonly bodySlot?: ReactNode;
+	readonly wrapupRound?: number | null;
+	readonly wrapupBatchNo?: number | null;
+	readonly agentMonogram?: string;
+	readonly agentName?: string;
+	readonly modelName?: string;
+	readonly refSource?: string;
+	readonly tokenCount?: number | string | null;
+	readonly cost?: number | string | null;
+	readonly errorMessage?: string;
+	readonly refBarSlot?: ReactNode;
+	readonly footSlot?: ReactNode;
 }
 
 export interface LanesContainerProps extends HTMLAttributes<HTMLDivElement> {
@@ -201,6 +223,7 @@ export interface LanesContainerProps extends HTMLAttributes<HTMLDivElement> {
 	readonly tasks?: readonly TaskDto[];
 	/** 全部运行清单（用于提取当前与历史运行） */
 	readonly runs?: readonly RunDto[];
+	readonly wrapups?: readonly BatchWrapupDto[];
 	/** 是否处于不可用态（E-333） */
 	readonly isUnavailable?: boolean;
 	/** 错误信息 */
@@ -244,6 +267,7 @@ export function LanesContainer({
 	lanes: propLanes,
 	tasks = [],
 	runs = [],
+	wrapups = [],
 	isUnavailable: propIsUnavailable,
 	errorMessage: propErrorMessage,
 	onOpenRun,
@@ -265,9 +289,8 @@ export function LanesContainer({
 	className,
 	...rest
 }: LanesContainerProps) {
-	const internalLanes = useLanes({ docId });
-
 	const hasPropLanes = propLanes !== undefined;
+	const internalLanes = useLanes({ docId, enabled: !hasPropLanes });
 	const isUnavailable = propIsUnavailable ?? (!hasPropLanes && internalLanes.isUnavailable);
 	const errorMessage = propErrorMessage ?? (!hasPropLanes ? internalLanes.errorMessage : null);
 
@@ -295,6 +318,17 @@ export function LanesContainer({
 				taskKey: streamLane.taskKey,
 				title: streamLane.title,
 				bodySlot: streamLane.bodySlot,
+				wrapupRound: streamLane.wrapupRound,
+				wrapupBatchNo: streamLane.wrapupBatchNo,
+				agentMonogram: streamLane.agentMonogram,
+				agentName: streamLane.agentName,
+				modelName: streamLane.modelName,
+				refSource: streamLane.refSource,
+				tokenCount: streamLane.tokenCount,
+				cost: streamLane.cost,
+				errorMessage: streamLane.errorMessage,
+				refBarSlot: streamLane.refBarSlot,
+				footSlot: streamLane.footSlot,
 			} as LaneContainerItem;
 		});
 	}, [hasPropLanes, propLanes, internalLanes.lanes]);
@@ -332,6 +366,10 @@ export function LanesContainer({
 		}
 		return map;
 	}, [runs]);
+	const wrapupsByRunId = useMemo(
+		() => new Map(wrapups.map((wrapup) => [wrapup.runId, wrapup])),
+		[wrapups],
+	);
 
 	// 提取指定泳道当前活动运行（R2, E-317）
 	const getActiveRunsForLane = (lane: LaneView): readonly RunDto[] => {
@@ -423,6 +461,9 @@ export function LanesContainer({
 		const historyWrapupRun = lane?.archivedWrapupRunId
 			? (runsById.get(lane.archivedWrapupRunId) ?? null)
 			: null;
+		const historyWrapup = lane?.archivedWrapupRunId
+			? wrapupsByRunId.get(lane.archivedWrapupRunId)
+			: undefined;
 		const historyRuns = lane ? getHistoryRunsForLane(lane, historyWrapupRun) : [];
 
 		const currentRun = taskRuns.find((r) => r.id === lane?.currentRunId) ?? findLatestRun(taskRuns);
@@ -471,6 +512,11 @@ export function LanesContainer({
 								historyTask={historyTask}
 								historyRuns={historyRuns}
 								historyWrapupRun={historyWrapupRun}
+								historyWrapupRound={historyWrapup?.round}
+								historyWrapupBatchNo={historyWrapup?.batchNo}
+								historyWrapupVerdict={historyWrapup?.verdict}
+								wrapupRound={lane.wrapupRound}
+								wrapupBatchNo={lane.wrapupBatchNo}
 								bodySlot={lane.bodySlot}
 								renderSteps={(stageRow) => {
 									if (renderSteps) {
@@ -521,6 +567,9 @@ export function LanesContainer({
 				const historyWrapupRun = lane.archivedWrapupRunId
 					? (runsById.get(lane.archivedWrapupRunId) ?? null)
 					: null;
+				const historyWrapup = lane.archivedWrapupRunId
+					? wrapupsByRunId.get(lane.archivedWrapupRunId)
+					: undefined;
 				const historyRuns = getHistoryRunsForLane(lane, historyWrapupRun);
 				const isExpanded = expandedLaneNo === lane.laneNo;
 
@@ -553,6 +602,11 @@ export function LanesContainer({
 								historyTask={historyTask}
 								historyRuns={historyRuns}
 								historyWrapupRun={historyWrapupRun}
+								historyWrapupRound={historyWrapup?.round}
+								historyWrapupBatchNo={historyWrapup?.batchNo}
+								historyWrapupVerdict={historyWrapup?.verdict}
+								wrapupRound={lane.wrapupRound}
+								wrapupBatchNo={lane.wrapupBatchNo}
 								bodySlot={lane.bodySlot}
 								renderSteps={(stageRow) => {
 									if (renderSteps) {

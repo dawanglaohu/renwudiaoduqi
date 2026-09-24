@@ -19,6 +19,8 @@ import { useSelectionStore } from '../../store/selection-store.ts';
 import { useUiPrefsStore } from '../../store/ui-prefs-store.ts';
 
 export interface UseLanesOptions {
+	/** 外部快照已提供泳道时，跳过独立取数与订阅。 */
+	readonly enabled?: boolean;
 	/** 指定的文档 ID */
 	readonly docId?: string | null;
 	/** 初始泳道数据（如已随首屏拉取） */
@@ -55,7 +57,7 @@ export interface UseLanesResult {
 }
 
 export function useLanes(options: UseLanesOptions = {}): UseLanesResult {
-	const { docId, initialLanes } = options;
+	const { docId, initialLanes, enabled = true } = options;
 
 	const [lanes, setLanes] = useState<readonly LaneView[]>(() => {
 		if (initialLanes && Array.isArray(initialLanes)) {
@@ -98,11 +100,13 @@ export function useLanes(options: UseLanesOptions = {}): UseLanesResult {
 
 	// 首次挂载或 docId 变化时拉取
 	useEffect(() => {
+		if (!enabled) return;
 		void loadLanes();
-	}, [loadLanes]);
+	}, [enabled, loadLanes]);
 
 	// 订阅事件：lane.assigned, lane.released, task.sessions_archived, document.settings_changed（E-333）
 	useEffect(() => {
+		if (!enabled) return;
 		const unsubscribe = eventBus.subscribeAll((event) => {
 			if (
 				event.kind === 'lane.assigned' ||
@@ -118,7 +122,7 @@ export function useLanes(options: UseLanesOptions = {}): UseLanesResult {
 		return () => {
 			unsubscribe();
 		};
-	}, [docId, loadLanes]);
+	}, [docId, enabled, loadLanes]);
 
 	// E-324: 手机端单栏切换，窗口数调小后 N 显示现存泳道数，泳道消失后落到仍存在的最近位置（AC 9, E-324, R3）
 	const totalLanes = lanes.length;
