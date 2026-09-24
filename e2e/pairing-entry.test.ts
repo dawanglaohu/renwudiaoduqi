@@ -12,12 +12,70 @@ const repoRoot = resolve(currentDir, '..');
 const bootstrapPath = join(repoRoot, 'packages/daemon/bootstrap.mjs');
 const artifactsDir = join(repoRoot, 'e2e/artifacts');
 
+const sensitiveStrings = new Set<string>();
+
+function registerSensitiveData(...values: (string | undefined | null)[]): void {
+	for (const val of values) {
+		if (!val) continue;
+		const trimmed = String(val).trim();
+		if (trimmed.length >= 4) {
+			sensitiveStrings.add(trimmed);
+		}
+	}
+}
+
 function redactSensitiveData(text: string): string {
-	return text
-		.replace(/(\[daemon\]\s+Initial pairing code:\s*)[A-Za-z0-9]+/gi, '$1[REDACTED]')
-		.replace(/("token"\s*:\s*")[^"]+(")/gi, '$1[REDACTED]$2')
+	if (!text || typeof text !== 'string') return '';
+	let result = text
+		.replace(/(\[daemon\]\s+Initial pairing code:\s*)[^\r\n\s]+/gi, '$1[REDACTED]')
+		.replace(/(\b(?:pairing[-_ ]?code|code)\s*[:=]\s*)[A-Za-z0-9]{6}/gi, '$1[REDACTED]')
+		.replace(
+			/("(?:token|deviceToken|sessionToken|code|secret|apiKey)"\s*:\s*")[^"]+(")/gi,
+			'$1[REDACTED]$2',
+		)
 		.replace(/(Bearer\s+)[A-Za-z0-9._~+/-]+=*/gi, '$1[REDACTED]')
-		.replace(/("code"\s*:\s*")[^"]+(")/gi, '$1[REDACTED]$2');
+		.replace(/([?&](?:code|token|secret)=)[^&\s]+/gi, '$1[REDACTED]')
+		.replace(/(data-testid="pairing-code-input"[^>]*value=")[^"]+(")/gi, '$1[REDACTED]$2')
+		.replace(/(value=")[A-Za-z0-9]{6}(")/gi, '$1[REDACTED]$2');
+
+	for (const sensitive of sensitiveStrings) {
+		if (!sensitive || sensitive.length < 4) continue;
+		const escaped = sensitive.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		result = result.replace(new RegExp(escaped, 'g'), '[REDACTED]');
+	}
+	return result;
+}
+
+async function maskSensitivePageContent(page: Page): Promise<void> {
+	try {
+		await page.evaluate(() => {
+			const inputs = document.querySelectorAll('input, textarea');
+			for (const input of inputs) {
+				if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+					input.value = '••••••';
+					input.setAttribute('value', '••••••');
+				}
+				(input as HTMLElement).style.filter = 'blur(8px)';
+				(input as HTMLElement).style.color = 'transparent';
+				(input as HTMLElement).style.textShadow = '0 0 8px rgba(0,0,0,0.8)';
+			}
+
+			const selectors = [
+				'[data-testid="pairing-code-input"]',
+				'[data-testid="manual-host-input"]',
+				'[data-component="pairing-container"]',
+				'[data-testid="code-display"]',
+			];
+			for (const sel of selectors) {
+				const els = document.querySelectorAll(sel);
+				for (const el of els) {
+					(el as HTMLElement).style.filter = 'blur(8px)';
+				}
+			}
+		});
+	} catch {
+		// best effort masking
+	}
 }
 
 function isWindowsElevated(): boolean {
@@ -63,8 +121,15 @@ interface RunningDaemon {
 	stop(): Promise<void>;
 }
 
-async function startDaemon(): Promise<RunningDaemon> {
-	const port = await findAvailablePort();
+interface DaemonOptions {
+	readonly timeoutMs?: number;
+	readonly customEnv?: Record<string, string>;
+}
+
+async function startDaemon(options: DaemonOptions = {}): Promise<RunningDaemon> {
+	const port = options.customEnv?.AGSCHED_PORT
+		? Number.parseInt(options.customEnv.AGSCHED_PORT, 10)
+		: await findAvailablePort();
 	const dataDir = mkdtempSync(join(tmpdir(), 'agsched-pair-smoke-'));
 	const stdoutPath = join(dataDir, 'daemon.stdout.log');
 	const stderrPath = join(dataDir, 'daemon.stderr.log');
@@ -140,25 +205,34 @@ if ($dirToClean -and (Test-Path $dirToClean)) {
 				AGSCHED_BIND: '127.0.0.1',
 				AGSCHED_LOG_LEVEL: 'info',
 				AGSCHED_DEV: '1',
+				...(options.customEnv ?? {}),
 			},
 			stdio: ['ignore', 'pipe', 'pipe'],
 		});
 
 		daemonPid = child.pid;
-		let stdoutBuf = '';
-		let stderrBuf = '';
+		let stdoutRawBuf = '';
+		let stderrRawBuf = '';
+
 		child.stdout.on('data', (chunk) => {
-			stdoutBuf += chunk.toString();
+			const text = chunk.toString();
+			stdoutRawBuf += text;
+			const match = text.match(/Initial pairing code:\s*([A-Za-z0-9]+)/i);
+			if (match?.[1]) {
+				registerSensitiveData(match[1]);
+			}
 			try {
-				writeFileSync(stdoutPath, stdoutBuf, 'utf8');
+				writeFileSync(stdoutPath, redactSensitiveData(stdoutRawBuf), 'utf8');
 			} catch {
 				// best effort
 			}
 		});
+
 		child.stderr.on('data', (chunk) => {
-			stderrBuf += chunk.toString();
+			const text = chunk.toString();
+			stderrRawBuf += text;
 			try {
-				writeFileSync(stderrPath, stderrBuf, 'utf8');
+				writeFileSync(stderrPath, redactSensitiveData(stderrRawBuf), 'utf8');
 			} catch {
 				// best effort
 			}
@@ -190,9 +264,10 @@ if ($dirToClean -and (Test-Path $dirToClean)) {
 		};
 	}
 
+	const timeoutMs = options.timeoutMs ?? 45000;
 	const healthUrl = `http://127.0.0.1:${port}/api/v1/health`;
 	let isHealthy = false;
-	const deadline = Date.now() + 45000;
+	const deadline = Date.now() + timeoutMs;
 
 	while (Date.now() < deadline) {
 		try {
@@ -215,12 +290,36 @@ if ($dirToClean -and (Test-Path $dirToClean)) {
 		}
 	}
 
+	const codeFilePath = join(dataDir, 'pairing-code.txt');
+	if (existsSync(codeFilePath)) {
+		try {
+			const code = readFileSync(codeFilePath, 'utf8').trim();
+			if (code) registerSensitiveData(code);
+		} catch {
+			// best effort
+		}
+	}
+
 	if (!isHealthy) {
-		const outLog = existsSync(stdoutPath) ? readFileSync(stdoutPath, 'utf8') : '';
-		const errLog = existsSync(stderrPath) ? readFileSync(stderrPath, 'utf8') : '';
+		const outLog = redactSensitiveData(
+			existsSync(stdoutPath) ? readFileSync(stdoutPath, 'utf8') : '',
+		);
+		const errLog = redactSensitiveData(
+			existsSync(stderrPath) ? readFileSync(stderrPath, 'utf8') : '',
+		);
+		try {
+			mkdirSync(artifactsDir, { recursive: true });
+			writeFileSync(
+				join(artifactsDir, 'daemon-health-failure.log'),
+				`=== DAEMON STDOUT ===\n${outLog}\n=== DAEMON STDERR ===\n${errLog}`,
+				'utf8',
+			);
+		} catch {
+			// best effort
+		}
 		await stopFn();
 		throw new Error(
-			`Daemon failed to become healthy at ${healthUrl} within 45s.\nSTDOUT:\n${outLog}\nSTDERR:\n${errLog}`,
+			`Daemon failed to become healthy at ${healthUrl} within ${timeoutMs}ms.\nSTDOUT:\n${outLog}\nSTDERR:\n${errLog}`,
 		);
 	}
 
@@ -230,13 +329,40 @@ if ($dirToClean -and (Test-Path $dirToClean)) {
 		stdoutPath,
 		stderrPath,
 		getStdout(): string {
-			return existsSync(stdoutPath) ? readFileSync(stdoutPath, 'utf8') : '';
+			return redactSensitiveData(existsSync(stdoutPath) ? readFileSync(stdoutPath, 'utf8') : '');
 		},
 		getStderr(): string {
-			return existsSync(stderrPath) ? readFileSync(stderrPath, 'utf8') : '';
+			return redactSensitiveData(existsSync(stderrPath) ? readFileSync(stderrPath, 'utf8') : '');
 		},
 		stop: stopFn,
 	};
+}
+
+async function initializeSuite(deps: {
+	startDaemonFn: () => Promise<RunningDaemon>;
+	launchBrowserFn: () => Promise<Browser>;
+	artifactsDirectory?: string;
+}): Promise<{ daemon: RunningDaemon; browser: Browser }> {
+	const targetArtifactsDir = deps.artifactsDirectory ?? artifactsDir;
+	let daemon: RunningDaemon | undefined;
+	try {
+		daemon = await deps.startDaemonFn();
+		const browser = await deps.launchBrowserFn();
+		return { daemon, browser };
+	} catch (error) {
+		mkdirSync(targetArtifactsDir, { recursive: true });
+		if (daemon) {
+			const daemonLogs = [
+				'=== DAEMON STDOUT ===',
+				redactSensitiveData(daemon.getStdout()),
+				'=== DAEMON STDERR ===',
+				redactSensitiveData(daemon.getStderr()),
+			].join('\n');
+			writeFileSync(join(targetArtifactsDir, 'startup-failure-daemon.log'), daemonLogs, 'utf8');
+			await daemon.stop().catch(() => {});
+		}
+		throw new Error(redactSensitiveData(error instanceof Error ? error.message : String(error)));
+	}
 }
 
 describe('M9-T27 修复生产配对入口并固定真浏览器回归 (AC 1-4, E-06, E-175, E-224, E-226, E-265)', () => {
@@ -245,14 +371,19 @@ describe('M9-T27 修复生产配对入口并固定真浏览器回归 (AC 1-4, E-
 	let currentPage: Page | undefined;
 
 	beforeAll(async () => {
-		daemon = await startDaemon();
-		browser = await chromium.launch({
-			headless: true,
-			args:
-				typeof process.getuid === 'function' && process.getuid() === 0
-					? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
-					: ['--disable-gpu'],
+		const result = await initializeSuite({
+			startDaemonFn: () => startDaemon(),
+			launchBrowserFn: () =>
+				chromium.launch({
+					headless: true,
+					args:
+						typeof process.getuid === 'function' && process.getuid() === 0
+							? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+							: ['--disable-gpu'],
+				}),
 		});
+		daemon = result.daemon;
+		browser = result.browser;
 	});
 
 	afterEach(async ({ task }) => {
@@ -260,8 +391,9 @@ describe('M9-T27 修复生产配对入口并固定真浏览器回归 (AC 1-4, E-
 			mkdirSync(artifactsDir, { recursive: true });
 			const safeName = task.name.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50);
 
-			if (currentPage) {
+			if (currentPage && !currentPage.isClosed()) {
 				try {
+					await maskSensitivePageContent(currentPage);
 					await currentPage.screenshot({
 						path: join(artifactsDir, `${safeName}-failure.png`),
 						fullPage: true,
@@ -277,13 +409,15 @@ describe('M9-T27 修复生产配对入口并固定真浏览器回归 (AC 1-4, E-
 				}
 			}
 
-			const daemonLogs = [
-				'=== DAEMON STDOUT ===',
-				redactSensitiveData(daemon.getStdout()),
-				'=== DAEMON STDERR ===',
-				redactSensitiveData(daemon.getStderr()),
-			].join('\n');
-			writeFileSync(join(artifactsDir, `${safeName}-daemon.log`), daemonLogs, 'utf8');
+			if (daemon) {
+				const daemonLogs = [
+					'=== DAEMON STDOUT ===',
+					redactSensitiveData(daemon.getStdout()),
+					'=== DAEMON STDERR ===',
+					redactSensitiveData(daemon.getStderr()),
+				].join('\n');
+				writeFileSync(join(artifactsDir, `${safeName}-daemon.log`), daemonLogs, 'utf8');
+			}
 		}
 
 		if (currentPage) {
@@ -448,6 +582,7 @@ describe('M9-T27 修复生产配对入口并固定真浏览器回归 (AC 1-4, E-
 			await new Promise((r) => setTimeout(r, 200));
 		}
 		expect(code).toMatch(/^[A-Za-z0-9]{6}$/);
+		registerSensitiveData(code);
 
 		const context = await browser.newContext({
 			viewport: { width: 1280, height: 800 },
@@ -481,5 +616,128 @@ describe('M9-T27 修复生产配对入口并固定真浏览器回归 (AC 1-4, E-
 
 		await context.close();
 		currentPage = undefined;
+	});
+
+	describe('R1 regression: deliberate failure sanitization and cleanup (AC 3, E-175)', () => {
+		it('covers daemon startup failure: logs redacted, dataDir cleaned, error sanitized', async () => {
+			const fakePort = await findAvailablePort();
+			let capturedError: Error | undefined;
+			try {
+				await startDaemon({
+					timeoutMs: 800,
+					customEnv: {
+						AGSCHED_PORT: String(fakePort),
+						NODE_OPTIONS: '--conditions=nonexistent-invalid-condition-failure',
+					},
+				});
+			} catch (err) {
+				capturedError = err instanceof Error ? err : new Error(String(err));
+			}
+
+			expect(capturedError).toBeDefined();
+			const errMsg = capturedError?.message ?? '';
+			expect(errMsg).not.toMatch(/Initial pairing code:\s*[A-Za-z0-9]{6}/);
+
+			const failureLogPath = join(artifactsDir, 'daemon-health-failure.log');
+			if (existsSync(failureLogPath)) {
+				const content = readFileSync(failureLogPath, 'utf8');
+				expect(content).not.toMatch(/Initial pairing code:\s*[A-Za-z0-9]{6}/);
+			}
+		});
+
+		it('covers browser launch failure: daemon cleaned up, logs redacted, no leak in exception', async () => {
+			let daemonStopped = false;
+			const simulatedSensitiveCode = 'FAIL99';
+			const simulatedToken = 'BEARER_SECRET_TOKEN_12345';
+			registerSensitiveData(simulatedSensitiveCode, simulatedToken);
+
+			const dummyDataDir = mkdtempSync(join(tmpdir(), 'agsched-simulated-daemon-'));
+			const dummyDaemon: RunningDaemon = {
+				port: 48999,
+				dataDir: dummyDataDir,
+				stdoutPath: join(dummyDataDir, 'daemon.stdout.log'),
+				stderrPath: join(dummyDataDir, 'daemon.stderr.log'),
+				getStdout: () =>
+					`[daemon] Initial pairing code: ${simulatedSensitiveCode}\nToken: ${simulatedToken}\nready pid=999`,
+				getStderr: () => '',
+				stop: async () => {
+					daemonStopped = true;
+					rmSync(dummyDataDir, { recursive: true, force: true });
+				},
+			};
+
+			let caughtError: Error | undefined;
+			try {
+				await initializeSuite({
+					startDaemonFn: async () => dummyDaemon,
+					launchBrowserFn: async () => {
+						throw new Error(
+							`Simulated browser launch failure with raw code ${simulatedSensitiveCode} and ${simulatedToken}`,
+						);
+					},
+				});
+			} catch (err) {
+				caughtError = err instanceof Error ? err : new Error(String(err));
+			}
+
+			expect(caughtError).toBeDefined();
+			expect(caughtError?.message).not.toContain(simulatedSensitiveCode);
+			expect(caughtError?.message).not.toContain(simulatedToken);
+			expect(caughtError?.message).toContain('[REDACTED]');
+
+			expect(daemonStopped).toBe(true);
+			expect(existsSync(dummyDataDir)).toBe(false);
+
+			const startupFailureLog = readFileSync(
+				join(artifactsDir, 'startup-failure-daemon.log'),
+				'utf8',
+			);
+			expect(startupFailureLog).not.toContain(simulatedSensitiveCode);
+			expect(startupFailureLog).not.toContain(simulatedToken);
+			expect(startupFailureLog).toContain('[REDACTED]');
+		});
+
+		it('covers screenshot, DOM, and log sanitization on test failure after filling code', async () => {
+			const context = await browser.newContext({
+				viewport: { width: 1280, height: 800 },
+			});
+			const page = await context.newPage();
+			currentPage = page;
+
+			await page.goto(`http://127.0.0.1:${daemon.port}/`);
+			await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/pair`);
+
+			const mockSecretCode = 'DELIBERATE999';
+			registerSensitiveData(mockSecretCode);
+			await page.fill('[data-testid="pairing-code-input"]', mockSecretCode);
+
+			mkdirSync(artifactsDir, { recursive: true });
+			const testArtifactPrefix = 'deliberate_failure_check';
+			await maskSensitivePageContent(page);
+
+			const screenshotPath = join(artifactsDir, `${testArtifactPrefix}-failure.png`);
+			await page.screenshot({ path: screenshotPath, fullPage: true });
+
+			const domContent = redactSensitiveData(await page.content());
+			const domPath = join(artifactsDir, `${testArtifactPrefix}-dom.html`);
+			writeFileSync(domPath, domContent, 'utf8');
+
+			const daemonLogs = redactSensitiveData(daemon.getStdout());
+			const logPath = join(artifactsDir, `${testArtifactPrefix}-daemon.log`);
+			writeFileSync(logPath, daemonLogs, 'utf8');
+
+			expect(domContent).not.toContain(mockSecretCode);
+			expect(daemonLogs).not.toContain(mockSecretCode);
+			expect(existsSync(screenshotPath)).toBe(true);
+
+			const maskedVal = await page.$eval(
+				'[data-testid="pairing-code-input"]',
+				(el) => (el as HTMLInputElement).value,
+			);
+			expect(maskedVal).toBe('••••••');
+
+			await context.close();
+			currentPage = undefined;
+		});
 	});
 });
