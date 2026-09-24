@@ -29,9 +29,11 @@ export function mapSnapshotToBatches(
 	snapshot: SnapshotResponse,
 	roundByRunId?: ReadonlyMap<string, number>,
 	runs: readonly RunDto[] = snapshot.runs ?? [],
+	batchDetails: readonly BatchDto[] = [],
 ): readonly BatchTreeItem[] {
 	const rawBatches = (snapshot.batches ?? []) as readonly BatchDto[];
 	const rawTasks = (snapshot.tasks ?? []) as readonly TaskDto[];
+	const detailsById = new Map(batchDetails.map((batch) => [batch.id, batch]));
 	const latestWrapupByBatch = new Map<string, RunDto>();
 	for (const run of runs) {
 		if (run.kind !== 'wrapup' || !run.batchId) continue;
@@ -46,6 +48,7 @@ export function mapSnapshotToBatches(
 		const round = wrapup ? roundByRunId?.get(wrapup.id) : undefined;
 		return {
 			...b,
+			...detailsById.get(b.id),
 			tasks: rawTasks.filter((t) => t.batchId === b.id),
 			wrapupRow: wrapup
 				? {

@@ -15,6 +15,7 @@
  */
 
 import type { BatchDto, GetBatchWrapupsResponse } from '@agent-scheduler/shared/api/batches';
+import type { ListDocumentBatchesResponse } from '@agent-scheduler/shared/api/documents';
 import type { GateDto, ListGatesResponse } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes';
@@ -54,6 +55,9 @@ function findRouteByTypes(
 const SNAPSHOT_ROUTE = findRouteByTypes('GET', { resType: 'SnapshotResponse' });
 const RUNS_ROUTE = findRouteByTypes('GET', { resType: 'ListRunsResponse' });
 const GATES_ROUTE = findRouteByTypes('GET', { resType: 'ListGatesResponse' });
+const DOCUMENT_BATCHES_ROUTE = findRouteByTypes('GET', {
+	resType: 'ListDocumentBatchesResponse',
+});
 const BATCH_WRAPUPS_ROUTE = findRouteByTypes('GET', { resType: 'GetBatchWrapupsResponse' });
 const DECIDE_GATE_ROUTE = findRouteByTypes('POST', { reqType: 'DecideGateBody' });
 
@@ -173,6 +177,14 @@ export function RunDeckContainer(props: RunDeckProps) {
 				httpClient.callRoute<{ runs: readonly RunDto[] }>(RUNS_ROUTE),
 				httpClient.callRoute<ListGatesResponse>(GATES_ROUTE),
 			]);
+			const batchResponses = await Promise.all(
+				snapshot.documents.map((document) =>
+					httpClient.callRoute<ListDocumentBatchesResponse>(DOCUMENT_BATCHES_ROUTE, {
+						params: { docId: document.id },
+					}),
+				),
+			);
+			const batchDetails = batchResponses.flatMap((response) => response.batches);
 			// 完成的收口运行已离开活动泳道；从 daemon 持久记录恢复轮次，刷新后批次树仍有报告入口。
 			const wrapupBatchIds = [
 				...new Set(
@@ -204,7 +216,12 @@ export function RunDeckContainer(props: RunDeckProps) {
 					gates: gatesResponse.gates,
 					wrapupRoundByRunId: wrapupRoundsRef.current,
 				}),
-				batches: mapSnapshotToBatches(snapshot, wrapupRoundsRef.current, runsResponse.runs),
+				batches: mapSnapshotToBatches(
+					snapshot,
+					wrapupRoundsRef.current,
+					runsResponse.runs,
+					batchDetails,
+				),
 				error: null,
 			});
 		} catch (cause: unknown) {
