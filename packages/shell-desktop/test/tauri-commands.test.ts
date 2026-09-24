@@ -31,11 +31,16 @@ describe('M9-T26 Tauri command wiring', () => {
 	it('keeps every WebView bridge command registered and no undeclared bridge command in Rust', () => {
 		const registered = parseGenerateHandlerCommands(libRs);
 		const webBridgeCommands = parseWebBridgeCommands(shellBridge);
-		const shellOwnedLauncherCommands = ['get_launch_spec', 'launch_service'];
+		// Commands the web bridge never calls: the frozen launch spec stays shell-side, and
+		// the smoke probe is written by a script the shell injects into its own page (M10-T6).
+		const shellOwnedCommands = ['get_launch_spec', 'report_smoke_probe'];
 
-		expect(registered).toEqual([...webBridgeCommands, ...shellOwnedLauncherCommands].sort());
-		expect(registered.filter((name) => !shellOwnedLauncherCommands.includes(name))).toEqual(
+		expect(registered).toEqual([...webBridgeCommands, ...shellOwnedCommands].sort());
+		expect(registered.filter((name) => !shellOwnedCommands.includes(name))).toEqual(
 			webBridgeCommands,
 		);
+		// M10-T6 AC 1: launch_service is a bridge command now, reached through the fourth
+		// capability, so the WebView side must name it.
+		expect(webBridgeCommands).toContain('launch_service');
 	});
 });

@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M10-T6": {
+      "contractHash": "8372c641d5e502588e88f5eaf3b50f0f27295cc3544226264b96d1a7fcdd1408",
+      "evidence": [
+        "2026-09-25 PR #134: merged origin/main 58c5c9b5. M10-T6 task-contracts.json entry is byte-for-byte equivalent as parsed JSON to the previously reviewed branch entry; the new hash comes from updated shared documentation. Acceptance criteria 1-5 and edges E-04, E-146, E-200, E-224, E-257, E-265, E-266 remain unchanged in the task note.",
+        "The only product-code merge overlap is packages/web/src/i18n/error-messages.ts. The resolution retains M10-T6 SERVICE_NOT_RUNNING_TITLE, LAUNCH_SERVICE_FAILED_MESSAGE, and getLaunchErrorMessage, alongside M9-T20 delivery and wrapup messages. The M10-T6 supportPaths remain intact; generated handoff files were rebuilt from merged sources.",
+        "After this main sync, pnpm -w check executed error-code and contrast checks, forbidden-pattern scan, Biome, TypeScript, and Vitest: 189 test files passed, 2310 tests passed, 2 skipped. This verifies the local merged code and contract only. R3 native evidence must be recorded against the merged product, and R4 still requires final-head Windows, macOS, and Ubuntu GitHub desktop-ci shell smoke before task acceptance."
+      ],
+      "verdict": "pass"
+    }
+  }
+}

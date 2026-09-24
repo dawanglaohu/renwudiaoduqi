@@ -113,10 +113,29 @@ daemon 的机器级单实例锁位于系统目录（Linux `/var/lib/agent-schedu
 >   2. 平台集成测试（`packages/daemon/test/platform/`，本机原生适配器）
 >   3. 随包 daemon 分发构建 + Tauri installer 构建（Windows NSIS/MSI、macOS app/DMG、Linux deb/AppImage）
 >   4. 从真实 MSI/DMG/deb 解包到含空格与 Unicode 的临时根目录 → 产品层检查 → 构建机路径残留检查 → 按上一节契约解析启动清单 → **真正启动随包 daemon** 并探活 `/api/v1/health`
-> - 发布门禁从 GitHub API 读回每个平台 job 的各步骤结论，逐平台逐步骤喂给 `assertReleaseVerification`：任一平台任一步骤失败，直接阻断整个版本发布并点名失败的平台与步骤，不得降级为可忽略项 (E-265)。
+>   5. **壳 smoke**：在同一份展开载荷上再拉起随包 daemon，配对一台真实设备，然后以 `AGSCHED_SMOKE=1` 启动**真实壳可执行文件**（Linux 经 `xvfb-run`）；壳加载首页后每 500ms 读 `<html>` 上的 `data-style-loaded` 与 `data-connection-status`，20 秒内两者分别为 `true` 与 `online` 才退出 0，否则退出 1 并打印最后读到的两个值
+> - 发布门禁从 GitHub API 读回每个平台 job 的各步骤结论，逐平台逐步骤喂给 `assertReleaseVerification`：任一平台任一步骤失败，直接阻断整个版本发布并点名失败的平台与步骤，不得降级为可忽略项 (E-265)。壳 smoke 与 daemon smoke 分开成步、分开计分：只证明「daemon 起得来」不算该平台完整支持 (E-257)。
 > - 展开后的安装载荷不得包含构建机绝对路径 (E-209)；daemon（含随包运行时与 `web/dist`）、路径适配器、桌面壳二进制任一产品层缺失均阻断发布并列出缺失项 (E-257)。
 > - CI 用 Tauri CLI 生成并上传真实安装包；Windows/Linux 产物通过构建与解包 smoke，macOS 缺签名/公证凭据时仍只标**构建验证件**，正式发布另由签名/公证门禁放行 (E-267)。
 > - 壳能否真的创建窗口、通知与自启是否生效，CI 不作声明，见第 7 节人工验收 (E-266)。
+
+### 壳 smoke 的覆盖范围与不覆盖范围（M10-T6）
+
+**覆盖**（三个 runner 各跑一次，任一失败阻断发布）：
+
+- 展开真实安装载荷（MSI / DMG / deb）→ 产品层齐全 → 按冻结 `DaemonLaunchSpec` 真正启动随包 daemon 并探活 `/api/v1/health`
+- 用 daemon 写出的短期配对码 `POST /api/v1/pair/claim` 换一台真实设备令牌，交给壳进程（`AGSCHED_SMOKE=1` + `AGSCHED_SMOKE_TOKEN`）
+- 启动**真实壳可执行文件**（Linux 无 X 显示，经 `xvfb-run -a`），由壳自己把 `data-style-loaded` 与 `data-connection-status` 读回来
+- 因此它证明的是：该平台上的壳**能构建、能启动、能加载同一份 web 产物、并能连上随包 daemon**（E-257：只差壳这一层的平台会被点名）
+
+**不覆盖**（仍按第 7 节人工清单逐平台记录，CI 不得伪报通过，E-266）：
+
+- 通知点击回跳、窗口聚焦与单实例唤起
+- 含空格与 Unicode 的安装路径下的人工启动观感
+- 托盘、自启项在真实桌面会话中的行为
+- 屏幕缩放 / Retina / 多显示器下的渲染
+
+`AGSCHED_SMOKE` 与 `AGSCHED_SMOKE_TOKEN` 只由壳 smoke 设置：前者打开壳内的 smoke 分支，后者是 harness 从真实配对端点换来的设备令牌（CI 机器没有可用的系统凭据库，也没有人能在 `#/pair` 里输码）。正常启动时壳一律走系统凭据库，`get_token` 不读这两个变量以外的任何东西。
 
 ---
 

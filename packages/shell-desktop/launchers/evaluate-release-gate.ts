@@ -37,6 +37,9 @@ const STEP_MARKERS = {
 	platformTests: 'Platform Integration Tests',
 	smoke: 'Staged Unpack',
 	shellBuild: 'Build Tauri Desktop Shell',
+	// M10-T6: the real shell executable against the real shipped daemon. Its own step so a
+	// platform that builds a shell it cannot actually start is named as such (E-257, E-265).
+	shellSmoke: 'Desktop Shell Smoke',
 } as const;
 
 function stepPassed(job: WorkflowJob, marker: string): boolean {
@@ -72,6 +75,7 @@ export function collectHostResults(
 			platformTestsPassed: stepPassed(job, STEP_MARKERS.platformTests),
 			smokePassed: stepPassed(job, STEP_MARKERS.smoke),
 			shellBuildPassed: stepPassed(job, STEP_MARKERS.shellBuild),
+			shellSmokePassed: stepPassed(job, STEP_MARKERS.shellSmoke),
 			failureReason: job.conclusion === 'success' ? undefined : failedSteps(job),
 			...(platform === 'darwin' ? signing : {}),
 		};
@@ -100,7 +104,7 @@ if (isDirectExecution) {
 
 	for (const result of results) {
 		console.log(
-			`[release-gate] ${result.platform.padEnd(6)} check=${result.workspaceCheckPassed} platform-tests=${result.platformTestsPassed} smoke=${result.smokePassed} shell-build=${result.shellBuildPassed}${result.failureReason ? ` :: ${result.failureReason}` : ''}`,
+			`[release-gate] ${result.platform.padEnd(6)} check=${result.workspaceCheckPassed} platform-tests=${result.platformTestsPassed} smoke=${result.smokePassed} shell-build=${result.shellBuildPassed} shell-smoke=${result.shellSmokePassed}${result.failureReason ? ` :: ${result.failureReason}` : ''}`,
 		);
 	}
 	try {

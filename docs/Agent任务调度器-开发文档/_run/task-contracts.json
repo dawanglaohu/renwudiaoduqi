@@ -1570,13 +1570,29 @@
         "shellBridge"
       ],
       "supportPaths": [
+        "packages/daemon/test/integration/agents-routes.test.ts",
+        "packages/daemon/test/integration/container-wiring.test.ts",
+        "packages/daemon/test/platform/kill-tree-native.test.ts",
+        "packages/daemon/test/unit/diff.test.ts",
+        "packages/daemon/test/unit/landing.test.ts",
+        "packages/daemon/test/unit/platform.test.ts",
+        "packages/daemon/test/unit/worktree.test.ts",
+        "packages/shell-desktop/launchers/evaluate-release-gate.ts",
+        "packages/shell-desktop/src/platform-support.ts",
+        "packages/shell-mobile/src/mobile-bridge.ts",
+        "packages/web/src/app/app.tsx",
         "packages/web/src/app/bootstrap.ts",
+        "packages/web/src/features/run-deck/mobile-batch-list.tsx",
+        "packages/web/src/i18n/error-messages.ts",
+        "packages/web/src/shell/detect-shell.ts",
+        "packages/web/test/",
         "packages/web/src/api/base-url.ts",
         "packages/shell-desktop/src/connection-ui.ts",
         "packages/shell-desktop/src/daemon-process.ts",
         "packages/shell-desktop/src/launch-spec.ts",
         "packages/shell-desktop/src-tauri/tauri.conf.json",
-        "packages/shell-desktop/src-tauri/Cargo.toml"
+        "packages/shell-desktop/src-tauri/Cargo.toml",
+        "vitest.config.ts"
       ],
       "requires": [
         {

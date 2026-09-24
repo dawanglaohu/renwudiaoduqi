@@ -269,6 +269,13 @@ export interface HostVerificationResult {
 	readonly platformTestsPassed: boolean;
 	readonly smokePassed: boolean;
 	readonly shellBuildPassed: boolean;
+	/**
+	 * M10-T6: the real shell executable rendered the web bundle and reached the shipped
+	 * daemon on this platform. Without it a platform could pass "smoke" (the daemon alone
+	 * becomes healthy) while the desktop shell itself cannot start, which is exactly the
+	 * half-finished support E-257 forbids.
+	 */
+	readonly shellSmokePassed: boolean;
 	readonly isSigned?: boolean;
 	readonly isNotarized?: boolean;
 	readonly failureReason?: string;
@@ -302,6 +309,7 @@ export function assertReleaseVerification(
 		if (!result.platformTestsPassed) stepsFailed.push('platform-tests');
 		if (!result.smokePassed) stepsFailed.push('daemon-smoke');
 		if (!result.shellBuildPassed) stepsFailed.push('shell-build');
+		if (!result.shellSmokePassed) stepsFailed.push('shell-smoke');
 
 		if (stepsFailed.length > 0) {
 			failedSteps.push(
@@ -318,7 +326,7 @@ export function assertReleaseVerification(
 			.filter(Boolean)
 			.join('. ');
 		throw new Error(
-			`Three-platform matrix verification failed (E-265): all three platforms (Windows, macOS, Ubuntu) must pass check, tests, smoke, and build. ${details}`,
+			`Three-platform matrix verification failed (E-265): all three platforms (Windows, macOS, Ubuntu) must pass check, tests, daemon smoke, shell smoke, and build. ${details}`,
 		);
 	}
 

@@ -16,6 +16,7 @@ import { DeckPage } from '../pages/deck-page.tsx';
 import { PairPage } from '../pages/pair-page.tsx';
 import { RunDetailPage } from '../pages/run-detail-page.tsx';
 import { TasksPage } from '../pages/tasks-page.tsx';
+import { ConnectFailedScreen, useFirstScreenFailure } from './connect-failed.tsx';
 import { hasDeviceToken } from './route-guard.tsx';
 import { type RouteComponentProps, type RouteId, type RouteMatch, RouterView } from './routes.tsx';
 
@@ -56,6 +57,20 @@ function AppTopbar({ match, banner }: { readonly match: RouteMatch; readonly ban
 }
 
 export function App({ renderTopbar }: AppProps = {}) {
+	// 整页失败只有两种：未配对走 #/pair（守卫里），首屏快照拉不到走这一屏（07 节）。
+	// 记录由取数方通过 `reportFirstScreenFailure()` 写入，重拉动作也随记录一起交给它。
+	const firstScreenFailure = useFirstScreenFailure();
+	if (firstScreenFailure) {
+		return (
+			<ConnectFailedScreen
+				code={firstScreenFailure.code}
+				requestId={firstScreenFailure.requestId}
+				baseUrl={firstScreenFailure.baseUrl}
+				onRetry={firstScreenFailure.retry}
+			/>
+		);
+	}
+
 	return (
 		<RouterView
 			components={APP_ROUTE_COMPONENTS}

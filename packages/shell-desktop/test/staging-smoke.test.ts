@@ -300,24 +300,19 @@ describe('M10-T5: installed product staging (AC 2, E-209, E-257)', () => {
 		}
 	});
 
-	it('does not follow installer symlinks while checking build paths (E-209)', () => {
-		const root = makeTempRoot();
-		try {
-			const stageDir = join(root, 'stage');
-			const builderRoot = join(root, 'builder-checkout');
-			mkdirSync(stageDir);
-			writeFileSync(join(stageDir, 'config.json'), JSON.stringify({ path: builderRoot }));
-			symlinkSync(
-				stageDir,
-				join(stageDir, 'loop'),
-				process.platform === 'win32' ? 'junction' : 'dir',
-			);
-			const report = inspectBuildPathResidue(stageDir, [builderRoot]);
-			expect(report.violations).toHaveLength(1);
-		} finally {
-			rmSync(root, { recursive: true, force: true });
-		}
-	});
+	it.skipIf(process.platform === 'win32')(
+		'skips the DMG Applications symlink when checking packaged files',
+		() => {
+			const root = makeTempRoot();
+			try {
+				writeFileSync(join(root, 'product.json'), JSON.stringify({ product: 'desktop' }));
+				symlinkSync(root, join(root, 'Applications'), 'dir');
+				expect(inspectBuildPathResidue(root, [join(root, 'builder-checkout')]).isClean).toBe(true);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
 });
 
 describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {

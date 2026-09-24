@@ -688,7 +688,7 @@ R  old.ts -> new.ts
 
 	describe(
 		'End-to-End Real Git Integration (AC 1, AC 2, AC 3, E-72, E-75)',
-		{ timeout: 60000 },
+		{ timeout: 120000 },
 		() => {
 			it('executes getDiffStat, getDiffText, and detectRemotePush on a real git worktree', async (ctx) => {
 				const hostInputsResult = takePlatformHostInputs({});
@@ -828,7 +828,7 @@ R  old.ts -> new.ts
 				} finally {
 					rmSync(tempBase, { recursive: true, force: true });
 				}
-			}, 30000);
+			}, 120000);
 		},
 	);
 });

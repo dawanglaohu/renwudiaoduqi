@@ -139,22 +139,27 @@ describe('M10-T1 Shell Bridge & Capability Detection', () => {
 	});
 
 	describe('AC 1: Capabilities count & Bridge Contract types', () => {
-		it('contains exactly 3 capabilities (tokenStore, notify, hostHint) and 2 read-only flags', () => {
+		it('contains exactly 4 capabilities (tokenStore, notify, hostHint, launchService) and 3 read-only flags', () => {
 			const expectedKeys = new Set([
 				'platform',
 				'capabilities',
 				'tokenStore',
 				'notify',
 				'hostHint',
+				'launchService',
 			]);
 			const bridgeKeys = Object.keys(shellBridge);
 			for (const key of bridgeKeys) {
 				expect(expectedKeys.has(key)).toBe(true);
 			}
 
-			// Verify capabilities only has the two defined flags
+			// Verify capabilities has exactly the three defined flags
 			const capKeys = Object.keys(shellBridge.capabilities);
-			expect(capKeys.sort()).toEqual(['hasNativeNotification', 'hasSecureStorage']);
+			expect(capKeys.sort()).toEqual([
+				'canLaunchService',
+				'hasNativeNotification',
+				'hasSecureStorage',
+			]);
 
 			// Verify tokenStore only has get, set, clear
 			const tokenStoreKeys = Object.keys(shellBridge.tokenStore);
@@ -190,6 +195,7 @@ describe('M10-T1 Shell Bridge & Capability Detection', () => {
 			expect(result.capabilities).toEqual({
 				hasSecureStorage: true,
 				hasNativeNotification: true,
+				canLaunchService: true,
 			});
 			expect(Object.isFrozen(result)).toBe(true);
 			expect(Object.isFrozen(result.capabilities)).toBe(true);
@@ -206,6 +212,7 @@ describe('M10-T1 Shell Bridge & Capability Detection', () => {
 			expect(result.capabilities).toEqual({
 				hasSecureStorage: true,
 				hasNativeNotification: true,
+				canLaunchService: false,
 			});
 			expect(Object.isFrozen(result)).toBe(true);
 			expect(Object.isFrozen(result.capabilities)).toBe(true);
@@ -218,6 +225,7 @@ describe('M10-T1 Shell Bridge & Capability Detection', () => {
 			expect(result1.capabilities).toEqual({
 				hasSecureStorage: false,
 				hasNativeNotification: false,
+				canLaunchService: false,
 			});
 
 			const webCapacitorWin = {
@@ -230,6 +238,7 @@ describe('M10-T1 Shell Bridge & Capability Detection', () => {
 			expect(result2.capabilities).toEqual({
 				hasSecureStorage: false,
 				hasNativeNotification: false,
+				canLaunchService: false,
 			});
 		});
 
@@ -427,6 +436,72 @@ describe('M10-T1 Shell Bridge & Capability Detection', () => {
 				SESSION_STORAGE_TOKEN_KEY,
 				'mobile-rotated-token',
 			);
+		});
+	});
+
+	describe('M10-T6 AC 5: launchService only on tauri, E_SHELL_UNAVAILABLE everywhere else', () => {
+		it('reports canLaunchService=false and throws E_SHELL_UNAVAILABLE in browser mode', async () => {
+			expect(shellBridge.platform).toBe('browser');
+			expect(shellBridge.capabilities.canLaunchService).toBe(false);
+
+			await expect(shellBridge.launchService()).rejects.toMatchObject({
+				code: 'E_SHELL_UNAVAILABLE',
+			});
+		});
+
+		it('reports canLaunchService=false and throws E_SHELL_UNAVAILABLE on capacitor', async () => {
+			(window as unknown as { Capacitor?: unknown }).Capacitor = {
+				isNativePlatform: () => true,
+				Plugins: {
+					Preferences: {
+						get: vi.fn(async () => ({ value: null })),
+						set: vi.fn(async () => undefined),
+						remove: vi.fn(async () => undefined),
+					},
+				},
+			};
+			vi.resetModules();
+			const mobileShell = await import('../src/shell/shell-bridge.ts');
+
+			expect(mobileShell.shellBridge.platform).toBe('capacitor');
+			expect(mobileShell.shellBridge.capabilities.canLaunchService).toBe(false);
+			await expect(mobileShell.shellBridge.launchService()).rejects.toMatchObject({
+				code: 'E_SHELL_UNAVAILABLE',
+			});
+
+			(window as unknown as { Capacitor?: unknown }).Capacitor = undefined;
+			vi.resetModules();
+		});
+
+		it('invokes launch_service exactly once and returns the pid on tauri', async () => {
+			const invoke = vi.fn(async (command: string) => {
+				if (command === 'launch_service') {
+					return 4242;
+				}
+				throw new Error(`Unexpected Tauri command: ${command}`);
+			});
+			(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { invoke };
+			vi.resetModules();
+			const nativeShell = await import('../src/shell/shell-bridge.ts');
+
+			expect(nativeShell.shellBridge.capabilities.canLaunchService).toBe(true);
+			expect(await nativeShell.shellBridge.launchService()).toEqual({ pid: 4242 });
+			expect(invoke.mock.calls.filter(([command]) => command === 'launch_service')).toHaveLength(1);
+
+			(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = undefined;
+			vi.resetModules();
+		});
+
+		it('rejects a launch_service answer that is not a usable pid', async () => {
+			const invoke = vi.fn(async () => 'not-a-pid');
+			(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { invoke };
+			vi.resetModules();
+			const nativeShell = await import('../src/shell/shell-bridge.ts');
+
+			await expect(nativeShell.shellBridge.launchService()).rejects.toThrow(/unusable pid/);
+
+			(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = undefined;
+			vi.resetModules();
 		});
 	});
 });

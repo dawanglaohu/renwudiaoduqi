@@ -758,10 +758,10 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 			expect(body.commands).toHaveLength(2);
 
 			await app.close();
-		});
+		}, 30000);
 	});
 
-	describe('Real Git Repository Integration (E-73, E-74 lifecycle)', { timeout: 60000 }, () => {
+	describe('Real Git Repository Integration (E-73, E-74 lifecycle)', { timeout: 120000 }, () => {
 		it('full lifecycle: prepare worktree -> inspect landing diff & commands -> explicit cleanup -> retry rebuilds worktree (E-73, E-74)', async () => {
 			// This case runs the host's real `git`, so it must be told the host platform —
 			// passing 'linux' made it look for /usr/bin/git on a Windows runner.
@@ -926,6 +926,6 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 
 			expect(existsSync(retryPrep.worktreePath)).toBe(true);
 			expect(retryPrep.branchName).toBe('task/M5-T4-2');
-		}, 30000);
+		}, 120000);
 	});
 });

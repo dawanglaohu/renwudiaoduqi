@@ -59,6 +59,9 @@ function collectTextFiles(dir: string): string[] {
 	for (const entry of readdirSync(dir)) {
 		const full = join(dir, entry);
 		const stat = lstatSync(full);
+		// A DMG includes an Applications shortcut into the host filesystem. Only
+		// inspect files actually carried by the expanded product.
+		if (stat.isSymbolicLink()) continue;
 		if (stat.isDirectory()) {
 			results.push(...collectTextFiles(full));
 		} else if (/\.(json|js|mjs|ts|sh|cmd|bat|toml|yaml|yml|txt|conf)$/i.test(entry)) {
