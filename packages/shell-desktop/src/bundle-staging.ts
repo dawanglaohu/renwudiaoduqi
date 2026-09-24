@@ -11,8 +11,16 @@ export interface StageTauriBundleOptions {
 	readonly folderName?: string;
 }
 
-function executeCommand(command: string, args: readonly string[]): void {
-	const result = spawnSync(command, [...args], { stdio: 'inherit', shell: false });
+function executeCommand(
+	command: string,
+	args: readonly string[],
+	windowsVerbatimArguments = false,
+): void {
+	const result = spawnSync(command, [...args], {
+		stdio: 'inherit',
+		shell: false,
+		windowsVerbatimArguments,
+	});
 	if (result.error) throw result.error;
 	if (result.status !== 0) {
 		throw new Error(
@@ -38,12 +46,13 @@ function extractBundle(bundlePath: string, outputDir: string, platform: string):
 	const extension = bundlePath.toLowerCase();
 	if (extension.endsWith('.msi')) {
 		if (platform !== 'win32') throw new Error('An MSI bundle can only be expanded on Windows.');
-		executeCommand('msiexec.exe', [
-			'/a',
-			resolve(bundlePath),
-			'/qn',
-			`TARGETDIR=${resolve(outputDir)}`,
-		]);
+		// msiexec uses its own command-line parser; Node's CRT-style escaping
+		// turns embedded MSI property quotes into literal backslashes.
+		executeCommand(
+			'msiexec.exe',
+			['/a', `"${resolve(bundlePath)}"`, '/qn', `TARGETDIR="${resolve(outputDir)}"`],
+			true,
+		);
 		return;
 	}
 

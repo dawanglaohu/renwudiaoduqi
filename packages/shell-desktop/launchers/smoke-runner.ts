@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,7 +81,9 @@ function defaultSources(platform: 'win32' | 'darwin' | 'linux'): {
 }
 
 function defaultRootDir(): string {
-	return mkdtempSync(join(tmpdir(), 'agsched-smoke-'));
+	// macOS maps /var to /private/var. Tauri rejects an executable path that
+	// contains a symlink before resolving its bundled Resources directory.
+	return realpathSync(mkdtempSync(join(tmpdir(), 'agsched-smoke-')));
 }
 
 /**
