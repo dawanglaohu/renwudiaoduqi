@@ -968,18 +968,14 @@
     "verdict": "pass"
   },
   "M8-T9": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "8c665f54c6bcf83c855947eb007cebd9621a657694a88c2300ecab8a434f4d5c",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "d00661385f117dd719d810273bf8c7b1f1d92a7bdc6483f4242f73b63b39f165",
     "evidence": [
-      "前置闭包：依赖列加 M8-T7（修复派发接线点）与 M6-T2（收流路径），contracts requires 加 {task:'M8-T7'}；输入列引用的 startReviewRound() / dispatchRework() / dispatchBughunt() / finalizeReviewRun() / getPipeline() / refillLanes() / triggerWrapup() / rerun / POST /runs / EffortValue 转换函数全部由闭包内任务产出（审查员 BLOCKING 1 修正）。",
-      "RunDto.followedTaskId 有了交付方：产出列加 RunDto.followedTaskId，验收 3 写明由 service 按 snapshot_id 集合一次联结取自 assignment_json（旧快照无该键 → null，不新增 runs 列），17 节集成 ⑧ 加断言；09 节 assignment_source 行注明不另加列（审查员 BLOCKING 2、决策 129）。",
-      "rerun 语义统一：验收 2 改为「复用原 snapshot_id，不新建快照、不改 assignment_json，assignment_source 抄原运行」，17 节 ⑦ 改为「新运行的 snapshot_id 与原运行相同」，与决策 129、E-352、M8-T5 验收 2 一致；service/rerun.ts 加进 supportPaths（审查员 BLOCKING 3 修正）。",
-      "零产出退出闭环：验收 7 两跳 exited → reviewing → awaiting_human 与 main domain/run-state-machine.ts 白名单一致（无需新边）；验收 8 点明产品级 run.exited 由 service/run.ts 在进程 close 时发并带 stderrTail、该闸门 reject 走 awaiting_human → failed（09 节白名单已有「人判定失败」边）、rerun 对 exited_before_output 的 awaiting_human 放行并作废闸门；E-331 的 bughunt 行 rerun 放行归验收 2（前端审查跨侧缺口与 M7-T8 NON_BLOCKING 2 采纳）。",
-      "设置四键：验收 5 与 10 节端点行、字段级契约 bughunt/wrapupMode 行（已改四字段）、E-356 一致；10 节 wrapup 手动 body 注明 effortTier 只收三档（M8-T6 NON_BLOCKING 3 采纳）。",
-      "有效范围：产出列逐项对照 taskPaths（19 条，含新加 http/routes/runs.ts）+ supportPaths（23 条）全部覆盖；数据库约束核对：0001_init.sql 的 dispatch_snapshots 无 (task_id, contract_hash) 唯一约束，子快照 INSERT 不冲突，parent_snapshot_id 自引用 FK 走普通 ADD COLUMN。",
-      "边界：E-62、E-93、E-295、E-304、E-323、E-331、E-341～E-344、E-347、E-348、E-352、E-354、E-356、E-357 均存在且与验收逐条对应；08 节三条事务顺序（startReviewRound 事务前读快照与设置、finalizeReviewRun 第一步、refreshLogin 不开事务）与验收 3、4、7、9 一致。"
+      "2026-09-24 审查 task/M8-T9 PR #145：status 的当前契约哈希与派发包一致，stale/runtimeDrift/blockers 均为空；该 pass 只表示任务定义已复核，不表示代码验收通过。",
+      "图谱/任务/M8-T9.md 的九条验收、E-295/E-304/E-323/E-331/E-341/E-342/E-343/E-344/E-347/E-348/E-352/E-354/E-356/E-357/E-59/E-62/E-93 边界与派发包一致；03-质量/17-测试策略.md 要求 pnpm -w check，04-执行/19-模块任务拆分.md 定义 M8-T9 的后端产出及后续前端任务。",
+      "对照主干与 PR diff 核对了前置快照、运行、审查、查 bug、收口、设置及 shared API 接口；有效路径覆盖本 PR 的代码与测试，现有 0007 迁移已有 assignment_json/parent_snapshot_id/assignment_source 列。代码问题在 REVIEW-ROUND 1 的 PR 评论中另列返工，不降低任务契约。"
     ],
-    "reviewed": "2026-09-12T21:48:05.985944+00:00",
+    "reviewed": "2026-09-24T08:09:39.804313+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
