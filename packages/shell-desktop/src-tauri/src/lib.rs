@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::Manager;
@@ -18,6 +19,9 @@ const SMOKE_ENV: &str = "AGSCHED_SMOKE";
 /// Real device token the smoke obtained from `POST /api/v1/pair/claim`. Without one the
 /// client never opens its stream, so `data-connection-status` could never reach "online".
 const SMOKE_TOKEN_ENV: &str = "AGSCHED_SMOKE_TOKEN";
+/// Opt-in audit path for a native launch recording. The file records each IPC call and pid;
+/// the adjacent daemon log captures the child process output.
+const LAUNCH_AUDIT_ENV: &str = "AGSCHED_LAUNCH_AUDIT_FILE";
 /// Every poll the shell injects one script that reports the two dataset values back.
 const SMOKE_POLL_INTERVAL_MS: u64 = 500;
 /// CI ceiling: the smoke fails instead of hanging when the page never gets there.
@@ -201,6 +205,37 @@ fn launch_service(state: tauri::State<LaunchState>) -> Result<u32, String> {
     let mut command = std::process::Command::new(&spec.file);
     command.args(&spec.args);
     command.current_dir(&spec.cwd);
+    let mut audit_file = match std::env::var(LAUNCH_AUDIT_ENV) {
+        Ok(path) if !path.trim().is_empty() => {
+            let path = std::path::PathBuf::from(path);
+            if !path.is_absolute() {
+                return Err(format!("{} must be an absolute path", LAUNCH_AUDIT_ENV));
+            }
+            let mut audit = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+                .map_err(|e| format!("failed to open native launch audit: {}", e))?;
+            writeln!(
+                audit,
+                "launch_service invoke shell_pid={}",
+                std::process::id()
+            )
+            .map_err(|e| e.to_string())?;
+            let daemon_log = path.with_extension("daemon.log");
+            let stdout = std::fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(daemon_log)
+                .map_err(|e| format!("failed to open daemon startup log: {}", e))?;
+            let stderr = stdout.try_clone().map_err(|e| e.to_string())?;
+            command.stdout(stdout);
+            command.stderr(stderr);
+            Some(audit)
+        }
+        _ => None,
+    };
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -208,6 +243,9 @@ fn launch_service(state: tauri::State<LaunchState>) -> Result<u32, String> {
         command.creation_flags(CREATE_NO_WINDOW);
     }
     let child = command.spawn().map_err(|e| e.to_string())?;
+    if let Some(audit) = audit_file.as_mut() {
+        writeln!(audit, "launch_service returned pid={}", child.id()).map_err(|e| e.to_string())?;
+    }
     Ok(child.id())
 }
 
@@ -262,7 +300,24 @@ pub fn start_desktop() {
             if smoke_enabled() {
                 start_smoke_probe(app.handle());
             }
-            let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
+            let mut resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
+            if !resource_dir.join(DAEMON_RUNTIME_DIR_NAME).exists() {
+                if resource_dir
+                    .join("resources")
+                    .join(DAEMON_RUNTIME_DIR_NAME)
+                    .exists()
+                {
+                    resource_dir = resource_dir.join("resources");
+                } else if let Some(parent) = resource_dir.parent() {
+                    if parent
+                        .join("resources")
+                        .join(DAEMON_RUNTIME_DIR_NAME)
+                        .exists()
+                    {
+                        resource_dir = parent.join("resources").to_path_buf();
+                    }
+                }
+            }
             let resource_dir_text = resource_dir.to_string_lossy().into_owned();
             if !is_absolute_launch_path(&resource_dir_text) {
                 return Err("Desktop resource directory must be an absolute path.".into());

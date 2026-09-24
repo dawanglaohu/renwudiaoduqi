@@ -353,6 +353,7 @@ describe('M10-T6 AC 1: the failure channel is reachable from the app entry', () 
 								docId: 'doc-1',
 								batchNo: 1,
 								state: 'done',
+								defaultExpanded: true,
 							},
 						],
 						latestEventId: 1,
@@ -396,7 +397,9 @@ describe('M10-T6 AC 1: the failure channel is reachable from the app entry', () 
 			await vi.waitFor(
 				() => {
 					expect(document.querySelector('[data-testid="connect-failed-screen"]')).toBeNull();
-					const tasksContainer = document.querySelector('[data-component="tasks-page-container"]');
+					const tasksContainer = document.querySelector(
+						'[data-component="tasks-page"], [data-component="tasks-page-container"]',
+					);
 					expect(tasksContainer).not.toBeNull();
 					expect(tasksContainer?.textContent).toContain('M10-T6');
 				},
@@ -406,6 +409,66 @@ describe('M10-T6 AC 1: the failure channel is reachable from the app entry', () 
 			globalThis.fetch = originalFetch;
 			setCachedToken(null);
 			window.location.hash = '';
+		}
+	});
+
+	it('recovers a failed deck snapshot after the snapshot owner was unmounted by the failure screen', async () => {
+		const { useBatchTree } = await import('../src/features/run-deck/use-batch-tree.ts');
+		const { useFirstScreenFailure: useFailure } = await import('../src/app/connect-failed.tsx');
+		const { reportFirstScreenFailure: reportFailure } = await import('../src/app/bootstrap.ts');
+		const { setCachedToken } = await import('../src/api/http-client.ts');
+		const originalFetch = globalThis.fetch;
+		let isOffline = true;
+		setCachedToken('test-device-token');
+		globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+			if (String(input).includes('/api/v1/snapshot')) {
+				if (isOffline) throw new TypeError('Failed to fetch');
+				return new Response(JSON.stringify({ tasks: [], batches: [], latestEventId: 1 }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			return new Response('{}', { status: 200 });
+		});
+
+		function SnapshotOwner() {
+			useBatchTree();
+			return createElement('div', { 'data-testid': 'deck-snapshot-owner' });
+		}
+
+		function FailureGate() {
+			const failure = useFailure();
+			return failure
+				? createElement('button', {
+						type: 'button',
+						'data-testid': 'deck-retry',
+						onClick: failure.retry,
+					})
+				: createElement(SnapshotOwner);
+		}
+
+		try {
+			render(createElement(FailureGate));
+			await vi.waitFor(
+				() => {
+					expect(document.querySelector('[data-testid="deck-retry"]')).not.toBeNull();
+					expect(document.querySelector('[data-testid="deck-snapshot-owner"]')).toBeNull();
+				},
+				{ timeout: 4000 },
+			);
+			isOffline = false;
+			await click(document.querySelector('[data-testid="deck-retry"]'));
+			await vi.waitFor(
+				() => {
+					expect(document.querySelector('[data-testid="deck-retry"]')).toBeNull();
+					expect(document.querySelector('[data-testid="deck-snapshot-owner"]')).not.toBeNull();
+				},
+				{ timeout: 4000 },
+			);
+		} finally {
+			globalThis.fetch = originalFetch;
+			setCachedToken(null);
+			reportFailure(null);
 		}
 	});
 });

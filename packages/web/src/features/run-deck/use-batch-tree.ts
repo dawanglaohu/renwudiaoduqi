@@ -14,7 +14,9 @@
 import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { resolveBaseUrl } from '../../api/base-url.ts';
 import { httpClient, isApiError } from '../../api/http-client.ts';
+import { reportFirstScreenFailure } from '../../app/bootstrap.ts';
 import type { BatchTreeItem } from '../../components/batch-tree.tsx';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
 import {
@@ -112,6 +114,7 @@ export function useBatchTree(options: UseBatchTreeOptions = {}): UseBatchTreeRes
 		const fetchSnapshot = async () => {
 			try {
 				const snapshot = await httpClient.callRoute<SnapshotResponse>(GET_SNAPSHOT_ROUTE);
+				reportFirstScreenFailure(null);
 				if (!isMounted) return;
 				const items = mapSnapshotToBatches(snapshot);
 				setFetchedBatches(items);
@@ -120,6 +123,45 @@ export function useBatchTree(options: UseBatchTreeOptions = {}): UseBatchTreeRes
 				seedBatchExpansion(items, docId ?? items[0]?.docId);
 			} catch (cause: unknown) {
 				if (isMounted) {
+					const isNetwork =
+						(isApiError(cause) && (cause.code === 'E_NETWORK' || cause.code === 'E_TIMEOUT')) ||
+						(typeof cause === 'object' &&
+							cause !== null &&
+							'code' in cause &&
+							((cause as { code: unknown }).code === 'E_NETWORK' ||
+								(cause as { code: unknown }).code === 'E_TIMEOUT'));
+
+					if (isNetwork) {
+						let baseUrl = '';
+						if (
+							isApiError(cause) &&
+							typeof cause.details === 'object' &&
+							cause.details &&
+							'baseUrl' in cause.details &&
+							typeof (cause.details as Record<string, unknown>).baseUrl === 'string'
+						) {
+							baseUrl = (cause.details as Record<string, unknown>).baseUrl as string;
+						}
+						if (!baseUrl) {
+							try {
+								baseUrl = await resolveBaseUrl();
+							} catch {
+								baseUrl = '';
+							}
+						}
+						const code = isApiError(cause)
+							? cause.code
+							: ((cause as { code?: string }).code ?? 'E_NETWORK');
+						const requestId = isApiError(cause) ? cause.requestId : null;
+						reportFirstScreenFailure({
+							code,
+							requestId,
+							baseUrl,
+							retry: () => {
+								void fetchSnapshot();
+							},
+						});
+					}
 					setError(toBatchTreeError(cause));
 				}
 			}
