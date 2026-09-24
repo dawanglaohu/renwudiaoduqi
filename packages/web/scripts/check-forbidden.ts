@@ -423,6 +423,80 @@ export function runForbiddenCheck(
 				}
 			}
 		}
+
+		// Check 12: Stage literal comparison in components/, features/, pages/ (AC 1, E-317)
+		const isUiLayer =
+			file.includes('/src/components/') ||
+			file.includes('\\src\\components\\') ||
+			file.includes('/src/features/') ||
+			file.includes('\\src\\features\\') ||
+			file.includes('/src/pages/') ||
+			file.includes('\\src\\pages\\');
+
+		if (isUiLayer) {
+			const cleanLines = blankComments(content).split('\n');
+			const STAGE_LITERAL_CMP_REGEX =
+				/(?:\.stage|currentStage|laneStage|\bstage)\s*(?:===|!==)\s*['"](?:implement|review|bughunt|landing|rework|queued|idle)['"]|['"](?:implement|review|bughunt|landing|rework|queued|idle)['"]\s*(?:===|!==)\s*(?:\.stage|currentStage|laneStage|\bstage)/;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (STAGE_LITERAL_CMP_REGEX.test(line)) {
+					violations.push({
+						rule: 'STAGE_LITERAL_COMPARISON',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'Stage literal comparison is prohibited in UI layer; use pure helpers from lib/stage-rows.ts (AC 1, E-317).',
+					});
+				}
+			}
+		}
+
+		// Check 13: Lane number must not enter URL (AC 9, E-324)
+		{
+			const cleanLines = blankComments(content).split('\n');
+			const LANE_IN_URL_REGEX =
+				/[?&]lane(?:No)?=|(?:searchParams\.set|searchParams\.append)\s*\(\s*['"](?:lane|laneNo|lane_no)['"]/;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (LANE_IN_URL_REGEX.test(line)) {
+					violations.push({
+						rule: 'LANE_IN_URL',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'Lane number is prohibited from entering URL; current lane must be stored in selection-store in-memory only (AC 9, E-324).',
+					});
+				}
+			}
+		}
+
+		// Check 14: Spine and stage-chain must not measure DOM (AC 3, 07 节)
+		const isSpineOrStageChain =
+			file.endsWith('/spine.tsx') ||
+			file.endsWith('\\spine.tsx') ||
+			file.endsWith('/stage-chain.tsx') ||
+			file.endsWith('\\stage-chain.tsx');
+
+		if (isSpineOrStageChain) {
+			const cleanLines = blankComments(content).split('\n');
+			const DOM_MEASURE_REGEX =
+				/\b(?:getBoundingClientRect|offsetHeight|offsetWidth|clientHeight|clientWidth|scrollHeight|scrollWidth|ResizeObserver|getComputedStyle)\b/;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (DOM_MEASURE_REGEX.test(line)) {
+					violations.push({
+						rule: 'SPINE_DOM_MEASUREMENT',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'DOM measurement is strictly prohibited in spine and stage-chain components (AC 3, 07 节).',
+					});
+				}
+			}
+		}
 	}
 
 	// Check 11: @keyframes must appear exactly once across base.css (AC 3, E-282).

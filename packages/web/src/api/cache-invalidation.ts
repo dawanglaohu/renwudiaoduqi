@@ -23,10 +23,12 @@ export const EVENT_CACHE_INVALIDATIONS: Partial<Record<EventKind, readonly Cache
 	'task.gate_passed': ['tasks'],
 	'task.review_verdict': ['tasks', 'runs'],
 	'task.landed': ['tasks', 'batches'],
-	'task.sessions_archived': ['runs', 'tasks'],
+	'task.sessions_archived': ['runs', 'tasks', 'lanes'],
+	'lane.assigned': ['lanes', 'runs'],
 	'lane.released': ['lanes', 'tasks'],
 	'batch.advanced': ['batches'],
 	'settings.gates_changed': ['settings'],
+	'document.settings_changed': ['lanes', 'documents'],
 	'agent.availability_changed': ['agents', 'agentModels'],
 	'system.docs_changed': ['documents', 'batches', 'tasks'],
 };

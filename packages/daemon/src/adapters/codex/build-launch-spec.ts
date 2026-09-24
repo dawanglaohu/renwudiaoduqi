@@ -152,6 +152,7 @@ export function buildCodexLaunchSpec(options: BuildCodexLaunchSpecOptions): Laun
 		timeouts: options.timeouts,
 		label: options.label ?? `codex-${mode}`,
 		isAcp: isAcp || undefined,
+		stdinMode: mode === 'exec' ? 'closed' : 'pipe',
 		windowsComSpecPath: options.windowsComSpecPath,
 	});
 }

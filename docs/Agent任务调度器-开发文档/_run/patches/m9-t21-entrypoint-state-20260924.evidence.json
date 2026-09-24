@@ -1,0 +1,25 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T21": {
+      "contractHash": "dd49019ec0605db82089e3fd6a4da33bc67e5a02505e1826b5d0ac151171fdfa",
+      "evidence": [
+        "本补丁只将 pages/deck-page.tsx 和 features/run-deck/use-run-deck.ts 加入 M9-T21 的有效路径。原验收标准、边界、前置与实现目标均未变化。",
+        "真实入口 DeckPage -> RunDeckContainer -> useRunDeck/RunDeckView -> LanesContainer。页面由空本地列表进入远端快照后，useRunDeck 必须消费真实 lanes，才能按稀疏 laneNo 导航和显示 k/N；useRunDeck 也将实际 laneNo 写入 selection-store。",
+        "这两个路径均用于 M9-T21 现有泳道接线；没有扩张到其他页面或整个 run-deck 目录。当前 PR #143 的此处变更与其他开放任务 PR 无重叠。聚焦测试 95/95 通过，完整 pnpm -w check 为 191/191 文件、2335 通过、3 跳过。",
+        "契约复核 pass 只说明路径和语义范围正确；真实服务界面证据与最终代码验收继续按本轮审查执行。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T22": {
+      "contractHash": "9d9cd6985507d81e63195ad3feed7a14360e766bdc2f2879973c581e24f875b6",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "c46953929d7a3222e06276a56ef87ca7083c40935b1a6b1dc15db9732377edf8",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

@@ -305,10 +305,13 @@ describe('M7-T2: 审查 agent 派发与 diff 裁剪 (AC 1-4, E-135, E-347, E-65)
 				worktreePath: '/w/codex',
 				assignment: { agentId: 'codex', modelName: 'o3-mini', effortTier: 'high' },
 				prompt: 'review test',
+				execPath: '/opt/codex-custom',
 			});
-			// In codex app-server mode, sandbox_mode is passed as config flag
-			expect(codexSpec.args).toContain('-c');
-			expect(codexSpec.args.some((a) => a.includes('sandbox_mode="read-only"'))).toBe(true);
+			expect(codexSpec.file).toBe('/opt/codex-custom');
+			expect(codexSpec.args.slice(0, 2)).toEqual(['exec', '--json']);
+			expect(codexSpec.args).toContain('read-only');
+			expect(codexSpec.args.at(-1)).toBe('review test');
+			expect(codexSpec.stdinMode).toBe('closed');
 
 			// 2. Claude
 			const claudeSpec = buildReviewLaunchSpec({

@@ -102,6 +102,10 @@ export interface DeckStreamLane {
 	readonly reworkText?: string | null;
 	/** 审查裁定（只有 'incomplete' 才出投递原文条件动作） */
 	readonly reviewVerdict?: string | null;
+	/** 归档任务 ID 列表（支持跨泳道重派与历史行，M9-T21 / R2） */
+	readonly archivedTaskIds?: readonly string[];
+	/** 归档收口运行 ID（M9-T21 / R2） */
+	readonly archivedWrapupRunId?: string | null;
 	/** 任务编号/代号（如 M9-T9） */
 	readonly taskKey?: string;
 	/** 任务标题 */

@@ -1,0 +1,25 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T21": {
+      "contractHash": "ed0c29994bc45049d8f92cc34f147f66857b1baf808db2d6b9b3871e17607efd",
+      "evidence": [
+        "只给 M9-T21 追加十二个实际 R1 接线及测试支持路径；其他任务的源定义未改，M9-T21 验收条款、边界编号和依赖未降低。",
+        "正式容器在创建及定时派发时将 agents.json 的 Codex 可执行路径冻结进运行快照，启动只读快照；codex exec --json 携带任务提示词并关闭标准输入。集成回归覆盖注册表热更后仍使用冻结路径。",
+        "隔离 Git 仓库的正式 HTTP 服务已派发实际 gpt-6-luna：实施进程写出 demo-output.txt 且产生 command_execution 事件，独立审查进程实际启动、输出裁定并退出；无假 API 响应或伪造事件。",
+        "最终 pnpm -w check 完整执行并通过：195 个测试文件、2373 条通过、2 条跳过，包含真实 Git 工作树集成测试；Biome、TypeScript 和架构检查通过。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T22": {
+      "contractHash": "6476ef5086acfab90725eee3852a08b0487cc95b0c2fd2dd4e957f926e9c0c37",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T23": {
+      "contractHash": "5d846bb7512a3f6970456c072c5c8d2eea10ba0e03971237767f775c74ea79d3",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

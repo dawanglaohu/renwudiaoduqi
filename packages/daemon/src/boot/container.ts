@@ -804,6 +804,7 @@ export function createContainer(input: {
 			gatesRepo: gates,
 			settingsRepo: settings,
 			batchWrapupsRepo: batchWrapups,
+			agentRegistry,
 			batchService,
 			wrapupService,
 			lanesService,
