@@ -79,6 +79,36 @@ export function getErrorMessage(code: string | undefined | null, fallback?: stri
 }
 
 /**
+ * E-04 要求的首屏文案：明确指出「电脑上的调度服务未启动」，而不是「连接超时」或纯网络术语。
+ */
+export const SERVICE_NOT_RUNNING_TITLE = '电脑上的调度服务未启动' as const;
+
+/**
+ * 启动调度服务失败时的规格化中文文案（07 节约定：不直接向用户展示原生 Rust 错误与原始英文）。
+ */
+export const LAUNCH_SERVICE_FAILED_MESSAGE =
+	'启动调度服务失败，请检查安装环境或尝试手动启动' as const;
+
+/**
+ * 解析启动调度服务的中文错误文案：已规格化的 ApiError 按 code 查表，其余返回统一中文提示。
+ */
+export function getLaunchErrorMessage(error?: unknown): string {
+	if (
+		error &&
+		typeof error === 'object' &&
+		'code' in error &&
+		typeof (error as { code: unknown }).code === 'string'
+	) {
+		const code = (error as { code: string }).code as ErrorCode;
+		const msg = ERROR_MESSAGES[code];
+		if (msg) {
+			return msg;
+		}
+	}
+	return LAUNCH_SERVICE_FAILED_MESSAGE;
+}
+
+/**
  * 「投递原文到实施会话」的四态卡内文案（M9-T20 / AC 4 / E-113、E-117）。
  * 未送达与失败两态都必须点明原文还在，绝不静默丢弃或假装已发出。
  */

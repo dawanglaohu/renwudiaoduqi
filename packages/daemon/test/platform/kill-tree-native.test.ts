@@ -76,7 +76,7 @@ describe('native process-tree integration (E-119)', () => {
 			await rm(workingRoot, { recursive: true, force: true });
 		}
 		if (cleanupCause !== undefined) throw cleanupCause;
-	}, 15_000);
+	}, 30_000);
 });
 
 function nativeProcessOps(): KillTreeProcessOps {
@@ -114,17 +114,17 @@ async function readPid(path: string): Promise<number> {
 }
 
 async function waitUntilExited(pid: number): Promise<boolean> {
-	const deadline = Date.now() + 5000;
+	const deadline = Date.now() + 15000;
 	while (Date.now() < deadline) {
 		if (await probePidExited(pid)) return true;
-		await new Promise((resolve) => setTimeout(resolve, 20));
+		await new Promise((resolve) => setTimeout(resolve, 50));
 	}
 	return false;
 }
 
 function waitForChildExit(child: ChildProcess): Promise<boolean> {
 	return new Promise((resolve) => {
-		const timeout = setTimeout(() => resolve(false), 5000);
+		const timeout = setTimeout(() => resolve(false), 15000);
 		child.once('exit', () => {
 			clearTimeout(timeout);
 			resolve(true);

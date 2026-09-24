@@ -3,6 +3,7 @@ import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { RingBuffer } from '../events/ring-buffer.ts';
+import { isAllowedShellOrigin } from './plugins/20-security-headers.ts';
 
 export const SSE_HEARTBEAT_FRAME = ':\n\n';
 export const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
@@ -172,6 +173,11 @@ export function handleSseStream(params: HandleSseStreamParams): void {
 	rawResponse.setHeader('Cache-Control', 'no-cache, no-transform');
 	rawResponse.setHeader('Connection', 'keep-alive');
 	rawResponse.setHeader('X-Accel-Buffering', 'no');
+	const origin = rawRequest.headers.origin;
+	if (origin && isAllowedShellOrigin(origin)) {
+		rawResponse.setHeader('Access-Control-Allow-Origin', origin);
+		rawResponse.setHeader('Access-Control-Allow-Credentials', 'true');
+	}
 
 	if (rawResponse.socket) {
 		rawResponse.socket.setNoDelay(true);

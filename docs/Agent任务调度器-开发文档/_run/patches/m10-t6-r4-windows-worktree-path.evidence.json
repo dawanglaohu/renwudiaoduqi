@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M10-T6": {
+      "contractHash": "357f18beefd97d6f1c95514077fbeb250d1d256323839b8bf59ddb5ed21c369c",
+      "evidence": [
+        "2026-09-24 PR #134 R4: Windows full check failed at packages/daemon/test/unit/worktree.test.ts:942 because Git porcelain returns forward slashes while node:path.resolve creates backslashes for the same worktree. This is a test path-representation mismatch; the test still checks the rebuilt branch, committed file, and cleanup.",
+        "Added only packages/daemon/test/unit/worktree.test.ts to M10-T6 supportPaths for the final gate repair. The assertion compares node:path.resolve on both returned paths. The focused 26-test worktree file passes on Windows.",
+        "After sync, pnpm -w check exits 0 with error-code scan, contrast, forbidden-pattern scan, Biome, TypeScript, and Vitest all executed: 184 files passed, 2202 tests passed, 2 skipped. This passes the local and contract-patch checks only; final-head GitHub Windows, macOS, and Ubuntu desktop shell smoke is still required before R4 can pass."
+      ],
+      "verdict": "pass"
+    }
+  }
+}

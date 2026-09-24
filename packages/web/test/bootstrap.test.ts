@@ -23,6 +23,10 @@ function createShell(token: string | null, order?: string[]): ShellBridge {
 		capabilities: {
 			hasSecureStorage: false,
 			hasNativeNotification: false,
+			canLaunchService: false,
+		},
+		async launchService() {
+			throw new Error('E_SHELL_UNAVAILABLE');
 		},
 		tokenStore: {
 			async get() {
@@ -329,7 +333,11 @@ describe('M9-T26 application bootstrap', () => {
 
 		const browserShell: ShellBridge = {
 			platform: 'browser',
-			capabilities: { hasSecureStorage: false, hasNativeNotification: false },
+			capabilities: {
+				hasSecureStorage: false,
+				hasNativeNotification: false,
+				canLaunchService: false,
+			},
 			tokenStore: {
 				get: async () => null,
 				set: async () => {},
@@ -337,6 +345,9 @@ describe('M9-T26 application bootstrap', () => {
 			},
 			notify: async () => {},
 			hostHint: async () => pageOrigin,
+			launchService: async () => {
+				throw new Error('E_SHELL_UNAVAILABLE');
+			},
 		};
 
 		const boot = await bootstrap({ shell: browserShell });

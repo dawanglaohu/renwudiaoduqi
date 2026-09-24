@@ -11,8 +11,18 @@ export interface SpawnOptionsInjection {
 			windowsHide?: boolean;
 			detached?: boolean;
 			stdio?: 'ignore' | 'pipe' | 'inherit';
+			env?: Readonly<Record<string, string>>;
 		},
 	) => ChildProcess;
+	/**
+	 * Environment handed to the daemon. The frozen spec fixes `file/args/cwd`; the product's
+	 * own `AGSCHED_*` variables are how a smoke check keeps the daemon away from the
+	 * machine's real port and data directory. Production call sites leave it undefined and
+	 * inherit the shell's environment.
+	 */
+	readonly env?: Readonly<Record<string, string>>;
+	/** Streams the daemon's own output into this process; `'ignore'` by default. */
+	readonly stdio?: 'ignore' | 'pipe' | 'inherit';
 }
 
 export interface LaunchDaemonResult {
@@ -40,7 +50,8 @@ export function launchDaemon(
 			shell: false,
 			windowsHide: true,
 			detached: true,
-			stdio: 'ignore',
+			stdio: injection?.stdio ?? 'ignore',
+			...(injection?.env ? { env: injection.env } : {}),
 		});
 
 		if (child.unref) {

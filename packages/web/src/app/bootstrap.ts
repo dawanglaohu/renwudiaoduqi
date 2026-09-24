@@ -41,6 +41,41 @@ export interface BootstrapResult {
 }
 
 /**
+ * 首屏快照拿不到时的整页失败记录（07 节错误体系：整页失败只有两种，这是第二种）。
+ *
+ * `retry` 由取数方自己提供：快照是它拉的，重拉也只能是它。壳只负责「启动调度服务」，
+ * 启动之后仍然由取数方重拉快照（E-146：重试策略不在容器里）。
+ */
+export interface FirstScreenFailure {
+	readonly code: string;
+	readonly requestId: string | null;
+	readonly baseUrl: string;
+	readonly retry: () => void | Promise<void>;
+}
+
+let currentFirstScreenFailure: FirstScreenFailure | null = null;
+const firstScreenFailureListeners = new Set<() => void>();
+
+/** 记录或清除首屏失败（传 `null` 清除）。 */
+export function reportFirstScreenFailure(failure: FirstScreenFailure | null): void {
+	currentFirstScreenFailure = failure;
+	for (const listener of Array.from(firstScreenFailureListeners)) {
+		listener();
+	}
+}
+
+export function getFirstScreenFailure(): FirstScreenFailure | null {
+	return currentFirstScreenFailure;
+}
+
+export function subscribeFirstScreenFailure(listener: () => void): () => void {
+	firstScreenFailureListeners.add(listener);
+	return () => {
+		firstScreenFailureListeners.delete(listener);
+	};
+}
+
+/**
  * 承载 `data-connection-status` 的根元素。M10-T6 的壳 smoke 与 M1-T11 的端到端冒烟轮询
  * `document.documentElement.dataset.connectionStatus`，所以镜像写在 `<html>` 上；
  * 顶栏展示组件（`components/offline-banner.tsx`）从 store 拿同一个值写在自己的根元素上。

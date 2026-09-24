@@ -7,6 +7,8 @@ const STEP_NAMES = {
 	platform: 'Platform Integration Tests (AC 1, E-265)',
 	smoke: 'Staged Unpack, Launch Spec & Real Daemon Smoke (AC 2, E-209, E-257, E-265)',
 	build: 'Build Tauri Desktop Shell (AC 1, E-265)',
+	// M10-T6: the real shell executable against the real shipped daemon.
+	shellSmoke: 'Desktop Shell Smoke (AC 3, E-257, E-265, E-266)',
 } as const;
 
 function job(
@@ -27,7 +29,7 @@ function job(
 const noSigning = { isSigned: false, isNotarized: false };
 
 describe('M10-T5: release gate reads real job conclusions (AC 1, AC 6, E-265, E-267)', () => {
-	it('maps the three platform jobs and their four steps from the Actions payload', () => {
+	it('maps the three platform jobs and their five steps from the Actions payload', () => {
 		const results = collectHostResults(
 			[
 				job('Desktop CI / Windows (x64)', 'success'),
@@ -44,9 +46,27 @@ describe('M10-T5: release gate reads real job conclusions (AC 1, AC 6, E-265, E-
 			expect(result.platformTestsPassed).toBe(true);
 			expect(result.smokePassed).toBe(true);
 			expect(result.shellBuildPassed).toBe(true);
+			expect(result.shellSmokePassed).toBe(true);
 			expect(result.failureReason).toBeUndefined();
 		}
 		expect(() => assertReleaseVerification(results)).not.toThrow();
+	});
+
+	it('blocks the release when the shell smoke fails on a platform (E-257, E-265)', () => {
+		const results = collectHostResults(
+			[
+				job('Desktop CI / Windows (x64)', 'success'),
+				job('Desktop CI / macOS (Apple Silicon)', 'success', { shellSmoke: 'failure' }),
+				job('Desktop CI / Linux (Ubuntu LTS x64)', 'success'),
+			],
+			noSigning,
+		);
+
+		const darwin = results.find((r) => r.platform === 'darwin');
+		expect(darwin?.shellSmokePassed).toBe(false);
+		// The daemon alone still started; it is the shell that could not render or connect.
+		expect(darwin?.smokePassed).toBe(true);
+		expect(() => assertReleaseVerification(results)).toThrow(/darwin \(shell-smoke/);
 	});
 
 	it('names the failing platform and step instead of only failing the aggregate (E-265)', () => {

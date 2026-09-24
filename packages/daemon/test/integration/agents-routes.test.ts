@@ -9,6 +9,7 @@ import type {
 	ListAgentsResponse,
 	UpdateAgentResponse,
 } from '@agent-scheduler/shared/api/agents';
+import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
@@ -111,9 +112,15 @@ describe('M4-T4 Agents HTTP Routes Integration (R4 Fake Processes)', { timeout: 
 		runner.run(migrationsDir);
 	});
 
-	afterEach(() => {
+	let activeServer: FastifyInstance | null = null;
+
+	afterEach(async () => {
+		if (activeServer) {
+			await activeServer.close();
+			activeServer = null;
+		}
 		db.close();
-		rmSync(testDir, { recursive: true, force: true });
+		rmSync(testDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 	});
 
 	function setupTestServer(options?: {
@@ -252,6 +259,7 @@ describe('M4-T4 Agents HTTP Routes Integration (R4 Fake Processes)', { timeout: 
 		});
 
 		const server = createHttpServer({ container });
+		activeServer = server.instance;
 		return { server, container };
 	}
 

@@ -1,6 +1,14 @@
 import type { spawn } from 'node:child_process';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	cpSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -291,6 +299,20 @@ describe('M10-T5: installed product staging (AC 2, E-209, E-257)', () => {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
+
+	it.skipIf(process.platform === 'win32')(
+		'skips the DMG Applications symlink when checking packaged files',
+		() => {
+			const root = makeTempRoot();
+			try {
+				writeFileSync(join(root, 'product.json'), JSON.stringify({ product: 'desktop' }));
+				symlinkSync(root, join(root, 'Applications'), 'dir');
+				expect(inspectBuildPathResidue(root, [join(root, 'builder-checkout')]).isClean).toBe(true);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
 });
 
 describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {

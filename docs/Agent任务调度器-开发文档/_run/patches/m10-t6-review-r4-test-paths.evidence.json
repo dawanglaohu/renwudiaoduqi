@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M10-T6": {
+      "contractHash": "33b6f49252171dffb79215c92e366663ce0e40aa8256309acc6d25e7cbda6a98",
+      "evidence": [
+        "2026-09-23 PR #134 第 2 轮：R4 要求完整 pnpm -w check 绿灯；本分支 c1d7e893 对六个 daemon 测试和 vitest.config.ts 的改动均为此门禁的测试稳定性修复，新增的七条 supportPaths 与实际 diff 一一对应，没有放宽生产路径或验收条款。",
+        "sync 后只影响 M10-T6，status 的 stale、runtimeDrift 和 blockers 均为空，契约哈希为 33b6f49252171dffb79215c92e366663ce0e40aa8256309acc6d25e7cbda6a98；五条验收与七条边界均保留。",
+        "本机在 c1d7e893 执行 pnpm -w check 退出 0：Biome、TypeScript 与 173 个测试文件通过，2100 项通过、3 项跳过。M8-T8 在 container-wiring.test.ts 存在并行改动，原 PR 落地前需合并当前 main 并按最终 diff 复跑；其它具体产品验收和三平台 CI 仍由 PR 审查独立判定。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

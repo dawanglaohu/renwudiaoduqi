@@ -163,6 +163,7 @@ describe('M10-T5: Platform and Architecture Support Matrix (AC 1, AC 5-8, E-257,
 				platformTestsPassed: true,
 				smokePassed: true,
 				shellBuildPassed: true,
+				shellSmokePassed: true,
 			},
 			{
 				platform: 'darwin' as const,
@@ -171,6 +172,7 @@ describe('M10-T5: Platform and Architecture Support Matrix (AC 1, AC 5-8, E-257,
 				platformTestsPassed: true,
 				smokePassed: true,
 				shellBuildPassed: true,
+				shellSmokePassed: true,
 			},
 			{
 				platform: 'linux' as const,
@@ -179,6 +181,7 @@ describe('M10-T5: Platform and Architecture Support Matrix (AC 1, AC 5-8, E-257,
 				platformTestsPassed: true,
 				smokePassed: true,
 				shellBuildPassed: true,
+				shellSmokePassed: true,
 			},
 		];
 

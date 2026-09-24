@@ -216,6 +216,22 @@ function pruneDistribution() {
 	for (const entry of readdirSync(modulesDir)) {
 		if (/^node\d+-/.test(entry)) rmSync(join(modulesDir, entry), { recursive: true, force: true });
 	}
+	// pnpm deploy includes better-sqlite3 binaries for every supported target. An
+	// installed product only needs its own binary; linuxdeploy also tries to
+	// resolve foreign musl binaries and fails on a glibc runner.
+	const prebuildsDir = join(modulesDir, 'better-sqlite3', 'prebuilds');
+	const selectedPrebuild = `${process.platform}-${arch}.node`;
+	if (!existsSync(join(prebuildsDir, selectedPrebuild))) {
+		fail(`deployed better-sqlite3 lacks ${selectedPrebuild}`);
+	}
+	for (const entry of readdirSync(prebuildsDir)) {
+		if (entry.endsWith('.node') && entry !== selectedPrebuild) {
+			rmSync(join(prebuildsDir, entry));
+		}
+	}
+	// @fastify/send publishes its tests with a snowman-named fixture. WiX's
+	// en-US MSI database uses code page 1252 and cannot encode that filename.
+	rmSync(join(modulesDir, '@fastify', 'send', 'test'), { recursive: true, force: true });
 	// Package-manager metadata records the build machine's absolute paths.
 	for (const entry of ['.pnpm', '.bin', '.modules.yaml', '.npmrc']) {
 		rmSync(join(modulesDir, entry), { recursive: true, force: true });
