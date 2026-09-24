@@ -233,6 +233,28 @@ describe('M9-T25 seven route entries', () => {
 			}),
 		]);
 		expect(mapped[0]).not.toHaveProperty('taskCount');
+		const hydrated = mapSnapshotToBatches(
+			snapshotFixture(),
+			undefined,
+			[],
+			[
+				{
+					id: 'batch-13',
+					docId: 'doc-1',
+					batchNo: 13,
+					state: 'running',
+					startedAt: null,
+					finishedAt: null,
+					canWrapup: true,
+					notInHeadCount: 0,
+				},
+			],
+		);
+		expect(hydrated[0]).toMatchObject({
+			canWrapup: true,
+			notInHeadCount: 0,
+			tasks: [expect.objectContaining({ taskKey: 'M9-T25' })],
+		});
 
 		await preloadLazyPages();
 		navigateTo(ROUTE_PATHS.tasks);

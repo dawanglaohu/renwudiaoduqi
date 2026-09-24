@@ -178,6 +178,16 @@ export const createRunMessageBodySchema = {
 	},
 } as const;
 
+/**
+ * Per-run message capability bits delivered to clients, so the UI greys an action out from the bit
+ * instead of failing only after the click (E-117). `canReply` answers for this exact run: the agent
+ * adapter's reply bit intersected with a live, writable stdio pipe.
+ */
+export interface RunCapabilitiesDto {
+	readonly canReply: boolean;
+	readonly canResume: boolean;
+}
+
 export interface RunDto {
 	readonly id: string;
 	readonly taskId: string | null;
@@ -232,6 +242,17 @@ export interface RunDto {
 		| 'wrapup_settings'
 		| 'agent_default'
 		| null;
+	/**
+	 * Original review text kept when the verdict is `incomplete` (E-278). The approval card delivers
+	 * it verbatim into the implementation session, so it must reach the client uncut. `null` while the
+	 * run has no unstructured review text.
+	 */
+	readonly reworkText?: string | null;
+	/**
+	 * Message capability bits for this run (E-117). Absent on responses that do not resolve
+	 * capabilities; the client then treats the run as not replyable rather than guessing.
+	 */
+	readonly capabilities?: RunCapabilitiesDto | null;
 }
 
 export interface CreateRunResponse {

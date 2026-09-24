@@ -77,3 +77,133 @@ export function getErrorMessage(code: string | undefined | null, fallback?: stri
 	}
 	return fallback ?? code;
 }
+
+/**
+ * 「投递原文到实施会话」的四态卡内文案（M9-T20 / AC 4 / E-113、E-117）。
+ * 未送达与失败两态都必须点明原文还在，绝不静默丢弃或假装已发出。
+ */
+export const DELIVERY_NOTICE_MESSAGES = Object.freeze({
+	delivered: '原文已送达实施会话，运行状态以回流事件为准',
+	undelivered: '原文未送达（进程已死或管道已断），原文保留在卡片内，可复制后手动投递',
+	unsupported: '目标运行的 agent 不具备消息注入能力，无法投递原文',
+	failed: '投递原文失败，原文保留在卡片内，可复制后手动投递',
+} as const);
+
+export type DeliveryNoticeKind = keyof typeof DELIVERY_NOTICE_MESSAGES;
+
+/**
+ * 收口被拒的具名原因（M9-T20 / AC 3 / E-157）。
+ *
+ * daemon 在 `E_BATCH_NOT_WRAPPABLE` 的 `details.reason` 里给机器可读原因；`E_WRAPUP_ROUND_LIMIT`
+ * 不发 reason，只发 `details.trigger`（auto / manual）与 autoLimit / hardLimit，故此处按 trigger 归一名。
+ * 键集合与本文件的 `ERROR_MESSAGES` 一样是唯一中文文案来源：组件内禁止再写收口错误字符串。
+ */
+export const WRAPUP_FAILURE_REASONS = [
+	'done',
+	'paused',
+	'idle',
+	'not_all_landed',
+	'not_in_head',
+	'wrapup_in_flight',
+	'fix_runs_in_flight',
+	'round_limit_auto',
+	'round_limit_hard',
+] as const;
+
+export type WrapupFailureReason = (typeof WRAPUP_FAILURE_REASONS)[number];
+
+export const WRAPUP_FAILURE_MESSAGES: Readonly<Record<WrapupFailureReason, string>> = Object.freeze(
+	{
+		done: '该批已收口完成，无需再次收口',
+		paused: '该批已暂停，恢复后才能收口',
+		idle: '该批尚未开工，没有可收口的内容',
+		not_all_landed: '该批仍有任务未落地，无法收口',
+		not_in_head: '该批仍有落地分支未进 HEAD，无法收口',
+		wrapup_in_flight: '已有一轮收口在跑，等它结束后再收口',
+		fix_runs_in_flight: '上一轮的修复运行还没结束，等它落地后再收口',
+		round_limit_auto: '自动收口轮次已达上限，需人工确认后再收口',
+		round_limit_hard: '收口尝试次数已达硬上限，需人工确认后再收口',
+	},
+);
+
+/**
+ * 归一出收口被拒的具名原因：`details.reason` 优先，`E_WRAPUP_ROUND_LIMIT` 按 `details.trigger` 归名。
+ * 认不出的原因返回 null，由调用方回落到按错误码的通用文案（不猜语义）。
+ */
+export function resolveWrapupFailureReason(
+	code: string | undefined | null,
+	details?: Record<string, unknown> | null,
+): WrapupFailureReason | null {
+	if (code !== 'E_BATCH_NOT_WRAPPABLE' && code !== 'E_WRAPUP_ROUND_LIMIT') {
+		return null;
+	}
+	if (code === 'E_WRAPUP_ROUND_LIMIT') {
+		return details?.trigger === 'auto' ? 'round_limit_auto' : 'round_limit_hard';
+	}
+	const rawReason = details?.reason;
+	if (typeof rawReason !== 'string') {
+		return null;
+	}
+	return (WRAPUP_FAILURE_REASONS as readonly string[]).includes(rawReason)
+		? (rawReason as WrapupFailureReason)
+		: null;
+}
+
+/**
+ * 收口被拒的中文具名文案（M9-T20 / AC 3 / E-157）。
+ *
+ * 具名原因优先；随附 daemon 下发的任务键或运行 ID（不裁剪、不改写）。原因认不出时回落按错误码的通用文案，
+ * 绝不按自报或前端推断编一条。
+ */
+export function getWrapupFailureMessage(
+	code: string | undefined | null,
+	details?: Record<string, unknown> | null,
+	fallback?: string,
+): string {
+	const reason = resolveWrapupFailureReason(code, details);
+	if (!reason) {
+		return getErrorMessage(code, fallback);
+	}
+
+	const base = WRAPUP_FAILURE_MESSAGES[reason];
+	const suffix = formatWrapupFailureDetail(reason, details);
+	return suffix ? `${base}（${suffix}）` : base;
+}
+
+function formatWrapupFailureDetail(
+	reason: WrapupFailureReason,
+	details?: Record<string, unknown> | null,
+): string | null {
+	if (!details) {
+		return null;
+	}
+
+	const readStringList = (value: unknown): readonly string[] =>
+		Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+	switch (reason) {
+		case 'not_all_landed': {
+			const keys = readStringList(details.notLandedTaskKeys);
+			return keys.length > 0 ? `未落地：${keys.join('、')}` : null;
+		}
+		case 'not_in_head': {
+			const keys = readStringList(details.notInHeadTaskKeys);
+			return keys.length > 0 ? `未进 HEAD：${keys.join('、')}` : null;
+		}
+		case 'fix_runs_in_flight': {
+			const runId = details.fixRunId;
+			return typeof runId === 'string' && runId.length > 0 ? `修复运行 ${runId}` : null;
+		}
+		case 'wrapup_in_flight': {
+			const runId = details.activeWrapupRunId;
+			return typeof runId === 'string' && runId.length > 0 ? `收口运行 ${runId}` : null;
+		}
+		case 'round_limit_auto':
+		case 'round_limit_hard': {
+			const limit = reason === 'round_limit_auto' ? details.autoLimit : details.hardLimit;
+			return typeof limit === 'number' ? `上限 ${limit} 轮` : null;
+		}
+		default:
+			return null;
+	}
+}

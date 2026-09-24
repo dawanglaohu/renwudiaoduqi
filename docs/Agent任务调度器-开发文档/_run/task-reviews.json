@@ -1106,16 +1106,14 @@
     "verdict": "pass"
   },
   "M9-T19": {
-    "compiler": "477f5cd7c1230e69e61d653e3e3f728376a14da5d118f96b5bc01474638d354b",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
     "contractHash": "5fceee3dffa2dcbfacf3a7dc4ae33e9df02036b2e1756bf34b9a25b6dad514a7",
     "evidence": [
-      "2026-09-23 对照任务笔记六条验收与 E-13/E-272/E-282/E-284/E-298/E-299：批次树只消费 BatchDto/TaskDto，缺失计数显示 —，折叠后不创建子行；展开集为模块级 Set 且 batch.advanced 只增不减。对应 batch-tree.tsx、batch-expansion.ts、use-batch-tree.ts。",
-      "已落地 M8-T7 的 shared TaskDto 与 daemon docs/dispatch 投影提供 inHead、inHeadMethod、crossBatchFix；M8-T6 的 BatchDto/批次服务提供 canWrapup 与 notInHeadCount。M9-T19 不在前端猜这些字段。",
-      "M9-T25 七路由接线合入后，app.tsx 保留完整组件表并只装配一组 GateTogglesContainer；#/tasks 指向 TaskListContainer 与同一 BatchTree，phone/coarse pointer 传入 44px 档。配对页及无设备令牌时不挂闸门。",
-      "GET/PATCH /api/v1/settings/gates 均在 shared 路由表与 daemon gates.ts 注册；前端 PATCH 全量三值并等 settings.gates_changed 回流。PulseDot 被 spine 与批次树共用，RUN_PULSE 穷尽 13 态，base.css 唯一 keyframe 与 reduced-motion，check-forbidden 通过。",
-      "合并 origin/main 后 Windows pnpm -w check 零退出：177 个文件、2120 passed、3 skipped；Web 生产构建通过。之后手机任务路由调整的聚焦 route-entries/batch-tree 测试 20/20、Biome 与 TypeScript 通过。maintain_docs status 报 stale=[]、runtimeDrift=[]。"
+      "补丁同步曾短暂改动 M9-T19 的 supportPaths，现已恢复；当前 task-contracts.json 中 M9-T19 条目与 origin/main 完全相同，契约哈希仍是 5fceee3dffa2dcbfacf3a7dc4ae33e9df02036b2e1756bf34b9a25b6dad514a7。",
+      "对照当前 main 的 M9-T19 批次树与展开集代码；本轮只在 M9-T20 有效支持路径中增添收口运行行和报告槽，不改 M9-T19 的验收条款。",
+      "batch-tree.test.tsx 与 batch-expansion.test.ts 已复跑，23/23 通过。"
     ],
-    "reviewed": "2026-09-23T12:45:47.471559+00:00",
+    "reviewed": "2026-09-24T00:55:37.642565+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1132,44 +1130,53 @@
     "verdict": "pass"
   },
   "M9-T20": {
-    "compiler": "cb68243f1d9aa51509ad7cb81d154f50a7a67e9f3342d294a3edbe667cd6df9c",
-    "contractHash": "9bd265a4292ea87fb35110451e140ff94ff0bf09475eef70c71aa72070f7ea36",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "9513b061cc9e4e15ca358f90229fe27053bfef619d64dedf7fdfcb93497582e4",
     "evidence": [
-      "19 节 M9-T20 行：依赖 M9-T19（批次树与 pulse-dot）、M9-T10（审批卡）；产出 wrapup-report.tsx、wrapup-panel-container.tsx、use-gate-card.ts、stream-column.tsx 收口分支、gate-card.tsx 条件动作、landing-page.tsx 在 taskPaths；error-messages.ts 与三个测试在 supportPaths",
-      "验收 1)～5) 对应 E-297（收口泳道与面板只读展示）、E-106/E-236（停止控件在 kind 分支之外）、E-286 呈现侧、E-157（收口按钮等回流）、E-278/E-117/E-113（投递原文按钮）、E-74 批次侧；11 节「收口报告面板」与审批卡第④段条件动作已写明；决策 76 采纳 C-103",
-      "接缝：消费 M8-T6 的 GET/POST wrapup 路由与 M8-T7 的 landing 字段；手机档不出收口按钮与决策 32 一致"
+      "验收 1-5 与 E-106/E-113/E-117/E-157/E-236/E-278/E-286/E-297/E-74 未降低；补丁仅补真实审查原文持久化、完成态报告入口、安全栈命令及迁移测试。",
+      "有效路径增加 batch-expansion.ts、review.ts、runs.ts、0011_review_rework_text.sql、review.test.ts 和 database.test.ts；其余生产接线、共享契约与测试路径保留。",
+      "收口运行退出后仍在批次树出现，报告容器可从展开批次访问；真实收口记录恢复轮次，活动收口继续占普通泳道。",
+      "审查运行保存 review_verdict 与 rework_text，全量文本通过 RunDto 下发，甲板由实施运行关联最新审查子运行；目标 canReply 仍来自实施运行。",
+      "按批在途集合分别禁用两批的按钮；批次命令只复制 gh stack push，路径和分支单独显示。",
+      "新增迁移使 database.test.ts 的版本清单同步更新；集成测试隔离运行 18/18 通过。",
+      "验收 1-5 与边界条款均未降低；新增的两个支持路径只覆盖真实 Codex 收口报告接入适配器及其回归测试。",
+      "Codex exec --json 的最终八段报告出现在 item.completed 的 agent_message；适配器此前只映射 item.started，导致生产解析器收不到报告。",
+      "codex-adapter.test.ts 新增终结消息断言；定向 38 项、TypeScript 与 Biome 均通过。",
+      "真实第二次收口的完整 clean 报告仍解析失败；事件文件证明独立 agent_message 紧贴相连。终结消息现以换行分隔，回归用例对前置说明加八段报告执行正式解析并通过。"
     ],
-    "reviewed": "2026-09-10T20:08:32.858040+00:00",
+    "reviewed": "2026-09-24T03:21:29.004667+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T21": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "7627c4470cdf7a0691cc3ae44c7ac533923418652f02eeeeb9e1f18df7d6869b",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "223c4e44aaf3773b97031d225bd219dee696624c3158296f68d129c09fa99977",
     "evidence": [
       "19 节 M9-T21 行（第 99 行）：依赖 M9-T9、M9-T7、M9-T19、M9-T20 在前置闭包；产出 components/pipeline-lane.tsx、stage-chain.tsx、lane-history-row.tsx、lane-run-strip.tsx、stream-column.tsx 外壳改写、spine.tsx 两字段、lib/stage-rows.ts、lib/spine-shape.ts LOOP_PIECES、features/run-deck 三个容器、api/lanes.ts，全部在 taskPaths；cache-keys/cache-invalidation、两个 store、tokens.css、ui-strings、check-forbidden、七个测试文件与 shared lanes/snapshot/events 在 supportPaths；sections 含 7/11/12",
       "验收 1)～10) 逐条对应：07 节「泳道同样不算」段与「补充需求 2026-09-12 的泳道组件」清单（第 138 行起：props 形状、只读靠无 callback、不测量 DOM、阶段字面量禁令）、缓存失效表五条新映射、lib 清单 stage-rows、check-forbidden 五条新禁令；11 节「运行轨——一个任务的流水线」（含返工回环行）、「任务流水线泳道」四段结构（第 375 行起）、空闲泳道与停靠任务、紧凑档不折（决策 95）、断点表手机运行条；12 节流程六与交互反馈三行；决策 90、95、97、98、104、105；E-306、E-307、E-309、E-313～E-315、E-317、E-319、E-324～E-326、E-332、E-333；17 节 E-313～E-325 行与 E-236 泳道维度矩阵",
-      "接缝：lanes[] 字段（含 nextBlockedBy / archivedWrapupRunId / overLimit）与 10 节快照契约一致；收口泳道沿用 M9-T20 的 StreamColumn kind='wrapup' 头部不重画；pulse-dot 与 @keyframes 沿用 M9-T19 的唯一动画规则（回环无动画）"
+      "接缝：lanes[] 字段（含 nextBlockedBy / archivedWrapupRunId / overLimit）与 10 节快照契约一致；收口泳道沿用 M9-T20 的 StreamColumn kind='wrapup' 头部不重画；pulse-dot 与 @keyframes 沿用 M9-T19 的唯一动画规则（回环无动画）",
+      "只新增 M9-T20 的真实收口消息适配器支持路径；M9-T21 的任务定义与验收条款未改。"
     ],
-    "reviewed": "2026-09-12T17:05:23.392858+00:00",
+    "reviewed": "2026-09-24T03:13:46.507291+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T22": {
-    "compiler": "e947b3e3971dd247a8a62ba7b75ff217ccb3b9178f18615a76eaf84abf3f47b7",
-    "contractHash": "ac1b35ee19d42e06f6d775217ca00c1a9a7eefeccc9012491ca293dc5e959b73",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "21e23ca3f45a1100b27cfc649569338c7f0641fe087cc93efffbd3eea8daa356",
     "evidence": [
       "19 节 M9-T22 行（第 100 行）：依赖 M9-T21、M8-T8 在前置闭包；产出 ui/segmented-toggle.tsx、components/pipeline-toggles.tsx、两个容器、pages/settings-pipeline-page.tsx、app/routes.tsx 第八条路由，全部在 taskPaths；gate-toggles.tsx、ui-strings、error-messages、cache-keys、check-forbidden、三个测试文件与 shared settings/routes 在 supportPaths；sections 含 7/11/12",
       "验收 1)～6) 逐条对应：11 节「顶栏流水线开关」（第 367 行起：同形态、1px 竖线、两行常驻说明、设置页同一组件、手机档不放）与页面清单「设置 · 流水线」行；07 节路由八条与 settings 页同一 Suspense、组件清单 pipeline-toggles / segmented-toggle、ui/ 业务词禁令、「开关互不 import」禁令；10 节 GET/PATCH /settings/pipeline 契约与示例；决策 93、103；E-26、E-157、E-306、E-312、E-318；17 节 E-306/E-312/E-318 前端侧行",
-      "接缝：值只来自 GET /settings/pipeline、写走 PATCH 全量两值、状态等 settings.pipeline_changed 回流（M8-T8 提供）；与 M9-T19 的 gate-toggles 共用 ui/segmented-toggle 基元、先落地者创建；E_PIPELINE_STAGE_DISABLED 文案在 i18n/error-messages.ts 补键"
+      "接缝：值只来自 GET /settings/pipeline、写走 PATCH 全量两值、状态等 settings.pipeline_changed 回流（M8-T8 提供）；与 M9-T19 的 gate-toggles 共用 ui/segmented-toggle 基元、先落地者创建；E_PIPELINE_STAGE_DISABLED 文案在 i18n/error-messages.ts 补键",
+      "只新增 M9-T20 的真实收口消息适配器支持路径；M9-T22 的任务定义与验收条款未改。"
     ],
-    "reviewed": "2026-09-12T17:05:31.346918+00:00",
+    "reviewed": "2026-09-24T03:14:03.595801+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T23": {
-    "compiler": "0c6760bbc3d822d97e172c8d14f54d82b9ca4c623e1e7ee64b241f5366d2fe89",
-    "contractHash": "f6e90ccba3c2c8d3e6b296222dff71a618470fa00f7105f8b5ca5c3cb139c4a8",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "7b0c4bd88c94d581d46f341bb1b6ba04fb6a988e9b0cf7861b1dffabe76b07b6",
     "evidence": [
       "前置闭包：依赖 M9-T18、M9-T14、M9-T22、M4-T13、M4-T14、M8-T9；输入列的 assign-panel.tsx ← M9-T18、settings-agents-page ← M9-T14、use-pipeline-settings.ts ← M9-T22、AgentEntryDto.login 与 login_changed ← M4-T13、GET /agents/:id/models 新结构 / EffortValue / layers / clearOverrides / MODEL_SOURCES ← M4-T14、PipelineSettings 四键 ← M8-T9，全部能指到产出列（前端审查 BLOCKING 2 由 M4-T14 补齐后闭合）。",
       "layers 读法：19 节验收 7 与 11 节设置页段改为「内置默认／你的覆盖」读 layers.X.builtin / .override、「当前生效」读顶层字段，与 10 节 layers 契约（{builtin, config, override, hasOverride}）和决策 128 一致（前端 BLOCKING 1 修正）。",
@@ -1179,9 +1186,10 @@
       "登录态单一来源：验收 5 改为 login_changed 到达只经 cache-invalidation 失效 agents key 重拉，不重拉 /snapshot、不重探；08 节与决策 130 措辞同步为「失效重拉」，07 节 resource-cache 写明无 patch 接口且 read() 以最后一次 fetcher 为准（前端 NON_BLOCKING 采纳）。",
       "有效范围：supportPaths 补 packages/web/package.json、pnpm-lock.yaml、ui/shadcn/select.tsx、api/resource-cache.ts、api/runs.ts、features/run-deck/batch-expansion.ts；验收 6 写明 onEdit 由 use-gate-card.ts 先调 batch-expansion 再调 openReassign（store 不 import features）。token 名核对：11 节与 19 节用到的 token 除新增两个尺寸 token 外均在 main tokens.css。",
       "边界：E-254、E-335、E-336、E-338、E-339、E-348、E-350、E-351、E-355～E-359 均在 13 节；E-347「agent_default」措辞已对齐为「来源：任务指派（agent 默认）」；决策 134 表外来源归「其他」组已进验收 2。",
-      "补丁 m8-t11-support-paths 只改动上游 M8-T11 的 supportPaths（补两处 daemon 测试文件）；对 M9-T23 契约做 before/after 逐字段比对，除 hash 因前置链上 M8-T11 契约变化而传播外无任何字段变化。M9-T23 自身定义、有效路径与接线要求未变；此前的语义复核结论保持有效。"
+      "补丁 m8-t11-support-paths 只改动上游 M8-T11 的 supportPaths（补两处 daemon 测试文件）；对 M9-T23 契约做 before/after 逐字段比对，除 hash 因前置链上 M8-T11 契约变化而传播外无任何字段变化。M9-T23 自身定义、有效路径与接线要求未变；此前的语义复核结论保持有效。",
+      "只新增 M9-T20 的真实收口消息适配器支持路径；M9-T23 的任务定义与验收条款未改。"
     ],
-    "reviewed": "2026-09-19T07:01:09.547060+00:00",
+    "reviewed": "2026-09-24T03:14:21.708381+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

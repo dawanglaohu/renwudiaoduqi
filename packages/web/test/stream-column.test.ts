@@ -2,6 +2,7 @@
  * packages/web/test/stream-column.test.ts
  *
  * M9-T9 多流甲板与密度档单元测试（AC 1-12, E-106, E-163..E-168, E-235..E-239, E-311, E-317）
+ * M9-T20 AC 1：收口泳道（kind='wrapup'）与逐档 × 逐 kind 的控件存在性（E-236, E-297）
  */
 
 import { readFileSync } from 'node:fs';
@@ -9,7 +10,11 @@ import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { StreamColumn, type StreamColumnProps } from '../src/components/stream-column.tsx';
+import {
+	StreamColumn,
+	type StreamColumnKind,
+	type StreamColumnProps,
+} from '../src/components/stream-column.tsx';
 import { RunDeckView } from '../src/features/run-deck/run-deck-view.tsx';
 import type { DeckStreamLane } from '../src/features/run-deck/types.ts';
 import { isWaitingApproval } from '../src/features/run-deck/use-run-deck.ts';
@@ -647,6 +652,146 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 			// 状态缺失时不得由前端补齐成 queued，走 E-230/E-234 的降级形状「未识别」
 			expect(html).toContain('data-status="unrecognized"');
 			expect(html).not.toContain('data-status="queued"');
+		});
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────────
+	// M9-T20 AC 1 & E-236, E-106, E-297：
+	// 收口泳道（kind='wrapup'）与任务/空闲泳道走同一外壳；逐档 × 逐 kind 断言控件存在性
+	// ─────────────────────────────────────────────────────────────────────────────
+	describe('M9-T20 AC 1 & E-236, E-106, E-297: stop control / refBar / spine / approval slot across ALL kinds × tiers', () => {
+		const ALL_TIERS: readonly DensityTier[] = [
+			'full',
+			'compact',
+			'narrow',
+			'phone',
+			'phone-xs',
+		] as const;
+
+		const ALL_KINDS: readonly StreamColumnKind[] = ['task', 'wrapup', 'idle'] as const;
+
+		for (const kind of ALL_KINDS) {
+			for (const tier of ALL_TIERS) {
+				it(`kind="${kind}" × tier="${tier}": stop control, refBar, spine and approval slot all render`, () => {
+					const html = renderToStaticMarkup(
+						createElement(StreamColumn, {
+							laneNo: 4,
+							kind,
+							tier,
+							taskKey: 'M9-T20',
+							title: '收口泳道、收口报告面板与批次落地清单',
+							wrapupRound: 2,
+							wrapupBatchNo: 13,
+							status: 'reviewing',
+							spineSlot: createElement('div', { 'data-test-spine': 'true' }),
+							bodySlot: createElement('div', { 'data-test-body': 'true' }),
+							gateSlot: createElement('div', { 'data-test-gate': 'gate-waiting' }),
+						}),
+					);
+
+					// kind 维度断言：停止控件在收口泳道里同样常驻（E-297、E-236）
+					expect(html).toContain(`data-kind="${kind}"`);
+					expect(html).toContain('data-action="stop-stream"');
+					expect(html).toContain('data-resident="true"');
+					expect(html).toContain('aria-label="停止泳道 4"');
+					expect(html).toContain('data-glyph="stop-square"');
+
+					// 参照条
+					expect(html).toContain('data-segment="refBar"');
+					expect(html).toContain('data-field="ref-source"');
+
+					// 运行轨列常驻（E-297：收口泳道与实施流一致）
+					expect(html).toContain('data-slot="spine"');
+					expect(html).toContain('data-test-spine="true"');
+
+					// 审批槽位
+					expect(html).toContain('data-slot="approval"');
+					expect(html).toContain('data-resident-slot="true"');
+					expect(html).toContain('data-test-gate="gate-waiting"');
+
+					// 主体内容
+					expect(html).toContain('data-test-body="true"');
+				});
+			}
+		}
+
+		it('writes 批次收口 · 第 N 轮 · 第 M 批 in the head for kind="wrapup"', () => {
+			const html = renderToStaticMarkup(
+				createElement(StreamColumn, {
+					laneNo: 2,
+					kind: 'wrapup',
+					taskKey: undefined,
+					title: undefined,
+					wrapupRound: 3,
+					wrapupBatchNo: 13,
+					status: 'reviewing',
+				}),
+			);
+
+			expect(html).toContain('data-field="wrapup-head"');
+			expect(html).toContain('批次收口 · 第 3 轮 · 第 13 批');
+			// 收口运行没有 task_id：绝不退化成任务标识
+			expect(html).not.toContain('data-field="task-key"');
+			expect(html).not.toContain('data-field="task-title"');
+		});
+
+		it('shows 「—」 for missing round / batch numbers instead of inventing them', () => {
+			const html = renderToStaticMarkup(
+				createElement(StreamColumn, {
+					laneNo: 2,
+					kind: 'wrapup',
+					wrapupRound: null,
+					wrapupBatchNo: undefined,
+					status: 'reviewing',
+				}),
+			);
+
+			expect(html).toContain('批次收口 · 第 — 轮 · 第 — 批');
+		});
+
+		it('keeps task key/title for kind="task" and a plain 空闲 head for kind="idle"', () => {
+			const taskHtml = renderToStaticMarkup(
+				createElement(StreamColumn, {
+					laneNo: 1,
+					kind: 'task',
+					taskKey: 'M9-T20',
+					title: '收口泳道',
+				}),
+			);
+			expect(taskHtml).toContain('data-field="task-key"');
+			expect(taskHtml).toContain('M9-T20');
+			expect(taskHtml).not.toContain('data-field="wrapup-head"');
+
+			const idleHtml = renderToStaticMarkup(
+				createElement(StreamColumn, { laneNo: 1, kind: 'idle' }),
+			);
+			expect(idleHtml).toContain('data-field="idle-head"');
+			expect(idleHtml).toContain('空闲');
+			expect(idleHtml).not.toContain('data-field="wrapup-head"');
+		});
+
+		it('renders the stop control, refBar, spine slot and approval slot outside every kind/tier branch (source scan)', () => {
+			const source = readFileSync(
+				resolve(__dirname, '../src/components/stream-column.tsx'),
+				'utf8',
+			);
+
+			// 停止控件之后不再出现任何 kind / tier 条件：它不可能被分支吃掉（E-236）
+			const stopIndex = source.indexOf('data-action="stop-stream"');
+			expect(stopIndex).toBeGreaterThan(-1);
+			const afterStop = source.slice(stopIndex);
+			expect(afterStop).not.toContain('kind ===');
+			expect(afterStop).not.toContain('tier ===');
+
+			// kind 分支只出现在 head 段内，且只换文案
+			const headEnd = source.indexOf('</header>');
+			const kindBranchIndex = source.indexOf("kind === 'wrapup'");
+			expect(kindBranchIndex).toBeGreaterThan(-1);
+			expect(kindBranchIndex).toBeLessThan(headEnd);
+
+			// 轨列与审批槽位在 head 之后常驻渲染
+			expect(source.indexOf('data-slot="spine"')).toBeGreaterThan(headEnd);
+			expect(source.indexOf('data-slot="approval"')).toBeGreaterThan(headEnd);
 		});
 	});
 });

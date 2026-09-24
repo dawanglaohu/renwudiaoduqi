@@ -16,7 +16,8 @@ export type CachePrefix =
 	| 'lanes'
 	| 'agents'
 	| 'agentModels'
-	| 'documents';
+	| 'documents'
+	| 'wrapups';
 
 export const CACHE_PREFIXES: readonly CachePrefix[] = [
 	'batches',
@@ -27,6 +28,7 @@ export const CACHE_PREFIXES: readonly CachePrefix[] = [
 	'agents',
 	'agentModels',
 	'documents',
+	'wrapups',
 ] as const;
 
 /**
@@ -45,4 +47,6 @@ export const CACHE_KEYS = {
 	agents: () => 'agents',
 	agentModels: (agentId?: string) => (agentId ? `agentModels:${agentId}` : 'agentModels'),
 	documents: () => 'documents',
+	/** 每批次的收口报告集合（GET /batches/:id/wrapups，M9-T20）。 */
+	wrapups: (batchId?: string) => (batchId ? `wrapups:${batchId}` : 'wrapups'),
 } as const;

@@ -363,6 +363,11 @@ export interface ReviewRunsRepo {
 		continuedFromRunId?: string | null,
 	) => void;
 	readonly findByParentRunIdAndKind?: (parentRunId: string, kind: string) => RunRow | null;
+	readonly updateReviewResult?: (input: {
+		readonly id: string;
+		readonly verdict: 'pass' | 'rework' | 'doc_issue' | 'incomplete';
+		readonly reworkText: string | null;
+	}) => void;
 	/** 同任务全部运行行：新一轮的 attempt_no 取最大值 + 1（`UNIQUE (task_id, attempt_no)`）。 */
 	readonly listByTaskId?: (taskId: string) => readonly { readonly attempt_no: number }[];
 }
@@ -2505,6 +2510,43 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			const taskId =
 				implRun.task_id ?? reviewRun.task_id ?? implRun.taskId ?? reviewRun.taskId ?? '';
 
+			// E-278: the client reads the exact, unstructured review output from this review run.
+			// Persist it before opening a human gate so a reload cannot lose the only copy.
+			deps.runsRepo.updateReviewResult?.({
+				id: reviewRun.id,
+				verdict: input.verdict,
+				reworkText:
+					input.reworkText ?? (input.verdict === 'incomplete' ? (input.outputText ?? null) : null),
+			});
+
+			if (input.verdict === 'incomplete') {
+				if (deps.gatesService) {
+					await deps.gatesService.resolveAfterReviewAndApply({
+						taskId,
+						runId: implRun.id,
+						reviewVerdict: 'incomplete',
+					});
+				}
+				if (implRun.state === 'reviewing') {
+					deps.runsRepo.updateState({
+						id: implRun.id,
+						fromState: 'reviewing',
+						toState: 'awaiting_human',
+						endedAt: deps.clock?.now() ?? new Date().toISOString(),
+					});
+					if (deps.bus && deps.envelopeFactory)
+						deps.bus.publish(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId: implRun.id,
+								taskId,
+								payload: { from: 'reviewing', to: 'awaiting_human', reason: 'review_incomplete' },
+							}),
+						);
+				}
+				return { action: 'awaiting_human' };
+			}
+
 			if (input.verdict === 'pass') {
 				// AC 1: finalizeReviewRun() 判 pass 后读 settings.pipeline.bughunt（每次读库、不缓存、不进快照）
 				let bughuntEnabled = false;
@@ -2613,6 +2655,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				reviewRunId: runId,
 				verdict: parsedVerdict.verdict,
 				outputText,
+				reworkText: parsedVerdict.reworkText ?? undefined,
 			});
 		},
 	});

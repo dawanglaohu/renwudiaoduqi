@@ -6,6 +6,7 @@ import {
 	type ListRunsResponse,
 	type RerunRunBody,
 	type RerunRunResponse,
+	type RunDto,
 	createRunBodySchema,
 	createRunMessageBodySchema,
 	rerunRunBodySchema,
@@ -326,6 +327,30 @@ export function registerDispatchRunsRoutes(
 		rerunRunHandler,
 	);
 
+	/**
+	 * Attaches the per-run message capability bits (E-117) so clients grey actions out from the bit
+	 * instead of failing only after the click. `canReply` answers for this run (agent reply bit AND a
+	 * live writable pipe); `canResume` is the agent's resume bit, which is process-independent.
+	 * Responses without a message service stay without the field rather than carrying a guessed value.
+	 */
+	async function attachCapabilities(
+		messageService: MessageService | undefined,
+		runs: readonly RunDto[],
+	): Promise<readonly RunDto[]> {
+		if (!messageService) {
+			return runs;
+		}
+		return Promise.all(
+			runs.map(async (run) => ({
+				...run,
+				capabilities: {
+					canReply: await messageService.canReply(run.id),
+					canResume: messageService.getCapabilities(run.agentId).canResume,
+				},
+			})),
+		);
+	}
+
 	const listRunsHandler: RouteHandlerMethod = async (request): Promise<ListRunsResponse> => {
 		const container = request.server.container as ContainerWithServices | undefined;
 		const service = options?.dispatchService ?? container?.services?.dispatch;
@@ -335,8 +360,9 @@ export function registerDispatchRunsRoutes(
 		}
 
 		const runs = await service.listRuns();
+		const messageService = options?.messageService ?? container?.services?.message;
 		return {
-			runs,
+			runs: await attachCapabilities(messageService, runs),
 			nextCursor: null,
 		};
 	};
@@ -353,8 +379,10 @@ export function registerDispatchRunsRoutes(
 
 		const params = request.params as SingleRunParams;
 		const run = await service.getRun(params.runId);
+		const messageService = options?.messageService ?? container?.services?.message;
+		const [enriched] = await attachCapabilities(messageService, [run]);
 		return {
-			run,
+			run: enriched ?? run,
 			progress: null,
 		};
 	};
