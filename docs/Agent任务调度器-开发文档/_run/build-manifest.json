@@ -1,5 +1,5 @@
 {
-  "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
+  "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
   "inputs": {
     "00-概览/01-概述与目标.md": "215668de16e766e1699a9b736ea876ea1f3c32bda1fcf9713233e0f0403a000f",
     "00-概览/02-非目标.md": "87645b4af715977167fd32376e81f976b733e0872e87e5d7a27a17d3f9d1becc",
@@ -30,17 +30,17 @@
     "_run/batches/batch-13-20260924.md": "c4e104a72ccb5d6836ba054c4a08183550a707da55a4a8740539e76f591068e0",
     "_run/batches/batch-8-20260922-r3.md": "3b5ef6a0f09bd96c34496700e635c3ac2ba0fc0742a5a895950e519440955da6",
     "_run/batches/batch-8-20260922.md": "a105889d07a9a83829268449892d4f81fbb630d849eaa53e37ad7641848d3749",
-    "_run/presentation.json": "7bc4a2750015ba454c28ed4b2776bd5ffbe2f8724f761b35f2debd53787f1660",
+    "_run/presentation.json": "5449190ed3b0317dab3588e605e619c30e63635ea27b3ebf515b88cd0f271d3c",
     "_run/task-contracts.json": "e9271ed1f5168a5af73533d8a10d18f3478b6d716108d2f4329c4b4ed1c7e5e6"
   },
   "products": {
     "_MOC.md": "325993513261fe854426169a7e2bbb44a7e7da69de6cc942cb73a7a76414085d",
-    "_run/dispatch.json": "af20f9ae5dcf2932ca3eed0a501b00376c35f4a1811b16f4086c795a1a2de6df",
-    "_run/review.json": "898d65326ccced58f45df1f43575b5572abe6c795068153cd6e2f88e5368bf46",
+    "_run/dispatch.json": "6b8474032c625080bd3e92930e2a88672f34c4f94e371876e696d3cb14d404d5",
+    "_run/review.json": "1f85207e397fa3b2654c1ab18ee73b5120c063f0b358ff47652b6795341998c2",
     "_run/task-reviews.json": "b6f6f5e231e1a086e49eae099d93f2b755a3b4333ecb9014b79ed51ed6b90b5c",
-    "docs-data.js": "d8aedef41a4cfe1cc6d02415dc613055fbcb933569b1d1733d01925c9ff11fd6",
-    "index.html": "7dd1d4f8ec70782277114b47054ce6f79cd2ba70af1f809a3cdaf4625435985b"
+    "docs-data.js": "9bd504e98279a08b42ff9f6dd43cd51b165002b23237217fc394564d13a5602f",
+    "index.html": "f2ddcba5a883cc52807abedbf664750f4a98c6feb6aff4529051fb3acfbfbb0d"
   },
   "schemaVersion": 1,
-  "sourceVersion": "a4a1b45b154f6fc7fc9c995b10454ef1ce9f9193ef38118f641764366edba0a0"
+  "sourceVersion": "2842e193ae326e732f2f5a5d1b8b0ed6965bcaf319f46210b5dde18ca96cf6bb"
 }
