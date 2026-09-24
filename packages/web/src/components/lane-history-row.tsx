@@ -120,7 +120,22 @@ export function LaneHistoryRow({
 								批次收口 · 第 {wrapupRound ?? '—'} 轮 · 第 {wrapupBatchNo ?? '—'} 批
 							</span>
 							<StatusBadge
-								state={wrapupVerdict === 'clean' ? 'succeeded' : status}
+								state={
+									wrapupVerdict === 'clean' || wrapupVerdict === 'fixed'
+										? 'succeeded'
+										: wrapupVerdict === 'open'
+											? 'failed'
+											: status
+								}
+								text={
+									wrapupVerdict === 'clean'
+										? '干净'
+										: wrapupVerdict === 'fixed'
+											? '已修'
+											: wrapupVerdict === 'open'
+												? '有遗留'
+												: undefined
+								}
 								className="shrink-0"
 							/>
 						</>

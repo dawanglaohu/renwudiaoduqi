@@ -22,6 +22,7 @@ import type { DensityTier } from '../hooks/use-breakpoint.ts';
 import {
 	type StageRow,
 	deriveStageRows,
+	findLatestRun,
 	formatIdleText,
 	getLaneKind,
 	getRunDurationMs,
@@ -32,7 +33,11 @@ import { StreamColumn } from './stream-column.tsx';
 
 export interface PipelineLaneProps extends HTMLAttributes<HTMLElement> {
 	/** 泳道数据对象（来自 daemon lanes[]，E-317） */
-	readonly lane: LaneView;
+	readonly lane: LaneView & {
+		readonly taskKey?: string;
+		readonly title?: string;
+		readonly bodySlot?: ReactNode;
+	};
 	/** 当前运行任务对象（若当前正在跑任务） */
 	readonly task?: TaskDto | null;
 	/** 当前任务或收口运行关联的全部 runs */
@@ -71,6 +76,10 @@ export interface PipelineLaneProps extends HTMLAttributes<HTMLElement> {
 	readonly reworkCount?: number;
 	/** 自定义渲染步骤槽位 */
 	readonly renderSteps?: (stageRow: StageRow) => ReactNode;
+	/** 外部自定义/兼容主体内容插槽 */
+	readonly bodySlot?: ReactNode;
+	/** 默认是否展开历史行（用于单测或特定视图） */
+	readonly defaultHistoryExpanded?: boolean;
 	/** 外部自定义类名 */
 	readonly className?: string;
 }
@@ -96,6 +105,8 @@ export function PipelineLane({
 	wrapupRound,
 	reworkCount,
 	renderSteps,
+	bodySlot,
+	defaultHistoryExpanded = false,
 	className,
 	...rest
 }: PipelineLaneProps) {
@@ -114,20 +125,35 @@ export function PipelineLane({
 	const hasArchivedWrapup = Boolean(lane.archivedWrapupRunId);
 	const hasHistory = hasArchivedTask || hasArchivedWrapup;
 
+	// 历史收口运行时，若 historyRuns 未传入则由 historyWrapupRun 补充（R2）
+	const effectiveHistoryRuns = hasArchivedWrapup
+		? historyRuns.length > 0
+			? historyRuns
+			: historyWrapupRun
+				? [historyWrapupRun]
+				: []
+		: historyRuns;
+
+	const latestArchivedRun = findLatestRun(effectiveHistoryRuns);
+
 	const taskReworkCount =
 		reworkCount ?? runs.find((r) => (r.reworkCount ?? 0) > 0)?.reworkCount ?? 0;
-	const historyReworkCount = historyRuns.find((r) => (r.reworkCount ?? 0) > 0)?.reworkCount ?? 0;
+	const historyReworkCount =
+		effectiveHistoryRuns.find((r) => (r.reworkCount ?? 0) > 0)?.reworkCount ?? 0;
 
 	// 衍生历史行的阶段链（若存在历史任务）
 	const historyStageRows = hasHistory
 		? deriveStageRows({
 				currentStage: hasArchivedWrapup ? 'wrapup' : 'landing',
 				stageOrder,
-				runs: historyRuns,
+				runs: effectiveHistoryRuns,
 				reworkCount: historyReworkCount,
 				readOnly: true,
 				isWrapup: hasArchivedWrapup,
 				wrapupRound: historyWrapupRun?.attemptNo ?? 1,
+				currentRunId: hasArchivedWrapup
+					? (lane.archivedWrapupRunId ?? historyWrapupRun?.id ?? null)
+					: null,
 			})
 		: [];
 
@@ -140,21 +166,36 @@ export function PipelineLane({
 				reworkCount: taskReworkCount,
 				readOnly: false,
 				isWrapup,
+				currentRunId: lane.currentRunId,
 			})
 		: [];
 
-	// 耗时与状态提取
-	const currentRun = runs.find((r) => r.id === lane.currentRunId) ?? runs[runs.length - 1];
+	// 耗时与状态提取（R2: 不用 runs[length-1]，按 currentRunId 或 findLatestRun）
+	const currentRun = runs.find((r) => r.id === lane.currentRunId) ?? findLatestRun(runs);
 	const laneStatus = currentRun?.state ?? task?.state ?? 'queued';
+
+	// 历史折叠行的终态、耗时和收口裁定：取这组归档运行本身，不用当前 TaskDto 状态或固定 succeeded（R2, E-325）
+	const historyStatus = hasArchivedWrapup
+		? (historyWrapupRun?.state ?? 'succeeded')
+		: (latestArchivedRun?.state ?? 'succeeded');
+	const historyDuration = hasArchivedWrapup
+		? historyWrapupRun
+			? (getRunDurationMs(historyWrapupRun) ?? 0)
+			: 0
+		: effectiveHistoryRuns.reduce((acc, r) => acc + (getRunDurationMs(r) ?? 0), 0);
+	const historyVerdict = hasArchivedWrapup
+		? (historyWrapupRun?.reviewVerdict as 'clean' | 'fixed' | 'open' | null)
+		: null;
 
 	return (
 		<StreamColumn
+			data-component="pipeline-lane"
 			laneNo={lane.laneNo}
 			kind={kind}
 			laneId={`lane-${lane.laneNo}`}
 			currentRunId={lane.currentRunId}
-			taskKey={task?.taskKey}
-			title={task?.title}
+			taskKey={task?.taskKey ?? lane.taskKey}
+			title={task?.title ?? lane.title}
 			wrapupRound={isWrapup ? (wrapupRound ?? currentRun?.attemptNo ?? 1) : null}
 			wrapupBatchNo={isWrapup ? wrapupBatchNo : null}
 			status={laneStatus}
@@ -179,15 +220,17 @@ export function PipelineLane({
 						<LaneHistoryRow
 							taskKey={historyTask?.taskKey}
 							title={historyTask?.title}
-							status={historyWrapupRun ? 'succeeded' : (historyTask?.state ?? 'succeeded')}
+							status={historyStatus}
 							reworkCount={historyReworkCount}
-							duration={historyRuns.reduce((acc, r) => acc + (getRunDurationMs(r) ?? 0), 0)}
+							duration={historyDuration}
 							stageRows={historyStageRows}
 							onOpenRun={onOpenRun}
 							isWrapup={hasArchivedWrapup}
 							wrapupRound={historyWrapupRun?.attemptNo ?? 1}
 							wrapupBatchNo={wrapupBatchNo}
+							wrapupVerdict={historyVerdict}
 							isTouch={isTouch}
+							defaultExpanded={defaultHistoryExpanded}
 						/>
 						{/* 历史行与活动阶段链之间的分隔线（泳道第一个任务无历史无此线，E-325） */}
 						<div
@@ -210,8 +253,11 @@ export function PipelineLane({
 					/>
 				)}
 
-				{/* 空闲提示（无历史且无任务，或空闲状态展示） */}
-				{isIdle && !hasHistory && (
+				{/* 兼容自定义主体内容插槽 */}
+				{bodySlot}
+
+				{/* 空闲提示（AC 7, E-319：空闲泳道渲染 idleText，含下一个任务及阻塞前置；有历史行时历史行在上方，下方仍展示 idleText） */}
+				{isIdle && (
 					<div
 						data-field="idle-placeholder"
 						className="flex items-center justify-center min-h-[80px] text-[13px] text-[var(--ink-3)] font-ui select-none text-center px-2"

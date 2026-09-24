@@ -68,6 +68,8 @@ export interface StageRowInput {
 	readonly isWrapup?: boolean;
 	/** 收口运行轮次 */
 	readonly wrapupRound?: number | null;
+	/** 当前阶段对应的当前运行 ID（若存在优先绑定，E-313, R2） */
+	readonly currentRunId?: string | null;
 	/** 强制指定是否存在查 bug 运行（若未提供则根据 runs 中是否有 kind='bughunt' 判定） */
 	readonly hasBughuntRun?: boolean;
 }
@@ -216,6 +218,43 @@ function getStageLabel(stage: PipelineStage, currentStage: string, reworkCount: 
 }
 
 /**
+ * 获取运行的时间戳或序号（用于比较运行时序，R2）。
+ */
+export function getRunTimestamp(run: RunDto): number {
+	if (run.startedAt) {
+		const t = new Date(run.startedAt).getTime();
+		if (!Number.isNaN(t)) return t;
+	}
+	if (run.lastEventAt) {
+		const t = new Date(run.lastEventAt).getTime();
+		if (!Number.isNaN(t)) return t;
+	}
+	return run.attemptNo ?? 0;
+}
+
+/**
+ * 在运行列表中寻找运行时序最新（最近一次）的运行（R2, E-313）。
+ * 无论输入是 started_at DESC 还是 ASC 都能保证选出最近一次运行。
+ */
+export function findLatestRun(runs: readonly RunDto[]): RunDto | null {
+	if (runs.length === 0) return null;
+	const first = runs[0];
+	if (!first) return null;
+	let latest: RunDto = first;
+	let latestTime = getRunTimestamp(latest);
+	for (let i = 1; i < runs.length; i++) {
+		const r = runs[i];
+		if (!r) continue;
+		const t = getRunTimestamp(r);
+		if (t > latestTime || (t === latestTime && (r.attemptNo ?? 0) > (latest.attemptNo ?? 0))) {
+			latest = r;
+			latestTime = t;
+		}
+	}
+	return latest;
+}
+
+/**
  * 衍生流水线阶段链各行数据模型（核心纯函数）。
  */
 export function deriveStageRows(input: StageRowInput): readonly StageRow[] {
@@ -227,6 +266,7 @@ export function deriveStageRows(input: StageRowInput): readonly StageRow[] {
 		readOnly = false,
 		isWrapup = false,
 		wrapupRound = null,
+		currentRunId = null,
 	} = input;
 
 	// 1. 空闲态泳道不画假链（AC 7, E-319）
@@ -239,7 +279,8 @@ export function deriveStageRows(input: StageRowInput): readonly StageRow[] {
 		const roundText = wrapupRound && wrapupRound >= 1 ? `第 ${wrapupRound} 轮` : '';
 		const label = roundText ? `批次收口 · ${roundText}` : '批次收口';
 		const totalMs = runs.reduce((acc, r) => acc + (getRunDurationMs(r) ?? 0), 0);
-		const latestRun = runs[runs.length - 1] ?? null;
+		const latestRun =
+			(currentRunId ? runs.find((r) => r.id === currentRunId) : null) ?? findLatestRun(runs);
 
 		return [
 			{
@@ -322,7 +363,11 @@ export function deriveStageRows(input: StageRowInput): readonly StageRow[] {
 	// 8. 构建每一行 StageRow
 	return activePipelineStages.map((stage, index) => {
 		const stageRuns = runsByStage.get(stage) ?? [];
-		const latestRun = stageRuns[stageRuns.length - 1] ?? null;
+		const isCurrentCandidate = index === activeIndex;
+		// R2: 当前阶段优先使用 currentRunId，其他阶段使用 findLatestRun 选运行时序最新的一条，避免 started_at DESC 取到最老运行
+		const latestRun =
+			(isCurrentCandidate && currentRunId ? stageRuns.find((r) => r.id === currentRunId) : null) ??
+			findLatestRun(stageRuns);
 
 		let status: StageRowStatus;
 		if (readOnly) {

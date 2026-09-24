@@ -61,7 +61,10 @@ export function fetchLanes(docId?: string | null): Promise<readonly LaneView[]> 
 		return existing.promise;
 	}
 
-	let invalidatedWhileInFlight = false;
+	const reqState: InFlightLanesRequest = {
+		promise: Promise.resolve([]),
+		invalidatedWhileInFlight: false,
+	};
 	const promise = (async () => {
 		try {
 			const res = await httpClient.callRoute<SnapshotResponse>(GET_SNAPSHOT_ROUTE, {
@@ -77,27 +80,23 @@ export function fetchLanes(docId?: string | null): Promise<readonly LaneView[]> 
 			const lanes = res.lanes;
 
 			// 若在请求在途期间到达了失效事件，响应到达后必须再拉一次（E-333）
-			if (invalidatedWhileInFlight) {
-				inFlightByDoc.delete(key);
+			if (reqState.invalidatedWhileInFlight) {
+				if (inFlightByDoc.get(key) === reqState) {
+					inFlightByDoc.delete(key);
+				}
 				return await fetchLanes(docId);
 			}
 
 			return lanes;
 		} finally {
-			inFlightByDoc.delete(key);
+			// R4: 仅在 Map 中仍指向当前请求时删除，避免误删递归或后续在途请求
+			if (inFlightByDoc.get(key) === reqState) {
+				inFlightByDoc.delete(key);
+			}
 		}
 	})();
 
-	const reqState: InFlightLanesRequest = {
-		promise,
-		get invalidatedWhileInFlight() {
-			return invalidatedWhileInFlight;
-		},
-		set invalidatedWhileInFlight(val: boolean) {
-			invalidatedWhileInFlight = val;
-		},
-	};
-
+	reqState.promise = promise;
 	inFlightByDoc.set(key, reqState);
 	return promise;
 }

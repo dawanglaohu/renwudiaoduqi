@@ -242,4 +242,105 @@ describe('PipelineLane: Feature semantics and edge cases (AC 1, 5, 6, 7, E-309, 
 		expect(html).toContain('实施');
 		expect(html).toContain('审查');
 	});
+
+	// ─── R3: 空闲且有历史行时仍展示 idleText ───
+	it('R3 & E-319: idle lane with history row STILL renders idleText with next task and blocked-by info', () => {
+		const lane = createMockLane({
+			stage: 'idle',
+			taskId: null,
+			currentRunId: null,
+			nextTaskId: 'M9-T22',
+			nextBlockedBy: ['M9-T21'],
+			archivedTaskIds: ['task-old'],
+		});
+
+		const html = renderToStaticMarkup(
+			createElement(PipelineLane, {
+				lane,
+				historyTask: createMockTask({ id: 'task-old', taskKey: 'M9-T20', title: '收口泳道' }),
+				historyRuns: [createMockRun({ taskId: 'task-old', state: 'landed' })],
+				stageOrder: PIPELINE_STAGES,
+			}),
+		);
+
+		// 必须同时包含历史行和空闲提示（R3）
+		expect(html).toContain('data-slot="lane-history"');
+		expect(html).toContain('data-field="idle-placeholder"');
+		expect(html).toContain('M9-T22');
+		expect(html).toContain('M9-T21');
+	});
+
+	// ─── R2: 历史收口运行绑定到历史阶段链 ───
+	it('R2 & E-325: archived wrapup run binds to history stage chain allowing onOpenRun', () => {
+		const wrapupRun = createMockRun({
+			id: 'run-wrapup-archived-99',
+			kind: 'wrapup',
+			state: 'exited',
+			reviewVerdict: 'pass',
+		});
+
+		const lane = createMockLane({
+			stage: 'idle',
+			taskId: null,
+			currentRunId: null,
+			archivedWrapupRunId: 'run-wrapup-archived-99',
+		});
+
+		const html = renderToStaticMarkup(
+			createElement(PipelineLane, {
+				lane,
+				historyWrapupRun: wrapupRun,
+				stageOrder: PIPELINE_STAGES,
+				defaultHistoryExpanded: true,
+				onOpenRun: () => {},
+			}),
+		);
+
+		expect(html).toContain('data-slot="lane-history"');
+		expect(html).toContain('批次收口');
+		// 历史阶段链展开后必须包含收口阶段节点且具备可点击 button 角色（支持 onOpenRun）
+		expect(html).toContain('data-stage-row="wrapup"');
+		expect(html).toContain('role="button"');
+	});
+
+	// ─── R2: 历史折叠行终态取归档运行自身，不取 TaskDto 当前状态（避免跨道重派两处呼吸） ───
+	it('R2 & E-325: history row status derives from archived runs, not TaskDto state (prevents double breathing)', () => {
+		const lane = createMockLane({
+			laneNo: 1,
+			stage: 'idle',
+			taskId: null,
+			currentRunId: null,
+			archivedTaskIds: ['task-reassigned'],
+		});
+
+		// 任务在别的泳道被重派，TaskDto.state 当前是 'running'
+		const taskDto = createMockTask({
+			id: 'task-reassigned',
+			state: 'running',
+		});
+
+		// 但在本泳道跑过的归档运行是 failed
+		const historyRuns = [
+			createMockRun({
+				id: 'run-archived-f1',
+				taskId: 'task-reassigned',
+				laneNo: 1,
+				state: 'failed',
+			}),
+		];
+
+		const html = renderToStaticMarkup(
+			createElement(PipelineLane, {
+				lane,
+				historyTask: taskDto,
+				historyRuns,
+				stageOrder: PIPELINE_STAGES,
+			}),
+		);
+
+		// 历史折叠行必须展示 failed 状态，绝不展示 running
+		expect(html).toContain('data-slot="lane-history"');
+		expect(html).toContain('data-state="failed"');
+		expect(html).not.toContain('data-state="running"');
+	});
 });

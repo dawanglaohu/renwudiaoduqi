@@ -66,6 +66,7 @@ export function LaneRunStrip({
 	return (
 		<div
 			data-component="lane-run-strip"
+			data-lane-run-strip="true"
 			data-current-lane={currentIndex}
 			data-total-lanes={totalLanes}
 			className={[

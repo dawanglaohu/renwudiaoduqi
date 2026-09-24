@@ -153,6 +153,9 @@ interface RemoteDeckData {
 	readonly lanes: readonly DeckStreamLane[];
 	readonly batches: readonly BatchTreeItem[];
 	readonly error: string | null;
+	readonly rawTasks?: readonly TaskDto[];
+	readonly rawRuns?: readonly RunDto[];
+	readonly rawLanes?: readonly LaneView[];
 }
 
 const INITIAL_REMOTE: RemoteDeckData = Object.freeze({
@@ -205,10 +208,14 @@ export function RunDeckContainer(props: RunDeckProps) {
 						wrapupRoundsRef.current.set(wrapup.runId, wrapup.round);
 				}),
 			);
+			// E-333: 快照缺 lanes 键或不是数组 → 抛出异常，运行甲板呈现「泳道数据不可用」
+			if (!snapshot || !Array.isArray(snapshot.lanes)) {
+				throw new Error('泳道数据不可用');
+			}
+
 			setRemote({
 				lanes: buildDeckLanes({
-					// 泳道列表只有 daemon 这一个来源（M8-T8 / E-317）；没有它就渲染空甲板而不自己分泳道
-					lanes: snapshot.lanes ?? [],
+					lanes: snapshot.lanes,
 					// 快照里的运行没有 capabilities，能力位取 GET /runs 的那一份（E-117）
 					runs: runsResponse.runs,
 					tasks: snapshot.tasks,
@@ -222,12 +229,18 @@ export function RunDeckContainer(props: RunDeckProps) {
 					runsResponse.runs,
 					batchDetails,
 				),
+				rawTasks: snapshot.tasks,
+				rawRuns: runsResponse.runs,
+				rawLanes: snapshot.lanes,
 				error: null,
 			});
 		} catch (cause: unknown) {
 			setRemote({
 				lanes: Object.freeze([]) as readonly DeckStreamLane[],
 				batches: Object.freeze([]) as readonly BatchTreeItem[],
+				rawTasks: [],
+				rawRuns: [],
+				rawLanes: [],
 				error: cause instanceof Error ? cause.message : String(cause),
 			});
 		}
@@ -293,6 +306,10 @@ export function RunDeckContainer(props: RunDeckProps) {
 				{...deckState}
 				lanes={lanes}
 				batches={batches}
+				error={remote.error}
+				tasks={remote.rawTasks}
+				runs={remote.rawRuns}
+				rawLanes={remote.rawLanes}
 				onSelectTask={props.onSelectTask}
 				toolbarSlot={props.toolbarSlot}
 				className={props.className}

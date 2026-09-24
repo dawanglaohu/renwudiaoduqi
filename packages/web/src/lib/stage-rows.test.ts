@@ -268,4 +268,84 @@ describe('lib/stage-rows (M9-T21 / AC 1..7b, E-306, E-307, E-313, E-314, E-315, 
 		expect(getLaneKind('implement')).toBe('task');
 		expect(getLaneKind('review')).toBe('task');
 	});
+
+	// ─── R2: 同 kind 多次运行按运行时序和 currentRunId 选最近运行 ───
+	it('R2: binds to latest run by timestamp when runsRepo returns started_at DESC, rather than choosing oldest run (AC 5, E-313)', () => {
+		const olderRun = createMockRun({
+			id: 'run-impl-older',
+			kind: 'implement',
+			startedAt: '2025-01-01T00:00:00.000Z',
+			attemptNo: 1,
+		});
+		const newerRun = createMockRun({
+			id: 'run-impl-newer',
+			kind: 'implement',
+			startedAt: '2025-01-01T00:10:00.000Z',
+			attemptNo: 2,
+		});
+
+		// daemon 的 runsRepo.listAll() 按 started_at DESC 返回：newer 在前，older 在后
+		const runsDesc = [newerRun, olderRun];
+
+		const rows = deriveStageRows({
+			currentStage: 'review',
+			stageOrder: PIPELINE_STAGES,
+			runs: runsDesc,
+		});
+
+		const implRow = rows.find((r) => r.id === 'implement');
+		// 必须绑定较新的运行 run-impl-newer，而非数组末尾的最老运行 run-impl-older
+		expect(implRow?.runId).toBe('run-impl-newer');
+	});
+
+	it('R2: binds to currentRunId when explicitly specified for current stage (AC 5, E-313)', () => {
+		const run1 = createMockRun({
+			id: 'run-rev-1',
+			kind: 'review',
+			startedAt: '2025-01-01T00:05:00.000Z',
+		});
+		const run2 = createMockRun({
+			id: 'run-rev-2',
+			kind: 'review',
+			startedAt: '2025-01-01T00:15:00.000Z',
+		});
+
+		const rows = deriveStageRows({
+			currentStage: 'review',
+			stageOrder: PIPELINE_STAGES,
+			runs: [run1, run2],
+			currentRunId: 'run-rev-1',
+		});
+
+		const reviewRow = rows.find((r) => r.id === 'review');
+		expect(reviewRow?.runId).toBe('run-rev-1');
+	});
+
+	it('R2: wrapup stage row selects latest run by timestamp or currentRunId (AC 5, E-313)', () => {
+		const oldWrapup = createMockRun({
+			id: 'run-wrapup-1',
+			kind: 'wrapup',
+			startedAt: '2025-01-01T01:00:00.000Z',
+		});
+		const newWrapup = createMockRun({
+			id: 'run-wrapup-2',
+			kind: 'wrapup',
+			startedAt: '2025-01-01T01:30:00.000Z',
+		});
+
+		const rows = deriveStageRows({
+			currentStage: 'wrapup',
+			stageOrder: PIPELINE_STAGES,
+			runs: [newWrapup, oldWrapup], // DESC
+		});
+		expect(rows[0]?.runId).toBe('run-wrapup-2');
+
+		const rowsExplicit = deriveStageRows({
+			currentStage: 'wrapup',
+			stageOrder: PIPELINE_STAGES,
+			runs: [newWrapup, oldWrapup],
+			currentRunId: 'run-wrapup-1',
+		});
+		expect(rowsExplicit[0]?.runId).toBe('run-wrapup-1');
+	});
 });

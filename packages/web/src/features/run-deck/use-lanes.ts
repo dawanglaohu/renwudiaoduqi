@@ -36,6 +36,8 @@ export interface UseLanesResult {
 	readonly errorMessage: string | null;
 	/** 手机档当前选中的泳道序号（1-based 整数） */
 	readonly mobileLaneNo: number;
+	/** 手机档当前选中的泳道位置序号（1-based 序号，k/N 呈现，R3） */
+	readonly currentLanePosition: number;
 	/** 手机档当前选中的泳道对象 */
 	readonly currentMobileLane: LaneView | undefined;
 	/** 切换手机档泳道回调 */
@@ -118,47 +120,76 @@ export function useLanes(options: UseLanesOptions = {}): UseLanesResult {
 		};
 	}, [docId, loadLanes]);
 
-	// E-324: 窗口数调小后 N 显示现存泳道数，泳道消失后落到 min(k, N')
+	// E-324: 手机端单栏切换，窗口数调小后 N 显示现存泳道数，泳道消失后落到仍存在的最近位置（AC 9, E-324, R3）
 	const totalLanes = lanes.length;
-	const clampedMobileLaneNo = useMemo(() => {
-		if (totalLanes <= 0) return 1;
-		return Math.min(mobileLaneNo, totalLanes);
-	}, [mobileLaneNo, totalLanes]);
 
-	// 当泳道数改变导致超出时，同步收敛回 store（E-324）
-	useEffect(() => {
-		if (totalLanes > 0 && mobileLaneNo > totalLanes) {
-			setMobileLaneNoStore(totalLanes);
+	// 在已排序的 lanes 列表中找到当前选中的索引位置
+	const currentSortedIndex = useMemo(() => {
+		if (lanes.length === 0) return -1;
+		const exactIdx = lanes.findIndex((l) => l.laneNo === mobileLaneNo);
+		if (exactIdx !== -1) return exactIdx;
+
+		// 找不到（例如窗口调小导致原 laneNo 消失，或者稀疏号不匹配）：
+		// 落到仍存在的最近位置：若 mobileLaneNo 大于最大 laneNo，落到最后一项；否则找差值最近项
+		const first = lanes[0];
+		if (!first) return -1;
+		let closestIdx = 0;
+		let minDiff = Math.abs(first.laneNo - mobileLaneNo);
+		for (let i = 1; i < lanes.length; i++) {
+			const item = lanes[i];
+			if (!item) continue;
+			const diff = Math.abs(item.laneNo - mobileLaneNo);
+			if (diff < minDiff) {
+				minDiff = diff;
+				closestIdx = i;
+			}
 		}
-	}, [totalLanes, mobileLaneNo, setMobileLaneNoStore]);
+		return closestIdx;
+	}, [lanes, mobileLaneNo]);
+
+	// 当泳道发生变化且当前选中的 laneNo 不在列表中时，将最近位置的实际 laneNo 收敛同步回 store
+	useEffect(() => {
+		if (lanes.length > 0 && currentSortedIndex >= 0) {
+			const targetItem = lanes[currentSortedIndex];
+			if (targetItem && targetItem.laneNo !== mobileLaneNo) {
+				setMobileLaneNoStore(targetItem.laneNo);
+			}
+		}
+	}, [lanes, currentSortedIndex, mobileLaneNo, setMobileLaneNoStore]);
 
 	const currentMobileLane = useMemo(() => {
-		if (lanes.length === 0) return undefined;
-		return (
-			lanes.find((l) => l.laneNo === clampedMobileLaneNo) ??
-			lanes[clampedMobileLaneNo - 1] ??
-			lanes[0]
-		);
-	}, [lanes, clampedMobileLaneNo]);
+		if (lanes.length === 0 || currentSortedIndex < 0) return undefined;
+		return lanes[currentSortedIndex];
+	}, [lanes, currentSortedIndex]);
+
+	// 1-based 序号（1..totalLanes）供 LaneRunStrip 呈现「泳道 k/N」
+	const currentLanePosition = currentSortedIndex >= 0 ? currentSortedIndex + 1 : 1;
 
 	const prevMobileLane = useCallback(() => {
-		if (clampedMobileLaneNo > 1) {
-			setMobileLaneNoStore(clampedMobileLaneNo - 1);
+		if (currentSortedIndex > 0) {
+			const prevLane = lanes[currentSortedIndex - 1];
+			if (prevLane) {
+				setMobileLaneNoStore(prevLane.laneNo);
+			}
 		}
-	}, [clampedMobileLaneNo, setMobileLaneNoStore]);
+	}, [currentSortedIndex, lanes, setMobileLaneNoStore]);
 
 	const nextMobileLane = useCallback(() => {
-		if (clampedMobileLaneNo < totalLanes) {
-			setMobileLaneNoStore(clampedMobileLaneNo + 1);
+		if (currentSortedIndex >= 0 && currentSortedIndex < lanes.length - 1) {
+			const nextLane = lanes[currentSortedIndex + 1];
+			if (nextLane) {
+				setMobileLaneNoStore(nextLane.laneNo);
+			}
 		}
-	}, [clampedMobileLaneNo, totalLanes, setMobileLaneNoStore]);
+	}, [currentSortedIndex, lanes, setMobileLaneNoStore]);
 
 	return {
 		lanes,
 		isLoading,
 		isUnavailable,
 		errorMessage,
-		mobileLaneNo: clampedMobileLaneNo,
+		mobileLaneNo: currentMobileLane?.laneNo ?? mobileLaneNo,
+		currentLanePosition,
 		currentMobileLane,
 		setMobileLaneNo: setMobileLaneNoStore,
 		prevMobileLane,

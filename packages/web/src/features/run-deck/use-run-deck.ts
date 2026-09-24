@@ -100,8 +100,10 @@ export interface UseRunDeckResult {
 	readonly activePane?: MobilePane;
 	/** 切换单栏视图（通过 hash query #/?pane=...，E-145） */
 	readonly setPane?: (pane: MobilePane) => void;
-	/** 手机端当前查看的泳道号（1-based） */
+	/** 手机端当前查看的泳道号（实际 laneNo） */
 	readonly activeMobileLaneNo?: number;
+	/** 手机端当前查看的泳道在现存排序列表中的 1-based 序号（k/N 呈现用，E-324, R3） */
+	readonly activeMobileLanePosition?: number;
 	/** 切换到上一条手机泳道 */
 	readonly handlePrevMobileLane?: () => void;
 	/** 切换到下一条手机泳道 */
@@ -215,25 +217,74 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 		[onPaneChange],
 	);
 
-	// ─── 手机端当前查看的泳道序号（1-based） ───
+	// ─── 手机端当前查看的泳道序号与稀疏导航（AC 1, AC 9, E-324, R3） ───
 	const [activeMobileLaneNo, setActiveMobileLaneNo] = useState<number>(1);
 
+	// 按 laneNo 升序排列
+	const sortedLanes = useMemo(() => [...lanes].sort((a, b) => a.laneNo - b.laneNo), [lanes]);
+
+	// 在已排序列表中找到当前选中的索引位置
+	const currentSortedIndex = useMemo(() => {
+		if (sortedLanes.length === 0) return -1;
+		const exactIdx = sortedLanes.findIndex((l) => l.laneNo === activeMobileLaneNo);
+		if (exactIdx !== -1) return exactIdx;
+
+		// 找不到（例如缩窗导致原 laneNo 消失，或稀疏号），落到仍存在的最近位置（E-324, R3）
+		const first = sortedLanes[0];
+		if (!first) return -1;
+		let closestIdx = 0;
+		let minDiff = Math.abs(first.laneNo - activeMobileLaneNo);
+		for (let i = 1; i < sortedLanes.length; i++) {
+			const item = sortedLanes[i];
+			if (!item) continue;
+			const diff = Math.abs(item.laneNo - activeMobileLaneNo);
+			if (diff < minDiff) {
+				minDiff = diff;
+				closestIdx = i;
+			}
+		}
+		return closestIdx;
+	}, [sortedLanes, activeMobileLaneNo]);
+
+	// 当泳道列表变化且当前选中的 laneNo 不在列表中时，自动收敛同步最近位置的真实 laneNo
+	useEffect(() => {
+		if (sortedLanes.length > 0 && currentSortedIndex >= 0) {
+			const targetItem = sortedLanes[currentSortedIndex];
+			if (targetItem && targetItem.laneNo !== activeMobileLaneNo) {
+				setActiveMobileLaneNo(targetItem.laneNo);
+			}
+		}
+	}, [sortedLanes, currentSortedIndex, activeMobileLaneNo]);
+
+	const currentMobileLane = useMemo(() => {
+		if (sortedLanes.length === 0 || currentSortedIndex < 0) return undefined;
+		return sortedLanes[currentSortedIndex];
+	}, [sortedLanes, currentSortedIndex]);
+
+	// 1-based 序号（1..totalLanes）供呈现「泳道 k/N」
+	const activeMobileLanePosition = currentSortedIndex >= 0 ? currentSortedIndex + 1 : 1;
+
 	const handlePrevMobileLane = useCallback(() => {
-		setActiveMobileLaneNo((prev) => (prev > 1 ? prev - 1 : lanes.length || 1));
-	}, [lanes.length]);
+		if (currentSortedIndex > 0) {
+			const prevLane = sortedLanes[currentSortedIndex - 1];
+			if (prevLane) {
+				setActiveMobileLaneNo(prevLane.laneNo);
+			}
+		}
+	}, [currentSortedIndex, sortedLanes]);
 
 	const handleNextMobileLane = useCallback(() => {
-		setActiveMobileLaneNo((prev) => (prev < lanes.length ? prev + 1 : 1));
-	}, [lanes.length]);
+		if (currentSortedIndex >= 0 && currentSortedIndex < sortedLanes.length - 1) {
+			const nextLane = sortedLanes[currentSortedIndex + 1];
+			if (nextLane) {
+				setActiveMobileLaneNo(nextLane.laneNo);
+			}
+		}
+	}, [currentSortedIndex, sortedLanes]);
 
 	const selectMobileLane = useCallback((laneNo: number) => {
 		setActiveMobileLaneNo(laneNo);
 	}, []);
-
-	// 当前正在查看的手机泳道流
-	const currentMobileLane = useMemo(() => {
-		return lanes.find((l) => l.laneNo === activeMobileLaneNo) ?? lanes[0];
-	}, [lanes, activeMobileLaneNo]);
 
 	// 统计处于等待审批状态的泳道总计数（E-240）
 	const totalWaitingCount = useMemo(() => {
@@ -490,6 +541,7 @@ export function useRunDeck(props: RunDeckProps): UseRunDeckResult {
 		activePane,
 		setPane,
 		activeMobileLaneNo,
+		activeMobileLanePosition,
 		handlePrevMobileLane,
 		handleNextMobileLane,
 		selectMobileLane,
