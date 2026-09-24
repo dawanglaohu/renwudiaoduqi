@@ -1,5 +1,6 @@
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import { type DatabaseConnection, toDatabaseError } from '../db/open-database.ts';
+import { fromEffortColumns } from '../domain/effort-value.ts';
 import { SUCCEEDED_RUN_STATES } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 
@@ -297,6 +298,8 @@ UPDATE runs
 SET state = @state,
     queued_reason = @queued_reason,
     ended_at = @ended_at,
+    exit_code = CASE WHEN @exit_code IS NOT NULL THEN @exit_code ELSE exit_code END,
+    exit_signal = CASE WHEN @exit_signal IS NOT NULL THEN @exit_signal ELSE exit_signal END,
     pid = CASE WHEN @pid IS NOT NULL THEN @pid ELSE pid END,
     worktree_path = CASE WHEN @worktree_path IS NOT NULL THEN @worktree_path ELSE worktree_path END,
     branch_name = CASE WHEN @branch_name IS NOT NULL THEN @branch_name ELSE branch_name END,
@@ -353,12 +356,8 @@ export function toRunDto(row: RunRow): RunDto {
 		}
 	}
 
-	let effort: RunDto['effort'] = null;
-	if (row.effort_tier) {
-		effort = { tier: row.effort_tier as 'low' | 'medium' | 'high' };
-	} else if (row.effort_vendor) {
-		effort = { vendor: row.effort_vendor };
-	}
+	const effort = fromEffortColumns(row.effort_tier ?? null, row.effort_vendor ?? null);
+	const effortTier = effort && 'tier' in effort ? effort.tier : null;
 
 	return Object.freeze({
 		id: row.id,
@@ -372,7 +371,7 @@ export function toRunDto(row: RunRow): RunDto {
 		agentId: row.agent_id,
 		modelName: row.model_name ?? null,
 		reportedModel: row.reported_model ?? null,
-		effortTier: (row.effort_tier as RunDto['effortTier']) ?? null,
+		effortTier,
 		effortVendor: row.effort_vendor ?? null,
 		effort,
 		reportedEffort: row.reported_effort ?? null,
@@ -895,6 +894,8 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 					state,
 					queued_reason: input.queuedReason ?? null,
 					ended_at: input.endedAt ?? null,
+					exit_code: input.exitCode ?? null,
+					exit_signal: input.exitSignal ?? null,
 					rework_count: input.reworkCount ?? null,
 					pid: input.pid ?? null,
 					worktree_path: input.worktreePath ?? null,

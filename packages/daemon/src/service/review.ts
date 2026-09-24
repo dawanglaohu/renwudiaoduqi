@@ -7,7 +7,9 @@ import {
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { resolveAssignment } from '../domain/assignment.ts';
 import type { EffortTier } from '../domain/effort-tier.ts';
+import { DEFAULT_PIPELINE_SETTINGS, parsePipelineSettings } from '../domain/pipeline-settings.ts';
 import { evaluateReviewVerdict } from '../domain/review-verdict.ts';
 import { assembleReviewRoundPrompt } from '../domain/rework-prompt.ts';
 import {
@@ -46,6 +48,8 @@ import {
 	getDiffStat,
 	getDiffText,
 } from '../workspace/diff.ts';
+import type { AgentService } from './agents.ts';
+import { createAssignmentReader } from './assignment-reader.ts';
 import type { BughuntService } from './bughunt.ts';
 import type { GateService } from './gates.ts';
 import type { MessageService, ResumeSessionInput, ResumeSessionResult } from './message.ts';
@@ -55,7 +59,6 @@ import {
 	type ReviewAgentAssignment,
 	buildReviewLaunchSpec,
 	dispatchReviewRun,
-	readDefaultReviewAssignment,
 } from './review-agent.ts';
 import { type ReviewContext, getReviewContext } from './review-context.ts';
 import type { RunService } from './run.ts';
@@ -431,6 +434,7 @@ export interface ReviewServiceDeps extends MechanicalCheckDeps {
 	readonly settingsService?: SettingsService;
 	readonly gatesService?: GateService;
 	readonly runService?: RunService;
+	readonly agentService?: AgentService;
 	readonly logstorePaths?: LogstorePaths;
 	readonly logFs?: LogFileSystem;
 	readonly tasksRepo?: TasksRepo;
@@ -1640,6 +1644,8 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		let missingMaterialTag: string | null = null;
 		let missingMaterialReason: string | null = null;
 		let snapshotId: string | null = null;
+		let targetSnapshotId: string | null = null;
+		let assignmentSource = 'task';
 		let reviewContext: ReviewContext | null = null;
 		let assignment: ReviewAgentAssignment | null = null;
 		const diffStat = input.diffStat ?? checkResult.diffStat;
@@ -1673,51 +1679,119 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							},
 						);
 
-						// 2. 真实指派检查 (R1: 删除固定指派，按 run 或快照取真实指派)
-						try {
-							if (run && (run.agent_id || (run as { agentId?: string }).agentId)) {
-								assignment = readDefaultReviewAssignment(
-									run as Parameters<typeof readDefaultReviewAssignment>[0],
+						if (!deps.runsRepo) {
+							missingMaterialTag = 'review_agent_unavailable';
+							missingMaterialReason = 'review_runs_repo_missing';
+						} else {
+							// 2. 真实指派检查 (AC 1, AC 3, AC 4, E-341, E-342, E-352)
+							const assignmentReader = createAssignmentReader({
+								runsRepo: deps.runsRepo as unknown as RunsRepo,
+								dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+							});
+							const taskAssignment = assignmentReader.readTaskAssignment(run.id);
+
+							const pipeline = deps.settingsService
+								? deps.settingsService.getPipeline()
+								: deps.settingsRepo
+									? parsePipelineSettings(deps.settingsRepo.get('pipeline')?.value_json)
+									: DEFAULT_PIPELINE_SETTINGS;
+							const reviewOverride = pipeline.reviewOverride;
+
+							if (reviewOverride?.agentId) {
+								const targetAgentId = reviewOverride.agentId.trim();
+								let isAvailable = true;
+								if (deps.agentRegistry) {
+									const regSnap = deps.agentRegistry.getSnapshot();
+									if (!regSnap.agents[targetAgentId]) {
+										isAvailable = false;
+									}
+								}
+								if (deps.agentService) {
+									const avail = deps.agentService.getAvailability(targetAgentId);
+									if (avail && !avail.canDispatch) {
+										isAvailable = false;
+									}
+								}
+								if (!isAvailable) {
+									missingMaterialTag = 'review_agent_unavailable';
+									missingMaterialReason = 'review_agent_unavailable';
+								}
+							}
+
+							if (!missingMaterialTag && taskAssignment) {
+								const resolved = resolveAssignment({
+									stage: 'review',
+									taskAssignment,
+									reviewOverride,
+									agentDefaults: deps.agentRegistry
+										? (id) => {
+												const a = deps.agentRegistry?.getSnapshot().agents[id];
+												return a
+													? {
+															agentId: id,
+															defaultModel: a.defaultModel,
+															defaultEffortTier: a.defaultEffortTier,
+															effortVendorMap: a.effortVendorMap,
+														}
+													: null;
+											}
+										: undefined,
+								});
+
+								assignment = {
+									agentId: resolved.agentId,
+									modelName: resolved.modelName,
+									effortTier: resolved.effortTier,
+									effortVendor: resolved.effortVendor ?? undefined,
+								};
+								assignmentSource = resolved.source;
+
+								const overrideAgentId = reviewOverride?.agentId?.trim();
+								const isCrossFamily = Boolean(
+									overrideAgentId &&
+										overrideAgentId.toLowerCase() !== taskAssignment.agentId.trim().toLowerCase(),
 								);
-							}
-						} catch {
-							assignment = null;
-						}
-						if (!assignment && snapshot.assignment_json) {
-							try {
-								const parsed = JSON.parse(snapshot.assignment_json);
-								const rawId = parsed.agentId ?? parsed.agent_id;
-								if (rawId && typeof rawId === 'string' && rawId.trim().length > 0) {
-									assignment = {
-										agentId: rawId.trim(),
-										modelName: parsed.modelName ?? parsed.model_name ?? null,
-										effortTier: parsed.effortTier ?? parsed.effort_tier ?? null,
-										effortVendor: parsed.effortVendor ?? parsed.effort_vendor ?? null,
+
+								targetSnapshotId = snapshot.id;
+								if (isCrossFamily && overrideAgentId) {
+									const subSnapshotId = ids.newId();
+									const agentConfig =
+										deps.agentRegistry?.getSnapshot().agents[overrideAgentId] ?? {};
+									const launchSpecJson = JSON.stringify(agentConfig);
+
+									const insertSubSnapshot = () => {
+										deps.dispatchSnapshotsRepo?.insert({
+											id: subSnapshotId,
+											task_id: snapshot.task_id,
+											batch_id: null,
+											input_text: snapshot.input_text,
+											output_text: snapshot.output_text,
+											accept_text: snapshot.accept_text,
+											impl_prompt: snapshot.impl_prompt,
+											review_prompt: snapshot.review_prompt,
+											bug_prompt: snapshot.bug_prompt,
+											contract_hash: snapshot.contract_hash,
+											task_paths_json: snapshot.task_paths_json,
+											launch_spec_json: launchSpecJson,
+											assignmentJson: assignmentReader.getRawAssignmentJson(snapshot),
+											parent_snapshot_id: snapshot.id,
+											created_at: clock.now(),
+										});
 									};
+
+									if (deps.unitOfWork) {
+										deps.unitOfWork.run(insertSubSnapshot);
+									} else {
+										insertSubSnapshot();
+									}
+									targetSnapshotId = subSnapshotId;
 								}
-							} catch {
-								assignment = null;
 							}
-						}
-						if (!assignment && snapshot.launch_spec_json) {
-							try {
-								const parsed = JSON.parse(snapshot.launch_spec_json);
-								const rawId = parsed.adapterKind ?? parsed.agentId ?? parsed.agent_id;
-								if (rawId && typeof rawId === 'string' && rawId.trim().length > 0) {
-									assignment = {
-										agentId: rawId.trim(),
-										modelName: parsed.model ?? parsed.modelName ?? null,
-										effortTier: parsed.effort ?? parsed.effortTier ?? null,
-										effortVendor: parsed.effortVendor ?? null,
-									};
-								}
-							} catch {
-								assignment = null;
+
+							if (!assignment && !missingMaterialTag) {
+								missingMaterialTag = 'assignment_missing';
+								missingMaterialReason = 'missing_assignment';
 							}
-						}
-						if (!assignment) {
-							missingMaterialTag = 'assignment_missing';
-							missingMaterialReason = 'missing_assignment';
 						}
 					}
 				} catch {
@@ -1940,12 +2014,14 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						worktree_path: worktreePath,
 						branchName: (run as { branch_name?: string | null }).branch_name ?? null,
 						branch_name: (run as { branch_name?: string | null }).branch_name ?? null,
-						snapshotId: reviewContext.snapshotId,
-						snapshot_id: reviewContext.snapshotId,
+						snapshotId: targetSnapshotId ?? reviewContext.snapshotId,
+						snapshot_id: targetSnapshotId ?? reviewContext.snapshotId,
 						laneNo: (run as { lane_no?: number | null }).lane_no ?? null,
 						lane_no: (run as { lane_no?: number | null }).lane_no ?? null,
 					},
 					assignment,
+					assignmentSource,
+					snapshotId: targetSnapshotId ?? undefined,
 					reviewContext,
 					diffText,
 					diffStat,
@@ -2315,7 +2391,49 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			const canResume =
 				!processAlive && (caps?.canResume ?? false) && Boolean(prevReview.vendor_session_ref);
 
-			if (!canReply && !canResume) {
+			// E-352 / E-304: reviewOverride 中途改了只影响新开的审查会话，续接同会话时 resolveAssignment 结果与第 N 轮不等则走 new_session
+			let assignmentChanged = false;
+			if (deps.dispatchSnapshotsRepo && deps.runsRepo) {
+				const reader = createAssignmentReader({
+					runsRepo: deps.runsRepo as unknown as RunsRepo,
+					dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+				});
+				const taskAssignment = reader.readTaskAssignment(parentRunId ?? input.implRunId);
+				const pipeline = deps.settingsService
+					? deps.settingsService.getPipeline()
+					: deps.settingsRepo
+						? parsePipelineSettings(deps.settingsRepo.get('pipeline')?.value_json)
+						: DEFAULT_PIPELINE_SETTINGS;
+				if (taskAssignment) {
+					const currentResolved = resolveAssignment({
+						stage: 'review',
+						taskAssignment,
+						reviewOverride: pipeline.reviewOverride,
+						agentDefaults: deps.agentRegistry
+							? (id) => {
+									const a = deps.agentRegistry?.getSnapshot().agents[id];
+									return a
+										? {
+												agentId: id,
+												defaultModel: a.defaultModel,
+												defaultEffortTier: a.defaultEffortTier,
+												effortVendorMap: a.effortVendorMap,
+											}
+										: null;
+								}
+							: undefined,
+					});
+					if (
+						currentResolved.agentId !== prevReview.agent_id ||
+						currentResolved.modelName !== (prevReview.model_name ?? null) ||
+						currentResolved.effortTier !== (prevReview.effort_tier ?? null)
+					) {
+						assignmentChanged = true;
+					}
+				}
+			}
+
+			if (assignmentChanged || (!canReply && !canResume)) {
 				const newRunId = nextId();
 				persistRound(newRunId, null);
 				spawnNewSession(newRunId, promptPrefix);

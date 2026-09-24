@@ -1,5 +1,7 @@
 import { EVENT_DEFINITIONS, type EventEnvelope } from '@agent-scheduler/shared/api/events';
+import { redactSecrets } from '../adapters/probe.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { isContentEventKind } from '../domain/content-events.ts';
 import {
 	RUN_TRANSITION_REASONS,
 	type RunState,
@@ -174,6 +176,8 @@ export interface RunService {
 		readonly branchName?: string | null;
 	}): Promise<{ readonly previousState: RunState; readonly currentState: RunState }>;
 	closeRunStream(runId: string): Promise<void>;
+	hasContentProduced?(runId: string): boolean;
+	getLatestStderrTail?(runId: string): readonly string[] | null;
 	findInFlightRuns(): Promise<readonly ReconcileRunRecord[]>;
 	publishStalledSuspected?: (eventInput: {
 		readonly kind: 'run.stalled_suspected';
@@ -248,14 +252,17 @@ function isCanonicalEnvelopeCandidate(val: unknown): val is EventEnvelope {
 	);
 }
 
-const CONTENT_EVENT_KINDS: ReadonlySet<string> = new Set(
-	(Object.keys(EVENT_DEFINITIONS) as string[]).filter(
-		(kind) => (kind.startsWith('agent_') || kind.startsWith('tool_')) && !kind.endsWith('_update'),
-	),
-);
-
-function isContentEventKind(kind: string): boolean {
-	return CONTENT_EVENT_KINDS.has(kind);
+function getRedactedStderrTailLines(proc: ManagedProcess, error?: Error): readonly string[] {
+	const rawLines =
+		proc.stderrTailLines && proc.stderrTailLines.length > 0
+			? proc.stderrTailLines
+			: proc.stderrTail
+				? proc.stderrTail.split('\n')
+				: error?.message
+					? [error.message]
+					: [];
+	const sliced = rawLines.slice(-20);
+	return Object.freeze(sliced.map((l) => redactSecrets(l)));
 }
 
 /**
@@ -275,6 +282,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 	const logFailure = deps.logFailure ?? (() => undefined);
 	const temporarilyElevatedRuns = new Set<string>();
 	const runsWithContent = new Set<string>();
+	const latestExitedTails = new Map<string, readonly string[]>();
 
 	function getNow(): string {
 		return deps.clock.now();
@@ -583,6 +591,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						run = deps.runsRepo?.findById(runId) ?? null;
 						const isStarting = run?.state === 'starting';
 
+						const stderrTailLines = getRedactedStderrTailLines(process, result.error);
+						latestExitedTails.set(runId, stderrTailLines);
+						const eventStderrTail = Array.isArray(process.stderrTailLines)
+							? stderrTailLines
+							: process.stderrTail || stderrTailLines;
+
 						// 1. spawn 抛错、启动超时及 starting 状态抢先退出必须落定 starting → failed (R3)
 						if (isStarting) {
 							const failureReason =
@@ -608,7 +622,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								payload: {
 									exitCode: result.exitCode,
 									signal: result.signal ? String(result.signal) : null,
-									stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+									stderrTail: stderrTailLines,
 								},
 							});
 							await ingestEvent(runId, exitedEnvelope);
@@ -618,7 +632,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 						const contentProduced = hasContent || runsWithContent.has(runId);
 
-						// 2. 零产出退出 (E-348 / R3)
+						// 2. 零产出退出 (E-348 / R3 / AC 7)
 						if (!contentProduced) {
 							const isImplementLike =
 								run?.kind === 'implement' ||
@@ -642,12 +656,59 @@ export function createRunService(deps: RunServiceDeps): RunService {
 										targetState: 'reviewing',
 										reason: 'exited_before_output',
 									});
-									// 第二跳: reviewing -> awaiting_human (自动清 lane_no 并发 lane.released)
+									// 第二跳: reviewing -> awaiting_human
 									await transitionState({
 										runId,
 										targetState: 'awaiting_human',
 										reason: 'exited_before_output',
 									});
+								}
+
+								let laneReleasedEnvelope: EventEnvelope | null = null;
+								const now = deps.clock.now();
+								const taskId = run?.taskId ?? null;
+
+								// AC 7: 同一事务内完成：reviewing -> awaiting_human、新建闸门 comment exited_before_output、
+								// lane_no 置 NULL 并收集 lane.released
+								const persistGateAndLane = () => {
+									if (deps.tasksRepo && taskId) {
+										const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+										if (laneRes.changes === 1 && deps.envelopeFactory) {
+											laneReleasedEnvelope = deps.envelopeFactory.createEnvelope({
+												kind: 'lane.released',
+												taskId,
+												runId,
+												actorDeviceId: run?.actorDeviceId ?? null,
+												payload: {
+													docId: laneRes.docId,
+													laneNo: laneRes.previousLaneNo,
+													taskId,
+													runId,
+													reason: 'awaiting_human',
+												},
+											});
+										}
+									}
+									if (deps.gatesRepo) {
+										const gateId = deps.ids
+											? `gate_${deps.ids.newId()}`
+											: `gate_${runId.slice(0, 12)}`;
+										deps.gatesRepo.create({
+											id: gateId,
+											task_id: taskId,
+											run_id: runId,
+											kind: 'review',
+											state: 'waiting',
+											comment: 'exited_before_output',
+											created_at: now,
+										});
+									}
+								};
+
+								if (deps.unitOfWork) {
+									deps.unitOfWork.run(persistGateAndLane);
+								} else {
+									persistGateAndLane();
 								}
 
 								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
@@ -658,11 +719,15 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									payload: {
 										exitCode: result.exitCode,
 										signal: result.signal ? String(result.signal) : null,
-										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+										stderrTail: eventStderrTail,
 									},
 								});
 								await ingestEvent(runId, exitedEnvelope);
 								await closeRunStream(runId);
+
+								if (laneReleasedEnvelope && deps.bus) {
+									deps.bus.publish(laneReleasedEnvelope);
+								}
 
 								// 事务后复探登录态（dsh 不探）
 								const agentId = run?.agent_id ?? run?.agentId;
@@ -677,27 +742,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									}
 								}
 
-								// Gate context is assembled on reads by M8-T9 from the final run.exited event.
-								if (deps.gatesRepo) {
-									const gateId = deps.ids
-										? `gate_${deps.ids.newId()}`
-										: `gate_${runId.slice(0, 12)}`;
-									deps.gatesRepo.create({
-										id: gateId,
-										task_id: run?.taskId ?? null,
-										run_id: runId,
-										kind: 'review',
-										state: 'waiting',
-										comment: 'exited_before_output',
-										created_at: deps.clock.now(),
-									});
-								}
-
 								// 不跑机械检查、不派审查、不增加 rework_count
 								return;
 							}
 
-							if (run?.kind === 'wrapup') {
+							if (run?.kind === 'review') {
+								// E-62: 审查 agent 零产出退出走审查未完成转人
 								if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
 									await transitionState({
 										runId,
@@ -715,7 +765,37 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									payload: {
 										exitCode: result.exitCode,
 										signal: result.signal ? String(result.signal) : null,
-										stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+										stderrTail: eventStderrTail,
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+								if (deps.finalizeReview) {
+									await deps.finalizeReview({ runId, exitCode: result.exitCode });
+								}
+								return;
+							}
+
+							if (run?.kind === 'wrapup') {
+								// E-295: 收口运行零产出退出
+								if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
+									await transitionState({
+										runId,
+										targetState: 'exited',
+										reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: eventStderrTail,
 									},
 								});
 								await ingestEvent(runId, exitedEnvelope);
@@ -745,7 +825,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 							payload: {
 								exitCode: result.exitCode,
 								signal: result.signal ? String(result.signal) : null,
-								stderrTail: process.stderrTail || (result.error ? result.error.message : ''),
+								stderrTail: eventStderrTail,
 							},
 						});
 						await ingestEvent(runId, exitedEnvelope);
@@ -860,8 +940,18 @@ export function createRunService(deps: RunServiceDeps): RunService {
 					toState: targetState,
 					queuedReason: reason ?? null,
 					endedAt,
-					exitCode: exitCode ?? null,
-					exitSignal: exitSignal ?? null,
+					exitCode:
+						exitCode !== undefined
+							? exitCode
+							: ((run as { exitCode?: number | null; exit_code?: number | null }).exitCode ??
+								(run as { exitCode?: number | null; exit_code?: number | null }).exit_code ??
+								null),
+					exitSignal:
+						exitSignal !== undefined
+							? exitSignal
+							: ((run as { exitSignal?: string | null; exit_signal?: string | null }).exitSignal ??
+								(run as { exitSignal?: string | null; exit_signal?: string | null }).exit_signal ??
+								null),
 					actorDeviceId: actorDeviceId ?? null,
 					pid: input.pid ?? null,
 					worktreePath: input.worktreePath ?? null,
@@ -931,11 +1021,13 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		for (const event of pendingEvents) {
 			const appendResult = await deps.logstore.appendEvent(runId, event);
 			if (deps.bus) {
-				const locationRef = {
-					fileSeq: appendResult.location.fileSeq,
-					byteOffset: appendResult.location.byteOffset,
-					byteLen: appendResult.location.byteLen,
-				};
+				const locationRef = appendResult?.location
+					? {
+							fileSeq: appendResult.location.fileSeq,
+							byteOffset: appendResult.location.byteOffset,
+							byteLen: appendResult.location.byteLen,
+						}
+					: undefined;
 				deps.bus.publish(event, locationRef);
 			}
 		}
@@ -960,7 +1052,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		if (!runId || typeof runId !== 'string') return;
 		temporarilyElevatedRuns.delete(runId);
 		runsWithContent.delete(runId);
-		await deps.logstore.closeWriter(runId);
+		if (deps.logstore?.closeWriter) {
+			await deps.logstore.closeWriter(runId);
+		}
 	}
 
 	async function findInFlightRuns(): Promise<readonly ReconcileRunRecord[]> {
@@ -1168,5 +1262,11 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		elevateRunOnce,
 		isAwaitingReply,
 		isTemporarilyElevated,
+		hasContentProduced(runId: string): boolean {
+			return runsWithContent.has(runId);
+		},
+		getLatestStderrTail(runId: string): readonly string[] | null {
+			return latestExitedTails.get(runId) ?? null;
+		},
 	});
 }

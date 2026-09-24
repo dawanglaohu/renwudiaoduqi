@@ -1,6 +1,7 @@
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { resolveAssignment } from '../domain/assignment.ts';
 import { assembleBughuntPrompt } from '../domain/bughunt-prompt.ts';
 import { decideBughuntOutcome, parseBughuntReport } from '../domain/bughunt-report.ts';
 import {
@@ -18,6 +19,7 @@ import type { SettingsRepo } from '../repo/settings.ts';
 import { type GitRunner, type WorktreeManagerDeps, getDiffStat } from '../workspace/diff.ts';
 import { readWorktreeStartingBaseline } from '../workspace/in-head.ts';
 import type { AgentService } from './agents.ts';
+import { createAssignmentReader } from './assignment-reader.ts';
 import type { BughuntContextService } from './bughunt-context.ts';
 import type { GateService } from './gates.ts';
 import type { ReviewService } from './review.ts';
@@ -105,10 +107,20 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			}
 
 			// 任务指派：逐字复制被审实施运行行的 agent_id / model_name / effort_tier（决策 107, E-328, E-341）
-			const agentId = implRun.agent_id;
-			const modelName = implRun.model_name ?? null;
-			const effortTier = (implRun.effort_tier as 'low' | 'medium' | 'high' | null) ?? null;
-			const effortVendor = implRun.effort_vendor ?? null;
+			const assignmentReader = createAssignmentReader({
+				runsRepo: deps.runsRepo,
+				dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+			});
+			const taskAssignment = assignmentReader.readTaskAssignment(implRun.id);
+			const resolved = resolveAssignment({
+				stage: 'bughunt',
+				taskAssignment,
+			});
+			const agentId = resolved.agentId || implRun.agent_id;
+			const modelName = resolved.modelName ?? implRun.model_name ?? null;
+			const effortTier = resolved.effortTier ?? null;
+			const effortVendor = resolved.effortVendor ?? implRun.effort_vendor ?? null;
+			const assignmentSource = resolved.source ?? 'task';
 
 			// agent 可用性检查（E-328）
 			let isAvailable = true;
@@ -212,12 +224,13 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				}
 			}
 
-			const assignmentJson = JSON.stringify({
+			const assignmentSerialized = assignmentReader.serializeTaskAssignment({
 				agentId,
 				modelName,
 				effortTier,
 				effortVendor,
 				source: 'task',
+				followedTaskId: null,
 				capturedAt: now,
 			});
 
@@ -244,7 +257,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 						bug_prompt: implSnapshot?.bug_prompt ?? null,
 						impl_prompt: bughuntPrompt,
 						launch_spec_json: launchSpecJson,
-						assignment_json: assignmentJson,
+						assignmentJson: assignmentSerialized,
 						task_paths_json: implSnapshot?.task_paths_json ?? '[]',
 						contract_hash: implSnapshot?.contract_hash ?? 'bughunt',
 						created_at: now,
@@ -269,7 +282,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					origin: 'dispatch',
 					prompt_source: context?.promptSource ?? 'builtin',
 					lane_no: implRun.lane_no,
-					assignment_source: 'task',
+					assignment_source: assignmentSource,
 					branch_tip_sha: baseline.headSha,
 					started_at: now,
 				};

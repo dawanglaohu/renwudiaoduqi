@@ -1,3 +1,4 @@
+import type { EffortTier } from '@agent-scheduler/shared/api/agents';
 import type {
 	BatchDto,
 	BatchWrapupDto,
@@ -11,6 +12,7 @@ import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { RecallTaskResponse } from '@agent-scheduler/shared/api/tasks';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { resolveAssignment } from '../domain/assignment.ts';
 import { latestImplementationRunByTaskId, summarizeBatchLanding } from '../domain/batch-landing.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import {
@@ -46,6 +48,7 @@ import { type RunRow, type RunsRepo, toRunDto } from '../repo/runs.ts';
 import type { SettingsRepo } from '../repo/settings.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 import type { AgentService } from './agents.ts';
+import { createAssignmentReader } from './assignment-reader.ts';
 import type { BatchService } from './batch.ts';
 import type { DocsService } from './docs.ts';
 import { assertSessionRefFree } from './session-guard.ts';
@@ -188,9 +191,15 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 		readonly agentId: string;
 		readonly modelName: string | null;
 		readonly effortTier: 'low' | 'medium' | 'high' | null;
+		readonly effortVendor?: string | null;
 		readonly source: string;
 		readonly followedTaskId: string | null;
 	} {
+		const assignmentReader = createAssignmentReader({
+			runsRepo: deps.runsRepo,
+			dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+		});
+
 		// Manual override has highest priority
 		if (override?.agentId && override.agentId.trim().length > 0) {
 			const agentId = override.agentId.trim();
@@ -206,19 +215,64 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 
 		// Round >= 2: follow previous round's wrapup assignment
 		if (round >= 2 && latestWrapup) {
-			assertAgentAvailable(latestWrapup.agent_id);
+			const prevAssignment = assignmentReader.readTaskAssignment(latestWrapup.id);
+			const agentId = prevAssignment?.agentId ?? latestWrapup.agent_id;
+			assertAgentAvailable(agentId);
 			return {
-				agentId: latestWrapup.agent_id,
-				modelName: latestWrapup.model_name ?? null,
-				effortTier: (latestWrapup.effort_tier as 'low' | 'medium' | 'high') ?? null,
+				agentId,
+				modelName: prevAssignment?.modelName ?? latestWrapup.model_name ?? null,
+				effortTier:
+					prevAssignment?.effortTier ?? (latestWrapup.effort_tier as EffortTier | null) ?? null,
+				effortVendor: prevAssignment?.effortVendor ?? latestWrapup.effort_vendor ?? null,
 				source: 'wrapup_settings',
-				followedTaskId: null,
+				followedTaskId: prevAssignment?.followedTaskId ?? null,
 			};
 		}
 
-		// Round 1 (follow mode): follow the latest ended_at landed implementation run in this batch
+		// Follow candidate from batch
 		const landedRuns = deps.runsRepo.findLandedImplementationRunsByBatchId?.(batchId) ?? [];
-		if (landedRuns.length === 0) {
+		const sourceRun = landedRuns.length > 0 ? landedRuns[0] : null;
+		let followAssignment = null;
+		if (sourceRun?.task_id) {
+			const taskAssignment = assignmentReader.readTaskAssignment(sourceRun.id);
+			if (taskAssignment) {
+				followAssignment = {
+					taskId: sourceRun.task_id,
+					assignment: {
+						agentId: taskAssignment.agentId,
+						modelName: taskAssignment.modelName,
+						effortTier: taskAssignment.effortTier,
+						effortVendor: taskAssignment.effortVendor,
+					},
+				};
+			}
+		}
+
+		const pipeline = deps.settingsRepo
+			? parsePipelineSettings(deps.settingsRepo.get('pipeline')?.value_json)
+			: undefined;
+
+		const resolved = resolveAssignment({
+			stage: 'wrapup',
+			body: override,
+			wrapupSettings: pipeline?.wrapupAssignment ?? { mode: 'follow' },
+			followAssignment,
+			agentDefaults: deps.agentRegistry
+				? (id) => {
+						const a = deps.agentRegistry?.getSnapshot().agents[id];
+						return a
+							? {
+									agentId: id,
+									defaultModel: a.defaultModel,
+									defaultEffortTier: a.defaultEffortTier,
+									effortVendorMap: a.effortVendorMap,
+								}
+							: null;
+					}
+				: undefined,
+		});
+
+		if ('failureReason' in resolved && resolved.failureReason === 'follow_source_missing') {
 			throw new AppError(
 				'E_AGENT_UNAVAILABLE',
 				'No landed implementation run found to follow assignment from.',
@@ -228,25 +282,16 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			);
 		}
 
-		// SQL orders by ended_at DESC NULLS LAST, id DESC (tie-breaker: lexicographically largest run id)
-		const sourceRun = landedRuns[0];
-		if (!sourceRun) {
-			throw new AppError(
-				'E_AGENT_UNAVAILABLE',
-				'No landed implementation run found to follow assignment from.',
-				{
-					details: { reason: 'follow_source_missing', batchId },
-				},
-			);
-		}
-		assertAgentAvailable(sourceRun.agent_id);
+		const finalAgentId = resolved.agentId;
+		assertAgentAvailable(finalAgentId);
 
 		return {
-			agentId: sourceRun.agent_id,
-			modelName: sourceRun.model_name ?? null,
-			effortTier: (sourceRun.effort_tier as 'low' | 'medium' | 'high') ?? null,
-			source: 'wrapup_settings',
-			followedTaskId: sourceRun.task_id,
+			agentId: finalAgentId,
+			modelName: resolved.modelName ?? null,
+			effortTier: resolved.effortTier ?? null,
+			effortVendor: resolved.effortVendor ?? null,
+			source: resolved.source ?? 'wrapup_settings',
+			followedTaskId: resolved.followedTaskId ?? null,
 		};
 	}
 
@@ -650,7 +695,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					contract_hash: 'wrapup',
 					task_paths_json: '[]',
 					launch_spec_json: launchSpecJson,
-					assignment_json: assignmentJson,
+					assignmentJson,
 					created_at: now,
 				});
 
@@ -1260,6 +1305,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									snapshot_id: fixSnapshotId,
 									queued_reason: queuedReason,
 									idempotency_key: `wrapup-fix-${runId}-${candidate.task.id}`,
+									assignment_source: 'task',
 									actor_device_id: null,
 									started_at: null,
 									ended_at: null,
@@ -1636,7 +1682,9 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					agent_id: agentId,
 					model_name: latestImplRun?.model_name ?? null,
 					effort_tier: latestImplRun?.effort_tier ?? null,
+					effort_vendor: latestImplRun?.effort_vendor ?? null,
 					snapshot_id: snapshotId,
+					assignment_source: 'task',
 					queued_reason: queuedReason,
 					idempotency_key: idempotencyKey.trim(),
 					actor_device_id: actorDeviceId ?? null,

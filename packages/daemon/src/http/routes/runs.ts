@@ -270,6 +270,7 @@ export function registerDispatchRunsRoutes(
 			taskId: body.taskId,
 			agentId: body.agentId,
 			model: body.model,
+			effort: body.effort,
 			permissionTier: body.permissionTier,
 			baseRef: body.baseRef,
 			worktreeMode: body.worktreeMode,

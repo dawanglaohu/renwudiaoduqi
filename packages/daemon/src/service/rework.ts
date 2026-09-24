@@ -2,6 +2,7 @@ import * as nodeFs from 'node:fs/promises';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { AdapterKind } from '../config/defaults.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { resolveAssignment } from '../domain/assignment.ts';
 import { assembleReworkPrompt } from '../domain/rework-prompt.ts';
 import {
 	RUN_TRANSITION_REASONS,
@@ -19,6 +20,7 @@ import type { GatesRepo } from '../repo/gates.ts';
 import type { RunInsertRow, RunRow, RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
 import type { GitRunner, WorktreeManager } from '../workspace/worktree.ts';
+import { createAssignmentReader } from './assignment-reader.ts';
 import {
 	type AgentMessageCapabilities,
 	type MessageService,
@@ -327,6 +329,7 @@ export interface ReworkSnapshotsRepo {
 		readonly input_text?: string | null;
 		readonly output_text?: string | null;
 		readonly accept_text?: string | null;
+		readonly parent_snapshot_id?: string | null;
 		readonly created_at?: string;
 	} | null;
 	insert?(snapshot: {
@@ -341,6 +344,9 @@ export interface ReworkSnapshotsRepo {
 		readonly contract_hash: string;
 		readonly task_paths_json: string;
 		readonly launch_spec_json: string;
+		readonly assignmentJson?: string | null;
+		readonly parentSnapshotId?: string | null;
+		readonly parent_snapshot_id?: string | null;
 		readonly created_at: string;
 	}): void;
 }
@@ -1640,6 +1646,22 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			taskId: targetRun.task_id,
 		});
 
+		let assignmentSource = 'task';
+		const assignmentReader = deps.snapshotsRepo
+			? createAssignmentReader({
+					runsRepo: deps.runsRepo,
+					dispatchSnapshotsRepo: deps.snapshotsRepo,
+				})
+			: null;
+		if (assignmentReader) {
+			const taskAssignment = assignmentReader.readTaskAssignment(targetRun.id);
+			const resolved = resolveAssignment({
+				stage: 'rework',
+				taskAssignment,
+			});
+			assignmentSource = resolved.source ?? 'task';
+		}
+
 		// 若快照仓储支持写入，将新会话自包含提示词固化为新快照
 		let snapshotIdToUse = targetRun.snapshot_id;
 		if (deps.snapshotsRepo?.insert && snapshot) {
@@ -1656,6 +1678,12 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				contract_hash: snapshot.contract_hash ?? 'rework',
 				task_paths_json: snapshot.task_paths_json ?? '[]',
 				launch_spec_json: snapshot.launch_spec_json,
+				assignmentJson: assignmentReader
+					? assignmentReader.getRawAssignmentJson(
+							snapshot as unknown as Parameters<typeof assignmentReader.getRawAssignmentJson>[0],
+						)
+					: null,
+				parentSnapshotId: snapshot.id,
 				created_at: now,
 			});
 			snapshotIdToUse = newSnapshotId;
@@ -1675,9 +1703,11 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			model_name: targetRun.model_name,
 			reported_model: targetRun.reported_model,
 			effort_tier: targetRun.effort_tier,
+			effort_vendor: targetRun.effort_vendor ?? null,
 			reported_effort: targetRun.reported_effort,
 			permission_tier: targetRun.permission_tier,
 			snapshot_id: snapshotIdToUse,
+			assignment_source: assignmentSource,
 			worktree_path: effectiveWorktreePath,
 			branch_name: targetRun.branch_name,
 			rework_count: nextReworkCount,

@@ -437,7 +437,7 @@ NEXT
 					agent_id: 'online-agent',
 					model_name: 'gpt-4o-custom',
 					effort_tier: 'high',
-					effort_vendor: 'xhigh',
+					effort_vendor: null,
 					worktree_path: '/wt/1',
 					branch_name: 'task/1',
 					lane_no: 2,
@@ -517,7 +517,7 @@ NEXT
 			expect(bughunt?.agent_id).toBe('online-agent');
 			expect(bughunt?.model_name).toBe('gpt-4o-custom');
 			expect(bughunt?.effort_tier).toBe('high');
-			expect(bughunt?.effort_vendor).toBe('xhigh');
+			expect(bughunt?.effort_vendor).toBeNull();
 			expect(bughunt?.lane_no).toBe(2);
 
 			// Implementation run stays reviewing
@@ -532,7 +532,7 @@ NEXT
 					agent_id: 'online-agent',
 					model_name: 'gpt-4o-custom',
 					effort_tier: 'high',
-					effort_vendor: 'xhigh',
+					effort_vendor: null,
 					worktree_path: '/wt/1',
 					branch_name: 'task/1',
 					snapshot_id: 'snap-impl-orig',
@@ -688,7 +688,12 @@ NEXT
 			};
 
 			const mockSettingsService: Partial<SettingsService> = {
-				getPipeline: (): PipelineSettingsSummary => ({ bughunt: 0, wrapupMode: 'auto' }),
+				getPipeline: (): PipelineSettingsSummary => ({
+					bughunt: 0,
+					wrapupMode: 'auto',
+					reviewOverride: null,
+					wrapupAssignment: { mode: 'follow' },
+				}),
 			};
 
 			const mockBughuntService: Partial<BughuntService> = {
@@ -749,7 +754,12 @@ NEXT
 			};
 
 			const mockSettingsService: Partial<SettingsService> = {
-				getPipeline: (): PipelineSettingsSummary => ({ bughunt: 1, wrapupMode: 'auto' }),
+				getPipeline: (): PipelineSettingsSummary => ({
+					bughunt: 1,
+					wrapupMode: 'auto',
+					reviewOverride: null,
+					wrapupAssignment: { mode: 'follow' },
+				}),
 			};
 
 			const mockBughuntService: Partial<BughuntService> = {

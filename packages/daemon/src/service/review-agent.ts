@@ -808,6 +808,16 @@ export interface PrepareReviewRunInput {
 	 * Optional explicit worktree path override.
 	 */
 	readonly worktreePath?: string;
+
+	/**
+	 * Optional snapshot ID (e.g. child snapshot for cross-family review override, AC 4, E-352).
+	 */
+	readonly snapshotId?: string;
+
+	/**
+	 * Optional assignment source (e.g. 'review_override', AC 3, E-341).
+	 */
+	readonly assignmentSource?: string | null;
 }
 
 /**
@@ -857,7 +867,8 @@ export function prepareReviewRun(
 	const taskId = implRun.task_id ?? implRun.taskId ?? reviewContext.taskId;
 	const worktreePath = input.worktreePath ?? implRun.worktree_path ?? implRun.worktreePath ?? '';
 	const branchName = implRun.branch_name ?? implRun.branchName ?? null;
-	const snapshotId = implRun.snapshot_id ?? implRun.snapshotId ?? reviewContext.snapshotId;
+	const snapshotId =
+		input.snapshotId ?? implRun.snapshot_id ?? implRun.snapshotId ?? reviewContext.snapshotId;
 	const laneNo = implRun.lane_no !== undefined ? implRun.lane_no : (implRun.laneNo ?? null);
 
 	// AC 3 & E-65: Assemble prompt with diff pruning and read-only directives
@@ -906,7 +917,7 @@ export function prepareReviewRun(
 		lane_no: laneNo,
 		review_round: 1, // AC 4: strictly round 1
 		continued_from_run_id: null, // AC 4: round 1 has null continued_from_run_id
-		assignment_source: 'task', // Decision 107, Decision 124, E-347
+		assignment_source: input.assignmentSource ?? 'task', // Decision 107, Decision 124, E-347, E-341
 		actor_device_id: input.actorDeviceId ?? null,
 		started_at: now,
 	};
