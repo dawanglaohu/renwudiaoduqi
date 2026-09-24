@@ -293,7 +293,7 @@ jobs:
         shell: bash
         run: |
           pnpm_bin="$(command -v pnpm)"
-          sudo -E "$pnpm_bin" smoke:pair
+          sudo -E env "PATH=$PATH" "$pnpm_bin" smoke:pair
 
       - name: Upload Pairing Smoke Failure Artifacts (AC 3)
         if: failure()
