@@ -73,12 +73,12 @@ export type AutoExpandBatchState = (typeof AUTO_EXPAND_BATCH_STATES)[number];
 
 // 模块级单例展开集合、只读快照与整数 version
 const expandedBatchIds = new Set<string>();
+const seededBatchIds = new Set<string>();
 let expandedSnapshot: ReadonlySet<string> = new Set<string>();
 let expansionVersion = 0;
 const listeners = new Set<() => void>();
 
 let currentDocId: string | null = null;
-let isDocSeeded = false;
 let eventBusUnsubscribe: (() => void) | null = null;
 
 function notifyListeners(): void {
@@ -167,24 +167,19 @@ export function seedBatchExpansion(
 	batches: readonly { readonly id: string; readonly defaultExpanded?: boolean }[],
 	docId?: string,
 ): void {
+	let changed = false;
 	if (docId && docId !== currentDocId) {
 		currentDocId = docId;
+		changed = expandedBatchIds.size > 0;
 		expandedBatchIds.clear();
-		isDocSeeded = false;
+		seededBatchIds.clear();
 	}
 
-	let changed = false;
-	if (!isDocSeeded) {
-		for (const b of batches) {
-			if (b.defaultExpanded && !expandedBatchIds.has(b.id)) {
-				expandedBatchIds.add(b.id);
-				changed = true;
-			}
-		}
-		isDocSeeded = true;
-	} else {
-		// 已 seed 过的文档仅增量补齐标记为 defaultExpanded 的新增批次
-		for (const b of batches) {
+	for (const b of batches) {
+		// Only newly observed batches take their initial default. A later snapshot must not
+		// reopen a batch that the user manually collapsed.
+		if (!seededBatchIds.has(b.id)) {
+			seededBatchIds.add(b.id);
 			if (b.defaultExpanded && !expandedBatchIds.has(b.id)) {
 				expandedBatchIds.add(b.id);
 				changed = true;
@@ -202,8 +197,8 @@ export function seedBatchExpansion(
  */
 export function clearBatchExpansion(): void {
 	expandedBatchIds.clear();
+	seededBatchIds.clear();
 	currentDocId = null;
-	isDocSeeded = false;
 	notifyListeners();
 }
 

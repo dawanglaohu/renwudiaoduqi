@@ -3,15 +3,8 @@
   "tasks": {
     "M9-T20": {
       "contractHash": "7a30636163ffa954a45fbd5715aa461b803753dded3387fb3983beae8b37eaf5",
-      "evidence": [
-        "验收 1-5 与 E-106/E-113/E-117/E-157/E-236/E-278/E-286/E-297/E-74 未降低；补丁仅补真实审查原文持久化、完成态报告入口、安全栈命令及迁移测试。",
-        "有效路径增加 batch-expansion.ts、review.ts、runs.ts、0011_review_rework_text.sql、review.test.ts 和 database.test.ts；其余生产接线、共享契约与测试路径保留。",
-        "收口运行退出后仍在批次树出现，报告容器可从展开批次访问；真实收口记录恢复轮次，活动收口继续占普通泳道。",
-        "审查运行保存 review_verdict 与 rework_text，全量文本通过 RunDto 下发，甲板由实施运行关联最新审查子运行；目标 canReply 仍来自实施运行。",
-        "按批在途集合分别禁用两批的按钮；批次命令只复制 gh stack push，路径和分支单独显示。",
-        "新增迁移使 database.test.ts 的版本清单同步更新；集成测试隔离运行 18/18 通过。"
-      ],
-      "verdict": "pass"
+      "evidence": [],
+      "verdict": "pending"
     },
     "M9-T21": {
       "contractHash": "d888894d09c9f0cc76c87fa22371024fcf3900889d2fe4f16bd8ff5f9e6ad12b",
@@ -25,6 +18,16 @@
     },
     "M9-T23": {
       "contractHash": "d6011c400e3165ef8cc8036e2fb9fb024f555197f5a465361069980d53f114b3",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "R13-T57054072": {
+      "contractHash": "f39fd2fb96d563993146c7f40488a6fb31244438a9b65bca56fc8ae0f7732501",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "R13-T98191508": {
+      "contractHash": "1af34acc26c2ce0dc7c6a9e60868728d199014a714590ebfe140f52112bbcfb8",
       "evidence": [],
       "verdict": "pending"
     }
