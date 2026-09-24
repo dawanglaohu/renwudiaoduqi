@@ -1,0 +1,27 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "e78e81c2a3aebb1afd9b545163fd0fec7857e6274884b20b891b255b0b425655",
+      "verdict": "pass",
+      "evidence": [
+        "补丁差异核对：M1-T11 仅因前置 M9-T27 的契约哈希传播而变；自身 definition、effectivePaths、验收、边界和正式导入/派发/SSE 主流程责任均未改变。该任务尚未落地，本次仅复核契约，不声称其实现通过。"
+      ]
+    },
+    "M9-T27": {
+      "contractHash": "c90adafbd023cd0e25609da4dba126e6234841bb5c098d4b8af42b8714001daf",
+      "verdict": "pass",
+      "evidence": [
+        "补丁差异仅在 M9-T27 supportPaths/effectivePaths 增加 packages/daemon/test/unit/worktree.test.ts；原四条验收、五个边界、生产路由与配对接口契约均未改变。AC4 明确要求 pnpm -w check 通过，真实 GitHub macOS CI 和本机 Windows 均复现此测试将同一实际目录的 /var 与 /private/var 或斜杠表示误判为不同路径。",
+        "测试断言改为比较 realpathSync.native 后的实际目录，未改变生产工作树行为；本机 pnpm exec vitest run packages/daemon/test/unit/worktree.test.ts 为 26/26 通过。Ubuntu 配对冒烟在 PR #147 的 Run 36030058454 已通过；三平台矩阵与整仓检查仍分别验收，不以契约复核代替测试结论。"
+      ]
+    },
+    "R13-T57054072": {
+      "contractHash": "8df381b7b0a1431e765b57944858af8b14966041e77adb0540cb3b952db4b324",
+      "verdict": "pass",
+      "evidence": [
+        "补丁差异核对：R13-T57054072 仅因前置 M9-T27 的契约哈希传播而变；自身 definition、effectivePaths、验收和边界没有变化。该返工任务尚未落地，本次只复核契约，不声称其实现通过。"
+      ]
+    }
+  }
+}

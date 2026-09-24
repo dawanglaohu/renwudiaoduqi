@@ -1526,7 +1526,8 @@
         "packages/web/src/pages/pair-page.tsx",
         "packages/web/src/features/pairing/pairing-container.tsx",
         "packages/web/src/app/bootstrap.ts",
-        "packages/web/test/route-entries.test.tsx"
+        "packages/web/test/route-entries.test.tsx",
+        "packages/daemon/test/unit/worktree.test.ts"
       ],
       "sections": [
         1,

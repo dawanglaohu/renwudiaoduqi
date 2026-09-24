@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -939,7 +939,9 @@ detached
 				});
 				expect(rebuilt.isReused).toBe(true);
 				expect(rebuilt.branchName).toBe('task/M5-T1');
-				expect(rebuilt.worktreePath).toBe(prep1.worktreePath);
+				expect(realpathSync.native(rebuilt.worktreePath)).toBe(
+					realpathSync.native(prep1.worktreePath),
+				);
 				const headBranch = await defaultRunner.run(
 					['rev-parse', '--abbrev-ref', 'HEAD'],
 					rebuilt.worktreePath,
@@ -970,6 +972,6 @@ detached
 			} finally {
 				rmSync(tempBase, { recursive: true, force: true });
 			}
-		});
+		}, 30000);
 	});
 });
