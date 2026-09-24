@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { EffortTier } from '@agent-scheduler/shared/api/agents';
 import { describe, expect, it } from 'vitest';
 import type { AgentRegistry } from '../../src/config/registry.ts';
@@ -12,6 +12,7 @@ import { createEventSeqRepo } from '../../src/repo/event-seq-repo.ts';
 import { createRunsRepo, toRunDto } from '../../src/repo/runs.ts';
 import { createTasksRepo } from '../../src/repo/tasks.ts';
 import { createDispatchService } from '../../src/service/dispatch.ts';
+import { readRunExitedStderrTail } from '../../src/service/logstore.ts';
 
 function setupTestDatabase(): DatabaseConnection {
 	const db = openDatabase(':memory:');
@@ -1160,6 +1161,41 @@ describe('R6: run.exited.stderrTail 即使进程只提供 stderrTail 字符串�
 });
 
 describe('R7 闸门 GET 经 logstore 有界读取末条 run.exited，处理旧事件、缺文件及大日志，不在 service 同步读整份文件', () => {
+	it('新分段没有退出事件时，读取前一分段的末条 run.exited', async () => {
+		const oldFile = join('/runs/run-r7', 'events.ndjson');
+		const newFile = join('/runs/run-r7', 'events-1.ndjson');
+		const files = new Map([
+			[
+				oldFile,
+				Buffer.from(
+					`${JSON.stringify({ kind: 'run.exited', payload: { stderrTail: ['older'] } })}\n${JSON.stringify({ kind: 'run.exited', payload: { stderrTail: ['latest'] } })}\n`,
+				),
+			],
+			[newFile, Buffer.from(`${JSON.stringify({ kind: 'run.state_changed', payload: {} })}\n`)],
+		]);
+		const readRanges: Array<{ path: string; length: number }> = [];
+		const fs = {
+			listDirectory: () => ['events.ndjson', 'events-1.ndjson'],
+			fileLenSync: (path: string) => files.get(path)?.length ?? null,
+			readRange: async (path: string, start: number, end: number) => {
+				readRanges.push({ path, length: end - start + 1 });
+				return files.get(path)?.subarray(start, end + 1) ?? new Uint8Array();
+			},
+		};
+		const result = await readRunExitedStderrTail({
+			paths: {
+				rootDir: '/runs',
+				runDir: (runId: string) => `/runs/${runId}`,
+				segmentPath: () => '',
+			},
+			fs: fs as never,
+			runId: 'run-r7',
+		});
+		expect(readRanges.map((read) => read.path)).toEqual([newFile, oldFile]);
+		expect(result).toEqual({ kind: 'lines', lines: ['latest'] });
+		expect(readRanges.every((read) => read.length <= 64 * 1024)).toBe(true);
+	});
+
 	function setupR7Env(db: DatabaseConnection, idSuffix: string, testTime: string) {
 		const documentsRepo = createDocumentsRepo(db);
 		const batchesRepo = createBatchesRepo(db);

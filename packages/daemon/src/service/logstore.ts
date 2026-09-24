@@ -536,7 +536,7 @@ export async function readRunExitedStderrTail(
 		candidateDirs.push(altRunDir);
 	}
 
-	let targetFile: string | null = null;
+	let totalBytesRead = 0;
 
 	for (const dir of candidateDirs) {
 		let names: readonly string[] = [];
@@ -554,72 +554,63 @@ export async function readRunExitedStderrTail(
 			}
 		}
 
-		if (eventFiles.length > 0) {
-			eventFiles.sort((a, b) => b.fileSeq - a.fileSeq);
-			const top = eventFiles[0];
-			if (top) {
-				targetFile = join(dir, top.name);
-				break;
-			}
-		}
-	}
-
-	if (!targetFile) {
-		return { kind: 'unavailable', reason: 'event_missing', lines: [] };
-	}
-
-	let fileLen: number | null = null;
-	try {
-		fileLen = fs.fileLenSync(targetFile);
-	} catch {
-		return { kind: 'unavailable', reason: 'event_missing', lines: [] };
-	}
-
-	if (fileLen === null || fileLen === 0) {
-		return { kind: 'unavailable', reason: 'event_missing', lines: [] };
-	}
-
-	let currentEnd = fileLen - 1;
-	let totalBytesRead = 0;
-	let residualText = '';
-
-	while (currentEnd >= 0 && totalBytesRead < MAX_SEARCH_SPAN_BYTES) {
-		const chunkSize = Math.min(currentEnd + 1, BOUNDED_READ_WINDOW_BYTES);
-		const start = currentEnd + 1 - chunkSize;
-		let chunkBytes: Uint8Array;
-		try {
-			chunkBytes = await fs.readRange(targetFile, start, currentEnd);
-		} catch {
-			return { kind: 'unavailable', reason: 'event_missing', lines: [] };
-		}
-		totalBytesRead += chunkBytes.length;
-
-		const chunkText = Buffer.from(chunkBytes).toString('utf8') + residualText;
-		const lines = chunkText.split(/\r?\n/);
-		if (start > 0) {
-			residualText = lines.shift() ?? '';
-		} else {
-			residualText = '';
-		}
-
-		for (let i = lines.length - 1; i >= 0; i--) {
-			const line = lines[i]?.trim();
-			if (!line || !line.includes('"run.exited"')) continue;
+		eventFiles.sort((a, b) => b.fileSeq - a.fileSeq);
+		for (const file of eventFiles) {
+			const targetFile = join(dir, file.name);
+			let fileLen: number | null;
 			try {
-				const parsed = JSON.parse(line);
-				if (parsed.kind === 'run.exited') {
-					const tail = parsed.payload?.stderrTail;
-					if (Array.isArray(tail)) {
-						return { kind: 'lines', lines: tail };
-					}
-					return { kind: 'unavailable', reason: 'legacy_run', lines: [] };
-				}
+				fileLen = fs.fileLenSync(targetFile);
 			} catch {
-				// parse failure on incomplete line, continue
+				continue;
 			}
-		}
+			if (!fileLen) continue;
 
-		currentEnd = start - 1;
+			let currentEnd = fileLen - 1;
+			let residualBytes = Buffer.alloc(0);
+			while (currentEnd >= 0 && totalBytesRead < MAX_SEARCH_SPAN_BYTES) {
+				const chunkSize = Math.min(
+					currentEnd + 1,
+					BOUNDED_READ_WINDOW_BYTES,
+					MAX_SEARCH_SPAN_BYTES - totalBytesRead,
+				);
+				const start = currentEnd + 1 - chunkSize;
+				let chunkBytes: Uint8Array;
+				try {
+					chunkBytes = await fs.readRange(targetFile, start, currentEnd);
+				} catch {
+					break;
+				}
+				if (chunkBytes.length === 0) break;
+				totalBytesRead += chunkBytes.length;
+
+				const bytes = Buffer.concat([Buffer.from(chunkBytes), residualBytes]);
+				const lines = bytes.toString('utf8').split(/\r?\n/);
+				const firstNewline = bytes.indexOf(10);
+				residualBytes =
+					start > 0
+						? bytes.subarray(0, firstNewline >= 0 ? firstNewline : bytes.length)
+						: Buffer.alloc(0);
+				if (start > 0) lines.shift();
+
+				for (let i = lines.length - 1; i >= 0; i--) {
+					const line = lines[i]?.trim();
+					if (!line || !line.includes('"run.exited"')) continue;
+					try {
+						const parsed = JSON.parse(line);
+						if (parsed.kind === 'run.exited') {
+							const tail = parsed.payload?.stderrTail;
+							if (Array.isArray(tail)) return { kind: 'lines', lines: tail };
+							return { kind: 'unavailable', reason: 'legacy_run', lines: [] };
+						}
+					} catch {
+						// Ignore an incomplete or malformed event line.
+					}
+				}
+				currentEnd = start - 1;
+			}
+			if (totalBytesRead >= MAX_SEARCH_SPAN_BYTES) break;
+		}
+		if (totalBytesRead >= MAX_SEARCH_SPAN_BYTES) break;
 	}
 
 	return { kind: 'unavailable', reason: 'event_missing', lines: [] };
