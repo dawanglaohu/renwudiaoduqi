@@ -86,6 +86,10 @@ export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id
 	readonly cost?: string | number | null;
 	/** 错误信息文案 */
 	readonly errorMessage?: string;
+	/** 是否超出并行窗口限制（AC 7, E-309，头部展示「超出窗口数」chip） */
+	readonly overLimit?: boolean;
+	/** 空闲提示文本（AC 7, E-319） */
+	readonly idleText?: string;
 	/** 是否为粗指针触控环境（增大命中区至 44px，E-239） */
 	readonly isTouch?: boolean;
 	/** 插槽：头部扩展 */
@@ -140,6 +144,8 @@ export function StreamColumn(props: StreamColumnProps) {
 		tokenCount,
 		cost,
 		errorMessage,
+		overLimit = false,
+		idleText,
 		isTouch = false,
 		headSlot,
 		refBarSlot,
@@ -191,6 +197,7 @@ export function StreamColumn(props: StreamColumnProps) {
 	const displayDuration = formatDurationMs(duration);
 	const displayTokens = formatTokenCount(tokenCount);
 	const displayCost = formatCost(cost);
+	const resolvedCanStop = kind === 'idle' ? false : canStop;
 	const displayRefSource = refSource && refSource.trim().length > 0 ? refSource.trim() : '—';
 	const displayModelOrAgent = modelName ?? agentName ?? '—';
 	const displayMonogram = formatMonogram(agentMonogram, agentName);
@@ -287,6 +294,14 @@ export function StreamColumn(props: StreamColumnProps) {
 							</span>
 						</>
 					)}
+					{overLimit && (
+						<span
+							data-chip="over-limit"
+							className="px-1.5 py-0.5 rounded-[4px] bg-[var(--panel-2)] text-[var(--warn)] border border-[var(--border)] font-ui text-[11px] font-medium flex-shrink-0"
+						>
+							超出窗口数
+						</span>
+					)}
 					{headSlot}
 				</div>
 
@@ -324,7 +339,7 @@ export function StreamColumn(props: StreamColumnProps) {
 						data-action="stop-stream"
 						data-resident="true"
 						onClick={handleStopClick}
-						disabled={!canStop || isStopping}
+						disabled={!resolvedCanStop || isStopping}
 						aria-label={`停止泳道 ${laneNo}`}
 						className={`
 							inline-flex items-center justify-center gap-1.5 px-3 rounded-[9px]
@@ -334,7 +349,7 @@ export function StreamColumn(props: StreamColumnProps) {
 							hover:brightness-105 active:brightness-95 select-none
 							${buttonHeightClass}
 							${
-								!canStop || isStopping
+								!resolvedCanStop || isStopping
 									? 'bg-[var(--panel-2)] text-[var(--stopped)] cursor-not-allowed opacity-80'
 									: 'bg-[var(--panel-2)] text-[var(--ink-1)] cursor-pointer'
 							}
@@ -415,14 +430,23 @@ export function StreamColumn(props: StreamColumnProps) {
 					</div>
 				)}
 				<div className="flex-1 overflow-y-auto min-h-0 relative p-3 text-[13px] font-ui">
-					{bodySlot ?? children ?? (
-						<div
-							data-slot="stage-placeholder"
-							className="flex items-center justify-center h-full min-h-[120px] text-[12px] text-[var(--ink-3)] font-mono select-none"
-						>
-							— 等待阶段分配 —
-						</div>
-					)}
+					{bodySlot ??
+						children ??
+						(idleText ? (
+							<div
+								data-slot="idle-text"
+								className="flex items-center justify-center h-full min-h-[120px] text-[13px] text-[var(--ink-3)] font-ui select-none text-center px-4"
+							>
+								{idleText}
+							</div>
+						) : (
+							<div
+								data-slot="stage-placeholder"
+								className="flex items-center justify-center h-full min-h-[120px] text-[12px] text-[var(--ink-3)] font-mono select-none"
+							>
+								— 等待阶段分配 —
+							</div>
+						))}
 				</div>
 			</div>
 

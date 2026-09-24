@@ -56,6 +56,8 @@
 	--payload-max-h: 240px;
 	--spine-w: 2px;
 	--spine-x: 11px;
+	--spine-node-stage: 12px;
+	--spine-node-step: 8px;
 
 	--dur-fast: 120ms;
 	--dur: 180ms;
