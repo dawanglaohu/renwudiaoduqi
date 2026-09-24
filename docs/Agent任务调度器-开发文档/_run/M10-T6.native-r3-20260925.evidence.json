@@ -1,8 +1,8 @@
 {
   "task": "M10-T6",
   "gate": "R3 native Tauri recovery",
-  "sourceCommit": "6afe950285fca0e33ef889014bd4098a943318bb",
-  "recordedAtUtc": "2026-09-24T17:23:26.760Z",
+  "sourceCommit": "ef5ed31adce5d434f88922cb0e63ae1ee31ae550",
+  "recordedAtUtc": "2026-09-24T17:52:23.329Z",
   "environment": {
     "shell": "Windows Tauri release executable, native WebView2",
     "webviewOrigin": "http://tauri.localhost/#/",
@@ -10,13 +10,13 @@
     "injectedTauriGlobal": false,
     "simulatedInvoke": false,
     "smokeToken": false,
-    "shellPid": 18736,
-    "initialDaemonPid": 7012,
-    "launchedDaemonPid": 19272,
-    "shellExecutable": "D:\\xiangmu\\.codex-plans\\agent-scheduler-m10-t6\\native-head-6afe950\\调度服务 桌面产物 (Unicode & Spaces) 1.0.0\\bin\\desktop-shell.exe",
-    "shellExeSha256": "b3af518fbcb1401706cd59dc8a8af002d30b7885a71b6a7d46dfaa933f2ad76d",
+    "shellPid": 11268,
+    "initialDaemonPid": 16116,
+    "launchedDaemonPid": 8048,
+    "shellExecutable": "D:\\xiangmu\\.codex-plans\\agent-scheduler-m10-t6\\native-head-ef5ed31\\调度服务 桌面产物 (Unicode & Spaces) 1.0.0\\bin\\desktop-shell.exe",
+    "shellExeSha256": "721d18394178b822a753c19079b8647daf1a98b9a72125b6ef49f7fc1cfed11e",
     "daemonEntrySha256": "3f7617d6fdd6506aba6c11226d001c25d692f18ad35bfa21367c56f411fa07c6",
-    "webIndexSha256": "3718a244ae8613d9075201d41572eb2a2698ec1c204ca4bcd32952828f83e848"
+    "webIndexSha256": "03c2c1d0f991c0643fe36e2b9486dee6e5831378b79678236e3947d39c4254e6"
   },
   "steps": [
     "Build production Web, daemon distribution and Tauri release shell from source commit; stage the product with its bundled Node runtime.",
@@ -26,13 +26,13 @@
     "Observe the bundled daemon listening and HTTP 200 snapshot responses; wait for tasks page and online connection status."
   ],
   "timeline": {
-    "disconnectedAtUtc": "2026-09-24T17:23:26.909Z",
-    "clickedAtUtc": "2026-09-24T17:23:28.335Z",
-    "finishedAtUtc": "2026-09-24T17:23:34.678Z",
+    "disconnectedAtUtc": "2026-09-24T17:52:23.481Z",
+    "clickedAtUtc": "2026-09-24T17:52:24.997Z",
+    "finishedAtUtc": "2026-09-24T17:52:30.078Z",
     "representativeFrames": [
       {
         "label": "online-before-disconnect",
-        "timeUtc": "2026-09-24T17:23:26.894Z",
+        "timeUtc": "2026-09-24T17:52:23.471Z",
         "state": {
           "url": "http://tauri.localhost/#/",
           "origin": "http://tauri.localhost",
@@ -47,7 +47,7 @@
       },
       {
         "label": "connection-failed",
-        "timeUtc": "2026-09-24T17:23:28.331Z",
+        "timeUtc": "2026-09-24T17:52:24.992Z",
         "state": {
           "url": "http://tauri.localhost/#/tasks",
           "origin": "http://tauri.localhost",
@@ -62,14 +62,14 @@
       },
       {
         "label": "native-pid-returned",
-        "timeUtc": "2026-09-24T17:23:28.765Z",
+        "timeUtc": "2026-09-24T17:52:25.386Z",
         "state": {
           "url": "http://tauri.localhost/#/tasks",
           "origin": "http://tauri.localhost",
           "hasTauri": true,
           "failure": true,
           "launchState": "launched",
-          "pidText": "已启动进程 pid 19272，正在重新加载首屏",
+          "pidText": "已启动进程 pid 8048，正在重新加载首屏",
           "tasks": false,
           "styleLoaded": "true",
           "connectionStatus": "reconnecting"
@@ -77,7 +77,7 @@
       },
       {
         "label": "snapshot-recovered",
-        "timeUtc": "2026-09-24T17:23:34.676Z",
+        "timeUtc": "2026-09-24T17:52:30.076Z",
         "state": {
           "url": "http://tauri.localhost/#/tasks",
           "origin": "http://tauri.localhost",
@@ -92,8 +92,8 @@
       }
     ],
     "invokeCount": 1,
-    "returnedPid": 19272,
-    "pidUi": "已启动进程 pid 19272，正在重新加载首屏",
+    "returnedPid": 8048,
+    "pidUi": "已启动进程 pid 8048，正在重新加载首屏",
     "snapshotRequests": 13,
     "snapshotHttp200": 2,
     "finalState": {
@@ -109,24 +109,24 @@
     }
   },
   "nativeLaunchAudit": [
-    "launch_service invoke shell_pid=18736",
-    "launch_service returned pid=19272"
+    "launch_service invoke shell_pid=11268",
+    "launch_service returned pid=8048"
   ],
   "launchedDaemonLog": [
-    "{\"level\":30,\"time\":1790270613052,\"pid\":19272,\"hostname\":\"DESKTOP-CIDA607\",\"msg\":\"Server listening at http://127.0.0.1:58210\"}",
-    "daemon ready pid=19272 bind=127.0.0.1 port=58210",
-    "{\"level\":30,\"time\":1790270613190,\"pid\":19272,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-1\",\"req\":{\"method\":\"GET\",\"url\":\"/api/v1/snapshot\",\"host\":\"127.0.0.1:58210\",\"remoteAddress\":\"127.0.0.1\",\"remotePort\":49475},\"msg\":\"incoming request\"}",
-    "{\"level\":30,\"time\":1790270613495,\"pid\":19272,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-1\",\"res\":{\"statusCode\":200},\"responseTime\":303.2662,\"msg\":\"request completed\"}",
-    "{\"level\":30,\"time\":1790270613579,\"pid\":19272,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-2\",\"res\":{\"statusCode\":200},\"responseTime\":61.26299999999992,\"msg\":\"request completed\"}",
-    "{\"level\":30,\"time\":1790270613580,\"pid\":19272,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-3\",\"req\":{\"method\":\"GET\",\"url\":\"/api/v1/snapshot\",\"host\":\"127.0.0.1:58210\",\"remoteAddress\":\"127.0.0.1\",\"remotePort\":49476},\"msg\":\"incoming request\"}",
-    "{\"level\":30,\"time\":1790270613643,\"pid\":19272,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-3\",\"res\":{\"statusCode\":200},\"responseTime\":62.6836000000003,\"msg\":\"request completed\"}",
-    "{\"level\":30,\"time\":1790270614685,\"pid\":19272,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-5\",\"res\":{\"statusCode\":200},\"responseTime\":2.0864999999994325,\"msg\":\"request completed\"}"
+    "{\"level\":30,\"time\":1790272349105,\"pid\":8048,\"hostname\":\"DESKTOP-CIDA607\",\"msg\":\"Server listening at http://127.0.0.1:58210\"}",
+    "daemon ready pid=8048 bind=127.0.0.1 port=58210",
+    "{\"level\":30,\"time\":1790272349799,\"pid\":8048,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-2\",\"req\":{\"method\":\"GET\",\"url\":\"/api/v1/snapshot\",\"host\":\"127.0.0.1:58210\",\"remoteAddress\":\"127.0.0.1\",\"remotePort\":53653},\"msg\":\"incoming request\"}",
+    "{\"level\":30,\"time\":1790272349879,\"pid\":8048,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-2\",\"res\":{\"statusCode\":200},\"responseTime\":79.13850000000002,\"msg\":\"request completed\"}",
+    "{\"level\":30,\"time\":1790272349956,\"pid\":8048,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-3\",\"res\":{\"statusCode\":200},\"responseTime\":60.085799999999836,\"msg\":\"request completed\"}",
+    "{\"level\":30,\"time\":1790272349957,\"pid\":8048,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-4\",\"req\":{\"method\":\"GET\",\"url\":\"/api/v1/snapshot\",\"host\":\"127.0.0.1:58210\",\"remoteAddress\":\"127.0.0.1\",\"remotePort\":53654},\"msg\":\"incoming request\"}",
+    "{\"level\":30,\"time\":1790272350018,\"pid\":8048,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-4\",\"res\":{\"statusCode\":200},\"responseTime\":60.807300000000396,\"msg\":\"request completed\"}",
+    "{\"level\":30,\"time\":1790272350083,\"pid\":8048,\"hostname\":\"DESKTOP-CIDA607\",\"reqId\":\"req-5\",\"res\":{\"statusCode\":200},\"responseTime\":1.0392000000001644,\"msg\":\"request completed\"}"
   ],
   "recording": {
-    "url": "https://raw.githubusercontent.com/dawanglaohu/renwudiaoduqi/agent-scheduler-assets/m10-t6-native-recovery-6afe950.gif",
-    "sha256": "d054d5615fe866426c28d331ff9e62029387403fc0643f1fd755ddd5d4c7e4c2",
-    "bytes": 52715,
-    "sourcePngFrames": 14
+    "url": "https://raw.githubusercontent.com/dawanglaohu/renwudiaoduqi/agent-scheduler-assets/m10-t6-native-recovery-ef5ed31.gif",
+    "sha256": "5c08f225ce3c39a5cf5a81e5900367b9186c88fd416218e003dd488c13162b2a",
+    "bytes": 44509,
+    "sourcePngFrames": 12
   },
   "passed": true
 }
