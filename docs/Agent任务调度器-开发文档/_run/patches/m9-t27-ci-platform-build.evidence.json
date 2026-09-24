@@ -1,0 +1,27 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "28b908d8ef5e34217e6e1ddd8bc5e01fa77d7bc7542c9514f4e9ae84ca93340e",
+      "evidence": [
+        "仅因前置 M9-T27 的契约哈希传播而变；M1-T11 自身定义、有效路径、验收及正式导入派发 SSE 主流程责任未改变。该任务尚未落地，本次只复核契约。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T27": {
+      "contractHash": "00a679c3d3e258a9c9493dc65681d31fd8068ec6a19ae6c56f5488c5772dab65",
+      "evidence": [
+        "补丁仅为 M9-T27 supportPaths/effectivePaths 增加桌面打包脚本、安装包扫描与对应测试三处必要支持文件；原四条验收、五条边界、配对入口和接口契约均未更改。E-265 要求三平台矩阵失败阻断，本次 GitHub Actions Run 36031691905 实际阻断并给出各平台失败位置。",
+        "真实 runner 诊断：Linux AppImage 的 linuxdeploy 错扫 better-sqlite3 的 linuxmusl 预编译文件；Windows WiX 报 LGHT0311 且发布目录含 @fastify/send 的非 ASCII 测试夹具；macOS DMG 展开后残留路径扫描遇目录符号链接形成 ENAMETOOLONG。修复限于剔除非宿主原生文件与测试夹具、跳过符号链接。本机发行目录生成与 SQLite 原生加载通过，staging-smoke 测试 10 通过 1 跳过，pnpm -w check 186 文件、2277 测试通过。最终三平台发布矩阵仍须由新 CI 验证。"
+      ],
+      "verdict": "pass"
+    },
+    "R13-T57054072": {
+      "contractHash": "4d2af90763cc62f8e008c494bebff9226d9240481d19cb4f8d4fabe05ccf74a3",
+      "evidence": [
+        "仅因前置 M9-T27 的契约哈希传播而变；R13-T57054072 自身定义、有效路径、验收及边界未改变。该返工任务尚未落地，本次只复核契约。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

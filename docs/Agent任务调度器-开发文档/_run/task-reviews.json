@@ -24,13 +24,12 @@
     "verdict": "pass"
   },
   "M1-T11": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "1489c77a5e91626d352427186fc0c4eb4a0a61861e64ee86158e037689bfd455",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "ccca1ddce886d9767cc8bbd04e4829f31ccd5e98937ba4f59518e5afc51710df",
     "evidence": [
-      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
-      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
+      "只因前置 M9-T27 契约哈希传播；自身定义、有效路径、验收与导入派发 SSE 主流程职责未变。该任务尚未落地，本次只复核契约。"
     ],
-    "reviewed": "2026-09-21T17:14:47.205697+00:00",
+    "reviewed": "2026-09-24T18:03:04.616482+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1203,13 +1202,13 @@
     "verdict": "pass"
   },
   "M9-T27": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "6bb6cca09c01d2b40e5283b7a5bd4c4748d14ee97f3f02e1aaabce4013d43b85",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "d1356db2914a6c973b1122ed2d7eeb353a81bfcfb6a43b1e733c6e5fc2bcdb84",
     "evidence": [
-      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
-      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
+      "补丁只在 M9-T27 supportPaths/effectivePaths 增加 packages/shell-desktop/src/bundle-staging.ts；原四条验收、五条边界、配对入口接口与三平台失败阻断规则均未修改。M1-T11 与 R13-T57054072 仅传播前置契约哈希。",
+      "GitHub Actions Run 36034763536 在最终提交 118827c 上的 Ubuntu 配对冒烟、Linux 和 macOS 平台矩阵均通过；Windows 的 MSI 构建已通过，但 Staged Unpack 验证超过十五分钟未返回。为让 E-265 门禁确定失败并取得原因，MSI 管理安装增加 15 分钟超时与安装器详细日志末段，仍需下一轮真实 Windows CI 证明。变更后本机 pnpm -w check 186 文件通过、2276 测试通过、3 按环境跳过。"
     ],
-    "reviewed": "2026-09-21T17:16:17.986557+00:00",
+    "reviewed": "2026-09-24T18:03:20.883025+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1294,6 +1293,16 @@
       "本任务自身的 task、edges、effectivePaths 与定义未因该补丁改变；已合入的本任务代码无需追加实现。"
     ],
     "reviewed": "2026-09-23T14:40:42.067194+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "R13-T57054072": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "30dc3533cf17ad3009b8e4a3cae0a8e82368cc7ea78667b33c19876143e699b2",
+    "evidence": [
+      "只因前置 M9-T27 契约哈希传播；自身定义、有效路径、验收与边界未变。该返工任务尚未落地，本次只复核契约。"
+    ],
+    "reviewed": "2026-09-24T18:03:37.271907+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

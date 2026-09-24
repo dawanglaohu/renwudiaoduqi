@@ -284,6 +284,52 @@ jobs:
             release-assets/**
 
   # ============================================================================
+  # Production Pairing Smoke: Ubuntu CI (M9-T27, AC 4, E-265)
+  # Boots the real daemon with packages/daemon/bootstrap.mjs against a clean
+  # Web production build and fresh temporary data directory. Playwright launches
+  # headless Chromium to assert hash normalization from `/` to `#/pair`, editable
+  # address/code inputs, operable confirm button, claim flow into `#/`, and
+  # CSS/font loading under both desktop and mobile viewports.
+  # ============================================================================
+  pairing-smoke:
+    name: Production Pairing Smoke (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS (E-260)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium with system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Production Pairing Smoke (AC 4, E-265)
+        shell: bash
+        run: |
+          pnpm_bin="$(command -v pnpm)"
+          sudo -E env "PATH=$PATH" "$pnpm_bin" smoke:pair
+
+      - name: Upload Pairing Smoke Failure Artifacts (AC 3)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pairing-smoke-failure-artifacts
+          path: e2e/artifacts/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================================
   # macOS signing/notarization gate (AC 6, E-267).
   # Kept as its own job so signing and notarization are both required explicitly
   # instead of one being inferred from the other.
@@ -322,7 +368,7 @@ jobs:
   # ============================================================================
   release-verification:
     name: Release Gate Evaluation
-    needs: [desktop-matrix, macos-signing-gate]
+    needs: [desktop-matrix, macos-signing-gate, pairing-smoke]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -333,6 +379,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Enforce Pairing Smoke Gate (M9-T27, E-265)
+        if: ${{ needs.pairing-smoke.result != 'success' }}
+        run: |
+          echo "::error::Production pairing smoke on Ubuntu failed (result: ${{ needs.pairing-smoke.result }})."
+          exit 1
 
       - name: Collect platform job conclusions
         env:

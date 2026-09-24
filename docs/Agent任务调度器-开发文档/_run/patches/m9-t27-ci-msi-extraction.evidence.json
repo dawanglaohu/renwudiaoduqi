@@ -1,0 +1,27 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "ccca1ddce886d9767cc8bbd04e4829f31ccd5e98937ba4f59518e5afc51710df",
+      "evidence": [
+        "只因前置 M9-T27 契约哈希传播；自身定义、有效路径、验收与导入派发 SSE 主流程职责未变。该任务尚未落地，本次只复核契约。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T27": {
+      "contractHash": "d1356db2914a6c973b1122ed2d7eeb353a81bfcfb6a43b1e733c6e5fc2bcdb84",
+      "evidence": [
+        "补丁只在 M9-T27 supportPaths/effectivePaths 增加 packages/shell-desktop/src/bundle-staging.ts；原四条验收、五条边界、配对入口接口与三平台失败阻断规则均未修改。M1-T11 与 R13-T57054072 仅传播前置契约哈希。",
+        "GitHub Actions Run 36034763536 在最终提交 118827c 上的 Ubuntu 配对冒烟、Linux 和 macOS 平台矩阵均通过；Windows 的 MSI 构建已通过，但 Staged Unpack 验证超过十五分钟未返回。为让 E-265 门禁确定失败并取得原因，MSI 管理安装增加 15 分钟超时与安装器详细日志末段，仍需下一轮真实 Windows CI 证明。变更后本机 pnpm -w check 186 文件通过、2276 测试通过、3 按环境跳过。"
+      ],
+      "verdict": "pass"
+    },
+    "R13-T57054072": {
+      "contractHash": "30dc3533cf17ad3009b8e4a3cae0a8e82368cc7ea78667b33c19876143e699b2",
+      "evidence": [
+        "只因前置 M9-T27 契约哈希传播；自身定义、有效路径、验收与边界未变。该返工任务尚未落地，本次只复核契约。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

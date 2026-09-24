@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T27": {
+      "contractHash": "bcb1a402b7e027116817d22a8c3607aeae90913c13a9800248915b4d3bdf625c",
+      "verdict": "pass",
+      "evidence": [
+        "合入 2026-09-24 主干后核对 M9-T27 任务笔记：仍为四条原验收、E-06/E-175/E-224/E-226/E-265 五个边界，frontendRoutes 接线和 M1-T11 后续主流程分界未变；e2e/pairing-entry.test.ts、vitest.pairing.config.ts、根 smoke:pair 与 desktop-ci.yml 仍在本任务有效路径内。",
+        "本次共享源章节的变化仅把 04-开发条件、10-接口约定、21-风险与未决事项中的个人目录示例从 admin 改为 example，不改变配对 claim 接口、免鉴权白名单、令牌或一次性码规则；task-contracts.json 的 M9-T27 supportPaths 仍为 pair-page.tsx、pairing-container.tsx、bootstrap.ts、route-entries.test.tsx。",
+        "生产路由仍在 packages/web/src/app/app.tsx:33 和 routes.tsx:51 注册 pair；e2e/pairing-entry.test.ts:438/:481/:525/:574 覆盖桌面与手机入口、同源资源与健康检查、真实一次性码消费。语义契约复核不代表 GitHub CI 已通过，CI 成功仍是落地前独立门禁。"
+      ]
+    }
+  }
+}

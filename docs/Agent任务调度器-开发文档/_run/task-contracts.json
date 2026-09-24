@@ -1545,7 +1545,12 @@
         "packages/web/src/pages/pair-page.tsx",
         "packages/web/src/features/pairing/pairing-container.tsx",
         "packages/web/src/app/bootstrap.ts",
-        "packages/web/test/route-entries.test.tsx"
+        "packages/web/test/route-entries.test.tsx",
+        "packages/daemon/test/unit/worktree.test.ts",
+        "packages/shell-desktop/scripts/build-daemon-distribution.mjs",
+        "packages/shell-desktop/src/bundle-staging.ts",
+        "packages/shell-desktop/src/staging-smoke.ts",
+        "packages/shell-desktop/test/staging-smoke.test.ts"
       ],
       "sections": [
         1,

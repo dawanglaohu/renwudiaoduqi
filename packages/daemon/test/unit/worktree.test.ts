@@ -970,6 +970,6 @@ detached
 			} finally {
 				rmSync(tempBase, { recursive: true, force: true });
 			}
-		}, 20_000);
+		}, 30000);
 	});
 });

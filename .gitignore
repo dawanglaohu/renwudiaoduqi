@@ -2,6 +2,7 @@ node_modules/
 **/*.tsbuildinfo
 dist/
 *.log
+e2e/artifacts/
 
 # Local configuration and credentials
 .env
