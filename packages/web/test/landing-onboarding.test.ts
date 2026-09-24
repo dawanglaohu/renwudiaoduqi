@@ -42,7 +42,7 @@ describe('M9-T16 空态四步引导、批次汇总与落地清单页（返工第
 
 		it('容器测试注入 fetcher 断言只发一次请求', async () => {
 			const mockData = {
-				worktreePath: 'D:/xiangmu/agent-scheduler-m5-t4',
+				worktreePath: 'D:/workspace/agent-scheduler-m5-t4',
 				branchName: 'task/M5-T4',
 				diffStat: { filesChanged: 2, insertions: 10, deletions: 3 },
 				commands: ['gh stack push', 'python build_docs.py --landed M5-T4'],
@@ -72,7 +72,7 @@ describe('M9-T16 空态四步引导、批次汇总与落地清单页（返工第
 					initialData: fetchedData ?? undefined,
 				}),
 			);
-			expect(html).toContain('D:/xiangmu/agent-scheduler-m5-t4');
+			expect(html).toContain('D:/workspace/agent-scheduler-m5-t4');
 		});
 	});
 
@@ -91,7 +91,7 @@ describe('M9-T16 空态四步引导、批次汇总与落地清单页（返工第
 			);
 
 			// 严禁伪造的缺省 worktree 路径与 diff 统计
-			expect(html).not.toContain('D:/xiangmu/agent-scheduler-m5-t4');
+			expect(html).not.toContain('D:/workspace/agent-scheduler-m5-t4');
 			expect(html).not.toContain('files changed');
 
 			// 呈现「—」
@@ -324,7 +324,7 @@ describe('M9-T16 空态四步引导、批次汇总与落地清单页（返工第
 	// ─── AC 3 & E-74: 落地清单只读呈现与独立复制按钮 ───
 	describe('AC 3 & E-74: 落地清单只读呈现与独立复制按钮', () => {
 		const mockData = {
-			worktreePath: 'D:/xiangmu/agent-scheduler-m5-t4',
+			worktreePath: 'D:/workspace/agent-scheduler-m5-t4',
 			branchName: 'task/M5-T4',
 			diffStat: {
 				filesChanged: 4,
@@ -346,7 +346,7 @@ describe('M9-T16 空态四步引导、批次汇总与落地清单页（返工第
 			);
 
 			// 1. Worktree 路径
-			expect(html).toContain('D:/xiangmu/agent-scheduler-m5-t4');
+			expect(html).toContain('D:/workspace/agent-scheduler-m5-t4');
 			expect(html).toContain('data-copy-btn="worktree"');
 
 			// 2. 分支名

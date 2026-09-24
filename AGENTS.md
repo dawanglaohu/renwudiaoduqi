@@ -50,7 +50,7 @@ _本段由 build_vault.py 生成，重跑会覆盖；这两个标记之外的内
 
 这一段是实施方、审查方和交接台使用者共用的操作手册，由 `install_project.py` 从 `_run/handoff-manual.md`（技能的 `references/handoff-manual.md` 副本）渲染进 `AGENTS.md` 与 `CLAUDE.md` 的两个 handoff 标记之间；重装工具会更新这一段，标记之外的内容不动。改流程先改技能里的手册，再重装。
 
-路径均相对项目根 `D:/xiangmu/renwudiaoduqi`；`<id>` 指小写任务 ID（如 `m2-t1`），`<ID>` 指原始任务 ID（如 `M2-T1`）。
+路径均相对项目根 `<主检出>`（用 `git worktree list` 查看本机实际位置）；`<id>` 指小写任务 ID（如 `m2-t1`），`<ID>` 指原始任务 ID（如 `M2-T1`）。
 
 ### 1. 交接台怎么读
 
@@ -69,13 +69,13 @@ _本段由 build_vault.py 生成，重跑会覆盖；这两个标记之外的内
 2. **审查**：复制「审查」发给审查模型（自动推到审查中）。审查方：`maintain_docs.py docs/Agent任务调度器-开发文档 status --task <ID>` 核契约，`gh pr diff task/<ID>` 后在该分支复跑测试与 lint（红即阻断），逐条验收标准与边界指到文件:行，执行反造假扫描；判断层任务再核真实调用与低置信分支。实施方回报的每条「自行裁决」都复用全部候选、补入 diff 事实，跑 `typesafe_ask.py run adjudicate`（UI/UX 用 `design`）；普通技术与 UI/UX 选择不交用户，缺真实 model/line、skipped/error 或动作未落实均不判 pass。`run review` 仍只是代码断言的第二意见。只有阻断项打回，最多两轮；本轮登记契约复核，`--landed` 会拒绝没登记的任务。局部文档问题走第 4 节补丁。
 3. **落地**（审查方 pass 后一口气做完，都在该任务的工作树里）：回填质量核查 → `build_vault.py docs/Agent任务调度器-开发文档` → `python docs/Agent任务调度器-开发文档/_run/build_docs.py docs/Agent任务调度器-开发文档 --landed <ID>`（写任务笔记 `status`、`docs-data.js` 的 `progress` 与本机 `progress.js`）→ `git add docs/Agent任务调度器-开发文档 && git commit -m "<ID> 回填知识库并记录落地" && gh stack push` → 跑最小充分测试 → 单 PR `gh pr merge <N> --merge`，两层以上 `gh stack merge <N> --yes --merge` → 每个 PR 都报 MERGED 才算落地。
 4. **清理**（落地当场做，不留到以后）：`gh pr list --state open --base task/<ID> --json number --jq length` 为 0 → `git worktree remove ../agent-scheduler-<id>`（node_modules 报 not empty 就再 `rm -rf` 该目录）→ `git branch -d task/<ID>` → `rm -rf ../.codex-plans/agent-scheduler-<id>`。漏了哪些用 `maintain_docs.py docs/Agent任务调度器-开发文档 workspace` 列出（只打印命令，不删）。
-5. **主检出同步**：在 `D:/xiangmu/renwudiaoduqi` 里 `git pull`，刷新交接台即可——落地记录随 `docs-data.js` 进了仓库，换检出目录不必重跑 `--landed`。下游按前置与收口闸门解锁；本批落齐先执行第 7 步。
+5. **主检出同步**：在 `<主检出>` 里 `git pull`，刷新交接台即可——落地记录随 `docs-data.js` 进了仓库，换检出目录不必重跑 `--landed`。下游按前置与收口闸门解锁；本批落齐先执行第 7 步。
 6. **查 bug** 是独立动作，不改状态：某层落地前想再扫一遍，或一批落地后查跨模块接缝，点它。
 7. **批次收口**（一批全部落地后、派下一批之前；默认为闸门）：复制该批标题右侧的「批次收口」发给新会话。收口方跑全量测试、真实端到端冒烟、逐任务复核与接缝检查；能安全修的当场修。每个仍未通过、未修或需独立范围的问题都在记录的「返工任务」下写一个完整 `task` 围栏，普通技术或 UI/UX 岔路口先交 Jev，不交用户。`python docs/Agent任务调度器-开发文档/_run/build_docs.py docs/Agent任务调度器-开发文档 --batches` 会为围栏生成稳定的 `R<批>-T<编号>` 未落地任务、契约、任务笔记和派发提示词，并在交接台单列「批次收口返工」；原任务状态和原批次集合不改。返工任务逐个实施、审查、`--landed` 后再收口，新的 `clean`/`fixed` 记录才能解锁下一批。没有遗留时仍提交收口记录；旧版 open 没围栏会显示迁移提醒，必须重收口补任务，不能直接写 fixed 绕过。
 
 ### 3. 工作目录纪律
 
-- 主检出 `D:/xiangmu/renwudiaoduqi` 只做：`git pull`、`--landed`、看交接台。**不在里面切分支干活**，任何提交（包括文档、生成器修改）都在工作树里做；同一时间常有别的会话在主检出里 pull。
+- 主检出 `<主检出>` 只做：`git pull`、`--landed`、看交接台。**不在里面切分支干活**，任何提交（包括文档、生成器修改）都在工作树里做；同一时间常有别的会话在主检出里 pull。
 - 一个任务只允许两个仓库外目录：工作树 `../agent-scheduler-<id>`（窗口序列用 `../agent-scheduler-w<N>`）与 planning `../.codex-plans/agent-scheduler-<id>/`（task_plan / findings / progress、探针脚本、日志）；批次收口用 `../agent-scheduler-batch-<n>` 与 `../.codex-plans/agent-scheduler-batch-<n>/`，同样只此两个。**不许 `git clone` 一份仓库，不许自造 `../agent-scheduler-review-<id>`、`../<ID>-review.<随机>` 之类目录**；审查方在同一个工作树里干活。
 - **绝不在 Windows 侧跑 `git worktree prune`**：WSL 建的活工作树在 Windows 显示 prunable，prune 会打断正在干活的会话。
 - 工作树用完必删（第 2 节第 4 步）；planning 目录随任务一起删。定期跑 `maintain_docs.py docs/Agent任务调度器-开发文档 workspace` 核对，它也列出遗留的 batch 目录（`../agent-scheduler-batch-*` 与 `.codex-plans/agent-scheduler-batch-*`）：`git worktree list` 之外还挂着的同级目录都是漏删的。

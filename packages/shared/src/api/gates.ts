@@ -1,3 +1,25 @@
+import type { LoginState } from './agents.ts';
+
+export interface GateContextStderrTailLines {
+	readonly kind: 'lines';
+	readonly lines: readonly string[];
+}
+
+export interface GateContextStderrTailUnavailable {
+	readonly kind: 'unavailable';
+	readonly reason: 'legacy_run' | 'event_missing';
+	readonly lines?: readonly [];
+}
+
+export type GateContextStderrTail = GateContextStderrTailLines | GateContextStderrTailUnavailable;
+
+export interface GateContext {
+	readonly exitCode: number | null;
+	readonly exitSignal: string | null;
+	readonly stderrTail: GateContextStderrTail;
+	readonly login: LoginState | null;
+}
+
 export interface GateDto {
 	readonly id: string;
 	readonly taskId: string | null;
@@ -9,6 +31,7 @@ export interface GateDto {
 	readonly decidedByDeviceId: string | null;
 	readonly createdAt: string;
 	readonly decidedAt: string | null;
+	readonly context?: GateContext | null;
 }
 
 export interface ListGatesResponse {

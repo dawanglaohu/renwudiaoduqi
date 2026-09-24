@@ -15,7 +15,9 @@ import type {
 } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
+import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { resolveAssignment } from '../domain/assignment.ts';
 import { summarizeBatchLanding } from '../domain/batch-landing.ts';
 import {
 	DEFAULT_AGENT_CONCURRENCY_LIMIT,
@@ -23,7 +25,7 @@ import {
 	countActiveRunsForAgent,
 } from '../domain/concurrency.ts';
 import { computeDispatchCandidates } from '../domain/dispatch-candidates.ts';
-import { toEffortColumns } from '../domain/effort-value.ts';
+import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import { deriveLanes } from '../domain/lanes.ts';
 import {
@@ -73,6 +75,7 @@ import {
 } from '../workspace/base-select.ts';
 import { isBranchInHead } from '../workspace/in-head.ts';
 import type { PrepareWorktreeInput, PrepareWorktreeResult } from '../workspace/worktree.ts';
+import { createAssignmentReader } from './assignment-reader.ts';
 import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
 import { type BatchService, createBatchService } from './batch.ts';
 import type { LanesService } from './lanes.ts';
@@ -224,6 +227,23 @@ export interface DispatchAdapter {
 	readonly mapEvents: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 }
 
+function createAgentDefaultsLookup(
+	registry?: AgentRegistry,
+): ((id: string) => import('../domain/assignment.ts').AgentDefaultInfo | null) | undefined {
+	if (!registry) return undefined;
+	return (id: string) => {
+		const a = registry.getSnapshot().agents[id];
+		return a
+			? {
+					agentId: id,
+					defaultModel: a.defaultModel,
+					defaultEffortTier: a.defaultEffortTier,
+					effortVendorMap: a.effortVendorMap,
+				}
+			: null;
+	};
+}
+
 export interface DispatchServiceDeps {
 	readonly unitOfWork?: UnitOfWork;
 	readonly tasksRepo: TasksRepo;
@@ -252,6 +272,7 @@ export interface DispatchServiceDeps {
 	/** tick 内部被吞的异常（收口触发失败等）走这里记日志，缺省丢弃。 */
 	readonly logFailure?: (error: unknown) => void;
 	readonly getDispatchHalt?: () => boolean;
+	readonly agentRegistry?: AgentRegistry;
 	readonly agentLimits?: number | Record<string, number> | ((agentId: string) => number);
 	readonly listAgents?: () => Promise<readonly AgentEntryDto[]> | readonly AgentEntryDto[];
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
@@ -301,6 +322,10 @@ function resolveConstraintConflict(
 export function createDispatchService(deps: DispatchServiceDeps): DispatchService {
 	const logFailure = deps.logFailure ?? (() => undefined);
 	const runsRepo = deps.runsRepo;
+	const assignmentReader = createAssignmentReader({
+		runsRepo,
+		dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
+	});
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
 	const consecutiveInHeadErrors = new Map<string, number>();
 	const inFlightLaunches = new Set<string>();
@@ -578,6 +603,24 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 
+		if (input.effort && 'vendor' in input.effort && input.effort.vendor) {
+			const regSnap = deps.agentRegistry?.getSnapshot();
+			const agentEntry = regSnap?.agents[agentId];
+			if (agentEntry?.effortVendorMap === null) {
+				throw new AppError(
+					'E_VALIDATION',
+					`Agent '${agentId}' does not support reasoning effort.`,
+					{
+						details: { field: 'effort', reason: 'effort_unsupported' },
+					},
+				);
+			}
+			const allowed = agentEntry?.effortVendorMap
+				? (Object.values(agentEntry.effortVendorMap) as readonly string[])
+				: [];
+			assertVendorEffortInDomain(input.effort.vendor, allowed, 'effort');
+		}
+
 		const activeRun = runsRepo.findActiveByTaskId(taskId);
 		if (
 			activeRun &&
@@ -590,10 +633,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		const now = deps.clock.now();
-		const effortColumns = toEffortColumns(input.effort ?? null);
+		const resolvedAssignment = resolveAssignment({
+			stage: 'implement',
+			body: {
+				agentId,
+				model: input.model ?? null,
+				effort: input.effort ?? null,
+			},
+			agentDefaults: createAgentDefaultsLookup(deps.agentRegistry),
+		});
+
 		const launchSpecJson = JSON.stringify({
 			agentId,
-			model: input.model ?? null,
+			model: resolvedAssignment.modelName ?? null,
+			effort: resolvedAssignment.effortTier ?? null,
 			permissionTier: input.permissionTier ?? 'workspaceWrite',
 			baseRef: input.baseRef ?? { kind: 'head' },
 			worktreeMode: input.worktreeMode ?? 'fresh',
@@ -602,6 +655,17 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		const existingRuns = runsRepo.listByTaskId(taskId);
 		const attemptNo = existingRuns.length + 1;
 		const runId = deps.ids.newId();
+
+		const assignmentSnapshot = {
+			agentId,
+			modelName: resolvedAssignment.modelName ?? null,
+			effortTier: resolvedAssignment.effortTier ?? null,
+			effortVendor: resolvedAssignment.effortVendor ?? null,
+			source: 'task' as const,
+			followedTaskId: null,
+			capturedAt: now,
+		};
+		const assignmentJson = assignmentReader.serializeTaskAssignment(assignmentSnapshot);
 
 		const persist = (): { readonly snapshotId: string } => {
 			if (typeof input.laneNo === 'number' && deps.tasksRepo.assignLaneNo) {
@@ -614,6 +678,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				taskId,
 				launchSpecJson,
 				createdAt: now,
+				assignmentJson,
 			});
 			const runInsert: RunInsertRow = {
 				id: runId,
@@ -623,11 +688,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				parent_run_id: input.parentRunId ?? null,
 				state: 'starting',
 				agent_id: agentId,
-				model_name: input.model ?? null,
-				effort_tier: effortColumns.effort_tier,
-				effort_vendor: effortColumns.effort_vendor,
+				model_name: resolvedAssignment.modelName ?? null,
+				effort_tier: resolvedAssignment.effortTier ?? null,
+				effort_vendor: resolvedAssignment.effortVendor ?? null,
 				permission_tier: input.permissionTier ?? 'workspaceWrite',
 				snapshot_id: snapshot.id,
+				assignment_source: resolvedAssignment.source ?? 'task',
 				idempotency_key: idempotencyKey,
 				actor_device_id: input.actorDeviceId ?? null,
 				started_at: now,
@@ -685,7 +751,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					taskId,
 					attemptNo,
 					agentId,
-					model: input.model ?? null,
+					model: resolvedAssignment.modelName ?? null,
 				},
 			});
 			if (deps.runService) {
@@ -830,12 +896,17 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				details: { runId },
 			});
 		}
-		return toRunDtoWithInHeadWarning(run);
+		const followedMap = run.snapshot_id ? buildFollowedTaskIdMap([run.snapshot_id]) : undefined;
+		return toRunDtoWithInHeadWarning(run, followedMap);
 	}
 
 	async function listRuns(): Promise<readonly RunDto[]> {
 		const runs = runsRepo.listAll();
-		return runs.map(toRunDtoWithInHeadWarning);
+		const snapshotIds = new Set(
+			runs.map((r) => r.snapshot_id).filter((id): id is string => Boolean(id)),
+		);
+		const followedMap = buildFollowedTaskIdMap(snapshotIds);
+		return runs.map((r) => toRunDtoWithInHeadWarning(r, followedMap));
 	}
 
 	async function getSnapshot(docId?: string): Promise<SnapshotResponse> {
@@ -871,7 +942,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 		}
 
-		const runs = allRunRows.map(toRunDtoWithInHeadWarning);
+		const snapshotIds = new Set(
+			allRunRows.map((r) => r.snapshot_id).filter((id): id is string => Boolean(id)),
+		);
+		const followedMap = buildFollowedTaskIdMap(snapshotIds);
+		const runs = allRunRows.map((r) => toRunDtoWithInHeadWarning(r, followedMap));
 		const agents = deps.listAgents ? await deps.listAgents() : [];
 		const latestEventId = deps.getLatestEventId ? deps.getLatestEventId() : null;
 
@@ -1815,18 +1890,39 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								continue;
 							}
 
-							const effortColumns = toEffortColumns(item.draft?.effort ?? null);
+							const tickResolved = resolveAssignment({
+								stage: 'implement',
+								body: {
+									agentId: item.agentId,
+									model: item.draft?.model ?? null,
+									effort: item.draft?.effort ?? null,
+								},
+								agentDefaults: createAgentDefaultsLookup(deps.agentRegistry),
+							});
 							const launchSpecJson = JSON.stringify({
 								agentId: item.agentId,
-								model: item.draft?.model ?? null,
+								model: tickResolved.modelName ?? null,
+								effort: tickResolved.effortTier ?? null,
 								permissionTier: 'workspaceWrite',
 								baseRef: { kind: 'head' },
 								worktreeMode: 'fresh',
 							});
+							const tickAssignmentSnapshot = {
+								agentId: item.agentId,
+								modelName: tickResolved.modelName ?? null,
+								effortTier: tickResolved.effortTier ?? null,
+								effortVendor: tickResolved.effortVendor ?? null,
+								source: 'task' as const,
+								followedTaskId: null,
+								capturedAt: deps.clock.now(),
+							};
+							const tickAssignmentJson =
+								assignmentReader.serializeTaskAssignment(tickAssignmentSnapshot);
 							const snapshot = deps.dispatchSnapshotsRepo.takeSnapshotForTask({
 								taskId: task.id,
 								launchSpecJson,
 								createdAt: deps.clock.now(),
+								assignmentJson: tickAssignmentJson,
 							});
 
 							const runInsert: RunInsertRow = {
@@ -1837,11 +1933,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								parent_run_id: null,
 								state: 'starting',
 								agent_id: item.agentId,
-								model_name: item.draft?.model ?? null,
-								effort_tier: effortColumns.effort_tier,
-								effort_vendor: effortColumns.effort_vendor,
+								model_name: tickResolved.modelName ?? null,
+								effort_tier: tickResolved.effortTier ?? null,
+								effort_vendor: tickResolved.effortVendor ?? null,
 								permission_tier: 'workspaceWrite',
 								snapshot_id: snapshot.id,
+								assignment_source: tickResolved.source ?? 'task',
 								idempotency_key: idempotencyKey,
 								actor_device_id: null,
 								started_at: deps.clock.now(),
@@ -2366,10 +2463,30 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return count >= 3 ? '无法判定分支是否已合入' : null;
 	}
 
-	function toRunDtoWithInHeadWarning(row: RunRow): RunDto {
+	function buildFollowedTaskIdMap(snapshotIds: Iterable<string>): Map<string, string | null> {
+		const map = new Map<string, string | null>();
+		for (const id of snapshotIds) {
+			if (!id) continue;
+			const followed = assignmentReader.getFollowedTaskId(id);
+			map.set(id, followed ?? null);
+		}
+		return map;
+	}
+
+	function toRunDtoWithInHeadWarning(
+		row: RunRow,
+		followedTaskIdMap?: Map<string, string | null>,
+	): RunDto {
+		let followedTaskId: string | null = null;
+		if (followedTaskIdMap && row.snapshot_id) {
+			followedTaskId = followedTaskIdMap.get(row.snapshot_id) ?? null;
+		} else if (row.snapshot_id) {
+			followedTaskId = assignmentReader.getFollowedTaskId(row.snapshot_id);
+		}
 		return Object.freeze({
 			...toRunDto(row),
 			inHeadWarning: getInHeadWarning(row.id),
+			followedTaskId: followedTaskId ?? null,
 		});
 	}
 

@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T19": {
+      "contractHash": "5fceee3dffa2dcbfacf3a7dc4ae33e9df02036b2e1756bf34b9a25b6dad514a7",
+      "evidence": [
+        "补丁同步曾短暂改动 M9-T19 的 supportPaths，现已恢复；当前 task-contracts.json 中 M9-T19 条目与 origin/main 完全相同，契约哈希仍是 5fceee3dffa2dcbfacf3a7dc4ae33e9df02036b2e1756bf34b9a25b6dad514a7。",
+        "对照当前 main 的 M9-T19 批次树与展开集代码；本轮只在 M9-T20 有效支持路径中增添收口运行行和报告槽，不改 M9-T19 的验收条款。",
+        "batch-tree.test.tsx 与 batch-expansion.test.ts 已复跑，23/23 通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

@@ -351,6 +351,15 @@ function mapItemCompleted(
 	const events: EventEnvelopeInput[] = [];
 
 	switch (itemType) {
+		case 'agentMessage':
+		case 'agent_message': {
+			if (typeof item.text === 'string' && item.text.length > 0) {
+				events.push(
+					createInput('agent_message_chunk', { chunk: `${item.text}\n`, vendor: parsed }, context),
+				);
+			}
+			break;
+		}
 		case 'commandExecution':
 		case 'command_execution': {
 			const exitCode = item.exit_code !== undefined ? item.exit_code : (item.exitCode ?? null);

@@ -1,4 +1,6 @@
+import { join } from 'node:path';
 import { type EventEnvelope, isMilestoneEventKind } from '@agent-scheduler/shared/api/events';
+import type { GateContextStderrTail } from '@agent-scheduler/shared/api/gates';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { AppendQueue } from '../logstore/append-queue.ts';
@@ -13,7 +15,7 @@ import type {
 	SegmentRowLike,
 } from '../logstore/contract.ts';
 import { isEnoent, toFilesystemError } from '../logstore/fs-errors.ts';
-import type { LogstorePaths } from '../logstore/paths.ts';
+import { type LogstorePaths, parseSegmentFileName } from '../logstore/paths.ts';
 import { parseEnvelopeLine, readSegmentPage } from '../logstore/read-window.ts';
 import {
 	type AppendResult,
@@ -84,6 +86,8 @@ export interface LogstoreService {
 	appendEvent(runId: string, envelope: EventEnvelopeInput): Promise<AppendEventResult>;
 	/** Paged read across segments: the cursor always advances; the tail is signalled. */
 	readEventsPage(runId: string, cursor: string | undefined): Promise<ReadSegmentResult>;
+	/** Bounded read of the latest run.exited event stderrTail. */
+	readLatestRunExited?(runId: string): Promise<GateContextStderrTail>;
 	/** Bounded scan-and-repair for one run. */
 	repairRun(runId: string): Promise<RepairRunReport>;
 	/** Bounded scan-and-repair for every run found in log_segments or on disk. */
@@ -417,6 +421,7 @@ export function createLogstoreService(deps: LogstoreServiceDeps): LogstoreServic
 		appendRaw,
 		appendEvent,
 		readEventsPage,
+		readLatestRunExited: (runId: string) => readRunExitedStderrTail({ paths, fs, runId }),
 		repairRun,
 		repairAll,
 	});
@@ -509,4 +514,104 @@ function splitBytesLines(
 		});
 	}
 	return lines;
+}
+
+export interface ReadRunExitedTailOptions {
+	readonly paths: LogstorePaths;
+	readonly fs: LogFileSystem;
+	readonly runId: string;
+	readonly altRunDir?: string;
+}
+
+const BOUNDED_READ_WINDOW_BYTES = 64 * 1024;
+const MAX_SEARCH_SPAN_BYTES = 256 * 1024;
+
+export async function readRunExitedStderrTail(
+	options: ReadRunExitedTailOptions,
+): Promise<GateContextStderrTail> {
+	const { paths, fs, runId, altRunDir } = options;
+
+	const candidateDirs = [paths.runDir(runId)];
+	if (altRunDir && altRunDir !== paths.runDir(runId)) {
+		candidateDirs.push(altRunDir);
+	}
+
+	let totalBytesRead = 0;
+
+	for (const dir of candidateDirs) {
+		let names: readonly string[] = [];
+		try {
+			names = fs.listDirectory(dir);
+		} catch {
+			continue;
+		}
+
+		const eventFiles: { name: string; fileSeq: number }[] = [];
+		for (const name of names) {
+			const parsed = parseSegmentFileName(name);
+			if (parsed?.stream === 'events') {
+				eventFiles.push({ name, fileSeq: parsed.fileSeq });
+			}
+		}
+
+		eventFiles.sort((a, b) => b.fileSeq - a.fileSeq);
+		for (const file of eventFiles) {
+			const targetFile = join(dir, file.name);
+			let fileLen: number | null;
+			try {
+				fileLen = fs.fileLenSync(targetFile);
+			} catch {
+				continue;
+			}
+			if (!fileLen) continue;
+
+			let currentEnd = fileLen - 1;
+			let residualBytes = Buffer.alloc(0);
+			while (currentEnd >= 0 && totalBytesRead < MAX_SEARCH_SPAN_BYTES) {
+				const chunkSize = Math.min(
+					currentEnd + 1,
+					BOUNDED_READ_WINDOW_BYTES,
+					MAX_SEARCH_SPAN_BYTES - totalBytesRead,
+				);
+				const start = currentEnd + 1 - chunkSize;
+				let chunkBytes: Uint8Array;
+				try {
+					chunkBytes = await fs.readRange(targetFile, start, currentEnd);
+				} catch {
+					break;
+				}
+				if (chunkBytes.length === 0) break;
+				totalBytesRead += chunkBytes.length;
+
+				const bytes = Buffer.concat([Buffer.from(chunkBytes), residualBytes]);
+				const lines = bytes.toString('utf8').split(/\r?\n/);
+				const firstNewline = bytes.indexOf(10);
+				residualBytes =
+					start > 0
+						? bytes.subarray(0, firstNewline >= 0 ? firstNewline : bytes.length)
+						: Buffer.alloc(0);
+				if (start > 0) lines.shift();
+
+				for (let i = lines.length - 1; i >= 0; i--) {
+					const line = lines[i]?.trim();
+					if (!line || !line.includes('"run.exited"')) continue;
+					try {
+						const parsed = JSON.parse(line);
+						if (parsed.kind === 'run.exited') {
+							const tail = parsed.payload?.stderrTail;
+							if (Array.isArray(tail)) return { kind: 'lines', lines: tail };
+							return { kind: 'unavailable', reason: 'legacy_run', lines: [] };
+						}
+					} catch {
+						// Ignore an incomplete or malformed event line.
+					}
+				}
+				currentEnd = start - 1;
+			}
+			if (totalBytesRead >= MAX_SEARCH_SPAN_BYTES) break;
+		}
+		if (totalBytesRead >= MAX_SEARCH_SPAN_BYTES) break;
+	}
+
+	return { kind: 'unavailable', reason: 'event_missing', lines: [] };
 }

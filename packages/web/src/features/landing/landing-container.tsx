@@ -10,11 +10,96 @@
  * - 复制而不执行，提供单项复制按钮
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { GetBatchWrapupsResponse } from '../../../../shared/src/api/batches.ts';
+import { ROUTES, type RouteDefinition } from '../../../../shared/src/api/routes.ts';
+import type { RunDto } from '../../../../shared/src/api/runs.ts';
+import type { SnapshotResponse } from '../../../../shared/src/api/snapshot.ts';
 import type { GetTaskLandingResponse } from '../../../../shared/src/api/tasks.ts';
+import { httpClient } from '../../api/http-client.ts';
 import { DocChangeBanner, type DocChangeNotice } from '../../components/empty-onboarding.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
+import { BatchLandingChecklist } from '../../components/wrapup-report.tsx';
+import {
+	type BatchLandingList,
+	buildBatchLandingList,
+} from '../run-deck/wrapup-panel-container.tsx';
 import { type LandingFetcher, type UseLandingResult, useLanding } from './use-landing.ts';
+
+/** 按共享路由表自身的字段取路由定义（R5）：不重复写 URL 字面量。 */
+function findRouteByTypes(method: 'GET', resType: string): RouteDefinition | undefined {
+	return ROUTES.find((entry) => entry.method === method && entry.resType === resType);
+}
+
+const SNAPSHOT_ROUTE = findRouteByTypes('GET', 'SnapshotResponse');
+const BATCH_WRAPUPS_ROUTE = findRouteByTypes('GET', 'GetBatchWrapupsResponse');
+const RUNS_ROUTE = findRouteByTypes('GET', 'ListRunsResponse');
+
+/**
+ * 批次级落地清单取数（M9-T20 / R4, AC 5）。
+ *
+ * 任务到批次的归属读 daemon 快照里的 `TaskDto.batchId`（不在前端按名字猜），收口记录来自
+ * `GET /batches/:id/wrapups`，命令与 `inHead` 由 `buildBatchLandingList()` 逐字取 daemon 字段。
+ * 取不到就留空，任务级清单不受影响（不整页替换，07 节错误体系）。
+ */
+function useBatchLanding(input: {
+	readonly taskId?: string;
+	readonly initial?: BatchLandingList | null;
+}): BatchLandingList | null {
+	const { taskId, initial } = input;
+	const [batchLanding, setBatchLanding] = useState<BatchLandingList | null>(initial ?? null);
+
+	useEffect(() => {
+		if (initial) {
+			setBatchLanding(initial);
+			return;
+		}
+		if (!taskId || !SNAPSHOT_ROUTE || !BATCH_WRAPUPS_ROUTE || !RUNS_ROUTE) {
+			setBatchLanding(null);
+			return;
+		}
+		let isCurrent = true;
+		const load = async () => {
+			try {
+				const [snapshot, runsResponse] = await Promise.all([
+					httpClient.callRoute<SnapshotResponse>(SNAPSHOT_ROUTE),
+					httpClient.callRoute<{ runs: readonly RunDto[] }>(RUNS_ROUTE),
+				]);
+				const task =
+					snapshot.tasks.find((item) => item.id === taskId) ??
+					snapshot.tasks.find((item) => item.taskKey === taskId) ??
+					null;
+				const batchId = task?.batchId ?? null;
+				if (!batchId) {
+					if (isCurrent) setBatchLanding(null);
+					return;
+				}
+				const batch = snapshot.batches.find((item) => item.id === batchId) ?? null;
+				const wrapupsResponse = await httpClient.callRoute<GetBatchWrapupsResponse>(
+					BATCH_WRAPUPS_ROUTE,
+					{ params: { batchId } },
+				);
+				if (!isCurrent) return;
+				setBatchLanding(
+					buildBatchLandingList({
+						batchId,
+						batchNo: batch?.batchNo ?? null,
+						wrapups: wrapupsResponse.wrapups,
+						runs: runsResponse.runs,
+					}),
+				);
+			} catch {
+				if (isCurrent) setBatchLanding(null);
+			}
+		};
+		void load();
+		return () => {
+			isCurrent = false;
+		};
+	}, [taskId, initial]);
+
+	return batchLanding;
+}
 
 export interface LandingContainerProps {
 	/** 任务编号 */
@@ -31,6 +116,8 @@ export interface LandingContainerProps {
 	readonly onViewAffectedTasks?: (taskIds: readonly string[]) => void;
 	/** 可注入的 fetcher（单测用） */
 	readonly fetcher?: LandingFetcher;
+	/** 预填批次级落地清单（单测或静态装配；给了就不发批次取数请求） */
+	readonly batchLanding?: BatchLandingList | null;
 	/** 状态回调（供容器测试捕获 hook 实例与触发状态验证） */
 	readonly onResult?: (result: UseLandingResult) => void;
 	/** 容器自定义 class */
@@ -77,6 +164,7 @@ export function LandingContainer({
 	docChangeNotice,
 	onViewAffectedTasks,
 	fetcher,
+	batchLanding: explicitBatchLanding,
 	onResult,
 	className = '',
 }: LandingContainerProps) {
@@ -88,6 +176,9 @@ export function LandingContainer({
 		fetcher,
 	});
 	onResult?.(landingResult);
+
+	// 批次级落地清单：逐轮收口分支 + 各修复分支，复制而不执行（M9-T20 / AC 5）
+	const batchLanding = useBatchLanding({ taskId, initial: explicitBatchLanding });
 
 	const { data, isLoading, error, requestId } = landingResult;
 
@@ -156,6 +247,18 @@ export function LandingContainer({
 						</button>
 					</div>
 				</div>
+			)}
+
+			{/* 批次级落地清单（M9-T20 / AC 5, E-74 批次侧）：在任务级清单之前 */}
+			{batchLanding && batchLanding.rows.length >= 0 && (
+				<BatchLandingChecklist
+					batchNo={batchLanding.batchNo}
+					rows={batchLanding.rows}
+					copiedToken={copiedKey}
+					onCopyField={(token, text) => {
+						void handleCopy(token, text);
+					}}
+				/>
 			)}
 
 			{isLoading ? (

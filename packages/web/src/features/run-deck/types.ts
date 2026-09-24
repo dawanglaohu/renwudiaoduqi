@@ -6,6 +6,7 @@
 
 import type { ReactNode } from 'react';
 import type { BatchTreeItem } from '../../components/batch-tree.tsx';
+import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import type { ToolPayloadSheetData } from '../../hooks/use-payload-sheet.ts';
 import type { StatusState } from '../../lib/spine-shape.ts';
@@ -67,16 +68,40 @@ export interface MobileBatchItem {
 
 /**
  * 泳道流数据模型（对应 daemon snapshot 中的 lanes[] 元素，AC 12, E-311, E-317）。
+ *
+ * M9-T20 补充：收口运行（`RunDto.kind === 'wrapup'`、没有 task_id）占一条普通泳道，
+ * `kind` 只换来头部文案与主体内容，停止键/参照条/运行轨槽位的存在性不由它决定（E-297、E-236）。
  */
 export interface DeckStreamLane {
 	/** 泳道编号（1-based 整数） */
 	readonly laneNo: number;
+	/** 泳道类型：任务流水线 / 批次收口运行 / 空闲（缺失按 task 呈现） */
+	readonly kind?: 'task' | 'wrapup' | 'idle';
 	/** 泳道唯一标识（可选） */
 	readonly id?: string;
 	/** 当前运行 ID（E-311） */
 	readonly currentRunId?: string | null;
 	/** 关联任务 ID */
 	readonly taskId?: string;
+	/** 关联批次 ID（收口泳道挂收口报告面板用，来自 daemon 的 RunDto.batchId） */
+	readonly batchId?: string | null;
+	/** 收口轮次（kind='wrapup' 头部用；来自 daemon 的收口记录或事件 payload，缺失显示「—」） */
+	readonly wrapupRound?: number | null;
+	/** 收口所属批次序号（kind='wrapup' 头部用，缺失显示「—」） */
+	readonly wrapupBatchNo?: number | null;
+	/** 该运行关联的待处理闸门 ID（来自 daemon 的 GET /gates；缺失时不渲染审批卡而不是画一颗假按钮） */
+	readonly gateId?: string | null;
+	/**
+	 * 投递原文的目标运行 ID（E-278：审查留「未结构化」时把原文投回**实施会话**）。
+	 * 审查运行的 parentRunId 即被审的实施运行；没有它就没有可投递的目标。
+	 */
+	readonly deliverTargetRunId?: string | null;
+	/** 目标运行的能力位 canReply（E-117，取的是实施运行而不是审查运行那一份） */
+	readonly deliverTargetCanReply?: boolean | null;
+	/** 审查返工原文（E-278，来自 daemon 的 RunDto.reworkText） */
+	readonly reworkText?: string | null;
+	/** 审查裁定（只有 'incomplete' 才出投递原文条件动作） */
+	readonly reviewVerdict?: string | null;
 	/** 任务编号/代号（如 M9-T9） */
 	readonly taskKey?: string;
 	/** 任务标题 */
@@ -143,6 +168,26 @@ export interface RunDeckProps {
 	readonly toolbarSlot?: ReactNode;
 	/** 容器自定义 class */
 	readonly className?: string;
+
+	// ─── 批次收口（M9-T20 / AC 3, E-157） ───
+	/** 点击批次树「收口」按钮回调（发起 POST，不在响应体上改状态） */
+	readonly onWrapup?: (batchId: string) => void;
+	/** 点击批次树收口运行行回调 */
+	readonly onOpenWrapupRun?: (runId: string, batchId: string) => void;
+	/** 正在收口的批次 ID（该批按钮禁用，等 batch.wrapup_started 回流） */
+	readonly wrapupPendingBatchId?: string | null;
+	readonly wrapupPendingBatchIds?: ReadonlySet<string>;
+	/** 每批最近一次收口被拒的具名原因（贴在批次标题下） */
+	readonly wrapupFailureByBatch?: ReadonlyMap<string, BatchWrapupFailureView>;
+	/**
+	 * 闸门裁定回调（审批卡的批准 / 拒绝走这个）。
+	 * 只判是否被接受，界面状态一律等回流事件（E-157）。
+	 */
+	readonly onDecideGate?: (
+		gateId: string,
+		decision: 'pass' | 'reject',
+		comment?: string,
+	) => void | Promise<void>;
 
 	// ─── 手机端扩展属性（M9-T12 / E-145, E-13, E-58, E-99） ───
 	/** 显式受控的手机栏位切换（可选，默认从 hash query 解析） */

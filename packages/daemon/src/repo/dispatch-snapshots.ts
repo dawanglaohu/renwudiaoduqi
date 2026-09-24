@@ -45,7 +45,9 @@ export interface DispatchSnapshotInsertRow {
 	readonly task_paths_json: string;
 	readonly launch_spec_json: string;
 	readonly assignment_json?: string | null;
+	readonly assignmentJson?: string | null;
 	readonly parent_snapshot_id?: string | null;
+	readonly parentSnapshotId?: string | null;
 	readonly created_at: string;
 }
 
@@ -54,6 +56,8 @@ export interface CreateSnapshotForTaskParams {
 	readonly launchSpecJson: string;
 	readonly createdAt: string;
 	readonly snapshotId?: string;
+	readonly assignmentJson?: string | null;
+	readonly parentSnapshotId?: string | null;
 }
 
 /**
@@ -395,11 +399,54 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 		)`
 		: INSERT_SNAPSHOT_SQL;
 
+	const dynamicSelectByIdSql = hasBatchId
+		? `SELECT id, task_id, batch_id, input_text, output_text, accept_text,
+			impl_prompt, review_prompt, bug_prompt, contract_hash,
+			task_paths_json, launch_spec_json, assignment_json, parent_snapshot_id, created_at
+		FROM dispatch_snapshots WHERE id = ? LIMIT 1`
+		: SELECT_SNAPSHOT_BY_ID_SQL;
+
+	const dynamicSelectLatestByTaskIdSql = hasBatchId
+		? `SELECT id, task_id, batch_id, input_text, output_text, accept_text,
+			impl_prompt, review_prompt, bug_prompt, contract_hash,
+			task_paths_json, launch_spec_json, assignment_json, parent_snapshot_id, created_at
+		FROM dispatch_snapshots WHERE task_id = ? AND parent_snapshot_id IS NULL
+		ORDER BY created_at DESC, id DESC LIMIT 1`
+		: SELECT_LATEST_SNAPSHOT_BY_TASK_ID_SQL;
+
+	const dynamicSelectAllByTaskIdSql = hasBatchId
+		? `SELECT id, task_id, batch_id, input_text, output_text, accept_text,
+			impl_prompt, review_prompt, bug_prompt, contract_hash,
+			task_paths_json, launch_spec_json, assignment_json, parent_snapshot_id, created_at
+		FROM dispatch_snapshots WHERE task_id = ? AND parent_snapshot_id IS NULL
+		ORDER BY created_at DESC, id DESC`
+		: SELECT_ALL_SNAPSHOTS_BY_TASK_ID_SQL;
+
+	const dynamicSelectLatestByDocIdSql = hasBatchId
+		? `WITH ranked AS (
+			SELECT
+				s.id, s.task_id, s.batch_id, s.input_text, s.output_text, s.accept_text,
+				s.impl_prompt, s.review_prompt, s.bug_prompt, s.contract_hash,
+				s.task_paths_json, s.launch_spec_json, s.assignment_json, s.parent_snapshot_id, s.created_at,
+				ROW_NUMBER() OVER (
+					PARTITION BY s.task_id
+					ORDER BY s.created_at DESC, s.id DESC
+				) AS rn
+			FROM dispatch_snapshots s
+			INNER JOIN tasks t ON t.id = s.task_id
+			WHERE t.doc_id = ? AND s.parent_snapshot_id IS NULL
+		)
+		SELECT id, task_id, batch_id, input_text, output_text, accept_text,
+			impl_prompt, review_prompt, bug_prompt, contract_hash,
+			task_paths_json, launch_spec_json, assignment_json, parent_snapshot_id, created_at
+		FROM ranked WHERE rn = 1`
+		: SELECT_LATEST_SNAPSHOTS_BY_DOC_ID_SQL;
+
 	const insertSnapshotStmt = db.prepare(dynamicInsertSql);
-	const selectSnapshotByIdStmt = db.prepare(SELECT_SNAPSHOT_BY_ID_SQL);
-	const selectLatestSnapshotByTaskIdStmt = db.prepare(SELECT_LATEST_SNAPSHOT_BY_TASK_ID_SQL);
-	const selectAllSnapshotsByTaskIdStmt = db.prepare(SELECT_ALL_SNAPSHOTS_BY_TASK_ID_SQL);
-	const selectLatestSnapshotsByDocIdStmt = db.prepare(SELECT_LATEST_SNAPSHOTS_BY_DOC_ID_SQL);
+	const selectSnapshotByIdStmt = db.prepare(dynamicSelectByIdSql);
+	const selectLatestSnapshotByTaskIdStmt = db.prepare(dynamicSelectLatestByTaskIdSql);
+	const selectAllSnapshotsByTaskIdStmt = db.prepare(dynamicSelectAllByTaskIdSql);
+	const selectLatestSnapshotsByDocIdStmt = db.prepare(dynamicSelectLatestByDocIdSql);
 	const selectTaskByIdStmt = db.prepare(SELECT_TASK_BY_ID_SQL);
 	const selectTasksByDocIdStmt = db.prepare(SELECT_TASKS_BY_DOC_ID_SQL);
 	const updateTaskFlagsStmt = db.prepare(UPDATE_TASK_FLAGS_SQL);
@@ -444,8 +491,9 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 			};
 			if (hasBatchId) {
 				params.batch_id = snapshot.batch_id ?? null;
-				params.assignment_json = snapshot.assignment_json ?? null;
-				params.parent_snapshot_id = snapshot.parent_snapshot_id ?? null;
+				params.assignment_json = snapshot.assignmentJson ?? snapshot.assignment_json ?? null;
+				params.parent_snapshot_id =
+					snapshot.parentSnapshotId ?? snapshot.parent_snapshot_id ?? null;
 			}
 			insertSnapshotStmt.run(params);
 		} catch (cause) {
@@ -685,6 +733,7 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 			const snapshotRow: DispatchSnapshotInsertRow = {
 				id: snapshotId,
 				task_id: task.id,
+				batch_id: null,
 				input_text: task.input_text,
 				output_text: task.output_text,
 				accept_text: task.accept_text,
@@ -694,6 +743,8 @@ export function createDispatchSnapshotsRepo(db: DatabaseConnection): DispatchSna
 				contract_hash: task.contract_hash,
 				task_paths_json: task.task_paths_json ?? '[]',
 				launch_spec_json: params.launchSpecJson,
+				assignment_json: params.assignmentJson ?? null,
+				parent_snapshot_id: params.parentSnapshotId ?? null,
 				created_at: params.createdAt,
 			};
 

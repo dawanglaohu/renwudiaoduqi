@@ -1,4 +1,20 @@
-import type { EffortValue } from './agents.ts';
+import type { EffortTier, EffortValue } from './agents.ts';
+
+export type AssignmentResolutionSource =
+	| 'task'
+	| 'review_override'
+	| 'wrapup_settings'
+	| 'agent_default';
+
+export interface AssignmentSnapshot {
+	readonly agentId: string;
+	readonly modelName: string | null;
+	readonly effortTier: EffortTier | null;
+	readonly effortVendor: string | null;
+	readonly source: AssignmentResolutionSource;
+	readonly followedTaskId: string | null;
+	readonly capturedAt: string;
+}
 
 export const RUN_STATES = [
 	'queued',
@@ -178,6 +194,16 @@ export const createRunMessageBodySchema = {
 	},
 } as const;
 
+/**
+ * Per-run message capability bits delivered to clients, so the UI greys an action out from the bit
+ * instead of failing only after the click (E-117). `canReply` answers for this exact run: the agent
+ * adapter's reply bit intersected with a live, writable stdio pipe.
+ */
+export interface RunCapabilitiesDto {
+	readonly canReply: boolean;
+	readonly canResume: boolean;
+}
+
 export interface RunDto {
 	readonly id: string;
 	readonly taskId: string | null;
@@ -226,12 +252,19 @@ export interface RunDto {
 	 */
 	readonly sessionNo?: number | null;
 	readonly promptSource?: 'docs' | 'builtin' | null;
-	readonly assignmentSource?:
-		| 'task'
-		| 'review_override'
-		| 'wrapup_settings'
-		| 'agent_default'
-		| null;
+	readonly assignmentSource?: AssignmentResolutionSource | null;
+	readonly followedTaskId?: string | null;
+	/**
+	 * Original review text kept when the verdict is `incomplete` (E-278). The approval card delivers
+	 * it verbatim into the implementation session, so it must reach the client uncut. `null` while the
+	 * run has no unstructured review text.
+	 */
+	readonly reworkText?: string | null;
+	/**
+	 * Message capability bits for this run (E-117). Absent on responses that do not resolve
+	 * capabilities; the client then treats the run as not replyable rather than guessing.
+	 */
+	readonly capabilities?: RunCapabilitiesDto | null;
 }
 
 export interface CreateRunResponse {

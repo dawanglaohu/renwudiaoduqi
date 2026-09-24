@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T9": {
+      "contractHash": "6057b76cb759cf9d3d4fe3ac5bcff01c648c86aa10c2602a0155fffdf2e9f1a1",
+      "verdict": "pass",
+      "evidence": [
+        "2026-09-24 合入 main 后，status 的 stale、runtimeDrift、blockers 均为空；当前哈希与派发包一致。",
+        "M8-T9 九条验收与任务边界仍要求任务指派贯穿各阶段、零产出闸门和有界脱敏读取；主干本次共享章节变化仅将示例本机用户路径 admin 改为 example，未改变接口或验收语义。",
+        "已逐项复核 PR #145 的 R1-R7 修复和回归；跨分段末条 run.exited 读取缺口由审查方定点修复。该证据登记任务定义复核，代码落地以本轮检查及 PR 状态为准。"
+      ]
+    }
+  }
+}

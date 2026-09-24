@@ -2,14 +2,17 @@
  * packages/web/src/components/stream-column.tsx
  *
  * 多流监看泳道外壳组件（M9-T9 / AC 1, AC 4, AC 5, AC 6, AC 12, E-106, E-165, E-166, E-236, E-237, E-311, E-317）
+ * 收口泳道分支（M9-T20 / AC 1, E-297, E-106）
  *
  * 规范依据（11 节 UI 与 07 节前端架构）：
  * - 泳道外壳采用五段网格：[head][refBar][body][afterBody][foot]（AC 12）
- * - 停止控件与审批槽位必须渲染在所有档位与 kind 分支之外（AC 5, E-236, E-106）
+ * - 停止控件、参照条、审批槽位与运行轨槽位必须渲染在所有档位与 kind 分支之外（AC 5, E-236, E-106, E-297）：
+ *   `kind` 只允许影响头部文案，绝不参与任何控件的存在性判定
  * - narrow 档停止键仍常驻可见，禁止 hover 显示或收进 ⋯（AC 6, E-237）
  * - 状态徽标为矩形非药丸，字形 + 文字，禁止降级成纯色点（AC 4, E-166, E-110）
  * - 紧凑档列宽 min 260px；展开某条时该条占满全宽（col-span-full），其余保持 260px 留在同屏绝不折叠消失（AC 3, E-165）
  * - 停止键不是红的（红留给拒绝/删除），保持原位与边框，仅淡化文字（11 节）
+ * - `kind='wrapup'` 的运行没有 task_id，头部写「批次收口 · 第 N 轮 · 第 M 批」，N/M 缺失显示「—」（E-297）
  * - 纯展示层组件：纯 props in / callback out，禁止 import api/store/features/shell，禁止内部 useEffect（07 节）
  * - 界面不含业务判定：只呈现上层下发字段，缺失一律显示 '—'（07 节）
  */
@@ -26,11 +29,19 @@ import { type StatusState, normalizeStatusState } from '../lib/spine-shape.ts';
 import { StatusBadge } from './status-badge.tsx';
 
 /**
+ * 泳道类型（E-297）：`task` 任务流水线、`wrapup` 批次收口运行、`idle` 空闲泳道。
+ * 只影响头部文案，绝不影响停止控件 / 参照条 / 审批槽位 / 运行轨槽位的存在性（E-236）。
+ */
+export type StreamColumnKind = 'task' | 'wrapup' | 'idle';
+
+/**
  * 泳道外壳组件属性。
  */
 export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id' | 'title'> {
 	/** 泳道序号（1-based 整数，与 lanes[].laneNo 对齐，AC 12） */
 	readonly laneNo: number;
+	/** 泳道类型（默认 task；只影响头部文案，AC 1, E-297） */
+	readonly kind?: StreamColumnKind;
 	/** 泳道 ID（可选，由 daemon 下发） */
 	readonly laneId?: string;
 	/** 当前运行 ID（指向当前阶段运行，E-311） */
@@ -39,6 +50,10 @@ export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id
 	readonly taskKey?: string;
 	/** 任务标题 */
 	readonly title?: string;
+	/** 收口轮次（kind='wrapup' 时头部用，缺失显示「—」，E-297） */
+	readonly wrapupRound?: number | null;
+	/** 收口所属批次序号（kind='wrapup' 时头部用，缺失显示「—」，E-297） */
+	readonly wrapupBatchNo?: number | null;
 	/** 运行状态（九个标准状态或扩展状态；缺失一律降级为「未识别」，禁止用前端默认值补齐） */
 	readonly status?: StatusState | string;
 	/** 密度档位（由 useDensityTier() 单点计算下传，AC 1, E-235） */
@@ -81,6 +96,11 @@ export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id
 	readonly bodySlot?: ReactNode;
 	/** 插槽：主内容区 children 别名 */
 	readonly children?: ReactNode;
+	/**
+	 * 插槽：运行轨列（贯穿全高的 2px 竖线，11 节）。
+	 * 与 kind / densityTier 无关地常驻渲染，`kind='wrapup'` 的收口泳道与实施流共用同一条轨（E-297, E-236）。
+	 */
+	readonly spineSlot?: ReactNode;
 	/** 插槽：就地审批卡 / 闸门卡（必须常驻渲染在所有档位分支之外，AC 5, E-236） */
 	readonly gateSlot?: ReactNode;
 	/** 插槽：审批卡别名 */
@@ -97,10 +117,13 @@ export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id
 export function StreamColumn(props: StreamColumnProps) {
 	const {
 		laneNo,
+		kind = 'task',
 		laneId,
 		currentRunId,
 		taskKey,
 		title,
+		wrapupRound,
+		wrapupBatchNo,
 		status,
 		tier = 'full',
 		isExpanded = false,
@@ -122,6 +145,7 @@ export function StreamColumn(props: StreamColumnProps) {
 		refBarSlot,
 		bodySlot,
 		children,
+		spineSlot,
 		gateSlot,
 		approvalSlot,
 		afterBodySlot,
@@ -171,6 +195,10 @@ export function StreamColumn(props: StreamColumnProps) {
 	const displayModelOrAgent = modelName ?? agentName ?? '—';
 	const displayMonogram = formatMonogram(agentMonogram, agentName);
 
+	// 收口泳道头部（E-297）：第 N 轮 / 第 M 批缺失一律显示「—」，不用前端逻辑补齐
+	const displayWrapupRound = formatOrdinal(wrapupRound);
+	const displayWrapupBatchNo = formatOrdinal(wrapupBatchNo);
+
 	// 按钮高度（桌面 32px，触屏 44px）
 	const buttonHeightClass = isTouch ? 'h-[44px] min-w-[44px]' : 'h-[32px]';
 
@@ -180,6 +208,7 @@ export function StreamColumn(props: StreamColumnProps) {
 	return (
 		<article
 			data-stream-column="true"
+			data-kind={kind}
 			data-lane-no={laneNo}
 			data-lane-id={laneId ?? `lane-${laneNo}`}
 			data-tier={tier}
@@ -207,7 +236,8 @@ export function StreamColumn(props: StreamColumnProps) {
 			{...rest}
 		>
 			{/* ─────────────────────────────────────────────────────────────
-			    第 1 段：[head] 头部与常驻停止控件（AC 5, AC 6, AC 12, E-106, E-236, E-237）
+			    第 1 段：[head] 头部与常驻停止控件（AC 5, AC 6, AC 12, E-106, E-236, E-237, E-297）
+			    kind 只在这里分支头部文案，禁止参与任何控件的存在性判定（E-236）
 			    ───────────────────────────────────────────────────────────── */}
 			<header
 				data-segment="head"
@@ -221,19 +251,42 @@ export function StreamColumn(props: StreamColumnProps) {
 					>
 						泳道 {laneNo}
 					</span>
-					<span
-						data-field="task-key"
-						className="font-mono text-[13px] font-semibold text-[var(--ink-1)] tracking-tight flex-shrink-0"
-					>
-						{displayTaskKey}
-					</span>
-					<span
-						data-field="task-title"
-						title={displayTitle}
-						className="font-ui text-[13px] text-[var(--ink-2)] truncate max-w-[160px]"
-					>
-						{displayTitle}
-					</span>
+
+					{/* kind 分支只换头部文案（E-297, E-236） */}
+					{kind === 'wrapup' ? (
+						<span
+							data-field="wrapup-head"
+							data-wrapup-round={wrapupRound ?? ''}
+							data-wrapup-batch-no={wrapupBatchNo ?? ''}
+							title={`批次收口 · 第 ${displayWrapupRound} 轮 · 第 ${displayWrapupBatchNo} 批`}
+							className="font-ui text-[13px] font-semibold text-[var(--ink-1)] truncate"
+						>
+							批次收口 · 第 {displayWrapupRound} 轮 · 第 {displayWrapupBatchNo} 批
+						</span>
+					) : kind === 'idle' ? (
+						<span
+							data-field="idle-head"
+							className="font-ui text-[13px] text-[var(--ink-2)] truncate"
+						>
+							空闲
+						</span>
+					) : (
+						<>
+							<span
+								data-field="task-key"
+								className="font-mono text-[13px] font-semibold text-[var(--ink-1)] tracking-tight flex-shrink-0"
+							>
+								{displayTaskKey}
+							</span>
+							<span
+								data-field="task-title"
+								title={displayTitle}
+								className="font-ui text-[13px] text-[var(--ink-2)] truncate max-w-[160px]"
+							>
+								{displayTitle}
+							</span>
+						</>
+					)}
 					{headSlot}
 				</div>
 
@@ -349,19 +402,28 @@ export function StreamColumn(props: StreamColumnProps) {
 
 			{/* ─────────────────────────────────────────────────────────────
 			    第 3 段：[body] 主内容槽位（AC 12，阶段链由 M9-T21 填充）
+			    轨列与 kind / densityTier 无关地常驻：收口泳道与实施流共用同一条运行轨（E-297, E-236）
 			    ───────────────────────────────────────────────────────────── */}
-			<div
-				data-segment="body"
-				className="flex-1 overflow-y-auto min-h-0 relative p-3 text-[13px] font-ui"
-			>
-				{bodySlot ?? children ?? (
+			<div data-segment="body" className="flex flex-1 min-h-0 overflow-hidden">
+				{spineSlot !== undefined && (
 					<div
-						data-slot="stage-placeholder"
-						className="flex items-center justify-center h-full min-h-[120px] text-[12px] text-[var(--ink-3)] font-mono select-none"
+						data-slot="spine"
+						data-resident-slot="true"
+						className="relative w-[20px] min-w-[20px] shrink-0"
 					>
-						— 等待阶段分配 —
+						{spineSlot}
 					</div>
 				)}
+				<div className="flex-1 overflow-y-auto min-h-0 relative p-3 text-[13px] font-ui">
+					{bodySlot ?? children ?? (
+						<div
+							data-slot="stage-placeholder"
+							className="flex items-center justify-center h-full min-h-[120px] text-[12px] text-[var(--ink-3)] font-mono select-none"
+						>
+							— 等待阶段分配 —
+						</div>
+					)}
+				</div>
 			</div>
 
 			{/* ─────────────────────────────────────────────────────────────
@@ -490,4 +552,14 @@ function formatMonogram(override?: string, name?: string): string {
 		return clean.slice(0, 2).toUpperCase();
 	}
 	return (clean + clean).toUpperCase();
+}
+
+/**
+ * 收口头部用的序号呈现（E-297）：daemon 没给 N / M 时显示「—」，绝不用前端序号补齐。
+ */
+function formatOrdinal(raw: number | null | undefined): string {
+	if (raw === null || raw === undefined || !Number.isFinite(raw)) {
+		return '—';
+	}
+	return String(raw);
 }

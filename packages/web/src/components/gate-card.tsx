@@ -48,6 +48,19 @@ export interface GateContextDto {
 }
 
 /**
+ * 「投递原文到实施会话」的结果提示（M9-T20 / E-113）。
+ * 未送达时必须在卡内就地说明并保留原文可复制，绝不静默丢弃或假装已发出。
+ */
+export interface GateDeliveryNotice {
+	/** 结果种类：未送达 / 已送达 / 目标不具备注入能力 / 其他失败 */
+	readonly kind: 'undelivered' | 'delivered' | 'unsupported' | 'failed';
+	/** 中文文案（由 i18n/error-messages.ts 或容器层生成） */
+	readonly message: string;
+	/** 可展开的技术详情（错误码 + requestId + daemon 英文短句） */
+	readonly technical?: string;
+}
+
+/**
  * 审批卡组件属性。
  */
 export interface GateCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title' | 'children'> {
@@ -123,6 +136,12 @@ export interface GateCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'tit
 
 	/** 目标运行是否支持回话（若为 false 则条件动作禁用并带 title 提示，E-117） */
 	readonly canReply?: boolean;
+	/** 投递结果的卡内就地提示（未送达必须说明并保留原文可复制，E-113） */
+	readonly deliveryNotice?: GateDeliveryNotice | null;
+	/** 复制返工原文回调（剪贴板由容器层接，组件只发起并显示已复制态） */
+	readonly onCopyReworkText?: () => void;
+	/** 返工原文是否刚复制过（呈现态） */
+	readonly isReworkTextCopied?: boolean;
 
 	// ── 交互控制与状态 ──
 	/** 是否在请求处理中（禁用所有按钮防重复点击） */
@@ -295,6 +314,9 @@ export function GateCard(props: GateCardProps) {
 		rejectLabel = '拒绝',
 		deliverRawLabel = '投递原文到实施会话',
 		canReply = true,
+		deliveryNotice = null,
+		onCopyReworkText,
+		isReworkTextCopied = false,
 		isSubmitting = false,
 		disabled = false,
 		tier,
@@ -742,7 +764,11 @@ export function GateCard(props: GateCardProps) {
 						data-action="deliver-raw"
 						onClick={onDeliverRaw}
 						disabled={isSubmitting || disabled || !canReply}
-						title={!canReply ? '目标运行不支持回话' : undefined}
+						title={
+							!canReply
+								? '目标运行不具备消息注入能力（capabilities.canReply=false），无法投递原文'
+								: `把审查原文原样投递到实施会话 ${stepId ? `（${stepId}）` : ''}`
+						}
 						className={[
 							'inline-flex items-center justify-center font-ui font-medium text-[13px]',
 							'bg-transparent text-[var(--ink-2)] border border-[var(--border)]',
@@ -758,6 +784,54 @@ export function GateCard(props: GateCardProps) {
 					</button>
 				)}
 			</section>
+
+			{/* ─────────────────────────────────────────────────────────────
+			    第 4 段附：投递结果的卡内就地提示（M9-T20 / E-113）
+			    未送达必须说明并保留原文可复制；已送达也要说清「等回流事件」，不假装状态已改（E-157）
+			    ───────────────────────────────────────────────────────────── */}
+			{deliveryNotice && (
+				<div
+					data-region="delivery-notice"
+					data-delivery-kind={deliveryNotice.kind}
+					className={[
+						'mt-3 flex flex-col gap-1.5 rounded-[var(--r-sm,9px)] border px-2.5 py-2 font-ui text-[12px]',
+						deliveryNotice.kind === 'delivered'
+							? 'border-[var(--auto)] bg-[var(--auto-soft)] text-[var(--auto)]'
+							: deliveryNotice.kind === 'unsupported'
+								? 'border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-2)]'
+								: 'border-[var(--down)] bg-[var(--down-soft)] text-[var(--down)]',
+					].join(' ')}
+				>
+					<div className="flex items-center gap-2">
+						<span data-field="delivery-message" className="min-w-0 flex-1">
+							{deliveryNotice.message}
+						</span>
+						{/* 原文可复制：投递失败时绝不把用户的原文弄丢（E-113） */}
+						{onCopyReworkText && reworkText && reworkText.length > 0 && (
+							<button
+								type="button"
+								data-action="copy-rework-text"
+								onClick={onCopyReworkText}
+								title="复制审查原文全文"
+								className={[
+									'shrink-0 px-2 rounded-[var(--r-sm,9px)] border border-[var(--border)] bg-[var(--panel-2)]',
+									'font-ui text-[11px] text-[var(--ink-2)] hover:text-[var(--ink-1)] cursor-pointer',
+									'focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_var(--needs-soft)]',
+									isTouchTarget ? 'min-h-[var(--h-btn-lg,44px)]' : 'h-[var(--h-btn,32px)]',
+								].join(' ')}
+							>
+								{isReworkTextCopied ? '✓ 已复制原文' : '复制原文'}
+							</button>
+						)}
+					</div>
+					{deliveryNotice.technical && (
+						<details className="text-[11px] text-[var(--ink-3)]">
+							<summary className="cursor-pointer hover:text-[var(--ink-2)]">技术详情</summary>
+							<div className="font-mono break-all">{deliveryNotice.technical}</div>
+						</details>
+					)}
+				</div>
+			)}
 
 			{/* ─────────────────────────────────────────────────────────────
 			    第 5 段：底部超时策略（AC 3: 底部写明「无人应答不会自动批准，任务保持等待」）

@@ -161,6 +161,7 @@ describe('migration runner', () => {
 				'0008_add_assignment_drafts_and_session_no.sql',
 				'0009_batch_wrapups_human_verdict.sql',
 				'0010_bughunt_stage.sql',
+				'0011_review_rework_text.sql',
 			],
 		});
 		expect(readTableNames(database)).toEqual([
@@ -217,6 +218,10 @@ describe('migration runner', () => {
 			},
 			{
 				version: '0010_bughunt_stage.sql',
+				applied_at: '2026-09-04T03:00:00.000Z',
+			},
+			{
+				version: '0011_review_rework_text.sql',
 				applied_at: '2026-09-04T03:00:00.000Z',
 			},
 		]);

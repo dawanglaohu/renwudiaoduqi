@@ -21,9 +21,11 @@ import { Component, type ErrorInfo, type ReactNode, useCallback } from 'react';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
+import { GateCard } from '../../components/gate-card.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { StreamColumn } from '../../components/stream-column.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
+import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
 import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
@@ -32,7 +34,9 @@ import { StopConfirmDialog } from './stop-confirm-dialog.tsx';
 import type { DeckStreamLane, MobileBatchItem } from './types.ts';
 import { useAssignPanel } from './use-assign-panel.ts';
 import { useBatchTree } from './use-batch-tree.ts';
+import { useGateCard } from './use-gate-card.ts';
 import { type UseRunDeckResult, isWaitingApproval } from './use-run-deck.ts';
+import { WrapupPanelContainer } from './wrapup-panel-container.tsx';
 
 /**
  * 单流异常隔离边界（07 节：每条运行流一个 ErrorBoundary，一条流崩了不许带走另外四条）。
@@ -92,6 +96,100 @@ class StreamErrorBoundary extends Component<StreamErrorBoundaryProps, StreamErro
 }
 
 /**
+ * 就地审批卡（M9-T20 / R3, AC 4, E-278, E-117, E-113）。
+ *
+ * 挂在该泳道的审批槽位里。只有 daemon 真的下发了待处理闸门才渲染这一层，
+ * 「投递原文到实施会话」走 features 层的 use-gate-card（POST /runs/:id/messages），
+ * 能力位取**目标实施运行**的 `capabilities.canReply`，缺失即灰掉并带 title。
+ */
+interface LaneGateCardProps {
+	readonly lane: DeckStreamLane;
+	readonly tier: DensityTier;
+	readonly isTouch: boolean;
+	readonly onDecideGate?: (
+		gateId: string,
+		decision: 'pass' | 'reject',
+		comment?: string,
+	) => void | Promise<void>;
+}
+
+function LaneGateCard(props: LaneGateCardProps) {
+	const { lane, tier, isTouch, onDecideGate } = props;
+	const gateId = lane.gateId ?? null;
+	const targetRunId = lane.deliverTargetRunId ?? null;
+
+	const gateCard = useGateCard({
+		runId: targetRunId,
+		reworkText: lane.reworkText,
+		reviewVerdict: lane.reviewVerdict,
+		canReply: lane.deliverTargetCanReply,
+	});
+
+	const canDecide = Boolean(gateId && onDecideGate);
+
+	return (
+		<GateCard
+			gateKind="review"
+			taskKey={lane.taskKey}
+			taskTitle={lane.title}
+			reviewVerdict={lane.reviewVerdict ?? undefined}
+			reworkText={lane.reworkText ?? undefined}
+			canReply={gateCard.canReply}
+			deliveryNotice={gateCard.deliveryNotice}
+			isReworkTextCopied={gateCard.isReworkTextCopied}
+			onCopyReworkText={() => {
+				void gateCard.copyReworkText();
+			}}
+			disabled={!canDecide}
+			onApprove={() => {
+				if (gateId) void onDecideGate?.(gateId, 'pass');
+			}}
+			onReject={() => {
+				if (gateId) void onDecideGate?.(gateId, 'reject');
+			}}
+			onEdit={() => {
+				if (gateId) void onDecideGate?.(gateId, 'reject', '改一下');
+			}}
+			tier={tier}
+			isTouch={isTouch}
+			isMobile={tier === 'phone' || tier === 'phone-xs'}
+			{...(gateCard.shouldShowDeliverRaw
+				? {
+						onDeliverRaw: () => {
+							void gateCard.deliverRaw();
+						},
+					}
+				: {})}
+		/>
+	);
+}
+
+/**
+ * 泳道主体：收口运行挂收口报告面板，任务运行留给 M9-T21 的阶段链（E-297、E-312）。
+ */
+function laneBodySlot(lane: DeckStreamLane, tier: DensityTier, isTouch: boolean): ReactNode {
+	if (lane.kind === 'wrapup' && lane.batchId) {
+		return <WrapupPanelContainer batchId={lane.batchId} tier={tier} isTouch={isTouch} />;
+	}
+	return lane.bodySlot ?? null;
+}
+
+/**
+ * 泳道审批槽：只在 daemon 下发了待处理闸门时画审批卡（不画假按钮）。
+ */
+function laneGateSlot(
+	lane: DeckStreamLane,
+	tier: DensityTier,
+	isTouch: boolean,
+	onDecideGate: LaneGateCardProps['onDecideGate'],
+): ReactNode {
+	if (lane.gateId) {
+		return <LaneGateCard lane={lane} tier={tier} isTouch={isTouch} onDecideGate={onDecideGate} />;
+	}
+	return lane.gateSlot ?? null;
+}
+
+/**
  * 运行甲板视图属性。
  */
 export interface RunDeckViewProps extends UseRunDeckResult {
@@ -105,6 +203,21 @@ export interface RunDeckViewProps extends UseRunDeckResult {
 	readonly toolbarSlot?: ReactNode;
 	/** 外部自定义 class */
 	readonly className?: string;
+	/** 点击批次树「收口」按钮回调（M9-T20 / AC 3） */
+	readonly onWrapup?: (batchId: string) => void;
+	/** 点击批次树收口运行行回调 */
+	readonly onOpenWrapupRun?: (runId: string, batchId: string) => void;
+	/** 正在收口的批次 ID（该批按钮禁用，等 batch.wrapup_started 回流） */
+	readonly wrapupPendingBatchId?: string | null;
+	readonly wrapupPendingBatchIds?: ReadonlySet<string>;
+	/** 每批最近一次收口被拒的具名原因 */
+	readonly wrapupFailureByBatch?: ReadonlyMap<string, BatchWrapupFailureView>;
+	/** 闸门裁定回调（审批卡用） */
+	readonly onDecideGate?: (
+		gateId: string,
+		decision: 'pass' | 'reject',
+		comment?: string,
+	) => void | Promise<void>;
 }
 
 export function RunDeckView(props: RunDeckViewProps) {
@@ -148,6 +261,12 @@ export function RunDeckView(props: RunDeckViewProps) {
 		isTailOnly = false,
 		batches,
 		onSelectTask,
+		onWrapup,
+		onOpenWrapupRun,
+		wrapupPendingBatchId = null,
+		wrapupPendingBatchIds,
+		wrapupFailureByBatch,
+		onDecideGate,
 	} = props;
 
 	// 若未显式下发 waiting 统计，由 lanes 自行兜底计算
@@ -438,6 +557,18 @@ export function RunDeckView(props: RunDeckViewProps) {
 										isTouch={isTouch}
 										onToggleBatch={toggleBatch}
 										onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
+										onWrapup={onWrapup}
+										onOpenWrapupRun={onOpenWrapupRun}
+										renderWrapupPanel={(batchId) =>
+											lanes.some(
+												(lane) => lane.kind === 'wrapup' && lane.batchId === batchId,
+											) ? null : (
+												<WrapupPanelContainer batchId={batchId} tier={tier} isTouch={isTouch} />
+											)
+										}
+										wrapupPendingBatchId={wrapupPendingBatchId}
+										wrapupPendingBatchIds={wrapupPendingBatchIds}
+										wrapupFailureByBatch={wrapupFailureByBatch}
 									/>
 								</div>
 							)}
@@ -454,10 +585,13 @@ export function RunDeckView(props: RunDeckViewProps) {
 										<StreamErrorBoundary laneNo={currentMobileLane.laneNo}>
 											<StreamColumn
 												laneNo={currentMobileLane.laneNo}
+												kind={currentMobileLane.kind}
 												laneId={currentMobileLane.id}
 												currentRunId={currentMobileLane.currentRunId}
 												taskKey={currentMobileLane.taskKey}
 												title={currentMobileLane.title}
+												wrapupRound={currentMobileLane.wrapupRound}
+												wrapupBatchNo={currentMobileLane.wrapupBatchNo}
 												status={currentMobileLane.status}
 												tier={tier}
 												isExpanded={true}
@@ -478,8 +612,8 @@ export function RunDeckView(props: RunDeckViewProps) {
 												cost={currentMobileLane.cost}
 												errorMessage={currentMobileLane.errorMessage}
 												isTouch={true}
-												bodySlot={currentMobileLane.bodySlot}
-												gateSlot={currentMobileLane.gateSlot}
+												bodySlot={laneBodySlot(currentMobileLane, tier, true)}
+												gateSlot={laneGateSlot(currentMobileLane, tier, true, onDecideGate)}
 												refBarSlot={currentMobileLane.refBarSlot}
 												footSlot={currentMobileLane.footSlot}
 											/>
@@ -546,6 +680,18 @@ export function RunDeckView(props: RunDeckViewProps) {
 									isTouch={isTouch}
 									onToggleBatch={toggleBatch}
 									onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
+									onWrapup={onWrapup}
+									onOpenWrapupRun={onOpenWrapupRun}
+									renderWrapupPanel={(batchId) =>
+										lanes.some(
+											(lane) => lane.kind === 'wrapup' && lane.batchId === batchId,
+										) ? null : (
+											<WrapupPanelContainer batchId={batchId} tier={tier} isTouch={isTouch} />
+										)
+									}
+									wrapupPendingBatchId={wrapupPendingBatchId}
+									wrapupPendingBatchIds={wrapupPendingBatchIds}
+									wrapupFailureByBatch={wrapupFailureByBatch}
 								/>
 							</aside>
 
@@ -593,10 +739,13 @@ export function RunDeckView(props: RunDeckViewProps) {
 													<StreamErrorBoundary laneNo={lane.laneNo}>
 														<StreamColumn
 															laneNo={lane.laneNo}
+															kind={lane.kind}
 															laneId={lane.id}
 															currentRunId={lane.currentRunId}
 															taskKey={lane.taskKey}
 															title={lane.title}
+															wrapupRound={lane.wrapupRound}
+															wrapupBatchNo={lane.wrapupBatchNo}
 															status={lane.status}
 															tier={tier}
 															isExpanded={isColumnExpanded}
@@ -614,8 +763,8 @@ export function RunDeckView(props: RunDeckViewProps) {
 															cost={lane.cost}
 															errorMessage={lane.errorMessage}
 															isTouch={isTouch}
-															bodySlot={lane.bodySlot}
-															gateSlot={lane.gateSlot}
+															bodySlot={laneBodySlot(lane, tier, isTouch)}
+															gateSlot={laneGateSlot(lane, tier, isTouch, onDecideGate)}
 															refBarSlot={lane.refBarSlot}
 															footSlot={lane.footSlot}
 														/>

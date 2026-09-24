@@ -11,6 +11,7 @@ import {
 } from '@agent-scheduler/shared/api/settings';
 import type { FastifyInstance, FastifyRequest, RouteHandlerMethod } from 'fastify';
 import { AppError } from '../../errors/app-error.ts';
+import type { AgentService } from '../../service/agents.ts';
 import type { GateService } from '../../service/gates.ts';
 import type { SettingsService } from '../../service/settings.ts';
 
@@ -52,6 +53,7 @@ interface ContainerWithGateServices {
 	readonly services?: {
 		readonly settings?: SettingsService;
 		readonly gates?: GateService;
+		readonly agents?: AgentService;
 	};
 }
 
@@ -148,10 +150,13 @@ export function registerGateRoutes(
 
 	const listGatesHandler: RouteHandlerMethod = async (request): Promise<ListGatesResponse> => {
 		const service = resolveGateService(request, instance, options);
+		const container =
+			(request.server as unknown as { container?: ContainerWithGateServices })?.container ??
+			(instance as unknown as { container?: ContainerWithGateServices })?.container;
 		const query = (request.query ?? {}) as ListGatesQuery;
 		const pendingOnly = query.pending === true || query.pending === 'true' || query.pending === '1';
 
-		return await service.listGates({ pendingOnly });
+		return await service.listGates({ pendingOnly, agentService: container?.services?.agents });
 	};
 
 	instance.get('/api/v1/settings/gates', getGateSettingsHandler);

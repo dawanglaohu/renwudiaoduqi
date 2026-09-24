@@ -2,11 +2,14 @@
  * packages/web/src/pages/landing-page.tsx
  *
  * 落地清单页面装配件（M9-T16 / AC 3, AC 4, AC 6, E-74, E-19, E-110）
+ * 批次级落地清单（M9-T20 / AC 5, E-74 批次侧）
  *
  * 规范依据（07 节前端架构与 R1 / R2）：
  * - pages 仅负责装配与骨架，禁止引入客户端层与状态管理器，禁止副作用取数
- * - 页面只接 props，数据获取与拼装下沉至 features/landing/
+ * - 批次级与任务级的取数与呈现都下沉到 features/landing/landing-container.tsx：
+ *   批次行由 `buildBatchLandingList()` 从 GET /batches/:id/wrapups 与 runs 拼出
  * - 缺少 taskId 走未知路径（UnknownRouteView），不回落缺省任务 M5-T4
+ * - 批次级清单同样**只读、复制而不执行**：每轮收口分支与各修复分支各一行，`inHead` 为真的行打勾
  * - 长时间盯屏下深色为默认、路径/命令/代码/数字一律等宽（AC 6, E-110）
  */
 
@@ -27,7 +30,7 @@ export interface LandingPageProps extends Partial<RouteComponentProps>, LandingC
 }
 
 /**
- * 落地清单页面主组件（M9-T16 / AC 3, E-74）。
+ * 落地清单页面主组件（M9-T16 / AC 3, E-74；M9-T20 / AC 5）。
  * pages 层纯装配：读路由参数、放置顶栏与栏位骨架，把 LandingContainer 摆进去。
  */
 export function LandingPage(props: LandingPageProps) {
@@ -39,6 +42,7 @@ export function LandingPage(props: LandingPageProps) {
 		docChangeNotice,
 		onViewAffectedTasks,
 		fetcher,
+		batchLanding,
 		className = '',
 	} = props;
 
@@ -83,7 +87,7 @@ export function LandingPage(props: LandingPageProps) {
 				</div>
 			</header>
 
-			{/* 主内容区：由 LandingContainer 承担拼装 */}
+			{/* 主内容区：批次级清单与任务级清单都由 LandingContainer 取数并拼装 */}
 			<main className="flex-1 p-4 sm:p-6 max-w-4xl mx-auto w-full flex flex-col gap-6">
 				<LandingContainer
 					taskId={taskId}
@@ -91,6 +95,7 @@ export function LandingPage(props: LandingPageProps) {
 					docChangeNotice={docChangeNotice}
 					onViewAffectedTasks={onViewAffectedTasks}
 					fetcher={fetcher}
+					batchLanding={batchLanding}
 				/>
 			</main>
 		</div>
