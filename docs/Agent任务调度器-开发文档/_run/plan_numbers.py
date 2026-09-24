@@ -6,7 +6,7 @@ import io
 import json
 import re
 
-D = "D:/xiangmu/renwudiaoduqi/docs/Agent任务调度器-开发文档/"
+D = "D:/workspace/renwudiaoduqi/docs/Agent任务调度器-开发文档/"
 
 src = io.open(D + "docs-data.js", encoding="utf-8").read()
 m = re.search(r"window\.DOCS\s*=\s*(\{.*\});?\s*$", src, re.S)

@@ -57,7 +57,7 @@ describe('M7-T5 AC 2 & E-279: assembleReworkPrompt and extractReworkRules', () =
 		const result = assembleReworkPrompt({
 			reworkText: sampleReworkText,
 			implPrompt,
-			worktreePath: 'D:/xiangmu/agent-scheduler-m7-t5',
+			worktreePath: 'D:/workspace/agent-scheduler-m7-t5',
 			branchName: 'task/M7-T5',
 			taskId: 'M7-T5',
 		});
@@ -72,7 +72,7 @@ describe('M7-T5 AC 2 & E-279: assembleReworkPrompt and extractReworkRules', () =
 		expect(result).not.toContain(BUILTIN_REWORK_RULES);
 
 		// 3. 工作区指针
-		expect(result).toContain('D:/xiangmu/agent-scheduler-m7-t5');
+		expect(result).toContain('D:/workspace/agent-scheduler-m7-t5');
 		expect(result).toContain('task/M7-T5');
 		expect(result).toContain('## 工作区指针');
 

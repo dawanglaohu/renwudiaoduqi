@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T9": {
+      "contractHash": "d00661385f117dd719d810273bf8c7b1f1d92a7bdc6483f4242f73b63b39f165",
+      "verdict": "pass",
+      "evidence": [
+        "2026-09-24 审查 task/M8-T9 PR #145：status 的当前契约哈希与派发包一致，stale/runtimeDrift/blockers 均为空；该 pass 只表示任务定义已复核，不表示代码验收通过。",
+        "图谱/任务/M8-T9.md 的九条验收、E-295/E-304/E-323/E-331/E-341/E-342/E-343/E-344/E-347/E-348/E-352/E-354/E-356/E-357/E-59/E-62/E-93 边界与派发包一致；03-质量/17-测试策略.md 要求 pnpm -w check，04-执行/19-模块任务拆分.md 定义 M8-T9 的后端产出及后续前端任务。",
+        "对照主干与 PR diff 核对了前置快照、运行、审查、查 bug、收口、设置及 shared API 接口；有效路径覆盖本 PR 的代码与测试，现有 0007 迁移已有 assignment_json/parent_snapshot_id/assignment_source 列。代码问题在 REVIEW-ROUND 1 的 PR 评论中另列返工，不降低任务契约。"
+      ]
+    }
+  }
+}

@@ -1,8 +1,8 @@
 {
   "version": "1.1.0",
   "date": "2026-09-05",
-  "source": "C:/Users/admin/.claude/skills/unattended-run",
-  "companionVault": "C:/Users/admin/.claude/skills/obsidian-vault",
+  "source": "C:/Users/example/.claude/skills/unattended-run",
+  "companionVault": "C:/Users/example/.claude/skills/obsidian-vault",
   "reason": "用户指定的 Codex 路径为2026-08-18旧副本；采用2026-09-05更新版工具",
   "localPatches": [
     "build_docs.py：尚未实施任务始终路由到契约审查且复制不推进状态",

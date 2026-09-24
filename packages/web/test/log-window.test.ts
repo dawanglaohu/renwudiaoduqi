@@ -701,7 +701,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				createElement(LogThresholdBanner, {
 					hasOlder: true,
 					isExceedsThreshold: true,
-					originalFilePath: 'C:\\Users\\admin\\AppData\\runs\\run-1\\raw.log',
+					originalFilePath: 'C:\\Users\\example\\AppData\\runs\\run-1\\raw.log',
 					onLoadOlder: () => {},
 				}),
 			);

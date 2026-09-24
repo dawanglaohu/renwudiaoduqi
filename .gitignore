@@ -3,3 +3,17 @@ node_modules/
 dist/
 *.log
 e2e/artifacts/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.local.json
+daemon.json
+*.pem
+*.p12
+*.pfx
+
+# Browser and agent session artifacts
+.playwright-mcp/
+.workbuddy-ai/

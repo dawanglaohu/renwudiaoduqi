@@ -1,3 +1,4 @@
+import type { EffortVendorMap } from '@agent-scheduler/shared/api/agents';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { GateSettings, PipelineSettings } from '@agent-scheduler/shared/api/settings';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -16,6 +17,13 @@ export interface SettingsServiceDeps {
 	readonly unitOfWork: UnitOfWork;
 	readonly warn?: (message: string, ...args: unknown[]) => void;
 	readonly nudgeTick?: () => void;
+	readonly agentRegistry?: {
+		readonly getSnapshot: () => {
+			readonly agents: Readonly<
+				Record<string, { readonly effortVendorMap?: EffortVendorMap | null }>
+			>;
+		};
+	};
 	/**
 	 * Runs inside the same `unitOfWork.run` as the settings write (08 节：一个 HTTP 请求最多开一次
 	 * 事务，跨 service 的复合写必须聚进同一个 run)。Must not open a transaction of its own and
@@ -140,24 +148,85 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 		},
 
 		/**
-		 * Updates pipeline settings (AC 5, E-318):
+		 * Updates pipeline settings (AC 5, E-318, E-356):
 		 * - Rejects missing fields or invalid values or additional properties with E_VALIDATION.
+		 * - Validates reviewOverride.agentId and wrapupAssignment.agentId against agent registry snapshot without spawning.
+		 * - Validates effortTier against agent's effort support (reason: 'effort_unsupported' if unsupported).
 		 * - Atomically persists in single transaction.
-		 * - Does not write to gates, documents, or dispatch_snapshots.
-		 * - Emits `settings.pipeline_changed` event after transaction.
+		 * - Emits `settings.pipeline_changed` event with full 4 keys after transaction.
 		 * - Triggers nudgeTick after transaction.
 		 */
 		updatePipeline(input: unknown, actorDeviceId: string | null): PipelineSettings {
 			if (!isValidPipelineSettings(input)) {
 				throw new AppError(
 					'E_VALIDATION',
-					'Invalid pipeline settings: all fields (bughunt: 0 | 1, wrapupMode: "auto" | "manual") must be provided with no additional properties.',
+					'Invalid pipeline settings: all fields (bughunt, wrapupMode, reviewOverride, wrapupAssignment) must be provided with no additional properties.',
 				);
+			}
+
+			if (deps.agentRegistry) {
+				const snapshot = deps.agentRegistry.getSnapshot();
+
+				if (input.reviewOverride) {
+					const agent = snapshot.agents[input.reviewOverride.agentId];
+					if (!agent) {
+						throw new AppError(
+							'E_VALIDATION',
+							`Agent '${input.reviewOverride.agentId}' does not exist in registry.`,
+							{
+								details: { field: 'reviewOverride.agentId' },
+							},
+						);
+					}
+					if (
+						input.reviewOverride.effortTier !== undefined &&
+						input.reviewOverride.effortTier !== null
+					) {
+						if (agent.effortVendorMap === null) {
+							throw new AppError(
+								'E_VALIDATION',
+								`Agent '${input.reviewOverride.agentId}' does not support reasoning effort.`,
+								{
+									details: { field: 'reviewOverride.effortTier', reason: 'effort_unsupported' },
+								},
+							);
+						}
+					}
+				}
+
+				if (input.wrapupAssignment.mode === 'fixed') {
+					const agent = snapshot.agents[input.wrapupAssignment.agentId];
+					if (!agent) {
+						throw new AppError(
+							'E_VALIDATION',
+							`Agent '${input.wrapupAssignment.agentId}' does not exist in registry.`,
+							{
+								details: { field: 'wrapupAssignment.agentId' },
+							},
+						);
+					}
+					if (
+						input.wrapupAssignment.effortTier !== undefined &&
+						input.wrapupAssignment.effortTier !== null
+					) {
+						if (agent.effortVendorMap === null) {
+							throw new AppError(
+								'E_VALIDATION',
+								`Agent '${input.wrapupAssignment.agentId}' does not support reasoning effort.`,
+								{
+									details: { field: 'wrapupAssignment.effortTier', reason: 'effort_unsupported' },
+								},
+							);
+						}
+					}
+				}
 			}
 
 			const updated: PipelineSettings = Object.freeze({
 				bughunt: input.bughunt,
 				wrapupMode: input.wrapupMode,
+				reviewOverride: input.reviewOverride ? Object.freeze({ ...input.reviewOverride }) : null,
+				wrapupAssignment: Object.freeze({ ...input.wrapupAssignment }),
 			});
 
 			const valueJson = JSON.stringify(updated);

@@ -118,6 +118,7 @@ export interface ManagedProcess {
 	readonly isExited: boolean;
 	readonly exitResult?: ProcessExitResult;
 	readonly stderrTail: string;
+	readonly stderrTailLines?: readonly string[];
 	attachAppendQueue(queue: AppendQueue): () => void;
 	waitForStdinDrain(): Promise<void>;
 	onStdinDrain(listener: () => void): () => void;
@@ -155,7 +156,9 @@ export interface SpawnManagedOptions {
 	readonly onError?: (error: Error) => void;
 }
 
-const MAX_STDERR_TAIL_LINES = 100;
+const MAX_STDERR_TAIL_LINES = 20;
+const MAX_STDERR_LINE_BYTES = 1024;
+const MAX_STDERR_TOTAL_BYTES = 8192;
 
 export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): ManagedProcess {
 	// 1. Input validation (E-42)
@@ -231,10 +234,26 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 
 	const pid = child.pid ?? 0;
 
-	// 5. Line readers for stdout and stderr (E-131, E-140, E-141, E-203)
+	// 5. Line readers for stdout and stderr (E-131, E-140, E-141, E-203, E-348)
 	const stdoutReader = createLineReader();
 	const stderrReader = createLineReader();
 	const stderrTailQueue: string[] = [];
+
+	function pushStderrTail(text: string): void {
+		const trimmedLine =
+			text.length > MAX_STDERR_LINE_BYTES ? text.slice(0, MAX_STDERR_LINE_BYTES) : text;
+		stderrTailQueue.push(trimmedLine);
+		while (stderrTailQueue.length > MAX_STDERR_TAIL_LINES) {
+			stderrTailQueue.shift();
+		}
+		let totalLen = stderrTailQueue.reduce((acc, l) => acc + l.length, 0);
+		while (totalLen > MAX_STDERR_TOTAL_BYTES && stderrTailQueue.length > 0) {
+			const removed = stderrTailQueue.shift();
+			if (removed) {
+				totalLen -= removed.length;
+			}
+		}
+	}
 
 	const lineListeners = new Set<(line: ReadLine) => void>();
 	const rawListeners = new Set<(line: ReadLine) => void>();
@@ -353,10 +372,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 			const lines = stderrReader.push(chunk);
 			for (const line of lines) {
 				timers.recordActivity();
-				stderrTailQueue.push(line.text);
-				if (stderrTailQueue.length > MAX_STDERR_TAIL_LINES) {
-					stderrTailQueue.shift();
-				}
+				pushStderrTail(line.text);
 				notify(rawListeners, line);
 				notify(stderrListeners, line);
 			}
@@ -420,10 +436,7 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 
 			for (const line of stderrReader.flush()) {
 				timers.recordActivity();
-				stderrTailQueue.push(line.text);
-				if (stderrTailQueue.length > MAX_STDERR_TAIL_LINES) {
-					stderrTailQueue.shift();
-				}
+				pushStderrTail(line.text);
 				notify(rawListeners, line);
 				notify(stderrListeners, line);
 			}
@@ -541,6 +554,9 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		},
 		get stderrTail() {
 			return stderrTailQueue.join('\n');
+		},
+		get stderrTailLines() {
+			return Object.freeze([...stderrTailQueue]);
 		},
 		attachAppendQueue(queue: AppendQueue): () => void {
 			if (detachQueue !== undefined) {

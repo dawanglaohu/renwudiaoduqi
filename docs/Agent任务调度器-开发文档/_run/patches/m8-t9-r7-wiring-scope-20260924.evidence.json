@@ -1,0 +1,27 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T9": {
+      "contractHash": "ec12c414bdabd46ad0f2a9d5c61dfe04fd1a75c091d4512af86f71f1fb8f6895",
+      "evidence": [
+        "对照 R1-R7 返工 diff 核对，新增四条精确支持路径分别覆盖容器注入、logstore 有界读取、收口回归和返工回归；九条验收与所有边界要求未修改。",
+        "审查方已补跨分段末条 run.exited 回归并运行 M8-T9 返工测试；主干合入后任务定义仍与当前接口和代码一致。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T17": {
+      "contractHash": "6e2070557ef53757f5c8f519b87ada81ee3dbdef32960f7f76fa98e951260578",
+      "evidence": [
+        "M9-T17 的定义、验收与支持路径均未改；本补丁仅使其与 M8-T9 新增的共享代码及测试路径形成有效路径冲突，保持既有实现范围和顺序。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T23": {
+      "contractHash": "867885a53c89697a8e02e7ad7aec0a3e210ef49eb1a0477964943165c50f0873",
+      "evidence": [
+        "M9-T23 的定义、验收与支持路径均未改；本补丁仅更新其与 M8-T9 新增有效路径的冲突关系，保持既有实施范围和契约语义。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

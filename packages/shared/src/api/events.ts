@@ -120,6 +120,14 @@ type ExhaustiveEventKindList<Kinds extends readonly EventKind[]> = Exclude<
 
 export const EVENT_KINDS: ExhaustiveEventKindList<typeof EVENT_KIND_VALUES> = EVENT_KIND_VALUES;
 
+export const CONTENT_EVENT_KINDS = [
+	'agent_message_chunk',
+	'agent_thought_chunk',
+	'tool_call',
+] as const;
+
+export type ContentEventKind = (typeof CONTENT_EVENT_KINDS)[number];
+
 export const ACP_EVENT_KINDS = [
 	'agent_message_chunk',
 	'agent_thought_chunk',
@@ -233,6 +241,7 @@ export interface RunStartedPayload {
 export interface RunExitedPayload {
 	readonly exitCode: number | null;
 	readonly signal?: string | null;
+	readonly stderrTail?: readonly string[] | string;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }

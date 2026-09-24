@@ -996,7 +996,12 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		await app.inject({
 			method: 'PATCH',
 			url: '/api/v1/settings/pipeline',
-			payload: { bughunt: 1, wrapupMode: 'manual' },
+			payload: {
+				bughunt: 1,
+				wrapupMode: 'manual',
+				reviewOverride: null,
+				wrapupAssignment: { mode: 'follow' },
+			},
 		});
 
 		const t1 = insertTask('M8-T1');
@@ -1038,7 +1043,12 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		await app.inject({
 			method: 'PATCH',
 			url: '/api/v1/settings/pipeline',
-			payload: { bughunt: 1, wrapupMode: 'auto' },
+			payload: {
+				bughunt: 1,
+				wrapupMode: 'auto',
+				reviewOverride: null,
+				wrapupAssignment: { mode: 'follow' },
+			},
 		});
 
 		// Next tick automatically triggers wrapup run

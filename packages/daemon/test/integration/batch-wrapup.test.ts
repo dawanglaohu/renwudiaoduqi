@@ -583,7 +583,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 	});
 
 	it('F1 (E-272): tasks landed by a human gate (manual_state) count for tick AND triggerWrapup, and their branches still get the in-HEAD check', async () => {
-		// M8-T4 闸门 pass 的真实产物：tasks.manual_state='landed'，实施行停在 awaiting_human
+		// M8-T4 闸门 pass 的真实产物：tasks.manual_state='landed'，实施行转 landed
 		tasksRepo.updateManualState('task-1', 'landed');
 		tasksRepo.updateManualState('task-2', 'landed');
 		runsRepo.insert({
@@ -591,7 +591,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			task_id: 'task-1',
 			attempt_no: 1,
 			kind: 'implement',
-			state: 'awaiting_human',
+			state: 'landed',
 			agent_id: 'codex',
 			permission_tier: 'workspaceWrite',
 			snapshot_id: 'snap-1',
@@ -603,7 +603,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			task_id: 'task-2',
 			attempt_no: 1,
 			kind: 'implement',
-			state: 'awaiting_human',
+			state: 'landed',
 			agent_id: 'codex',
 			permission_tier: 'workspaceWrite',
 			snapshot_id: 'snap-2',

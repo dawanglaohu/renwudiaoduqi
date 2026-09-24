@@ -2,7 +2,7 @@
 
 这一段是实施方、审查方和交接台使用者共用的操作手册，由 `install_project.py` 从 `_run/handoff-manual.md`（技能的 `references/handoff-manual.md` 副本）渲染进 `AGENTS.md` 与 `CLAUDE.md` 的两个 handoff 标记之间；重装工具会更新这一段，标记之外的内容不动。改流程先改技能里的手册，再重装。
 
-路径均相对项目根 `<主检出>`；`<id>` 指小写任务 ID（如 `m2-t1`），`<ID>` 指原始任务 ID（如 `M2-T1`）。
+路径均相对项目根 `<主检出>`（用 `git worktree list` 查看本机实际位置）；`<id>` 指小写任务 ID（如 `m2-t1`），`<ID>` 指原始任务 ID（如 `M2-T1`）。
 
 ### 1. 交接台怎么读
 

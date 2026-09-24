@@ -104,7 +104,7 @@ function makeWrapup(overrides: Partial<BatchWrapupDto> = {}): BatchWrapupDto {
 		reportText: 'BATCH_SUMMARY\n本批交付了收口泳道\nTESTS\n- fail\nBUGS\n- B1 ...',
 		createdAt: '2026-09-20T10:00:00.000Z',
 		landing: {
-			worktreePath: 'D:/xiangmu/agent-scheduler-batch-13',
+			worktreePath: 'D:/workspace/agent-scheduler-batch-13',
 			branchName: 'batch/13-20260920',
 			diffStat: '4 files changed, 120 insertions(+), 8 deletions(-)',
 		},
@@ -127,7 +127,7 @@ function makeRun(overrides: Partial<RunDto> = {}): RunDto {
 		effortTier: null,
 		reportedEffort: null,
 		permissionTier: 'workspaceWrite',
-		worktreePath: 'D:/xiangmu/agent-scheduler-batch-13',
+		worktreePath: 'D:/workspace/agent-scheduler-batch-13',
 		branchName: 'batch/13-20260920',
 		pid: null,
 		exitCode: 0,
@@ -205,7 +205,7 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 			expect(html).toContain('B3 没有任务 ID 的条目');
 
 			expect(html).toContain('data-landing-field="worktree"');
-			expect(html).toContain('D:/xiangmu/agent-scheduler-batch-13');
+			expect(html).toContain('D:/workspace/agent-scheduler-batch-13');
 			expect(html).toContain('batch/13-20260920');
 
 			expect(html).toContain('data-segment="report-text"');
@@ -966,7 +966,7 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 					runId: 'run-wrapup-2',
 					fixRunIds: [],
 					landing: {
-						worktreePath: 'D:/xiangmu/agent-scheduler-batch-13',
+						worktreePath: 'D:/workspace/agent-scheduler-batch-13',
 						branchName: 'batch/13-round-2',
 						diffStat: '1 file changed',
 					},
@@ -980,7 +980,7 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 					taskId: 'M9-T21',
 					origin: 'wrapup-fix',
 					branchName: 'task/M9-T21',
-					worktreePath: 'D:/xiangmu/agent-scheduler-m9-t21',
+					worktreePath: 'D:/workspace/agent-scheduler-m9-t21',
 					isInHead: false,
 				}),
 				makeRun({ id: 'run-wrapup-2', isInHead: false }),
@@ -1020,7 +1020,7 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 						kind: 'implement',
 						taskId: 'M9-T21',
 						branchName: 'task/M9-T21',
-						worktreePath: 'D:/xiangmu/agent-scheduler-m9-t21',
+						worktreePath: 'D:/workspace/agent-scheduler-m9-t21',
 						isInHead: false,
 					}),
 				],
