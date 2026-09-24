@@ -13,7 +13,7 @@
 | claude | `/d/Program Files/nodejs/node_global/claude` | ✅ 已验证 |
 | codex | `/d/Program Files/nodejs/node_global/codex` | ✅ 已验证 |
 | pi | `/d/Program Files/nodejs/node_global/pi` | ✅ 已验证 |
-| grok | `/c/Users/admin/.grok/bin/grok` | ✅ 已验证 |
+| grok | `/c/Users/example/.grok/bin/grok` | ✅ 已验证 |
 | DeepSeek Harness | 未安装 | ⏳ 待联网调研确认 |
 
 ## 总结论：**能，而且比预想的好得多**

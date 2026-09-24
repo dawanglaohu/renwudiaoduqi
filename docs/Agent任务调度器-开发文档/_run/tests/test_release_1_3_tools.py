@@ -67,6 +67,12 @@ class Release13ToolTests(unittest.TestCase):
             install_project.install(self.doc, root=self.base)
         self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.6.1')
 
+    def test_handoff_manual_does_not_write_local_checkout_path(self):
+        import install_project
+        rendered = install_project.render_manual('主检出：<主检出>；文档：<docs>', self.base, self.doc)
+        self.assertIn('<主检出>', rendered)
+        self.assertNotIn(self.base.as_posix(), rendered)
+
     # ---- build 子进程超时 ----
     def test_build_subprocess_timeout_is_600(self):
         """build_vault 在大项目上要 70 到 120 秒；60 秒会让 verify 与 --landed 每次中途回滚
