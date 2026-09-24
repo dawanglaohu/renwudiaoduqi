@@ -1,7 +1,11 @@
+import { join } from 'node:path';
+import type { LoginState } from '@agent-scheduler/shared/api/agents';
 import type { BatchGateOverrides } from '@agent-scheduler/shared/api/batches';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type {
 	DecideGateResponse,
+	GateContext,
+	GateContextStderrTail,
 	GateDto,
 	ListGatesResponse,
 } from '@agent-scheduler/shared/api/gates';
@@ -18,13 +22,18 @@ import { type RunState, isTerminalRunState } from '../domain/run-state-machine.t
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { LogFileSystem } from '../logstore/contract.ts';
+import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
+import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GateRow, GatesRepo } from '../repo/gates.ts';
 import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
+import type { AgentService } from './agents.ts';
 import type { BatchService } from './batch.ts';
+import { type LogstoreService, readRunExitedStderrTail } from './logstore.ts';
 import type { ReworkService } from './rework.ts';
 import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 import type { SettingsService } from './settings.ts';
@@ -47,6 +56,12 @@ export interface GateServiceDeps {
 	readonly settingsService: SettingsService;
 	readonly getBatchGateOverrides?: (batchId: string) => BatchGateOverrides | undefined;
 	readonly sessionArchiveService?: SessionArchiveService;
+	readonly agentService?: AgentService;
+	readonly getRunExitedTail?: (runId: string) => { readonly stderrTail?: readonly string[] } | null;
+	readonly dataDir?: string;
+	readonly logstorePaths?: LogstorePaths;
+	readonly logFs?: LogFileSystem;
+	readonly logstore?: LogstoreService;
 }
 
 export interface GateService {
@@ -56,7 +71,10 @@ export interface GateService {
 		readonly comment?: string;
 		readonly actorDeviceId: string | null;
 	}) => Promise<DecideGateResponse>;
-	readonly listGates: (params?: { readonly pendingOnly?: boolean }) => Promise<ListGatesResponse>;
+	readonly listGates: (params?: {
+		readonly pendingOnly?: boolean;
+		readonly agentService?: AgentService;
+	}) => Promise<ListGatesResponse>;
 	readonly createWaitingGate: (input: {
 		readonly taskId: string;
 		readonly runId?: string | null;
@@ -85,7 +103,7 @@ export interface GateService {
 	readonly getBatchGateOverrides: (batchId: string) => BatchGateOverrides | undefined;
 }
 
-function rowToGateDto(row: GateRow): GateDto {
+function rowToGateDto(row: GateRow, context?: GateContext | null): GateDto {
 	return Object.freeze({
 		id: row.id,
 		taskId: row.task_id,
@@ -97,11 +115,85 @@ function rowToGateDto(row: GateRow): GateDto {
 		decidedByDeviceId: row.decided_by_device_id,
 		createdAt: row.created_at,
 		decidedAt: row.decided_at,
+		context: context ?? null,
 	});
 }
 
 export function createGateService(deps: GateServiceDeps): GateService {
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
+
+	async function resolveGateContext(
+		row: GateRow,
+		overrideAgentService?: AgentService,
+	): Promise<GateContext | null> {
+		if (row.comment !== 'exited_before_output') {
+			return null;
+		}
+		const runId = row.run_id;
+		if (!runId || !deps.runsRepo) {
+			return null;
+		}
+		const run = deps.runsRepo.findById(runId);
+		const exitCode = run ? (run.exit_code ?? null) : null;
+		const exitSignal = run ? (run.exit_signal ?? null) : null;
+
+		let stderrTail: GateContextStderrTail = {
+			kind: 'unavailable',
+			reason: 'event_missing',
+			lines: [],
+		};
+
+		const memTail = deps.getRunExitedTail?.(runId);
+		if (memTail?.stderrTail !== undefined) {
+			stderrTail = {
+				kind: 'lines',
+				lines: memTail.stderrTail,
+			};
+		} else if (deps.logstore?.readLatestRunExited) {
+			stderrTail = await deps.logstore.readLatestRunExited(runId);
+		} else {
+			const fs = deps.logFs ?? createNodeLogFileSystem();
+			const paths =
+				deps.logstorePaths ??
+				(deps.dataDir
+					? createLogstorePaths(
+							deps.dataDir.endsWith('runs') ? deps.dataDir : join(deps.dataDir, 'runs'),
+						)
+					: null);
+			if (paths) {
+				const altRunDir = deps.dataDir ? join(deps.dataDir, runId) : undefined;
+				stderrTail = await readRunExitedStderrTail({
+					paths,
+					fs,
+					runId,
+					altRunDir,
+				});
+			}
+		}
+
+		let login: LoginState | null = null;
+		const agentId = run?.agent_id;
+		const agentSvc = overrideAgentService ?? deps.agentService;
+		if (agentId && agentSvc) {
+			try {
+				if (typeof agentSvc.getLogin === 'function') {
+					login = agentSvc.getLogin(agentId);
+				} else if (typeof agentSvc.getAgent === 'function') {
+					const agent = agentSvc.getAgent(agentId) as { login?: LoginState } | null;
+					login = agent?.login ?? null;
+				}
+			} catch {
+				login = null;
+			}
+		}
+
+		return Object.freeze({
+			exitCode,
+			exitSignal,
+			stderrTail,
+			login,
+		});
+	}
 
 	return Object.freeze({
 		/**
@@ -278,6 +370,33 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					input.actorDeviceId,
 					now,
 				);
+
+				if (input.decision === 'reject' && gate.comment === 'exited_before_output') {
+					// AC 8: decide{decision:'reject'} goes awaiting_human -> failed (human judged failure), NOT rework
+					if (gate.run_id && deps.runsRepo) {
+						deps.runsRepo.updateState({
+							id: gate.run_id,
+							fromState: 'awaiting_human',
+							toState: 'failed',
+							queuedReason: 'human_rejected',
+							endedAt: now,
+						});
+						if (deps.envelopeFactory) {
+							reworkStateEnvelope = deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId: gate.run_id,
+								taskId: gate.task_id,
+								actorDeviceId: input.actorDeviceId,
+								payload: {
+									from: 'awaiting_human',
+									to: 'failed',
+									reason: 'human_rejected',
+								},
+							});
+						}
+					}
+					return;
+				}
 
 				if (input.decision === 'pass' && gate.kind === 'landing' && gate.task_id) {
 					if (deps.tasksRepo) {
@@ -480,6 +599,13 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			});
 
 			// Outside transaction: publish events
+			if (input.decision === 'reject' && gate.comment === 'exited_before_output') {
+				if (reworkStateEnvelope) {
+					deps.bus.publish(reworkStateEnvelope);
+				}
+				return Object.freeze({ applied: true as const });
+			}
+
 			if (laneReleasedEvent) {
 				deps.bus.publish(laneReleasedEvent);
 			}
@@ -574,10 +700,18 @@ export function createGateService(deps: GateServiceDeps): GateService {
 		/**
 		 * Lists all gates with optional filter for pending (waiting) gates.
 		 */
-		async listGates(params?: { readonly pendingOnly?: boolean }): Promise<ListGatesResponse> {
+		async listGates(params?: {
+			readonly pendingOnly?: boolean;
+			readonly agentService?: AgentService;
+		}): Promise<ListGatesResponse> {
 			const rows = deps.gatesRepo.list(params);
+			const gates = await Promise.all(
+				rows.map(async (row) =>
+					rowToGateDto(row, await resolveGateContext(row, params?.agentService)),
+				),
+			);
 			return Object.freeze({
-				gates: rows.map(rowToGateDto),
+				gates,
 			});
 		},
 

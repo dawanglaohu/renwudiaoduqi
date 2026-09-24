@@ -125,6 +125,8 @@ export const RUN_TRANSITION_REASONS = {
 	BUGHUNT_REREVIEW: 'bughunt_rereview',
 	// E-321
 	BUGHUNT_CLEAN: 'bughunt_clean',
+	// E-348
+	EXITED_BEFORE_OUTPUT: 'exited_before_output',
 } as const;
 
 export type RunTransitionReason =

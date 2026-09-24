@@ -230,15 +230,25 @@ describe('M8-T4 Settings & Gates Configuration (AC 1, AC 2, E-53, E-56, E-292)',
 			const { service, repo } = createTestSettingsService();
 
 			// Missing row -> default
-			expect(service.getPipeline()).toEqual({ bughunt: 0, wrapupMode: 'auto' });
+			expect(service.getPipeline()).toEqual({
+				bughunt: 0,
+				wrapupMode: 'auto',
+				reviewOverride: null,
+				wrapupAssignment: { mode: 'follow' },
+			});
 
-			// Valid row
+			// Valid row (legacy 2-key row supplemented on read)
 			repo.set(
 				'pipeline',
 				JSON.stringify({ bughunt: 1, wrapupMode: 'manual' }),
 				'2026-09-12T12:00:00.000Z',
 			);
-			expect(service.getPipeline()).toEqual({ bughunt: 1, wrapupMode: 'manual' });
+			expect(service.getPipeline()).toEqual({
+				bughunt: 1,
+				wrapupMode: 'manual',
+				reviewOverride: null,
+				wrapupAssignment: { mode: 'follow' },
+			});
 		});
 	});
 });
