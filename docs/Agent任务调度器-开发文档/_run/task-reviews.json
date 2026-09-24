@@ -1230,13 +1230,21 @@
     "verdict": "pass"
   },
   "M9-T27": {
-    "compiler": "8c9d4dc41f0a61e8ff6dcb831ead46cf649c314ccee8ede42dd395879c04502a",
-    "contractHash": "6bb6cca09c01d2b40e5283b7a5bd4c4748d14ee97f3f02e1aaabce4013d43b85",
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "67d2366a97cbb2e785942dac820d3eff595e647dc8a672432a783ba6a5ec4eac",
     "evidence": [
-      "补丁 e176-font-weights-20260922 只改 13 节 E-176 一行：「常规 + 一个强调档」改为「以 11 节字体表定的字重集合为准，当前两族各 400 / 500 / 600 三档」；patches/e176-font-weights-20260922.json 的 changes.before/after 逐字段比对，本任务除 hash 外无任何 context 字段变化（只是前置任务契约哈希传播）。",
-      "本任务的验收条款、边界与有效路径逐条与补丁前一致；对本任务而言无需改代码或测试。"
+      "范围与任务：19 节新增 M9-T27 行（模块 M9、2 人天、依赖 M1-T10/M2-T2/M9-T24/M9-T25/M9-T26/M10-T4、边界 E-06/E-175/E-224/E-226/E-265），四条验收标准均可判真假；20 节人天 161.5→163.5、第六批 50→52、接线顺序插在 M8-T11 之后 M1-T11 之前；_MOC 与 AGENTS/CLAUDE 规模行同步为 108 任务。图谱/边界/E-06、E-175、E-224、E-226、E-265 五个笔记均存在。",
+      "缺陷事实：主干 e5084d7 上 packages/web/src/app/app.tsx:23 只注册 landing（文件头注释第 8 行自述「其余路径由 RouterView 保持占位」），packages/web/src/app/routes.tsx:287 已匹配 #/pair 并在 :110–:122 做 E-224 归一化，但 pages/ 目录只有 landing-page.tsx 与 settings-agents-page.tsx，没有 pair 页面；因此真浏览器看到 hash 占位是装配缺失而非路由匹配错误，与任务输入栏的诊断一致。",
+      "依赖与分层：pair-page.tsx 与 pairing-container.tsx 出现在开放 PR #118（M9-T25，状态 CONFLICTING）的文件列表中，契约 requires 正确指向 M9-T25/M9-T26，supportPaths 只登记 pair-page.tsx、pairing-container.tsx、bootstrap.ts、route-entries.test.tsx 四处支撑路径；M9-T27 排在第 14 层，M9-T25 在第 13 层，M1-T11 在第 15 层，依赖方向无环。前置 M1-T10、M2-T2、M9-T24、M9-T26、M10-T4 任务笔记均为 done，M9-T25 为 todo 属预期。",
+      "接口与契约：07 节 :195/:202 规定 #/pair 为七条扁平 hash 路由之一且唯一免守卫；10 节 :18 POST /api/v1/pair/claim 免鉴权、:69 配对码打印到控制台并写 pairing-code.txt、:139 一次性用后失效；08 节 :159 免鉴权白名单三条与 packages/daemon/src/http/plugins/30-auth.ts:10 的 AUTH_WHITELIST 一致。验收第 2 条「码用后失效、不得绕过配对」与 E-226「不得新增第四个免鉴权端点」直接对应，未新增接口。",
+      "有效路径：产出栏列 e2e/pairing-entry.test.ts、vitest.pairing.config.ts、根 smoke:pair 脚本与 playwright devDependency、Ubuntu CI job；仓库根当前无 e2e/ 目录、无 vitest.e2e.config.ts、根 package.json 无 e2e/smoke:pair 脚本与 playwright 依赖，均为新建，不与任何开放 PR 冲突。.github/workflows/desktop-ci.yml 已有 ubuntu-latest 矩阵项与 release-verification job，可挂配对冒烟 job。wiring 登记 frontendRoutes，与 06 节接线注册表分类一致。",
+      "验收阶段：验收第 4 条明确本任务不冒充 M1-T11 的导入/派发/SSE 主流程（E-265），第 3 条复用 M9-T24 已验证的 data-style-loaded 与 computed --page 断言，与 17 节端到端冒烟小节分工一致。本次只登记契约复核，不执行 --landed，不代替代码测试。",
+      "裁决记录：本任务是否保留为原任务还是改为 1.6.0 返工任务，已交 Jev（typesafe_ask.py run adjudicate，state 存 D:/opuent/output/m9-t27-20260921/jev-state.json）：line=adjudicate: pick=B(low 0.37) spec_change=no(0.20) outside_stack=no(0.21) needs_owner=no(0.10) reversible=yes(0.81) adopt=take(B)，model=jev-1.13.0。采纳 B：保留 M9-T27，撤回对历史收口记录 batch-9-20260921.md 的改动（1.6.0 规定旧记录不改，实测追记留待再收口新记录）；低置信记为风险。",
+      "图谱/任务/M9-T27.md 与 04-执行/19-模块任务拆分.md:117：核对六项已落地前置、四条验收、五个边界、前端路由注册点及 M1-T11 后续主流程范围；当前契约与派发包同一哈希。",
+      "03-质量/13-边界问题与异常处理.md:19,188,237,239,278 和 03-质量/17-测试策略.md:125-140：核对手填地址、同源字体、空 hash、自举码及三平台发布门禁的责任；本任务的独立配对冒烟不覆盖 M1-T11 的导入/派发/SSE 主流程。",
+      "packages/web/src/app/app.tsx:26-34 与 packages/web/src/app/routes.tsx:9-17,44-52：七路由组件表和唯一公开 pair 路由已在生产注册；本轮审查发现的失败凭据留痕及 PR 视觉证据问题属于代码验收返工，不改变任务定义。"
     ],
-    "reviewed": "2026-09-21T17:16:17.986557+00:00",
+    "reviewed": "2026-09-24T07:12:43.054771+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
