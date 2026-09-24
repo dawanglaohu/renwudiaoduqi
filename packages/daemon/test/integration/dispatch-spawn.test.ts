@@ -505,11 +505,13 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const expectedLaunchSpec = buildCodexLaunchSpec({
 			runId: postBody.run.id,
 			cwd: run?.worktree_path ?? '',
+			mode: 'exec',
 			model: 'gpt-5-preview; echo "hacked" &',
 			permissionTier: 'workspaceWrite',
 		});
 		expect(latestProc?.lastLaunchSpec.file).toBe(expectedLaunchSpec.file);
 		expect(latestProc?.lastLaunchSpec.args).toEqual(expectedLaunchSpec.args);
+		expect(latestProc?.lastLaunchSpec.stdinMode).toBe('closed');
 		expect(latestProc?.lastLaunchSpec.cwd).toBe(run?.worktree_path);
 
 		await server.instance.close();
@@ -628,10 +630,11 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		await new Promise((r) => setTimeout(r, 20));
 
 		proc1?.emitExit(0);
-		// Allow exit async handlers to settle
-		await new Promise((resolve) => setTimeout(resolve, 100));
-
-		const run1 = container1.repos.runs.findById(createRes1.run.id);
+		let run1 = container1.repos.runs.findById(createRes1.run.id);
+		for (let i = 0; i < 100 && (run1?.state !== 'exited' || getMechanicalCheckCalls() === 0); i++) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			run1 = container1.repos.runs.findById(createRes1.run.id);
+		}
 		expect(run1?.state).toBe('exited');
 		expect(getMechanicalCheckCalls()).toBe(1);
 
@@ -663,16 +666,23 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		);
 		await new Promise((r) => setTimeout(r, 20));
 		proc2?.emitExit(1);
-		await new Promise((resolve) => setTimeout(resolve, 100));
-
-		const run2 = container2.repos.runs.findById(createRes2.run.id);
+		let run2 = container2.repos.runs.findById(createRes2.run.id);
+		for (let i = 0; i < 100 && run2?.state !== 'exited'; i++) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			run2 = container2.repos.runs.findById(createRes2.run.id);
+		}
 		expect(run2?.state).toBe('exited');
 
 		// Check events.ndjson for run.exited with stderrTail
 		const eventsFile2 = join(tempDir2, 'runs', createRes2.run.id, 'events.ndjson');
-		const ndjson2 = readFileSync(eventsFile2, 'utf8');
-		const lines = ndjson2.split('\n').filter((l) => l.trim().length > 0);
-		const exitedEventLine = lines.find((l) => l.includes('"run.exited"'));
+		let exitedEventLine: string | undefined;
+		for (let i = 0; i < 100 && !exitedEventLine; i++) {
+			const lines = readFileSync(eventsFile2, 'utf8')
+				.split('\n')
+				.filter((l) => l.trim().length > 0);
+			exitedEventLine = lines.find((l) => l.includes('"run.exited"'));
+			if (!exitedEventLine) await new Promise((resolve) => setTimeout(resolve, 20));
+		}
 		expect(exitedEventLine).toBeDefined();
 		const parsedExited = JSON.parse(exitedEventLine ?? '{}');
 		expect(parsedExited.payload.exitCode).toBe(1);

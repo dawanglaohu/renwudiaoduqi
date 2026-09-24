@@ -939,9 +939,7 @@ detached
 				});
 				expect(rebuilt.isReused).toBe(true);
 				expect(rebuilt.branchName).toBe('task/M5-T1');
-				expect(realpathSync.native(rebuilt.worktreePath)).toBe(
-					realpathSync.native(prep1.worktreePath),
-				);
+				expect(realpathSync(rebuilt.worktreePath)).toBe(realpathSync(prep1.worktreePath));
 				const headBranch = await defaultRunner.run(
 					['rev-parse', '--abbrev-ref', 'HEAD'],
 					rebuilt.worktreePath,

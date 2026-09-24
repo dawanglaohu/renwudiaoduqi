@@ -17,17 +17,24 @@
  * - 甲板严禁出现横向滚动类名（check-forbidden 与 E-145）
  */
 
-import { Component, type ErrorInfo, type ReactNode, useCallback } from 'react';
+import type { BatchWrapupDto } from '@agent-scheduler/shared/api/batches';
+import type { LaneView } from '@agent-scheduler/shared/api/lanes';
+import type { RunDto } from '@agent-scheduler/shared/api/runs';
+import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
+import { type ReactNode, useCallback } from 'react';
+import { navigateTo } from '../../app/routes.tsx';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
 import { GateCard } from '../../components/gate-card.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
-import { StreamColumn } from '../../components/stream-column.tsx';
+import { LaneRunStrip } from '../../components/lane-run-strip.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
+import type { LaneStepItem } from './lane-steps-container.tsx';
+import { LanesContainer } from './lanes-container.tsx';
 import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
 import { MobilePaneSwitcher } from './mobile-pane-switcher.tsx';
 import { StopConfirmDialog } from './stop-confirm-dialog.tsx';
@@ -37,63 +44,6 @@ import { useBatchTree } from './use-batch-tree.ts';
 import { useGateCard } from './use-gate-card.ts';
 import { type UseRunDeckResult, isWaitingApproval } from './use-run-deck.ts';
 import { WrapupPanelContainer } from './wrapup-panel-container.tsx';
-
-/**
- * 单流异常隔离边界（07 节：每条运行流一个 ErrorBoundary，一条流崩了不许带走另外四条）。
- */
-interface StreamErrorBoundaryProps {
-	readonly laneNo: number;
-	readonly children: ReactNode;
-}
-
-interface StreamErrorBoundaryState {
-	readonly hasError: boolean;
-	readonly errorMessage?: string;
-}
-
-class StreamErrorBoundary extends Component<StreamErrorBoundaryProps, StreamErrorBoundaryState> {
-	override state: StreamErrorBoundaryState = { hasError: false };
-
-	static getDerivedStateFromError(error: unknown): StreamErrorBoundaryState {
-		return {
-			hasError: true,
-			errorMessage: error instanceof Error ? error.message : '未知运行流渲染异常',
-		};
-	}
-
-	override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-		console.error(
-			`[StreamErrorBoundary] 泳道 ${this.props.laneNo} 发生渲染异常:`,
-			error,
-			errorInfo,
-		);
-	}
-
-	override render(): ReactNode {
-		if (this.state.hasError) {
-			return (
-				<div
-					data-stream-error-fallback="true"
-					data-lane-no={this.props.laneNo}
-					className="flex flex-col items-center justify-center p-4 rounded-[14px] border border-[var(--down)] bg-[var(--bg)] text-[var(--down)] font-mono text-[12px] min-h-[200px]"
-				>
-					<span className="font-bold mb-1">泳道 {this.props.laneNo} 界面故障</span>
-					<span className="text-[11px] text-[var(--ink-3)] text-center">
-						{this.state.errorMessage}
-					</span>
-					<button
-						type="button"
-						onClick={() => this.setState({ hasError: false })}
-						className="mt-3 px-3 py-1 rounded-[6px] border border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-1)] hover:bg-[var(--border)] cursor-pointer text-[11px]"
-					>
-						重试重挂本流
-					</button>
-				</div>
-			);
-		}
-		return this.props.children;
-	}
-}
 
 /**
  * 就地审批卡（M9-T20 / R3, AC 4, E-278, E-117, E-113）。
@@ -212,12 +162,23 @@ export interface RunDeckViewProps extends UseRunDeckResult {
 	readonly wrapupPendingBatchIds?: ReadonlySet<string>;
 	/** 每批最近一次收口被拒的具名原因 */
 	readonly wrapupFailureByBatch?: ReadonlyMap<string, BatchWrapupFailureView>;
-	/** 闸门裁定回调（审批卡用） */
+	/** 错误信息（若为 '泳道数据不可用' 触发 E-333 展示） */
+	readonly error?: string | null;
+	/** 任务清单 */
+	readonly tasks?: readonly TaskDto[];
+	/** 运行清单 */
+	readonly runs?: readonly RunDto[];
+	/** 原始 LaneView 清单（若可用） */
+	readonly rawLanes?: readonly LaneView[];
+	readonly wrapups?: readonly BatchWrapupDto[];
+	/** 泳道步骤获取回调（R1） */
+	readonly getLaneSteps?: (laneNo: number, runId?: string | null) => readonly LaneStepItem[];
+	/** 审批决定回调（M9-T20 审批卡放行/拒绝） */
 	readonly onDecideGate?: (
 		gateId: string,
 		decision: 'pass' | 'reject',
 		comment?: string,
-	) => void | Promise<void>;
+	) => Promise<void> | void;
 }
 
 export function RunDeckView(props: RunDeckViewProps) {
@@ -237,6 +198,12 @@ export function RunDeckView(props: RunDeckViewProps) {
 		scrollToLane,
 		toolbarSlot,
 		className,
+		error,
+		tasks = [],
+		runs = [],
+		rawLanes,
+		wrapups,
+		getLaneSteps,
 
 		// 手机端能力（M9-T12）
 		activePane = 'stream',
@@ -284,6 +251,28 @@ export function RunDeckView(props: RunDeckViewProps) {
 	};
 
 	const streamCount = lanes.length;
+	// Keep the daemon's stage and archive fields alongside the deck's gate and wrapup data.
+	const pipelineLanes = rawLanes
+		? rawLanes.map((rawLane) => {
+				const deckLane = lanes.find((lane) => lane.laneNo === rawLane.laneNo);
+				return {
+					...rawLane,
+					...deckLane,
+					taskId: rawLane.taskId,
+					currentRunId: rawLane.currentRunId,
+					stage: rawLane.stage,
+					archivedTaskIds: rawLane.archivedTaskIds,
+					archivedWrapupRunId: rawLane.archivedWrapupRunId,
+					nextTaskId: rawLane.nextTaskId,
+					nextBlockedBy: rawLane.nextBlockedBy,
+					overLimit: rawLane.overLimit,
+					bodySlot: deckLane ? laneBodySlot(deckLane, tier, isTouch) : null,
+				};
+			})
+		: lanes.map((lane) => ({
+				...lane,
+				bodySlot: laneBodySlot(lane, tier, isTouch),
+			}));
 
 	// 纯消费 daemon 字段，未显式传入时由 useBatchTree 从快照拉取，前端绝不推导计算（R1, R2, R5）
 	const {
@@ -430,46 +419,17 @@ export function RunDeckView(props: RunDeckViewProps) {
 
 						{/* 手机运行条（--runstrip-h Token 高度）：单流全屏时常驻，显示当前泳道与 ◀ ▶ 切换器（11 节 UI / 决策 97） */}
 						{activePane === 'stream' && (
-							<div
-								data-lane-run-strip="true"
-								className="flex items-center justify-between gap-2 px-3 min-h-[var(--runstrip-h,44px)] h-[var(--runstrip-h,44px)] bg-[var(--panel-2)] border-b border-[var(--border)] font-ui text-[13px]"
-							>
-								<button
-									type="button"
-									data-action="prev-lane"
-									disabled={streamCount <= 1}
-									onClick={handlePrevMobileLane}
-									aria-label="查看上一条泳道"
-									className="min-h-[44px] min-w-[44px] h-[44px] w-[44px] rounded-[6px] text-[var(--ink-2)] hover:text-[var(--ink-1)] flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-								>
-									◀
-								</button>
-
-								<div className="flex items-center gap-2 min-w-0 px-1 truncate">
-									<span className="font-mono text-[12px] text-[var(--ink-3)] flex-shrink-0">
-										泳道 {activeMobileLaneNo}/{streamCount || 1}
-									</span>
-									<span className="font-mono font-semibold text-[var(--ink-1)] truncate">
-										{currentMobileLane?.taskKey ?? '—'}
-									</span>
-									{currentMobileLane?.title && (
-										<span className="text-[var(--ink-2)] truncate">
-											· {currentMobileLane.title}
-										</span>
-									)}
-								</div>
-
-								<button
-									type="button"
-									data-action="next-lane"
-									disabled={streamCount <= 1}
-									onClick={handleNextMobileLane}
-									aria-label="查看下一条泳道"
-									className="min-h-[44px] min-w-[44px] h-[44px] w-[44px] rounded-[6px] text-[var(--ink-2)] hover:text-[var(--ink-1)] flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-								>
-									▶
-								</button>
-							</div>
+							<LaneRunStrip
+								currentIndex={props.activeMobileLanePosition ?? 1}
+								totalLanes={streamCount || 1}
+								taskKey={currentMobileLane?.taskKey}
+								title={currentMobileLane?.title}
+								status={currentMobileLane?.status}
+								isIdle={currentMobileLane?.kind === 'idle'}
+								isWrapup={currentMobileLane?.kind === 'wrapup'}
+								onPrev={handlePrevMobileLane}
+								onNext={handleNextMobileLane}
+							/>
 						)}
 					</header>
 				) : (
@@ -579,49 +539,34 @@ export function RunDeckView(props: RunDeckViewProps) {
 									data-pane-view="stream"
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
 								>
-									{streamCount === 0 ? (
+									{streamCount === 0 && !error ? (
 										emptyConsole
-									) : currentMobileLane ? (
-										<StreamErrorBoundary laneNo={currentMobileLane.laneNo}>
-											<StreamColumn
-												laneNo={currentMobileLane.laneNo}
-												kind={currentMobileLane.kind}
-												laneId={currentMobileLane.id}
-												currentRunId={currentMobileLane.currentRunId}
-												taskKey={currentMobileLane.taskKey}
-												title={currentMobileLane.title}
-												wrapupRound={currentMobileLane.wrapupRound}
-												wrapupBatchNo={currentMobileLane.wrapupBatchNo}
-												status={currentMobileLane.status}
-												tier={tier}
-												isExpanded={true}
-												onStop={() =>
-													handleStopLane(
-														currentMobileLane.laneNo,
-														currentMobileLane.currentRunId,
-														currentMobileLane.taskKey,
-													)
-												}
-												isStopping={stoppingLanes.has(currentMobileLane.laneNo)}
-												agentMonogram={currentMobileLane.agentMonogram}
-												agentName={currentMobileLane.agentName}
-												modelName={currentMobileLane.modelName}
-												refSource={currentMobileLane.refSource}
-												duration={currentMobileLane.duration}
-												tokenCount={currentMobileLane.tokenCount}
-												cost={currentMobileLane.cost}
-												errorMessage={currentMobileLane.errorMessage}
-												isTouch={true}
-												bodySlot={laneBodySlot(currentMobileLane, tier, true)}
-												gateSlot={laneGateSlot(currentMobileLane, tier, true, onDecideGate)}
-												refBarSlot={currentMobileLane.refBarSlot}
-												footSlot={currentMobileLane.footSlot}
-											/>
-										</StreamErrorBoundary>
 									) : (
-										<div className="flex flex-col items-center justify-center p-8 text-center text-[var(--ink-3)] font-ui text-[13px] flex-1">
-											当前无可用泳道流
-										</div>
+										<LanesContainer
+											lanes={pipelineLanes}
+											tasks={tasks}
+											runs={runs}
+											wrapups={wrapups}
+											isUnavailable={error === '泳道数据不可用'}
+											errorMessage={error}
+											overrideTier={tier}
+											hideMobileRunStrip={true}
+											activeMobileLanePosition={props.activeMobileLanePosition}
+											activeMobileLaneNo={activeMobileLaneNo}
+											onPrevMobileLane={handlePrevMobileLane}
+											onNextMobileLane={handleNextMobileLane}
+											onOpenRun={(runId) => navigateTo(`#/run/${runId}`)}
+											onStopLane={(laneNo, runId) => {
+												const lane = lanes.find((l) => l.laneNo === laneNo);
+												void handleStopLane(laneNo, runId, lane?.taskKey);
+											}}
+											stoppingLanes={stoppingLanes}
+											renderApprovalSlot={(laneNo) => {
+												const lane = lanes.find((l) => l.laneNo === laneNo);
+												return lane ? laneGateSlot(lane, tier, true, onDecideGate) : null;
+											}}
+											getLaneSteps={getLaneSteps}
+										/>
 									)}
 								</div>
 							)}
@@ -715,64 +660,33 @@ export function RunDeckView(props: RunDeckViewProps) {
 									</button>
 								)}
 
-								{streamCount === 0 ? (
+								{streamCount === 0 && !error ? (
 									<div className="flex flex-col flex-1 p-4 overflow-y-auto">{emptyConsole}</div>
 								) : (
-									<div ref={scrollContainerRef} className={getDeckLayoutClass()}>
-										{lanes.map((lane) => {
-											const isColumnExpanded = expandedLaneNo === lane.laneNo;
-
-											return (
-												<div
-													key={lane.laneNo}
-													data-lane-deck-slot={lane.laneNo}
-													className={[
-														tier === 'full' && streamCount > 3
-															? 'flex-shrink-0 w-[380px] h-full'
-															: '',
-														isColumnExpanded ? 'col-span-full' : '',
-														'flex flex-col h-full min-h-[360px]',
-													]
-														.filter(Boolean)
-														.join(' ')}
-												>
-													<StreamErrorBoundary laneNo={lane.laneNo}>
-														<StreamColumn
-															laneNo={lane.laneNo}
-															kind={lane.kind}
-															laneId={lane.id}
-															currentRunId={lane.currentRunId}
-															taskKey={lane.taskKey}
-															title={lane.title}
-															wrapupRound={lane.wrapupRound}
-															wrapupBatchNo={lane.wrapupBatchNo}
-															status={lane.status}
-															tier={tier}
-															isExpanded={isColumnExpanded}
-															onToggleExpand={() => toggleExpandLane(lane.laneNo)}
-															onStop={() =>
-																handleStopLane(lane.laneNo, lane.currentRunId, lane.taskKey)
-															}
-															isStopping={stoppingLanes.has(lane.laneNo)}
-															agentMonogram={lane.agentMonogram}
-															agentName={lane.agentName}
-															modelName={lane.modelName}
-															refSource={lane.refSource}
-															duration={lane.duration}
-															tokenCount={lane.tokenCount}
-															cost={lane.cost}
-															errorMessage={lane.errorMessage}
-															isTouch={isTouch}
-															bodySlot={laneBodySlot(lane, tier, isTouch)}
-															gateSlot={laneGateSlot(lane, tier, isTouch, onDecideGate)}
-															refBarSlot={lane.refBarSlot}
-															footSlot={lane.footSlot}
-														/>
-													</StreamErrorBoundary>
-												</div>
-											);
-										})}
-									</div>
+									<LanesContainer
+										lanes={pipelineLanes}
+										tasks={tasks}
+										runs={runs}
+										wrapups={wrapups}
+										isUnavailable={error === '泳道数据不可用'}
+										errorMessage={error}
+										overrideTier={tier}
+										onOpenRun={(runId) => navigateTo(`#/run/${runId}`)}
+										onStopLane={(laneNo, runId) => {
+											const lane = lanes.find((l) => l.laneNo === laneNo);
+											void handleStopLane(laneNo, runId, lane?.taskKey);
+										}}
+										stoppingLanes={stoppingLanes}
+										renderApprovalSlot={(laneNo) => {
+											const lane = lanes.find((l) => l.laneNo === laneNo);
+											return lane ? laneGateSlot(lane, tier, isTouch, onDecideGate) : null;
+										}}
+										getLaneSteps={getLaneSteps}
+										expandedLaneNo={expandedLaneNo}
+										onToggleExpandLane={toggleExpandLane}
+										scrollContainerRef={scrollContainerRef}
+										layoutClassName={getDeckLayoutClass()}
+									/>
 								)}
 
 								{tier === 'full' && offScreenWaiting.right > 0 && (

@@ -655,6 +655,8 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
 		return buildCodexLaunchSpec({
 			runId: options.runId,
 			cwd: options.worktreePath,
+			execPath: options.execPath,
+			mode: 'exec',
 			model,
 			effortTier,
 			permissionTier,
@@ -746,6 +748,7 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
  * Input for preparing a round 1 review run (AC 1, AC 4, Decision 89, Decision 107, E-347).
  */
 export interface PrepareReviewRunInput {
+	readonly execPath?: string;
 	/**
 	 * Completed implementation run row or DTO being reviewed.
 	 */
@@ -927,6 +930,7 @@ export function prepareReviewRun(
 		runId,
 		taskId,
 		worktreePath,
+		execPath: input.execPath,
 		assignment,
 		prompt: promptResult.prompt,
 	});

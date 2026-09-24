@@ -739,6 +739,13 @@
     },
     "M9-T21": {
       "supportPaths": [
+        "packages/web/src/pages/deck-page.tsx",
+        "packages/web/src/features/run-deck/run-deck-container.tsx",
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-deck/use-run-deck.ts",
+        "packages/web/src/features/run-deck/types.ts",
+        "packages/web/test/lanes-container.test.tsx",
+        "packages/web/test/lanes-api.test.ts",
         "packages/web/src/api/cache-keys.ts",
         "packages/web/src/api/cache-invalidation.ts",
         "packages/web/src/store/selection-store.ts",
@@ -755,7 +762,19 @@
         "packages/web/test/cache-invalidation.test.ts",
         "packages/shared/src/api/lanes.ts",
         "packages/shared/src/api/snapshot.ts",
-        "packages/shared/src/api/events.ts"
+        "packages/shared/src/api/events.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/proc/spawn.ts",
+        "packages/daemon/src/adapters/codex/build-launch-spec.ts",
+        "packages/daemon/src/service/review-agent.ts",
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/test/integration/container-wiring.test.ts",
+        "packages/daemon/test/integration/dispatch-spawn.test.ts",
+        "packages/daemon/test/unit/codex-adapter.test.ts",
+        "packages/daemon/test/unit/proc.test.ts",
+        "packages/daemon/test/unit/review-agent.test.ts",
+        "packages/daemon/test/unit/worktree.test.ts"
       ],
       "sections": [
         1,

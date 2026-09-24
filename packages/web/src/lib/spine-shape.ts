@@ -701,3 +701,25 @@ function escapeXml(str: string): string {
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&apos;');
 }
+
+/**
+ * 返工回环片段配置（07 节 LOOP_PIECES）。
+ * 返工回环按行拆成片段画在 20px 轨列内，不占文字列，不跨行绝对定位。
+ */
+export interface SpineLoopPiece {
+	readonly above?: boolean;
+	readonly below?: boolean;
+	readonly hook?: boolean;
+}
+
+/**
+ * 返工回环片段标准常量（07 节 LOOP_PIECES，AC 3，E-307）。
+ */
+export const LOOP_PIECES = {
+	start: { below: true, hook: true },
+	intermediate: { above: true, below: true },
+	end: { above: true, hook: true },
+	top: { below: true, hook: true },
+	middle: { above: true, below: true },
+	bottom: { above: true, hook: true },
+} as const satisfies Record<string, SpineLoopPiece>;
