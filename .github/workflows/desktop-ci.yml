@@ -187,7 +187,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm --filter @agent-scheduler/shell-desktop tauri build --bundles "${{ matrix.bundles }}" --ci
+        run: pnpm --filter @agent-scheduler/shell-desktop tauri build --bundles "${{ matrix.bundles }}" --ci --verbose
 
       - name: Verify and Name Installer Assets (E-259, E-265)
         shell: bash
