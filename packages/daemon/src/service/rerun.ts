@@ -278,23 +278,40 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		checkTaskRemoved(task);
 		checkContractReady(task);
 
-		// AC 2 & E-177: Check if task already has an active run (intercept duplicate run)
+		// AC 2 & E-177 / AC 8 & E-348 / E-331: Check if task already has an active run (intercept duplicate run)
 		const active = runsRepo.findActiveByTaskId(task.id);
 		const isRetryableZeroOutputWait =
 			active?.id === previousRun.id &&
 			previousRun.state === 'awaiting_human' &&
-			previousRun.queued_reason === 'exited_before_output';
-		if (active && !isRetryableZeroOutputWait) {
+			(previousRun.queued_reason === 'exited_before_output' ||
+				deps.gatesRepo
+					?.list?.({ pendingOnly: true })
+					.some((g) => g.run_id === previousRun.id && g.comment === 'exited_before_output'));
+
+		const isRetryableBughuntWait =
+			previousRun.kind === 'bughunt' &&
+			(task.manual_state === 'awaiting_human' ||
+				deps.gatesRepo
+					?.list?.({ pendingOnly: true })
+					.some(
+						(g) =>
+							(g.run_id === previousRun.id || g.task_id === task.id) &&
+							g.comment === 'bughunt_failed',
+					));
+
+		if (active && !isRetryableZeroOutputWait && !isRetryableBughuntWait) {
 			return {
 				run: toRunDto(active),
 			};
 		}
 
-		// E-177 / M9-T13: Only terminal runs or awaiting_human with exited_before_output can be rerun
+		// E-177 / M9-T13 / AC 8 / E-331: Only terminal runs, awaiting_human with exited_before_output, or bughunt rerun can be rerun
 		if (
-			previousRun.state === 'starting' ||
-			previousRun.state === 'running' ||
-			previousRun.state === 'reviewing'
+			!isRetryableZeroOutputWait &&
+			!isRetryableBughuntWait &&
+			(previousRun.state === 'starting' ||
+				previousRun.state === 'running' ||
+				previousRun.state === 'reviewing')
 		) {
 			return {
 				run: toRunDto(previousRun),
@@ -337,8 +354,11 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			state: 'starting',
 			agent_id: previousRun.agent_id,
 			model_name: previousRun.model_name ?? null,
+			effort_tier: previousRun.effort_tier ?? null,
+			effort_vendor: previousRun.effort_vendor ?? null,
 			permission_tier: previousRun.permission_tier,
 			snapshot_id: previousRun.snapshot_id,
+			assignment_source: previousRun.assignment_source ?? null,
 			idempotency_key: idempotencyKey,
 			actor_device_id: input.actorDeviceId ?? null,
 			started_at: now,
@@ -352,6 +372,23 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			runsRepo.insert(runInsert);
 			if (isRetryableZeroOutputWait) {
 				deps.gatesRepo?.supersedePendingByRunIds?.([previousRun.id], now);
+			}
+			if (isRetryableBughuntWait && deps.gatesRepo) {
+				const pending = deps.gatesRepo.list({ pendingOnly: true });
+				const bughuntGates = pending.filter(
+					(g) =>
+						(g.run_id === previousRun.id || g.task_id === task.id) &&
+						g.comment === 'bughunt_failed',
+				);
+				for (const bg of bughuntGates) {
+					deps.gatesRepo.updateDecision(
+						bg.id,
+						'reject',
+						'superseded',
+						input.actorDeviceId ?? null,
+						now,
+					);
+				}
 			}
 		};
 

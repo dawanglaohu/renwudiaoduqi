@@ -1,3 +1,5 @@
+import type { EffortTier } from './agents.ts';
+
 export interface GateSettings {
 	readonly dispatch: 'auto' | 'manual';
 	readonly review: 'auto' | 'manual';
@@ -38,18 +40,43 @@ export interface UpdateGateSettingsResponse {
 	readonly gates: GateSettings;
 }
 
+export interface ReviewOverride {
+	readonly agentId: string;
+	readonly modelName?: string | null;
+	readonly effortTier?: EffortTier | null;
+}
+
+export interface WrapupAssignmentFollow {
+	readonly mode: 'follow';
+}
+
+export interface WrapupAssignmentFixed {
+	readonly mode: 'fixed';
+	readonly agentId: string;
+	readonly modelName?: string | null;
+	readonly effortTier?: EffortTier | null;
+}
+
+export type WrapupAssignment = WrapupAssignmentFollow | WrapupAssignmentFixed;
+
 export interface PipelineSettings {
 	readonly bughunt: 0 | 1;
 	readonly wrapupMode: 'auto' | 'manual';
+	readonly reviewOverride: ReviewOverride | null;
+	readonly wrapupAssignment: WrapupAssignment;
 }
 
 export interface UpdatePipelineSettingsBody {
 	readonly bughunt: 0 | 1;
 	readonly wrapupMode: 'auto' | 'manual';
+	readonly reviewOverride: ReviewOverride | null;
+	readonly wrapupAssignment: WrapupAssignment;
 }
 
 export const UPDATE_PIPELINE_SETTINGS_BODY_KEYS = [
 	'bughunt',
+	'reviewOverride',
+	'wrapupAssignment',
 	'wrapupMode',
 ] as const satisfies readonly (keyof UpdatePipelineSettingsBody)[];
 
@@ -63,10 +90,54 @@ const _assertUpdatePipelineSettingsBody: AssertUpdatePipelineSettingsBodyExhaust
 export const updatePipelineSettingsBodySchema = {
 	type: 'object',
 	additionalProperties: false,
-	required: ['bughunt', 'wrapupMode'],
+	required: ['bughunt', 'wrapupMode', 'reviewOverride', 'wrapupAssignment'],
 	properties: {
 		bughunt: { type: 'integer', enum: [0, 1] },
 		wrapupMode: { type: 'string', enum: ['auto', 'manual'] },
+		reviewOverride: {
+			anyOf: [
+				{ type: 'null' },
+				{
+					type: 'object',
+					additionalProperties: false,
+					required: ['agentId'],
+					properties: {
+						agentId: { type: 'string', minLength: 1, maxLength: 64 },
+						modelName: { type: ['string', 'null'], maxLength: 256 },
+						effortTier: {
+							type: ['string', 'null'],
+							enum: ['low', 'medium', 'high', null],
+						},
+					},
+				},
+			],
+		},
+		wrapupAssignment: {
+			anyOf: [
+				{
+					type: 'object',
+					additionalProperties: false,
+					required: ['mode'],
+					properties: {
+						mode: { type: 'string', const: 'follow' },
+					},
+				},
+				{
+					type: 'object',
+					additionalProperties: false,
+					required: ['mode', 'agentId'],
+					properties: {
+						mode: { type: 'string', const: 'fixed' },
+						agentId: { type: 'string', minLength: 1, maxLength: 64 },
+						modelName: { type: ['string', 'null'], maxLength: 256 },
+						effortTier: {
+							type: ['string', 'null'],
+							enum: ['low', 'medium', 'high', null],
+						},
+					},
+				},
+			],
+		},
 	},
 } as const;
 

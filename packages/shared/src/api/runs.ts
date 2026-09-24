@@ -1,4 +1,20 @@
-import type { EffortValue } from './agents.ts';
+import type { EffortTier, EffortValue } from './agents.ts';
+
+export type AssignmentResolutionSource =
+	| 'task'
+	| 'review_override'
+	| 'wrapup_settings'
+	| 'agent_default';
+
+export interface AssignmentSnapshot {
+	readonly agentId: string;
+	readonly modelName: string | null;
+	readonly effortTier: EffortTier | null;
+	readonly effortVendor: string | null;
+	readonly source: AssignmentResolutionSource;
+	readonly followedTaskId: string | null;
+	readonly capturedAt: string;
+}
 
 export const RUN_STATES = [
 	'queued',
@@ -236,12 +252,8 @@ export interface RunDto {
 	 */
 	readonly sessionNo?: number | null;
 	readonly promptSource?: 'docs' | 'builtin' | null;
-	readonly assignmentSource?:
-		| 'task'
-		| 'review_override'
-		| 'wrapup_settings'
-		| 'agent_default'
-		| null;
+	readonly assignmentSource?: AssignmentResolutionSource | null;
+	readonly followedTaskId?: string | null;
 	/**
 	 * Original review text kept when the verdict is `incomplete` (E-278). The approval card delivers
 	 * it verbatim into the implementation session, so it must reach the client uncut. `null` while the
