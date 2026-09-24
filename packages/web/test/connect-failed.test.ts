@@ -164,6 +164,36 @@ describe('M10-T6 AC 1: connect-failed screen', () => {
 		expect(onRetry).toHaveBeenCalledTimes(1);
 	});
 
+	it('keeps retrying the Web snapshot while the spawned daemon starts', async () => {
+		const invoke = vi.fn(async (_command: string) => 31338);
+		const { Screen, bridge } = await importTauriScreen(invoke);
+		const { reportFirstScreenFailure: reportTauriFailure } = await import(
+			'../src/app/bootstrap.ts'
+		);
+		let attempts = 0;
+		const onRetry = vi.fn(async () => {
+			attempts += 1;
+			if (attempts === 3) reportTauriFailure(null);
+		});
+		reportTauriFailure({
+			code: 'E_NETWORK',
+			requestId: null,
+			baseUrl: 'http://127.0.0.1:7817',
+			retry: onRetry,
+		});
+		render(
+			createElement(Screen, {
+				code: 'E_NETWORK',
+				onRetry,
+				launchService: () => bridge.launchService(),
+			}),
+		);
+
+		await click(document.querySelector('[data-testid="launch-service"]'));
+		await vi.waitFor(() => expect(onRetry).toHaveBeenCalledTimes(3), { timeout: 2000 });
+		expect(invoke.mock.calls.filter(([command]) => command === 'launch_service')).toHaveLength(1);
+	});
+
 	it('surfaces a failed launch inline and does not retry the snapshot', async () => {
 		const invoke = vi.fn(async (command: string) => {
 			if (command === 'launch_service') {

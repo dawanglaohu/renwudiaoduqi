@@ -157,9 +157,7 @@ export function useBatchTree(options: UseBatchTreeOptions = {}): UseBatchTreeRes
 							code,
 							requestId,
 							baseUrl,
-							retry: () => {
-								void fetchSnapshot();
-							},
+							retry: () => fetchSnapshot(),
 						});
 					}
 					setError(toBatchTreeError(cause));

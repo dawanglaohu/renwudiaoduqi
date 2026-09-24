@@ -40,7 +40,7 @@ export interface ConnectFailedScreenProps {
 	/** 三级发现解析出来的 baseUrl，照实显示，不猜 */
 	readonly baseUrl?: string | null;
 	/** 重拉首屏快照。由取数方提供，壳不代劳 */
-	readonly onRetry: () => void;
+	readonly onRetry: () => void | Promise<void>;
 	/** 注入点：默认走 `shellBridge.launchService()` */
 	readonly launchService?: () => Promise<LaunchServiceResult>;
 }
@@ -84,8 +84,13 @@ export function ConnectFailedScreen({
 			const result = await launch();
 			setLaunchedPid(result.pid);
 			setLaunchState('launched');
-			// 快照的重拉在 Web UI 这一侧：壳只负责把进程拉起来
-			onRetry();
+			// The native spawn returns before the daemon starts listening. Keep snapshot retries in
+			// the Web UI and stop as soon as the failure record is cleared by a successful fetch.
+			await onRetry();
+			for (let attempt = 1; attempt < 30 && getFirstScreenFailure(); attempt += 1) {
+				await new Promise((resolve) => setTimeout(resolve, 500));
+				await onRetry();
+			}
 		} catch (error: unknown) {
 			setLaunchState('failed');
 			setLaunchError(getLaunchErrorMessage(error));

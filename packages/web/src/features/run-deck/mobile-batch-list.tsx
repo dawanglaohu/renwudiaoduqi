@@ -313,9 +313,7 @@ export function useTasksSnapshot(fetcher: SnapshotFetcher = fetchSnapshot): Task
 					code,
 					requestId,
 					baseUrl,
-					retry: () => {
-						void refresh();
-					},
+					retry: () => refresh(),
 				});
 			}
 

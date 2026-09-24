@@ -50,7 +50,7 @@ export interface FirstScreenFailure {
 	readonly code: string;
 	readonly requestId: string | null;
 	readonly baseUrl: string;
-	readonly retry: () => void;
+	readonly retry: () => void | Promise<void>;
 }
 
 let currentFirstScreenFailure: FirstScreenFailure | null = null;
