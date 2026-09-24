@@ -192,13 +192,13 @@
   },
   "M10-T6": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "357f18beefd97d6f1c95514077fbeb250d1d256323839b8bf59ddb5ed21c369c",
+    "contractHash": "8372c641d5e502588e88f5eaf3b50f0f27295cc3544226264b96d1a7fcdd1408",
     "evidence": [
-      "2026-09-24 PR #134 R4: Windows full check failed at packages/daemon/test/unit/worktree.test.ts:942 because Git porcelain returns forward slashes while node:path.resolve creates backslashes for the same worktree. This is a test path-representation mismatch; the test still checks the rebuilt branch, committed file, and cleanup.",
-      "Added only packages/daemon/test/unit/worktree.test.ts to M10-T6 supportPaths for the final gate repair. The assertion compares node:path.resolve on both returned paths. The focused 26-test worktree file passes on Windows.",
-      "After sync, pnpm -w check exits 0 with error-code scan, contrast, forbidden-pattern scan, Biome, TypeScript, and Vitest all executed: 184 files passed, 2202 tests passed, 2 skipped. This passes the local and contract-patch checks only; final-head GitHub Windows, macOS, and Ubuntu desktop shell smoke is still required before R4 can pass."
+      "2026-09-25 PR #134: merged origin/main 58c5c9b5. M10-T6 task-contracts.json entry is byte-for-byte equivalent as parsed JSON to the previously reviewed branch entry; the new hash comes from updated shared documentation. Acceptance criteria 1-5 and edges E-04, E-146, E-200, E-224, E-257, E-265, E-266 remain unchanged in the task note.",
+      "The only product-code merge overlap is packages/web/src/i18n/error-messages.ts. The resolution retains M10-T6 SERVICE_NOT_RUNNING_TITLE, LAUNCH_SERVICE_FAILED_MESSAGE, and getLaunchErrorMessage, alongside M9-T20 delivery and wrapup messages. The M10-T6 supportPaths remain intact; generated handoff files were rebuilt from merged sources.",
+      "After this main sync, pnpm -w check executed error-code and contrast checks, forbidden-pattern scan, Biome, TypeScript, and Vitest: 189 test files passed, 2310 tests passed, 2 skipped. This verifies the local merged code and contract only. R3 native evidence must be recorded against the merged product, and R4 still requires final-head Windows, macOS, and Ubuntu GitHub desktop-ci shell smoke before task acceptance."
     ],
-    "reviewed": "2026-09-24T03:34:21.623697+00:00",
+    "reviewed": "2026-09-24T16:40:33.782717+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
