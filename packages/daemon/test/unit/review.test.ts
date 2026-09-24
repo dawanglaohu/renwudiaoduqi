@@ -1,13 +1,15 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { openDatabase } from '../../src/db/open-database.ts';
 import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
 import { RUN_TRANSITION_REASONS } from '../../src/domain/run-state-machine.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import type { LaunchSpec } from '../../src/proc/spawn.ts';
 import { createSqliteRunsAbortRepo } from '../../src/repo/runs-abort-repo.ts';
+import { createRunsRepo, toRunDto } from '../../src/repo/runs.ts';
 import {
 	COMMAND_FAILED_TAG,
 	COMMAND_NOT_FOUND_TAG,
@@ -1208,5 +1210,58 @@ describe('M7-T1: Mechanical Check Two Layers and Execution Directory (AC 1-4, E-
 			expect(evalResult.currentState).toBe('awaiting_human');
 			expect(evalResult.result.tag).toBe(EXIT_CODE_FAILED_TAG);
 		});
+	});
+});
+
+describe('M9-T20 E-278: unfinished review text reaches the run DTO', () => {
+	it('persists the complete review output and human handoff in the migrated database', async () => {
+		const db = openDatabase(':memory:');
+		try {
+			const migrationsDirectory = resolve('packages/daemon/migrations');
+			createMigrationRunner({
+				database: db,
+				clock: { now: () => '2026-09-24T00:00:00.000Z' },
+				fileSystem: {
+					readDirectory: (path) => readdirSync(path),
+					readFile: (path) => readFileSync(path, 'utf8'),
+				},
+			}).run(migrationsDirectory);
+			db.prepare(
+				"INSERT INTO documents (id, docs_path, project_name, content_fingerprint, imported_at, last_seen_at) VALUES ('doc-1', '/doc', 'project', 'hash', '2026-09-24', '2026-09-24')",
+			).run();
+			db.prepare(
+				"INSERT INTO tasks (id, doc_id, task_key, title, module_key, deps_json, contract_hash, contract_reasons_json) VALUES ('task-1', 'doc-1', 'M9-T20', 'review', 'M9', '[]', 'hash', '[]')",
+			).run();
+			db.prepare(
+				"INSERT INTO dispatch_snapshots (id, task_id, contract_hash, task_paths_json, launch_spec_json, created_at) VALUES ('snap-1', 'task-1', 'hash', '[]', '{}', '2026-09-24')",
+			).run();
+			db.prepare(
+				"INSERT INTO runs (id, task_id, attempt_no, kind, state, agent_id, permission_tier, snapshot_id) VALUES ('impl-1', 'task-1', 1, 'implement', 'reviewing', 'codex', 'workspaceWrite', 'snap-1')",
+			).run();
+			db.prepare(
+				"INSERT INTO runs (id, task_id, attempt_no, kind, parent_run_id, state, agent_id, permission_tier, snapshot_id) VALUES ('review-1', 'task-1', 2, 'review', 'impl-1', 'exited', 'codex', 'workspaceWrite', 'snap-1')",
+			).run();
+
+			const repo = createRunsRepo(db);
+			const raw = `VERDICT: rework\n返工全文 ${'边界细节。'.repeat(500)}`;
+			const service = createReviewService({
+				runsRepo: repo,
+				clock: { now: () => '2026-09-24T00:00:00.000Z' },
+			});
+			const result = await service.finalizeReviewRun({
+				reviewRunId: 'review-1',
+				verdict: 'incomplete',
+				outputText: raw,
+				reworkText: raw,
+			});
+			expect(result.action).toBe('awaiting_human');
+			expect(repo.findById('impl-1')?.state).toBe('awaiting_human');
+			const review = repo.findById('review-1');
+			expect(review?.review_verdict).toBe('incomplete');
+			expect(review?.rework_text).toBe(raw);
+			expect(review && toRunDto(review).reworkText).toBe(raw);
+		} finally {
+			db.close();
+		}
 	});
 });

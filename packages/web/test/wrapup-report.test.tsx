@@ -21,6 +21,7 @@ import type {
 import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
+import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { act, createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -34,6 +35,7 @@ import {
 	formatFindingSummary,
 	isDeclaredVerdictMismatch,
 } from '../src/components/wrapup-report.tsx';
+import { mapSnapshotToBatches } from '../src/features/run-deck/batch-expansion.ts';
 import {
 	type BuildDeckLanesInput,
 	buildDeckLanes,
@@ -419,6 +421,19 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 			);
 		});
 
+		it('disables every pending batch when two wrapup requests overlap', () => {
+			const html = renderToStaticMarkup(
+				createElement(BatchTree, {
+					batches: [...batches, { id: 'batch-14', batchNo: 14, canWrapup: true }],
+					expandedIds: new Set<string>(),
+					densityTier: 'full',
+					wrapupPendingBatchIds: new Set(['batch-13', 'batch-14']),
+				}),
+			);
+			expect(html.match(/data-pending="true"/g)).toHaveLength(2);
+			expect(html.match(/disabled=""/g)).toHaveLength(2);
+		});
+
 		it('renders the named failure line under the batch title in the tree', () => {
 			const failure = toWrapupFailureView(
 				new ApiError({
@@ -692,6 +707,54 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 	// R1 & E-297：收口运行占一条普通泳道，头部写轮次与批次号
 	// ─────────────────────────────────────────────────────────────────────────────
 	describe('R1 & E-297: buildDeckLanes maps the daemon lane list (E-317)', () => {
+		it('keeps a completed wrapup row after its active lane is released', () => {
+			const snapshot: SnapshotResponse = {
+				documents: [],
+				batches: [
+					{
+						id: 'batch-13',
+						docId: 'doc-1',
+						batchNo: 13,
+						state: 'done',
+						startedAt: null,
+						finishedAt: null,
+					},
+				],
+				tasks: [],
+				runs: [
+					makeRun({
+						id: 'run-wrapup-1',
+						kind: 'wrapup',
+						taskId: null,
+						batchId: 'batch-13',
+						state: 'exited',
+					}),
+				],
+				gates: [],
+				agents: [],
+				lanes: [],
+				latestEventId: null,
+			};
+			const batches = mapSnapshotToBatches(snapshot, new Map([['run-wrapup-1', 2]]));
+			expect(batches[0]?.wrapupRow).toMatchObject({
+				runId: 'run-wrapup-1',
+				round: 2,
+				state: 'exited',
+			});
+			const html = renderToStaticMarkup(
+				createElement(BatchTree, {
+					batches,
+					expandedIds: new Set(['batch-13']),
+					densityTier: 'full',
+					renderWrapupPanel: (batchId) =>
+						createElement('span', { 'data-report-for': batchId }, '真实报告入口'),
+				}),
+			);
+			expect(html).toContain('data-wrapup-row="true"');
+			expect(html).toContain('批次收口 · 第 2 轮');
+			expect(html).toContain('data-slot="batch-wrapup-panel"');
+			expect(html).toContain('data-report-for="batch-13"');
+		});
 		const lane = (over: Partial<LaneView> = {}): LaneView => ({
 			laneNo: 1,
 			taskId: null,
@@ -826,6 +889,40 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 			expect(reviewLane?.gateId).toBe('gate-9');
 		});
 
+		it('keeps the unfinished review card when the daemon lane points back to its implementation run', () => {
+			const lanes = buildDeckLanes({
+				lanes: [
+					lane({ laneNo: 1, taskId: 'task-20', currentRunId: 'run-impl-1', stage: 'review' }),
+				],
+				runs: [
+					makeRun({
+						id: 'run-impl-1',
+						kind: 'implement',
+						taskId: 'task-20',
+						state: 'awaiting_human',
+						capabilities: { canReply: true, canResume: true },
+					}),
+					makeRun({
+						id: 'run-review-1',
+						kind: 'review',
+						taskId: 'task-20',
+						parentRunId: 'run-impl-1',
+						state: 'exited',
+						reviewVerdict: 'incomplete',
+						reworkText: '原文逐字保留',
+						attemptNo: 2,
+					}),
+				],
+				tasks: [makeTask()],
+				gates: [makeGate({ id: 'gate-impl-1', runId: 'run-impl-1' })],
+			});
+			expect(lanes[0]?.gateId).toBe('gate-impl-1');
+			expect(lanes[0]?.reviewVerdict).toBe('incomplete');
+			expect(lanes[0]?.reworkText).toBe('原文逐字保留');
+			expect(lanes[0]?.deliverTargetRunId).toBe('run-impl-1');
+			expect(lanes[0]?.deliverTargetCanReply).toBe(true);
+		});
+
 		it('leaves the capability bit null when the daemon did not send it (不猜能力)', () => {
 			const lanes = buildDeckLanes({
 				lanes: [
@@ -905,11 +1002,9 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 
 		it('composes a copyable command without executing anything (复制而不执行)', () => {
 			expect(composeBatchLandingCommand('D:/wt/batch-13', 'batch/13-20260920')).toBe(
-				'cd "D:/wt/batch-13" && gh stack push',
+				'gh stack push',
 			);
-			expect(composeBatchLandingCommand(null, 'task/M9-T20')).toBe(
-				'git push -u origin "task/M9-T20"',
-			);
+			expect(composeBatchLandingCommand(null, 'task/M9-T20')).toBe('gh stack push');
 			expect(composeBatchLandingCommand(null, null)).toBe('gh stack push');
 		});
 
@@ -944,9 +1039,7 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 			expect(html).toContain('✓ 已进 HEAD');
 			expect(html).toContain('data-in-head="false"');
 			expect(html).toContain('未进 HEAD');
-			expect(html).toContain(
-				'cd &quot;D:/xiangmu/agent-scheduler-batch-13&quot; &amp;&amp; gh stack push',
-			);
+			expect(html).toContain('gh stack push');
 			expect(html.match(/data-copy-token="batch-landing:/g)?.length).toBe(2);
 			expect(html).toContain('复制而不执行');
 		});

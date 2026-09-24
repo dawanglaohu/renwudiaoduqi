@@ -176,6 +176,7 @@ export interface RunDeckProps {
 	readonly onOpenWrapupRun?: (runId: string, batchId: string) => void;
 	/** 正在收口的批次 ID（该批按钮禁用，等 batch.wrapup_started 回流） */
 	readonly wrapupPendingBatchId?: string | null;
+	readonly wrapupPendingBatchIds?: ReadonlySet<string>;
 	/** 每批最近一次收口被拒的具名原因（贴在批次标题下） */
 	readonly wrapupFailureByBatch?: ReadonlyMap<string, BatchWrapupFailureView>;
 	/**

@@ -54,6 +54,7 @@ function findRouteByTypes(
 const SNAPSHOT_ROUTE = findRouteByTypes('GET', { resType: 'SnapshotResponse' });
 const RUNS_ROUTE = findRouteByTypes('GET', { resType: 'ListRunsResponse' });
 const GATES_ROUTE = findRouteByTypes('GET', { resType: 'ListGatesResponse' });
+const BATCH_WRAPUPS_ROUTE = findRouteByTypes('GET', { resType: 'GetBatchWrapupsResponse' });
 const DECIDE_GATE_ROUTE = findRouteByTypes('POST', { reqType: 'DecideGateBody' });
 
 /** 收口报告面板取数实现（单测注入）。 */
@@ -87,9 +88,22 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
 	const batchById = new Map(batches.map((batch) => [batch.id, batch]));
 	const runById = new Map(runs.map((run) => [run.id, run]));
+	const latestReviewByParent = new Map<string, RunDto>();
+	for (const candidate of runs) {
+		if (candidate.kind !== 'review' || !candidate.parentRunId) continue;
+		const previous = latestReviewByParent.get(candidate.parentRunId);
+		if (!previous || candidate.attemptNo > previous.attemptNo) {
+			latestReviewByParent.set(candidate.parentRunId, candidate);
+		}
+	}
 	const gateByRunId = new Map<string, GateDto>();
 	for (const gate of gates) {
-		if (gate.runId && gate.state === 'waiting' && !gateByRunId.has(gate.runId)) {
+		if (
+			gate.runId &&
+			gate.kind === 'review' &&
+			gate.state === 'waiting' &&
+			!gateByRunId.has(gate.runId)
+		) {
 			gateByRunId.set(gate.runId, gate);
 		}
 	}
@@ -99,8 +113,10 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 		const task = lane.taskId ? (taskById.get(lane.taskId) ?? null) : null;
 		const batchId = task?.batchId ?? run?.batchId ?? null;
 		const batch = batchId ? (batchById.get(batchId) ?? null) : null;
-		// 审查留「未结构化」时，原文要投回被审的实施会话（E-278）
-		const targetRun = run?.parentRunId ? (runById.get(run.parentRunId) ?? null) : null;
+		// daemon 的泳道在审查行退出后会回指实施行；原文仍在最新审查行上。
+		const reviewRun =
+			run?.kind === 'review' ? run : run ? (latestReviewByParent.get(run.id) ?? null) : null;
+		const targetRun = reviewRun?.parentRunId ? (runById.get(reviewRun.parentRunId) ?? null) : null;
 
 		return Object.freeze({
 			laneNo: lane.laneNo,
@@ -115,11 +131,13 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 			batchId,
 			wrapupRound: run ? (wrapupRoundByRunId?.get(run.id) ?? null) : null,
 			wrapupBatchNo: batch?.batchNo ?? null,
-			gateId: run ? (gateByRunId.get(run.id)?.id ?? null) : null,
-			deliverTargetRunId: run?.parentRunId ?? null,
+			gateId: run
+				? (gateByRunId.get(run.id)?.id ?? gateByRunId.get(reviewRun?.id ?? '')?.id ?? null)
+				: null,
+			deliverTargetRunId: targetRun?.id ?? null,
 			deliverTargetCanReply: targetRun?.capabilities?.canReply ?? null,
-			reworkText: run?.reworkText ?? null,
-			reviewVerdict: run?.reviewVerdict ?? null,
+			reworkText: reviewRun?.reworkText ?? null,
+			reviewVerdict: reviewRun?.reviewVerdict ?? null,
 			agentName: run?.agentId,
 			modelName: run?.modelName ?? undefined,
 			needsApproval: run?.state === 'awaiting_human',
@@ -141,7 +159,7 @@ const INITIAL_REMOTE: RemoteDeckData = Object.freeze({
 
 export function RunDeckContainer(props: RunDeckProps) {
 	const deckState = useRunDeck(props);
-	const { pendingBatchId, failureByBatch } = useBatchWrapupOverview();
+	const { pendingBatchId, pendingBatchIds, failureByBatch } = useBatchWrapupOverview();
 
 	const [remote, setRemote] = useState<RemoteDeckData>(INITIAL_REMOTE);
 	const hasLocalLanes = props.lanes.length > 0;
@@ -155,6 +173,26 @@ export function RunDeckContainer(props: RunDeckProps) {
 				httpClient.callRoute<{ runs: readonly RunDto[] }>(RUNS_ROUTE),
 				httpClient.callRoute<ListGatesResponse>(GATES_ROUTE),
 			]);
+			// 完成的收口运行已离开活动泳道；从 daemon 持久记录恢复轮次，刷新后批次树仍有报告入口。
+			const wrapupBatchIds = [
+				...new Set(
+					runsResponse.runs
+						.filter(
+							(run) => run.kind === 'wrapup' && run.batchId && !wrapupRoundsRef.current.has(run.id),
+						)
+						.map((run) => run.batchId as string),
+				),
+			];
+			await Promise.allSettled(
+				wrapupBatchIds.map(async (batchId) => {
+					const response = await httpClient.callRoute<GetBatchWrapupsResponse>(
+						BATCH_WRAPUPS_ROUTE,
+						{ params: { batchId } },
+					);
+					for (const wrapup of response.wrapups)
+						wrapupRoundsRef.current.set(wrapup.runId, wrapup.round);
+				}),
+			);
 			setRemote({
 				lanes: buildDeckLanes({
 					// 泳道列表只有 daemon 这一个来源（M8-T8 / E-317）；没有它就渲染空甲板而不自己分泳道
@@ -166,7 +204,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 					gates: gatesResponse.gates,
 					wrapupRoundByRunId: wrapupRoundsRef.current,
 				}),
-				batches: mapSnapshotToBatches(snapshot),
+				batches: mapSnapshotToBatches(snapshot, wrapupRoundsRef.current, runsResponse.runs),
 				error: null,
 			});
 		} catch (cause: unknown) {
@@ -244,6 +282,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				onWrapup={props.onWrapup ?? startWrapup}
 				onOpenWrapupRun={props.onOpenWrapupRun ?? openWrapupRun}
 				wrapupPendingBatchId={props.wrapupPendingBatchId ?? pendingBatchId}
+				wrapupPendingBatchIds={props.wrapupPendingBatchIds ?? pendingBatchIds}
 				wrapupFailureByBatch={props.wrapupFailureByBatch ?? failureByBatch}
 				onDecideGate={props.onDecideGate ?? decideGate}
 			/>

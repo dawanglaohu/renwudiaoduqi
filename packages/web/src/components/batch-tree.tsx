@@ -22,7 +22,7 @@
 
 import type { BatchDto } from '@agent-scheduler/shared/api/batches';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import type { KeyboardEvent, MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { pulseForRun } from '../lib/run-pulse.ts';
 import { PulseDot } from './pulse-dot.tsx';
 import { StatusBadge } from './status-badge.tsx';
@@ -120,10 +120,13 @@ export interface BatchTreeProps {
 	 * 该批的「收口」按钮禁用，其余批不受影响（E-157）。
 	 */
 	readonly wrapupPendingBatchId?: string | null;
+	readonly wrapupPendingBatchIds?: ReadonlySet<string>;
 	/** 每批最近一次收口被拒的具名原因，贴在该批标题行之下（E-157） */
 	readonly wrapupFailureByBatch?: ReadonlyMap<string, BatchWrapupFailureView>;
 	/** 点击收口运行行回调 */
 	readonly onOpenWrapupRun?: (runId: string, batchId: string) => void;
+	/** 已有收口运行的批次在展开时显示真实报告面板。 */
+	readonly renderWrapupPanel?: (batchId: string) => ReactNode;
 	/** 外部自定义类名 */
 	readonly className?: string;
 }
@@ -238,7 +241,9 @@ export function BatchTree({
 	onSelectTask,
 	onWrapup,
 	onOpenWrapupRun,
+	renderWrapupPanel,
 	wrapupPendingBatchId = null,
+	wrapupPendingBatchIds,
 	wrapupFailureByBatch,
 	className = '',
 }: BatchTreeProps) {
@@ -375,7 +380,8 @@ export function BatchTree({
 		>
 			{batches.map((batch) => {
 				const isExpanded = expandedIds.has(batch.id);
-				const isWrapupPending = wrapupPendingBatchId === batch.id;
+				const isWrapupPending =
+					wrapupPendingBatchIds?.has(batch.id) ?? wrapupPendingBatchId === batch.id;
 				const batchFailure = wrapupFailureByBatch?.get(batch.id) ?? null;
 				const hasWaiting = typeof batch.waitingCount === 'number' && batch.waitingCount > 0;
 				const hasCrossBatchFix = Boolean(batch.hasCrossBatchFix);
@@ -561,6 +567,11 @@ export function BatchTree({
 												—
 											</div>
 										</button>
+									</div>
+								)}
+								{batch.wrapupRow && renderWrapupPanel && (
+									<div data-slot="batch-wrapup-panel" className="px-2 py-2 overflow-x-auto">
+										{renderWrapupPanel(batch.id)}
 									</div>
 								)}
 

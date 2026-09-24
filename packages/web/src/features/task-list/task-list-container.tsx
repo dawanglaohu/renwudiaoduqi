@@ -12,7 +12,11 @@
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { useBreakpoint } from '../../hooks/use-breakpoint.ts';
-import { startBatchWrapup, useBatchWrapupOverview } from '../run-deck/wrapup-panel-container.tsx';
+import {
+	WrapupPanelContainer,
+	startBatchWrapup,
+	useBatchWrapupOverview,
+} from '../run-deck/wrapup-panel-container.tsx';
 import { useTaskList } from './use-task-list.ts';
 
 export interface TaskListContainerProps {
@@ -59,7 +63,7 @@ export function TaskListContainer(props: TaskListContainerProps) {
 	});
 
 	// 与运行甲板共用同一份批次收口状态（模块级 store，M9-T20 / E-157）
-	const { pendingBatchId, failureByBatch } = useBatchWrapupOverview();
+	const { pendingBatchId, pendingBatchIds, failureByBatch } = useBatchWrapupOverview();
 
 	return (
 		<div className={['flex flex-col gap-3 w-full', className].filter(Boolean).join(' ')}>
@@ -82,7 +86,15 @@ export function TaskListContainer(props: TaskListContainerProps) {
 				onSelectTask={onSelectTask}
 				onWrapup={onWrapup ?? ((batchId) => void startBatchWrapup(batchId))}
 				onOpenWrapupRun={onOpenWrapupRun}
+				renderWrapupPanel={(batchId) => (
+					<WrapupPanelContainer
+						batchId={batchId}
+						tier={densityTier === 'single' ? viewport.tier : (densityTier ?? viewport.tier)}
+						isTouch={isTouch ?? viewport.isTouch}
+					/>
+				)}
 				wrapupPendingBatchId={pendingBatchId}
+				wrapupPendingBatchIds={pendingBatchIds}
 				wrapupFailureByBatch={failureByBatch}
 			/>
 		</div>

@@ -120,22 +120,13 @@ export interface BatchLandingList {
 }
 
 /**
- * 拼一条可复制命令：优先在该收口 worktree 里推栈分支（与 daemon 生成任务级落地命令用的
- * gh stack push 同一形态）；没有 worktree 时退回按分支显式 push；两者都缺时给裸命令。
- * 只生成文本，绝不执行（E-74）。
+ * 可复制的栈命令在清单所列 worktree 内执行。路径和分支单独显示，避免把来自
+ * daemon 的路径插进 shell 命令；缺路径时也绝不退化成普通 git push（E-74）。
  */
 export function composeBatchLandingCommand(
-	worktreePath: string | null | undefined,
-	branchName: string | null | undefined,
+	_worktreePath: string | null | undefined,
+	_branchName: string | null | undefined,
 ): string {
-	const hasWorktree = Boolean(worktreePath && worktreePath.length > 0);
-	const hasBranch = Boolean(branchName && branchName.length > 0);
-	if (hasWorktree) {
-		return `cd "${worktreePath}" && gh stack push`;
-	}
-	if (hasBranch) {
-		return `git push -u origin "${branchName}"`;
-	}
 	return 'gh stack push';
 }
 
@@ -421,6 +412,7 @@ if (typeof window !== 'undefined') {
 /** 批次树的收口总览：哪一批在途、各批的具名拒绝原因。 */
 export interface BatchWrapupOverview {
 	readonly pendingBatchId: string | null;
+	readonly pendingBatchIds: ReadonlySet<string>;
 	readonly failureByBatch: ReadonlyMap<string, BatchWrapupFailureView>;
 }
 
@@ -436,8 +428,10 @@ export function useBatchWrapupOverview(): BatchWrapupOverview {
 	return useMemo(() => {
 		void version;
 		let pendingBatchId: string | null = null;
+		const pendingBatchIds = new Set<string>();
 		const failureByBatch = new Map<string, BatchWrapupFailureView>();
 		for (const [batchId, entry] of entries) {
+			if (entry.isPending) pendingBatchIds.add(batchId);
 			if (entry.isPending && pendingBatchId === null) {
 				pendingBatchId = batchId;
 			}
@@ -445,7 +439,7 @@ export function useBatchWrapupOverview(): BatchWrapupOverview {
 				failureByBatch.set(batchId, entry.failure);
 			}
 		}
-		return { pendingBatchId, failureByBatch };
+		return { pendingBatchId, pendingBatchIds, failureByBatch };
 	}, [version]);
 }
 

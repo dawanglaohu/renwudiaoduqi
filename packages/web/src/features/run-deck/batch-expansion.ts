@@ -15,6 +15,7 @@
  */
 
 import type { BatchDto } from '@agent-scheduler/shared/api/batches';
+import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { type EventBus, eventBus } from '../../api/event-bus.ts';
@@ -24,14 +25,38 @@ import type { BatchTreeItem } from '../../components/batch-tree.tsx';
  * 将快照数据映射为 BatchTreeItem（R1, R5）。
  * 纯粹消费 daemon 原样字段，前端绝不推导、伪造计数或展开状态。
  */
-export function mapSnapshotToBatches(snapshot: SnapshotResponse): readonly BatchTreeItem[] {
+export function mapSnapshotToBatches(
+	snapshot: SnapshotResponse,
+	roundByRunId?: ReadonlyMap<string, number>,
+	runs: readonly RunDto[] = snapshot.runs ?? [],
+): readonly BatchTreeItem[] {
 	const rawBatches = (snapshot.batches ?? []) as readonly BatchDto[];
 	const rawTasks = (snapshot.tasks ?? []) as readonly TaskDto[];
+	const latestWrapupByBatch = new Map<string, RunDto>();
+	for (const run of runs) {
+		if (run.kind !== 'wrapup' || !run.batchId) continue;
+		const previous = latestWrapupByBatch.get(run.batchId);
+		if (!previous || run.attemptNo > previous.attemptNo) {
+			latestWrapupByBatch.set(run.batchId, run);
+		}
+	}
 
-	return rawBatches.map((b) => ({
-		...b,
-		tasks: rawTasks.filter((t) => t.batchId === b.id),
-	}));
+	return rawBatches.map((b) => {
+		const wrapup = latestWrapupByBatch.get(b.id);
+		const round = wrapup ? roundByRunId?.get(wrapup.id) : undefined;
+		return {
+			...b,
+			tasks: rawTasks.filter((t) => t.batchId === b.id),
+			wrapupRow: wrapup
+				? {
+						runId: wrapup.id,
+						state: wrapup.state,
+						round,
+						title: round ? `批次收口 · 第 ${round} 轮` : '批次收口',
+					}
+				: null,
+		};
+	});
 }
 
 /**

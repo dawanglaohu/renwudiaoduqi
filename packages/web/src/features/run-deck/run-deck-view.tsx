@@ -209,6 +209,7 @@ export interface RunDeckViewProps extends UseRunDeckResult {
 	readonly onOpenWrapupRun?: (runId: string, batchId: string) => void;
 	/** 正在收口的批次 ID（该批按钮禁用，等 batch.wrapup_started 回流） */
 	readonly wrapupPendingBatchId?: string | null;
+	readonly wrapupPendingBatchIds?: ReadonlySet<string>;
 	/** 每批最近一次收口被拒的具名原因 */
 	readonly wrapupFailureByBatch?: ReadonlyMap<string, BatchWrapupFailureView>;
 	/** 闸门裁定回调（审批卡用） */
@@ -263,6 +264,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		onWrapup,
 		onOpenWrapupRun,
 		wrapupPendingBatchId = null,
+		wrapupPendingBatchIds,
 		wrapupFailureByBatch,
 		onDecideGate,
 	} = props;
@@ -557,7 +559,15 @@ export function RunDeckView(props: RunDeckViewProps) {
 										onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
 										onWrapup={onWrapup}
 										onOpenWrapupRun={onOpenWrapupRun}
+										renderWrapupPanel={(batchId) =>
+											lanes.some(
+												(lane) => lane.kind === 'wrapup' && lane.batchId === batchId,
+											) ? null : (
+												<WrapupPanelContainer batchId={batchId} tier={tier} isTouch={isTouch} />
+											)
+										}
 										wrapupPendingBatchId={wrapupPendingBatchId}
+										wrapupPendingBatchIds={wrapupPendingBatchIds}
 										wrapupFailureByBatch={wrapupFailureByBatch}
 									/>
 								</div>
@@ -672,7 +682,15 @@ export function RunDeckView(props: RunDeckViewProps) {
 									onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
 									onWrapup={onWrapup}
 									onOpenWrapupRun={onOpenWrapupRun}
+									renderWrapupPanel={(batchId) =>
+										lanes.some(
+											(lane) => lane.kind === 'wrapup' && lane.batchId === batchId,
+										) ? null : (
+											<WrapupPanelContainer batchId={batchId} tier={tier} isTouch={isTouch} />
+										)
+									}
 									wrapupPendingBatchId={wrapupPendingBatchId}
+									wrapupPendingBatchIds={wrapupPendingBatchIds}
 									wrapupFailureByBatch={wrapupFailureByBatch}
 								/>
 							</aside>

@@ -1106,16 +1106,14 @@
     "verdict": "pass"
   },
   "M9-T19": {
-    "compiler": "477f5cd7c1230e69e61d653e3e3f728376a14da5d118f96b5bc01474638d354b",
+    "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
     "contractHash": "5fceee3dffa2dcbfacf3a7dc4ae33e9df02036b2e1756bf34b9a25b6dad514a7",
     "evidence": [
-      "2026-09-23 对照任务笔记六条验收与 E-13/E-272/E-282/E-284/E-298/E-299：批次树只消费 BatchDto/TaskDto，缺失计数显示 —，折叠后不创建子行；展开集为模块级 Set 且 batch.advanced 只增不减。对应 batch-tree.tsx、batch-expansion.ts、use-batch-tree.ts。",
-      "已落地 M8-T7 的 shared TaskDto 与 daemon docs/dispatch 投影提供 inHead、inHeadMethod、crossBatchFix；M8-T6 的 BatchDto/批次服务提供 canWrapup 与 notInHeadCount。M9-T19 不在前端猜这些字段。",
-      "M9-T25 七路由接线合入后，app.tsx 保留完整组件表并只装配一组 GateTogglesContainer；#/tasks 指向 TaskListContainer 与同一 BatchTree，phone/coarse pointer 传入 44px 档。配对页及无设备令牌时不挂闸门。",
-      "GET/PATCH /api/v1/settings/gates 均在 shared 路由表与 daemon gates.ts 注册；前端 PATCH 全量三值并等 settings.gates_changed 回流。PulseDot 被 spine 与批次树共用，RUN_PULSE 穷尽 13 态，base.css 唯一 keyframe 与 reduced-motion，check-forbidden 通过。",
-      "合并 origin/main 后 Windows pnpm -w check 零退出：177 个文件、2120 passed、3 skipped；Web 生产构建通过。之后手机任务路由调整的聚焦 route-entries/batch-tree 测试 20/20、Biome 与 TypeScript 通过。maintain_docs status 报 stale=[]、runtimeDrift=[]。"
+      "补丁同步曾短暂改动 M9-T19 的 supportPaths，现已恢复；当前 task-contracts.json 中 M9-T19 条目与 origin/main 完全相同，契约哈希仍是 5fceee3dffa2dcbfacf3a7dc4ae33e9df02036b2e1756bf34b9a25b6dad514a7。",
+      "对照当前 main 的 M9-T19 批次树与展开集代码；本轮只在 M9-T20 有效支持路径中增添收口运行行和报告槽，不改 M9-T19 的验收条款。",
+      "batch-tree.test.tsx 与 batch-expansion.test.ts 已复跑，23/23 通过。"
     ],
-    "reviewed": "2026-09-23T12:45:47.471559+00:00",
+    "reviewed": "2026-09-24T00:55:37.642565+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1133,15 +1131,16 @@
   },
   "M9-T20": {
     "compiler": "8baa5935a97ca6f370f1c15abd6462d0803751a98d373bce6509fb44c02a3cde",
-    "contractHash": "c0e1399a0980aa53559390b91675aba3b4dc0a83281ff8ff34b08ac44cfefaed",
+    "contractHash": "7a30636163ffa954a45fbd5715aa461b803753dded3387fb3983beae8b37eaf5",
     "evidence": [
-      "19 节 M9-T20 的五条验收标准和九条边界未降低；本补丁只改 task-contracts.json 的 supportPaths。",
-      "production wiring: batch-tree.tsx 现有标题按钮、run-deck-view.tsx 和 run-deck-container.tsx、types.ts 与 deck-page.tsx 纳入有效路径；task-list-container.tsx 和 landing-container.tsx 纳入现有两个页面的接线范围。",
-      "E-117 的 capabilities.canReply 目前仅在 daemon service/message.ts 内部，shared/api/runs.ts 与 daemon/http/routes/runs.ts 纳入有效路径，以便由真实服务提供客户端可见能力位；不得在 web 端猜测。",
-      "现有 gate-card.test.ts 和 stream-column.test.ts 是真实测试文件，supportPaths 从不存在的 .tsx 纠正为 .ts；wrapup-report.test.tsx 保持。",
-      "当前仅 PR #140 开放本层，M9-T21 尚无开放 PR；补丁标出的 M9-T21/M9-T22/M9-T23 为待复核契约，不宣称其已实现或通过。"
+      "验收 1-5 与 E-106/E-113/E-117/E-157/E-236/E-278/E-286/E-297/E-74 未降低；补丁仅补真实审查原文持久化、完成态报告入口、安全栈命令及迁移测试。",
+      "有效路径增加 batch-expansion.ts、review.ts、runs.ts、0011_review_rework_text.sql、review.test.ts 和 database.test.ts；其余生产接线、共享契约与测试路径保留。",
+      "收口运行退出后仍在批次树出现，报告容器可从展开批次访问；真实收口记录恢复轮次，活动收口继续占普通泳道。",
+      "审查运行保存 review_verdict 与 rework_text，全量文本通过 RunDto 下发，甲板由实施运行关联最新审查子运行；目标 canReply 仍来自实施运行。",
+      "按批在途集合分别禁用两批的按钮；批次命令只复制 gh stack push，路径和分支单独显示。",
+      "新增迁移使 database.test.ts 的版本清单同步更新；集成测试隔离运行 18/18 通过。"
     ],
-    "reviewed": "2026-09-23T15:51:44.587497+00:00",
+    "reviewed": "2026-09-24T01:06:10.656567+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

@@ -11,6 +11,7 @@ export interface RunRow {
 	readonly parent_run_id: string | null;
 	readonly state: string;
 	readonly review_verdict: string | null;
+	readonly rework_text?: string | null;
 	readonly agent_id: string;
 	readonly model_name: string | null;
 	readonly reported_model: string | null;
@@ -164,6 +165,11 @@ export interface RunsRepo {
 		readonly state?: string;
 		readonly reviewVerdict?: string | null;
 		readonly reworkText?: string | null;
+	}) => void;
+	readonly updateReviewResult?: (input: {
+		readonly id: string;
+		readonly verdict: RunDto['reviewVerdict'];
+		readonly reworkText: string | null;
 	}) => void;
 	readonly findActiveWrapupByBatchId?: (batchId: string) => RunRow | null;
 	readonly findLatestWrapupByBatchId?: (batchId: string) => RunRow | null;
@@ -362,6 +368,7 @@ export function toRunDto(row: RunRow): RunDto {
 		parentRunId: row.parent_run_id ?? null,
 		state: row.state as RunDto['state'],
 		reviewVerdict: (row.review_verdict as RunDto['reviewVerdict']) ?? null,
+		reworkText: row.rework_text ?? null,
 		agentId: row.agent_id,
 		modelName: row.model_name ?? null,
 		reportedModel: row.reported_model ?? null,
@@ -416,6 +423,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	let hasBranchTipSha = false;
 	let hasPromptSource = false;
 	let hasSessionNo = false;
+	let hasReworkText = false;
 	try {
 		const tableInfo = db.prepare<[], { name: string }>('PRAGMA table_info(runs)').all();
 		hasSessionArchivedAt = tableInfo.some((col) => col.name === 'session_archived_at');
@@ -432,6 +440,7 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 		hasBranchTipSha = tableInfo.some((col) => col.name === 'branch_tip_sha');
 		hasPromptSource = tableInfo.some((col) => col.name === 'prompt_source');
 		hasSessionNo = tableInfo.some((col) => col.name === 'session_no');
+		hasReworkText = tableInfo.some((col) => col.name === 'rework_text');
 	} catch {}
 
 	const baseInsertCols = [
@@ -500,6 +509,11 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 	const updateLastEventAtStmt = db.prepare(UPDATE_LAST_EVENT_AT_SQL);
 	const incrementUnmappedEventCountStmt = db.prepare(INCREMENT_UNMAPPED_EVENT_COUNT_SQL);
 	const updateReworkCountStmt = db.prepare(UPDATE_REWORK_COUNT_SQL);
+	const updateReviewResultStmt = db.prepare(
+		hasReworkText
+			? 'UPDATE runs SET review_verdict = @verdict, rework_text = @rework_text WHERE id = @id'
+			: 'UPDATE runs SET review_verdict = @verdict WHERE id = @id',
+	);
 	const updateReviewRoundStmt = db.prepare(UPDATE_REVIEW_ROUND_SQL);
 	const updateReviewRoundAndContinuationStmt = db.prepare(UPDATE_REVIEW_ROUND_AND_CONTINUATION_SQL);
 
@@ -940,6 +954,21 @@ export function createRunsRepo(db: DatabaseConnection): RunsRepo {
 				});
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update run rework count: ${input.id}`);
+			}
+		},
+		updateReviewResult(input: {
+			readonly id: string;
+			readonly verdict: RunDto['reviewVerdict'];
+			readonly reworkText: string | null;
+		}): void {
+			try {
+				updateReviewResultStmt.run(
+					hasReworkText
+						? { id: input.id, verdict: input.verdict, rework_text: input.reworkText }
+						: { id: input.id, verdict: input.verdict },
+				);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update review result for run: ${input.id}`);
 			}
 		},
 
