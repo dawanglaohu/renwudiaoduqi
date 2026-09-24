@@ -355,7 +355,7 @@ function mapItemCompleted(
 		case 'agent_message': {
 			if (typeof item.text === 'string' && item.text.length > 0) {
 				events.push(
-					createInput('agent_message_chunk', { chunk: item.text, vendor: parsed }, context),
+					createInput('agent_message_chunk', { chunk: `${item.text}\n`, vendor: parsed }, context),
 				);
 			}
 			break;

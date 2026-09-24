@@ -21,6 +21,7 @@ import {
 import { readCodexModels, readModels } from '../../src/adapters/codex/read-models.ts';
 import { EFFORT_TIERS } from '../../src/domain/effort-tier.ts';
 import { PERMISSION_TIERS } from '../../src/domain/permission-tier.ts';
+import { parseWrapupReport } from '../../src/domain/wrapup-report.ts';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const daemonSrc = resolve(__dirname, '../../src');
@@ -264,7 +265,15 @@ describe('M4-T8: codex 原生适配器', () => {
 		});
 
 		it('maps a completed exec agent message so wrapup reports reach the parser', () => {
-			const report = 'BATCH_SUMMARY\nDone\nTESTS\npass';
+			const report =
+				'BATCH_SUMMARY\nDone\nTESTS\npass\nBUGS\nnone\nFIXED\nnone\nNOT_FIXED\nnone\nSUSPECT\nnone\nRECORD\nverdict: clean\nNEXT\nDone';
+			const preface = mapCodexEvents(
+				JSON.stringify({
+					type: 'item.completed',
+					item: { id: 'msg-preface', type: 'agent_message', text: 'Tests passed.' },
+				}),
+				context,
+			);
 			const result = parseAndMapCodexLine(
 				JSON.stringify({
 					type: 'item.completed',
@@ -275,9 +284,12 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(result.events).toHaveLength(1);
 			expect(result.events[0]).toMatchObject({
 				kind: 'agent_message_chunk',
-				payload: { chunk: report },
+				payload: { chunk: `${report}\n` },
 				runId: 'run-test-1',
 			});
+			const text = `${preface[0]?.payload.chunk}${result.events[0]?.payload.chunk}`;
+			expect(text).toContain('Tests passed.\nBATCH_SUMMARY\n');
+			expect(parseWrapupReport(text).ok).toBe(true);
 			expect(result.unmappedCount).toBe(0);
 		});
 

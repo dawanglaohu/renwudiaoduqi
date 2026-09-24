@@ -12,7 +12,8 @@
         "新增迁移使 database.test.ts 的版本清单同步更新；集成测试隔离运行 18/18 通过。",
         "验收 1-5 与边界条款均未降低；新增的两个支持路径只覆盖真实 Codex 收口报告接入适配器及其回归测试。",
         "Codex exec --json 的最终八段报告出现在 item.completed 的 agent_message；适配器此前只映射 item.started，导致生产解析器收不到报告。",
-        "codex-adapter.test.ts 新增终结消息断言；定向 38 项、TypeScript 与 Biome 均通过。"
+        "codex-adapter.test.ts 新增终结消息断言；定向 38 项、TypeScript 与 Biome 均通过。",
+        "真实第二次收口的完整 clean 报告仍解析失败；事件文件证明独立 agent_message 紧贴相连。终结消息现以换行分隔，回归用例对前置说明加八段报告执行正式解析并通过。"
       ],
       "verdict": "pass"
     },
