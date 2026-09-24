@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
 	type DaemonLaunchSpec,
@@ -58,7 +58,7 @@ function collectTextFiles(dir: string): string[] {
 	const results: string[] = [];
 	for (const entry of readdirSync(dir)) {
 		const full = join(dir, entry);
-		const stat = statSync(full);
+		const stat = lstatSync(full);
 		if (stat.isDirectory()) {
 			results.push(...collectTextFiles(full));
 		} else if (/\.(json|js|mjs|ts|sh|cmd|bat|toml|yaml|yml|txt|conf)$/i.test(entry)) {

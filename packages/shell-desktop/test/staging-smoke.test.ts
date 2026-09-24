@@ -1,6 +1,14 @@
 import type { spawn } from 'node:child_process';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	cpSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -287,6 +295,25 @@ describe('M10-T5: installed product staging (AC 2, E-209, E-257)', () => {
 			expect(report.isClean).toBe(false);
 			// Paths are compared and reported separator-insensitively.
 			expect(report.violations[0]).toContain(builderRoot.replace(/\\/g, '/'));
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it('does not follow installer symlinks while checking build paths (E-209)', () => {
+		const root = makeTempRoot();
+		try {
+			const stageDir = join(root, 'stage');
+			const builderRoot = join(root, 'builder-checkout');
+			mkdirSync(stageDir);
+			writeFileSync(join(stageDir, 'config.json'), JSON.stringify({ path: builderRoot }));
+			symlinkSync(
+				stageDir,
+				join(stageDir, 'loop'),
+				process.platform === 'win32' ? 'junction' : 'dir',
+			);
+			const report = inspectBuildPathResidue(stageDir, [builderRoot]);
+			expect(report.violations).toHaveLength(1);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
