@@ -7,6 +7,7 @@
 	},
 	"scripts": {
 		"check": "node scripts/check-error-codes.mjs && node --no-warnings --experimental-strip-types packages/web/scripts/check-contrast.ts && node --no-warnings --experimental-strip-types packages/web/scripts/check-forbidden.ts && biome ci . && tsc -b --noEmit && vitest run",
+		"smoke:pair": "pnpm --filter @agent-scheduler/web build && vitest run --config vitest.pairing.config.ts",
 		"test": "vitest run",
 		"format": "biome format --write .",
 		"lint": "biome lint ."
@@ -14,6 +15,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@types/node": "^22.10.2",
+		"playwright": "^1.63.0",
 		"typescript": "^5.7.2",
 		"vitest": "^2.1.8"
 	},

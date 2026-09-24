@@ -2,3 +2,4 @@ node_modules/
 **/*.tsbuildinfo
 dist/
 *.log
+e2e/artifacts/
