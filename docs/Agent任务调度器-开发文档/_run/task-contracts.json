@@ -1529,6 +1529,7 @@
         "packages/web/test/route-entries.test.tsx",
         "packages/daemon/test/unit/worktree.test.ts",
         "packages/shell-desktop/scripts/build-daemon-distribution.mjs",
+        "packages/shell-desktop/src/bundle-staging.ts",
         "packages/shell-desktop/src/staging-smoke.ts",
         "packages/shell-desktop/test/staging-smoke.test.ts"
       ],

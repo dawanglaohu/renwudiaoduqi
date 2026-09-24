@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import type { InstalledProductLayout } from './artifact-staging.ts';
 import { DAEMON_ENTRY_FILE_NAME, resolveShippedDaemonLayout } from './launch-spec.ts';
@@ -38,12 +38,29 @@ function extractBundle(bundlePath: string, outputDir: string, platform: string):
 	const extension = bundlePath.toLowerCase();
 	if (extension.endsWith('.msi')) {
 		if (platform !== 'win32') throw new Error('An MSI bundle can only be expanded on Windows.');
-		executeCommand('msiexec.exe', [
+		const logPath = join(dirname(outputDir), 'msi-extraction.log');
+		const args = [
 			'/a',
 			resolve(bundlePath),
 			'/qn',
+			'/norestart',
 			`TARGETDIR=${resolve(outputDir)}`,
-		]);
+			'/L*V',
+			logPath,
+		];
+		const result = spawnSync('msiexec.exe', args, {
+			stdio: 'inherit',
+			shell: false,
+			timeout: 15 * 60_000,
+		});
+		if (result.error || result.status !== 0) {
+			const logTail = existsSync(logPath)
+				? readFileSync(logPath, 'utf8').split(/\r?\n/).slice(-30).join('\n')
+				: '(Windows Installer did not create a log)';
+			throw new Error(
+				`MSI expansion failed (${result.error?.message ?? `exit ${result.status}`}):\n${logTail}`,
+			);
+		}
 		return;
 	}
 
