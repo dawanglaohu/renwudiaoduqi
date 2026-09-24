@@ -263,6 +263,24 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(ev2?.runId).toBe('run-test-1');
 		});
 
+		it('maps a completed exec agent message so wrapup reports reach the parser', () => {
+			const report = 'BATCH_SUMMARY\nDone\nTESTS\npass';
+			const result = parseAndMapCodexLine(
+				JSON.stringify({
+					type: 'item.completed',
+					item: { id: 'msg-final', type: 'agent_message', text: report },
+				}),
+				context,
+			);
+			expect(result.events).toHaveLength(1);
+			expect(result.events[0]).toMatchObject({
+				kind: 'agent_message_chunk',
+				payload: { chunk: report },
+				runId: 'run-test-1',
+			});
+			expect(result.unmappedCount).toBe(0);
+		});
+
 		it('maps reasoning/thought chunks identically from app-server and exec --json', () => {
 			const appServerLine = JSON.stringify({
 				method: 'item/reasoning/textDelta',
