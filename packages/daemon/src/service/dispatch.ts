@@ -2372,11 +2372,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
 				prompt: runPrompt,
-				// E-279 / #136：返工新开的实施会话与收口修复一样，提示词必须真的进启动参数，
-				// 否则新会话收不到任何返工意见。codex 只有 exec 模式把提示词放进 argv。
-				...((run.origin === 'wrapup-fix' || run.origin === 'rework') && run.agent_id === 'codex'
-					? { mode: 'exec' }
-					: {}),
+				// Codex exec carries the frozen prompt in argv; app-server requires a separate
+				// thread/start handshake that this dispatch path does not perform.
+				...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
 			});
 
 			let managed: ManagedProcess;

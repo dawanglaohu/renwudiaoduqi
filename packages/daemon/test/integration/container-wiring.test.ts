@@ -209,6 +209,7 @@ function setupWiringEnvironment(
 		readonly spawnBehavior?: (spec: LaunchSpec) => 'ok' | 'throw' | 'exit-immediately';
 		/** 注册表里的每 agent 并发上限；容器与 tick 都读它（E-47）。默认 2。 */
 		readonly agentMaxConcurrency?: number;
+		readonly codexExecPath?: string;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-wiring-'));
@@ -262,6 +263,7 @@ function setupWiringEnvironment(
 			codex: Object.freeze({
 				...BUILT_IN_AGENT_DEFAULTS.codex,
 				maxConcurrency: codexMaxConcurrency,
+				execPath: overrides.codexExecPath ?? BUILT_IN_AGENT_DEFAULTS.codex.execPath,
 			}),
 		},
 	});
@@ -1009,7 +1011,7 @@ describe(
 		});
 
 		it('AC 2 & E-53 & E-57: Real container + fake process: exit 0 -> evaluateMechanicalCheck called -> kind=review inserted -> review verdict pass -> waiting gate -> POST decide -> landed by:human', async () => {
-			const env = setupWiringEnvironment();
+			const env = setupWiringEnvironment({ codexExecPath: '/opt/codex-custom' });
 			const { container, spawnedProcesses } = env;
 			const server = createHttpServer({ container });
 			await server.instance.ready();
@@ -1053,6 +1055,8 @@ describe(
 			expect(implProc).toBeDefined();
 			if (!implProc) return;
 			expect(implProc.launchSpec.runId).toBe(implRunId);
+			expect(implProc.launchSpec.file).toBe('/opt/codex-custom');
+			expect(implProc.launchSpec.args.slice(0, 2)).toEqual(['exec', '--json']);
 
 			// Implementation process emits output and exits cleanly with exitCode 0
 			implProc.emitLine(
