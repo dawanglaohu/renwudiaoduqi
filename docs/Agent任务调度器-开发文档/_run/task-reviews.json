@@ -1296,6 +1296,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R12-T32133721": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "450d3d05117cc01dfa6565a61df5a4f2d34cdeec5ab1e2101fefdfa4ceb49967",
+    "evidence": [
+      "定点补丁只将 E-329 基线修复必需的 workspace/in-head.ts、workspace/diff.ts 和各自单测列入 R12-T32133721 有效路径；batch-12-20260923.md 的原始 input、acceptance、edges、前置、严重级与 Jev 记录未改。",
+      "sync 后任务笔记有效路径与 batch 源围栏一致；status sourceVersion=ab2b60a69d38c4af249f3148ac4cc9d8a154536033f33411fee0ef520dc1290d，contractHash=450d3d05117cc01dfa6565a61df5a4f2d34cdeec5ab1e2101fefdfa4ceb49967，stale/runtimeDrift 均空。",
+      "原 PR #151 继续审查；这次 pass 仅登记契约范围复核，代码仍因 E-323/E-329/E-331/E-341 保持 rework，不能 --landed。"
+    ],
+    "reviewed": "2026-09-25T04:51:38.337733+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R13-T57054072": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
     "contractHash": "30dc3533cf17ad3009b8e4a3cae0a8e82368cc7ea78667b33c19876143e699b2",
