@@ -1299,20 +1299,22 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				details: { runId },
 			});
 		}
-		if (run.state !== 'awaiting_reply') {
+		if (run.state !== 'awaiting_reply' && run.state !== 'running') {
 			assertValidTransition(run.state, 'running', {
 				reason: details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED,
 			});
 		}
 		// 仅本次运行临时提升，绝不改写默认档位（不落库、结束失效、事件留痕）(E-133)
 		temporarilyElevatedRuns.add(runId);
-		const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
-		await transitionState({
-			runId,
-			targetState: 'running',
-			reason,
-			actorDeviceId: details?.actorDeviceId ?? null,
-		});
+		if (run.state === 'awaiting_reply') {
+			const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
+			await transitionState({
+				runId,
+				targetState: 'running',
+				reason,
+				actorDeviceId: details?.actorDeviceId ?? null,
+			});
+		}
 	}
 
 	async function isAwaitingReply(runId: string): Promise<boolean> {

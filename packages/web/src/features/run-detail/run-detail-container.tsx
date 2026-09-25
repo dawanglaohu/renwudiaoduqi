@@ -31,11 +31,14 @@ import { VirtualRows, type VirtualRowsHandle } from '../../components/virtual-ro
 import { useDensityTier } from '../../hooks/use-breakpoint.ts';
 import { MobileRerunBar } from './mobile-rerun-bar.tsx';
 import { RerunConfirmDialog } from './rerun-confirm-dialog.tsx';
-import { useLogWindow } from './use-log-window.ts';
+import { type PermissionBlockedInfo, useLogWindow } from './use-log-window.ts';
 import { useRunRerun } from './use-run-rerun.ts';
 
 const searchRunRoute = ROUTES.find(
 	(r) => r.method === 'GET' && r.path === '/api/v1/runs/:runId/search',
+);
+const createRunMessageRoute = ROUTES.find(
+	(r) => r.method === 'POST' && r.path === '/api/v1/runs/:runId/messages',
 );
 
 export interface RunDetailContainerProps {
@@ -53,6 +56,10 @@ export interface RunDetailContainerProps {
 	readonly taskKey?: string;
 	/** 是否强制使用手机端模式（可选覆盖） */
 	readonly isMobile?: boolean;
+	/** 权限受阻事件覆盖（供测试或上层显式指定，E-133） */
+	readonly permissionBlocked?: PermissionBlockedInfo | null;
+	/** 临时提升回调覆盖（供测试模拟，E-133） */
+	readonly onElevateOnce?: () => Promise<void> | void;
 }
 
 /**
@@ -66,6 +73,8 @@ export function RunDetailContainer({
 	run,
 	taskKey,
 	isMobile,
+	permissionBlocked: propPermissionBlocked,
+	onElevateOnce,
 }: RunDetailContainerProps) {
 	const virtualRef = useRef<VirtualRowsHandle | null>(null);
 	const [expandedIndices, setExpandedIndices] = useState<ReadonlySet<number>>(() => new Set());
@@ -123,8 +132,13 @@ export function RunDetailContainer({
 		[runId],
 	);
 
+	const [isElevating, setIsElevating] = useState(false);
+	const [isElevated, setIsElevated] = useState(false);
+	const [elevateError, setElevateError] = useState<string | null>(null);
+
 	const {
 		state,
+		permissionBlocked: windowPermissionBlocked,
 		isLoadingOlder,
 		isLoadingNewer,
 		loadOlder,
@@ -132,6 +146,37 @@ export function RunDetailContainer({
 		handleScroll,
 		handleResetUnread,
 	} = useLogWindow({ runId, isMobile: isMobileTier });
+
+	const effectivePermissionBlocked =
+		propPermissionBlocked !== undefined ? propPermissionBlocked : windowPermissionBlocked;
+
+	const handleElevateOnce = useCallback(async () => {
+		if (isElevating || isElevated) return;
+		setIsElevating(true);
+		setElevateError(null);
+		try {
+			if (onElevateOnce) {
+				await onElevateOnce();
+			} else if (createRunMessageRoute) {
+				await httpClient.callRoute(createRunMessageRoute, {
+					params: { runId },
+					body: { kind: 'elevate_once' },
+				});
+			}
+			setIsElevated(true);
+		} catch (err) {
+			const code = isApiError(err)
+				? err.code
+				: typeof (err as { code?: unknown })?.code === 'string'
+					? String((err as { code: unknown }).code)
+					: err instanceof Error
+						? err.message
+						: String(err);
+			setElevateError(code);
+		} finally {
+			setIsElevating(false);
+		}
+	}, [runId, isElevating, isElevated, onElevateOnce]);
 
 	// R1 (AC 3 / E-100): 贴底且尾部增长时自动跟随；isAtBottom 为 false 时绝不跳底。
 	// 审查方修正：增长信号取 state.totalLines——它单调递增且把被折叠的刷新行也计进去；
@@ -203,6 +248,17 @@ export function RunDetailContainer({
 				onLoadOlder={loadOlder}
 				onOpenOriginal={state.originalFilePath ? handleOpenOriginal : undefined}
 			/>
+
+			{/* E-133 权限受阻横幅与一次性临时提升按钮 */}
+			{effectivePermissionBlocked && (
+				<PermissionBlockedBanner
+					info={effectivePermissionBlocked}
+					isElevating={isElevating}
+					isElevated={isElevated}
+					error={elevateError}
+					onElevateOnce={handleElevateOnce}
+				/>
+			)}
 
 			{/* 虚拟滚动列表展示区（AC 1, AC 6, E-143） */}
 			<div className="flex-1 min-h-0 relative">
@@ -374,5 +430,69 @@ export function RunDetailPageContainer({
 			{...containerProps}
 			className={`min-h-0 flex-1 ${containerProps.className ?? ''}`}
 		/>
+	);
+}
+
+export interface PermissionBlockedBannerProps {
+	readonly info: PermissionBlockedInfo;
+	readonly isElevating?: boolean;
+	readonly isElevated?: boolean;
+	readonly error?: string | null;
+	readonly onElevateOnce?: () => void;
+}
+
+/**
+ * 权限受阻横幅展示组件（E-133 / AC 4）。
+ *
+ * 遵循 07 节前端架构规范：
+ * - 纯展示组件，内部使用 CSS 变量与 design tokens
+ * - 以 needs 暖色高亮展示，警示权限阻断
+ * - 提供一次性「仅本次运行临时提升」操作按钮
+ */
+export function PermissionBlockedBanner({
+	info,
+	isElevating = false,
+	isElevated = false,
+	error = null,
+	onElevateOnce,
+}: PermissionBlockedBannerProps) {
+	return (
+		<div
+			data-permission-blocked-banner="true"
+			className="flex items-center justify-between gap-3 px-3 py-2 border border-[var(--needs)] bg-[var(--needs-soft)] text-[var(--ink-1)] rounded-[var(--r-sm)] text-[length:var(--fs-dense)] leading-[var(--lh-ui)]"
+		>
+			<div className="flex flex-col gap-0.5 min-w-0">
+				<div className="flex items-center gap-1.5 font-medium text-[var(--needs-ink)]">
+					<span>权限受阻 (E-133)</span>
+					{info.tool ? <span className="opacity-80">· 工具: {info.tool}</span> : null}
+				</div>
+				<div className="text-[length:var(--fs-meta)] text-[var(--ink-2)] truncate">
+					{info.reason || 'Agent 试图访问或修改沙箱工作区外的资源'}
+				</div>
+				{error ? (
+					<div
+						data-elevate-error="true"
+						className="text-[length:var(--fs-meta)] text-[var(--down)] font-mono font-medium"
+					>
+						{error}
+					</div>
+				) : null}
+			</div>
+			<div className="shrink-0 flex items-center">
+				<button
+					type="button"
+					data-elevate-button="true"
+					disabled={isElevated || isElevating}
+					onClick={onElevateOnce}
+					className={`h-[var(--h-btn-sm)] px-3 text-[length:var(--fs-meta)] font-medium rounded-[var(--r-sm)] border transition-colors ${
+						isElevated
+							? 'border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-3)] cursor-not-allowed'
+							: 'border-[var(--needs)] bg-[var(--needs)] text-[var(--on-needs)] hover:opacity-90 active:opacity-80'
+					}`}
+				>
+					{isElevated ? '已临时提升' : '仅本次运行临时提升'}
+				</button>
+			</div>
+		</div>
 	);
 }

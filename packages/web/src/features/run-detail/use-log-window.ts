@@ -55,6 +55,12 @@ export interface UseLogWindowOptions {
 	readonly isMobile?: boolean;
 }
 
+export interface PermissionBlockedInfo {
+	readonly tool?: string;
+	readonly reason?: string;
+	readonly blockedCategory?: string;
+}
+
 export interface UseLogWindowReturn {
 	/** 当前日志窗口快照状态 */
 	readonly state: LogWindowState;
@@ -66,6 +72,8 @@ export interface UseLogWindowReturn {
 	readonly isLoadingNewer: boolean;
 	/** 错误信息文案 */
 	readonly error: string | null;
+	/** 权限受阻事件信息（E-133） */
+	readonly permissionBlocked: PermissionBlockedInfo | null;
 	/** 触发首屏加载（useEffect 默认自动触发，切后台回前台防重拉） */
 	readonly loadInitial: () => Promise<void>;
 	/** 向上加载更早历史分段 */
@@ -96,6 +104,25 @@ export function useLogWindow({
 	const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 	const [isLoadingNewer, setIsLoadingNewer] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	// 权限受阻事件记录（E-133）
+	const [permissionBlocked, setPermissionBlocked] = useState<PermissionBlockedInfo | null>(() => {
+		const buffer = eventBus.getBuffer(runId);
+		if (!buffer) return null;
+		const events = buffer.getItems();
+		for (let i = events.length - 1; i >= 0; i--) {
+			const ev = events[i];
+			if (ev && ev.kind === 'run.permission_blocked') {
+				const payload = ev.payload as PermissionBlockedInfo | undefined;
+				return {
+					tool: payload?.tool,
+					reason: payload?.reason,
+					blockedCategory: payload?.blockedCategory,
+				};
+			}
+		}
+		return null;
+	});
 
 	// 水位记录，保证多条 chunk 在一次 flush 内不漏且不重（R4）
 	const lastConsumedIdRef = useRef<number | null>(null);
@@ -221,6 +248,13 @@ export function useLogWindow({
 								manager.appendLiveChunk(chunk, event.kind);
 							}
 						}
+					} else if (event.kind === 'run.permission_blocked') {
+						const payload = event.payload as PermissionBlockedInfo | undefined;
+						setPermissionBlocked({
+							tool: payload?.tool,
+							reason: payload?.reason,
+							blockedCategory: payload?.blockedCategory,
+						});
 					}
 				}
 			}
@@ -230,6 +264,29 @@ export function useLogWindow({
 			unsubscribe();
 		};
 	}, [runId, autoSubscribeEvents, manager]);
+
+	useEffect(() => {
+		const buffer = eventBus.getBuffer(runId);
+		if (!buffer) {
+			setPermissionBlocked(null);
+			return;
+		}
+		const events = buffer.getItems();
+		let found: PermissionBlockedInfo | null = null;
+		for (let i = events.length - 1; i >= 0; i--) {
+			const ev = events[i];
+			if (ev && ev.kind === 'run.permission_blocked') {
+				const payload = ev.payload as PermissionBlockedInfo | undefined;
+				found = {
+					tool: payload?.tool,
+					reason: payload?.reason,
+					blockedCategory: payload?.blockedCategory,
+				};
+				break;
+			}
+		}
+		setPermissionBlocked(found);
+	}, [runId]);
 
 	// 3. 向上加载更多（E-143 / E-98 / AC 2 / R5 d）
 	const loadOlder = useCallback(async () => {
@@ -321,6 +378,7 @@ export function useLogWindow({
 		isLoadingOlder,
 		isLoadingNewer,
 		error,
+		permissionBlocked,
 		loadInitial,
 		loadOlder,
 		loadNewer,

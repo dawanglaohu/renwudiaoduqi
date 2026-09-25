@@ -10,8 +10,8 @@ import type { GetRunLogResponse } from '@agent-scheduler/shared/api/runs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { RunStreamBuffer } from '../src/api/event-bus.ts';
-import { httpClient } from '../src/api/http-client.ts';
+import { RunStreamBuffer, eventBus } from '../src/api/event-bus.ts';
+import { ApiError, httpClient } from '../src/api/http-client.ts';
 import {
 	LINE_COLLAPSED_MAX_CHARS,
 	LINE_EXPANDED_MAX_CHARS,
@@ -32,7 +32,10 @@ import {
 	MAX_RETAINED_SEGMENTS,
 	SEGMENT_MAX_LINES,
 } from '../src/features/run-detail/log-window.ts';
-import { RunDetailContainer } from '../src/features/run-detail/run-detail-container.tsx';
+import {
+	PermissionBlockedBanner,
+	RunDetailContainer,
+} from '../src/features/run-detail/run-detail-container.tsx';
 import {
 	DESKTOP_LOG_SEGMENT_LIMIT,
 	MOBILE_LOG_TAIL_LINES,
@@ -825,6 +828,195 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			expect(callCount).toBe(1);
 
 			spy.mockRestore();
+		});
+	});
+
+	// ─── AC 4 & E-133: 权限受阻横幅与一次性临时提升按钮 ───
+	describe('AC 4 & E-133: Permission blocked banner & temporary elevation (R8-T54786768)', () => {
+		it('renders PermissionBlockedBanner with needs color highlighting, tool info and elevate button', () => {
+			const html = renderToStaticMarkup(
+				createElement(PermissionBlockedBanner, {
+					info: {
+						tool: 'write_file',
+						reason: 'Agent 试图写 worktree 之外',
+						blockedCategory: 'workspace_sandbox',
+					},
+					isElevated: false,
+					isElevating: false,
+					error: null,
+				}),
+			);
+
+			// 验证 needs 强调色高亮背景与边框（11 节 UI 规范）
+			expect(html).toContain('data-permission-blocked-banner="true"');
+			expect(html).toContain('border-[var(--needs)]');
+			expect(html).toContain('bg-[var(--needs-soft)]');
+			expect(html).toContain('权限受阻 (E-133)');
+			expect(html).toContain('write_file');
+			expect(html).toContain('Agent 试图写 worktree 之外');
+
+			// 验证可点击的一次性操作按钮
+			expect(html).toContain('data-elevate-button="true"');
+			expect(html).toContain('仅本次运行临时提升');
+			expect(html).not.toContain('disabled=""');
+			expect(html).not.toContain('已临时提升');
+		});
+
+		it('renders disabled "已临时提升" button after successful elevation', () => {
+			const html = renderToStaticMarkup(
+				createElement(PermissionBlockedBanner, {
+					info: {
+						tool: 'edit_file',
+						reason: '越界写',
+					},
+					isElevated: true,
+					isElevating: false,
+					error: null,
+				}),
+			);
+
+			expect(html).toContain('data-elevate-button="true"');
+			expect(html).toContain('已临时提升');
+			expect(html).toContain('disabled=""');
+			expect(html).not.toContain('仅本次运行临时提升');
+		});
+
+		it('renders raw error.code on elevate failure', () => {
+			const html = renderToStaticMarkup(
+				createElement(PermissionBlockedBanner, {
+					info: {
+						tool: 'run_command',
+						reason: '越界执行',
+					},
+					isElevated: false,
+					isElevating: false,
+					error: 'E_INVALID_STATE_TRANSITION',
+				}),
+			);
+
+			expect(html).toContain('data-elevate-error="true"');
+			expect(html).toContain('E_INVALID_STATE_TRANSITION');
+			// 按钮仍然保持未提升
+			expect(html).toContain('仅本次运行临时提升');
+		});
+
+		it('issues POST /api/v1/runs/:runId/messages with kind=elevate_once via fake http-client (AC 4)', async () => {
+			const capturedCalls: Array<{ route: unknown; options: unknown }> = [];
+			const spy = vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route, options) => {
+				capturedCalls.push({ route, options });
+				return { messageId: 'msg-elevate-success-1' } as never;
+			});
+
+			let clicked = false;
+			const html = renderToStaticMarkup(
+				createElement(RunDetailContainer, {
+					runId: 'run-blocked-test-42',
+					permissionBlocked: {
+						tool: 'write_file',
+						reason: '越界修改外部代码',
+					},
+					onElevateOnce: async () => {
+						clicked = true;
+						await httpClient.callRoute(
+							{ path: '/api/v1/runs/:runId/messages', method: 'POST' } as never,
+							{
+								params: { runId: 'run-blocked-test-42' },
+								body: { kind: 'elevate_once' },
+							},
+						);
+					},
+				}),
+			);
+
+			// 验证在 RunDetailContainer 中渲染了权限受阻条目
+			expect(html).toContain('data-permission-blocked-banner="true"');
+			expect(html).toContain('仅本次运行临时提升');
+
+			// 模拟点击触发一次提升
+			const route = { path: '/api/v1/runs/:runId/messages', method: 'POST' };
+			await httpClient.callRoute(route as never, {
+				params: { runId: 'run-blocked-test-42' },
+				body: { kind: 'elevate_once' },
+			});
+
+			expect(capturedCalls).toHaveLength(1);
+			const call = capturedCalls[0];
+			if (!call) {
+				throw new Error('Expected capturedCall');
+			}
+			expect((call.route as { path: string }).path).toBe('/api/v1/runs/:runId/messages');
+			expect((call.route as { method: string }).method).toBe('POST');
+			expect((call.options as { params: { runId: string } }).params.runId).toBe(
+				'run-blocked-test-42',
+			);
+			expect((call.options as { body: unknown }).body).toEqual({ kind: 'elevate_once' });
+
+			spy.mockRestore();
+		});
+
+		it('integrates fake http-client error handling with ApiError code extraction', async () => {
+			const fakeApiError = new ApiError({
+				code: 'E_INVALID_STATE_TRANSITION',
+				message: 'Cannot elevate run in exited state',
+				requestId: 'req-err-42',
+				status: 500,
+			});
+
+			let capturedError: string | null = null;
+			try {
+				throw fakeApiError;
+			} catch (err) {
+				const code = err instanceof ApiError ? err.code : String(err);
+				capturedError = code;
+			}
+
+			expect(capturedError).toBe('E_INVALID_STATE_TRANSITION');
+
+			// 渲染到界面中验证 error.code 展示
+			const html = renderToStaticMarkup(
+				createElement(PermissionBlockedBanner, {
+					info: { tool: 'write_file', reason: '越界写' },
+					isElevated: false,
+					error: capturedError,
+				}),
+			);
+
+			expect(html).toContain('data-elevate-error="true"');
+			expect(html).toContain('E_INVALID_STATE_TRANSITION');
+		});
+
+		it('captures run.permission_blocked events from eventBus into useLogWindow', () => {
+			const testRunId = 'run-bus-permission-test';
+			const buffer = eventBus.getOrCreateBuffer(testRunId);
+			buffer.push({
+				id: 1,
+				seq: 1,
+				runId: testRunId,
+				taskId: null,
+				scope: 'run',
+				kind: 'run.permission_blocked',
+				ts: '2026-09-25T00:00:00.000Z',
+				actorDeviceId: null,
+				payload: {
+					tool: 'shell_exec',
+					reason: 'Sandbox violation outside repository',
+					blockedCategory: 'workspace_sandbox',
+				},
+			});
+
+			let hookResult!: ReturnType<typeof useLogWindow>;
+			function Consumer() {
+				hookResult = useLogWindow({ runId: testRunId, autoSubscribeEvents: true });
+				return createElement('div', null, 'test');
+			}
+
+			renderToStaticMarkup(createElement(Consumer));
+
+			expect(hookResult.permissionBlocked).toEqual({
+				tool: 'shell_exec',
+				reason: 'Sandbox violation outside repository',
+				blockedCategory: 'workspace_sandbox',
+			});
 		});
 	});
 });

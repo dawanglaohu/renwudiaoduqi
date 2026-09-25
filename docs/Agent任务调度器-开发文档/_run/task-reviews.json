@@ -1305,5 +1305,17 @@
     "reviewed": "2026-09-24T18:03:37.271907+00:00",
     "scope": "task-contract",
     "verdict": "pass"
+  },
+  "R8-T54786768": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "8c1524cf98d651c4767fc4bb2cb8d681614fafba0ad551cd4d776daeed9aae52",
+    "evidence": [
+      "10节接口表已补充 POST /runs/:id/messages 的 kind='elevate_once' 语义、text 可空规则（其余 kind 必填非空），并与 shared createRunMessageBodySchema 及 packages/daemon/src/http/routes/runs.ts 路由校验保持严格一致。",
+      "E-133 临时提升逻辑已接通：POST /api/v1/runs/:runId/messages 收到 elevate_once 时调用 RunService.elevateRunOnce()，内存标定临时提升、不写磁盘 agents.json、运行结束后自动失效；Fastify 真实集成测试 packages/daemon/test/integration/run-messages-elevate.test.ts 覆盖 200、409 归档与非法状态迁移等场景。",
+      "前端运行详情页在收到 run.permission_blocked 事件时以 needs 色高亮显示，并提供一次性「仅本次运行临时提升」按钮；点击后发起请求，成功按钮转为「已临时提升」且置灰不可再点，失败按 error.code 原样展示；单元与端到端测试 packages/web/test/log-window.test.ts 全部通过。"
+    ],
+    "reviewed": "2026-09-25T03:03:35.459041+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
   }
 }

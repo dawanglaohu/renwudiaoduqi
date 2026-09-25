@@ -10,7 +10,7 @@
     "02-设计/07-前端架构.md": "2955cf76f9ef61edff643bce696ad9326f56bb43f92e12808b7eb5379cb6f4fd",
     "02-设计/08-后端架构.md": "29384f290682bf5b54e6fca5dd3d70fda5e4321a696474c72fe2d657e42f8a7a",
     "02-设计/09-数据模型.md": "f8e1c3d0bfd336d7c3983a97801924df3a4e6dde76757fdd718a1e7a78d6bf7f",
-    "02-设计/10-接口约定.md": "ccbd73f69e0146a35c81c1467c045e4b7f30c5811d8bc6897d91899077191cb0",
+    "02-设计/10-接口约定.md": "021b0335ded3d171fd14751d8af5b6dcc7523b3f0f8529a913c24a487ad70b80",
     "02-设计/11-UI.md": "6633f85a9bf5da5b161d4b426c7a2bb6deec9ad4496edad1e3d1874b4e7d66b8",
     "02-设计/12-UX.md": "4d67a71c2a9a0e7e462c1d8f0a796a365a994ba5be04e7885d4757f7f72d2421",
     "03-质量/13-边界问题与异常处理.md": "5f22b41c222cbc1caf0d5f4b39384faed858b7eddea5301ca9280cb0d4cd6c7b",
@@ -36,12 +36,12 @@
   },
   "products": {
     "_MOC.md": "325993513261fe854426169a7e2bbb44a7e7da69de6cc942cb73a7a76414085d",
-    "_run/dispatch.json": "6bc59263ee4d2dc3e4e84a6749d66518c196b1669c681a16024908b9b98dad74",
-    "_run/review.json": "a85afe17ae7709c0dc99d21671b8e313ad81751933759970de5c025616736374",
-    "_run/task-reviews.json": "4de53d13e880b1a533835a3f32560680924f1db340aeb354a2f07ca4afd1544d",
-    "docs-data.js": "56e0d1e1af12c308af4bf9b42cf5ee9f4b28fc353101d699318947b40b82d754",
+    "_run/dispatch.json": "f3c06d8a394261bcbaa00e321ee96970f6604a2ab624c766f811ff8a1a238e81",
+    "_run/review.json": "83b628232a09b1378d78b900c593ba8aeb0c40729f758d4be6fd5a30b7e06f8e",
+    "_run/task-reviews.json": "9d10deda48a805c8145a2f5d738c44f15f4fda7f08f86b566ca0c6ce2567bb29",
+    "docs-data.js": "8cedc49e28b1f9d82dfcc251a0ab0dad12e58d9be24f00503232a65c3ab0f560",
     "index.html": "f2ddcba5a883cc52807abedbf664750f4a98c6feb6aff4529051fb3acfbfbb0d"
   },
   "schemaVersion": 1,
-  "sourceVersion": "abf0aac79dcf034b97bb71c5c2e8ddff311d5d43105a982268a0a0751fc224b8"
+  "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
 }

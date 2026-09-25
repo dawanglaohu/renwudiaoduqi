@@ -1015,5 +1015,50 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 
 			db.close();
 		});
+
+		it('R8-T54786768 & E-133: delivers elevate_once message, calls elevateRunOnce and persists message with omitted text', async () => {
+			const { repo } = createMockRunsRepo([
+				{
+					id: 'run-elevate-unit',
+					taskId: 'task-1',
+					state: 'awaiting_reply',
+					agentId: 'codex',
+					pid: 1234,
+					parentRunId: null,
+					attemptNo: 1,
+					sessionArchivedAt: null,
+				},
+			]);
+
+			let elevatedCalled = false;
+			const elevateRunOnce = async (runId: string) => {
+				if (runId === 'run-elevate-unit') {
+					elevatedCalled = true;
+				}
+			};
+
+			const registry = createProcessRegistry();
+			const service = createMessageService({
+				runMessagesRepo: repo,
+				processRegistry: registry,
+				clock,
+				ids,
+				elevateRunOnce,
+			});
+
+			const result = await service.sendMessage({
+				runId: 'run-elevate-unit',
+				kind: 'elevate_once',
+			});
+
+			expect(result.delivered).toBe(true);
+			expect(elevatedCalled).toBe(true);
+
+			const saved = repo.findMessageById(result.messageId);
+			expect(saved).not.toBeNull();
+			expect(saved?.kind).toBe('elevate_once');
+			expect(saved?.text).toBe('');
+			expect(saved?.deliveryState).toBe('delivered');
+		});
 	});
 });
