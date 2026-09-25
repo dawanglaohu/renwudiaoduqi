@@ -56,7 +56,7 @@ import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../proc/spawn.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
-import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
+import type { BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { EventSeqRepo } from '../repo/event-seq-repo.ts';
@@ -79,7 +79,7 @@ import { isBranchInHead } from '../workspace/in-head.ts';
 import type { PrepareWorktreeInput, PrepareWorktreeResult } from '../workspace/worktree.ts';
 import { createAssignmentReader } from './assignment-reader.ts';
 import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
-import { type BatchService, createBatchService } from './batch.ts';
+import { type BatchService, computeBatchSummary, createBatchService, toBatchDto } from './batch.ts';
 import type { LanesService } from './lanes.ts';
 import type { EventEnvelopeInput } from './logstore.ts';
 import { createRerunService } from './rerun.ts';
@@ -89,18 +89,7 @@ import { assertSessionRefFree } from './session-guard.ts';
 import type { WrapupService } from './wrapup.ts';
 
 export type { RunInsertRow, RunRow, RunsRepo };
-export { toRunDto };
-
-export function toBatchDto(row: BatchRow): BatchDto {
-	return Object.freeze({
-		id: row.id,
-		docId: row.doc_id,
-		batchNo: row.batch_no,
-		state: row.state,
-		startedAt: row.started_at ?? null,
-		finishedAt: row.finished_at ?? null,
-	});
-}
+export { toRunDto, toBatchDto };
 
 export function toTaskDto(
 	row: TaskRow,
@@ -294,6 +283,14 @@ export interface DispatchServiceDeps {
 	readonly runService?: RunService;
 	readonly reviewService?: {
 		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
+	};
+	readonly bughuntService?: {
+		readonly finalizeBughuntRun: (input: {
+			readonly bughuntRunId: string;
+			readonly exitCode?: number | null;
+			readonly exitSignal?: string | null;
+			readonly failedReason?: string;
+		}) => Promise<unknown>;
 	};
 }
 
@@ -703,6 +700,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				started_at: now,
 				session_no: nextSessionNoFor(agentId),
 				lane_no: input.laneNo ?? null,
+				batch_id: task.batch_id ?? null,
 			};
 			assertSessionRefFree(
 				{ taskId, vendorSessionRef: undefined },
@@ -935,10 +933,31 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		for (const doc of documents) {
 			const bRows = deps.batchesRepo.listByDocId(doc.id);
-			for (const b of bRows) {
-				allBatches.push(toBatchDto(b));
-			}
 			const tRows = deps.tasksRepo.listByDocId(doc.id);
+			const tasksByBatchId = new Map<string, TaskRow[]>();
+			for (const t of tRows) {
+				if (t.batch_id) {
+					const list = tasksByBatchId.get(t.batch_id) ?? [];
+					list.push(t);
+					tasksByBatchId.set(t.batch_id, list);
+				}
+			}
+
+			for (const b of bRows) {
+				const batchTasks = tasksByBatchId.get(b.id) ?? [];
+				const landing = summarizeBatchLanding(batchTasks, allRunRows);
+				const activeWrapup = runsRepo.findActiveWrapupByBatchId?.(b.id);
+				const canWrapup =
+					landing.allInHead && !activeWrapup && b.state !== 'done' && b.state !== 'wrapping';
+				const summary = computeBatchSummary(b.state, batchTasks, runsByTaskId);
+				allBatches.push(
+					toBatchDto(b, {
+						canWrapup,
+						notInHeadCount: landing.notInHeadCount,
+						...summary,
+					}),
+				);
+			}
 			for (const t of tRows) {
 				const latestRun = latestRunByTaskId.get(t.id);
 				const tRuns = runsByTaskId.get(t.id) ?? [];
@@ -1596,7 +1615,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 					// 3. 泳道：已占槽直接出队，否则取一个空槽（E-309 / E-310 / E-326）
 					let laneNo =
-						typeof qTask.lane_no === 'number' && qTask.lane_no >= 1 ? qTask.lane_no : null;
+						typeof qTask.lane_no === 'number' && qTask.lane_no >= 1
+							? qTask.lane_no
+							: typeof queuedRun.lane_no === 'number' && queuedRun.lane_no >= 1
+								? queuedRun.lane_no
+								: null;
 					if (laneNo === null) {
 						const allocatedLaneNo = free.shift();
 						if (allocatedLaneNo === undefined) {
@@ -1613,7 +1636,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					// 4. 每 agent 并发上限（E-54）
 					const queuedAgentLimit = agentLimitFor(queuedRun.agent_id);
 					const queuedAgentActive = countAgentConcurrency(
-						allRuns.filter((r) => r.id !== queuedRun.id),
+						allRuns.filter(
+							(r) =>
+								r.id !== queuedRun.id &&
+								(queuedRun.kind !== 'bughunt' || r.id !== queuedRun.parent_run_id),
+						),
 						queuedRun.agent_id,
 					);
 					if (queuedAgentActive >= queuedAgentLimit) {
@@ -2371,12 +2398,21 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				);
 			}
 
+			const isStrictPassThroughStage =
+				run.kind === 'bughunt' || run.origin === 'rework' || run.origin === 'wrapup-fix';
+			const effectiveModel = isStrictPassThroughStage
+				? (run.model_name ?? null)
+				: (run.model_name ?? launchSpecData.model ?? null);
+			const effectiveEffort = isStrictPassThroughStage
+				? (run.effort_tier ?? null)
+				: (run.effort_tier ?? launchSpecData.effort ?? null);
+
 			const launchSpec = adapter.buildLaunchSpec({
 				runId,
 				cwd: preparedWorktree.worktreePath,
 				execPath: launchSpecData.execPath,
-				model: run.model_name ?? launchSpecData.model ?? null,
-				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
+				model: effectiveModel,
+				effortTier: effectiveEffort,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
 				prompt: runPrompt,
 				// A fresh implementation run owns one bidirectional app-server process.
@@ -2391,6 +2427,18 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			} catch (spawnErr) {
 				if (run.origin === 'rework') {
 					failReworkRunStartup(runId, 'spawn_failed');
+				} else if (run.kind === 'bughunt') {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'spawn_failed',
+					});
+					if (deps.bughuntService) {
+						await deps.bughuntService.finalizeBughuntRun({
+							bughuntRunId: runId,
+							failedReason: 'spawn_failed',
+						});
+					}
 				} else {
 					await deps.runService.transitionState({
 						runId,
@@ -2408,6 +2456,22 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (run.origin === 'rework') {
 					// 返工运行「起来就死」只说明这次投递没成，不是任务失败（#136 / E-302）。
 					failReworkRunStartup(runId, 'premature_exit', { exitCode, signal: exitSignal });
+				} else if (run.kind === 'bughunt') {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'premature_exit',
+						exitCode,
+						exitSignal,
+					});
+					if (deps.bughuntService) {
+						await deps.bughuntService.finalizeBughuntRun({
+							bughuntRunId: runId,
+							exitCode: exitCode ?? undefined,
+							exitSignal: exitSignal ?? undefined,
+							failedReason: 'premature_exit',
+						});
+					}
 				} else {
 					await deps.runService.transitionState({
 						runId,

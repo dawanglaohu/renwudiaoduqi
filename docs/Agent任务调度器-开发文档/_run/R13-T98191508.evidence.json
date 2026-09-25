@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R13-T98191508": {
+      "contractHash": "eb88588d135babcab96cfdef1a307f60e73cf670e6e0b6f033a611dd60a5c13c",
+      "evidence": [
+        "本轮对照 R13-T98191508 任务笔记、11-UI.md:381-386、E-272、E-284、E-298 和第 17 节测试策略复核；四项验收及边界没有互相冲突，当前契约版本与 status 一致。",
+        "M2-T8、M9-T19、M9-T25 的正式 DTO、批次树、七路由装配均已在 main；本 PR 的六条代码与测试有效路径覆盖共享契约、batch/dispatch 服务及两侧批次树回归。",
+        "status 所报疑似未列注册点是关键词提示：GET /api/v1/documents/:docId/batches 已在 packages/daemon/src/http/routes/documents.ts:326-345 注册，GET /api/v1/snapshot 已在 packages/daemon/src/http/routes/snapshot.ts:39-54 注册，服务与页面装配复用既有入口，本任务不新增注册点。",
+        "本次仅登记任务契约语义复核；PR #149 的代码验收仍须补真实浏览器批次树证据及事务并发断言，本证据不代表代码 pass 或落地。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

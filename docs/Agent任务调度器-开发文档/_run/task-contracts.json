@@ -791,6 +791,7 @@
     },
     "M9-T22": {
       "supportPaths": [
+        "packages/web/src/app/app.tsx",
         "packages/web/src/components/gate-toggles.tsx",
         "packages/web/src/i18n/ui-strings.ts",
         "packages/web/src/i18n/error-messages.ts",

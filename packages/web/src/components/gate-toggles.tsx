@@ -1,7 +1,7 @@
 /**
  * packages/web/src/components/gate-toggles.tsx
  *
- * 顶栏闸门开关组件（M9-T19 / AC 6, E-299）
+ * 顶栏闸门开关组件（M9-T19, M9-T22 / AC 1, AC 6, E-299）
  *
  * 规范依据（07 节前端架构、11 节 UI 与边界 E-299）：
  * - 纯 props in / callback out，受控无内部 state，状态等回流不乐观翻转（E-299）
@@ -10,10 +10,12 @@
  * - 落地开关切到自动时不弹 dialog、不二次确认，开关行下常驻一行提示：
  *   「审查 pass 后直接标记已验收，仍不执行任何 git 操作」（E-299）
  * - value === null 时展示加载占位或置灰
+ * - 二段开关基元统一从 ui/segmented-toggle 导入，严禁 import pipeline-toggles（AC 1 机检）
  */
 
 import type { GateSettings } from '@agent-scheduler/shared/api/settings';
 import type { HTMLAttributes } from 'react';
+import { SegmentedToggle, type SegmentedToggleOption } from '../ui/segmented-toggle.tsx';
 
 export type GateMode = 'auto' | 'manual';
 export type GateSettingsValues = GateSettings;
@@ -40,6 +42,11 @@ const GATES: readonly GateConfig[] = [
 	{ key: 'dispatch', label: '派发前' },
 	{ key: 'review', label: '审查前' },
 	{ key: 'landing', label: '落地前' },
+];
+
+const GATE_OPTIONS: readonly SegmentedToggleOption<GateMode>[] = [
+	{ value: 'manual', label: '等我确认' },
+	{ value: 'auto', label: '自动' },
 ];
 
 /**
@@ -82,61 +89,20 @@ export function GateToggles({
 					isTopbar ? 'flex-row flex-wrap' : 'flex-col sm:flex-row gap-4',
 				].join(' ')}
 			>
-				{GATES.map((gate) => {
-					const currentMode = value ? value[gate.key] : null;
-					const isManual = currentMode === 'manual';
-					const isAuto = currentMode === 'auto';
+				{GATES.map((gate) => (
+					<div key={gate.key} data-gate-toggle={gate.key} className="flex items-center gap-2">
+						<span className="font-ui text-dense text-ink-2 text-xs shrink-0">{gate.label}</span>
 
-					return (
-						<div key={gate.key} data-gate-toggle={gate.key} className="flex items-center gap-2">
-							<span className="font-ui text-dense text-ink-2 text-xs shrink-0">{gate.label}</span>
-
-							{/* 二段开关基元（高 --h-btn-sm，28px，封装无业务词的 segmented-toggle 结构） */}
-							<div
-								aria-label={`${gate.label}闸门设置`}
-								className="inline-flex items-center p-0.5 rounded-sm bg-bg border border-border h-btn-sm shrink-0"
-							>
-								{/* 选项 1：等我确认（manual） */}
-								<button
-									type="button"
-									aria-pressed={isManual}
-									disabled={!value || isPending}
-									data-state={isManual ? 'active' : 'inactive'}
-									onClick={() => handleToggle(gate.key, 'manual')}
-									className={[
-										'px-2 h-full inline-flex items-center justify-center rounded-[3px] font-ui text-micro font-medium transition-colors cursor-pointer border-0',
-										'focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--needs)]',
-										isManual
-											? 'bg-panel-2 text-ink-1 font-semibold shadow-sm'
-											: 'bg-transparent text-ink-3 hover:text-ink-2',
-										!value || isPending ? 'opacity-50 cursor-not-allowed' : '',
-									].join(' ')}
-								>
-									等我确认
-								</button>
-
-								{/* 选项 2：自动（auto） */}
-								<button
-									type="button"
-									aria-pressed={isAuto}
-									disabled={!value || isPending}
-									data-state={isAuto ? 'active' : 'inactive'}
-									onClick={() => handleToggle(gate.key, 'auto')}
-									className={[
-										'px-2 h-full inline-flex items-center justify-center rounded-[3px] font-ui text-micro font-medium transition-colors cursor-pointer border-0',
-										'focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--needs)]',
-										isAuto
-											? 'bg-panel-2 text-ink-1 font-semibold shadow-sm'
-											: 'bg-transparent text-ink-3 hover:text-ink-2',
-										!value || isPending ? 'opacity-50 cursor-not-allowed' : '',
-									].join(' ')}
-								>
-									自动
-								</button>
-							</div>
-						</div>
-					);
-				})}
+						{/* 二段开关基元（高 --h-btn-sm，26px，封装无业务词的 segmented-toggle 结构） */}
+						<SegmentedToggle<GateMode>
+							ariaLabel={`${gate.label}闸门设置`}
+							value={value ? value[gate.key] : null}
+							options={GATE_OPTIONS}
+							disabled={!value || isPending}
+							onChange={(targetMode) => handleToggle(gate.key, targetMode)}
+						/>
+					</div>
+				))}
 			</div>
 
 			{/* ─────────────────────────────────────────────────────────────

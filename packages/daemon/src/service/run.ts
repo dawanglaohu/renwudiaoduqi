@@ -115,6 +115,12 @@ export interface RunServiceDeps {
 		readonly runId: string;
 		readonly exitCode: number | null;
 	}) => Promise<unknown>;
+	readonly finalizeBughunt?: (input: {
+		readonly runId: string;
+		readonly exitCode?: number | null;
+		readonly exitSignal?: string | null;
+		readonly failedReason?: string;
+	}) => Promise<unknown>;
 	readonly evaluateMechanicalCheck?: (input: {
 		readonly runId: string;
 		readonly exitCode?: number | null;
@@ -632,6 +638,14 @@ export function createRunService(deps: RunServiceDeps): RunService {
 							});
 							await ingestEvent(runId, exitedEnvelope);
 							await closeRunStream(runId);
+							if (run?.kind === 'bughunt' && deps.finalizeBughunt) {
+								await deps.finalizeBughunt({
+									runId,
+									exitCode: result.exitCode,
+									exitSignal: result.signal ? String(result.signal) : null,
+									failedReason: failureReason,
+								});
+							}
 							return;
 						}
 
@@ -886,6 +900,39 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								}
 								return;
 							}
+
+							if (run?.kind === 'bughunt') {
+								if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
+									await transitionState({
+										runId,
+										targetState: 'exited',
+										reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: eventStderrTail,
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+								if (deps.finalizeBughunt) {
+									await deps.finalizeBughunt({
+										runId,
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								return;
+							}
 						}
 
 						// 3. 内容后退出才走既有机械检查/失败路径 (R3)
@@ -916,6 +963,13 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						}
 						if (run?.kind === 'review' && deps.finalizeReview) {
 							await deps.finalizeReview({ runId, exitCode: result.exitCode });
+						}
+						if (run?.kind === 'bughunt' && deps.finalizeBughunt) {
+							await deps.finalizeBughunt({
+								runId,
+								exitCode: result.exitCode,
+								exitSignal: result.signal ? String(result.signal) : null,
+							});
 						}
 
 						const isImplementLike =

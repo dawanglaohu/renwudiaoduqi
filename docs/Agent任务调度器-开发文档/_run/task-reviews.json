@@ -1144,24 +1144,22 @@
   },
   "M9-T22": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "21e23ca3f45a1100b27cfc649569338c7f0641fe087cc93efffbd3eea8daa356",
+    "contractHash": "3d83e5562cfbd50cbd5f2915d5756481dca7be07a1c5d59774f1bb401ec89144",
     "evidence": [
-      "19 节 M9-T22 行（第 100 行）：依赖 M9-T21、M8-T8 在前置闭包；产出 ui/segmented-toggle.tsx、components/pipeline-toggles.tsx、两个容器、pages/settings-pipeline-page.tsx、app/routes.tsx 第八条路由，全部在 taskPaths；gate-toggles.tsx、ui-strings、error-messages、cache-keys、check-forbidden、三个测试文件与 shared settings/routes 在 supportPaths；sections 含 7/11/12",
-      "验收 1)～6) 逐条对应：11 节「顶栏流水线开关」（第 367 行起：同形态、1px 竖线、两行常驻说明、设置页同一组件、手机档不放）与页面清单「设置 · 流水线」行；07 节路由八条与 settings 页同一 Suspense、组件清单 pipeline-toggles / segmented-toggle、ui/ 业务词禁令、「开关互不 import」禁令；10 节 GET/PATCH /settings/pipeline 契约与示例；决策 93、103；E-26、E-157、E-306、E-312、E-318；17 节 E-306/E-312/E-318 前端侧行",
-      "接缝：值只来自 GET /settings/pipeline、写走 PATCH 全量两值、状态等 settings.pipeline_changed 回流（M8-T8 提供）；与 M9-T19 的 gate-toggles 共用 ui/segmented-toggle 基元、先落地者创建；E_PIPELINE_STAGE_DISABLED 文案在 i18n/error-messages.ts 补键",
-      "只新增 M9-T20 的真实收口消息适配器支持路径；M9-T22 的任务定义与验收条款未改。"
+      "07 节第八条路由由 app/routes.tsx 定义，但 app/app.tsx 的 Record<RouteId, ComponentType> 必须装配 SettingsPipelinePage；同一 app.tsx 的 AppTopbar 才能挂载三个闸门右侧的两个流水线开关。新增 app.tsx 为 M9-T22 supportPath，保留原验收和边界不变。",
+      "M9-T22 既定产出、六条验收、E-26/E-157/E-306/E-312/E-318/E-356 与 shared GET/PATCH 四键契约仍原样保留；PR #152 实际改动与新增路径一一对应。"
     ],
-    "reviewed": "2026-09-24T03:14:03.595801+00:00",
+    "reviewed": "2026-09-25T10:05:40.029741+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T23": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "867885a53c89697a8e02e7ad7aec0a3e210ef49eb1a0477964943165c50f0873",
+    "contractHash": "a4b13b4a685a983875ad18179d0d17652ba344f1f18a017b7d7ee0368c8cddb1",
     "evidence": [
-      "M9-T23 的定义、验收与支持路径均未改；本补丁仅更新其与 M8-T9 新增有效路径的冲突关系，保持既有实施范围和契约语义。"
+      "补丁对 M9-T23 仅传播上游 M9-T22 契约哈希；M9-T23 的任务定义、验收、边界、有效路径、接口字段逐项未变。M9-T22 的 app.tsx 装配是其真实前置能力。"
     ],
-    "reviewed": "2026-09-24T12:29:41.469697+00:00",
+    "reviewed": "2026-09-25T10:06:05.014396+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1296,6 +1294,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R12-T32133721": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "004799d1dec2bdba3455d38da26ff3b9c698ab7cb96b76bd1f03727ce415b911",
+    "evidence": [
+      "仅在 batch-12-20260923.md 的 R12 paths 围栏和对应任务笔记加入 workspace/worktree.ts、pipeline-lanes.test.ts、bughunt-report.test.ts、m8-t9-rework.test.ts；原 input、acceptance、edges、前置和 Jev 裁决未改。",
+      "这些路径分别承载临时 Git index 环境变量透传、真实 Git 流水线及两组阶段指派回归；sync 后 R12 合同哈希为 004799d1dec2bdba3455d38da26ff3b9c698ab7cb96b76bd1f03727ce415b911。",
+      "第二轮审查已用真实 Git 仓库核对起点脏文件、未跟踪文件和违禁提交，合并主干后的 pnpm -w check 通过 200 个测试文件、2437 个测试；本记录只复核路径补丁，最终落地仍以最终 HEAD 的门禁为准。"
+    ],
+    "reviewed": "2026-09-25T09:43:30.813901+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R13-T57054072": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
     "contractHash": "30dc3533cf17ad3009b8e4a3cae0a8e82368cc7ea78667b33c19876143e699b2",
@@ -1303,6 +1313,18 @@
       "只因前置 M9-T27 契约哈希传播；自身定义、有效路径、验收与边界未变。该返工任务尚未落地，本次只复核契约。"
     ],
     "reviewed": "2026-09-24T18:03:37.271907+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "R13-T98191508": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "57e5922118690501f968f5d349f5a01aba198b0f68a3225ff6680837398ecffe",
+    "evidence": [
+      "补丁只在 R13-T98191508 的返工任务围栏补列运行甲板、任务页及批次树 hook 三个消费入口；验收标准、边界编号和依赖均未降低。",
+      "正式 daemon 通过浏览器配对并经 HTTP 导入两份文档；在运行甲板点击第二文档后，两端树只显示第二文档批次，切回第一文档后重新显示其 17 个批次，数字计数和展开状态来自正式 DTO。",
+      "batch-tree 文档切换回归覆盖先按 docId 筛选再重新 seed；batch-summary 集成测试用第二 SQLite 连接持有未提交写事务，核对提交前后 getBatch、listBatches、getSnapshot 一致。"
+    ],
+    "reviewed": "2026-09-25T09:05:46.595467+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1315,17 +1337,6 @@
       "真实正式入口探针：全新 daemon 数据目录，浏览器真实配对，正常文档导入与 POST /runs 派发；Codex 在 workspaceWrite 沙箱中请求写工作树外的 proof.txt，run.permission_blocked 带厂商请求 ID，浏览器按钮答复后同一 runId 的 Codex 写入 E133_APPROVED。过程中未向数据库或事件总线注入记录。协议与前端聚焦测试 112 通过、1 项平台条件跳过。"
     ],
     "reviewed": "2026-09-25T14:34:32.902643+00:00",
-    "scope": "task-contract",
-    "verdict": "pass"
-  },
-  "R8-T89804121": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "66895a1947df565f3244b9179f30f78290c813747e6e9a50c8adf7b0b8169df5",
-    "evidence": [
-      "R8-T89804121 is generated from stable-key e133-live-permission-transport in batch-8-20260922.md with source tasks M6-T7 and M8-T10 and E-133. Its acceptance explicitly requires a real agent, original runId continuation, one-time correlated approval, failure cleanup and final-head browser evidence without direct SQLite or event injection.",
-      "Current production dispatch forces Codex exec mode with stdin closed and a launch-time sandbox argument; RunService temporary elevation is not read by proc or adapter. The new task addresses that documented missing transport; its implementation has not begun."
-    ],
-    "reviewed": "2026-09-25T10:15:48.211893+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

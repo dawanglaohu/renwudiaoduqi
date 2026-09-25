@@ -4,11 +4,12 @@ import { AppError } from '../errors/app-error.ts';
 import {
 	type GitCommandResult,
 	type GitRunner,
+	type GitRunnerOptions,
 	type WorktreeManagerDeps,
 	createDefaultGitRunner,
 } from './worktree.ts';
 
-export type { GitCommandResult, GitRunner, WorktreeManagerDeps };
+export type { GitCommandResult, GitRunner, GitRunnerOptions, WorktreeManagerDeps };
 
 export type DiffFileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
 
