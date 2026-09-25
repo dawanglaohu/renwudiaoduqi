@@ -1,7 +1,17 @@
+import type { BatchDto } from '@agent-scheduler/shared/api/batches';
+import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BatchTree, type BatchTreeItem } from '../src/components/batch-tree.tsx';
+import {
+	clearBatchExpansion,
+	getExpandedBatchIds,
+	handleBatchAdvancedPayload,
+	mapSnapshotToBatches,
+	seedBatchExpansion,
+	toggleBatchExpansion,
+} from '../src/features/run-deck/batch-expansion.ts';
 
 describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E-284, E-298, R5)', () => {
 	const sampleBatches: readonly BatchTreeItem[] = [
@@ -392,5 +402,282 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 		expect(html).toContain('data-wrapup-row="true"');
 		expect(html).toContain('批次收口 · 第 1 轮');
 		expect(html).toContain('data-run-id="run-w-1"');
+	});
+
+	// ─── R13-T98191508 AC 3: 真实服务端快照投影在批次树中呈现实际数字，左栏与任务页一致 ───
+	it('R13-T98191508 AC 3: renders authoritative counts from daemon snapshot instead of dashes across desktop and mobile', () => {
+		const snapshot: SnapshotResponse = {
+			documents: [
+				{
+					id: 'doc-real',
+					docsPath: 'docs/test',
+					projectName: 'Test',
+					repoPath: '/tmp/repo',
+					mainBranch: 'main',
+					branchPrefix: 'task/',
+					laneCount: 2,
+					contentFingerprint: 'fp-1',
+					isSourceReadable: true,
+					isTakeoverNotified: false,
+					importedAt: '2026-09-25T12:00:00.000Z',
+					lastSeenAt: '2026-09-25T12:00:00.000Z',
+				},
+			],
+			batches: [
+				{
+					id: 'batch-real-1',
+					docId: 'doc-real',
+					batchNo: 1,
+					state: 'running',
+					startedAt: '2026-09-25T12:00:00.000Z',
+					finishedAt: null,
+					canWrapup: false,
+					notInHeadCount: 0,
+					taskCount: 3,
+					landedCount: 2,
+					runningCount: 1,
+					waitingCount: 0,
+					defaultExpanded: true,
+				},
+				{
+					id: 'batch-real-2',
+					docId: 'doc-real',
+					batchNo: 2,
+					state: 'idle',
+					startedAt: null,
+					finishedAt: null,
+					canWrapup: false,
+					notInHeadCount: 0,
+					taskCount: 2,
+					landedCount: 0,
+					runningCount: 0,
+					waitingCount: 1,
+					defaultExpanded: false,
+				},
+			],
+			tasks: [
+				{
+					id: 't-r1',
+					docId: 'doc-real',
+					moduleKey: 'M2',
+					deps: [],
+					estDays: 1,
+					batchId: 'batch-real-1',
+					taskKey: 'M2-T1',
+					title: '已落地任务 1',
+					state: 'landed',
+					inHead: true,
+				},
+				{
+					id: 't-r2',
+					docId: 'doc-real',
+					moduleKey: 'M2',
+					deps: [],
+					estDays: 1,
+					batchId: 'batch-real-1',
+					taskKey: 'M2-T2',
+					title: '已落地任务 2',
+					state: 'landed',
+					inHead: true,
+				},
+				{
+					id: 't-r3',
+					docId: 'doc-real',
+					moduleKey: 'M2',
+					deps: [],
+					estDays: 1,
+					batchId: 'batch-real-1',
+					taskKey: 'M2-T3',
+					title: '在跑任务',
+					state: 'running',
+					inHead: null,
+				},
+				{
+					id: 't-r4',
+					docId: 'doc-real',
+					moduleKey: 'M2',
+					deps: [],
+					estDays: 1,
+					batchId: 'batch-real-2',
+					taskKey: 'M2-T4',
+					title: '等待任务',
+					state: 'awaiting_human',
+					inHead: null,
+				},
+				{
+					id: 't-r5',
+					docId: 'doc-real',
+					moduleKey: 'M2',
+					deps: [],
+					estDays: 1,
+					batchId: 'batch-real-2',
+					taskKey: 'M2-T5',
+					title: '未派任务',
+					state: 'never_dispatched',
+					inHead: null,
+				},
+			],
+			runs: [],
+			agents: [],
+			lanes: [],
+			gates: [],
+			latestEventId: null,
+		};
+
+		// 经由 mapSnapshotToBatches 统一投影
+		const mappedBatches = mapSnapshotToBatches(snapshot);
+		expect(mappedBatches).toHaveLength(2);
+		expect(mappedBatches[0]?.taskCount).toBe(3);
+		expect(mappedBatches[0]?.landedCount).toBe(2);
+		expect(mappedBatches[0]?.runningCount).toBe(1);
+		expect(mappedBatches[0]?.waitingCount).toBe(0);
+
+		// 桌面左栏批次树渲染
+		const desktopHtml = renderToStaticMarkup(
+			createElement(BatchTree, {
+				batches: mappedBatches,
+				expandedIds: new Set<string>(['batch-real-1']),
+				densityTier: 'full',
+			}),
+		);
+		// 严禁显示「—/—」或「—」
+		expect(desktopHtml).not.toContain('已落地 —/—');
+		expect(desktopHtml).toContain('已落地 2/3 · 在跑 1 ·');
+		expect(desktopHtml).toContain('<span class="text-ink-3">等你 0</span>');
+		expect(desktopHtml).toContain('已落地 0/2 · 在跑 0 ·');
+		expect(desktopHtml).toContain('<span class="text-needs">等你 1</span>');
+
+		// 任务列表页使用同一投影与组件渲染，保持一致
+		const tasksPageHtml = renderToStaticMarkup(
+			createElement(BatchTree, {
+				batches: mappedBatches,
+				expandedIds: new Set<string>(['batch-real-1']),
+				densityTier: 'phone',
+			}),
+		);
+		expect(tasksPageHtml).toContain('已落地 2/3 · 在跑 1 ·');
+		expect(tasksPageHtml).toContain('已落地 0/2 · 在跑 0 ·');
+	});
+
+	// ─── R13-T98191508 AC 3 & E-284: 服务端 defaultExpanded 自动展开、手动折叠保护与文档切换 ───
+	it('R13-T98191508 & E-284: seeds defaultExpanded, respects manual toggle, and resets on doc switch', () => {
+		clearBatchExpansion();
+
+		const docBatchesA: readonly BatchDto[] = [
+			{
+				id: 'b-docA-1',
+				docId: 'doc-A',
+				batchNo: 1,
+				state: 'running',
+				startedAt: '2026-09-25T12:00:00.000Z',
+				finishedAt: null,
+				taskCount: 2,
+				landedCount: 1,
+				runningCount: 1,
+				waitingCount: 0,
+				defaultExpanded: true,
+			},
+			{
+				id: 'b-docA-2',
+				docId: 'doc-A',
+				batchNo: 2,
+				state: 'idle',
+				startedAt: null,
+				finishedAt: null,
+				taskCount: 3,
+				landedCount: 0,
+				runningCount: 0,
+				waitingCount: 0,
+				defaultExpanded: false,
+			},
+		];
+
+		// 首次 seed：defaultExpanded 为 true 的批次自动展开
+		seedBatchExpansion(docBatchesA, 'doc-A');
+		expect(getExpandedBatchIds().has('b-docA-1')).toBe(true);
+		expect(getExpandedBatchIds().has('b-docA-2')).toBe(false);
+
+		// 用户手动折叠批次 1
+		toggleBatchExpansion('b-docA-1');
+		expect(getExpandedBatchIds().has('b-docA-1')).toBe(false);
+
+		// 后续快照刷新：不重新打开用户手动折叠的批次（E-284）
+		seedBatchExpansion(docBatchesA, 'doc-A');
+		expect(getExpandedBatchIds().has('b-docA-1')).toBe(false);
+
+		// batch.advanced 到达：to=running 时重新自动并入展开集
+		handleBatchAdvancedPayload({ batchId: 'b-docA-1', to: 'running' });
+		expect(getExpandedBatchIds().has('b-docA-1')).toBe(true);
+
+		// 切换文档到 doc-B：旧展开集被清空，重新根据 doc-B 的 defaultExpanded seed
+		const docBatchesB: readonly BatchDto[] = [
+			{
+				id: 'b-docB-1',
+				docId: 'doc-B',
+				batchNo: 1,
+				state: 'awaiting_landing',
+				startedAt: '2026-09-25T12:00:00.000Z',
+				finishedAt: null,
+				taskCount: 1,
+				landedCount: 1,
+				runningCount: 0,
+				waitingCount: 0,
+				defaultExpanded: true,
+			},
+		];
+		seedBatchExpansion(docBatchesB, 'doc-B');
+		expect(getExpandedBatchIds().has('b-docA-1')).toBe(false);
+		expect(getExpandedBatchIds().has('b-docB-1')).toBe(true);
+	});
+
+	// ─── R13-T98191508 AC 4: 修复前失败的生产入口回归（B2 缺陷场景） ───
+	it('R13-T98191508 AC 4: regressions against B2 defect where batches displayed dashes and failed default expansion', () => {
+		// 模拟生产返回的标准 BatchDto
+		const productionBatch: BatchDto = {
+			id: 'batch-prod',
+			docId: 'doc-prod',
+			batchNo: 1,
+			state: 'running',
+			startedAt: '2026-09-25T12:00:00.000Z',
+			finishedAt: null,
+			taskCount: 5,
+			landedCount: 2,
+			runningCount: 2,
+			waitingCount: 1,
+			defaultExpanded: true,
+		};
+
+		const item: BatchTreeItem = {
+			...productionBatch,
+			tasks: [
+				{
+					id: 't-p1',
+					docId: 'doc-prod',
+					moduleKey: 'M2',
+					deps: [],
+					estDays: null,
+					batchId: 'batch-prod',
+					taskKey: 'M2-T1',
+					title: '生产任务 1',
+					state: 'running',
+				},
+			],
+		};
+
+		// 验证 defaultExpanded 为 true
+		expect(item.defaultExpanded).toBe(true);
+
+		// 验证 HTML 渲染正确显示 2/5, 2, 1
+		const html = renderToStaticMarkup(
+			createElement(BatchTree, {
+				batches: [item],
+				expandedIds: new Set<string>(['batch-prod']),
+			}),
+		);
+		expect(html).toContain('已落地 2/5 · 在跑 2 ·');
+		expect(html).toContain('<span class="text-needs">等你 1</span>');
+		expect(html).not.toContain('已落地 —/—');
+		expect(html).not.toContain('在跑 —');
+		expect(html).not.toContain('等你 —');
 	});
 });
