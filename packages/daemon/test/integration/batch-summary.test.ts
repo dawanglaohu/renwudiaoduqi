@@ -340,8 +340,8 @@ describe('R13-T98191508 Batch Summary & Authoritative DTO (AC 1, AC 2, E-272, E-
 		expect(batchDto.canWrapup).toBe(false);
 	});
 
-	// ─── 5. 事务后读取与并发更新一致性断言 ───
-	it('asserts consistency between getBatch, listBatches, and getSnapshot after transaction updates', async () => {
+	// ─── 5. 真实事务提交边界与并发写入一致性断言 (R2) ───
+	it('asserts consistency between getBatch, listBatches, and getSnapshot across transaction commit boundaries and concurrent writes', async () => {
 		const { container, batchService } = setupServer();
 		seedBaseDocAndBatch('doc-1', 'batch-tx', 1, 'running');
 		insertTask('t-tx-1', 'doc-1', 'batch-tx', 'M2-T1');
@@ -356,32 +356,140 @@ describe('R13-T98191508 Batch Summary & Authoritative DTO (AC 1, AC 2, E-272, E-
 			state: 'running',
 		});
 
-		const initialBatch = await batchService.getBatch('batch-tx');
-		expect(initialBatch.taskCount).toBe(2);
-		expect(initialBatch.landedCount).toBe(0);
-		expect(initialBatch.runningCount).toBe(1);
-		expect(initialBatch.waitingCount).toBe(0);
-
-		// 事务内进行更新：T1 landed 且进 HEAD，T2 转人工 awaiting_human
-		db.prepare('UPDATE runs SET state = ?, is_in_head = 1 WHERE id = ?').run('landed', 'run-tx-1');
-		db.prepare('UPDATE tasks SET manual_state = ? WHERE id = ?').run('awaiting_human', 't-tx-2');
-
-		// 事务提交后，并行获取 getBatch, listBatches, getSnapshot
-		const [single, list, snapshot] = await Promise.all([
+		// ─── 阶段 A: 事务开始前读取，三者一致 ───
+		const [preSingle, preList, preSnap] = await Promise.all([
 			batchService.getBatch('batch-tx'),
 			batchService.listBatches('doc-1'),
 			container.services.dispatch.getSnapshot('doc-1'),
 		]);
-
-		const listBatch = list.find((b) => b.id === 'batch-tx');
-		const snapBatch = snapshot.batches.find((b) => b.id === 'batch-tx');
-
-		for (const target of [single, listBatch, snapBatch]) {
+		const preListBatch = preList.find((b) => b.id === 'batch-tx');
+		const preSnapBatch = preSnap.batches.find((b) => b.id === 'batch-tx');
+		for (const target of [preSingle, preListBatch, preSnapBatch]) {
 			expect(target).toBeDefined();
 			expect(target?.taskCount).toBe(2);
+			expect(target?.landedCount).toBe(0);
+			expect(target?.runningCount).toBe(1);
+			expect(target?.waitingCount).toBe(0);
+			expect(target?.defaultExpanded).toBe(true);
+		}
+
+		// ─── 阶段 B: 真实事务回滚测试：回滚后状态与计数绝不污染 ───
+		const rollbackTx = db.transaction(() => {
+			db.prepare('UPDATE runs SET state = ? WHERE id = ?').run('landed', 'run-tx-1');
+			insertTask('t-tx-aborted', 'doc-1', 'batch-tx', 'M2-T99');
+			throw new Error('Simulated transaction rollback');
+		});
+		expect(() => rollbackTx()).toThrow('Simulated transaction rollback');
+
+		const [rbSingle, rbList, rbSnap] = await Promise.all([
+			batchService.getBatch('batch-tx'),
+			batchService.listBatches('doc-1'),
+			container.services.dispatch.getSnapshot('doc-1'),
+		]);
+		for (const target of [
+			rbSingle,
+			rbList.find((b) => b.id === 'batch-tx'),
+			rbSnap.batches.find((b) => b.id === 'batch-tx'),
+		]) {
+			expect(target?.taskCount).toBe(2);
+			expect(target?.landedCount).toBe(0);
+			expect(target?.runningCount).toBe(1);
+			expect(target?.waitingCount).toBe(0);
+		}
+
+		// ─── 阶段 C: 真实事务提交：原子跃迁到新事实 ───
+		const commitTx = db.transaction(() => {
+			db.prepare('UPDATE runs SET state = ?, is_in_head = 1 WHERE id = ?').run(
+				'landed',
+				'run-tx-1',
+			);
+			db.prepare('UPDATE tasks SET manual_state = ? WHERE id = ?').run('awaiting_human', 't-tx-2');
+			insertTask('t-tx-3', 'doc-1', 'batch-tx', 'M2-T3');
+			insertRun({
+				id: 'run-tx-3',
+				taskId: 't-tx-3',
+				attemptNo: 1,
+				kind: 'implement',
+				state: 'running',
+			});
+		});
+		commitTx();
+
+		// 事务提交后，并行获取三者，断言字段严格一致
+		const [postSingle, postList, postSnap] = await Promise.all([
+			batchService.getBatch('batch-tx'),
+			batchService.listBatches('doc-1'),
+			container.services.dispatch.getSnapshot('doc-1'),
+		]);
+		for (const target of [
+			postSingle,
+			postList.find((b) => b.id === 'batch-tx'),
+			postSnap.batches.find((b) => b.id === 'batch-tx'),
+		]) {
+			expect(target).toBeDefined();
+			expect(target?.taskCount).toBe(3);
 			expect(target?.landedCount).toBe(1);
-			expect(target?.runningCount).toBe(0);
+			expect(target?.runningCount).toBe(1);
 			expect(target?.waitingCount).toBe(1);
+			expect(target?.defaultExpanded).toBe(true);
+		}
+
+		// ─── 阶段 D: 并发写入与并行读取一致性 ───
+		// 模拟并发任务写入与运行状态变更
+		await Promise.all([
+			(async () => {
+				const tx1 = db.transaction(() => {
+					db.prepare('UPDATE runs SET state = ? WHERE id = ?').run('landed', 'run-tx-3');
+				});
+				tx1();
+			})(),
+			(async () => {
+				const tx2 = db.transaction(() => {
+					insertTask('t-tx-4', 'doc-1', 'batch-tx', 'M2-T4');
+					insertRun({
+						id: 'run-tx-4',
+						taskId: 't-tx-4',
+						attemptNo: 1,
+						kind: 'implement',
+						state: 'reviewing',
+					});
+				});
+				tx2();
+			})(),
+			(async () => {
+				const tx3 = db.transaction(() => {
+					insertTask('t-tx-5', 'doc-1', 'batch-tx', 'M2-T5');
+					insertRun({
+						id: 'run-tx-5',
+						taskId: 't-tx-5',
+						attemptNo: 1,
+						kind: 'implement',
+						state: 'awaiting_reply',
+					});
+				});
+				tx3();
+			})(),
+		]);
+
+		// 并发写入全部提交后，并行读取 getBatch、listBatches、getSnapshot
+		const [concurrentSingle, concurrentList, concurrentSnap] = await Promise.all([
+			batchService.getBatch('batch-tx'),
+			batchService.listBatches('doc-1'),
+			container.services.dispatch.getSnapshot('doc-1'),
+		]);
+		const concListBatch = concurrentList.find((b) => b.id === 'batch-tx');
+		const concSnapBatch = concurrentSnap.batches.find((b) => b.id === 'batch-tx');
+
+		for (const target of [concurrentSingle, concListBatch, concSnapBatch]) {
+			expect(target).toBeDefined();
+			// 总任务数: 5 (t-tx-1 ~ t-tx-5)
+			expect(target?.taskCount).toBe(5);
+			// 已落地: 2 (t-tx-1 landed, t-tx-3 landed)
+			expect(target?.landedCount).toBe(2);
+			// 在跑: 1 (t-tx-4 reviewing)
+			expect(target?.runningCount).toBe(1);
+			// 等待中: 2 (t-tx-2 awaiting_human, t-tx-5 awaiting_reply)
+			expect(target?.waitingCount).toBe(2);
 			expect(target?.defaultExpanded).toBe(true);
 		}
 	});
