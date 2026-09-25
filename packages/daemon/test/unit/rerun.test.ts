@@ -8,9 +8,11 @@ import { AppError } from '../../src/errors/app-error.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
 import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
+import { createGatesRepo } from '../../src/repo/gates.ts';
 import { createRunsRepo } from '../../src/repo/runs.ts';
 import { createTasksRepo } from '../../src/repo/tasks.ts';
 import {
+	type RerunServiceDeps,
 	checkBatchAlignment,
 	checkDocSnapshotStale,
 	createRerunService,
@@ -87,16 +89,19 @@ function createTestEnvironment(options?: {
 		}),
 	};
 
+	const gatesRepo = createGatesRepo(db);
+
 	const service = createRerunService({
 		runsRepo,
+		gatesRepo,
 		tasksRepo,
 		batchesRepo,
 		documentsRepo,
 		dispatchSnapshotsRepo,
 		clock,
 		ids,
-		bus: bus as unknown as undefined,
-		envelopeFactory: envelopeFactory as unknown as undefined,
+		bus: bus as unknown as NonNullable<RerunServiceDeps['bus']>,
+		envelopeFactory: envelopeFactory as unknown as NonNullable<RerunServiceDeps['envelopeFactory']>,
 		isAgentDispatchable: (agentId: string) => onlineSet.has(agentId),
 		listDispatchableAgents: () =>
 			Array.from(onlineSet).map((agentId) => ({ agentId, canDispatch: true })),
@@ -123,6 +128,7 @@ function createTestEnvironment(options?: {
 		documentsRepo,
 		batchesRepo,
 		tasksRepo,
+		gatesRepo,
 		dispatchSnapshotsRepo,
 		runsRepo,
 		clock,
@@ -747,6 +753,17 @@ describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 				started_at: env.clock.now(),
 			});
 
+			// Set lane on task and pending gate to verify cleanup (E-36)
+			env.tasksRepo.setLaneNo('task-failed-model', 1);
+			env.gatesRepo.create({
+				id: 'gate-bad-model',
+				task_id: 'task-failed-model',
+				run_id: 'run-starting-bad-model',
+				kind: 'review',
+				state: 'waiting',
+				created_at: env.clock.now(),
+			});
+
 			// While starting, it is active and occupies slot
 			expect(env.runsRepo.findActiveByTaskId('task-failed-model')).not.toBeNull();
 
@@ -758,6 +775,18 @@ describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 
 			expect(updated.state).toBe('failed');
 			expect(updated.queuedReason).toBe('派发失败·模型无效');
+			expect(updated.reworkCount ?? 0).toBe(0);
+
+			// Lane is released (tasks.lane_no set to NULL) and lane.released event is published (E-36)
+			expect(env.tasksRepo.findById('task-failed-model')?.lane_no).toBeNull();
+			const laneReleasedEvent = env.publishedEvents.find((e) => e.kind === 'lane.released');
+			expect(laneReleasedEvent).toBeDefined();
+			expect((laneReleasedEvent?.payload as { reason?: string })?.reason).toBe('failed');
+
+			// Pending gate is superseded so the approval card disappears (E-36)
+			const gate = env.gatesRepo.findById('gate-bad-model');
+			expect(gate?.state).toBe('decided');
+			expect(gate?.comment).toBe('superseded');
 
 			// Once marked failed, it is no longer active and does not occupy window quota
 			expect(env.runsRepo.findActiveByTaskId('task-failed-model')).toBeNull();

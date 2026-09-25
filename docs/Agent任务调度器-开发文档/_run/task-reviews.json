@@ -1305,5 +1305,19 @@
     "reviewed": "2026-09-24T18:03:37.271907+00:00",
     "scope": "task-contract",
     "verdict": "pass"
+  },
+  "R8-T97041355": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "3c11fb2845050c914519feee1fe0cafd31767337a19ef130ae17c6a4e7efce82",
+    "evidence": [
+      "shared/api/events.ts 已新增 run.model_rejected（scope run，milestone true，payload 固定 {code:'model_invalid', modelName, vendorMessage}），events.test.ts 穷尽断言通过。",
+      "codex adapter turn/failed 仅在 error 对象带结构化拒绝 code/type 时映射 run.model_rejected，文本不映射；codex 与 claude capabilities 声明 reportsModelRejection。",
+      "RunService 收到 run.model_rejected 后调用 handleModelInvalid 迁 failed、queuedReason 为派发失败·模型无效、tasks.lane_no 置 NULL 并发 lane.released、不计 rework_count、审批卡不出现；随后退出跳过 E-348。",
+      "arch 测试断言 packages/daemon/src/service 与 jobs 下不存在对 stderrTail/stdout 文本做 model/invalid/not found 等正则或 includes 匹配的分支。",
+      "13 节 E-36 与 19 节 M8-T5 验收 6 改为「仅在 agent 结构化报错时精确标注，否则按 E-348 转人」，E_MODEL_INVALID 从 routes.ts 与 10 节错误码表同步删除，scripts/check-error-codes.mjs 通过。"
+    ],
+    "reviewed": "2026-09-25T10:06:24.896473+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
   }
 }

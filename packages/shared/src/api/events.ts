@@ -47,6 +47,7 @@ export const EVENT_DEFINITIONS = {
 	'run.message_delivered': { scope: 'run', milestone: true },
 	'run.message_undelivered': { scope: 'run', milestone: true },
 	'run.rework_dispatched': { scope: 'run', milestone: true },
+	'run.model_rejected': { scope: 'run', milestone: true },
 	'task.gate_waiting': { scope: 'task', milestone: true },
 	'task.gate_passed': { scope: 'task', milestone: true },
 	'task.review_verdict': { scope: 'task', milestone: true },
@@ -93,6 +94,7 @@ const EVENT_KIND_VALUES = [
 	'run.message_delivered',
 	'run.message_undelivered',
 	'run.rework_dispatched',
+	'run.model_rejected',
 	'task.gate_waiting',
 	'task.gate_passed',
 	'task.review_verdict',
@@ -149,6 +151,7 @@ export const PRODUCT_EVENT_KINDS = [
 	'run.message_delivered',
 	'run.message_undelivered',
 	'run.rework_dispatched',
+	'run.model_rejected',
 	'task.gate_waiting',
 	'task.gate_passed',
 	'task.review_verdict',
@@ -298,6 +301,14 @@ export interface RunReworkDispatchedPayload {
 	readonly reviewRunId?: string | null;
 	readonly reworkRunId?: string;
 	readonly reworkCount?: number;
+	readonly vendor?: unknown;
+	readonly [key: string]: unknown;
+}
+
+export interface RunModelRejectedPayload {
+	readonly code: 'model_invalid';
+	readonly modelName: string;
+	readonly vendorMessage: string;
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }
@@ -460,6 +471,7 @@ export interface EventPayloadMap {
 	readonly 'run.message_delivered': RunMessageDeliveredPayload;
 	readonly 'run.message_undelivered': RunMessageUndeliveredPayload;
 	readonly 'run.rework_dispatched': RunReworkDispatchedPayload;
+	readonly 'run.model_rejected': RunModelRejectedPayload;
 	readonly 'task.gate_waiting': TaskGateWaitingPayload;
 	readonly 'task.gate_passed': TaskGatePassedPayload;
 	readonly 'task.review_verdict': TaskReviewVerdictPayload;

@@ -1121,5 +1121,62 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 			});
 			expect(env.runsRepo.findById(runId2)?.state).toBe('aborted');
 		});
+
+		it('R8-T97041355 AC 3: calls handleModelInvalid when run.model_rejected event is produced by eventMapper', async () => {
+			const env = setupTestEnvironment();
+			let handledInput: unknown = null;
+			const service = createRunService({
+				logstore: env.logstore,
+				bus: env.bus,
+				envelopeFactory: env.envelopeFactory,
+				runsRepo: env.runsRepo,
+				clock: env.clock,
+				handleModelInvalid: (input) => {
+					handledInput = input;
+				},
+			});
+
+			const runId = 'run-model-rejected-unit';
+			env.createRun({
+				id: runId,
+				taskId: 'task-unit-1',
+				state: 'running',
+				pid: 8888,
+			});
+
+			let jsonCb: ((parsed: { isJson: boolean; value: unknown }) => void) | undefined;
+			const mockProcess = {
+				runId,
+				pid: 8888,
+				onRaw: () => () => {},
+				onJson: (cb: (parsed: { isJson: boolean; value: unknown }) => void) => {
+					jsonCb = cb;
+					return () => {};
+				},
+				onExit: () => () => {},
+			} as unknown as ManagedProcess;
+
+			service.attachProcess(runId, mockProcess, {
+				eventMapper: () => [
+					env.envelopeFactory.createEnvelope({
+						kind: 'run.model_rejected',
+						runId,
+						payload: {
+							code: 'model_invalid',
+							modelName: 'non-existent-model',
+							vendorMessage: 'model rejected by vendor',
+						},
+					}),
+				],
+			});
+
+			jsonCb?.({ isJson: true, value: { error: 'mock' } });
+
+			expect(handledInput).toEqual({
+				runId,
+				modelName: 'non-existent-model',
+				message: 'model rejected by vendor',
+			});
+		});
 	});
 });

@@ -1,4 +1,4 @@
-import { EVENT_DEFINITIONS, type EventEnvelope } from '@agent-scheduler/shared/api/events';
+﻿import { EVENT_DEFINITIONS, type EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { redactSecrets } from '../adapters/probe.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { isContentEventKind } from '../domain/content-events.ts';
@@ -143,6 +143,16 @@ export interface RunServiceDeps {
 		}) => void;
 	};
 	readonly ids?: { readonly newId: () => string };
+	/**
+	 * Called when a run.model_rejected event is received during process attachment (E-36).
+	 * RunService invokes this to transition the run to failed and release the lane.
+	 */
+	readonly handleModelInvalid?: (input: {
+		readonly runId: string;
+		readonly modelName?: string;
+		readonly agentStderrTail?: string;
+		readonly message?: string;
+	}) => void;
 }
 
 export interface RunService {
@@ -533,6 +543,24 @@ export function createRunService(deps: RunServiceDeps): RunService {
 							if (isContentEventKind(env.kind)) {
 								hasContent = true;
 								runsWithContent.add(runId);
+							}
+							// E-36: structured model rejection → mark failed, release lane.
+							// Synchronous before ingestEvent so run reaches terminal state before
+							// process exit; exit handler then skips E-348 zero-output path.
+							if (env.kind === 'run.model_rejected' && deps.handleModelInvalid) {
+								const payload = env.payload as {
+									readonly modelName?: string;
+									readonly vendorMessage?: string;
+								};
+								try {
+									deps.handleModelInvalid({
+										runId,
+										modelName: payload.modelName,
+										message: payload.vendorMessage,
+									});
+								} catch (err) {
+									logFailure(err);
+								}
 							}
 							void trackWrite(
 								ingestEvent(runId, env).then(() => {

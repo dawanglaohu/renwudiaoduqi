@@ -400,7 +400,6 @@ export const ROUTES: readonly RouteDefinition[] = [
 			'E_RUN_ALREADY_EXISTS',
 			'E_AGENT_UNAVAILABLE',
 			'E_AGENT_BUSY',
-			'E_MODEL_INVALID',
 			'E_INTERNAL',
 		],
 		bodySchema: createRunBodySchema,

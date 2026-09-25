@@ -564,6 +564,58 @@ function mapItemUpdated(
 	return events;
 }
 
+/**
+ * Model-rejection code values from Codex JSON-RPC structured error objects.
+ * These are typed codes/types in the error object — NOT free-text message strings.
+ * Per E-36: only accept structured field signals, never parse stderr or free-text.
+ */
+const MODEL_REJECTION_CODES: ReadonlySet<string> = new Set([
+	'model_not_found',
+	'invalid_model',
+	'model_invalid',
+	'unsupported_model',
+	'model_not_available',
+	'model_decommissioned',
+]);
+
+interface ModelRejectionInfo {
+	readonly modelName: string;
+	readonly vendorMessage: string;
+}
+
+/**
+ * Detects whether a structured Codex JSON-RPC error object signals a model rejection.
+ * Only inspects typed error.code / error.type fields — never message text (E-36 / E-348).
+ * Returns null if no structured model-rejection signal found.
+ */
+function detectModelRejection(
+	errorObj: Record<string, unknown> | null,
+	contextModelName?: unknown,
+): ModelRejectionInfo | null {
+	if (errorObj === null) return null;
+
+	const code = typeof errorObj.code === 'string' ? errorObj.code.toLowerCase() : null;
+	const type = typeof errorObj.type === 'string' ? errorObj.type.toLowerCase() : null;
+
+	const isModelRejection =
+		(code !== null && MODEL_REJECTION_CODES.has(code)) ||
+		(type !== null && MODEL_REJECTION_CODES.has(type));
+
+	if (!isModelRejection) return null;
+
+	const modelName =
+		typeof errorObj.model === 'string'
+			? errorObj.model
+			: typeof errorObj.modelName === 'string'
+				? errorObj.modelName
+				: typeof contextModelName === 'string'
+					? contextModelName
+					: '';
+	const vendorMessage = typeof errorObj.message === 'string' ? errorObj.message : '';
+
+	return { modelName, vendorMessage };
+}
+
 function mapTurnResolution(
 	status: string,
 	errorMessage: string | null,
@@ -822,6 +874,27 @@ function mapParsedObject(
 							: typeof params.message === 'string'
 								? params.message
 								: null;
+
+				// Only emit run.model_rejected when the structured error object carries a
+				// typed model-rejection code or type (E-36). Never infer from free-text message.
+				const contextModel =
+					turn.modelName ?? turn.model ?? turn.model_name ?? params.modelName ?? params.model;
+				const modelRejected = detectModelRejection(turnError, contextModel);
+				if (modelRejected !== null) {
+					events.push(
+						createInput(
+							'run.model_rejected',
+							{
+								code: 'model_invalid',
+								modelName: modelRejected.modelName,
+								vendorMessage: modelRejected.vendorMessage,
+								vendor: parsed,
+							},
+							context,
+						),
+					);
+					return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+				}
 
 				const resolutionEvents = mapTurnResolution('failed', errorMessage, parsed, context);
 				events.push(...resolutionEvents);

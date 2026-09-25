@@ -75,6 +75,7 @@ import type { EventEnvelopeInput, LogstoreService } from '../service/logstore.ts
 import { createLogstoreService } from '../service/logstore.ts';
 import { type MessageService, createMessageService } from '../service/message.ts';
 import { type PairingService, createPairingService } from '../service/pairing.ts';
+import { createRerunService } from '../service/rerun.ts';
 import { type RetentionService, createRetentionService } from '../service/retention.ts';
 import { type ReviewService, createReviewService } from '../service/review.ts';
 import {
@@ -658,6 +659,20 @@ export function createContainer(input: {
 	});
 	const reviewServiceHolder: { current?: ReviewService } = {};
 
+	const rerunService = createRerunService({
+		unitOfWork,
+		runsRepo: runs,
+		gatesRepo: gates,
+		tasksRepo: tasks,
+		batchesRepo: batches,
+		documentsRepo: documents,
+		dispatchSnapshotsRepo: dispatchSnapshots,
+		clock: input.clock,
+		ids,
+		bus,
+		envelopeFactory,
+	});
+
 	const runService =
 		input.runService ??
 		createRunService({
@@ -681,6 +696,10 @@ export function createContainer(input: {
 			agentService,
 			gatesRepo: gates,
 			ids,
+			// E-36: delegate model-rejection handling to rerunService
+			handleModelInvalid: (inp) => {
+				rerunService.handleModelInvalid(inp);
+			},
 		});
 
 	/**

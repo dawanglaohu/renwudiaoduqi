@@ -3,6 +3,7 @@ import { extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { getClaudeCapabilities } from '../../src/adapters/claude/capabilities.ts';
 import {
 	buildCodexLaunchSpec,
 	buildLaunchSpec,
@@ -58,6 +59,12 @@ describe('M4-T8: codex 原生适配器', () => {
 			// Streaming events remain available
 			expect(acpCaps.hasStreamingEvents).toBe(true);
 			expect(Object.isFrozen(acpCaps)).toBe(true);
+		});
+
+		it('R8-T97041355 E-36: native adapter declares reportsModelRejection=true; generic-acp declares false', () => {
+			expect(getCodexCapabilities('native').reportsModelRejection).toBe(true);
+			expect(getCodexCapabilities('generic-acp').reportsModelRejection).toBe(false);
+			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(true);
 		});
 	});
 
@@ -822,6 +829,49 @@ describe('M4-T8: codex 原生适配器', () => {
 			);
 			expect(unknownType.unmappedCount).toBe(1);
 			expect(unknownType.events).toEqual([]);
+		});
+
+		it('R8-T97041355 AC 2 & E-36: turn/failed with structured error code/type emits exactly one run.model_rejected', () => {
+			const structuredLine = JSON.stringify({
+				method: 'turn/failed',
+				params: {
+					turn: {
+						model: 'gpt-fake-model',
+						error: {
+							code: 'model_not_found',
+							message: 'The model gpt-fake-model does not exist',
+						},
+					},
+				},
+			});
+
+			const result = parseAndMapCodexLine(structuredLine, context);
+			expect(result.events).toHaveLength(1);
+			expect(result.events[0]?.kind).toBe('run.model_rejected');
+			expect(result.events[0]?.payload).toMatchObject({
+				code: 'model_invalid',
+				modelName: 'gpt-fake-model',
+				vendorMessage: 'The model gpt-fake-model does not exist',
+			});
+			expect(result.unmappedCount).toBe(0);
+		});
+
+		it('R8-T97041355 AC 2 & E-36: turn/failed with identical message in free text/stderr does NOT emit run.model_rejected', () => {
+			const freeTextLine = JSON.stringify({
+				method: 'turn/failed',
+				params: {
+					message: 'The model gpt-fake-model does not exist',
+				},
+			});
+
+			const result = parseAndMapCodexLine(freeTextLine, context);
+			expect(result.events.some((e) => e.kind === 'run.model_rejected')).toBe(false);
+			expect(result.events.some((e) => e.kind === 'run.stderr_line')).toBe(true);
+			expect(result.events.some((e) => e.kind === 'run.exited')).toBe(true);
+		});
+
+		it('R8-T97041355 AC 2: claude capabilities declares reportsModelRejection=false', () => {
+			expect(getClaudeCapabilities().reportsModelRejection).toBe(false);
 		});
 	});
 

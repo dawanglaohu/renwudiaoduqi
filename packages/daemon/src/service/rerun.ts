@@ -1,3 +1,4 @@
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { RunBaseRef, RunDto } from '@agent-scheduler/shared/api/runs';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
@@ -602,7 +603,8 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 	/**
 	 * Marks a run as failed due to invalid model name (AC 6 & E-36).
-	 * Sets queued_reason to '派发失败·模型无效' and releases slot/window capacity.
+	 * Sets queued_reason to '派发失败·模型无效', releases lane (tasks.lane_no → NULL),
+	 * publishes lane.released, and supersedes pending gates so the gate card disappears.
 	 */
 	function handleModelInvalid(input: HandleModelInvalidInput): RunDto {
 		const run = runsRepo.findById(input.runId);
@@ -610,6 +612,12 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			throw new AppError('E_NOT_FOUND', `Run not found: ${input.runId}`, {
 				details: { runId: input.runId },
 			});
+		}
+
+		// Skip if already in a terminal state (e.g. called twice for same run)
+		const terminalStates = new Set(['failed', 'succeeded', 'aborted', 'interrupted']);
+		if (terminalStates.has(run.state)) {
+			return toRunDto(run);
 		}
 
 		const now = clock.now();
@@ -620,20 +628,55 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			endedAt: now,
 		});
 
-		if (deps.bus && deps.envelopeFactory) {
-			const envelope = deps.envelopeFactory.createEnvelope({
-				kind: 'run.state_changed',
-				runId: run.id,
-				taskId: run.task_id,
-				payload: {
-					from: run.state,
-					to: 'failed',
-					reason: 'model_invalid',
-					message: input.message ?? '派发失败·模型无效',
-					agentStderrTail: input.agentStderrTail,
-				},
-			});
-			deps.bus.publish(envelope);
+		const pendingEnvelopes: EventEnvelope[] = [];
+
+		if (deps.envelopeFactory) {
+			pendingEnvelopes.push(
+				deps.envelopeFactory.createEnvelope({
+					kind: 'run.state_changed',
+					runId: run.id,
+					taskId: run.task_id,
+					payload: {
+						from: run.state,
+						to: 'failed',
+						reason: 'model_invalid',
+						message: input.message ?? '派发失败·模型无效',
+						agentStderrTail: input.agentStderrTail,
+					},
+				}) as EventEnvelope,
+			);
+		}
+
+		// Release lane: set tasks.lane_no = NULL and emit lane.released{reason:'failed'} (E-36)
+		if (run.task_id) {
+			const laneRes = deps.tasksRepo.clearLaneNo?.(run.task_id);
+			if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+				pendingEnvelopes.push(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'lane.released',
+						taskId: run.task_id,
+						runId: run.id,
+						payload: {
+							docId: laneRes.docId,
+							laneNo: laneRes.previousLaneNo,
+							taskId: run.task_id,
+							runId: run.id,
+							reason: 'failed',
+						},
+					}) as EventEnvelope,
+				);
+			}
+		}
+
+		// Supersede any pending gate cards so the approval card disappears (E-36)
+		if (deps.gatesRepo && run.task_id) {
+			deps.gatesRepo.supersedePendingByRunIds?.([run.id], now);
+		}
+
+		if (deps.bus) {
+			for (const envelope of pendingEnvelopes) {
+				deps.bus.publish(envelope);
+			}
 		}
 
 		const updated = runsRepo.findById(input.runId);
