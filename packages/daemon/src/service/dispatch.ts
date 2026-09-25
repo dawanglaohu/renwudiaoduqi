@@ -54,7 +54,7 @@ import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../proc/spawn.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
-import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
+import type { BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { EventSeqRepo } from '../repo/event-seq-repo.ts';
@@ -77,7 +77,7 @@ import { isBranchInHead } from '../workspace/in-head.ts';
 import type { PrepareWorktreeInput, PrepareWorktreeResult } from '../workspace/worktree.ts';
 import { createAssignmentReader } from './assignment-reader.ts';
 import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
-import { type BatchService, createBatchService } from './batch.ts';
+import { type BatchService, computeBatchSummary, createBatchService, toBatchDto } from './batch.ts';
 import type { LanesService } from './lanes.ts';
 import type { EventEnvelopeInput } from './logstore.ts';
 import { createRerunService } from './rerun.ts';
@@ -87,18 +87,7 @@ import { assertSessionRefFree } from './session-guard.ts';
 import type { WrapupService } from './wrapup.ts';
 
 export type { RunInsertRow, RunRow, RunsRepo };
-export { toRunDto };
-
-export function toBatchDto(row: BatchRow): BatchDto {
-	return Object.freeze({
-		id: row.id,
-		docId: row.doc_id,
-		batchNo: row.batch_no,
-		state: row.state,
-		startedAt: row.started_at ?? null,
-		finishedAt: row.finished_at ?? null,
-	});
-}
+export { toRunDto, toBatchDto };
 
 export function toTaskDto(
 	row: TaskRow,
@@ -941,10 +930,31 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		for (const doc of documents) {
 			const bRows = deps.batchesRepo.listByDocId(doc.id);
-			for (const b of bRows) {
-				allBatches.push(toBatchDto(b));
-			}
 			const tRows = deps.tasksRepo.listByDocId(doc.id);
+			const tasksByBatchId = new Map<string, TaskRow[]>();
+			for (const t of tRows) {
+				if (t.batch_id) {
+					const list = tasksByBatchId.get(t.batch_id) ?? [];
+					list.push(t);
+					tasksByBatchId.set(t.batch_id, list);
+				}
+			}
+
+			for (const b of bRows) {
+				const batchTasks = tasksByBatchId.get(b.id) ?? [];
+				const landing = summarizeBatchLanding(batchTasks, allRunRows);
+				const activeWrapup = runsRepo.findActiveWrapupByBatchId?.(b.id);
+				const canWrapup =
+					landing.allInHead && !activeWrapup && b.state !== 'done' && b.state !== 'wrapping';
+				const summary = computeBatchSummary(b.state, batchTasks, runsByTaskId);
+				allBatches.push(
+					toBatchDto(b, {
+						canWrapup,
+						notInHeadCount: landing.notInHeadCount,
+						...summary,
+					}),
+				);
+			}
 			for (const t of tRows) {
 				const latestRun = latestRunByTaskId.get(t.id);
 				const tRuns = runsByTaskId.get(t.id) ?? [];

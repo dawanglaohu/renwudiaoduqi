@@ -29,6 +29,11 @@ export interface BatchDto {
 	readonly finishedAt: string | null;
 	readonly canWrapup?: boolean;
 	readonly notInHeadCount?: number;
+	readonly taskCount?: number;
+	readonly landedCount?: number;
+	readonly runningCount?: number;
+	readonly waitingCount?: number;
+	readonly defaultExpanded?: boolean;
 }
 
 export interface BatchGateOverrides {

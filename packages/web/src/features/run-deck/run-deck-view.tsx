@@ -33,6 +33,7 @@ import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
+import { useSelectionStore } from '../../store/selection-store.ts';
 import type { LaneStepItem } from './lane-steps-container.tsx';
 import { LanesContainer } from './lanes-container.tsx';
 import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
@@ -274,7 +275,8 @@ export function RunDeckView(props: RunDeckViewProps) {
 				bodySlot: laneBodySlot(lane, tier, isTouch),
 			}));
 
-	// 纯消费 daemon 字段，未显式传入时由 useBatchTree 从快照拉取，前端绝不推导计算（R1, R2, R5）
+	const selectedDocId = useSelectionStore((state) => state.selectedDocId);
+	// Both trees follow the document selected in the dispatch console.
 	const {
 		batches: treeBatches,
 		expandedIds,
@@ -282,6 +284,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		toggleBatch,
 	} = useBatchTree({
 		batches: batches as readonly BatchTreeItem[] | undefined,
+		docId: selectedDocId ?? undefined,
 	});
 
 	// 是否为手机档位（phone 或极窄 phone-xs，或者宽度 < 600px 且触控）

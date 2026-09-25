@@ -1317,5 +1317,17 @@
     "reviewed": "2026-09-24T18:03:37.271907+00:00",
     "scope": "task-contract",
     "verdict": "pass"
+  },
+  "R13-T98191508": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "57e5922118690501f968f5d349f5a01aba198b0f68a3225ff6680837398ecffe",
+    "evidence": [
+      "补丁只在 R13-T98191508 的返工任务围栏补列运行甲板、任务页及批次树 hook 三个消费入口；验收标准、边界编号和依赖均未降低。",
+      "正式 daemon 通过浏览器配对并经 HTTP 导入两份文档；在运行甲板点击第二文档后，两端树只显示第二文档批次，切回第一文档后重新显示其 17 个批次，数字计数和展开状态来自正式 DTO。",
+      "batch-tree 文档切换回归覆盖先按 docId 筛选再重新 seed；batch-summary 集成测试用第二 SQLite 连接持有未提交写事务，核对提交前后 getBatch、listBatches、getSnapshot 一致。"
+    ],
+    "reviewed": "2026-09-25T09:05:46.595467+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
   }
 }
