@@ -210,6 +210,8 @@ async function getAuthToken(container: ReturnType<typeof createContainer>): Prom
 interface GitDiffControl {
 	hasDiff: boolean;
 	filesChanged: number;
+	failDiffRead?: boolean;
+	treeShaOverride?: string;
 }
 
 function setupBughuntEnvironment(
@@ -307,6 +309,24 @@ function setupBughuntEnvironment(
 			const command = args.join(' ');
 			if (command.includes('--is-inside-work-tree')) {
 				return { exitCode: 0, stdout: 'true\n', stderr: '' };
+			}
+			if (
+				gitDiffControl.failDiffRead &&
+				(command.includes('diff') ||
+					command.includes('--numstat') ||
+					command.includes('--name-status'))
+			) {
+				return { exitCode: 1, stdout: '', stderr: 'fatal: git diff failed\n' };
+			}
+			if (command.includes('write-tree')) {
+				return {
+					exitCode: 0,
+					stdout: 'e8a71c8901234567890123456789012345678901\n',
+					stderr: '',
+				};
+			}
+			if (command.includes('read-tree') || command.includes('add -A')) {
+				return { exitCode: 0, stdout: '', stderr: '' };
 			}
 			if (command.includes('rev-parse')) {
 				return { exitCode: 0, stdout: 'e8a71c8901234567890123456789012345678901\n', stderr: '' };
@@ -1061,5 +1081,289 @@ NEXT
 				),
 			).toBe(true);
 		}
+	});
+
+	describe('R1–R4 regression suite', () => {
+		// R1: 启动抛错、启动即退出或超时、信号中止等查 bug 失败，通过正式容器将子运行、父实施运行及 bughunt_failed 人工闸门完整落定
+		it('R1: bughunt process signal termination (SIGTERM) or premature exit creates bughunt_failed gate and sets runs accordingly', async () => {
+			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const { container, spawnedProcesses } = env;
+			const { implRunId } = await advanceToReviewPassed(env);
+
+			await waitFor(() => {
+				const runs = container.repos.runs.listByTaskId('task-1');
+				return runs.some((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId);
+			});
+			const bughuntRun = expectDefined(
+				container.repos.runs
+					.listByTaskId('task-1')
+					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
+				'bughuntRun',
+			);
+			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
+
+			// Emit signal exit (SIGTERM)
+			bughuntProc?.emitExit(143, 'SIGTERM');
+
+			await waitFor(() => {
+				const gates = listWaitingGates(container);
+				return gates.some((g) => g.comment === 'bughunt_failed');
+			});
+
+			const updatedBughunt = expectDefined(
+				container.repos.runs.findById(bughuntRun.id),
+				'updatedBughunt',
+			);
+			expect(updatedBughunt.state).toBe('failed');
+
+			const updatedImpl = expectDefined(container.repos.runs.findById(implRunId), 'updatedImpl');
+			expect(updatedImpl.state).toBe('awaiting_human');
+			expect(updatedImpl.queued_reason).toBe('bughunt_failed');
+
+			const gates = listWaitingGates(container);
+			const gate = gates.find((g) => g.comment === 'bughunt_failed');
+			expect(gate).toBeDefined();
+			expect(gate?.run_id).toBe(implRunId);
+		});
+
+		// R2: 冻结查 bug 派发时的真实工作区状态，以该基线判断 FIXED 和再审差异；差异读取失败不得按 clean 放行
+		it('R2: diff read failure does NOT clean pass and routes to awaiting_human bughunt_failed', async () => {
+			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const { container, spawnedProcesses, gitDiffControl } = env;
+			const { implRunId } = await advanceToReviewPassed(env);
+
+			await waitFor(() => {
+				const runs = container.repos.runs.listByTaskId('task-1');
+				return runs.some((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId);
+			});
+			const bughuntRun = expectDefined(
+				container.repos.runs
+					.listByTaskId('task-1')
+					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
+				'bughuntRun',
+			);
+			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
+
+			// Simulate clean output in report, but git diff reading fails!
+			gitDiffControl.failDiffRead = true;
+			bughuntProc?.emitLine(loadFixture('clean.txt'));
+			bughuntProc?.emitExit(0);
+
+			// Must NOT land; must enter awaiting_human with bughunt_failed gate
+			await waitFor(() => {
+				const gates = listWaitingGates(container);
+				return gates.some((g) => g.comment === 'bughunt_failed');
+			});
+
+			const updatedImpl = expectDefined(container.repos.runs.findById(implRunId), 'updatedImpl');
+			expect(updatedImpl.state).toBe('awaiting_human');
+			expect(updatedImpl.queued_reason).toBe('bughunt_failed');
+		});
+
+		it('R2: dirty workspace before bughunt and untouched during bughunt results in clean pass to landing gate', async () => {
+			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const { container, spawnedProcesses, gitDiffControl } = env;
+			const { implRunId } = await advanceToReviewPassed(env);
+
+			await waitFor(() => {
+				const runs = container.repos.runs.listByTaskId('task-1');
+				return runs.some((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId);
+			});
+			const bughuntRun = expectDefined(
+				container.repos.runs
+					.listByTaskId('task-1')
+					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
+				'bughuntRun',
+			);
+			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
+
+			// Untouched: hasDiff is false
+			gitDiffControl.hasDiff = false;
+			bughuntProc?.emitLine(loadFixture('clean.txt'));
+			bughuntProc?.emitExit(0);
+
+			// Direct clean landing gate
+			await waitFor(() => {
+				const gates = listWaitingGates(container);
+				return gates.some((g) => g.kind === 'landing' && g.task_id === 'task-1');
+			});
+			expect(listWaitingGates(container).some((g) => g.kind === 'landing')).toBe(true);
+		});
+
+		it('R2: forbidden commit with fixes detects diff against baseline tree and triggers rereview', async () => {
+			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const { container, spawnedProcesses, gitDiffControl } = env;
+			const { implRunId } = await advanceToReviewPassed(env);
+
+			await waitFor(() => {
+				const runs = container.repos.runs.listByTaskId('task-1');
+				return runs.some((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId);
+			});
+			const bughuntRun = expectDefined(
+				container.repos.runs
+					.listByTaskId('task-1')
+					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
+				'bughuntRun',
+			);
+			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
+
+			// Has diff against baseline tree
+			gitDiffControl.hasDiff = true;
+			gitDiffControl.filesChanged = 1;
+			bughuntProc?.emitLine(loadFixture('fixed.txt'));
+			bughuntProc?.emitExit(0);
+
+			// Triggers rereview: review service starts new review round for same session
+			await waitFor(() => {
+				const allRuns = container.repos.runs.listByTaskId('task-1');
+				return allRuns.some((r) => r.kind === 'review' && r.attempt_no > 2);
+			});
+			const newReviewRun = expectDefined(
+				container.repos.runs
+					.listByTaskId('task-1')
+					.find((r) => r.kind === 'review' && r.attempt_no > 2),
+				'newReviewRun',
+			);
+			expect(newReviewRun).toBeDefined();
+		});
+
+		// R3: HTTP 重派只允许当前停在 bughunt_failed 人工等待的那条子运行；旧行、其他闸门、已放行后的请求不得新派
+		it('R3: HTTP rerun rejects older bughunt runs, non-bughunt_failed gates, or released runs with 409', async () => {
+			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+
+			const { implRunId } = await advanceToReviewPassed(env);
+
+			await waitFor(() => {
+				const runs = container.repos.runs.listByTaskId('task-1');
+				return runs.some((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId);
+			});
+			const bughuntRun1 = expectDefined(
+				container.repos.runs
+					.listByTaskId('task-1')
+					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
+				'bughuntRun1',
+			);
+			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun1.id));
+			const bughuntProc1 = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun1.id);
+
+			// First bughunt run fails
+			bughuntProc1?.emitExit(1);
+			await waitFor(() => listWaitingGates(container).some((g) => g.comment === 'bughunt_failed'));
+
+			// HTTP rerun allowed for this latest run
+			const rerunRes1 = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/runs/${bughuntRun1.id}/rerun`,
+				headers: { authorization: token },
+				payload: { idempotencyKey: 'idemp-key-test-01' },
+			});
+			expect(rerunRes1.statusCode).toBe(200);
+			const bughuntRun2Id = rerunRes1.json().run.id;
+			expect(bughuntRun2Id).not.toBe(bughuntRun1.id);
+
+			// Attempting to rerun the older bughuntRun1 now MUST return 409 E_CONFLICT!
+			const rerunOlderRes = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/runs/${bughuntRun1.id}/rerun`,
+				headers: { authorization: token },
+				payload: { idempotencyKey: 'idemp-key-test-02' },
+			});
+			expect(rerunOlderRes.statusCode).toBe(409);
+
+			// Let bughuntRun2 fail as well
+			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun2Id));
+			const bughuntProc2 = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun2Id);
+			bughuntProc2?.emitExit(1);
+
+			await waitFor(() => {
+				const gates = listWaitingGates(container);
+				return gates.some((g) => g.comment === 'bughunt_failed');
+			});
+			const gate2 = expectDefined(
+				listWaitingGates(container).find((g) => g.comment === 'bughunt_failed'),
+				'gate2',
+			);
+
+			// Human approves the gate (release)
+			const passRes = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/gates/${gate2.id}/decide`,
+				headers: { authorization: token },
+				payload: { decision: 'pass', comment: 'Approved' },
+			});
+			expect(passRes.statusCode).toBe(200);
+
+			// Now rerun request on bughuntRun2 must return 409 E_CONFLICT!
+			const rerunReleasedRes = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/runs/${bughuntRun2Id}/rerun`,
+				headers: { authorization: token },
+				payload: { idempotencyKey: 'idemp-key-test-03' },
+			});
+			expect(rerunReleasedRes.statusCode).toBe(409);
+		});
+
+		// R4: bughunt、rework、wrapup-fix 启动时逐字透传 model/effort，包括 null
+		it('R4: bughunt and rework runs strictly pass through model and effortTier (including null) without falling back to launchSpecData defaults', async () => {
+			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const { container, spawnedProcesses } = env;
+
+			// Advance to review pass
+			const { implRunId } = await advanceToReviewPassed(env);
+
+			// Explicitly set model_name and effort_tier to null in DB for implRun
+			env.db
+				.prepare('UPDATE runs SET model_name = NULL, effort_tier = NULL WHERE id = ?')
+				.run(implRunId);
+			const implRunRow = container.repos.runs.findById(implRunId);
+			if (implRunRow?.snapshot_id) {
+				env.db
+					.prepare('UPDATE dispatch_snapshots SET assignment_json = NULL WHERE id = ?')
+					.run(implRunRow.snapshot_id);
+			}
+
+			// Clear previous bughunt run if any created during advance
+			const existingBh = container.repos.runs
+				.listByTaskId('task-1')
+				.find((r) => r.kind === 'bughunt');
+			if (existingBh) {
+				env.db.prepare('DELETE FROM runs WHERE id = ?').run(existingBh.id);
+			}
+
+			// Dispatch new bughunt run using implRun with null model_name
+			const bughuntService = expectDefined(container.services.bughunt, 'bughunt');
+			await bughuntService.dispatchBughunt({ implRunId });
+			await container.services.dispatch.tick();
+
+			await waitFor(() => {
+				const runs = container.repos.runs.listByTaskId('task-1');
+				return runs.some((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId);
+			});
+			const bughuntRun = expectDefined(
+				container.repos.runs
+					.listByTaskId('task-1')
+					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
+				'bughuntRun',
+			);
+			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			const bughuntProc = expectDefined(
+				spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id),
+				'bughuntProc',
+			);
+
+			// In snap-1, launch_spec_json has model: 'o3-mini'.
+			// But for bughunt, strict passthrough must preserve model = null (no model="o3-mini" or --model in args).
+			const args = bughuntProc.launchSpec.args;
+			expect(args.some((a) => a.includes('model='))).toBe(false);
+			expect(args.some((a) => a.includes('--model'))).toBe(false);
+		});
 	});
 });

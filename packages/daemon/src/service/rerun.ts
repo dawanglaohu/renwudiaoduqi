@@ -288,16 +288,58 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 					?.list?.({ pendingOnly: true })
 					.some((g) => g.run_id === previousRun.id && g.comment === 'exited_before_output'));
 
-		const isRetryableBughuntWait =
-			previousRun.kind === 'bughunt' &&
-			(task.manual_state === 'awaiting_human' ||
-				deps.gatesRepo
-					?.list?.({ pendingOnly: true })
-					.some(
-						(g) =>
-							(g.run_id === previousRun.id || g.task_id === task.id) &&
-							g.comment === 'bughunt_failed',
-					));
+		let isRetryableBughuntWait = false;
+		if (previousRun.kind === 'bughunt') {
+			const bughuntRuns = runsRepo.listByTaskId
+				? runsRepo.listByTaskId(task.id).filter((r) => r.kind === 'bughunt')
+				: [];
+			const latestBughuntRun =
+				bughuntRuns.length > 0
+					? bughuntRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
+					: previousRun;
+
+			// 旧行校验：必须是该 task 下最新的一条 bughunt 运行
+			if (latestBughuntRun.id !== previousRun.id) {
+				throw new AppError(
+					'E_GATE_ALREADY_DECIDED',
+					`Rerun is only allowed for the latest bughunt run (id: '${latestBughuntRun.id}'). Older run '${previousRun.id}' cannot be rerun.`,
+				);
+			}
+
+			// 闸门校验：必须存在 waiting 且 comment === 'bughunt_failed' 的闸门
+			const pendingGates = deps.gatesRepo?.list?.({ pendingOnly: true }) ?? [];
+			const bughuntFailedGate = pendingGates.find(
+				(g) =>
+					(g.run_id === previousRun.id ||
+						(previousRun.parent_run_id && g.run_id === previousRun.parent_run_id) ||
+						g.task_id === task.id) &&
+					g.comment === 'bughunt_failed',
+			);
+
+			if (!bughuntFailedGate) {
+				throw new AppError(
+					'E_GATE_ALREADY_DECIDED',
+					`Rerun is only allowed for a bughunt run currently awaiting human decision on 'bughunt_failed'. No pending 'bughunt_failed' gate found for task '${task.id}'.`,
+				);
+			}
+
+			// 父实施运行与任务状态校验：父运行必须仍停在 awaiting_human 且原因为 bughunt_failed
+			const parentRun = previousRun.parent_run_id
+				? runsRepo.findById(previousRun.parent_run_id)
+				: null;
+			if (
+				!parentRun ||
+				parentRun.state !== 'awaiting_human' ||
+				parentRun.queued_reason !== 'bughunt_failed'
+			) {
+				throw new AppError(
+					'E_GATE_ALREADY_DECIDED',
+					`Rerun is only allowed when parent implementation run is awaiting human on bughunt_failed. Current state: '${parentRun?.state}', reason: '${parentRun?.queued_reason}'.`,
+				);
+			}
+
+			isRetryableBughuntWait = true;
+		}
 
 		if (active && !isRetryableZeroOutputWait && !isRetryableBughuntWait) {
 			return {

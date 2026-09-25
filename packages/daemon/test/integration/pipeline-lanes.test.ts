@@ -795,6 +795,9 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		const bhRun2 = runsRepo.findById(bhResult2.bughuntRun?.id ?? '');
 		if (!bhRun2) throw new Error('bhRun2 is undefined');
 
+		// Modify tracked file in gitRepoPath to produce real diff during bhRun2 against its baseline
+		writeFileSync(join(gitRepoPath, 'README.md'), '# Modified by bughunt in run 2\n');
+
 		const finalizeRes2 = await bughuntService.finalizeBughuntRun({
 			bughuntRunId: bhRun2.id,
 			outputText: fixedOutput,

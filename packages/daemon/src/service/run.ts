@@ -118,6 +118,7 @@ export interface RunServiceDeps {
 		readonly runId: string;
 		readonly exitCode?: number | null;
 		readonly exitSignal?: string | null;
+		readonly failedReason?: string;
 	}) => Promise<unknown>;
 	readonly evaluateMechanicalCheck?: (input: {
 		readonly runId: string;
@@ -634,6 +635,14 @@ export function createRunService(deps: RunServiceDeps): RunService {
 							});
 							await ingestEvent(runId, exitedEnvelope);
 							await closeRunStream(runId);
+							if (run?.kind === 'bughunt' && deps.finalizeBughunt) {
+								await deps.finalizeBughunt({
+									runId,
+									exitCode: result.exitCode,
+									exitSignal: result.signal ? String(result.signal) : null,
+									failedReason: failureReason,
+								});
+							}
 							return;
 						}
 

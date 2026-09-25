@@ -76,7 +76,14 @@ export interface FinalizeBughuntRunInput {
 	readonly outputText?: string;
 	readonly exitCode?: number | null;
 	readonly exitSignal?: string | null;
-	readonly failedReason?: 'failed' | 'aborted' | 'interrupted' | 'startup_timeout';
+	readonly failedReason?:
+		| 'failed'
+		| 'aborted'
+		| 'interrupted'
+		| 'startup_timeout'
+		| 'spawn_failed'
+		| 'premature_exit'
+		| string;
 	readonly actorDeviceId?: string | null;
 }
 
@@ -96,6 +103,7 @@ export interface BughuntService {
 		readonly runId: string;
 		readonly exitCode?: number | null;
 		readonly exitSignal?: string | null;
+		readonly failedReason?: string;
 	}) => Promise<FinalizeBughuntRunResult>;
 }
 
@@ -324,7 +332,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					lane_no: implRun.lane_no,
 					batch_id: implRun.batch_id,
 					assignment_source: assignmentSource,
-					branch_tip_sha: baseline.headSha,
+					branch_tip_sha: baseline.treeSha,
 					started_at: now,
 				};
 				deps.runsRepo.insert(row);
@@ -368,8 +376,9 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			readonly runId: string;
 			readonly exitCode?: number | null;
 			readonly exitSignal?: string | null;
+			readonly failedReason?: string;
 		}): Promise<FinalizeBughuntRunResult> {
-			const { runId, exitCode, exitSignal } = input;
+			const { runId, exitCode, exitSignal, failedReason } = input;
 			if (deps.runService?.closeRunStream) {
 				await deps.runService.closeRunStream(runId);
 			}
@@ -386,6 +395,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				outputText,
 				exitCode,
 				exitSignal,
+				failedReason,
 			});
 		},
 
@@ -412,10 +422,14 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			}
 			const now = deps.clock.now();
 
-			// 1. 检查失败类情况（AC 5, E-323: failed / aborted / interrupted / 启动超时）
+			// 1. 检查失败类情况（AC 5, E-323: failed / aborted / interrupted / 启动超时 / 信号中止）
 			const isExplicitFailure =
 				input.failedReason !== undefined ||
-				isTerminalRunState(bughuntRun.state as RunState) ||
+				bughuntRun.state === 'failed' ||
+				bughuntRun.state === 'aborted' ||
+				bughuntRun.state === 'cancelled' ||
+				Boolean(input.exitSignal) ||
+				Boolean(bughuntRun.exit_signal) ||
 				(input.exitCode !== undefined && input.exitCode !== null && input.exitCode !== 0);
 
 			if (isExplicitFailure) {
@@ -597,8 +611,89 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 						runner: deps.gitRunner,
 					});
 					hasWorkspaceDiff = diffResult.filesChanged > 0;
-				} catch {
-					hasWorkspaceDiff = false;
+				} catch (diffErr) {
+					// R2: 差异读取失败不得按 clean 放行，直接转入 awaiting_human 并开 bughunt_failed 闸门
+					deps.warn?.(`Failed to read bughunt diff against baseline: ${diffErr}`);
+					const gateId = `gate_${deps.ids.newId()}`;
+					let laneReleasedEvent: EventEnvelope | null = null;
+					deps.unitOfWork.run(() => {
+						if (!isTerminalRunState(bughuntRun.state as RunState)) {
+							deps.runsRepo.updateState({
+								id: bughuntRun.id,
+								fromState: bughuntRun.state,
+								toState: 'failed',
+								endedAt: now,
+								queuedReason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+								exitCode: input.exitCode ?? bughuntRun.exit_code,
+								exitSignal: input.exitSignal ?? bughuntRun.exit_signal,
+								actorDeviceId: input.actorDeviceId ?? null,
+							});
+						}
+
+						deps.runsRepo.updateState({
+							id: implRun.id,
+							fromState: implRun.state,
+							toState: 'awaiting_human',
+							endedAt: now,
+							queuedReason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+							actorDeviceId: input.actorDeviceId ?? null,
+						});
+
+						deps.gatesRepo?.create({
+							id: gateId,
+							task_id: taskId,
+							run_id: implRun.id,
+							kind: 'review',
+							state: 'waiting',
+							comment: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+							created_at: now,
+						});
+
+						if (deps.tasksRepo) {
+							const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+							if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+								laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+									kind: 'lane.released',
+									taskId,
+									runId: implRun.id,
+									actorDeviceId: input.actorDeviceId ?? null,
+									payload: {
+										docId: laneRes.docId,
+										laneNo: laneRes.previousLaneNo,
+										taskId,
+										runId: implRun.id,
+										reason: 'awaiting_human',
+									},
+								});
+							}
+						}
+					});
+
+					if (laneReleasedEvent && deps.bus) {
+						deps.bus.publish(laneReleasedEvent);
+					}
+
+					if (deps.envelopeFactory && deps.bus) {
+						deps.bus.publish(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId: implRun.id,
+								taskId,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: implRun.state,
+									to: 'awaiting_human',
+									reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+								},
+							}),
+						);
+					}
+
+					return Object.freeze({
+						action: 'awaiting_human',
+						reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+						gateId,
+					});
 				}
 			}
 

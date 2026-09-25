@@ -1,4 +1,5 @@
 import * as nodeFs from 'node:fs/promises';
+import * as nodeOs from 'node:os';
 import * as nodePath from 'node:path';
 import type { SupportedPlatform } from '../platform/contract.ts';
 import { takePlatformHostInputs } from '../platform/host.ts';
@@ -422,9 +423,51 @@ export async function readWorktreeStartingBaseline(
 	}
 	const headSha = headResult.stdout.trim() || 'HEAD';
 
-	const treeResult = await runner.run(['rev-parse', 'HEAD^{tree}'], resolvedPath);
+	// 检查工作区是否有任何脏状态（已暂存、未暂存、untracked 文件）
+	const statusResult = await runner.run(['status', '--porcelain', '-z', '-uall'], resolvedPath);
+	if (statusResult.exitCode === 0 && !statusResult.stdout.trim()) {
+		// 干净工作区：直接取 HEAD^{tree}
+		const treeResult = await runner.run(['rev-parse', 'HEAD^{tree}'], resolvedPath);
+		const treeSha =
+			treeResult.exitCode === 0 && treeResult.stdout.trim() ? treeResult.stdout.trim() : headSha;
+		return Object.freeze({ headSha, treeSha });
+	}
+
+	// 脏工作区：使用独立临时 index 冻结真实工作区状态为树对象（含修改与 untracked），不污染实际 index
+	const tempIndexPath = nodePath.join(
+		nodePath.resolve(nodeOs.tmpdir()),
+		`agent-git-index-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`,
+	);
+	try {
+		const readRes = await runner.run(['read-tree', headSha], resolvedPath, {
+			envOverrides: { GIT_INDEX_FILE: tempIndexPath },
+		});
+		if (readRes.exitCode === 0) {
+			await runner.run(['add', '-A'], resolvedPath, {
+				envOverrides: { GIT_INDEX_FILE: tempIndexPath },
+			});
+			const writeRes = await runner.run(['write-tree'], resolvedPath, {
+				envOverrides: { GIT_INDEX_FILE: tempIndexPath },
+			});
+			if (writeRes.exitCode === 0 && writeRes.stdout.trim()) {
+				return Object.freeze({ headSha, treeSha: writeRes.stdout.trim() });
+			}
+		}
+	} catch {
+		// 容错回退
+	} finally {
+		try {
+			await nodeFs.unlink(tempIndexPath);
+		} catch {
+			// ignore cleanup error
+		}
+	}
+
+	const fallbackTreeResult = await runner.run(['rev-parse', 'HEAD^{tree}'], resolvedPath);
 	const treeSha =
-		treeResult.exitCode === 0 && treeResult.stdout.trim() ? treeResult.stdout.trim() : headSha;
+		fallbackTreeResult.exitCode === 0 && fallbackTreeResult.stdout.trim()
+			? fallbackTreeResult.stdout.trim()
+			: headSha;
 
 	return Object.freeze({ headSha, treeSha });
 }

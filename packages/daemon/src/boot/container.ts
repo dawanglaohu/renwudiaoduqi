@@ -679,7 +679,17 @@ export function createContainer(input: {
 				await reviewServiceHolder.current?.finalizeReview?.(params);
 			},
 			finalizeBughunt: async (params) => {
-				await bughuntServiceHolder.current?.finalizeBughunt?.(params);
+				const service = bughuntServiceHolder.current;
+				if (service?.finalizeBughunt) {
+					await service.finalizeBughunt(params);
+				} else if (service?.finalizeBughuntRun) {
+					await service.finalizeBughuntRun({
+						bughuntRunId: params.runId,
+						exitCode: params.exitCode,
+						exitSignal: params.exitSignal,
+						failedReason: (params as { readonly failedReason?: string }).failedReason,
+					});
+				}
 			},
 			evaluateMechanicalCheck: async (params) => {
 				await reviewServiceHolder.current?.evaluateMechanicalCheck(params);
@@ -855,6 +865,14 @@ export function createContainer(input: {
 						...params,
 						exitCode: params.exitCode !== undefined ? params.exitCode : 0,
 					});
+				},
+			},
+			bughuntService: {
+				finalizeBughuntRun: async (params) => {
+					const service = bughuntServiceHolder.current ?? input.bughuntService;
+					if (service?.finalizeBughuntRun) {
+						await service.finalizeBughuntRun(params);
+					}
 				},
 			},
 		});
