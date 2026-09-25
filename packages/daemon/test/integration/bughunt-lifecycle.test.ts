@@ -391,6 +391,7 @@ function setupBughuntEnvironment(
 		clock,
 		agentRegistry,
 		spawnManaged: fakeSpawnManaged,
+		codexSessions: null,
 		worktreeManager: fakeWorktreeManager,
 		agentService: fakeAgentService as never,
 		gitRunner: fakeGitRunner,

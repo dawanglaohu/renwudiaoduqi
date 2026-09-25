@@ -281,7 +281,6 @@ export function RunDetailContainer({
 								canElevate={
 									currentRun?.agentId === 'codex' &&
 									currentRun.kind === 'implement' &&
-									currentRun.state === 'awaiting_reply' &&
 									permissionBlocked.requestId !== undefined
 								}
 								error={elevateError}

@@ -231,7 +231,7 @@ export function createContainer(input: {
 	readonly runMessagesRepo?: RunMessagesRepo;
 	readonly messageService?: MessageService;
 	readonly processRegistry?: ProcessRegistry;
-	readonly codexSessions?: CodexSessionRegistry;
+	readonly codexSessions?: CodexSessionRegistry | null;
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
 	readonly tasksRepo?: TasksRepo;
@@ -450,7 +450,10 @@ export function createContainer(input: {
 		});
 
 	const processRegistry = input.processRegistry ?? createProcessRegistry();
-	const codexSessions = input.codexSessions ?? createCodexSessionRegistry();
+	const codexSessions =
+		input.codexSessions === null
+			? undefined
+			: (input.codexSessions ?? createCodexSessionRegistry());
 
 	const baseSpawn = input.spawnManaged ?? input.proc?.spawnManaged ?? spawnManaged;
 	const boundSpawnManaged = (

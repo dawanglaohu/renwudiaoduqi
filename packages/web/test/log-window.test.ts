@@ -839,7 +839,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 	// ─── AC 4 & E-133: 权限受阻时间线高亮事件行与一次性临时提升按钮 (R8-T54786768 / R3) ───
 	describe('AC 4 & E-133: Permission blocked timeline row & temporary elevation (R8-T54786768 / R3)', () => {
 		const codexRun = (id: string): RunDto =>
-			({ id, agentId: 'codex', kind: 'implement', state: 'awaiting_reply' }) as RunDto;
+			({ id, agentId: 'codex', kind: 'implement', state: 'running' }) as RunDto;
 		let testMountContainer: HTMLDivElement | null = null;
 		let testRoot: Root | null = null;
 
