@@ -1,0 +1,28 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "737eed47ace4cde59a66cd6d244789e511926a87f55d4af51f1e06a45babce03",
+      "evidence": [
+        "Only M1-T11 supportPaths adds biome.json; its five acceptance criteria, nine listed edges, prerequisites and deliverables are unchanged.",
+        "AC5 requires pnpm -w check to exclude e2e; biome.json files.ignore contains e2e/**, while vitest.config.ts includes only package tests and tsconfig does not include e2e. The path is a necessary build-check support file.",
+        "Scope conflict checked: M1-T1 owns the initial biome.json and is landed; no other currently open PR modifies biome.json. This verifies the contract patch only; PR #155 code review remains rework."
+      ],
+      "verdict": "pass"
+    },
+    "R13-T57054072": {
+      "contractHash": "4e101ed312ddadae9aaf14383eb7b41aec208851487e2428970db2da649d634b",
+      "evidence": [
+        "Dependency contract changed only through M1-T11 supportPaths adding biome.json. This repair task's own acceptance and paths are unchanged; implementation remains unlanded."
+      ],
+      "verdict": "pass"
+    },
+    "R14-T23602992": {
+      "contractHash": "0569f01f06ed04d2d663ace37e14f3505d9d46c915c6cc5b5447d3561508e389",
+      "evidence": [
+        "Dependency contract changed only through M1-T11 supportPaths adding biome.json. This repair task's own acceptance and paths are unchanged; implementation remains unlanded."
+      ],
+      "verdict": "pass"
+    }
+  }
+}

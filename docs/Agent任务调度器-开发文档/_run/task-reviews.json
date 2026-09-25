@@ -25,11 +25,13 @@
   },
   "M1-T11": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "ccca1ddce886d9767cc8bbd04e4829f31ccd5e98937ba4f59518e5afc51710df",
+    "contractHash": "737eed47ace4cde59a66cd6d244789e511926a87f55d4af51f1e06a45babce03",
     "evidence": [
-      "只因前置 M9-T27 契约哈希传播；自身定义、有效路径、验收与导入派发 SSE 主流程职责未变。该任务尚未落地，本次只复核契约。"
+      "Only M1-T11 supportPaths adds biome.json; its five acceptance criteria, nine listed edges, prerequisites and deliverables are unchanged.",
+      "AC5 requires pnpm -w check to exclude e2e; biome.json files.ignore contains e2e/**, while vitest.config.ts includes only package tests and tsconfig does not include e2e. The path is a necessary build-check support file.",
+      "Scope conflict checked: M1-T1 owns the initial biome.json and is landed; no other currently open PR modifies biome.json. This verifies the contract patch only; PR #155 code review remains rework."
     ],
-    "reviewed": "2026-09-24T18:03:04.616482+00:00",
+    "reviewed": "2026-09-25T14:57:32.700029+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1308,11 +1310,11 @@
   },
   "R13-T57054072": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "30dc3533cf17ad3009b8e4a3cae0a8e82368cc7ea78667b33c19876143e699b2",
+    "contractHash": "4e101ed312ddadae9aaf14383eb7b41aec208851487e2428970db2da649d634b",
     "evidence": [
-      "只因前置 M9-T27 契约哈希传播；自身定义、有效路径、验收与边界未变。该返工任务尚未落地，本次只复核契约。"
+      "Dependency contract changed only through M1-T11 supportPaths adding biome.json. This repair task's own acceptance and paths are unchanged; implementation remains unlanded."
     ],
-    "reviewed": "2026-09-24T18:03:37.271907+00:00",
+    "reviewed": "2026-09-25T14:58:02.814204+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1325,6 +1327,16 @@
       "batch-tree 文档切换回归覆盖先按 docId 筛选再重新 seed；batch-summary 集成测试用第二 SQLite 连接持有未提交写事务，核对提交前后 getBatch、listBatches、getSnapshot 一致。"
     ],
     "reviewed": "2026-09-25T09:05:46.595467+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "R14-T23602992": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "0569f01f06ed04d2d663ace37e14f3505d9d46c915c6cc5b5447d3561508e389",
+    "evidence": [
+      "Dependency contract changed only through M1-T11 supportPaths adding biome.json. This repair task's own acceptance and paths are unchanged; implementation remains unlanded."
+    ],
+    "reviewed": "2026-09-25T14:58:02.814204+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }
