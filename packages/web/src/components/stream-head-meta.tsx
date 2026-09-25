@@ -294,11 +294,13 @@ function resolvePermissionMeta(tier: string | null | undefined): MetaItem {
 		};
 	}
 
-	// 缺失或自定义值 fallback
-	const fallbackText = tier ?? UI_STRINGS.refBar.permissionTiers.workspaceWrite;
+	// 缺失或未知 permissionTier 显示 —（原值放 title 可保留），仅确认为 unrestricted 才显示 --down（R2）
+	const fallback = UI_STRINGS.refBar.fallback;
+	const trimmed = tier?.trim();
+	const title = trimmed ? `权限档: ${trimmed}` : fallback;
 	return {
-		text: fallbackText,
-		title: `权限档: ${fallbackText}`,
+		text: fallback,
+		title,
 		isElevated: false,
 	};
 }
@@ -384,7 +386,6 @@ export function StreamHeadMeta(props: StreamHeadMetaProps) {
 		tailSlot,
 		...rest
 	} = props;
-	const effectiveSlot = slot ?? tailSlot;
 
 	// 提取生效字段（props 优先于 run DTO）
 	const effectiveModel = modelName !== undefined ? modelName : (run?.modelName ?? null);
@@ -400,7 +401,7 @@ export function StreamHeadMeta(props: StreamHeadMetaProps) {
 		reportedEffort !== undefined ? reportedEffort : (run?.reportedEffort ?? null);
 
 	const effectivePermissionTier =
-		permissionTier !== undefined ? permissionTier : (run?.permissionTier ?? 'workspaceWrite');
+		permissionTier !== undefined ? permissionTier : (run?.permissionTier ?? null);
 
 	const effectiveSource =
 		assignmentSource !== undefined ? assignmentSource : (run?.assignmentSource ?? null);
@@ -449,7 +450,7 @@ export function StreamHeadMeta(props: StreamHeadMetaProps) {
 			<div
 				data-ref-bar="true"
 				data-resident="true"
-				className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)] items-center gap-x-2 text-[11px] font-mono text-[var(--ink-2)] min-w-0 flex-1 leading-normal"
+				className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)] items-center gap-x-2 text-[11px] font-mono text-[var(--ink-2)] min-w-0 flex-1 leading-normal overflow-hidden"
 			>
 				{/* 段 1：模型（不截断，自报不一致时显示两者并转 --needs，AC 1, AC 3, E-37） */}
 				<div
@@ -525,7 +526,14 @@ export function StreamHeadMeta(props: StreamHeadMetaProps) {
 				</div>
 			</div>
 
-			{effectiveSlot}
+			{tailSlot && slot ? (
+				<div className="flex items-center gap-2 flex-shrink-0">
+					{tailSlot}
+					{slot}
+				</div>
+			) : (
+				(tailSlot ?? slot)
+			)}
 		</div>
 	);
 }

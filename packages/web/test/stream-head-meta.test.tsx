@@ -5,7 +5,7 @@
  * 覆盖：AC 1-5，边界 E-136, E-254, E-256, E-31, E-347, E-357, E-37
  */
 
-import type { RunDto } from '@agent-scheduler/shared/api/runs';
+import type { RunDto, RunPermissionTier } from '@agent-scheduler/shared/api/runs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -324,6 +324,42 @@ describe('M9-T17: 流头部参照条与会话序号 (AC 1-5, E-136, E-254, E-256
 			expect(htmlWorkspace).toContain('工作区');
 			expect(htmlWorkspace).not.toContain('data-elevated="true"');
 			expect(htmlWorkspace).not.toContain('text-[var(--down)]');
+		});
+
+		it('renders "—" when permissionTier is missing or unknown, never defaulting to workspaceWrite, and only unrestricted uses --down (R2)', () => {
+			// 缺失值（null）
+			const htmlNull = renderToStaticMarkup(
+				createElement(StreamHeadMeta, {
+					run: createMockRun({ permissionTier: null as unknown as RunPermissionTier }),
+				}),
+			);
+			expect(htmlNull).toContain('>—<');
+			expect(htmlNull).not.toContain('工作区');
+			expect(htmlNull).not.toContain('data-elevated="true"');
+			expect(htmlNull).not.toContain('text-[var(--down)]');
+
+			// 未提供字段（undefined）
+			const htmlUndefined = renderToStaticMarkup(
+				createElement(StreamHeadMeta, {
+					permissionTier: undefined,
+				}),
+			);
+			expect(htmlUndefined).toContain('>—<');
+			expect(htmlUndefined).not.toContain('工作区');
+			expect(htmlUndefined).not.toContain('data-elevated="true"');
+			expect(htmlUndefined).not.toContain('text-[var(--down)]');
+
+			// 未知权限字符串
+			const htmlUnknown = renderToStaticMarkup(
+				createElement(StreamHeadMeta, {
+					permissionTier: 'custom_tier',
+				}),
+			);
+			expect(htmlUnknown).toContain('>—<');
+			expect(htmlUnknown).toContain('title="权限档: custom_tier"');
+			expect(htmlUnknown).not.toContain('工作区');
+			expect(htmlUnknown).not.toContain('data-elevated="true"');
+			expect(htmlUnknown).not.toContain('text-[var(--down)]');
 		});
 	});
 
