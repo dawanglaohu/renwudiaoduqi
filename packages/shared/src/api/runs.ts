@@ -204,6 +204,8 @@ export interface RunCapabilitiesDto {
 	readonly canResume: boolean;
 }
 
+export type RunPermissionTier = 'readOnly' | 'workspaceWrite' | 'unrestricted';
+
 export interface RunDto {
 	readonly id: string;
 	readonly taskId: string | null;
@@ -219,7 +221,7 @@ export interface RunDto {
 	readonly effortVendor?: string | null;
 	readonly effort?: EffortValue;
 	readonly reportedEffort: string | null;
-	readonly permissionTier: 'readOnly' | 'workspaceWrite' | 'unrestricted';
+	readonly permissionTier: RunPermissionTier;
 	readonly worktreePath: string | null;
 	readonly branchName: string | null;
 	readonly pid: number | null;
