@@ -1308,12 +1308,17 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		temporarilyElevatedRuns.add(runId);
 		if (run.state === 'awaiting_reply') {
 			const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
-			await transitionState({
-				runId,
-				targetState: 'running',
-				reason,
-				actorDeviceId: details?.actorDeviceId ?? null,
-			});
+			try {
+				await transitionState({
+					runId,
+					targetState: 'running',
+					reason,
+					actorDeviceId: details?.actorDeviceId ?? null,
+				});
+			} catch (err) {
+				temporarilyElevatedRuns.delete(runId);
+				throw err;
+			}
 		}
 	}
 

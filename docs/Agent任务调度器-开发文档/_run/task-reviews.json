@@ -1308,13 +1308,15 @@
   },
   "R8-T54786768": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "8c1524cf98d651c4767fc4bb2cb8d681614fafba0ad551cd4d776daeed9aae52",
+    "contractHash": "7eb41bfedff4fb47f4f5a731d434a209ca72d2799b56becb9423a0050ca1dfc3",
     "evidence": [
-      "10节接口表已补充 POST /runs/:id/messages 的 kind='elevate_once' 语义、text 可空规则（其余 kind 必填非空），并与 shared createRunMessageBodySchema 及 packages/daemon/src/http/routes/runs.ts 路由校验保持严格一致。",
-      "E-133 临时提升逻辑已接通：POST /api/v1/runs/:runId/messages 收到 elevate_once 时调用 RunService.elevateRunOnce()，内存标定临时提升、不写磁盘 agents.json、运行结束后自动失效；Fastify 真实集成测试 packages/daemon/test/integration/run-messages-elevate.test.ts 覆盖 200、409 归档与非法状态迁移等场景。",
-      "前端运行详情页在收到 run.permission_blocked 事件时以 needs 色高亮显示，并提供一次性「仅本次运行临时提升」按钮；点击后发起请求，成功按钮转为「已临时提升」且置灰不可再点，失败按 error.code 原样展示；单元与端到端测试 packages/web/test/log-window.test.ts 全部通过。"
+      "AC 1 & E-133: POST /api/v1/runs/:runId/messages 支持 kind='elevate_once' 且 text 可选。packages/shared/src/api/runs.ts:136 定义 CreateRunMessageBody 判别联合与 RunMessageKindSchema；packages/daemon/src/http/routes/runs.ts:140 校验 JSON schema 且 additionalProperties:false；packages/daemon/src/service/message.ts:373 成功调 RunService.elevateRunOnce 后落库 delivered 记录并迁 running；packages/daemon/src/http/plugins/90-error-handler.ts:44 针对状态机迁移失败返回 409 E_INVALID_STATE_TRANSITION；packages/daemon/test/integration/run-messages-elevate.test.ts 覆盖 200、409 非法状态迁移、409 已归档会话以及失败回滚负例",
+      "AC 2: packages/daemon/src/service/run.ts:1310-1321 仅在 temporarilyElevatedRuns 内存 Set 中登记 runId，运行退出/归档或抛错时清理，不碰 agents.json 也不改注册表；packages/daemon/test/unit/run-service.test.ts 与 message-service.test.ts 单元测试全绿",
+      "AC 3: 02-设计/10-接口约定.md:394 登记 POST /runs/:id/messages 四值与 elevate_once text 可空规则；02-设计/08-后端架构.md:174 补齐 409 状态迁移限定映射说明；scripts/check-error-codes.mjs 与 packages/daemon/test/arch/routes.test.ts 校验一致；通过 maintain_docs.py 补丁 r8-t54786768-err-handler-support-20260925 进行契约同步与复核",
+      "AC 4: packages/web/src/features/run-detail/run-detail-container.tsx:69-122 实现 PermissionBlockedTimelineRow 时间线行组件，具备 needs 高亮与「仅本次运行临时提升」按钮，带 useRef 严格并发防连点与 runId 切换隔离，成功置为「已临时提升」并禁用，失败原样展示 error.code；packages/web/test/log-window.test.ts 经真实 DOM 点击验证单次请求、成功禁用、连点防重与失败回显",
+      "AC 5: pnpm -w check（check-error-codes, check-contrast, check-forbidden, biome ci, tsc -b, vitest run）全绿；并在 PR 附带真实 daemon 与 web 前端交互录制的 GIF"
     ],
-    "reviewed": "2026-09-25T03:03:35.459041+00:00",
+    "reviewed": "2026-09-25T09:10:25.064923+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

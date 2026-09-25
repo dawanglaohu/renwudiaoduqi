@@ -1,6 +1,6 @@
 {
   "M1-T1": {
-    "contractHash": "c0f0d046c25a807e120e17487d40c08b45da4c89ff965615b4b29520c793d562",
+    "contractHash": "e5b73544cbf1144814078d70666689c32fb827b44fac47b2382323186dbeabec",
     "patches": [
       {
         "changedFields": [
@@ -8,12 +8,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T10": {
-    "contractHash": "587a02caa4c06a7a7b3309d891e33d76bd9716d4ab6aa1e8c48aa9054e9bacad",
+    "contractHash": "438a1d180cc4cbcbfb46ed008714694dea466977a210de9ef5ffa9282c4296a5",
     "patches": [
       {
         "changedFields": [
@@ -21,12 +28,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T2": {
-    "contractHash": "758ab0becf28ff98688497979355d58e0fa61d1c5acda4213edf61c6f56bcef3",
+    "contractHash": "8b4bd2ba0a0117a0847a5398929aa5e455f28ec6a8f2597370de0b84ca04ce87",
     "patches": [
       {
         "changedFields": [
@@ -34,12 +48,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T3": {
-    "contractHash": "977dd2073744ceb7290284901188b9aa4f9b518240d46a9edba98b85f6f07529",
+    "contractHash": "f55f1dc15a3481f3684438674dce95e4077a015cfdb4adc2e0ecfc4398d95492",
     "patches": [
       {
         "changedFields": [
@@ -47,12 +68,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T4": {
-    "contractHash": "9646a92f9f3c4dacb54df282fcffba14e03edee58070c9c80b580aae1247261b",
+    "contractHash": "549a7d33ddd42ca75d8dc53d4d6784a2d9319164520b0c7cd05eb98745fdb21b",
     "patches": [
       {
         "changedFields": [
@@ -60,12 +88,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T5": {
-    "contractHash": "30800c80748e7aa1e9c3a488e6bdab5f07e8992c487e53e48805c6d6c6f9c762",
+    "contractHash": "3b1411d26e73dd39753b2e9004d43ce4a56a71a64ac2eca332bc5524800a69fe",
     "patches": [
       {
         "changedFields": [
@@ -73,12 +108,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T6": {
-    "contractHash": "df6661ab65fad1912507a4a3d0664ecace1c53965b1253ff6000f7d1008e92b8",
+    "contractHash": "979878f65c52b721f56b845573e8695470814a6ebf4d7ff6dc7b4cbddd5e7f1b",
     "patches": [
       {
         "changedFields": [
@@ -86,12 +128,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T7": {
-    "contractHash": "0bb0b8f12c90cf29be79ca401ebfc6549674c2a8b7cb917ed4b8395680a86f89",
+    "contractHash": "29912fb3a2e05fb6636202110a61f8c27490c39d3f92e25e39ef5c684d14a9d9",
     "patches": [
       {
         "changedFields": [
@@ -99,12 +148,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T8": {
-    "contractHash": "14a22ee237cb7b97a69940c16fe3f0623dba959144277043b8f86d1b672bc549",
+    "contractHash": "91f476164d7d9aa353b96c521538bbb48cd9dfe7e2b0a8faa2a568ed6f4bef2e",
     "patches": [
       {
         "changedFields": [
@@ -112,12 +168,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M1-T9": {
-    "contractHash": "a28d34c85ea83ac4a4b5b155ef76440b998fefdad94ee85ef9c8c8ba3d9b60c3",
+    "contractHash": "60d9580bab86e2cd644d78d08af2333380b271baba8455350cb94a97b442a598",
     "patches": [
       {
         "changedFields": [
@@ -125,12 +188,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M10-T1": {
-    "contractHash": "57e0405e9567bec65ee04dd6832e1582f7e35a2005ab9000ed36b7d66b1823fd",
+    "contractHash": "f5eeb3bcaec4195a9dfbcd73efc6a4268b15785265310c282b86ec0c0efe5097",
     "patches": [
       {
         "changedFields": [
@@ -138,12 +208,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M10-T2": {
-    "contractHash": "b321bc73b2698a90c11aa9ec00ecd5ddcd256756bd02c42a0004ca5d17e05488",
+    "contractHash": "99a341ca4983f7a94d2d140274fc40ba75645cf62a44d30ead2d0ac2563c3ce3",
     "patches": [
       {
         "changedFields": [
@@ -151,12 +228,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M10-T3": {
-    "contractHash": "90c8131ff87520bfbbbf3811535911d6470e07790caceda900b5285f02dd767a",
+    "contractHash": "cc22eae7c2eb593c3d77faba6ecf56183d766bb53c906333a30493744357f1b1",
     "patches": [
       {
         "changedFields": [
@@ -164,12 +248,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M10-T4": {
-    "contractHash": "6dd11b7522aabee37c911f9fd4596a0e1fa1116b5c3455bc3e60441edcb57410",
+    "contractHash": "288bdc51fd665bfde6179cfee28be453f925944809f4f8074479085886176499",
     "patches": [
       {
         "changedFields": [
@@ -177,12 +268,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M10-T5": {
-    "contractHash": "6bbb7b340f2c46b776ce633dbc9ae241a757da09dd38aa0ef49ff0fa1deb6ec6",
+    "contractHash": "dd2ded961631cd2d66e59d7598b2e9ee29610bb457134698234bfe9d015c0789",
     "patches": [
       {
         "changedFields": [
@@ -190,12 +288,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M10-T6": {
-    "contractHash": "3eabca37e1a25f0658da6b59978ac49c158fb72d6dae38f07b0e5845f0bdbc00",
+    "contractHash": "885e417c45cdc795a93f4699b08cb6ebd0250f755b7f38589f4367a8ace80851",
     "patches": [
       {
         "changedFields": [
@@ -203,12 +308,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M2-T1": {
-    "contractHash": "7f5bcc092f29c327430faa7e3bfbba55f5c28a2c661eccae5003ee12ae99499e",
+    "contractHash": "b3b84242221c1ada3a91c2b0f3b80ea22a6175280291d9f1269e0b39c2f0c40a",
     "patches": [
       {
         "changedFields": [
@@ -216,12 +328,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M2-T2": {
-    "contractHash": "85488ad6ecc29d4448009e88351c3a529c1b270e62ad66363739f45b7fe0790b",
+    "contractHash": "1edd15c871583e179fa66c534a9ef08a09f4578ef91b79446514b5fae8c48b8d",
     "patches": [
       {
         "changedFields": [
@@ -229,12 +348,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M2-T3": {
-    "contractHash": "6f4710440d85c909fc9d858bff062563ba47218d0e6a3b5e8a797d907a78f7bf",
+    "contractHash": "95092b402a130410a2473b3d90443f72b5e42eeb3e1f12e34569869f50acd33b",
     "patches": [
       {
         "changedFields": [
@@ -242,12 +368,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M2-T4": {
-    "contractHash": "21a96a258932ca766a0c2cfd23138c42903d4dc8f2fe45e5eb6a16102e45e68b",
+    "contractHash": "423cf26659e0c8eb547a3eadc8f26eed2e6193a373b7870ee9fc7acfba5c31e1",
     "patches": [
       {
         "changedFields": [
@@ -255,12 +388,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M2-T5": {
-    "contractHash": "a2b0bbcfafc8fdccc19b3864bb41e79b8311065b2a102225a0e4a840609854cf",
+    "contractHash": "d6087826ac9f3f548f150f80a9b27bb215beda2fc0e679f5514c4b06ba7f6260",
     "patches": [
       {
         "changedFields": [
@@ -268,12 +408,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M2-T6": {
-    "contractHash": "7c1dc1ca21c93466e3f43050be9e44d3692713d8ce5825e261f3fa946c8ee214",
+    "contractHash": "4aed1ddf8e61445c8716f6fe8608d7ceecdfdfcd7a19eb0d5b6e75fcf6d80d3d",
     "patches": [
       {
         "changedFields": [
@@ -281,12 +428,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M2-T7": {
-    "contractHash": "f1d257e11228cf699666829baf98c142e2d7f81ae07a2f61174439752d9864d4",
+    "contractHash": "43e26ccd1d1d3012923dc5741650399a96194b0e484d431c8ea60ed80f4d97ac",
     "patches": [
       {
         "changedFields": [
@@ -294,12 +448,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M2-T8": {
-    "contractHash": "1fd26e2e29b61c019701561473297618a52947862b3e4a1c1aecc51eb5917cd1",
+    "contractHash": "ab4ddba0f4d96f9fd12bb829a5e9e9554b50255bcf9610a7d06887ba283f337c",
     "patches": [
       {
         "changedFields": [
@@ -307,12 +468,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M3-T1": {
-    "contractHash": "948a74fbcce1cf20f5e1a7740a6bcefd15573f12c0a19b5ab5f8645bbbf3beea",
+    "contractHash": "1fcec41382f99aae182243eb49b913cdb023fd2e33c87f7690e46b52e4450301",
     "patches": [
       {
         "changedFields": [
@@ -320,12 +488,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M3-T2": {
-    "contractHash": "a18beb2227ee2e25c2a1afd96cfdc7fe62e953ba8502ba76b19d230c4bffb52c",
+    "contractHash": "e6e6079f685fc09d7ba500ea33aff969a4473744f55be36e79f68c8f78177f02",
     "patches": [
       {
         "changedFields": [
@@ -333,12 +508,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M3-T3": {
-    "contractHash": "3c5497607d97435fe2cb0222d5be83dc7633eb67d1b993da17532c4bf5ed8be8",
+    "contractHash": "f88a7f13db6b41884219e7bab048ae83d02c900fa2f78443454d617ff788ef07",
     "patches": [
       {
         "changedFields": [
@@ -346,12 +528,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M3-T4": {
-    "contractHash": "c5eb747258c677421d803b5f088d331eee04568857a4bf79f1e4dfd4d6f157f6",
+    "contractHash": "db3727ad63af7569be927bdc7373ec97c333f1ece6ffaf82e4a92414a565e1df",
     "patches": [
       {
         "changedFields": [
@@ -359,12 +548,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M3-T5": {
-    "contractHash": "cb1ee93cde506cc68b8d4ae35a7542c98a190bf7cd08d4a9424513b3b6734eea",
+    "contractHash": "6bccf54ec8bc333b370cf4c9298fea840a68b8c59b3be6ba4eb3461257e4cda6",
     "patches": [
       {
         "changedFields": [
@@ -372,12 +568,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M3-T6": {
-    "contractHash": "6e77a48373750ff5adc5f314a508d78424402287f490177c52df8b4f5caa4076",
+    "contractHash": "976d73a313e570449f9fafc62fea855aa1d05153c8e9aaa7862ca7da839b2513",
     "patches": [
       {
         "changedFields": [
@@ -385,12 +588,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M3-T7": {
-    "contractHash": "7633ae53dc84cd0fe4d0df77be759b6fdd71d52ca33827eaa9b16e32e03d68ad",
+    "contractHash": "7c930e839c47c502aed8ecd0da969eda72ac71c8ef55810dbc0a80ec9431b410",
     "patches": [
       {
         "changedFields": [
@@ -398,12 +608,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T1": {
-    "contractHash": "854f55bbd803587d330c1e7eb80acaff0078962ed483ccdf3ff9683928a64ab0",
+    "contractHash": "c6005411bb8903a5d4c9d8564ff6169e50fe1ba9ecd52be5ebd31a356ac4f54c",
     "patches": [
       {
         "changedFields": [
@@ -411,12 +628,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T10": {
-    "contractHash": "c58bc270b9ee7eb10802476468d969a8d42ff6ecc10cdbade95cfdc6bac72267",
+    "contractHash": "ad79d4faf05e505131d29e637b5f5eff316b98f247b3be802d84362eeed559cb",
     "patches": [
       {
         "changedFields": [
@@ -424,12 +648,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T11": {
-    "contractHash": "7b2efb91b4c1b24dbf396820c0e383bd4d5bfab1e69494483bb0340e9496337c",
+    "contractHash": "96b34dc18d1cf35bec672b47f9ee12a604ec4d7283a5fbf516eb6025786a027d",
     "patches": [
       {
         "changedFields": [
@@ -437,12 +668,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T12": {
-    "contractHash": "29cf690d5d962c855b2f36cf030618246834686e855ce4d22721195d01a212e5",
+    "contractHash": "16f839879a07e04b692cfb2d5aaf0a74c9247404e555f8d970ea9fc74853cd06",
     "patches": [
       {
         "changedFields": [
@@ -450,12 +688,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T13": {
-    "contractHash": "bb6f763af12372d1c17a9ad1a471117add2bdc537cb0452d0392e78f3994cc17",
+    "contractHash": "cb49e7966e109a0ba4aa2c8cacf23fe274c65aa14230b9443dc7a40a79e22ba7",
     "patches": [
       {
         "changedFields": [
@@ -463,12 +708,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T14": {
-    "contractHash": "615a6e2c01cb6c685a11edadfb30251442c0c626d0bfd52c36c07d28e9fe0292",
+    "contractHash": "480d51cc7567c5bfdc1d511697b584f5a57fb05d5543a3ef10ee86ab70bbb8a4",
     "patches": [
       {
         "changedFields": [
@@ -476,12 +728,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T2": {
-    "contractHash": "87b1a15be78da83632080bb258682e45bc07a6a49e06106cebb6ac8c4f238ebc",
+    "contractHash": "7202aff8b9af08175097829aaffd0a46557f3b64efb26ae6bb71e27f296f3731",
     "patches": [
       {
         "changedFields": [
@@ -489,12 +748,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T3": {
-    "contractHash": "5bb248017fdb6c7d67b073c2e79d1dbcf6219e9c70b44e58c8ee8c176de78ff8",
+    "contractHash": "2bada9b3310318915348d7e8cd5c625595b6f71de772118f34cad807425e9503",
     "patches": [
       {
         "changedFields": [
@@ -502,12 +768,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T4": {
-    "contractHash": "d3f691f8ac6b0175a65c3f7c7ef782b22f1bd61dab3641bbcdbb409e8783df88",
+    "contractHash": "55455e7700072566c3c6148b200144e3564e7a708b8426735289808140d8cb94",
     "patches": [
       {
         "changedFields": [
@@ -515,12 +788,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T5": {
-    "contractHash": "78b7e8fc5e27d7ebfc38fb0e1a4f6082b7248ad663c2da3e6372a9509bff0ecf",
+    "contractHash": "d02bca584312c00890d316f85d84324af4fd989dd0d09cb8bb6202ed70f94479",
     "patches": [
       {
         "changedFields": [
@@ -528,12 +808,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T6": {
-    "contractHash": "463162362e8ba15acb50901626d4798e6fb4ee6726fa64e0f52363aa7d1033fc",
+    "contractHash": "28dd465edd8646d69afded96c1b209edaaf20e3f81be077e5a0f8be307c0897c",
     "patches": [
       {
         "changedFields": [
@@ -541,12 +828,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T7": {
-    "contractHash": "5adc8cc98edd1b6a35c04eaaadc4fe5ab5aa450dfc636231f70104cc20f280a0",
+    "contractHash": "049adf79bb2c7c0805a65253a1ed9d352c5d76ff39b009175db2902638236009",
     "patches": [
       {
         "changedFields": [
@@ -554,12 +848,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T8": {
-    "contractHash": "dd6456488334dbb440e4ade22b1cb886b29aea87653d439f94c10e0e66d564aa",
+    "contractHash": "39f5419d6577ddf372e27676b85116f170194aa1a70aeab387d2b8cb71578706",
     "patches": [
       {
         "changedFields": [
@@ -567,12 +868,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M4-T9": {
-    "contractHash": "cf068a04df28d8996f8315abebb5791818c8193823c374f4b18adf0098ba2d3b",
+    "contractHash": "cd6cc311527456eb14a62696987d9aa91129d4789edb44b44dc6ad5ee4e4d700",
     "patches": [
       {
         "changedFields": [
@@ -580,12 +888,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M5-T1": {
-    "contractHash": "79ac73a0f98863dc30248c83d92d36293f912e57cc1321e2a7ca6bbe564cbaa7",
+    "contractHash": "f07601b29a9e46549d102e87e9c07fed0e7a4de5556d9e457a109f32ea4ad447",
     "patches": [
       {
         "changedFields": [
@@ -593,12 +908,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M5-T2": {
-    "contractHash": "501d9b36e3defe9e11a81377b2de15c30010c775bb4bf359c45fcdcad98ee0e3",
+    "contractHash": "406c75b6decec456481c681c4b75e7df3ebee2541cf406cae641f2dfa5b264f6",
     "patches": [
       {
         "changedFields": [
@@ -606,12 +928,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M5-T3": {
-    "contractHash": "3a878fecd96972f73865865343a6c35ef07a76b09115fc0c4a36b6676cae74a0",
+    "contractHash": "9008b117adad849d4074a6becef531ca36930a4a02065c08654ce1dddccf524b",
     "patches": [
       {
         "changedFields": [
@@ -619,12 +948,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M5-T4": {
-    "contractHash": "e464237e4183c022b812b86d7a072b8d09d8996376988796994f78cccad134ee",
+    "contractHash": "242076de23efe7a0ef0e0269bddd2de0544f36672e78218b7a21382dd06bdb65",
     "patches": [
       {
         "changedFields": [
@@ -632,12 +968,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M5-T5": {
-    "contractHash": "daa63de9527a035110404835facf5f6fb9a014642f6628b00c72c1f3e2773bbe",
+    "contractHash": "39780f22d8e2620310ddc0e623c652d724e82cfa717bc0876199d257cfdcf95e",
     "patches": [
       {
         "changedFields": [
@@ -645,12 +988,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T1": {
-    "contractHash": "032907c6257ec40ac8dc99c3a7cae8c131438c855df20975180c0235657b7e6c",
+    "contractHash": "b89d6aeb295adefeaa0462680592fce79396b5e7e6aa1a909ec82f8219ad529b",
     "patches": [
       {
         "changedFields": [
@@ -658,12 +1008,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T10": {
-    "contractHash": "384e280447be2ea25a428ce7ad862d3253735ff3a84854bf83e954db9c9fa25b",
+    "contractHash": "51b676aebfd0772b558a10561a202b7e027a45060d369de139a7d99f7f1823f9",
     "patches": [
       {
         "changedFields": [
@@ -671,12 +1028,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T2": {
-    "contractHash": "742bba79a588e6317d4577f456bb71ede3f6b9f97456c516faa5b1dd97cc5606",
+    "contractHash": "a2679e8734d241aee716d52fd532c0f1cce9079ae32c1df268fe6b3f104a6fb1",
     "patches": [
       {
         "changedFields": [
@@ -684,12 +1048,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T3": {
-    "contractHash": "1d53ea4c8575842654f9beeddfbd1c625e4b0769f5011d3181627746c1241c5d",
+    "contractHash": "937e6405d9adab09c5809b9e1aa8925c246f75b2aa853b8b990ec390d24d2e82",
     "patches": [
       {
         "changedFields": [
@@ -697,12 +1068,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T4": {
-    "contractHash": "db8414687fcc2acc223641f7e3403b848679525bc92a1f761646dd260f7a7887",
+    "contractHash": "2d990a1383518c0f2d5a0328e4538d9aa2f109ce54602efe03b73893734909bc",
     "patches": [
       {
         "changedFields": [
@@ -710,12 +1088,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T5": {
-    "contractHash": "4cf1fa53736010ac1a3bbf7ae0d5131a721d33ff6e8c2543092c535da9b83faf",
+    "contractHash": "91c8b5abfad7e8c41c63ff38a77c6da9eab923090e267669ce88769247d1256d",
     "patches": [
       {
         "changedFields": [
@@ -723,12 +1108,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T6": {
-    "contractHash": "71bd35aacf44dd167ae16381b7904b642099f6ea1b93e004484a3fcfed7e5810",
+    "contractHash": "f12da057dc2bec4843cac10ecc1e657e78cfffd226a33ded320d48f4b8601018",
     "patches": [
       {
         "changedFields": [
@@ -736,12 +1128,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T7": {
-    "contractHash": "dad8b2316c8f3f2a3f573f4652a628719322eb0e435edfe034c39fe3c8b7cea1",
+    "contractHash": "3150cb213993e2a96f22d434cec79a9bb3f7608982f07d2ff2c4c12bf76e4ff9",
     "patches": [
       {
         "changedFields": [
@@ -749,12 +1148,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T8": {
-    "contractHash": "4817bb386786b82ed871996a98044ca9cd32bc1764b8b4aa77fe4cf9cb451361",
+    "contractHash": "4cd6691245c9d675d76fd9034f580f30f9db30ae41c7718f91d14f920681ece8",
     "patches": [
       {
         "changedFields": [
@@ -762,12 +1168,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M6-T9": {
-    "contractHash": "832e94451b3f14e266f38f0e4424bcefad11d56fb4c7700fbd9420fcd73d5266",
+    "contractHash": "02d36bd523ce9f47ff02c1298e47ac952ebdd8e81a11941c40287729952b3760",
     "patches": [
       {
         "changedFields": [
@@ -775,12 +1188,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T1": {
-    "contractHash": "e31b311324bbdbc34e082f9caab70927e1a04365a79803a7eb92bb0c50a7c5ed",
+    "contractHash": "06f3e51b9ddeedfce0306a5c872696169a5a7f84663731b6216d67899e4eea46",
     "patches": [
       {
         "changedFields": [
@@ -788,12 +1208,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T2": {
-    "contractHash": "6a13bcb8e4dad4752c87b7b564ccc5546fd7d8da003a2a93b2547c28d071e9cd",
+    "contractHash": "5cf87c4bc0aa8a3f399787f81a23fe4d12b7499c97c4f1d4022597c26ffe5f38",
     "patches": [
       {
         "changedFields": [
@@ -801,12 +1228,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T3": {
-    "contractHash": "af7388bdae485792b8d2221bb21144cdb9f3a6901987ca5caee968dd408928b1",
+    "contractHash": "7781d3076eb21d9de9ed904fdeadc89a29c27ec344b0d20618f374f0a796ea70",
     "patches": [
       {
         "changedFields": [
@@ -814,12 +1248,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T4": {
-    "contractHash": "fe8ed0d3465d867b9ce49278cb16b7ab6a2b2c661cb539df22f6c8e7535e2605",
+    "contractHash": "a24b7e093365668cb0d77ecade652e36097dfcfc06a3eded392447aa25f47706",
     "patches": [
       {
         "changedFields": [
@@ -827,12 +1268,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T5": {
-    "contractHash": "b785a18edd8ce81a82a4f0476410f808000e7e468671ea25823c9cb7dc41db55",
+    "contractHash": "5632717e5318cb25ff0e872af3345f72d4631947bd4bf472952c2cbfb0f43e42",
     "patches": [
       {
         "changedFields": [
@@ -840,12 +1288,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T6": {
-    "contractHash": "5a653300bf0b20b821c37373fb0dd9f23a3110b1a98217dbb8df128c077dcccc",
+    "contractHash": "347a23101adc04b6cf3117b610e780c7332feece19d0cc5fe38c9f7a5bdce809",
     "patches": [
       {
         "changedFields": [
@@ -853,12 +1308,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T7": {
-    "contractHash": "a0223877542d440f210d05c2f6182dd52cae51a6ef5c1d99fff82f2eedc9d4bf",
+    "contractHash": "21c8b849a9dde8159fb6c0043be177e8ef45014ccbcad9c34c62a6a644dd815b",
     "patches": [
       {
         "changedFields": [
@@ -866,12 +1328,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T8": {
-    "contractHash": "fa498d9f9ced97b2085579dd8a8535688dc09c5357a7ca2aef4592b50d0634f5",
+    "contractHash": "da9669f29429bd9aa978242b55dd464d870dbaa0518c100358d85b853d64af08",
     "patches": [
       {
         "changedFields": [
@@ -879,12 +1348,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M7-T9": {
-    "contractHash": "31bb33b8c52e7d8fa0ff940524252b8be17233fc0ba759271ab73bd97eeee45e",
+    "contractHash": "796b10281d76dc69c6079d6d1f7092e099e3f257c515618dab32ae3270e34f86",
     "patches": [
       {
         "changedFields": [
@@ -892,12 +1368,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T1": {
-    "contractHash": "3393a6698d22e44f6ddfda35f761d77c8a7b2acb79594c17a8b6a1620f54bb83",
+    "contractHash": "c0230526c43bacebba9163a71bdbeb9fa7f7177600d69e97b212c3e2997f1543",
     "patches": [
       {
         "changedFields": [
@@ -905,12 +1388,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T10": {
-    "contractHash": "ef90f04af93cb65db6fa6b9ad8ceba3079bc5dbcafa53d39077622539001598a",
+    "contractHash": "e6ec67cd68bffcaae3623f6ab462f2d941105d37fb3d0e03abedb4182411e200",
     "patches": [
       {
         "changedFields": [
@@ -918,12 +1408,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T11": {
-    "contractHash": "2c75c1e1a0fd040882ffdd7c74ef35c700cd0c83805ebf059dc3cb6190921f7f",
+    "contractHash": "44bcf71a95635d00b8d2f330afb83d93ff42d7602ce82aaa08a192e527468eea",
     "patches": [
       {
         "changedFields": [
@@ -931,12 +1428,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T2": {
-    "contractHash": "794cd6ecf23401b5d7e481f3ff3e3bde99192f0b20fdb52f4c389f54c6485e34",
+    "contractHash": "f206225c656782d0b6f0dc98f789afdd68e37dfebfdc8da55750fea3fc33b80d",
     "patches": [
       {
         "changedFields": [
@@ -944,12 +1448,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T3": {
-    "contractHash": "3d768857702aa35974ce0271f1e30395392e2cfcc0789e6c7316433fd0c930fa",
+    "contractHash": "1bf086ec95101aac0abe14df249209290a9764abd039890ba4d798a1481162a2",
     "patches": [
       {
         "changedFields": [
@@ -957,12 +1468,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T4": {
-    "contractHash": "4218c914effd113bb7e0c181d13ff436ec96daeb98f1bd312793c01e35dc2dad",
+    "contractHash": "073c8e91fd0c6b30f2c69008d513792dc72b4bb2ede92dcb342579b89470f78c",
     "patches": [
       {
         "changedFields": [
@@ -970,12 +1488,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T5": {
-    "contractHash": "276944db93752c82694f4e323758feefa87e00f9a45f5473c6a81db89b2f9d54",
+    "contractHash": "a8e46afe6ccb47c48bf522cb1dd148c25fe2e0f2bb541ebeb08140a384c67443",
     "patches": [
       {
         "changedFields": [
@@ -983,12 +1508,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T6": {
-    "contractHash": "21dd58330c2e0e2afca59fe7f4c50693aa334d336fb82b57090eedc8bcf0cb9f",
+    "contractHash": "4cb55b46232e9d8509c69e19b5afb6195239804e589c13221f4b7c33b6c70377",
     "patches": [
       {
         "changedFields": [
@@ -996,12 +1528,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T7": {
-    "contractHash": "bf5022c456eb94d450d6b6aa0470cb415acbd6ac776fe393dd625bbd61ef5cb8",
+    "contractHash": "6bbd1b52e3d08705aacd6f08383d20d611c3124064452623ccb86a949d43d830",
     "patches": [
       {
         "changedFields": [
@@ -1009,12 +1548,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T8": {
-    "contractHash": "73ac26d01620da702582d9fc46e051a1286f9a98d012c992fdeed8543e81ee30",
+    "contractHash": "673528e0ce7b0144012eda8c2ba41155490141321e910b2a8c7522825471da75",
     "patches": [
       {
         "changedFields": [
@@ -1022,12 +1568,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M8-T9": {
-    "contractHash": "672bf46f8f9ab4afbd0004687721d4a6668345af69a91aeae341e9532f95c0a7",
+    "contractHash": "0f0bbbf6cba9d24de72dc743518c61b8df8a63d8624f4dc3ed1564309a4f6f07",
     "patches": [
       {
         "changedFields": [
@@ -1035,12 +1588,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T1": {
-    "contractHash": "43bd9a28b1a14885bd0f6cbff85864b86e949535310b0c3b3e2b21a74a47a933",
+    "contractHash": "19172d8b1e9193f875a41ea078f1d40fee67da961399dd762b594a07afbbb06e",
     "patches": [
       {
         "changedFields": [
@@ -1048,12 +1608,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T10": {
-    "contractHash": "ae63b86bf320e83ffcb7a6eed690d9aa00bdfdc8cd8904a3ac2fb227a17927cb",
+    "contractHash": "8721ef0133af39363b7a99b17880fe4f963e3ac5257ac63dc04a5c7bc2179ed7",
     "patches": [
       {
         "changedFields": [
@@ -1061,12 +1628,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T11": {
-    "contractHash": "223e8d02f4002d42694bfed2257a08a71cc86a9c08668b1ba2b687cb2e5701de",
+    "contractHash": "dc0746db2c9c0c719520dc036dae4de5c1812812c5621c49cf565f706240d649",
     "patches": [
       {
         "changedFields": [
@@ -1074,12 +1648,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T12": {
-    "contractHash": "390f21f0a1564c0d470af0a70886a37dad89f9e00fcc0ecbb304d217f0f47552",
+    "contractHash": "1ec088e60122f3858973b0a86ba1af893efafcd666ebf9efc30bf5f4101a06af",
     "patches": [
       {
         "changedFields": [
@@ -1087,12 +1668,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T13": {
-    "contractHash": "f87218d4d1560858323ecb732a973e21ca2a55978869a35d411ae0a080e7ee09",
+    "contractHash": "97cfb95a3ccacf528b800f8a41cc7129f24ae03a2e9bba0ce4694a8ffb1175c4",
     "patches": [
       {
         "changedFields": [
@@ -1100,12 +1688,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T14": {
-    "contractHash": "4228a774705561bd23eaa66e45a3ad69bfd7f1b837c9c03180215633ef4646d0",
+    "contractHash": "ea4407e8ed88a6d9b9a414795d2e4b24a9eec9493177d6a90c7c90658a2be860",
     "patches": [
       {
         "changedFields": [
@@ -1113,12 +1708,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T15": {
-    "contractHash": "12a762bfa5b950b48eb89b4800b67c8c9f155734b626ef8d92f545ef5285a5a7",
+    "contractHash": "3419d3dc9b0e0dd33ea3ffd59247bbbec69e817282478f18d31f2bd6331b9660",
     "patches": [
       {
         "changedFields": [
@@ -1126,12 +1728,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T16": {
-    "contractHash": "43a7acbd5ca53b0a7e0c40455214501454fd0ba39446487c02876dc272b925d4",
+    "contractHash": "34566368e93dae72ddcb36920171f172018c730ce576b35769410246ed085577",
     "patches": [
       {
         "changedFields": [
@@ -1139,12 +1748,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T18": {
-    "contractHash": "21a31941a081f6c99856280179fea3caba61fe52e5cdc015696dfa5d9d9fa908",
+    "contractHash": "732436ccec5721159f498ffed6da7988a2943eb8ac76326450505754270b3e0f",
     "patches": [
       {
         "changedFields": [
@@ -1152,12 +1768,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T19": {
-    "contractHash": "524b55efab8467c552356b05afc717fac7452a337712a202ce56bf88417c47fd",
+    "contractHash": "5020993fb27081f5918995c47b4c5ed9b8d990a4ed70632c0b5e4c9463cbde4f",
     "patches": [
       {
         "changedFields": [
@@ -1165,12 +1788,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T2": {
-    "contractHash": "76dadbb3b658a9f703be1a357845fc54c3a9327cb2fed60e1451bf73aaf403a8",
+    "contractHash": "02bc3b96ab3ca8738f6d6afc1dc0019ab555c218eb1c4778b8d6dd48833c8de3",
     "patches": [
       {
         "changedFields": [
@@ -1178,12 +1808,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T20": {
-    "contractHash": "02f144b6d708ee0f18bfd05bd29693e32446db2380bf299050dee6c48884b72e",
+    "contractHash": "ab4e891bb667f0c77c3a75c02b3045b354b207d3d7130087b543ce0fe02aa5c7",
     "patches": [
       {
         "changedFields": [
@@ -1191,12 +1828,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T21": {
-    "contractHash": "1783712f044c4d5bdd630a5bbdfd9cb8eb984ed97c1cc99df121d92b70dd019b",
+    "contractHash": "168fe69c05a20aa8c6689fcb55decf326ee04edaf977bc8c3a07c0e6eee04dbf",
     "patches": [
       {
         "changedFields": [
@@ -1204,12 +1848,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T24": {
-    "contractHash": "98bb97ba2918b9a89b076b73e578ae6a4eb523b57b4861e1f00fcfc0d9537a1f",
+    "contractHash": "87c4d69357caeb93914b9fcdc36fa9a999fb99c6438515da96e8ca8ece33ee16",
     "patches": [
       {
         "changedFields": [
@@ -1217,12 +1868,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T25": {
-    "contractHash": "2559c32076f8637e15b662edb938f50c8a73b8819c1490e867538b23af8cef9f",
+    "contractHash": "7a4934eeb1d20fa05fe4b0f8f179353a05a5222d35ab97a5009748ff98e68a84",
     "patches": [
       {
         "changedFields": [
@@ -1230,12 +1888,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T26": {
-    "contractHash": "2cf94b34dadd1a02fd3517bb56a577d930de718a36ae6a99da74f43f81c7a92c",
+    "contractHash": "4eb1263bf2d07bdd8c05af7eba9689c7a69d6938a8c5cbcaa9bd12624ba946b5",
     "patches": [
       {
         "changedFields": [
@@ -1243,12 +1908,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T27": {
-    "contractHash": "db3d68ab1170b88c9dc7f9a88d9a24186af604e07459dea4e36840ab90ab00b0",
+    "contractHash": "56aa57ee57eb2ffcb3679be6766035811645677d15ac3388dcab4808e7e82020",
     "patches": [
       {
         "changedFields": [
@@ -1256,12 +1928,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T3": {
-    "contractHash": "47154b77ec836f8e9c65db191b8816f59713af26049342296eaf273dc65bcb55",
+    "contractHash": "6d4859b3d993e51b9a247667d74b9337c6df7a09fcf264f80fd2d65cbe9cc430",
     "patches": [
       {
         "changedFields": [
@@ -1269,12 +1948,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T4": {
-    "contractHash": "f794dfe966b4a771a5fb73b54cb6bc42e25dba44ad58b3041410d3866297c01c",
+    "contractHash": "cbb7ca78cbe90a1c54333227abb4e179d6ecc5eef0c338880b0b59f8ef12da05",
     "patches": [
       {
         "changedFields": [
@@ -1282,12 +1968,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T5": {
-    "contractHash": "ae45f8ce38aa24fac1c882b306997b0316f39e4d88f97d29434729693bdd83a6",
+    "contractHash": "dc15956e20519626c92a193aa503f5821942e1e40a3625ff96ad7a7820f7d2d3",
     "patches": [
       {
         "changedFields": [
@@ -1295,12 +1988,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T6": {
-    "contractHash": "019f07231b77e99f16f055d18246cfb3670016d93c47a922b83fbc2f7f9cb2c7",
+    "contractHash": "3aeb9bd27ecfc3098003f77de7ec54bedfe773ce000fc74d06810f0a163e2f7c",
     "patches": [
       {
         "changedFields": [
@@ -1308,12 +2008,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T7": {
-    "contractHash": "44b68d029ef964ea3be8ec0e147772df51d902ab1adaa84ec79dda864518a099",
+    "contractHash": "a8d2ac5190da25eae1413e829547050db04b63c7e94d8c04adba07a6532011e4",
     "patches": [
       {
         "changedFields": [
@@ -1321,12 +2028,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T8": {
-    "contractHash": "ccc2bac7afd9f5ebc9d71ffd87f99f1467f6202f58e96878e41cea01fd792f5b",
+    "contractHash": "50883510c5ad86362960e0c3f3c57f395a5ac5d8ff63c86bb7f6d392243aad06",
     "patches": [
       {
         "changedFields": [
@@ -1334,12 +2048,19 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"
   },
   "M9-T9": {
-    "contractHash": "70889c055ce96083bb4aa4bd864a2c4bfed89908e1229728f586891a76b11bcc",
+    "contractHash": "979fdb0720a48a62c47f07324059284bd0f50d89494cb782f99ee18bbfefd33c",
     "patches": [
       {
         "changedFields": [
@@ -1347,6 +2068,13 @@
         ],
         "patch": "P-R8-T54786768",
         "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
       }
     ],
     "previousStatus": "done"

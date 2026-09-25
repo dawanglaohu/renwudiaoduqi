@@ -239,7 +239,7 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 		expect(msgDelivered).toBeDefined();
 	});
 
-	it('AC 1 & E-133: body {kind:"elevate_once"} in illegal state (exited) returns E_INVALID_STATE_TRANSITION', async () => {
+	it('AC 1 & E-133: body {kind:"elevate_once"} in illegal state (exited) returns 409 E_INVALID_STATE_TRANSITION', async () => {
 		const runId = 'run-exited-1';
 		seedRun(runId, 'exited');
 
@@ -250,10 +250,47 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 			headers: { authorization: authToken },
 		});
 
-		expect(response.statusCode).toBe(500);
+		// R1: 统一错误处理处带状态机上下文的非法状态映射为 409
+		expect(response.statusCode).toBe(409);
 		const json = JSON.parse(response.body);
 		expect(json.error.code).toBe('E_INVALID_STATE_TRANSITION');
 		expect(container.services.run.isTemporarilyElevated(runId)).toBe(false);
+
+		// R2: 失败请求绝不留下假投递记录
+		const countRow = db
+			.prepare('SELECT COUNT(*) as count FROM run_messages WHERE run_id = ?')
+			.get(runId) as { count: number };
+		expect(countRow.count).toBe(0);
+	});
+
+	it('R2 negative: returns 422 E_MESSAGE_UNDELIVERED when elevateRunOnce capability is unavailable', async () => {
+		const runId = 'run-awaiting-no-elevate-fn';
+		seedRun(runId, 'awaiting_reply');
+
+		// 构造一个没有 runService / elevateRunOnce 注入的隔离 server
+		const mockServer = createHttpServer({
+			container: {
+				...container,
+				services: {
+					...container.services,
+					// run 服务缺失 elevateRunOnce
+					run: undefined as never,
+				},
+			},
+		});
+		await mockServer.instance.ready();
+
+		const response = await mockServer.instance.inject({
+			method: 'POST',
+			url: `/api/v1/runs/${runId}/messages`,
+			payload: { kind: 'elevate_once' },
+			headers: { authorization: authToken },
+		});
+
+		expect(response.statusCode).toBe(422);
+		const json = JSON.parse(response.body);
+		expect(json.error.code).toBe('E_MESSAGE_UNDELIVERED');
+		await mockServer.instance.close();
 	});
 
 	it('AC 1 & E-302: body {kind:"elevate_once"} on archived session returns 409 E_SESSION_ARCHIVED', async () => {

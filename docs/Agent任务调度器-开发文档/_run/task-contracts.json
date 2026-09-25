@@ -1078,7 +1078,7 @@
         17
       ]
     },
-  "M8-T9": {
+    "M8-T9": {
       "requires": [
         {
           "task": "M4-T14",
@@ -1107,17 +1107,17 @@
       "provides": [
         "assignment-chain"
       ],
-    "supportPaths": [
-      "packages/daemon/src/boot/container.ts",
-      "packages/daemon/src/domain/effort-tier.ts",
+      "supportPaths": [
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/domain/effort-tier.ts",
         "packages/daemon/src/domain/effort-value.ts",
         "packages/daemon/src/domain/pipeline-settings.ts",
         "packages/daemon/src/domain/run-state-machine.ts",
         "packages/daemon/src/repo/runs.ts",
         "packages/daemon/src/repo/gates.ts",
         "packages/daemon/src/repo/settings.ts",
-      "packages/daemon/src/logstore/",
-      "packages/daemon/src/service/logstore.ts",
+        "packages/daemon/src/logstore/",
+        "packages/daemon/src/service/logstore.ts",
         "packages/daemon/src/http/routes/settings.ts",
         "packages/daemon/src/http/routes/gates.ts",
         "packages/daemon/src/http/routes/batches.ts",
@@ -1128,9 +1128,9 @@
         "packages/shared/src/api/agents.ts",
         "packages/daemon/test/unit/pipeline-settings.test.ts",
         "packages/daemon/test/unit/settings.test.ts",
-      "packages/daemon/test/integration/pipeline-lanes.test.ts",
-      "packages/daemon/test/integration/batch-wrapup.test.ts",
-      "packages/daemon/test/unit/m8-t9-rework.test.ts",
+        "packages/daemon/test/integration/pipeline-lanes.test.ts",
+        "packages/daemon/test/integration/batch-wrapup.test.ts",
+        "packages/daemon/test/unit/m8-t9-rework.test.ts",
         "packages/daemon/test/unit/review-agent.test.ts",
         "packages/daemon/test/unit/bughunt-report.test.ts",
         "packages/daemon/test/fixtures/login/",

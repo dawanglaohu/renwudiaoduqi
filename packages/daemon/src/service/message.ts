@@ -373,23 +373,16 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		if (input.kind === 'elevate_once') {
 			const elevateFn =
 				input.elevateRunOnce ?? deps.elevateRunOnce ?? deps.runService?.elevateRunOnce;
-			if (elevateFn) {
-				await elevateFn(input.runId, {
-					reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
-					actorDeviceId: input.actorDeviceId ?? null,
-				});
-			} else if (run.state !== 'awaiting_reply' && run.state !== 'running') {
-				throw new AppError(
-					'E_INVALID_STATE_TRANSITION',
-					`Cannot elevate run '${run.id}' in state '${run.state}'.`,
-					{
-						details: {
-							runId: run.id,
-							state: run.state,
-						},
-					},
-				);
+			if (!elevateFn) {
+				// R2: 缺 RunService/elevateRunOnce 时不得返回 delivered
+				return handleUndelivered(run, input, 'elevate_unavailable', throwOnUndelivered);
 			}
+
+			// R2: elevateFn 必须成功执行后才进入交付，失败时不得留下假投递记录
+			await elevateFn(input.runId, {
+				reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
+				actorDeviceId: input.actorDeviceId ?? null,
+			});
 
 			const messageId = deps.ids.newId();
 			const now = deps.clock.now();
@@ -408,32 +401,6 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 					createdAt: now,
 					deliveredAt: now,
 				});
-
-				// 如果未通过 elevateFn 迁移状态，且状态为 awaiting_reply，兜底迁移
-				if (!elevateFn && run.state === 'awaiting_reply') {
-					deps.runMessagesRepo.updateRunState({
-						id: input.runId,
-						fromState: 'awaiting_reply',
-						toState: 'running',
-						lastEventAt: now,
-					});
-
-					if (deps.envelopeFactory) {
-						pendingEvents.push(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'run.state_changed',
-								runId: input.runId,
-								taskId: run.taskId,
-								actorDeviceId: input.actorDeviceId ?? null,
-								payload: {
-									from: 'awaiting_reply',
-									to: 'running',
-									reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
-								},
-							}),
-						);
-					}
-				}
 
 				if (deps.envelopeFactory) {
 					pendingEvents.push(

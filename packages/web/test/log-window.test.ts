@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * packages/web/test/log-window.test.ts
  *
@@ -7,11 +9,14 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { GetRunLogResponse } from '@agent-scheduler/shared/api/runs';
-import { createElement } from 'react';
+import { act, createElement } from 'react';
+import { type Root, createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RunStreamBuffer, eventBus } from '../src/api/event-bus.ts';
 import { ApiError, httpClient } from '../src/api/http-client.ts';
+
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 import {
 	LINE_COLLAPSED_MAX_CHARS,
 	LINE_EXPANDED_MAX_CHARS,
@@ -33,7 +38,7 @@ import {
 	SEGMENT_MAX_LINES,
 } from '../src/features/run-detail/log-window.ts';
 import {
-	PermissionBlockedBanner,
+	PermissionBlockedTimelineRow,
 	RunDetailContainer,
 } from '../src/features/run-detail/run-detail-container.tsx';
 import {
@@ -831,11 +836,45 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 		});
 	});
 
-	// ─── AC 4 & E-133: 权限受阻横幅与一次性临时提升按钮 ───
-	describe('AC 4 & E-133: Permission blocked banner & temporary elevation (R8-T54786768)', () => {
-		it('renders PermissionBlockedBanner with needs color highlighting, tool info and elevate button', () => {
+	// ─── AC 4 & E-133: 权限受阻时间线高亮事件行与一次性临时提升按钮 (R8-T54786768 / R3) ───
+	describe('AC 4 & E-133: Permission blocked timeline row & temporary elevation (R8-T54786768 / R3)', () => {
+		let testMountContainer: HTMLDivElement | null = null;
+		let testRoot: Root | null = null;
+
+		beforeEach(() => {
+			testMountContainer = document.createElement('div');
+			document.body.appendChild(testMountContainer);
+			testRoot = createRoot(testMountContainer);
+		});
+
+		afterEach(() => {
+			if (testRoot) {
+				act(() => {
+					testRoot?.unmount();
+				});
+				testRoot = null;
+			}
+			if (testMountContainer?.parentNode) {
+				testMountContainer.parentNode.removeChild(testMountContainer);
+				testMountContainer = null;
+			}
+			vi.restoreAllMocks();
+		});
+
+		async function click(element: Element | null): Promise<void> {
+			expect(element, 'element to click').not.toBeNull();
+			await act(async () => {
+				element?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+				await Promise.resolve();
+			});
+			await act(async () => {
+				await Promise.resolve();
+			});
+		}
+
+		it('renders PermissionBlockedTimelineRow with needs color highlighting, tool info and elevate button', () => {
 			const html = renderToStaticMarkup(
-				createElement(PermissionBlockedBanner, {
+				createElement(PermissionBlockedTimelineRow, {
 					info: {
 						tool: 'write_file',
 						reason: 'Agent 试图写 worktree 之外',
@@ -847,7 +886,8 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				}),
 			);
 
-			// 验证 needs 强调色高亮背景与边框（11 节 UI 规范）
+			// 验证 needs 强调色高亮背景与边框（11 节 UI 规范）及时间线组件标识
+			expect(html).toContain('data-component="permission-blocked-timeline-row"');
 			expect(html).toContain('data-permission-blocked-banner="true"');
 			expect(html).toContain('border-[var(--needs)]');
 			expect(html).toContain('bg-[var(--needs-soft)]');
@@ -862,161 +902,245 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			expect(html).not.toContain('已临时提升');
 		});
 
-		it('renders disabled "已临时提升" button after successful elevation', () => {
-			const html = renderToStaticMarkup(
-				createElement(PermissionBlockedBanner, {
-					info: {
-						tool: 'edit_file',
-						reason: '越界写',
-					},
-					isElevated: true,
-					isElevating: false,
-					error: null,
-				}),
-			);
-
-			expect(html).toContain('data-elevate-button="true"');
-			expect(html).toContain('已临时提升');
-			expect(html).toContain('disabled=""');
-			expect(html).not.toContain('仅本次运行临时提升');
-		});
-
-		it('renders raw error.code on elevate failure', () => {
-			const html = renderToStaticMarkup(
-				createElement(PermissionBlockedBanner, {
-					info: {
-						tool: 'run_command',
-						reason: '越界执行',
-					},
-					isElevated: false,
-					isElevating: false,
-					error: 'E_INVALID_STATE_TRANSITION',
-				}),
-			);
-
-			expect(html).toContain('data-elevate-error="true"');
-			expect(html).toContain('E_INVALID_STATE_TRANSITION');
-			// 按钮仍然保持未提升
-			expect(html).toContain('仅本次运行临时提升');
-		});
-
-		it('issues POST /api/v1/runs/:runId/messages with kind=elevate_once via fake http-client (AC 4)', async () => {
-			const capturedCalls: Array<{ route: unknown; options: unknown }> = [];
-			const spy = vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route, options) => {
-				capturedCalls.push({ route, options });
-				return { messageId: 'msg-elevate-success-1' } as never;
-			});
-
-			let clicked = false;
-			const html = renderToStaticMarkup(
-				createElement(RunDetailContainer, {
-					runId: 'run-blocked-test-42',
-					permissionBlocked: {
-						tool: 'write_file',
-						reason: '越界修改外部代码',
-					},
-					onElevateOnce: async () => {
-						clicked = true;
-						await httpClient.callRoute(
-							{ path: '/api/v1/runs/:runId/messages', method: 'POST' } as never,
-							{
-								params: { runId: 'run-blocked-test-42' },
-								body: { kind: 'elevate_once' },
-							},
-						);
-					},
-				}),
-			);
-
-			// 验证在 RunDetailContainer 中渲染了权限受阻条目
-			expect(html).toContain('data-permission-blocked-banner="true"');
-			expect(html).toContain('仅本次运行临时提升');
-
-			// 模拟点击触发一次提升
-			const route = { path: '/api/v1/runs/:runId/messages', method: 'POST' };
-			await httpClient.callRoute(route as never, {
-				params: { runId: 'run-blocked-test-42' },
-				body: { kind: 'elevate_once' },
-			});
-
-			expect(capturedCalls).toHaveLength(1);
-			const call = capturedCalls[0];
-			if (!call) {
-				throw new Error('Expected capturedCall');
-			}
-			expect((call.route as { path: string }).path).toBe('/api/v1/runs/:runId/messages');
-			expect((call.route as { method: string }).method).toBe('POST');
-			expect((call.options as { params: { runId: string } }).params.runId).toBe(
-				'run-blocked-test-42',
-			);
-			expect((call.options as { body: unknown }).body).toEqual({ kind: 'elevate_once' });
-
-			spy.mockRestore();
-		});
-
-		it('integrates fake http-client error handling with ApiError code extraction', async () => {
-			const fakeApiError = new ApiError({
-				code: 'E_INVALID_STATE_TRANSITION',
-				message: 'Cannot elevate run in exited state',
-				requestId: 'req-err-42',
-				status: 500,
-			});
-
-			let capturedError: string | null = null;
-			try {
-				throw fakeApiError;
-			} catch (err) {
-				const code = err instanceof ApiError ? err.code : String(err);
-				capturedError = code;
-			}
-
-			expect(capturedError).toBe('E_INVALID_STATE_TRANSITION');
-
-			// 渲染到界面中验证 error.code 展示
-			const html = renderToStaticMarkup(
-				createElement(PermissionBlockedBanner, {
-					info: { tool: 'write_file', reason: '越界写' },
-					isElevated: false,
-					error: capturedError,
-				}),
-			);
-
-			expect(html).toContain('data-elevate-error="true"');
-			expect(html).toContain('E_INVALID_STATE_TRANSITION');
-		});
-
-		it('captures run.permission_blocked events from eventBus into useLogWindow', () => {
-			const testRunId = 'run-bus-permission-test';
-			const buffer = eventBus.getOrCreateBuffer(testRunId);
+		it('clicks actual elevate button in RunDetailContainer, sends exact request once, and disables button on success (AC 4, R3)', async () => {
+			const runId = 'run-elevate-real-click';
+			const buffer = eventBus.getOrCreateBuffer(runId);
 			buffer.push({
 				id: 1,
 				seq: 1,
-				runId: testRunId,
-				taskId: null,
+				runId,
+				taskId: 'T-100',
 				scope: 'run',
 				kind: 'run.permission_blocked',
 				ts: '2026-09-25T00:00:00.000Z',
 				actorDeviceId: null,
 				payload: {
-					tool: 'shell_exec',
-					reason: 'Sandbox violation outside repository',
+					tool: 'write_file',
+					reason: '越界修改外部代码',
 					blockedCategory: 'workspace_sandbox',
 				},
 			});
 
-			let hookResult!: ReturnType<typeof useLogWindow>;
-			function Consumer() {
-				hookResult = useLogWindow({ runId: testRunId, autoSubscribeEvents: true });
-				return createElement('div', null, 'test');
-			}
-
-			renderToStaticMarkup(createElement(Consumer));
-
-			expect(hookResult.permissionBlocked).toEqual({
-				tool: 'shell_exec',
-				reason: 'Sandbox violation outside repository',
-				blockedCategory: 'workspace_sandbox',
+			const elevateCalls: Array<{ route: unknown; options: unknown }> = [];
+			vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route, options) => {
+				if ((route as { path?: string })?.path === '/api/v1/runs/:runId/messages') {
+					elevateCalls.push({ route, options });
+					return { messageId: 'msg-elevate-success-1' } as never;
+				}
+				return {} as never;
 			});
+
+			act(() => {
+				testRoot?.render(createElement(RunDetailContainer, { runId }));
+			});
+
+			const button = testMountContainer?.querySelector(
+				'[data-elevate-button="true"]',
+			) as HTMLButtonElement | null;
+			expect(button).not.toBeNull();
+			expect(button?.disabled).toBe(false);
+			expect(button?.textContent).toContain('仅本次运行临时提升');
+
+			// 真实点击事件行内的按钮
+			await click(button);
+
+			// 验证恰好只发送了一次请求，且参数准确无误
+			expect(elevateCalls).toHaveLength(1);
+			const call = elevateCalls[0];
+			expect((call?.route as { path?: string })?.path).toBe('/api/v1/runs/:runId/messages');
+			expect((call?.route as { method?: string })?.method).toBe('POST');
+			expect((call?.options as { params?: { runId?: string } })?.params?.runId).toBe(runId);
+			expect((call?.options as { body?: unknown })?.body).toEqual({ kind: 'elevate_once' });
+
+			// 验证成功后按钮变为「已临时提升」且 disabled 不可再点
+			expect(button?.disabled).toBe(true);
+			expect(button?.textContent).toContain('已临时提升');
+		});
+
+		it('prevents duplicate requests on rapid double-clicking (防连点覆盖, R3)', async () => {
+			const runId = 'run-elevate-debounce';
+			const buffer = eventBus.getOrCreateBuffer(runId);
+			buffer.push({
+				id: 1,
+				seq: 1,
+				runId,
+				taskId: 'T-101',
+				scope: 'run',
+				kind: 'run.permission_blocked',
+				ts: '2026-09-25T00:00:00.000Z',
+				actorDeviceId: null,
+				payload: {
+					tool: 'edit_file',
+					reason: '防连点测试',
+				},
+			});
+
+			let finishRequest!: () => void;
+			const pendingPromise = new Promise<{ messageId: string }>((resolve) => {
+				finishRequest = () => resolve({ messageId: 'msg-debounce-ok' });
+			});
+
+			const elevateCalls: Array<{ route: unknown; options: unknown }> = [];
+			vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route, options) => {
+				if ((route as { path?: string })?.path === '/api/v1/runs/:runId/messages') {
+					elevateCalls.push({ route, options });
+					return pendingPromise as never;
+				}
+				return {} as never;
+			});
+
+			act(() => {
+				testRoot?.render(createElement(RunDetailContainer, { runId }));
+			});
+
+			const button = testMountContainer?.querySelector(
+				'[data-elevate-button="true"]',
+			) as HTMLButtonElement | null;
+			expect(button).not.toBeNull();
+
+			// 连续两次点击
+			await act(async () => {
+				button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+				button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+				await Promise.resolve();
+			});
+
+			finishRequest();
+			await act(async () => {
+				await Promise.resolve();
+			});
+
+			// 断言在并发点击下恰好只产生 1 次请求
+			expect(elevateCalls).toHaveLength(1);
+			expect(button?.disabled).toBe(true);
+			expect(button?.textContent).toContain('已临时提升');
+		});
+
+		it('displays raw error.code on elevation failure and keeps button enabled for retry (R3)', async () => {
+			const runId = 'run-elevate-fail-display';
+			const buffer = eventBus.getOrCreateBuffer(runId);
+			buffer.push({
+				id: 1,
+				seq: 1,
+				runId,
+				taskId: 'T-102',
+				scope: 'run',
+				kind: 'run.permission_blocked',
+				ts: '2026-09-25T00:00:00.000Z',
+				actorDeviceId: null,
+				payload: {
+					tool: 'bash',
+					reason: '越界写',
+				},
+			});
+
+			vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
+				if ((route as { path?: string })?.path === '/api/v1/runs/:runId/messages') {
+					throw new ApiError({
+						code: 'E_INVALID_STATE_TRANSITION',
+						message: 'Run is not in awaiting_reply state',
+						requestId: 'req-test-err',
+						status: 409,
+					});
+				}
+				return {} as never;
+			});
+
+			act(() => {
+				testRoot?.render(createElement(RunDetailContainer, { runId }));
+			});
+
+			const button = testMountContainer?.querySelector(
+				'[data-elevate-button="true"]',
+			) as HTMLButtonElement | null;
+			expect(button).not.toBeNull();
+
+			await click(button);
+
+			// 验证原始 error.code 呈现在界面中
+			const errorElement = testMountContainer?.querySelector('[data-elevate-error="true"]');
+			expect(errorElement).not.toBeNull();
+			expect(errorElement?.textContent).toBe('E_INVALID_STATE_TRANSITION');
+
+			// 失败时按钮不禁用，允许重试
+			expect(button?.disabled).toBe(false);
+			expect(button?.textContent).toContain('仅本次运行临时提升');
+		});
+
+		it('switches runId and verifies isolation and cleanup (切换 runId 覆盖, R3)', async () => {
+			const runIdA = 'run-switch-a';
+			const runIdB = 'run-switch-b';
+			const runIdC = 'run-switch-c';
+
+			// A 有权限受阻事件
+			const bufferA = eventBus.getOrCreateBuffer(runIdA);
+			bufferA.push({
+				id: 1,
+				seq: 1,
+				runId: runIdA,
+				taskId: 'T-103',
+				scope: 'run',
+				kind: 'run.permission_blocked',
+				ts: '2026-09-25T00:00:00.000Z',
+				actorDeviceId: null,
+				payload: { tool: 'write_file', reason: 'Blocked A' },
+			});
+
+			// C 有权限受阻事件
+			const bufferC = eventBus.getOrCreateBuffer(runIdC);
+			bufferC.push({
+				id: 2,
+				seq: 1,
+				runId: runIdC,
+				taskId: 'T-104',
+				scope: 'run',
+				kind: 'run.permission_blocked',
+				ts: '2026-09-25T00:00:00.000Z',
+				actorDeviceId: null,
+				payload: { tool: 'edit_file', reason: 'Blocked C' },
+			});
+
+			vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
+				if ((route as { path?: string })?.path === '/api/v1/runs/:runId/messages') {
+					return { messageId: 'msg-ok' } as never;
+				}
+				return {} as never;
+			});
+
+			// 1. 渲染 runIdA 并提升成功
+			await act(async () => {
+				testRoot?.render(createElement(RunDetailContainer, { runId: runIdA }));
+				await Promise.resolve();
+			});
+			const buttonA = testMountContainer?.querySelector(
+				'[data-elevate-button="true"]',
+			) as HTMLButtonElement | null;
+			expect(buttonA).not.toBeNull();
+			await click(buttonA);
+			expect(buttonA?.textContent).toContain('已临时提升');
+			expect(buttonA?.disabled).toBe(true);
+
+			// 2. 切换到没有权限受阻事件的 runIdB -> 事件行应消失
+			await act(async () => {
+				testRoot?.render(createElement(RunDetailContainer, { runId: runIdB }));
+				await Promise.resolve();
+			});
+			const bannerB = testMountContainer?.querySelector('[data-permission-blocked-banner="true"]');
+			expect(bannerB).toBeNull();
+
+			// 3. 切换到有权限受阻事件的 runIdC -> 事件行出现，状态必须重置为未提升
+			await act(async () => {
+				testRoot?.render(createElement(RunDetailContainer, { runId: runIdC }));
+				await Promise.resolve();
+			});
+			const bannerC = testMountContainer?.querySelector('[data-permission-blocked-banner="true"]');
+			expect(bannerC).not.toBeNull();
+			const buttonC = testMountContainer?.querySelector(
+				'[data-elevate-button="true"]',
+			) as HTMLButtonElement | null;
+			expect(buttonC).not.toBeNull();
+			expect(buttonC?.textContent).toContain('仅本次运行临时提升');
+			expect(buttonC?.disabled).toBe(false);
 		});
 	});
 });

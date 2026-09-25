@@ -56,10 +56,6 @@ export interface RunDetailContainerProps {
 	readonly taskKey?: string;
 	/** 是否强制使用手机端模式（可选覆盖） */
 	readonly isMobile?: boolean;
-	/** 权限受阻事件覆盖（供测试或上层显式指定，E-133） */
-	readonly permissionBlocked?: PermissionBlockedInfo | null;
-	/** 临时提升回调覆盖（供测试模拟，E-133） */
-	readonly onElevateOnce?: () => Promise<void> | void;
 }
 
 /**
@@ -73,8 +69,6 @@ export function RunDetailContainer({
 	run,
 	taskKey,
 	isMobile,
-	permissionBlocked: propPermissionBlocked,
-	onElevateOnce,
 }: RunDetailContainerProps) {
 	const virtualRef = useRef<VirtualRowsHandle | null>(null);
 	const [expandedIndices, setExpandedIndices] = useState<ReadonlySet<number>>(() => new Set());
@@ -135,10 +129,23 @@ export function RunDetailContainer({
 	const [isElevating, setIsElevating] = useState(false);
 	const [isElevated, setIsElevated] = useState(false);
 	const [elevateError, setElevateError] = useState<string | null>(null);
+	const isElevatingRef = useRef(false);
+	const isElevatedRef = useRef(false);
+
+	// R3: 切换 runId 时重置临时提升状态与错误
+	useEffect(() => {
+		if (runId) {
+			isElevatingRef.current = false;
+			isElevatedRef.current = false;
+			setIsElevated(false);
+			setIsElevating(false);
+			setElevateError(null);
+		}
+	}, [runId]);
 
 	const {
 		state,
-		permissionBlocked: windowPermissionBlocked,
+		permissionBlocked,
 		isLoadingOlder,
 		isLoadingNewer,
 		loadOlder,
@@ -147,22 +154,19 @@ export function RunDetailContainer({
 		handleResetUnread,
 	} = useLogWindow({ runId, isMobile: isMobileTier });
 
-	const effectivePermissionBlocked =
-		propPermissionBlocked !== undefined ? propPermissionBlocked : windowPermissionBlocked;
-
 	const handleElevateOnce = useCallback(async () => {
-		if (isElevating || isElevated) return;
+		if (isElevatingRef.current || isElevatedRef.current) return;
+		isElevatingRef.current = true;
 		setIsElevating(true);
 		setElevateError(null);
 		try {
-			if (onElevateOnce) {
-				await onElevateOnce();
-			} else if (createRunMessageRoute) {
+			if (createRunMessageRoute) {
 				await httpClient.callRoute(createRunMessageRoute, {
 					params: { runId },
 					body: { kind: 'elevate_once' },
 				});
 			}
+			isElevatedRef.current = true;
 			setIsElevated(true);
 		} catch (err) {
 			const code = isApiError(err)
@@ -174,9 +178,10 @@ export function RunDetailContainer({
 						: String(err);
 			setElevateError(code);
 		} finally {
+			isElevatingRef.current = false;
 			setIsElevating(false);
 		}
-	}, [runId, isElevating, isElevated, onElevateOnce]);
+	}, [runId]);
 
 	// R1 (AC 3 / E-100): 贴底且尾部增长时自动跟随；isAtBottom 为 false 时绝不跳底。
 	// 审查方修正：增长信号取 state.totalLines——它单调递增且把被折叠的刷新行也计进去；
@@ -249,10 +254,10 @@ export function RunDetailContainer({
 				onOpenOriginal={state.originalFilePath ? handleOpenOriginal : undefined}
 			/>
 
-			{/* E-133 权限受阻横幅与一次性临时提升按钮 */}
-			{effectivePermissionBlocked && (
-				<PermissionBlockedBanner
-					info={effectivePermissionBlocked}
+			{/* E-133 权限受阻时间线高亮事件行与一次性临时提升按钮 */}
+			{permissionBlocked && (
+				<PermissionBlockedTimelineRow
+					info={permissionBlocked}
 					isElevating={isElevating}
 					isElevated={isElevated}
 					error={elevateError}
@@ -433,7 +438,7 @@ export function RunDetailPageContainer({
 	);
 }
 
-export interface PermissionBlockedBannerProps {
+export interface PermissionBlockedTimelineRowProps {
 	readonly info: PermissionBlockedInfo;
 	readonly isElevating?: boolean;
 	readonly isElevated?: boolean;
@@ -441,23 +446,26 @@ export interface PermissionBlockedBannerProps {
 	readonly onElevateOnce?: () => void;
 }
 
+export type PermissionBlockedBannerProps = PermissionBlockedTimelineRowProps;
+
 /**
- * 权限受阻横幅展示组件（E-133 / AC 4）。
+ * 权限受阻时间线高亮事件行组件（E-133 / AC 4 / R3）。
  *
  * 遵循 07 节前端架构规范：
  * - 纯展示组件，内部使用 CSS 变量与 design tokens
- * - 以 needs 暖色高亮展示，警示权限阻断
+ * - 作为时间线事件行以 needs 暖色高亮展示，警示权限阻断
  * - 提供一次性「仅本次运行临时提升」操作按钮
  */
-export function PermissionBlockedBanner({
+export function PermissionBlockedTimelineRow({
 	info,
 	isElevating = false,
 	isElevated = false,
 	error = null,
 	onElevateOnce,
-}: PermissionBlockedBannerProps) {
+}: PermissionBlockedTimelineRowProps) {
 	return (
 		<div
+			data-component="permission-blocked-timeline-row"
 			data-permission-blocked-banner="true"
 			className="flex items-center justify-between gap-3 px-3 py-2 border border-[var(--needs)] bg-[var(--needs-soft)] text-[var(--ink-1)] rounded-[var(--r-sm)] text-[length:var(--fs-dense)] leading-[var(--lh-ui)]"
 		>
@@ -496,3 +504,5 @@ export function PermissionBlockedBanner({
 		</div>
 	);
 }
+
+export const PermissionBlockedBanner = PermissionBlockedTimelineRow;

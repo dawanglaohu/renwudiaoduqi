@@ -4,6 +4,7 @@ import { isAppError } from '../../errors/app-error.ts';
 
 const STATUS_BAD_REQUEST = 400;
 const STATUS_NOT_FOUND = 404;
+const STATUS_CONFLICT = 409;
 const STATUS_INTERNAL_ERROR = 500;
 
 export interface ErrorEnvelope {
@@ -42,7 +43,18 @@ export function createErrorHandler(instance: FastifyInstance): void {
 				return;
 			}
 
-			const statusCode = meta.defaultHttpStatus;
+			let statusCode = meta.defaultHttpStatus;
+			// 08 节架构限定映射：非法状态机迁移在带有状态上下文时映射为 409 Conflict（Jev B / R8-T54786768）
+			if (
+				code === 'E_INVALID_STATE_TRANSITION' &&
+				error.details !== undefined &&
+				(error.details.from !== undefined ||
+					error.details.state !== undefined ||
+					error.details.targetState !== undefined)
+			) {
+				statusCode = STATUS_CONFLICT;
+			}
+
 			const envelope: ErrorEnvelope = {
 				error: {
 					code,
