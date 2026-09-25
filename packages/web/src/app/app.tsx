@@ -12,6 +12,7 @@
 
 import { type ComponentType, type ReactNode, lazy } from 'react';
 import { GateTogglesContainer } from '../features/run-deck/gate-toggles-container.tsx';
+import { PipelineTogglesContainer } from '../features/run-deck/pipeline-toggles-container.tsx';
 import { DeckPage } from '../pages/deck-page.tsx';
 import { PairPage } from '../pages/pair-page.tsx';
 import { RunDetailPage } from '../pages/run-detail-page.tsx';
@@ -23,6 +24,7 @@ import { type RouteComponentProps, type RouteId, type RouteMatch, RouterView } f
 const LandingPage = lazy(() => import('../pages/landing-page.tsx'));
 const SettingsAgentsPage = lazy(() => import('../pages/settings-agents-page.tsx'));
 const SettingsDevicesPage = lazy(() => import('../pages/settings-devices-page.tsx'));
+const SettingsPipelinePage = lazy(() => import('../pages/settings-pipeline-page.tsx'));
 
 const APP_ROUTE_COMPONENTS: Record<RouteId, ComponentType<RouteComponentProps>> = {
 	deck: DeckPage,
@@ -31,6 +33,7 @@ const APP_ROUTE_COMPONENTS: Record<RouteId, ComponentType<RouteComponentProps>> 
 	landing: LandingPage,
 	settingsAgents: SettingsAgentsPage,
 	settingsDevices: SettingsDevicesPage,
+	settingsPipeline: SettingsPipelinePage,
 	pair: PairPage,
 };
 
@@ -49,7 +52,13 @@ function AppTopbar({ match, banner }: { readonly match: RouteMatch; readonly ban
 			>
 				<span className="font-mono text-dense font-semibold text-ink-1">Agent 任务调度器</span>
 				<div className="hidden min-[600px]:flex items-center gap-3">
-					{showGates && <GateTogglesContainer layout="topbar" />}
+					{showGates && (
+						<>
+							<GateTogglesContainer layout="topbar" />
+							<div className="h-4 w-px bg-border shrink-0" aria-hidden="true" />
+							<PipelineTogglesContainer layout="topbar" />
+						</>
+					)}
 				</div>
 			</header>
 		</>

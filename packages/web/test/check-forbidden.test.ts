@@ -137,3 +137,29 @@ describe('check-forbidden: build configs alias tokens only (M9-T24, E-159)', () 
 		}
 	});
 });
+
+describe('check-forbidden: toggles must not import each other (M9-T22 / AC 1)', () => {
+	it('flags gate-toggles importing pipeline-toggles', () => {
+		const dir = scratchWebDir({
+			'gate-toggles.tsx': "import { PipelineToggles } from './pipeline-toggles.tsx';\n",
+		});
+		const hits = ruleHits(dir);
+		expect(hits).toContain('TOGGLES_MUTUAL_IMPORT@gate-toggles.tsx');
+	});
+
+	it('flags pipeline-toggles importing gate-toggles', () => {
+		const dir = scratchWebDir({
+			'pipeline-toggles.tsx': "import { GateToggles } from './gate-toggles.tsx';\n",
+		});
+		const hits = ruleHits(dir);
+		expect(hits).toContain('TOGGLES_MUTUAL_IMPORT@pipeline-toggles.tsx');
+	});
+
+	it('allows both toggles to import ui/segmented-toggle', () => {
+		const dir = scratchWebDir({
+			'gate-toggles.tsx': "import { SegmentedToggle } from '../ui/segmented-toggle.tsx';\n",
+			'pipeline-toggles.tsx': "import { SegmentedToggle } from '../ui/segmented-toggle.tsx';\n",
+		});
+		expect(ruleHits(dir)).toEqual([]);
+	});
+});

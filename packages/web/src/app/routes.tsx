@@ -13,6 +13,7 @@ export const ROUTE_PATHS = {
 	landing: '#/landing/:taskId',
 	settingsAgents: '#/settings/agents',
 	settingsDevices: '#/settings/devices',
+	settingsPipeline: '#/settings/pipeline',
 	pair: '#/pair',
 } as const;
 
@@ -26,6 +27,7 @@ export type RouteId =
 	| 'landing'
 	| 'settingsAgents'
 	| 'settingsDevices'
+	| 'settingsPipeline'
 	| 'pair';
 
 export interface RouteDefinition {
@@ -36,7 +38,7 @@ export interface RouteDefinition {
 }
 
 /**
- * Route table metadata (07-前端架构.md / AC 1).
+ * Route table metadata (07-前端架构.md / AC 1, AC 4).
  * Settings and landing are marked for lazy chunk loading.
  * Deck, tasks, and runDetail remain in the main chunk.
  * Pair is the sole unprotected route (`auth: false`).
@@ -48,6 +50,7 @@ export const ROUTES: readonly RouteDefinition[] = [
 	{ id: 'landing', path: ROUTE_PATHS.landing, auth: true, lazy: true },
 	{ id: 'settingsAgents', path: ROUTE_PATHS.settingsAgents, auth: true, lazy: true },
 	{ id: 'settingsDevices', path: ROUTE_PATHS.settingsDevices, auth: true, lazy: true },
+	{ id: 'settingsPipeline', path: ROUTE_PATHS.settingsPipeline, auth: true, lazy: true },
 	{ id: 'pair', path: ROUTE_PATHS.pair, auth: false, lazy: false },
 ] as const;
 
@@ -283,7 +286,20 @@ export function matchRoute(rawHash?: string | null): RouteMatch {
 		};
 	}
 
-	// 7. Pair (#/pair) - Sole public route
+	// 7. Settings: Pipeline (#/settings/pipeline)
+	if (pathname === '#/settings/pipeline') {
+		return {
+			id: 'settingsPipeline',
+			path: ROUTE_PATHS.settingsPipeline,
+			params: {},
+			query,
+			isUnknown: false,
+			auth: true,
+			lazy: true,
+		};
+	}
+
+	// 8. Pair (#/pair) - Sole public route
 	if (pathname === '#/pair') {
 		return {
 			id: 'pair',
