@@ -44,14 +44,8 @@ export function createErrorHandler(instance: FastifyInstance): void {
 			}
 
 			let statusCode = meta.defaultHttpStatus;
-			// 08 节架构限定映射：非法状态机迁移在带有状态上下文时映射为 409 Conflict（Jev B / R8-T54786768）
-			if (
-				code === 'E_INVALID_STATE_TRANSITION' &&
-				error.details !== undefined &&
-				(error.details.from !== undefined ||
-					error.details.state !== undefined ||
-					error.details.targetState !== undefined)
-			) {
+			// 只将 elevate_once 请求的非法状态映射为客户端冲突；其他状态机错误保留原有分类。
+			if (code === 'E_INVALID_STATE_TRANSITION' && error.details?.operation === 'elevate_once') {
 				statusCode = STATUS_CONFLICT;
 			}
 

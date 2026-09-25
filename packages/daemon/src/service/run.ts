@@ -217,6 +217,7 @@ export interface RunService {
 	): Promise<void>;
 	isAwaitingReply(runId: string): Promise<boolean>;
 	isTemporarilyElevated(runId: string): boolean;
+	clearTemporaryElevation(runId: string): void;
 }
 
 function normalizeRawLineBytes(rawLine: string | Uint8Array): Uint8Array {
@@ -1332,6 +1333,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		return temporarilyElevatedRuns.has(runId);
 	}
 
+	function clearTemporaryElevation(runId: string): void {
+		temporarilyElevatedRuns.delete(runId);
+	}
+
 	return Object.freeze({
 		ingestRaw,
 		ingestEvent,
@@ -1347,6 +1352,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		elevateRunOnce,
 		isAwaitingReply,
 		isTemporarilyElevated,
+		clearTemporaryElevation,
 		hasContentProduced(runId: string): boolean {
 			return runsWithContent.has(runId);
 		},

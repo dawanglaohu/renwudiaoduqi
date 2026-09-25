@@ -1,9 +1,12 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
+import Fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { AppError } from '../../src/errors/app-error.ts';
+import { createErrorHandler } from '../../src/http/plugins/90-error-handler.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type {
 	LockFileHandle,
@@ -250,10 +253,11 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 			headers: { authorization: authToken },
 		});
 
-		// R1: 统一错误处理处带状态机上下文的非法状态映射为 409
+		// 仅 elevate_once 请求的非法状态被映射为冲突。
 		expect(response.statusCode).toBe(409);
 		const json = JSON.parse(response.body);
 		expect(json.error.code).toBe('E_INVALID_STATE_TRANSITION');
+		expect(json.error.details.operation).toBe('elevate_once');
 		expect(container.services.run.isTemporarilyElevated(runId)).toBe(false);
 
 		// R2: 失败请求绝不留下假投递记录
@@ -261,6 +265,23 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 			.prepare('SELECT COUNT(*) as count FROM run_messages WHERE run_id = ?')
 			.get(runId) as { count: number };
 		expect(countRow.count).toBe(0);
+	});
+
+	it('R1: a generic state-machine failure with from context retains its default server status', async () => {
+		const probe = Fastify();
+		createErrorHandler(probe);
+		probe.get('/transition-probe', () => {
+			throw new AppError('E_INVALID_STATE_TRANSITION', 'Internal transition failed.', {
+				details: { from: 'running', to: 'starting' },
+			});
+		});
+		try {
+			const response = await probe.inject({ method: 'GET', url: '/transition-probe' });
+			expect(response.statusCode).toBe(500);
+			expect(JSON.parse(response.body).error.code).toBe('E_INVALID_STATE_TRANSITION');
+		} finally {
+			await probe.close();
+		}
 	});
 
 	it('R2 negative: returns 422 E_MESSAGE_UNDELIVERED when elevateRunOnce capability is unavailable', async () => {

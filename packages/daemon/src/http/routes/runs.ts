@@ -480,6 +480,9 @@ export function registerRunsRoutes(
 			elevateRunOnce: runService
 				? (targetRunId, details) => runService.elevateRunOnce(targetRunId, details)
 				: undefined,
+			clearTemporaryElevation: runService
+				? (targetRunId) => runService.clearTemporaryElevation(targetRunId)
+				: undefined,
 		});
 
 		return {

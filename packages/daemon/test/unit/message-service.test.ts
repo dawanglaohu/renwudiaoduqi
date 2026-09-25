@@ -1149,5 +1149,48 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 			// 绝不留下假投递记录
 			expect(messages).toHaveLength(0);
 		});
+
+		it('R2: failed message persistence clears the temporary elevation and leaves no delivered record', async () => {
+			const runId = 'run-elevate-persist-fail';
+			const { repo, messages } = createMockRunsRepo([
+				{
+					id: runId,
+					taskId: 'task-1',
+					state: 'awaiting_reply',
+					agentId: 'codex',
+					pid: 1234,
+					parentRunId: null,
+					attemptNo: 1,
+					sessionArchivedAt: null,
+				},
+			]);
+			let isElevated = false;
+			const service = createMessageService({
+				runMessagesRepo: {
+					...repo,
+					insertMessage() {
+						throw new Error('disk write failed');
+					},
+				},
+				processRegistry: createProcessRegistry(),
+				clock,
+				ids,
+			});
+
+			await expect(
+				service.sendMessage({
+					runId,
+					kind: 'elevate_once',
+					elevateRunOnce: async () => {
+						isElevated = true;
+					},
+					clearTemporaryElevation: () => {
+						isElevated = false;
+					},
+				}),
+			).rejects.toThrow('disk write failed');
+			expect(isElevated).toBe(false);
+			expect(messages).toHaveLength(0);
+		});
 	});
 });

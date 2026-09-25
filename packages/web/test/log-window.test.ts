@@ -938,6 +938,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				'[data-elevate-button="true"]',
 			) as HTMLButtonElement | null;
 			expect(button).not.toBeNull();
+			expect(button?.closest('[data-virtual-scroll="true"]')).not.toBeNull();
 			expect(button?.disabled).toBe(false);
 			expect(button?.textContent).toContain('仅本次运行临时提升');
 
@@ -1141,6 +1142,54 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			expect(buttonC).not.toBeNull();
 			expect(buttonC?.textContent).toContain('仅本次运行临时提升');
 			expect(buttonC?.disabled).toBe(false);
+		});
+
+		it('ignores a prior run elevation response after switching runs', async () => {
+			const runA = 'run-pending-a';
+			const runB = 'run-pending-b';
+			for (const [id, runId] of [runA, runB].entries()) {
+				eventBus.getOrCreateBuffer(runId).push({
+					id: id + 10,
+					seq: 1,
+					runId,
+					taskId: 'T-105',
+					scope: 'run',
+					kind: 'run.permission_blocked',
+					ts: '2026-09-25T00:00:00.000Z',
+					actorDeviceId: null,
+					payload: { reason: `Blocked ${runId}` },
+				});
+			}
+			let finishA!: () => void;
+			const pendingA = new Promise<{ messageId: string }>((resolve) => {
+				finishA = () => resolve({ messageId: 'msg-a' });
+			});
+			vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route, options) => {
+				if ((route as { path?: string })?.path === '/api/v1/runs/:runId/messages') {
+					return (
+						(options as { params?: { runId?: string } })?.params?.runId === runA
+							? pendingA
+							: { messageId: 'msg-b' }
+					) as never;
+				}
+				return {} as never;
+			});
+			await act(async () => {
+				testRoot?.render(createElement(RunDetailContainer, { runId: runA }));
+			});
+			await click(testMountContainer?.querySelector('[data-elevate-button="true"]') ?? null);
+			await act(async () => {
+				testRoot?.render(createElement(RunDetailContainer, { runId: runB }));
+			});
+			finishA();
+			await act(async () => {
+				await Promise.resolve();
+			});
+			const buttonB = testMountContainer?.querySelector(
+				'[data-elevate-button="true"]',
+			) as HTMLButtonElement | null;
+			expect(buttonB?.disabled).toBe(false);
+			expect(buttonB?.textContent).toContain('仅本次运行临时提升');
 		});
 	});
 });

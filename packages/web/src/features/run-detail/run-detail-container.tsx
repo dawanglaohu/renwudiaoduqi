@@ -19,7 +19,7 @@ import type {
 	RunDto,
 	SearchRunLogResponse,
 } from '../../../../shared/src/api/runs.ts';
-import { httpClient, isApiError } from '../../api/http-client.ts';
+import { ApiError, httpClient, isApiError } from '../../api/http-client.ts';
 import {
 	LogBottomNotice,
 	LogLine,
@@ -131,10 +131,12 @@ export function RunDetailContainer({
 	const [elevateError, setElevateError] = useState<string | null>(null);
 	const isElevatingRef = useRef(false);
 	const isElevatedRef = useRef(false);
+	const elevationRunRef = useRef(runId);
 
 	// R3: 切换 runId 时重置临时提升状态与错误
 	useEffect(() => {
 		if (runId) {
+			elevationRunRef.current = runId;
 			isElevatingRef.current = false;
 			isElevatedRef.current = false;
 			setIsElevated(false);
@@ -156,19 +158,27 @@ export function RunDetailContainer({
 
 	const handleElevateOnce = useCallback(async () => {
 		if (isElevatingRef.current || isElevatedRef.current) return;
+		const requestRunId = runId;
 		isElevatingRef.current = true;
 		setIsElevating(true);
 		setElevateError(null);
 		try {
-			if (createRunMessageRoute) {
-				await httpClient.callRoute(createRunMessageRoute, {
-					params: { runId },
-					body: { kind: 'elevate_once' },
+			if (!createRunMessageRoute) {
+				throw new ApiError({
+					code: 'E_INTERNAL',
+					message: 'Run message route is unavailable.',
+					requestId: 'local',
 				});
 			}
+			await httpClient.callRoute(createRunMessageRoute, {
+				params: { runId: requestRunId },
+				body: { kind: 'elevate_once' },
+			});
+			if (elevationRunRef.current !== requestRunId) return;
 			isElevatedRef.current = true;
 			setIsElevated(true);
 		} catch (err) {
+			if (elevationRunRef.current !== requestRunId) return;
 			const code = isApiError(err)
 				? err.code
 				: typeof (err as { code?: unknown })?.code === 'string'
@@ -178,8 +188,10 @@ export function RunDetailContainer({
 						: String(err);
 			setElevateError(code);
 		} finally {
-			isElevatingRef.current = false;
-			setIsElevating(false);
+			if (elevationRunRef.current === requestRunId) {
+				isElevatingRef.current = false;
+				setIsElevating(false);
+			}
 		}
 	}, [runId]);
 
@@ -254,23 +266,23 @@ export function RunDetailContainer({
 				onOpenOriginal={state.originalFilePath ? handleOpenOriginal : undefined}
 			/>
 
-			{/* E-133 权限受阻时间线高亮事件行与一次性临时提升按钮 */}
-			{permissionBlocked && (
-				<PermissionBlockedTimelineRow
-					info={permissionBlocked}
-					isElevating={isElevating}
-					isElevated={isElevated}
-					error={elevateError}
-					onElevateOnce={handleElevateOnce}
-				/>
-			)}
-
 			{/* 虚拟滚动列表展示区（AC 1, AC 6, E-143） */}
 			<div className="flex-1 min-h-0 relative">
 				<VirtualRows
 					ref={virtualRef}
 					count={state.lines.length}
 					estimateSize={22}
+					footer={
+						permissionBlocked ? (
+							<PermissionBlockedTimelineRow
+								info={permissionBlocked}
+								isElevating={isElevating}
+								isElevated={isElevated}
+								error={elevateError}
+								onElevateOnce={handleElevateOnce}
+							/>
+						) : undefined
+					}
 					renderItem={({ index }) => {
 						const line = state.lines[index];
 						if (!line) {

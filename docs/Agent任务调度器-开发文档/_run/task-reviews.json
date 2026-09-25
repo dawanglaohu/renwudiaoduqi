@@ -1308,15 +1308,24 @@
   },
   "R8-T54786768": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "7eb41bfedff4fb47f4f5a731d434a209ca72d2799b56becb9423a0050ca1dfc3",
+    "contractHash": "782be4a8d6683492ca51dcb424c21d7a4cc18239521b8e3d1cdd98212921715b",
     "evidence": [
-      "AC 1 & E-133: POST /api/v1/runs/:runId/messages 支持 kind='elevate_once' 且 text 可选。packages/shared/src/api/runs.ts:136 定义 CreateRunMessageBody 判别联合与 RunMessageKindSchema；packages/daemon/src/http/routes/runs.ts:140 校验 JSON schema 且 additionalProperties:false；packages/daemon/src/service/message.ts:373 成功调 RunService.elevateRunOnce 后落库 delivered 记录并迁 running；packages/daemon/src/http/plugins/90-error-handler.ts:44 针对状态机迁移失败返回 409 E_INVALID_STATE_TRANSITION；packages/daemon/test/integration/run-messages-elevate.test.ts 覆盖 200、409 非法状态迁移、409 已归档会话以及失败回滚负例",
-      "AC 2: packages/daemon/src/service/run.ts:1310-1321 仅在 temporarilyElevatedRuns 内存 Set 中登记 runId，运行退出/归档或抛错时清理，不碰 agents.json 也不改注册表；packages/daemon/test/unit/run-service.test.ts 与 message-service.test.ts 单元测试全绿",
-      "AC 3: 02-设计/10-接口约定.md:394 登记 POST /runs/:id/messages 四值与 elevate_once text 可空规则；02-设计/08-后端架构.md:174 补齐 409 状态迁移限定映射说明；scripts/check-error-codes.mjs 与 packages/daemon/test/arch/routes.test.ts 校验一致；通过 maintain_docs.py 补丁 r8-t54786768-err-handler-support-20260925 进行契约同步与复核",
-      "AC 4: packages/web/src/features/run-detail/run-detail-container.tsx:69-122 实现 PermissionBlockedTimelineRow 时间线行组件，具备 needs 高亮与「仅本次运行临时提升」按钮，带 useRef 严格并发防连点与 runId 切换隔离，成功置为「已临时提升」并禁用，失败原样展示 error.code；packages/web/test/log-window.test.ts 经真实 DOM 点击验证单次请求、成功禁用、连点防重与失败回显",
-      "AC 5: pnpm -w check（check-error-codes, check-contrast, check-forbidden, biome ci, tsc -b, vitest run）全绿；并在 PR 附带真实 daemon 与 web 前端交互录制的 GIF"
+      "Batch 8 source task fence now lists R8-T89804121 as an explicit dependency. R8 acceptance 1-5 remains unchanged, including actual same-run continuation and a real daemon/browser GIF; the present implementation and GIF do not yet satisfy acceptance 5.",
+      "Section 08 now maps E_INVALID_STATE_TRANSITION to 409 only when the elevate_once operation marker is present. The route integration test checks 409 and the negative control checks that an unrelated state-machine error with details.from remains 500.",
+      "Jev adjudicate label R8-T54786768:round2-protocol, model jev-1.13.0, pick B high 0.77, adopt take(B). A separate live transport task is generated; this contract review does not mark either task landed or the runtime feature complete."
     ],
-    "reviewed": "2026-09-25T09:10:25.064923+00:00",
+    "reviewed": "2026-09-25T10:15:23.380896+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "R8-T89804121": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "66895a1947df565f3244b9179f30f78290c813747e6e9a50c8adf7b0b8169df5",
+    "evidence": [
+      "R8-T89804121 is generated from stable-key e133-live-permission-transport in batch-8-20260922.md with source tasks M6-T7 and M8-T10 and E-133. Its acceptance explicitly requires a real agent, original runId continuation, one-time correlated approval, failure cleanup and final-head browser evidence without direct SQLite or event injection.",
+      "Current production dispatch forces Codex exec mode with stdin closed and a launch-time sandbox argument; RunService temporary elevation is not read by proc or adapter. The new task addresses that documented missing transport; its implementation has not begun."
+    ],
+    "reviewed": "2026-09-25T10:15:48.211893+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

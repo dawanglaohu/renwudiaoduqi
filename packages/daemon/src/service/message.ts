@@ -6,7 +6,7 @@ import { getPiCapabilities } from '../adapters/pi/capabilities.ts';
 import { type AdapterKind, BUILT_IN_AGENT_IDS } from '../config/defaults.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { RUN_TRANSITION_REASONS, isTerminalRunState } from '../domain/run-state-machine.ts';
-import { AppError } from '../errors/app-error.ts';
+import { AppError, isAppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
@@ -125,6 +125,7 @@ export interface SendMessageInput {
 		runId: string,
 		details?: { readonly reason?: string; readonly actorDeviceId?: string | null },
 	) => Promise<void>;
+	readonly clearTemporaryElevation?: (runId: string) => void;
 }
 
 export interface DeliverMessageResult {
@@ -178,6 +179,7 @@ export interface MessageServiceDeps {
 			details?: { readonly reason?: string; readonly actorDeviceId?: string | null },
 		): Promise<void>;
 		isTemporarilyElevated(runId: string): boolean;
+		clearTemporaryElevation(runId: string): void;
 	};
 }
 
@@ -379,10 +381,20 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 			}
 
 			// R2: elevateFn 必须成功执行后才进入交付，失败时不得留下假投递记录
-			await elevateFn(input.runId, {
-				reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
-				actorDeviceId: input.actorDeviceId ?? null,
-			});
+			try {
+				await elevateFn(input.runId, {
+					reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
+					actorDeviceId: input.actorDeviceId ?? null,
+				});
+			} catch (error) {
+				if (isAppError(error) && error.code === 'E_INVALID_STATE_TRANSITION') {
+					throw new AppError(error.code, error.message, {
+						details: { ...error.details, operation: 'elevate_once' },
+						cause: error,
+					});
+				}
+				throw error;
+			}
 
 			const messageId = deps.ids.newId();
 			const now = deps.clock.now();
@@ -417,10 +429,15 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				}
 			};
 
-			if (deps.unitOfWork) {
-				deps.unitOfWork.run(persistOperations);
-			} else {
-				persistOperations();
+			try {
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(persistOperations);
+				} else {
+					persistOperations();
+				}
+			} catch (error) {
+				(input.clearTemporaryElevation ?? deps.runService?.clearTemporaryElevation)?.(input.runId);
+				throw error;
 			}
 
 			if (deps.bus) {
