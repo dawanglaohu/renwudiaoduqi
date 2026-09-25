@@ -79,6 +79,7 @@ export interface IngestLineResult {
 export interface AttachProcessOptions {
 	readonly onEvent?: (envelope: EventEnvelope) => void;
 	readonly onExit?: (result: ProcessExitResult) => Promise<void> | void;
+	readonly mapExitResult?: (result: ProcessExitResult) => ProcessExitResult;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 	readonly acceptsPlainText?: boolean;
 }
@@ -223,6 +224,7 @@ export interface RunService {
 	): Promise<void>;
 	isAwaitingReply(runId: string): Promise<boolean>;
 	isTemporarilyElevated(runId: string): boolean;
+	clearTemporaryElevation(runId: string): void;
 }
 
 function normalizeRawLineBytes(rawLine: string | Uint8Array): Uint8Array {
@@ -580,7 +582,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		});
 
 		cleanups.push(
-			process.onExit((result) => {
+			process.onExit((rawResult) => {
+				const result = options?.mapExitResult?.(rawResult) ?? rawResult;
 				if (detached) {
 					completionResolve(result);
 					return;
@@ -1353,20 +1356,27 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				details: { runId },
 			});
 		}
-		if (run.state !== 'awaiting_reply') {
+		if (run.state !== 'awaiting_reply' && run.state !== 'running') {
 			assertValidTransition(run.state, 'running', {
 				reason: details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED,
 			});
 		}
 		// 仅本次运行临时提升，绝不改写默认档位（不落库、结束失效、事件留痕）(E-133)
 		temporarilyElevatedRuns.add(runId);
-		const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
-		await transitionState({
-			runId,
-			targetState: 'running',
-			reason,
-			actorDeviceId: details?.actorDeviceId ?? null,
-		});
+		if (run.state === 'awaiting_reply') {
+			const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
+			try {
+				await transitionState({
+					runId,
+					targetState: 'running',
+					reason,
+					actorDeviceId: details?.actorDeviceId ?? null,
+				});
+			} catch (err) {
+				temporarilyElevatedRuns.delete(runId);
+				throw err;
+			}
+		}
 	}
 
 	async function isAwaitingReply(runId: string): Promise<boolean> {
@@ -1377,6 +1387,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 	function isTemporarilyElevated(runId: string): boolean {
 		return temporarilyElevatedRuns.has(runId);
+	}
+
+	function clearTemporaryElevation(runId: string): void {
+		temporarilyElevatedRuns.delete(runId);
 	}
 
 	return Object.freeze({
@@ -1394,6 +1408,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		elevateRunOnce,
 		isAwaitingReply,
 		isTemporarilyElevated,
+		clearTemporaryElevation,
 		hasContentProduced(runId: string): boolean {
 			return runsWithContent.has(runId);
 		},

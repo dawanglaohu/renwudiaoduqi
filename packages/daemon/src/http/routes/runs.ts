@@ -18,6 +18,7 @@ import type { MessageService } from '../../service/message.ts';
 import type { RetentionService } from '../../service/retention.ts';
 import type { RunAbortService } from '../../service/run-abort.ts';
 import type { RunLogService } from '../../service/run-log.ts';
+import type { RunService } from '../../service/run.ts';
 
 export interface AbortRunParams {
 	readonly id?: string;
@@ -232,6 +233,7 @@ export interface RegisterRunsRoutesOptions {
 	readonly runLogService?: RunLogService;
 	readonly retentionService?: RetentionService;
 	readonly dispatchService?: DispatchService;
+	readonly runService?: RunService;
 }
 
 interface ContainerWithServices {
@@ -241,6 +243,7 @@ interface ContainerWithServices {
 		readonly runLog?: RunLogService;
 		readonly retention?: RetentionService;
 		readonly dispatch?: DispatchService;
+		readonly run?: RunService;
 	};
 }
 
@@ -459,6 +462,7 @@ export function registerRunsRoutes(
 
 		const currentContainer = request.server.container as ContainerWithServices | undefined;
 		const service = options?.messageService ?? currentContainer?.services?.message;
+		const runService = options?.runService ?? currentContainer?.services?.run;
 
 		if (!service) {
 			throw new AppError('E_INTERNAL', 'MessageService is not available in container');
@@ -473,6 +477,12 @@ export function registerRunsRoutes(
 			kind: body.kind,
 			actorDeviceId,
 			throwOnUndelivered: true,
+			elevateRunOnce: runService
+				? (targetRunId, details) => runService.elevateRunOnce(targetRunId, details)
+				: undefined,
+			clearTemporaryElevation: runService
+				? (targetRunId) => runService.clearTemporaryElevation(targetRunId)
+				: undefined,
 		});
 
 		return {
