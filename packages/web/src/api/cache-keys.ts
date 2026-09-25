@@ -50,3 +50,11 @@ export const CACHE_KEYS = {
 	/** 每批次的收口报告集合（GET /batches/:id/wrapups，M9-T20）。 */
 	wrapups: (batchId?: string) => (batchId ? `wrapups:${batchId}` : 'wrapups'),
 } as const;
+
+export function settingsGates(): string {
+	return CACHE_KEYS.settings.gates;
+}
+
+export function settingsPipeline(): string {
+	return CACHE_KEYS.settings.pipeline;
+}
