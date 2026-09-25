@@ -69,7 +69,7 @@ function AppTopbar({ match, banner }: { readonly match: RouteMatch; readonly ban
 				<div
 					ref={setPipelineNotesHost}
 					data-testid="topbar-pipeline-notes"
-					className="empty:hidden flex flex-wrap gap-x-4 gap-y-1 border-b border-border bg-bg px-4 py-1"
+					className="hidden min-[600px]:flex empty:hidden flex-wrap gap-x-4 gap-y-1 border-b border-border bg-bg px-4 py-1"
 				/>
 			</div>
 		</>
