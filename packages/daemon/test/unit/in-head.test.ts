@@ -1,5 +1,13 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { isBranchInHead, takeStderrTail } from '../../src/workspace/in-head.ts';
+import {
+	isBranchInHead,
+	readWorktreeStartingBaseline,
+	takeStderrTail,
+} from '../../src/workspace/in-head.ts';
 import type { GitCommandResult, GitRunner } from '../../src/workspace/worktree.ts';
 import {
 	createWorktreeManager,
@@ -603,5 +611,63 @@ describe('M5-T5 isBranchInHead & Wrapup Worktree', () => {
 			expect(branch).toBe('wrapup/3-1');
 			expect(typeof manager.prepareWrapupWorktree).toBe('function');
 		});
+	});
+});
+
+describe('E-329 worktree baseline', () => {
+	it('freezes dirty tracked and untracked content without changing the real index', async () => {
+		const repo = mkdtempSync(join(tmpdir(), 'bughunt-baseline-'));
+		const runner: GitRunner = {
+			run: async (args, cwd, options) => {
+				const result = spawnSync('git', [...args], {
+					cwd,
+					env: { ...process.env, ...options?.envOverrides },
+					encoding: 'utf8',
+				});
+				return {
+					exitCode: result.status ?? 1,
+					stdout: result.stdout ?? '',
+					stderr: result.stderr ?? '',
+				};
+			},
+		};
+		const git = (...args: string[]) => {
+			const result = spawnSync('git', args, { cwd: repo, encoding: 'utf8' });
+			if (result.status !== 0) throw new Error(result.stderr);
+			return result.stdout;
+		};
+		try {
+			git('init', '-q');
+			git('config', 'user.name', 'Tester');
+			git('config', 'user.email', 'test@example.com');
+			writeFileSync(join(repo, 'tracked.txt'), 'original\n');
+			git('add', 'tracked.txt');
+			git('commit', '-qm', 'initial');
+			writeFileSync(join(repo, 'tracked.txt'), 'changed before dispatch\n');
+			writeFileSync(join(repo, 'untracked.txt'), 'also before dispatch\n');
+			const statusBefore = git('status', '--porcelain');
+			const baseline = await readWorktreeStartingBaseline(repo, runner);
+			expect(baseline.treeSha).not.toBe(git('rev-parse', 'HEAD^{tree}').trim());
+			expect(git('status', '--porcelain')).toBe(statusBefore);
+			expect((await readWorktreeStartingBaseline(repo, runner)).treeSha).toBe(baseline.treeSha);
+			git('add', '-A');
+			git('commit', '-qm', 'commit existing changes');
+			expect((await readWorktreeStartingBaseline(repo, runner)).treeSha).toBe(baseline.treeSha);
+			writeFileSync(join(repo, 'untracked.txt'), 'changed during bughunt\n');
+			expect((await readWorktreeStartingBaseline(repo, runner)).treeSha).not.toBe(baseline.treeSha);
+		} finally {
+			rmSync(repo, { recursive: true, force: true });
+		}
+	});
+
+	it('rejects a failed snapshot instead of falling back to HEAD', async () => {
+		const { runner } = createMockRunner((args) => {
+			if (args[0] === 'status') return { exitCode: 0, stdout: ' M tracked.txt\0', stderr: '' };
+			if (args[0] === 'add') return { exitCode: 1, stdout: '', stderr: 'cannot stage' };
+			return { exitCode: 0, stdout: 'a'.repeat(40), stderr: '' };
+		});
+		await expect(readWorktreeStartingBaseline('/repo/test', runner)).rejects.toThrow(
+			'Cannot stage worktree snapshot',
+		);
 	});
 });

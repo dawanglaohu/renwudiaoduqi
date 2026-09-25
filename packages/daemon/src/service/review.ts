@@ -2698,7 +2698,10 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							bughuntRunId: dispatchResult.bughuntRun?.id,
 						};
 					}
-					if (dispatchResult.action === 'agent_unavailable') {
+					if (
+						dispatchResult.action === 'agent_unavailable' ||
+						dispatchResult.action === 'baseline_unavailable'
+					) {
 						return {
 							action: 'awaiting_human',
 							gateId: dispatchResult.gateId,

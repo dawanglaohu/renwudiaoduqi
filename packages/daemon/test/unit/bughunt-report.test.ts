@@ -26,8 +26,16 @@ import type { GateService } from '../../src/service/gates.ts';
 import type { ReviewRunsRepo } from '../../src/service/review.ts';
 import { createReviewService } from '../../src/service/review.ts';
 import type { PipelineSettingsSummary, SettingsService } from '../../src/service/settings.ts';
+import type { GitRunner } from '../../src/workspace/worktree.ts';
 
 const fixturesDir = resolve(__dirname, '../fixtures/bughunt');
+const baselineGitRunner: GitRunner = {
+	run: async (args) => ({
+		exitCode: 0,
+		stdout: args[0] === 'status' ? '' : `${'a'.repeat(40)}\n`,
+		stderr: '',
+	}),
+};
 
 function loadFixture(name: string): string {
 	return readFileSync(resolve(fixturesDir, name), 'utf-8');
@@ -504,6 +512,7 @@ NEXT
 				unitOfWork: mockUnitOfWork,
 				clock: { now: () => '2026-09-22T00:00:00.000Z' },
 				ids: { newId: () => 'bughunt-1' },
+				gitRunner: baselineGitRunner,
 			});
 
 			const result = await service.dispatchBughunt({ implRunId: 'impl-1' });
@@ -622,6 +631,7 @@ NEXT
 				unitOfWork: mockUnitOfWork,
 				clock: { now: () => '2026-09-22T00:00:00.000Z' },
 				ids: { newId: () => `id-${++idCounter}` },
+				gitRunner: baselineGitRunner,
 			});
 
 			const result = await service.dispatchBughunt({ implRunId: 'impl-1' });

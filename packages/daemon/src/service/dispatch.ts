@@ -281,6 +281,14 @@ export interface DispatchServiceDeps {
 	readonly reviewService?: {
 		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
 	};
+	readonly bughuntService?: {
+		readonly finalizeBughuntRun: (input: {
+			readonly bughuntRunId: string;
+			readonly exitCode?: number | null;
+			readonly exitSignal?: string | null;
+			readonly failedReason?: string;
+		}) => Promise<unknown>;
+	};
 }
 
 export interface DispatchService {
@@ -689,6 +697,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				started_at: now,
 				session_no: nextSessionNoFor(agentId),
 				lane_no: input.laneNo ?? null,
+				batch_id: task.batch_id ?? null,
 			};
 			assertSessionRefFree(
 				{ taskId, vendorSessionRef: undefined },
@@ -1603,7 +1612,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 					// 3. 泳道：已占槽直接出队，否则取一个空槽（E-309 / E-310 / E-326）
 					let laneNo =
-						typeof qTask.lane_no === 'number' && qTask.lane_no >= 1 ? qTask.lane_no : null;
+						typeof qTask.lane_no === 'number' && qTask.lane_no >= 1
+							? qTask.lane_no
+							: typeof queuedRun.lane_no === 'number' && queuedRun.lane_no >= 1
+								? queuedRun.lane_no
+								: null;
 					if (laneNo === null) {
 						const allocatedLaneNo = free.shift();
 						if (allocatedLaneNo === undefined) {
@@ -1620,7 +1633,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					// 4. 每 agent 并发上限（E-54）
 					const queuedAgentLimit = agentLimitFor(queuedRun.agent_id);
 					const queuedAgentActive = countAgentConcurrency(
-						allRuns.filter((r) => r.id !== queuedRun.id),
+						allRuns.filter(
+							(r) =>
+								r.id !== queuedRun.id &&
+								(queuedRun.kind !== 'bughunt' || r.id !== queuedRun.parent_run_id),
+						),
 						queuedRun.agent_id,
 					);
 					if (queuedAgentActive >= queuedAgentLimit) {
@@ -2378,12 +2395,21 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				);
 			}
 
+			const isStrictPassThroughStage =
+				run.kind === 'bughunt' || run.origin === 'rework' || run.origin === 'wrapup-fix';
+			const effectiveModel = isStrictPassThroughStage
+				? (run.model_name ?? null)
+				: (run.model_name ?? launchSpecData.model ?? null);
+			const effectiveEffort = isStrictPassThroughStage
+				? (run.effort_tier ?? null)
+				: (run.effort_tier ?? launchSpecData.effort ?? null);
+
 			const launchSpec = adapter.buildLaunchSpec({
 				runId,
 				cwd: preparedWorktree.worktreePath,
 				execPath: launchSpecData.execPath,
-				model: run.model_name ?? launchSpecData.model ?? null,
-				effortTier: run.effort_tier ?? launchSpecData.effort ?? null,
+				model: effectiveModel,
+				effortTier: effectiveEffort,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
 				prompt: runPrompt,
 				// Codex exec carries the frozen prompt in argv; app-server requires a separate
@@ -2397,6 +2423,18 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			} catch (spawnErr) {
 				if (run.origin === 'rework') {
 					failReworkRunStartup(runId, 'spawn_failed');
+				} else if (run.kind === 'bughunt') {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'spawn_failed',
+					});
+					if (deps.bughuntService) {
+						await deps.bughuntService.finalizeBughuntRun({
+							bughuntRunId: runId,
+							failedReason: 'spawn_failed',
+						});
+					}
 				} else {
 					await deps.runService.transitionState({
 						runId,
@@ -2414,6 +2452,22 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (run.origin === 'rework') {
 					// 返工运行「起来就死」只说明这次投递没成，不是任务失败（#136 / E-302）。
 					failReworkRunStartup(runId, 'premature_exit', { exitCode, signal: exitSignal });
+				} else if (run.kind === 'bughunt') {
+					await deps.runService.transitionState({
+						runId,
+						targetState: 'failed',
+						reason: 'premature_exit',
+						exitCode,
+						exitSignal,
+					});
+					if (deps.bughuntService) {
+						await deps.bughuntService.finalizeBughuntRun({
+							bughuntRunId: runId,
+							exitCode: exitCode ?? undefined,
+							exitSignal: exitSignal ?? undefined,
+							failedReason: 'premature_exit',
+						});
+					}
 				} else {
 					await deps.runService.transitionState({
 						runId,

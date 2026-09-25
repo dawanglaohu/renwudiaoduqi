@@ -1296,6 +1296,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R12-T32133721": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "004799d1dec2bdba3455d38da26ff3b9c698ab7cb96b76bd1f03727ce415b911",
+    "evidence": [
+      "仅在 batch-12-20260923.md 的 R12 paths 围栏和对应任务笔记加入 workspace/worktree.ts、pipeline-lanes.test.ts、bughunt-report.test.ts、m8-t9-rework.test.ts；原 input、acceptance、edges、前置和 Jev 裁决未改。",
+      "这些路径分别承载临时 Git index 环境变量透传、真实 Git 流水线及两组阶段指派回归；sync 后 R12 合同哈希为 004799d1dec2bdba3455d38da26ff3b9c698ab7cb96b76bd1f03727ce415b911。",
+      "第二轮审查已用真实 Git 仓库核对起点脏文件、未跟踪文件和违禁提交，合并主干后的 pnpm -w check 通过 200 个测试文件、2437 个测试；本记录只复核路径补丁，最终落地仍以最终 HEAD 的门禁为准。"
+    ],
+    "reviewed": "2026-09-25T09:43:30.813901+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R13-T57054072": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
     "contractHash": "30dc3533cf17ad3009b8e4a3cae0a8e82368cc7ea78667b33c19876143e699b2",
