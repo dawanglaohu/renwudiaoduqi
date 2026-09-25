@@ -6,6 +6,10 @@
  * to Codex event specifications when executed in run mode.
  */
 
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 if (
 	process.argv.includes('--version') ||
 	process.argv.includes('-V') ||
@@ -17,6 +21,23 @@ if (
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function waitForSignal(signalName, maxWaitMs = 8000) {
+	const signalPath = path.join(os.tmpdir(), signalName);
+	const start = Date.now();
+	while (!fs.existsSync(signalPath) && Date.now() - start < maxWaitMs) {
+		await sleep(50);
+	}
+	if (fs.existsSync(signalPath)) {
+		try {
+			const text = fs.readFileSync(signalPath, 'utf8').trim();
+			return text || null;
+		} catch {
+			return null;
+		}
+	}
+	return null;
+}
+
 async function main() {
 	// 1. Thread started
 	process.stdout.write(
@@ -25,7 +46,7 @@ async function main() {
 			thread_id: 'thread-smoke-e2e',
 		})}\n`,
 	);
-	await sleep(150);
+	await sleep(100);
 
 	// 2. Turn started
 	process.stdout.write(
@@ -34,33 +55,52 @@ async function main() {
 			turn_id: 'turn-smoke-e2e',
 		})}\n`,
 	);
-	await sleep(150);
+	await sleep(100);
 
-	// 3. Agent message delta (maps directly to agent_message_chunk)
+	// 3. Wait for browser stream subscription signal before emitting live chunk (R2)
+	const chunk1Text =
+		(await waitForSignal('agsched-fake-agent-1.signal', 10000)) ||
+		'Smoke test message chunk received successfully\n';
+
+	// Agent message delta (maps directly to agent_message_chunk)
 	process.stdout.write(
 		`${JSON.stringify({
 			method: 'item/agentMessage/delta',
 			params: {
-				delta: 'Smoke test message chunk received successfully\n',
+				delta: chunk1Text.endsWith('\n') ? chunk1Text : `${chunk1Text}\n`,
 			},
 		})}\n`,
 	);
 	await sleep(150);
 
-	// 4. Completed message item
+	// 4. Optional second signal for negative control testing (SSE broken assertion)
+	const chunk2Text = await waitForSignal('agsched-fake-agent-2.signal', 20000);
+	if (chunk2Text) {
+		process.stdout.write(
+			`${JSON.stringify({
+				method: 'item/agentMessage/delta',
+				params: {
+					delta: chunk2Text.endsWith('\n') ? chunk2Text : `${chunk2Text}\n`,
+				},
+			})}\n`,
+		);
+		await sleep(150);
+	}
+
+	// 5. Completed message item
 	process.stdout.write(
 		`${JSON.stringify({
 			type: 'item.completed',
 			item: {
 				id: 'msg-smoke-1',
 				type: 'agentMessage',
-				text: 'Smoke test message chunk received successfully\n',
+				text: chunk1Text,
 			},
 		})}\n`,
 	);
 	await sleep(200);
 
-	// 5. Turn completed
+	// 6. Turn completed
 	process.stdout.write(
 		`${JSON.stringify({
 			type: 'turn.completed',
@@ -69,7 +109,7 @@ async function main() {
 	);
 
 	// Wait briefly to allow daemon to drain stdout
-	await sleep(800);
+	await sleep(500);
 	process.exit(0);
 }
 
