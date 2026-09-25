@@ -19,7 +19,7 @@ import type {
 	UpdatePipelineSettingsBody,
 	UpdatePipelineSettingsResponse,
 } from '@agent-scheduler/shared/api/settings';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient, isApiError } from '../../api/http-client.ts';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
@@ -85,23 +85,34 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 	const [isPending, setIsPending] = useState<boolean>(false);
 	const [error, setError] = useState<PipelineSettingsError | null>(null);
 
+	// R2 竞态防护 1：记录数据源版本，防御迟到的 GET 覆盖较新的 settings.pipeline_changed
+	const sourceVersionRef = useRef<number>(0);
+
+	// R2 竞态防护 2：记录本地在途未完成的 PATCH 数量。
+	// 当本地 PATCH 尚未完成（HTTP 请求未 resolve）时，其他设备的事件回流不得提前解除 pending！
+	const inFlightPatchCountRef = useRef<number>(0);
+
+	// 记录在当前本地 PATCH 发起之后，是否已经接收到了回流事件
+	const receivedEventDuringPatchRef = useRef<boolean>(false);
+
 	// 1. 初始化拉取流水线配置（GET /api/v1/settings/pipeline）
 	useEffect(() => {
 		let isMounted = true;
 
 		const fetchSettings = async () => {
+			const requestVersion = sourceVersionRef.current;
 			try {
+				let res: GetPipelineSettingsResponse | null = null;
 				if (fetcher) {
-					const res = await fetcher();
-					if (isMounted && res?.pipeline) {
-						setPipeline(res.pipeline);
-					}
-					return;
+					res = await fetcher();
+				} else if (getPipelineRoute) {
+					res = await httpClient.callRoute<GetPipelineSettingsResponse>(getPipelineRoute);
 				}
 
-				if (getPipelineRoute) {
-					const res = await httpClient.callRoute<GetPipelineSettingsResponse>(getPipelineRoute);
-					if (isMounted && res?.pipeline) {
+				if (isMounted && res?.pipeline) {
+					// R2: 迟到的 GET 不得覆盖较新的 settings.pipeline_changed。
+					// 仅当在此 GET 请求在途期间未曾收到过新的 milestone 事件时，才采纳此响应。
+					if (sourceVersionRef.current === requestVersion) {
 						setPipeline(res.pipeline);
 					}
 				}
@@ -123,15 +134,26 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 		};
 	}, [initialPipeline, fetcher]);
 
-	// 2. 订阅 settings.pipeline_changed milestone 事件回流（E-157, E-318）
+	// 2. 订阅 settings.pipeline_changed milestone 事件回流（E-157, E-318, R2）
 	useEffect(() => {
 		const unsub = eventBus.subscribeMilestone((envelope) => {
 			if (envelope.kind === 'settings.pipeline_changed' && envelope.payload) {
 				const payload = envelope.payload as { readonly pipeline?: PipelineSettings };
 				if (payload.pipeline) {
+					// 递增版本号，标记已有更新鲜的事件到达
+					sourceVersionRef.current += 1;
+					// 最终值以事件回流为准（E-157）
 					setPipeline(payload.pipeline);
-					setIsPending(false);
 					setError(null);
+
+					// R2: 其他设备的事件不得在本地 PATCH 尚未完成时提前解除 pending。
+					// 只有在本地没有在途执行的 PATCH 请求时，才允许由事件解除 pending。
+					if (inFlightPatchCountRef.current === 0) {
+						setIsPending(false);
+					} else {
+						// 记录在本地 PATCH 执行期间已经见到了回流事件
+						receivedEventDuringPatchRef.current = true;
+					}
 				}
 			}
 		});
@@ -141,13 +163,15 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 		};
 	}, []);
 
-	// 3. 提交全量四键 PATCH 更新（AC 2, E-356）
+	// 3. 提交全量四键 PATCH 更新（AC 2, E-356, R2）
 	const updatePipelineToggles = useCallback(
 		async (partial: { bughunt?: 0 | 1; wrapupMode?: 'auto' | 'manual' }) => {
 			if (!pipeline) {
 				return;
 			}
 
+			inFlightPatchCountRef.current += 1;
+			receivedEventDuringPatchRef.current = false;
 			setIsPending(true);
 			setError(null);
 
@@ -170,10 +194,21 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 						},
 					);
 				}
-				// 成功响应后绝不提前翻转状态，也不提前结束 pending，等待回流事件
+
+				// 本地 PATCH 异步请求执行完毕，递减在途计数
+				inFlightPatchCountRef.current = Math.max(0, inFlightPatchCountRef.current - 1);
+
+				// 如果在本次 PATCH 在途期间已经收到了事件回流，且已无其他在途 PATCH，则在此刻正式解除 pending
+				if (inFlightPatchCountRef.current === 0 && receivedEventDuringPatchRef.current) {
+					setIsPending(false);
+				}
+				// 若尚未收到事件回流，则保持 isPending=true，继续等待 settings.pipeline_changed 事件回流（E-157, E-318）
 			} catch (cause: unknown) {
-				// 失败才解除 pending，保持服务端真实状态，错误就地提示（E-157）
-				setIsPending(false);
+				// 本地请求失败，递减在途计数并解除 pending，展示就地错误
+				inFlightPatchCountRef.current = Math.max(0, inFlightPatchCountRef.current - 1);
+				if (inFlightPatchCountRef.current === 0) {
+					setIsPending(false);
+				}
 				setError(toPipelineSettingsError(cause, '流水线设置未能保存，请稍后重试'));
 			}
 		},

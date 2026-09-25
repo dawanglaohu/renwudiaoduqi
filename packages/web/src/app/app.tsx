@@ -51,7 +51,7 @@ function AppTopbar({ match, banner }: { readonly match: RouteMatch; readonly ban
 				className="h-topbar flex items-center justify-between border-b border-border bg-bg px-4 text-ink-1"
 			>
 				<span className="font-mono text-dense font-semibold text-ink-1">Agent 任务调度器</span>
-				<div className="hidden min-[600px]:flex items-center gap-3">
+				<div className="hidden min-[600px]:flex items-center gap-3 shrink-0">
 					{showGates && (
 						<>
 							<GateTogglesContainer layout="topbar" />

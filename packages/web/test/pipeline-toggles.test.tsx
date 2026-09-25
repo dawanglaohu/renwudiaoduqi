@@ -196,34 +196,64 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		expect(html).toContain('aria-disabled="true"');
 	});
 
-	// ─── 3. 「查 bug」切开常驻一行说明，不弹 dialog（AC 3, E-306） ───
-	it('renders permanent note without dialog when bughunt is 1 (AC 3, E-306)', () => {
+	// ─── 3. 「查 bug」切开常驻一行说明，不弹 dialog（AC 3, E-306, R1） ───
+	it('renders permanent note without dialog in settings layout when bughunt is 1 (AC 3, E-306, R1)', () => {
 		const htmlOn = renderToStaticMarkup(
-			createElement(PipelineToggles, { value: { bughunt: 1, wrapupMode: 'auto' } }),
+			createElement(PipelineToggles, {
+				value: { bughunt: 1, wrapupMode: 'auto' },
+				layout: 'settings',
+			}),
 		);
 		expect(htmlOn).toContain('审查 pass 后自动派查 bug 运行，只影响尚未到达该阶段的任务');
 		expect(htmlOn).toContain('data-testid="bughunt-auto-note"');
 		expect(htmlOn).not.toContain('role="dialog"');
 
 		const htmlOff = renderToStaticMarkup(
-			createElement(PipelineToggles, { value: { bughunt: 0, wrapupMode: 'auto' } }),
+			createElement(PipelineToggles, {
+				value: { bughunt: 0, wrapupMode: 'auto' },
+				layout: 'settings',
+			}),
 		);
 		expect(htmlOff).not.toContain('data-testid="bughunt-auto-note"');
 	});
 
-	// ─── 4. 「收口」切手动常驻一行说明，不弹 dialog（AC 3, E-312） ───
-	it('renders permanent note without dialog when wrapupMode is manual (AC 3, E-312)', () => {
+	// ─── 4. 「收口」切手动常驻一行说明，不弹 dialog（AC 3, E-312, R1） ───
+	it('renders permanent note without dialog in settings layout when wrapupMode is manual (AC 3, E-312, R1)', () => {
 		const htmlManual = renderToStaticMarkup(
-			createElement(PipelineToggles, { value: { bughunt: 0, wrapupMode: 'manual' } }),
+			createElement(PipelineToggles, {
+				value: { bughunt: 0, wrapupMode: 'manual' },
+				layout: 'settings',
+			}),
 		);
 		expect(htmlManual).toContain('本批全部任务落地后不自动收口，需手动点击收口');
 		expect(htmlManual).toContain('data-testid="wrapup-manual-note"');
 		expect(htmlManual).not.toContain('role="dialog"');
 
 		const htmlAuto = renderToStaticMarkup(
-			createElement(PipelineToggles, { value: { bughunt: 0, wrapupMode: 'auto' } }),
+			createElement(PipelineToggles, {
+				value: { bughunt: 0, wrapupMode: 'auto' },
+				layout: 'settings',
+			}),
 		);
 		expect(htmlAuto).not.toContain('data-testid="wrapup-manual-note"');
+	});
+
+	// ─── 4b. 顶栏 layout="topbar" 不得渲染常驻说明，避免溢出固定 52px 顶栏或遮挡设置页标题（R1） ───
+	it('does NOT render permanent notes in topbar layout to prevent overflowing 52px header (R1)', () => {
+		const htmlTopbar = renderToStaticMarkup(
+			createElement(PipelineToggles, {
+				value: { bughunt: 1, wrapupMode: 'manual' },
+				layout: 'topbar',
+			}),
+		);
+		// 绝不渲染常驻说明节点
+		expect(htmlTopbar).not.toContain('data-testid="bughunt-auto-note"');
+		expect(htmlTopbar).not.toContain('data-testid="wrapup-manual-note"');
+		expect(htmlTopbar).not.toContain('审查 pass 后自动派查 bug 运行');
+		expect(htmlTopbar).not.toContain('本批全部任务落地后不自动收口');
+		// 但开关本身存在
+		expect(htmlTopbar).toContain('data-pipeline-toggle="bughunt"');
+		expect(htmlTopbar).toContain('data-pipeline-toggle="wrapupMode"');
 	});
 
 	// ─── 5. onChange 给出全量两值 ───
@@ -403,5 +433,178 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		expect(html).toContain('当前值来自 daemon');
 		expect(html).toContain('data-testid="daemon-managed-notice"');
 		expect(html).toContain('流水线设置');
+	});
+
+	// ─── 10. R2 竞态回归 1：迟到的 GET 不得覆盖较新的 settings.pipeline_changed ───
+	it('stale GET does not overwrite newer settings.pipeline_changed (R2)', async () => {
+		const { container, root } = setupMockDom();
+
+		let resolveGet: ((res: { pipeline: PipelineSettings }) => void) | null = null;
+		const slowFetcher = vi.fn(
+			() =>
+				new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+					resolveGet = resolve;
+				}),
+		);
+
+		// 挂载组件，触发异步 GET 请求（当前处于挂起状态）
+		await act(async () => {
+			root.render(
+				createElement(PipelineTogglesContainer, {
+					fetcher: slowFetcher,
+				}),
+			);
+		});
+
+		expect(slowFetcher).toHaveBeenCalledTimes(1);
+
+		// 在 GET 尚未返回期间，接收到了更及时的 settings.pipeline_changed 事件（如 bughunt=1）
+		const freshPipelineFromEvent: PipelineSettings = {
+			bughunt: 1,
+			wrapupMode: 'manual',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+
+		await act(async () => {
+			eventBus.push({
+				id: 201,
+				ts: new Date().toISOString(),
+				runId: null,
+				taskId: null,
+				scope: 'settings',
+				kind: 'settings.pipeline_changed',
+				seq: 1,
+				actorDeviceId: 'remote-device-1',
+				payload: { pipeline: freshPipelineFromEvent },
+			});
+		});
+
+		// 验证当前界面已根据事件呈现最新状态
+		const bughuntToggle = container.querySelector('[data-pipeline-toggle="bughunt"]');
+		const turnOnBtn = bughuntToggle?.querySelectorAll('button')[1];
+		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+
+		// 迟到的旧 GET 请求终于返回，携带的是旧数据（如 bughunt=0）
+		const stalePipelineFromGet: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+
+		await act(async () => {
+			resolveGet?.({ pipeline: stalePipelineFromGet });
+		});
+
+		// 核心断言（R2）：迟到的旧 GET 不得覆盖较新的事件回流，bughunt 必须保持为 1 (active)
+		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+	});
+
+	// ─── 11. R2 竞态回归 2：其他设备事件在本地 PATCH 未完成时不得提前解除 pending ───
+	it('other device events do not clear pending while local PATCH is still in flight (R2)', async () => {
+		const { container, root } = setupMockDom();
+
+		let resolvePatch: ((res: { pipeline: PipelineSettings }) => void) | null = null;
+		const slowPatcher = vi.fn(
+			(body: UpdatePipelineSettingsBody) =>
+				new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+					resolvePatch = () =>
+						resolve({
+							pipeline: {
+								...body,
+								reviewOverride: body.reviewOverride ?? null,
+								wrapupAssignment: body.wrapupAssignment,
+							},
+						});
+				}),
+		);
+
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+
+		await act(async () => {
+			root.render(
+				createElement(PipelineTogglesContainer, {
+					initialPipeline,
+					patcher: slowPatcher,
+				}),
+			);
+		});
+
+		const bughuntToggle = container.querySelector('[data-pipeline-toggle="bughunt"]');
+		const turnOnBtn = bughuntToggle?.querySelectorAll('button')[1];
+		expect(turnOnBtn?.getAttribute('data-state')).toBe('inactive');
+
+		// 本地点击触发 PATCH（进入在途状态，pending=true）
+		await act(async () => {
+			turnOnBtn?.click();
+		});
+
+		expect(slowPatcher).toHaveBeenCalledTimes(1);
+		// 此时处于 pending，按钮被禁用，DOM 尚未翻转
+		expect(turnOnBtn?.getAttribute('disabled')).not.toBeNull();
+		expect(turnOnBtn?.getAttribute('data-state')).toBe('inactive');
+
+		// 在本地 PATCH 请求在途期间（尚未完成），接收到了来自其他设备的 settings.pipeline_changed
+		await act(async () => {
+			eventBus.push({
+				id: 202,
+				ts: new Date().toISOString(),
+				runId: null,
+				taskId: null,
+				scope: 'settings',
+				kind: 'settings.pipeline_changed',
+				seq: 2,
+				actorDeviceId: 'other-device-999',
+				payload: {
+					pipeline: {
+						...initialPipeline,
+						wrapupMode: 'manual', // 别的设备改了收口模式
+					},
+				},
+			});
+		});
+
+		// 核心断言（R2）：本地 PATCH 尚未完成，其他设备的事件绝对不得提前解除 pending！按钮必须继续保持 disabled！
+		expect(turnOnBtn?.getAttribute('disabled')).not.toBeNull();
+
+		// 现在本地 PATCH 请求顺利完成响应
+		await act(async () => {
+			resolvePatch?.({
+				pipeline: {
+					...initialPipeline,
+					bughunt: 1,
+				},
+			});
+		});
+
+		// 此时若对应自己 PATCH 的回流事件随后到达
+		await act(async () => {
+			eventBus.push({
+				id: 203,
+				ts: new Date().toISOString(),
+				runId: null,
+				taskId: null,
+				scope: 'settings',
+				kind: 'settings.pipeline_changed',
+				seq: 3,
+				actorDeviceId: 'my-local-device',
+				payload: {
+					pipeline: {
+						...initialPipeline,
+						bughunt: 1,
+						wrapupMode: 'manual',
+					},
+				},
+			});
+		});
+
+		// 本地 PATCH 完成且回流事件确认到达后，pending 正常解除，DOM 成功翻转为 active
+		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
 	});
 });

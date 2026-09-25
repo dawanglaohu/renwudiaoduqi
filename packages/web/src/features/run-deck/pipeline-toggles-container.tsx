@@ -52,7 +52,9 @@ export function PipelineTogglesContainer({
 		<div
 			data-component="pipeline-toggles-container"
 			data-layout={layout}
-			className={['flex flex-col gap-2', className].filter(Boolean).join(' ')}
+			className={[isSettings ? 'flex flex-col gap-2' : 'flex items-center shrink-0', className]
+				.filter(Boolean)
+				.join(' ')}
 		>
 			{/* 设置页顶部常驻声明：当前值来自 daemon（AC 4） */}
 			{isSettings && (

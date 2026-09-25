@@ -80,17 +80,22 @@ export function PipelineToggles({
 			data-component="pipeline-toggles"
 			data-layout={layout}
 			data-pending={isPending ? 'true' : 'false'}
-			className={['flex flex-col gap-1.5 select-none', className].filter(Boolean).join(' ')}
+			className={[
+				isTopbar ? 'flex items-center select-none shrink-0' : 'flex flex-col gap-1.5 select-none',
+				className,
+			]
+				.filter(Boolean)
+				.join(' ')}
 			{...rest}
 		>
 			<div
 				className={[
 					'flex items-center gap-3',
-					isTopbar ? 'flex-row flex-wrap' : 'flex-col sm:flex-row gap-4',
+					isTopbar ? 'flex-row flex-nowrap shrink-0' : 'flex-col sm:flex-row gap-4',
 				].join(' ')}
 			>
 				{/* 开关 1：查 bug（bughunt: 0 | 1） */}
-				<div data-pipeline-toggle="bughunt" className="flex items-center gap-2">
+				<div data-pipeline-toggle="bughunt" className="flex items-center gap-2 shrink-0">
 					<span className="font-ui text-dense text-ink-2 text-xs shrink-0">
 						{UI_STRINGS.pipeline.bughuntLabel}
 					</span>
@@ -105,7 +110,7 @@ export function PipelineToggles({
 				</div>
 
 				{/* 开关 2：收口模式（wrapupMode: auto | manual） */}
-				<div data-pipeline-toggle="wrapupMode" className="flex items-center gap-2">
+				<div data-pipeline-toggle="wrapupMode" className="flex items-center gap-2 shrink-0">
 					<span className="font-ui text-dense text-ink-2 text-xs shrink-0">
 						{UI_STRINGS.pipeline.wrapupModeLabel}
 					</span>
@@ -121,9 +126,11 @@ export function PipelineToggles({
 			</div>
 
 			{/* ─────────────────────────────────────────────────────────────
-			    「查 bug」切开常驻一行说明，不弹 dialog（AC 3, E-306）
+			    常驻一行说明（AC 3, E-306, E-312, R1）：
+			    仅在设置页（!isTopbar）常驻展示，不弹 dialog；
+			    顶栏（isTopbar）固定 52px 高度，不渲染此说明以避免溢出或遮挡设置页标题。
 			    ───────────────────────────────────────────────────────────── */}
-			{isBughuntOn && (
+			{!isTopbar && isBughuntOn && (
 				<div
 					data-testid="bughunt-auto-note"
 					className="text-[12px] font-ui text-ink-3 tracking-tight"
@@ -132,10 +139,7 @@ export function PipelineToggles({
 				</div>
 			)}
 
-			{/* ─────────────────────────────────────────────────────────────
-			    「收口」切手动常驻一行说明，不弹 dialog（AC 3, E-312）
-			    ───────────────────────────────────────────────────────────── */}
-			{isWrapupManual && (
+			{!isTopbar && isWrapupManual && (
 				<div
 					data-testid="wrapup-manual-note"
 					className="text-[12px] font-ui text-ink-3 tracking-tight"
