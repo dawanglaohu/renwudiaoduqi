@@ -10,6 +10,7 @@ import {
 	handleBatchAdvancedPayload,
 	mapSnapshotToBatches,
 	seedBatchExpansion,
+	selectDocumentBatches,
 	toggleBatchExpansion,
 } from '../src/features/run-deck/batch-expansion.ts';
 
@@ -628,6 +629,49 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 		seedBatchExpansion(docBatchesB, 'doc-B');
 		expect(getExpandedBatchIds().has('b-docA-1')).toBe(false);
 		expect(getExpandedBatchIds().has('b-docB-1')).toBe(true);
+	});
+
+	it('E-284: a document change filters both tree inputs before reseeding expansion', () => {
+		clearBatchExpansion();
+		const batches: readonly BatchTreeItem[] = [
+			{
+				id: 'a-running',
+				docId: 'doc-A',
+				batchNo: 1,
+				state: 'running',
+				taskCount: 2,
+				landedCount: 1,
+				runningCount: 1,
+				waitingCount: 0,
+				defaultExpanded: true,
+			},
+			{
+				id: 'b-attention',
+				docId: 'doc-B',
+				batchNo: 1,
+				state: 'needs_attention',
+				taskCount: 3,
+				landedCount: 0,
+				runningCount: 0,
+				waitingCount: 2,
+				defaultExpanded: true,
+			},
+		];
+		const docA = selectDocumentBatches(batches, 'doc-A');
+		seedBatchExpansion(docA, 'doc-A');
+		expect(docA.map((batch) => batch.id)).toEqual(['a-running']);
+		expect(getExpandedBatchIds().has('a-running')).toBe(true);
+
+		const docB = selectDocumentBatches(batches, 'doc-B');
+		seedBatchExpansion(docB, 'doc-B');
+		expect(docB.map((batch) => batch.id)).toEqual(['b-attention']);
+		expect(getExpandedBatchIds().has('a-running')).toBe(false);
+		expect(getExpandedBatchIds().has('b-attention')).toBe(true);
+		const html = renderToStaticMarkup(
+			createElement(BatchTree, { batches: docB, expandedIds: getExpandedBatchIds() }),
+		);
+		expect(html).toContain('已落地 0/3');
+		expect(html).not.toContain('已落地 1/2');
 	});
 
 	// ─── R13-T98191508 AC 4: 修复前失败的生产入口回归（B2 缺陷场景） ───

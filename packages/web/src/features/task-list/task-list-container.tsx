@@ -12,6 +12,7 @@
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { useBreakpoint } from '../../hooks/use-breakpoint.ts';
+import { useSelectionStore } from '../../store/selection-store.ts';
 import {
 	WrapupPanelContainer,
 	startBatchWrapup,
@@ -56,10 +57,11 @@ export function TaskListContainer(props: TaskListContainerProps) {
 		className = '',
 	} = props;
 	const viewport = useBreakpoint();
+	const selectedDocId = useSelectionStore((state) => state.selectedDocId);
 
 	const { batches, expandedIds, error, toggleBatch } = useTaskList({
 		batches: explicitBatches,
-		docId,
+		docId: docId ?? selectedDocId ?? undefined,
 	});
 
 	// 与运行甲板共用同一份批次收口状态（模块级 store，M9-T20 / E-157）

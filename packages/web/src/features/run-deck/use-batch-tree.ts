@@ -27,6 +27,7 @@ import {
 	getExpandedBatchIds,
 	mapSnapshotToBatches,
 	seedBatchExpansion,
+	selectDocumentBatches,
 	subscribeBatchExpansion,
 	toggleBatchExpansion,
 } from './batch-expansion.ts';
@@ -92,6 +93,10 @@ export function useBatchTree(options: UseBatchTreeOptions = {}): UseBatchTreeRes
 	const { batches: explicitBatches, docId } = options;
 	const [fetchedBatches, setFetchedBatches] = useState<readonly BatchTreeItem[]>([]);
 	const [error, setError] = useState<BatchTreeError | null>(null);
+	const visibleExplicitBatches = useMemo(
+		() => selectDocumentBatches(explicitBatches ?? [], docId),
+		[explicitBatches, docId],
+	);
 
 	// 订阅模块级展开集：快照只是整数 version，集合按 version 重读（07 节）
 	const version = useSyncExternalStore(
@@ -116,7 +121,7 @@ export function useBatchTree(options: UseBatchTreeOptions = {}): UseBatchTreeRes
 				const snapshot = await httpClient.callRoute<SnapshotResponse>(GET_SNAPSHOT_ROUTE);
 				reportFirstScreenFailure(null);
 				if (!isMounted) return;
-				const items = mapSnapshotToBatches(snapshot);
+				const items = selectDocumentBatches(mapSnapshotToBatches(snapshot), docId);
 				setFetchedBatches(items);
 				setError(null);
 				// 未显式给 docId 时用快照里批次所属的文档：每个 docId 只 seed 一次，切文档整体清空重 seed（07 节）
@@ -174,12 +179,14 @@ export function useBatchTree(options: UseBatchTreeOptions = {}): UseBatchTreeRes
 	// 提供了 batches 时，按 defaultExpanded 进行首次 seed（或切文档重 seed）
 	useEffect(() => {
 		if (explicitBatches && explicitBatches.length > 0) {
-			seedBatchExpansion(explicitBatches, docId);
+			seedBatchExpansion(visibleExplicitBatches, docId);
 		}
-	}, [explicitBatches, docId]);
+	}, [explicitBatches, visibleExplicitBatches, docId]);
 
 	const finalBatches =
-		explicitBatches && explicitBatches.length > 0 ? explicitBatches : fetchedBatches;
+		explicitBatches && explicitBatches.length > 0
+			? visibleExplicitBatches
+			: selectDocumentBatches(fetchedBatches, docId);
 
 	return {
 		batches: finalBatches,

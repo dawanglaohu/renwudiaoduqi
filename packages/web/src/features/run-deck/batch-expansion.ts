@@ -21,6 +21,15 @@ import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { type EventBus, eventBus } from '../../api/event-bus.ts';
 import type { BatchTreeItem } from '../../components/batch-tree.tsx';
 
+/** Keep both batch-tree consumers on the document selected for dispatch. */
+export function selectDocumentBatches<T extends { readonly docId?: string }>(
+	batches: readonly T[],
+	docId?: string | null,
+): readonly T[] {
+	if (!docId || batches.every((batch) => batch.docId === undefined)) return batches;
+	return batches.filter((batch) => batch.docId === docId);
+}
+
 /**
  * 将快照数据映射为 BatchTreeItem（R1, R5）。
  * 纯粹消费 daemon 原样字段，前端绝不推导、伪造计数或展开状态。

@@ -1,6 +1,9 @@
+import { once } from 'node:events';
 import { mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Worker } from 'node:worker_threads';
 import type { BatchDto } from '@agent-scheduler/shared/api/batches';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -22,6 +25,7 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 const testDir = resolve(currentDir, '../fixtures/batch-summary-integration-test');
 const migrationsDir = resolve(currentDir, '../../migrations');
 const dbPath = join(testDir, 'test.db');
+const sqliteModule = createRequire(import.meta.url).resolve('better-sqlite3');
 
 function createMemoryLockAdapter(): NativeLockAdapter {
 	let lockContents: string | undefined;
@@ -434,44 +438,52 @@ describe('R13-T98191508 Batch Summary & Authoritative DTO (AC 1, AC 2, E-272, E-
 			expect(target?.defaultExpanded).toBe(true);
 		}
 
-		// ─── 阶段 D: 并发写入与并行读取一致性 ───
-		// 模拟并发任务写入与运行状态变更
-		await Promise.all([
-			(async () => {
-				const tx1 = db.transaction(() => {
-					db.prepare('UPDATE runs SET state = ? WHERE id = ?').run('landed', 'run-tx-3');
+		// A second SQLite connection owns an uncommitted write while the service reads.
+		const writer = new Worker(
+			`
+				const { parentPort, workerData } = require('node:worker_threads');
+				const Database = require(workerData.sqliteModule);
+				const writerDb = new Database(workerData.dbPath);
+				writerDb.pragma('journal_mode = WAL');
+				writerDb.exec('BEGIN IMMEDIATE');
+				writerDb.prepare("UPDATE runs SET state = 'landed' WHERE id = 'run-tx-3'").run();
+				parentPort.postMessage('staged');
+				parentPort.once('message', () => {
+					writerDb.prepare("UPDATE tasks SET manual_state = 'running' WHERE id = 't-tx-2'").run();
+					writerDb.exec('COMMIT');
+					writerDb.close();
+					parentPort.postMessage('committed');
+					parentPort.close();
 				});
-				tx1();
-			})(),
-			(async () => {
-				const tx2 = db.transaction(() => {
-					insertTask('t-tx-4', 'doc-1', 'batch-tx', 'M2-T4');
-					insertRun({
-						id: 'run-tx-4',
-						taskId: 't-tx-4',
-						attemptNo: 1,
-						kind: 'implement',
-						state: 'reviewing',
-					});
-				});
-				tx2();
-			})(),
-			(async () => {
-				const tx3 = db.transaction(() => {
-					insertTask('t-tx-5', 'doc-1', 'batch-tx', 'M2-T5');
-					insertRun({
-						id: 'run-tx-5',
-						taskId: 't-tx-5',
-						attemptNo: 1,
-						kind: 'implement',
-						state: 'awaiting_reply',
-					});
-				});
-				tx3();
-			})(),
-		]);
+			`,
+			{ eval: true, workerData: { dbPath, sqliteModule } },
+		);
+		try {
+			const [staged] = await once(writer, 'message');
+			expect(staged).toBe('staged');
+			const [duringSingle, duringList, duringSnap] = await Promise.all([
+				batchService.getBatch('batch-tx'),
+				batchService.listBatches('doc-1'),
+				container.services.dispatch.getSnapshot('doc-1'),
+			]);
+			for (const target of [
+				duringSingle,
+				duringList.find((b) => b.id === 'batch-tx'),
+				duringSnap.batches.find((b) => b.id === 'batch-tx'),
+			]) {
+				expect(target?.taskCount).toBe(3);
+				expect(target?.landedCount).toBe(1);
+				expect(target?.runningCount).toBe(1);
+				expect(target?.waitingCount).toBe(1);
+			}
+			writer.postMessage('commit');
+			const [committed] = await once(writer, 'message');
+			expect(committed).toBe('committed');
+		} finally {
+			await writer.terminate();
+		}
 
-		// 并发写入全部提交后，并行读取 getBatch、listBatches、getSnapshot
+		// Every formal read reflects both committed changes, without a partial state.
 		const [concurrentSingle, concurrentList, concurrentSnap] = await Promise.all([
 			batchService.getBatch('batch-tx'),
 			batchService.listBatches('doc-1'),
@@ -482,14 +494,10 @@ describe('R13-T98191508 Batch Summary & Authoritative DTO (AC 1, AC 2, E-272, E-
 
 		for (const target of [concurrentSingle, concListBatch, concSnapBatch]) {
 			expect(target).toBeDefined();
-			// 总任务数: 5 (t-tx-1 ~ t-tx-5)
-			expect(target?.taskCount).toBe(5);
-			// 已落地: 2 (t-tx-1 landed, t-tx-3 landed)
+			expect(target?.taskCount).toBe(3);
 			expect(target?.landedCount).toBe(2);
-			// 在跑: 1 (t-tx-4 reviewing)
 			expect(target?.runningCount).toBe(1);
-			// 等待中: 2 (t-tx-2 awaiting_human, t-tx-5 awaiting_reply)
-			expect(target?.waitingCount).toBe(2);
+			expect(target?.waitingCount).toBe(0);
 			expect(target?.defaultExpanded).toBe(true);
 		}
 	});
