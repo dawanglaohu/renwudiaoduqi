@@ -14,6 +14,7 @@
  */
 
 import type { HTMLAttributes } from 'react';
+import { createPortal } from 'react-dom';
 import { UI_STRINGS } from '../i18n/ui-strings.ts';
 import { SegmentedToggle, type SegmentedToggleOption } from '../ui/segmented-toggle.tsx';
 
@@ -29,6 +30,8 @@ export interface PipelineTogglesProps extends Omit<HTMLAttributes<HTMLDivElement
 	readonly isPending?: boolean;
 	/** 布局方向：topbar 紧凑横排（默认）或 settings 坚排卡片 */
 	readonly layout?: 'topbar' | 'settings';
+	/** 顶栏下方的说明区域，避免说明挤进 52px 控制行 */
+	readonly notesHost?: HTMLElement | null;
 	/** 用户点击切换回调（必须携带全量两值，AC 2） */
 	readonly onChange?: (nextValues: PipelineTogglesValues) => void;
 	/** 外部自定义类名 */
@@ -49,6 +52,7 @@ export function PipelineToggles({
 	value,
 	isPending = false,
 	layout = 'topbar',
+	notesHost = null,
 	onChange,
 	className = '',
 	...rest
@@ -56,6 +60,26 @@ export function PipelineToggles({
 	const isTopbar = layout === 'topbar';
 	const isBughuntOn = value?.bughunt === 1;
 	const isWrapupManual = value?.wrapupMode === 'manual';
+	const notes = (
+		<>
+			{isBughuntOn && (
+				<div
+					data-testid="bughunt-auto-note"
+					className="text-[12px] font-ui text-ink-3 tracking-tight"
+				>
+					{UI_STRINGS.pipeline.bughuntAutoNote}
+				</div>
+			)}
+			{isWrapupManual && (
+				<div
+					data-testid="wrapup-manual-note"
+					className="text-[12px] font-ui text-ink-3 tracking-tight"
+				>
+					{UI_STRINGS.pipeline.wrapupManualNote}
+				</div>
+			)}
+		</>
+	);
 
 	const handleBughuntChange = (target: 0 | 1) => {
 		if (!value || isPending) return;
@@ -125,28 +149,7 @@ export function PipelineToggles({
 				</div>
 			</div>
 
-			{/* ─────────────────────────────────────────────────────────────
-			    常驻一行说明（AC 3, E-306, E-312, R1）：
-			    仅在设置页（!isTopbar）常驻展示，不弹 dialog；
-			    顶栏（isTopbar）固定 52px 高度，不渲染此说明以避免溢出或遮挡设置页标题。
-			    ───────────────────────────────────────────────────────────── */}
-			{!isTopbar && isBughuntOn && (
-				<div
-					data-testid="bughunt-auto-note"
-					className="text-[12px] font-ui text-ink-3 tracking-tight"
-				>
-					{UI_STRINGS.pipeline.bughuntAutoNote}
-				</div>
-			)}
-
-			{!isTopbar && isWrapupManual && (
-				<div
-					data-testid="wrapup-manual-note"
-					className="text-[12px] font-ui text-ink-3 tracking-tight"
-				>
-					{UI_STRINGS.pipeline.wrapupManualNote}
-				</div>
-			)}
+			{isTopbar ? notesHost && createPortal(notes, notesHost) : notes}
 		</div>
 	);
 }

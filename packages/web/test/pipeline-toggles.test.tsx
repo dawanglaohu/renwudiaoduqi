@@ -238,22 +238,27 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		expect(htmlAuto).not.toContain('data-testid="wrapup-manual-note"');
 	});
 
-	// ─── 4b. 顶栏 layout="topbar" 不得渲染常驻说明，避免溢出固定 52px 顶栏或遮挡设置页标题（R1） ───
-	it('does NOT render permanent notes in topbar layout to prevent overflowing 52px header (R1)', () => {
-		const htmlTopbar = renderToStaticMarkup(
-			createElement(PipelineToggles, {
-				value: { bughunt: 1, wrapupMode: 'manual' },
-				layout: 'topbar',
-			}),
-		);
-		// 绝不渲染常驻说明节点
-		expect(htmlTopbar).not.toContain('data-testid="bughunt-auto-note"');
-		expect(htmlTopbar).not.toContain('data-testid="wrapup-manual-note"');
-		expect(htmlTopbar).not.toContain('审查 pass 后自动派查 bug 运行');
-		expect(htmlTopbar).not.toContain('本批全部任务落地后不自动收口');
-		// 但开关本身存在
-		expect(htmlTopbar).toContain('data-pipeline-toggle="bughunt"');
-		expect(htmlTopbar).toContain('data-pipeline-toggle="wrapupMode"');
+	// ─── 4b. 顶栏说明仍常驻，但占据顶栏下方独立区域（R1） ───
+	it('renders both permanent notes below the 52px topbar via its notes host (R1)', async () => {
+		const { container, root } = setupMockDom();
+		const notesHost = new TestDOMElement();
+		(notesHost as unknown as { ownerDocument: unknown }).ownerDocument = (
+			container as unknown as { ownerDocument: unknown }
+		).ownerDocument;
+		await act(async () => {
+			root.render(
+				createElement(PipelineToggles, {
+					value: { bughunt: 1, wrapupMode: 'manual' },
+					layout: 'topbar',
+					notesHost: notesHost as unknown as HTMLElement,
+				}),
+			);
+		});
+		expect(container.querySelector('[data-testid="bughunt-auto-note"]')).toBeNull();
+		expect(notesHost.querySelector('[data-testid="bughunt-auto-note"]')).not.toBeNull();
+		expect(notesHost.querySelector('[data-testid="wrapup-manual-note"]')).not.toBeNull();
+		expect(notesHost.textContent).toContain('审查 pass 后自动派查 bug 运行');
+		expect(notesHost.textContent).toContain('本批全部任务落地后不自动收口');
 	});
 
 	// ─── 5. onChange 给出全量两值 ───
@@ -582,6 +587,8 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 				},
 			});
 		});
+		// 其他设备的事件即使先到，本地 HTTP 完成也不能代替对应的回流事件。
+		expect(turnOnBtn?.getAttribute('disabled')).not.toBeNull();
 
 		// 此时若对应自己 PATCH 的回流事件随后到达
 		await act(async () => {
@@ -598,7 +605,7 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 					pipeline: {
 						...initialPipeline,
 						bughunt: 1,
-						wrapupMode: 'manual',
+						wrapupMode: 'auto',
 					},
 				},
 			});
@@ -606,5 +613,6 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 
 		// 本地 PATCH 完成且回流事件确认到达后，pending 正常解除，DOM 成功翻转为 active
 		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+		expect(turnOnBtn?.getAttribute('disabled')).toBeNull();
 	});
 });

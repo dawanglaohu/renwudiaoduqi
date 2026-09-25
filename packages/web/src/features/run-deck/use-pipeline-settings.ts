@@ -24,6 +24,7 @@ import { eventBus } from '../../api/event-bus.ts';
 import { httpClient, isApiError } from '../../api/http-client.ts';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
+import { readCurrentDeviceId } from '../../shell/shell-bridge.ts';
 
 const getPipelineRoute: RouteDefinition | undefined = ROUTES.find(
 	(r) => r.method === 'GET' && r.path === '/api/v1/settings/pipeline',
@@ -44,6 +45,27 @@ export interface UsePipelineSettingsOptions {
 	readonly initialPipeline?: PipelineSettings | null;
 	readonly fetcher?: () => Promise<GetPipelineSettingsResponse>;
 	readonly patcher?: (body: UpdatePipelineSettingsBody) => Promise<UpdatePipelineSettingsResponse>;
+}
+
+interface PendingPipelinePatch {
+	readonly body: UpdatePipelineSettingsBody;
+	readonly deviceId: string | null;
+	httpDone: boolean;
+	eventSeen: boolean;
+}
+
+function matchesPendingPatch(
+	pipeline: PipelineSettings,
+	actorDeviceId: string | null,
+	pending: PendingPipelinePatch,
+): boolean {
+	return (
+		(!pending.deviceId || actorDeviceId === pending.deviceId) &&
+		pipeline.bughunt === pending.body.bughunt &&
+		pipeline.wrapupMode === pending.body.wrapupMode &&
+		JSON.stringify(pipeline.reviewOverride) === JSON.stringify(pending.body.reviewOverride) &&
+		JSON.stringify(pipeline.wrapupAssignment) === JSON.stringify(pending.body.wrapupAssignment)
+	);
 }
 
 export function toPipelineSettingsError(error: unknown, fallback: string): PipelineSettingsError {
@@ -88,12 +110,8 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 	// R2 竞态防护 1：记录数据源版本，防御迟到的 GET 覆盖较新的 settings.pipeline_changed
 	const sourceVersionRef = useRef<number>(0);
 
-	// R2 竞态防护 2：记录本地在途未完成的 PATCH 数量。
-	// 当本地 PATCH 尚未完成（HTTP 请求未 resolve）时，其他设备的事件回流不得提前解除 pending！
-	const inFlightPatchCountRef = useRef<number>(0);
-
-	// 记录在当前本地 PATCH 发起之后，是否已经接收到了回流事件
-	const receivedEventDuringPatchRef = useRef<boolean>(false);
+	// 一次只允许一个本地 PATCH；HTTP 与对应 SSE 回流都完成后才解除 pending。
+	const pendingPatchRef = useRef<PendingPipelinePatch | null>(null);
 
 	// 1. 初始化拉取流水线配置（GET /api/v1/settings/pipeline）
 	useEffect(() => {
@@ -146,13 +164,13 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 					setPipeline(payload.pipeline);
 					setError(null);
 
-					// R2: 其他设备的事件不得在本地 PATCH 尚未完成时提前解除 pending。
-					// 只有在本地没有在途执行的 PATCH 请求时，才允许由事件解除 pending。
-					if (inFlightPatchCountRef.current === 0) {
-						setIsPending(false);
-					} else {
-						// 记录在本地 PATCH 执行期间已经见到了回流事件
-						receivedEventDuringPatchRef.current = true;
+					const pending = pendingPatchRef.current;
+					if (pending && matchesPendingPatch(payload.pipeline, envelope.actorDeviceId, pending)) {
+						pending.eventSeen = true;
+						if (pending.httpDone) {
+							pendingPatchRef.current = null;
+							setIsPending(false);
+						}
 					}
 				}
 			}
@@ -170,11 +188,6 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 				return;
 			}
 
-			inFlightPatchCountRef.current += 1;
-			receivedEventDuringPatchRef.current = false;
-			setIsPending(true);
-			setError(null);
-
 			// E-356: 四键整体写入，用当前缓存里的 reviewOverride 与 wrapupAssignment 补齐全量
 			const fullBody: UpdatePipelineSettingsBody = {
 				bughunt: partial.bughunt ?? pipeline.bughunt,
@@ -182,6 +195,16 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 				reviewOverride: pipeline.reviewOverride,
 				wrapupAssignment: pipeline.wrapupAssignment,
 			};
+			if (pendingPatchRef.current) return;
+			const pending: PendingPipelinePatch = {
+				body: fullBody,
+				deviceId: readCurrentDeviceId(),
+				httpDone: false,
+				eventSeen: false,
+			};
+			pendingPatchRef.current = pending;
+			setIsPending(true);
+			setError(null);
 
 			try {
 				if (patcher) {
@@ -195,18 +218,14 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 					);
 				}
 
-				// 本地 PATCH 异步请求执行完毕，递减在途计数
-				inFlightPatchCountRef.current = Math.max(0, inFlightPatchCountRef.current - 1);
-
-				// 如果在本次 PATCH 在途期间已经收到了事件回流，且已无其他在途 PATCH，则在此刻正式解除 pending
-				if (inFlightPatchCountRef.current === 0 && receivedEventDuringPatchRef.current) {
+				pending.httpDone = true;
+				if (pending.eventSeen && pendingPatchRef.current === pending) {
+					pendingPatchRef.current = null;
 					setIsPending(false);
 				}
-				// 若尚未收到事件回流，则保持 isPending=true，继续等待 settings.pipeline_changed 事件回流（E-157, E-318）
 			} catch (cause: unknown) {
-				// 本地请求失败，递减在途计数并解除 pending，展示就地错误
-				inFlightPatchCountRef.current = Math.max(0, inFlightPatchCountRef.current - 1);
-				if (inFlightPatchCountRef.current === 0) {
+				if (pendingPatchRef.current === pending) {
+					pendingPatchRef.current = null;
 					setIsPending(false);
 				}
 				setError(toPipelineSettingsError(cause, '流水线设置未能保存，请稍后重试'));

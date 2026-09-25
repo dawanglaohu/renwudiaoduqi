@@ -26,6 +26,7 @@ export interface PipelineTogglesContainerProps {
 	readonly initialPipeline?: PipelineSettings | null;
 	/** 布局方向：topbar 紧凑横排（默认）或 settings 设置卡片 */
 	readonly layout?: 'topbar' | 'settings';
+	readonly notesHost?: HTMLElement | null;
 	/** 自定义类名 */
 	readonly className?: string;
 	/** 自定义 fetcher / patcher（用于单元测试与集成测试） */
@@ -36,6 +37,7 @@ export interface PipelineTogglesContainerProps {
 export function PipelineTogglesContainer({
 	initialPipeline = null,
 	layout = 'topbar',
+	notesHost = null,
 	className = '',
 	fetcher,
 	patcher,
@@ -67,6 +69,7 @@ export function PipelineTogglesContainer({
 				value={pipeline ? { bughunt: pipeline.bughunt, wrapupMode: pipeline.wrapupMode } : null}
 				isPending={isPending}
 				layout={layout}
+				notesHost={notesHost}
 				onChange={updatePipelineToggles}
 			/>
 

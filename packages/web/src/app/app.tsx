@@ -10,7 +10,7 @@
  * - 已配对的桌面顶栏挂唯一一组闸门开关；配对前不发鉴权请求
  */
 
-import { type ComponentType, type ReactNode, lazy } from 'react';
+import { type ComponentType, type ReactNode, lazy, useState } from 'react';
 import { GateTogglesContainer } from '../features/run-deck/gate-toggles-container.tsx';
 import { PipelineTogglesContainer } from '../features/run-deck/pipeline-toggles-container.tsx';
 import { DeckPage } from '../pages/deck-page.tsx';
@@ -43,24 +43,35 @@ export interface AppProps {
 
 function AppTopbar({ match, banner }: { readonly match: RouteMatch; readonly banner: ReactNode }) {
 	const showGates = match.id !== 'pair' && hasDeviceToken();
+	const [pipelineNotesHost, setPipelineNotesHost] = useState<HTMLDivElement | null>(null);
 	return (
 		<>
 			{banner}
-			<header
-				data-testid="app-topbar"
-				className="h-topbar flex items-center justify-between border-b border-border bg-bg px-4 text-ink-1"
-			>
-				<span className="font-mono text-dense font-semibold text-ink-1">Agent 任务调度器</span>
-				<div className="hidden min-[600px]:flex items-center gap-3 shrink-0">
+			<div className="relative">
+				<header
+					data-testid="app-topbar"
+					className="h-topbar flex items-center border-b border-border bg-bg px-4 text-ink-1"
+				>
+					<span className="font-mono text-dense font-semibold text-ink-1">Agent 任务调度器</span>
+				</header>
+				<div className="hidden min-[600px]:flex flex-wrap items-center gap-3 border-b border-border bg-bg px-4 py-2 min-[1100px]:absolute min-[1100px]:top-0 min-[1100px]:right-4 min-[1100px]:h-topbar min-[1100px]:flex-nowrap min-[1100px]:border-0 min-[1100px]:p-0">
 					{showGates && (
 						<>
 							<GateTogglesContainer layout="topbar" />
-							<div className="h-4 w-px bg-border shrink-0" aria-hidden="true" />
-							<PipelineTogglesContainer layout="topbar" />
+							<div
+								className="h-px w-full bg-border shrink-0 min-[1100px]:h-4 min-[1100px]:w-px"
+								aria-hidden="true"
+							/>
+							<PipelineTogglesContainer layout="topbar" notesHost={pipelineNotesHost} />
 						</>
 					)}
 				</div>
-			</header>
+				<div
+					ref={setPipelineNotesHost}
+					data-testid="topbar-pipeline-notes"
+					className="empty:hidden flex flex-wrap gap-x-4 gap-y-1 border-b border-border bg-bg px-4 py-1"
+				/>
+			</div>
 		</>
 	);
 }
