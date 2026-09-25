@@ -218,7 +218,6 @@ export function PipelineLane({
 			sessionNo={currentRun?.sessionNo ?? null}
 			agentMonogram={lane.agentMonogram}
 			agentName={lane.agentName}
-			modelName={currentRun?.modelName ?? lane.modelName}
 			reportedModel={currentRun?.reportedModel ?? null}
 			effort={currentRun?.effort}
 			effortTier={currentRun?.effortTier ?? null}

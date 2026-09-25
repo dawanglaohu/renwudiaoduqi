@@ -233,7 +233,6 @@ export function StreamColumn(props: StreamColumnProps) {
 	const displayTokens = formatTokenCount(tokenCount);
 	const displayCost = formatCost(cost);
 	const resolvedCanStop = kind === 'idle' ? false : canStop;
-	const displayModelOrAgent = modelName ?? agentName ?? '—';
 	const displayMonogram = formatMonogram(agentMonogram, agentName);
 
 	// 收口泳道头部（E-297）：第 N 轮 / 第 M 批缺失一律显示「—」，不用前端逻辑补齐
@@ -412,9 +411,7 @@ export function StreamColumn(props: StreamColumnProps) {
 					modelName={
 						modelName !== undefined
 							? modelName
-							: run?.modelName !== undefined
-								? run.modelName
-								: (agentName ?? null)
+							: (run?.modelName ?? null)
 					}
 					reportedModel={reportedModel !== undefined ? reportedModel : (run?.reportedModel ?? null)}
 					effort={effort !== undefined ? effort : (run?.effort ?? undefined)}

@@ -527,6 +527,8 @@ describe('PipelineLane: Feature semantics and edge cases (AC 1, 5, 6, 7, E-309, 
 				taskId: 'task-compact',
 				currentRunId: 'run-missing-1',
 				agentMonogram: 'CX',
+				agentName: 'Agent identity',
+				modelName: 'stale-lane-model',
 			});
 			const task = createMockTask({ id: 'task-compact', taskKey: 'M9-T17' });
 			const runs = [
@@ -559,6 +561,7 @@ describe('PipelineLane: Feature semantics and edge cases (AC 1, 5, 6, 7, E-309, 
 
 			// 模型为 null 显示 —
 			expect(html).toMatch(/data-field="model-name"[^>]*>—</);
+			expect(html).not.toContain('stale-lane-model');
 
 			// 思考强度为 null 显示 —
 			expect(html).toMatch(/data-field="effort"[^>]*>—</);
