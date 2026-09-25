@@ -1193,6 +1193,11 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
 
 		// lane.released event emitted
+		attempts = 0;
+		while (!busEvents.some((e) => e.kind === 'lane.released') && attempts < 100) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
 		const laneReleased = busEvents.find((e) => e.kind === 'lane.released');
 		expect(laneReleased).toBeDefined();
 
