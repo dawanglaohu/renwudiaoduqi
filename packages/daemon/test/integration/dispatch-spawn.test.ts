@@ -380,6 +380,7 @@ function setupTestEnvironment(
 		instanceLock: dummyLockHandle,
 		clock,
 		spawnManaged: fakeSpawnManaged,
+		codexSessions: null,
 		worktreeManager: fakeWorktreeManager,
 		baseSelector: overrides.baseSelector,
 		reviewService: fakeReviewService,
@@ -1130,6 +1131,80 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(gate).not.toBeNull();
 		expect(gate?.state).toBe('waiting');
 		expect(gate?.comment).toBe('exited_before_output');
+	});
+
+	it('R8-T97041355 AC 3 & E-36: structured model rejection transitions to failed directly, queued_reason is 派发失败·模型无效, releases lane, no gate, exit does NOT transition to awaiting_human', async () => {
+		const env = setupTestEnvironment({ exitCode: 1 });
+		const { container, getLatestProc, getMechanicalCheckCalls } = env;
+
+		// Set lane_no on task so clearing it produces a lane.released event
+		container.repos.tasks.setLaneNo('task-1', 1);
+
+		const busEvents: EventEnvelope[] = [];
+		container.events.bus.subscribe((event) => busEvents.push(event));
+
+		const createRes = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'codex',
+			model: 'non-existent-model',
+			idempotencyKey: 'idemp-model-rejected-integration',
+		});
+		await container.services.dispatch.tick();
+
+		let attempts = 0;
+		while (!getLatestProc() && attempts < 50) {
+			await new Promise((r) => setTimeout(r, 20));
+			attempts++;
+		}
+		const proc = getLatestProc();
+		expect(proc).not.toBeNull();
+
+		// Emit structured error line indicating model rejection
+		proc?.emitLine(
+			JSON.stringify({
+				method: 'turn/failed',
+				params: {
+					turn: {
+						model: 'non-existent-model',
+						error: {
+							code: 'model_not_found',
+							message: 'The model non-existent-model does not exist',
+						},
+					},
+				},
+			}),
+		);
+
+		// Now the process exits
+		proc?.emitExit(1);
+
+		attempts = 0;
+		while (container.repos.runs.findById(createRes.run.id)?.state !== 'failed' && attempts < 100) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+
+		const run = container.repos.runs.findById(createRes.run.id);
+		expect(run?.state).toBe('failed');
+		expect(run?.queued_reason).toBe('派发失败·模型无效');
+		expect(run?.rework_count ?? 0).toBe(0);
+		expect(getMechanicalCheckCalls()).toBe(0);
+
+		// Task lane_no must be cleared
+		expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+
+		// lane.released event emitted
+		attempts = 0;
+		while (!busEvents.some((e) => e.kind === 'lane.released') && attempts < 100) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+		const laneReleased = busEvents.find((e) => e.kind === 'lane.released');
+		expect(laneReleased).toBeDefined();
+
+		// No review gate created
+		const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
+		expect(gate).toBeNull();
 	});
 
 	it('B1: POST rerun after exited_before_output creates a new run and launches its process', async () => {

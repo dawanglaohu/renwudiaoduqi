@@ -19,7 +19,7 @@ import type {
 	RunDto,
 	SearchRunLogResponse,
 } from '../../../../shared/src/api/runs.ts';
-import { httpClient, isApiError } from '../../api/http-client.ts';
+import { ApiError, httpClient, isApiError } from '../../api/http-client.ts';
 import {
 	LogBottomNotice,
 	LogLine,
@@ -31,11 +31,14 @@ import { VirtualRows, type VirtualRowsHandle } from '../../components/virtual-ro
 import { useDensityTier } from '../../hooks/use-breakpoint.ts';
 import { MobileRerunBar } from './mobile-rerun-bar.tsx';
 import { RerunConfirmDialog } from './rerun-confirm-dialog.tsx';
-import { useLogWindow } from './use-log-window.ts';
+import { type PermissionBlockedInfo, useLogWindow } from './use-log-window.ts';
 import { useRunRerun } from './use-run-rerun.ts';
 
 const searchRunRoute = ROUTES.find(
 	(r) => r.method === 'GET' && r.path === '/api/v1/runs/:runId/search',
+);
+const createRunMessageRoute = ROUTES.find(
+	(r) => r.method === 'POST' && r.path === '/api/v1/runs/:runId/messages',
 );
 
 export interface RunDetailContainerProps {
@@ -123,8 +126,28 @@ export function RunDetailContainer({
 		[runId],
 	);
 
+	const [isElevating, setIsElevating] = useState(false);
+	const [isElevated, setIsElevated] = useState(false);
+	const [elevateError, setElevateError] = useState<string | null>(null);
+	const isElevatingRef = useRef(false);
+	const isElevatedRef = useRef(false);
+	const elevationRunRef = useRef(runId);
+
+	// R3: 切换 runId 时重置临时提升状态与错误
+	useEffect(() => {
+		if (runId) {
+			elevationRunRef.current = runId;
+			isElevatingRef.current = false;
+			isElevatedRef.current = false;
+			setIsElevated(false);
+			setIsElevating(false);
+			setElevateError(null);
+		}
+	}, [runId]);
+
 	const {
 		state,
+		permissionBlocked,
 		isLoadingOlder,
 		isLoadingNewer,
 		loadOlder,
@@ -132,6 +155,45 @@ export function RunDetailContainer({
 		handleScroll,
 		handleResetUnread,
 	} = useLogWindow({ runId, isMobile: isMobileTier });
+
+	const handleElevateOnce = useCallback(async () => {
+		if (isElevatingRef.current || isElevatedRef.current) return;
+		const requestRunId = runId;
+		isElevatingRef.current = true;
+		setIsElevating(true);
+		setElevateError(null);
+		try {
+			if (!createRunMessageRoute) {
+				throw new ApiError({
+					code: 'E_INTERNAL',
+					message: 'Run message route is unavailable.',
+					requestId: 'local',
+				});
+			}
+			await httpClient.callRoute(createRunMessageRoute, {
+				params: { runId: requestRunId },
+				body: { kind: 'elevate_once' },
+			});
+			if (elevationRunRef.current !== requestRunId) return;
+			isElevatedRef.current = true;
+			setIsElevated(true);
+		} catch (err) {
+			if (elevationRunRef.current !== requestRunId) return;
+			const code = isApiError(err)
+				? err.code
+				: typeof (err as { code?: unknown })?.code === 'string'
+					? String((err as { code: unknown }).code)
+					: err instanceof Error
+						? err.message
+						: String(err);
+			setElevateError(code);
+		} finally {
+			if (elevationRunRef.current === requestRunId) {
+				isElevatingRef.current = false;
+				setIsElevating(false);
+			}
+		}
+	}, [runId]);
 
 	// R1 (AC 3 / E-100): 贴底且尾部增长时自动跟随；isAtBottom 为 false 时绝不跳底。
 	// 审查方修正：增长信号取 state.totalLines——它单调递增且把被折叠的刷新行也计进去；
@@ -210,6 +272,22 @@ export function RunDetailContainer({
 					ref={virtualRef}
 					count={state.lines.length}
 					estimateSize={22}
+					footer={
+						permissionBlocked ? (
+							<PermissionBlockedTimelineRow
+								info={permissionBlocked}
+								isElevating={isElevating}
+								isElevated={isElevated}
+								canElevate={
+									currentRun?.agentId === 'codex' &&
+									currentRun.kind === 'implement' &&
+									permissionBlocked.requestId !== undefined
+								}
+								error={elevateError}
+								onElevateOnce={handleElevateOnce}
+							/>
+						) : undefined
+					}
 					renderItem={({ index }) => {
 						const line = state.lines[index];
 						if (!line) {
@@ -376,3 +454,80 @@ export function RunDetailPageContainer({
 		/>
 	);
 }
+
+export interface PermissionBlockedTimelineRowProps {
+	readonly info: PermissionBlockedInfo;
+	readonly canElevate?: boolean;
+	readonly isElevating?: boolean;
+	readonly isElevated?: boolean;
+	readonly error?: string | null;
+	readonly onElevateOnce?: () => void;
+}
+
+export type PermissionBlockedBannerProps = PermissionBlockedTimelineRowProps;
+
+/**
+ * 权限受阻时间线高亮事件行组件（E-133 / AC 4 / R3）。
+ *
+ * 遵循 07 节前端架构规范：
+ * - 纯展示组件，内部使用 CSS 变量与 design tokens
+ * - 作为时间线事件行以 needs 暖色高亮展示，警示权限阻断
+ * - 提供一次性「仅本次运行临时提升」操作按钮
+ */
+export function PermissionBlockedTimelineRow({
+	info,
+	canElevate = false,
+	isElevating = false,
+	isElevated = false,
+	error = null,
+	onElevateOnce,
+}: PermissionBlockedTimelineRowProps) {
+	return (
+		<div
+			data-component="permission-blocked-timeline-row"
+			data-permission-blocked-banner="true"
+			className="flex items-center justify-between gap-3 px-3 py-2 border border-[var(--needs)] bg-[var(--needs-soft)] text-[var(--ink-1)] rounded-[var(--r-sm)] text-[length:var(--fs-dense)] leading-[var(--lh-ui)]"
+		>
+			<div className="flex flex-col gap-0.5 min-w-0">
+				<div className="flex items-center gap-1.5 font-medium text-[var(--needs-ink)]">
+					<span>权限受阻 (E-133)</span>
+					{info.tool ? <span className="opacity-80">· 工具: {info.tool}</span> : null}
+				</div>
+				<div className="text-[length:var(--fs-meta)] text-[var(--ink-2)] truncate">
+					{info.reason || 'Agent 试图访问或修改沙箱工作区外的资源'}
+				</div>
+				{error ? (
+					<div
+						data-elevate-error="true"
+						className="text-[length:var(--fs-meta)] text-[var(--down)] font-mono font-medium"
+					>
+						{error}
+					</div>
+				) : null}
+			</div>
+			<div className="shrink-0 flex items-center">
+				{canElevate ? (
+					<button
+						type="button"
+						data-elevate-button="true"
+						disabled={isElevated || isElevating}
+						onClick={onElevateOnce}
+						className={`h-[var(--h-btn-sm)] px-3 text-[length:var(--fs-meta)] font-medium rounded-[var(--r-sm)] border transition-colors ${
+							isElevated
+								? 'border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-3)] cursor-not-allowed'
+								: 'border-[var(--needs)] bg-[var(--needs)] text-[var(--on-needs)] hover:opacity-90 active:opacity-80'
+						}`}
+					>
+						{isElevated ? '已临时提升' : '仅本次运行临时提升'}
+					</button>
+				) : (
+					<span className="text-[length:var(--fs-meta)] text-[var(--ink-2)]">
+						此运行不支持临时提升
+					</span>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export const PermissionBlockedBanner = PermissionBlockedTimelineRow;

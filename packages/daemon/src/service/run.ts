@@ -79,6 +79,7 @@ export interface IngestLineResult {
 export interface AttachProcessOptions {
 	readonly onEvent?: (envelope: EventEnvelope) => void;
 	readonly onExit?: (result: ProcessExitResult) => Promise<void> | void;
+	readonly mapExitResult?: (result: ProcessExitResult) => ProcessExitResult;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 	readonly acceptsPlainText?: boolean;
 }
@@ -149,6 +150,16 @@ export interface RunServiceDeps {
 		}) => void;
 	};
 	readonly ids?: { readonly newId: () => string };
+	/**
+	 * Called when a run.model_rejected event is received during process attachment (E-36).
+	 * RunService invokes this to transition the run to failed and release the lane.
+	 */
+	readonly handleModelInvalid?: (input: {
+		readonly runId: string;
+		readonly modelName?: string;
+		readonly agentStderrTail?: string;
+		readonly message?: string;
+	}) => Promise<unknown> | unknown;
 }
 
 export interface RunService {
@@ -223,6 +234,7 @@ export interface RunService {
 	): Promise<void>;
 	isAwaitingReply(runId: string): Promise<boolean>;
 	isTemporarilyElevated(runId: string): boolean;
+	clearTemporaryElevation(runId: string): void;
 }
 
 function normalizeRawLineBytes(rawLine: string | Uint8Array): Uint8Array {
@@ -541,9 +553,28 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								runsWithContent.add(runId);
 							}
 							void trackWrite(
-								ingestEvent(runId, env).then(() => {
+								(async () => {
+									// 1. 事件先落盘再发布 (R1)
+									await ingestEvent(runId, env);
 									options?.onEvent?.(env);
-								}),
+
+									// 2. E-36 / R1: 结构化模型拒绝事件落盘发布后，原子迁移 failed 并释放泳道
+									if (env.kind === 'run.model_rejected' && deps.handleModelInvalid) {
+										const payload = env.payload as {
+											readonly modelName?: string;
+											readonly vendorMessage?: string;
+										};
+										try {
+											await deps.handleModelInvalid({
+												runId,
+												modelName: payload?.modelName,
+												message: payload?.vendorMessage,
+											});
+										} catch (err) {
+											logFailure(err);
+										}
+									}
+								})(),
 							).catch((err) => logFailure(err));
 						}
 					} else if (deps.runsRepo) {
@@ -580,7 +611,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		});
 
 		cleanups.push(
-			process.onExit((result) => {
+			process.onExit((rawResult) => {
+				const result = options?.mapExitResult?.(rawResult) ?? rawResult;
 				if (detached) {
 					completionResolve(result);
 					return;
@@ -1260,7 +1292,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		runId: string,
 		envelope: EventEnvelopeInput,
 	): Promise<void> {
-		if (!deps.runsRepo || envelope.kind === 'run.state_changed' || envelope.kind === 'run.started')
+		if (
+			!deps.runsRepo ||
+			envelope.kind === 'run.state_changed' ||
+			envelope.kind === 'run.started' ||
+			envelope.kind === 'run.model_rejected'
+		)
 			return;
 
 		let currentRun = deps.runsRepo.findById(runId);
@@ -1353,20 +1390,27 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				details: { runId },
 			});
 		}
-		if (run.state !== 'awaiting_reply') {
+		if (run.state !== 'awaiting_reply' && run.state !== 'running') {
 			assertValidTransition(run.state, 'running', {
 				reason: details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED,
 			});
 		}
 		// 仅本次运行临时提升，绝不改写默认档位（不落库、结束失效、事件留痕）(E-133)
 		temporarilyElevatedRuns.add(runId);
-		const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
-		await transitionState({
-			runId,
-			targetState: 'running',
-			reason,
-			actorDeviceId: details?.actorDeviceId ?? null,
-		});
+		if (run.state === 'awaiting_reply') {
+			const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
+			try {
+				await transitionState({
+					runId,
+					targetState: 'running',
+					reason,
+					actorDeviceId: details?.actorDeviceId ?? null,
+				});
+			} catch (err) {
+				temporarilyElevatedRuns.delete(runId);
+				throw err;
+			}
+		}
 	}
 
 	async function isAwaitingReply(runId: string): Promise<boolean> {
@@ -1377,6 +1421,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 	function isTemporarilyElevated(runId: string): boolean {
 		return temporarilyElevatedRuns.has(runId);
+	}
+
+	function clearTemporaryElevation(runId: string): void {
+		temporarilyElevatedRuns.delete(runId);
 	}
 
 	return Object.freeze({
@@ -1394,6 +1442,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		elevateRunOnce,
 		isAwaitingReply,
 		isTemporarilyElevated,
+		clearTemporaryElevation,
 		hasContentProduced(runId: string): boolean {
 			return runsWithContent.has(runId);
 		},

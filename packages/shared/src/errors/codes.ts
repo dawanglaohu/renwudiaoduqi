@@ -30,7 +30,6 @@ export const ERROR_CODES = {
 	},
 	E_AGENT_BUSY: { defaultHttpStatus: 429, retryable: true, origin: 'server' },
 	E_RATE_LIMITED: { defaultHttpStatus: 429, retryable: true, origin: 'server' },
-	E_MODEL_INVALID: { defaultHttpStatus: 422, retryable: false, origin: 'server' },
 	E_MESSAGE_UNDELIVERED: { defaultHttpStatus: 422, retryable: false, origin: 'server' },
 	E_CAPABILITY_UNSUPPORTED: { defaultHttpStatus: 422, retryable: false, origin: 'server' },
 	E_WORKSPACE_UNAVAILABLE: { defaultHttpStatus: 500, retryable: false, origin: 'server' },
