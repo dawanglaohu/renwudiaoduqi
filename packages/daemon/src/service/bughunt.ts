@@ -664,7 +664,10 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			let hasWorkspaceDiff = false;
 			try {
 				if (!bughuntRun.worktree_path || !bughuntRun.branch_tip_sha) {
-					throw new Error('Bughunt run is missing its worktree baseline');
+					throw new AppError(
+						'E_WORKSPACE_UNAVAILABLE',
+						'Bughunt run is missing its worktree baseline',
+					);
 				}
 				const current = await readWorktreeStartingBaseline(
 					bughuntRun.worktree_path,

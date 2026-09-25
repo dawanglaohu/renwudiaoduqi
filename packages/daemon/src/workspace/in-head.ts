@@ -1,6 +1,7 @@
 import * as nodeFs from 'node:fs/promises';
 import * as nodeOs from 'node:os';
 import * as nodePath from 'node:path';
+import { AppError } from '../errors/app-error.ts';
 import type { SupportedPlatform } from '../platform/contract.ts';
 import { takePlatformHostInputs } from '../platform/host.ts';
 import type { spawnManaged } from '../proc/spawn.ts';
@@ -419,20 +420,29 @@ export async function readWorktreeStartingBaseline(
 
 	const headResult = await runner.run(['rev-parse', 'HEAD'], resolvedPath);
 	if (headResult.exitCode !== 0 || !headResult.stdout.trim()) {
-		throw new Error(`Cannot read worktree HEAD: ${headResult.stderr}`);
+		throw new AppError(
+			'E_WORKSPACE_UNAVAILABLE',
+			`Cannot read worktree HEAD: ${headResult.stderr}`,
+		);
 	}
 	const headSha = headResult.stdout.trim();
 
 	// 检查工作区是否有任何脏状态（已暂存、未暂存、untracked 文件）
 	const statusResult = await runner.run(['status', '--porcelain', '-z', '-uall'], resolvedPath);
 	if (statusResult.exitCode !== 0) {
-		throw new Error(`Cannot read worktree status: ${statusResult.stderr}`);
+		throw new AppError(
+			'E_WORKSPACE_UNAVAILABLE',
+			`Cannot read worktree status: ${statusResult.stderr}`,
+		);
 	}
 	if (!statusResult.stdout) {
 		// 干净工作区：直接取 HEAD^{tree}
 		const treeResult = await runner.run(['rev-parse', 'HEAD^{tree}'], resolvedPath);
 		if (treeResult.exitCode !== 0 || !treeResult.stdout.trim()) {
-			throw new Error(`Cannot read clean worktree tree: ${treeResult.stderr}`);
+			throw new AppError(
+				'E_WORKSPACE_UNAVAILABLE',
+				`Cannot read clean worktree tree: ${treeResult.stderr}`,
+			);
 		}
 		return Object.freeze({ headSha, treeSha: treeResult.stdout.trim() });
 	}
@@ -447,19 +457,28 @@ export async function readWorktreeStartingBaseline(
 			envOverrides: { GIT_INDEX_FILE: tempIndexPath },
 		});
 		if (readRes.exitCode !== 0) {
-			throw new Error(`Cannot initialize worktree snapshot: ${readRes.stderr}`);
+			throw new AppError(
+				'E_WORKSPACE_UNAVAILABLE',
+				`Cannot initialize worktree snapshot: ${readRes.stderr}`,
+			);
 		}
 		const addRes = await runner.run(['add', '-A'], resolvedPath, {
 			envOverrides: { GIT_INDEX_FILE: tempIndexPath },
 		});
 		if (addRes.exitCode !== 0) {
-			throw new Error(`Cannot stage worktree snapshot: ${addRes.stderr}`);
+			throw new AppError(
+				'E_WORKSPACE_UNAVAILABLE',
+				`Cannot stage worktree snapshot: ${addRes.stderr}`,
+			);
 		}
 		const writeRes = await runner.run(['write-tree'], resolvedPath, {
 			envOverrides: { GIT_INDEX_FILE: tempIndexPath },
 		});
 		if (writeRes.exitCode !== 0 || !writeRes.stdout.trim()) {
-			throw new Error(`Cannot freeze worktree snapshot: ${writeRes.stderr}`);
+			throw new AppError(
+				'E_WORKSPACE_UNAVAILABLE',
+				`Cannot freeze worktree snapshot: ${writeRes.stderr}`,
+			);
 		}
 		return Object.freeze({ headSha, treeSha: writeRes.stdout.trim() });
 	} finally {
