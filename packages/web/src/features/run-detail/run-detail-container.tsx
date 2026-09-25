@@ -278,6 +278,12 @@ export function RunDetailContainer({
 								info={permissionBlocked}
 								isElevating={isElevating}
 								isElevated={isElevated}
+								canElevate={
+									currentRun?.agentId === 'codex' &&
+									currentRun.kind === 'implement' &&
+									currentRun.state === 'awaiting_reply' &&
+									permissionBlocked.requestId !== undefined
+								}
 								error={elevateError}
 								onElevateOnce={handleElevateOnce}
 							/>
@@ -452,6 +458,7 @@ export function RunDetailPageContainer({
 
 export interface PermissionBlockedTimelineRowProps {
 	readonly info: PermissionBlockedInfo;
+	readonly canElevate?: boolean;
 	readonly isElevating?: boolean;
 	readonly isElevated?: boolean;
 	readonly error?: string | null;
@@ -470,6 +477,7 @@ export type PermissionBlockedBannerProps = PermissionBlockedTimelineRowProps;
  */
 export function PermissionBlockedTimelineRow({
 	info,
+	canElevate = false,
 	isElevating = false,
 	isElevated = false,
 	error = null,
@@ -499,19 +507,25 @@ export function PermissionBlockedTimelineRow({
 				) : null}
 			</div>
 			<div className="shrink-0 flex items-center">
-				<button
-					type="button"
-					data-elevate-button="true"
-					disabled={isElevated || isElevating}
-					onClick={onElevateOnce}
-					className={`h-[var(--h-btn-sm)] px-3 text-[length:var(--fs-meta)] font-medium rounded-[var(--r-sm)] border transition-colors ${
-						isElevated
-							? 'border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-3)] cursor-not-allowed'
-							: 'border-[var(--needs)] bg-[var(--needs)] text-[var(--on-needs)] hover:opacity-90 active:opacity-80'
-					}`}
-				>
-					{isElevated ? '已临时提升' : '仅本次运行临时提升'}
-				</button>
+				{canElevate ? (
+					<button
+						type="button"
+						data-elevate-button="true"
+						disabled={isElevated || isElevating}
+						onClick={onElevateOnce}
+						className={`h-[var(--h-btn-sm)] px-3 text-[length:var(--fs-meta)] font-medium rounded-[var(--r-sm)] border transition-colors ${
+							isElevated
+								? 'border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-3)] cursor-not-allowed'
+								: 'border-[var(--needs)] bg-[var(--needs)] text-[var(--on-needs)] hover:opacity-90 active:opacity-80'
+						}`}
+					>
+						{isElevated ? '已临时提升' : '仅本次运行临时提升'}
+					</button>
+				) : (
+					<span className="text-[length:var(--fs-meta)] text-[var(--ink-2)]">
+						此运行不支持临时提升
+					</span>
+				)}
 			</div>
 		</div>
 	);

@@ -59,6 +59,7 @@ export interface PermissionBlockedInfo {
 	readonly tool?: string;
 	readonly reason?: string;
 	readonly blockedCategory?: string;
+	readonly requestId?: string | number;
 }
 
 export interface UseLogWindowReturn {
@@ -118,6 +119,7 @@ export function useLogWindow({
 					tool: payload?.tool,
 					reason: payload?.reason,
 					blockedCategory: payload?.blockedCategory,
+					requestId: payload?.requestId,
 				};
 			}
 		}
@@ -254,6 +256,7 @@ export function useLogWindow({
 							tool: payload?.tool,
 							reason: payload?.reason,
 							blockedCategory: payload?.blockedCategory,
+							requestId: payload?.requestId,
 						});
 					}
 				}
@@ -281,6 +284,7 @@ export function useLogWindow({
 					tool: payload?.tool,
 					reason: payload?.reason,
 					blockedCategory: payload?.blockedCategory,
+					requestId: payload?.requestId,
 				};
 				break;
 			}

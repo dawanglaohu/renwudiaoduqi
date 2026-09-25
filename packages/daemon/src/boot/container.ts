@@ -2,8 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { buildClaudeLaunchSpec } from '../adapters/claude/build-launch-spec.ts';
 import { mapEvents as mapClaudeEvents } from '../adapters/claude/map-events.ts';
+import {
+	type CodexSessionRegistry,
+	createCodexSessionRegistry,
+} from '../adapters/codex/app-server-session.ts';
 import { buildCodexLaunchSpec } from '../adapters/codex/build-launch-spec.ts';
-import { mapCodexEvents } from '../adapters/codex/map-events.ts';
+import { mapCodexProcessEvents } from '../adapters/codex/map-events.ts';
 import { buildDshLaunchSpec } from '../adapters/dsh/build-launch-spec.ts';
 import { mapDshEvents } from '../adapters/dsh/map-events.ts';
 import { buildGenericAcpLaunchSpec } from '../adapters/generic-acp/build-launch-spec.ts';
@@ -224,6 +228,7 @@ export function createContainer(input: {
 	readonly runMessagesRepo?: RunMessagesRepo;
 	readonly messageService?: MessageService;
 	readonly processRegistry?: ProcessRegistry;
+	readonly codexSessions?: CodexSessionRegistry;
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
 	readonly tasksRepo?: TasksRepo;
@@ -441,6 +446,7 @@ export function createContainer(input: {
 		});
 
 	const processRegistry = input.processRegistry ?? createProcessRegistry();
+	const codexSessions = input.codexSessions ?? createCodexSessionRegistry();
 
 	const baseSpawn = input.spawnManaged ?? input.proc?.spawnManaged ?? spawnManaged;
 	const boundSpawnManaged = (
@@ -464,7 +470,7 @@ export function createContainer(input: {
 		codex: Object.freeze({
 			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
 				buildCodexLaunchSpec(options as Parameters<typeof buildCodexLaunchSpec>[0]),
-			mapEvents: (line: unknown) => mapCodexEvents(line) as readonly EventEnvelopeInput[],
+			mapEvents: (line: unknown) => mapCodexProcessEvents(line) as readonly EventEnvelopeInput[],
 		}),
 		claude: Object.freeze({
 			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
@@ -510,20 +516,6 @@ export function createContainer(input: {
 		processOps,
 		platform: input.hostInputs.platform,
 	});
-	const messageService =
-		input.messageService ??
-		createMessageService({
-			runMessagesRepo: runMessages,
-			processRegistry,
-			clock: input.clock,
-			ids: Object.freeze({
-				newId: () => `msg_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
-			}),
-			bus,
-			envelopeFactory,
-			unitOfWork,
-		});
-
 	const runLogService =
 		input.runLogService ??
 		createRunLogService({
@@ -682,6 +674,21 @@ export function createContainer(input: {
 			gatesRepo: gates,
 			ids,
 		});
+	const messageService =
+		input.messageService ??
+		createMessageService({
+			runMessagesRepo: runMessages,
+			processRegistry,
+			codexSessions,
+			runService,
+			clock: input.clock,
+			ids: Object.freeze({
+				newId: () => `msg_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+			}),
+			bus,
+			envelopeFactory,
+			unitOfWork,
+		});
 
 	/**
 	 * #136：返工投递的生产接线。
@@ -834,6 +841,7 @@ export function createContainer(input: {
 			workspace: worktreeManager,
 			proc,
 			adapters,
+			codexSessions,
 			runService,
 			logFailure: (error) => {
 				input.logViolation?.(error instanceof Error ? error.message : String(error));

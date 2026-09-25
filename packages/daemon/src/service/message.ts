@@ -1,5 +1,6 @@
 import { EVENT_DEFINITIONS, type EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { getClaudeCapabilities } from '../adapters/claude/capabilities.ts';
+import type { CodexSessionRegistry } from '../adapters/codex/app-server-session.ts';
 import { getCodexCapabilities } from '../adapters/codex/capabilities.ts';
 import { getGrokCapabilities } from '../adapters/grok/capabilities.ts';
 import { getPiCapabilities } from '../adapters/pi/capabilities.ts';
@@ -158,6 +159,7 @@ export interface ResumeSessionResult {
 export interface MessageServiceDeps {
 	readonly runMessagesRepo: RunMessagesRepo;
 	readonly processRegistry: ProcessRegistry;
+	readonly codexSessions?: CodexSessionRegistry;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly bus?: EventBus;
@@ -373,6 +375,31 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		}
 
 		if (input.kind === 'elevate_once') {
+			if (deps.runService?.isTemporarilyElevated(input.runId)) {
+				throw new AppError('E_INVALID_STATE_TRANSITION', 'This run was already elevated once.', {
+					details: { runId: run.id, from: run.state, to: 'running', operation: 'elevate_once' },
+				});
+			}
+			if (deps.codexSessions && run.state !== 'awaiting_reply') {
+				throw new AppError('E_INVALID_STATE_TRANSITION', 'Run is not waiting for approval.', {
+					details: { runId: run.id, from: run.state, to: 'running', operation: 'elevate_once' },
+				});
+			}
+			const session = deps.codexSessions?.get(input.runId);
+			if (deps.codexSessions && (run.agentId !== 'codex' || !session)) {
+				throw new AppError('E_CAPABILITY_UNSUPPORTED', 'This run has no live approval transport.', {
+					details: { runId: run.id, agentId: run.agentId, capability: 'elevate_once' },
+				});
+			}
+			if (deps.codexSessions && !session?.hasPendingApproval()) {
+				throw new AppError(
+					'E_MESSAGE_UNDELIVERED',
+					'No approval request is pending for this run.',
+					{
+						details: { runId: run.id, reason: 'approval_not_pending' },
+					},
+				);
+			}
 			const elevateFn =
 				input.elevateRunOnce ?? deps.elevateRunOnce ?? deps.runService?.elevateRunOnce;
 			if (!elevateFn) {
@@ -380,8 +407,9 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				return handleUndelivered(run, input, 'elevate_unavailable', throwOnUndelivered);
 			}
 
-			// R2: elevateFn 必须成功执行后才进入交付，失败时不得留下假投递记录
+			// The vendor must acknowledge the exact pending request before state or delivery changes.
 			try {
+				await session?.approveOnce();
 				await elevateFn(input.runId, {
 					reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
 					actorDeviceId: input.actorDeviceId ?? null,
@@ -519,50 +547,59 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 			return handleUndelivered(run, input, 'resume_unavailable', throwOnUndelivered);
 		}
 
-		// AC 2 & E-113: Process liveness & pipe integrity checks
-		const managedProcess = deps.processRegistry.get(input.runId);
-
-		let undeliveredReason: string | null = null;
-		if (
-			!managedProcess ||
-			managedProcess.isExited ||
-			managedProcess.child.killed ||
-			managedProcess.child.exitCode !== null
-		) {
-			undeliveredReason = 'process_exited';
-		} else if (
-			managedProcess.child.stdin === null ||
-			managedProcess.child.stdin.destroyed ||
-			!managedProcess.child.stdin.writable
-		) {
-			undeliveredReason = 'pipe_broken';
-		}
-
-		if (undeliveredReason !== null || !managedProcess) {
-			return handleUndelivered(
-				run,
-				input,
-				undeliveredReason ?? 'process_exited',
-				throwOnUndelivered,
-			);
-		}
-
-		// AC 6: Writing to stdin with backpressure drain check
 		const text = input.text ?? '';
-		const payload = text.endsWith('\n') ? text : `${text}\n`;
-		let writeOk = false;
-
-		try {
-			writeOk = managedProcess.writeStdin(payload);
-		} catch {
-			return handleUndelivered(run, input, 'pipe_broken', throwOnUndelivered);
-		}
-
-		if (!writeOk) {
+		const codexSession = deps.codexSessions?.get(input.runId);
+		if (codexSession) {
 			try {
-				await managedProcess.waitForStdinDrain();
+				await codexSession.sendText(text);
+			} catch {
+				return handleUndelivered(run, input, 'protocol_unavailable', throwOnUndelivered);
+			}
+		} else {
+			// AC 2 & E-113: Process liveness & pipe integrity checks
+			const managedProcess = deps.processRegistry.get(input.runId);
+
+			let undeliveredReason: string | null = null;
+			if (
+				!managedProcess ||
+				managedProcess.isExited ||
+				managedProcess.child.killed ||
+				managedProcess.child.exitCode !== null
+			) {
+				undeliveredReason = 'process_exited';
+			} else if (
+				managedProcess.child.stdin === null ||
+				managedProcess.child.stdin.destroyed ||
+				!managedProcess.child.stdin.writable
+			) {
+				undeliveredReason = 'pipe_broken';
+			}
+
+			if (undeliveredReason !== null || !managedProcess) {
+				return handleUndelivered(
+					run,
+					input,
+					undeliveredReason ?? 'process_exited',
+					throwOnUndelivered,
+				);
+			}
+
+			// AC 6: Writing to stdin with backpressure drain check
+			const payload = text.endsWith('\n') ? text : `${text}\n`;
+			let writeOk = false;
+
+			try {
+				writeOk = managedProcess.writeStdin(payload);
 			} catch {
 				return handleUndelivered(run, input, 'pipe_broken', throwOnUndelivered);
+			}
+
+			if (!writeOk) {
+				try {
+					await managedProcess.waitForStdinDrain();
+				} catch {
+					return handleUndelivered(run, input, 'pipe_broken', throwOnUndelivered);
+				}
 			}
 		}
 

@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R8-T54786768": {
+      "contractHash": "14dff867852fa0deec3c616084c785fb38ba2d8b57ed45d4ac34b67a29e63cae",
+      "evidence": [
+        "2026-09-25 复核批次 8 源围栏、任务笔记与 E-133：原 API/UI 入口仍须覆盖 schema、错误码、单次按钮和真实 daemon 浏览器证据；新增的正式 Codex 双向会话、真实授权请求 ID、同一运行继续、失败清理使原验收更严格。无待答请求的 running 状态不能获得 200，因为它无法交付任何厂商授权。",
+        "前次审查在尚未合并的同一 PR 分支添加了 R8-T89804121 前置。此次直接在原 PR 中实现该传输并将其完整验收并入 R8-T54786768，移除未合并的重复任务源围栏及生成笔记；M6-T7、M6-T6、M9-T8 三项已落地前置保留。有效路径增加 app-server 会话、事件映射、组合根、派发和 Windows Git 命令脚本相关代码与测试。另一条待办 E-36 返工也使用 codex/map-events.ts 和 boot/container.ts，不能与本任务并行写同一文件；本 PR 先完成后再派它。",
+        "真实正式入口探针：全新 daemon 数据目录，浏览器真实配对，正常文档导入与 POST /runs 派发；Codex 在 workspaceWrite 沙箱中请求写工作树外的 proof.txt，run.permission_blocked 带厂商请求 ID，浏览器按钮答复后同一 runId 的 Codex 写入 E133_APPROVED。过程中未向数据库或事件总线注入记录。协议与前端聚焦测试 112 通过、1 项平台条件跳过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

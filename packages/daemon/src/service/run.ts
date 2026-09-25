@@ -79,6 +79,7 @@ export interface IngestLineResult {
 export interface AttachProcessOptions {
 	readonly onEvent?: (envelope: EventEnvelope) => void;
 	readonly onExit?: (result: ProcessExitResult) => Promise<void> | void;
+	readonly mapExitResult?: (result: ProcessExitResult) => ProcessExitResult;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 	readonly acceptsPlainText?: boolean;
 }
@@ -575,7 +576,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		});
 
 		cleanups.push(
-			process.onExit((result) => {
+			process.onExit((rawResult) => {
+				const result = options?.mapExitResult?.(rawResult) ?? rawResult;
 				if (detached) {
 					completionResolve(result);
 					return;

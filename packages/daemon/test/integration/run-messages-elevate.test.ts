@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import Fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createCodexSessionRegistry } from '../../src/adapters/codex/app-server-session.ts';
 import { createContainer } from '../../src/boot/container.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
@@ -15,6 +16,7 @@ import type {
 	NativeLockReadResult,
 	NativeLockWriteResult,
 } from '../../src/platform/lock-contract.ts';
+import type { ManagedProcess } from '../../src/proc/spawn.ts';
 
 function createMemoryLockAdapter(): NativeLockAdapter {
 	let lockContents: string | undefined;
@@ -80,6 +82,7 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 	let server: ReturnType<typeof createHttpServer>;
 	let authToken: string;
 	let publishedEvents: EventEnvelope[];
+	const codexSessions = createCodexSessionRegistry();
 
 	beforeEach(async () => {
 		db = openDatabase(':memory:');
@@ -102,6 +105,7 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 			lockAdapter,
 			instanceLock: { release: () => undefined } as unknown as LockFileHandle,
 			clock: { now: () => '2026-09-25T12:00:00.000Z' },
+			codexSessions,
 		});
 
 		container.events.bus.subscribe((envelope) => {
@@ -166,9 +170,61 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 		`).run(id, state, options.sessionArchivedAt ?? null);
 	}
 
+	async function attachPendingCodexApproval(
+		runId: string,
+		options: { failApprovalWrite?: boolean } = {},
+	) {
+		const listeners = new Set<(value: { value: unknown }) => void>();
+		const writes: Record<string, unknown>[] = [];
+		const emit = (value: unknown) => {
+			for (const listener of listeners) listener({ value });
+		};
+		const process = {
+			isExited: false,
+			child: { killed: false, stdin: { destroyed: false, writable: true, end() {} } },
+			onJson(listener: (value: { value: unknown }) => void) {
+				listeners.add(listener);
+				return () => listeners.delete(listener);
+			},
+			onExit() {
+				return () => undefined;
+			},
+			writeStdin(raw: string) {
+				const message = JSON.parse(raw) as Record<string, unknown>;
+				writes.push(message);
+				if (message.id === 0 && options.failApprovalWrite) throw new Error('broken pipe');
+				queueMicrotask(() => {
+					if (message.method === 'initialize') emit({ id: message.id, result: {} });
+					if (message.method === 'thread/start')
+						emit({ id: message.id, result: { thread: { id: 'thread-1' } } });
+					if (message.method === 'turn/start')
+						emit({ id: message.id, result: { turn: { id: 'turn-1' } } });
+					if (message.method === 'turn/steer')
+						emit({ id: message.id, result: { turnId: 'turn-1' } });
+					if (message.id === 0 && message.result)
+						emit({
+							method: 'serverRequest/resolved',
+							params: { requestId: 0, threadId: 'thread-1' },
+						});
+				});
+				return true;
+			},
+			waitForStdinDrain: async () => undefined,
+		} as unknown as ManagedProcess;
+		const session = codexSessions.register(runId, process);
+		await session.start({ prompt: 'work', sandbox: 'workspace-write' });
+		emit({
+			id: 0,
+			method: 'item/commandExecution/requestApproval',
+			params: { threadId: 'thread-1', turnId: 'turn-1', itemId: 'item-1' },
+		});
+		return { session, writes };
+	}
+
 	it('AC 1 & E-133: body {kind:"elevate_once"} with omitted text in awaiting_reply returns 200, elevates run and transitions to running', async () => {
 		const runId = 'run-awaiting-1';
 		seedRun(runId, 'awaiting_reply');
+		const approval = await attachPendingCodexApproval(runId);
 
 		expect(container.services.run.isTemporarilyElevated(runId)).toBe(false);
 
@@ -182,6 +238,7 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 		expect(response.statusCode).toBe(200);
 		const json = JSON.parse(response.body);
 		expect(json.delivered).toBe(true);
+		expect(approval.writes).toContainEqual({ id: 0, result: { decision: 'acceptForSession' } });
 		expect(typeof json.messageId).toBe('string');
 
 		// Run is elevated in memory
@@ -209,9 +266,17 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 			(e) => e.kind === 'run.message_delivered' && e.runId === runId,
 		);
 		expect(msgDelivered).toBeDefined();
+		const followup = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/runs/${runId}/messages`,
+			payload: { kind: 'reply', text: 'Continue with the approved action.' },
+			headers: { authorization: authToken },
+		});
+		expect(followup.statusCode).toBe(200);
+		expect(approval.writes.some((w) => w.method === 'turn/steer')).toBe(true);
 	});
 
-	it('AC 1: body {kind:"elevate_once", text:""} in running state returns 200, elevates run and leaves event', async () => {
+	it('AC 1: a running run without a pending approval rejects elevation', async () => {
 		const runId = 'run-running-1';
 		seedRun(runId, 'running');
 
@@ -224,22 +289,57 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 			headers: { authorization: authToken },
 		});
 
-		expect(response.statusCode).toBe(200);
+		expect(response.statusCode).toBe(409);
 		const json = JSON.parse(response.body);
-		expect(json.delivered).toBe(true);
-		expect(typeof json.messageId).toBe('string');
-
-		expect(container.services.run.isTemporarilyElevated(runId)).toBe(true);
+		expect(json.error.code).toBe('E_INVALID_STATE_TRANSITION');
+		expect(container.services.run.isTemporarilyElevated(runId)).toBe(false);
 
 		const runRow = db.prepare('SELECT state FROM runs WHERE id = ?').get(runId) as {
 			state: string;
 		};
 		expect(runRow.state).toBe('running');
 
-		const msgDelivered = publishedEvents.find(
-			(e) => e.kind === 'run.message_delivered' && e.runId === runId,
-		);
-		expect(msgDelivered).toBeDefined();
+		expect(
+			publishedEvents.some((e) => e.kind === 'run.message_delivered' && e.runId === runId),
+		).toBe(false);
+	});
+
+	it('concurrent clicks consume one approval and leave one delivered message', async () => {
+		const runId = 'run-concurrent-approval';
+		seedRun(runId, 'awaiting_reply');
+		const approval = await attachPendingCodexApproval(runId);
+		const request = () =>
+			server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/runs/${runId}/messages`,
+				payload: { kind: 'elevate_once' },
+				headers: { authorization: authToken },
+			});
+		const responses = await Promise.all([request(), request()]);
+		expect(responses.map((r) => r.statusCode).sort()).toEqual([200, 409]);
+		expect(approval.writes.filter((w) => w.id === 0)).toHaveLength(1);
+		const rows = db
+			.prepare('SELECT delivery_state FROM run_messages WHERE run_id = ?')
+			.all(runId) as Array<{ delivery_state: string }>;
+		expect(rows).toEqual([{ delivery_state: 'delivered' }]);
+	});
+
+	it('failed protocol write leaves no delivered message or temporary elevation', async () => {
+		const runId = 'run-broken-approval';
+		seedRun(runId, 'awaiting_reply');
+		await attachPendingCodexApproval(runId, { failApprovalWrite: true });
+		const response = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/runs/${runId}/messages`,
+			payload: { kind: 'elevate_once' },
+			headers: { authorization: authToken },
+		});
+		expect(response.statusCode).toBe(422);
+		expect(JSON.parse(response.body).error.code).toBe('E_MESSAGE_UNDELIVERED');
+		expect(container.services.run.isTemporarilyElevated(runId)).toBe(false);
+		expect(
+			db.prepare('SELECT COUNT(*) AS count FROM run_messages WHERE run_id = ?').get(runId),
+		).toEqual({ count: 0 });
 	});
 
 	it('AC 1 & E-133: body {kind:"elevate_once"} in illegal state (exited) returns 409 E_INVALID_STATE_TRANSITION', async () => {
@@ -310,7 +410,7 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 
 		expect(response.statusCode).toBe(422);
 		const json = JSON.parse(response.body);
-		expect(json.error.code).toBe('E_MESSAGE_UNDELIVERED');
+		expect(json.error.code).toBe('E_CAPABILITY_UNSUPPORTED');
 		await mockServer.instance.close();
 	});
 
@@ -369,6 +469,7 @@ describe('R8-T54786768 Integration: POST /api/v1/runs/:runId/messages elevate_on
 	it('AC 2 & E-133: temporary elevation expires upon run exiting and does not mutate agents.json', async () => {
 		const runId = 'run-exit-clean-1';
 		seedRun(runId, 'awaiting_reply');
+		await attachPendingCodexApproval(runId);
 
 		await server.instance.inject({
 			method: 'POST',

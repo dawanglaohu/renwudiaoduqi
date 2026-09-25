@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { GetRunLogResponse } from '@agent-scheduler/shared/api/runs';
+import type { GetRunLogResponse, RunDto } from '@agent-scheduler/shared/api/runs';
 import { act, createElement } from 'react';
 import { type Root, createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -838,6 +838,8 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 
 	// ─── AC 4 & E-133: 权限受阻时间线高亮事件行与一次性临时提升按钮 (R8-T54786768 / R3) ───
 	describe('AC 4 & E-133: Permission blocked timeline row & temporary elevation (R8-T54786768 / R3)', () => {
+		const codexRun = (id: string): RunDto =>
+			({ id, agentId: 'codex', kind: 'implement', state: 'awaiting_reply' }) as RunDto;
 		let testMountContainer: HTMLDivElement | null = null;
 		let testRoot: Root | null = null;
 
@@ -875,6 +877,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 		it('renders PermissionBlockedTimelineRow with needs color highlighting, tool info and elevate button', () => {
 			const html = renderToStaticMarkup(
 				createElement(PermissionBlockedTimelineRow, {
+					canElevate: true,
 					info: {
 						tool: 'write_file',
 						reason: 'Agent 试图写 worktree 之外',
@@ -915,6 +918,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				ts: '2026-09-25T00:00:00.000Z',
 				actorDeviceId: null,
 				payload: {
+					requestId: 0,
 					tool: 'write_file',
 					reason: '越界修改外部代码',
 					blockedCategory: 'workspace_sandbox',
@@ -931,7 +935,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			});
 
 			act(() => {
-				testRoot?.render(createElement(RunDetailContainer, { runId }));
+				testRoot?.render(createElement(RunDetailContainer, { runId, run: codexRun(runId) }));
 			});
 
 			const button = testMountContainer?.querySelector(
@@ -971,6 +975,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				ts: '2026-09-25T00:00:00.000Z',
 				actorDeviceId: null,
 				payload: {
+					requestId: 0,
 					tool: 'edit_file',
 					reason: '防连点测试',
 				},
@@ -991,7 +996,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			});
 
 			act(() => {
-				testRoot?.render(createElement(RunDetailContainer, { runId }));
+				testRoot?.render(createElement(RunDetailContainer, { runId, run: codexRun(runId) }));
 			});
 
 			const button = testMountContainer?.querySelector(
@@ -1030,6 +1035,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				ts: '2026-09-25T00:00:00.000Z',
 				actorDeviceId: null,
 				payload: {
+					requestId: 0,
 					tool: 'bash',
 					reason: '越界写',
 				},
@@ -1048,7 +1054,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 			});
 
 			act(() => {
-				testRoot?.render(createElement(RunDetailContainer, { runId }));
+				testRoot?.render(createElement(RunDetailContainer, { runId, run: codexRun(runId) }));
 			});
 
 			const button = testMountContainer?.querySelector(
@@ -1084,7 +1090,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				kind: 'run.permission_blocked',
 				ts: '2026-09-25T00:00:00.000Z',
 				actorDeviceId: null,
-				payload: { tool: 'write_file', reason: 'Blocked A' },
+				payload: { requestId: 0, tool: 'write_file', reason: 'Blocked A' },
 			});
 
 			// C 有权限受阻事件
@@ -1098,7 +1104,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				kind: 'run.permission_blocked',
 				ts: '2026-09-25T00:00:00.000Z',
 				actorDeviceId: null,
-				payload: { tool: 'edit_file', reason: 'Blocked C' },
+				payload: { requestId: 0, tool: 'edit_file', reason: 'Blocked C' },
 			});
 
 			vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
@@ -1110,7 +1116,9 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 
 			// 1. 渲染 runIdA 并提升成功
 			await act(async () => {
-				testRoot?.render(createElement(RunDetailContainer, { runId: runIdA }));
+				testRoot?.render(
+					createElement(RunDetailContainer, { runId: runIdA, run: codexRun(runIdA) }),
+				);
 				await Promise.resolve();
 			});
 			const buttonA = testMountContainer?.querySelector(
@@ -1123,7 +1131,9 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 
 			// 2. 切换到没有权限受阻事件的 runIdB -> 事件行应消失
 			await act(async () => {
-				testRoot?.render(createElement(RunDetailContainer, { runId: runIdB }));
+				testRoot?.render(
+					createElement(RunDetailContainer, { runId: runIdB, run: codexRun(runIdB) }),
+				);
 				await Promise.resolve();
 			});
 			const bannerB = testMountContainer?.querySelector('[data-permission-blocked-banner="true"]');
@@ -1131,7 +1141,9 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 
 			// 3. 切换到有权限受阻事件的 runIdC -> 事件行出现，状态必须重置为未提升
 			await act(async () => {
-				testRoot?.render(createElement(RunDetailContainer, { runId: runIdC }));
+				testRoot?.render(
+					createElement(RunDetailContainer, { runId: runIdC, run: codexRun(runIdC) }),
+				);
 				await Promise.resolve();
 			});
 			const bannerC = testMountContainer?.querySelector('[data-permission-blocked-banner="true"]');
@@ -1157,7 +1169,7 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 					kind: 'run.permission_blocked',
 					ts: '2026-09-25T00:00:00.000Z',
 					actorDeviceId: null,
-					payload: { reason: `Blocked ${runId}` },
+					payload: { requestId: 0, reason: `Blocked ${runId}` },
 				});
 			}
 			let finishA!: () => void;
@@ -1175,11 +1187,11 @@ describe('M9-T8: Log Window & Virtual List (AC 1-5, E-100, E-101, E-102, E-143, 
 				return {} as never;
 			});
 			await act(async () => {
-				testRoot?.render(createElement(RunDetailContainer, { runId: runA }));
+				testRoot?.render(createElement(RunDetailContainer, { runId: runA, run: codexRun(runA) }));
 			});
 			await click(testMountContainer?.querySelector('[data-elevate-button="true"]') ?? null);
 			await act(async () => {
-				testRoot?.render(createElement(RunDetailContainer, { runId: runB }));
+				testRoot?.render(createElement(RunDetailContainer, { runId: runB, run: codexRun(runB) }));
 			});
 			finishA();
 			await act(async () => {
