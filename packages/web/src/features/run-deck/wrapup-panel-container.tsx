@@ -218,8 +218,10 @@ const EMPTY_ENTRY: BatchWrapupEntry = Object.freeze({
 const entries = new Map<string, BatchWrapupEntry>();
 const roundByRunId = new Map<string, number>();
 const idempotencyKeyByBatch = new Map<string, string>();
+const latestFetchByBatch = new Map<string, number>();
 const listeners = new Set<() => void>();
 let storeVersion = 0;
+let fetchSequence = 0;
 
 function emit(): void {
 	storeVersion += 1;
@@ -299,12 +301,16 @@ export async function refetchBatchWrapups(
 	fetcher?: WrapupsFetcher,
 ): Promise<void> {
 	if (!batchId) return;
+	const fetchId = ++fetchSequence;
+	latestFetchByBatch.set(batchId, fetchId);
 	patchEntry(batchId, { isLoading: true });
 	try {
 		const response = await (fetcher ?? defaultFetcher)(batchId);
+		if (latestFetchByBatch.get(batchId) !== fetchId) return;
 		recordRounds(response.wrapups);
 		patchEntry(batchId, { wrapups: response.wrapups, error: null, isLoading: false });
 	} catch (cause: unknown) {
+		if (latestFetchByBatch.get(batchId) !== fetchId) return;
 		patchEntry(batchId, { error: toFetchError(cause), isLoading: false });
 	}
 }
@@ -357,12 +363,13 @@ export function clearBatchWrapupFailure(batchId: string): void {
  * 展开集也有一份同样用途的 `clearBatchExpansion`，两者在切文档时应当一起清。
  */
 export function clearBatchWrapupState(): void {
-	if (entries.size === 0 && roundByRunId.size === 0) {
+	if (entries.size === 0 && roundByRunId.size === 0 && latestFetchByBatch.size === 0) {
 		return;
 	}
 	entries.clear();
 	roundByRunId.clear();
 	idempotencyKeyByBatch.clear();
+	latestFetchByBatch.clear();
 	emit();
 }
 
