@@ -47,10 +47,11 @@ describe('M9-T3 hash router and route guard', () => {
 				landing: '#/landing/:taskId',
 				settingsAgents: '#/settings/agents',
 				settingsDevices: '#/settings/devices',
+				settingsPipeline: '#/settings/pipeline',
 				pair: '#/pair',
 			});
 
-			expect(ROUTES).toHaveLength(7);
+			expect(ROUTES).toHaveLength(8);
 			expect(ROUTES.map((r) => r.path)).toEqual([
 				'#/',
 				'#/tasks',
@@ -58,17 +59,19 @@ describe('M9-T3 hash router and route guard', () => {
 				'#/landing/:taskId',
 				'#/settings/agents',
 				'#/settings/devices',
+				'#/settings/pipeline',
 				'#/pair',
 			]);
 
 			// Pair is the only public route
 			expect(ROUTES.find((r) => r.id === 'pair')?.auth).toBe(false);
-			expect(ROUTES.filter((r) => r.auth)).toHaveLength(6);
+			expect(ROUTES.filter((r) => r.auth)).toHaveLength(7);
 
 			// Lazy chunks for settings and landing
 			expect(ROUTES.find((r) => r.id === 'landing')?.lazy).toBe(true);
 			expect(ROUTES.find((r) => r.id === 'settingsAgents')?.lazy).toBe(true);
 			expect(ROUTES.find((r) => r.id === 'settingsDevices')?.lazy).toBe(true);
+			expect(ROUTES.find((r) => r.id === 'settingsPipeline')?.lazy).toBe(true);
 
 			// Main chunk routes
 			expect(ROUTES.find((r) => r.id === 'deck')?.lazy).toBe(false);
@@ -76,7 +79,7 @@ describe('M9-T3 hash router and route guard', () => {
 			expect(ROUTES.find((r) => r.id === 'runDetail')?.lazy).toBe(false);
 		});
 
-		it('matches all seven flat paths correctly', () => {
+		it('matches all eight flat paths correctly', () => {
 			expect(matchRoute('#/')).toMatchObject({ id: 'deck', path: '#/', isUnknown: false });
 			expect(matchRoute('#/tasks')).toMatchObject({
 				id: 'tasks',
@@ -104,6 +107,13 @@ describe('M9-T3 hash router and route guard', () => {
 				id: 'settingsDevices',
 				path: '#/settings/devices',
 				isUnknown: false,
+			});
+			expect(matchRoute('#/settings/pipeline')).toMatchObject({
+				id: 'settingsPipeline',
+				path: '#/settings/pipeline',
+				isUnknown: false,
+				lazy: true,
+				auth: true,
 			});
 			expect(matchRoute('#/pair')).toMatchObject({ id: 'pair', path: '#/pair', isUnknown: false });
 		});
@@ -414,6 +424,23 @@ describe('M9-T3 hash router and route guard', () => {
 			);
 
 			expect(rendered).toContain('SECRET_PAGE');
+		});
+	});
+
+	describe('M9-T22 / AC 4: settingsPipeline 8th route verification', () => {
+		it('registers #/settings/pipeline with auth:true and lazy:true', () => {
+			const route = ROUTES.find((r) => r.id === 'settingsPipeline');
+			expect(route).toBeDefined();
+			expect(route?.path).toBe('#/settings/pipeline');
+			expect(route?.auth).toBe(true);
+			expect(route?.lazy).toBe(true);
+		});
+
+		it('matches #/settings/pipeline without params and with optional query', () => {
+			const match = matchRoute('#/settings/pipeline?pane=preview');
+			expect(match.isUnknown).toBe(false);
+			expect(match.id).toBe('settingsPipeline');
+			expect(match.query).toEqual({ pane: 'preview' });
 		});
 	});
 });

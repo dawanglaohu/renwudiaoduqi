@@ -162,7 +162,8 @@ export function runForbiddenCheck(
 	}
 
 	// 3. Scan packages/web source files for forbidden patterns
-	const webSourceFiles = walkFiles(join(webDir, 'src'), (f) => /\.(ts|tsx|css|js|jsx)$/.test(f));
+	const srcDir = existsSync(join(webDir, 'src')) ? join(webDir, 'src') : webDir;
+	const webSourceFiles = walkFiles(srcDir, (f) => /\.(ts|tsx|css|js|jsx)$/.test(f));
 	// Both build configs go through the same colour rules as src/ (M9-T24)
 	const buildConfigFiles = BUILD_CONFIG_FILE_NAMES.map((name) => join(webDir, name)).filter(
 		(file) => existsSync(file),
@@ -493,6 +494,38 @@ export function runForbiddenCheck(
 						snippet: lines[i]?.trim(),
 						message:
 							'DOM measurement is strictly prohibited in spine and stage-chain components (AC 3, 07 节).',
+					});
+				}
+			}
+		}
+
+		// Check 15: Gate toggles and pipeline toggles must not import each other (M9-T22 / AC 1)
+		const isGateToggles = file.endsWith('/gate-toggles.tsx') || file.endsWith('\\gate-toggles.tsx');
+		const isPipelineToggles =
+			file.endsWith('/pipeline-toggles.tsx') || file.endsWith('\\pipeline-toggles.tsx');
+
+		if (isGateToggles || isPipelineToggles) {
+			const cleanLines = blankComments(content).split('\n');
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (isGateToggles && /from\s+['"].*pipeline-toggles(?:\.tsx)?['"]/.test(line)) {
+					violations.push({
+						rule: 'TOGGLES_MUTUAL_IMPORT',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'gate-toggles.tsx must not import pipeline-toggles; both must only import ui/segmented-toggle (M9-T22 / AC 1).',
+					});
+				}
+				if (isPipelineToggles && /from\s+['"].*gate-toggles(?:\.tsx)?['"]/.test(line)) {
+					violations.push({
+						rule: 'TOGGLES_MUTUAL_IMPORT',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'pipeline-toggles.tsx must not import gate-toggles; both must only import ui/segmented-toggle (M9-T22 / AC 1).',
 					});
 				}
 			}
