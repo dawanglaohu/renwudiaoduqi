@@ -4,6 +4,7 @@ import { isAppError } from '../../errors/app-error.ts';
 
 const STATUS_BAD_REQUEST = 400;
 const STATUS_NOT_FOUND = 404;
+const STATUS_CONFLICT = 409;
 const STATUS_INTERNAL_ERROR = 500;
 
 export interface ErrorEnvelope {
@@ -42,7 +43,12 @@ export function createErrorHandler(instance: FastifyInstance): void {
 				return;
 			}
 
-			const statusCode = meta.defaultHttpStatus;
+			let statusCode = meta.defaultHttpStatus;
+			// 只将 elevate_once 请求的非法状态映射为客户端冲突；其他状态机错误保留原有分类。
+			if (code === 'E_INVALID_STATE_TRANSITION' && error.details?.operation === 'elevate_once') {
+				statusCode = STATUS_CONFLICT;
+			}
+
 			const envelope: ErrorEnvelope = {
 				error: {
 					code,

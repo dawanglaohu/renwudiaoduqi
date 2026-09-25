@@ -15,6 +15,7 @@ import {
 import {
 	CODEX_VENDOR_EVENT_STRINGS,
 	mapCodexEvents,
+	mapCodexProcessEvents,
 	mapEvents,
 	parseAndMapCodexLine,
 } from '../../src/adapters/codex/map-events.ts';
@@ -939,6 +940,47 @@ describe('M4-T8: codex 原生适配器', () => {
 				'network_dependency',
 			);
 		});
+	});
+});
+
+describe('E-133 app-server approval mapping', () => {
+	it('keeps the vendor request ID and turn identifiers on the blocked event', () => {
+		const events = mapCodexProcessEvents({
+			id: 0,
+			method: 'item/commandExecution/requestApproval',
+			params: {
+				threadId: 'thread-1',
+				turnId: 'turn-1',
+				itemId: 'item-1',
+				reason: 'Outside writable roots',
+			},
+		});
+		expect(events).toHaveLength(1);
+		expect(events[0]?.kind).toBe('run.permission_blocked');
+		expect(events[0]?.payload).toMatchObject({
+			requestId: 0,
+			threadId: 'thread-1',
+			turnId: 'turn-1',
+			itemId: 'item-1',
+		});
+	});
+
+	it('does not invent an approval for an ordinary app-server command start', () => {
+		const events = mapCodexProcessEvents({
+			method: 'item/started',
+			params: {
+				item: { id: 'item-1', type: 'commandExecution', command: 'npm install' },
+			},
+		});
+		expect(events.some((event) => event.kind === 'run.permission_blocked')).toBe(false);
+	});
+
+	it('leaves terminal run state to process exit rather than turn/completed', () => {
+		const events = mapCodexProcessEvents({
+			method: 'turn/completed',
+			params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } },
+		});
+		expect(events.some((event) => event.kind === 'run.exited')).toBe(false);
 	});
 });
 

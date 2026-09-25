@@ -58,6 +58,9 @@ export const CODEX_VENDOR_EVENT_STRINGS = Object.freeze([
 	'item/fileChange/outputDelta',
 	'item/plan/delta',
 	'item/autoApprovalReview/started',
+	'item/commandExecution/requestApproval',
+	'item/fileChange/requestApproval',
+	'item/permissions/requestApproval',
 	'autoApprovalReview/strictReviewRequired',
 	'guardianWarning',
 	'agentMessage',
@@ -82,6 +85,20 @@ export function mapCodexEvents(
 	context?: CodexMapEventsContext,
 ): readonly EventEnvelopeInput[] {
 	return parseAndMapCodexLine(vendorLine, context).events;
+}
+
+/** Process exit is the sole run-exit signal for a dedicated app-server process. */
+export function mapCodexProcessEvents(vendorLine: unknown): readonly EventEnvelopeInput[] {
+	const events = mapCodexEvents(vendorLine);
+	if (
+		typeof vendorLine === 'object' &&
+		vendorLine !== null &&
+		'method' in vendorLine &&
+		(vendorLine.method === 'turn/completed' || vendorLine.method === 'turn/failed')
+	) {
+		return events.filter((event) => event.kind !== 'run.exited');
+	}
+	return events;
 }
 
 /**
@@ -208,7 +225,12 @@ function mapItemStarted(
 	switch (itemType) {
 		case 'commandExecution':
 		case 'command_execution': {
-			if (isNetworkDependencyCommand(item.command)) {
+			if (
+				isNetworkDependencyCommand(item.command) &&
+				typeof parsed === 'object' &&
+				parsed !== null &&
+				!('method' in parsed)
+			) {
 				return createInput(
 					'run.permission_blocked',
 					{
@@ -646,6 +668,34 @@ function mapParsedObject(
 		const params = (record.params ?? {}) as Record<string, unknown>;
 
 		switch (method) {
+			case 'item/commandExecution/requestApproval':
+			case 'item/fileChange/requestApproval':
+			case 'item/permissions/requestApproval': {
+				if (
+					(typeof record.id !== 'number' && typeof record.id !== 'string') ||
+					typeof params.threadId !== 'string' ||
+					typeof params.turnId !== 'string' ||
+					typeof params.itemId !== 'string'
+				) {
+					return Object.freeze({ events: Object.freeze([]), unmappedCount: 1, rawLine });
+				}
+				events.push(
+					createInput(
+						'run.permission_blocked',
+						{
+							tool: method.split('/')[1],
+							reason: typeof params.reason === 'string' ? params.reason : 'Agent approval required',
+							requestId: record.id,
+							itemId: params.itemId,
+							threadId: params.threadId,
+							turnId: params.turnId,
+							vendor: parsed,
+						},
+						context,
+					),
+				);
+				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+			}
 			case 'item/agentMessage/delta': {
 				const delta = typeof params.delta === 'string' ? params.delta : '';
 				if (delta.length > 0) {

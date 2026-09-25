@@ -1,1 +1,4340 @@
-{}
+{
+  "M1-T1": {
+    "contractHash": "db63c29a9271a3a68fe0b09c39948d20251740bb16454b0148c784e1e351d49b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T10": {
+    "contractHash": "307fe61a77a22dba5796fd6fb9f77175c964a80438ca1db46f6ee5fe40f29cf0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T2": {
+    "contractHash": "0909af92103dda4b45c779bd78f719d3b88afd221b29cd7876d264a17ca4d91d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T3": {
+    "contractHash": "2372569fc00f62f70d8e826bd96eb4f39857c17a973d2ead7058bb909b7bfc9c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T4": {
+    "contractHash": "40aac8af54be17bda71b7e375cb1d4eab94df4c7109ea749ee06b635e1a0319c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T5": {
+    "contractHash": "81e66c313838ba2907e5c95d6021816c418810563e2514fc1950a1b9a0ed9dfe",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T6": {
+    "contractHash": "35433fc8bbcd0f0ddb67a23cb718d8570cd128e599c3251a200bf3d6e5fb098d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T7": {
+    "contractHash": "12a0eb6abbbd97848742b17f3170a035553e9dde533f2d0c6afd9fde462b0fe0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T8": {
+    "contractHash": "6e913b77963bdba455f34f918c062759edffe93f175389a84af465904f6e2c64",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T9": {
+    "contractHash": "50e159d30909cb9bcd0df3d84d3d8cf1ebb191993b8fbba8bb961c481d9d2a5c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T1": {
+    "contractHash": "9bf4caf36c51ea62616e9d126acca389c6101b7d139540ce45d7060de4ea4e0b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T2": {
+    "contractHash": "627f52afb301183fd7afffa9fd2adf16100b6403d9c706c6c6c3d091b6191eaf",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T3": {
+    "contractHash": "fb5c167b931d1ece1265f2d7625c0126cdc0a3897c1267bcea43868f000e25ba",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T4": {
+    "contractHash": "4c77243e80707cf01822faca8eef08c937b7413ccccae75b96367769b0621d9d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T5": {
+    "contractHash": "7b6c3bf29d57631c54cf5b146ffff571e552a3334acfdfb337a0ceabd110abf6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T6": {
+    "contractHash": "f7ade37d0796a0fe5746dd655c7c0ef9308d9011c688bd02aea57aed3ce0422e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T1": {
+    "contractHash": "492bbe66efda0674442beadabc20aec60f464a5134934cc4e2f4566882079d8c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T2": {
+    "contractHash": "8d1c70623aa37982aa863ccc13bc4d7fa188f79d6eb803fd1866b7e3a44c288e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T3": {
+    "contractHash": "da6345e406973b5838bea4c266522b7b0ff86ccc524b3c1dbf5b229ff8603ce0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T4": {
+    "contractHash": "e38e648ee8ac94e41cb1035aff1be78348a9c719c7a3118b460e430e8128fc97",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T5": {
+    "contractHash": "3081a9455ce8c2bfb8ec6db4b875f34bd474fca11f8cfe3ce36f2d6a78837ce0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T6": {
+    "contractHash": "325535eb0626176432dfe37e247909dc1afa5c14d7aa4adedad49074c092524c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T7": {
+    "contractHash": "e56c5c6deb24e78b3d591310900a674ab56bfc511117f517fbac03f9e0a600ec",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T8": {
+    "contractHash": "71a6567536703c0b6513567825465f36eaf6e64155d5c9ce6ffc138a0cf38e9e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T1": {
+    "contractHash": "cf98f77cb567449ab0c2583655d1dd8d99e8c75a135597a6900eb6f8197fbf0f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T2": {
+    "contractHash": "aaa124b2bffe039bf3ee6c2c28a4e062f67d8bc946a60581274f6c3c4b2d9cf6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T3": {
+    "contractHash": "b7e8f770c2575ff853da96214f9afd79fe5f3a9719d9cc35681f610b30fe5910",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T4": {
+    "contractHash": "c3e5f22b3183dd7802335040f12a00bfdb1c6b7448e93b981c7e84747bdc358a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T5": {
+    "contractHash": "b503b23df7307e393d54508da421e7e3132cc9dd47b37b77ff112b0f5f5b9774",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T6": {
+    "contractHash": "346701ce9f442c8a4a81f9a1dc717a00157d70916d9b6aed120f5522232cd1d1",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T7": {
+    "contractHash": "11f17451df84cc5dc22d974da5ac0d98813c5487dfe4348d737a0cbdb14bc727",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T1": {
+    "contractHash": "724f4afd7dd457d329e1d49189dee9da84c6578a3629fd3b64517a286fe35cd5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T10": {
+    "contractHash": "56d1f10db7951e628ba31d61de6863a9dfee40e7553f818ed247eacf031e5977",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T11": {
+    "contractHash": "6a6e726097780130a2dca9c7209adbb6d5185c03d9b27dff7cbe41816464c31d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T12": {
+    "contractHash": "30c72e1deccc2874bdbd80d6f6ca64f382dd7cd9e8f7dd4bfe095401c0063799",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T13": {
+    "contractHash": "0d4d5a84b3d3972bfde98adf3eb14185b7af628834383ad3ffa95b6659f1d36f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T14": {
+    "contractHash": "346bb59ebaf48c67b7a3188a8e26f3072e726647de00f220b7e289c8ca22cb34",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T2": {
+    "contractHash": "a433e83598580778436fee61f53742bac77559ad9981bc4f3b8395ff74939bd9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T3": {
+    "contractHash": "d4acc44d55e0f84e16f086826b9269f4ae05c56beb5788604dd806950845861b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T4": {
+    "contractHash": "c2b9ee22ed42903d5576e67d172c730fb650718ef392115ea0b7bf1edb29edf8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T5": {
+    "contractHash": "6c13c9d7662069a073380d4c1512093bc39ad9a0574856ac2a59bda818e6b044",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T6": {
+    "contractHash": "1dee8cab03a4a2805de2dd4ba65f4f996e173302fd9b939a3b973dccba6779b8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T7": {
+    "contractHash": "a3b353a96fba61b3ff6d02446d0da7a0d236b093ddfe3cb7b3b519adba24f7d4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T8": {
+    "contractHash": "9b2d2ff91cb9ebae464214f5fca313b657cbd5a84c3b4b2bb9dc7fc143e7dce0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T9": {
+    "contractHash": "6b85faedd319e932fc00bc04a84221b7d84bc0fd6812b04ba060dffd0ddd4b36",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T1": {
+    "contractHash": "15de41d13bc04614f5ea9f22a8266518af09857b496dc4dda76a6b71756ec408",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T2": {
+    "contractHash": "a9252e0016ea6bf6d02ff45dfa5c673638a4b889fb6aa082a787912677d08a56",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T3": {
+    "contractHash": "0b72a49224093fc8c7de12bcb2b7e6f382f4a79fcef0eac2913a1d44686153d9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T4": {
+    "contractHash": "b9d092dbd7f682829a4918134b5f18f608811a5acb5260a9b375c1062f44ed8b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T5": {
+    "contractHash": "3ceb70164e359727e77ca1d7ef9888694934d01bf1858ef2e8b8802c08ee7528",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T1": {
+    "contractHash": "26721e0b0d819819e3727b30c333a296bba0227989da9c2815e52725a53af88d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T10": {
+    "contractHash": "c5e4f015203e5fc132075374291b4276f66d4b264232038d72878e36b2545cef",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T2": {
+    "contractHash": "3510c1db863d5db94cc896fa147cc51e867178048b0afa33b48b22dc6568481c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T3": {
+    "contractHash": "2139c7e9eb40030a92007e81d6e76c29313b53dde861c3eac6cb43b6e9f29d2b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T4": {
+    "contractHash": "e2abc594118f87a336ec2af809fb82aec6c0a6268f0b73955276c2a8a15d274c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T5": {
+    "contractHash": "12f2474c0081ae66c453f731147692a34c5ac3cf0a8ee8eec163d9a24873a66f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T6": {
+    "contractHash": "2a7069d4be2215547bdd3b3fcd4b792fc0b1eb3e8425be15a3854ba0b74cf5e0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T7": {
+    "contractHash": "8902f9c1ee029e8b3e0c567052812afd73e1688554c0d178173fa73f9dbc663d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T8": {
+    "contractHash": "0ff8d83a2d6462012d8dbc87d88cde0a8dce174f74b150f951cf195074f47cc5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T9": {
+    "contractHash": "d7503e6950164b26f8317be057977721c8c95d49500e92dbfb5465dc9c0bb779",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T1": {
+    "contractHash": "0357d591410dc2f28b07f6bdbacc2f297d3ee9f3ce98dd575861c78cd6a646d9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T2": {
+    "contractHash": "78774779dba28286c1be84749974e2ca0f1341f42c4c519035c2b8397bca22c8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T3": {
+    "contractHash": "4f7271a775ed89a0fcb6c94f037a9e33aed19a6c7741b89ab1084f0174e89c19",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T4": {
+    "contractHash": "cbf6e7d79eef264a686aea00f264d84b90ee2583db9861b36e2d47f7dbc1a1c4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T5": {
+    "contractHash": "f682835ed25bdd38b7e927863439354ef264d5e1845f5d20df90f0e4a953fefe",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T6": {
+    "contractHash": "c42fa6c4fde7a2079ee5b6f55aa2011f37d16d2b826e1b723776c10a5109e554",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T7": {
+    "contractHash": "31a3dd1db5dfda4ddbd506bbacac204c1aeb3807f5a2a1de5c605e1d4f5bb57e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T8": {
+    "contractHash": "235c08d26595b18e59cb7ea7f13c5cc491f043dd84d6aa7a37515ed208ccf476",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T9": {
+    "contractHash": "98683b896dbfdad2c3ef791e5b7cde214078d7de0a8bd6c84e19ebf63a1f734e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T1": {
+    "contractHash": "4e7614c206ebd1add01152fa6114f3434d19c38de8c6dcf050102bc1a224455b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T10": {
+    "contractHash": "7117c9de968aae926150d85d13d413d87bf200c97b7de0a6a8fda50352538a97",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T11": {
+    "contractHash": "20c4b8e85332408361d71731eb308c3f7ef0fb366d86137096b06864a2ec5284",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T2": {
+    "contractHash": "effc8949c900c8fb880809718348c1e6f47336706a5a808c7c16d3a675e440af",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T3": {
+    "contractHash": "5e003eb08e4f5e0898ee6f26d6b02daed5b94e8b3dca7dca7af9414ea7b16251",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T4": {
+    "contractHash": "c0e0b51eb4fd6cf1ad067392820c3128bccaf23a1b4c1671b29e5c4c38943e7c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T5": {
+    "contractHash": "dcac42722cc2e4f7053b0053140217fabbff5c923679191a60e0c9d1919fc708",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T6": {
+    "contractHash": "d5a7cca9650914c1140da8b09ad7aa3ef090526311e239d7218809a7f3deb7ad",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T7": {
+    "contractHash": "c36149a9a2e02eb9dfbbc9372cf962a354c5c651682413d8621ac22ba7bd49c5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T8": {
+    "contractHash": "7f018c6e3fafb7365793b0db24d78ae0209b0b8cc78cf44c0846d75e63fd5c97",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T9": {
+    "contractHash": "0011c20e80a76246ba7ac4bc07139ba6b1e2d094edc054e6dbed3a61d2b0db81",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T1": {
+    "contractHash": "a79ac98b52d7ddb3c0f29849a10f28a7f570f135c36e2bd563d30f8cc2cb1bfe",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T10": {
+    "contractHash": "91ebef5d2a79c03f3aad8d686946bf917bb231dd9e76a6ed22c1d2446733d60d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T11": {
+    "contractHash": "2fc77032dfb07743405d80f2edfe7fbc02c7e1e92bdda9e6dda39251be3ff7bf",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T12": {
+    "contractHash": "e3539feb29d1d6fd8c19573b6ddc8ed39f009e01c8fcc4b260a28617648a5042",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T13": {
+    "contractHash": "db1fd3003d209fe3712c905b70af8d1bc8245a7fae5eb9fb072806fbbf5d9152",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T14": {
+    "contractHash": "4e3de4d848c5917ab30f80ebcdd135175bbdd46c0c47409adae0474e0fdb8377",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T15": {
+    "contractHash": "6ed8ad9ca45d026ea981aa60c5d37d9cdc7801f32476c0a099b1765ced36d756",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T16": {
+    "contractHash": "0e4d30c7858d9eb433b7990e108bbaa1393477e55f5f642c2120a5498a45cec8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T18": {
+    "contractHash": "857368e1e5b36c7763299c7b37536b64b3ae083a8e99838016df6684c036de67",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T19": {
+    "contractHash": "2193ae1d3a0d48fa43f42a10c4011b8124da0f1f3de82fe56a35c9f8a66bd6ee",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T2": {
+    "contractHash": "aa96b671140c0298332c22cd19ec1aef71e2d1676d9d6eab14d8e7168964c370",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T20": {
+    "contractHash": "259a389506682442c38c99be411650d0e2bc672f50efd284ba6e71b2024a64d6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T21": {
+    "contractHash": "13b208f730ca5527bd70c8a4364cec1263217c3654c7084d8a68613992b7cbd6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T22": {
+    "contractHash": "234e5c6338eb99e5804360c7bf3d2dfcb9d3d1ba5e45593cf00a959fdadd36a1",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T24": {
+    "contractHash": "7361052057b1863ca9f4a2e5c906f573f14e15a6c076c8d5cbf03d182bc3f75e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T25": {
+    "contractHash": "7f3df31c830b52a4dfde6a94f599b966705d6de705764724d4ec68194f001dfc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T26": {
+    "contractHash": "2c621236e27aa1932db0f757a16c6e1a607460cbb77cdc9a789bbd0870db9249",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T27": {
+    "contractHash": "76062c2fa10e864154b9ae1eeef276a8ffa4c8d2043fa520680ce132ec529721",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T3": {
+    "contractHash": "bd67d25b5cb7ee34a0fa9c453123a5d57504f5f68566cd8702406bce9bca4ad2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T4": {
+    "contractHash": "a6bbff7549ce59b68cf224064afd93b117023f126f442b60f5611fb40e099f2d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T5": {
+    "contractHash": "2f3f47cacfcf2258d5ba3689691df0ed646ac831db53aa22f8622d308b67f504",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T6": {
+    "contractHash": "6d09ae7f6e694359bbee3804c3de48dd559193faffe5d5ad50e60222dc239dca",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T7": {
+    "contractHash": "8e6295be70d02c26083b7f420edbd6895ee3755245b5702a13ff79d7fd515010",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T8": {
+    "contractHash": "ac64a7fccc0e8b5ee58fd0fc2b3f40a832b5ad9a3560ef5c7aa890fc68784ee5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T9": {
+    "contractHash": "3b0bfe3fb09aaaa57fdd6155f58606c15bee40c9ee3ea7b861114967c443e745",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "P-R8-T54786768",
+        "sourceVersion": "e0bfc8d30a80cff4d9ad6ef491f33a0debb02d94e0b0966eeda395f2372ab450"
+      },
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r8-t54786768-err-handler-support-20260925",
+        "sourceVersion": "ba43a95ff8a4f952fceecfa700637dce8bcf0ef3b2e92e2bee597ce25dca68f2"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "85a4cc34039bea9ec1744916f4a0d5d7589e0c278844cc9ab0deb30a645dde57"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R12-T32133721": {
+    "contractHash": "9e13814cb4067e7d8e437e70f97ce5cd48a89a0451e0932d2a61972fe9306070",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R13-T98191508": {
+    "contractHash": "8f11f675502026ef78c4716e6b01fc7df23fe27ed1f0849c980775116716f81f",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md",
+          "task"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "bd286469172d094ec1122d633932114b5dddde128d5e3abc3f4ce5967cac7130"
+      },
+      {
+        "changedFields": [
+          "definition",
+          "effectivePaths",
+          "sections:02-设计/08-后端架构.md,02-设计/10-接口约定.md",
+          "task"
+        ],
+        "patch": "r8-e133-live-transport",
+        "sourceVersion": "419a63c2dadc2a49931ddcb84c8993d864bc07223c6b34396bc58db83bcc7728"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}

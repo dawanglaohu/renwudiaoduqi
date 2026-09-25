@@ -168,8 +168,8 @@ export const rerunRunBodySchema = {
 } as const;
 
 export interface CreateRunMessageBody {
-	readonly text: string;
-	readonly kind: 'reply' | 'approve' | 'deny';
+	readonly text?: string;
+	readonly kind: 'reply' | 'approve' | 'deny' | 'elevate_once';
 }
 
 export const CREATE_RUN_MESSAGE_BODY_KEYS = [
@@ -187,11 +187,26 @@ const _assertCreateRunMessageBody: AssertCreateRunMessageBodyExhaustive = true;
 export const createRunMessageBodySchema = {
 	type: 'object',
 	additionalProperties: false,
-	required: ['text', 'kind'],
+	required: ['kind'],
 	properties: {
-		text: { type: 'string', minLength: 1, maxLength: 32768 },
-		kind: { type: 'string', enum: ['reply', 'approve', 'deny'] },
+		kind: { type: 'string', enum: ['reply', 'approve', 'deny', 'elevate_once'] },
+		text: { type: 'string', maxLength: 32768 },
 	},
+	anyOf: [
+		{
+			properties: {
+				kind: { enum: ['reply', 'approve', 'deny'] },
+				text: { type: 'string', minLength: 1, maxLength: 32768 },
+			},
+			required: ['text', 'kind'],
+		},
+		{
+			properties: {
+				kind: { const: 'elevate_once' },
+			},
+			required: ['kind'],
+		},
+	],
 } as const;
 
 /**

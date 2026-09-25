@@ -15,6 +15,7 @@ import type {
 } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
+import type { CodexSessionRegistry } from '../adapters/codex/app-server-session.ts';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { resolveAssignment } from '../domain/assignment.ts';
@@ -36,6 +37,7 @@ import {
 	isTaskPathHolding,
 	parseWrapupFixSerialReason,
 } from '../domain/path-clash.ts';
+import { isPermissionTier, resolvePermissionMapping } from '../domain/permission-tier.ts';
 import { parsePipelineSettings } from '../domain/pipeline-settings.ts';
 import {
 	type RunState,
@@ -277,6 +279,7 @@ export interface DispatchServiceDeps {
 		) => ManagedProcess;
 	};
 	readonly adapters?: Readonly<Record<string, DispatchAdapter>>;
+	readonly codexSessions?: CodexSessionRegistry;
 	readonly runService?: RunService;
 	readonly reviewService?: {
 		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
@@ -2412,9 +2415,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				effortTier: effectiveEffort,
 				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
 				prompt: runPrompt,
-				// Codex exec carries the frozen prompt in argv; app-server requires a separate
-				// thread/start handshake that this dispatch path does not perform.
-				...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
+				// A fresh implementation run owns one bidirectional app-server process.
+				...(run.agent_id === 'codex'
+					? { mode: run.kind === 'implement' && deps.codexSessions ? 'app-server' : 'exec' }
+					: {}),
 			});
 
 			let managed: ManagedProcess;
@@ -2482,6 +2486,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 			deps.runService.attachProcess(runId, managed, {
 				eventMapper: adapter.mapEvents,
+				mapExitResult: (result) => {
+					const session = deps.codexSessions?.get(runId);
+					if (!session) return result;
+					return { ...result, exitCode: session.getTurnExitCode() ?? 1 };
+				},
 				onExit: async (result) => {
 					const isImplementLike =
 						run.kind === 'implement' || run.origin === 'rework' || run.origin === 'wrapup-fix';
@@ -2508,6 +2517,34 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				worktreePath: preparedWorktree.worktreePath,
 				branchName: preparedWorktree.branchName,
 			});
+			if (run.agent_id === 'codex' && launchSpec.stdinMode === 'pipe' && deps.codexSessions) {
+				const session = deps.codexSessions.register(runId, managed);
+				try {
+					const tier = run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite';
+					if (!isPermissionTier(tier)) {
+						throw new AppError('E_VALIDATION', 'Run has an invalid permission tier.');
+					}
+					const permission = resolvePermissionMapping('codex', tier);
+					if (!permission.supported || permission.transport.kind !== 'argv') {
+						throw new AppError(
+							'E_CAPABILITY_UNSUPPORTED',
+							'Codex permission tier has no sandbox mapping.',
+						);
+					}
+					await session.start({
+						prompt: runPrompt ?? '',
+						model: run.model_name ?? launchSpecData.model,
+						sandbox: permission.transport.value as
+							| 'read-only'
+							| 'workspace-write'
+							| 'danger-full-access',
+					});
+				} catch (error) {
+					session.dispose();
+					await managed.kill();
+					throw error;
+				}
+			}
 		} catch (error) {
 			logFailure(error);
 			throw error;

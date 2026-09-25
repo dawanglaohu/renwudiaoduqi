@@ -248,7 +248,8 @@ export function createDefaultGitRunner(deps: WorktreeManagerDeps): GitRunner {
 			const runId = `git_${deps.ids.newId()}`;
 			const spec: LaunchSpec = {
 				runId,
-				file: git.file,
+				// spawnManaged performs the cmd/bat wrapping itself; retain the shim path.
+				file: git.launchKind === 'com-spec' ? git.sourcePath : git.file,
 				args: [...git.argsPrefix, ...args],
 				cwd,
 				...(options?.envOverrides ? { envOverrides: options.envOverrides } : {}),
