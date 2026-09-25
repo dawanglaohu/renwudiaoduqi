@@ -22,7 +22,7 @@ import type { GatesRepo } from '../repo/gates.ts';
 import { type RunInsertRow, type RunsRepo, toRunDto } from '../repo/runs.ts';
 import type { SettingsRepo } from '../repo/settings.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
-import { type GitRunner, type WorktreeManagerDeps, getDiffStat } from '../workspace/diff.ts';
+import type { GitRunner, WorktreeManagerDeps } from '../workspace/diff.ts';
 import { readWorktreeStartingBaseline } from '../workspace/in-head.ts';
 import type { AgentService } from './agents.ts';
 import { createAssignmentReader } from './assignment-reader.ts';
@@ -66,7 +66,7 @@ export interface DispatchBughuntInput {
 }
 
 export interface DispatchBughuntResult {
-	readonly action: 'dispatched' | 'already_exists' | 'agent_unavailable';
+	readonly action: 'dispatched' | 'already_exists' | 'agent_unavailable' | 'baseline_unavailable';
 	readonly bughuntRun?: RunDto;
 	readonly gateId?: string;
 }
@@ -218,8 +218,69 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				? await readWorktreeStartingBaseline(
 						implRun.worktree_path,
 						deps.gitRunner ? { gitRunner: deps.gitRunner } : deps.worktreeDeps,
-					).catch(() => ({ headSha: 'HEAD', treeSha: 'HEAD' }))
-				: { headSha: 'HEAD', treeSha: 'HEAD' };
+					).catch((error: unknown) => {
+						deps.warn?.(`Cannot freeze bughunt baseline: ${error}`);
+						return null;
+					})
+				: null;
+			if (!baseline) {
+				const gateId = `gate_${deps.ids.newId()}`;
+				let laneReleasedEvent: EventEnvelope | null = null;
+				deps.unitOfWork.run(() => {
+					deps.runsRepo.updateState({
+						id: implRun.id,
+						fromState: implRun.state,
+						toState: 'awaiting_human',
+						endedAt: now,
+						queuedReason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+						actorDeviceId: input.actorDeviceId ?? null,
+					});
+					deps.gatesRepo?.create({
+						id: gateId,
+						task_id: taskId,
+						run_id: implRun.id,
+						kind: 'review',
+						state: 'waiting',
+						comment: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+						created_at: now,
+					});
+					if (deps.tasksRepo) {
+						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId,
+								runId: implRun.id,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId,
+									runId: implRun.id,
+									reason: 'awaiting_human',
+								},
+							});
+						}
+					}
+				});
+				if (laneReleasedEvent && deps.bus) deps.bus.publish(laneReleasedEvent);
+				if (deps.bus && deps.envelopeFactory) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'run.state_changed',
+							runId: implRun.id,
+							taskId,
+							actorDeviceId: input.actorDeviceId ?? null,
+							payload: {
+								from: implRun.state,
+								to: 'awaiting_human',
+								reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+							},
+						}),
+					);
+				}
+				return Object.freeze({ action: 'baseline_unavailable', gateId });
+			}
 
 			const bughuntPrompt = assembleBughuntPrompt({
 				worktreePath: implRun.worktree_path ?? '',
@@ -436,18 +497,16 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				const gateId = `gate_${deps.ids.newId()}`;
 				let laneReleasedEvent: EventEnvelope | null = null;
 				deps.unitOfWork.run(() => {
-					if (!isTerminalRunState(bughuntRun.state as RunState)) {
-						deps.runsRepo.updateState({
-							id: bughuntRun.id,
-							fromState: bughuntRun.state,
-							toState: 'failed',
-							endedAt: now,
-							queuedReason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
-							exitCode: input.exitCode ?? bughuntRun.exit_code,
-							exitSignal: input.exitSignal ?? bughuntRun.exit_signal,
-							actorDeviceId: input.actorDeviceId ?? null,
-						});
-					}
+					deps.runsRepo.updateState({
+						id: bughuntRun.id,
+						fromState: bughuntRun.state,
+						toState: 'failed',
+						endedAt: now,
+						queuedReason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+						exitCode: input.exitCode ?? bughuntRun.exit_code,
+						exitSignal: input.exitSignal ?? bughuntRun.exit_signal,
+						actorDeviceId: input.actorDeviceId ?? null,
+					});
 
 					deps.runsRepo.updateState({
 						id: implRun.id,
@@ -603,98 +662,98 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 
 			// 计算工作区 diff（相对起点树基线，E-329）
 			let hasWorkspaceDiff = false;
-			if (bughuntRun.worktree_path) {
-				try {
-					const diffResult = await getDiffStat(bughuntRun.worktree_path, {
-						baseRef: bughuntRun.branch_tip_sha ?? 'HEAD',
-						deps: deps.worktreeDeps,
-						runner: deps.gitRunner,
-					});
-					hasWorkspaceDiff = diffResult.filesChanged > 0;
-				} catch (diffErr) {
-					// R2: 差异读取失败不得按 clean 放行，直接转入 awaiting_human 并开 bughunt_failed 闸门
-					deps.warn?.(`Failed to read bughunt diff against baseline: ${diffErr}`);
-					const gateId = `gate_${deps.ids.newId()}`;
-					let laneReleasedEvent: EventEnvelope | null = null;
-					deps.unitOfWork.run(() => {
-						if (!isTerminalRunState(bughuntRun.state as RunState)) {
-							deps.runsRepo.updateState({
-								id: bughuntRun.id,
-								fromState: bughuntRun.state,
-								toState: 'failed',
-								endedAt: now,
-								queuedReason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
-								exitCode: input.exitCode ?? bughuntRun.exit_code,
-								exitSignal: input.exitSignal ?? bughuntRun.exit_signal,
-								actorDeviceId: input.actorDeviceId ?? null,
-							});
-						}
-
+			try {
+				if (!bughuntRun.worktree_path || !bughuntRun.branch_tip_sha) {
+					throw new Error('Bughunt run is missing its worktree baseline');
+				}
+				const current = await readWorktreeStartingBaseline(
+					bughuntRun.worktree_path,
+					deps.gitRunner ? { gitRunner: deps.gitRunner } : deps.worktreeDeps,
+				);
+				hasWorkspaceDiff = current.treeSha !== bughuntRun.branch_tip_sha;
+			} catch (diffErr) {
+				// R2: 差异读取失败不得按 clean 放行，直接转入 awaiting_human 并开 bughunt_failed 闸门
+				deps.warn?.(`Failed to read bughunt diff against baseline: ${diffErr}`);
+				const gateId = `gate_${deps.ids.newId()}`;
+				let laneReleasedEvent: EventEnvelope | null = null;
+				deps.unitOfWork.run(() => {
+					if (!isTerminalRunState(bughuntRun.state as RunState)) {
 						deps.runsRepo.updateState({
-							id: implRun.id,
-							fromState: implRun.state,
-							toState: 'awaiting_human',
+							id: bughuntRun.id,
+							fromState: bughuntRun.state,
+							toState: 'failed',
 							endedAt: now,
 							queuedReason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+							exitCode: input.exitCode ?? bughuntRun.exit_code,
+							exitSignal: input.exitSignal ?? bughuntRun.exit_signal,
 							actorDeviceId: input.actorDeviceId ?? null,
 						});
-
-						deps.gatesRepo?.create({
-							id: gateId,
-							task_id: taskId,
-							run_id: implRun.id,
-							kind: 'review',
-							state: 'waiting',
-							comment: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
-							created_at: now,
-						});
-
-						if (deps.tasksRepo) {
-							const laneRes = deps.tasksRepo.clearLaneNo(taskId);
-							if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-								laneReleasedEvent = deps.envelopeFactory.createEnvelope({
-									kind: 'lane.released',
-									taskId,
-									runId: implRun.id,
-									actorDeviceId: input.actorDeviceId ?? null,
-									payload: {
-										docId: laneRes.docId,
-										laneNo: laneRes.previousLaneNo,
-										taskId,
-										runId: implRun.id,
-										reason: 'awaiting_human',
-									},
-								});
-							}
-						}
-					});
-
-					if (laneReleasedEvent && deps.bus) {
-						deps.bus.publish(laneReleasedEvent);
 					}
 
-					if (deps.envelopeFactory && deps.bus) {
-						deps.bus.publish(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'run.state_changed',
-								runId: implRun.id,
+					deps.runsRepo.updateState({
+						id: implRun.id,
+						fromState: implRun.state,
+						toState: 'awaiting_human',
+						endedAt: now,
+						queuedReason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+						actorDeviceId: input.actorDeviceId ?? null,
+					});
+
+					deps.gatesRepo?.create({
+						id: gateId,
+						task_id: taskId,
+						run_id: implRun.id,
+						kind: 'review',
+						state: 'waiting',
+						comment: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+						created_at: now,
+					});
+
+					if (deps.tasksRepo) {
+						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
 								taskId,
+								runId: implRun.id,
 								actorDeviceId: input.actorDeviceId ?? null,
 								payload: {
-									from: implRun.state,
-									to: 'awaiting_human',
-									reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId,
+									runId: implRun.id,
+									reason: 'awaiting_human',
 								},
-							}),
-						);
+							});
+						}
 					}
+				});
 
-					return Object.freeze({
-						action: 'awaiting_human',
-						reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
-						gateId,
-					});
+				if (laneReleasedEvent && deps.bus) {
+					deps.bus.publish(laneReleasedEvent);
 				}
+
+				if (deps.envelopeFactory && deps.bus) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'run.state_changed',
+							runId: implRun.id,
+							taskId,
+							actorDeviceId: input.actorDeviceId ?? null,
+							payload: {
+								from: implRun.state,
+								to: 'awaiting_human',
+								reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+							},
+						}),
+					);
+				}
+
+				return Object.freeze({
+					action: 'awaiting_human',
+					reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+					gateId,
+				});
 			}
 
 			const outcome = decideBughuntOutcome({

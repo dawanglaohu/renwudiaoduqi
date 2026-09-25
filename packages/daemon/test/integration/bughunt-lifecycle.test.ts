@@ -211,7 +211,7 @@ interface GitDiffControl {
 	hasDiff: boolean;
 	filesChanged: number;
 	failDiffRead?: boolean;
-	treeShaOverride?: string;
+	treeVersion?: number;
 }
 
 function setupBughuntEnvironment(
@@ -310,18 +310,13 @@ function setupBughuntEnvironment(
 			if (command.includes('--is-inside-work-tree')) {
 				return { exitCode: 0, stdout: 'true\n', stderr: '' };
 			}
-			if (
-				gitDiffControl.failDiffRead &&
-				(command.includes('diff') ||
-					command.includes('--numstat') ||
-					command.includes('--name-status'))
-			) {
-				return { exitCode: 1, stdout: '', stderr: 'fatal: git diff failed\n' };
+			if (gitDiffControl.failDiffRead && command.includes('write-tree')) {
+				return { exitCode: 1, stdout: '', stderr: 'fatal: cannot freeze worktree\n' };
 			}
 			if (command.includes('write-tree')) {
 				return {
 					exitCode: 0,
-					stdout: 'e8a71c8901234567890123456789012345678901\n',
+					stdout: `${String(gitDiffControl.treeVersion ?? 0).padStart(40, '0')}\n`,
 					stderr: '',
 				};
 			}
@@ -329,7 +324,11 @@ function setupBughuntEnvironment(
 				return { exitCode: 0, stdout: '', stderr: '' };
 			}
 			if (command.includes('rev-parse')) {
-				return { exitCode: 0, stdout: 'e8a71c8901234567890123456789012345678901\n', stderr: '' };
+				return {
+					exitCode: 0,
+					stdout: `${String(gitDiffControl.treeVersion ?? 0).padStart(40, '0')}\n`,
+					stderr: '',
+				};
 			}
 			if (command.includes('status')) {
 				if (gitDiffControl.hasDiff) {
@@ -693,6 +692,7 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 		// FIXED with git diff
 		gitDiffControl.hasDiff = true;
 		gitDiffControl.filesChanged = 1;
+		gitDiffControl.treeVersion = 1;
 		bughuntProc?.emitLine(loadFixture('fixed.txt'));
 		await new Promise((r) => setTimeout(r, 30));
 		bughuntProc?.emitExit(0);
@@ -741,6 +741,7 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 
 		gitDiffControl.hasDiff = true;
 		gitDiffControl.filesChanged = 1;
+		gitDiffControl.treeVersion = 1;
 		bughuntProc?.emitLine(loadFixture('fixed.txt'));
 		await new Promise((r) => setTimeout(r, 30));
 		bughuntProc?.emitExit(0);
@@ -777,6 +778,7 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 		const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 		gitDiffControl.hasDiff = true;
+		gitDiffControl.treeVersion = 1;
 		// Report has both FIXED and NOT_FIXED S1
 		const reportWithBoth = `BUGS
 - B1 [S2] 涉及 task-1：边界值校验缺失 → 复现：略 → 根因：略 → src/service.ts:42
@@ -1162,6 +1164,21 @@ NEXT
 			expect(updatedImpl.queued_reason).toBe('bughunt_failed');
 		});
 
+		it('R2: a failed dispatch baseline freezes no run and opens a human gate', async () => {
+			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			env.gitDiffControl.failDiffRead = true;
+			const { implRunId } = await advanceToReviewPassed(env);
+			await waitFor(() =>
+				listWaitingGates(env.container).some((g) => g.comment === 'bughunt_failed'),
+			);
+			expect(
+				env.container.repos.runs.listByTaskId('task-1').some((r) => r.kind === 'bughunt'),
+			).toBe(false);
+			const parent = expectDefined(env.container.repos.runs.findById(implRunId), 'parent');
+			expect(parent.state).toBe('awaiting_human');
+			expect(parent.queued_reason).toBe('bughunt_failed');
+		});
+
 		it('R2: dirty workspace before bughunt and untouched during bughunt results in clean pass to landing gate', async () => {
 			const env = setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses, gitDiffControl } = env;
@@ -1180,8 +1197,7 @@ NEXT
 			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
 			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
-			// Untouched: hasDiff is false
-			gitDiffControl.hasDiff = false;
+			// Untouched: the dirty workspace still has the same tree as at dispatch.
 			bughuntProc?.emitLine(loadFixture('clean.txt'));
 			bughuntProc?.emitExit(0);
 
@@ -1214,6 +1230,7 @@ NEXT
 			// Has diff against baseline tree
 			gitDiffControl.hasDiff = true;
 			gitDiffControl.filesChanged = 1;
+			gitDiffControl.treeVersion = 1;
 			bughuntProc?.emitLine(loadFixture('fixed.txt'));
 			bughuntProc?.emitExit(0);
 

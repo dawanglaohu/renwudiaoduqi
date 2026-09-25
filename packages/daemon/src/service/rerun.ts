@@ -290,6 +290,12 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 		let isRetryableBughuntWait = false;
 		if (previousRun.kind === 'bughunt') {
+			if (previousRun.state !== 'failed' || previousRun.queued_reason !== 'bughunt_failed') {
+				throw new AppError(
+					'E_GATE_ALREADY_DECIDED',
+					`Bughunt run '${previousRun.id}' is not waiting after a bughunt failure.`,
+				);
+			}
 			const bughuntRuns = runsRepo.listByTaskId
 				? runsRepo.listByTaskId(task.id).filter((r) => r.kind === 'bughunt')
 				: [];
@@ -310,9 +316,8 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			const pendingGates = deps.gatesRepo?.list?.({ pendingOnly: true }) ?? [];
 			const bughuntFailedGate = pendingGates.find(
 				(g) =>
-					(g.run_id === previousRun.id ||
-						(previousRun.parent_run_id && g.run_id === previousRun.parent_run_id) ||
-						g.task_id === task.id) &&
+					g.run_id === previousRun.parent_run_id &&
+					g.task_id === task.id &&
 					g.comment === 'bughunt_failed',
 			);
 

@@ -418,19 +418,23 @@ export async function readWorktreeStartingBaseline(
 	const resolvedPath = nodePath.resolve(worktreePath);
 
 	const headResult = await runner.run(['rev-parse', 'HEAD'], resolvedPath);
-	if (headResult.exitCode !== 0) {
-		return Object.freeze({ headSha: 'HEAD', treeSha: 'HEAD' });
+	if (headResult.exitCode !== 0 || !headResult.stdout.trim()) {
+		throw new Error(`Cannot read worktree HEAD: ${headResult.stderr}`);
 	}
-	const headSha = headResult.stdout.trim() || 'HEAD';
+	const headSha = headResult.stdout.trim();
 
 	// 检查工作区是否有任何脏状态（已暂存、未暂存、untracked 文件）
 	const statusResult = await runner.run(['status', '--porcelain', '-z', '-uall'], resolvedPath);
-	if (statusResult.exitCode === 0 && !statusResult.stdout.trim()) {
+	if (statusResult.exitCode !== 0) {
+		throw new Error(`Cannot read worktree status: ${statusResult.stderr}`);
+	}
+	if (!statusResult.stdout) {
 		// 干净工作区：直接取 HEAD^{tree}
 		const treeResult = await runner.run(['rev-parse', 'HEAD^{tree}'], resolvedPath);
-		const treeSha =
-			treeResult.exitCode === 0 && treeResult.stdout.trim() ? treeResult.stdout.trim() : headSha;
-		return Object.freeze({ headSha, treeSha });
+		if (treeResult.exitCode !== 0 || !treeResult.stdout.trim()) {
+			throw new Error(`Cannot read clean worktree tree: ${treeResult.stderr}`);
+		}
+		return Object.freeze({ headSha, treeSha: treeResult.stdout.trim() });
 	}
 
 	// 脏工作区：使用独立临时 index 冻结真实工作区状态为树对象（含修改与 untracked），不污染实际 index
@@ -442,19 +446,22 @@ export async function readWorktreeStartingBaseline(
 		const readRes = await runner.run(['read-tree', headSha], resolvedPath, {
 			envOverrides: { GIT_INDEX_FILE: tempIndexPath },
 		});
-		if (readRes.exitCode === 0) {
-			await runner.run(['add', '-A'], resolvedPath, {
-				envOverrides: { GIT_INDEX_FILE: tempIndexPath },
-			});
-			const writeRes = await runner.run(['write-tree'], resolvedPath, {
-				envOverrides: { GIT_INDEX_FILE: tempIndexPath },
-			});
-			if (writeRes.exitCode === 0 && writeRes.stdout.trim()) {
-				return Object.freeze({ headSha, treeSha: writeRes.stdout.trim() });
-			}
+		if (readRes.exitCode !== 0) {
+			throw new Error(`Cannot initialize worktree snapshot: ${readRes.stderr}`);
 		}
-	} catch {
-		// 容错回退
+		const addRes = await runner.run(['add', '-A'], resolvedPath, {
+			envOverrides: { GIT_INDEX_FILE: tempIndexPath },
+		});
+		if (addRes.exitCode !== 0) {
+			throw new Error(`Cannot stage worktree snapshot: ${addRes.stderr}`);
+		}
+		const writeRes = await runner.run(['write-tree'], resolvedPath, {
+			envOverrides: { GIT_INDEX_FILE: tempIndexPath },
+		});
+		if (writeRes.exitCode !== 0 || !writeRes.stdout.trim()) {
+			throw new Error(`Cannot freeze worktree snapshot: ${writeRes.stderr}`);
+		}
+		return Object.freeze({ headSha, treeSha: writeRes.stdout.trim() });
 	} finally {
 		try {
 			await nodeFs.unlink(tempIndexPath);
@@ -462,12 +469,4 @@ export async function readWorktreeStartingBaseline(
 			// ignore cleanup error
 		}
 	}
-
-	const fallbackTreeResult = await runner.run(['rev-parse', 'HEAD^{tree}'], resolvedPath);
-	const treeSha =
-		fallbackTreeResult.exitCode === 0 && fallbackTreeResult.stdout.trim()
-			? fallbackTreeResult.stdout.trim()
-			: headSha;
-
-	return Object.freeze({ headSha, treeSha });
 }

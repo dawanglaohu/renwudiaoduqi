@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -142,6 +142,10 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 	let messageService: ReturnType<typeof createMessageService>;
 
 	let app: FastifyInstance;
+	const dispatchBughuntInRepo = async (implRunId: string) => {
+		db.prepare('UPDATE runs SET worktree_path = ? WHERE id = ?').run(gitRepoPath, implRunId);
+		return bughuntService.dispatchBughunt({ implRunId });
+	};
 
 	beforeEach(async () => {
 		gitRepoPath = createTempGitRepo('pipeline-lanes-git-');
@@ -293,10 +297,14 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		});
 
 		const realGitRunner: GitRunner = {
-			run: async (args: readonly string[], cwd?: string) => {
-				const cmd = `git ${args.map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' ')}`;
+			run: async (args, cwd, options) => {
 				try {
-					const stdout = execSync(cmd, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+					const stdout = execFileSync('git', [...args], {
+						cwd,
+						env: { ...process.env, ...options?.envOverrides },
+						encoding: 'utf8',
+						stdio: ['pipe', 'pipe', 'pipe'],
+					});
 					return { stdout, stderr: '', exitCode: 0 };
 				} catch (err: unknown) {
 					const errObj = err as {
@@ -691,7 +699,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		runsRepo.updateState({ id: implRun.id, toState: 'reviewing' });
 
 		// Assertion ④: dispatch bughunt run
-		const bhResult = await bughuntService.dispatchBughunt({ implRunId: implRun.id });
+		const bhResult = await dispatchBughuntInRepo(implRun.id);
 		expect(bhResult.action).toBe('dispatched');
 		expect(bhResult.bughuntRun).toBeDefined();
 
@@ -762,7 +770,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		db.prepare('UPDATE runs SET worktree_path = ? WHERE id = ?').run(gitRepoPath, implRun.id);
 		runsRepo.updateState({ id: implRun.id, toState: 'reviewing' });
 
-		const bhResult = await bughuntService.dispatchBughunt({ implRunId: implRun.id });
+		const bhResult = await dispatchBughuntInRepo(implRun.id);
 		const bhRun = runsRepo.findById(bhResult.bughuntRun?.id ?? '');
 		if (!bhRun) throw new Error('bhRun is undefined');
 
@@ -791,7 +799,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		);
 		runsRepo.updateState({ id: implRun2.id, toState: 'reviewing' });
 
-		const bhResult2 = await bughuntService.dispatchBughunt({ implRunId: implRun2.id });
+		const bhResult2 = await dispatchBughuntInRepo(implRun2.id);
 		const bhRun2 = runsRepo.findById(bhResult2.bughuntRun?.id ?? '');
 		if (!bhRun2) throw new Error('bhRun2 is undefined');
 
@@ -818,7 +826,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 
 		runsRepo.updateState({ id: implRun.id, toState: 'reviewing' });
 
-		const bhResult = await bughuntService.dispatchBughunt({ implRunId: implRun.id });
+		const bhResult = await dispatchBughuntInRepo(implRun.id);
 		const bhRun = runsRepo.findById(bhResult.bughuntRun?.id ?? '');
 		if (!bhRun) throw new Error('bhRun is undefined');
 
@@ -860,7 +868,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 
 		runsRepo.updateState({ id: implRun.id, toState: 'reviewing' });
 
-		const bhResult = await bughuntService.dispatchBughunt({ implRunId: implRun.id });
+		const bhResult = await dispatchBughuntInRepo(implRun.id);
 		const bhRun = runsRepo.findById(bhResult.bughuntRun?.id ?? '');
 		if (!bhRun) throw new Error('bhRun is undefined');
 
@@ -910,7 +918,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 
 		runsRepo.updateState({ id: implRun.id, toState: 'reviewing' });
 
-		const bhResult = await bughuntService.dispatchBughunt({ implRunId: implRun.id });
+		const bhResult = await dispatchBughuntInRepo(implRun.id);
 		const bhRun = runsRepo.findById(bhResult.bughuntRun?.id ?? '');
 		if (!bhRun) throw new Error('bhRun is undefined');
 
