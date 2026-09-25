@@ -42,7 +42,8 @@
 			"AGENTS.md",
 			"CLAUDE.md",
 			"packages/daemon/test/fixtures/agents.json",
-			"packages/daemon/test/fixtures/pairing-code.txt"
+			"packages/daemon/test/fixtures/pairing-code.txt",
+			"e2e/**"
 		]
 	}
 }

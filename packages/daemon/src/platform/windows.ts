@@ -102,18 +102,28 @@ export function windowsExecutableCandidatePaths(
 		roots.set(normalized.toLowerCase(), normalized);
 	};
 
+	const driveRoots = new Set<string>(['C:\\', 'D:\\', 'E:\\']);
+
 	if (homeRoot.isValidForCurrentPlatform) {
 		const driveRoot = win32.parse(homeRoot.normalizedPath).root;
+		if (driveRoot.length > 0) {
+			driveRoots.add(driveRoot);
+		}
 		addRoot(win32.join(homeRoot.normalizedPath, 'AppData', 'Roaming', 'npm'));
+		addRoot(win32.join(homeRoot.normalizedPath, 'AppData', 'Local', 'Programs', 'Git', 'cmd'));
+		addRoot(win32.join(homeRoot.normalizedPath, 'AppData', 'Local', 'Programs', 'Git', 'bin'));
 		addRoot(win32.join(homeRoot.normalizedPath, '.local', 'bin'));
 		addRoot(win32.join(homeRoot.normalizedPath, '.grok', 'bin'));
-		if (driveRoot.length > 0) {
-			addRoot(win32.join(driveRoot, 'Program Files', 'nodejs', 'node_global'));
-			addRoot(win32.join(driveRoot, 'Program Files', 'nodejs'));
-		}
 	}
-	addRoot('C:\\Program Files\\nodejs\\node_global');
-	addRoot('C:\\Program Files\\nodejs');
+
+	for (const drive of driveRoots) {
+		addRoot(win32.join(drive, 'Program Files', 'nodejs', 'node_global'));
+		addRoot(win32.join(drive, 'Program Files', 'nodejs'));
+		addRoot(win32.join(drive, 'Program Files', 'Git', 'cmd'));
+		addRoot(win32.join(drive, 'Program Files', 'Git', 'bin'));
+		addRoot(win32.join(drive, 'Program Files (x86)', 'Git', 'cmd'));
+		addRoot(win32.join(drive, 'Program Files (x86)', 'Git', 'bin'));
+	}
 
 	const extension = win32.extname(executableName).toLowerCase();
 	const hasKnownExtension =
