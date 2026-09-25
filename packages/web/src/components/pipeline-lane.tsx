@@ -215,9 +215,7 @@ export function PipelineLane({
 			wrapupBatchNo={isWrapup ? wrapupBatchNo : null}
 			status={laneStatus}
 			run={currentRun}
-			sessionNo={
-				currentRun?.sessionNo ?? (lane as { readonly sessionNo?: number | null }).sessionNo ?? null
-			}
+			sessionNo={currentRun?.sessionNo ?? null}
 			agentMonogram={lane.agentMonogram}
 			agentName={lane.agentName}
 			modelName={currentRun?.modelName ?? lane.modelName}
@@ -227,7 +225,7 @@ export function PipelineLane({
 			effortVendor={currentRun?.effortVendor ?? null}
 			reportedEffort={currentRun?.reportedEffort ?? null}
 			permissionTier={currentRun?.permissionTier ?? null}
-			assignmentSource={currentRun?.assignmentSource ?? lane.refSource ?? null}
+			assignmentSource={currentRun?.assignmentSource ?? null}
 			followedTaskId={currentRun?.followedTaskId ?? null}
 			tokenCount={lane.tokenCount}
 			cost={lane.cost}

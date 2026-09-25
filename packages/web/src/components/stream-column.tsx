@@ -83,8 +83,6 @@ export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id
 	readonly agentName?: string;
 	/** 模型名称 */
 	readonly modelName?: string;
-	/** 参照条来源说明（M2/daemon 下发字段，缺失显示 '—'） */
-	readonly refSource?: string;
 	/** 耗时（毫秒数值或已格式化字符串，无数据返回 '—'） */
 	readonly duration?: number | string | null;
 	/** Token 消耗显示（无数据返回 '—' 禁止返回 0） */
@@ -167,7 +165,6 @@ export function StreamColumn(props: StreamColumnProps) {
 		agentMonogram,
 		agentName,
 		modelName,
-		refSource,
 		duration,
 		tokenCount,
 		cost,
@@ -236,7 +233,6 @@ export function StreamColumn(props: StreamColumnProps) {
 	const displayTokens = formatTokenCount(tokenCount);
 	const displayCost = formatCost(cost);
 	const resolvedCanStop = kind === 'idle' ? false : canStop;
-	const displayRefSource = refSource && refSource.trim().length > 0 ? refSource.trim() : '—';
 	const displayModelOrAgent = modelName ?? agentName ?? '—';
 	const displayMonogram = formatMonogram(agentMonogram, agentName);
 
@@ -431,11 +427,7 @@ export function StreamColumn(props: StreamColumnProps) {
 						permissionTier !== undefined ? permissionTier : (run?.permissionTier ?? null)
 					}
 					assignmentSource={
-						assignmentSource !== undefined
-							? assignmentSource
-							: refSource !== undefined
-								? refSource
-								: (run?.assignmentSource ?? null)
+						assignmentSource !== undefined ? assignmentSource : (run?.assignmentSource ?? null)
 					}
 					followedTaskId={
 						followedTaskId !== undefined ? followedTaskId : (run?.followedTaskId ?? null)

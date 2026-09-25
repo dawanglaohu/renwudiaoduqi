@@ -348,6 +348,24 @@ describe('PipelineLane: Feature semantics and edge cases (AC 1, 5, 6, 7, E-309, 
 
 	// ─── M9-T17 / R1 & R2: 流头部参照条与会话序号真实接线测试 ───
 	describe('PipelineLane: StreamHeadMeta real wiring and reference bar (M9-T17 / R1, R2)', () => {
+		it('R1: source and session ordinal stay unknown when the current RunDto omits them', () => {
+			const lane = createMockLane({ refSource: 'dispatch.prompt', currentRunId: 'run-1' });
+			const run = createMockRun({ id: 'run-1', assignmentSource: undefined, sessionNo: undefined });
+			const html = renderToStaticMarkup(
+				createElement(PipelineLane, {
+					lane,
+					task: createMockTask(),
+					runs: [run],
+					stageOrder: PIPELINE_STAGES,
+					tier: 'full',
+				}),
+			);
+
+			expect(html).toContain('来源：—');
+			expect(html).not.toContain('dispatch.prompt');
+			expect(html).not.toContain('data-session-ordinal');
+		});
+
 		it('R1 (implement): wired with currentRun RunDto, displays 4-segment refBar and neutral sessionNo without duplicating', () => {
 			const lane = createMockLane({
 				laneNo: 1,
