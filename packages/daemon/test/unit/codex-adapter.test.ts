@@ -961,10 +961,7 @@ describe('M4-T8: codex 原生适配器', () => {
 				},
 			});
 			const result = parseAndMapCodexLine(line, context);
-			expect(result.events.map((event) => event.kind)).toEqual([
-				'run.stderr_line',
-				'run.exited',
-			]);
+			expect(result.events.map((event) => event.kind)).toEqual(['run.stderr_line', 'run.exited']);
 			expect(result.events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
 		});
 

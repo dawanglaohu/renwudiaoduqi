@@ -30,18 +30,19 @@
     "_run/batches/batch-13-20260924.md": "54915031c7a3261773a87a6eca7694a7f8e4f376181eec64bd72fa9a2b8c4bbe",
     "_run/batches/batch-14-20260925.md": "b24fcc261b32768984e8a56e4ced70be74a1dc5b5811e2d998f810660d3fd1b5",
     "_run/batches/batch-8-20260922-r3.md": "52aa2002768a4e638ce58603139f8917725e8b5fc80ecdce4ad06bfc07516f47",
-    "_run/batches/batch-8-20260922.md": "338b2529a95a6798832b7ab41f5aa3922cd027947a35069b64ab6540f04d41c8",
+    "_run/batches/batch-8-20260922.md": "deecc561c1cac3850acc32f98c6d7c082a1d7af7843aa324561f608406d561e3",
+    "_run/batches/batch-8-20260926-scope-amendment.md": "0d5831878a2352f8e0d72de76a9d016322f16df9fafa4ccc7223a43df90b8f49",
     "_run/presentation.json": "f98a44c6e4eeb2791a017b68817bf16ce6d5435d380d85c23b6af621d83d0247",
     "_run/task-contracts.json": "10481b731d822c95ce131a43fcdb649735f6ecf12607ca09ad654a59e1114cc6"
   },
   "products": {
     "_MOC.md": "ff5d99e1311e1642e157478d7adcb13585bbdaa649f8778f006b43030e33ca6c",
-    "_run/dispatch.json": "a637496ea09cb69884ec257a3b18d7e330428e447d6349289f9b21790b69af31",
-    "_run/review.json": "e9760cdb8e3ce5aaa08dfbfb51c3a9bd15279324cc23363f0570ddbe8aa21dce",
-    "_run/task-reviews.json": "6f9b80a0e8f7287b590fda70a51040caa0e3cfd81854d6735570c222c17936ab",
-    "docs-data.js": "9829a2bbd180962dba35504f01315a406e96332df0de7fec91a40c7840c840b9",
+    "_run/dispatch.json": "a6edcc1e1e30abc7299dfc0473cf0ced2525d3eba7e258b5f314f816a45fb40c",
+    "_run/review.json": "2b47731f12331a16a475a7026586d0e0f14e198a516ebddc1d0fb63b86e90be8",
+    "_run/task-reviews.json": "0b05f4d4ee9e891cf5dc5bc4a9ceee0ebfebe8fa629c3f557f43a528c4bf1ef5",
+    "docs-data.js": "6391b8c14eeb4581151f3590ef150d0e76aca264a57c495d13cd2087623fe823",
     "index.html": "f2ddcba5a883cc52807abedbf664750f4a98c6feb6aff4529051fb3acfbfbb0d"
   },
   "schemaVersion": 1,
-  "sourceVersion": "d7f8e9b534e31828fd51a91f79204a87bdb3ff838d901a33f7a1b72988c4aa21"
+  "sourceVersion": "4371fe1af551e379b74e254b50c103e9256d881c3c94bb247f1bba2439038416"
 }
