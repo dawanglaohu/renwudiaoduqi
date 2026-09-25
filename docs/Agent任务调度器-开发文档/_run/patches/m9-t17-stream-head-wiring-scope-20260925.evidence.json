@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T17": {
+      "contractHash": "96f9cf3cb08c073e3ad2cb35b9d305d4dc6317ef93b102e6f5a85dc53b876bd9",
+      "evidence": [
+        "2026-09-25 核对图谱/任务/M9-T17.md、04-执行/19-模块任务拆分.md:104 与当前派发包：五条验收标准、七条边界及 M9-T9/M4-T6/M4-T7/M4-T14/M8-T9 前置未变；契约哈希只因必要支持路径增加而变化。",
+        "实际产品入口 packages/web/src/features/run-deck/lanes-container.tsx 将运行列表传入 packages/web/src/components/pipeline-lane.tsx，后者将参照条插槽交给 packages/web/src/components/stream-column.tsx。当前新增 StreamHeadMeta 仅被自身单测引用，故满足‘每条流头部之下常驻’必须允许接入这两个既有组件，并用 pipeline-lane 与 stream-column 测试固定真实展示层接线。",
+        "补丁只向 M9-T17 的 task-contracts.json supportPaths 增加 pipeline-lane.tsx、stream-column.tsx 与三个对应测试文件；taskPaths 仍为 stream-head-meta.tsx，未修改验收标准或边界。开放 PR #153 和 #155 未触碰这些 web 路径，未与在途任务抢文件；M9-T9/M9-T20/M9-T21 已落地主干。",
+        "02-设计/07-前端架构要求 components 只按 props 展示、features 负责接入数据；03-质量/17-测试策略.md 要求 pnpm -w check 与 GUI 真服务动图。当前 PR 的实现能否通过代码验收另按本轮 REVIEW-ROUND 1 处理，本次 verify 仅登记任务契约的语义复核。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

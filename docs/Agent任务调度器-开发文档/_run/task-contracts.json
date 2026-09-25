@@ -1224,6 +1224,11 @@
       ],
       "supportPaths": [
         "packages/web/test/stream-head-meta.test.tsx",
+        "packages/web/test/pipeline-lane.test.tsx",
+        "packages/web/test/stream-column.test.tsx",
+        "packages/web/test/stream-column.test.ts",
+        "packages/web/src/components/pipeline-lane.tsx",
+        "packages/web/src/components/stream-column.tsx",
         "packages/web/src/i18n/ui-strings.ts",
         "packages/shared/src/api/runs.ts"
       ],
