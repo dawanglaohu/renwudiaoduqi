@@ -854,6 +854,27 @@ function mapParsedObject(
 							? turn.error
 							: null;
 
+				if (status === 'failed') {
+					const contextModel =
+						turn.modelName ?? turn.model ?? turn.model_name ?? params.modelName ?? params.model;
+					const modelRejected = detectModelRejection(turnError, contextModel);
+					if (modelRejected !== null) {
+						events.push(
+							createInput(
+								'run.model_rejected',
+								{
+									code: 'model_invalid',
+									modelName: modelRejected.modelName,
+									vendorMessage: modelRejected.vendorMessage,
+									vendor: parsed,
+								},
+								context,
+							),
+						);
+						return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+					}
+				}
+
 				const resolutionEvents = mapTurnResolution(status, errorMessage, parsed, context);
 				events.push(...resolutionEvents);
 				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
@@ -1043,12 +1064,35 @@ function mapParsedObject(
 
 			case 'turn.failed':
 			case 'turn/failed': {
+				const errorObj =
+					typeof record.error === 'object' && record.error !== null
+						? (record.error as Record<string, unknown>)
+						: null;
 				const errorMessage =
-					typeof record.error === 'string'
-						? record.error
-						: typeof record.message === 'string'
-							? record.message
-							: null;
+					typeof errorObj?.message === 'string'
+						? errorObj.message
+						: typeof record.error === 'string'
+							? record.error
+							: typeof record.message === 'string'
+								? record.message
+								: null;
+				const contextModel = record.modelName ?? record.model ?? record.model_name;
+				const modelRejected = detectModelRejection(errorObj, contextModel);
+				if (modelRejected !== null) {
+					events.push(
+						createInput(
+							'run.model_rejected',
+							{
+								code: 'model_invalid',
+								modelName: modelRejected.modelName,
+								vendorMessage: modelRejected.vendorMessage,
+								vendor: parsed,
+							},
+							context,
+						),
+					);
+					return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });
+				}
 				const resolutionEvents = mapTurnResolution('failed', errorMessage, parsed, context);
 				events.push(...resolutionEvents);
 				return Object.freeze({ events: Object.freeze(events), unmappedCount: 0, rawLine });

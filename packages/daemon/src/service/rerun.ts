@@ -10,6 +10,7 @@ import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { GatesRepo } from '../repo/gates.ts';
 import { type RunInsertRow, type RunsRepo, isConstraintConflict, toRunDto } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
+import type { LogstoreService } from './logstore.ts';
 import { assertSessionRefFree } from './session-guard.ts';
 
 export interface RerunRunInput {
@@ -71,6 +72,7 @@ export interface RerunServiceDeps {
 	readonly envelopeFactory?: EnvelopeFactory;
 	readonly isAgentDispatchable?: (agentId: string) => boolean;
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
+	readonly logstore?: LogstoreService;
 }
 
 export interface RerunService {
@@ -78,7 +80,7 @@ export interface RerunService {
 	readonly redispatchRun: (input: RedispatchRunInput) => Promise<RedispatchRunResult>;
 	readonly checkDocSnapshotStale: (task: TaskRow) => void;
 	readonly checkBatchAlignment: (task: TaskRow) => BatchAlignmentResult;
-	readonly handleModelInvalid: (input: HandleModelInvalidInput) => RunDto;
+	readonly handleModelInvalid: (input: HandleModelInvalidInput) => Promise<RunDto>;
 }
 
 /**
@@ -604,9 +606,10 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 	/**
 	 * Marks a run as failed due to invalid model name (AC 6 & E-36).
 	 * Sets queued_reason to '派发失败·模型无效', releases lane (tasks.lane_no → NULL),
-	 * publishes lane.released, and supersedes pending gates so the gate card disappears.
+	 * and supersedes pending gates in a single atomic transaction.
+	 * Events are persisted to logstore before publishing to the event bus.
 	 */
-	function handleModelInvalid(input: HandleModelInvalidInput): RunDto {
+	async function handleModelInvalid(input: HandleModelInvalidInput): Promise<RunDto> {
 		const run = runsRepo.findById(input.runId);
 		if (!run) {
 			throw new AppError('E_NOT_FOUND', `Run not found: ${input.runId}`, {
@@ -621,12 +624,33 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		}
 
 		const now = clock.now();
-		runsRepo.updateState({
-			id: run.id,
-			state: 'failed',
-			queuedReason: '派发失败·模型无效',
-			endedAt: now,
-		});
+		let laneRes:
+			| { docId: string | null; previousLaneNo: number | null; changes: number }
+			| undefined;
+
+		// 原子提交 failed 状态、泳道释放与审批卡作废 (R1)
+		const persist = (): void => {
+			runsRepo.updateState({
+				id: run.id,
+				state: 'failed',
+				queuedReason: '派发失败·模型无效',
+				endedAt: now,
+			});
+
+			if (run.task_id) {
+				laneRes = deps.tasksRepo.clearLaneNo?.(run.task_id);
+			}
+
+			if (deps.gatesRepo && run.task_id) {
+				deps.gatesRepo.supersedePendingByRunIds?.([run.id], now);
+			}
+		};
+
+		if (deps.unitOfWork) {
+			deps.unitOfWork.run(persist);
+		} else {
+			persist();
+		}
 
 		const pendingEnvelopes: EventEnvelope[] = [];
 
@@ -647,33 +671,40 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			);
 		}
 
-		// Release lane: set tasks.lane_no = NULL and emit lane.released{reason:'failed'} (E-36)
-		if (run.task_id) {
-			const laneRes = deps.tasksRepo.clearLaneNo?.(run.task_id);
-			if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-				pendingEnvelopes.push(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'lane.released',
+		// Release lane: emit lane.released{reason:'failed'} (E-36)
+		if (run.task_id && laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+			pendingEnvelopes.push(
+				deps.envelopeFactory.createEnvelope({
+					kind: 'lane.released',
+					taskId: run.task_id,
+					runId: run.id,
+					payload: {
+						docId: laneRes.docId ?? '',
+						laneNo: laneRes.previousLaneNo,
 						taskId: run.task_id,
 						runId: run.id,
-						payload: {
-							docId: laneRes.docId,
-							laneNo: laneRes.previousLaneNo,
-							taskId: run.task_id,
-							runId: run.id,
-							reason: 'failed',
-						},
-					}) as EventEnvelope,
-				);
+						reason: 'failed',
+					},
+				}) as EventEnvelope,
+			);
+		}
+
+		// 事务外：事件先落盘再发布 (R1)
+		if (deps.logstore) {
+			for (const envelope of pendingEnvelopes) {
+				const appendResult = await deps.logstore.appendEvent(run.id, envelope);
+				if (deps.bus) {
+					const locationRef = appendResult?.location
+						? {
+								fileSeq: appendResult.location.fileSeq,
+								byteOffset: appendResult.location.byteOffset,
+								byteLen: appendResult.location.byteLen,
+							}
+						: undefined;
+					deps.bus.publish(envelope, locationRef);
+				}
 			}
-		}
-
-		// Supersede any pending gate cards so the approval card disappears (E-36)
-		if (deps.gatesRepo && run.task_id) {
-			deps.gatesRepo.supersedePendingByRunIds?.([run.id], now);
-		}
-
-		if (deps.bus) {
+		} else if (deps.bus) {
 			for (const envelope of pendingEnvelopes) {
 				deps.bus.publish(envelope);
 			}

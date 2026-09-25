@@ -671,6 +671,7 @@ export function createContainer(input: {
 		ids,
 		bus,
 		envelopeFactory,
+		logstore: logstoreService,
 	});
 
 	const runService =
@@ -697,8 +698,8 @@ export function createContainer(input: {
 			gatesRepo: gates,
 			ids,
 			// E-36: delegate model-rejection handling to rerunService
-			handleModelInvalid: (inp) => {
-				rerunService.handleModelInvalid(inp);
+			handleModelInvalid: async (inp) => {
+				await rerunService.handleModelInvalid(inp);
 			},
 		});
 

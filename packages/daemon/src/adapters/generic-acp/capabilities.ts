@@ -5,6 +5,7 @@ export interface GenericAcpCapabilities {
 	readonly sessionHistory: 'current-run-only';
 	readonly isAcp: true;
 	readonly supportsReasoningEffort: boolean;
+	readonly reportsModelRejection: boolean;
 }
 
 export const GENERIC_ACP_CAPABILITIES: GenericAcpCapabilities = Object.freeze({
@@ -14,6 +15,7 @@ export const GENERIC_ACP_CAPABILITIES: GenericAcpCapabilities = Object.freeze({
 	sessionHistory: 'current-run-only', // AC 6, E-188: ACP v1 has no session list, history comes from scheduler
 	isAcp: true,
 	supportsReasoningEffort: false,
+	reportsModelRejection: false,
 });
 
 /**

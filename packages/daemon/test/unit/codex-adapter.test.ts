@@ -20,6 +20,10 @@ import {
 	parseAndMapCodexLine,
 } from '../../src/adapters/codex/map-events.ts';
 import { readCodexModels, readModels } from '../../src/adapters/codex/read-models.ts';
+import { getDshCapabilities } from '../../src/adapters/dsh/capabilities.ts';
+import { getGenericAcpCapabilities } from '../../src/adapters/generic-acp/capabilities.ts';
+import { getGrokCapabilities } from '../../src/adapters/grok/capabilities.ts';
+import { getPiCapabilities } from '../../src/adapters/pi/capabilities.ts';
 import { EFFORT_TIERS } from '../../src/domain/effort-tier.ts';
 import { PERMISSION_TIERS } from '../../src/domain/permission-tier.ts';
 import { parseWrapupReport } from '../../src/domain/wrapup-report.ts';
@@ -831,36 +835,103 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(unknownType.events).toEqual([]);
 		});
 
-		it('R8-T97041355 AC 2 & E-36: turn/failed with structured error code/type emits exactly one run.model_rejected', () => {
-			const structuredLine = JSON.stringify({
+		it('R8-T97041355 AC 2 & E-36: desensitized real Codex JSON-RPC turn/failed with structured error extracts modelName and emits run.model_rejected', () => {
+			// Real desensitized Codex app-server line: turn.model provided, error.code = 'model_not_found'
+			const realDesensitizedLine = JSON.stringify({
+				jsonrpc: '2.0',
 				method: 'turn/failed',
 				params: {
+					threadId: 'th_01HXYZ1234567890ABCDEF',
 					turn: {
-						model: 'gpt-fake-model',
+						id: 'turn_01HXYZ1234567890ABCDEF',
+						model: 'gpt-5-unsupported-preview',
+						status: 'failed',
 						error: {
 							code: 'model_not_found',
-							message: 'The model gpt-fake-model does not exist',
+							message:
+								'The model `gpt-5-unsupported-preview` does not exist or you do not have access to it.',
+							type: 'invalid_request_error',
 						},
 					},
 				},
 			});
 
-			const result = parseAndMapCodexLine(structuredLine, context);
+			const result = parseAndMapCodexLine(realDesensitizedLine, context);
 			expect(result.events).toHaveLength(1);
 			expect(result.events[0]?.kind).toBe('run.model_rejected');
 			expect(result.events[0]?.payload).toMatchObject({
 				code: 'model_invalid',
-				modelName: 'gpt-fake-model',
-				vendorMessage: 'The model gpt-fake-model does not exist',
+				modelName: 'gpt-5-unsupported-preview',
+				vendorMessage:
+					'The model `gpt-5-unsupported-preview` does not exist or you do not have access to it.',
 			});
 			expect(result.unmappedCount).toBe(0);
+		});
+
+		it('R8-T97041355 AC 2 & E-36: extracts modelName when model field is nested inside error object', () => {
+			const nestedModelLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'turn/failed',
+				params: {
+					threadId: 'th_01HXYZ1234567890ABCDEF',
+					turn: {
+						id: 'turn_01HXYZ1234567890ABCDEF',
+						status: 'failed',
+						error: {
+							code: 'model_not_found',
+							model: 'claude-invalid-custom-variant',
+							message: 'Model claude-invalid-custom-variant not found',
+							type: 'invalid_request_error',
+						},
+					},
+				},
+			});
+
+			const result = parseAndMapCodexLine(nestedModelLine, context);
+			expect(result.events).toHaveLength(1);
+			expect(result.events[0]?.kind).toBe('run.model_rejected');
+			expect(result.events[0]?.payload).toMatchObject({
+				code: 'model_invalid',
+				modelName: 'claude-invalid-custom-variant',
+				vendorMessage: 'Model claude-invalid-custom-variant not found',
+			});
+		});
+
+		it('R8-T97041355 AC 2 & E-36: turn/completed with status=failed and structured model error emits run.model_rejected', () => {
+			const completedFailedLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'turn/completed',
+				params: {
+					threadId: 'th_01HXYZ1234567890ABCDEF',
+					turn: {
+						id: 'turn_01HXYZ1234567890ABCDEF',
+						status: 'failed',
+						model: 'gpt-unknown-variant',
+						error: {
+							code: 'unsupported_model',
+							message: 'The requested model is not supported',
+							type: 'invalid_request_error',
+						},
+					},
+				},
+			});
+
+			const result = parseAndMapCodexLine(completedFailedLine, context);
+			expect(result.events).toHaveLength(1);
+			expect(result.events[0]?.kind).toBe('run.model_rejected');
+			expect(result.events[0]?.payload).toMatchObject({
+				code: 'model_invalid',
+				modelName: 'gpt-unknown-variant',
+				vendorMessage: 'The requested model is not supported',
+			});
 		});
 
 		it('R8-T97041355 AC 2 & E-36: turn/failed with identical message in free text/stderr does NOT emit run.model_rejected', () => {
 			const freeTextLine = JSON.stringify({
 				method: 'turn/failed',
 				params: {
-					message: 'The model gpt-fake-model does not exist',
+					message:
+						'The model `gpt-5-unsupported-preview` does not exist or you do not have access to it.',
 				},
 			});
 
@@ -870,8 +941,18 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(result.events.some((e) => e.kind === 'run.exited')).toBe(true);
 		});
 
-		it('R8-T97041355 AC 2: claude capabilities declares reportsModelRejection=false', () => {
+		it('R8-T97041355 AC 2: capabilities declarations for all 6 agent adapters', () => {
+			// Only native Codex reports structured model rejection
+			expect(getCodexCapabilities('native').reportsModelRejection).toBe(true);
+			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(true);
+
+			// All other adapters explicitly declare false (fall back to E-348)
+			expect(getCodexCapabilities('generic-acp').reportsModelRejection).toBe(false);
 			expect(getClaudeCapabilities().reportsModelRejection).toBe(false);
+			expect(getDshCapabilities().reportsModelRejection).toBe(false);
+			expect(getGenericAcpCapabilities().reportsModelRejection).toBe(false);
+			expect(getGrokCapabilities().reportsModelRejection).toBe(false);
+			expect(getPiCapabilities().reportsModelRejection).toBe(false);
 		});
 	});
 

@@ -1172,11 +1172,190 @@ describe('M6-T2 RunService: Stream Orchestration and Disk Wiring', () => {
 
 			jsonCb?.({ isJson: true, value: { error: 'mock' } });
 
+			// Robust polling wait for async trackWrite completion
+			let attempts = 0;
+			while (handledInput === null && attempts < 100) {
+				await new Promise((r) => setTimeout(r, 20));
+				attempts++;
+			}
+
 			expect(handledInput).toEqual({
 				runId,
 				modelName: 'non-existent-model',
 				message: 'model rejected by vendor',
 			});
+
+			// Verify event was first persisted to events.ndjson
+			const eventsPath = env.paths.segmentPath(runId, 'events', 0);
+			const eventsContent = readFileSync(eventsPath, 'utf8');
+			expect(eventsContent).toContain('run.model_rejected');
+			expect(eventsContent).toContain('non-existent-model');
+		});
+
+		it('R8-T97041355 R1 Regression: gracefully handles exceptions in handleModelInvalid without crashing and logs failure', async () => {
+			const env = setupTestEnvironment();
+			const loggedErrors: unknown[] = [];
+			const service = createRunService({
+				logstore: env.logstore,
+				bus: env.bus,
+				envelopeFactory: env.envelopeFactory,
+				runsRepo: env.runsRepo,
+				clock: env.clock,
+				logFailure: (err) => {
+					loggedErrors.push(err);
+				},
+				handleModelInvalid: () => {
+					throw new Error('Simulated DB deadlock during model invalid handling');
+				},
+			});
+
+			const runId = 'run-model-rejected-err';
+			env.createRun({
+				id: runId,
+				taskId: 'task-unit-err',
+				state: 'running',
+				pid: 8889,
+			});
+
+			let jsonCb: ((parsed: { isJson: boolean; value: unknown }) => void) | undefined;
+			const mockProcess = {
+				runId,
+				pid: 8889,
+				onRaw: () => () => {},
+				onJson: (cb: (parsed: { isJson: boolean; value: unknown }) => void) => {
+					jsonCb = cb;
+					return () => {};
+				},
+				onExit: () => () => {},
+			} as unknown as ManagedProcess;
+
+			service.attachProcess(runId, mockProcess, {
+				eventMapper: () => [
+					env.envelopeFactory.createEnvelope({
+						kind: 'run.model_rejected',
+						runId,
+						payload: {
+							code: 'model_invalid',
+							modelName: 'crashed-model',
+							vendorMessage: 'vendor err',
+						},
+					}),
+				],
+			});
+
+			jsonCb?.({ isJson: true, value: { error: 'mock' } });
+
+			let attempts = 0;
+			while (loggedErrors.length === 0 && attempts < 100) {
+				await new Promise((r) => setTimeout(r, 20));
+				attempts++;
+			}
+
+			// Failure should be logged to logFailure
+			expect(loggedErrors.length).toBeGreaterThanOrEqual(1);
+			expect(String(loggedErrors[0])).toContain('Simulated DB deadlock');
+
+			// run.model_rejected was still successfully persisted to events.ndjson before handleModelInvalid threw
+			const eventsPath = env.paths.segmentPath(runId, 'events', 0);
+			const eventsContent = readFileSync(eventsPath, 'utf8');
+			expect(eventsContent).toContain('run.model_rejected');
+			expect(eventsContent).toContain('crashed-model');
+		});
+
+		it('R8-T97041355 R1 Regression: immediate exit after run.model_rejected waits for pendingWrites and stays failed without entering E-348', async () => {
+			const env = setupTestEnvironment();
+			let handleCalled = false;
+			const service = createRunService({
+				logstore: env.logstore,
+				bus: env.bus,
+				envelopeFactory: env.envelopeFactory,
+				runsRepo: env.runsRepo,
+				clock: env.clock,
+				handleModelInvalid: async ({ runId }) => {
+					handleCalled = true;
+					// Simulate the atomic DB updates performed by handleModelInvalid
+					env.runsRepo.updateState({
+						id: runId,
+						fromState: 'starting',
+						toState: 'failed',
+						queuedReason: '派发失败·模型无效',
+					});
+				},
+			});
+
+			const runId = 'run-immediate-exit-regression';
+			env.createRun({
+				id: runId,
+				taskId: 'task-immediate-exit',
+				state: 'starting',
+				pid: 8890,
+			});
+
+			let jsonCb: ((parsed: { isJson: boolean; value: unknown }) => void) | undefined;
+			let exitCb: ((result: ProcessExitResult) => void) | undefined;
+			const mockProcess = {
+				runId,
+				pid: 8890,
+				stderrTail: 'Error: invalid model gpt-invalid',
+				onRaw: () => () => {},
+				onJson: (cb: (parsed: { isJson: boolean; value: unknown }) => void) => {
+					jsonCb = cb;
+					return () => {};
+				},
+				onExit: (cb: (result: ProcessExitResult) => void) => {
+					exitCb = cb;
+					return () => {};
+				},
+			} as unknown as ManagedProcess;
+
+			const controller = service.attachProcess(runId, mockProcess, {
+				eventMapper: () => [
+					env.envelopeFactory.createEnvelope({
+						kind: 'run.model_rejected',
+						runId,
+						payload: {
+							code: 'model_invalid',
+							modelName: 'gpt-invalid',
+							vendorMessage: 'model gpt-invalid not found',
+						},
+					}),
+				],
+			});
+
+			// 1. Emit model_rejected event
+			jsonCb?.({ isJson: true, value: { error: 'mock' } });
+
+			// 2. Immediately trigger process exit in the same tick (exitCode 1)
+			exitCb?.({
+				runId,
+				pid: 8890,
+				exitCode: 1,
+				signal: null,
+				reason: 'exited',
+			});
+
+			// Wait for onExit async completion via controller
+			await controller.waitForCompletion();
+
+			expect(handleCalled).toBe(true);
+
+			const finalRun = env.runsRepo.findById(runId);
+			// Run must reach terminal state 'failed' and NOT 'awaiting_human' (E-348)
+			expect(finalRun?.state).toBe('failed');
+
+			// Events log must contain run.model_rejected and run.exited in order
+			const eventsPath = env.paths.segmentPath(runId, 'events', 0);
+			const eventsLines = readFileSync(eventsPath, 'utf8')
+				.split('\n')
+				.filter(Boolean)
+				.map((line) => JSON.parse(line) as { kind: string });
+
+			const kinds = eventsLines.map((e) => e.kind);
+			expect(kinds).toContain('run.model_rejected');
+			expect(kinds).toContain('run.exited');
+			const rejectedIdx = kinds.indexOf('run.model_rejected');
+			const exitedIdx = kinds.indexOf('run.exited');
+			expect(rejectedIdx).toBeLessThan(exitedIdx);
 		});
 	});
 });

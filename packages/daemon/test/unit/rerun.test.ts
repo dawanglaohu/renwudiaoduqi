@@ -91,7 +91,25 @@ function createTestEnvironment(options?: {
 
 	const gatesRepo = createGatesRepo(db);
 
+	let unitOfWorkRunCount = 0;
+	const unitOfWork = {
+		run: <T>(fn: () => T): T => {
+			unitOfWorkRunCount++;
+			return fn();
+		},
+	};
+
+	const appendedEvents: Array<{ runId: string; envelope: unknown }> = [];
+	const logstore = {
+		appendEvent: async (runId: string, envelope: unknown) => {
+			appendedEvents.push({ runId, envelope });
+			return { location: { fileSeq: 0, byteOffset: 0, byteLen: 100 } };
+		},
+	};
+
 	const service = createRerunService({
+		unitOfWork: unitOfWork as unknown as NonNullable<RerunServiceDeps['unitOfWork']>,
+		logstore: logstore as unknown as NonNullable<RerunServiceDeps['logstore']>,
 		runsRepo,
 		gatesRepo,
 		tasksRepo,
@@ -135,6 +153,8 @@ function createTestEnvironment(options?: {
 		ids,
 		onlineSet,
 		publishedEvents,
+		appendedEvents,
+		getUnitOfWorkRunCount: () => unitOfWorkRunCount,
 		service,
 	};
 }
@@ -717,7 +737,7 @@ describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 			expect(rerunRes.run.modelName).toBe(nonWhitelistedModel);
 		});
 
-		it('失败后标「派发失败·模型无效」且该任务不占用窗口名额（E-36）', () => {
+		it('失败后标「派发失败·模型无效」且该任务不占用窗口名额（E-36）', async () => {
 			const env = createTestEnvironment();
 			env.batchesRepo.insert({ id: 'b1', doc_id: 'doc-1', batch_no: 1, state: 'running' });
 			env.tasksRepo.insert({
@@ -767,8 +787,9 @@ describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 			// While starting, it is active and occupies slot
 			expect(env.runsRepo.findActiveByTaskId('task-failed-model')).not.toBeNull();
 
-			// Agent fails due to invalid model
-			const updated = env.service.handleModelInvalid({
+			// Agent fails due to invalid model (E-36 / R1: atomic commit + logstore persist before bus)
+			const initialTxCount = env.getUnitOfWorkRunCount();
+			const updated = await env.service.handleModelInvalid({
 				runId: 'run-starting-bad-model',
 				agentStderrTail: 'Error: unknown model bad-model',
 			});
@@ -777,11 +798,19 @@ describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 			expect(updated.queuedReason).toBe('派发失败·模型无效');
 			expect(updated.reworkCount ?? 0).toBe(0);
 
+			// R1: DB updates (state, lane_no, gates supersede) are wrapped in atomic unitOfWork transaction
+			expect(env.getUnitOfWorkRunCount()).toBe(initialTxCount + 1);
+
 			// Lane is released (tasks.lane_no set to NULL) and lane.released event is published (E-36)
 			expect(env.tasksRepo.findById('task-failed-model')?.lane_no).toBeNull();
 			const laneReleasedEvent = env.publishedEvents.find((e) => e.kind === 'lane.released');
 			expect(laneReleasedEvent).toBeDefined();
 			expect((laneReleasedEvent?.payload as { reason?: string })?.reason).toBe('failed');
+
+			// R1: Events are persisted to logstore
+			const persistedKinds = env.appendedEvents.map((e) => (e.envelope as { kind: string }).kind);
+			expect(persistedKinds).toContain('run.state_changed');
+			expect(persistedKinds).toContain('lane.released');
 
 			// Pending gate is superseded so the approval card disappears (E-36)
 			const gate = env.gatesRepo.findById('gate-bad-model');
@@ -790,6 +819,14 @@ describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 
 			// Once marked failed, it is no longer active and does not occupy window quota
 			expect(env.runsRepo.findActiveByTaskId('task-failed-model')).toBeNull();
+
+			// Idempotency: calling again on terminal run does nothing and does not open new tx
+			const txAfterFirst = env.getUnitOfWorkRunCount();
+			const secondCall = await env.service.handleModelInvalid({
+				runId: 'run-starting-bad-model',
+			});
+			expect(secondCall.state).toBe('failed');
+			expect(env.getUnitOfWorkRunCount()).toBe(txAfterFirst);
 		});
 	});
 });

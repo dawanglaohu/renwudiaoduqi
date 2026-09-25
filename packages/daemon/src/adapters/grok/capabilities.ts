@@ -11,6 +11,7 @@ export interface GrokCapabilities {
 	readonly supportsReasoningEffort: boolean;
 	readonly supportsWorktree: boolean;
 	readonly permissionModes: readonly ['plan', 'acceptEdits', 'bypassPermissions'];
+	readonly reportsModelRejection: boolean;
 }
 
 export const GROK_CAPABILITIES: GrokCapabilities = Object.freeze({
@@ -26,6 +27,7 @@ export const GROK_CAPABILITIES: GrokCapabilities = Object.freeze({
 	supportsReasoningEffort: true,
 	supportsWorktree: true,
 	permissionModes: Object.freeze(['plan', 'acceptEdits', 'bypassPermissions'] as const),
+	reportsModelRejection: false,
 });
 
 export function getGrokCapabilities(): GrokCapabilities {
