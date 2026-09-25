@@ -61,6 +61,8 @@ import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
 import { type AssignmentsService, createAssignmentsService } from '../service/assignments.ts';
 import { type BatchService, createBatchService } from '../service/batch.ts';
+import { createBughuntContextService } from '../service/bughunt-context.ts';
+import { type BughuntService, createBughuntService } from '../service/bughunt.ts';
 import {
 	type BuildLaunchSpecInput,
 	type DispatchAdapter,
@@ -172,6 +174,7 @@ export interface ContainerServices {
 	readonly batch?: BatchService;
 	readonly wrapup?: WrapupService;
 	readonly run: RunService;
+	readonly bughunt?: BughuntService;
 }
 
 export interface AppContainer {
@@ -242,6 +245,7 @@ export function createContainer(input: {
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
 	readonly runService?: RunService;
+	readonly bughuntService?: BughuntService;
 	readonly reviewService?:
 		| ReviewService
 		| {
@@ -657,6 +661,7 @@ export function createContainer(input: {
 		},
 	});
 	const reviewServiceHolder: { current?: ReviewService } = {};
+	const bughuntServiceHolder: { current?: BughuntService } = {};
 
 	const runService =
 		input.runService ??
@@ -672,6 +677,9 @@ export function createContainer(input: {
 			finalizeWrapup: (params) => wrapupService.recordWrapupResult(params),
 			finalizeReview: async (params) => {
 				await reviewServiceHolder.current?.finalizeReview?.(params);
+			},
+			finalizeBughunt: async (params) => {
+				await bughuntServiceHolder.current?.finalizeBughunt?.(params);
 			},
 			evaluateMechanicalCheck: async (params) => {
 				await reviewServiceHolder.current?.evaluateMechanicalCheck(params);
@@ -961,9 +969,56 @@ export function createContainer(input: {
 			logstorePaths,
 			logFs,
 			logstore: logstoreService,
+			gitRunner: input.gitRunner,
+			worktreeDeps,
 		});
 
 	gateServiceHolder.current = gateService;
+
+	const bughuntService =
+		input.bughuntService ??
+		createBughuntService({
+			runsRepo: runs,
+			tasksRepo: tasks,
+			settingsRepo: settings,
+			settingsService,
+			unitOfWork,
+			clock: input.clock,
+			ids,
+			bus,
+			envelopeFactory,
+			agentRegistry,
+			agentService,
+			bughuntContextService: createBughuntContextService({
+				dispatchSnapshotsRepo: dispatchSnapshots,
+				tasksRepo: tasks,
+				documentsRepo: documents,
+				clock: input.clock,
+			}),
+			dispatchSnapshotsRepo: dispatchSnapshots,
+			gatesRepo: gates,
+			gatesService: gateService,
+			reviewService: {
+				get runMechanicalCheck() {
+					return reviewServiceHolder.current?.runMechanicalCheck as never;
+				},
+				evaluateMechanicalCheck: async (params) =>
+					(await reviewServiceHolder.current?.evaluateMechanicalCheck(params)) as never,
+				startReviewRound: async (params) =>
+					(await reviewServiceHolder.current?.startReviewRound(params)) ?? '',
+				finalizeReviewRun: async (params) =>
+					(await reviewServiceHolder.current?.finalizeReviewRun(params)) as never,
+			},
+			runService,
+			dispatchService: dispatchServiceHolder.current ?? dispatchService,
+			logstorePaths,
+			logFs,
+			gitRunner: input.gitRunner,
+			worktreeDeps,
+			warn: (message) => input.logViolation?.(message),
+		});
+
+	bughuntServiceHolder.current = bughuntService;
 
 	const baseReviewService =
 		input.reviewService && 'runMechanicalCheck' in input.reviewService
@@ -988,6 +1043,7 @@ export function createContainer(input: {
 					settingsRepo: settings,
 					settingsService,
 					gatesService: gateService,
+					bughuntService: bughuntServiceHolder.current ?? bughuntService,
 					runService,
 					gitRunner: input.gitRunner,
 					logstorePaths,
@@ -1067,6 +1123,7 @@ export function createContainer(input: {
 		batch: batchService,
 		wrapup: wrapupService,
 		run: runService,
+		bughunt: bughuntService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([

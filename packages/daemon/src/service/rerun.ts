@@ -345,12 +345,17 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		const newRunId = ids.newId();
 
 		// AC 2: Strictly reuse original snapshot_id without creating new snapshot or modifying assignment
+		const parentRunId =
+			previousRun.kind === 'bughunt'
+				? (previousRun.parent_run_id ?? previousRun.id)
+				: previousRun.id;
+
 		const runInsert: RunInsertRow = {
 			id: newRunId,
 			task_id: task.id,
 			attempt_no: attemptNo,
 			kind: previousRun.kind,
-			parent_run_id: previousRun.id,
+			parent_run_id: parentRunId,
 			state: 'starting',
 			agent_id: previousRun.agent_id,
 			model_name: previousRun.model_name ?? null,
@@ -359,6 +364,11 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			permission_tier: previousRun.permission_tier,
 			snapshot_id: previousRun.snapshot_id,
 			assignment_source: previousRun.assignment_source ?? null,
+			worktree_path: previousRun.worktree_path ?? null,
+			branch_name: previousRun.branch_name ?? null,
+			branch_tip_sha: previousRun.branch_tip_sha ?? null,
+			lane_no: previousRun.lane_no ?? null,
+			batch_id: previousRun.batch_id ?? task.batch_id ?? null,
 			idempotency_key: idempotencyKey,
 			actor_device_id: input.actorDeviceId ?? null,
 			started_at: now,
@@ -373,21 +383,35 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			if (isRetryableZeroOutputWait) {
 				deps.gatesRepo?.supersedePendingByRunIds?.([previousRun.id], now);
 			}
-			if (isRetryableBughuntWait && deps.gatesRepo) {
-				const pending = deps.gatesRepo.list({ pendingOnly: true });
-				const bughuntGates = pending.filter(
-					(g) =>
-						(g.run_id === previousRun.id || g.task_id === task.id) &&
-						g.comment === 'bughunt_failed',
-				);
-				for (const bg of bughuntGates) {
-					deps.gatesRepo.updateDecision(
-						bg.id,
-						'reject',
-						'superseded',
-						input.actorDeviceId ?? null,
-						now,
+			if (isRetryableBughuntWait) {
+				const implRunId = previousRun.parent_run_id;
+				if (implRunId) {
+					runsRepo.updateState({
+						id: implRunId,
+						toState: 'reviewing',
+						queuedReason: null,
+					});
+				}
+				tasksRepo.updateManualState(task.id, null);
+				if (typeof previousRun.lane_no === 'number' && previousRun.lane_no >= 1) {
+					tasksRepo.assignLaneNo(task.id, previousRun.lane_no);
+				}
+				if (deps.gatesRepo) {
+					const pending = deps.gatesRepo.list({ pendingOnly: true });
+					const bughuntGates = pending.filter(
+						(g) =>
+							(g.run_id === previousRun.id || g.task_id === task.id) &&
+							g.comment === 'bughunt_failed',
 					);
+					for (const bg of bughuntGates) {
+						deps.gatesRepo.updateDecision(
+							bg.id,
+							'reject',
+							'superseded',
+							input.actorDeviceId ?? null,
+							now,
+						);
+					}
 				}
 			}
 		};

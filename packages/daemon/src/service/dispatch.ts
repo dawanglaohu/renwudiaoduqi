@@ -700,6 +700,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				started_at: now,
 				session_no: nextSessionNoFor(agentId),
 				lane_no: input.laneNo ?? null,
+				batch_id: task.batch_id ?? null,
 			};
 			assertSessionRefFree(
 				{ taskId, vendorSessionRef: undefined },
@@ -1593,7 +1594,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 					// 3. 泳道：已占槽直接出队，否则取一个空槽（E-309 / E-310 / E-326）
 					let laneNo =
-						typeof qTask.lane_no === 'number' && qTask.lane_no >= 1 ? qTask.lane_no : null;
+						typeof qTask.lane_no === 'number' && qTask.lane_no >= 1
+							? qTask.lane_no
+							: typeof queuedRun.lane_no === 'number' && queuedRun.lane_no >= 1
+								? queuedRun.lane_no
+								: null;
 					if (laneNo === null) {
 						const allocatedLaneNo = free.shift();
 						if (allocatedLaneNo === undefined) {
@@ -1610,7 +1615,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					// 4. 每 agent 并发上限（E-54）
 					const queuedAgentLimit = agentLimitFor(queuedRun.agent_id);
 					const queuedAgentActive = countAgentConcurrency(
-						allRuns.filter((r) => r.id !== queuedRun.id),
+						allRuns.filter(
+							(r) =>
+								r.id !== queuedRun.id &&
+								(queuedRun.kind !== 'bughunt' || r.id !== queuedRun.parent_run_id),
+						),
 						queuedRun.agent_id,
 					);
 					if (queuedAgentActive >= queuedAgentLimit) {

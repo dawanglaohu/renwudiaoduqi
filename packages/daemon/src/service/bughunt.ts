@@ -1,33 +1,41 @@
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { resolveAssignment } from '../domain/assignment.ts';
 import { assembleBughuntPrompt } from '../domain/bughunt-prompt.ts';
 import { decideBughuntOutcome, parseBughuntReport } from '../domain/bughunt-report.ts';
+import { DEFAULT_AGENT_CONCURRENCY_LIMIT } from '../domain/concurrency.ts';
 import {
 	RUN_TRANSITION_REASONS,
 	type RunState,
+	countsTowardAgentConcurrency,
 	isTerminalRunState,
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { LogFileSystem } from '../logstore/contract.ts';
+import type { LogstorePaths } from '../logstore/paths.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { GatesRepo } from '../repo/gates.ts';
 import { type RunInsertRow, type RunsRepo, toRunDto } from '../repo/runs.ts';
 import type { SettingsRepo } from '../repo/settings.ts';
+import type { TasksRepo } from '../repo/tasks.ts';
 import { type GitRunner, type WorktreeManagerDeps, getDiffStat } from '../workspace/diff.ts';
 import { readWorktreeStartingBaseline } from '../workspace/in-head.ts';
 import type { AgentService } from './agents.ts';
 import { createAssignmentReader } from './assignment-reader.ts';
 import type { BughuntContextService } from './bughunt-context.ts';
 import type { GateService } from './gates.ts';
-import type { ReviewService } from './review.ts';
+import { type ReviewService, readReviewReportText } from './review.ts';
+import type { RunService } from './run.ts';
 import { assertSessionRefFree } from './session-guard.ts';
 import type { SettingsService } from './settings.ts';
 
 export interface BughuntServiceDeps {
 	readonly runsRepo: RunsRepo;
+	readonly tasksRepo?: TasksRepo;
 	readonly settingsRepo?: SettingsRepo;
 	readonly settingsService?: SettingsService;
 	readonly unitOfWork: UnitOfWork;
@@ -42,6 +50,11 @@ export interface BughuntServiceDeps {
 	readonly gatesRepo?: GatesRepo;
 	readonly gatesService?: GateService;
 	readonly reviewService?: ReviewService;
+	readonly runService?: RunService;
+	readonly dispatchService?: { readonly launchRun: (runId: string) => Promise<void> };
+	readonly launchRun?: (runId: string) => Promise<void>;
+	readonly logstorePaths?: LogstorePaths;
+	readonly logFs?: LogFileSystem;
 	readonly gitRunner?: GitRunner;
 	readonly worktreeDeps?: WorktreeManagerDeps;
 	readonly warn?: (message: string, ...args: unknown[]) => void;
@@ -79,6 +92,11 @@ export interface BughuntService {
 	readonly finalizeBughuntRun: (
 		input: FinalizeBughuntRunInput,
 	) => Promise<FinalizeBughuntRunResult>;
+	readonly finalizeBughunt?: (input: {
+		readonly runId: string;
+		readonly exitCode?: number | null;
+		readonly exitSignal?: string | null;
+	}) => Promise<FinalizeBughuntRunResult>;
 }
 
 export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
@@ -235,9 +253,30 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			});
 
 			const snapshotId = deps.ids.newId();
-			const allRuns = deps.runsRepo.listByTaskId(taskId);
+			const allRuns = deps.runsRepo.listAll
+				? deps.runsRepo.listAll()
+				: deps.runsRepo.listByTaskId(taskId);
 			const nextAttemptNo = Math.max(0, ...allRuns.map((r) => r.attempt_no)) + 1;
 			const bughuntRunId = deps.ids.newId();
+
+			// 检查 agent 并发上限（E-328）
+			let isLimitReached = false;
+			const agentSnapshot = deps.agentRegistry?.getSnapshot();
+			const agentConfig = agentSnapshot?.agents[agentId];
+			const agentLimit = agentConfig?.maxConcurrency ?? DEFAULT_AGENT_CONCURRENCY_LIMIT;
+			const activeAgentRuns = allRuns.filter(
+				(r) =>
+					r.id !== implRun.id &&
+					r.agent_id === agentId &&
+					countsTowardAgentConcurrency(r.state as RunState),
+			);
+			if (activeAgentRuns.length >= agentLimit) {
+				isLimitReached = true;
+			}
+
+			const hasLauncher = Boolean(deps.dispatchService?.launchRun ?? deps.launchRun);
+			const initialState: RunState = !hasLauncher || isLimitReached ? 'queued' : 'starting';
+			const initialQueuedReason = isLimitReached ? 'agent_limit_reached' : null;
 
 			// 事务内插入快照与 kind='bughunt' 行，实施行保持 reviewing（AC 1, AC 2, E-316, E-329）
 			deps.unitOfWork.run(() => {
@@ -270,7 +309,8 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					attempt_no: nextAttemptNo,
 					kind: 'bughunt',
 					parent_run_id: implRun.id,
-					state: 'queued',
+					state: initialState,
+					queued_reason: initialQueuedReason,
 					agent_id: agentId,
 					model_name: modelName,
 					effort_tier: effortTier,
@@ -282,6 +322,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					origin: 'dispatch',
 					prompt_source: context?.promptSource ?? 'builtin',
 					lane_no: implRun.lane_no,
+					batch_id: implRun.batch_id,
 					assignment_source: assignmentSource,
 					branch_tip_sha: baseline.headSha,
 					started_at: now,
@@ -305,9 +346,46 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				);
 			}
 
+			if (initialState === 'starting') {
+				const launcher = deps.dispatchService?.launchRun ?? deps.launchRun;
+				if (launcher) {
+					void launcher(bughuntRunId).catch((err) => {
+						deps.warn?.(`Failed to launch bughunt run: ${err}`);
+					});
+				}
+			}
+
 			return Object.freeze({
 				action: 'dispatched',
 				bughuntRun: created ? toRunDto(created) : undefined,
+			});
+		},
+
+		/**
+		 * 生产路径退出裁决（对接 run.ts 的 attachProcess 退出评估）。
+		 */
+		async finalizeBughunt(input: {
+			readonly runId: string;
+			readonly exitCode?: number | null;
+			readonly exitSignal?: string | null;
+		}): Promise<FinalizeBughuntRunResult> {
+			const { runId, exitCode, exitSignal } = input;
+			if (deps.runService?.closeRunStream) {
+				await deps.runService.closeRunStream(runId);
+			}
+			let outputText = '';
+			if (deps.logstorePaths && deps.logFs) {
+				try {
+					outputText = await readReviewReportText(deps.logstorePaths, deps.logFs, runId);
+				} catch {
+					outputText = '';
+				}
+			}
+			return await this.finalizeBughuntRun({
+				bughuntRunId: runId,
+				outputText,
+				exitCode,
+				exitSignal,
 			});
 		},
 
@@ -342,6 +420,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 
 			if (isExplicitFailure) {
 				const gateId = `gate_${deps.ids.newId()}`;
+				let laneReleasedEvent: EventEnvelope | null = null;
 				deps.unitOfWork.run(() => {
 					if (!isTerminalRunState(bughuntRun.state as RunState)) {
 						deps.runsRepo.updateState({
@@ -374,7 +453,30 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 						comment: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
 						created_at: now,
 					});
+
+					if (deps.tasksRepo) {
+						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId,
+								runId: implRun.id,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId,
+									runId: implRun.id,
+									reason: 'awaiting_human',
+								},
+							});
+						}
+					}
 				});
+
+				if (laneReleasedEvent && deps.bus) {
+					deps.bus.publish(laneReleasedEvent);
+				}
 
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
@@ -406,6 +508,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			if (!parsed.ok) {
 				// 不合五段：两行均 awaiting_human（reason bughunt_unparsed），查 bug 行开一张 kind='review' 闸门（AC 5, E-320）
 				const gateId = `gate_${deps.ids.newId()}`;
+				let laneReleasedEvent: EventEnvelope | null = null;
 				deps.unitOfWork.run(() => {
 					deps.runsRepo.updateState({
 						id: bughuntRun.id,
@@ -436,7 +539,30 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 						comment: RUN_TRANSITION_REASONS.BUGHUNT_UNPARSED,
 						created_at: now,
 					});
+
+					if (deps.tasksRepo) {
+						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId,
+								runId: implRun.id,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId,
+									runId: implRun.id,
+									reason: 'awaiting_human',
+								},
+							});
+						}
+					}
 				});
+
+				if (laneReleasedEvent && deps.bus) {
+					deps.bus.publish(laneReleasedEvent);
+				}
 
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
@@ -522,6 +648,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 
 			if (outcome.outcome === 'awaiting_human') {
 				const gateId = `gate_${deps.ids.newId()}`;
+				let laneReleasedEvent: EventEnvelope | null = null;
 				deps.unitOfWork.run(() => {
 					if (outcome.reason === 'bughunt_fixed_over_limit') {
 						deps.runsRepo.updateState({
@@ -564,7 +691,30 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 						comment: outcome.comment,
 						created_at: now,
 					});
+
+					if (deps.tasksRepo) {
+						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
+						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								taskId,
+								runId: implRun.id,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId,
+									runId: implRun.id,
+									reason: 'awaiting_human',
+								},
+							});
+						}
+					}
 				});
+
+				if (laneReleasedEvent && deps.bus) {
+					deps.bus.publish(laneReleasedEvent);
+				}
 
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
