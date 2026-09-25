@@ -79,6 +79,7 @@ export interface IngestLineResult {
 export interface AttachProcessOptions {
 	readonly onEvent?: (envelope: EventEnvelope) => void;
 	readonly onExit?: (result: ProcessExitResult) => Promise<void> | void;
+	readonly mapExitResult?: (result: ProcessExitResult) => ProcessExitResult;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
 	readonly acceptsPlainText?: boolean;
 }
@@ -113,6 +114,12 @@ export interface RunServiceDeps {
 	readonly finalizeReview?: (input: {
 		readonly runId: string;
 		readonly exitCode: number | null;
+	}) => Promise<unknown>;
+	readonly finalizeBughunt?: (input: {
+		readonly runId: string;
+		readonly exitCode?: number | null;
+		readonly exitSignal?: string | null;
+		readonly failedReason?: string;
 	}) => Promise<unknown>;
 	readonly evaluateMechanicalCheck?: (input: {
 		readonly runId: string;
@@ -227,6 +234,7 @@ export interface RunService {
 	): Promise<void>;
 	isAwaitingReply(runId: string): Promise<boolean>;
 	isTemporarilyElevated(runId: string): boolean;
+	clearTemporaryElevation(runId: string): void;
 }
 
 function normalizeRawLineBytes(rawLine: string | Uint8Array): Uint8Array {
@@ -603,7 +611,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		});
 
 		cleanups.push(
-			process.onExit((result) => {
+			process.onExit((rawResult) => {
+				const result = options?.mapExitResult?.(rawResult) ?? rawResult;
 				if (detached) {
 					completionResolve(result);
 					return;
@@ -658,6 +667,14 @@ export function createRunService(deps: RunServiceDeps): RunService {
 							});
 							await ingestEvent(runId, exitedEnvelope);
 							await closeRunStream(runId);
+							if (run?.kind === 'bughunt' && deps.finalizeBughunt) {
+								await deps.finalizeBughunt({
+									runId,
+									exitCode: result.exitCode,
+									exitSignal: result.signal ? String(result.signal) : null,
+									failedReason: failureReason,
+								});
+							}
 							return;
 						}
 
@@ -912,6 +929,39 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								}
 								return;
 							}
+
+							if (run?.kind === 'bughunt') {
+								if (run && !isTerminalRunState(run.state) && run.state !== 'exited') {
+									await transitionState({
+										runId,
+										targetState: 'exited',
+										reason: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run?.taskId ?? null,
+									actorDeviceId: run?.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: eventStderrTail,
+									},
+								});
+								await ingestEvent(runId, exitedEnvelope);
+								await closeRunStream(runId);
+								if (deps.finalizeBughunt) {
+									await deps.finalizeBughunt({
+										runId,
+										exitCode: result.exitCode,
+										exitSignal: result.signal ? String(result.signal) : null,
+									});
+								}
+								return;
+							}
 						}
 
 						// 3. 内容后退出才走既有机械检查/失败路径 (R3)
@@ -942,6 +992,13 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						}
 						if (run?.kind === 'review' && deps.finalizeReview) {
 							await deps.finalizeReview({ runId, exitCode: result.exitCode });
+						}
+						if (run?.kind === 'bughunt' && deps.finalizeBughunt) {
+							await deps.finalizeBughunt({
+								runId,
+								exitCode: result.exitCode,
+								exitSignal: result.signal ? String(result.signal) : null,
+							});
 						}
 
 						const isImplementLike =
@@ -1333,20 +1390,27 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				details: { runId },
 			});
 		}
-		if (run.state !== 'awaiting_reply') {
+		if (run.state !== 'awaiting_reply' && run.state !== 'running') {
 			assertValidTransition(run.state, 'running', {
 				reason: details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED,
 			});
 		}
 		// 仅本次运行临时提升，绝不改写默认档位（不落库、结束失效、事件留痕）(E-133)
 		temporarilyElevatedRuns.add(runId);
-		const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
-		await transitionState({
-			runId,
-			targetState: 'running',
-			reason,
-			actorDeviceId: details?.actorDeviceId ?? null,
-		});
+		if (run.state === 'awaiting_reply') {
+			const reason = details?.reason ?? RUN_TRANSITION_REASONS.HUMAN_REPLIED;
+			try {
+				await transitionState({
+					runId,
+					targetState: 'running',
+					reason,
+					actorDeviceId: details?.actorDeviceId ?? null,
+				});
+			} catch (err) {
+				temporarilyElevatedRuns.delete(runId);
+				throw err;
+			}
+		}
 	}
 
 	async function isAwaitingReply(runId: string): Promise<boolean> {
@@ -1357,6 +1421,10 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 	function isTemporarilyElevated(runId: string): boolean {
 		return temporarilyElevatedRuns.has(runId);
+	}
+
+	function clearTemporaryElevation(runId: string): void {
+		temporarilyElevatedRuns.delete(runId);
 	}
 
 	return Object.freeze({
@@ -1374,6 +1442,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		elevateRunOnce,
 		isAwaitingReply,
 		isTemporarilyElevated,
+		clearTemporaryElevation,
 		hasContentProduced(runId: string): boolean {
 			return runsWithContent.has(runId);
 		},

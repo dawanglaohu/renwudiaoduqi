@@ -1,12 +1,13 @@
 import { EVENT_DEFINITIONS, type EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { getClaudeCapabilities } from '../adapters/claude/capabilities.ts';
+import type { CodexSessionRegistry } from '../adapters/codex/app-server-session.ts';
 import { getCodexCapabilities } from '../adapters/codex/capabilities.ts';
 import { getGrokCapabilities } from '../adapters/grok/capabilities.ts';
 import { getPiCapabilities } from '../adapters/pi/capabilities.ts';
 import { type AdapterKind, BUILT_IN_AGENT_IDS } from '../config/defaults.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { RUN_TRANSITION_REASONS, isTerminalRunState } from '../domain/run-state-machine.ts';
-import { AppError } from '../errors/app-error.ts';
+import { AppError, isAppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
@@ -117,16 +118,21 @@ export interface AgentMessageCapabilities {
 
 export interface SendMessageInput {
 	readonly runId: string;
-	readonly text: string;
+	readonly text?: string;
 	readonly kind: MessageKind;
 	readonly actorDeviceId?: string | null;
 	readonly throwOnUndelivered?: boolean;
+	readonly elevateRunOnce?: (
+		runId: string,
+		details?: { readonly reason?: string; readonly actorDeviceId?: string | null },
+	) => Promise<void>;
+	readonly clearTemporaryElevation?: (runId: string) => void;
 }
 
 export interface DeliverMessageResult {
 	readonly delivered: boolean;
 	readonly messageId: string;
-	readonly text: string;
+	readonly text?: string;
 	readonly deliveryState: 'delivered' | 'undelivered';
 	readonly undeliveredReason?: string;
 	readonly runId: string;
@@ -153,6 +159,7 @@ export interface ResumeSessionResult {
 export interface MessageServiceDeps {
 	readonly runMessagesRepo: RunMessagesRepo;
 	readonly processRegistry: ProcessRegistry;
+	readonly codexSessions?: CodexSessionRegistry;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly bus?: EventBus;
@@ -164,6 +171,18 @@ export interface MessageServiceDeps {
 	) => AgentMessageCapabilities;
 	readonly resumeSession?: (input: ResumeSessionInput) => Promise<ResumeSessionResult>;
 	readonly maxMessageLength?: number;
+	readonly elevateRunOnce?: (
+		runId: string,
+		details?: { readonly reason?: string; readonly actorDeviceId?: string | null },
+	) => Promise<void>;
+	readonly runService?: {
+		elevateRunOnce(
+			runId: string,
+			details?: { readonly reason?: string; readonly actorDeviceId?: string | null },
+		): Promise<void>;
+		isTemporarilyElevated(runId: string): boolean;
+		clearTemporaryElevation(runId: string): void;
+	};
 }
 
 export interface MessageService {
@@ -289,16 +308,18 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 			});
 		}
 
-		if (typeof input.text !== 'string' || input.text.trim().length === 0) {
-			throw new AppError('E_VALIDATION', 'Message text cannot be empty or whitespace only.', {
-				details: {
-					field: 'text',
-					code: 'EMPTY_MESSAGE',
-				},
-			});
+		if (input.kind !== 'elevate_once') {
+			if (typeof input.text !== 'string' || input.text.trim().length === 0) {
+				throw new AppError('E_VALIDATION', 'Message text cannot be empty or whitespace only.', {
+					details: {
+						field: 'text',
+						code: 'EMPTY_MESSAGE',
+					},
+				});
+			}
 		}
 
-		if (input.text.length > maxMessageLength) {
+		if (input.text && input.text.length > maxMessageLength) {
 			throw new AppError(
 				'E_VALIDATION',
 				`Message text length (${input.text.length}) exceeds the maximum allowed limit (${maxMessageLength}). Please confirm truncation point before sending.`,
@@ -353,6 +374,115 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 			);
 		}
 
+		if (input.kind === 'elevate_once') {
+			if (deps.runService?.isTemporarilyElevated(input.runId)) {
+				throw new AppError('E_INVALID_STATE_TRANSITION', 'This run was already elevated once.', {
+					details: { runId: run.id, from: run.state, to: 'running', operation: 'elevate_once' },
+				});
+			}
+			if (deps.codexSessions && run.state !== 'awaiting_reply') {
+				throw new AppError('E_INVALID_STATE_TRANSITION', 'Run is not waiting for approval.', {
+					details: { runId: run.id, from: run.state, to: 'running', operation: 'elevate_once' },
+				});
+			}
+			const session = deps.codexSessions?.get(input.runId);
+			if (deps.codexSessions && (run.agentId !== 'codex' || !session)) {
+				throw new AppError('E_CAPABILITY_UNSUPPORTED', 'This run has no live approval transport.', {
+					details: { runId: run.id, agentId: run.agentId, capability: 'elevate_once' },
+				});
+			}
+			if (deps.codexSessions && !session?.hasPendingApproval()) {
+				throw new AppError(
+					'E_MESSAGE_UNDELIVERED',
+					'No approval request is pending for this run.',
+					{
+						details: { runId: run.id, reason: 'approval_not_pending' },
+					},
+				);
+			}
+			const elevateFn =
+				input.elevateRunOnce ?? deps.elevateRunOnce ?? deps.runService?.elevateRunOnce;
+			if (!elevateFn) {
+				// R2: 缺 RunService/elevateRunOnce 时不得返回 delivered
+				return handleUndelivered(run, input, 'elevate_unavailable', throwOnUndelivered);
+			}
+
+			// The vendor must acknowledge the exact pending request before state or delivery changes.
+			try {
+				await session?.approveOnce();
+				await elevateFn(input.runId, {
+					reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
+					actorDeviceId: input.actorDeviceId ?? null,
+				});
+			} catch (error) {
+				if (isAppError(error) && error.code === 'E_INVALID_STATE_TRANSITION') {
+					throw new AppError(error.code, error.message, {
+						details: { ...error.details, operation: 'elevate_once' },
+						cause: error,
+					});
+				}
+				throw error;
+			}
+
+			const messageId = deps.ids.newId();
+			const now = deps.clock.now();
+			const text = input.text ?? '';
+			const pendingEvents: EventEnvelope[] = [];
+
+			const persistOperations = () => {
+				deps.runMessagesRepo.insertMessage({
+					id: messageId,
+					runId: input.runId,
+					kind: input.kind,
+					text,
+					deliveryState: 'delivered',
+					undeliveredReason: null,
+					actorDeviceId: input.actorDeviceId ?? null,
+					createdAt: now,
+					deliveredAt: now,
+				});
+
+				if (deps.envelopeFactory) {
+					pendingEvents.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'run.message_delivered',
+							runId: input.runId,
+							taskId: run.taskId,
+							actorDeviceId: input.actorDeviceId ?? null,
+							payload: {
+								messageId,
+							},
+						}),
+					);
+				}
+			};
+
+			try {
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(persistOperations);
+				} else {
+					persistOperations();
+				}
+			} catch (error) {
+				(input.clearTemporaryElevation ?? deps.runService?.clearTemporaryElevation)?.(input.runId);
+				throw error;
+			}
+
+			if (deps.bus) {
+				for (const event of pendingEvents) {
+					deps.bus.publish(event);
+				}
+			}
+
+			return {
+				delivered: true,
+				messageId,
+				text,
+				deliveryState: 'delivered',
+				runId: input.runId,
+			};
+		}
+
 		const caps = resolveCaps(run.agentId);
 
 		// AC 1 & E-117: Check reply capability bit
@@ -395,7 +525,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 					runId: run.id,
 					taskId: run.taskId,
 					agentId: run.agentId,
-					text: input.text,
+					text: input.text ?? '',
 					kind: input.kind,
 					actorDeviceId: input.actorDeviceId ?? null,
 				});
@@ -403,7 +533,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				return {
 					delivered: resumeResult.delivered,
 					messageId: resumeResult.messageId,
-					text: input.text,
+					text: input.text ?? '',
 					deliveryState: 'delivered',
 					runId: run.id,
 					isNewRun: true,
@@ -417,49 +547,59 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 			return handleUndelivered(run, input, 'resume_unavailable', throwOnUndelivered);
 		}
 
-		// AC 2 & E-113: Process liveness & pipe integrity checks
-		const managedProcess = deps.processRegistry.get(input.runId);
-
-		let undeliveredReason: string | null = null;
-		if (
-			!managedProcess ||
-			managedProcess.isExited ||
-			managedProcess.child.killed ||
-			managedProcess.child.exitCode !== null
-		) {
-			undeliveredReason = 'process_exited';
-		} else if (
-			managedProcess.child.stdin === null ||
-			managedProcess.child.stdin.destroyed ||
-			!managedProcess.child.stdin.writable
-		) {
-			undeliveredReason = 'pipe_broken';
-		}
-
-		if (undeliveredReason !== null || !managedProcess) {
-			return handleUndelivered(
-				run,
-				input,
-				undeliveredReason ?? 'process_exited',
-				throwOnUndelivered,
-			);
-		}
-
-		// AC 6: Writing to stdin with backpressure drain check
-		const payload = input.text.endsWith('\n') ? input.text : `${input.text}\n`;
-		let writeOk = false;
-
-		try {
-			writeOk = managedProcess.writeStdin(payload);
-		} catch {
-			return handleUndelivered(run, input, 'pipe_broken', throwOnUndelivered);
-		}
-
-		if (!writeOk) {
+		const text = input.text ?? '';
+		const codexSession = deps.codexSessions?.get(input.runId);
+		if (codexSession) {
 			try {
-				await managedProcess.waitForStdinDrain();
+				await codexSession.sendText(text);
+			} catch {
+				return handleUndelivered(run, input, 'protocol_unavailable', throwOnUndelivered);
+			}
+		} else {
+			// AC 2 & E-113: Process liveness & pipe integrity checks
+			const managedProcess = deps.processRegistry.get(input.runId);
+
+			let undeliveredReason: string | null = null;
+			if (
+				!managedProcess ||
+				managedProcess.isExited ||
+				managedProcess.child.killed ||
+				managedProcess.child.exitCode !== null
+			) {
+				undeliveredReason = 'process_exited';
+			} else if (
+				managedProcess.child.stdin === null ||
+				managedProcess.child.stdin.destroyed ||
+				!managedProcess.child.stdin.writable
+			) {
+				undeliveredReason = 'pipe_broken';
+			}
+
+			if (undeliveredReason !== null || !managedProcess) {
+				return handleUndelivered(
+					run,
+					input,
+					undeliveredReason ?? 'process_exited',
+					throwOnUndelivered,
+				);
+			}
+
+			// AC 6: Writing to stdin with backpressure drain check
+			const payload = text.endsWith('\n') ? text : `${text}\n`;
+			let writeOk = false;
+
+			try {
+				writeOk = managedProcess.writeStdin(payload);
 			} catch {
 				return handleUndelivered(run, input, 'pipe_broken', throwOnUndelivered);
+			}
+
+			if (!writeOk) {
+				try {
+					await managedProcess.waitForStdinDrain();
+				} catch {
+					return handleUndelivered(run, input, 'pipe_broken', throwOnUndelivered);
+				}
 			}
 		}
 
@@ -474,7 +614,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				id: messageId,
 				runId: input.runId,
 				kind: input.kind,
-				text: input.text,
+				text,
 				deliveryState: 'delivered',
 				undeliveredReason: null,
 				actorDeviceId: input.actorDeviceId ?? null,
@@ -538,7 +678,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		return {
 			delivered: true,
 			messageId,
-			text: input.text,
+			text: input.text ?? '',
 			deliveryState: 'delivered',
 			runId: input.runId,
 		};
@@ -560,7 +700,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				id: messageId,
 				runId: input.runId,
 				kind: input.kind,
-				text: input.text, // original text preserved verbatim for copying (E-113)
+				text: input.text ?? '', // original text preserved verbatim for copying (E-113)
 				deliveryState: 'undelivered',
 				undeliveredReason: reason,
 				actorDeviceId: input.actorDeviceId ?? null,
@@ -603,7 +743,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				{
 					details: {
 						messageId,
-						text: input.text,
+						text: input.text ?? '',
 						deliveryState: 'undelivered',
 						reason,
 						runId: input.runId,
@@ -615,7 +755,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		return {
 			delivered: false,
 			messageId,
-			text: input.text,
+			text: input.text ?? '',
 			deliveryState: 'undelivered',
 			undeliveredReason: reason,
 			runId: input.runId,

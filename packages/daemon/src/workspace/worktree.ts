@@ -16,8 +16,12 @@ export interface GitCommandResult {
 	readonly stderr: string;
 }
 
+export interface GitRunnerOptions {
+	readonly envOverrides?: Readonly<Record<string, string | undefined>>;
+}
+
 export interface GitRunner {
-	run(args: readonly string[], cwd: string): Promise<GitCommandResult>;
+	run(args: readonly string[], cwd: string, options?: GitRunnerOptions): Promise<GitCommandResult>;
 }
 
 export interface WorktreeEntry {
@@ -235,14 +239,20 @@ export function createDefaultGitRunner(deps: WorktreeManagerDeps): GitRunner {
 	}
 
 	return {
-		async run(args: readonly string[], cwd: string): Promise<GitCommandResult> {
+		async run(
+			args: readonly string[],
+			cwd: string,
+			options?: GitRunnerOptions,
+		): Promise<GitCommandResult> {
 			const git = await getOrResolveGit();
 			const runId = `git_${deps.ids.newId()}`;
 			const spec: LaunchSpec = {
 				runId,
-				file: git.file,
+				// spawnManaged performs the cmd/bat wrapping itself; retain the shim path.
+				file: git.launchKind === 'com-spec' ? git.sourcePath : git.file,
 				args: [...git.argsPrefix, ...args],
 				cwd,
+				...(options?.envOverrides ? { envOverrides: options.envOverrides } : {}),
 			};
 
 			const stdoutLines: string[] = [];

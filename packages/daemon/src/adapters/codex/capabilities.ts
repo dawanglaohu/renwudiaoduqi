@@ -14,7 +14,7 @@ export const CODEX_NATIVE_CAPABILITIES: CodexCapabilities = Object.freeze({
 	hasStreamingEvents: true,
 	canResume: true,
 	sessionHistory: 'full',
-	reportsModelRejection: true,
+	reportsModelRejection: false,
 });
 
 export const CODEX_GENERIC_ACP_CAPABILITIES: CodexCapabilities = Object.freeze({

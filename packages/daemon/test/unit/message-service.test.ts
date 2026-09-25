@@ -8,6 +8,7 @@ import type {
 import Fastify from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { AppError } from '../../src/errors/app-error.ts';
 import type { EventBus } from '../../src/events/bus.ts';
 import type { EnvelopeFactory } from '../../src/events/envelope.ts';
 import { registerRunsRoutes } from '../../src/http/routes/runs.ts';
@@ -1014,6 +1015,182 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 			expect(runRow?.state).toBe('running');
 
 			db.close();
+		});
+
+		it('R8-T54786768 & E-133: delivers elevate_once message, calls elevateRunOnce and persists message with omitted text', async () => {
+			const { repo } = createMockRunsRepo([
+				{
+					id: 'run-elevate-unit',
+					taskId: 'task-1',
+					state: 'awaiting_reply',
+					agentId: 'codex',
+					pid: 1234,
+					parentRunId: null,
+					attemptNo: 1,
+					sessionArchivedAt: null,
+				},
+			]);
+
+			let elevatedCalled = false;
+			const elevateRunOnce = async (runId: string) => {
+				if (runId === 'run-elevate-unit') {
+					elevatedCalled = true;
+				}
+			};
+
+			const registry = createProcessRegistry();
+			const service = createMessageService({
+				runMessagesRepo: repo,
+				processRegistry: registry,
+				clock,
+				ids,
+				elevateRunOnce,
+			});
+
+			const result = await service.sendMessage({
+				runId: 'run-elevate-unit',
+				kind: 'elevate_once',
+			});
+
+			expect(result.delivered).toBe(true);
+			expect(elevatedCalled).toBe(true);
+
+			const saved = repo.findMessageById(result.messageId);
+			expect(saved).not.toBeNull();
+			expect(saved?.kind).toBe('elevate_once');
+			expect(saved?.text).toBe('');
+			expect(saved?.deliveryState).toBe('delivered');
+		});
+
+		it('R8-T54786768 R2 negative: throws E_MESSAGE_UNDELIVERED and marks undelivered when elevateRunOnce is missing', async () => {
+			const { repo, messages } = createMockRunsRepo([
+				{
+					id: 'run-elevate-missing-fn',
+					taskId: 'task-1',
+					state: 'awaiting_reply',
+					agentId: 'codex',
+					pid: 1234,
+					parentRunId: null,
+					attemptNo: 1,
+					sessionArchivedAt: null,
+				},
+			]);
+
+			const registry = createProcessRegistry();
+			const service = createMessageService({
+				runMessagesRepo: repo,
+				processRegistry: registry,
+				clock,
+				ids,
+				// elevateRunOnce is intentionally omitted
+			});
+
+			// 1. throwOnUndelivered: true (default for HTTP routes)
+			await expect(
+				service.sendMessage({
+					runId: 'run-elevate-missing-fn',
+					kind: 'elevate_once',
+					throwOnUndelivered: true,
+				}),
+			).rejects.toMatchObject({
+				code: 'E_MESSAGE_UNDELIVERED',
+			});
+
+			expect(messages).toHaveLength(1);
+			expect(messages[0]?.deliveryState).toBe('undelivered');
+			expect(messages[0]?.undeliveredReason).toBe('elevate_unavailable');
+
+			// 2. throwOnUndelivered: false
+			const res = await service.sendMessage({
+				runId: 'run-elevate-missing-fn',
+				kind: 'elevate_once',
+				throwOnUndelivered: false,
+			});
+			expect(res.delivered).toBe(false);
+			expect(res.deliveryState).toBe('undelivered');
+		});
+
+		it('R8-T54786768 R2 negative: when elevateRunOnce throws, no message record is persisted', async () => {
+			const { repo, messages } = createMockRunsRepo([
+				{
+					id: 'run-elevate-fail',
+					taskId: 'task-1',
+					state: 'awaiting_reply',
+					agentId: 'codex',
+					pid: 1234,
+					parentRunId: null,
+					attemptNo: 1,
+					sessionArchivedAt: null,
+				},
+			]);
+
+			const elevateRunOnce = async () => {
+				throw new AppError('E_INVALID_STATE_TRANSITION', 'Elevation transition failed');
+			};
+
+			const registry = createProcessRegistry();
+			const service = createMessageService({
+				runMessagesRepo: repo,
+				processRegistry: registry,
+				clock,
+				ids,
+				elevateRunOnce,
+			});
+
+			await expect(
+				service.sendMessage({
+					runId: 'run-elevate-fail',
+					kind: 'elevate_once',
+				}),
+			).rejects.toMatchObject({
+				code: 'E_INVALID_STATE_TRANSITION',
+			});
+
+			// 绝不留下假投递记录
+			expect(messages).toHaveLength(0);
+		});
+
+		it('R2: failed message persistence clears the temporary elevation and leaves no delivered record', async () => {
+			const runId = 'run-elevate-persist-fail';
+			const { repo, messages } = createMockRunsRepo([
+				{
+					id: runId,
+					taskId: 'task-1',
+					state: 'awaiting_reply',
+					agentId: 'codex',
+					pid: 1234,
+					parentRunId: null,
+					attemptNo: 1,
+					sessionArchivedAt: null,
+				},
+			]);
+			let isElevated = false;
+			const service = createMessageService({
+				runMessagesRepo: {
+					...repo,
+					insertMessage() {
+						throw new Error('disk write failed');
+					},
+				},
+				processRegistry: createProcessRegistry(),
+				clock,
+				ids,
+			});
+
+			await expect(
+				service.sendMessage({
+					runId,
+					kind: 'elevate_once',
+					elevateRunOnce: async () => {
+						isElevated = true;
+					},
+					clearTemporaryElevation: () => {
+						isElevated = false;
+					},
+				}),
+			).rejects.toThrow('disk write failed');
+			expect(isElevated).toBe(false);
+			expect(messages).toHaveLength(0);
 		});
 	});
 });

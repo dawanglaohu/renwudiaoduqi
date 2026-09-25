@@ -31,6 +31,7 @@ import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GateRow, GatesRepo } from '../repo/gates.ts';
 import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { TasksRepo } from '../repo/tasks.ts';
+import { type GitRunner, type WorktreeManagerDeps, getDiffStat } from '../workspace/diff.ts';
 import type { AgentService } from './agents.ts';
 import type { BatchService } from './batch.ts';
 import { type LogstoreService, readRunExitedStderrTail } from './logstore.ts';
@@ -62,6 +63,8 @@ export interface GateServiceDeps {
 	readonly logstorePaths?: LogstorePaths;
 	readonly logFs?: LogFileSystem;
 	readonly logstore?: LogstoreService;
+	readonly gitRunner?: GitRunner;
+	readonly worktreeDeps?: WorktreeManagerDeps;
 }
 
 export interface GateService {
@@ -362,6 +365,45 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				readonly countAlreadyApplied: true;
 			} | null = null;
 
+			let finalReworkText = comment || 'Rejected by human';
+			if (input.decision === 'reject' && gate.task_id && deps.runsRepo) {
+				let targetRunForDiff: RunRow | null = null;
+				if (gate.run_id) {
+					const run = deps.runsRepo.findById(gate.run_id);
+					if (run && run.kind === 'implement') {
+						targetRunForDiff = run;
+					} else if (run && run.kind === 'bughunt' && run.parent_run_id) {
+						targetRunForDiff = deps.runsRepo.findById(run.parent_run_id);
+					}
+				}
+				if (!targetRunForDiff) {
+					const runs = deps.runsRepo.listByTaskId(gate.task_id);
+					const implRuns = runs.filter((r) => r.kind === 'implement');
+					if (implRuns.length > 0) {
+						targetRunForDiff = implRuns.reduce((prev, curr) =>
+							curr.attempt_no > prev.attempt_no ? curr : prev,
+						);
+					}
+				}
+				const isBughuntGate =
+					Boolean(gate.comment?.startsWith('bughunt_')) ||
+					Boolean(gate.run_id && deps.runsRepo?.findById(gate.run_id)?.kind === 'bughunt');
+				if (targetRunForDiff?.worktree_path && isBughuntGate) {
+					try {
+						const diffStat = await getDiffStat(targetRunForDiff.worktree_path, {
+							baseRef: targetRunForDiff.branch_tip_sha ?? 'HEAD',
+							deps: deps.worktreeDeps,
+							runner: deps.gitRunner,
+						});
+						if (diffStat.filesChanged > 0) {
+							finalReworkText = `工作区已有查 bug 阶段未提交改动 ${diffStat.filesChanged} 个文件，先看 git status 再改\n\n${finalReworkText}`;
+						}
+					} catch {
+						// ignore diff stat failure
+					}
+				}
+			}
+
 			deps.unitOfWork.run(() => {
 				deps.gatesRepo.updateDecision(
 					input.gateId,
@@ -396,6 +438,28 @@ export function createGateService(deps: GateServiceDeps): GateService {
 						}
 					}
 					return;
+				}
+
+				if (input.decision === 'pass' && gate.kind === 'review' && gate.task_id) {
+					let implRunId = gate.run_id;
+					if (gate.run_id && deps.runsRepo) {
+						const gateRun = deps.runsRepo.findById(gate.run_id);
+						if (gateRun && gateRun.kind === 'bughunt' && gateRun.parent_run_id) {
+							implRunId = gateRun.parent_run_id;
+						}
+					}
+					if (implRunId && deps.runsRepo) {
+						const implRun = deps.runsRepo.findById(implRunId);
+						if (implRun && implRun.state === 'awaiting_human') {
+							deps.runsRepo.updateState({
+								id: implRun.id,
+								fromState: 'awaiting_human',
+								toState: 'reviewing',
+								queuedReason: null,
+								actorDeviceId: input.actorDeviceId ?? null,
+							});
+						}
+					}
 				}
 
 				if (input.decision === 'pass' && gate.kind === 'landing' && gate.task_id) {
@@ -456,7 +520,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					// 人工决定当场计数；等泳道或批次恢复后投递不得再消耗一次额度。
 					const task = deps.tasksRepo.findById(gate.task_id);
 					const doc = task && deps.documentsRepo ? deps.documentsRepo.findById(task.doc_id) : null;
-					const reworkText = comment || 'Rejected by human';
+					const reworkText = finalReworkText;
 
 					let targetRun: RunRow | null = null;
 					if (gate.run_id && deps.runsRepo) {
@@ -691,6 +755,21 @@ export function createGateService(deps: GateServiceDeps): GateService {
 
 				if (archiveContext && deps.sessionArchiveService) {
 					await deps.sessionArchiveService.terminateArchived(archiveContext);
+				}
+
+				if (gate.kind === 'review' && gate.task_id) {
+					let implRunId = gate.run_id;
+					if (gate.run_id && deps.runsRepo) {
+						const gateRun = deps.runsRepo.findById(gate.run_id);
+						if (gateRun && gateRun.kind === 'bughunt' && gateRun.parent_run_id) {
+							implRunId = gateRun.parent_run_id;
+						}
+					}
+					await this.resolveAfterReviewAndApply({
+						taskId: gate.task_id,
+						runId: implRunId,
+						reviewVerdict: 'pass',
+					});
 				}
 			}
 

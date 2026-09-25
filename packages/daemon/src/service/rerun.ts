@@ -291,16 +291,63 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 					?.list?.({ pendingOnly: true })
 					.some((g) => g.run_id === previousRun.id && g.comment === 'exited_before_output'));
 
-		const isRetryableBughuntWait =
-			previousRun.kind === 'bughunt' &&
-			(task.manual_state === 'awaiting_human' ||
-				deps.gatesRepo
-					?.list?.({ pendingOnly: true })
-					.some(
-						(g) =>
-							(g.run_id === previousRun.id || g.task_id === task.id) &&
-							g.comment === 'bughunt_failed',
-					));
+		let isRetryableBughuntWait = false;
+		if (previousRun.kind === 'bughunt') {
+			if (previousRun.state !== 'failed' || previousRun.queued_reason !== 'bughunt_failed') {
+				throw new AppError(
+					'E_GATE_ALREADY_DECIDED',
+					`Bughunt run '${previousRun.id}' is not waiting after a bughunt failure.`,
+				);
+			}
+			const bughuntRuns = runsRepo.listByTaskId
+				? runsRepo.listByTaskId(task.id).filter((r) => r.kind === 'bughunt')
+				: [];
+			const latestBughuntRun =
+				bughuntRuns.length > 0
+					? bughuntRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
+					: previousRun;
+
+			// 旧行校验：必须是该 task 下最新的一条 bughunt 运行
+			if (latestBughuntRun.id !== previousRun.id) {
+				throw new AppError(
+					'E_GATE_ALREADY_DECIDED',
+					`Rerun is only allowed for the latest bughunt run (id: '${latestBughuntRun.id}'). Older run '${previousRun.id}' cannot be rerun.`,
+				);
+			}
+
+			// 闸门校验：必须存在 waiting 且 comment === 'bughunt_failed' 的闸门
+			const pendingGates = deps.gatesRepo?.list?.({ pendingOnly: true }) ?? [];
+			const bughuntFailedGate = pendingGates.find(
+				(g) =>
+					g.run_id === previousRun.parent_run_id &&
+					g.task_id === task.id &&
+					g.comment === 'bughunt_failed',
+			);
+
+			if (!bughuntFailedGate) {
+				throw new AppError(
+					'E_GATE_ALREADY_DECIDED',
+					`Rerun is only allowed for a bughunt run currently awaiting human decision on 'bughunt_failed'. No pending 'bughunt_failed' gate found for task '${task.id}'.`,
+				);
+			}
+
+			// 父实施运行与任务状态校验：父运行必须仍停在 awaiting_human 且原因为 bughunt_failed
+			const parentRun = previousRun.parent_run_id
+				? runsRepo.findById(previousRun.parent_run_id)
+				: null;
+			if (
+				!parentRun ||
+				parentRun.state !== 'awaiting_human' ||
+				parentRun.queued_reason !== 'bughunt_failed'
+			) {
+				throw new AppError(
+					'E_GATE_ALREADY_DECIDED',
+					`Rerun is only allowed when parent implementation run is awaiting human on bughunt_failed. Current state: '${parentRun?.state}', reason: '${parentRun?.queued_reason}'.`,
+				);
+			}
+
+			isRetryableBughuntWait = true;
+		}
 
 		if (active && !isRetryableZeroOutputWait && !isRetryableBughuntWait) {
 			return {
@@ -348,12 +395,17 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		const newRunId = ids.newId();
 
 		// AC 2: Strictly reuse original snapshot_id without creating new snapshot or modifying assignment
+		const parentRunId =
+			previousRun.kind === 'bughunt'
+				? (previousRun.parent_run_id ?? previousRun.id)
+				: previousRun.id;
+
 		const runInsert: RunInsertRow = {
 			id: newRunId,
 			task_id: task.id,
 			attempt_no: attemptNo,
 			kind: previousRun.kind,
-			parent_run_id: previousRun.id,
+			parent_run_id: parentRunId,
 			state: 'starting',
 			agent_id: previousRun.agent_id,
 			model_name: previousRun.model_name ?? null,
@@ -362,6 +414,11 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			permission_tier: previousRun.permission_tier,
 			snapshot_id: previousRun.snapshot_id,
 			assignment_source: previousRun.assignment_source ?? null,
+			worktree_path: previousRun.worktree_path ?? null,
+			branch_name: previousRun.branch_name ?? null,
+			branch_tip_sha: previousRun.branch_tip_sha ?? null,
+			lane_no: previousRun.lane_no ?? null,
+			batch_id: previousRun.batch_id ?? task.batch_id ?? null,
 			idempotency_key: idempotencyKey,
 			actor_device_id: input.actorDeviceId ?? null,
 			started_at: now,
@@ -376,21 +433,35 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			if (isRetryableZeroOutputWait) {
 				deps.gatesRepo?.supersedePendingByRunIds?.([previousRun.id], now);
 			}
-			if (isRetryableBughuntWait && deps.gatesRepo) {
-				const pending = deps.gatesRepo.list({ pendingOnly: true });
-				const bughuntGates = pending.filter(
-					(g) =>
-						(g.run_id === previousRun.id || g.task_id === task.id) &&
-						g.comment === 'bughunt_failed',
-				);
-				for (const bg of bughuntGates) {
-					deps.gatesRepo.updateDecision(
-						bg.id,
-						'reject',
-						'superseded',
-						input.actorDeviceId ?? null,
-						now,
+			if (isRetryableBughuntWait) {
+				const implRunId = previousRun.parent_run_id;
+				if (implRunId) {
+					runsRepo.updateState({
+						id: implRunId,
+						toState: 'reviewing',
+						queuedReason: null,
+					});
+				}
+				tasksRepo.updateManualState(task.id, null);
+				if (typeof previousRun.lane_no === 'number' && previousRun.lane_no >= 1) {
+					tasksRepo.assignLaneNo(task.id, previousRun.lane_no);
+				}
+				if (deps.gatesRepo) {
+					const pending = deps.gatesRepo.list({ pendingOnly: true });
+					const bughuntGates = pending.filter(
+						(g) =>
+							(g.run_id === previousRun.id || g.task_id === task.id) &&
+							g.comment === 'bughunt_failed',
 					);
+					for (const bg of bughuntGates) {
+						deps.gatesRepo.updateDecision(
+							bg.id,
+							'reject',
+							'superseded',
+							input.actorDeviceId ?? null,
+							now,
+						);
+					}
 				}
 			}
 		};

@@ -1,0 +1,22 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R8-T54786768": {
+      "contractHash": "782be4a8d6683492ca51dcb424c21d7a4cc18239521b8e3d1cdd98212921715b",
+      "evidence": [
+        "Batch 8 source task fence now lists R8-T89804121 as an explicit dependency. R8 acceptance 1-5 remains unchanged, including actual same-run continuation and a real daemon/browser GIF; the present implementation and GIF do not yet satisfy acceptance 5.",
+        "Section 08 now maps E_INVALID_STATE_TRANSITION to 409 only when the elevate_once operation marker is present. The route integration test checks 409 and the negative control checks that an unrelated state-machine error with details.from remains 500.",
+        "Jev adjudicate label R8-T54786768:round2-protocol, model jev-1.13.0, pick B high 0.77, adopt take(B). A separate live transport task is generated; this contract review does not mark either task landed or the runtime feature complete."
+      ],
+      "verdict": "pass"
+    },
+    "R8-T89804121": {
+      "contractHash": "66895a1947df565f3244b9179f30f78290c813747e6e9a50c8adf7b0b8169df5",
+      "evidence": [
+        "R8-T89804121 is generated from stable-key e133-live-permission-transport in batch-8-20260922.md with source tasks M6-T7 and M8-T10 and E-133. Its acceptance explicitly requires a real agent, original runId continuation, one-time correlated approval, failure cleanup and final-head browser evidence without direct SQLite or event injection.",
+        "Current production dispatch forces Codex exec mode with stdin closed and a launch-time sandbox argument; RunService temporary elevation is not read by proc or adapter. The new task addresses that documented missing transport; its implementation has not begun."
+      ],
+      "verdict": "pass"
+    }
+  }
+}

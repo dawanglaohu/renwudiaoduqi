@@ -1,0 +1,20 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T22": {
+      "contractHash": "3d83e5562cfbd50cbd5f2915d5756481dca7be07a1c5d59774f1bb401ec89144",
+      "evidence": [
+        "07 节第八条路由由 app/routes.tsx 定义，但 app/app.tsx 的 Record<RouteId, ComponentType> 必须装配 SettingsPipelinePage；同一 app.tsx 的 AppTopbar 才能挂载三个闸门右侧的两个流水线开关。新增 app.tsx 为 M9-T22 supportPath，保留原验收和边界不变。",
+        "M9-T22 既定产出、六条验收、E-26/E-157/E-306/E-312/E-318/E-356 与 shared GET/PATCH 四键契约仍原样保留；PR #152 实际改动与新增路径一一对应。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T23": {
+      "contractHash": "a4b13b4a685a983875ad18179d0d17652ba344f1f18a017b7d7ee0368c8cddb1",
+      "evidence": [
+        "补丁对 M9-T23 仅传播上游 M9-T22 契约哈希；M9-T23 的任务定义、验收、边界、有效路径、接口字段逐项未变。M9-T22 的 app.tsx 装配是其真实前置能力。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

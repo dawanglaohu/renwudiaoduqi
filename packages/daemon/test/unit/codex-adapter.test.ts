@@ -16,6 +16,7 @@ import {
 import {
 	CODEX_VENDOR_EVENT_STRINGS,
 	mapCodexEvents,
+	mapCodexProcessEvents,
 	mapEvents,
 	parseAndMapCodexLine,
 } from '../../src/adapters/codex/map-events.ts';
@@ -65,10 +66,10 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(Object.isFrozen(acpCaps)).toBe(true);
 		});
 
-		it('R8-T97041355 E-36: native adapter declares reportsModelRejection=true; generic-acp declares false', () => {
-			expect(getCodexCapabilities('native').reportsModelRejection).toBe(true);
+		it('R8-T97041355 E-36: native and generic-acp report no verified model-specific rejection signal', () => {
+			expect(getCodexCapabilities('native').reportsModelRejection).toBe(false);
 			expect(getCodexCapabilities('generic-acp').reportsModelRejection).toBe(false);
-			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(true);
+			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(false);
 		});
 	});
 
@@ -835,8 +836,8 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(unknownType.events).toEqual([]);
 		});
 
-		it('R8-T97041355 AC 2 & E-36: desensitized real Codex JSON-RPC turn/failed with structured error extracts modelName and emits run.model_rejected', () => {
-			// Real desensitized Codex app-server line: turn.model provided, error.code = 'model_not_found'
+		it('R8-T97041355 E-36: hypothetical typed turn/failed maps a model rejection if the vendor adds it', () => {
+			// This shape is not emitted by the currently verified Codex app-server protocol.
 			const realDesensitizedLine = JSON.stringify({
 				jsonrpc: '2.0',
 				method: 'turn/failed',
@@ -868,7 +869,7 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(result.unmappedCount).toBe(0);
 		});
 
-		it('R8-T97041355 AC 2 & E-36: extracts modelName when model field is nested inside error object', () => {
+		it('R8-T97041355 E-36: hypothetical typed error can carry a nested model name', () => {
 			const nestedModelLine = JSON.stringify({
 				jsonrpc: '2.0',
 				method: 'turn/failed',
@@ -897,7 +898,7 @@ describe('M4-T8: codex 原生适配器', () => {
 			});
 		});
 
-		it('R8-T97041355 AC 2 & E-36: turn/completed with status=failed and structured model error emits run.model_rejected', () => {
+		it('R8-T97041355 E-36: hypothetical typed turn/completed would emit run.model_rejected', () => {
 			const completedFailedLine = JSON.stringify({
 				jsonrpc: '2.0',
 				method: 'turn/completed',
@@ -926,7 +927,7 @@ describe('M4-T8: codex 原生适配器', () => {
 			});
 		});
 
-		it('R8-T97041355 AC 2 & E-36: turn/failed with identical message in free text/stderr does NOT emit run.model_rejected', () => {
+		it('R8-T97041355 E-36: untyped turn/failed text does not imply model rejection', () => {
 			const freeTextLine = JSON.stringify({
 				method: 'turn/failed',
 				params: {
@@ -941,10 +942,35 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(result.events.some((e) => e.kind === 'run.exited')).toBe(true);
 		});
 
-		it('R8-T97041355 AC 2: capabilities declarations for all 6 agent adapters', () => {
-			// Only native Codex reports structured model rejection
-			expect(getCodexCapabilities('native').reportsModelRejection).toBe(true);
-			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(true);
+		it('R8-T97041355 E-36: Codex 0.157.0 app-server generic error remains unclassified', () => {
+			// Shape observed with a real invalid-model turn; identifiers and message redacted.
+			const line = JSON.stringify({
+				method: 'turn/completed',
+				params: {
+					threadId: '<redacted>',
+					turn: {
+						id: '<redacted>',
+						status: 'failed',
+						error: {
+							message: 'Model not found',
+							codexErrorInfo: 'other',
+							additionalDetails: null,
+							misalignment: null,
+						},
+					},
+				},
+			});
+			const result = parseAndMapCodexLine(line, context);
+			expect(result.events.map((event) => event.kind)).toEqual([
+				'run.stderr_line',
+				'run.exited',
+			]);
+			expect(result.events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
+		});
+
+		it('R8-T97041355 E-36: no current agent claims a verified structured model rejection', () => {
+			expect(getCodexCapabilities('native').reportsModelRejection).toBe(false);
+			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(false);
 
 			// All other adapters explicitly declare false (fall back to E-348)
 			expect(getCodexCapabilities('generic-acp').reportsModelRejection).toBe(false);
@@ -1070,6 +1096,47 @@ describe('M4-T8: codex 原生适配器', () => {
 				'network_dependency',
 			);
 		});
+	});
+});
+
+describe('E-133 app-server approval mapping', () => {
+	it('keeps the vendor request ID and turn identifiers on the blocked event', () => {
+		const events = mapCodexProcessEvents({
+			id: 0,
+			method: 'item/commandExecution/requestApproval',
+			params: {
+				threadId: 'thread-1',
+				turnId: 'turn-1',
+				itemId: 'item-1',
+				reason: 'Outside writable roots',
+			},
+		});
+		expect(events).toHaveLength(1);
+		expect(events[0]?.kind).toBe('run.permission_blocked');
+		expect(events[0]?.payload).toMatchObject({
+			requestId: 0,
+			threadId: 'thread-1',
+			turnId: 'turn-1',
+			itemId: 'item-1',
+		});
+	});
+
+	it('does not invent an approval for an ordinary app-server command start', () => {
+		const events = mapCodexProcessEvents({
+			method: 'item/started',
+			params: {
+				item: { id: 'item-1', type: 'commandExecution', command: 'npm install' },
+			},
+		});
+		expect(events.some((event) => event.kind === 'run.permission_blocked')).toBe(false);
+	});
+
+	it('leaves terminal run state to process exit rather than turn/completed', () => {
+		const events = mapCodexProcessEvents({
+			method: 'turn/completed',
+			params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } },
+		});
+		expect(events.some((event) => event.kind === 'run.exited')).toBe(false);
 	});
 });
 

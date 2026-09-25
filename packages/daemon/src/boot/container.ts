@@ -2,8 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { buildClaudeLaunchSpec } from '../adapters/claude/build-launch-spec.ts';
 import { mapEvents as mapClaudeEvents } from '../adapters/claude/map-events.ts';
+import {
+	type CodexSessionRegistry,
+	createCodexSessionRegistry,
+} from '../adapters/codex/app-server-session.ts';
 import { buildCodexLaunchSpec } from '../adapters/codex/build-launch-spec.ts';
-import { mapCodexEvents } from '../adapters/codex/map-events.ts';
+import { mapCodexProcessEvents } from '../adapters/codex/map-events.ts';
 import { buildDshLaunchSpec } from '../adapters/dsh/build-launch-spec.ts';
 import { mapDshEvents } from '../adapters/dsh/map-events.ts';
 import { buildGenericAcpLaunchSpec } from '../adapters/generic-acp/build-launch-spec.ts';
@@ -61,6 +65,8 @@ import { type TasksRepo, createTasksRepo } from '../repo/tasks.ts';
 import { type AgentService, createAgentService } from '../service/agents.ts';
 import { type AssignmentsService, createAssignmentsService } from '../service/assignments.ts';
 import { type BatchService, createBatchService } from '../service/batch.ts';
+import { createBughuntContextService } from '../service/bughunt-context.ts';
+import { type BughuntService, createBughuntService } from '../service/bughunt.ts';
 import {
 	type BuildLaunchSpecInput,
 	type DispatchAdapter,
@@ -173,6 +179,7 @@ export interface ContainerServices {
 	readonly batch?: BatchService;
 	readonly wrapup?: WrapupService;
 	readonly run: RunService;
+	readonly bughunt?: BughuntService;
 }
 
 export interface AppContainer {
@@ -225,6 +232,7 @@ export function createContainer(input: {
 	readonly runMessagesRepo?: RunMessagesRepo;
 	readonly messageService?: MessageService;
 	readonly processRegistry?: ProcessRegistry;
+	readonly codexSessions?: CodexSessionRegistry | null;
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
 	readonly tasksRepo?: TasksRepo;
@@ -243,6 +251,7 @@ export function createContainer(input: {
 	readonly batchService?: BatchService;
 	readonly wrapupService?: WrapupService;
 	readonly runService?: RunService;
+	readonly bughuntService?: BughuntService;
 	readonly reviewService?:
 		| ReviewService
 		| {
@@ -442,6 +451,10 @@ export function createContainer(input: {
 		});
 
 	const processRegistry = input.processRegistry ?? createProcessRegistry();
+	const codexSessions =
+		input.codexSessions === null
+			? undefined
+			: (input.codexSessions ?? createCodexSessionRegistry());
 
 	const baseSpawn = input.spawnManaged ?? input.proc?.spawnManaged ?? spawnManaged;
 	const boundSpawnManaged = (
@@ -465,7 +478,7 @@ export function createContainer(input: {
 		codex: Object.freeze({
 			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
 				buildCodexLaunchSpec(options as Parameters<typeof buildCodexLaunchSpec>[0]),
-			mapEvents: (line: unknown) => mapCodexEvents(line) as readonly EventEnvelopeInput[],
+			mapEvents: (line: unknown) => mapCodexProcessEvents(line) as readonly EventEnvelopeInput[],
 		}),
 		claude: Object.freeze({
 			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
@@ -511,20 +524,6 @@ export function createContainer(input: {
 		processOps,
 		platform: input.hostInputs.platform,
 	});
-	const messageService =
-		input.messageService ??
-		createMessageService({
-			runMessagesRepo: runMessages,
-			processRegistry,
-			clock: input.clock,
-			ids: Object.freeze({
-				newId: () => `msg_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
-			}),
-			bus,
-			envelopeFactory,
-			unitOfWork,
-		});
-
 	const runLogService =
 		input.runLogService ??
 		createRunLogService({
@@ -658,6 +657,7 @@ export function createContainer(input: {
 		},
 	});
 	const reviewServiceHolder: { current?: ReviewService } = {};
+	const bughuntServiceHolder: { current?: BughuntService } = {};
 
 	const rerunService = createRerunService({
 		unitOfWork,
@@ -689,6 +689,19 @@ export function createContainer(input: {
 			finalizeReview: async (params) => {
 				await reviewServiceHolder.current?.finalizeReview?.(params);
 			},
+			finalizeBughunt: async (params) => {
+				const service = bughuntServiceHolder.current;
+				if (service?.finalizeBughunt) {
+					await service.finalizeBughunt(params);
+				} else if (service?.finalizeBughuntRun) {
+					await service.finalizeBughuntRun({
+						bughuntRunId: params.runId,
+						exitCode: params.exitCode,
+						exitSignal: params.exitSignal,
+						failedReason: (params as { readonly failedReason?: string }).failedReason,
+					});
+				}
+			},
 			evaluateMechanicalCheck: async (params) => {
 				await reviewServiceHolder.current?.evaluateMechanicalCheck(params);
 			},
@@ -701,6 +714,21 @@ export function createContainer(input: {
 			handleModelInvalid: async (inp) => {
 				await rerunService.handleModelInvalid(inp);
 			},
+		});
+	const messageService =
+		input.messageService ??
+		createMessageService({
+			runMessagesRepo: runMessages,
+			processRegistry,
+			codexSessions,
+			runService,
+			clock: input.clock,
+			ids: Object.freeze({
+				newId: () => `msg_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+			}),
+			bus,
+			envelopeFactory,
+			unitOfWork,
 		});
 
 	/**
@@ -854,6 +882,7 @@ export function createContainer(input: {
 			workspace: worktreeManager,
 			proc,
 			adapters,
+			codexSessions,
 			runService,
 			logFailure: (error) => {
 				input.logViolation?.(error instanceof Error ? error.message : String(error));
@@ -867,6 +896,14 @@ export function createContainer(input: {
 						...params,
 						exitCode: params.exitCode !== undefined ? params.exitCode : 0,
 					});
+				},
+			},
+			bughuntService: {
+				finalizeBughuntRun: async (params) => {
+					const service = bughuntServiceHolder.current ?? input.bughuntService;
+					if (service?.finalizeBughuntRun) {
+						await service.finalizeBughuntRun(params);
+					}
 				},
 			},
 		});
@@ -981,9 +1018,56 @@ export function createContainer(input: {
 			logstorePaths,
 			logFs,
 			logstore: logstoreService,
+			gitRunner: input.gitRunner,
+			worktreeDeps,
 		});
 
 	gateServiceHolder.current = gateService;
+
+	const bughuntService =
+		input.bughuntService ??
+		createBughuntService({
+			runsRepo: runs,
+			tasksRepo: tasks,
+			settingsRepo: settings,
+			settingsService,
+			unitOfWork,
+			clock: input.clock,
+			ids,
+			bus,
+			envelopeFactory,
+			agentRegistry,
+			agentService,
+			bughuntContextService: createBughuntContextService({
+				dispatchSnapshotsRepo: dispatchSnapshots,
+				tasksRepo: tasks,
+				documentsRepo: documents,
+				clock: input.clock,
+			}),
+			dispatchSnapshotsRepo: dispatchSnapshots,
+			gatesRepo: gates,
+			gatesService: gateService,
+			reviewService: {
+				get runMechanicalCheck() {
+					return reviewServiceHolder.current?.runMechanicalCheck as never;
+				},
+				evaluateMechanicalCheck: async (params) =>
+					(await reviewServiceHolder.current?.evaluateMechanicalCheck(params)) as never,
+				startReviewRound: async (params) =>
+					(await reviewServiceHolder.current?.startReviewRound(params)) ?? '',
+				finalizeReviewRun: async (params) =>
+					(await reviewServiceHolder.current?.finalizeReviewRun(params)) as never,
+			},
+			runService,
+			dispatchService: dispatchServiceHolder.current ?? dispatchService,
+			logstorePaths,
+			logFs,
+			gitRunner: input.gitRunner,
+			worktreeDeps,
+			warn: (message) => input.logViolation?.(message),
+		});
+
+	bughuntServiceHolder.current = bughuntService;
 
 	const baseReviewService =
 		input.reviewService && 'runMechanicalCheck' in input.reviewService
@@ -1008,6 +1092,7 @@ export function createContainer(input: {
 					settingsRepo: settings,
 					settingsService,
 					gatesService: gateService,
+					bughuntService: bughuntServiceHolder.current ?? bughuntService,
 					runService,
 					gitRunner: input.gitRunner,
 					logstorePaths,
@@ -1087,6 +1172,7 @@ export function createContainer(input: {
 		batch: batchService,
 		wrapup: wrapupService,
 		run: runService,
+		bughunt: bughuntService,
 	});
 
 	const jobs: readonly ContainerJob[] = Object.freeze([

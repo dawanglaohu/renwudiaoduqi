@@ -399,6 +399,13 @@ describe('R2: rework、bughunt、wrapup-fix 逐字使用任务指派；显式 nu
 			runsRepo,
 			tasksRepo,
 			dispatchSnapshotsRepo,
+			gitRunner: {
+				run: async (args: readonly string[]) => ({
+					exitCode: 0,
+					stdout: args[0] === 'status' ? '' : `${'a'.repeat(40)}\n`,
+					stderr: '',
+				}),
+			},
 			clock: { now: () => testTime },
 			ids,
 			unitOfWork: { run: (fn: (result?: unknown) => void) => fn() } as unknown as never,

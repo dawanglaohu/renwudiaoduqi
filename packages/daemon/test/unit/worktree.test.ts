@@ -827,6 +827,41 @@ detached
 			expect(capturedRunId).toBe('git_custom-seq-1');
 			expect(newIdCalls).toBe(1);
 		});
+
+		it('passes a resolved Windows Git command shim to the process wrapper', async () => {
+			let capturedFile = '';
+			const resolvedGit: ResolvedExecutable = {
+				launchKind: 'com-spec',
+				sourcePath: 'C:\\tools\\git.cmd',
+				file: 'C:\\Windows\\System32\\cmd.exe',
+				argsPrefix: [],
+				spawnOptions: { windowsVerbatimArguments: true },
+				checkedPaths: ['C:\\tools\\git.cmd'],
+			};
+			const runner = createDefaultGitRunner({
+				platform: 'win32',
+				gitBinary: resolvedGit,
+				ids: defaultTestIds,
+				spawnManaged: ((spec: LaunchSpec) => {
+					capturedFile = spec.file;
+					const result: ProcessExitResult = {
+						exitCode: 0,
+						runId: spec.runId,
+						pid: 1,
+						signal: null,
+						reason: 'exited',
+					};
+					return {
+						isExited: true,
+						exitResult: result,
+						onExit: (callback: (exit: ProcessExitResult) => void) => callback(result),
+						onError: () => () => {},
+					} as unknown as ManagedProcess;
+				}) as unknown as typeof spawnManaged,
+			});
+			await runner.run(['status'], 'C:\\repo');
+			expect(capturedFile).toBe('C:\\tools\\git.cmd');
+		});
 	});
 
 	describe('End-to-End Real Git Integration', () => {

@@ -380,6 +380,7 @@ function setupTestEnvironment(
 		instanceLock: dummyLockHandle,
 		clock,
 		spawnManaged: fakeSpawnManaged,
+		codexSessions: null,
 		worktreeManager: fakeWorktreeManager,
 		baseSelector: overrides.baseSelector,
 		reviewService: fakeReviewService,
