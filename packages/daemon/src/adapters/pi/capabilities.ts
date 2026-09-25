@@ -10,6 +10,7 @@ export interface PiCapabilities {
 	readonly completionEvent: 'agent_settled';
 	readonly supportsReasoningEffort: boolean;
 	readonly permissionModes: readonly ['readOnly', 'unrestricted'];
+	readonly reportsModelRejection: boolean;
 }
 
 export const PI_CAPABILITIES: PiCapabilities = Object.freeze({
@@ -24,6 +25,7 @@ export const PI_CAPABILITIES: PiCapabilities = Object.freeze({
 	completionEvent: 'agent_settled',
 	supportsReasoningEffort: true,
 	permissionModes: Object.freeze(['readOnly', 'unrestricted'] as const),
+	reportsModelRejection: false,
 });
 
 export function getPiCapabilities(): PiCapabilities {

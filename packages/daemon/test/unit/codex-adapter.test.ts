@@ -3,6 +3,7 @@ import { extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { getClaudeCapabilities } from '../../src/adapters/claude/capabilities.ts';
 import {
 	buildCodexLaunchSpec,
 	buildLaunchSpec,
@@ -20,6 +21,10 @@ import {
 	parseAndMapCodexLine,
 } from '../../src/adapters/codex/map-events.ts';
 import { readCodexModels, readModels } from '../../src/adapters/codex/read-models.ts';
+import { getDshCapabilities } from '../../src/adapters/dsh/capabilities.ts';
+import { getGenericAcpCapabilities } from '../../src/adapters/generic-acp/capabilities.ts';
+import { getGrokCapabilities } from '../../src/adapters/grok/capabilities.ts';
+import { getPiCapabilities } from '../../src/adapters/pi/capabilities.ts';
 import { EFFORT_TIERS } from '../../src/domain/effort-tier.ts';
 import { PERMISSION_TIERS } from '../../src/domain/permission-tier.ts';
 import { parseWrapupReport } from '../../src/domain/wrapup-report.ts';
@@ -59,6 +64,12 @@ describe('M4-T8: codex 原生适配器', () => {
 			// Streaming events remain available
 			expect(acpCaps.hasStreamingEvents).toBe(true);
 			expect(Object.isFrozen(acpCaps)).toBe(true);
+		});
+
+		it('R8-T97041355 E-36: native and generic-acp report no verified model-specific rejection signal', () => {
+			expect(getCodexCapabilities('native').reportsModelRejection).toBe(false);
+			expect(getCodexCapabilities('generic-acp').reportsModelRejection).toBe(false);
+			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(false);
 		});
 	});
 
@@ -823,6 +834,148 @@ describe('M4-T8: codex 原生适配器', () => {
 			);
 			expect(unknownType.unmappedCount).toBe(1);
 			expect(unknownType.events).toEqual([]);
+		});
+
+		it('R8-T97041355 E-36: hypothetical typed turn/failed maps a model rejection if the vendor adds it', () => {
+			// This shape is not emitted by the currently verified Codex app-server protocol.
+			const realDesensitizedLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'turn/failed',
+				params: {
+					threadId: 'th_01HXYZ1234567890ABCDEF',
+					turn: {
+						id: 'turn_01HXYZ1234567890ABCDEF',
+						model: 'gpt-5-unsupported-preview',
+						status: 'failed',
+						error: {
+							code: 'model_not_found',
+							message:
+								'The model `gpt-5-unsupported-preview` does not exist or you do not have access to it.',
+							type: 'invalid_request_error',
+						},
+					},
+				},
+			});
+
+			const result = parseAndMapCodexLine(realDesensitizedLine, context);
+			expect(result.events).toHaveLength(1);
+			expect(result.events[0]?.kind).toBe('run.model_rejected');
+			expect(result.events[0]?.payload).toMatchObject({
+				code: 'model_invalid',
+				modelName: 'gpt-5-unsupported-preview',
+				vendorMessage:
+					'The model `gpt-5-unsupported-preview` does not exist or you do not have access to it.',
+			});
+			expect(result.unmappedCount).toBe(0);
+		});
+
+		it('R8-T97041355 E-36: hypothetical typed error can carry a nested model name', () => {
+			const nestedModelLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'turn/failed',
+				params: {
+					threadId: 'th_01HXYZ1234567890ABCDEF',
+					turn: {
+						id: 'turn_01HXYZ1234567890ABCDEF',
+						status: 'failed',
+						error: {
+							code: 'model_not_found',
+							model: 'claude-invalid-custom-variant',
+							message: 'Model claude-invalid-custom-variant not found',
+							type: 'invalid_request_error',
+						},
+					},
+				},
+			});
+
+			const result = parseAndMapCodexLine(nestedModelLine, context);
+			expect(result.events).toHaveLength(1);
+			expect(result.events[0]?.kind).toBe('run.model_rejected');
+			expect(result.events[0]?.payload).toMatchObject({
+				code: 'model_invalid',
+				modelName: 'claude-invalid-custom-variant',
+				vendorMessage: 'Model claude-invalid-custom-variant not found',
+			});
+		});
+
+		it('R8-T97041355 E-36: hypothetical typed turn/completed would emit run.model_rejected', () => {
+			const completedFailedLine = JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'turn/completed',
+				params: {
+					threadId: 'th_01HXYZ1234567890ABCDEF',
+					turn: {
+						id: 'turn_01HXYZ1234567890ABCDEF',
+						status: 'failed',
+						model: 'gpt-unknown-variant',
+						error: {
+							code: 'unsupported_model',
+							message: 'The requested model is not supported',
+							type: 'invalid_request_error',
+						},
+					},
+				},
+			});
+
+			const result = parseAndMapCodexLine(completedFailedLine, context);
+			expect(result.events).toHaveLength(1);
+			expect(result.events[0]?.kind).toBe('run.model_rejected');
+			expect(result.events[0]?.payload).toMatchObject({
+				code: 'model_invalid',
+				modelName: 'gpt-unknown-variant',
+				vendorMessage: 'The requested model is not supported',
+			});
+		});
+
+		it('R8-T97041355 E-36: untyped turn/failed text does not imply model rejection', () => {
+			const freeTextLine = JSON.stringify({
+				method: 'turn/failed',
+				params: {
+					message:
+						'The model `gpt-5-unsupported-preview` does not exist or you do not have access to it.',
+				},
+			});
+
+			const result = parseAndMapCodexLine(freeTextLine, context);
+			expect(result.events.some((e) => e.kind === 'run.model_rejected')).toBe(false);
+			expect(result.events.some((e) => e.kind === 'run.stderr_line')).toBe(true);
+			expect(result.events.some((e) => e.kind === 'run.exited')).toBe(true);
+		});
+
+		it('R8-T97041355 E-36: Codex 0.157.0 app-server generic error remains unclassified', () => {
+			// Shape observed with a real invalid-model turn; identifiers and message redacted.
+			const line = JSON.stringify({
+				method: 'turn/completed',
+				params: {
+					threadId: '<redacted>',
+					turn: {
+						id: '<redacted>',
+						status: 'failed',
+						error: {
+							message: 'Model not found',
+							codexErrorInfo: 'other',
+							additionalDetails: null,
+							misalignment: null,
+						},
+					},
+				},
+			});
+			const result = parseAndMapCodexLine(line, context);
+			expect(result.events.map((event) => event.kind)).toEqual(['run.stderr_line', 'run.exited']);
+			expect(result.events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
+		});
+
+		it('R8-T97041355 E-36: no current agent claims a verified structured model rejection', () => {
+			expect(getCodexCapabilities('native').reportsModelRejection).toBe(false);
+			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(false);
+
+			// All other adapters explicitly declare false (fall back to E-348)
+			expect(getCodexCapabilities('generic-acp').reportsModelRejection).toBe(false);
+			expect(getClaudeCapabilities().reportsModelRejection).toBe(false);
+			expect(getDshCapabilities().reportsModelRejection).toBe(false);
+			expect(getGenericAcpCapabilities().reportsModelRejection).toBe(false);
+			expect(getGrokCapabilities().reportsModelRejection).toBe(false);
+			expect(getPiCapabilities().reportsModelRejection).toBe(false);
 		});
 	});
 

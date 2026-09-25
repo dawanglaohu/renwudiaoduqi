@@ -150,6 +150,16 @@ export interface RunServiceDeps {
 		}) => void;
 	};
 	readonly ids?: { readonly newId: () => string };
+	/**
+	 * Called when a run.model_rejected event is received during process attachment (E-36).
+	 * RunService invokes this to transition the run to failed and release the lane.
+	 */
+	readonly handleModelInvalid?: (input: {
+		readonly runId: string;
+		readonly modelName?: string;
+		readonly agentStderrTail?: string;
+		readonly message?: string;
+	}) => Promise<unknown> | unknown;
 }
 
 export interface RunService {
@@ -543,9 +553,28 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								runsWithContent.add(runId);
 							}
 							void trackWrite(
-								ingestEvent(runId, env).then(() => {
+								(async () => {
+									// 1. 事件先落盘再发布 (R1)
+									await ingestEvent(runId, env);
 									options?.onEvent?.(env);
-								}),
+
+									// 2. E-36 / R1: 结构化模型拒绝事件落盘发布后，原子迁移 failed 并释放泳道
+									if (env.kind === 'run.model_rejected' && deps.handleModelInvalid) {
+										const payload = env.payload as {
+											readonly modelName?: string;
+											readonly vendorMessage?: string;
+										};
+										try {
+											await deps.handleModelInvalid({
+												runId,
+												modelName: payload?.modelName,
+												message: payload?.vendorMessage,
+											});
+										} catch (err) {
+											logFailure(err);
+										}
+									}
+								})(),
 							).catch((err) => logFailure(err));
 						}
 					} else if (deps.runsRepo) {
@@ -1263,7 +1292,12 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		runId: string,
 		envelope: EventEnvelopeInput,
 	): Promise<void> {
-		if (!deps.runsRepo || envelope.kind === 'run.state_changed' || envelope.kind === 'run.started')
+		if (
+			!deps.runsRepo ||
+			envelope.kind === 'run.state_changed' ||
+			envelope.kind === 'run.started' ||
+			envelope.kind === 'run.model_rejected'
+		)
 			return;
 
 		let currentRun = deps.runsRepo.findById(runId);

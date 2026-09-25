@@ -1,0 +1,22 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R8-T70356006": {
+      "contractHash": "b8834bf4c9e46d10147b6c88114a2f856fe8e20155229ba85e883b407ce5d7bd",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "R8-T97041355": {
+      "contractHash": "0feea5f8895131eb0f34f2cfb877d29f6288ad5be6dbd0ec2e82bca78c3643ef",
+      "evidence": [
+        "范围拆分由用户于 2026-09-26 明确授权；batch-8-20260922.md 的原 stable-key 仍为 R8-T97041355，batch-8-20260926-scope-amendment.md 新增 R8-T70356006，后者 status: todo 且批次 verdict: open。",
+        "packages/shared/src/api/events.ts 定义 run.model_rejected 和 model_invalid/modelName/vendorMessage；10-接口约定.md:428 同步；events.test.ts 穷尽性通过。",
+        "Codex 0.156.1 与隔离安装的 0.157.0 均以 app-server initialize/thread/start/turn/start 实际请求不存在模型：error 和 turn/completed failed 仅有 message,codexErrorInfo,additionalDetails,misalignment，codexErrorInfo=other，无模型专用 code/type。codex.capabilities.ts 保持 reportsModelRejection=false；map-events.ts 仅对显式模型专用 code/type 分支产出事件；codex-adapter.test.ts 将假设正例标为合成并加入真实协议形状负例。",
+        "service/run.ts 的事件先持久化后调用 handleModelInvalid；service/rerun.ts 在 unitOfWork 内原子提交 failed、queued_reason、清 lane_no 与作废 gate，事务后持久化并发布状态及 lane.released；dispatch-spawn.test.ts、run-service.test.ts、rerun.test.ts 覆盖紧接退出与纯零产出 E-348 分流。",
+        "dispatch-proc.test.ts 架构守卫阻止 service/jobs 从 stderr/stdout 猜模型错误；check-error-codes.mjs 通过，routes.ts/codes.ts/10 节已同步移除无真实抛出点的 E_MODEL_INVALID。",
+        "聚焦测试 6 文件 104 项通过；文档 unittest 184 项通过；Web 生产构建通过；全仓检查结果见本 PR 最终验证回报。实际验证模型专用结构化拒绝信号 0 家，Jev 原裁决 low 风险保留在未落地 R8-T70356006。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
