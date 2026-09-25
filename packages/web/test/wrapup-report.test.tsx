@@ -47,6 +47,7 @@ import {
 	composeBatchLandingCommand,
 	getBatchWrapupEntry,
 	initBatchWrapupEvents,
+	refetchBatchWrapups,
 	startBatchWrapup,
 	toWrapupFailureView,
 } from '../src/features/run-deck/wrapup-panel-container.tsx';
@@ -517,6 +518,39 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 	// AC 3 & E-157：POST 后不改状态，等 batch.wrapup_started 回流
 	// ─────────────────────────────────────────────────────────────────────────────
 	describe('AC 3 & E-157: store never flips state from the POST response', () => {
+		it('keeps the newest wrapup report when an older refetch finishes last', async () => {
+			let resolveOld: ((value: GetBatchWrapupsResponse) => void) | undefined;
+			let resolveNew: ((value: GetBatchWrapupsResponse) => void) | undefined;
+			const oldFetch = new Promise<GetBatchWrapupsResponse>((resolve) => {
+				resolveOld = resolve;
+			});
+			const newFetch = new Promise<GetBatchWrapupsResponse>((resolve) => {
+				resolveNew = resolve;
+			});
+			const first = refetchBatchWrapups('batch-13', () => oldFetch);
+			const second = refetchBatchWrapups('batch-13', () => newFetch);
+
+			resolveNew?.({ wrapups: [makeWrapup({ id: 'latest', round: 2 })] });
+			await second;
+			resolveOld?.({ wrapups: [makeWrapup({ id: 'stale', round: 1 })] });
+			await first;
+
+			expect(getBatchWrapupEntry('batch-13').wrapups.map((row) => row.id)).toEqual(['latest']);
+		});
+
+		it('does not restore a cleared batch from an in-flight refetch', async () => {
+			let resolveFetch: ((value: GetBatchWrapupsResponse) => void) | undefined;
+			const response = new Promise<GetBatchWrapupsResponse>((resolve) => {
+				resolveFetch = resolve;
+			});
+			const pending = refetchBatchWrapups('batch-13', () => response);
+			clearBatchWrapupState();
+			resolveFetch?.({ wrapups: [makeWrapup()] });
+			await pending;
+
+			expect(getBatchWrapupEntry('batch-13').wrapups).toHaveLength(0);
+		});
+
 		it('keeps the batch pending after acceptance and clears only on batch.wrapup_started', async () => {
 			const bus = createEventBus();
 			const fetcher = vi.fn().mockResolvedValue({ wrapups: [] } as GetBatchWrapupsResponse);
