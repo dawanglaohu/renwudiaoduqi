@@ -8,6 +8,7 @@ export interface DshCapabilities {
 	readonly mode: 'headless';
 	readonly outputMode: 'plain-text-final';
 	readonly supportsReasoningEffort: boolean;
+	readonly reportsModelRejection: boolean;
 }
 
 export const DSH_CAPABILITIES: DshCapabilities = Object.freeze({
@@ -18,6 +19,7 @@ export const DSH_CAPABILITIES: DshCapabilities = Object.freeze({
 	mode: 'headless',
 	outputMode: 'plain-text-final', // R2 (c): output is terminal plain text, handled via plain-text streaming channel
 	supportsReasoningEffort: false,
+	reportsModelRejection: false,
 });
 
 /**

@@ -5,6 +5,8 @@ export interface CodexCapabilities {
 	readonly hasStreamingEvents: boolean;
 	readonly canResume: boolean;
 	readonly sessionHistory: 'full' | 'current-run-only';
+	/** True if the adapter emits run.model_rejected from structured vendor error fields (E-36). */
+	readonly reportsModelRejection: boolean;
 }
 
 export const CODEX_NATIVE_CAPABILITIES: CodexCapabilities = Object.freeze({
@@ -12,6 +14,7 @@ export const CODEX_NATIVE_CAPABILITIES: CodexCapabilities = Object.freeze({
 	hasStreamingEvents: true,
 	canResume: true,
 	sessionHistory: 'full',
+	reportsModelRejection: false,
 });
 
 export const CODEX_GENERIC_ACP_CAPABILITIES: CodexCapabilities = Object.freeze({
@@ -19,6 +22,7 @@ export const CODEX_GENERIC_ACP_CAPABILITIES: CodexCapabilities = Object.freeze({
 	hasStreamingEvents: true,
 	canResume: false,
 	sessionHistory: 'current-run-only',
+	reportsModelRejection: false,
 });
 
 /**

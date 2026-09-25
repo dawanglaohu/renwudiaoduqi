@@ -9,6 +9,8 @@ export interface ClaudeCapabilities {
 	readonly sessionReadback: 'agents-json';
 	readonly supportsReasoningEffort: boolean;
 	readonly permissionModes: readonly ['plan', 'acceptEdits', 'bypassPermissions'];
+	/** True if the adapter emits run.model_rejected from structured vendor error fields (E-36). */
+	readonly reportsModelRejection: boolean;
 }
 
 export const CLAUDE_CAPABILITIES: ClaudeCapabilities = Object.freeze({
@@ -22,6 +24,7 @@ export const CLAUDE_CAPABILITIES: ClaudeCapabilities = Object.freeze({
 	sessionReadback: 'agents-json',
 	supportsReasoningEffort: true,
 	permissionModes: Object.freeze(['plan', 'acceptEdits', 'bypassPermissions'] as const),
+	reportsModelRejection: false,
 });
 
 export function getClaudeCapabilities(): ClaudeCapabilities {

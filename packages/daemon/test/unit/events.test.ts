@@ -105,6 +105,8 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'run_msg_undelivered';
 				case 'run.rework_dispatched':
 					return 'run_rework_dispatched';
+				case 'run.model_rejected':
+					return 'run_model_rejected';
 				case 'task.gate_waiting':
 					return 'task_gate_waiting';
 				case 'task.gate_passed':

@@ -8,9 +8,11 @@ import { AppError } from '../../src/errors/app-error.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
 import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
+import { createGatesRepo } from '../../src/repo/gates.ts';
 import { createRunsRepo } from '../../src/repo/runs.ts';
 import { createTasksRepo } from '../../src/repo/tasks.ts';
 import {
+	type RerunServiceDeps,
 	checkBatchAlignment,
 	checkDocSnapshotStale,
 	createRerunService,
@@ -87,16 +89,37 @@ function createTestEnvironment(options?: {
 		}),
 	};
 
+	const gatesRepo = createGatesRepo(db);
+
+	let unitOfWorkRunCount = 0;
+	const unitOfWork = {
+		run: <T>(fn: () => T): T => {
+			unitOfWorkRunCount++;
+			return fn();
+		},
+	};
+
+	const appendedEvents: Array<{ runId: string; envelope: unknown }> = [];
+	const logstore = {
+		appendEvent: async (runId: string, envelope: unknown) => {
+			appendedEvents.push({ runId, envelope });
+			return { location: { fileSeq: 0, byteOffset: 0, byteLen: 100 } };
+		},
+	};
+
 	const service = createRerunService({
+		unitOfWork: unitOfWork as unknown as NonNullable<RerunServiceDeps['unitOfWork']>,
+		logstore: logstore as unknown as NonNullable<RerunServiceDeps['logstore']>,
 		runsRepo,
+		gatesRepo,
 		tasksRepo,
 		batchesRepo,
 		documentsRepo,
 		dispatchSnapshotsRepo,
 		clock,
 		ids,
-		bus: bus as unknown as undefined,
-		envelopeFactory: envelopeFactory as unknown as undefined,
+		bus: bus as unknown as NonNullable<RerunServiceDeps['bus']>,
+		envelopeFactory: envelopeFactory as unknown as NonNullable<RerunServiceDeps['envelopeFactory']>,
 		isAgentDispatchable: (agentId: string) => onlineSet.has(agentId),
 		listDispatchableAgents: () =>
 			Array.from(onlineSet).map((agentId) => ({ agentId, canDispatch: true })),
@@ -123,12 +146,15 @@ function createTestEnvironment(options?: {
 		documentsRepo,
 		batchesRepo,
 		tasksRepo,
+		gatesRepo,
 		dispatchSnapshotsRepo,
 		runsRepo,
 		clock,
 		ids,
 		onlineSet,
 		publishedEvents,
+		appendedEvents,
+		getUnitOfWorkRunCount: () => unitOfWorkRunCount,
 		service,
 	};
 }
@@ -711,7 +737,7 @@ describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 			expect(rerunRes.run.modelName).toBe(nonWhitelistedModel);
 		});
 
-		it('失败后标「派发失败·模型无效」且该任务不占用窗口名额（E-36）', () => {
+		it('失败后标「派发失败·模型无效」且该任务不占用窗口名额（E-36）', async () => {
 			const env = createTestEnvironment();
 			env.batchesRepo.insert({ id: 'b1', doc_id: 'doc-1', batch_no: 1, state: 'running' });
 			env.tasksRepo.insert({
@@ -747,20 +773,60 @@ describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 				started_at: env.clock.now(),
 			});
 
+			// Set lane on task and pending gate to verify cleanup (E-36)
+			env.tasksRepo.setLaneNo('task-failed-model', 1);
+			env.gatesRepo.create({
+				id: 'gate-bad-model',
+				task_id: 'task-failed-model',
+				run_id: 'run-starting-bad-model',
+				kind: 'review',
+				state: 'waiting',
+				created_at: env.clock.now(),
+			});
+
 			// While starting, it is active and occupies slot
 			expect(env.runsRepo.findActiveByTaskId('task-failed-model')).not.toBeNull();
 
-			// Agent fails due to invalid model
-			const updated = env.service.handleModelInvalid({
+			// Agent fails due to invalid model (E-36 / R1: atomic commit + logstore persist before bus)
+			const initialTxCount = env.getUnitOfWorkRunCount();
+			const updated = await env.service.handleModelInvalid({
 				runId: 'run-starting-bad-model',
 				agentStderrTail: 'Error: unknown model bad-model',
 			});
 
 			expect(updated.state).toBe('failed');
 			expect(updated.queuedReason).toBe('派发失败·模型无效');
+			expect(updated.reworkCount ?? 0).toBe(0);
+
+			// R1: DB updates (state, lane_no, gates supersede) are wrapped in atomic unitOfWork transaction
+			expect(env.getUnitOfWorkRunCount()).toBe(initialTxCount + 1);
+
+			// Lane is released (tasks.lane_no set to NULL) and lane.released event is published (E-36)
+			expect(env.tasksRepo.findById('task-failed-model')?.lane_no).toBeNull();
+			const laneReleasedEvent = env.publishedEvents.find((e) => e.kind === 'lane.released');
+			expect(laneReleasedEvent).toBeDefined();
+			expect((laneReleasedEvent?.payload as { reason?: string })?.reason).toBe('failed');
+
+			// R1: Events are persisted to logstore
+			const persistedKinds = env.appendedEvents.map((e) => (e.envelope as { kind: string }).kind);
+			expect(persistedKinds).toContain('run.state_changed');
+			expect(persistedKinds).toContain('lane.released');
+
+			// Pending gate is superseded so the approval card disappears (E-36)
+			const gate = env.gatesRepo.findById('gate-bad-model');
+			expect(gate?.state).toBe('decided');
+			expect(gate?.comment).toBe('superseded');
 
 			// Once marked failed, it is no longer active and does not occupy window quota
 			expect(env.runsRepo.findActiveByTaskId('task-failed-model')).toBeNull();
+
+			// Idempotency: calling again on terminal run does nothing and does not open new tx
+			const txAfterFirst = env.getUnitOfWorkRunCount();
+			const secondCall = await env.service.handleModelInvalid({
+				runId: 'run-starting-bad-model',
+			});
+			expect(secondCall.state).toBe('failed');
+			expect(env.getUnitOfWorkRunCount()).toBe(txAfterFirst);
 		});
 	});
 });
