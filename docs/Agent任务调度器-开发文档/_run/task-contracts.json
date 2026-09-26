@@ -1229,8 +1229,14 @@
         "packages/web/test/stream-column.test.ts",
         "packages/web/src/components/pipeline-lane.tsx",
         "packages/web/src/components/stream-column.tsx",
-        "packages/web/src/i18n/ui-strings.ts",
-        "packages/shared/src/api/runs.ts"
+          "packages/web/src/i18n/ui-strings.ts",
+          "packages/shared/src/api/runs.ts",
+          "packages/daemon/src/boot/snapshot.ts",
+          "packages/daemon/src/config/env.ts",
+          "packages/daemon/src/platform/contract.ts",
+          "packages/daemon/src/platform/host.ts",
+          "packages/daemon/src/platform/windows.ts",
+          "packages/daemon/test/unit/platform.test.ts"
       ],
       "sections": [
         1,

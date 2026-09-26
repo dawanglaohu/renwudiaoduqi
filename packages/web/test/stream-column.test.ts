@@ -614,7 +614,7 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 			expect(html).toContain('CX');
 			expect(html).toContain('claude-3-7-sonnet');
 			expect(html).toContain('来源：—');
-			expect(html).toContain('run: run-888');
+			expect(html).not.toContain('run: run-888');
 
 			// [body] 呈现主体内容插槽
 			expect(html).toContain('data-test-body="true"');

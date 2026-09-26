@@ -90,6 +90,24 @@ describe('windowsExecutableCandidatePaths', () => {
 			expect(classifyWindowsPath(path).isValidForCurrentPlatform).toBe(true);
 		}
 	});
+
+	it('finds Git in an absolute PATH directory on another drive', () => {
+		const paths = windowsExecutableCandidatePaths('git', {
+			platform: 'win32',
+			homedir: 'C:\\Users\\n',
+			pathEnv: 'relative;D:\\Program Files\\Git\\cmd;%UNEXPANDED%\\bin',
+		});
+		expect(paths).toContain('D:\\Program Files\\Git\\cmd\\git.exe');
+		expect(paths.some((path) => path.startsWith('relative'))).toBe(false);
+		expect(paths.some((path) => path.includes('%UNEXPANDED%'))).toBe(false);
+		expect(
+			windowsExecutableCandidatePaths('codex', {
+				platform: 'win32',
+				homedir: 'C:\\Users\\n',
+				pathEnv: 'D:\\Program Files\\Git\\cmd',
+			}),
+		).not.toContain('D:\\Program Files\\Git\\cmd\\codex.exe');
+	});
 });
 
 describe('wrapForComSpec', () => {

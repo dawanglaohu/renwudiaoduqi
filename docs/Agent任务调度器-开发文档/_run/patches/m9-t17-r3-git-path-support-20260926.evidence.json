@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T17": {
+      "contractHash": "dacc7a6626850d9b08cd558214e3056212e4908381015fa9cd0b9f2be19f9276",
+      "evidence": [
+        "R3 补丁只把真实 Windows 派发必需的 Git 路径解析代码与测试加入 M9-T17 的 supportPaths；五条验收标准、七条边界、前置关系和 stream-head-meta.tsx 主路径均未降低。",
+        "packages/daemon/src/config/env.ts 冻结 PATH 宿主输入，经 boot/snapshot.ts、platform/host.ts 到 windows.ts；仅 git 在固定候选之后查经过绝对路径校验的 PATH 目录。相关 platform/worktree 测试 69 通过，类型检查通过。",
+        "真实 daemon 正式导入 docs-data.js，API 指派 M1-T1、启动批次，调度器给运行 req_6a933e026516 分配第 1 泳道；Codex 进程 PID 26308 运行且 events.ndjson 收到 agent_message_chunk，浏览器显示四段参照条、来源及中性序号。",
+        "stream-column.tsx 移除占用第四段空间的运行 ID 尾巴，1280x800 实际画面来源可见；对应前端测试 117 通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

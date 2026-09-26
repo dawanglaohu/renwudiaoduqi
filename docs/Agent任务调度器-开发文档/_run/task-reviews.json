@@ -1603,17 +1603,14 @@
   },
   "M9-T17": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "a36400fbd9b2b0b910daa83165d966fda603f6298db82710efe5d0e202169a5f",
+    "contractHash": "dacc7a6626850d9b08cd558214e3056212e4908381015fa9cd0b9f2be19f9276",
     "evidence": [
-      "M9-T17 的定义、验收与支持路径均未改；本补丁仅使其与 M8-T9 新增的共享代码及测试路径形成有效路径冲突，保持既有实现范围和顺序。",
-      "2026-09-25 本轮契约复核：旧记录哈希 6e2070557ef5，当前哈希 560c06025b78；逐项比对 P-R8-T54786768、r8-t54786768-err-handler-support-20260925、r8-e133-live-transport 的 changes.before/after。除共享 08/10 节指纹和上游哈希传播外，本任务直接变化路径：无。",
-      "共享条款现要求 elevate_once 仅答复真实 Codex 待处理的授权请求，按请求 ID 在同一会话确认交付；非法状态仅 operation=elevate_once 映射 409。当前 shared schema、daemon MessageService/Codex app-server 会话与 Web 按钮已接线；正式入口的 R8-T54786768 当前复核记录含真实浏览器与同 runId 证据。本轮在 main ba32db1ff99c 的关联测试 166/166 通过（协议、路由、消息、状态、查 bug、批次汇总、前端）。",
-      "M9-T17 任务笔记 status: todo；本次是任务要求的语义复核，不代表代码已实现或落地。验收标准、边界、前置和有效范围仍由当前任务笔记与结构检查约束。",
-      "2026-09-26 复核当前契约哈希：本任务不在 revalidation.json 标记中，但旧复核记录与当前源版本不同；对照 main 94fc048a..e6275175 的 10/13/19 节与任务笔记变化，更新契约复核，不改变任务状态。",
-      "本轮共享条款核对：10 节删除 E_MODEL_INVALID 的 HTTP 422 示例和错误码表项，增加 run.model_rejected 事件，只在 agent 协议提供模型专用结构化 code/type 时精确标注；自由文本、通用错误类别及零产出退出按 E-348 转人。shared events、Codex/Claude 适配器、RunService、RerunService 与当前文档一致；聚焦测试 142/142 通过，错误码检查 48 项一致。",
-      "任务笔记 status: todo；本轮只确认任务契约与共享条款可审查，不声明实现或落地。"
+      "R3 补丁只把真实 Windows 派发必需的 Git 路径解析代码与测试加入 M9-T17 的 supportPaths；五条验收标准、七条边界、前置关系和 stream-head-meta.tsx 主路径均未降低。",
+      "packages/daemon/src/config/env.ts 冻结 PATH 宿主输入，经 boot/snapshot.ts、platform/host.ts 到 windows.ts；仅 git 在固定候选之后查经过绝对路径校验的 PATH 目录。相关 platform/worktree 测试 69 通过，类型检查通过。",
+      "真实 daemon 正式导入 docs-data.js，API 指派 M1-T1、启动批次，调度器给运行 req_6a933e026516 分配第 1 泳道；Codex 进程 PID 26308 运行且 events.ndjson 收到 agent_message_chunk，浏览器显示四段参照条、来源及中性序号。",
+      "stream-column.tsx 移除占用第四段空间的运行 ID 尾巴，1280x800 实际画面来源可见；对应前端测试 117 通过。"
     ],
-    "reviewed": "2026-09-25T17:43:12.017907+00:00",
+    "reviewed": "2026-09-26T03:09:00.594653+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

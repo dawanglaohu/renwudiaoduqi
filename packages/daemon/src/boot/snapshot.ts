@@ -19,6 +19,7 @@ export function takeBootSnapshot(): BootSnapshot {
 	const hostResult = takePlatformHostInputs({
 		appData: environment.host.appData,
 		xdgDataHome: environment.host.xdgDataHome,
+		pathEnv: environment.host.pathEnv,
 	});
 	if (!hostResult.ok) {
 		throw new AppError(hostResult.error.code, hostResult.error.message, {

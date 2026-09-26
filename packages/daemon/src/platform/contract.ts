@@ -5,6 +5,7 @@ export type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
 export interface PlatformEnvironmentInputs {
 	readonly appData?: string;
 	readonly xdgDataHome?: string;
+	readonly pathEnv?: string;
 }
 
 export interface PlatformHostInputs extends PlatformEnvironmentInputs {

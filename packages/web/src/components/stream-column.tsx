@@ -408,11 +408,7 @@ export function StreamColumn(props: StreamColumnProps) {
 			>
 				<StreamHeadMeta
 					run={run}
-					modelName={
-						modelName !== undefined
-							? modelName
-							: (run?.modelName ?? null)
-					}
+					modelName={modelName !== undefined ? modelName : (run?.modelName ?? null)}
 					reportedModel={reportedModel !== undefined ? reportedModel : (run?.reportedModel ?? null)}
 					effort={effort !== undefined ? effort : (run?.effort ?? undefined)}
 					effortTier={effortTier !== undefined ? effortTier : (run?.effortTier ?? null)}
@@ -434,17 +430,6 @@ export function StreamColumn(props: StreamColumnProps) {
 					includeMonogram={true}
 					tier={tier}
 					className="min-w-0 flex-1"
-					tailSlot={
-						currentRunId ? (
-							<span
-								data-field="current-run-id"
-								title={currentRunId}
-								className="truncate max-w-[100px] text-[var(--ink-3)] flex-shrink-0"
-							>
-								run: {currentRunId}
-							</span>
-						) : null
-					}
 					slot={refBarSlot}
 				/>
 			</div>
