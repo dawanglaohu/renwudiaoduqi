@@ -51,6 +51,20 @@ function createMockRun(partial: Partial<RunDto> = {}): RunDto {
 }
 
 describe('M9-T17: 流头部参照条与会话序号 (AC 1-5, E-136, E-254, E-256, E-31, E-347, E-357, E-37)', () => {
+	it.each(['low', 'medium', 'high'])(
+		'E-256: matching vendor effort %s is not flagged as a mismatch',
+		(vendor) => {
+			const html = renderToStaticMarkup(
+				createElement(StreamHeadMeta, {
+					effort: { vendor },
+					reportedEffort: vendor,
+				}),
+			);
+			expect(html).not.toContain('自报思考强度与所选不一致');
+			expect(html).toContain('厂商原值，未映射到三档');
+		},
+	);
+
 	// ─────────────────────────────────────────────────────────────────────────────
 	// 验收标准 1: 四段常驻网格参照条（auto auto auto minmax(0,1fr)），第四段截断前三段不截断
 	// ─────────────────────────────────────────────────────────────────────────────

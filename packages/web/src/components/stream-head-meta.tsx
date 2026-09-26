@@ -208,7 +208,7 @@ function resolveEffortMeta(
 	// 5. 自报思考强度比对（E-256）：自报值与所选不一致时两者都显示并转 --needs
 	const hasReported = Boolean(reportedEffort && reportedEffort.trim() !== '');
 	if (hasReported && reportedEffort) {
-		const normalizedReported = normalizeReportedEffort(reportedEffort);
+		const normalizedReported = isVendor ? reportedEffort : normalizeReportedEffort(reportedEffort);
 		// 判断是否不一致
 		const isMismatch =
 			!isSupported ||

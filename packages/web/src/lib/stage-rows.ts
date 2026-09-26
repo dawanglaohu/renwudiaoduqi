@@ -304,7 +304,9 @@ export function deriveStageRows(input: StageRowInput): readonly StageRow[] {
 	const stageStr = currentStage ?? '';
 
 	// 3. 未知阶段：E-332 规定 stage 不在 LANE_STAGES 内显示「—」、未来行不画、不抛错
-	if (!KNOWN_LANE_STAGES.has(stageStr)) {
+	// Archived tasks use the final pipeline stage; it is not a live LaneStage.
+	const isHistoryLanding = readOnly && stageStr === 'landing';
+	if (!KNOWN_LANE_STAGES.has(stageStr) && !isHistoryLanding) {
 		return [
 			{
 				id: 'unknown',
