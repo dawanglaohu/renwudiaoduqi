@@ -114,6 +114,14 @@ describe('M8-T8 & M8-T9 Pipeline Settings Unit Tests (AC 5, E-318, E-356)', () =
 		expect(JSON.parse(rawRow?.value_json ?? '{}')).toEqual({ bughunt: 1, wrapupMode: 'manual' });
 	});
 
+	it('rejects a legacy-looking row with unknown keys instead of keeping its non-default switches', () => {
+		const warn = vi.fn();
+		const malformed = JSON.stringify({ bughunt: 1, wrapupMode: 'manual', unexpected: true });
+
+		expect(parsePipelineSettings(malformed, warn)).toEqual(DEFAULT_PIPELINE_SETTINGS);
+		expect(warn).toHaveBeenCalledOnce();
+	});
+
 	it('wrapupAssignment validates follow mode and fixed mode, rejecting mixed shapes', () => {
 		// Shape 1: follow mode
 		expect(isValidWrapupAssignment({ mode: 'follow' })).toBe(true);
