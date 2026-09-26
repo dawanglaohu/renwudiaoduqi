@@ -615,9 +615,28 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		expect(importBody.document?.id).toBeTruthy();
 		docId = importBody.document.id;
 
-		// In browser, navigate to deck and verify both tasks are visible
-		await page.goto(`http://127.0.0.1:${daemon.port}/#/`);
-		await page.waitForLoadState('networkidle');
+		// The deck can finish its previous empty snapshot while the import is in flight.
+		// Wait for the imported document in the server snapshot before reloading the browser.
+		let importedSnapshotReady = false;
+		const snapshotDeadline = Date.now() + 10_000;
+		while (Date.now() < snapshotDeadline) {
+			const snapshotRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/snapshot`, {
+				headers: { Authorization: `Bearer ${adminToken}` },
+			});
+			if (snapshotRes.ok) {
+				const snapshot = (await snapshotRes.json()) as {
+					documents: Array<{ id: string }>;
+					tasks: Array<{ docId: string; taskKey: string }>;
+				};
+				importedSnapshotReady =
+					snapshot.documents.some((doc) => doc.id === docId) &&
+					snapshot.tasks.filter((task) => task.docId === docId).length === 2;
+				if (importedSnapshotReady) break;
+			}
+			await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+		}
+		expect(importedSnapshotReady).toBe(true);
+		await page.reload({ waitUntil: 'networkidle' });
 
 		// Expand batch 1 and batch 2 so that tasks are rendered in DOM (BatchTree is collapsed by default)
 		const batch1Toggle = page.locator('[data-batch-no="1"] [data-action="toggle-batch"]');
