@@ -533,8 +533,7 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		const browserPairingCode = codeData.code;
 		registerSensitiveData(browserPairingCode);
 
-		await page.goto(`http://127.0.0.1:${daemon.port}/#/pair`);
-		await page.waitForLoadState('networkidle');
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/pair`, { waitUntil: 'domcontentloaded' });
 
 		// Fill pairing code and manual host
 		const codeInput = page.locator('[data-testid="pairing-code-input"]');
@@ -636,7 +635,7 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 			await new Promise((resolveWait) => setTimeout(resolveWait, 100));
 		}
 		expect(importedSnapshotReady).toBe(true);
-		await page.reload({ waitUntil: 'networkidle' });
+		await page.reload({ waitUntil: 'domcontentloaded' });
 
 		// Expand batch 1 and batch 2 so that tasks are rendered in DOM (BatchTree is collapsed by default)
 		const batch1Toggle = page.locator('[data-batch-no="1"] [data-action="toggle-batch"]');
@@ -708,8 +707,7 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		expect(existsSync(expectedWorktree)).toBe(true);
 
 		// R2: Verify this run's identity in the deck rail
-		await page.goto(`http://127.0.0.1:${daemon.port}/#/`);
-		await page.waitForLoadState('networkidle');
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
 
 		// Assert data-connection-status is 'online'
 		await page.waitForFunction(
@@ -736,8 +734,15 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		expect(await railTaskItem.isVisible()).toBe(true);
 
 		// R2: Establish browser stream and detail subscription BEFORE fake agent emits its live chunk
-		await page.goto(`http://127.0.0.1:${daemon.port}/#/run/${currentRunId}`);
-		await page.waitForLoadState('networkidle');
+		const initialLogResponse = page.waitForResponse(
+			(response) => response.url().includes(`/api/v1/runs/${currentRunId}/log`) && response.ok(),
+			{ timeout: 15000 },
+		);
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/run/${currentRunId}`, {
+			waitUntil: 'domcontentloaded',
+		});
+		await initialLogResponse;
+		await page.locator('[data-component="run-detail-container"]').waitFor({ state: 'visible' });
 
 		// Verify connection status is online on detail page
 		await page.waitForFunction(
@@ -762,9 +767,24 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 
 		// R2: Negative control — prove that when SSE path is broken, new chunks do NOT reach the DOM
 		const brokenPage = await context.newPage();
-		await brokenPage.route('**/api/v1/events*', (route) => route.abort('connectionfailed'));
-		await brokenPage.goto(`http://127.0.0.1:${daemon.port}/#/run/${currentRunId}`);
-		await brokenPage.waitForLoadState('networkidle');
+		let brokenSseAttempts = 0;
+		await brokenPage.route('**/api/v1/events*', (route) => {
+			brokenSseAttempts += 1;
+			return route.abort('connectionfailed');
+		});
+		const brokenSseRequest = brokenPage.waitForRequest(
+			(request) => request.url().includes('/api/v1/events'),
+			{ timeout: 15000 },
+		);
+		await brokenPage.goto(`http://127.0.0.1:${daemon.port}/#/run/${currentRunId}`, {
+			waitUntil: 'domcontentloaded',
+		});
+		await brokenSseRequest;
+		const brokenSseDeadline = Date.now() + 5_000;
+		while (brokenSseAttempts === 0 && Date.now() < brokenSseDeadline) {
+			await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+		}
+		expect(brokenSseAttempts).toBeGreaterThan(0);
 
 		// Assert brokenPage never reached 'online' SSE connection status
 		const brokenConnection = await brokenPage.evaluate(() =>
