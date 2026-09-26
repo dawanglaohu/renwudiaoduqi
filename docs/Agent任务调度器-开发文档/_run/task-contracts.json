@@ -1313,6 +1313,7 @@
         "eventKinds"
       ],
       "supportPaths": [
+        "biome.json",
         "packages/web/src/app/bootstrap.ts",
         "packages/web/src/app/theme-provider.tsx",
         "packages/daemon/src/http/plugins/80-static.ts"
