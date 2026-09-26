@@ -144,6 +144,60 @@ describe('M8-T8 deriveLanes Unit & Arch Tests (AC 1, E-317, E-319, E-332)', () =
 		expect(lanes[1]?.archivedWrapupRunId).toBe('w1');
 	});
 
+	it('E-325: a later task replaces an older wrapup in the same lane history', () => {
+		const lanes = deriveLanes({
+			laneCount: 1,
+			tasks: [{ id: 'later-task', task_key: 'M9-T21', doc_id: 'doc-1', lane_no: null }],
+			runs: [
+				{
+					id: 'wrapup',
+					task_id: null,
+					kind: 'wrapup',
+					state: 'landed',
+					lane_no: 1,
+					session_archived_at: '2026-09-25T10:00:00.000Z',
+				},
+				{
+					id: 'task-run',
+					task_id: 'later-task',
+					kind: 'implement',
+					state: 'landed',
+					lane_no: 1,
+					session_archived_at: '2026-09-25T11:00:00.000Z',
+				},
+			],
+		});
+		expect(lanes[0]?.archivedTaskIds).toEqual(['later-task']);
+		expect(lanes[0]?.archivedWrapupRunId).toBeNull();
+	});
+
+	it('E-325: a later wrapup replaces an older task in the same lane history', () => {
+		const lanes = deriveLanes({
+			laneCount: 1,
+			tasks: [{ id: 'old-task', task_key: 'M9-T20', doc_id: 'doc-1', lane_no: null }],
+			runs: [
+				{
+					id: 'task-run',
+					task_id: 'old-task',
+					kind: 'implement',
+					state: 'landed',
+					lane_no: 1,
+					session_archived_at: '2026-09-25T10:00:00.000Z',
+				},
+				{
+					id: 'wrapup',
+					task_id: null,
+					kind: 'wrapup',
+					state: 'landed',
+					lane_no: 1,
+					session_archived_at: '2026-09-25T11:00:00.000Z',
+				},
+			],
+		});
+		expect(lanes[0]?.archivedTaskIds).toEqual([]);
+		expect(lanes[0]?.archivedWrapupRunId).toBe('wrapup');
+	});
+
 	it('produces byte-identical JSON on shuffled input collections (E-317, E-319)', () => {
 		const baseTasks = [
 			{ id: 't-b', task_key: 'B', doc_id: 'doc-1', lane_no: 1 },
