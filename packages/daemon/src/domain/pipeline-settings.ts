@@ -161,13 +161,7 @@ export function parsePipelineSettings(
 		if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
 			const rec = parsed as Record<string, unknown>;
 			const keys = Object.keys(rec);
-			if (
-				(keys.length === 2 && keys.includes('bughunt') && keys.includes('wrapupMode')) ||
-				(rec.bughunt !== undefined &&
-					rec.wrapupMode !== undefined &&
-					rec.reviewOverride === undefined &&
-					rec.wrapupAssignment === undefined)
-			) {
+			if (keys.length === 2 && keys.includes('bughunt') && keys.includes('wrapupMode')) {
 				if (
 					(rec.bughunt === 0 || rec.bughunt === 1) &&
 					(rec.wrapupMode === 'auto' || rec.wrapupMode === 'manual')

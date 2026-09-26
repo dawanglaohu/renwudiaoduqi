@@ -19,7 +19,7 @@ import type {
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { PipelineToggles } from '../../components/pipeline-toggles.tsx';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
-import { usePipelineSettings } from './use-pipeline-settings.ts';
+import { type PipelineSettingsSource, usePipelineSettings } from './use-pipeline-settings.ts';
 
 export interface PipelineTogglesContainerProps {
 	/** 外部注入的初始配置（可选，优先于异步拉取） */
@@ -32,6 +32,7 @@ export interface PipelineTogglesContainerProps {
 	/** 自定义 fetcher / patcher（用于单元测试与集成测试） */
 	readonly fetcher?: () => Promise<GetPipelineSettingsResponse>;
 	readonly patcher?: (body: UpdatePipelineSettingsBody) => Promise<UpdatePipelineSettingsResponse>;
+	readonly source?: PipelineSettingsSource;
 }
 
 export function PipelineTogglesContainer({
@@ -41,11 +42,13 @@ export function PipelineTogglesContainer({
 	className = '',
 	fetcher,
 	patcher,
+	source,
 }: PipelineTogglesContainerProps) {
 	const { pipeline, isPending, error, updatePipelineToggles } = usePipelineSettings({
 		initialPipeline,
 		fetcher,
 		patcher,
+		source,
 	});
 
 	const isSettings = layout === 'settings';
