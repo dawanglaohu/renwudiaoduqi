@@ -330,6 +330,47 @@ jobs:
           retention-days: 7
 
   # ============================================================================
+  # End-to-End Smoke: Real daemon, real browser, dispatch main flow (M1-T11, AC 1-5, E-265)
+  # ============================================================================
+  e2e-smoke:
+    name: E2E Smoke (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS (E-260)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium with system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E Smoke (M1-T11, E-265)
+        shell: bash
+        run: |
+          pnpm_bin="$(command -v pnpm)"
+          sudo -E env "PATH=$PATH" "$pnpm_bin" e2e
+
+      - name: Upload E2E Smoke Failure Artifacts (AC 5)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-smoke-failure-artifacts
+          path: e2e/artifacts/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================================
   # macOS signing/notarization gate (AC 6, E-267).
   # Kept as its own job so signing and notarization are both required explicitly
   # instead of one being inferred from the other.
@@ -368,7 +409,7 @@ jobs:
   # ============================================================================
   release-verification:
     name: Release Gate Evaluation
-    needs: [desktop-matrix, macos-signing-gate, pairing-smoke]
+    needs: [desktop-matrix, macos-signing-gate, pairing-smoke, e2e-smoke]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -384,6 +425,12 @@ jobs:
         if: ${{ needs.pairing-smoke.result != 'success' }}
         run: |
           echo "::error::Production pairing smoke on Ubuntu failed (result: ${{ needs.pairing-smoke.result }})."
+          exit 1
+
+      - name: Enforce E2E Smoke Gate (M1-T11, E-265)
+        if: ${{ needs.e2e-smoke.result != 'success' }}
+        run: |
+          echo "::error::E2E smoke on Ubuntu failed (result: ${{ needs.e2e-smoke.result }})."
           exit 1
 
       - name: Collect platform job conclusions

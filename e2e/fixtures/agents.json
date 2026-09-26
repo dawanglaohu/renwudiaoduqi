@@ -1,0 +1,8 @@
+{
+	"schemaVersion": 1,
+	"overrides": {
+		"codex": {
+			"execPath": "./fake-agent.mjs"
+		}
+	}
+}

@@ -37,17 +37,16 @@
   },
   "M1-T11": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "e71e7fc48cba0966a5c14aef28fe08e8e0f5ca9b90717f622ec3d944e06e1da4",
+    "contractHash": "0c7bdc162ec852eff7a351c351cb4ba882a3a037559261ab1d379dfbb86da3b9",
     "evidence": [
-      "只因前置 M9-T27 契约哈希传播；自身定义、有效路径、验收与导入派发 SSE 主流程职责未变。该任务尚未落地，本次只复核契约。",
-      "2026-09-25 本轮契约复核：旧记录哈希 ccca1ddce886，当前哈希 83b7c4f2dea4；逐项比对 P-R8-T54786768、r8-t54786768-err-handler-support-20260925、r8-e133-live-transport 的 changes.before/after。除共享 08/10 节指纹和上游哈希传播外，本任务直接变化路径：无。",
-      "共享条款现要求 elevate_once 仅答复真实 Codex 待处理的授权请求，按请求 ID 在同一会话确认交付；非法状态仅 operation=elevate_once 映射 409。当前 shared schema、daemon MessageService/Codex app-server 会话与 Web 按钮已接线；正式入口的 R8-T54786768 当前复核记录含真实浏览器与同 runId 证据。本轮在 main ba32db1ff99c 的关联测试 166/166 通过（协议、路由、消息、状态、查 bug、批次汇总、前端）。",
-      "M1-T11 任务笔记 status: todo；本次是任务要求的语义复核，不代表代码已实现或落地。验收标准、边界、前置和有效范围仍由当前任务笔记与结构检查约束。",
-      "2026-09-26 复核当前契约哈希：本任务不在 revalidation.json 标记中，但旧复核记录与当前源版本不同；对照 main 94fc048a..e6275175 的 10/13/19 节与任务笔记变化，更新契约复核，不改变任务状态。",
-      "本轮共享条款核对：10 节删除 E_MODEL_INVALID 的 HTTP 422 示例和错误码表项，增加 run.model_rejected 事件，只在 agent 协议提供模型专用结构化 code/type 时精确标注；自由文本、通用错误类别及零产出退出按 E-348 转人。shared events、Codex/Claude 适配器、RunService、RerunService 与当前文档一致；聚焦测试 142/142 通过，错误码检查 48 项一致。",
-      "任务笔记 status: todo；本轮只确认任务契约与共享条款可审查，不声明实现或落地。"
+      "AC 1: package.json:10 builds Web before Vitest; e2e/smoke.test.ts:126 launches bootstrap.mjs with a temporary data directory and random port, captures stdout, stderr, and exit result; step 2 claims pairing-code.txt through the real HTTP route.",
+      "AC 2: e2e/smoke.test.ts:520 uses Playwright Chromium on the production pairing form, enters host and code, then checks navigation and computed styles.",
+      "AC 3: e2e/smoke.test.ts:337 creates an isolated fixture Git repository; steps 4 and 5 import its two tasks, dispatch the first through a real worktree and fake-agent process, and assert a live SSE chunk appears in the DOM while a disconnected browser does not receive it.",
+      "AC 4: e2e/smoke.test.ts:783 scans production source for test hooks and E2E source for spawnManaged replacement; the dispatched run uses the ordinary agent registry and process path.",
+      "AC 5: e2e/smoke.test.ts:385 and 399 persist sanitized setup and step failure evidence; .github/workflows/desktop-ci.yml:335 runs Ubuntu E2E with artifact upload and release gate dependency; biome.json:46 excludes e2e from workspace check.",
+      "Boundaries E-10, E-31, E-108, E-135, E-139, E-159, E-175, E-226, E-265 are exercised by the corresponding E2E steps or prerequisite production paths. pnpm -w e2e passed 7/7; pnpm -w check passed 202 files and 2490 tests after merging main."
     ],
-    "reviewed": "2026-09-25T17:43:12.017907+00:00",
+    "reviewed": "2026-09-26T02:50:09.414125+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
