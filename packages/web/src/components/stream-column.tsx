@@ -17,6 +17,12 @@
  * - 界面不含业务判定：只呈现上层下发字段，缺失一律显示 '—'（07 节）
  */
 
+import type { EffortTier, EffortValue } from '@agent-scheduler/shared/api/agents';
+import type {
+	AssignmentResolutionSource,
+	RunDto,
+	RunPermissionTier,
+} from '@agent-scheduler/shared/api/runs';
 import {
 	type HTMLAttributes,
 	type KeyboardEvent,
@@ -27,6 +33,7 @@ import {
 import type { DensityTier } from '../hooks/use-breakpoint.ts';
 import { type StatusState, normalizeStatusState } from '../lib/spine-shape.ts';
 import { StatusBadge } from './status-badge.tsx';
+import { StreamHeadMeta } from './stream-head-meta.tsx';
 
 /**
  * 泳道类型（E-297）：`task` 任务流水线、`wrapup` 批次收口运行、`idle` 空闲泳道。
@@ -76,8 +83,6 @@ export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id
 	readonly agentName?: string;
 	/** 模型名称 */
 	readonly modelName?: string;
-	/** 参照条来源说明（M2/daemon 下发字段，缺失显示 '—'） */
-	readonly refSource?: string;
 	/** 耗时（毫秒数值或已格式化字符串，无数据返回 '—'） */
 	readonly duration?: number | string | null;
 	/** Token 消耗显示（无数据返回 '—' 禁止返回 0） */
@@ -113,6 +118,27 @@ export interface StreamColumnProps extends Omit<HTMLAttributes<HTMLElement>, 'id
 	readonly afterBodySlot?: ReactNode;
 	/** 插槽：底栏收据扩展 */
 	readonly footSlot?: ReactNode;
+
+	/** 当前运行 DTO（供 StreamHeadMeta 渲染四段参照条，M9-T17） */
+	readonly run?: Partial<RunDto> | null;
+	/** 会话序号（E-31） */
+	readonly sessionNo?: number | null;
+	/** 自报模型名称（E-37） */
+	readonly reportedModel?: string | null;
+	/** 思考强度复合值（EffortValue，M4-T14） */
+	readonly effort?: EffortValue;
+	/** 思考强度三档抽象（'low' | 'medium' | 'high'） */
+	readonly effortTier?: EffortTier | null;
+	/** 思考强度厂商原值 */
+	readonly effortVendor?: string | null;
+	/** 自报思考强度（E-256） */
+	readonly reportedEffort?: string | null;
+	/** 权限档位（'readOnly' | 'workspaceWrite' | 'unrestricted'，E-136） */
+	readonly permissionTier?: RunPermissionTier | string | null;
+	/** 来源类别（'task' | 'review_override' | 'wrapup_settings' | 'agent_default'，E-357） */
+	readonly assignmentSource?: AssignmentResolutionSource | string | null;
+	/** 跟随的任务标识（E-357） */
+	readonly followedTaskId?: string | null;
 }
 
 /**
@@ -139,7 +165,6 @@ export function StreamColumn(props: StreamColumnProps) {
 		agentMonogram,
 		agentName,
 		modelName,
-		refSource,
 		duration,
 		tokenCount,
 		cost,
@@ -157,6 +182,16 @@ export function StreamColumn(props: StreamColumnProps) {
 		afterBodySlot,
 		footSlot,
 		className,
+		run,
+		sessionNo,
+		reportedModel,
+		effort,
+		effortTier,
+		effortVendor,
+		reportedEffort,
+		permissionTier,
+		assignmentSource,
+		followedTaskId,
 		...rest
 	} = props;
 
@@ -198,8 +233,6 @@ export function StreamColumn(props: StreamColumnProps) {
 	const displayTokens = formatTokenCount(tokenCount);
 	const displayCost = formatCost(cost);
 	const resolvedCanStop = kind === 'idle' ? false : canStop;
-	const displayRefSource = refSource && refSource.trim().length > 0 ? refSource.trim() : '—';
-	const displayModelOrAgent = modelName ?? agentName ?? '—';
 	const displayMonogram = formatMonogram(agentMonogram, agentName);
 
 	// 收口泳道头部（E-297）：第 N 轮 / 第 M 批缺失一律显示「—」，不用前端逻辑补齐
@@ -367,52 +400,38 @@ export function StreamColumn(props: StreamColumnProps) {
 			</header>
 
 			{/* ─────────────────────────────────────────────────────────────
-			    第 2 段：[refBar] 参照条（AC 12，呈现 daemon 下发字段）
+			    第 2 段：[refBar] 参照条（AC 12, M9-T17 四段参照条与会话序号）
 			    ───────────────────────────────────────────────────────────── */}
 			<div
 				data-segment="refBar"
 				className="flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] font-mono text-[var(--ink-3)] border-b border-[var(--border)] bg-[var(--page)] select-none"
 			>
-				<div className="flex items-center gap-2 min-w-0 flex-1 truncate">
-					{/* Agent 身份双字符中性 chip，禁止厂商品牌色（11 节） */}
-					<span
-						data-agent-monogram="true"
-						className="px-1.5 py-0.5 rounded-[4px] bg-[var(--panel-2)] text-[var(--ink-1)] border border-[var(--border)] font-mono font-bold text-[10px] tracking-wider flex-shrink-0"
-					>
-						{displayMonogram}
-					</span>
-
-					{/* 模型 / Agent 名称 */}
-					<span
-						data-field="model-name"
-						title={displayModelOrAgent}
-						className="truncate max-w-[140px] text-[var(--ink-2)]"
-					>
-						{displayModelOrAgent}
-					</span>
-
-					{/* 参照来源 */}
-					<span
-						data-field="ref-source"
-						title={displayRefSource}
-						className="truncate max-w-[120px] text-[var(--ink-3)]"
-					>
-						来源: {displayRefSource}
-					</span>
-
-					{refBarSlot}
-				</div>
-
-				{/* 当前运行 ID（若存在） */}
-				{currentRunId && (
-					<span
-						data-field="current-run-id"
-						title={currentRunId}
-						className="truncate max-w-[100px] text-[var(--ink-3)] flex-shrink-0"
-					>
-						run: {currentRunId}
-					</span>
-				)}
+				<StreamHeadMeta
+					run={run}
+					modelName={modelName !== undefined ? modelName : (run?.modelName ?? null)}
+					reportedModel={reportedModel !== undefined ? reportedModel : (run?.reportedModel ?? null)}
+					effort={effort !== undefined ? effort : (run?.effort ?? undefined)}
+					effortTier={effortTier !== undefined ? effortTier : (run?.effortTier ?? null)}
+					effortVendor={effortVendor !== undefined ? effortVendor : (run?.effortVendor ?? null)}
+					reportedEffort={
+						reportedEffort !== undefined ? reportedEffort : (run?.reportedEffort ?? null)
+					}
+					permissionTier={
+						permissionTier !== undefined ? permissionTier : (run?.permissionTier ?? null)
+					}
+					assignmentSource={
+						assignmentSource !== undefined ? assignmentSource : (run?.assignmentSource ?? null)
+					}
+					followedTaskId={
+						followedTaskId !== undefined ? followedTaskId : (run?.followedTaskId ?? null)
+					}
+					sessionNo={sessionNo !== undefined ? sessionNo : (run?.sessionNo ?? null)}
+					agentMonogram={displayMonogram}
+					includeMonogram={true}
+					tier={tier}
+					className="min-w-0 flex-1"
+					slot={refBarSlot}
+				/>
 			</div>
 
 			{/* ─────────────────────────────────────────────────────────────

@@ -588,7 +588,6 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 				status: 'streaming',
 				agentMonogram: 'CX',
 				modelName: 'claude-3-7-sonnet',
-				refSource: 'dispatch.prompt',
 				duration: 15400,
 				tokenCount: 42300,
 				cost: 0.128,
@@ -614,8 +613,8 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 			// [refBar] 呈现 Monogram、模型名、来源、当前运行 ID
 			expect(html).toContain('CX');
 			expect(html).toContain('claude-3-7-sonnet');
-			expect(html).toContain('来源: dispatch.prompt');
-			expect(html).toContain('run: run-888');
+			expect(html).toContain('来源：—');
+			expect(html).not.toContain('run: run-888');
 
 			// [body] 呈现主体内容插槽
 			expect(html).toContain('data-test-body="true"');
@@ -639,7 +638,6 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 					duration: null,
 					tokenCount: null,
 					cost: null,
-					refSource: undefined,
 				}),
 			);
 
@@ -647,7 +645,7 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 			expect(html).toContain('Tokens: —');
 			expect(html).not.toContain('Tokens: 0');
 			expect(html).toContain('费用: —');
-			expect(html).toContain('来源: —');
+			expect(html).toContain('来源：—');
 
 			// 状态缺失时不得由前端补齐成 queued，走 E-230/E-234 的降级形状「未识别」
 			expect(html).toContain('data-status="unrecognized"');

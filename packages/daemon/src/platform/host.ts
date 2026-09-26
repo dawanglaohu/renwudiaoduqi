@@ -55,6 +55,7 @@ export function takePlatformHostInputs(
 			homedir: hostReader.homedir(),
 			appData: environment.appData,
 			xdgDataHome: environment.xdgDataHome,
+			pathEnv: environment.pathEnv,
 		}),
 	});
 }

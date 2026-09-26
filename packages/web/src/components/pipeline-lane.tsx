@@ -46,6 +46,7 @@ export interface PipelineLaneProps extends HTMLAttributes<HTMLElement> {
 		readonly errorMessage?: string;
 		readonly refBarSlot?: ReactNode;
 		readonly footSlot?: ReactNode;
+		readonly sessionNo?: number | null;
 	};
 	/** 当前运行任务对象（若当前正在跑任务） */
 	readonly task?: TaskDto | null;
@@ -213,10 +214,18 @@ export function PipelineLane({
 			wrapupRound={isWrapup ? wrapupRound : null}
 			wrapupBatchNo={isWrapup ? wrapupBatchNo : null}
 			status={laneStatus}
+			run={currentRun}
+			sessionNo={currentRun?.sessionNo ?? null}
 			agentMonogram={lane.agentMonogram}
 			agentName={lane.agentName}
-			modelName={lane.modelName}
-			refSource={lane.refSource}
+			reportedModel={currentRun?.reportedModel ?? null}
+			effort={currentRun?.effort}
+			effortTier={currentRun?.effortTier ?? null}
+			effortVendor={currentRun?.effortVendor ?? null}
+			reportedEffort={currentRun?.reportedEffort ?? null}
+			permissionTier={currentRun?.permissionTier ?? null}
+			assignmentSource={currentRun?.assignmentSource ?? null}
+			followedTaskId={currentRun?.followedTaskId ?? null}
 			tokenCount={lane.tokenCount}
 			cost={lane.cost}
 			errorMessage={lane.errorMessage}

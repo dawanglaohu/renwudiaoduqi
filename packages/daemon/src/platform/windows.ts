@@ -114,6 +114,15 @@ export function windowsExecutableCandidatePaths(
 	}
 	addRoot('C:\\Program Files\\nodejs\\node_global');
 	addRoot('C:\\Program Files\\nodejs');
+	// Git for Windows is often installed on another drive. Consult the launch
+	// environment only for Git, after the fixed candidates, and ignore relative
+	// or unexpanded PATH entries before the resolver validates the file itself.
+	if (/^git(?:\.(?:exe|cmd|bat))?$/i.test(executableName)) {
+		for (const entry of hostInputs.pathEnv?.split(';') ?? []) {
+			const directory = entry.trim();
+			if (isUsableAbsoluteWindowsPath(directory)) addRoot(directory);
+		}
+	}
 
 	const extension = win32.extname(executableName).toLowerCase();
 	const hasKnownExtension =

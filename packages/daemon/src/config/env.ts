@@ -45,6 +45,7 @@ export interface EnvironmentSnapshot {
 		readonly xdgDataHome: string | undefined;
 		readonly programData: string | undefined;
 		readonly systemRoot: string | undefined;
+		readonly pathEnv?: string;
 	};
 }
 
@@ -80,6 +81,7 @@ export function snapshotEnvironment(): EnvironmentSnapshot {
 			xdgDataHome: process.env.XDG_DATA_HOME,
 			programData: process.env.PROGRAMDATA,
 			systemRoot: process.env.SystemRoot,
+			pathEnv: process.env.Path ?? process.env.PATH,
 		}),
 	});
 }

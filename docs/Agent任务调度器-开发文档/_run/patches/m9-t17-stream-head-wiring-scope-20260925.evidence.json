@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T17": {
+      "contractHash": "d1a92a40179a7651aa04ac3ff1c94a6088e2b8ae03e88b4a3530eacc0cfd8fb0",
+      "evidence": [
+        "2026-09-26 合并 main e627517 后复核 M9-T17 的五条验收标准、七条边界及前置；本任务独有条款未降低，当前契约哈希变化含上游共享章节和有效路径同步。",
+        "真实产品入口 packages/web/src/features/run-deck/lanes-container.tsx 将运行列表传入 pipeline-lane.tsx，再由 stream-column.tsx 唯一挂载 StreamHeadMeta；当前阶段 RunDto 是四段参照条与中性 sessionNo 的数据源。",
+        "m9-t17-stream-head-wiring-scope-20260925 补丁在 task-contracts.json 中增加 pipeline-lane.tsx、stream-column.tsx 和对应测试为 supportPaths；taskPaths 仍为 stream-head-meta.tsx，验收与边界原文未改。",
+        "本 verify 只登记任务契约语义复核；代码、真实运行录制、最终检查和 PR 落地仍按第 2 轮审查结果处理。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

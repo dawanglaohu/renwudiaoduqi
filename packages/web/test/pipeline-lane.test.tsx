@@ -1,10 +1,10 @@
-import type { LaneView, PipelineStage } from '@agent-scheduler/shared/api/lanes';
-import type { RunDto } from '@agent-scheduler/shared/api/runs';
+import type { PipelineStage } from '@agent-scheduler/shared/api/lanes';
+import type { RunDto, RunPermissionTier } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { PipelineLane } from '../src/components/pipeline-lane.tsx';
+import { PipelineLane, type PipelineLaneProps } from '../src/components/pipeline-lane.tsx';
 import type { DensityTier } from '../src/hooks/use-breakpoint.ts';
 
 const PIPELINE_STAGES: readonly PipelineStage[] = ['implement', 'review', 'bughunt', 'landing'];
@@ -12,7 +12,9 @@ const PIPELINE_STAGES: readonly PipelineStage[] = ['implement', 'review', 'bughu
 const TIERS: readonly DensityTier[] = ['full', 'compact', 'narrow', 'phone', 'phone-xs'];
 const STATES = ['running', 'idle', 'overLimit', 'wrapup'] as const;
 
-function createMockLane(partial: Partial<LaneView> = {}): LaneView {
+type MockLaneInput = Partial<PipelineLaneProps['lane']>;
+
+function createMockLane(partial: MockLaneInput = {}): PipelineLaneProps['lane'] {
 	return {
 		laneNo: 1,
 		taskId: 'task-1',
@@ -342,5 +344,235 @@ describe('PipelineLane: Feature semantics and edge cases (AC 1, 5, 6, 7, E-309, 
 		expect(html).toContain('data-slot="lane-history"');
 		expect(html).toContain('data-state="failed"');
 		expect(html).not.toContain('data-state="running"');
+	});
+
+	// ─── M9-T17 / R1 & R2: 流头部参照条与会话序号真实接线测试 ───
+	describe('PipelineLane: StreamHeadMeta real wiring and reference bar (M9-T17 / R1, R2)', () => {
+		it('R1: source and session ordinal stay unknown when the current RunDto omits them', () => {
+			const lane = createMockLane({ refSource: 'dispatch.prompt', currentRunId: 'run-1' });
+			const run = createMockRun({ id: 'run-1', assignmentSource: undefined, sessionNo: undefined });
+			const html = renderToStaticMarkup(
+				createElement(PipelineLane, {
+					lane,
+					task: createMockTask(),
+					runs: [run],
+					stageOrder: PIPELINE_STAGES,
+					tier: 'full',
+				}),
+			);
+
+			expect(html).toContain('来源：—');
+			expect(html).not.toContain('dispatch.prompt');
+			expect(html).not.toContain('data-session-ordinal');
+		});
+
+		it('R1 (implement): wired with currentRun RunDto, displays 4-segment refBar and neutral sessionNo without duplicating', () => {
+			const lane = createMockLane({
+				laneNo: 1,
+				stage: 'implement',
+				taskId: 'task-impl',
+				currentRunId: 'run-impl-1',
+				agentMonogram: 'CX',
+				agentName: 'Claude Expert',
+			});
+			const task = createMockTask({ id: 'task-impl', taskKey: 'M9-T17' });
+			const runs = [
+				createMockRun({
+					id: 'run-impl-1',
+					taskId: 'task-impl',
+					kind: 'implement',
+					modelName: 'claude-3-7-sonnet',
+					effortTier: 'high',
+					permissionTier: 'readOnly',
+					assignmentSource: 'task',
+					sessionNo: 2,
+				}),
+			];
+
+			const html = renderToStaticMarkup(
+				createElement(PipelineLane, {
+					lane,
+					task,
+					runs,
+					stageOrder: PIPELINE_STAGES,
+					tier: 'full',
+				}),
+			);
+
+			// 1. 每条运行流只保留一条四段参照条（替换旧参照条，不并排追加）
+			const refBarMatches = html.match(/data-ref-bar="true"/g);
+			expect(refBarMatches?.length).toBe(1);
+
+			// 2. 真实 monogram 显示中性 sessionNo 角标
+			expect(html).toContain('data-agent-monogram="true"');
+			expect(html).toContain('data-session-ordinal="2"');
+			expect(html).toContain('>2<');
+			expect(html).toContain('>CX<');
+
+			// 3. 四段字段由当前阶段 RunDto 驱动
+			expect(html).toContain('claude-3-7-sonnet');
+			expect(html).toContain('>高<');
+			expect(html).toContain('只读');
+			expect(html).toContain('来源：任务指派');
+		});
+
+		it('R1 (review): wired with review RunDto, handles model mismatch and review_override source', () => {
+			const lane = createMockLane({
+				laneNo: 2,
+				stage: 'review',
+				taskId: 'task-rev',
+				currentRunId: 'run-rev-1',
+				agentMonogram: 'GK',
+				agentName: 'Grok Reviewer',
+			});
+			const task = createMockTask({ id: 'task-rev', taskKey: 'M9-T17' });
+			const runs = [
+				createMockRun({
+					id: 'run-rev-1',
+					taskId: 'task-rev',
+					kind: 'review',
+					modelName: 'gpt-4o',
+					reportedModel: 'gpt-4o-mini',
+					effortTier: 'medium',
+					permissionTier: 'workspaceWrite',
+					assignmentSource: 'review_override',
+					sessionNo: 1,
+				}),
+			];
+
+			const html = renderToStaticMarkup(
+				createElement(PipelineLane, {
+					lane,
+					task,
+					runs,
+					stageOrder: PIPELINE_STAGES,
+					tier: 'full',
+				}),
+			);
+
+			// 四段常驻唯一
+			expect(html.match(/data-ref-bar="true"/g)?.length).toBe(1);
+
+			// 自报模型不一致转 --needs
+			expect(html).toContain('gpt-4o → 实际 gpt-4o-mini');
+			expect(html).toContain('data-mismatch="model"');
+
+			// 思考强度与权限档
+			expect(html).toContain('>中<');
+			expect(html).toContain('工作区');
+
+			// 来源：审查覆盖
+			expect(html).toContain('来源：审查覆盖');
+
+			// 会话序号
+			expect(html).toContain('data-session-ordinal="1"');
+		});
+
+		it('R1 (wrapup): wired with wrapup RunDto, handles wrapup_settings with followedTaskId and unrestricted --down', () => {
+			const lane = createMockLane({
+				laneNo: 3,
+				stage: 'wrapup',
+				taskId: null,
+				currentRunId: 'run-wrap-1',
+				agentMonogram: 'PI',
+				agentName: 'Pi Assistant',
+			});
+			const runs = [
+				createMockRun({
+					id: 'run-wrap-1',
+					taskId: null,
+					kind: 'wrapup',
+					modelName: 'claude-3-7-sonnet',
+					effortTier: null,
+					permissionTier: 'unrestricted',
+					assignmentSource: 'wrapup_settings',
+					followedTaskId: 'M9-T9',
+					sessionNo: 5,
+				}),
+			];
+
+			const html = renderToStaticMarkup(
+				createElement(PipelineLane, {
+					lane,
+					runs,
+					stageOrder: PIPELINE_STAGES,
+					wrapupRound: 2,
+					wrapupBatchNo: 14,
+					tier: 'full',
+				}),
+			);
+
+			expect(html.match(/data-ref-bar="true"/g)?.length).toBe(1);
+
+			// 来源：收口设置（跟随 M9-T9）
+			expect(html).toContain('来源：收口设置（跟随 M9-T9）');
+
+			// 最高权限档使用 --down
+			expect(html).toContain('无限制');
+			expect(html).toContain('data-elevated="true"');
+			expect(html).toContain('text-[var(--down)]');
+
+			// 不支持思考强度显示 — 且不补默认档
+			expect(html).toContain('data-unsupported="true"');
+			expect(html).toContain('title="不支持思考强度"');
+
+			// 会话序号 5
+			expect(html).toContain('data-session-ordinal="5"');
+		});
+
+		it('R1 (density tiers & missing values): compact/narrow uses short text, missing values show "—" without pretending', () => {
+			const lane = createMockLane({
+				laneNo: 4,
+				stage: 'implement',
+				taskId: 'task-compact',
+				currentRunId: 'run-missing-1',
+				agentMonogram: 'CX',
+				agentName: 'Agent identity',
+				modelName: 'stale-lane-model',
+			});
+			const task = createMockTask({ id: 'task-compact', taskKey: 'M9-T17' });
+			const runs = [
+				createMockRun({
+					id: 'run-missing-1',
+					taskId: 'task-compact',
+					kind: 'implement',
+					modelName: null,
+					effortTier: null,
+					permissionTier: null as unknown as RunPermissionTier,
+					assignmentSource: 'task',
+					sessionNo: null,
+				}),
+			];
+
+			const html = renderToStaticMarkup(
+				createElement(PipelineLane, {
+					lane,
+					task,
+					runs,
+					stageOrder: PIPELINE_STAGES,
+					tier: 'compact',
+				}),
+			);
+
+			expect(html.match(/data-ref-bar="true"/g)?.length).toBe(1);
+
+			// compact 档采用短文案
+			expect(html).toContain('来源：任务');
+
+			// 模型为 null 显示 —
+			expect(html).toMatch(/data-field="model-name"[^>]*>—</);
+			expect(html).not.toContain('stale-lane-model');
+
+			// 思考强度为 null 显示 —
+			expect(html).toMatch(/data-field="effort"[^>]*>—</);
+
+			// 权限档缺失显示 —，绝不默认工作区，不设置 --down
+			expect(html).toMatch(/data-field="permission-tier"[^>]*>—</);
+			expect(html).not.toContain('工作区');
+			expect(html).not.toContain('data-elevated="true"');
+
+			// sessionNo 为 null 时无会话角标
+			expect(html).not.toContain('data-session-ordinal');
+		});
 	});
 });
