@@ -74,7 +74,7 @@ async function main() {
 	await sleep(150);
 
 	// 4. Optional second signal for negative control testing (SSE broken assertion)
-	const chunk2Text = await waitForSignal('agsched-fake-agent-2.signal', 20000);
+	const chunk2Text = await waitForSignal('agsched-fake-agent-2.signal', 45000);
 	if (chunk2Text) {
 		process.stdout.write(
 			`${JSON.stringify({

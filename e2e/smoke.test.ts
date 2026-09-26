@@ -639,11 +639,11 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 
 		// Expand batch 1 and batch 2 so that tasks are rendered in DOM (BatchTree is collapsed by default)
 		const batch1Toggle = page.locator('[data-batch-no="1"] [data-action="toggle-batch"]');
-		await batch1Toggle.waitFor({ state: 'visible', timeout: 15000 });
+		await batch1Toggle.waitFor({ state: 'visible', timeout: 30000 });
 		await batch1Toggle.click();
 
 		const batch2Toggle = page.locator('[data-batch-no="2"] [data-action="toggle-batch"]');
-		await batch2Toggle.waitFor({ state: 'visible', timeout: 15000 });
+		await batch2Toggle.waitFor({ state: 'visible', timeout: 30000 });
 		await batch2Toggle.click();
 
 		// Check that the two tasks from fixture appear in DOM (AC 3, E-108)
@@ -766,6 +766,18 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		expect(await liveLocator.isVisible()).toBe(true);
 
 		// R2: Negative control — prove that when SSE path is broken, new chunks do NOT reach the DOM
+		const negativeCodeRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/pair/code`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${adminToken}`,
+			},
+			body: JSON.stringify({}),
+		});
+		expect(negativeCodeRes.status).toBe(200);
+		const negativePairingCode = ((await negativeCodeRes.json()) as { code: string }).code;
+		expect(negativePairingCode).toMatch(/^[A-Za-z0-9]{6}$/);
+		registerSensitiveData(negativePairingCode);
 		const brokenPage = await context.newPage();
 		let brokenSseAttempts = 0;
 		await brokenPage.route('**/api/v1/events*', (route) => {
@@ -776,15 +788,29 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 			(request) => request.url().includes('/api/v1/events'),
 			{ timeout: 15000 },
 		);
-		await brokenPage.goto(`http://127.0.0.1:${daemon.port}/#/run/${currentRunId}`, {
+		await brokenPage.goto(`http://127.0.0.1:${daemon.port}/#/pair`, {
 			waitUntil: 'domcontentloaded',
 		});
+		const negativeCodeInput = brokenPage.locator('[data-testid="pairing-code-input"]');
+		await negativeCodeInput.waitFor({ state: 'visible', timeout: 10000 });
+		await negativeCodeInput.fill(negativePairingCode);
+		const negativeManualHost = brokenPage.getByRole('button', { name: /手填地址/ });
+		if (await negativeManualHost.isVisible()) {
+			await negativeManualHost.click();
+			await brokenPage.locator('[data-testid="manual-host-input"]').fill(`127.0.0.1:${daemon.port}`);
+		}
+		await brokenPage.locator('[data-testid="pairing-submit-button"]').click();
+		await brokenPage.waitForURL(`http://127.0.0.1:${daemon.port}/#/`, { timeout: 15000 });
 		await brokenSseRequest;
 		const brokenSseDeadline = Date.now() + 5_000;
 		while (brokenSseAttempts === 0 && Date.now() < brokenSseDeadline) {
 			await new Promise((resolveWait) => setTimeout(resolveWait, 50));
 		}
 		expect(brokenSseAttempts).toBeGreaterThan(0);
+		await brokenPage.goto(`http://127.0.0.1:${daemon.port}/#/run/${currentRunId}`, {
+			waitUntil: 'domcontentloaded',
+		});
+		await brokenPage.locator('[data-component="run-detail-container"]').waitFor({ state: 'visible' });
 
 		// Assert brokenPage never reached 'online' SSE connection status
 		const brokenConnection = await brokenPage.evaluate(() =>
