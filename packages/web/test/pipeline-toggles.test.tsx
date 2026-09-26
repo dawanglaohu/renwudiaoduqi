@@ -299,6 +299,45 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		unsubscribe();
 	});
 
+	it('a recovery GET overtaken by another device event does not release the local pending lock', async () => {
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let resolveRead: ((response: { pipeline: PipelineSettings }) => void) | undefined;
+		const source = createPipelineSettingsSource({
+			initialPipeline,
+			fetcher: () =>
+				new Promise((resolve) => {
+					resolveRead = resolve;
+				}),
+			patcher: async (body) => ({ pipeline: body }),
+		});
+		const unsubscribe = source.subscribe(() => {});
+		await source.updatePipelineToggles({ bughunt: 1 });
+		const recovery = triggerResync();
+		eventBus.push({
+			id: 901,
+			ts: new Date().toISOString(),
+			runId: null,
+			taskId: null,
+			scope: 'settings',
+			kind: 'settings.pipeline_changed',
+			seq: 2,
+			actorDeviceId: 'other-device',
+			payload: { pipeline: { ...initialPipeline, wrapupMode: 'manual' } },
+		});
+		resolveRead?.({ pipeline: initialPipeline });
+		await recovery;
+		expect(source.getSnapshot()).toMatchObject({
+			pipeline: { ...initialPipeline, wrapupMode: 'manual' },
+			isPending: true,
+		});
+		unsubscribe();
+	});
+
 	const initialValues = {
 		bughunt: 0 as const,
 		wrapupMode: 'auto' as const,

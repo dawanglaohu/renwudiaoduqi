@@ -158,7 +158,13 @@ export function createPipelineSettingsSource(
 				publish({ pipeline: res.pipeline, error: null });
 			}
 			// SSE 重放窗口过期时可能永远收不到本次事件，只能用重新读取的 daemon 值恢复。
-			if (recover && res?.pipeline && pendingAtRead && pendingPatch === pendingAtRead) {
+			if (
+				recover &&
+				res?.pipeline &&
+				sourceVersion === requestVersion &&
+				pendingAtRead &&
+				pendingPatch === pendingAtRead
+			) {
 				pendingPatch = null;
 				publish({ isPending: false });
 			}
