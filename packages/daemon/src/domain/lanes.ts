@@ -233,11 +233,7 @@ export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 	// Pre-index archived runs per lane for history lookup (AC 1, E-325)
 	const archivedRunsByLane = new Map<number, RunDescriptor[]>();
 	for (const r of sortedRuns) {
-		if (
-			typeof r.lane_no === 'number' &&
-			r.lane_no >= 1 &&
-			(r.session_archived_at !== null || isTerminalRunState(r.state as RunState))
-		) {
+		if (typeof r.lane_no === 'number' && r.lane_no >= 1 && r.session_archived_at != null) {
 			const list = archivedRunsByLane.get(r.lane_no) ?? [];
 			list.push(r);
 			archivedRunsByLane.set(r.lane_no, list);

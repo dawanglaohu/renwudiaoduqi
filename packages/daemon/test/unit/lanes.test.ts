@@ -198,6 +198,51 @@ describe('M8-T8 deriveLanes Unit & Arch Tests (AC 1, E-317, E-319, E-332)', () =
 		expect(lanes[0]?.archivedWrapupRunId).toBe('wrapup');
 	});
 
+	it('E-314: a first running task has no archived history, including an omitted archive timestamp', () => {
+		const lanes = deriveLanes({
+			laneCount: 1,
+			tasks: [{ id: 'running-task', task_key: 'M9-T21', doc_id: 'doc-1', lane_no: 1 }],
+			runs: [
+				{
+					id: 'active-run',
+					task_id: 'running-task',
+					kind: 'implement',
+					state: 'running',
+					lane_no: 1,
+				},
+			],
+		});
+		expect(lanes[0]?.archivedTaskIds).toEqual([]);
+		expect(lanes[0]?.archivedWrapupRunId).toBeNull();
+	});
+
+	it('E-326: a parked task with a terminal review run remains unarchived until landing', () => {
+		const lanes = deriveLanes({
+			laneCount: 1,
+			tasks: [{ id: 'parked-task', task_key: 'M9-T21', doc_id: 'doc-1', lane_no: null }],
+			runs: [
+				{
+					id: 'parked-implement',
+					task_id: 'parked-task',
+					kind: 'implement',
+					state: 'awaiting_human',
+					lane_no: 1,
+					session_archived_at: null,
+				},
+				{
+					id: 'review-exited',
+					task_id: 'parked-task',
+					kind: 'review',
+					state: 'failed',
+					lane_no: 1,
+					session_archived_at: null,
+				},
+			],
+		});
+		expect(lanes[0]?.taskId).toBeNull();
+		expect(lanes[0]?.archivedTaskIds).toEqual([]);
+	});
+
 	it('produces byte-identical JSON on shuffled input collections (E-317, E-319)', () => {
 		const baseTasks = [
 			{ id: 't-b', task_key: 'B', doc_id: 'doc-1', lane_no: 1 },
