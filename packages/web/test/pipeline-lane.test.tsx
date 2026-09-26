@@ -346,6 +346,43 @@ describe('PipelineLane: Feature semantics and edge cases (AC 1, 5, 6, 7, E-309, 
 		expect(html).not.toContain('data-state="running"');
 	});
 
+	it('E-314: expanding archived task history shows its stages and run links', () => {
+		const html = renderToStaticMarkup(
+			createElement(PipelineLane, {
+				lane: createMockLane({
+					stage: 'idle',
+					taskId: null,
+					currentRunId: null,
+					archivedTaskIds: ['archived-task'],
+				}),
+				historyTask: createMockTask({ id: 'archived-task', state: 'landed' }),
+				historyRuns: [
+					createMockRun({
+						id: 'archived-implement',
+						taskId: 'archived-task',
+						kind: 'implement',
+						state: 'landed',
+					}),
+					createMockRun({
+						id: 'archived-review',
+						taskId: 'archived-task',
+						kind: 'review',
+						state: 'exited',
+					}),
+				],
+				stageOrder: PIPELINE_STAGES,
+				defaultHistoryExpanded: true,
+				onOpenRun: () => undefined,
+			}),
+		);
+
+		expect(html).toContain('data-stage-row="implement"');
+		expect(html).toContain('data-stage-row="review"');
+		expect(html).toContain('data-stage-row="landing"');
+		expect(html).not.toContain('data-stage-row="unknown"');
+		expect(html.match(/role="button"/g)).toHaveLength(2);
+	});
+
 	// ─── M9-T17 / R1 & R2: 流头部参照条与会话序号真实接线测试 ───
 	describe('PipelineLane: StreamHeadMeta real wiring and reference bar (M9-T17 / R1, R2)', () => {
 		it('R1: source and session ordinal stay unknown when the current RunDto omits them', () => {

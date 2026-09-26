@@ -66,8 +66,8 @@ function isTaskFinishedOrLanded(
  * - overLimit = laneNo > laneCount.
  * - stage strictly draws from LANE_STAGES (7 values including rework).
  * - idle slots take nextTaskId from candidates sorted by (layerNo, taskKey), then blocked tasks with nextBlockedBy.
- * - archivedTaskIds contains at most the single most recently archived task id for this lane.
- * - archivedWrapupRunId contains the single most recently archived wrapup run id for this lane.
+ * - The most recent archived pipeline owns the one history slot: either archivedTaskIds[0]
+ *   or archivedWrapupRunId, never both.
  */
 export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 	// Deterministic sorting of input collections by ID (E-317, E-319)
@@ -233,11 +233,7 @@ export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 	// Pre-index archived runs per lane for history lookup (AC 1, E-325)
 	const archivedRunsByLane = new Map<number, RunDescriptor[]>();
 	for (const r of sortedRuns) {
-		if (
-			typeof r.lane_no === 'number' &&
-			r.lane_no >= 1 &&
-			(r.session_archived_at !== null || isTerminalRunState(r.state as RunState))
-		) {
+		if (typeof r.lane_no === 'number' && r.lane_no >= 1 && r.session_archived_at != null) {
 			const list = archivedRunsByLane.get(r.lane_no) ?? [];
 			list.push(r);
 			archivedRunsByLane.set(r.lane_no, list);
@@ -335,14 +331,13 @@ export function deriveLanes(input: DeriveLanesInput): readonly LaneView[] {
 			return b.id.localeCompare(a.id);
 		});
 
-		const recentTaskRun = sortedHistory.find((r) => r.task_id !== null && r.task_id !== undefined);
+		const mostRecentRun = sortedHistory[0];
 		const archivedTaskIds =
-			recentTaskRun?.task_id !== undefined && recentTaskRun?.task_id !== null
-				? Object.freeze([recentTaskRun.task_id])
+			mostRecentRun?.task_id !== undefined && mostRecentRun?.task_id !== null
+				? Object.freeze([mostRecentRun.task_id])
 				: Object.freeze([]);
 
-		const recentWrapupRun = sortedHistory.find((r) => r.kind === 'wrapup');
-		const archivedWrapupRunId = recentWrapupRun ? recentWrapupRun.id : null;
+		const archivedWrapupRunId = mostRecentRun?.kind === 'wrapup' ? mostRecentRun.id : null;
 
 		lanes.push(
 			Object.freeze({
