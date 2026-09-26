@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import * as net from 'node:net';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Browser, type BrowserContext, type Page, chromium } from 'playwright';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -154,6 +154,7 @@ async function startDaemon(options: { timeoutMs?: number } = {}): Promise<Runnin
 		AGSCHED_BIND: '127.0.0.1',
 		AGSCHED_LOG_LEVEL: 'info',
 		AGSCHED_DEV: '1',
+		AGSCHED_SMOKE_SIGNAL_DIR: dataDir,
 	};
 
 	// On Windows, create an isolated git shim in .local/bin inside dataDir so daemon's candidate resolution finds git without touching system or production files (R1, R4)
@@ -312,11 +313,11 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 	let adminToken: string;
 	let docId: string | null = null;
 	let currentRunId: string | null = null;
-	const createdWorktreeDirs: string[] = [];
-
-	// R1: Pre-existing sentinel worktree & branch
+	let isolatedRoot: string | null = null;
+	let projectRepo: string | null = null;
+	let importDocsPath: string | null = null;
+	let sentinelWorktreePath: string | null = null;
 	const sentinelBranch = 'test/sentinel-preserve-e2e';
-	const sentinelWorktreePath = resolve(repoRoot, '../agent-scheduler-sentinel-test');
 
 	beforeAll(async () => {
 		mkdirSync(artifactsDir, { recursive: true });
@@ -331,21 +332,35 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 				});
 			}
 
-			// R1: Setup sentinel branch and worktree to prove pre-existing checkouts survive
-			try {
-				execSync(`git branch -D ${sentinelBranch}`, { cwd: repoRoot, stdio: 'ignore' });
-			} catch {}
-			try {
-				execSync(`git worktree remove --force "${sentinelWorktreePath}"`, {
-					cwd: repoRoot,
-					stdio: 'ignore',
-				});
-				rmSync(sentinelWorktreePath, { recursive: true, force: true });
-			} catch {}
-
-			execSync(`git branch ${sentinelBranch} HEAD`, { cwd: repoRoot, stdio: 'ignore' });
-			execSync(`git worktree add "${sentinelWorktreePath}" ${sentinelBranch}`, {
-				cwd: repoRoot,
+			// The imported document points at this disposable repository. Dispatcher worktrees and
+			// branches therefore cannot collide with any checkout of the project under review.
+			isolatedRoot = mkdtempSync(join(tmpdir(), 'agsched-e2e-project-'));
+			projectRepo = join(isolatedRoot, 'project');
+			mkdirSync(projectRepo);
+			execFileSync('git', ['init', '-b', 'main', projectRepo], { stdio: 'ignore' });
+			const fixtureText = readFileSync(join(fixturesDir, 'docs-data.js'), 'utf8');
+			const fixtureData = JSON.parse(
+				fixtureText.replace(/^\s*window\.DOCS\s*=\s*/, '').replace(/;\s*$/, ''),
+			) as { pres: { handoff: { repo: string } } };
+			fixtureData.pres.handoff.repo = projectRepo;
+			importDocsPath = join(projectRepo, 'docs-data.js');
+			writeFileSync(importDocsPath, `window.DOCS = ${JSON.stringify(fixtureData, null, 2)};\n`);
+			execFileSync('git', ['-C', projectRepo, 'add', 'docs-data.js'], { stdio: 'ignore' });
+			execFileSync(
+				'git',
+				[
+					'-C', projectRepo,
+					'-c', 'user.name=E2E Smoke',
+					'-c', 'user.email=smoke@example.invalid',
+					'commit', '-m', 'Fixture document',
+				],
+				{ stdio: 'ignore' },
+			);
+			sentinelWorktreePath = join(isolatedRoot, 'sentinel');
+			execFileSync('git', ['-C', projectRepo, 'branch', sentinelBranch, 'HEAD'], {
+				stdio: 'ignore',
+			});
+			execFileSync('git', ['-C', projectRepo, 'worktree', 'add', sentinelWorktreePath, sentinelBranch], {
 				stdio: 'ignore',
 			});
 			writeFileSync(
@@ -353,11 +368,6 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 				'sentinel survives e2e smoke\n',
 				'utf8',
 			);
-
-			try {
-				rmSync(join(tmpdir(), 'agsched-fake-agent-1.signal'), { force: true });
-				rmSync(join(tmpdir(), 'agsched-fake-agent-2.signal'), { force: true });
-			} catch {}
 
 			daemon = await startDaemon();
 			browser = await chromium.launch({
@@ -441,40 +451,18 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 			exitResult = await daemon.stop().catch(() => null);
 		}
 
-		// R1: Validate that the pre-existing sentinel worktree & branch survived completely
-		const sentinelFileExists = existsSync(join(sentinelWorktreePath, 'sentinel-keep.txt'));
-		expect(sentinelFileExists).toBe(true);
-
-		// Clean up created worktrees and task branches created ONLY by this test (R1)
-		for (const wt of createdWorktreeDirs) {
-			try {
-				execSync(`git worktree remove --force "${wt}"`, { cwd: repoRoot, stdio: 'ignore' });
-			} catch {}
-			try {
-				rmSync(wt, { recursive: true, force: true });
-			} catch {}
+		const sentinelSurvived =
+			sentinelWorktreePath !== null &&
+			existsSync(join(sentinelWorktreePath, 'sentinel-keep.txt'));
+		if (isolatedRoot !== null) {
+			const root = resolve(isolatedRoot);
+			const tempRoot = resolve(tmpdir());
+			if (!root.startsWith(`${tempRoot}${sep}`) || !basename(root).startsWith('agsched-e2e-project-')) {
+				throw new Error(`Refusing to remove a directory outside the E2E temporary root: ${root}`);
+			}
+			rmSync(root, { recursive: true, force: true });
 		}
-		try {
-			execSync('git branch -D task/SMOKE-T1', { cwd: repoRoot, stdio: 'ignore' });
-		} catch {}
-
-		// Now safely clean up the sentinel worktree & branch
-		try {
-			execSync(`git worktree remove --force "${sentinelWorktreePath}"`, {
-				cwd: repoRoot,
-				stdio: 'ignore',
-			});
-			rmSync(sentinelWorktreePath, { recursive: true, force: true });
-		} catch {}
-		try {
-			execSync(`git branch -D ${sentinelBranch}`, { cwd: repoRoot, stdio: 'ignore' });
-		} catch {}
-
-		// Clean up any signal files in tmpdir
-		try {
-			rmSync(join(tmpdir(), 'agsched-fake-agent-1.signal'), { force: true });
-			rmSync(join(tmpdir(), 'agsched-fake-agent-2.signal'), { force: true });
-		} catch {}
+		if (sentinelWorktreePath !== null) expect(sentinelSurvived).toBe(true);
 
 		// R3: Assert daemon exit code was collected
 		if (exitResult) {
@@ -603,7 +591,8 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 	});
 
 	it('step 4: imports fixture document and verifies two tasks appear (AC 3, E-108)', async () => {
-		const fixtureDocsPath = join(fixturesDir, 'docs-data.js');
+		const fixtureDocsPath = importDocsPath;
+		if (fixtureDocsPath === null) throw new Error('Isolated fixture document was not created');
 		expect(existsSync(fixtureDocsPath)).toBe(true);
 
 		const importRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/documents`, {
@@ -653,10 +642,6 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 	it('step 5: dispatches task with fake agent and verifies run in rail, online status, live SSE chunk in DOM and negative control (AC 3, E-10, E-31, E-108)', async () => {
 		expect(docId).toBeTruthy();
 
-		// Clean up any stale signals
-		rmSync(join(tmpdir(), 'agsched-fake-agent-1.signal'), { force: true });
-		rmSync(join(tmpdir(), 'agsched-fake-agent-2.signal'), { force: true });
-
 		// Fetch tasks list for docId to retrieve actual task ID
 		const tasksRes = await fetch(
 			`http://127.0.0.1:${daemon.port}/api/v1/documents/${docId}/tasks`,
@@ -674,10 +659,10 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 			tasksBody.tasks.find((t) => t.taskKey === 'SMOKE-T1') ?? tasksBody.tasks[0];
 		expect(targetTask?.id).toBeTruthy();
 
-		// R1: Record worktree created by this test so we only clean this test's artifacts
-		const repoBase = basename(repoRoot);
-		const expectedWorktree = resolve(repoRoot, `../${repoBase}-smoke-t1`);
-		createdWorktreeDirs.push(expectedWorktree);
+		if (projectRepo === null || isolatedRoot === null) {
+			throw new Error('Isolated fixture repository was not created');
+		}
+		const expectedWorktree = join(isolatedRoot, 'project-smoke-t1');
 
 		// Dispatch SMOKE-T1 via POST /api/v1/runs
 		const runRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs`, {
@@ -697,6 +682,11 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		const runBody = (await runRes.json()) as { run: { id: string } };
 		expect(runBody.run?.id).toBeTruthy();
 		currentRunId = runBody.run.id;
+		const worktreeDeadline = Date.now() + 10_000;
+		while (!existsSync(expectedWorktree) && Date.now() < worktreeDeadline) {
+			await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+		}
+		expect(existsSync(expectedWorktree)).toBe(true);
 
 		// R2: Verify this run's identity in the deck rail
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/`);
@@ -743,7 +733,7 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		expect(initialCount).toBe(0);
 
 		// Trigger signal 1 to let fake agent emit the live chunk
-		const signalFile1 = join(tmpdir(), 'agsched-fake-agent-1.signal');
+		const signalFile1 = join(daemon.dataDir, 'agsched-fake-agent-1.signal');
 		writeFileSync(signalFile1, `Positive live chunk: ${liveToken}\n`, 'utf8');
 
 		// Assert that the new agent_message_chunk arrives in DOM via SSE live stream (R2)
@@ -764,7 +754,7 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		expect(brokenConnection).not.toBe('online');
 
 		const negativeToken = `NEGATIVE_SSE_CHUNK_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-		const signalFile2 = join(tmpdir(), 'agsched-fake-agent-2.signal');
+		const signalFile2 = join(daemon.dataDir, 'agsched-fake-agent-2.signal');
 		writeFileSync(signalFile2, `Negative broken chunk: ${negativeToken}\n`, 'utf8');
 
 		// Wait 2.5 seconds to ensure agent has emitted chunk 2
@@ -782,9 +772,9 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		await brokenPage.close();
 
 		// R1: Assert that pre-existing sentinel worktree and branch survived completely
+		if (sentinelWorktreePath === null) throw new Error('Sentinel worktree was not created');
 		expect(existsSync(join(sentinelWorktreePath, 'sentinel-keep.txt'))).toBe(true);
-		const branchList = execSync('git branch --list ' + sentinelBranch, {
-			cwd: repoRoot,
+		const branchList = execFileSync('git', ['-C', projectRepo, 'branch', '--list', sentinelBranch], {
 			encoding: 'utf8',
 		});
 		expect(branchList).toContain(sentinelBranch);

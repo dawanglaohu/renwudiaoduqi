@@ -22,7 +22,7 @@ if (
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function waitForSignal(signalName, maxWaitMs = 8000) {
-	const signalPath = path.join(os.tmpdir(), signalName);
+	const signalPath = path.join(process.env.AGSCHED_SMOKE_SIGNAL_DIR || os.tmpdir(), signalName);
 	const start = Date.now();
 	while (!fs.existsSync(signalPath) && Date.now() - start < maxWaitMs) {
 		await sleep(50);
