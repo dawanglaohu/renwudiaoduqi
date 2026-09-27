@@ -8,7 +8,7 @@
         "所有适配器（Codex、Claude、DSH、generic-acp、Grok、Pi）明确保持 reportsModelRejection: false 与 E-348 回退安全兜底；Claude adapter mapEvents 具备结构化拒绝映射逻辑但能力位保持 false，codex-adapter.test.ts 覆盖全量适配器能力位与真实脱敏录制负例断言。",
         "R2 修复：在 dispatch-spawn.test.ts 与 container-wiring.test.ts 的入口测试中，预置关联 run 的 waiting 审批卡，断言在结构化模型拒绝时原子作废为 state='decided'、comment='superseded'、decision=null；并精确断言 lane.released 的 reason='failed' 与 runId，防止仅凭事件 kind 误判。",
         "在真实脱敏通用错误（如 503 api_error）下严格回退 E-348 进入 awaiting_human。",
-        "按 AC 1‘无此信号不得判通过’及审查意见，真实满足至少一家厂商提供类型化信号前，本任务如实登记 verdict 为 rework，保持未落地并维持 PR #161 开放，绝不降低验收标准。"
+        "2026-09-28 在 Pi 0.87.1 正常加载扩展后重测：RPC get_available_models 返回 15 项；set_model 对实际列出的 antigravity/claude-sonnet-4-6 返回 success:true，对 antigravity/nonexistent-model-xyz 返回 success:false，只有字符串 error，没有 code/type；按派发形状用 --print --mode rpc --model antigravity/nonexistent-model-xyz 和任务提示词启动时 stdout 无协议帧，stderr 为模型不可用文本，退出码 0。早先 --no-extensions 探针使正常模型也失败，本轮以成功对照排除此误因。AC 1 要求真实专用类型信号，符合要求仍为 0 家；保持 verdict=rework、PR #161 开放、能力位 false，不降低验收。"
       ],
       "verdict": "rework"
     }
