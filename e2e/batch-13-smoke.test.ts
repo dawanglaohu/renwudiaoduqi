@@ -765,7 +765,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		await gateToggles.waitFor({ state: 'visible', timeout: 15000 });
 		expect(await gateToggles.isVisible()).toBe(true);
 
-		// Configure landing and review gate so run halts for human approval (AC 1, E-05, E-53, R1)
+		// Configure review gate as manual and landing gate as auto so run halts for human approval then lands (AC 1, E-05, E-53, R1)
 		const patchGateRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/gates`, {
 			method: 'PATCH',
 			headers: {
@@ -775,12 +775,12 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			body: JSON.stringify({
 				dispatch: 'auto',
 				review: 'manual',
-				landing: 'manual',
+				landing: 'auto',
 			}),
 		});
 		expect(patchGateRes.status).toBe(200);
 		const patchGateBody = (await patchGateRes.json()) as { gates: { landing: string; review: string } };
-		expect(patchGateBody.gates.landing).toBe('manual');
+		expect(patchGateBody.gates.landing).toBe('auto');
 		expect(patchGateBody.gates.review).toBe('manual');
 	});
 
