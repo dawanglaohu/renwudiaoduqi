@@ -2035,13 +2035,14 @@
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
     "contractHash": "b8834bf4c9e46d10147b6c88114a2f856fe8e20155229ba85e883b407ce5d7bd",
     "evidence": [
-      "实测验证 Codex 0.157.1、Claude Code 2.1.238、Grok 1.0.41、Pi 0.87.1：Codex app-server 报 codexErrorInfo='other'，Claude 在 stderr 输出警告文本且 stdout stream-json 仅有 503 api_error，Grok 与 Pi 为通用 error 或 stderr 退出；真实厂商均未提供结构化拒绝字段。经 Jev adjudicate 裁决采纳 Option A，报告验证家数为 0 家，绝不依据自由文本或通用 HTTP/类别推断。",
-      "所有适配器（Codex、Claude、DSH、generic-acp、Grok、Pi）明确保持 reportsModelRejection: false；在 Claude adapter mapEvents 实现类型化拒绝映射支持与通用 api_error 负例防误触发防护，codex-adapter.test.ts 覆盖全量能力位与真实脱敏录制负例断言。",
-      "在 dispatch-spawn.test.ts 与 container-wiring.test.ts 中分别验证真实派发入口：收到假设的结构化拒绝信号时原子迁 failed、queued_reason 为派发失败·模型无效、释放泳道、作废审批卡并跳过 E-348；而在实测脱敏通用错误（如 503 api_error）下严格回退 E-348 进入 awaiting_human。",
-      "文档 10 节、13 节 E-36 与 19 节 M8-T5 能力位说明保持一致，无新增未文档化状态。",
-      "全仓 check-error-codes、WCAG 对比度、架构防造假模式扫描、Biome、tsc -b --noEmit 及 Vitest（203 测试文件，2526 个测试）全部通过。"
+      "2026-09-27 审查第1轮：仅通过任务契约语义复核，代码验收为 rework，PR #161 保持 OPEN，不执行 --landed。来源 batch-8-20260926-scope-amendment.md:24-37 要求至少一家实际可派发 agent 提供模型专用结构化 code/type；没有信号不得判代码通过。",
+      "前置 M8-T5 与 R8-T97041355 已交付事件及失败回收接线；container.ts:483-489,714-716 和 dispatch.ts:2173-2175 复用该链路。13节 E-36/E-348、10节:428与19节 M8-T5 的透传及回退要求一致，有效路径与任务定义对应。",
+      "代码缺口 R1：unit/codex-adapter.test.ts:1032 明示正例 hypothetical，1054-1064 全部能力位 false；本次审查没有可验证的真实厂商正向录制，确认满足要求的家数为0。真实信号、该家能力位 true 与真实派发证明仍未交付。",
+      "代码缺口 R2：integration/dispatch-spawn.test.ts:1273-1275 只断言 gate 为 null；没有预置 waiting gate 并验证 superseded，因此 AC3 审批卡作废的生产入口验收未完成。",
+      "pnpm -w check 通过：203测试文件，2526 passed、4 skipped；只证明本次套件通过，不证明合成帧是真实厂商信号。占位、硬编码闸门及生产测试钩子扫描无命中。",
+      "复用实施候选并加入PR事实后，Jev jev-1.13.0：adjudicate: pick=A(high 1.00) spec_change=no(0.26) outside_stack=no(0.15) needs_owner=no(0.12) reversible=unsure(0.63) adopt=take(A)。执行返工、保留原验收和E-348，未改任务范围。"
     ],
-    "reviewed": "2026-09-27T02:30:35.839379+00:00",
+    "reviewed": "2026-09-27T06:13:02.352082+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
