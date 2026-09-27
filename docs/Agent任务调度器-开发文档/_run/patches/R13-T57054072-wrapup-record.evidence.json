@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R13-T57054072": {
+      "contractHash": "421992205f015e154b6e88561cbb676fa516326c670a0fcc4602d7f01e6f07c6",
+      "evidence": [
+        "原 batch-13-20260924.md 含两段稳定 task 围栏；build_docs.py:3980 明确要求含返工任务的来源记录保持 verdict=open，新增后续收口记录记录 fixed，避免消失返工 provenance。",
+        "R13-T57054072 的原 AC 1–3 与 E-06/E-08/E-10/E-12/E-108/E-156/E-158/E-200/E-222/E-223/E-224 均保留；仅 AC 4 指明后续记录更新结论，仍须逐项真实入口证据。",
+        "修正后的 task fence output 与 paths 均指向 _run/batches/batch-13-20260927.md；vitest.e2e.config.ts、package.json、e2e/batch-13-smoke.test.ts 路径保留。前置 M1-T11/M9-T25/M9-T26/M9-T27 不变；未改数据模型、API 或 08 节分层。",
+        "本轮仅语义复核任务契约；PR #162 的代码仍有浏览器全链与边界断言阻断，记录 pass 不代表代码验收或落地。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
