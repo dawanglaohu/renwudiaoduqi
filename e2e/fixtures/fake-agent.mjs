@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import readline from 'node:readline';
 
 if (
 	process.argv.includes('--version') ||
@@ -38,21 +39,105 @@ async function waitForSignal(signalName, maxWaitMs = 8000) {
 	return null;
 }
 
+// Stdio JSON-RPC handler for codex app-server protocol (session.start handshakes)
+let activeThreadId = 'thread-smoke-e2e';
+let activeTurnId = 'turn-smoke-e2e';
+
+const rl = readline.createInterface({
+	input: process.stdin,
+	terminal: false,
+});
+
+rl.on('line', (line) => {
+	const trimmed = line.trim();
+	if (!trimmed) return;
+	try {
+		const msg = JSON.parse(trimmed);
+		if (msg && typeof msg === 'object' && msg.id !== undefined) {
+			const method = msg.method;
+			if (method === 'initialize') {
+				process.stdout.write(
+					`${JSON.stringify({
+						id: msg.id,
+						result: {
+							serverInfo: {
+								name: 'fake-codex',
+								version: '0.1.0',
+							},
+						},
+					})}\n`,
+				);
+			} else if (method === 'thread/start') {
+				process.stdout.write(
+					`${JSON.stringify({
+						id: msg.id,
+						result: {
+							thread: {
+								id: activeThreadId,
+							},
+						},
+					})}\n`,
+				);
+			} else if (method === 'turn/start') {
+				process.stdout.write(
+					`${JSON.stringify({
+						id: msg.id,
+						result: {
+							turn: {
+								id: activeTurnId,
+								status: 'in_progress',
+							},
+						},
+					})}\n`,
+				);
+			} else {
+				process.stdout.write(
+					`${JSON.stringify({
+						id: msg.id,
+						result: {},
+					})}\n`,
+				);
+			}
+		}
+	} catch {
+		// Ignore non-json lines
+	}
+});
+
 async function main() {
-	// 1. Thread started
+	// 1. Thread started (both vendor event formats for backward compatibility)
+	process.stdout.write(
+		`${JSON.stringify({
+			method: 'thread/started',
+			params: {
+				threadId: activeThreadId,
+			},
+		})}\n`,
+	);
 	process.stdout.write(
 		`${JSON.stringify({
 			type: 'thread.started',
-			thread_id: 'thread-smoke-e2e',
+			thread_id: activeThreadId,
 		})}\n`,
 	);
 	await sleep(100);
 
-	// 2. Turn started
+	// 2. Turn started (both vendor event formats)
+	process.stdout.write(
+		`${JSON.stringify({
+			method: 'turn/started',
+			params: {
+				threadId: activeThreadId,
+				turn: {
+					id: activeTurnId,
+				},
+			},
+		})}\n`,
+	);
 	process.stdout.write(
 		`${JSON.stringify({
 			type: 'turn.started',
-			turn_id: 'turn-smoke-e2e',
+			turn_id: activeTurnId,
 		})}\n`,
 	);
 	await sleep(100);
@@ -87,7 +172,19 @@ async function main() {
 		await sleep(150);
 	}
 
-	// 5. Completed message item
+	// 5. Completed message item (both JSON-RPC and legacy event format)
+	process.stdout.write(
+		`${JSON.stringify({
+			method: 'item/completed',
+			params: {
+				item: {
+					id: 'msg-smoke-1',
+					type: 'agentMessage',
+					text: chunk1Text,
+				},
+			},
+		})}\n`,
+	);
 	process.stdout.write(
 		`${JSON.stringify({
 			type: 'item.completed',
@@ -100,11 +197,23 @@ async function main() {
 	);
 	await sleep(200);
 
-	// 6. Turn completed
+	// 6. Turn completed (JSON-RPC notification sets turnExitCode = 0 in daemon)
+	process.stdout.write(
+		`${JSON.stringify({
+			method: 'turn/completed',
+			params: {
+				threadId: activeThreadId,
+				turn: {
+					id: activeTurnId,
+					status: 'completed',
+				},
+			},
+		})}\n`,
+	);
 	process.stdout.write(
 		`${JSON.stringify({
 			type: 'turn.completed',
-			turn_id: 'turn-smoke-e2e',
+			turn_id: activeTurnId,
 		})}\n`,
 	);
 
