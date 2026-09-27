@@ -104,35 +104,35 @@ describe('api/resource-cache (07 节前端架构 / AC 1, AC 4, E-12, E-333)', ()
 		expect(fresh).toBe('pipeline-fresh');
 	});
 
-	// ─── 5. E-333 在途期间失效：在途响应已过时，绝不存入缓存 ───
-	it('does not store stale in-flight response into cache when invalidated while in-flight (E-333, AC 2)', async () => {
+	// ─── 5. E-333 在途期间失效：自动使用最新登记的 fetcher 重拉，调用方拿到新值 ───
+	it('automatically re-fetches with latest fetcher and resolves caller with fresh value on in-flight invalidation (E-333, AC 1, AC 2)', async () => {
 		let resolveOld: ((val: string) => void) | undefined;
-		const slowFetcher = vi.fn(
-			() =>
-				new Promise<string>((resolve) => {
+		let fetchCallCount = 0;
+
+		const fetcher = vi.fn(async () => {
+			fetchCallCount++;
+			if (fetchCallCount === 1) {
+				return new Promise<string>((resolve) => {
 					resolveOld = resolve;
-				}),
-		);
+				});
+			}
+			return 'fresh-data-v2';
+		});
 
-		const inFlightPromise = read('settings:pipeline', slowFetcher);
+		// 发起初次读取（在途）
+		const inFlightPromise = read('settings:pipeline', fetcher);
 
-		// 在在途期间触发失效
+		// 在途期间收到失效事件
 		invalidate('settings');
 
-		// 慢速在途请求终于返回旧数据
-		resolveOld?.('stale-data');
+		// 旧请求返回旧值
+		resolveOld?.('stale-data-v1');
+
+		// 等待 read() 的调用方应得到自动重拉后的新值
 		const res = await inFlightPromise;
-		expect(res).toBe('stale-data');
-
-		// 关键断言：因为在途期间失效，该旧数据绝未被写入缓存
-		expect(peek('settings:pipeline')).toBeUndefined();
-
-		// 下一次 read 必须重新发起请求
-		const freshFetcher = vi.fn(async () => 'fresh-data');
-		const freshRes = await read('settings:pipeline', freshFetcher);
-		expect(freshFetcher).toHaveBeenCalledTimes(1);
-		expect(freshRes).toBe('fresh-data');
-		expect(peek('settings:pipeline')).toBe('fresh-data');
+		expect(res).toBe('fresh-data-v2');
+		expect(fetchCallCount).toBe(2);
+		expect(peek('settings:pipeline')).toBe('fresh-data-v2');
 	});
 
 	// ─── 6. 连接恢复：refetchAll 并发重新拉取所有已登记 key ───
@@ -168,5 +168,71 @@ describe('api/resource-cache (07 节前端架构 / AC 1, AC 4, E-12, E-333)', ()
 		unregister('settings:pipeline');
 		expect(peek('settings:pipeline')).toBeUndefined();
 		expect(getRegisteredKeys()).not.toContain('settings:pipeline');
+	});
+
+	// ─── 8. E-333 受控并发：同一 tick 连续到达 lane.released / lane.assigned ───
+	it('handles consecutive lane.released and lane.assigned in-flight, re-fetching lanes only once on resolution (E-333)', async () => {
+		let resolveOldLanes: ((val: string) => void) | undefined;
+		let lanesCalls = 0;
+
+		const lanesFetcher = vi.fn(async () => {
+			lanesCalls++;
+			if (lanesCalls === 1) {
+				return new Promise<string>((resolve) => {
+					resolveOldLanes = resolve;
+				});
+			}
+			return 'lanes-re-fetched';
+		});
+
+		// 请求已发出（在途）
+		const lanesPromise = read('lanes:doc-1', lanesFetcher);
+
+		// 同一 tick 内连续到达 lane.released 与 lane.assigned
+		// lane.released 失效 lanes, tasks
+		invalidate('lanes');
+		invalidate('tasks');
+		// lane.assigned 失效 lanes, runs
+		invalidate('lanes');
+		invalidate('runs');
+
+		// 响应到达
+		resolveOldLanes?.('lanes-stale');
+
+		// 响应到达后自动再拉一次并 resolve 新值
+		const result = await lanesPromise;
+		expect(result).toBe('lanes-re-fetched');
+		expect(lanesCalls).toBe(2); // 连续失效合并为完成后的单次重拉
+		expect(peek('lanes:doc-1')).toBe('lanes-re-fetched');
+	});
+
+	// ─── 9. E-333 受控并发：lanes 与 runs 分别使用各自的 fetcher ───
+	it('keeps lanes and runs fetchers separate and independent when both invalidated (E-333)', async () => {
+		const lanesFetcher = vi.fn(async () => [{ id: 'lane-1' }]);
+		const runsFetcher = vi.fn(async () => [{ id: 'run-1' }]);
+
+		await read('lanes:doc-1', lanesFetcher);
+		await read('runs:doc-1', runsFetcher);
+
+		expect(lanesFetcher).toHaveBeenCalledTimes(1);
+		expect(runsFetcher).toHaveBeenCalledTimes(1);
+
+		// lane.assigned 同时失效 lanes 与 runs
+		invalidate('lanes');
+		invalidate('runs');
+
+		// 两个 fetcher 各自请求，不从对方或快照取
+		const nextLanes = vi.fn(async () => [{ id: 'lane-2' }]);
+		const nextRuns = vi.fn(async () => [{ id: 'run-2' }]);
+
+		const [lanesData, runsData] = await Promise.all([
+			read('lanes:doc-1', nextLanes),
+			read('runs:doc-1', nextRuns),
+		]);
+
+		expect(nextLanes).toHaveBeenCalledTimes(1);
+		expect(nextRuns).toHaveBeenCalledTimes(1);
+		expect(lanesData).toEqual([{ id: 'lane-2' }]);
+		expect(runsData).toEqual([{ id: 'run-2' }]);
 	});
 });

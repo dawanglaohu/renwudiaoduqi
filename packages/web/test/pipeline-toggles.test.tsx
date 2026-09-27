@@ -13,8 +13,10 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { settingsPipeline } from '../src/api/cache-keys.ts';
 import { eventBus } from '../src/api/event-bus.ts';
-import { clearResourceCache, peek } from '../src/api/resource-cache.ts';
+import { clearResourceCache, getRegisteredKeys, peek } from '../src/api/resource-cache.ts';
+import { sseClient } from '../src/api/sse-client.ts';
 import { PipelineToggles } from '../src/components/pipeline-toggles.tsx';
 import { PipelineTogglesContainer } from '../src/features/run-deck/pipeline-toggles-container.tsx';
 import { createPipelineSettingsSource } from '../src/features/run-deck/use-pipeline-settings.ts';
@@ -308,12 +310,18 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 			wrapupAssignment: { mode: 'follow' },
 		};
 		let resolveRead: ((response: { pipeline: PipelineSettings }) => void) | undefined;
+		let readCount = 0;
 		const source = createPipelineSettingsSource({
 			initialPipeline,
-			fetcher: () =>
-				new Promise((resolve) => {
-					resolveRead = resolve;
-				}),
+			fetcher: () => {
+				readCount++;
+				if (readCount === 1) {
+					return new Promise((resolve) => {
+						resolveRead = resolve;
+					});
+				}
+				return Promise.resolve({ pipeline: initialPipeline });
+			},
 			patcher: async (body) => ({ pipeline: body }),
 		});
 		const unsubscribe = source.subscribe(() => {});
@@ -847,8 +855,8 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		});
 	});
 
-	// ─── 13. settings.pipeline_changed 消费失效表，清空缓存并在缺载荷时重取（AC 2, E-318） ───
-	it('settings.pipeline_changed invalidates settings prefix and re-fetches when payload is omitted (AC 2, E-318)', async () => {
+	// ─── 13. settings.pipeline_changed 消费失效表，完整或截断事件均不被迟到 GET 覆盖（AC 2, E-157, E-318） ───
+	it('neither complete nor truncated pipeline events allow a stale GET to overwrite event authority (AC 2, E-157, E-318)', async () => {
 		const initialPipeline: PipelineSettings = {
 			bughunt: 0,
 			wrapupMode: 'auto',
@@ -859,26 +867,30 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 			...initialPipeline,
 			bughunt: 1,
 		};
-		let callCount = 0;
+
+		let resolveStaleGet: ((res: { pipeline: PipelineSettings }) => void) | undefined;
+		let resolveFreshGet: ((res: { pipeline: PipelineSettings }) => void) | undefined;
+		let getCalls = 0;
+
 		const fetcher = vi.fn(async () => {
-			callCount += 1;
-			return { pipeline: callCount === 1 ? initialPipeline : updatedPipeline };
+			getCalls += 1;
+			if (getCalls === 1) {
+				return new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+					resolveStaleGet = resolve;
+				});
+			}
+			return new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+				resolveFreshGet = resolve;
+			});
 		});
 
 		const source = createPipelineSettingsSource({ fetcher });
-		let notifyCount = 0;
-		const unsubscribe = source.subscribe(() => {
-			notifyCount += 1;
-		});
+		const unsubscribe = source.subscribe(() => {});
 
-		// 等待首次读取完成
-		for (let i = 0; i < 20 && notifyCount === 0; i++) {
-			await new Promise((r) => setTimeout(r, 10));
-		}
+		// 首次 GET 已发出处于在途 (getCalls === 1)
 		expect(fetcher).toHaveBeenCalledTimes(1);
-		expect(peek('settings:pipeline')).toEqual({ pipeline: initialPipeline });
 
-		// 模拟发送由于截断而无内联 pipeline 的 settings.pipeline_changed 事件
+		// 模拟发送截断事件（无内联 pipeline）
 		eventBus.push({
 			id: 301,
 			ts: new Date().toISOString(),
@@ -895,18 +907,31 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 			},
 		});
 
-		// 等待消费失效表后触发重取，读取到 updatedPipeline
-		for (let i = 0; i < 20 && notifyCount <= 1; i++) {
-			await new Promise((r) => setTimeout(r, 10));
-		}
+		// 截断事件到达时，在途请求尚未返回，合并去重仍为 1 次
+		expect(fetcher).toHaveBeenCalledTimes(1);
+
+		// 此时迟到的旧 GET 返回了旧数据 (bughunt: 0)
+		resolveStaleGet?.({ pipeline: initialPipeline });
+		await new Promise((r) => setTimeout(r, 15));
+
+		// 旧请求返回后，检测到在途期间被失效，自动发起重取 (fetcher 调用 2 次)
 		expect(fetcher).toHaveBeenCalledTimes(2);
+
+		// 关键断言：旧 GET 绝未覆盖事件权威，当前快照绝不能是 initialPipeline (bughunt: 0)
+		expect(source.getSnapshot().pipeline).toBeNull();
+
+		// 新的重取 GET 顺利返回最新数据 (bughunt: 1)
+		resolveFreshGet?.({ pipeline: updatedPipeline });
+		await new Promise((r) => setTimeout(r, 15));
+
+		// 成功更新为新数据
 		expect(source.getSnapshot().pipeline?.bughunt).toBe(1);
 
 		unsubscribe();
 	});
 
 	// ─── 14. SSE 重放失效与连接恢复从真实注册入口调用已登记的 fetcher，注销后无残留（AC 3） ───
-	it('invokes registered fetcher on connection resync and clears all registrations on unmount without leakage (AC 3)', async () => {
+	it('invokes registered fetcher on connection resync and clearBuffer, and clears all listeners and cache registration on unmount (AC 3)', async () => {
 		const pipelineData: PipelineSettings = {
 			bughunt: 0,
 			wrapupMode: 'auto',
@@ -914,25 +939,59 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 			wrapupAssignment: { mode: 'follow' },
 		};
 		const fetcher = vi.fn(async () => ({ pipeline: pipelineData }));
+
+		// 监听 sseClient.onClearBuffer 真实注册入口与注销回调
+		let sseClearBufferHandler: (() => void) | undefined;
+		let unregisterReplayCalled = false;
+		const originalOnClearBuffer = sseClient.onClearBuffer.bind(sseClient);
+		const onClearBufferSpy = vi.spyOn(sseClient, 'onClearBuffer').mockImplementation((listener) => {
+			sseClearBufferHandler = listener;
+			const unreg = originalOnClearBuffer(listener);
+			return () => {
+				unregisterReplayCalled = true;
+				unreg();
+			};
+		});
+
 		const source = createPipelineSettingsSource({ initialPipeline: pipelineData, fetcher });
 
 		// 双编辑器订阅同一个 source
 		const unsub1 = source.subscribe(() => {});
 		const unsub2 = source.subscribe(() => {});
 
-		// 此时有 2 个订阅者，触发真实连接恢复
+		// 验证生产入口注册了 onClearBuffer
+		expect(onClearBufferSpy).toHaveBeenCalled();
+		expect(sseClearBufferHandler).toBeDefined();
+
+		// 真实连接恢复触发已登记 fetcher 重拉
 		await triggerResync();
 		expect(fetcher).toHaveBeenCalledTimes(1);
 
-		// 第一个编辑器注销，第二个仍活跃，恢复注册依然有效
+		// 真实 SSE 重放窗口失效 (clearBuffer) 触发已登记 fetcher 重拉
+		sseClearBufferHandler?.();
+		await new Promise((r) => setTimeout(r, 15));
+		expect(fetcher).toHaveBeenCalledTimes(2);
+
+		// 第一个编辑器离开，第二个仍活跃，缓存与恢复注册保持
 		unsub1();
+		expect(getRegisteredKeys()).toContain(settingsPipeline());
+		expect(unregisterReplayCalled).toBe(false);
+
+		// 最后一个编辑器离开
+		unsub2();
+
+		// 最后一个订阅者离开后：
+		// 1. 恢复监听不再触发 fetcher
 		await triggerResync();
 		expect(fetcher).toHaveBeenCalledTimes(2);
 
-		// 最后一个编辑器注销，无事件与恢复注册残留
-		unsub2();
-		await triggerResync();
-		// fetcher 绝不再被调用，仍为 2 次
-		expect(fetcher).toHaveBeenCalledTimes(2);
+		// 2. SSE 重放清空注销函数被调用（AC 3）
+		expect(unregisterReplayCalled).toBe(true);
+
+		// 3. resource-cache 中的 fetcher 登记与缓存数据均已被清除（AC 3）
+		expect(getRegisteredKeys()).not.toContain(settingsPipeline());
+		expect(peek(settingsPipeline())).toBeUndefined();
+
+		onClearBufferSpy.mockRestore();
 	});
 });

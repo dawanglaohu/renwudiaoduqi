@@ -24,7 +24,7 @@ import { getInvalidationPrefixesForEvent } from '../../api/cache-invalidation.ts
 import { settingsPipeline } from '../../api/cache-keys.ts';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient, isApiError } from '../../api/http-client.ts';
-import { invalidate, read } from '../../api/resource-cache.ts';
+import { invalidate, read, unregister } from '../../api/resource-cache.ts';
 import { sseClient } from '../../api/sse-client.ts';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
@@ -211,7 +211,9 @@ export function createPipelineSettingsSource(
 						}
 					}
 				} else {
-					// 事件未附带完整四键数据时，生产入口实际消费失效并重取（AC 2）
+					// 截断事件或无内联数据时，递增 sourceVersion 防止迟到 GET 覆盖事件权威值
+					sourceVersion += 1;
+					// 生产入口实际消费失效并重取（AC 2）
 					void readSettings(false);
 				}
 			}
@@ -239,6 +241,7 @@ export function createPipelineSettingsSource(
 				if (listeners.size === 0) {
 					cleanup?.();
 					cleanup = null;
+					unregister(settingsPipeline());
 					if (!options.initialPipeline) publish({ pipeline: null, error: null });
 				}
 			};

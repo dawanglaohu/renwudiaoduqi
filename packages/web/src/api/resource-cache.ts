@@ -57,15 +57,19 @@ export async function read<T>(key: string, fetcher: () => Promise<T>): Promise<T
 
 	const execute = async (): Promise<T> => {
 		try {
-			const currentFetcher = (registeredFetchers.get(key) ?? fetcher) as () => Promise<T>;
-			const data = await currentFetcher();
+			while (true) {
+				entry.invalidatedWhileInFlight = false;
+				const currentFetcher = (registeredFetchers.get(key) ?? fetcher) as () => Promise<T>;
+				const data = await currentFetcher();
 
-			// 若在途期间到达了失效事件，响应已过时，绝不存入缓存
-			if (!entry.invalidatedWhileInFlight) {
+				// 若在途期间到达了失效事件（E-333），旧响应已过时，必须使用最新登记的 fetcher 自动再拉一次
+				if (entry.invalidatedWhileInFlight) {
+					continue;
+				}
+
 				dataCache.set(key, data);
+				return data;
 			}
-
-			return data;
 		} finally {
 			if (inFlightRequests.get(key) === (entry as InFlightEntry<unknown>)) {
 				inFlightRequests.delete(key);
