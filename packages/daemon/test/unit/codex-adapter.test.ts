@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { getClaudeCapabilities } from '../../src/adapters/claude/capabilities.ts';
+import { mapClaudeEventLine } from '../../src/adapters/claude/map-events.ts';
 import {
 	buildCodexLaunchSpec,
 	buildLaunchSpec,
@@ -965,11 +966,96 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(result.events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
 		});
 
-		it('R8-T97041355 E-36: no current agent claims a verified structured model rejection', () => {
+		it('R8-T70356006 AC 1 & E-36: Codex CLI 0.157.1 verified raw recording with invalid model confirms codexErrorInfo=other without typed code', () => {
+			// Actual sanitized stdout stream recording from codex-cli 0.157.1 app-server when given model="nonexistent-model-xyz":
+			const codex01571RawCompleted = JSON.stringify({
+				method: 'turn/completed',
+				params: {
+					threadId: '01a0e09f-ca27-7d92-a6e3-042e55390fa5',
+					turn: {
+						id: '01a0e09f-cbad-7c33-8caf-27d19f040498',
+						items: [],
+						itemsView: 'notLoaded',
+						status: 'failed',
+						error: {
+							message:
+								'unexpected status 404 Not Found: no route available for the requested model, url: https://api.cdn-krill-ai.com/codex/v1/responses, request id: <redacted>',
+							codexErrorInfo: 'other',
+							additionalDetails: null,
+							misalignment: null,
+						},
+						startedAt: 1790474963,
+						completedAt: 1790474986,
+						durationMs: 23059,
+					},
+				},
+			});
+
+			const result = parseAndMapCodexLine(codex01571RawCompleted, context);
+			// Confirms: no run.model_rejected emitted; only standard stderr & exit
+			expect(result.events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
+			expect(result.events.map((e) => e.kind)).toEqual(['run.stderr_line', 'run.exited']);
+		});
+
+		it('R8-T70356006 AC 1 & E-36: Claude Code 2.1.238 verified raw recording with invalid model confirms stream-json generic api_error without typed code', () => {
+			// Actual sanitized stdout stream recording from Claude Code 2.1.238 stream-json when given --model nonexistent-model-xyz.
+			// Note: The warning '[claude-code:unrecognized_model]' is printed to stderr only; stdout yields only generic result/api_error.
+			const claude21238RawResult = JSON.stringify({
+				is_error: true,
+				duration_api_ms: 0,
+				num_turns: 1,
+				stop_reason: 'stop_sequence',
+				session_id: 'a93a5307-d9b5-4ca0-ae6a-4e5b662dc1a7',
+				total_cost_usd: 0,
+				usage: {},
+				modelUsage: {},
+				permission_denials: [],
+				terminal_reason: 'api_error',
+				fast_mode_state: 'off',
+				fast_mode_disabled_reason: 'sdk_opt_in_required',
+				subagent_stats: {},
+				subtype: 'success',
+				api_error_status: 503,
+				result:
+					'API Error: 503 当前分组 default 下对于模型 nonexistent-model-xyz 无可用渠道 (request id: <redacted>).',
+				type: 'result',
+				duration_ms: 197952,
+				uuid: '7bf5c7d7-444f-4aa5-b80d-2173f5df7887',
+			});
+
+			const claudeResult = mapClaudeEventLine(claude21238RawResult);
+			// Confirms: no run.model_rejected emitted from generic result/api_error
+			expect(claudeResult.events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
+			expect(claudeResult.unmappedCount).toBe(0);
+		});
+
+		it('R8-T70356006 AC 2 & E-36: Claude adapter accurately emits run.model_rejected when structured model-rejection code is present in hypothetical future error event', () => {
+			const hypotheticalStructuredError = JSON.stringify({
+				type: 'error',
+				model: 'nonexistent-model-xyz',
+				error: {
+					type: 'invalid_request_error',
+					code: 'model_not_found',
+					message: 'The model `nonexistent-model-xyz` was not found.',
+				},
+			});
+
+			const res = mapClaudeEventLine(hypotheticalStructuredError);
+			expect(res.events).toHaveLength(1);
+			expect(res.events[0]?.kind).toBe('run.model_rejected');
+			expect(res.events[0]?.payload).toMatchObject({
+				code: 'model_invalid',
+				modelName: 'nonexistent-model-xyz',
+				vendorMessage: 'The model `nonexistent-model-xyz` was not found.',
+			});
+			expect(res.unmappedCount).toBe(0);
+		});
+
+		it('R8-T70356006 AC 2 & E-36: Verified reportsModelRejection remains false across all adapters per Jev adjudicate adopt=take(A)', () => {
 			expect(getCodexCapabilities('native').reportsModelRejection).toBe(false);
 			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(false);
 
-			// All other adapters explicitly declare false (fall back to E-348)
+			// All other adapters explicitly declare false (0 verified vendors; fall back to E-348)
 			expect(getCodexCapabilities('generic-acp').reportsModelRejection).toBe(false);
 			expect(getClaudeCapabilities().reportsModelRejection).toBe(false);
 			expect(getDshCapabilities().reportsModelRejection).toBe(false);

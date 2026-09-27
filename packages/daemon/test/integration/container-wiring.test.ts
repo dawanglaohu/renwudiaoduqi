@@ -3,6 +3,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { getClaudeCapabilities } from '../../src/adapters/claude/capabilities.ts';
+import { getCodexCapabilities } from '../../src/adapters/codex/capabilities.ts';
+import { getDshCapabilities } from '../../src/adapters/dsh/capabilities.ts';
+import { getGenericAcpCapabilities } from '../../src/adapters/generic-acp/capabilities.ts';
+import { getGrokCapabilities } from '../../src/adapters/grok/capabilities.ts';
+import { getPiCapabilities } from '../../src/adapters/pi/capabilities.ts';
 import { createContainer } from '../../src/boot/container.ts';
 import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
@@ -1819,6 +1825,77 @@ describe(
 					actorDeviceId: null,
 				}),
 			).rejects.toThrow('Gate already decided');
+		});
+
+		it('R8-T70356006 AC 3 & E-36: container correctly wires handleModelInvalid to runService and maintains reportsModelRejection false', async () => {
+			const env = setupWiringEnvironment();
+			const { container, clock, tempDir } = env;
+
+			// 1. Verify capability flags across all adapters
+			expect(getCodexCapabilities().reportsModelRejection).toBe(false);
+			expect(getClaudeCapabilities().reportsModelRejection).toBe(false);
+			expect(getDshCapabilities().reportsModelRejection).toBe(false);
+			expect(getGenericAcpCapabilities().reportsModelRejection).toBe(false);
+			expect(getGrokCapabilities().reportsModelRejection).toBe(false);
+			expect(getPiCapabilities().reportsModelRejection).toBe(false);
+
+			// 2. Set lane_no on task-1 (already seeded by setupWiringEnvironment)
+			container.repos.tasks.setLaneNo('task-1', 2);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBe(2);
+
+			container.repos.runs.insert({
+				id: 'run-wiring-1',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'running',
+				agent_id: 'codex',
+				model_name: 'test-invalid-model',
+				effort_tier: 'high',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				worktree_path: tempDir,
+				branch_name: 'task/M7-T9',
+				started_at: clock.now(),
+			});
+
+			const fakeProc = createFakeProcess({
+				runId: 'run-wiring-1',
+				file: 'node',
+				args: ['dummy'],
+				cwd: tempDir,
+			});
+
+			container.services.run.attachProcess('run-wiring-1', fakeProc.managed, {
+				eventMapper: () => [
+					container.events.envelopeFactory.createEnvelope({
+						kind: 'run.model_rejected',
+						runId: 'run-wiring-1',
+						taskId: 'task-1',
+						payload: {
+							runId: 'run-wiring-1',
+							modelName: 'test-invalid-model',
+							code: 'model_invalid',
+							vendorMessage: 'Model not found',
+						},
+					}),
+				],
+			});
+
+			fakeProc.emitLine('{"error": "model rejected"}');
+
+			const updated = await waitFor(() => {
+				const r = container.repos.runs.findById('run-wiring-1');
+				return r?.state === 'failed';
+			});
+			expect(updated).toBe(true);
+
+			const updatedRun = container.repos.runs.findById('run-wiring-1');
+			expect(updatedRun?.state).toBe('failed');
+			expect(updatedRun?.queued_reason).toBe('派发失败·模型无效');
+
+			const updatedTask = container.repos.tasks.findById('task-1');
+			expect(updatedTask?.lane_no).toBeNull();
 		});
 	},
 );

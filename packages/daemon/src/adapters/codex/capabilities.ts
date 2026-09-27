@@ -5,7 +5,11 @@ export interface CodexCapabilities {
 	readonly hasStreamingEvents: boolean;
 	readonly canResume: boolean;
 	readonly sessionHistory: 'full' | 'current-run-only';
-	/** True if the adapter emits run.model_rejected from structured vendor error fields (E-36). */
+	/**
+	 * True if the adapter emits run.model_rejected from structured vendor error fields (E-36).
+	 * Verified false for Codex CLI 0.156.1/0.157.0/0.157.1: app-server turn/completed.error only
+	 * provides codexErrorInfo: 'other' and generic message; falls back to E-348.
+	 */
 	readonly reportsModelRejection: boolean;
 }
 

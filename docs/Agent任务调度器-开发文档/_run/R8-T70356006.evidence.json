@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R8-T70356006": {
+      "contractHash": "b8834bf4c9e46d10147b6c88114a2f856fe8e20155229ba85e883b407ce5d7bd",
+      "evidence": [
+        "实测验证 Codex 0.157.1、Claude Code 2.1.238、Grok 1.0.41、Pi 0.87.1：Codex app-server 报 codexErrorInfo='other'，Claude 在 stderr 输出警告文本且 stdout stream-json 仅有 503 api_error，Grok 与 Pi 为通用 error 或 stderr 退出；真实厂商均未提供结构化拒绝字段。经 Jev adjudicate 裁决采纳 Option A，报告验证家数为 0 家，绝不依据自由文本或通用 HTTP/类别推断。",
+        "所有适配器（Codex、Claude、DSH、generic-acp、Grok、Pi）明确保持 reportsModelRejection: false；在 Claude adapter mapEvents 实现类型化拒绝映射支持与通用 api_error 负例防误触发防护，codex-adapter.test.ts 覆盖全量能力位与真实脱敏录制负例断言。",
+        "在 dispatch-spawn.test.ts 与 container-wiring.test.ts 中分别验证真实派发入口：收到假设的结构化拒绝信号时原子迁 failed、queued_reason 为派发失败·模型无效、释放泳道、作废审批卡并跳过 E-348；而在实测脱敏通用错误（如 503 api_error）下严格回退 E-348 进入 awaiting_human。",
+        "文档 10 节、13 节 E-36 与 19 节 M8-T5 能力位说明保持一致，无新增未文档化状态。",
+        "全仓 check-error-codes、WCAG 对比度、架构防造假模式扫描、Biome、tsc -b --noEmit 及 Vitest（203 测试文件，2526 个测试）全部通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

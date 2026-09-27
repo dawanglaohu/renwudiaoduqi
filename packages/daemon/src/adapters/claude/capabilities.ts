@@ -9,7 +9,11 @@ export interface ClaudeCapabilities {
 	readonly sessionReadback: 'agents-json';
 	readonly supportsReasoningEffort: boolean;
 	readonly permissionModes: readonly ['plan', 'acceptEdits', 'bypassPermissions'];
-	/** True if the adapter emits run.model_rejected from structured vendor error fields (E-36). */
+	/**
+	 * True if the adapter emits run.model_rejected from structured vendor error fields (E-36).
+	 * Verified false for Claude Code 2.1.238: invalid model emits stderr warning '[claude-code:unrecognized_model]'
+	 * and generic api_error result in stream-json, lacking vendor-typed rejection codes; falls back to E-348.
+	 */
 	readonly reportsModelRejection: boolean;
 }
 

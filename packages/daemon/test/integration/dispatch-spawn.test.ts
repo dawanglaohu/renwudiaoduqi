@@ -1207,6 +1207,129 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(gate).toBeNull();
 	});
 
+	it('R8-T70356006 AC 3 & E-36: Claude production dispatch entry point transitions to failed on structured model rejection, releases lane, supersedes gates, and does not enter E-348', async () => {
+		const env = setupTestEnvironment({ exitCode: 1, availableAgentIds: ['codex', 'claude'] });
+		const { container, getLatestProc, getMechanicalCheckCalls } = env;
+
+		container.repos.tasks.setLaneNo('task-1', 2);
+
+		const busEvents: EventEnvelope[] = [];
+		container.events.bus.subscribe((event) => busEvents.push(event));
+
+		const createRes = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'claude',
+			model: 'nonexistent-model-xyz',
+			idempotencyKey: 'idemp-claude-model-rejected',
+		});
+		await container.services.dispatch.tick();
+
+		let attempts = 0;
+		while (!getLatestProc() && attempts < 50) {
+			await new Promise((r) => setTimeout(r, 20));
+			attempts++;
+		}
+		const proc = getLatestProc();
+		expect(proc).not.toBeNull();
+
+		// Emit structured error frame with model rejection
+		proc?.emitLine(
+			JSON.stringify({
+				type: 'error',
+				model: 'nonexistent-model-xyz',
+				error: {
+					type: 'invalid_request_error',
+					code: 'model_not_found',
+					message: 'The model `nonexistent-model-xyz` was not found.',
+				},
+			}),
+		);
+
+		// Process exits with error
+		proc?.emitExit(1);
+
+		attempts = 0;
+		while (container.repos.runs.findById(createRes.run.id)?.state !== 'failed' && attempts < 100) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+
+		const run = container.repos.runs.findById(createRes.run.id);
+		expect(run?.state).toBe('failed');
+		expect(run?.queued_reason).toBe('派发失败·模型无效');
+		expect(run?.rework_count ?? 0).toBe(0);
+		expect(getMechanicalCheckCalls()).toBe(0);
+
+		// Task lane_no must be cleared and lane.released emitted
+		expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+
+		attempts = 0;
+		while (!busEvents.some((e) => e.kind === 'lane.released') && attempts < 100) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+		expect(busEvents.some((e) => e.kind === 'lane.released')).toBe(true);
+
+		// No awaiting_human review gate created
+		const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
+		expect(gate).toBeNull();
+	});
+
+	it('R8-T70356006 AC 3 & E-348: Claude production dispatch with verified real recording (api_error 503) enters E-348 awaiting_human instead of model rejection', async () => {
+		const env = setupTestEnvironment({ exitCode: 1, availableAgentIds: ['codex', 'claude'] });
+		const { container, getLatestProc } = env;
+
+		container.repos.tasks.setLaneNo('task-1', 2);
+
+		const createRes = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'claude',
+			model: 'nonexistent-model-xyz',
+			idempotencyKey: 'idemp-claude-real-recording-fallback',
+		});
+		await container.services.dispatch.tick();
+
+		let attempts = 0;
+		while (!getLatestProc() && attempts < 50) {
+			await new Promise((r) => setTimeout(r, 20));
+			attempts++;
+		}
+		const proc = getLatestProc();
+		expect(proc).not.toBeNull();
+
+		// Emit real-world sanitized Claude result frame with generic api_error 503
+		proc?.emitLine(
+			JSON.stringify({
+				type: 'result',
+				is_error: true,
+				terminal_reason: 'api_error',
+				api_error_status: 503,
+				result: 'API Error: 503 当前分组 default 下对于模型 nonexistent-model-xyz 无可用渠道.',
+			}),
+		);
+
+		proc?.emitExit(1);
+
+		attempts = 0;
+		while (
+			container.repos.runs.findById(createRes.run.id)?.state !== 'awaiting_human' &&
+			attempts < 100
+		) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			attempts++;
+		}
+
+		const run = container.repos.runs.findById(createRes.run.id);
+		// Verified: zero output before content with generic error correctly enters E-348 awaiting_human
+		expect(run?.state).toBe('awaiting_human');
+		expect(run?.queued_reason).toBe('exited_before_output');
+
+		const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
+		expect(gate).not.toBeNull();
+		expect(gate?.state).toBe('waiting');
+		expect(gate?.comment).toBe('exited_before_output');
+	});
+
 	it('B1: POST rerun after exited_before_output creates a new run and launches its process', async () => {
 		const env = setupTestEnvironment({ exitCode: 0 });
 		const { container, getLatestProc } = env;
