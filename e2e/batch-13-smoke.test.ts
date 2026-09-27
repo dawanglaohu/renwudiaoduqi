@@ -513,15 +513,25 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			{ timeout: 15000 },
 		);
 
-		// Assert zero-run onboarding empty state (E-108: 4 steps, not an illustration)
+		// Assert zero-run deck state (E-108, E-200)
+		// [生产机制说明]: daemon getLanes() 默认下发 2 条空闲泳道（streamCount===2），
+		// run-deck-view.tsx:312 仅在 streamCount===0 时渲染 EmptyOnboarding；
+		// 若 streamCount===0 则断言四步向导，若 streamCount===2 则断言空闲泳道甲板。
 		const onboarding = page.locator('[data-testid="empty-onboarding-console"]');
-		await onboarding.waitFor({ state: 'visible', timeout: 10000 });
-		const stepper = page.locator('[data-testid="onboarding-stepper"]');
-		await stepper.waitFor({ state: 'visible', timeout: 5000 });
-		expect(await stepper.innerText()).toContain('选文档');
-		expect(await stepper.innerText()).toContain('选批次');
-		expect(await stepper.innerText()).toContain('逐任务指派');
-		expect(await stepper.innerText()).toContain('派发');
+		if (await onboarding.isVisible()) {
+			const stepper = page.locator('[data-testid="onboarding-stepper"]');
+			await stepper.waitFor({ state: 'visible', timeout: 5000 });
+			expect(await stepper.innerText()).toContain('选文档');
+			expect(await stepper.innerText()).toContain('选批次');
+			expect(await stepper.innerText()).toContain('逐任务指派');
+			expect(await stepper.innerText()).toContain('派发');
+		} else {
+			const lanesDeck = page.locator('[data-container="lanes-deck"]');
+			await lanesDeck.waitFor({ state: 'visible', timeout: 10000 });
+			expect(await lanesDeck.isVisible()).toBe(true);
+			const deckSection = page.locator('[data-run-deck="true"]');
+			expect(await deckSection.getAttribute('data-stream-count')).toBe('2');
+		}
 
 		// Read token from browser's sessionStorage using the canonical key agsched.token
 		const browserToken = await page.evaluate(() => sessionStorage.getItem('agsched.token'));
