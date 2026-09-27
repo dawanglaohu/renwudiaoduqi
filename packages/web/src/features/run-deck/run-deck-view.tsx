@@ -33,6 +33,7 @@ import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
+import { isLaneIdle } from '../../lib/stage-rows.ts';
 import { useSelectionStore } from '../../store/selection-store.ts';
 import type { LaneStepItem } from './lane-steps-container.tsx';
 import { LanesContainer } from './lanes-container.tsx';
@@ -259,9 +260,9 @@ export function RunDeckView(props: RunDeckViewProps) {
 				return {
 					...rawLane,
 					...deckLane,
-					taskId: rawLane.taskId,
-					currentRunId: rawLane.currentRunId,
-					stage: rawLane.stage,
+					taskId: rawLane.taskId ?? deckLane?.taskId,
+					currentRunId: rawLane.currentRunId ?? deckLane?.currentRunId,
+					stage: deckLane?.gateId && isLaneIdle(rawLane.stage) ? 'review' : rawLane.stage,
 					archivedTaskIds: rawLane.archivedTaskIds,
 					archivedWrapupRunId: rawLane.archivedWrapupRunId,
 					nextTaskId: rawLane.nextTaskId,
