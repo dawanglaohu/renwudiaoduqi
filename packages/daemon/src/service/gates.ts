@@ -769,6 +769,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 						taskId: gate.task_id,
 						runId: implRunId,
 						reviewVerdict: 'pass',
+						overrides: { review: 'auto' },
 					});
 				}
 			}
@@ -852,17 +853,19 @@ export function createGateService(deps: GateServiceDeps): GateService {
 		}): Promise<ResolveAfterReviewResult> {
 			const settings = deps.settingsService.getGates();
 			const batchId = deps.tasksRepo?.findById(input.taskId)?.batch_id;
-			const batchOverrides =
+			const batchLevelOverrides =
 				batchId !== undefined && batchId !== null
-					? (input.overrides ??
-						deps.getBatchGateOverrides?.(batchId) ??
-						batchGateOverridesMap.get(batchId))
-					: input.overrides;
+					? (deps.getBatchGateOverrides?.(batchId) ?? batchGateOverridesMap.get(batchId))
+					: undefined;
+			const mergedOverrides: GateOverrides = {
+				...batchLevelOverrides,
+				...input.overrides,
+			};
 
 			const result = resolveAfterReview({
 				reviewVerdict: input.reviewVerdict,
 				settings,
-				overrides: batchOverrides,
+				overrides: mergedOverrides,
 			});
 
 			const now = deps.clock.now();

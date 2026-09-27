@@ -1,6 +1,6 @@
 import type { ChildProcess, SpawnOptions, spawn as nodeSpawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -1450,6 +1450,22 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(gate?.comment).toBe('exited_before_output');
 
 		const eventsPath = join(tempDir, 'runs', createRes.run.id, 'events.ndjson');
+		// 状态写库先于日志 append 完成；等待持久事件，避免把调度延迟误判为丢日志。
+		await expect
+			.poll(() => {
+				if (!existsSync(eventsPath)) return false;
+				return readFileSync(eventsPath, 'utf8')
+					.split('\n')
+					.filter(Boolean)
+					.some((line) => {
+						try {
+							return (JSON.parse(line) as { kind: string }).kind === 'run.exited';
+						} catch {
+							return false;
+						}
+					});
+			})
+			.toBe(true);
 		const exitedEvents = readFileSync(eventsPath, 'utf8')
 			.split('\n')
 			.filter(Boolean)
