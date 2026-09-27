@@ -14,6 +14,7 @@ import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { eventBus } from '../src/api/event-bus.ts';
+import { clearResourceCache, peek } from '../src/api/resource-cache.ts';
 import { PipelineToggles } from '../src/components/pipeline-toggles.tsx';
 import { PipelineTogglesContainer } from '../src/features/run-deck/pipeline-toggles-container.tsx';
 import { createPipelineSettingsSource } from '../src/features/run-deck/use-pipeline-settings.ts';
@@ -345,6 +346,7 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		clearResourceCache();
 	});
 
 	// ─── 1. 两个开关二段形态 ───
@@ -430,6 +432,9 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		expect(notesHost.querySelector('[data-testid="wrapup-manual-note"]')).not.toBeNull();
 		expect(notesHost.textContent).toContain('审查 pass 后自动派查 bug 运行');
 		expect(notesHost.textContent).toContain('本批全部任务落地后不自动收口');
+		await act(async () => {
+			root.unmount();
+		});
 	});
 
 	// ─── 5. onChange 给出全量两值 ───
@@ -556,6 +561,9 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 
 		// 事件回流后，DOM 翻转
 		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+		await act(async () => {
+			root.unmount();
+		});
 	});
 
 	// ─── 8. E_PIPELINE_STAGE_DISABLED 就地 inline notice 不弹 toast（AC 5） ───
@@ -599,6 +607,9 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		const errorNotice = container.querySelector('[data-testid="pipeline-toggles-error"]');
 		expect(errorNotice).not.toBeNull();
 		expect(errorNotice?.textContent).toContain('当前流水线阶段已停用（查 bug）');
+		await act(async () => {
+			root.unmount();
+		});
 	});
 
 	// ─── 9. 设置页布局展示「当前值来自 daemon」（AC 4） ───
@@ -675,6 +686,9 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 
 		// 核心断言（R2）：迟到的旧 GET 不得覆盖较新的事件回流，bughunt 必须保持为 1 (active)
 		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+		await act(async () => {
+			root.unmount();
+		});
 	});
 
 	// ─── 11. R2 竞态回归 2：其他设备事件在本地 PATCH 未完成时不得提前解除 pending ───
@@ -785,5 +799,140 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		// 本地 PATCH 完成且回流事件确认到达后，pending 正常解除，DOM 成功翻转为 active
 		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
 		expect(turnOnBtn?.getAttribute('disabled')).toBeNull();
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	// ─── 12. 真实生产入口通过 settingsPipeline() 存取 resource-cache（AC 1, AC 2, AC 4） ───
+	it('usePipelineSettings production entry reads through resource-cache under settingsPipeline key (AC 1, AC 2)', async () => {
+		const { container, root } = setupMockDom();
+		const pipelineData: PipelineSettings = {
+			bughunt: 1,
+			wrapupMode: 'manual',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let resolveFetch: ((res: { pipeline: PipelineSettings }) => void) | undefined;
+		const fetcher = vi.fn(
+			() =>
+				new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+					resolveFetch = resolve;
+				}),
+		);
+
+		await act(async () => {
+			root.render(
+				createElement(PipelineTogglesContainer, {
+					fetcher,
+				}),
+			);
+		});
+
+		expect(fetcher).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			resolveFetch?.({ pipeline: pipelineData });
+		});
+
+		// 校验 resource-cache 中确有 settings:pipeline 缓存
+		expect(peek('settings:pipeline')).toEqual({ pipeline: pipelineData });
+
+		const bughuntToggle = container.querySelector('[data-pipeline-toggle="bughunt"]');
+		const turnOnBtn = bughuntToggle?.querySelectorAll('button')[1];
+		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	// ─── 13. settings.pipeline_changed 消费失效表，清空缓存并在缺载荷时重取（AC 2, E-318） ───
+	it('settings.pipeline_changed invalidates settings prefix and re-fetches when payload is omitted (AC 2, E-318)', async () => {
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		const updatedPipeline: PipelineSettings = {
+			...initialPipeline,
+			bughunt: 1,
+		};
+		let callCount = 0;
+		const fetcher = vi.fn(async () => {
+			callCount += 1;
+			return { pipeline: callCount === 1 ? initialPipeline : updatedPipeline };
+		});
+
+		const source = createPipelineSettingsSource({ fetcher });
+		let notifyCount = 0;
+		const unsubscribe = source.subscribe(() => {
+			notifyCount += 1;
+		});
+
+		// 等待首次读取完成
+		for (let i = 0; i < 20 && notifyCount === 0; i++) {
+			await new Promise((r) => setTimeout(r, 10));
+		}
+		expect(fetcher).toHaveBeenCalledTimes(1);
+		expect(peek('settings:pipeline')).toEqual({ pipeline: initialPipeline });
+
+		// 模拟发送由于截断而无内联 pipeline 的 settings.pipeline_changed 事件
+		eventBus.push({
+			id: 301,
+			ts: new Date().toISOString(),
+			runId: null,
+			taskId: null,
+			scope: 'settings',
+			kind: 'settings.pipeline_changed',
+			seq: 10,
+			actorDeviceId: 'remote-device',
+			payload: {
+				truncated: true,
+				byteLen: 120,
+				ref: { fileSeq: 1, byteOffset: 0, byteLen: 120 },
+			},
+		});
+
+		// 等待消费失效表后触发重取，读取到 updatedPipeline
+		for (let i = 0; i < 20 && notifyCount <= 1; i++) {
+			await new Promise((r) => setTimeout(r, 10));
+		}
+		expect(fetcher).toHaveBeenCalledTimes(2);
+		expect(source.getSnapshot().pipeline?.bughunt).toBe(1);
+
+		unsubscribe();
+	});
+
+	// ─── 14. SSE 重放失效与连接恢复从真实注册入口调用已登记的 fetcher，注销后无残留（AC 3） ───
+	it('invokes registered fetcher on connection resync and clears all registrations on unmount without leakage (AC 3)', async () => {
+		const pipelineData: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		const fetcher = vi.fn(async () => ({ pipeline: pipelineData }));
+		const source = createPipelineSettingsSource({ initialPipeline: pipelineData, fetcher });
+
+		// 双编辑器订阅同一个 source
+		const unsub1 = source.subscribe(() => {});
+		const unsub2 = source.subscribe(() => {});
+
+		// 此时有 2 个订阅者，触发真实连接恢复
+		await triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(1);
+
+		// 第一个编辑器注销，第二个仍活跃，恢复注册依然有效
+		unsub1();
+		await triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(2);
+
+		// 最后一个编辑器注销，无事件与恢复注册残留
+		unsub2();
+		await triggerResync();
+		// fetcher 绝不再被调用，仍为 2 次
+		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 });

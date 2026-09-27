@@ -20,8 +20,11 @@ import type {
 	UpdatePipelineSettingsResponse,
 } from '@agent-scheduler/shared/api/settings';
 import { useMemo, useSyncExternalStore } from 'react';
+import { getInvalidationPrefixesForEvent } from '../../api/cache-invalidation.ts';
+import { settingsPipeline } from '../../api/cache-keys.ts';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient, isApiError } from '../../api/http-client.ts';
+import { invalidate, read } from '../../api/resource-cache.ts';
 import { sseClient } from '../../api/sse-client.ts';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
@@ -148,11 +151,22 @@ export function createPipelineSettingsSource(
 		const requestVersion = sourceVersion;
 		const requestReadVersion = ++readVersion;
 		try {
-			const res = options.fetcher
-				? await options.fetcher()
-				: getPipelineRoute
-					? await httpClient.callRoute<GetPipelineSettingsResponse>(getPipelineRoute)
-					: null;
+			const fetcher =
+				options.fetcher ??
+				(async () => {
+					if (!getPipelineRoute) {
+						throw new Error('GET /api/v1/settings/pipeline route missing');
+					}
+					return httpClient.callRoute<GetPipelineSettingsResponse>(getPipelineRoute);
+				});
+
+			// 恢复前主动使 settings 缓存失效，确保拉取 daemon 端最新数据
+			if (recover) {
+				invalidate('settings');
+			}
+
+			// 通过 resource-cache 共享缓存读取流水线设置（AC 1, AC 2）
+			const res = await read(settingsPipeline(), fetcher);
 			if (listeners.size === 0 || requestReadVersion !== readVersion) return;
 			if (res?.pipeline && sourceVersion === requestVersion) {
 				publish({ pipeline: res.pipeline, error: null });
@@ -177,9 +191,15 @@ export function createPipelineSettingsSource(
 
 	function start(): void {
 		const unsub = eventBus.subscribeMilestone((envelope) => {
-			if (envelope.kind === 'settings.pipeline_changed' && envelope.payload) {
-				const payload = envelope.payload as { readonly pipeline?: PipelineSettings };
-				if (payload.pipeline) {
+			// AC 2: 消费失效表，前缀粒度触发 resource-cache 失效
+			const prefixes = getInvalidationPrefixesForEvent(envelope.kind);
+			for (const prefix of prefixes) {
+				invalidate(prefix);
+			}
+
+			if (envelope.kind === 'settings.pipeline_changed') {
+				const payload = envelope.payload as { readonly pipeline?: PipelineSettings } | undefined;
+				if (payload?.pipeline) {
 					sourceVersion += 1;
 					publish({ pipeline: payload.pipeline, error: null });
 					const pending = pendingPatch;
@@ -190,6 +210,9 @@ export function createPipelineSettingsSource(
 							publish({ isPending: false });
 						}
 					}
+				} else {
+					// 事件未附带完整四键数据时，生产入口实际消费失效并重取（AC 2）
+					void readSettings(false);
 				}
 			}
 		});
