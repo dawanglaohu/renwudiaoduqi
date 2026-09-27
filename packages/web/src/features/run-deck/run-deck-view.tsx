@@ -18,6 +18,7 @@
  */
 
 import type { BatchWrapupDto } from '@agent-scheduler/shared/api/batches';
+import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
@@ -33,6 +34,7 @@ import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
+import { useCanDispatch } from '../../store/connection-store.ts';
 import { useSelectionStore } from '../../store/selection-store.ts';
 import type { LaneStepItem } from './lane-steps-container.tsx';
 import { LanesContainer } from './lanes-container.tsx';
@@ -172,6 +174,7 @@ export interface RunDeckViewProps extends UseRunDeckResult {
 	/** 原始 LaneView 清单（若可用） */
 	readonly rawLanes?: readonly LaneView[];
 	readonly wrapups?: readonly BatchWrapupDto[];
+	readonly gates?: readonly GateDto[];
 	/** 泳道步骤获取回调（R1） */
 	readonly getLaneSteps?: (laneNo: number, runId?: string | null) => readonly LaneStepItem[];
 	/** 审批决定回调（M9-T20 审批卡放行/拒绝） */
@@ -204,6 +207,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		runs = [],
 		rawLanes,
 		wrapups,
+		gates = [],
 		getLaneSteps,
 
 		// 手机端能力（M9-T12）
@@ -309,7 +313,51 @@ export function RunDeckView(props: RunDeckViewProps) {
 
 	// E-108: 零运行空态呈现四步引导控制台，而非插画（M9-T16, M9-T18 接入真实零运行流程）。
 	// 零流与有流都保留左栏批次树与顶栏（M9-T19 R2），所以这里不再提前 return，只准备空态控制台节点。
-	const assignPanel = useAssignPanel({ enabled: streamCount === 0 });
+	const hasAssignedLane = lanes.some(
+		(lane) => lane.currentRunId || lane.taskId || lane.gateId || lane.kind === 'wrapup',
+	);
+	const pendingGates = gates.filter(
+		(gate) => gate.state === 'waiting' && !lanes.some((lane) => lane.gateId === gate.id),
+	);
+	const showOnboarding =
+		(streamCount === 0 || (rawLanes !== undefined && !hasAssignedLane)) &&
+		pendingGates.length === 0 &&
+		!error;
+	const assignPanel = useAssignPanel({ enabled: showOnboarding });
+	const canDispatch = useCanDispatch();
+	const approvalExpandedIds = new Set(expandedIds);
+	for (const batch of treeBatches) {
+		if (batch.tasks?.some((task) => pendingGates.some((gate) => gate.taskId === task.id))) {
+			approvalExpandedIds.add(batch.id);
+		}
+	}
+	const renderTaskApproval = (taskId: string) => {
+		const gate = pendingGates.find((entry) => entry.taskId === taskId);
+		if (!gate) return null;
+		const task = tasks.find((entry) => entry.id === taskId);
+		return (
+			<GateCard
+				gateKind={gate.kind}
+				gate={gate}
+				taskKey={task?.taskKey ?? '—'}
+				taskTitle={task?.title ?? '—'}
+				disabled={!onDecideGate}
+				tier={tier}
+				isMobile={isMobileMode}
+				isTouch={isTouch}
+				stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
+				onApprove={() => {
+					void onDecideGate?.(gate.id, 'pass');
+				}}
+				onEdit={() => {
+					void onDecideGate?.(gate.id, 'reject', '改一下');
+				}}
+				onReject={() => {
+					void onDecideGate?.(gate.id, 'reject');
+				}}
+			/>
+		);
+	};
 
 	const emptyConsole = (
 		<>
@@ -332,6 +380,13 @@ export function RunDeckView(props: RunDeckViewProps) {
 				selectedBatchId={assignPanel.selectedBatchId ?? undefined}
 				onSelectDoc={assignPanel.selectDoc}
 				onSelectBatch={assignPanel.selectBatch}
+				onImportDocument={(docsPath) => {
+					void assignPanel.importDocument(docsPath);
+				}}
+				onDispatch={() => {
+					if (canDispatch) void assignPanel.startBatch();
+				}}
+				canDispatch={canDispatch && !assignPanel.isSaving}
 				step3Summary={assignPanel.step3Summary}
 				step3Slot={
 					<AssignPanel
@@ -515,10 +570,11 @@ export function RunDeckView(props: RunDeckViewProps) {
 									)}
 									<BatchTree
 										batches={treeBatches}
-										expandedIds={expandedIds}
+										expandedIds={approvalExpandedIds}
 										densityTier={tier}
 										isTouch={isTouch}
 										onToggleBatch={toggleBatch}
+										renderTaskApproval={renderTaskApproval}
 										onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
 										onWrapup={onWrapup}
 										onOpenWrapupRun={onOpenWrapupRun}
@@ -542,7 +598,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									data-pane-view="stream"
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
 								>
-									{streamCount === 0 && !error ? (
+									{showOnboarding ? (
 										emptyConsole
 									) : (
 										<LanesContainer
@@ -623,10 +679,11 @@ export function RunDeckView(props: RunDeckViewProps) {
 								)}
 								<BatchTree
 									batches={treeBatches}
-									expandedIds={expandedIds}
+									expandedIds={approvalExpandedIds}
 									densityTier={tier}
 									isTouch={isTouch}
 									onToggleBatch={toggleBatch}
+									renderTaskApproval={renderTaskApproval}
 									onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
 									onWrapup={onWrapup}
 									onOpenWrapupRun={onOpenWrapupRun}
@@ -663,7 +720,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									</button>
 								)}
 
-								{streamCount === 0 && !error ? (
+								{showOnboarding ? (
 									<div className="flex flex-col flex-1 p-4 overflow-y-auto">{emptyConsole}</div>
 								) : (
 									<LanesContainer

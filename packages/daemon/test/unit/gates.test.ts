@@ -293,6 +293,66 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 			expect(landedEvent.payload.by).toBe('human');
 			expect(landedEvent.payload.gateId).toBe(gate.id);
 		});
+
+		it('human-decided review gate advances to landed when landing is auto without recreating review gate', async () => {
+			const { gateService, settingsService, gatesRepo, tasksRepo } = createHarness();
+
+			// Configure review: manual, landing: auto
+			settingsService.updateGates(
+				{ dispatch: 'auto', review: 'manual', landing: 'auto' },
+				'dev-desktop',
+			);
+
+			// Create a waiting review gate
+			const gate = await gateService.createWaitingGate({
+				taskId: 'task-1',
+				runId: null,
+				kind: 'review',
+			});
+
+			// Human decides pass on review gate
+			const res = await gateService.decideGate({
+				gateId: gate.id,
+				decision: 'pass',
+				actorDeviceId: 'dev-desktop',
+			});
+
+			expect(res.applied).toBe(true);
+
+			// Review gate is decided
+			const reviewedGate = gatesRepo.findById(gate.id);
+			expect(reviewedGate?.state).toBe('decided');
+			expect(reviewedGate?.decision).toBe('pass');
+
+			// Task is marked landed
+			const task = tasksRepo.findById('task-1');
+			expect(task?.manual_state).toBe('landed');
+
+			// No waiting gates remain (no duplicate review gate created)
+			const pendingGates = gatesRepo.list({ pendingOnly: true });
+			expect(pendingGates.length).toBe(0);
+		});
+		it('human review pass preserves a manual landing gate', async () => {
+			const { gateService, settingsService, gatesRepo, tasksRepo } = createHarness();
+			settingsService.updateGates(
+				{ dispatch: 'auto', review: 'manual', landing: 'manual' },
+				'dev-desktop',
+			);
+			const gate = await gateService.createWaitingGate({
+				taskId: 'task-1',
+				runId: null,
+				kind: 'review',
+			});
+			await gateService.decideGate({
+				gateId: gate.id,
+				decision: 'pass',
+				actorDeviceId: 'dev-desktop',
+			});
+			const pending = gatesRepo.list({ pendingOnly: true });
+			expect(pending).toHaveLength(1);
+			expect(pending[0]?.kind).toBe('landing');
+			expect(tasksRepo.findById('task-1')?.manual_state).not.toBe('landed');
+		});
 	});
 
 	describe('AC 3 & E-54: Concurrency release while waiting for gate confirmation', () => {

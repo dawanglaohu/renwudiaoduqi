@@ -127,6 +127,8 @@ export interface BatchTreeProps {
 	readonly onOpenWrapupRun?: (runId: string, batchId: string) => void;
 	/** 已有收口运行的批次在展开时显示真实报告面板。 */
 	readonly renderWrapupPanel?: (batchId: string) => ReactNode;
+	/** 与任务关联的真实待审批卡；展开批次后呈现在任务行旁。 */
+	readonly renderTaskApproval?: (taskId: string) => ReactNode;
 	/** 外部自定义类名 */
 	readonly className?: string;
 }
@@ -242,6 +244,7 @@ export function BatchTree({
 	onWrapup,
 	onOpenWrapupRun,
 	renderWrapupPanel,
+	renderTaskApproval,
 	wrapupPendingBatchId = null,
 	wrapupPendingBatchIds,
 	wrapupFailureByBatch,
@@ -579,6 +582,7 @@ export function BatchTree({
 								{(batch.tasks ?? []).map((task) => {
 									const pulse = pulseForRun(task.state);
 									const isSelected = selectedTaskId === task.id;
+									const approval = renderTaskApproval?.(task.id);
 
 									// 进 HEAD 标记三态判定（E-298, R5: 绝不猜测默认 inHeadMethod）
 									let inHeadText = '—';
@@ -652,6 +656,11 @@ export function BatchTree({
 													{inHeadText}
 												</div>
 											</button>
+											{approval && (
+												<div data-slot="task-approval" className="p-2">
+													{approval}
+												</div>
+											)}
 										</div>
 									);
 								})}
