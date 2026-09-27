@@ -1882,6 +1882,16 @@ describe(
 				],
 			});
 
+			// R2: 预置关联该 run 的 waiting 审批卡，断言其在模型拒绝时被原子作废为 superseded
+			container.repos.gates?.create({
+				id: 'gate-wiring-rejection-test',
+				task_id: 'task-1',
+				run_id: 'run-wiring-1',
+				kind: 'review',
+				state: 'waiting',
+				created_at: new Date().toISOString(),
+			});
+
 			fakeProc.emitLine('{"error": "model rejected"}');
 
 			const updated = await waitFor(() => {
@@ -1896,6 +1906,12 @@ describe(
 
 			const updatedTask = container.repos.tasks.findById('task-1');
 			expect(updatedTask?.lane_no).toBeNull();
+
+			// R2: 验证 waiting 审批卡被作废为 superseded (state: decided, comment: superseded, decision: null)
+			const supersededGate = container.repos.gates?.findById('gate-wiring-rejection-test');
+			expect(supersededGate?.state).toBe('decided');
+			expect(supersededGate?.comment).toBe('superseded');
+			expect(supersededGate?.decision).toBeNull();
 		});
 	},
 );

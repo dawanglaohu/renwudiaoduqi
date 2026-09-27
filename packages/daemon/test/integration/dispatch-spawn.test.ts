@@ -1232,6 +1232,16 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const proc = getLatestProc();
 		expect(proc).not.toBeNull();
 
+		// R2 [AC 3]: 预置关联该 run 的 waiting 审批卡，验证结构化模型拒绝时原子作废为 superseded
+		container.repos.gates?.create({
+			id: 'gate-model-rejection-test',
+			task_id: 'task-1',
+			run_id: createRes.run.id,
+			kind: 'review',
+			state: 'waiting',
+			created_at: new Date().toISOString(),
+		});
+
 		// Emit structured error frame with model rejection
 		proc?.emitLine(
 			JSON.stringify({
@@ -1270,9 +1280,18 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		}
 		expect(busEvents.some((e) => e.kind === 'lane.released')).toBe(true);
 
-		// No awaiting_human review gate created
-		const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
-		expect(gate).toBeNull();
+		// R2 [AC 3]: 断言现有 pending 审批卡已被原子作废为 superseded (state: decided, comment: superseded, decision: null)
+		const supersededGate = container.repos.gates?.findById('gate-model-rejection-test');
+		expect(supersededGate?.state).toBe('decided');
+		expect(supersededGate?.comment).toBe('superseded');
+		expect(supersededGate?.decision).toBeNull();
+
+		// R2 [AC 3]: 断言 lane.released 的 reason 和 runId，防止仅凭事件 kind 通过
+		const laneReleased = busEvents.find((e) => e.kind === 'lane.released');
+		expect(laneReleased).toBeDefined();
+		expect((laneReleased?.payload as { reason?: string })?.reason).toBe('failed');
+		expect((laneReleased?.payload as { runId?: string })?.runId).toBe(createRes.run.id);
+		expect((laneReleased?.payload as { taskId?: string })?.taskId).toBe('task-1');
 	});
 
 	it('R8-T70356006 AC 3 & E-348: Claude production dispatch with verified real recording (api_error 503) enters E-348 awaiting_human instead of model rejection', async () => {
