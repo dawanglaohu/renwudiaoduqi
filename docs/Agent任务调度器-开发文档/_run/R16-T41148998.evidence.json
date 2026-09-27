@@ -1,0 +1,47 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R16-T41148998": {
+      "contractHash": "2d59815e3c1d999713f8e21b5dde454bf8b7aeff7e578c2f02426a8f836329d8",
+      "evidence": [
+        {
+          "criterion": "AC1",
+          "description": "10-接口约定.md GET 示例第 273 行由两键更新为四键（bughunt/wrapupMode/reviewOverride/wrapupAssignment），E-318 图谱边界文件期望行为统一为四键；13节边界表第 331 行 E-318 期望行为统一为四键；均通过 maintain_docs begin/sync/verify 补丁流程完成",
+          "locations": [
+            "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:273",
+            "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:331",
+            "docs/Agent任务调度器-开发文档/图谱/边界/E-318.md:13"
+          ]
+        },
+        {
+          "criterion": "AC2",
+          "description": "旧行只读兼容：domain/pipeline-settings.ts:164 恰两键（bughunt+wrapupMode）且形状合法时读侧补 reviewOverride:null/wrapupAssignment:{mode:'follow'}，不改库；isValidPipelineSettings:107 严格要求 keys.length===4，防止含未知字段旧行通过；PATCH 经 AJV schema required 四项拦截缺键（shared/src/api/settings.ts:93），E_VALIDATION 路径已覆盖",
+          "locations": [
+            "packages/daemon/src/domain/pipeline-settings.ts:164-176",
+            "packages/daemon/src/domain/pipeline-settings.ts:107",
+            "packages/shared/src/api/settings.ts:93"
+          ]
+        },
+        {
+          "criterion": "AC3",
+          "description": "shared schema PipelineSettings(62-67)四键；updatePipelineSettingsBodySchema required 四项(90-93)；DEFAULT_PIPELINE_SETTINGS 四键(domain/7-11)；旧行回归在 packages/daemon/test/unit/pipeline-settings.test.ts:117 验证；E-356 硬验收条款不变，仅 E-318 读取兼容说明更新",
+          "locations": [
+            "packages/shared/src/api/settings.ts:62-67",
+            "packages/shared/src/api/settings.ts:90-93",
+            "packages/daemon/src/domain/pipeline-settings.ts:7-11",
+            "packages/daemon/test/unit/pipeline-settings.test.ts:117"
+          ]
+        },
+        {
+          "criterion": "AC4",
+          "description": "build_vault.py 已重新生成图谱产物；sync 完成后受影响已落地任务标为待复验（不锁下游），按规定处理；生成器单测 test_*.py 与 pnpm -w check 在验证步骤运行",
+          "locations": [
+            "docs/Agent任务调度器-开发文档/_run/patches/R16-T41148998-doc-patch.json",
+            "docs/Agent任务调度器-开发文档/_run/revalidation.json"
+          ]
+        }
+      ],
+      "verdict": "pass"
+    }
+  }
+}

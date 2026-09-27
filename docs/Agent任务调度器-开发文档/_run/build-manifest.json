@@ -10,10 +10,10 @@
     "02-设计/07-前端架构.md": "2955cf76f9ef61edff643bce696ad9326f56bb43f92e12808b7eb5379cb6f4fd",
     "02-设计/08-后端架构.md": "7eaf9be106ebf4b34b2e38125240976a223e9d9f1068bdbe1f509655a717be6b",
     "02-设计/09-数据模型.md": "f8e1c3d0bfd336d7c3983a97801924df3a4e6dde76757fdd718a1e7a78d6bf7f",
-    "02-设计/10-接口约定.md": "dcb9587b8af658c123575c138bffeb6aaa3cd22a66fba2979c34026a86adc278",
+    "02-设计/10-接口约定.md": "1b04127a9857fe8fb83b1f3bc637ea5965eeb5fcbdf4d56f5941bfbe7a7ec490",
     "02-设计/11-UI.md": "6633f85a9bf5da5b161d4b426c7a2bb6deec9ad4496edad1e3d1874b4e7d66b8",
     "02-设计/12-UX.md": "4d67a71c2a9a0e7e462c1d8f0a796a365a994ba5be04e7885d4757f7f72d2421",
-    "03-质量/13-边界问题与异常处理.md": "aadabc6ec6d4f64ae99ec7835eca2f860cb4b483fbf7e9898e62a324dcc36a4a",
+    "03-质量/13-边界问题与异常处理.md": "11c075d99878b890c6685b42acc6a3cc3a7ed85338b7bc553794cd80fdf37994",
     "03-质量/14-安全与权限.md": "93da63b2bd6d07cc06bfd665ebf2355ac05c4b1503c92b4c24c6a562b201ab3f",
     "03-质量/15-性能与容量假设.md": "c83ca990917e8b34af6b803929eb2f30086f7549450c5ecb29a8c445b80b62d0",
     "03-质量/16-可观测性.md": "31e39822fc55ae28bcec422765abe985b13ec51f58c7369ccb087d585a4615dd",
@@ -38,12 +38,12 @@
   },
   "products": {
     "_MOC.md": "ff5d99e1311e1642e157478d7adcb13585bbdaa649f8778f006b43030e33ca6c",
-    "_run/dispatch.json": "1bebe9a4752c5415d72992b7fed2fba85ed87f2a40a9cdadab83a1800250edc7",
-    "_run/review.json": "866146ba0a1df98d174a90c965435fa080c4fb99f14d37e5cf69e82e283192fa",
+    "_run/dispatch.json": "be38498fc580587ea27b0cd931b5c6d0414870ed18d0d0ab214b7b53edf7b3ee",
+    "_run/review.json": "651cfda509e602bbbfa910b07b89b8d87e1ac07700eacf9cd0ab854bfbd19148",
     "_run/task-reviews.json": "e6a43a3b8345f371a347fcca862a1384af20295aa306a0e9818188b1d76c8b17",
-    "docs-data.js": "47e3d74b7754f0bce7dd678d640f98b9d7231eec355f2b0529166708ad8b6223",
+    "docs-data.js": "f89a11262277c3237dc7b56fe0e2e9bb51a47482b5f4e630fcfbf1a749cc27eb",
     "index.html": "f2ddcba5a883cc52807abedbf664750f4a98c6feb6aff4529051fb3acfbfbb0d"
   },
   "schemaVersion": 1,
-  "sourceVersion": "286e42662c6a6dd0b7a686128945b16bfe002bf9bc8a69b6423ae7a3caab193d"
+  "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
 }

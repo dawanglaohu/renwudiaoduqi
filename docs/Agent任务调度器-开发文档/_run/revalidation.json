@@ -1,1 +1,1447 @@
-{}
+{
+  "M1-T1": {
+    "contractHash": "c5e8426e79a0e4cb22795d2cc6cea2c1b5dadb60d00536fe27431e176753b90b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T10": {
+    "contractHash": "6df9a28f983c231a4598038d5ecd455cc9c61bb5772c374060cc2459d9b97e9f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T11": {
+    "contractHash": "ec15ecce2bcccf0621b0f68356b7008711da181835141be6f51d909560fda78f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T2": {
+    "contractHash": "847ef58f14d89558b641d8f44af08c4ec04d85142bf5d9baf4737163acdef947",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T3": {
+    "contractHash": "ffc83d7266181500bb7b9a8a182247d0bf34ed6737d16301b1d60d8c29b3a4bf",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T4": {
+    "contractHash": "4054f23083c883436c46c9ee3009478c7eb739931dcb4c4e3678b8da981bca80",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T5": {
+    "contractHash": "3d9d351ba9a908eed586fd3d62771f12fac2b426453ec9f64d2c52f70535cbb1",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T6": {
+    "contractHash": "9c5b68bdc4d98c0cbc5306140e8e1f4787689ab0d2f95adac3ae5f2f25473969",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T7": {
+    "contractHash": "a0ff7e3362fb34ad189d71643743c5b2e02424c014a076a6b0dfbe7b1376b811",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T8": {
+    "contractHash": "1ce8e8fcad2da935c43e62965d20590bab1b2e63fb5b3a0e16fff6a358489a25",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T9": {
+    "contractHash": "df08be04d740e7c22a6e10f1016a94c51680b48e2cae41de2a939ad10af9ff1b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T1": {
+    "contractHash": "d1f327e893fea6c45645a0d7d823d6e98409984938e649ff064964e206692bca",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T2": {
+    "contractHash": "35deee74e5ed282208bf48eef785e3450324c66a8ecba7e6ccf4a25aaef6f1dc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T3": {
+    "contractHash": "e1b20b5f31cb7bf060fbdfe7e8eaafa6f82653f8579bbcf276def1abd3a2c923",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T4": {
+    "contractHash": "4780cad96dad9f70d8265bd50a532dbb431e04801feb2759591433214b104558",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T5": {
+    "contractHash": "75094046efe8122a72f422297d4a923ea2d2c4c489577a7f91197bee26c746bc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T6": {
+    "contractHash": "1596880361e7d6de7c806b87bd04ddb5837dced90356e48d2bac9b2381cb2fcd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T1": {
+    "contractHash": "6d0cd9af9c7279dc1fc8eb93675442207aa68136dc457fa95c33ab12fd511ec4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T2": {
+    "contractHash": "ce5e454fac57653ce045ca9787348635a32deef8f937ef70ccad989040da328d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T3": {
+    "contractHash": "b9ec7a8634d374375bea6925791e308c6f3ade46058f14fc94aa08bc9dbef6cb",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T4": {
+    "contractHash": "87d9fddf2ecf1b038b8fe620c861009a91f479bbbe9b31c64e3e5591ae0fb28f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T5": {
+    "contractHash": "e985dba2809a23f3d399329b497ae55568a601003c97e4e8f09a67655aec7972",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T6": {
+    "contractHash": "f07b0e9502f8b4cc2801bfa8c9ce7644b955c1ce46311fadde51441ca3eed831",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T7": {
+    "contractHash": "0d5e680ce06b8d3679c0dae3ff33c0ed83ef6811db91938a64c27b24b63bdfa7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T8": {
+    "contractHash": "9ba8392c6b051ace835312f302a503845420fd809a3604cab6313bc71ec8d6b4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T1": {
+    "contractHash": "ea54956b8d9cdc92913cd736f79de8b0a7493b17df1bb7a1772a51b1acbb126b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T2": {
+    "contractHash": "45f4fbf5603ce52dbbeb1dbe85e81e1f9803dadfb96b1c07b00d70886c8c84b7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T3": {
+    "contractHash": "215b8bea2c02a5cd96a2f24bc445a3ebff0b716889b5561fa172c22d8f1fa2db",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T4": {
+    "contractHash": "b2793b1a19191715d89aa2b610ba340c81d965caa7349fec152def76e77d78af",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T5": {
+    "contractHash": "5867a8866a7df8dc0da833f70957e2bcbb89ffc557e2ee757651575509ae9d76",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T6": {
+    "contractHash": "1712453953a6dee07d87ec7fc36e2fb471bd42b8f45ed9dfa6059f5ca968cb92",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T7": {
+    "contractHash": "d849ba3abbeee827a0272bbf6e59436a7a34f39e001fc578f1168a6159505704",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T1": {
+    "contractHash": "ea9b57bc42a5e7f2c5bcebabed678a8459171ff23bb86fd72417e4ea034b755d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T10": {
+    "contractHash": "466c3d1d5fa6fe7bb7e2ca76248d6f26c8c03d31c77d7f4ba11aeb48b7d8ba7e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T11": {
+    "contractHash": "f3f136fdc08accb94570660230d0b06ce63d48c3df8ec89ca902bb1e20b2d3bc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T12": {
+    "contractHash": "8ccadf2c2a9eaae4bae3ac2117985ef427a6d571d8d1ca64e7743fb57e2e0fe4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T13": {
+    "contractHash": "84bf3cf542359ab54056f14392c1c0688c4ec725d4b0ef32053d6c88399afd07",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T14": {
+    "contractHash": "a87af0fab6ade9b95ef84b8bb145ba0b5db57b1222b4a7123566fc255b4acc05",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T2": {
+    "contractHash": "8c0f74cb2fdfff7eaa6ec88f46c721d289724c5ea3176c7f930d1b8896d2440d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T3": {
+    "contractHash": "97271a76ced755c5dd0acb7e52da853a3ae35c626c821b50cb0f96d2a5a9f278",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T4": {
+    "contractHash": "a82fa15e1866c2c9e9e037fedfe3a68f92984b352ac3f0598d7e6445b374c487",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T5": {
+    "contractHash": "be3172a8d3238fed21580f214cdec09a89ed62b6d95d36395158505ef0f17a62",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T6": {
+    "contractHash": "0a0e9c42ddfbd3b1e1ca6b82368f7124310be2fa38430b7c761ef4ab460f56d7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T7": {
+    "contractHash": "b18cea9ac2b01c6250e002d8e0d69fa38d1be7dfb30b1a579bde4af26541a661",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T8": {
+    "contractHash": "ddb6fedef051d145cc474b5660f906342cfd01b24bedc220be1f77943400dafe",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T9": {
+    "contractHash": "71c804df3bb37a5f6c2352f494512b1a7ff345859a0bca7e35ea8c66e9e3c255",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T1": {
+    "contractHash": "89f4c2a7cab5a743dc7e1c9458d0967329193c0da9f8bb0f344c8eb77ca109d6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T2": {
+    "contractHash": "3dcfab7bdaef9ea1603a04323d2f1e7dee26ddcf37b004b553f57c77c6ef379c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T3": {
+    "contractHash": "29eb84d8ae7e90eac61276dde68fe55f38c2c6c35d3a0bcb890a18db72df7aac",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T4": {
+    "contractHash": "1c4c6efe60cfd0aab572b1eb8fdafb2a968c0c254cf1e15402f3503fbbb6267b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T5": {
+    "contractHash": "d4bc2ead57bce513e835a692884abb838930e65ae2d330dc544c6655f611c34d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T1": {
+    "contractHash": "02ca8e31c2702acb9540c155fbce2a2f383c7214e1603b2f82017c3b22376c3d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T10": {
+    "contractHash": "8918764e6edc4347c22806649bd994a808c93bc61d0a85e89d7fe073a378a6dd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T2": {
+    "contractHash": "b86782ff4f8860ca8195e10ecf313b9c6f9470c49bc27fc9ea5d40eca1a6ad24",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T3": {
+    "contractHash": "a94868287a5f3a3eaa3cf0073f20d903eb13eca0fcf64add3ab66581e3be9f51",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T4": {
+    "contractHash": "571270c21aac40c06a1065493a0d4a1522d190be0c212023b15590fc75a088b6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T5": {
+    "contractHash": "47c788467dfb5e41dca5273f26bac659c0a2a4b856724bba746505a51daa0cfa",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T6": {
+    "contractHash": "c0a041adc8d22aa6d3bef954b1469b8968e8a4e5570fcffa2bad9f7949087ed6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T7": {
+    "contractHash": "2f43bb6d3d745abe1bbf1ec28d5c5db8a4c3e162fa2420695b23b9da9967859b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T8": {
+    "contractHash": "6423a5ef91e667a4081b35a7a6dfbbe33956119ef1f1714d54d2b1a23661f4ea",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T9": {
+    "contractHash": "550bcce48cf7669f2ff243a85463d53af7c9fa0edbb6eb0163ebbb026c586ffd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T1": {
+    "contractHash": "69591ae9c86a2937130a9db43b6a7590e14f3efb4957fb3cebcb7791aacbc0e9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T2": {
+    "contractHash": "e8fee11f81b41d41ef4f1a3eb5a29222a7129ea80a29e1cc576fa03a172d5385",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T3": {
+    "contractHash": "46f2e5dcb5dee9bfaef2618aeb11b43f6d1a553d05f7f58ed25c8a99bad961ee",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T4": {
+    "contractHash": "deddf410fedee3aa92950617bfea028c19cf2cf8437287367e3b0ba1011b2664",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T5": {
+    "contractHash": "bd329046b4e58d26c79bc26b2e3a4c284d08db09e1a059006fc5e90c28f410ca",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T6": {
+    "contractHash": "ad8a3dc28586c2c3450a91aa525ed2886f02491cb2b34532f419aa3582124674",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T7": {
+    "contractHash": "f25082a2f54c8c4abe202408ec07f0180f89f64e0b2cdedfb32c7d107eb6269a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T8": {
+    "contractHash": "166c77ba04c9249657f783633df6ebc71b055aea046d5fb6ff5925bc40562b27",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T9": {
+    "contractHash": "2fe2fd4290379e66dadcb39250320c9310d15705f13b432394b5ed2f721e4939",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T1": {
+    "contractHash": "8cf5774832189d6f06d6489c6a29502fe1ab656105f6ad3557ff170d3f948228",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T10": {
+    "contractHash": "12fc11f44341921967769b85d6726ca982fa54f21c77f262044daa2685153d3f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T11": {
+    "contractHash": "a8228213280b446490077fa5c36bc17c5b6f4cedf5cf075ca382b58ea39dce47",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T2": {
+    "contractHash": "9e01ab160a01f07d1249cc90e5b3e004f6c8841b627c145c9d6b766384c2e705",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T3": {
+    "contractHash": "2bb9e88ef5ed1b0ea246572cb0146fc21fb5159394e87c32bf603ddbe5569265",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T4": {
+    "contractHash": "8630a1ebff2b0e328a0000cf4116c913eef74bc6c6274badbce716b1afadb45a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T5": {
+    "contractHash": "b1767d5ce5d6157dcf360ffab79ce87c3a34e95f27caed867d497c984691e2a8",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T6": {
+    "contractHash": "b33a9d912225e749e7bd03c88e5eece104545a210b74b06fae4c0462b9a90b71",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T7": {
+    "contractHash": "18d0724359e200e8d8b23d4b7054a35b60dcd294ced639366294018533afd46d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T8": {
+    "contractHash": "7bf47f67bd74f3b538d7982bc7e5a4e00256b4d43d9e2634005d7dbe894c7292",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T9": {
+    "contractHash": "b8b2a6a2b3fe9b439f769a6fff7c9b16321adb275f539245caa5f3744568d007",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T1": {
+    "contractHash": "4317156cb7669abb2206663bbdf8c34517ef1e254861aaadfcd57e5d2edc87b5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T10": {
+    "contractHash": "1d90de7eeacb95b96d1f4db3ca684e3f8671bd7c340da8b87d5cfcb67265bee5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T11": {
+    "contractHash": "765fddbd1643abce3b082395c4ffa8b63116f5e72cd6aa0ca02092663e36f4b7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T12": {
+    "contractHash": "8190abf73902b40cabefccf7fb1152deb490ffb719fe6de2b113e49b494bf123",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T13": {
+    "contractHash": "4ad20c8ad0b9fbeb19d86e9e4ce95bf78ed13542f994e6b93b3e6f78ce0a2fc9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T14": {
+    "contractHash": "7f0b9b0755f3267764c43bbe65ff972b51451892585a2e1f7177d8f7845e04a6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T15": {
+    "contractHash": "a621e13b0ab19cef0443a031e86a02dad501b6bd9f53d3768eda74a565f42651",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T16": {
+    "contractHash": "8e2423d7d6c1e8a20c986616c4adecd6acbd179e004db04b4707ed0749452984",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T17": {
+    "contractHash": "1f7f7d5d75eae5ed59938755dc8da73ad0a4df464855be54947c5105044de743",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T18": {
+    "contractHash": "0264e186ce8a469189ec04dabba72d2858f10810f2ba9e3d7a76840021ca7b99",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T19": {
+    "contractHash": "82fbf3d42e5d5d893392aa03d4033891fc9e8bace25e579da9f5eb7c4af18bc7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T2": {
+    "contractHash": "81eb62f44db5ef6bb56d7922996d9b534e0b6cf601238c52bca27fe9495cd47e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T20": {
+    "contractHash": "ad4479a9f4ecdba609742a5a24e7cafecc34c62118bebd8e1c35e98d60a5a498",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T21": {
+    "contractHash": "58d60edd33bb7d7da30fbba628df5dc4b919f1d053a75f888b5521ab9b3ebcea",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T22": {
+    "contractHash": "b69eda95344eb5a3f4448f3923f6b7bcad9ff88ec510c17e3ba3f5aa02656b31",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T24": {
+    "contractHash": "4c54cbb2a258d3fcb3f698e5c8a76d863014a85bc6abc3f8b63c0c743b995c11",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T25": {
+    "contractHash": "b1f712c527aed43a02f3683ebcf76c78af9509871c6076025d4e7f9dbbf04202",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T26": {
+    "contractHash": "e133a452b23a8248e5fda1a2b9917b81c84756d3280da5595dc2a1a7e89e3fcd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T27": {
+    "contractHash": "8c7ecb76d4201f459fadcb8b71a2f9a7f5cf6597eb95258614fffe230df61aa7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T3": {
+    "contractHash": "994dfd512c70a85fcadd1f4ce9e642dd76486f790668cf1cbfcf2a6be2dba51d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T4": {
+    "contractHash": "b41eb22061fa665d1aef03e53b638884f6ed6e6c34edf492fba7b88906d8e84b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T5": {
+    "contractHash": "075d47868bbb0f6c87d590cea47af74599f4ec85e2010b8a18e6bc41ad14d71b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T6": {
+    "contractHash": "b1d9ceddea95b84c21efa087bb211a383fcac9fdaa5aa6629347e2f3aee61a75",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T7": {
+    "contractHash": "7ea918534791c40dd762e006dd3baf42e2d2b903017f22ceff211a653c4add2b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T8": {
+    "contractHash": "596eca13ee77546971b19df39d13af7a63e60cb888ea7f335ff2ab9a91c3176b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T9": {
+    "contractHash": "dce3570bd62db31155650381f6315a7cd350e617be8cd97fb105789f93adafef",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R12-T32133721": {
+    "contractHash": "0433a94cdb116f43fbba48b04e3a2803b1290e1933f35087dea990328099a542",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R13-T98191508": {
+    "contractHash": "2e6d0e90bcdc2b02d5e5479fc2958b9b811e3ede8c153baa2bc3120ca036026a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R8-T54786768": {
+    "contractHash": "fcc25dff347d6c5248e624f2d57b6b9490a50e521a716f09c4cd6e625e2fddf3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R8-T97041355": {
+    "contractHash": "6d3e52a87114356d971c4390caa430dd7b9268844c263c2aab9cf7cfdd41f0c2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "R16-T41148998-doc-patch",
+        "sourceVersion": "5b9436cd9334bb901244c3437ea9ad091d4fcf7b17f97ab26a429e1af01edf1d"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}
