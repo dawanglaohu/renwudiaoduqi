@@ -4,7 +4,7 @@
     "R8-T70356006": {
       "contractHash": "b8834bf4c9e46d10147b6c88114a2f856fe8e20155229ba85e883b407ce5d7bd",
       "evidence": [
-        "实测验证四家已安装 agent CLI（Codex 0.157.1、Claude Code 2.1.238、Grok 1.0.41、Pi 0.87.1）：Codex app-server 报 codexErrorInfo='other' 且 exec 仅有 message 文本，Claude 在 stderr 输出警告文本且 stdout stream-json 仅有 503 api_error，Grok 仅有 message 错误文本，Pi 在 stderr 退出；真实厂商协议均未提供模型专用的结构化拒绝字段（code/type）。经 Jev adjudicate 裁决采纳 Option A，报告真实验证家数为 0 家，绝不依据自由文本、stderr 或通用 HTTP/类别推断。",
+        "无效模型真实探测覆盖已安装 Codex 0.157.1、Claude Code 2.1.238、Grok 1.0.41、Pi 0.87.1、OpenCode 1.18.32，并在隔离目录运行 Claude Code 2.1.283、Gemini CLI 0.61.0。Codex 报 codexErrorInfo='other'；Claude 2.1.283 在重试后返回通用 terminal_reason='api_error' 与 api_error_status=503；Grok 仅有文本；Pi RPC set_model 失败返回字符串 error；OpenCode JSON 的 error.name='UnknownError'，ACP 对模型不存在及会话不存在均返回通用 -32602。Gemini CLI 在实际模型请求前退出，不能算验证。模型专用结构化 code/type 正例仍为 0 家，绝不从消息、stderr、通用状态码或附带模型名推断。",
         "所有适配器（Codex、Claude、DSH、generic-acp、Grok、Pi）明确保持 reportsModelRejection: false 与 E-348 回退安全兜底；Claude adapter mapEvents 具备结构化拒绝映射逻辑但能力位保持 false，codex-adapter.test.ts 覆盖全量适配器能力位与真实脱敏录制负例断言。",
         "R2 修复：在 dispatch-spawn.test.ts 与 container-wiring.test.ts 的入口测试中，预置关联 run 的 waiting 审批卡，断言在结构化模型拒绝时原子作废为 state='decided'、comment='superseded'、decision=null；并精确断言 lane.released 的 reason='failed' 与 runId，防止仅凭事件 kind 误判。",
         "在真实脱敏通用错误（如 503 api_error）下严格回退 E-348 进入 awaiting_human。",
