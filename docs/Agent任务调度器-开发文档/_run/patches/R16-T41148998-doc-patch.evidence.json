@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R16-T41148998": {
+      "contractHash": "0c1e9e062b4c71a85f612653c8866cf81ff7bee83566abd53b1327880a839992",
+      "verdict": "pass",
+      "evidence": [
+        "AC1: maintain_docs patch R16-T41148998-doc-patch recorded begin/sync; 02-设计/10-接口约定.md:56-57,188,195-196,270-289 states four-key GET/PATCH, defaults, fields and event; 03-质量/13-边界问题与异常处理.md:331 and 图谱/边界/E-318.md:13 agree. Batch-16 source path corrected and regenerated.",
+        "AC2/E-318: daemon/src/domain/pipeline-settings.ts:141-183 supplements exactly two valid legacy keys on read without DB mutation; invalid shape warns and returns all defaults. shared/src/api/settings.ts:90-125 has required four and additionalProperties:false; service/settings.ts:159-241 persists four in a transaction and publishes full payload afterwards.",
+        "AC3/E-356: shared/src/api/settings.ts:62-125, daemon/src/service/settings.ts:159-248 and test/unit/pipeline-settings.test.ts:51-124,181-321 checked. Real app.inject HTTP integration at daemon/test/integration/pipeline-lanes.test.ts:1007-1055 verifies legacy GET four keys without write, incomplete PATCH 400 E_VALIDATION without write, four-key PATCH and subsequent GET. E-356 at 03-质量/13-边界问题与异常处理.md:369 unchanged.",
+        "AC4: build_vault/build_docs regenerated via maintain_docs sync; 112 landed tasks in _run/revalidation.json carry changedFields, with shared-only entries distinguished from E-318 and inherited/main changes. Generator unittest 184 passed and pnpm -w check on merged tree passed. No generator source changed."
+      ]
+    }
+  }
+}
