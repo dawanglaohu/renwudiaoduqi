@@ -965,10 +965,20 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			});
 			if (gatesRes.ok) {
 				const gatesData = (await gatesRes.json()) as {
-					gates: Array<{ id: string; state: string; kind: string; run_id?: string; task_id?: string }>;
+					gates: Array<{
+						id: string;
+						state: string;
+						kind: string;
+						runId?: string;
+						taskId?: string;
+						run_id?: string;
+						task_id?: string;
+					}>;
 				};
 				const targetGate = gatesData.gates.find(
-					(g) => g.state === 'waiting' && (g.run_id === currentRunId || g.task_id === targetTaskId),
+					(g) =>
+						g.state === 'waiting' &&
+						((g.runId ?? g.run_id) === currentRunId || (g.taskId ?? g.task_id) === targetTaskId),
 				);
 				if (targetGate) {
 					waitingGateId = targetGate.id;
