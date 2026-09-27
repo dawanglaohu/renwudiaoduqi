@@ -1965,14 +1965,14 @@
   },
   "R13-T57054072": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "421992205f015e154b6e88561cbb676fa516326c670a0fcc4602d7f01e6f07c6",
+    "contractHash": "3a4bc4f565875d7e39e6b3d031defdd321c0825dd1b4839c51c380f28c5a1ca7",
     "evidence": [
-      "原 batch-13-20260924.md 含两段稳定 task 围栏；build_docs.py:3980 明确要求含返工任务的来源记录保持 verdict=open，新增后续收口记录记录 fixed，避免消失返工 provenance。",
-      "R13-T57054072 的原 AC 1–3 与 E-06/E-08/E-10/E-12/E-108/E-156/E-158/E-200/E-222/E-223/E-224 均保留；仅 AC 4 指明后续记录更新结论，仍须逐项真实入口证据。",
-      "修正后的 task fence output 与 paths 均指向 _run/batches/batch-13-20260927.md；vitest.e2e.config.ts、package.json、e2e/batch-13-smoke.test.ts 路径保留。前置 M1-T11/M9-T25/M9-T26/M9-T27 不变；未改数据模型、API 或 08 节分层。",
-      "本轮仅语义复核任务契约；PR #162 的代码仍有浏览器全链与边界断言阻断，记录 pass 不代表代码验收或落地。"
+      "原始 AC1–4 与 E-06/E-08/E-10/E-12/E-108/E-156/E-158/E-200/E-222/E-223/E-224 原文不变；仅在来源 task fence 的 paths 定点列出 e2e fixture、正式 Web 向导/批次树、daemon gate service 与必要测试。",
+      "原来源 batch-13-20260924.md 保留 open 和两个 task fence；后续 batch-13-20260927.md 记录 fixed。正式 shared ROUTES 中 POST /documents、POST /batches/:id/assignments、POST /batches/:id/start、POST /gates/:id/decide 已存在，本补丁只在原所属 feature/service 层补 UI/门禁接线，没有新增 SQL 或跨层反向调用。",
+      "2026-09-27 PR #162 Windows 本地 pnpm -w check：205/205 文件、2530 passed、4 skipped；正式 Web build 通过；真实 daemon + Chromium 的 batch-13 12/12 通过；审批卡改为批次树任务行后再次 12/12；batch-tree、空态、gate service 定向单测 39/39。文档生成器 184/184 通过。",
+      "第二轮仍需 PR 推送后三平台 CI 与 Ubuntu 独立 E2E 通过才落地。Jev 技术方向 adjudicate: pick=A(medium 0.65)，UI/UX 呈现 design: pick=C(high 0.83)，相关动作均已入分支。"
     ],
-    "reviewed": "2026-09-27T06:08:57.637961+00:00",
+    "reviewed": "2026-09-27T13:39:16.200877+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

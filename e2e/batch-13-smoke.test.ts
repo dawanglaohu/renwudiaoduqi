@@ -306,6 +306,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 	let browser: Browser;
 	let context: BrowserContext;
 	let page: Page;
+	let evidencePage: Page | null = null;
 	let adminToken: string;
 	let currentDeviceId: string | null = null;
 	let docId: string | null = null;
@@ -354,7 +355,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 				{ stdio: 'ignore' },
 			);
 
-			daemon = await startDaemon();
+			daemon = await startDaemon({ timeoutMs: 120000 });
 			browser = await chromium.launch({
 				headless: true,
 				args:
@@ -399,13 +400,14 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 				} catch {}
 			}
 
-			if (page) {
+			const failedPage = evidencePage ?? page;
+			if (failedPage) {
 				try {
-					await maskSensitivePageContent(page);
+					await maskSensitivePageContent(failedPage);
 					const screenshotPath = join(artifactsDir, `${safeName}-failure.png`);
-					await page.screenshot({ path: screenshotPath, fullPage: true });
+					await failedPage.screenshot({ path: screenshotPath, fullPage: true });
 
-					const domHtml = await page.content();
+					const domHtml = await failedPage.content();
 					const domPath = join(artifactsDir, `${safeName}-failure.dom.html`);
 					writeFileSync(domPath, redactSensitiveData(domHtml), 'utf8');
 				} catch {
@@ -420,6 +422,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 				writeFileSync(stderrLog, daemon.getStderr(), 'utf8');
 			}
 		}
+		evidencePage = null;
 	});
 
 	afterAll(async () => {
@@ -513,25 +516,13 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			{ timeout: 15000 },
 		);
 
-		// Assert zero-run deck state (E-108, E-200)
-		// [生产机制说明]: daemon getLanes() 默认下发 2 条空闲泳道（streamCount===2），
-		// run-deck-view.tsx:312 仅在 streamCount===0 时渲染 EmptyOnboarding；
-		// 若 streamCount===0 则断言四步向导，若 streamCount===2 则断言空闲泳道甲板。
 		const onboarding = page.locator('[data-testid="empty-onboarding-console"]');
-		if (await onboarding.isVisible()) {
-			const stepper = page.locator('[data-testid="onboarding-stepper"]');
-			await stepper.waitFor({ state: 'visible', timeout: 5000 });
-			expect(await stepper.innerText()).toContain('选文档');
-			expect(await stepper.innerText()).toContain('选批次');
-			expect(await stepper.innerText()).toContain('逐任务指派');
-			expect(await stepper.innerText()).toContain('派发');
-		} else {
-			const lanesDeck = page.locator('[data-container="lanes-deck"]');
-			await lanesDeck.waitFor({ state: 'visible', timeout: 10000 });
-			expect(await lanesDeck.isVisible()).toBe(true);
-			const deckSection = page.locator('[data-run-deck="true"]');
-			expect(await deckSection.getAttribute('data-stream-count')).toBe('2');
-		}
+		await onboarding.waitFor({ state: 'visible', timeout: 10000 });
+		const stepper = page.locator('[data-testid="onboarding-stepper"]');
+		expect(await stepper.innerText()).toContain('选文档');
+		expect(await stepper.innerText()).toContain('选批次');
+		expect(await stepper.innerText()).toContain('逐任务指派');
+		expect(await stepper.innerText()).toContain('派发');
 
 		// Read token from browser's sessionStorage using the canonical key agsched.token
 		const browserToken = await page.evaluate(() => sessionStorage.getItem('agsched.token'));
@@ -563,6 +554,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 
 		const testContext = await browser.newContext();
 		const testPage = await testContext.newPage();
+		evidencePage = testPage;
 		await testPage.goto(`http://127.0.0.1:${daemon.port}/#/pair`, {
 			waitUntil: 'domcontentloaded',
 		});
@@ -647,23 +639,20 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 	it('step 5: 文档导入与权威批次树呈现 (AC 1, AC 2, M9-T19, R13-T98191508)', async () => {
 		if (!importDocsPath) throw new Error('Missing fixture docs path');
 
-		// [生产能力缺失说明]: Web 前端界面未提供从本地选择文件或提交路径的生产入口（缺失 POST /api/v1/documents 用户控件）。
-		// 根据任务规范与 R1 要求，通过公开 API POST /api/v1/documents 导入测试文档，不伪造前端操作。
-		const importRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/documents`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${adminToken}`,
-			},
-			body: JSON.stringify({ docsPath: importDocsPath }),
-		});
-		expect([200, 201]).toContain(importRes.status);
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/`);
+		await page.getByTestId('import-doc-path').fill(importDocsPath);
+		const imported = page.waitForResponse((response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/api/v1/documents'));
+		await page.locator('[data-action="import-document"]').click();
+		const importRes = await imported;
+		expect([200, 201]).toContain(importRes.status());
 		const importBody = (await importRes.json()) as {
 			document: { id: string };
 			taskCount: number;
 		};
 		expect(importBody.taskCount).toBe(2);
 		docId = importBody.document.id;
+		await page.locator(`[data-doc-id="${docId}"]`).waitFor({ state: 'visible' });
 
 		// Wait for snapshot readiness with imported doc and tasks
 		let snapshotReady = false;
@@ -703,7 +692,10 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		batch1Id = batchesData.batches[0]?.id;
 		expect(batch1Id).toBeTruthy();
 
-		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
+		await page.locator(`[data-doc-id="${docId}"]`).click();
+		await page.locator('[data-action="next-step-1"]').click();
+		await page.locator(`[data-step-content="1"] [data-batch-id="${batch1Id}"]`).click();
+		await page.locator('[data-action="next-step-2"]').click();
 
 		// Expand batches in batch tree
 		const batch1Toggle = page.locator('[data-batch-no="1"] [data-action="toggle-batch"]');
@@ -728,83 +720,48 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		expect(batch1Id).toBeTruthy();
 		expect(targetTaskId).toBeTruthy();
 
-		// [生产能力缺失说明]: 生产 Web 在导入文档后生成了流水线泳道（streamCount=2），导致零运行四步向导 EmptyOnboarding
-		// 不再渲染（run-deck-view.tsx:312 仅在 streamCount===0 时启用向导）；且批次树与运行甲板未提供向导外的逐任务指派表单，
-		// run-deck-view.tsx:327 挂载 EmptyOnboarding 时亦未绑定 onDispatch 回调。
-		// 指派草稿通过公开 API 写入，并与批次草稿接口与批次树进行交叉断言。
-		const putDraftRes = await fetch(
-			`http://127.0.0.1:${daemon.port}/api/v1/batches/${batch1Id}/assignments`,
-			{
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${adminToken}`,
-				},
-				body: JSON.stringify({
-					assignments: [
-						{
-							taskId: targetTaskId,
-							agentId: 'codex',
-							model: null,
-							effort: null,
-						},
-					],
-				}),
-			},
-		);
-		expect(putDraftRes.status).toBe(200);
-		const draftResult = (await putDraftRes.json()) as {
-			drafts: Array<{ taskId: string; sessionNo: number | null }>;
-			preview: { effectiveConcurrency: number };
-		};
-		expect(draftResult.drafts.length).toBeGreaterThan(0);
-		expect(draftResult.preview).toBeDefined();
-
-		// 2. Gate settings inspection & toggle (E-299)
-		const gateToggles = page.locator('[data-component="gate-toggles"]');
-		await gateToggles.waitFor({ state: 'visible', timeout: 15000 });
-		expect(await gateToggles.isVisible()).toBe(true);
-
-		// Configure review gate as manual and landing gate as auto so run halts for human approval then lands (AC 1, E-05, E-53, R1)
-		const patchGateRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/gates`, {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${adminToken}`,
-			},
-			body: JSON.stringify({
-				dispatch: 'auto',
-				review: 'manual',
-				landing: 'auto',
-			}),
-		});
-		expect(patchGateRes.status).toBe(200);
-		const patchGateBody = (await patchGateRes.json()) as { gates: { landing: string; review: string } };
-		expect(patchGateBody.gates.landing).toBe('auto');
-		expect(patchGateBody.gates.review).toBe('manual');
+		await page.getByTestId('select-agent-SMOKE-T1').selectOption('codex');
+		const saved = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/batches/${batch1Id}/assignments`));
+		await page.locator('[data-action="confirm-task-assign"]').click();
+		const draftResponse = await saved;
+		expect(draftResponse.status()).toBe(200);
+		const draftResult = await draftResponse.json();
+		expect(draftResult.drafts[0].taskId).toBe(targetTaskId);
+		await page.getByTestId('assigned-row-SMOKE-T1').waitFor({state:'visible'});
+		expect(await page.getByTestId('assigned-row-SMOKE-T1').innerText()).toContain('Codex');
+		await page.locator('[data-action="next-step-3"]').click();
+		expect(await page.getByTestId('effective-capacity-value').innerText()).toContain(String(draftResult.preview.effectiveConcurrency));
+		for (const [key, label] of [['dispatch','自动'], ['review','等我确认'], ['landing','自动']] as const) {
+			const button = page.locator(`[data-gate-toggle="${key}"]`).getByRole('button', {name:label, exact:true});
+			if (await button.getAttribute('aria-pressed') !== 'true') {
+				await button.click();
+				await page.waitForFunction(({key,label}) => Array.from(document.querySelectorAll(`[data-gate-toggle="${key}"] button`)).some((node) => node.textContent?.trim() === label && node.getAttribute('aria-pressed') === 'true'), {key,label});
+			}
+		}
+		const gates = await (await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/gates`, {headers:{Authorization:`Bearer ${adminToken}`}})).json();
+		expect(gates.gates).toEqual({dispatch:'auto',review:'manual',landing:'auto'});
+		const dispatchButton = page.locator('[data-action="confirm-dispatch"]');
+		await page.route('**/api/v1/events*', (route) => route.abort('connectionfailed'));
+		await page.evaluate(() => window.stop());
+		await page.waitForFunction(() => document.documentElement.dataset.connectionStatus !== 'online');
+		expect(await dispatchButton.isDisabled()).toBe(true);
+		await page.unroute('**/api/v1/events*');
+		await page.waitForFunction(() => document.documentElement.dataset.connectionStatus === 'online');
 	});
-
 	it('step 7: 任务派发、fake-agent 运行与实时 SSE 消息流转 (AC 1, AC 2, E-10, E-31, R1)', async () => {
 		expect(docId).toBeTruthy();
 		expect(targetTaskId).toBeTruthy();
 
-		// Dispatch SMOKE-T1 via public API with idempotency key
-		const runRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${adminToken}`,
-			},
-			body: JSON.stringify({
-				taskId: targetTaskId,
-				agentId: 'codex',
-				idempotencyKey: `b13-smoke-${Date.now()}`,
-			}),
-		});
-		expect([200, 201]).toContain(runRes.status);
-		const runBody = (await runRes.json()) as { run: { id: string; state: string } };
-		expect(runBody.run?.id).toBeTruthy();
-		currentRunId = runBody.run.id;
+		const started = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/batches/${batch1Id}/start`));
+		await page.locator('[data-action="confirm-dispatch"]').click();
+		expect((await started).status()).toBe(200);
+		await expect.poll(async () => {
+			const response = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs`, {headers:{Authorization:`Bearer ${adminToken}`}});
+			const body = await response.json();
+			const run = body.runs.find((entry:any) => entry.taskId === targetTaskId && entry.kind === 'implement');
+			currentRunId = run?.id ?? null;
+			return currentRunId;
+		}, {timeout:20000}).toBeTruthy();
 
 		// Navigate to run detail page
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/run/${currentRunId}`, {
@@ -882,7 +839,8 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			const offlineBanner = page.locator('[data-component="offline-banner"]');
 			await offlineBanner.waitFor({ state: 'visible', timeout: 15000 });
 			const bannerText = await offlineBanner.innerText();
-			expect(bannerText).toMatch(/(离线|重新连接|同步)/);
+			expect(bannerText).toMatch(/离线|重新连接/);
+			expect(bannerText).toContain('最后同步于');
 
 			// R2: When disconnected, status is offline or reconnecting (E-12: dispatch disabled)
 			const isOfflineOrReconnecting = await page.evaluate(() => {
@@ -899,24 +857,24 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			const signalFile2 = join(daemon.dataDir, 'agsched-fake-agent-2.signal');
 			writeFileSync(signalFile2, `Offline queued message: ${offlineToken}\n`, 'utf8');
 
-			// Wait 3 seconds to let fake agent emit chunk 2, daemon queue it, and client record reconnect attempts
-			await new Promise((r) => setTimeout(r, 3000));
+			await expect.poll(async () => {
+				const response = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${currentRunId}/log?limit=200`, {
+					headers: { Authorization: `Bearer ${adminToken}` },
+				});
+				const body = await response.json();
+				return body.lines?.some((line: string) => line.includes(offlineToken)) ?? false;
+			}, { timeout: 10000 }).toBe(true);
+			await expect.poll(() => reconnectTimestamps.length, { timeout: 15000 }).toBeGreaterThanOrEqual(3);
 
 			// R2: Assert chunk has NOT reached DOM yet while stream is broken (negative control, E-10)
 			const countBefore = await page.locator(`text=${offlineToken}`).count();
 			expect(countBefore).toBe(0);
 
-			// R2: Record reconnect request intervals to verify backoff rather than 0ms spinning (E-158)
-			if (reconnectTimestamps.length >= 2) {
-				for (let i = 1; i < reconnectTimestamps.length; i++) {
-					const prev = reconnectTimestamps[i - 1];
-					const curr = reconnectTimestamps[i];
-					if (prev !== undefined && curr !== undefined) {
-						const interval = curr - prev;
-						expect(interval).toBeGreaterThan(0);
-					}
-				}
-			}
+			const firstDelay = reconnectTimestamps[1]! - reconnectTimestamps[0]!;
+			const secondDelay = reconnectTimestamps[2]! - reconnectTimestamps[1]!;
+			expect(firstDelay).toBeGreaterThanOrEqual(1500);
+			expect(secondDelay).toBeGreaterThanOrEqual(3000);
+			expect(secondDelay).toBeGreaterThanOrEqual(firstDelay * 1.25);
 
 			// 3. Restore network & verify Last-Event-ID header is sent on reconnection (E-158)
 			sseBlocked = false;
@@ -929,6 +887,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			// R2: Assert chunk is replayed EXACTLY ONCE (count === 1, no duplicate and no loss, E-10)
 			const countAfter = await page.locator(`text=${offlineToken}`).count();
 			expect(countAfter).toBe(1);
+			expect((await offlineLocator.innerText()).split(offlineToken).length - 1).toBe(1);
 
 			// Connection status recovers to online
 			await page.waitForFunction(
@@ -938,10 +897,8 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 
 			// R2: Assert banner readout includes "最后同步于" (M9-T26, E-12)
 			const onlineBanner = page.locator('[data-component="offline-banner"]');
-			if (await onlineBanner.isVisible()) {
-				const onlineBannerText = await onlineBanner.innerText();
-				expect(onlineBannerText).toMatch(/(最后同步于|同步)/);
-			}
+			await onlineBanner.waitFor({state:'visible'});
+			expect(await onlineBanner.innerText()).toContain('最后同步于');
 
 			// Last-Event-ID was retained during reconnection attempts (E-158)
 			expect(capturedLastEventId).toBeTruthy();
@@ -998,6 +955,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		// Assert GateCard displays target task key and approve button
 		const gateCardText = await gateCard.innerText();
 		expect(gateCardText).toContain('SMOKE-T1');
+		await page.screenshot({ path: join(artifactsDir, 'b13-human-gate.png'), fullPage: true });
 		const approveBtn = gateCard.locator('button[data-action="approve"]');
 		await approveBtn.waitFor({ state: 'visible', timeout: 5000 });
 
@@ -1031,7 +989,12 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		);
 		expect(runFinalRes.status).toBe(200);
 		const runFinalData = (await runFinalRes.json()) as { run: { id: string; state: string } };
-		expect(['landed', 'completed', 'succeeded', 'reviewing', 'awaiting_human']).toContain(runFinalData.run.state);
+		await expect.poll(async () => {
+			const response = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${currentRunId}`, {
+				headers: { Authorization: `Bearer ${adminToken}` },
+			});
+			return (await response.json()).run.state;
+		}, { timeout: 15000 }).toBe('landed');
 	});
 
 	it('step 10: 窄屏移动端入口与手机批次及运行详情严格交叉验证 (AC 2, E-200, M9-T25, R3)', async () => {
@@ -1044,6 +1007,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			isMobile: true,
 		});
 		const mobilePage = await mobileContext.newPage();
+		evidencePage = mobilePage;
 
 		// Generate fresh pairing code using adminToken
 		const codeRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/pair/code`, {
@@ -1088,7 +1052,9 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		// Expand batch 1 in mobile view and verify task from DOM
 		const mobileBatch1Toggle = mobilePage.locator('[data-batch-no="1"] [data-action="toggle-batch"]');
 		await mobileBatch1Toggle.waitFor({ state: 'visible', timeout: 10000 });
-		await mobileBatch1Toggle.click();
+		if (await mobilePage.locator('[data-batch-no="1"]').getAttribute('aria-expanded') !== 'true') {
+			await mobileBatch1Toggle.click();
+		}
 		const taskRow = mobilePage.locator('[data-task-key="SMOKE-T1"]');
 		await taskRow.waitFor({ state: 'visible', timeout: 15000 });
 		const taskText = await taskRow.innerText();
@@ -1119,6 +1085,10 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		const runApiData = (await runApiRes.json()) as { run: { id: string; taskId: string; state: string } };
 		expect(runApiData.run.id).toBe(currentRunId);
 		expect(runApiData.run.taskId).toBe(targetTaskId);
+		await expect.poll(() => detailContainer.getAttribute('data-run-id')).toBe(runApiData.run.id);
+		await expect.poll(() => detailContainer.getAttribute('data-task-id')).toBe(runApiData.run.taskId);
+		await expect.poll(() => detailContainer.getAttribute('data-run-state')).toBe(runApiData.run.state);
+		await mobilePage.screenshot({ path: join(artifactsDir, 'b13-mobile-detail.png'), fullPage: true });
 
 		await mobilePage.close();
 		await mobileContext.close();
@@ -1141,6 +1111,17 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			}
 		};
 		page.on('request', handleEventsMonitoring);
+		const streamAbort = new AbortController();
+		const oldStream = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/events`, {
+			headers: { Authorization: `Bearer ${adminToken}` }, signal: streamAbort.signal,
+		});
+		expect(oldStream.status).toBe(200);
+		const reader = oldStream.body!.getReader();
+		let closedByServer = false;
+		const drain = (async () => {
+			while (!(await reader.read()).done) { /* drain the existing authenticated stream */ }
+			closedByServer = true;
+		})().catch(() => {});
 
 		try {
 			// Revoke current device token on server (E-156)
@@ -1152,12 +1133,18 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 				},
 			);
 			expect(revokeRes.status).toBe(200);
+			await expect.poll(() => closedByServer, { timeout: 10000 }).toBe(true);
 
 			// R2: Verify that subsequent requests with old token return 401 Unauthorized
 			const unauthorizedRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/snapshot`, {
 				headers: { Authorization: `Bearer ${adminToken}` },
 			});
 			expect(unauthorizedRes.status).toBe(401);
+			const unauthorizedStream = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/events`, {
+				headers: { Authorization: `Bearer ${adminToken}` },
+			});
+			expect(unauthorizedStream.status).toBe(401);
+			expect((await unauthorizedStream.json()).error.code).toBe('E_DEVICE_REVOKED');
 
 			// R2: Client clears credentials and redirects to #/pair (E-156)
 			await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/pair`, { timeout: 20000 });
@@ -1179,6 +1166,8 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			expect(countAfterWait - countBeforeWait).toBeLessThanOrEqual(1);
 		} finally {
 			page.off('request', handleEventsMonitoring);
+			streamAbort.abort();
+			await drain;
 		}
 	});
 

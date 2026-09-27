@@ -24,6 +24,7 @@ import type {
 	TaskAssignmentDto,
 } from '@agent-scheduler/shared/api/batches';
 import {
+	type CreateDocumentResponse,
 	type DocumentDto,
 	type ListDocumentBatchesResponse,
 	type ListDocumentTasksResponse,
@@ -59,7 +60,7 @@ const ASSIGNABLE_TASK_STATE = 'never_dispatched' as const;
 const MIN_LANE_COUNT = updateDocumentSettingsBodySchema.properties.laneCount.minimum;
 const MAX_LANE_COUNT = updateDocumentSettingsBodySchema.properties.laneCount.maximum;
 
-function findRoute(method: 'GET' | 'PATCH', path: string): RouteDefinition {
+function findRoute(method: 'GET' | 'PATCH' | 'POST', path: string): RouteDefinition {
 	const route = ROUTES.find((entry) => entry.method === method && entry.path === path);
 	if (!route) {
 		throw new Error(`${method} ${path} is missing from the shared ROUTES table`);
@@ -73,6 +74,8 @@ const LIST_TASKS_ROUTE = findRoute('GET', '/api/v1/documents/:docId/tasks');
 const LIST_AGENTS_ROUTE = findRoute('GET', '/api/v1/agents');
 const LIST_AGENT_MODELS_ROUTE = findRoute('GET', '/api/v1/agents/:agentId/models');
 const UPDATE_DOCUMENT_SETTINGS_ROUTE = findRoute('PATCH', '/api/v1/documents/:docId/settings');
+const IMPORT_DOCUMENT_ROUTE = findRoute('POST', '/api/v1/documents');
+const START_BATCH_ROUTE = findRoute('POST', '/api/v1/batches/:batchId/start');
 
 /**
  * 取数入口集合。默认实现走 http-client；测试注入替身时也必须走同一组方法名，
@@ -216,6 +219,8 @@ export interface UseAssignPanelResult {
 	readonly changeUserSetting: (laneCount: number) => Promise<void>;
 	readonly toggleUnlockAboveWindow: (unlocked: boolean) => void;
 	readonly reload: () => Promise<void>;
+	readonly importDocument: (docsPath: string) => Promise<void>;
+	readonly startBatch: () => Promise<void>;
 }
 
 /**
@@ -526,6 +531,42 @@ export function useAssignPanel({
 		setIsUnlockedAboveWindow(unlocked);
 	}, []);
 
+	const importDocument = useCallback(
+		async (docsPath: string) => {
+			setIsSaving(true);
+			try {
+				const response = await httpClient.callRoute<CreateDocumentResponse>(IMPORT_DOCUMENT_ROUTE, {
+					body: { docsPath },
+				});
+				const docs = await client.listDocuments();
+				setDocuments(docs.documents);
+				selectDoc(response.document.id);
+				setError(null);
+			} catch (cause) {
+				setError(toPanelError(cause));
+			} finally {
+				setIsSaving(false);
+			}
+		},
+		[client, selectDoc],
+	);
+
+	const startBatch = useCallback(async () => {
+		if (!selectedBatchId || isSaving) return;
+		setIsSaving(true);
+		try {
+			await httpClient.callRoute(START_BATCH_ROUTE, {
+				params: { batchId: selectedBatchId },
+				body: {},
+			});
+			setError(null);
+		} catch (cause) {
+			setError(toPanelError(cause));
+		} finally {
+			setIsSaving(false);
+		}
+	}, [isSaving, selectedBatchId]);
+
 	const onboardingDocuments = useMemo<readonly OnboardingDocOption[]>(
 		() =>
 			documents.map((document) => ({
@@ -635,5 +676,7 @@ export function useAssignPanel({
 		changeUserSetting,
 		toggleUnlockAboveWindow,
 		reload: loadAssignments,
+		importDocument,
+		startBatch,
 	};
 }

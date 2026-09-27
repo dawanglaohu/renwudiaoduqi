@@ -105,79 +105,21 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 			latestReviewByParent.set(candidate.parentRunId, candidate);
 		}
 	}
-	// 收集所有 waiting 闸门，兼容 camelCase 与 snake_case，涵盖 review、landing、dispatch 等闸门
-	interface WaitingGateInfo {
-		readonly gate: GateDto;
-		readonly runId: string | null;
-		readonly taskId: string | null;
-	}
-	const waitingGates: WaitingGateInfo[] = [];
-	for (const gate of gates) {
-		if (gate.state === 'waiting') {
-			const runId = gate.runId ?? (gate as unknown as { run_id?: string | null }).run_id ?? null;
-			const taskId =
-				gate.taskId ?? (gate as unknown as { task_id?: string | null }).task_id ?? null;
-			waitingGates.push({ gate, runId, taskId });
-		}
-	}
-
 	const gateByRunId = new Map<string, GateDto>();
-	const gateByTaskId = new Map<string, GateDto>();
-	for (const item of waitingGates) {
-		if (item.runId && !gateByRunId.has(item.runId)) {
-			gateByRunId.set(item.runId, item.gate);
-		}
-		if (item.taskId && !gateByTaskId.has(item.taskId)) {
-			gateByTaskId.set(item.taskId, item.gate);
-		}
-	}
-
-	// 找出已被非空闲泳道（有 currentRunId 或 taskId）所关联的闸门 ID
-	const assignedGateIds = new Set<string>();
-	for (const lane of lanes) {
-		const run = lane.currentRunId ? (runById.get(lane.currentRunId) ?? null) : null;
-		const reviewRun =
-			run?.kind === 'review' ? run : run ? (latestReviewByParent.get(run.id) ?? null) : null;
-		const matchedGate =
-			(run ? (gateByRunId.get(run.id) ?? gateByRunId.get(reviewRun?.id ?? '')) : null) ??
-			(lane.taskId ? gateByTaskId.get(lane.taskId) : null);
-		if (matchedGate) {
-			assignedGateIds.add(matchedGate.id);
+	for (const gate of gates) {
+		if (
+			gate.runId &&
+			gate.kind === 'review' &&
+			gate.state === 'waiting' &&
+			!gateByRunId.has(gate.runId)
+		) {
+			gateByRunId.set(gate.runId, gate);
 		}
 	}
-
-	// 尚未在任何活跃泳道中展示的未决闸门（例如 awaiting_human 释放了泳道并发槽，E-53, E-54, E-109）
-	const unassignedWaiting = waitingGates.filter((item) => !assignedGateIds.has(item.gate.id));
-	let unassignedIdx = 0;
 
 	return lanes.map((lane) => {
-		let run = lane.currentRunId ? (runById.get(lane.currentRunId) ?? null) : null;
-		let task = lane.taskId ? (taskById.get(lane.taskId) ?? null) : null;
-		let gate: GateDto | null = null;
-
-		if (run || task) {
-			const reviewRun =
-				run?.kind === 'review' ? run : run ? (latestReviewByParent.get(run.id) ?? null) : null;
-			gate =
-				(run ? (gateByRunId.get(run.id) ?? gateByRunId.get(reviewRun?.id ?? '')) : null) ??
-				(task ? gateByTaskId.get(task.id) : null) ??
-				null;
-		} else if (lane.stage !== 'wrapup' && unassignedIdx < unassignedWaiting.length) {
-			// 当前泳道为空闲，且有未在活跃泳道展现的人审闸门：就地呈现在该空闲槽位（E-53, E-54, E-109）
-			const nextWaiting = unassignedWaiting[unassignedIdx++];
-			if (nextWaiting) {
-				gate = nextWaiting.gate;
-				if (nextWaiting.runId) {
-					run = runById.get(nextWaiting.runId) ?? null;
-				}
-				if (nextWaiting.taskId) {
-					task = taskById.get(nextWaiting.taskId) ?? null;
-				} else if (run?.taskId) {
-					task = taskById.get(run.taskId) ?? null;
-				}
-			}
-		}
-
+		const run = lane.currentRunId ? (runById.get(lane.currentRunId) ?? null) : null;
+		const task = lane.taskId ? (taskById.get(lane.taskId) ?? null) : null;
 		const batchId = task?.batchId ?? run?.batchId ?? null;
 		const batch = batchId ? (batchById.get(batchId) ?? null) : null;
 		// daemon 的泳道在审查行退出后会回指实施行；原文仍在最新审查行上。
@@ -189,27 +131,25 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 			laneNo: lane.laneNo,
 			id: `lane-${lane.laneNo}`,
 			kind:
-				lane.stage === 'wrapup'
-					? ('wrapup' as const)
-					: run || task || gate
-						? ('task' as const)
-						: ('idle' as const),
+				lane.stage === 'wrapup' ? ('wrapup' as const) : run ? ('task' as const) : ('idle' as const),
 			currentRunId: run?.id ?? lane.currentRunId,
 			taskId: task?.id ?? lane.taskId ?? undefined,
 			taskKey: task?.taskKey,
 			title: task?.title,
-			status: run?.state ?? (gate ? 'awaiting_human' : undefined),
+			status: run?.state,
 			batchId,
 			wrapupRound: run ? (wrapupRoundByRunId?.get(run.id) ?? null) : null,
 			wrapupBatchNo: batch?.batchNo ?? null,
-			gateId: gate?.id ?? null,
+			gateId: run
+				? (gateByRunId.get(run.id)?.id ?? gateByRunId.get(reviewRun?.id ?? '')?.id ?? null)
+				: null,
 			deliverTargetRunId: targetRun?.id ?? null,
 			deliverTargetCanReply: targetRun?.capabilities?.canReply ?? null,
 			reworkText: reviewRun?.reworkText ?? null,
 			reviewVerdict: reviewRun?.reviewVerdict ?? null,
 			agentName: run?.agentId,
 			modelName: run?.modelName ?? undefined,
-			needsApproval: run?.state === 'awaiting_human' || Boolean(gate),
+			needsApproval: run?.state === 'awaiting_human',
 		} satisfies DeckStreamLane);
 	});
 }
@@ -222,6 +162,7 @@ interface RemoteDeckData {
 	readonly rawRuns?: readonly RunDto[];
 	readonly rawLanes?: readonly LaneView[];
 	readonly wrapups?: readonly BatchWrapupDto[];
+	readonly gates?: readonly GateDto[];
 }
 
 const INITIAL_REMOTE: RemoteDeckData = Object.freeze({
@@ -300,6 +241,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				rawRuns: runsResponse.runs,
 				rawLanes: fetchedLanes,
 				wrapups: [...wrapupsByRunIdRef.current.values()],
+				gates: gatesResponse.gates,
 				error: null,
 			});
 		} catch (cause: unknown) {
@@ -310,6 +252,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				rawRuns: [],
 				rawLanes: [],
 				wrapups: [],
+				gates: [],
 				error: cause instanceof Error ? cause.message : String(cause),
 			});
 		}
@@ -372,6 +315,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				envelope.kind === 'lane.released' ||
 				envelope.kind === 'task.sessions_archived' ||
 				envelope.kind === 'document.settings_changed' ||
+				envelope.kind === 'system.docs_changed' ||
 				envelope.kind === 'task.gate_waiting' ||
 				envelope.kind === 'task.gate_passed' ||
 				envelope.kind === 'batch.wrapup_finished'
@@ -422,6 +366,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				runs={remote.rawRuns}
 				rawLanes={remote.rawLanes}
 				wrapups={remote.wrapups}
+				gates={remote.gates}
 				onSelectTask={props.onSelectTask}
 				toolbarSlot={props.toolbarSlot}
 				className={props.className}

@@ -246,6 +246,9 @@ export function RunDetailContainer({
 	return (
 		<div
 			data-component="run-detail-container"
+			data-run-id={currentRun?.id ?? runId}
+			data-task-id={currentRun?.taskId ?? undefined}
+			data-run-state={currentRun?.state ?? runStatus}
 			className={`flex flex-col h-full gap-2 relative ${className ?? ''}`}
 		>
 			{/* E-218 顶部显式「在整个会话中查找」入口 */}

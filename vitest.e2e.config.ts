@@ -8,7 +8,7 @@ export default defineConfig({
 		fileParallelism: false,
 		maxConcurrency: 1,
 		testTimeout: 90000,
-		hookTimeout: 90000,
+		hookTimeout: 150000,
 		teardownTimeout: 30000,
 	},
 });

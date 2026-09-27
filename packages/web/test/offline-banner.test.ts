@@ -115,12 +115,15 @@ describe('M9-T11: OfflineBanner presentation component (AC 1-4, E-04, E-12, E-14
 			const html = renderToStaticMarkup(
 				createElement(OfflineBanner, {
 					status: 'reconnecting',
+					lastSyncedAt: '12:34:56',
 				}),
 			);
 
 			expect(html).toContain('data-banner-kind="reconnecting"');
 			expect(html).toContain('data-testid="reconnecting-banner"');
 			expect(html).toContain('正在重新连接调度服务...');
+			expect(html).toContain('最后同步于');
+			expect(html).toContain('12:34:56');
 		});
 
 		it('renders null when status is online and healthy', () => {

@@ -105,12 +105,12 @@ rl.on('line', (line) => {
 });
 
 async function main() {
-	// Write a file in worktree so git diff detects changes
-	try {
-		const resultFilePath = path.join(process.cwd(), 'smoke-result.txt');
-		fs.writeFileSync(resultFilePath, 'Smoke test implementation output\n', 'utf8');
-	} catch {
-		// Ignore if not writable
+	// Only write inside the temporary project worktree, never during a probe from the source checkout.
+	const isFixtureWorktree = path.resolve(process.cwd()).split(path.sep).some((part) =>
+		/^agsched-(?:b13|e2e)-project-/.test(part),
+	);
+	if (isFixtureWorktree) {
+		fs.writeFileSync(path.join(process.cwd(), 'smoke-result.txt'), 'Smoke test implementation output\n', 'utf8');
 	}
 
 	// 1. Thread started (both vendor event formats for backward compatibility)

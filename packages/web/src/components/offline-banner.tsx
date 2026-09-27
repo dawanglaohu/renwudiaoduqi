@@ -304,6 +304,9 @@ export function OfflineBanner({
 						className="inline-block w-2 h-2 rounded-[1px] bg-needs shrink-0"
 					/>
 					<span className="truncate">正在重新连接调度服务...</span>
+					<span className="truncate">
+						最后同步于 <span className="font-mono">{formatBannerLastSynced(lastSyncedAt)}</span>
+					</span>
 				</div>
 			</div>
 		);
