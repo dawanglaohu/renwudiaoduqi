@@ -606,9 +606,21 @@ describe('M9-T6 Event Buffer and Frame-Rate Rendering (event-bus.ts)', () => {
 
 		it('delivers real SSE frames into the ring, then empties it on the replay-window signal', async () => {
 			vi.useRealTimers();
-			const bus = createEventBus();
+			let nextFrame: ((time: number) => void) | undefined;
+			const bus = createEventBus({
+				now: () => FLUSH_INTERVAL_MS,
+				scheduleRaf: (callback) => {
+					nextFrame = callback;
+					return 1;
+				},
+				cancelRaf: () => {
+					nextFrame = undefined;
+				},
+			});
 			const received: EventEnvelope[] = [];
 			bus.subscribeAll((event) => received.push(event));
+			const onRunUpdate = vi.fn();
+			bus.subscribe('run-1', onRunUpdate);
 
 			const encoder = new TextEncoder();
 			const streamOf = (chunk: string) =>
@@ -642,21 +654,27 @@ describe('M9-T6 Event Buffer and Frame-Rate Rendering (event-bus.ts)', () => {
 				randomJitter: () => 0.5,
 			});
 			const detach = attachSseClient(sse, bus);
-			sse.connect();
+			try {
+				sse.connect();
+				await vi.waitFor(() => {
+					expect(received.map((event) => event.id)).toContain(7);
+					expect(bus.getBuffer('run-1')?.length).toBe(0);
+				});
+				sse.disconnect();
 
-			const started = Date.now();
-			while (
-				Date.now() - started < 2000 &&
-				!(received.length > 0 && bus.getBuffer('run-1')?.length === 0)
-			) {
-				await new Promise((resolve) => setTimeout(resolve, 10));
+				// Replay clears data immediately; subscribers observe it only on the next frame.
+				expect(bus.versionOf('run-1')).toBe(0);
+				expect(onRunUpdate).not.toHaveBeenCalled();
+				expect(nextFrame).toBeTypeOf('function');
+				nextFrame?.(FLUSH_INTERVAL_MS);
+				expect(bus.versionOf('run-1')).toBe(1);
+				expect(onRunUpdate).toHaveBeenCalledOnce();
+				expect(bus.getBuffer('run-1')?.length).toBe(0);
+			} finally {
+				sse.disconnect();
+				detach();
+				bus.destroy();
 			}
-			sse.disconnect();
-			detach();
-
-			expect(received.map((event) => event.id)).toContain(7);
-			expect(bus.getBuffer('run-1')?.length).toBe(0);
-			expect(bus.versionOf('run-1')).toBeGreaterThan(0);
 		});
 
 		it('clearRun empties run buffer and schedules flush', () => {
