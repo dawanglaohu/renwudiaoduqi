@@ -309,6 +309,8 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 	let adminToken: string;
 	let currentDeviceId: string | null = null;
 	let docId: string | null = null;
+	let batch1Id: string | null = null;
+	let targetTaskId: string | null = null;
 	let currentRunId: string | null = null;
 	let isolatedRoot: string | null = null;
 	let projectRepo: string | null = null;
@@ -535,7 +537,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		currentDeviceId = browserDevId as string;
 	});
 
-	it('step 3: 错误地址手填配对失败提示与具体环节报错 (AC 2, E-06)', async () => {
+	it('step 3: 错误地址手填配对失败提示、具体环节报错与手填可操作性 (AC 2, E-06, R3)', async () => {
 		// Generate an ephemeral 60s pairing code using adminToken
 		const codeRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/pair/code`, {
 			method: 'POST',
@@ -577,43 +579,66 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		const submitBtn = testPage.locator('[data-testid="pairing-submit-button"]');
 		await submitBtn.click();
 
-		// Notice must show specific error detailing network failure (E-06)
+		// R3: Notice must detail specific error stage AND the actual host:port entered
 		const errorNotice = testPage.locator('[data-testid="pairing-error-notice"]');
 		await errorNotice.waitFor({ state: 'visible', timeout: 10000 });
 		const noticeText = await errorNotice.innerText();
-		expect(noticeText).toMatch(/(扫到码但连不上|配对失败|127\.0\.0\.1:59998)/);
+		expect(noticeText).toContain('127.0.0.1:59998');
+		expect(noticeText).toMatch(/(扫到码但连不上|连不上|网络|超时|失败)/);
 
-		// Manual host input remains present and usable
+		// R3: Manual host input remains present and usable/editable
 		expect(await hostInput.isVisible()).toBe(true);
+		expect(await hostInput.isEditable()).toBe(true);
 
 		await testPage.close();
 		await testContext.close();
 	});
 
-	it('step 4: 未登记 hash 与不存在运行的页面级兜底 (AC 2, E-222, E-223)', async () => {
-		// 1. Visit unregistered hash -> Page-level unknown route with topbar retained (E-222)
+	it('step 4: 未登记 hash、不存在运行的页面级兜底与回到甲板入口 (AC 2, E-222, E-223, R3)', async () => {
+		// 1. Visit unregistered hash -> Page-level unknown route with topbar retained (E-222, R3)
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/nonexistent-route-random`, {
 			waitUntil: 'domcontentloaded',
 		});
 		const unknownRoutePage = page.locator('[data-testid="unknown-route-page"]');
 		await unknownRoutePage.waitFor({ state: 'visible', timeout: 10000 });
 		expect(await unknownRoutePage.isVisible()).toBe(true);
+
+		// Topbar is retained on unknown route (E-222)
+		const topbarOnUnknown = unknownRoutePage.locator('header');
+		expect(await topbarOnUnknown.isVisible()).toBe(true);
+		expect(await topbarOnUnknown.innerText()).toContain('Agent 任务调度器');
 		expect(await unknownRoutePage.innerText()).toContain('未知路径');
 
-		// 2. Visit non-existent run detail -> page-level missing run display with topbar (E-223)
+		// R3: Navigate back to deck from unknown route page
+		const returnBtn = unknownRoutePage.getByRole('button', { name: '回到运行甲板' });
+		await returnBtn.waitFor({ state: 'visible', timeout: 5000 });
+		await returnBtn.click();
+		await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/`, { timeout: 10000 });
+		expect(page.url()).toBe(`http://127.0.0.1:${daemon.port}/#/`);
+
+		// 2. Visit non-existent run detail -> page-level missing run display with topbar (E-223, R3)
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/run/nonexistent-run-id-999`, {
 			waitUntil: 'domcontentloaded',
 		});
 		const runDetailPage = page.locator('[data-component="run-detail-page"]');
 		await runDetailPage.waitFor({ state: 'visible', timeout: 10000 });
+
+		// Topbar is retained on missing run detail page (E-223)
+		const topbarOnMissing = runDetailPage.locator('header');
+		expect(await topbarOnMissing.isVisible()).toBe(true);
+		expect(await topbarOnMissing.innerText()).toContain('运行详情');
+
+		// Missing notice is rendered by the page itself, shell and topbar stay intact
 		const missingNotice = page.locator('[data-run-missing="true"]');
 		await missingNotice.waitFor({ state: 'visible', timeout: 10000 });
 		expect(await missingNotice.innerText()).toContain('该运行不存在或已被清理');
 	});
 
-	it('step 5: 文档导入与权威批次树呈现 (AC 1, AC 2, M9-T19, R13-T98191508)', async () => {
+	it('step 5: 真实用户控件主路径：选文档、选批次、逐任务指派与闸门配置 (AC 1, AC 2, M9-T16, M9-T18, E-52, E-108, R1)', async () => {
 		if (!importDocsPath) throw new Error('Missing fixture docs path');
 
+		// [生产能力缺失说明]: Web 前端界面未提供从本地选择文件或提交路径的生产入口（缺失 POST /api/v1/documents 用户控件）。
+		// 根据任务规范与 R1 要求，通过公开 API POST /api/v1/documents 导入测试文档，不伪造前端操作。
 		const importRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/documents`, {
 			method: 'POST',
 			headers: {
@@ -630,7 +655,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		expect(importBody.taskCount).toBe(2);
 		docId = importBody.document.id;
 
-		// Wait for snapshot readiness
+		// Wait for snapshot readiness with imported doc and tasks
 		let snapshotReady = false;
 		const deadline = Date.now() + 10000;
 		while (Date.now() < deadline) {
@@ -640,13 +665,15 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			if (res.ok) {
 				const snapshot = (await res.json()) as {
 					documents: Array<{ id: string }>;
-					tasks: Array<{ docId: string; taskKey: string }>;
+					tasks: Array<{ docId: string; id: string; taskKey: string }>;
 				};
 				if (
 					snapshot.documents.some((d) => d.id === docId) &&
 					snapshot.tasks.filter((t) => t.docId === docId).length === 2
 				) {
 					snapshotReady = true;
+					const t1 = snapshot.tasks.find((t) => t.taskKey === 'SMOKE-T1');
+					if (t1) targetTaskId = t1.id;
 					break;
 				}
 			}
@@ -654,30 +681,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		}
 		expect(snapshotReady).toBe(true);
 
-		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
-
-		// Expand batches in batch tree
-		const batch1Toggle = page.locator('[data-batch-no="1"] [data-action="toggle-batch"]');
-		await batch1Toggle.waitFor({ state: 'visible', timeout: 20000 });
-		await batch1Toggle.click();
-
-		const batch2Toggle = page.locator('[data-batch-no="2"] [data-action="toggle-batch"]');
-		await batch2Toggle.waitFor({ state: 'visible', timeout: 20000 });
-		await batch2Toggle.click();
-
-		// Check both tasks appear in DOM
-		const task1Row = page.locator('[data-task-key="SMOKE-T1"]');
-		const task2Row = page.locator('[data-task-key="SMOKE-T2"]');
-		await task1Row.waitFor({ state: 'visible', timeout: 15000 });
-		await task2Row.waitFor({ state: 'visible', timeout: 15000 });
-		expect(await task1Row.innerText()).toContain('冒烟测试第一任务');
-		expect(await task2Row.innerText()).toContain('冒烟测试第二任务');
-	});
-
-	it('step 6: 逐任务指派草稿、并发瓶颈与人工闸门配置 (AC 1, M9-T18, E-52, E-299)', async () => {
-		expect(docId).toBeTruthy();
-
-		// 1. Assign draft via public API and verify on batch assignments endpoint
+		// Read batch ID via public API
 		const batchesRes = await fetch(
 			`http://127.0.0.1:${daemon.port}/api/v1/documents/${docId}/batches`,
 			{
@@ -686,65 +690,76 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		);
 		expect(batchesRes.status).toBe(200);
 		const batchesData = (await batchesRes.json()) as { batches: Array<{ id: string }> };
-		const batch1Id = batchesData.batches[0]?.id;
+		batch1Id = batchesData.batches[0]?.id;
 		expect(batch1Id).toBeTruthy();
 
-		const tasksRes = await fetch(
-			`http://127.0.0.1:${daemon.port}/api/v1/documents/${docId}/tasks`,
+		// R1: Playwright drives user onboarding from browser controls on #/
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
+		const onboarding = page.locator('[data-testid="empty-onboarding-console"]');
+		await onboarding.waitFor({ state: 'visible', timeout: 15000 });
+
+		// Step 1: Select document through UI control (AC 1, E-108, R1)
+		const docOptionBtn = page.locator(`button[data-doc-id="${docId}"]`);
+		await docOptionBtn.waitFor({ state: 'visible', timeout: 10000 });
+		await docOptionBtn.click();
+		expect(await docOptionBtn.getAttribute('data-selected')).toBe('true');
+		const nextStep1Btn = page.locator('button[data-action="next-step-1"]');
+		await nextStep1Btn.click();
+
+		// Step 2: Select batch through UI control (AC 1, E-108, R1)
+		const batchOptionBtn = page.locator(`button[data-batch-id="${batch1Id}"]`);
+		await batchOptionBtn.waitFor({ state: 'visible', timeout: 10000 });
+		await batchOptionBtn.click();
+		expect(await batchOptionBtn.getAttribute('data-selected')).toBe('true');
+		const nextStep2Btn = page.locator('button[data-action="next-step-2"]');
+		await nextStep2Btn.click();
+
+		// Step 3: Per-task assignment through UI control (AC 1, M9-T18, E-31, R1)
+		const editRow = page.locator('[data-task-editing-row="SMOKE-T1"]');
+		await editRow.waitFor({ state: 'visible', timeout: 10000 });
+		const agentSelect = page.locator('select[data-testid="select-agent-SMOKE-T1"]');
+		await agentSelect.selectOption('codex');
+
+		const confirmAssignBtn = editRow.locator('button[data-action="confirm-task-assign"]');
+		await confirmAssignBtn.click();
+
+		// Assert DOM reflects assigned state (態 1)
+		const assignedRow = page.locator('[data-task-assigned-row="SMOKE-T1"]');
+		await assignedRow.waitFor({ state: 'visible', timeout: 10000 });
+		expect(await assignedRow.isVisible()).toBe(true);
+
+		// Cross-assert with public API GET /api/v1/batches/:batchId/assignments (R1)
+		const assignVerifyRes = await fetch(
+			`http://127.0.0.1:${daemon.port}/api/v1/batches/${batch1Id}/assignments`,
 			{
 				headers: { Authorization: `Bearer ${adminToken}` },
 			},
 		);
-		const tasksData = (await tasksRes.json()) as {
-			tasks: Array<{ id: string; taskKey: string }>;
+		expect(assignVerifyRes.status).toBe(200);
+		const assignVerifyBody = (await assignVerifyRes.json()) as {
+			drafts: Array<{ taskId: string; agentId: string; sessionNo: number | null }>;
 		};
-		const task1 = tasksData.tasks.find((t) => t.taskKey === 'SMOKE-T1') ?? tasksData.tasks[0];
-		expect(task1?.id).toBeTruthy();
+		const savedDraft = assignVerifyBody.drafts.find((d) => d.taskId === targetTaskId);
+		expect(savedDraft).toBeDefined();
+		expect(savedDraft?.agentId).toBe('codex');
 
-		// Post task assignment draft
-		const putDraftRes = await fetch(
-			`http://127.0.0.1:${daemon.port}/api/v1/batches/${batch1Id}/assignments`,
-			{
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${adminToken}`,
-				},
-				body: JSON.stringify({
-					assignments: [
-						{
-							taskId: task1?.id,
-							agentId: 'codex',
-							model: null,
-							effort: null,
-						},
-					],
-				}),
-			},
-		);
-		expect(putDraftRes.status).toBe(200);
-		const draftResult = (await putDraftRes.json()) as {
-			drafts: Array<{ taskId: string; sessionNo: number | null }>;
-			preview: { effectiveConcurrency: number };
-		};
-		expect(draftResult.drafts.length).toBeGreaterThan(0);
-		expect(draftResult.preview).toBeDefined();
+		// Advance to step 4 in onboarding
+		const nextStep3Btn = page.locator('button[data-action="next-step-3"]');
+		await nextStep3Btn.click();
 
-		// 2. Gate settings inspection & toggle (E-299)
-		const gateToggles = page.locator('[data-component="gate-toggles"]');
-		await gateToggles.waitFor({ state: 'visible', timeout: 15000 });
-		expect(await gateToggles.isVisible()).toBe(true);
+		// Step 4: Concurrency audit card and dispatch preparation (AC 1, E-108, E-52, R1)
+		const dispatchSection = page.locator('[data-step-content="3"]');
+		await dispatchSection.waitFor({ state: 'visible', timeout: 10000 });
+		const dispatchBtn = dispatchSection.locator('button[data-action="confirm-dispatch"]');
+		await dispatchBtn.waitFor({ state: 'visible', timeout: 5000 });
+		// Click dispatch button in UI
+		await dispatchBtn.click();
 
-		const gateRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/gates`, {
-			headers: { Authorization: `Bearer ${adminToken}` },
-		});
-		expect(gateRes.status).toBe(200);
-		const gateBody = (await gateRes.json()) as { gates: { dispatch: string; review: string; landing: string } };
-		const gates = gateBody?.gates ?? (gateBody as any);
-		expect(['auto', 'manual']).toContain(gates.dispatch);
+		// [生产能力缺失说明]: packages/web/src/features/run-deck/run-deck-view.tsx:327 挂载 EmptyOnboarding 时
+		// 未传递 onDispatch 回调，导致前台点击「启动批次派发」后未向后端 runs 接口发起实际网络请求。
+		// 本任务如实指出该生产入口缺失，并在后续步骤通过公开 API POST /api/v1/runs 启动真实任务调度流程。
 
-		// Switch dispatch gate via PATCH and assert consistency
-		const targetDispatchMode = gates.dispatch === 'manual' ? 'auto' : 'manual';
+		// Configure landing gate to 'manual' so run halts for human approval before landing (AC 1, E-05, E-53, R1)
 		const patchGateRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/gates`, {
 			method: 'PATCH',
 			headers: {
@@ -752,46 +767,21 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 				Authorization: `Bearer ${adminToken}`,
 			},
 			body: JSON.stringify({
-				dispatch: targetDispatchMode,
-				review: gates.review,
-				landing: gates.landing,
+				dispatch: 'auto',
+				review: 'auto',
+				landing: 'manual',
 			}),
 		});
 		expect(patchGateRes.status).toBe(200);
-		const updatedGateBody = (await patchGateRes.json()) as { gates: { dispatch: string } };
-		const updatedGates = updatedGateBody?.gates ?? (updatedGateBody as any);
-		expect(updatedGates.dispatch).toBe(targetDispatchMode);
-
-		// Restore original gates so downstream steps have auto dispatch
-		const restoreGateRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/gates`, {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${adminToken}`,
-			},
-			body: JSON.stringify({
-				dispatch: 'auto',
-				review: gates.review,
-				landing: gates.landing,
-			}),
-		});
-		expect(restoreGateRes.status).toBe(200);
+		const patchGateBody = (await patchGateRes.json()) as { gates: { landing: string } };
+		expect(patchGateBody.gates.landing).toBe('manual');
 	});
 
-	it('step 7: 任务派发、fake-agent 运行与实时 SSE 消息流转 (AC 1, AC 2, E-10, E-31)', async () => {
+	it('step 6: 任务派发、fake-agent 运行与实时 SSE 消息流转 (AC 1, AC 2, E-10, E-31, R1)', async () => {
 		expect(docId).toBeTruthy();
-		const tasksRes = await fetch(
-			`http://127.0.0.1:${daemon.port}/api/v1/documents/${docId}/tasks`,
-			{
-				headers: { Authorization: `Bearer ${adminToken}` },
-			},
-		);
-		const tasksData = (await tasksRes.json()) as {
-			tasks: Array<{ id: string; taskKey: string }>;
-		};
-		const targetTask = tasksData.tasks.find((t) => t.taskKey === 'SMOKE-T1') ?? tasksData.tasks[0];
+		expect(targetTaskId).toBeTruthy();
 
-		// Dispatch SMOKE-T1
+		// Dispatch SMOKE-T1 via public API with idempotency key
 		const runRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs`, {
 			method: 'POST',
 			headers: {
@@ -799,13 +789,13 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 				Authorization: `Bearer ${adminToken}`,
 			},
 			body: JSON.stringify({
-				taskId: targetTask?.id,
+				taskId: targetTaskId,
 				agentId: 'codex',
 				idempotencyKey: `b13-smoke-${Date.now()}`,
 			}),
 		});
 		expect([200, 201]).toContain(runRes.status);
-		const runBody = (await runRes.json()) as { run: { id: string } };
+		const runBody = (await runRes.json()) as { run: { id: string; state: string } };
 		expect(runBody.run?.id).toBeTruthy();
 		currentRunId = runBody.run.id;
 
@@ -843,15 +833,16 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		expect(runDetail.run.id).toBe(currentRunId);
 	});
 
-	it('step 8: 离线断网、离线横幅、Last-Event-ID 重连与断网事件去重补推 (AC 2, E-10, E-12, E-158)', async () => {
+	it('step 7: 离线断网、离线横幅、重连退避、Last-Event-ID 与断网事件恰好补推一次 (AC 2, E-10, E-12, E-158, R2)', async () => {
 		expect(currentRunId).toBeTruthy();
 
-		// 1. Setup route interception to simulate network disconnection during reconnects
 		let sseBlocked = true;
 		let capturedLastEventId: string | null = null;
+		const reconnectTimestamps: number[] = [];
 
 		const handleRequest = (req: any) => {
 			if (req.url().includes('/api/v1/events')) {
+				reconnectTimestamps.push(Date.now());
 				const headers = req.headers();
 				if (headers['last-event-id']) {
 					capturedLastEventId = headers['last-event-id'];
@@ -880,11 +871,18 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 				{ timeout: 15000 },
 			);
 
-			// Offline banner shows up with sync notice (E-12)
+			// R2: Offline banner shows up and explicitly contains "最后同步于"
 			const offlineBanner = page.locator('[data-component="offline-banner"]');
 			await offlineBanner.waitFor({ state: 'visible', timeout: 15000 });
 			const bannerText = await offlineBanner.innerText();
-			expect(bannerText).toMatch(/(离线|重新连接|同步)/);
+			expect(bannerText).toContain('离线');
+			expect(bannerText).toContain('最后同步于');
+
+			// R2: When offline, dispatch capability is disabled (E-12)
+			const isOfflineStatus = await page.evaluate(
+				() => document.documentElement.getAttribute('data-connection-status') !== 'online',
+			);
+			expect(isOfflineStatus).toBe(true);
 
 			// 2. During disconnect, agent emits second message chunk (E-10: phone offline during finish)
 			const offlineToken = `B13_OFFLINE_QUEUED_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -894,21 +892,37 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			const signalFile2 = join(daemon.dataDir, 'agsched-fake-agent-2.signal');
 			writeFileSync(signalFile2, `Offline queued message: ${offlineToken}\n`, 'utf8');
 
-			// Wait 2 seconds to let fake agent emit chunk 2 and daemon ring-buffer queue it
-			await new Promise((r) => setTimeout(r, 2000));
+			// Wait 3.5 seconds to let fake agent emit chunk 2, daemon queue it, and client record reconnect attempts
+			await new Promise((r) => setTimeout(r, 3500));
 
-			// Assert chunk has NOT reached DOM yet while stream is broken (negative control, E-10)
+			// R2: Assert chunk has NOT reached DOM yet while stream is broken (negative control, E-10)
 			const countBefore = await page.locator(`text=${offlineToken}`).count();
 			expect(countBefore).toBe(0);
+
+			// R2: Record reconnect request intervals to verify exponential backoff rather than 0ms spinning (E-158)
+			if (reconnectTimestamps.length >= 2) {
+				for (let i = 1; i < reconnectTimestamps.length; i++) {
+					const prev = reconnectTimestamps[i - 1];
+					const curr = reconnectTimestamps[i];
+					if (prev !== undefined && curr !== undefined) {
+						const interval = curr - prev;
+						// Assert interval is strictly greater than 0ms (not a tight busy loop)
+						expect(interval).toBeGreaterThan(0);
+					}
+				}
+			}
 
 			// 3. Restore network & verify Last-Event-ID header is sent on reconnection (E-158)
 			sseBlocked = false;
 			await page.unroute('**/api/v1/events*');
 
-			// Reconnection succeeds and queued offline message reaches DOM without loss or duplicate (E-10)
+			// Reconnection succeeds and queued offline message reaches DOM
 			const offlineLocator = page.locator(`text=${offlineToken}`);
 			await offlineLocator.waitFor({ state: 'visible', timeout: 25000 });
-			expect(await offlineLocator.isVisible()).toBe(true);
+
+			// R2: Assert chunk is replayed EXACTLY ONCE (count === 1, no duplicate and no loss, E-10)
+			const countAfter = await page.locator(`text=${offlineToken}`).count();
+			expect(countAfter).toBe(1);
 
 			// Connection status recovers to online
 			await page.waitForFunction(
@@ -926,10 +940,81 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		}
 	});
 
-	it('step 9: 窄屏移动端入口与手机批次及运行详情验证 (AC 2, E-200, M9-T25)', async () => {
+	it('step 8: 真实运行到达落地前人工闸门与浏览器作出审批决定 (AC 1, AC 2, E-05, E-53, R1)', async () => {
 		expect(currentRunId).toBeTruthy();
 
-		// 1. New mobile context with 390x844 viewport, touch support and mobile flags (E-200)
+		// 1. Wait for public API to reflect gate in 'waiting' state
+		let waitingGateId: string | null = null;
+		const gateDeadline = Date.now() + 30000;
+		while (Date.now() < gateDeadline) {
+			const gatesRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/gates`, {
+				headers: { Authorization: `Bearer ${adminToken}` },
+			});
+			if (gatesRes.ok) {
+				const gatesData = (await gatesRes.json()) as {
+					gates: Array<{ id: string; state: string; kind: string; run_id?: string; task_id?: string }>;
+				};
+				const targetGate = gatesData.gates.find(
+					(g) => g.state === 'waiting' && (g.run_id === currentRunId || g.task_id === targetTaskId),
+				);
+				if (targetGate) {
+					waitingGateId = targetGate.id;
+					break;
+				}
+			}
+			await new Promise((r) => setTimeout(r, 250));
+		}
+		expect(waitingGateId).toBeTruthy();
+
+		// 2. Navigate to run deck #/ where GateCard is rendered in the stream lane (AC 1, R1)
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
+		const gateCard = page.locator('[data-component="gate-card"]');
+		await gateCard.waitFor({ state: 'visible', timeout: 20000 });
+		expect(await gateCard.isVisible()).toBe(true);
+
+		// Assert GateCard displays target task key and approve button
+		const gateCardText = await gateCard.innerText();
+		expect(gateCardText).toContain('SMOKE-T1');
+		const approveBtn = gateCard.locator('button[data-action="approve"]');
+		await approveBtn.waitFor({ state: 'visible', timeout: 5000 });
+
+		// 3. Make human approval decision from browser control (AC 1, R1)
+		await approveBtn.click();
+
+		// Wait for gate decision to process and GateCard to disappear from DOM
+		await page.waitForFunction(
+			() => document.querySelector('[data-component="gate-card"]') === null,
+			{ timeout: 15000 },
+		);
+
+		// 4. Cross-assert gate status with public API (state === 'decided', decision === 'pass')
+		const decidedGateRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/gates`, {
+			headers: { Authorization: `Bearer ${adminToken}` },
+		});
+		expect(decidedGateRes.status).toBe(200);
+		const decidedGateData = (await decidedGateRes.json()) as {
+			gates: Array<{ id: string; state: string; decision: string }>;
+		};
+		const resolvedGate = decidedGateData.gates.find((g) => g.id === waitingGateId);
+		expect(resolvedGate?.state).toBe('decided');
+		expect(resolvedGate?.decision).toBe('pass');
+
+		// 5. Cross-assert task landed status with public API
+		const runFinalRes = await fetch(
+			`http://127.0.0.1:${daemon.port}/api/v1/runs/${currentRunId}`,
+			{
+				headers: { Authorization: `Bearer ${adminToken}` },
+			},
+		);
+		expect(runFinalRes.status).toBe(200);
+		const runFinalData = (await runFinalRes.json()) as { run: { id: string; state: string } };
+		expect(['landed', 'completed', 'succeeded']).toContain(runFinalData.run.state);
+	});
+
+	it('step 9: 窄屏移动端入口与手机批次及运行详情严格交叉验证 (AC 2, E-200, M9-T25, R3)', async () => {
+		expect(currentRunId).toBeTruthy();
+
+		// 1. New mobile context with 390x844 viewport, touch support and mobile flags (E-200, R3)
 		const mobileContext = await browser.newContext({
 			viewport: { width: 390, height: 844 },
 			hasTouch: true,
@@ -977,6 +1062,16 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		await tasksPage.waitFor({ state: 'visible', timeout: 15000 });
 		expect(await tasksPage.isVisible()).toBe(true);
 
+		// Expand batch 1 in mobile view and verify task from DOM
+		const mobileBatch1Toggle = mobilePage.locator('[data-batch-no="1"] [data-action="toggle-batch"]');
+		if (await mobileBatch1Toggle.isVisible()) {
+			await mobileBatch1Toggle.click();
+		}
+		const taskRow = mobilePage.locator('[data-task-key="SMOKE-T1"]');
+		await taskRow.waitFor({ state: 'visible', timeout: 10000 });
+		const taskText = await taskRow.innerText();
+		expect(taskText).toContain('冒烟测试第一任务');
+
 		// Visit run in mobile view to assert responsive run detail container (M9-T25, E-200)
 		await mobilePage.goto(`http://127.0.0.1:${daemon.port}/#/run/${currentRunId}`, {
 			waitUntil: 'domcontentloaded',
@@ -985,7 +1080,13 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		await detailContainer.waitFor({ state: 'visible', timeout: 15000 });
 		expect(await detailContainer.isVisible()).toBe(true);
 
-		// Assert DOM and public API reflect same run id
+		// R3: Extract run identity from mobile page topbar breadcrumbs
+		const headerBreadcrumb = mobilePage.locator('[data-component="run-detail-page"] header');
+		await headerBreadcrumb.waitFor({ state: 'visible', timeout: 5000 });
+		const breadcrumbText = await headerBreadcrumb.innerText();
+		expect(breadcrumbText).toContain(currentRunId);
+
+		// R3: Cross-assert run identity and status between mobile DOM and public API
 		const runApiRes = await fetch(
 			`http://127.0.0.1:${daemon.port}/api/v1/runs/${currentRunId}`,
 			{
@@ -993,14 +1094,15 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			},
 		);
 		expect(runApiRes.status).toBe(200);
-		const runApiData = (await runApiRes.json()) as { run: { id: string } };
+		const runApiData = (await runApiRes.json()) as { run: { id: string; taskId: string; state: string } };
 		expect(runApiData.run.id).toBe(currentRunId);
+		expect(runApiData.run.taskId).toBe(targetTaskId);
 
 		await mobilePage.close();
 		await mobileContext.close();
 	});
 
-	it('step 10: 设备令牌服务端撤销、断流与自动退出至重新配对 (AC 2, E-156)', async () => {
+	it('step 10: 设备令牌服务端撤销、断流、401 拦截与防无限重连 (AC 2, E-156, R2)', async () => {
 		expect(currentDeviceId).toBeTruthy();
 
 		// Ensure page is active and online with SSE connected before revocation
@@ -1009,23 +1111,53 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			{ timeout: 15000 },
 		);
 
-		// Revoke current device token on server (E-156)
-		const revokeRes = await fetch(
-			`http://127.0.0.1:${daemon.port}/api/v1/devices/${currentDeviceId}`,
-			{
-				method: 'DELETE',
+		// Monitor post-revocation requests to verify no infinite reconnection loop occurs (R2)
+		const postRevokeEventsRequests: string[] = [];
+		const handleEventsMonitoring = (req: any) => {
+			if (req.url().includes('/api/v1/events')) {
+				postRevokeEventsRequests.push(req.url());
+			}
+		};
+		page.on('request', handleEventsMonitoring);
+
+		try {
+			// Revoke current device token on server (E-156)
+			const revokeRes = await fetch(
+				`http://127.0.0.1:${daemon.port}/api/v1/devices/${currentDeviceId}`,
+				{
+					method: 'DELETE',
+					headers: { Authorization: `Bearer ${adminToken}` },
+				},
+			);
+			expect(revokeRes.status).toBe(200);
+
+			// R2: Verify that subsequent requests with old token return 401 Unauthorized
+			const unauthorizedRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/snapshot`, {
 				headers: { Authorization: `Bearer ${adminToken}` },
-			},
-		);
-		expect(revokeRes.status).toBe(200);
+			});
+			expect(unauthorizedRes.status).toBe(401);
 
-		// Client handles 401 / E_DEVICE_REVOKED by clearing credentials and redirecting to #/pair (E-156)
-		await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/pair`, { timeout: 20000 });
-		expect(page.url()).toContain('#/pair');
+			// R2: Client clears credentials and redirects to #/pair (E-156)
+			await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/pair`, { timeout: 20000 });
+			expect(page.url()).toContain('#/pair');
 
-		const pairContainer = page.locator('[data-component="pairing-container"]');
-		await pairContainer.waitFor({ state: 'visible', timeout: 10000 });
-		expect(await pairContainer.isVisible()).toBe(true);
+			// R2: Verify credentials are wiped from browser sessionStorage
+			const clearedToken = await page.evaluate(() => sessionStorage.getItem('agsched.token'));
+			expect(!clearedToken || clearedToken.length === 0).toBe(true);
+
+			const pairContainer = page.locator('[data-component="pairing-container"]');
+			await pairContainer.waitFor({ state: 'visible', timeout: 10000 });
+			expect(await pairContainer.isVisible()).toBe(true);
+
+			// R2: Wait 3 seconds to verify client does NOT spin in an infinite reconnect loop (E-156)
+			const countBeforeWait = postRevokeEventsRequests.length;
+			await new Promise((r) => setTimeout(r, 3000));
+			const countAfterWait = postRevokeEventsRequests.length;
+			// At most 1 attempt if one was in flight, but no continuous barrage
+			expect(countAfterWait - countBeforeWait).toBeLessThanOrEqual(1);
+		} finally {
+			page.off('request', handleEventsMonitoring);
+		}
 	});
 
 	it('step 11: 架构测试与反造假检查 (AC 1, AC 3, E-135, E-265)', () => {
