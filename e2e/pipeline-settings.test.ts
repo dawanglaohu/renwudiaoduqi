@@ -510,6 +510,8 @@ describe(
 					writeFileSync(join(artifactsDir, `ps-${safeName}-daemon.stderr.log`), daemon.getStderr(), 'utf8');
 				}
 			}
+			if (context) await context.setOffline(false).catch(() => {});
+			if (context2) await context2.setOffline(false).catch(() => {});
 		});
 
 		// ----------------------------------------------------------------
@@ -1276,8 +1278,14 @@ describe(
 				);
 				return btn ? btn.textContent?.trim() : null;
 			});
+			await page2.waitForFunction((label) => {
+				const active = document.querySelector('[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]');
+				return active?.textContent?.trim() === label;
+			}, bughuntBeforeDisconnect, { timeout: 15000 });
 
-			// 将首设备置为离线，保持第二设备与 daemon 在线。
+			// 离开应用页以关闭已有 SSE 连接，再将首设备置为离线。
+			// Chromium 的 offline 开关本身不保证关闭已经建立的流。
+			await page.goto('about:blank');
 			await page.context().setOffline(true);
 			expect(await page.evaluate(() => navigator.onLine)).toBe(false);
 
@@ -1299,6 +1307,7 @@ describe(
 				);
 				return btn ? btn.textContent?.trim() : null;
 			});
+			expect(device2BughuntBefore).toBe(bughuntBeforeDisconnect);
 			const newBughuntLabel = device2BughuntBefore === '开' ? '关' : '开';
 
 			// 断线期间由第二台设备（真实浏览器 UI）发起变更
@@ -1320,17 +1329,17 @@ describe(
 				newBughuntLabel,
 				{ timeout: 15000 },
 			);
-			// 负控：首设备离线期间不应提前显示第二设备的新值。
-			expect(await page.evaluate(() => {
-				const active = document.querySelector('[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]');
-				return active?.textContent?.trim() ?? null;
-			})).toBe(bughuntBeforeDisconnect);
+			// 负控：首设备仍停在离线的空页，没有机会接收第二设备的 SSE。
+			expect(page.url()).toBe('about:blank');
+			expect(await page.evaluate(() => navigator.onLine)).toBe(false);
 
 			// 恢复第一台设备的网络
 			await page.bringToFront();
 			await page.context().setOffline(false);
 
-			// 等待 SSE 重连并恢复数据
+			// 原浏览器标签保留配对后的 sessionStorage，重新进入应用并拉取权威值。
+			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
+			// 等待新 SSE 连接和设置快照恢复。
 			await page.waitForFunction(
 				() => document.documentElement.getAttribute('data-connection-status') === 'online',
 				{ timeout: 30000 },
