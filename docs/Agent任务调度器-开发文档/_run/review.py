@@ -596,6 +596,14 @@ def check_extras(rep, smap, root, multi):
         if not re.search(r"--[\w-]+\s*:", ui["body"]):
             rep.warn("X14", "UI 章节没给可直接粘的 token（一段 CSS 变量声明）。只给色板和字体，"
                             "按钮多高、圆角几像素每个页面还是会各写一套", loc(ui))
+        # X21：DENSITY 只是一个数字；不落成页边距 / 块间距 / 卡片内边距 / 容器宽度，写组件的一方就按
+        # Tailwind 移动优先先验走，屏幕越宽越空（references/density.md）。brand 语域的留白是设计的一部分，不查。
+        body = ui["body"]
+        brand_only = re.search(r"\bbrand\b", body, re.I) and not re.search(r"\bproduct\b|后台|工作台", body, re.I)
+        if not brand_only and not (has_heading(body, "间距与容器契约")
+                                   or has_heading(body.lower(), "spacing and container contract")):
+            rep.warn("X21", "UI 章节缺「间距与容器契约」小节（DENSITY 落成页边距 / 块间距 / 卡片内边距 / 行高，"
+                            "每类页面的容器宽度）。不写，写组件的一方按移动优先先验走，桌面上越宽越空", loc(ui))
 
 
 def detect_legacy_layout(sections):

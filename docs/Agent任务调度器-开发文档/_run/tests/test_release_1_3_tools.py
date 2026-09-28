@@ -62,16 +62,44 @@ class Release13ToolTests(unittest.TestCase):
     # ---- 版本号 ----
     def test_version_is_1_3_1(self):
         import install_project
-        self.assertEqual(hc.VERSION, '1.6.1')
+        self.assertEqual(hc.VERSION, '1.7.2')
         with contextlib.redirect_stdout(io.StringIO()):
             install_project.install(self.doc, root=self.base)
-        self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.6.1')
+        self.assertEqual(hc.read_json(self.doc / '_run/tool-version.json')['version'], '1.7.2')
 
     def test_handoff_manual_does_not_write_local_checkout_path(self):
         import install_project
         rendered = install_project.render_manual('主检出：<主检出>；文档：<docs>', self.base, self.doc)
         self.assertIn('<主检出>', rendered)
         self.assertNotIn(self.base.as_posix(), rendered)
+
+    # ---- SKILL.md 头部 ----
+    def test_skill_frontmatter_is_valid_yaml(self):
+        """1.5.0–1.7.1 的英文 SKILL.md 在 description 里写了「in code): call」，YAML 把 ': ' 当键值分隔，
+        整段头部解析失败：Claude Code 只剩正文标题当描述，version、argument-hint 与 Stop hook 都读不到。
+        装进项目 _run/tests 的副本旁边没有 SKILL.md，跳过。"""
+        skill = SCRIPTS.parent / 'SKILL.md'
+        if SCRIPTS.name != 'scripts' or not skill.is_file():
+            self.skipTest('项目 _run/ 里没有 SKILL.md')
+        text = skill.read_text(encoding='utf-8-sig').replace('\r\n', '\n')
+        match = re.match(r'---\n(.*?)\n---\n', text, re.S)
+        self.assertIsNotNone(match, 'SKILL.md 缺 YAML 头部')
+        head = match.group(1)
+        for line in head.split('\n'):
+            m = re.match(r'\s*([A-Za-z][A-Za-z-]*):\s+(.*)$', line)
+            if not m or m.group(2)[:1] in ('"', "'", '|', '>', '[', '{'):
+                continue
+            self.assertNotIn(': ', m.group(2), m.group(1) + ' 是没加引号的值，不能含「冒号加空格」')
+            self.assertNotIn(' #', m.group(2), m.group(1) + ' 是没加引号的值，「空格加 #」会被当成注释')
+        try:
+            import yaml
+        except ImportError:
+            return
+        meta = yaml.safe_load(head)
+        self.assertEqual(meta['name'], 'unattended-run')
+        self.assertEqual(meta['version'], hc.VERSION)
+        self.assertIsInstance(meta['description'], str)
+        self.assertIn('Stop', meta.get('hooks') or {})
 
     # ---- build 子进程超时 ----
     def test_build_subprocess_timeout_is_600(self):

@@ -1,5 +1,5 @@
 {
-  "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+  "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
   "inputs": {
     "00-概览/01-概述与目标.md": "215668de16e766e1699a9b736ea876ea1f3c32bda1fcf9713233e0f0403a000f",
     "00-概览/02-非目标.md": "87645b4af715977167fd32376e81f976b733e0872e87e5d7a27a17d3f9d1becc",
@@ -23,7 +23,7 @@
     "04-执行/20-里程碑与交付顺序.md": "d184752ddf3429eb26c7be1463eb36986b758dcd97d7e241edb6450d9c9a61f7",
     "04-执行/21-风险与未决事项.md": "efd8b20a095569aa97b1185472b4b0367cff7c7abfe3eaa3326a3f0fc04c1fc9",
     "05-附录/22-决策记录.md": "6f255b47023960119a696076a1520cc1960d936fd63fac37495b84a310654974",
-    "05-附录/23-变更记录.md": "7cd7a276a67c97a1ca3498ce7f9be6e4c22ce1c2c1d50c7223f3049ba3a6a535",
+    "05-附录/23-变更记录.md": "12fbe10eaa04b1f7141a6dd38d658d4107699fd455ac51c893345cb42afc381e",
     "05-附录/24-参考资料.md": "eec613e723bff7847e309724b2c12f0d8eb447a3b1cff7ce169eae0bd02cc070",
     "README.md": "449e8971a4884cab4ad6bd71e0ed8d88166999fba8e4c20e3b446a6b898c3559",
     "_run/batches/batch-12-20260923.md": "88684901305939fa652dd00c42d32003b90ba30e70f54d3739029b0a01978bfb",
@@ -38,12 +38,12 @@
   },
   "products": {
     "_MOC.md": "ff5d99e1311e1642e157478d7adcb13585bbdaa649f8778f006b43030e33ca6c",
-    "_run/dispatch.json": "3d146a82a4c739cc50920be4aee3cad99ee886b1986d508b3db9361ad34b7b38",
-    "_run/review.json": "67138268b490e4c22730af3c8dcc1a196afb568cf461509a2c3575eb7e652f94",
+    "_run/dispatch.json": "c6a1682dbb8054ffba573366555f17627965695aa140f966554d52683e6bea4c",
+    "_run/review.json": "e1f1b7b65d5cf370fb0d6f5ee2f1117dc07fd3463bb4a7b913074df4a0d48f5c",
     "_run/task-reviews.json": "e8dcb80176f6b2df65c4939d5aede83ffcfe63d8c3643c4ff7b83737678bc919",
-    "docs-data.js": "14584fb5a4d4690f7202dc98fdeb53fa475a0ffe64b595245262aabcb324a03b",
-    "index.html": "f2ddcba5a883cc52807abedbf664750f4a98c6feb6aff4529051fb3acfbfbb0d"
+    "docs-data.js": "dae5558bdd99a8e25bbad414540de6c792997f452ed5bc4a945236ffb5f48793",
+    "index.html": "7558315b3b7718157e85b3dd8c36f2e6d6790cfee592ed51ef84f61c562af085"
   },
   "schemaVersion": 1,
-  "sourceVersion": "371734d54fc2fd09db9d6c65eeba550a15d5544bc15fe1974c4daf880180fec0"
+  "sourceVersion": "a0c244740ca412077e2ed7139bbacaecb50cdc9a7757119afa9268a2141a9092"
 }

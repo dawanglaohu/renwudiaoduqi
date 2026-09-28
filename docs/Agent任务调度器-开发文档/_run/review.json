@@ -27,6 +27,12 @@
       "where": null
     },
     {
+      "code": "X21",
+      "level": "WARN",
+      "msg": "UI 章节缺「间距与容器契约」小节（DENSITY 落成页边距 / 块间距 / 卡片内边距 / 行高，每类页面的容器宽度）。不写，写组件的一方按移动优先先验走，桌面上越宽越空",
+      "where": "02-设计/11-UI.md"
+    },
+    {
       "code": "H12",
       "level": "WARN",
       "msg": "M1-T3 疑似接线任务未列注册点（命中：接口）",
@@ -306,6 +312,6 @@
       "where": "M10-T3"
     }
   ],
-  "sourceVersion": "371734d54fc2fd09db9d6c65eeba550a15d5544bc15fe1974c4daf880180fec0",
-  "warn": 31
+  "sourceVersion": "a0c244740ca412077e2ed7139bbacaecb50cdc9a7757119afa9268a2141a9092",
+  "warn": 32
 }
