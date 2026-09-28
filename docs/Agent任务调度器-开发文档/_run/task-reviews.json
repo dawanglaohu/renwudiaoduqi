@@ -1152,6 +1152,22 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R16-T85823419": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "5f25492866ab40e04105a7cfae4dd400bc0a1af8242269c644d14a98247c3701",
+    "evidence": [
+      "契约核对：status 报告的 contractHash 与派发包一致（5f254928…3701），blockers 为空；唯一 stale 源是本任务有效路径内的 batch-16-20260926.md，属本任务产出。",
+      "前置能力：M1-T11 的 e2e 骨架（vitest.e2e.config.ts、根 e2e 脚本、e2e-smoke job、biome 排除 e2e/**）与 M9-T22 的顶栏/设置页开关、use-pipeline-settings 共享源均已在主干；本任务只新增 e2e/pipeline-settings.test.ts 并复用生产配对页、生产令牌键 agsched.token、daemon bootstrap，未另写类型或工具。",
+      "有效路径：PR #166 改动只落在 e2e/pipeline-settings.test.ts、vitest.e2e.config.ts、.github/workflows/desktop-ci.yml、_run/batches/batch-16-20260926.md 与任务笔记回填，与有效路径一致。",
+      "接线：status 的「疑似接线任务未列注册点」是启发式提示；本任务是测试接线，注册点即 vitest.e2e.config.ts 的 include 与 desktop-ci.yml 的 e2e-pipeline-settings job 及 release-verification needs/门禁步骤，均已接入，无新增 daemon 路由、服务或页面。",
+      "17/19 节要求：正式 Ubuntu CI run 36476217179（HEAD ec0aceb）中 Pipeline Settings E2E 12/12 通过、根 pnpm e2e 三套件 31/31 通过、三平台 Desktop CI 与 Release Gate 通过；同一 run 的三平台 Workspace Verification Check（pnpm -w check）通过；本机 WSL 在 /mnt/d 上复跑时 vitest worker RPC 超时，属环境限制。审查方把 afterAll 改为 finally 中停 daemon（Jev adjudicate pick=D），并为根 e2e job 安装 ffmpeg。",
+      "接口字段：浏览器发出的两次 PATCH /settings/pipeline 请求体均为完整四键 {bughunt, wrapupMode, reviewOverride, wrapupAssignment}，第二次携带第一次 SSE 确认后的新 wrapupMode；缺键与未知键 PATCH 返回 400 E_VALIDATION。",
+      "验收阶段：AC5 要求复核后再写新收口记录；第 16 批仍有 B4 通用缓存与 B5 四键文档返工，批次记录保持 verdict open，只更新 note 记录 B3 已由本任务在正式 CI 验证。"
+    ],
+    "reviewed": "2026-09-28T20:13:13.476555+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T54786768": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
     "contractHash": "fcc25dff347d6c5248e624f2d57b6b9490a50e521a716f09c4cd6e625e2fddf3",

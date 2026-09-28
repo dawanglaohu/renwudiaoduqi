@@ -37,11 +37,11 @@ COMMON_CODES = ('S1', 'S2', 'S3', 'S5', 'P1')
 # 各阶段额外要清零的 review 代码（review.py 里多数只是 WARN，在拥有它的阶段升为关卡）
 STAGE_CODES = {'S1': ('X1',),
                'S2': ('X5', 'X6', 'X7', 'X8', 'X9', 'X10', 'X11', 'X12', 'X15', 'X19'),
-               'S3': ('X13', 'X14'),
+               'S3': ('X13', 'X14', 'X21'),
                'S4': ('X2', 'X16', 'X18', 'X20', 'E1', 'E2', 'E3', 'E5'),
                'S5': (), 'S6': ()}
 SHARED_KEYS = ('errors', 'env', 'types', 'naming')
-DESIGN_KEYS = ('register', 'dials', 'tokens', 'components')
+DESIGN_KEYS = ('register', 'dials', 'tokens', 'components', 'spacing')
 from handoff_contract import WIRING_KEYS, path_valid, wiring_registry
 MIN_BYTES = 200
 HANDOFF_BEGIN = '<!-- handoff:begin -->'
@@ -89,7 +89,8 @@ PROMPTS = {
         LINE3.format(s='S3'),
         '只读输入：`_run/context.md`（观感相关的原话逐字取）、`_run/decisions.md`、01 节、06 节模块表、07 节、'
         '10 节接口总表、`_run/edges.md`。',
-        '产出：11–12 节；`handoff.design`（register/dials/tokens/components 四键齐）与 `handoff.frontendModules`。'
+        '产出：11–12 节（11 节含「间距与容器契约」小节，见技能 references/density.md）；'
+        '`handoff.design`（register/dials/tokens/components/spacing 五键齐）与 `handoff.frontendModules`。'
         '无界面项目：11/12 节写「不适用 + 一句理由」后直接 `--done S3`。',
         '本阶段禁止生成任何 HTML/页面文件：不建 `_preview/`、不做变体、不写 PRODUCT.md；'
         '11 节不得出现「目视确认」「真页」「真屏」——方向由代理用户裁决，不设让用户回来看图的闸门。',
@@ -319,7 +320,7 @@ def gate_s3(docs, items):
         ho = handoff(load_pres(docs))
         design = ho.get('design')
         if not isinstance(design, dict):
-            problems.append('presentation.json 缺 handoff.design（对象，四键 register/dials/tokens/components）')
+            problems.append('presentation.json 缺 handoff.design（对象，五键 register/dials/tokens/components/spacing）')
         else:
             miss = [k for k in DESIGN_KEYS if not design.get(k)]
             if miss:

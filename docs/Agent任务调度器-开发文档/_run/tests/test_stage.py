@@ -142,6 +142,14 @@ register 判定：product（后台）——围着一批字符串样本转，中�
 ```
 
 组件规范：按钮高 32px，圆角 6px，禁用态 40% 透明。
+
+### 间距与容器契约
+
+DENSITY 4 → 页边距 24 · 块间距 20 · 卡片内边距 20；桌面值不大于手机值。
+
+| 页面 | 类型 | 容器 |
+|---|---|---|
+| 样本列表 | 工作面 | 吃满 |
 """
 
 SEC12 = """# UX
@@ -202,7 +210,8 @@ class StageBase(unittest.TestCase):
         section(self.doc, 12).write_text(SEC12, encoding='utf-8')
         pres = hc.read_json(self.doc / '_run/presentation.json')
         pres['handoff']['design'] = {'register': 'product 后台', 'dials': 'SOUL 2 / SPECTACLE 1 / DENSITY 4',
-                                     'tokens': ':root { --brand: #1F3A5F; }', 'components': '按钮高 32px'}
+                                     'tokens': ':root { --brand: #1F3A5F; }', 'components': '按钮高 32px',
+                                     'spacing': 'DENSITY 4 → 页边距 24 · 块间距 20 · 卡片内边距 20；工作面吃满'}
         pres['handoff']['frontendModules'] = ['M1']
         hc.write_json(self.doc / '_run/presentation.json', pres)
 
@@ -241,7 +250,7 @@ class StageWalkTests(StageBase):
         self.assertEqual(code, 0, out)
         self.assertEqual(self.state()['next'], 'S3')
 
-        # S3：11 节有 register 与 token，design 四键齐
+        # S3：11 节有 register、token 与间距与容器契约，design 五键齐
         self.prepare_s3()
         code, out = run_stage(self.doc, '--done', 'S3')
         self.assertEqual(code, 0, out)
