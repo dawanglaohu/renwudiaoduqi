@@ -80,54 +80,12 @@ const KNOWN_STREAM_EVENT_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Known model rejection codes and error types (E-36).
- * Only matches explicit typed code or type fields in structured error objects.
+ * Value of the top-level `error` field on the synthetic `assistant` frame Claude Code emits for a
+ * failed API call when the requested model is unknown or unavailable (E-36). Recorded with Claude
+ * Code 2.1.238 and 2.1.283 in stream-json output; other failures carry other values of the same
+ * field, such as `authentication_failed` or `server_error`, and stay on the E-348 path.
  */
-export const CLAUDE_MODEL_REJECTION_CODES: ReadonlySet<string> = new Set([
-	'model_not_found',
-	'model_invalid',
-	'unsupported_model',
-	'model_decommissioned',
-	'invalid_model',
-]);
-
-export interface ClaudeModelRejectionInfo {
-	readonly modelName: string;
-	readonly vendorMessage: string;
-}
-
-/**
- * Detects whether a structured Claude error payload signals a model rejection (E-36).
- * Inspects only typed error.code / error.type fields — never free-text messages or stderr (E-36 / E-348).
- */
-export function detectClaudeModelRejection(
-	errorObj: Record<string, unknown> | null,
-	fallbackModel?: unknown,
-): ClaudeModelRejectionInfo | null {
-	if (!errorObj) return null;
-
-	const code = typeof errorObj.code === 'string' ? errorObj.code.toLowerCase() : null;
-	const type = typeof errorObj.type === 'string' ? errorObj.type.toLowerCase() : null;
-
-	const isModelRejection =
-		(code !== null && CLAUDE_MODEL_REJECTION_CODES.has(code)) ||
-		(type !== null && CLAUDE_MODEL_REJECTION_CODES.has(type));
-
-	if (!isModelRejection) return null;
-
-	const modelName =
-		typeof errorObj.model === 'string'
-			? errorObj.model
-			: typeof errorObj.modelName === 'string'
-				? errorObj.modelName
-				: typeof fallbackModel === 'string'
-					? fallbackModel
-					: '';
-
-	const vendorMessage = typeof errorObj.message === 'string' ? errorObj.message : '';
-
-	return { modelName, vendorMessage };
-}
+const CLAUDE_MODEL_NOT_FOUND_ERROR = 'model_not_found';
 
 /**
  * Maps a single Claude vendor output line into normalized ACP / product event inputs.
@@ -197,11 +155,10 @@ export function mapClaudeEventLine(
 
 	// --- 1. Check for First Frame / System Init (AC 2 & E-37) ---
 	const isInitFrame =
-		rawType !== 'error' &&
-		(rawType === 'system/init' ||
-			rawType === 'init' ||
-			(rawType === 'system' && (rawSubtype === 'init' || typeof parsed.model === 'string')) ||
-			(!state?.firstFrameProcessed && typeof parsed.model === 'string'));
+		rawType === 'system/init' ||
+		rawType === 'init' ||
+		(rawType === 'system' && (rawSubtype === 'init' || typeof parsed.model === 'string')) ||
+		(!state?.firstFrameProcessed && typeof parsed.model === 'string');
 
 	if (isInitFrame && !state?.firstFrameProcessed) {
 		isFirstFrame = true;
@@ -465,35 +422,22 @@ export function mapClaudeEventLine(
 			}),
 		);
 	}
-	// H. Structured error / model rejection signal (E-36)
-	else if (rawType === 'error' || (rawType === 'result' && parsed.is_error === true)) {
-		const errorCandidate =
-			parsed.error && typeof parsed.error === 'object' && parsed.error !== null
-				? (parsed.error as Record<string, unknown>)
-				: parsed;
-		const rejection = detectClaudeModelRejection(
-			errorCandidate,
-			parsed.model ?? state?.selectedModel ?? state?.actualModel,
-		);
-		if (rejection !== null) {
-			events.push(
-				Object.freeze({
-					kind: 'run.model_rejected',
-					runId,
-					taskId,
-					payload: Object.freeze({
-						code: 'model_invalid',
-						modelName: rejection.modelName,
-						vendorMessage: rejection.vendorMessage,
-						vendor: Object.freeze({ ...parsed }),
-					}),
+	// H. API error frame naming the requested model unavailable (E-36)
+	// Only the typed `error` field decides; the frame's text is carried verbatim, never matched.
+	else if (rawType === 'assistant' && parsed.error === CLAUDE_MODEL_NOT_FOUND_ERROR) {
+		events.push(
+			Object.freeze({
+				kind: 'run.model_rejected',
+				runId,
+				taskId,
+				payload: Object.freeze({
+					code: 'model_invalid',
+					modelName: state?.selectedModel ?? state?.actualModel ?? '',
+					vendorMessage: joinAssistantText(parsed.message),
+					vendor: Object.freeze({ ...parsed }),
 				}),
-			);
-		} else if (rawType === 'result') {
-			// Regular result frame without structured model rejection (handled as known lifecycle)
-		} else {
-			// Structured error without model rejection code (e.g. generic failure); handled without unmapped increment
-		}
+			}),
+		);
 	}
 	// I. Known system types with no further output needed
 	else if (KNOWN_CLAUDE_SYSTEM_TYPES.has(rawType)) {
@@ -583,4 +527,22 @@ export function createClaudeEventMapper(options: ClaudeEventMapperOptions = {}):
 		getUnmappedEventCount,
 		reset,
 	});
+}
+
+/** Concatenates the text blocks of an assistant message; returns '' when there are none. */
+function joinAssistantText(message: unknown): string {
+	if (!message || typeof message !== 'object') return '';
+	const content = (message as Record<string, unknown>).content;
+	if (typeof content === 'string') return content;
+	if (!Array.isArray(content)) return '';
+	return content
+		.map((block) =>
+			block &&
+			typeof block === 'object' &&
+			(block as Record<string, unknown>).type === 'text' &&
+			typeof (block as Record<string, unknown>).text === 'string'
+				? ((block as Record<string, unknown>).text as string)
+				: '',
+		)
+		.join('');
 }

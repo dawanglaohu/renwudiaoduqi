@@ -1827,13 +1827,13 @@ describe(
 			).rejects.toThrow('Gate already decided');
 		});
 
-		it('R8-T70356006 AC 3 & E-36: container correctly wires handleModelInvalid to runService and maintains reportsModelRejection false', async () => {
+		it('R8-T70356006 AC 3 & E-36: container wires handleModelInvalid to runService; only Claude reports model rejection', async () => {
 			const env = setupWiringEnvironment();
 			const { container, clock, tempDir } = env;
 
-			// 1. Verify capability flags across all adapters
+			// 1. Only the adapter with a recorded typed signal declares the capability
+			expect(getClaudeCapabilities().reportsModelRejection).toBe(true);
 			expect(getCodexCapabilities().reportsModelRejection).toBe(false);
-			expect(getClaudeCapabilities().reportsModelRejection).toBe(false);
 			expect(getDshCapabilities().reportsModelRejection).toBe(false);
 			expect(getGenericAcpCapabilities().reportsModelRejection).toBe(false);
 			expect(getGrokCapabilities().reportsModelRejection).toBe(false);

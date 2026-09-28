@@ -11,8 +11,10 @@ export interface ClaudeCapabilities {
 	readonly permissionModes: readonly ['plan', 'acceptEdits', 'bypassPermissions'];
 	/**
 	 * True if the adapter emits run.model_rejected from structured vendor error fields (E-36).
-	 * Verified false for Claude Code 2.1.238: invalid model emits stderr warning '[claude-code:unrecognized_model]'
-	 * and generic api_error result in stream-json, lacking vendor-typed rejection codes; falls back to E-348.
+	 * Recorded with Claude Code 2.1.238 and 2.1.283: an unknown model yields a stream-json
+	 * `assistant` frame whose top-level `error` is 'model_not_found' (HTTP 404), while an
+	 * authentication failure yields 'authentication_failed' and an upstream 503 'server_error'.
+	 * The '[claude-code:unrecognized_model]' stderr warning is text and is never read.
 	 */
 	readonly reportsModelRejection: boolean;
 }
@@ -28,7 +30,7 @@ export const CLAUDE_CAPABILITIES: ClaudeCapabilities = Object.freeze({
 	sessionReadback: 'agents-json',
 	supportsReasoningEffort: true,
 	permissionModes: Object.freeze(['plan', 'acceptEdits', 'bypassPermissions'] as const),
-	reportsModelRejection: false,
+	reportsModelRejection: true,
 });
 
 export function getClaudeCapabilities(): ClaudeCapabilities {
