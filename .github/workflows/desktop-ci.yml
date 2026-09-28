@@ -355,6 +355,9 @@ jobs:
       - name: Install Playwright Chromium with system dependencies
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Ensure GIF encoder
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
       - name: Run E2E Smoke (M1-T11, E-265)
         shell: bash
         run: |

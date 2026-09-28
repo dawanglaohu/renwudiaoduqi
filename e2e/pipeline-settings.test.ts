@@ -518,6 +518,14 @@ describe(
 		// afterAll：清理
 		// ----------------------------------------------------------------
 		afterAll(async () => {
+			const origin = daemon ? `http://127.0.0.1:${daemon.port}` : null;
+			// 先释放 daemon：实例锁是机器级的，残留进程会让同一次 e2e 里后续套件拿不到锁。
+			for (const ctx of [context2, context]) {
+				if (ctx) await ctx.close().catch(() => {});
+			}
+			if (browser) await browser.close().catch(() => {});
+			if (daemon) await daemon.stop().catch(() => {});
+
 			if (gifFrames.length >= 4) {
 				const gifPath = join(artifactsDir, 'pipeline-settings-demo.gif');
 				execFileSync('ffmpeg', [
@@ -527,15 +535,10 @@ describe(
 				]);
 				const serviceHead = execSync('git rev-parse HEAD', { cwd: repoRoot, encoding: 'utf8' }).trim();
 				writeFileSync(join(artifactsDir, 'pipeline-settings-demo.provenance.json'), JSON.stringify({
-					serviceHead, origin: `http://127.0.0.1:${daemon.port}`,
+					serviceHead, origin,
 					frames: gifFrames, screenshotSource: 'Playwright page.screenshot() from production Web',
 				}, null, 2), 'utf8');
 			}
-			for (const ctx of [context2, context]) {
-				if (ctx) await ctx.close().catch(() => {});
-			}
-			if (browser) await browser.close().catch(() => {});
-			if (daemon) await daemon.stop().catch(() => {});
 		});
 
 		// ================================================================
