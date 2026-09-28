@@ -385,9 +385,10 @@ async function pairBrowserDevice(
 	// 等待导航落到 #/
 	await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/`, { timeout: 15000 });
 
-	// 从 sessionStorage 读取领取到的 token（无壳时降级 sessionStorage，AC1 约定）
-	const token = await page.evaluate(() => sessionStorage.getItem('agsched_device_token'));
-	if (!token) throw new Error('pairBrowserDevice: token not found in sessionStorage after pairing');
+	// 从 sessionStorage 读取生产代码写入的 token（SESSION_STORAGE_TOKEN_KEY = 'agsched.token'，shell-bridge.ts:12）
+	// AC1：只读，不注入——配对流程完成后由生产代码的 tokenStore.set() 写入
+	const token = await page.evaluate(() => sessionStorage.getItem('agsched.token'));
+	if (!token) throw new Error('pairBrowserDevice: token not found in sessionStorage[agsched.token] after pairing — check shell-bridge.ts SESSION_STORAGE_TOKEN_KEY');
 	registerSensitiveData(token);
 	return token;
 }
@@ -568,20 +569,17 @@ describe(
 			const pipelineContainer = page.locator('[data-component="pipeline-toggles-container"]');
 			await pipelineContainer.waitFor({ state: 'visible', timeout: 10000 });
 
-			// AC2：顶栏有 1px 分隔线（闸门与流水线开关之间）
-			// 分隔线由 `h-px w-full bg-border` 或 `h-4 w-px` 实现
-			const separator = page.locator('[data-testid="app-topbar"] ~ div >> div[aria-hidden="true"]').first();
-			// 使用更宽泛的选择器查找分隔线
-			const dividerExists = await page.evaluate(() => {
-				const header = document.querySelector('[data-testid="app-topbar"]');
-				if (!header) return false;
-				const container = header.parentElement;
-				if (!container) return false;
-				// 找任意 aria-hidden 的 div（分隔线）
-				const dividers = container.querySelectorAll('div[aria-hidden="true"]');
-				return dividers.length > 0;
+			// 分隔线必须是流水线控件的前一个兄弟节点，避免命中其他装饰线。
+			const separatorGeometry = await page.evaluate(() => {
+				const pipeline = document.querySelector('[data-component="pipeline-toggles-container"][data-layout="topbar"]');
+				const separator = pipeline?.previousElementSibling;
+				if (separator?.getAttribute('aria-hidden') !== 'true') return null;
+				const rect = separator.getBoundingClientRect();
+				return { width: rect.width, height: rect.height };
 			});
-			expect(dividerExists).toBe(true);
+			expect(separatorGeometry).not.toBeNull();
+			expect(separatorGeometry!.width).toBe(1);
+			expect(separatorGeometry!.height).toBe(16);
 
 			// 等待 pipeline 设置从 daemon 加载
 			await page.waitForFunction(
@@ -608,10 +606,33 @@ describe(
 		});
 
 		it('AC2 step 3: settings 路由 lazy 与来源句 (AC 2, AC 4)', async () => {
-			// AC2/AC4：导航到 #/settings/pipeline（lazy 路由）
+			// AC2/AC4：先到主页建立基线 JS chunk 集合，然后导航到 settings 路由
+			// 证明 settings 页由独立 lazy chunk 加载（routes.tsx settingsPipeline lazy:true）
+			const loadedJsChunks = new Set<string>();
+			const responseHandler = (resp: import('playwright').Response) => {
+				if (resp.url().endsWith('.js') && resp.status() === 200) {
+					loadedJsChunks.add(resp.url());
+				}
+			};
+			page.on('response', responseHandler);
+
+			// 导航到主页，清空记录
+			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
+			await page.locator('[data-testid="app-topbar"]').waitFor({ state: 'visible' });
+			const chunksAfterMain = new Set(loadedJsChunks);
+			loadedJsChunks.clear();
+
+			// 导航到 settings/pipeline（第一次访问，触发 lazy import）
 			await page.goto(`http://127.0.0.1:${daemon.port}/#/settings/pipeline`, {
 				waitUntil: 'domcontentloaded',
 			});
+
+			page.off('response', responseHandler);
+
+			// Vite 为该路由生成独立 chunk；首次进入设置页才请求它。
+			const settingsChunk = [...loadedJsChunks].find((url) => /settings-pipeline-page-[^/]+\.js$/.test(url));
+			expect(settingsChunk).toBeDefined();
+			expect(chunksAfterMain.has(settingsChunk!)).toBe(false);
 
 			// 等待设置页面组件渲染
 			const settingsPage = page.locator('[data-component="settings-pipeline-page"]');
@@ -628,12 +649,24 @@ describe(
 			await settingsContainer.waitFor({ state: 'visible', timeout: 10000 });
 			expect(await settingsContainer.isVisible()).toBe(true);
 
-			// AC2：settings 路由在 ROUTES 表中标记为 lazy（由 routes.test.ts 单测验证，这里做集成确认）
-			// 页面能正常加载即证明 lazy chunk 已加载成功
+			// 保存 lazy chunk 加载证据
+			writeFileSync(
+				join(artifactsDir, 'ps-lazy-chunk-evidence.json'),
+				JSON.stringify(
+					{
+						chunksAfterMain: [...chunksAfterMain],
+						newChunksOnSettingsNav: [...loadedJsChunks],
+						lazyChunkCount: loadedJsChunks.size,
+					},
+					null,
+					2,
+				),
+				'utf8',
+			);
 		});
 
 		it('AC2 step 4: 320/375/414/768 窄屏无溢出，手机只在设置页可切 (AC 2, E-265)', async () => {
-			// AC2：窄屏无横向溢出
+			// AC2：窄屏无横向溢出（四个断点）
 			const viewports = [
 				{ width: 320, height: 568 },
 				{ width: 375, height: 667 },
@@ -660,24 +693,82 @@ describe(
 			// 恢复桌面宽度
 			await page.setViewportSize({ width: 1280, height: 800 });
 
-			// AC2：手机宽度 375 时顶栏流水线开关隐藏（CSS hidden）
+			// AC2：手机宽度 375 时顶栏流水线开关容器父层 CSS 隐藏（app.tsx:57 hidden min-[600px]:flex）
 			await page.setViewportSize({ width: 375, height: 667 });
 			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
 
-			// 顶栏开关区域在手机下应通过 CSS 隐藏（min-[600px]:flex 规则，375 < 600）
-			const topbarPipelineVisible = await page.evaluate(() => {
-				const containers = document.querySelectorAll(
-					'[data-component="pipeline-toggles-container"][data-layout="topbar"]',
-				);
-				for (const c of containers) {
-					const style = window.getComputedStyle(c);
-					if (style.display !== 'none') return true;
-				}
-				return false;
+			// 顶栏区域容器（含 pipeline-toggles-container）在 375px 下 display:none
+			const topbarControlsHidden = await page.evaluate(() => {
+				// 顶栏控制区容器：header 的同级 div，含 pipeline-toggles-container
+				const header = document.querySelector('[data-testid="app-topbar"]');
+				const controlsDiv = header?.nextElementSibling as HTMLElement | null;
+				if (!controlsDiv) return false;
+				return window.getComputedStyle(controlsDiv).display === 'none';
 			});
-			// 手机宽度下顶栏开关 CSS 隐藏（不展示，设置页才可切）
-			// 注意：DOM 仍挂载，只是 CSS 不可见
-			expect(topbarPipelineVisible).toBe(false);
+			// 在 375px (< 600px) 下顶栏控制区整体 display:none（hidden min-[600px]:flex）
+			expect(topbarControlsHidden).toBe(true);
+
+			// AC2：手机只在设置页可切——在 375px 下导航到设置页，开关必须可交互
+			await page.goto(`http://127.0.0.1:${daemon.port}/#/settings/pipeline`, {
+				waitUntil: 'domcontentloaded',
+			});
+			await page.waitForFunction(
+				() => document.querySelectorAll('[data-layout="settings"] [data-pipeline-toggle]').length >= 2,
+				{ timeout: 15000 },
+			);
+
+			const beforeMobileWriteRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
+				headers: { Authorization: `Bearer ${adminToken}` },
+			});
+			expect(beforeMobileWriteRes.status).toBe(200);
+			const beforeMobileWrite = (await beforeMobileWriteRes.json()) as { pipeline: Record<string, unknown> };
+			// 读取当前 bughunt 值
+			const mobileSettingsBughuntBefore = await page.evaluate(() => {
+				const btn = document.querySelector(
+					'[data-layout="settings"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+				);
+				return btn ? btn.textContent?.trim() : null;
+			});
+			const mobileTargetLabel = mobileSettingsBughuntBefore === '开' ? '关' : '开';
+
+			// 在 375px 设置页，实际点击开关并等待 pending 与 SSE 确认
+			// （证明手机只在设置页可操作，不能在顶栏操作）
+			const mobileBtn = page.locator(
+				`[data-layout="settings"] [data-pipeline-toggle="bughunt"] button:has-text("${mobileTargetLabel}")`,
+			);
+			await mobileBtn.waitFor({ state: 'visible', timeout: 5000 });
+			await mobileBtn.click();
+
+			// 等待 SSE 确认
+			await page.waitForFunction(
+				(expectedLabel) => {
+					const btn = document.querySelector(
+						'[data-layout="settings"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+					);
+					return btn?.textContent?.trim() === expectedLabel;
+				},
+				mobileTargetLabel,
+				{ timeout: 15000 },
+			);
+
+			const mobileSettingsBughuntAfter = await page.evaluate(() => {
+				const btn = document.querySelector(
+					'[data-layout="settings"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+				);
+				return btn ? btn.textContent?.trim() : null;
+			});
+			// 设置页开关在手机档下可交互（切换成功）
+			expect(mobileSettingsBughuntAfter).toBe(mobileTargetLabel);
+
+			// 恢复本用例开始时的完整四键。
+			await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${adminToken}`,
+				},
+				body: JSON.stringify(beforeMobileWrite.pipeline),
+			});
 
 			// 恢复桌面宽度
 			await page.setViewportSize({ width: 1280, height: 800 });
@@ -775,33 +866,53 @@ describe(
 
 			// 确定要切换到的值（从当前值切到另一侧）
 			const targetBughuntLabel = initialBughuntActive === '开' ? '关' : '开';
-			const targetBughuntVal: 0 | 1 = targetBughuntLabel === '开' ? 1 : 0;
 
-			// AC3：点击切换顶栏开关
+			// 只观察浏览器发出的请求，不改动真实 HTTP 时序。
+			let capturedPatchBody: Record<string, unknown> | null = null;
+			const onPatchRequest = (request: import('playwright').Request) => {
+				if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/settings/pipeline')) {
+					capturedPatchBody = JSON.parse(request.postData() ?? '{}') as Record<string, unknown>;
+				}
+			};
+			page.on('request', onPatchRequest);
+
+			// 先安装 DOM 观察器，再点击；MutationObserver 可捕获短暂的 pending 帧。
+			const pendingPromise = page.evaluate(() => new Promise<{
+				isPending: boolean;
+				allDisabled: boolean;
+				activeLabel: string | null;
+			} | null>((resolve) => {
+				const root = document.querySelector('[data-layout="topbar"] [data-component="pipeline-toggles"]');
+				if (!root) return resolve(null);
+				const observer = new MutationObserver(() => {
+					if (root.getAttribute('data-pending') !== 'true') return;
+					const buttons = Array.from(root.querySelectorAll('button')) as HTMLButtonElement[];
+					const active = root.querySelector('button[aria-pressed="true"]');
+					observer.disconnect();
+					resolve({
+						isPending: true,
+						allDisabled: buttons.length > 0 && buttons.every((button) => button.disabled),
+						activeLabel: active?.textContent?.trim() ?? null,
+					});
+				});
+				observer.observe(root, { attributes: true, attributeFilter: ['data-pending'] });
+				setTimeout(() => { observer.disconnect(); resolve(null); }, 5000);
+			}));
+
+			// AC3：点击切换顶栏开关（真实 UI 操作，不用测试进程构造 fetch）
 			const topbarBughuntBtn = page.locator(
 				`[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button:has-text("${targetBughuntLabel}")`,
 			);
 			await topbarBughuntBtn.waitFor({ state: 'visible', timeout: 5000 });
 			await topbarBughuntBtn.click();
 
-			// AC3/E-157：pending 期间开关处于 disabled 状态（不乐观翻转）
-			// 按下后立即检查 pending 状态（data-pending=true 且 button disabled）
-			const isPendingImmediate = await page.evaluate(() => {
-				const container = document.querySelector('[data-layout="topbar"] [data-component="pipeline-toggles"]');
-				return container?.getAttribute('data-pending') === 'true';
-			});
-			// pending 状态在 click 之后、SSE 回流之前短暂存在
-			// （快速 daemon 可能已回流，所以只在确实 pending 时断言）
-			if (isPendingImmediate) {
-				// E-157：pending 期间按钮 disabled，不允许乐观翻转
-				const allDisabled = await page.evaluate(() => {
-					const buttons = document.querySelectorAll(
-						'[data-layout="topbar"] [data-component="pipeline-toggles"] button',
-					);
-					return Array.from(buttons).every((b) => (b as HTMLButtonElement).disabled);
-				});
-				expect(allDisabled).toBe(true);
-			}
+			const pendingSnapshot = await pendingPromise;
+			expect(pendingSnapshot?.isPending).toBe(true);
+			// E-157：pending 时按钮全部禁用
+			expect(pendingSnapshot?.allDisabled).toBe(true);
+			// E-157：PATCH 响应未回流前 UI 不翻转（active 仍是旧值）
+			expect(pendingSnapshot?.activeLabel).toBe(initialBughuntActive);
+			page.off('request', onPatchRequest);
 
 			// 等待 pending 消失（SSE 确认后解除）
 			await page.waitForFunction(
@@ -820,6 +931,13 @@ describe(
 				return btn ? btn.textContent?.trim() : null;
 			});
 			expect(topbarBughuntAfter).toBe(targetBughuntLabel);
+
+			// E-356/E-318：PATCH 请求体包含完整四键
+			expect(capturedPatchBody).not.toBeNull();
+			expect(typeof capturedPatchBody!.bughunt).toBe('number');
+			expect(['auto', 'manual']).toContain(capturedPatchBody!.wrapupMode);
+			expect('reviewOverride' in capturedPatchBody!).toBe(true);
+			expect('wrapupAssignment' in capturedPatchBody!).toBe(true);
 
 			// AC3：设置页也应显示相同值（共享 source，两处一致）
 			await page.goto(`http://127.0.0.1:${daemon.port}/#/settings/pipeline`, {
@@ -858,7 +976,7 @@ describe(
 			}
 		});
 
-		it('AC3 step 7: 第二次写入不携旧四键（E-356），PATCH 响应不乐观翻转（E-157）', async () => {
+		it('AC3 step 7: 第二次写入不携旧四键（E-356），界面行为驱动 PATCH（E-157）', async () => {
 			await page.setViewportSize({ width: 1280, height: 800 });
 			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
 
@@ -867,63 +985,43 @@ describe(
 				() => document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle]').length >= 2,
 				{ timeout: 15000 },
 			);
-
-			// E-356：直接通过 API 验证第二次 PATCH 携带完整四键
-			// 先读当前设置值
-			const getPipelineRes = await fetch(
-				`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`,
-				{ headers: { Authorization: `Bearer ${adminToken}` } },
-			);
-			expect(getPipelineRes.status).toBe(200);
-			const currentPipeline = (await getPipelineRes.json()) as {
-				pipeline: {
-					bughunt: 0 | 1;
-					wrapupMode: 'auto' | 'manual';
-					reviewOverride: unknown;
-					wrapupAssignment: { mode: string };
-				};
-			};
-			const initialSettings = currentPipeline.pipeline;
-			expect(initialSettings).toBeDefined();
-			// E-318：daemon 返回的必须是完整四键
-			expect(typeof initialSettings.bughunt).toBe('number');
-			expect(['auto', 'manual']).toContain(initialSettings.wrapupMode);
-
-			// 第一次 PATCH：切换 wrapupMode
-			const firstPatchTarget: 'auto' | 'manual' =
-				initialSettings.wrapupMode === 'auto' ? 'manual' : 'auto';
-			const firstPatchBody = {
-				bughunt: initialSettings.bughunt,
-				wrapupMode: firstPatchTarget,
-				reviewOverride: initialSettings.reviewOverride,
-				wrapupAssignment: initialSettings.wrapupAssignment,
-			};
-			const firstPatchRes = await fetch(
-				`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`,
-				{
-					method: 'PATCH',
-					headers: {
-						'Content-Type': 'application/json',
-						Authorization: `Bearer ${adminToken}`,
-					},
-					body: JSON.stringify(firstPatchBody),
-				},
-			);
-			expect(firstPatchRes.status).toBe(200);
-			const firstPatchData = (await firstPatchRes.json()) as {
-				pipeline: { bughunt: 0 | 1; wrapupMode: 'auto' | 'manual' };
-			};
-			// E-157：PATCH 响应已含新值（但 UI 不用响应体直接翻转，要等 SSE）
-			expect(firstPatchData.pipeline.wrapupMode).toBe(firstPatchTarget);
-
-			// 等待 SSE 事件回流（先让页面 SSE 建立连接）
 			await page.waitForFunction(
 				() => document.documentElement.getAttribute('data-connection-status') === 'online',
 				{ timeout: 15000 },
 			);
 
-			// 等待顶栏 wrapupMode 开关更新为新值
-			const newWrapupLabel = firstPatchTarget === 'manual' ? '手动' : '自动';
+			// 读取基线：当前 wrapupMode 和 bughunt
+			const baselineBefore = await page.evaluate(() => {
+				const wrapupBtn = document.querySelector(
+					'[data-layout="topbar"] [data-pipeline-toggle="wrapupMode"] button[aria-pressed="true"]',
+				);
+				const bughuntBtn = document.querySelector(
+					'[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+				);
+				return {
+					wrapupMode: wrapupBtn?.textContent?.trim() ?? null,
+					bughunt: bughuntBtn?.textContent?.trim() ?? null,
+				};
+			});
+
+			// 收集界面发出的所有 PATCH 请求体
+			const capturedPatchBodies: Array<Record<string, unknown>> = [];
+			const onWrite = (request: import('playwright').Request) => {
+				if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/settings/pipeline')) {
+					capturedPatchBodies.push(JSON.parse(request.postData() ?? '{}') as Record<string, unknown>);
+				}
+			};
+			page.on('request', onWrite);
+
+			// 第一次 UI 操作：在顶栏切换 wrapupMode
+			const wrapupTargetLabel = baselineBefore.wrapupMode === '自动' ? '手动' : '自动';
+			const wrapupBtn = page.locator(
+				`[data-layout="topbar"] [data-pipeline-toggle="wrapupMode"] button:has-text("${wrapupTargetLabel}")`,
+			);
+			await wrapupBtn.waitFor({ state: 'visible', timeout: 5000 });
+			await wrapupBtn.click();
+
+			// 等待第一次 PATCH 的 SSE 确认（顶栏 wrapupMode 显示新值）
 			await page.waitForFunction(
 				(expectedLabel) => {
 					const btn = document.querySelector(
@@ -931,71 +1029,121 @@ describe(
 					);
 					return btn?.textContent?.trim() === expectedLabel;
 				},
-				newWrapupLabel,
+				wrapupTargetLabel,
+				{ timeout: 20000 },
+			);
+
+			// 第一次 PATCH 完成后，wrapupMode 已通过 SSE 确认为新值
+			// 现在导航到设置页，在设置页编辑器切换 bughunt（第二次 UI 操作）
+			await page.goto(`http://127.0.0.1:${daemon.port}/#/settings/pipeline`, {
+				waitUntil: 'domcontentloaded',
+			});
+			await page.waitForFunction(
+				() => document.querySelectorAll('[data-layout="settings"] [data-pipeline-toggle]').length >= 2,
+				{ timeout: 15000 },
+			);
+			// 等待设置页开关加载完毕（SSE 快照已更新）
+			await page.waitForFunction(
+				(expectedWrapup) => {
+					const btn = document.querySelector(
+						'[data-layout="settings"] [data-pipeline-toggle="wrapupMode"] button[aria-pressed="true"]',
+					);
+					return btn?.textContent?.trim() === expectedWrapup;
+				},
+				wrapupTargetLabel,
 				{ timeout: 15000 },
 			);
 
-			// 第二次 PATCH：E-356 验证不携带旧四键（只改 bughunt，wrapupMode 保持新值）
-			const secondPatchBughunt: 0 | 1 = initialSettings.bughunt === 0 ? 1 : 0;
-			const secondPatchBody = {
-				bughunt: secondPatchBughunt,
-				// E-356：必须带最新 wrapupMode（不能带初始的旧值）
-				wrapupMode: firstPatchTarget,
-				reviewOverride: initialSettings.reviewOverride,
-				wrapupAssignment: initialSettings.wrapupAssignment,
-			};
-			const secondPatchRes = await fetch(
-				`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`,
-				{
-					method: 'PATCH',
-					headers: {
-						'Content-Type': 'application/json',
-						Authorization: `Bearer ${adminToken}`,
-					},
-					body: JSON.stringify(secondPatchBody),
-				},
+			const bughuntTargetLabel = baselineBefore.bughunt === '开' ? '关' : '开';
+			const settingsBughuntBtn = page.locator(
+				`[data-layout="settings"] [data-pipeline-toggle="bughunt"] button:has-text("${bughuntTargetLabel}")`,
 			);
-			expect(secondPatchRes.status).toBe(200);
-			const secondPatchData = (await secondPatchRes.json()) as {
-				pipeline: { bughunt: 0 | 1; wrapupMode: 'auto' | 'manual' };
-			};
-			// 第二次 PATCH 的 wrapupMode 应为第一次 PATCH 后的值，不是初始值
-			expect(secondPatchData.pipeline.wrapupMode).toBe(firstPatchTarget);
-			expect(secondPatchData.pipeline.bughunt).toBe(secondPatchBughunt);
+			await settingsBughuntBtn.waitFor({ state: 'visible', timeout: 5000 });
+			await settingsBughuntBtn.click();
+
+			// 等待第二次 PATCH 的 SSE 确认
+			await page.waitForFunction(
+				(expectedLabel) => {
+					const btn = document.querySelector(
+						'[data-layout="settings"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+					);
+					return btn?.textContent?.trim() === expectedLabel;
+				},
+				bughuntTargetLabel,
+				{ timeout: 20000 },
+			);
+
+			page.off('request', onWrite);
+
+			// E-356：验证两次 PATCH 体都存在
+			expect(capturedPatchBodies.length).toBeGreaterThanOrEqual(2);
+
+			const firstPatch = capturedPatchBodies[0];
+			const secondPatch = capturedPatchBodies[capturedPatchBodies.length - 1];
+
+			// 第一次（顶栏切 wrapupMode）：四键完整，wrapupMode 是新值
+			expect(typeof firstPatch.bughunt).toBe('number');
+			expect(['auto', 'manual']).toContain(firstPatch.wrapupMode);
+			expect('reviewOverride' in firstPatch).toBe(true);
+			expect('wrapupAssignment' in firstPatch).toBe(true);
+
+			// E-356 核心断言：第二次（设置页切 bughunt）的 wrapupMode 必须是
+			// 第一次 SSE 确认后的新值，不能是初始的旧值
+			const initialWrapupMode = baselineBefore.wrapupMode === '自动' ? 'auto' : 'manual';
+			const newWrapupMode = initialWrapupMode === 'auto' ? 'manual' : 'auto';
+			// 第二次 PATCH 发出时，前端快照里的 wrapupMode 应已更新为新值
+			expect(secondPatch.wrapupMode).toBe(newWrapupMode);
+			// 第二次 PATCH 的 bughunt 是切换后的值
+			const expectedBughuntVal = bughuntTargetLabel === '开' ? 1 : 0;
+			expect(secondPatch.bughunt).toBe(expectedBughuntVal);
+
+			// 保存两次 PATCH 请求体证据（AC3 客观证据）
+			writeFileSync(
+				join(artifactsDir, 'ps-e356-patch-sequence.json'),
+				JSON.stringify({ firstPatch, secondPatch, allBodies: capturedPatchBodies }, null, 2),
+				'utf8',
+			);
 
 			// 恢复初始值
+			const restoreRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
+				headers: { Authorization: `Bearer ${adminToken}` },
+			});
+			const restoreData = (await restoreRes.json()) as {
+				pipeline: { bughunt: 0 | 1; wrapupMode: 'auto' | 'manual'; reviewOverride: unknown; wrapupAssignment: { mode: string } };
+			};
 			await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
 				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${adminToken}`,
-				},
-				body: JSON.stringify(initialSettings),
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+				body: JSON.stringify({
+					...restoreData.pipeline,
+					bughunt: baselineBefore.bughunt === '开' ? 1 : 0,
+					wrapupMode: initialWrapupMode,
+				}),
 			});
 		});
 
+
 		// ================================================================
-		// AC3 step 8：另一真实设备更新及断线恢复
+		// AC3 step 8：另一真实设备发起 UI 操作，首设备通过 SSE 同步
 		// ================================================================
-		it('AC3 step 8: 另一真实设备通过 SSE 收到更新（两台设备一致）(AC 3, E-157)', async () => {
-			// 两台设备都导航到主页
+		it('AC3 step 8: 另一真实设备通过 UI 点击触发更新，首设备 SSE 同步 (AC 3, E-157)', async () => {
+			// 两台设备都导航到主页（桌面宽度，顶栏开关可见）
 			await page.setViewportSize({ width: 1280, height: 800 });
+			await page2.setViewportSize({ width: 1280, height: 800 });
 			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
 			await page2.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
 
-			// 等待两台设备都在线
+			// 等待两台设备都在线且开关加载完毕
 			for (const p of [page, page2]) {
 				await p.waitForFunction(
 					() => document.documentElement.getAttribute('data-connection-status') === 'online',
 					{ timeout: 15000 },
 				);
+				await p.waitForFunction(
+					() => document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle]').length >= 2,
+					{ timeout: 15000 },
+				);
 			}
-
-			// 等待设备 2 的顶栏开关加载
-			await page2.waitForFunction(
-				() => document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle]').length >= 2,
-				{ timeout: 15000 },
-			);
 
 			// 读取设备 2 当前 bughunt 值（作为基线）
 			const device2BughuntBefore = await page2.evaluate(() => {
@@ -1005,30 +1153,16 @@ describe(
 				return btn ? btn.textContent?.trim() : null;
 			});
 
-			// 通过 API（模拟设备 1 操作）改变 bughunt 值
-			const getPipelineRes = await fetch(
-				`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`,
-				{ headers: { Authorization: `Bearer ${adminToken}` } },
+			// R3：设备 2 自己通过 UI 点击（真实浏览器界面操作）触发 PATCH，
+			// 不能用测试进程构造 fetch 替代界面行为
+			const device2TargetLabel = device2BughuntBefore === '开' ? '关' : '开';
+			const device2BughuntBtn = page2.locator(
+				`[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button:has-text("${device2TargetLabel}")`,
 			);
-			const currentPipeline = (await getPipelineRes.json()) as {
-				pipeline: { bughunt: 0 | 1; wrapupMode: 'auto' | 'manual'; reviewOverride: unknown; wrapupAssignment: { mode: string } };
-			};
-			const newBughunt: 0 | 1 = currentPipeline.pipeline.bughunt === 0 ? 1 : 0;
-			const expectedDevice2Label = newBughunt === 1 ? '开' : '关';
+			await device2BughuntBtn.waitFor({ state: 'visible', timeout: 5000 });
+			await device2BughuntBtn.click();
 
-			await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${adminToken}`,
-				},
-				body: JSON.stringify({
-					...currentPipeline.pipeline,
-					bughunt: newBughunt,
-				}),
-			});
-
-			// AC3/E-157：设备 2 收到 settings.pipeline_changed 事件后自动更新（不需要刷新页面）
+			// 设备 2 等待 SSE 确认自己的操作（data-pending 解除）
 			await page2.waitForFunction(
 				(expectedLabel) => {
 					const btn = document.querySelector(
@@ -1036,7 +1170,7 @@ describe(
 					);
 					return btn?.textContent?.trim() === expectedLabel;
 				},
-				expectedDevice2Label,
+				device2TargetLabel,
 				{ timeout: 20000 },
 			);
 
@@ -1046,18 +1180,47 @@ describe(
 				);
 				return btn ? btn.textContent?.trim() : null;
 			});
-			expect(device2BughuntAfter).toBe(expectedDevice2Label);
+			expect(device2BughuntAfter).toBe(device2TargetLabel);
 
-			// 恢复初始值
+			// AC3/E-157：首设备（page）通过 SSE 收到 settings.pipeline_changed 事件，
+			// 不需要刷新，自动更新到新值
+			await page.waitForFunction(
+				(expectedLabel) => {
+					const btn = document.querySelector(
+						'[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+					);
+					return btn?.textContent?.trim() === expectedLabel;
+				},
+				device2TargetLabel,
+				{ timeout: 20000 },
+			);
+
+			const device1BughuntAfter = await page.evaluate(() => {
+				const btn = document.querySelector(
+					'[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+				);
+				return btn ? btn.textContent?.trim() : null;
+			});
+			// 首设备与设备 2 一致（通过 SSE 而非刷新实现同步）
+			expect(device1BughuntAfter).toBe(device2BughuntAfter);
+
+			// 恢复初始值（用管理员 API，因为设备 1/2 的 sessionStorage token 权限可能不同）
+			const restoreRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
+				headers: { Authorization: `Bearer ${adminToken}` },
+			});
+			const restorePipeline = (await restoreRes.json()) as {
+				pipeline: { bughunt: 0 | 1; wrapupMode: 'auto' | 'manual'; reviewOverride: unknown; wrapupAssignment: { mode: string } };
+			};
 			await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
 				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${adminToken}`,
-				},
-				body: JSON.stringify(currentPipeline.pipeline),
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+				body: JSON.stringify({
+					...restorePipeline.pipeline,
+					bughunt: device2BughuntBefore === '开' ? 1 : 0,
+				}),
 			});
 		});
+
 
 		it('AC3 step 9: 断线后恢复时设置值与 daemon 一致 (AC 3, E-157, E-318)', async () => {
 			await page.setViewportSize({ width: 1280, height: 800 });
@@ -1092,30 +1255,48 @@ describe(
 				// 某些情况下断线检测可能需要等待 SSE 心跳超时，允许继续
 			});
 
-			// 断线期间通过管理员 API（不受 page offline 影响）改变值
-			const getPipelineRes = await fetch(
-				`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`,
-				{ headers: { Authorization: `Bearer ${adminToken}` } },
+			// 确保第二台设备在线且在主页
+			await page2.bringToFront();
+			await page2.waitForFunction(
+				() => document.documentElement.getAttribute('data-connection-status') === 'online',
+				{ timeout: 15000 },
 			);
-			const pipelineNow = (await getPipelineRes.json()) as {
-				pipeline: { bughunt: 0 | 1; wrapupMode: 'auto' | 'manual'; reviewOverride: unknown; wrapupAssignment: { mode: string } };
-			};
-			const newBughuntDuringOffline: 0 | 1 = pipelineNow.pipeline.bughunt === 0 ? 1 : 0;
-			const newBughuntLabel = newBughuntDuringOffline === 1 ? '开' : '关';
+			await page2.waitForFunction(
+				() => document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle]').length >= 2,
+				{ timeout: 15000 },
+			);
 
-			await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${adminToken}`,
-				},
-				body: JSON.stringify({
-					...pipelineNow.pipeline,
-					bughunt: newBughuntDuringOffline,
-				}),
+			// 读取第二设备当前 bughunt 值
+			const device2BughuntBefore = await page2.evaluate(() => {
+				const btn = document.querySelector(
+					'[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+				);
+				return btn ? btn.textContent?.trim() : null;
 			});
+			const newBughuntLabel = device2BughuntBefore === '开' ? '关' : '开';
 
-			// 恢复网络
+			// 断线期间由第二台设备（真实浏览器 UI）发起变更
+			// 不能用测试进程手工构造 fetch 替代界面行为
+			const device2Btn = page2.locator(
+				`[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button:has-text("${newBughuntLabel}")`,
+			);
+			await device2Btn.waitFor({ state: 'visible', timeout: 5000 });
+			await device2Btn.click();
+
+			// 等待第二台设备通过自己的 SSE 确认变更
+			await page2.waitForFunction(
+				(expectedLabel) => {
+					const btn = document.querySelector(
+						'[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+					);
+					return btn?.textContent?.trim() === expectedLabel;
+				},
+				newBughuntLabel,
+				{ timeout: 15000 },
+			);
+
+			// 恢复第一台设备的网络
+			await page.bringToFront();
 			await page.context().setOffline(false);
 
 			// 等待 SSE 重连并恢复数据
@@ -1146,21 +1327,31 @@ describe(
 			expect(bughuntAfterReconnect).toBe(newBughuntLabel);
 
 			// 恢复初始值
+			const currentRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
+				headers: { Authorization: `Bearer ${adminToken}` },
+			});
+			const currentData = (await currentRes.json()) as {
+				pipeline: { bughunt: 0 | 1; wrapupMode: 'auto' | 'manual'; reviewOverride: unknown; wrapupAssignment: { mode: string } };
+			};
 			await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
 					Authorization: `Bearer ${adminToken}`,
 				},
-				body: JSON.stringify(pipelineNow.pipeline),
+				body: JSON.stringify({
+					...currentData.pipeline,
+					bughunt: device2BughuntBefore === '开' ? 1 : 0,
+				}),
 			});
 		});
 
 		// ================================================================
-		// AC4 step 10：null/错误/恢复用例客观证据（E-26, E-318）
 		// ================================================================
-		it('AC4 step 10: E-26 null 占位符与错误恢复客观证据 (AC 4, E-26, E-318)', async () => {
-			// E-26：GET /api/v1/settings/pipeline 返回完整四键（daemon 默认值）
+		// AC4 step 10：null、错误与恢复客观断言（E-26, E-318, E-356）
+		// ================================================================
+		it('AC4 step 10: E-26 null 占位符、E-356 错误校验与故障恢复客观证据 (AC 4, E-26, E-318, E-356)', async () => {
+			// 1. E-318: GET /api/v1/settings/pipeline 返回完整四键默认值，不为 null
 			const res = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
 				headers: { Authorization: `Bearer ${adminToken}` },
 			});
@@ -1174,13 +1365,11 @@ describe(
 				};
 			};
 
-			// E-318：缺行时返回完整四键默认值，不为 null
 			expect(data.pipeline).toBeDefined();
 			expect([0, 1]).toContain(data.pipeline.bughunt);
 			expect(['auto', 'manual']).toContain(data.pipeline.wrapupMode);
 
-			// E-26：bughunt 与 wrapupMode 都有有效值（不是 null，不应该显示「—」）
-			// 在 UI 中验证（E-26：有值时不显示「—」占位符）
+			// 2. 正常情况下：bughunt 与 wrapupMode 都有有效值，在真实 UI 中不应展示置灰占位符「—」
 			await page.setViewportSize({ width: 1280, height: 800 });
 			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
 			await page.waitForFunction(
@@ -1188,37 +1377,157 @@ describe(
 				{ timeout: 15000 },
 			);
 
-			// E-26：有值时不显示「—」占位符（data-disabled 不应存在于顶栏开关）
-			const hasNullPlaceholder = await page.evaluate(() => {
-				const containers = document.querySelectorAll(
-					'[data-layout="topbar"] [data-pipeline-toggle]',
+			const normalHasNullPlaceholder = await page.evaluate(() => {
+				const placeholders = document.querySelectorAll(
+					'[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]',
 				);
-				for (const c of containers) {
-					// 占位符是 [data-disabled="true"] 的 div
-					const placeholder = c.querySelector('[data-disabled="true"]');
-					if (placeholder) return true;
-				}
-				return false;
+				return placeholders.length > 0;
 			});
-			// E-26：值从 daemon 加载成功后不应有占位符
-			expect(hasNullPlaceholder).toBe(false);
+			expect(normalHasNullPlaceholder).toBe(false);
 
-			// E-356：PATCH 缺任一四键返回 E_VALIDATION
-			const badPatchRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
+			// 3. E-26 客观断言：当后端字段缺失/为 null 时，UI 必须显示「—」占位符，不得拿 0 冒充
+			// 创建独立页面拦截 GET 请求注入 null pipeline，验证 SegmentedToggle 的 placeholder="—" 渲染
+			const nullPage = await context.newPage();
+			await nullPage.route('**/api/v1/settings/pipeline', async (route) => {
+				const req = route.request();
+				if (req.method() === 'GET') {
+					await route.fulfill({
+						status: 200,
+						contentType: 'application/json',
+						body: JSON.stringify({
+							pipeline: {
+								bughunt: null,
+								wrapupMode: null,
+								reviewOverride: null,
+								wrapupAssignment: { mode: 'follow' },
+							},
+						}),
+					});
+				} else {
+					await route.continue();
+				}
+			});
+
+			await nullPage.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
+			await nullPage.waitForFunction(
+				() =>
+					document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]').length >= 1,
+				{ timeout: 15000 },
+			);
+
+			const placeholderTexts = await nullPage.evaluate(() => {
+				const els = document.querySelectorAll(
+					'[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]',
+				);
+				return Array.from(els).map((el) => el.textContent?.trim());
+			});
+			// E-26 核心断言：缺少生效值时展示置灰「—」占位符
+			expect(placeholderTexts.length).toBeGreaterThan(0);
+			expect(placeholderTexts.every((t) => t === '—')).toBe(true);
+
+			// 验证恢复：解除 null 路由拦截后重新加载，UI 恢复显示真实切换开关
+			await nullPage.unroute('**/api/v1/settings/pipeline');
+			await nullPage.reload({ waitUntil: 'domcontentloaded' });
+			await nullPage.waitForFunction(
+				() =>
+					document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle] button').length >= 4,
+				{ timeout: 15000 },
+			);
+			const recoveredPlaceholders = await nullPage.evaluate(() => {
+				return document.querySelectorAll(
+					'[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]',
+				).length;
+			});
+			expect(recoveredPlaceholders).toBe(0);
+			await nullPage.close();
+
+			// 4. E-356 错误校验断言：
+			// 4a. 缺四键任一键：返回 400 + E_VALIDATION
+			const badMissingKeysRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
 					Authorization: `Bearer ${adminToken}`,
 				},
-				// 故意只传两键（缺 reviewOverride 和 wrapupAssignment）
+				body: JSON.stringify({ bughunt: 0, wrapupMode: 'auto' }),
+			});
+			expect(badMissingKeysRes.status).toBe(400);
+			const badMissingKeysData = (await badMissingKeysRes.json()) as { error: { code: string } };
+			expect(badMissingKeysData.error.code).toBe('E_VALIDATION');
+
+			// 4b. 包含未知非法键：AJV additionalProperties:false 拒绝，返回 400 + E_VALIDATION
+			const badUnknownKeyRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${adminToken}`,
+				},
 				body: JSON.stringify({
 					bughunt: 0,
 					wrapupMode: 'auto',
+					reviewOverride: null,
+					wrapupAssignment: { mode: 'follow' },
+					unknownField: 'not_allowed',
 				}),
 			});
-			expect(badPatchRes.status).toBe(400);
-			const badPatchData = (await badPatchRes.json()) as { error: { code: string } };
-			expect(badPatchData.error.code).toBe('E_VALIDATION');
+			expect(badUnknownKeyRes.status).toBe(400);
+			const badUnknownKeyData = (await badUnknownKeyRes.json()) as { error: { code: string } };
+			expect(badUnknownKeyData.error.code).toBe('E_VALIDATION');
+
+			// 5. UI 故障恢复断言：
+			// 当用户在 UI 触发 PATCH 但服务端返回 500 错误时，
+			// 前端必须解除 isPending（按钮恢复可用，不永久卡在 pending），并能继续操作
+			await page.bringToFront();
+			await page.route('**/api/v1/settings/pipeline', async (route) => {
+				const req = route.request();
+				if (req.method() === 'PATCH') {
+					await route.fulfill({
+						status: 500,
+						contentType: 'application/json',
+						body: JSON.stringify({ error: { code: 'E_INTERNAL', message: 'Simulated failure' } }),
+					});
+				} else {
+					await route.continue();
+				}
+			});
+
+			const bughuntActiveBeforeError = await page.evaluate(() => {
+				const btn = document.querySelector(
+					'[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+				);
+				return btn ? btn.textContent?.trim() : null;
+			});
+			const tryTargetLabel = bughuntActiveBeforeError === '开' ? '关' : '开';
+			const tryBtn = page.locator(
+				`[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button:has-text("${tryTargetLabel}")`,
+			);
+			await tryBtn.click();
+
+			// 发生 500 错误后，pending 必须自动解除（publish({ isPending: false })）
+			await page.waitForFunction(
+				() =>
+					document.querySelector('[data-layout="topbar"] [data-component="pipeline-toggles"]')
+						?.getAttribute('data-pending') !== 'true',
+				{ timeout: 10000 },
+			);
+
+			// UI 按钮恢复为非 disabled，值保持原值（不因错误而翻转）
+			const bughuntActiveAfterError = await page.evaluate(() => {
+				const container = document.querySelector('[data-layout="topbar"] [data-component="pipeline-toggles"]');
+				const btn = container?.querySelector('[data-pipeline-toggle="bughunt"] button[aria-pressed="true"]');
+				const anyDisabled = Array.from(container?.querySelectorAll('button') ?? []).some(
+					(b) => (b as HTMLButtonElement).disabled,
+				);
+				return {
+					activeText: btn?.textContent?.trim() ?? null,
+					anyDisabled,
+				};
+			});
+			expect(bughuntActiveAfterError.activeText).toBe(bughuntActiveBeforeError);
+			expect(bughuntActiveAfterError.anyDisabled).toBe(false);
+
+			// 解除 500 错误拦截
+			await page.unroute('**/api/v1/settings/pipeline');
 
 			// 保存客观证据（AC4）
 			writeFileSync(
@@ -1227,9 +1536,18 @@ describe(
 					{
 						getPipelineStatus: res.status,
 						pipelineKeys: Object.keys(data.pipeline),
-						hasNullPlaceholder,
-						badPatchStatus: badPatchRes.status,
-						badPatchCode: badPatchData.error.code,
+						normalHasNullPlaceholder,
+						nullPlaceholderRendered: placeholderTexts,
+						recoveredPlaceholders,
+						badMissingKeysStatus: badMissingKeysRes.status,
+						badMissingKeysCode: badMissingKeysData.error.code,
+						badUnknownKeyStatus: badUnknownKeyRes.status,
+						badUnknownKeyCode: badUnknownKeyData.error.code,
+						uiErrorRecovery: {
+							activeBeforeError: bughuntActiveBeforeError,
+							activeAfterError: bughuntActiveAfterError.activeText,
+							buttonsReenabled: !bughuntActiveAfterError.anyDisabled,
+						},
 					},
 					null,
 					2,
