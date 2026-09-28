@@ -1,1 +1,569 @@
-{}
+{
+  "M1-T11": {
+    "contractHash": "4df73ac680657684e9f9f83f48d3c77e2fdf436d1a7c126e94eb2cbbc170b3d1",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T1": {
+    "contractHash": "a9562363a25db6200e982845578a7ad454d54e8a503915d401a21b773f49a751",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T2": {
+    "contractHash": "23de0ad7261c9e070a047e80cc81bd190cd5aa73afa1cbe5211b08d501d2d5da",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T3": {
+    "contractHash": "507b5a8767cbc529715e051c0348773f1ecbae792ca4abb709f3f0c3c99cba48",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T4": {
+    "contractHash": "e5d9214b6b8857f5a4d6b1983bc817b73079b3808d5ff21bb5d0f750b1763b66",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T5": {
+    "contractHash": "d833591bd92e32a38fa86f2c222fc65abd4b465d8e7a26ee44927eed41f2bf9d",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T6": {
+    "contractHash": "7e8be0053fae377721225b514433c107a4a041a42fb0251391f2a9a5a59678f2",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T8": {
+    "contractHash": "74d22d5918a463f3df3f381642164191b1186ea8a94220307b5bf9a97b4f3f8f",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T1": {
+    "contractHash": "f017e1e199097eb44a6a59134b34bb493ad7e366cc04d86aa0fae0bbbb7117d9",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T10": {
+    "contractHash": "6937abf2da75efce6928436365a53afc393beab4ebdfcacfeb089a77635b6173",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T11": {
+    "contractHash": "e1b6144cd8cdf541d7f9555a23ca3d01aae43b81a58992ccb8b43ef302d2a8af",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T12": {
+    "contractHash": "a39ce98e15a3ab40f0c667deb1d159bce66f0146aae6931c717c2bb071ad777b",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T13": {
+    "contractHash": "100858d068bf33f94f07512291f2fc9c6a2b95e74c1acce5789db9f4f3c57050",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T14": {
+    "contractHash": "6cef888598be5f41ce2acf4cc993d0d34fca4b515de2fb4a8abfa1062edb206c",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T15": {
+    "contractHash": "a7779c2f5e19931d191094b7ef85bb9125a20b5d0e3dc04f39a90c0eff26ed2f",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T16": {
+    "contractHash": "5c99148d5bc64ac0e706c8c2d98b10c7cbad6b18d748d6d124d56c78b188f53f",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T17": {
+    "contractHash": "d1aaa5485d40222bda3dc17d3b72a97fd0caf2e504e8348d9843dc5fd3e08766",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T18": {
+    "contractHash": "61db9eb658cf88ef8c6f9cf52850bc4a7ff96770ce8d91d2af59d0897e2512c5",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T19": {
+    "contractHash": "d857b4d13b12b86b89aa69e4623910de22f9f81d220925b5dc3bc2caec372a2f",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T2": {
+    "contractHash": "cbf4be84e375b7e27b9112432fe2b370261cba59d517e6005307cf02e5655c27",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T20": {
+    "contractHash": "d3a5ef6456bf8d08ecbf6243768f05915afe73272e3ab111370c724672ffe83c",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T21": {
+    "contractHash": "2a50115534c33e09a6399294b6b2c955311656ec56e8daa778382b88cf1123b0",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T22": {
+    "contractHash": "2910929201970dd876d19d18399a1c0225bb61df9194c29aad384ca65fdd641a",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T24": {
+    "contractHash": "bcd4d13344178d2e04383cb673ccc5a74b7dffbdc473e2e171421b907563694d",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T25": {
+    "contractHash": "8c6c66cde8dd9c6e6d85996a4ae397d0261b319d34fef70c7c263a54c43c6941",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T26": {
+    "contractHash": "c0e18a59612956477ea31ea45bbaed0ddaf49e9d426c927bde8839148a526c1a",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T27": {
+    "contractHash": "82f78cbb104224d7f022c271c8573a76e74b7446f5b449ff1afa4afd65c0964a",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T3": {
+    "contractHash": "d554389d3b92fabb88ac249a1cb38ffe5f1b87d0267a271e5dd6aa8f51404498",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T4": {
+    "contractHash": "5456b5291656ca172f0f0f95882abe3aa09044768047ffe76dabc506f2e9c013",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T5": {
+    "contractHash": "42338fab7ae0da67bf1aae3e7940c0178c89de383a57f32995d2caf563b10479",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T6": {
+    "contractHash": "9126f32bdbf2f7b470c8c32c3136cc5e551377e0cf63ae1d904b3b71da9d600f",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T7": {
+    "contractHash": "0ae2afa6d16bd205d817babaf0a301ec4cc91deb63d97ddff104d5e96ff1a62a",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T8": {
+    "contractHash": "ba3866abec6bf1733c6675dd0751d7f5ef3f6db10cf9ddf10c7b74c5c998e08c",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T9": {
+    "contractHash": "31ed9f6ce7eb5dfb8a6c595a1dfae7ad6d238bcf39964d9122657fac677a8a09",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R13-T57054072": {
+    "contractHash": "0d9272dd7c5421dd6066d97c9324d445a5bbbee78f1b81c2380ff715e44e95e6",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R13-T98191508": {
+    "contractHash": "3dd04eea48624fa661848c712c3b786edcb0c790eec821be37ea80a0e5b54015",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R14-T23602992": {
+    "contractHash": "d169097455f13026387c0685fc13ce71bc3e8c7db748f4f5a581c866dc65a3c5",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R16-T41148998": {
+    "contractHash": "a60833f71680d68d5135f6b757ae47ac5a3f8225bfbf586e41d2ec6ecde0b8c6",
+    "patches": [
+      {
+        "changedFields": [
+          "task"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R16-T83723920": {
+    "contractHash": "a6b83fe49fbe734bf5522c335f1f49815819b7a867074d190d8034a52c7a9602",
+    "patches": [
+      {
+        "changedFields": [
+          "design",
+          "sections:02-设计/11-UI.md",
+          "task"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R16-T85823419": {
+    "contractHash": "224a768f87ec0c0d560d0a3e7e4d92fb909430bde7dae56d089150dc05206e73",
+    "patches": [
+      {
+        "changedFields": [
+          "task"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R8-T54786768": {
+    "contractHash": "e80ef6cf04b42e52faeee079d5746f5a679ef03ba585ff67413f05da36bd0101",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "desktop-density-20260929",
+        "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}
