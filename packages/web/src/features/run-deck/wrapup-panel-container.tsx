@@ -180,6 +180,37 @@ export function buildBatchLandingList(input: {
 		}
 	}
 
+	// A failed or interrupted wrapup has no parsed batch_wrapups row. Keep its
+	// worktree in the checklist so a human can inspect the unfinished changes.
+	const recordedRunIds = new Set(ordered.map((wrapup) => wrapup.runId));
+	const unfinishedRuns = runs
+		.filter(
+			(run) =>
+				run.kind === 'wrapup' &&
+				run.batchId === batchId &&
+				!recordedRunIds.has(run.id) &&
+				Boolean(run.worktreePath) &&
+				(['failed', 'aborted', 'interrupted', 'awaiting_human'] as const).some(
+					(state) => state === run.state,
+				),
+		)
+		.sort((a, b) => (a.startedAt ?? '').localeCompare(b.startedAt ?? ''));
+	for (const [index, run] of unfinishedRuns.entries()) {
+		const round = ordered.length + index + 1;
+		rows.push({
+			id: `unfinished:${run.id}`,
+			kind: 'wrapup',
+			round,
+			label: `未完成的收口改动 · 第 ${round} 轮`,
+			branchName: run.branchName,
+			worktreePath: run.worktreePath,
+			diffStat: null,
+			inHead: run.isInHead ?? null,
+			command: composeBatchLandingCommand(run.worktreePath, run.branchName),
+			runId: run.id,
+		});
+	}
+
 	return Object.freeze({
 		batchId,
 		batchNo: batchNo ?? wrapups[0]?.batchNo ?? null,

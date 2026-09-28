@@ -364,11 +364,11 @@ jobs:
           pnpm_bin="$(command -v pnpm)"
           sudo -E env "PATH=$PATH" "$pnpm_bin" e2e
 
-      - name: Upload E2E Smoke Failure Artifacts (AC 5)
-        if: failure()
+      - name: Upload E2E Smoke Artifacts and Browser Evidence (AC 4, E-265)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-smoke-failure-artifacts
+          name: e2e-smoke-artifacts
           path: e2e/artifacts/**
           if-no-files-found: ignore
           retention-days: 7

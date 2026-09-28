@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R14-T23602992": {
+      "contractHash": "86cde1d561b01d03368670cad0f042edc74eb6e025d4c0ea910e99fe28cc25cd",
+      "evidence": [
+        "The batch-14 source task, generated R14-T23602992 task note, and 17-test-strategy acceptance still require the production daemon/browser, dispatch, wrapup, and release checks; no acceptance or edge was removed.",
+        "packages/daemon/src/service/dispatch.ts:2113,2144 is required by the actual wrapup spawn path to pass the frozen registry executable path to buildLaunchSpec; the existing PR edits only this support seam, so it is now explicitly in the effective paths.",
+        "Contract verification covers the path correction only; implementation acceptance and landing require their separate review verdict."
+      ],
+      "verdict": "pass"
+    }
+  }
+}

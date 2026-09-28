@@ -1116,18 +1116,14 @@
     "verdict": "pass"
   },
   "R14-T23602992": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "59e3d81cee63befb41deb4bfbb0dde985a351ef9b2f5777548da6fbc1378a131",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "4a62b18bf27cac09a31638d7938bac96c3fa90ac13bc5d51fb8896be778380da",
     "evidence": [
-      "2026-09-25 本轮契约复核：旧记录哈希 none，当前哈希 ffd29532330e；逐项比对 P-R8-T54786768、r8-t54786768-err-handler-support-20260925、r8-e133-live-transport 的 changes.before/after。除共享 08/10 节指纹和上游哈希传播外，本任务直接变化路径：无。",
-      "共享条款现要求 elevate_once 仅答复真实 Codex 待处理的授权请求，按请求 ID 在同一会话确认交付；非法状态仅 operation=elevate_once 映射 409。当前 shared schema、daemon MessageService/Codex app-server 会话与 Web 按钮已接线；正式入口的 R8-T54786768 当前复核记录含真实浏览器与同 runId 证据。本轮在 main ba32db1ff99c 的关联测试 166/166 通过（协议、路由、消息、状态、查 bug、批次汇总、前端）。",
-      "R14-T23602992 任务笔记 status: todo；本次是任务要求的语义复核，不代表代码已实现或落地。验收标准、边界、前置和有效范围仍由当前任务笔记与结构检查约束。",
-      "R14-T23602992 源自第 14 批 open 收口：五项验收覆盖正式配对、指派、真实 spawn、SSE 到 DOM、收口报告与三平台 smoke；17 个边界与有效路径已列明，前置任务未全落地时仍保持待派。",
-      "2026-09-26 复核当前契约哈希：本任务不在 revalidation.json 标记中，但旧复核记录与当前源版本不同；对照 main 94fc048a..e6275175 的 10/13/19 节与任务笔记变化，更新契约复核，不改变任务状态。",
-      "本轮共享条款核对：10 节删除 E_MODEL_INVALID 的 HTTP 422 示例和错误码表项，增加 run.model_rejected 事件，只在 agent 协议提供模型专用结构化 code/type 时精确标注；自由文本、通用错误类别及零产出退出按 E-348 转人。shared events、Codex/Claude 适配器、RunService、RerunService 与当前文档一致；聚焦测试 142/142 通过，错误码检查 48 项一致。",
-      "任务笔记 status: todo；本轮只确认任务契约与共享条款可审查，不声明实现或落地。"
+      "CI 运行 36484631082 的 E2E Smoke 在 Step 5 失败：真实 GateDto 已有零产出诊断，但等待任务卡只显示通用审批文案；失败截图与 DOM 在该运行的 e2e-smoke-artifacts。",
+      "有效路径增补 gate-card.tsx、run-deck-view.tsx 与 run-deck-container.test.tsx，对应 E-348/E-278 的正式 DTO 到页面投影缺口；未改变验收标准。",
+      "产品补丁在 GateCard 读取 gate.context，并在任务审批卡读取审查 RunDto 的 verdict/reworkText；39 项聚焦测试、Biome 与 TypeScript 检查通过。"
     ],
-    "reviewed": "2026-09-25T17:43:12.017907+00:00",
+    "reviewed": "2026-09-28T21:23:36.768154+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
