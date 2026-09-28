@@ -1439,6 +1439,17 @@ function rivalsOf(id){
 
 /* ── 该调哪些技能：按任务特征算，一条一行——时机、拿到什么、不调会漏什么 ── */
 function isFrontend(mod){ return (HO.frontendModules||[]).indexOf(mod) >= 0; }
+/* product 语域（后台、工作台、代理层，或包着 product 的 h5 / commerce）才套桌面密度底线；brand 的留白是设计的一部分 */
+function isProductRegister(){
+  var r = String(((HO.design || {}).register) || "").trim().toLowerCase();
+  if(!r) return false;
+  if(/^(product|后台|工作台|workbench|back-?office|dashboard|console)/.test(r)) return true;
+  return /^(h5|commerce)/.test(r) && /product|后台|工作台|plp|列表/.test(r);
+}
+function densityFor(mod){ return isFrontend(mod) && isProductRegister(); }
+function densityRun(){
+  return "node \"" + HDOCS + "/_run/density_probe.js\" <页面 URL> --type <work|form|card> --density <DENSITY>";
+}
 /* 谁依赖我。没有下游就是栈顶，合它就是整栈落地 */
 function dependentsOf(id){
   return (DT.tasks||[]).filter(function(x){ return (x.deps||[]).indexOf(id) >= 0; });
@@ -1451,13 +1462,14 @@ function skillsFor(t, side){
     S.push(["gh-stack", "切层、push 时", "每条命令的非交互标志；不带 --json/--auto 会卡死在全屏 TUI 且不报错"]);
     S.push(["dsh-prose-standard", "写实施沉淀时", "先枚举命题再删、全部存活才算改进；不调会写成一句正确的废话"]);
     S.push(["dsh-trim-cot-leakage", "沉淀写完后", "清掉「本来想…后来改成」这类只有在场者才解析得了的话"]);
-    if(fe) S.push(["finesse-ui", "写组件与样式时", "把既定 token 落成组件、覆盖八态与手机档；register 与方向已定死，不重判、不重定、不出预览页"]);
+    if(fe) S.push(["finesse-ui", "写组件与样式时", "把既定 token 与间距契约落成组件、覆盖八态与手机档；外壳与间距查 product-ui.md §1/§8（表单设置页叠 workflow-ui.md，代理层叠 ai-console.md §8）；register 与方向已定死，不重判、不重定、不出预览页，component-scope 的预览文件也不出"]);
     if(fe) S.push(["record-browser-gif", "交审查前", "从真实服务录 GIF，等待条件用 DOM 状态不用固定延时；没有 GIF 的界面任务多半被打回"]);
     S.push(["dsh-pre-push-checks", "推送前", "按本层 diff 挑最小充分测试集跑一遍；不许 --passWithNoTests、不许裸 --force"]);
     if(hasJudgments(t)) S.push(["typesafe-ai", "写判断层时", "先读 live docs 的 API/SDK 页与最近的 cookbook；一题一判断、criteria 带兜底、独立问题一次送、概率与 confidence 分开用；问题与阈值常量只放注册表文件，密钥只从服务端配置读"]);
   }else{
     S.push(["dsh-code-review", "打完勾之后", "接口两侧契约、生命周期与并发、绕过校验的入口、测试是否只把实现重写一遍；不调会放过「每条都做了但合起来是错的」"]);
-    if(fe) S.push(["finesse-ui", "看 GIF 之前", "audit 只读命令：组件八态、对比度与焦点顺序、偷懒默认、手机六类硬伤"]);
+    if(fe) S.push(["finesse-ui", "看 GIF 之前", "audit 只读命令：组件八态、对比度与焦点顺序、偷懒默认、手机六类硬伤" +
+      (densityFor(t.module) ? "；桌面密度不归它管，按清单第 8 条跑 _run/density_probe.js" : "")]);
     if(fe) S.push(["record-browser-gif", "要验收证据时", "GIF 必须来自真实服务与真实轮次，不许 fixture 或 mock"]);
     if(hasJudgments(t)) S.push(["typesafe-ai", "核判断层时", "对照 10 节语义判断契约核问题 ID、原语、criteria 兜底与阈值来源；一次真实调用记录的 model 字段才是证据，录制应答不算；TYPESAFE_API_KEY 未设置不判 pass"]);
     S.push(["dsh-prose-standard", "核回填时", "原有命题有没有被删掉"]);
@@ -1697,12 +1709,30 @@ function designBlock(mod){
   if(d.avoid)     L.push("- 要避开：" + d.avoid);
   if(d.tokens){
     L.push("");
-    L.push("token 直接用，不自己编颜色、字号、圆角：");
+    L.push("token 直接用，不自己编颜色、字号、圆角、间距与容器宽度：");
     L.push("```css");
     L.push(String(d.tokens).replace(/^\n+|\n+$/g, ""));
     L.push("```");
   }
   if(d.components){ L.push(""); L.push("组件规范：" + String(d.components)); }
+  if(d.spacing){
+    L.push("");
+    L.push("间距与容器（DENSITY 的落地值，照抄；宽出来的屏幕换成更多列，不换成留白）：");
+    L.push(typeof d.spacing === "object" && !Array.isArray(d.spacing)
+      ? Object.keys(d.spacing).map(function(k){ return "- " + k + "：" + d.spacing[k]; }).join("\n")
+      : String(d.spacing));
+  }
+  if(densityFor(mod)){
+    L.push("");
+    L.push("桌面密度底线（手机有 mobile floor，桌面照这六条；刻度与页面类型见 11 节「间距与容器契约」）：");
+    L.push("- D1 间距不随断点放大：不写 sm:/md:/lg:/xl: 前缀把 padding、margin、gap 调大（p-4 sm:p-6、px-4 lg:px-8 都算）");
+    L.push("- D2 工作面（甲板、列表、表格、看板）不套 max-w-* mx-auto，1920/1440 下内容填满可用宽度 ≥ 85%；表单设置页的表单列限宽要靠左、右侧放侧栏，不把窄列居中");
+    L.push("- D3 网格列数不写死（lg:grid-cols-3 在 1–2 项时空出轨道），用 repeat(auto-fit, minmax(<最小宽>, 1fr)) 或按项数算");
+    L.push("- D4 块间距 ≤ 契约块间距 × 1.5，卡片内边距 ≤ 契约卡片内边距 + 4px");
+    L.push("- D5 空态、加载态不撑大空块：内边距 ≤ 24px，文案与动作靠左上，不用 p-8 / py-12 加居中占位");
+    L.push("- D6 主区域没有超过可用宽度 15% 的横向空带");
+    L.push("间距只认本段与 11 节的契约：不调 ui-ux-pro-max、frontend-design 来定间距——它们的 Tailwind 默认是营销站留白（max-w-7xl mx-auto、px-4 sm:px-6 lg:px-8、gap-6/8、卡片 p-6），和本项目的 DENSITY 冲突。");
+  }
   L.push("");
   L.push("完整说明在 11 节「视觉方向」。查组件写法调 finesse-ui，但不许它重判 register、重定方向、不出预览页——直接在产品代码里把 token 落成组件。未定的 UI/UX 取舍写成 2–5 个选项，交 Jev 的 design 模板裁决，不交用户选择。");
   return L.join("\n");
@@ -2000,6 +2030,7 @@ function implSections(t){
          (hasDeps ? "唯一例外：gh pr list --state open --head " + HPRE + "<前置ID> 显示某个前置的 PR 还开着，说明交接台状态被手点过了，那就叠上去：" +
                     "gh stack checkout " + HPRE + "<前置ID> && gh stack add " + br + "，并写进「自行裁决」）" : "）"));
   L.push("2. 实现，逐条对照验收标准与边界自检；然后跑测试：本任务有效路径下的测试文件 + 验收引用的 E-XX 对应用例必跑，其余按 dsh-pre-push-checks 挑最小充分集；lint 与测试命令在 17-测试策略，没写就 TESTS 记 skipped 并写明原因、回报里记一条 doc-issue，不猜命令。红的先修再交，别带着红提 PR。");
+  if(densityFor(t.module)) L.push("   界面改动：起真实服务，在 1920×1080 与 1440×900 跑 " + densityRun() + "（类型照 11 节「间距与容器契约」的页面表；项目没装 playwright 就在浏览器工具里执行文件中的 densityProbe），390×844 对照一次；D1–D6 有 fail 先修再交。");
   L.push("3. 提交、推送、开 PR（审查方靠 PR 看 diff，没有 PR 它无从下手）：");
   L.push("   git status --short 核对后只加本任务的文件：git add -- <路径…>（不用 git add -A，会把工作文件和别的会话的东西带进去）");
   L.push("   git commit -m \"" + t.id + " " + shq(t.title) + "\"");
@@ -2029,6 +2060,7 @@ function implSections(t){
   L.push("「自行裁决」一段：逐条写冲突、选项、Jev 的 line/model/option、采纳动作及清单外文件与理由；没有就写「无」。审查方逐条复核，缺项不能判通过。");
   L.push("入口可达证据：<从哪个入口怎么到达本任务产出，命令或路径>；没有接线要求写「无」");
   L.push("TESTS: <pass | fail | skipped> → 跑的命令与结果；skipped 写原因（17 节没命令就记 doc-issue）");
+  if(densityFor(t.module)) L.push("DENSITY: <pass | fail> → 每个改到的页面：类型、1920/1440 的 fill 与 D1–D6 结论；390 对照是否正常");
   L.push("末行：READY_FOR_REVIEW: " + br + " <PR 链接>");
   L.push(jevAdjudication(t.id + ":impl"));
   var appendix = appendixBlock(t); if(appendix) L.push(appendix);
@@ -2088,7 +2120,10 @@ function buildReview(t){
   L.push("6. 回填了没有：" + note);
   L.push("7. 打完勾再调 dsh-code-review 补语义评审——「做了，但做对了没」，逐条打勾发现不了");
   L.push("核对最终任务包的前置能力、有效路径、13/17/19 对应要求、接口字段与验收阶段；完成后填写 status 给出的 task-contract 证据模板，运行 maintain_docs.py verify --task " + t.id + " --evidence <证据JSON>（带同一文档目录）。脚本只登记真实复核，不自动证明语义通过。");
-  if(fe) L.push("8. 界面任务必须有从真实服务录的 GIF（record-browser-gif 核它）；没有不算 pass");
+  if(fe) L.push("8. 界面任务必须有从真实服务录的 GIF（record-browser-gif 核它" + (densityFor(t.module) ? "，桌面在 1440×900 录" : "") + "）；没有不算 pass" +
+    (densityFor(t.module) ? "。桌面密度：对本任务改到的每个页面，在 1920×1080 与 1440×900 跑 " + densityRun() +
+      "（类型与契约值照 11 节「间距与容器契约」；项目没装 playwright 就在浏览器工具里执行文件中的 densityProbe），390×844 对照一次，输出贴进 EVIDENCE。" +
+      "D2 填充率、D3 空网格轨、D6 横向空带 fail 即阻断；D1 断点放大留白、D4 间距超契约、D5 空态大空块在约 30 行内你自己改（review-fix 提交），超出的进 REWORK" : ""));
   L.push((fe ? "9" : "8") + ". 反造假扫描：① 在有效路径内 grep `not implemented|placeholder|stub|TODO|待接入|后续接入`，命中生产文件即阻断；② 门禁 / 闸门 / 探测函数返回硬编码 `true`/固定值即阻断；③ 注册表（接线要求段列的文件）里没有本任务条目即未接线、阻断；④ 前置代码位置里已有的类型 / 枚举 / 工具在本任务被另写一套即阻断；⑤ 界面任务 GIF 必须显示已加载样式（token 类的 computed style 生效），默认控件外观 = 未加载 = 阻断；⑥ 测试钩子（`window.__x`、`globalThis.__x`）出现在生产代码即阻断。" +
          (hasJudgments(t) ? "⑦ 判断层：TypeSafe 客户端在生产代码里被固定应答替换、阈值门禁恒返回通过、消费方只取 argmax 无视 confidence 分支，任一命中即阻断；验收证据是一次真实调用记录的 model 字段，测试全绿不算。" : ""));
   if(hasJudgments(t)) L.push((fe ? "10" : "9") + ". 判断层：TYPESAFE_API_KEY 未设置就不给结论，NEXT 写「请把 TYPESAFE_API_KEY 放进 .env（不进仓库）后再点『审查』」；设了就按 10 节语义判断契约逐问题核 ID、原语、criteria 兜底与阈值来源，并跑 17 节的判断用例集。");
@@ -2098,7 +2133,7 @@ function buildReview(t){
   L.push((fe ? (hasJudgments(t) ? "11" : "10") : (hasJudgments(t) ? "10" : "9")) + ". 审查实施方的「自行裁决」：每条复用它列出的全部候选，补入你从 diff 得到的新事实，运行 adjudicate（UI/UX 用 design）。Jev 与实施方不一致时以本次 Jev option 为准；漏列候选、无 Jev model/line、skipped/error 或裁决动作未落到 diff，均为阻断。审查任务自己产生的岔路口也按同一协议裁，不能在 NEXT 里把普通技术或 UI/UX 选择交给用户。");
   L.push(jevAdjudication(t.id + ":review"));
   L.push("## 分级：只有阻断项才打回");
-  L.push("阻断项：验收标准不满足；边界没处理；范围外改动且影响别的任务；违反 06/07/08 的分层与共用约定；数据会丢或错、权限能绕；测试红；生产文件命中占位/桩词；门禁/闸门/探测硬编码 true 或固定值；注册表缺本任务条目；重复实现前置已有类型/枚举/工具；GIF 样式未加载（token 类 computed style 未生效）；生产代码含 window.__x/globalThis.__x 测试钩子" + (hasJudgments(t) ? "；判断层客户端被固定应答替换、阈值门禁恒通过、无视 confidence 分支" : "") + "。");
+  L.push("阻断项：验收标准不满足；边界没处理；范围外改动且影响别的任务；违反 06/07/08 的分层与共用约定；数据会丢或错、权限能绕；测试红；生产文件命中占位/桩词；门禁/闸门/探测硬编码 true 或固定值；注册表缺本任务条目；重复实现前置已有类型/枚举/工具；GIF 样式未加载（token 类 computed style 未生效）；生产代码含 window.__x/globalThis.__x 测试钩子" + (hasJudgments(t) ? "；判断层客户端被固定应答替换、阈值门禁恒通过、无视 confidence 分支" : "") + (densityFor(t.module) ? "；桌面密度 D2/D3/D6 不达标（density_probe）" : "") + "。");
   L.push("非阻断项（命名、注释、小重复、格式、回填措辞、几行改完且不改行为的小毛病）不构成 rework：" +
          "不超过约 30 行、不动接口与数据结构的你自己顺手改——切到 " + br +
          " → 改 → git commit -m \"" + t.id + " review-fix: <改了什么>\" → gh stack push；更大的进 FOLLOW_UP，之后单开任务。「感觉还能更好」不是阻断项。");
@@ -2151,6 +2186,10 @@ function buildReview(t){
   L.push("- pass | fail | skipped → 跑的命令与结果；fail 即阻断，skipped 写原因");
   L.push("TS_CHECK");
   L.push("- run review 返回的 line，或 skipped");
+  if(densityFor(t.module)){
+    L.push("DENSITY");
+    L.push("- 每个改到的页面：类型 → 1920/1440 的 fill、interiorBand 与 D1–D6 结论 → 390 对照；D2/D3/D6 fail 即阻断");
+  }
   L.push("OUT_OF_SCOPE");
   L.push("- 范围外改动；没有写 none");
   L.push("ADJUDICATION");
@@ -2290,6 +2329,8 @@ function buildKickoff(){
   L.push("- 不改开发文档，也不手改 `图谱/` 下笔记的正文——那些是脚本派生的，重跑就没。文档有问题就说出来。");
   L.push("- 验收标准和边界编号是硬指标，每条都要能指到具体代码。");
   L.push("- 做完要回填知识库：代码位置和实施要点写进 `" + HDOCS + "/图谱/任务/<任务ID>.md` 的两个受保护区块，然后才交审查。没回填不给落地。");
+  if((HO.frontendModules||[]).length && isProductRegister())
+    L.push("- 界面任务的间距与容器只认 11 节「间距与容器契约」：宽出来的屏幕换成更多列，不换成留白；交审查前在 1920×1080 与 1440×900 跑 `" + HDOCS + "/_run/density_probe.js` 自查桌面密度（D1–D6），不调 ui-ux-pro-max、frontend-design 定间距。");
   L.push("");
   L.push("## 模块");
   mods.forEach(function(m){
@@ -2601,6 +2642,7 @@ function batchPrompt(k){
   L.push("   建栈：git config rerere.enabled true && git config remote.pushDefault origin && gh stack init --base " + HMAIN + " " + br);
   L.push("1. 先跑现有全部测试与 lint（命令在 17-测试策略；没写就 TESTS 记 skipped 并写明原因、NOT_FIXED 记一条 doc-issue，不猜命令）。红的先记下来，别顺手修——它可能就是线索。");
   L.push("   跑 17 节的端到端冒烟：真起服务、真浏览器打开首页、断言样式已加载（token 类的 computed style 生效）、走一遍主流程；没有这条冒烟就记 NOT_FIXED 标 doc-issue。");
+  if(fe && isProductRegister()) L.push("   本批改过的界面在 1920×1080 与 1440×900 各跑一次 " + densityRun() + "（照 11 节「间距与容器契约」），390×844 对照；D2/D3/D6 不达标且本批没有任务覆盖的，按 TASKS 登记返工任务。");
   if(judg) L.push("   本批含判断层任务：跑 17 节的判断用例集并做一次真实调用（TYPESAFE_API_KEY 未设置就 TESTS 记 skipped 并写明原因，不用录制应答冒充）；核每个问题只有一个归属任务、ID 与 10 节语义判断契约一致。");
   L.push("2. 逐任务在 " + HMAIN + " 上过一遍上面的复核清单：每条验收标准、每条边界指到 文件:行；指不到的就是 bug。");
   L.push("3. 查五类接缝，范围限本批内部与本批对前置批次的接口：");
@@ -2679,7 +2721,8 @@ function batchPrompt(k){
   if(judg) L.push("- `typesafe-ai`　核判断层接缝时 — 问题归属、criteria 兜底、阈值来源、低置信分支；真实调用的 model 记录才是证据");
   if(fe){
     L.push("- `record-browser-gif`　端到端跑主流程时 — 从真实服务录 GIF 作证据，等待条件用 DOM 状态不用固定延时");
-    L.push("- `finesse-ui`　看界面时 — 只用 audit 只读命令：组件八态、对比度与焦点顺序、偷懒默认、手机六类硬伤");
+    L.push("- `finesse-ui`　看界面时 — 只用 audit 只读命令：组件八态、对比度与焦点顺序、偷懒默认、手机六类硬伤" +
+           (isProductRegister() ? "；桌面密度不归它管，用 _run/density_probe.js" : ""));
   }
   L.push("");
   L.push("## 输出格式（严格遵守，BUGS 与 NOT_FIXED 的条目格式下游要机器解析）");
@@ -4553,6 +4596,10 @@ def main():
             print("    第 %d 批已全部落地、尚未收口：%s" % (n, "、".join(ids_in)))
         if ho.get("design") and not ho.get("frontendModules"):
             print("  提示：handoff.design 写了视觉方向，但没写 frontendModules，前端任务拿不到它")
+        dsg = ho.get("design") if isinstance(ho.get("design"), dict) else {}
+        if ho.get("frontendModules") and dsg.get("register") and not dsg.get("spacing"):
+            print("  提示：handoff.design 没写 spacing（间距与容器契约），前端任务只拿到通用的桌面密度底线；"
+                  "按技能 references/density.md 第 5 节补进 11 节与 design.spacing")
 
         arch = ho.get("architecture") or {}
         if arch and not ho.get("wiring"):

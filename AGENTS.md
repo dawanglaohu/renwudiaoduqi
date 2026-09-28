@@ -71,7 +71,7 @@ _本段由 build_vault.py 生成，重跑会覆盖；这两个标记之外的内
 4. **清理**（落地当场做，不留到以后）：`gh pr list --state open --base task/<ID> --json number --jq length` 为 0 → `git worktree remove ../agent-scheduler-<id>`（node_modules 报 not empty 就再 `rm -rf` 该目录）→ `git branch -d task/<ID>` → `rm -rf ../.codex-plans/agent-scheduler-<id>`。漏了哪些用 `maintain_docs.py docs/Agent任务调度器-开发文档 workspace` 列出（只打印命令，不删）。
 5. **主检出同步**：在 `<主检出>` 里 `git pull`，刷新交接台即可——落地记录随 `docs-data.js` 进了仓库，换检出目录不必重跑 `--landed`。下游按前置与收口闸门解锁；本批落齐先执行第 7 步。
 6. **查 bug** 是独立动作，不改状态：某层落地前想再扫一遍，或一批落地后查跨模块接缝，点它。
-7. **批次收口**（一批全部落地后、派下一批之前；默认为闸门）：复制该批标题右侧的「批次收口」发给新会话。收口方跑全量测试、真实端到端冒烟、逐任务复核与接缝检查；能安全修的当场修。每个仍未通过、未修或需独立范围的问题都在记录的「返工任务」下写一个完整 `task` 围栏，普通技术或 UI/UX 岔路口先交 Jev，不交用户。`python docs/Agent任务调度器-开发文档/_run/build_docs.py docs/Agent任务调度器-开发文档 --batches` 会为围栏生成稳定的 `R<批>-T<编号>` 未落地任务、契约、任务笔记和派发提示词，并在交接台单列「批次收口返工」；原任务状态和原批次集合不改。返工任务逐个实施、审查、`--landed` 后再收口，新的 `clean`/`fixed` 记录才能解锁下一批。没有遗留时仍提交收口记录；旧版 open 没围栏会显示迁移提醒，必须重收口补任务，不能直接写 fixed 绕过。
+7. **批次收口**（一批全部落地后、派下一批之前；默认为闸门）：复制该批标题右侧的「批次收口」发给新会话。收口方跑全量测试、真实端到端冒烟（有界面的 product 项目另在 1920×1080 / 1440×900 跑 `_run/density_probe.js`）、逐任务复核与接缝检查；能安全修的当场修。每个仍未通过、未修或需独立范围的问题都在记录的「返工任务」下写一个完整 `task` 围栏，普通技术或 UI/UX 岔路口先交 Jev，不交用户。`python docs/Agent任务调度器-开发文档/_run/build_docs.py docs/Agent任务调度器-开发文档 --batches` 会为围栏生成稳定的 `R<批>-T<编号>` 未落地任务、契约、任务笔记和派发提示词，并在交接台单列「批次收口返工」；原任务状态和原批次集合不改。返工任务逐个实施、审查、`--landed` 后再收口，新的 `clean`/`fixed` 记录才能解锁下一批。没有遗留时仍提交收口记录；旧版 open 没围栏会显示迁移提醒，必须重收口补任务，不能直接写 fixed 绕过。
 
 ### 3. 工作目录纪律
 
@@ -89,7 +89,7 @@ _本段由 build_vault.py 生成，重跑会覆盖；这两个标记之外的内
 
 ### 5. 生成器与工具链的改动规则
 
-- `_run/build_docs.py`、`handoff_contract.py`、`maintain_docs.py`、`review.py`、`compile_prompts.js`、`build_vault.py`、`stage.py`、`typesafe_ask.py` 是流程本身，**改了必须当场提交进 main**。`status`、`build` 和 Stop hook 会报「生成器有未提交改动」「生成器与 tool-version.json 不一致」，不阻断但 `status` 退出码非 0；看到就处理。
+- `_run/build_docs.py`、`handoff_contract.py`、`maintain_docs.py`、`review.py`、`compile_prompts.js`、`build_vault.py`、`stage.py`、`typesafe_ask.py`、`density_probe.js` 是流程本身，**改了必须当场提交进 main**。`status`、`build` 和 Stop hook 会报「生成器有未提交改动」「生成器与 tool-version.json 不一致」，不阻断但 `status` 退出码非 0；看到就处理。
 - 改前后都跑 `python -B -m unittest discover -s docs/Agent任务调度器-开发文档/_run/tests -p "test_*.py"`；改解锁/路由规则先加回归用例。
 - 生成器指纹只进构建清单，不进任务契约哈希：升级生成器后 `status` 报 `stale=['生成器版本已变更']`，跑一次 `maintain_docs.py docs/Agent任务调度器-开发文档 build` 即可，已有复核记录全部保留，不需要逐任务重新 `verify`。
 - 任务分支合并 main 时 `_run/` 产物几乎必冲突：`task-contracts.json` 手工保留双方条目，其余产物取 main，再在分支上重跑 `sync --patch`（无补丁时 `build`）让产物与源一致；**生成器脚本本身取更新的一方，绝不拿旧版覆盖**。

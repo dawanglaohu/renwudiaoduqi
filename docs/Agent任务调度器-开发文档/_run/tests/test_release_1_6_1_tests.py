@@ -100,7 +100,7 @@ class SkippedRecordGateTests(unittest.TestCase):
 
 class ReleaseTests(unittest.TestCase):
     def test_release_1_6_1_ships_regression_and_version(self):
-        self.assertEqual(hc.VERSION, '1.6.1')
+        self.assertEqual(hc.VERSION, '1.7.2')
         self.assertIn('test_release_1_6_1_tests.py', install_project.TESTS)
 
 
