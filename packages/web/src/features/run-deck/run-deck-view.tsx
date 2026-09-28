@@ -127,7 +127,14 @@ function TaskApprovalCard(props: {
 	readonly onDecideGate: LaneGateCardProps['onDecideGate'];
 }) {
 	const { gate, task, runs, tier, isMobileMode, isTouch, onDecideGate } = props;
-	const reviewRun = runs.find((run) => run.id === gate.runId && run.kind === 'review');
+	const reviewRun =
+		runs.find((run) => run.id === gate.runId && run.kind === 'review') ??
+		runs
+			.filter((run) => run.kind === 'review' && run.parentRunId === gate.runId)
+			.sort(
+				(a, b) => a.attemptNo - b.attemptNo || (a.startedAt ?? '').localeCompare(b.startedAt ?? ''),
+			)
+			.at(-1);
 	const targetRun = reviewRun?.parentRunId
 		? runs.find((run) => run.id === reviewRun.parentRunId)
 		: null;

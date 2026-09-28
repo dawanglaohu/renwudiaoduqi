@@ -109,7 +109,7 @@ describe('R13 browser entry wiring', () => {
 		const gate = {
 			id: 'g-incomplete',
 			taskId: 't1',
-			runId: 'r-review',
+			runId: 'r-implement',
 			kind: 'review',
 			state: 'waiting',
 		} as GateDto;
@@ -121,6 +121,7 @@ describe('R13 browser entry wiring', () => {
 		const review = {
 			id: 'r-review',
 			kind: 'review',
+			attemptNo: 1,
 			parentRunId: 'r-implement',
 			reviewVerdict: 'incomplete',
 			reworkText: 'Please revise the implementation code thoroughly',
