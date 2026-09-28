@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R14-T23602992": {
+      "contractHash": "0b280a56cab151071429fef35e0bf10c7d066e3fb4fd70aa2bf882e6cf723c24",
+      "evidence": [
+        "E-295 明确要求收口中断且有半成品时保留工作树，并在批次落地清单标为未完成；原清单只迭代有解析记录的 batch_wrapups，漏掉失败运行。",
+        "批次 14 源记录的 task 围栏 paths 增补 wrapup-panel-container.tsx、wrapup-report.tsx 和 wrapup-report.test.tsx；合同生成后有效路径与源记录一致。",
+        "wrapup-panel-container.tsx 按失败收口 RunDto 补未完成行，wrapup-report.test.tsx 验证该行与分支在页面 HTML 中可见；针对该文件 43 项测试通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

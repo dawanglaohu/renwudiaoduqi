@@ -1003,8 +1003,33 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 	// Assertion ⑫: wrapupMode='manual' pauses auto-trigger, PATCH to 'auto' triggers next tick
 	// =========================================================================
 	it('Assertion ⑫: wrapupMode manual stops auto wrapup and canWrapup=true; switching to auto spawns wrapup on next tick; restart produces byte-identical lanes', async () => {
+		const legacyGet = await app.inject({ method: 'GET', url: '/api/v1/settings/pipeline' });
+		expect(legacyGet.statusCode).toBe(200);
+		expect(legacyGet.json().pipeline).toEqual({
+			bughunt: 1,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		});
+		expect(JSON.parse(settingsRepo.get('pipeline')?.value_json ?? 'null')).toEqual({
+			bughunt: 1,
+			wrapupMode: 'auto',
+		});
+
+		const incompletePatch = await app.inject({
+			method: 'PATCH',
+			url: '/api/v1/settings/pipeline',
+			payload: { bughunt: 1, wrapupMode: 'manual' },
+		});
+		expect(incompletePatch.statusCode).toBe(400);
+		expect(incompletePatch.json().error.code).toBe('E_VALIDATION');
+		expect(JSON.parse(settingsRepo.get('pipeline')?.value_json ?? 'null')).toEqual({
+			bughunt: 1,
+			wrapupMode: 'auto',
+		});
+
 		// Set wrapupMode to manual
-		await app.inject({
+		const completePatch = await app.inject({
 			method: 'PATCH',
 			url: '/api/v1/settings/pipeline',
 			payload: {
@@ -1014,6 +1039,15 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 				wrapupAssignment: { mode: 'follow' },
 			},
 		});
+		expect(completePatch.statusCode).toBe(200);
+		expect(completePatch.json().pipeline).toEqual({
+			bughunt: 1,
+			wrapupMode: 'manual',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		});
+		const completeGet = await app.inject({ method: 'GET', url: '/api/v1/settings/pipeline' });
+		expect(completeGet.json().pipeline).toEqual(completePatch.json().pipeline);
 
 		const t1 = insertTask('M8-T1');
 		await dispatchService.tick();

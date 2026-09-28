@@ -1,0 +1,14 @@
+{
+  "tasks": {
+    "R16-T83723920": {
+      "verdict": "pass",
+      "evidence": [
+        "任务定义 R16-T83723920.md 的输入 B4、产出与五条验收标准与第 16 批收口 B4 相符；没有降低 E-157、E-318、E-333、E-356。",
+        "07-前端架构.md 267 行指定 read/invalidate/refetchAll、event kind 前缀映射及连接恢复；有效路径覆盖 resource-cache、cache-invalidation 和共享 PipelineSettingsSource 的生产入口及三份对应测试。",
+        "前置 M9-T19/T21/T22 在任务笔记列明，06/07 分层为 api 缓存和 features 消费，17-测试策略明确 pnpm -w check 与 GUI GIF；本轮代码实现未通过另行返工，不以契约复核冒充代码验收。"
+      ],
+      "contractHash": "b8ec616f9777c96ece930cd5f239c92c1896e010b978eb62041856b47b09ae01"
+    }
+  },
+  "scope": "task-contract"
+}

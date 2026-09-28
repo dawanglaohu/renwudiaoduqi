@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R13-T57054072": {
+      "contractHash": "3a4bc4f565875d7e39e6b3d031defdd321c0825dd1b4839c51c380f28c5a1ca7",
+      "evidence": [
+        "原始 AC1–4 与 E-06/E-08/E-10/E-12/E-108/E-156/E-158/E-200/E-222/E-223/E-224 原文不变；仅在来源 task fence 的 paths 定点列出 e2e fixture、正式 Web 向导/批次树、daemon gate service 与必要测试。",
+        "原来源 batch-13-20260924.md 保留 open 和两个 task fence；后续 batch-13-20260927.md 记录 fixed。正式 shared ROUTES 中 POST /documents、POST /batches/:id/assignments、POST /batches/:id/start、POST /gates/:id/decide 已存在，本补丁只在原所属 feature/service 层补 UI/门禁接线，没有新增 SQL 或跨层反向调用。",
+        "2026-09-27 PR #162 Windows 本地 pnpm -w check：205/205 文件、2530 passed、4 skipped；正式 Web build 通过；真实 daemon + Chromium 的 batch-13 12/12 通过；审批卡改为批次树任务行后再次 12/12；batch-tree、空态、gate service 定向单测 39/39。文档生成器 184/184 通过。",
+        "第二轮仍需 PR 推送后三平台 CI 与 Ubuntu 独立 E2E 通过才落地。Jev 技术方向 adjudicate: pick=A(medium 0.65)，UI/UX 呈现 design: pick=C(high 0.83)，相关动作均已入分支。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

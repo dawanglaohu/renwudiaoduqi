@@ -10,6 +10,7 @@
 
 import type { EventKind } from '@agent-scheduler/shared/api/events';
 import type { CachePrefix } from './cache-keys.ts';
+import { invalidate } from './resource-cache.ts';
 
 /**
  * 事件种类与受影响缓存前缀的静态映射表。
@@ -27,7 +28,10 @@ export const EVENT_CACHE_INVALIDATIONS: Partial<Record<EventKind, readonly Cache
 	'lane.assigned': ['lanes', 'runs'],
 	'lane.released': ['lanes', 'tasks'],
 	'batch.advanced': ['batches'],
+	'batch.wrapup_started': ['batches', 'runs'],
+	'batch.wrapup_finished': ['batches', 'runs', 'tasks'],
 	'settings.gates_changed': ['settings'],
+	'settings.pipeline_changed': ['settings'],
 	'document.settings_changed': ['lanes', 'documents'],
 	'agent.availability_changed': ['agents', 'agentModels'],
 	'system.docs_changed': ['documents', 'batches', 'tasks'],
@@ -38,4 +42,15 @@ export const EVENT_CACHE_INVALIDATIONS: Partial<Record<EventKind, readonly Cache
  */
 export function getInvalidationPrefixesForEvent(kind: string): readonly CachePrefix[] {
 	return (EVENT_CACHE_INVALIDATIONS as Record<string, readonly CachePrefix[]>)[kind] ?? [];
+}
+
+/**
+ * 根据事件类型自动执行缓存失效（E-333, 07 节前端架构）。
+ */
+export function invalidateForEvent(kind: string): readonly CachePrefix[] {
+	const prefixes = getInvalidationPrefixesForEvent(kind);
+	for (const prefix of prefixes) {
+		invalidate(prefix);
+	}
+	return prefixes;
 }

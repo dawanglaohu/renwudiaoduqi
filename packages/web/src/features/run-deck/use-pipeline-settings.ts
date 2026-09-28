@@ -19,12 +19,17 @@ import type {
 	UpdatePipelineSettingsBody,
 	UpdatePipelineSettingsResponse,
 } from '@agent-scheduler/shared/api/settings';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
+import { getInvalidationPrefixesForEvent } from '../../api/cache-invalidation.ts';
+import { settingsPipeline } from '../../api/cache-keys.ts';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient, isApiError } from '../../api/http-client.ts';
+import { invalidate, read, refetchAll, unregister } from '../../api/resource-cache.ts';
+import { sseClient } from '../../api/sse-client.ts';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { readCurrentDeviceId } from '../../shell/shell-bridge.ts';
+import { registerResyncHandler } from '../../store/connection-store.ts';
 
 const getPipelineRoute: RouteDefinition | undefined = ROUTES.find(
 	(r) => r.method === 'GET' && r.path === '/api/v1/settings/pipeline',
@@ -45,6 +50,7 @@ export interface UsePipelineSettingsOptions {
 	readonly initialPipeline?: PipelineSettings | null;
 	readonly fetcher?: () => Promise<GetPipelineSettingsResponse>;
 	readonly patcher?: (body: UpdatePipelineSettingsBody) => Promise<UpdatePipelineSettingsResponse>;
+	readonly source?: PipelineSettingsSource;
 }
 
 interface PendingPipelinePatch {
@@ -65,6 +71,15 @@ function matchesPendingPatch(
 		pipeline.wrapupMode === pending.body.wrapupMode &&
 		JSON.stringify(pipeline.reviewOverride) === JSON.stringify(pending.body.reviewOverride) &&
 		JSON.stringify(pipeline.wrapupAssignment) === JSON.stringify(pending.body.wrapupAssignment)
+	);
+}
+
+function samePipeline(a: PipelineSettings, b: PipelineSettings): boolean {
+	return (
+		a.bughunt === b.bughunt &&
+		a.wrapupMode === b.wrapupMode &&
+		JSON.stringify(a.reviewOverride) === JSON.stringify(b.reviewOverride) &&
+		JSON.stringify(a.wrapupAssignment) === JSON.stringify(b.wrapupAssignment)
 	);
 }
 
@@ -101,144 +116,225 @@ export function toPipelineSettingsError(error: unknown, fallback: string): Pipel
 	};
 }
 
-export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
-	const { initialPipeline = null, fetcher, patcher } = options;
-	const [pipeline, setPipeline] = useState<PipelineSettings | null>(initialPipeline);
-	const [isPending, setIsPending] = useState<boolean>(false);
-	const [error, setError] = useState<PipelineSettingsError | null>(null);
+interface PipelineSettingsSnapshot {
+	readonly pipeline: PipelineSettings | null;
+	readonly isPending: boolean;
+	readonly error: PipelineSettingsError | null;
+}
 
-	// R2 竞态防护 1：记录数据源版本，防御迟到的 GET 覆盖较新的 settings.pipeline_changed
-	const sourceVersionRef = useRef<number>(0);
+export interface PipelineSettingsSource {
+	readonly subscribe: (listener: () => void) => () => void;
+	readonly getSnapshot: () => PipelineSettingsSnapshot;
+	readonly updatePipelineToggles: (partial: {
+		bughunt?: 0 | 1;
+		wrapupMode?: 'auto' | 'manual';
+	}) => Promise<void>;
+	readonly clearError: () => void;
+}
 
-	// 一次只允许一个本地 PATCH；HTTP 与对应 SSE 回流都完成后才解除 pending。
-	const pendingPatchRef = useRef<PendingPipelinePatch | null>(null);
+/** 顶栏与设置页共用一份权威缓存及写入锁；最后一个订阅者离开时释放事件注册。 */
+export function createPipelineSettingsSource(
+	options: Omit<UsePipelineSettingsOptions, 'source'> = {},
+): PipelineSettingsSource {
+	let snapshot: PipelineSettingsSnapshot = {
+		pipeline: options.initialPipeline ?? null,
+		isPending: false,
+		error: null,
+	};
+	const listeners = new Set<() => void>();
+	let sourceVersion = 0;
+	let readVersion = 0;
+	let pendingPatch: PendingPipelinePatch | null = null;
+	let patchCompletion: Promise<void> | null = null;
+	let cleanup: (() => void) | null = null;
 
-	// 1. 初始化拉取流水线配置（GET /api/v1/settings/pipeline）
-	useEffect(() => {
-		let isMounted = true;
+	function publish(update: Partial<PipelineSettingsSnapshot>): void {
+		snapshot = { ...snapshot, ...update };
+		for (const listener of listeners) listener();
+	}
 
-		const fetchSettings = async () => {
-			const requestVersion = sourceVersionRef.current;
-			try {
-				let res: GetPipelineSettingsResponse | null = null;
-				if (fetcher) {
-					res = await fetcher();
-				} else if (getPipelineRoute) {
-					res = await httpClient.callRoute<GetPipelineSettingsResponse>(getPipelineRoute);
-				}
-
-				if (isMounted && res?.pipeline) {
-					// R2: 迟到的 GET 不得覆盖较新的 settings.pipeline_changed。
-					// 仅当在此 GET 请求在途期间未曾收到过新的 milestone 事件时，才采纳此响应。
-					if (sourceVersionRef.current === requestVersion) {
-						setPipeline(res.pipeline);
+	async function readSettings(
+		recover = false,
+		eventPipeline: PipelineSettings | null = null,
+	): Promise<void> {
+		// 恢复时先等已发出的 HTTP 结算，GET 才能读到最终持久值。
+		if (recover && patchCompletion) await patchCompletion;
+		if (listeners.size === 0) return;
+		const pendingAtRead = pendingPatch?.httpDone ? pendingPatch : null;
+		const requestVersion = sourceVersion;
+		const requestReadVersion = ++readVersion;
+		try {
+			const fetcher =
+				options.fetcher ??
+				(async () => {
+					if (!getPipelineRoute) {
+						throw new Error('GET /api/v1/settings/pipeline route missing');
 					}
-				}
-			} catch (cause: unknown) {
-				if (isMounted) {
-					setError(toPipelineSettingsError(cause, '读取流水线设置失败，请稍后重试'));
-				}
+					return httpClient.callRoute<GetPipelineSettingsResponse>(getPipelineRoute);
+				});
+
+			// 恢复前主动使 settings 缓存失效，确保拉取 daemon 端最新数据
+			if (recover) {
+				invalidate('settings');
+				await refetchAll();
+				if (listeners.size === 0 || requestReadVersion !== readVersion) return;
 			}
-		};
 
-		if (!initialPipeline) {
-			void fetchSettings();
-		} else {
-			setPipeline(initialPipeline);
+			// 通过 resource-cache 共享缓存读取流水线设置（AC 1, AC 2）
+			const res = await read(settingsPipeline(), fetcher);
+			if (listeners.size === 0 || requestReadVersion !== readVersion) return;
+			if (res?.pipeline && sourceVersion === requestVersion) {
+				if (eventPipeline && !samePipeline(res.pipeline, eventPipeline)) {
+					// 事件已给出完整权威值，旧 GET 只用于补缓存，不能回写快照。
+					invalidate('settings');
+					return;
+				}
+				publish({ pipeline: res.pipeline, error: null });
+			}
+			// SSE 重放窗口过期时可能永远收不到本次事件，只能用重新读取的 daemon 值恢复。
+			if (
+				recover &&
+				res?.pipeline &&
+				sourceVersion === requestVersion &&
+				pendingAtRead &&
+				pendingPatch === pendingAtRead
+			) {
+				pendingPatch = null;
+				publish({ isPending: false });
+			}
+		} catch (cause) {
+			if (listeners.size > 0 && requestReadVersion === readVersion) {
+				publish({ error: toPipelineSettingsError(cause, '读取流水线设置失败，请稍后重试') });
+			}
 		}
+	}
 
-		return () => {
-			isMounted = false;
-		};
-	}, [initialPipeline, fetcher]);
-
-	// 2. 订阅 settings.pipeline_changed milestone 事件回流（E-157, E-318, R2）
-	useEffect(() => {
+	function start(): void {
 		const unsub = eventBus.subscribeMilestone((envelope) => {
-			if (envelope.kind === 'settings.pipeline_changed' && envelope.payload) {
-				const payload = envelope.payload as { readonly pipeline?: PipelineSettings };
-				if (payload.pipeline) {
-					// 递增版本号，标记已有更新鲜的事件到达
-					sourceVersionRef.current += 1;
-					// 最终值以事件回流为准（E-157）
-					setPipeline(payload.pipeline);
-					setError(null);
+			// AC 2: 消费失效表，前缀粒度触发 resource-cache 失效
+			const prefixes = getInvalidationPrefixesForEvent(envelope.kind);
+			for (const prefix of prefixes) {
+				invalidate(prefix);
+			}
 
-					const pending = pendingPatchRef.current;
+			if (envelope.kind === 'settings.pipeline_changed') {
+				const payload = envelope.payload as { readonly pipeline?: PipelineSettings } | undefined;
+				if (payload?.pipeline) {
+					sourceVersion += 1;
+					publish({ pipeline: payload.pipeline, error: null });
+					const pending = pendingPatch;
 					if (pending && matchesPendingPatch(payload.pipeline, envelope.actorDeviceId, pending)) {
 						pending.eventSeen = true;
 						if (pending.httpDone) {
-							pendingPatchRef.current = null;
-							setIsPending(false);
+							pendingPatch = null;
+							publish({ isPending: false });
 						}
 					}
+					void readSettings(false, payload.pipeline);
+				} else {
+					// 截断事件或无内联数据时，递增 sourceVersion 防止迟到 GET 覆盖事件权威值
+					sourceVersion += 1;
+					// 生产入口实际消费失效并重取（AC 2）
+					void readSettings(false);
 				}
 			}
 		});
-
-		return () => {
+		const unregisterResync = registerResyncHandler(() => readSettings(true));
+		const unregisterReplay = sseClient.onClearBuffer(() => {
+			void readSettings(true);
+		});
+		cleanup = () => {
 			unsub();
+			unregisterResync();
+			unregisterReplay();
+			readVersion += 1;
 		};
-	}, []);
+		if (!options.initialPipeline || pendingPatch) void readSettings(true);
+	}
 
-	// 3. 提交全量四键 PATCH 更新（AC 2, E-356, R2）
-	const updatePipelineToggles = useCallback(
-		async (partial: { bughunt?: 0 | 1; wrapupMode?: 'auto' | 'manual' }) => {
-			if (!pipeline) {
-				return;
-			}
-
-			// E-356: 四键整体写入，用当前缓存里的 reviewOverride 与 wrapupAssignment 补齐全量
+	return {
+		getSnapshot: () => snapshot,
+		subscribe: (listener) => {
+			listeners.add(listener);
+			if (listeners.size === 1) start();
+			return () => {
+				listeners.delete(listener);
+				if (listeners.size === 0) {
+					cleanup?.();
+					cleanup = null;
+					unregister(settingsPipeline());
+					if (!options.initialPipeline) publish({ pipeline: null, error: null });
+				}
+			};
+		},
+		async updatePipelineToggles(partial) {
+			const pipeline = snapshot.pipeline;
+			if (!pipeline || pendingPatch) return;
 			const fullBody: UpdatePipelineSettingsBody = {
 				bughunt: partial.bughunt ?? pipeline.bughunt,
 				wrapupMode: partial.wrapupMode ?? pipeline.wrapupMode,
 				reviewOverride: pipeline.reviewOverride,
 				wrapupAssignment: pipeline.wrapupAssignment,
 			};
-			if (pendingPatchRef.current) return;
 			const pending: PendingPipelinePatch = {
 				body: fullBody,
 				deviceId: readCurrentDeviceId(),
 				httpDone: false,
 				eventSeen: false,
 			};
-			pendingPatchRef.current = pending;
-			setIsPending(true);
-			setError(null);
+			pendingPatch = pending;
+			sourceVersion += 1;
+			publish({ isPending: true, error: null });
+			const completion = (async () => {
+				try {
+					if (options.patcher) {
+						await options.patcher(fullBody);
+					} else if (patchPipelineRoute) {
+						await httpClient.callRoute<UpdatePipelineSettingsResponse, UpdatePipelineSettingsBody>(
+							patchPipelineRoute,
+							{
+								body: fullBody,
+							},
+						);
+					}
 
-			try {
-				if (patcher) {
-					await patcher(fullBody);
-				} else if (patchPipelineRoute) {
-					await httpClient.callRoute<UpdatePipelineSettingsResponse, UpdatePipelineSettingsBody>(
-						patchPipelineRoute,
-						{
-							body: fullBody,
-						},
-					);
+					pending.httpDone = true;
+					if (pending.eventSeen && pendingPatch === pending) {
+						pendingPatch = null;
+						publish({ isPending: false });
+					}
+				} catch (cause: unknown) {
+					if (pendingPatch === pending) {
+						pendingPatch = null;
+						publish({ isPending: false });
+					}
+					publish({ error: toPipelineSettingsError(cause, '流水线设置未能保存，请稍后重试') });
 				}
-
-				pending.httpDone = true;
-				if (pending.eventSeen && pendingPatchRef.current === pending) {
-					pendingPatchRef.current = null;
-					setIsPending(false);
-				}
-			} catch (cause: unknown) {
-				if (pendingPatchRef.current === pending) {
-					pendingPatchRef.current = null;
-					setIsPending(false);
-				}
-				setError(toPipelineSettingsError(cause, '流水线设置未能保存，请稍后重试'));
-			}
+			})();
+			patchCompletion = completion;
+			await completion;
+			if (patchCompletion === completion) patchCompletion = null;
 		},
-		[pipeline, patcher],
-	);
+		clearError: () => publish({ error: null }),
+	};
+}
 
+const sharedPipelineSource = createPipelineSettingsSource();
+
+export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
+	const { initialPipeline, fetcher, patcher, source: injectedSource } = options;
+	const source = useMemo(
+		() =>
+			injectedSource ??
+			(initialPipeline || fetcher || patcher
+				? createPipelineSettingsSource({ initialPipeline, fetcher, patcher })
+				: sharedPipelineSource),
+		[initialPipeline, fetcher, patcher, injectedSource],
+	);
+	const state = useSyncExternalStore(source.subscribe, source.getSnapshot, source.getSnapshot);
 	return {
-		pipeline,
-		isPending,
-		error,
-		updatePipelineToggles,
-		clearError: () => setError(null),
+		...state,
+		updatePipelineToggles: source.updatePipelineToggles,
+		clearError: source.clearError,
 	};
 }

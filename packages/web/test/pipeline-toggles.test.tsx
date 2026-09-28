@@ -13,10 +13,15 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { settingsPipeline } from '../src/api/cache-keys.ts';
 import { eventBus } from '../src/api/event-bus.ts';
+import { clearResourceCache, getRegisteredKeys, peek, read } from '../src/api/resource-cache.ts';
+import { sseClient } from '../src/api/sse-client.ts';
 import { PipelineToggles } from '../src/components/pipeline-toggles.tsx';
 import { PipelineTogglesContainer } from '../src/features/run-deck/pipeline-toggles-container.tsx';
+import { createPipelineSettingsSource } from '../src/features/run-deck/use-pipeline-settings.ts';
 import { SettingsPipelinePage } from '../src/pages/settings-pipeline-page.tsx';
+import { triggerResync } from '../src/store/connection-store.ts';
 
 // ─── 简易 DOM 环境模拟（用于真实挂载与交互点击测试，同 gate-toggles.test.tsx） ───
 class TestDOMElement {
@@ -167,6 +172,181 @@ function setupMockDom() {
 }
 
 describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-312, E-318, E-356)', () => {
+	it('shares cached values and pending across the mounted topbar and settings editors', async () => {
+		const { container, root } = setupMockDom();
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let resolvePatch: (() => void) | undefined;
+		const patcher = vi.fn(
+			(body: UpdatePipelineSettingsBody) =>
+				new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+					resolvePatch = () => resolve({ pipeline: body });
+				}),
+		);
+		const source = createPipelineSettingsSource({ initialPipeline, patcher });
+		await act(async () => {
+			root.render(
+				createElement(
+					'div',
+					null,
+					createElement(PipelineTogglesContainer, { source }),
+					createElement(PipelineTogglesContainer, { source, layout: 'settings' }),
+				),
+			);
+		});
+		const panels = container.querySelectorAll('[data-component="pipeline-toggles-container"]');
+		await act(async () => {
+			panels[0]
+				?.querySelector('[data-pipeline-toggle="bughunt"]')
+				?.querySelectorAll('button')[1]
+				?.click();
+		});
+		expect(
+			panels[1]?.querySelector('[data-component="pipeline-toggles"]')?.getAttribute('data-pending'),
+		).toBe('true');
+		await act(async () => {
+			panels[1]
+				?.querySelector('[data-pipeline-toggle="wrapupMode"]')
+				?.querySelectorAll('button')[1]
+				?.click();
+		});
+		expect(patcher).toHaveBeenCalledTimes(1);
+		await act(async () => {
+			resolvePatch?.();
+			eventBus.push({
+				id: 900,
+				ts: new Date().toISOString(),
+				runId: null,
+				taskId: null,
+				scope: 'settings',
+				kind: 'settings.pipeline_changed',
+				seq: 1,
+				actorDeviceId: null,
+				payload: { pipeline: { ...initialPipeline, bughunt: 1 } },
+			});
+		});
+		expect(
+			panels[1]
+				?.querySelector('[data-pipeline-toggle="bughunt"]')
+				?.querySelectorAll('button')[1]
+				?.getAttribute('data-state'),
+		).toBe('active');
+		await act(async () => {
+			panels[1]
+				?.querySelector('[data-pipeline-toggle="wrapupMode"]')
+				?.querySelectorAll('button')[1]
+				?.click();
+		});
+		expect(patcher).toHaveBeenLastCalledWith({
+			...initialPipeline,
+			bughunt: 1,
+			wrapupMode: 'manual',
+		});
+		await act(async () => {
+			resolvePatch?.();
+			root.unmount();
+		});
+	});
+
+	it('recovers a missing confirmation through the daemon GET on connection resync and releases listeners', async () => {
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		const confirmed: PipelineSettings = { ...initialPipeline, bughunt: 1, wrapupMode: 'manual' };
+		const fetcher = vi.fn(async () => ({ pipeline: confirmed }));
+		const source = createPipelineSettingsSource({
+			initialPipeline,
+			fetcher,
+			patcher: async (body) => ({ pipeline: body }),
+		});
+		const unsubscribe = source.subscribe(() => {});
+		await source.updatePipelineToggles({ bughunt: 1 });
+		expect(source.getSnapshot()).toMatchObject({ pipeline: initialPipeline, isPending: true });
+		await triggerResync();
+		expect(source.getSnapshot()).toMatchObject({ pipeline: confirmed, isPending: false });
+		expect(fetcher).toHaveBeenCalledTimes(1);
+		unsubscribe();
+		await triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(1);
+	});
+
+	it('a recovery GET started before a new PATCH cannot overwrite its event or release its pending lock', async () => {
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let resolveRead: ((response: { pipeline: PipelineSettings }) => void) | undefined;
+		const source = createPipelineSettingsSource({
+			initialPipeline,
+			fetcher: () =>
+				new Promise((resolve) => {
+					resolveRead = resolve;
+				}),
+			patcher: async (body) => ({ pipeline: body }),
+		});
+		const unsubscribe = source.subscribe(() => {});
+		const recovery = triggerResync();
+		await source.updatePipelineToggles({ bughunt: 1 });
+		resolveRead?.({ pipeline: initialPipeline });
+		await recovery;
+		expect(source.getSnapshot().isPending).toBe(true);
+		unsubscribe();
+	});
+
+	it('a recovery GET overtaken by another device event does not release the local pending lock', async () => {
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let resolveRead: ((response: { pipeline: PipelineSettings }) => void) | undefined;
+		let readCount = 0;
+		const source = createPipelineSettingsSource({
+			initialPipeline,
+			fetcher: () => {
+				readCount++;
+				if (readCount === 1) {
+					return new Promise((resolve) => {
+						resolveRead = resolve;
+					});
+				}
+				return Promise.resolve({ pipeline: initialPipeline });
+			},
+			patcher: async (body) => ({ pipeline: body }),
+		});
+		const unsubscribe = source.subscribe(() => {});
+		await source.updatePipelineToggles({ bughunt: 1 });
+		const recovery = triggerResync();
+		eventBus.push({
+			id: 901,
+			ts: new Date().toISOString(),
+			runId: null,
+			taskId: null,
+			scope: 'settings',
+			kind: 'settings.pipeline_changed',
+			seq: 2,
+			actorDeviceId: 'other-device',
+			payload: { pipeline: { ...initialPipeline, wrapupMode: 'manual' } },
+		});
+		resolveRead?.({ pipeline: initialPipeline });
+		await recovery;
+		expect(source.getSnapshot()).toMatchObject({
+			pipeline: { ...initialPipeline, wrapupMode: 'manual' },
+			isPending: true,
+		});
+		unsubscribe();
+	});
+
 	const initialValues = {
 		bughunt: 0 as const,
 		wrapupMode: 'auto' as const,
@@ -174,6 +354,7 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		clearResourceCache();
 	});
 
 	// ─── 1. 两个开关二段形态 ───
@@ -259,6 +440,9 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		expect(notesHost.querySelector('[data-testid="wrapup-manual-note"]')).not.toBeNull();
 		expect(notesHost.textContent).toContain('审查 pass 后自动派查 bug 运行');
 		expect(notesHost.textContent).toContain('本批全部任务落地后不自动收口');
+		await act(async () => {
+			root.unmount();
+		});
 	});
 
 	// ─── 5. onChange 给出全量两值 ───
@@ -385,6 +569,9 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 
 		// 事件回流后，DOM 翻转
 		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+		await act(async () => {
+			root.unmount();
+		});
 	});
 
 	// ─── 8. E_PIPELINE_STAGE_DISABLED 就地 inline notice 不弹 toast（AC 5） ───
@@ -428,6 +615,9 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		const errorNotice = container.querySelector('[data-testid="pipeline-toggles-error"]');
 		expect(errorNotice).not.toBeNull();
 		expect(errorNotice?.textContent).toContain('当前流水线阶段已停用（查 bug）');
+		await act(async () => {
+			root.unmount();
+		});
 	});
 
 	// ─── 9. 设置页布局展示「当前值来自 daemon」（AC 4） ───
@@ -504,6 +694,9 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 
 		// 核心断言（R2）：迟到的旧 GET 不得覆盖较新的事件回流，bughunt 必须保持为 1 (active)
 		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+		await act(async () => {
+			root.unmount();
+		});
 	});
 
 	// ─── 11. R2 竞态回归 2：其他设备事件在本地 PATCH 未完成时不得提前解除 pending ───
@@ -614,5 +807,255 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		// 本地 PATCH 完成且回流事件确认到达后，pending 正常解除，DOM 成功翻转为 active
 		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
 		expect(turnOnBtn?.getAttribute('disabled')).toBeNull();
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	// ─── 12. 真实生产入口通过 settingsPipeline() 存取 resource-cache（AC 1, AC 2, AC 4） ───
+	it('usePipelineSettings production entry reads through resource-cache under settingsPipeline key (AC 1, AC 2)', async () => {
+		const { container, root } = setupMockDom();
+		const pipelineData: PipelineSettings = {
+			bughunt: 1,
+			wrapupMode: 'manual',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let resolveFetch: ((res: { pipeline: PipelineSettings }) => void) | undefined;
+		const fetcher = vi.fn(
+			() =>
+				new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+					resolveFetch = resolve;
+				}),
+		);
+
+		await act(async () => {
+			root.render(
+				createElement(PipelineTogglesContainer, {
+					fetcher,
+				}),
+			);
+		});
+
+		expect(fetcher).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			resolveFetch?.({ pipeline: pipelineData });
+		});
+
+		// 校验 resource-cache 中确有 settings:pipeline 缓存
+		expect(peek('settings:pipeline')).toEqual({ pipeline: pipelineData });
+
+		const bughuntToggle = container.querySelector('[data-pipeline-toggle="bughunt"]');
+		const turnOnBtn = bughuntToggle?.querySelectorAll('button')[1];
+		expect(turnOnBtn?.getAttribute('data-state')).toBe('active');
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	// ─── 13. settings.pipeline_changed 消费失效表，完整或截断事件均不被迟到 GET 覆盖（AC 2, E-157, E-318） ───
+	it('neither complete nor truncated pipeline events allow a stale GET to overwrite event authority (AC 2, E-157, E-318)', async () => {
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		const updatedPipeline: PipelineSettings = {
+			...initialPipeline,
+			bughunt: 1,
+		};
+
+		let resolveStaleGet: ((res: { pipeline: PipelineSettings }) => void) | undefined;
+		let resolveFreshGet: ((res: { pipeline: PipelineSettings }) => void) | undefined;
+		let getCalls = 0;
+
+		const fetcher = vi.fn(async () => {
+			getCalls += 1;
+			if (getCalls === 1) {
+				return new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+					resolveStaleGet = resolve;
+				});
+			}
+			return new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+				resolveFreshGet = resolve;
+			});
+		});
+
+		const source = createPipelineSettingsSource({ fetcher });
+		const unsubscribe = source.subscribe(() => {});
+
+		// 首次 GET 已发出处于在途 (getCalls === 1)
+		await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+
+		// 模拟发送截断事件（无内联 pipeline）
+		eventBus.push({
+			id: 301,
+			ts: new Date().toISOString(),
+			runId: null,
+			taskId: null,
+			scope: 'settings',
+			kind: 'settings.pipeline_changed',
+			seq: 10,
+			actorDeviceId: 'remote-device',
+			payload: {
+				truncated: true,
+				byteLen: 120,
+				ref: { fileSeq: 1, byteOffset: 0, byteLen: 120 },
+			},
+		});
+
+		// 截断事件到达时，在途请求尚未返回，合并去重仍为 1 次
+		expect(fetcher).toHaveBeenCalledTimes(1);
+
+		// 此时迟到的旧 GET 返回了旧数据 (bughunt: 0)
+		resolveStaleGet?.({ pipeline: initialPipeline });
+		await new Promise((r) => setTimeout(r, 15));
+
+		// 旧请求返回后，检测到在途期间被失效，自动发起重取 (fetcher 调用 2 次)
+		expect(fetcher).toHaveBeenCalledTimes(2);
+
+		// 关键断言：旧 GET 绝未覆盖事件权威，当前快照绝不能是 initialPipeline (bughunt: 0)
+		expect(source.getSnapshot().pipeline).toBeNull();
+
+		// 新的重取 GET 顺利返回最新数据 (bughunt: 1)
+		resolveFreshGet?.({ pipeline: updatedPipeline });
+		await new Promise((r) => setTimeout(r, 15));
+
+		// 成功更新为新数据
+		expect(source.getSnapshot().pipeline?.bughunt).toBe(1);
+
+		unsubscribe();
+	});
+
+	// ─── 14. SSE 重放失效与连接恢复从真实注册入口调用已登记的 fetcher，注销后无残留（AC 3） ───
+	it('invokes registered fetcher on connection resync and clearBuffer, and clears all listeners and cache registration on unmount (AC 3)', async () => {
+		const pipelineData: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		const fetcher = vi.fn(async () => ({ pipeline: pipelineData }));
+
+		// 监听 sseClient.onClearBuffer 真实注册入口与注销回调
+		let sseClearBufferHandler: (() => void) | undefined;
+		let unregisterReplayCalled = false;
+		const originalOnClearBuffer = sseClient.onClearBuffer.bind(sseClient);
+		const onClearBufferSpy = vi.spyOn(sseClient, 'onClearBuffer').mockImplementation((listener) => {
+			sseClearBufferHandler = listener;
+			const unreg = originalOnClearBuffer(listener);
+			return () => {
+				unregisterReplayCalled = true;
+				unreg();
+			};
+		});
+
+		const source = createPipelineSettingsSource({ initialPipeline: pipelineData, fetcher });
+
+		// 双编辑器订阅同一个 source
+		const unsub1 = source.subscribe(() => {});
+		const unsub2 = source.subscribe(() => {});
+
+		// 验证生产入口注册了 onClearBuffer
+		expect(onClearBufferSpy).toHaveBeenCalled();
+		expect(sseClearBufferHandler).toBeDefined();
+
+		// 真实连接恢复触发已登记 fetcher 重拉
+		await triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(1);
+
+		// 真实 SSE 重放窗口失效 (clearBuffer) 触发已登记 fetcher 重拉
+		sseClearBufferHandler?.();
+		await new Promise((r) => setTimeout(r, 15));
+		expect(fetcher).toHaveBeenCalledTimes(2);
+
+		// 第一个编辑器离开，第二个仍活跃，缓存与恢复注册保持
+		unsub1();
+		expect(getRegisteredKeys()).toContain(settingsPipeline());
+		expect(unregisterReplayCalled).toBe(false);
+
+		// 最后一个编辑器离开
+		unsub2();
+
+		// 最后一个订阅者离开后：
+		// 1. 恢复监听不再触发 fetcher
+		await triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(2);
+
+		// 2. SSE 重放清空注销函数被调用（AC 3）
+		expect(unregisterReplayCalled).toBe(true);
+
+		// 3. resource-cache 中的 fetcher 登记与缓存数据均已被清除（AC 3）
+		expect(getRegisteredKeys()).not.toContain(settingsPipeline());
+		expect(peek(settingsPipeline())).toBeUndefined();
+
+		onClearBufferSpy.mockRestore();
+	});
+
+	it('re-fetches a complete pipeline event and all registered resources on recovery', async () => {
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		const updatedPipeline: PipelineSettings = { ...initialPipeline, bughunt: 1 };
+		const fetcher = vi.fn(async () => ({ pipeline: updatedPipeline }));
+		const source = createPipelineSettingsSource({ initialPipeline, fetcher });
+		const unsubscribe = source.subscribe(() => {});
+		const otherFetcher = vi.fn(async () => 'run-data');
+		await read('runs:task-1', otherFetcher);
+
+		eventBus.push({
+			id: 910,
+			ts: new Date().toISOString(),
+			runId: null,
+			taskId: null,
+			scope: 'settings',
+			kind: 'settings.pipeline_changed',
+			seq: 1,
+			actorDeviceId: 'other-device',
+			payload: { pipeline: updatedPipeline },
+		});
+		expect(source.getSnapshot().pipeline).toEqual(updatedPipeline);
+		await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+		await triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(2);
+		expect(otherFetcher).toHaveBeenCalledTimes(2);
+		expect(source.getSnapshot().pipeline).toEqual(updatedPipeline);
+		unsubscribe();
+	});
+
+	it('does not re-register a pipeline source unmounted during refetchAll', async () => {
+		const pipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let finishRecovery: ((value: { pipeline: PipelineSettings }) => void) | undefined;
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce({ pipeline })
+			.mockImplementationOnce(
+				() =>
+					new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+						finishRecovery = resolve;
+					}),
+			);
+		await read(settingsPipeline(), fetcher);
+		const source = createPipelineSettingsSource({ initialPipeline: pipeline, fetcher });
+		const unsubscribe = source.subscribe(() => {});
+		const recovery = triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(2);
+		unsubscribe();
+		finishRecovery?.({ pipeline });
+		await recovery;
+		expect(fetcher).toHaveBeenCalledTimes(2);
+		expect(getRegisteredKeys()).not.toContain(settingsPipeline());
+		expect(peek(settingsPipeline())).toBeUndefined();
 	});
 });

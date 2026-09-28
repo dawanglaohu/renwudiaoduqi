@@ -2110,6 +2110,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				// R1: 收口运行必须交付快照里冻结的八段收口提示词，否则 agent 收不到任何指令
 				let wrapupPrompt: string | undefined;
 				let wrapupLaunchSpecData: {
+					execPath?: string;
 					model?: string | null;
 					effort?: string | null;
 					permissionTier?: string;
@@ -2140,6 +2141,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				const launchSpec = adapter.buildLaunchSpec({
 					runId,
 					cwd: worktreePath,
+					execPath: wrapupLaunchSpecData.execPath,
 					model: run.model_name ?? wrapupLaunchSpecData.model ?? null,
 					effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
 					permissionTier: 'workspaceWrite',

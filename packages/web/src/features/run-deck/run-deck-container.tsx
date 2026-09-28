@@ -132,8 +132,8 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 			id: `lane-${lane.laneNo}`,
 			kind:
 				lane.stage === 'wrapup' ? ('wrapup' as const) : run ? ('task' as const) : ('idle' as const),
-			currentRunId: lane.currentRunId,
-			taskId: lane.taskId ?? undefined,
+			currentRunId: run?.id ?? lane.currentRunId,
+			taskId: task?.id ?? lane.taskId ?? undefined,
 			taskKey: task?.taskKey,
 			title: task?.title,
 			status: run?.state,
@@ -162,6 +162,7 @@ interface RemoteDeckData {
 	readonly rawRuns?: readonly RunDto[];
 	readonly rawLanes?: readonly LaneView[];
 	readonly wrapups?: readonly BatchWrapupDto[];
+	readonly gates?: readonly GateDto[];
 }
 
 const INITIAL_REMOTE: RemoteDeckData = Object.freeze({
@@ -240,6 +241,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				rawRuns: runsResponse.runs,
 				rawLanes: fetchedLanes,
 				wrapups: [...wrapupsByRunIdRef.current.values()],
+				gates: gatesResponse.gates,
 				error: null,
 			});
 		} catch (cause: unknown) {
@@ -250,6 +252,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				rawRuns: [],
 				rawLanes: [],
 				wrapups: [],
+				gates: [],
 				error: cause instanceof Error ? cause.message : String(cause),
 			});
 		}
@@ -312,6 +315,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				envelope.kind === 'lane.released' ||
 				envelope.kind === 'task.sessions_archived' ||
 				envelope.kind === 'document.settings_changed' ||
+				envelope.kind === 'system.docs_changed' ||
 				envelope.kind === 'task.gate_waiting' ||
 				envelope.kind === 'task.gate_passed' ||
 				envelope.kind === 'batch.wrapup_finished'
@@ -362,6 +366,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				runs={remote.rawRuns}
 				rawLanes={remote.rawLanes}
 				wrapups={remote.wrapups}
+				gates={remote.gates}
 				onSelectTask={props.onSelectTask}
 				toolbarSlot={props.toolbarSlot}
 				className={props.className}

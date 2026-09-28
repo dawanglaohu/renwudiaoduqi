@@ -93,6 +93,10 @@ export interface EmptyOnboardingProps {
 	readonly onSelectDoc?: (docId: string) => void;
 	/** 选中批次回调 */
 	readonly onSelectBatch?: (batchId: string) => void;
+	/** 导入 daemon 能读取的 docs-data.js 路径；成功后刷新文档选项。 */
+	readonly onImportDocument?: (docsPath: string) => void;
+	/** 离线或仍在保存时禁止提交派发。 */
+	readonly canDispatch?: boolean;
 	/** 样式自定义扩展 */
 	readonly className?: string;
 }
@@ -179,6 +183,8 @@ export function EmptyOnboarding({
 	selectedBatchId: controlledBatchId,
 	onSelectDoc,
 	onSelectBatch,
+	onImportDocument,
+	canDispatch = true,
 	className = '',
 }: EmptyOnboardingProps) {
 	// 步进索引：0=选文档, 1=选批次, 2=逐任务指派, 3=派发
@@ -192,6 +198,7 @@ export function EmptyOnboarding({
 
 	// 第一步：选定文档（受控时以 props 为准，独立渲染时内部自持）
 	const [internalDocId, setInternalDocId] = useState<string>(() => documents?.[0]?.id ?? '');
+	const [docsPath, setDocsPath] = useState('');
 
 	// 第二步：选定批次（联动：初始选对应文档的第一个批次）
 	const [internalBatchId, setInternalBatchId] = useState<string>(() => {
@@ -402,6 +409,27 @@ export function EmptyOnboarding({
 					</div>
 
 					<div className="flex flex-col gap-2">
+						{onImportDocument && (
+							<div className="flex flex-wrap gap-2">
+								<input
+									aria-label="文档路径"
+									data-testid="import-doc-path"
+									value={docsPath}
+									onChange={(event) => setDocsPath(event.target.value)}
+									placeholder="本机 docs-data.js 绝对路径"
+									className="min-w-0 flex-1 rounded border border-border bg-panel-2 px-3 text-ink-1"
+								/>
+								<button
+									type="button"
+									data-action="import-document"
+									disabled={!docsPath.trim()}
+									onClick={() => onImportDocument(docsPath.trim())}
+									className="h-btn rounded-sm bg-needs px-4 text-on-needs disabled:opacity-50"
+								>
+									导入文档
+								</button>
+							</div>
+						)}
 						{documents && documents.length > 0 ? (
 							documents.map((doc) => {
 								const isSelected = doc.id === selectedDocId;
@@ -712,8 +740,9 @@ export function EmptyOnboarding({
 						<button
 							type="button"
 							data-action="confirm-dispatch"
+							disabled={!canDispatch || !selectedBatchId || !onDispatch}
 							onClick={handleTriggerDispatch}
-							className="h-btn-lg px-8 rounded-sm bg-needs text-on-needs font-bold text-body shadow-glow transition-all hover:brightness-105 active:scale-98"
+							className="h-btn-lg px-8 rounded-sm bg-needs text-on-needs font-bold text-body shadow-glow transition-all hover:brightness-105 active:scale-98 disabled:opacity-50"
 						>
 							启动批次派发
 						</button>
