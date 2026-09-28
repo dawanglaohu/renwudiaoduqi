@@ -22,7 +22,7 @@
  * E-356  pipeline 四键写入与校验 → 四键整体写入，第二次写入不携旧值
  */
 
-import { execSync, spawn } from 'node:child_process';
+import { execFileSync, execSync, spawn } from 'node:child_process';
 import {
 	existsSync,
 	mkdirSync,
@@ -44,6 +44,16 @@ const repoRoot = resolve(currentDir, '..');
 const bootstrapPath = join(repoRoot, 'packages/daemon/bootstrap.mjs');
 const artifactsDir = join(repoRoot, 'e2e/artifacts');
 const fixturesDir = join(repoRoot, 'e2e/fixtures');
+const gifFramesDir = join(artifactsDir, 'pipeline-settings-frames');
+const gifFrames: string[] = [];
+
+async function captureGifFrame(page: Page, label: string): Promise<void> {
+	mkdirSync(gifFramesDir, { recursive: true });
+	const framePath = join(gifFramesDir, `frame-${String(gifFrames.length + 1).padStart(2, '0')}.png`);
+	await maskSensitivePageContent(page);
+	await page.screenshot({ path: framePath, fullPage: false });
+	gifFrames.push(label);
+}
 
 // ---------------------------------------------------------------------------
 // 敏感数据脱敏工具（与 smoke.test.ts 保持一致）
@@ -368,6 +378,7 @@ async function pairBrowserDevice(
 	await page.goto(`http://127.0.0.1:${daemon.port}/#/pair`, { waitUntil: 'domcontentloaded' });
 	const codeInput = page.locator('[data-testid="pairing-code-input"]');
 	await codeInput.waitFor({ state: 'visible', timeout: 10000 });
+	if (deviceName === 'Pipeline E2E Device 1') await captureGifFrame(page, '真实配对页面');
 	await codeInput.fill(browserCode);
 
 	const toggleManualHost = page.getByRole('button', { name: /手填地址/ });
@@ -505,6 +516,19 @@ describe(
 		// afterAll：清理
 		// ----------------------------------------------------------------
 		afterAll(async () => {
+			if (gifFrames.length >= 4) {
+				const gifPath = join(artifactsDir, 'pipeline-settings-demo.gif');
+				execFileSync('ffmpeg', [
+					'-hide_banner', '-loglevel', 'error', '-y', '-framerate', '1',
+					'-i', join(gifFramesDir, 'frame-%02d.png'), '-vf', 'scale=960:-1:flags=lanczos,fps=4',
+					'-loop', '0', gifPath,
+				]);
+				const serviceHead = execSync('git rev-parse HEAD', { cwd: repoRoot, encoding: 'utf8' }).trim();
+				writeFileSync(join(artifactsDir, 'pipeline-settings-demo.provenance.json'), JSON.stringify({
+					serviceHead, origin: `http://127.0.0.1:${daemon.port}`,
+					frames: gifFrames, screenshotSource: 'Playwright page.screenshot() from production Web',
+				}, null, 2), 'utf8');
+			}
 			for (const ctx of [context2, context]) {
 				if (ctx) await ctx.close().catch(() => {});
 			}
@@ -603,6 +627,10 @@ describe(
 			const wrapupToggle = page.locator('[data-pipeline-toggle="wrapupMode"]');
 			await wrapupToggle.waitFor({ state: 'visible', timeout: 10000 });
 			expect(await wrapupToggle.isVisible()).toBe(true);
+			await page.waitForFunction(() =>
+				document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle] button[aria-pressed="true"]').length === 2,
+			);
+			await captureGifFrame(page, '桌面顶栏与分隔线');
 		});
 
 		it('AC2 step 3: settings 路由 lazy 与来源句 (AC 2, AC 4)', async () => {
@@ -627,16 +655,15 @@ describe(
 				waitUntil: 'domcontentloaded',
 			});
 
+			// 等待设置页面组件渲染
+			const settingsPage = page.locator('[data-component="settings-pipeline-page"]');
+			await settingsPage.waitFor({ state: 'visible', timeout: 15000 });
 			page.off('response', responseHandler);
 
 			// Vite 为该路由生成独立 chunk；首次进入设置页才请求它。
 			const settingsChunk = [...loadedJsChunks].find((url) => /settings-pipeline-page-[^/]+\.js$/.test(url));
 			expect(settingsChunk).toBeDefined();
 			expect(chunksAfterMain.has(settingsChunk!)).toBe(false);
-
-			// 等待设置页面组件渲染
-			const settingsPage = page.locator('[data-component="settings-pipeline-page"]');
-			await settingsPage.waitFor({ state: 'visible', timeout: 15000 });
 
 			// AC4：来源句「当前值来自 daemon」（UI_STRINGS.pipeline.daemonManagedNotice）
 			const daemonNotice = page.locator('[data-testid="daemon-managed-notice"]');
@@ -648,6 +675,10 @@ describe(
 			const settingsContainer = page.locator('[data-component="pipeline-toggles-container"][data-layout="settings"]');
 			await settingsContainer.waitFor({ state: 'visible', timeout: 10000 });
 			expect(await settingsContainer.isVisible()).toBe(true);
+			await page.waitForFunction(() =>
+				document.querySelectorAll('[data-layout="settings"] [data-pipeline-toggle] button[aria-pressed="true"]').length === 2,
+			);
+			await captureGifFrame(page, '设置页与 daemon 来源句');
 
 			// 保存 lazy chunk 加载证据
 			writeFileSync(
@@ -956,6 +987,7 @@ describe(
 			});
 			// 设置页与顶栏一致（共享 source，E-318，E-356）
 			expect(settingsBughuntAfter).toBe(topbarBughuntAfter);
+			await captureGifFrame(page, '顶栏写入后设置页一致');
 
 			// 恢复原始 bughunt 值（为后续测试保持干净状态）
 			const restoreLabel = initialBughuntActive === '开' ? '开' : '关';
@@ -1203,6 +1235,7 @@ describe(
 			});
 			// 首设备与设备 2 一致（通过 SSE 而非刷新实现同步）
 			expect(device1BughuntAfter).toBe(device2BughuntAfter);
+			await captureGifFrame(page, '第二设备写入后首设备同步');
 
 			// 恢复初始值（用管理员 API，因为设备 1/2 的 sessionStorage token 权限可能不同）
 			const restoreRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
@@ -1244,16 +1277,9 @@ describe(
 				return btn ? btn.textContent?.trim() : null;
 			});
 
-			// 通过页面拦截 SSE 连接模拟断线（offline → 恢复后重新 GET）
+			// 将首设备置为离线，保持第二设备与 daemon 在线。
 			await page.context().setOffline(true);
-
-			// 短暂等待断线状态传播
-			await page.waitForFunction(
-				() => document.documentElement.getAttribute('data-connection-status') !== 'online',
-				{ timeout: 10000 },
-			).catch(() => {
-				// 某些情况下断线检测可能需要等待 SSE 心跳超时，允许继续
-			});
+			expect(await page.evaluate(() => navigator.onLine)).toBe(false);
 
 			// 确保第二台设备在线且在主页
 			await page2.bringToFront();
@@ -1294,6 +1320,11 @@ describe(
 				newBughuntLabel,
 				{ timeout: 15000 },
 			);
+			// 负控：首设备离线期间不应提前显示第二设备的新值。
+			expect(await page.evaluate(() => {
+				const active = document.querySelector('[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]');
+				return active?.textContent?.trim() ?? null;
+			})).toBe(bughuntBeforeDisconnect);
 
 			// 恢复第一台设备的网络
 			await page.bringToFront();
@@ -1325,6 +1356,7 @@ describe(
 			});
 			// E-157/E-318：恢复后 UI 值与 daemon 实际存储值一致
 			expect(bughuntAfterReconnect).toBe(newBughuntLabel);
+			await captureGifFrame(page, '断线恢复后同步');
 
 			// 恢复初始值
 			const currentRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
@@ -1350,233 +1382,110 @@ describe(
 		// ================================================================
 		// AC4 step 10：null、错误与恢复客观断言（E-26, E-318, E-356）
 		// ================================================================
-		it('AC4 step 10: E-26 null 占位符、E-356 错误校验与故障恢复客观证据 (AC 4, E-26, E-318, E-356)', async () => {
-			// 1. E-318: GET /api/v1/settings/pipeline 返回完整四键默认值，不为 null
-			const res = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
-				headers: { Authorization: `Bearer ${adminToken}` },
+		it('AC4 step 10: 真实 null 初始态、校验错误与断网故障恢复 (AC 4, E-26, E-318, E-356)', async () => {
+			const baseUrl = `http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`;
+			const readResponse = await fetch(baseUrl, { headers: { Authorization: `Bearer ${adminToken}` } });
+			expect(readResponse.status).toBe(200);
+			const initial = (await readResponse.json()) as { pipeline: {
+				bughunt: 0 | 1; wrapupMode: 'auto' | 'manual'; reviewOverride: unknown; wrapupAssignment: { mode: string };
+			} };
+			expect(Object.keys(initial.pipeline).sort()).toEqual([
+				'bughunt', 'reviewOverride', 'wrapupAssignment', 'wrapupMode',
+			]);
+
+			// 在生产页面脚本运行前安装只读观察器，记录真实 GET 完成前的 null 占位帧。
+			await page.addInitScript(() => {
+				(window as typeof window & { __pipelineNullFrames?: string[][] }).__pipelineNullFrames = [];
+				const observer = new MutationObserver(() => {
+					const placeholders = Array.from(document.querySelectorAll(
+						'[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]',
+					)).map((element) => element.textContent?.trim() ?? '');
+					if (placeholders.length > 0) {
+						(window as typeof window & { __pipelineNullFrames: string[][] }).__pipelineNullFrames.push(placeholders);
+					}
+				});
+				observer.observe(document, { subtree: true, childList: true, attributes: true });
 			});
-			expect(res.status).toBe(200);
-			const data = (await res.json()) as {
-				pipeline: {
-					bughunt: 0 | 1;
-					wrapupMode: 'auto' | 'manual';
-					reviewOverride: unknown;
-					wrapupAssignment: { mode: string };
-				};
-			};
-
-			expect(data.pipeline).toBeDefined();
-			expect([0, 1]).toContain(data.pipeline.bughunt);
-			expect(['auto', 'manual']).toContain(data.pipeline.wrapupMode);
-
-			// 2. 正常情况下：bughunt 与 wrapupMode 都有有效值，在真实 UI 中不应展示置灰占位符「—」
 			await page.setViewportSize({ width: 1280, height: 800 });
-			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
-			await page.waitForFunction(
-				() => document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle]').length >= 2,
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await page.waitForFunction(() =>
+				document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle] button[aria-pressed="true"]').length === 2,
 				{ timeout: 15000 },
 			);
-
-			const normalHasNullPlaceholder = await page.evaluate(() => {
-				const placeholders = document.querySelectorAll(
-					'[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]',
-				);
-				return placeholders.length > 0;
-			});
-			expect(normalHasNullPlaceholder).toBe(false);
-
-			// 3. E-26 客观断言：当后端字段缺失/为 null 时，UI 必须显示「—」占位符，不得拿 0 冒充
-			// 创建独立页面拦截 GET 请求注入 null pipeline，验证 SegmentedToggle 的 placeholder="—" 渲染
-			const nullPage = await context.newPage();
-			await nullPage.route('**/api/v1/settings/pipeline', async (route) => {
-				const req = route.request();
-				if (req.method() === 'GET') {
-					await route.fulfill({
-						status: 200,
-						contentType: 'application/json',
-						body: JSON.stringify({
-							pipeline: {
-								bughunt: null,
-								wrapupMode: null,
-								reviewOverride: null,
-								wrapupAssignment: { mode: 'follow' },
-							},
-						}),
-					});
-				} else {
-					await route.continue();
-				}
-			});
-
-			await nullPage.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
-			await nullPage.waitForFunction(
-				() =>
-					document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]').length >= 1,
-				{ timeout: 15000 },
+			const nullFrames = await page.evaluate(() =>
+				(window as typeof window & { __pipelineNullFrames?: string[][] }).__pipelineNullFrames ?? [],
 			);
+			expect(nullFrames.length).toBeGreaterThan(0);
+			expect(nullFrames.some((frame) => frame.length === 2 && frame.every((value) => value === '—'))).toBe(true);
+			expect(await page.locator('[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]').count()).toBe(0);
 
-			const placeholderTexts = await nullPage.evaluate(() => {
-				const els = document.querySelectorAll(
-					'[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]',
-				);
-				return Array.from(els).map((el) => el.textContent?.trim());
-			});
-			// E-26 核心断言：缺少生效值时展示置灰「—」占位符
-			expect(placeholderTexts.length).toBeGreaterThan(0);
-			expect(placeholderTexts.every((t) => t === '—')).toBe(true);
+			// daemon 对缺键与未知键都返回真实结构化校验错误，拒绝写入。
+			const invalidBodies = [
+				{ bughunt: 0, wrapupMode: 'auto' },
+				{ ...initial.pipeline, unknownField: 'not_allowed' },
+			];
+			const validationEvidence: Array<{ status: number; code: string }> = [];
+			for (const body of invalidBodies) {
+				const response = await fetch(baseUrl, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+					body: JSON.stringify(body),
+				});
+				const result = (await response.json()) as { error: { code: string } };
+				validationEvidence.push({ status: response.status, code: result.error.code });
+				expect(response.status).toBe(400);
+				expect(result.error.code).toBe('E_VALIDATION');
+			}
 
-			// 验证恢复：解除 null 路由拦截后重新加载，UI 恢复显示真实切换开关
-			await nullPage.unroute('**/api/v1/settings/pipeline');
-			await nullPage.reload({ waitUntil: 'domcontentloaded' });
-			await nullPage.waitForFunction(
-				() =>
-					document.querySelectorAll('[data-layout="topbar"] [data-pipeline-toggle] button').length >= 4,
-				{ timeout: 15000 },
+			const activeBeforeError = await page.locator(
+				'[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
+			).textContent();
+			const targetLabel = activeBeforeError?.trim() === '开' ? '关' : '开';
+			const targetButton = page.locator(
+				`[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button:has-text("${targetLabel}")`,
 			);
-			const recoveredPlaceholders = await nullPage.evaluate(() => {
-				return document.querySelectorAll(
-					'[data-layout="topbar"] [data-pipeline-toggle] [data-disabled="true"]',
-				).length;
-			});
-			expect(recoveredPlaceholders).toBe(0);
-			await nullPage.close();
+			let errorText = '';
+			await context.setOffline(true);
+			try {
+				expect(await page.evaluate(() => navigator.onLine)).toBe(false);
+				await targetButton.click();
+				const notice = page.locator('[data-testid="pipeline-toggles-error"]');
+				await notice.waitFor({ state: 'visible', timeout: 10000 });
+				errorText = (await notice.textContent())?.trim() ?? '';
+				expect(errorText.length).toBeGreaterThan(0);
+				expect(await page.locator('[data-layout="topbar"] [data-component="pipeline-toggles"]').getAttribute('data-pending')).toBe('false');
+				expect((await page.locator('[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]').textContent())?.trim()).toBe(activeBeforeError?.trim());
+				expect(await targetButton.isEnabled()).toBe(true);
+			} finally {
+				await context.setOffline(false);
+			}
 
-			// 4. E-356 错误校验断言：
-			// 4a. 缺四键任一键：返回 400 + E_VALIDATION
-			const badMissingKeysRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
+			await page.waitForFunction(() => document.documentElement.getAttribute('data-connection-status') === 'online', { timeout: 30000 });
+			await targetButton.click();
+			await page.waitForFunction((label) => {
+				const active = document.querySelector('[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]');
+				return active?.textContent?.trim() === label;
+			}, targetLabel, { timeout: 20000 });
+			const recovered = await fetch(baseUrl, { headers: { Authorization: `Bearer ${adminToken}` } });
+			const recoveredData = (await recovered.json()) as typeof initial;
+			expect(recoveredData.pipeline.bughunt).toBe(targetLabel === '开' ? 1 : 0);
+			writeFileSync(join(artifactsDir, 'ps-null-error-recovery.json'), JSON.stringify({
+				initialPipelineKeys: Object.keys(initial.pipeline), nullFrames, validationEvidence,
+				offlineErrorText: errorText, activeBeforeError: activeBeforeError?.trim(),
+				recoveredBughunt: recoveredData.pipeline.bughunt,
+			}, null, 2), 'utf8');
+			const restore = await fetch(baseUrl, {
 				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${adminToken}`,
-				},
-				body: JSON.stringify({ bughunt: 0, wrapupMode: 'auto' }),
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+				body: JSON.stringify(initial.pipeline),
 			});
-			expect(badMissingKeysRes.status).toBe(400);
-			const badMissingKeysData = (await badMissingKeysRes.json()) as { error: { code: string } };
-			expect(badMissingKeysData.error.code).toBe('E_VALIDATION');
-
-			// 4b. 包含未知非法键：AJV additionalProperties:false 拒绝，返回 400 + E_VALIDATION
-			const badUnknownKeyRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${adminToken}`,
-				},
-				body: JSON.stringify({
-					bughunt: 0,
-					wrapupMode: 'auto',
-					reviewOverride: null,
-					wrapupAssignment: { mode: 'follow' },
-					unknownField: 'not_allowed',
-				}),
-			});
-			expect(badUnknownKeyRes.status).toBe(400);
-			const badUnknownKeyData = (await badUnknownKeyRes.json()) as { error: { code: string } };
-			expect(badUnknownKeyData.error.code).toBe('E_VALIDATION');
-
-			// 5. UI 故障恢复断言：
-			// 当用户在 UI 触发 PATCH 但服务端返回 500 错误时，
-			// 前端必须解除 isPending（按钮恢复可用，不永久卡在 pending），并能继续操作
-			await page.bringToFront();
-			await page.route('**/api/v1/settings/pipeline', async (route) => {
-				const req = route.request();
-				if (req.method() === 'PATCH') {
-					await route.fulfill({
-						status: 500,
-						contentType: 'application/json',
-						body: JSON.stringify({ error: { code: 'E_INTERNAL', message: 'Simulated failure' } }),
-					});
-				} else {
-					await route.continue();
-				}
-			});
-
-			const bughuntActiveBeforeError = await page.evaluate(() => {
-				const btn = document.querySelector(
-					'[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button[aria-pressed="true"]',
-				);
-				return btn ? btn.textContent?.trim() : null;
-			});
-			const tryTargetLabel = bughuntActiveBeforeError === '开' ? '关' : '开';
-			const tryBtn = page.locator(
-				`[data-layout="topbar"] [data-pipeline-toggle="bughunt"] button:has-text("${tryTargetLabel}")`,
-			);
-			await tryBtn.click();
-
-			// 发生 500 错误后，pending 必须自动解除（publish({ isPending: false })）
-			await page.waitForFunction(
-				() =>
-					document.querySelector('[data-layout="topbar"] [data-component="pipeline-toggles"]')
-						?.getAttribute('data-pending') !== 'true',
-				{ timeout: 10000 },
-			);
-
-			// UI 按钮恢复为非 disabled，值保持原值（不因错误而翻转）
-			const bughuntActiveAfterError = await page.evaluate(() => {
-				const container = document.querySelector('[data-layout="topbar"] [data-component="pipeline-toggles"]');
-				const btn = container?.querySelector('[data-pipeline-toggle="bughunt"] button[aria-pressed="true"]');
-				const anyDisabled = Array.from(container?.querySelectorAll('button') ?? []).some(
-					(b) => (b as HTMLButtonElement).disabled,
-				);
-				return {
-					activeText: btn?.textContent?.trim() ?? null,
-					anyDisabled,
-				};
-			});
-			expect(bughuntActiveAfterError.activeText).toBe(bughuntActiveBeforeError);
-			expect(bughuntActiveAfterError.anyDisabled).toBe(false);
-
-			// 解除 500 错误拦截
-			await page.unroute('**/api/v1/settings/pipeline');
-
-			// 保存客观证据（AC4）
-			writeFileSync(
-				join(artifactsDir, 'ps-e26-e318-evidence.json'),
-				JSON.stringify(
-					{
-						getPipelineStatus: res.status,
-						pipelineKeys: Object.keys(data.pipeline),
-						normalHasNullPlaceholder,
-						nullPlaceholderRendered: placeholderTexts,
-						recoveredPlaceholders,
-						badMissingKeysStatus: badMissingKeysRes.status,
-						badMissingKeysCode: badMissingKeysData.error.code,
-						badUnknownKeyStatus: badUnknownKeyRes.status,
-						badUnknownKeyCode: badUnknownKeyData.error.code,
-						uiErrorRecovery: {
-							activeBeforeError: bughuntActiveBeforeError,
-							activeAfterError: bughuntActiveAfterError.activeText,
-							buttonsReenabled: !bughuntActiveAfterError.anyDisabled,
-						},
-					},
-					null,
-					2,
-				),
-				'utf8',
-			);
+			expect(restore.status).toBe(200);
 		});
 
 		// ================================================================
-		// AC4 step 11：GIF 证据说明（录制约定与覆盖范围）
+		// AC4 step 11：CI 门禁配置
 		// ================================================================
-		it('AC4 step 11: GIF 证据说明与 CI 接入确认 (AC 4, AC 5, E-265)', () => {
-			// GIF 证据说明（AC4）：
-			// 本测试套件本身即 "状态驱动" 证据。真实 GIF 使用以下录制约定：
-			//
-			// 录制工具：Playwright 的 page.video() 录制（或 screen recorder）
-			// 标注内容：
-			//   - 服务 HEAD：HEAD commit SHA（见 daemon stdout 启动日志）
-			//   - origin：http://127.0.0.1:<port>（真实 daemon 端口）
-			//   - 覆盖范围：
-			//     · 真实配对页面领取身份（AC1）
-			//     · 顶栏开关切换 → pending → SSE 回流 → 两处一致（AC2/AC3）
-			//     · 第二设备实时同步（AC3）
-			//     · 断线后恢复（AC3）
-			//     · 设置页 lazy 加载与来源句（AC2/AC4）
-			//
-			// GIF 文件位置：e2e/artifacts/pipeline-settings-demo.gif（由 CI job 上传为 artifact）
-			//
-			// 本步骤验证 e2e CI job 配置存在：
+		it('AC4 step 11: 正式 CI 接入确认 (AC 4, AC 5, E-265)', () => {
 			const ciWorkflow = join(repoRoot, '.github/workflows/desktop-ci.yml');
 			expect(existsSync(ciWorkflow)).toBe(true);
 			const ciContent = readFileSync(ciWorkflow, 'utf8');
