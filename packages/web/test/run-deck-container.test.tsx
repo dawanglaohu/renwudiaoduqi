@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
+import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -20,7 +21,7 @@ const idleLane = {
 	overLimit: false,
 } as unknown as LaneView;
 
-function renderDeck(gates: readonly GateDto[] = []) {
+function renderDeck(gates: readonly GateDto[] = [], runs: readonly RunDto[] = []) {
 	const task = {
 		id: 't1',
 		taskKey: 'TEST-T1',
@@ -39,6 +40,7 @@ function renderDeck(gates: readonly GateDto[] = []) {
 			lanes: buildDeckLanes({ lanes: [idleLane], gates }),
 			rawLanes: [idleLane],
 			gates,
+			runs,
 			tier: 'full',
 			isTouch: false,
 			width: 1200,
@@ -78,5 +80,53 @@ describe('R13 browser entry wiring', () => {
 		expect(html).toContain('data-component="gate-card"');
 		expect(html).not.toContain('empty-onboarding-console');
 		expect(idleLane.stage).toBe('idle');
+	});
+	it('projects a real zero-output GateDto context into the waiting task card (E-348)', () => {
+		const gate = {
+			id: 'g-zero',
+			taskId: 't1',
+			runId: 'r-zero',
+			kind: 'review',
+			state: 'waiting',
+			decision: null,
+			comment: null,
+			decidedByDeviceId: null,
+			createdAt: '2026-09-29T00:00:00Z',
+			decidedAt: null,
+			context: {
+				exitCode: 1,
+				exitSignal: null,
+				stderrTail: { kind: 'lines', lines: ['authentication required or invalid model'] },
+				login: null,
+			},
+		} satisfies GateDto;
+		const html = renderDeck([gate]);
+		expect(html).toContain('agent 未产出任何内容就退出');
+		expect(html).toContain('authentication required or invalid model');
+		expect(html).toContain('exit: 1');
+	});
+	it('keeps incomplete review text and its delivery action on a released task card (E-278)', () => {
+		const gate = {
+			id: 'g-incomplete',
+			taskId: 't1',
+			runId: 'r-review',
+			kind: 'review',
+			state: 'waiting',
+		} as GateDto;
+		const implement = {
+			id: 'r-implement',
+			kind: 'implement',
+			capabilities: { canReply: true, canResume: true },
+		} as RunDto;
+		const review = {
+			id: 'r-review',
+			kind: 'review',
+			parentRunId: 'r-implement',
+			reviewVerdict: 'incomplete',
+			reworkText: 'Please revise the implementation code thoroughly',
+		} as RunDto;
+		const html = renderDeck([gate], [implement, review]);
+		expect(html).toContain('Please revise the implementation code thoroughly');
+		expect(html).toContain('投递原文到实施会话');
 	});
 });

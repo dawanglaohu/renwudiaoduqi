@@ -304,7 +304,7 @@ export function GateCard(props: GateCardProps) {
 		onStepClick,
 		reviewVerdict,
 		reworkText,
-		context,
+		context: explicitContext,
 		onApprove,
 		onEdit,
 		onReject,
@@ -326,6 +326,21 @@ export function GateCard(props: GateCardProps) {
 		className,
 		...rest
 	} = props;
+	const context: GateContextDto | null =
+		explicitContext ??
+		(gate?.context
+			? {
+					exitCode: gate.context.exitCode,
+					exitSignal: gate.context.exitSignal,
+					stderrTail: gate.context.stderrTail,
+					login: gate.context.login
+						? {
+								status: gate.context.login.state,
+								hint: gate.context.login.loginCommand ?? undefined,
+							}
+						: null,
+				}
+			: null);
 
 	// 生成唯一控件 ID
 	const cardId = useId();

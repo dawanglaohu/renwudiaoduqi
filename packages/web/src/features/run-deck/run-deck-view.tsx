@@ -117,6 +117,65 @@ function LaneGateCard(props: LaneGateCardProps) {
 	);
 }
 
+function TaskApprovalCard(props: {
+	readonly gate: GateDto;
+	readonly task: TaskDto | undefined;
+	readonly runs: readonly RunDto[];
+	readonly tier: DensityTier;
+	readonly isMobileMode: boolean;
+	readonly isTouch: boolean;
+	readonly onDecideGate: LaneGateCardProps['onDecideGate'];
+}) {
+	const { gate, task, runs, tier, isMobileMode, isTouch, onDecideGate } = props;
+	const reviewRun = runs.find((run) => run.id === gate.runId && run.kind === 'review');
+	const targetRun = reviewRun?.parentRunId
+		? runs.find((run) => run.id === reviewRun.parentRunId)
+		: null;
+	const delivery = useGateCard({
+		runId: targetRun?.id,
+		reviewVerdict: reviewRun?.reviewVerdict,
+		reworkText: reviewRun?.reworkText,
+		canReply: targetRun?.capabilities?.canReply,
+	});
+	return (
+		<GateCard
+			gateKind={gate.kind}
+			gate={gate}
+			taskKey={task?.taskKey ?? '—'}
+			taskTitle={task?.title ?? '—'}
+			reviewVerdict={reviewRun?.reviewVerdict ?? undefined}
+			reworkText={reviewRun?.reworkText ?? undefined}
+			canReply={delivery.canReply}
+			deliveryNotice={delivery.deliveryNotice}
+			isReworkTextCopied={delivery.isReworkTextCopied}
+			onCopyReworkText={() => {
+				void delivery.copyReworkText();
+			}}
+			disabled={!onDecideGate}
+			tier={tier}
+			isMobile={isMobileMode}
+			isTouch={isTouch}
+			stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
+			onApprove={() => {
+				void onDecideGate?.(gate.id, 'pass');
+			}}
+			onEdit={() => {
+				void onDecideGate?.(gate.id, 'reject', '改一下');
+			}}
+			onReject={() => {
+				void onDecideGate?.(gate.id, 'reject');
+			}}
+			{...(delivery.shouldShowDeliverRaw
+				? {
+						onDeliverRaw: () => {
+							void delivery.deliverRaw();
+						},
+					}
+				: {})}
+		/>
+	);
+}
+
 /**
  * 泳道主体：收口运行挂收口报告面板，任务运行留给 M9-T21 的阶段链（E-297、E-312）。
  */
@@ -336,25 +395,14 @@ export function RunDeckView(props: RunDeckViewProps) {
 		if (!gate) return null;
 		const task = tasks.find((entry) => entry.id === taskId);
 		return (
-			<GateCard
-				gateKind={gate.kind}
+			<TaskApprovalCard
 				gate={gate}
-				taskKey={task?.taskKey ?? '—'}
-				taskTitle={task?.title ?? '—'}
-				disabled={!onDecideGate}
+				task={task}
+				runs={runs}
 				tier={tier}
-				isMobile={isMobileMode}
+				isMobileMode={isMobileMode}
 				isTouch={isTouch}
-				stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
-				onApprove={() => {
-					void onDecideGate?.(gate.id, 'pass');
-				}}
-				onEdit={() => {
-					void onDecideGate?.(gate.id, 'reject', '改一下');
-				}}
-				onReject={() => {
-					void onDecideGate?.(gate.id, 'reject');
-				}}
+				onDecideGate={onDecideGate}
 			/>
 		);
 	};
