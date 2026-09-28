@@ -35,6 +35,16 @@ describe('cache-invalidation (M9-T21 / E-333)', () => {
 		expect(prefixes).toContain('documents');
 	});
 
+	it('settings.pipeline_changed maps to settings prefix (AC 2)', () => {
+		const prefixes = getInvalidationPrefixesForEvent('settings.pipeline_changed');
+		expect(prefixes).toEqual(['settings']);
+	});
+
+	it('settings.gates_changed maps to settings prefix', () => {
+		const prefixes = getInvalidationPrefixesForEvent('settings.gates_changed');
+		expect(prefixes).toEqual(['settings']);
+	});
+
 	it('returns empty array for unregistered or unknown event kinds', () => {
 		expect(getInvalidationPrefixesForEvent('unknown.event')).toEqual([]);
 		expect(getInvalidationPrefixesForEvent('')).toEqual([]);

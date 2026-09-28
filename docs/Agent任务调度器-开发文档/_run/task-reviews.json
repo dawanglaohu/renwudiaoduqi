@@ -1144,6 +1144,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R16-T83723920": {
+    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "contractHash": "b8ec616f9777c96ece930cd5f239c92c1896e010b978eb62041856b47b09ae01",
+    "evidence": [
+      "任务定义 R16-T83723920.md 的输入 B4、产出与五条验收标准与第 16 批收口 B4 相符；没有降低 E-157、E-318、E-333、E-356。",
+      "07-前端架构.md 267 行指定 read/invalidate/refetchAll、event kind 前缀映射及连接恢复；有效路径覆盖 resource-cache、cache-invalidation 和共享 PipelineSettingsSource 的生产入口及三份对应测试。",
+      "前置 M9-T19/T21/T22 在任务笔记列明，06/07 分层为 api 缓存和 features 消费，17-测试策略明确 pnpm -w check 与 GUI GIF；本轮代码实现未通过另行返工，不以契约复核冒充代码验收。"
+    ],
+    "reviewed": "2026-09-27T16:53:27.738801+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T54786768": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
     "contractHash": "fcc25dff347d6c5248e624f2d57b6b9490a50e521a716f09c4cd6e625e2fddf3",
