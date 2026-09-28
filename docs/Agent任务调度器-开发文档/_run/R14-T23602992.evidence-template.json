@@ -2,7 +2,7 @@
   "scope": "task-contract",
   "tasks": {
     "R14-T23602992": {
-      "contractHash": "86cde1d561b01d03368670cad0f042edc74eb6e025d4c0ea910e99fe28cc25cd",
+      "contractHash": "0b280a56cab151071429fef35e0bf10c7d066e3fb4fd70aa2bf882e6cf723c24",
       "evidence": [],
       "verdict": "pending"
     }

@@ -1034,6 +1034,38 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 			expect(list.rows[1]?.label).toBe('第 1 轮修复 · M9-T21');
 		});
 
+		it('keeps a failed wrapup worktree visible when no report row was parsed (E-295)', () => {
+			const failed = makeRun({
+				id: 'run-wrapup-failed',
+				batchId: 'batch-13',
+				state: 'awaiting_human',
+				worktreePath: 'D:/workspace/agent-scheduler-batch-13-round-2',
+				branchName: 'batch/13-round-2',
+				isInHead: false,
+			});
+			const list = buildBatchLandingList({
+				batchId: 'batch-13',
+				batchNo: 13,
+				wrapups: [makeWrapup({ fixRunIds: [] })],
+				runs: [makeRun({ batchId: 'batch-13' }), failed],
+			});
+			expect(list.rows.map((row) => row.id)).toEqual([
+				'wrapup:wrapup-1',
+				'unfinished:run-wrapup-failed',
+			]);
+			expect(list.rows[1]).toMatchObject({
+				label: '未完成的收口改动 · 第 2 轮',
+				worktreePath: failed.worktreePath,
+				branchName: failed.branchName,
+				inHead: false,
+			});
+			const html = renderToStaticMarkup(
+				createElement(LandingPage, { taskId: 'M9-T20', batchLanding: list }),
+			);
+			expect(html).toContain('未完成的收口改动');
+			expect(html).toContain('batch/13-round-2');
+		});
+
 		it('composes a copyable command without executing anything (复制而不执行)', () => {
 			expect(composeBatchLandingCommand('D:/wt/batch-13', 'batch/13-20260920')).toBe(
 				'gh stack push',

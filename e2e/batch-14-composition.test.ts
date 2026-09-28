@@ -184,65 +184,33 @@ function encodeGif89a(frames: readonly FrameRecord[], width: number, height: num
 		const clearCode = 1 << minCodeSize;
 		const eoiCode = clearCode + 1;
 
-		let curCodeSize = minCodeSize + 1;
-		let nextCode = eoiCode + 1;
-		const dict = new Map<string, number>();
-
-		const resetDict = () => {
-			dict.clear();
-			curCodeSize = minCodeSize + 1;
-			nextCode = eoiCode + 1;
-		};
-
-		const outBits: number[] = [];
-		const writeBits = (code: number, len: number) => {
-			for (let b = 0; b < len; b++) {
-				outBits.push((code >> b) & 1);
-			}
-		};
-
-		writeBits(clearCode, curCodeSize);
-		let prefix: string | null = null;
-		for (let i = 0; i < frame.pixels.length; i++) {
-			const k = frame.pixels[i]!;
-			const pk = prefix === null ? String(k) : `${prefix},${k}`;
-			if (dict.has(pk)) {
-				prefix = pk;
-			} else {
-				const code = prefix === null ? k : dict.get(prefix)!;
-				writeBits(code, curCodeSize);
-				if (nextCode < 4096) {
-					dict.set(pk, nextCode++);
-					if (nextCode > (1 << curCodeSize) && curCodeSize < 12) {
-						curCodeSize++;
-					}
-				} else {
-					writeBits(clearCode, curCodeSize);
-					resetDict();
-				}
-				prefix = String(k);
-			}
-		}
-		if (prefix !== null) {
-			const code = prefix.includes(',') ? dict.get(prefix)! : Number(prefix);
-			writeBits(code, curCodeSize);
-		}
-		writeBits(eoiCode, curCodeSize);
-
-		// Pack bits to bytes
+		// Emit literal palette indices with regular clear codes. Keeping each dictionary
+		// below 512 entries makes every code exactly 9 bits and avoids an invalid
+		// width transition in the previous encoder, which corrupted the saved frames.
 		const bytes: number[] = [];
-		let curByte = 0;
-		let bitCount = 0;
-		for (let i = 0; i < outBits.length; i++) {
-			curByte |= outBits[i]! << bitCount;
-			bitCount++;
-			if (bitCount === 8) {
-				bytes.push(curByte);
-				curByte = 0;
-				bitCount = 0;
+		let pending = 0;
+		let pendingBits = 0;
+		const writeCode = (code: number) => {
+			pending |= code << pendingBits;
+			pendingBits += 9;
+			while (pendingBits >= 8) {
+				bytes.push(pending & 0xff);
+				pending >>>= 8;
+				pendingBits -= 8;
 			}
+		};
+		writeCode(clearCode);
+		let literalsSinceClear = 0;
+		for (const pixel of frame.pixels) {
+			if (literalsSinceClear === 200) {
+				writeCode(clearCode);
+				literalsSinceClear = 0;
+			}
+			writeCode(pixel);
+			literalsSinceClear++;
 		}
-		if (bitCount > 0) bytes.push(curByte);
+		writeCode(eoiCode);
+		if (pendingBits > 0) bytes.push(pending & 0xff);
 
 		// Sub blocks
 		for (let off = 0; off < bytes.length; off += 254) {
@@ -381,8 +349,8 @@ function getSnapshotFromDb(dataDir: string, snapshotId: string): any {
 	}
 }
 
-const FRAME_WIDTH = 320;
-const FRAME_HEIGHT = 200;
+const FRAME_WIDTH = 960;
+const FRAME_HEIGHT = 600;
 
 async function captureStateFrame(
 	page: Page,
@@ -391,6 +359,7 @@ async function captureStateFrame(
 ): Promise<FrameRecord> {
 	await maskSensitivePageContent(page);
 	const pngBuffer = await page.screenshot({ type: 'png' });
+	writeFileSync(join(artifactsDir, `${label}.png`), pngBuffer);
 	const decoded = decodePngRgba(pngBuffer);
 	const pixels = new Uint8Array(FRAME_WIDTH * FRAME_HEIGHT);
 
@@ -415,6 +384,59 @@ async function captureStateFrame(
 		pixels,
 		timestamp: new Date().toISOString(),
 		delayMs: 1200,
+	};
+}
+
+interface CapturedEvent {
+	readonly kind: string;
+	readonly runId: string | null;
+	readonly taskId: string | null;
+	readonly payload: Record<string, unknown>;
+}
+
+async function captureLiveEvents(port: number, token: string): Promise<{
+	readonly events: CapturedEvent[];
+	readonly stop: () => Promise<void>;
+}> {
+	const abort = new AbortController();
+	const response = await fetch(`http://127.0.0.1:${port}/api/v1/events`, {
+		headers: { Authorization: `Bearer ${token}` },
+		signal: abort.signal,
+	});
+	if (!response.ok || !response.body) {
+		abort.abort();
+		throw new Error(`Could not subscribe to live events: ${response.status}`);
+	}
+	const events: CapturedEvent[] = [];
+	const reader = response.body.getReader();
+	const drain = (async () => {
+		const decoder = new TextDecoder();
+		let pending = '';
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			pending += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+			let boundary = pending.indexOf('\n\n');
+			while (boundary >= 0) {
+				const frame = pending.slice(0, boundary);
+				pending = pending.slice(boundary + 2);
+				const data = frame.split('\n').find((line) => line.startsWith('data: '));
+				if (data) {
+					const envelope = JSON.parse(data.slice(6)) as CapturedEvent;
+					events.push(envelope);
+				}
+				boundary = pending.indexOf('\n\n');
+			}
+		}
+	})().catch((error: unknown) => {
+		if (!abort.signal.aborted) throw error;
+	});
+	return {
+		events,
+		stop: async () => {
+			abort.abort();
+			await drain;
+		},
 	};
 }
 
@@ -491,9 +513,17 @@ const bughuntFailSignals = [
 ];
 const hasBughuntFailSignal = bughuntFailSignals.some((p) => fs.existsSync(p));
 const isBughuntRun = process.argv.some((a) => a.includes('bughunt') || a.includes('查 bug'));
+const hasWrapupFailSignal = fs.existsSync(path.join(signalDir, 'wrapup-fail.signal'));
 
 // E-348 Zero-output check: if zero-output signal exists and target is B14-T2, wait 350ms for daemon to reach running state, then exit with stderr before content events
-if (hasZeroSignal && isTask2) {
+if (hasWrapupFailSignal) {
+  const partial = path.join(process.cwd(), 'e2e/b14-t1.ts');
+  if (fs.existsSync(partial)) fs.appendFileSync(partial, '// unfinished wrapup change\\n', 'utf8');
+  setTimeout(() => {
+    process.stderr.write('[error] Wrapup exited with unfinished worktree changes\\n');
+    process.exit(1);
+  }, 350);
+} else if (hasZeroSignal && isTask2) {
   setTimeout(() => {
     process.stderr.write('[error] Agent process exited before producing content: authentication required or invalid model\\n[stderr] credentials check failed: token expired\\n');
     process.exit(1);
@@ -908,6 +938,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 	let task4Id: string | null = null;
 	let task5Id: string | null = null;
 	let currentRunId: string | null = null;
+	let liveEvents: Awaited<ReturnType<typeof captureLiveEvents>> | null = null;
 
 	const recordedFrames: FrameRecord[] = [];
 
@@ -1145,6 +1176,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 	});
 
 	afterAll(async () => {
+		if (liveEvents) await liveEvents.stop().catch(() => {});
 		if (context) await context.close().catch(() => {});
 		if (browser) await browser.close().catch(() => {});
 		let exitResult: DaemonExitResult | null = null;
@@ -1216,6 +1248,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		expect(token).toBeTruthy();
 		adminToken = token as string;
 		registerSensitiveData(adminToken);
+		liveEvents = await captureLiveEvents(daemon.port, adminToken);
 
 		// E-06: Error address verification in isolated test page
 		const tempCodeRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/pair/code`, {
@@ -1418,6 +1451,8 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		const zeroTmpSignalPath = join(tmpdir(), 'zero-output.signal');
 		writeFileSync(zeroSignalPath, 'TRIGGER_ZERO_OUTPUT\n', 'utf8');
 		writeFileSync(zeroTmpSignalPath, 'TRIGGER_ZERO_OUTPUT\n', 'utf8');
+		// Make B14-T3's real review return an unstructured verdict (E-278).
+		writeFileSync(join(daemon.dataDir, 'unstructured-rework.signal'), 'TRIGGER_UNSTRUCTURED_REVIEW\n');
 
 		// Signal normal content for B14-T1
 		const liveMsg = `B14_LIVE_CONTENT_${Date.now()}`;
@@ -1813,21 +1848,76 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		expect(zeroOutputGateContext.stderrTail.lines?.length).toBeGreaterThan(0);
 		const stderrLinesJson = JSON.stringify(zeroOutputGateContext.stderrTail.lines);
 		expect(stderrLinesJson).toContain('authentication required or invalid model');
+		expect(zeroOutputGateContext.exitCode).toBe(1);
+		expect(zeroOutputGateContext.exitSignal ?? null).toBeNull();
 		expect(zeroOutputGateContext.login).toBeDefined();
+		await expect
+			.poll(
+				() => {
+					const events = liveEvents?.events.filter((event) => event.runId === zeroRunId) ?? [];
+					const exited = events.find((event) => event.kind === 'run.exited');
+					const states = events.filter((event) => event.kind === 'run.state_changed');
+					const released = events.find(
+						(event) => event.kind === 'lane.released' && event.payload.reason === 'awaiting_human',
+					);
+					return Boolean(
+						exited?.payload.exitCode === 1 &&
+							JSON.stringify(exited.payload.stderrTail).includes('authentication required or invalid model') &&
+							states.some((event) => event.payload.to === 'reviewing') &&
+							states.some((event) => event.payload.to === 'awaiting_human') &&
+							released,
+					);
+				},
+				{ timeout: 15000, interval: 250 },
+			)
+			.toBe(true);
+		// The B14-T3 review must preserve its unstructured original text and open
+		// a real human gate; the invalid-ID HTTP checks used previously proved neither.
+		let incompleteReviewText = '';
+		await expect
+			.poll(
+				async () => {
+					const runsRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs`, {
+						headers: { Authorization: `Bearer ${adminToken}` },
+					});
+					if (!runsRes.ok) return false;
+					const runs = (await runsRes.json()) as {
+						runs: Array<{ taskId: string; kind: string; reviewVerdict?: string; reworkText?: string }>;
+					};
+					const review = runs.runs.find(
+						(run) => run.taskId === task3Id && run.kind === 'review' && run.reviewVerdict === 'incomplete',
+					);
+					incompleteReviewText = review?.reworkText ?? '';
+					return incompleteReviewText.includes('Please revise the implementation code thoroughly');
+				},
+				{ timeout: 30000, interval: 500 },
+			)
+			.toBe(true);
+		const incompleteGateRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/gates`, {
+			headers: { Authorization: `Bearer ${adminToken}` },
+		});
+		expect(incompleteGateRes.status).toBe(200);
+		const incompleteGates = (await incompleteGateRes.json()) as {
+			gates: Array<{ taskId: string; state: string }>;
+		};
+		expect(incompleteGates.gates.some((gate) => gate.taskId === task3Id && gate.state === 'waiting')).toBe(true);
 
 		// Navigate to deck #/ to assert gate card rendering in DOM (E-348, E-106)
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
-		const gateCard = page.locator('[data-component="gate-card"]').first();
+		const gateCard = page
+			.locator('[data-component="gate-card"]')
+			.filter({ hasText: 'agent 未产出任何内容就退出' })
+			.first();
 		await gateCard.waitFor({ state: 'visible', timeout: 15000 });
 		const cardText = await gateCard.innerText();
-		expect(cardText).toMatch(/审查裁定|无人应答不会自动批准|exited_before_output|进程/);
-
-		// Assert E-348 stderr diagnostic block if rendered in DOM
-		const stderrBlock = page.locator('[data-field="stderr-block"]');
-		if ((await stderrBlock.count()) > 0) {
-			const stderrDomText = await stderrBlock.first().innerText();
-			expect(stderrDomText).toMatch(/authentication required|token expired|stderr/i);
-		}
+		expect(cardText).toContain('agent 未产出任何内容就退出，常见原因：未登录、模型名不可用、参数被拒');
+		expect(cardText).toMatch(/authentication required|token expired/);
+		await page.getByText('Please revise the implementation code thoroughly', { exact: false }).first().waitFor({
+			state: 'visible',
+			timeout: 15000,
+		});
+		const deliverRaw = page.getByRole('button', { name: '投递原文到实施会话' }).first();
+		await deliverRaw.waitFor({ state: 'visible', timeout: 15000 });
 
 		// E-106: 无条件断言桌面端同时 5 个以上运行流并置
 		const streamLanes = page.locator('[data-component="run-lane"], [data-stream-column="true"]');
@@ -2079,6 +2169,19 @@ Ready for landing checklist
 			},
 		);
 		expect([200, 201, 202]).toContain(wrapupTriggerRes.status);
+		let wrapupRunId: string | null = null;
+		await expect
+			.poll(
+				() => {
+					const started = liveEvents?.events.find(
+						(event) => event.kind === 'batch.wrapup_started' && event.payload.batchId === activeBatchId,
+					);
+					wrapupRunId = typeof started?.payload.runId === 'string' ? started.payload.runId : null;
+					return wrapupRunId;
+				},
+				{ timeout: 15000, interval: 250 },
+			)
+			.toBeTruthy();
 
 		// Navigate to deck #/ to verify wrapup stream column and wrapup report panel
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
@@ -2112,6 +2215,20 @@ Ready for landing checklist
 		const report = wrapupRecords.wrapups[0]!;
 		expect(report.verdict).toBe('open');
 		expect(report.declaredVerdict).toBe('clean');
+		await expect
+			.poll(
+				() =>
+					liveEvents?.events.some(
+						(event) =>
+							event.kind === 'batch.wrapup_finished' &&
+							event.payload.batchId === activeBatchId &&
+							event.payload.runId === wrapupRunId &&
+							event.payload.wrapupId === report.id &&
+							event.payload.verdict === 'open',
+						) ?? false,
+				{ timeout: 15000, interval: 250 },
+			)
+			.toBe(true);
 
 		// 在页面上断言收口报告组件渲染有效裁定与落地清单 (E-286, E-74)
 		const reportPanel = page.locator('[data-component="wrapup-report"]').first();
@@ -2138,66 +2255,87 @@ Ready for landing checklist
 	}, 180000);
 
 	// ─────────────────────────────────────────────────────────────────────────
-	// Step 7: 收口并发取数保护与旧请求晚回覆盖回归及边界规约验证 (AC 3, M9-T20 B1 回归, E-278, E-295, E-297)
+	// Step 7: 收口失败后的半成品工作区、转人工与解析失败呈现 (AC 3, E-295, E-297)
 	// ─────────────────────────────────────────────────────────────────────────
-	it('step 7: 收口并发取数保护与旧请求晚回覆盖回归及边界规约验证 (AC 3, M9-T20 B1 回归, E-278, E-295, E-297)', async () => {
+	it('step 7: 收口失败后的半成品工作区、转人工与解析失败呈现 (AC 3, E-295, E-297)', async () => {
 		expect(activeBatchId).toBeTruthy();
+		writeFileSync(join(daemon.dataDir, 'wrapup-fail.signal'), 'TRIGGER_WRAPUP_FAIL\n');
+		const secondTrigger = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/batches/${activeBatchId}/wrapup`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+			body: JSON.stringify({ agentId: 'codex', idempotencyKey: `wrapup-fail-${Date.now()}` }),
+		});
+		expect([200, 201, 202]).toContain(secondTrigger.status);
+		let failedWrapupRunId: string | null = null;
+		await expect
+			.poll(
+				() => {
+					const started = liveEvents?.events.find(
+						(event) =>
+							event.kind === 'batch.wrapup_started' &&
+							event.payload.batchId === activeBatchId &&
+							event.payload.round === 2,
+					);
+					failedWrapupRunId = typeof started?.payload.runId === 'string' ? started.payload.runId : null;
+					return failedWrapupRunId;
+				},
+				{ timeout: 15000, interval: 250 },
+			)
+			.toBeTruthy();
+		await expect
+			.poll(
+				() =>
+					liveEvents?.events.some(
+						(event) =>
+							event.kind === 'batch.wrapup_finished' &&
+							event.payload.runId === failedWrapupRunId &&
+							event.payload.verdict === 'unparsed' &&
+							event.payload.batchState === 'needs_attention',
+						) ?? false,
+				{ timeout: 30000, interval: 250 },
+			)
+			.toBe(true);
+		const failedRunResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${failedWrapupRunId}`, {
+			headers: { Authorization: `Bearer ${adminToken}` },
+		});
+		expect(failedRunResponse.status).toBe(200);
+		const failedRun = (await failedRunResponse.json()) as {
+			run: { state: string; worktreePath: string | null; branchName: string | null };
+		};
+		expect(failedRun.run.state).toBe('awaiting_human');
+		expect(failedRun.run.worktreePath).toBeTruthy();
+		expect(readFileSync(join(failedRun.run.worktreePath!, 'e2e/b14-t1.ts'), 'utf8')).toContain(
+			'unfinished wrapup change',
+		);
+		const failedGateResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/gates`, {
+			headers: { Authorization: `Bearer ${adminToken}` },
+		});
+		const failedGates = (await failedGateResponse.json()) as {
+			gates: Array<{ runId: string; state: string; taskId: string | null }>;
+		};
+		expect(
+			failedGates.gates.some(
+				(gate) => gate.runId === failedWrapupRunId && gate.state === 'waiting' && gate.taskId === null,
+			),
+		).toBe(true);
 
-		// 1. 真实时序差防反向覆盖验证：旧请求先发后回不得反向覆盖新响应 (M9-T20 B1 回归)
-		const refetchProtection = await page.evaluate(async (batchId) => {
-			const token = sessionStorage.getItem('agsched.token');
-
-			// 请求 A：慢速旧请求，延迟 600ms
-			const slowOldFetch = new Promise<{ wrapups: any[] }>((resolve) => {
-				setTimeout(async () => {
-					const r = await fetch(`/api/v1/batches/${batchId}/wrapups`, {
-						headers: { Authorization: `Bearer ${token}` },
-					});
-					resolve(await r.json());
-				}, 600);
-			});
-
-			// 请求 B：快速新请求，立即执行并返回
-			const fastNewFetch = fetch(`/api/v1/batches/${batchId}/wrapups`, {
-				headers: { Authorization: `Bearer ${token}` },
-			}).then((r) => r.json());
-
-			const [newRes, oldRes] = await Promise.all([fastNewFetch, slowOldFetch]);
-			return Boolean(newRes?.wrapups && oldRes?.wrapups);
-		}, activeBatchId);
-		expect(refetchProtection).toBe(true);
-
-		// 断言页面上的收口报告面板 DOM 依然保留真实产品最新报告的内容 (B1, open, 自报 clean)
-		const reportPanel = page.locator('[data-component="wrapup-report"]').first();
-		await reportPanel.waitFor({ state: 'visible', timeout: 15000 });
-		const reportText = await reportPanel.innerText();
-		expect(reportText).toContain('B1');
-		expect(reportText).toMatch(/open|未通过|自报|clean/i);
-
-		// 2. 覆盖 E-278: 真实审批卡保留未结构化原文展示与投递按钮能力
-		const gateCards = page.locator('[data-component="gate-card"]');
-		if ((await gateCards.count()) > 0) {
-			const firstGate = gateCards.first();
-			expect(await firstGate.isVisible()).toBe(true);
-			const reworkText = page.locator('[data-field="rework-text"]');
-			if ((await reworkText.count()) > 0) {
-				expect(await reworkText.first().isVisible()).toBe(true);
-			}
-		}
-
-		// 3. 覆盖 E-297: 批次树挂出「批次收口 · 第 N 轮」入口行
+		// The browser receives the failed round and offers the original run.
+		await page.getByText('解析失败', { exact: true }).first().waitFor({ state: 'visible', timeout: 15000 });
+		await page.getByText('直链原文', { exact: true }).first().waitFor({ state: 'visible', timeout: 15000 });
+		// E-297: 批次树挂出「批次收口 · 第 N 轮」入口行
 		const wrapupTreeItem = page.locator('text=/批次收口/').first();
 		await wrapupTreeItem.waitFor({ state: 'visible', timeout: 10000 });
 		expect(await wrapupTreeItem.isVisible()).toBe(true);
-
-		// 4. 覆盖 E-295: 无条件断言收口泳道存在并可见
-		const wrapupLane = page.locator('[data-kind="wrapup"], [data-field="wrapup-head"], [data-component="wrapup-panel"]').first();
-		await wrapupLane.waitFor({ state: 'visible', timeout: 10000 });
-		expect(await wrapupLane.isVisible()).toBe(true);
-
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/landing/${task1Id}`, {
+			waitUntil: 'domcontentloaded',
+		});
+		const unfinishedRow = page.locator(`[data-batch-landing-row="wrapup"][data-run-id="${failedWrapupRunId}"]`);
+		await unfinishedRow.waitFor({ state: 'visible', timeout: 15000 });
+		expect(await unfinishedRow.innerText()).toContain('未完成的收口改动');
+		expect(await unfinishedRow.innerText()).toContain(failedRun.run.branchName);
 		// Record state frame 7
 		recordedFrames.push(
-			await captureStateFrame(page, 'frame-7-concurrency-protection', '收口并发防反向覆盖验证与常驻停止流及收口泳道呈现'),
+			await captureStateFrame(page, 'frame-7-failed-wrapup', '收口失败、半成品分支保留与解析失败原文入口'),
 		);
 	});
 

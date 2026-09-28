@@ -598,7 +598,7 @@ export function BatchLandingChecklist(props: BatchLandingChecklistProps) {
 					<span className="text-[14px] text-[var(--ink-2)]">批次级落地清单</span>
 				</div>
 				<p className="text-[12px] text-[var(--ink-3)] m-0">
-					每轮收口分支与各修复分支各一行，命令只供复制、系统不代为执行（E-74）。
+					每轮收口分支（含未完成的收口改动）与各修复分支各一行，命令只供复制、系统不代为执行（E-74）。
 				</p>
 			</div>
 

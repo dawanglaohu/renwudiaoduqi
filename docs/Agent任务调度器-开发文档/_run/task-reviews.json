@@ -1117,13 +1117,13 @@
   },
   "R14-T23602992": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "86cde1d561b01d03368670cad0f042edc74eb6e025d4c0ea910e99fe28cc25cd",
+    "contractHash": "0b280a56cab151071429fef35e0bf10c7d066e3fb4fd70aa2bf882e6cf723c24",
     "evidence": [
-      "The batch-14 source task, generated R14-T23602992 task note, and 17-test-strategy acceptance still require the production daemon/browser, dispatch, wrapup, and release checks; no acceptance or edge was removed.",
-      "packages/daemon/src/service/dispatch.ts:2113,2144 is required by the actual wrapup spawn path to pass the frozen registry executable path to buildLaunchSpec; the existing PR edits only this support seam, so it is now explicitly in the effective paths.",
-      "Contract verification covers the path correction only; implementation acceptance and landing require their separate review verdict."
+      "E-295 明确要求收口中断且有半成品时保留工作树，并在批次落地清单标为未完成；原清单只迭代有解析记录的 batch_wrapups，漏掉失败运行。",
+      "批次 14 源记录的 task 围栏 paths 增补 wrapup-panel-container.tsx、wrapup-report.tsx 和 wrapup-report.test.tsx；合同生成后有效路径与源记录一致。",
+      "wrapup-panel-container.tsx 按失败收口 RunDto 补未完成行，wrapup-report.test.tsx 验证该行与分支在页面 HTML 中可见；针对该文件 43 项测试通过。"
     ],
-    "reviewed": "2026-09-28T07:12:09.459767+00:00",
+    "reviewed": "2026-09-28T21:07:05.107347+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
