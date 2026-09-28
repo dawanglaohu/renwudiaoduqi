@@ -403,13 +403,58 @@ jobs:
           xcrun stapler validate "$dmg_path"
 
   # ============================================================================
+  # Pipeline Settings E2E: Real daemon, real browser, pipeline settings flow
+  # (R16-T85823419, AC 1-5, E-26, E-157, E-265, E-306, E-312, E-318, E-356)
+  # ============================================================================
+  e2e-pipeline-settings:
+    name: Pipeline Settings E2E (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS (E-260)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium with system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build Web Frontend Assets (required for real daemon + web e2e)
+        run: pnpm --filter @agent-scheduler/web build
+
+      - name: Run Pipeline Settings E2E (R16-T85823419, E-265)
+        shell: bash
+        run: |
+          pnpm_bin="$(command -v pnpm)"
+          sudo -E env "PATH=$PATH" "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/pipeline-settings.test.ts
+
+      - name: Upload Pipeline Settings E2E Failure Artifacts (AC 4, E-265)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-pipeline-settings-failure-artifacts
+          path: e2e/artifacts/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ============================================================================
   # Release Gate: reads every platform job and its steps back from the API and feeds
   # the real conclusions to assertReleaseVerification, so a failing platform is named
   # together with the step that failed (AC 1, AC 6, E-265, E-267).
   # ============================================================================
   release-verification:
     name: Release Gate Evaluation
-    needs: [desktop-matrix, macos-signing-gate, pairing-smoke, e2e-smoke]
+    needs: [desktop-matrix, macos-signing-gate, pairing-smoke, e2e-smoke, e2e-pipeline-settings]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -431,6 +476,12 @@ jobs:
         if: ${{ needs.e2e-smoke.result != 'success' }}
         run: |
           echo "::error::E2E smoke on Ubuntu failed (result: ${{ needs.e2e-smoke.result }})."
+          exit 1
+
+      - name: Enforce Pipeline Settings E2E Gate (R16-T85823419, E-265)
+        if: ${{ needs.e2e-pipeline-settings.result != 'success' }}
+        run: |
+          echo "::error::Pipeline settings E2E on Ubuntu failed (result: ${{ needs.e2e-pipeline-settings.result }})."
           exit 1
 
       - name: Collect platform job conclusions
