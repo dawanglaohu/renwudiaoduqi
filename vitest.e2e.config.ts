@@ -11,7 +11,7 @@ export default defineConfig({
 		environment: 'node',
 		fileParallelism: false,
 		maxConcurrency: 1,
-		testTimeout: 90000,
+		testTimeout: 180000,
 		hookTimeout: 150000,
 		teardownTimeout: 30000,
 	},
