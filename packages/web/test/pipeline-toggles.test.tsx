@@ -1028,4 +1028,34 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		expect(source.getSnapshot().pipeline).toEqual(updatedPipeline);
 		unsubscribe();
 	});
+
+	it('does not re-register a pipeline source unmounted during refetchAll', async () => {
+		const pipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let finishRecovery: ((value: { pipeline: PipelineSettings }) => void) | undefined;
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce({ pipeline })
+			.mockImplementationOnce(
+				() =>
+					new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+						finishRecovery = resolve;
+					}),
+			);
+		await read(settingsPipeline(), fetcher);
+		const source = createPipelineSettingsSource({ initialPipeline: pipeline, fetcher });
+		const unsubscribe = source.subscribe(() => {});
+		const recovery = triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(2);
+		unsubscribe();
+		finishRecovery?.({ pipeline });
+		await recovery;
+		expect(fetcher).toHaveBeenCalledTimes(2);
+		expect(getRegisteredKeys()).not.toContain(settingsPipeline());
+		expect(peek(settingsPipeline())).toBeUndefined();
+	});
 });

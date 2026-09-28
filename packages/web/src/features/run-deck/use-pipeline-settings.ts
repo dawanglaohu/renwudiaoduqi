@@ -159,6 +159,7 @@ export function createPipelineSettingsSource(
 	): Promise<void> {
 		// 恢复时先等已发出的 HTTP 结算，GET 才能读到最终持久值。
 		if (recover && patchCompletion) await patchCompletion;
+		if (listeners.size === 0) return;
 		const pendingAtRead = pendingPatch?.httpDone ? pendingPatch : null;
 		const requestVersion = sourceVersion;
 		const requestReadVersion = ++readVersion;
@@ -176,6 +177,7 @@ export function createPipelineSettingsSource(
 			if (recover) {
 				invalidate('settings');
 				await refetchAll();
+				if (listeners.size === 0 || requestReadVersion !== readVersion) return;
 			}
 
 			// 通过 resource-cache 共享缓存读取流水线设置（AC 1, AC 2）
