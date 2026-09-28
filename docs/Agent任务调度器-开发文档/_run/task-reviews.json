@@ -1015,6 +1015,34 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "M9-T28": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af",
+    "evidence": [
+      "有效路径文件已核存在：taskPaths 9 个里 7 个既有文件在主干 8ee193e 上存在（run-deck-view.tsx、lanes-container.tsx、run-deck-container.tsx、deck-page.tsx、stream-column.tsx、empty-onboarding.tsx、assign-panel.tsx），packages/web/src/lib/deck-grid.ts 与 packages/web/test/deck-grid.test.ts 由本任务新建；supportPaths 10 个文件全部存在。",
+      "依赖任务已落地：M9-T16、M9-T17、M9-T18、M9-T19、M9-T21 在 docs-data.js 的 progress 里均为 done；按 git log -1 与 taskPaths/supportPaths 反查，它们就是最后改过这些文件的原任务；另两个最后改动者 R13-T57054072、R14-T23602992 是已落地的返工任务，不写进 19 节依赖。",
+      "验收 1–6 均可客观判定：探针命令与 --init 令牌取法、D2 fill ≥ 0.85 / D3 emptyTracks 为空 / D6、1920×1080 与 1440×900 两档视口、左栏与泳道下缘离视口底 ≤ 16px、vitest 的泳道数 × 档位组合、rg 清零范围与 e2e 用例都写明；引用的 E-106、E-108、E-145、E-163、E-164、E-165、E-167、E-168、E-236、E-319、E-324 均在 13 节存在。",
+      "与 11 节「间距与容器契约」一致：完整档泳道 repeat(N, minmax(var(--stream-min), 1fr)) 吃满、--stream-max 不再封顶（Jev design pick=A，high 0.99，adopt=take）；零运行四步引导按 11 节页面清单原文落在左栏派发面板，22 节无相反裁决。",
+      "路径冲突已核：待派的 M9-T23 与本任务共用 packages/web/src/components/assign-panel.tsx，它未落地、不写成依赖，由交接台的路径冲突检测串行处理；主干 8ee193e 上本任务路径内的守护命中是 empty-onboarding.tsx:295 与 run-deck-view.tsx:421，与验收 6 一致。"
+    ],
+    "reviewed": "2026-09-28T22:12:15.316480+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "M9-T29": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "de393c7c679e1a64efca907abdb248fc43daea004c7cad0bcc160c996adef964",
+    "evidence": [
+      "有效路径文件已核存在：taskPaths 21 个文件在主干 8ee193e 上全部存在；supportPaths 12 个文件全部存在。",
+      "依赖任务已落地：M9-T13、M9-T14、M9-T15、M9-T20、M9-T22、M9-T25、M9-T27、M10-T6 在 docs-data.js 的 progress 里均为 done，且是最后改过对应文件的原任务（git log -1 反查）；M9-T28 是同一补丁新增的任务，按依赖层号排在本任务之前（第 16 批 / 第 17 批）。",
+      "验收 1–5 均可客观判定：每页路由、两档视口、--type 按 11 节页面类型取 work / form / card、D1–D6 判定、卡宽上限、两条守护的扫描目录与白名单规则、正反用例文件与旧文件只改类名的清单都写明；引用的 E-145、E-224、E-226 均在 13 节存在。",
+      "守护可落地：主干 8ee193e 上按同一类名规则静态扫描，命中与渲染报告一致——甲板两处归 M9-T28，设置页、落地清单、单卡页 5 处与路由上用不到的旧文件 2 处归本任务；三个旧文件仍被测试与其他任务的有效路径引用（task-list-page.tsx 在 M9-T19，mobile-batch-list.tsx 在 M9-T19 / M9-T25 / M10-T6，batch-summary-bar.tsx 在 M9-T16，另有 landing-onboarding.test.ts 与 thumb-bar.test.ts 引用），所以只改类名不删文件。",
+      "路径冲突已核：待派的 M9-T23 与本任务共用 settings-agents-page.tsx、settings-pipeline-page.tsx、agent-card.tsx、model-picker.tsx 与 check-forbidden.ts / check-forbidden.test.ts，它未落地、不写成依赖，由交接台的路径冲突检测串行处理。"
+    ],
+    "reviewed": "2026-09-28T22:12:39.057873+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "M9-T3": {
     "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
     "contractHash": "994dfd512c70a85fcadd1f4ce9e642dd76486f790668cf1cbfcf2a6be2dba51d",
