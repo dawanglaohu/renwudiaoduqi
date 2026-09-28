@@ -15,7 +15,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { settingsPipeline } from '../src/api/cache-keys.ts';
 import { eventBus } from '../src/api/event-bus.ts';
-import { clearResourceCache, getRegisteredKeys, peek } from '../src/api/resource-cache.ts';
+import { clearResourceCache, getRegisteredKeys, peek, read } from '../src/api/resource-cache.ts';
 import { sseClient } from '../src/api/sse-client.ts';
 import { PipelineToggles } from '../src/components/pipeline-toggles.tsx';
 import { PipelineTogglesContainer } from '../src/features/run-deck/pipeline-toggles-container.tsx';
@@ -888,7 +888,7 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		const unsubscribe = source.subscribe(() => {});
 
 		// 首次 GET 已发出处于在途 (getCalls === 1)
-		expect(fetcher).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
 
 		// 模拟发送截断事件（无内联 pipeline）
 		eventBus.push({
@@ -993,5 +993,39 @@ describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-3
 		expect(peek(settingsPipeline())).toBeUndefined();
 
 		onClearBufferSpy.mockRestore();
+	});
+
+	it('re-fetches a complete pipeline event and all registered resources on recovery', async () => {
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		const updatedPipeline: PipelineSettings = { ...initialPipeline, bughunt: 1 };
+		const fetcher = vi.fn(async () => ({ pipeline: updatedPipeline }));
+		const source = createPipelineSettingsSource({ initialPipeline, fetcher });
+		const unsubscribe = source.subscribe(() => {});
+		const otherFetcher = vi.fn(async () => 'run-data');
+		await read('runs:task-1', otherFetcher);
+
+		eventBus.push({
+			id: 910,
+			ts: new Date().toISOString(),
+			runId: null,
+			taskId: null,
+			scope: 'settings',
+			kind: 'settings.pipeline_changed',
+			seq: 1,
+			actorDeviceId: 'other-device',
+			payload: { pipeline: updatedPipeline },
+		});
+		expect(source.getSnapshot().pipeline).toEqual(updatedPipeline);
+		await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+		await triggerResync();
+		expect(fetcher).toHaveBeenCalledTimes(2);
+		expect(otherFetcher).toHaveBeenCalledTimes(2);
+		expect(source.getSnapshot().pipeline).toEqual(updatedPipeline);
+		unsubscribe();
 	});
 });

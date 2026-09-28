@@ -62,6 +62,11 @@ export async function read<T>(key: string, fetcher: () => Promise<T>): Promise<T
 				const currentFetcher = (registeredFetchers.get(key) ?? fetcher) as () => Promise<T>;
 				const data = await currentFetcher();
 
+				// 注销或重新登记期间，旧请求不得重新写入缓存，也不再重试。
+				if (inFlightRequests.get(key) !== (entry as InFlightEntry<unknown>)) {
+					return data;
+				}
+
 				// 若在途期间到达了失效事件（E-333），旧响应已过时，必须使用最新登记的 fetcher 自动再拉一次
 				if (entry.invalidatedWhileInFlight) {
 					continue;
@@ -147,10 +152,7 @@ export function getRegisteredKeys(): readonly string[] {
 export function unregister(key: string): void {
 	dataCache.delete(key);
 	registeredFetchers.delete(key);
-	const inFlight = inFlightRequests.get(key);
-	if (inFlight) {
-		inFlight.invalidatedWhileInFlight = true;
-	}
+	inFlightRequests.delete(key);
 }
 
 /**

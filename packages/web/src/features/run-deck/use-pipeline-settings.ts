@@ -24,7 +24,7 @@ import { getInvalidationPrefixesForEvent } from '../../api/cache-invalidation.ts
 import { settingsPipeline } from '../../api/cache-keys.ts';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient, isApiError } from '../../api/http-client.ts';
-import { invalidate, read, unregister } from '../../api/resource-cache.ts';
+import { invalidate, read, refetchAll, unregister } from '../../api/resource-cache.ts';
 import { sseClient } from '../../api/sse-client.ts';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
@@ -71,6 +71,15 @@ function matchesPendingPatch(
 		pipeline.wrapupMode === pending.body.wrapupMode &&
 		JSON.stringify(pipeline.reviewOverride) === JSON.stringify(pending.body.reviewOverride) &&
 		JSON.stringify(pipeline.wrapupAssignment) === JSON.stringify(pending.body.wrapupAssignment)
+	);
+}
+
+function samePipeline(a: PipelineSettings, b: PipelineSettings): boolean {
+	return (
+		a.bughunt === b.bughunt &&
+		a.wrapupMode === b.wrapupMode &&
+		JSON.stringify(a.reviewOverride) === JSON.stringify(b.reviewOverride) &&
+		JSON.stringify(a.wrapupAssignment) === JSON.stringify(b.wrapupAssignment)
 	);
 }
 
@@ -144,7 +153,10 @@ export function createPipelineSettingsSource(
 		for (const listener of listeners) listener();
 	}
 
-	async function readSettings(recover = false): Promise<void> {
+	async function readSettings(
+		recover = false,
+		eventPipeline: PipelineSettings | null = null,
+	): Promise<void> {
 		// 恢复时先等已发出的 HTTP 结算，GET 才能读到最终持久值。
 		if (recover && patchCompletion) await patchCompletion;
 		const pendingAtRead = pendingPatch?.httpDone ? pendingPatch : null;
@@ -163,12 +175,18 @@ export function createPipelineSettingsSource(
 			// 恢复前主动使 settings 缓存失效，确保拉取 daemon 端最新数据
 			if (recover) {
 				invalidate('settings');
+				await refetchAll();
 			}
 
 			// 通过 resource-cache 共享缓存读取流水线设置（AC 1, AC 2）
 			const res = await read(settingsPipeline(), fetcher);
 			if (listeners.size === 0 || requestReadVersion !== readVersion) return;
 			if (res?.pipeline && sourceVersion === requestVersion) {
+				if (eventPipeline && !samePipeline(res.pipeline, eventPipeline)) {
+					// 事件已给出完整权威值，旧 GET 只用于补缓存，不能回写快照。
+					invalidate('settings');
+					return;
+				}
 				publish({ pipeline: res.pipeline, error: null });
 			}
 			// SSE 重放窗口过期时可能永远收不到本次事件，只能用重新读取的 daemon 值恢复。
@@ -210,6 +228,7 @@ export function createPipelineSettingsSource(
 							publish({ isPending: false });
 						}
 					}
+					void readSettings(false, payload.pipeline);
 				} else {
 					// 截断事件或无内联数据时，递增 sourceVersion 防止迟到 GET 覆盖事件权威值
 					sourceVersion += 1;

@@ -235,4 +235,26 @@ describe('api/resource-cache (07 节前端架构 / AC 1, AC 4, E-12, E-333)', ()
 		expect(lanesData).toEqual([{ id: 'lane-2' }]);
 		expect(runsData).toEqual([{ id: 'run-2' }]);
 	});
+
+	it('does not resurrect an unregistered key when its old request resolves after unmount', async () => {
+		let resolveOld: ((value: string) => void) | undefined;
+		const oldFetcher = vi.fn(
+			() =>
+				new Promise<string>((resolve) => {
+					resolveOld = resolve;
+				}),
+		);
+		const oldRead = read('settings:pipeline', oldFetcher);
+		unregister('settings:pipeline');
+		expect(getRegisteredKeys()).not.toContain('settings:pipeline');
+
+		const newFetcher = vi.fn(async () => 'new-value');
+		const newRead = read('settings:pipeline', newFetcher);
+		resolveOld?.('old-value');
+		expect(await oldRead).toBe('old-value');
+		expect(await newRead).toBe('new-value');
+		expect(oldFetcher).toHaveBeenCalledTimes(1);
+		expect(peek('settings:pipeline')).toBe('new-value');
+		expect(getRegisteredKeys()).toEqual(['settings:pipeline']);
+	});
 });
