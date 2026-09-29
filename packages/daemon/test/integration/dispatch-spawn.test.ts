@@ -34,6 +34,15 @@ import type {
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = resolve(currentDir, '../../migrations');
 const fixturePath = resolve(currentDir, '../fixtures/dispatch/codex-session.ndjson');
+// stderr line Claude Code printed alongside every recording below; it is text and never decides E-36.
+const CLAUDE_RECORDED_STDERR =
+	'[claude-code:unrecognized_model] {"model":"r8-invalid-model-20260929","query_source":"sdk"}';
+
+function readClaudeRecording(name: string): string[] {
+	return readFileSync(resolve(currentDir, '../fixtures/dispatch', name), 'utf8')
+		.split('\n')
+		.filter((line) => line.trim() !== '');
+}
 
 const temporaryDirectories: string[] = [];
 const openDatabases: DatabaseConnection[] = [];
@@ -1206,6 +1215,170 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
 		expect(gate).toBeNull();
 	});
+
+	it.each([
+		['claude-2-1-238-model-not-found.stdout.ndjson'],
+		['claude-2-1-283-model-not-found.stdout.ndjson'],
+	])(
+		'R8-T70356006 AC 3 & E-36: replaying %s through the production dispatch entry fails the run as model invalid, releases the lane, supersedes the waiting gate and skips E-348',
+		async (recording) => {
+			const env = setupTestEnvironment({
+				exitCode: 1,
+				availableAgentIds: ['codex', 'claude'],
+				stderrTail: CLAUDE_RECORDED_STDERR,
+			});
+			const { container, getLatestProc, getMechanicalCheckCalls } = env;
+
+			container.repos.tasks.setLaneNo('task-1', 2);
+
+			const busEvents: EventEnvelope[] = [];
+			container.events.bus.subscribe((event) => busEvents.push(event));
+
+			const createRes = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'r8-invalid-model-20260929',
+				idempotencyKey: `idemp-claude-model-rejected-${recording}`,
+			});
+			await container.services.dispatch.tick();
+
+			let attempts = 0;
+			while (!getLatestProc() && attempts < 50) {
+				await new Promise((r) => setTimeout(r, 20));
+				attempts++;
+			}
+			const proc = getLatestProc();
+			expect(proc).not.toBeNull();
+
+			// E-36: the unknown name reaches the agent unchanged; nothing checks it against a list first.
+			const launchArgs = proc?.lastLaunchSpec.args ?? [];
+			expect(launchArgs[launchArgs.indexOf('--model') + 1]).toBe('r8-invalid-model-20260929');
+
+			// A waiting gate already tied to the run must be superseded atomically with the failure.
+			container.repos.gates?.create({
+				id: 'gate-model-rejection-test',
+				task_id: 'task-1',
+				run_id: createRes.run.id,
+				kind: 'review',
+				state: 'waiting',
+				created_at: new Date().toISOString(),
+			});
+
+			for (const line of readClaudeRecording(recording)) {
+				proc?.emitLine(line);
+			}
+			proc?.emitExit(1);
+
+			attempts = 0;
+			while (
+				container.repos.runs.findById(createRes.run.id)?.state !== 'failed' &&
+				attempts < 100
+			) {
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				attempts++;
+			}
+
+			const run = container.repos.runs.findById(createRes.run.id);
+			expect(run?.state).toBe('failed');
+			expect(run?.queued_reason).toBe('派发失败·模型无效');
+			expect(run?.rework_count ?? 0).toBe(0);
+			expect(getMechanicalCheckCalls()).toBe(0);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+
+			attempts = 0;
+			while (!busEvents.some((e) => e.kind === 'lane.released') && attempts < 100) {
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				attempts++;
+			}
+			const laneReleased = busEvents.find((e) => e.kind === 'lane.released');
+			expect(laneReleased?.payload).toMatchObject({
+				reason: 'failed',
+				runId: createRes.run.id,
+				taskId: 'task-1',
+			});
+
+			const supersededGate = container.repos.gates?.findById('gate-model-rejection-test');
+			expect(supersededGate?.state).toBe('decided');
+			expect(supersededGate?.comment).toBe('superseded');
+			expect(supersededGate?.decision).toBeNull();
+
+			expect(busEvents.filter((e) => e.kind === 'run.model_rejected')).toHaveLength(1);
+			const failedTransition = busEvents.find(
+				(e) => e.kind === 'run.state_changed' && (e.payload as { to?: string }).to === 'failed',
+			);
+			expect(failedTransition?.payload).toMatchObject({
+				reason: 'model_invalid',
+				message: expect.stringContaining('(r8-invalid-model-20260929)'),
+			});
+			expect(
+				busEvents.some(
+					(e) =>
+						e.kind === 'run.state_changed' &&
+						['reviewing', 'awaiting_human'].includes((e.payload as { to?: string }).to ?? ''),
+				),
+			).toBe(false);
+		},
+	);
+
+	it.each([
+		['claude-2-1-238-invalid-model-503.stdout.ndjson'],
+		['claude-2-1-283-authentication-failed.stdout.ndjson'],
+	])(
+		'R8-T70356006 AC 3 & E-348: replaying %s (typed failure other than model_not_found) through the production dispatch entry goes to awaiting_human',
+		async (recording) => {
+			const env = setupTestEnvironment({
+				exitCode: 1,
+				availableAgentIds: ['codex', 'claude'],
+				stderrTail: CLAUDE_RECORDED_STDERR,
+			});
+			const { container, getLatestProc, getMechanicalCheckCalls } = env;
+
+			container.repos.tasks.setLaneNo('task-1', 2);
+
+			const busEvents: EventEnvelope[] = [];
+			container.events.bus.subscribe((event) => busEvents.push(event));
+
+			const createRes = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'r8-invalid-model-20260929',
+				idempotencyKey: `idemp-claude-typed-failure-${recording}`,
+			});
+			await container.services.dispatch.tick();
+
+			let attempts = 0;
+			while (!getLatestProc() && attempts < 50) {
+				await new Promise((r) => setTimeout(r, 20));
+				attempts++;
+			}
+			const proc = getLatestProc();
+			expect(proc).not.toBeNull();
+
+			for (const line of readClaudeRecording(recording)) {
+				proc?.emitLine(line);
+			}
+			proc?.emitExit(1);
+
+			attempts = 0;
+			while (
+				container.repos.runs.findById(createRes.run.id)?.state !== 'awaiting_human' &&
+				attempts < 100
+			) {
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				attempts++;
+			}
+
+			const run = container.repos.runs.findById(createRes.run.id);
+			expect(run?.state).toBe('awaiting_human');
+			expect(run?.queued_reason).toBe('exited_before_output');
+			expect(getMechanicalCheckCalls()).toBe(0);
+			expect(busEvents.some((e) => e.kind === 'run.model_rejected')).toBe(false);
+
+			const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
+			expect(gate?.state).toBe('waiting');
+			expect(gate?.comment).toBe('exited_before_output');
+		},
+	);
 
 	it('B1: POST rerun after exited_before_output creates a new run and launches its process', async () => {
 		const env = setupTestEnvironment({ exitCode: 0 });

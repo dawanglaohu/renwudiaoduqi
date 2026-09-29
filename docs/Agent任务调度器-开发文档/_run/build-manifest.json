@@ -32,18 +32,19 @@
     "_run/batches/batch-16-20260926.md": "bd6ce3786a8a116474086aef2690a2db0eda49b95ad5e0b2de2a36e48b833500",
     "_run/batches/batch-8-20260922-r3.md": "52aa2002768a4e638ce58603139f8917725e8b5fc80ecdce4ad06bfc07516f47",
     "_run/batches/batch-8-20260922.md": "deecc561c1cac3850acc32f98c6d7c082a1d7af7843aa324561f608406d561e3",
-    "_run/batches/batch-8-20260926-scope-amendment.md": "0d5831878a2352f8e0d72de76a9d016322f16df9fafa4ccc7223a43df90b8f49",
+    "_run/batches/batch-8-20260926-scope-amendment.md": "5f4da2588576ccdc507c79b48e483f03cf116b9153e53b0a52b6094aea96c80c",
+    "_run/batches/batch-8-20260929-rerun-gap.md": "0476d1965b7434167eafdbe23d397a899a01acc077589c830cc298eddee50fd1",
     "_run/presentation.json": "33c1dc94b86aba95c5e4fcf587633f834e187f76f8d9a3c60c1843f4a1a3f937",
     "_run/task-contracts.json": "56a7681ddec159f2cbc86a2ea4f0e2034ef730cf38abc441b4c8dcbe61d88b25"
   },
   "products": {
     "_MOC.md": "079c49246a2698424381a5d18fb8372aadf3f87043b9619772c2622dc480dc92",
-    "_run/dispatch.json": "eb96cc001ca333c579276b197fea96b0e6a9dee15e6209c7bee4a8b750110995",
-    "_run/review.json": "7b4a2100216faaf25a04a01d7dbf233113cd974575d63276e74895a0c72f7e65",
-    "_run/task-reviews.json": "9274c22b2174a3615346518616609560fb1274168358ed4cb9204bd699fa4108",
-    "docs-data.js": "e8c5ee695cfc1f5c8ac754c824f6990da422b5f56b457328605229f3e511fcd0",
+    "_run/dispatch.json": "adb725c8f56305e2c672253eae0b39117ed53ab755b545153efb16c42f67a46f",
+    "_run/review.json": "10ba6e10ca739bb8322be1429fee74943f1e3c6db190c78c6de1a3934bcaf781",
+    "_run/task-reviews.json": "1701b18a8e7b6eb0927f5af51cad18b640f116c3dc4caaebb9f188b18f026c74",
+    "docs-data.js": "49024deb2b2f5bb982ec2fb6e5d709e7d2bed2bbeb77b2a52b582469e5fd390d",
     "index.html": "7558315b3b7718157e85b3dd8c36f2e6d6790cfee592ed51ef84f61c562af085"
   },
   "schemaVersion": 1,
-  "sourceVersion": "9cee62235f91f7269e44012fbfc8964554d463c2390f74bef1ff298e961128dc"
+  "sourceVersion": "96b0270425d67bcca6869df482b0400cab1f103945affe148f6c3cc4cfed38db"
 }

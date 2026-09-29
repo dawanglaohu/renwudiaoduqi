@@ -80,6 +80,16 @@ const KNOWN_STREAM_EVENT_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Value of the top-level `error` field on the synthetic `assistant` frame Claude Code emits for a
+ * failed API call when the requested model is unknown or unavailable (E-36). Recorded with Claude
+ * Code 2.1.238 and 2.1.283 in stream-json output; other failures carry other values of the same
+ * field, such as `authentication_failed` or `server_error`, and stay on the E-348 path. Only a
+ * main-loop frame (`parent_tool_use_id` null) concerns the dispatched model: a subagent's frame
+ * reports a model the agent chose for a tool call and reaches the agent as that tool's result.
+ */
+const CLAUDE_MODEL_NOT_FOUND_ERROR = 'model_not_found';
+
+/**
  * Maps a single Claude vendor output line into normalized ACP / product event inputs.
  * Enforces AC 2 & E-37: Reads self-reported model from first frame and flags mismatch with selected model.
  * Enforces AC 3 & E-202: Unknown vendor events are discarded and counted to unmappedCount; never crashes or invents kinds.
@@ -414,11 +424,32 @@ export function mapClaudeEventLine(
 			}),
 		);
 	}
-	// H. Known system types with no further output needed
+	// H. Main-loop API error frame naming the requested model unavailable (E-36)
+	// Only the typed `error` field decides; the frame's text is carried verbatim, never matched.
+	else if (
+		rawType === 'assistant' &&
+		parsed.error === CLAUDE_MODEL_NOT_FOUND_ERROR &&
+		(parsed.parent_tool_use_id === null || parsed.parent_tool_use_id === undefined)
+	) {
+		events.push(
+			Object.freeze({
+				kind: 'run.model_rejected',
+				runId,
+				taskId,
+				payload: Object.freeze({
+					code: 'model_invalid',
+					modelName: state?.selectedModel ?? state?.actualModel ?? '',
+					vendorMessage: joinAssistantText(parsed.message),
+					vendor: Object.freeze({ ...parsed }),
+				}),
+			}),
+		);
+	}
+	// I. Known system types with no further output needed
 	else if (KNOWN_CLAUDE_SYSTEM_TYPES.has(rawType)) {
 		// Handled gracefully without mapping to ACP or counting as unmapped
 	}
-	// I. Unknown vendor event (AC 3 & E-202)
+	// J. Unknown vendor event (AC 3 & E-202)
 	else {
 		// Discard event; increment unmappedCount; never crash; never invent fake kind.
 		unmappedCount++;
@@ -502,4 +533,22 @@ export function createClaudeEventMapper(options: ClaudeEventMapperOptions = {}):
 		getUnmappedEventCount,
 		reset,
 	});
+}
+
+/** Concatenates the text blocks of an assistant message; returns '' when there are none. */
+function joinAssistantText(message: unknown): string {
+	if (!message || typeof message !== 'object') return '';
+	const content = (message as Record<string, unknown>).content;
+	if (typeof content === 'string') return content;
+	if (!Array.isArray(content)) return '';
+	return content
+		.map((block) =>
+			block &&
+			typeof block === 'object' &&
+			(block as Record<string, unknown>).type === 'text' &&
+			typeof (block as Record<string, unknown>).text === 'string'
+				? ((block as Record<string, unknown>).text as string)
+				: '',
+		)
+		.join('');
 }

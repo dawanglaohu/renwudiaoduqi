@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 
 import { getClaudeCapabilities } from '../../src/adapters/claude/capabilities.ts';
 import {
+	createClaudeEventMapper,
+	mapClaudeEventLine,
+} from '../../src/adapters/claude/map-events.ts';
+import {
 	buildCodexLaunchSpec,
 	buildLaunchSpec,
 } from '../../src/adapters/codex/build-launch-spec.ts';
@@ -965,13 +969,126 @@ describe('M4-T8: codex 原生适配器', () => {
 			expect(result.events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
 		});
 
-		it('R8-T97041355 E-36: no current agent claims a verified structured model rejection', () => {
+		it('R8-T70356006 AC 1 & E-36: Codex CLI 0.157.1 verified raw recording with invalid model confirms codexErrorInfo=other without typed code', () => {
+			// Actual sanitized stdout stream recording from codex-cli 0.157.1 app-server when given model="nonexistent-model-xyz":
+			const codex01571RawCompleted = JSON.stringify({
+				method: 'turn/completed',
+				params: {
+					threadId: '01a0e09f-ca27-7d92-a6e3-042e55390fa5',
+					turn: {
+						id: '01a0e09f-cbad-7c33-8caf-27d19f040498',
+						items: [],
+						itemsView: 'notLoaded',
+						status: 'failed',
+						error: {
+							message:
+								'unexpected status 404 Not Found: no route available for the requested model, url: https://api.cdn-krill-ai.com/codex/v1/responses, request id: <redacted>',
+							codexErrorInfo: 'other',
+							additionalDetails: null,
+							misalignment: null,
+						},
+						startedAt: 1790474963,
+						completedAt: 1790474986,
+						durationMs: 23059,
+					},
+				},
+			});
+
+			const result = parseAndMapCodexLine(codex01571RawCompleted, context);
+			// Confirms: no run.model_rejected emitted; only standard stderr & exit
+			expect(result.events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
+			expect(result.events.map((e) => e.kind)).toEqual(['run.stderr_line', 'run.exited']);
+		});
+
+		describe('R8-T70356006 E-36: Claude Code stream-json recordings of an invalid model', () => {
+			// Sanitized stdout recorded 2026-09-29 from Claude Code started with the arguments
+			// buildClaudeLaunchSpec produces plus --verbose, the prompt written to stdin as one stream-json
+			// user turn; non-null ids, endpoints and request ids are redacted.
+			const fixtureDir = resolve(__dirname, '../fixtures/dispatch');
+			const readRecording = (name: string): string[] =>
+				readFileSync(join(fixtureDir, name), 'utf8')
+					.split('\n')
+					.filter((line) => line.trim() !== '');
+			const parseRecording = (name: string): Record<string, unknown>[] =>
+				readRecording(name).map((line) => JSON.parse(line) as Record<string, unknown>);
+			const mapRecording = (name: string, selectedModel: string | null = null) => {
+				const mapper = createClaudeEventMapper({ selectedModel });
+				return readRecording(name).flatMap((line) => mapper.mapLine(line).events);
+			};
+
+			it.each([
+				['claude-2-1-283-model-not-found.stdout.ndjson', '2.1.283'],
+				['claude-2-1-238-model-not-found.stdout.ndjson', '2.1.238'],
+			])(
+				'AC 1 & AC 2: %s (Claude Code %s) types the failure model_not_found and maps it to exactly one run.model_rejected',
+				(name, version) => {
+					const frames = parseRecording(name);
+					expect(frames[0]).toMatchObject({
+						type: 'system',
+						subtype: 'init',
+						claude_code_version: version,
+					});
+					expect(frames.filter((frame) => frame.error === 'model_not_found')).toHaveLength(1);
+
+					const rejected = mapRecording(name, 'r8-invalid-model-20260929').filter(
+						(event) => event.kind === 'run.model_rejected',
+					);
+					expect(rejected).toHaveLength(1);
+					expect(rejected[0]?.payload).toMatchObject({
+						code: 'model_invalid',
+						modelName: 'r8-invalid-model-20260929',
+						vendorMessage: expect.stringContaining('(r8-invalid-model-20260929)'),
+					});
+				},
+			);
+
+			it.each([
+				['claude-2-1-238-invalid-model-503.stdout.ndjson', 'server_error'],
+				['claude-2-1-283-authentication-failed.stdout.ndjson', 'authentication_failed'],
+			])(
+				'AC 2 & E-348: %s types the failure %s and maps to no run.model_rejected',
+				(name, errorValue) => {
+					const frames = parseRecording(name);
+					expect(frames.find((frame) => frame.type === 'assistant')?.error).toBe(errorValue);
+					expect(frames.some((frame) => frame.error === 'model_not_found')).toBe(false);
+					expect(mapRecording(name).some((event) => event.kind === 'run.model_rejected')).toBe(
+						false,
+					);
+				},
+			);
+
+			it('AC 2 & E-36: the same model message without the typed field maps to no run.model_rejected', () => {
+				const untyped = parseRecording('claude-2-1-283-model-not-found.stdout.ndjson').map(
+					(frame) =>
+						JSON.stringify(
+							Object.fromEntries(Object.entries(frame).filter(([key]) => key !== 'error')),
+						),
+				);
+				const events = untyped.flatMap((line) => mapClaudeEventLine(line).events);
+				expect(events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
+			});
+
+			it('AC 2 & E-36: a subagent frame with the same typed field maps to no run.model_rejected', () => {
+				// Condition-logic variant of the recorded frame: only parent_tool_use_id is set.
+				const recorded = parseRecording('claude-2-1-283-model-not-found.stdout.ndjson').find(
+					(frame) => frame.error === 'model_not_found',
+				);
+				expect(recorded?.parent_tool_use_id).toBeNull();
+				const subagentLine = JSON.stringify({ ...recorded, parent_tool_use_id: 'toolu_subagent' });
+				expect(
+					mapClaudeEventLine(subagentLine).events.some(
+						(event) => event.kind === 'run.model_rejected',
+					),
+				).toBe(false);
+			});
+		});
+
+		it('R8-T70356006 AC 2 & E-36: only the Claude adapter reports model rejection', () => {
+			expect(getClaudeCapabilities().reportsModelRejection).toBe(true);
+
 			expect(getCodexCapabilities('native').reportsModelRejection).toBe(false);
 			expect(CODEX_NATIVE_CAPABILITIES.reportsModelRejection).toBe(false);
-
-			// All other adapters explicitly declare false (fall back to E-348)
 			expect(getCodexCapabilities('generic-acp').reportsModelRejection).toBe(false);
-			expect(getClaudeCapabilities().reportsModelRejection).toBe(false);
 			expect(getDshCapabilities().reportsModelRejection).toBe(false);
 			expect(getGenericAcpCapabilities().reportsModelRejection).toBe(false);
 			expect(getGrokCapabilities().reportsModelRejection).toBe(false);
