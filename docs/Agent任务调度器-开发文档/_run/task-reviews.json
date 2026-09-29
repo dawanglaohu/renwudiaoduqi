@@ -20,12 +20,13 @@
     "verdict": "pass"
   },
   "M1-T11": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "ec15ecce2bcccf0621b0f68356b7008711da181835141be6f51d909560fda78f",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "4df73ac680657684e9f9f83f48d3c77e2fdf436d1a7c126e94eb2cbbc170b3d1",
     "evidence": [
-      "M1-T11: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M1-T11: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+      "M1-T11: checked current main implementation reference e2e/smoke.test.ts:337 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -110,62 +111,68 @@
     "verdict": "pass"
   },
   "M10-T1": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "d1f327e893fea6c45645a0d7d823d6e98409984938e649ff064964e206692bca",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "a9562363a25db6200e982845578a7ad454d54e8a503915d401a21b773f49a751",
     "evidence": [
-      "M10-T1: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M10-T1: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M10-T1: checked current main implementation reference packages/shared/src/shell/bridge-contract.ts:24 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T2": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "35deee74e5ed282208bf48eef785e3450324c66a8ecba7e6ccf4a25aaef6f1dc",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "23de0ad7261c9e070a047e80cc81bd190cd5aa73afa1cbe5211b08d501d2d5da",
     "evidence": [
-      "M10-T2: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M10-T2: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M10-T2: checked current main implementation reference packages/shell-desktop/src-tauri/Cargo.toml:16 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T3": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "e1b20b5f31cb7bf060fbdfe7e8eaafa6f82653f8579bbcf276def1abd3a2c923",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "507b5a8767cbc529715e051c0348773f1ecbae792ca4abb709f3f0c3c99cba48",
     "evidence": [
-      "M10-T3: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M10-T3: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M10-T3: checked current main implementation reference packages/shell-mobile/capacitor.config.ts:3 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T4": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "4780cad96dad9f70d8265bd50a532dbb431e04801feb2759591433214b104558",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "e5d9214b6b8857f5a4d6b1983bc817b73079b3808d5ff21bb5d0f750b1763b66",
     "evidence": [
-      "M10-T4: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M10-T4: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M10-T4: checked current main implementation reference packages/shared/src/api/system.ts:5 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T5": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "75094046efe8122a72f422297d4a923ea2d2c4c489577a7f91197bee26c746bc",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "d833591bd92e32a38fa86f2c222fc65abd4b465d8e7a26ee44927eed41f2bf9d",
     "evidence": [
-      "M10-T5: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M10-T5: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M10-T5: checked current main implementation reference .github/workflows/desktop-ci.yml:34 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T6": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "1596880361e7d6de7c806b87bd04ddb5837dced90356e48d2bac9b2381cb2fcd",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "7e8be0053fae377721225b514433c107a4a041a42fb0251391f2a9a5a59678f2",
     "evidence": [
-      "M10-T6: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M10-T6: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M10-T6: checked current main implementation reference packages/shared/src/shell/bridge-contract.ts:39 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -240,12 +247,13 @@
     "verdict": "pass"
   },
   "M2-T8": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "9ba8392c6b051ace835312f302a503845420fd809a3604cab6313bc71ec8d6b4",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "74d22d5918a463f3df3f381642164191b1186ea8a94220307b5bf9a97b4f3f8f",
     "evidence": [
-      "M2-T8: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M2-T8: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+      "M2-T8: checked current main implementation reference packages/shared/src/lib/is-record.ts:1 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -810,208 +818,222 @@
     "verdict": "pass"
   },
   "M9-T1": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "4317156cb7669abb2206663bbdf8c34517ef1e254861aaadfcd57e5d2edc87b5",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "f017e1e199097eb44a6a59134b34bb493ad7e366cc04d86aa0fae0bbbb7117d9",
     "evidence": [
-      "M9-T1: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T1: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T1: checked current main implementation reference packages/web/src/styles/tokens.css:4 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T10": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "1d90de7eeacb95b96d1f4db3ca684e3f8671bd7c340da8b87d5cfcb67265bee5",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "6937abf2da75efce6928436365a53afc393beab4ebdfcacfeb089a77635b6173",
     "evidence": [
-      "M9-T10: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T10: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T10: checked current main implementation reference packages/web/src/components/gate-card.tsx:267 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T11": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "765fddbd1643abce3b082395c4ffa8b63116f5e72cd6aa0ca02092663e36f4b7",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "e1b6144cd8cdf541d7f9555a23ca3d01aae43b81a58992ccb8b43ef302d2a8af",
     "evidence": [
-      "M9-T11: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T11: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T11: checked current main implementation reference packages/web/src/store/connection-store.ts:19 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T12": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "8190abf73902b40cabefccf7fb1152deb490ffb719fe6de2b113e49b494bf123",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "a39ce98e15a3ab40f0c667deb1d159bce66f0146aae6931c717c2bb071ad777b",
     "evidence": [
-      "M9-T12: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T12: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T12: checked current main implementation reference packages/web/src/components/thumb-bar.tsx:48 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T13": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "4ad20c8ad0b9fbeb19d86e9e4ce95bf78ed13542f994e6b93b3e6f78ce0a2fc9",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "100858d068bf33f94f07512291f2fc9c6a2b95e74c1acce5789db9f4f3c57050",
     "evidence": [
-      "M9-T13: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T13: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T13: checked current main implementation reference packages/web/src/pages/run-detail-page.tsx:34 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T14": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "7f0b9b0755f3267764c43bbe65ff972b51451892585a2e1f7177d8f7845e04a6",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "6cef888598be5f41ce2acf4cc993d0d34fca4b515de2fb4a8abfa1062edb206c",
     "evidence": [
-      "M9-T14: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T14: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T14: checked current main implementation reference packages/web/src/pages/settings-agents-page.tsx:27 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T15": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "a621e13b0ab19cef0443a031e86a02dad501b6bd9f53d3768eda74a565f42651",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "a7779c2f5e19931d191094b7ef85bb9125a20b5d0e3dc04f39a90c0eff26ed2f",
     "evidence": [
-      "M9-T15: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T15: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T15: checked current main implementation reference packages/web/src/shell/shell-bridge.ts:16 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T16": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "8e2423d7d6c1e8a20c986616c4adecd6acbd179e004db04b4707ed0749452984",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "5c99148d5bc64ac0e706c8c2d98b10c7cbad6b18d748d6d124d56c78b188f53f",
     "evidence": [
-      "M9-T16: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T16: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T16: checked current main implementation reference packages/web/src/components/empty-onboarding.tsx:83 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T17": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "1f7f7d5d75eae5ed59938755dc8da73ad0a4df464855be54947c5105044de743",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "d1aaa5485d40222bda3dc17d3b72a97fd0caf2e504e8348d9843dc5fd3e08766",
     "evidence": [
-      "M9-T17: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T17: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T17: checked current main implementation reference packages/shared/src/api/runs.ts:207 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T18": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "0264e186ce8a469189ec04dabba72d2858f10810f2ba9e3d7a76840021ca7b99",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "61db9eb658cf88ef8c6f9cf52850bc4a7ff96770ce8d91d2af59d0897e2512c5",
     "evidence": [
-      "M9-T18: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T18: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T18: checked current main implementation reference packages/web/src/api/batches.ts:41 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T19": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "82fbf3d42e5d5d893392aa03d4033891fc9e8bace25e579da9f5eb7c4af18bc7",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "d857b4d13b12b86b89aa69e4623910de22f9f81d220925b5dc3bc2caec372a2f",
     "evidence": [
-      "M9-T19: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T19: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T19: checked current main implementation reference packages/daemon/src/http/routes/gates.ts:157 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T2": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "81eb62f44db5ef6bb56d7922996d9b534e0b6cf601238c52bca27fe9495cd47e",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "cbf4be84e375b7e27b9112432fe2b370261cba59d517e6005307cf02e5655c27",
     "evidence": [
-      "M9-T2: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T2: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T2: checked current main implementation reference packages/web/src/lib/spine-shape.ts:21 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T20": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "ad4479a9f4ecdba609742a5a24e7cafecc34c62118bebd8e1c35e98d60a5a498",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "d3a5ef6456bf8d08ecbf6243768f05915afe73272e3ab111370c724672ffe83c",
     "evidence": [
-      "M9-T20: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T20: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T20: checked current main implementation reference packages/web/src/components/stream-column.tsx:35 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T21": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "58d60edd33bb7d7da30fbba628df5dc4b919f1d053a75f888b5521ab9b3ebcea",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "2a50115534c33e09a6399294b6b2c955311656ec56e8daa778382b88cf1123b0",
     "evidence": [
-      "M9-T21: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T21: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T21: checked current main implementation reference packages/web/src/api/lanes.ts:57 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T22": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "b69eda95344eb5a3f4448f3923f6b7bcad9ff88ec510c17e3ba3f5aa02656b31",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "2910929201970dd876d19d18399a1c0225bb61df9194c29aad384ca65fdd641a",
     "evidence": [
-      "M9-T22: E-318 in 03-质量/13-边界问题与异常处理.md:331 and 图谱/边界/E-318.md:13 now states exact two-key legacy read, whole-row fallback, four-key PATCH and complete event. E-356 in 13 section:369 is unchanged. packages/daemon/src/domain/pipeline-settings.ts:141-183, service/settings.ts:159-251, and pipeline-lanes.test.ts:1007-1055 pin behavior."
+      "M9-T22: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T22: checked current main implementation reference packages/web/src/ui/segmented-toggle.tsx:42 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T23": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "49af02cfccfe4f32c5eb9509356dae671d8b0e96bf497bd806ce75a65e58fe2d",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "2b34ff9a275284fbf4dd896c961814d4da445a4891ec6f54150f652e9b0710be",
     "evidence": [
-      "补丁对 M9-T23 仅传播上游 M9-T22 契约哈希；M9-T23 的任务定义、验收、边界、有效路径、接口字段逐项未变。M9-T22 的 app.tsx 装配是其真实前置能力。",
-      "2026-09-25 本轮契约复核：旧记录哈希 a4b13b4a685a，当前哈希 69d55440612a；逐项比对 P-R8-T54786768、r8-t54786768-err-handler-support-20260925、r8-e133-live-transport 的 changes.before/after。除共享 08/10 节指纹和上游哈希传播外，本任务直接变化路径：无。",
-      "共享条款现要求 elevate_once 仅答复真实 Codex 待处理的授权请求，按请求 ID 在同一会话确认交付；非法状态仅 operation=elevate_once 映射 409。当前 shared schema、daemon MessageService/Codex app-server 会话与 Web 按钮已接线；正式入口的 R8-T54786768 当前复核记录含真实浏览器与同 runId 证据。本轮在 main ba32db1ff99c 的关联测试 166/166 通过（协议、路由、消息、状态、查 bug、批次汇总、前端）。",
-      "M9-T23 任务笔记 status: todo；本次是任务要求的语义复核，不代表代码已实现或落地。验收标准、边界、前置和有效范围仍由当前任务笔记与结构检查约束。",
-      "2026-09-26 复核当前契约哈希：本任务不在 revalidation.json 标记中，但旧复核记录与当前源版本不同；对照 main 94fc048a..e6275175 的 10/13/19 节与任务笔记变化，更新契约复核，不改变任务状态。",
-      "本轮共享条款核对：10 节删除 E_MODEL_INVALID 的 HTTP 422 示例和错误码表项，增加 run.model_rejected 事件，只在 agent 协议提供模型专用结构化 code/type 时精确标注；自由文本、通用错误类别及零产出退出按 E-348 转人。shared events、Codex/Claude 适配器、RunService、RerunService 与当前文档一致；聚焦测试 142/142 通过，错误码检查 48 项一致。",
-      "任务笔记 status: todo；本轮只确认任务契约与共享条款可审查，不声明实现或落地。"
+      "M9-T23: desktop-density-20260929 adds shared 11-UI.md spacing context; patch changes.before/after shows task acceptance, edges and effective paths unchanged. New density implementation is scoped to todo M9-T28/M9-T29. M9-T23 stays todo; semantic contract review does not mark its code complete.",
+      "M9-T23 note retains grouped model/login/effort acceptance and E-254/E-335 through E-359 boundaries; full pnpm -w check on base 33c483f9 passed 206 test files and 2551 tests (3 skipped)."
     ],
-    "reviewed": "2026-09-25T17:43:12.017907+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T24": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "4c54cbb2a258d3fcb3f698e5c8a76d863014a85bc6abc3f8b63c0c743b995c11",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "bcd4d13344178d2e04383cb673ccc5a74b7dffbdc473e2e171421b907563694d",
     "evidence": [
-      "M9-T24: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T24: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T24: checked current main implementation reference packages/web/postcss.config.cjs:17 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T25": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "b1f712c527aed43a02f3683ebcf76c78af9509871c6076025d4e7f9dbbf04202",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "8c6c66cde8dd9c6e6d85996a4ae397d0261b319d34fef70c7c263a54c43c6941",
     "evidence": [
-      "M9-T25: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T25: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T25: checked current main implementation reference packages/web/src/app/app.tsx:18 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T26": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "e133a452b23a8248e5fda1a2b9917b81c84756d3280da5595dc2a1a7e89e3fcd",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "c0e18a59612956477ea31ea45bbaed0ddaf49e9d426c927bde8839148a526c1a",
     "evidence": [
-      "M9-T26: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T26: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T26: checked current main implementation reference packages/web/src/app/bootstrap.ts:94 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T27": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "8c7ecb76d4201f459fadcb8b71a2f9a7f5cf6597eb95258614fffe230df61aa7",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "82f78cbb104224d7f022c271c8573a76e74b7446f5b449ff1afa4afd65c0964a",
     "evidence": [
-      "M9-T27: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T27: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T27: checked current main implementation reference e2e/pairing-entry.test.ts:27 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1044,72 +1066,79 @@
     "verdict": "pass"
   },
   "M9-T3": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "994dfd512c70a85fcadd1f4ce9e642dd76486f790668cf1cbfcf2a6be2dba51d",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "d554389d3b92fabb88ac249a1cb38ffe5f1b87d0267a271e5dd6aa8f51404498",
     "evidence": [
-      "M9-T3: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T3: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T3: checked current main implementation reference packages/web/src/app/routes.tsx:9 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T4": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "b41eb22061fa665d1aef03e53b638884f6ed6e6c34edf492fba7b88906d8e84b",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "5456b5291656ca172f0f0f95882abe3aa09044768047ffe76dabc506f2e9c013",
     "evidence": [
-      "M9-T4: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T4: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T4: checked current main implementation reference packages/web/src/api/base-url.ts:18 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T5": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "075d47868bbb0f6c87d590cea47af74599f4ec85e2010b8a18e6bc41ad14d71b",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "42338fab7ae0da67bf1aae3e7940c0178c89de383a57f32995d2caf563b10479",
     "evidence": [
-      "M9-T5: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T5: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T5: checked current main implementation reference packages/web/src/api/sse-client.ts:61 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T6": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "b1d9ceddea95b84c21efa087bb211a383fcac9fdaa5aa6629347e2f3aee61a75",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "9126f32bdbf2f7b470c8c32c3136cc5e551377e0cf63ae1d904b3b71da9d600f",
     "evidence": [
-      "M9-T6: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T6: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T6: checked current main implementation reference packages/web/src/api/event-bus.ts:10 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T7": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "7ea918534791c40dd762e006dd3baf42e2d2b903017f22ceff211a653c4add2b",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "0ae2afa6d16bd205d817babaf0a301ec4cc91deb63d97ddff104d5e96ff1a62a",
     "evidence": [
-      "M9-T7: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T7: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T7: checked current main implementation reference packages/web/src/components/spine.tsx:32 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T8": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "596eca13ee77546971b19df39d13af7a63e60cb888ea7f335ff2ab9a91c3176b",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "ba3866abec6bf1733c6675dd0751d7f5ef3f6db10cf9ddf10c7b74c5c998e08c",
     "evidence": [
-      "M9-T8: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T8: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T8: checked current main implementation reference packages/shared/src/api/runs.ts:246 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T9": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "dce3570bd62db31155650381f6315a7cd350e617be8cd97fb105789f93adafef",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "31ed9f6ce7eb5dfb8a6c595a1dfae7ad6d238bcf39964d9122657fac677a8a09",
     "evidence": [
-      "M9-T9: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "M9-T9: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "M9-T9: checked current main implementation reference packages/web/src/hooks/use-breakpoint.ts:63 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1124,85 +1153,79 @@
     "verdict": "pass"
   },
   "R13-T57054072": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "fe2dfc60ee9b6ea9bdc2db97c5e7ea1e8956a0ebc938184de74128193691eb04",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "0d9272dd7c5421dd6066d97c9324d445a5bbbee78f1b81c2380ff715e44e95e6",
     "evidence": [
-      "R13-T57054072: source batch-13-20260924.md and merged PR #162 preserve the open historical record and move the clean/fixed conclusion into the subsequent record; its task wording and effective paths changed on main. Confirmed source record and merged e2e/batch-13-smoke.test.ts; the pipeline GET example at 10-接口约定.md:273 matches shared schema and real HTTP integration. Workspace check on merged main passed."
+      "R13-T57054072: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+      "R13-T57054072: checked current main implementation reference e2e/batch-13-smoke.test.ts:454 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R13-T98191508": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "2e6d0e90bcdc2b02d5e5479fc2958b9b811e3ede8c153baa2bc3120ca036026a",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "3dd04eea48624fa661848c712c3b786edcb0c790eec821be37ea80a0e5b54015",
     "evidence": [
-      "R13-T98191508: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "R13-T98191508: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+      "R13-T98191508: checked current main implementation reference packages/shared/src/api/batches.ts:32 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R14-T23602992": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "4a62b18bf27cac09a31638d7938bac96c3fa90ac13bc5d51fb8896be778380da",
+    "contractHash": "d169097455f13026387c0685fc13ce71bc3e8c7db748f4f5a581c866dc65a3c5",
     "evidence": [
-      "CI 运行 36484631082 的 E2E Smoke 在 Step 5 失败：真实 GateDto 已有零产出诊断，但等待任务卡只显示通用审批文案；失败截图与 DOM 在该运行的 e2e-smoke-artifacts。",
-      "有效路径增补 gate-card.tsx、run-deck-view.tsx 与 run-deck-container.test.tsx，对应 E-348/E-278 的正式 DTO 到页面投影缺口；未改变验收标准。",
-      "产品补丁在 GateCard 读取 gate.context，并在任务审批卡读取审查 RunDto 的 verdict/reworkText；39 项聚焦测试、Biome 与 TypeScript 检查通过。"
+      "R14-T23602992: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+      "R14-T23602992: checked current main implementation reference e2e/batch-14-composition.test.ts:122 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-28T21:23:36.768154+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T41148998": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "0c1e9e062b4c71a85f612653c8866cf81ff7bee83566abd53b1327880a839992",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "a60833f71680d68d5135f6b757ae47ac5a3f8225bfbf586e41d2ec6ecde0b8c6",
     "evidence": [
-      "AC1: maintain_docs patch R16-T41148998-doc-patch recorded begin/sync; 02-设计/10-接口约定.md:56-57,188,195-196,270-289 states four-key GET/PATCH, defaults, fields and event; 03-质量/13-边界问题与异常处理.md:331 and 图谱/边界/E-318.md:13 agree. Batch-16 source path corrected and regenerated.",
-      "AC2/E-318: daemon/src/domain/pipeline-settings.ts:141-183 supplements exactly two valid legacy keys on read without DB mutation; invalid shape warns and returns all defaults. shared/src/api/settings.ts:90-125 has required four and additionalProperties:false; service/settings.ts:159-241 persists four in a transaction and publishes full payload afterwards.",
-      "AC3/E-356: shared/src/api/settings.ts:62-125, daemon/src/service/settings.ts:159-248 and test/unit/pipeline-settings.test.ts:51-124,181-321 checked. Real app.inject HTTP integration at daemon/test/integration/pipeline-lanes.test.ts:1007-1055 verifies legacy GET four keys without write, incomplete PATCH 400 E_VALIDATION without write, four-key PATCH and subsequent GET. E-356 at 03-质量/13-边界问题与异常处理.md:369 unchanged.",
-      "AC4: build_vault/build_docs regenerated via maintain_docs sync; 112 landed tasks in _run/revalidation.json carry changedFields, with shared-only entries distinguished from E-318 and inherited/main changes. Generator unittest 184 passed and pnpm -w check on merged tree passed. No generator source changed."
+      "R16-T41148998: patch changes.before/after shows only currentSourceBatch 16 -> null in task metadata; acceptance, edges, effective paths and historical sourceBatch=16 are unchanged. The task remains a previously landed implementation.",
+      "R16-T41148998: checked current main implementation reference docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:273 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:04.131584+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T83723920": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "b8ec616f9777c96ece930cd5f239c92c1896e010b978eb62041856b47b09ae01",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "a6b83fe49fbe734bf5522c335f1f49815819b7a867074d190d8034a52c7a9602",
     "evidence": [
-      "任务定义 R16-T83723920.md 的输入 B4、产出与五条验收标准与第 16 批收口 B4 相符；没有降低 E-157、E-318、E-333、E-356。",
-      "07-前端架构.md 267 行指定 read/invalidate/refetchAll、event kind 前缀映射及连接恢复；有效路径覆盖 resource-cache、cache-invalidation 和共享 PipelineSettingsSource 的生产入口及三份对应测试。",
-      "前置 M9-T19/T21/T22 在任务笔记列明，06/07 分层为 api 缓存和 features 消费，17-测试策略明确 pnpm -w check 与 GUI GIF；本轮代码实现未通过另行返工，不以契约复核冒充代码验收。"
+      "R16-T83723920: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+      "R16-T83723920: checked current main implementation reference packages/web/src/api/resource-cache.ts:40 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T16:53:27.738801+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T85823419": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "5f25492866ab40e04105a7cfae4dd400bc0a1af8242269c644d14a98247c3701",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "224a768f87ec0c0d560d0a3e7e4d92fb909430bde7dae56d089150dc05206e73",
     "evidence": [
-      "契约核对：status 报告的 contractHash 与派发包一致（5f254928…3701），blockers 为空；唯一 stale 源是本任务有效路径内的 batch-16-20260926.md，属本任务产出。",
-      "前置能力：M1-T11 的 e2e 骨架（vitest.e2e.config.ts、根 e2e 脚本、e2e-smoke job、biome 排除 e2e/**）与 M9-T22 的顶栏/设置页开关、use-pipeline-settings 共享源均已在主干；本任务只新增 e2e/pipeline-settings.test.ts 并复用生产配对页、生产令牌键 agsched.token、daemon bootstrap，未另写类型或工具。",
-      "有效路径：PR #166 改动只落在 e2e/pipeline-settings.test.ts、vitest.e2e.config.ts、.github/workflows/desktop-ci.yml、_run/batches/batch-16-20260926.md 与任务笔记回填，与有效路径一致。",
-      "接线：status 的「疑似接线任务未列注册点」是启发式提示；本任务是测试接线，注册点即 vitest.e2e.config.ts 的 include 与 desktop-ci.yml 的 e2e-pipeline-settings job 及 release-verification needs/门禁步骤，均已接入，无新增 daemon 路由、服务或页面。",
-      "17/19 节要求：正式 Ubuntu CI run 36476217179（HEAD ec0aceb）中 Pipeline Settings E2E 12/12 通过、根 pnpm e2e 三套件 31/31 通过、三平台 Desktop CI 与 Release Gate 通过；同一 run 的三平台 Workspace Verification Check（pnpm -w check）通过；本机 WSL 在 /mnt/d 上复跑时 vitest worker RPC 超时，属环境限制。审查方把 afterAll 改为 finally 中停 daemon（Jev adjudicate pick=D），并为根 e2e job 安装 ffmpeg。",
-      "接口字段：浏览器发出的两次 PATCH /settings/pipeline 请求体均为完整四键 {bughunt, wrapupMode, reviewOverride, wrapupAssignment}，第二次携带第一次 SSE 确认后的新 wrapupMode；缺键与未知键 PATCH 返回 400 E_VALIDATION。",
-      "验收阶段：AC5 要求复核后再写新收口记录；第 16 批仍有 B4 通用缓存与 B5 四键文档返工，批次记录保持 verdict open，只更新 note 记录 B3 已由本任务在正式 CI 验证。"
+      "R16-T85823419: patch changes.before/after shows only currentSourceBatch 16 -> null in task metadata; acceptance, edges, effective paths and historical sourceBatch=16 are unchanged. The task remains a previously landed implementation.",
+      "R16-T85823419: checked current main implementation reference e2e/pipeline-settings.test.ts:50 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-28T20:13:13.476555+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R8-T54786768": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "fcc25dff347d6c5248e624f2d57b6b9490a50e521a716f09c4cd6e625e2fddf3",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "e80ef6cf04b42e52faeee079d5746f5a679ef03ba585ff67413f05da36bd0101",
     "evidence": [
-      "R8-T54786768: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "R8-T54786768: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+      "R8-T54786768: checked current main implementation reference packages/daemon/src/http/plugins/90-error-handler.ts:47 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-09-29T00:23:33.584777+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1231,7 +1254,7 @@
       "E-36：模型名不做白名单校验直接透传（测试断言 --model 原样），只凭 Claude 的类型化 error 字段精确标注，失败后标派发失败·模型无效、状态事件带 agent 原文、释放泳道。E-348：判定只看事件 kind；503、401 两份录制与 E-36 正例带同一条 stderr 文本，仍按零产出进入 awaiting_human，stderr 与正文从不参与判定，dispatch-proc 架构测试守住 service/jobs 不嗅探文本。",
       "范围外发现（未在本任务修改，另开任务）：内置 Claude 参数模板缺 --verbose，本机靠 settings.json 的 verbose=true 才能运行；生产启动形状带 --input-format stream-json，提示词却只作位置参数、stdin 保持打开未写入，实测 Claude Code 2.1.283 等待 90 秒无任何输出，关闭 stdin 则零输出退出；适配器不映射 type=assistant 的正常消息帧，未开 --include-partial-messages 时正常运行也产出不了内容事件。三者修复前，真实 Claude 运行到不了 API 调用，本任务的精确标注只在回放录制的测试中生效。"
     ],
-    "reviewed": "2026-09-29T00:29:48.647343+00:00",
+    "reviewed": "2026-09-29T11:58:09.739006+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
