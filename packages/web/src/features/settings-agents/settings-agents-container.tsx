@@ -1,3 +1,4 @@
+import type { EffortValue } from '../../../../shared/src/api/agents.ts';
 import { AgentCard, type AgentEntryWithLayers } from '../../components/agent-card.tsx';
 import type {
 	AgentFieldKey,
@@ -18,7 +19,12 @@ interface AgentCardItemProps {
 		value: string | number,
 	) => Promise<boolean>;
 	readonly onProbe: (agentId: string) => Promise<unknown>;
-	readonly validationError?: Partial<Record<AgentFieldKey, FieldErrorInfo>>;
+	readonly onClearOverride: (
+		agentId: string,
+		field: 'defaultModel' | 'defaultEffortTier',
+	) => Promise<boolean>;
+	readonly onUpdateEffortTier: (agentId: string, value: EffortValue) => Promise<boolean>;
+	readonly validationError?: Partial<Record<AgentFieldKey | 'defaultEffortTier', FieldErrorInfo>>;
 	readonly isProbing?: boolean;
 	readonly isUpdating?: boolean;
 }
@@ -28,13 +34,14 @@ function AgentCardItem({
 	getFieldLayers,
 	onUpdateField,
 	onProbe,
+	onClearOverride,
+	onUpdateEffortTier,
 	validationError,
 	isProbing,
 	isUpdating,
 }: AgentCardItemProps) {
-	const { models, isComplete, isLoading, isRefreshing, refresh, addCustomModel } = useAgentModels(
-		agent.id,
-	);
+	const { catalog, models, isComplete, isLoading, isRefreshing, refresh, addCustomModel } =
+		useAgentModels(agent.id);
 
 	return (
 		<AgentCard
@@ -42,6 +49,9 @@ function AgentCardItem({
 			getFieldLayers={getFieldLayers}
 			onUpdateField={onUpdateField}
 			onProbe={onProbe}
+			onClearOverride={onClearOverride}
+			onUpdateEffortTier={onUpdateEffortTier}
+			catalog={catalog}
 			models={models}
 			isModelsComplete={isComplete}
 			isModelsLoading={isLoading}
@@ -76,6 +86,8 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 		validationErrors,
 		probeAgent,
 		updateAgentField,
+		clearAgentOverride,
+		updateAgentEffortTier,
 		setLaneCount,
 		getFieldLayers,
 	} = useSettingsAgents({ targetDocId });
@@ -130,6 +142,8 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 						getFieldLayers={getFieldLayers}
 						onUpdateField={updateAgentField}
 						onProbe={probeAgent}
+						onClearOverride={clearAgentOverride}
+						onUpdateEffortTier={updateAgentEffortTier}
 						validationError={validationErrors[agent.id]}
 						isProbing={probingAgentId === agent.id}
 						isUpdating={updatingAgentId === agent.id}

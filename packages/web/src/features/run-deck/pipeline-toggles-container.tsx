@@ -10,13 +10,18 @@
  * - 读取或 PATCH 失败一律就地渲染 InlineNotice，不弹 toast、不弹 alert（AC 5, 07 节错误体系）
  */
 
+import type { AgentEntryDto } from '@agent-scheduler/shared/api/agents';
 import type {
 	GetPipelineSettingsResponse,
 	PipelineSettings,
 	UpdatePipelineSettingsBody,
 	UpdatePipelineSettingsResponse,
 } from '@agent-scheduler/shared/api/settings';
+import { useEffect, useState } from 'react';
+import { listAgents } from '../../api/agents.ts';
+import { peek } from '../../api/resource-cache.ts';
 import { InlineNotice } from '../../components/inline-notice.tsx';
+import { PipelineAssignment } from '../../components/pipeline-assignment.tsx';
 import { PipelineToggles } from '../../components/pipeline-toggles.tsx';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { type PipelineSettingsSource, usePipelineSettings } from './use-pipeline-settings.ts';
@@ -33,6 +38,7 @@ export interface PipelineTogglesContainerProps {
 	readonly fetcher?: () => Promise<GetPipelineSettingsResponse>;
 	readonly patcher?: (body: UpdatePipelineSettingsBody) => Promise<UpdatePipelineSettingsResponse>;
 	readonly source?: PipelineSettingsSource;
+	readonly agents?: readonly AgentEntryDto[];
 }
 
 export function PipelineTogglesContainer({
@@ -43,15 +49,38 @@ export function PipelineTogglesContainer({
 	fetcher,
 	patcher,
 	source,
+	agents: propAgents,
 }: PipelineTogglesContainerProps) {
-	const { pipeline, isPending, error, updatePipelineToggles } = usePipelineSettings({
-		initialPipeline,
-		fetcher,
-		patcher,
-		source,
-	});
+	const { pipeline, isPending, error, fieldErrors, updatePipelineSettings, updatePipelineToggles } =
+		usePipelineSettings({
+			initialPipeline,
+			fetcher,
+			patcher,
+			source,
+		});
 
 	const isSettings = layout === 'settings';
+	const canRenderAssignment =
+		isSettings && (typeof document === 'undefined' || Boolean(document.body));
+	const cachedAgents = peek<{ agents?: readonly AgentEntryDto[] }>('agents')?.agents;
+	const [agents, setAgents] = useState<readonly AgentEntryDto[]>(
+		propAgents ?? cachedAgents ?? [],
+	);
+
+	useEffect(() => {
+		if (propAgents || !canRenderAssignment || source || fetcher || patcher) return;
+		let mounted = true;
+		void listAgents()
+			.then((res) => {
+				if (mounted && res?.agents) {
+					setAgents(res.agents);
+				}
+			})
+			.catch(() => {});
+		return () => {
+			mounted = false;
+		};
+	}, [canRenderAssignment, propAgents, source, fetcher, patcher]);
 
 	return (
 		<div
@@ -75,6 +104,25 @@ export function PipelineTogglesContainer({
 				notesHost={notesHost}
 				onChange={updatePipelineToggles}
 			/>
+
+			{/* AC 8 / E-356: 设置页在两个开关之下加审查覆盖与收口指派编辑区 */}
+			{canRenderAssignment && (
+				<div className="mt-4 border-t border-border pt-4">
+					<PipelineAssignment
+						reviewOverride={pipeline?.reviewOverride ?? null}
+						wrapupAssignment={pipeline?.wrapupAssignment ?? { mode: 'follow' }}
+						onChangeReviewOverride={(reviewOverride) =>
+							void updatePipelineSettings({ reviewOverride })
+						}
+						onChangeWrapupAssignment={(wrapupAssignment) =>
+							void updatePipelineSettings({ wrapupAssignment })
+						}
+						agents={agents}
+						disabled={isPending || !pipeline}
+						errors={fieldErrors}
+					/>
+				</div>
+			)}
 
 			{/* 错误就地提示，E_PIPELINE_STAGE_DISABLED 按 stage 提示不 toast（AC 5） */}
 			{error && (

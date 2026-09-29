@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AgentEntryDto } from '../../../shared/src/api/agents.ts';
+import type {
+	AgentEntryDto,
+	EffortValue,
+	ListAgentModelsResponse,
+} from '../../../shared/src/api/agents.ts';
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
+import { EffortPicker } from './effort-picker.tsx';
 import type { AgentFieldKey, FieldErrorInfo, FieldLayerValues } from './field-layers-row.tsx';
 import { FieldLayersRow } from './field-layers-row.tsx';
+import { LoginBadge } from './login-badge.tsx';
+import { LoginHint } from './login-hint.tsx';
 import { ModelPicker } from './model-picker.tsx';
 
 /**
@@ -25,9 +33,15 @@ export interface AgentCardProps {
 	readonly isModelsRefreshing?: boolean;
 	readonly onRefreshModels?: () => void;
 	readonly onAddCustomModel?: (model: string) => void;
-	readonly validationError?: Partial<Record<AgentFieldKey, FieldErrorInfo>>;
+	readonly validationError?: Partial<Record<AgentFieldKey | 'defaultEffortTier', FieldErrorInfo>>;
 	readonly isProbing?: boolean;
 	readonly isUpdating?: boolean;
+	readonly catalog?: ListAgentModelsResponse | null;
+	readonly onClearOverride?: (
+		agentId: string,
+		field: 'defaultModel' | 'defaultEffortTier',
+	) => Promise<boolean>;
+	readonly onUpdateEffortTier?: (agentId: string, value: EffortValue) => Promise<boolean>;
 }
 
 export const UNAVAILABLE_CODE_TITLES: Readonly<Record<string, string>> = Object.freeze({
@@ -40,14 +54,27 @@ export const UNAVAILABLE_CODE_TITLES: Readonly<Record<string, string>> = Object.
 	E_TIMEOUT: '探测超时',
 });
 
+function formatEffortValue(val: EffortValue | undefined | null): string {
+	if (!val) return '—';
+	if ('tier' in val) {
+		return UI_STRINGS.refBar.effortTiers[val.tier] ?? val.tier;
+	}
+	if ('vendor' in val) {
+		return val.vendor;
+	}
+	return '—';
+}
+
 /**
- * 单个 Agent 的设置卡片组件（M9-T14）
- * 规范约束（R3, R4, R6, R7, R8）：
+ * 单个 Agent 的设置卡片组件（M9-T14, M9-T23）
+ * 规范约束（R3, R4, R6, R7, R8, AC 7, E-358）：
  * - 纯 props in / callback out，落 packages/web/src/components/；
- * - R3: E-95 只按 reason === 'session-dir-overlap' 分支，不直出英文；
- * - R4: editing* 状态随 props 同步，错误显示中文，英文进技术详情；
- * - R6 & E-185: monogram 纯文本渲染，不引任何静态资源；
- * - R8: 按 unavailableCode 映射中文不可用文案，英文 requirement/reason 进可展开技术详情。
+ * - 卡片头部徽标 + 引导行，「刷新清单」与「重新探测」两个按钮；
+ * - 三行表加「思考强度」列；
+ * - dsh 的思考强度块显示「该 agent 不支持」，不渲染三行与按钮；
+ * - 内置默认/你的覆盖读 layers，当前生效读顶层字段；
+ * - 你的覆盖模型名不在 catalog.models 时加 chip「清单未列」；
+ * - <400px 竖排，恢复默认按钮排在三行下方。
  */
 export function AgentCard({
 	agent,
@@ -63,6 +90,9 @@ export function AgentCard({
 	validationError,
 	isProbing = false,
 	isUpdating = false,
+	catalog = null,
+	onClearOverride,
+	onUpdateEffortTier,
 }: AgentCardProps) {
 	// R4: editing* 状态随 props 同步
 	const [editingMonogram, setEditingMonogram] = useState<string>(agent.monogram);
@@ -109,9 +139,32 @@ export function AgentCard({
 	// 字段图层数据（AC 1 / R1: 纯读 daemon 字段，未提供层显示「—」）
 	const monogramLayers = getFieldLayers(agent, 'monogram');
 	const execPathLayers = getFieldLayers(agent, 'execPath');
-	const modelLayers = getFieldLayers(agent, 'defaultModel');
 	const concurrencyLayers = getFieldLayers(agent, 'maxConcurrency');
 	const permissionLayers = getFieldLayers(agent, 'permissionTier');
+
+	// 默认模型分层信息（AC 7）
+	const modelBuiltin = agent.layers?.defaultModel?.builtin ?? '—';
+	const hasModelOverride = Boolean(agent.layers?.defaultModel?.hasOverride);
+	const modelOverride = hasModelOverride ? (agent.layers?.defaultModel?.override ?? '—') : '—';
+	const modelEffective = agent.defaultModel ?? '—';
+	const isModelOverrideUnlisted = Boolean(
+		hasModelOverride &&
+			agent.layers?.defaultModel?.override &&
+			catalog?.models &&
+			catalog.models.length > 0 &&
+			!catalog.models.some((m) => m.name === agent.layers?.defaultModel?.override),
+	);
+
+	// 思考强度支持性判定（AC 7, E-254, E-358: 检查 effortVendorMap，绝不按 agentId 判）
+	const isEffortSupported = agent.effortVendorMap !== null && agent.effortVendorMap !== undefined;
+	const effortBuiltin = formatEffortValue(agent.layers?.defaultEffortTier?.builtin);
+	const hasEffortOverride = Boolean(agent.layers?.defaultEffortTier?.hasOverride);
+	const effortOverride = hasEffortOverride
+		? agent.layers?.defaultEffortTier?.override === null
+			? UI_STRINGS.effortPicker.follow
+			: formatEffortValue(agent.layers?.defaultEffortTier?.override)
+		: '—';
+	const effortEffective = formatEffortValue(agent.defaultEffortTier);
 
 	return (
 		<div
@@ -121,55 +174,74 @@ export function AgentCard({
 				isUnavailable ? 'opacity-75 border-border-strong' : 'border-border'
 			}`}
 		>
-			{/* 卡片头部：身份识别（E-184）、状态徽标、操作按钮 */}
-			<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-				{/* AC 6 & E-184 & E-185: 字母组配合完整名称出现，短码纯文本中性 chip 渲染，无外部素材 */}
-				<div className="flex items-center gap-3">
-					<span
-						data-testid={`monogram-chip-${agent.id}`}
-						title={agent.name}
-						aria-label={agent.name}
-						className="flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-panel-2 font-mono text-dense font-bold text-ink-1 select-none"
-					>
-						{agent.monogram}
-					</span>
-					<div className="flex flex-col">
-						<div className="flex items-center gap-2">
-							<span
-								data-testid={`agent-name-${agent.id}`}
-								className="font-ui text-lead font-semibold text-ink-1"
-							>
-								{agent.name}
-							</span>
-							<span className="font-mono text-micro text-ink-3">({agent.id})</span>
+			{/* 卡片头部：身份识别（E-184）、登录态徽标、状态徽标、刷新与探测按钮 */}
+			<div className="flex flex-col gap-2 border-b border-border pb-3">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					{/* AC 6 & E-184 & E-185: 字母组配合完整名称出现，短码纯文本中性 chip 渲染，无外部素材 */}
+					<div className="flex items-center gap-3">
+						<span
+							data-testid={`monogram-chip-${agent.id}`}
+							title={agent.name}
+							aria-label={agent.name}
+							className="flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-panel-2 font-mono text-dense font-bold text-ink-1 select-none"
+						>
+							{agent.monogram}
+						</span>
+						<div className="flex flex-col">
+							<div className="flex items-center gap-2">
+								<span
+									data-testid={`agent-name-${agent.id}`}
+									className="font-ui text-lead font-semibold text-ink-1"
+								>
+									{agent.name}
+								</span>
+								<span className="font-mono text-micro text-ink-3">({agent.id})</span>
+								{/* AC 7: 卡片头部登录态徽标 */}
+								<LoginBadge login={agent.login} />
+							</div>
 						</div>
+					</div>
+
+					{/* 状态徽标、刷新清单按钮与探测按钮 */}
+					<div className="flex items-center gap-2">
+						<span
+							data-testid={`agent-status-badge-${agent.id}`}
+							className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-ui text-micro font-medium ${
+								agent.isAvailable
+									? 'border border-auto bg-auto-soft text-auto'
+									: 'border border-down bg-down-soft text-down'
+							}`}
+						>
+							<span aria-hidden="true">{agent.isAvailable ? '✓' : '✕'}</span>
+							<span>{agent.isAvailable ? '可用' : '不可用'}</span>
+						</span>
+
+						{/* AC 7: 刷新清单按钮 */}
+						<button
+							type="button"
+							onClick={onRefreshModels}
+							disabled={isModelsRefreshing}
+							data-testid={`refresh-models-btn-${agent.id}`}
+							className="inline-flex h-btn items-center gap-1.5 rounded-sm border border-border bg-panel-2 px-3 font-ui text-dense font-medium text-ink-2 hover:bg-bg hover:text-ink-1 disabled:opacity-40"
+						>
+							{isModelsRefreshing ? '刷新中...' : UI_STRINGS.agentCard.refreshModels}
+						</button>
+
+						{/* AC 7: 重新探测按钮 */}
+						<button
+							type="button"
+							onClick={() => void onProbe(agent.id)}
+							disabled={isProbing}
+							data-testid={`probe-agent-btn-${agent.id}`}
+							className="inline-flex h-btn items-center gap-1.5 rounded-sm border border-border bg-panel-2 px-3 font-ui text-dense font-medium text-ink-2 hover:bg-bg hover:text-ink-1 disabled:opacity-40"
+						>
+							{isProbing ? '探测中...' : UI_STRINGS.agentCard.reprobe}
+						</button>
 					</div>
 				</div>
 
-				{/* 状态徽标与探测按钮 */}
-				<div className="flex items-center gap-2">
-					<span
-						data-testid={`agent-status-badge-${agent.id}`}
-						className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-ui text-micro font-medium ${
-							agent.isAvailable
-								? 'border border-auto bg-auto-soft text-auto'
-								: 'border border-down bg-down-soft text-down'
-						}`}
-					>
-						<span aria-hidden="true">{agent.isAvailable ? '✓' : '✕'}</span>
-						<span>{agent.isAvailable ? '可用' : '不可用'}</span>
-					</span>
-
-					<button
-						type="button"
-						onClick={() => void onProbe(agent.id)}
-						disabled={isProbing}
-						data-testid={`probe-agent-btn-${agent.id}`}
-						className="inline-flex h-btn items-center gap-1.5 rounded-sm border border-border bg-panel-2 px-3 font-ui text-dense font-medium text-ink-2 hover:bg-bg hover:text-ink-1 disabled:opacity-40"
-					>
-						{isProbing ? '探测中...' : '重新探测'}
-					</button>
-				</div>
+				{/* AC 7: 登录引导行（未登录/未知时渲染） */}
+				<LoginHint login={agent.login} agentName={agent.name} />
 			</div>
 
 			{/* AC 4, E-88 & R8: 不可用态提示（中文映射标题，英文进入可展开技术详情） */}
@@ -331,20 +403,198 @@ export function AgentCard({
 					</div>
 				</FieldLayersRow>
 
-				{/* 3. 默认模型（AC 2 / AC 3 / E-38） */}
-				<FieldLayersRow layers={modelLayers} fieldLabel={modelLayers.label}>
-					<ModelPicker
-						models={models}
-						selectedModel={agent.defaultModel}
-						onSelectModel={(model) => void onUpdateField(agent.id, 'defaultModel', model)}
-						error={validationError?.defaultModel}
-						isComplete={isModelsComplete}
-						isLoading={isModelsLoading}
-						isRefreshing={isModelsRefreshing}
-						onRefresh={onRefreshModels}
-						onAddCustomModel={onAddCustomModel}
-					/>
-				</FieldLayersRow>
+				{/* 3. 默认模型（AC 2 / AC 3 / AC 7 / E-38 / E-358） */}
+				<div className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<div className="flex items-center gap-2">
+							<span className="font-ui font-semibold text-ink-1 text-dense">默认模型</span>
+						</div>
+					</div>
+
+					{/* 三行表（内置默认 / 你的覆盖 / 当前生效），<400px 竖排 */}
+					<div className="grid grid-cols-1 gap-1 text-meta sm:grid-cols-3 max-[400px]:grid-cols-1">
+						<div className="flex flex-col rounded bg-bg px-2 py-1">
+							<span className="text-micro text-ink-3">内置默认</span>
+							<span
+								className="font-mono text-dense text-ink-2 truncate"
+								title={modelBuiltin}
+								data-testid={`layer-builtin-defaultModel`}
+							>
+								{modelBuiltin}
+							</span>
+						</div>
+						<div className="flex flex-col rounded bg-bg px-2 py-1">
+							<div className="flex items-center gap-1.5">
+								<span className="text-micro text-ink-3">你的覆盖</span>
+								{isModelOverrideUnlisted && (
+									<span
+										data-testid={`unlisted-model-chip-${agent.id}`}
+										className="px-1 py-0.2 rounded-[3px] bg-panel-2 border border-border font-mono text-[9px] text-ink-3"
+									>
+										{UI_STRINGS.modelPicker.unlistedChip}
+									</span>
+								)}
+							</div>
+							<span
+								className={`font-mono text-dense truncate ${
+									hasModelOverride ? 'text-needs font-medium' : 'text-ink-3'
+								}`}
+								title={modelOverride}
+								data-testid={`layer-override-defaultModel`}
+							>
+								{modelOverride}
+							</span>
+						</div>
+						<div className="flex flex-col rounded bg-bg px-2 py-1">
+							<span className="text-micro text-ink-3">当前生效</span>
+							<span
+								className="font-mono text-dense text-ink-1 font-medium truncate"
+								title={modelEffective}
+								data-testid={`layer-effective-defaultModel`}
+							>
+								{modelEffective}
+							</span>
+						</div>
+					</div>
+
+					{/* 恢复默认按钮排在三行下方 */}
+					<div className="flex items-center justify-end">
+						<button
+							type="button"
+							disabled={!hasModelOverride || isUpdating}
+							title={!hasModelOverride ? UI_STRINGS.agentCard.noOverrideTitle : undefined}
+							onClick={() => void onClearOverride?.(agent.id, 'defaultModel')}
+							data-testid={`restore-default-defaultModel-${agent.id}`}
+							className="rounded-sm border border-border bg-bg px-2 py-0.5 font-ui text-micro text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40 disabled:hover:bg-bg disabled:hover:text-ink-2"
+						>
+							{UI_STRINGS.agentCard.restoreDefault}
+						</button>
+					</div>
+
+					{/* 模型选择控件 */}
+					<div className="mt-1">
+						<ModelPicker
+							catalog={catalog}
+							models={models}
+							selectedModel={agent.defaultModel}
+							onSelectModel={(model) => void onUpdateField(agent.id, 'defaultModel', model)}
+							error={validationError?.defaultModel}
+							isComplete={isModelsComplete}
+							isLoading={isModelsLoading}
+							isRefreshing={isModelsRefreshing}
+							onRefresh={onRefreshModels}
+							onAddCustomModel={onAddCustomModel}
+							disabled={isUpdating}
+						/>
+					</div>
+				</div>
+
+				{/* 4. 思考强度（AC 7, E-254, E-351, E-358） */}
+				{!isEffortSupported ? (
+					/* dsh 等不支持思考强度的 agent：显示该 agent 不支持，不渲染三行与按钮（E-358） */
+					<div
+						data-testid={`effort-unsupported-block-${agent.id}`}
+						className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body"
+					>
+						<div className="flex items-center gap-2">
+							<span className="font-ui font-semibold text-ink-1 text-dense">思考强度</span>
+						</div>
+						<div className="font-ui text-dense text-ink-3">
+							{UI_STRINGS.agentCard.effortUnsupported}
+						</div>
+					</div>
+				) : (
+					/* 支持思考强度：三行表 + 恢复默认按钮 + EffortPicker */
+					<div
+						data-testid={`effort-block-${agent.id}`}
+						className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body"
+					>
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<div className="flex items-center gap-2">
+								<span className="font-ui font-semibold text-ink-1 text-dense">思考强度</span>
+							</div>
+						</div>
+
+						{/* 三行表（内置默认 / 你的覆盖 / 当前生效），<400px 竖排 */}
+						<div className="grid grid-cols-1 gap-1 text-meta sm:grid-cols-3 max-[400px]:grid-cols-1">
+							<div className="flex flex-col rounded bg-bg px-2 py-1">
+								<span className="text-micro text-ink-3">内置默认</span>
+								<span
+									className="font-mono text-dense text-ink-2 truncate"
+									title={effortBuiltin}
+									data-testid={`layer-builtin-defaultEffortTier`}
+								>
+									{effortBuiltin}
+								</span>
+							</div>
+							<div className="flex flex-col rounded bg-bg px-2 py-1">
+								<span className="text-micro text-ink-3">你的覆盖</span>
+								<span
+									className={`font-mono text-dense truncate ${
+										hasEffortOverride ? 'text-needs font-medium' : 'text-ink-3'
+									}`}
+									title={effortOverride}
+									data-testid={`layer-override-defaultEffortTier`}
+								>
+									{effortOverride}
+								</span>
+							</div>
+							<div className="flex flex-col rounded bg-bg px-2 py-1">
+								<span className="text-micro text-ink-3">当前生效</span>
+								<span
+									className="font-mono text-dense text-ink-1 font-medium truncate"
+									title={effortEffective}
+									data-testid={`layer-effective-defaultEffortTier`}
+								>
+									{effortEffective}
+								</span>
+							</div>
+						</div>
+
+						{/* 恢复默认按钮排在三行下方 */}
+						<div className="flex items-center justify-end">
+							<button
+								type="button"
+								disabled={!hasEffortOverride || isUpdating}
+								title={!hasEffortOverride ? UI_STRINGS.agentCard.noOverrideTitle : undefined}
+								onClick={() => void onClearOverride?.(agent.id, 'defaultEffortTier')}
+								data-testid={`restore-default-defaultEffortTier-${agent.id}`}
+								className="rounded-sm border border-border bg-bg px-2 py-0.5 font-ui text-micro text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40 disabled:hover:bg-bg disabled:hover:text-ink-2"
+							>
+								{UI_STRINGS.agentCard.restoreDefault}
+							</button>
+						</div>
+
+						{/* 思考强度选择控件 */}
+						<div className="mt-1">
+							<EffortPicker
+								vendorMap={agent.effortVendorMap ?? null}
+								selectedModel={agent.defaultModel}
+								models={catalog?.models ?? []}
+								allowVendor={true}
+								value={agent.defaultEffortTier ?? null}
+								onChange={(newVal) => void onUpdateEffortTier?.(agent.id, newVal)}
+								disabled={isUpdating}
+							/>
+							{validationError?.defaultEffortTier && (
+								<div
+									data-testid={`defaultEffortTier-error-${agent.id}`}
+									className="flex flex-col gap-0.5 text-micro text-down mt-1"
+								>
+									<span>{validationError.defaultEffortTier.message}</span>
+									{validationError.defaultEffortTier.technical && (
+										<details className="mt-0.5 text-micro text-ink-3">
+											<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
+											<div className="font-mono text-micro text-ink-3 break-all">
+												{validationError.defaultEffortTier.technical}
+											</div>
+										</details>
+									)}
+								</div>
+							)}
+						</div>
+					</div>
+				)}
 
 				{/* 4. 最大并发数 */}
 				<FieldLayersRow layers={concurrencyLayers} fieldLabel={concurrencyLayers.label}>

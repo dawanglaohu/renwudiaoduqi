@@ -1042,3 +1042,230 @@ async function mountAssignPanel(client: AssignPanelClient): Promise<MountedAssig
 		},
 	};
 }
+
+describe('M9-T23: 指派面板登录态徽标、清单刷新与重派定位 (AC 1, AC 6, E-336, E-355, E-359)', () => {
+	const loggedOutAgent: AssignableAgent = {
+		id: 'agent-logged-out',
+		name: 'LoggedOutAgent',
+		monogram: 'LO',
+		login: {
+			state: 'logged_out',
+			checkedAt: new Date().toISOString(),
+			loginCommand: 'test-cli login',
+			providers: {},
+		},
+	};
+
+	const noLoginAgent: AssignableAgent = {
+		id: 'agent-no-login',
+		name: 'DshAgent',
+		monogram: 'DH',
+		login: null,
+	};
+
+	const singleTask: TaskItem = {
+		id: 'task-test-1',
+		taskKey: 'M9-T23',
+		title: '指派面板登录态与清单刷新',
+	};
+
+	it('renders monogram -> agent name -> login-badge -> refresh button in row header (AC 1)', async () => {
+		const onRefresh = vi.fn();
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+
+		await act(async () => {
+			root.render(
+				createElement(TaskAssignmentList, {
+					tasks: [singleTask],
+					agents: [loggedOutAgent],
+					assignments: {
+						[singleTask.id]: {
+							taskId: singleTask.id,
+							taskKey: singleTask.taskKey,
+							agentId: loggedOutAgent.id,
+							model: null,
+							effort: null,
+							sessionNo: 1,
+						},
+					},
+					onRefreshAgentModels: onRefresh,
+				}),
+			);
+		});
+
+		// 验证回显态行首结构
+		const assignedRow = container.querySelector(
+			`[data-task-assigned-row="${singleTask.taskKey}"]`,
+		);
+		expect(assignedRow).not.toBeNull();
+
+		// monogram
+		expect(assignedRow?.textContent).toContain('LO');
+		// agent 名
+		expect(assignedRow?.textContent).toContain('LoggedOutAgent');
+		// login-badge 渲染「未登录」
+		const badge = assignedRow?.querySelector('[data-testid="login-badge"]');
+		expect(badge).not.toBeNull();
+		expect(badge?.textContent).toContain('未登录');
+
+		// 刷新按钮存在并可点击
+		const refreshBtn = assignedRow?.querySelector(
+			'button[data-action="refresh-agent-models"]',
+		) as HTMLButtonElement | null;
+		expect(refreshBtn).not.toBeNull();
+
+		await act(async () => {
+			refreshBtn?.click();
+		});
+		expect(onRefresh).toHaveBeenCalledWith(loggedOutAgent.id);
+
+		// 下方渲染 login-hint
+		const hint = assignedRow?.querySelector('[data-testid="login-hint"]');
+		expect(hint).not.toBeNull();
+		expect(hint?.textContent).toContain('未登录：在终端运行 test-cli login 后点刷新');
+
+		await act(async () => {
+			root.unmount();
+		});
+		container.remove();
+	});
+
+	it('renders NO login badge DOM when login is null (AC 1, E-335)', async () => {
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+
+		await act(async () => {
+			root.render(
+				createElement(TaskAssignmentList, {
+					tasks: [singleTask],
+					agents: [noLoginAgent],
+					assignments: {
+						[singleTask.id]: {
+							taskId: singleTask.id,
+							taskKey: singleTask.taskKey,
+							agentId: noLoginAgent.id,
+							model: null,
+							effort: null,
+							sessionNo: 1,
+						},
+					},
+				}),
+			);
+		});
+
+		const badge = container.querySelector('[data-testid="login-badge"]');
+		expect(badge).toBeNull();
+
+		const hint = container.querySelector('[data-testid="login-hint"]');
+		expect(hint).toBeNull();
+
+		await act(async () => {
+			root.unmount();
+		});
+		container.remove();
+	});
+
+	it('never disables dispatch/assign buttons due to login.state (AC 1, E-336, E-355)', async () => {
+		const onAssign = vi.fn();
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+
+		await act(async () => {
+			root.render(
+				createElement(TaskAssignmentList, {
+					tasks: [singleTask],
+					agents: [loggedOutAgent],
+					onAssignTask: onAssign,
+				}),
+			);
+		});
+
+		// 处于编辑态
+		const editRow = container.querySelector(
+			`[data-task-editing-row="${singleTask.taskKey}"]`,
+		);
+		expect(editRow).not.toBeNull();
+
+		const agentSelect = editRow?.querySelector(
+			'select[data-testid="select-agent-M9-T23"]',
+		) as HTMLSelectElement;
+		expect(agentSelect).not.toBeNull();
+
+		await act(async () => {
+			agentSelect.value = loggedOutAgent.id;
+			agentSelect.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+
+		// 确认指派按钮必须不可 disabled，照常允许派发（E-336）
+		const confirmBtn = editRow?.querySelector(
+			'button[data-action="confirm-task-assign"]',
+		) as HTMLButtonElement;
+		expect(confirmBtn).not.toBeNull();
+		expect(confirmBtn.disabled).toBe(false);
+
+		await act(async () => {
+			confirmBtn.click();
+		});
+		expect(onAssign).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			root.unmount();
+		});
+		container.remove();
+	});
+
+	it('automatically enters editing mode and highlights on selectionStore.openReassign (AC 6, E-359)', async () => {
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+
+		// scrollIntoView polyfill
+		Element.prototype.scrollIntoView = vi.fn();
+
+		await act(async () => {
+			root.render(
+				createElement(TaskAssignmentList, {
+					tasks: [singleTask],
+					agents: [loggedOutAgent],
+					assignments: {
+						[singleTask.id]: {
+							taskId: singleTask.id,
+							taskKey: singleTask.taskKey,
+							agentId: loggedOutAgent.id,
+							model: null,
+							effort: null,
+							sessionNo: 1,
+						},
+					},
+				}),
+			);
+		});
+
+		// 初始为已指派展示态
+		expect(
+			container.querySelector(`[data-task-assigned-row="${singleTask.taskKey}"]`),
+		).not.toBeNull();
+
+		// 触发 openReassign
+		await act(async () => {
+			useSelectionStore.getState().openReassign(singleTask.id);
+		});
+
+		// 自动切至编辑态并高亮
+		const editingRow = container.querySelector(
+			`[data-task-editing-row="${singleTask.taskKey}"]`,
+		);
+		expect(editingRow).not.toBeNull();
+		expect(editingRow?.className).toContain('border-[var(--needs)]');
+
+		await act(async () => {
+			root.unmount();
+		});
+		container.remove();
+	});
+});
+

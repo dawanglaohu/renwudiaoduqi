@@ -1,13 +1,13 @@
 /**
  * packages/web/src/store/selection-store.ts
  *
- * 选择与派发草稿 slice（M9-T18 / 07 节前端架构：selection 放当前文档批次与派发草稿）
+ * 选择与派发草稿 slice（M9-T18 / M9-T23 / 07 节前端架构：selection 放当前文档批次与派发草稿）
  *
  * 规范依据：
- * - zustand 只放低频状态；本 slice 只存「当前选中文档 / 批次」与 daemon 下发的逐任务草稿
+ * - zustand 只放低频状态；本 slice 只存「当前选中文档 / 批次」、daemon 下发的逐任务草稿与重派导航状态（E-359, 决策 126）
  * - 草稿字段全部来自 `GET/POST /api/v1/batches/:batchId/assignments` 的 `drafts[]`，前端不推导、不自算
- * - 不存派生值：并发预览（有效并发、瓶颈、agent 占用）属于请求返回值，由 feature 层按批次持有，
- *   不复制一份进 store，避免一份数据两处缓存
+ * - 不存派生值：并发预览属于请求返回值，由 feature 层按批次持有，不复制进 store
+ * - store 不 import features/ 或 api/
  */
 
 import { create } from 'zustand';
@@ -24,6 +24,12 @@ export interface SelectionState {
 	readonly assignments: Readonly<Record<string, TaskAssignmentSelection>>;
 	/** 手机档当前查看的泳道序号（1-based 内存状态，不进 URL、不持久化，AC 9, E-324） */
 	readonly mobileLaneNo: number;
+	/** 任务筛选过滤词（左栏筛选状态，E-359） */
+	readonly taskFilter: string;
+	/** 当前正在触发「换 agent 重派」定位的任务 ID（E-359, 决策 126） */
+	readonly reassignTaskId: string | null;
+	/** 清除筛选时的轻提示文案（E-359） */
+	readonly reassignToast: string | null;
 }
 
 export interface SelectionActions {
@@ -33,6 +39,15 @@ export interface SelectionActions {
 	setAssignments(assignments: Readonly<Record<string, TaskAssignmentSelection>>): void;
 	/** 切换手机档当前泳道 */
 	setMobileLaneNo(laneNo: number): void;
+	/** 设置左栏任务筛选过滤词 */
+	setTaskFilter(filter: string): void;
+	/**
+	 * 「换 agent 重派」落点动作（E-359 / AC 6 / 决策 126）：
+	 * 清除左栏筛选并提示「已清除筛选以定位 〈ID〉」、记录目标任务以供高亮和焦点定位、预选当前快照 agent。
+	 */
+	openReassign(taskId: string, currentSnapshotAgentId?: string | null): void;
+	/** 清除重派定位状态与轻提示 */
+	clearReassign(): void;
 	reset(): void;
 }
 
@@ -43,6 +58,9 @@ const INITIAL_STATE: SelectionState = {
 	selectedBatchId: null,
 	assignments: {},
 	mobileLaneNo: 1,
+	taskFilter: '',
+	reassignTaskId: null,
+	reassignToast: null,
 };
 
 export const useSelectionStore = create<SelectionStore>((set) => ({
@@ -63,6 +81,49 @@ export const useSelectionStore = create<SelectionStore>((set) => ({
 
 	setMobileLaneNo: (laneNo) => {
 		set({ mobileLaneNo: Math.max(1, laneNo) });
+	},
+
+	setTaskFilter: (filter) => {
+		set({ taskFilter: filter });
+	},
+
+	openReassign: (taskId, currentSnapshotAgentId) => {
+		set((state) => {
+			let toastMessage: string | null = null;
+			let nextFilter = state.taskFilter;
+			if (state.taskFilter.trim().length > 0) {
+				nextFilter = '';
+				toastMessage = `已清除筛选以定位 ${taskId}`;
+			}
+
+			// 若传入当前快照 agentId，则在草稿中预选该 agent
+			let nextAssignments = state.assignments;
+			if (currentSnapshotAgentId) {
+				const existing = state.assignments[taskId];
+				nextAssignments = {
+					...state.assignments,
+					[taskId]: {
+						taskId,
+						taskKey: existing?.taskKey ?? taskId,
+						agentId: currentSnapshotAgentId,
+						model: existing?.model ?? null,
+						effort: existing?.effort ?? null,
+						sessionNo: existing?.sessionNo ?? null,
+					},
+				};
+			}
+
+			return {
+				taskFilter: nextFilter,
+				reassignTaskId: taskId,
+				reassignToast: toastMessage,
+				assignments: nextAssignments,
+			};
+		});
+	},
+
+	clearReassign: () => {
+		set({ reassignTaskId: null, reassignToast: null });
 	},
 
 	reset: () => {

@@ -44,6 +44,8 @@ export interface PipelineSettingsError {
 	readonly message: string;
 	readonly technical: string;
 	readonly stage?: string | null;
+	readonly field?: string | null;
+	readonly fieldErrors?: Readonly<Record<string, string>>;
 }
 
 export interface UsePipelineSettingsOptions {
@@ -87,6 +89,8 @@ export function toPipelineSettingsError(error: unknown, fallback: string): Pipel
 	if (isApiError(error)) {
 		let message = getErrorMessage(error.code);
 		let stage: string | null = null;
+		let field: string | null = null;
+		const fieldErrors: Record<string, string> = {};
 
 		// AC 5: E_PIPELINE_STAGE_DISABLED 按 details.stage 就地展示具体阶段
 		if (
@@ -102,10 +106,21 @@ export function toPipelineSettingsError(error: unknown, fallback: string): Pipel
 			}
 		}
 
+		// AC 8 / E-356: E_VALIDATION 的 details.field 点路径就地渲染到对应控件下
+		if (error.code === 'E_VALIDATION' && error.details && typeof error.details === 'object') {
+			const rawField = (error.details as Record<string, unknown>).field;
+			if (typeof rawField === 'string' && rawField) {
+				field = rawField;
+				fieldErrors[rawField] = message;
+			}
+		}
+
 		return {
 			code: error.code,
 			message,
 			stage,
+			field,
+			fieldErrors,
 			technical: `${error.code} · ${error.message}${error.requestId ? ` · requestId=${error.requestId}` : ''}`,
 		};
 	}
@@ -120,11 +135,13 @@ interface PipelineSettingsSnapshot {
 	readonly pipeline: PipelineSettings | null;
 	readonly isPending: boolean;
 	readonly error: PipelineSettingsError | null;
+	readonly fieldErrors: Readonly<Record<string, string>>;
 }
 
 export interface PipelineSettingsSource {
 	readonly subscribe: (listener: () => void) => () => void;
 	readonly getSnapshot: () => PipelineSettingsSnapshot;
+	readonly updatePipelineSettings: (partial: Partial<UpdatePipelineSettingsBody>) => Promise<void>;
 	readonly updatePipelineToggles: (partial: {
 		bughunt?: 0 | 1;
 		wrapupMode?: 'auto' | 'manual';
@@ -140,6 +157,7 @@ export function createPipelineSettingsSource(
 		pipeline: options.initialPipeline ?? null,
 		isPending: false,
 		error: null,
+		fieldErrors: {},
 	};
 	const listeners = new Set<() => void>();
 	let sourceVersion = 0;
@@ -252,29 +270,21 @@ export function createPipelineSettingsSource(
 		if (!options.initialPipeline || pendingPatch) void readSettings(true);
 	}
 
-	return {
-		getSnapshot: () => snapshot,
-		subscribe: (listener) => {
-			listeners.add(listener);
-			if (listeners.size === 1) start();
-			return () => {
-				listeners.delete(listener);
-				if (listeners.size === 0) {
-					cleanup?.();
-					cleanup = null;
-					unregister(settingsPipeline());
-					if (!options.initialPipeline) publish({ pipeline: null, error: null });
-				}
-			};
-		},
-		async updatePipelineToggles(partial) {
+	const updatePipelineSettings = async (partial: Partial<UpdatePipelineSettingsBody>) => {
 			const pipeline = snapshot.pipeline;
 			if (!pipeline || pendingPatch) return;
+			// AC 8 / E-356: PATCH 永远发四键全量
 			const fullBody: UpdatePipelineSettingsBody = {
-				bughunt: partial.bughunt ?? pipeline.bughunt,
-				wrapupMode: partial.wrapupMode ?? pipeline.wrapupMode,
-				reviewOverride: pipeline.reviewOverride,
-				wrapupAssignment: pipeline.wrapupAssignment,
+				bughunt: partial.bughunt !== undefined ? partial.bughunt : pipeline.bughunt,
+				wrapupMode: partial.wrapupMode !== undefined ? partial.wrapupMode : pipeline.wrapupMode,
+				reviewOverride:
+					partial.reviewOverride !== undefined
+						? partial.reviewOverride
+						: pipeline.reviewOverride,
+				wrapupAssignment:
+					partial.wrapupAssignment !== undefined
+						? partial.wrapupAssignment
+						: pipeline.wrapupAssignment,
 			};
 			const pending: PendingPipelinePatch = {
 				body: fullBody,
@@ -284,7 +294,8 @@ export function createPipelineSettingsSource(
 			};
 			pendingPatch = pending;
 			sourceVersion += 1;
-			publish({ isPending: true, error: null });
+			// pending 期间四个控件一起 disabled
+			publish({ isPending: true, error: null, fieldErrors: {} });
 			const completion = (async () => {
 				try {
 					if (options.patcher) {
@@ -308,15 +319,47 @@ export function createPipelineSettingsSource(
 						pendingPatch = null;
 						publish({ isPending: false });
 					}
-					publish({ error: toPipelineSettingsError(cause, '流水线设置未能保存，请稍后重试') });
+					const parsedError = toPipelineSettingsError(
+						cause,
+						'流水线设置未能保存，请稍后重试',
+					);
+					publish({
+						error: parsedError,
+						fieldErrors: parsedError.fieldErrors ?? {},
+					});
 				}
 			})();
 			patchCompletion = completion;
 			await completion;
 			if (patchCompletion === completion) patchCompletion = null;
-		},
-		clearError: () => publish({ error: null }),
-	};
+		};
+
+		const updatePipelineToggles = async (partial: {
+			bughunt?: 0 | 1;
+			wrapupMode?: 'auto' | 'manual';
+		}) => {
+			return updatePipelineSettings(partial);
+		};
+
+		return {
+			getSnapshot: () => snapshot,
+			subscribe: (listener) => {
+				listeners.add(listener);
+				if (listeners.size === 1) start();
+				return () => {
+					listeners.delete(listener);
+					if (listeners.size === 0) {
+						cleanup?.();
+						cleanup = null;
+						unregister(settingsPipeline());
+						if (!options.initialPipeline) publish({ pipeline: null, error: null });
+					}
+				};
+			},
+			updatePipelineSettings,
+			updatePipelineToggles,
+			clearError: () => publish({ error: null, fieldErrors: {} }),
+		};
 }
 
 const sharedPipelineSource = createPipelineSettingsSource();
@@ -334,6 +377,7 @@ export function usePipelineSettings(options: UsePipelineSettingsOptions = {}) {
 	const state = useSyncExternalStore(source.subscribe, source.getSnapshot, source.getSnapshot);
 	return {
 		...state,
+		updatePipelineSettings: source.updatePipelineSettings,
 		updatePipelineToggles: source.updatePipelineToggles,
 		clearError: source.clearError,
 	};
