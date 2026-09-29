@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T29": {
+      "contractHash": "de393c7c679e1a64efca907abdb248fc43daea004c7cad0bcc160c996adef964",
+      "verdict": "pass",
+      "evidence": [
+        "有效路径文件已核存在：taskPaths 21 个文件在主干 8ee193e 上全部存在；supportPaths 12 个文件全部存在。",
+        "依赖任务已落地：M9-T13、M9-T14、M9-T15、M9-T20、M9-T22、M9-T25、M9-T27、M10-T6 在 docs-data.js 的 progress 里均为 done，且是最后改过对应文件的原任务（git log -1 反查）；M9-T28 是同一补丁新增的任务，按依赖层号排在本任务之前（第 16 批 / 第 17 批）。",
+        "验收 1–5 均可客观判定：每页路由、两档视口、--type 按 11 节页面类型取 work / form / card、D1–D6 判定、卡宽上限、两条守护的扫描目录与白名单规则、正反用例文件与旧文件只改类名的清单都写明；引用的 E-145、E-224、E-226 均在 13 节存在。",
+        "守护可落地：主干 8ee193e 上按同一类名规则静态扫描，命中与渲染报告一致——甲板两处归 M9-T28，设置页、落地清单、单卡页 5 处与路由上用不到的旧文件 2 处归本任务；三个旧文件仍被测试与其他任务的有效路径引用（task-list-page.tsx 在 M9-T19，mobile-batch-list.tsx 在 M9-T19 / M9-T25 / M10-T6，batch-summary-bar.tsx 在 M9-T16，另有 landing-onboarding.test.ts 与 thumb-bar.test.ts 引用），所以只改类名不删文件。",
+        "路径冲突已核：待派的 M9-T23 与本任务共用 settings-agents-page.tsx、settings-pipeline-page.tsx、agent-card.tsx、model-picker.tsx 与 check-forbidden.ts / check-forbidden.test.ts，它未落地、不写成依赖，由交接台的路径冲突检测串行处理。"
+      ]
+    }
+  }
+}

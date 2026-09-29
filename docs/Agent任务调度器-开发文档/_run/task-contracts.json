@@ -1618,6 +1618,60 @@
           "task": "M9-T26"
         }
       ]
+    },
+    "M9-T28": {
+      "supportPaths": [
+        "packages/web/src/components/pipeline-lane.tsx",
+        "packages/web/test/empty-onboarding.test.tsx",
+        "packages/web/test/landing-onboarding.test.ts",
+        "packages/web/test/assign-panel.test.ts",
+        "packages/web/test/lanes-container.test.tsx",
+        "packages/web/test/run-deck-container.test.tsx",
+        "packages/web/test/stream-column.test.ts",
+        "packages/web/test/stream-column.test.tsx",
+        "packages/web/test/pipeline-lane.test.tsx",
+        "packages/web/test/thumb-bar.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
+      ]
+    },
+    "M9-T29": {
+      "supportPaths": [
+        "packages/web/src/pages/run-detail-page.tsx",
+        "packages/web/test/settings-agents.test.ts",
+        "packages/web/test/pairing-devices.test.ts",
+        "packages/web/test/landing-onboarding.test.ts",
+        "packages/web/test/wrapup-report.test.tsx",
+        "packages/web/test/route-entries.test.tsx",
+        "packages/web/test/pipeline-toggles.test.tsx",
+        "packages/web/test/connect-failed.test.ts",
+        "packages/web/test/routes.test.ts",
+        "packages/web/test/thumb-bar.test.ts",
+        "packages/web/test/log-window.test.ts",
+        "packages/web/test/mobile-rerun.test.ts"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17
+      ]
     }
   }
 }
