@@ -1229,6 +1229,18 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R8-T69421773": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "e3edfdc2de392516d1750f0326c95003cb7c651ed4f80150ae27145864d1d866",
+    "evidence": [
+      "本证据仅复核返工任务定义可实施，不代表代码已修复或 CI 已通过。来源 M8-T5 原样重跑契约、E-177/E-323/E-331 和两次真实 CI，独立 JSON 记录真实 SQLite 正负对照。",
+      "AC1/2 要求新 id、bughunt kind、次数单调及同幂等键复用，符合原样重跑，不降低唯一约束；真实事务回滚必须保持闸门。AC3 要求跨任务交错及泳道占用负例，避免只修记录数后遗漏相邻共享状态。",
+      "AC4/5 由现有生产容器、HTTP 与 Batch 14 浏览器 E2E 检验，给 rerun 响应体和失败产物补诊断，禁止延长超时掩盖错误。有效路径包含容器注册点、生产重跑和查 bug 服务、仓储与相应测试，未扩展新的产品能力。"
+    ],
+    "reviewed": "2026-09-29T12:22:46.961644+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T70356006": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "4065661e43917e74f38d912c02147f35e75427fb3ca296c584a6043532a79cd7",
