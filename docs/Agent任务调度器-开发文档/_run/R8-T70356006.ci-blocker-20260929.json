@@ -1,0 +1,101 @@
+{
+  "date": "2026-09-29",
+  "status": "open",
+  "affectedPullRequests": [
+    161,
+    170
+  ],
+  "ci": [
+    {
+      "head": "5f297693c00af79de5bcba0865e8616ad3304f5a",
+      "run": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/36565871344",
+      "job": 109397501331
+    },
+    {
+      "head": "d79c780bf8d0005a9bf42316da01f7e639dbd0cc",
+      "run": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/36566400701",
+      "job": 109399273278
+    }
+  ],
+  "failure": {
+    "test": "e2e/batch-14-composition.test.ts:1745",
+    "observation": "Rerun HTTP returns 200; no new bughunt run found after 35 seconds. Existing parent stays awaiting_human with bughunt_failed."
+  },
+  "reproduction": {
+    "method": "Actual migration runner, in-memory SQLite, production repositories, createUnitOfWork transaction and createRerunService; seeded one task with an awaiting_human implement parent, exited review, failed bughunt and pending bughunt_failed gate. No process spawning or provider calls.",
+    "cases": [
+      {
+        "attempts": [
+          1,
+          2,
+          3
+        ],
+        "response": {
+          "id": "run_0001",
+          "kind": "bughunt",
+          "state": "starting",
+          "attemptNo": 4
+        },
+        "persisted": [
+          {
+            "id": "impl",
+            "attempt": 1,
+            "kind": "implement"
+          },
+          {
+            "id": "review",
+            "attempt": 2,
+            "kind": "review"
+          },
+          {
+            "id": "bughunt",
+            "attempt": 3,
+            "kind": "bughunt"
+          },
+          {
+            "id": "run_0001",
+            "attempt": 4,
+            "kind": "bughunt"
+          }
+        ],
+        "gate": []
+      },
+      {
+        "attempts": [
+          1,
+          2,
+          4
+        ],
+        "response": {
+          "id": "impl",
+          "kind": "implement",
+          "state": "awaiting_human",
+          "attemptNo": 1
+        },
+        "persisted": [
+          {
+            "id": "impl",
+            "attempt": 1,
+            "kind": "implement"
+          },
+          {
+            "id": "review",
+            "attempt": 2,
+            "kind": "review"
+          },
+          {
+            "id": "bughunt",
+            "attempt": 4,
+            "kind": "bughunt"
+          }
+        ],
+        "gate": [
+          "bughunt_failed"
+        ]
+      }
+    ],
+    "cause": "rerunRun uses existingRuns.length + 1; [1,2,4] conflicts with UNIQUE(task_id,attempt_no), transaction rolls back, constraint recovery returns existing active implement run. bughunt dispatch uses a global maximum, permitting gaps in each task history.",
+    "limitation": "This is an independently confirmed production defect consistent with CI symptoms. CI did not retain the rerun response body or every run attempt number; exact CI internal state is not claimed."
+  },
+  "action": "Keep both PRs open. Register an independent repair; do not weaken E2E assertions, database constraints or CI gates."
+}

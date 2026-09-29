@@ -1238,7 +1238,19 @@
       "边界：E-37 环境清理与模型核对保持；E-36 的 error=model_not_found 分支在普通 assistant 映射之前，子代理拒绝不影响主任务；E-348 的 API 错误正文不算内容；E-113 管道关闭拒绝发送，背压等待清理监听器；E-202 未知内容只增加未映射计数。单元与生产入口回放定位见任务受保护代码位置和 _run/R8-T57073674.implementation.json。",
       "Jev 真实裁决与有限候选、model、line 和执行选择保存在 _run/R8-T57073674.implementation.json；生产测试 pnpm -w check 为 206 文件/2579 通过/3 跳过。此登记只确认任务契约自洽，任务保持 review，实施完成仍等待独立审查，不执行 --landed。"
     ],
-    "reviewed": "2026-09-29T12:05:38.647536+00:00",
+    "reviewed": "2026-09-29T12:24:51.098412+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "R8-T69421773": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "e3edfdc2de392516d1750f0326c95003cb7c651ed4f80150ae27145864d1d866",
+    "evidence": [
+      "本证据仅复核返工任务定义可实施，不代表代码已修复或 CI 已通过。来源 M8-T5 原样重跑契约、E-177/E-323/E-331 和两次真实 CI，独立 JSON 记录真实 SQLite 正负对照。",
+      "AC1/2 要求新 id、bughunt kind、次数单调及同幂等键复用，符合原样重跑，不降低唯一约束；真实事务回滚必须保持闸门。AC3 要求跨任务交错及泳道占用负例，避免只修记录数后遗漏相邻共享状态。",
+      "AC4/5 由现有生产容器、HTTP 与 Batch 14 浏览器 E2E 检验，给 rerun 响应体和失败产物补诊断，禁止延长超时掩盖错误。有效路径包含容器注册点、生产重跑和查 bug 服务、仓储与相应测试，未扩展新的产品能力。"
+    ],
+    "reviewed": "2026-09-29T12:22:46.961644+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

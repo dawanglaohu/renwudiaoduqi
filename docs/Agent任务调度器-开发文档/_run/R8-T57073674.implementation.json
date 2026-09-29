@@ -90,5 +90,12 @@
       "observation": "The live reply interrupted the tool interaction; CLI responded and exited 0. This is delivery/lifecycle evidence, not an assertion that the final answer contained the marker."
     },
     "laterProbes": "Independent subsequent valid-model requests encountered provider budget exhaustion, unavailable upstreams or authentication failures. These are negative controls, not successful output evidence."
+  },
+  "ci": {
+    "head": "d79c780bf8d0005a9bf42316da01f7e639dbd0cc",
+    "run": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/36566400701",
+    "status": "blocked",
+    "observation": "Desktop builds and pnpm -w check passed; Batch 14 E2E failed at e2e/batch-14-composition.test.ts:1745. The same failure occurred on parent PR 161 without this Claude patch. A real SQLite reproduction confirms rerun counts noncontiguous attempts incorrectly and returns the old implement run. Independent repair R8-T69421773 is open.",
+    "evidence": "_run/R8-T70356006.ci-blocker-20260929.json"
   }
 }
