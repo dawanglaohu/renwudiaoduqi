@@ -1001,9 +1001,9 @@ describe('M4-T8: codex 原生适配器', () => {
 		});
 
 		describe('R8-T70356006 E-36: Claude Code stream-json recordings of an invalid model', () => {
-			// Sanitized stdout from Claude Code launched in the production argument shape
-			// (--print --output-format stream-json --input-format stream-json --model <name>, prompt sent
-			// as one stream-json user turn), recorded 2026-09-29; ids, endpoints and request ids redacted.
+			// Sanitized stdout recorded 2026-09-29 from Claude Code started with the arguments
+			// buildClaudeLaunchSpec produces plus --verbose, the prompt written to stdin as one stream-json
+			// user turn; non-null ids, endpoints and request ids are redacted.
 			const fixtureDir = resolve(__dirname, '../fixtures/dispatch');
 			const readRecording = (name: string): string[] =>
 				readFileSync(join(fixtureDir, name), 'utf8')
@@ -1066,6 +1066,20 @@ describe('M4-T8: codex 原生适配器', () => {
 				);
 				const events = untyped.flatMap((line) => mapClaudeEventLine(line).events);
 				expect(events.some((event) => event.kind === 'run.model_rejected')).toBe(false);
+			});
+
+			it('AC 2 & E-36: a subagent frame with the same typed field maps to no run.model_rejected', () => {
+				// Condition-logic variant of the recorded frame: only parent_tool_use_id is set.
+				const recorded = parseRecording('claude-2-1-283-model-not-found.stdout.ndjson').find(
+					(frame) => frame.error === 'model_not_found',
+				);
+				expect(recorded?.parent_tool_use_id).toBeNull();
+				const subagentLine = JSON.stringify({ ...recorded, parent_tool_use_id: 'toolu_subagent' });
+				expect(
+					mapClaudeEventLine(subagentLine).events.some(
+						(event) => event.kind === 'run.model_rejected',
+					),
+				).toBe(false);
 			});
 		});
 
