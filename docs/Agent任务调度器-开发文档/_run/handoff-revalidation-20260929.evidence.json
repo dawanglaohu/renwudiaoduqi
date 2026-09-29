@@ -1,0 +1,349 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "4df73ac680657684e9f9f83f48d3c77e2fdf436d1a7c126e94eb2cbbc170b3d1",
+      "verdict": "pass",
+      "evidence": [
+        "M1-T11: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+        "M1-T11: checked current main implementation reference e2e/smoke.test.ts:337 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M10-T1": {
+      "contractHash": "a9562363a25db6200e982845578a7ad454d54e8a503915d401a21b773f49a751",
+      "verdict": "pass",
+      "evidence": [
+        "M10-T1: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M10-T1: checked current main implementation reference packages/shared/src/shell/bridge-contract.ts:24 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M10-T2": {
+      "contractHash": "23de0ad7261c9e070a047e80cc81bd190cd5aa73afa1cbe5211b08d501d2d5da",
+      "verdict": "pass",
+      "evidence": [
+        "M10-T2: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M10-T2: checked current main implementation reference packages/shell-desktop/src-tauri/Cargo.toml:16 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M10-T3": {
+      "contractHash": "507b5a8767cbc529715e051c0348773f1ecbae792ca4abb709f3f0c3c99cba48",
+      "verdict": "pass",
+      "evidence": [
+        "M10-T3: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M10-T3: checked current main implementation reference packages/shell-mobile/capacitor.config.ts:3 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M10-T4": {
+      "contractHash": "e5d9214b6b8857f5a4d6b1983bc817b73079b3808d5ff21bb5d0f750b1763b66",
+      "verdict": "pass",
+      "evidence": [
+        "M10-T4: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M10-T4: checked current main implementation reference packages/shared/src/api/system.ts:5 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M10-T5": {
+      "contractHash": "d833591bd92e32a38fa86f2c222fc65abd4b465d8e7a26ee44927eed41f2bf9d",
+      "verdict": "pass",
+      "evidence": [
+        "M10-T5: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M10-T5: checked current main implementation reference .github/workflows/desktop-ci.yml:34 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M10-T6": {
+      "contractHash": "7e8be0053fae377721225b514433c107a4a041a42fb0251391f2a9a5a59678f2",
+      "verdict": "pass",
+      "evidence": [
+        "M10-T6: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M10-T6: checked current main implementation reference packages/shared/src/shell/bridge-contract.ts:39 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M2-T8": {
+      "contractHash": "74d22d5918a463f3df3f381642164191b1186ea8a94220307b5bf9a97b4f3f8f",
+      "verdict": "pass",
+      "evidence": [
+        "M2-T8: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+        "M2-T8: checked current main implementation reference packages/shared/src/lib/is-record.ts:1 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T1": {
+      "contractHash": "f017e1e199097eb44a6a59134b34bb493ad7e366cc04d86aa0fae0bbbb7117d9",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T1: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T1: checked current main implementation reference packages/web/src/styles/tokens.css:4 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T10": {
+      "contractHash": "6937abf2da75efce6928436365a53afc393beab4ebdfcacfeb089a77635b6173",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T10: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T10: checked current main implementation reference packages/web/src/components/gate-card.tsx:267 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T11": {
+      "contractHash": "e1b6144cd8cdf541d7f9555a23ca3d01aae43b81a58992ccb8b43ef302d2a8af",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T11: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T11: checked current main implementation reference packages/web/src/store/connection-store.ts:19 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T12": {
+      "contractHash": "a39ce98e15a3ab40f0c667deb1d159bce66f0146aae6931c717c2bb071ad777b",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T12: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T12: checked current main implementation reference packages/web/src/components/thumb-bar.tsx:48 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T13": {
+      "contractHash": "100858d068bf33f94f07512291f2fc9c6a2b95e74c1acce5789db9f4f3c57050",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T13: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T13: checked current main implementation reference packages/web/src/pages/run-detail-page.tsx:34 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T14": {
+      "contractHash": "6cef888598be5f41ce2acf4cc993d0d34fca4b515de2fb4a8abfa1062edb206c",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T14: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T14: checked current main implementation reference packages/web/src/pages/settings-agents-page.tsx:27 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T15": {
+      "contractHash": "a7779c2f5e19931d191094b7ef85bb9125a20b5d0e3dc04f39a90c0eff26ed2f",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T15: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T15: checked current main implementation reference packages/web/src/shell/shell-bridge.ts:16 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T16": {
+      "contractHash": "5c99148d5bc64ac0e706c8c2d98b10c7cbad6b18d748d6d124d56c78b188f53f",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T16: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T16: checked current main implementation reference packages/web/src/components/empty-onboarding.tsx:83 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T17": {
+      "contractHash": "d1aaa5485d40222bda3dc17d3b72a97fd0caf2e504e8348d9843dc5fd3e08766",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T17: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T17: checked current main implementation reference packages/shared/src/api/runs.ts:207 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T18": {
+      "contractHash": "61db9eb658cf88ef8c6f9cf52850bc4a7ff96770ce8d91d2af59d0897e2512c5",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T18: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T18: checked current main implementation reference packages/web/src/api/batches.ts:41 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T19": {
+      "contractHash": "d857b4d13b12b86b89aa69e4623910de22f9f81d220925b5dc3bc2caec372a2f",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T19: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T19: checked current main implementation reference packages/daemon/src/http/routes/gates.ts:157 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T2": {
+      "contractHash": "cbf4be84e375b7e27b9112432fe2b370261cba59d517e6005307cf02e5655c27",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T2: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T2: checked current main implementation reference packages/web/src/lib/spine-shape.ts:21 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T20": {
+      "contractHash": "d3a5ef6456bf8d08ecbf6243768f05915afe73272e3ab111370c724672ffe83c",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T20: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T20: checked current main implementation reference packages/web/src/components/stream-column.tsx:35 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T21": {
+      "contractHash": "2a50115534c33e09a6399294b6b2c955311656ec56e8daa778382b88cf1123b0",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T21: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T21: checked current main implementation reference packages/web/src/api/lanes.ts:57 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T22": {
+      "contractHash": "2910929201970dd876d19d18399a1c0225bb61df9194c29aad384ca65fdd641a",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T22: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T22: checked current main implementation reference packages/web/src/ui/segmented-toggle.tsx:42 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T23": {
+      "contractHash": "2b34ff9a275284fbf4dd896c961814d4da445a4891ec6f54150f652e9b0710be",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T23: desktop-density-20260929 adds shared 11-UI.md spacing context; patch changes.before/after shows task acceptance, edges and effective paths unchanged. New density implementation is scoped to todo M9-T28/M9-T29. M9-T23 stays todo; semantic contract review does not mark its code complete.",
+        "M9-T23 note retains grouped model/login/effort acceptance and E-254/E-335 through E-359 boundaries; full pnpm -w check on base 33c483f9 passed 206 test files and 2551 tests (3 skipped)."
+      ]
+    },
+    "M9-T24": {
+      "contractHash": "bcd4d13344178d2e04383cb673ccc5a74b7dffbdc473e2e171421b907563694d",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T24: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T24: checked current main implementation reference packages/web/postcss.config.cjs:17 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T25": {
+      "contractHash": "8c6c66cde8dd9c6e6d85996a4ae397d0261b319d34fef70c7c263a54c43c6941",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T25: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T25: checked current main implementation reference packages/web/src/app/app.tsx:18 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T26": {
+      "contractHash": "c0e18a59612956477ea31ea45bbaed0ddaf49e9d426c927bde8839148a526c1a",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T26: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T26: checked current main implementation reference packages/web/src/app/bootstrap.ts:94 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T27": {
+      "contractHash": "82f78cbb104224d7f022c271c8573a76e74b7446f5b449ff1afa4afd65c0964a",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T27: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T27: checked current main implementation reference e2e/pairing-entry.test.ts:27 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T3": {
+      "contractHash": "d554389d3b92fabb88ac249a1cb38ffe5f1b87d0267a271e5dd6aa8f51404498",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T3: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T3: checked current main implementation reference packages/web/src/app/routes.tsx:9 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T4": {
+      "contractHash": "5456b5291656ca172f0f0f95882abe3aa09044768047ffe76dabc506f2e9c013",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T4: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T4: checked current main implementation reference packages/web/src/api/base-url.ts:18 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T5": {
+      "contractHash": "42338fab7ae0da67bf1aae3e7940c0178c89de383a57f32995d2caf563b10479",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T5: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T5: checked current main implementation reference packages/web/src/api/sse-client.ts:61 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T6": {
+      "contractHash": "9126f32bdbf2f7b470c8c32c3136cc5e551377e0cf63ae1d904b3b71da9d600f",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T6: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T6: checked current main implementation reference packages/web/src/api/event-bus.ts:10 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T7": {
+      "contractHash": "0ae2afa6d16bd205d817babaf0a301ec4cc91deb63d97ddff104d5e96ff1a62a",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T7: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T7: checked current main implementation reference packages/web/src/components/spine.tsx:32 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T8": {
+      "contractHash": "ba3866abec6bf1733c6675dd0751d7f5ef3f6db10cf9ddf10c7b74c5c998e08c",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T8: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T8: checked current main implementation reference packages/shared/src/api/runs.ts:246 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "M9-T9": {
+      "contractHash": "31ed9f6ce7eb5dfb8a6c595a1dfae7ad6d238bcf39964d9122657fac677a8a09",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T9: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "M9-T9: checked current main implementation reference packages/web/src/hooks/use-breakpoint.ts:63 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "R13-T57054072": {
+      "contractHash": "0d9272dd7c5421dd6066d97c9324d445a5bbbee78f1b81c2380ff715e44e95e6",
+      "verdict": "pass",
+      "evidence": [
+        "R13-T57054072: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+        "R13-T57054072: checked current main implementation reference e2e/batch-13-smoke.test.ts:454 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "R13-T98191508": {
+      "contractHash": "3dd04eea48624fa661848c712c3b786edcb0c790eec821be37ea80a0e5b54015",
+      "verdict": "pass",
+      "evidence": [
+        "R13-T98191508: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+        "R13-T98191508: checked current main implementation reference packages/shared/src/api/batches.ts:32 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "R14-T23602992": {
+      "contractHash": "d169097455f13026387c0685fc13ce71bc3e8c7db748f4f5a581c866dc65a3c5",
+      "verdict": "pass",
+      "evidence": [
+        "R14-T23602992: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+        "R14-T23602992: checked current main implementation reference e2e/batch-14-composition.test.ts:122 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "R16-T41148998": {
+      "contractHash": "a60833f71680d68d5135f6b757ae47ac5a3f8225bfbf586e41d2ec6ecde0b8c6",
+      "verdict": "pass",
+      "evidence": [
+        "R16-T41148998: patch changes.before/after shows only currentSourceBatch 16 -> null in task metadata; acceptance, edges, effective paths and historical sourceBatch=16 are unchanged. The task remains a previously landed implementation.",
+        "R16-T41148998: checked current main implementation reference docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:273 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "R16-T83723920": {
+      "contractHash": "a6b83fe49fbe734bf5522c335f1f49815819b7a867074d190d8034a52c7a9602",
+      "verdict": "pass",
+      "evidence": [
+        "R16-T83723920: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
+        "R16-T83723920: checked current main implementation reference packages/web/src/api/resource-cache.ts:40 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "R16-T85823419": {
+      "contractHash": "224a768f87ec0c0d560d0a3e7e4d92fb909430bde7dae56d089150dc05206e73",
+      "verdict": "pass",
+      "evidence": [
+        "R16-T85823419: patch changes.before/after shows only currentSourceBatch 16 -> null in task metadata; acceptance, edges, effective paths and historical sourceBatch=16 are unchanged. The task remains a previously landed implementation.",
+        "R16-T85823419: checked current main implementation reference e2e/pipeline-settings.test.ts:50 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "R8-T54786768": {
+      "contractHash": "e80ef6cf04b42e52faeee079d5746f5a679ef03ba585ff67413f05da36bd0101",
+      "verdict": "pass",
+      "evidence": [
+        "R8-T54786768: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
+        "R8-T54786768: checked current main implementation reference packages/daemon/src/http/plugins/90-error-handler.ts:47 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      ]
+    },
+    "R8-T70356006": {
+      "contractHash": "66036f33c9f9b163fe9d3b9a980e061f0e59ab05d0f38bd4d1dcedc6baad7b78",
+      "verdict": "pass",
+      "evidence": [
+        "R8-T70356006 note requires a real deployable vendor protocol recording with model-specific structured code/type, production dispatch proof, and an E-348 fallback. This remains a clear, testable task contract; task status remains todo and no vendor signal is claimed.",
+        "Current packages/daemon/src/adapters/codex/capabilities.ts:17, claude/capabilities.ts:27, pi/capabilities.ts:28 and grok/capabilities.ts:30 keep reportsModelRejection false; packages/daemon/src/service/run.ts:703 retains exited_before_output fallback. Full pnpm -w check passed 206 test files and 2551 tests (3 skipped)."
+      ]
+    }
+  }
+}
