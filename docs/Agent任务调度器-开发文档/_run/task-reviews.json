@@ -984,12 +984,14 @@
   },
   "M9-T23": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "2b34ff9a275284fbf4dd896c961814d4da445a4891ec6f54150f652e9b0710be",
+    "contractHash": "2715b066da0096ae028c8c09e4003f602945934db27a600c4a9569eb9da728a4",
     "evidence": [
-      "M9-T23: desktop-density-20260929 adds shared 11-UI.md spacing context; patch changes.before/after shows task acceptance, edges and effective paths unchanged. New density implementation is scoped to todo M9-T28/M9-T29. M9-T23 stays todo; semantic contract review does not mark its code complete.",
-      "M9-T23 note retains grouped model/login/effort acceptance and E-254/E-335 through E-359 boundaries; full pnpm -w check on base 33c483f9 passed 206 test files and 2551 tests (3 skipped)."
+      "M9-T23 验收第 4 条要求指派面板与设置页共享模型清单及刷新状态；当前产品入口是 packages/web/src/features/run-deck/run-deck-view.tsx，新增该支持路径用于接入 use-agent-models，不改变任务定义。",
+      "验收第 6 条要求零产出审批卡三个动作走真实运行入口，run-deck-view.tsx 是 GateCard callback 的装配点；验收第 8 条的设置页装配点是 pipeline-toggles-container.tsx，二者均为必要支持路径。",
+      "field-layers-row.tsx 承载设置页字段键的共享类型；e2e/batch-14-composition.test.ts 是当前真实浏览器指派流程回归用例。仅将这四个具体文件补入 M9-T23 supportPaths，原验收条款、边界、依赖与其他任务定义均未删减。",
+      "已核对并行工作树：task/M9-T28 的未提交改动触及 assign-panel.tsx 与 run-deck-view.tsx；本补丁只改 M9-T23 范围配置与投影，不读写 M9-T28 工作树，后续代码返工需避开其未提交状态并在合并前复核冲突。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-09-29T18:03:03.768370+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

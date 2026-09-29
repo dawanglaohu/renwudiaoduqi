@@ -1191,7 +1191,11 @@
         "packages/web/src/ui/shadcn/select.tsx",
         "packages/web/src/api/resource-cache.ts",
         "packages/web/src/api/runs.ts",
-        "packages/web/src/features/run-deck/batch-expansion.ts"
+        "packages/web/src/features/run-deck/batch-expansion.ts",
+        "packages/web/src/features/run-deck/pipeline-toggles-container.tsx",
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/components/field-layers-row.tsx",
+        "e2e/batch-14-composition.test.ts"
       ],
       "sections": [
         1,
