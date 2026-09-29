@@ -58,6 +58,92 @@ interface TestPayload {
 	readonly step?: number;
 }
 
+describe('Adapter-owned stdin lifecycle', () => {
+	it('writes once after spawn, accepts replies, and closes only for the completion predicate', async () => {
+		const child = createMockChild();
+		const writes: string[] = [];
+		child.stdin.on('data', (chunk: Buffer) => writes.push(chunk.toString()));
+		const managed = spawnManaged(
+			{
+				runId: 'input',
+				file: '/agent',
+				cwd: '/repo',
+				args: [],
+				initialStdin: 'first\n',
+				closeStdinWhen: (v) => (v as { done?: boolean }).done === true,
+			},
+			{ platform: 'linux', spawnFn: (() => child) as unknown as SpawnFn },
+		);
+		expect(writes).toEqual([]);
+		child.emit('spawn');
+		child.emit('spawn');
+		expect(writes).toEqual(['first\n']);
+		child.stdout.write('{"done":false}\n');
+		expect(child.stdin.writable).toBe(true);
+		managed.writeStdin('reply\n');
+		expect(writes).toEqual(['first\n', 'reply\n']);
+		child.stdout.write('{"done":true}\n');
+		expect(child.stdin.writableEnded).toBe(true);
+		expect(() => managed.writeStdin('late')).toThrowError(AppError);
+		await managed.finalize();
+	});
+	it('rejects closed stdin plus initial input before spawning', () => {
+		const spawnFn = vi.fn();
+		expect(() =>
+			spawnManaged(
+				{
+					runId: 'closed',
+					file: '/agent',
+					cwd: '/repo',
+					args: [],
+					stdinMode: 'closed',
+					initialStdin: 'first',
+				},
+				{ platform: 'linux', spawnFn },
+			),
+		).toThrowError(AppError);
+		expect(spawnFn).not.toHaveBeenCalled();
+	});
+	it('rejects a pending drain when the pipe closes and removes its listeners', async () => {
+		const child = createMockChild();
+		const managed = spawnManaged(
+			{ runId: 'drain', file: '/agent', cwd: '/repo', args: [] },
+			{ platform: 'linux', spawnFn: (() => child) as unknown as SpawnFn },
+		);
+		expect(managed.writeStdin('x'.repeat(256 * 1024))).toBe(false);
+		const drained = managed.waitForStdinDrain();
+		const assertion = expect(drained).rejects.toMatchObject({ code: 'E_MESSAGE_UNDELIVERED' });
+		child.stdin.destroy();
+		await assertion;
+		expect(child.stdin.listenerCount('drain')).toBe(0);
+		expect(child.stdin.listenerCount('close')).toBe(0);
+		await expect(managed.waitForStdinDrain()).rejects.toMatchObject({
+			code: 'E_MESSAGE_UNDELIVERED',
+		});
+		await managed.finalize();
+	});
+	it('contains asynchronous stdin errors and stops the process', async () => {
+		const child = createMockChild();
+		const errors: Error[] = [];
+		const killTree = vi.fn(async () => ({ outcome: 'survived' as const, attempts: [] }));
+		const managed = spawnManaged(
+			{ runId: 'epipe', file: '/agent', cwd: '/repo', args: [], initialStdin: 'first' },
+			{
+				platform: 'linux',
+				spawnFn: (() => child) as unknown as SpawnFn,
+				killTree,
+				onError: (e) => errors.push(e),
+			},
+		);
+		child.emit('spawn');
+		child.stdin.emit('error', new Error('EPIPE'));
+		await vi.waitFor(() => expect(managed.isExited).toBe(true));
+		expect(killTree).toHaveBeenCalledTimes(1);
+		expect(errors[0]).toMatchObject({ code: 'E_MESSAGE_UNDELIVERED' });
+		expect(managed.exitResult?.error).toBe(errors[0]);
+	});
+});
+
 describe('M1-T7 Line Reader (Buffer-based, AC 3, AC 4, E-131, E-141, E-203)', () => {
 	it('E-203 & AC 3: strictly slices on 0x0A, strips trailing \\r, and preserves U+2028 without line breaking', () => {
 		const reader = createLineReader();

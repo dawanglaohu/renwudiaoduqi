@@ -1229,6 +1229,19 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R8-T57073674": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "38a5d0d09ed82a2cf9920dc5e86c106749662c29e04220c078513d4b8615cce2",
+    "evidence": [
+      "任务契约语义复核：用户原会话 2026-09-29 指令明确要求三个 Claude 启动/映射问题的复现、任务登记、修复与生产派发入口测试。batch-8-20260929-claude-launch.md 定义保留完整要求，未改变原任务状态或关闭整批遗留。",
+      "范围与依赖：M4-T9 的 stream-json 可回话契约、M6-T6 的 E-113 投递反馈、M8-T10 的真实启动入口和 R8-T70356006 的主循环模型专用拒绝信号均列为前置。有效路径包含 Claude 适配器、defaults、通用 proc、message 服务、真实录制及相应测试；container.ts:489 的已有适配器注册点列入范围。厂商字段仍由 adapters/claude 处理。",
+      "边界：E-37 环境清理与模型核对保持；E-36 的 error=model_not_found 分支在普通 assistant 映射之前，子代理拒绝不影响主任务；E-348 的 API 错误正文不算内容；E-113 管道关闭拒绝发送，背压等待清理监听器；E-202 未知内容只增加未映射计数。单元与生产入口回放定位见任务受保护代码位置和 _run/R8-T57073674.implementation.json。",
+      "Jev 真实裁决与有限候选、model、line 和执行选择保存在 _run/R8-T57073674.implementation.json；生产测试 pnpm -w check 为 206 文件/2579 通过/3 跳过。此登记只确认任务契约自洽，任务保持 review，实施完成仍等待独立审查，不执行 --landed。"
+    ],
+    "reviewed": "2026-09-29T12:24:51.098412+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T69421773": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "e3edfdc2de392516d1750f0326c95003cb7c651ed4f80150ae27145864d1d866",

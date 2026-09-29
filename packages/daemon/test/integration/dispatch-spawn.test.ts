@@ -7,10 +7,12 @@ import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { CreateRunResponse } from '@agent-scheduler/shared/api/runs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildCodexLaunchSpec } from '../../src/adapters/codex/build-launch-spec.ts';
 import { createContainer } from '../../src/boot/container.ts';
+import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import type { ProcessConfig } from '../../src/config/env.ts';
+import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
@@ -293,6 +295,8 @@ function setupTestEnvironment(
 		readonly exitCode?: number;
 		readonly stderrTail?: string;
 		readonly spawnThrow?: boolean;
+		readonly implPrompt?: string;
+		readonly claudeExecPath?: string;
 		readonly customSpawn?: typeof import('../../src/proc/spawn.ts').spawnManaged;
 		readonly baseSelector?: import('../../src/workspace/base-select.ts').BaseSelector;
 	} = {},
@@ -394,6 +398,17 @@ function setupTestEnvironment(
 		baseSelector: overrides.baseSelector,
 		reviewService: fakeReviewService,
 		agentService: fakeAgentService,
+		agentRegistry: overrides.claudeExecPath
+			? createAgentRegistry({
+					dataDir: tempDir,
+					platform: 'posix',
+					publishWarning: () => {},
+					builtInDefaults: {
+						...BUILT_IN_AGENT_DEFAULTS,
+						claude: { ...BUILT_IN_AGENT_DEFAULTS.claude, execPath: overrides.claudeExecPath },
+					},
+				})
+			: undefined,
 		logViolation: (msg) => console.log('VIOLATION:', msg),
 	});
 
@@ -426,6 +441,7 @@ function setupTestEnvironment(
 		doc_id: 'doc-1',
 		task_key: 'M8-T10',
 		title: 'Implement dispatch spawn',
+		impl_prompt: overrides.implPrompt,
 		module_key: 'M8',
 		deps_json: '[]',
 		est_days: 2,
@@ -452,6 +468,111 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it.each(['success', 'empty', 'input-error'] as const)(
+		'R8-T57073674: production stdin and event lifecycle (%s)',
+		async (scenario) => {
+			const child = Object.assign(new EventEmitter(), {
+				pid: 98765,
+				exitCode: null as number | null,
+				signalCode: null as NodeJS.Signals | null,
+				killed: false,
+				stdin: new PassThrough(),
+				stdout: new PassThrough(),
+				stderr: new PassThrough(),
+			});
+			const writes: string[] = [];
+			child.stdin.on('data', (chunk: Buffer) => writes.push(chunk.toString()));
+			const finish = (code: number) => {
+				child.exitCode = code;
+				child.stdout.end();
+				child.stderr.end();
+				child.emit('exit', code, null);
+				child.emit('close', code, null);
+			};
+			child.stdin.on('finish', () => finish(0));
+			const launches: LaunchSpec[] = [];
+			const prompt = 'Read "probe.txt"\n中文 exact prompt\n';
+			const { container, tempDir, getMechanicalCheckCalls } = setupTestEnvironment({
+				availableAgentIds: ['claude'],
+				claudeExecPath: '/opt/claude',
+				implPrompt: prompt,
+				customSpawn: (spec, options) => {
+					launches.push(spec);
+					return spawnManaged(spec, {
+						...options,
+						spawnFn: ((_file: string, _args: readonly string[], spawnOptions: SpawnOptions) => {
+							expect(spawnOptions.shell).toBe(false);
+							return child as unknown as ChildProcess;
+						}) as typeof nodeSpawn,
+						killTree: async () => {
+							finish(1);
+							return { outcome: 'terminated', attempts: [] };
+						},
+					});
+				},
+			});
+			const events: EventEnvelope[] = [];
+			container.events.bus.subscribe((e) => events.push(e));
+			const created = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'claude-opus-5',
+				idempotencyKey: `claude-stdin-${scenario}`,
+			});
+			await container.services.dispatch.tick();
+			await vi.waitFor(() =>
+				expect(container.repos.runs.findById(created.run.id)?.state).toBe('running'),
+			);
+			expect(launches).toHaveLength(1);
+			expect(launches[0]?.args).toContain('--verbose');
+			expect(launches[0]?.args).not.toContain(prompt);
+			child.emit('spawn');
+			expect(writes).toHaveLength(1);
+			expect(JSON.parse(writes[0] ?? '').message.content[0].text).toBe(prompt);
+			if (scenario === 'success') {
+				const reply = await container.services.message.sendMessage({
+					runId: created.run.id,
+					text: '继续\n"reply"',
+					kind: 'reply',
+				});
+				expect(reply.delivered).toBe(true);
+				expect(writes).toHaveLength(2);
+				expect(JSON.parse(writes[1] ?? '').message.content[0].text).toBe('继续\n"reply"');
+				for (const line of readClaudeRecording('claude-2-1-283-success.stdout.ndjson'))
+					child.stdout.write(`${line}\n`);
+			} else if (scenario === 'empty') {
+				child.stdout.write('{"type":"result","subtype":"success"}\n');
+			} else {
+				child.stdin.emit('error', new Error('EPIPE'));
+			}
+			await vi.waitFor(() => expect(events.some((e) => e.kind === 'run.exited')).toBe(true));
+			if (scenario === 'success') {
+				expect(child.stdin.writableEnded).toBe(true);
+				await vi.waitFor(() => expect(getMechanicalCheckCalls()).toBe(1));
+				expect(container.repos.runs.findById(created.run.id)?.state).toBe('exited');
+				expect(
+					events.some(
+						(e) =>
+							e.kind === 'agent_message_chunk' &&
+							String((e.payload as { chunk?: string }).chunk).includes('CLAUDE_STREAM_OK'),
+					),
+				).toBe(true);
+				expect(events.some((e) => e.kind === 'tool_call')).toBe(true);
+				expect(container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review')).toBeNull();
+			} else {
+				await vi.waitFor(() =>
+					expect(container.repos.runs.findById(created.run.id)?.state).toBe('awaiting_human'),
+				);
+				expect(getMechanicalCheckCalls()).toBe(0);
+			}
+			const saved = readFileSync(join(tempDir, 'runs', created.run.id, 'events.ndjson'), 'utf8')
+				.trim()
+				.split('\n')
+				.map((line) => JSON.parse(line) as EventEnvelope);
+			expect(saved.some((e) => e.kind === 'run.exited')).toBe(true);
+			expect(saved.some((e) => e.kind === 'tool_call')).toBe(scenario === 'success');
+		},
+	);
 	it('AC 1 & E-42 & E-70: POST /api/v1/runs spawns managed process, validates LaunchSpec, sets pid, emits run.state_changed', async () => {
 		const { container, getLatestProc } = setupTestEnvironment();
 		const server = createHttpServer({ container });
