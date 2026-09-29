@@ -4,7 +4,13 @@
   "state": "review",
   "checks": {
     "full": "206 files; 2579 passed, 3 skipped; pnpm -w check exit 0",
-    "focused": "4 files; 116 passed"
+    "focused": "4 files; 116 passed",
+    "mutations": {
+      "initialInputRemoved": "production integration failed: expected one stdin write, received zero",
+      "assistantMappingDisabled": "production integration failed: mechanical check did not run",
+      "completionSignalDisabled": "production integration failed: run.exited never arrived",
+      "restored": "original source bytes restored; production lifecycle 3/3 passed"
+    }
   },
   "adjudication": {
     "state": {
