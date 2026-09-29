@@ -85,6 +85,10 @@ export interface LaunchSpec {
 	readonly label?: string;
 	readonly isAcp?: boolean;
 	readonly stdinMode?: 'pipe' | 'closed';
+	/** Adapter-encoded bytes written once after spawn; the pipe remains open for replies. */
+	readonly initialStdin?: string;
+	/** Adapter-owned completion predicate, evaluated on stdout JSON before ending input. */
+	readonly closeStdinWhen?: (value: unknown) => boolean;
 	readonly windowsComSpecPath?: string;
 }
 
@@ -171,6 +175,9 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 	}
 	if (!Array.isArray(spec.args) || spec.args.some((arg) => typeof arg !== 'string')) {
 		throw new AppError('E_VALIDATION', 'LaunchSpec args must be an array of strings');
+	}
+	if (spec.stdinMode === 'closed' && spec.initialStdin !== undefined) {
+		throw new AppError('E_VALIDATION', 'Initial input requires an open stdin pipe');
 	}
 
 	const platform = options.platform;
@@ -308,6 +315,34 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 	let exitDrainTimerId: ReturnType<typeof setTimeout> | undefined = undefined;
 	let pendingKill: Promise<KillTreeResult> | null = null;
 	const exitDrainGraceMs = options.exitDrainGraceMs ?? EXIT_DRAIN_GRACE_MS;
+	function handleStdinError(cause: Error): void {
+		if (isExited || child.exitCode !== null || child.signalCode !== null) return;
+		lastProcessError = new AgentProcessError('E_MESSAGE_UNDELIVERED', 'Agent input pipe failed', {
+			cause,
+			pid,
+			launchSpecId: spec.runId,
+		});
+		dispatchError(lastProcessError);
+		void kill().then(
+			(result) => {
+				if (result.outcome !== 'terminated') void finalize();
+			},
+			(error: unknown) => {
+				dispatchError(
+					new AppError('E_INTERNAL', 'Failed to stop process after input failure', {
+						cause: error,
+					}),
+				);
+				void finalize();
+			},
+		);
+	}
+	child.stdin?.on('error', handleStdinError);
+	if (spec.closeStdinWhen) {
+		jsonListeners.add((parsed) => {
+			if (spec.closeStdinWhen?.(parsed.value) && child.stdin?.writable) child.stdin.end();
+		});
+	}
 
 	async function handleStartupTimeout(): Promise<void> {
 		if (isExited || exitReason !== 'exited') return;
@@ -573,14 +608,35 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 			};
 		},
 		waitForStdinDrain(): Promise<void> {
-			if (child.stdin === null || child.stdin.destroyed) {
+			const input = child.stdin;
+			if (input === null || input.destroyed || !input.writable) {
+				return Promise.reject(new AppError('E_MESSAGE_UNDELIVERED', 'Agent input pipe is closed'));
+			}
+			if (!input.writableNeedDrain) {
 				return Promise.resolve();
 			}
-			if (!child.stdin.writableNeedDrain) {
-				return Promise.resolve();
-			}
-			return new Promise((resolve) => {
-				child.stdin?.once('drain', () => resolve());
+			return new Promise((resolve, reject) => {
+				function cleanup() {
+					input?.off('drain', drained);
+					input?.off('error', failed);
+					input?.off('close', closed);
+					input?.off('finish', closed);
+				}
+				function drained() {
+					cleanup();
+					resolve();
+				}
+				function failed(error: Error) {
+					cleanup();
+					reject(error);
+				}
+				function closed() {
+					failed(new AppError('E_MESSAGE_UNDELIVERED', 'Agent input pipe closed before drain'));
+				}
+				input.once('drain', drained);
+				input.once('error', failed);
+				input.once('close', closed);
+				input.once('finish', closed);
 			});
 		},
 		onStdinDrain(listener: () => void): () => void {
@@ -591,8 +647,8 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 			};
 		},
 		writeStdin(data: string | Buffer): boolean {
-			if (child.stdin === null || child.stdin.destroyed) {
-				return false;
+			if (child.stdin === null || child.stdin.destroyed || !child.stdin.writable) {
+				throw new AppError('E_MESSAGE_UNDELIVERED', 'Agent input pipe is closed');
 			}
 			return child.stdin.write(data);
 		},
@@ -626,6 +682,16 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 
 	if (options.registry !== undefined) {
 		options.registry.register(managed);
+	}
+	if (spec.initialStdin !== undefined) {
+		child.once('spawn', () => {
+			if (isExited) return;
+			try {
+				managed.writeStdin(spec.initialStdin as string);
+			} catch (error) {
+				handleStdinError(error instanceof Error ? error : new Error('Initial input failed'));
+			}
+		});
 	}
 
 	return managed;

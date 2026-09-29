@@ -146,6 +146,7 @@ export function mapClaudeEventLine(
 		});
 	}
 
+	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) parsed = {};
 	const events: EventEnvelopeInput[] = [];
 	let unmappedCount = 0;
 	let isFirstFrame = false;
@@ -444,6 +445,72 @@ export function mapClaudeEventLine(
 				}),
 			}),
 		);
+	} else if (rawType === 'assistant' || rawType === 'user') {
+		// Synthetic API failures contain text but are not agent output (E-348).
+		const message = parsed.message as Record<string, unknown> | undefined;
+		if (
+			parsed.error != null ||
+			parsed.is_api_error_message === true ||
+			message?.model === '<synthetic>'
+		) {
+			// The typed model rejection above is the only failure mapped to E-36.
+		} else if (!message || !Array.isArray(message.content)) {
+			unmappedCount++;
+		} else {
+			for (const value of message.content) {
+				if (!value || typeof value !== 'object') {
+					unmappedCount++;
+					continue;
+				}
+				const block = value as Record<string, unknown>;
+				let kind: EventKind;
+				let payload: Record<string, unknown>;
+				if (rawType === 'assistant' && block.type === 'text' && typeof block.text === 'string') {
+					if (!block.text) continue;
+					kind = 'agent_message_chunk';
+					payload = { chunk: block.text };
+				} else if (
+					rawType === 'assistant' &&
+					block.type === 'thinking' &&
+					typeof block.thinking === 'string'
+				) {
+					if (!block.thinking) continue;
+					kind = 'agent_thought_chunk';
+					payload = { chunk: block.thinking };
+				} else if (
+					rawType === 'assistant' &&
+					block.type === 'tool_use' &&
+					typeof block.id === 'string' &&
+					typeof block.name === 'string'
+				) {
+					kind = 'tool_call';
+					payload = { callId: block.id, tool: block.name, input: block.input };
+				} else if (
+					rawType === 'user' &&
+					block.type === 'tool_result' &&
+					typeof block.tool_use_id === 'string'
+				) {
+					kind = 'tool_call_update';
+					payload = { callId: block.tool_use_id, output: block.content };
+				} else if (
+					block.type === 'redacted_thinking' ||
+					(rawType === 'user' && block.type === 'text')
+				) {
+					continue;
+				} else {
+					unmappedCount++;
+					continue;
+				}
+				events.push(
+					Object.freeze({
+						kind,
+						runId,
+						taskId,
+						payload: Object.freeze({ ...payload, vendor: Object.freeze({ ...parsed }) }),
+					}),
+				);
+			}
+		}
 	}
 	// I. Known system types with no further output needed
 	else if (KNOWN_CLAUDE_SYSTEM_TYPES.has(rawType)) {

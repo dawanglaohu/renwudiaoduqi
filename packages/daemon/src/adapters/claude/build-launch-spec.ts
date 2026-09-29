@@ -3,6 +3,7 @@ import { type PermissionTier, resolvePermissionMapping } from '../../domain/perm
 import { AppError } from '../../errors/app-error.ts';
 import type { LaunchSpec } from '../../proc/spawn.ts';
 import type { LaunchTimeouts } from '../../proc/timers.ts';
+import { encodeClaudeInput, isClaudeTurnComplete } from './input.ts';
 
 export const CLAUDE_ENV_DENYLIST = Object.freeze([
 	'ANTHROPIC_MODEL',
@@ -117,6 +118,7 @@ export function buildClaudeLaunchSpec(options: BuildClaudeLaunchSpecOptions): La
 		if (!args.includes('--input-format')) {
 			args.push('--input-format', 'stream-json');
 		}
+		if (!args.includes('--verbose')) args.push('--verbose');
 	}
 
 	// 2. Model flag
@@ -153,7 +155,7 @@ export function buildClaudeLaunchSpec(options: BuildClaudeLaunchSpecOptions): La
 	}
 
 	// 7. Prompt (if provided)
-	if (options.prompt?.trim()) {
+	if (isBackground && options.prompt?.trim()) {
 		args.push(options.prompt.trim());
 	}
 
@@ -192,6 +194,13 @@ export function buildClaudeLaunchSpec(options: BuildClaudeLaunchSpecOptions): La
 		timeouts: options.timeouts,
 		label: options.label ?? `claude-${options.runId}`,
 		isAcp: false,
+		...(!isBackground
+			? {
+					stdinMode: 'pipe' as const,
+					initialStdin: options.prompt?.trim() ? encodeClaudeInput(options.prompt) : undefined,
+					closeStdinWhen: isClaudeTurnComplete,
+				}
+			: {}),
 	});
 }
 
