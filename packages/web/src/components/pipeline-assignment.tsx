@@ -15,11 +15,9 @@ import type {
 	AgentEntryDto,
 	EffortTier,
 	EffortValue,
+	ListAgentModelsResponse,
 } from '@agent-scheduler/shared/api/agents';
-import type {
-	ReviewOverride,
-	WrapupAssignment,
-} from '@agent-scheduler/shared/api/settings';
+import type { ReviewOverride, WrapupAssignment } from '@agent-scheduler/shared/api/settings';
 import { useMemo } from 'react';
 import { UI_STRINGS } from '../i18n/ui-strings.ts';
 import { EffortPicker } from './effort-picker.tsx';
@@ -31,6 +29,7 @@ export interface PipelineAssignmentProps {
 	readonly onChangeReviewOverride: (override: ReviewOverride | null) => void;
 	readonly onChangeWrapupAssignment: (assignment: WrapupAssignment) => void;
 	readonly agents?: readonly AgentEntryDto[];
+	readonly catalogs?: Readonly<Record<string, ListAgentModelsResponse | null>>;
 	readonly disabled?: boolean;
 	readonly errors?: Readonly<Record<string, string>>;
 	readonly className?: string;
@@ -42,6 +41,7 @@ export function PipelineAssignment({
 	onChangeReviewOverride,
 	onChangeWrapupAssignment,
 	agents = [],
+	catalogs = {},
 	disabled = false,
 	errors = {},
 	className = '',
@@ -89,10 +89,7 @@ export function PipelineAssignment({
 	};
 
 	return (
-		<div
-			data-testid="pipeline-assignment-container"
-			className={`flex flex-col gap-5 ${className}`}
-		>
+		<div data-testid="pipeline-assignment-container" className={`flex flex-col gap-5 ${className}`}>
 			{/* 1. 审查覆盖设置区 */}
 			<div
 				data-testid="review-override-section"
@@ -186,11 +183,11 @@ export function PipelineAssignment({
 
 						{/* 模型选择 */}
 						<div className="flex flex-col gap-1">
-							<label className="text-micro font-mono text-[var(--ink-3)]">
-								模型配置
-							</label>
+							<span className="text-micro font-mono text-[var(--ink-3)]">
+								{UI_STRINGS.assignment.modelLabel}
+							</span>
 							<ModelPicker
-								models={reviewAgent?.defaultModel ? [reviewAgent.defaultModel] : []}
+								catalog={reviewAgent ? catalogs[reviewAgent.id] : null}
 								selectedModel={reviewOverride.modelName ?? null}
 								onSelectModel={(model) =>
 									onChangeReviewOverride({
@@ -214,9 +211,9 @@ export function PipelineAssignment({
 
 						{/* 思考强度选择（allowVendor=false，E-356） */}
 						<div className="flex flex-col gap-1">
-							<label className="text-micro font-mono text-[var(--ink-3)]">
-								思考强度
-							</label>
+							<span className="text-micro font-mono text-[var(--ink-3)]">
+								{UI_STRINGS.assignment.effortLabel}
+							</span>
 							<EffortPicker
 								vendorMap={reviewAgent?.effortVendorMap}
 								value={reviewOverride.effortTier ? { tier: reviewOverride.effortTier } : null}
@@ -337,11 +334,11 @@ export function PipelineAssignment({
 
 						{/* 模型选择 */}
 						<div className="flex flex-col gap-1">
-							<label className="text-micro font-mono text-[var(--ink-3)]">
-								模型配置
-							</label>
+							<span className="text-micro font-mono text-[var(--ink-3)]">
+								{UI_STRINGS.assignment.modelLabel}
+							</span>
 							<ModelPicker
-								models={wrapupAgent?.defaultModel ? [wrapupAgent.defaultModel] : []}
+								catalog={wrapupAgent ? catalogs[wrapupAgent.id] : null}
 								selectedModel={wrapupAssignment.modelName ?? null}
 								onSelectModel={(model) =>
 									onChangeWrapupAssignment({
@@ -365,9 +362,9 @@ export function PipelineAssignment({
 
 						{/* 思考强度选择（allowVendor=false，E-356） */}
 						<div className="flex flex-col gap-1">
-							<label className="text-micro font-mono text-[var(--ink-3)]">
-								思考强度
-							</label>
+							<span className="text-micro font-mono text-[var(--ink-3)]">
+								{UI_STRINGS.assignment.effortLabel}
+							</span>
 							<EffortPicker
 								vendorMap={wrapupAgent?.effortVendorMap}
 								value={wrapupAssignment.effortTier ? { tier: wrapupAssignment.effortTier } : null}

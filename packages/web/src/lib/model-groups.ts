@@ -48,12 +48,12 @@ export interface GroupedModelsResult {
 }
 
 export const SOURCE_LABELS: Readonly<Record<ModelSource | 'other', string>> = {
-	live: '实时清单',
-	config: '配置文件',
-	builtin: '内置推荐',
-	history: '近期使用',
-	manual: '手动指定',
-	other: '其他',
+	live: 'live',
+	config: 'config',
+	builtin: 'builtin',
+	history: 'history',
+	manual: 'manual',
+	other: 'other',
 };
 
 /**
@@ -90,8 +90,9 @@ export function groupModelsBySource(
 			defaultSelectedModel = pickerItem.name;
 		}
 
-		if (sourceBucket[item.source]) {
-			sourceBucket[item.source].push(pickerItem);
+		const bucket = sourceBucket[item.source];
+		if (bucket) {
+			bucket.push(pickerItem);
 		} else {
 			otherItems.push(pickerItem);
 			if (!unknownSources.includes(item.source)) {
@@ -115,7 +116,7 @@ export function groupModelsBySource(
 		if (src === 'manual') {
 			// manual 组恒一项「手填模型名…」
 			const manualItem: ModelPickerItem = {
-				name: '手填模型名…',
+				name: MANUAL_MODEL_ACTION_KEY,
 				source: 'manual',
 				isCurrentConfig: false,
 				isManualAction: true,

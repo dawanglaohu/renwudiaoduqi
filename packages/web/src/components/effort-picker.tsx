@@ -53,21 +53,6 @@ export function EffortPicker({
 	className = '',
 	id,
 }: EffortPickerProps) {
-	// E-254: agent 不支持思考强度时，显示只读「—」并在 title 说明原因，不渲染选择器
-	if (vendorMap === null || vendorMap === undefined) {
-		return (
-			<div className={`flex flex-col gap-0.5 w-full ${className}`}>
-				<div
-					data-testid="effort-unsupported-display"
-					title={UI_STRINGS.effortPicker.unsupportedAgentTitle}
-					className="flex h-[var(--h-input)] items-center px-2.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-3)] font-mono text-[13px] select-none"
-				>
-					{UI_STRINGS.effortPicker.unsupportedFallback}
-				</div>
-			</div>
-		);
-	}
-
 	const rawGroups = useMemo(() => {
 		return buildEffortOptionGroups({
 			vendorMap,
@@ -75,14 +60,9 @@ export function EffortPicker({
 			selectedModelEffortOptions,
 			allowVendor,
 			effortRecognized,
+			copy: UI_STRINGS.effortPicker,
 		});
-	}, [
-		vendorMap,
-		currentConfigEffort,
-		selectedModelEffortOptions,
-		allowVendor,
-		effortRecognized,
-	]);
+	}, [vendorMap, currentConfigEffort, selectedModelEffortOptions, allowVendor, effortRecognized]);
 
 	const selectGroups = useMemo<readonly GroupedSelectGroup[]>(() => {
 		return rawGroups.map((group) => {
@@ -123,15 +103,34 @@ export function EffortPicker({
 		onChange(decoded);
 	};
 
-	const warningText = effortSupportWarning({
-		effort: value,
-		effortOptions: selectedModelEffortOptions,
-		vendorMap,
-	});
+	const warningText = effortSupportWarning(
+		{
+			effort: value,
+			effortOptions: selectedModelEffortOptions,
+			vendorMap,
+		},
+		UI_STRINGS.effortPicker.unsupportedWarning,
+	);
+
+	// E-254: agent 不支持思考强度时，显示只读「—」并在 title 说明原因，不渲染选择器
+	if (vendorMap === null || vendorMap === undefined) {
+		return (
+			<div className={`flex flex-col gap-0.5 w-full ${className}`}>
+				<div
+					data-testid="effort-unsupported-display"
+					title={UI_STRINGS.effortPicker.unsupportedAgentTitle}
+					className="flex h-[var(--h-input)] items-center px-2.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-3)] font-mono text-[13px] select-none"
+				>
+					{UI_STRINGS.effortPicker.unsupportedFallback}
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div data-testid="effort-picker" className={`flex flex-col gap-0.5 w-full ${className}`}>
 			<GroupedSelect
+				labels={UI_STRINGS.groupedSelect}
 				id={id}
 				value={encodedCurrentValue}
 				onValueChange={handleValueChange}
@@ -142,14 +141,13 @@ export function EffortPicker({
 
 			{/* 模型不支持该思考强度档位时就地警示（aria-live="polite"，不禁用不换值，E-351） */}
 			{warningText && (
-				<div
+				<output
 					data-testid="effort-support-warning"
-					role="status"
 					aria-live="polite"
-					className="text-micro font-ui text-[var(--needs)] px-1 mt-0.5 select-none"
+					className="text-micro font-ui text-[var(--needs)] px-1 mt-0.5 select-none block"
 				>
 					{warningText}
-				</div>
+				</output>
 			)}
 		</div>
 	);

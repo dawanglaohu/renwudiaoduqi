@@ -33,7 +33,6 @@ import {
 	type GroupedSelectSubgroup,
 } from '../ui/grouped-select.tsx';
 import type { FieldErrorInfo } from './field-layers-row.tsx';
-import { LoginBadge } from './login-badge.tsx';
 
 export interface ModelPickerProps {
 	/** 后端返回的完整 catalog，catalog === null 时触发器 disabled */
@@ -51,7 +50,6 @@ export interface ModelPickerProps {
 	readonly disabled?: boolean;
 	readonly error?: FieldErrorInfo | null;
 	readonly className?: string;
-	readonly initialOpen?: boolean;
 }
 
 export function ModelPicker({
@@ -68,33 +66,22 @@ export function ModelPicker({
 	disabled = false,
 	error = null,
 	className = '',
-	initialOpen = false,
 }: ModelPickerProps) {
 	// 归一化输入模型项列表
 	const rawModelItems = useMemo<readonly AgentModelItem[]>(() => {
 		if (catalog?.models) {
 			return catalog.models;
 		}
-		if (propModels && propModels.length > 0) {
-			return propModels.map((m) => {
-				if (typeof m === 'string') {
-					return {
-						name: m,
-						source: 'history',
-						isCurrentConfig: m === selectedModel,
-					};
-				}
-				return m;
-			});
-		}
+		if (propModels)
+			return propModels.filter((item): item is AgentModelItem => typeof item !== 'string');
 		return [];
-	}, [catalog, propModels, selectedModel]);
+	}, [catalog, propModels]);
 
 	const isComplete = catalog ? catalog.isComplete : (propIsComplete ?? true);
-	const isRefreshing = catalog ? catalog.isRefreshing : (propIsRefreshing ?? false);
+	const isRefreshing = Boolean(propIsRefreshing || catalog?.isRefreshing);
 
 	// 切组计算
-	const { groups: rawGroups, unknownSources } = useMemo(() => {
+	const { groups: rawGroups } = useMemo(() => {
 		return groupModelsBySource(rawModelItems, selectedModel);
 	}, [rawModelItems, selectedModel]);
 
@@ -109,16 +96,15 @@ export function ModelPicker({
 					}
 					return {
 						value: item.isManualAction ? MANUAL_MODEL_ACTION_KEY : item.name,
-						label: item.name,
+						label: item.isManualAction ? UI_STRINGS.modelPicker.manualOption : item.name,
 						chip,
 						isCustomAction: item.isManualAction,
-						note: item.note,
+						note: group.source === 'other' ? item.source : item.note,
 					};
 				});
 
 				let badge: React.ReactNode = null;
 				if (sg.provider && login?.providers?.[sg.provider]) {
-					const providerLogin = login.providers[sg.provider];
 					// provider inline 徽标不分配色相，中性呈现
 					badge = (
 						<span
@@ -140,7 +126,9 @@ export function ModelPicker({
 
 			return {
 				id: group.source,
-				label: group.label,
+				label:
+					(UI_STRINGS.modelPicker.sources as Readonly<Record<string, string>>)[group.source] ??
+					group.source,
 				subgroups,
 			};
 		});
@@ -150,9 +138,7 @@ export function ModelPicker({
 	const isTriggerDisabled = disabled || catalog === null;
 
 	const noteFooter = !isComplete ? (
-		<span className="font-ui text-micro text-ink-3">
-			{UI_STRINGS.modelPicker.incompleteFooter}
-		</span>
+		<span className="font-ui text-micro text-ink-3">{UI_STRINGS.modelPicker.incompleteFooter}</span>
 	) : null;
 
 	const placeholderText = isRefreshing
@@ -164,6 +150,7 @@ export function ModelPicker({
 			<div className="flex items-center gap-2">
 				<div className="flex-1 min-w-0" data-testid="model-picker-trigger">
 					<GroupedSelect
+						labels={UI_STRINGS.groupedSelect}
 						value={selectedModel}
 						onValueChange={onSelectModel}
 						groups={selectGroups}
@@ -171,24 +158,10 @@ export function ModelPicker({
 						disabled={isTriggerDisabled}
 						noteFooter={noteFooter}
 						customActionKey={MANUAL_MODEL_ACTION_KEY}
-						onCustomActionSubmit={(val) => {
-							if (onAddCustomModel) {
-								onAddCustomModel(val);
-							}
-							onSelectModel(val);
-						}}
+						onCustomActionSubmit={onAddCustomModel}
 						customActionPlaceholder={UI_STRINGS.modelPicker.manualInputPlaceholder}
 					/>
 				</div>
-
-				{/* 兼容旧单测断言与 initialOpen 标记 */}
-				{initialOpen && !isComplete && (
-					<div data-testid="incomplete-models-banner" className="hidden">
-						<span>清单可能不全</span>
-						<span>支持手动输入模型</span>
-						<input data-testid="manual-model-input" className="h-input" readOnly />
-					</div>
-				)}
 
 				{/* 刷新清单按钮 */}
 				{onRefresh && (
@@ -229,7 +202,9 @@ export function ModelPicker({
 					<span>{error.message}</span>
 					{error.technical && (
 						<details className="text-micro text-ink-3">
-							<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
+							<summary className="cursor-pointer hover:text-ink-2">
+								{UI_STRINGS.technicalDetails}
+							</summary>
 							<div className="font-mono text-micro break-all">{error.technical}</div>
 						</details>
 					)}

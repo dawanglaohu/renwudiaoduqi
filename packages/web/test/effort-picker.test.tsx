@@ -6,7 +6,7 @@
 
 // @vitest-environment jsdom
 
-import type { EffortValue, EffortVendorMap } from '@agent-scheduler/shared/api/agents';
+import type { EffortVendorMap } from '@agent-scheduler/shared/api/agents';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,7 +15,7 @@ import { EffortPicker } from '../src/components/effort-picker.tsx';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('EffortPicker (AC 3, E-254, E-351)', () => {
-	let container: HTMLDivElement | null = null;
+	let container: HTMLDivElement;
 
 	const sampleVendorMap: EffortVendorMap = {
 		low: 'low_v',
@@ -42,14 +42,11 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 	});
 
 	afterEach(() => {
-		if (container) {
-			container.remove();
-			container = null;
-		}
+		container.remove();
 	});
 
 	it('renders read-only "—" with title when vendorMap is null (E-254)', () => {
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(
 				createElement(EffortPicker, {
@@ -76,7 +73,7 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 
 	it('renders select trigger when vendorMap is present and roundtrips onChange', async () => {
 		const onChangeMock = vi.fn();
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(
 				createElement(EffortPicker, {
@@ -89,7 +86,9 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 			);
 		});
 
-		const trigger = container?.querySelector('[data-testid="grouped-select-trigger"]') as HTMLButtonElement | null;
+		const trigger = container.querySelector(
+			'[data-testid="grouped-select-trigger"]',
+		) as HTMLButtonElement | null;
 		expect(trigger).not.toBeNull();
 		expect(trigger?.textContent).toContain('中档 (medium)');
 
@@ -113,7 +112,7 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 	});
 
 	it('displays unsupported warning without disabling or resetting value when model does not support tier (E-351)', () => {
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(
 				createElement(EffortPicker, {

@@ -635,8 +635,7 @@ export function runForbiddenCheck(
 		}
 
 		// Check 20: Model source literal comparison prohibited in UI layer (AC 2, E-350)
-		const isModelGroups =
-			file.endsWith('/model-groups.ts') || file.endsWith('\\model-groups.ts');
+		const isModelGroups = file.endsWith('/model-groups.ts') || file.endsWith('\\model-groups.ts');
 		if (isUiLayer && !isModelGroups && !isI18n) {
 			const cleanLines = blankComments(content).split('\n');
 			const MODEL_SOURCE_LITERAL_REGEX =

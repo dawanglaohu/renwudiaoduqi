@@ -1,4 +1,8 @@
-import { createElement } from 'react';
+// @vitest-environment jsdom
+
+import { resolve } from 'node:path';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -132,24 +136,56 @@ describe('M9-T14 设置页：agent 注册表与模型选择（返工第 1 轮）
 			expect(html).toContain('选择默认模型...');
 		});
 
-		it('shows "清单可能不全" and renders manual entry input using h-input token (R8)', () => {
-			const html = renderToStaticMarkup(
-				createElement(ModelPicker, {
-					models: ['gpt-4o'],
-					selectedModel: 'gpt-4o',
-					onSelectModel: vi.fn(),
-					isComplete: false,
-					initialOpen: true,
-				}),
-			);
-
-			// AC 3: 清单不全提示
-			expect(html).toContain('清单可能不全');
-			expect(html).toContain('支持手动输入模型');
-			expect(html).toContain('data-testid="manual-model-input"');
-			// R8: 检查使用 h-input token 代替 h-input-sm
-			expect(html).not.toContain('h-input-sm');
-			expect(html).toContain('h-input');
+		it('opens the incomplete catalog and activates the real manual input (R8)', async () => {
+			const host = document.createElement('div');
+			document.body.append(host);
+			const root = createRoot(host);
+			const onSelectModel = vi.fn();
+			(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+			window.HTMLElement.prototype.scrollIntoView = vi.fn();
+			window.HTMLElement.prototype.hasPointerCapture = vi.fn();
+			window.HTMLElement.prototype.releasePointerCapture = vi.fn();
+			try {
+				await act(async () =>
+					root.render(
+						createElement(ModelPicker, {
+							catalog: {
+								models: [{ name: 'gpt-4o', source: 'live', isCurrentConfig: true }],
+								isComplete: false,
+								isRefreshing: false,
+								refreshedAt: '2026-09-30T00:00:00Z',
+								currentConfig: {
+									model: 'gpt-4o',
+									effort: null,
+									configPath: '/demo/config',
+									effortRecognized: true,
+								},
+								liveFailure: null,
+							},
+							selectedModel: 'gpt-4o',
+							onSelectModel,
+						}),
+					),
+				);
+				await act(async () => host.querySelector<HTMLButtonElement>('[role="combobox"]')?.click());
+				expect(document.querySelector('[role="note"]')?.textContent).toContain('清单可能不全');
+				const manual = document.querySelector<HTMLElement>(
+					'[data-testid="select-option-__manual_custom_model__"]',
+				);
+				expect(manual).not.toBeNull();
+				await act(async () =>
+					manual?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })),
+				);
+				const input = host.querySelector<HTMLInputElement>(
+					'[data-testid="grouped-select-custom-input"]',
+				);
+				expect(input).not.toBeNull();
+				expect(input?.className).toContain('h-[var(--h-input)]');
+				expect(input?.className).not.toContain('h-input-sm');
+			} finally {
+				await act(async () => root.unmount());
+				host.remove();
+			}
 		});
 	});
 
@@ -457,7 +493,7 @@ describe('M9-T14 设置页：agent 注册表与模型选择（返工第 1 轮）
 			// 规则管的是容器源码本身：颜色、字号、圆角一律不写在 features/ 容器里。
 			const { readFileSync } = await import('node:fs');
 			const source = readFileSync(
-				new URL('../src/features/settings-agents/settings-agents-container.tsx', import.meta.url),
+				resolve('packages/web/src/features/settings-agents/settings-agents-container.tsx'),
 				'utf8',
 			);
 
@@ -470,11 +506,11 @@ describe('M9-T14 设置页：agent 注册表与模型选择（返工第 1 轮）
 
 		it('keeps components/ free of reverse imports from features/ (R7)', async () => {
 			const { readdirSync, readFileSync } = await import('node:fs');
-			const dir = new URL('../src/components/', import.meta.url);
+			const dir = resolve('packages/web/src/components');
 			const offenders: string[] = [];
 			for (const name of readdirSync(dir)) {
 				if (!name.endsWith('.tsx') && !name.endsWith('.ts')) continue;
-				const source = readFileSync(new URL(name, dir), 'utf8');
+				const source = readFileSync(resolve(dir, name), 'utf8');
 				if (/from\s+'[^']*features\//.test(source)) offenders.push(name);
 			}
 			expect(offenders).toEqual([]);

@@ -9,11 +9,7 @@
  */
 
 import * as SelectPrimitive from '@radix-ui/react-select';
-import {
-	type ComponentPropsWithoutRef,
-	type ElementRef,
-	forwardRef,
-} from 'react';
+import { type ComponentPropsWithoutRef, type ElementRef, forwardRef } from 'react';
 
 export const Select = SelectPrimitive.Root;
 export const SelectGroup = SelectPrimitive.Group;
@@ -95,7 +91,12 @@ export const SelectItem = forwardRef<
 					stroke="currentColor"
 					aria-hidden="true"
 				>
-					<path d="M3.5 8.5l3 3 6-6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+					<path
+						d="M3.5 8.5l3 3 6-6"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
 				</svg>
 			</SelectPrimitive.ItemIndicator>
 		</span>

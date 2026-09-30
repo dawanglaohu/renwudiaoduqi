@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
 	AgentEntryDto,
+	AgentModelItem,
 	EffortValue,
 	ListAgentModelsResponse,
 } from '../../../shared/src/api/agents.ts';
@@ -27,7 +28,7 @@ export interface AgentCardProps {
 		value: string | number,
 	) => Promise<boolean>;
 	readonly onProbe: (agentId: string) => Promise<unknown>;
-	readonly models: readonly string[];
+	readonly models: readonly (AgentModelItem | string)[];
 	readonly isModelsComplete?: boolean;
 	readonly isModelsLoading?: boolean;
 	readonly isModelsRefreshing?: boolean;
@@ -418,7 +419,7 @@ export function AgentCard({
 							<span
 								className="font-mono text-dense text-ink-2 truncate"
 								title={modelBuiltin}
-								data-testid={`layer-builtin-defaultModel`}
+								data-testid="layer-builtin-defaultModel"
 							>
 								{modelBuiltin}
 							</span>
@@ -440,7 +441,7 @@ export function AgentCard({
 									hasModelOverride ? 'text-needs font-medium' : 'text-ink-3'
 								}`}
 								title={modelOverride}
-								data-testid={`layer-override-defaultModel`}
+								data-testid="layer-override-defaultModel"
 							>
 								{modelOverride}
 							</span>
@@ -450,7 +451,7 @@ export function AgentCard({
 							<span
 								className="font-mono text-dense text-ink-1 font-medium truncate"
 								title={modelEffective}
-								data-testid={`layer-effective-defaultModel`}
+								data-testid="layer-effective-defaultModel"
 							>
 								{modelEffective}
 							</span>
@@ -522,7 +523,7 @@ export function AgentCard({
 								<span
 									className="font-mono text-dense text-ink-2 truncate"
 									title={effortBuiltin}
-									data-testid={`layer-builtin-defaultEffortTier`}
+									data-testid="layer-builtin-defaultEffortTier"
 								>
 									{effortBuiltin}
 								</span>
@@ -534,7 +535,7 @@ export function AgentCard({
 										hasEffortOverride ? 'text-needs font-medium' : 'text-ink-3'
 									}`}
 									title={effortOverride}
-									data-testid={`layer-override-defaultEffortTier`}
+									data-testid="layer-override-defaultEffortTier"
 								>
 									{effortOverride}
 								</span>
@@ -544,7 +545,7 @@ export function AgentCard({
 								<span
 									className="font-mono text-dense text-ink-1 font-medium truncate"
 									title={effortEffective}
-									data-testid={`layer-effective-defaultEffortTier`}
+									data-testid="layer-effective-defaultEffortTier"
 								>
 									{effortEffective}
 								</span>
@@ -569,8 +570,11 @@ export function AgentCard({
 						<div className="mt-1">
 							<EffortPicker
 								vendorMap={agent.effortVendorMap ?? null}
-								selectedModel={agent.defaultModel}
-								models={catalog?.models ?? []}
+								selectedModelEffortOptions={
+									catalog?.models?.find((m) => m.name === agent.defaultModel)?.effortOptions ?? []
+								}
+								currentConfigEffort={catalog?.currentConfig?.effort ?? null}
+								effortRecognized={catalog?.currentConfig?.effortRecognized ?? true}
 								allowVendor={true}
 								value={agent.defaultEffortTier ?? null}
 								onChange={(newVal) => void onUpdateEffortTier?.(agent.id, newVal)}

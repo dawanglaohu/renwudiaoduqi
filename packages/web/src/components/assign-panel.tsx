@@ -17,6 +17,7 @@
  */
 
 import type {
+	AgentCurrentConfigDto,
 	EffortTier,
 	EffortValue,
 	ListAgentModelsResponse,
@@ -26,9 +27,9 @@ import {
 	CONCURRENCY_PREVIEW_BOTTLENECKS,
 	type ConcurrencyPreviewBottleneck,
 } from '@agent-scheduler/shared/api/batches';
-import { useId, useMemo, useRef, useEffect, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
 import { isLoggedIn } from '../lib/login-freshness.ts';
-import { useSelectionStore } from '../store/selection-store.ts';
 import { EffortPicker } from './effort-picker.tsx';
 import { LoginBadge } from './login-badge.tsx';
 import { LoginHint } from './login-hint.tsx';
@@ -77,6 +78,7 @@ export interface AssignableAgent {
 	readonly supportsEffort?: boolean;
 	readonly models?: readonly string[];
 	readonly catalog?: ListAgentModelsResponse | null;
+	readonly currentConfig?: AgentCurrentConfigDto | null;
 	readonly isRefreshingModels?: boolean;
 	readonly login?: LoginState | null;
 	readonly effortVendorMap?: Record<EffortTier, string> | null;
@@ -158,6 +160,8 @@ export interface TaskAssignmentListProps {
 	readonly onResetAssignment?: (taskId: string) => void;
 	/** 刷新单个 Agent 模型清单回调（AC 1, AC 4） */
 	readonly onRefreshAgentModels?: (agentId: string) => void;
+	/** 当前重派聚焦的任务 ID（从 feature/store 传入） */
+	readonly reassignTaskId?: string | null;
 	/** 样式自定义类名 */
 	readonly className?: string;
 }
@@ -235,6 +239,8 @@ export interface AssignPanelProps {
 	readonly onToggleUnlockAboveWindow?: (unlocked: boolean) => void;
 	/** 刷新单个 Agent 模型清单回调（AC 1, AC 4） */
 	readonly onRefreshAgentModels?: (agentId: string) => void;
+	/** 当前重派聚焦的任务 ID（从 feature/store 传入） */
+	readonly reassignTaskId?: string | null;
 	/** 样式类名 */
 	readonly className?: string;
 }
@@ -343,6 +349,7 @@ interface TaskAssignRowProps {
 	readonly onSave: (selection: TaskAssignmentSelection) => void;
 	readonly onReset?: () => void;
 	readonly onRefreshAgentModels?: (agentId: string) => void;
+	readonly reassignTaskId?: string | null;
 }
 
 function TaskAssignRow({
@@ -353,6 +360,7 @@ function TaskAssignRow({
 	onSave,
 	onReset,
 	onRefreshAgentModels,
+	reassignTaskId,
 }: TaskAssignRowProps) {
 	const rowId = useId();
 	const isAlreadyAssigned = Boolean(assignment);
@@ -362,18 +370,17 @@ function TaskAssignRow({
 	const initialAgentId = assignment?.agentId ?? task.defaultAgentId ?? '';
 	const [selectedAgentId, setSelectedAgentId] = useState<string>(initialAgentId);
 
-	const reassignTaskId = useSelectionStore((s) => s.reassignTaskId);
 	const isReassignTarget = reassignTaskId === task.id;
 	const rowRef = useRef<HTMLDivElement | null>(null);
 	const agentSelectRef = useRef<HTMLSelectElement | null>(null);
 
 	useEffect(() => {
-		if (isReassignTarget) {
-			setIsEditing(true);
+		if (isReassignTarget && !isEditing) setIsEditing(true);
+		if (isReassignTarget && isEditing) {
 			rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			agentSelectRef.current?.focus();
 		}
-	}, [isReassignTarget]);
+	}, [isReassignTarget, isEditing]);
 
 	// 查找所选 Agent
 	const currentAgent = useMemo(() => {
@@ -466,7 +473,9 @@ function TaskAssignRow({
 				data-task-assigned-row={task.taskKey}
 				data-testid={`assigned-row-${task.taskKey}`}
 				className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded border ${
-					isReassignTarget ? 'border-[var(--needs)] ring-2 ring-[var(--needs-soft)]' : 'border-border'
+					isReassignTarget
+						? 'border-[var(--needs)] ring-2 ring-[var(--needs-soft)]'
+						: 'border-border'
 				} bg-panel-2 transition-colors hover:border-border-strong`}
 			>
 				{/* 任务标头与信息 */}
@@ -493,13 +502,20 @@ function TaskAssignRow({
 							<button
 								type="button"
 								data-action="refresh-agent-models"
-								aria-label="刷新清单"
-								title="刷新模型清单与登录态"
+								aria-label={UI_STRINGS.login.refresh}
+								title={UI_STRINGS.login.refresh}
 								disabled={assignedAgentObj?.isRefreshingModels}
 								onClick={() => assignedAgentObj && onRefreshAgentModels?.(assignedAgentObj.id)}
 								className="p-1 rounded-[var(--r-sm)] text-[var(--ink-3)] hover:text-[var(--ink-1)] border border-transparent hover:border-[var(--border)] transition-colors disabled:opacity-50"
 							>
-								<svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+								<svg
+									className="w-3.5 h-3.5"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									aria-hidden="true"
+								>
 									<path d="M23 4v6h-6M1 20v-6h6" />
 									<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
 								</svg>
@@ -526,10 +542,7 @@ function TaskAssignRow({
 					{/* 已指派回显态下的未登录引导提示（AC 1） */}
 					{assignedAgentObj?.login && !isLoggedIn(assignedAgentObj.login) && (
 						<div className="mt-1">
-							<LoginHint
-								login={assignedAgentObj.login}
-								agentName={assignedAgentObj.name}
-							/>
+							<LoginHint login={assignedAgentObj.login} agentName={assignedAgentObj.name} />
 						</div>
 					)}
 				</div>
@@ -600,7 +613,10 @@ function TaskAssignRow({
 
 			{/* 行首顺序：monogram → agent 名 → login-badge → 「刷新清单」图标键（AC 1） */}
 			{currentAgent && (
-				<div data-field="agent-head-meta" className="flex items-center gap-2 text-micro font-mono flex-wrap">
+				<div
+					data-field="agent-head-meta"
+					className="flex items-center gap-2 text-micro font-mono flex-wrap"
+				>
 					<span className="px-1.5 py-0.5 rounded bg-bg border border-border text-ink-2 font-bold text-micro">
 						{currentAgent.monogram}
 					</span>
@@ -609,13 +625,20 @@ function TaskAssignRow({
 					<button
 						type="button"
 						data-action="refresh-agent-models"
-						aria-label="刷新清单"
-						title="刷新模型清单与登录态"
+						aria-label={UI_STRINGS.login.refresh}
+						title={UI_STRINGS.login.refresh}
 						disabled={currentAgent.isRefreshingModels}
 						onClick={() => onRefreshAgentModels?.(currentAgent.id)}
 						className="p-1 rounded-[var(--r-sm)] text-[var(--ink-3)] hover:text-[var(--ink-1)] border border-transparent hover:border-[var(--border)] transition-colors disabled:opacity-50"
 					>
-						<svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+						<svg
+							className="w-3.5 h-3.5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							aria-hidden="true"
+						>
 							<path d="M23 4v6h-6M1 20v-6h6" />
 							<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
 						</svg>
@@ -625,10 +648,7 @@ function TaskAssignRow({
 
 			{/* state !== 'logged_in' 时该行下渲染 login-hint（AC 1） */}
 			{currentAgent?.login && !isLoggedIn(currentAgent.login) && (
-				<LoginHint
-					login={currentAgent.login}
-					agentName={currentAgent.name}
-				/>
+				<LoginHint login={currentAgent.login} agentName={currentAgent.name} />
 			)}
 
 			{/* Agent 满额提示条（AC 4, E-47，R1: 读 daemon 字段，缺失不妄判） */}
@@ -686,9 +706,9 @@ function TaskAssignRow({
 
 				{/* 2. 选择模型（基于 ModelPicker，AC 2） */}
 				<div className="flex flex-col gap-1">
-					<label className="text-micro text-ink-3 font-mono">
-						模型配置 (M4-T6)
-					</label>
+					<span className="text-micro text-ink-3 font-mono">
+						{UI_STRINGS.assignment.modelLabel}
+					</span>
 					<ModelPicker
 						catalog={currentAgent?.catalog}
 						models={availableModels}
@@ -723,6 +743,8 @@ function TaskAssignRow({
 							selectedModelEffortOptions={
 								currentAgent.catalog?.models?.find((m) => m.name === selectedModel)?.effortOptions
 							}
+							currentConfigEffort={currentAgent.currentConfig?.effort}
+							effortRecognized={currentAgent.currentConfig?.effortRecognized}
 							allowVendor={true}
 						/>
 					)}
@@ -771,6 +793,7 @@ export function TaskAssignmentList({
 	onAssignTask,
 	onResetAssignment,
 	onRefreshAgentModels,
+	reassignTaskId,
 	className = '',
 }: TaskAssignmentListProps) {
 	const assignedCount = Object.keys(assignments).length;
@@ -840,6 +863,7 @@ export function TaskAssignmentList({
 								onSave={(draft) => onAssignTask?.(task.id, draft)}
 								onReset={() => onResetAssignment?.(task.id)}
 								onRefreshAgentModels={onRefreshAgentModels}
+								reassignTaskId={reassignTaskId}
 							/>
 						);
 					})}
@@ -1142,6 +1166,7 @@ export function AssignPanel({
 	onChangeUserSetting,
 	onToggleUnlockAboveWindow,
 	onRefreshAgentModels,
+	reassignTaskId,
 	className = '',
 }: AssignPanelProps) {
 	// 如果由 step 控制：step 2 代表第 3 步（逐任务指派），step 3 代表第 4 步（并发说明）
@@ -1159,6 +1184,7 @@ export function AssignPanel({
 					onAssignTask={onAssignTask}
 					onResetAssignment={onResetAssignment}
 					onRefreshAgentModels={onRefreshAgentModels}
+					reassignTaskId={reassignTaskId}
 				/>
 			)}
 

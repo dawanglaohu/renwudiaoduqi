@@ -12,6 +12,7 @@
 
 import { create } from 'zustand';
 import type { TaskAssignmentSelection } from '../components/assign-panel.tsx';
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
 
 export type { TaskAssignmentSelection };
 
@@ -93,7 +94,7 @@ export const useSelectionStore = create<SelectionStore>((set) => ({
 			let nextFilter = state.taskFilter;
 			if (state.taskFilter.trim().length > 0) {
 				nextFilter = '';
-				toastMessage = `已清除筛选以定位 ${taskId}`;
+				toastMessage = UI_STRINGS.assignment.reassignCleared(taskId);
 			}
 
 			// 若传入当前快照 agentId，则在草稿中预选该 agent

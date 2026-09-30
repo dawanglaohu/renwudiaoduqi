@@ -9,6 +9,15 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { AgentCard } from '../src/components/agent-card.tsx';
+import type { FieldLayerValues } from '../src/components/field-layers-row.tsx';
+
+const mockFieldLayers: FieldLayerValues = {
+	key: 'monogram',
+	label: '两字符短码',
+	builtIn: '—',
+	override: null,
+	effective: 'CX',
+};
 
 const mockBaseAgent: AgentEntryDto = {
 	id: 'codex',
@@ -70,13 +79,7 @@ describe('M9-T23: AgentCard 设置页组件', () => {
 		const html = renderToStaticMarkup(
 			createElement(AgentCard, {
 				agent: mockBaseAgent,
-				getFieldLayers: () => ({
-					key: 'monogram',
-					label: '两字符短码',
-					builtIn: '—',
-					override: null,
-					effective: 'CX',
-				}),
+				getFieldLayers: () => mockFieldLayers,
 				onUpdateField: vi.fn(),
 				onProbe: vi.fn(),
 				models: ['gpt-4o'],
@@ -110,13 +113,7 @@ describe('M9-T23: AgentCard 设置页组件', () => {
 		const html = renderToStaticMarkup(
 			createElement(AgentCard, {
 				agent: loggedOutAgent,
-				getFieldLayers: () => ({
-					key: 'monogram',
-					label: '两字符短码',
-					builtIn: '—',
-					override: null,
-					effective: 'CX',
-				}),
+				getFieldLayers: () => mockFieldLayers,
 				onUpdateField: vi.fn(),
 				onProbe: vi.fn(),
 				models: ['gpt-4o'],
@@ -135,13 +132,7 @@ describe('M9-T23: AgentCard 设置页组件', () => {
 			createElement(AgentCard, {
 				agent: mockBaseAgent,
 				catalog: mockCatalog,
-				getFieldLayers: () => ({
-					key: 'monogram',
-					label: '两字符短码',
-					builtIn: '—',
-					override: null,
-					effective: 'CX',
-				}),
+				getFieldLayers: () => mockFieldLayers,
 				onUpdateField: vi.fn(),
 				onProbe: vi.fn(),
 				models: ['gpt-4o'],
@@ -170,13 +161,7 @@ describe('M9-T23: AgentCard 设置页组件', () => {
 			createElement(AgentCard, {
 				agent: mockBaseAgent,
 				catalog: mockCatalog,
-				getFieldLayers: () => ({
-					key: 'monogram',
-					label: '两字符短码',
-					builtIn: '—',
-					override: null,
-					effective: 'CX',
-				}),
+				getFieldLayers: () => mockFieldLayers,
 				onUpdateField: vi.fn(),
 				onProbe: vi.fn(),
 				models: ['gpt-4o'],
@@ -219,13 +204,7 @@ describe('M9-T23: AgentCard 设置页组件', () => {
 			createElement(AgentCard, {
 				agent: noOverrideAgent,
 				catalog: mockCatalog,
-				getFieldLayers: () => ({
-					key: 'monogram',
-					label: '两字符短码',
-					builtIn: '—',
-					override: null,
-					effective: 'CX',
-				}),
+				getFieldLayers: () => mockFieldLayers,
 				onUpdateField: vi.fn(),
 				onProbe: vi.fn(),
 				models: ['gpt-4o'],
@@ -253,10 +232,7 @@ describe('M9-T23: AgentCard 设置页组件', () => {
 			createElement(AgentCard, {
 				agent: unsupportedEffortAgent,
 				getFieldLayers: () => ({
-					key: 'monogram',
-					label: '两字符短码',
-					builtIn: '—',
-					override: null,
+					...mockFieldLayers,
 					effective: 'DH',
 				}),
 				onUpdateField: vi.fn(),

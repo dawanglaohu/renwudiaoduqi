@@ -15,23 +15,14 @@
 import type { LoginState } from '@agent-scheduler/shared/api/agents';
 import { type HTMLAttributes, useState } from 'react';
 import { UI_STRINGS } from '../i18n/ui-strings.ts';
-import {
-	isLoggedIn,
-	isLoggedOut,
-	isLoginUnknown,
-} from '../lib/login-freshness.ts';
+import { isLoggedIn, isLoggedOut, isLoginUnknown } from '../lib/login-freshness.ts';
 
 export interface LoginHintProps extends HTMLAttributes<HTMLDivElement> {
 	readonly login?: LoginState | null;
 	readonly agentName?: string;
 }
 
-export function LoginHint({
-	login,
-	agentName = 'Agent',
-	className = '',
-	...rest
-}: LoginHintProps) {
+export function LoginHint({ login, agentName = 'Agent', className = '', ...rest }: LoginHintProps) {
 	const [copied, setCopied] = useState(false);
 
 	if (!login || isLoggedIn(login)) {
@@ -60,7 +51,11 @@ export function LoginHint({
 			hintContent = (
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<span className="font-ui text-micro text-needs">
-						未登录：在终端运行 <code className="px-1 py-0.5 rounded bg-bg border border-border font-mono text-[11px] text-ink-1 select-all">{command}</code> 后点刷新
+						未登录：在终端运行{' '}
+						<code className="px-1 py-0.5 rounded bg-bg border border-border font-mono text-[11px] text-ink-1 select-all">
+							{command}
+						</code>{' '}
+						后点刷新
 					</span>
 					<button
 						type="button"
@@ -81,9 +76,7 @@ export function LoginHint({
 		}
 	} else if (isLoginUnknown(login)) {
 		hintContent = (
-			<span className="font-ui text-micro text-ink-2">
-				{UI_STRINGS.login.hintUnknown}
-			</span>
+			<span className="font-ui text-micro text-ink-2">{UI_STRINGS.login.hintUnknown}</span>
 		);
 	}
 

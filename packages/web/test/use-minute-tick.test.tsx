@@ -18,7 +18,7 @@ import {
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('use-minute-tick (AC 5, E-335, E-357)', () => {
-	let container: HTMLDivElement | null = null;
+	let container: HTMLDivElement;
 
 	beforeEach(() => {
 		vi.useFakeTimers();
@@ -27,10 +27,7 @@ describe('use-minute-tick (AC 5, E-335, E-357)', () => {
 	});
 
 	afterEach(() => {
-		if (container) {
-			container.remove();
-			container = null;
-		}
+		container.remove();
 		vi.useRealTimers();
 	});
 
@@ -46,7 +43,7 @@ describe('use-minute-tick (AC 5, E-335, E-357)', () => {
 			return createElement('div', { 'data-testid': 'tick-display' }, String(tick));
 		}
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(TestComponent));
 		});
@@ -70,7 +67,7 @@ describe('use-minute-tick (AC 5, E-335, E-357)', () => {
 			return createElement('div', null, String(tick));
 		}
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(TestComponent));
 		});

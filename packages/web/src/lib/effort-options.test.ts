@@ -7,11 +7,19 @@
 import type { EffortVendorMap } from '@agent-scheduler/shared/api/agents';
 import { describe, expect, it } from 'vitest';
 import {
-	buildEffortOptionGroups,
+	type BuildEffortOptionsParams,
+	type EffortSupportWarningParams,
+	buildEffortOptionGroups as buildWithCopy,
 	decodeEffortValue,
-	effortSupportWarning,
 	encodeEffortValue,
+	effortSupportWarning as warningWithCopy,
 } from './effort-options.ts';
+
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
+const buildEffortOptionGroups = (params: Omit<BuildEffortOptionsParams, 'copy'>) =>
+	buildWithCopy({ ...params, copy: UI_STRINGS.effortPicker });
+const effortSupportWarning = (params: EffortSupportWarningParams) =>
+	warningWithCopy(params, UI_STRINGS.effortPicker.unsupportedWarning);
 
 describe('effort-options: encode & decode', () => {
 	it('roundtrips null, tier, and vendor values', () => {
@@ -98,8 +106,16 @@ describe('effort-options: effortSupportWarning (E-351)', () => {
 	};
 
 	it('returns null when effort is null or effortOptions is empty', () => {
-		expect(effortSupportWarning({ effort: null, effortOptions: ['low_v'], vendorMap: sampleVendorMap })).toBeNull();
-		expect(effortSupportWarning({ effort: { tier: 'low' }, effortOptions: [], vendorMap: sampleVendorMap })).toBeNull();
+		expect(
+			effortSupportWarning({ effort: null, effortOptions: ['low_v'], vendorMap: sampleVendorMap }),
+		).toBeNull();
+		expect(
+			effortSupportWarning({
+				effort: { tier: 'low' },
+				effortOptions: [],
+				vendorMap: sampleVendorMap,
+			}),
+		).toBeNull();
 	});
 
 	it('warns when tier mapped vendor value is not in effortOptions', () => {

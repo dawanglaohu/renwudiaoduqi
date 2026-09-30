@@ -6,7 +6,7 @@
 
 import type { AgentModelItem } from '@agent-scheduler/shared/api/agents';
 import { describe, expect, it } from 'vitest';
-import { groupModelsBySource } from './model-groups.ts';
+import { MANUAL_MODEL_ACTION_KEY, groupModelsBySource } from './model-groups.ts';
 
 describe('model-groups: source grouping and provider sub-grouping', () => {
 	it('groups models in MODEL_SOURCES order, skips empty groups, and always renders manual group', () => {
@@ -25,15 +25,25 @@ describe('model-groups: source grouping and provider sub-grouping', () => {
 		const manualGroup = result.groups.find((g) => g.source === 'manual');
 		expect(manualGroup).toBeDefined();
 		expect(manualGroup?.subgroups[0]?.items).toHaveLength(1);
-		expect(manualGroup?.subgroups[0]?.items[0]?.name).toBe('手填模型名…');
+		expect(manualGroup?.subgroups[0]?.items[0]?.name).toBe(MANUAL_MODEL_ACTION_KEY);
 		expect(manualGroup?.subgroups[0]?.items[0]?.isManualAction).toBe(true);
 	});
 
 	it('splits items with provider into subgroups in order of first appearance', () => {
 		const models: AgentModelItem[] = [
-			{ name: 'anthropic/claude-3-opus', source: 'live', provider: 'anthropic', isCurrentConfig: false },
+			{
+				name: 'anthropic/claude-3-opus',
+				source: 'live',
+				provider: 'anthropic',
+				isCurrentConfig: false,
+			},
 			{ name: 'openai/gpt-4o', source: 'live', provider: 'openai', isCurrentConfig: false },
-			{ name: 'anthropic/claude-3.5-sonnet', source: 'live', provider: 'anthropic', isCurrentConfig: false },
+			{
+				name: 'anthropic/claude-3.5-sonnet',
+				source: 'live',
+				provider: 'anthropic',
+				isCurrentConfig: false,
+			},
 			{ name: 'custom-local', source: 'live', isCurrentConfig: false },
 		];
 
@@ -42,7 +52,11 @@ describe('model-groups: source grouping and provider sub-grouping', () => {
 		expect(liveGroup).toBeDefined();
 
 		// Subgroups should appear in order: anthropic -> openai -> undefined
-		expect(liveGroup?.subgroups.map((sg) => sg.provider)).toEqual(['anthropic', 'openai', undefined]);
+		expect(liveGroup?.subgroups.map((sg) => sg.provider)).toEqual([
+			'anthropic',
+			'openai',
+			undefined,
+		]);
 
 		const anthropicGroup = liveGroup?.subgroups.find((sg) => sg.provider === 'anthropic');
 		expect(anthropicGroup?.items.map((i) => i.name)).toEqual([
@@ -72,8 +86,8 @@ describe('model-groups: source grouping and provider sub-grouping', () => {
 	it('collects unknown sources at the end and returns unknownSources array (决策 134)', () => {
 		const models: AgentModelItem[] = [
 			{ name: 'model-a', source: 'live', isCurrentConfig: false },
-			{ name: 'model-b', source: 'custom_source' as any, isCurrentConfig: false },
-			{ name: 'model-c', source: 'another_source' as any, isCurrentConfig: false },
+			{ name: 'model-b', source: 'custom_source', isCurrentConfig: false },
+			{ name: 'model-c', source: 'another_source', isCurrentConfig: false },
 		];
 
 		const result = groupModelsBySource(models);

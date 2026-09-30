@@ -15,7 +15,7 @@ import { LoginHint } from '../src/components/login-hint.tsx';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('LoginHint (AC 1, E-336, E-355)', () => {
-	let container: HTMLDivElement | null = null;
+	let container: HTMLDivElement;
 
 	beforeEach(() => {
 		container = document.createElement('div');
@@ -23,19 +23,16 @@ describe('LoginHint (AC 1, E-336, E-355)', () => {
 	});
 
 	afterEach(() => {
-		if (container) {
-			container.remove();
-			container = null;
-		}
+		container.remove();
 		vi.restoreAllMocks();
 	});
 
 	it('renders nothing when login is missing or state is logged_in (AC 1)', () => {
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginHint, { login: null }));
 		});
-		expect(container?.innerHTML).toBe('');
+		expect(container.innerHTML).toBe('');
 
 		const loggedInLogin: LoginState = {
 			state: 'logged_in',
@@ -69,18 +66,20 @@ describe('LoginHint (AC 1, E-336, E-355)', () => {
 			warningCode: null,
 		};
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginHint, { login: loggedOutWithCmd, agentName: 'Codex' }));
 		});
 
-		const hint = container?.querySelector('[data-testid="login-hint"]');
+		const hint = container.querySelector('[data-testid="login-hint"]');
 		expect(hint).not.toBeNull();
 		expect(hint?.textContent).toContain('未登录：在终端运行');
 		expect(hint?.textContent).toContain('codex auth login');
 		expect(hint?.textContent).toContain('后点刷新');
 
-		const copyBtn = container?.querySelector('[data-testid="copy-login-command-btn"]') as HTMLButtonElement | null;
+		const copyBtn = container.querySelector(
+			'[data-testid="copy-login-command-btn"]',
+		) as HTMLButtonElement | null;
 		expect(copyBtn).not.toBeNull();
 		expect(copyBtn?.textContent).toBe('复制命令');
 
@@ -106,16 +105,16 @@ describe('LoginHint (AC 1, E-336, E-355)', () => {
 			warningCode: null,
 		};
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginHint, { login: loggedOutNoCmd, agentName: 'Pi' }));
 		});
 
-		const hint = container?.querySelector('[data-testid="login-hint"]');
+		const hint = container.querySelector('[data-testid="login-hint"]');
 		expect(hint).not.toBeNull();
 		expect(hint?.textContent).toContain('未登录：按 Pi 自身文档登录后点刷新');
 
-		const copyBtn = container?.querySelector('[data-testid="copy-login-command-btn"]');
+		const copyBtn = container.querySelector('[data-testid="copy-login-command-btn"]');
 		expect(copyBtn).toBeNull();
 
 		act(() => {
@@ -132,12 +131,12 @@ describe('LoginHint (AC 1, E-336, E-355)', () => {
 			warningCode: 'E_AGENT_LOGIN_PROBE_FAILED',
 		};
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginHint, { login: unknownLogin, agentName: 'Grok' }));
 		});
 
-		const hint = container?.querySelector('[data-testid="login-hint"]');
+		const hint = container.querySelector('[data-testid="login-hint"]');
 		expect(hint).not.toBeNull();
 		expect(hint?.textContent).toContain('登录态未知：确认后点刷新');
 		// Must not say "未登录"

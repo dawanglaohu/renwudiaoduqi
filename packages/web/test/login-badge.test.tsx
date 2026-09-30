@@ -15,7 +15,7 @@ import { LoginBadge } from '../src/components/login-badge.tsx';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('LoginBadge (AC 1, E-335, E-355)', () => {
-	let container: HTMLDivElement | null = null;
+	let container: HTMLDivElement;
 	const baseNow = new Date('2026-09-30T12:00:00.000Z').getTime();
 
 	beforeEach(() => {
@@ -24,23 +24,20 @@ describe('LoginBadge (AC 1, E-335, E-355)', () => {
 	});
 
 	afterEach(() => {
-		if (container) {
-			container.remove();
-			container = null;
-		}
+		container.remove();
 	});
 
 	it('renders nothing when login is null or undefined (AC 1)', () => {
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginBadge, { login: null }));
 		});
-		expect(container?.innerHTML).toBe('');
+		expect(container.innerHTML).toBe('');
 
 		act(() => {
 			root.render(createElement(LoginBadge, { login: undefined }));
 		});
-		expect(container?.innerHTML).toBe('');
+		expect(container.innerHTML).toBe('');
 
 		act(() => {
 			root.unmount();
@@ -56,12 +53,12 @@ describe('LoginBadge (AC 1, E-335, E-355)', () => {
 			warningCode: null,
 		};
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginBadge, { login, now: baseNow }));
 		});
 
-		const el = container?.querySelector('[data-testid="login-badge"]');
+		const el = container.querySelector('[data-testid="login-badge"]');
 		expect(el).not.toBeNull();
 		expect(el?.textContent).toBe('已登录');
 		expect(el?.getAttribute('data-login-variant')).toBe('neutral');
@@ -81,12 +78,12 @@ describe('LoginBadge (AC 1, E-335, E-355)', () => {
 			warningCode: null,
 		};
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginBadge, { login, now: baseNow }));
 		});
 
-		const el = container?.querySelector('[data-testid="login-badge"]');
+		const el = container.querySelector('[data-testid="login-badge"]');
 		expect(el).not.toBeNull();
 		expect(el?.textContent).toBe('未登录');
 		expect(el?.getAttribute('data-login-variant')).toBe('warm');
@@ -105,12 +102,12 @@ describe('LoginBadge (AC 1, E-335, E-355)', () => {
 			warningCode: 'E_AGENT_LOGIN_PROBE_FAILED',
 		};
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginBadge, { login, now: baseNow }));
 		});
 
-		const el = container?.querySelector('[data-testid="login-badge"]');
+		const el = container.querySelector('[data-testid="login-badge"]');
 		expect(el).not.toBeNull();
 		expect(el?.textContent).toBe('无法判定');
 		expect(el?.getAttribute('data-login-variant')).toBe('neutral');
@@ -129,12 +126,12 @@ describe('LoginBadge (AC 1, E-335, E-355)', () => {
 			warningCode: null,
 		};
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(createElement(LoginBadge, { login: expiredLogin, now: baseNow }));
 		});
 
-		const el = container?.querySelector('[data-testid="login-badge"]');
+		const el = container.querySelector('[data-testid="login-badge"]');
 		expect(el).not.toBeNull();
 		expect(el?.textContent).toBe('未登录 · 已过期');
 		expect(el?.getAttribute('data-login-variant')).toBe('expired');

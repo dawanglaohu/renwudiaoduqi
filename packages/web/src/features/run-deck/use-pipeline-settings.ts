@@ -271,95 +271,90 @@ export function createPipelineSettingsSource(
 	}
 
 	const updatePipelineSettings = async (partial: Partial<UpdatePipelineSettingsBody>) => {
-			const pipeline = snapshot.pipeline;
-			if (!pipeline || pendingPatch) return;
-			// AC 8 / E-356: PATCH 永远发四键全量
-			const fullBody: UpdatePipelineSettingsBody = {
-				bughunt: partial.bughunt !== undefined ? partial.bughunt : pipeline.bughunt,
-				wrapupMode: partial.wrapupMode !== undefined ? partial.wrapupMode : pipeline.wrapupMode,
-				reviewOverride:
-					partial.reviewOverride !== undefined
-						? partial.reviewOverride
-						: pipeline.reviewOverride,
-				wrapupAssignment:
-					partial.wrapupAssignment !== undefined
-						? partial.wrapupAssignment
-						: pipeline.wrapupAssignment,
-			};
-			const pending: PendingPipelinePatch = {
-				body: fullBody,
-				deviceId: readCurrentDeviceId(),
-				httpDone: false,
-				eventSeen: false,
-			};
-			pendingPatch = pending;
-			sourceVersion += 1;
-			// pending 期间四个控件一起 disabled
-			publish({ isPending: true, error: null, fieldErrors: {} });
-			const completion = (async () => {
-				try {
-					if (options.patcher) {
-						await options.patcher(fullBody);
-					} else if (patchPipelineRoute) {
-						await httpClient.callRoute<UpdatePipelineSettingsResponse, UpdatePipelineSettingsBody>(
-							patchPipelineRoute,
-							{
-								body: fullBody,
-							},
-						);
-					}
-
-					pending.httpDone = true;
-					if (pending.eventSeen && pendingPatch === pending) {
-						pendingPatch = null;
-						publish({ isPending: false });
-					}
-				} catch (cause: unknown) {
-					if (pendingPatch === pending) {
-						pendingPatch = null;
-						publish({ isPending: false });
-					}
-					const parsedError = toPipelineSettingsError(
-						cause,
-						'流水线设置未能保存，请稍后重试',
+		const pipeline = snapshot.pipeline;
+		if (!pipeline || pendingPatch) return;
+		// AC 8 / E-356: PATCH 永远发四键全量
+		const fullBody: UpdatePipelineSettingsBody = {
+			bughunt: partial.bughunt !== undefined ? partial.bughunt : pipeline.bughunt,
+			wrapupMode: partial.wrapupMode !== undefined ? partial.wrapupMode : pipeline.wrapupMode,
+			reviewOverride:
+				partial.reviewOverride !== undefined ? partial.reviewOverride : pipeline.reviewOverride,
+			wrapupAssignment:
+				partial.wrapupAssignment !== undefined
+					? partial.wrapupAssignment
+					: pipeline.wrapupAssignment,
+		};
+		const pending: PendingPipelinePatch = {
+			body: fullBody,
+			deviceId: readCurrentDeviceId(),
+			httpDone: false,
+			eventSeen: false,
+		};
+		pendingPatch = pending;
+		sourceVersion += 1;
+		// pending 期间四个控件一起 disabled
+		publish({ isPending: true, error: null, fieldErrors: {} });
+		const completion = (async () => {
+			try {
+				if (options.patcher) {
+					await options.patcher(fullBody);
+				} else if (patchPipelineRoute) {
+					await httpClient.callRoute<UpdatePipelineSettingsResponse, UpdatePipelineSettingsBody>(
+						patchPipelineRoute,
+						{
+							body: fullBody,
+						},
 					);
-					publish({
-						error: parsedError,
-						fieldErrors: parsedError.fieldErrors ?? {},
-					});
 				}
-			})();
-			patchCompletion = completion;
-			await completion;
-			if (patchCompletion === completion) patchCompletion = null;
-		};
 
-		const updatePipelineToggles = async (partial: {
-			bughunt?: 0 | 1;
-			wrapupMode?: 'auto' | 'manual';
-		}) => {
-			return updatePipelineSettings(partial);
-		};
+				pending.httpDone = true;
+				if (pending.eventSeen && pendingPatch === pending) {
+					pendingPatch = null;
+					publish({ isPending: false });
+				}
+			} catch (cause: unknown) {
+				if (pendingPatch === pending) {
+					pendingPatch = null;
+					publish({ isPending: false });
+				}
+				const parsedError = toPipelineSettingsError(cause, '流水线设置未能保存，请稍后重试');
+				publish({
+					error: parsedError,
+					fieldErrors: parsedError.fieldErrors ?? {},
+				});
+			}
+		})();
+		patchCompletion = completion;
+		await completion;
+		if (patchCompletion === completion) patchCompletion = null;
+	};
 
-		return {
-			getSnapshot: () => snapshot,
-			subscribe: (listener) => {
-				listeners.add(listener);
-				if (listeners.size === 1) start();
-				return () => {
-					listeners.delete(listener);
-					if (listeners.size === 0) {
-						cleanup?.();
-						cleanup = null;
-						unregister(settingsPipeline());
-						if (!options.initialPipeline) publish({ pipeline: null, error: null });
-					}
-				};
-			},
-			updatePipelineSettings,
-			updatePipelineToggles,
-			clearError: () => publish({ error: null, fieldErrors: {} }),
-		};
+	const updatePipelineToggles = async (partial: {
+		bughunt?: 0 | 1;
+		wrapupMode?: 'auto' | 'manual';
+	}) => {
+		return updatePipelineSettings(partial);
+	};
+
+	return {
+		getSnapshot: () => snapshot,
+		subscribe: (listener) => {
+			listeners.add(listener);
+			if (listeners.size === 1) start();
+			return () => {
+				listeners.delete(listener);
+				if (listeners.size === 0) {
+					cleanup?.();
+					cleanup = null;
+					unregister(settingsPipeline());
+					if (!options.initialPipeline) publish({ pipeline: null, error: null });
+				}
+			};
+		},
+		updatePipelineSettings,
+		updatePipelineToggles,
+		clearError: () => publish({ error: null, fieldErrors: {} }),
+	};
 }
 
 const sharedPipelineSource = createPipelineSettingsSource();

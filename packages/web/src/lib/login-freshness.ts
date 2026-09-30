@@ -60,7 +60,11 @@ export function isLoginExpired(checkedAt: string | null | undefined, now = Date.
  * - 时钟回拨或在 1 分钟之内返回 '刚刚'
  * - 否则返回 'N 分钟前探测'
  */
-export function formatProbeTime(checkedAt: string | null | undefined, now = Date.now()): string {
+export function formatProbeTime(
+	checkedAt: string | null | undefined,
+	now: number,
+	copy: { justNow: string; probedMinutesAgo: (minutes: number) => string },
+): string {
 	if (!checkedAt) {
 		return '—';
 	}
@@ -70,14 +74,14 @@ export function formatProbeTime(checkedAt: string | null | undefined, now = Date
 	}
 	// 时钟回拨
 	if (timestamp > now) {
-		return '刚刚';
+		return copy.justNow;
 	}
 	const diffMs = now - timestamp;
 	const diffMinutes = Math.floor(diffMs / ONE_MINUTE_MS);
 	if (diffMinutes <= 0) {
-		return '刚刚';
+		return copy.justNow;
 	}
-	return `${diffMinutes} 分钟前探测`;
+	return copy.probedMinutesAgo(diffMinutes);
 }
 
 /**
@@ -85,21 +89,25 @@ export function formatProbeTime(checkedAt: string | null | undefined, now = Date
  * 徽标 login === null / undefined 时不显示。
  * 三态文案：已登录／未登录／无法判定；若过期追加「 · 已过期」。
  */
-export function getLoginBadgeText(login: LoginState | null | undefined, now = Date.now()): string | null {
+export function getLoginBadgeText(
+	login: LoginState | null | undefined,
+	now: number,
+	copy: { loggedIn: string; loggedOut: string; unknown: string; expiredSuffix: string },
+): string | null {
 	if (!login) {
 		return null;
 	}
 	let label: string;
 	if (isLoggedIn(login)) {
-		label = '已登录';
+		label = copy.loggedIn;
 	} else if (isLoggedOut(login)) {
-		label = '未登录';
+		label = copy.loggedOut;
 	} else {
-		label = '无法判定';
+		label = copy.unknown;
 	}
 
 	if (isLoginExpired(login.checkedAt, now)) {
-		return `${label} · 已过期`;
+		return `${label} ${copy.expiredSuffix}`;
 	}
 	return label;
 }

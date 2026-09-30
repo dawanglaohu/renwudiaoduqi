@@ -31,6 +31,8 @@ export interface UseSettingsAgentsOptions {
 	readonly targetDocId?: string | null;
 }
 
+export type AgentSettingKey = AgentFieldKey | 'defaultEffortTier';
+
 export interface UseSettingsAgentsResult {
 	readonly agents: readonly AgentEntryWithLayers[];
 	readonly isLoading: boolean;
@@ -42,7 +44,7 @@ export interface UseSettingsAgentsResult {
 	readonly probingAgentId: string | null;
 	readonly updatingAgentId: string | null;
 	readonly validationErrors: Readonly<
-		Record<string, Partial<Record<AgentFieldKey | 'defaultEffortTier', FieldErrorInfo>>>
+		Record<string, Partial<Record<AgentSettingKey, FieldErrorInfo>>>
 	>;
 	readonly loadAgents: () => Promise<void>;
 	readonly probeAgent: (agentId: string) => Promise<ProbeAgentResponse | undefined>;
@@ -116,7 +118,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	const [probingAgentId, setProbingAgentId] = useState<string | null>(null);
 	const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
 	const [validationErrors, setValidationErrors] = useState<
-		Record<string, Partial<Record<AgentFieldKey, FieldErrorInfo>>>
+		Record<string, Partial<Record<AgentSettingKey, FieldErrorInfo>>>
 	>({});
 
 	// Load document laneCount strictly from resolved targetDocId

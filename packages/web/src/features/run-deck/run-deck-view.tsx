@@ -22,7 +22,7 @@ import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { type ReactNode, useCallback } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { navigateTo } from '../../app/routes.tsx';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
@@ -34,6 +34,7 @@ import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { useCanDispatch } from '../../store/connection-store.ts';
 import { useSelectionStore } from '../../store/selection-store.ts';
 import type { LaneStepItem } from './lane-steps-container.tsx';
@@ -117,7 +118,7 @@ function LaneGateCard(props: LaneGateCardProps) {
 	);
 }
 
-function TaskApprovalCard(props: {
+export function TaskApprovalCard(props: {
 	readonly gate: GateDto;
 	readonly task: TaskDto | undefined;
 	readonly runs: readonly RunDto[];
@@ -135,51 +136,97 @@ function TaskApprovalCard(props: {
 				(a, b) => a.attemptNo - b.attemptNo || (a.startedAt ?? '').localeCompare(b.startedAt ?? ''),
 			)
 			.at(-1);
-	const targetRun = reviewRun?.parentRunId
-		? runs.find((run) => run.id === reviewRun.parentRunId)
-		: null;
+	const targetRun =
+		gate.context && gate.runId
+			? runs.find((run) => run.id === gate.runId)
+			: reviewRun?.parentRunId
+				? runs.find((run) => run.id === reviewRun.parentRunId)
+				: null;
 	const delivery = useGateCard({
-		runId: targetRun?.id,
+		runId: gate.context ? gate.runId : targetRun?.id,
+		taskId: gate.taskId,
+		batchId: task?.batchId,
+		snapshotAgentId: targetRun?.agentId,
 		reviewVerdict: reviewRun?.reviewVerdict,
 		reworkText: reviewRun?.reworkText,
 		canReply: targetRun?.capabilities?.canReply,
 	});
+	const [rejectOpen, setRejectOpen] = useState(false);
+	const dialogRef = useRef<HTMLDialogElement>(null);
+	useEffect(() => {
+		if (rejectOpen) {
+			dialogRef.current?.showModal?.();
+			dialogRef.current?.querySelector('button')?.focus();
+		} else dialogRef.current?.close?.();
+	}, [rejectOpen]);
 	return (
-		<GateCard
-			gateKind={gate.kind}
-			gate={gate}
-			taskKey={task?.taskKey ?? '—'}
-			taskTitle={task?.title ?? '—'}
-			reviewVerdict={reviewRun?.reviewVerdict ?? undefined}
-			reworkText={reviewRun?.reworkText ?? undefined}
-			canReply={delivery.canReply}
-			deliveryNotice={delivery.deliveryNotice}
-			isReworkTextCopied={delivery.isReworkTextCopied}
-			onCopyReworkText={() => {
-				void delivery.copyReworkText();
-			}}
-			disabled={!onDecideGate}
-			tier={tier}
-			isMobile={isMobileMode}
-			isTouch={isTouch}
-			stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
-			onApprove={() => {
-				void onDecideGate?.(gate.id, 'pass');
-			}}
-			onEdit={() => {
-				void onDecideGate?.(gate.id, 'reject', '改一下');
-			}}
-			onReject={() => {
-				void onDecideGate?.(gate.id, 'reject');
-			}}
-			{...(delivery.shouldShowDeliverRaw
-				? {
-						onDeliverRaw: () => {
-							void delivery.deliverRaw();
-						},
-					}
-				: {})}
-		/>
+		<>
+			<GateCard
+				gateKind={gate.kind}
+				gate={gate}
+				taskKey={task?.taskKey ?? '—'}
+				taskTitle={task?.title ?? '—'}
+				reviewVerdict={reviewRun?.reviewVerdict ?? undefined}
+				reworkText={reviewRun?.reworkText ?? undefined}
+				canReply={delivery.canReply}
+				deliveryNotice={delivery.deliveryNotice}
+				isReworkTextCopied={delivery.isReworkTextCopied}
+				onCopyReworkText={() => {
+					void delivery.copyReworkText();
+				}}
+				disabled={!onDecideGate || delivery.isRerunPending}
+				tier={tier}
+				isMobile={isMobileMode}
+				isTouch={isTouch}
+				stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
+				onApprove={() => {
+					if (gate.context) void delivery.handleApproveRerun();
+					else void onDecideGate?.(gate.id, 'pass');
+				}}
+				onEdit={() => {
+					if (gate.context) {
+						if (task) useSelectionStore.getState().setSelectedDocId(task.docId);
+						if (task?.batchId) useSelectionStore.getState().setSelectedBatchId(task.batchId);
+						delivery.handleReassign();
+					} else void onDecideGate?.(gate.id, 'reject', UI_STRINGS.gateCard.editComment);
+				}}
+				onReject={() => {
+					setRejectOpen(true);
+				}}
+				{...(delivery.shouldShowDeliverRaw
+					? {
+							onDeliverRaw: () => {
+								void delivery.deliverRaw();
+							},
+						}
+					: {})}
+			/>
+			{delivery.actionError && <InlineNotice tone="down" message={delivery.actionError} />}
+			<dialog
+				ref={dialogRef}
+				data-testid="reject-confirm-dialog"
+				onCancel={() => setRejectOpen(false)}
+				className="p-4 rounded-[var(--r-sm)] bg-[var(--panel)] text-[var(--ink-1)] border border-[var(--border)]"
+			>
+				<form method="dialog" className="flex flex-col gap-3">
+					<h2>{UI_STRINGS.rejectConfirm.title}</h2>
+					<p>{UI_STRINGS.rejectConfirm.note}</p>
+					<button type="submit" onClick={() => setRejectOpen(false)}>
+						{UI_STRINGS.rejectConfirm.cancel}
+					</button>
+					<button
+						type="submit"
+						data-testid="confirm-reject"
+						onClick={() => {
+							setRejectOpen(false);
+							void onDecideGate?.(gate.id, 'reject');
+						}}
+					>
+						{UI_STRINGS.rejectConfirm.confirm}
+					</button>
+				</form>
+			</dialog>
+		</>
 	);
 }
 
@@ -389,7 +436,9 @@ export function RunDeckView(props: RunDeckViewProps) {
 		(streamCount === 0 || (rawLanes !== undefined && !hasAssignedLane)) &&
 		pendingGates.length === 0 &&
 		!error;
-	const assignPanel = useAssignPanel({ enabled: showOnboarding });
+	const reassignTaskId = useSelectionStore((state) => state.reassignTaskId);
+	const reassignToast = useSelectionStore((state) => state.reassignToast);
+	const assignPanel = useAssignPanel({ enabled: showOnboarding || Boolean(reassignTaskId) });
 	const canDispatch = useCanDispatch();
 	const approvalExpandedIds = new Set(expandedIds);
 	for (const batch of treeBatches) {
@@ -402,15 +451,42 @@ export function RunDeckView(props: RunDeckViewProps) {
 		if (!gate) return null;
 		const task = tasks.find((entry) => entry.id === taskId);
 		return (
-			<TaskApprovalCard
-				gate={gate}
-				task={task}
-				runs={runs}
-				tier={tier}
-				isMobileMode={isMobileMode}
-				isTouch={isTouch}
-				onDecideGate={onDecideGate}
-			/>
+			<>
+				<TaskApprovalCard
+					gate={gate}
+					task={task}
+					runs={runs}
+					tier={tier}
+					isMobileMode={isMobileMode}
+					isTouch={isTouch}
+					onDecideGate={onDecideGate}
+				/>
+				{reassignTaskId === taskId && (
+					<>
+						{reassignToast && <output>{reassignToast}</output>}
+						{assignPanel.error && (
+							<InlineNotice
+								tone="down"
+								message={assignPanel.error.message}
+								technical={assignPanel.error.technical}
+							/>
+						)}
+						<AssignPanel
+							mode="step3"
+							tasks={assignPanel.tasks.filter((entry) => entry.id === taskId)}
+							agents={assignPanel.agents}
+							assignments={assignPanel.assignments}
+							reassignTaskId={reassignTaskId}
+							onRefreshAgentModels={(id) => {
+								void assignPanel.refreshAgentModels(id);
+							}}
+							onAssignTask={(id, selection) => {
+								void assignPanel.assignTask(id, selection);
+							}}
+						/>
+					</>
+				)}
+			</>
 		);
 	};
 
@@ -446,6 +522,10 @@ export function RunDeckView(props: RunDeckViewProps) {
 				step3Slot={
 					<AssignPanel
 						mode="step3"
+						reassignTaskId={reassignTaskId}
+						onRefreshAgentModels={(id) => {
+							void assignPanel.refreshAgentModels(id);
+						}}
 						tasks={assignPanel.tasks}
 						agents={assignPanel.agents}
 						assignments={assignPanel.assignments}

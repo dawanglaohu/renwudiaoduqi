@@ -11,13 +11,13 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as agentsApi from '../src/api/agents.ts';
-import { clearResourceCache, getRegisteredKeys, refetchAll } from '../src/api/resource-cache.ts';
+import { clearResourceCache, refetchAll } from '../src/api/resource-cache.ts';
 import { useAgentModels } from '../src/features/settings-agents/use-agent-models.ts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('use-agent-models (AC 4, E-338, E-339)', () => {
-	let container: HTMLDivElement | null = null;
+	let container: HTMLDivElement;
 
 	const mockCatalog1: ListAgentModelsResponse = {
 		models: [
@@ -61,18 +61,13 @@ describe('use-agent-models (AC 4, E-338, E-339)', () => {
 	});
 
 	afterEach(() => {
-		if (container) {
-			container.remove();
-			container = null;
-		}
+		container.remove();
 		clearResourceCache();
 		vi.restoreAllMocks();
 	});
 
 	it('initial fetch uses normal fetcher without refresh query (AC 4)', async () => {
-		const listModelsSpy = vi
-			.spyOn(agentsApi, 'listModels')
-			.mockResolvedValueOnce(mockCatalog1);
+		const listModelsSpy = vi.spyOn(agentsApi, 'listModels').mockResolvedValueOnce(mockCatalog1);
 
 		let hookResult: ReturnType<typeof useAgentModels> | undefined;
 
@@ -81,7 +76,7 @@ describe('use-agent-models (AC 4, E-338, E-339)', () => {
 			return createElement('div', null, hookResult.models.map((m) => m.name).join(','));
 		}
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		await act(async () => {
 			root.render(createElement(TestComponent));
 		});
@@ -124,7 +119,7 @@ describe('use-agent-models (AC 4, E-338, E-339)', () => {
 			return createElement('div', { 'data-testid': 'panel-2' });
 		}
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		await act(async () => {
 			root.render(createElement('div', null, createElement(Panel1), createElement(Panel2)));
 		});
@@ -141,7 +136,7 @@ describe('use-agent-models (AC 4, E-338, E-339)', () => {
 
 		// Resolve the refresh promise
 		await act(async () => {
-			resolveRefresh!(mockCatalog2);
+			resolveRefresh?.(mockCatalog2);
 			await refreshOp;
 		});
 
@@ -149,6 +144,7 @@ describe('use-agent-models (AC 4, E-338, E-339)', () => {
 		expect(hookResult1?.isRefreshing).toBe(false);
 		expect(hookResult2?.isRefreshing).toBe(false);
 		expect(hookResult1?.models.map((m) => m.name)).toEqual(['model-a', 'model-c']);
+		expect(hookResult2?.catalog).toEqual(mockCatalog2);
 
 		act(() => {
 			root.unmount();
@@ -169,7 +165,7 @@ describe('use-agent-models (AC 4, E-338, E-339)', () => {
 			return null;
 		}
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		await act(async () => {
 			root.render(createElement(TestComponent));
 		});

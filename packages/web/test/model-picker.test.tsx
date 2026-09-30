@@ -15,7 +15,7 @@ import { ModelPicker } from '../src/components/model-picker.tsx';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
-	let container: HTMLDivElement | null = null;
+	let container: HTMLDivElement;
 
 	const mockCatalog: ListAgentModelsResponse = {
 		models: [
@@ -65,14 +65,11 @@ describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
 	});
 
 	afterEach(() => {
-		if (container) {
-			container.remove();
-			container = null;
-		}
+		container.remove();
 	});
 
 	it('disables trigger when catalog is null (AC 2)', () => {
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(
 				createElement(ModelPicker, {
@@ -83,7 +80,7 @@ describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
 			);
 		});
 
-		const trigger = container?.querySelector('[data-testid="grouped-select-trigger"]');
+		const trigger = container.querySelector('[data-testid="grouped-select-trigger"]');
 		expect(trigger).not.toBeNull();
 		expect(trigger?.hasAttribute('disabled')).toBe(true);
 
@@ -92,8 +89,35 @@ describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
 		});
 	});
 
+	it('renders future source text and duplicate daemon entries in the actual dropdown', async () => {
+		const root = createRoot(container);
+		await act(async () =>
+			root.render(
+				createElement(ModelPicker, {
+					catalog: {
+						...mockCatalog,
+						models: [
+							{ name: 'same-model', source: 'future-provider-source', isCurrentConfig: false },
+							{ name: 'same-model', source: 'future-provider-source', isCurrentConfig: false },
+						],
+					},
+					selectedModel: null,
+					onSelectModel: vi.fn(),
+				}),
+			),
+		);
+		await act(async () => container.querySelector<HTMLButtonElement>('[role="combobox"]')?.click());
+		expect(
+			document.querySelectorAll('[role="option"][data-testid="select-option-same-model"]'),
+		).toHaveLength(2);
+		expect(document.querySelector('[data-group="other"]')?.textContent).toContain(
+			'future-provider-source',
+		);
+		await act(async () => root.unmount());
+	});
+
 	it('renders incomplete footer when isComplete is false (AC 2, E-38)', async () => {
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(
 				createElement(ModelPicker, {
@@ -105,7 +129,9 @@ describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
 			);
 		});
 
-		const trigger = container?.querySelector('[data-testid="grouped-select-trigger"]') as HTMLButtonElement | null;
+		const trigger = container.querySelector(
+			'[data-testid="grouped-select-trigger"]',
+		) as HTMLButtonElement | null;
 		expect(trigger).not.toBeNull();
 		expect(trigger?.hasAttribute('disabled')).toBe(false);
 
@@ -139,7 +165,7 @@ describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
 			isRefreshing: true,
 		};
 
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(
 				createElement(ModelPicker, {
@@ -150,7 +176,7 @@ describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
 			);
 		});
 
-		const trigger = container?.querySelector('[data-testid="grouped-select-trigger"]');
+		const trigger = container.querySelector('[data-testid="grouped-select-trigger"]');
 		expect(trigger?.textContent).toContain('实时清单获取中');
 
 		act(() => {
@@ -160,7 +186,7 @@ describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
 
 	it('renders refresh button and calls onRefresh when clicked (AC 1, AC 4)', async () => {
 		const onRefreshMock = vi.fn();
-		const root = createRoot(container!);
+		const root = createRoot(container);
 		act(() => {
 			root.render(
 				createElement(ModelPicker, {
@@ -172,7 +198,9 @@ describe('ModelPicker (AC 2, E-338, E-339, E-350)', () => {
 			);
 		});
 
-		const refreshBtn = container?.querySelector('[data-testid="refresh-models-btn"]') as HTMLButtonElement | null;
+		const refreshBtn = container.querySelector(
+			'[data-testid="refresh-models-btn"]',
+		) as HTMLButtonElement | null;
 		expect(refreshBtn).not.toBeNull();
 
 		await act(async () => {

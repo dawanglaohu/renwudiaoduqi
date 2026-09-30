@@ -15,6 +15,7 @@
 import type { LoginState } from '@agent-scheduler/shared/api/agents';
 import type { HTMLAttributes } from 'react';
 import { useMinuteTick } from '../hooks/use-minute-tick.ts';
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
 import {
 	formatProbeTime,
 	getLoginBadgeText,
@@ -27,12 +28,7 @@ export interface LoginBadgeProps extends HTMLAttributes<HTMLSpanElement> {
 	readonly now?: number;
 }
 
-export function LoginBadge({
-	login,
-	now: propNow,
-	className = '',
-	...rest
-}: LoginBadgeProps) {
+export function LoginBadge({ login, now: propNow, className = '', ...rest }: LoginBadgeProps) {
 	const tickNow = useMinuteTick();
 	const now = propNow ?? tickNow;
 
@@ -40,15 +36,13 @@ export function LoginBadge({
 		return null;
 	}
 
-	const badgeText = getLoginBadgeText(login, now);
+	const badgeText = getLoginBadgeText(login, now, UI_STRINGS.login);
 	const variant = getLoginBadgeVariant(login, now);
-	const timeTitle = formatProbeTime(login.checkedAt, now);
+	const timeTitle = formatProbeTime(login.checkedAt, now, UI_STRINGS.login);
 
-	let variantClasses =
-		'border-[var(--border)] text-[var(--ink-2)] bg-[var(--panel-2)]';
+	let variantClasses = 'border-[var(--border)] text-[var(--ink-2)] bg-[var(--panel-2)]';
 	if (variant === 'warm') {
-		variantClasses =
-			'border-[var(--needs)] text-[var(--needs)] bg-[var(--needs-soft)]';
+		variantClasses = 'border-[var(--needs)] text-[var(--needs)] bg-[var(--needs-soft)]';
 	} else if (variant === 'expired') {
 		// 已过期退成无色虚线边，不使用 opacity
 		variantClasses =

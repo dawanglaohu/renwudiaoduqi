@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * packages/web/test/gate-card.test.tsx
  *
@@ -5,11 +6,16 @@
  */
 
 import type { LoginState } from '@agent-scheduler/shared/api/agents';
-import { createElement } from 'react';
+import type { GateDto } from '@agent-scheduler/shared/api/gates';
+import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { httpClient } from '../src/api/http-client.ts';
 import { GateCard } from '../src/components/gate-card.tsx';
 import * as batchExpansion from '../src/features/run-deck/batch-expansion.ts';
+import { TaskApprovalCard } from '../src/features/run-deck/run-deck-view.tsx';
 import { useGateCard } from '../src/features/run-deck/use-gate-card.ts';
 import { UI_STRINGS } from '../src/i18n/ui-strings.ts';
 import { useSelectionStore } from '../src/store/selection-store.ts';
@@ -187,5 +193,123 @@ describe('useGateCard hook actions (AC 6, E-348, E-359)', () => {
 		expect(state.reassignTaskId).toBe('task-10');
 		expect(state.reassignToast).toBe('已清除筛选以定位 task-10');
 		expect(state.assignments['task-10']?.agentId).toBe('agent-cx');
+	});
+});
+
+describe('R3: production task approval assembly', () => {
+	const task: TaskDto = {
+		id: 'task-zero',
+		taskKey: 'ZERO-T1',
+		title: 'Zero task',
+		docId: 'doc-zero',
+		batchId: 'batch-zero',
+		state: 'awaiting_human',
+		deps: [],
+		moduleKey: 'M9',
+		estDays: 1,
+	};
+	const gate: GateDto = {
+		id: 'gate-zero',
+		taskId: task.id,
+		runId: 'run-zero',
+		kind: 'review',
+		state: 'waiting',
+		decision: null,
+		comment: null,
+		decidedByDeviceId: null,
+		createdAt: '2026-09-30',
+		decidedAt: null,
+		context: {
+			exitCode: 1,
+			exitSignal: null,
+			stderrTail: { kind: 'lines', lines: ['invalid model'] },
+			login: null,
+		},
+	};
+	it('rerun uses its run route; reassign expands before navigation; failure waits for confirmation', async () => {
+		const call = vi.spyOn(httpClient, 'callRoute').mockResolvedValue({});
+		const decide = vi.fn();
+		const order: string[] = [];
+		const expand = vi.spyOn(batchExpansion, 'expandBatch').mockImplementation(() => {
+			order.push('expand');
+		});
+		const open = vi.spyOn(useSelectionStore.getState(), 'openReassign').mockImplementation(() => {
+			order.push('open');
+		});
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+		await act(async () => {
+			root.render(
+				createElement(TaskApprovalCard, {
+					gate,
+					task,
+					runs: [],
+					tier: 'full',
+					isMobileMode: false,
+					isTouch: false,
+					onDecideGate: decide,
+				}),
+			);
+		});
+		expect(document.activeElement).toBe(container.querySelector('[data-action="approve"]'));
+		await act(async () => {
+			container.querySelector<HTMLButtonElement>('[data-action="approve"]')?.click();
+		});
+		expect(call).toHaveBeenCalledTimes(1);
+		expect(call.mock.calls[0]?.[0].path).toBe('/api/v1/runs/:runId/rerun');
+		expect(call.mock.calls[0]?.[1]?.params).toEqual({ runId: 'run-zero' });
+		expect(decide).not.toHaveBeenCalled();
+		await act(async () => {
+			container.querySelector<HTMLButtonElement>('[data-action="edit"]')?.click();
+		});
+		expect(order).toEqual(['expand', 'open']);
+		expect(expand).toHaveBeenCalledWith(task.batchId);
+		expect(open).toHaveBeenCalledWith(task.id, null);
+		expect(decide).not.toHaveBeenCalled();
+		await act(async () => {
+			container.querySelector<HTMLButtonElement>('[data-action="reject"]')?.click();
+		});
+		expect(decide).not.toHaveBeenCalled();
+		await act(async () => {
+			container.querySelector<HTMLButtonElement>('[data-testid="confirm-reject"]')?.click();
+		});
+		expect(decide).toHaveBeenCalledWith(gate.id, 'reject');
+		expect(call).toHaveBeenCalledTimes(1);
+		act(() => root.unmount());
+		container.remove();
+		vi.restoreAllMocks();
+	});
+	it('ordinary approval and edit keep their gate decisions and never rerun', async () => {
+		const call = vi.spyOn(httpClient, 'callRoute').mockResolvedValue({});
+		const decide = vi.fn();
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+		await act(async () => {
+			root.render(
+				createElement(TaskApprovalCard, {
+					gate: { ...gate, context: null },
+					task,
+					runs: [],
+					tier: 'full',
+					isMobileMode: false,
+					isTouch: false,
+					onDecideGate: decide,
+				}),
+			);
+		});
+		await act(async () => {
+			container.querySelector<HTMLButtonElement>('[data-action="approve"]')?.click();
+			container.querySelector<HTMLButtonElement>('[data-action="edit"]')?.click();
+		});
+		expect(decide.mock.calls).toEqual([
+			[gate.id, 'pass'],
+			[gate.id, 'reject', '改一下'],
+		]);
+		expect(call).not.toHaveBeenCalled();
+		act(() => root.unmount());
+		container.remove();
+		vi.restoreAllMocks();
 	});
 });

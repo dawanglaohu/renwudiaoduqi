@@ -161,6 +161,8 @@ export interface UseGateCardResult {
 	/** 清掉当前提示 */
 	readonly dismissNotice: () => void;
 	/** 零产出退出 [重跑] 动作（POST /runs/:runId/rerun，AC 6, E-348） */
+	readonly isRerunPending: boolean;
+	readonly actionError: string | null;
 	readonly handleApproveRerun: () => Promise<void>;
 	/** 零产出退出 [换 agent 重派] 动作（展开批次 + openReassign，AC 6, E-359） */
 	readonly handleReassign: () => void;
@@ -254,18 +256,26 @@ export function useGateCard(options: UseGateCardOptions = {}): UseGateCardResult
 		return ok;
 	}, [rawText]);
 
+	const [isRerunPending, setRerunPending] = useState(false);
+	const [actionError, setActionError] = useState<string | null>(null);
 	const dismissNotice = useCallback(() => setDeliveryNotice(null), []);
 
 	// AC 6 / E-348: 零产出 [重跑] 映射为 POST /runs/:runId/rerun
 	const handleApproveRerun = useCallback(async (): Promise<void> => {
-		if (onApproveRerun) {
-			await onApproveRerun();
-			return;
+		if (isRerunPending) return;
+		setRerunPending(true);
+		setActionError(null);
+		try {
+			if (onApproveRerun) await onApproveRerun();
+			else if (runId) await rerunRun(runId);
+		} catch (cause) {
+			setActionError(
+				isApiError(cause) ? getErrorMessage(cause.code) : getErrorMessage('E_INTERNAL'),
+			);
+		} finally {
+			setRerunPending(false);
 		}
-		if (runId) {
-			await rerunRun(runId);
-		}
-	}, [onApproveRerun, runId]);
+	}, [onApproveRerun, runId, isRerunPending]);
 
 	// AC 6 / E-359: 零产出 [换 agent 重派] 先展开批次再 openReassign
 	const handleReassign = useCallback((): void => {
@@ -290,6 +300,8 @@ export function useGateCard(options: UseGateCardOptions = {}): UseGateCardResult
 		deliverRaw,
 		copyReworkText,
 		dismissNotice,
+		isRerunPending,
+		actionError,
 		handleApproveRerun,
 		handleReassign,
 	};

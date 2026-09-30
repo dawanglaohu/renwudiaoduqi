@@ -10,8 +10,6 @@
  */
 
 import type {
-	AgentParams,
-	ListAgentModelsQuery,
 	ListAgentModelsResponse,
 	ListAgentsResponse,
 	ProbeAgentResponse,
@@ -46,17 +44,12 @@ export function listModels(
 	agentId: string,
 	options?: ListModelsOptions,
 ): Promise<ListAgentModelsResponse> {
-	const query: ListAgentModelsQuery | undefined = options?.refresh
-		? { refresh: '1' }
-		: undefined;
+	const query: Record<string, string> | undefined = options?.refresh ? { refresh: '1' } : undefined;
 
-	return httpClient.callRoute<ListAgentModelsResponse, void, AgentParams, ListAgentModelsQuery>(
-		LIST_MODELS_ROUTE,
-		{
-			params: { agentId },
-			query,
-		},
-	);
+	return httpClient.callRoute<ListAgentModelsResponse>(LIST_MODELS_ROUTE, {
+		params: { agentId },
+		query,
+	});
 }
 
 /**
@@ -69,24 +62,18 @@ export function listAgents(): Promise<ListAgentsResponse> {
 /**
  * 更新指定 Agent 的设置覆盖（包含 clearOverrides 清除覆盖）。
  */
-export function updateAgent(
-	agentId: string,
-	body: UpdateAgentBody,
-): Promise<UpdateAgentResponse> {
-	return httpClient.callRoute<UpdateAgentResponse, UpdateAgentBody, AgentParams>(
-		UPDATE_AGENT_ROUTE,
-		{
-			params: { agentId },
-			body,
-		},
-	);
+export function updateAgent(agentId: string, body: UpdateAgentBody): Promise<UpdateAgentResponse> {
+	return httpClient.callRoute<UpdateAgentResponse, UpdateAgentBody>(UPDATE_AGENT_ROUTE, {
+		params: { agentId },
+		body,
+	});
 }
 
 /**
  * 重新探测指定 Agent。
  */
 export function probeAgent(agentId: string): Promise<ProbeAgentResponse> {
-	return httpClient.callRoute<ProbeAgentResponse, void, AgentParams>(PROBE_AGENT_ROUTE, {
+	return httpClient.callRoute<ProbeAgentResponse>(PROBE_AGENT_ROUTE, {
 		params: { agentId },
 	});
 }

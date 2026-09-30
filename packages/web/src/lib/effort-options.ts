@@ -29,6 +29,13 @@ export interface EffortOptionGroup {
 }
 
 export interface BuildEffortOptionsParams {
+	readonly copy: {
+		follow: string;
+		low: string;
+		medium: string;
+		high: string;
+		groups: { tiers: string; vendor: string };
+	};
 	readonly vendorMap?: EffortVendorMap | null;
 	readonly currentConfigEffort?: EffortValue;
 	readonly selectedModelEffortOptions?: readonly string[];
@@ -79,6 +86,7 @@ export function buildEffortOptionGroups({
 	selectedModelEffortOptions = [],
 	allowVendor = true,
 	effortRecognized = true,
+	copy,
 }: BuildEffortOptionsParams): readonly EffortOptionGroup[] {
 	if (vendorMap === null || vendorMap === undefined) {
 		return [];
@@ -94,28 +102,28 @@ export function buildEffortOptionGroups({
 	const tierItems: EffortOptionItem[] = [
 		{
 			encodedValue: '',
-			label: '跟随默认',
+			label: copy.follow,
 			rawValue: null,
 			isCurrentConfig: isCurrentNull,
 			isUnrecognized: false,
 		},
 		{
 			encodedValue: 'tier:low',
-			label: '低档 (low)',
+			label: copy.low,
 			rawValue: { tier: 'low' },
 			isCurrentConfig: currentTier === 'low',
 			isUnrecognized: false,
 		},
 		{
 			encodedValue: 'tier:medium',
-			label: '中档 (medium)',
+			label: copy.medium,
 			rawValue: { tier: 'medium' },
 			isCurrentConfig: currentTier === 'medium',
 			isUnrecognized: false,
 		},
 		{
 			encodedValue: 'tier:high',
-			label: '高档 (high)',
+			label: copy.high,
 			rawValue: { tier: 'high' },
 			isCurrentConfig: currentTier === 'high',
 			isUnrecognized: false,
@@ -124,7 +132,7 @@ export function buildEffortOptionGroups({
 
 	groups.push({
 		id: 'tier',
-		label: '标准档位',
+		label: copy.groups.tiers,
 		items: tierItems,
 	});
 
@@ -171,7 +179,7 @@ export function buildEffortOptionGroups({
 		if (vendorItems.length > 0) {
 			groups.push({
 				id: 'vendor',
-				label: '厂商原值',
+				label: copy.groups.vendor,
 				items: vendorItems,
 			});
 		}
@@ -190,11 +198,10 @@ export interface EffortSupportWarningParams {
  * 校验所选模型的 effortOptions 是否支持当前选中的思考强度值（E-351）。
  * 返回非空时在选择器下方显示「该模型不支持 〈值〉」，不禁用不换值。
  */
-export function effortSupportWarning({
-	effort,
-	effortOptions,
-	vendorMap,
-}: EffortSupportWarningParams): string | null {
+export function effortSupportWarning(
+	{ effort, effortOptions, vendorMap }: EffortSupportWarningParams,
+	format: (value: string) => string,
+): string | null {
 	if (!effort || !effortOptions || effortOptions.length === 0) {
 		return null;
 	}
@@ -203,14 +210,14 @@ export function effortSupportWarning({
 		if (!vendorMap) return null;
 		const mappedVendor = vendorMap[effort.tier];
 		if (mappedVendor && !effortOptions.includes(mappedVendor)) {
-			return `该模型不支持 ${effort.tier}`;
+			return format(effort.tier);
 		}
 		return null;
 	}
 
 	if ('vendor' in effort) {
 		if (!effortOptions.includes(effort.vendor)) {
-			return `该模型不支持 ${effort.vendor}`;
+			return format(effort.vendor);
 		}
 		return null;
 	}

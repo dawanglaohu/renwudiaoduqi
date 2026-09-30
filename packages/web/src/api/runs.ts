@@ -15,7 +15,6 @@ import type {
 	GetRunResponse,
 	ListRunsResponse,
 	RerunRunBody,
-	RunDto,
 } from '@agent-scheduler/shared/api/runs';
 import { httpClient } from './http-client.ts';
 
@@ -40,7 +39,7 @@ function generateIdempotencyKey(): string {
  */
 export function rerunRun(runId: string, idempotencyKey?: string): Promise<CreateRunResponse> {
 	const key = idempotencyKey ?? generateIdempotencyKey();
-	return httpClient.callRoute<CreateRunResponse, RerunRunBody, { runId: string }>(RERUN_ROUTE, {
+	return httpClient.callRoute<CreateRunResponse, RerunRunBody>(RERUN_ROUTE, {
 		params: { runId },
 		body: { idempotencyKey: key },
 	});
@@ -50,7 +49,7 @@ export function rerunRun(runId: string, idempotencyKey?: string): Promise<Create
  * 获取单个运行详情。
  */
 export function getRun(runId: string): Promise<GetRunResponse> {
-	return httpClient.callRoute<GetRunResponse, void, { runId: string }>(GET_RUN_ROUTE, {
+	return httpClient.callRoute<GetRunResponse>(GET_RUN_ROUTE, {
 		params: { runId },
 	});
 }

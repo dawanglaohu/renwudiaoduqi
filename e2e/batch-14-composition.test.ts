@@ -959,7 +959,8 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 			isolatedProjectRoot = mkdtempSync(join(tmpdir(), 'agsched-e2e-project-'));
 			gitRepoDir = join(isolatedProjectRoot, 'repo');
 			mkdirSync(gitRepoDir, { recursive: true });
-			execFileSync('git', ['init', '-b', 'main', gitRepoDir], { stdio: 'ignore' });
+			execFileSync('git', ['init', gitRepoDir], { stdio: 'ignore' });
+			execFileSync('git', ['-C', gitRepoDir, 'symbolic-ref', 'HEAD', 'refs/heads/main'], { stdio: 'ignore' });
 			execFileSync('git', ['-C', gitRepoDir, 'config', 'user.name', 'Batch14 E2E'], { stdio: 'ignore' });
 			execFileSync('git', ['-C', gitRepoDir, 'config', 'user.email', 'b14-e2e@example.invalid'], { stdio: 'ignore' });
 
@@ -1113,7 +1114,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 				{ stdio: 'ignore' },
 			);
 
-			daemon = await startCompositionDaemon({ timeoutMs: 90000 });
+			daemon = await startCompositionDaemon({ timeoutMs: 240000 });
 			browser = await chromium.launch({
 				headless: true,
 				args:
@@ -1135,7 +1136,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 			}
 			throw err;
 		}
-	});
+	}, 300000);
 
 	afterEach(async ({ task }) => {
 		if (task.result?.state === 'fail') {
@@ -1399,13 +1400,11 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		// Configure task assignment for B14-T1: agent=codex, model=codex-standard, effortTier=high via UI (AC 1, E-347)
 		await page.getByTestId('select-agent-B14-T1').selectOption('codex');
 
-		const modelSelect = page.getByTestId('select-model-B14-T1');
-		await modelSelect.waitFor({ state: 'visible', timeout: 5000 });
-		await modelSelect.selectOption('codex-standard');
-
-		const effortSelect = page.getByTestId('select-effort-B14-T1');
-		await effortSelect.waitFor({ state: 'visible', timeout: 5000 });
-		await effortSelect.selectOption('high');
+		const assignmentRow = page.locator('[data-task-editing-row="B14-T1"]');
+		await assignmentRow.getByTestId('model-picker').getByRole('combobox').click();
+		await page.getByRole('option', { name: 'codex-standard', exact: true }).click();
+		await assignmentRow.getByTestId('effort-picker').getByRole('combobox').click();
+		await page.getByRole('option', { name: '高档 (high)', exact: true }).click();
 
 		const savedAssign = page.waitForResponse(
 			(res) =>

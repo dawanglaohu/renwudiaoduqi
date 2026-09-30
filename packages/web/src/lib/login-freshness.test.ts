@@ -7,14 +7,20 @@
 import type { LoginState } from '@agent-scheduler/shared/api/agents';
 import { describe, expect, it } from 'vitest';
 import {
-	formatProbeTime,
-	getLoginBadgeText,
+	getLoginBadgeText as badgeWithCopy,
+	formatProbeTime as formatWithCopy,
 	getLoginBadgeVariant,
 	isLoggedIn,
 	isLoggedOut,
 	isLoginExpired,
 	isLoginUnknown,
 } from './login-freshness.ts';
+
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
+const formatProbeTime = (checkedAt: string | null, now = Date.now()) =>
+	formatWithCopy(checkedAt, now, UI_STRINGS.login);
+const getLoginBadgeText = (login: LoginState | null | undefined, now = Date.now()) =>
+	badgeWithCopy(login, now, UI_STRINGS.login);
 
 describe('login-freshness: predicates', () => {
 	it('correctly identifies logged_in, logged_out, and unknown states', () => {

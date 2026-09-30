@@ -169,7 +169,8 @@ describe('check-forbidden: toggles must not import each other (M9-T22 / AC 1)', 
 describe('check-forbidden: client polling prohibited (Check 16 / AC 5, E-335, 07 节)', () => {
 	it('flags setInterval in general code files', () => {
 		const dir = scratchWebDir({
-			'src/hooks/use-polling.ts': 'export function usePolling() {\n\tsetInterval(() => {}, 5000);\n}\n',
+			'src/hooks/use-polling.ts':
+				'export function usePolling() {\n\tsetInterval(() => {}, 5000);\n}\n',
 		});
 		const hits = ruleHits(dir);
 		expect(hits).toContain('CLIENT_POLLING_PROHIBITED@use-polling.ts');
@@ -177,7 +178,8 @@ describe('check-forbidden: client polling prohibited (Check 16 / AC 5, E-335, 07
 
 	it('flags use-minute-tick importing src/api', () => {
 		const dir = scratchWebDir({
-			'src/hooks/use-minute-tick.ts': "import { getAgents } from '../api/agents';\nexport function useMinuteTick() {}\n",
+			'src/hooks/use-minute-tick.ts':
+				"import { getAgents } from '../api/agents';\nexport function useMinuteTick() {}\n",
 		});
 		const hits = ruleHits(dir);
 		expect(hits).toContain('CLIENT_POLLING_PROHIBITED@use-minute-tick.ts');
@@ -185,7 +187,8 @@ describe('check-forbidden: client polling prohibited (Check 16 / AC 5, E-335, 07
 
 	it('allows use-minute-tick using local setInterval without api imports', () => {
 		const dir = scratchWebDir({
-			'src/hooks/use-minute-tick.ts': 'export function useMinuteTick() {\n\tsetInterval(() => {}, 60000);\n}\n',
+			'src/hooks/use-minute-tick.ts':
+				'export function useMinuteTick() {\n\tsetInterval(() => {}, 60000);\n}\n',
 		});
 		expect(ruleHits(dir)).toEqual([]);
 	});
@@ -194,7 +197,8 @@ describe('check-forbidden: client polling prohibited (Check 16 / AC 5, E-335, 07
 describe('check-forbidden: agent ID special-casing prohibited (Check 17 / E-338, E-339, E-350)', () => {
 	it('flags agentId comparison with claude/pi/dsh', () => {
 		const dir = scratchWebDir({
-			'src/components/agent-picker.tsx': "export function isClaude(agentId: string) { return agentId === 'claude'; }\n",
+			'src/components/agent-picker.tsx':
+				"export function isClaude(agentId: string) { return agentId === 'claude'; }\n",
 		});
 		const hits = ruleHits(dir);
 		expect(hits).toContain('AGENT_ID_SPECIAL_CASE@agent-picker.tsx');
@@ -202,7 +206,8 @@ describe('check-forbidden: agent ID special-casing prohibited (Check 17 / E-338,
 
 	it('allows checking capability fields instead of agent IDs', () => {
 		const dir = scratchWebDir({
-			'src/components/agent-picker.tsx': 'export function hasEffort(agent: any) { return agent.layers?.effortVendorMap !== null; }\n',
+			'src/components/agent-picker.tsx':
+				'export function hasEffort(agent: any) { return agent.layers?.effortVendorMap !== null; }\n',
 		});
 		expect(ruleHits(dir)).toEqual([]);
 	});
@@ -211,7 +216,8 @@ describe('check-forbidden: agent ID special-casing prohibited (Check 17 / E-338,
 describe('check-forbidden: login state literals in UI layer prohibited (Check 18 / AC 1)', () => {
 	it('flags logged_in/logged_out string literals in UI components', () => {
 		const dir = scratchWebDir({
-			'src/components/login-status.tsx': "export function isReady(login: any) { return login.state === 'logged_in'; }\n",
+			'src/components/login-status.tsx':
+				"export function isReady(login: any) { return login.state === 'logged_in'; }\n",
 		});
 		const hits = ruleHits(dir);
 		expect(hits).toContain('LOGIN_STATE_LITERAL@login-status.tsx');
@@ -219,8 +225,10 @@ describe('check-forbidden: login state literals in UI layer prohibited (Check 18
 
 	it('allows predicates from login-freshness in UI layer and literals inside login-freshness.ts', () => {
 		const dir = scratchWebDir({
-			'src/lib/login-freshness.ts': "export function isLoggedIn(login: any) { return login?.state === 'logged_in'; }\n",
-			'src/components/login-status.tsx': "import { isLoggedIn } from '../lib/login-freshness';\nexport function isReady(login: any) { return isLoggedIn(login); }\n",
+			'src/lib/login-freshness.ts':
+				"export function isLoggedIn(login: any) { return login?.state === 'logged_in'; }\n",
+			'src/components/login-status.tsx':
+				"import { isLoggedIn } from '../lib/login-freshness';\nexport function isReady(login: any) { return isLoggedIn(login); }\n",
 		});
 		expect(ruleHits(dir)).toEqual([]);
 	});
@@ -229,7 +237,8 @@ describe('check-forbidden: login state literals in UI layer prohibited (Check 18
 describe('check-forbidden: login state inside disabled expression prohibited (Check 19 / E-336, E-355)', () => {
 	it('flags login.state and login predicates in disabled expressions', () => {
 		const dir = scratchWebDir({
-			'src/components/assign-panel.tsx': 'export function Panel({ login }: any) {\n\treturn <button disabled={isLoggedIn(login)}>OK</button>;\n}\n',
+			'src/components/assign-panel.tsx':
+				'export function Panel({ login }: any) {\n\treturn <button disabled={isLoggedIn(login)}>OK</button>;\n}\n',
 		});
 		const hits = ruleHits(dir);
 		expect(hits).toContain('LOGIN_STATE_IN_DISABLED@assign-panel.tsx');
@@ -237,7 +246,8 @@ describe('check-forbidden: login state inside disabled expression prohibited (Ch
 
 	it('allows disabled expressions based on pending state or missing catalog', () => {
 		const dir = scratchWebDir({
-			'src/components/assign-panel.tsx': 'export function Panel({ isPending, catalog }: any) {\n\treturn <button disabled={isPending || catalog === null}>OK</button>;\n}\n',
+			'src/components/assign-panel.tsx':
+				'export function Panel({ isPending, catalog }: any) {\n\treturn <button disabled={isPending || catalog === null}>OK</button>;\n}\n',
 		});
 		expect(ruleHits(dir)).toEqual([]);
 	});
@@ -246,7 +256,8 @@ describe('check-forbidden: login state inside disabled expression prohibited (Ch
 describe('check-forbidden: model source literal comparison in UI layer prohibited (Check 20 / AC 2, E-350)', () => {
 	it('flags source literal comparison in UI components', () => {
 		const dir = scratchWebDir({
-			'src/components/model-item.tsx': "export function isLive(model: any) { return model.source === 'live'; }\n",
+			'src/components/model-item.tsx':
+				"export function isLive(model: any) { return model.source === 'live'; }\n",
 		});
 		const hits = ruleHits(dir);
 		expect(hits).toContain('MODEL_SOURCE_LITERAL@model-item.tsx');
@@ -254,8 +265,10 @@ describe('check-forbidden: model source literal comparison in UI layer prohibite
 
 	it('allows grouping via model-groups.ts and shared MODEL_SOURCES', () => {
 		const dir = scratchWebDir({
-			'src/lib/model-groups.ts': "export function isLive(model: any) { return model.source === 'live'; }\n",
-			'src/components/model-item.tsx': "import { MODEL_SOURCES } from '@agent-scheduler/shared';\nexport const list = MODEL_SOURCES;\n",
+			'src/lib/model-groups.ts':
+				"export function isLive(model: any) { return model.source === 'live'; }\n",
+			'src/components/model-item.tsx':
+				"import { MODEL_SOURCES } from '@agent-scheduler/shared';\nexport const list = MODEL_SOURCES;\n",
 		});
 		expect(ruleHits(dir)).toEqual([]);
 	});
@@ -264,7 +277,8 @@ describe('check-forbidden: model source literal comparison in UI layer prohibite
 describe('check-forbidden: frontend model deduplication prohibited (Check 21 / AC 2, E-350)', () => {
 	it('flags new Set / dedupe / uniq in model-picker and model-groups', () => {
 		const dir = scratchWebDir({
-			'src/components/model-picker.tsx': 'export function unique(models: any[]) { return new Set(models.map(m => m.id)); }\n',
+			'src/components/model-picker.tsx':
+				'export function unique(models: any[]) { return new Set(models.map(m => m.id)); }\n',
 		});
 		const hits = ruleHits(dir);
 		expect(hits).toContain('FRONTEND_MODEL_DEDUPLICATION@model-picker.tsx');
@@ -272,7 +286,8 @@ describe('check-forbidden: frontend model deduplication prohibited (Check 21 / A
 
 	it('allows direct rendering of models as received from daemon', () => {
 		const dir = scratchWebDir({
-			'src/components/model-picker.tsx': 'export function renderList(models: any[]) { return models.map(m => m.id); }\n',
+			'src/components/model-picker.tsx':
+				'export function renderList(models: any[]) { return models.map(m => m.id); }\n',
 		});
 		expect(ruleHits(dir)).toEqual([]);
 	});
@@ -289,9 +304,35 @@ describe('check-forbidden: cmdk or ui/shadcn/command prohibited in web (Check 22
 
 	it('allows importing ui/grouped-select', () => {
 		const dir = scratchWebDir({
-			'src/components/picker.tsx': "import { GroupedSelect } from '../ui/grouped-select';\nexport const P = GroupedSelect;\n",
+			'src/components/picker.tsx':
+				"import { GroupedSelect } from '../ui/grouped-select';\nexport const P = GroupedSelect;\n",
 		});
 		expect(ruleHits(dir)).toEqual([]);
 	});
 });
 
+describe('R5: M9-T23 one-way presentation architecture', () => {
+	it('display components import no stores, APIs, features or shells', () => {
+		for (const file of [
+			'assign-panel',
+			'agent-card',
+			'gate-card',
+			'model-picker',
+			'effort-picker',
+			'pipeline-assignment',
+			'login-badge',
+			'login-hint',
+		]) {
+			const source = readFileSync(join(webDir, 'src/components', `${file}.tsx`), 'utf8');
+			expect(source).not.toMatch(/from\s+['"]\.\.\/(?:store|api|features|shell)\//);
+		}
+	});
+	it('gate uses the DTO and model picker has no hidden SSR substitutes or invented history', () => {
+		const gate = readFileSync(join(webDir, 'src/components/gate-card.tsx'), 'utf8');
+		const picker = readFileSync(join(webDir, 'src/components/model-picker.tsx'), 'utf8');
+		expect(gate).not.toMatch(/as\s+any/);
+		expect(gate).not.toContain('loginStatus');
+		expect(picker).not.toContain("source: 'history'");
+		expect(picker).not.toMatch(/display:\s*'none'/);
+	});
+});

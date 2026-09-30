@@ -24,6 +24,7 @@ import { InlineNotice } from '../../components/inline-notice.tsx';
 import { PipelineAssignment } from '../../components/pipeline-assignment.tsx';
 import { PipelineToggles } from '../../components/pipeline-toggles.tsx';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
+import { useAgentModelCatalogs } from '../settings-agents/use-agent-models.ts';
 import { type PipelineSettingsSource, usePipelineSettings } from './use-pipeline-settings.ts';
 
 export interface PipelineTogglesContainerProps {
@@ -63,9 +64,7 @@ export function PipelineTogglesContainer({
 	const canRenderAssignment =
 		isSettings && (typeof document === 'undefined' || Boolean(document.body));
 	const cachedAgents = peek<{ agents?: readonly AgentEntryDto[] }>('agents')?.agents;
-	const [agents, setAgents] = useState<readonly AgentEntryDto[]>(
-		propAgents ?? cachedAgents ?? [],
-	);
+	const [agents, setAgents] = useState<readonly AgentEntryDto[]>(propAgents ?? cachedAgents ?? []);
 
 	useEffect(() => {
 		if (propAgents || !canRenderAssignment || source || fetcher || patcher) return;
@@ -82,6 +81,12 @@ export function PipelineTogglesContainer({
 		};
 	}, [canRenderAssignment, propAgents, source, fetcher, patcher]);
 
+	const modelCatalogs = useAgentModelCatalogs(
+		canRenderAssignment ? agents.map((agent) => agent.id) : [],
+	);
+	const catalogs = Object.fromEntries(
+		Object.entries(modelCatalogs).map(([id, result]) => [id, result.catalog]),
+	);
 	return (
 		<div
 			data-component="pipeline-toggles-container"
@@ -118,6 +123,7 @@ export function PipelineTogglesContainer({
 							void updatePipelineSettings({ wrapupAssignment })
 						}
 						agents={agents}
+						catalogs={catalogs}
 						disabled={isPending || !pipeline}
 						errors={fieldErrors}
 					/>

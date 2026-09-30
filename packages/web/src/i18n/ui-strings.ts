@@ -5,6 +5,19 @@
  */
 
 export const UI_STRINGS = {
+	technicalDetails: '技术详情',
+	assignment: {
+		loadFailed: '加载指派数据失败，请稍后重试',
+		modelLabel: '模型配置',
+		effortLabel: '思考强度',
+		reassignCleared: (taskId: string) => `已清除筛选以定位 ${taskId}`,
+	},
+	rejectConfirm: {
+		title: '确认拒绝？',
+		note: '拒绝后任务将标为失败。',
+		confirm: '确认拒绝',
+		cancel: '取消',
+	},
 	lanes: {
 		unavailable: '泳道数据不可用',
 		overLimitChip: '超出窗口数',
@@ -99,6 +112,7 @@ export const UI_STRINGS = {
 		refresh: '刷新清单',
 		reprobe: '重新探测',
 	},
+	groupedSelect: { confirm: '确定', cancel: '取消', close: '关闭' },
 	modelPicker: {
 		sources: {
 			live: '实时清单',
@@ -153,6 +167,9 @@ export const UI_STRINGS = {
 		zeroOutputTitle: '零产出退出',
 		zeroOutputHint: 'agent 未产出任何内容就退出，常见原因：未登录、模型名不可用、参数被拒',
 		stderrTitle: 'stderr 诊断记录',
+		stderrLabel: 'stderr 末 20 行',
+		zeroOutputEvidence: '该运行在首条内容事件到达之前异常退出，未产出任何有效输出。',
+		editComment: '改一下',
 		noStderr: '无 stderr 输出',
 		legacyRun: '无记录（旧运行）',
 		eventMissing: '事件缺失',

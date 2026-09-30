@@ -338,19 +338,7 @@ export function GateCard(props: GateCardProps) {
 				}
 			: null);
 
-	// 兼容 context.login 为新标准 LoginState 或旧形状 { status, hint }
-	const rawLogin = context?.login;
-	const normalizedLogin: LoginState | null = rawLogin
-		? 'state' in rawLogin
-			? (rawLogin as LoginState)
-			: {
-					state: (rawLogin as any).status ?? 'unknown',
-					reason: null,
-					checkedAt: (rawLogin as any).probedAt ?? new Date().toISOString(),
-					loginCommand: (rawLogin as any).hint ?? null,
-					warningCode: null,
-				}
-		: null;
+	const normalizedLogin: LoginState | null = context?.login ?? null;
 
 	// 生成唯一控件 ID
 	const cardId = useId();
@@ -564,7 +552,7 @@ export function GateCard(props: GateCardProps) {
 						{evidence ??
 							basisDescription ??
 							(hasZeroOutputContext
-								? '该运行在首条内容事件到达之前异常退出，未产出任何有效输出。'
+								? UI_STRINGS.gateCard.zeroOutputEvidence
 								: '系统依据前序执行产物与机械检查判定触发本次人工审核。')}
 					</div>
 				</div>
@@ -658,28 +646,36 @@ export function GateCard(props: GateCardProps) {
 										onClick={toggleStderrExpand}
 										className="text-[var(--needs)] hover:underline bg-transparent border-none p-0 cursor-pointer font-mono text-[11px]"
 									>
-										{isStderrExpanded ? UI_STRINGS.gateCard.foldLines : UI_STRINGS.gateCard.expandLines}
+										{isStderrExpanded
+											? UI_STRINGS.gateCard.foldLines
+											: UI_STRINGS.gateCard.expandLines}
 									</button>
 								)}
 						</div>
 						<section
-							aria-label="stderr 末 20 行"
+							aria-label={UI_STRINGS.gateCard.stderrLabel}
 							className="font-mono text-[11px] p-2 rounded-[6px] bg-[var(--bg)] border border-[var(--border)] max-h-[var(--payload-max-h,240px)] overflow-y-auto whitespace-pre-wrap break-all text-[var(--ink-2)]"
 						>
 							{(() => {
 								const tail = context.stderrTail;
 								if (!tail) {
-									return <span className="text-[var(--ink-3)]">{UI_STRINGS.gateCard.eventMissing}</span>;
+									return (
+										<span className="text-[var(--ink-3)]">{UI_STRINGS.gateCard.eventMissing}</span>
+									);
 								}
 								if (tail.kind === 'unavailable') {
 									return (
 										<span className="text-[var(--ink-3)]">
-											{tail.reason === 'legacy_run' ? UI_STRINGS.gateCard.legacyRun : UI_STRINGS.gateCard.eventMissing}
+											{tail.reason === 'legacy_run'
+												? UI_STRINGS.gateCard.legacyRun
+												: UI_STRINGS.gateCard.eventMissing}
 										</span>
 									);
 								}
 								if (tail.lines.length === 0) {
-									return <span className="text-[var(--ink-3)]">{UI_STRINGS.gateCard.noStderr}</span>;
+									return (
+										<span className="text-[var(--ink-3)]">{UI_STRINGS.gateCard.noStderr}</span>
+									);
 								}
 								const linesToRender =
 									isPhoneView && !isStderrExpanded ? tail.lines.slice(-5) : tail.lines.slice(-20);
@@ -687,7 +683,9 @@ export function GateCard(props: GateCardProps) {
 								return linesToRender.map((line, idx) => (
 									// biome-ignore lint/suspicious/noArrayIndexKey: lines in log tail have no unique ID
 									<div key={idx} className="leading-tight">
-										{line.includes('[REDACTED]') ? line.replaceAll('[REDACTED]', UI_STRINGS.gateCard.redacted) : line}
+										{line.includes('[REDACTED]')
+											? line.replaceAll('[REDACTED]', UI_STRINGS.gateCard.redacted)
+											: line}
 									</div>
 								));
 							})()}

@@ -12,13 +12,7 @@
  * - 窄屏/手机端全屏模式，行高使用 --row-h-touch，break-all 避免截断
  */
 
-import {
-	type KeyboardEvent,
-	type ReactNode,
-	useEffect,
-	useRef,
-	useState,
-} from 'react';
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import {
 	Select,
 	SelectContent,
@@ -53,6 +47,7 @@ export interface GroupedSelectGroup {
 }
 
 export interface GroupedSelectProps {
+	readonly labels?: { readonly confirm: string; readonly cancel: string; readonly close: string };
 	readonly value: string | null;
 	readonly onValueChange: (value: string) => void;
 	readonly groups: readonly GroupedSelectGroup[];
@@ -82,6 +77,7 @@ export function GroupedSelect({
 	triggerClassName = '',
 	triggerTestId = 'grouped-select-trigger',
 	id,
+	labels = { confirm: 'Confirm', cancel: 'Cancel', close: 'Close' },
 }: GroupedSelectProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isCustomMode, setIsCustomMode] = useState(false);
@@ -158,14 +154,14 @@ export function GroupedSelect({
 					onClick={handleCustomSubmit}
 					className="h-[var(--h-input)] px-2.5 rounded-[var(--r-sm)] bg-[var(--needs)] font-ui text-[12px] font-medium text-[var(--on-needs)] hover:opacity-90"
 				>
-					确定
+					{labels.confirm}
 				</button>
 				<button
 					type="button"
 					onClick={() => setIsCustomMode(false)}
 					className="h-[var(--h-input)] px-2 rounded-[var(--r-sm)] border border-[var(--border)] text-[var(--ink-2)] text-[12px] font-ui hover:bg-[var(--panel-2)]"
 				>
-					取消
+					{labels.cancel}
 				</button>
 			</div>
 		);
@@ -239,7 +235,7 @@ export function GroupedSelect({
 								onClick={() => setIsOpen(false)}
 								className="h-[var(--h-btn)] px-3 rounded-[var(--r-sm)] bg-[var(--panel-2)] text-[var(--ink-2)] text-dense"
 							>
-								关闭
+								{labels.close}
 							</button>
 						</div>
 					)}
@@ -258,9 +254,9 @@ export function GroupedSelect({
 										</div>
 									)}
 
-									{subgroup.items.map((item) => (
+									{subgroup.items.map((item, itemIndex) => (
 										<SelectItem
-											key={item.value}
+											key={`${subgroup.id ?? sgIndex}-${itemIndex}`}
 											value={item.value}
 											data-testid={`select-option-${item.value}`}
 											className={`break-all whitespace-normal ${
@@ -268,13 +264,18 @@ export function GroupedSelect({
 											}`}
 										>
 											<div className="flex items-center justify-between gap-2 w-full pr-2">
-												<span className="truncate">{item.label}</span>
+												<span className="min-w-0 break-all">{item.label}</span>
 												{item.chip && (
 													<span className="px-1 py-0.2 rounded-[3px] bg-[var(--panel-2)] border border-[var(--border)] text-[9.5px] font-mono text-[var(--ink-2)] shrink-0">
 														{item.chip}
 													</span>
 												)}
 											</div>
+											{item.note && (
+												<span className="block text-micro text-[var(--ink-3)] break-all">
+													{item.note}
+												</span>
+											)}
 										</SelectItem>
 									))}
 								</div>

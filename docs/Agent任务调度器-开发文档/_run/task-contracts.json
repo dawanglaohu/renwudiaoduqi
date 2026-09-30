@@ -1195,7 +1195,8 @@
         "packages/web/src/features/run-deck/pipeline-toggles-container.tsx",
         "packages/web/src/features/run-deck/run-deck-view.tsx",
         "packages/web/src/components/field-layers-row.tsx",
-        "e2e/batch-14-composition.test.ts"
+        "e2e/batch-14-composition.test.ts",
+        "packages/web/test/settings-agents.test.ts"
       ],
       "sections": [
         1,
@@ -1233,14 +1234,14 @@
         "packages/web/test/stream-column.test.ts",
         "packages/web/src/components/pipeline-lane.tsx",
         "packages/web/src/components/stream-column.tsx",
-          "packages/web/src/i18n/ui-strings.ts",
-          "packages/shared/src/api/runs.ts",
-          "packages/daemon/src/boot/snapshot.ts",
-          "packages/daemon/src/config/env.ts",
-          "packages/daemon/src/platform/contract.ts",
-          "packages/daemon/src/platform/host.ts",
-          "packages/daemon/src/platform/windows.ts",
-          "packages/daemon/test/unit/platform.test.ts"
+        "packages/web/src/i18n/ui-strings.ts",
+        "packages/shared/src/api/runs.ts",
+        "packages/daemon/src/boot/snapshot.ts",
+        "packages/daemon/src/config/env.ts",
+        "packages/daemon/src/platform/contract.ts",
+        "packages/daemon/src/platform/host.ts",
+        "packages/daemon/src/platform/windows.ts",
+        "packages/daemon/test/unit/platform.test.ts"
       ],
       "sections": [
         1,
