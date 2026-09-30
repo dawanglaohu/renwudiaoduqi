@@ -954,3 +954,37 @@ export function GatePendingBadge(props: GatePendingBadgeProps) {
  * 别名导出。
  */
 export const PendingApprovalBadge = GatePendingBadge;
+
+export function GateRejectConfirmation(props: {
+	readonly open: boolean;
+	readonly onCancel: () => void;
+	readonly onConfirm: () => void;
+}) {
+	const titleId = useId();
+	const noteId = useId();
+	const cancelRef = useRef<HTMLButtonElement>(null);
+	useEffect(() => {
+		if (props.open) cancelRef.current?.focus();
+	}, [props.open]);
+	if (!props.open) return null;
+	return (
+		<section
+			role="alertdialog"
+			aria-labelledby={titleId}
+			aria-describedby={noteId}
+			data-testid="reject-confirm-dialog"
+			className="flex flex-col gap-3 p-4 rounded-[var(--r-sm)] bg-[var(--panel)] text-[var(--ink-1)] border border-[var(--border)]"
+		>
+			<h2 id={titleId}>{UI_STRINGS.rejectConfirm.title}</h2>
+			<p id={noteId}>{UI_STRINGS.rejectConfirm.note}</p>
+			<div className="flex gap-3">
+				<button ref={cancelRef} type="button" data-testid="cancel-reject" onClick={props.onCancel}>
+					{UI_STRINGS.rejectConfirm.cancel}
+				</button>
+				<button type="button" data-testid="confirm-reject" onClick={props.onConfirm}>
+					{UI_STRINGS.rejectConfirm.confirm}
+				</button>
+			</div>
+		</section>
+	);
+}

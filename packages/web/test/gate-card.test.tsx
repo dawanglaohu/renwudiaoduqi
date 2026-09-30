@@ -271,6 +271,16 @@ describe('R3: production task approval assembly', () => {
 			container.querySelector<HTMLButtonElement>('[data-action="reject"]')?.click();
 		});
 		expect(decide).not.toHaveBeenCalled();
+		expect(container.querySelector('[role="alertdialog"]')).not.toBeNull();
+		expect(document.activeElement).toBe(container.querySelector('[data-testid="cancel-reject"]'));
+		await act(async () => {
+			container.querySelector<HTMLButtonElement>('[data-testid="cancel-reject"]')?.click();
+		});
+		expect(container.querySelector('[role="alertdialog"]')).toBeNull();
+		expect(decide).not.toHaveBeenCalled();
+		await act(async () => {
+			container.querySelector<HTMLButtonElement>('[data-action="reject"]')?.click();
+		});
 		await act(async () => {
 			container.querySelector<HTMLButtonElement>('[data-testid="confirm-reject"]')?.click();
 		});

@@ -335,4 +335,15 @@ describe('R5: M9-T23 one-way presentation architecture', () => {
 		expect(picker).not.toContain("source: 'history'");
 		expect(picker).not.toMatch(/display:\s*'none'/);
 	});
+	it('task approval delegates confirmation presentation without container colors or a global modal', () => {
+		const view = readFileSync(join(webDir, 'src/features/run-deck/run-deck-view.tsx'), 'utf8');
+		const taskApproval = view.slice(
+			view.indexOf('export function TaskApprovalCard'),
+			view.indexOf('function laneBodySlot'),
+		);
+		expect(taskApproval).toContain('<GateRejectConfirmation');
+		expect(taskApproval).not.toMatch(/className=|<dialog|showModal/);
+		const gate = readFileSync(join(webDir, 'src/components/gate-card.tsx'), 'utf8');
+		expect(gate).not.toMatch(/<dialog|createPortal\s*\(|showModal\s*\(/);
+	});
 });

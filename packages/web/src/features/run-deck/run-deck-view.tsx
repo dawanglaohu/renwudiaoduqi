@@ -22,12 +22,12 @@ import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import { navigateTo } from '../../app/routes.tsx';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
-import { GateCard } from '../../components/gate-card.tsx';
+import { GateCard, GateRejectConfirmation } from '../../components/gate-card.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { LaneRunStrip } from '../../components/lane-run-strip.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
@@ -152,13 +152,6 @@ export function TaskApprovalCard(props: {
 		canReply: targetRun?.capabilities?.canReply,
 	});
 	const [rejectOpen, setRejectOpen] = useState(false);
-	const dialogRef = useRef<HTMLDialogElement>(null);
-	useEffect(() => {
-		if (rejectOpen) {
-			dialogRef.current?.showModal?.();
-			dialogRef.current?.querySelector('button')?.focus();
-		} else dialogRef.current?.close?.();
-	}, [rejectOpen]);
 	return (
 		<>
 			<GateCard
@@ -202,30 +195,14 @@ export function TaskApprovalCard(props: {
 					: {})}
 			/>
 			{delivery.actionError && <InlineNotice tone="down" message={delivery.actionError} />}
-			<dialog
-				ref={dialogRef}
-				data-testid="reject-confirm-dialog"
+			<GateRejectConfirmation
+				open={rejectOpen}
 				onCancel={() => setRejectOpen(false)}
-				className="p-4 rounded-[var(--r-sm)] bg-[var(--panel)] text-[var(--ink-1)] border border-[var(--border)]"
-			>
-				<form method="dialog" className="flex flex-col gap-3">
-					<h2>{UI_STRINGS.rejectConfirm.title}</h2>
-					<p>{UI_STRINGS.rejectConfirm.note}</p>
-					<button type="submit" onClick={() => setRejectOpen(false)}>
-						{UI_STRINGS.rejectConfirm.cancel}
-					</button>
-					<button
-						type="submit"
-						data-testid="confirm-reject"
-						onClick={() => {
-							setRejectOpen(false);
-							void onDecideGate?.(gate.id, 'reject');
-						}}
-					>
-						{UI_STRINGS.rejectConfirm.confirm}
-					</button>
-				</form>
-			</dialog>
+				onConfirm={() => {
+					setRejectOpen(false);
+					void onDecideGate?.(gate.id, 'reject');
+				}}
+			/>
 		</>
 	);
 }
