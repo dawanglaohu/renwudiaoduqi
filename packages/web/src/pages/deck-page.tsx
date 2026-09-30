@@ -19,6 +19,8 @@ export function DeckPage({ lanes }: DeckPageProps) {
 		};
 
 		updateHeight();
+		// 外层路由效果会移除工作面的页边距；下一帧再按最终起点量一次。
+		const frame = window.requestAnimationFrame(updateHeight);
 		const observer =
 			typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateHeight);
 		// 顶栏可换行或出现提示，页面高度按实际起点扣除。
@@ -29,6 +31,7 @@ export function DeckPage({ lanes }: DeckPageProps) {
 		window.addEventListener('resize', updateHeight);
 
 		return () => {
+			window.cancelAnimationFrame(frame);
 			window.removeEventListener('resize', updateHeight);
 			observer?.disconnect();
 		};
