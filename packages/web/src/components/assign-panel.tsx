@@ -438,7 +438,7 @@ function TaskAssignRow({
 				<div className="flex flex-col gap-1 min-w-0">
 					<div className="flex items-center gap-2 flex-wrap">
 						<span className="font-mono text-dense font-bold text-ink-1">{task.taskKey}</span>
-						<span className="text-dense text-ink-2 truncate max-w-[280px]" title={task.title}>
+						<span className="text-dense text-ink-2 truncate min-w-0 flex-1" title={task.title}>
 							{task.title}
 						</span>
 						{task.moduleKey && (
@@ -514,7 +514,7 @@ function TaskAssignRow({
 			<div className="flex items-center justify-between gap-2 flex-wrap">
 				<div className="flex items-center gap-2">
 					<span className="font-mono text-dense font-bold text-ink-1">{task.taskKey}</span>
-					<span className="text-dense text-ink-1 font-semibold truncate max-w-[320px]">
+					<span className="text-dense text-ink-1 font-semibold truncate min-w-0 flex-1">
 						{task.title}
 					</span>
 					{task.moduleKey && (
@@ -551,7 +551,7 @@ function TaskAssignRow({
 			)}
 
 			{/* 表单控件区：三联控件（Agent / 模型 / 思考强度，R3: 44px 触控目标 + focus-visible 环） */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+			<div className="flex flex-col gap-2.5 pt-1">
 				{/* 1. 选择 Agent */}
 				<div className="flex flex-col gap-1">
 					<label htmlFor={`agent-select-${rowId}`} className="text-micro text-ink-3 font-mono">
@@ -767,7 +767,7 @@ export function TaskAssignmentList({
 			) : (
 				<div
 					data-testid="empty-tasks"
-					className="p-8 text-center font-mono text-meta text-ink-3 rounded border border-border bg-page"
+					className="p-3.5 text-left font-mono text-meta text-ink-3 rounded border border-border bg-page"
 				>
 					{EMPTY_VALUE_FALLBACK}
 				</div>
@@ -859,7 +859,7 @@ export function ConcurrencyBottleneckCard({
 			</div>
 
 			{/* 三因子对比网格（明确指出三者数值与哪一个是瓶颈，AC 3, E-52, R1: 缺失显示 —） */}
-			<div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 font-mono text-micro">
+			<div className="flex flex-col gap-2 font-mono text-micro">
 				{/* 因子 1：并行窗口数 */}
 				<div
 					data-factor="window_count"
