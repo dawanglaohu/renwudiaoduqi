@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
 	EffortValue,
 	ListAgentsResponse,
@@ -12,8 +12,12 @@ import type {
 	UpdateDocumentSettingsResponse,
 } from '../../../../shared/src/api/documents.ts';
 import { ROUTES } from '../../../../shared/src/api/routes.ts';
+import { invalidateForEvent } from '../../api/cache-invalidation.ts';
+import { CACHE_KEYS } from '../../api/cache-keys.ts';
+import { eventBus } from '../../api/event-bus.ts';
 import { isApiError } from '../../api/http-client.ts';
 import { httpClient } from '../../api/http-client.ts';
+import { invalidate, peek, read, subscribeResourceCache } from '../../api/resource-cache.ts';
 import type { AgentEntryWithLayers } from '../../components/agent-card.tsx';
 import type {
 	AgentFieldKey,
@@ -105,6 +109,7 @@ function resolveLastDocId(): string | null {
 }
 
 export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettingsAgentsResult {
+	const mounted = useRef(true);
 	const [agents, setAgents] = useState<readonly AgentEntryWithLayers[]>([]);
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 	const [error, setError] = useState<Error | null>(null);
@@ -157,15 +162,35 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 
 		try {
 			// R7: 请求改走 ROUTES/callRoute
-			const response = await httpClient.callRoute<ListAgentsResponse>(listAgentsRoute);
-			setAgents(response.agents as readonly AgentEntryWithLayers[]);
+			const response = await read(CACHE_KEYS.agents(), () =>
+				httpClient.callRoute<ListAgentsResponse>(listAgentsRoute),
+			);
+			if (mounted.current) setAgents(response.agents);
 		} catch (err) {
 			const e = err instanceof Error ? err : new Error(String(err));
-			setError(e);
+			if (mounted.current) setError(e);
 		} finally {
-			setIsLoading(false);
+			if (mounted.current) setIsLoading(false);
 		}
 	}, []);
+
+	useEffect(() => {
+		mounted.current = true;
+		const unsubscribeCache = subscribeResourceCache(() => {
+			const response = peek<ListAgentsResponse>(CACHE_KEYS.agents());
+			if (response) setAgents(response.agents);
+		});
+		const unsubscribeEvents = eventBus.subscribeMilestone((event) => {
+			if (event.kind !== 'agent.availability_changed') return;
+			invalidateForEvent(event.kind);
+			void loadAgents();
+		});
+		return () => {
+			mounted.current = false;
+			unsubscribeCache();
+			unsubscribeEvents();
+		};
+	}, [loadAgents]);
 
 	useEffect(() => {
 		void loadAgents();
@@ -204,9 +229,11 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				const res = await httpClient.callRoute<ProbeAgentResponse>(probeAgentRoute, {
 					params: { agentId },
 				});
+				invalidate(CACHE_KEYS.agents());
 				await loadAgents();
 				return res;
 			} catch {
+				invalidate(CACHE_KEYS.agents());
 				await loadAgents();
 				return undefined;
 			} finally {
@@ -269,6 +296,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					},
 				);
 				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				invalidate(CACHE_KEYS.agents());
+				await loadAgents();
 				// Clear field error on success
 				setValidationErrors((prev) => {
 					if (!prev[agentId]?.[field]) return prev;
@@ -301,7 +330,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				setUpdatingAgentId(null);
 			}
 		},
-		[agents, validateMonogram],
+		[agents, validateMonogram, loadAgents],
 	);
 
 	// 清除覆盖（AC 7 / E-358: 失败保持原值不乐观清空）
@@ -323,6 +352,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					},
 				);
 				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				invalidate(CACHE_KEYS.agents());
+				await loadAgents();
 				setValidationErrors((prev) => {
 					if (!prev[agentId]?.[field]) return prev;
 					const { [field]: _unused, ...rest } = prev[agentId] ?? {};
@@ -350,7 +381,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				setUpdatingAgentId(null);
 			}
 		},
-		[agents],
+		[agents, loadAgents],
 	);
 
 	// 更新思考强度（AC 7 / E-351 / E-358: defaultEffortTier: null 单独发表示「覆盖为跟随」）
@@ -372,6 +403,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					},
 				);
 				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				invalidate(CACHE_KEYS.agents());
+				await loadAgents();
 				setValidationErrors((prev) => {
 					if (!prev[agentId]?.defaultEffortTier) return prev;
 					const { defaultEffortTier: _unused, ...rest } = prev[agentId] ?? {};
@@ -399,7 +432,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				setUpdatingAgentId(null);
 			}
 		},
-		[agents],
+		[agents, loadAgents],
 	);
 
 	// Set lane count (AC 8, E-248: 1-6) with R4 失败回滚 + inline 报错

@@ -797,6 +797,94 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		expect(runDetail.run.id).toBe(currentRunId);
 	});
 
+	it("settings selector cancels without PATCH and fills the phone viewport with touch targets (M9-T23, E-145, E-358)", async () => {
+		const settingsContext = await browser.newContext({
+			viewport: { width: 390, height: 844 },
+			hasTouch: true,
+			isMobile: true,
+		});
+		const page = await settingsContext.newPage();
+		try {
+			const codeResponse = await fetch(
+				`http://127.0.0.1:${daemon.port}/api/v1/pair/code`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${adminToken}`,
+					},
+					body: "{}",
+				},
+			);
+			expect(codeResponse.status).toBe(200);
+			const pairingCode = ((await codeResponse.json()) as { code: string })
+				.code;
+			await page.goto(`http://127.0.0.1:${daemon.port}/#/pair`, {
+				waitUntil: "domcontentloaded",
+			});
+			await page.getByTestId("pairing-code-input").fill(pairingCode);
+			await page.getByTestId("pairing-submit-button").click();
+			await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/`);
+			await page.goto(`http://127.0.0.1:${daemon.port}/#/settings/agents`, {
+				waitUntil: "domcontentloaded",
+			});
+			const card = page.getByTestId("agent-card-codex");
+			await card.waitFor();
+			const combo = card.getByTestId("model-picker").getByRole("combobox");
+			await expect.poll(() => combo.isEnabled()).toBe(true);
+			await combo.click();
+			const sheet = page.getByTestId("grouped-select-content");
+			await sheet.waitFor();
+			const box = await sheet.boundingBox();
+			expect(box).toEqual({ x: 0, y: 0, width: 390, height: 844 });
+			for (const option of await page.getByRole("option").all()) {
+				await option.scrollIntoViewIfNeeded();
+				expect((await option.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+			}
+			await page
+				.getByRole("option", { name: "手填模型名…", exact: true })
+				.click();
+			const input = page.getByTestId("grouped-select-custom-input");
+			await input.fill("cancel-must-not-write");
+			let patchCount = 0;
+			const onRequest = (request: import("playwright").Request) => {
+				if (
+					request.method() === "PATCH" &&
+					new URL(request.url()).pathname === "/api/v1/agents/codex"
+				)
+					patchCount++;
+			};
+			page.on("request", onRequest);
+			try {
+				await card.getByRole("button", { name: "取消", exact: true }).click();
+				await input.waitFor({ state: "hidden" });
+				await combo.waitFor();
+				expect(patchCount).toBe(0);
+			} finally {
+				page.off("request", onRequest);
+			}
+			for (const control of await card
+				.locator('button, input, select, [role="combobox"]')
+				.all()) {
+				expect((await control.boundingBox())?.height).toBeGreaterThanOrEqual(
+					44,
+				);
+			}
+			await page.goto(`http://127.0.0.1:${daemon.port}/#/settings/pipeline`, {
+				waitUntil: "domcontentloaded",
+			});
+			await page.getByTestId("pipeline-assignment-container").waitFor();
+			for (const button of await page
+				.getByTestId("pipeline-assignment-container")
+				.getByRole("button")
+				.all()) {
+				expect((await button.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+			}
+		} finally {
+			await settingsContext.close();
+		}
+	});
+
 	it('step 8: 离线断网、离线横幅、重连退避、Last-Event-ID 与断网事件恰好补推一次 (AC 2, E-10, E-12, E-158, R2)', async () => {
 		expect(currentRunId).toBeTruthy();
 

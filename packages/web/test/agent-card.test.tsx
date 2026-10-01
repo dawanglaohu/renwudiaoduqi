@@ -75,6 +75,19 @@ const mockCatalog: ListAgentModelsResponse = {
 };
 
 describe('M9-T23: AgentCard 设置页组件', () => {
+	it('marks an override unlisted in an authoritative empty catalog (E-358)', () => {
+		const html = renderToStaticMarkup(
+			createElement(AgentCard, {
+				agent: mockBaseAgent,
+				catalog: { ...mockCatalog, models: [] },
+				getFieldLayers: () => mockFieldLayers,
+				onUpdateField: vi.fn(),
+				onProbe: vi.fn(),
+				models: [],
+			}),
+		);
+		expect(html).toContain('data-testid="unlisted-model-chip-codex"');
+	});
 	it('renders login badge and action buttons (refresh models & reprobe) in card header', () => {
 		const html = renderToStaticMarkup(
 			createElement(AgentCard, {

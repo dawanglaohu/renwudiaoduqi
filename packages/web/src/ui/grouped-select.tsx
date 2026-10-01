@@ -85,6 +85,7 @@ export function GroupedSelect({
 	const [isMobile, setIsMobile] = useState(false);
 
 	const customInputRef = useRef<HTMLInputElement>(null);
+	const customGroupRef = useRef<HTMLDivElement>(null);
 
 	// 响应式检查：phone / phone-xs (< 640px)
 	useEffect(() => {
@@ -137,29 +138,31 @@ export function GroupedSelect({
 	// 如果处于手填展开输入框状态，渲染等宽输入框
 	if (isCustomMode) {
 		return (
-			<div className={`flex items-center gap-1.5 w-full ${className}`}>
+			<div ref={customGroupRef} className={`flex items-center gap-1.5 w-full ${className}`}>
 				<input
 					ref={customInputRef}
 					type="text"
 					value={customInputValue}
 					onChange={(e) => setCustomInputValue(e.target.value)}
-					onBlur={handleCustomSubmit}
+					onBlur={(event) => {
+						if (!customGroupRef.current?.contains(event.relatedTarget)) handleCustomSubmit();
+					}}
 					onKeyDown={handleCustomKeyDown}
 					placeholder={customActionPlaceholder}
 					data-testid="grouped-select-custom-input"
-					className="h-[var(--h-input)] flex-1 rounded-[var(--r-sm)] border border-[var(--needs)] bg-[var(--panel-2)] px-2.5 font-mono text-[12.5px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus:outline-none"
+					className="min-w-0 h-[var(--h-input)] min-h-[var(--h-input-touch)] sm:min-h-0 flex-1 rounded-[var(--r-sm)] border border-[var(--needs)] bg-[var(--panel-2)] px-2.5 font-mono text-[12.5px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus:outline-none"
 				/>
 				<button
 					type="button"
 					onClick={handleCustomSubmit}
-					className="h-[var(--h-input)] px-2.5 rounded-[var(--r-sm)] bg-[var(--needs)] font-ui text-[12px] font-medium text-[var(--on-needs)] hover:opacity-90"
+					className="h-[var(--h-input)] min-h-[var(--h-btn-lg)] sm:min-h-0 px-2.5 rounded-[var(--r-sm)] bg-[var(--needs)] font-ui text-[12px] font-medium text-[var(--on-needs)] hover:opacity-90"
 				>
 					{labels.confirm}
 				</button>
 				<button
 					type="button"
 					onClick={() => setIsCustomMode(false)}
-					className="h-[var(--h-input)] px-2 rounded-[var(--r-sm)] border border-[var(--border)] text-[var(--ink-2)] text-[12px] font-ui hover:bg-[var(--panel-2)]"
+					className="h-[var(--h-input)] min-h-[var(--h-btn-lg)] sm:min-h-0 px-2 rounded-[var(--r-sm)] border border-[var(--border)] text-[var(--ink-2)] text-[12px] font-ui hover:bg-[var(--panel-2)]"
 				>
 					{labels.cancel}
 				</button>
@@ -210,7 +213,7 @@ export function GroupedSelect({
 				<SelectTrigger
 					id={id}
 					data-testid="grouped-select-trigger"
-					className={`h-[var(--h-input)] font-mono text-[12.5px] ${triggerClassName}`}
+					className={`h-[var(--h-input)] min-h-[var(--h-input-touch)] sm:min-h-0 font-mono text-[12.5px] ${triggerClassName}`}
 				>
 					<SelectValue placeholder={placeholder}>
 						{selectedLabel || <span className="font-ui text-[var(--ink-3)]">{placeholder}</span>}
@@ -219,9 +222,10 @@ export function GroupedSelect({
 
 				<SelectContent
 					data-testid="grouped-select-content"
+					fullScreen={isMobile}
 					className={
 						isMobile
-							? 'fixed inset-0 z-50 flex flex-col rounded-none border-none bg-[var(--bg)] p-4 max-h-screen overflow-y-auto'
+							? 'flex flex-col rounded-none border-none bg-[var(--bg)] p-4'
 							: 'max-h-80 w-[var(--radix-select-trigger-width)] min-w-[260px]'
 					}
 				>
@@ -233,7 +237,7 @@ export function GroupedSelect({
 							<button
 								type="button"
 								onClick={() => setIsOpen(false)}
-								className="h-[var(--h-btn)] px-3 rounded-[var(--r-sm)] bg-[var(--panel-2)] text-[var(--ink-2)] text-dense"
+								className="h-[var(--h-btn-lg)] px-3 rounded-[var(--r-sm)] bg-[var(--panel-2)] text-[var(--ink-2)] text-dense"
 							>
 								{labels.close}
 							</button>

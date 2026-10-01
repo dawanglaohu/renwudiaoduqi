@@ -42,17 +42,18 @@ SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 export const SelectContent = forwardRef<
 	ElementRef<typeof SelectPrimitive.Content>,
-	ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className = '', children, position = 'popper', ...props }, ref) => (
+	ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & { readonly fullScreen?: boolean }
+>(({ className = '', children, position = 'popper', fullScreen = false, ...props }, ref) => (
 	<SelectPrimitive.Portal>
 		<SelectPrimitive.Content
 			ref={ref}
+			data-select-fullscreen={fullScreen ? '' : undefined}
 			className={`relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-[var(--r-sm)] border border-[var(--border-strong)] bg-[var(--bg)] text-[var(--ink-1)] shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 ${className}`}
 			position={position}
 			{...props}
 		>
 			<SelectPrimitive.Viewport
-				className={`p-1 ${position === 'popper' ? 'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]' : ''}`}
+				className={`p-1 ${fullScreen ? 'flex-1 min-h-0 w-full' : position === 'popper' ? 'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]' : ''}`}
 			>
 				{children}
 			</SelectPrimitive.Viewport>

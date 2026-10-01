@@ -93,7 +93,7 @@ export function PipelineAssignment({
 	return (
 		<div
 			data-testid="pipeline-assignment-container"
-			className={`flex flex-col gap-[var(--sp-3)] ${className}`}
+			className={`flex flex-col gap-[var(--sp-3)] max-[639px]:[&_button]:min-h-[var(--h-btn-lg)] max-[639px]:[&_select]:min-h-[var(--h-input-touch)] ${className}`}
 		>
 			{/* 1. 审查覆盖设置区 */}
 			<div

@@ -152,7 +152,6 @@ export function AgentCard({
 		hasModelOverride &&
 			agent.layers?.defaultModel?.override &&
 			catalog?.models &&
-			catalog.models.length > 0 &&
 			!catalog.models.some((m) => m.name === agent.layers?.defaultModel?.override),
 	);
 
@@ -171,7 +170,7 @@ export function AgentCard({
 		<div
 			data-testid={`agent-card-${agent.id}`}
 			data-available={agent.isAvailable}
-			className={`min-w-0 flex flex-col gap-4 min-[768px]:gap-[var(--sp-3)] rounded border bg-bg p-[18px] max-[767px]:p-4 transition-opacity ${
+			className={`min-w-0 flex flex-col gap-4 min-[768px]:gap-[var(--sp-3)] rounded border bg-bg p-[18px] max-[767px]:p-4 transition-opacity max-[639px]:[&_button]:min-h-[var(--h-btn-lg)] max-[639px]:[&_button]:min-w-[var(--h-btn-lg)] max-[639px]:[&_input]:min-h-[var(--h-input-touch)] max-[639px]:[&_select]:min-h-[var(--h-input-touch)] ${
 				isUnavailable ? 'opacity-75 border-border-strong' : 'border-border'
 			}`}
 		>
