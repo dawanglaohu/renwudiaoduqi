@@ -36,7 +36,8 @@ const _assertModelSourcesOrder: AssertModelSourcesOrder = true;
 
 export interface AgentModelItem {
 	readonly name: string;
-	readonly source: ModelSource;
+	/** Preserve future daemon source values for client display. */
+	readonly source: string;
 	readonly provider?: string;
 	readonly effortOptions?: readonly string[];
 	readonly isCurrentConfig: boolean;

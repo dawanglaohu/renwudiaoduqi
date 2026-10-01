@@ -28,8 +28,8 @@ export function SettingsPipelinePage() {
 			</header>
 
 			{/* 主内容区域 */}
-			<main className="flex-1 p-4 sm:p-6">
-				<div className="mx-auto max-w-4xl">
+			<main className="flex-1 min-w-0 p-[var(--sp-4)]">
+				<div className="w-full min-w-0">
 					<PipelineTogglesContainer layout="settings" />
 				</div>
 			</main>

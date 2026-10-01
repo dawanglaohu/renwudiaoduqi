@@ -12,7 +12,11 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { AgentEntryDto, ListAgentsResponse } from '@agent-scheduler/shared/api/agents';
+import type {
+	AgentEntryDto,
+	ListAgentModelsResponse,
+	ListAgentsResponse,
+} from '@agent-scheduler/shared/api/agents';
 import type {
 	BatchAssignmentsResponse,
 	ConcurrencyPreview,
@@ -27,6 +31,9 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup as renderToStaticMarkupOf } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearManualHost, setManualHost } from '../src/api/base-url.ts';
+import { clearCachedToken, setCachedToken } from '../src/api/http-client.ts';
+import { clearResourceCache, refetchAll } from '../src/api/resource-cache.ts';
 import {
 	AssignPanel,
 	type AssignableAgent,
@@ -652,19 +659,6 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 				listBatches: vi.fn(async () => batches),
 				listTasks: vi.fn(async () => tasks),
 				listAgents: vi.fn(async () => agents),
-				listAgentModels: vi.fn(async (agentId: string) => ({
-					models: [{ name: `${agentId}-model`, source: 'builtin' as const, isCurrentConfig: true }],
-					isComplete: true,
-					refreshedAt: '2026-09-19T10:00:00.000Z',
-					liveFailure: null,
-					currentConfig: {
-						model: null,
-						effort: null,
-						configPath: 'D:/config.json',
-						effortRecognized: true,
-					},
-					isRefreshing: false,
-				})),
 				readAssignments: vi.fn(
 					async (): Promise<BatchAssignmentsResponse> => ({ drafts: [], preview: preview() }),
 				),
@@ -677,6 +671,7 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 		}
 
 		beforeEach(() => {
+			clearResourceCache();
 			useSelectionStore.getState().reset();
 		});
 
@@ -684,6 +679,109 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			useSelectionStore.getState().reset();
 		});
 
+		it('R2: mounted assignment panels preserve catalog metadata and share one explicit refresh=1', async () => {
+			clearResourceCache();
+			setCachedToken('unit-token');
+			setManualHost('http://localhost');
+			let resolveRefresh: ((response: Response) => void) | undefined;
+			const refreshResponse = new Promise<Response>((resolve) => {
+				resolveRefresh = resolve;
+			});
+			const urls: URL[] = [];
+			const catalog: ListAgentModelsResponse = {
+				models: [
+					{ name: 'same', source: 'live', provider: 'provider-one', isCurrentConfig: true },
+					{ name: 'same', source: 'history', isCurrentConfig: false },
+					{ name: 'future-model', source: 'future-source', isCurrentConfig: false },
+				],
+				isComplete: false,
+				isRefreshing: false,
+				refreshedAt: '2026-09-30T00:00:00Z',
+				liveFailure: null,
+				currentConfig: {
+					model: 'same',
+					effort: { vendor: 'max' },
+					effortRecognized: false,
+					configPath: 'config',
+				},
+			};
+			const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+				const url = new URL(String(input));
+				urls.push(url);
+				return url.searchParams.has('refresh')
+					? refreshResponse
+					: new Response(JSON.stringify(catalog), { status: 200 });
+			});
+			const agent = {
+				...agentEntry('codex', 'Codex', 'CX', 2, { low: 'low', medium: 'medium', high: 'high' }),
+				login: {
+					state: 'unknown' as const,
+					reason: 'timeout' as const,
+					warningCode: 'E_AGENT_LOGIN_PROBE_FAILED' as const,
+					checkedAt: null,
+					loginCommand: null,
+				},
+			};
+			const client = createClient({
+				listAgents: vi.fn(async () => ({ agents: [agent] })),
+				readAssignments: vi.fn(async () => ({ drafts: [draft()], preview: preview() })),
+			});
+			let panel: UseAssignPanelResult | undefined;
+			function Entry() {
+				panel = useAssignPanel({ client });
+				return createElement(AssignPanel, {
+					mode: 'step3',
+					tasks: panel.tasks,
+					agents: panel.agents,
+					assignments: panel.assignments,
+					onRefreshAgentModels: (id) => {
+						void panel?.refreshAgentModels(id);
+					},
+				});
+			}
+			const container = document.createElement('div');
+			document.body.appendChild(container);
+			const root = createRoot(container);
+			await act(async () => {
+				root.render(createElement('div', null, createElement(Entry), createElement(Entry)));
+			});
+			expect(urls).toHaveLength(1);
+			expect(urls[0]?.search).toBe('');
+			expect(panel?.agents[0]?.catalog?.models).toEqual(catalog.models);
+			expect(panel?.agents[0]?.login).toEqual(agent.login);
+			expect(panel?.agents[0]?.currentConfig).toEqual(catalog.currentConfig);
+			expect(panel?.agents[0]?.effortVendorMap).toEqual(agent.effortVendorMap);
+			expect(warn).toHaveBeenCalledWith('Unknown model catalog sources', 'codex', [
+				'future-source',
+			]);
+			const buttons = container.querySelectorAll<HTMLButtonElement>(
+				'[data-action="refresh-agent-models"]',
+			);
+			expect(buttons).toHaveLength(2);
+			await act(async () => {
+				buttons[0]?.click();
+			});
+			expect(buttons[0]?.disabled).toBe(true);
+			expect(buttons[1]?.disabled).toBe(true);
+			expect(urls.filter((url) => url.search === '?refresh=1')).toHaveLength(1);
+			await act(async () => {
+				resolveRefresh?.(new Response(JSON.stringify(catalog), { status: 200 }));
+			});
+			expect(buttons[1]?.disabled).toBe(false);
+			await act(async () => {
+				await refetchAll();
+			});
+			expect(urls.filter((url) => url.search === '?refresh=1')).toHaveLength(1);
+			expect(urls.at(-1)?.search).toBe('');
+			act(() => root.unmount());
+			container.remove();
+			fetchSpy.mockRestore();
+			warn.mockRestore();
+			clearResourceCache();
+			clearCachedToken();
+			clearManualHost();
+		});
 		it('挂载后走真实端点：选定文档与批次、按 batchId 过滤可指派任务、读回草稿与预览', async () => {
 			const client = createClient({
 				readAssignments: vi.fn(async () => ({
@@ -700,7 +798,7 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 
 			expect(client.listDocuments).toHaveBeenCalledTimes(1);
 			expect(client.listBatches).toHaveBeenCalledWith(docId);
-			expect(client.listTasks).toHaveBeenCalledWith(docId, batchId, null);
+			expect(client.listTasks).toHaveBeenCalledWith(docId, batchId, null, false);
 			expect(client.readAssignments).toHaveBeenCalledWith(batchId);
 
 			const state = probe.current();
@@ -1042,3 +1140,228 @@ async function mountAssignPanel(client: AssignPanelClient): Promise<MountedAssig
 		},
 	};
 }
+
+describe('M9-T23: 指派面板登录态徽标、清单刷新与重派定位 (AC 1, AC 6, E-336, E-355, E-359)', () => {
+	const loggedOutAgent: AssignableAgent = {
+		id: 'agent-logged-out',
+		name: 'LoggedOutAgent',
+		monogram: 'LO',
+		login: {
+			state: 'logged_out',
+			reason: null,
+			checkedAt: new Date().toISOString(),
+			loginCommand: 'test-cli login',
+			warningCode: null,
+			providers: {},
+		},
+	};
+
+	const noLoginAgent: AssignableAgent = {
+		id: 'agent-no-login',
+		name: 'DshAgent',
+		monogram: 'DH',
+		login: null,
+	};
+
+	const singleTask: TaskItem = {
+		id: 'task-test-1',
+		taskKey: 'M9-T23',
+		title: '指派面板登录态与清单刷新',
+	};
+
+	it('renders monogram -> agent name -> login-badge -> refresh button in row header (AC 1)', async () => {
+		const onRefresh = vi.fn();
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+
+		await act(async () => {
+			root.render(
+				createElement(TaskAssignmentList, {
+					tasks: [singleTask],
+					agents: [loggedOutAgent],
+					assignments: {
+						[singleTask.id]: {
+							taskId: singleTask.id,
+							taskKey: singleTask.taskKey,
+							agentId: loggedOutAgent.id,
+							model: null,
+							effort: null,
+							sessionNo: 1,
+						},
+					},
+					onRefreshAgentModels: onRefresh,
+				}),
+			);
+		});
+
+		// 验证回显态行首结构
+		const assignedRow = container.querySelector(`[data-task-assigned-row="${singleTask.taskKey}"]`);
+		expect(assignedRow).not.toBeNull();
+
+		// monogram
+		expect(assignedRow?.textContent).toContain('LO');
+		// agent 名
+		expect(assignedRow?.textContent).toContain('LoggedOutAgent');
+		// login-badge 渲染「未登录」
+		const badge = assignedRow?.querySelector('[data-testid="login-badge"]');
+		expect(badge).not.toBeNull();
+		expect(badge?.textContent).toContain('未登录');
+
+		// 刷新按钮存在并可点击
+		const refreshBtn = assignedRow?.querySelector(
+			'button[data-action="refresh-agent-models"]',
+		) as HTMLButtonElement | null;
+		expect(refreshBtn).not.toBeNull();
+
+		await act(async () => {
+			refreshBtn?.click();
+		});
+		expect(onRefresh).toHaveBeenCalledWith(loggedOutAgent.id);
+
+		// 下方渲染 login-hint
+		const hint = assignedRow?.querySelector('[data-testid="login-hint"]');
+		expect(hint).not.toBeNull();
+		expect(hint?.textContent).toContain('未登录：在终端运行 test-cli login 后点刷新');
+
+		await act(async () => {
+			root.unmount();
+		});
+		container.remove();
+	});
+
+	it('renders NO login badge DOM when login is null (AC 1, E-335)', async () => {
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+
+		await act(async () => {
+			root.render(
+				createElement(TaskAssignmentList, {
+					tasks: [singleTask],
+					agents: [noLoginAgent],
+					assignments: {
+						[singleTask.id]: {
+							taskId: singleTask.id,
+							taskKey: singleTask.taskKey,
+							agentId: noLoginAgent.id,
+							model: null,
+							effort: null,
+							sessionNo: 1,
+						},
+					},
+				}),
+			);
+		});
+
+		const badge = container.querySelector('[data-testid="login-badge"]');
+		expect(badge).toBeNull();
+
+		const hint = container.querySelector('[data-testid="login-hint"]');
+		expect(hint).toBeNull();
+
+		await act(async () => {
+			root.unmount();
+		});
+		container.remove();
+	});
+
+	it('never disables dispatch/assign buttons due to login.state (AC 1, E-336, E-355)', async () => {
+		const onAssign = vi.fn();
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+
+		await act(async () => {
+			root.render(
+				createElement(TaskAssignmentList, {
+					tasks: [singleTask],
+					agents: [loggedOutAgent],
+					onAssignTask: onAssign,
+				}),
+			);
+		});
+
+		// 处于编辑态
+		const editRow = container.querySelector(`[data-task-editing-row="${singleTask.taskKey}"]`);
+		expect(editRow).not.toBeNull();
+
+		const agentSelect = editRow?.querySelector(
+			'select[data-testid="select-agent-M9-T23"]',
+		) as HTMLSelectElement;
+		expect(agentSelect).not.toBeNull();
+
+		await act(async () => {
+			agentSelect.value = loggedOutAgent.id;
+			agentSelect.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+
+		// 确认指派按钮必须不可 disabled，照常允许派发（E-336）
+		const confirmBtn = editRow?.querySelector(
+			'button[data-action="confirm-task-assign"]',
+		) as HTMLButtonElement;
+		expect(confirmBtn).not.toBeNull();
+		expect(confirmBtn.disabled).toBe(false);
+
+		await act(async () => {
+			confirmBtn.click();
+		});
+		expect(onAssign).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			root.unmount();
+		});
+		container.remove();
+	});
+
+	it('automatically enters editing mode and highlights on selectionStore.openReassign (AC 6, E-359)', async () => {
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container);
+		function ReassignPanel() {
+			const reassignTaskId = useSelectionStore((state) => state.reassignTaskId);
+			return createElement(TaskAssignmentList, {
+				tasks: [singleTask],
+				agents: [loggedOutAgent],
+				assignments: {
+					[singleTask.id]: {
+						taskId: singleTask.id,
+						taskKey: singleTask.taskKey,
+						agentId: loggedOutAgent.id,
+						model: null,
+						effort: null,
+						sessionNo: 1,
+					},
+				},
+				reassignTaskId,
+			});
+		}
+
+		// scrollIntoView polyfill
+		Element.prototype.scrollIntoView = vi.fn();
+
+		await act(async () => {
+			root.render(createElement(ReassignPanel));
+		});
+
+		// 初始为已指派展示态
+		expect(
+			container.querySelector(`[data-task-assigned-row="${singleTask.taskKey}"]`),
+		).not.toBeNull();
+
+		// 触发 openReassign
+		await act(async () => {
+			useSelectionStore.getState().openReassign(singleTask.id);
+		});
+
+		// 自动切至编辑态并高亮
+		const editingRow = container.querySelector(`[data-task-editing-row="${singleTask.taskKey}"]`);
+		expect(editingRow).not.toBeNull();
+		expect(editingRow?.className).toContain('border-[var(--needs)]');
+
+		await act(async () => {
+			root.unmount();
+		});
+		container.remove();
+	});
+});

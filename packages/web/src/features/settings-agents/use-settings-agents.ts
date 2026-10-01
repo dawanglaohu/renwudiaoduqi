@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
+	EffortValue,
 	ListAgentsResponse,
 	ProbeAgentResponse,
 	UpdateAgentBody,
@@ -30,6 +31,8 @@ export interface UseSettingsAgentsOptions {
 	readonly targetDocId?: string | null;
 }
 
+export type AgentSettingKey = AgentFieldKey | 'defaultEffortTier';
+
 export interface UseSettingsAgentsResult {
 	readonly agents: readonly AgentEntryWithLayers[];
 	readonly isLoading: boolean;
@@ -41,7 +44,7 @@ export interface UseSettingsAgentsResult {
 	readonly probingAgentId: string | null;
 	readonly updatingAgentId: string | null;
 	readonly validationErrors: Readonly<
-		Record<string, Partial<Record<AgentFieldKey, FieldErrorInfo>>>
+		Record<string, Partial<Record<AgentSettingKey, FieldErrorInfo>>>
 	>;
 	readonly loadAgents: () => Promise<void>;
 	readonly probeAgent: (agentId: string) => Promise<ProbeAgentResponse | undefined>;
@@ -50,6 +53,11 @@ export interface UseSettingsAgentsResult {
 		field: AgentFieldKey,
 		value: string | number,
 	) => Promise<boolean>;
+	readonly clearAgentOverride: (
+		agentId: string,
+		field: 'defaultModel' | 'defaultEffortTier',
+	) => Promise<boolean>;
+	readonly updateAgentEffortTier: (agentId: string, value: EffortValue) => Promise<boolean>;
 	readonly setLaneCount: (count: number) => Promise<void>;
 	readonly getFieldLayers: (agent: AgentEntryWithLayers, field: AgentFieldKey) => FieldLayerValues;
 	readonly validateMonogram: (
@@ -110,7 +118,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	const [probingAgentId, setProbingAgentId] = useState<string | null>(null);
 	const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
 	const [validationErrors, setValidationErrors] = useState<
-		Record<string, Partial<Record<AgentFieldKey, FieldErrorInfo>>>
+		Record<string, Partial<Record<AgentSettingKey, FieldErrorInfo>>>
 	>({});
 
 	// Load document laneCount strictly from resolved targetDocId
@@ -296,6 +304,104 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		[agents, validateMonogram],
 	);
 
+	// 清除覆盖（AC 7 / E-358: 失败保持原值不乐观清空）
+	const clearAgentOverride = useCallback(
+		async (agentId: string, field: 'defaultModel' | 'defaultEffortTier'): Promise<boolean> => {
+			const prevAgent = agents.find((a) => a.id === agentId);
+			if (!prevAgent) return false;
+
+			setUpdatingAgentId(agentId);
+			try {
+				if (!updateAgentRoute) {
+					throw new Error('Route PATCH /api/v1/agents/:agentId is missing in ROUTES');
+				}
+				const res = await httpClient.callRoute<UpdateAgentResponse, UpdateAgentBody>(
+					updateAgentRoute,
+					{
+						params: { agentId },
+						body: { clearOverrides: [field] },
+					},
+				);
+				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				setValidationErrors((prev) => {
+					if (!prev[agentId]?.[field]) return prev;
+					const { [field]: _unused, ...rest } = prev[agentId] ?? {};
+					return { ...prev, [agentId]: rest };
+				});
+				return true;
+			} catch (err) {
+				const apiErr = isApiError(err) ? err : undefined;
+				const code = apiErr?.code ?? 'E_INTERNAL';
+				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '清除覆盖失败，请重试';
+				const technicalMsg = err instanceof Error ? err.message : String(err);
+				setValidationErrors((prev) => ({
+					...prev,
+					[agentId]: {
+						...prev[agentId],
+						[field]: {
+							message: chineseMsg,
+							technical: technicalMsg,
+							requestId: apiErr?.requestId,
+						},
+					},
+				}));
+				return false;
+			} finally {
+				setUpdatingAgentId(null);
+			}
+		},
+		[agents],
+	);
+
+	// 更新思考强度（AC 7 / E-351 / E-358: defaultEffortTier: null 单独发表示「覆盖为跟随」）
+	const updateAgentEffortTier = useCallback(
+		async (agentId: string, value: EffortValue): Promise<boolean> => {
+			const prevAgent = agents.find((a) => a.id === agentId);
+			if (!prevAgent) return false;
+
+			setUpdatingAgentId(agentId);
+			try {
+				if (!updateAgentRoute) {
+					throw new Error('Route PATCH /api/v1/agents/:agentId is missing in ROUTES');
+				}
+				const res = await httpClient.callRoute<UpdateAgentResponse, UpdateAgentBody>(
+					updateAgentRoute,
+					{
+						params: { agentId },
+						body: { defaultEffortTier: value },
+					},
+				);
+				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				setValidationErrors((prev) => {
+					if (!prev[agentId]?.defaultEffortTier) return prev;
+					const { defaultEffortTier: _unused, ...rest } = prev[agentId] ?? {};
+					return { ...prev, [agentId]: rest };
+				});
+				return true;
+			} catch (err) {
+				const apiErr = isApiError(err) ? err : undefined;
+				const code = apiErr?.code ?? 'E_INTERNAL';
+				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '更新思考强度失败，请重试';
+				const technicalMsg = err instanceof Error ? err.message : String(err);
+				setValidationErrors((prev) => ({
+					...prev,
+					[agentId]: {
+						...prev[agentId],
+						defaultEffortTier: {
+							message: chineseMsg,
+							technical: technicalMsg,
+							requestId: apiErr?.requestId,
+						},
+					},
+				}));
+				return false;
+			} finally {
+				setUpdatingAgentId(null);
+			}
+		},
+		[agents],
+	);
+
 	// Set lane count (AC 8, E-248: 1-6) with R4 失败回滚 + inline 报错
 	const setLaneCount = useCallback(
 		async (count: number) => {
@@ -416,6 +522,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		loadAgents,
 		probeAgent,
 		updateAgentField,
+		clearAgentOverride,
+		updateAgentEffortTier,
 		setLaneCount,
 		getFieldLayers,
 		validateMonogram,

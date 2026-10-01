@@ -1,14 +1,14 @@
 /**
  * packages/web/src/features/run-deck/use-gate-card.ts
  *
- * 审批卡「投递原文到实施会话」的数据与写操作（M9-T20 / AC 4, E-278, E-117, E-113, E-157）
+ * 审批卡「投递原文到实施会话」与零产出退出重跑/换 agent 重派数据写操作（M9-T20 / M9-T23 / AC 4, AC 6, E-278, E-117, E-113, E-157, E-348, E-359）
  *
  * 规范依据（07 节前端架构）：
  * - features 层是唯一允许 import src/api 的一层；路径与鉴权取自 shared ROUTES 表，不拼 URL 字面量
- * - `POST /runs/:runId/messages` 只判是否被接受；**不拿响应体改任何运行状态**，最终状态一律等回流事件（E-157）
- * - 「可回话」是能力位：`capabilities.canReply` 缺失时按不可回话处理并带 title 说明，
- *   绝不放行到点了才报错（E-117）
- * - 未送达 / 失败时保留原文可复制，绝不静默丢弃或假装已发出（E-113）
+ * - `POST /runs/:runId/messages` 只判是否被接受；不拿响应体改任何运行状态，最终状态一律等回流事件（E-157）
+ * - onApprove 映射为 POST /runs/:runId/rerun（AC 6, E-348）
+ * - onEdit 由 use-gate-card.ts 先调 features/run-deck/batch-expansion.ts 展开所在批次、再调 selection-store.openReassign(taskId)（AC 6, E-359）
+ * - store/ 不 import features/
  * - 中文文案一律来自 src/i18n/error-messages.ts，本文件不写中文错误字符串
  */
 
@@ -19,16 +19,18 @@ import type {
 } from '@agent-scheduler/shared/api/runs';
 import { useCallback, useState } from 'react';
 import { httpClient, isApiError } from '../../api/http-client.ts';
+import { rerunRun } from '../../api/runs.ts';
 import type { GateDeliveryNotice } from '../../components/gate-card.tsx';
 import {
 	DELIVERY_NOTICE_MESSAGES,
 	type DeliveryNoticeKind,
 	getErrorMessage,
 } from '../../i18n/error-messages.ts';
+import { useSelectionStore } from '../../store/selection-store.ts';
+import { expandBatch } from './batch-expansion.ts';
 
 /**
  * 按共享路由表自身的字段取路由定义（R5）：不重复写 URL 字面量。
- * `reqType` 与 shared 的类型名同名且唯一，契约变了这里立刻抛错而不是静默走错路径。
  */
 function findRouteByTypes(
 	method: 'POST',
@@ -41,7 +43,6 @@ function findRouteByTypes(
 			(types.reqType === undefined || entry.reqType === types.reqType),
 	);
 	if (!route) {
-		// 契约表缺失时立刻暴露，而不是退回硬编码 URL（07 节：禁止 URL 字面量）
 		throw new Error(
 			`${method} route with ${JSON.stringify(types)} is missing from the shared ROUTES table`,
 		);
@@ -64,8 +65,7 @@ const defaultSender: DeliverRawSender = (runId, body) =>
 	});
 
 /**
- * 错误 → 卡内投递提示。E_MESSAGE_UNDELIVERED / E_CAPABILITY_UNSUPPORTED 各有具名种类，
- * 其余一律 failed；技术详情里带上错误码与 requestId。
+ * 错误 → 卡内投递提示。
  */
 export function toDeliveryNotice(error: unknown): GateDeliveryNotice {
 	if (isApiError(error)) {
@@ -121,8 +121,14 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
 }
 
 export interface UseGateCardOptions {
-	/** 目标实施运行 ID（投递目标，daemon 下发） */
+	/** 目标实施运行 ID（投递目标或重跑目标，daemon 下发） */
 	readonly runId?: string | null;
+	/** 关联任务 ID（用于换 agent 重派定位） */
+	readonly taskId?: string | null;
+	/** 关联批次 ID（用于换 agent 重派展开所在批次） */
+	readonly batchId?: string | null;
+	/** 当前快照的 agentId（用于重派时预选） */
+	readonly snapshotAgentId?: string | null;
 	/** 审查返工原文（`review_verdict=incomplete` 时的全文，daemon 下发） */
 	readonly reworkText?: string | null;
 	/** 审查裁定（只有 'incomplete' 才出条件动作） */
@@ -131,6 +137,10 @@ export interface UseGateCardOptions {
 	readonly canReply?: boolean | null;
 	/** 可注入的投递实现（单测用） */
 	readonly sender?: DeliverRawSender;
+	/** 自定义重跑动作回调（可选注入） */
+	readonly onApproveRerun?: () => Promise<void>;
+	/** 自定义重派动作回调（可选注入） */
+	readonly onReassign?: () => void;
 }
 
 export interface UseGateCardResult {
@@ -150,13 +160,30 @@ export interface UseGateCardResult {
 	readonly copyReworkText: () => Promise<boolean>;
 	/** 清掉当前提示 */
 	readonly dismissNotice: () => void;
+	/** 零产出退出 [重跑] 动作（POST /runs/:runId/rerun，AC 6, E-348） */
+	readonly isRerunPending: boolean;
+	readonly actionError: string | null;
+	readonly handleApproveRerun: () => Promise<void>;
+	/** 零产出退出 [换 agent 重派] 动作（展开批次 + openReassign，AC 6, E-359） */
+	readonly handleReassign: () => void;
 }
 
 /**
- * 审批卡的投递动作 hook。
+ * 审批卡的投递动作与零产出退出操作 hook。
  */
 export function useGateCard(options: UseGateCardOptions = {}): UseGateCardResult {
-	const { runId, reworkText, reviewVerdict, canReply, sender } = options;
+	const {
+		runId,
+		taskId,
+		batchId,
+		snapshotAgentId,
+		reworkText,
+		reviewVerdict,
+		canReply,
+		sender,
+		onApproveRerun,
+		onReassign,
+	} = options;
 
 	// 能力位缺失即视为不可回话：UI 先灰掉，而不是点了才报错（E-117）
 	const resolvedCanReply = canReply === true;
@@ -190,13 +217,11 @@ export function useGateCard(options: UseGateCardOptions = {}): UseGateCardResult
 		setDeliveryNotice(null);
 		try {
 			const response = await (sender ?? defaultSender)(runId, {
-				// 原文逐字投递，不裁剪、不改写（E-278）
 				text: rawText,
 				kind: 'reply',
 			});
 
 			if (response.delivered) {
-				// 只报「已送达」：运行状态以回流事件为准，不拿响应体改状态（E-157）
 				setDeliveryNotice({
 					kind: 'delivered',
 					message: DELIVERY_NOTICE_MESSAGES.delivered,
@@ -231,7 +256,40 @@ export function useGateCard(options: UseGateCardOptions = {}): UseGateCardResult
 		return ok;
 	}, [rawText]);
 
+	const [isRerunPending, setRerunPending] = useState(false);
+	const [actionError, setActionError] = useState<string | null>(null);
 	const dismissNotice = useCallback(() => setDeliveryNotice(null), []);
+
+	// AC 6 / E-348: 零产出 [重跑] 映射为 POST /runs/:runId/rerun
+	const handleApproveRerun = useCallback(async (): Promise<void> => {
+		if (isRerunPending) return;
+		setRerunPending(true);
+		setActionError(null);
+		try {
+			if (onApproveRerun) await onApproveRerun();
+			else if (runId) await rerunRun(runId);
+		} catch (cause) {
+			setActionError(
+				isApiError(cause) ? getErrorMessage(cause.code) : getErrorMessage('E_INTERNAL'),
+			);
+		} finally {
+			setRerunPending(false);
+		}
+	}, [onApproveRerun, runId, isRerunPending]);
+
+	// AC 6 / E-359: 零产出 [换 agent 重派] 先展开批次再 openReassign
+	const handleReassign = useCallback((): void => {
+		if (onReassign) {
+			onReassign();
+			return;
+		}
+		if (batchId) {
+			expandBatch(batchId);
+		}
+		if (taskId) {
+			useSelectionStore.getState().openReassign(taskId, snapshotAgentId ?? null);
+		}
+	}, [batchId, taskId, snapshotAgentId, onReassign]);
 
 	return {
 		canReply: resolvedCanReply,
@@ -242,6 +300,10 @@ export function useGateCard(options: UseGateCardOptions = {}): UseGateCardResult
 		deliverRaw,
 		copyReworkText,
 		dismissNotice,
+		isRerunPending,
+		actionError,
+		handleApproveRerun,
+		handleReassign,
 	};
 }
 

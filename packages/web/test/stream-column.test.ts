@@ -448,37 +448,41 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 			vi.unstubAllGlobals();
 		});
 
-		it('RunDeckView renders 3-column grid for <= 3 streams without horizontal overflow in full tier', () => {
-			const lanes: DeckStreamLane[] = [
-				{ laneNo: 1, taskKey: 'M9-T1', title: '任务 1', status: 'succeeded' },
-				{ laneNo: 2, taskKey: 'M9-T2', title: '任务 2', status: 'streaming' },
-				{ laneNo: 3, taskKey: 'M9-T3', title: '任务 3', status: 'queued' },
-			];
+		it.each([1, 2, 3])(
+			'RunDeckView allocates exactly %i full-tier columns without empty tracks',
+			(count) => {
+				const lanes: DeckStreamLane[] = [
+					{ laneNo: 1, taskKey: 'M9-T1', title: '任务 1', status: 'succeeded' },
+					{ laneNo: 2, taskKey: 'M9-T2', title: '任务 2', status: 'streaming' },
+					{ laneNo: 3, taskKey: 'M9-T3', title: '任务 3', status: 'queued' },
+				].slice(0, count);
 
-			const html = renderToStaticMarkup(
-				createElement(RunDeckView, {
-					lanes,
-					tier: 'full',
-					isTouch: false,
-					width: 1440,
-					expandedLaneNo: null,
-					toggleExpandLane: () => {},
-					stoppingLanes: new Set<number>(),
-					handleStopLane: async () => {},
-					userPreference: 'full',
-					togglePreference: () => {},
-					scrollContainerRef: { current: null },
-					offScreenWaiting: { left: 0, right: 0 },
-					scrollToLane: () => {},
-				}),
-			);
+				const html = renderToStaticMarkup(
+					createElement(RunDeckView, {
+						lanes,
+						tier: 'full',
+						isTouch: false,
+						width: 1440,
+						expandedLaneNo: null,
+						toggleExpandLane: () => {},
+						stoppingLanes: new Set<number>(),
+						handleStopLane: async () => {},
+						userPreference: 'full',
+						togglePreference: () => {},
+						scrollContainerRef: { current: null },
+						offScreenWaiting: { left: 0, right: 0 },
+						scrollToLane: () => {},
+					}),
+				);
 
-			// 采用网格并列排布（由 deck-grid 提供 repeat(3, minmax(var(--stream-min), 1fr))）
-			expect(html).toContain('grid gap-3 p-4');
-			expect(html).toMatch(
-				/grid-template-columns:\s*repeat\(3,\s*minmax\(var\(--stream-min\),\s*1fr\)\)/,
-			);
-		});
+				// 采用网格并列排布
+				expect(html).toContain('grid gap-3 p-4');
+				expect(html).toContain(
+					`grid-template-columns:repeat(${count}, minmax(var(--stream-min), 1fr))`,
+				);
+				expect(html.match(/data-lane-deck-slot=/g)).toHaveLength(count);
+			},
+		);
 	});
 
 	// ─────────────────────────────────────────────────────────────────────────────

@@ -452,14 +452,14 @@ export function StreamColumn(props: StreamColumnProps) {
 						(idleText ? (
 							<div
 								data-slot="idle-text"
-								className="flex items-center justify-center h-full min-h-[120px] text-[13px] text-[var(--ink-3)] font-ui select-none text-center px-4"
+								className="text-[13px] text-[var(--ink-3)] font-ui select-none"
 							>
 								{idleText}
 							</div>
 						) : (
 							<div
 								data-slot="stage-placeholder"
-								className="flex items-center justify-center h-full min-h-[120px] text-[12px] text-[var(--ink-3)] font-mono select-none"
+								className="text-[12px] text-[var(--ink-3)] font-mono select-none"
 							>
 								— 等待阶段分配 —
 							</div>

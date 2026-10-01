@@ -135,7 +135,7 @@ export function DocChangeBanner({
 				<span className="flex h-5 w-5 items-center justify-center rounded-sm bg-needs text-on-needs font-mono text-micro font-bold">
 					!
 				</span>
-				<div className="flex flex-col">
+				<div className="flex flex-col min-w-0">
 					<span className="text-dense font-semibold">本文档已更新，{count} 个任务的依据已变</span>
 					{notice.summary && (
 						<span className="font-mono text-micro text-ink-2">{notice.summary}</span>
@@ -292,7 +292,7 @@ export function EmptyOnboarding({
 		<div
 			data-testid="empty-onboarding-console"
 			className={[
-				'flex flex-col gap-3 rounded-lg border border-border bg-page p-3.5 text-ink-1 font-ui w-full select-none',
+				'flex flex-col gap-[var(--sp-3)] bg-page p-0 text-ink-1 font-ui min-w-0 w-full select-none break-words',
 				className,
 			].join(' ')}
 		>
@@ -395,9 +395,9 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="0"
 					aria-label="第 1 步：选文档"
-					className="flex flex-col gap-4 rounded border border-border bg-bg p-4"
+					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
 							<h3 className="text-dense font-semibold text-ink-1">
 								第一步：选择调度目标需求开发文档
@@ -441,17 +441,17 @@ export function EmptyOnboarding({
 										data-selected={isSelected ? 'true' : 'false'}
 										onClick={() => handleSelectDoc(doc.id)}
 										className={[
-											'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
+											'flex flex-wrap items-center justify-between gap-2 min-w-0 p-3 rounded border text-left cursor-pointer transition-colors w-full',
 											isSelected
 												? 'border-needs bg-panel-2'
 												: 'border-border bg-bg hover:border-border-strong',
 										].join(' ')}
 									>
-										<div className="flex flex-col">
+										<div className="flex flex-col min-w-0">
 											<span className="font-ui text-dense font-semibold text-ink-1">
 												{doc.title}
 											</span>
-											<span className="font-mono text-micro text-ink-3">{doc.path}</span>
+											<span className="font-mono text-micro text-ink-3 break-all">{doc.path}</span>
 										</div>
 										<div className="flex items-center gap-3 text-micro text-ink-2 font-mono">
 											{doc.batchCount !== undefined && <span>{doc.batchCount} 个批次</span>}
@@ -473,7 +473,7 @@ export function EmptyOnboarding({
 						) : (
 							<div
 								data-testid="empty-documents"
-								className="p-6 text-center font-mono text-meta text-ink-3"
+								className="p-3.5 text-left font-mono text-meta text-ink-3"
 							>
 								—
 							</div>
@@ -500,9 +500,9 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="1"
 					aria-label="第 2 步：选批次"
-					className="flex flex-col gap-4 rounded border border-border bg-bg p-4"
+					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
 							<h3 className="text-dense font-semibold text-ink-1">第二步：选择要派发的任务批次</h3>
 							<p className="text-meta text-ink-2">
@@ -523,13 +523,13 @@ export function EmptyOnboarding({
 										data-selected={isSelected ? 'true' : 'false'}
 										onClick={() => handleSelectBatch(batch.id)}
 										className={[
-											'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
+											'flex flex-wrap items-center justify-between gap-2 min-w-0 p-3 rounded border text-left cursor-pointer transition-colors w-full',
 											isSelected
 												? 'border-needs bg-panel-2'
 												: 'border-border bg-bg hover:border-border-strong',
 										].join(' ')}
 									>
-										<div className="flex flex-col">
+										<div className="flex flex-col min-w-0">
 											<div className="flex items-center gap-2">
 												<span className="font-ui text-dense font-semibold text-ink-1">
 													{batch.name}
@@ -563,14 +563,14 @@ export function EmptyOnboarding({
 						) : (
 							<div
 								data-testid="empty-batches"
-								className="p-6 text-center font-mono text-meta text-ink-3"
+								className="p-3.5 text-left font-mono text-meta text-ink-3"
 							>
 								—
 							</div>
 						)}
 					</div>
 
-					<div className="flex items-center justify-between pt-2">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-2">
 						<button
 							type="button"
 							data-action="prev-step"
@@ -600,7 +600,7 @@ export function EmptyOnboarding({
 					aria-label="第 3 步：逐任务指派"
 					className="flex min-w-0 w-full flex-col gap-4 rounded border border-border bg-bg p-2"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
 							<h3 className="text-dense font-semibold text-ink-1">第三步：逐任务指派</h3>
 							<p className="text-meta text-ink-2">
@@ -613,7 +613,7 @@ export function EmptyOnboarding({
 						{step3Slot ?? (
 							<div
 								data-testid="step-3-fallback"
-								className="p-6 rounded border border-border bg-page text-center font-mono text-meta text-ink-3"
+								className="p-3.5 rounded border border-border bg-page text-center font-mono text-meta text-ink-3"
 							>
 								{tasks && tasks.length > 0 ? (
 									<div className="flex flex-col gap-2">
@@ -639,7 +639,7 @@ export function EmptyOnboarding({
 						)}
 					</div>
 
-					<div className="flex items-center justify-between pt-2">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-2">
 						<button
 							type="button"
 							data-action="prev-step"
@@ -667,9 +667,9 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="3"
 					aria-label="第 4 步：派发"
-					className="flex flex-col gap-4 rounded border border-border bg-bg p-4"
+					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
 							<h3 className="text-dense font-semibold text-ink-1">
 								第四步：并发限制审计与启动派发
@@ -686,7 +686,7 @@ export function EmptyOnboarding({
 							data-testid="concurrency-bottleneck-card"
 							className="flex flex-col gap-3 p-3.5 rounded border border-border bg-panel-2 text-meta"
 						>
-							<div className="flex items-center justify-between">
+							<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 								<span className="font-semibold text-ink-1">有效并行并发容量</span>
 								<span className="font-mono text-num font-bold text-needs">{capacityText}</span>
 							</div>
@@ -736,7 +736,7 @@ export function EmptyOnboarding({
 						</div>
 					</div>
 
-					<div className="flex items-center justify-between pt-2">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-2">
 						<button
 							type="button"
 							data-action="prev-step"

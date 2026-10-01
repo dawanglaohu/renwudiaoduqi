@@ -10,6 +10,7 @@
 	},
 	"dependencies": {
 		"@agent-scheduler/shared": "workspace:*",
+		"@radix-ui/react-select": "^2.3.7",
 		"@tanstack/react-virtual": "^3.13.2",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",

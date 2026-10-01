@@ -984,12 +984,16 @@
   },
   "M9-T23": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "2b34ff9a275284fbf4dd896c961814d4da445a4891ec6f54150f652e9b0710be",
+    "contractHash": "a7ce8b053fcef3ab1f2d0d7b8e00dbd5b4f3164b5884542e70008da8e0e6fad1",
     "evidence": [
-      "M9-T23: desktop-density-20260929 adds shared 11-UI.md spacing context; patch changes.before/after shows task acceptance, edges and effective paths unchanged. New density implementation is scoped to todo M9-T28/M9-T29. M9-T23 stays todo; semantic contract review does not mark its code complete.",
-      "M9-T23 note retains grouped model/login/effort acceptance and E-254/E-335 through E-359 boundaries; full pnpm -w check on base 33c483f9 passed 206 test files and 2551 tests (3 skipped)."
+      "Verified acceptance 1-9, all 13 original edges, prerequisite capabilities and route/event registrations against current main and the original PR.",
+      "Support paths cover only affected production layout and regressions plus rerun.ts and its two existing test files required by the remaining R1 CI failure. No API, DTO, schema or gate semantic change.",
+      "Actual-count grid, left-rail assignment and left-aligned form/sidebar pass every required density verdict at 1920x1080 and 1440x900; 390x844 has no horizontal overflow. Stored probe output: _run/M9-T23.review-round-2.evidence.json.",
+      "Jev jev-1.13.0: density option A low 0.34 adopted; sequence-gap fix option A high 0.96 adopted. Both actions are implemented on the original branch, and overlap with M9-T28 is preserved for reconciliation.",
+      "Final local pnpm -w check passed: 218 files, 2642 passed and 3 existing skipped. Rerun/bughunt focused tests: 31 passed. Sequence-gap tests fail with old code and pass with corrected production code.",
+      "Real-provider browser evidence verifies one shared refresh, ordinary reads restored, exact assistant final reply, model refusal zero-output, rerun with zero gate writes, reassign focus and confirmation refusal. Final clean-head recording and exact-head CI are required before merge and published on PR #172."
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-01T01:39:50.107186+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1041,13 +1045,13 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af",
     "evidence": [
-      "按当前契约哈希 249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af 核对任务笔记、11 节间距与容器、13 节边界、17 节 check/E2E 命令及 19 节范围。此 pass 只登记文档契约语义复核；代码验收结论为 rework，未执行 --landed。",
-      "M9-T16/17/18/19/21 前置已在当前 main 落地。全部生产与测试改动均在有效路径内，任务笔记两个回填区已核；共享接口、daemon 与业务状态约定没有修改。",
-      "泳道布局读取 daemon 下发数据，密度类型复用 use-breakpoint.ts 的 DensityTier，桌面网格模板由 deck-grid.ts 单点提供。页面、容器、展示组件与 API 客户端分层保持既定约定。",
-      "AC1-6 与 E-106/108/145/163/164/165/167/168/236/319/324 已逐条对照生产消费者与测试。全量 check 和原版 batch-13 通过，真实密度矩阵通过；左栏指派控件、GIF 视口和 CI 门禁的返工项须修复后才可落地。原始证据保存在任务 planning 目录的 review-*.json 与 review-*.log，PR 留存完整本轮结论。",
-      "实施方全部 A/B 候选已加入当前 diff 事实重新交 Jev；模型 jev-1.13.0 对工作树沿用、手机引导落位、公开设置配置密度矩阵均返回 status=ok/adopt=take(A)。CI 范围裁决同为 take(A)：保留本 PR 未合并，待所属修复使必需检查变绿。"
+      "第二轮仅复核第一轮 R1/R2/R3。任务契约、前置、有效路径、11/13/17/19 节与当前主干 M9-T23 合并内容复核；契约哈希未变。所有本层产品与测试差异均在原有效路径内，main 的 daemon/batch-14 修复保持原字节，不将主干改动伪记为本层修复。",
+      "R1 真实生产 daemon 公开配对、浏览器导入、确认指派、回改、取消、再次保存在 1440x900/1920x1080/390x844 通过。桌面编辑行 209/209px、手机 328/328px，确认/取消单行，桌面高32px、触控44px。模型与思考强度触发器触控补足44px；登录与清单、重派定位接线保留。",
+      "合并主干后的生产构建及 pnpm -w check 219文件/2657通过/3原有跳过；原 batch-13 12/12，断言未改；触控高度补丁后的指派/模型/思考强度44/44。原密度探针N2复测1920/1440fill0.981/0.973，D1-D6pass、emptyTracks=[]、390无溢出、1920左栏底0泳道16；未受影响N1/3/5复用第一轮真实矩阵。",
+      "R2 返工36ba2e75真实GIF1440x900源帧与单次nativeCodex完成记录已核。合并后的最终提交将另录同一生产实例/全新浏览器上下文的公开配对、导入、指派、派发、真实模型完成，并在PR记录head/origin/run/源帧及远端媒体校验。R3 返工head正常CI全绿已核；合并后的最终head必须正常CI全绿才执行合并，此契约登记不代替该代码门禁。",
+      "第一轮三项实施候选及CI范围裁决全部由真实Jev jev-1.13.0确认take(A)。本轮不改原候选或方向：保留原工作树与PR、手机引导在任务面板、公开设置配置密度矩阵、待主干所属修复与最终提交必需检查通过后落地。合并使用唯一网格模板和全高链，修复已定44px触控约定，不产生新的方向裁决。"
     ],
-    "reviewed": "2026-10-01T01:05:40.138751+00:00",
+    "reviewed": "2026-10-01T03:25:52.119833+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

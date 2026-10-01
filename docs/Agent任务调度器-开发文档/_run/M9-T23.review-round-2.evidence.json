@@ -1,0 +1,909 @@
+{
+  "task": "M9-T23",
+  "round": 2,
+  "checkedCodeSha": "2614341cedc5ec6103f8bf4e6bc07847efd70664",
+  "checks": {
+    "workspace": {
+      "passed": 2642,
+      "skipped": 3,
+      "testFiles": 218
+    },
+    "pipelineFocused": 21,
+    "rerunAndBughuntFocused": 31,
+    "sequenceGapNegativeControl": {
+      "unit": "Old production code failed both rerun and redispatch on UNIQUE(task_id,attempt_no); fixed code passes both.",
+      "httpIntegration": "Old production code returned kind=implement for bughunt rerun after another task created a numbering gap; fixed code returns a new bughunt ID with attempt 5 and the same snapshot."
+    }
+  },
+  "runtime": {
+    "origin": "http://127.0.0.1:18825",
+    "browser": "repository Playwright; isolated headless Chromium",
+    "fixtures": false,
+    "sha": "7e1cabfbcb0da45aaa3649081b408e4e7c320353",
+    "batchId": "req_b749422713ec",
+    "sharedPending": [
+      true,
+      true
+    ],
+    "refreshRequests": 1,
+    "normalModelReads": 2,
+    "pipeline": {
+      "pipeline": {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": {
+          "agentId": "codex",
+          "modelName": "gpt-6-sol",
+          "effortTier": "low"
+        },
+        "wrapupAssignment": {
+          "mode": "follow"
+        }
+      }
+    },
+    "runs": [
+      {
+        "id": "req_7e57f33567b8",
+        "state": "awaiting_human",
+        "modelName": "gpt-6-sol-model-does-not-exist-m9t23",
+        "reason": "exited_before_output",
+        "exitCode": 1
+      },
+      {
+        "id": "req_b4d49710bce2",
+        "state": "running",
+        "modelName": "gpt-6-sol",
+        "reason": "process_spawned",
+        "exitCode": null
+      }
+    ],
+    "exactAssistantReply": "M9-T23-REAL-RUN",
+    "assistantEvent": "59\n{\"method\":\"item/completed\",\"params\":{\"item\":{\"type\":\"agentMessage\",\"id\":\"msg_09bd2efcbd716561016abdb4add99487d08f1438d49ac4423d\",\"text\":\"M9-T23-REAL-RUN\",\"phase\":\"final_answer\",\"memoryCitation\":null,\"delivery\":null,\"questions\":null},\"threadId\":\"01a0f509-8b01-7e02-ba7a-27810abc0da9\",\"turnId\":\"01a0f50\n… (共 390 字符)\n展开 (+90 字符)",
+    "realRerun": {
+      "status": 200,
+      "path": "/api/v1/runs/req_7e57f33567b8/rerun",
+      "newRunId": "req_7fbdffb1f390",
+      "gateWritesDelta": 0
+    },
+    "reassignFocused": true,
+    "confirmationVisible": true,
+    "realFailureConfirmation": {
+      "runState": "failed",
+      "reason": "human_rejected"
+    },
+    "finalRuns": [
+      {
+        "id": "req_7fbdffb1f390",
+        "state": "failed",
+        "model": "gpt-6-sol-model-does-not-exist-m9t23",
+        "reason": "human_rejected",
+        "exitCode": 1
+      },
+      {
+        "id": "req_7e57f33567b8",
+        "state": "awaiting_human",
+        "model": "gpt-6-sol-model-does-not-exist-m9t23",
+        "reason": "exited_before_output",
+        "exitCode": 1
+      },
+      {
+        "id": "req_b4d49710bce2",
+        "state": "reviewing",
+        "model": "gpt-6-sol",
+        "reason": null,
+        "exitCode": 0
+      }
+    ],
+    "errors": [],
+    "frames": 11,
+    "mutations": [
+      {
+        "url": "http://127.0.0.1:18825/api/v1/batches/req_b749422713ec/assignments",
+        "method": "POST",
+        "body": "{\"assignments\":[{\"taskId\":\"req_306c843491ea\",\"agentId\":\"codex\",\"model\":\"gpt-6-sol\",\"effort\":{\"tier\":\"high\"}}]}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/batches/req_b749422713ec/assignments",
+        "method": "POST",
+        "body": "{\"assignments\":[{\"taskId\":\"req_306c843491ea\",\"agentId\":\"codex\",\"model\":\"gpt-6-sol\",\"effort\":{\"tier\":\"high\"}},{\"taskId\":\"req_7efd87ed9c69\",\"agentId\":\"codex\",\"model\":\"gpt-6-sol-model-does-not-exist-m9t23\",\"effort\":null}]}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/agents/codex",
+        "method": "PATCH",
+        "body": "{\"clearOverrides\":[\"defaultModel\"]}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/settings/pipeline",
+        "method": "PATCH",
+        "body": "{\"bughunt\":0,\"wrapupMode\":\"auto\",\"reviewOverride\":{\"agentId\":\"codex\",\"modelName\":null,\"effortTier\":null},\"wrapupAssignment\":{\"mode\":\"follow\"}}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/settings/pipeline",
+        "method": "PATCH",
+        "body": "{\"bughunt\":0,\"wrapupMode\":\"auto\",\"reviewOverride\":{\"agentId\":\"codex\",\"modelName\":null,\"effortTier\":null},\"wrapupAssignment\":{\"mode\":\"follow\"}}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/settings/pipeline",
+        "method": "PATCH",
+        "body": "{\"bughunt\":0,\"wrapupMode\":\"auto\",\"reviewOverride\":{\"agentId\":\"codex\",\"modelName\":\"gpt-6-sol\",\"effortTier\":null},\"wrapupAssignment\":{\"mode\":\"follow\"}}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/settings/pipeline",
+        "method": "PATCH",
+        "body": "{\"bughunt\":0,\"wrapupMode\":\"auto\",\"reviewOverride\":{\"agentId\":\"codex\",\"modelName\":\"gpt-6-sol\",\"effortTier\":\"low\"},\"wrapupAssignment\":{\"mode\":\"follow\"}}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/settings/pipeline",
+        "method": "PATCH",
+        "body": "{\"bughunt\":0,\"wrapupMode\":\"auto\",\"reviewOverride\":null,\"wrapupAssignment\":{\"mode\":\"follow\"}}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/gates/gate_req_6755eae67431/decide",
+        "method": "POST",
+        "body": "{\"decision\":\"pass\"}"
+      },
+      {
+        "url": "http://127.0.0.1:18825/api/v1/gates/gate_req_e478bf395613/decide",
+        "method": "POST",
+        "body": "{\"decision\":\"reject\"}"
+      }
+    ]
+  },
+  "density": {
+    "assignment": {
+      "codeSha": "e92f05f7b85348d7372ed9384459bd052d0c4c8c",
+      "records": [
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.flex.flex-row.flex-1 > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 272
+          },
+          "avail": {
+            "left": 272,
+            "right": 1920,
+            "width": 1648
+          },
+          "contentFound": true,
+          "fill": 0.981,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.007
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.flex.flex-row.flex-1 > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 272
+          },
+          "avail": {
+            "left": 272,
+            "right": 1440,
+            "width": 1168
+          },
+          "contentFound": true,
+          "fill": 0.973,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.01
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 1,
+          "leftGap": 0,
+          "rightGap": 0,
+          "interiorBand": {
+            "px": 16,
+            "ratio": 0.041
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      ]
+    },
+    "settings-agents": {
+      "codeSha": "e92f05f7b85348d7372ed9384459bd052d0c4c8c",
+      "records": [
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/settings/agents",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 18
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1920,
+            "width": 1920
+          },
+          "contentFound": true,
+          "fill": 0.983,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 5,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/settings/agents",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 18
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1440,
+            "width": 1440
+          },
+          "contentFound": true,
+          "fill": 0.978,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 5,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/settings/agents",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 18
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 0.959,
+          "leftGap": 16,
+          "rightGap": 0,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      ]
+    },
+    "settings-pipeline": {
+      "codeSha": "e92f05f7b85348d7372ed9384459bd052d0c4c8c",
+      "records": [
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1920,
+            "width": 1920
+          },
+          "contentFound": true,
+          "fill": 0.579,
+          "leftGap": 16,
+          "rightGap": 792,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.006
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1440,
+            "width": 1440
+          },
+          "contentFound": true,
+          "fill": 0.772,
+          "leftGap": 16,
+          "rightGap": 312,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.008
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18826/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 0.918,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 6,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      ]
+    },
+    "workbench": {
+      "codeSha": "7e1cabfbcb0da45aaa3649081b408e4e7c320353",
+      "records": [
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18825/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.flex.flex-row.flex-1 > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 272
+          },
+          "avail": {
+            "left": 272,
+            "right": 1920,
+            "width": 1648
+          },
+          "contentFound": true,
+          "fill": 0.981,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.007
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18825/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.flex.flex-row.flex-1 > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 272
+          },
+          "avail": {
+            "left": 272,
+            "right": 1440,
+            "width": 1168
+          },
+          "contentFound": true,
+          "fill": 0.973,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.01
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18825/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 1,
+          "leftGap": 0,
+          "rightGap": 0,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      ]
+    }
+  },
+  "sourceMode": {
+    "productionBootstrap": true,
+    "fixtureAgents": false,
+    "browserActions": true,
+    "apiOnlyAsCrossCheck": true,
+    "viewport": [
+      1440,
+      900
+    ],
+    "dev": true,
+    "transport": "Windows Codex CLI through WSL stdio wrapper; normal user configuration"
+  },
+  "adjudication": [
+    {
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(low 0.34) spec_change=no(0.18) outside_stack=no(0.10) needs_owner=no(0.10) reversible=yes(0.78) adopt=take(A)",
+      "adopted": "A",
+      "action": "Minimal production layout fixes on original PR with narrow support paths; M9-T28 scope retained"
+    },
+    {
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(high 0.96) spec_change=no(0.08) outside_stack=no(0.10) needs_owner=no(0.07) reversible=yes(0.69) adopt=take(A)",
+      "adopted": "A",
+      "action": "Correct both existing attempt allocation formulas; add only rerun source and two existing test files to supportPaths; prove red/green without changing API or gate behavior."
+    }
+  ],
+  "finalHeadMedia": "Final clean-head browser recording and media checksum are published on PR #172 after the knowledge-base commit."
+}
