@@ -598,7 +598,7 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="2"
 					aria-label="第 3 步：逐任务指派"
-					className="flex flex-col gap-4 rounded border border-border bg-bg p-4"
+					className="flex min-w-0 w-full flex-col gap-4 rounded border border-border bg-bg p-2"
 				>
 					<div className="flex items-center justify-between">
 						<div>
@@ -609,7 +609,7 @@ export function EmptyOnboarding({
 						</div>
 					</div>
 
-					<div data-slot="step-3-assign" className="flex flex-col gap-2.5">
+					<div data-slot="step-3-assign" className="flex min-w-0 w-full flex-col gap-2.5">
 						{step3Slot ?? (
 							<div
 								data-testid="step-3-fallback"
