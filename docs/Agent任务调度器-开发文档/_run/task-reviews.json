@@ -984,13 +984,16 @@
   },
   "M9-T23": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "74cb5892759a27e337c8b2dd2c820e754cbfda4185c6c96ac1213e18d7c3bb2e",
+    "contractHash": "a7ce8b053fcef3ab1f2d0d7b8e00dbd5b4f3164b5884542e70008da8e0e6fad1",
     "evidence": [
-      "R1/R4 现有 settings-agents.test.ts 改为 jsdom 实际点击 ModelPicker 分组下拉、选择手填并断言真实输入框；删除 initialOpen SSR 隐藏替身。",
-      "该支持文件与 M9-T28 当前修改路径无重叠；展示组件依赖只允许单向分层，架构测试通过。",
-      "pnpm -w check: 218 test files, 2635 passed, 3 existing skipped; Biome 和 tsc 全部通过。"
+      "Verified acceptance 1-9, all 13 original edges, prerequisite capabilities and route/event registrations against current main and the original PR.",
+      "Support paths cover only affected production layout and regressions plus rerun.ts and its two existing test files required by the remaining R1 CI failure. No API, DTO, schema or gate semantic change.",
+      "Actual-count grid, left-rail assignment and left-aligned form/sidebar pass every required density verdict at 1920x1080 and 1440x900; 390x844 has no horizontal overflow. Stored probe output: _run/M9-T23.review-round-2.evidence.json.",
+      "Jev jev-1.13.0: density option A low 0.34 adopted; sequence-gap fix option A high 0.96 adopted. Both actions are implemented on the original branch, and overlap with M9-T28 is preserved for reconciliation.",
+      "Final local pnpm -w check passed: 218 files, 2642 passed and 3 existing skipped. Rerun/bughunt focused tests: 31 passed. Sequence-gap tests fail with old code and pass with corrected production code.",
+      "Real-provider browser evidence verifies one shared refresh, ordinary reads restored, exact assistant final reply, model refusal zero-output, rerun with zero gate writes, reassign focus and confirmation refusal. Final clean-head recording and exact-head CI are required before merge and published on PR #172."
     ],
-    "reviewed": "2026-09-30T15:12:02.311430+00:00",
+    "reviewed": "2026-10-01T01:39:50.107186+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

@@ -1211,7 +1211,10 @@
         "packages/web/test/stream-column.test.ts",
         "packages/web/src/components/pipeline-lane.tsx",
         "packages/web/test/pipeline-toggles.test.tsx",
-        "packages/web/test/pipeline-lane.test.tsx"
+        "packages/web/test/pipeline-lane.test.tsx",
+        "packages/daemon/src/service/rerun.ts",
+        "packages/daemon/test/unit/rerun.test.ts",
+        "packages/daemon/test/integration/bughunt-lifecycle.test.ts"
       ],
       "sections": [
         1,
