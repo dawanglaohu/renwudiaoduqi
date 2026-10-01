@@ -63,7 +63,8 @@ export function PipelineAssignment({
 		if (follow) {
 			onChangeReviewOverride(null);
 		} else {
-			const fallbackAgentId = agents[0]?.id ?? '';
+			const fallbackAgentId = agents[0]?.id;
+			if (!fallbackAgentId) return;
 			onChangeReviewOverride({
 				agentId: fallbackAgentId,
 				modelName: null,
@@ -78,7 +79,8 @@ export function PipelineAssignment({
 		if (follow) {
 			onChangeWrapupAssignment({ mode: 'follow' });
 		} else {
-			const fallbackAgentId = agents[0]?.id ?? '';
+			const fallbackAgentId = agents[0]?.id;
+			if (!fallbackAgentId) return;
 			onChangeWrapupAssignment({
 				mode: 'fixed',
 				agentId: fallbackAgentId,
@@ -89,7 +91,10 @@ export function PipelineAssignment({
 	};
 
 	return (
-		<div data-testid="pipeline-assignment-container" className={`flex flex-col gap-5 ${className}`}>
+		<div
+			data-testid="pipeline-assignment-container"
+			className={`flex flex-col gap-[var(--sp-3)] ${className}`}
+		>
 			{/* 1. 审查覆盖设置区 */}
 			<div
 				data-testid="review-override-section"
@@ -124,7 +129,7 @@ export function PipelineAssignment({
 							type="button"
 							data-testid="review-override-custom-btn"
 							onClick={() => handleToggleReviewMode(false)}
-							disabled={disabled}
+							disabled={disabled || agents.length === 0}
 							className={`h-7 px-3 rounded-[4px] font-ui text-[12px] font-medium transition-colors ${
 								!isReviewFollow
 									? 'bg-[var(--bg)] text-[var(--ink-1)] shadow-sm'
@@ -275,7 +280,7 @@ export function PipelineAssignment({
 							type="button"
 							data-testid="wrapup-assignment-custom-btn"
 							onClick={() => handleToggleWrapupMode(false)}
-							disabled={disabled}
+							disabled={disabled || agents.length === 0}
 							className={`h-7 px-3 rounded-[4px] font-ui text-[12px] font-medium transition-colors ${
 								!isWrapupFollow
 									? 'bg-[var(--bg)] text-[var(--ink-1)] shadow-sm'

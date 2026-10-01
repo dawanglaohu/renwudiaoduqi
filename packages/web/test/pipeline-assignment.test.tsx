@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * packages/web/test/pipeline-assignment.test.tsx
  *
@@ -5,11 +6,47 @@
  */
 
 import type { AgentEntryDto } from '@agent-scheduler/shared/api/agents';
-import { createElement } from 'react';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { PipelineAssignment } from '../src/components/pipeline-assignment.tsx';
 import { UI_STRINGS } from '../src/i18n/ui-strings.ts';
+
+it('waits for the agent registry before allowing a custom pipeline assignment', async () => {
+	const host = document.createElement('div');
+	document.body.append(host);
+	const root = createRoot(host);
+	const onReview = vi.fn();
+	const onWrapup = vi.fn();
+	const render = (agents: readonly AgentEntryDto[]) =>
+		createElement(PipelineAssignment, {
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+			onChangeReviewOverride: onReview,
+			onChangeWrapupAssignment: onWrapup,
+			agents,
+		});
+	try {
+		await act(async () => root.render(render([])));
+		const custom = host.querySelector<HTMLButtonElement>(
+			'[data-testid="review-override-custom-btn"]',
+		);
+		expect(custom?.disabled).toBe(true);
+		await act(async () => custom?.click());
+		expect(onReview).not.toHaveBeenCalled();
+		await act(async () => root.render(render(mockAgents)));
+		await act(async () => custom?.click());
+		expect(onReview).toHaveBeenCalledWith({
+			agentId: mockAgents[0]?.id,
+			modelName: null,
+			effortTier: null,
+		});
+	} finally {
+		await act(async () => root.unmount());
+		host.remove();
+	}
+});
 
 const mockAgents: AgentEntryDto[] = [
 	{

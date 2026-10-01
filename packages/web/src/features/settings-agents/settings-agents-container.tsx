@@ -110,7 +110,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 		<div
 			data-component="settings-agents-container"
 			data-testid="settings-agents-container"
-			className="flex flex-col gap-6"
+			className="flex flex-col gap-[var(--sp-3)]"
 		>
 			{/* 错误提示：中文文案在展示层，daemon 英文 message 只进技术详情 */}
 			{error && (
@@ -134,7 +134,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 			/>
 
 			{/* 2. Agent 列表 */}
-			<div className="flex flex-col gap-4">
+			<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,560px),1fr))] gap-[var(--sp-3)]">
 				{agents.map((agent) => (
 					<AgentCardItem
 						key={agent.id}

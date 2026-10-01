@@ -1196,7 +1196,22 @@
         "packages/web/src/features/run-deck/run-deck-view.tsx",
         "packages/web/src/components/field-layers-row.tsx",
         "e2e/batch-14-composition.test.ts",
-        "packages/web/test/settings-agents.test.ts"
+        "packages/web/test/settings-agents.test.ts",
+        "packages/web/src/components/empty-onboarding.tsx",
+        "packages/web/src/components/stream-column.tsx",
+        "packages/web/src/pages/settings-agents-page.tsx",
+        "packages/web/src/pages/settings-pipeline-page.tsx",
+        "packages/web/src/pages/deck-page.tsx",
+        "packages/web/src/features/run-deck/run-deck-container.tsx",
+        "packages/web/src/features/run-deck/lanes-container.tsx",
+        "packages/web/src/components/pipeline-toggles.tsx",
+        "packages/web/test/run-deck-container.test.tsx",
+        "packages/web/test/stream-column.test.tsx",
+        "packages/web/test/empty-onboarding.test.tsx",
+        "packages/web/test/stream-column.test.ts",
+        "packages/web/src/components/pipeline-lane.tsx",
+        "packages/web/test/pipeline-toggles.test.tsx",
+        "packages/web/test/pipeline-lane.test.tsx"
       ],
       "sections": [
         1,

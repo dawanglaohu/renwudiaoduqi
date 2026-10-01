@@ -266,9 +266,7 @@ export function StreamColumn(props: StreamColumnProps) {
 				isExpanded ? 'col-span-full shadow-lg ring-1 ring-[var(--border-strong)]' : '',
 				// 各档位基础尺寸约束（AC 2, AC 4, E-164, E-166）
 				tier === 'compact' ? 'min-w-[var(--stream-min-dense,260px)] flex-1' : '',
-				tier === 'full'
-					? 'min-w-[var(--stream-min,320px)] max-w-[var(--stream-max,460px)] flex-1'
-					: '',
+				tier === 'full' ? 'min-w-0 w-full flex-1' : '',
 				tier === 'narrow' ? 'w-full' : '',
 				tier === 'phone' || tier === 'phone-xs' ? 'w-full' : '',
 				className ?? '',
@@ -454,14 +452,14 @@ export function StreamColumn(props: StreamColumnProps) {
 						(idleText ? (
 							<div
 								data-slot="idle-text"
-								className="flex items-center justify-center h-full min-h-[120px] text-[13px] text-[var(--ink-3)] font-ui select-none text-center px-4"
+								className="text-[13px] text-[var(--ink-3)] font-ui select-none"
 							>
 								{idleText}
 							</div>
 						) : (
 							<div
 								data-slot="stage-placeholder"
-								className="flex items-center justify-center h-full min-h-[120px] text-[12px] text-[var(--ink-3)] font-mono select-none"
+								className="text-[12px] text-[var(--ink-3)] font-mono select-none"
 							>
 								— 等待阶段分配 —
 							</div>

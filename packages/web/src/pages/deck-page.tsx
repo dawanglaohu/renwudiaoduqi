@@ -8,7 +8,10 @@ export interface DeckPageProps extends Partial<RouteComponentProps> {
 
 export function DeckPage({ lanes }: DeckPageProps) {
 	return (
-		<div data-component="deck-page" className="flex min-h-[calc(100vh-var(--topbar-h))] flex-col">
+		<div
+			data-component="deck-page"
+			className="flex h-[calc(100dvh-var(--topbar-h)-20px)] min-h-0 flex-col"
+		>
 			<RunDeckContainer lanes={lanes ?? []} />
 		</div>
 	);

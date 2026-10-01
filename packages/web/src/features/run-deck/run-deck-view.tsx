@@ -22,7 +22,7 @@ import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { type ReactNode, useCallback, useState } from 'react';
+import { type CSSProperties, type ReactNode, useCallback, useState } from 'react';
 import { navigateTo } from '../../app/routes.tsx';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
@@ -471,7 +471,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		<>
 			{/* 取数失败就地提示，不整页替换（07 节错误体系） */}
 			{assignPanel.error && (
-				<div className="mb-3 w-full max-w-4xl mx-auto">
+				<div className="mb-3 w-full min-w-0">
 					<InlineNotice
 						tone="down"
 						testId="assign-panel-error"
@@ -536,20 +536,20 @@ export function RunDeckView(props: RunDeckViewProps) {
 	const getDeckLayoutClass = (): string => {
 		// 1. 紧凑档（AC 2, E-164）
 		if (tier === 'compact') {
-			return 'grid grid-cols-[repeat(auto-fill,minmax(var(--stream-min-dense,260px),1fr))] gap-4 p-4 overflow-y-auto flex-1 auto-rows-fr';
+			return 'grid grid-cols-[repeat(auto-fill,minmax(var(--stream-min-dense,260px),1fr))] gap-[var(--sp-3)] p-[var(--sp-4)] overflow-y-auto flex-1 min-h-0 auto-rows-fr';
 		}
 
 		// 2. 完整档（AC 9, AC 10, E-163, E-167）
 		if (tier === 'full') {
 			if (streamCount <= 3) {
-				return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 overflow-y-auto flex-1 auto-rows-fr';
+				return 'grid grid-cols-[repeat(var(--deck-columns),minmax(var(--stream-min),1fr))] gap-[var(--sp-3)] p-[var(--sp-4)] overflow-y-auto flex-1 min-h-0 auto-rows-fr';
 			}
-			return 'relative flex flex-row gap-4 p-4 overflow-auto flex-1';
+			return 'relative flex flex-row gap-[var(--sp-3)] p-[var(--sp-4)] overflow-auto flex-1 min-h-0';
 		}
 
 		// 3. 桌面窄窗（AC 11, E-168）
 		if (tier === 'narrow') {
-			return 'flex flex-col gap-4 p-4 overflow-y-auto flex-1 w-full max-w-[800px] mx-auto';
+			return 'flex flex-col gap-[var(--sp-3)] p-[var(--sp-4)] overflow-y-auto flex-1 min-h-0 w-full';
 		}
 
 		// 4. 手机档位（在单流模式下占满垂直容器）
@@ -810,6 +810,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									wrapupPendingBatchIds={wrapupPendingBatchIds}
 									wrapupFailureByBatch={wrapupFailureByBatch}
 								/>
+								{showOnboarding && emptyConsole}
 							</aside>
 
 							{/* 泳道监看区 */}
@@ -832,9 +833,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									</button>
 								)}
 
-								{showOnboarding ? (
-									<div className="flex flex-col flex-1 p-4 overflow-y-auto">{emptyConsole}</div>
-								) : (
+								{
 									<LanesContainer
 										lanes={pipelineLanes}
 										tasks={tasks}
@@ -858,8 +857,9 @@ export function RunDeckView(props: RunDeckViewProps) {
 										onToggleExpandLane={toggleExpandLane}
 										scrollContainerRef={scrollContainerRef}
 										layoutClassName={getDeckLayoutClass()}
+										style={{ '--deck-columns': Math.max(1, streamCount) } as CSSProperties}
 									/>
-								)}
+								}
 
 								{tier === 'full' && offScreenWaiting.right > 0 && (
 									<button

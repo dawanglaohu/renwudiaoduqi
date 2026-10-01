@@ -472,7 +472,7 @@ function TaskAssignRow({
 				ref={rowRef}
 				data-task-assigned-row={task.taskKey}
 				data-testid={`assigned-row-${task.taskKey}`}
-				className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded border ${
+				className={`flex flex-col items-start justify-between gap-3 p-3.5 rounded border ${
 					isReassignTarget
 						? 'border-[var(--needs)] ring-2 ring-[var(--needs-soft)]'
 						: 'border-border'
@@ -482,7 +482,7 @@ function TaskAssignRow({
 				<div className="flex flex-col gap-1 min-w-0 flex-1">
 					<div className="flex items-center gap-2 flex-wrap">
 						<span className="font-mono text-dense font-bold text-ink-1">{task.taskKey}</span>
-						<span className="text-dense text-ink-2 truncate max-w-[280px]" title={task.title}>
+						<span className="text-dense text-ink-2 truncate min-w-0" title={task.title}>
 							{task.title}
 						</span>
 						{task.moduleKey && (
@@ -493,7 +493,7 @@ function TaskAssignRow({
 					</div>
 					{/* 已指派回显（AC 1: monogram → agent 名 → login-badge → 「刷新清单」图标键） */}
 					<div className="flex items-center gap-2.5 text-micro font-mono flex-wrap mt-0.5">
-						<span className="flex items-center gap-1.5 text-ink-1">
+						<span className="flex flex-wrap items-center gap-1.5 text-ink-1">
 							<span className="px-1.5 py-0.5 rounded bg-bg border border-border text-ink-2 font-bold text-micro">
 								{agentMonogram}
 							</span>
@@ -588,18 +588,16 @@ function TaskAssignRow({
 		>
 			{/* 任务标头 */}
 			<div className="flex items-center justify-between gap-2 flex-wrap">
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2 min-w-0">
 					<span className="font-mono text-dense font-bold text-ink-1">{task.taskKey}</span>
-					<span className="text-dense text-ink-1 font-semibold truncate max-w-[320px]">
-						{task.title}
-					</span>
+					<span className="text-dense text-ink-1 font-semibold truncate min-w-0">{task.title}</span>
 					{task.moduleKey && (
 						<span className="font-mono text-micro text-ink-3 px-1.5 py-0.5 rounded bg-panel-2 border border-border">
 							{task.moduleKey}
 						</span>
 					)}
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2 min-w-0">
 					{/* 会话序号：草稿写入后由 daemon 编号，未写入前显示「—」（E-31, R1） */}
 					<span
 						data-next-session-preview={pendingSessionDisplay}
@@ -667,7 +665,7 @@ function TaskAssignRow({
 			)}
 
 			{/* 表单控件区：三联控件（Agent / 模型 / 思考强度，R3: 44px 触控目标 + focus-visible 环） */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+			<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-2.5 pt-1">
 				{/* 1. 选择 Agent */}
 				<div className="flex flex-col gap-1">
 					<label htmlFor={`agent-select-${rowId}`} className="text-micro text-ink-3 font-mono">
@@ -756,7 +754,7 @@ function TaskAssignRow({
 				<div className="text-micro text-ink-3 font-mono">
 					{isAlreadyAssigned ? '修改单任务指派' : '逐任务独立指定，严禁整批统一套用'}
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2 min-w-0">
 					{isAlreadyAssigned && (
 						<button
 							type="button"
@@ -802,10 +800,10 @@ export function TaskAssignmentList({
 	return (
 		<div
 			data-testid="task-assignment-list"
-			className={`flex flex-col gap-3 rounded border border-border bg-bg p-4 ${className}`}
+			className={`flex flex-col gap-3 rounded border border-border bg-bg p-3.5 min-w-0 ${className}`}
 		>
 			{/* 顶栏：指派进度与容量总览（AC 1, AC 4, E-47, R1: 读下发字段，缺失显示 —） */}
-			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-border">
+			<div className="flex flex-col items-start justify-between gap-2 min-w-0 pb-2 border-b border-border">
 				<div>
 					<h4 className="text-dense font-semibold text-ink-1">
 						逐任务执行指派 ({assignedCount}/{totalTasks})
@@ -963,7 +961,7 @@ export function ConcurrencyBottleneckCard({
 			</div>
 
 			{/* 三因子对比网格（明确指出三者数值与哪一个是瓶颈，AC 3, E-52, R1: 缺失显示 —） */}
-			<div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 font-mono text-micro">
+			<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-2.5 font-mono text-micro">
 				{/* 因子 1：并行窗口数 */}
 				<div
 					data-factor="window_count"
@@ -1090,7 +1088,7 @@ export function ConcurrencyBottleneckCard({
 				data-testid="bottleneck-analysis-section"
 				className="flex flex-col gap-1.5 p-3 rounded bg-bg border border-border text-micro"
 			>
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2 min-w-0">
 					<span className="font-mono font-bold text-needs">瓶颈判定：</span>
 					<span data-testid="bottleneck-source-name" className="font-mono font-semibold text-ink-1">
 						{bottleneckInfo.label}
