@@ -292,7 +292,7 @@ export function PipelineLane({
 				{isIdle && (
 					<div
 						data-field="idle-placeholder"
-						className="flex items-center justify-center min-h-[80px] text-[13px] text-[var(--ink-3)] font-ui select-none text-center px-2"
+						className="text-[13px] text-[var(--ink-3)] font-ui select-none"
 					>
 						{idleText}
 					</div>

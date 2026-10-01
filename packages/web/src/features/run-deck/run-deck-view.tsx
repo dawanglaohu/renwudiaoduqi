@@ -22,18 +22,19 @@ import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { type ReactNode, useCallback } from 'react';
+import { type CSSProperties, type ReactNode, useCallback, useState } from 'react';
 import { navigateTo } from '../../app/routes.tsx';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
-import { GateCard } from '../../components/gate-card.tsx';
+import { GateCard, GateRejectConfirmation } from '../../components/gate-card.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { LaneRunStrip } from '../../components/lane-run-strip.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { useCanDispatch } from '../../store/connection-store.ts';
 import { useSelectionStore } from '../../store/selection-store.ts';
 import type { LaneStepItem } from './lane-steps-container.tsx';
@@ -117,7 +118,7 @@ function LaneGateCard(props: LaneGateCardProps) {
 	);
 }
 
-function TaskApprovalCard(props: {
+export function TaskApprovalCard(props: {
 	readonly gate: GateDto;
 	readonly task: TaskDto | undefined;
 	readonly runs: readonly RunDto[];
@@ -135,51 +136,74 @@ function TaskApprovalCard(props: {
 				(a, b) => a.attemptNo - b.attemptNo || (a.startedAt ?? '').localeCompare(b.startedAt ?? ''),
 			)
 			.at(-1);
-	const targetRun = reviewRun?.parentRunId
-		? runs.find((run) => run.id === reviewRun.parentRunId)
-		: null;
+	const targetRun =
+		gate.context && gate.runId
+			? runs.find((run) => run.id === gate.runId)
+			: reviewRun?.parentRunId
+				? runs.find((run) => run.id === reviewRun.parentRunId)
+				: null;
 	const delivery = useGateCard({
-		runId: targetRun?.id,
+		runId: gate.context ? gate.runId : targetRun?.id,
+		taskId: gate.taskId,
+		batchId: task?.batchId,
+		snapshotAgentId: targetRun?.agentId,
 		reviewVerdict: reviewRun?.reviewVerdict,
 		reworkText: reviewRun?.reworkText,
 		canReply: targetRun?.capabilities?.canReply,
 	});
+	const [rejectOpen, setRejectOpen] = useState(false);
 	return (
-		<GateCard
-			gateKind={gate.kind}
-			gate={gate}
-			taskKey={task?.taskKey ?? '—'}
-			taskTitle={task?.title ?? '—'}
-			reviewVerdict={reviewRun?.reviewVerdict ?? undefined}
-			reworkText={reviewRun?.reworkText ?? undefined}
-			canReply={delivery.canReply}
-			deliveryNotice={delivery.deliveryNotice}
-			isReworkTextCopied={delivery.isReworkTextCopied}
-			onCopyReworkText={() => {
-				void delivery.copyReworkText();
-			}}
-			disabled={!onDecideGate}
-			tier={tier}
-			isMobile={isMobileMode}
-			isTouch={isTouch}
-			stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
-			onApprove={() => {
-				void onDecideGate?.(gate.id, 'pass');
-			}}
-			onEdit={() => {
-				void onDecideGate?.(gate.id, 'reject', '改一下');
-			}}
-			onReject={() => {
-				void onDecideGate?.(gate.id, 'reject');
-			}}
-			{...(delivery.shouldShowDeliverRaw
-				? {
-						onDeliverRaw: () => {
-							void delivery.deliverRaw();
-						},
-					}
-				: {})}
-		/>
+		<>
+			<GateCard
+				gateKind={gate.kind}
+				gate={gate}
+				taskKey={task?.taskKey ?? '—'}
+				taskTitle={task?.title ?? '—'}
+				reviewVerdict={reviewRun?.reviewVerdict ?? undefined}
+				reworkText={reviewRun?.reworkText ?? undefined}
+				canReply={delivery.canReply}
+				deliveryNotice={delivery.deliveryNotice}
+				isReworkTextCopied={delivery.isReworkTextCopied}
+				onCopyReworkText={() => {
+					void delivery.copyReworkText();
+				}}
+				disabled={!onDecideGate || delivery.isRerunPending}
+				tier={tier}
+				isMobile={isMobileMode}
+				isTouch={isTouch}
+				stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
+				onApprove={() => {
+					if (gate.context) void delivery.handleApproveRerun();
+					else void onDecideGate?.(gate.id, 'pass');
+				}}
+				onEdit={() => {
+					if (gate.context) {
+						if (task) useSelectionStore.getState().setSelectedDocId(task.docId);
+						if (task?.batchId) useSelectionStore.getState().setSelectedBatchId(task.batchId);
+						delivery.handleReassign();
+					} else void onDecideGate?.(gate.id, 'reject', UI_STRINGS.gateCard.editComment);
+				}}
+				onReject={() => {
+					setRejectOpen(true);
+				}}
+				{...(delivery.shouldShowDeliverRaw
+					? {
+							onDeliverRaw: () => {
+								void delivery.deliverRaw();
+							},
+						}
+					: {})}
+			/>
+			{delivery.actionError && <InlineNotice tone="down" message={delivery.actionError} />}
+			<GateRejectConfirmation
+				open={rejectOpen}
+				onCancel={() => setRejectOpen(false)}
+				onConfirm={() => {
+					setRejectOpen(false);
+					void onDecideGate?.(gate.id, 'reject');
+				}}
+			/>
+		</>
 	);
 }
 
@@ -389,7 +413,9 @@ export function RunDeckView(props: RunDeckViewProps) {
 		(streamCount === 0 || (rawLanes !== undefined && !hasAssignedLane)) &&
 		pendingGates.length === 0 &&
 		!error;
-	const assignPanel = useAssignPanel({ enabled: showOnboarding });
+	const reassignTaskId = useSelectionStore((state) => state.reassignTaskId);
+	const reassignToast = useSelectionStore((state) => state.reassignToast);
+	const assignPanel = useAssignPanel({ enabled: showOnboarding || Boolean(reassignTaskId) });
 	const canDispatch = useCanDispatch();
 	const approvalExpandedIds = new Set(expandedIds);
 	for (const batch of treeBatches) {
@@ -402,15 +428,42 @@ export function RunDeckView(props: RunDeckViewProps) {
 		if (!gate) return null;
 		const task = tasks.find((entry) => entry.id === taskId);
 		return (
-			<TaskApprovalCard
-				gate={gate}
-				task={task}
-				runs={runs}
-				tier={tier}
-				isMobileMode={isMobileMode}
-				isTouch={isTouch}
-				onDecideGate={onDecideGate}
-			/>
+			<>
+				<TaskApprovalCard
+					gate={gate}
+					task={task}
+					runs={runs}
+					tier={tier}
+					isMobileMode={isMobileMode}
+					isTouch={isTouch}
+					onDecideGate={onDecideGate}
+				/>
+				{reassignTaskId === taskId && (
+					<>
+						{reassignToast && <output>{reassignToast}</output>}
+						{assignPanel.error && (
+							<InlineNotice
+								tone="down"
+								message={assignPanel.error.message}
+								technical={assignPanel.error.technical}
+							/>
+						)}
+						<AssignPanel
+							mode="step3"
+							tasks={assignPanel.tasks.filter((entry) => entry.id === taskId)}
+							agents={assignPanel.agents}
+							assignments={assignPanel.assignments}
+							reassignTaskId={reassignTaskId}
+							onRefreshAgentModels={(id) => {
+								void assignPanel.refreshAgentModels(id);
+							}}
+							onAssignTask={(id, selection) => {
+								void assignPanel.assignTask(id, selection);
+							}}
+						/>
+					</>
+				)}
+			</>
 		);
 	};
 
@@ -418,7 +471,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		<>
 			{/* 取数失败就地提示，不整页替换（07 节错误体系） */}
 			{assignPanel.error && (
-				<div className="mb-3 w-full max-w-4xl mx-auto">
+				<div className="mb-3 w-full min-w-0">
 					<InlineNotice
 						tone="down"
 						testId="assign-panel-error"
@@ -446,6 +499,10 @@ export function RunDeckView(props: RunDeckViewProps) {
 				step3Slot={
 					<AssignPanel
 						mode="step3"
+						reassignTaskId={reassignTaskId}
+						onRefreshAgentModels={(id) => {
+							void assignPanel.refreshAgentModels(id);
+						}}
 						tasks={assignPanel.tasks}
 						agents={assignPanel.agents}
 						assignments={assignPanel.assignments}
@@ -479,20 +536,20 @@ export function RunDeckView(props: RunDeckViewProps) {
 	const getDeckLayoutClass = (): string => {
 		// 1. 紧凑档（AC 2, E-164）
 		if (tier === 'compact') {
-			return 'grid grid-cols-[repeat(auto-fill,minmax(var(--stream-min-dense,260px),1fr))] gap-4 p-4 overflow-y-auto flex-1 auto-rows-fr';
+			return 'grid grid-cols-[repeat(auto-fill,minmax(var(--stream-min-dense,260px),1fr))] gap-[var(--sp-3)] p-[var(--sp-4)] overflow-y-auto flex-1 min-h-0 auto-rows-fr';
 		}
 
 		// 2. 完整档（AC 9, AC 10, E-163, E-167）
 		if (tier === 'full') {
 			if (streamCount <= 3) {
-				return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 overflow-y-auto flex-1 auto-rows-fr';
+				return 'grid grid-cols-[repeat(var(--deck-columns),minmax(var(--stream-min),1fr))] gap-[var(--sp-3)] p-[var(--sp-4)] overflow-y-auto flex-1 min-h-0 auto-rows-fr';
 			}
-			return 'relative flex flex-row gap-4 p-4 overflow-auto flex-1';
+			return 'relative flex flex-row gap-[var(--sp-3)] p-[var(--sp-4)] overflow-auto flex-1 min-h-0';
 		}
 
 		// 3. 桌面窄窗（AC 11, E-168）
 		if (tier === 'narrow') {
-			return 'flex flex-col gap-4 p-4 overflow-y-auto flex-1 w-full max-w-[800px] mx-auto';
+			return 'flex flex-col gap-[var(--sp-3)] p-[var(--sp-4)] overflow-y-auto flex-1 min-h-0 w-full';
 		}
 
 		// 4. 手机档位（在单流模式下占满垂直容器）
@@ -753,6 +810,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									wrapupPendingBatchIds={wrapupPendingBatchIds}
 									wrapupFailureByBatch={wrapupFailureByBatch}
 								/>
+								{showOnboarding && emptyConsole}
 							</aside>
 
 							{/* 泳道监看区 */}
@@ -775,9 +833,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									</button>
 								)}
 
-								{showOnboarding ? (
-									<div className="flex flex-col flex-1 p-4 overflow-y-auto">{emptyConsole}</div>
-								) : (
+								{
 									<LanesContainer
 										lanes={pipelineLanes}
 										tasks={tasks}
@@ -801,8 +857,9 @@ export function RunDeckView(props: RunDeckViewProps) {
 										onToggleExpandLane={toggleExpandLane}
 										scrollContainerRef={scrollContainerRef}
 										layoutClassName={getDeckLayoutClass()}
+										style={{ '--deck-columns': Math.max(1, streamCount) } as CSSProperties}
 									/>
-								)}
+								}
 
 								{tier === 'full' && offScreenWaiting.right > 0 && (
 									<button

@@ -530,6 +530,176 @@ export function runForbiddenCheck(
 				}
 			}
 		}
+
+		// Check 16: Client polling prohibited except local tick/countdown (AC 5, E-335, 07 节)
+		const isLocalTickTimer =
+			file.endsWith('/use-minute-tick.ts') ||
+			file.endsWith('\\use-minute-tick.ts') ||
+			file.endsWith('/use-settings-devices.ts') ||
+			file.endsWith('\\use-settings-devices.ts');
+		if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+			const cleanLines = blankComments(content).split('\n');
+			if (!isLocalTickTimer) {
+				for (let i = 0; i < cleanLines.length; i++) {
+					const line = cleanLines[i] ?? '';
+					if (/\bsetInterval\s*\(/.test(line)) {
+						violations.push({
+							rule: 'CLIENT_POLLING_PROHIBITED',
+							file: relPath,
+							line: i + 1,
+							snippet: lines[i]?.trim(),
+							message:
+								'Client polling via setInterval is strictly prohibited; cache invalidation is purely event-driven (AC 5, 07 节). Only use-minute-tick.ts may use local relative time setInterval.',
+						});
+					}
+				}
+			} else if (file.endsWith('use-minute-tick.ts')) {
+				// use-minute-tick.ts 不得 import src/api
+				for (let i = 0; i < cleanLines.length; i++) {
+					const line = cleanLines[i] ?? '';
+					if (/from\s+['"].*\/api(?:\/|['"])/.test(line)) {
+						violations.push({
+							rule: 'CLIENT_POLLING_PROHIBITED',
+							file: relPath,
+							line: i + 1,
+							snippet: lines[i]?.trim(),
+							message:
+								'use-minute-tick.ts is for local relative clock tick only and must not import src/api (AC 5, E-335).',
+						});
+					}
+				}
+			}
+		}
+
+		// Check 17: Agent ID special-casing prohibited (E-338, E-339, E-350)
+		if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+			const cleanLines = blankComments(content).split('\n');
+			const AGENT_SPECIAL_CASE_REGEX =
+				/\b(?:agentId|agent\.id|a\.id|selectedAgentId)\s*(?:===|!==|==|!=)\s*['"](?:claude|pi|dsh)['"]|['"](?:claude|pi|dsh)['"]\s*(?:===|!==|==|!=)\s*(?:\.id|agentId|agent\.id|a\.id|selectedAgentId)/;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (AGENT_SPECIAL_CASE_REGEX.test(line)) {
+					violations.push({
+						rule: 'AGENT_ID_SPECIAL_CASE',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							"Special-casing agent IDs ('claude' / 'pi' / 'dsh') is prohibited; branch on capability fields instead (E-338, E-339, E-350).",
+					});
+				}
+			}
+		}
+
+		// Check 18: Login state literals prohibited in UI layer (AC 1)
+		const isLoginFreshness =
+			file.endsWith('/login-freshness.ts') || file.endsWith('\\login-freshness.ts');
+		const isI18n = file.includes('/src/i18n/') || file.includes('\\src\\i18n\\');
+		if (isUiLayer && !isLoginFreshness && !isI18n) {
+			const cleanLines = blankComments(content).split('\n');
+			const LOGIN_STATE_LITERAL_REGEX =
+				/(?:===|!==|==|!=|case|\bstate\s*:|\.state\s*===)\s*['"](?:logged_in|logged_out)['"]|['"](?:logged_in|logged_out)['"]\s*(?:===|!==|==|!=)/;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (LOGIN_STATE_LITERAL_REGEX.test(line)) {
+					violations.push({
+						rule: 'LOGIN_STATE_LITERAL',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							"Login state literals ('logged_in' / 'logged_out') are prohibited in UI layer; use predicates from lib/login-freshness.ts (AC 1).",
+					});
+				}
+			}
+		}
+
+		// Check 19: Login state inside disabled expression prohibited (E-336, E-355)
+		if (file.endsWith('.tsx') || file.endsWith('.ts')) {
+			const cleanLines = blankComments(content).split('\n');
+			const LOGIN_IN_DISABLED_REGEX =
+				/\bdisabled\s*=\s*\{[^}]*\b(?:login(?:\??\.)state|isLoggedIn|isLoggedOut|isLoginUnknown)\b[^}]*\}|\bdisabled\s*:\s*[^,;\n]*\b(?:login(?:\??\.)state|isLoggedIn|isLoggedOut|isLoginUnknown)\b/;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (LOGIN_IN_DISABLED_REGEX.test(line)) {
+					violations.push({
+						rule: 'LOGIN_STATE_IN_DISABLED',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'Using login.state or login predicates inside disabled expressions is strictly prohibited (E-336, E-355).',
+					});
+				}
+			}
+		}
+
+		// Check 20: Model source literal comparison prohibited in UI layer (AC 2, E-350)
+		const isModelGroups = file.endsWith('/model-groups.ts') || file.endsWith('\\model-groups.ts');
+		if (isUiLayer && !isModelGroups && !isI18n) {
+			const cleanLines = blankComments(content).split('\n');
+			const MODEL_SOURCE_LITERAL_REGEX =
+				/\.source\s*(?:===|!==|==|!=)\s*['"](?:live|config|builtin|history|manual)['"]|['"](?:live|config|builtin|history|manual)['"]\s*(?:===|!==|==|!=)\s*[^;\n]*\.source/;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (MODEL_SOURCE_LITERAL_REGEX.test(line)) {
+					violations.push({
+						rule: 'MODEL_SOURCE_LITERAL',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'Model source literal comparison is prohibited in UI layer; use shared MODEL_SOURCES and lib/model-groups.ts (AC 2, E-350).',
+					});
+				}
+			}
+		}
+
+		// Check 21: Frontend model deduplication prohibited (AC 2, E-350)
+		const isModelPickerOrGroups =
+			file.endsWith('/model-picker.tsx') ||
+			file.endsWith('\\model-picker.tsx') ||
+			file.endsWith('/model-groups.ts') ||
+			file.endsWith('\\model-groups.ts') ||
+			file.endsWith('/use-agent-models.ts') ||
+			file.endsWith('\\use-agent-models.ts');
+		if (isModelPickerOrGroups) {
+			const cleanLines = blankComments(content).split('\n');
+			const DEDUPE_REGEX = /\bnew\s+Set\s*\(|\bdedupe\b|\buniq(?:ue)?\b/i;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (DEDUPE_REGEX.test(line)) {
+					violations.push({
+						rule: 'FRONTEND_MODEL_DEDUPLICATION',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'Frontend model deduplication/sorting (new Set, dedupe, uniq) is strictly prohibited; daemon deduplicates models (AC 2, E-350).',
+					});
+				}
+			}
+		}
+
+		// Check 22: cmdk or ui/shadcn/command prohibited in web (AC 2)
+		if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+			const cleanLines = blankComments(content).split('\n');
+			const CMDK_REGEX =
+				/from\s+['"].*(?:cmdk|shadcn\/command|ui\/shadcn\/command)['"]|import\s*\(?['"].*(?:cmdk|shadcn\/command)['"]/;
+			for (let i = 0; i < cleanLines.length; i++) {
+				const line = cleanLines[i] ?? '';
+				if (CMDK_REGEX.test(line)) {
+					violations.push({
+						rule: 'CMDK_OR_COMMAND_PROHIBITED',
+						file: relPath,
+						line: i + 1,
+						snippet: lines[i]?.trim(),
+						message:
+							'Importing cmdk or ui/shadcn/command is strictly prohibited in web package; use ui/grouped-select instead (AC 2).',
+					});
+				}
+			}
+		}
 	}
 
 	// Check 11: @keyframes must appear exactly once across base.css (AC 3, E-282).

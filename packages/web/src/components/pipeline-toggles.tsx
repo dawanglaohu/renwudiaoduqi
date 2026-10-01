@@ -23,11 +23,37 @@ export interface PipelineTogglesValues {
 	readonly wrapupMode: 'auto' | 'manual';
 }
 
+export function PipelineNotes({ value }: { readonly value?: PipelineTogglesValues | null }) {
+	const isBughuntOn = value?.bughunt === 1;
+	const isWrapupManual = value?.wrapupMode === 'manual';
+	return (
+		<>
+			{isBughuntOn && (
+				<div
+					data-testid="bughunt-auto-note"
+					className="text-[12px] font-ui text-ink-3 tracking-tight"
+				>
+					{UI_STRINGS.pipeline.bughuntAutoNote}
+				</div>
+			)}
+			{isWrapupManual && (
+				<div
+					data-testid="wrapup-manual-note"
+					className="text-[12px] font-ui text-ink-3 tracking-tight"
+				>
+					{UI_STRINGS.pipeline.wrapupManualNote}
+				</div>
+			)}
+		</>
+	);
+}
+
 export interface PipelineTogglesProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onChange'> {
 	/** 流水线设置的当前生效值（由 daemon 下发） */
 	readonly value?: PipelineTogglesValues | null;
 	/** 是否有在途 PATCH 请求 */
 	readonly isPending?: boolean;
+	readonly showNotes?: boolean;
 	/** 布局方向：topbar 紧凑横排（默认）或 settings 坚排卡片 */
 	readonly layout?: 'topbar' | 'settings';
 	/** 顶栏下方的说明区域，避免说明挤进 52px 控制行 */
@@ -51,6 +77,7 @@ const WRAPUP_MODE_OPTIONS: readonly SegmentedToggleOption<'auto' | 'manual'>[] =
 export function PipelineToggles({
 	value,
 	isPending = false,
+	showNotes = true,
 	layout = 'topbar',
 	notesHost = null,
 	onChange,
@@ -58,28 +85,7 @@ export function PipelineToggles({
 	...rest
 }: PipelineTogglesProps) {
 	const isTopbar = layout === 'topbar';
-	const isBughuntOn = value?.bughunt === 1;
-	const isWrapupManual = value?.wrapupMode === 'manual';
-	const notes = (
-		<>
-			{isBughuntOn && (
-				<div
-					data-testid="bughunt-auto-note"
-					className="text-[12px] font-ui text-ink-3 tracking-tight"
-				>
-					{UI_STRINGS.pipeline.bughuntAutoNote}
-				</div>
-			)}
-			{isWrapupManual && (
-				<div
-					data-testid="wrapup-manual-note"
-					className="text-[12px] font-ui text-ink-3 tracking-tight"
-				>
-					{UI_STRINGS.pipeline.wrapupManualNote}
-				</div>
-			)}
-		</>
-	);
+	const notes = <PipelineNotes value={value} />;
 
 	const handleBughuntChange = (target: 0 | 1) => {
 		if (!value || isPending) return;
@@ -115,7 +121,7 @@ export function PipelineToggles({
 			<div
 				className={[
 					'flex items-center gap-3',
-					isTopbar ? 'flex-row flex-nowrap shrink-0' : 'flex-col sm:flex-row gap-4',
+					isTopbar ? 'flex-row flex-nowrap shrink-0' : 'flex-wrap items-start gap-3',
 				].join(' ')}
 			>
 				{/* 开关 1：查 bug（bughunt: 0 | 1） */}
@@ -149,7 +155,7 @@ export function PipelineToggles({
 				</div>
 			</div>
 
-			{isTopbar ? notesHost && createPortal(notes, notesHost) : notes}
+			{showNotes && (isTopbar ? notesHost && createPortal(notes, notesHost) : notes)}
 		</div>
 	);
 }

@@ -1,137 +1,180 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { ListAgentModelsResponse } from '../../../../shared/src/api/agents.ts';
-import { ROUTES } from '../../../../shared/src/api/routes.ts';
-import { httpClient } from '../../api/http-client.ts';
+import type {
+	AgentCurrentConfigDto,
+	AgentModelItem,
+	ListAgentModelsResponse,
+} from '@agent-scheduler/shared/api/agents';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { listModels } from '../../api/agents.ts';
+import { CACHE_KEYS } from '../../api/cache-keys.ts';
+import { eventBus } from '../../api/event-bus.ts';
+import {
+	getResourceCacheVersion,
+	invalidate,
+	peek,
+	read,
+	subscribeResourceCache,
+} from '../../api/resource-cache.ts';
+import { groupModelsBySource } from '../../lib/model-groups.ts';
 
 export interface UseAgentModelsResult {
-	readonly models: readonly string[];
-	readonly source: string;
+	readonly catalog: ListAgentModelsResponse | null;
+	readonly models: readonly AgentModelItem[];
+	readonly modelNames: readonly string[];
 	readonly isComplete: boolean;
 	readonly isLoading: boolean;
 	readonly isRefreshing: boolean;
 	readonly error: Error | null;
+	readonly currentConfig: AgentCurrentConfigDto | null;
 	readonly refresh: () => Promise<void>;
 	readonly addCustomModel: (modelName: string) => void;
 }
-
-// In-memory cache per agentId (07-前端架构)
-const modelsCache = new Map<string, ListAgentModelsResponse>();
-
-const listAgentModelsRoute = ROUTES.find(
-	(r) => r.method === 'GET' && r.path === '/api/v1/agents/:agentId/models',
-);
-
-export function useAgentModels(agentId?: string | null): UseAgentModelsResult {
-	const cached = agentId ? modelsCache.get(agentId) : undefined;
-	const [models, setModels] = useState<readonly string[]>(cached?.models.map((m) => m.name) ?? []);
-	const [source, setSource] = useState<string>(cached?.models[0]?.source ?? '');
-	const [isComplete, setIsComplete] = useState<boolean>(cached?.isComplete ?? true);
-	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-	const [error, setError] = useState<Error | null>(null);
-
-	const fetchModels = useCallback(async (id: string, isRefresh = false) => {
-		if (isRefresh) {
-			setIsRefreshing(true);
-		} else {
-			setIsLoading(true);
-		}
-		setError(null);
-
-		if (!listAgentModelsRoute) {
-			const missingErr = new Error('Route GET /api/v1/agents/:agentId/models is not in ROUTES');
-			setError(missingErr);
-			setIsLoading(false);
-			setIsRefreshing(false);
-			return;
-		}
-
-		try {
-			// R7: 请求改走 ROUTES/callRoute
-			const response = await httpClient.callRoute<ListAgentModelsResponse>(listAgentModelsRoute, {
-				params: { agentId: id },
-				query: isRefresh ? { refresh: 'true' } : undefined,
-			});
-			modelsCache.set(id, response);
-			setModels(response.models.map((m) => m.name));
-			setSource(response.models[0]?.source ?? '');
-			setIsComplete(response.isComplete);
-		} catch (err) {
-			const e = err instanceof Error ? err : new Error(String(err));
-			setError(e);
-			// On failure, preserve existing models if available, but flag as incomplete (E-38)
-			setIsComplete(false);
-		} finally {
-			setIsLoading(false);
-			setIsRefreshing(false);
-		}
-	}, []);
-
-	useEffect(() => {
-		if (!agentId) {
-			setModels([]);
-			setSource('');
-			setIsComplete(true);
-			setError(null);
-			return;
-		}
-
-		const currentCached = modelsCache.get(agentId);
-		if (currentCached) {
-			setModels(currentCached.models.map((m) => m.name));
-			setSource(currentCached.models[0]?.source ?? '');
-			setIsComplete(currentCached.isComplete);
-		} else {
-			void fetchModels(agentId, false);
-		}
-	}, [agentId, fetchModels]);
-
-	const refresh = useCallback(async () => {
-		if (!agentId) return;
-		await fetchModels(agentId, true);
-	}, [agentId, fetchModels]);
-
-	const addCustomModel = useCallback(
-		(modelName: string) => {
-			const trimmed = modelName.trim();
-			if (!trimmed) return;
-			setModels((prev) => {
-				if (prev.includes(trimmed)) return prev;
-				const next = [trimmed, ...prev];
-				if (agentId) {
-					const prevCached = modelsCache.get(agentId);
-					modelsCache.set(agentId, {
-						models: next.map((name) => ({
-							name,
-							source: 'manual' as const,
-							isCurrentConfig: false,
-						})),
-						isComplete: prevCached?.isComplete ?? false,
-						refreshedAt: prevCached?.refreshedAt ?? new Date().toISOString(),
-						liveFailure: prevCached?.liveFailure ?? null,
-						currentConfig: prevCached?.currentConfig ?? {
-							model: null,
-							effort: null,
-							configPath: '',
-							effortRecognized: true,
-						},
-						isRefreshing: false,
-					});
-				}
-				return next;
-			});
-		},
-		[agentId],
-	);
-
-	return {
-		models,
-		source,
-		isComplete,
-		isLoading,
-		isRefreshing,
-		error,
-		refresh,
-		addCustomModel,
+const inflightRefreshes = new Map<string, Promise<void>>();
+const refreshListeners = new Set<() => void>();
+let refreshVersion = 0;
+function notifyRefresh(): void {
+	refreshVersion++;
+	for (const listener of refreshListeners) listener();
+}
+function subscribeRefresh(listener: () => void): () => void {
+	refreshListeners.add(listener);
+	return () => {
+		refreshListeners.delete(listener);
 	};
+}
+function getRefreshVersion(): number {
+	return refreshVersion;
+}
+
+/** Restore ordinary reads before an event or reconnect can reuse the temporary fetcher. */
+async function refreshAgent(agentId: string): Promise<void> {
+	const existing = inflightRefreshes.get(agentId);
+	if (existing) return existing;
+	const key = CACHE_KEYS.agentModels(agentId);
+	const operation = Promise.resolve()
+		.then(async () => {
+			if (!peek(key)) await read(key, () => listModels(agentId)).catch(() => {});
+			invalidate(key);
+			const request = read(key, () => listModels(agentId, { refresh: true }));
+			// read registers its fetcher synchronously and shares the existing request.
+			const normalRead = read(key, () => listModels(agentId));
+			try {
+				await request;
+			} finally {
+				await normalRead;
+			}
+		})
+		.finally(() => {
+			inflightRefreshes.delete(agentId);
+			notifyRefresh();
+		});
+	inflightRefreshes.set(agentId, operation);
+	notifyRefresh();
+	return operation;
+}
+
+/** Assignment rows and settings share the cache, catalog and refresh state. */
+export function useAgentModelCatalogs(
+	agentIds: readonly string[],
+): Readonly<Record<string, UseAgentModelsResult>> {
+	useSyncExternalStore(subscribeResourceCache, getResourceCacheVersion, getResourceCacheVersion);
+	useSyncExternalStore(subscribeRefresh, getRefreshVersion, getRefreshVersion);
+	const idsKey = JSON.stringify(agentIds);
+	const ids = useMemo<readonly string[]>(() => JSON.parse(idsKey), [idsKey]);
+	const lastComplete = useRef<Record<string, ListAgentModelsResponse>>({});
+	const [errors, setErrors] = useState<Record<string, Error | null>>({});
+	useEffect(() => {
+		let current = true;
+		const loadMissing = () => {
+			for (const id of ids) {
+				if (peek(CACHE_KEYS.agentModels(id))) continue;
+				void read(CACHE_KEYS.agentModels(id), () => listModels(id)).catch((cause: unknown) => {
+					if (current)
+						setErrors((prev) => ({
+							...prev,
+							[id]: cause instanceof Error ? cause : new Error(String(cause)),
+						}));
+				});
+			}
+		};
+		loadMissing();
+		const unsubscribe = subscribeResourceCache(() => {
+			queueMicrotask(() => {
+				if (current) loadMissing();
+			});
+		});
+		return () => {
+			current = false;
+			unsubscribe();
+		};
+	}, [ids]);
+	useEffect(
+		() =>
+			eventBus.subscribeAll((envelope) => {
+				if (envelope.kind === 'agent.availability_changed') invalidate('agentModels');
+			}),
+		[],
+	);
+	const results: Record<string, UseAgentModelsResult> = {};
+	for (const id of ids) {
+		const response = peek<ListAgentModelsResponse>(CACHE_KEYS.agentModels(id)) ?? null;
+		const pending = inflightRefreshes.has(id) || Boolean(response?.isRefreshing);
+		if (response && !pending) lastComplete.current[id] = response;
+		const catalog = pending
+			? (lastComplete.current[id] ?? response)
+			: (response ?? lastComplete.current[id] ?? null);
+		results[id] = {
+			catalog,
+			models: catalog?.models ?? [],
+			modelNames: catalog?.models.map((item) => item.name) ?? [],
+			isComplete: catalog?.isComplete ?? true,
+			isLoading: !catalog && !errors[id],
+			isRefreshing: pending,
+			error: response ? null : (errors[id] ?? null),
+			currentConfig: catalog?.currentConfig ?? null,
+			refresh: async () => {
+				try {
+					await refreshAgent(id);
+					setErrors((prev) => ({ ...prev, [id]: null }));
+				} catch (cause) {
+					setErrors((prev) => ({
+						...prev,
+						[id]: cause instanceof Error ? cause : new Error(String(cause)),
+					}));
+				}
+			},
+			// Manual names are assignment intents; the daemon owns catalog entries and history.
+			addCustomModel: () => {},
+		};
+	}
+	useEffect(() => {
+		const warnUnknown = () => {
+			for (const id of ids) {
+				const catalog = peek<ListAgentModelsResponse>(CACHE_KEYS.agentModels(id));
+				if (!catalog) continue;
+				const { unknownSources } = groupModelsBySource(catalog.models);
+				if (unknownSources.length)
+					console.warn('Unknown model catalog sources', id, unknownSources);
+			}
+		};
+		warnUnknown();
+		return subscribeResourceCache(warnUnknown);
+	}, [ids]);
+	return results;
+}
+export function useAgentModels(agentId?: string | null): UseAgentModelsResult {
+	const catalogs = useAgentModelCatalogs(agentId ? [agentId] : []);
+	return (
+		(agentId && catalogs[agentId]) || {
+			catalog: null,
+			models: [],
+			modelNames: [],
+			isComplete: true,
+			isLoading: false,
+			isRefreshing: false,
+			error: null,
+			currentConfig: null,
+			refresh: async () => {},
+			addCustomModel: () => {},
+		}
+	);
 }

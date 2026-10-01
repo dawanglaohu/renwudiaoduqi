@@ -49,6 +49,8 @@
 	--h-input: 32px;
 	--h-input-touch: 44px;
 	--badge-h: 20px;
+	--badge-h-inline: 18px;
+	--picker-note-w: 240px;
 	--composer-min: 72px;
 	--composer-max: 200px;
 	--thumbbar-h: 60px;

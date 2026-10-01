@@ -1,132 +1,167 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+/**
+ * packages/web/src/components/model-picker.tsx
+ *
+ * 模型选择展示组件（M9-T23 / AC 2, E-338, E-339, E-350）
+ *
+ * 规范依据：
+ * - 纯 props in / callback out
+ * - 基于 ui/grouped-select 二封（严禁 cmdk、严禁 command）
+ * - 按 shared MODEL_SOURCES 顺序出五组，空组不渲染，不去重不排序不改名（禁止 new Set/dedupe/uniq）
+ * - 带 provider 的条目切子组，login.providers[provider] 存在才渲染 inline 徽标
+ * - isCurrentConfig → chip「当前配置」
+ * - isComplete === false → footer「清单可能不全，可手填」（role="note" 不进方向键序列）
+ * - catalog === null 时触发器 disabled，isRefreshing 时显示「实时清单获取中」
+ * - 代码中绝不出现按 agentId 判「是不是 claude／pi／dsh」的分支
+ */
+
+import type {
+	AgentModelItem,
+	ListAgentModelsResponse,
+	LoginState,
+} from '@agent-scheduler/shared/api/agents';
+import { useMemo } from 'react';
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
+import {
+	MANUAL_MODEL_ACTION_KEY,
+	type ModelGroup,
+	groupModelsBySource,
+} from '../lib/model-groups.ts';
+import {
+	GroupedSelect,
+	type GroupedSelectGroup,
+	type GroupedSelectOption,
+	type GroupedSelectSubgroup,
+} from '../ui/grouped-select.tsx';
 import type { FieldErrorInfo } from './field-layers-row.tsx';
 
 export interface ModelPickerProps {
-	readonly models: readonly string[];
+	/** 后端返回的完整 catalog，catalog === null 时触发器 disabled */
+	readonly catalog?: ListAgentModelsResponse | null;
+	/** 兼容直接传入 models 数组的调用场景 */
+	readonly models?: readonly (AgentModelItem | string)[];
 	readonly selectedModel: string | null;
 	readonly onSelectModel: (model: string) => void;
+	readonly login?: LoginState | null;
 	readonly isComplete?: boolean;
 	readonly isLoading?: boolean;
 	readonly isRefreshing?: boolean;
 	readonly onRefresh?: () => void;
 	readonly onAddCustomModel?: (model: string) => void;
-	readonly initialOpen?: boolean;
 	readonly disabled?: boolean;
 	readonly error?: FieldErrorInfo | null;
+	readonly className?: string;
 }
 
-/**
- * 模型选择展示组件（AC 2 & AC 3 / E-38 呈现侧）
- * 规范约束（07 节 components 清单与 R7）：
- * - 纯 props in / callback out，不直接发起 API 请求；
- * - 桌面端：下拉菜单选择器；
- * - 手机端：退化为全屏选择器（fixed inset-0），使用 break-all whitespace-normal，不因屏宽裁剪候选项；
- * - 清单不全（isComplete === false）时明示「清单可能不全」并保留手填入口；
- * - 修复 dead token：统一使用 h-input 与既有 token。
- */
 export function ModelPicker({
-	models,
+	catalog = null,
+	models: propModels,
 	selectedModel,
 	onSelectModel,
-	isComplete = true,
+	login = null,
+	isComplete: propIsComplete,
 	isLoading = false,
-	isRefreshing = false,
+	isRefreshing: propIsRefreshing,
 	onRefresh,
 	onAddCustomModel,
-	initialOpen = false,
 	disabled = false,
 	error = null,
+	className = '',
 }: ModelPickerProps) {
-	const pickerId = useId();
-	const [isOpen, setIsOpen] = useState<boolean>(initialOpen);
-	const [searchTerm, setSearchTerm] = useState<string>('');
-	const [manualInput, setManualInput] = useState<string>('');
-	const [isMobile, setIsMobile] = useState<boolean>(false);
-
-	const containerRef = useRef<HTMLDivElement>(null);
-
-	// Detect mobile viewport (<640px)
-	useEffect(() => {
-		if (typeof window === 'undefined') return;
-		const media = window.matchMedia('(max-width: 639px)');
-		setIsMobile(media.matches);
-
-		const listener = (e: MediaQueryListEvent) => {
-			setIsMobile(e.matches);
-		};
-		media.addEventListener('change', listener);
-		return () => media.removeEventListener('change', listener);
-	}, []);
-
-	// Click outside to close on desktop
-	useEffect(() => {
-		if (!isOpen || isMobile) return;
-		const handleClickOutside = (e: MouseEvent) => {
-			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-				setIsOpen(false);
-			}
-		};
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => document.removeEventListener('mousedown', handleClickOutside);
-	}, [isOpen, isMobile]);
-
-	// Filtered models
-	const filteredModels = useMemo(() => {
-		const term = searchTerm.trim().toLowerCase();
-		if (!term) return models;
-		return models.filter((m) => m.toLowerCase().includes(term));
-	}, [models, searchTerm]);
-
-	const handleSelect = (model: string) => {
-		onSelectModel(model);
-		setIsOpen(false);
-		setSearchTerm('');
-	};
-
-	const handleApplyManual = () => {
-		const trimmed = manualInput.trim();
-		if (!trimmed) return;
-		if (onAddCustomModel) {
-			onAddCustomModel(trimmed);
+	// 归一化输入模型项列表
+	const rawModelItems = useMemo<readonly AgentModelItem[]>(() => {
+		if (catalog?.models) {
+			return catalog.models;
 		}
-		onSelectModel(trimmed);
-		setManualInput('');
-		setIsOpen(false);
-	};
+		if (propModels)
+			return propModels.filter((item): item is AgentModelItem => typeof item !== 'string');
+		return [];
+	}, [catalog, propModels]);
+
+	const isComplete = catalog ? catalog.isComplete : (propIsComplete ?? true);
+	const isRefreshing = Boolean(propIsRefreshing || catalog?.isRefreshing);
+
+	// 切组计算
+	const { groups: rawGroups } = useMemo(() => {
+		return groupModelsBySource(rawModelItems, selectedModel);
+	}, [rawModelItems, selectedModel]);
+
+	// 映射为 GroupedSelectGroup 结构
+	const selectGroups = useMemo<readonly GroupedSelectGroup[]>(() => {
+		return rawGroups.map((group: ModelGroup) => {
+			const subgroups: GroupedSelectSubgroup[] = group.subgroups.map((sg, sgIdx) => {
+				const items: GroupedSelectOption[] = sg.items.map((item) => {
+					let chip: string | undefined;
+					if (item.isCurrentConfig) {
+						chip = UI_STRINGS.modelPicker.currentConfigChip;
+					}
+					return {
+						value: item.isManualAction ? MANUAL_MODEL_ACTION_KEY : item.name,
+						label: item.isManualAction ? UI_STRINGS.modelPicker.manualOption : item.name,
+						chip,
+						isCustomAction: item.isManualAction,
+						note: group.source === 'other' ? item.source : item.note,
+					};
+				});
+
+				let badge: React.ReactNode = null;
+				if (sg.provider && login?.providers?.[sg.provider]) {
+					// provider inline 徽标不分配色相，中性呈现
+					badge = (
+						<span
+							data-testid={`provider-badge-${sg.provider}`}
+							className="inline-flex items-center px-1.5 py-0.2 rounded-[3px] border border-[var(--border)] bg-[var(--panel-2)] font-mono text-[9px] text-[var(--ink-2)]"
+						>
+							{sg.provider}
+						</span>
+					);
+				}
+
+				return {
+					id: `${group.source}-${sg.provider ?? 'default'}-${sgIdx}`,
+					label: sg.provider ? `${sg.provider}` : undefined,
+					badge,
+					items,
+				};
+			});
+
+			return {
+				id: group.source,
+				label:
+					(UI_STRINGS.modelPicker.sources as Readonly<Record<string, string>>)[group.source] ??
+					group.source,
+				subgroups,
+			};
+		});
+	}, [rawGroups, login]);
+
+	// 触发器禁用条件：明确 catalog === null 时 disabled（无配置与清单），或外部 disabled
+	const isTriggerDisabled = disabled || catalog === null;
+
+	const noteFooter = !isComplete ? (
+		<span className="font-ui text-micro text-ink-3">{UI_STRINGS.modelPicker.incompleteFooter}</span>
+	) : null;
+
+	const placeholderText = isRefreshing
+		? UI_STRINGS.modelPicker.isRefreshing
+		: UI_STRINGS.modelPicker.selectPlaceholder;
 
 	return (
-		<div ref={containerRef} className="relative w-full">
-			{/* 触发器按键 */}
+		<div data-testid="model-picker" className={`flex flex-col gap-1 w-full ${className}`}>
 			<div className="flex items-center gap-2">
-				<button
-					type="button"
-					id={`model-picker-trigger-${pickerId}`}
-					onClick={() => !disabled && setIsOpen((prev) => !prev)}
-					disabled={disabled}
-					data-testid="model-picker-trigger"
-					aria-expanded={isOpen}
-					className={`flex h-input w-full items-center justify-between rounded-sm border border-border bg-bg px-3 font-mono text-dense text-ink-1 transition-colors ${
-						disabled
-							? 'cursor-not-allowed opacity-50'
-							: 'hover:border-border-strong focus:border-needs'
-					}`}
-				>
-					<span className="truncate" title={selectedModel ?? '未设置默认模型'}>
-						{selectedModel || <span className="font-ui text-ink-3">选择默认模型...</span>}
-					</span>
-					<svg
-						className={`ml-2 h-4 w-4 shrink-0 text-ink-3 transition-transform ${
-							isOpen ? 'rotate-180' : ''
-						}`}
-						viewBox="0 0 16 16"
-						fill="none"
-						stroke="currentColor"
-						aria-hidden="true"
-					>
-						<title>展开选项</title>
-						<path d="M4 6l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-					</svg>
-				</button>
+				<div className="flex-1 min-w-0" data-testid="model-picker-trigger">
+					<GroupedSelect
+						labels={UI_STRINGS.groupedSelect}
+						value={selectedModel}
+						onValueChange={onSelectModel}
+						groups={selectGroups}
+						placeholder={placeholderText}
+						disabled={isTriggerDisabled}
+						noteFooter={noteFooter}
+						customActionKey={MANUAL_MODEL_ACTION_KEY}
+						onCustomActionSubmit={onAddCustomModel}
+						customActionPlaceholder={UI_STRINGS.modelPicker.manualInputPlaceholder}
+					/>
+				</div>
 
 				{/* 刷新清单按钮 */}
 				{onRefresh && (
@@ -134,19 +169,18 @@ export function ModelPicker({
 						type="button"
 						onClick={onRefresh}
 						disabled={disabled || isRefreshing}
-						title="刷新模型清单"
-						aria-label="刷新模型清单"
+						title={UI_STRINGS.login.refresh}
+						aria-label={UI_STRINGS.login.refresh}
 						data-testid="refresh-models-btn"
-						className="flex h-input w-input shrink-0 items-center justify-center rounded-sm border border-border bg-bg text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40"
+						className="flex h-[var(--h-input)] w-[var(--h-input)] shrink-0 items-center justify-center rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--bg)] text-[var(--ink-2)] hover:bg-[var(--panel-2)] hover:text-[var(--ink-1)] disabled:opacity-40 transition-colors"
 					>
 						<svg
-							className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-needs' : ''}`}
+							className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-[var(--needs)]' : ''}`}
 							viewBox="0 0 16 16"
 							fill="none"
 							stroke="currentColor"
 							aria-hidden="true"
 						>
-							<title>刷新</title>
 							<path
 								d="M2.5 8a5.5 5.5 0 019.39-3.89L13.5 6M13.5 8a5.5 5.5 0 01-9.39 3.89L2.5 10"
 								strokeWidth="1.5"
@@ -158,223 +192,22 @@ export function ModelPicker({
 				)}
 			</div>
 
-			{/* R4: 字段错只渲染在对应控件下方，英文只进可展开技术详情 */}
+			{/* 字段错就地展示（E_VALIDATION） */}
 			{error && (
 				<div
-					title={error.requestId ? `requestId: ${error.requestId}` : undefined}
 					data-testid="model-field-error"
-					className="mt-1 flex flex-col gap-0.5 text-micro text-down"
+					aria-invalid="true"
+					className="flex flex-col gap-0.5 text-micro text-down mt-1"
 				>
 					<span>{error.message}</span>
 					{error.technical && (
-						<details className="mt-0.5 text-micro text-ink-3">
-							<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
-							<div className="font-mono text-micro text-ink-3 break-all">{error.technical}</div>
+						<details className="text-micro text-ink-3">
+							<summary className="cursor-pointer hover:text-ink-2">
+								{UI_STRINGS.technicalDetails}
+							</summary>
+							<div className="font-mono text-micro break-all">{error.technical}</div>
 						</details>
 					)}
-				</div>
-			)}
-
-			{/* 桌面端下拉列表 */}
-			{isOpen && !isMobile && (
-				<div
-					data-testid="desktop-model-dropdown"
-					className="absolute left-0 right-0 top-full z-40 mt-1 flex max-h-80 flex-col rounded-sm border border-border-strong bg-bg p-2 shadow-lg"
-				>
-					{/* 搜索过滤框 */}
-					<input
-						type="text"
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-						placeholder="搜索模型..."
-						className="h-input w-full rounded-sm border border-border bg-panel-2 px-2.5 font-mono text-dense text-ink-1 placeholder:text-ink-3 focus:border-needs focus:outline-none"
-					/>
-
-					{/* AC 3: 清单不全提示与手填入口 (E-38) */}
-					{!isComplete && (
-						<div
-							data-testid="incomplete-models-banner"
-							className="mt-2 flex flex-col gap-1.5 rounded-sm border border-needs bg-needs-soft p-2 text-meta text-needs"
-						>
-							<div className="flex items-center justify-between">
-								<span className="font-medium font-ui">清单可能不全</span>
-								<span className="text-micro text-ink-2">支持手动输入模型</span>
-							</div>
-							<div className="flex gap-1">
-								{/* 修复：使用既有 h-input token 代替 h-input-sm */}
-								<input
-									type="text"
-									value={manualInput}
-									onChange={(e) => setManualInput(e.target.value)}
-									onKeyDown={(e) => e.key === 'Enter' && handleApplyManual()}
-									placeholder="输入任意模型名..."
-									data-testid="manual-model-input"
-									className="h-input flex-1 rounded-sm border border-border bg-panel-2 px-2 font-mono text-dense text-ink-1 focus:border-needs focus:outline-none"
-								/>
-								<button
-									type="button"
-									onClick={handleApplyManual}
-									data-testid="apply-manual-model-btn"
-									className="rounded-sm bg-needs px-2 font-ui text-dense font-medium text-on-needs hover:opacity-90"
-								>
-									确定
-								</button>
-							</div>
-						</div>
-					)}
-
-					{/* 候选项列表 */}
-					<div aria-label="模型列表" className="mt-2 flex flex-col gap-0.5 overflow-y-auto">
-						{isLoading ? (
-							<div className="py-4 text-center text-meta text-ink-3">正在拉取模型清单...</div>
-						) : filteredModels.length === 0 ? (
-							<div className="py-4 text-center text-meta text-ink-3">
-								无匹配模型
-								{isComplete && (
-									<div className="mt-1">
-										<button
-											type="button"
-											onClick={() => {
-												if (searchTerm.trim()) {
-													handleSelect(searchTerm.trim());
-												}
-											}}
-											className="text-needs underline text-micro"
-										>
-											使用当前搜索词作为模型名
-										</button>
-									</div>
-								)}
-							</div>
-						) : (
-							filteredModels.map((m) => (
-								<button
-									key={m}
-									type="button"
-									aria-selected={m === selectedModel}
-									onClick={() => handleSelect(m)}
-									className={`flex items-center justify-between rounded-sm px-2.5 py-1.5 text-left font-mono text-dense transition-colors ${
-										m === selectedModel
-											? 'bg-panel-2 text-needs font-medium'
-											: 'text-ink-1 hover:bg-panel-2'
-									}`}
-								>
-									<span className="break-all">{m}</span>
-									{m === selectedModel && <span className="text-micro text-needs">✓</span>}
-								</button>
-							))
-						)}
-					</div>
-				</div>
-			)}
-
-			{/* 手机端全屏选择器（AC 2: 手机端退化为全屏选择器，不因屏宽裁剪候选项） */}
-			{isOpen && isMobile && (
-				<div
-					data-testid="mobile-model-sheet"
-					aria-label="选择模型"
-					className="fixed inset-0 z-50 flex flex-col bg-page p-4 text-ink-1"
-				>
-					{/* 手机端顶栏：44px 高度关闭按钮 */}
-					<div className="flex h-btn-lg items-center justify-between border-b border-border pb-2">
-						<h2 className="font-ui text-lead font-semibold text-ink-1">选择模型</h2>
-						<button
-							type="button"
-							onClick={() => setIsOpen(false)}
-							data-testid="close-mobile-sheet-btn"
-							aria-label="关闭选择器"
-							className="flex h-btn-lg w-btn-lg items-center justify-center rounded-sm text-ink-2 hover:bg-panel-2 hover:text-ink-1"
-						>
-							<svg
-								className="h-6 w-6"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								aria-hidden="true"
-							>
-								<title>关闭</title>
-								<path
-									d="M6 18L18 6M6 6l12 12"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								/>
-							</svg>
-						</button>
-					</div>
-
-					{/* 手机端搜索框 */}
-					<div className="mt-3">
-						<input
-							type="text"
-							value={searchTerm}
-							onChange={(e) => setSearchTerm(e.target.value)}
-							placeholder="搜索模型..."
-							className="h-input-touch w-full rounded-sm border border-border bg-panel-2 px-3 font-mono text-dense text-ink-1 placeholder:text-ink-3 focus:border-needs focus:outline-none"
-						/>
-					</div>
-
-					{/* AC 3: 清单不全提示与手填入口 (E-38) */}
-					{!isComplete && (
-						<div
-							data-testid="mobile-incomplete-models-banner"
-							className="mt-3 flex flex-col gap-2 rounded-sm border border-needs bg-needs-soft p-3 text-meta text-needs"
-						>
-							<div className="flex items-center justify-between">
-								<span className="font-semibold font-ui">清单可能不全</span>
-								<span className="text-micro text-ink-2">可手填自定义模型</span>
-							</div>
-							<div className="flex gap-2">
-								<input
-									type="text"
-									value={manualInput}
-									onChange={(e) => setManualInput(e.target.value)}
-									placeholder="输入完整模型名称..."
-									data-testid="mobile-manual-model-input"
-									className="h-input-touch flex-1 rounded-sm border border-border bg-panel-2 px-3 font-mono text-dense text-ink-1 focus:border-needs focus:outline-none"
-								/>
-								<button
-									type="button"
-									onClick={handleApplyManual}
-									data-testid="mobile-apply-manual-btn"
-									className="h-input-touch rounded-sm bg-needs px-4 font-ui font-semibold text-on-needs hover:opacity-90"
-								>
-									使用
-								</button>
-							</div>
-						</div>
-					)}
-
-					{/* 候选项列表（AC 2: 换行完整显示，不因屏宽裁剪候选项！） */}
-					<div
-						aria-label="全部模型候选项"
-						className="mt-3 flex flex-1 flex-col gap-1 overflow-y-auto"
-					>
-						{isLoading ? (
-							<div className="py-8 text-center text-body text-ink-3">正在拉取模型清单...</div>
-						) : filteredModels.length === 0 ? (
-							<div className="py-8 text-center text-body text-ink-3">无匹配候选项</div>
-						) : (
-							filteredModels.map((m) => (
-								<button
-									key={m}
-									type="button"
-									aria-selected={m === selectedModel}
-									onClick={() => handleSelect(m)}
-									data-testid="mobile-model-option"
-									className={`flex min-h-[44px] w-full items-center justify-between rounded-sm px-3 py-2.5 text-left font-mono text-dense transition-colors ${
-										m === selectedModel
-											? 'border border-needs bg-panel-2 text-needs font-semibold'
-											: 'border border-border bg-bg text-ink-1 hover:bg-panel-2'
-									}`}
-								>
-									{/* 不因屏宽裁剪候选项：使用 break-all 和 whitespace-normal，严禁截断 */}
-									<span className="break-all whitespace-normal pr-2 text-dense">{m}</span>
-									{m === selectedModel && <span className="shrink-0 text-needs font-bold">✓</span>}
-								</button>
-							))
-						)}
-					</div>
 				</div>
 			)}
 		</div>

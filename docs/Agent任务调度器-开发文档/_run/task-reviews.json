@@ -984,12 +984,16 @@
   },
   "M9-T23": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "2b34ff9a275284fbf4dd896c961814d4da445a4891ec6f54150f652e9b0710be",
+    "contractHash": "a7ce8b053fcef3ab1f2d0d7b8e00dbd5b4f3164b5884542e70008da8e0e6fad1",
     "evidence": [
-      "M9-T23: desktop-density-20260929 adds shared 11-UI.md spacing context; patch changes.before/after shows task acceptance, edges and effective paths unchanged. New density implementation is scoped to todo M9-T28/M9-T29. M9-T23 stays todo; semantic contract review does not mark its code complete.",
-      "M9-T23 note retains grouped model/login/effort acceptance and E-254/E-335 through E-359 boundaries; full pnpm -w check on base 33c483f9 passed 206 test files and 2551 tests (3 skipped)."
+      "Verified acceptance 1-9, all 13 original edges, prerequisite capabilities and route/event registrations against current main and the original PR.",
+      "Support paths cover only affected production layout and regressions plus rerun.ts and its two existing test files required by the remaining R1 CI failure. No API, DTO, schema or gate semantic change.",
+      "Actual-count grid, left-rail assignment and left-aligned form/sidebar pass every required density verdict at 1920x1080 and 1440x900; 390x844 has no horizontal overflow. Stored probe output: _run/M9-T23.review-round-2.evidence.json.",
+      "Jev jev-1.13.0: density option A low 0.34 adopted; sequence-gap fix option A high 0.96 adopted. Both actions are implemented on the original branch, and overlap with M9-T28 is preserved for reconciliation.",
+      "Final local pnpm -w check passed: 218 files, 2642 passed and 3 existing skipped. Rerun/bughunt focused tests: 31 passed. Sequence-gap tests fail with old code and pass with corrected production code.",
+      "Real-provider browser evidence verifies one shared refresh, ordinary reads restored, exact assistant final reply, model refusal zero-output, rerun with zero gate writes, reassign focus and confirmation refusal. Final clean-head recording and exact-head CI are required before merge and published on PR #172."
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-01T01:39:50.107186+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

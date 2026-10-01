@@ -1,0 +1,14 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T23": {
+      "contractHash": "74cb5892759a27e337c8b2dd2c820e754cbfda4185c6c96ac1213e18d7c3bb2e",
+      "evidence": [
+        "R1/R4 现有 settings-agents.test.ts 改为 jsdom 实际点击 ModelPicker 分组下拉、选择手填并断言真实输入框；删除 initialOpen SSR 隐藏替身。",
+        "该支持文件与 M9-T28 当前修改路径无重叠；展示组件依赖只允许单向分层，架构测试通过。",
+        "pnpm -w check: 218 test files, 2635 passed, 3 existing skipped; Biome 和 tsc 全部通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
