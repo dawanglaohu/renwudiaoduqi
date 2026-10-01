@@ -171,7 +171,7 @@ export function AgentCard({
 		<div
 			data-testid={`agent-card-${agent.id}`}
 			data-available={agent.isAvailable}
-			className={`flex flex-col gap-4 rounded border bg-bg p-4 transition-opacity ${
+			className={`min-w-0 flex flex-col gap-4 min-[768px]:gap-[var(--sp-3)] rounded border bg-bg p-[18px] max-[767px]:p-4 transition-opacity ${
 				isUnavailable ? 'opacity-75 border-border-strong' : 'border-border'
 			}`}
 		>

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	findFontStacks,
 	findRootFontSizeLocks,
+	findSpacingGrowth,
 	isDeckContainer,
 	runForbiddenCheck,
 } from '../scripts/check-forbidden.js';
@@ -33,6 +34,101 @@ function scratchWebDir(files: Record<string, string>): string {
 function ruleHits(dir: string): string[] {
 	return runForbiddenCheck(dir, dir).violations.map((v) => `${v.rule}@${basename(v.file)}`);
 }
+
+describe('M9-T29 density guards', () => {
+	it('requires a base for arbitrary breakpoint spacing and honors narrower axes regardless of class order', () => {
+		expect(findSpacingGrowth('md:p-[calc(var(--sp-3)*2)]')).toEqual(['md:p-[calc(var(--sp-3)*2)]']);
+		expect(findSpacingGrowth('px-2 p-4 sm:px-3')).toEqual(['sm:px-3']);
+		expect(findSpacingGrowth('p-4 px-2 sm:px-3')).toEqual(['sm:px-3']);
+		expect(findSpacingGrowth('pt-2 py-4 p-6 md:pt-3')).toEqual(['md:pt-3']);
+	});
+	it('checks joined class lists and keeps each conditional template alternative', () => {
+		const dir = scratchWebDir({
+			'src/pages/joined.tsx':
+				"export const view = <><div className={['max-w-4xl', 'mx-auto'].join(' ')} /><div className={`p-3 ${true ? 'md:p-2' : 'md:p-4'}`} /><div className={cn('p-4', 'sm:p-3')} /></>;",
+		});
+		expect(ruleHits(dir)).toEqual([
+			'CENTERED_WORK_SURFACE@joined.tsx',
+			'RESPONSIVE_SPACING_GROWTH@joined.tsx',
+		]);
+	});
+	it.each([
+		'p-4 sm:p-6',
+		'gap-2 md:gap-3',
+		'lg:m-2',
+		'space-y-1 xl:space-y-2',
+		'p-3 sm:px-4',
+		'px-2 min-[1100px]:pl-[12px]',
+		'py-2 md:pt-3',
+		'p-[1rem] sm:p-[18px]',
+		'hover:sm:gap-4',
+		'p-[var(--sp-3)] md:p-4',
+	])('rejects spacing growth: %s', (classes) => {
+		expect(findSpacingGrowth(classes, new Map([['--sp-3', '12px']]))).not.toEqual([]);
+	});
+	it.each([
+		'p-4 sm:p-3',
+		'gap-3 md:gap-3',
+		'p-4 sm:px-3',
+		'p-3.5 max-[767px]:p-3',
+		'py-4 md:pt-3',
+		'p-4 sm:p-0',
+		'-m-2 md:-m-4',
+		'm-auto sm:mx-auto',
+		'p-3 hover:p-4',
+		'p-[var(--custom)] md:p-4',
+	])('allows equal or smaller breakpoint spacing: %s', (classes) => {
+		expect(findSpacingGrowth(classes)).toEqual([]);
+	});
+	it.each(['pages', 'features', 'components', 'app'])(
+		'scans %s, including multiline templates, and ignores comments',
+		(layer) => {
+			const dir = scratchWebDir({
+				[`src/${layer}/example.tsx`]:
+					'// "p-1 sm:p-8"\nexport const view = <div className={`p-2\n md:p-4 ${true ? "flex" : "grid"}`} />;',
+			});
+			const hits = ruleHits(dir);
+			expect(hits.filter((hit) => hit.startsWith('RESPONSIVE_SPACING_GROWTH'))).toEqual([
+				'RESPONSIVE_SPACING_GROWTH@example.tsx',
+			]);
+		},
+	);
+	it('compares each string separately instead of borrowing a base from another element', () => {
+		const dir = scratchWebDir({
+			'src/pages/page.tsx': '<><div className="p-8"/><div className="md:p-4"/></>',
+		});
+		expect(ruleHits(dir)).toContain('RESPONSIVE_SPACING_GROWTH@page.tsx');
+	});
+	it.each(['2xl', '3xl', '4xl', '5xl', '6xl', '7xl'])(
+		'rejects centered max-w-%s outside a single-card page',
+		(width) => {
+			const dir = scratchWebDir({
+				'src/pages/task-list-page.tsx': `export const classes = "mx-auto max-w-${width}";`,
+			});
+			expect(ruleHits(dir)).toContain('CENTERED_WORK_SURFACE@task-list-page.tsx');
+		},
+	);
+	it('allows the two single-card paths and left-aligned or uncapped work surfaces', () => {
+		const dir = scratchWebDir({
+			'src/features/pairing/pairing-container.tsx':
+				'export const classes = "max-w-2xl mx-auto p-3";',
+			'src/app/connect-failed.tsx': 'export const classes = "mx-auto max-w-3xl p-3";',
+			'src/pages/settings.tsx': 'export const a = "max-w-4xl"; export const b = "mx-auto w-full";',
+			'src/lib/example.ts': 'export const classes = "p-1 sm:p-8 mx-auto max-w-4xl";',
+		});
+		expect(ruleHits(dir)).toEqual([]);
+	});
+	it('does not whitelist a legacy component or a matching basename in another directory', () => {
+		const dir = scratchWebDir({
+			'src/components/batch-summary-bar.tsx': 'export const classes = "max-w-4xl mx-auto";',
+			'src/pages/connect-failed.tsx': 'export const classes = "max-w-4xl mx-auto";',
+		});
+		expect(ruleHits(dir)).toEqual([
+			'CENTERED_WORK_SURFACE@batch-summary-bar.tsx',
+			'CENTERED_WORK_SURFACE@connect-failed.tsx',
+		]);
+	});
+});
 
 describe('check-forbidden (M9-T1, E-170, E-15)', () => {
 	it('passes every architecture check on the clean workspace', () => {

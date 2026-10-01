@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 export interface ForbiddenViolation {
 	rule: string;
@@ -24,6 +25,126 @@ const GENERIC_FONT_FAMILY_REGEX =
 	/\b(?:sans-serif|serif|monospace|system-ui|ui-sans-serif|ui-serif|ui-monospace|ui-rounded|cursive|fantasy|emoji|fangsong)\b/g;
 const STRING_LITERAL_REGEX = /'[^'\n]*'|"[^"\n]*"|`[^`\n]*`/g;
 const TOKEN_ALIAS_REGEX = /^var\(--[\w-]+\)$/;
+
+const SPACING_AXES: Record<string, readonly string[]> = {
+	p: ['pt', 'pr', 'pb', 'pl'],
+	px: ['pr', 'pl'],
+	py: ['pt', 'pb'],
+	m: ['mt', 'mr', 'mb', 'ml'],
+	mx: ['mr', 'ml'],
+	my: ['mt', 'mb'],
+	gap: ['gap-x', 'gap-y'],
+};
+const CARD_PAGE_PATHS = new Set([
+	'src/features/pairing/pairing-container.tsx',
+	'src/app/connect-failed.tsx',
+]);
+
+function spacingValue(value: string, tokens: ReadonlyMap<string, string>): number | null {
+	if (value === 'px') return 1;
+	if (/^\d+(?:\.\d+)?$/.test(value)) return Number(value) * 4;
+	let inner = /^\[(.+)\]$/.exec(value)?.[1];
+	if (!inner) return null;
+	const token = /^var\((--[\w-]+)\)$/.exec(inner)?.[1];
+	if (token) inner = tokens.get(token);
+	const unit = /^(\d+(?:\.\d+)?)(px|rem)$/.exec(inner ?? '');
+	return unit ? Number(unit[1]) * (unit[2] === 'rem' ? 16 : 1) : null;
+}
+
+/** Compare each affected axis with its unprefixed value in the same class string. */
+export function findSpacingGrowth(
+	classes: string,
+	tokens: ReadonlyMap<string, string> = new Map(),
+): string[] {
+	const base = new Map<string, { value: number | null; specificity: number }>();
+	const responsive: { cls: string; axes: readonly string[]; value: number | null }[] = [];
+	for (const cls of classes.split(/\s+/)) {
+		const match = /^(.*?)((?:p|m)(?:x|y|t|r|b|l)?|gap(?:-x|-y)?|space-[xy])-(.+)$/.exec(cls);
+		if (!match) continue;
+		const [, prefix = '', prop = '', raw = ''] = match;
+		if (prefix.endsWith('-') || raw === 'auto' || raw === 'reverse') continue;
+		const axes = SPACING_AXES[prop] ?? [prop];
+		const value = spacingValue(raw, tokens);
+		if (!prefix || prefix === '!') {
+			const specificity = axes.length;
+			for (const axis of axes) {
+				if (specificity <= (base.get(axis)?.specificity ?? Number.POSITIVE_INFINITY))
+					base.set(axis, { value, specificity });
+			}
+		} else if (/(?:^|:)(?:sm|md|lg|xl|2xl|min-\[[^\]]+\]|max-\[[^\]]+\]):/.test(prefix)) {
+			responsive.push({ cls, axes, value });
+		}
+	}
+	return responsive
+		.filter(({ axes, value }) =>
+			axes.some((axis) => {
+				if (!base.has(axis)) return true;
+				const baseline = base.get(axis)?.value;
+				return value !== null && baseline !== null && baseline !== undefined && value > baseline;
+			}),
+		)
+		.map(({ cls }) => cls);
+}
+
+function classStrings(source: string): { classes: string; line: number }[] {
+	const ast = ts.createSourceFile(
+		'source.tsx',
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TSX,
+	);
+	const strings: { classes: string; line: number }[] = [];
+	const combine = (parts: readonly (readonly string[])[]): string[] =>
+		parts.reduce<string[]>(
+			(values, part) => values.flatMap((value) => part.map((tail) => `${value} ${tail}`)),
+			[''],
+		);
+	const alternatives = (node: ts.Node): string[] => {
+		if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return [node.text];
+		if (ts.isParenthesizedExpression(node)) return alternatives(node.expression);
+		if (ts.isConditionalExpression(node))
+			return [...alternatives(node.whenTrue), ...alternatives(node.whenFalse)];
+		if (ts.isArrayLiteralExpression(node)) return combine(node.elements.map(alternatives));
+		if (ts.isTemplateExpression(node))
+			return combine([
+				[node.head.text],
+				...node.templateSpans.flatMap((span) => [
+					alternatives(span.expression),
+					[span.literal.text],
+				]),
+			]);
+		if (
+			ts.isBinaryExpression(node) &&
+			node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+		)
+			return ['', ...alternatives(node.right)];
+		if (ts.isCallExpression(node)) {
+			if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'join')
+				return alternatives(node.expression.expression);
+			if (
+				ts.isIdentifier(node.expression) &&
+				['cn', 'clsx', 'classNames'].includes(node.expression.text)
+			)
+				return combine(node.arguments.map(alternatives));
+		}
+		return [''];
+	};
+	const visit = (node: ts.Node): void => {
+		const values = alternatives(node).filter((classes) => classes.trim());
+		if (values.length) {
+			for (const classes of new Set(values))
+				strings.push({
+					classes,
+					line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1,
+				});
+			return;
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(ast);
+	return strings;
+}
 
 /** Blanks comment bodies with spaces (string literals kept) so line numbers survive the scan. */
 function blankComments(source: string): string {
@@ -171,6 +292,14 @@ export function runForbiddenCheck(
 	webSourceFiles.push(...buildConfigFiles);
 
 	const tokensCssPath = resolve(webDir, 'src/styles/tokens.css');
+	const spacingTokens = new Map<string, string>();
+	if (existsSync(tokensCssPath)) {
+		for (const match of readFileSync(tokensCssPath, 'utf8').matchAll(
+			/(--sp-[\w-]+)\s*:\s*([^;]+);/g,
+		)) {
+			spacingTokens.set(match[1] ?? '', match[2]?.trim() ?? '');
+		}
+	}
 
 	// Color literal regexes (matching standalone hex, rgb, rgba, hsl, hsla)
 	const HEX_COLOR_REGEX = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g;
@@ -181,6 +310,41 @@ export function runForbiddenCheck(
 		const lines = content.split('\n');
 		const relPath = relative(rootDir, file);
 		const isTokensCss = resolve(file) === tokensCssPath;
+		const sourcePath = relative(webDir, file).split('\\').join('/');
+		if (/^src\/(?:pages|features|components|app)\/.+\.[jt]sx?$/.test(sourcePath)) {
+			const classViolationKeys = new Set<string>();
+			for (const { classes, line } of classStrings(content)) {
+				for (const cls of findSpacingGrowth(classes, spacingTokens)) {
+					const key = `${line}:${cls}`;
+					if (classViolationKeys.has(key)) continue;
+					classViolationKeys.add(key);
+					violations.push({
+						rule: 'RESPONSIVE_SPACING_GROWTH',
+						file: relPath,
+						line,
+						snippet: classes,
+						message: `${cls} increases spacing at a breakpoint; use the unprefixed spacing scale.`,
+					});
+				}
+				if (
+					/\bmax-w-[2-7]xl\b/.test(classes) &&
+					/\bmx-auto\b/.test(classes) &&
+					!CARD_PAGE_PATHS.has(sourcePath)
+				) {
+					const key = `${line}:centered`;
+					if (classViolationKeys.has(key)) continue;
+					classViolationKeys.add(key);
+					violations.push({
+						rule: 'CENTERED_WORK_SURFACE',
+						file: relPath,
+						line,
+						snippet: classes,
+						message:
+							'Centered max-w-2xl through max-w-7xl containers are allowed only on registered single-card pages.',
+					});
+				}
+			}
+		}
 
 		// Check 1: Indigo/violet hex literals (check across ALL files)
 		for (let i = 0; i < lines.length; i++) {
