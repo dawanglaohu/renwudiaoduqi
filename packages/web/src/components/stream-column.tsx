@@ -266,7 +266,7 @@ export function StreamColumn(props: StreamColumnProps) {
 				isExpanded ? 'col-span-full shadow-lg ring-1 ring-[var(--border-strong)]' : '',
 				// 各档位基础尺寸约束（AC 2, AC 4, E-164, E-166）
 				tier === 'compact' ? 'min-w-[var(--stream-min-dense,260px)] flex-1' : '',
-				tier === 'full' ? 'min-w-0 w-full flex-1' : '',
+				tier === 'full' ? 'min-w-[var(--stream-min,320px)] flex-1' : '',
 				tier === 'narrow' ? 'w-full' : '',
 				tier === 'phone' || tier === 'phone-xs' ? 'w-full' : '',
 				className ?? '',

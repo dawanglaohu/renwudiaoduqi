@@ -302,7 +302,7 @@ export function EmptyOnboarding({
 			)}
 
 			{/* 头部标题与控制塔说明（不是插画，AC 1 / E-108） */}
-			<header className="flex flex-col gap-1 border-b border-border pb-4">
+			<header className="flex flex-col gap-1 border-b border-border pb-3">
 				<div className="flex items-center gap-2">
 					<span className="font-mono text-micro uppercase tracking-wider text-ink-3">
 						Workbench Console
@@ -310,7 +310,7 @@ export function EmptyOnboarding({
 					<span className="text-ink-3">/</span>
 					<span className="font-mono text-micro text-needs">零运行调度向导</span>
 				</div>
-				<h2 className="font-ui text-lead font-semibold tracking-tight text-ink-1">
+				<h2 className="font-ui text-dense font-semibold tracking-tight text-ink-1">
 					开始调度任务流
 				</h2>
 				<p className="text-meta text-ink-2">
@@ -320,12 +320,12 @@ export function EmptyOnboarding({
 
 			{/* ─────────────────────────────────────────────────────────────
 			    四步导航条（AC 1 / E-108）
-			    当前步高亮、已完成步显示所选值可点回改，严禁插画
+			    竖排四步卡，当前步高亮、已完成步显示所选值可点回改，严禁插画
 			    ───────────────────────────────────────────────────────────── */}
 			<nav
 				data-testid="onboarding-stepper"
 				aria-label="调度向导步骤"
-				className="grid grid-cols-1 gap-[var(--sp-3)]"
+				className="flex flex-col gap-2"
 			>
 				{steps.map((step, idx) => {
 					const isCurrent = currentStep === idx;
@@ -598,7 +598,7 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="2"
 					aria-label="第 3 步：逐任务指派"
-					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
+					className="flex min-w-0 w-full flex-col gap-4 rounded border border-border bg-bg p-2"
 				>
 					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
@@ -609,7 +609,7 @@ export function EmptyOnboarding({
 						</div>
 					</div>
 
-					<div data-slot="step-3-assign" className="flex flex-col gap-2.5">
+					<div data-slot="step-3-assign" className="flex min-w-0 w-full flex-col gap-2.5">
 						{step3Slot ?? (
 							<div
 								data-testid="step-3-fallback"
@@ -691,7 +691,7 @@ export function EmptyOnboarding({
 								<span className="font-mono text-num font-bold text-needs">{capacityText}</span>
 							</div>
 
-							<div className="grid grid-cols-1 gap-2 text-micro font-mono">
+							<div className="flex flex-col gap-2 text-micro font-mono">
 								<div className="flex justify-between p-2 rounded bg-bg border border-border">
 									<span className="text-ink-3">并行窗口数 (调度器)</span>
 									<span className="text-ink-1 font-bold">{laneCountText}</span>
@@ -710,22 +710,30 @@ export function EmptyOnboarding({
 					)}
 
 					{/* 派发清单摘要 */}
-					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 text-meta text-ink-2 p-3 rounded border border-border bg-page">
-						<div>
-							<span className="text-ink-3">就绪任务：</span>
-							<span className="font-mono font-bold text-ink-1 ml-1">
-								{tasks && tasks.length > 0 ? `${tasks.length} 个` : '—'}
-							</span>
-							<span className="text-ink-3 ml-3">所属文档：</span>
-							<span className="font-mono text-ink-1 ml-1">
-								{selectedDoc ? selectedDoc.title : '—'}
-							</span>
-							<span className="text-ink-3 ml-3">所属批次：</span>
-							<span className="font-mono text-ink-1 ml-1">
-								{selectedBatch ? selectedBatch.name : '—'}
-							</span>
+					<div className="flex flex-col gap-1.5 text-meta text-ink-2 p-3 rounded border border-border bg-page">
+						<div className="flex flex-col gap-1">
+							<div>
+								<span className="text-ink-3">就绪任务：</span>
+								<span className="font-mono font-bold text-ink-1 ml-1">
+									{tasks && tasks.length > 0 ? `${tasks.length} 个` : '—'}
+								</span>
+							</div>
+							<div>
+								<span className="text-ink-3">所属文档：</span>
+								<span className="font-mono text-ink-1 ml-1">
+									{selectedDoc ? selectedDoc.title : '—'}
+								</span>
+							</div>
+							<div>
+								<span className="text-ink-3">所属批次：</span>
+								<span className="font-mono text-ink-1 ml-1">
+									{selectedBatch ? selectedBatch.name : '—'}
+								</span>
+							</div>
 						</div>
-						<div className="font-mono text-micro text-ink-3">状态: 待派发</div>
+						<div className="font-mono text-micro text-ink-3 border-t border-border pt-1">
+							状态: 待派发
+						</div>
 					</div>
 
 					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-2">

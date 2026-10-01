@@ -116,10 +116,11 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 				}),
 			);
 
-			// 网格布局包含 auto-fill 与 min 260px
-			expect(html).toContain(
-				'grid-cols-[repeat(auto-fill,minmax(var(--stream-min-dense,260px),1fr))]',
+			// 网格布局包含 auto-fill 与 min 260px (由 deck-grid 提供)
+			expect(html).toMatch(
+				/grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(var\(--stream-min-dense\),\s*1fr\)\)/,
 			);
+			expect(html).toContain('grid gap-3 p-4');
 			// 8 条流全部渲染在 DOM 中
 			for (let i = 1; i <= 8; i++) {
 				expect(html).toContain(`data-lane-no="${i}"`);
@@ -475,10 +476,10 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 				);
 
 				// 采用网格并列排布
+				expect(html).toContain('grid gap-3 p-4');
 				expect(html).toContain(
-					'grid-cols-[repeat(var(--deck-columns),minmax(var(--stream-min),1fr))]',
+					`grid-template-columns:repeat(${count}, minmax(var(--stream-min), 1fr))`,
 				);
-				expect(html).toContain(`style="--deck-columns:${count}"`);
 				expect(html.match(/data-lane-deck-slot=/g)).toHaveLength(count);
 			},
 		);
@@ -575,11 +576,9 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 				}),
 			);
 
-			// 单列垂直列表
-			expect(html).toContain(
-				'flex flex-col gap-[var(--sp-3)] p-[var(--sp-4)] overflow-y-auto flex-1 min-h-0 w-full',
-			);
-			expect(html).not.toContain('max-w-[800px]');
+			// 单列垂直列表（窄窗单列吃满，不设 max-width、不居中，E-168）
+			expect(html).toContain('grid gap-3 p-3 overflow-y-auto flex-1 w-full h-full');
+			expect(html).toMatch(/grid-template-columns:\s*1fr/);
 			// 不包含手机切换栏
 			expect(html).not.toContain('data-mobile-switcher="true"');
 		});

@@ -472,7 +472,7 @@ function TaskAssignRow({
 				ref={rowRef}
 				data-task-assigned-row={task.taskKey}
 				data-testid={`assigned-row-${task.taskKey}`}
-				className={`flex flex-col items-start justify-between gap-3 p-3.5 rounded border ${
+				className={`flex min-w-0 flex-col items-stretch gap-2 p-2 rounded border ${
 					isReassignTarget
 						? 'border-[var(--needs)] ring-2 ring-[var(--needs-soft)]'
 						: 'border-border'
@@ -482,7 +482,7 @@ function TaskAssignRow({
 				<div className="flex flex-col gap-1 min-w-0 flex-1">
 					<div className="flex items-center gap-2 flex-wrap">
 						<span className="font-mono text-dense font-bold text-ink-1">{task.taskKey}</span>
-						<span className="text-dense text-ink-2 truncate min-w-0" title={task.title}>
+						<span className="text-dense text-ink-2 truncate min-w-0 flex-1" title={task.title}>
 							{task.title}
 						</span>
 						{task.moduleKey && (
@@ -553,7 +553,7 @@ function TaskAssignRow({
 						type="button"
 						data-action="edit-assignment"
 						onClick={() => setIsEditing(true)}
-						className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 px-3 rounded-sm border border-border bg-bg text-ink-2 hover:text-ink-1 hover:border-needs text-dense transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
+						className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 shrink-0 whitespace-nowrap px-3 rounded-sm border border-border bg-bg text-ink-2 hover:text-ink-1 hover:border-needs text-dense transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 						aria-label={`修改任务 ${task.taskKey} 的指派`}
 					>
 						修改指派
@@ -582,17 +582,17 @@ function TaskAssignRow({
 			ref={rowRef}
 			data-task-editing-row={task.taskKey}
 			data-testid={`editing-row-${task.taskKey}`}
-			className={`flex flex-col gap-3 p-3.5 rounded border ${
-				isReassignTarget ? 'border-[var(--needs)] ring-2 ring-[var(--needs-soft)]' : 'border-needs'
-			} bg-bg`}
+			className={`flex min-w-0 flex-col gap-3 p-2 rounded border ${isReassignTarget ? 'border-[var(--needs)] ring-2 ring-[var(--needs-soft)]' : 'border-needs'} bg-bg`}
 		>
 			{/* 任务标头 */}
-			<div className="flex items-center justify-between gap-2 flex-wrap">
-				<div className="flex flex-wrap items-center gap-2 min-w-0">
-					<span className="font-mono text-dense font-bold text-ink-1">{task.taskKey}</span>
-					<span className="text-dense text-ink-1 font-semibold truncate min-w-0">{task.title}</span>
+			<div className="flex min-w-0 flex-col items-start gap-2">
+				<div className="flex min-w-0 w-full items-center gap-2">
+					<span className="shrink-0 font-mono text-dense font-bold text-ink-1">{task.taskKey}</span>
+					<span className="text-dense text-ink-1 font-semibold truncate min-w-0 flex-1">
+						{task.title}
+					</span>
 					{task.moduleKey && (
-						<span className="font-mono text-micro text-ink-3 px-1.5 py-0.5 rounded bg-panel-2 border border-border">
+						<span className="shrink-0 font-mono text-micro text-ink-3 px-1.5 py-0.5 rounded bg-panel-2 border border-border">
 							{task.moduleKey}
 						</span>
 					)}
@@ -677,7 +677,7 @@ function TaskAssignRow({
 						data-testid={`select-agent-${task.taskKey}`}
 						value={selectedAgentId}
 						onChange={(e) => handleAgentChange(e.target.value)}
-						className={`min-h-[44px] sm:min-h-[32px] h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono transition-colors ${FOCUS_VISIBLE_RING_CLASS}`}
+						className={`w-full min-w-0 min-h-[44px] sm:min-h-[32px] h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono transition-colors ${FOCUS_VISIBLE_RING_CLASS}`}
 					>
 						<option value="">请选择 Agent...</option>
 						{agents.map((ag) => {
@@ -708,6 +708,7 @@ function TaskAssignRow({
 						{UI_STRINGS.assignment.modelLabel}
 					</span>
 					<ModelPicker
+						className="[&_[role=combobox]]:min-h-[44px] sm:[&_[role=combobox]]:min-h-[32px]"
 						catalog={currentAgent?.catalog}
 						models={availableModels}
 						selectedModel={selectedModel || null}
@@ -735,6 +736,7 @@ function TaskAssignRow({
 						</div>
 					) : (
 						<EffortPicker
+							className="[&_[role=combobox]]:min-h-[44px] sm:[&_[role=combobox]]:min-h-[32px]"
 							vendorMap={currentAgent.effortVendorMap}
 							value={selectedEffort}
 							onChange={(eff) => setSelectedEffort(eff)}
@@ -750,16 +752,16 @@ function TaskAssignRow({
 			</div>
 
 			{/* 底部确认与取消（R3: 44px 触控目标与 focus-visible 环） */}
-			<div className="flex items-center justify-between pt-1 border-t border-border mt-1">
+			<div className="flex min-w-0 flex-col items-stretch gap-2 pt-1 border-t border-border mt-1">
 				<div className="text-micro text-ink-3 font-mono">
 					{isAlreadyAssigned ? '修改单任务指派' : '逐任务独立指定，严禁整批统一套用'}
 				</div>
-				<div className="flex flex-wrap items-center gap-2 min-w-0">
+				<div className="flex flex-wrap items-center justify-end gap-2">
 					{isAlreadyAssigned && (
 						<button
 							type="button"
 							onClick={() => setIsEditing(false)}
-							className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 px-3 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
+							className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 shrink-0 whitespace-nowrap px-3 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 						>
 							取消
 						</button>
@@ -768,7 +770,7 @@ function TaskAssignRow({
 						type="button"
 						data-action="confirm-task-assign"
 						onClick={handleSave}
-						className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 px-4 rounded-sm bg-needs text-on-needs font-bold text-dense hover:brightness-105 transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
+						className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 shrink-0 whitespace-nowrap px-4 rounded-sm bg-needs text-on-needs font-bold text-dense hover:brightness-105 transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 					>
 						确认指派
 					</button>
@@ -800,10 +802,10 @@ export function TaskAssignmentList({
 	return (
 		<div
 			data-testid="task-assignment-list"
-			className={`flex flex-col gap-3 rounded border border-border bg-bg p-3.5 min-w-0 ${className}`}
+			className={`flex min-w-0 w-full flex-col gap-3 rounded border border-border bg-bg p-2 ${className}`}
 		>
 			{/* 顶栏：指派进度与容量总览（AC 1, AC 4, E-47, R1: 读下发字段，缺失显示 —） */}
-			<div className="flex flex-col items-start justify-between gap-2 min-w-0 pb-2 border-b border-border">
+			<div className="flex min-w-0 flex-col items-start gap-2 pb-2 border-b border-border">
 				<div>
 					<h4 className="text-dense font-semibold text-ink-1">
 						逐任务执行指派 ({assignedCount}/{totalTasks})
@@ -869,7 +871,7 @@ export function TaskAssignmentList({
 			) : (
 				<div
 					data-testid="empty-tasks"
-					className="p-8 text-center font-mono text-meta text-ink-3 rounded border border-border bg-page"
+					className="p-3.5 text-left font-mono text-meta text-ink-3 rounded border border-border bg-page"
 				>
 					{EMPTY_VALUE_FALLBACK}
 				</div>
