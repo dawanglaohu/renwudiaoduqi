@@ -1041,13 +1041,13 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af",
     "evidence": [
-      "有效路径文件已核存在：taskPaths 9 个里 7 个既有文件在主干 8ee193e 上存在（run-deck-view.tsx、lanes-container.tsx、run-deck-container.tsx、deck-page.tsx、stream-column.tsx、empty-onboarding.tsx、assign-panel.tsx），packages/web/src/lib/deck-grid.ts 与 packages/web/test/deck-grid.test.ts 由本任务新建；supportPaths 10 个文件全部存在。",
-      "依赖任务已落地：M9-T16、M9-T17、M9-T18、M9-T19、M9-T21 在 docs-data.js 的 progress 里均为 done；按 git log -1 与 taskPaths/supportPaths 反查，它们就是最后改过这些文件的原任务；另两个最后改动者 R13-T57054072、R14-T23602992 是已落地的返工任务，不写进 19 节依赖。",
-      "验收 1–6 均可客观判定：探针命令与 --init 令牌取法、D2 fill ≥ 0.85 / D3 emptyTracks 为空 / D6、1920×1080 与 1440×900 两档视口、左栏与泳道下缘离视口底 ≤ 16px、vitest 的泳道数 × 档位组合、rg 清零范围与 e2e 用例都写明；引用的 E-106、E-108、E-145、E-163、E-164、E-165、E-167、E-168、E-236、E-319、E-324 均在 13 节存在。",
-      "与 11 节「间距与容器契约」一致：完整档泳道 repeat(N, minmax(var(--stream-min), 1fr)) 吃满、--stream-max 不再封顶（Jev design pick=A，high 0.99，adopt=take）；零运行四步引导按 11 节页面清单原文落在左栏派发面板，22 节无相反裁决。",
-      "路径冲突已核：待派的 M9-T23 与本任务共用 packages/web/src/components/assign-panel.tsx，它未落地、不写成依赖，由交接台的路径冲突检测串行处理；主干 8ee193e 上本任务路径内的守护命中是 empty-onboarding.tsx:295 与 run-deck-view.tsx:421，与验收 6 一致。"
+      "按当前契约哈希 249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af 核对任务笔记、11 节间距与容器、13 节边界、17 节 check/E2E 命令及 19 节范围。此 pass 只登记文档契约语义复核；代码验收结论为 rework，未执行 --landed。",
+      "M9-T16/17/18/19/21 前置已在当前 main 落地。全部生产与测试改动均在有效路径内，任务笔记两个回填区已核；共享接口、daemon 与业务状态约定没有修改。",
+      "泳道布局读取 daemon 下发数据，密度类型复用 use-breakpoint.ts 的 DensityTier，桌面网格模板由 deck-grid.ts 单点提供。页面、容器、展示组件与 API 客户端分层保持既定约定。",
+      "AC1-6 与 E-106/108/145/163/164/165/167/168/236/319/324 已逐条对照生产消费者与测试。全量 check 和原版 batch-13 通过，真实密度矩阵通过；左栏指派控件、GIF 视口和 CI 门禁的返工项须修复后才可落地。原始证据保存在任务 planning 目录的 review-*.json 与 review-*.log，PR 留存完整本轮结论。",
+      "实施方全部 A/B 候选已加入当前 diff 事实重新交 Jev；模型 jev-1.13.0 对工作树沿用、手机引导落位、公开设置配置密度矩阵均返回 status=ok/adopt=take(A)。CI 范围裁决同为 take(A)：保留本 PR 未合并，待所属修复使必需检查变绿。"
     ],
-    "reviewed": "2026-09-28T22:12:15.316480+00:00",
+    "reviewed": "2026-10-01T01:05:40.138751+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

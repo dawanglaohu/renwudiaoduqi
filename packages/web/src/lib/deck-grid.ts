@@ -1,7 +1,7 @@
-export type DeckGridTier = 'full' | 'compact' | 'narrow' | 'phone' | 'phone-xs';
+import type { DensityTier } from '../hooks/use-breakpoint.ts';
 
 /** 完整档按泳道数分配宽度，紧凑档换行，窄窗和手机单列。 */
-export function getDeckGridTemplate(tier: DeckGridTier, laneCount: number): string {
+export function getDeckGridTemplate(tier: DensityTier, laneCount: number): string {
 	if (tier === 'compact') {
 		return 'repeat(auto-fill, minmax(var(--stream-min-dense), 1fr))';
 	}
