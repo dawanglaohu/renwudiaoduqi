@@ -150,19 +150,19 @@ export function GroupedSelect({
 					onKeyDown={handleCustomKeyDown}
 					placeholder={customActionPlaceholder}
 					data-testid="grouped-select-custom-input"
-					className="h-[var(--h-input)] flex-1 rounded-[var(--r-sm)] border border-[var(--needs)] bg-[var(--panel-2)] px-2.5 font-mono text-[12.5px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus:outline-none"
+					className="min-w-0 h-[var(--h-input)] min-h-[var(--h-input-touch)] sm:min-h-0 flex-1 rounded-[var(--r-sm)] border border-[var(--needs)] bg-[var(--panel-2)] px-2.5 font-mono text-[12.5px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus:outline-none"
 				/>
 				<button
 					type="button"
 					onClick={handleCustomSubmit}
-					className="h-[var(--h-input)] px-2.5 rounded-[var(--r-sm)] bg-[var(--needs)] font-ui text-[12px] font-medium text-[var(--on-needs)] hover:opacity-90"
+					className="h-[var(--h-input)] min-h-[var(--h-btn-lg)] sm:min-h-0 px-2.5 rounded-[var(--r-sm)] bg-[var(--needs)] font-ui text-[12px] font-medium text-[var(--on-needs)] hover:opacity-90"
 				>
 					{labels.confirm}
 				</button>
 				<button
 					type="button"
 					onClick={() => setIsCustomMode(false)}
-					className="h-[var(--h-input)] px-2 rounded-[var(--r-sm)] border border-[var(--border)] text-[var(--ink-2)] text-[12px] font-ui hover:bg-[var(--panel-2)]"
+					className="h-[var(--h-input)] min-h-[var(--h-btn-lg)] sm:min-h-0 px-2 rounded-[var(--r-sm)] border border-[var(--border)] text-[var(--ink-2)] text-[12px] font-ui hover:bg-[var(--panel-2)]"
 				>
 					{labels.cancel}
 				</button>
@@ -213,7 +213,7 @@ export function GroupedSelect({
 				<SelectTrigger
 					id={id}
 					data-testid="grouped-select-trigger"
-					className={`h-[var(--h-input)] font-mono text-[12.5px] ${triggerClassName}`}
+					className={`h-[var(--h-input)] min-h-[var(--h-input-touch)] sm:min-h-0 font-mono text-[12.5px] ${triggerClassName}`}
 				>
 					<SelectValue placeholder={placeholder}>
 						{selectedLabel || <span className="font-ui text-[var(--ink-3)]">{placeholder}</span>}
@@ -237,7 +237,7 @@ export function GroupedSelect({
 							<button
 								type="button"
 								onClick={() => setIsOpen(false)}
-								className="h-[var(--h-btn)] px-3 rounded-[var(--r-sm)] bg-[var(--panel-2)] text-[var(--ink-2)] text-dense"
+								className="h-[var(--h-btn-lg)] px-3 rounded-[var(--r-sm)] bg-[var(--panel-2)] text-[var(--ink-2)] text-dense"
 							>
 								{labels.close}
 							</button>
