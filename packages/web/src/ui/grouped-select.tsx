@@ -85,6 +85,7 @@ export function GroupedSelect({
 	const [isMobile, setIsMobile] = useState(false);
 
 	const customInputRef = useRef<HTMLInputElement>(null);
+	const customGroupRef = useRef<HTMLDivElement>(null);
 
 	// 响应式检查：phone / phone-xs (< 640px)
 	useEffect(() => {
@@ -137,13 +138,15 @@ export function GroupedSelect({
 	// 如果处于手填展开输入框状态，渲染等宽输入框
 	if (isCustomMode) {
 		return (
-			<div className={`flex items-center gap-1.5 w-full ${className}`}>
+			<div ref={customGroupRef} className={`flex items-center gap-1.5 w-full ${className}`}>
 				<input
 					ref={customInputRef}
 					type="text"
 					value={customInputValue}
 					onChange={(e) => setCustomInputValue(e.target.value)}
-					onBlur={handleCustomSubmit}
+					onBlur={(event) => {
+						if (!customGroupRef.current?.contains(event.relatedTarget)) handleCustomSubmit();
+					}}
 					onKeyDown={handleCustomKeyDown}
 					placeholder={customActionPlaceholder}
 					data-testid="grouped-select-custom-input"
@@ -219,9 +222,10 @@ export function GroupedSelect({
 
 				<SelectContent
 					data-testid="grouped-select-content"
+					fullScreen={isMobile}
 					className={
 						isMobile
-							? 'fixed inset-0 z-50 flex flex-col rounded-none border-none bg-[var(--bg)] p-4 max-h-screen overflow-y-auto'
+							? 'flex flex-col rounded-none border-none bg-[var(--bg)] p-4'
 							: 'max-h-80 w-[var(--radix-select-trigger-width)] min-w-[260px]'
 					}
 				>

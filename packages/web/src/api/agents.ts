@@ -17,7 +17,7 @@ import type {
 	UpdateAgentResponse,
 } from '@agent-scheduler/shared/api/agents';
 import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes';
-import { httpClient } from './http-client.ts';
+import { TIMEOUT_MS, httpClient } from './http-client.ts';
 
 function findAgentRoute(method: 'GET' | 'POST' | 'PATCH', path: string): RouteDefinition {
 	const route = ROUTES.find((entry) => entry.method === method && entry.path === path);
@@ -49,6 +49,7 @@ export function listModels(
 	return httpClient.callRoute<ListAgentModelsResponse>(LIST_MODELS_ROUTE, {
 		params: { agentId },
 		query,
+		...(options?.refresh ? { timeoutMs: TIMEOUT_MS.probe, retry: false } : {}),
 	});
 }
 

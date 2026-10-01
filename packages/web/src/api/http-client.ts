@@ -69,6 +69,8 @@ export interface HttpRequestOptions<TReq = unknown> {
 	headers?: Record<string, string>;
 	signal?: AbortSignal;
 	timeoutMs?: number;
+	/** Explicit side-effecting reads must remain tied to the user's action. */
+	retry?: boolean;
 	idempotencyKey?: string;
 	auth?: 'device' | 'none';
 }
@@ -391,7 +393,7 @@ export function createHttpClient(options?: CreateHttpClientOptions): HttpClient 
 		const timeout = requestOptions.timeoutMs ?? defaultTimeout;
 
 		// 重试策略（AC 3: 只重试 GET 且只在网络错误与 502/503/504，最多 2 次；POST 一律不自动重试）
-		const maxRetries = isGet ? MAX_GET_RETRIES : 0;
+		const maxRetries = isGet && requestOptions.retry !== false ? MAX_GET_RETRIES : 0;
 		let attempt = 0;
 
 		while (true) {

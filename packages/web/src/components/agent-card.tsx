@@ -152,7 +152,6 @@ export function AgentCard({
 		hasModelOverride &&
 			agent.layers?.defaultModel?.override &&
 			catalog?.models &&
-			catalog.models.length > 0 &&
 			!catalog.models.some((m) => m.name === agent.layers?.defaultModel?.override),
 	);
 
