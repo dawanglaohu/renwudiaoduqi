@@ -1059,14 +1059,14 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "de393c7c679e1a64efca907abdb248fc43daea004c7cad0bcc160c996adef964",
     "evidence": [
-      "第1轮复核当前 M9-T29 的任务笔记、11节间距与容器、13节边界、17节测试命令与19节范围。此 pass 仅登记文档契约语义复核；代码验收结论 rework，未执行 --landed。",
-      "前置 M9-T28/M9-T13/M9-T14/M9-T15/M9-T20/M9-T22/M9-T25/M9-T27/M10-T6 均已在 main 落地；PR #175 对当前 main 的16个变更文件均属于有效Web路径或任务笔记回填。原PR与工作树保留，未扩大契约。",
-      "AC1/2/4/5 与 E-145/E-224/E-226 已对照 routes.tsx:49-54、app.tsx装配、pairing.ts:106-162及现有E2E。页面不新增取数、登录态判断、DTO或API出口，设备页原Hook与事件动作保持。",
-      "pnpm -w check 在 head 3647928408452a2de8402b06cb0ea2c2dd065fc6 上219文件2692通过3既有跳过；原生产pairing-entry 7通过。7页面在1920/1440/390使用未改density_probe复跑21次通过；原有效运行3次测量及同head真实Codex GIF作为复用证据。",
-      "AC3的两条守护有可复现代码缺陷：字符串 + 拼接漏掉 max-w-4xl mx-auto，且将 p-4 + sm:p-3 误报；p-2 md:p-[calc(4px*4)] 在8px到16px增长时放行。已形成R1/R2，要求修复后仅复核这两项；本轮契约复核不替代实现验收。",
-      "实施方自行裁决为无，审查没有未定的产品/架构取舍。任务代码位置与实施沉淀已回填，并按dsh-prose-standard与dsh-trim-cot-leakage核对。证据保存于原planning目录review-*.log/json，PR留存完整结论。"
+      "第2轮仅核第1轮R1/R2及其直接回归。当前PR #175代码head a139502abc173ca3a39c32550868ab4c80b82bdd，与main 76ecacfe564fd1bbea787b30ae9faa747dc99d15对照；契约哈希未变，前置、边界、13/17/19要求及有效范围沿用首轮已核事实。",
+      "R1已修：check-forbidden.ts:183对二元+使用实际字符串连接；源码级居中组合命中CENTERED_WORK_SURFACE，p-4加sm:p-3不再误报。模板、join、cn/clsx/classNames和条件分支隔离由check-forbidden.test.ts:62起覆盖；独立首轮反例脚本复跑结果正确。",
+      "R2已修：check-forbidden.ts:44对px/rem、常量calc、括号、四则运算及已知token求值，不执行源码；check-forbidden.test.ts:106起源码级增长/相等/收紧及轴向回归通过。p-2 md:p-[calc(4px*4)]正确命中8px到16px增长；未知、循环、除零和不合法量纲不编造值。",
+      "pnpm exec vitest run packages/web/test/check-forbidden.test.ts：89用例通过；pnpm -w check：219测试文件、2717用例通过、3个既有跳过。类型、Biome、对比度及机械守护全部通过。反例结果和测试日志保存在原planning的review-round2-*.log，PR留存本轮结论。",
+      "本轮只改守护、其测试及任务受保护回填区，packages/web/src与首轮页面验收提交3647928408452a2de8402b06cb0ea2c2dd065fc6完全一致。复用首轮生产页面21次探针、同代码有效运行3次探针及真实服务GIF；原pairing-entry 7通过、batch-13管理员权限12通过；没有扩展为新模型或自动派发验收。",
+      "代码位置与实施沉淀已核对且更新到实际行号；实施方/审查方均无未定裁决。当前GitHub原代码head三平台CI、生产配对、E2E、流水线设置E2E和Release Gate均success；Signing Gate为工作流规定的skipped。正式落地前复核最终head与所需检查。"
     ],
-    "reviewed": "2026-10-01T13:07:51.675970+00:00",
+    "reviewed": "2026-10-01T16:13:38.173989+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
