@@ -97,9 +97,9 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 			<div
 				data-component="settings-agents-container"
 				data-testid="settings-agents-container"
-				className="flex flex-col gap-4"
+				className="flex flex-col gap-[var(--sp-3)]"
 			>
-				<div className="flex items-center justify-center p-8">
+				<div className="flex items-start p-3.5">
 					<InlineNotice tone="muted" message="正在加载 Agent 注册表..." />
 				</div>
 			</div>
@@ -134,7 +134,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 			/>
 
 			{/* 2. Agent 列表 */}
-			<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,560px),1fr))] gap-[var(--sp-3)]">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,560px),1fr))] gap-[var(--sp-3)]">
 				{agents.map((agent) => (
 					<AgentCardItem
 						key={agent.id}

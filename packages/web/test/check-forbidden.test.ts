@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	findFontStacks,
 	findRootFontSizeLocks,
+	findSpacingGrowth,
 	isDeckContainer,
 	runForbiddenCheck,
 } from '../scripts/check-forbidden.js';
@@ -33,6 +34,176 @@ function scratchWebDir(files: Record<string, string>): string {
 function ruleHits(dir: string): string[] {
 	return runForbiddenCheck(dir, dir).violations.map((v) => `${v.rule}@${basename(v.file)}`);
 }
+
+describe('M9-T29 density guards', () => {
+	it('requires a base for arbitrary breakpoint spacing and honors narrower axes regardless of class order', () => {
+		expect(findSpacingGrowth('md:p-[calc(var(--sp-3)*2)]')).toEqual(['md:p-[calc(var(--sp-3)*2)]']);
+		expect(findSpacingGrowth('px-2 p-4 sm:px-3')).toEqual(['sm:px-3']);
+		expect(findSpacingGrowth('p-4 px-2 sm:px-3')).toEqual(['sm:px-3']);
+		expect(findSpacingGrowth('pt-2 py-4 p-6 md:pt-3')).toEqual(['md:pt-3']);
+	});
+	it('checks joined class lists and keeps each conditional template alternative', () => {
+		const dir = scratchWebDir({
+			'src/pages/joined.tsx':
+				"export const view = <><div className={['max-w-4xl', 'mx-auto'].join(' ')} /><div className={`p-3 ${true ? 'md:p-2' : 'md:p-4'}`} /><div className={cn('p-4', 'sm:p-3')} /></>;",
+		});
+		expect(ruleHits(dir)).toEqual([
+			'CENTERED_WORK_SURFACE@joined.tsx',
+			'RESPONSIVE_SPACING_GROWTH@joined.tsx',
+		]);
+	});
+	it.each([
+		['"max-w-4xl " + "mx-auto"', ['CENTERED_WORK_SURFACE']],
+		['"p-4 " + "sm:p-3"', []],
+		['"max-w-" + ("4xl " + "mx-auto")', ['CENTERED_WORK_SURFACE']],
+		['"p-2 " + (flag ? "md:p-4" : "md:p-1")', ['RESPONSIVE_SPACING_GROWTH']],
+		['(flag ? "p-4 " : "md:p-3 ") + "flex"', ['RESPONSIVE_SPACING_GROWTH']],
+		['(flag ? "max-w-4xl " : "mx-auto ") + "flex"', []],
+	])('checks concatenated source classes without merging branches: %s', (expression, rules) => {
+		const dir = scratchWebDir({
+			'src/pages/concatenated.tsx': `export const view = <div className={${expression}} />;`,
+		});
+		expect(runForbiddenCheck(dir, dir).violations.map(({ rule }) => rule)).toEqual(rules);
+	});
+	it.each(['cn', 'clsx', 'classNames'])(
+		'preserves concatenation and conditional isolation inside %s',
+		(helper) => {
+			const dir = scratchWebDir({
+				'src/pages/helper.tsx': [
+					`export const view = <div className={${helper}("p-4 " + "sm:p-3", flag ? "max-w-4xl" : "mx-auto")} />;`,
+					`export const other = <div className={${helper}("max-w-4xl " + "mx-auto")} />;`,
+				].join('\n'),
+			});
+			expect(runForbiddenCheck(dir, dir).violations).toMatchObject([
+				{ rule: 'CENTERED_WORK_SURFACE', line: 2 },
+			]);
+		},
+	);
+	it('preserves concatenation inside joined lists and conditional templates', () => {
+		const dir = scratchWebDir({
+			'src/pages/composed.tsx': [
+				'export const list = <div className={["max-w-4xl " + "mx-auto"].join(" ")} />;',
+				'export const template = <div className={`p-4 ${"sm:" + "p-3"}`} />;',
+				'export const branch = <div className={`${flag ? "p-4" : "md:p-3"} flex`} />;',
+			].join('\n'),
+		});
+		expect(runForbiddenCheck(dir, dir).violations).toMatchObject([
+			{ rule: 'CENTERED_WORK_SURFACE', line: 1 },
+			{ rule: 'RESPONSIVE_SPACING_GROWTH', line: 3 },
+		]);
+	});
+	it.each([
+		['p-2 md:p-[calc(4px*4)]', ['md:p-[calc(4px*4)]']],
+		['p-2 md:p-[calc(2px*4)]', []],
+		['p-2 md:p-[calc(3px*2)]', []],
+		['p-[0.3px] md:p-[calc(0.1px_+_0.2px)]', []],
+		['px-2 md:pl-[calc(1rem/2)]', []],
+		['px-2 md:pl-[calc(12px/2)]', []],
+		['px-2 md:pl-[calc(2*(3px_+_2px))]', ['md:pl-[calc(2*(3px_+_2px))]']],
+		['p-[calc(2px*4)] md:p-3', ['md:p-3']],
+		['p-[calc(2px*4)] md:p-[calc(1rem_-_8px)]', []],
+		['p-2 md:p-[calc(var(--sp-3)*2)]', ['md:p-[calc(var(--sp-3)*2)]']],
+	])('compares constant calc spacing on the same axis: %s', (classes, growth) => {
+		const dir = scratchWebDir({
+			'src/styles/tokens.css': ':root { --sp-3: 12px; }',
+			'src/pages/calc.tsx': `export const view = <div className="${classes}" />;`,
+		});
+		expect(runForbiddenCheck(dir, dir).violations).toEqual(
+			growth.map((cls) => ({
+				rule: 'RESPONSIVE_SPACING_GROWTH',
+				file: join('src', 'pages', 'calc.tsx'),
+				line: 1,
+				snippet: classes,
+				message: `${cls} increases spacing at a breakpoint; use the unprefixed spacing scale.`,
+			})),
+		);
+	});
+	it.each([
+		'p-2 md:p-[calc(var(--unknown)*2)]',
+		'p-2 md:p-[calc(4px/0)]',
+		'p-2 md:p-[calc(4px*4px)]',
+		'p-2 md:p-[calc(4px+4)]',
+		'p-2 md:p-[calc(4px*4)garbage]',
+	])('does not invent a value for unresolved or invalid calc spacing: %s', (classes) => {
+		expect(findSpacingGrowth(classes)).toEqual([]);
+	});
+	it.each([
+		'p-4 sm:p-6',
+		'gap-2 md:gap-3',
+		'lg:m-2',
+		'space-y-1 xl:space-y-2',
+		'p-3 sm:px-4',
+		'px-2 min-[1100px]:pl-[12px]',
+		'py-2 md:pt-3',
+		'p-[1rem] sm:p-[18px]',
+		'hover:sm:gap-4',
+		'p-[var(--sp-3)] md:p-4',
+	])('rejects spacing growth: %s', (classes) => {
+		expect(findSpacingGrowth(classes, new Map([['--sp-3', '12px']]))).not.toEqual([]);
+	});
+	it.each([
+		'p-4 sm:p-3',
+		'gap-3 md:gap-3',
+		'p-4 sm:px-3',
+		'p-3.5 max-[767px]:p-3',
+		'py-4 md:pt-3',
+		'p-4 sm:p-0',
+		'-m-2 md:-m-4',
+		'm-auto sm:mx-auto',
+		'p-3 hover:p-4',
+		'p-[var(--custom)] md:p-4',
+	])('allows equal or smaller breakpoint spacing: %s', (classes) => {
+		expect(findSpacingGrowth(classes)).toEqual([]);
+	});
+	it.each(['pages', 'features', 'components', 'app'])(
+		'scans %s, including multiline templates, and ignores comments',
+		(layer) => {
+			const dir = scratchWebDir({
+				[`src/${layer}/example.tsx`]:
+					'// "p-1 sm:p-8"\nexport const view = <div className={`p-2\n md:p-4 ${true ? "flex" : "grid"}`} />;',
+			});
+			const hits = ruleHits(dir);
+			expect(hits.filter((hit) => hit.startsWith('RESPONSIVE_SPACING_GROWTH'))).toEqual([
+				'RESPONSIVE_SPACING_GROWTH@example.tsx',
+			]);
+		},
+	);
+	it('compares each string separately instead of borrowing a base from another element', () => {
+		const dir = scratchWebDir({
+			'src/pages/page.tsx': '<><div className="p-8"/><div className="md:p-4"/></>',
+		});
+		expect(ruleHits(dir)).toContain('RESPONSIVE_SPACING_GROWTH@page.tsx');
+	});
+	it.each(['2xl', '3xl', '4xl', '5xl', '6xl', '7xl'])(
+		'rejects centered max-w-%s outside a single-card page',
+		(width) => {
+			const dir = scratchWebDir({
+				'src/pages/task-list-page.tsx': `export const classes = "mx-auto max-w-${width}";`,
+			});
+			expect(ruleHits(dir)).toContain('CENTERED_WORK_SURFACE@task-list-page.tsx');
+		},
+	);
+	it('allows the two single-card paths and left-aligned or uncapped work surfaces', () => {
+		const dir = scratchWebDir({
+			'src/features/pairing/pairing-container.tsx':
+				'export const classes = "max-w-2xl mx-auto p-3";',
+			'src/app/connect-failed.tsx': 'export const classes = "mx-auto max-w-3xl p-3";',
+			'src/pages/settings.tsx': 'export const a = "max-w-4xl"; export const b = "mx-auto w-full";',
+			'src/lib/example.ts': 'export const classes = "p-1 sm:p-8 mx-auto max-w-4xl";',
+		});
+		expect(ruleHits(dir)).toEqual([]);
+	});
+	it('does not whitelist a legacy component or a matching basename in another directory', () => {
+		const dir = scratchWebDir({
+			'src/components/batch-summary-bar.tsx': 'export const classes = "max-w-4xl mx-auto";',
+			'src/pages/connect-failed.tsx': 'export const classes = "max-w-4xl mx-auto";',
+		});
+		expect(ruleHits(dir)).toEqual([
+			'CENTERED_WORK_SURFACE@batch-summary-bar.tsx',
+			'CENTERED_WORK_SURFACE@connect-failed.tsx',
+		]);
+	});
+});
 
 describe('check-forbidden (M9-T1, E-170, E-15)', () => {
 	it('passes every architecture check on the clean workspace', () => {

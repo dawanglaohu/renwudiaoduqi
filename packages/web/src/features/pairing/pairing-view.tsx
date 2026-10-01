@@ -37,12 +37,12 @@ export function PairingView({ pairing }: PairingViewProps) {
 	};
 
 	return (
-		<div className="w-full bg-bg border border-border rounded p-6 shadow">
+		<div className="min-w-0 w-full bg-bg border border-border rounded p-6 min-[768px]:p-3.5 shadow">
 			{/* E-229: 浏览器模式能力缺失顶栏常驻提示 */}
 			{isBrowser && (
 				<div
 					data-testid="browser-mode-alert"
-					className="mb-6 p-4 rounded-sm bg-needs-soft border border-needs text-needs text-body"
+					className="mb-6 min-[768px]:mb-3 p-4 min-[768px]:p-3.5 rounded-sm bg-needs-soft border border-needs text-needs text-body"
 				>
 					<div className="font-semibold text-lead mb-1">浏览器运行模式</div>
 					<div className="text-body leading-relaxed">
@@ -55,7 +55,7 @@ export function PairingView({ pairing }: PairingViewProps) {
 				</div>
 			)}
 
-			<header className="mb-6">
+			<header className="mb-6 min-[768px]:mb-3">
 				<h1 className="text-lead font-semibold text-ink-1 mb-1">设备配对</h1>
 				<p className="text-meta text-ink-2">
 					请输入调度服务生成的一次性配对码（有效期 ≤ 60 秒），将本设备接入调度器。
@@ -68,7 +68,7 @@ export function PairingView({ pairing }: PairingViewProps) {
 					id="pairing-error-notice"
 					data-testid="pairing-error-notice"
 					role="alert"
-					className="mb-6 p-4 rounded-sm border text-body bg-down-soft border-down text-down"
+					className="mb-6 min-[768px]:mb-3 p-4 min-[768px]:p-3.5 rounded-sm border text-body bg-down-soft border-down text-down"
 				>
 					<div className="font-semibold mb-1">
 						{error.stage === 'network'
@@ -90,7 +90,7 @@ export function PairingView({ pairing }: PairingViewProps) {
 				</div>
 			)}
 
-			<form onSubmit={handleSubmit} className="flex flex-col gap-5">
+			<form onSubmit={handleSubmit} className="flex flex-col gap-5 min-[768px]:gap-[var(--sp-3)]">
 				{/* 配对码输入 */}
 				<div className="flex flex-col gap-1.5">
 					<label htmlFor="pairing-code" className="text-meta font-medium text-ink-1">
@@ -195,7 +195,7 @@ export function PairingView({ pairing }: PairingViewProps) {
 				</div>
 			</form>
 
-			<footer className="mt-8 pt-4 border-t border-border text-micro text-ink-3">
+			<footer className="mt-8 min-[768px]:mt-3 pt-4 min-[768px]:pt-3 border-t border-border text-micro text-ink-3">
 				首次配对提示：调度服务启动时若无任何已配对设备，会生成一枚启动配对码输出在电脑控制台与数据目录下的
 				pairing-code.txt 中（权限 0600，用后即删）。
 			</footer>

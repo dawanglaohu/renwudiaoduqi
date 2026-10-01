@@ -15,7 +15,7 @@ export function SettingsDevicesContainer(_props: SettingsDevicesContainerProps) 
 	return (
 		<div
 			data-component="settings-devices-container"
-			className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-4 sm:p-6 min-h-[calc(100vh-var(--topbar-h))]"
+			className="flex flex-col gap-[var(--sp-3)] w-full min-w-0 p-[var(--sp-4)] min-h-[calc(100vh-var(--topbar-h))]"
 		>
 			<DeviceListView devicesState={devicesState} />
 		</div>

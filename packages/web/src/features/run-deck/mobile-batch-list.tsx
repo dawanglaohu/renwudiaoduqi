@@ -81,7 +81,7 @@ export function MobileBatchList({ batches = [], onSelectTask, className }: Mobil
 			<div
 				data-component="mobile-batch-list"
 				data-mobile-batch-empty="true"
-				className="flex flex-col items-center justify-center p-8 text-center text-[var(--ink-3)] font-ui text-[13px] flex-1"
+				className="flex flex-col items-start p-3.5 text-left text-[var(--ink-3)] font-ui text-[13px] flex-1"
 			>
 				<span>暂无批次任务数据</span>
 			</div>
