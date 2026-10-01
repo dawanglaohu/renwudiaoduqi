@@ -53,6 +53,81 @@ describe('M9-T29 density guards', () => {
 		]);
 	});
 	it.each([
+		['"max-w-4xl " + "mx-auto"', ['CENTERED_WORK_SURFACE']],
+		['"p-4 " + "sm:p-3"', []],
+		['"max-w-" + ("4xl " + "mx-auto")', ['CENTERED_WORK_SURFACE']],
+		['"p-2 " + (flag ? "md:p-4" : "md:p-1")', ['RESPONSIVE_SPACING_GROWTH']],
+		['(flag ? "p-4 " : "md:p-3 ") + "flex"', ['RESPONSIVE_SPACING_GROWTH']],
+		['(flag ? "max-w-4xl " : "mx-auto ") + "flex"', []],
+	])('checks concatenated source classes without merging branches: %s', (expression, rules) => {
+		const dir = scratchWebDir({
+			'src/pages/concatenated.tsx': `export const view = <div className={${expression}} />;`,
+		});
+		expect(runForbiddenCheck(dir, dir).violations.map(({ rule }) => rule)).toEqual(rules);
+	});
+	it.each(['cn', 'clsx', 'classNames'])(
+		'preserves concatenation and conditional isolation inside %s',
+		(helper) => {
+			const dir = scratchWebDir({
+				'src/pages/helper.tsx': [
+					`export const view = <div className={${helper}("p-4 " + "sm:p-3", flag ? "max-w-4xl" : "mx-auto")} />;`,
+					`export const other = <div className={${helper}("max-w-4xl " + "mx-auto")} />;`,
+				].join('\n'),
+			});
+			expect(runForbiddenCheck(dir, dir).violations).toMatchObject([
+				{ rule: 'CENTERED_WORK_SURFACE', line: 2 },
+			]);
+		},
+	);
+	it('preserves concatenation inside joined lists and conditional templates', () => {
+		const dir = scratchWebDir({
+			'src/pages/composed.tsx': [
+				'export const list = <div className={["max-w-4xl " + "mx-auto"].join(" ")} />;',
+				'export const template = <div className={`p-4 ${"sm:" + "p-3"}`} />;',
+				'export const branch = <div className={`${flag ? "p-4" : "md:p-3"} flex`} />;',
+			].join('\n'),
+		});
+		expect(runForbiddenCheck(dir, dir).violations).toMatchObject([
+			{ rule: 'CENTERED_WORK_SURFACE', line: 1 },
+			{ rule: 'RESPONSIVE_SPACING_GROWTH', line: 3 },
+		]);
+	});
+	it.each([
+		['p-2 md:p-[calc(4px*4)]', ['md:p-[calc(4px*4)]']],
+		['p-2 md:p-[calc(2px*4)]', []],
+		['p-2 md:p-[calc(3px*2)]', []],
+		['p-[0.3px] md:p-[calc(0.1px_+_0.2px)]', []],
+		['px-2 md:pl-[calc(1rem/2)]', []],
+		['px-2 md:pl-[calc(12px/2)]', []],
+		['px-2 md:pl-[calc(2*(3px_+_2px))]', ['md:pl-[calc(2*(3px_+_2px))]']],
+		['p-[calc(2px*4)] md:p-3', ['md:p-3']],
+		['p-[calc(2px*4)] md:p-[calc(1rem_-_8px)]', []],
+		['p-2 md:p-[calc(var(--sp-3)*2)]', ['md:p-[calc(var(--sp-3)*2)]']],
+	])('compares constant calc spacing on the same axis: %s', (classes, growth) => {
+		const dir = scratchWebDir({
+			'src/styles/tokens.css': ':root { --sp-3: 12px; }',
+			'src/pages/calc.tsx': `export const view = <div className="${classes}" />;`,
+		});
+		expect(runForbiddenCheck(dir, dir).violations).toEqual(
+			growth.map((cls) => ({
+				rule: 'RESPONSIVE_SPACING_GROWTH',
+				file: join('src', 'pages', 'calc.tsx'),
+				line: 1,
+				snippet: classes,
+				message: `${cls} increases spacing at a breakpoint; use the unprefixed spacing scale.`,
+			})),
+		);
+	});
+	it.each([
+		'p-2 md:p-[calc(var(--unknown)*2)]',
+		'p-2 md:p-[calc(4px/0)]',
+		'p-2 md:p-[calc(4px*4px)]',
+		'p-2 md:p-[calc(4px+4)]',
+		'p-2 md:p-[calc(4px*4)garbage]',
+	])('does not invent a value for unresolved or invalid calc spacing: %s', (classes) => {
+		expect(findSpacingGrowth(classes)).toEqual([]);
+	});
+	it.each([
 		'p-4 sm:p-6',
 		'gap-2 md:gap-3',
 		'lg:m-2',

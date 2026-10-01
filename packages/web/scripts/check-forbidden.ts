@@ -40,15 +40,88 @@ const CARD_PAGE_PATHS = new Set([
 	'src/app/connect-failed.tsx',
 ]);
 
+/** Evaluate absolute CSS lengths and calc arithmetic without executing source code. */
+function absoluteSpacingValue(
+	expression: string,
+	tokens: ReadonlyMap<string, string>,
+	resolving: ReadonlySet<string> = new Set(),
+): number | null {
+	type Quantity = { value: number; length: boolean };
+	const source = expression.replace(/_/g, ' ');
+	let position = 0;
+	const take = (pattern: RegExp): string | undefined => {
+		const rest = source.slice(position).trimStart();
+		const match = pattern.exec(rest);
+		if (!match) return undefined;
+		position = source.length - rest.length + match[0].length;
+		return match[0];
+	};
+	const primary = (): Quantity | null => {
+		const sign = take(/^[+-]/);
+		if (sign) {
+			const operand = primary();
+			return operand ? { ...operand, value: sign === '-' ? -operand.value : operand.value } : null;
+		}
+		if (take(/^calc\(/) || take(/^\(/)) {
+			const result = sum();
+			return take(/^\)/) ? result : null;
+		}
+		const variable = take(/^var\(--[\w-]+\)/);
+		if (variable) {
+			const name = variable.slice(4, -1);
+			const value = tokens.get(name);
+			if (value === undefined || resolving.has(name)) return null;
+			const resolved = absoluteSpacingValue(value, tokens, new Set([...resolving, name]));
+			return resolved === null ? null : { value: resolved, length: true };
+		}
+		const literal = take(/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?:px|rem)?/i);
+		if (!literal) return null;
+		const unit = /(?:px|rem)$/i.exec(literal)?.[0].toLowerCase();
+		return { value: Number.parseFloat(literal) * (unit === 'rem' ? 16 : 1), length: !!unit };
+	};
+	const product = (): Quantity | null => {
+		let left = primary();
+		let operator = take(/^[*/]/);
+		while (left && operator) {
+			const right = primary();
+			if (!right) return null;
+			if (operator === '*') {
+				if (left.length && right.length) return null;
+				left = { value: left.value * right.value, length: left.length || right.length };
+			} else {
+				if (right.length || right.value === 0) return null;
+				left = { value: left.value / right.value, length: left.length };
+			}
+			operator = take(/^[*/]/);
+		}
+		return left;
+	};
+	const sum = (): Quantity | null => {
+		let left = product();
+		let operator = take(/^[+-]/);
+		while (left && operator) {
+			const right = product();
+			if (!right || left.length !== right.length) return null;
+			left = {
+				value: operator === '+' ? left.value + right.value : left.value - right.value,
+				length: left.length,
+			};
+			operator = take(/^[+-]/);
+		}
+		return left;
+	};
+	const result = primary();
+	return result?.length && Number.isFinite(result.value) && !source.slice(position).trim()
+		? result.value
+		: null;
+}
+
 function spacingValue(value: string, tokens: ReadonlyMap<string, string>): number | null {
 	if (value === 'px') return 1;
 	if (/^\d+(?:\.\d+)?$/.test(value)) return Number(value) * 4;
-	let inner = /^\[(.+)\]$/.exec(value)?.[1];
+	const inner = /^\[(.+)\]$/.exec(value)?.[1];
 	if (!inner) return null;
-	const token = /^var\((--[\w-]+)\)$/.exec(inner)?.[1];
-	if (token) inner = tokens.get(token);
-	const unit = /^(\d+(?:\.\d+)?)(px|rem)$/.exec(inner ?? '');
-	return unit ? Number(unit[1]) * (unit[2] === 'rem' ? 16 : 1) : null;
+	return absoluteSpacingValue(inner, tokens);
 }
 
 /** Compare each affected axis with its unprefixed value in the same class string. */
@@ -80,7 +153,9 @@ export function findSpacingGrowth(
 			axes.some((axis) => {
 				if (!base.has(axis)) return true;
 				const baseline = base.get(axis)?.value;
-				return value !== null && baseline !== null && baseline !== undefined && value > baseline;
+				if (value === null || baseline === null || baseline === undefined) return false;
+				const rounding = Number.EPSILON * Math.max(1, Math.abs(value), Math.abs(baseline)) * 4;
+				return value > baseline + rounding;
 			}),
 		)
 		.map(({ cls }) => cls);
@@ -105,6 +180,10 @@ function classStrings(source: string): { classes: string; line: number }[] {
 		if (ts.isParenthesizedExpression(node)) return alternatives(node.expression);
 		if (ts.isConditionalExpression(node))
 			return [...alternatives(node.whenTrue), ...alternatives(node.whenFalse)];
+		if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken)
+			return alternatives(node.left).flatMap((left) =>
+				alternatives(node.right).map((right) => left + right),
+			);
 		if (ts.isArrayLiteralExpression(node)) return combine(node.elements.map(alternatives));
 		if (ts.isTemplateExpression(node))
 			return combine([
