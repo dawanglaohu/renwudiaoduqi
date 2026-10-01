@@ -93,7 +93,7 @@ export function PipelineTogglesContainer({
 			data-layout={layout}
 			className={[
 				isSettings
-					? 'grid grid-cols-1 min-[1144px]:grid-cols-[minmax(0,780px)_320px] gap-[var(--sp-3)] items-start'
+					? 'grid w-full max-w-[1112px] grid-cols-1 min-[1144px]:grid-cols-[minmax(0,780px)_320px] gap-[var(--sp-3)] items-start'
 					: 'flex items-center shrink-0',
 				className,
 			]
