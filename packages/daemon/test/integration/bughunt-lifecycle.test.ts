@@ -888,74 +888,119 @@ NEXT
 		expect(implRun?.rework_count).toBe(0);
 	});
 
-	it('AC 2 & AC 3 & E-323 & E-331: bughunt exit 1 -> bughunt_failed gate -> POST /runs/:id/rerun retries atomic run', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: true });
-		const { container, spawnedProcesses } = env;
-		const server = createHttpServer({ container });
-		await server.instance.ready();
-		const token = await getAuthToken(container);
+	it.each([false, true])(
+		'AC 2 & AC 3 & E-323 & E-331: bughunt exit 1 -> bughunt_failed gate -> POST /runs/:id/rerun retries atomic run (sequence gap: %s)',
+		async (hasSequenceGap) => {
+			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const { container, spawnedProcesses } = env;
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
 
-		const { implRunId } = await advanceToReviewPassed(env);
+			if (hasSequenceGap) {
+				container.repos.tasks.insert({
+					id: 'other-task',
+					doc_id: 'doc-1',
+					batch_id: 'batch-1',
+					task_key: 'OTHER',
+					title: 'Another task with prior attempts',
+					module_key: 'M8',
+					deps_json: '[]',
+					contract_hash: 'other-task-contract',
+					is_contract_ready: 1,
+					contract_reasons_json: '[]',
+				});
+				const snapshot = expectDefined(
+					container.repos.dispatchSnapshots,
+					'snapshots',
+				).takeSnapshotForTask({
+					taskId: 'other-task',
+					launchSpecJson: '{}',
+					createdAt: env.clock.now(),
+				});
+				container.repos.runs.insert({
+					id: 'other-run',
+					task_id: 'other-task',
+					attempt_no: 3,
+					kind: 'implement',
+					state: 'failed',
+					agent_id: 'codex',
+					permission_tier: 'workspaceWrite',
+					snapshot_id: snapshot.id,
+				});
+			}
 
-		await waitFor(() => {
-			const runs = container.repos.runs.listByTaskId('task-1');
-			return runs.some((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId);
-		});
-		const bughuntRun = expectDefined(
-			container.repos.runs
-				.listByTaskId('task-1')
-				.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
-			'bughuntRun',
-		);
-		await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
-		const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
+			const { implRunId } = await advanceToReviewPassed(env);
 
-		// Bughunt process exits 1 (failure)
-		bughuntProc?.emitExit(1);
+			await waitFor(() => {
+				const runs = container.repos.runs.listByTaskId('task-1');
+				return runs.some((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId);
+			});
+			const bughuntRun = expectDefined(
+				container.repos.runs
+					.listByTaskId('task-1')
+					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
+				'bughuntRun',
+			);
+			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
-		// Wait for awaiting_human and bughunt_failed gate
-		const gateCreated = await waitFor(() => {
-			const gates = listWaitingGates(container);
-			return gates.some((g) => g.comment === 'bughunt_failed');
-		});
-		expect(gateCreated).toBe(true);
+			// Bughunt process exits 1 (failure)
+			bughuntProc?.emitExit(1);
 
-		const failedBughunt = container.repos.runs.findById(bughuntRun.id);
-		expect(failedBughunt?.state).toBe('failed');
-		const implRunAwaiting = container.repos.runs.findById(implRunId);
-		expect(implRunAwaiting?.state).toBe('awaiting_human');
-		expect(implRunAwaiting?.rework_count).toBe(0);
+			// Wait for awaiting_human and bughunt_failed gate
+			const gateCreated = await waitFor(() => {
+				const gates = listWaitingGates(container);
+				return gates.some((g) => g.comment === 'bughunt_failed');
+			});
+			expect(gateCreated).toBe(true);
 
-		const gateBeforeRerun = expectDefined(
-			listWaitingGates(container).find((g) => g.comment === 'bughunt_failed'),
-			'gateBeforeRerun',
-		);
+			const failedBughunt = container.repos.runs.findById(bughuntRun.id);
+			expect(failedBughunt?.state).toBe('failed');
+			const implRunAwaiting = container.repos.runs.findById(implRunId);
+			expect(implRunAwaiting?.state).toBe('awaiting_human');
+			expect(implRunAwaiting?.rework_count).toBe(0);
 
-		// Trigger rerun via HTTP POST /api/v1/runs/:id/rerun (E-331)
-		const rerunRes = await server.instance.inject({
-			method: 'POST',
-			url: `/api/v1/runs/${bughuntRun.id}/rerun`,
-			headers: { authorization: token },
-			payload: { idempotencyKey: 'rerun-bughunt-attempt' },
-		});
-		expect(rerunRes.statusCode).toBe(200);
-		const rerunBody = rerunRes.json() as {
-			run: { id: string; kind: string; parentRunId: string };
-		};
-		expect(rerunBody.run.kind).toBe('bughunt');
-		expect(rerunBody.run.parentRunId).toBe(implRunId);
+			const gateBeforeRerun = expectDefined(
+				listWaitingGates(container).find((g) => g.comment === 'bughunt_failed'),
+				'gateBeforeRerun',
+			);
 
-		// The previous bughunt_failed gate was superseded
-		const gatesRepo = expectDefined(container.repos.gates, 'gates');
-		const cancelledGate = gatesRepo.findById(gateBeforeRerun.id);
-		expect(cancelledGate?.state).toBe('decided');
-		expect(cancelledGate?.comment).toBe('superseded');
+			// Trigger rerun via HTTP POST /api/v1/runs/:id/rerun (E-331)
+			const rerunRes = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/runs/${bughuntRun.id}/rerun`,
+				headers: { authorization: token },
+				payload: { idempotencyKey: 'rerun-bughunt-attempt' },
+			});
+			expect(rerunRes.statusCode).toBe(200);
+			const rerunBody = rerunRes.json() as {
+				run: { id: string; kind: string; parentRunId: string; attemptNo: number };
+			};
+			expect(rerunBody.run.kind).toBe('bughunt');
+			expect(rerunBody.run.parentRunId).toBe(implRunId);
+			expect(rerunBody.run.id).not.toBe(bughuntRun.id);
+			expect(rerunBody.run.attemptNo).toBeGreaterThan(bughuntRun.attempt_no);
+			expect(container.repos.runs.findById(rerunBody.run.id)?.snapshot_id).toBe(
+				bughuntRun.snapshot_id,
+			);
+			if (hasSequenceGap) {
+				expect(bughuntRun.attempt_no).toBe(4);
+				expect(rerunBody.run.attemptNo).toBe(5);
+			}
 
-		// The implementation run is restored to reviewing
-		const restoredImpl = container.repos.runs.findById(implRunId);
-		expect(restoredImpl?.state).toBe('reviewing');
-		expect(restoredImpl?.rework_count).toBe(0); // did not increase rework count
-	});
+			// The previous bughunt_failed gate was superseded
+			const gatesRepo = expectDefined(container.repos.gates, 'gates');
+			const cancelledGate = gatesRepo.findById(gateBeforeRerun.id);
+			expect(cancelledGate?.state).toBe('decided');
+			expect(cancelledGate?.comment).toBe('superseded');
+
+			// The implementation run is restored to reviewing
+			const restoredImpl = container.repos.runs.findById(implRunId);
+			expect(restoredImpl?.state).toBe('reviewing');
+			expect(restoredImpl?.rework_count).toBe(0); // did not increase rework count
+		},
+	);
 
 	it('AC 3 & E-329 & E-331: human gate decision pass advances to landing gate, reject routes to rework with uncommitted notice', async () => {
 		// Scenario A: Human decides pass on bughunt gate -> advances to landing gate

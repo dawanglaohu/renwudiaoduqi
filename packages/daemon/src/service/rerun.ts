@@ -391,7 +391,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		// AC 6 & E-36: Model name is passed through directly without whitelist checks
 		const now = clock.now();
 		const existingRuns = runsRepo.listByTaskId(task.id);
-		const attemptNo = existingRuns.length + 1;
+		const attemptNo = Math.max(0, ...existingRuns.map((run) => run.attempt_no)) + 1;
 		const newRunId = ids.newId();
 
 		// AC 2: Strictly reuse original snapshot_id without creating new snapshot or modifying assignment
@@ -588,7 +588,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 		// AC 1: Old runs are retained as read-only historical rows; attempt number increments
 		const existingRuns = runsRepo.listByTaskId(taskId);
-		const attemptNo = existingRuns.length + 1;
+		const attemptNo = Math.max(0, ...existingRuns.map((run) => run.attempt_no)) + 1;
 		const runId = ids.newId();
 
 		const persist = (): { readonly snapshotId: string } => {

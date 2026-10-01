@@ -1720,6 +1720,12 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 			body: JSON.stringify({ idempotencyKey: `bughunt-rerun-${Date.now()}` }),
 		});
 		expect([200, 201]).toContain(bughuntRerunRes.status);
+		const bughuntRerunBody = (await bughuntRerunRes.json()) as {
+			run: { id: string; kind: string; parentRunId: string };
+		};
+		expect(bughuntRerunBody.run.kind).toBe('bughunt');
+		expect(bughuntRerunBody.run.id).not.toBe(failedBughuntRunId);
+		expect(bughuntRerunBody.run.parentRunId).toBe(currentRunId);
 
 		// 5. 等待重跑后的 bughunt 运行启动并完成
 		let recoveredBughuntRunId: string | null = null;
