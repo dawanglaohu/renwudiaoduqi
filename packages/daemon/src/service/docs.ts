@@ -835,12 +835,10 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 
 		async importDocument(docsPath: string): Promise<ImportDocumentResult> {
 			const resolvedPath = resolve(docsPath);
-			const existingRow = deps.documentsRepo.findByPath(resolvedPath);
 
 			let parsed: ParsedDocData;
 			try {
 				parsed = await parseDocsDataFile(resolvedPath, fileSystem, hasher);
-				recordParsedDoc(parsed);
 			} catch (error) {
 				const appError =
 					error instanceof AppError
@@ -855,103 +853,73 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 							);
 
 				// E-82：源不可读时只置不可读标记，既有任务和派发快照保持不变。
+				const existingRow = deps.documentsRepo.findByPath(resolvedPath);
 				if (existingRow) {
 					deps.documentsRepo.markSourceUnreadable(existingRow.id, deps.clock.now());
 				}
 				throw appError;
 			}
 
-			const now = deps.clock.now();
-
-			if (!existingRow) {
-				const newDocId = deps.ids.newId();
-				const newRow: DocumentRow = {
-					id: newDocId,
-					docs_path: resolvedPath,
+			const persistImport = (): ImportDocumentResult => {
+				// 文件读取期间可能已有另一次导入提交；唯一路径的归属在写入事务内确认。
+				const existingRow = deps.documentsRepo.findByPath(resolvedPath);
+				const docId = existingRow?.id ?? deps.ids.newId();
+				const now = deps.clock.now();
+				const metadata = {
+					id: docId,
 					project_name: parsed.projectName,
 					repo_path: parsed.repoPath,
 					main_branch: parsed.mainBranch,
 					branch_prefix: parsed.branchPrefix,
-					lane_count: 2, // 默认 2，不读取阅读器 localStorage（E-247）
 					content_fingerprint: parsed.contentFingerprint,
 					is_source_readable: 1,
-					is_takeover_notified: 0,
-					imported_at: now,
 					last_seen_at: now,
 				};
-				deps.documentsRepo.insert(newRow);
-				const imported = persistParsedTasks(deps, newDocId, parsed);
-
-				const row = deps.documentsRepo.findById(newDocId);
+				if (existingRow) {
+					deps.documentsRepo.updateMetadata(metadata);
+				} else {
+					deps.documentsRepo.insert({
+						...metadata,
+						docs_path: resolvedPath,
+						lane_count: 2,
+						is_takeover_notified: 0,
+						imported_at: now,
+					});
+				}
+				const imported = persistParsedTasks(deps, docId, parsed, true);
+				deps.dispatchSnapshotsRepo?.refreshDocDiff(
+					docId,
+					parsed.tasks.map((task) => task.id),
+				);
+				const row = deps.documentsRepo.findById(docId);
 				if (!row) {
-					throw new AppError('E_INTERNAL', `Failed to retrieve inserted document ${newDocId}`);
+					throw new AppError('E_INTERNAL', `Failed to retrieve imported document ${docId}`);
 				}
-
-				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'system.docs_changed',
-							payload: {
-								docsPath: row.docs_path,
-								fingerprint: row.content_fingerprint,
-							},
-						}),
-					);
-				}
-
 				return Object.freeze({
 					document: mapDocumentRow(row),
 					parsed,
-					hasChanged: true,
-					isNew: true,
+					hasChanged: existingRow?.content_fingerprint !== parsed.contentFingerprint,
+					isNew: existingRow === null,
 					tasksImported: imported.tasksImported,
 					dependencyReport: imported.dependencyReport,
 				});
-			}
-
-			// E-17, E-79: 比对指纹
-			const hasChanged = existingRow.content_fingerprint !== parsed.contentFingerprint;
-
-			// 成功读取时刷新文档复核元数据，恢复 is_source_readable = 1
-			const updateRow: DocumentMetadataUpdateRow = {
-				id: existingRow.id,
-				project_name: parsed.projectName,
-				repo_path: parsed.repoPath,
-				main_branch: parsed.mainBranch,
-				branch_prefix: parsed.branchPrefix,
-				content_fingerprint: parsed.contentFingerprint,
-				is_source_readable: 1,
-				last_seen_at: now,
 			};
-			deps.documentsRepo.updateMetadata(updateRow);
-			// 每次重新导入按当前分层重算批次归属并 upsert 任务行（E-243）；同指纹时也补齐早先漏落库的行。
-			const imported = persistParsedTasks(deps, existingRow.id, parsed);
+			const result = deps.unitOfWork ? deps.unitOfWork.run(persistImport) : persistImport();
+			recordParsedDoc(parsed);
 
-			const row = deps.documentsRepo.findById(existingRow.id);
-			if (!row) {
-				throw new AppError('E_INTERNAL', `Failed to retrieve updated document ${existingRow.id}`);
-			}
-
-			if (hasChanged && deps.bus && deps.envelopeFactory) {
+			if (result.hasChanged && deps.bus && deps.envelopeFactory) {
 				deps.bus.publish(
 					deps.envelopeFactory.createEnvelope({
 						kind: 'system.docs_changed',
 						payload: {
-							docsPath: row.docs_path,
-							fingerprint: row.content_fingerprint,
+							docsPath: result.document.docsPath,
+							fingerprint: result.document.contentFingerprint,
 						},
 					}),
 				);
 			}
 
-			return Object.freeze({
-				document: mapDocumentRow(row),
-				parsed,
-				hasChanged,
-				isNew: false,
-				tasksImported: imported.tasksImported,
-				dependencyReport: imported.dependencyReport,
-			});
+			return result;
 		},
 
 		async refreshDocument(docId: string): Promise<RefreshDocumentResponse> {
