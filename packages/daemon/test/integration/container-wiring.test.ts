@@ -531,6 +531,50 @@ describe(
 	'M7-T9 Integration: Container Wiring (AC 2, AC 3, AC 4, E-53, E-57, E-104, E-120, E-123)',
 	{ timeout: 25000 },
 	() => {
+		it.each(['codex', 'grok'] as const)(
+			'resumes %s with the executable and extra arguments frozen in its snapshot',
+			async (agentId) => {
+				const env = setupWiringEnvironment();
+				const { container, spawnedProcesses, clock } = env;
+				const server = createHttpServer({ container });
+				await server.instance.ready();
+				const token = await getAuthToken(container);
+				const frozenExecPath = join(env.tempDir, 'frozen-agent', agentId);
+				container.repos.dispatchSnapshots?.insert({
+					id: 'snap-resume-launch',
+					task_id: 'task-1',
+					contract_hash: 'contract-hash-task-1',
+					task_paths_json: '[]',
+					created_at: clock.now(),
+					launch_spec_json: JSON.stringify({
+						agentId,
+						execPath: frozenExecPath,
+						customArgs: ['--resume-probe'],
+					}),
+				});
+				seedHumanReworkDecision(env, { agentId, snapshotId: 'snap-resume-launch' });
+
+				const response = await postReworkDecision(
+					server,
+					token,
+					'human-review-gate',
+					REWORK_COMMENT,
+				);
+				expect(response.statusCode).toBe(200);
+				const reworkRun = container.repos.runs
+					.listByTaskId('task-1')
+					.find((run) => run.origin === 'rework');
+				expect(reworkRun?.state).toBe('running');
+				const process = spawnedProcesses.find((entry) => entry.launchSpec.runId === reworkRun?.id);
+				expect(process?.launchSpec.file).toBe(frozenExecPath);
+				expect(process?.launchSpec.args).toContain('--resume-probe');
+				expect(process?.launchSpec.args).toContain('vendor-session-1');
+				expect(process?.launchSpec.args).toContain(REWORK_COMMENT);
+				expect(process?.launchSpec.args).toContain('o3-mini');
+				await server.instance.close();
+			},
+		);
+
 		it('E-327 / #136: real container delivers a human rework into an ended codex session by resuming it', async () => {
 			const env = setupWiringEnvironment();
 			const { container, spawnedProcesses } = env;

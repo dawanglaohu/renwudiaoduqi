@@ -752,6 +752,7 @@ export function createContainer(input: {
 		runsRepo: runs,
 		tasksRepo: tasks,
 		documentsRepo: documents,
+		dispatchSnapshotsRepo: dispatchSnapshots,
 		runMessagesRepo: runMessages,
 		processRegistry,
 		runService,

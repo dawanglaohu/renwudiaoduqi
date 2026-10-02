@@ -4,6 +4,7 @@ import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
 import type { LaunchSpec, ManagedProcess } from '../proc/spawn.ts';
+import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
 import type { RunMessagesRepo } from '../repo/run-messages-repo.ts';
 import type { RunRow, RunsRepo } from '../repo/runs.ts';
@@ -60,6 +61,7 @@ export interface SessionResumeDeps {
 	readonly runsRepo: RunsRepo;
 	readonly tasksRepo?: TasksRepo;
 	readonly documentsRepo?: DocumentsRepo;
+	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
 	readonly runMessagesRepo?: RunMessagesRepo;
 	readonly processRegistry?: ProcessRegistry;
 	readonly runService?: SessionResumeRunWiring;
@@ -152,9 +154,18 @@ export function createSessionResumeDispatcher(
 
 		let spec: LaunchSpec;
 		try {
+			const snapshot = deps.dispatchSnapshotsRepo?.findById(run.snapshot_id);
+			const frozenLaunch: {
+				readonly execPath?: string | null;
+				readonly customArgs?: readonly string[];
+				readonly argsTemplate?: readonly string[];
+			} = JSON.parse(snapshot?.launch_spec_json ?? '{}');
 			spec = adapter.buildLaunchSpec({
 				runId: run.id,
 				cwd,
+				execPath: frozenLaunch.execPath ?? run.agent_id,
+				customArgs: frozenLaunch.customArgs,
+				argsTemplate: frozenLaunch.argsTemplate,
 				model: run.model_name ?? null,
 				effortTier: run.effort_tier ?? null,
 				permissionTier: run.permission_tier ?? 'workspaceWrite',
