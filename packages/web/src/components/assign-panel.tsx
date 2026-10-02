@@ -274,13 +274,16 @@ function deriveBottleneckSummary(
 	if (!source) {
 		return {
 			label: EMPTY_VALUE_FALLBACK,
-			explanation: '当前未报告明确并发瓶颈，调度器将按就绪状态顺序放行。',
+			explanation: UI_STRINGS.assignment.noBottleneck,
 		};
 	}
 	// 域外的值直接原样呈现：既不猜含义，也不落进某个已知瓶颈的文案
 	return isPreviewBottleneck(source)
 		? bottleneckSummaryOf(source, details)
-		: { label: String(source), explanation: `瓶颈归因：${String(source)}` };
+		: {
+				label: String(source),
+				explanation: UI_STRINGS.assignment.unknownBottleneck(String(source)),
+			};
 }
 
 function isPreviewBottleneck(value: string): value is ConcurrencyPreviewBottleneck {
@@ -301,31 +304,30 @@ function bottleneckSummaryOf(
 	switch (source) {
 		case 'window_count':
 			return {
-				label: '并行窗口数 (依赖拓扑)',
-				explanation: `瓶颈归因：受批次内任务依赖或路径冲突限制，并行窗口上限为 ${renderFieldOrFallback(
-					details?.windowCount,
-				)}。`,
+				label: UI_STRINGS.assignment.windowBottleneckLabel,
+				explanation: UI_STRINGS.assignment.windowBottleneckNote(
+					renderFieldOrFallback(details?.windowCount),
+				),
 			};
 		case 'agent_limit':
 			return details?.agentLimit === null || details?.agentLimit === undefined
 				? {
 						// 逐 agent 数值由 daemon 的 preview.agentCapacities 列出，这里不替它合成一个标量
-						label: 'Agent 单体并发上限',
-						explanation:
-							'瓶颈归因：所指派 Agent 的单体并发上限是三者中最小的一项（逐 agent 数值见上方因子），已满额时空位可顺延给别家（E-47）。',
+						label: UI_STRINGS.assignment.agentBottleneckLabel,
+						explanation: UI_STRINGS.assignment.agentBottleneckNote,
 					}
 				: {
-						label: 'Agent 单体并发上限',
-						explanation: `瓶颈归因：所指派 Agent 的单体最大并发上限为 ${renderFieldOrFallback(
-							details.agentLimit,
-						)}，已满额时空位可顺延给别家（E-47）。`,
+						label: UI_STRINGS.assignment.agentBottleneckLabel,
+						explanation: UI_STRINGS.assignment.agentBottleneckValueNote(
+							renderFieldOrFallback(details.agentLimit),
+						),
 					};
 		case 'user_setting':
 			return {
-				label: '用户设定并发上限',
-				explanation: `瓶颈归因：受用户偏好设定上限 (${renderFieldOrFallback(
-					details?.userSetting,
-				)}) 约束，可按需在下方调节上限。`,
+				label: UI_STRINGS.assignment.userBottleneckLabel,
+				explanation: UI_STRINGS.assignment.userBottleneckNote(
+					renderFieldOrFallback(details?.userSetting),
+				),
 			};
 	}
 }
@@ -422,7 +424,7 @@ function TaskAssignRow({
 	const sessionDisplay =
 		effectiveSessionNo === null || effectiveSessionNo === undefined
 			? EMPTY_VALUE_FALLBACK
-			: `会话 #${effectiveSessionNo}`;
+			: UI_STRINGS.assignment.sessionLabel(String(effectiveSessionNo));
 
 	// 编辑态里的会话序号同样来自 daemon：草稿未写入前 daemon 还没有编号，显示「—」
 	const pendingSessionDisplay = `${EMPTY_VALUE_FALLBACK}`;
@@ -459,7 +461,7 @@ function TaskAssignRow({
 			assignedAgentObj?.monogram ??
 			(assignment.agentId ? assignment.agentId.slice(0, 2).toUpperCase() : EMPTY_VALUE_FALLBACK);
 		const agentName = assignedAgentObj?.name ?? assignment.agentId ?? EMPTY_VALUE_FALLBACK;
-		const modelDisplay = assignment.model ? assignment.model : '跟随 agent 配置';
+		const modelDisplay = assignment.model ? assignment.model : UI_STRINGS.assignment.followConfig;
 		const effortDisplay =
 			assignment.effort === null
 				? EMPTY_VALUE_FALLBACK
@@ -525,17 +527,19 @@ function TaskAssignRow({
 						<span
 							data-session-badge={effectiveSessionNo ?? EMPTY_VALUE_FALLBACK}
 							className="px-2 py-0.5 rounded border border-auto-soft bg-auto-soft text-auto font-bold text-micro"
-							title="同一个 agent 允许多次指派，独立会话序号读 daemon 字段（E-31）"
+							title={UI_STRINGS.assignment.sessionTitle}
 						>
 							{sessionDisplay}
 						</span>
 						<span className="text-ink-3">|</span>
-						<span className="text-ink-2" title={`模型: ${modelDisplay}`}>
-							模型: <span className="text-ink-1">{modelDisplay}</span>
+						<span className="text-ink-2" title={UI_STRINGS.assignment.modelTitle(modelDisplay)}>
+							{UI_STRINGS.assignment.modelPrefix}
+							<span className="text-ink-1">{modelDisplay}</span>
 						</span>
 						<span className="text-ink-3">|</span>
-						<span className="text-ink-2" title={`思考强度: ${effortDisplay}`}>
-							思考: <span className="text-ink-1">{effortDisplay}</span>
+						<span className="text-ink-2" title={UI_STRINGS.assignment.effortTitle(effortDisplay)}>
+							{UI_STRINGS.assignment.effortPrefix}
+							<span className="text-ink-1">{effortDisplay}</span>
 						</span>
 					</div>
 
@@ -554,9 +558,9 @@ function TaskAssignRow({
 						data-action="edit-assignment"
 						onClick={() => setIsEditing(true)}
 						className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 shrink-0 whitespace-nowrap px-3 rounded-sm border border-border bg-bg text-ink-2 hover:text-ink-1 hover:border-needs text-dense transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
-						aria-label={`修改任务 ${task.taskKey} 的指派`}
+						aria-label={UI_STRINGS.assignment.editTaskTitle(task.taskKey)}
 					>
-						修改指派
+						{UI_STRINGS.assignment.edit}
 					</button>
 					{onReset && (
 						<button
@@ -564,9 +568,9 @@ function TaskAssignRow({
 							data-action="reset-assignment"
 							onClick={() => onReset()}
 							className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 px-2 rounded-sm border border-transparent text-ink-3 hover:text-down text-micro transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
-							aria-label={`重置任务 ${task.taskKey} 的指派`}
+							aria-label={UI_STRINGS.assignment.resetTaskTitle(task.taskKey)}
 						>
-							重置
+							{UI_STRINGS.assignment.reset}
 						</button>
 					)}
 				</div>
@@ -602,9 +606,10 @@ function TaskAssignRow({
 					<span
 						data-next-session-preview={pendingSessionDisplay}
 						className="text-micro font-mono text-auto bg-auto-soft border border-auto-soft px-2 py-0.5 rounded"
-						title="会话序号由调度器在下发草稿时编号（E-31）"
+						title={UI_STRINGS.assignment.sessionNumberTitle}
 					>
-						会话序号: {pendingSessionDisplay}
+						{UI_STRINGS.assignment.sessionNumberPrefix}
+						{pendingSessionDisplay}
 					</span>
 				</div>
 			</div>
@@ -656,10 +661,11 @@ function TaskAssignRow({
 					className="flex items-center justify-between text-micro text-needs p-2 rounded bg-needs-soft border border-needs font-mono"
 				>
 					<span>
-						⚠️ Agent「{currentAgent.name}」已达并发上限 (
+						⚠️ Agent「{currentAgent.name}
+						{UI_STRINGS.assignment.fullCapacityMiddle}
 						{renderFieldOrFallback(agentUsedConcurrency)}/
 						{renderFieldOrFallback(agentMaxConcurrency)}
-						)。本任务启动时需排队；其余任务可继续指派给别家 Agent，不空转等待（E-47）。
+						{UI_STRINGS.assignment.fullCapacityNote}
 					</span>
 				</div>
 			)}
@@ -669,7 +675,7 @@ function TaskAssignRow({
 				{/* 1. 选择 Agent */}
 				<div className="flex flex-col gap-1">
 					<label htmlFor={`agent-select-${rowId}`} className="text-micro text-ink-3 font-mono">
-						执行 Agent
+						{UI_STRINGS.assignment.agentLabel}
 					</label>
 					<select
 						ref={agentSelectRef}
@@ -679,7 +685,7 @@ function TaskAssignRow({
 						onChange={(e) => handleAgentChange(e.target.value)}
 						className={`w-full min-w-0 min-h-[44px] sm:min-h-[32px] h-input px-2.5 rounded-sm border border-border bg-panel-2 text-ink-1 text-dense font-mono transition-colors ${FOCUS_VISIBLE_RING_CLASS}`}
 					>
-						<option value="">请选择 Agent...</option>
+						<option value="">{UI_STRINGS.assignment.agentPlaceholder}</option>
 						{agents.map((ag) => {
 							const cap = agentCapacities?.[ag.id];
 							const usedStr = renderFieldOrFallback(ag.usedConcurrency ?? cap?.used);
@@ -690,8 +696,8 @@ function TaskAssignRow({
 								fullState === null
 									? ` [${EMPTY_VALUE_FALLBACK}]`
 									: fullState
-										? ' [已满额]'
-										: ' [可用]';
+										? UI_STRINGS.assignment.fullOptionSuffix
+										: UI_STRINGS.assignment.availableOptionSuffix;
 							return (
 								<option key={ag.id} value={ag.id}>
 									{ag.name} ({ag.monogram}) — {usedStr}/{maxStr}
@@ -722,17 +728,20 @@ function TaskAssignRow({
 				{/* 3. 选择思考强度（未选 agent 不下结论；不支持时显示「—」，绝不补假默认档，M4-T6, E-254, AC 3） */}
 				<div className="flex flex-col gap-1">
 					<label htmlFor={`effort-select-${rowId}`} className="text-micro text-ink-3 font-mono">
-						思考强度 {currentAgent === null ? '(请先选择 Agent)' : ''}
+						{UI_STRINGS.assignment.effortLabelPrefix}
+						{currentAgent === null ? UI_STRINGS.assignment.selectAgentFirst : ''}
 					</label>
 					{currentAgent === null ? (
 						<div
 							id={`effort-select-${rowId}`}
 							data-testid={`effort-pending-${task.taskKey}`}
 							className="flex min-h-[44px] sm:min-h-[32px] h-[var(--h-input)] items-center px-2.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-3)] font-mono text-[13px] select-none cursor-not-allowed"
-							title="尚未选择执行 Agent，思考强度档位等 daemon 下发的能力位（E-254）"
+							title={UI_STRINGS.assignment.waitingEffortTitle}
 						>
 							<span>—</span>
-							<span className="text-micro ml-2 text-ink-3">(待选择 Agent)</span>
+							<span className="text-micro ml-2 text-ink-3">
+								{UI_STRINGS.assignment.waitingAgent}
+							</span>
 						</div>
 					) : (
 						<EffortPicker
@@ -754,7 +763,7 @@ function TaskAssignRow({
 			{/* 底部确认与取消（R3: 44px 触控目标与 focus-visible 环） */}
 			<div className="flex min-w-0 flex-col items-stretch gap-2 pt-1 border-t border-border mt-1">
 				<div className="text-micro text-ink-3 font-mono">
-					{isAlreadyAssigned ? '修改单任务指派' : '逐任务独立指定，严禁整批统一套用'}
+					{isAlreadyAssigned ? UI_STRINGS.assignment.editTitle : UI_STRINGS.assignment.confirmTitle}
 				</div>
 				<div className="flex flex-wrap items-center justify-end gap-2">
 					{isAlreadyAssigned && (
@@ -763,7 +772,7 @@ function TaskAssignRow({
 							onClick={() => setIsEditing(false)}
 							className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 shrink-0 whitespace-nowrap px-3 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 						>
-							取消
+							{UI_STRINGS.groupedSelect.cancel}
 						</button>
 					)}
 					<button
@@ -772,7 +781,7 @@ function TaskAssignRow({
 						onClick={handleSave}
 						className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 shrink-0 whitespace-nowrap px-4 rounded-sm bg-needs text-on-needs font-bold text-dense hover:brightness-105 transition-colors flex items-center justify-center ${FOCUS_VISIBLE_RING_CLASS}`}
 					>
-						确认指派
+						{UI_STRINGS.assignment.confirm}
 					</button>
 				</div>
 			</div>
@@ -808,11 +817,10 @@ export function TaskAssignmentList({
 			<div className="flex min-w-0 flex-col items-start gap-2 pb-2 border-b border-border">
 				<div>
 					<h4 className="text-dense font-semibold text-ink-1">
-						逐任务执行指派 ({assignedCount}/{totalTasks})
+						{UI_STRINGS.assignment.listTitlePrefix}
+						{assignedCount}/{totalTasks})
 					</h4>
-					<p className="text-meta text-ink-2">
-						每行任务独立配置 Agent、模型与思考强度；已指派行可随时点回改（E-108）。
-					</p>
+					<p className="text-meta text-ink-2">{UI_STRINGS.assignment.listNote}</p>
 				</div>
 				{/* 动态 Agent 容量指标行（AC 4, E-47，R1: 读下发字段，缺失显示 —） */}
 				<div
@@ -835,12 +843,12 @@ export function TaskAssignmentList({
 								}`}
 								title={
 									isFull
-										? `${ag.name} 单体并发已满 (${usedStr}/${maxStr})，空位顺延给其他 Agent，不空转等待（E-47）`
-										: `${ag.name} 当前已分配 ${usedStr}/${maxStr}`
+										? UI_STRINGS.assignment.fullAgentTitle(ag.name, usedStr, maxStr)
+										: UI_STRINGS.assignment.agentCapacityTitle(ag.name, usedStr, maxStr)
 								}
 							>
 								{ag.name}: {usedStr}/{maxStr}
-								{isFull ? ' (已满)' : ''}
+								{isFull ? UI_STRINGS.assignment.fullSuffix : ''}
 							</span>
 						);
 					})}
@@ -946,10 +954,10 @@ export function ConcurrencyBottleneckCard({
 			{/* 头部：有效并发容量（min 三者取 min 结果，R1: 缺失显示 —） */}
 			<div className="flex items-center justify-between border-b border-border pb-3">
 				<div>
-					<span className="font-semibold text-ink-1 text-dense">有效并行并发容量</span>
-					<p className="text-micro text-ink-3 mt-0.5">
-						实际并发取 min(窗口数, 每 agent 上限, 用户设定)，不只给一个数字（E-52）。
-					</p>
+					<span className="font-semibold text-ink-1 text-dense">
+						{UI_STRINGS.assignment.capacityTitle}
+					</span>
+					<p className="text-micro text-ink-3 mt-0.5">{UI_STRINGS.assignment.capacityNote}</p>
 				</div>
 				<div className="flex items-baseline gap-1.5 font-mono">
 					<span
@@ -958,7 +966,7 @@ export function ConcurrencyBottleneckCard({
 					>
 						{renderFieldOrFallback(effCap)}
 					</span>
-					<span className="text-micro text-ink-3">并发槽位</span>
+					<span className="text-micro text-ink-3">{UI_STRINGS.assignment.capacityUnit}</span>
 				</div>
 			</div>
 
@@ -972,20 +980,20 @@ export function ConcurrencyBottleneckCard({
 					}`}
 				>
 					<div className="flex items-center justify-between">
-						<span className="text-ink-3">并行窗口数</span>
+						<span className="text-ink-3">{UI_STRINGS.assignment.windowLabel}</span>
 						{bSource === 'window_count' && (
 							<span
 								data-testid="bottleneck-badge-window"
 								className="px-1 py-0.2 rounded bg-needs text-on-needs font-bold text-micro"
 							>
-								瓶颈
+								{UI_STRINGS.assignment.bottleneck}
 							</span>
 						)}
 					</div>
 					<div className="text-dense font-bold text-ink-1 mt-2">
 						{renderFieldOrFallback(winCount)}
 					</div>
-					<span className="text-micro text-ink-3 mt-1">调度器依赖拓扑计算</span>
+					<span className="text-micro text-ink-3 mt-1">{UI_STRINGS.assignment.windowNote}</span>
 				</div>
 
 				{/* 因子 2：Agent 单体并发上限 */}
@@ -996,13 +1004,13 @@ export function ConcurrencyBottleneckCard({
 					}`}
 				>
 					<div className="flex items-center justify-between">
-						<span className="text-ink-3">Agent 基础上限</span>
+						<span className="text-ink-3">{UI_STRINGS.assignment.agentLimitLabel}</span>
 						{bSource === 'agent_limit' && (
 							<span
 								data-testid="bottleneck-badge-agent"
 								className="px-1 py-0.2 rounded bg-needs text-on-needs font-bold text-micro"
 							>
-								瓶颈
+								{UI_STRINGS.assignment.bottleneck}
 							</span>
 						)}
 					</div>
@@ -1020,14 +1028,16 @@ export function ConcurrencyBottleneckCard({
 									.map(
 										(capacity) =>
 											`${capacity.agentId} ${capacity.active + capacity.drafted}/${capacity.limit}${
-												capacity.isFull ? ' 已满额' : ''
+												capacity.isFull ? UI_STRINGS.assignment.fullCapacitySuffix : ''
 											}`,
 									)
 									.join(' · ')
 							: EMPTY_VALUE_FALLBACK}
 					</div>
 					{(agLimit === null || agLimit === undefined) && (
-						<span className="text-micro text-ink-3 mt-1">单 Agent 最大会话配额</span>
+						<span className="text-micro text-ink-3 mt-1">
+							{UI_STRINGS.assignment.agentLimitNote}
+						</span>
 					)}
 				</div>
 
@@ -1039,13 +1049,13 @@ export function ConcurrencyBottleneckCard({
 					}`}
 				>
 					<div className="flex items-center justify-between">
-						<span className="text-ink-3">用户偏好设定</span>
+						<span className="text-ink-3">{UI_STRINGS.assignment.userLimitLabel}</span>
 						{bSource === 'user_setting' && (
 							<span
 								data-testid="bottleneck-badge-user"
 								className="px-1 py-0.2 rounded bg-needs text-on-needs font-bold text-micro"
 							>
-								瓶颈
+								{UI_STRINGS.assignment.bottleneck}
 							</span>
 						)}
 					</div>
@@ -1064,7 +1074,7 @@ export function ConcurrencyBottleneckCard({
 									onClick={handleDecrease}
 									disabled={!canDecrease}
 									className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center text-ink-2 hover:text-ink-1 disabled:opacity-30 rounded-sm ${FOCUS_VISIBLE_RING_CLASS}`}
-									aria-label="调小用户并发设定"
+									aria-label={UI_STRINGS.assignment.decreaseConcurrency}
 								>
 									-
 								</button>
@@ -1074,14 +1084,14 @@ export function ConcurrencyBottleneckCard({
 									onClick={handleIncrease}
 									disabled={!canIncrease}
 									className={`min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center text-ink-2 hover:text-ink-1 disabled:opacity-30 rounded-sm ${FOCUS_VISIBLE_RING_CLASS}`}
-									aria-label="调大用户并发设定"
+									aria-label={UI_STRINGS.assignment.increaseConcurrency}
 								>
 									+
 								</button>
 							</div>
 						)}
 					</div>
-					<span className="text-micro text-ink-3 mt-1">可向下调/向上解锁</span>
+					<span className="text-micro text-ink-3 mt-1">{UI_STRINGS.assignment.userLimitNote}</span>
 				</div>
 			</div>
 
@@ -1091,7 +1101,9 @@ export function ConcurrencyBottleneckCard({
 				className="flex flex-col gap-1.5 p-3 rounded bg-bg border border-border text-micro"
 			>
 				<div className="flex flex-wrap items-center gap-2 min-w-0">
-					<span className="font-mono font-bold text-needs">瓶颈判定：</span>
+					<span className="font-mono font-bold text-needs">
+						{UI_STRINGS.assignment.bottleneckPrefix}
+					</span>
 					<span data-testid="bottleneck-source-name" className="font-mono font-semibold text-ink-1">
 						{bottleneckInfo.label}
 					</span>
@@ -1118,7 +1130,9 @@ export function ConcurrencyBottleneckCard({
 							onChange={(e) => onToggleUnlockAboveWindow(e.target.checked)}
 							className={`h-5 w-5 rounded border-border bg-panel-2 text-needs cursor-pointer ${FOCUS_VISIBLE_RING_CLASS}`}
 						/>
-						<span className="font-semibold select-none">显式解锁超过并行窗口数设定 (E-52)</span>
+						<span className="font-semibold select-none">
+							{UI_STRINGS.assignment.unlockAboveWindow}
+						</span>
 					</label>
 
 					{/* R1: isExceeding 读下发字段 */}
@@ -1127,9 +1141,11 @@ export function ConcurrencyBottleneckCard({
 							data-testid="exceed-window-warning"
 							className="text-needs bg-needs-soft border border-needs p-2 rounded text-micro"
 						>
-							⚠️ 后果提示：当前用户设定 ({renderFieldOrFallback(usrSet)}) 已超过依赖窗口数 (
+							{UI_STRINGS.assignment.exceedingPrefix}
+							{renderFieldOrFallback(usrSet)}
+							{UI_STRINGS.assignment.exceedingMiddle}
 							{renderFieldOrFallback(winCount)}
-							)。实际运行受任务前后依赖与路径冲突限制，超出部分将排队，并不会带来额外的物理并发加速。
+							{UI_STRINGS.assignment.exceedingNote}
 						</div>
 					)}
 				</div>

@@ -47,7 +47,13 @@ export interface GroupedSelectGroup {
 }
 
 export interface GroupedSelectProps {
-	readonly labels?: { readonly confirm: string; readonly cancel: string; readonly close: string };
+	readonly labels?: {
+		readonly confirm: string;
+		readonly cancel: string;
+		readonly close: string;
+		readonly placeholder?: string;
+		readonly customActionPlaceholder?: string;
+	};
 	readonly value: string | null;
 	readonly onValueChange: (value: string) => void;
 	readonly groups: readonly GroupedSelectGroup[];
@@ -67,12 +73,12 @@ export function GroupedSelect({
 	value,
 	onValueChange,
 	groups,
-	placeholder = '请选择...',
+	placeholder,
 	disabled = false,
 	noteFooter,
 	customActionKey = '__manual_custom_model__',
 	onCustomActionSubmit,
-	customActionPlaceholder = '输入自定义名称...',
+	customActionPlaceholder,
 	className = '',
 	triggerClassName = '',
 	triggerTestId = 'grouped-select-trigger',
@@ -148,7 +154,7 @@ export function GroupedSelect({
 						if (!customGroupRef.current?.contains(event.relatedTarget)) handleCustomSubmit();
 					}}
 					onKeyDown={handleCustomKeyDown}
-					placeholder={customActionPlaceholder}
+					placeholder={customActionPlaceholder ?? labels.customActionPlaceholder}
 					data-testid="grouped-select-custom-input"
 					className="min-w-0 h-[var(--h-input)] min-h-[var(--h-input-touch)] sm:min-h-0 flex-1 rounded-[var(--r-sm)] border border-[var(--needs)] bg-[var(--panel-2)] px-2.5 font-mono text-[12.5px] text-[var(--ink-1)] placeholder:text-[var(--ink-3)] focus:outline-none"
 				/>
@@ -215,7 +221,7 @@ export function GroupedSelect({
 					data-testid="grouped-select-trigger"
 					className={`h-[var(--h-input)] min-h-[var(--h-input-touch)] sm:min-h-0 font-mono text-[12.5px] ${triggerClassName}`}
 				>
-					<SelectValue placeholder={placeholder}>
+					<SelectValue placeholder={placeholder ?? labels.placeholder}>
 						{selectedLabel || <span className="font-ui text-[var(--ink-3)]">{placeholder}</span>}
 					</SelectValue>
 				</SelectTrigger>

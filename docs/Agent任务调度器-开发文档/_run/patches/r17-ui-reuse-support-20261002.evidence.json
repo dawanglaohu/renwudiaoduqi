@@ -1,0 +1,21 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R17-T70594995": {
+      "contractHash": "81596a5e5519a5d4489dbb68fe2047a39306c268dbd008124bff41aecd2fee09",
+      "evidence": [
+        "本文件仅登记任务契约语义复核，不表示代码验收通过；第1轮代码结论为rework：完整复用块文案迁移和最终浏览器证据未完成，不执行--landed。",
+        "前置M9-T23已落地；原任务07/06节要求普通UI文案统一i18n/ui-strings.ts、错误码翻译唯一i18n/error-messages.ts、ui层仅从props承接文案。R17验收1至5和E-335/E-355/E-356/E-358/E-359均可实施且保持原文，没有以六文件零中文字面量降低整块验收。",
+        "_run/batches/batch-17-20261002.md的batch17-m9-t23-ui-string-source围栏是返工路径源。补丁增加LoginHint、FieldLayersRow、GateCard、StreamHeadMeta、设置容器/hook、错误字典、字段标签、两处设置页面、流水线设置hook及对应DOM/浏览器测试22个必要支持路径。生成器将这些paths映射为supportPaths；task-contracts.json另建同名ID会发生明确冲突，故没有新增重复定义。",
+        "实读LoginHint:54/58、FieldLayersRow:62/72/82/94、GateCard:742/860、StreamHeadMeta:183/219/255/284、SettingsAgentsContainer:103/121、UseSettingsAgents:366/417，均为当前调用链的展示文案遗留；批次原清单保留字句与行号。错误码映射保留06/07唯一错误翻译责任、未知code回落和原错误点路径。",
+        "前后端接口保持：AgentEntryDto.login/layers和ListAgentModelsResponse由shared提供；展示读取daemon层值与canDispatch，不按agentId猜能力。Pipeline四键schema与设置service、clearOverrides单字段接口、stderrTail联合及openReassign生产调用链均保留。",
+        "13节相关边界由当前login-probe.ts、service/agents.ts、service/settings.ts、service/gates.ts与Web的LoginBadge/LoginHint/AgentCard/PipelineAssignment/GateCard及use-gate-card.ts承担；17节pnpm -w check和真实浏览器两套件仍为验收要求；19节原任务标准没有修改。H12的迁移关键词仅是接线提醒，此任务没有新增注册端点或容器，既有调用方传入字典即可。",
+        "冲突核对：实时PR #161/#170改daemon和batch8记录，新增Web支持路径无冲突。活跃R17-T73118308在自己的工作树修改Codex app-server、vitest.e2e.config.ts、真实供应商E2E与CI，未改这些Web文件。共享batch17源及docs-data/dispatch/manifest后续必须按源合并后重生成。",
+        "两条实施方自行裁决均使用完整原候选并补diff事实重新调用Jev：scope adjudicate取A(low 0.24)，design取A(medium 0.61)，model=jev-1.13.0，均status=ok/adopt=take。保留原PR并完成必要路径补丁；空甲板失败不代替逐任务指派几何证明，B7仍属独立返工且批次verdict保持open。",
+        "原M9-T23有效路径中的42个Web生产文件已完整扫描并逐项记录至_run/R17-T70594995.review1.evidence.json。直接复用展示块及设置调用方103个中文字面量片段列为未完成；周边8个文件120个引导/泳道/运行流外壳/流水线开关/指派摘要或控制台诊断片段逐项保留明确归属，不声称已迁移。完整候选A整体扩大、B按展示块归属定点补齐，经Jev adjudicate取B(high 0.95)，spec_change=no，model=jev-1.13.0，status=ok/adopt=take。",
+        "当前审查代码头0653cff：全量check受控并发2750通过、3既有跳过；文档工具200测试通过、1既有跳过；流水线设置真实浏览器12通过。组合套件初次2通过6失败，其中审查临时目录review-tmp被测试子进程的argv阶段启发式误判为review，修环境目录名后受控复跑7通过1失败：step5第1878行当前零产出运行的实时退出/状态/释放事件组合断言仍失败，step3当前运行SSE到DOM已通过。剩余根因未确定，不声称为文案改动引入；保留失败且不判代码pass、不降断言。GIF原生1920x1080不满足1440x900要求；最终代码须补录并复验相关显示状态。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

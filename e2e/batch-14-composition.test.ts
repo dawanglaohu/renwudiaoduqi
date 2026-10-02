@@ -389,6 +389,7 @@ async function captureStateFrame(
 
 interface CapturedEvent {
 	readonly kind: string;
+	readonly receivedAt?: string;
 	readonly runId: string | null;
 	readonly taskId: string | null;
 	readonly payload: Record<string, unknown>;
@@ -396,6 +397,7 @@ interface CapturedEvent {
 
 async function captureLiveEvents(port: number, token: string): Promise<{
 	readonly events: CapturedEvent[];
+	readonly subscription: { readonly connectedAt: string; readonly status: number };
 	readonly stop: () => Promise<void>;
 }> {
 	const abort = new AbortController();
@@ -423,7 +425,7 @@ async function captureLiveEvents(port: number, token: string): Promise<{
 				const data = frame.split('\n').find((line) => line.startsWith('data: '));
 				if (data) {
 					const envelope = JSON.parse(data.slice(6)) as CapturedEvent;
-					events.push(envelope);
+					events.push({ ...envelope, receivedAt: new Date().toISOString() });
 				}
 				boundary = pending.indexOf('\n\n');
 			}
@@ -433,6 +435,7 @@ async function captureLiveEvents(port: number, token: string): Promise<{
 	});
 	return {
 		events,
+		subscription: { connectedAt: new Date().toISOString(), status: response.status },
 		stop: async () => {
 			abort.abort();
 			await drain;
@@ -618,7 +621,9 @@ if (hasWrapupFailSignal) {
         params: { item: { id: 'msg-b14-1', type: 'agentMessage', text: outputText } }
       }) + '\\n');
 
-      setTimeout(() => {
+      setTimeout(async () => {
+        // Keep the real implement turn active until its lane metadata is observed.
+        while (outputText.startsWith('B14_LIVE_CONTENT_') && fs.existsSync(path.join(signalDir, 'hold-implementation.signal'))) await sleep(50);
         process.stdout.write(JSON.stringify({
           method: 'turn/completed',
           params: { threadId: 'thread-b14-composition', turn: { id: 'turn-b14-composition', status: 'completed' } }
@@ -1139,9 +1144,17 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 	}, 300000);
 
 	afterEach(async ({ task }) => {
+		if (daemon) rmSync(join(daemon.dataDir, 'hold-implementation.signal'), { force: true });
 		if (task.result?.state === 'fail') {
 			const safeName = task.name.replace(/[^a-zA-Z0-9_-]/g, '_');
 			mkdirSync(artifactsDir, { recursive: true });
+			if (liveEvents) {
+				writeFileSync(
+					join(artifactsDir, `${safeName}-live-events.json`),
+					redactSensitiveData(JSON.stringify({ subscription: liveEvents.subscription, events: liveEvents.events }, null, 2)),
+					'utf8',
+				);
+			}
 
 			if (daemon && currentRunId && adminToken) {
 				try {
@@ -1177,6 +1190,13 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 	});
 
 	afterAll(async () => {
+		if (liveEvents) {
+			writeFileSync(
+				join(artifactsDir, 'b14-live-events.json'),
+				redactSensitiveData(JSON.stringify({ subscription: liveEvents.subscription, events: liveEvents.events }, null, 2)),
+				'utf8',
+			);
+		}
 		if (liveEvents) await liveEvents.stop().catch(() => {});
 		if (context) await context.close().catch(() => {});
 		if (browser) await browser.close().catch(() => {});
@@ -1457,6 +1477,8 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		const liveMsg = `B14_LIVE_CONTENT_${Date.now()}`;
 		const sigFile = join(daemon.dataDir, 'agsched-fake-agent-1.signal');
 		writeFileSync(sigFile, `${liveMsg}\n`, 'utf8');
+		const holdSignal = join(daemon.dataDir, 'hold-implementation.signal');
+		writeFileSync(holdSignal, 'WAIT_FOR_IMPLEMENT_METADATA\n', 'utf8');
 
 		// Configure pipeline setting with reviewOverride and bughunt before dispatch (E-341, E-342, E-323)
 		const pipelineRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
@@ -1519,7 +1541,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		);
 		expect(runDetailRes.status).toBe(200);
 		const runDetail = (await runDetailRes.json()) as {
-			run: { id: string; assignmentSource: string; modelName: string; effort: any };
+			run: { id: string; laneNo: number; assignmentSource: string; modelName: string; effort: any };
 		};
 		expect(runDetail.run.assignmentSource).toBe('task');
 		expect(runDetail.run.modelName).toBe('codex-standard');
@@ -1535,12 +1557,16 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 
 		// Navigate to deck #/ to verify stream column ref-bar rendered with assignment source (AC 1, E-347)
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
-		const refBar = page.locator('[data-ref-bar="true"], [data-field="ref-source"]').first();
+		const observedLane = page.locator(
+			`[data-stream-column="true"][data-lane-no="${runDetail.run.laneNo}"]`,
+		);
+		const refBar = observedLane.locator('[data-ref-bar="true"]');
 		await refBar.waitFor({ state: 'visible', timeout: 15000 });
-		const sourceField = page.locator('[data-field="ref-source"]').first();
+		const sourceField = observedLane.locator('[data-field="ref-source"]');
 		await sourceField.waitFor({ state: 'visible', timeout: 10000 });
 		const sourceText = await sourceField.innerText();
 		expect(sourceText).toMatch(/任务/);
+		rmSync(holdSignal, { force: true });
 
 		// 清理 liveMsg 信号文件，避免干扰后续阶段
 		if (existsSync(sigFile)) rmSync(sigFile, { force: true });

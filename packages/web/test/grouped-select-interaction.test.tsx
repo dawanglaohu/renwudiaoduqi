@@ -3,6 +3,7 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { UI_STRINGS } from '../src/i18n/ui-strings.ts';
 import { GroupedSelect } from '../src/ui/grouped-select.tsx';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -18,6 +19,28 @@ beforeEach(() => {
 	window.HTMLElement.prototype.releasePointerCapture = vi.fn();
 });
 
+it('takes the empty selector placeholder from caller labels', async () => {
+	const host = document.createElement('div');
+	document.body.append(host);
+	const root = createRoot(host);
+	try {
+		await act(async () =>
+			root.render(
+				createElement(GroupedSelect, {
+					value: null,
+					onValueChange: vi.fn(),
+					groups: [],
+					labels: UI_STRINGS.groupedSelect,
+				}),
+			),
+		);
+		expect(host.querySelector('[role="combobox"]')?.textContent).toBe('请选择...');
+	} finally {
+		await act(async () => root.unmount());
+		host.remove();
+	}
+});
+
 it.each(['cancel', 'confirm', 'external', 'Enter', 'Escape'])(
 	'manual %s preserves the intended action and change count',
 	async (action) => {
@@ -31,7 +54,7 @@ it.each(['cancel', 'confirm', 'external', 'Enter', 'Escape'])(
 					createElement(GroupedSelect, {
 						value: 'old',
 						onValueChange,
-						labels: { confirm: 'confirm', cancel: 'cancel', close: 'close' },
+						labels: UI_STRINGS.groupedSelect,
 						groups: [
 							{
 								id: 'manual',
@@ -48,6 +71,7 @@ it.each(['cancel', 'confirm', 'external', 'Enter', 'Escape'])(
 					}),
 				),
 			);
+			expect(host.querySelector('[role="combobox"]')?.textContent).toBe('old');
 			await act(async () => host.querySelector<HTMLButtonElement>('[role="combobox"]')?.click());
 			await act(async () =>
 				document
@@ -57,6 +81,10 @@ it.each(['cancel', 'confirm', 'external', 'Enter', 'Escape'])(
 			const input = host.querySelector<HTMLInputElement>('input');
 			expect(input).not.toBeNull();
 			if (!input) throw new Error('manual input missing');
+			expect(input.placeholder).toBe('输入自定义名称...');
+			expect(
+				Array.from(host.querySelectorAll('button')).map((button) => button.textContent),
+			).toEqual(['确定', '取消']);
 			await act(async () => {
 				Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
 					input,
@@ -66,7 +94,7 @@ it.each(['cancel', 'confirm', 'external', 'Enter', 'Escape'])(
 			});
 			if (action === 'cancel' || action === 'confirm') {
 				const button = Array.from(host.querySelectorAll('button')).find(
-					(b) => b.textContent === action,
+					(b) => b.textContent === (action === 'cancel' ? '取消' : '确定'),
 				);
 				await act(async () => button?.focus());
 				await act(async () => button?.click());

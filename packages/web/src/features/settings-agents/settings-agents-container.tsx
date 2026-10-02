@@ -7,6 +7,7 @@ import type {
 } from '../../components/field-layers-row.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { LaneCountSetting } from '../../components/lane-count-setting.tsx';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { useAgentModels } from './use-agent-models.ts';
 import { useSettingsAgents } from './use-settings-agents.ts';
 
@@ -100,7 +101,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 				className="flex flex-col gap-[var(--sp-3)]"
 			>
 				<div className="flex items-start p-3.5">
-					<InlineNotice tone="muted" message="正在加载 Agent 注册表..." />
+					<InlineNotice tone="muted" message={UI_STRINGS.settingsAgents.loading} />
 				</div>
 			</div>
 		);
@@ -118,7 +119,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 					<InlineNotice
 						tone="down"
 						testId="settings-agents-error-notice"
-						message="加载 Agent 列表失败，请重试"
+						message={UI_STRINGS.settingsAgents.loadFailed}
 						technical={error.message}
 					/>
 				</div>

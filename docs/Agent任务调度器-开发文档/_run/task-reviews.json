@@ -1223,6 +1223,23 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R17-T70594995": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "81596a5e5519a5d4489dbb68fe2047a39306c268dbd008124bff41aecd2fee09",
+    "evidence": [
+      "第2轮仅核R1-R3。对照review1的103个直接复用/设置调用片段，10个源AST扫描运行时中文为0；8个周边源与9f4fa94逐字一致，保留120项排除记录。字句来源逐条见batch-17-20261002.md:491起。",
+      "16个完整调用源受来源AST守护，字符串/模板/JSX/转义/数字实体负控、i18n/props及供应商数据正控和ui逆向依赖禁令保留。43项实际DOM验证原句、title/aria、点路径、未知码回落、零产出三动作与失败覆盖值。",
+      "06/07约定保持：普通UI文案来自ui-strings；设置错误码上下文翻译保留在error-messages唯一责任处。GroupedSelect只承接props，不新增DTO、错误码、探测能力判定或登录态派发禁用。",
+      "真实浏览器组合8/8、流水线设置12/12全部通过。同一轮订阅先于派发，当前零产出运行退出、awaiting_human、lane.released及stderrTail实时事件全通过。测试子进程输出消息后保持实施轮次，按该RunDto的laneNo核对来源任务，核对后释放；失败清理同样释放。原断言、超时与生产代码均未放松。",
+      "审查方选择完整A/B经Jev adjudicate取A；model=jev-1.13.0，status=ok，pick=A(high 0.84)，spec_change=no，outside_stack=no，needs_owner=no，reversible=yes，adopt=take(A)。具体动作为测试时序与同一泳道取景修复。",
+      "pnpm -w check --no-file-parallelism --maxWorkers 1 --minWorkers 1退出0：223文件，2774通过，3既有平台跳过；Biome、TypeScript、机械禁令、错误码、对比度及架构检查均通过。首次并行RPC超时及测试等待点错误保留在失败历史，未以它们宣称通过。",
+      "E-335/E-355/E-356/E-358/E-359既有daemon/DTO和动作链保持；真实设置/组合回归通过。本任务没有新增接线责任，H12迁移关键词提示已核对。",
+      "原任务保护区已核命题并补充测试阶段等待与同一泳道位置。原AC、原批次集合与B7未改，Batch17继续open。实际UI导入两任务后的逐任务指派控件与1920/1440/390量测已核；最终干净提交另以同源生产构建、真实UI配对和原生1440x900GIF发布PR证据，模型轮次0，不能替代B7。"
+    ],
+    "reviewed": "2026-10-02T11:28:44.057852+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T54786768": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "e80ef6cf04b42e52faeee079d5746f5a679ef03ba585ff67413f05da36bd0101",
