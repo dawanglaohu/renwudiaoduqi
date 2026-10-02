@@ -13,6 +13,50 @@ import { describe, expect, it, vi } from 'vitest';
 import { PipelineAssignment } from '../src/components/pipeline-assignment.tsx';
 import { UI_STRINGS } from '../src/i18n/ui-strings.ts';
 
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+it('preserves both executing Agent labels and field error paths in the actual DOM (E-356)', async () => {
+	const host = document.createElement('div');
+	document.body.append(host);
+	const root = createRoot(host);
+	try {
+		await act(async () =>
+			root.render(
+				createElement(PipelineAssignment, {
+					reviewOverride: { agentId: 'agent-1', modelName: null, effortTier: null },
+					wrapupAssignment: {
+						mode: 'fixed',
+						agentId: 'agent-2',
+						modelName: null,
+						effortTier: null,
+					},
+					onChangeReviewOverride: vi.fn(),
+					onChangeWrapupAssignment: vi.fn(),
+					agents: mockAgents,
+					errors: {
+						'reviewOverride.agentId': '请选择存在的 Agent',
+						'wrapupAssignment.agentId': '请选择存在的 Agent',
+					},
+				}),
+			),
+		);
+		for (const id of ['review-override-agent-select', 'wrapup-assignment-agent-select']) {
+			expect(host.querySelector(`label[for="${id}"]`)?.textContent).toBe('执行 Agent');
+			expect(host.querySelector(`#${id}`)?.getAttribute('aria-invalid')).toBe('true');
+		}
+		for (const field of ['reviewOverride', 'wrapupAssignment']) {
+			expect(host.querySelector(`[data-testid="error-${field}-agentId"]`)?.textContent).toBe(
+				'请选择存在的 Agent',
+			);
+		}
+		expect(host.textContent).toContain('跟随任务');
+		expect(host.textContent).toContain('自定义指定');
+	} finally {
+		await act(async () => root.unmount());
+		host.remove();
+	}
+});
+
 it('waits for the agent registry before allowing a custom pipeline assignment', async () => {
 	const host = document.createElement('div');
 	document.body.append(host);

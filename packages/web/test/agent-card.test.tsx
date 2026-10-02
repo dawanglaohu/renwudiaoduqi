@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * packages/web/test/agent-card.test.tsx
  *
@@ -5,11 +6,14 @@
  */
 
 import type { AgentEntryDto, ListAgentModelsResponse } from '@agent-scheduler/shared/api/agents';
-import { createElement } from 'react';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { AgentCard } from '../src/components/agent-card.tsx';
 import type { FieldLayerValues } from '../src/components/field-layers-row.tsx';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockFieldLayers: FieldLayerValues = {
 	key: 'monogram',
@@ -73,6 +77,71 @@ const mockCatalog: ListAgentModelsResponse = {
 	},
 	isRefreshing: false,
 };
+
+it('keeps the rendered layer labels, actions and accessible names unchanged (E-358)', async () => {
+	const host = document.createElement('div');
+	document.body.append(host);
+	const root = createRoot(host);
+	const onClearOverride = vi.fn().mockResolvedValue(false);
+	try {
+		await act(async () =>
+			root.render(
+				createElement(AgentCard, {
+					agent: mockBaseAgent,
+					catalog: mockCatalog,
+					getFieldLayers: () => mockFieldLayers,
+					onUpdateField: vi.fn(),
+					onProbe: vi.fn(),
+					onClearOverride,
+					models: mockCatalog.models,
+				}),
+			),
+		);
+		for (const text of ['内置默认', '你的覆盖', '当前生效', '默认模型', '思考强度', '清单未列']) {
+			expect(host.textContent).toContain(text);
+		}
+		expect(
+			host.querySelector('[data-testid="input-monogram-codex"]')?.getAttribute('aria-label'),
+		).toBe('两字符短码');
+		expect(
+			host.querySelector('[data-testid="input-monogram-codex"]')?.getAttribute('placeholder'),
+		).toBe('2字符短码');
+		expect(
+			host.querySelector('[data-testid="input-execPath-codex"]')?.getAttribute('aria-label'),
+		).toBe('可执行路径');
+		const restore = host.querySelector<HTMLButtonElement>(
+			'[data-testid="restore-default-defaultModel-codex"]',
+		);
+		expect(restore?.textContent).toBe('恢复默认');
+		await act(async () => restore?.click());
+		expect(onClearOverride).toHaveBeenCalledWith('codex', 'defaultModel');
+		expect(host.querySelector('[data-testid="layer-override-defaultModel"]')?.textContent).toBe(
+			'custom-model-x',
+		);
+		await act(async () =>
+			root.render(
+				createElement(AgentCard, {
+					agent: mockBaseAgent,
+					getFieldLayers: () => mockFieldLayers,
+					onUpdateField: vi.fn(),
+					onProbe: vi.fn(),
+					models: [],
+					isModelsRefreshing: true,
+					isProbing: true,
+				}),
+			),
+		);
+		expect(host.querySelector('[data-testid="refresh-models-btn-codex"]')?.textContent).toBe(
+			'刷新中...',
+		);
+		expect(host.querySelector('[data-testid="probe-agent-btn-codex"]')?.textContent).toBe(
+			'探测中...',
+		);
+	} finally {
+		await act(async () => root.unmount());
+		host.remove();
+	}
+});
 
 describe('M9-T23: AgentCard 设置页组件', () => {
 	it('marks an override unlisted in an authoritative empty catalog (E-358)', () => {

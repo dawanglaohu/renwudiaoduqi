@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
 
 // 这三个类型是展示层自己的 props 契约（07 节：components 不得反向 import features），
 // features 的 hook/容器按需要从本文件引类型。
@@ -59,7 +60,8 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 							className="inline-flex items-center gap-2 rounded-sm border border-needs bg-needs-soft px-2 py-0.5 text-micro text-needs"
 						>
 							<span>
-								内置默认已更新（{layers.updateNotice.oldValue} → {layers.updateNotice.newValue}）
+								{UI_STRINGS.fieldLayers.defaultUpdatedPrefix}
+								{layers.updateNotice.oldValue} → {layers.updateNotice.newValue}）
 							</span>
 						</div>
 					)}
@@ -69,7 +71,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 			{/* 三行表（内置默认 / 你的覆盖 / 当前生效） */}
 			<div className="grid grid-cols-1 gap-1 text-meta sm:grid-cols-3">
 				<div className="flex flex-col rounded bg-bg px-2 py-1">
-					<span className="text-micro text-ink-3">内置默认</span>
+					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
 					<span
 						className="font-mono text-dense text-ink-2 truncate"
 						title={layers.builtIn}
@@ -79,7 +81,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 					</span>
 				</div>
 				<div className="flex flex-col rounded bg-bg px-2 py-1">
-					<span className="text-micro text-ink-3">你的覆盖</span>
+					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
 					<span
 						className={`font-mono text-dense truncate ${
 							hasOverride ? 'text-needs font-medium' : 'text-ink-3'
@@ -91,7 +93,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 					</span>
 				</div>
 				<div className="flex flex-col rounded bg-bg px-2 py-1">
-					<span className="text-micro text-ink-3">当前生效</span>
+					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
 					<span
 						className="font-mono text-dense text-ink-1 font-medium truncate"
 						title={layers.effective}

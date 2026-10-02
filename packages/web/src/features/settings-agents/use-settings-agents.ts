@@ -29,6 +29,8 @@ import {
 	MAX_LANE_COUNT,
 	MIN_LANE_COUNT,
 } from '../../components/lane-count-setting.tsx';
+import { getSettingsAgentErrorMessage } from '../../i18n/error-messages.ts';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { FIELD_LABELS } from './types.ts';
 
 export interface UseSettingsAgentsOptions {
@@ -81,16 +83,6 @@ const listDocumentsRoute = ROUTES.find((r) => r.method === 'GET' && r.path === '
 const updateDocumentSettingsRoute = ROUTES.find(
 	(r) => r.method === 'PATCH' && r.path === '/api/v1/documents/:docId/settings',
 );
-
-const ERROR_CODE_CHINESE_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
-	E_VALIDATION: '输入参数校验失败，请检查修改后重试',
-	E_NOT_FOUND: '未找到对应配置项',
-	E_UNAUTHORIZED: '设备未授权，请先完成配对',
-	E_DEVICE_REVOKED: '设备已被吊销',
-	E_INTERNAL: '服务内部异常，请稍后重试',
-	E_AGENT_UNAVAILABLE: '当前 Agent 不可用',
-	E_AGENT_VERSION_UNRECOGNIZED: 'Agent 版本未识别',
-});
 
 function resolveLastDocId(): string | null {
 	if (typeof window === 'undefined') return null;
@@ -202,7 +194,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		(agentId: string, monogram: string): { readonly valid: boolean; readonly message?: string } => {
 			const clean = monogram.trim();
 			if (clean.length !== 2) {
-				return { valid: false, message: '短码必须为恰好两字符' };
+				return { valid: false, message: UI_STRINGS.settingsAgents.monogramLength };
 			}
 			const targetLower = clean.toLowerCase();
 			for (const other of agents) {
@@ -210,7 +202,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					const otherName = other.name || other.id;
 					return {
 						valid: false,
-						message: `短码 "${clean}" 已被 agent "${otherName}" 占用，请改用其他短码`,
+						message: UI_STRINGS.settingsAgents.monogramConflict(clean, otherName),
 					};
 				}
 			}
@@ -254,7 +246,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 						...prev,
 						[agentId]: {
 							...prev[agentId],
-							monogram: { message: valCheck.message || '短码校验失败' },
+							monogram: { message: valCheck.message || UI_STRINGS.settingsAgents.monogramInvalid },
 						},
 					}));
 					return false;
@@ -310,7 +302,10 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				setAgents((prev) => prev.map((a) => (a.id === agentId ? prevAgent : a)));
 				const apiErr = isApiError(err) ? err : undefined;
 				const code = apiErr?.code ?? 'E_INTERNAL';
-				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '配置更新失败，请重试';
+				const chineseMsg = getSettingsAgentErrorMessage(
+					code,
+					UI_STRINGS.settingsAgents.updateFailed,
+				);
 				const technicalMsg = err instanceof Error ? err.message : String(err);
 				const errorField = (apiErr?.details?.field as AgentFieldKey) || field;
 
@@ -363,7 +358,10 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			} catch (err) {
 				const apiErr = isApiError(err) ? err : undefined;
 				const code = apiErr?.code ?? 'E_INTERNAL';
-				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '清除覆盖失败，请重试';
+				const chineseMsg = getSettingsAgentErrorMessage(
+					code,
+					UI_STRINGS.settingsAgents.clearFailed,
+				);
 				const technicalMsg = err instanceof Error ? err.message : String(err);
 				setValidationErrors((prev) => ({
 					...prev,
@@ -414,7 +412,10 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			} catch (err) {
 				const apiErr = isApiError(err) ? err : undefined;
 				const code = apiErr?.code ?? 'E_INTERNAL';
-				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '更新思考强度失败，请重试';
+				const chineseMsg = getSettingsAgentErrorMessage(
+					code,
+					UI_STRINGS.settingsAgents.effortFailed,
+				);
 				const technicalMsg = err instanceof Error ? err.message : String(err);
 				setValidationErrors((prev) => ({
 					...prev,
@@ -439,13 +440,13 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	const setLaneCount = useCallback(
 		async (count: number) => {
 			if (count < MIN_LANE_COUNT || count > MAX_LANE_COUNT) {
-				setLaneCountError(`并行窗口数必须在 ${MIN_LANE_COUNT} 到 ${MAX_LANE_COUNT} 之间`);
+				setLaneCountError(UI_STRINGS.settingsAgents.laneCountRange(MIN_LANE_COUNT, MAX_LANE_COUNT));
 				return;
 			}
 
 			// R5: 定位不到目标文档时不执行写操作
 			if (!targetDoc || !updateDocumentSettingsRoute) {
-				setLaneCountError('未定位到目标文档，无法修改窗口数');
+				setLaneCountError(UI_STRINGS.settingsAgents.missingDocument);
 				return;
 			}
 
@@ -467,7 +468,10 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				setLaneCountState(prevCount);
 				const apiErr = isApiError(err) ? err : undefined;
 				const code = apiErr?.code ?? 'E_INTERNAL';
-				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '更新窗口数失败，已回滚';
+				const chineseMsg = getSettingsAgentErrorMessage(
+					code,
+					UI_STRINGS.settingsAgents.laneCountFailed,
+				);
 				setLaneCountError(chineseMsg);
 			}
 		},

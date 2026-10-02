@@ -1,4 +1,5 @@
 import { SettingsAgentsContainer } from '../features/settings-agents/settings-agents-container.tsx';
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
 
 /**
  * 设置页：Agent 注册表与模型选择（M9-T14）
@@ -15,9 +16,11 @@ export function SettingsAgentsPage() {
 			{/* 顶栏 52px */}
 			<header className="h-topbar flex items-center justify-between border-b border-border bg-bg px-4 text-ink-1">
 				<div className="flex items-center gap-2">
-					<span className="font-mono text-dense text-ink-3">设置</span>
+					<span className="font-mono text-dense text-ink-3">{UI_STRINGS.settings.title}</span>
 					<span className="text-ink-3">/</span>
-					<h1 className="font-ui text-dense font-semibold text-ink-1">Agent 注册表与模型选择</h1>
+					<h1 className="font-ui text-dense font-semibold text-ink-1">
+						{UI_STRINGS.settings.agentsDescription}
+					</h1>
 				</div>
 			</header>
 

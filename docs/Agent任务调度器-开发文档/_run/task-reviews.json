@@ -1223,19 +1223,35 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R17-T70594995": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "81596a5e5519a5d4489dbb68fe2047a39306c268dbd008124bff41aecd2fee09",
+    "evidence": [
+      "第2轮仅核R1-R3。对照review1的103个直接复用/设置调用片段，10个源AST扫描运行时中文为0；8个周边源与9f4fa94逐字一致，保留120项排除记录。字句来源逐条见batch-17-20261002.md:491起。",
+      "16个完整调用源受来源AST守护，字符串/模板/JSX/转义/数字实体负控、i18n/props及供应商数据正控和ui逆向依赖禁令保留。43项实际DOM验证原句、title/aria、点路径、未知码回落、零产出三动作与失败覆盖值。",
+      "06/07约定保持：普通UI文案来自ui-strings；设置错误码上下文翻译保留在error-messages唯一责任处。GroupedSelect只承接props，不新增DTO、错误码、探测能力判定或登录态派发禁用。",
+      "真实浏览器组合8/8、流水线设置12/12全部通过。同一轮订阅先于派发，当前零产出运行退出、awaiting_human、lane.released及stderrTail实时事件全通过。测试子进程输出消息后保持实施轮次，按该RunDto的laneNo核对来源任务，核对后释放；失败清理同样释放。原断言、超时与生产代码均未放松。",
+      "审查方选择完整A/B经Jev adjudicate取A；model=jev-1.13.0，status=ok，pick=A(high 0.84)，spec_change=no，outside_stack=no，needs_owner=no，reversible=yes，adopt=take(A)。具体动作为测试时序与同一泳道取景修复。",
+      "pnpm -w check --no-file-parallelism --maxWorkers 1 --minWorkers 1退出0：223文件，2774通过，3既有平台跳过；Biome、TypeScript、机械禁令、错误码、对比度及架构检查均通过。首次并行RPC超时及测试等待点错误保留在失败历史，未以它们宣称通过。",
+      "E-335/E-355/E-356/E-358/E-359既有daemon/DTO和动作链保持；真实设置/组合回归通过。本任务没有新增接线责任，H12迁移关键词提示已核对。",
+      "原任务保护区已核命题并补充测试阶段等待与同一泳道位置。原AC、原批次集合与B7未改，Batch17继续open。实际UI导入两任务后的逐任务指派控件与1920/1440/390量测已核；最终干净提交另以同源生产构建、真实UI配对和原生1440x900GIF发布PR证据，模型轮次0，不能替代B7。"
+    ],
+    "reviewed": "2026-10-02T11:28:44.057852+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R17-T73118308": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "85cadc1f58a46a3f83c5de1f34ca87333a70bb70fd2c8fde30c5aa3f7a6a95be",
     "evidence": [
-      "Round 2 contract review only, not code acceptance. All eight original acceptance criteria and eleven edges are unchanged; effective paths and prerequisites M9-T23/M9-T29 are verified against the current task note, original repair fence and current status. Code acceptance remains rework solely for R2 credentialed CI, with task todo and Batch17 open unchanged.",
-      "Only original R1-R3 were reviewed. Runtime source head f78c5eec4c0e9c4f054c9e8dcb6a38ff177b16e2 has a clean, complete real-native two-case pass; production bootstrap, ordinary registry, native transport, UI workflow and continuous SSE assertions remain. Final run req_eaa628826b2e is failed in API and detail DOM, deck task failed, zero target waiting cards. The desktop detail page does not display a separate state badge; the GIF is not claimed to show one.",
-      "Both actual Actions runs 36978870707 and 36978934883 are at f78c5eec4c0e9c4f054c9e8dcb6a38ff177b16e2. Three platform checks/integration/shell and formal four-file E2E pass. Requested provider job 110749038796 fails before model calls for Missing R17_CODEX_CONFIG_B64; repository secret-name inventory is empty. Release gate remains failure. Personal authentication is not authorized for repository upload.",
-      "Reviewer R2 fix 4f2eac207f45f220bc49e18bd16572e6dee770bc normalizes the evidence root into GITHUB_ENV and preserves whitelisted files and gates; actual upload step at final f78 head succeeds without the parent-relative glob error. This does not claim evidence files were uploaded after the failed prerequisite.",
-      "Independent round 2 GIF decoding and remote in-memory verification match 15 frames, 1440x900, 34200ms, 1389751 bytes, SHA256 bb864132d2278e2b963f7f9467fd690ba84150602acadd782c10cce2d81319d6, HTTP200 and image/gif. Frames show genuine model error and final deck failure; PR publication head before/after is f78. Evidence is review2-gif-check.json in original planning.",
-      "All original adjudications are retained. New storage and upload decisions were independently rerun with complete A/B/C candidates and current diff facts using jev-1.13.0, status ok and adopt take(A); precise model/line records are review2-storage.result.json, review2-upload.result.json and review2-upload-latest.result.json. No production API/type/layer, lock/permission or original wait/assertion reduction occurred.",
-      "This registration updates only task-contract evidence and generated projections. It does not mark landed, clear revalidation, change acceptance standards, rewrite historical batch membership or convert unresolved provider CI into a clean/fixed verdict."
+      "Round 2 R2 prerequisite continuation: repository CI secrets now exist and explicit workflow_dispatch run 37014182049 at f94345b68aa8649d3bac5f0d6a96b3477129e1ae succeeded. Real native provider 2/2, formal four-file browser E2E 40/40, pairing, pipeline, all three platform workspace/integration/shell jobs and requested-provider release gate succeeded. Actual provider preparation/test/upload/credential cleanup steps succeeded; no skipped provider was treated as a pass.",
+      "Reviewer independently verified GitHub artifact11230020157 digest against the actual 2440403-byte ZIP, SHA256 a98fa20cb56431daeeab56c95b6401de43b618081db74a3561006f96e9d92ddb. All20 extracted files match the archive, 15 browser frames are1440x900 and phone is390x844. No auth.json/config.toml is included and no JWT/credential-URI/named-token pattern was found in text artifacts. Detailed receipt is original planning/review-final-audit.json.",
+      "Archive evidence is clean at start with head=headAtEnd=f94345b; ordinary production bootstrap/registry/native transport, valid gpt-6.1-sol R17-CONTROL, genuine invalid-model error with zero content, UI setup and recovery, continuous SSE, current API/detail DOM/deck task failed and zero remaining target waiting cards are verified. Control/error/final native browser screenshots were independently viewed. Original R1/R3 evidence and failed history remain, no original assertion, timeout, lock, permission or authentication contract was reduced.",
+      "Fetched live main0724fb9 containing landed R17-T70594995. Merge-forward conflicts affect only Batch17 source appendices and generated/verification records. Preserved both source histories and both task reviews; restored main generated projections and regenerated through maintain_docs. Current contract hash, all eight acceptance criteria, eleven edges, stable key, effective paths and prerequisites remain unchanged. Product merge changes are the existing main UI text-source migration, with final combined-head checks and screenshots required before merge.",
+      "Code/notes protected task sections are reviewed and preserved; formal container registration and consumer paths remain. All existing adjudications retain their complete options, real Jev model/line and implemented actions; no new native/OS/UI design fork was introduced. No new API/type/layer or arbitrary scope expansion.",
+      "This pass registers the semantic task contract. The review will land only after final combined-head production provider/browser evidence and required checks pass, and current-head recording is verified and published. Historical Batch17 open remains for the separate full-batch closeout; task completion does not rewrite historical batch verdict or lower standards."
     ],
-    "reviewed": "2026-10-02T07:56:42.167889+00:00",
+    "reviewed": "2026-10-02T14:17:53.373846+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
