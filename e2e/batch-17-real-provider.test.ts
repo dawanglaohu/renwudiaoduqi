@@ -80,7 +80,12 @@ async function shot(label: string) {
 	const directory = join(evidence, 'frames');
 	mkdirSync(directory, { recursive: true });
 	const path = join(directory, `${String(frames.length).padStart(2, '0')}-${label}.png`);
-	await page.screenshot({ path });
+	await page.screenshot({
+		path,
+		mask: [
+			page.locator('[data-log-line]').filter({ hasText: '"method":"account/rateLimits/updated"' }),
+		],
+	});
 	frames.push(path);
 }
 
@@ -234,7 +239,7 @@ afterAll(async () => {
 					}).trim(),
 					tree: root,
 					cleanAtStart,
-					mode: 'production bootstrap; ordinary registry; real native transport; fresh touch-capable Chromium context',
+					mode: 'production bootstrap; ordinary registry; real native transport; fresh touch-capable Chromium context; account rate-limit log rows masked in screenshots',
 					validModel,
 					invalidModel,
 					events,
