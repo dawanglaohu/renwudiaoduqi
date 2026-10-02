@@ -84,6 +84,34 @@ async function shot(label: string) {
 	frames.push(path);
 }
 
+async function showNativeLogResult(query: string, rowPattern: RegExp) {
+	const currentPage = page;
+	if (!currentPage) throw new Error('Browser not ready');
+	await currentPage.getByTestId('whole-session-search-input').fill(query);
+	await currentPage.locator('[data-action="search-whole-session"]').click();
+	await expect
+		.poll(async () =>
+			Number.parseInt(await currentPage.getByTestId('search-hits-count').innerText(), 10),
+		)
+		.toBeGreaterThan(0);
+	const scroll = currentPage.locator(
+		'[data-component="run-detail-container"] [data-virtual-scroll="true"]',
+	);
+	await scroll.hover();
+	await expect
+		.poll(async () => {
+			await currentPage.mouse.wheel(0, 100_000);
+			return scroll.evaluate(
+				(element) => element.scrollHeight - element.scrollTop - element.clientHeight < 2,
+			);
+		})
+		.toBe(true);
+	const result = currentPage.locator('[data-log-line]').filter({ hasText: rowPattern });
+	await expect.poll(() => result.count()).toBe(1);
+	await result.scrollIntoViewIfNeeded();
+	expect(await result.isVisible()).toBe(true);
+}
+
 async function manualModel(scope: Locator, value: string) {
 	if (!page) throw new Error('Browser not ready');
 	await scope.getByRole('combobox').click();
@@ -655,11 +683,18 @@ describe('R17-T73118308 real native provider', () => {
 		const runs = (await get<{ runs: RunDto[] }>('/runs')).runs;
 		const control = runs.find((run) => run.modelName === validModel && run.kind === 'implement');
 		expect(control).toBeDefined();
+		await expect
+			.poll(
+				() => events.some((event) => event.kind === 'run.exited' && event.runId === control?.id),
+				{ timeout: 180_000 },
+			)
+			.toBe(true);
 		await page.goto(`${origin}/#/run/${control?.id}`, { waitUntil: 'domcontentloaded' });
 		await page.getByTestId('run-detail-page').waitFor();
-		await expect
-			.poll(() => page?.locator('[data-component="run-detail-container"]').innerText())
-			.toContain('R17-CONTROL');
+		await showNativeLogResult(
+			'R17-CONTROL',
+			/"method":"item\/completed".*"type":"agentMessage".*"text":"R17-CONTROL"/,
+		);
 		await shot('control-content');
 		await page.getByRole('button', { name: '返回甲板', exact: true }).click();
 		let failed: RunDto | undefined;
@@ -701,9 +736,7 @@ describe('R17-T73118308 real native provider', () => {
 		await density('deck', 'work');
 		await shot('invalid-model-gate');
 		await page.goto(`${origin}/#/run/${failed.id}`, { waitUntil: 'domcontentloaded' });
-		await expect
-			.poll(() => page?.locator('body').innerText(), { timeout: 10_000 })
-			.toMatch(/model.{0,80}(not supported|not found|does not exist|invalid|unavailable)/i);
+		await showNativeLogResult('not supported', /"method":"error".*model.{0,80}not supported/i);
 		await shot('model-error-detail');
 		await page.getByRole('button', { name: '返回甲板', exact: true }).click();
 		await gateCard.getByRole('button', { name: '重跑', exact: true }).waitFor();
