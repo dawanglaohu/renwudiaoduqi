@@ -49,9 +49,12 @@ jobs:
         with:
           version: 10.18.3
       - run: pnpm install --frozen-lockfile
-      - name: Prepare shared browser directory
+      - name: Prepare browser and evidence directories
         shell: bash
-        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/r17-browsers" >> "$GITHUB_ENV"
+        run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/r17-browsers" >> "$GITHUB_ENV"
+          evidence_root="$(realpath -m "$GITHUB_WORKSPACE/../.codex-plans/agent-scheduler-r17-t73118308")"
+          echo "R17_EVIDENCE_ROOT=$evidence_root" >> "$GITHUB_ENV"
       - run: pnpm exec playwright install --with-deps chromium
       - name: Prepare normal native-provider inputs
         env:
@@ -82,7 +85,7 @@ jobs:
       - name: Allow artifact reader into finished evidence directories
         if: always()
         run: |
-          evidence_root=../.codex-plans/agent-scheduler-r17-t73118308
+          evidence_root="$R17_EVIDENCE_ROOT"
           if [ -d "$evidence_root" ]; then
             sudo find "$evidence_root" -maxdepth 1 -type d -name 'provider-*' -exec chmod a+rx {} +
           fi
@@ -92,11 +95,12 @@ jobs:
         with:
           name: r17-real-provider-evidence
           path: |
-            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/evidence.json
-            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/daemon.log
-            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/*.png
-            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/frames/*.png
-            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/cold-start.json
+            ${{ env.R17_EVIDENCE_ROOT }}/provider-*/evidence.json
+            ${{ env.R17_EVIDENCE_ROOT }}/provider-*/daemon.log
+            ${{ env.R17_EVIDENCE_ROOT }}/provider-*/*.png
+            ${{ env.R17_EVIDENCE_ROOT }}/provider-*/frames/*.png
+            ${{ env.R17_EVIDENCE_ROOT }}/provider-*/cold-start.json
+          include-hidden-files: true
           if-no-files-found: ignore
       - name: Remove provider credentials
         if: always()
