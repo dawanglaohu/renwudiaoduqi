@@ -1,0 +1,2279 @@
+{
+  "task": "R17-T70594995",
+  "round": 1,
+  "codeHead": "0653cffb27c507504e779af8cda54f5333d36e5f",
+  "verdict": "rework",
+  "patch": "r17-ui-reuse-support-20261002",
+  "note": "契约语义复核通过不等于代码验收通过；不执行--landed。普通UI来源与错误码翻译唯一责任按06/07节分别保留。扫描计数是AST字面量片段数，不是独立文案键数。",
+  "audit": {
+    "files": [
+      "packages/web/src/api/agents.ts",
+      "packages/web/src/api/cache-invalidation.ts",
+      "packages/web/src/api/cache-keys.ts",
+      "packages/web/src/api/http-client.ts",
+      "packages/web/src/api/resource-cache.ts",
+      "packages/web/src/api/runs.ts",
+      "packages/web/src/components/agent-card.tsx",
+      "packages/web/src/components/assign-panel.tsx",
+      "packages/web/src/components/effort-picker.tsx",
+      "packages/web/src/components/empty-onboarding.tsx",
+      "packages/web/src/components/field-layers-row.tsx",
+      "packages/web/src/components/gate-card.tsx",
+      "packages/web/src/components/login-badge.tsx",
+      "packages/web/src/components/login-hint.tsx",
+      "packages/web/src/components/model-picker.tsx",
+      "packages/web/src/components/pipeline-assignment.tsx",
+      "packages/web/src/components/pipeline-lane.tsx",
+      "packages/web/src/components/pipeline-toggles.tsx",
+      "packages/web/src/components/stream-column.tsx",
+      "packages/web/src/components/stream-head-meta.tsx",
+      "packages/web/src/features/run-deck/batch-expansion.ts",
+      "packages/web/src/features/run-deck/lanes-container.tsx",
+      "packages/web/src/features/run-deck/pipeline-toggles-container.tsx",
+      "packages/web/src/features/run-deck/run-deck-container.tsx",
+      "packages/web/src/features/run-deck/run-deck-view.tsx",
+      "packages/web/src/features/run-deck/use-assign-panel.ts",
+      "packages/web/src/features/run-deck/use-gate-card.ts",
+      "packages/web/src/features/run-deck/use-pipeline-settings.ts",
+      "packages/web/src/features/settings-agents/settings-agents-container.tsx",
+      "packages/web/src/features/settings-agents/types.ts",
+      "packages/web/src/features/settings-agents/use-agent-models.ts",
+      "packages/web/src/features/settings-agents/use-settings-agents.ts",
+      "packages/web/src/hooks/use-minute-tick.ts",
+      "packages/web/src/lib/effort-options.ts",
+      "packages/web/src/lib/login-freshness.ts",
+      "packages/web/src/lib/model-groups.ts",
+      "packages/web/src/pages/deck-page.tsx",
+      "packages/web/src/pages/settings-agents-page.tsx",
+      "packages/web/src/pages/settings-pipeline-page.tsx",
+      "packages/web/src/store/selection-store.ts",
+      "packages/web/src/ui/grouped-select.tsx",
+      "packages/web/src/ui/shadcn/select.tsx"
+    ],
+    "findings": [
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 139,
+        "text": "本文档已更新，",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 139,
+        "text": "个任务的依据已变",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 153,
+        "text": "查看受影响任务 (",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 244,
+        "text": "路",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 251,
+        "text": "路",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 258,
+        "text": "路",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 265,
+        "text": "当前瓶颈：",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 271,
+        "text": "选文档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 275,
+        "text": "选批次",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 277,
+        "text": "项",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 281,
+        "text": "逐任务指派",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 283,
+        "text": "个任务已分别指派",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 286,
+        "text": "派发",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 311,
+        "text": "零运行调度向导",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 314,
+        "text": "开始调度任务流",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 317,
+        "text": "当前暂无活跃运行流。请按四步指引完成文档、批次与任务配置，直接进入多流监看工作台。",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 327,
+        "text": "调度向导步骤",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 376,
+        "text": "修改 ↩",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 397,
+        "text": "第 1 步：选文档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 403,
+        "text": "第一步：选择调度目标需求开发文档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 406,
+        "text": "选择后系统将根据文档中的模块规划与任务图谱准备批次清单。",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 415,
+        "text": "文档路径",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 419,
+        "text": "本机 docs-data.js 绝对路径",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 429,
+        "text": "导入文档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 457,
+        "text": "个批次",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 458,
+        "text": "个任务",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 490,
+        "text": "下一步：选批次 →",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 502,
+        "text": "第 2 步：选批次",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 507,
+        "text": "第二步：选择要派发的任务批次",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 509,
+        "text": "批次代表有依赖层级的分组，派发后整批任务进入调度泳道。",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 548,
+        "text": "个任务",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 580,
+        "text": "← 返回选文档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 588,
+        "text": "下一步：逐任务指派 →",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 600,
+        "text": "第 3 步：逐任务指派",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 605,
+        "text": "第三步：逐任务指派",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 607,
+        "text": "严禁「给整批一键统一套用模型」；每个任务独立指定会话参数（19 节第 7 条归 M9-T18）。",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 621,
+        "text": "就绪任务清单 (",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 621,
+        "text": "项)",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 649,
+        "text": "← 返回选批次",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 657,
+        "text": "下一步：检查并发与派发 →",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 669,
+        "text": "第 4 步：派发",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 675,
+        "text": "第四步：并发限制审计与启动派发",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 678,
+        "text": "调度器遵循并发限制，呈现当前有效容量与瓶颈说明（E-52, E-47）。",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 690,
+        "text": "有效并行并发容量",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 696,
+        "text": "并行窗口数 (调度器)",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 700,
+        "text": "Agent 基础并发上限",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 706,
+        "text": "瓶颈分析：",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 716,
+        "text": "就绪任务：",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 718,
+        "text": "个",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 722,
+        "text": "所属文档：",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 728,
+        "text": "所属批次：",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 735,
+        "text": "状态: 待派发",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 746,
+        "text": "← 返回修改指派",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/empty-onboarding.tsx",
+        "line": 755,
+        "text": "启动批次派发",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/field-layers-row.tsx",
+        "line": 62,
+        "text": "内置默认已更新（",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/field-layers-row.tsx",
+        "line": 72,
+        "text": "内置默认",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/field-layers-row.tsx",
+        "line": 82,
+        "text": "你的覆盖",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/field-layers-row.tsx",
+        "line": 94,
+        "text": "当前生效",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 182,
+        "text": "批准派发",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 188,
+        "text": "同意",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 189,
+        "text": "批准派发",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 195,
+        "text": "同意",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 199,
+        "text": "批准并继续",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 214,
+        "text": "任务",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 217,
+        "text": "批准派发任务并启动执行",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 219,
+        "text": "确认审查裁定结果并推进后续流程",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 221,
+        "text": "批准合并分支并将改动记录落地",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 223,
+        "text": "等待人工审批放行",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 249,
+        "text": "本次操作将影响任务流水线推进状态",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 258,
+        "text": "将在本泳道创建进程并启动 Agent 自主实施",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 264,
+        "text": "确认验收证据并推进至查 bug 或落地环节",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 270,
+        "text": "改动将合入主干并在知识库沉淀记录（不可逆）",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 276,
+        "text": "放行当前受阻的任务流水线",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 314,
+        "text": "改一下",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 315,
+        "text": "拒绝",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 316,
+        "text": "投递原文到实施会话",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 326,
+        "text": "无人应答不会自动批准，任务保持等待",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 527,
+        "text": "不可逆操作",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 556,
+        "text": "系统依据前序执行产物与机械检查判定触发本次人工审核。",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 571,
+        "text": "跳转回产出该审批的步骤（",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 571,
+        "text": "第",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 571,
+        "text": "步",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 576,
+        "text": "回到步骤：",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 578,
+        "text": "回到产出结论的第",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 578,
+        "text": "步",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 579,
+        "text": "回到产出该结论的执行步骤",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 590,
+        "text": "跳转回产出该审批的步骤（",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 590,
+        "text": "第",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 590,
+        "text": "步",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 595,
+        "text": "回到步骤：",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 597,
+        "text": "回到产出结论的第",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 597,
+        "text": "步",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 598,
+        "text": "回到产出该结论的执行步骤",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 611,
+        "text": "审查意见原文（未结构化）",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 618,
+        "text": "收起",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 618,
+        "text": "展开全文",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 742,
+        "text": "提交中…",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 800,
+        "text": "目标运行不具备消息注入能力（capabilities.canReply=false），无法投递原文",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 801,
+        "text": "把审查原文原样投递到实施会话",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 846,
+        "text": "复制审查原文全文",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 854,
+        "text": "✓ 已复制原文",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 854,
+        "text": "复制原文",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 860,
+        "text": "技术详情",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 929,
+        "text": "有",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 929,
+        "text": "项待处理审批",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 930,
+        "text": "当前有",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/gate-card.tsx",
+        "line": 930,
+        "text": "项待处理审批，点击查看",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/login-hint.tsx",
+        "line": 54,
+        "text": "未登录：在终端运行",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/login-hint.tsx",
+        "line": 58,
+        "text": "后点刷新",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/pipeline-toggles.tsx",
+        "line": 68,
+        "text": "关",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/pipeline-toggles.tsx",
+        "line": 69,
+        "text": "开",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/pipeline-toggles.tsx",
+        "line": 73,
+        "text": "自动",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/pipeline-toggles.tsx",
+        "line": 74,
+        "text": "手动",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/pipeline-toggles.tsx",
+        "line": 133,
+        "text": "查 bug 设置",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/pipeline-toggles.tsx",
+        "line": 148,
+        "text": "收口模式设置",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 164,
+        "text": "停止",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 290,
+        "text": "泳道",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 299,
+        "text": "批次收口 · 第",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 299,
+        "text": "轮 · 第",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 299,
+        "text": "批",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 302,
+        "text": "批次收口 · 第",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 302,
+        "text": "轮 · 第",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 302,
+        "text": "批",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 309,
+        "text": "空闲",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 333,
+        "text": "超出窗口数",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 354,
+        "text": "收起此泳道",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 354,
+        "text": "展开此泳道",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 363,
+        "text": "收起",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 363,
+        "text": "展开",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 374,
+        "text": "停止泳道",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 395,
+        "text": "停止中...",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 464,
+        "text": "— 等待阶段分配 —",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 492,
+        "text": "耗时:",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-column.tsx",
+        "line": 494,
+        "text": "费用:",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 148,
+        "text": "低",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 151,
+        "text": "中",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 154,
+        "text": "高",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 183,
+        "text": "思考强度:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 198,
+        "text": "思考强度:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 219,
+        "text": "自报思考强度与所选不一致（所选:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 219,
+        "text": "，实际:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 232,
+        "text": "思考强度:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 255,
+        "text": "自报模型与所选不一致（所选:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 255,
+        "text": "，实际:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 263,
+        "text": "模型:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 284,
+        "text": "权限档:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 292,
+        "text": "权限档:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/components/stream-head-meta.tsx",
+        "line": 300,
+        "text": "权限档:",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/batch-expansion.ts",
+        "line": 67,
+        "text": "批次收口 · 第",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/batch-expansion.ts",
+        "line": 67,
+        "text": "轮",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/batch-expansion.ts",
+        "line": 67,
+        "text": "批次收口",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/lanes-container.tsx",
+        "line": 60,
+        "text": "未知运行流渲染异常",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/lanes-container.tsx",
+        "line": 66,
+        "text": "[StreamErrorBoundary] 泳道",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/lanes-container.tsx",
+        "line": 66,
+        "text": "发生渲染异常:",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/lanes-container.tsx",
+        "line": 80,
+        "text": "泳道",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/lanes-container.tsx",
+        "line": 80,
+        "text": "界面故障",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/lanes-container.tsx",
+        "line": 89,
+        "text": "重试重挂本流",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/lanes-container.tsx",
+        "line": 435,
+        "text": "泳道数据不可用",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-container.tsx",
+        "line": 221,
+        "text": "泳道数据不可用",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 105,
+        "text": "改一下",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 341,
+        "text": "完整档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 342,
+        "text": "紧凑档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 343,
+        "text": "单列列表",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 344,
+        "text": "手机档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 345,
+        "text": "极窄手机档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 615,
+        "text": "并行流数:",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 618,
+        "text": "当前档位:",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 624,
+        "text": "触控优化 (44px)",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 636,
+        "text": "切换至",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 636,
+        "text": "完整档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 636,
+        "text": "紧凑档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 646,
+        "text": "档位:",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 647,
+        "text": "切换完整档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 647,
+        "text": "切换紧凑档",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 725,
+        "text": "泳道数据不可用",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 760,
+        "text": "会话详情 ·",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 764,
+        "text": "运行 ID:",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 769,
+        "text": "暂无详情内容",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 785,
+        "text": "批次与任务",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 837,
+        "text": "左侧有",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 837,
+        "text": "条待处理泳道，点击滚入查看",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 841,
+        "text": "条待处理",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 850,
+        "text": "泳道数据不可用",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 880,
+        "text": "右侧有",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 880,
+        "text": "条待处理泳道，点击滚入查看",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "line": 883,
+        "text": "条待处理",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/use-assign-panel.ts",
+        "line": 330,
+        "text": "第",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/use-assign-panel.ts",
+        "line": 330,
+        "text": "批",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/use-assign-panel.ts",
+        "line": 681,
+        "text": "个任务已分别指派",
+        "ownership": "inherited-surrounding-block-or-diagnostic",
+        "migration": "excluded-explicit-follow-up"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/use-pipeline-settings.ts",
+        "line": 105,
+        "text": "当前流水线阶段已停用（",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/use-pipeline-settings.ts",
+        "line": 225,
+        "text": "读取流水线设置失败，请稍后重试",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/run-deck/use-pipeline-settings.ts",
+        "line": 320,
+        "text": "流水线设置未能保存，请稍后重试",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/settings-agents-container.tsx",
+        "line": 103,
+        "text": "正在加载 Agent 注册表...",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/settings-agents-container.tsx",
+        "line": 121,
+        "text": "加载 Agent 列表失败，请重试",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/types.ts",
+        "line": 7,
+        "text": "两字符短码",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/types.ts",
+        "line": 8,
+        "text": "可执行路径",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/types.ts",
+        "line": 9,
+        "text": "默认模型",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/types.ts",
+        "line": 10,
+        "text": "最大并发数",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/types.ts",
+        "line": 11,
+        "text": "权限档",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 86,
+        "text": "输入参数校验失败，请检查修改后重试",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 87,
+        "text": "未找到对应配置项",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 88,
+        "text": "设备未授权，请先完成配对",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 89,
+        "text": "设备已被吊销",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 90,
+        "text": "服务内部异常，请稍后重试",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 91,
+        "text": "当前 Agent 不可用",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 92,
+        "text": "Agent 版本未识别",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 205,
+        "text": "短码必须为恰好两字符",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 213,
+        "text": "短码 \"",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 213,
+        "text": "\" 已被 agent \"",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 213,
+        "text": "\" 占用，请改用其他短码",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 257,
+        "text": "短码校验失败",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 313,
+        "text": "配置更新失败，请重试",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 366,
+        "text": "清除覆盖失败，请重试",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 417,
+        "text": "更新思考强度失败，请重试",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 442,
+        "text": "并行窗口数必须在",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 442,
+        "text": "到",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 442,
+        "text": "之间",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 448,
+        "text": "未定位到目标文档，无法修改窗口数",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/features/settings-agents/use-settings-agents.ts",
+        "line": 470,
+        "text": "更新窗口数失败，已回滚",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/pages/settings-agents-page.tsx",
+        "line": 18,
+        "text": "设置",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/pages/settings-agents-page.tsx",
+        "line": 20,
+        "text": "Agent 注册表与模型选择",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/pages/settings-pipeline-page.tsx",
+        "line": 24,
+        "text": "设置",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      },
+      {
+        "file": "packages/web/src/pages/settings-pipeline-page.tsx",
+        "line": 26,
+        "text": "流水线设置",
+        "ownership": "direct-reused-block-or-settings-caller",
+        "migration": "required-unfinished"
+      }
+    ]
+  },
+  "ownershipCounts": {
+    "inherited-surrounding-block-or-diagnostic": 120,
+    "direct-reused-block-or-settings-caller": 103
+  },
+  "adjudication": {
+    "template": "adjudicate",
+    "model": "jev-1.13.0",
+    "status": "ok",
+    "pick": "B",
+    "confidence": 0.95,
+    "options": {
+      "A": "Treat all current presentation and caller-provided product wording reachable through the original M9-T23 effective paths as reused display blocks. Add each concrete source path that contains runtime product UI literals and its existing owning tests to this same repair fence (no directory wildcards). Migrate their visible strings without layout/behavior changes; classify console diagnostics, comments, error translations and vendor data explicitly. Guard all covered files and retain B7 open. This is a larger but uniform completion of AC1, not a new feature.",
+      "B": "Add the newly verified direct settings FIELD_LABELS source, two settings breadcrumb pages and use-pipeline-settings fallback text to the six confirmed blocks already patched. Define precise display-block ownership in the audit: the surrounding onboarding/lane/stream/layout captions are not new or reused by M9-T23's login/catalog/layer/zero-output display blocks. Keep a complete file-and-line inventory of those inherited surrounding literals as explicit scope exclusions and follow-up; never label them migrated. Centralize all strings within the actual new/reused blocks, retain unchanged original AC1 wording and B7 open."
+    },
+    "line": "adjudicate: pick=B(high 0.95) spec_change=no(0.18) outside_stack=no(0.08) needs_owner=no(0.15) reversible=yes(0.81) adopt=take(B)"
+  },
+  "tests": {
+    "webBuild": "pass",
+    "firstWorkspaceCheck": "fail: 2 timeout failures, 2748 passed, 3 skipped",
+    "focusedTimeoutControls": "pass: 2 files, 24 tests; no timeout or test changes",
+    "controlledWorkspaceCheck": "pass: 223 files, 2750 tests, 3 existing skips; --maxWorkers 2 --minWorkers 1",
+    "pythonDocTests": "pass: 200 tests, 1 existing skip",
+    "pipelineBrowser": "pass: 12 tests",
+    "compositionBrowser": "fail: controlled run 7 passed, 1 failed; step 5 current zero-output run SSE exit/state/lane-release aggregate assertion at batch-14-composition.test.ts:1878",
+    "compositionBoundary": "production daemon and browser with test subprocess; not real-provider B7 evidence; root cause requires diagnosis, not established as product defect",
+    "compositionEnvironmentControl": "first completed run 2 passed / 6 failed: test subprocess stage detection matched review in review-tmp script pathname. Renamed private temporary directory browser-tmp; product source, tests, assertions and timeouts unchanged. Controlled step 3 current-run SSE DOM passed. Remaining step 5 root cause unproven.",
+    "logPaths": {
+      "build": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t70594995\\review-web-build.log",
+      "firstWorkspaceCheck": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t70594995\\review-workspace-check.log",
+      "focusedTimeouts": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t70594995\\review-timeouts-focused.log",
+      "controlledWorkspaceCheck": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t70594995\\review-check-controlled.log",
+      "pythonDocs": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t70594995\\review-doc-tests.log",
+      "pipelineBrowserAndFirstComposition": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t70594995\\review-browser-regressions-linux-tmp.log",
+      "controlledComposition": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t70594995\\review-browser-composition-controlled.log",
+      "productionDensity": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t70594995\\review-production-density-linux-tmp.log"
+    }
+  },
+  "browserEvidence": {
+    "gif": {
+      "nativeWidth": 1920,
+      "nativeHeight": 1080,
+      "requiredWidth": 1440,
+      "requiredHeight": 900,
+      "frames": 120,
+      "bytes": 312492,
+      "modelRounds": 0,
+      "verdict": "fail-required-viewport"
+    },
+    "density": [
+      {
+        "route": "#/settings/agents",
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/settings/agents",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div.flex.min-h-screen.flex-col > main.flex-1 > div.flex.min-h-screen.flex-col > main.flex-1.min-w-0.p-[var(--sp-4)]",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1920,
+            "width": 1920
+          },
+          "contentFound": true,
+          "fill": 0.983,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 5,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        "overflow": false
+      },
+      {
+        "route": "#/settings/pipeline",
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1920,
+            "width": 1920
+          },
+          "contentFound": true,
+          "fill": 0.579,
+          "leftGap": 16,
+          "rightGap": 792,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.006
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        "overflow": false
+      },
+      {
+        "route": "#/",
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.flex.flex-row.flex-1 > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 272
+          },
+          "avail": {
+            "left": 272,
+            "right": 1920,
+            "width": 1648
+          },
+          "contentFound": false,
+          "fill": 0,
+          "leftGap": 1648,
+          "rightGap": 1648,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "fail",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "fail",
+            "note": "主区域第一屏没有可见内容：页面没加载完，或 main 选择器不对",
+            "overflow": "pass",
+            "pass": false
+          }
+        },
+        "overflow": false
+      },
+      {
+        "route": "#/settings/agents",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/settings/agents",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div.flex.min-h-screen.flex-col > main.flex-1 > div.flex.min-h-screen.flex-col > main.flex-1.min-w-0.p-[var(--sp-4)]",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1440,
+            "width": 1440
+          },
+          "contentFound": true,
+          "fill": 0.978,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 5,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        "overflow": false
+      },
+      {
+        "route": "#/settings/pipeline",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1440,
+            "width": 1440
+          },
+          "contentFound": true,
+          "fill": 0.772,
+          "leftGap": 16,
+          "rightGap": 312,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.008
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        "overflow": false
+      },
+      {
+        "route": "#/",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.flex.flex-row.flex-1 > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 272
+          },
+          "avail": {
+            "left": 272,
+            "right": 1440,
+            "width": 1168
+          },
+          "contentFound": false,
+          "fill": 0,
+          "leftGap": 1168,
+          "rightGap": 1168,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "fail",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "fail",
+            "note": "主区域第一屏没有可见内容：页面没加载完，或 main 选择器不对",
+            "overflow": "pass",
+            "pass": false
+          }
+        },
+        "overflow": false
+      },
+      {
+        "route": "#/settings/agents",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/settings/agents",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div.flex.min-h-screen.flex-col > main.flex-1 > div.flex.min-h-screen.flex-col > main.flex-1.min-w-0.p-[var(--sp-4)]",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 0.918,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        "overflow": false
+      },
+      {
+        "route": "#/settings/pipeline",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 0.918,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 7,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        "overflow": false
+      },
+      {
+        "route": "#/",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:18947/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 0.697,
+          "leftGap": 0,
+          "rightGap": 118,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [
+            {
+              "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.flex.flex-row.flex-1 > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+              "gap": 24,
+              "limit": 18
+            }
+          ],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 1,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        },
+        "overflow": false
+      }
+    ],
+    "geometry": "actual task assignment panel not measured; empty deck D2/D6 fail retained"
+  },
+  "batchB7": "open; independent R17-T73118308",
+  "productSourceChangedByReviewer": false
+}
