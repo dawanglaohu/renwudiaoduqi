@@ -1223,6 +1223,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R17-T73118308": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "85cadc1f58a46a3f83c5de1f34ca87333a70bb70fd2c8fde30c5aa3f7a6a95be",
+    "evidence": [
+      "Contract review only, not code acceptance: R17-T73118308 retains all eight original acceptance criteria and all eleven edges; task status todo and Batch17 verdict open remain unchanged. Code acceptance is rework for missing final real-provider production pass, same-head credentialed CI and qualified final GIF.",
+      "Prerequisites M9-T23/M9-T29 remain landed in source task notes and generated docs; current task derives from stable-key batch17-real-provider-model-refresh-gate-proof with effective paths supplied by original Batch17 repair fence.",
+      "Checked 06/07/08 layer rules, 13 edge requirements, 17 test tiers, task note and Batch17 source repair fence; production wiring container.ts:454,480,723,885 consumes the same Codex session registry and launch spec. No backend/frontend new API types or layering change.",
+      "Independent Windows Node22 build and pnpm -w check at 529f7dd pass 222 files and 2728 tests with 3 original skips; real bootstrap/browser scenario fails at batch-17-real-provider.test.ts:422 before pairing because production lock ACL rejects, recorded under planning/review-real-provider-win.log and provider-S1NP3S. Prior Linux final full run at a283e60 also failed before pairing; no model rejection claim from these failures.",
+      "All ten implementation adjudications rerun with every original candidate and current diff facts, real Jev jev-1.13.0 status ok adopt=take, picks A,A,A,B,B,A,A,A,A,A. Evidence in planning/review-adjudications.json and review-judgments.jsonl. CI and retry decisions low confidence remain explicit.",
+      "No task standard reduction, no original task status or Batch17 collection rewrite; maintain_docs verify is solely the structural/semantic contract registration. No --landed until code/evidence rework passes."
+    ],
+    "reviewed": "2026-10-02T05:33:43.205906+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T54786768": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "e80ef6cf04b42e52faeee079d5746f5a679ef03ba585ff67413f05da36bd0101",
