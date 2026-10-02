@@ -843,6 +843,15 @@ describe('R17-T73118308 real native provider', () => {
 						?.state,
 			)
 			.toBe('failed');
+		await expect.poll(() => gateCard.count(), { timeout: 10_000 }).toBe(0);
+		await page.goto(`${origin}/#/run/${reassignedId}`, { waitUntil: 'domcontentloaded' });
+		await expect
+			.poll(() =>
+				page?.locator('[data-component="run-detail-container"]').getAttribute('data-run-state'),
+			)
+			.toBe('failed');
+		await page.getByRole('button', { name: '返回甲板', exact: true }).click();
+		await expect.poll(() => gateCard.count()).toBe(0);
 		expect(errors).toEqual([]);
 		const modelRequests = requests.filter(
 			(request) => request.method === 'GET' && request.path.endsWith('/models'),
