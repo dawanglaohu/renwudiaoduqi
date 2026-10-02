@@ -179,24 +179,24 @@ export function resolveApproveActionLabel(params: {
 
 	// 手机档派发闸门：如实写「批准派发」，绝不含糊成「同意」（E-182）
 	if (isMobileView && isDispatchGate) {
-		return '批准派发';
+		return UI_STRINGS.gateCard.approveDispatch;
 	}
 
 	// 桌面档派发闸门
 	if (isDispatchGate) {
 		// 若传入含糊的「同意」，强制替换为具名文案「批准派发」
-		if (customLabel === '同意' || !customLabel) {
-			return '批准派发';
+		if (customLabel === UI_STRINGS.gateCard.genericAgreement || !customLabel) {
+			return UI_STRINGS.gateCard.approveDispatch;
 		}
 		return customLabel;
 	}
 
 	// 非派发闸门（如审查确认、落地确认）
-	if (customLabel && customLabel !== '同意') {
+	if (customLabel && customLabel !== UI_STRINGS.gateCard.genericAgreement) {
 		return customLabel;
 	}
 
-	return '批准并继续';
+	return UI_STRINGS.gateCard.approveContinue;
 }
 
 /**
@@ -211,16 +211,16 @@ function resolveWhatText(
 		return customTitle;
 	}
 
-	const taskPrefix = taskKey ? `任务 ${taskKey}：` : '';
+	const taskPrefix = taskKey ? UI_STRINGS.gateCard.taskPrefix(taskKey) : '';
 	switch (gateKind) {
 		case 'dispatch':
-			return `${taskPrefix}批准派发任务并启动执行`;
+			return UI_STRINGS.gateCard.dispatchWhat(taskPrefix);
 		case 'review':
-			return `${taskPrefix}确认审查裁定结果并推进后续流程`;
+			return UI_STRINGS.gateCard.reviewWhat(taskPrefix);
 		case 'landing':
-			return `${taskPrefix}批准合并分支并将改动记录落地`;
+			return UI_STRINGS.gateCard.landingWhat(taskPrefix);
 		default:
-			return `${taskPrefix}等待人工审批放行`;
+			return UI_STRINGS.gateCard.waitingWhat(taskPrefix);
 	}
 }
 
@@ -246,7 +246,7 @@ function resolveImpactDefaults(
 		return {
 			value: impactValue,
 			unit: impactUnit,
-			description: impactDescription ?? '本次操作将影响任务流水线推进状态',
+			description: impactDescription ?? UI_STRINGS.gateCard.pipelineImpact,
 			irreversible: Boolean(isIrreversible),
 		};
 	}
@@ -255,25 +255,25 @@ function resolveImpactDefaults(
 		case 'dispatch':
 			return {
 				value: '—',
-				description: impactDescription ?? '将在本泳道创建进程并启动 Agent 自主实施',
+				description: impactDescription ?? UI_STRINGS.gateCard.dispatchImpact,
 				irreversible: false,
 			};
 		case 'review':
 			return {
 				value: '—',
-				description: impactDescription ?? '确认验收证据并推进至查 bug 或落地环节',
+				description: impactDescription ?? UI_STRINGS.gateCard.reviewImpact,
 				irreversible: false,
 			};
 		case 'landing':
 			return {
 				value: '—',
-				description: impactDescription ?? '改动将合入主干并在知识库沉淀记录（不可逆）',
+				description: impactDescription ?? UI_STRINGS.gateCard.landingImpact,
 				irreversible: true,
 			};
 		default:
 			return {
 				value: '—',
-				description: impactDescription ?? '放行当前受阻的任务流水线',
+				description: impactDescription ?? UI_STRINGS.gateCard.waitingImpact,
 				irreversible: Boolean(isIrreversible),
 			};
 	}
@@ -311,9 +311,9 @@ export function GateCard(props: GateCardProps) {
 		onReject,
 		onDeliverRaw,
 		approveLabel,
-		editLabel = '改一下',
-		rejectLabel = '拒绝',
-		deliverRawLabel = '投递原文到实施会话',
+		editLabel = UI_STRINGS.gateCard.editComment,
+		rejectLabel = UI_STRINGS.gateCard.reject,
+		deliverRawLabel = UI_STRINGS.gateCard.deliverOriginal,
 		canReply = true,
 		deliveryNotice = null,
 		onCopyReworkText,
@@ -323,7 +323,7 @@ export function GateCard(props: GateCardProps) {
 		tier,
 		isMobile = false,
 		isTouch = false,
-		timeoutPolicyText = '无人应答不会自动批准，任务保持等待',
+		timeoutPolicyText = UI_STRINGS.gateCard.timeoutPolicy,
 		className,
 		...rest
 	} = props;
@@ -524,7 +524,7 @@ export function GateCard(props: GateCardProps) {
 									data-field="irreversible-chip"
 									className="font-ui text-[11px] px-1.5 py-0.5 rounded-[4px] bg-[var(--down-soft)] text-[var(--down)] font-medium"
 								>
-									不可逆操作
+									{UI_STRINGS.gateCard.irreversible}
 								</span>
 							)}
 						</div>
@@ -553,7 +553,7 @@ export function GateCard(props: GateCardProps) {
 							basisDescription ??
 							(hasZeroOutputContext
 								? UI_STRINGS.gateCard.zeroOutputEvidence
-								: '系统依据前序执行产物与机械检查判定触发本次人工审核。')}
+								: UI_STRINGS.gateCard.defaultReason)}
 					</div>
 				</div>
 
@@ -568,15 +568,17 @@ export function GateCard(props: GateCardProps) {
 							data-action="goto-step"
 							data-step-number={stepNumber}
 							className="inline-flex items-center gap-1.5 font-mono text-[12px] text-[var(--needs)] hover:underline cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-[var(--needs)] focus-visible:outline-none rounded-[4px]"
-							title={`跳转回产出该审批的步骤（${stepLabel ?? `第 ${stepNumber ?? '—'} 步`}）`}
+							title={UI_STRINGS.gateCard.returnToStepTitle(
+								stepLabel ?? UI_STRINGS.gateCard.stepLabel(stepNumber ?? '—'),
+							)}
 						>
 							<span aria-hidden="true">←</span>
 							<span>
 								{stepLabel
-									? `回到步骤：${stepLabel}`
+									? UI_STRINGS.gateCard.returnToNamedStep(stepLabel)
 									: stepNumber !== undefined
-										? `回到产出结论的第 ${stepNumber} 步`
-										: '回到产出该结论的执行步骤'}
+										? UI_STRINGS.gateCard.returnToNumberedStep(stepNumber)
+										: UI_STRINGS.gateCard.returnToStepFallback}
 							</span>
 						</a>
 					) : (
@@ -587,15 +589,17 @@ export function GateCard(props: GateCardProps) {
 							onClick={handleStepClick}
 							onKeyDown={handleStepKeyDown}
 							className="inline-flex items-center gap-1.5 font-mono text-[12px] text-[var(--needs)] hover:underline cursor-pointer select-none bg-transparent border-none p-0 focus-visible:ring-2 focus-visible:ring-[var(--needs)] focus-visible:outline-none rounded-[4px]"
-							title={`跳转回产出该审批的步骤（${stepLabel ?? `第 ${stepNumber ?? '—'} 步`}）`}
+							title={UI_STRINGS.gateCard.returnToStepTitle(
+								stepLabel ?? UI_STRINGS.gateCard.stepLabel(stepNumber ?? '—'),
+							)}
 						>
 							<span aria-hidden="true">←</span>
 							<span>
 								{stepLabel
-									? `回到步骤：${stepLabel}`
+									? UI_STRINGS.gateCard.returnToNamedStep(stepLabel)
 									: stepNumber !== undefined
-										? `回到产出结论的第 ${stepNumber} 步`
-										: '回到产出该结论的执行步骤'}
+										? UI_STRINGS.gateCard.returnToNumberedStep(stepNumber)
+										: UI_STRINGS.gateCard.returnToStepFallback}
 							</span>
 						</button>
 					)}
@@ -608,14 +612,14 @@ export function GateCard(props: GateCardProps) {
 						className="mt-2.5 pt-2 border-t border-[var(--border)]"
 					>
 						<div className="flex items-center justify-between text-[11px] text-[var(--ink-2)] mb-1">
-							<span className="font-semibold">审查意见原文（未结构化）</span>
+							<span className="font-semibold">{UI_STRINGS.gateCard.unstructuredReview}</span>
 							<button
 								type="button"
 								data-action="toggle-rework"
 								onClick={toggleReworkExpand}
 								className="text-[var(--needs)] hover:underline bg-transparent border-none p-0 cursor-pointer font-mono text-[11px]"
 							>
-								{isReworkExpanded ? '收起' : '展开全文'}
+								{isReworkExpanded ? UI_STRINGS.gateCard.foldLines : UI_STRINGS.gateCard.expandLines}
 							</button>
 						</div>
 						<div
@@ -739,7 +743,7 @@ export function GateCard(props: GateCardProps) {
 					].join(' ')}
 				>
 					{isSubmitting
-						? '提交中…'
+						? UI_STRINGS.gateCard.submitting
 						: hasZeroOutputContext
 							? UI_STRINGS.gateCard.rerun
 							: resolvedApproveLabel}
@@ -797,8 +801,8 @@ export function GateCard(props: GateCardProps) {
 						disabled={isSubmitting || disabled || !canReply}
 						title={
 							!canReply
-								? '目标运行不具备消息注入能力（capabilities.canReply=false），无法投递原文'
-								: `把审查原文原样投递到实施会话 ${stepId ? `（${stepId}）` : ''}`
+								? UI_STRINGS.gateCard.deliveryUnsupported
+								: UI_STRINGS.gateCard.deliverOriginalTitle(stepId ? `（${stepId}）` : '')
 						}
 						className={[
 							'inline-flex items-center justify-center font-ui font-medium text-[13px]',
@@ -843,7 +847,7 @@ export function GateCard(props: GateCardProps) {
 								type="button"
 								data-action="copy-rework-text"
 								onClick={onCopyReworkText}
-								title="复制审查原文全文"
+								title={UI_STRINGS.gateCard.copyOriginalTitle}
 								className={[
 									'shrink-0 px-2 rounded-[var(--r-sm,9px)] border border-[var(--border)] bg-[var(--panel-2)]',
 									'font-ui text-[11px] text-[var(--ink-2)] hover:text-[var(--ink-1)] cursor-pointer',
@@ -851,13 +855,17 @@ export function GateCard(props: GateCardProps) {
 									isTouchTarget ? 'min-h-[var(--h-btn-lg,44px)]' : 'h-[var(--h-btn,32px)]',
 								].join(' ')}
 							>
-								{isReworkTextCopied ? '✓ 已复制原文' : '复制原文'}
+								{isReworkTextCopied
+									? UI_STRINGS.gateCard.copiedOriginal
+									: UI_STRINGS.gateCard.copyOriginal}
 							</button>
 						)}
 					</div>
 					{deliveryNotice.technical && (
 						<details className="text-[11px] text-[var(--ink-3)]">
-							<summary className="cursor-pointer hover:text-[var(--ink-2)]">技术详情</summary>
+							<summary className="cursor-pointer hover:text-[var(--ink-2)]">
+								{UI_STRINGS.technicalDetails}
+							</summary>
 							<div className="font-mono break-all">{deliveryNotice.technical}</div>
 						</details>
 					)}
@@ -926,8 +934,8 @@ export function GatePendingBadge(props: GatePendingBadgeProps) {
 						}
 					: undefined
 			}
-			aria-label={`有 ${count} 项待处理审批`}
-			title={`当前有 ${count} 项待处理审批，点击查看`}
+			aria-label={UI_STRINGS.gateCard.pendingLabel(count)}
+			title={UI_STRINGS.gateCard.pendingTitle(count)}
 			className={[
 				'inline-flex items-center justify-center gap-1 font-mono text-[11px] font-semibold select-none',
 				'rounded-[6px] border border-[var(--needs)] bg-[var(--needs-soft)] text-[var(--needs)]',

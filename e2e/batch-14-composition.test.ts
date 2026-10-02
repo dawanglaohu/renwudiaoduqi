@@ -389,6 +389,7 @@ async function captureStateFrame(
 
 interface CapturedEvent {
 	readonly kind: string;
+	readonly receivedAt?: string;
 	readonly runId: string | null;
 	readonly taskId: string | null;
 	readonly payload: Record<string, unknown>;
@@ -396,6 +397,7 @@ interface CapturedEvent {
 
 async function captureLiveEvents(port: number, token: string): Promise<{
 	readonly events: CapturedEvent[];
+	readonly subscription: { readonly connectedAt: string; readonly status: number };
 	readonly stop: () => Promise<void>;
 }> {
 	const abort = new AbortController();
@@ -423,7 +425,7 @@ async function captureLiveEvents(port: number, token: string): Promise<{
 				const data = frame.split('\n').find((line) => line.startsWith('data: '));
 				if (data) {
 					const envelope = JSON.parse(data.slice(6)) as CapturedEvent;
-					events.push(envelope);
+					events.push({ ...envelope, receivedAt: new Date().toISOString() });
 				}
 				boundary = pending.indexOf('\n\n');
 			}
@@ -433,6 +435,7 @@ async function captureLiveEvents(port: number, token: string): Promise<{
 	});
 	return {
 		events,
+		subscription: { connectedAt: new Date().toISOString(), status: response.status },
 		stop: async () => {
 			abort.abort();
 			await drain;
@@ -1142,6 +1145,13 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		if (task.result?.state === 'fail') {
 			const safeName = task.name.replace(/[^a-zA-Z0-9_-]/g, '_');
 			mkdirSync(artifactsDir, { recursive: true });
+			if (liveEvents) {
+				writeFileSync(
+					join(artifactsDir, `${safeName}-live-events.json`),
+					redactSensitiveData(JSON.stringify({ subscription: liveEvents.subscription, events: liveEvents.events }, null, 2)),
+					'utf8',
+				);
+			}
 
 			if (daemon && currentRunId && adminToken) {
 				try {
@@ -1177,6 +1187,13 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 	});
 
 	afterAll(async () => {
+		if (liveEvents) {
+			writeFileSync(
+				join(artifactsDir, 'b14-live-events.json'),
+				redactSensitiveData(JSON.stringify({ subscription: liveEvents.subscription, events: liveEvents.events }, null, 2)),
+				'utf8',
+			);
+		}
 		if (liveEvents) await liveEvents.stop().catch(() => {});
 		if (context) await context.close().catch(() => {});
 		if (browser) await browser.close().catch(() => {});

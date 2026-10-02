@@ -5,6 +5,29 @@
  */
 
 export const UI_STRINGS = {
+	fieldLayers: {
+		defaultUpdatedPrefix: '内置默认已更新（',
+	},
+	settings: {
+		title: '设置',
+		agentsDescription: 'Agent 注册表与模型选择',
+		pipelineDescription: '流水线设置',
+	},
+	settingsAgents: {
+		laneCountRange: (min: string | number, max: string | number) =>
+			`并行窗口数必须在 ${min} 到 ${max} 之间`,
+		monogramConflict: (monogram: string | number, name: string | number) =>
+			`短码 "${monogram}" 已被 agent "${name}" 占用，请改用其他短码`,
+		loading: '正在加载 Agent 注册表...',
+		loadFailed: '加载 Agent 列表失败，请重试',
+		monogramLength: '短码必须为恰好两字符',
+		monogramInvalid: '短码校验失败',
+		updateFailed: '配置更新失败，请重试',
+		clearFailed: '清除覆盖失败，请重试',
+		effortFailed: '更新思考强度失败，请重试',
+		missingDocument: '未定位到目标文档，无法修改窗口数',
+		laneCountFailed: '更新窗口数失败，已回滚',
+	},
 	technicalDetails: '技术详情',
 	assignment: {
 		unknownBottleneck: (source: string) => `瓶颈归因：${source}`,
@@ -107,6 +130,8 @@ export const UI_STRINGS = {
 		unknown: '—',
 	},
 	pipeline: {
+		readFailed: '读取流水线设置失败，请稍后重试',
+		saveFailed: '流水线设置未能保存，请稍后重试',
 		/** 查 bug 开关开启时的常驻说明（AC 3, E-306） */
 		bughuntAutoNote: '审查 pass 后自动派查 bug 运行，只影响尚未到达该阶段的任务',
 		/** 收口开关切为手动时的常驻说明（AC 3, E-312） */
@@ -121,6 +146,11 @@ export const UI_STRINGS = {
 		fallback: '—',
 	},
 	refBar: {
+		permissionTitle: (value: string | number) => `权限档: ${value}`,
+		modelMismatchTitle: (selected: string | number, reported: string | number) =>
+			`自报模型与所选不一致（所选: ${selected}，实际: ${reported}）`,
+		effortMismatchTitle: (selected: string | number, reported: string | number) =>
+			`自报思考强度与所选不一致（所选: ${selected}，实际: ${reported}）`,
 		/** 思考强度不支持（E-254） */
 		effortUnsupportedTitle: '不支持思考强度',
 		/** 思考强度三档显示文案 */
@@ -164,6 +194,8 @@ export const UI_STRINGS = {
 		sessionOrdinalTitle: (sessionNo: number) => `会话序号: ${sessionNo}（同一 agent 独立并发会话）`,
 	},
 	login: {
+		commandPrefix: '未登录：在终端运行',
+		commandSuffix: '后点刷新',
 		loggedIn: '已登录',
 		loggedOut: '未登录',
 		unknown: '无法判定',
@@ -236,6 +268,38 @@ export const UI_STRINGS = {
 		collapseStderr: '收起',
 	},
 	gateCard: {
+		pendingTitle: (count: string | number) => `当前有 ${count} 项待处理审批，点击查看`,
+		pendingLabel: (count: string | number) => `有 ${count} 项待处理审批`,
+		deliverOriginalTitle: (suffix: string | number) => `把审查原文原样投递到实施会话 ${suffix}`,
+		returnToNumberedStep: (step: string | number) => `回到产出结论的第 ${step} 步`,
+		returnToNamedStep: (step: string | number) => `回到步骤：${step}`,
+		stepLabel: (step: string | number) => `第 ${step} 步`,
+		returnToStepTitle: (step: string | number) => `跳转回产出该审批的步骤（${step}）`,
+		waitingWhat: (taskPrefix: string | number) => `${taskPrefix}等待人工审批放行`,
+		landingWhat: (taskPrefix: string | number) => `${taskPrefix}批准合并分支并将改动记录落地`,
+		reviewWhat: (taskPrefix: string | number) => `${taskPrefix}确认审查裁定结果并推进后续流程`,
+		dispatchWhat: (taskPrefix: string | number) => `${taskPrefix}批准派发任务并启动执行`,
+		taskPrefix: (taskKey: string | number) => `任务 ${taskKey}：`,
+		approveDispatch: '批准派发',
+		genericAgreement: '同意',
+		approveContinue: '批准并继续',
+		pipelineImpact: '本次操作将影响任务流水线推进状态',
+		dispatchImpact: '将在本泳道创建进程并启动 Agent 自主实施',
+		reviewImpact: '确认验收证据并推进至查 bug 或落地环节',
+		landingImpact: '改动将合入主干并在知识库沉淀记录（不可逆）',
+		waitingImpact: '放行当前受阻的任务流水线',
+		reject: '拒绝',
+		deliverOriginal: '投递原文到实施会话',
+		timeoutPolicy: '无人应答不会自动批准，任务保持等待',
+		irreversible: '不可逆操作',
+		defaultReason: '系统依据前序执行产物与机械检查判定触发本次人工审核。',
+		returnToStepFallback: '回到产出该结论的执行步骤',
+		unstructuredReview: '审查意见原文（未结构化）',
+		submitting: '提交中…',
+		deliveryUnsupported: '目标运行不具备消息注入能力（capabilities.canReply=false），无法投递原文',
+		copyOriginalTitle: '复制审查原文全文',
+		copiedOriginal: '✓ 已复制原文',
+		copyOriginal: '复制原文',
 		zeroOutputTitle: '零产出退出',
 		zeroOutputHint: 'agent 未产出任何内容就退出，常见原因：未登录、模型名不可用、参数被拒',
 		stderrTitle: 'stderr 诊断记录',

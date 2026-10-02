@@ -51,11 +51,11 @@ export function LoginHint({ login, agentName = 'Agent', className = '', ...rest 
 			hintContent = (
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<span className="font-ui text-micro text-needs">
-						未登录：在终端运行{' '}
+						{UI_STRINGS.login.commandPrefix}{' '}
 						<code className="px-1 py-0.5 rounded bg-bg border border-border font-mono text-[11px] text-ink-1 select-all">
 							{command}
 						</code>{' '}
-						后点刷新
+						{UI_STRINGS.login.commandSuffix}
 					</span>
 					<button
 						type="button"
