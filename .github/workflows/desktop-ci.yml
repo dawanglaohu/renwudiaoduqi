@@ -38,8 +38,6 @@ jobs:
     name: Real Native Provider E2E (Ubuntu)
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.real_provider == true }}
     runs-on: ubuntu-latest
-    env:
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/r17-browsers
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,6 +49,9 @@ jobs:
         with:
           version: 10.18.3
       - run: pnpm install --frozen-lockfile
+      - name: Prepare shared browser directory
+        shell: bash
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/r17-browsers" >> "$GITHUB_ENV"
       - run: pnpm exec playwright install --with-deps chromium
       - name: Prepare normal native-provider inputs
         env:
