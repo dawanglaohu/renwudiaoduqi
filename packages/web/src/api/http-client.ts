@@ -236,8 +236,8 @@ async function normalizeResponseError(
 	const headerRequestId = response.headers.get('x-request-id') || undefined;
 
 	let payload: RawErrorPayload | null = null;
+	const text = await response.text();
 	try {
-		const text = await response.text();
 		if (text) {
 			payload = JSON.parse(text) as RawErrorPayload;
 		}
@@ -420,6 +420,12 @@ export function createHttpClient(options?: CreateHttpClientOptions): HttpClient 
 					once: true,
 				});
 			}
+			const cleanupAttempt = (): void => {
+				clearTimeout(timer);
+				if (requestOptions.signal && callerAbortListener) {
+					requestOptions.signal.removeEventListener('abort', callerAbortListener);
+				}
+			};
 
 			try {
 				const response = await fetch(requestUrl, {
@@ -428,11 +434,6 @@ export function createHttpClient(options?: CreateHttpClientOptions): HttpClient 
 					body: requestBody,
 					signal: controller.signal,
 				});
-
-				clearTimeout(timer);
-				if (requestOptions.signal && callerAbortListener) {
-					requestOptions.signal.removeEventListener('abort', callerAbortListener);
-				}
 
 				if (response.ok) {
 					if (response.status === 204) {
@@ -472,16 +473,14 @@ export function createHttpClient(options?: CreateHttpClientOptions): HttpClient 
 				if (isGet && isRetryableStatus && attempt < maxRetries) {
 					const delay = RETRY_DELAYS_MS[attempt] ?? 900;
 					attempt += 1;
+					cleanupAttempt();
 					await sleep(delay);
 					continue;
 				}
 
 				throw apiError;
 			} catch (err: unknown) {
-				clearTimeout(timer);
-				if (requestOptions.signal && callerAbortListener) {
-					requestOptions.signal.removeEventListener('abort', callerAbortListener);
-				}
+				cleanupAttempt();
 
 				// 已经规格化的 ApiError（如 401、非重试状态码或重试耗尽的 HTTP 错误）直接抛出
 				if (isApiError(err)) {
@@ -521,6 +520,8 @@ export function createHttpClient(options?: CreateHttpClientOptions): HttpClient 
 				}
 
 				throw networkApiError;
+			} finally {
+				cleanupAttempt();
 			}
 		}
 	}
