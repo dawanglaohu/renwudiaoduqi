@@ -1240,6 +1240,21 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R17-T73118308": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "85cadc1f58a46a3f83c5de1f34ca87333a70bb70fd2c8fde30c5aa3f7a6a95be",
+    "evidence": [
+      "Round 2 R2 prerequisite continuation: repository CI secrets now exist and explicit workflow_dispatch run 37014182049 at f94345b68aa8649d3bac5f0d6a96b3477129e1ae succeeded. Real native provider 2/2, formal four-file browser E2E 40/40, pairing, pipeline, all three platform workspace/integration/shell jobs and requested-provider release gate succeeded. Actual provider preparation/test/upload/credential cleanup steps succeeded; no skipped provider was treated as a pass.",
+      "Reviewer independently verified GitHub artifact11230020157 digest against the actual 2440403-byte ZIP, SHA256 a98fa20cb56431daeeab56c95b6401de43b618081db74a3561006f96e9d92ddb. All20 extracted files match the archive, 15 browser frames are1440x900 and phone is390x844. No auth.json/config.toml is included and no JWT/credential-URI/named-token pattern was found in text artifacts. Detailed receipt is original planning/review-final-audit.json.",
+      "Archive evidence is clean at start with head=headAtEnd=f94345b; ordinary production bootstrap/registry/native transport, valid gpt-6.1-sol R17-CONTROL, genuine invalid-model error with zero content, UI setup and recovery, continuous SSE, current API/detail DOM/deck task failed and zero remaining target waiting cards are verified. Control/error/final native browser screenshots were independently viewed. Original R1/R3 evidence and failed history remain, no original assertion, timeout, lock, permission or authentication contract was reduced.",
+      "Fetched live main0724fb9 containing landed R17-T70594995. Merge-forward conflicts affect only Batch17 source appendices and generated/verification records. Preserved both source histories and both task reviews; restored main generated projections and regenerated through maintain_docs. Current contract hash, all eight acceptance criteria, eleven edges, stable key, effective paths and prerequisites remain unchanged. Product merge changes are the existing main UI text-source migration, with final combined-head checks and screenshots required before merge.",
+      "Code/notes protected task sections are reviewed and preserved; formal container registration and consumer paths remain. All existing adjudications retain their complete options, real Jev model/line and implemented actions; no new native/OS/UI design fork was introduced. No new API/type/layer or arbitrary scope expansion.",
+      "This pass registers the semantic task contract. The review will land only after final combined-head production provider/browser evidence and required checks pass, and current-head recording is verified and published. Historical Batch17 open remains for the separate full-batch closeout; task completion does not rewrite historical batch verdict or lower standards."
+    ],
+    "reviewed": "2026-10-02T14:17:53.373846+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T54786768": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "e80ef6cf04b42e52faeee079d5746f5a679ef03ba585ff67413f05da36bd0101",
