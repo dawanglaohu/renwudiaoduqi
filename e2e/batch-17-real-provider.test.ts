@@ -77,6 +77,15 @@ function response(method: string, path: string) {
 
 async function shot(label: string) {
 	if (!page) throw new Error('Browser not ready');
+	const style = await page.locator('body').evaluate((element) => ({
+		fontFamily: getComputedStyle(element).fontFamily,
+		backgroundColor: getComputedStyle(element).backgroundColor,
+		pageToken: getComputedStyle(document.documentElement).getPropertyValue('--page').trim(),
+	}));
+	expect(style.fontFamily).toContain('Public Sans');
+	expect(style.pageToken).not.toBe('');
+	expect(style.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+	observations[`style:${label}`] = style;
 	const directory = join(evidence, 'frames');
 	mkdirSync(directory, { recursive: true });
 	const path = join(directory, `${String(frames.length).padStart(2, '0')}-${label}.png`);
