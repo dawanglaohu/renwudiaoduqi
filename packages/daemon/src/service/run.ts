@@ -637,6 +637,46 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								? redactSecrets(process.stderrTail)
 								: stderrTailLines;
 
+						if (
+							run &&
+							(run.sessionArchivedAt ||
+								run.session_archived_at ||
+								((!run.kind || run.kind === 'implement') && isTerminalRunState(run.state)))
+						) {
+							if (
+								run.state === 'starting' ||
+								run.state === 'running' ||
+								run.state === 'awaiting_reply'
+							) {
+								await transitionState({
+									runId,
+									targetState: run.state === 'starting' ? 'failed' : 'exited',
+									reason:
+										run.state === 'starting'
+											? 'premature_exit'
+											: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+									exitCode: result.exitCode,
+									exitSignal: result.signal ? String(result.signal) : null,
+								});
+							}
+							await ingestEvent(
+								runId,
+								deps.envelopeFactory.createEnvelope({
+									kind: 'run.exited',
+									runId,
+									taskId: run.taskId,
+									actorDeviceId: run.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: eventStderrTail,
+									},
+								}),
+							);
+							await closeRunStream(runId);
+							return;
+						}
+
 						// 1. spawn 抛错、启动超时及 starting 状态抢先退出必须落定 starting → failed (R3)
 						if (isStarting) {
 							const failureReason =
@@ -1125,7 +1165,14 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			pendingEvents.push(stateChangedEnvelope);
 
 			// AC 1 & E-302: 归档只有一个触发点：kind='implement' 行迁到 landed/failed/aborted/interrupted
-			if (isImplement && isTerminal && deps.sessionArchiveService && taskId) {
+			if (
+				isImplement &&
+				isTerminal &&
+				!run.sessionArchivedAt &&
+				!run.session_archived_at &&
+				deps.sessionArchiveService &&
+				taskId
+			) {
 				archiveContext = deps.sessionArchiveService.archiveTaskInTx({
 					taskId,
 					runId,

@@ -35,6 +35,7 @@ import type { LogFileSystem } from '../logstore/contract.ts';
 import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
+import type { KillTreeProcessOps } from '../platform/kill-tree-contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
 import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
 import {
@@ -232,6 +233,7 @@ export function createContainer(input: {
 	readonly runMessagesRepo?: RunMessagesRepo;
 	readonly messageService?: MessageService;
 	readonly processRegistry?: ProcessRegistry;
+	readonly processOps?: KillTreeProcessOps;
 	readonly codexSessions?: CodexSessionRegistry | null;
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
@@ -353,19 +355,7 @@ export function createContainer(input: {
 			logViolation: input.logViolation,
 		});
 
-	const processOps = createDefaultProcessOps(input.hostInputs.platform);
-	const runAbortService =
-		input.runAbortService ??
-		createRunAbortService({
-			runsRepo: runsAbort,
-			processOps,
-			unitOfWork,
-			clock: input.clock,
-			bus,
-			envelopeFactory,
-			platform: input.hostInputs.platform,
-		});
-
+	const processOps = input.processOps ?? createDefaultProcessOps(input.hostInputs.platform);
 	const worktreeDeps = Object.freeze({
 		platform: input.hostInputs.platform,
 		hostInputs: input.hostInputs,
@@ -525,6 +515,21 @@ export function createContainer(input: {
 		processOps,
 		platform: input.hostInputs.platform,
 	});
+	const runAbortService =
+		input.runAbortService ??
+		createRunAbortService({
+			runsRepo: runsAbort,
+			processOps,
+			processRegistry,
+			worktreeInspector: worktreeManager,
+			sessionArchiveService,
+			gatesRepo: gates,
+			unitOfWork,
+			clock: input.clock,
+			bus,
+			envelopeFactory,
+			platform: input.hostInputs.platform,
+		});
 	const runLogService =
 		input.runLogService ??
 		createRunLogService({

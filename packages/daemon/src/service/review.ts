@@ -2749,12 +2749,16 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				}
 			}
 
+			const reviewRun = deps.runsRepo?.findById(input.runId);
+			const unsuccessful =
+				reviewRun?.state === 'failed' ||
+				reviewRun?.state === 'aborted' ||
+				reviewRun?.state === 'interrupted';
 			const parsedVerdict = evaluateReviewVerdict({
 				outputText,
-				exitCode: exitCode ?? 0,
+				exitCode: unsuccessful ? 1 : (exitCode ?? 1),
 			});
 
-			const reviewRun = deps.runsRepo?.findById(input.runId);
 			const taskId = reviewRun?.task_id ?? reviewRun?.taskId ?? null;
 
 			if (deps.bus && deps.envelopeFactory && taskId) {

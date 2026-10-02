@@ -18,7 +18,9 @@ import type {
 import { posixKillTree } from '../platform/kill-tree-posix.ts';
 import { windowsKillTree } from '../platform/windows.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
+import type { GatesRepo } from '../repo/gates.ts';
 import type { RunsAbortRepo } from '../repo/runs-abort-repo.ts';
+import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
 
 export type { RunAbortRunRecord, RunsAbortRepo } from '../repo/runs-abort-repo.ts';
 
@@ -74,6 +76,8 @@ export interface RunAbortServiceDeps {
 		options?: KillTreeOptions,
 	) => Promise<KillTreeResult>;
 	readonly worktreeInspector?: WorktreeInspector;
+	readonly sessionArchiveService?: SessionArchiveService;
+	readonly gatesRepo?: Pick<GatesRepo, 'supersedePendingByRunIds'>;
 }
 
 export interface RunAbortService {
@@ -103,7 +107,7 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 	return {
 		async abortRun(rawInput: AbortRunInput): Promise<AbortRunResult> {
 			const input = normalizeInput(rawInput);
-			const run = deps.runsRepo.findById(input.runId);
+			let run = deps.runsRepo.findById(input.runId);
 			if (!run) {
 				throw new AppError('E_NOT_FOUND', `Run not found: ${input.runId}`, {
 					details: { runId: input.runId },
@@ -132,20 +136,6 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 				assertValidTransition(run.state, 'aborted', { reason: input.reason });
 			}
 
-			// 3. Terminate process tree via platform killTree (AC 1, E-119, E-02)
-			let killTreeResult: KillTreeResult | undefined;
-			const managed = deps.processRegistry?.get(run.id);
-
-			if (managed && !managed.isExited) {
-				killTreeResult = await managed.kill({
-					graceMs: input.graceMs,
-				});
-			} else if (run.pid !== null && run.pid > 0) {
-				killTreeResult = await killTreeFn(run.pid, deps.processOps, {
-					graceMs: input.graceMs,
-				});
-			}
-
 			// 4. Inspect worktree changes (AC 2, E-118)
 			let hasUnreviewedChanges = false;
 			let detectedFileCount: number | null = run.changedFileCount;
@@ -166,6 +156,23 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 				hasUnreviewedChanges = true;
 			}
 
+			// Inspection can yield to process exit or another device's stop request.
+			const latest = deps.runsRepo.findById(run.id);
+			if (!latest) throw new AppError('E_NOT_FOUND', `Run not found: ${run.id}`);
+			if (isTerminalRunState(latest.state)) {
+				return Object.freeze({
+					accepted: true,
+					runId: latest.id,
+					previousState: latest.state,
+					currentState: latest.state,
+					hasUnreviewedChanges,
+					changedFileCount: detectedFileCount,
+					alreadyTerminal: true,
+				});
+			}
+			run = latest;
+			assertValidTransition(run.state, 'aborted', { reason: input.reason });
+
 			// AC 2: Record "已中止（有未验收改动）" if worktree has changes
 			const finalReason = hasUnreviewedChanges
 				? REASON_ABORTED_WITH_UNREVIEWED_CHANGES
@@ -179,6 +186,7 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 
 			// 5. Update state inside UnitOfWork if present, collecting events to emit outside transaction
 			let shouldPublishEvents = false;
+			let archiveContext: ArchiveTaskContext | undefined;
 
 			const executeDbUpdate = () => {
 				deps.runsRepo.updateState({
@@ -190,6 +198,15 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 					changedFileCount: detectedFileCount,
 					queuedReason: finalReason,
 				});
+				if ((!run.kind || run.kind === 'implement') && deps.sessionArchiveService) {
+					archiveContext = deps.sessionArchiveService.archiveTaskInTx({
+						taskId: run.taskId,
+						runId: run.id,
+						actorDeviceId,
+						now,
+					});
+				}
+				deps.gatesRepo?.supersedePendingByRunIds?.(archiveContext?.archivedRunIds ?? [run.id], now);
 				shouldPublishEvents = true;
 			};
 
@@ -228,6 +245,37 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 						},
 					}),
 				);
+				if (archiveContext?.laneReleased) {
+					deps.bus.publish(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'lane.released',
+							runId: run.id,
+							taskId: run.taskId,
+							actorDeviceId,
+							payload: {
+								docId: archiveContext.docId,
+								laneNo: archiveContext.laneNo,
+								taskId: run.taskId,
+								runId: run.id,
+								reason: 'aborted',
+							},
+						}),
+					);
+				}
+			}
+
+			// Persist the stop before signalling: exit callbacks must observe the terminal state.
+			let killTreeResult: KillTreeResult | undefined;
+			const managed = deps.processRegistry?.get(run.id);
+			if (!archiveContext || !managed) {
+				if (managed && !managed.isExited) {
+					killTreeResult = await managed.kill({ graceMs: input.graceMs });
+				} else if (run.pid !== null && run.pid > 0) {
+					killTreeResult = await killTreeFn(run.pid, deps.processOps, { graceMs: input.graceMs });
+				}
+			}
+			if (archiveContext && deps.sessionArchiveService) {
+				await deps.sessionArchiveService.terminateArchived(archiveContext);
 			}
 
 			return Object.freeze({

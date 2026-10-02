@@ -432,7 +432,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		const occupying = runsRepo
 			.listActive()
 			.filter(
-				(run) => run.agent_id === agentId && countsTowardAgentConcurrency(run.state as RunState),
+				(run) =>
+					run.agent_id === agentId &&
+					countsTowardAgentConcurrency(run.state as RunState, run.session_archived_at),
 			).length;
 		return occupying + 1;
 	}
@@ -487,7 +489,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		let count = 0;
 		for (const run of runs) {
 			if (run.agent_id !== agentId) continue;
-			if (!countsTowardAgentConcurrency(run.state as RunState)) continue;
+			if (!countsTowardAgentConcurrency(run.state as RunState, run.session_archived_at)) continue;
 			if (
 				run.kind === 'implement' &&
 				run.state === 'reworking' &&
@@ -1481,7 +1483,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								(r) =>
 									r.agent_id === wRun.agent_id &&
 									r.id !== wRun.id &&
-									countsTowardAgentConcurrency(r.state as RunState),
+									countsTowardAgentConcurrency(r.state as RunState, r.session_archived_at),
 							)
 							.map((r) => r.state),
 					);

@@ -337,7 +337,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				(r) =>
 					r.id !== implRun.id &&
 					r.agent_id === agentId &&
-					countsTowardAgentConcurrency(r.state as RunState),
+					countsTowardAgentConcurrency(r.state as RunState, r.session_archived_at),
 			);
 			if (activeAgentRuns.length >= agentLimit) {
 				isLimitReached = true;
