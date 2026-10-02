@@ -18,6 +18,11 @@ on:
         required: false
         type: boolean
         default: false
+      real_provider:
+        description: 'Run credentialed native-provider browser acceptance (R17-T73118308)'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -29,6 +34,73 @@ permissions:
   actions: read
 
 jobs:
+  real-provider:
+    name: Real Native Provider E2E (Ubuntu)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.real_provider == true }}
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/r17-browsers
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Prepare normal native-provider inputs
+        env:
+          CODEX_CONFIG_B64: ${{ secrets.R17_CODEX_CONFIG_B64 }}
+          CODEX_AUTH_B64: ${{ secrets.R17_CODEX_AUTH_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CODEX_CONFIG_B64" || { echo '::error::Missing R17_CODEX_CONFIG_B64'; exit 1; }
+          test -n "$CODEX_AUTH_B64" || { echo '::error::Missing R17_CODEX_AUTH_B64'; exit 1; }
+          umask 077
+          mkdir -p "$RUNNER_TEMP/r17-host/.codex"
+          printf '%s' "$CODEX_CONFIG_B64" | base64 --decode > "$RUNNER_TEMP/r17-host/.codex/config.toml"
+          printf '%s' "$CODEX_AUTH_B64" | base64 --decode > "$RUNNER_TEMP/r17-host/.codex/auth.json"
+          npm install --prefix "$RUNNER_TEMP/r17-cli" @openai/codex@0.157.1
+          echo "CODEX_HOME=$RUNNER_TEMP/r17-host/.codex" >> "$GITHUB_ENV"
+          echo "R17_HOST_HOME=$RUNNER_TEMP/r17-host" >> "$GITHUB_ENV"
+          echo "R17_CODEX_EXEC_PATH=$RUNNER_TEMP/r17-cli/node_modules/.bin/codex" >> "$GITHUB_ENV"
+      - run: pnpm --filter @agent-scheduler/web build
+      - name: Run production native-provider browser scenario
+        shell: bash
+        env:
+          R17_REAL_PROVIDER: '1'
+          R17_REAL_MODEL: ${{ vars.R17_REAL_MODEL || 'gpt-6.1-sol' }}
+        run: |
+          pnpm_bin="$(command -v pnpm)"
+          sudo -E env "PATH=$PATH" "HOME=$R17_HOST_HOME" "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts
+      - name: Allow artifact reader into finished evidence directories
+        if: always()
+        run: |
+          evidence_root=../.codex-plans/agent-scheduler-r17-t73118308
+          if [ -d "$evidence_root" ]; then
+            sudo find "$evidence_root" -maxdepth 1 -type d -name 'provider-*' -exec chmod a+rx {} +
+          fi
+      - name: Upload sanitized provider evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r17-real-provider-evidence
+          path: |
+            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/evidence.json
+            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/daemon.log
+            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/*.png
+            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/frames/*.png
+            ../.codex-plans/agent-scheduler-r17-t73118308/provider-*/cold-start.json
+          if-no-files-found: ignore
+      - name: Remove provider credentials
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/r17-host/.codex/config.toml" "$RUNNER_TEMP/r17-host/.codex/auth.json"
+
   # ============================================================================
   # Matrix: Windows, macOS, Ubuntu (AC 1, E-265)
   # Every runner must pass the workspace check, the platform integration tests, the
@@ -462,7 +534,7 @@ jobs:
   # ============================================================================
   release-verification:
     name: Release Gate Evaluation
-    needs: [desktop-matrix, macos-signing-gate, pairing-smoke, e2e-smoke, e2e-pipeline-settings]
+    needs: [desktop-matrix, macos-signing-gate, pairing-smoke, e2e-smoke, e2e-pipeline-settings, real-provider]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -490,6 +562,12 @@ jobs:
         if: ${{ needs.e2e-pipeline-settings.result != 'success' }}
         run: |
           echo "::error::Pipeline settings E2E on Ubuntu failed (result: ${{ needs.e2e-pipeline-settings.result }})."
+          exit 1
+
+      - name: Enforce requested Real Provider E2E Gate (R17-T73118308)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.real_provider == true && needs.real-provider.result != 'success' }}
+        run: |
+          echo "::error::Requested real native provider E2E failed (result: ${{ needs.real-provider.result }})."
           exit 1
 
       - name: Collect platform job conclusions
