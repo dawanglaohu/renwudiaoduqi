@@ -878,13 +878,21 @@ describe('R17-T73118308 real native provider', () => {
 			)
 			.toBe('failed');
 		await expect.poll(() => gateCard.count(), { timeout: 10_000 }).toBe(0);
+		await shot('failed-card-removed');
 		await page.goto(`${origin}/#/run/${reassignedId}`, { waitUntil: 'domcontentloaded' });
 		await expect
 			.poll(() =>
 				page?.locator('[data-component="run-detail-container"]').getAttribute('data-run-state'),
 			)
 			.toBe('failed');
+		await shot('failed-run-detail');
 		await page.getByRole('button', { name: '返回甲板', exact: true }).click();
+		await expect.poll(() => gateCard.count()).toBe(0);
+		await page.locator(`[data-doc-id="${docId}"]`).click();
+		await page.locator('[data-action="next-step-1"]').click();
+		await page.locator(`[data-step-content="1"] [data-batch-id="${batchId}"]`).click();
+		await page.locator('[data-action="next-step-2"]').click();
+		await page.getByTestId('editing-row-R17-P2').waitFor();
 		await expect.poll(() => gateCard.count()).toBe(0);
 		expect(errors).toEqual([]);
 		const modelRequests = requests.filter(
