@@ -46,13 +46,13 @@ export interface AgentCardProps {
 }
 
 export const UNAVAILABLE_CODE_TITLES: Readonly<Record<string, string>> = Object.freeze({
-	E_AGENT_EXEC_NOT_FOUND: '未找到可执行文件',
-	E_AGENT_EXEC_NOT_EXECUTABLE: '可执行文件不可执行',
-	E_AGENT_EXEC_INVALID_TARGET: '可执行路径格式不匹配当前平台',
-	E_AGENT_VERSION_UNRECOGNIZED: '版本未识别',
-	E_AGENT_UNAVAILABLE: '当前不可用',
-	E_VALIDATION: '参数校验未通过',
-	E_TIMEOUT: '探测超时',
+	E_AGENT_EXEC_NOT_FOUND: UI_STRINGS.agentCard.unavailableTitles.E_AGENT_EXEC_NOT_FOUND,
+	E_AGENT_EXEC_NOT_EXECUTABLE: UI_STRINGS.agentCard.unavailableTitles.E_AGENT_EXEC_NOT_EXECUTABLE,
+	E_AGENT_EXEC_INVALID_TARGET: UI_STRINGS.agentCard.unavailableTitles.E_AGENT_EXEC_INVALID_TARGET,
+	E_AGENT_VERSION_UNRECOGNIZED: UI_STRINGS.agentCard.unavailableTitles.E_AGENT_VERSION_UNRECOGNIZED,
+	E_AGENT_UNAVAILABLE: UI_STRINGS.agentCard.unavailableTitles.E_AGENT_UNAVAILABLE,
+	E_VALIDATION: UI_STRINGS.agentCard.unavailableTitles.E_VALIDATION,
+	E_TIMEOUT: UI_STRINGS.agentCard.unavailableTitles.E_TIMEOUT,
 });
 
 function formatEffortValue(val: EffortValue | undefined | null): string {
@@ -127,7 +127,8 @@ export function AgentCard({
 
 	// R8: 按 unavailableCode 映射中文标题，不写死「路径无效」
 	const isUnavailable = !agent.isAvailable;
-	const unavailableTitle = UNAVAILABLE_CODE_TITLES[agent.unavailableCode ?? ''] ?? '未就绪';
+	const unavailableTitle =
+		UNAVAILABLE_CODE_TITLES[agent.unavailableCode ?? ''] ?? UI_STRINGS.agentCard.notReady;
 
 	// E-88: 点击跳转到配置项
 	const handleJumpToConfig = () => {
@@ -213,7 +214,11 @@ export function AgentCard({
 							}`}
 						>
 							<span aria-hidden="true">{agent.isAvailable ? '✓' : '✕'}</span>
-							<span>{agent.isAvailable ? '可用' : '不可用'}</span>
+							<span>
+								{agent.isAvailable
+									? UI_STRINGS.agentCard.available
+									: UI_STRINGS.agentCard.unavailable}
+							</span>
 						</span>
 
 						{/* AC 7: 刷新清单按钮 */}
@@ -224,7 +229,9 @@ export function AgentCard({
 							data-testid={`refresh-models-btn-${agent.id}`}
 							className="inline-flex h-btn items-center gap-1.5 rounded-sm border border-border bg-panel-2 px-3 font-ui text-dense font-medium text-ink-2 hover:bg-bg hover:text-ink-1 disabled:opacity-40"
 						>
-							{isModelsRefreshing ? '刷新中...' : UI_STRINGS.agentCard.refreshModels}
+							{isModelsRefreshing
+								? UI_STRINGS.agentCard.refreshing
+								: UI_STRINGS.agentCard.refreshModels}
 						</button>
 
 						{/* AC 7: 重新探测按钮 */}
@@ -235,7 +242,7 @@ export function AgentCard({
 							data-testid={`probe-agent-btn-${agent.id}`}
 							className="inline-flex h-btn items-center gap-1.5 rounded-sm border border-border bg-panel-2 px-3 font-ui text-dense font-medium text-ink-2 hover:bg-bg hover:text-ink-1 disabled:opacity-40"
 						>
-							{isProbing ? '探测中...' : UI_STRINGS.agentCard.reprobe}
+							{isProbing ? UI_STRINGS.agentCard.probing : UI_STRINGS.agentCard.reprobe}
 						</button>
 					</div>
 				</div>
@@ -252,14 +259,17 @@ export function AgentCard({
 				>
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2 text-dense font-semibold text-down">
-							<span>不可用（{unavailableTitle}）</span>
+							<span>
+								{UI_STRINGS.agentCard.unavailablePrefix}
+								{unavailableTitle}）
+							</span>
 						</div>
 						<button
 							type="button"
 							onClick={handleJumpToConfig}
 							className="text-micro text-down underline hover:opacity-80"
 						>
-							修改配置 →
+							{UI_STRINGS.agentCard.editConfig}
 						</button>
 					</div>
 
@@ -268,7 +278,7 @@ export function AgentCard({
 						(agent.missingRequirements && agent.missingRequirements.length > 0)) && (
 						<details className="mt-1 text-meta">
 							<summary className="cursor-pointer text-micro text-ink-3 hover:text-ink-2">
-								技术详情
+								{UI_STRINGS.technicalDetails}
 							</summary>
 							<div className="mt-1 font-mono text-micro text-ink-2 break-all">
 								{agent.missingRequirements?.join(', ') || agent.unavailableReason}
@@ -288,9 +298,9 @@ export function AgentCard({
 						<span className="font-bold" aria-hidden="true">
 							!
 						</span>
-						<span className="font-ui font-medium">会话记录可能互相覆盖</span>
+						<span className="font-ui font-medium">{UI_STRINGS.agentCard.sessionOverlap}</span>
 					</div>
-					<span className="text-micro text-ink-2">请检查两处的会话存储路径配置</span>
+					<span className="text-micro text-ink-2">{UI_STRINGS.agentCard.checkSessionPaths}</span>
 				</div>
 			)}
 
@@ -310,8 +320,8 @@ export function AgentCard({
 										void onUpdateField(agent.id, 'monogram', editingMonogram);
 									}
 								}}
-								placeholder="2字符短码"
-								aria-label="两字符短码"
+								placeholder={UI_STRINGS.agentCard.monogramPlaceholder}
+								aria-label={UI_STRINGS.agentCard.monogramLabel}
 								aria-invalid={Boolean(validationError?.monogram)}
 								aria-describedby={
 									validationError?.monogram ? `monogram-error-${agent.id}` : undefined
@@ -328,7 +338,7 @@ export function AgentCard({
 									disabled={isUpdating || editingMonogram.length !== 2}
 									className="rounded-sm bg-needs px-2 py-1 font-ui text-micro font-medium text-on-needs hover:opacity-90 disabled:opacity-40"
 								>
-									保存短码
+									{UI_STRINGS.agentCard.saveMonogram}
 								</button>
 							)}
 						</div>
@@ -342,7 +352,9 @@ export function AgentCard({
 								<span>{validationError.monogram.message}</span>
 								{validationError.monogram.technical && (
 									<details className="mt-0.5 text-micro text-ink-3">
-										<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
+										<summary className="cursor-pointer hover:text-ink-2">
+											{UI_STRINGS.technicalDetails}
+										</summary>
 										<div className="font-mono text-micro text-ink-3 break-all">
 											{validationError.monogram.technical}
 										</div>
@@ -368,8 +380,8 @@ export function AgentCard({
 										void onUpdateField(agent.id, 'execPath', editingExecPath);
 									}
 								}}
-								placeholder="输入可执行文件绝对路径或命令名..."
-								aria-label="可执行路径"
+								placeholder={UI_STRINGS.agentCard.execPathPlaceholder}
+								aria-label={UI_STRINGS.agentCard.execPathLabel}
 								data-testid={`input-execPath-${agent.id}`}
 								className="h-input flex-1 rounded-sm border border-border bg-bg px-2.5 font-mono text-dense text-ink-1 focus:border-needs focus:outline-none"
 							/>
@@ -380,7 +392,7 @@ export function AgentCard({
 									disabled={isUpdating}
 									className="rounded-sm bg-needs px-2.5 py-1 font-ui text-micro font-medium text-on-needs hover:opacity-90 disabled:opacity-40"
 								>
-									更新路径
+									{UI_STRINGS.agentCard.updatePath}
 								</button>
 							)}
 						</div>
@@ -392,7 +404,9 @@ export function AgentCard({
 								<span>{validationError.execPath.message}</span>
 								{validationError.execPath.technical && (
 									<details className="mt-0.5 text-micro text-ink-3">
-										<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
+										<summary className="cursor-pointer hover:text-ink-2">
+											{UI_STRINGS.technicalDetails}
+										</summary>
 										<div className="font-mono text-micro text-ink-3 break-all">
 											{validationError.execPath.technical}
 										</div>
@@ -407,14 +421,16 @@ export function AgentCard({
 				<div className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body">
 					<div className="flex flex-wrap items-center justify-between gap-2">
 						<div className="flex items-center gap-2">
-							<span className="font-ui font-semibold text-ink-1 text-dense">默认模型</span>
+							<span className="font-ui font-semibold text-ink-1 text-dense">
+								{UI_STRINGS.agentCard.defaultModelLabel}
+							</span>
 						</div>
 					</div>
 
 					{/* 三行表（内置默认 / 你的覆盖 / 当前生效），<400px 竖排 */}
 					<div className="grid grid-cols-1 gap-1 text-meta sm:grid-cols-3 max-[400px]:grid-cols-1">
 						<div className="flex flex-col rounded bg-bg px-2 py-1">
-							<span className="text-micro text-ink-3">内置默认</span>
+							<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
 							<span
 								className="font-mono text-dense text-ink-2 truncate"
 								title={modelBuiltin}
@@ -425,7 +441,7 @@ export function AgentCard({
 						</div>
 						<div className="flex flex-col rounded bg-bg px-2 py-1">
 							<div className="flex items-center gap-1.5">
-								<span className="text-micro text-ink-3">你的覆盖</span>
+								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
 								{isModelOverrideUnlisted && (
 									<span
 										data-testid={`unlisted-model-chip-${agent.id}`}
@@ -446,7 +462,7 @@ export function AgentCard({
 							</span>
 						</div>
 						<div className="flex flex-col rounded bg-bg px-2 py-1">
-							<span className="text-micro text-ink-3">当前生效</span>
+							<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
 							<span
 								className="font-mono text-dense text-ink-1 font-medium truncate"
 								title={modelEffective}
@@ -497,7 +513,9 @@ export function AgentCard({
 						className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body"
 					>
 						<div className="flex items-center gap-2">
-							<span className="font-ui font-semibold text-ink-1 text-dense">思考强度</span>
+							<span className="font-ui font-semibold text-ink-1 text-dense">
+								{UI_STRINGS.assignment.effortLabel}
+							</span>
 						</div>
 						<div className="font-ui text-dense text-ink-3">
 							{UI_STRINGS.agentCard.effortUnsupported}
@@ -511,14 +529,16 @@ export function AgentCard({
 					>
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<div className="flex items-center gap-2">
-								<span className="font-ui font-semibold text-ink-1 text-dense">思考强度</span>
+								<span className="font-ui font-semibold text-ink-1 text-dense">
+									{UI_STRINGS.assignment.effortLabel}
+								</span>
 							</div>
 						</div>
 
 						{/* 三行表（内置默认 / 你的覆盖 / 当前生效），<400px 竖排 */}
 						<div className="grid grid-cols-1 gap-1 text-meta sm:grid-cols-3 max-[400px]:grid-cols-1">
 							<div className="flex flex-col rounded bg-bg px-2 py-1">
-								<span className="text-micro text-ink-3">内置默认</span>
+								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
 								<span
 									className="font-mono text-dense text-ink-2 truncate"
 									title={effortBuiltin}
@@ -528,7 +548,7 @@ export function AgentCard({
 								</span>
 							</div>
 							<div className="flex flex-col rounded bg-bg px-2 py-1">
-								<span className="text-micro text-ink-3">你的覆盖</span>
+								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
 								<span
 									className={`font-mono text-dense truncate ${
 										hasEffortOverride ? 'text-needs font-medium' : 'text-ink-3'
@@ -540,7 +560,7 @@ export function AgentCard({
 								</span>
 							</div>
 							<div className="flex flex-col rounded bg-bg px-2 py-1">
-								<span className="text-micro text-ink-3">当前生效</span>
+								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
 								<span
 									className="font-mono text-dense text-ink-1 font-medium truncate"
 									title={effortEffective}
@@ -587,7 +607,9 @@ export function AgentCard({
 									<span>{validationError.defaultEffortTier.message}</span>
 									{validationError.defaultEffortTier.technical && (
 										<details className="mt-0.5 text-micro text-ink-3">
-											<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
+											<summary className="cursor-pointer hover:text-ink-2">
+												{UI_STRINGS.technicalDetails}
+											</summary>
 											<div className="font-mono text-micro text-ink-3 break-all">
 												{validationError.defaultEffortTier.technical}
 											</div>
@@ -614,7 +636,7 @@ export function AgentCard({
 										void onUpdateField(agent.id, 'maxConcurrency', editingConcurrency);
 									}
 								}}
-								aria-label="最大并发数"
+								aria-label={UI_STRINGS.agentCard.concurrencyLabel}
 								data-testid={`input-maxConcurrency-${agent.id}`}
 								className="h-input w-24 rounded-sm border border-border bg-bg px-2.5 font-mono text-dense text-ink-1 focus:border-needs focus:outline-none"
 							/>
@@ -625,7 +647,7 @@ export function AgentCard({
 									disabled={isUpdating}
 									className="rounded-sm bg-needs px-2 py-1 font-ui text-micro font-medium text-on-needs hover:opacity-90 disabled:opacity-40"
 								>
-									保存并发
+									{UI_STRINGS.agentCard.saveConcurrency}
 								</button>
 							)}
 						</div>
@@ -644,13 +666,17 @@ export function AgentCard({
 							setEditingPermission(val);
 							void onUpdateField(agent.id, 'permissionTier', val);
 						}}
-						aria-label="权限档"
+						aria-label={UI_STRINGS.agentCard.permissionLabel}
 						data-testid={`select-permissionTier-${agent.id}`}
 						className="h-input rounded-sm border border-border bg-bg px-2.5 font-ui text-dense text-ink-1 focus:border-needs focus:outline-none"
 					>
-						<option value="readOnly">readOnly（只读模式）</option>
-						<option value="workspaceWrite">workspaceWrite（工作区写权限）</option>
-						<option value="unrestricted">unrestricted（无限制）</option>
+						<option value="readOnly">{UI_STRINGS.agentCard.permissionOptions.readOnly}</option>
+						<option value="workspaceWrite">
+							{UI_STRINGS.agentCard.permissionOptions.workspaceWrite}
+						</option>
+						<option value="unrestricted">
+							{UI_STRINGS.agentCard.permissionOptions.unrestricted}
+						</option>
 					</select>
 					{validationError?.permissionTier && (
 						<div
@@ -660,7 +686,9 @@ export function AgentCard({
 							<span>{validationError.permissionTier.message}</span>
 							{validationError.permissionTier.technical && (
 								<details className="mt-0.5 text-micro text-ink-3">
-									<summary className="cursor-pointer hover:text-ink-2">技术详情</summary>
+									<summary className="cursor-pointer hover:text-ink-2">
+										{UI_STRINGS.technicalDetails}
+									</summary>
 									<div className="font-mono text-micro text-ink-3 break-all">
 										{validationError.permissionTier.technical}
 									</div>

@@ -150,7 +150,7 @@ export function PipelineAssignment({
 								htmlFor="review-override-agent-select"
 								className="text-micro font-mono text-[var(--ink-3)]"
 							>
-								执行 Agent
+								{UI_STRINGS.assignment.agentLabel}
 							</label>
 							<select
 								id="review-override-agent-select"
@@ -301,7 +301,7 @@ export function PipelineAssignment({
 								htmlFor="wrapup-assignment-agent-select"
 								className="text-micro font-mono text-[var(--ink-3)]"
 							>
-								执行 Agent
+								{UI_STRINGS.assignment.agentLabel}
 							</label>
 							<select
 								id="wrapup-assignment-agent-select"
