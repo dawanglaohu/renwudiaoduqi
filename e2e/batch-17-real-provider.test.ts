@@ -1,7 +1,7 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type {
@@ -292,7 +292,9 @@ describe('R17-T73118308 real native provider', () => {
 		}
 	}, 150_000);
 	it('production bootstrap → UI pairing/import/assignment → valid content → invalid model → recovery', async () => {
-		const data = join(evidence, 'data');
+		const data = process.env.R17_DATA_ROOT
+			? join(process.env.R17_DATA_ROOT, basename(evidence))
+			: join(evidence, 'data');
 		const project = join(evidence, 'project');
 		mkdirSync(data);
 		mkdirSync(project);
@@ -387,6 +389,7 @@ describe('R17-T73118308 real native provider', () => {
 			.toBe(true);
 		code = readFileSync(join(data, 'pairing-code.txt'), 'utf8').trim();
 		expect(statSync(join(data, 'pairing-code.txt')).mode & 0o777).toBe(0o600);
+		observations.pairingFile = { directory: data, mode: '0600' };
 		browser = await chromium.launch({ headless: true });
 		const context = await browser.newContext({
 			viewport: { width: 1440, height: 900 },
@@ -729,8 +732,19 @@ describe('R17-T73118308 real native provider', () => {
 		expect(await selector.inputValue()).toBe('codex');
 		await shot('reassign-focus');
 		await page.setViewportSize({ width: 390, height: 844 });
+		await page.locator('[data-pane-tab="tasks"]').click();
+		await gateCard.getByRole('button', { name: '重跑', exact: true }).waitFor();
+		await gateCard.getByRole('button', { name: '重跑', exact: true }).scrollIntoViewIfNeeded();
+		expect(await gateCard.isVisible()).toBe(true);
+		expect(await gateCard.getAttribute('data-tier')).toMatch(/^phone/);
+		expect(await gateCard.getByRole('button', { name: '标失败', exact: true }).count()).toBe(1);
 		await expect
-			.poll(() => gateCard.getByRole('button', { name: '换 agent 重派', exact: true }).count())
+			.poll(() =>
+				gateCard
+					.locator('button')
+					.filter({ hasText: /^\s*换 agent 重派\s*$/ })
+					.count(),
+			)
 			.toBe(0);
 		await expect
 			.poll(() => page?.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -789,6 +803,14 @@ describe('R17-T73118308 real native provider', () => {
 			)
 			.toBe('failed');
 		expect(errors).toEqual([]);
+		const modelRequests = requests.filter(
+			(request) => request.method === 'GET' && request.path.endsWith('/models'),
+		);
+		expect(modelRequests.filter((request) => request.query === '?refresh=1')).toHaveLength(2);
+		expect(modelRequests.filter((request) => request.query === '').length).toBeGreaterThan(0);
+		expect(
+			modelRequests.every((request) => request.query === '' || request.query === '?refresh=1'),
+		).toBe(true);
 		await shot('confirmed-failure');
 	}, 900_000);
 });
