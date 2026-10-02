@@ -37,6 +37,8 @@ import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
 import type { KillTreeProcessOps } from '../platform/kill-tree-contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
+import { createWindowsPrivateFileWriter } from '../platform/private-file-windows.ts';
+import { runPrivateFileCommand } from '../proc/private-file-command.ts';
 import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
 import {
 	type LaunchSpec,
@@ -373,6 +375,7 @@ export function createContainer(input: {
 			ids,
 			dataDir: input.config.dataDir,
 			platform: input.hostInputs.platform,
+			writePrivateFile: createWindowsPrivateFileWriter(runPrivateFileCommand),
 		});
 
 	if (input.bootstrapPairing !== false) pairingService.bootstrapIfNeeded();

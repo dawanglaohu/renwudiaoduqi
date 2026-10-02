@@ -5,12 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
-import { createDevicesRepo } from '../../src/repo/devices.ts';
 import {
-	type PairingFileSystem,
-	buildWindowsDaclCommand,
-	createPairingService,
-} from '../../src/service/pairing.ts';
+	type PrivateFileCommand,
+	createWindowsPrivateFileWriter,
+} from '../../src/platform/private-file-windows.ts';
+import { createDevicesRepo } from '../../src/repo/devices.ts';
+import { type PairingFileSystem, createPairingService } from '../../src/service/pairing.ts';
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 
@@ -331,9 +331,9 @@ describe('M2-T2 devices repo & pairing service', () => {
 			expect(service.bootstrapIfNeeded().bootstrapped).toBe(false);
 		});
 
-		it('AC 5 Windows DACL: asserts icacls command is invoked with current user rights', () => {
+		it('AC 5 Windows DACL: delegates private creation and sends the secret only on stdin', () => {
 			const repo = createDevicesRepo(db);
-			const commandsRun: { file: string; args: readonly string[] }[] = [];
+			const commandsRun: PrivateFileCommand[] = [];
 			const mockFsFiles = new Map<string, { content: string; mode: number }>();
 
 			const mockFs: PairingFileSystem = {
@@ -354,27 +354,62 @@ describe('M2-T2 devices repo & pairing service', () => {
 				ids: mockIds,
 				dataDir: 'C:\\ProgramData\\agent-scheduler',
 				platform: 'win32',
-				currentUser: 'Alice',
 				fs: mockFs,
-				runCommand: (cmd) => {
+				printConsole: () => {},
+				writePrivateFile: createWindowsPrivateFileWriter((cmd) => {
 					commandsRun.push(cmd);
-					return { ok: true, stdout: 'Processed', stderr: '' };
-				},
+					return true;
+				}),
 			});
-
-			const cmd = buildWindowsDaclCommand(
-				'C:\\ProgramData\\agent-scheduler\\pairing-code.txt',
-				'Alice',
-			);
-			expect(cmd.file).toBe('icacls.exe');
-			expect(cmd.args).toContain('Alice:F');
-			expect(cmd.args).toContain('/inheritance:r');
 
 			const res = service.bootstrapIfNeeded();
 			expect(res.bootstrapped).toBe(true);
 			expect(commandsRun).toHaveLength(1);
-			expect(commandsRun[0]?.args).toContain('Alice:F');
+			const command = commandsRun[0];
+			expect(command?.file).toBe('powershell.exe');
+			expect(command?.args.slice(0, -1)).toEqual([
+				'-NoLogo',
+				'-NoProfile',
+				'-NonInteractive',
+				'-EncodedCommand',
+			]);
+			expect(JSON.parse(command?.input ?? '{}')).toEqual({
+				path: 'C:\\ProgramData\\agent-scheduler\\pairing-code.txt',
+				contents: res.code,
+			});
+			expect(command?.args.join(' ')).not.toContain(res.code);
+			expect(mockFsFiles.size).toBe(0);
 		});
+
+		it.each([false, true])(
+			'fails Windows bootstrap closed without touching an existing target (writer configured: %s)',
+			(configured) => {
+				const writeFileSync = vi.fn();
+				const rmSync = vi.fn();
+				const printConsole = vi.fn();
+				const service = createPairingService({
+					devicesRepo: createDevicesRepo(db),
+					clock: mockClock,
+					ids: mockIds,
+					dataDir: 'C:\\data',
+					platform: 'win32',
+					printConsole,
+					fs: {
+						writeFileSync,
+						rmSync,
+						existsSync: () => true,
+						chmodSync: () => {},
+						statSync: () => ({ mode: 0o666 }),
+					},
+					writePrivateFile: configured ? createWindowsPrivateFileWriter(() => false) : undefined,
+				});
+				expect(() => service.bootstrapIfNeeded()).toThrow(AppError);
+				expect(service.getActivePairingCode()).toBeNull();
+				expect(writeFileSync).not.toHaveBeenCalled();
+				expect(rmSync).not.toHaveBeenCalled();
+				expect(printConsole).not.toHaveBeenCalled();
+			},
+		);
 
 		it('AC 4: invalidatePairingCode invalidates current code and removes bootstrap file', () => {
 			const repo = createDevicesRepo(db);
