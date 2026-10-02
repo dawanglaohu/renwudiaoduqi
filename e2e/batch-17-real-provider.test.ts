@@ -295,6 +295,7 @@ afterAll(async () => {
 
 describe('R17-T73118308 real native provider', () => {
 	it('honors the configured budget while a real native process is descheduled for 16s', async () => {
+		expect(cleanAtStart).toBe(true);
 		expect(process.platform).toBe('linux');
 		const native = spawnManaged(
 			buildCodexLaunchSpec({
@@ -352,6 +353,7 @@ describe('R17-T73118308 real native provider', () => {
 		}
 	}, 150_000);
 	it('production bootstrap → UI pairing/import/assignment → valid content → invalid model → recovery', async () => {
+		expect(cleanAtStart).toBe(true);
 		const data = process.env.R17_DATA_ROOT
 			? join(process.env.R17_DATA_ROOT, basename(evidence))
 			: join(evidence, 'data');
@@ -886,14 +888,27 @@ describe('R17-T73118308 real native provider', () => {
 			)
 			.toBe('failed');
 		await shot('failed-run-detail');
+		observations.failedDetailState = await page
+			.locator('[data-component="run-detail-container"]')
+			.getAttribute('data-run-state');
 		await page.getByRole('button', { name: '返回甲板', exact: true }).click();
 		await expect.poll(() => gateCard.count()).toBe(0);
 		await page.locator(`[data-doc-id="${docId}"]`).click();
 		await page.locator('[data-action="next-step-1"]').click();
 		await page.locator(`[data-step-content="1"] [data-batch-id="${batchId}"]`).click();
 		await page.locator('[data-action="next-step-2"]').click();
-		await page.getByTestId('editing-row-R17-P2').waitFor();
+		const failedTaskState = page.locator(
+			`[data-task-id="${failed.taskId}"] [role="status"][data-state="failed"]`,
+		);
+		await failedTaskState.waitFor();
 		await expect.poll(() => gateCard.count()).toBe(0);
+		observations.finalConvergence = {
+			runId: reassignedId,
+			apiState: (await get<{ runs: RunDto[] }>('/runs')).runs.find((run) => run.id === reassignedId)
+				?.state,
+			deckTaskState: await failedTaskState.getAttribute('data-state'),
+			remainingZeroOutputCards: await gateCard.count(),
+		};
 		expect(errors).toEqual([]);
 		const modelRequests = requests.filter(
 			(request) => request.method === 'GET' && request.path.endsWith('/models'),
