@@ -31,6 +31,8 @@ export interface AppendQueueOptions {
  */
 export interface AppendQueue {
 	append(path: string, data: Uint8Array): Promise<void>;
+	/** Accounts retained bytes immediately, including time waiting for preparation and disk I/O. */
+	enqueue<T>(byteLength: number, write: () => Promise<T>): Promise<T>;
 	readonly pendingBytes: number;
 	readonly isPaused?: boolean;
 	readonly highWatermarkBytes?: number;
@@ -126,26 +128,31 @@ export function createAppendQueue(
 		}
 	}
 
-	async function runAppend(path: string, data: Uint8Array): Promise<void> {
+	async function runAppend<T>(byteLength: number, write: () => Promise<T>): Promise<T> {
 		try {
-			await deps.appendFile(path, data);
+			return await write();
 		} finally {
-			pending -= data.byteLength;
+			pending -= byteLength;
 			if (isPaused && pending <= lowWatermarkBytes) {
 				triggerResume();
 			}
 		}
 	}
 
+	function enqueue<T>(byteLength: number, write: () => Promise<T>): Promise<T> {
+		pending += byteLength;
+		if (!isPaused && pending > highWatermarkBytes) {
+			triggerPause();
+		}
+		const task = tail.then(() => runAppend(byteLength, write));
+		tail = task.catch(() => undefined);
+		return task;
+	}
+
 	return {
+		enqueue,
 		append(path: string, data: Uint8Array): Promise<void> {
-			pending += data.byteLength;
-			if (!isPaused && pending > highWatermarkBytes) {
-				triggerPause();
-			}
-			const write = tail.then(() => runAppend(path, data));
-			tail = write.catch(() => undefined);
-			return write;
+			return enqueue(data.byteLength, () => deps.appendFile(path, data));
 		},
 		get pendingBytes(): number {
 			return pending;

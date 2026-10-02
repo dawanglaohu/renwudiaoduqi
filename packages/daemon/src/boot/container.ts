@@ -466,6 +466,7 @@ export function createContainer(input: {
 			processOps,
 			registry: processRegistry,
 			clock: input.clock,
+			appendQueue,
 			...overrides,
 		};
 		return baseSpawn(spec, options);

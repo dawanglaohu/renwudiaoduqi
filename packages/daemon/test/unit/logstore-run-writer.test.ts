@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createAppendQueue } from '../../src/logstore/append-queue.ts';
 import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
 import { createLogstorePaths } from '../../src/logstore/paths.ts';
 import { createRunWriter } from '../../src/logstore/run-writer.ts';
@@ -22,11 +23,11 @@ async function makeWriter(runId: string, limit?: number) {
 	const paths = createLogstorePaths(baseDir);
 	const fs = createNodeLogFileSystem();
 	const { appendFile } = await import('node:fs/promises');
-	const queue = { append: appendFile, drain: async () => {}, pendingBytes: 0 };
+	const queue = createAppendQueue({ appendFile });
 	const writer = createRunWriter({
 		runId,
 		paths,
-		queue: queue as never,
+		queue,
 		fs,
 		...(limit !== undefined ? { segmentSizeLimitBytes: limit } : {}),
 	});
