@@ -64,9 +64,6 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = Object.freeze
 	E_INTERNAL: '调度服务发生未预期的内部错误',
 });
 
-/**
- * 将错误码翻译为中文文案（缺键回落显示原始 code）。
- */
 const SETTINGS_AGENT_ERROR_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
 	E_VALIDATION: '输入参数校验失败，请检查修改后重试',
 	E_NOT_FOUND: '未找到对应配置项',
@@ -86,6 +83,9 @@ export function getPipelineStageDisabledMessage(stageName: string): string {
 	return `${ERROR_MESSAGES.E_PIPELINE_STAGE_DISABLED}（${stageName}）`;
 }
 
+/**
+ * 将错误码翻译为中文文案（缺键回落显示原始 code）。
+ */
 export function getErrorMessage(code: string | undefined | null, fallback?: string): string {
 	if (!code) {
 		return fallback ?? '操作失败';
