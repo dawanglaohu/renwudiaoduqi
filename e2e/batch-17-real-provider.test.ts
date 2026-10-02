@@ -762,9 +762,12 @@ describe('R17-T73118308 real native provider', () => {
 		expect(reassignResponse.status()).toBe(200);
 		expect(reassignResponse.request().postDataJSON()).toMatchObject({
 			agentId: 'codex',
-			modelName: invalidModel,
+			model: invalidModel,
+			effort: { tier: 'low' },
 		});
-		const reassignedId = (await reassignResponse.json()).run.id;
+		const reassignedRun: RunDto = (await reassignResponse.json()).run;
+		expect(reassignedRun.modelName).toBe(invalidModel);
+		const reassignedId = reassignedRun.id;
 		await expect
 			.poll(
 				() => events.some((event) => event.kind === 'run.exited' && event.runId === reassignedId),
