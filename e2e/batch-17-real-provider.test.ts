@@ -48,7 +48,27 @@ let subscription: Promise<void> | undefined;
 function redact(text: string): string {
 	let clean = text.replace(/(Initial pairing code:\s*)\S+/gi, '$1[REDACTED]');
 	for (const secret of [token, code]) if (secret) clean = clean.split(secret).join('[REDACTED]');
-	return clean.replace(/(Bearer\s+)\S+/gi, '$1[REDACTED]');
+	return clean
+		.replace(/(Bearer\s+)\S+/gi, '$1[REDACTED]')
+		.replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s"<>@]+:[^/\s"<>@]+@/gi, '$1[REDACTED]@')
+		.replace(
+			/("(?:password|api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token)"\s*:\s*")(?:\\.|[^"\\])*(")/gi,
+			'$1[REDACTED]$2',
+		);
+}
+
+function privateLogRows(currentPage: Page) {
+	return [
+		currentPage
+			.locator('[data-log-line]')
+			.filter({ hasText: '"method":"account/rateLimits/updated"' }),
+		currentPage.locator('[data-log-line]').filter({
+			hasText: /[a-z][a-z0-9+.-]*:\/\/[^/\s"<>@]+:[^/\s"<>@]+@/i,
+		}),
+		currentPage.locator('[data-log-line]').filter({
+			hasText: /"(?:password|api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token)"\s*:/i,
+		}),
+	];
 }
 
 async function port(): Promise<number> {
@@ -91,9 +111,7 @@ async function shot(label: string) {
 	const path = join(directory, `${String(frames.length).padStart(2, '0')}-${label}.png`);
 	await page.screenshot({
 		path,
-		mask: [
-			page.locator('[data-log-line]').filter({ hasText: '"method":"account/rateLimits/updated"' }),
-		],
+		mask: privateLogRows(page),
 	});
 	frames.push(path);
 }
@@ -231,7 +249,7 @@ afterAll(async () => {
 		await page
 			.screenshot({
 				path: join(evidence, 'final.png'),
-				mask: [page.getByTestId('pairing-code-input')],
+				mask: [page.getByTestId('pairing-code-input'), ...privateLogRows(page)],
 			})
 			.catch(() => undefined);
 	}
@@ -248,7 +266,7 @@ afterAll(async () => {
 					}).trim(),
 					tree: root,
 					cleanAtStart,
-					mode: 'production bootstrap; ordinary registry; real native transport; fresh touch-capable Chromium context; account rate-limit log rows masked in screenshots',
+					mode: 'production bootstrap; ordinary registry; real native transport; fresh touch-capable Chromium context; account rate-limit and credential-bearing log rows masked in screenshots',
 					validModel,
 					invalidModel,
 					events,
@@ -403,6 +421,7 @@ describe('R17-T73118308 real native provider', () => {
 		])
 			execFileSync('git', args, { stdio: 'ignore' });
 		origin = `http://127.0.0.1:${await port()}`;
+		const bootstrapStartedAt = performance.now();
 		daemon = spawn(process.execPath, [join(root, 'packages/daemon/bootstrap.mjs')], {
 			cwd: root,
 			env: {
@@ -429,6 +448,12 @@ describe('R17-T73118308 real native provider', () => {
 				{ timeout: 30_000 },
 			)
 			.toBe(true);
+		observations.bootstrap = {
+			pid: daemon.pid,
+			readinessMs: performance.now() - bootstrapStartedAt,
+			node: process.versions.node,
+			platform: process.platform,
+		};
 		code = readFileSync(join(data, 'pairing-code.txt'), 'utf8').trim();
 		expect(statSync(join(data, 'pairing-code.txt')).mode & 0o777).toBe(0o600);
 		observations.pairingFile = { directory: data, mode: '0600' };
