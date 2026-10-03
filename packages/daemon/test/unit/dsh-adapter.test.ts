@@ -3,7 +3,6 @@ import { extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import {
 	DEFAULT_DSH_BIN_PATH,
 	buildDshLaunchSpec,
@@ -27,7 +26,7 @@ import { probeAgent } from '../../src/adapters/probe.ts';
 import { BUILT_IN_AGENT_DEFAULTS, BUILT_IN_AGENT_IDS } from '../../src/config/defaults.ts';
 import type { AgentRegistry, AgentRegistrySnapshot } from '../../src/config/registry.ts';
 import { PERMISSION_TIERS } from '../../src/domain/permission-tier.ts';
-import type { EnvelopeFactory } from '../../src/events/envelope.ts';
+import { createEnvelopeFactory } from '../../src/events/envelope.ts';
 import type { ExecutableFileSystem, PlatformHostInputs } from '../../src/platform/contract.ts';
 import { createAgentService } from '../../src/service/agents.ts';
 import type { LogstoreService } from '../../src/service/logstore.ts';
@@ -211,27 +210,17 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 				findInFlight: vi.fn(() => []),
 			};
 
-			const mockEnvelopeFactory = {
-				createEnvelope: vi.fn(
-					(input: import('../../src/adapters/dsh/map-events.ts').EventEnvelopeInput) => ({
-						...input,
-						id: 1,
-						ts: new Date().toISOString(),
-						seq: 1,
-					}),
-				),
-			};
+			let nextEventId = 1;
+			const envelopeFactory = createEnvelopeFactory({
+				clock: { now: () => new Date().toISOString() },
+				idAllocator: { allocate: () => nextEventId++ },
+			});
 			const runService = createRunService({
 				logstore: mockLogstore as unknown as LogstoreService,
 				clock: { now: () => new Date().toISOString() },
-				envelopeFactory: mockEnvelopeFactory as unknown as EnvelopeFactory,
+				envelopeFactory,
 				runsRepo: mockRunsRepo,
-				eventMapper: (line: unknown) => {
-					const inputs = mapDshEvents(line, { runId: 'run-plain-1' });
-					return inputs.map(
-						(inp) => mockEnvelopeFactory.createEnvelope(inp) as unknown as EventEnvelope,
-					);
-				},
+				eventMapper: (line: unknown) => mapDshEvents(line, { runId: 'run-plain-1' }),
 			});
 
 			const plainTextOutput = 'Final analysis finished successfully.';

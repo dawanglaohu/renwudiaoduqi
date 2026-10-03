@@ -739,22 +739,19 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 				);
 
 				// Broadcast an event via bus
-				container.events.bus.publish({
-					id: 999,
-					ts: '2026-09-12T12:00:00.000Z',
+				const startedEvent = container.events.envelopeFactory.createEnvelope({
 					runId: 'e2e-run',
 					taskId: 'e2e-task',
-					scope: 'run',
 					kind: 'run.started',
-					seq: 1,
 					actorDeviceId: claim.deviceId,
 					payload: { runId: 'e2e-run' },
-				} as EventEnvelope);
+				});
+				container.events.bus.publish(startedEvent);
 
 				// Verify event arrived at client
 				await vi.waitFor(
 					() => {
-						expect(receivedData).toContain('id: 999\n');
+						expect(receivedData).toContain(`id: ${startedEvent.id}\n`);
 						expect(receivedData).toContain('event: run.started\n');
 					},
 					{ timeout: 3000, interval: 50 },
