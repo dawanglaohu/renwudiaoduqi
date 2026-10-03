@@ -1,3 +1,4 @@
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import { buildClaudeLaunchSpec } from '../adapters/claude/build-launch-spec.ts';
 import { buildCodexLaunchSpec } from '../adapters/codex/build-launch-spec.ts';
@@ -978,6 +979,7 @@ export async function dispatchReviewRun(
 	const prepared = prepareReviewRun(input, deps);
 	const { runInsert, assignment, promptResult, launchSpec } = prepared;
 
+	let startedEvent: EventEnvelope | null = null;
 	// Persist review run record (inside UnitOfWork if provided)
 	if (deps.runsRepo) {
 		const persist = () => {
@@ -992,6 +994,25 @@ export async function dispatchReviewRun(
 				);
 			}
 			deps.runsRepo?.insert(runInsert);
+			if (deps.bus && deps.envelopeFactory) {
+				startedEvent = deps.envelopeFactory.createEnvelope({
+					kind: 'run.started',
+					runId: runInsert.id,
+					taskId: runInsert.task_id,
+					actorDeviceId: input.actorDeviceId ?? null,
+					payload: {
+						runId: runInsert.id,
+						taskId: runInsert.task_id,
+						attemptNo: runInsert.attempt_no,
+						kind: 'review',
+						agentId: assignment.agentId,
+						model: assignment.modelName,
+						effortTier: assignment.effortTier,
+						parentRunId: runInsert.parent_run_id,
+						isPartialDiff: promptResult.isPartialDiff,
+					},
+				});
+			}
 		};
 
 		if (deps.unitOfWork) {
@@ -1002,27 +1023,29 @@ export async function dispatchReviewRun(
 		input.onRunInserted?.(runInsert.id);
 	}
 
-	// Publish run.started event on EventBus after transaction finishes
-	if (deps.bus && deps.envelopeFactory) {
-		const envelope = deps.envelopeFactory.createEnvelope({
-			kind: 'run.started',
-			runId: runInsert.id,
-			taskId: runInsert.task_id,
-			actorDeviceId: input.actorDeviceId ?? null,
-			payload: {
+	if (!deps.runsRepo) {
+		if (deps.bus && deps.envelopeFactory) {
+			startedEvent = deps.envelopeFactory.createEnvelope({
+				kind: 'run.started',
 				runId: runInsert.id,
 				taskId: runInsert.task_id,
-				attemptNo: runInsert.attempt_no,
-				kind: 'review',
-				agentId: assignment.agentId,
-				model: assignment.modelName,
-				effortTier: assignment.effortTier,
-				parentRunId: runInsert.parent_run_id,
-				isPartialDiff: promptResult.isPartialDiff,
-			},
-		});
-		deps.bus.publish(envelope);
+				actorDeviceId: input.actorDeviceId ?? null,
+				payload: {
+					runId: runInsert.id,
+					taskId: runInsert.task_id,
+					attemptNo: runInsert.attempt_no,
+					kind: 'review',
+					agentId: assignment.agentId,
+					model: assignment.modelName,
+					effortTier: assignment.effortTier,
+					parentRunId: runInsert.parent_run_id,
+					isPartialDiff: promptResult.isPartialDiff,
+				},
+			});
+		}
 	}
+
+	if (startedEvent) deps.bus?.publish(startedEvent);
 
 	let managedProcess: ManagedProcess | undefined;
 	if (input.autoSpawn && deps.spawnManaged) {

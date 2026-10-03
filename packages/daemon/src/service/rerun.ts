@@ -4,6 +4,7 @@ import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { retryEventAdmission } from '../events/retry-admission.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
@@ -424,6 +425,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			started_at: now,
 		};
 
+		let stateEvent: EventEnvelope | null = null;
 		const persist = (): void => {
 			assertSessionRefFree(
 				{ taskId: task.id, vendorSessionRef: runInsert.vendor_session_ref ?? null },
@@ -464,6 +466,20 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 					}
 				}
 			}
+			if (deps.bus && deps.envelopeFactory) {
+				stateEvent = deps.envelopeFactory.createEnvelope({
+					kind: 'run.state_changed',
+					runId: newRunId,
+					taskId: task.id,
+					actorDeviceId: input.actorDeviceId ?? null,
+					payload: {
+						from: previousRun.state,
+						to: 'starting',
+						reason: 'rerun',
+						misalignment: batchAlignment.isMisaligned ? batchAlignment.message : undefined,
+					},
+				});
+			}
 		};
 
 		try {
@@ -495,21 +511,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			throw new AppError('E_INTERNAL', `Failed to create rerun run: ${newRunId}`);
 		}
 
-		if (deps.bus && deps.envelopeFactory) {
-			const envelope = deps.envelopeFactory.createEnvelope({
-				kind: 'run.state_changed',
-				runId: newRunId,
-				taskId: task.id,
-				actorDeviceId: input.actorDeviceId ?? null,
-				payload: {
-					from: previousRun.state,
-					to: 'starting',
-					reason: 'rerun',
-					misalignment: batchAlignment.isMisaligned ? batchAlignment.message : undefined,
-				},
-			});
-			deps.bus.publish(envelope);
-		}
+		if (stateEvent) deps.bus?.publish(stateEvent);
 
 		return {
 			run: toRunDto(created),
@@ -591,6 +593,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		const attemptNo = Math.max(0, ...existingRuns.map((run) => run.attempt_no)) + 1;
 		const runId = ids.newId();
 
+		let stateEvent: EventEnvelope | null = null;
 		const persist = (): { readonly snapshotId: string } => {
 			const snapshot = deps.dispatchSnapshotsRepo.takeSnapshotForTask({
 				taskId,
@@ -619,6 +622,20 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			runsRepo.insert(runInsert);
 			if (activeRun?.state === 'awaiting_human') {
 				deps.gatesRepo?.supersedePendingByRunIds?.([activeRun.id], now);
+			}
+			if (deps.bus && deps.envelopeFactory) {
+				stateEvent = deps.envelopeFactory.createEnvelope({
+					kind: 'run.state_changed',
+					runId,
+					taskId,
+					actorDeviceId: input.actorDeviceId ?? null,
+					payload: {
+						from: 'none',
+						to: 'starting',
+						reason: 'redispatch',
+						worktreeMode,
+					},
+				});
 			}
 			return { snapshotId: snapshot.id };
 		};
@@ -652,21 +669,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			throw new AppError('E_INTERNAL', `Failed to create redispatch run: ${runId}`);
 		}
 
-		if (deps.bus && deps.envelopeFactory) {
-			const envelope = deps.envelopeFactory.createEnvelope({
-				kind: 'run.state_changed',
-				runId,
-				taskId,
-				actorDeviceId: input.actorDeviceId ?? null,
-				payload: {
-					from: 'none',
-					to: 'starting',
-					reason: 'redispatch',
-					worktreeMode,
-				},
-			});
-			deps.bus.publish(envelope);
-		}
+		if (stateEvent) deps.bus?.publish(stateEvent);
 
 		return {
 			run: toRunDto(created),
@@ -681,12 +684,14 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 	 * Events are persisted to logstore before publishing to the event bus.
 	 */
 	async function handleModelInvalid(input: HandleModelInvalidInput): Promise<RunDto> {
-		const run = runsRepo.findById(input.runId);
-		if (!run) {
+		const initialRun = runsRepo.findById(input.runId);
+		if (!initialRun) {
 			throw new AppError('E_NOT_FOUND', `Run not found: ${input.runId}`, {
 				details: { runId: input.runId },
 			});
 		}
+
+		let run = initialRun;
 
 		// Skip if already in a terminal state (e.g. called twice for same run)
 		const terminalStates = new Set(['failed', 'succeeded', 'aborted', 'interrupted']);
@@ -700,6 +705,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			| undefined;
 
 		// 原子提交 failed 状态、泳道释放与审批卡作废 (R1)
+		const pendingEnvelopes: EventEnvelope[] = [];
 		const persist = (): void => {
 			runsRepo.updateState({
 				id: run.id,
@@ -715,17 +721,6 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			if (deps.gatesRepo && run.task_id) {
 				deps.gatesRepo.supersedePendingByRunIds?.([run.id], now);
 			}
-		};
-
-		if (deps.unitOfWork) {
-			deps.unitOfWork.run(persist);
-		} else {
-			persist();
-		}
-
-		const pendingEnvelopes: EventEnvelope[] = [];
-
-		try {
 			if (deps.envelopeFactory) {
 				pendingEnvelopes.push(
 					deps.envelopeFactory.createEnvelope({
@@ -760,7 +755,18 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 					}) as EventEnvelope,
 				);
 			}
+		};
 
+		await retryEventAdmission(deps.envelopeFactory, () => {
+			const current = runsRepo.findById(input.runId);
+			pendingEnvelopes.length = 0;
+			if (!current || current.session_archived_at || terminalStates.has(current.state)) return;
+			run = current;
+			if (deps.unitOfWork) deps.unitOfWork.run(persist);
+			else persist();
+		});
+
+		try {
 			// 事务外：事件先落盘再发布 (R1)
 			if (deps.logstore) {
 				for (const envelope of pendingEnvelopes) {

@@ -670,7 +670,6 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 
 	function recordAndPublishAvailability(agentId: string, state: AgentAvailabilityState): void {
 		const prev = availabilityMap.get(agentId);
-		availabilityMap.set(agentId, state);
 
 		const prevAvailable = prev?.isAvailable;
 		const prevCode = prev?.unavailableCode;
@@ -693,7 +692,10 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					},
 				},
 			});
+			availabilityMap.set(agentId, state);
 			deps.bus.publish(envelope);
+		} else {
+			availabilityMap.set(agentId, state);
 		}
 
 		// Invalidation point 3: availability flip (AC 5)
@@ -1272,10 +1274,6 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					nowIso: clock.now(),
 				});
 
-				if (result) {
-					loginCache.set(cacheKey, result);
-				}
-
 				// AC 5: 每次 refreshLogin() 结束（成功、超时、unparsable、exec_missing）都发
 				// agent.availability_changed{reason:'login_changed', login}
 				if (deps.bus && deps.envelopeFactory) {
@@ -1292,7 +1290,10 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 							},
 						},
 					});
+					if (result) loginCache.set(cacheKey, result);
 					deps.bus.publish(envelope);
+				} else if (result) {
+					loginCache.set(cacheKey, result);
 				}
 
 				return result;

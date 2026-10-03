@@ -1,7 +1,8 @@
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
 import type { LaunchSpec, ManagedProcess } from '../proc/spawn.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
@@ -220,7 +221,7 @@ export function createSessionResumeDispatcher(
 
 		const messageId = deps.ids.newId();
 		const now = deps.clock.now();
-		let envelope: ReturnType<EnvelopeFactory['createEnvelope']> | null = null;
+		const completed: CreateEnvelopeInput[] = [];
 
 		const persistDelivered = () => {
 			deps.runMessagesRepo?.insertMessage({
@@ -236,7 +237,7 @@ export function createSessionResumeDispatcher(
 			});
 
 			if (deps.envelopeFactory) {
-				envelope = deps.envelopeFactory.createEnvelope({
+				completed.push({
 					kind: 'run.message_delivered',
 					runId: run.id,
 					taskId: run.task_id,
@@ -252,11 +253,7 @@ export function createSessionResumeDispatcher(
 			persistDelivered();
 		}
 
-		if (envelope && deps.bus) {
-			deps.bus.publish(envelope);
-		} else if (envelope) {
-			deps.envelopeFactory?.cancelEnvelope(envelope);
-		}
+		await publishCompletionEvents(completed, deps);
 
 		return Object.freeze({
 			newRunId: run.id,

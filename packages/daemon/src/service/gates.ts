@@ -21,7 +21,8 @@ import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
@@ -355,6 +356,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			let laneReleasedEvent: EventEnvelope | null = null;
 			let laneAssignedEnvelope: EventEnvelope | null = null;
 			let reworkStateEnvelope: EventEnvelope | null = null;
+			const decisionEvents: EventEnvelope[] = [];
 			let reworkDeliveryInput: {
 				readonly reviewRunId?: string | null;
 				readonly targetRunId: string;
@@ -659,6 +661,47 @@ export function createGateService(deps: GateServiceDeps): GateService {
 						}
 					}
 				}
+				if (input.decision === 'pass') {
+					if (gate.kind === 'landing') {
+						if (gate.run_id) {
+							const stateEnvelope = deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId: gate.run_id,
+								taskId: gate.task_id,
+								actorDeviceId: input.actorDeviceId,
+								payload: {
+									from: 'reviewing',
+									to: 'landed',
+									reason: 'human_landing_gate_passed',
+								},
+							});
+							decisionEvents.push(stateEnvelope);
+						}
+
+						const landedEnvelope = deps.envelopeFactory.createEnvelope({
+							kind: 'task.landed',
+							taskId: gate.task_id,
+							runId: gate.run_id,
+							actorDeviceId: input.actorDeviceId,
+							payload: {
+								by: 'human',
+								gateId: gate.id,
+							},
+						});
+						decisionEvents.push(landedEnvelope);
+					}
+
+					const passedEnvelope = deps.envelopeFactory.createEnvelope({
+						kind: 'task.gate_passed',
+						taskId: gate.task_id,
+						runId: gate.run_id,
+						actorDeviceId: input.actorDeviceId,
+						payload: {
+							gate: gate.kind,
+						},
+					});
+					decisionEvents.push(passedEnvelope);
+				}
 			});
 
 			// Outside transaction: publish events
@@ -667,7 +710,10 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				return Object.freeze({ applied: true as const });
 			}
 
-			publishPendingEvents([laneReleasedEvent, laneAssignedEnvelope, reworkStateEnvelope], deps);
+			publishPendingEvents(
+				[laneReleasedEvent, laneAssignedEnvelope, reworkStateEnvelope, ...decisionEvents],
+				deps,
+			);
 			if (input.decision === 'reject') {
 				if (reworkDeliveryInput && deps.reworkService) {
 					const result = await deps.reworkService.dispatchRework(reworkDeliveryInput);
@@ -702,46 +748,6 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				deps.nudgeTick?.();
 			}
 			if (input.decision === 'pass') {
-				if (gate.kind === 'landing') {
-					if (gate.run_id) {
-						const stateEnvelope = deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: gate.run_id,
-							taskId: gate.task_id,
-							actorDeviceId: input.actorDeviceId,
-							payload: {
-								from: 'reviewing',
-								to: 'landed',
-								reason: 'human_landing_gate_passed',
-							},
-						});
-						deps.bus.publish(stateEnvelope);
-					}
-
-					const landedEnvelope = deps.envelopeFactory.createEnvelope({
-						kind: 'task.landed',
-						taskId: gate.task_id,
-						runId: gate.run_id,
-						actorDeviceId: input.actorDeviceId,
-						payload: {
-							by: 'human',
-							gateId: gate.id,
-						},
-					});
-					deps.bus.publish(landedEnvelope);
-				}
-
-				const passedEnvelope = deps.envelopeFactory.createEnvelope({
-					kind: 'task.gate_passed',
-					taskId: gate.task_id,
-					runId: gate.run_id,
-					actorDeviceId: input.actorDeviceId,
-					payload: {
-						gate: gate.kind,
-					},
-				});
-				deps.bus.publish(passedEnvelope);
-
 				if (archiveContext && deps.sessionArchiveService) {
 					await deps.sessionArchiveService.terminateArchived(archiveContext);
 				}
@@ -796,7 +802,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			const gateId = deps.ids.newId();
 			const now = deps.clock.now();
 
-			deps.unitOfWork.run(() => {
+			const envelope = deps.unitOfWork.run(() => {
 				deps.gatesRepo.create({
 					id: gateId,
 					task_id: input.taskId,
@@ -806,16 +812,15 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					comment: input.comment ?? null,
 					created_at: now,
 				});
-			});
-
-			const envelope = deps.envelopeFactory.createEnvelope({
-				kind: 'task.gate_waiting',
-				taskId: input.taskId,
-				runId: input.runId ?? null,
-				actorDeviceId: null,
-				payload: {
-					gate: input.kind,
-				},
+				return deps.envelopeFactory.createEnvelope({
+					kind: 'task.gate_waiting',
+					taskId: input.taskId,
+					runId: input.runId ?? null,
+					actorDeviceId: null,
+					payload: {
+						gate: input.kind,
+					},
+				});
 			});
 			deps.bus.publish(envelope);
 
@@ -869,7 +874,8 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				// AC 1 & AC 2b: automatic pass lands directly with zero git operations
 				const gateId = deps.ids.newId();
 				let archiveContext: ArchiveTaskContext | null = null;
-				let laneReleasedEvent: EventEnvelope | null = null;
+				let laneReleasedEvent: CreateEnvelopeInput | null = null;
+				const completionEvents: CreateEnvelopeInput[] = [];
 
 				deps.unitOfWork.run(() => {
 					deps.gatesRepo.create({
@@ -904,7 +910,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 							now,
 						});
 						if (archiveContext.laneReleased) {
-							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+							laneReleasedEvent = {
 								kind: 'lane.released',
 								taskId: input.taskId,
 								runId: input.runId ?? '',
@@ -916,12 +922,12 @@ export function createGateService(deps: GateServiceDeps): GateService {
 									runId: input.runId ?? '',
 									reason: 'landed',
 								},
-							});
+							} satisfies CreateEnvelopeInput;
 						}
 					} else if (deps.tasksRepo) {
 						const laneRes = deps.tasksRepo.clearLaneNo(input.taskId);
 						if (laneRes.changes === 1) {
-							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+							laneReleasedEvent = {
 								kind: 'lane.released',
 								taskId: input.taskId,
 								runId: input.runId ?? '',
@@ -933,57 +939,56 @@ export function createGateService(deps: GateServiceDeps): GateService {
 									runId: input.runId ?? '',
 									reason: 'landed',
 								},
-							});
+							} satisfies CreateEnvelopeInput;
 						}
 					}
-				});
+					if (input.runId) {
+						const stateEnvelope = {
+							kind: 'run.state_changed',
+							runId: input.runId,
+							taskId: input.taskId,
+							actorDeviceId: null,
+							payload: {
+								from: 'reviewing',
+								to: 'landed',
+								reason: 'auto_landing_gate_passed',
+							},
+						} satisfies CreateEnvelopeInput;
+						completionEvents.push(stateEnvelope);
+					}
 
-				publishPendingEvents([laneReleasedEvent], deps);
-				if (input.runId) {
-					const stateEnvelope = deps.envelopeFactory.createEnvelope({
-						kind: 'run.state_changed',
-						runId: input.runId,
+					const landedEnvelope = {
+						kind: 'task.landed',
 						taskId: input.taskId,
+						runId: input.runId,
 						actorDeviceId: null,
 						payload: {
-							from: 'reviewing',
-							to: 'landed',
-							reason: 'auto_landing_gate_passed',
+							by: 'auto',
+							gateId,
 						},
-					});
-					deps.bus.publish(stateEnvelope);
-				}
+					} satisfies CreateEnvelopeInput;
+					completionEvents.push(landedEnvelope);
 
-				const landedEnvelope = deps.envelopeFactory.createEnvelope({
-					kind: 'task.landed',
-					taskId: input.taskId,
-					runId: input.runId,
-					actorDeviceId: null,
-					payload: {
-						by: 'auto',
-						gateId,
-					},
+					const passedEnvelope = {
+						kind: 'task.gate_passed',
+						taskId: input.taskId,
+						runId: input.runId,
+						actorDeviceId: null,
+						payload: {
+							gate: 'landing',
+						},
+					} satisfies CreateEnvelopeInput;
+					completionEvents.push(passedEnvelope);
 				});
-				deps.bus.publish(landedEnvelope);
-
-				const passedEnvelope = deps.envelopeFactory.createEnvelope({
-					kind: 'task.gate_passed',
-					taskId: input.taskId,
-					runId: input.runId,
-					actorDeviceId: null,
-					payload: {
-						gate: 'landing',
-					},
-				});
-				deps.bus.publish(passedEnvelope);
 
 				if (archiveContext && deps.sessionArchiveService) {
 					await deps.sessionArchiveService.terminateArchived(archiveContext);
 				}
+				await publishCompletionEvents([laneReleasedEvent, ...completionEvents], deps);
 			} else {
 				// Stays in awaiting_human; creates waiting gate (AC 3, E-54)
 				const gateId = deps.ids.newId();
-				deps.unitOfWork.run(() => {
+				const waitingEnvelope = deps.unitOfWork.run(() => {
 					deps.gatesRepo.create({
 						id: gateId,
 						task_id: input.taskId,
@@ -997,18 +1002,17 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					if (deps.tasksRepo) {
 						deps.tasksRepo.updateManualState(input.taskId, 'awaiting_human');
 					}
+					return {
+						kind: 'task.gate_waiting',
+						taskId: input.taskId,
+						runId: input.runId,
+						actorDeviceId: null,
+						payload: {
+							gate: result.gateKind,
+						},
+					} satisfies CreateEnvelopeInput;
 				});
-
-				const waitingEnvelope = deps.envelopeFactory.createEnvelope({
-					kind: 'task.gate_waiting',
-					taskId: input.taskId,
-					runId: input.runId,
-					actorDeviceId: null,
-					payload: {
-						gate: result.gateKind,
-					},
-				});
-				deps.bus.publish(waitingEnvelope);
+				await publishCompletionEvents([waitingEnvelope], deps);
 			}
 
 			return result;

@@ -36,8 +36,10 @@ import { type WrapupTaskItem, assembleWrapupPrompt } from '../domain/wrapup-prom
 import { type WrapupFixItem, parseWrapupReport, planWrapupFixes } from '../domain/wrapup-report.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import { publishPendingEvents } from '../events/publish-pending.ts';
+import { retryEventAdmission } from '../events/retry-admission.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
 import { type BatchWrapupsRepo, toBatchWrapupDto } from '../repo/batch-wrapups.ts';
@@ -885,39 +887,44 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 
 			// Case 1: Run failed / aborted / interrupted / non-zero exit (E-274, E-295)
 			if (!isExitedClean) {
-				const pendingEnvelopes: EventEnvelope[] = [];
-				deps.unitOfWork.run(() => {
-					// Wrapup run transitions to awaiting_human (E-295)
-					deps.runsRepo.updateState({
-						id: runId,
-						toState: 'awaiting_human',
-						endedAt: now,
-					});
+				const pendingEnvelopes: CreateEnvelopeInput[] = [];
+				const batchEnvelopes: EventEnvelope[] = [];
+				const applied = await retryEventAdmission(deps.envelopeFactory, () => {
+					pendingEnvelopes.length = 0;
+					batchEnvelopes.length = 0;
+					const current = deps.runsRepo.findById(runId);
+					if (!current || current.session_archived_at || current.state === 'landed') return false;
+					return deps.unitOfWork.run(() => {
+						// Wrapup run transitions to awaiting_human (E-295)
+						deps.runsRepo.updateState({
+							id: runId,
+							toState: 'awaiting_human',
+							endedAt: now,
+						});
 
-					// Create batch-level review gate with task_id = NULL (E-274, E-288, E-295)
-					const gateId = `gate_${deps.ids.newId().slice(0, 16)}`;
-					deps.gatesRepo.create({
-						id: gateId,
-						task_id: null,
-						run_id: runId,
-						kind: 'review',
-						state: 'waiting',
-						created_at: now,
-					});
+						// Create batch-level review gate with task_id = NULL (E-274, E-288, E-295)
+						const gateId = `gate_${deps.ids.newId().slice(0, 16)}`;
+						deps.gatesRepo.create({
+							id: gateId,
+							task_id: null,
+							run_id: runId,
+							kind: 'review',
+							state: 'waiting',
+							created_at: now,
+						});
 
-					// Batch transitions to needs_attention via batchService (R1)
-					if (batch.state !== 'needs_attention') {
-						const transRes = deps.batchService.transitionBatchInTx(
-							batchId,
-							'needs_attention',
-							'wrapup_run_failed',
-						);
-						pendingEnvelopes.push(transRes.envelope);
-					}
+						// Batch transitions to needs_attention via batchService (R1)
+						if (batch.state !== 'needs_attention') {
+							const transRes = deps.batchService.transitionBatchInTx(
+								batchId,
+								'needs_attention',
+								'wrapup_run_failed',
+							);
+							batchEnvelopes.push(transRes.envelope);
+						}
 
-					if (deps.bus && deps.envelopeFactory) {
-						pendingEnvelopes.push(
-							deps.envelopeFactory.createEnvelope({
+						if (deps.bus && deps.envelopeFactory) {
+							pendingEnvelopes.push({
 								kind: 'run.state_changed',
 								runId,
 								taskId: null,
@@ -926,13 +933,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									to: 'awaiting_human',
 									reason: 'wrapup_run_failed',
 								},
-							}),
-						);
-					}
+							} satisfies CreateEnvelopeInput);
+						}
 
-					if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
-						pendingEnvelopes.push(
-							deps.envelopeFactory.createEnvelope({
+						if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
+							pendingEnvelopes.push({
 								kind: 'lane.released',
 								actorDeviceId: null,
 								payload: {
@@ -942,30 +947,36 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									runId: run.id,
 									reason: 'awaiting_human',
 								},
-							}),
-						);
-					}
+							} satisfies CreateEnvelopeInput);
+						}
+						return true;
+					});
 				});
+				if (!applied) return;
 
-				publishPendingEvents(pendingEnvelopes, deps);
+				publishPendingEvents(batchEnvelopes, deps);
+				await publishCompletionEvents(pendingEnvelopes, deps);
 				deps.nudgeTick?.();
 				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'batch.wrapup_finished',
-							payload: {
-								batchId,
-								batchNo: batch.batch_no,
-								runId,
-								round: deps.batchWrapupsRepo.getMaxRound(batchId) + 1,
-								wrapupId: null,
-								verdict: 'unparsed',
-								declaredVerdict: null,
-								fixRunIds: [],
-								unassignedCount: 0,
-								batchState: 'needs_attention',
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'batch.wrapup_finished',
+								payload: {
+									batchId,
+									batchNo: batch.batch_no,
+									runId,
+									round: deps.batchWrapupsRepo.getMaxRound(batchId) + 1,
+									wrapupId: null,
+									verdict: 'unparsed',
+									declaredVerdict: null,
+									fixRunIds: [],
+									unassignedCount: 0,
+									batchState: 'needs_attention',
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 				return;
@@ -975,36 +986,41 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const parsed = parseWrapupReport(rawText);
 			if (!parsed.ok) {
 				// Parse failed: output does not conform to 8-section format (E-274)
-				const pendingEnvelopes: EventEnvelope[] = [];
-				deps.unitOfWork.run(() => {
-					deps.runsRepo.updateState({
-						id: runId,
-						toState: 'awaiting_human',
-						endedAt: now,
-					});
+				const pendingEnvelopes: CreateEnvelopeInput[] = [];
+				const batchEnvelopes: EventEnvelope[] = [];
+				const applied = await retryEventAdmission(deps.envelopeFactory, () => {
+					pendingEnvelopes.length = 0;
+					batchEnvelopes.length = 0;
+					const current = deps.runsRepo.findById(runId);
+					if (!current || current.session_archived_at || current.state === 'landed') return false;
+					return deps.unitOfWork.run(() => {
+						deps.runsRepo.updateState({
+							id: runId,
+							toState: 'awaiting_human',
+							endedAt: now,
+						});
 
-					const gateId = `gate_${deps.ids.newId().slice(0, 16)}`;
-					deps.gatesRepo.create({
-						id: gateId,
-						task_id: null,
-						run_id: runId,
-						kind: 'review',
-						state: 'waiting',
-						created_at: now,
-					});
+						const gateId = `gate_${deps.ids.newId().slice(0, 16)}`;
+						deps.gatesRepo.create({
+							id: gateId,
+							task_id: null,
+							run_id: runId,
+							kind: 'review',
+							state: 'waiting',
+							created_at: now,
+						});
 
-					if (batch.state !== 'needs_attention') {
-						const transRes = deps.batchService.transitionBatchInTx(
-							batchId,
-							'needs_attention',
-							'wrapup_report_unparsable',
-						);
-						pendingEnvelopes.push(transRes.envelope);
-					}
+						if (batch.state !== 'needs_attention') {
+							const transRes = deps.batchService.transitionBatchInTx(
+								batchId,
+								'needs_attention',
+								'wrapup_report_unparsable',
+							);
+							batchEnvelopes.push(transRes.envelope);
+						}
 
-					if (deps.bus && deps.envelopeFactory) {
-						pendingEnvelopes.push(
-							deps.envelopeFactory.createEnvelope({
+						if (deps.bus && deps.envelopeFactory) {
+							pendingEnvelopes.push({
 								kind: 'run.state_changed',
 								runId,
 								taskId: null,
@@ -1013,13 +1029,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									to: 'awaiting_human',
 									reason: 'wrapup_report_unparsable',
 								},
-							}),
-						);
-					}
+							} satisfies CreateEnvelopeInput);
+						}
 
-					if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
-						pendingEnvelopes.push(
-							deps.envelopeFactory.createEnvelope({
+						if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
+							pendingEnvelopes.push({
 								kind: 'lane.released',
 								actorDeviceId: null,
 								payload: {
@@ -1029,30 +1043,36 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									runId: run.id,
 									reason: 'awaiting_human',
 								},
-							}),
-						);
-					}
+							} satisfies CreateEnvelopeInput);
+						}
+						return true;
+					});
 				});
+				if (!applied) return;
 
-				publishPendingEvents(pendingEnvelopes, deps);
+				publishPendingEvents(batchEnvelopes, deps);
+				await publishCompletionEvents(pendingEnvelopes, deps);
 				deps.nudgeTick?.();
 				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'batch.wrapup_finished',
-							payload: {
-								batchId,
-								batchNo: batch.batch_no,
-								runId,
-								round: deps.batchWrapupsRepo.getMaxRound(batchId) + 1,
-								wrapupId: null,
-								verdict: 'unparsed',
-								declaredVerdict: null,
-								fixRunIds: [],
-								unassignedCount: 0,
-								batchState: 'needs_attention',
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'batch.wrapup_finished',
+								payload: {
+									batchId,
+									batchNo: batch.batch_no,
+									runId,
+									round: deps.batchWrapupsRepo.getMaxRound(batchId) + 1,
+									wrapupId: null,
+									verdict: 'unparsed',
+									declaredVerdict: null,
+									fixRunIds: [],
+									unassignedCount: 0,
+									batchState: 'needs_attention',
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 				return;
@@ -1344,41 +1364,46 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				}
 			}
 
-			const pendingEnvelopes: EventEnvelope[] = [];
+			const pendingEnvelopes: CreateEnvelopeInput[] = [];
+			const batchEnvelopes: EventEnvelope[] = [];
 
 			let finalBatchState = batch.state;
-			deps.unitOfWork.run(() => {
-				// insert batch_wrapups
-				deps.batchWrapupsRepo.insert({
-					id: wrapupRecordId,
-					batch_id: batchId,
-					batch_no: batch.batch_no,
-					tasks_json: JSON.stringify(taskKeys),
-					round: nextValidRound,
-					run_id: runId,
-					verdict: effectiveVerdict,
-					declared_verdict: parsed.declaredVerdict ?? null,
-					is_human_verdict: 0,
-					prompt_source: (run.prompt_source as 'docs' | 'builtin') ?? 'docs',
-					tests_json: JSON.stringify(parsed.tests),
-					summary_text: parsed.summaryText,
-					findings_json: JSON.stringify(allFindings),
-					unassigned_json: JSON.stringify(finalUnassigned),
-					fix_run_ids_json: JSON.stringify(fixRunIds),
-					report_text: rawText,
-					created_at: now,
-				});
+			const applied = await retryEventAdmission(deps.envelopeFactory, () => {
+				pendingEnvelopes.length = 0;
+				batchEnvelopes.length = 0;
+				const current = deps.runsRepo.findById(runId);
+				if (!current || current.session_archived_at || current.state === 'landed') return false;
+				return deps.unitOfWork.run(() => {
+					// insert batch_wrapups
+					deps.batchWrapupsRepo.insert({
+						id: wrapupRecordId,
+						batch_id: batchId,
+						batch_no: batch.batch_no,
+						tasks_json: JSON.stringify(taskKeys),
+						round: nextValidRound,
+						run_id: runId,
+						verdict: effectiveVerdict,
+						declared_verdict: parsed.declaredVerdict ?? null,
+						is_human_verdict: 0,
+						prompt_source: (run.prompt_source as 'docs' | 'builtin') ?? 'docs',
+						tests_json: JSON.stringify(parsed.tests),
+						summary_text: parsed.summaryText,
+						findings_json: JSON.stringify(allFindings),
+						unassigned_json: JSON.stringify(finalUnassigned),
+						fix_run_ids_json: JSON.stringify(fixRunIds),
+						report_text: rawText,
+						created_at: now,
+					});
 
-				// Transition wrapup run to landed (09 节 运行状态机: reviewing -> landed 收口运行八段解析成功)
-				deps.runsRepo.updateState({
-					id: runId,
-					toState: 'landed',
-					endedAt: now,
-				});
+					// Transition wrapup run to landed (09 节 运行状态机: reviewing -> landed 收口运行八段解析成功)
+					deps.runsRepo.updateState({
+						id: runId,
+						toState: 'landed',
+						endedAt: now,
+					});
 
-				if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
-					pendingEnvelopes.push(
-						deps.envelopeFactory.createEnvelope({
+					if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
+						pendingEnvelopes.push({
 							kind: 'lane.released',
 							actorDeviceId: null,
 							payload: {
@@ -1388,13 +1413,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 								runId: run.id,
 								reason: 'landed',
 							},
-						}),
-					);
-				}
+						} satisfies CreateEnvelopeInput);
+					}
 
-				if (deps.bus && deps.envelopeFactory) {
-					pendingEnvelopes.push(
-						deps.envelopeFactory.createEnvelope({
+					if (deps.bus && deps.envelopeFactory) {
+						pendingEnvelopes.push({
 							kind: 'run.state_changed',
 							runId,
 							taskId: null,
@@ -1403,20 +1426,18 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 								to: 'landed',
 								reason: 'wrapup_report_parsed',
 							},
-						}),
-					);
-				}
+						} satisfies CreateEnvelopeInput);
+					}
 
-				// Insert planned fix runs into runs table (AC 1)
-				for (const fixItem of fixRunsToInsert) {
-					assertSessionRefFree(
-						{ taskId: fixItem.taskId, vendorSessionRef: null },
-						{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
-					);
-					deps.runsRepo.insert(fixItem.runRow);
-					if (deps.bus && deps.envelopeFactory) {
-						pendingEnvelopes.push(
-							deps.envelopeFactory.createEnvelope({
+					// Insert planned fix runs into runs table (AC 1)
+					for (const fixItem of fixRunsToInsert) {
+						assertSessionRefFree(
+							{ taskId: fixItem.taskId, vendorSessionRef: null },
+							{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
+						);
+						deps.runsRepo.insert(fixItem.runRow);
+						if (deps.bus && deps.envelopeFactory) {
+							pendingEnvelopes.push({
 								kind: 'run.state_changed',
 								runId: fixItem.runRow.id,
 								taskId: fixItem.taskId,
@@ -1426,59 +1447,57 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									to: 'queued',
 									reason: 'wrapup_fix_dispatched',
 								},
-							}),
-						);
+							} satisfies CreateEnvelopeInput);
+						}
 					}
-				}
 
-				// Evaluate verdict via batchService (R1): clean | fixed -> done (AC 4, E-286, E-294)
-				if (effectiveVerdict === 'clean' || effectiveVerdict === 'fixed') {
-					const transRes = deps.batchService.transitionBatchInTx(
-						batchId,
-						'done',
-						`wrapup_${effectiveVerdict}`,
-					);
-					pendingEnvelopes.push(transRes.envelope);
-					finalBatchState = transRes.updatedBatch.state;
-				} else {
-					// Verdict is 'open'
-					if (openShouldNeedAttention) {
-						const reason =
-							nextValidRound >= 2
-								? 'wrapup_round_limit_reached'
-								: 'wrapup_all_open_items_unassigned';
+					// Evaluate verdict via batchService (R1): clean | fixed -> done (AC 4, E-286, E-294)
+					if (effectiveVerdict === 'clean' || effectiveVerdict === 'fixed') {
 						const transRes = deps.batchService.transitionBatchInTx(
 							batchId,
-							'needs_attention',
-							reason,
+							'done',
+							`wrapup_${effectiveVerdict}`,
 						);
-						pendingEnvelopes.push(transRes.envelope);
+						batchEnvelopes.push(transRes.envelope);
 						finalBatchState = transRes.updatedBatch.state;
-
-						const gateId = `gate_${deps.ids.newId().slice(0, 16)}`;
-						deps.gatesRepo.create({
-							id: gateId,
-							task_id: null,
-							run_id: runId,
-							kind: 'review',
-							state: 'waiting',
-							created_at: now,
-						});
 					} else {
-						// Round 1 open with dispatched fixes -> batch returns to running
-						const transRes = deps.batchService.transitionBatchInTx(
-							batchId,
-							'running',
-							'wrapup_fixes_pending',
-						);
-						pendingEnvelopes.push(transRes.envelope);
-						finalBatchState = transRes.updatedBatch.state;
-					}
-				}
+						// Verdict is 'open'
+						if (openShouldNeedAttention) {
+							const reason =
+								nextValidRound >= 2
+									? 'wrapup_round_limit_reached'
+									: 'wrapup_all_open_items_unassigned';
+							const transRes = deps.batchService.transitionBatchInTx(
+								batchId,
+								'needs_attention',
+								reason,
+							);
+							batchEnvelopes.push(transRes.envelope);
+							finalBatchState = transRes.updatedBatch.state;
 
-				if (deps.bus && deps.envelopeFactory) {
-					pendingEnvelopes.push(
-						deps.envelopeFactory.createEnvelope({
+							const gateId = `gate_${deps.ids.newId().slice(0, 16)}`;
+							deps.gatesRepo.create({
+								id: gateId,
+								task_id: null,
+								run_id: runId,
+								kind: 'review',
+								state: 'waiting',
+								created_at: now,
+							});
+						} else {
+							// Round 1 open with dispatched fixes -> batch returns to running
+							const transRes = deps.batchService.transitionBatchInTx(
+								batchId,
+								'running',
+								'wrapup_fixes_pending',
+							);
+							batchEnvelopes.push(transRes.envelope);
+							finalBatchState = transRes.updatedBatch.state;
+						}
+					}
+
+					if (deps.bus && deps.envelopeFactory) {
+						pendingEnvelopes.push({
 							kind: 'batch.wrapup_finished',
 							payload: {
 								batchId,
@@ -1493,12 +1512,15 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 								batchState: finalBatchState,
 								isHumanVerdict: false,
 							},
-						}),
-					);
-				}
+						} satisfies CreateEnvelopeInput);
+					}
+					return true;
+				});
 			});
+			if (!applied) return;
 
-			publishPendingEvents(pendingEnvelopes, deps);
+			publishPendingEvents(batchEnvelopes, deps);
+			await publishCompletionEvents(pendingEnvelopes, deps);
 			deps.nudgeTick?.();
 		},
 

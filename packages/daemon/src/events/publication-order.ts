@@ -5,6 +5,7 @@ export const MAX_PENDING_EVENT_RESERVATIONS = 5000;
 export interface PublicationOrder {
 	readonly reserve: (allocate: () => number) => number;
 	readonly reserveAsync: (allocate: () => number) => Promise<number>;
+	readonly waitForCapacity: () => Promise<void>;
 	readonly isPaused: boolean;
 	readonly onPause: (listener: () => void) => () => void;
 	readonly onResume: (listener: () => void) => () => void;
@@ -36,12 +37,17 @@ export function createPublicationOrder(
 		reject: (error: unknown) => void;
 	}> = [];
 	const lowWatermark = Math.floor(capacity / 2);
+	const capacityWaiters = new Set<{ resolve: () => void; reject: (error: unknown) => void }>();
 
 	function updatePressure(): void {
 		const next =
 			pending.size >= capacity || (paused && (pending.size > lowWatermark || waiting.length > 0));
 		if (next === paused) return;
 		paused = next;
+		if (!paused) {
+			for (const waiter of capacityWaiters) waiter.resolve();
+			capacityWaiters.clear();
+		}
 		for (const listener of next ? pauseListeners : resumeListeners) {
 			try {
 				listener();
@@ -155,6 +161,12 @@ export function createPublicationOrder(
 	return Object.freeze({
 		reserve,
 		reserveAsync,
+		waitForCapacity: () => {
+			if (disposed)
+				return Promise.reject(new AppError('E_INTERNAL', 'Event publication has been disposed.'));
+			if (!paused && pending.size < capacity) return Promise.resolve();
+			return new Promise<void>((resolve, reject) => capacityWaiters.add({ resolve, reject }));
+		},
 		get isPaused() {
 			return paused;
 		},
@@ -175,6 +187,9 @@ export function createPublicationOrder(
 			pending.clear();
 			for (const waiter of waiting.splice(0))
 				waiter.reject(new AppError('E_INTERNAL', 'Event publication has been disposed.'));
+			for (const waiter of capacityWaiters)
+				waiter.reject(new AppError('E_INTERNAL', 'Event publication has been disposed.'));
+			capacityWaiters.clear();
 			pauseListeners.clear();
 			resumeListeners.clear();
 		},

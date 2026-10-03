@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createBackgroundPublisher } from '../../src/events/background-publisher.ts';
 import { createEventBus } from '../../src/events/bus.ts';
 import { createEnvelopeFactory } from '../../src/events/envelope.ts';
 import { createPublicationOrder } from '../../src/events/publication-order.ts';
@@ -174,4 +175,60 @@ describe('event publication reservations', () => {
 		expect(active.ringBuffer.latest()?.id).toBe(1);
 		expect(blocked.ringBuffer.size()).toBe(0);
 	});
+});
+
+describe('completion capacity waiters', () => {
+	it('waits through partial transaction rollback until pressure actually clears', async () => {
+		const env = setup(4);
+		const held = [env.create(), env.create(), env.create()] as const;
+		const transaction = env.publicationOrder.begin();
+		env.create();
+		expect(() => env.create()).toThrow(/waiting for earlier events/);
+		transaction.rollback();
+		let resumed = false;
+		const waiting = env.factory.waitForCapacity().then(() => {
+			resumed = true;
+		});
+		await Promise.resolve();
+		expect(resumed).toBe(false);
+		env.factory.cancelEnvelope(held[0]);
+		await waiting;
+		expect(resumed).toBe(true);
+		expect(env.publicationOrder.pendingCount()).toBe(2);
+		env.bus.dispose();
+	});
+	it('rejects completion waiters on disposal and never reruns their mutation', async () => {
+		const env = setup(1);
+		env.create();
+		const waiting = env.factory.waitForCapacity();
+		const rejected = expect(waiting).rejects.toThrow(/disposed/);
+		env.bus.dispose();
+		await rejected;
+		await expect(env.factory.waitForCapacity()).rejects.toThrow(/disposed/);
+	});
+});
+
+it('drains deferred callback notifications without publishing after disposal', async () => {
+	const env = setup(1);
+	env.create();
+	const observer = vi.fn();
+	env.bus.subscribe(observer);
+	const onError = vi.fn();
+	const publisher = createBackgroundPublisher({
+		bus: env.bus,
+		envelopeFactory: env.factory,
+		onError,
+	});
+	publisher.publish({
+		kind: 'system.disk_warning',
+		payload: { path: '/logs', message: 'disk full' },
+	});
+	expect(env.allocate).toHaveBeenCalledTimes(1);
+	const stopped = publisher.stop();
+	env.bus.dispose();
+	await stopped;
+	expect(observer).not.toHaveBeenCalled();
+	expect(onError).not.toHaveBeenCalled();
+	publisher.publish({ kind: 'system.disk_warning', payload: { path: '/logs', message: 'late' } });
+	expect(env.allocate).toHaveBeenCalledTimes(1);
 });

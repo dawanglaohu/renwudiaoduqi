@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import * as nodeFs from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import type { RefreshDocumentResponse } from '@agent-scheduler/shared/api/documents';
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -860,6 +861,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				throw appError;
 			}
 
+			let changedEvent: EventEnvelope | null = null;
 			const persistImport = (): ImportDocumentResult => {
 				// 文件读取期间可能已有另一次导入提交；唯一路径的归属在写入事务内确认。
 				const existingRow = deps.documentsRepo.findByPath(resolvedPath);
@@ -895,6 +897,19 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				if (!row) {
 					throw new AppError('E_INTERNAL', `Failed to retrieve imported document ${docId}`);
 				}
+				if (
+					existingRow?.content_fingerprint !== parsed.contentFingerprint &&
+					deps.bus &&
+					deps.envelopeFactory
+				) {
+					changedEvent = deps.envelopeFactory.createEnvelope({
+						kind: 'system.docs_changed',
+						payload: {
+							docsPath: row.docs_path,
+							fingerprint: row.content_fingerprint,
+						},
+					});
+				}
 				return Object.freeze({
 					document: mapDocumentRow(row),
 					parsed,
@@ -907,17 +922,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			const result = deps.unitOfWork ? deps.unitOfWork.run(persistImport) : persistImport();
 			recordParsedDoc(parsed);
 
-			if (result.hasChanged && deps.bus && deps.envelopeFactory) {
-				deps.bus.publish(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'system.docs_changed',
-						payload: {
-							docsPath: result.document.docsPath,
-							fingerprint: result.document.contentFingerprint,
-						},
-					}),
-				);
-			}
+			if (changedEvent) deps.bus?.publish(changedEvent);
 
 			return result;
 		},
@@ -933,7 +938,6 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			let parsed: ParsedDocData;
 			try {
 				parsed = await parseDocsDataFile(existingRow.docs_path, fileSystem, hasher);
-				recordParsedDoc(parsed);
 			} catch (error) {
 				const appError =
 					error instanceof AppError
@@ -972,6 +976,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				isRemovedFromDoc: false,
 			};
 
+			let changedEvent: EventEnvelope | null = null;
 			const performDatabaseRefresh = () => {
 				deps.documentsRepo.updateMetadata(updateRow);
 				persistParsedTasks(deps, existingRow.id, parsed, true);
@@ -987,6 +992,15 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 						isRemovedFromDoc: banner.removedTaskCount > 0,
 					};
 				}
+				if (hasChanged && deps.bus && deps.envelopeFactory) {
+					changedEvent = deps.envelopeFactory.createEnvelope({
+						kind: 'system.docs_changed',
+						payload: {
+							docsPath: existingRow.docs_path,
+							fingerprint: parsed.contentFingerprint,
+						},
+					});
+				}
 			};
 
 			if (deps.unitOfWork) {
@@ -995,17 +1009,8 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				performDatabaseRefresh();
 			}
 
-			if (hasChanged && deps.bus && deps.envelopeFactory) {
-				deps.bus.publish(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'system.docs_changed',
-						payload: {
-							docsPath: existingRow.docs_path,
-							fingerprint: parsed.contentFingerprint,
-						},
-					}),
-				);
-			}
+			recordParsedDoc(parsed);
+			if (changedEvent) deps.bus?.publish(changedEvent);
 
 			return Object.freeze({
 				changed: hasChanged,

@@ -228,16 +228,15 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 			const valueJson = JSON.stringify(updated);
 			const now = deps.clock.now();
 
-			deps.unitOfWork.run(() => {
+			const envelope = deps.unitOfWork.run(() => {
 				deps.settingsRepo.set('pipeline', valueJson, now);
-			});
-
-			const envelope = deps.envelopeFactory.createEnvelope({
-				kind: 'settings.pipeline_changed',
-				actorDeviceId,
-				payload: {
-					pipeline: updated,
-				},
+				return deps.envelopeFactory.createEnvelope({
+					kind: 'settings.pipeline_changed',
+					actorDeviceId,
+					payload: {
+						pipeline: updated,
+					},
+				});
 			});
 
 			deps.bus.publish(envelope);

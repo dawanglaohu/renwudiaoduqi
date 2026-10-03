@@ -1,3 +1,4 @@
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import {
 	RUN_TRANSITION_REASONS,
@@ -9,6 +10,7 @@ import {
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { SupportedPlatform } from '../platform/contract.ts';
 import type {
 	KillTreeOptions,
@@ -185,7 +187,7 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 			const actorDeviceId = input.actorDeviceId ?? null;
 
 			// 5. Update state inside UnitOfWork if present, collecting events to emit outside transaction
-			let shouldPublishEvents = false;
+			const pendingEvents: EventEnvelope[] = [];
 			let archiveContext: ArchiveTaskContext | undefined;
 
 			const executeDbUpdate = () => {
@@ -207,7 +209,53 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 					});
 				}
 				deps.gatesRepo?.supersedePendingByRunIds?.(archiveContext?.archivedRunIds ?? [run.id], now);
-				shouldPublishEvents = true;
+				// Admission failure must roll back the stop before it can become idempotent.
+				if (deps.bus && deps.envelopeFactory) {
+					pendingEvents.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'run.state_changed',
+							runId: run.id,
+							taskId: run.taskId,
+							actorDeviceId,
+							payload: {
+								from: run.state,
+								to: 'aborted',
+								reason: finalReason,
+							},
+						}),
+					);
+
+					pendingEvents.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'run.aborted',
+							runId: run.id,
+							taskId: run.taskId,
+							actorDeviceId,
+							payload: {
+								reason: finalReason,
+								hasUnreviewedChanges,
+								changedFileCount: detectedFileCount,
+							},
+						}),
+					);
+					if (archiveContext?.laneReleased) {
+						pendingEvents.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								runId: run.id,
+								taskId: run.taskId,
+								actorDeviceId,
+								payload: {
+									docId: archiveContext.docId,
+									laneNo: archiveContext.laneNo,
+									taskId: run.taskId,
+									runId: run.id,
+									reason: 'aborted',
+								},
+							}),
+						);
+					}
+				}
 			};
 
 			if (deps.unitOfWork) {
@@ -216,53 +264,7 @@ export function createRunAbortService(deps: RunAbortServiceDeps): RunAbortServic
 				executeDbUpdate();
 			}
 
-			// 6. Publish events outside of transaction
-			if (shouldPublishEvents && deps.bus && deps.envelopeFactory) {
-				deps.bus.publish(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.state_changed',
-						runId: run.id,
-						taskId: run.taskId,
-						actorDeviceId,
-						payload: {
-							from: run.state,
-							to: 'aborted',
-							reason: finalReason,
-						},
-					}),
-				);
-
-				deps.bus.publish(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.aborted',
-						runId: run.id,
-						taskId: run.taskId,
-						actorDeviceId,
-						payload: {
-							reason: finalReason,
-							hasUnreviewedChanges,
-							changedFileCount: detectedFileCount,
-						},
-					}),
-				);
-				if (archiveContext?.laneReleased) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'lane.released',
-							runId: run.id,
-							taskId: run.taskId,
-							actorDeviceId,
-							payload: {
-								docId: archiveContext.docId,
-								laneNo: archiveContext.laneNo,
-								taskId: run.taskId,
-								runId: run.id,
-								reason: 'aborted',
-							},
-						}),
-					);
-				}
-			}
+			publishPendingEvents(pendingEvents, deps);
 
 			// Persist the stop before signalling: exit callbacks must observe the terminal state.
 			let killTreeResult: KillTreeResult | undefined;

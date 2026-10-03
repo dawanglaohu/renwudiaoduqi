@@ -9,7 +9,8 @@ import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { RUN_TRANSITION_REASONS, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { AppError, isAppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
 import type {
@@ -428,7 +429,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 			const messageId = deps.ids.newId();
 			const now = deps.clock.now();
 			const text = input.text ?? '';
-			const pendingEvents: EventEnvelope[] = [];
+			const pendingEvents: CreateEnvelopeInput[] = [];
 
 			const persistOperations = () => {
 				deps.runMessagesRepo.insertMessage({
@@ -444,17 +445,15 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				});
 
 				if (deps.envelopeFactory) {
-					pendingEvents.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.message_delivered',
-							runId: input.runId,
-							taskId: run.taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								messageId,
-							},
-						}),
-					);
+					pendingEvents.push({
+						kind: 'run.message_delivered',
+						runId: input.runId,
+						taskId: run.taskId,
+						actorDeviceId: input.actorDeviceId ?? null,
+						payload: {
+							messageId,
+						},
+					});
 				}
 			};
 
@@ -469,7 +468,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				throw error;
 			}
 
-			publishPendingEvents(pendingEvents, deps);
+			await publishCompletionEvents(pendingEvents, deps);
 
 			return {
 				delivered: true,
@@ -604,7 +603,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		const messageId = deps.ids.newId();
 		const now = deps.clock.now();
 
-		const pendingEvents: EventEnvelope[] = [];
+		const pendingEvents: CreateEnvelopeInput[] = [];
 
 		const persistOperations = () => {
 			deps.runMessagesRepo.insertMessage({
@@ -619,7 +618,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				deliveredAt: now,
 			});
 
-			if (run.state === 'awaiting_reply') {
+			if (deps.runMessagesRepo.findRunById(input.runId)?.state === 'awaiting_reply') {
 				deps.runMessagesRepo.updateRunState({
 					id: input.runId,
 					fromState: 'awaiting_reply',
@@ -628,34 +627,30 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				});
 
 				if (deps.envelopeFactory) {
-					pendingEvents.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: input.runId,
-							taskId: run.taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: 'awaiting_reply',
-								to: 'running',
-								reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
-							},
-						}),
-					);
-				}
-			}
-
-			if (deps.envelopeFactory) {
-				pendingEvents.push(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.message_delivered',
+					pendingEvents.push({
+						kind: 'run.state_changed',
 						runId: input.runId,
 						taskId: run.taskId,
 						actorDeviceId: input.actorDeviceId ?? null,
 						payload: {
-							messageId,
+							from: 'awaiting_reply',
+							to: 'running',
+							reason: RUN_TRANSITION_REASONS.HUMAN_REPLIED,
 						},
-					}),
-				);
+					});
+				}
+			}
+
+			if (deps.envelopeFactory) {
+				pendingEvents.push({
+					kind: 'run.message_delivered',
+					runId: input.runId,
+					taskId: run.taskId,
+					actorDeviceId: input.actorDeviceId ?? null,
+					payload: {
+						messageId,
+					},
+				});
 			}
 		};
 
@@ -666,7 +661,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		}
 
 		// Publish events strictly AFTER transaction completes
-		publishPendingEvents(pendingEvents, deps);
+		await publishCompletionEvents(pendingEvents, deps);
 
 		return {
 			delivered: true,

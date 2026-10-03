@@ -53,7 +53,8 @@ import {
 } from '../domain/task-state.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../proc/spawn.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
@@ -512,18 +513,18 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	 * 会把 `kind='implement'` 的终态当成任务终态，连带把该任务全部会话归档、杀掉进程——那条会话就再也
 	 * 恢复不了了。所以返工运行只落运行行状态与类型化 `queued_reason`，不触发归档。
 	 */
-	function failReworkRunStartup(
+	async function failReworkRunStartup(
 		runId: string,
 		reason: string,
 		exit?: { readonly exitCode?: number | null; readonly signal?: string | null },
-	): void {
+	): Promise<void> {
 		const row = runsRepo.findById(runId);
 		if (!row || isTerminalRunState(row.state as RunState)) {
 			return;
 		}
 
 		const now = deps.clock.now();
-		const pendingEvents: EventEnvelope[] = [];
+		const pendingEvents: CreateEnvelopeInput[] = [];
 		const marker = `${REWORK_DELIVERY_FAILED_PREFIX}:${reason}`;
 
 		const persist = () => {
@@ -540,15 +541,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 
 			if (deps.envelopeFactory) {
-				pendingEvents.push(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.state_changed',
-						runId,
-						taskId: row.task_id,
-						actorDeviceId: null,
-						payload: { from: row.state as RunState, to: 'failed', reason: marker },
-					}),
-				);
+				pendingEvents.push({
+					kind: 'run.state_changed',
+					runId,
+					taskId: row.task_id,
+					actorDeviceId: null,
+					payload: { from: row.state as RunState, to: 'failed', reason: marker },
+				});
 			}
 		};
 
@@ -558,7 +557,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			persist();
 		}
 
-		publishPendingEvents(pendingEvents, deps);
+		await publishCompletionEvents(pendingEvents, deps);
 	}
 
 	async function createRun(input: CreateRunInput): Promise<CreateRunResult> {
@@ -667,6 +666,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		};
 		const assignmentJson = assignmentReader.serializeTaskAssignment(assignmentSnapshot);
 
+		let startedEvent: EventEnvelope | null = null;
 		const persist = (): { readonly snapshotId: string } => {
 			if (typeof input.laneNo === 'number' && deps.tasksRepo.assignLaneNo) {
 				const changes = deps.tasksRepo.assignLaneNo(taskId, input.laneNo);
@@ -709,6 +709,21 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			if (activeRun?.state === 'awaiting_human') {
 				deps.gatesRepo?.supersedePendingByRunIds?.([activeRun.id], now);
 			}
+			if (deps.envelopeFactory) {
+				startedEvent = deps.envelopeFactory.createEnvelope({
+					kind: 'run.started',
+					runId,
+					taskId,
+					actorDeviceId: input.actorDeviceId ?? null,
+					payload: {
+						runId,
+						taskId,
+						attemptNo,
+						agentId,
+						model: resolvedAssignment.modelName ?? null,
+					},
+				});
+			}
 			return { snapshotId: snapshot.id };
 		};
 
@@ -741,26 +756,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			throw new AppError('E_INTERNAL', `Failed to retrieve created run: ${runId}`);
 		}
 
-		if (deps.envelopeFactory) {
-			const envelope = deps.envelopeFactory.createEnvelope({
-				kind: 'run.started',
-				runId,
-				taskId,
-				actorDeviceId: input.actorDeviceId ?? null,
-				payload: {
-					runId,
-					taskId,
-					attemptNo,
-					agentId,
-					model: resolvedAssignment.modelName ?? null,
-				},
-			});
+		if (startedEvent) {
+			const envelope = startedEvent;
 			if (deps.runService) {
 				await deps.runService.ingestEvent(runId, envelope);
 			} else if (deps.bus) {
 				deps.bus.publish(envelope);
 			} else {
-				deps.envelopeFactory.cancelEnvelope(envelope);
+				deps.envelopeFactory?.cancelEnvelope(envelope);
 			}
 		}
 
@@ -1427,27 +1430,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							continue;
 						}
 						occupiedLanes.add(allocatedLaneNo);
-						if (deps.unitOfWork) {
-							deps.unitOfWork.run(() => {
-								runsRepo.updateLaneNo?.(wRun.id, allocatedLaneNo);
-								runsRepo.updateState({
-									id: wRun.id,
-									state: 'queued',
-									queuedReason: null,
-								});
-							});
-						} else {
+						let pendingEvent: EventEnvelope | null = null;
+						const persist = () => {
 							runsRepo.updateLaneNo?.(wRun.id, allocatedLaneNo);
 							runsRepo.updateState({
 								id: wRun.id,
 								state: 'queued',
 								queuedReason: null,
 							});
-						}
-
-						if (deps.bus && deps.envelopeFactory) {
-							deps.bus.publish(
-								deps.envelopeFactory.createEnvelope({
+							if (deps.bus && deps.envelopeFactory)
+								pendingEvent = deps.envelopeFactory.createEnvelope({
 									kind: 'lane.assigned',
 									payload: {
 										docId: doc.id,
@@ -1455,9 +1447,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 										taskId: null,
 										runId: wRun.id,
 									},
-								}),
-							);
-						}
+								});
+						};
+						if (deps.unitOfWork) deps.unitOfWork.run(persist);
+						else persist();
+						if (pendingEvent) deps.bus?.publish(pendingEvent);
 					}
 
 					// Check batch (at most 1 active starting/running wrapup per batch)
@@ -1484,25 +1478,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					);
 
 					if (activeRunsForAgent < agentLimit) {
-						if (deps.unitOfWork) {
-							deps.unitOfWork.run(() => {
-								runsRepo.updateState({
-									id: wRun.id,
-									state: 'starting',
-									queuedReason: null,
-								});
-							});
-						} else {
+						let pendingEvent: EventEnvelope | null = null;
+						const persist = () => {
 							runsRepo.updateState({
 								id: wRun.id,
 								state: 'starting',
 								queuedReason: null,
 							});
-						}
-
-						if (deps.bus && deps.envelopeFactory) {
-							deps.bus.publish(
-								deps.envelopeFactory.createEnvelope({
+							if (deps.bus && deps.envelopeFactory)
+								pendingEvent = deps.envelopeFactory.createEnvelope({
 									kind: 'run.state_changed',
 									runId: wRun.id,
 									taskId: null,
@@ -1511,9 +1495,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 										to: 'starting',
 										reason: 'dispatched',
 									},
-								}),
-							);
-						}
+								});
+						};
+						if (deps.unitOfWork) deps.unitOfWork.run(persist);
+						else persist();
+						if (pendingEvent) deps.bus?.publish(pendingEvent);
 
 						runsDispatched.push(wRun.id);
 						void launchRun(wRun.id);
@@ -1648,6 +1634,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						continue;
 					}
 
+					let dequeuedEvent: EventEnvelope | null = null;
 					const persistDequeue = () => {
 						deps.tasksRepo.assignLaneNo(qTaskId, laneNo as number);
 						runsRepo.updateLaneNo?.(queuedRun.id, laneNo as number);
@@ -1656,16 +1643,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							state: 'starting',
 							queuedReason: null,
 						});
-					};
-					if (deps.unitOfWork) {
-						deps.unitOfWork.run(persistDequeue);
-					} else {
-						persistDequeue();
-					}
-
-					if (deps.bus && deps.envelopeFactory) {
-						deps.bus.publish(
-							deps.envelopeFactory.createEnvelope({
+						if (deps.bus && deps.envelopeFactory)
+							dequeuedEvent = deps.envelopeFactory.createEnvelope({
 								kind: 'lane.assigned',
 								payload: {
 									docId: doc.id,
@@ -1673,9 +1652,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 									taskId: qTaskId,
 									runId: queuedRun.id,
 								},
-							}),
-						);
+							});
+					};
+					if (deps.unitOfWork) {
+						deps.unitOfWork.run(persistDequeue);
+					} else {
+						persistDequeue();
 					}
+
+					if (dequeuedEvent) deps.bus?.publish(dequeuedEvent);
 
 					runsDispatched.push(queuedRun.id);
 					void launchRun(queuedRun.id);
@@ -2218,7 +2203,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			// E-40: 校验 agent 可用性
 			if (!isAgentDispatchable(run.agent_id)) {
 				if (run.origin === 'rework') {
-					failReworkRunStartup(runId, 'agent_unavailable');
+					await failReworkRunStartup(runId, 'agent_unavailable');
 				} else if (deps.runService) {
 					await deps.runService.transitionState({
 						runId,
@@ -2361,7 +2346,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					? 'upstream_base_missing'
 					: 'workspace_unavailable';
 				if (run.origin === 'rework') {
-					failReworkRunStartup(runId, workspaceReason);
+					await failReworkRunStartup(runId, workspaceReason);
 				} else {
 					await deps.runService.transitionState({
 						runId,
@@ -2380,7 +2365,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			const adapter = deps.adapters?.[run.agent_id];
 			if (!adapter) {
 				if (run.origin === 'rework') {
-					failReworkRunStartup(runId, 'agent_unavailable');
+					await failReworkRunStartup(runId, 'agent_unavailable');
 				} else {
 					await deps.runService.transitionState({
 						runId,
@@ -2425,7 +2410,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				managed = deps.proc.spawnManaged(launchSpec);
 			} catch (spawnErr) {
 				if (run.origin === 'rework') {
-					failReworkRunStartup(runId, 'spawn_failed');
+					await failReworkRunStartup(runId, 'spawn_failed');
 				} else if (run.kind === 'bughunt') {
 					await deps.runService.transitionState({
 						runId,
@@ -2454,7 +2439,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				const exitSignal = managed.exitResult?.signal ? String(managed.exitResult.signal) : null;
 				if (run.origin === 'rework') {
 					// 返工运行「起来就死」只说明这次投递没成，不是任务失败（#136 / E-302）。
-					failReworkRunStartup(runId, 'premature_exit', { exitCode, signal: exitSignal });
+					await failReworkRunStartup(runId, 'premature_exit', { exitCode, signal: exitSignal });
 				} else if (run.kind === 'bughunt') {
 					await deps.runService.transitionState({
 						runId,

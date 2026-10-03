@@ -21,6 +21,7 @@ import { type AgentRegistry, createAgentRegistry } from '../config/registry.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { createUnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
+import { createBackgroundPublisher } from '../events/background-publisher.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
@@ -153,7 +154,7 @@ export interface ContainerRepos {
 }
 
 export interface ContainerEvents {
-	readonly dispose: () => void;
+	readonly dispose: () => void | Promise<void>;
 	readonly idAllocator: IdAllocator;
 	readonly envelopeFactory: EnvelopeFactory;
 	readonly ringBuffer: RingBuffer;
@@ -326,8 +327,19 @@ export function createContainer(input: {
 	const ringBuffer = createRingBuffer();
 	const bus = createEventBus({ ringBuffer, publicationOrder });
 
+	const notificationOwners: Array<() => Promise<void>> = [];
+	const registryNotifications = createBackgroundPublisher({
+		bus,
+		envelopeFactory,
+		onError: (error) => input.logViolation?.(String(error)),
+	});
+	notificationOwners.push(registryNotifications.stop);
 	const events: ContainerEvents = Object.freeze({
-		dispose: bus.dispose,
+		async dispose() {
+			const stopping = notificationOwners.map((stop) => stop());
+			bus.dispose();
+			await Promise.all(stopping);
+		},
 		idAllocator,
 		envelopeFactory,
 		ringBuffer,
@@ -364,6 +376,8 @@ export function createContainer(input: {
 			envelopeFactory,
 			logViolation: input.logViolation,
 		});
+
+	if (systemService.stopNotifications) notificationOwners.push(systemService.stopNotifications);
 
 	const processOps = input.processOps ?? createDefaultProcessOps(input.hostInputs.platform);
 	const worktreeDeps = Object.freeze({
@@ -410,7 +424,7 @@ export function createContainer(input: {
 			dataDir: input.config.dataDir,
 			platform: input.hostInputs.platform === 'win32' ? 'win32' : 'posix',
 			publishWarning: (warning) => {
-				const envelope = envelopeFactory.createEnvelope({
+				registryNotifications.publish({
 					kind: 'agent.availability_changed',
 					payload: {
 						agentId: warning.agentId ?? 'system',
@@ -423,7 +437,6 @@ export function createContainer(input: {
 						},
 					},
 				});
-				bus.publish(envelope);
 			},
 		});
 

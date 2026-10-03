@@ -33,6 +33,7 @@ export interface EnvelopeFactory {
 		input: CreateEnvelopeInput<K>,
 	) => TypedEventEnvelope<K>;
 	readonly cancelEnvelope: (envelope: { readonly id: number }) => void;
+	readonly waitForCapacity: () => Promise<void>;
 	readonly createEnvelopeAsync: <K extends EventKind = EventKind>(
 		input: CreateEnvelopeInput<K>,
 	) => Promise<TypedEventEnvelope<K>>;
@@ -72,6 +73,7 @@ export function createEnvelopeFactory(deps: EnvelopeFactoryDeps): EnvelopeFactor
 	}
 
 	return Object.freeze({
+		waitForCapacity: () => deps.publicationOrder?.waitForCapacity() ?? Promise.resolve(),
 		createEnvelope: <K extends EventKind = EventKind>(input: CreateEnvelopeInput<K>) => {
 			const ts = deps.clock.now();
 			let envelope: TypedEventEnvelope<K> | undefined;
