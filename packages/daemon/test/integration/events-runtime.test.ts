@@ -3,17 +3,22 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createContainer } from '../../src/boot/container.ts';
+import { type AppContainer, createContainer } from '../../src/boot/container.ts';
 import type { ProcessConfig } from '../../src/config/env.ts';
+import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 
 const temporaryDirectories: string[] = [];
 const openDatabases: DatabaseConnection[] = [];
+const openContainers: AppContainer[] = [];
 const migrationsDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 
-afterEach(() => {
+afterEach(async () => {
+	for (const container of openContainers.splice(0)) {
+		await container.services.agents.stop();
+	}
 	for (const database of openDatabases.splice(0)) {
 		if (database.open) database.close();
 	}
@@ -63,7 +68,7 @@ const dummyLockAdapter: NativeLockAdapter = {
 };
 
 describe('M2-T4 Events Runtime Integration (real SQLite + migrations + container + restart)', () => {
-	it('E-10 wires one event runtime and preserves monotonic IDs across restart', () => {
+	it('E-10 wires one event runtime and preserves monotonic IDs across restart', async () => {
 		const tempDir = mkdtempSync(join(tmpdir(), 'agent-scheduler-runtime-'));
 		temporaryDirectories.push(tempDir);
 		const dbPath = join(tempDir, 'app.db');
@@ -89,6 +94,14 @@ describe('M2-T4 Events Runtime Integration (real SQLite + migrations + container
 
 		// Boot container 1
 		const container1 = createContainer({
+			agentRegistry: createAgentRegistry({
+				dataDir: tempDir,
+				builtInDefaults: {},
+				platform: 'posix',
+				publishWarning: (warning) => {
+					throw new Error(warning.message);
+				},
+			}),
 			config: createTestConfig(tempDir),
 			database: db1,
 			hostInputs: { platform: 'linux', homedir: tempDir },
@@ -96,6 +109,8 @@ describe('M2-T4 Events Runtime Integration (real SQLite + migrations + container
 			instanceLock: dummyLockHandle,
 			clock,
 		});
+		openContainers.push(container1);
+		await container1.services.agents.start();
 
 		// Verify container exposes unique instances and they are interconnected
 		expect(container1.repos.eventSeq).toBeDefined();
@@ -128,6 +143,7 @@ describe('M2-T4 Events Runtime Integration (real SQLite + migrations + container
 		expect(container1.events.idAllocator.currentWatermark()).toBe(1000);
 
 		// Close database 1 to simulate daemon exit
+		await container1.services.agents.stop();
 		db1.close();
 
 		// Reopen database 2 for container 2 on the same disk database
@@ -135,6 +151,14 @@ describe('M2-T4 Events Runtime Integration (real SQLite + migrations + container
 		openDatabases.push(db2);
 
 		const container2 = createContainer({
+			agentRegistry: createAgentRegistry({
+				dataDir: tempDir,
+				builtInDefaults: {},
+				platform: 'posix',
+				publishWarning: (warning) => {
+					throw new Error(warning.message);
+				},
+			}),
 			config: createTestConfig(tempDir),
 			database: db2,
 			hostInputs: { platform: 'linux', homedir: tempDir },
@@ -142,6 +166,8 @@ describe('M2-T4 Events Runtime Integration (real SQLite + migrations + container
 			instanceLock: dummyLockHandle,
 			clock,
 		});
+		openContainers.push(container2);
+		await container2.services.agents.start();
 
 		// Watermark on restart must advance to 2000 (E-10)
 		expect(container2.events.idAllocator.currentWatermark()).toBe(2000);

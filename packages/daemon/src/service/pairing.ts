@@ -47,33 +47,15 @@ const DEFAULT_FS: PairingFileSystem = Object.freeze({
 	},
 });
 
-export interface WindowsDaclCommand {
-	readonly file: string;
-	readonly args: readonly string[];
-}
-
-export function buildWindowsDaclCommand(filePath: string, currentUser: string): WindowsDaclCommand {
-	const userArg = currentUser.trim() ? `${currentUser}:F` : '*S-1-5-32-544:F';
-	return {
-		file: 'icacls.exe',
-		args: [filePath, '/inheritance:r', '/grant:r', userArg],
-	};
-}
-
 export interface PairingServiceDeps {
 	readonly devicesRepo: DevicesRepo;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly dataDir: string;
 	readonly platform?: SupportedPlatform;
-	readonly currentUser?: string;
 	readonly printConsole?: (message: string) => void;
 	readonly fs?: PairingFileSystem;
-	readonly runCommand?: (cmd: WindowsDaclCommand) => {
-		ok: boolean;
-		stdout: string;
-		stderr: string;
-	};
+	readonly writePrivateFile?: (path: string, contents: string) => void;
 }
 
 export interface PairingService {
@@ -128,17 +110,10 @@ export function createPairingService(deps: PairingServiceDeps): PairingService {
 		}
 
 		if (effectivePlatform === 'win32') {
-			fs.writeFileSync(codeFilePath, code, { encoding: 'utf8' });
-			if (deps.runCommand) {
-				const cmd = buildWindowsDaclCommand(codeFilePath, deps.currentUser ?? '');
-				const res = deps.runCommand(cmd);
-				if (!res.ok) {
-					throw new AppError(
-						'E_INTERNAL',
-						`Failed to set Windows DACL on pairing-code.txt: ${res.stderr}`,
-					);
-				}
+			if (!deps.writePrivateFile) {
+				throw new AppError('E_INTERNAL', 'A private pairing file writer is required on Windows.');
 			}
+			deps.writePrivateFile(codeFilePath, code);
 		} else {
 			fs.writeFileSync(codeFilePath, code, { encoding: 'utf8', mode: 0o600 });
 			fs.chmodSync(codeFilePath, 0o600);
@@ -373,8 +348,13 @@ export function createPairingService(deps: PairingServiceDeps): PairingService {
 		}
 
 		const { code } = createPairingCode();
+		try {
+			writeBootstrapFile(code);
+		} catch (error) {
+			currentPairingCode = null;
+			throw error;
+		}
 		printConsole(`[daemon] Initial pairing code: ${code}`);
-		writeBootstrapFile(code);
 
 		return { bootstrapped: true, code };
 	}

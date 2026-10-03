@@ -32,6 +32,7 @@ import { httpClient } from '../../api/http-client.ts';
 import { fetchLanes, markLanesCacheInvalidated } from '../../api/lanes.ts';
 import { navigateTo } from '../../app/routes.tsx';
 import type { BatchTreeItem } from '../../components/batch-tree.tsx';
+import { registerResyncHandler } from '../../store/connection-store.ts';
 import { mapSnapshotToBatches } from './batch-expansion.ts';
 import { RunDeckView } from './run-deck-view.tsx';
 import type { DeckStreamLane, RunDeckProps } from './types.ts';
@@ -179,8 +180,9 @@ export function RunDeckContainer(props: RunDeckProps) {
 	const hasLocalBatches = Boolean(props.batches && props.batches.length > 0);
 	const wrapupRoundsRef = useRef<Map<string, number>>(new Map());
 	const wrapupsByRunIdRef = useRef<Map<string, BatchWrapupDto>>(new Map());
+	const remoteMountedRef = useRef(false);
 
-	const loadOnce = useCallback(async () => {
+	const loadOnce = useCallback(async (canPublish: () => boolean) => {
 		try {
 			const [snapshot, fetchedLanes, runsResponse, gatesResponse] = await Promise.all([
 				httpClient.callRoute<SnapshotResponse>(SNAPSHOT_ROUTE),
@@ -210,6 +212,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 						BATCH_WRAPUPS_ROUTE,
 						{ params: { batchId } },
 					);
+					if (!canPublish()) return;
 					for (const wrapup of response.wrapups) {
 						wrapupRoundsRef.current.set(wrapup.runId, wrapup.round);
 						wrapupsByRunIdRef.current.set(wrapup.runId, wrapup);
@@ -221,6 +224,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				throw new Error('泳道数据不可用');
 			}
 
+			if (!canPublish()) return;
 			setRemote({
 				lanes: buildDeckLanes({
 					lanes: fetchedLanes,
@@ -245,6 +249,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				error: null,
 			});
 		} catch (cause: unknown) {
+			if (!canPublish()) return;
 			setRemote({
 				lanes: Object.freeze([]) as readonly DeckStreamLane[],
 				batches: Object.freeze([]) as readonly BatchTreeItem[],
@@ -263,6 +268,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 		invalidated: boolean;
 	} | null>(null);
 	const load = useCallback((): Promise<void> => {
+		if (!remoteMountedRef.current) return Promise.resolve();
 		const existing = loadRequestRef.current;
 		if (existing) {
 			// Events in the same tick share one snapshot. A later event requires a fresh result.
@@ -275,8 +281,8 @@ export function RunDeckContainer(props: RunDeckProps) {
 				do {
 					request.started = true;
 					request.invalidated = false;
-					await loadOnce();
-				} while (request.invalidated);
+					await loadOnce(() => loadRequestRef.current === request && !request.invalidated);
+				} while (request.invalidated && loadRequestRef.current === request);
 			})
 			.finally(() => {
 				if (loadRequestRef.current === request) loadRequestRef.current = null;
@@ -289,7 +295,12 @@ export function RunDeckContainer(props: RunDeckProps) {
 	// 首屏取数；之后只在运行/批次事件到达时重取（07 节：失效由事件驱动，禁止轮询）
 	useEffect(() => {
 		if (hasLocalLanes && hasLocalBatches) return;
+		remoteMountedRef.current = true;
 		void load();
+		const unregisterResync = registerResyncHandler(() => {
+			markLanesCacheInvalidated();
+			return load();
+		});
 		const unsubscribe = eventBus.subscribeMilestone((envelope) => {
 			if (
 				envelope.kind === 'lane.assigned' ||
@@ -323,7 +334,12 @@ export function RunDeckContainer(props: RunDeckProps) {
 				void load();
 			}
 		});
-		return unsubscribe;
+		return () => {
+			remoteMountedRef.current = false;
+			loadRequestRef.current = null;
+			unsubscribe();
+			unregisterResync();
+		};
 	}, [hasLocalLanes, hasLocalBatches, load]);
 
 	/** 闸门裁定：走 POST /gates/:gateId/decide，界面状态一律等回流事件（E-157）。 */

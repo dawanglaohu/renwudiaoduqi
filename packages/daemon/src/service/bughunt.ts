@@ -1,4 +1,3 @@
-import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -14,7 +13,8 @@ import {
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
@@ -191,18 +191,21 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				});
 
 				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: implRun.id,
-							taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: implRun.state,
-								to: 'awaiting_human',
-								reason: RUN_TRANSITION_REASONS.BUGHUNT_AGENT_UNAVAILABLE,
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'run.state_changed',
+								runId: implRun.id,
+								taskId,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: implRun.state,
+									to: 'awaiting_human',
+									reason: RUN_TRANSITION_REASONS.BUGHUNT_AGENT_UNAVAILABLE,
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 
@@ -225,7 +228,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				: null;
 			if (!baseline) {
 				const gateId = `gate_${deps.ids.newId()}`;
-				let laneReleasedEvent: EventEnvelope | null = null;
+				let laneReleasedEvent: CreateEnvelopeInput | null = null;
 				deps.unitOfWork.run(() => {
 					deps.runsRepo.updateState({
 						id: implRun.id,
@@ -247,7 +250,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					if (deps.tasksRepo) {
 						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
 						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+							laneReleasedEvent = {
 								kind: 'lane.released',
 								taskId,
 								runId: implRun.id,
@@ -259,24 +262,27 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 									runId: implRun.id,
 									reason: 'awaiting_human',
 								},
-							});
+							} satisfies CreateEnvelopeInput;
 						}
 					}
 				});
-				if (laneReleasedEvent && deps.bus) deps.bus.publish(laneReleasedEvent);
+				await publishCompletionEvents([laneReleasedEvent], deps);
 				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: implRun.id,
-							taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: implRun.state,
-								to: 'awaiting_human',
-								reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'run.state_changed',
+								runId: implRun.id,
+								taskId,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: implRun.state,
+									to: 'awaiting_human',
+									reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 				return Object.freeze({ action: 'baseline_unavailable', gateId });
@@ -337,7 +343,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				(r) =>
 					r.id !== implRun.id &&
 					r.agent_id === agentId &&
-					countsTowardAgentConcurrency(r.state as RunState),
+					countsTowardAgentConcurrency(r.state as RunState, r.session_archived_at),
 			);
 			if (activeAgentRuns.length >= agentLimit) {
 				isLimitReached = true;
@@ -402,20 +408,26 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			const created = deps.runsRepo.findById(bughuntRunId);
 
 			if (deps.bus && deps.envelopeFactory && created) {
-				deps.bus.publish(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.started',
-						runId: bughuntRunId,
-						taskId,
-						actorDeviceId: input.actorDeviceId ?? null,
-						payload: {
-							run: toRunDto(created),
+				await publishCompletionEvents(
+					[
+						{
+							kind: 'run.started',
+							runId: bughuntRunId,
+							taskId,
+							actorDeviceId: input.actorDeviceId ?? null,
+							payload: {
+								run: toRunDto(created),
+							},
 						},
-					}),
+					],
+					deps,
 				);
 			}
 
-			if (initialState === 'starting') {
+			if (
+				initialState === 'starting' &&
+				deps.runsRepo.findById(bughuntRunId)?.state === 'starting'
+			) {
 				const launcher = deps.dispatchService?.launchRun ?? deps.launchRun;
 				if (launcher) {
 					void launcher(bughuntRunId).catch((err) => {
@@ -495,7 +507,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 
 			if (isExplicitFailure) {
 				const gateId = `gate_${deps.ids.newId()}`;
-				let laneReleasedEvent: EventEnvelope | null = null;
+				let laneReleasedEvent: CreateEnvelopeInput | null = null;
 				deps.unitOfWork.run(() => {
 					deps.runsRepo.updateState({
 						id: bughuntRun.id,
@@ -530,7 +542,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					if (deps.tasksRepo) {
 						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
 						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+							laneReleasedEvent = {
 								kind: 'lane.released',
 								taskId,
 								runId: implRun.id,
@@ -542,28 +554,29 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 									runId: implRun.id,
 									reason: 'awaiting_human',
 								},
-							});
+							} satisfies CreateEnvelopeInput;
 						}
 					}
 				});
 
-				if (laneReleasedEvent && deps.bus) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				await publishCompletionEvents([laneReleasedEvent], deps);
 
 				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: implRun.id,
-							taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: implRun.state,
-								to: 'awaiting_human',
-								reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'run.state_changed',
+								runId: implRun.id,
+								taskId,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: implRun.state,
+									to: 'awaiting_human',
+									reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 
@@ -581,7 +594,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			if (!parsed.ok) {
 				// 不合五段：两行均 awaiting_human（reason bughunt_unparsed），查 bug 行开一张 kind='review' 闸门（AC 5, E-320）
 				const gateId = `gate_${deps.ids.newId()}`;
-				let laneReleasedEvent: EventEnvelope | null = null;
+				let laneReleasedEvent: CreateEnvelopeInput | null = null;
 				deps.unitOfWork.run(() => {
 					deps.runsRepo.updateState({
 						id: bughuntRun.id,
@@ -616,7 +629,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					if (deps.tasksRepo) {
 						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
 						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+							laneReleasedEvent = {
 								kind: 'lane.released',
 								taskId,
 								runId: implRun.id,
@@ -628,28 +641,29 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 									runId: implRun.id,
 									reason: 'awaiting_human',
 								},
-							});
+							} satisfies CreateEnvelopeInput;
 						}
 					}
 				});
 
-				if (laneReleasedEvent && deps.bus) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				await publishCompletionEvents([laneReleasedEvent], deps);
 
 				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: bughuntRun.id,
-							taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: bughuntRun.state,
-								to: 'awaiting_human',
-								reason: RUN_TRANSITION_REASONS.BUGHUNT_UNPARSED,
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'run.state_changed',
+								runId: bughuntRun.id,
+								taskId,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: bughuntRun.state,
+									to: 'awaiting_human',
+									reason: RUN_TRANSITION_REASONS.BUGHUNT_UNPARSED,
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 
@@ -678,7 +692,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 				// R2: 差异读取失败不得按 clean 放行，直接转入 awaiting_human 并开 bughunt_failed 闸门
 				deps.warn?.(`Failed to read bughunt diff against baseline: ${diffErr}`);
 				const gateId = `gate_${deps.ids.newId()}`;
-				let laneReleasedEvent: EventEnvelope | null = null;
+				let laneReleasedEvent: CreateEnvelopeInput | null = null;
 				deps.unitOfWork.run(() => {
 					if (!isTerminalRunState(bughuntRun.state as RunState)) {
 						deps.runsRepo.updateState({
@@ -715,7 +729,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					if (deps.tasksRepo) {
 						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
 						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+							laneReleasedEvent = {
 								kind: 'lane.released',
 								taskId,
 								runId: implRun.id,
@@ -727,28 +741,29 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 									runId: implRun.id,
 									reason: 'awaiting_human',
 								},
-							});
+							} satisfies CreateEnvelopeInput;
 						}
 					}
 				});
 
-				if (laneReleasedEvent && deps.bus) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				await publishCompletionEvents([laneReleasedEvent], deps);
 
 				if (deps.envelopeFactory && deps.bus) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: implRun.id,
-							taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: implRun.state,
-								to: 'awaiting_human',
-								reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'run.state_changed',
+								runId: implRun.id,
+								taskId,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: implRun.state,
+									to: 'awaiting_human',
+									reason: RUN_TRANSITION_REASONS.BUGHUNT_FAILED,
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 
@@ -805,7 +820,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 
 			if (outcome.outcome === 'awaiting_human') {
 				const gateId = `gate_${deps.ids.newId()}`;
-				let laneReleasedEvent: EventEnvelope | null = null;
+				let laneReleasedEvent: CreateEnvelopeInput | null = null;
 				deps.unitOfWork.run(() => {
 					if (outcome.reason === 'bughunt_fixed_over_limit') {
 						deps.runsRepo.updateState({
@@ -852,7 +867,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					if (deps.tasksRepo) {
 						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
 						if (laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-							laneReleasedEvent = deps.envelopeFactory.createEnvelope({
+							laneReleasedEvent = {
 								kind: 'lane.released',
 								taskId,
 								runId: implRun.id,
@@ -864,28 +879,29 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 									runId: implRun.id,
 									reason: 'awaiting_human',
 								},
-							});
+							} satisfies CreateEnvelopeInput;
 						}
 					}
 				});
 
-				if (laneReleasedEvent && deps.bus) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				await publishCompletionEvents([laneReleasedEvent], deps);
 
 				if (deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: implRun.id,
-							taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: implRun.state,
-								to: 'awaiting_human',
-								reason: outcome.reason,
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'run.state_changed',
+								runId: implRun.id,
+								taskId,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: implRun.state,
+									to: 'awaiting_human',
+									reason: outcome.reason,
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 

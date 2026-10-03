@@ -674,6 +674,11 @@ describe('M7-T2: 审查 agent 派发与 diff 裁剪 (AC 1-4, E-135, E-347, E-65)
 				},
 			} as unknown as EventBus;
 			const fakeEnvelopeFactory: EnvelopeFactory = {
+				waitForCapacity: async () => {},
+				async createEnvelopeAsync(input) {
+					return this.createEnvelope(input);
+				},
+				cancelEnvelope: () => undefined,
 				createEnvelope(input) {
 					return {
 						id: 1,

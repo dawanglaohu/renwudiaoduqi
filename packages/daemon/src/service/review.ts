@@ -1,9 +1,6 @@
 import { promises as nodeFs } from 'node:fs';
 import { resolve as nodeResolve } from 'node:path';
-import {
-	AGENT_MESSAGE_CHUNK_EVENT_KIND,
-	type EventEnvelope,
-} from '@agent-scheduler/shared/api/events';
+import { AGENT_MESSAGE_CHUNK_EVENT_KIND } from '@agent-scheduler/shared/api/events';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -21,7 +18,8 @@ import {
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs, SupportedPlatform } from '../platform/contract.ts';
@@ -308,6 +306,7 @@ export interface MechanicalCheckResult {
  * 结构化子集：真实 RunsRepo 的 RunRow 满足它，单测可以只造这几个字段。
  */
 export type ReviewRunRecord = {
+	readonly session_archived_at?: string | null;
 	readonly id: string;
 	readonly state: string;
 	/** RunsRepo 的 RunRow 用 snake_case；老的 RunsAbortRepo 记录用 camelCase，两种都接。 */
@@ -1929,46 +1928,55 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			if (deps.tasksRepo && taskId) {
 				const laneRes = deps.tasksRepo.clearLaneNo(taskId);
 				if (laneRes && laneRes.changes === 1 && deps.bus && deps.envelopeFactory) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'lane.released',
-							taskId,
-							runId: input.runId,
-							payload: {
-								docId: laneRes.docId,
-								laneNo: laneRes.previousLaneNo,
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'lane.released',
 								taskId,
 								runId: input.runId,
-								reason: 'awaiting_human',
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
+									taskId,
+									runId: input.runId,
+									reason: 'awaiting_human',
+								},
 							},
-						}),
+						],
+						deps,
 					);
 				}
 			}
 			if (deps.bus && deps.envelopeFactory) {
-				deps.bus.publish(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.state_changed',
-						runId: input.runId,
-						taskId,
-						payload: {
-							from: 'reviewing',
-							to: 'awaiting_human',
-							reason: humanReason,
-						},
-					}),
-				);
-				if (gateCreated) {
-					deps.bus.publish(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'task.gate_waiting',
+				await publishCompletionEvents(
+					[
+						{
+							kind: 'run.state_changed',
 							runId: input.runId,
 							taskId,
 							payload: {
-								gate: 'review',
-								comment: humanTag,
+								from: 'reviewing',
+								to: 'awaiting_human',
+								reason: humanReason,
 							},
-						}),
+						},
+					],
+					deps,
+				);
+				if (gateCreated) {
+					await publishCompletionEvents(
+						[
+							{
+								kind: 'task.gate_waiting',
+								runId: input.runId,
+								taskId,
+								payload: {
+									gate: 'review',
+									comment: humanTag,
+								},
+							},
+						],
+						deps,
 					);
 				}
 			}
@@ -2071,10 +2079,18 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 
 				const targetReviewRunId = reviewRunId;
 
-				const pendingEvents: Array<() => EventEnvelope> = [];
+				const pendingEvents: CreateEnvelopeInput[] = [];
 				const envelopeFactory = deps.envelopeFactory;
 
 				const executeRecoveryInTx = () => {
+					const current = deps.runsRepo?.findById(run.id);
+					if (
+						current &&
+						(current.session_archived_at || isTerminalRunState(current.state as RunState))
+					) {
+						currentState = current.state as RunState;
+						return;
+					}
 					// 1. 如果已创建审查运行，将其落到 failed
 					if (targetReviewRunId && deps.runsRepo) {
 						const createdReviewRun = deps.runsRepo.findById(targetReviewRunId);
@@ -2087,19 +2103,17 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								queuedReason: errorComment,
 							});
 							if (envelopeFactory) {
-								pendingEvents.push(() =>
-									envelopeFactory.createEnvelope({
-										kind: 'run.state_changed',
-										runId: targetReviewRunId,
-										taskId,
-										payload: {
-											from: createdReviewRun.state,
-											to: 'failed',
-											reason: failureReason,
-											error: errMessage,
-										},
-									}),
-								);
+								pendingEvents.push({
+									kind: 'run.state_changed',
+									runId: targetReviewRunId,
+									taskId,
+									payload: {
+										from: createdReviewRun.state,
+										to: 'failed',
+										reason: failureReason,
+										error: errMessage,
+									},
+								} satisfies CreateEnvelopeInput);
 							}
 						}
 					}
@@ -2119,19 +2133,17 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						currentState = 'awaiting_human';
 
 						if (envelopeFactory) {
-							pendingEvents.push(() =>
-								envelopeFactory.createEnvelope({
-									kind: 'run.state_changed',
-									runId: run.id,
-									taskId,
-									payload: {
-										from: 'reviewing',
-										to: 'awaiting_human',
-										reason: failureReason,
-										error: errMessage,
-									},
-								}),
-							);
+							pendingEvents.push({
+								kind: 'run.state_changed',
+								runId: run.id,
+								taskId,
+								payload: {
+									from: 'reviewing',
+									to: 'awaiting_human',
+									reason: failureReason,
+									error: errMessage,
+								},
+							} satisfies CreateEnvelopeInput);
 						}
 					}
 
@@ -2139,20 +2151,18 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					if (deps.tasksRepo && taskId && run) {
 						const laneRes = deps.tasksRepo.clearLaneNo(taskId);
 						if (laneRes && laneRes.changes === 1 && envelopeFactory) {
-							pendingEvents.push(() =>
-								envelopeFactory.createEnvelope({
-									kind: 'lane.released',
+							pendingEvents.push({
+								kind: 'lane.released',
+								taskId,
+								runId: run.id,
+								payload: {
+									docId: laneRes.docId,
+									laneNo: laneRes.previousLaneNo,
 									taskId,
 									runId: run.id,
-									payload: {
-										docId: laneRes.docId,
-										laneNo: laneRes.previousLaneNo,
-										taskId,
-										runId: run.id,
-										reason: 'awaiting_human',
-									},
-								}),
-							);
+									reason: 'awaiting_human',
+								},
+							} satisfies CreateEnvelopeInput);
 						}
 					}
 
@@ -2207,17 +2217,15 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							gateCreated = true;
 
 							if (envelopeFactory) {
-								pendingEvents.push(() =>
-									envelopeFactory.createEnvelope({
-										kind: 'task.gate_waiting',
-										runId: run.id,
-										taskId,
-										payload: {
-											gate: 'review',
-											comment: errorComment,
-										},
-									}),
-								);
+								pendingEvents.push({
+									kind: 'task.gate_waiting',
+									runId: run.id,
+									taskId,
+									payload: {
+										gate: 'review',
+										comment: errorComment,
+									},
+								} satisfies CreateEnvelopeInput);
 							}
 						}
 					}
@@ -2229,9 +2237,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					executeRecoveryInTx();
 				}
 
-				if (deps.bus) {
-					for (const buildEvent of pendingEvents) deps.bus.publish(buildEvent());
-				}
+				await publishCompletionEvents(pendingEvents, deps);
 			}
 		}
 
@@ -2338,25 +2344,28 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				}
 			};
 
-			const publishStarted = (runId: string) => {
+			const publishStarted = async (runId: string) => {
 				if (!deps.bus || !deps.envelopeFactory) return;
-				deps.bus.publish(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.started',
-						runId,
-						taskId,
-						payload: {
+				await publishCompletionEvents(
+					[
+						{
+							kind: 'run.started',
 							runId,
 							taskId,
-							attemptNo: nextAttemptNo,
-							kind: 'review',
-							agentId: prevReview.agent_id,
-							model: prevReview.model_name,
-							effortTier: prevReview.effort_tier,
-							parentRunId,
-							isPartialDiff: false,
+							payload: {
+								runId,
+								taskId,
+								attemptNo: nextAttemptNo,
+								kind: 'review',
+								agentId: prevReview.agent_id,
+								model: prevReview.model_name,
+								effortTier: prevReview.effort_tier,
+								parentRunId,
+								isPartialDiff: false,
+							},
 						},
-					}),
+					],
+					deps,
 				);
 			};
 
@@ -2435,8 +2444,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			if (assignmentChanged || (!canReply && !canResume)) {
 				const newRunId = nextId();
 				persistRound(newRunId, null);
+				await publishStarted(newRunId);
+				if (deps.runsRepo?.findById(newRunId)?.state !== 'starting') return newRunId;
 				spawnNewSession(newRunId, promptPrefix);
-				publishStarted(newRunId);
 				return newRunId;
 			}
 
@@ -2444,8 +2454,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			let exhausted = false;
 			if (canReply) {
 				persistRound(runId, prevReview.vendor_session_ref ?? null);
+				await publishStarted(runId);
+				if (deps.runsRepo?.findById(runId)?.state !== 'starting') return runId;
 				deps.processRegistry?.reassign(prevReview.id, runId);
-				publishStarted(runId);
 				const delivered = await deps.messageService?.deliverMessage({
 					runId,
 					text: promptPrefix,
@@ -2461,7 +2472,8 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				}
 			} else {
 				persistRound(runId, prevReview.vendor_session_ref ?? null);
-				publishStarted(runId);
+				await publishStarted(runId);
+				if (deps.runsRepo?.findById(runId)?.state !== 'starting') return runId;
 				if (deps.resumeSession) {
 					const resumed = await deps.resumeSession({
 						runId,
@@ -2506,8 +2518,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			} else {
 				persistFallback();
 			}
+			await publishStarted(fallbackRunId);
+			if (deps.runsRepo?.findById(fallbackRunId)?.state !== 'starting') return fallbackRunId;
 			spawnNewSession(fallbackRunId, promptPrefix);
-			publishStarted(fallbackRunId);
 
 			// E-330 末句：新开的会话再次在内容前失败 → 不再新开，转人并在闸门 comment 写 review_continuation_failed。
 			// 观察在事务外异步进行，函数本身立即返回新行 id。
@@ -2516,19 +2529,19 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				void waitForContinuationState(bus, fallbackRunId, CONTINUATION_TIMEOUT_MS)
 					.then((state) => {
 						if (state !== 'exhausted') return;
-						handOverContinuationFailure(fallbackRunId, parentRunId ?? null);
+						return handOverContinuationFailure(fallbackRunId, parentRunId ?? null);
 					})
 					.catch(() => undefined);
 			}
 			return fallbackRunId;
 
-			function handOverContinuationFailure(
+			async function handOverContinuationFailure(
 				failedReviewRunId: string,
 				implRunId: string | null,
-			): void {
+			): Promise<void> {
 				const now = clock.now();
 				const implRow = implRunId ? deps.runsRepo?.findById(implRunId) : null;
-				const pendingEnvelopes: EventEnvelope[] = [];
+				const pendingEnvelopes: CreateEnvelopeInput[] = [];
 				const persist = () => {
 					deps.runsRepo?.updateState({
 						id: failedReviewRunId,
@@ -2549,18 +2562,16 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							queuedReason: REVIEW_CONTINUATION_FAILED,
 						});
 						if (deps.envelopeFactory) {
-							pendingEnvelopes.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'run.state_changed',
-									runId: implRow.id,
-									taskId,
-									payload: {
-										from: 'reviewing',
-										to: 'awaiting_human',
-										reason: REVIEW_CONTINUATION_FAILED,
-									},
-								}),
-							);
+							pendingEnvelopes.push({
+								kind: 'run.state_changed',
+								runId: implRow.id,
+								taskId,
+								payload: {
+									from: 'reviewing',
+									to: 'awaiting_human',
+									reason: REVIEW_CONTINUATION_FAILED,
+								},
+							} satisfies CreateEnvelopeInput);
 						}
 					}
 					if (deps.gatesRepo) {
@@ -2588,14 +2599,12 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 							});
 						}
 						if (deps.envelopeFactory) {
-							pendingEnvelopes.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'task.gate_waiting',
-									runId: implRow?.id ?? failedReviewRunId,
-									taskId,
-									payload: { gate: 'review', comment: REVIEW_CONTINUATION_FAILED },
-								}),
-							);
+							pendingEnvelopes.push({
+								kind: 'task.gate_waiting',
+								runId: implRow?.id ?? failedReviewRunId,
+								taskId,
+								payload: { gate: 'review', comment: REVIEW_CONTINUATION_FAILED },
+							} satisfies CreateEnvelopeInput);
 						}
 					}
 				};
@@ -2604,9 +2613,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				} else {
 					persist();
 				}
-				for (const envelope of pendingEnvelopes) {
-					deps.bus?.publish(envelope);
-				}
+				await publishCompletionEvents(pendingEnvelopes, deps);
 			}
 		},
 
@@ -2626,6 +2633,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			}
 			const taskId =
 				implRun.task_id ?? reviewRun.task_id ?? implRun.taskId ?? reviewRun.taskId ?? '';
+			if (isTerminalRunState(implRun.state as RunState)) return { action: 'awaiting_human' };
 
 			// E-278: the client reads the exact, unstructured review output from this review run.
 			// Persist it before opening a human gate so a reload cannot lose the only copy.
@@ -2644,7 +2652,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						reviewVerdict: 'incomplete',
 					});
 				}
-				if (implRun.state === 'reviewing') {
+				if (deps.runsRepo.findById(implRun.id)?.state === 'reviewing') {
 					deps.runsRepo.updateState({
 						id: implRun.id,
 						fromState: 'reviewing',
@@ -2652,13 +2660,16 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						endedAt: deps.clock?.now() ?? new Date().toISOString(),
 					});
 					if (deps.bus && deps.envelopeFactory)
-						deps.bus.publish(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'run.state_changed',
-								runId: implRun.id,
-								taskId,
-								payload: { from: 'reviewing', to: 'awaiting_human', reason: 'review_incomplete' },
-							}),
+						await publishCompletionEvents(
+							[
+								{
+									kind: 'run.state_changed',
+									runId: implRun.id,
+									taskId,
+									payload: { from: 'reviewing', to: 'awaiting_human', reason: 'review_incomplete' },
+								},
+							],
+							deps,
 						);
 				}
 				return { action: 'awaiting_human' };
@@ -2749,16 +2760,20 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				}
 			}
 
+			const reviewRun = deps.runsRepo?.findById(input.runId);
+			const unsuccessful =
+				reviewRun?.state === 'failed' ||
+				reviewRun?.state === 'aborted' ||
+				reviewRun?.state === 'interrupted';
 			const parsedVerdict = evaluateReviewVerdict({
 				outputText,
-				exitCode: exitCode ?? 0,
+				exitCode: unsuccessful ? 1 : (exitCode ?? 1),
 			});
 
-			const reviewRun = deps.runsRepo?.findById(input.runId);
 			const taskId = reviewRun?.task_id ?? reviewRun?.taskId ?? null;
 
 			if (deps.bus && deps.envelopeFactory && taskId) {
-				const envelope = deps.envelopeFactory.createEnvelope({
+				const envelope = await deps.envelopeFactory.createEnvelopeAsync({
 					kind: 'task.review_verdict',
 					taskId,
 					runId,

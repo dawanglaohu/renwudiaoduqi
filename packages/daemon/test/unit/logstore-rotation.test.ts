@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createAppendQueue } from '../../src/logstore/append-queue.ts';
 import type { SegmentBoundary } from '../../src/logstore/contract.ts';
 import { createLogstorePaths } from '../../src/logstore/paths.ts';
 import { createRunWriter } from '../../src/logstore/run-writer.ts';
@@ -23,12 +24,12 @@ describe('E-149 log segment rotation', () => {
 
 		const closed: SegmentBoundary[] = [];
 		const { appendFile } = await import('node:fs/promises');
-		const queue = { append: appendFile, drain: async () => {}, pendingBytes: 0 };
+		const queue = createAppendQueue({ appendFile });
 
 		const writer = createRunWriter({
 			runId: 'run-rotate',
 			paths,
-			queue: queue as never,
+			queue,
 			fs: {
 				mkdirSync: () => {},
 				appendFile,

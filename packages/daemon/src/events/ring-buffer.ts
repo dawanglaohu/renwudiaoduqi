@@ -93,7 +93,7 @@ function isValidLocationRef(ref: unknown): ref is EventPayloadLocationRef {
 	);
 }
 
-function sanitizeEnvelopeForBuffer(
+export function sanitizeEnvelopeForBuffer(
 	envelope: EventEnvelope,
 	ref?: EventPayloadLocationRef,
 ): EventEnvelope {

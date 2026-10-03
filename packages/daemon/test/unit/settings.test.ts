@@ -141,31 +141,24 @@ describe('M8-T4 Settings & Gates Configuration (AC 1, AC 2, E-53, E-56, E-292)',
 			expect(row?.value_json).toContain('invalid_mode');
 		});
 
-		it('AC 1, AC 2 & E-292: updateGates requires all three fields and returns E_VALIDATION on missing or invalid fields', () => {
+		it('AC 1, AC 2 & E-292: updateGates requires all three fields and returns E_VALIDATION on missing or invalid fields', async () => {
 			const { service } = createTestSettingsService();
 
 			// Missing 'landing'
-			expect(() =>
-				service.updateGates({ dispatch: 'auto', review: 'manual' }, 'dev-1'),
-			).toThrowError(AppError);
-			try {
-				service.updateGates({ dispatch: 'auto', review: 'manual' }, 'dev-1');
-			} catch (e) {
-				expect((e as AppError).code).toBe('E_VALIDATION');
-			}
+			const missing = service.updateGates({ dispatch: 'auto', review: 'manual' }, 'dev-1');
+			await expect(missing).rejects.toBeInstanceOf(AppError);
+			await expect(missing).rejects.toMatchObject({ code: 'E_VALIDATION' });
 
 			// Invalid value
-			expect(() =>
-				service.updateGates({ dispatch: 'auto', review: 'manual', landing: 'sometimes' }, 'dev-1'),
-			).toThrowError(AppError);
-			try {
-				service.updateGates({ dispatch: 'auto', review: 'manual', landing: 'sometimes' }, 'dev-1');
-			} catch (e) {
-				expect((e as AppError).code).toBe('E_VALIDATION');
-			}
+			const invalid = service.updateGates(
+				{ dispatch: 'auto', review: 'manual', landing: 'sometimes' },
+				'dev-1',
+			);
+			await expect(invalid).rejects.toBeInstanceOf(AppError);
+			await expect(invalid).rejects.toMatchObject({ code: 'E_VALIDATION' });
 		});
 
-		it('AC 1, AC 2, E-53 & E-292: updateGates writes all three fields, supports auto landing, and emits settings.gates_changed', () => {
+		it('AC 1, AC 2, E-53 & E-292: updateGates writes all three fields, supports auto landing, and emits settings.gates_changed', async () => {
 			const { service, repo, bus } = createTestSettingsService();
 			const publishedEnvelopes: unknown[] = [];
 			bus.subscribe((env) => {
@@ -178,7 +171,7 @@ describe('M8-T4 Settings & Gates Configuration (AC 1, AC 2, E-53, E-56, E-292)',
 				landing: 'auto',
 			};
 
-			const result = service.updateGates(newGates, 'dev-desktop-1');
+			const result = await service.updateGates(newGates, 'dev-desktop-1');
 			expect(result).toEqual(newGates);
 
 			// Check DB row
@@ -213,12 +206,12 @@ describe('M8-T4 Settings & Gates Configuration (AC 1, AC 2, E-53, E-56, E-292)',
 			});
 		});
 
-		it('E-56: mid-flight updates take effect immediately for subsequent getGates() calls', () => {
+		it('E-56: mid-flight updates take effect immediately for subsequent getGates() calls', async () => {
 			const { service } = createTestSettingsService();
 
 			expect(service.getGates()).toEqual(DEFAULT_GATE_SETTINGS);
 
-			service.updateGates({ dispatch: 'manual', review: 'manual', landing: 'manual' }, null);
+			await service.updateGates({ dispatch: 'manual', review: 'manual', landing: 'manual' }, null);
 			expect(service.getGates()).toEqual({
 				dispatch: 'manual',
 				review: 'manual',

@@ -1,5 +1,4 @@
-import type { spawn } from 'node:child_process';
-import { execFileSync } from 'node:child_process';
+import { ChildProcess, execFileSync, spawn } from 'node:child_process';
 import {
 	cpSync,
 	existsSync,
@@ -316,9 +315,73 @@ describe('M10-T5: installed product staging (AC 2, E-209, E-257)', () => {
 });
 
 describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {
+	it.each([
+		{ stop: 'rejected', probeError: undefined },
+		{ stop: 'throws', probeError: undefined },
+		{ stop: 'no-exit', probeError: undefined },
+		{ stop: 'rejected', probeError: 'probe connection failed' },
+	])(
+		'reports failed disposal when stop is $stop and probe error is $probeError',
+		async ({ stop, probeError }) => {
+			let child: ChildProcess | undefined;
+			let started = Promise.resolve();
+			let closed = Promise.resolve();
+			let didClose = false;
+			let originalKill: ChildProcess['kill'] | undefined;
+			try {
+				const outcome = await executeDaemonSmoke(
+					{ file: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], cwd: tmpdir() },
+					{
+						customSpawn: (file, args, options) => {
+							child = spawn(file, args, options);
+							originalKill = child.kill.bind(child);
+							started = new Promise<void>((resolve) => child?.once('spawn', resolve));
+							closed = new Promise<void>((resolve) => {
+								child?.once('close', () => {
+									didClose = true;
+									resolve();
+								});
+							});
+							vi.spyOn(child, 'kill').mockImplementation(() => {
+								if (stop === 'throws') throw new Error('stop permission denied');
+								return stop === 'no-exit';
+							});
+							return child;
+						},
+						probeEndpoint: async () => {
+							await started;
+							if (probeError) throw new Error(probeError);
+							return true;
+						},
+					},
+				);
+				expect(didClose).toBe(false);
+				const pid = child?.pid;
+				if (pid === undefined) throw new Error('Owned test process has no PID');
+				expect(() => process.kill(pid, 0)).not.toThrow();
+				expect(outcome.success).toBe(false);
+				expect(outcome.pid).toBe(pid);
+				expect(outcome.error).toContain(String(pid));
+				expect(outcome.error).toMatch(/stop|close|terminat/i);
+				if (stop === 'no-exit') expect(outcome.error).toContain('5000ms');
+				if (stop === 'throws') expect(outcome.error).toContain('stop permission denied');
+				if (probeError) expect(outcome.error).toContain(probeError);
+			} finally {
+				originalKill?.('SIGKILL');
+				await closed;
+			}
+		},
+		15_000,
+	);
+
 	it('spawns the frozen spec without a shell and waits for the health endpoint', async () => {
-		const killMock = vi.fn();
-		const spawnMock = vi.fn().mockReturnValue({ pid: 4321, kill: killMock });
+		const child = new ChildProcess();
+		Object.defineProperty(child, 'pid', { value: 4321 });
+		const killMock = vi.spyOn(child, 'kill').mockImplementation(() => {
+			child.emit('close', null, 'SIGTERM');
+			return true;
+		});
+		const spawnMock = vi.fn().mockReturnValue(child);
 		const probeMock = vi.fn().mockResolvedValue(true);
 		const spec = Object.freeze({
 			file: '/opt/scheduler/resources/daemon-runtime/runtime/node',
@@ -356,7 +419,13 @@ describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {
 	});
 
 	it('fails when the health endpoint never answers even though the process started', async () => {
-		const spawnMock = vi.fn().mockReturnValue({ pid: 777, kill: vi.fn() });
+		const child = new ChildProcess();
+		Object.defineProperty(child, 'pid', { value: 777 });
+		vi.spyOn(child, 'kill').mockImplementation(() => {
+			child.emit('close', null, 'SIGTERM');
+			return true;
+		});
+		const spawnMock = vi.fn().mockReturnValue(child);
 		const spec = Object.freeze({
 			file: process.execPath,
 			args: Object.freeze(['-e', 'setTimeout(() => {}, 60000)']),
@@ -409,6 +478,7 @@ describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {
 		{ timeout: 30_000 },
 		async () => {
 			const root = makeTempRoot();
+			const killCalls = vi.fn();
 			try {
 				const layout = stage(
 					root,
@@ -422,9 +492,22 @@ describe('M10-T5: daemon smoke execution (AC 2, E-265)', () => {
 					resourceDir: layout.resourceDir,
 					hostPlatform: HOST_PLATFORM,
 				});
-				const outcome = await executeDaemonSmoke(spec, { port: 7897, timeoutMs: 15_000 });
+				const outcome = await executeDaemonSmoke(spec, {
+					port: 7897,
+					timeoutMs: 15_000,
+					customSpawn: (file, args, options) => {
+						const child = spawn(file, args, options);
+						const originalKill = child.kill.bind(child);
+						vi.spyOn(child, 'kill').mockImplementation((signal) => {
+							killCalls(signal);
+							return originalKill(signal);
+						});
+						return child;
+					},
+				});
 				expect(outcome.success).toBe(false);
 				expect(outcome.error).toContain('exited with code 3');
+				expect(killCalls).not.toHaveBeenCalled();
 			} finally {
 				rmSync(root, { recursive: true, force: true });
 			}

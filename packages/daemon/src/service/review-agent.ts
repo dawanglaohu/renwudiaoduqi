@@ -1,3 +1,4 @@
+import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import { buildClaudeLaunchSpec } from '../adapters/claude/build-launch-spec.ts';
 import { buildCodexLaunchSpec } from '../adapters/codex/build-launch-spec.ts';
@@ -12,9 +13,11 @@ import {
 	REVIEW_PERMISSION_TIER,
 	resolvePermissionMapping,
 } from '../domain/permission-tier.ts';
+import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { retryEventAdmission } from '../events/retry-admission.ts';
 import type { SupportedPlatform } from '../platform/contract.ts';
 import { takePlatformHostInputs } from '../platform/host.ts';
 import type { LaunchSpec, ManagedProcess, spawnManaged } from '../proc/spawn.ts';
@@ -976,11 +979,26 @@ export async function dispatchReviewRun(
 	deps: ReviewAgentDeps,
 ): Promise<DispatchReviewRunResult> {
 	const prepared = prepareReviewRun(input, deps);
-	const { runInsert, assignment, promptResult, launchSpec } = prepared;
+	const { assignment, promptResult, launchSpec } = prepared;
+	let runInsert = prepared.runInsert;
 
+	let startedEvent: EventEnvelope | null = null;
 	// Persist review run record (inside UnitOfWork if provided)
 	if (deps.runsRepo) {
 		const persist = () => {
+			const parent = deps.runsRepo?.findById(input.implRun.id);
+			if (!parent || parent.session_archived_at || isTerminalRunState(parent.state as RunState)) {
+				throw new AppError(
+					'E_SESSION_ARCHIVED',
+					'Implementation no longer accepts review dispatch.',
+					{ details: { runId: input.implRun.id } },
+				);
+			}
+			const attempts = deps.runsRepo?.listByTaskId(runInsert.task_id ?? '') ?? [];
+			runInsert = {
+				...runInsert,
+				attempt_no: Math.max(0, ...attempts.map((row) => row.attempt_no)) + 1,
+			};
 			input.beforeRunInsert?.();
 			if (deps.runsRepo) {
 				// E-303 / M6-T10 AC6: the same guard every other service insert site performs.
@@ -992,40 +1010,66 @@ export async function dispatchReviewRun(
 				);
 			}
 			deps.runsRepo?.insert(runInsert);
+			if (deps.bus && deps.envelopeFactory) {
+				startedEvent = deps.envelopeFactory.createEnvelope({
+					kind: 'run.started',
+					runId: runInsert.id,
+					taskId: runInsert.task_id,
+					actorDeviceId: input.actorDeviceId ?? null,
+					payload: {
+						runId: runInsert.id,
+						taskId: runInsert.task_id,
+						attemptNo: runInsert.attempt_no,
+						kind: 'review',
+						agentId: assignment.agentId,
+						model: assignment.modelName,
+						effortTier: assignment.effortTier,
+						parentRunId: runInsert.parent_run_id,
+						isPartialDiff: promptResult.isPartialDiff,
+					},
+				});
+			}
 		};
 
-		if (deps.unitOfWork) {
-			deps.unitOfWork.run(persist);
-		} else {
-			persist();
-		}
+		await retryEventAdmission(deps.envelopeFactory, () => {
+			startedEvent = null;
+			if (deps.unitOfWork) deps.unitOfWork.run(persist);
+			else persist();
+		});
 		input.onRunInserted?.(runInsert.id);
 	}
 
-	// Publish run.started event on EventBus after transaction finishes
-	if (deps.bus && deps.envelopeFactory) {
-		const envelope = deps.envelopeFactory.createEnvelope({
-			kind: 'run.started',
-			runId: runInsert.id,
-			taskId: runInsert.task_id,
-			actorDeviceId: input.actorDeviceId ?? null,
-			payload: {
+	if (!deps.runsRepo) {
+		if (deps.bus && deps.envelopeFactory) {
+			startedEvent = deps.envelopeFactory.createEnvelope({
+				kind: 'run.started',
 				runId: runInsert.id,
 				taskId: runInsert.task_id,
-				attemptNo: runInsert.attempt_no,
-				kind: 'review',
-				agentId: assignment.agentId,
-				model: assignment.modelName,
-				effortTier: assignment.effortTier,
-				parentRunId: runInsert.parent_run_id,
-				isPartialDiff: promptResult.isPartialDiff,
-			},
-		});
-		deps.bus.publish(envelope);
+				actorDeviceId: input.actorDeviceId ?? null,
+				payload: {
+					runId: runInsert.id,
+					taskId: runInsert.task_id,
+					attemptNo: runInsert.attempt_no,
+					kind: 'review',
+					agentId: assignment.agentId,
+					model: assignment.modelName,
+					effortTier: assignment.effortTier,
+					parentRunId: runInsert.parent_run_id,
+					isPartialDiff: promptResult.isPartialDiff,
+				},
+			});
+		}
 	}
 
+	if (startedEvent) deps.bus?.publish(startedEvent);
+
 	let managedProcess: ManagedProcess | undefined;
-	if (input.autoSpawn && deps.spawnManaged) {
+	const current = deps.runsRepo?.findById(runInsert.id);
+	if (
+		input.autoSpawn &&
+		deps.spawnManaged &&
+		(!deps.runsRepo || (current?.state === 'starting' && !current.session_archived_at))
+	) {
 		const hostResult = takePlatformHostInputs({});
 		const effectivePlatform =
 			deps.platform ?? (hostResult.ok ? hostResult.value.platform : 'win32');
@@ -1076,7 +1120,7 @@ export async function dispatchReviewRun(
 	};
 
 	return Object.freeze({
-		run: toRunDto(persistedRow),
+		run: toRunDto(deps.runsRepo?.findById(runInsert.id) ?? persistedRow),
 		assignment,
 		promptResult,
 		launchSpec,

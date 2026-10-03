@@ -58,13 +58,21 @@ function makeReviewRow(overrides: Partial<RunRow> = {}): RunRow {
 }
 
 function makeRunsRepo(overrides: Partial<ReviewRunsRepo> = {}): ReviewRunsRepo {
+	const rows = new Map<string, RunRow>();
 	return {
-		findById: () => null,
-		updateState: () => {},
+		findById: (id) => rows.get(id) ?? null,
 		findLatestReview: () => null,
-		insert: () => {},
 		updateReviewRound: () => {},
 		...overrides,
+		insert: (row) => {
+			rows.set(row.id, makeReviewRow(row));
+			overrides.insert?.(row);
+		},
+		updateState: (input) => {
+			const row = rows.get(input.id);
+			if (row) rows.set(input.id, { ...row, state: input.toState ?? row.state });
+			overrides.updateState?.(input);
+		},
 	};
 }
 

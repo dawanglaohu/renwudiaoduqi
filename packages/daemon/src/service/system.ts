@@ -1,3 +1,4 @@
+import { createBackgroundPublisher } from '../events/background-publisher.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type {
@@ -48,6 +49,7 @@ export interface SystemService {
 	/** E-104: an append hit ENOSPC under `path`; halts dispatch at once and publishes one warning per outage. */
 	readonly notifyDiskFull: (path: string) => void;
 	readonly getLogstoreRoot: () => string;
+	readonly stopNotifications?: () => Promise<void>;
 }
 
 /**
@@ -64,14 +66,13 @@ export function createSystemService(deps: SystemServiceDeps): SystemService {
 		freeThresholdBytes: deps.freeThresholdBytes,
 	});
 	let halt: DispatchHalt | null = null;
+	const notifications = createBackgroundPublisher({
+		...deps,
+		onError: (error) => deps.logViolation?.(String(error)),
+	});
 
 	function publishWarning(message: string, path: string, freeBytes: number | undefined): void {
-		deps.bus.publish(
-			deps.envelopeFactory.createEnvelope({
-				kind: 'system.disk_warning',
-				payload: { freeBytes, path, message },
-			}),
-		);
+		notifications.publish({ kind: 'system.disk_warning', payload: { freeBytes, path, message } });
 	}
 
 	async function checkDiskWatch(): Promise<DiskWatchCheckResult> {
@@ -108,6 +109,7 @@ export function createSystemService(deps: SystemServiceDeps): SystemService {
 		},
 		checkDiskWatch,
 		notifyDiskFull,
+		stopNotifications: notifications.stop,
 		getLogstoreRoot: (): string => deps.paths.rootDir,
 	});
 }

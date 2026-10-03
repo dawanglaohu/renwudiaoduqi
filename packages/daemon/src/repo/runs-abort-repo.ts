@@ -9,6 +9,7 @@ export interface RunAbortRunRecord {
 	readonly id: string;
 	readonly taskId: string;
 	readonly state: RunState;
+	readonly kind?: string;
 	readonly pid: number | null;
 	readonly worktreePath: string | null;
 	readonly changedFileCount: number | null;
@@ -28,7 +29,7 @@ export interface RunsAbortRepo {
 }
 
 const SELECT_BY_ID_SQL = `
-SELECT id, task_id, state, pid, worktree_path, changed_file_count
+SELECT id, task_id, kind, state, pid, worktree_path, changed_file_count
 FROM runs
 WHERE id = ?
 LIMIT 1
@@ -79,6 +80,7 @@ export function createSqliteRunsAbortRepo(db: DatabaseConnection): RunsAbortRepo
 							id: string;
 							task_id: string;
 							state: RunState;
+							kind: string;
 							pid: number | null;
 							worktree_path: string | null;
 							changed_file_count: number | null;
@@ -89,6 +91,7 @@ export function createSqliteRunsAbortRepo(db: DatabaseConnection): RunsAbortRepo
 					id: row.id,
 					taskId: row.task_id,
 					state: row.state,
+					kind: row.kind,
 					pid: row.pid,
 					worktreePath: row.worktree_path,
 					changedFileCount: row.changed_file_count,

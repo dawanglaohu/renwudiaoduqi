@@ -508,14 +508,16 @@ const isTask2 = !isReviewOrBughunt && (
   process.argv.some((a) => a.includes('B14-T2') && !a.includes('B14-T1'))
 );
 
-// E-323 Bughunt failure check: if bughunt-fail signal exists and command is bughunt, exit with error
-const bughuntFailSignals = [
-  path.join(signalDir, 'bughunt-fail.signal'),
-  path.join(os.tmpdir(), 'bughunt-fail.signal'),
-  path.join(path.dirname(process.argv[1] || ''), 'bughunt-fail.signal'),
-];
-const hasBughuntFailSignal = bughuntFailSignals.some((p) => fs.existsSync(p));
-const isBughuntRun = process.argv.some((a) => a.includes('bughunt') || a.includes('查 bug'));
+// E-323: only the armed task's bughunt may consume this fault.
+const bughuntFailSignal = path.join(signalDir, 'bughunt-fail.signal');
+function shouldFailBughunt(prompt) {
+  if (!prompt.trimStart().startsWith('# 查 bug 执行指令') || !fs.existsSync(bughuntFailSignal)) return false;
+  const fault = JSON.parse(fs.readFileSync(bughuntFailSignal, 'utf8'));
+  const targetHeading = '\\n## 工作区指针与测试指令\\n\\n### 目标任务\\n';
+  const targetOffset = prompt.lastIndexOf(targetHeading);
+  return typeof fault.taskId === 'string' && fault.taskId.length > 0 && targetOffset >= 0 &&
+    prompt.slice(targetOffset + targetHeading.length).startsWith('- 任务 ' + fault.taskId + '：');
+}
 const hasWrapupFailSignal = fs.existsSync(path.join(signalDir, 'wrapup-fail.signal'));
 
 // E-348 Zero-output check: if zero-output signal exists and target is B14-T2, wait 350ms for daemon to reach running state, then exit with stderr before content events
@@ -531,11 +533,6 @@ if (hasWrapupFailSignal) {
     process.stderr.write('[error] Agent process exited before producing content: authentication required or invalid model\\n[stderr] credentials check failed: token expired\\n');
     process.exit(1);
   }, 350);
-} else if (hasBughuntFailSignal && isBughuntRun) {
-  setTimeout(() => {
-    process.stderr.write('[error] Bughunt execution failure: test induced bughunt failure for E-323\\n[stderr] analysis aborted\\n');
-    process.exit(1);
-  }, 350);
 } else {
   let turnStarted = false;
   let currentPrompt = '';
@@ -543,6 +540,14 @@ if (hasWrapupFailSignal) {
   function emitTurnPayload() {
     if (turnStarted) return;
     turnStarted = true;
+    const prompt = currentPrompt || process.argv.find((arg) => arg.trimStart().startsWith('# 查 bug 执行指令')) || '';
+    if (shouldFailBughunt(prompt)) {
+      setTimeout(() => {
+        process.stderr.write('[error] Bughunt execution failure: test induced bughunt failure for E-323\\n[stderr] analysis aborted\\n');
+        process.exit(1);
+      }, 350);
+      return;
+    }
 
     // Produce real git diff for implement runs strictly within the task's own effectivePaths
     const taskKeys = ['b14-t1', 'b14-t2', 'b14-t3', 'b14-t4', 'b14-t5'];
@@ -1144,47 +1149,53 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 	}, 300000);
 
 	afterEach(async ({ task }) => {
-		if (daemon) rmSync(join(daemon.dataDir, 'hold-implementation.signal'), { force: true });
-		if (task.result?.state === 'fail') {
-			const safeName = task.name.replace(/[^a-zA-Z0-9_-]/g, '_');
-			mkdirSync(artifactsDir, { recursive: true });
-			if (liveEvents) {
-				writeFileSync(
-					join(artifactsDir, `${safeName}-live-events.json`),
-					redactSensitiveData(JSON.stringify({ subscription: liveEvents.subscription, events: liveEvents.events }, null, 2)),
-					'utf8',
-				);
-			}
-
-			if (daemon && currentRunId && adminToken) {
-				try {
-					const r = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${currentRunId}`, {
-						headers: { Authorization: `Bearer ${adminToken}` },
-					});
-					const runState = await r.json();
+		try {
+			if (daemon) rmSync(join(daemon.dataDir, 'hold-implementation.signal'), { force: true });
+			if (task.result?.state === 'fail') {
+				const safeName = task.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+				mkdirSync(artifactsDir, { recursive: true });
+				if (liveEvents) {
 					writeFileSync(
-						join(artifactsDir, `${safeName}-run-state.json`),
-						redactSensitiveData(JSON.stringify(runState, null, 2)),
+						join(artifactsDir, `${safeName}-live-events.json`),
+						redactSensitiveData(JSON.stringify({ subscription: liveEvents.subscription, events: liveEvents.events }, null, 2)),
 						'utf8',
 					);
-				} catch {}
+				}
+
+				if (daemon && currentRunId && adminToken) {
+					try {
+						const r = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${currentRunId}`, {
+							headers: { Authorization: `Bearer ${adminToken}` },
+						});
+						const runState = await r.json();
+						writeFileSync(
+							join(artifactsDir, `${safeName}-run-state.json`),
+							redactSensitiveData(JSON.stringify(runState, null, 2)),
+							'utf8',
+						);
+					} catch {}
+				}
+
+				if (page) {
+					try {
+						await maskSensitivePageContent(page);
+						const screenshotPath = join(artifactsDir, `${safeName}-failure.png`);
+						await page.screenshot({ path: screenshotPath, fullPage: true });
+
+						const domHtml = await page.content();
+						const domPath = join(artifactsDir, `${safeName}-failure.dom.html`);
+						writeFileSync(domPath, redactSensitiveData(domHtml), 'utf8');
+					} catch {}
+				}
+
+				if (daemon) {
+					writeFileSync(join(artifactsDir, `${safeName}-daemon-stdout.log`), daemon.getStdout(), 'utf8');
+					writeFileSync(join(artifactsDir, `${safeName}-daemon-stderr.log`), daemon.getStderr(), 'utf8');
+				}
 			}
-
-			if (page) {
-				try {
-					await maskSensitivePageContent(page);
-					const screenshotPath = join(artifactsDir, `${safeName}-failure.png`);
-					await page.screenshot({ path: screenshotPath, fullPage: true });
-
-					const domHtml = await page.content();
-					const domPath = join(artifactsDir, `${safeName}-failure.dom.html`);
-					writeFileSync(domPath, redactSensitiveData(domHtml), 'utf8');
-				} catch {}
-			}
-
-			if (daemon) {
-				writeFileSync(join(artifactsDir, `${safeName}-daemon-stdout.log`), daemon.getStdout(), 'utf8');
-				writeFileSync(join(artifactsDir, `${safeName}-daemon-stderr.log`), daemon.getStderr(), 'utf8');
+		} finally {
+			if (daemon && (task.result?.state === 'fail' || task.name.startsWith('step 4:'))) {
+				rmSync(join(daemon.dataDir, 'bughunt-fail.signal'), { force: true });
 			}
 		}
 	});
@@ -1566,6 +1577,14 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		await sourceField.waitFor({ state: 'visible', timeout: 10000 });
 		const sourceText = await sourceField.innerText();
 		expect(sourceText).toMatch(/任务/);
+		// Arm the target fault before releasing the implementation into review and bughunt.
+		const targetWorktreePath = getRunFromDb(daemon.dataDir, currentRunId)?.worktree_path;
+		expect(targetWorktreePath).toBeTruthy();
+		writeFileSync(
+			join(daemon.dataDir, 'bughunt-fail.signal'),
+			JSON.stringify({ taskId: task1Id }),
+			'utf8',
+		);
 		rmSync(holdSignal, { force: true });
 
 		// 清理 liveMsg 信号文件，避免干扰后续阶段
@@ -1669,11 +1688,8 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 			)
 			.toBe(true);
 
-		// 写入 bughunt-fail 信号，使初次 bughunt 运行发生真实失败以测试 E-323 规约
+		// Step 3 armed this task's first bughunt before releasing the implementation.
 		const bughuntFailSignalPath = join(daemon.dataDir, 'bughunt-fail.signal');
-		const bughuntFailTmpSignalPath = join(tmpdir(), 'bughunt-fail.signal');
-		writeFileSync(bughuntFailSignalPath, 'TRIGGER_BUGHUNT_FAIL\n', 'utf8');
-		writeFileSync(bughuntFailTmpSignalPath, 'TRIGGER_BUGHUNT_FAIL\n', 'utf8');
 
 		// 等待审查运行完成并触发查 bug 运行 (bughunt)，此时因信号真实失败转入 failed (AC 2, M8-T9, E-323)
 		let failedBughuntRunId: string | null = null;
@@ -1738,7 +1754,6 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 
 		// 4. 清理 bughunt-fail 信号，通过合法 POST /runs/:id/rerun 触发重跑 (AC 2, E-323)
 		if (existsSync(bughuntFailSignalPath)) rmSync(bughuntFailSignalPath, { force: true });
-		if (existsSync(bughuntFailTmpSignalPath)) rmSync(bughuntFailTmpSignalPath, { force: true });
 
 		const bughuntRerunRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${failedBughuntRunId}/rerun`, {
 			method: 'POST',

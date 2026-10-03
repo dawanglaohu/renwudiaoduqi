@@ -1,9 +1,11 @@
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
 import type { LaunchSpec, ManagedProcess } from '../proc/spawn.ts';
+import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
 import type { RunMessagesRepo } from '../repo/run-messages-repo.ts';
 import type { RunRow, RunsRepo } from '../repo/runs.ts';
@@ -60,6 +62,7 @@ export interface SessionResumeDeps {
 	readonly runsRepo: RunsRepo;
 	readonly tasksRepo?: TasksRepo;
 	readonly documentsRepo?: DocumentsRepo;
+	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
 	readonly runMessagesRepo?: RunMessagesRepo;
 	readonly processRegistry?: ProcessRegistry;
 	readonly runService?: SessionResumeRunWiring;
@@ -152,9 +155,18 @@ export function createSessionResumeDispatcher(
 
 		let spec: LaunchSpec;
 		try {
+			const snapshot = deps.dispatchSnapshotsRepo?.findById(run.snapshot_id);
+			const frozenLaunch: {
+				readonly execPath?: string | null;
+				readonly customArgs?: readonly string[];
+				readonly argsTemplate?: readonly string[];
+			} = JSON.parse(snapshot?.launch_spec_json ?? '{}');
 			spec = adapter.buildLaunchSpec({
 				runId: run.id,
 				cwd,
+				execPath: frozenLaunch.execPath ?? run.agent_id,
+				customArgs: frozenLaunch.customArgs,
+				argsTemplate: frozenLaunch.argsTemplate,
 				model: run.model_name ?? null,
 				effortTier: run.effort_tier ?? null,
 				permissionTier: run.permission_tier ?? 'workspaceWrite',
@@ -209,7 +221,7 @@ export function createSessionResumeDispatcher(
 
 		const messageId = deps.ids.newId();
 		const now = deps.clock.now();
-		let envelope: ReturnType<EnvelopeFactory['createEnvelope']> | null = null;
+		const completed: CreateEnvelopeInput[] = [];
 
 		const persistDelivered = () => {
 			deps.runMessagesRepo?.insertMessage({
@@ -225,7 +237,7 @@ export function createSessionResumeDispatcher(
 			});
 
 			if (deps.envelopeFactory) {
-				envelope = deps.envelopeFactory.createEnvelope({
+				completed.push({
 					kind: 'run.message_delivered',
 					runId: run.id,
 					taskId: run.task_id,
@@ -241,9 +253,7 @@ export function createSessionResumeDispatcher(
 			persistDelivered();
 		}
 
-		if (envelope && deps.bus) {
-			deps.bus.publish(envelope);
-		}
+		await publishCompletionEvents(completed, deps);
 
 		return Object.freeze({
 			newRunId: run.id,

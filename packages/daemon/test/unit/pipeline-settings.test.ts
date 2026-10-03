@@ -84,6 +84,13 @@ describe('M8-T8 & M8-T9 Pipeline Settings Unit Tests (AC 5, E-318, E-356)', () =
 			publish: vi.fn(),
 		} as unknown as EventBus;
 		const envelopeFactory = {
+			async createEnvelopeAsync(
+				this: EnvelopeFactory,
+				input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+			) {
+				return this.createEnvelope(input);
+			},
+			cancelEnvelope: vi.fn(),
 			createEnvelope: vi.fn(),
 		} as unknown as EnvelopeFactory;
 
@@ -158,7 +165,11 @@ describe('M8-T8 & M8-T9 Pipeline Settings Unit Tests (AC 5, E-318, E-356)', () =
 		const settingsRepo = createSettingsRepo(db);
 		const unitOfWork = createUnitOfWork(db);
 		const bus = { publish: vi.fn() } as unknown as EventBus;
-		const envelopeFactory = { createEnvelope: vi.fn() } as unknown as EnvelopeFactory;
+		const envelopeFactory = {
+			createEnvelope: vi.fn(),
+			cancelEnvelope: vi.fn(),
+			createEnvelopeAsync: vi.fn(),
+		} as unknown as EnvelopeFactory;
 
 		const mockRegistry = {
 			getSnapshot: () => ({
@@ -269,6 +280,13 @@ describe('M8-T8 & M8-T9 Pipeline Settings Unit Tests (AC 5, E-318, E-356)', () =
 			publish: vi.fn((env: EventEnvelope) => published.push(env)),
 		} as unknown as EventBus;
 		const envelopeFactory = {
+			async createEnvelopeAsync(
+				this: EnvelopeFactory,
+				input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+			) {
+				return this.createEnvelope(input);
+			},
+			cancelEnvelope: vi.fn(),
 			createEnvelope: vi.fn(
 				(opts: { kind: string; actorDeviceId?: string | null; payload?: unknown }) => ({
 					id: 1,

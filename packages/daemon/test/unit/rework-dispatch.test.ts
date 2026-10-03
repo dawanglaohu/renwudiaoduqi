@@ -316,6 +316,13 @@ describe('M7-T5: Rework session dispatch across 3 branches (AC 1-5, E-112, E-277
 
 		let eventSeq = 1;
 		mockEnvelopeFactory = {
+			async createEnvelopeAsync(
+				this: EnvelopeFactory,
+				input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+			) {
+				return this.createEnvelope(input);
+			},
+			cancelEnvelope: vi.fn(),
 			createEnvelope: (input: {
 				kind: string;
 				runId?: string | null;

@@ -368,7 +368,8 @@ detached
 			expect(add).toBeDefined();
 			expect(add).not.toContain('--force');
 			expect(add).not.toContain('-b');
-			expect(add?.[add.length - 1]).toBe('task/M7-T5');
+			expect(add?.[add.length - 1]).toBe('refs/heads/task/M7-T5');
+			expect(executed).toContainEqual(['switch', '--no-guess', 'task/M7-T5']);
 		});
 
 		it('rebuilds a missing registered directory even when old Git omits the prunable marker', async () => {
@@ -387,7 +388,14 @@ detached
 				isReused: true,
 			});
 			expect(executed).toContainEqual(['worktree', 'remove', '--force', '/wt/task-1']);
-			expect(executed).toContainEqual(['worktree', 'add', '/wt/task-1', 'task/M7-T5']);
+			expect(executed).toContainEqual([
+				'worktree',
+				'add',
+				'--detach',
+				'/wt/task-1',
+				'refs/heads/task/M7-T5',
+			]);
+			expect(executed).toContainEqual(['switch', '--no-guess', 'task/M7-T5']);
 		});
 
 		it('checks out the existing branch into a new worktree when the registration is gone, never a fresh branch from HEAD', async () => {
@@ -412,7 +420,8 @@ detached
 			expect(add).toBeDefined();
 			expect(add).not.toContain('-b');
 			expect(add).not.toContain('--force');
-			expect(add?.[add.length - 1]).toBe('task/M7-T5');
+			expect(add?.[add.length - 1]).toBe('refs/heads/task/M7-T5');
+			expect(executed).toContainEqual(['switch', '--no-guess', 'task/M7-T5']);
 			expect(add?.some((arg) => arg === 'HEAD')).toBe(false);
 		});
 	});

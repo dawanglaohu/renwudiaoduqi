@@ -214,7 +214,7 @@ interface GitDiffControl {
 	treeVersion?: number;
 }
 
-function setupBughuntEnvironment(
+async function setupBughuntEnvironment(
 	overrides: {
 		readonly pipelineBughunt?: boolean;
 	} = {},
@@ -438,6 +438,15 @@ function setupBughuntEnvironment(
 		has_prompt_changed: 0,
 		is_removed_from_doc: 0,
 	});
+	container.repos.tasks.setAssignmentDraft(
+		'task-1',
+		JSON.stringify({
+			agentId: 'codex',
+			model: 'o3-mini',
+			effort: { tier: 'high' },
+			draftedAt: clock.now(),
+		}),
+	);
 
 	const snapshotsRepo = expectDefined(container.repos.dispatchSnapshots, 'dispatchSnapshots');
 	snapshotsRepo.insert({
@@ -453,7 +462,7 @@ function setupBughuntEnvironment(
 		created_at: clock.now(),
 	});
 
-	container.services.settings.updateGates(
+	await container.services.settings.updateGates(
 		{
 			dispatch: 'auto',
 			review: 'auto',
@@ -497,11 +506,14 @@ async function waitFor(predicate: () => boolean, timeoutMs = 4000): Promise<bool
 /**
  * Helper to advance initial implementation to review pass.
  */
-async function advanceToReviewPassed(env: ReturnType<typeof setupBughuntEnvironment>): Promise<{
+async function advanceToReviewPassed(
+	env: Awaited<ReturnType<typeof setupBughuntEnvironment>>,
+): Promise<{
 	implRunId: string;
 	reviewRunId: string;
 }> {
 	const { container, spawnedProcesses } = env;
+	expect(container.repos.tasks.findById('task-1')?.batch_id).toBe('batch-1');
 
 	// 1. Dispatch initial implementation run
 	const createRes = await container.services.dispatch.createRun({
@@ -512,6 +524,7 @@ async function advanceToReviewPassed(env: ReturnType<typeof setupBughuntEnvironm
 		idempotencyKey: `impl-init-${Date.now()}-${Math.random()}`,
 	});
 	const implRunId = createRes.run.id;
+	expect(container.repos.runs.findById(implRunId)?.batch_id).toBe('batch-1');
 
 	// Trigger tick to launch implementation process
 	await container.services.dispatch.tick();
@@ -556,7 +569,7 @@ async function advanceToReviewPassed(env: ReturnType<typeof setupBughuntEnvironm
 
 describe('bughunt lifecycle integration (R12-T32133721)', () => {
 	it('AC 1 & E-306: pipeline.bughunt=false -> review pass goes directly to landing gate without bughunt run', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: false });
+		const env = await setupBughuntEnvironment({ pipelineBughunt: false });
 		const { container } = env;
 
 		await advanceToReviewPassed(env);
@@ -579,7 +592,7 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 	});
 
 	it('AC 1 & E-306 & E-328: pipeline.bughunt=true -> review pass dispatches and starts bughunt child run with snapshot and batch', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: true });
+		const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 		const { container, spawnedProcesses } = env;
 
 		const { implRunId } = await advanceToReviewPassed(env);
@@ -626,7 +639,7 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 	});
 
 	it('AC 2 & E-306 & E-321: bughunt clean -> no bugs and diff empty -> transitions to landing gate without re-running mechanical check', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: true });
+		const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 		const { container, spawnedProcesses, gitDiffControl } = env;
 
 		const { implRunId } = await advanceToReviewPassed(env);
@@ -672,7 +685,7 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 	});
 
 	it('AC 2 & E-307: bughunt FIXED with diff & rework_count < 2 -> increments rework_count and requests continuation review', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: true });
+		const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 		const { container, spawnedProcesses, gitDiffControl } = env;
 
 		const { implRunId } = await advanceToReviewPassed(env);
@@ -719,7 +732,7 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 	});
 
 	it('AC 2 & E-307: bughunt FIXED with diff & rework_count >= 2 -> enters awaiting_human with bughunt_fixed_over_limit', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: true });
+		const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 		const { container, spawnedProcesses, gitDiffControl } = env;
 
 		const { implRunId } = await advanceToReviewPassed(env);
@@ -760,7 +773,7 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 	});
 
 	it('AC 2 & E-307 & E-308: bughunt FIXED but NOT_FIXED contains S1/S2 -> enters awaiting_human directly without re-review', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: true });
+		const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 		const { container, spawnedProcesses, gitDiffControl } = env;
 
 		const { implRunId } = await advanceToReviewPassed(env);
@@ -817,7 +830,7 @@ NEXT
 	});
 
 	it('AC 2 & E-308: bughunt NOT_FIXED contains S1 -> enters awaiting_human with unpatched report and gate', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: true });
+		const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 		const { container, spawnedProcesses } = env;
 
 		const { implRunId } = await advanceToReviewPassed(env);
@@ -854,7 +867,7 @@ NEXT
 	});
 
 	it('AC 2 & E-320: bughunt invalid report (missing NEXT) -> enters awaiting_human with review gate, rework_count unchanged', async () => {
-		const env = setupBughuntEnvironment({ pipelineBughunt: true });
+		const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 		const { container, spawnedProcesses } = env;
 
 		const { implRunId } = await advanceToReviewPassed(env);
@@ -891,7 +904,7 @@ NEXT
 	it.each([false, true])(
 		'AC 2 & AC 3 & E-323 & E-331: bughunt exit 1 -> bughunt_failed gate -> POST /runs/:id/rerun retries atomic run (sequence gap: %s)',
 		async (hasSequenceGap) => {
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses } = env;
 			const server = createHttpServer({ container });
 			await server.instance.ready();
@@ -1005,7 +1018,7 @@ NEXT
 	it('AC 3 & E-329 & E-331: human gate decision pass advances to landing gate, reject routes to rework with uncommitted notice', async () => {
 		// Scenario A: Human decides pass on bughunt gate -> advances to landing gate
 		{
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses } = env;
 			const server = createHttpServer({ container });
 			await server.instance.ready();
@@ -1055,7 +1068,7 @@ NEXT
 
 		// Scenario B: Human decides reject with uncommitted diff -> prepends uncommitted notice (E-329)
 		{
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses, gitDiffControl } = env;
 			const server = createHttpServer({ container });
 			await server.instance.ready();
@@ -1134,7 +1147,7 @@ NEXT
 	describe('R1–R4 regression suite', () => {
 		// R1: 启动抛错、启动即退出或超时、信号中止等查 bug 失败，通过正式容器将子运行、父实施运行及 bughunt_failed 人工闸门完整落定
 		it('R1: bughunt process signal termination (SIGTERM) or premature exit creates bughunt_failed gate and sets runs accordingly', async () => {
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses } = env;
 			const { implRunId } = await advanceToReviewPassed(env);
 
@@ -1177,7 +1190,7 @@ NEXT
 
 		// R2: 冻结查 bug 派发时的真实工作区状态，以该基线判断 FIXED 和再审差异；差异读取失败不得按 clean 放行
 		it('R2: diff read failure does NOT clean pass and routes to awaiting_human bughunt_failed', async () => {
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses, gitDiffControl } = env;
 			const { implRunId } = await advanceToReviewPassed(env);
 
@@ -1211,7 +1224,7 @@ NEXT
 		});
 
 		it('R2: a failed dispatch baseline freezes no run and opens a human gate', async () => {
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			env.gitDiffControl.failDiffRead = true;
 			const { implRunId } = await advanceToReviewPassed(env);
 			await waitFor(() =>
@@ -1226,7 +1239,7 @@ NEXT
 		});
 
 		it('R2: dirty workspace before bughunt and untouched during bughunt results in clean pass to landing gate', async () => {
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses, gitDiffControl } = env;
 			const { implRunId } = await advanceToReviewPassed(env);
 
@@ -1256,7 +1269,7 @@ NEXT
 		});
 
 		it('R2: forbidden commit with fixes detects diff against baseline tree and triggers rereview', async () => {
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses, gitDiffControl } = env;
 			const { implRunId } = await advanceToReviewPassed(env);
 
@@ -1296,7 +1309,7 @@ NEXT
 
 		// R3: HTTP 重派只允许当前停在 bughunt_failed 人工等待的那条子运行；旧行、其他闸门、已放行后的请求不得新派
 		it('R3: HTTP rerun rejects older bughunt runs, non-bughunt_failed gates, or released runs with 409', async () => {
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses } = env;
 			const server = createHttpServer({ container });
 			await server.instance.ready();
@@ -1376,7 +1389,7 @@ NEXT
 
 		// R4: bughunt、rework、wrapup-fix 启动时逐字透传 model/effort，包括 null
 		it('R4: bughunt and rework runs strictly pass through model and effortTier (including null) without falling back to launchSpecData defaults', async () => {
-			const env = setupBughuntEnvironment({ pipelineBughunt: true });
+			const env = await setupBughuntEnvironment({ pipelineBughunt: true });
 			const { container, spawnedProcesses } = env;
 
 			// Advance to review pass
