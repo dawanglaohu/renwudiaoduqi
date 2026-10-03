@@ -2277,8 +2277,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			const targetWorktreePath = run.worktree_path ?? launchSpecData.targetWorktreePath;
 			const preferredBranchName = run.branch_name ?? launchSpecData.preferredBranchName;
 			const effectiveWorktreeMode =
-				launchSpecData.worktreeMode ??
-				(run.origin === 'wrapup-fix' || targetWorktreePath ? 'reuse' : 'fresh');
+				run.kind === 'bughunt'
+					? 'reuse'
+					: (launchSpecData.worktreeMode ??
+						(run.origin === 'wrapup-fix' || targetWorktreePath ? 'reuse' : 'fresh'));
 
 			try {
 				const baseRefInput =
