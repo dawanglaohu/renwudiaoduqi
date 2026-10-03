@@ -10,6 +10,11 @@ import type { EnvelopeFactory } from '../events/envelope.ts';
 import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { SettingsRepo } from '../repo/settings.ts';
 
+export interface GateUpdateEffects {
+	readonly events: readonly EventEnvelope[];
+	readonly afterCommit?: () => Promise<void>;
+}
+
 export interface SettingsServiceDeps {
 	readonly settingsRepo: SettingsRepo;
 	readonly clock: { readonly now: () => string };
@@ -28,20 +33,20 @@ export interface SettingsServiceDeps {
 	/**
 	 * Runs inside the same `unitOfWork.run` as the settings write (08 节：一个 HTTP 请求最多开一次
 	 * 事务，跨 service 的复合写必须聚进同一个 run)。Must not open a transaction of its own and
-	 * must not publish; returns the events the caller publishes after the transaction returns.
+	 * must not publish; returns events and optional cleanup for the caller to await after commit.
 	 */
 	readonly onGatesUpdated?: (
 		newGates: GateSettings,
 		previousGates: GateSettings,
 		actorDeviceId: string | null,
-	) => readonly EventEnvelope[];
+	) => GateUpdateEffects;
 }
 
 export type PipelineSettingsSummary = PipelineSettings;
 
 export interface SettingsService {
 	readonly getGates: () => GateSettings;
-	readonly updateGates: (input: unknown, actorDeviceId: string | null) => GateSettings;
+	readonly updateGates: (input: unknown, actorDeviceId: string | null) => Promise<GateSettings>;
 	readonly getPipeline: () => PipelineSettings;
 	readonly updatePipeline: (input: unknown, actorDeviceId: string | null) => PipelineSettings;
 }
@@ -95,7 +100,7 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 		 * - Emits `settings.gates_changed` event after transaction commits.
 		 * - Triggers re-evaluation of waiting gates for changed kinds without restarting batches (E-56).
 		 */
-		updateGates(input: unknown, actorDeviceId: string | null): GateSettings {
+		async updateGates(input: unknown, actorDeviceId: string | null): Promise<GateSettings> {
 			if (!isValidGateSettings(input)) {
 				throw new AppError(
 					'E_VALIDATION',
@@ -113,22 +118,30 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 			const valueJson = JSON.stringify(updated);
 			const now = deps.clock.now();
 			const pendingEvents: EventEnvelope[] = [];
+			let effects: GateUpdateEffects | undefined;
 
 			// Strictly respect transaction boundary: DB writes inside one transaction, every event
 			// published only after it returns. The gate re-evaluation (R2, E-56) shares this run.
 			deps.unitOfWork.run(() => {
 				deps.settingsRepo.set('gates', valueJson, now);
-				pendingEvents.push(...(deps.onGatesUpdated?.(updated, previous, actorDeviceId) ?? []));
+				effects = deps.onGatesUpdated?.(updated, previous, actorDeviceId);
+				pendingEvents.push(...(effects?.events ?? []));
 				pendingEvents.push(
 					deps.envelopeFactory.createEnvelope({
 						kind: 'settings.gates_changed',
 						actorDeviceId,
-						payload: { gates: updated },
+						payload: {
+							gates: updated,
+						},
 					}),
 				);
 			});
 
-			publishPendingEvents(pendingEvents, deps);
+			try {
+				publishPendingEvents(pendingEvents, deps);
+			} finally {
+				await effects?.afterCommit?.();
+			}
 
 			return updated;
 		},

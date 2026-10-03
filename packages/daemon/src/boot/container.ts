@@ -1022,7 +1022,7 @@ export function createContainer(input: {
 					newGates,
 					previousGates,
 					actorDeviceId,
-				) ?? [],
+				) ?? { events: [] },
 		});
 
 	const gateService =

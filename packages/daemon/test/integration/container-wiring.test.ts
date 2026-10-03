@@ -1065,7 +1065,7 @@ describe(
 			const token = await getAuthToken(container);
 
 			// Configure gates: review=auto, landing=manual (E-53 default manual landing gate)
-			container.services.settings.updateGates(
+			await container.services.settings.updateGates(
 				{
 					dispatch: 'auto',
 					review: 'auto',
@@ -1692,7 +1692,7 @@ describe(
 			const now = env.clock.now();
 
 			// --- Part 1: Automatic landed ---
-			container.services.settings.updateGates(
+			await container.services.settings.updateGates(
 				{ dispatch: 'auto', review: 'auto', landing: 'auto' },
 				null,
 			);

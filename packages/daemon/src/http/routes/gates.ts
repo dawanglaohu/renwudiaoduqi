@@ -130,7 +130,7 @@ export function registerGateRoutes(
 		const service = resolveSettingsService(request, instance, options);
 		const actorDeviceId = (request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
 
-		const gates = service.updateGates(body, actorDeviceId);
+		const gates = await service.updateGates(body, actorDeviceId);
 		return { gates };
 	};
 

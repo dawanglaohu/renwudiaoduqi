@@ -18,7 +18,11 @@ import {
 	resolveAfterReview,
 } from '../domain/gates.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
-import { type RunState, isTerminalRunState } from '../domain/run-state-machine.ts';
+import {
+	type RunState,
+	canTransitionToLanded,
+	isTerminalRunState,
+} from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
@@ -39,7 +43,7 @@ import type { BatchService } from './batch.ts';
 import { type LogstoreService, readRunExitedStderrTail } from './logstore.ts';
 import type { ReworkService } from './rework.ts';
 import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
-import type { SettingsService } from './settings.ts';
+import type { GateUpdateEffects, SettingsService } from './settings.ts';
 
 export interface GateServiceDeps {
 	readonly gatesRepo: GatesRepo;
@@ -103,7 +107,7 @@ export interface GateService {
 		newGates: GateSettings,
 		previousGates: GateSettings | undefined,
 		actorDeviceId: string | null,
-	) => readonly EventEnvelope[];
+	) => GateUpdateEffects;
 	readonly setBatchGateOverrides: (batchId: string, overrides: BatchGateOverrides) => void;
 	readonly getBatchGateOverrides: (batchId: string) => BatchGateOverrides | undefined;
 }
@@ -1022,16 +1026,87 @@ export function createGateService(deps: GateServiceDeps): GateService {
 		 * Re-evaluates waiting gates when gate settings change (R2, E-56):
 		 * - For gate kinds changed to 'auto': immediately releases waiting gates without restarting batches.
 		 * - For gate kinds remaining 'manual': keeps waiting without rollback or disturbance.
-		 * - Caller owns the transaction and the publishing; this method only writes rows and
-		 *   returns the events to publish.
+		 * - Caller owns the transaction and publishing, then awaits the returned process cleanup.
 		 */
 		reEvaluateWaitingGatesInTx(
 			newGates: GateSettings,
 			previousGates: GateSettings | undefined,
 			actorDeviceId: string | null,
-		): readonly EventEnvelope[] {
+		): GateUpdateEffects {
 			const now = deps.clock.now();
 			const eventsToPublish: EventEnvelope[] = [];
+			const archives: ArchiveTaskContext[] = [];
+			const settledTaskIds = new Set<string>();
+			const landTask = (gate: GateRow, implementation: RunRow | undefined): void => {
+				if (!gate.task_id || settledTaskIds.has(gate.task_id)) return;
+				settledTaskIds.add(gate.task_id);
+				deps.tasksRepo?.updateManualState(gate.task_id, 'landed');
+				if (implementation && implementation.state !== 'landed') {
+					deps.runsRepo?.updateState({
+						id: implementation.id,
+						fromState: implementation.state,
+						toState: 'landed',
+						endedAt: now,
+					});
+					eventsToPublish.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'run.state_changed',
+							runId: implementation.id,
+							taskId: gate.task_id,
+							actorDeviceId,
+							payload: {
+								from: implementation.state as RunState,
+								to: 'landed',
+								reason: 'auto_landing_gate_passed',
+							},
+						}),
+					);
+				}
+				const runId = implementation?.id ?? gate.run_id ?? '';
+				if (deps.sessionArchiveService) {
+					const context = deps.sessionArchiveService.archiveTaskInTx({
+						taskId: gate.task_id,
+						runId,
+						actorDeviceId,
+						now,
+					});
+					archives.push(context);
+					if (context.laneReleased)
+						eventsToPublish.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								runId,
+								taskId: gate.task_id,
+								actorDeviceId,
+								payload: {
+									docId: context.docId,
+									laneNo: context.laneNo,
+									taskId: gate.task_id,
+									runId,
+									reason: 'landed',
+								},
+							}),
+						);
+				} else {
+					const lane = deps.tasksRepo?.clearLaneNo(gate.task_id);
+					if (lane?.changes === 1)
+						eventsToPublish.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'lane.released',
+								runId,
+								taskId: gate.task_id,
+								actorDeviceId,
+								payload: {
+									docId: lane.docId,
+									laneNo: lane.previousLaneNo,
+									taskId: gate.task_id,
+									runId,
+									reason: 'landed',
+								},
+							}),
+						);
+				}
+			};
 
 			const kindsToCheck: GateKind[] = [];
 			if (newGates.dispatch === 'auto' && (!previousGates || previousGates.dispatch === 'manual')) {
@@ -1045,7 +1120,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			}
 
 			if (kindsToCheck.length === 0) {
-				return eventsToPublish;
+				return { events: eventsToPublish };
 			}
 
 			const waitingGates = deps.gatesRepo.list({ pendingOnly: true });
@@ -1054,6 +1129,34 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				const matchingGates = waitingGates.filter((g) => g.kind === kind);
 
 				for (const gate of matchingGates) {
+					let implementation: RunRow | undefined;
+					if (kind !== 'dispatch' && gate.task_id && deps.runsRepo) {
+						const latest = deps.runsRepo
+							.listByTaskId(gate.task_id)
+							.filter((run) => run.kind === 'implement')
+							.sort((a, b) => b.attempt_no - a.attempt_no)[0];
+						const boundRun = gate.run_id ? deps.runsRepo.findById(gate.run_id) : undefined;
+						const parent = boundRun?.parent_run_id
+							? deps.runsRepo.findById(boundRun.parent_run_id)
+							: undefined;
+						implementation = gate.run_id
+							? boundRun?.kind === 'implement'
+								? boundRun
+								: parent?.kind === 'implement'
+									? parent
+									: undefined
+							: latest;
+						// A waiting gate belongs to one implementation attempt. An old gate must never
+						// land a stopped run or archive a newer attempt's sessions and lane.
+						if (
+							(gate.run_id && !implementation) ||
+							(implementation &&
+								(implementation.id !== latest?.id ||
+									implementation.session_archived_at !== null ||
+									!canTransitionToLanded(implementation.state as RunState)))
+						)
+							continue;
+					}
 					if (kind === 'dispatch') {
 						deps.gatesRepo.updateDecision(
 							gate.id,
@@ -1104,9 +1207,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 								decided_at: now,
 							});
 
-							if (deps.tasksRepo && gate.task_id) {
-								deps.tasksRepo.updateManualState(gate.task_id, 'landed');
-							}
+							landTask(gate, implementation);
 
 							eventsToPublish.push(
 								deps.envelopeFactory.createEnvelope({
@@ -1161,9 +1262,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 							now,
 						);
 
-						if (deps.tasksRepo && gate.task_id) {
-							deps.tasksRepo.updateManualState(gate.task_id, 'landed');
-						}
+						landTask(gate, implementation);
 
 						eventsToPublish.push(
 							deps.envelopeFactory.createEnvelope({
@@ -1187,7 +1286,20 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				}
 			}
 
-			return eventsToPublish;
+			return {
+				events: eventsToPublish,
+				afterCommit: async () => {
+					const failures: unknown[] = [];
+					for (const context of archives) {
+						try {
+							await deps.sessionArchiveService?.terminateArchived(context);
+						} catch (error) {
+							failures.push(error);
+						}
+					}
+					if (failures.length > 0) throw failures[0];
+				},
+			};
 		},
 
 		setBatchGateOverrides(batchId: string, overrides: BatchGateOverrides): void {
