@@ -8,6 +8,7 @@ import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
+import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
@@ -442,12 +443,17 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 		const migrationsDir = resolve(currentDir, '../../migrations');
 		const testDirs: string[] = [];
 		const testDbs: ReturnType<typeof openDatabase>[] = [];
+		const agentServices: ReturnType<typeof createContainer>['services']['agents'][] = [];
 
 		beforeEach(() => {
 			vi.useRealTimers();
 		});
 
 		afterEach(async () => {
+			for (const agents of agentServices.splice(0)) {
+				await agents.start();
+				await agents.stop();
+			}
 			for (const db of testDbs.splice(0)) {
 				if (db.open) db.close();
 			}
@@ -489,6 +495,14 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 			} as unknown as NativeLockAdapter;
 
 			const container = createContainer({
+				agentRegistry: createAgentRegistry({
+					dataDir,
+					platform: 'posix',
+					builtInDefaults: {},
+					publishWarning: (warning) => {
+						throw new Error(warning.message);
+					},
+				}),
 				config: {
 					port: 0,
 					bind: '127.0.0.1',
@@ -503,6 +517,7 @@ describe('M2-T5 SSE Server: Framing, Heartbeat, Replay, and Disconnect', () => {
 				clock: { now: () => '2026-09-12T12:00:00.000Z' },
 			});
 
+			agentServices.push(container.services.agents);
 			const server = createHttpServer({ container });
 			return { server, container };
 		}
