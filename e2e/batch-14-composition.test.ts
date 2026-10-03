@@ -510,11 +510,14 @@ const isTask2 = !isReviewOrBughunt && (
 
 // E-323: only the armed task's bughunt may consume this fault.
 const bughuntFailSignal = path.join(signalDir, 'bughunt-fail.signal');
-const normalizeWorktree = (value) => process.platform === 'win32'
-  ? path.resolve(value).toLowerCase() : path.resolve(value);
-const hasBughuntFailSignal = fs.existsSync(bughuntFailSignal) &&
-  normalizeWorktree(JSON.parse(fs.readFileSync(bughuntFailSignal, 'utf8')).worktreePath) === normalizeWorktree(process.cwd());
-const isBughuntRun = process.argv.some((a) => a.trimStart().startsWith('# 查 bug 执行指令'));
+function shouldFailBughunt(prompt) {
+  if (!prompt.trimStart().startsWith('# 查 bug 执行指令') || !fs.existsSync(bughuntFailSignal)) return false;
+  const fault = JSON.parse(fs.readFileSync(bughuntFailSignal, 'utf8'));
+  const targetHeading = '\\n## 工作区指针与测试指令\\n\\n### 目标任务\\n';
+  const targetOffset = prompt.lastIndexOf(targetHeading);
+  return typeof fault.taskId === 'string' && fault.taskId.length > 0 && targetOffset >= 0 &&
+    prompt.slice(targetOffset + targetHeading.length).startsWith('- 任务 ' + fault.taskId + '：');
+}
 const hasWrapupFailSignal = fs.existsSync(path.join(signalDir, 'wrapup-fail.signal'));
 
 // E-348 Zero-output check: if zero-output signal exists and target is B14-T2, wait 350ms for daemon to reach running state, then exit with stderr before content events
@@ -530,11 +533,6 @@ if (hasWrapupFailSignal) {
     process.stderr.write('[error] Agent process exited before producing content: authentication required or invalid model\\n[stderr] credentials check failed: token expired\\n');
     process.exit(1);
   }, 350);
-} else if (hasBughuntFailSignal && isBughuntRun) {
-  setTimeout(() => {
-    process.stderr.write('[error] Bughunt execution failure: test induced bughunt failure for E-323\\n[stderr] analysis aborted\\n');
-    process.exit(1);
-  }, 350);
 } else {
   let turnStarted = false;
   let currentPrompt = '';
@@ -542,6 +540,14 @@ if (hasWrapupFailSignal) {
   function emitTurnPayload() {
     if (turnStarted) return;
     turnStarted = true;
+    const prompt = currentPrompt || process.argv.find((arg) => arg.trimStart().startsWith('# 查 bug 执行指令')) || '';
+    if (shouldFailBughunt(prompt)) {
+      setTimeout(() => {
+        process.stderr.write('[error] Bughunt execution failure: test induced bughunt failure for E-323\\n[stderr] analysis aborted\\n');
+        process.exit(1);
+      }, 350);
+      return;
+    }
 
     // Produce real git diff for implement runs strictly within the task's own effectivePaths
     const taskKeys = ['b14-t1', 'b14-t2', 'b14-t3', 'b14-t4', 'b14-t5'];
@@ -1576,7 +1582,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		expect(targetWorktreePath).toBeTruthy();
 		writeFileSync(
 			join(daemon.dataDir, 'bughunt-fail.signal'),
-			JSON.stringify({ worktreePath: targetWorktreePath }),
+			JSON.stringify({ taskId: task1Id }),
 			'utf8',
 		);
 		rmSync(holdSignal, { force: true });
