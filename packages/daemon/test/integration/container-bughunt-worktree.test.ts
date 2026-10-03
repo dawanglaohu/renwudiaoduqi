@@ -5,6 +5,7 @@ import {
 	mkdtempSync,
 	readFileSync,
 	readdirSync,
+	realpathSync,
 	rmSync,
 	writeFileSync,
 } from 'node:fs';
@@ -29,7 +30,8 @@ it.each(['fresh', 'reuse', 'implementation-fresh', 'missing-worktree'] as const)
 	'respects stage workspace ownership with frozen mode %s',
 	async (scenario) => {
 		const worktreeMode = scenario === 'reuse' ? 'reuse' : 'fresh';
-		const dataDir = mkdtempSync(join(tmpdir(), 'agsched-bughunt-worktree-'));
+		const tempRoot = realpathSync.native(tmpdir());
+		const dataDir = mkdtempSync(join(tempRoot, 'agsched-bughunt-worktree-'));
 		const repoPath = join(dataDir, 'repo');
 		const worktreePath = join(dataDir, 'original-worktree');
 		mkdirSync(repoPath);
@@ -240,7 +242,7 @@ it.each(['fresh', 'reuse', 'implementation-fresh', 'missing-worktree'] as const)
 			await container.services.agents.stop();
 			container.events.dispose();
 			db.close();
-			expect(dirname(resolve(dataDir))).toBe(resolve(tmpdir()));
+			expect(dirname(resolve(dataDir))).toBe(tempRoot);
 			expect(basename(dataDir)).toMatch(/^agsched-bughunt-worktree-/);
 			rmSync(dataDir, { recursive: true, force: true });
 		}
