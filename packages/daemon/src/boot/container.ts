@@ -429,8 +429,6 @@ export function createContainer(input: {
 			clock: input.clock,
 		});
 
-	void agentService.start();
-
 	const landingService =
 		input.landingService ??
 		createLandingService({

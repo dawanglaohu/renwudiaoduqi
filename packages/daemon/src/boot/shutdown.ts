@@ -15,6 +15,7 @@ export interface ShutdownDependencies {
 	readonly lock?: LockFileHandle;
 	readonly lockAdapter?: NativeLockAdapter;
 	readonly writeRunLog?: (line: string) => void;
+	readonly stopAgents?: () => Promise<void>;
 }
 
 /**
@@ -48,6 +49,14 @@ export async function shutdown(dependencies: ShutdownDependencies): Promise<void
 			await dependencies.server.close();
 		} catch (error) {
 			writeLog(`[shutdown] HTTP server failed to close cleanly: ${String(error)}`);
+		}
+	}
+
+	if (dependencies.stopAgents) {
+		try {
+			await dependencies.stopAgents();
+		} catch (error) {
+			writeLog(`[shutdown] agent service failed during stop: ${String(error)}`);
 		}
 	}
 

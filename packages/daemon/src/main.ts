@@ -16,6 +16,7 @@ import { ensureDataDir } from './boot/paths.ts';
 import { createShutdownHandler, shutdown } from './boot/shutdown.ts';
 import { takeBootSnapshot } from './boot/snapshot.ts';
 import { type ConfigFileReader, type ProcessConfig, loadProcessConfig } from './config/env.ts';
+import type { AgentRegistry } from './config/registry.ts';
 import { createMigrationRunner } from './db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from './db/open-database.ts';
 import { AppError } from './errors/app-error.ts';
@@ -53,6 +54,7 @@ export interface DaemonStartDependencies {
 	readonly openDatabase: (path: string) => DatabaseConnection;
 	readonly runMigrations: (database: DatabaseConnection) => void;
 	readonly createServer: typeof createHttpServer;
+	readonly agentRegistry?: AgentRegistry;
 }
 
 export async function startDaemon(dependencies: DaemonStartDependencies): Promise<DaemonRuntime> {
@@ -90,6 +92,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 	const lock = lockOutcome.lock;
 	let database: DatabaseConnection | undefined;
 	let server: HttpServer | undefined;
+	let stopAgents: (() => Promise<void>) | undefined;
 	try {
 		const dataDirectory = dependencies.ensureDataDirectory(config.dataDir);
 		if (!dataDirectory.ok) {
@@ -109,8 +112,11 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			clock: Object.freeze({ now: dependencies.now }),
 			logViolation: dependencies.writeRunLog,
 			bootstrapPairing: false,
+			agentRegistry: dependencies.agentRegistry,
 		});
+		stopAgents = () => container.services.agents.stop();
 		server = dependencies.createServer({ container });
+		await container.services.agents.start();
 		await server.listen({ host: config.bind, port: config.port });
 		container.services.pairing.bootstrapIfNeeded();
 		for (const job of container.jobs) {
@@ -128,6 +134,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			dependencies.lockAdapter,
 			container.jobs,
 			dependencies.writeRunLog,
+			stopAgents,
 		);
 	} catch (error) {
 		await cleanupStartupFailure(
@@ -136,6 +143,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			lock,
 			dependencies.lockAdapter,
 			dependencies.writeRunLog,
+			stopAgents,
 		);
 		throw error;
 	}
@@ -206,6 +214,7 @@ function createDaemonRuntime(
 	lockAdapter: NativeLockAdapter,
 	jobs: readonly ContainerJob[],
 	writeRunLog: (line: string) => void,
+	stopAgents: () => Promise<void>,
 ): DaemonRuntime {
 	const stop = createShutdownHandler({
 		jobs,
@@ -214,6 +223,7 @@ function createDaemonRuntime(
 		lock,
 		lockAdapter,
 		writeRunLog,
+		stopAgents,
 	});
 	return Object.freeze({
 		config,
@@ -229,6 +239,7 @@ async function cleanupStartupFailure(
 	lock: LockFileHandle,
 	lockAdapter: NativeLockAdapter,
 	writeRunLog: (line: string) => void,
+	stopAgents: (() => Promise<void>) | undefined,
 ): Promise<void> {
 	await shutdown({
 		server,
@@ -236,6 +247,7 @@ async function cleanupStartupFailure(
 		lock,
 		lockAdapter,
 		writeRunLog,
+		stopAgents,
 	});
 }
 

@@ -102,7 +102,7 @@ export interface AgentServiceDeps {
 export interface AgentService {
 	readonly registry: AgentRegistry;
 	start(): Promise<void>;
-	stop(): void;
+	stop(): Promise<void>;
 	listAgents(): Promise<readonly AgentEntryDto[]>;
 	getAgent(agentId: string): Promise<AgentEntryDto | undefined>;
 	updateAgent(agentId: string, updates: UpdateAgentBody): Promise<AgentEntryDto>;
@@ -185,6 +185,30 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	const liveCache = new Map<string, LiveCacheEntry>();
 	const inflightModels = new Map<string, Promise<LiveModelCatalogResult>>();
 	const configCache = new Map<string, AgentConfigFileData>();
+	let stopped = false;
+	let initialized = false;
+	let starting: Promise<void> | undefined;
+	let stopping: Promise<void> | undefined;
+	let backgroundFailure: unknown;
+	const operations = new Set<Promise<unknown>>();
+
+	function runOperation<T>(operation: () => Promise<T>): Promise<T> {
+		if (stopped) return Promise.reject(new AppError('E_INTERNAL', 'Agent service has stopped.'));
+		const promise = operation();
+		operations.add(promise);
+		void promise.then(
+			() => operations.delete(promise),
+			() => operations.delete(promise),
+		);
+		return promise;
+	}
+
+	function runBackground(operation: () => Promise<unknown>): void {
+		if (stopped) return;
+		void runOperation(operation).catch((error: unknown) => {
+			backgroundFailure ??= error;
+		});
+	}
 
 	const runsRepo: RunsRepo | undefined =
 		deps.runsRepo ?? (deps.database ? createRunsRepo(deps.database) : undefined);
@@ -296,14 +320,9 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		return promise;
 	}
 
-	if (typeof deps.registry.onReload === 'function') {
-		deps.registry.onReload(() => {
-			void probeAll({ force: true });
-		});
-	}
-
-	let initializationPromise: Promise<Readonly<Record<string, AgentAvailabilityState>>> | null =
-		null;
+	const unsubscribeReload = deps.registry.onReload?.(() => {
+		if (initialized) runBackground(() => probeAll({ force: true }));
+	});
 
 	function toAgentEntryDto(
 		agentId: string,
@@ -680,7 +699,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		// Invalidation point 3: availability flip (AC 5)
 		if (prev !== undefined && prev.isAvailable !== state.isAvailable) {
 			loginCache.delete(`login:${agentId}`);
-			void refreshLogin(agentId, { force: true, trigger: 'availability_changed' });
+			runBackground(() => refreshLogin(agentId, { force: true, trigger: 'availability_changed' }));
 		}
 	}
 
@@ -709,29 +728,39 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	}
 
 	async function ensureInitialized(): Promise<void> {
-		if (!initializationPromise) {
-			initializationPromise = probeAll();
-		}
-		await initializationPromise;
+		await (starting ?? start());
 	}
 
-	async function start(): Promise<void> {
-		await deps.registry.start();
-		if (!initializationPromise) {
-			initializationPromise = probeAll();
-		}
-		await initializationPromise;
+	function start(): Promise<void> {
+		if (stopped) return Promise.reject(new AppError('E_INTERNAL', 'Agent service has stopped.'));
+		if (starting) return starting;
+		starting = runOperation(async () => {
+			await deps.registry.start();
+			if (stopped) return;
+			await probeAll();
+			initialized = true;
+		});
+		return starting;
 	}
 
-	function stop(): void {
-		deps.registry.stop();
-		initializationPromise = null;
-		cache.clear();
-		loginCache.clear();
-		inflightLogin.clear();
-		liveCache.clear();
-		inflightModels.clear();
-		configCache.clear();
+	function stop(): Promise<void> {
+		if (stopping) return stopping;
+		stopped = true;
+		unsubscribeReload?.();
+		stopping = (async () => {
+			const registryOutcome = await Promise.allSettled([deps.registry.stop()]);
+			while (operations.size > 0) await Promise.allSettled([...operations]);
+			cache.clear();
+			loginCache.clear();
+			inflightLogin.clear();
+			liveCache.clear();
+			inflightModels.clear();
+			configCache.clear();
+			const registryFailure = registryOutcome[0];
+			if (registryFailure?.status === 'rejected') throw registryFailure.reason;
+			if (backgroundFailure !== undefined) throw backgroundFailure;
+		})();
+		return stopping;
 	}
 
 	async function listAgents(): Promise<readonly AgentEntryDto[]> {
@@ -1280,15 +1309,19 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		registry: deps.registry,
 		start,
 		stop,
-		listAgents,
-		getAgent,
-		updateAgent,
-		probeAgent: probeAgentMethod,
-		probeAll,
-		listAgentModels,
-		assertCanDispatch,
+		listAgents: () => runOperation(listAgents),
+		getAgent: (agentId: string) => runOperation(() => getAgent(agentId)),
+		updateAgent: (agentId: string, updates: UpdateAgentBody) =>
+			runOperation(() => updateAgent(agentId, updates)),
+		probeAgent: (...args: Parameters<typeof probeAgentMethod>) =>
+			runOperation(() => probeAgentMethod(...args)),
+		probeAll: (...args: Parameters<typeof probeAll>) => runOperation(() => probeAll(...args)),
+		listAgentModels: (...args: Parameters<typeof listAgentModels>) =>
+			runOperation(() => listAgentModels(...args)),
+		assertCanDispatch: (agentId: string) => runOperation(() => assertCanDispatch(agentId)),
 		getAvailability,
 		getLogin,
-		refreshLogin,
+		refreshLogin: (...args: Parameters<typeof refreshLogin>) =>
+			runOperation(() => refreshLogin(...args)),
 	});
 }
