@@ -9,6 +9,7 @@ import type {
 import { takePlatformHostInputs } from '../platform/host.ts';
 import { resolveExecutable } from '../platform/resolve-executable.ts';
 import { type LaunchSpec, spawnManaged } from '../proc/spawn.ts';
+import { withWorktreeOperation } from './worktree-operations.ts';
 
 export interface GitCommandResult {
 	readonly exitCode: number;
@@ -356,6 +357,13 @@ export async function listWorktrees(
 	repoPath: string,
 	runner: GitRunner,
 ): Promise<readonly WorktreeEntry[]> {
+	return withWorktreeOperation(repoPath, runner, () => listWorktreesUnlocked(repoPath, runner));
+}
+
+async function listWorktreesUnlocked(
+	repoPath: string,
+	runner: GitRunner,
+): Promise<readonly WorktreeEntry[]> {
 	const result = await runner.run(['worktree', 'list', '--porcelain'], repoPath);
 	if (result.exitCode !== 0) {
 		throw new AppError(
@@ -383,7 +391,7 @@ async function listAllBranchNames(repoPath: string, runner: GitRunner): Promise<
 		}
 	}
 
-	const worktrees = await listWorktrees(repoPath, runner).catch(() => []);
+	const worktrees = await listWorktreesUnlocked(repoPath, runner).catch(() => []);
 	for (const wt of worktrees) {
 		if (wt.branch) {
 			branches.add(wt.branch);
@@ -394,6 +402,17 @@ async function listAllBranchNames(repoPath: string, runner: GitRunner): Promise<
 }
 
 export async function resolveBranchName(
+	repoPath: string,
+	taskId: string,
+	runner: GitRunner,
+	options: { branchPrefix?: string; preferredBranchName?: string } = {},
+): Promise<string> {
+	return withWorktreeOperation(repoPath, runner, () =>
+		resolveBranchNameUnlocked(repoPath, taskId, runner, options),
+	);
+}
+
+async function resolveBranchNameUnlocked(
 	repoPath: string,
 	taskId: string,
 	runner: GitRunner,
@@ -517,6 +536,16 @@ export async function prepareWorktree(
 	runner: GitRunner,
 	deps: WorktreeManagerDeps,
 ): Promise<PrepareWorktreeResult> {
+	return withWorktreeOperation(input.repoPath, runner, () =>
+		prepareWorktreeUnlocked(input, runner, deps),
+	);
+}
+
+async function prepareWorktreeUnlocked(
+	input: PrepareWorktreeInput,
+	runner: GitRunner,
+	deps: WorktreeManagerDeps,
+): Promise<PrepareWorktreeResult> {
 	const repoPath = nodePath.resolve(input.repoPath);
 	const taskId = input.taskId.trim();
 	if (taskId.length === 0) {
@@ -527,7 +556,7 @@ export async function prepareWorktree(
 	await assertGitRepository(repoPath, runner);
 
 	const mode = input.worktreeMode ?? 'fresh';
-	const existingWorktrees = await listWorktrees(repoPath, runner);
+	const existingWorktrees = await listWorktreesUnlocked(repoPath, runner);
 
 	// 2. If reuse mode requested (E-121 / E-277)
 	if (mode === 'reuse') {
@@ -622,7 +651,7 @@ export async function prepareWorktree(
 	}
 
 	// 3. Resolve branch name with collision detection (AC 1, E-71)
-	const branchName = await resolveBranchName(repoPath, taskId, runner, {
+	const branchName = await resolveBranchNameUnlocked(repoPath, taskId, runner, {
 		branchPrefix: input.branchPrefix,
 		preferredBranchName: input.preferredBranchName,
 	});
@@ -690,12 +719,22 @@ export async function removeWorktree(
 	runner: GitRunner,
 	deps: WorktreeManagerDeps,
 ): Promise<CleanupWorktreeResult> {
+	return withWorktreeOperation(input.repoPath, runner, () =>
+		removeWorktreeUnlocked(input, runner, deps),
+	);
+}
+
+async function removeWorktreeUnlocked(
+	input: CleanupWorktreeInput,
+	runner: GitRunner,
+	deps: WorktreeManagerDeps,
+): Promise<CleanupWorktreeResult> {
 	const repoPath = nodePath.resolve(input.repoPath);
 	const worktreePath = nodePath.resolve(input.worktreePath);
 	const force = input.force ?? false;
 	const deleteBranch = input.deleteBranch ?? false;
 
-	const existingWorktrees = await listWorktrees(repoPath, runner).catch(() => []);
+	const existingWorktrees = await listWorktreesUnlocked(repoPath, runner).catch(() => []);
 	const matching = existingWorktrees.find((wt) => nodePath.resolve(wt.path) === worktreePath);
 
 	let branchDeleted = false;
@@ -820,14 +859,24 @@ export async function prepareWrapupWorktree(
 	runner: GitRunner,
 	deps: WorktreeManagerDeps,
 ): Promise<PrepareWrapupWorktreeResult> {
-	const preferredBranchName = await resolveWrapupBranchName(
+	return withWorktreeOperation(input.repoPath, runner, () =>
+		prepareWrapupWorktreeUnlocked(input, runner, deps),
+	);
+}
+
+async function prepareWrapupWorktreeUnlocked(
+	input: PrepareWrapupWorktreeInput,
+	runner: GitRunner,
+	deps: WorktreeManagerDeps,
+): Promise<PrepareWrapupWorktreeResult> {
+	const preferredBranchName = await resolveBranchNameUnlocked(
 		input.repoPath,
-		input.batchId,
-		input.round,
+		`${input.batchId}-${input.round}`,
 		runner,
+		{ preferredBranchName: formatWrapupBranchName(input.batchId, input.round) },
 	);
 
-	const result = await prepareWorktree(
+	const result = await prepareWorktreeUnlocked(
 		{
 			repoPath: input.repoPath,
 			taskId: `wrapup-${input.batchId}-${input.round}`,
