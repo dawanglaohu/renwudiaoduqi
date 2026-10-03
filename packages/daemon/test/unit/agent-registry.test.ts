@@ -40,7 +40,7 @@ describe('agent registry lifecycle', () => {
 			});
 
 			const snapshot = await registry.start();
-			registry.stop();
+			await registry.stop();
 
 			const persisted = parsePersistedFile(memory.getContents());
 			expect(requiredEntry(persisted.defaults, 'codex')).toEqual(BUILT_IN_AGENT_DEFAULTS.codex);
@@ -65,7 +65,7 @@ describe('agent registry lifecycle', () => {
 		});
 
 		const snapshot = await registry.start();
-		registry.stop();
+		await registry.stop();
 
 		expect(requiredEntry(snapshot.agents, 'dsh').versionRange).toEqual({
 			min: '0.1.0',
@@ -88,7 +88,7 @@ describe('agent registry lifecycle', () => {
 		});
 
 		const snapshot = await registry.start();
-		registry.stop();
+		await registry.stop();
 
 		expect(requiredEntry(snapshot.agents, 'dsh').versionRange).toEqual({
 			min: '0.1.0',
@@ -110,7 +110,7 @@ describe('agent registry lifecycle', () => {
 			publishWarning() {},
 		});
 		await firstVersion.start();
-		firstVersion.stop();
+		await firstVersion.stop();
 
 		const completed = parsePersistedFile(memory.getContents());
 		expect(requiredEntry(completed.defaults, 'codex').maxConcurrency).toBe(1);
@@ -153,7 +153,7 @@ describe('agent registry lifecycle', () => {
 		expect(requiredEntry(adopted.reload.snapshot.userOverrides, 'codex')).toEqual({
 			monogram: 'ZZ',
 		});
-		secondVersion.stop();
+		await secondVersion.stop();
 	});
 
 	it('keeps baseline persistence failure nonfatal and publishes a warning', async () => {
@@ -167,7 +167,7 @@ describe('agent registry lifecycle', () => {
 		});
 
 		const snapshot = await registry.start();
-		registry.stop();
+		await registry.stop();
 
 		expect(requiredEntry(snapshot.agents, 'codex').maxConcurrency).toBe(1);
 		expect(warnings).toEqual([
@@ -212,7 +212,7 @@ describe('agent registry lifecycle', () => {
 		await registry.reload();
 		expect(requiredEntry(registry.getSnapshot().agents, 'codex').maxConcurrency).toBe(2);
 		expect(reloadCount).toBe(2);
-		registry.stop();
+		await registry.stop();
 	});
 
 	it('persists product permission tiers and rejects vendor-specific values (E-136, E-137)', async () => {
@@ -280,7 +280,7 @@ describe('agent registry lifecycle', () => {
 			maxConcurrency: 2,
 		});
 
-		registry.stop();
+		await registry.stop();
 	});
 
 	it('rejects initial start with invalid template, retains baseline, and publishes detailed warning', async () => {
@@ -302,7 +302,7 @@ describe('agent registry lifecycle', () => {
 		});
 
 		const snapshot = await registry.start();
-		registry.stop();
+		await registry.stop();
 
 		expect(snapshot.generation).toBe(0);
 		expect(requiredEntry(snapshot.agents, 'codex').argsTemplate).toEqual(
@@ -363,7 +363,7 @@ describe('agent registry lifecycle', () => {
 		expect(invalidWarning?.endIndex).toBe(14);
 		expect(invalidWarning?.highlight).toBe('--model={model\n        ^^^^^^');
 
-		registry.stop();
+		await registry.stop();
 	});
 
 	it('warns when two agents share executable path and session directory but does not reject', async () => {
@@ -385,7 +385,7 @@ describe('agent registry lifecycle', () => {
 		});
 
 		const snapshot = await registry.start();
-		registry.stop();
+		await registry.stop();
 
 		expect(requiredEntry(snapshot.agents, 'claude').execPath).toBe('codex');
 		expect(requiredEntry(snapshot.agents, 'codex').execPath).toBe('codex');
@@ -421,7 +421,7 @@ describe('agent registry lifecycle', () => {
 		});
 
 		const snapshot = await registry.start();
-		registry.stop();
+		await registry.stop();
 
 		expect(requiredEntry(snapshot.agents, 'claude').execPath).toBe('codex');
 		expect(requiredEntry(snapshot.agents, 'codex').execPath).toBe('codex');
@@ -454,7 +454,7 @@ describe('agent registry lifecycle', () => {
 		});
 
 		const snapshot = await registry.start();
-		registry.stop();
+		await registry.stop();
 
 		// Codex had invalid builtinModels with whitespace -> rejected (falls back to defaults), and warned
 		const invalidWarning = warnings.find(
@@ -492,7 +492,7 @@ describe('agent registry lifecycle', () => {
 		});
 
 		const snapshot = await registry.start();
-		registry.stop();
+		await registry.stop();
 
 		const invalidWarning = warnings.find(
 			(w) => w.reason === 'invalid-config' && w.message.includes("rejecting agent 'pi'"),

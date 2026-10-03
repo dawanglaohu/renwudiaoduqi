@@ -61,7 +61,7 @@ async function createAbortEnvironment(processOps?: KillTreeProcessOps) {
 	const server = createHttpServer({ container });
 	cleanups.push(async () => {
 		await server.close();
-		container.services.agents.stop();
+		await container.services.agents.stop();
 		db.close();
 		await rm(dataDir, { recursive: true, force: true });
 	});

@@ -259,7 +259,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		cleanups.push(async () => {
 			await server.close();
 			await container.services.agents.start();
-			container.services.agents.stop();
+			await container.services.agents.stop();
 		});
 		return { server, container };
 	}
