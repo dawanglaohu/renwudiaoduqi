@@ -56,7 +56,7 @@ it('reuses the original wrapup branch without guessing a new collision suffix', 
 		worktreeMode: 'reuse',
 	});
 	expect(reused.branchName).toBe('wrapup/stable-1');
-	expect(realpathSync(reused.worktreePath)).toBe(realpathSync(first.worktreePath));
+	expect(realpathSync.native(reused.worktreePath)).toBe(realpathSync.native(first.worktreePath));
 	expect(reused.isReused).toBe(true);
 	const collision = await manager.prepareWrapupWorktree({
 		repoPath: repo,
@@ -73,7 +73,9 @@ it('reuses the original wrapup branch without guessing a new collision suffix', 
 		worktreeMode: 'reuse',
 	});
 	expect(selected.branchName).toBe(collision.branchName);
-	expect(realpathSync(selected.worktreePath)).toBe(realpathSync(collision.worktreePath));
+	expect(realpathSync.native(selected.worktreePath)).toBe(
+		realpathSync.native(collision.worktreePath),
+	);
 });
 
 it('removes a registered worktree addressed through a directory alias without force', async () => {
@@ -87,7 +89,7 @@ it('removes a registered worktree addressed through a directory alias without fo
 	const alias = join(root, 'alias-parent');
 	symlinkSync(root, alias, 'junction');
 	const target = join(alias, 'original');
-	expect(realpathSync(target)).toBe(realpathSync(prepared.worktreePath));
+	expect(realpathSync.native(target)).toBe(realpathSync.native(prepared.worktreePath));
 	// Keep this control scoped to the exact registration instead of relying on global prune.
 	const cleanup = createWorktreeManager({
 		...deps,
@@ -250,7 +252,7 @@ it('releases repository ownership after a real Git failure and can prepare a wra
 		targetWorktreePath: wrapup.worktreePath,
 		worktreeMode: 'reuse',
 	});
-	expect(realpathSync(reused.worktreePath)).toBe(realpathSync(wrapup.worktreePath));
+	expect(realpathSync.native(reused.worktreePath)).toBe(realpathSync.native(wrapup.worktreePath));
 	expect(reused.branchName).toBe(wrapup.branchName);
 	expect(reused.isReused).toBe(true);
 });
@@ -313,7 +315,9 @@ it('keeps registry reads and reuse behind an in-flight registration', async () =
 	expect(completedWhileHeld).toBe(false);
 	expect(entries.some((entry) => entry.branch === 'task/reused')).toBe(true);
 	if ('error' in reused) throw reused.error;
-	expect(realpathSync(reused.value.worktreePath)).toBe(realpathSync(created.worktreePath));
+	expect(realpathSync.native(reused.value.worktreePath)).toBe(
+		realpathSync.native(created.worktreePath),
+	);
 	expect(reused.value).toMatchObject({ branchName: created.branchName, isReused: true });
 });
 
