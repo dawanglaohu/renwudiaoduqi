@@ -1582,8 +1582,10 @@ describe(
 			await new Promise((r) => setTimeout(r, 30));
 
 			const failSettlePromise = new Promise<void>((resolve, reject) => {
+				let sawRecoverableState = false;
+				let sawWaitingGate = false;
 				const timer = setTimeout(() => {
-					reject(new Error('Timeout waiting for awaiting_human state change'));
+					reject(new Error('Timeout waiting for recovery state and gate events'));
 				}, 5000);
 				const unsub = container.events.bus.subscribe((envelope) => {
 					if (
@@ -1591,6 +1593,12 @@ describe(
 						envelope.runId === implRunId &&
 						(envelope.payload as { to?: string })?.to === 'awaiting_human'
 					) {
+						sawRecoverableState = true;
+					}
+					if (envelope.kind === 'task.gate_waiting' && envelope.runId === implRunId) {
+						sawWaitingGate = true;
+					}
+					if (sawRecoverableState && sawWaitingGate) {
 						clearTimeout(timer);
 						unsub();
 						resolve();
