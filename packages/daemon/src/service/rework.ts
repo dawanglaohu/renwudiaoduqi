@@ -14,6 +14,7 @@ import {
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GatesRepo } from '../repo/gates.ts';
@@ -751,11 +752,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			persistFailure();
 		}
 
-		if (deps.bus) {
-			for (const ev of pendingEvents) {
-				deps.bus.publish(ev);
-			}
-		}
+		publishPendingEvents(pendingEvents, deps);
 	}
 
 	/**
@@ -874,11 +871,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			persist();
 		}
 
-		if (deps.bus) {
-			for (const ev of events) {
-				deps.bus.publish(ev);
-			}
-		}
+		publishPendingEvents(events, deps);
 	}
 
 	/**
@@ -1046,11 +1039,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				persistLimitReached();
 			}
 
-			if (deps.bus) {
-				for (const ev of pendingEvents) {
-					deps.bus.publish(ev);
-				}
-			}
+			publishPendingEvents(pendingEvents, deps);
 
 			return Object.freeze({
 				success: false,
@@ -1172,11 +1161,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				persistReinjection();
 			}
 
-			if (deps.bus) {
-				for (const ev of pendingEvents) {
-					deps.bus.publish(ev);
-				}
-			}
+			publishPendingEvents(pendingEvents, deps);
 
 			// 事务提交后：通过消息回话通路将返工意见投递给原进程
 			let deliveryResult: { messageId: string; delivered: boolean };
@@ -1227,11 +1212,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					persistFailure();
 				}
 
-				if (deps.bus) {
-					for (const ev of failEvents) {
-						deps.bus.publish(ev);
-					}
-				}
+				publishPendingEvents(failEvents, deps);
 
 				throw error;
 			}
@@ -1275,11 +1256,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				persistRunning();
 			}
 
-			if (deps.bus) {
-				for (const ev of postDeliveryEvents) {
-					deps.bus.publish(ev);
-				}
-			}
+			publishPendingEvents(postDeliveryEvents, deps);
 
 			// AC 4: 每分支在事务后发 run.rework_dispatched{mode, source}
 			if (deps.bus && deps.envelopeFactory) {
@@ -1407,11 +1384,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					persistBranchMissing();
 				}
 
-				if (deps.bus) {
-					for (const ev of branchMissingEvents) {
-						deps.bus.publish(ev);
-					}
-				}
+				publishPendingEvents(branchMissingEvents, deps);
 
 				return Object.freeze({
 					success: false,
@@ -1517,11 +1490,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				persistResume();
 			}
 
-			if (deps.bus) {
-				for (const ev of resumeEvents) {
-					deps.bus.publish(ev);
-				}
-			}
+			publishPendingEvents(resumeEvents, deps);
 
 			// 事务提交后执行恢复投递；只有进程真的起来且意见进了启动参数才算送达
 			let resumeMessageId: string | undefined = undefined;
@@ -1768,11 +1737,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			persistNewSession();
 		}
 
-		if (deps.bus) {
-			for (const ev of newSessionEvents) {
-				deps.bus.publish(ev);
-			}
-		}
+		publishPendingEvents(newSessionEvents, deps);
 
 		// 事务提交后执行新运行派发回调；只有进程真的起来才算派发成功
 		try {

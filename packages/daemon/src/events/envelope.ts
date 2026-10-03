@@ -4,6 +4,7 @@ import {
 	type EventPayloadMap,
 	type TypedEventEnvelope,
 } from '@agent-scheduler/shared/api/events';
+import type { PublicationOrder } from './publication-order.ts';
 
 export interface EnvelopeClock {
 	readonly now: () => string;
@@ -16,6 +17,7 @@ export interface EnvelopeIdAllocator {
 export interface EnvelopeFactoryDeps {
 	readonly clock: EnvelopeClock;
 	readonly idAllocator: EnvelopeIdAllocator;
+	readonly publicationOrder?: PublicationOrder;
 }
 
 export interface CreateEnvelopeInput<K extends EventKind = EventKind> {
@@ -30,14 +32,21 @@ export interface EnvelopeFactory {
 	readonly createEnvelope: <K extends EventKind = EventKind>(
 		input: CreateEnvelopeInput<K>,
 	) => TypedEventEnvelope<K>;
+	readonly cancelEnvelope: (envelope: { readonly id: number }) => void;
+	readonly createEnvelopeAsync: <K extends EventKind = EventKind>(
+		input: CreateEnvelopeInput<K>,
+	) => Promise<TypedEventEnvelope<K>>;
 }
 
 export function createEnvelopeFactory(deps: EnvelopeFactoryDeps): EnvelopeFactory {
 	const runSequenceMap = new Map<string, number>();
 
-	function createEnvelope<K extends EventKind = EventKind>(
+	function buildEnvelope<K extends EventKind = EventKind>(
 		input: CreateEnvelopeInput<K>,
+		id: number,
+		ts: string,
 	): TypedEventEnvelope<K> {
+		const scope = EVENT_DEFINITIONS[input.kind].scope;
 		const runId = input.runId ?? null;
 		let seq = 0;
 		if (runId !== null) {
@@ -46,9 +55,6 @@ export function createEnvelopeFactory(deps: EnvelopeFactoryDeps): EnvelopeFactor
 			runSequenceMap.set(runId, current + 1);
 		}
 
-		const id = deps.idAllocator.allocate();
-		const ts = deps.clock.now();
-		const scope = EVENT_DEFINITIONS[input.kind].scope;
 		const taskId = input.taskId ?? null;
 		const actorDeviceId = input.actorDeviceId ?? null;
 
@@ -66,6 +72,31 @@ export function createEnvelopeFactory(deps: EnvelopeFactoryDeps): EnvelopeFactor
 	}
 
 	return Object.freeze({
-		createEnvelope,
+		createEnvelope: <K extends EventKind = EventKind>(input: CreateEnvelopeInput<K>) => {
+			const ts = deps.clock.now();
+			let envelope: TypedEventEnvelope<K> | undefined;
+			const allocate = () => {
+				const id = deps.idAllocator.allocate();
+				envelope = buildEnvelope(input, id, ts);
+				return id;
+			};
+			if (deps.publicationOrder) deps.publicationOrder.reserve(allocate);
+			else allocate();
+			return envelope as TypedEventEnvelope<K>;
+		},
+		createEnvelopeAsync: async <K extends EventKind = EventKind>(input: CreateEnvelopeInput<K>) => {
+			const ts = deps.clock.now();
+			let envelope: TypedEventEnvelope<K> | undefined;
+			const allocate = () => {
+				const id = deps.idAllocator.allocate();
+				envelope = buildEnvelope(input, id, ts);
+				return id;
+			};
+			if (deps.publicationOrder) await deps.publicationOrder.reserveAsync(allocate);
+			else allocate();
+			return envelope as TypedEventEnvelope<K>;
+		},
+		cancelEnvelope: (envelope: { readonly id: number }) =>
+			deps.publicationOrder?.cancel(envelope.id),
 	});
 }

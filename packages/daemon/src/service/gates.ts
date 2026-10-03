@@ -22,6 +22,7 @@ import { type RunState, isTerminalRunState } from '../domain/run-state-machine.t
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
@@ -339,9 +340,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 						}
 					});
 
-					for (const env of pendingEnvelopes) {
-						deps.bus.publish(env);
-					}
+					publishPendingEvents(pendingEnvelopes, deps);
 					return Object.freeze({ applied: true as const });
 				}
 
@@ -664,21 +663,11 @@ export function createGateService(deps: GateServiceDeps): GateService {
 
 			// Outside transaction: publish events
 			if (input.decision === 'reject' && gate.comment === 'exited_before_output') {
-				if (reworkStateEnvelope) {
-					deps.bus.publish(reworkStateEnvelope);
-				}
+				publishPendingEvents([reworkStateEnvelope], deps);
 				return Object.freeze({ applied: true as const });
 			}
 
-			if (laneReleasedEvent) {
-				deps.bus.publish(laneReleasedEvent);
-			}
-			if (laneAssignedEnvelope) {
-				deps.bus.publish(laneAssignedEnvelope);
-			}
-			if (reworkStateEnvelope) {
-				deps.bus.publish(reworkStateEnvelope);
-			}
+			publishPendingEvents([laneReleasedEvent, laneAssignedEnvelope, reworkStateEnvelope], deps);
 			if (input.decision === 'reject') {
 				if (reworkDeliveryInput && deps.reworkService) {
 					const result = await deps.reworkService.dispatchRework(reworkDeliveryInput);
@@ -949,9 +938,7 @@ export function createGateService(deps: GateServiceDeps): GateService {
 					}
 				});
 
-				if (laneReleasedEvent) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				publishPendingEvents([laneReleasedEvent], deps);
 				if (input.runId) {
 					const stateEnvelope = deps.envelopeFactory.createEnvelope({
 						kind: 'run.state_changed',

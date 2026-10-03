@@ -10,6 +10,7 @@ import { RUN_TRANSITION_REASONS, isTerminalRunState } from '../domain/run-state-
 import { AppError, isAppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
 import type {
 	MessageKind,
@@ -468,11 +469,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 				throw error;
 			}
 
-			if (deps.bus) {
-				for (const event of pendingEvents) {
-					deps.bus.publish(event);
-				}
-			}
+			publishPendingEvents(pendingEvents, deps);
 
 			return {
 				delivered: true,
@@ -669,11 +666,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 		}
 
 		// Publish events strictly AFTER transaction completes
-		if (deps.bus) {
-			for (const ev of pendingEvents) {
-				deps.bus.publish(ev);
-			}
-		}
+		publishPendingEvents(pendingEvents, deps);
 
 		return {
 			delivered: true,
@@ -730,11 +723,7 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 			persistOperations();
 		}
 
-		if (deps.bus) {
-			for (const ev of pendingEvents) {
-				deps.bus.publish(ev);
-			}
-		}
+		publishPendingEvents(pendingEvents, deps);
 
 		if (throwOnUndelivered) {
 			throw new AppError(

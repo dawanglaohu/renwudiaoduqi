@@ -15,6 +15,7 @@ export interface ShutdownDependencies {
 	readonly lock?: LockFileHandle;
 	readonly lockAdapter?: NativeLockAdapter;
 	readonly writeRunLog?: (line: string) => void;
+	readonly disposeEvents?: () => void;
 	readonly stopAgents?: () => Promise<void>;
 }
 
@@ -59,6 +60,7 @@ export async function shutdown(dependencies: ShutdownDependencies): Promise<void
 			writeLog(`[shutdown] agent service failed during stop: ${String(error)}`);
 		}
 	}
+	dependencies.disposeEvents?.();
 
 	// 3. Close database connection
 	if (dependencies.database !== undefined) {

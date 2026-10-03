@@ -92,6 +92,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 	const lock = lockOutcome.lock;
 	let database: DatabaseConnection | undefined;
 	let server: HttpServer | undefined;
+	let disposeEvents: (() => void) | undefined;
 	let stopAgents: (() => Promise<void>) | undefined;
 	try {
 		const dataDirectory = dependencies.ensureDataDirectory(config.dataDir);
@@ -114,6 +115,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			bootstrapPairing: false,
 			agentRegistry: dependencies.agentRegistry,
 		});
+		disposeEvents = container.events.dispose;
 		stopAgents = () => container.services.agents.stop();
 		server = dependencies.createServer({ container });
 		await container.services.agents.start();
@@ -134,6 +136,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			dependencies.lockAdapter,
 			container.jobs,
 			dependencies.writeRunLog,
+			disposeEvents,
 			stopAgents,
 		);
 	} catch (error) {
@@ -144,6 +147,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			dependencies.lockAdapter,
 			dependencies.writeRunLog,
 			stopAgents,
+			disposeEvents,
 		);
 		throw error;
 	}
@@ -214,6 +218,7 @@ function createDaemonRuntime(
 	lockAdapter: NativeLockAdapter,
 	jobs: readonly ContainerJob[],
 	writeRunLog: (line: string) => void,
+	disposeEvents: () => void,
 	stopAgents: () => Promise<void>,
 ): DaemonRuntime {
 	const stop = createShutdownHandler({
@@ -223,6 +228,7 @@ function createDaemonRuntime(
 		lock,
 		lockAdapter,
 		writeRunLog,
+		disposeEvents,
 		stopAgents,
 	});
 	return Object.freeze({
@@ -240,6 +246,7 @@ async function cleanupStartupFailure(
 	lockAdapter: NativeLockAdapter,
 	writeRunLog: (line: string) => void,
 	stopAgents: (() => Promise<void>) | undefined,
+	disposeEvents: (() => void) | undefined,
 ): Promise<void> {
 	await shutdown({
 		server,
@@ -248,6 +255,7 @@ async function cleanupStartupFailure(
 		lockAdapter,
 		writeRunLog,
 		stopAgents,
+		disposeEvents,
 	});
 }
 

@@ -37,6 +37,7 @@ import { type WrapupFixItem, parseWrapupReport, planWrapupFixes } from '../domai
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
 import { type BatchWrapupsRepo, toBatchWrapupDto } from '../repo/batch-wrapups.ts';
@@ -839,11 +840,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			});
 
 			// Publish events outside transaction (08 节)
-			if (deps.bus && pendingEnvelopes.length > 0) {
-				for (const env of pendingEnvelopes) {
-					deps.bus.publish(env);
-				}
-			}
+			publishPendingEvents(pendingEnvelopes, deps);
 
 			// Nudge tick
 			deps.nudgeTick?.();
@@ -950,11 +947,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					}
 				});
 
-				if (deps.bus && pendingEnvelopes.length > 0) {
-					for (const env of pendingEnvelopes) {
-						deps.bus.publish(env);
-					}
-				}
+				publishPendingEvents(pendingEnvelopes, deps);
 				deps.nudgeTick?.();
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
@@ -1041,11 +1034,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					}
 				});
 
-				if (deps.bus && pendingEnvelopes.length > 0) {
-					for (const env of pendingEnvelopes) {
-						deps.bus.publish(env);
-					}
-				}
+				publishPendingEvents(pendingEnvelopes, deps);
 				deps.nudgeTick?.();
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
@@ -1509,11 +1498,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				}
 			});
 
-			if (deps.bus && pendingEnvelopes.length > 0) {
-				for (const env of pendingEnvelopes) {
-					deps.bus.publish(env);
-				}
-			}
+			publishPendingEvents(pendingEnvelopes, deps);
 			deps.nudgeTick?.();
 		},
 
@@ -1746,11 +1731,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				}
 			});
 
-			if (deps.bus && pendingEnvelopes.length > 0) {
-				for (const env of pendingEnvelopes) {
-					deps.bus.publish(env);
-				}
-			}
+			publishPendingEvents(pendingEnvelopes, deps);
 
 			deps.nudgeTick?.();
 

@@ -7,6 +7,7 @@ import { isValidPipelineSettings, parsePipelineSettings } from '../domain/pipeli
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { SettingsRepo } from '../repo/settings.ts';
 
 export interface SettingsServiceDeps {
@@ -118,21 +119,16 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 			deps.unitOfWork.run(() => {
 				deps.settingsRepo.set('gates', valueJson, now);
 				pendingEvents.push(...(deps.onGatesUpdated?.(updated, previous, actorDeviceId) ?? []));
+				pendingEvents.push(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'settings.gates_changed',
+						actorDeviceId,
+						payload: { gates: updated },
+					}),
+				);
 			});
 
-			const envelope = deps.envelopeFactory.createEnvelope({
-				kind: 'settings.gates_changed',
-				actorDeviceId,
-				payload: {
-					gates: updated,
-				},
-			});
-
-			deps.bus.publish(envelope);
-
-			for (const pending of pendingEvents) {
-				deps.bus.publish(pending);
-			}
+			publishPendingEvents(pendingEvents, deps);
 
 			return updated;
 		},

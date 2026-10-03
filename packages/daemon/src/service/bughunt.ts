@@ -15,6 +15,7 @@ import {
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
@@ -263,7 +264,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 						}
 					}
 				});
-				if (laneReleasedEvent && deps.bus) deps.bus.publish(laneReleasedEvent);
+				publishPendingEvents([laneReleasedEvent], deps);
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
 						deps.envelopeFactory.createEnvelope({
@@ -547,9 +548,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					}
 				});
 
-				if (laneReleasedEvent && deps.bus) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				publishPendingEvents([laneReleasedEvent], deps);
 
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
@@ -633,9 +632,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					}
 				});
 
-				if (laneReleasedEvent && deps.bus) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				publishPendingEvents([laneReleasedEvent], deps);
 
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(
@@ -732,9 +729,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					}
 				});
 
-				if (laneReleasedEvent && deps.bus) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				publishPendingEvents([laneReleasedEvent], deps);
 
 				if (deps.envelopeFactory && deps.bus) {
 					deps.bus.publish(
@@ -869,9 +864,7 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					}
 				});
 
-				if (laneReleasedEvent && deps.bus) {
-					deps.bus.publish(laneReleasedEvent);
-				}
+				publishPendingEvents([laneReleasedEvent], deps);
 
 				if (deps.bus && deps.envelopeFactory) {
 					deps.bus.publish(

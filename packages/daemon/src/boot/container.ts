@@ -24,6 +24,7 @@ import { AppError } from '../errors/app-error.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
+import { createPublicationOrder } from '../events/publication-order.ts';
 import { type RingBuffer, createRingBuffer } from '../events/ring-buffer.ts';
 import { createDiskWatchJob } from '../jobs/disk-watch.ts';
 import { createLogIndexRepairJob } from '../jobs/log-index-repair.ts';
@@ -152,6 +153,7 @@ export interface ContainerRepos {
 }
 
 export interface ContainerEvents {
+	readonly dispose: () => void;
 	readonly idAllocator: IdAllocator;
 	readonly envelopeFactory: EnvelopeFactory;
 	readonly ringBuffer: RingBuffer;
@@ -315,11 +317,17 @@ export function createContainer(input: {
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
-	const envelopeFactory = createEnvelopeFactory({ clock: input.clock, idAllocator });
+	const publicationOrder = createPublicationOrder();
+	const envelopeFactory = createEnvelopeFactory({
+		clock: input.clock,
+		idAllocator,
+		publicationOrder,
+	});
 	const ringBuffer = createRingBuffer();
-	const bus = createEventBus({ ringBuffer });
+	const bus = createEventBus({ ringBuffer, publicationOrder });
 
 	const events: ContainerEvents = Object.freeze({
+		dispose: bus.dispose,
 		idAllocator,
 		envelopeFactory,
 		ringBuffer,
@@ -332,7 +340,7 @@ export function createContainer(input: {
 	const logstorePaths =
 		input.logstorePaths ?? createLogstorePaths(join(input.config.dataDir, 'runs'));
 	const logFs = input.logFs ?? createNodeLogFileSystem();
-	const unitOfWork = createUnitOfWork(input.database);
+	const unitOfWork = createUnitOfWork(input.database, publicationOrder);
 	const appendQueue = createAppendQueue({
 		appendFile: (path, data) => logFs.appendFile(path, data),
 	});
@@ -459,6 +467,7 @@ export function createContainer(input: {
 			clock: input.clock,
 			appendQueue,
 			...overrides,
+			outputBackpressure: publicationOrder,
 		};
 		return baseSpawn(spec, options);
 	};

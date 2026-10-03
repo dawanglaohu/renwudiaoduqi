@@ -22,6 +22,7 @@ import {
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { LogFileSystem } from '../logstore/contract.ts';
 import type { LogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs, SupportedPlatform } from '../platform/contract.ts';
@@ -2604,9 +2605,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				} else {
 					persist();
 				}
-				for (const envelope of pendingEnvelopes) {
-					deps.bus?.publish(envelope);
-				}
+				publishPendingEvents(pendingEnvelopes, deps);
 			}
 		},
 

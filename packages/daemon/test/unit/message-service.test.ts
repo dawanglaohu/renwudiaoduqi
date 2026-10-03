@@ -184,6 +184,13 @@ function createMockBus() {
 
 	let idSeq = 100;
 	const envelopeFactory = {
+		async createEnvelopeAsync(
+			this: EnvelopeFactory,
+			input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+		) {
+			return this.createEnvelope(input);
+		},
+		cancelEnvelope: vi.fn(),
 		createEnvelope(input: Parameters<EnvelopeFactory['createEnvelope']>[0]) {
 			idSeq++;
 			return {

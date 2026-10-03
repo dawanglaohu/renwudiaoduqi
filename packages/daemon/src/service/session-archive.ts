@@ -223,6 +223,8 @@ export function createSessionArchiveService(
 
 			if (deps.bus) {
 				deps.bus.publish(envelope);
+			} else {
+				deps.envelopeFactory.cancelEnvelope(envelope);
 			}
 
 			return Object.freeze({

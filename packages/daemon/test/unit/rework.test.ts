@@ -250,6 +250,13 @@ describe('M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E
 
 		let eventSeq = 1;
 		mockEnvelopeFactory = {
+			async createEnvelopeAsync(
+				this: EnvelopeFactory,
+				input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+			) {
+				return this.createEnvelope(input);
+			},
+			cancelEnvelope: vi.fn(),
 			createEnvelope: (input: {
 				kind: string;
 				runId?: string | null;

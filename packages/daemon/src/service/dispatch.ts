@@ -54,6 +54,7 @@ import {
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
+import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../proc/spawn.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
@@ -557,11 +558,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			persist();
 		}
 
-		if (deps.bus) {
-			for (const ev of pendingEvents) {
-				deps.bus.publish(ev);
-			}
-		}
+		publishPendingEvents(pendingEvents, deps);
 	}
 
 	async function createRun(input: CreateRunInput): Promise<CreateRunResult> {
@@ -762,6 +759,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				await deps.runService.ingestEvent(runId, envelope);
 			} else if (deps.bus) {
 				deps.bus.publish(envelope);
+			} else {
+				deps.envelopeFactory.cancelEnvelope(envelope);
 			}
 		}
 
@@ -1206,11 +1205,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 
 				if (assignmentCommitted) {
-					if (deps.bus) {
-						for (const env of pendingAssignmentEnvelopes) {
-							deps.bus.publish(env);
-						}
-					}
+					publishPendingEvents(pendingAssignmentEnvelopes, deps);
 					for (const runId of pendingRunsToLaunch) {
 						void launchRun(runId);
 					}

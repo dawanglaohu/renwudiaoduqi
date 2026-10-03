@@ -725,60 +725,64 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 		const pendingEnvelopes: EventEnvelope[] = [];
 
-		if (deps.envelopeFactory) {
-			pendingEnvelopes.push(
-				deps.envelopeFactory.createEnvelope({
-					kind: 'run.state_changed',
-					runId: run.id,
-					taskId: run.task_id,
-					payload: {
-						from: run.state,
-						to: 'failed',
-						reason: 'model_invalid',
-						message: input.message ?? '派发失败·模型无效',
-						agentStderrTail: input.agentStderrTail,
-					},
-				}) as EventEnvelope,
-			);
-		}
+		try {
+			if (deps.envelopeFactory) {
+				pendingEnvelopes.push(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'run.state_changed',
+						runId: run.id,
+						taskId: run.task_id,
+						payload: {
+							from: run.state,
+							to: 'failed',
+							reason: 'model_invalid',
+							message: input.message ?? '派发失败·模型无效',
+							agentStderrTail: input.agentStderrTail,
+						},
+					}) as EventEnvelope,
+				);
+			}
 
-		// Release lane: emit lane.released{reason:'failed'} (E-36)
-		if (run.task_id && laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
-			pendingEnvelopes.push(
-				deps.envelopeFactory.createEnvelope({
-					kind: 'lane.released',
-					taskId: run.task_id,
-					runId: run.id,
-					payload: {
-						docId: laneRes.docId ?? '',
-						laneNo: laneRes.previousLaneNo,
+			// Release lane: emit lane.released{reason:'failed'} (E-36)
+			if (run.task_id && laneRes && laneRes.changes === 1 && deps.envelopeFactory) {
+				pendingEnvelopes.push(
+					deps.envelopeFactory.createEnvelope({
+						kind: 'lane.released',
 						taskId: run.task_id,
 						runId: run.id,
-						reason: 'failed',
-					},
-				}) as EventEnvelope,
-			);
-		}
+						payload: {
+							docId: laneRes.docId ?? '',
+							laneNo: laneRes.previousLaneNo,
+							taskId: run.task_id,
+							runId: run.id,
+							reason: 'failed',
+						},
+					}) as EventEnvelope,
+				);
+			}
 
-		// 事务外：事件先落盘再发布 (R1)
-		if (deps.logstore) {
-			for (const envelope of pendingEnvelopes) {
-				const appendResult = await deps.logstore.appendEvent(run.id, envelope);
-				if (deps.bus) {
-					const locationRef = appendResult?.location
-						? {
-								fileSeq: appendResult.location.fileSeq,
-								byteOffset: appendResult.location.byteOffset,
-								byteLen: appendResult.location.byteLen,
-							}
-						: undefined;
-					deps.bus.publish(envelope, locationRef);
+			// 事务外：事件先落盘再发布 (R1)
+			if (deps.logstore) {
+				for (const envelope of pendingEnvelopes) {
+					const appendResult = await deps.logstore.appendEvent(run.id, envelope);
+					if (deps.bus) {
+						const locationRef = appendResult?.location
+							? {
+									fileSeq: appendResult.location.fileSeq,
+									byteOffset: appendResult.location.byteOffset,
+									byteLen: appendResult.location.byteLen,
+								}
+							: undefined;
+						deps.bus.publish(envelope, locationRef);
+					}
+				}
+			} else if (deps.bus) {
+				for (const envelope of pendingEnvelopes) {
+					deps.bus.publish(envelope);
 				}
 			}
-		} else if (deps.bus) {
-			for (const envelope of pendingEnvelopes) {
-				deps.bus.publish(envelope);
-			}
+		} finally {
+			for (const envelope of pendingEnvelopes) deps.envelopeFactory?.cancelEnvelope(envelope);
 		}
 
 		const updated = runsRepo.findById(input.runId);

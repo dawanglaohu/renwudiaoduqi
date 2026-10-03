@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
+import type { EnvelopeFactory } from '../../src/events/envelope.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
 import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
@@ -74,6 +75,13 @@ function createTestEnvironment(options?: {
 	};
 
 	const envelopeFactory = {
+		async createEnvelopeAsync(
+			this: EnvelopeFactory,
+			input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+		) {
+			return this.createEnvelope(input);
+		},
+		cancelEnvelope: () => undefined,
 		createEnvelope: (input: {
 			kind: string;
 			runId?: string;

@@ -254,6 +254,8 @@ export function createSessionResumeDispatcher(
 
 		if (envelope && deps.bus) {
 			deps.bus.publish(envelope);
+		} else if (envelope) {
+			deps.envelopeFactory?.cancelEnvelope(envelope);
 		}
 
 		return Object.freeze({
