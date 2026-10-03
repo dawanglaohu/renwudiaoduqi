@@ -1297,7 +1297,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			const repoPath = resolveRepoPath(targetRun);
 			const branchExists = await checkBranchExists(targetRun.branch_name, repoPath, deps.gitRunner);
 
-			if (!branchExists || !targetRun.branch_name) {
+			const parkMissingBranch = (): DispatchReworkResult => {
 				// 分支不存在：转 awaiting_human 并在闸门 comment 写 branch_missing，不开干净 worktree
 				const branchMissingEvents: CreateEnvelopeInput[] = [];
 
@@ -1392,18 +1392,30 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					source: input.source,
 					diffRegression,
 				});
-			}
+			};
+
+			if (!branchExists || !targetRun.branch_name) return parkMissingBranch();
 
 			// 分支存在：走 M5-T1 在原分支上 reuse 重建
 			if (deps.worktreeManager && repoPath) {
-				const prepared = await deps.worktreeManager.prepareWorktree({
-					repoPath,
-					taskId: targetRun.task_id,
-					preferredBranchName: targetRun.branch_name,
-					targetWorktreePath: targetRun.worktree_path ?? undefined,
-					worktreeMode: 'reuse',
-				});
-				effectiveWorktreePath = prepared.worktreePath;
+				try {
+					const prepared = await deps.worktreeManager.prepareWorktree({
+						repoPath,
+						taskId: targetRun.task_id,
+						preferredBranchName: targetRun.branch_name,
+						targetWorktreePath: targetRun.worktree_path ?? undefined,
+						worktreeMode: 'reuse',
+					});
+					effectiveWorktreePath = prepared.worktreePath;
+				} catch (error) {
+					if (
+						error instanceof AppError &&
+						error.code === 'E_WORKSPACE_UNAVAILABLE' &&
+						error.details?.reason === 'branch_missing'
+					)
+						return parkMissingBranch();
+					throw error;
+				}
 			}
 		}
 

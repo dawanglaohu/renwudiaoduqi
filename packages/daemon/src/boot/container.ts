@@ -114,6 +114,7 @@ import { getDiffStat } from '../workspace/diff.ts';
 import {
 	type GitRunner,
 	type WorktreeManager,
+	createDefaultGitRunner,
 	createWorktreeManager,
 } from '../workspace/worktree.ts';
 import { createSystemProcessLivenessProbe } from './lock.ts';
@@ -380,11 +381,18 @@ export function createContainer(input: {
 	if (systemService.stopNotifications) notificationOwners.push(systemService.stopNotifications);
 
 	const processOps = input.processOps ?? createDefaultProcessOps(input.hostInputs.platform);
+	const gitRunner =
+		input.gitRunner ??
+		createDefaultGitRunner({
+			platform: input.hostInputs.platform,
+			hostInputs: input.hostInputs,
+			ids,
+		});
 	const worktreeDeps = Object.freeze({
 		platform: input.hostInputs.platform,
 		hostInputs: input.hostInputs,
 		ids,
-		gitRunner: input.gitRunner,
+		gitRunner,
 	});
 	const worktreeManager = input.worktreeManager ?? createWorktreeManager(worktreeDeps);
 	const workspace: ContainerWorkspace = Object.freeze({ worktrees: worktreeManager });
@@ -844,7 +852,7 @@ export function createContainer(input: {
 			gatesRepo: gates,
 			documentsRepo: documents,
 			worktreeManager,
-			gitRunner: input.gitRunner,
+			gitRunner,
 			resumeSession: (resumeInput) => resumeSessionDispatcher(resumeInput),
 			spawnReworkRun: async (spawnInput) => {
 				await launchReworkRun(spawnInput.run.id);

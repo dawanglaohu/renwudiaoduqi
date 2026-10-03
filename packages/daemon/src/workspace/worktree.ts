@@ -480,6 +480,38 @@ function categorizeWorktreeCreationError(
 	});
 }
 
+async function assertReuseBranchExists(
+	repoPath: string,
+	worktreePath: string,
+	branchName: string,
+	runner: GitRunner,
+): Promise<void> {
+	const result = await runner.run(
+		['rev-parse', '--verify', '--quiet', `refs/heads/${branchName}`],
+		repoPath,
+	);
+	if (result.exitCode === 1) {
+		throw new AppError('E_WORKSPACE_UNAVAILABLE', `Original branch '${branchName}' is missing`, {
+			details: {
+				repoPath,
+				worktreePath,
+				branchName,
+				reason: 'branch_missing',
+				releaseSlot: true,
+				workspaceUnavailable: true,
+			},
+		});
+	}
+	if (result.exitCode !== 0) {
+		throw categorizeWorktreeCreationError(
+			new Error(result.stderr || result.stdout),
+			repoPath,
+			worktreePath,
+			branchName,
+		);
+	}
+}
+
 export async function prepareWorktree(
 	input: PrepareWorktreeInput,
 	runner: GitRunner,
@@ -523,50 +555,70 @@ export async function prepareWorktree(
 		// 不 `-b` 新分支、不换 base。旧版 Git 对 prunable 登记执行 `worktree add --force` 可能成功退出却
 		// 不重建目录，所以先精确 remove 这一条登记；绝不对全仓执行 worktree prune。
 		const reuseBranch = matching?.branch ?? targetBranch;
-		const branchExists =
-			matching !== undefined || (await listAllBranchNames(repoPath, runner)).has(reuseBranch);
-		if (branchExists) {
-			const reusePath = matching
-				? matching.path
-				: input.targetWorktreePath
-					? input.targetWorktreePath
-					: resolveDefaultWorktreePath(repoPath, taskId, undefined, input.worktreesDir);
-			if (matching) {
-				const removeResult = await runner.run(
-					['worktree', 'remove', '--force', matching.path],
-					repoPath,
-				);
-				if (removeResult.exitCode !== 0) {
-					throw categorizeWorktreeCreationError(
-						new Error(removeResult.stderr || removeResult.stdout),
-						repoPath,
-						reusePath,
-						reuseBranch,
-					);
-				}
-			}
-			const reuseArgs = ['worktree', 'add', reusePath, reuseBranch];
-			let reuseResult: GitCommandResult;
-			try {
-				reuseResult = await runner.run(reuseArgs, repoPath);
-			} catch (cause) {
-				throw categorizeWorktreeCreationError(cause, repoPath, reusePath, reuseBranch);
-			}
-			if (reuseResult.exitCode !== 0) {
+		const reusePath = matching
+			? matching.path
+			: input.targetWorktreePath
+				? input.targetWorktreePath
+				: resolveDefaultWorktreePath(repoPath, taskId, undefined, input.worktreesDir);
+		await assertReuseBranchExists(repoPath, reusePath, reuseBranch, runner);
+		if (matching) {
+			const removeResult = await runner.run(
+				['worktree', 'remove', '--force', matching.path],
+				repoPath,
+			);
+			if (removeResult.exitCode !== 0) {
 				throw categorizeWorktreeCreationError(
-					new Error(reuseResult.stderr || reuseResult.stdout),
+					new Error(removeResult.stderr || removeResult.stdout),
 					repoPath,
 					reusePath,
 					reuseBranch,
 				);
 			}
-			return Object.freeze({
-				worktreePath: reusePath,
-				branchName: reuseBranch,
-				baseRef: input.baseRef ?? 'HEAD',
-				isReused: true,
-			});
 		}
+		// Explicit local refs prevent Git from recreating a missing branch from a remote.
+		const reuseArgs = ['worktree', 'add', '--detach', reusePath, `refs/heads/${reuseBranch}`];
+		let reuseResult: GitCommandResult;
+		try {
+			reuseResult = await runner.run(reuseArgs, repoPath);
+		} catch (cause) {
+			throw categorizeWorktreeCreationError(cause, repoPath, reusePath, reuseBranch);
+		}
+		if (reuseResult.exitCode !== 0) {
+			await assertReuseBranchExists(repoPath, reusePath, reuseBranch, runner);
+			throw categorizeWorktreeCreationError(
+				new Error(reuseResult.stderr || reuseResult.stdout),
+				repoPath,
+				reusePath,
+				reuseBranch,
+			);
+		}
+		try {
+			const attachResult = await runner.run(['switch', '--no-guess', reuseBranch], reusePath);
+			if (attachResult.exitCode !== 0) {
+				throw new Error(attachResult.stderr || attachResult.stdout);
+			}
+		} catch (cause) {
+			const cleanupResult = await runner.run(
+				['worktree', 'remove', '--force', reusePath],
+				repoPath,
+			);
+			if (cleanupResult.exitCode !== 0) {
+				throw categorizeWorktreeCreationError(
+					new Error(cleanupResult.stderr || cleanupResult.stdout),
+					repoPath,
+					reusePath,
+					reuseBranch,
+				);
+			}
+			await assertReuseBranchExists(repoPath, reusePath, reuseBranch, runner);
+			throw categorizeWorktreeCreationError(cause, repoPath, reusePath, reuseBranch);
+		}
+		return Object.freeze({
+			worktreePath: reusePath,
+			branchName: reuseBranch,
+			baseRef: input.baseRef ?? 'HEAD',
+			isReused: true,
+		});
 	}
 
 	// 3. Resolve branch name with collision detection (AC 1, E-71)
