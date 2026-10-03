@@ -9,6 +9,11 @@ export const UI_STRINGS = {
 		defaultUpdatedPrefix: '内置默认已更新（',
 	},
 	settings: {
+		navigation: '设置导航',
+		backToDeck: '返回运行甲板',
+		agentsTab: 'Agent',
+		devicesTab: '设备',
+		pipelineTab: '流水线',
 		title: '设置',
 		agentsDescription: 'Agent 注册表与模型选择',
 		pipelineDescription: '流水线设置',
