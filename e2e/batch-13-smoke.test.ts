@@ -57,6 +57,27 @@ function redactSensitiveData(text: string): string {
 	return result;
 }
 
+async function captureFailurePage(failedPage: Page, safeName: string): Promise<void> {
+	if (failedPage.isClosed()) return;
+	try {
+		mkdirSync(artifactsDir, { recursive: true });
+		writeFileSync(
+			join(artifactsDir, `${safeName}-failure.url.txt`),
+			redactSensitiveData(failedPage.url()),
+			'utf8',
+		);
+		await maskSensitivePageContent(failedPage);
+		await failedPage.screenshot({ path: join(artifactsDir, `${safeName}-failure.png`), fullPage: true });
+		writeFileSync(
+			join(artifactsDir, `${safeName}-failure.dom.html`),
+			redactSensitiveData(await failedPage.content()),
+			'utf8',
+		);
+	} catch {
+		// Evidence capture must not replace the original test failure.
+	}
+}
+
 async function maskSensitivePageContent(page: Page): Promise<void> {
 	try {
 		await page.evaluate(() => {
@@ -401,19 +422,7 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 			}
 
 			const failedPage = evidencePage ?? page;
-			if (failedPage) {
-				try {
-					await maskSensitivePageContent(failedPage);
-					const screenshotPath = join(artifactsDir, `${safeName}-failure.png`);
-					await failedPage.screenshot({ path: screenshotPath, fullPage: true });
-
-					const domHtml = await failedPage.content();
-					const domPath = join(artifactsDir, `${safeName}-failure.dom.html`);
-					writeFileSync(domPath, redactSensitiveData(domHtml), 'utf8');
-				} catch {
-					// best effort
-				}
-			}
+			if (failedPage) await captureFailurePage(failedPage, safeName);
 
 			if (daemon) {
 				const stdoutLog = join(artifactsDir, `${safeName}-daemon-stdout.log`);
@@ -797,13 +806,14 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 		expect(runDetail.run.id).toBe(currentRunId);
 	});
 
-	it("settings selector cancels without PATCH and fills the phone viewport with touch targets (M9-T23, E-145, E-358)", async () => {
+	it("settings selector cancels without PATCH and fills the phone viewport with touch targets (M9-T23, E-145, E-358)", async ({ task }) => {
 		const settingsContext = await browser.newContext({
 			viewport: { width: 390, height: 844 },
 			hasTouch: true,
 			isMobile: true,
 		});
 		const page = await settingsContext.newPage();
+		evidencePage = page;
 		try {
 			const codeResponse = await fetch(
 				`http://127.0.0.1:${daemon.port}/api/v1/pair/code`,
@@ -880,6 +890,10 @@ describe('第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072
 				.all()) {
 				expect((await button.boundingBox())?.height).toBeGreaterThanOrEqual(44);
 			}
+		} catch (error) {
+			const safeName = task.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+			await captureFailurePage(page, safeName);
+			throw error;
 		} finally {
 			await settingsContext.close();
 		}
