@@ -1297,7 +1297,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			const repoPath = resolveRepoPath(targetRun);
 			const branchExists = await checkBranchExists(targetRun.branch_name, repoPath, deps.gitRunner);
 
-			const parkMissingBranch = (): DispatchReworkResult => {
+			const parkMissingBranch = async (): Promise<DispatchReworkResult> => {
 				// 分支不存在：转 awaiting_human 并在闸门 comment 写 branch_missing，不开干净 worktree
 				const branchMissingEvents: CreateEnvelopeInput[] = [];
 
