@@ -1,5 +1,14 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import {
@@ -13,6 +22,11 @@ const roots: string[] = [];
 let sequence = 0;
 const deps: WorktreeManagerDeps = {
 	platform: process.platform as WorktreeManagerDeps['platform'],
+	hostInputs: {
+		platform: process.platform as WorktreeManagerDeps['platform'],
+		homedir: homedir(),
+		pathEnv: process.env.PATH ?? process.env.Path,
+	},
 	ids: { newId: () => `worktree-concurrency-${++sequence}` },
 };
 const realGit = createDefaultGitRunner(deps);
@@ -23,6 +37,73 @@ afterEach(() => {
 		expect(basename(root)).toMatch(/^worktree-concurrency-/);
 		rmSync(root, { recursive: true, force: true });
 	}
+});
+
+it('reuses the original wrapup branch without guessing a new collision suffix', async () => {
+	const { root, repo } = await repository();
+	const manager = createWorktreeManager(deps);
+	const first = await manager.prepareWrapupWorktree({
+		repoPath: repo,
+		batchId: 'stable',
+		round: 1,
+		worktreesDir: root,
+	});
+	const reused = await manager.prepareWrapupWorktree({
+		repoPath: repo,
+		batchId: 'stable',
+		round: 1,
+		worktreesDir: root,
+		worktreeMode: 'reuse',
+	});
+	expect(reused.branchName).toBe('wrapup/stable-1');
+	expect(realpathSync(reused.worktreePath)).toBe(realpathSync(first.worktreePath));
+	expect(reused.isReused).toBe(true);
+	const collision = await manager.prepareWrapupWorktree({
+		repoPath: repo,
+		batchId: 'stable',
+		round: 1,
+		worktreesDir: root,
+	});
+	expect(collision.branchName).toBe('wrapup/stable-1-2');
+	const selected = await manager.prepareWrapupWorktree({
+		repoPath: repo,
+		batchId: 'stable',
+		round: 1,
+		targetWorktreePath: collision.worktreePath,
+		worktreeMode: 'reuse',
+	});
+	expect(selected.branchName).toBe(collision.branchName);
+	expect(realpathSync(selected.worktreePath)).toBe(realpathSync(collision.worktreePath));
+});
+
+it('removes a registered worktree addressed through a directory alias without force', async () => {
+	const { root, repo } = await repository();
+	const manager = createWorktreeManager(deps);
+	const prepared = await manager.prepareWorktree({
+		repoPath: repo,
+		taskId: 'alias',
+		targetWorktreePath: join(root, 'original'),
+	});
+	const alias = join(root, 'alias-parent');
+	symlinkSync(root, alias, 'junction');
+	const target = join(alias, 'original');
+	expect(realpathSync(target)).toBe(realpathSync(prepared.worktreePath));
+	// Keep this control scoped to the exact registration instead of relying on global prune.
+	const cleanup = createWorktreeManager({
+		...deps,
+		gitRunner: {
+			run(args, cwd, options) {
+				if (args[0] === 'worktree' && args[1] === 'prune')
+					return Promise.resolve({ exitCode: 0, stdout: '', stderr: '' });
+				return realGit.run(args, cwd, options);
+			},
+		},
+	});
+	await cleanup.removeWorktree({ repoPath: repo, worktreePath: target });
+	expect(existsSync(prepared.worktreePath)).toBe(false);
+	expect(
+		(await manager.listWorktrees(repo)).some((entry) => entry.branch === prepared.branchName),
+	).toBe(false);
 });
 
 async function repository() {

@@ -1,8 +1,29 @@
 import { realpath } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import type { GitRunner } from './worktree.ts';
 
 const pendingOperations = new Map<string, Promise<void>>();
+
+export async function worktreePathKey(path: string): Promise<string> {
+	const original = resolve(path);
+	let ancestor = original;
+	const missing: string[] = [];
+	let canonical = original;
+	while (true) {
+		try {
+			canonical = resolve(await realpath(ancestor), ...missing);
+			break;
+		} catch (error) {
+			const code = (error as NodeJS.ErrnoException).code;
+			if (code !== 'ENOENT' && code !== 'ENOTDIR') break;
+			const parent = dirname(ancestor);
+			if (parent === ancestor) break;
+			missing.unshift(basename(ancestor));
+			ancestor = parent;
+		}
+	}
+	return process.platform === 'win32' ? canonical.toLowerCase() : canonical;
+}
 
 async function repositoryKey(repoPath: string, runner: GitRunner): Promise<string> {
 	const root = resolve(repoPath);
@@ -10,8 +31,7 @@ async function repositoryKey(repoPath: string, runner: GitRunner): Promise<strin
 	// Invalid repositories still run their normal validation inside the operation.
 	const commonDir =
 		result?.exitCode === 0 && result.stdout.trim() ? resolve(root, result.stdout.trim()) : root;
-	const canonical = await realpath(commonDir).catch(() => commonDir);
-	return process.platform === 'win32' ? canonical.toLowerCase() : canonical;
+	return worktreePathKey(commonDir);
 }
 
 /** Git exposes a partially written registration while worktree add is running. */

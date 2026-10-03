@@ -9,7 +9,7 @@ import type {
 import { takePlatformHostInputs } from '../platform/host.ts';
 import { resolveExecutable } from '../platform/resolve-executable.ts';
 import { type LaunchSpec, spawnManaged } from '../proc/spawn.ts';
-import { withWorktreeOperation } from './worktree-operations.ts';
+import { withWorktreeOperation, worktreePathKey } from './worktree-operations.ts';
 
 export interface GitCommandResult {
 	readonly exitCode: number;
@@ -562,12 +562,17 @@ async function prepareWorktreeUnlocked(
 	if (mode === 'reuse') {
 		const expectedPrefix = input.branchPrefix ?? 'task/';
 		const targetBranch = input.preferredBranchName ?? `${expectedPrefix}${taskId}`;
-		const matching = existingWorktrees.find(
-			(wt) =>
-				wt.branch === targetBranch ||
-				(input.targetWorktreePath &&
-					nodePath.resolve(wt.path) === nodePath.resolve(input.targetWorktreePath)),
+		const targetPathKey = input.targetWorktreePath
+			? await worktreePathKey(input.targetWorktreePath)
+			: null;
+		const pathMatches = await Promise.all(
+			existingWorktrees.map(
+				async (wt) => targetPathKey !== null && (await worktreePathKey(wt.path)) === targetPathKey,
+			),
 		);
+		const matching =
+			existingWorktrees[pathMatches.findIndex(Boolean)] ??
+			existingWorktrees.find((wt) => wt.branch === targetBranch);
 		const registeredDirectoryExists = matching
 			? await worktreeDirectoryExists(matching.path, deps)
 			: false;
@@ -667,12 +672,14 @@ async function prepareWorktreeUnlocked(
 		? nodePath.resolve(input.targetWorktreePath)
 		: resolveDefaultWorktreePath(repoPath, taskId, branchSuffix, input.worktreesDir);
 
-	const isPathOccupied = (p: string) =>
-		existingWorktrees.some((wt) => nodePath.resolve(wt.path) === nodePath.resolve(p));
+	const occupiedPaths = new Set(
+		await Promise.all(existingWorktrees.map((wt) => worktreePathKey(wt.path))),
+	);
+	const isPathOccupied = async (path: string) => occupiedPaths.has(await worktreePathKey(path));
 
-	if (isPathOccupied(worktreePath)) {
+	if (await isPathOccupied(worktreePath)) {
 		let pathIndex = branchSuffix ?? 2;
-		while (isPathOccupied(`${worktreePath}-${pathIndex}`)) {
+		while (await isPathOccupied(`${worktreePath}-${pathIndex}`)) {
 			pathIndex++;
 		}
 		worktreePath = `${worktreePath}-${pathIndex}`;
@@ -735,7 +742,11 @@ async function removeWorktreeUnlocked(
 	const deleteBranch = input.deleteBranch ?? false;
 
 	const existingWorktrees = await listWorktreesUnlocked(repoPath, runner).catch(() => []);
-	const matching = existingWorktrees.find((wt) => nodePath.resolve(wt.path) === worktreePath);
+	const targetPathKey = await worktreePathKey(worktreePath);
+	const matches = await Promise.all(
+		existingWorktrees.map(async (wt) => (await worktreePathKey(wt.path)) === targetPathKey),
+	);
+	const matching = existingWorktrees[matches.findIndex(Boolean)];
 
 	let branchDeleted = false;
 
@@ -744,7 +755,7 @@ async function removeWorktreeUnlocked(
 		if (force) {
 			removeArgs.push('--force');
 		}
-		removeArgs.push(worktreePath);
+		removeArgs.push(nodePath.resolve(matching.path));
 
 		const result = await runner.run(removeArgs, repoPath);
 		if (result.exitCode !== 0) {
@@ -869,12 +880,7 @@ async function prepareWrapupWorktreeUnlocked(
 	runner: GitRunner,
 	deps: WorktreeManagerDeps,
 ): Promise<PrepareWrapupWorktreeResult> {
-	const preferredBranchName = await resolveBranchNameUnlocked(
-		input.repoPath,
-		`${input.batchId}-${input.round}`,
-		runner,
-		{ preferredBranchName: formatWrapupBranchName(input.batchId, input.round) },
-	);
+	const preferredBranchName = formatWrapupBranchName(input.batchId, input.round);
 
 	const result = await prepareWorktreeUnlocked(
 		{
