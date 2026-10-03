@@ -9,6 +9,7 @@ import type {
 } from '@agent-scheduler/shared/api/documents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
+import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
@@ -203,6 +204,7 @@ function createDocsDataJs(params?: {
 
 describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth', () => {
 	let db: DatabaseConnection;
+	const cleanups: Array<() => Promise<void>> = [];
 
 	beforeEach(() => {
 		rmSync(testDir, { recursive: true, force: true });
@@ -219,7 +221,8 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		runner.run(migrationsDir);
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
+		for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 		db.close();
 		rmSync(testDir, { recursive: true, force: true });
 	});
@@ -229,6 +232,14 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 	}) {
 		const lockAdapter = createMemoryLockAdapter();
 		const container = createContainer({
+			agentRegistry: createAgentRegistry({
+				dataDir: testDir,
+				builtInDefaults: {},
+				platform: 'posix',
+				publishWarning: (warning) => {
+					throw new Error(warning.message);
+				},
+			}),
 			config: {
 				port: 7817,
 				bind: '127.0.0.1',
@@ -245,6 +256,11 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		});
 
 		const server = createHttpServer({ container });
+		cleanups.push(async () => {
+			await server.close();
+			await container.services.agents.start();
+			container.services.agents.stop();
+		});
 		return { server, container };
 	}
 
@@ -665,7 +681,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 	});
 
 	it('R2 regression: refreshDocument rolls back metadata, tasks, and flags on late-stage failure and recovers on retry', async () => {
-		let shouldFail = true;
+		let shouldFail = false;
 		const realSnapshotsRepo = createDispatchSnapshotsRepo(db);
 		const controlledSnapshotsRepo: DispatchSnapshotsRepo = {
 			...realSnapshotsRepo,
@@ -731,6 +747,7 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		);
 
 		// 3. Attempt refresh -> fails in late stage (refreshDocDiff throws)
+		shouldFail = true;
 		const failedRefreshRes = await server.instance.inject({
 			method: 'POST',
 			url: `/api/v1/documents/${docId}/refresh`,
