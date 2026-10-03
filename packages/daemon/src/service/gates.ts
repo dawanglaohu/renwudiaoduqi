@@ -1289,15 +1289,11 @@ export function createGateService(deps: GateServiceDeps): GateService {
 			return {
 				events: eventsToPublish,
 				afterCommit: async () => {
-					const failures: unknown[] = [];
-					for (const context of archives) {
-						try {
-							await deps.sessionArchiveService?.terminateArchived(context);
-						} catch (error) {
-							failures.push(error);
-						}
-					}
-					if (failures.length > 0) throw failures[0];
+					const results = await Promise.allSettled(
+						archives.map((context) => deps.sessionArchiveService?.terminateArchived(context)),
+					);
+					const failed = results.find((result) => result.status === 'rejected');
+					if (failed?.status === 'rejected') throw failed.reason;
 				},
 			};
 		},

@@ -332,7 +332,7 @@ describe('settings auto-release task lifecycle', () => {
 		]);
 	});
 
-	it('attempts every archived task cleanup when event capacity fails after the first kill', async () => {
+	it('starts every archived task cleanup before waiting for event capacity', async () => {
 		const { container, setGates, processRegistry } = await prepareWaitingGate('landing', 55001);
 		container.repos.tasks.insert({
 			id: 'second-task',
@@ -394,12 +394,17 @@ describe('settings auto-release task lifecycle', () => {
 				},
 			} as unknown as ManagedProcess);
 		}
+		const response = setGates(allAuto);
+		let responseStatus = 0;
 		try {
-			expect((await setGates(allAuto)).statusCode).toBe(429);
-			expect(killed.sort()).toEqual(['implementation', 'second-implementation']);
+			await expect
+				.poll(() => [...killed].sort())
+				.toEqual(['implementation', 'second-implementation']);
 			expect(processRegistry.size).toBe(0);
 		} finally {
 			for (const event of blockers) container.events.envelopeFactory.cancelEnvelope(event);
+			responseStatus = (await response).statusCode;
 		}
+		expect(responseStatus).toBe(200);
 	});
 });
