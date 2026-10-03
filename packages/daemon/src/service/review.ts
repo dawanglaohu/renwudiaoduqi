@@ -306,6 +306,7 @@ export interface MechanicalCheckResult {
  * 结构化子集：真实 RunsRepo 的 RunRow 满足它，单测可以只造这几个字段。
  */
 export type ReviewRunRecord = {
+	readonly session_archived_at?: string | null;
 	readonly id: string;
 	readonly state: string;
 	/** RunsRepo 的 RunRow 用 snake_case；老的 RunsAbortRepo 记录用 camelCase，两种都接。 */
@@ -2082,6 +2083,14 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				const envelopeFactory = deps.envelopeFactory;
 
 				const executeRecoveryInTx = () => {
+					const current = deps.runsRepo?.findById(run.id);
+					if (
+						current &&
+						(current.session_archived_at || isTerminalRunState(current.state as RunState))
+					) {
+						currentState = current.state as RunState;
+						return;
+					}
 					// 1. 如果已创建审查运行，将其落到 failed
 					if (targetReviewRunId && deps.runsRepo) {
 						const createdReviewRun = deps.runsRepo.findById(targetReviewRunId);

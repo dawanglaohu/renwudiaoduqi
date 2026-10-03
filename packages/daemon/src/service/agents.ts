@@ -668,7 +668,10 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		return { probeResult, state };
 	}
 
-	function recordAndPublishAvailability(agentId: string, state: AgentAvailabilityState): void {
+	async function recordAndPublishAvailability(
+		agentId: string,
+		state: AgentAvailabilityState,
+	): Promise<void> {
 		const prev = availabilityMap.get(agentId);
 
 		const prevAvailable = prev?.isAvailable;
@@ -678,7 +681,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			isFirst || prevAvailable !== state.isAvailable || prevCode !== state.unavailableCode;
 
 		if (changed && deps.bus && deps.envelopeFactory) {
-			const envelope = deps.envelopeFactory.createEnvelope({
+			availabilityMap.set(agentId, state);
+			const envelope = await deps.envelopeFactory.createEnvelopeAsync({
 				kind: 'agent.availability_changed',
 				payload: {
 					agentId,
@@ -692,14 +696,17 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					},
 				},
 			});
-			availabilityMap.set(agentId, state);
 			deps.bus.publish(envelope);
 		} else {
 			availabilityMap.set(agentId, state);
 		}
 
 		// Invalidation point 3: availability flip (AC 5)
-		if (prev !== undefined && prev.isAvailable !== state.isAvailable) {
+		if (
+			availabilityMap.get(agentId) === state &&
+			prev !== undefined &&
+			prev.isAvailable !== state.isAvailable
+		) {
 			loginCache.delete(`login:${agentId}`);
 			runBackground(() => refreshLogin(agentId, { force: true, trigger: 'availability_changed' }));
 		}
@@ -714,7 +721,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		const results = await Promise.allSettled(
 			entries.map(async ([agentId, config]) => {
 				const { state } = await probeSingleAgent(agentId, config, options);
-				recordAndPublishAvailability(agentId, state);
+				await recordAndPublishAvailability(agentId, state);
 				return [agentId, state] as const;
 			}),
 		);
@@ -772,7 +779,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			const state = availabilityMap.get(agentId);
 			if (!state || state.generation !== snapshot.generation) {
 				const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
-				recordAndPublishAvailability(agentId, refreshedState);
+				await recordAndPublishAvailability(agentId, refreshedState);
 			}
 		}
 		// Preload config cache for all agents
@@ -794,7 +801,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		let state = availabilityMap.get(agentId);
 		if (!state || state.generation !== snapshot.generation) {
 			const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
-			recordAndPublishAvailability(agentId, refreshedState);
+			await recordAndPublishAvailability(agentId, refreshedState);
 			state = refreshedState;
 		}
 		await readAgentConfig(agentId);
@@ -813,7 +820,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		}
 
 		const { probeResult, state } = await probeSingleAgent(agentId, config, options);
-		recordAndPublishAvailability(agentId, state);
+		await recordAndPublishAvailability(agentId, state);
 
 		// Invalidation point 1: POST /agents/:id/probe runs fingerprint probe then login probe (AC 5)
 		await refreshLogin(agentId, { force: true, trigger: 'probe' });
@@ -1158,7 +1165,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		let state = availabilityMap.get(agentId);
 		if (!state || state.generation !== currentSnapshot.generation) {
 			const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
-			recordAndPublishAvailability(agentId, refreshedState);
+			await recordAndPublishAvailability(agentId, refreshedState);
 			state = refreshedState;
 		}
 		if (!state.canDispatch) {
@@ -1257,7 +1264,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					const { state: refreshedState } = await probeSingleAgent(agentId, config, {
 						force: options.force,
 					});
-					recordAndPublishAvailability(agentId, refreshedState);
+					await recordAndPublishAvailability(agentId, refreshedState);
 					state = refreshedState;
 				}
 
@@ -1278,7 +1285,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				// agent.availability_changed{reason:'login_changed', login}
 				if (deps.bus && deps.envelopeFactory) {
 					const currentAvail = availabilityMap.get(agentId)?.isAvailable ?? false;
-					const envelope = deps.envelopeFactory.createEnvelope({
+					if (result) loginCache.set(cacheKey, result);
+					const envelope = await deps.envelopeFactory.createEnvelopeAsync({
 						kind: 'agent.availability_changed',
 						payload: {
 							agentId,
@@ -1290,7 +1298,6 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 							},
 						},
 					});
-					if (result) loginCache.set(cacheKey, result);
 					deps.bus.publish(envelope);
 				} else if (result) {
 					loginCache.set(cacheKey, result);

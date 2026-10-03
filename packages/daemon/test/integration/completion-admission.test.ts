@@ -16,7 +16,12 @@ import { fileURLToPath } from 'node:url';
 import type { EventEnvelope, EventKind } from '@agent-scheduler/shared/api/events';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { CodexSessionRegistry } from '../../src/adapters/codex/app-server-session.ts';
-import { createContainer } from '../../src/boot/container.ts';
+import { type ContainerProc, createContainer } from '../../src/boot/container.ts';
+import {
+	BUILT_IN_AGENT_DEFAULTS,
+	GENERIC_LOGIN_PROBE_DEFAULT,
+	GENERIC_MODELS_LIVE_DEFAULT,
+} from '../../src/config/defaults.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
 import { openDatabase } from '../../src/db/open-database.ts';
 import * as envelopes from '../../src/events/envelope.ts';
@@ -25,6 +30,7 @@ import { createHttpServer } from '../../src/http/server.ts';
 import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import { createProcessRegistry } from '../../src/proc/registry.ts';
+import { type ManagedProcess, spawnManaged } from '../../src/proc/spawn.ts';
 import type { RunInsertRow } from '../../src/repo/runs.ts';
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -36,10 +42,19 @@ afterEach(async () => {
 	}
 });
 
-async function environment(codexSessions: CodexSessionRegistry | null = null) {
+async function environment(
+	codexSessions: CodexSessionRegistry | null = null,
+	options: { readonly agentDefaults?: boolean; readonly proc?: ContainerProc } = {},
+) {
 	const tempRoot = realpathSync.native(tmpdir());
 	const dataDir = realpathSync.native(mkdtempSync(join(tempRoot, 'agsched-completion-')));
 	const db = openDatabase(':memory:');
+	let databaseClosed = false;
+	const closeDatabase = () => {
+		if (databaseClosed) return;
+		db.close();
+		databaseClosed = true;
+	};
 	const migrations = join(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 	for (const file of readdirSync(migrations)
 		.filter((file) => file.endsWith('.sql'))
@@ -80,6 +95,7 @@ async function environment(codexSessions: CodexSessionRegistry | null = null) {
 		config: { port: 0, bind: '127.0.0.1', dataDir, logLevel: 'error', dev: false },
 		database: db,
 		processRegistry: createProcessRegistry(),
+		proc: options.proc,
 		codexSessions,
 		hostInputs: { platform, homedir: dataDir, pathEnv: process.env.PATH },
 		lockAdapter: {} as NativeLockAdapter,
@@ -89,7 +105,17 @@ async function environment(codexSessions: CodexSessionRegistry | null = null) {
 		logViolation: (error) => errors.push(String(error)),
 		agentRegistry: createAgentRegistry({
 			dataDir,
-			builtInDefaults: {},
+			builtInDefaults: options.agentDefaults
+				? {
+						codex: {
+							...BUILT_IN_AGENT_DEFAULTS.codex,
+							execPath: join(dataDir, 'missing-agent'),
+							versionFingerprint: { args: ['--version'], expectedPattern: '^v[0-9]' },
+							loginProbe: GENERIC_LOGIN_PROBE_DEFAULT,
+							modelsLive: GENERIC_MODELS_LIVE_DEFAULT,
+						},
+					}
+				: {},
 			platform: platform === 'win32' ? 'win32' : 'posix',
 			publishWarning() {},
 		}),
@@ -117,8 +143,8 @@ async function environment(codexSessions: CodexSessionRegistry | null = null) {
 		await Promise.allSettled([ingestion, ...operations]);
 		await server.close();
 		await container.services.agents.stop();
-		container.events.dispose();
-		db.close();
+		await container.events.dispose();
+		closeDatabase();
 		const canonicalDir = realpathSync.native(dataDir);
 		expect(dirname(canonicalDir)).toBe(tempRoot);
 		expect(basename(canonicalDir)).toMatch(/^agsched-completion-/);
@@ -172,6 +198,8 @@ async function environment(codexSessions: CodexSessionRegistry | null = null) {
 		wrapup: container.services.wrapup,
 		finalizeReview: container.services.review.finalizeReview.bind(container.services.review),
 		dataDir,
+		db,
+		closeDatabase,
 		container,
 		server,
 		events,
@@ -198,6 +226,7 @@ async function environment(codexSessions: CodexSessionRegistry | null = null) {
 			return events.filter((event) => event.kind === kind).length;
 		},
 		async pressure() {
+			const previousEvents = events.length;
 			ingestion = container.services.run.ingestEvent(
 				'pressure',
 				container.events.envelopeFactory.createEnvelope({
@@ -219,7 +248,8 @@ async function environment(codexSessions: CodexSessionRegistry | null = null) {
 					null,
 				);
 			}
-			expect(events).toHaveLength(0);
+			expect(events).toHaveLength(previousEvents);
+			events.length = 0;
 			admissions.length = 0;
 		},
 		async release() {
@@ -295,7 +325,7 @@ async function completesAfterRelease<T>(
 	return result;
 }
 
-// These are real child exit results passed to container-owned finalizers; provider dispatch is out of scope.
+// Real child exit results enter container-owned finalizers.
 async function actualExit(exitCode: number, cwd: string) {
 	const child = spawn(process.execPath, ['-e', `process.exit(${exitCode})`], {
 		cwd,
@@ -539,8 +569,7 @@ it.each([false, true])(
 	},
 );
 
-it('preserves one mechanical-check handoff with a real Git diff and failed child exit', async () => {
-	const env = await environment();
+function gitWorktree(env: Environment) {
 	const workspace = join(env.dataDir, 'workspace');
 	mkdirSync(workspace);
 	const git = (args: string[]) =>
@@ -560,6 +589,12 @@ it('preserves one mechanical-check handoff with a real Git diff and failed child
 		'baseline',
 	]);
 	writeFileSync(join(workspace, 'source.txt'), 'actual implementation change\n');
+	return workspace;
+}
+
+it('preserves one mechanical-check handoff with a real Git diff and failed child exit', async () => {
+	const env = await environment();
+	const workspace = gitWorktree(env);
 	env.seed('implementation', 'implement', 'exited');
 	const exit = await actualExit(1, workspace);
 	await env.pressure();
@@ -590,3 +625,170 @@ it('preserves one mechanical-check handoff with a real Git diff and failed child
 	expect(env.count('task.gate_waiting')).toBe(1);
 	expect(env.count('lane.released')).toBe(1);
 });
+
+it.each([false, true])(
+	'waits to dispatch one review after a real successful exit (archive during wait: %s)',
+	async (archiveWhileWaiting) => {
+		const spawned: ManagedProcess[] = [];
+		const env = await environment(null, {
+			proc: {
+				spawnManaged(spec, options) {
+					// Replace only the provider executable; process registration, pipes and exit stay real.
+					const managed = spawnManaged(
+						{
+							...spec,
+							file: process.execPath,
+							args: ['-e', "process.stdout.write('{}\\n');process.stdin.resume();"],
+							stdinMode: 'pipe',
+						},
+						{
+							...options,
+							platform:
+								process.platform === 'win32' || process.platform === 'darwin'
+									? process.platform
+									: 'linux',
+						},
+					);
+					spawned.push(managed);
+					return managed;
+				},
+			},
+		});
+		cleanups.push(async () => {
+			for (const managed of spawned) {
+				if (!managed.isExited) await managed.kill({ graceMs: 50 });
+				await managed.finalize();
+			}
+			if (spawned.length > 0) {
+				// The attached review exit finalizer must finish before closing its database.
+				await vi.waitFor(
+					() =>
+						expect(
+							env.events.some(
+								(event) =>
+									event.kind === 'run.state_changed' &&
+									event.runId === 'implementation' &&
+									'to' in event.payload &&
+									event.payload.to === 'awaiting_human',
+							),
+						).toBe(true),
+					{ timeout: 10_000, interval: 10 },
+				);
+			}
+		});
+		const workspace = gitWorktree(env);
+		env.seed('implementation', 'implement', 'exited');
+		env.db
+			.prepare(
+				"UPDATE dispatch_snapshots SET review_prompt=?, accept_text=?, task_paths_json=? WHERE id='snapshot'",
+			)
+			.run('Review source.txt', 'Check source.txt', '["source.txt"]');
+		if (archiveWhileWaiting)
+			env.container.repos.gates?.create({
+				id: 'landing',
+				task_id: 'task',
+				run_id: 'implementation',
+				kind: 'landing',
+				state: 'waiting',
+				created_at: '2026-10-03T10:00:00.000Z',
+			});
+		const exit = await actualExit(0, workspace);
+		await env.pressure();
+		const checkArchive = archiveWhileWaiting
+			? finishDuringDrain(env, 'implementation', 'landed')
+			: null;
+		const result = await completesAfterRelease(
+			env,
+			env.container.services.review.evaluateMechanicalCheck({
+				runId: 'implementation',
+				exitCode: exit.exitCode,
+				worktreePath: workspace,
+				projectCommands: [],
+			}),
+			() => {
+				expect(env.admissions).toContain('capacity');
+				expect(env.container.repos.runs.findById('implementation')?.state).toBe('reviewing');
+				expect(env.container.repos.runs.listAll().filter((run) => run.kind === 'review')).toEqual(
+					[],
+				);
+				expect(spawned).toHaveLength(0);
+				expect(env.container.repos.gates?.list({ pendingOnly: true })).toHaveLength(
+					archiveWhileWaiting ? 1 : 0,
+				);
+			},
+		);
+		expect(result.result.passed).toBe(true);
+		expect(result.gateCreated).toBe(false);
+		if (checkArchive) await checkArchive();
+		expect(result.currentState).toBe(archiveWhileWaiting ? 'landed' : 'reviewing');
+		expect(env.container.repos.runs.findById('implementation')?.state).toBe(
+			archiveWhileWaiting ? 'landed' : 'reviewing',
+		);
+		const reviews = env.container.repos.runs.listAll().filter((run) => run.kind === 'review');
+		expect(reviews).toHaveLength(archiveWhileWaiting ? 0 : 1);
+		expect(spawned).toHaveLength(archiveWhileWaiting ? 0 : 1);
+		expect(env.count('run.started')).toBe(archiveWhileWaiting ? 0 : 1);
+		expect(env.count('task.gate_waiting')).toBe(0);
+		expect(env.container.repos.gates?.list({ pendingOnly: true })).toHaveLength(0);
+		if (!archiveWhileWaiting) expect(reviews[0]?.state).toBe('running');
+	},
+);
+
+it.each([false, true])(
+	'completes a committed agent config PATCH after admission (stop during wait: %s)',
+	async (stopWhileWaiting) => {
+		const env = await environment(null, { agentDefaults: true });
+		const agents = env.container.services.agents;
+		await agents.start();
+		expect((await agents.getAgent('codex'))?.isAvailable).toBe(false);
+		await env.pressure();
+		const closeDatabase = vi.fn(env.closeDatabase);
+		let stopped = false;
+		let stopping: Promise<void> | undefined;
+		const response = await completesAfterRelease(
+			env,
+			env.server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/agents/codex',
+				headers: env.headers,
+				payload: { execPath: process.execPath },
+			}),
+			async () => {
+				expect(env.admissions).toContain('agent.availability_changed');
+				expect(JSON.parse(readFileSync(join(env.dataDir, 'agents.json'), 'utf8'))).toMatchObject({
+					overrides: { codex: { execPath: process.execPath } },
+				});
+				expect(agents.registry.getSnapshot().agents.codex?.execPath).toBe(process.execPath);
+				expect(agents.getAvailability('codex')?.isAvailable).toBe(true);
+				if (stopWhileWaiting && !stopping) {
+					stopping = agents.stop().then(() => {
+						stopped = true;
+						closeDatabase();
+					});
+					env.operations.push(stopping.catch(() => {}));
+					await expect(agents.getAgent('codex')).rejects.toThrow('Agent service has stopped.');
+				}
+				expect(stopped).toBe(false);
+				expect(closeDatabase).not.toHaveBeenCalled();
+			},
+		);
+		expect(response.statusCode).toBe(200);
+		expect(response.json()).toMatchObject({
+			agent: { execPath: process.execPath, isAvailable: true },
+		});
+		expect(env.count('agent.availability_changed')).toBe(1);
+		if (stopWhileWaiting) {
+			await stopping;
+			expect(stopped).toBe(true);
+			expect(closeDatabase).toHaveBeenCalledOnce();
+			const completedEventCount = env.events.length;
+			await expect(agents.updateAgent('codex', { execPath: 'after-stop' })).rejects.toThrow(
+				'Agent service has stopped.',
+			);
+			expect(env.events).toHaveLength(completedEventCount);
+			expect(env.errors).toEqual([]);
+		} else {
+			expect((await agents.getAgent('codex'))?.isAvailable).toBe(true);
+		}
+	},
+);
