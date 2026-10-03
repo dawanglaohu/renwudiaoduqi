@@ -1958,6 +1958,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								started_at: deps.clock.now(),
 								session_no: nextSessionNoFor(item.agentId),
 								lane_no: allocatedLaneNo,
+								batch_id: task.batch_id ?? null,
 							};
 
 							assertSessionRefFree(
