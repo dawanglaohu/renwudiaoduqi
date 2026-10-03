@@ -44,7 +44,11 @@ afterEach(async () => {
 
 async function environment(
 	codexSessions: CodexSessionRegistry | null = null,
-	options: { readonly agentDefaults?: boolean; readonly proc?: ContainerProc } = {},
+	options: {
+		readonly agentDefaults?: boolean;
+		readonly availabilityOwner?: 'request' | 'reload';
+		readonly proc?: ContainerProc;
+	} = {},
 ) {
 	const tempRoot = realpathSync.native(tmpdir());
 	const dataDir = realpathSync.native(mkdtempSync(join(tempRoot, 'agsched-completion-')));
@@ -71,15 +75,51 @@ async function environment(
 	});
 	const fs = createNodeLogFileSystem();
 	const admissions: Array<EventKind | 'capacity'> = [];
+	const availabilityAdmissions: Array<{ settled: boolean }> = [];
+	const operations: Promise<unknown>[] = [];
+	let controlReload = false;
+	let releaseAvailabilityAttempt = () => {};
+	const availabilityAttempt = new Promise<void>((resolve) => {
+		releaseAvailabilityAttempt = resolve;
+	});
+	function isControlledAvailability(input: envelopes.CreateEnvelopeInput) {
+		return (
+			controlReload &&
+			input.kind === 'agent.availability_changed' &&
+			'available' in input.payload &&
+			input.payload.available === true
+		);
+	}
 	const createFactory = envelopes.createEnvelopeFactory;
 	// Observe admission entry; all allocation, capacity and publication behavior stays real.
 	vi.spyOn(envelopes, 'createEnvelopeFactory').mockImplementation((deps) => {
 		const factory = createFactory(deps);
 		return {
 			...factory,
+			createEnvelope(input) {
+				try {
+					return factory.createEnvelope(input);
+				} finally {
+					if (isControlledAvailability(input)) releaseAvailabilityAttempt();
+				}
+			},
 			createEnvelopeAsync(input) {
 				admissions.push(input.kind);
-				return factory.createEnvelopeAsync(input);
+				const completion = factory.createEnvelopeAsync(input);
+				if (isControlledAvailability(input)) {
+					const admission = { settled: false };
+					availabilityAdmissions.push(admission);
+					void completion.then(
+						() => {
+							admission.settled = true;
+						},
+						() => {
+							admission.settled = true;
+						},
+					);
+					releaseAvailabilityAttempt();
+				}
+				return completion;
 			},
 			waitForCapacity() {
 				admissions.push('capacity');
@@ -91,6 +131,27 @@ async function environment(
 	const now = '2026-10-03T10:00:00.000Z';
 	const platform =
 		process.platform === 'win32' || process.platform === 'darwin' ? process.platform : 'linux';
+	function controlAvailabilityOwner(registry: ReturnType<typeof createAgentRegistry>) {
+		return {
+			...registry,
+			async updateOverrides(...args: Parameters<typeof registry.updateOverrides>) {
+				controlReload = options.availabilityOwner !== undefined;
+				const result = await registry.updateOverrides(...args);
+				// Keep real file writes/probes; choose which real caller observes the new state first.
+				if (options.availabilityOwner === 'reload') await availabilityAttempt;
+				return result;
+			},
+			onReload(listener: Parameters<typeof registry.onReload>[0]) {
+				return registry.onReload((snapshot) => {
+					if (controlReload && options.availabilityOwner === 'request') {
+						operations.push(availabilityAttempt.then(() => listener(snapshot)));
+					} else {
+						listener(snapshot);
+					}
+				});
+			},
+		};
+	}
 	const container = createContainer({
 		config: { port: 0, bind: '127.0.0.1', dataDir, logLevel: 'error', dev: false },
 		database: db,
@@ -103,22 +164,24 @@ async function environment(
 		clock: { now: () => now },
 		bootstrapPairing: false,
 		logViolation: (error) => errors.push(String(error)),
-		agentRegistry: createAgentRegistry({
-			dataDir,
-			builtInDefaults: options.agentDefaults
-				? {
-						codex: {
-							...BUILT_IN_AGENT_DEFAULTS.codex,
-							execPath: join(dataDir, 'missing-agent'),
-							versionFingerprint: { args: ['--version'], expectedPattern: '^v[0-9]' },
-							loginProbe: GENERIC_LOGIN_PROBE_DEFAULT,
-							modelsLive: GENERIC_MODELS_LIVE_DEFAULT,
-						},
-					}
-				: {},
-			platform: platform === 'win32' ? 'win32' : 'posix',
-			publishWarning() {},
-		}),
+		agentRegistry: controlAvailabilityOwner(
+			createAgentRegistry({
+				dataDir,
+				builtInDefaults: options.agentDefaults
+					? {
+							codex: {
+								...BUILT_IN_AGENT_DEFAULTS.codex,
+								execPath: join(dataDir, 'missing-agent'),
+								versionFingerprint: { args: ['--version'], expectedPattern: '^v[0-9]' },
+								loginProbe: GENERIC_LOGIN_PROBE_DEFAULT,
+								modelsLive: GENERIC_MODELS_LIVE_DEFAULT,
+							},
+						}
+					: {},
+				platform: platform === 'win32' ? 'win32' : 'posix',
+				publishWarning() {},
+			}),
+		),
 		logFs: {
 			...fs,
 			async appendFile(path, bytes) {
@@ -137,8 +200,8 @@ async function environment(
 	}
 	const server = createHttpServer({ container });
 	let ingestion: Promise<unknown> = Promise.resolve();
-	const operations: Promise<unknown>[] = [];
 	cleanups.push(async () => {
+		releaseAvailabilityAttempt();
 		releaseWrite();
 		await Promise.allSettled([ingestion, ...operations]);
 		await server.close();
@@ -205,6 +268,7 @@ async function environment(
 		events,
 		errors,
 		admissions,
+		availabilityAdmissions,
 		operations,
 		headers: { authorization: `Bearer ${claim.token}` },
 		seed(id: string, kind: string, state: string, extra: Partial<RunInsertRow> = {}) {
@@ -734,10 +798,15 @@ it.each([false, true])(
 	},
 );
 
-it.each([false, true])(
-	'completes a committed agent config PATCH after admission (stop during wait: %s)',
-	async (stopWhileWaiting) => {
-		const env = await environment(null, { agentDefaults: true });
+it.each([
+	{ owner: 'request', stopWhileWaiting: false },
+	{ owner: 'request', stopWhileWaiting: true },
+	{ owner: 'reload', stopWhileWaiting: false },
+	{ owner: 'reload', stopWhileWaiting: true },
+] as const)(
+	'preserves a committed agent config PATCH with $owner owning admission (stop during wait: $stopWhileWaiting)',
+	async ({ owner, stopWhileWaiting }) => {
+		const env = await environment(null, { agentDefaults: true, availabilityOwner: owner });
 		const agents = env.container.services.agents;
 		await agents.start();
 		expect((await agents.getAgent('codex'))?.isAvailable).toBe(false);
@@ -745,38 +814,56 @@ it.each([false, true])(
 		const closeDatabase = vi.fn(env.closeDatabase);
 		let stopped = false;
 		let stopping: Promise<void> | undefined;
-		const response = await completesAfterRelease(
-			env,
+		let requestSettled = false;
+		const request = Promise.resolve(
 			env.server.instance.inject({
 				method: 'PATCH',
 				url: '/api/v1/agents/codex',
 				headers: env.headers,
 				payload: { execPath: process.execPath },
 			}),
-			async () => {
-				expect(env.admissions).toContain('agent.availability_changed');
-				expect(JSON.parse(readFileSync(join(env.dataDir, 'agents.json'), 'utf8'))).toMatchObject({
-					overrides: { codex: { execPath: process.execPath } },
-				});
-				expect(agents.registry.getSnapshot().agents.codex?.execPath).toBe(process.execPath);
-				expect(agents.getAvailability('codex')?.isAvailable).toBe(true);
-				if (stopWhileWaiting && !stopping) {
-					stopping = agents.stop().then(() => {
-						stopped = true;
-						closeDatabase();
-					});
-					env.operations.push(stopping.catch(() => {}));
-					await expect(agents.getAgent('codex')).rejects.toThrow('Agent service has stopped.');
-				}
-				expect(stopped).toBe(false);
-				expect(closeDatabase).not.toHaveBeenCalled();
-			},
+		).finally(() => {
+			requestSettled = true;
+		});
+		env.operations.push(request.catch(() => {}));
+		await vi.waitFor(
+			() => expect(env.availabilityAdmissions.length > 0 || requestSettled).toBe(true),
+			{ timeout: 10_000, interval: 10 },
 		);
+		// A real rejected write is always a failure, even when the HTTP request finished first.
+		if (requestSettled || owner === 'reload') expect((await request).statusCode).toBe(200);
+		expect(requestSettled).toBe(owner === 'reload');
+		expect(env.availabilityAdmissions).toEqual([{ settled: false }]);
+		expect(env.admissions).toContain('agent.availability_changed');
+		expect(JSON.parse(readFileSync(join(env.dataDir, 'agents.json'), 'utf8'))).toMatchObject({
+			overrides: { codex: { execPath: process.execPath } },
+		});
+		expect(agents.registry.getSnapshot().agents.codex?.execPath).toBe(process.execPath);
+		expect(agents.getAvailability('codex')?.isAvailable).toBe(true);
+		if (stopWhileWaiting) {
+			stopping = agents.stop().then(() => {
+				stopped = true;
+				closeDatabase();
+			});
+			env.operations.push(stopping.catch(() => {}));
+			await agents.registry.stop();
+			await expect(agents.getAgent('codex')).rejects.toThrow('Agent service has stopped.');
+		}
+		expect(stopped).toBe(false);
+		expect(closeDatabase).not.toHaveBeenCalled();
+		expect(env.events).toHaveLength(0);
+		await env.release();
+		const response = await request;
 		expect(response.statusCode).toBe(200);
 		expect(response.json()).toMatchObject({
 			agent: { execPath: process.execPath, isAvailable: true },
 		});
-		expect(env.count('agent.availability_changed')).toBe(1);
+		await vi.waitFor(() => expect(env.count('agent.availability_changed')).toBe(1), {
+			timeout: 10_000,
+			interval: 10,
+		});
+		expect(env.availabilityAdmissions).toEqual([{ settled: true }]);
+		expect(env.errors).toEqual([]);
 		if (stopWhileWaiting) {
 			await stopping;
 			expect(stopped).toBe(true);
