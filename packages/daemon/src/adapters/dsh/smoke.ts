@@ -36,12 +36,12 @@ export interface DshSmokeTestOptions {
 
 /**
  * Runs the dsh smoke test contract verification (AC 3, E-191, E-28).
- * Contract: `dsh --profile headless "任务"`
+ * Contract: `dsh --profile headless --json "任务"`
  * Checks:
  *  1. Process can be spawned.
  *  2. Exit code is 0 (turn/end completed).
- *  3. stderr is empty or only the native headless reasoning progress block.
- *  4. stdout contains terminal assistant text.
+ *  3. stderr is empty; JSON mode suppresses native reasoning progress.
+ *  4. stdout is NDJSON ending in a nonempty final assistant text record.
  * Any mismatch fails the test and prevents enabling or dispatch.
  */
 export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<DshSmokeTestResult> {
@@ -55,6 +55,7 @@ export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<Dsh
 			execPath: options.execPath,
 			prompt,
 			model: options.model,
+			customArgs: ['--json'],
 		});
 	} catch (error) {
 		return Object.freeze({
@@ -103,11 +104,8 @@ export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<Dsh
 		});
 	}
 
-	// Headless 0.2 emits provider reasoning to stderr; runtime diagnostics use a separate dsh label.
 	const trimmedStderr = runnerResult.stderr.trim();
-	const reasoningOnly =
-		/^dsh: reasoning:\r?\n/.test(trimmedStderr) && !/^dsh: (?!reasoning:\s*$)/m.test(trimmedStderr);
-	if (trimmedStderr.length > 0 && !reasoningOnly) {
+	if (runnerResult.stderr.length > 0) {
 		return Object.freeze({
 			ok: false,
 			reason: `dsh contract violation: unexpected stderr on success: ${trimmedStderr}`,
@@ -117,13 +115,32 @@ export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<Dsh
 		});
 	}
 
-	// 3. Successful contract requires stdout to contain terminal assistant text
 	const trimmedStdout = runnerResult.stdout.trim();
-	if (trimmedStdout.length === 0) {
+	let terminalText = '';
+	try {
+		const records: unknown[] = trimmedStdout.split(/\r?\n/).map((line) => JSON.parse(line));
+		if (
+			records.every(
+				(record) =>
+					typeof record === 'object' &&
+					record !== null &&
+					'type' in record &&
+					typeof record.type === 'string',
+			) &&
+			records.filter((record) => (record as { type: string }).type === 'final').length === 1
+		) {
+			const final = records.at(-1) as { type: string; text?: unknown };
+			if (final.type === 'final' && typeof final.text === 'string')
+				terminalText = final.text.trim();
+		}
+	} catch {
+		// Invalid JSON or missing final output fails the smoke contract.
+	}
+	if (terminalText.length === 0) {
 		return Object.freeze({
 			ok: false,
 			reason:
-				'dsh contract violation: expected terminal assistant text on stdout, observed empty stdout',
+				'dsh contract violation: expected terminal assistant text on stdout in a final JSON record',
 			stdout: runnerResult.stdout,
 			stderr: runnerResult.stderr,
 			exitCode: runnerResult.exitCode,
@@ -132,7 +149,7 @@ export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<Dsh
 
 	return Object.freeze({
 		ok: true,
-		stdout: trimmedStdout,
+		stdout: terminalText,
 		stderr: runnerResult.stderr,
 		exitCode: 0,
 	});

@@ -62,7 +62,9 @@ describe('DSH desktop headless CLI compatibility', () => {
 		const runner = vi.fn(async (_params: CommandRunnerParams) => ({
 			ok: true,
 			exitCode: 0,
-			stdout: '0.2.0-rc.2',
+			stdout: _params.args.some((arg) => arg.includes('--version'))
+				? 'dsh 0.2.0-rc.2'
+				: '{"type":"final","text":"OK"}',
 			stderr: '',
 		}));
 		const service = createAgentService({

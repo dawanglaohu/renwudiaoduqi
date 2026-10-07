@@ -244,22 +244,43 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 
 	describe('AC 3 & E-191 & E-28 & R3: 启用前过探测 + 冒烟任务（生产接线与单测覆盖）', () => {
 		it.each([
-			['dsh: reasoning:\nChecking the requested answer.\n', true],
+			['dsh: reasoning:\nChecking the requested answer.\n', false],
+			['dsh: reasoning:\nChecking.\nError: authentication failed', false],
+			['dsh: reasoning:\nChecking.\n(node:42) Warning: unexpected runtime diagnostic', false],
+			['dsh: reasoning:\nChecking.\n    at provider (runtime.js:1:1)', false],
 			['dsh: E_PROVIDER: request failed', false],
 			['dsh: reasoning:\nChecking.\ndsh: E_PROVIDER: request failed', false],
 			['Unknown diagnostic\ndsh: reasoning:\nChecking.', false],
-		] as const)('classifies documented headless stderr %s', async (stderr, expected) => {
+		] as const)('rejects every headless smoke stderr diagnostic %s', async (stderr, expected) => {
 			const result = await runDshSmokeTest({
-				runner: async () => ({ ok: true, exitCode: 0, stdout: 'OK', stderr }),
+				runner: async () => ({
+					ok: true,
+					exitCode: 0,
+					stdout: '{"type":"final","text":"OK"}',
+					stderr,
+				}),
 			});
 			expect(result.ok).toBe(expected);
 			expect(result.stderr).toBe(stderr);
+		});
+		it.each([
+			'{"type":"status","phase":"turn_end"}',
+			'{"type":"final","text":"  "}',
+			'{"type":"final","text":42}',
+			'Runtime diagnostic\n{"type":"final","text":"OK"}',
+			'{"type":"final","text":"OK"}\n{"type":"status","phase":"turn_end"}',
+		])('rejects JSON smoke output without a valid terminal final record %s', async (stdout) => {
+			const result = await runDshSmokeTest({
+				runner: async () => ({ ok: true, exitCode: 0, stdout, stderr: '' }),
+			});
+			expect(result.ok).toBe(false);
 		});
 		it('passes standalone runDshSmokeTest on contract match', async () => {
 			const mockRunner = vi.fn(async (_params: DshSmokeRunnerParams) => ({
 				ok: true,
 				exitCode: 0,
-				stdout: 'OK\n',
+				stdout:
+					'{"type":"status","phase":"turn_end","reason":{"kind":"completed"}}\n{"type":"final","text":"OK"}\n',
 				stderr: '',
 			}));
 
@@ -276,6 +297,7 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 
 			const callArgs = mockRunner.mock.calls[0]?.[0];
 			expect(callArgs?.args).toContain('--profile');
+			expect(callArgs?.args).toContain('--json');
 			expect(callArgs?.args[callArgs.args.indexOf('--profile') + 1]).toBe('headless');
 			expect(callArgs?.args).toContain('ping');
 		});
@@ -517,7 +539,12 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 				if (params.args.includes('--version')) {
 					return { ok: true, exitCode: 0, stdout: 'dsh 0.1.1', stderr: '' };
 				}
-				return { ok: true, exitCode: 0, stdout: 'All tests passed cleanly.', stderr: '' };
+				return {
+					ok: true,
+					exitCode: 0,
+					stdout: '{"type":"final","text":"All tests passed cleanly."}',
+					stderr: '',
+				};
 			});
 
 			const service = createAgentService({
@@ -590,10 +617,10 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 		});
 
 		it('R4 & R6: version outside registry versionRange has canDispatch=true and attaches warningBanner to DTO', async () => {
-			const mockRunner = vi.fn(async () => ({
+			const mockRunner = vi.fn(async (params: DshSmokeRunnerParams) => ({
 				ok: true,
 				exitCode: 0,
-				stdout: 'dsh 0.3.0',
+				stdout: params.args.includes('--version') ? 'dsh 0.3.0' : '{"type":"final","text":"OK"}',
 				stderr: '',
 			}));
 
