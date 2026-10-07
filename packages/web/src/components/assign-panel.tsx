@@ -403,7 +403,12 @@ function TaskAssignRow({
 	// R1: 删除组件层对思考强度的补算（不私自补 medium），不支持或未指定则为 null（E-254, E-351）
 	const supportsEffort = currentAgent?.supportsEffort ?? false;
 	const selectedModelEffortOptions = currentAgent?.catalog?.models.find(
-		(model) => model.name === (selectedModel || currentAgent.defaultModel),
+		(model) =>
+			model.name ===
+			(selectedModel ||
+				currentAgent.defaultModel ||
+				currentAgent.currentConfig?.model ||
+				currentAgent.catalog?.currentConfig.model),
 	)?.effortOptions;
 	const assignedEffort: EffortValue = assignment?.effort ?? null;
 	const initialEffort: EffortValue =

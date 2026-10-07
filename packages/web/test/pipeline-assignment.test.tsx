@@ -15,6 +15,61 @@ import { UI_STRINGS } from '../src/i18n/ui-strings.ts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+it.each([{ effortOptions: [] }, { effortOptions: ['high'] }])(
+	'checks the configured model capability $effortOptions for null pipeline models',
+	async ({ effortOptions }) => {
+		const catalog: ListAgentModelsResponse = {
+			models: [{ name: 'configured-model', source: 'live', isCurrentConfig: true, effortOptions }],
+			isComplete: true,
+			isRefreshing: false,
+			refreshedAt: '2026-10-07T00:00:00Z',
+			liveFailure: null,
+			currentConfig: {
+				model: 'configured-model',
+				effort: null,
+				effortRecognized: true,
+				configPath: '',
+			},
+		};
+		const host = document.createElement('div');
+		document.body.append(host);
+		const root = createRoot(host);
+		try {
+			await act(async () =>
+				root.render(
+					createElement(PipelineAssignment, {
+						agents: mockAgents.map((agent) => ({ ...agent, defaultModel: null })),
+						catalogs: { 'agent-1': catalog },
+						reviewOverride: { agentId: 'agent-1', modelName: null, effortVendor: 'ultra' },
+						wrapupAssignment: {
+							mode: 'fixed',
+							agentId: 'agent-1',
+							modelName: null,
+							effortVendor: 'ultra',
+						},
+						onChangeReviewOverride: vi.fn(),
+						onChangeWrapupAssignment: vi.fn(),
+					}),
+				),
+			);
+			for (const section of ['review-override', 'wrapup-assignment']) {
+				const picker = host.querySelector(`[data-testid="${section}-section"]`);
+				if (effortOptions.length === 0)
+					expect(
+						picker?.querySelector('[data-testid="effort-unsupported-display"]'),
+					).not.toBeNull();
+				else
+					expect(
+						picker?.querySelector('[data-testid="effort-support-warning"]')?.textContent,
+					).toContain('ultra');
+			}
+		} finally {
+			await act(async () => root.unmount());
+			host.remove();
+		}
+	},
+);
+
 it.each(['review-override', 'wrapup-assignment'])(
 	'clears effort when switching %s to an unsupported model',
 	async (section) => {

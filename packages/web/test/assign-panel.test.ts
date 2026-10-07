@@ -1114,9 +1114,13 @@ interface MountedAssignPanel {
 }
 
 describe('task assignment using the agent default model', () => {
-	it.each([null, 'no-thinking-model'])(
-		'submits null effort for unsupported explicit/default model %s',
-		async (model) => {
+	it.each([
+		[null, 'no-thinking-model'],
+		['no-thinking-model', 'no-thinking-model'],
+		[null, null],
+	])(
+		'submits null effort for unsupported explicit/default model %s with default %s',
+		async (model, defaultModel) => {
 			Element.prototype.scrollIntoView = vi.fn();
 			const task = { id: 'no-thinking-task', taskKey: 'M9-T23', title: 'No thinking' };
 			const onAssignTask = vi.fn();
@@ -1125,7 +1129,7 @@ describe('task assignment using the agent default model', () => {
 				name: 'Pi',
 				monogram: 'PI',
 				supportsEffort: true,
-				defaultModel: 'no-thinking-model',
+				defaultModel,
 				effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
 				catalog: {
 					models: [
@@ -1181,9 +1185,14 @@ describe('task assignment using the agent default model', () => {
 		},
 	);
 
-	it.each([null, { vendor: 'ultra' }])(
-		'uses model effort options while preserving %j',
-		async (effort) => {
+	it.each([
+		[false, null],
+		[false, { vendor: 'ultra' }],
+		[true, null],
+		[true, { vendor: 'ultra' }],
+	] as const)(
+		'uses model effort options with explicit-null override %s while preserving %j',
+		async (explicitNull, effort) => {
 			window.matchMedia = vi.fn().mockImplementation((query) => ({
 				matches: false,
 				media: query,
@@ -1200,7 +1209,13 @@ describe('task assignment using the agent default model', () => {
 				id: 'codex',
 				name: 'Codex',
 				monogram: 'CX',
-				defaultModel: 'default-model',
+				defaultModel: explicitNull ? null : 'default-model',
+				currentConfig: {
+					model: 'default-model',
+					effort: null,
+					effortRecognized: true,
+					configPath: '',
+				},
 				effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
 				effortOptions: ['low', 'medium', 'high', 'max', 'ultra'],
 				catalog: {

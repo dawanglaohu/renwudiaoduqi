@@ -14,7 +14,7 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3106 passed, 3 existing skips",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3113 passed, 3 existing skips",
     "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
@@ -293,6 +293,16 @@
       "Unknown model capabilities and nonempty reduced option lists retain the original value; rework, bughunt and wrapup-fix retain captured assignment identity"
     ],
     "scope": "Only authoritative empty model capability clears effort; dispatch reads the existing model cache without an external probe inside a transaction"
+  },
+  "configuredModelFallback": {
+    "before": "Seven DOM regressions fail against 3b83ef8 when Agent defaultModel is explicitly null and the CLI uses its configured model",
+    "after": "64 focused DOM cases pass; full workspace check passes 246 files, 3113 tests with three existing skips",
+    "coverage": [
+      "Task selection and E-351 warnings use currentConfig.model when no explicit or Agent default model is selected",
+      "Task submit clears stale effort when the configured model explicitly has no reasoning support",
+      "Agent card, review override and fixed wrapup use the same configured-model fallback for narrow and empty capability lists",
+      "Capability lookup preserves the submitted null model override and does not trigger persistence on render"
+    ]
   },
   "manualAndDefault": {
     "before": "Nine regressions fail: the default model exposes unsupported levels without a warning; seven manual HTTP requests cannot submit structured effort",

@@ -197,7 +197,11 @@ export function PipelineAssignment({
 										...reviewOverride,
 										modelName: model || null,
 										...(catalogs[reviewOverride.agentId]?.models.find(
-											(item) => item.name === (model || reviewAgent?.defaultModel),
+											(item) =>
+												item.name ===
+												(model ||
+													reviewAgent?.defaultModel ||
+													catalogs[reviewOverride.agentId]?.currentConfig.model),
 										)?.effortOptions?.length === 0
 											? { effortTier: null, effortVendor: null }
 											: {}),
@@ -227,7 +231,11 @@ export function PipelineAssignment({
 								agentEffortOptions={reviewAgent?.effortOptions}
 								selectedModelEffortOptions={
 									catalogs[reviewOverride.agentId]?.models.find(
-										(m) => m.name === (reviewOverride.modelName ?? reviewAgent?.defaultModel),
+										(m) =>
+											m.name ===
+											(reviewOverride.modelName ||
+												reviewAgent?.defaultModel ||
+												catalogs[reviewOverride.agentId]?.currentConfig.model),
 									)?.effortOptions
 								}
 								value={
@@ -362,7 +370,11 @@ export function PipelineAssignment({
 										...wrapupAssignment,
 										modelName: model || null,
 										...(catalogs[wrapupAssignment.agentId]?.models.find(
-											(item) => item.name === (model || wrapupAgent?.defaultModel),
+											(item) =>
+												item.name ===
+												(model ||
+													wrapupAgent?.defaultModel ||
+													catalogs[wrapupAssignment.agentId]?.currentConfig.model),
 										)?.effortOptions?.length === 0
 											? { effortTier: null, effortVendor: null }
 											: {}),
@@ -392,7 +404,11 @@ export function PipelineAssignment({
 								agentEffortOptions={wrapupAgent?.effortOptions}
 								selectedModelEffortOptions={
 									catalogs[wrapupAssignment.agentId]?.models.find(
-										(m) => m.name === (wrapupAssignment.modelName ?? wrapupAgent?.defaultModel),
+										(m) =>
+											m.name ===
+											(wrapupAssignment.modelName ||
+												wrapupAgent?.defaultModel ||
+												catalogs[wrapupAssignment.agentId]?.currentConfig.model),
 									)?.effortOptions
 								}
 								value={
