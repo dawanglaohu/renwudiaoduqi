@@ -40,7 +40,7 @@ export interface DshSmokeTestOptions {
  * Checks:
  *  1. Process can be spawned.
  *  2. Exit code is 0 (turn/end completed).
- *  3. stderr is empty (no runtime errors).
+ *  3. stderr is empty or only the native headless reasoning progress block.
  *  4. stdout contains terminal assistant text.
  * Any mismatch fails the test and prevents enabling or dispatch.
  */
@@ -103,12 +103,14 @@ export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<Dsh
 		});
 	}
 
-	// 2. Successful contract requires stderr to be empty (E-191)
+	// Headless 0.2 emits provider reasoning to stderr; runtime diagnostics use a separate dsh label.
 	const trimmedStderr = runnerResult.stderr.trim();
-	if (trimmedStderr.length > 0) {
+	const reasoningOnly =
+		/^dsh: reasoning:\r?\n/.test(trimmedStderr) && !/^dsh: (?!reasoning:\s*$)/m.test(trimmedStderr);
+	if (trimmedStderr.length > 0 && !reasoningOnly) {
 		return Object.freeze({
 			ok: false,
-			reason: `dsh contract violation: expected empty stderr on success, observed: ${trimmedStderr}`,
+			reason: `dsh contract violation: unexpected stderr on success: ${trimmedStderr}`,
 			stdout: runnerResult.stdout,
 			stderr: runnerResult.stderr,
 			exitCode: runnerResult.exitCode,
@@ -131,7 +133,7 @@ export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<Dsh
 	return Object.freeze({
 		ok: true,
 		stdout: trimmedStdout,
-		stderr: '',
+		stderr: runnerResult.stderr,
 		exitCode: 0,
 	});
 }

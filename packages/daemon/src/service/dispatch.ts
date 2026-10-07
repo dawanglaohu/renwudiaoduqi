@@ -2131,19 +2131,18 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						{ details: { runId, snapshotId: run.snapshot_id } },
 					);
 				}
-				const launchSpec = adapter.buildLaunchSpec({
-					runId,
-					cwd: worktreePath,
-					execPath: wrapupLaunchSpecData.execPath,
-					model: run.model_name ?? wrapupLaunchSpecData.model ?? null,
-					effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
-					permissionTier: 'workspaceWrite',
-					prompt: wrapupPrompt,
-					...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
-				});
-
 				let managed: ManagedProcess;
 				try {
+					const launchSpec = adapter.buildLaunchSpec({
+						runId,
+						cwd: worktreePath,
+						execPath: wrapupLaunchSpecData.execPath,
+						model: run.model_name ?? wrapupLaunchSpecData.model ?? null,
+						effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
+						permissionTier: 'workspaceWrite',
+						prompt: wrapupPrompt,
+						...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
+					});
 					managed = deps.proc.spawnManaged(launchSpec);
 				} catch (spawnErr) {
 					await deps.runService.transitionState({
@@ -2405,22 +2404,22 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				? (run.effort_tier ?? null)
 				: (run.effort_tier ?? launchSpecData.effort ?? null);
 
-			const launchSpec = adapter.buildLaunchSpec({
-				runId,
-				cwd: preparedWorktree.worktreePath,
-				execPath: launchSpecData.execPath,
-				model: effectiveModel,
-				effortTier: effectiveEffort,
-				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
-				prompt: runPrompt,
-				// A fresh implementation run owns one bidirectional app-server process.
-				...(run.agent_id === 'codex'
-					? { mode: run.kind === 'implement' && deps.codexSessions ? 'app-server' : 'exec' }
-					: {}),
-			});
-
 			let managed: ManagedProcess;
+			let launchSpec: LaunchSpec;
 			try {
+				launchSpec = adapter.buildLaunchSpec({
+					runId,
+					cwd: preparedWorktree.worktreePath,
+					execPath: launchSpecData.execPath,
+					model: effectiveModel,
+					effortTier: effectiveEffort,
+					permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
+					prompt: runPrompt,
+					// A fresh implementation run owns one bidirectional app-server process.
+					...(run.agent_id === 'codex'
+						? { mode: run.kind === 'implement' && deps.codexSessions ? 'app-server' : 'exec' }
+						: {}),
+				});
 				managed = deps.proc.spawnManaged(launchSpec);
 			} catch (spawnErr) {
 				if (run.origin === 'rework') {

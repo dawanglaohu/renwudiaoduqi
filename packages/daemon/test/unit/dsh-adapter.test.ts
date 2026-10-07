@@ -243,6 +243,18 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 	});
 
 	describe('AC 3 & E-191 & E-28 & R3: 启用前过探测 + 冒烟任务（生产接线与单测覆盖）', () => {
+		it.each([
+			['dsh: reasoning:\nChecking the requested answer.\n', true],
+			['dsh: E_PROVIDER: request failed', false],
+			['dsh: reasoning:\nChecking.\ndsh: E_PROVIDER: request failed', false],
+			['Unknown diagnostic\ndsh: reasoning:\nChecking.', false],
+		] as const)('classifies documented headless stderr %s', async (stderr, expected) => {
+			const result = await runDshSmokeTest({
+				runner: async () => ({ ok: true, exitCode: 0, stdout: 'OK', stderr }),
+			});
+			expect(result.ok).toBe(expected);
+			expect(result.stderr).toBe(stderr);
+		});
 		it('passes standalone runDshSmokeTest on contract match', async () => {
 			const mockRunner = vi.fn(async (_params: DshSmokeRunnerParams) => ({
 				ok: true,
@@ -398,7 +410,7 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 
 			const dshDto = await service.getAgent('dsh');
 			expect(dshDto?.isAvailable).toBe(false);
-			expect(dshDto?.unavailableReason).toContain('expected empty stderr on success');
+			expect(dshDto?.unavailableReason).toContain('unexpected stderr on success');
 		});
 
 		it('R3 case 3 (E-191): empty stdout makes dsh unavailable with failure reason in DTO', async () => {

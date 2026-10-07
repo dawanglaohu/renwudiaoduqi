@@ -110,6 +110,7 @@ function createFakeProcess(
 	options: { exitCode?: number; stderrTail?: string } = {},
 ): FakeManagedProcessController {
 	const rawListeners = new Set<(line: ReadLine) => void>();
+	const lineListeners = new Set<(line: ReadLine) => void>();
 	const jsonListeners = new Set<(parsed: ParsedJsonLine) => void>();
 	const exitListeners = new Set<(result: ProcessExitResult) => void>();
 	let isExited = false;
@@ -139,7 +140,10 @@ function createFakeProcess(
 		waitForStdinDrain: () => Promise.resolve(),
 		onStdinDrain: () => () => {},
 		writeStdin: () => true,
-		onLine: () => () => {},
+		onLine: (listener) => {
+			lineListeners.add(listener);
+			return () => lineListeners.delete(listener);
+		},
 		onRaw: (listener) => {
 			rawListeners.add(listener);
 			return () => rawListeners.delete(listener);
@@ -170,6 +174,7 @@ function createFakeProcess(
 		for (const l of rawListeners) {
 			l(rawLine);
 		}
+		for (const l of lineListeners) l(rawLine);
 		try {
 			const parsed = JSON.parse(text);
 			for (const l of jsonListeners) {

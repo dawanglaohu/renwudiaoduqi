@@ -1187,7 +1187,7 @@ export async function executeProbeProcess(params: {
 		try {
 			managed = spawnFn(spec, {
 				platform,
-				onRaw: (line) => {
+				onLine: (line) => {
 					stdoutChunks.push(line.text);
 				},
 				onStderr: (line) => {

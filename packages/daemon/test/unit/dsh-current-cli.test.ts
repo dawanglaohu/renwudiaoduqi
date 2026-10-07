@@ -86,8 +86,8 @@ describe('DSH desktop headless CLI compatibility', () => {
 			queueMicrotask(() => {
 				const versionProbe = spec.args.includes('--version');
 				if (versionProbe)
-					options.onRaw?.({ text: 'dsh 0.2.0-rc.2' } as Parameters<
-						NonNullable<SpawnManagedOptions['onRaw']>
+					options.onLine?.({ text: 'dsh 0.2.0-rc.2' } as Parameters<
+						NonNullable<SpawnManagedOptions['onLine']>
 					>[0]);
 				options.onExit?.({
 					runId: spec.runId,

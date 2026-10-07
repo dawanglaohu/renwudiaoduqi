@@ -72,6 +72,7 @@ const dummyLockAdapter: NativeLockAdapter = {
 interface FakeManagedProcessController {
 	readonly managed: ManagedProcess;
 	readonly emitLine: (text: string) => void;
+	readonly emitStderr: (text: string) => void;
 	readonly emitExit: (exitCode: number, signal?: NodeJS.Signals | null) => void;
 	readonly launchSpec: LaunchSpec;
 }
@@ -88,6 +89,8 @@ interface FakeJsonLine extends FakeLine {
 
 function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 	const rawListeners = new Set<(line: FakeLine) => void>();
+	const lineListeners = new Set<(line: FakeLine) => void>();
+	const stderrListeners = new Set<(line: FakeLine) => void>();
 	const jsonListeners = new Set<(parsed: FakeJsonLine) => void>();
 	const exitListeners = new Set<(result: ProcessExitResult) => void>();
 	let isExited = false;
@@ -122,12 +125,18 @@ function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 		waitForStdinDrain: () => Promise.resolve(),
 		onStdinDrain: () => () => {},
 		writeStdin: () => true,
-		onLine: () => () => {},
+		onLine: (listener) => {
+			lineListeners.add(listener);
+			return () => lineListeners.delete(listener);
+		},
 		onRaw: (listener) => {
 			rawListeners.add(listener);
 			return () => rawListeners.delete(listener);
 		},
-		onStderr: () => () => {},
+		onStderr: (listener) => {
+			stderrListeners.add(listener);
+			return () => stderrListeners.delete(listener);
+		},
 		onJson: (listener) => {
 			jsonListeners.add(listener);
 			return () => jsonListeners.delete(listener);
@@ -153,6 +162,7 @@ function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 		for (const l of rawListeners) {
 			l(rawLine);
 		}
+		for (const l of lineListeners) l(rawLine);
 		try {
 			const parsed = JSON.parse(text);
 			for (const l of jsonListeners) {
@@ -187,6 +197,11 @@ function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 	return {
 		managed,
 		emitLine,
+		emitStderr: (text) => {
+			const line = { text, truncated: false, rawByteLen: Buffer.byteLength(text) };
+			for (const listener of rawListeners) listener(line);
+			for (const listener of stderrListeners) listener(line);
+		},
 		emitExit,
 		launchSpec: spec,
 	};
@@ -551,6 +566,7 @@ describe(
 			'{"status":"done"}',
 			'["completed", "verified"]',
 			'{"text":"literal JSON answer"}',
+			'# Summary\nCompleted.\n# Validation\nPassed.',
 		])('preserves DSH terminal output %s through production reviews', async (terminalText) => {
 			const executable = '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh';
 			const { container, spawnedProcesses } = setupWiringEnvironment({
@@ -575,9 +591,15 @@ describe(
 					output.push(event.payload);
 				}
 			});
-			implementation.emitLine(terminalText);
+			implementation.emitStderr('dsh: reasoning:');
+			implementation.emitStderr('Checking the requested answer.');
+			await new Promise((resolve) => setTimeout(resolve, 30));
+			expect(output).toEqual([]);
+			for (const line of terminalText.split('\n')) implementation.emitLine(line);
 			expect(await waitFor(() => output.length > 0)).toBe(true);
-			expect(output).toEqual([expect.objectContaining({ chunk: terminalText })]);
+			expect(output).toEqual(
+				terminalText.split('\n').map((chunk) => expect.objectContaining({ chunk: `${chunk}\n` })),
+			);
 			implementation.emitExit(0);
 			expect(await waitFor(() => spawnedProcesses.length >= 2)).toBe(true);
 			const review = spawnedProcesses[1];
@@ -602,6 +624,23 @@ describe(
 			);
 			expect(nextReview?.launchSpec.file).toBe(executable);
 			expect(nextReview?.launchSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
+		});
+
+		it('releases an admitted DSH run when a persisted model override rejects launch construction', async () => {
+			const { container, spawnedProcesses } = setupWiringEnvironment({
+				dshResolvedPath: '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh',
+			});
+			const result = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'dsh',
+				model: 'deepseek-chat',
+				idempotencyKey: 'dsh-unsupported-model',
+			});
+			expect(
+				await waitFor(() => container.repos.runs.findById(result.run.id)?.state === 'failed'),
+			).toBe(true);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			expect(spawnedProcesses).toHaveLength(0);
 		});
 
 		it.each(['codex', 'grok'] as const)(

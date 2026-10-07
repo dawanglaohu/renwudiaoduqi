@@ -544,10 +544,16 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			process.onRaw((line) => {
 				if (detached) return;
 				void trackWrite(ingestRaw(runId, line.text)).catch((err) => logFailure(err));
-				if (options?.acceptsPlainText) {
+			}),
+		);
+
+		if (options?.acceptsPlainText) {
+			cleanups.push(
+				process.onLine((line) => {
+					if (detached) return;
 					const mapper = options?.eventMapper ?? deps.eventMapper;
 					if (mapper) {
-						const mapped = mapper(line.text);
+						const mapped = mapper(`${line.text}\n`);
 						for (const env of mapped) {
 							if (isContentEventKind(env.kind)) {
 								hasContent = true;
@@ -560,9 +566,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 							).catch((err) => logFailure(err));
 						}
 					}
-				}
-			}),
-		);
+				}),
+			);
+		}
 
 		cleanups.push(
 			process.onJson((parsed) => {

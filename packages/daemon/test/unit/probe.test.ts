@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createFingerprintCache,
+	executeProbeProcess,
 	isForeignPlatformPath,
 	isVersionInRange,
 	matchVersionFingerprint,
@@ -13,6 +14,21 @@ import type {
 	ExecutableFileSystem,
 	PlatformHostInputs,
 } from '../../src/platform/contract.ts';
+
+it('keeps native stderr diagnostics out of captured stdout', async () => {
+	const result = await executeProbeProcess({
+		file: process.execPath,
+		args: ['-e', 'process.stderr.write("diagnostic\\n"); process.stdout.write("final answer\\n")'],
+		windowsVerbatimArguments: false,
+		cwd: process.cwd(),
+		agentId: 'dsh',
+		timeoutMs: 5000,
+		platform: process.platform as 'win32' | 'linux' | 'darwin',
+	});
+	expect(result.ok).toBe(true);
+	expect(result.stdout).toBe('final answer');
+	expect(result.stderr).toBe('diagnostic');
+});
 
 function createMockFileSystem(
 	files: Record<
@@ -202,7 +218,7 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 			) => {
 				capturedSpec = spec;
 				setTimeout(() => {
-					options.onRaw?.({ text: 'grok 1.0.3 (1a29d5bc12)' } as never);
+					options.onLine?.({ text: 'grok 1.0.3 (1a29d5bc12)' } as never);
 					options.onExit?.({
 						runId: spec.runId,
 						pid: 1,
