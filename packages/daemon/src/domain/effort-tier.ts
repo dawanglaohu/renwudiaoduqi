@@ -84,13 +84,14 @@ function codexConfig(value: string): ArgumentEffortTransport {
 		kind: 'argv',
 		parameter: 'model_reasoning_effort',
 		value,
-		args: Object.freeze(['-c', `model_reasoning_effort="${value}"`]),
+		args: Object.freeze(['-c', `model_reasoning_effort=${JSON.stringify(value)}`]),
 	});
 }
 
 export const KNOWN_EFFORT_TRANSPORTS = Object.freeze({
 	codex: (value: string) => codexConfig(value),
-	claude: (value: string) => env('MAX_THINKING_TOKENS', value),
+	claude: (value: string) =>
+		/^\d+$/.test(value) ? env('MAX_THINKING_TOKENS', value) : argv('--effort', value),
 	grok: (value: string) => argv('--reasoning-effort', value),
 	pi: (value: string) => argv('--thinking', value),
 });
@@ -101,12 +102,10 @@ const CODEX_EFFORT_RULES: VendorEffortRule = Object.freeze({
 	[EFFORT_TIERS.HIGH]: codexConfig(EFFORT_TIERS.HIGH),
 });
 
-// Claude Code 1.0.67 reads this process variable when constructing maxThinkingTokens. Keeping
-// the transport explicit lets proc/env apply it without treating a JSON object as a file path.
 const CLAUDE_EFFORT_RULES: VendorEffortRule = Object.freeze({
-	[EFFORT_TIERS.LOW]: env('MAX_THINKING_TOKENS', '2048'),
-	[EFFORT_TIERS.MEDIUM]: env('MAX_THINKING_TOKENS', '8192'),
-	[EFFORT_TIERS.HIGH]: env('MAX_THINKING_TOKENS', '32768'),
+	[EFFORT_TIERS.LOW]: argv('--effort', 'low'),
+	[EFFORT_TIERS.MEDIUM]: argv('--effort', 'medium'),
+	[EFFORT_TIERS.HIGH]: argv('--effort', 'high'),
 });
 
 const GROK_EFFORT_RULES: VendorEffortRule = Object.freeze({
@@ -196,6 +195,26 @@ export function resolveOptionalEffortMapping(
 	return tier == null ? null : resolveEffortMapping(agentId, tier, context);
 }
 
+export interface NativeEffortSelection {
+	readonly effortTier?: EffortTier | null;
+	readonly effortVendor?: string | null;
+	readonly effortVendorMap?: EffortVendorMap;
+}
+
+/** Native values are passed verbatim; legacy tiers still use the configured mapping. */
+export function resolveNativeEffortTransport(
+	agentId: keyof typeof KNOWN_EFFORT_TRANSPORTS,
+	selection: NativeEffortSelection,
+): EffortTransport | null {
+	if (selection.effortVendorMap === null) return null;
+	if (selection.effortVendor) return KNOWN_EFFORT_TRANSPORTS[agentId](selection.effortVendor);
+	if (!isEffortTier(selection.effortTier)) return null;
+	const mapped = resolveEffortMapping(agentId, selection.effortTier, {
+		vendorMap: selection.effortVendorMap,
+	});
+	return mapped.supported ? mapped.transport : null;
+}
+
 export interface ReportedEffortContext {
 	readonly agentId: string;
 }
@@ -213,15 +232,6 @@ export function normalizeReportedEffort(
 	}
 
 	const agentId = context.agentId.trim().toLowerCase();
-	if ((agentId === 'codex' || agentId === 'pi') && normalized === 'minimal') {
-		return EFFORT_TIERS.LOW;
-	}
-	if (
-		(agentId === 'codex' || agentId === 'pi') &&
-		(normalized === 'xhigh' || normalized === 'max')
-	) {
-		return EFFORT_TIERS.HIGH;
-	}
 	if (agentId === 'claude') {
 		if (normalized === '2048') return EFFORT_TIERS.LOW;
 		if (normalized === '8192') return EFFORT_TIERS.MEDIUM;

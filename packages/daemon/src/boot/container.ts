@@ -23,6 +23,7 @@ import type { ProcessConfig } from '../config/env.ts';
 import { type AgentRegistry, createAgentRegistry } from '../config/registry.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { createUnitOfWork } from '../db/unit-of-work.ts';
+import { vendorEffortDomain } from '../domain/agent-effort-options.ts';
 import { AppError } from '../errors/app-error.ts';
 import { createBackgroundPublisher } from '../events/background-publisher.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
@@ -885,6 +886,12 @@ export function createContainer(input: {
 			batchesRepo: batches,
 		});
 
+	async function listVendorEffortDomain(agentId: string): Promise<readonly string[]> {
+		const config = agentRegistry.getSnapshot().agents[agentId];
+		if (!config) return [];
+		return vendorEffortDomain(agentId, config, await agentService.listAgentModels(agentId));
+	}
+
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
@@ -911,6 +918,7 @@ export function createContainer(input: {
 			getLatestEventId: () => ringBuffer.latest()?.id ?? null,
 			getDispatchHalt: () => systemService.isDispatchHalted(),
 			listAgents: () => agentService.listAgents(),
+			listVendorEffortDomain,
 			listDispatchableAgents: () => {
 				const snapshot = agentRegistry.getSnapshot();
 				return Object.entries(snapshot.agents).map(([agentId, agentConfig]) => {
@@ -990,20 +998,7 @@ export function createContainer(input: {
 					maxConcurrency: agentConfig.maxConcurrency,
 					effortVendorMap: agentConfig.effortVendorMap,
 				})),
-			listVendorEffortDomain: async (agentId) => {
-				const catalog = await agentService.listAgentModels(agentId);
-				const domain = new Set<string>();
-				const configEffort = catalog.currentConfig.effort;
-				if (configEffort && 'vendor' in configEffort) {
-					domain.add(configEffort.vendor);
-				}
-				for (const model of catalog.models) {
-					for (const option of model.effortOptions ?? []) {
-						domain.add(option);
-					}
-				}
-				return Array.from(domain);
-			},
+			listVendorEffortDomain,
 		});
 
 	const schedulerTickJob =
@@ -1023,6 +1018,8 @@ export function createContainer(input: {
 		input.settingsService ??
 		createSettingsService({
 			settingsRepo: settings,
+			agentRegistry,
+			getVendorEffortDomain: (agentId) => agentService.getVendorEffortDomain(agentId),
 			clock: input.clock,
 			bus,
 			envelopeFactory,

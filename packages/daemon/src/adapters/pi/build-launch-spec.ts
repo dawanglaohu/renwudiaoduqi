@@ -1,9 +1,12 @@
-import { type EffortTier, resolveEffortMapping } from '../../domain/effort-tier.ts';
+import {
+	type NativeEffortSelection,
+	resolveNativeEffortTransport,
+} from '../../domain/effort-tier.ts';
 import { type PermissionTier, resolvePermissionMapping } from '../../domain/permission-tier.ts';
 import type { LaunchSpec } from '../../proc/spawn.ts';
 import type { LaunchTimeouts } from '../../proc/timers.ts';
 
-export interface BuildPiLaunchSpecOptions {
+export interface BuildPiLaunchSpecOptions extends NativeEffortSelection {
 	readonly runId: string;
 	readonly execPath?: string;
 	readonly cwd: string;
@@ -12,7 +15,6 @@ export interface BuildPiLaunchSpecOptions {
 	readonly sessionDir?: string;
 	readonly noSession?: boolean;
 	readonly permissionTier?: PermissionTier;
-	readonly effortTier?: EffortTier;
 	readonly extraArgs?: readonly string[];
 	readonly envOverrides?: Readonly<Record<string, string | undefined>>;
 	readonly timeouts?: LaunchTimeouts;
@@ -89,12 +91,8 @@ export function buildPiLaunchSpec(options: BuildPiLaunchSpecOptions): LaunchSpec
 	}
 
 	// 7. Reasoning effort mapping
-	if (options.effortTier && !args.includes('--thinking')) {
-		const effortMapping = resolveEffortMapping('pi', options.effortTier, { model: options.model });
-		if (effortMapping.supported && effortMapping.transport.kind === 'argv') {
-			args.push(...effortMapping.transport.args);
-		}
-	}
+	const effort = resolveNativeEffortTransport('pi', options);
+	if (effort?.kind === 'argv' && !args.includes('--thinking')) args.push(...effort.args);
 
 	// 8. Extra arguments
 	if (options.extraArgs && options.extraArgs.length > 0) {

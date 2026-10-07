@@ -479,6 +479,31 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it.each([
+		['codex', 'ultra', 'model_reasoning_effort="ultra"'],
+		['claude', 'max', '--effort'],
+		['grok', 'xhigh', '--reasoning-effort'],
+		['pi', 'off', '--thinking'],
+	])(
+		'dispatches %s native effort %s through the production container',
+		async (agentId, effort, flag) => {
+			const { container, getLatestProc } = setupTestEnvironment({ availableAgentIds: [agentId] });
+			const result = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId,
+				model: 'test-model',
+				effort: { vendor: effort },
+				idempotencyKey: `native-effort-${agentId}`,
+			});
+			expect(result.run.effort).toEqual({ vendor: effort });
+			await container.services.dispatch.launchRun(result.run.id);
+			await vi.waitFor(() => expect(getLatestProc()).not.toBeNull());
+			const args = getLatestProc()?.lastLaunchSpec.args ?? [];
+			expect(args).toContain(flag);
+			if (agentId !== 'codex') expect(args[args.indexOf(flag) + 1]).toBe(effort);
+		},
+	);
+
 	it.each(['manual', 'tick'] as const)(
 		'freezes the discovered DSH executable before %s dispatch',
 		async (entry) => {

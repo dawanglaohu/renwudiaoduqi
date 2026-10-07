@@ -23,6 +23,58 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 		high: 'high_v',
 	};
 
+	it('offers native fallback levels, prefers model levels, and preserves a selected unsupported value', async () => {
+		const root = createRoot(container);
+		const onChange = vi.fn();
+		const props = {
+			vendorMap: { low: 'low', medium: 'medium', high: 'high' },
+			agentEffortOptions: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+			value: null,
+			onChange,
+		};
+		act(() => root.render(createElement(EffortPicker, props)));
+		await act(async () =>
+			(container.querySelector('[data-testid="grouped-select-trigger"]') as HTMLElement).click(),
+		);
+		const ultra = document.querySelector(
+			'[data-testid="select-option-vendor:ultra"]',
+		) as HTMLElement;
+		expect(ultra).not.toBeNull();
+		await act(async () => ultra.click());
+		expect(onChange).toHaveBeenCalledWith({ vendor: 'ultra' });
+		act(() =>
+			root.render(
+				createElement(EffortPicker, {
+					...props,
+					selectedModelEffortOptions: ['low', 'medium', 'high', 'max'],
+				}),
+			),
+		);
+		await act(async () =>
+			(container.querySelector('[data-testid="grouped-select-trigger"]') as HTMLElement).click(),
+		);
+		expect(document.querySelector('[data-testid="select-option-vendor:ultra"]')).toBeNull();
+		await act(async () =>
+			(document.querySelector('[data-testid="select-option-vendor:max"]') as HTMLElement).click(),
+		);
+		act(() =>
+			root.render(
+				createElement(EffortPicker, {
+					...props,
+					value: { vendor: 'ultra' },
+					selectedModelEffortOptions: ['high'],
+				}),
+			),
+		);
+		expect(
+			container.querySelector('[data-testid="grouped-select-trigger"]')?.textContent,
+		).toContain('ultra');
+		expect(
+			container.querySelector('[data-testid="effort-support-warning"]')?.textContent,
+		).toContain('ultra');
+		act(() => root.unmount());
+	});
+
 	beforeEach(() => {
 		container = document.createElement('div');
 		document.body.appendChild(container);

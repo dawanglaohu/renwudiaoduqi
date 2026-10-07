@@ -82,6 +82,7 @@ export interface AssignableAgent {
 	readonly isRefreshingModels?: boolean;
 	readonly login?: LoginState | null;
 	readonly effortVendorMap?: Record<EffortTier, string> | null;
+	readonly effortOptions?: readonly string[];
 }
 
 /**
@@ -747,6 +748,7 @@ function TaskAssignRow({
 						<EffortPicker
 							className="[&_[role=combobox]]:min-h-[44px] sm:[&_[role=combobox]]:min-h-[32px]"
 							vendorMap={currentAgent.effortVendorMap}
+							agentEffortOptions={currentAgent.effortOptions}
 							value={selectedEffort}
 							onChange={(eff) => setSelectedEffort(eff)}
 							selectedModelEffortOptions={

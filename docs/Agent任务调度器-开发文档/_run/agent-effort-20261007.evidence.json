@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-07",
+  "task": "AGENT-EFFORT-20261007",
+  "baseCommit": "3c498394d6f0d4c59fa4e4a135a7174fc04cc7bf",
+  "sources": [
+    "https://learn.chatgpt.com/docs/config-file/config-reference#model_reasoning_effort",
+    "https://learn.chatgpt.com/docs/app-server",
+    "https://github.com/openai/codex/blob/main/codex-rs/protocol/src/openai_models.rs",
+    "https://code.claude.com/docs/en/model-config#adjust-effort-level",
+    "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/cli.md#models",
+    "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs"
+  ],
+  "regression": {
+    "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
+    "after": "pnpm -w check: exit 0; 245 test files, 3027 passed, 3 existing skips",
+    "coverage": [
+      "Native effort passed through the production container dispatch entry with the external process mocked",
+      "Codex app-server and exec argument generation",
+      "Claude named effort and review inheritance",
+      "Agent settings and pipeline HTTP persistence, unknown values rejected",
+      "New model-advertised effort values accepted without hard-coding",
+      "DOM picker selection and preservation; pipeline vendor value cleared on agent change"
+    ]
+  },
+  "realCliProbe": {
+    "cli": "codex-cli 0.157.1",
+    "entry": "buildCodexLaunchSpec -> requestModelList -> installed codex app-server",
+    "args": [
+      "app-server",
+      "--listen",
+      "stdio://",
+      "-c",
+      "model_reasoning_effort=\"ultra\""
+    ],
+    "ok": true,
+    "models": [
+      {
+        "name": "gpt-6-astra",
+        "isDefault": true,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "note": "Frontier intelligence for the most demanding work."
+      },
+      {
+        "name": "gpt-6-sol",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "note": "Previous generation workhorse model."
+      },
+      {
+        "name": "gpt-6-luna",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "note": "Fast and affordable model for easier tasks."
+      },
+      {
+        "name": "gpt-5.6-sol",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "note": "Older generation workhorse model."
+      },
+      {
+        "name": "gpt-5.6-terra",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "note": "Older balanced model for straightforward work."
+      },
+      {
+        "name": "gpt-5.6-luna",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "note": "Older fast and efficient model."
+      }
+    ],
+    "inferenceRequested": false
+  },
+  "otherInstalledVersions": {
+    "claude": "2.1.238",
+    "pi": "0.87.1",
+    "grok": "1.0.41"
+  },
+  "documentation": "build_vault and maintain_docs build passed; M4-T7 status stale=[], runtimeDrift=[]",
+  "limitations": [
+    "Production Windows bootstrap refused its machine-level daemon.lock ACL; live browser verification remains pending. Lock and ACL policies unchanged.",
+    "Claude, Pi and Grok help/version inspected; no paid model request used as acceptance evidence.",
+    "CLI fallback levels are not a promise that every model or older CLI supports every level; model effortOptions take precedence in the picker."
+  ]
+}

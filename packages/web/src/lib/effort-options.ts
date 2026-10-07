@@ -39,6 +39,8 @@ export interface BuildEffortOptionsParams {
 	readonly vendorMap?: EffortVendorMap | null;
 	readonly currentConfigEffort?: EffortValue;
 	readonly selectedModelEffortOptions?: readonly string[];
+	readonly agentEffortOptions?: readonly string[];
+	readonly selectedEffort?: EffortValue;
 	readonly allowVendor?: boolean;
 	readonly effortRecognized?: boolean;
 }
@@ -83,7 +85,9 @@ export function decodeEffortValue(encoded: string): EffortValue {
 export function buildEffortOptionGroups({
 	vendorMap,
 	currentConfigEffort = null,
-	selectedModelEffortOptions = [],
+	selectedModelEffortOptions,
+	agentEffortOptions = [],
+	selectedEffort = null,
 	allowVendor = true,
 	effortRecognized = true,
 	copy,
@@ -93,6 +97,7 @@ export function buildEffortOptionGroups({
 	}
 
 	const groups: EffortOptionGroup[] = [];
+	const availableOptions = selectedModelEffortOptions ?? agentEffortOptions;
 
 	// 1. 三档组（跟随／低／中／高）
 	const isCurrentNull = currentConfigEffort === null;
@@ -161,10 +166,17 @@ export function buildEffortOptionGroups({
 		}
 
 		// 所选模型的 effortOptions 中不等于三档映射值且尚未添加的项
-		for (let i = 0; i < selectedModelEffortOptions.length; i++) {
-			const opt = selectedModelEffortOptions[i];
+		const nativeOptions = [...availableOptions];
+		if (selectedEffort && 'vendor' in selectedEffort) nativeOptions.push(selectedEffort.vendor);
+		for (let i = 0; i < nativeOptions.length; i++) {
+			const opt = nativeOptions[i];
 			if (!opt) continue;
-			if (!standardVendorValues.includes(opt) && !addedVendors.includes(opt)) {
+			const isSelectedVendor =
+				selectedEffort && 'vendor' in selectedEffort && selectedEffort.vendor === opt;
+			if (
+				(!standardVendorValues.includes(opt) || isSelectedVendor) &&
+				!addedVendors.includes(opt)
+			) {
 				addedVendors.push(opt);
 				vendorItems.push({
 					encodedValue: `vendor:${opt}`,

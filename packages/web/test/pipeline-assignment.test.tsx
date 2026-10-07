@@ -92,6 +92,51 @@ it('waits for the agent registry before allowing a custom pipeline assignment', 
 	}
 });
 
+it('displays native effort selections and clears them when switching review agents', async () => {
+	const host = document.createElement('div');
+	document.body.append(host);
+	const root = createRoot(host);
+	const onReview = vi.fn();
+	try {
+		await act(async () =>
+			root.render(
+				createElement(PipelineAssignment, {
+					reviewOverride: { agentId: 'agent-1', effortVendor: 'max' },
+					wrapupAssignment: { mode: 'fixed', agentId: 'agent-2', effortVendor: 'ultra' },
+					onChangeReviewOverride: onReview,
+					onChangeWrapupAssignment: vi.fn(),
+					agents: mockAgents,
+					errors: { 'reviewOverride.effortVendor': '该模型不支持 max' },
+				}),
+			),
+		);
+		expect(
+			host.querySelector('[data-testid="review-override-section"] [data-testid="effort-picker"]')
+				?.textContent,
+		).toContain('max');
+		expect(
+			host.querySelector('[data-testid="wrapup-assignment-section"] [data-testid="effort-picker"]')
+				?.textContent,
+		).toContain('ultra');
+		expect(host.textContent).toContain('该模型不支持 max');
+		const select = host.querySelector<HTMLSelectElement>('#review-override-agent-select');
+		await act(async () => {
+			if (!select) throw new Error('missing review agent selector');
+			select.value = 'agent-2';
+			select.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+		expect(onReview).toHaveBeenCalledWith({
+			agentId: 'agent-2',
+			modelName: null,
+			effortTier: null,
+			effortVendor: null,
+		});
+	} finally {
+		await act(async () => root.unmount());
+		host.remove();
+	}
+});
+
 const mockAgents: AgentEntryDto[] = [
 	{
 		id: 'agent-1',

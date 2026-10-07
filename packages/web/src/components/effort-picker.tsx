@@ -34,6 +34,7 @@ export interface EffortPickerProps {
 	readonly onChange: (value: EffortValue) => void;
 	readonly currentConfigEffort?: EffortValue;
 	readonly selectedModelEffortOptions?: readonly string[];
+	readonly agentEffortOptions?: readonly string[];
 	readonly allowVendor?: boolean;
 	readonly effortRecognized?: boolean;
 	readonly disabled?: boolean;
@@ -46,7 +47,8 @@ export function EffortPicker({
 	value,
 	onChange,
 	currentConfigEffort = null,
-	selectedModelEffortOptions = [],
+	selectedModelEffortOptions,
+	agentEffortOptions,
 	allowVendor = true,
 	effortRecognized = true,
 	disabled = false,
@@ -58,11 +60,21 @@ export function EffortPicker({
 			vendorMap,
 			currentConfigEffort,
 			selectedModelEffortOptions,
+			agentEffortOptions,
+			selectedEffort: value,
 			allowVendor,
 			effortRecognized,
 			copy: UI_STRINGS.effortPicker,
 		});
-	}, [vendorMap, currentConfigEffort, selectedModelEffortOptions, allowVendor, effortRecognized]);
+	}, [
+		vendorMap,
+		currentConfigEffort,
+		selectedModelEffortOptions,
+		agentEffortOptions,
+		value,
+		allowVendor,
+		effortRecognized,
+	]);
 
 	const selectGroups = useMemo<readonly GroupedSelectGroup[]>(() => {
 		return rawGroups.map((group) => {

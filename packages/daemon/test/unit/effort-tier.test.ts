@@ -37,7 +37,7 @@ describe('effort tier domain', () => {
 			supported: true,
 			agentId: 'claude',
 			tier: 'low',
-			transport: { kind: 'env', variables: { MAX_THINKING_TOKENS: '2048' } },
+			transport: { kind: 'argv', parameter: '--effort', value: 'low', args: ['--effort', 'low'] },
 		});
 		expect(resolveEffortMapping('grok', 'high')).toMatchObject({
 			supported: true,
@@ -75,8 +75,8 @@ describe('effort tier domain', () => {
 	});
 
 	it('reverse maps only exact values documented for the reporting agent', () => {
-		expect(normalizeReportedEffort('minimal', { agentId: 'codex' })).toBe('low');
-		expect(normalizeReportedEffort('max', { agentId: 'pi' })).toBe('high');
+		expect(normalizeReportedEffort('minimal', { agentId: 'codex' })).toBeNull();
+		expect(normalizeReportedEffort('max', { agentId: 'pi' })).toBeNull();
 		expect(normalizeReportedEffort('2048', { agentId: 'claude' })).toBe('low');
 		expect(normalizeReportedEffort('8192', { agentId: 'claude' })).toBe('medium');
 		expect(normalizeReportedEffort('32768', { agentId: 'claude' })).toBe('high');

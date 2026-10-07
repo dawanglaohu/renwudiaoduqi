@@ -170,6 +170,7 @@ export function createSessionResumeDispatcher(
 				argsTemplate: frozenLaunch.argsTemplate,
 				model: run.model_name ?? null,
 				effortTier: run.effort_tier ?? null,
+				effortVendor: run.effort_vendor ?? null,
 				permissionTier: run.permission_tier ?? 'workspaceWrite',
 				prompt: input.text,
 				resumeSessionRef: vendorSessionRef,

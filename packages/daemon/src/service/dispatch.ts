@@ -18,6 +18,7 @@ import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { CodexSessionRegistry } from '../adapters/codex/app-server-session.ts';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { vendorEffortDomain } from '../domain/agent-effort-options.ts';
 import { resolveAssignment } from '../domain/assignment.ts';
 import { summarizeBatchLanding } from '../domain/batch-landing.ts';
 import {
@@ -269,6 +270,7 @@ export interface DispatchServiceDeps {
 	readonly logFailure?: (error: unknown) => void;
 	readonly getDispatchHalt?: () => boolean;
 	readonly agentRegistry?: AgentRegistry;
+	readonly listVendorEffortDomain?: (agentId: string) => Promise<readonly string[]>;
 	readonly agentLimits?: number | Record<string, number> | ((agentId: string) => number);
 	readonly listAgents?: () => Promise<readonly AgentEntryDto[]> | readonly AgentEntryDto[];
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
@@ -623,9 +625,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					},
 				);
 			}
-			const allowed = agentEntry?.effortVendorMap
-				? (Object.values(agentEntry.effortVendorMap) as readonly string[])
-				: [];
+			const allowed = deps.listVendorEffortDomain
+				? await deps.listVendorEffortDomain(agentId)
+				: vendorEffortDomain(agentId, agentEntry ?? {});
 			assertVendorEffortInDomain(input.effort.vendor, allowed, 'effort');
 		}
 
@@ -2139,6 +2141,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						execPath: wrapupLaunchSpecData.execPath,
 						model: run.model_name ?? wrapupLaunchSpecData.model ?? null,
 						effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
+						effortVendor: run.effort_vendor ?? null,
 						permissionTier: 'workspaceWrite',
 						prompt: wrapupPrompt,
 						...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
@@ -2413,6 +2416,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					execPath: launchSpecData.execPath,
 					model: effectiveModel,
 					effortTier: effectiveEffort,
+					effortVendor: run.effort_vendor ?? null,
 					permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
 					prompt: runPrompt,
 					// A fresh implementation run owns one bidirectional app-server process.

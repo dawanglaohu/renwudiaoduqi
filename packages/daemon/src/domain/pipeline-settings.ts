@@ -14,6 +14,16 @@ export const DEFAULT_PIPELINE_SETTINGS: PipelineSettings = Object.freeze({
 const ALLOWED_KEYS = new Set(['bughunt', 'wrapupMode', 'reviewOverride', 'wrapupAssignment']);
 const EFFORT_TIERS = new Set(['low', 'medium', 'high']);
 
+function isValidEffortSelection(record: Record<string, unknown>): boolean {
+	if (record.effortVendor == null) return true;
+	return (
+		record.effortTier == null &&
+		typeof record.effortVendor === 'string' &&
+		record.effortVendor.trim().length > 0 &&
+		record.effortVendor.length <= 256
+	);
+}
+
 /**
  * Validates reviewOverride field (AC 5, E-356).
  */
@@ -24,7 +34,8 @@ export function isValidReviewOverride(value: unknown): value is ReviewOverride |
 	const record = value as Record<string, unknown>;
 	const keys = Object.keys(record);
 	for (const k of keys) {
-		if (k !== 'agentId' && k !== 'modelName' && k !== 'effortTier') return false;
+		if (k !== 'agentId' && k !== 'modelName' && k !== 'effortTier' && k !== 'effortVendor')
+			return false;
 	}
 
 	if (typeof record.agentId !== 'string' || record.agentId.trim().length === 0) {
@@ -45,7 +56,7 @@ export function isValidReviewOverride(value: unknown): value is ReviewOverride |
 		return false;
 	}
 
-	return true;
+	return isValidEffortSelection(record);
 }
 
 /**
@@ -64,7 +75,14 @@ export function isValidWrapupAssignment(value: unknown): value is WrapupAssignme
 	if (record.mode === 'fixed') {
 		const keys = Object.keys(record);
 		for (const k of keys) {
-			if (k !== 'mode' && k !== 'agentId' && k !== 'modelName' && k !== 'effortTier') return false;
+			if (
+				k !== 'mode' &&
+				k !== 'agentId' &&
+				k !== 'modelName' &&
+				k !== 'effortTier' &&
+				k !== 'effortVendor'
+			)
+				return false;
 		}
 		if (typeof record.agentId !== 'string' || record.agentId.trim().length === 0) {
 			return false;
@@ -83,7 +101,7 @@ export function isValidWrapupAssignment(value: unknown): value is WrapupAssignme
 		) {
 			return false;
 		}
-		return true;
+		return isValidEffortSelection(record);
 	}
 
 	return false;
