@@ -347,7 +347,7 @@ export function AgentCard({
 						<div className="flex min-w-0 flex-col">
 							<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
 							<span
-								className="font-mono text-dense text-ink-2 truncate"
+								className="font-mono text-dense text-ink-2"
 								title={modelBuiltin}
 								data-testid="layer-builtin-defaultModel"
 							>
@@ -367,7 +367,7 @@ export function AgentCard({
 								)}
 							</div>
 							<span
-								className={`font-mono text-dense truncate ${
+								className={`font-mono text-dense ${
 									hasModelOverride ? 'text-needs font-medium' : 'text-ink-3'
 								}`}
 								title={modelOverride}
@@ -379,7 +379,7 @@ export function AgentCard({
 						<div className="flex min-w-0 flex-col">
 							<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
 							<span
-								className="font-mono text-dense text-ink-1 font-medium truncate"
+								className="font-mono text-dense text-ink-1 font-medium"
 								title={modelEffective}
 								data-testid="layer-effective-defaultModel"
 							>
@@ -463,7 +463,7 @@ export function AgentCard({
 							<div className="flex min-w-0 flex-col">
 								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
 								<span
-									className="font-mono text-dense text-ink-2 truncate"
+									className="font-mono text-dense text-ink-2"
 									title={effortBuiltin}
 									data-testid="layer-builtin-defaultEffortTier"
 								>
@@ -473,7 +473,7 @@ export function AgentCard({
 							<div className="flex min-w-0 flex-col">
 								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
 								<span
-									className={`font-mono text-dense truncate ${
+									className={`font-mono text-dense ${
 										hasEffortOverride ? 'text-needs font-medium' : 'text-ink-3'
 									}`}
 									title={effortOverride}
@@ -485,7 +485,7 @@ export function AgentCard({
 							<div className="flex min-w-0 flex-col">
 								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
 								<span
-									className="font-mono text-dense text-ink-1 font-medium truncate"
+									className="font-mono text-dense text-ink-1 font-medium"
 									title={effortEffective}
 									data-testid="layer-effective-defaultEffortTier"
 								>

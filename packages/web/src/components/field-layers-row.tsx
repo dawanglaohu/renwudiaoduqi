@@ -75,7 +75,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 				<div className="flex min-w-0 flex-col">
 					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
 					<span
-						className="font-mono text-dense text-ink-2 truncate"
+						className="font-mono text-dense text-ink-2"
 						title={layers.builtIn}
 						data-testid={`layer-builtin-${layers.key}`}
 					>
@@ -85,7 +85,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 				<div className="flex min-w-0 flex-col">
 					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
 					<span
-						className={`font-mono text-dense truncate ${
+						className={`font-mono text-dense ${
 							hasOverride ? 'text-needs font-medium' : 'text-ink-3'
 						}`}
 						title={layers.override ?? '—'}
@@ -97,7 +97,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 				<div className="flex min-w-0 flex-col">
 					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
 					<span
-						className="font-mono text-dense text-ink-1 font-medium truncate"
+						className="font-mono text-dense text-ink-1 font-medium"
 						title={layers.effective}
 						data-testid={`layer-effective-${layers.key}`}
 					>

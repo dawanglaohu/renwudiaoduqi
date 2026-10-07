@@ -214,6 +214,10 @@ select {
 	color: var(--ink-3);
 }
 
+.agent-settings-grid {
+	gap: calc(var(--sp-3) * 1.5);
+}
+
 .agent-settings-section {
 	padding-top: var(--sp-3);
 	border-top: 1px solid var(--border-strong);
@@ -244,6 +248,7 @@ select {
 	gap: var(--sp-1);
 	min-width: 0;
 	font-size: var(--fs-meta);
+	overflow-wrap: anywhere;
 }
 
 .settings-field-layers > div {
