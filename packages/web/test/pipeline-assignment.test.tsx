@@ -5,7 +5,7 @@
  * 流水线审查覆盖与收口指派设置展示组件单元测试（M9-T23 / AC 8, E-356）
  */
 
-import type { AgentEntryDto } from '@agent-scheduler/shared/api/agents';
+import type { AgentEntryDto, ListAgentModelsResponse } from '@agent-scheduler/shared/api/agents';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -14,6 +14,64 @@ import { PipelineAssignment } from '../src/components/pipeline-assignment.tsx';
 import { UI_STRINGS } from '../src/i18n/ui-strings.ts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+it.each(['review-override', 'wrapup-assignment'])(
+	'clears effort when switching %s to an unsupported model',
+	async (section) => {
+		window.matchMedia = vi.fn().mockImplementation((media) => ({
+			matches: false,
+			media,
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+		}));
+		Element.prototype.scrollIntoView = vi.fn();
+		const catalog: ListAgentModelsResponse = {
+			models: [{ name: 'no-thinking', source: 'live', isCurrentConfig: false, effortOptions: [] }],
+			isComplete: true,
+			isRefreshing: false,
+			refreshedAt: '2026-10-07T00:00:00Z',
+			liveFailure: null,
+			currentConfig: { model: null, effort: null, effortRecognized: true, configPath: '' },
+		};
+		const onReview = vi.fn();
+		const onWrapup = vi.fn();
+		const host = document.createElement('div');
+		document.body.append(host);
+		const root = createRoot(host);
+		try {
+			await act(async () =>
+				root.render(
+					createElement(PipelineAssignment, {
+						agents: mockAgents,
+						catalogs: { 'agent-1': catalog },
+						reviewOverride: { agentId: 'agent-1', effortVendor: 'max' },
+						wrapupAssignment: { mode: 'fixed', agentId: 'agent-1', effortTier: 'high' },
+						onChangeReviewOverride: onReview,
+						onChangeWrapupAssignment: onWrapup,
+					}),
+				),
+			);
+			await act(async () =>
+				host
+					.querySelector<HTMLButtonElement>(
+						`[data-testid="${section}-section"] [data-testid="model-picker"] [role="combobox"]`,
+					)
+					?.click(),
+			);
+			const option = document.querySelector<HTMLElement>(
+				'[role="option"][data-testid="select-option-no-thinking"]',
+			);
+			expect(option).not.toBeNull();
+			await act(async () => option?.click());
+			expect(section === 'review-override' ? onReview : onWrapup).toHaveBeenCalledWith(
+				expect.objectContaining({ modelName: 'no-thinking', effortTier: null, effortVendor: null }),
+			);
+		} finally {
+			await act(async () => root.unmount());
+			host.remove();
+		}
+	},
+);
 
 it('preserves both executing Agent labels and field error paths in the actual DOM (E-356)', async () => {
 	const host = document.createElement('div');

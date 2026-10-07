@@ -1728,6 +1728,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 									stage: 'review',
 									taskAssignment,
 									reviewOverride,
+									modelEffortOptions: deps.agentService?.getModelEffortOptions,
 									agentDefaults: deps.agentRegistry
 										? (id) => {
 												const a = deps.agentRegistry?.getSnapshot().agents[id];
@@ -2478,6 +2479,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						stage: 'review',
 						taskAssignment,
 						reviewOverride: pipeline.reviewOverride,
+						modelEffortOptions: deps.agentService?.getModelEffortOptions,
 						agentDefaults: deps.agentRegistry
 							? (id) => {
 									const a = deps.agentRegistry?.getSnapshot().agents[id];

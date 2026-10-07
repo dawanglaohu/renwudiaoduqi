@@ -305,6 +305,7 @@ function setupTestEnvironment(
 		readonly claudeExecPath?: string;
 		readonly claudeVersion?: string;
 		readonly claudeDefaultEffort?: { readonly vendor: string };
+		readonly modelEffortOptions?: Readonly<Record<string, readonly string[]>>;
 		readonly dshResolvedPath?: string;
 		readonly customSpawn?: typeof import('../../src/proc/spawn.ts').spawnManaged;
 		readonly baseSelector?: import('../../src/workspace/base-select.ts').BaseSelector;
@@ -403,6 +404,8 @@ function setupTestEnvironment(
 			return { canDispatch: false, isReady: false, status: 'not_found' };
 		},
 		listAgentModels: async () => ({ models: [], currentConfig: {} }),
+		getModelEffortOptions: (_agentId: string, model: string | null) =>
+			model ? overrides.modelEffortOptions?.[model] : undefined,
 		getVendorEffortDomain: (agentId: string) =>
 			vendorEffortDomain(
 				agentId,
@@ -502,6 +505,58 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it('omits Pi thinking args and captures null effort for a known unsupported model', async () => {
+		const { container, getLatestProc } = setupTestEnvironment({
+			availableAgentIds: ['pi'],
+			modelEffortOptions: { 'no-thinking': [] },
+		});
+		const result = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'pi',
+			model: 'no-thinking',
+			effort: { vendor: 'max' },
+			idempotencyKey: 'no-thinking',
+		});
+		expect(result.run.effort).toBeNull();
+		const run = container.repos.runs.findById(result.run.id);
+		const snapshot = container.repos.dispatchSnapshots?.findById(run?.snapshot_id ?? '');
+		expect(JSON.parse(snapshot?.assignment_json ?? '{}')).toMatchObject({
+			effortTier: null,
+			effortVendor: null,
+		});
+		await container.services.dispatch.launchRun(result.run.id);
+		await vi.waitFor(() => expect(getLatestProc()).not.toBeNull());
+		expect(getLatestProc()?.lastLaunchSpec.args).not.toContain('--thinking');
+	});
+
+	it('persists cleared review and fixed-wrapup effort for an unsupported model', async () => {
+		const { container } = setupTestEnvironment({
+			availableAgentIds: ['pi'],
+			modelEffortOptions: { 'no-thinking': [] },
+		});
+		await container.services.settings.updateGates(
+			{ dispatch: 'manual', review: 'manual', landing: 'manual' },
+			null,
+		);
+		const pipeline = container.services.settings.updatePipeline(
+			{
+				bughunt: 0,
+				wrapupMode: 'auto',
+				reviewOverride: { agentId: 'pi', modelName: 'no-thinking', effortVendor: 'max' },
+				wrapupAssignment: {
+					mode: 'fixed',
+					agentId: 'pi',
+					modelName: 'no-thinking',
+					effortTier: 'high',
+				},
+			},
+			null,
+		);
+		expect(pipeline.reviewOverride).toMatchObject({ effortTier: null, effortVendor: null });
+		expect(pipeline.wrapupAssignment).toMatchObject({ effortTier: null, effortVendor: null });
+		expect(container.services.settings.getPipeline()).toEqual(pipeline);
+		await container.services.dispatch.tick();
+	});
 	it.each([
 		['codex', 'ultra'],
 		['claude', 'max'],

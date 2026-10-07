@@ -127,6 +127,7 @@ export interface AgentService {
 		options?: { readonly refresh?: boolean },
 	): Promise<ListAgentModelsResponse>;
 	getVendorEffortDomain(agentId: string): readonly string[];
+	getModelEffortOptions(agentId: string, modelName: string | null): readonly string[] | undefined;
 	assertCanDispatch(agentId: string): Promise<void>;
 	getAvailability(agentId: string): AgentAvailabilityState | undefined;
 	getLogin(agentId: string): LoginState | null;
@@ -1005,7 +1006,20 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		}
 
 		// Update overrides via registry (R2)
-		const updateResult = await deps.registry.updateOverrides(agentId, updates);
+		const changesEffortOrModel =
+			updates.defaultModel !== undefined || updates.defaultEffortTier !== undefined;
+		const model =
+			updates.defaultModel === null
+				? (configCache.get(agentId)?.currentConfigModel ?? undefined)
+				: (updates.defaultModel ?? null);
+		const normalizedUpdates =
+			changesEffortOrModel &&
+			!updates.clearOverrides?.includes('defaultEffortTier') &&
+			model !== undefined &&
+			getModelEffortOptions(agentId, model)?.length === 0
+				? { ...updates, defaultEffortTier: null }
+				: updates;
+		const updateResult = await deps.registry.updateOverrides(agentId, normalizedUpdates);
 		if (!updateResult.ok) {
 			throw new AppError('E_VALIDATION', updateResult.message, {
 				details: updateResult.details ?? { agentId },
@@ -1368,9 +1382,23 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		);
 	}
 
+	function getModelEffortOptions(
+		agentId: string,
+		modelName: string | null,
+	): readonly string[] | undefined {
+		const config = deps.registry.getSnapshot().agents[agentId];
+		if (!config) return undefined;
+		const model =
+			modelName ??
+			toAgentEntryDto(agentId, config).defaultModel ??
+			configCache.get(agentId)?.currentConfigModel;
+		return liveCache.get(agentId)?.result.models.find((item) => item.name === model)?.effortOptions;
+	}
+
 	return Object.freeze({
 		registry: deps.registry,
 		getVendorEffortDomain,
+		getModelEffortOptions,
 		start,
 		stop,
 		listAgents: () => runOperation(listAgents),

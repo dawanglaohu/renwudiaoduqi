@@ -58,6 +58,11 @@ export interface ResolveAssignmentInput {
 	readonly wrapupSettings?: WrapupAssignment | null;
 	readonly followAssignment?: FollowAssignmentInfo | null;
 	readonly agentDefaults?: AgentDefaultsLookup;
+	/** Cached model capability: an empty set means explicitly unsupported; omitted means unknown. */
+	readonly modelEffortOptions?: (
+		agentId: string,
+		modelName: string | null,
+	) => readonly string[] | undefined;
 	readonly stageOverride?: unknown;
 	readonly manualOverride?: unknown;
 }
@@ -90,6 +95,17 @@ export interface ResolvedAssignment {
  *    - wrapup: manual body -> fixed -> follow; follow_source_missing if follow source missing
  */
 export function resolveAssignment(input: ResolveAssignmentInput): ResolvedAssignment {
+	const resolved = resolveAssignmentCore(input);
+	if (
+		(input.stage === 'implement' || input.stage === 'review' || input.stage === 'wrapup') &&
+		input.modelEffortOptions?.(resolved.agentId, resolved.modelName)?.length === 0
+	) {
+		return Object.freeze({ ...resolved, effortTier: null, effortVendor: null });
+	}
+	return resolved;
+}
+
+function resolveAssignmentCore(input: ResolveAssignmentInput): ResolvedAssignment {
 	const { stage } = input;
 
 	switch (stage) {

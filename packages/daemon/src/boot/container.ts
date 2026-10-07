@@ -924,6 +924,7 @@ export function createContainer(input: {
 			getDispatchHalt: () => systemService.isDispatchHalted(),
 			listAgents: () => agentService.listAgents(),
 			listVendorEffortDomain,
+			modelEffortOptions: (agentId, model) => agentService.getModelEffortOptions?.(agentId, model),
 			listDispatchableAgents: () => {
 				const snapshot = agentRegistry.getSnapshot();
 				return Object.entries(snapshot.agents).map(([agentId, agentConfig]) => {
@@ -1026,6 +1027,7 @@ export function createContainer(input: {
 			settingsRepo: settings,
 			agentRegistry,
 			getVendorEffortDomain: (agentId) => agentService.getVendorEffortDomain(agentId),
+			modelEffortOptions: (agentId, model) => agentService.getModelEffortOptions?.(agentId, model),
 			clock: input.clock,
 			bus,
 			envelopeFactory,

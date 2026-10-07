@@ -26,6 +26,10 @@ export interface SettingsServiceDeps {
 	readonly warn?: (message: string, ...args: unknown[]) => void;
 	readonly nudgeTick?: () => void;
 	readonly getVendorEffortDomain?: (agentId: string) => readonly string[];
+	readonly modelEffortOptions?: (
+		agentId: string,
+		modelName: string | null,
+	) => readonly string[] | undefined;
 	readonly agentRegistry?: {
 		readonly getSnapshot: () => {
 			readonly agents: Readonly<
@@ -256,8 +260,27 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 			const updated: PipelineSettings = Object.freeze({
 				bughunt: input.bughunt,
 				wrapupMode: input.wrapupMode,
-				reviewOverride: input.reviewOverride ? Object.freeze({ ...input.reviewOverride }) : null,
-				wrapupAssignment: Object.freeze({ ...input.wrapupAssignment }),
+				reviewOverride: input.reviewOverride
+					? Object.freeze({
+							...input.reviewOverride,
+							...(deps.modelEffortOptions?.(
+								input.reviewOverride.agentId,
+								input.reviewOverride.modelName ?? null,
+							)?.length === 0
+								? { effortTier: null, effortVendor: null }
+								: {}),
+						})
+					: null,
+				wrapupAssignment: Object.freeze({
+					...input.wrapupAssignment,
+					...(input.wrapupAssignment.mode === 'fixed' &&
+					deps.modelEffortOptions?.(
+						input.wrapupAssignment.agentId,
+						input.wrapupAssignment.modelName ?? null,
+					)?.length === 0
+						? { effortTier: null, effortVendor: null }
+						: {}),
+				}),
 			});
 
 			const valueJson = JSON.stringify(updated);

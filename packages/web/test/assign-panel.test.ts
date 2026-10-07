@@ -1114,6 +1114,73 @@ interface MountedAssignPanel {
 }
 
 describe('task assignment using the agent default model', () => {
+	it.each([null, 'no-thinking-model'])(
+		'submits null effort for unsupported explicit/default model %s',
+		async (model) => {
+			Element.prototype.scrollIntoView = vi.fn();
+			const task = { id: 'no-thinking-task', taskKey: 'M9-T23', title: 'No thinking' };
+			const onAssignTask = vi.fn();
+			const agent: AssignableAgent = {
+				id: 'pi',
+				name: 'Pi',
+				monogram: 'PI',
+				supportsEffort: true,
+				defaultModel: 'no-thinking-model',
+				effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
+				catalog: {
+					models: [
+						{ name: 'no-thinking-model', source: 'live', isCurrentConfig: true, effortOptions: [] },
+					],
+					isComplete: true,
+					isRefreshing: false,
+					refreshedAt: '2026-10-07T00:00:00Z',
+					liveFailure: null,
+					currentConfig: {
+						model: 'no-thinking-model',
+						effort: null,
+						effortRecognized: true,
+						configPath: '',
+					},
+				},
+			};
+			const host = document.createElement('div');
+			document.body.append(host);
+			const root = createRoot(host);
+			try {
+				await act(async () =>
+					root.render(
+						createElement(TaskAssignmentList, {
+							tasks: [task],
+							agents: [agent],
+							reassignTaskId: task.id,
+							onAssignTask,
+							assignments: {
+								[task.id]: {
+									taskId: task.id,
+									taskKey: task.taskKey,
+									agentId: agent.id,
+									model,
+									effort: { vendor: 'max' },
+									sessionNo: 1,
+								},
+							},
+						}),
+					),
+				);
+				await act(async () =>
+					host.querySelector<HTMLButtonElement>('[data-action="confirm-task-assign"]')?.click(),
+				);
+				expect(onAssignTask).toHaveBeenCalledWith(
+					task.id,
+					expect.objectContaining({ effort: null }),
+				);
+			} finally {
+				await act(async () => root.unmount());
+				host.remove();
+			}
+		},
+	);
+
 	it.each([null, { vendor: 'ultra' }])(
 		'uses model effort options while preserving %j',
 		async (effort) => {

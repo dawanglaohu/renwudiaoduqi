@@ -272,6 +272,10 @@ export interface DispatchServiceDeps {
 	readonly getDispatchHalt?: () => boolean;
 	readonly agentRegistry?: AgentRegistry;
 	readonly listVendorEffortDomain?: (agentId: string) => Promise<readonly string[]>;
+	readonly modelEffortOptions?: (
+		agentId: string,
+		modelName: string | null,
+	) => readonly string[] | undefined;
 	readonly agentLimits?: number | Record<string, number> | ((agentId: string) => number);
 	readonly listAgents?: () => Promise<readonly AgentEntryDto[]> | readonly AgentEntryDto[];
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
@@ -654,6 +658,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				effort: input.effort ?? null,
 			},
 			agentDefaults: createAgentDefaultsLookup(deps.agentRegistry),
+			modelEffortOptions: deps.modelEffortOptions,
 		});
 
 		const launchSpecJson = JSON.stringify({
@@ -1926,6 +1931,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 									effort: item.draft?.effort ?? null,
 								},
 								agentDefaults: createAgentDefaultsLookup(deps.agentRegistry),
+								modelEffortOptions: deps.modelEffortOptions,
 							});
 							const launchSpecJson = JSON.stringify({
 								agentId: item.agentId,

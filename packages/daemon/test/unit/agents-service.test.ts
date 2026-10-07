@@ -72,6 +72,61 @@ describe('M4-T4 AgentService and Availability Probing', () => {
 		homedir: '/home/test',
 	});
 
+	it.each(['model', 'effort'] as const)(
+		'clears effort in the same registry update when the %s targets a no-thinking model',
+		async (field) => {
+			const noThinking = 'test/no-thinking';
+			const { registry, files } = createMockRegistry({
+				pi: {
+					execPath: '/bin/pi',
+					defaultModel: field === 'model' ? 'test/thinking' : noThinking,
+					defaultEffortTier: { vendor: 'max' },
+				},
+			});
+			const service = createAgentService({
+				registry,
+				hostInputs,
+				fileSystem: {
+					readUtf8File: async (path) => files.get(path) ?? '{}',
+					writeUtf8File: async (path, content) => {
+						files.set(path, content);
+					},
+					stat: async () => createMockFileStat(),
+					lstat: async () => createMockFileStat(),
+					realpath: async (path) => path,
+					access: async () => undefined,
+					readlink: async (path) => path,
+				},
+				commandRunner: async ({ args }) => ({
+					ok: true,
+					exitCode: 0,
+					stdout: args.includes('--version')
+						? 'pi 0.87.1'
+						: args.includes('--list-models')
+							? 'provider model context max-out thinking images\ntest no-thinking 128K 8K no no\ntest thinking 128K 8K yes no\n'
+							: '',
+					stderr: '',
+				}),
+			});
+			await service.start();
+			try {
+				await service.listAgentModels('pi');
+				const result = await service.updateAgent(
+					'pi',
+					field === 'model'
+						? { defaultModel: noThinking }
+						: { defaultEffortTier: { tier: 'high' } },
+				);
+				expect(result.defaultEffortTier).toBeNull();
+				expect(
+					JSON.parse(files.get('/test/data/agents.json') ?? '{}').overrides.pi.defaultEffortTier,
+				).toBeNull();
+			} finally {
+				await service.stop();
+			}
+		},
+	);
+
 	it('AC 1 & E-40: marks missing agent as not-found / unavailable at startup, prevents dispatch before execution', async () => {
 		const { registry, files } = createMockRegistry({
 			codex: { execPath: 'nonexistent-codex-cli-binary-12345' },

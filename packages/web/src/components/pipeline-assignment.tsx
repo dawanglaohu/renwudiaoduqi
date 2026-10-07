@@ -196,6 +196,11 @@ export function PipelineAssignment({
 									onChangeReviewOverride({
 										...reviewOverride,
 										modelName: model || null,
+										...(catalogs[reviewOverride.agentId]?.models.find(
+											(item) => item.name === (model || reviewAgent?.defaultModel),
+										)?.effortOptions?.length === 0
+											? { effortTier: null, effortVendor: null }
+											: {}),
 									})
 								}
 								login={reviewAgent?.login}
@@ -356,6 +361,11 @@ export function PipelineAssignment({
 									onChangeWrapupAssignment({
 										...wrapupAssignment,
 										modelName: model || null,
+										...(catalogs[wrapupAssignment.agentId]?.models.find(
+											(item) => item.name === (model || wrapupAgent?.defaultModel),
+										)?.effortOptions?.length === 0
+											? { effortTier: null, effortVendor: null }
+											: {}),
 									})
 								}
 								login={wrapupAgent?.login}

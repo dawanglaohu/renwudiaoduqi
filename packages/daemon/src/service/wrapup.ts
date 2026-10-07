@@ -242,11 +242,16 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					vendorEffortDomain(agentId, agent ?? {});
 				assertVendorEffortInDomain(effortVendor, allowed);
 			}
+			const resolved = resolveAssignment({
+				stage: 'wrapup',
+				body: { agentId, model: override.model ?? null, effort },
+				modelEffortOptions: deps.agentService?.getModelEffortOptions,
+			});
 			return {
 				agentId,
-				modelName: override.model ?? null,
-				effortTier: effort && 'tier' in effort ? effort.tier : null,
-				effortVendor,
+				modelName: resolved.modelName,
+				effortTier: resolved.effortTier,
+				effortVendor: resolved.effortVendor ?? null,
 				source: 'wrapup_settings',
 				followedTaskId: null,
 			};
@@ -257,12 +262,26 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const prevAssignment = assignmentReader.readTaskAssignment(latestWrapup.id);
 			const agentId = prevAssignment?.agentId ?? latestWrapup.agent_id;
 			assertAgentAvailable(agentId);
+			const effortVendor = prevAssignment?.effortVendor ?? latestWrapup.effort_vendor ?? null;
+			const resolved = resolveAssignment({
+				stage: 'wrapup',
+				body: {
+					agentId,
+					model: prevAssignment?.modelName ?? latestWrapup.model_name ?? null,
+					effort: effortVendor ? { vendor: effortVendor } : null,
+					effortTier: effortVendor
+						? undefined
+						: (prevAssignment?.effortTier ??
+							(latestWrapup.effort_tier as EffortTier | null) ??
+							null),
+				},
+				modelEffortOptions: deps.agentService?.getModelEffortOptions,
+			});
 			return {
 				agentId,
-				modelName: prevAssignment?.modelName ?? latestWrapup.model_name ?? null,
-				effortTier:
-					prevAssignment?.effortTier ?? (latestWrapup.effort_tier as EffortTier | null) ?? null,
-				effortVendor: prevAssignment?.effortVendor ?? latestWrapup.effort_vendor ?? null,
+				modelName: resolved.modelName,
+				effortTier: resolved.effortTier,
+				effortVendor: resolved.effortVendor ?? null,
 				source: 'wrapup_settings',
 				followedTaskId: prevAssignment?.followedTaskId ?? null,
 			};
@@ -296,6 +315,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			body: override,
 			wrapupSettings: pipeline?.wrapupAssignment ?? { mode: 'follow' },
 			followAssignment,
+			modelEffortOptions: deps.agentService?.getModelEffortOptions,
 			agentDefaults: deps.agentRegistry
 				? (id) => {
 						const a = deps.agentRegistry?.getSnapshot().agents[id];

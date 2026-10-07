@@ -402,6 +402,9 @@ function TaskAssignRow({
 
 	// R1: 删除组件层对思考强度的补算（不私自补 medium），不支持或未指定则为 null（E-254, E-351）
 	const supportsEffort = currentAgent?.supportsEffort ?? false;
+	const selectedModelEffortOptions = currentAgent?.catalog?.models.find(
+		(model) => model.name === (selectedModel || currentAgent.defaultModel),
+	)?.effortOptions;
 	const assignedEffort: EffortValue = assignment?.effort ?? null;
 	const initialEffort: EffortValue =
 		assignedEffort !== null
@@ -446,7 +449,7 @@ function TaskAssignRow({
 			taskKey: task.taskKey,
 			agentId: selectedAgentId,
 			model: selectedModel.length > 0 ? selectedModel : null,
-			effort: supportsEffort ? selectedEffort : null,
+			effort: supportsEffort && selectedModelEffortOptions?.length !== 0 ? selectedEffort : null,
 			sessionNo: effectiveSessionNo,
 		};
 		onSave(selection);
@@ -751,11 +754,7 @@ function TaskAssignRow({
 							agentEffortOptions={currentAgent.effortOptions}
 							value={selectedEffort}
 							onChange={(eff) => setSelectedEffort(eff)}
-							selectedModelEffortOptions={
-								currentAgent.catalog?.models?.find(
-									(m) => m.name === (selectedModel || currentAgent.defaultModel),
-								)?.effortOptions
-							}
+							selectedModelEffortOptions={selectedModelEffortOptions}
 							currentConfigEffort={currentAgent.currentConfig?.effort}
 							effortRecognized={currentAgent.currentConfig?.effortRecognized}
 							allowVendor={true}

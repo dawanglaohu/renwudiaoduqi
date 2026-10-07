@@ -14,7 +14,7 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3086 passed, 3 existing skips",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3106 passed, 3 existing skips",
     "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
@@ -279,6 +279,20 @@
     "before": "Two regressions fail: Pi thinking=no is lost as undefined, and an unsupported model still renders the effort selector",
     "after": "Twenty-seven focused live-catalog and DOM tests pass",
     "scope": "Explicit empty model effortOptions survives parsing and catalog merge and renders read-only; missing model capability retains the Agent fallback and legacy CLI common-tier budget behavior"
+  },
+  "unsupportedModelSubmission": {
+    "before": "Fifteen regressions fail: stale effort survives task submission, pipeline model changes, Agent default updates, inherited assignment resolution and production persistence",
+    "after": "129 focused tests pass with one existing skip; full workspace check passes 246 files, 3106 tests with three existing skips",
+    "coverage": [
+      "Task DOM submit omits stale effort for both an explicit model and the Agent default model",
+      "Review and fixed-wrapup DOM model selection clears tier and vendor in the same callback",
+      "Agent model or effort updates write null effort atomically through the real registry",
+      "Pipeline service persists both effort fields as null for a cached model with no reasoning support",
+      "Implement, review and wrapup clear both effort columns after defaulting and inheritance, including fixed wrapup fallback",
+      "Production Pi dispatch captures null in the run and assignment snapshot and generates no --thinking argument",
+      "Unknown model capabilities and nonempty reduced option lists retain the original value; rework, bughunt and wrapup-fix retain captured assignment identity"
+    ],
+    "scope": "Only authoritative empty model capability clears effort; dispatch reads the existing model cache without an external probe inside a transaction"
   },
   "manualAndDefault": {
     "before": "Nine regressions fail: the default model exposes unsupported levels without a warning; seven manual HTTP requests cannot submit structured effort",
