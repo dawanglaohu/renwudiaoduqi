@@ -303,6 +303,7 @@ function setupTestEnvironment(
 		readonly implPrompt?: string;
 		readonly claudeExecPath?: string;
 		readonly claudeVersion?: string;
+		readonly claudeDefaultEffort?: { readonly vendor: string };
 		readonly dshResolvedPath?: string;
 		readonly customSpawn?: typeof import('../../src/proc/spawn.ts').spawnManaged;
 		readonly baseSelector?: import('../../src/workspace/base-select.ts').BaseSelector;
@@ -416,17 +417,23 @@ function setupTestEnvironment(
 		baseSelector: overrides.baseSelector,
 		reviewService: fakeReviewService,
 		agentService: fakeAgentService,
-		agentRegistry: overrides.claudeExecPath
-			? createAgentRegistry({
-					dataDir: tempDir,
-					platform: 'posix',
-					publishWarning: () => {},
-					builtInDefaults: {
-						...BUILT_IN_AGENT_DEFAULTS,
-						claude: { ...BUILT_IN_AGENT_DEFAULTS.claude, execPath: overrides.claudeExecPath },
-					},
-				})
-			: undefined,
+		agentRegistry:
+			overrides.claudeExecPath || overrides.claudeDefaultEffort
+				? createAgentRegistry({
+						dataDir: tempDir,
+						platform: 'posix',
+						publishWarning: () => {},
+						builtInDefaults: {
+							...BUILT_IN_AGENT_DEFAULTS,
+							claude: {
+								...BUILT_IN_AGENT_DEFAULTS.claude,
+								execPath: overrides.claudeExecPath ?? BUILT_IN_AGENT_DEFAULTS.claude.execPath,
+								defaultEffortTier:
+									overrides.claudeDefaultEffort ?? BUILT_IN_AGENT_DEFAULTS.claude.defaultEffortTier,
+							},
+						},
+					})
+				: undefined,
 		logViolation: (msg) => console.log('VIOLATION:', msg),
 	});
 
@@ -486,6 +493,29 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it('fails visibly without spawning when saved native effort is unsupported by the frozen Claude executable', async () => {
+		const { container, getLatestProc } = setupTestEnvironment({
+			availableAgentIds: ['claude'],
+			claudeVersion: '2.1.0 (Claude Code)',
+			claudeDefaultEffort: { vendor: 'max' },
+		});
+		const result = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'claude',
+			idempotencyKey: 'unsupported-saved-claude-effort',
+		});
+		expect(result.run.effort).toEqual({ vendor: 'max' });
+		await container.services.dispatch.launchRun(result.run.id).catch((error: unknown) => {
+			expect(error).toMatchObject({
+				code: 'E_VALIDATION',
+				details: { field: 'effort', reason: 'effort_unsupported', selected: 'max' },
+			});
+		});
+		await vi.waitFor(() => {
+			expect(container.repos.runs.findById(result.run.id)?.state).toBe('failed');
+		});
+		expect(getLatestProc()).toBeNull();
+	});
 	it.each(['legacy-to-modern', 'modern-to-legacy'] as const)(
 		'keeps queued Claude executable and effort capability in one snapshot: %s',
 		async (change) => {

@@ -51,9 +51,9 @@ describe('native reasoning effort reaches the CLI', () => {
 		);
 	});
 
-	it.each([[], undefined])(
-		'preserves legacy Claude budgets without named capability %s',
-		(effortOptions) => {
+	it.each([{ effortOptions: [] }, { effortOptions: undefined }])(
+		'preserves legacy Claude budgets without named capability $effortOptions',
+		({ effortOptions }) => {
 			const spec = buildClaudeLaunchSpec({
 				runId: 'legacy',
 				cwd: '/workspace',
@@ -62,14 +62,14 @@ describe('native reasoning effort reaches the CLI', () => {
 			});
 			expect(spec.args).not.toContain('--effort');
 			expect(spec.envOverrides).toMatchObject({ MAX_THINKING_TOKENS: '32768' });
-			const native = buildClaudeLaunchSpec({
-				runId: 'legacy',
-				cwd: '/workspace',
-				effortVendor: 'max',
-				effortOptions,
-			});
-			expect(native.args).not.toContain('--effort');
-			expect(native.envOverrides).not.toHaveProperty('MAX_THINKING_TOKENS');
+			expect(() =>
+				buildClaudeLaunchSpec({
+					runId: 'legacy',
+					cwd: '/workspace',
+					effortVendor: 'max',
+					effortOptions,
+				}),
+			).toThrow("does not support reasoning effort 'max'");
 			expect(
 				nativeEffortOptions(
 					'claude',
@@ -77,6 +77,36 @@ describe('native reasoning effort reaches the CLI', () => {
 					effortOptions,
 				),
 			).toEqual([]);
+		},
+	);
+
+	it.each([{ effortOptions: [] }, { effortOptions: ['low', 'medium', 'high'] }])(
+		'rejects a saved unsupported Claude native effort before review launch: $effortOptions',
+		({ effortOptions }) => {
+			expect(() =>
+				buildReviewLaunchSpec({
+					runId: 'unsupported-review',
+					taskId: 'task-1',
+					worktreePath: '/workspace',
+					effortOptions,
+					assignment: {
+						agentId: 'claude',
+						modelName: 'opus',
+						effortTier: null,
+						effortVendor: 'max',
+					},
+					prompt: 'Review',
+				}),
+			).toThrow(
+				expect.objectContaining({
+					code: 'E_VALIDATION',
+					details: expect.objectContaining({
+						field: 'effort',
+						reason: 'effort_unsupported',
+						selected: 'max',
+					}),
+				}),
+			);
 		},
 	);
 

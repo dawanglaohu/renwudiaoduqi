@@ -1,5 +1,6 @@
 {
   "date": "2026-10-07",
+  "finalReviewDate": "2026-10-08",
   "task": "AGENT-EFFORT-20261007",
   "baseCommit": "3c498394d6f0d4c59fa4e4a135a7174fc04cc7bf",
   "sources": [
@@ -12,7 +13,8 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check: exit 0; 245 test files, 3037 passed, 3 existing skips",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 245 test files, 3040 passed, 3 existing skips",
+    "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
       "Codex app-server and exec argument generation",
@@ -21,7 +23,8 @@
       "New model-advertised effort values accepted without hard-coding",
       "DOM picker selection and preservation; pipeline vendor value cleared on agent change",
       "Queued Claude launch retains both the frozen executable and its effort capability when current availability changes in either direction",
-      "Automatic wrapup preserves inherited native effort in its run row and assignment snapshot"
+      "Automatic wrapup preserves inherited native effort in its run row and assignment snapshot",
+      "Unsupported persisted Claude native effort fails before spawning; review reports validation details and supported choices"
     ]
   },
   "realCliProbe": {
@@ -133,6 +136,8 @@
     "snapshotRegressionAfter": "Both production dispatch regressions pass with frozen executable and capability",
     "wrapupRegressionBefore": "Automatic wrapup created from a max implementation run loses native effort in the run row",
     "wrapupRegressionAfter": "Automatic wrapup preserves max in effort_vendor and assignment_json",
+    "unsupportedRegressionBefore": "5 unsupported-effort tests fail; the production entry starts a legacy executable with saved max while omitting effort controls",
+    "unsupportedRegressionAfter": "E_VALIDATION includes selected effort, allowed choices and remedy; production run enters failed state without spawning",
     "live": {
       "version": "2.1.238 (Claude Code)",
       "canDispatch": true,

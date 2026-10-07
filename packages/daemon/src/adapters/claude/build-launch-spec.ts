@@ -143,15 +143,24 @@ export function buildClaudeLaunchSpec(options: BuildClaudeLaunchSpecOptions): La
 	let effort = resolveNativeEffortTransport('claude', options);
 	if (effort?.kind === 'argv') {
 		const available = nativeEffortOptions('claude', options, options.effortOptions);
-		if (available.length > 0) {
-			if (!available.includes(effort.value)) {
-				effort = null;
-			}
-		} else {
+		if (available.length === 0 && isEffortTier(effort.value)) {
 			const budgets = { low: '2048', medium: '8192', high: '32768' };
-			effort = isEffortTier(effort.value)
-				? { kind: 'env', variables: { MAX_THINKING_TOKENS: budgets[effort.value] } }
-				: null;
+			effort = { kind: 'env', variables: { MAX_THINKING_TOKENS: budgets[effort.value] } };
+		} else if (!available.includes(effort.value)) {
+			const allowed = available.length > 0 ? available : ['low', 'medium', 'high'];
+			throw new AppError(
+				'E_VALIDATION',
+				`Claude executable '${file}' does not support reasoning effort '${effort.value}'. Choose ${allowed.join(', ')} or update the Claude executable and refresh its capabilities.`,
+				{
+					details: {
+						runId: options.runId,
+						field: 'effort',
+						reason: 'effort_unsupported',
+						selected: effort.value,
+						allowed,
+					},
+				},
+			);
 		}
 	}
 	if (effort?.kind === 'argv') args.push(...effort.args);
