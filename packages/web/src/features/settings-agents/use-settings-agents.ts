@@ -90,20 +90,20 @@ const updateDocumentSettingsRoute = ROUTES.find(
 	(r) => r.method === 'PATCH' && r.path === '/api/v1/documents/:docId/settings',
 );
 
-function resolveLastDocId(): string | null {
-	if (typeof window === 'undefined') return null;
+function readUiPreferences(): Record<string, unknown> {
+	if (typeof window === 'undefined') return {};
 	try {
 		const raw = localStorage.getItem('agsched.ui.v1');
-		if (raw) {
-			const parsed = JSON.parse(raw);
-			if (parsed && typeof parsed.lastDocId === 'string' && parsed.lastDocId) {
-				return parsed.lastDocId;
-			}
-		}
+		const parsed = raw ? JSON.parse(raw) : null;
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
 	} catch {
-		// Ignore storage parsing errors
+		return {};
 	}
-	return null;
+}
+
+function resolveLastDocId(): string | null {
+	const lastDocId = readUiPreferences().lastDocId;
+	return typeof lastDocId === 'string' && lastDocId ? lastDocId : null;
 }
 
 export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettingsAgentsResult {
@@ -115,6 +115,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	const [documents, setDocuments] = useState<readonly DocumentDto[]>([]);
 	const [documentsError, setDocumentsError] = useState<string | null>(null);
 	const documentsRequest = useRef(0);
+	const appliedDocumentsRequest = useRef(0);
 	const [selectedDocId, setSelectedDocId] = useState(resolveLastDocId);
 	const explicitDocId = options?.targetDocId ?? selectedDocId;
 	const targetDoc = documents.find((doc) => doc.id === explicitDocId) ?? null;
@@ -138,6 +139,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			// R7: 请求改走 ROUTES/callRoute
 			const res = await httpClient.callRoute<ListDocumentsResponse>(listDocumentsRoute);
 			if (!mounted.current || request !== documentsRequest.current) return;
+			appliedDocumentsRequest.current = request;
 			setDocuments(res.documents);
 			setDocumentsError(null);
 		} catch (err) {
@@ -157,9 +159,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			setSelectedDocId(docId);
 			setLaneCountError(null);
 			try {
-				const raw = localStorage.getItem('agsched.ui.v1');
-				const stored = raw ? JSON.parse(raw) : null;
-				const prefs = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+				const prefs = readUiPreferences();
 				localStorage.setItem('agsched.ui.v1', JSON.stringify({ ...prefs, lastDocId: docId }));
 			} catch {
 				// 存储不可用时，当前会话仍可选择文档并保存服务端设置。
@@ -485,7 +485,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			const docId = targetDoc.id;
 			const prevCount = laneCount;
 			// 保存前发起的读取不得覆盖本次乐观值或服务端确认值。
-			documentsRequest.current += 1;
+			const saveRequest = ++documentsRequest.current;
 			savingLaneCount.current = true;
 			setIsSavingLaneCount(true);
 			setLaneCountError(null);
@@ -503,16 +503,22 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					body: { laneCount: count },
 				});
 				if (mounted.current) {
-					setDocuments((current) =>
-						current.map((doc) => (doc.id === docId ? response.document : doc)),
-					);
+					if (appliedDocumentsRequest.current <= saveRequest) {
+						setDocuments((current) =>
+							current.map((doc) => (doc.id === docId ? response.document : doc)),
+						);
+					}
+					// 保存期间的读取可能先于提交取值；补读确认，已应用的新数据不回退。
+					if (documentsRequest.current !== saveRequest) await loadDocuments();
 				}
 			} catch (err) {
 				if (!mounted.current) return;
-				// R4: 失败回滚并 inline 报错
-				setDocuments((current) =>
-					current.map((doc) => (doc.id === docId ? { ...doc, laneCount: prevCount } : doc)),
-				);
+				// R4: 仅回滚本次乐观值，保留之后读取到的服务端数据。
+				if (appliedDocumentsRequest.current <= saveRequest) {
+					setDocuments((current) =>
+						current.map((doc) => (doc.id === docId ? { ...doc, laneCount: prevCount } : doc)),
+					);
+				}
 				const apiErr = isApiError(err) ? err : undefined;
 				const code = apiErr?.code ?? 'E_INTERNAL';
 				const chineseMsg = getSettingsAgentErrorMessage(
@@ -520,12 +526,13 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					UI_STRINGS.settingsAgents.laneCountFailed,
 				);
 				setLaneCountError(chineseMsg);
+				if (documentsRequest.current !== saveRequest) await loadDocuments();
 			} finally {
 				savingLaneCount.current = false;
 				if (mounted.current) setIsSavingLaneCount(false);
 			}
 		},
-		[laneCount, targetDoc],
+		[laneCount, targetDoc, loadDocuments],
 	);
 
 	// Helper to extract 3-row layer values (AC 1, E-92, R1)

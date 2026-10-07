@@ -904,12 +904,13 @@
     "evidence": [
       "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
       "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
-      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
-      "M9-T14 AC8/E-248: explicit document selection and integer 1-6 persist through PATCH /documents/:docId/settings; current settings and text tests passed 81/81.",
-      "Six additional negative controls failed before the review fix and passed afterward: failed refresh, initial read retry, stale success, stale failure, system.docs_changed and read-before-save ordering.",
-      "Original production browser flow passed 13/13 at 21ae3d4; extended live import and other-client SSE flow is committed for CI validation before merge."
+      "Local complete check passed with pnpm -w check --maxWorkers=2 --minWorkers=2: 245 files, 3031 passed, 3 platform skips; tsc and Web build passed. The first unconstrained run had one disk-pressure timeout; that unchanged test passed alone and in the complete rerun.",
+      "M9-T14 AC8/E-248: explicit document selection and integer 1-6 persist through PATCH /documents/:docId/settings; window tests passed 18/18 and settings/text tests passed 85/85.",
+      "Ten review negative controls failed before their fixes and passed afterward: failed/initial reads, stale read success/failure, document import events, reads before/during saves, delayed save success/failure after newer data, and malformed preference recovery.",
+      "Extended real daemon/browser flow passed 13/13 at 370fac7 in CI run 37648437629: live import, UI PATCH4, reload4, another paired client PATCH5 with real SSE update, UI restore4 and deck4. Final outgoing head must pass PR CI before merge.",
+      "Independent E2E TypeScript check passed with ESNext/Bundler resolution; the file uses native Fetch status values and Playwright response status methods correctly."
     ],
-    "reviewed": "2026-10-07T15:37:06.424458+00:00",
+    "reviewed": "2026-10-07T16:28:13.211420+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

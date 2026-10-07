@@ -312,3 +312,72 @@ it('does not let a refresh started before a local save revert the saved count', 
 	await act(async () => resolveOld({ documents: [documentDto('doc-b', 4)] }));
 	expect(countInput().value).toBe('6');
 });
+
+it('recovers a malformed document preference when selecting a valid document', async () => {
+	localStorage.setItem('agsched.ui.v1', '{unreadable');
+	documentApi();
+	await act(async () => root.render(createElement(SettingsAgentsPage)));
+	await selectDocument('doc-b');
+	expect(JSON.parse(localStorage.getItem('agsched.ui.v1') ?? '{}')).toEqual({ lastDocId: 'doc-b' });
+	await act(async () => root.unmount());
+	root = createRoot(container);
+	await act(async () => root.render(createElement(SettingsAgentsPage)));
+	expect(countInput().value).toBe('4');
+});
+
+it.each(['resolve', 'reject'] as const)(
+	'keeps newer remote document data when a delayed save finishes with %s',
+	async (outcome) => {
+		documentApi();
+		await act(async () => root.render(createElement(SettingsAgentsPage)));
+		await selectDocument('doc-b');
+		let resolveSave: (value: { document: DocumentDto }) => void = () => {};
+		let rejectSave: (error: Error) => void = () => {};
+		const save = new Promise<{ document: DocumentDto }>((resolve, reject) => {
+			resolveSave = resolve;
+			rejectSave = reject;
+		});
+		vi.mocked(httpClient.callRoute)
+			.mockReturnValueOnce(save)
+			.mockResolvedValueOnce({ documents: [documentDto('doc-b', 5)] })
+			.mockResolvedValueOnce({ documents: [documentDto('doc-b', 5)] });
+		const input = await typeCount('6');
+		await act(async () => input.blur());
+		await documentChanged('document.settings_changed');
+		expect(countInput().value).toBe('5');
+		await act(async () => {
+			if (outcome === 'resolve') resolveSave({ document: documentDto('doc-b', 6) });
+			else rejectSave(new Error('delayed save failed'));
+		});
+		expect(countInput().value).toBe('5');
+		if (outcome === 'reject') {
+			expect(container.querySelector('[data-testid="lane-count-error"]')?.textContent).toBeTruthy();
+		}
+	},
+);
+
+it('does not let a read started during a save overwrite its later confirmation', async () => {
+	documentApi();
+	await act(async () => root.render(createElement(SettingsAgentsPage)));
+	await selectDocument('doc-b');
+	let resolveSave: (value: { document: DocumentDto }) => void = () => {};
+	let resolveRead: (value: { documents: DocumentDto[] }) => void = () => {};
+	vi.mocked(httpClient.callRoute)
+		.mockReturnValueOnce(
+			new Promise((resolve) => {
+				resolveSave = resolve;
+			}),
+		)
+		.mockReturnValueOnce(
+			new Promise((resolve) => {
+				resolveRead = resolve;
+			}),
+		)
+		.mockResolvedValueOnce({ documents: [documentDto('doc-b', 6)] });
+	const input = await typeCount('6');
+	await act(async () => input.blur());
+	await documentChanged('system.docs_changed');
+	await act(async () => resolveSave({ document: documentDto('doc-b', 6) }));
+	await act(async () => resolveRead({ documents: [documentDto('doc-b', 4)] }));
+	expect(countInput().value).toBe('6');
+});
