@@ -1,0 +1,90 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "1a23f1c377008546823e7b6d08bf9a59f2faa9894a0ff7c3248033df948e40a1",
+      "verdict": "pass",
+      "evidence": [
+        "M1-T11: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:648,2398) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
+        "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    },
+    "M4-T12": {
+      "contractHash": "a1ea9b2e1c384bd3fad9107269550582c277bbdffe3a5c4a9f609fe2a2183c5c",
+      "verdict": "pass",
+      "evidence": [
+        "Changed AC1/E-193: build-launch-spec.ts:34/config/defaults.ts:276 inherit the DSH configured model and use a discoverable dsh command; platform/windows.ts:116-125 finds packaged Windows launchers. Explicit JS paths remain supported by launch construction. Explicit model selection is rejected rather than ignored or passed as unsupported --model.",
+        "Changed AC3/E-191/E-28: service/agents.ts:475-521 always runs real smoke, including without an injected command runner; ComSpec is built through resolveExecutable/buildProbeLaunch. smoke.ts:47 validates exit 0, empty stderr and nonempty final stdout within the configured startup timeout.",
+        "Five regressions in packages/daemon/test/unit/dsh-current-cli.test.ts all failed before repair and pass after repair. Native spawn smoke failure denies availability and dispatch; Windows smoke uses the same command processor as version probing. TypeScript and changed-file Biome pass.",
+        "Real installed native service result: isAvailable=true, canDispatch=true, resolved path D:/Program Files/DeepSeek Harness/resources/runtime/cli/bin/dsh.cmd, version 0.2.0-rc.2. Actual adapter-built task output DSH_SCHEDULER_FIXED_OK, exit 0, stderr empty. No injected process/response or native credential dump.",
+        "AC2/AC5/AC6 unchanged: capabilities.ts:13 retains hasStreamingEvents=false, reportsModelRejection=false and current-run-only; version outside known range remains warning and dispatchable. AC4/AC7/AC8 support logic is unchanged; this revalidation addresses the changed path/model/smoke contract. Existing generic ACP and adapter switch behavior are not widened.",
+        "Current user registry updated via updateOverrides with backup agents.json.dsh-backup-20261007; other agent overrides and permissionTier preserved. Existing administrator daemon was not restarted and its browser session is unpaired; current live DOM recovery is not claimed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    },
+    "M8-T10": {
+      "contractHash": "e06b4497d0c87dc119f957697ce270d12645575a41b2e496da971a741cd1200f",
+      "verdict": "pass",
+      "evidence": [
+        "M8-T10: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:648,2398) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
+        "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    },
+    "R13-T57054072": {
+      "contractHash": "0f2bf7ab71da52f9769440c4759d0c7f3663f9faa48476c2dcd7595ce7cf08c8",
+      "verdict": "pass",
+      "evidence": [
+        "R13-T57054072: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:648,2398) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
+        "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    },
+    "R14-T23602992": {
+      "contractHash": "c5602ee9cc9aab6e3d3dcd34bc54b7b97e14386e19c70ba674e84ccd6f085432",
+      "verdict": "pass",
+      "evidence": [
+        "R14-T23602992: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:648,2398) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
+        "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    },
+    "R16-T85823419": {
+      "contractHash": "b2aad6793ba0bfb4a1f41b3ace38d4f6e7994e2e22cac8f2a0cc70bafbb8826f",
+      "verdict": "pass",
+      "evidence": [
+        "R16-T85823419: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:648,2398) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
+        "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    },
+    "R8-T57073674": {
+      "contractHash": "99692c667e26d8a15a5b17786f9c2f88178d07848d298debb9bdec56123fa4e4",
+      "verdict": "pass",
+      "evidence": [
+        "R8-T57073674: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:648,2398) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
+        "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    },
+    "R8-T70356006": {
+      "contractHash": "7ba41846ead58d1e04664891c03ad868acc61fc6ff009c62bf0d75cdfb3b639e",
+      "verdict": "pass",
+      "evidence": [
+        "R8-T70356006: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:648,2398) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
+        "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    },
+    "R8-T97041355": {
+      "contractHash": "23fa94da9a3db94c38234a0a55e6a490c1aa5920eebfa0112524dcaa540cfbec",
+      "verdict": "pass",
+      "evidence": [
+        "R8-T97041355: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:648,2398) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
+        "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
+        "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides."
+      ]
+    }
+  }
+}

@@ -686,7 +686,10 @@
         "packages/daemon/src/service/run.ts",
         "packages/daemon/test/unit/dsh-adapter.test.ts",
         "packages/daemon/test/unit/generic-acp-adapter.test.ts",
-        "packages/daemon/test/unit/run-service.test.ts"
+        "packages/daemon/test/unit/run-service.test.ts",
+        "packages/daemon/src/platform/windows.ts",
+        "packages/daemon/test/unit/dsh-current-cli.test.ts",
+        "packages/daemon/test/unit/review-agent.test.ts"
       ]
     },
     "M4-T4": {

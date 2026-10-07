@@ -29,6 +29,7 @@ export interface BuildDshLaunchSpecOptions {
  * Builds the process launch specification for DeepSeek Harness (dsh).
  * Operates in headless profile mode: `dsh --profile headless "prompt"`.
  * If execPath points to an application-internal JavaScript file (bin.js), executes via node (E-193).
+ * The model follows DSH configuration; explicit model overrides are rejected because headless has no model flag.
  */
 export function buildDshLaunchSpec(options: BuildDshLaunchSpecOptions): LaunchSpec {
 	const configuredPath =
