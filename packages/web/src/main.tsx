@@ -7,6 +7,7 @@ import { ConnectionStatusBanner } from './features/run-deck/use-connection-state
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/fonts.css';
+import './styles/console.css';
 
 async function start(): Promise<void> {
 	try {

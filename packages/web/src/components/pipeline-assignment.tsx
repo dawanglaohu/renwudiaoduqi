@@ -93,13 +93,10 @@ export function PipelineAssignment({
 	return (
 		<div
 			data-testid="pipeline-assignment-container"
-			className={`flex flex-col gap-[var(--sp-3)] max-[639px]:[&_button]:min-h-[var(--h-btn-lg)] max-[639px]:[&_select]:min-h-[var(--h-input-touch)] ${className}`}
+			className={`grid grid-cols-1 min-[1000px]:grid-cols-2 items-start gap-[var(--sp-3)] max-[639px]:[&_button]:min-h-[var(--h-btn-lg)] max-[639px]:[&_select]:min-h-[var(--h-input-touch)] ${className}`}
 		>
 			{/* 1. 审查覆盖设置区 */}
-			<div
-				data-testid="review-override-section"
-				className="flex flex-col gap-3 rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4"
-			>
+			<div data-testid="review-override-section" className="flex min-w-0 flex-col gap-3">
 				<div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-2.5">
 					<div>
 						<h3 className="font-ui text-dense font-semibold text-[var(--ink-1)]">
@@ -143,12 +140,12 @@ export function PipelineAssignment({
 
 				{/* 审查覆盖指定表单控件 */}
 				{!isReviewFollow && reviewOverride && (
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3 pt-1">
+					<div className="grid min-w-0 grid-cols-1 gap-3 min-[600px]:grid-cols-3 pt-1">
 						{/* Agent 选择 */}
-						<div className="flex flex-col gap-1">
+						<div className="flex min-w-0 flex-col gap-1">
 							<label
 								htmlFor="review-override-agent-select"
-								className="text-micro font-mono text-[var(--ink-3)]"
+								className="text-meta font-ui text-[var(--ink-2)]"
 							>
 								{UI_STRINGS.assignment.agentLabel}
 							</label>
@@ -166,7 +163,7 @@ export function PipelineAssignment({
 								}
 								disabled={disabled}
 								aria-invalid={Boolean(errors['reviewOverride.agentId'])}
-								className="h-[var(--h-input)] px-2.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--panel-2)] text-dense font-mono text-[var(--ink-1)] focus:border-[var(--needs)] focus:outline-none disabled:opacity-50"
+								className="min-w-0 w-full h-[var(--h-input)] px-2.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--panel-2)] text-dense font-mono text-[var(--ink-1)] focus:border-[var(--needs)] focus:outline-none disabled:opacity-50"
 							>
 								<option value="">{UI_STRINGS.pipelineAssignment.agentSelectPlaceholder}</option>
 								{agents.map((ag) => (
@@ -187,8 +184,8 @@ export function PipelineAssignment({
 						</div>
 
 						{/* 模型选择 */}
-						<div className="flex flex-col gap-1">
-							<span className="text-micro font-mono text-[var(--ink-3)]">
+						<div className="flex min-w-0 flex-col gap-1">
+							<span className="text-meta font-ui text-[var(--ink-2)]">
 								{UI_STRINGS.assignment.modelLabel}
 							</span>
 							<ModelPicker
@@ -215,8 +212,8 @@ export function PipelineAssignment({
 						</div>
 
 						{/* 思考强度选择（allowVendor=false，E-356） */}
-						<div className="flex flex-col gap-1">
-							<span className="text-micro font-mono text-[var(--ink-3)]">
+						<div className="flex min-w-0 flex-col gap-1">
+							<span className="text-meta font-ui text-[var(--ink-2)]">
 								{UI_STRINGS.assignment.effortLabel}
 							</span>
 							<EffortPicker
@@ -247,10 +244,7 @@ export function PipelineAssignment({
 			</div>
 
 			{/* 2. 收口指派设置区 */}
-			<div
-				data-testid="wrapup-assignment-section"
-				className="flex flex-col gap-3 rounded-[var(--r)] border border-[var(--border)] bg-[var(--bg)] p-4"
-			>
+			<div data-testid="wrapup-assignment-section" className="flex min-w-0 flex-col gap-3">
 				<div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-2.5">
 					<div>
 						<h3 className="font-ui text-dense font-semibold text-[var(--ink-1)]">
@@ -294,12 +288,12 @@ export function PipelineAssignment({
 
 				{/* 收口固定指派表单控件 */}
 				{!isWrapupFollow && wrapupAssignment.mode === 'fixed' && (
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3 pt-1">
+					<div className="grid min-w-0 grid-cols-1 gap-3 min-[600px]:grid-cols-3 pt-1">
 						{/* Agent 选择 */}
-						<div className="flex flex-col gap-1">
+						<div className="flex min-w-0 flex-col gap-1">
 							<label
 								htmlFor="wrapup-assignment-agent-select"
-								className="text-micro font-mono text-[var(--ink-3)]"
+								className="text-meta font-ui text-[var(--ink-2)]"
 							>
 								{UI_STRINGS.assignment.agentLabel}
 							</label>
@@ -317,7 +311,7 @@ export function PipelineAssignment({
 								}
 								disabled={disabled}
 								aria-invalid={Boolean(errors['wrapupAssignment.agentId'])}
-								className="h-[var(--h-input)] px-2.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--panel-2)] text-dense font-mono text-[var(--ink-1)] focus:border-[var(--needs)] focus:outline-none disabled:opacity-50"
+								className="min-w-0 w-full h-[var(--h-input)] px-2.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--panel-2)] text-dense font-mono text-[var(--ink-1)] focus:border-[var(--needs)] focus:outline-none disabled:opacity-50"
 							>
 								<option value="">{UI_STRINGS.pipelineAssignment.agentSelectPlaceholder}</option>
 								{agents.map((ag) => (
@@ -338,8 +332,8 @@ export function PipelineAssignment({
 						</div>
 
 						{/* 模型选择 */}
-						<div className="flex flex-col gap-1">
-							<span className="text-micro font-mono text-[var(--ink-3)]">
+						<div className="flex min-w-0 flex-col gap-1">
+							<span className="text-meta font-ui text-[var(--ink-2)]">
 								{UI_STRINGS.assignment.modelLabel}
 							</span>
 							<ModelPicker
@@ -366,8 +360,8 @@ export function PipelineAssignment({
 						</div>
 
 						{/* 思考强度选择（allowVendor=false，E-356） */}
-						<div className="flex flex-col gap-1">
-							<span className="text-micro font-mono text-[var(--ink-3)]">
+						<div className="flex min-w-0 flex-col gap-1">
+							<span className="text-meta font-ui text-[var(--ink-2)]">
 								{UI_STRINGS.assignment.effortLabel}
 							</span>
 							<EffortPicker

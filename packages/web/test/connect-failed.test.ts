@@ -20,6 +20,7 @@ import {
 	SERVICE_NOT_RUNNING_TITLE,
 	useFirstScreenFailure,
 } from '../src/app/connect-failed.tsx';
+import { ThemeProvider } from '../src/app/theme-provider.tsx';
 import { LAUNCH_SERVICE_FAILED_MESSAGE } from '../src/i18n/error-messages.ts';
 import { shellBridge } from '../src/shell/shell-bridge.ts';
 
@@ -312,7 +313,7 @@ describe('M10-T6 AC 1: the failure channel is reachable from the app entry', () 
 				retry: () => {},
 			});
 		});
-		render(createElement(App));
+		render(createElement(ThemeProvider, null, createElement(App)));
 
 		const screen = document.querySelector('[data-testid="connect-failed-screen"]');
 		expect(screen).not.toBeNull();
@@ -351,6 +352,7 @@ describe('M10-T6 AC 1: the failure channel is reachable from the app entry', () 
 		});
 		installTauriGlobals(invoke);
 		const { App: DynamicApp } = await import('../src/app/app.tsx');
+		const { ThemeProvider: DynamicThemeProvider } = await import('../src/app/theme-provider.tsx');
 		const { setCachedToken } = await import('../src/api/http-client.ts');
 
 		setCachedToken('test-device-token');
@@ -398,7 +400,7 @@ describe('M10-T6 AC 1: the failure channel is reachable from the app entry', () 
 		});
 
 		try {
-			render(createElement(DynamicApp));
+			render(createElement(DynamicThemeProvider, null, createElement(DynamicApp)));
 
 			// 1. Wait for real snapshot fetcher to fail and ConnectFailedScreen to mount at app root
 			await vi.waitFor(

@@ -303,7 +303,7 @@ export function EmptyOnboarding({
 
 			{/* 头部标题与控制塔说明（不是插画，AC 1 / E-108） */}
 			<header className="flex flex-col gap-1 border-b border-border pb-3">
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					<span className="font-mono text-micro uppercase tracking-wider text-ink-3">
 						Workbench Console
 					</span>
@@ -395,7 +395,7 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="0"
 					aria-label="第 1 步：选文档"
-					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
+					className="flex min-w-0 flex-col gap-[var(--sp-3)]"
 				>
 					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
@@ -500,7 +500,7 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="1"
 					aria-label="第 2 步：选批次"
-					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
+					className="flex min-w-0 flex-col gap-[var(--sp-3)]"
 				>
 					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
@@ -598,7 +598,7 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="2"
 					aria-label="第 3 步：逐任务指派"
-					className="flex min-w-0 w-full flex-col gap-4 rounded border border-border bg-bg p-2"
+					className="flex min-w-0 w-full flex-col gap-3"
 				>
 					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
@@ -667,7 +667,7 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="3"
 					aria-label="第 4 步：派发"
-					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
+					className="flex min-w-0 flex-col gap-[var(--sp-3)]"
 				>
 					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>

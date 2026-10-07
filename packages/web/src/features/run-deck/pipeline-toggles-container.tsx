@@ -93,7 +93,7 @@ export function PipelineTogglesContainer({
 			data-layout={layout}
 			className={[
 				isSettings
-					? 'grid w-full max-w-[1112px] grid-cols-1 min-[1144px]:grid-cols-[minmax(0,780px)_320px] gap-[var(--sp-3)] items-start'
+					? 'flex w-full min-w-0 flex-col gap-[var(--sp-3)]'
 					: 'flex items-center shrink-0',
 				className,
 			]
@@ -112,7 +112,7 @@ export function PipelineTogglesContainer({
 
 				{/* AC 8 / E-356: 设置页在两个开关之下加审查覆盖与收口指派编辑区 */}
 				{canRenderAssignment && (
-					<div className="min-w-0 border-t border-border pt-3">
+					<div className="min-w-0">
 						<PipelineAssignment
 							reviewOverride={pipeline?.reviewOverride ?? null}
 							wrapupAssignment={pipeline?.wrapupAssignment ?? { mode: 'follow' }}
@@ -142,7 +142,7 @@ export function PipelineTogglesContainer({
 			</div>
 			{/* 设置页顶部常驻声明：当前值来自 daemon（AC 4） */}
 			{isSettings && (
-				<aside className="flex flex-col gap-[var(--sp-3)] min-w-0 rounded border border-border bg-bg p-3.5">
+				<aside className="flex flex-wrap items-center gap-[var(--sp-3)] min-w-0">
 					<div data-testid="daemon-managed-notice" className="text-ink-3 font-ui text-xs">
 						{UI_STRINGS.pipeline.daemonManagedNotice}
 					</div>

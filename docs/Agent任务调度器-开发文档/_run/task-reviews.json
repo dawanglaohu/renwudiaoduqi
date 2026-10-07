@@ -21,22 +21,13 @@
   },
   "M1-T11": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d33c9b1b2c7a43fee42da16970b8e87afd69abc768e927d74cabb4577bf382a3",
+    "contractHash": "418d78941f3af391b23ee64c8ebb930728db56062da8746307e3a5642e419219",
     "evidence": [
-      "M1-T11: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:656,2411) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
-      "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "M1-T11 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -122,67 +113,73 @@
   },
   "M10-T1": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a9562363a25db6200e982845578a7ad454d54e8a503915d401a21b773f49a751",
+    "contractHash": "a6fba7f4209f44f91d737c4229673682667b8df944ae74b2c90429aeb1394e54",
     "evidence": [
-      "M10-T1: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M10-T1: checked current main implementation reference packages/shared/src/shell/bridge-contract.ts:24 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M10-T1 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T2": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "23de0ad7261c9e070a047e80cc81bd190cd5aa73afa1cbe5211b08d501d2d5da",
+    "contractHash": "7cb5d249f36e13ff4443ebae0f788a82667c2f6aaa765cc4073e464582b79981",
     "evidence": [
-      "M10-T2: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M10-T2: checked current main implementation reference packages/shell-desktop/src-tauri/Cargo.toml:16 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M10-T2 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T3": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "507b5a8767cbc529715e051c0348773f1ecbae792ca4abb709f3f0c3c99cba48",
+    "contractHash": "7fb662a4439a3d4d372efeed04815fd1f2507260d66bac65bd9e05fe31760ec3",
     "evidence": [
-      "M10-T3: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M10-T3: checked current main implementation reference packages/shell-mobile/capacitor.config.ts:3 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M10-T3 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T4": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "e5d9214b6b8857f5a4d6b1983bc817b73079b3808d5ff21bb5d0f750b1763b66",
+    "contractHash": "0a4700f53c59093d9ff2a507d9b9020eae083ddf2adba9651b5829d89037abaf",
     "evidence": [
-      "M10-T4: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M10-T4: checked current main implementation reference packages/shared/src/api/system.ts:5 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M10-T4 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T5": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d833591bd92e32a38fa86f2c222fc65abd4b465d8e7a26ee44927eed41f2bf9d",
+    "contractHash": "c1cb02407a4b8cf0ce28bd20d97d0a3c00be4791d0ee91c4d3a35ca5c0a695bc",
     "evidence": [
-      "M10-T5: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M10-T5: checked current main implementation reference .github/workflows/desktop-ci.yml:34 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M10-T5 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T6": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "7e8be0053fae377721225b514433c107a4a041a42fb0251391f2a9a5a59678f2",
+    "contractHash": "62c46f70ea528962092c689d74c3cd0308fc25744f1c48929b62e805205bb059",
     "evidence": [
-      "M10-T6: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M10-T6: checked current main implementation reference packages/shared/src/shell/bridge-contract.ts:39 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M10-T6 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -258,12 +255,13 @@
   },
   "M2-T8": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "74d22d5918a463f3df3f381642164191b1186ea8a94220307b5bf9a97b4f3f8f",
+    "contractHash": "d8dc99ea9cf588cf4ed81fd5d8b76aa3f313585fb34bc2c2e6e00e74c110e42c",
     "evidence": [
-      "M2-T8: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
-      "M2-T8: checked current main implementation reference packages/shared/src/lib/is-record.ts:1 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M2-T8 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -371,24 +369,11 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "bdd2b5376ac2fd179fdf63b59c5e85c774095c95a2be981878c9f0203bb16166",
     "evidence": [
-      "Changed AC1/E-193: build-launch-spec.ts:34/config/defaults.ts:276 inherit the DSH configured model and use a discoverable dsh command; platform/windows.ts:116-125 finds packaged Windows launchers. Explicit JS paths remain supported by launch construction. Explicit model selection is rejected rather than ignored or passed as unsupported --model.",
-      "Changed AC3/E-191/E-28: service/agents.ts:475-521 always runs real smoke, including without an injected command runner; ComSpec is built through resolveExecutable/buildProbeLaunch. smoke.ts:47 validates exit 0, nonempty final stdout and stderr that is empty or only documented headless reasoning progress; other diagnostics fail within the configured startup timeout.",
-      "Five regressions in packages/daemon/test/unit/dsh-current-cli.test.ts all failed before repair and pass after repair. Native spawn smoke failure denies availability and dispatch; Windows smoke uses the same command processor as version probing. TypeScript and changed-file Biome pass.",
-      "Real installed native service result: isAvailable=true, canDispatch=true, resolved path D:/Program Files/DeepSeek Harness/resources/runtime/cli/bin/dsh.cmd, version 0.2.0-rc.2. Actual adapter-built task output DSH_SCHEDULER_FIXED_OK, exit 0, stderr empty. No injected process/response or native credential dump.",
-      "AC2/AC5/AC6 unchanged: capabilities.ts:13 retains hasStreamingEvents=false, reportsModelRejection=false and current-run-only; version outside known range remains warning and dispatchable. AC4/AC7/AC8 support logic is unchanged; this revalidation addresses the changed path/model/smoke contract. Existing generic ACP and adapter switch behavior are not widened.",
-      "Current user registry updated via updateOverrides with backup agents.json.dsh-backup-20261007; other agent overrides and permissionTier preserved. Existing administrator daemon was not restarted and its browser session is unpaired; current live DOM recovery is not claimed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "M4-T12 补丁基线到当前版本的变化字段：/definition/supportPaths, /edges, /effectivePaths, /task/accept",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -754,20 +739,11 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "bb6ca8c3e3889d158792462a8dd7d0bf4e38a3f40cf5a240ac998585bfa012e6",
     "evidence": [
-      "M8-T10: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:656,2411) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
-      "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "M8-T10 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -863,331 +839,349 @@
   },
   "M9-T1": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "f017e1e199097eb44a6a59134b34bb493ad7e366cc04d86aa0fae0bbbb7117d9",
+    "contractHash": "076f4086a6c1ca6e0f12330a3205c41d77b0c848cf80b66604fd389f077ed81b",
     "evidence": [
-      "M9-T1: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T1: checked current main implementation reference packages/web/src/styles/tokens.css:4 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T1 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T10": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "6937abf2da75efce6928436365a53afc393beab4ebdfcacfeb089a77635b6173",
+    "contractHash": "bbc51b82e105e7760f152ef7e387b121ce488b25d01c38dde3d10cc7e05b02a9",
     "evidence": [
-      "M9-T10: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T10: checked current main implementation reference packages/web/src/components/gate-card.tsx:267 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T10 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T11": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "e1b6144cd8cdf541d7f9555a23ca3d01aae43b81a58992ccb8b43ef302d2a8af",
+    "contractHash": "0ddec94939231c3272973e25a36bcaf901209d4411124a4a31ab0ab15246e778",
     "evidence": [
-      "M9-T11: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T11: checked current main implementation reference packages/web/src/store/connection-store.ts:19 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T11 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T12": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a39ce98e15a3ab40f0c667deb1d159bce66f0146aae6931c717c2bb071ad777b",
+    "contractHash": "da876171bc24c363e0beb8cf19937172c6f53564de264a40e72332224711d812",
     "evidence": [
-      "M9-T12: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T12: checked current main implementation reference packages/web/src/components/thumb-bar.tsx:48 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T12 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T13": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "100858d068bf33f94f07512291f2fc9c6a2b95e74c1acce5789db9f4f3c57050",
+    "contractHash": "78bb8b6d5874a74f68b3e585fdccea7f64f8eb62425086522cb6ec12d1202ddd",
     "evidence": [
-      "M9-T13: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T13: checked current main implementation reference packages/web/src/pages/run-detail-page.tsx:34 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T13 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T14": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "6cef888598be5f41ce2acf4cc993d0d34fca4b515de2fb4a8abfa1062edb206c",
+    "contractHash": "3009558e38b855a2a802b2d3de2905cc65eaf9c6dfb8e5164fab0e802e94887f",
     "evidence": [
-      "M9-T14: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T14: checked current main implementation reference packages/web/src/pages/settings-agents-page.tsx:27 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T14 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T15": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a7779c2f5e19931d191094b7ef85bb9125a20b5d0e3dc04f39a90c0eff26ed2f",
+    "contractHash": "858111243485b5442e33ef1218047fe8b3a695c08f1b2fda24395c4d028eb1fe",
     "evidence": [
-      "M9-T15: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T15: checked current main implementation reference packages/web/src/shell/shell-bridge.ts:16 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T15 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T16": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "5c99148d5bc64ac0e706c8c2d98b10c7cbad6b18d748d6d124d56c78b188f53f",
+    "contractHash": "b294e42b8e1fc78d36c959f8a1c7070271db3f52d5f30b32de672744a145905c",
     "evidence": [
-      "M9-T16: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T16: checked current main implementation reference packages/web/src/components/empty-onboarding.tsx:83 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T16 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T17": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d1aaa5485d40222bda3dc17d3b72a97fd0caf2e504e8348d9843dc5fd3e08766",
+    "contractHash": "f2a73e0e9f592dbe50c854d996460436af43b14f423065cfc7f6f4cc992b0921",
     "evidence": [
-      "M9-T17: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T17: checked current main implementation reference packages/shared/src/api/runs.ts:207 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T17 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T18": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "61db9eb658cf88ef8c6f9cf52850bc4a7ff96770ce8d91d2af59d0897e2512c5",
+    "contractHash": "73324eb88f2dc981b509a432b1f0f9283ef0ccc07cf44d6feba5ae2c7fdaaf19",
     "evidence": [
-      "M9-T18: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T18: checked current main implementation reference packages/web/src/api/batches.ts:41 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T18 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T19": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d857b4d13b12b86b89aa69e4623910de22f9f81d220925b5dc3bc2caec372a2f",
+    "contractHash": "896ef85e15bc75bd125faad57953e5418cb2410f029b6beb7bbfaa7ef6784c0f",
     "evidence": [
-      "M9-T19: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T19: checked current main implementation reference packages/daemon/src/http/routes/gates.ts:157 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T19 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T2": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "cbf4be84e375b7e27b9112432fe2b370261cba59d517e6005307cf02e5655c27",
+    "contractHash": "6b3507eb911153da0b2f60c15a55e4dbab19f4ed184d4d54f5b53a2372afb45a",
     "evidence": [
-      "M9-T2: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T2: checked current main implementation reference packages/web/src/lib/spine-shape.ts:21 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T2 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T20": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d3a5ef6456bf8d08ecbf6243768f05915afe73272e3ab111370c724672ffe83c",
+    "contractHash": "a08d986af280316273b70dab1fbb1f1aecafab3733ab9e499827a74cbff6e42b",
     "evidence": [
-      "M9-T20: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T20: checked current main implementation reference packages/web/src/components/stream-column.tsx:35 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T20 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T21": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "2a50115534c33e09a6399294b6b2c955311656ec56e8daa778382b88cf1123b0",
+    "contractHash": "7f1def4024628b9fb672091903d66348ef967e8163d310db144ae24256c6d5b5",
     "evidence": [
-      "M9-T21: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T21: checked current main implementation reference packages/web/src/api/lanes.ts:57 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T21 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T22": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "2910929201970dd876d19d18399a1c0225bb61df9194c29aad384ca65fdd641a",
+    "contractHash": "807eb64e06d72329eae14908bc9d93ac959c48aaac40972d622e966abca45146",
     "evidence": [
-      "M9-T22: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T22: checked current main implementation reference packages/web/src/ui/segmented-toggle.tsx:42 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T22 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T23": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a7ce8b053fcef3ab1f2d0d7b8e00dbd5b4f3164b5884542e70008da8e0e6fad1",
+    "contractHash": "f3b797524345e4ec21f4954b5fe7555e97dfe3382d22964d35f9797c922592d2",
     "evidence": [
-      "Verified acceptance 1-9, all 13 original edges, prerequisite capabilities and route/event registrations against current main and the original PR.",
-      "Support paths cover only affected production layout and regressions plus rerun.ts and its two existing test files required by the remaining R1 CI failure. No API, DTO, schema or gate semantic change.",
-      "Actual-count grid, left-rail assignment and left-aligned form/sidebar pass every required density verdict at 1920x1080 and 1440x900; 390x844 has no horizontal overflow. Stored probe output: _run/M9-T23.review-round-2.evidence.json.",
-      "Jev jev-1.13.0: density option A low 0.34 adopted; sequence-gap fix option A high 0.96 adopted. Both actions are implemented on the original branch, and overlap with M9-T28 is preserved for reconciliation.",
-      "Final local pnpm -w check passed: 218 files, 2642 passed and 3 existing skipped. Rerun/bughunt focused tests: 31 passed. Sequence-gap tests fail with old code and pass with corrected production code.",
-      "Real-provider browser evidence verifies one shared refresh, ordinary reads restored, exact assistant final reply, model refusal zero-output, rerun with zero gate writes, reassign focus and confirmation refusal. Final clean-head recording and exact-head CI are required before merge and published on PR #172."
+      "M9-T23 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-01T01:39:50.107186+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T24": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "bcd4d13344178d2e04383cb673ccc5a74b7dffbdc473e2e171421b907563694d",
+    "contractHash": "26ed079658a9445523970f56de65958bee48d5edb420fb12b12b2180da5a8a13",
     "evidence": [
-      "M9-T24: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T24: checked current main implementation reference packages/web/postcss.config.cjs:17 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T24 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T25": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "8c6c66cde8dd9c6e6d85996a4ae397d0261b319d34fef70c7c263a54c43c6941",
+    "contractHash": "8858210024853f41fec373305be441adbb2d874c1581cdcdbf2aa1b1affe9e0e",
     "evidence": [
-      "M9-T25: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T25: checked current main implementation reference packages/web/src/app/app.tsx:18 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T25 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T26": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "c0e18a59612956477ea31ea45bbaed0ddaf49e9d426c927bde8839148a526c1a",
+    "contractHash": "9adc6d7011f5049c4ce17b92d523a43f91d22d98e99d2c830ea1e490231e0ea1",
     "evidence": [
-      "M9-T26: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T26: checked current main implementation reference packages/web/src/app/bootstrap.ts:94 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T26 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T27": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "82f78cbb104224d7f022c271c8573a76e74b7446f5b449ff1afa4afd65c0964a",
+    "contractHash": "b92d41e4073bab057a6290358aaf5f285f5d6b1356d67ab03571d41d3dbd65cf",
     "evidence": [
-      "M9-T27: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T27: checked current main implementation reference e2e/pairing-entry.test.ts:27 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T27 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T28": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af",
+    "contractHash": "8b2747db4ec4aec1e7d87c74a15e952bc9068b1ac88e6b58b0603ff0bc11e57f",
     "evidence": [
-      "第二轮仅复核第一轮 R1/R2/R3。任务契约、前置、有效路径、11/13/17/19 节与当前主干 M9-T23 合并内容复核；契约哈希未变。所有本层产品与测试差异均在原有效路径内，main 的 daemon/batch-14 修复保持原字节，不将主干改动伪记为本层修复。",
-      "R1 真实生产 daemon 公开配对、浏览器导入、确认指派、回改、取消、再次保存在 1440x900/1920x1080/390x844 通过。桌面编辑行 209/209px、手机 328/328px，确认/取消单行，桌面高32px、触控44px。模型与思考强度触发器触控补足44px；登录与清单、重派定位接线保留。",
-      "合并主干后的生产构建及 pnpm -w check 219文件/2657通过/3原有跳过；原 batch-13 12/12，断言未改；触控高度补丁后的指派/模型/思考强度44/44。原密度探针N2复测1920/1440fill0.981/0.973，D1-D6pass、emptyTracks=[]、390无溢出、1920左栏底0泳道16；未受影响N1/3/5复用第一轮真实矩阵。",
-      "R2 返工36ba2e75真实GIF1440x900源帧与单次nativeCodex完成记录已核。合并后的最终提交将另录同一生产实例/全新浏览器上下文的公开配对、导入、指派、派发、真实模型完成，并在PR记录head/origin/run/源帧及远端媒体校验。R3 返工head正常CI全绿已核；合并后的最终head必须正常CI全绿才执行合并，此契约登记不代替该代码门禁。",
-      "第一轮三项实施候选及CI范围裁决全部由真实Jev jev-1.13.0确认take(A)。本轮不改原候选或方向：保留原工作树与PR、手机引导在任务面板、公开设置配置密度矩阵、待主干所属修复与最终提交必需检查通过后落地。合并使用唯一网格模板和全高链，修复已定44px触控约定，不产生新的方向裁决。"
+      "M9-T28 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-01T03:25:52.119833+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T29": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "de393c7c679e1a64efca907abdb248fc43daea004c7cad0bcc160c996adef964",
+    "contractHash": "36932793e5f0d1e811c5badee5ac25c6cb40a93317675df643b24570248306cf",
     "evidence": [
-      "第2轮仅核第1轮R1/R2及其直接回归。当前PR #175代码head a139502abc173ca3a39c32550868ab4c80b82bdd，与main 76ecacfe564fd1bbea787b30ae9faa747dc99d15对照；契约哈希未变，前置、边界、13/17/19要求及有效范围沿用首轮已核事实。",
-      "R1已修：check-forbidden.ts:183对二元+使用实际字符串连接；源码级居中组合命中CENTERED_WORK_SURFACE，p-4加sm:p-3不再误报。模板、join、cn/clsx/classNames和条件分支隔离由check-forbidden.test.ts:62起覆盖；独立首轮反例脚本复跑结果正确。",
-      "R2已修：check-forbidden.ts:44对px/rem、常量calc、括号、四则运算及已知token求值，不执行源码；check-forbidden.test.ts:106起源码级增长/相等/收紧及轴向回归通过。p-2 md:p-[calc(4px*4)]正确命中8px到16px增长；未知、循环、除零和不合法量纲不编造值。",
-      "pnpm exec vitest run packages/web/test/check-forbidden.test.ts：89用例通过；pnpm -w check：219测试文件、2717用例通过、3个既有跳过。类型、Biome、对比度及机械守护全部通过。反例结果和测试日志保存在原planning的review-round2-*.log，PR留存本轮结论。",
-      "本轮只改守护、其测试及任务受保护回填区，packages/web/src与首轮页面验收提交3647928408452a2de8402b06cb0ea2c2dd065fc6完全一致。复用首轮生产页面21次探针、同代码有效运行3次探针及真实服务GIF；原pairing-entry 7通过、batch-13管理员权限12通过；没有扩展为新模型或自动派发验收。",
-      "代码位置与实施沉淀已核对且更新到实际行号；实施方/审查方均无未定裁决。当前GitHub原代码head三平台CI、生产配对、E2E、流水线设置E2E和Release Gate均success；Signing Gate为工作流规定的skipped。正式落地前复核最终head与所需检查。"
+      "M9-T29 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-01T16:13:38.173989+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T3": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d554389d3b92fabb88ac249a1cb38ffe5f1b87d0267a271e5dd6aa8f51404498",
+    "contractHash": "d54e36d13e055dbbc3bd36fb7dc6cef3212fe54a6562907e478445fa33d5e1a7",
     "evidence": [
-      "M9-T3: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T3: checked current main implementation reference packages/web/src/app/routes.tsx:9 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T3 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T4": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "5456b5291656ca172f0f0f95882abe3aa09044768047ffe76dabc506f2e9c013",
+    "contractHash": "9e2c70c6c6e07476aaf94b605cc8c25fd75734e2fb8cb9002c41f2a5f86772fb",
     "evidence": [
-      "M9-T4: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T4: checked current main implementation reference packages/web/src/api/base-url.ts:18 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T4 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T5": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "42338fab7ae0da67bf1aae3e7940c0178c89de383a57f32995d2caf563b10479",
+    "contractHash": "4ff6c0bd8781dbec724cb10bdf14d5615f53470bc70dd165b556313d3ef1926f",
     "evidence": [
-      "M9-T5: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T5: checked current main implementation reference packages/web/src/api/sse-client.ts:61 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T5 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T6": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "9126f32bdbf2f7b470c8c32c3136cc5e551377e0cf63ae1d904b3b71da9d600f",
+    "contractHash": "68e1072afa43cc1615fa9cb91692b3d2c19bbb52965295619b55b4f9d342f752",
     "evidence": [
-      "M9-T6: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T6: checked current main implementation reference packages/web/src/api/event-bus.ts:10 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T6 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T7": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "0ae2afa6d16bd205d817babaf0a301ec4cc91deb63d97ddff104d5e96ff1a62a",
+    "contractHash": "0452a655637d662bff2441cc978d95728fc36ea5d0b1a26f59d15165851717b4",
     "evidence": [
-      "M9-T7: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T7: checked current main implementation reference packages/web/src/components/spine.tsx:32 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T7 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T8": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "ba3866abec6bf1733c6675dd0751d7f5ef3f6db10cf9ddf10c7b74c5c998e08c",
+    "contractHash": "19adb21da71f70331dbb25078caa3c2e106dfc114917ec7f4ab34b13e9667795",
     "evidence": [
-      "M9-T8: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T8: checked current main implementation reference packages/shared/src/api/runs.ts:246 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T8 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T9": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "31ed9f6ce7eb5dfb8a6c595a1dfae7ad6d238bcf39964d9122657fac677a8a09",
+    "contractHash": "6a12ed5cf897a02a7e75b0b862da5ee5f6ef147a442f6387580620aa4dac09d6",
     "evidence": [
-      "M9-T9: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "M9-T9: checked current main implementation reference packages/web/src/hooks/use-breakpoint.ts:63 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "M9-T9 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1203,140 +1197,109 @@
   },
   "R13-T57054072": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "afc9d69378b0a68af2c6d08bad41ff851878377623d0ef8380eede540c33d124",
+    "contractHash": "56f89ddc23a394b5fd6c434de42101ced1949f2bb913630b480ce53485bde908",
     "evidence": [
-      "R13-T57054072: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:656,2411) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
-      "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "R13-T57054072 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R13-T98191508": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "3dd04eea48624fa661848c712c3b786edcb0c790eec821be37ea80a0e5b54015",
+    "contractHash": "381e60ebb985994be36e1ad779b588ed6033f603ea30ae9690499b9d6aef13ef",
     "evidence": [
-      "R13-T98191508: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
-      "R13-T98191508: checked current main implementation reference packages/shared/src/api/batches.ts:32 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "R13-T98191508 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R14-T23602992": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "8eca92e85618c4abd8af876d98369de56b75dcee42ef4fa0992ecd80ae220b1b",
+    "contractHash": "8c9949b5720a3f6cca9263b75d27d6c03f6213ab9b12e38cdabb8e8599feb2fa",
     "evidence": [
-      "R14-T23602992: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:656,2411) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
-      "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "R14-T23602992 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T41148998": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a60833f71680d68d5135f6b757ae47ac5a3f8225bfbf586e41d2ec6ecde0b8c6",
+    "contractHash": "9e65a115d44d1affc55a35fd2419bc92be2f79027fd311ffdf2e5f409e00cf03",
     "evidence": [
-      "R16-T41148998: patch changes.before/after shows only currentSourceBatch 16 -> null in task metadata; acceptance, edges, effective paths and historical sourceBatch=16 are unchanged. The task remains a previously landed implementation.",
-      "R16-T41148998: checked current main implementation reference docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:273 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "R16-T41148998 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T83723920": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a6b83fe49fbe734bf5522c335f1f49815819b7a867074d190d8034a52c7a9602",
+    "contractHash": "93dd414cf7ca77a55684ab42fc7af94bc81d01959d09b002eadd4d6cda5567f8",
     "evidence": [
-      "R16-T83723920: desktop-density-20260929 changes shared 11-UI.md spacing/container context only; own task acceptance, edges and effective paths compare equal in patch changes.before/after. Existing tokens --sp-3=12px, --sp-4=16px, --stream-min=320px and row/control heights remain in packages/web/src/styles/tokens.css:25-48. New deck and settings density acceptance is explicitly assigned to todo M9-T28/M9-T29; this review does not claim those new tasks are implemented.",
-      "R16-T83723920: checked current main implementation reference packages/web/src/api/resource-cache.ts:40 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "R16-T83723920 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T85823419": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "9247d1a30d86547be3a1239262f4b05b449128e9f3850e8c4af121b167b2b25a",
+    "contractHash": "390f59f4e65b52fd2ee120434e05b32973f776eb5902f1e1a2bde54a90350de3",
     "evidence": [
-      "R16-T85823419: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:656,2411) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
-      "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "R16-T85823419 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R17-T70594995": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "81596a5e5519a5d4489dbb68fe2047a39306c268dbd008124bff41aecd2fee09",
+    "contractHash": "a61de57be849a159bdae4d3ebbd076cf650be6147d58d568eeb87214d95111d9",
     "evidence": [
-      "第2轮仅核R1-R3。对照review1的103个直接复用/设置调用片段，10个源AST扫描运行时中文为0；8个周边源与9f4fa94逐字一致，保留120项排除记录。字句来源逐条见batch-17-20261002.md:491起。",
-      "16个完整调用源受来源AST守护，字符串/模板/JSX/转义/数字实体负控、i18n/props及供应商数据正控和ui逆向依赖禁令保留。43项实际DOM验证原句、title/aria、点路径、未知码回落、零产出三动作与失败覆盖值。",
-      "06/07约定保持：普通UI文案来自ui-strings；设置错误码上下文翻译保留在error-messages唯一责任处。GroupedSelect只承接props，不新增DTO、错误码、探测能力判定或登录态派发禁用。",
-      "真实浏览器组合8/8、流水线设置12/12全部通过。同一轮订阅先于派发，当前零产出运行退出、awaiting_human、lane.released及stderrTail实时事件全通过。测试子进程输出消息后保持实施轮次，按该RunDto的laneNo核对来源任务，核对后释放；失败清理同样释放。原断言、超时与生产代码均未放松。",
-      "审查方选择完整A/B经Jev adjudicate取A；model=jev-1.13.0，status=ok，pick=A(high 0.84)，spec_change=no，outside_stack=no，needs_owner=no，reversible=yes，adopt=take(A)。具体动作为测试时序与同一泳道取景修复。",
-      "pnpm -w check --no-file-parallelism --maxWorkers 1 --minWorkers 1退出0：223文件，2774通过，3既有平台跳过；Biome、TypeScript、机械禁令、错误码、对比度及架构检查均通过。首次并行RPC超时及测试等待点错误保留在失败历史，未以它们宣称通过。",
-      "E-335/E-355/E-356/E-358/E-359既有daemon/DTO和动作链保持；真实设置/组合回归通过。本任务没有新增接线责任，H12迁移关键词提示已核对。",
-      "原任务保护区已核命题并补充测试阶段等待与同一泳道位置。原AC、原批次集合与B7未改，Batch17继续open。实际UI导入两任务后的逐任务指派控件与1920/1440/390量测已核；最终干净提交另以同源生产构建、真实UI配对和原生1440x900GIF发布PR证据，模型轮次0，不能替代B7。"
+      "R17-T70594995 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-02T11:28:44.057852+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R17-T73118308": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "85cadc1f58a46a3f83c5de1f34ca87333a70bb70fd2c8fde30c5aa3f7a6a95be",
+    "contractHash": "052dfc9c5e16569bb4c2d042bd5526f9574420ece9843e35265c27bbfa96f9f3",
     "evidence": [
-      "Round 2 R2 prerequisite continuation: repository CI secrets now exist and explicit workflow_dispatch run 37014182049 at f94345b68aa8649d3bac5f0d6a96b3477129e1ae succeeded. Real native provider 2/2, formal four-file browser E2E 40/40, pairing, pipeline, all three platform workspace/integration/shell jobs and requested-provider release gate succeeded. Actual provider preparation/test/upload/credential cleanup steps succeeded; no skipped provider was treated as a pass.",
-      "Reviewer independently verified GitHub artifact11230020157 digest against the actual 2440403-byte ZIP, SHA256 a98fa20cb56431daeeab56c95b6401de43b618081db74a3561006f96e9d92ddb. All20 extracted files match the archive, 15 browser frames are1440x900 and phone is390x844. No auth.json/config.toml is included and no JWT/credential-URI/named-token pattern was found in text artifacts. Detailed receipt is original planning/review-final-audit.json.",
-      "Archive evidence is clean at start with head=headAtEnd=f94345b; ordinary production bootstrap/registry/native transport, valid gpt-6.1-sol R17-CONTROL, genuine invalid-model error with zero content, UI setup and recovery, continuous SSE, current API/detail DOM/deck task failed and zero remaining target waiting cards are verified. Control/error/final native browser screenshots were independently viewed. Original R1/R3 evidence and failed history remain, no original assertion, timeout, lock, permission or authentication contract was reduced.",
-      "Fetched live main0724fb9 containing landed R17-T70594995. Merge-forward conflicts affect only Batch17 source appendices and generated/verification records. Preserved both source histories and both task reviews; restored main generated projections and regenerated through maintain_docs. Current contract hash, all eight acceptance criteria, eleven edges, stable key, effective paths and prerequisites remain unchanged. Product merge changes are the existing main UI text-source migration, with final combined-head checks and screenshots required before merge.",
-      "Code/notes protected task sections are reviewed and preserved; formal container registration and consumer paths remain. All existing adjudications retain their complete options, real Jev model/line and implemented actions; no new native/OS/UI design fork was introduced. No new API/type/layer or arbitrary scope expansion.",
-      "This pass registers the semantic task contract. The review will land only after final combined-head production provider/browser evidence and required checks pass, and current-head recording is verified and published. Historical Batch17 open remains for the separate full-batch closeout; task completion does not rewrite historical batch verdict or lower standards."
+      "R17-T73118308 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-02T14:17:53.373846+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R8-T54786768": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "e80ef6cf04b42e52faeee079d5746f5a679ef03ba585ff67413f05da36bd0101",
+    "contractHash": "11ff93a7b3038205c2869e14ac9dca7e221fbfed1b669c2bfddf03be1a1a97e8",
     "evidence": [
-      "R8-T54786768: patch changes.before/after contract context is identical; provider/support metadata changes the hash only. Own acceptance, edges, architecture and effective paths are unchanged.",
-      "R8-T54786768: checked current main implementation reference packages/daemon/src/http/plugins/90-error-handler.ts:47 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
+      "R8-T54786768 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1344,20 +1307,11 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "147a32252d0d8a55bb78f2efd399d54313f10077c38fd55c24c6d3654a5a6c00",
     "evidence": [
-      "R8-T57073674: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:656,2411) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
-      "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "R8-T57073674 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1365,20 +1319,11 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "24b14c44c485946f8c5d83b3d02850e07139e1acdeee14c61d3e85fd7d368bd4",
     "evidence": [
-      "R8-T70356006: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:656,2411) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
-      "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "R8-T70356006 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1386,20 +1331,11 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "9b30e26ec30f706c8eff540b3bc67ec0aa205ead668b9963abb7bea729d1f5ab",
     "evidence": [
-      "R8-T97041355: patch changes only the provider dependency hash; its own context, task, edges, architecture, definition and effective paths match the recorded baseline. DSH model/path rules are now explicit; dispatch still consumes immutable launch snapshots (packages/daemon/src/service/dispatch.ts:656,2411) and default adapter at packages/daemon/src/boot/container.ts:520. No task status or historical batch verdict changed.",
-      "Changed provider contract: current DSH native service probe + smoke returned isAvailable=true/canDispatch=true for 0.2.0-rc.2; adapter-built real headless task returned DSH_SCHEDULER_FIXED_OK, exit 0, empty stderr. Existing streaming/reply/resume/model-rejection capability bits remain unchanged. Focused provider tests 110 passed/1 existing Windows skip; registry/routes/argument guards 24 passed.",
-      "Terminal syntax: six JSON-looking object/array answer cases failed before repair (missing or extracted content). Full answers are now preserved as text exactly once. Native stderr separation: a real Node subprocess and four production-container cases failed before repair because diagnostics were mixed into stdout/assistant events; native collection and text attachment now use stdout-only onLine, while raw logs retain stderr. Current installed headless streams dsh: reasoning: to stderr on successful runs; plain-task reasoning stays in raw logs. The final JSON smoke mode suppresses reasoning and strictly rejects every stderr byte, nonzero exit, malformed stream and missing or empty final text. Six new stderr regressions failed before repair and pass after repair. Latest affected suite: 17 files/311 tests passed; TypeScript/Biome passed. A real local DSH JSON task returned {status:DSH_NATIVE_JSON_OK}, exit 0, and current service returned isAvailable/canDispatch true. The first native JSON task also exited 0 with the correct answer but triggered the old test assertion because reasoning was present; its captured stdout mixing and native headless source identify the corrected contract. No existing live UI recovery claim is made.",
-      "Production composition: container-wiring.test.ts:549 drives the real container/default adapter/run service from DSH plain stdout through initial review and a new review session. It failed first because stdout produced no normalized content, then because review received bare dsh; enabling stdout-only acceptsPlainText for DSH and injecting agentService into createReviewService made it pass. Full affected suite: 17 files/311 tests passed; TypeScript and changed-file Biome passed. These integration tests use a controlled subprocess and are not a live browser/native-provider bootstrap claim.",
-      "Discovered-executable regression: manual createRun and scheduler tick failed before repair because their snapshots contained bare dsh; both now freeze the probe-resolved path and the real default DSH adapter receives that path. Changing availability after snapshot creation does not replace the saved executable. DSH review builder also honors the supplied path (failed before, passed after). Focused dispatch/review/desktop tests 51 passed; all affected review/wrapup/bughunt/container stages 139 passed, TypeScript and changed-file Biome passed.",
-      "Consumer verification: dispatch-spawn, container-wiring and agents-models-login integration tests 46 passed; DSH review-launch plus current desktop CLI tests 25 passed. Review keeps read-only permissions, inherits the native model when null and rejects explicit unsupported model overrides.",
-      "Startup/report regression: production-container model override previously left its run in starting; now launch construction is inside the existing startup failure handler and the run reaches failed, task lane is null and no process spawns. Five terminal output cases previously lost line separators; stdout normalization now preserves separators, including multiline headers and JSON forms, and emits only once. Both regressions fail before and pass after repair. Final full affected suite: 17 files/313 tests passed with no unhandled errors, TypeScript and changed-file Biome passed. A scope error in the intermediate guard move was caught by TypeScript and the affected suite, then corrected by retaining LaunchSpec for the Codex session; final checks cover the existing Codex composition too.",
-      "Blank terminal lines: the stable production-container regression failed before repair because normalized text lost blank separators; after repair, complete concatenated stdout retains middle/leading/trailing blank lines. Whitespace-only stdout is a negative content control and still enters awaiting_human without spawning a review. Initial output assertions could race asynchronous event persistence, so they now wait for the complete concatenated terminal text rather than the first event. Mapping blank lines initially made the content counter true; delaying leading whitespace until nonblank content fixed this and the negative control passes. Final affected suite: 17 files/316 tests passed, no unhandled errors; TypeScript and changed-file Biome passed. Contract hash and support paths are unchanged.",
-      "Review output/startup regressions: before repair, 10 DSH cases failed: stderr VERDICT pass was accepted despite empty or malformed stdout; mixed stderr broke seven valid final verdict controls; rejecting a persisted model left the next review starting. Initial and new-session DSH reviews now attach stdout-only terminal mapping; DSH finalizeReview forbids mixed raw fallback even when no content was emitted. New-session review attaches output/exit supervision and transitions to running; launch rejection uses the existing failed/awaiting_human recovery path. Seven complete terminal controls now finish both review rounds with persisted pass verdict; two stderr-only controls persist incomplete, and model-rejection row reaches failed without spawning. Focused 12 passed; full affected suite 17 files/319 tests passed with no unhandled errors. TypeScript and changed-file Biome passed. These are real production-container services with controlled subprocesses, not live UI acceptance. The only new effective path is review-round.test.ts; no task requirement is relaxed.",
-      "Final smoke contract: installed headless run source enables streamReasoning only when config.json is false. Native CLI --profile headless --json produced a turn_end/completed record followed by {type:final,text:OK}, exit 0 and stderr 0 bytes. Smoke uses that native mode, rejects any stderr byte, parses every NDJSON record, requires exactly one final record last with nonempty string text; no heuristic classifies arbitrary reasoning prose. Ten regression cases failed before repair (unprefixed authentication error/Node warning/stack trace under a reasoning header, malformed or missing final output, and successful JSON-mode control); all pass after repair. Real AgentService now returns isAvailable=true/canDispatch=true for the supplied DSH installation; a separate normal headless task still returned the complete DSH_NATIVE_JSON_OK JSON-text answer, exit 0/empty stderr. Final affected suite: 22 files, 384 passed and one existing Windows symlink skip, no unhandled errors; TypeScript and all 21 outgoing TS files Biome passed. Normal task/review text mode and capability bits are unchanged. AC1/AC3/E-191 now distinguish plain task output from strict JSON smoke, restoring strict stderr rejection without reducing the activation gate. Current administrator daemon is still unmodified; its lock access is denied to this non-elevated session, so existing live UI recovery is not claimed.",
-      "Non-streaming startup deadline: DSH LaunchSpec now disables only startupTimeoutMs because plain headless emits no first JSON event; all other timeout settings are retained. Two real controlled-CLI subprocess regressions use a 20ms startup budget and 300ms delayed terminal stdout (with stderr reasoning). Before repair both returned startup-timeout; after repair delayed output completes and a separate 50ms hard-wall control still returns wall-clock-timeout. Full affected suite 22 files/386 passed/one existing Windows skip; final controlled-native fixture 7 passed, TypeScript and outgoing Biome passed. The initial spawn-function overload fixture failed type checking; the final fixture directly runs the controlled CLI with the actual adapter timeout policy, and its native process tests and type check pass. Contract hash and effective paths are unchanged; implementation, bughunt, wrapup and review all use this DSH builder. Native DSH smoke/task proof and current administrator-service limitation remain as previously recorded.",
-      "Report/output boundaries: the production-container wrapup stderr-only control failed before repair because a clean-report draft in mixed raw logs created a clean batch_wrapups row. DSH wrapup now forbids raw fallback: no stdout creates no verdict row and enters awaiting_human/needs_attention; the stdout positive control still persists clean. The shared bughunt reader also forbids DSH raw fallback; its stderr-only control now enters bughunt_unparsed rather than parsing the draft and reaching the worktree-baseline failure path. Five valid banner-looking stdout cases (including --- and Running...) previously lost content; exact terminal text now survives implementation and both review rounds. A real Node child with valid JSON smoke output and one stderr newline previously lost that diagnostic; collection preserves it and smoke rejects it. These regressions fail before and pass after repair. Final affected suite: 22 files/395 passed/one existing Windows symlink skip, no unhandled errors; TypeScript and outgoing Biome passed. An intermediate removal left two legacy-object helper references and optional test-service types; full tests/type checking caught them and both were corrected before the final passing checks. Controlled integration fixtures are not live browser proof; the native DSH availability/task proofs and unrestarted administrator-daemon limitation remain as recorded. Contract hash and effective paths are unchanged."
+      "R8-T97041355 补丁基线到当前版本的变化字段：前置哈希传播",
+      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
     ],
-    "reviewed": "2026-10-07T06:59:58.139743+00:00",
+    "reviewed": "2026-10-07T07:40:51.294819+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   }

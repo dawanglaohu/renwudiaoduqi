@@ -17,3 +17,4 @@ daemon.json
 # Browser and agent session artifacts
 .playwright-mcp/
 .workbuddy-ai/
+.finesse/

@@ -22,7 +22,7 @@ import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { type ReactNode, useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { navigateTo } from '../../app/routes.tsx';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
@@ -413,6 +413,10 @@ export function RunDeckView(props: RunDeckViewProps) {
 		(streamCount === 0 || (rawLanes !== undefined && !hasAssignedLane)) &&
 		pendingGates.length === 0 &&
 		!error;
+	const [onboardingStep, setOnboardingStep] = useState(0);
+	useEffect(() => {
+		if (!showOnboarding) setOnboardingStep(0);
+	}, [showOnboarding]);
 	const reassignTaskId = useSelectionStore((state) => state.reassignTaskId);
 	const reassignToast = useSelectionStore((state) => state.reassignToast);
 	const assignPanel = useAssignPanel({ enabled: showOnboarding || Boolean(reassignTaskId) });
@@ -481,6 +485,8 @@ export function RunDeckView(props: RunDeckViewProps) {
 				</div>
 			)}
 			<EmptyOnboarding
+				currentStep={onboardingStep}
+				onStepChange={setOnboardingStep}
 				documents={assignPanel.documents}
 				batches={assignPanel.batches}
 				tasks={assignPanel.tasks}
@@ -610,7 +616,8 @@ export function RunDeckView(props: RunDeckViewProps) {
 						data-deck-toolbar="true"
 						className="flex items-center justify-between gap-3 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg)] min-h-[44px] flex-shrink-0"
 					>
-						<div className="flex items-center gap-3 text-[12px] font-mono text-[var(--ink-2)]">
+						<div className="flex flex-wrap items-center gap-3 text-meta font-ui text-ink-2">
+							<h1 className="text-body font-semibold text-ink-1">{UI_STRINGS.settings.deck}</h1>
 							<span data-indicator="stream-count" className="font-semibold text-[var(--ink-1)]">
 								并行流数: {streamCount}
 							</span>
@@ -643,7 +650,6 @@ export function RunDeckView(props: RunDeckViewProps) {
 									cursor-pointer ${isTouch ? 'h-[44px]' : 'h-[32px]'}
 								`}
 								>
-									<span className="text-[var(--ink-3)] font-mono text-[11px]">档位:</span>
 									<span>{tier === 'compact' ? '切换完整档' : '切换紧凑档'}</span>
 								</button>
 							)}
@@ -775,55 +781,61 @@ export function RunDeckView(props: RunDeckViewProps) {
 						</>
 					) : (
 						// 桌面端监看区（左栏 272px 批次树 + 泳道流监看区，R2, 11 节 UI）
-						<div className="flex flex-row flex-1 min-h-0 overflow-hidden">
+						<div
+							className={`deck-desktop-layout flex flex-row flex-1 min-h-0 overflow-hidden ${showOnboarding && streamCount === 0 ? 'deck-setup-layout' : ''}`}
+						>
 							{/* 左栏 272px 批次树（AC 1, AC 5, 11 节 UI, R2） */}
 							<aside
 								data-testid="deck-rail"
 								className="w-[var(--rail-w,272px)] min-w-[var(--rail-w,272px)] shrink-0 border-r border-[var(--border)] bg-[var(--bg)] flex flex-col overflow-y-auto p-3 gap-3 select-none h-full"
 							>
-								<div className="font-ui text-dense font-semibold text-[var(--ink-1)] px-1">
-									批次与任务
-								</div>
-								{batchTreeError && (
-									<InlineNotice
-										tone="down"
-										testId="batch-tree-error"
-										message={batchTreeError.message}
-										technical={batchTreeError.technical}
+								<div className="deck-batch-tree flex flex-col gap-3">
+									<div className="font-ui text-dense font-semibold text-[var(--ink-1)] px-1">
+										批次与任务
+									</div>
+									{batchTreeError && (
+										<InlineNotice
+											tone="down"
+											testId="batch-tree-error"
+											message={batchTreeError.message}
+											technical={batchTreeError.technical}
+										/>
+									)}
+									<BatchTree
+										batches={treeBatches}
+										expandedIds={approvalExpandedIds}
+										densityTier={tier}
+										isTouch={isTouch}
+										onToggleBatch={toggleBatch}
+										renderTaskApproval={renderTaskApproval}
+										onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
+										onWrapup={onWrapup}
+										onOpenWrapupRun={onOpenWrapupRun}
+										renderWrapupPanel={(batchId) =>
+											lanes.some(
+												(lane) => lane.kind === 'wrapup' && lane.batchId === batchId,
+											) ? null : (
+												<WrapupPanelContainer batchId={batchId} tier={tier} isTouch={isTouch} />
+											)
+										}
+										wrapupPendingBatchId={wrapupPendingBatchId}
+										wrapupPendingBatchIds={wrapupPendingBatchIds}
+										wrapupFailureByBatch={wrapupFailureByBatch}
 									/>
-								)}
-								<BatchTree
-									batches={treeBatches}
-									expandedIds={approvalExpandedIds}
-									densityTier={tier}
-									isTouch={isTouch}
-									onToggleBatch={toggleBatch}
-									renderTaskApproval={renderTaskApproval}
-									onSelectTask={(taskId) => handleSelectTaskAndJump(taskId)}
-									onWrapup={onWrapup}
-									onOpenWrapupRun={onOpenWrapupRun}
-									renderWrapupPanel={(batchId) =>
-										lanes.some(
-											(lane) => lane.kind === 'wrapup' && lane.batchId === batchId,
-										) ? null : (
-											<WrapupPanelContainer batchId={batchId} tier={tier} isTouch={isTouch} />
-										)
-									}
-									wrapupPendingBatchId={wrapupPendingBatchId}
-									wrapupPendingBatchIds={wrapupPendingBatchIds}
-									wrapupFailureByBatch={wrapupFailureByBatch}
-								/>
+								</div>
 
-								{/* 零运行引导落位：四步编号卡竖排在左栏派发面板里（批次树之下，AC 4, E-108, E-319） */}
 								{showOnboarding && (
-									<div className="border-t border-[var(--border)] pt-3 flex flex-col gap-3">
+									<div
+										data-testid={streamCount === 0 ? 'deck-setup' : undefined}
+										className={`deck-onboarding min-w-0 flex flex-col gap-3 ${streamCount === 0 ? 'deck-setup overflow-y-auto p-4' : 'border-t border-[var(--border)] pt-3'}`}
+									>
 										{emptyConsole}
 									</div>
 								)}
 							</aside>
 
 							{/* 泳道监看区 */}
-							<div className="relative flex-1 flex flex-col min-h-0 overflow-hidden h-full">
+							<div className="deck-lane-area relative flex-1 flex flex-col min-h-0 overflow-hidden h-full">
 								{tier === 'full' && offScreenWaiting.left > 0 && (
 									<button
 										type="button"
