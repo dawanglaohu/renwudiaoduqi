@@ -1113,6 +1113,96 @@ interface MountedAssignPanel {
 	readonly unmount: () => Promise<void>;
 }
 
+describe('task assignment using the agent default model', () => {
+	it.each([null, { vendor: 'ultra' }])(
+		'uses model effort options while preserving %j',
+		async (effort) => {
+			window.matchMedia = vi.fn().mockImplementation((query) => ({
+				matches: false,
+				media: query,
+				onchange: null,
+				addListener: vi.fn(),
+				removeListener: vi.fn(),
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn(),
+				dispatchEvent: vi.fn(),
+			}));
+			Element.prototype.scrollIntoView = vi.fn();
+			const task: TaskItem = { id: 'default-task', taskKey: 'M9-T23', title: 'Default model' };
+			const agent: AssignableAgent = {
+				id: 'codex',
+				name: 'Codex',
+				monogram: 'CX',
+				defaultModel: 'default-model',
+				effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
+				effortOptions: ['low', 'medium', 'high', 'max', 'ultra'],
+				catalog: {
+					models: [
+						{
+							name: 'default-model',
+							source: 'live',
+							isCurrentConfig: true,
+							effortOptions: ['low', 'medium', 'high', 'max'],
+						},
+					],
+					isComplete: true,
+					isRefreshing: false,
+					refreshedAt: '2026-10-07T00:00:00Z',
+					liveFailure: null,
+					currentConfig: {
+						model: 'default-model',
+						effort: null,
+						effortRecognized: true,
+						configPath: '',
+					},
+				},
+			};
+			const container = document.createElement('div');
+			document.body.appendChild(container);
+			const root = createRoot(container);
+			try {
+				await act(async () =>
+					root.render(
+						createElement(TaskAssignmentList, {
+							tasks: [task],
+							agents: [agent],
+							reassignTaskId: task.id,
+							assignments: {
+								[task.id]: {
+									taskId: task.id,
+									taskKey: task.taskKey,
+									agentId: agent.id,
+									model: null,
+									effort,
+									sessionNo: 1,
+								},
+							},
+						}),
+					),
+				);
+				const picker = container.querySelector('[data-testid="effort-picker"]');
+				const trigger = picker?.querySelector<HTMLButtonElement>(
+					'[data-testid="grouped-select-trigger"]',
+				);
+				if (effort) {
+					expect(trigger?.textContent).toContain('ultra');
+					expect(
+						picker?.querySelector('[data-testid="effort-support-warning"]')?.textContent,
+					).toContain('ultra');
+				} else {
+					if (!trigger) throw new Error('Effort picker missing');
+					await act(async () => trigger.click());
+					expect(document.querySelector('[data-testid="select-option-vendor:max"]')).not.toBeNull();
+					expect(document.querySelector('[data-testid="select-option-vendor:ultra"]')).toBeNull();
+				}
+			} finally {
+				await act(async () => root.unmount());
+				container.remove();
+			}
+		},
+	);
+});
+
 async function mountAssignPanel(client: AssignPanelClient): Promise<MountedAssignPanel> {
 	const observed: { value?: UseAssignPanelResult } = {};
 	function Probe() {

@@ -147,10 +147,13 @@ export interface WrapupBatchBody {
 	readonly agentId?: string;
 	readonly model?: string | null;
 	readonly effortTier?: 'low' | 'medium' | 'high' | null;
+	/** Structured effort requires an explicit agentId; non-null effortTier is mutually exclusive. */
+	readonly effort?: EffortValue;
 }
 
 export const WRAPUP_BATCH_BODY_KEYS = [
 	'agentId',
+	'effort',
 	'effortTier',
 	'idempotencyKey',
 	'model',
@@ -167,6 +170,10 @@ export const wrapupBatchBodySchema = {
 	type: 'object',
 	additionalProperties: false,
 	required: ['idempotencyKey'],
+	not: {
+		required: ['effortTier', 'effort'],
+		properties: { effortTier: { enum: ['low', 'medium', 'high'] }, effort: { type: 'object' } },
+	},
 	properties: {
 		idempotencyKey: {
 			type: 'string',
@@ -179,6 +186,23 @@ export const wrapupBatchBodySchema = {
 		effortTier: {
 			type: ['string', 'null'],
 			enum: ['low', 'medium', 'high', null],
+		},
+		effort: {
+			anyOf: [
+				{ type: 'null' },
+				{
+					type: 'object',
+					additionalProperties: false,
+					required: ['tier'],
+					properties: { tier: { type: 'string', enum: ['low', 'medium', 'high'] } },
+				},
+				{
+					type: 'object',
+					additionalProperties: false,
+					required: ['vendor'],
+					properties: { vendor: { type: 'string', minLength: 1, maxLength: 256 } },
+				},
+			],
 		},
 	},
 } as const;

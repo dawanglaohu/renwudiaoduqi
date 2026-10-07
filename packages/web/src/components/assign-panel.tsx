@@ -752,7 +752,9 @@ function TaskAssignRow({
 							value={selectedEffort}
 							onChange={(eff) => setSelectedEffort(eff)}
 							selectedModelEffortOptions={
-								currentAgent.catalog?.models?.find((m) => m.name === selectedModel)?.effortOptions
+								currentAgent.catalog?.models?.find(
+									(m) => m.name === (selectedModel || currentAgent.defaultModel),
+								)?.effortOptions
 							}
 							currentConfigEffort={currentAgent.currentConfig?.effort}
 							effortRecognized={currentAgent.currentConfig?.effortRecognized}

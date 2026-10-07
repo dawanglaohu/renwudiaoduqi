@@ -1,4 +1,4 @@
-import type { EffortTier } from '@agent-scheduler/shared/api/agents';
+import type { EffortTier, EffortValue } from '@agent-scheduler/shared/api/agents';
 import type {
 	BatchDto,
 	BatchWrapupDto,
@@ -12,8 +12,10 @@ import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { RecallTaskResponse } from '@agent-scheduler/shared/api/tasks';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { vendorEffortDomain } from '../domain/agent-effort-options.ts';
 import { resolveAssignment } from '../domain/assignment.ts';
 import { latestImplementationRunByTaskId, summarizeBatchLanding } from '../domain/batch-landing.ts';
+import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import {
 	buildWrapupFixSerialReason,
@@ -151,6 +153,7 @@ export interface TriggerWrapupInput {
 	readonly agentId?: string;
 	readonly model?: string | null;
 	readonly effortTier?: 'low' | 'medium' | 'high' | null;
+	readonly effort?: EffortValue;
 	readonly actorDeviceId?: string | null;
 }
 
@@ -191,6 +194,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			readonly agentId?: string;
 			readonly model?: string | null;
 			readonly effortTier?: 'low' | 'medium' | 'high' | null;
+			readonly effort?: EffortValue;
 		},
 	): {
 		readonly agentId: string;
@@ -206,13 +210,43 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 		});
 
 		// Manual override has highest priority
+		if (override?.effort != null && override.effortTier != null) {
+			throw new AppError('E_VALIDATION', 'effort and effortTier are mutually exclusive.', {
+				details: { field: 'effort' },
+			});
+		}
+		if (override?.effort != null && !override.agentId?.trim()) {
+			throw new AppError('E_VALIDATION', 'An explicit effort requires agentId.', {
+				details: { field: 'agentId' },
+			});
+		}
 		if (override?.agentId && override.agentId.trim().length > 0) {
 			const agentId = override.agentId.trim();
 			assertAgentAvailable(agentId);
+			const effort: EffortValue =
+				override.effort ?? (override.effortTier ? { tier: override.effortTier } : null);
+			const effortVendor = effort && 'vendor' in effort ? effort.vendor : null;
+			if (effortVendor !== null) {
+				const agent = deps.agentRegistry?.getSnapshot().agents[agentId];
+				if (agent?.effortVendorMap === null) {
+					throw new AppError(
+						'E_VALIDATION',
+						`Agent '${agentId}' does not support reasoning effort.`,
+						{
+							details: { field: 'effort', reason: 'effort_unsupported' },
+						},
+					);
+				}
+				const allowed =
+					deps.agentService?.getVendorEffortDomain(agentId) ??
+					vendorEffortDomain(agentId, agent ?? {});
+				assertVendorEffortInDomain(effortVendor, allowed);
+			}
 			return {
 				agentId,
 				modelName: override.model ?? null,
-				effortTier: override.effortTier ?? null,
+				effortTier: effort && 'tier' in effort ? effort.tier : null,
+				effortVendor,
 				source: 'wrapup_settings',
 				followedTaskId: null,
 			};
@@ -529,6 +563,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					agentId: input.agentId,
 					model: input.model,
 					effortTier: input.effortTier,
+					effort: input.effort,
 				});
 			} catch (err: unknown) {
 				// If agent unavailable or follow source missing, transition batch to needs_attention (E-287, E-344)

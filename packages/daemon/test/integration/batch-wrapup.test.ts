@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url';
 import fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AppContainer } from '../../src/boot/container.ts';
+import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { vendorEffortDomain } from '../../src/domain/agent-effort-options.ts';
 import { summarizeBatchLanding } from '../../src/domain/batch-landing.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import type { EnvelopeFactory } from '../../src/events/envelope.ts';
@@ -203,22 +205,32 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			getSnapshot: () => ({
 				agents: {
 					codex: {
+						...BUILT_IN_AGENT_DEFAULTS.codex,
 						name: 'codex',
 						command: 'codex',
 						args: [],
 						env: {},
 					},
 					claude: {
+						...BUILT_IN_AGENT_DEFAULTS.claude,
 						name: 'claude',
 						command: 'claude',
 						args: [],
 						env: {},
 					},
+					dsh: BUILT_IN_AGENT_DEFAULTS.dsh,
 				},
 			}),
 		};
 
 		const fakeAgentService = {
+			getVendorEffortDomain: (agentId: string) =>
+				vendorEffortDomain(
+					agentId,
+					Object.entries(BUILT_IN_AGENT_DEFAULTS).find(([id]) => id === agentId)?.[1] ?? {},
+					undefined,
+					['low', 'medium', 'high', 'xhigh', 'max'],
+				),
 			getAvailability: (agentId: string) => ({
 				agentId,
 				canDispatch: true,
@@ -320,7 +332,7 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		});
 
 		// Fastify server configuration (R2)
-		app = fastify();
+		app = fastify({ ajv: { customOptions: { removeAdditional: false } } });
 		app.decorate('container', {
 			services: {
 				dispatch: dispatchService,
@@ -882,6 +894,89 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 
 		const finalBatch = batchesRepo.findById('batch-1');
 		expect(finalBatch?.state).toBe('done');
+	});
+
+	function landManualWrapupTasks(): void {
+		for (const n of [1, 2]) {
+			runsRepo.insert({
+				id: `run-t${n}`,
+				task_id: `task-${n}`,
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: `snap-${n}`,
+				is_in_head: 1,
+				ended_at: '2026-09-17T10:10:00.000Z',
+			});
+		}
+	}
+
+	it.each([
+		{ agentId: 'codex', effort: { vendor: 'none' }, tier: null, vendor: 'none' },
+		{ agentId: 'codex', effort: { vendor: 'minimal' }, tier: null, vendor: 'minimal' },
+		{ agentId: 'codex', effort: { vendor: 'xhigh' }, tier: null, vendor: 'xhigh' },
+		{ agentId: 'codex', effort: { vendor: 'max' }, tier: null, vendor: 'max' },
+		{ agentId: 'codex', effort: { vendor: 'ultra' }, tier: null, vendor: 'ultra' },
+		{ agentId: 'claude', effort: { vendor: 'max' }, tier: null, vendor: 'max' },
+		{ agentId: 'codex', effort: { tier: 'low' }, tier: 'low', vendor: null },
+	])(
+		'manual effort $agentId $effort survives HTTP, run and snapshot',
+		async ({ agentId, effort, tier, vendor }) => {
+			landManualWrapupTasks();
+			const res = await app.inject({
+				method: 'POST',
+				url: '/api/v1/batches/batch-1/wrapup',
+				payload: { idempotencyKey: 'manual-native-effort', agentId, effortTier: null, effort },
+			});
+			expect(res.statusCode, res.body).toBe(200);
+			const run = runsRepo.findById(res.json().run.id);
+			expect(run).toMatchObject({ agent_id: agentId, effort_tier: tier, effort_vendor: vendor });
+			if (!run) throw new Error('Wrapup run missing');
+			const snapshot = dispatchSnapshotsRepo.findById(run.snapshot_id);
+			expect(JSON.parse(snapshot?.assignment_json ?? '{}')).toMatchObject({
+				agentId,
+				effortTier: tier,
+				effortVendor: vendor,
+			});
+		},
+	);
+
+	it.each([
+		{ agentId: 'codex', effort: { vendor: 'ultra' }, effortTier: 'high' },
+		{ agentId: 'codex', effort: { vendor: 'invalid-level' } },
+		{ agentId: 'dsh', effort: { vendor: 'max' } },
+		{ effort: { vendor: 'ultra' } },
+	])(
+		'manual effort rejects invalid or ambiguous request %j before creating a run',
+		async (fields) => {
+			landManualWrapupTasks();
+			const res = await app.inject({
+				method: 'POST',
+				url: '/api/v1/batches/batch-1/wrapup',
+				payload: { idempotencyKey: 'manual-invalid-effort', ...fields },
+			});
+			expect(res.statusCode).toBe(400);
+			expect(res.json().error.code).toBe('E_VALIDATION');
+			expect(runsRepo.findByIdempotencyKey('manual-invalid-effort')).toBeNull();
+			expect(runsRepo.findActiveWrapupByBatchId?.('batch-1')).toBeNull();
+			expect(batchesRepo.findById('batch-1')?.state).toBe('running');
+		},
+	);
+
+	it('manual legacy effortTier remains supported', async () => {
+		landManualWrapupTasks();
+		const res = await app.inject({
+			method: 'POST',
+			url: '/api/v1/batches/batch-1/wrapup',
+			payload: { idempotencyKey: 'manual-legacy-effort', agentId: 'codex', effortTier: 'high' },
+		});
+		expect(res.statusCode).toBe(200);
+		expect(runsRepo.findById(res.json().run.id)).toMatchObject({
+			effort_tier: 'high',
+			effort_vendor: null,
+		});
 	});
 
 	it('AC 5: duplicate idempotencyKey on POST /api/v1/batches/:batchId/wrapup returns 409 E_RUN_ALREADY_EXISTS with existing run in details', async () => {

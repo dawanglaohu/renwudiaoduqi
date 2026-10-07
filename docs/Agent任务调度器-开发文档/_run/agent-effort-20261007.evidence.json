@@ -14,7 +14,7 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3070 passed, 3 existing skips",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3084 passed, 3 existing skips",
     "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
@@ -275,6 +275,16 @@
     "regressionBefore": "Three production dispatch cases reject none, minimal and max from the incomplete four-level fallback"
   },
   "mergedMainCommit": "3e209fbbbe6ed5bd759da82d0ac03dd4f202ba0c",
+  "manualAndDefault": {
+    "before": "Nine regressions fail: the default model exposes unsupported levels without a warning; seven manual HTTP requests cannot submit structured effort",
+    "after": "Fourteen focused DOM and manual HTTP cases pass",
+    "coverage": [
+      "Following the Agent default model uses that model's effortOptions and warns without replacing a saved unsupported value",
+      "Manual HTTP native none, minimal, xhigh, max and ultra persist unchanged in the run and assignment snapshot",
+      "Structured tier and legacy effortTier remain supported, including nullable legacy fields",
+      "Ambiguous tier/native input, unknown native values, unsupported Agent and missing Agent are rejected without creating a run"
+    ]
+  },
   "reviewContinuation": {
     "before": "Four review-continuation/DOM regressions fail; production container persists max when the newly saved review override selects ultra",
     "after": "Full workspace check passes: 246 files, 3070 tests, 3 existing skips",
