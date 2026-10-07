@@ -44,6 +44,12 @@ export interface UseSettingsAgentsResult {
 	readonly isLoading: boolean;
 	readonly error: Error | null;
 	readonly laneCount: number;
+	readonly documents: readonly DocumentDto[];
+	readonly documentsError: string | null;
+	readonly loadDocuments: () => Promise<void>;
+	readonly targetDocId: string | null;
+	readonly selectTargetDoc: (docId: string) => void;
+	readonly isSavingLaneCount: boolean;
 	readonly hasTargetDoc: boolean;
 	readonly targetDocName: string | null;
 	readonly laneCountError: string | null;
@@ -84,20 +90,20 @@ const updateDocumentSettingsRoute = ROUTES.find(
 	(r) => r.method === 'PATCH' && r.path === '/api/v1/documents/:docId/settings',
 );
 
-function resolveLastDocId(): string | null {
-	if (typeof window === 'undefined') return null;
+function readUiPreferences(): Record<string, unknown> {
+	if (typeof window === 'undefined') return {};
 	try {
 		const raw = localStorage.getItem('agsched.ui.v1');
-		if (raw) {
-			const parsed = JSON.parse(raw);
-			if (parsed && typeof parsed.lastDocId === 'string' && parsed.lastDocId) {
-				return parsed.lastDocId;
-			}
-		}
+		const parsed = raw ? JSON.parse(raw) : null;
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
 	} catch {
-		// Ignore storage parsing errors
+		return {};
 	}
-	return null;
+}
+
+function resolveLastDocId(): string | null {
+	const lastDocId = readUiPreferences().lastDocId;
+	return typeof lastDocId === 'string' && lastDocId ? lastDocId : null;
 }
 
 export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettingsAgentsResult {
@@ -106,11 +112,17 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 	const [error, setError] = useState<Error | null>(null);
 
-	// R5: 窗口数的目标文档由明确来源决定（快照/当前文档），不能取 documents[0]；定位不到不渲染写入口
-	const explicitDocId = options?.targetDocId ?? resolveLastDocId();
-	const [targetDoc, setTargetDoc] = useState<DocumentDto | null>(null);
-	const [laneCount, setLaneCountState] = useState<number>(DEFAULT_LANE_COUNT);
+	const [documents, setDocuments] = useState<readonly DocumentDto[]>([]);
+	const [documentsError, setDocumentsError] = useState<string | null>(null);
+	const documentsRequest = useRef(0);
+	const appliedDocumentsRequest = useRef(0);
+	const [selectedDocId, setSelectedDocId] = useState(resolveLastDocId);
+	const explicitDocId = options?.targetDocId ?? selectedDocId;
+	const targetDoc = documents.find((doc) => doc.id === explicitDocId) ?? null;
+	const laneCount = targetDoc?.laneCount ?? DEFAULT_LANE_COUNT;
 	const [laneCountError, setLaneCountError] = useState<string | null>(null);
+	const [isSavingLaneCount, setIsSavingLaneCount] = useState(false);
+	const savingLaneCount = useRef(false);
 
 	const [probingAgentId, setProbingAgentId] = useState<string | null>(null);
 	const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
@@ -118,29 +130,43 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		Record<string, Partial<Record<AgentSettingKey, FieldErrorInfo>>>
 	>({});
 
-	// Load document laneCount strictly from resolved targetDocId
+	// 文档列表只提供选择项；写目标必须来自显式指派、用户选择或已记住的选择。
 	const loadDocuments = useCallback(async () => {
-		if (!explicitDocId || !listDocumentsRoute) {
-			setTargetDoc(null);
-			return;
-		}
+		if (!listDocumentsRoute) return;
+		const request = ++documentsRequest.current;
 
 		try {
 			// R7: 请求改走 ROUTES/callRoute
 			const res = await httpClient.callRoute<ListDocumentsResponse>(listDocumentsRoute);
-			const found = res.documents.find((d) => d.id === explicitDocId);
-			if (found) {
-				setTargetDoc(found);
-				if (found.laneCount >= MIN_LANE_COUNT && found.laneCount <= MAX_LANE_COUNT) {
-					setLaneCountState(found.laneCount);
-				}
-			} else {
-				setTargetDoc(null);
-			}
-		} catch {
-			setTargetDoc(null);
+			if (!mounted.current || request !== documentsRequest.current) return;
+			appliedDocumentsRequest.current = request;
+			setDocuments(res.documents);
+			setDocumentsError(null);
+		} catch (err) {
+			if (!mounted.current || request !== documentsRequest.current) return;
+			setDocumentsError(
+				getSettingsAgentErrorMessage(
+					isApiError(err) ? err.code : '',
+					UI_STRINGS.settingsAgents.documentsLoadFailed,
+				),
+			);
 		}
-	}, [explicitDocId]);
+	}, []);
+
+	const selectTargetDoc = useCallback(
+		(docId: string) => {
+			if (savingLaneCount.current || !documents.some((doc) => doc.id === docId)) return;
+			setSelectedDocId(docId);
+			setLaneCountError(null);
+			try {
+				const prefs = readUiPreferences();
+				localStorage.setItem('agsched.ui.v1', JSON.stringify({ ...prefs, lastDocId: docId }));
+			} catch {
+				// 存储不可用时，当前会话仍可选择文档并保存服务端设置。
+			}
+		},
+		[documents],
+	);
 
 	// Load agents list from daemon
 	const loadAgents = useCallback(async () => {
@@ -173,16 +199,21 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			if (response) setAgents(response.agents);
 		});
 		const unsubscribeEvents = eventBus.subscribeMilestone((event) => {
+			if (event.kind === 'document.settings_changed' || event.kind === 'system.docs_changed') {
+				void loadDocuments();
+				return;
+			}
 			if (event.kind !== 'agent.availability_changed') return;
 			invalidateForEvent(event.kind);
 			void loadAgents();
 		});
 		return () => {
 			mounted.current = false;
+			documentsRequest.current += 1;
 			unsubscribeCache();
 			unsubscribeEvents();
 		};
-	}, [loadAgents]);
+	}, [loadAgents, loadDocuments]);
 
 	useEffect(() => {
 		void loadAgents();
@@ -439,7 +470,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	// Set lane count (AC 8, E-248: 1-6) with R4 失败回滚 + inline 报错
 	const setLaneCount = useCallback(
 		async (count: number) => {
-			if (count < MIN_LANE_COUNT || count > MAX_LANE_COUNT) {
+			if (!Number.isInteger(count) || count < MIN_LANE_COUNT || count > MAX_LANE_COUNT) {
 				setLaneCountError(UI_STRINGS.settingsAgents.laneCountRange(MIN_LANE_COUNT, MAX_LANE_COUNT));
 				return;
 			}
@@ -450,22 +481,44 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				return;
 			}
 
+			if (savingLaneCount.current || count === laneCount) return;
+			const docId = targetDoc.id;
 			const prevCount = laneCount;
+			// 保存前发起的读取不得覆盖本次乐观值或服务端确认值。
+			const saveRequest = ++documentsRequest.current;
+			savingLaneCount.current = true;
+			setIsSavingLaneCount(true);
 			setLaneCountError(null);
-			setLaneCountState(count);
+			setDocuments((current) =>
+				current.map((doc) => (doc.id === docId ? { ...doc, laneCount: count } : doc)),
+			);
 
 			try {
 				// R7: 请求改走 ROUTES/callRoute
-				await httpClient.callRoute<UpdateDocumentSettingsResponse, { laneCount: number }>(
-					updateDocumentSettingsRoute,
-					{
-						params: { docId: targetDoc.id },
-						body: { laneCount: count },
-					},
-				);
+				const response = await httpClient.callRoute<
+					UpdateDocumentSettingsResponse,
+					{ laneCount: number }
+				>(updateDocumentSettingsRoute, {
+					params: { docId },
+					body: { laneCount: count },
+				});
+				if (mounted.current) {
+					if (appliedDocumentsRequest.current <= saveRequest) {
+						setDocuments((current) =>
+							current.map((doc) => (doc.id === docId ? response.document : doc)),
+						);
+					}
+					// 保存期间的读取可能先于提交取值；补读确认，已应用的新数据不回退。
+					if (documentsRequest.current !== saveRequest) await loadDocuments();
+				}
 			} catch (err) {
-				// R4: 失败回滚并 inline 报错
-				setLaneCountState(prevCount);
+				if (!mounted.current) return;
+				// R4: 仅回滚本次乐观值，保留之后读取到的服务端数据。
+				if (appliedDocumentsRequest.current <= saveRequest) {
+					setDocuments((current) =>
+						current.map((doc) => (doc.id === docId ? { ...doc, laneCount: prevCount } : doc)),
+					);
+				}
 				const apiErr = isApiError(err) ? err : undefined;
 				const code = apiErr?.code ?? 'E_INTERNAL';
 				const chineseMsg = getSettingsAgentErrorMessage(
@@ -473,9 +526,13 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					UI_STRINGS.settingsAgents.laneCountFailed,
 				);
 				setLaneCountError(chineseMsg);
+				if (documentsRequest.current !== saveRequest) await loadDocuments();
+			} finally {
+				savingLaneCount.current = false;
+				if (mounted.current) setIsSavingLaneCount(false);
 			}
 		},
-		[laneCount, targetDoc],
+		[laneCount, targetDoc, loadDocuments],
 	);
 
 	// Helper to extract 3-row layer values (AC 1, E-92, R1)
@@ -550,6 +607,12 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		isLoading,
 		error,
 		laneCount,
+		documents,
+		documentsError,
+		loadDocuments,
+		targetDocId: targetDoc?.id ?? null,
+		selectTargetDoc,
+		isSavingLaneCount,
 		hasTargetDoc: Boolean(targetDoc),
 		targetDocName: targetDoc?.projectName ?? null,
 		laneCountError,

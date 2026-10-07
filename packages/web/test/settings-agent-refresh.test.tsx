@@ -55,6 +55,7 @@ it('reloads AgentEntryDto login and effective layers after the refresh milestone
 	const readAgents = vi
 		.spyOn(httpClient, 'callRoute')
 		.mockResolvedValueOnce({ agents: [agent] } satisfies ListAgentsResponse)
+		.mockResolvedValueOnce({ documents: [] })
 		.mockResolvedValueOnce({ agents: [updated] } satisfies ListAgentsResponse);
 	const container = document.createElement('div');
 	document.body.append(container);
@@ -88,12 +89,12 @@ it('reloads AgentEntryDto login and effective layers after the refresh milestone
 				},
 			}),
 		);
-		expect(readAgents).toHaveBeenCalledTimes(2);
+		expect(readAgents).toHaveBeenCalledTimes(3);
 		expect(container.textContent).toBe('2026-10-02T00:00:00Z/new-model');
 		expect(
-			readAgents.mock.calls.every(
-				([route]) => route.method === 'GET' && route.path === '/api/v1/agents',
-			),
+			readAgents.mock.calls
+				.filter(([route]) => route.path === '/api/v1/agents')
+				.every(([route]) => route.method === 'GET' && route.path === '/api/v1/agents'),
 		).toBe(true);
 	} finally {
 		await act(async () => root.unmount());
@@ -111,6 +112,7 @@ it('keeps failed clearOverrides intact and receives reconnect reads from the sha
 	const restored = { ...original, defaultModel: 'latest' };
 	vi.spyOn(httpClient, 'callRoute')
 		.mockResolvedValueOnce({ agents: [original] })
+		.mockResolvedValueOnce({ documents: [] })
 		.mockRejectedValueOnce(new Error('PATCH failed'))
 		.mockResolvedValueOnce({ agents: [restored] });
 	const container = document.createElement('div');
@@ -146,6 +148,7 @@ it('does not publish a superseded GET when a milestone invalidates it (E-339)', 
 	const request = vi
 		.spyOn(httpClient, 'callRoute')
 		.mockReturnValueOnce(oldRead)
+		.mockResolvedValueOnce({ documents: [] })
 		.mockResolvedValueOnce({ agents: [latest] });
 	const container = document.createElement('div');
 	document.body.append(container);
@@ -172,7 +175,7 @@ it('does not publish a superseded GET when a milestone invalidates it (E-339)', 
 			});
 			resolveOld?.({ agents: [agent] });
 		});
-		expect(request).toHaveBeenCalledTimes(2);
+		expect(request).toHaveBeenCalledTimes(3);
 		expect(seen).toContain('latest-model');
 		expect(seen).not.toContain('old-model');
 	} finally {

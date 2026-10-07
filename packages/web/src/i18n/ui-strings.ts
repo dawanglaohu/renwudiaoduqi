@@ -38,6 +38,7 @@ export const UI_STRINGS = {
 			`短码 "${monogram}" 已被 agent "${name}" 占用，请改用其他短码`,
 		loading: '正在加载 Agent 注册表...',
 		loadFailed: '加载 Agent 列表失败，请重试',
+		documentsLoadFailed: '加载文档列表失败，请重试',
 		monogramLength: '短码必须为恰好两字符',
 		monogramInvalid: '短码校验失败',
 		updateFailed: '配置更新失败，请重试',

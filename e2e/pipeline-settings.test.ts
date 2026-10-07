@@ -1615,5 +1615,59 @@ describe(
 				body: JSON.stringify(pipelineNow.pipeline),
 			});
 		});
+		it('window settings: selects a document, types and persists lane count through the production UI', async () => {
+			const origin = `http://127.0.0.1:${daemon.port}`;
+			await page.setViewportSize({ width: 1440, height: 900 });
+			// 同一路由的片段导航沿用事件连接；新页面保证等待本次 SSE 握手。
+			await page.goto('about:blank');
+			const initialRead = page.waitForResponse((response) => response.url() === `${origin}/api/v1/documents` && response.request().method() === 'GET');
+			const connected = page.waitForResponse((response) => response.url().startsWith(`${origin}/api/v1/events`) && response.status() === 200);
+			await page.goto(`${origin}/#/settings/agents`, { waitUntil: 'domcontentloaded' });
+			await initialRead;
+			await connected;
+			const selector = page.getByLabel('窗口设置所属文档');
+			await selector.waitFor({ state: 'visible' });
+			// 只准备真实项目文档；窗口数的写入必须由设置页交互发起。
+			const imported = await fetch(`${origin}/api/v1/documents`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+				body: JSON.stringify({ docsPath: join(repoRoot, 'docs/Agent任务调度器-开发文档/docs-data.js') }),
+			});
+			expect(imported.ok).toBe(true);
+			const { document: importedDoc } = await imported.json() as { document: { id: string } };
+			await page.waitForFunction((id) => Boolean(document.querySelector(`select[aria-label="窗口设置所属文档"] option[value="${id}"]`)), importedDoc.id);
+			await selector.selectOption(importedDoc.id);
+			const input = page.getByRole('spinbutton', { name: '任务并行窗口数', exact: true });
+			await input.waitFor({ state: 'visible' });
+			const saved = page.waitForResponse((response) => response.url() === `${origin}/api/v1/documents/${importedDoc.id}/settings` && response.request().method() === 'PATCH');
+			await input.fill('4');
+			await input.press('Enter');
+			const response = await saved;
+			expect(response.status()).toBe(200);
+			expect(response.request().postDataJSON()).toEqual({ laneCount: 4 });
+			expect((await response.json()).document.laneCount).toBe(4);
+			const reconnected = page.waitForResponse((response) => response.url().startsWith(`${origin}/api/v1/events`) && response.status() === 200);
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await reconnected;
+			await page.waitForFunction(() => document.querySelector<HTMLInputElement>('input[aria-label="任务并行窗口数"]')?.value === '4');
+			expect(await selector.inputValue()).toBe(importedDoc.id);
+			// 另一配对客户端保存后，当前设置页通过真实 SSE 更新。
+			const externalSave = await fetch(`${origin}/api/v1/documents/${importedDoc.id}/settings`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+				body: JSON.stringify({ laneCount: 5 }),
+			});
+			expect(externalSave.status).toBe(200);
+			await page.waitForFunction(() => document.querySelector<HTMLInputElement>('input[aria-label="任务并行窗口数"]')?.value === '5');
+			const restored = page.waitForResponse((response) => response.url() === `${origin}/api/v1/documents/${importedDoc.id}/settings` && response.request().method() === 'PATCH');
+			await input.fill('4');
+			await input.press('Enter');
+			expect((await restored).status()).toBe(200);
+			await page.waitForFunction(() => document.querySelector<HTMLInputElement>('input[aria-label="任务并行窗口数"]')?.value === '4');
+			await captureGifFrame(page, 'window-count-saved');
+			await page.screenshot({ path: join(artifactsDir, 'window-settings-saved.png'), fullPage: false });
+			await page.getByTestId('settings-back').click();
+			await page.waitForFunction(() => document.querySelector('[data-indicator="stream-count"]')?.textContent?.includes('4'));
+		});
 	},
 );
