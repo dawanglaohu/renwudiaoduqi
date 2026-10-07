@@ -648,7 +648,12 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				const snapshot = deps.agentRegistry.getSnapshot();
 				const entry = snapshot.agents[assignment.agentId];
 				if (entry) {
-					launchSpecJson = JSON.stringify(entry);
+					launchSpecJson = JSON.stringify({
+						...entry,
+						execPath:
+							deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
+							entry.execPath,
+					});
 				}
 			}
 

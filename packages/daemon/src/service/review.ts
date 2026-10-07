@@ -1994,7 +1994,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		) {
 			try {
 				const dispatchInput: DispatchReviewRunInput = {
-					execPath: deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
+					execPath:
+						deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
+						deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
 					implRun: {
 						id: run.id,
 						taskId,
@@ -2383,7 +2385,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					runId,
 					taskId,
 					worktreePath: prevReview.worktree_path ?? '',
-					execPath: deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
+					execPath:
+						deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
+						deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
 					assignment,
 					prompt,
 				});

@@ -918,6 +918,7 @@ export function createContainer(input: {
 					return {
 						agentId,
 						canDispatch: availability?.canDispatch === true,
+						resolvedPath: availability?.resolvedPath,
 						// Registry maxConcurrency is the per-agent limit the tick and the preview share (E-47).
 						concurrencyLimit: agentConfig.maxConcurrency,
 					};

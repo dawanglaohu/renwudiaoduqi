@@ -353,7 +353,9 @@ describe('M7-T2: 审查 agent 派发与 diff 裁剪 (AC 1-4, E-135, E-347, E-65)
 				worktreePath: '/w/dsh',
 				assignment: { agentId: 'dsh', modelName: null, effortTier: null },
 				prompt: 'review test',
+				execPath: '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh',
 			});
+			expect(dshSpec.file).toBe('/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh');
 			expect(dshSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
 			expect(dshSpec.args).not.toContain('--model');
 		});

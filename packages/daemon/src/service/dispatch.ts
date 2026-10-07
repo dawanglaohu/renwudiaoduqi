@@ -203,6 +203,8 @@ export interface DispatchableAgent {
 	readonly agentId: string;
 	readonly canDispatch: boolean;
 	readonly concurrencyLimit?: number;
+	/** Executable verified by the current availability probe; frozen into new launch snapshots. */
+	readonly resolvedPath?: string;
 }
 
 export interface BuildLaunchSpecInput {
@@ -407,6 +409,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			return deps.listDispatchableAgents();
 		}
 		return Object.freeze([]);
+	}
+
+	function launchExecutable(agentId: string): string | undefined {
+		return (
+			listDispatchableAgents().find((agent) => agent.agentId === agentId)?.resolvedPath ??
+			deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath
+		);
 	}
 
 	/**
@@ -644,7 +653,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		const launchSpecJson = JSON.stringify({
 			agentId,
-			execPath: deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath,
+			execPath: launchExecutable(agentId),
 			model: resolvedAssignment.modelName ?? null,
 			effort: resolvedAssignment.effortTier ?? null,
 			permissionTier: input.permissionTier ?? 'workspaceWrite',
@@ -1915,7 +1924,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 							const launchSpecJson = JSON.stringify({
 								agentId: item.agentId,
-								execPath: deps.agentRegistry?.getSnapshot().agents[item.agentId]?.execPath,
+								execPath: launchExecutable(item.agentId),
 								model: tickResolved.modelName ?? null,
 								effort: tickResolved.effortTier ?? null,
 								permissionTier: 'workspaceWrite',

@@ -316,6 +316,14 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 					launchSpecJson = JSON.stringify(entry);
 				}
 			}
+			if (agentId === 'dsh') {
+				const execPath =
+					deps.agentService?.getAvailability(agentId)?.resolvedPath ??
+					deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath;
+				if (execPath) {
+					launchSpecJson = JSON.stringify({ ...JSON.parse(launchSpecJson), execPath });
+				}
+			}
 
 			const assignmentSerialized = assignmentReader.serializeTaskAssignment({
 				agentId,
