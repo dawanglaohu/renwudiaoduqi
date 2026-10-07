@@ -1648,6 +1648,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		let snapshotId: string | null = null;
 		let targetSnapshotId: string | null = null;
 		let pendingSubSnapshotInsert: (() => void) | null = null;
+		let reviewLaunch: { execPath?: string; effortOptions?: readonly string[] } = {};
 		let assignmentSource = 'task';
 		let reviewContext: ReviewContext | null = null;
 		let assignment: ReviewAgentAssignment | null = null;
@@ -1671,6 +1672,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						missingMaterialTag = 'snapshot_missing';
 						missingMaterialReason = 'missing_dispatch_snapshot';
 					} else {
+						reviewLaunch = JSON.parse(snapshot.launch_spec_json ?? '{}');
 						reviewContext = getReviewContext(
 							taskId,
 							{
@@ -1758,9 +1760,14 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								targetSnapshotId = snapshot.id;
 								if (isCrossFamily && overrideAgentId) {
 									const subSnapshotId = ids.newId();
-									const agentConfig =
-										deps.agentRegistry?.getSnapshot().agents[overrideAgentId] ?? {};
-									const launchSpecJson = JSON.stringify(agentConfig);
+									const agentConfig = deps.agentRegistry?.getSnapshot().agents[overrideAgentId];
+									const availability = deps.agentService?.getAvailability(overrideAgentId);
+									reviewLaunch = {
+										...agentConfig,
+										execPath: availability?.resolvedPath ?? agentConfig?.execPath,
+										effortOptions: availability?.effortOptions ?? [],
+									};
+									const launchSpecJson = JSON.stringify(reviewLaunch);
 
 									pendingSubSnapshotInsert = () => {
 										deps.dispatchSnapshotsRepo?.insert({
@@ -1997,8 +2004,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		) {
 			try {
 				const dispatchInput: DispatchReviewRunInput = {
-					effortOptions: deps.agentService?.getAvailability(assignment.agentId)?.effortOptions,
+					effortOptions: reviewLaunch.effortOptions,
 					execPath:
+						reviewLaunch.execPath ??
 						deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
 						deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
 					implRun: {
@@ -2396,12 +2404,17 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						effortTier: prevReview.effort_tier as EffortTier | null,
 						...(prevReview.effort_vendor ? { effortVendor: prevReview.effort_vendor } : {}),
 					};
+					const previousSnapshot = deps.dispatchSnapshotsRepo?.findById(prevReview.snapshot_id);
+					const frozenLaunch: { execPath?: string; effortOptions?: readonly string[] } = JSON.parse(
+						previousSnapshot?.launch_spec_json ?? '{}',
+					);
 					const launchSpec = buildReviewLaunchSpec({
 						runId,
-						effortOptions: deps.agentService?.getAvailability(assignment.agentId)?.effortOptions,
+						effortOptions: frozenLaunch.effortOptions,
 						taskId,
 						worktreePath: prevReview.worktree_path ?? '',
 						execPath:
+							frozenLaunch.execPath ??
 							deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
 							deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
 						assignment,

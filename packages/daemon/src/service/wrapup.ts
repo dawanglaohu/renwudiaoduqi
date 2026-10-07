@@ -650,11 +650,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				const snapshot = deps.agentRegistry.getSnapshot();
 				const entry = snapshot.agents[assignment.agentId];
 				if (entry) {
+					const availability = deps.agentService?.getAvailability(assignment.agentId);
 					launchSpecJson = JSON.stringify({
 						...entry,
-						execPath:
-							deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
-							entry.execPath,
+						execPath: availability?.resolvedPath ?? entry.execPath,
+						effortOptions: availability?.effortOptions ?? [],
 					});
 				}
 			}
@@ -668,6 +668,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				agentId: assignment.agentId,
 				modelName: assignment.modelName,
 				effortTier: assignment.effortTier,
+				effortVendor: assignment.effortVendor ?? null,
 				source: assignment.source,
 				followedTaskId: assignment.followedTaskId,
 				capturedAt: now,
@@ -753,6 +754,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						agent_id: assignment.agentId,
 						model_name: assignment.modelName,
 						effort_tier: assignment.effortTier,
+						effort_vendor: assignment.effortVendor ?? null,
 						permission_tier: 'workspaceWrite',
 						snapshot_id: snapshotId,
 						worktree_path: worktreePath,

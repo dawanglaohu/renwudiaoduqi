@@ -486,6 +486,50 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it.each(['legacy-to-modern', 'modern-to-legacy'] as const)(
+		'keeps queued Claude executable and effort capability in one snapshot: %s',
+		async (change) => {
+			const legacy = change === 'legacy-to-modern';
+			const executable = legacy ? '/opt/frozen-legacy-claude' : '/opt/frozen-modern-claude';
+			const { container, getLatestProc } = setupTestEnvironment({
+				availableAgentIds: ['claude'],
+				claudeExecPath: executable,
+				claudeVersion: legacy ? '2.1.0 (Claude Code)' : '2.1.238 (Claude Code)',
+			});
+			const result = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'sonnet',
+				effort: legacy ? { tier: 'high' } : { vendor: 'max' },
+				idempotencyKey: change,
+			});
+			vi.spyOn(container.services.agents, 'getAvailability').mockReturnValue({
+				agentId: 'claude',
+				canDispatch: true,
+				isAvailable: true,
+				status: 'matched',
+				versionString: legacy ? '2.1.238 (Claude Code)' : '2.1.0 (Claude Code)',
+				effortOptions: legacy ? ['low', 'medium', 'high', 'xhigh', 'max'] : [],
+				resolvedPath: '/opt/changed-claude',
+				probedAt: new Date().toISOString(),
+				generation: 1,
+			});
+			try {
+				await container.services.dispatch.launchRun(result.run.id);
+				await vi.waitFor(() => expect(getLatestProc()).not.toBeNull());
+				const spec = getLatestProc()?.lastLaunchSpec;
+				expect(spec?.file).toBe(executable);
+				if (legacy) {
+					expect(spec?.args).not.toContain('--effort');
+					expect(spec?.envOverrides).toMatchObject({ MAX_THINKING_TOKENS: '32768' });
+				} else {
+					expect(spec?.args).toEqual(expect.arrayContaining(['--effort', 'max']));
+				}
+			} finally {
+				vi.restoreAllMocks();
+			}
+		},
+	);
 	it('uses the probed legacy Claude version in the production launch', async () => {
 		const { container, getLatestProc } = setupTestEnvironment({
 			availableAgentIds: ['claude'],

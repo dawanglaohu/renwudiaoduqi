@@ -485,58 +485,67 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		expect(batchDto.canWrapup).toBe(false);
 	});
 
-	it('AC 1 & E-283 & E-287: when branches merged into HEAD, tick triggers exactly one wrapup run following latest ended_at implementation run', async () => {
-		runsRepo.insert({
-			id: 'run-t1',
-			task_id: 'task-1',
-			attempt_no: 1,
-			kind: 'implement',
-			state: 'landed',
-			agent_id: 'codex',
-			model_name: 'gpt-5',
-			effort_tier: 'high',
-			permission_tier: 'workspaceWrite',
-			snapshot_id: 'snap-1',
-			branch_name: 'task/m1-t1',
-			ended_at: '2026-09-17T10:10:00.000Z',
-		});
+	it.each([null, 'max'])(
+		'AC 1 & E-283 & E-287: tick follows the latest implementation assignment with native effort %s',
+		async (effortVendor) => {
+			runsRepo.insert({
+				id: 'run-t1',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'codex',
+				model_name: 'gpt-5',
+				effort_tier: 'high',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				branch_name: 'task/m1-t1',
+				ended_at: '2026-09-17T10:10:00.000Z',
+			});
 
-		runsRepo.insert({
-			id: 'run-t2',
-			task_id: 'task-2',
-			attempt_no: 1,
-			kind: 'implement',
-			state: 'landed',
-			agent_id: 'claude',
-			model_name: 'claude-3-7-sonnet',
-			effort_tier: 'medium',
-			permission_tier: 'workspaceWrite',
-			snapshot_id: 'snap-2',
-			branch_name: 'task/m1-t2',
-			ended_at: '2026-09-17T10:20:00.000Z', // Ended later than run-t1
-		});
+			runsRepo.insert({
+				id: 'run-t2',
+				task_id: 'task-2',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'landed',
+				agent_id: 'claude',
+				model_name: 'claude-3-7-sonnet',
+				effort_tier: effortVendor ? null : 'medium',
+				effort_vendor: effortVendor,
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-2',
+				branch_name: 'task/m1-t2',
+				ended_at: '2026-09-17T10:20:00.000Z', // Ended later than run-t1
+			});
 
-		inHeadMockResult = { inHead: true, method: 'ancestor' };
-		const tickRes = await dispatchService.tick();
+			inHeadMockResult = { inHead: true, method: 'ancestor' };
+			const tickRes = await dispatchService.tick();
 
-		expect(tickRes.runsDispatched.length).toBe(1);
-		const wrapupRunId = tickRes.runsDispatched[0];
-		if (!wrapupRunId) throw new Error('wrapup run id missing');
-		const wrapupRun = runsRepo.findById(wrapupRunId);
+			expect(tickRes.runsDispatched.length).toBe(1);
+			const wrapupRunId = tickRes.runsDispatched[0];
+			if (!wrapupRunId) throw new Error('wrapup run id missing');
+			const wrapupRun = runsRepo.findById(wrapupRunId);
 
-		expect(wrapupRun).toBeDefined();
-		expect(wrapupRun?.kind).toBe('wrapup');
-		expect(wrapupRun?.task_id).toBeNull();
-		expect(wrapupRun?.permission_tier).toBe('workspaceWrite');
-		expect(wrapupRun?.state).toBe('queued');
-		// E-287: follows run-t2
-		expect(wrapupRun?.agent_id).toBe('claude');
-		expect(wrapupRun?.model_name).toBe('claude-3-7-sonnet');
-		expect(wrapupRun?.effort_tier).toBe('medium');
+			expect(wrapupRun).toBeDefined();
+			expect(wrapupRun?.kind).toBe('wrapup');
+			expect(wrapupRun?.task_id).toBeNull();
+			expect(wrapupRun?.permission_tier).toBe('workspaceWrite');
+			expect(wrapupRun?.state).toBe('queued');
+			// E-287: follows run-t2
+			expect(wrapupRun?.agent_id).toBe('claude');
+			expect(wrapupRun?.model_name).toBe('claude-3-7-sonnet');
+			expect(wrapupRun?.effort_tier).toBe(effortVendor ? null : 'medium');
+			expect(wrapupRun?.effort_vendor).toBe(effortVendor);
+			if (effortVendor && wrapupRun) {
+				const snapshot = dispatchSnapshotsRepo.findById(wrapupRun.snapshot_id);
+				expect(JSON.parse(snapshot?.assignment_json ?? '{}').effortVendor).toBe(effortVendor);
+			}
 
-		const batch = batchesRepo.findById('batch-1');
-		expect(batch?.state).toBe('wrapping');
-	});
+			const batch = batchesRepo.findById('batch-1');
+			expect(batch?.state).toBe('wrapping');
+		},
+	);
 
 	it('F1 (E-272 / E-283): a review run with a higher attempt_no must not hide the landed implementation run', async () => {
 		// 实施行 landed 且已进 HEAD；随后的审查行（attempt 2，停在 exited）与它共用 task_id

@@ -511,7 +511,6 @@ export function createContainer(input: {
 				buildClaudeLaunchSpec({
 					...(options as Parameters<typeof buildClaudeLaunchSpec>[0]),
 					model: options.model ?? undefined,
-					effortOptions: agentService.getAvailability('claude')?.effortOptions,
 				}),
 			mapEvents: (line: unknown) => mapClaudeEvents(line) as readonly EventEnvelopeInput[],
 			createEventMapper: () => {
@@ -933,6 +932,7 @@ export function createContainer(input: {
 						agentId,
 						canDispatch: availability?.canDispatch === true,
 						resolvedPath: availability?.resolvedPath,
+						effortOptions: availability?.effortOptions,
 						// Registry maxConcurrency is the per-agent limit the tick and the preview share (E-47).
 						concurrencyLimit: agentConfig.maxConcurrency,
 					};

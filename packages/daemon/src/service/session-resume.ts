@@ -159,6 +159,7 @@ export function createSessionResumeDispatcher(
 			const snapshot = deps.dispatchSnapshotsRepo?.findById(run.snapshot_id);
 			const frozenLaunch: {
 				readonly execPath?: string | null;
+				readonly effortOptions?: readonly string[];
 				readonly customArgs?: readonly string[];
 				readonly argsTemplate?: readonly string[];
 			} = JSON.parse(snapshot?.launch_spec_json ?? '{}');
@@ -166,6 +167,7 @@ export function createSessionResumeDispatcher(
 				runId: run.id,
 				cwd,
 				execPath: frozenLaunch.execPath ?? run.agent_id,
+				effortOptions: frozenLaunch.effortOptions,
 				customArgs: frozenLaunch.customArgs,
 				argsTemplate: frozenLaunch.argsTemplate,
 				model: run.model_name ?? null,

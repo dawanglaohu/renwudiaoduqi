@@ -12,14 +12,16 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check: exit 0; 245 test files, 3034 passed, 3 existing skips",
+    "after": "pnpm -w check: exit 0; 245 test files, 3037 passed, 3 existing skips",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
       "Codex app-server and exec argument generation",
       "Claude named effort and review inheritance",
       "Agent settings and pipeline HTTP persistence, unknown values rejected",
       "New model-advertised effort values accepted without hard-coding",
-      "DOM picker selection and preservation; pipeline vendor value cleared on agent change"
+      "DOM picker selection and preservation; pipeline vendor value cleared on agent change",
+      "Queued Claude launch retains both the frozen executable and its effort capability when current availability changes in either direction",
+      "Automatic wrapup preserves inherited native effort in its run row and assignment snapshot"
     ]
   },
   "realCliProbe": {
@@ -126,7 +128,11 @@
   ],
   "claudeCompatibility": {
     "regressionBefore": "4 legacy Claude launch/production dispatch tests fail on unknown --effort",
-    "capability": "Actual executable --help probe controls DTO options, validation and every Claude launch",
+    "capability": "Actual executable --help probe controls DTO options and validation; executable and capability are frozen together for launch, review, wrapup and session resume",
+    "snapshotRegressionBefore": "2 production dispatch tests fail when queued executable and current capability are mixed: legacy to modern and modern to legacy",
+    "snapshotRegressionAfter": "Both production dispatch regressions pass with frozen executable and capability",
+    "wrapupRegressionBefore": "Automatic wrapup created from a max implementation run loses native effort in the run row",
+    "wrapupRegressionAfter": "Automatic wrapup preserves max in effort_vendor and assignment_json",
     "live": {
       "version": "2.1.238 (Claude Code)",
       "canDispatch": true,
