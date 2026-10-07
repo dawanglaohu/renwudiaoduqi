@@ -17,8 +17,26 @@ interface EffortAgentConfig {
 	readonly effortVendorMap?: EffortVendorMap;
 }
 
-export function nativeEffortOptions(agentId: string, config: EffortAgentConfig): readonly string[] {
+/** Only advertise named levels explicitly listed by the detected Claude executable. */
+export function parseClaudeEffortOptions(help: string): readonly string[] {
+	const section = help.match(
+		/(?:^|\n)[ \t]*--effort(?:[ =]|\s)[\s\S]*?(?=\n[ \t]*--[a-z]|\nCommands:|$)/,
+	)?.[0];
+	if (!section) return [];
+	return (NATIVE_EFFORT_OPTIONS.claude ?? []).filter((level) =>
+		new RegExp(`\\b${level}\\b`).test(section),
+	);
+}
+
+export function nativeEffortOptions(
+	agentId: string,
+	config: EffortAgentConfig,
+	probedOptions?: readonly string[],
+): readonly string[] {
 	if (config.effortVendorMap === null || config.adapterKind === 'generic-acp') return [];
+	if (agentId === 'claude') {
+		return probedOptions ?? [];
+	}
 	return Object.hasOwn(NATIVE_EFFORT_OPTIONS, agentId)
 		? (NATIVE_EFFORT_OPTIONS[agentId] ?? [])
 		: [];
@@ -31,11 +49,12 @@ export function vendorEffortDomain(
 		readonly models: readonly Pick<ListAgentModelsResponse['models'][number], 'effortOptions'>[];
 		readonly currentConfig: Pick<ListAgentModelsResponse['currentConfig'], 'effort'>;
 	},
+	probedOptions?: readonly string[],
 ): readonly string[] {
 	if (config.effortVendorMap === null) return [];
 	const values = new Set([
 		...Object.values(config.effortVendorMap ?? {}),
-		...nativeEffortOptions(agentId, config),
+		...nativeEffortOptions(agentId, config, probedOptions),
 	]);
 	const current = catalog?.currentConfig.effort;
 	if (current && 'vendor' in current) values.add(current.vendor);

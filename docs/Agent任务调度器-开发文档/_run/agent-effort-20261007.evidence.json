@@ -12,7 +12,7 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check: exit 0; 245 test files, 3027 passed, 3 existing skips",
+    "after": "pnpm -w check: exit 0; 245 test files, 3034 passed, 3 existing skips",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
       "Codex app-server and exec argument generation",
@@ -123,5 +123,62 @@
     "Production Windows bootstrap refused its machine-level daemon.lock ACL; live browser verification remains pending. Lock and ACL policies unchanged.",
     "Claude, Pi and Grok help/version inspected; no paid model request used as acceptance evidence.",
     "CLI fallback levels are not a promise that every model or older CLI supports every level; model effortOptions take precedence in the picker."
-  ]
+  ],
+  "claudeCompatibility": {
+    "regressionBefore": "4 legacy Claude launch/production dispatch tests fail on unknown --effort",
+    "capability": "Actual executable --help probe controls DTO options, validation and every Claude launch",
+    "live": {
+      "version": "2.1.238 (Claude Code)",
+      "canDispatch": true,
+      "effortOptions": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "launchArgs": [
+        "--print",
+        "--output-format",
+        "stream-json",
+        "--input-format",
+        "stream-json",
+        "--verbose",
+        "--effort",
+        "max"
+      ],
+      "helpExitCode": 0,
+      "legacy": [
+        {
+          "version": "2.1.31",
+          "effortOptions": [],
+          "launchArgs": [
+            "--print",
+            "--output-format",
+            "stream-json",
+            "--input-format",
+            "stream-json",
+            "--verbose"
+          ],
+          "budget": "32768",
+          "helpExitCode": 0
+        },
+        {
+          "version": "2.1.32",
+          "effortOptions": [],
+          "launchArgs": [
+            "--print",
+            "--output-format",
+            "stream-json",
+            "--input-format",
+            "stream-json",
+            "--verbose"
+          ],
+          "budget": "32768",
+          "helpExitCode": 0
+        }
+      ],
+      "scope": "Production AgentService capability probe and generated argv accepted with --help; no model inference requested"
+    }
+  }
 }

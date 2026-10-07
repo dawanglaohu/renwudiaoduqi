@@ -302,6 +302,7 @@ function setupTestEnvironment(
 		readonly spawnThrow?: boolean;
 		readonly implPrompt?: string;
 		readonly claudeExecPath?: string;
+		readonly claudeVersion?: string;
 		readonly dshResolvedPath?: string;
 		readonly customSpawn?: typeof import('../../src/proc/spawn.ts').spawnManaged;
 		readonly baseSelector?: import('../../src/workspace/base-select.ts').BaseSelector;
@@ -387,6 +388,12 @@ function setupTestEnvironment(
 					canDispatch: true,
 					isReady: true,
 					status: 'ready',
+					versionString:
+						agentId === 'claude' ? (overrides.claudeVersion ?? '2.1.238 (Claude Code)') : '',
+					effortOptions:
+						agentId === 'claude' && overrides.claudeVersion !== '2.1.0 (Claude Code)'
+							? ['low', 'medium', 'high', 'xhigh', 'max']
+							: [],
 					resolvedPath: agentId === 'dsh' ? overrides.dshResolvedPath : undefined,
 				};
 			}
@@ -479,6 +486,25 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it('uses the probed legacy Claude version in the production launch', async () => {
+		const { container, getLatestProc } = setupTestEnvironment({
+			availableAgentIds: ['claude'],
+			claudeVersion: '2.1.0 (Claude Code)',
+		});
+		const result = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'claude',
+			model: 'sonnet',
+			effort: { tier: 'high' },
+			idempotencyKey: 'legacy-claude',
+		});
+		await container.services.dispatch.launchRun(result.run.id);
+		await vi.waitFor(() => expect(getLatestProc()).not.toBeNull());
+		expect(getLatestProc()?.lastLaunchSpec.args).not.toContain('--effort');
+		expect(getLatestProc()?.lastLaunchSpec.envOverrides).toMatchObject({
+			MAX_THINKING_TOKENS: '32768',
+		});
+	});
 	it.each([
 		['codex', 'ultra', 'model_reasoning_effort="ultra"'],
 		['claude', 'max', '--effort'],

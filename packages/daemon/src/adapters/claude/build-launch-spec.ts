@@ -1,5 +1,7 @@
+import { nativeEffortOptions } from '../../domain/agent-effort-options.ts';
 import {
 	type NativeEffortSelection,
+	isEffortTier,
 	resolveNativeEffortTransport,
 } from '../../domain/effort-tier.ts';
 import { type PermissionTier, resolvePermissionMapping } from '../../domain/permission-tier.ts';
@@ -41,6 +43,7 @@ export function cleanClaudeEnv(
 }
 
 export interface BuildClaudeLaunchSpecOptions extends NativeEffortSelection {
+	readonly effortOptions?: readonly string[];
 	readonly runId: string;
 	readonly execPath?: string;
 	readonly cwd: string;
@@ -137,7 +140,20 @@ export function buildClaudeLaunchSpec(options: BuildClaudeLaunchSpecOptions): La
 	}
 
 	// 4. Reasoning effort mapping
-	const effort = resolveNativeEffortTransport('claude', options);
+	let effort = resolveNativeEffortTransport('claude', options);
+	if (effort?.kind === 'argv') {
+		const available = nativeEffortOptions('claude', options, options.effortOptions);
+		if (available.length > 0) {
+			if (!available.includes(effort.value)) {
+				effort = null;
+			}
+		} else {
+			const budgets = { low: '2048', medium: '8192', high: '32768' };
+			effort = isEffortTier(effort.value)
+				? { kind: 'env', variables: { MAX_THINKING_TOKENS: budgets[effort.value] } }
+				: null;
+		}
+	}
 	if (effort?.kind === 'argv') args.push(...effort.args);
 
 	// 5. Session ID

@@ -172,11 +172,14 @@ describe(
 		let appServerSpawnCount = 0;
 		let forceAppServerTimeout = false;
 		let extraModelEffort: string | null = null;
+		let claudeHelp = '';
 		const spawnedRuns = new Set<string>();
 		const waitForSpawn = (runId: string) =>
 			vi.waitFor(() => expect(spawnedRuns.has(runId)).toBe(true), { timeout: 5000 });
 
 		beforeEach(async () => {
+			claudeHelp =
+				'  --effort <level>  Effort level (low, medium, high, xhigh, max)\n  --model <model>';
 			testDir = join(tmpdir(), `agents-models-login-${randomUUID()}`);
 			dbPath = join(testDir, 'test.db');
 			mkdirSync(testDir, { recursive: true });
@@ -283,10 +286,13 @@ model_reasoning_effort = "xhigh"
 			// Command runner for login probing and text-based model lists
 			const commandRunner = async (params: { file: string; args: readonly string[] }) => {
 				const joined = `${params.file} ${params.args.join(' ')}`;
+				if (joined.includes('claude') && params.args.includes('--help')) {
+					return { ok: true, exitCode: 0, stdout: claudeHelp, stderr: '' };
+				}
 				// Version probes (availability checks)
 				if (joined.includes('--version') || joined.includes('-v')) {
 					if (joined.includes('claude')) {
-						return { ok: true, exitCode: 0, stdout: '2.1.0 (Claude Code)\n', stderr: '' };
+						return { ok: true, exitCode: 0, stdout: '2.1.238 (Claude Code)\n', stderr: '' };
 					}
 					if (joined.includes('codex')) {
 						return { ok: true, exitCode: 0, stdout: 'codex 0.12.0\n', stderr: '' };
@@ -488,6 +494,30 @@ model_reasoning_effort = "xhigh"
 					rmSync(gitRepoDir, { recursive: true, force: true });
 				} catch {}
 			}
+		});
+
+		it('rejects unsupported Claude native levels after probing its actual executable', async () => {
+			claudeHelp = '  --model <model>  Model\n';
+			await container.services.agents.probeAgent('claude', { force: true });
+			const headers = { authorization: authToken };
+			const agents = (
+				await server.instance.inject({ method: 'GET', url: '/api/v1/agents', headers })
+			).json<ListAgentsResponse>().agents;
+			expect(agents.find((agent) => agent.id === 'claude')?.effortOptions).toEqual([]);
+			const response = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/agents/claude',
+				headers,
+				payload: { defaultEffortTier: { vendor: 'max' } },
+			});
+			expect(response.statusCode).toBe(400);
+			const tier = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/agents/claude',
+				headers,
+				payload: { defaultEffortTier: { tier: 'high' } },
+			});
+			expect(tier.statusCode).toBe(200);
 		});
 
 		it('exposes and saves native effort levels through agent and pipeline HTTP settings', async () => {

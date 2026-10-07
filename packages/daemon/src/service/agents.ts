@@ -40,7 +40,11 @@ import {
 import { BUILT_IN_AGENT_IDS, type ResolvedAgentConfig } from '../config/defaults.ts';
 import type { AgentRegistry, AgentRegistryFileSystem } from '../config/registry.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
-import { nativeEffortOptions, vendorEffortDomain } from '../domain/agent-effort-options.ts';
+import {
+	nativeEffortOptions,
+	parseClaudeEffortOptions,
+	vendorEffortDomain,
+} from '../domain/agent-effort-options.ts';
 import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
 import { mergeModelSources } from '../domain/model-catalog.ts';
 import { isPermissionTier } from '../domain/permission-tier.ts';
@@ -60,6 +64,7 @@ export interface AgentAvailabilityState {
 	readonly canDispatch: boolean;
 	readonly status: AgentAvailabilityStatus;
 	readonly versionString: string;
+	readonly effortOptions?: readonly string[];
 	readonly resolvedPath?: string;
 	readonly unavailableReason?: string;
 	readonly unavailableCode?: string;
@@ -383,7 +388,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			defaultEffortTier: effectiveEffort,
 			layers,
 			effortVendorMap: config.effortVendorMap,
-			effortOptions: nativeEffortOptions(agentId, config),
+			effortOptions: nativeEffortOptions(agentId, config, state?.effortOptions),
 			builtinModels: config.builtinModels,
 			maxConcurrency: config.maxConcurrency,
 			permissionTier: config.permissionTier,
@@ -642,12 +647,44 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			missingRequirements.push('Native path format for current platform');
 		}
 
+		let effortOptions: readonly string[] | undefined;
+		if (agentId === BUILT_IN_AGENT_IDS.CLAUDE && canDispatch) {
+			effortOptions = [];
+			try {
+				const resolved = await resolveExecutable(
+					{
+						hostInputs: deps.hostInputs,
+						executableName: config.execPath,
+						configuredPath: probeResult.resolvedPath ?? config.execPath,
+					},
+					deps.fileSystem,
+				);
+				const launch = resolved.ok ? buildProbeLaunch(resolved.executable, ['--help']) : null;
+				if (launch) {
+					const help = await executeProbeProcess({
+						...launch,
+						cwd: deps.hostInputs.homedir,
+						timeoutMs: 5000,
+						platform: deps.hostInputs.platform,
+						commandRunner: deps.commandRunner,
+						spawnManagedFn: deps.spawnManagedFn,
+						agentId,
+						env: deps.env,
+					});
+					if (help.ok && help.exitCode === 0) effortOptions = parseClaudeEffortOptions(help.stdout);
+				}
+			} catch {
+				// A failed capability probe preserves legacy transport without disabling Claude (E-88).
+			}
+		}
+
 		const state: AgentAvailabilityState = Object.freeze({
 			agentId,
 			isAvailable,
 			canDispatch,
 			status: probeResult.status,
 			versionString: probeResult.versionString,
+			effortOptions,
 			resolvedPath: probeResult.resolvedPath,
 			unavailableReason,
 			unavailableCode,
@@ -1097,7 +1134,11 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				config.effortVendorMap !== null && Object.values(config.effortVendorMap).includes(vendor);
 			const inLiveOptions = liveResult.models.some((m) => m.effortOptions?.includes(vendor));
 			effortRecognized =
-				inVendorMap || inLiveOptions || nativeEffortOptions(agentId, config).includes(vendor);
+				inVendorMap ||
+				inLiveOptions ||
+				nativeEffortOptions(agentId, config, getAvailability(agentId)?.effortOptions).includes(
+					vendor,
+				);
 		}
 
 		// Get history models (Criterion 4, E-340)
@@ -1316,10 +1357,15 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	function getVendorEffortDomain(agentId: string): readonly string[] {
 		const config = deps.registry.getSnapshot().agents[agentId];
 		if (!config) return [];
-		return vendorEffortDomain(agentId, config, {
-			models: liveCache.get(agentId)?.result.models ?? [],
-			currentConfig: { effort: configCache.get(agentId)?.currentConfigEffort ?? null },
-		});
+		return vendorEffortDomain(
+			agentId,
+			config,
+			{
+				models: liveCache.get(agentId)?.result.models ?? [],
+				currentConfig: { effort: configCache.get(agentId)?.currentConfigEffort ?? null },
+			},
+			getAvailability(agentId)?.effortOptions,
+		);
 	}
 
 	return Object.freeze({

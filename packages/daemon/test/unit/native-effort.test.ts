@@ -3,6 +3,10 @@ import { buildClaudeLaunchSpec } from '../../src/adapters/claude/build-launch-sp
 import { buildCodexLaunchSpec } from '../../src/adapters/codex/build-launch-spec.ts';
 import { buildGrokLaunchSpec } from '../../src/adapters/grok/build-launch-spec.ts';
 import { buildPiLaunchSpec } from '../../src/adapters/pi/build-launch-spec.ts';
+import {
+	nativeEffortOptions,
+	parseClaudeEffortOptions,
+} from '../../src/domain/agent-effort-options.ts';
 import { resolveAssignment } from '../../src/domain/assignment.ts';
 import {
 	isValidReviewOverride,
@@ -33,7 +37,11 @@ describe('native reasoning effort reaches the CLI', () => {
 	});
 
 	it('uses Claude named effort for a tier and a native level', () => {
-		const base = { runId: 'effort', cwd: '/workspace' };
+		const base = {
+			runId: 'effort',
+			cwd: '/workspace',
+			effortOptions: ['low', 'medium', 'high', 'xhigh', 'max'],
+		};
 		expect(buildClaudeLaunchSpec({ ...base, effortTier: 'high' }).args).toEqual(
 			expect.arrayContaining(['--effort', 'high']),
 		);
@@ -41,6 +49,72 @@ describe('native reasoning effort reaches the CLI', () => {
 		expect(buildClaudeLaunchSpec(options).args).toEqual(
 			expect.arrayContaining(['--effort', 'max']),
 		);
+	});
+
+	it.each([[], undefined])(
+		'preserves legacy Claude budgets without named capability %s',
+		(effortOptions) => {
+			const spec = buildClaudeLaunchSpec({
+				runId: 'legacy',
+				cwd: '/workspace',
+				effortTier: 'high',
+				effortOptions,
+			});
+			expect(spec.args).not.toContain('--effort');
+			expect(spec.envOverrides).toMatchObject({ MAX_THINKING_TOKENS: '32768' });
+			const native = buildClaudeLaunchSpec({
+				runId: 'legacy',
+				cwd: '/workspace',
+				effortVendor: 'max',
+				effortOptions,
+			});
+			expect(native.args).not.toContain('--effort');
+			expect(native.envOverrides).not.toHaveProperty('MAX_THINKING_TOKENS');
+			expect(
+				nativeEffortOptions(
+					'claude',
+					{ effortVendorMap: { low: 'low', medium: 'medium', high: 'high' } },
+					effortOptions,
+				),
+			).toEqual([]);
+		},
+	);
+
+	it('passes detected Claude capability to the review launch', () => {
+		const spec = buildReviewLaunchSpec({
+			runId: 'legacy-review',
+			taskId: 'task-1',
+			worktreePath: '/workspace',
+			effortOptions: [],
+			assignment: { agentId: 'claude', modelName: 'sonnet', effortTier: 'medium' },
+			prompt: 'Review',
+		});
+		expect(spec.args).not.toContain('--effort');
+		expect(spec.envOverrides).toMatchObject({ MAX_THINKING_TOKENS: '8192' });
+	});
+
+	it('uses the probed Claude executable and native options for a modern review', () => {
+		const spec = buildReviewLaunchSpec({
+			runId: 'native-review',
+			taskId: 'task-1',
+			worktreePath: '/workspace',
+			execPath: '/opt/custom-claude',
+			effortOptions: ['low', 'medium', 'high', 'xhigh', 'max'],
+			assignment: { agentId: 'claude', modelName: 'opus', effortTier: null, effortVendor: 'max' },
+			prompt: 'Review',
+		});
+		expect(spec.file).toBe('/opt/custom-claude');
+		expect(spec.args).toEqual(expect.arrayContaining(['--effort', 'max']));
+	});
+
+	it('reads only Claude effort choices advertised by its help flag', () => {
+		expect(
+			parseClaudeEffortOptions(
+				'  --effort <level>  Effort for this session\n                      (low, medium, high, max)\n  --model <model>  Model',
+			),
+		).toEqual(['low', 'medium', 'high', 'max']);
+		expect(parseClaudeEffortOptions('  --model <model>  Use max effort')).toEqual([]);
+		expect(parseClaudeEffortOptions('  --effort <level>  Effort for this session')).toEqual([]);
 	});
 
 	it('passes Grok xhigh and Pi off without replacing them with a three-level tier', () => {
