@@ -88,7 +88,7 @@ export function LandingPage(props: LandingPageProps) {
 			</header>
 
 			{/* 主内容区：批次级清单与任务级清单都由 LandingContainer 取数并拼装 */}
-			<main className="flex-1 p-4 sm:p-6 max-w-4xl mx-auto w-full flex flex-col gap-6">
+			<main className="flex-1 min-w-0 p-[var(--sp-4)] w-full flex flex-col gap-[var(--sp-3)]">
 				<LandingContainer
 					taskId={taskId}
 					initialData={initialData}

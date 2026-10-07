@@ -117,8 +117,8 @@ export function ConnectFailedScreen({
 			data-testid="connect-failed-screen"
 			className="flex min-h-screen flex-col bg-page text-ink-1 font-ui"
 		>
-			<main className="flex flex-1 items-center justify-center p-6">
-				<div className="w-full max-w-[520px] flex flex-col gap-4 rounded-[var(--r)] border border-border bg-bg p-6">
+			<main className="flex flex-1 items-center justify-center p-6 min-[768px]:p-[var(--sp-4)]">
+				<div className="min-w-0 w-full max-w-[520px] flex flex-col gap-4 min-[768px]:gap-[var(--sp-3)] rounded-[var(--r)] border border-border bg-bg p-6 min-[768px]:p-3.5">
 					<h1 className="m-0 text-lead font-semibold text-needs">{SERVICE_NOT_RUNNING_TITLE}</h1>
 					<p className="m-0 text-body text-ink-2">{getErrorMessage(code)}</p>
 

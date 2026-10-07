@@ -1,4 +1,5 @@
 import type { EventKind } from '@agent-scheduler/shared/api/events';
+import { ClaudePartialContent } from './partial-content.ts';
 
 export interface EventEnvelopeInput {
 	readonly kind: EventKind;
@@ -16,6 +17,7 @@ export interface ClaudeEventMapperState {
 	unmappedEventCount?: number;
 	runId?: string | null;
 	taskId?: string | null;
+	partialContent?: ClaudePartialContent;
 }
 
 export interface ClaudeMapEventsResult {
@@ -155,6 +157,7 @@ export function mapClaudeEventLine(
 
 	const rawType = typeof parsed.type === 'string' ? parsed.type.trim() : '';
 	const rawSubtype = typeof parsed.subtype === 'string' ? parsed.subtype.trim() : '';
+	state?.partialContent?.observe(parsed);
 
 	// --- 1. Check for First Frame / System Init (AC 2 & E-37) ---
 	const isInitFrame =
@@ -250,7 +253,8 @@ export function mapClaudeEventLine(
 			const block = ev.content_block as Record<string, unknown>;
 			const blockType = typeof block.type === 'string' ? block.type.trim() : '';
 
-			if (blockType === 'tool_use') {
+			// Partial tool input is incomplete; the complete assistant block owns the call.
+			if (blockType === 'tool_use' && !state?.partialContent) {
 				events.push(
 					Object.freeze({
 						kind: 'tool_call',
@@ -457,7 +461,7 @@ export function mapClaudeEventLine(
 		} else if (!message || !Array.isArray(message.content)) {
 			unmappedCount++;
 		} else {
-			for (const value of message.content) {
+			for (const [index, value] of message.content.entries()) {
 				if (!value || typeof value !== 'object') {
 					unmappedCount++;
 					continue;
@@ -466,17 +470,23 @@ export function mapClaudeEventLine(
 				let kind: EventKind;
 				let payload: Record<string, unknown>;
 				if (rawType === 'assistant' && block.type === 'text' && typeof block.text === 'string') {
-					if (!block.text) continue;
+					const chunk =
+						state?.partialContent?.remaining(parsed, message, index, 'text', block.text) ??
+						block.text;
+					if (!chunk) continue;
 					kind = 'agent_message_chunk';
-					payload = { chunk: block.text };
+					payload = { chunk };
 				} else if (
 					rawType === 'assistant' &&
 					block.type === 'thinking' &&
 					typeof block.thinking === 'string'
 				) {
-					if (!block.thinking) continue;
+					const chunk =
+						state?.partialContent?.remaining(parsed, message, index, 'thinking', block.thinking) ??
+						block.thinking;
+					if (!chunk) continue;
 					kind = 'agent_thought_chunk';
-					payload = { chunk: block.thinking };
+					payload = { chunk };
 				} else if (
 					rawType === 'assistant' &&
 					block.type === 'tool_use' &&
@@ -568,6 +578,7 @@ export function createClaudeEventMapper(options: ClaudeEventMapperOptions = {}):
 		actualModel: null,
 		modelMismatch: false,
 		unmappedEventCount: 0,
+		partialContent: new ClaudePartialContent(),
 	};
 
 	function mapLine(line: unknown): ClaudeMapEventsResult {
@@ -591,6 +602,7 @@ export function createClaudeEventMapper(options: ClaudeEventMapperOptions = {}):
 		state.actualModel = null;
 		state.modelMismatch = false;
 		state.unmappedEventCount = 0;
+		state.partialContent?.reset();
 	}
 
 	return Object.freeze({

@@ -116,10 +116,11 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 				}),
 			);
 
-			// 网格布局包含 auto-fill 与 min 260px
-			expect(html).toContain(
-				'grid-cols-[repeat(auto-fill,minmax(var(--stream-min-dense,260px),1fr))]',
+			// 网格布局包含 auto-fill 与 min 260px (由 deck-grid 提供)
+			expect(html).toMatch(
+				/grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(var\(--stream-min-dense\),\s*1fr\)\)/,
 			);
+			expect(html).toContain('grid gap-3 p-4');
 			// 8 条流全部渲染在 DOM 中
 			for (let i = 1; i <= 8; i++) {
 				expect(html).toContain(`data-lane-no="${i}"`);
@@ -447,34 +448,41 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 			vi.unstubAllGlobals();
 		});
 
-		it('RunDeckView renders 3-column grid for <= 3 streams without horizontal overflow in full tier', () => {
-			const lanes: DeckStreamLane[] = [
-				{ laneNo: 1, taskKey: 'M9-T1', title: '任务 1', status: 'succeeded' },
-				{ laneNo: 2, taskKey: 'M9-T2', title: '任务 2', status: 'streaming' },
-				{ laneNo: 3, taskKey: 'M9-T3', title: '任务 3', status: 'queued' },
-			];
+		it.each([1, 2, 3])(
+			'RunDeckView allocates exactly %i full-tier columns without empty tracks',
+			(count) => {
+				const lanes: DeckStreamLane[] = [
+					{ laneNo: 1, taskKey: 'M9-T1', title: '任务 1', status: 'succeeded' },
+					{ laneNo: 2, taskKey: 'M9-T2', title: '任务 2', status: 'streaming' },
+					{ laneNo: 3, taskKey: 'M9-T3', title: '任务 3', status: 'queued' },
+				].slice(0, count);
 
-			const html = renderToStaticMarkup(
-				createElement(RunDeckView, {
-					lanes,
-					tier: 'full',
-					isTouch: false,
-					width: 1440,
-					expandedLaneNo: null,
-					toggleExpandLane: () => {},
-					stoppingLanes: new Set<number>(),
-					handleStopLane: async () => {},
-					userPreference: 'full',
-					togglePreference: () => {},
-					scrollContainerRef: { current: null },
-					offScreenWaiting: { left: 0, right: 0 },
-					scrollToLane: () => {},
-				}),
-			);
+				const html = renderToStaticMarkup(
+					createElement(RunDeckView, {
+						lanes,
+						tier: 'full',
+						isTouch: false,
+						width: 1440,
+						expandedLaneNo: null,
+						toggleExpandLane: () => {},
+						stoppingLanes: new Set<number>(),
+						handleStopLane: async () => {},
+						userPreference: 'full',
+						togglePreference: () => {},
+						scrollContainerRef: { current: null },
+						offScreenWaiting: { left: 0, right: 0 },
+						scrollToLane: () => {},
+					}),
+				);
 
-			// 采用网格并列排布
-			expect(html).toContain('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4');
-		});
+				// 采用网格并列排布
+				expect(html).toContain('grid gap-3 p-4');
+				expect(html).toContain(
+					`grid-template-columns:repeat(${count}, minmax(var(--stream-min), 1fr))`,
+				);
+				expect(html.match(/data-lane-deck-slot=/g)).toHaveLength(count);
+			},
+		);
 	});
 
 	// ─────────────────────────────────────────────────────────────────────────────
@@ -568,8 +576,9 @@ describe('M9-T9: Multi-stream deck and density tiers (AC 1-12, E-106, E-163..E-1
 				}),
 			);
 
-			// 单列垂直列表
-			expect(html).toContain('flex flex-col gap-4 p-4 overflow-y-auto flex-1 w-full');
+			// 单列垂直列表（窄窗单列吃满，不设 max-width、不居中，E-168）
+			expect(html).toContain('grid gap-3 p-3 overflow-y-auto flex-1 w-full h-full');
+			expect(html).toMatch(/grid-template-columns:\s*1fr/);
 			// 不包含手机切换栏
 			expect(html).not.toContain('data-mobile-switcher="true"');
 		});

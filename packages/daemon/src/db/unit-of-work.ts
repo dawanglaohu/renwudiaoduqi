@@ -6,7 +6,14 @@ export interface UnitOfWork {
 	readonly run: <Result>(work: () => Result) => Result;
 }
 
-export function createUnitOfWork(database: DatabaseConnection): UnitOfWork {
+export interface TransactionLifecycle {
+	readonly begin: () => { readonly commit: () => void; readonly rollback: () => void };
+}
+
+export function createUnitOfWork(
+	database: DatabaseConnection,
+	lifecycle?: TransactionLifecycle,
+): UnitOfWork {
 	let depth = 0;
 
 	return Object.freeze({
@@ -24,11 +31,16 @@ export function createUnitOfWork(database: DatabaseConnection): UnitOfWork {
 				}
 			});
 
+			const scope = lifecycle?.begin();
+			let result: Result;
 			try {
-				return transaction.immediate();
+				result = transaction.immediate();
 			} catch (cause) {
+				scope?.rollback();
 				throw toDatabaseError(cause, 'Failed to execute SQLite transaction.');
 			}
+			scope?.commit();
+			return result;
 		},
 	});
 }

@@ -116,7 +116,7 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 					newGates,
 					previousGates,
 					actorDeviceId,
-				) ?? [],
+				) ?? { events: [] },
 		});
 
 		const gateService = createGateService({
@@ -247,7 +247,7 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 			bus.subscribe((e) => events.push(e));
 
 			// Configure auto presets
-			settingsService.updateGates(PRESET_AUTO, 'dev-desktop');
+			await settingsService.updateGates(PRESET_AUTO, 'dev-desktop');
 
 			const res = await gateService.resolveAfterReviewAndApply({
 				taskId: 'task-1',
@@ -298,7 +298,7 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 			const { gateService, settingsService, gatesRepo, tasksRepo } = createHarness();
 
 			// Configure review: manual, landing: auto
-			settingsService.updateGates(
+			await settingsService.updateGates(
 				{ dispatch: 'auto', review: 'manual', landing: 'auto' },
 				'dev-desktop',
 			);
@@ -334,7 +334,7 @@ describe('M8-T4 Three Gates and Preset Combinations (AC 1-6, E-05, E-53, E-54, E
 		});
 		it('human review pass preserves a manual landing gate', async () => {
 			const { gateService, settingsService, gatesRepo, tasksRepo } = createHarness();
-			settingsService.updateGates(
+			await settingsService.updateGates(
 				{ dispatch: 'auto', review: 'manual', landing: 'manual' },
 				'dev-desktop',
 			);

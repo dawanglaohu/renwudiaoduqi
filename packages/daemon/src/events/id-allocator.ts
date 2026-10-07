@@ -35,11 +35,15 @@ export function createIdAllocator(deps: IdAllocatorDeps): IdAllocator {
 	}
 
 	function allocate(): number {
-		if (nextAllocatableId > watermarkLimit) {
-			const newWatermark = watermarkLimit + WATERMARK_BATCH_SIZE;
-			store.setWatermark(GLOBAL_EVENT_SEQUENCE_NAME, newWatermark);
-			watermarkLimit = newWatermark;
+		const requiredWatermark =
+			nextAllocatableId > watermarkLimit ? watermarkLimit + WATERMARK_BATCH_SIZE : watermarkLimit;
+		// A business transaction can roll back the persisted reservation while this
+		// allocator retains its issued IDs. Repair durability before issuing another.
+		const persistedWatermark = store.getWatermark(GLOBAL_EVENT_SEQUENCE_NAME);
+		if (persistedWatermark === null || persistedWatermark < requiredWatermark) {
+			store.setWatermark(GLOBAL_EVENT_SEQUENCE_NAME, requiredWatermark);
 		}
+		watermarkLimit = requiredWatermark;
 
 		const id = nextAllocatableId;
 		nextAllocatableId += 1;

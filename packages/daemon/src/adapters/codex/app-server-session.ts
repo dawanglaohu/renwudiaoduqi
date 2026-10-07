@@ -1,5 +1,6 @@
 import { AppError } from '../../errors/app-error.ts';
 import type { ManagedProcess } from '../../proc/spawn.ts';
+import { DEFAULT_STARTUP_TIMEOUT_MS_NATIVE } from '../../proc/timers.ts';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -31,7 +32,7 @@ export interface CodexSessionRegistry {
 	get(runId: string): CodexAppServerSession | undefined;
 }
 
-const STARTUP_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 const APPROVAL_TIMEOUT_MS = 10_000;
 const APPROVAL_METHODS = new Set([
 	'item/commandExecution/requestApproval',
@@ -99,15 +100,21 @@ export function createCodexSessionRegistry(): CodexSessionRegistry {
 				}
 			}
 
-			async function request(method: string, params: JsonRecord): Promise<JsonRecord> {
+			async function request(
+				method: string,
+				params: JsonRecord,
+				timeoutMs = REQUEST_TIMEOUT_MS,
+			): Promise<JsonRecord> {
 				const id = nextId++;
 				let timer: ReturnType<typeof setTimeout> | undefined;
 				const reply = new Promise<JsonRecord>((resolve, reject) => {
 					replies.set(id, { resolve, reject });
-					timer = setTimeout(() => {
-						replies.delete(id);
-						reject(protocolError(`Codex ${method} timed out.`, runId));
-					}, STARTUP_TIMEOUT_MS);
+					if (timeoutMs > 0) {
+						timer = setTimeout(() => {
+							replies.delete(id);
+							reject(protocolError(`Codex ${method} timed out.`, runId));
+						}, timeoutMs);
+					}
 				});
 				try {
 					await write({ id, method, params });
@@ -184,11 +191,23 @@ export function createCodexSessionRegistry(): CodexSessionRegistry {
 					readonly model?: string | null;
 					readonly sandbox: 'read-only' | 'workspace-write' | 'danger-full-access';
 				}) {
-					await request('initialize', {
+					// All startup requests share the native process budget; a slow initialize
+					// must not be killed by the shorter deadline used for an established turn.
+					const startupTimeoutMs =
+						process.timers?.startupTimeoutMs ?? DEFAULT_STARTUP_TIMEOUT_MS_NATIVE;
+					const startupDeadline = startupTimeoutMs > 0 ? Date.now() + startupTimeoutMs : null;
+					const startupRequest = (method: string, params: JsonRecord) => {
+						const remaining = startupDeadline === null ? 0 : startupDeadline - Date.now();
+						if (startupDeadline !== null && remaining <= 0) {
+							throw protocolError(`Codex ${method} timed out.`, runId);
+						}
+						return request(method, params, remaining);
+					};
+					await startupRequest('initialize', {
 						clientInfo: { name: 'agent_scheduler', title: 'Agent Scheduler', version: '0.1.0' },
 					});
 					await write({ method: 'initialized', params: {} });
-					const started = await request('thread/start', {
+					const started = await startupRequest('thread/start', {
 						cwd: process.cwd,
 						approvalPolicy: 'on-request',
 						sandbox: input.sandbox,
@@ -198,7 +217,7 @@ export function createCodexSessionRegistry(): CodexSessionRegistry {
 					if (typeof thread?.id !== 'string')
 						throw protocolError('Codex did not return a thread ID.', runId);
 					threadId = thread.id;
-					const turnStarted = await request('turn/start', {
+					const turnStarted = await startupRequest('turn/start', {
 						threadId,
 						cwd: process.cwd,
 						input: [{ type: 'text', text: input.prompt }],

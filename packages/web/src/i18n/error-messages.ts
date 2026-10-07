@@ -64,6 +64,25 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = Object.freeze
 	E_INTERNAL: '调度服务发生未预期的内部错误',
 });
 
+const SETTINGS_AGENT_ERROR_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
+	E_VALIDATION: '输入参数校验失败，请检查修改后重试',
+	E_NOT_FOUND: '未找到对应配置项',
+	E_UNAUTHORIZED: '设备未授权，请先完成配对',
+	E_DEVICE_REVOKED: '设备已被吊销',
+	E_INTERNAL: '服务内部异常，请稍后重试',
+	E_AGENT_UNAVAILABLE: '当前 Agent 不可用',
+	E_AGENT_VERSION_UNRECOGNIZED: 'Agent 版本未识别',
+});
+
+/** 设置字段保留原有就地提示；未识别的错误码使用该操作的回落句。 */
+export function getSettingsAgentErrorMessage(code: string, fallback: string): string {
+	return SETTINGS_AGENT_ERROR_MESSAGES[code] ?? fallback;
+}
+
+export function getPipelineStageDisabledMessage(stageName: string): string {
+	return `${ERROR_MESSAGES.E_PIPELINE_STAGE_DISABLED}（${stageName}）`;
+}
+
 /**
  * 将错误码翻译为中文文案（缺键回落显示原始 code）。
  */

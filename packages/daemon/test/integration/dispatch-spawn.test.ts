@@ -468,7 +468,7 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
-	it.each(['success', 'empty', 'input-error'] as const)(
+	it.each(['success', 'partial', 'empty', 'input-error'] as const)(
 		'R8-T57073674: production stdin and event lifecycle (%s)',
 		async (scenario) => {
 			const child = Object.assign(new EventEmitter(), {
@@ -529,7 +529,7 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 			child.emit('spawn');
 			expect(writes).toHaveLength(1);
 			expect(JSON.parse(writes[0] ?? '').message.content[0].text).toBe(prompt);
-			if (scenario === 'success') {
+			if (scenario === 'success' || scenario === 'partial') {
 				const reply = await container.services.message.sendMessage({
 					runId: created.run.id,
 					text: '继续\n"reply"',
@@ -538,26 +538,46 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 				expect(reply.delivered).toBe(true);
 				expect(writes).toHaveLength(2);
 				expect(JSON.parse(writes[1] ?? '').message.content[0].text).toBe('继续\n"reply"');
-				for (const line of readClaudeRecording('claude-2-1-283-success.stdout.ndjson'))
+				for (const line of readClaudeRecording(
+					scenario === 'partial'
+						? 'claude-2-1-238-local-multiblock.stdout.ndjson'
+						: 'claude-2-1-283-success.stdout.ndjson',
+				))
 					child.stdout.write(`${line}\n`);
+				if (scenario === 'partial') child.stdout.write('{"type":"result","subtype":"success"}\n');
 			} else if (scenario === 'empty') {
 				child.stdout.write('{"type":"result","subtype":"success"}\n');
 			} else {
 				child.stdin.emit('error', new Error('EPIPE'));
 			}
 			await vi.waitFor(() => expect(events.some((e) => e.kind === 'run.exited')).toBe(true));
-			if (scenario === 'success') {
+			if (scenario === 'success' || scenario === 'partial') {
 				expect(child.stdin.writableEnded).toBe(true);
 				await vi.waitFor(() => expect(getMechanicalCheckCalls()).toBe(1));
 				expect(container.repos.runs.findById(created.run.id)?.state).toBe('exited');
-				expect(
-					events.some(
-						(e) =>
-							e.kind === 'agent_message_chunk' &&
-							String((e.payload as { chunk?: string }).chunk).includes('CLAUDE_STREAM_OK'),
-					),
-				).toBe(true);
-				expect(events.some((e) => e.kind === 'tool_call')).toBe(true);
+				if (scenario === 'partial') {
+					expect(
+						events
+							.filter((e) => e.kind === 'agent_message_chunk')
+							.map((e) => (e.payload as { chunk: string }).chunk)
+							.join(''),
+					).toBe('HelloWorld');
+					expect(
+						events
+							.filter((e) => e.kind === 'agent_thought_chunk')
+							.map((e) => (e.payload as { chunk: string }).chunk)
+							.join(''),
+					).toBe('Plan');
+				} else {
+					expect(
+						events.some(
+							(e) =>
+								e.kind === 'agent_message_chunk' &&
+								String((e.payload as { chunk?: string }).chunk).includes('CLAUDE_STREAM_OK'),
+						),
+					).toBe(true);
+					expect(events.some((e) => e.kind === 'tool_call')).toBe(true);
+				}
 				expect(container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review')).toBeNull();
 			} else {
 				await vi.waitFor(() =>
@@ -571,6 +591,13 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 				.map((line) => JSON.parse(line) as EventEnvelope);
 			expect(saved.some((e) => e.kind === 'run.exited')).toBe(true);
 			expect(saved.some((e) => e.kind === 'tool_call')).toBe(scenario === 'success');
+			if (scenario === 'partial')
+				expect(
+					saved
+						.filter((e) => e.kind === 'agent_message_chunk')
+						.map((e) => (e.payload as { chunk: string }).chunk)
+						.join(''),
+				).toBe('HelloWorld');
 		},
 	);
 	it('AC 1 & E-42 & E-70: POST /api/v1/runs spawns managed process, validates LaunchSpec, sets pid, emits run.state_changed', async () => {
@@ -895,6 +922,9 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(latestProc).not.toBeNull();
 		const activeRuns = container.repos.runs.listActive();
 		expect(activeRuns.some((r) => r.pid === 88888 && r.state === 'running')).toBe(true);
+		for (const runId of tickResult.runsDispatched) {
+			expect(container.repos.runs.findById(runId)?.batch_id).toBe('batch-1');
+		}
 	});
 
 	it('R1: real proc wiring: missing platform throws; bound container proc passes shell: false to spawn options', async () => {
@@ -926,6 +956,14 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const { tempDir, db, clock } = setupTestEnvironment();
 
 		const realContainer = createContainer({
+			agentRegistry: createAgentRegistry({
+				dataDir: tempDir,
+				platform: 'posix',
+				builtInDefaults: {},
+				publishWarning: (warning) => {
+					throw new Error(warning.message);
+				},
+			}),
 			config: createTestConfig(tempDir),
 			database: db,
 			hostInputs: { platform: 'linux', homedir: tempDir },
@@ -933,9 +971,14 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 			instanceLock: dummyLockHandle,
 			clock,
 		});
-		realContainer.proc.spawnManaged(dummySpec, { spawnFn: fakeSpawnFn });
-
-		expect(capturedSpawnOptions).toEqual(expect.objectContaining({ shell: false }));
+		await realContainer.services.agents.start();
+		const managed = realContainer.proc.spawnManaged(dummySpec, { spawnFn: fakeSpawnFn });
+		try {
+			expect(capturedSpawnOptions).toEqual(expect.objectContaining({ shell: false }));
+		} finally {
+			await managed.finalize();
+			await realContainer.services.agents.stop();
+		}
 	});
 
 	it('R2: upstream output not in HEAD without explicit upstreamBranch throws E_UPSTREAM_BASE_MISSING, explains "下游 base 缺上游产出", does not create worktree', async () => {

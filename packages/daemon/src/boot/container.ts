@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { buildClaudeLaunchSpec } from '../adapters/claude/build-launch-spec.ts';
-import { mapEvents as mapClaudeEvents } from '../adapters/claude/map-events.ts';
+import {
+	createClaudeEventMapper,
+	mapEvents as mapClaudeEvents,
+} from '../adapters/claude/map-events.ts';
 import {
 	type CodexSessionRegistry,
 	createCodexSessionRegistry,
@@ -21,9 +24,11 @@ import { type AgentRegistry, createAgentRegistry } from '../config/registry.ts';
 import type { DatabaseConnection } from '../db/open-database.ts';
 import { createUnitOfWork } from '../db/unit-of-work.ts';
 import { AppError } from '../errors/app-error.ts';
+import { createBackgroundPublisher } from '../events/background-publisher.ts';
 import { type EventBus, createEventBus } from '../events/bus.ts';
 import { type EnvelopeFactory, createEnvelopeFactory } from '../events/envelope.ts';
 import { type IdAllocator, createIdAllocator } from '../events/id-allocator.ts';
+import { createPublicationOrder } from '../events/publication-order.ts';
 import { type RingBuffer, createRingBuffer } from '../events/ring-buffer.ts';
 import { createDiskWatchJob } from '../jobs/disk-watch.ts';
 import { createLogIndexRepairJob } from '../jobs/log-index-repair.ts';
@@ -35,7 +40,10 @@ import type { LogFileSystem } from '../logstore/contract.ts';
 import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
+import type { KillTreeProcessOps } from '../platform/kill-tree-contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../platform/lock-contract.ts';
+import { createWindowsPrivateFileWriter } from '../platform/private-file-windows.ts';
+import { runPrivateFileCommand } from '../proc/private-file-command.ts';
 import { type ProcessRegistry, createProcessRegistry } from '../proc/registry.ts';
 import {
 	type LaunchSpec,
@@ -109,6 +117,7 @@ import { getDiffStat } from '../workspace/diff.ts';
 import {
 	type GitRunner,
 	type WorktreeManager,
+	createDefaultGitRunner,
 	createWorktreeManager,
 } from '../workspace/worktree.ts';
 import { createSystemProcessLivenessProbe } from './lock.ts';
@@ -149,6 +158,7 @@ export interface ContainerRepos {
 }
 
 export interface ContainerEvents {
+	readonly dispose: () => void | Promise<void>;
 	readonly idAllocator: IdAllocator;
 	readonly envelopeFactory: EnvelopeFactory;
 	readonly ringBuffer: RingBuffer;
@@ -232,6 +242,7 @@ export function createContainer(input: {
 	readonly runMessagesRepo?: RunMessagesRepo;
 	readonly messageService?: MessageService;
 	readonly processRegistry?: ProcessRegistry;
+	readonly processOps?: KillTreeProcessOps;
 	readonly codexSessions?: CodexSessionRegistry | null;
 	readonly agentRegistry?: AgentRegistry;
 	readonly agentService?: AgentService;
@@ -311,11 +322,28 @@ export function createContainer(input: {
 	});
 
 	const idAllocator = createIdAllocator({ store: eventSeq });
-	const envelopeFactory = createEnvelopeFactory({ clock: input.clock, idAllocator });
+	const publicationOrder = createPublicationOrder();
+	const envelopeFactory = createEnvelopeFactory({
+		clock: input.clock,
+		idAllocator,
+		publicationOrder,
+	});
 	const ringBuffer = createRingBuffer();
-	const bus = createEventBus({ ringBuffer });
+	const bus = createEventBus({ ringBuffer, publicationOrder });
 
+	const notificationOwners: Array<() => Promise<void>> = [];
+	const registryNotifications = createBackgroundPublisher({
+		bus,
+		envelopeFactory,
+		onError: (error) => input.logViolation?.(String(error)),
+	});
+	notificationOwners.push(registryNotifications.stop);
 	const events: ContainerEvents = Object.freeze({
+		async dispose() {
+			const stopping = notificationOwners.map((stop) => stop());
+			bus.dispose();
+			await Promise.all(stopping);
+		},
 		idAllocator,
 		envelopeFactory,
 		ringBuffer,
@@ -328,7 +356,7 @@ export function createContainer(input: {
 	const logstorePaths =
 		input.logstorePaths ?? createLogstorePaths(join(input.config.dataDir, 'runs'));
 	const logFs = input.logFs ?? createNodeLogFileSystem();
-	const unitOfWork = createUnitOfWork(input.database);
+	const unitOfWork = createUnitOfWork(input.database, publicationOrder);
 	const appendQueue = createAppendQueue({
 		appendFile: (path, data) => logFs.appendFile(path, data),
 	});
@@ -353,24 +381,21 @@ export function createContainer(input: {
 			logViolation: input.logViolation,
 		});
 
-	const processOps = createDefaultProcessOps(input.hostInputs.platform);
-	const runAbortService =
-		input.runAbortService ??
-		createRunAbortService({
-			runsRepo: runsAbort,
-			processOps,
-			unitOfWork,
-			clock: input.clock,
-			bus,
-			envelopeFactory,
-			platform: input.hostInputs.platform,
-		});
+	if (systemService.stopNotifications) notificationOwners.push(systemService.stopNotifications);
 
+	const processOps = input.processOps ?? createDefaultProcessOps(input.hostInputs.platform);
+	const gitRunner =
+		input.gitRunner ??
+		createDefaultGitRunner({
+			platform: input.hostInputs.platform,
+			hostInputs: input.hostInputs,
+			ids,
+		});
 	const worktreeDeps = Object.freeze({
 		platform: input.hostInputs.platform,
 		hostInputs: input.hostInputs,
 		ids,
-		gitRunner: input.gitRunner,
+		gitRunner,
 	});
 	const worktreeManager = input.worktreeManager ?? createWorktreeManager(worktreeDeps);
 	const workspace: ContainerWorkspace = Object.freeze({ worktrees: worktreeManager });
@@ -383,6 +408,7 @@ export function createContainer(input: {
 			ids,
 			dataDir: input.config.dataDir,
 			platform: input.hostInputs.platform,
+			writePrivateFile: createWindowsPrivateFileWriter(runPrivateFileCommand),
 		});
 
 	if (input.bootstrapPairing !== false) pairingService.bootstrapIfNeeded();
@@ -409,7 +435,7 @@ export function createContainer(input: {
 			dataDir: input.config.dataDir,
 			platform: input.hostInputs.platform === 'win32' ? 'win32' : 'posix',
 			publishWarning: (warning) => {
-				const envelope = envelopeFactory.createEnvelope({
+				registryNotifications.publish({
 					kind: 'agent.availability_changed',
 					payload: {
 						agentId: warning.agentId ?? 'system',
@@ -422,7 +448,6 @@ export function createContainer(input: {
 						},
 					},
 				});
-				bus.publish(envelope);
 			},
 		});
 
@@ -435,8 +460,6 @@ export function createContainer(input: {
 			envelopeFactory,
 			clock: input.clock,
 		});
-
-	void agentService.start();
 
 	const landingService =
 		input.landingService ??
@@ -466,7 +489,9 @@ export function createContainer(input: {
 			processOps,
 			registry: processRegistry,
 			clock: input.clock,
+			appendQueue,
 			...overrides,
+			outputBackpressure: publicationOrder,
 		};
 		return baseSpawn(spec, options);
 	};
@@ -487,6 +512,10 @@ export function createContainer(input: {
 					model: options.model ?? undefined,
 				}),
 			mapEvents: (line: unknown) => mapClaudeEvents(line) as readonly EventEnvelopeInput[],
+			createEventMapper: () => {
+				const mapper = createClaudeEventMapper();
+				return (line: unknown) => mapper.mapLine(line).events as readonly EventEnvelopeInput[];
+			},
 		}),
 		dsh: Object.freeze({
 			buildLaunchSpec: (options: BuildLaunchSpecInput) =>
@@ -524,6 +553,21 @@ export function createContainer(input: {
 		processOps,
 		platform: input.hostInputs.platform,
 	});
+	const runAbortService =
+		input.runAbortService ??
+		createRunAbortService({
+			runsRepo: runsAbort,
+			processOps,
+			processRegistry,
+			worktreeInspector: worktreeManager,
+			sessionArchiveService,
+			gatesRepo: gates,
+			unitOfWork,
+			clock: input.clock,
+			bus,
+			envelopeFactory,
+			platform: input.hostInputs.platform,
+		});
 	const runLogService =
 		input.runLogService ??
 		createRunLogService({
@@ -746,6 +790,7 @@ export function createContainer(input: {
 		runsRepo: runs,
 		tasksRepo: tasks,
 		documentsRepo: documents,
+		dispatchSnapshotsRepo: dispatchSnapshots,
 		runMessagesRepo: runMessages,
 		processRegistry,
 		runService,
@@ -814,7 +859,7 @@ export function createContainer(input: {
 			gatesRepo: gates,
 			documentsRepo: documents,
 			worktreeManager,
-			gitRunner: input.gitRunner,
+			gitRunner,
 			resumeSession: (resumeInput) => resumeSessionDispatcher(resumeInput),
 			spawnReworkRun: async (spawnInput) => {
 				await launchReworkRun(spawnInput.run.id);
@@ -992,7 +1037,7 @@ export function createContainer(input: {
 					newGates,
 					previousGates,
 					actorDeviceId,
-				) ?? [],
+				) ?? { events: [] },
 		});
 
 	const gateService =

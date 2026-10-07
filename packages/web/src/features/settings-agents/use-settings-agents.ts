@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
+	EffortValue,
 	ListAgentsResponse,
 	ProbeAgentResponse,
 	UpdateAgentBody,
@@ -11,8 +12,12 @@ import type {
 	UpdateDocumentSettingsResponse,
 } from '../../../../shared/src/api/documents.ts';
 import { ROUTES } from '../../../../shared/src/api/routes.ts';
+import { invalidateForEvent } from '../../api/cache-invalidation.ts';
+import { CACHE_KEYS } from '../../api/cache-keys.ts';
+import { eventBus } from '../../api/event-bus.ts';
 import { isApiError } from '../../api/http-client.ts';
 import { httpClient } from '../../api/http-client.ts';
+import { invalidate, peek, read, subscribeResourceCache } from '../../api/resource-cache.ts';
 import type { AgentEntryWithLayers } from '../../components/agent-card.tsx';
 import type {
 	AgentFieldKey,
@@ -24,11 +29,15 @@ import {
 	MAX_LANE_COUNT,
 	MIN_LANE_COUNT,
 } from '../../components/lane-count-setting.tsx';
+import { getSettingsAgentErrorMessage } from '../../i18n/error-messages.ts';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { FIELD_LABELS } from './types.ts';
 
 export interface UseSettingsAgentsOptions {
 	readonly targetDocId?: string | null;
 }
+
+export type AgentSettingKey = AgentFieldKey | 'defaultEffortTier';
 
 export interface UseSettingsAgentsResult {
 	readonly agents: readonly AgentEntryWithLayers[];
@@ -41,7 +50,7 @@ export interface UseSettingsAgentsResult {
 	readonly probingAgentId: string | null;
 	readonly updatingAgentId: string | null;
 	readonly validationErrors: Readonly<
-		Record<string, Partial<Record<AgentFieldKey, FieldErrorInfo>>>
+		Record<string, Partial<Record<AgentSettingKey, FieldErrorInfo>>>
 	>;
 	readonly loadAgents: () => Promise<void>;
 	readonly probeAgent: (agentId: string) => Promise<ProbeAgentResponse | undefined>;
@@ -50,6 +59,11 @@ export interface UseSettingsAgentsResult {
 		field: AgentFieldKey,
 		value: string | number,
 	) => Promise<boolean>;
+	readonly clearAgentOverride: (
+		agentId: string,
+		field: 'defaultModel' | 'defaultEffortTier',
+	) => Promise<boolean>;
+	readonly updateAgentEffortTier: (agentId: string, value: EffortValue) => Promise<boolean>;
 	readonly setLaneCount: (count: number) => Promise<void>;
 	readonly getFieldLayers: (agent: AgentEntryWithLayers, field: AgentFieldKey) => FieldLayerValues;
 	readonly validateMonogram: (
@@ -70,16 +84,6 @@ const updateDocumentSettingsRoute = ROUTES.find(
 	(r) => r.method === 'PATCH' && r.path === '/api/v1/documents/:docId/settings',
 );
 
-const ERROR_CODE_CHINESE_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
-	E_VALIDATION: '输入参数校验失败，请检查修改后重试',
-	E_NOT_FOUND: '未找到对应配置项',
-	E_UNAUTHORIZED: '设备未授权，请先完成配对',
-	E_DEVICE_REVOKED: '设备已被吊销',
-	E_INTERNAL: '服务内部异常，请稍后重试',
-	E_AGENT_UNAVAILABLE: '当前 Agent 不可用',
-	E_AGENT_VERSION_UNRECOGNIZED: 'Agent 版本未识别',
-});
-
 function resolveLastDocId(): string | null {
 	if (typeof window === 'undefined') return null;
 	try {
@@ -97,6 +101,7 @@ function resolveLastDocId(): string | null {
 }
 
 export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettingsAgentsResult {
+	const mounted = useRef(true);
 	const [agents, setAgents] = useState<readonly AgentEntryWithLayers[]>([]);
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 	const [error, setError] = useState<Error | null>(null);
@@ -110,7 +115,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	const [probingAgentId, setProbingAgentId] = useState<string | null>(null);
 	const [updatingAgentId, setUpdatingAgentId] = useState<string | null>(null);
 	const [validationErrors, setValidationErrors] = useState<
-		Record<string, Partial<Record<AgentFieldKey, FieldErrorInfo>>>
+		Record<string, Partial<Record<AgentSettingKey, FieldErrorInfo>>>
 	>({});
 
 	// Load document laneCount strictly from resolved targetDocId
@@ -149,15 +154,35 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 
 		try {
 			// R7: 请求改走 ROUTES/callRoute
-			const response = await httpClient.callRoute<ListAgentsResponse>(listAgentsRoute);
-			setAgents(response.agents as readonly AgentEntryWithLayers[]);
+			const response = await read(CACHE_KEYS.agents(), () =>
+				httpClient.callRoute<ListAgentsResponse>(listAgentsRoute),
+			);
+			if (mounted.current) setAgents(response.agents);
 		} catch (err) {
 			const e = err instanceof Error ? err : new Error(String(err));
-			setError(e);
+			if (mounted.current) setError(e);
 		} finally {
-			setIsLoading(false);
+			if (mounted.current) setIsLoading(false);
 		}
 	}, []);
+
+	useEffect(() => {
+		mounted.current = true;
+		const unsubscribeCache = subscribeResourceCache(() => {
+			const response = peek<ListAgentsResponse>(CACHE_KEYS.agents());
+			if (response) setAgents(response.agents);
+		});
+		const unsubscribeEvents = eventBus.subscribeMilestone((event) => {
+			if (event.kind !== 'agent.availability_changed') return;
+			invalidateForEvent(event.kind);
+			void loadAgents();
+		});
+		return () => {
+			mounted.current = false;
+			unsubscribeCache();
+			unsubscribeEvents();
+		};
+	}, [loadAgents]);
 
 	useEffect(() => {
 		void loadAgents();
@@ -169,7 +194,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		(agentId: string, monogram: string): { readonly valid: boolean; readonly message?: string } => {
 			const clean = monogram.trim();
 			if (clean.length !== 2) {
-				return { valid: false, message: '短码必须为恰好两字符' };
+				return { valid: false, message: UI_STRINGS.settingsAgents.monogramLength };
 			}
 			const targetLower = clean.toLowerCase();
 			for (const other of agents) {
@@ -177,7 +202,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					const otherName = other.name || other.id;
 					return {
 						valid: false,
-						message: `短码 "${clean}" 已被 agent "${otherName}" 占用，请改用其他短码`,
+						message: UI_STRINGS.settingsAgents.monogramConflict(clean, otherName),
 					};
 				}
 			}
@@ -196,9 +221,11 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				const res = await httpClient.callRoute<ProbeAgentResponse>(probeAgentRoute, {
 					params: { agentId },
 				});
+				invalidate(CACHE_KEYS.agents());
 				await loadAgents();
 				return res;
 			} catch {
+				invalidate(CACHE_KEYS.agents());
 				await loadAgents();
 				return undefined;
 			} finally {
@@ -219,7 +246,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 						...prev,
 						[agentId]: {
 							...prev[agentId],
-							monogram: { message: valCheck.message || '短码校验失败' },
+							monogram: { message: valCheck.message || UI_STRINGS.settingsAgents.monogramInvalid },
 						},
 					}));
 					return false;
@@ -261,6 +288,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 					},
 				);
 				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				invalidate(CACHE_KEYS.agents());
+				await loadAgents();
 				// Clear field error on success
 				setValidationErrors((prev) => {
 					if (!prev[agentId]?.[field]) return prev;
@@ -273,7 +302,10 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				setAgents((prev) => prev.map((a) => (a.id === agentId ? prevAgent : a)));
 				const apiErr = isApiError(err) ? err : undefined;
 				const code = apiErr?.code ?? 'E_INTERNAL';
-				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '配置更新失败，请重试';
+				const chineseMsg = getSettingsAgentErrorMessage(
+					code,
+					UI_STRINGS.settingsAgents.updateFailed,
+				);
 				const technicalMsg = err instanceof Error ? err.message : String(err);
 				const errorField = (apiErr?.details?.field as AgentFieldKey) || field;
 
@@ -293,20 +325,128 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				setUpdatingAgentId(null);
 			}
 		},
-		[agents, validateMonogram],
+		[agents, validateMonogram, loadAgents],
+	);
+
+	// 清除覆盖（AC 7 / E-358: 失败保持原值不乐观清空）
+	const clearAgentOverride = useCallback(
+		async (agentId: string, field: 'defaultModel' | 'defaultEffortTier'): Promise<boolean> => {
+			const prevAgent = agents.find((a) => a.id === agentId);
+			if (!prevAgent) return false;
+
+			setUpdatingAgentId(agentId);
+			try {
+				if (!updateAgentRoute) {
+					throw new Error('Route PATCH /api/v1/agents/:agentId is missing in ROUTES');
+				}
+				const res = await httpClient.callRoute<UpdateAgentResponse, UpdateAgentBody>(
+					updateAgentRoute,
+					{
+						params: { agentId },
+						body: { clearOverrides: [field] },
+					},
+				);
+				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				invalidate(CACHE_KEYS.agents());
+				await loadAgents();
+				setValidationErrors((prev) => {
+					if (!prev[agentId]?.[field]) return prev;
+					const { [field]: _unused, ...rest } = prev[agentId] ?? {};
+					return { ...prev, [agentId]: rest };
+				});
+				return true;
+			} catch (err) {
+				const apiErr = isApiError(err) ? err : undefined;
+				const code = apiErr?.code ?? 'E_INTERNAL';
+				const chineseMsg = getSettingsAgentErrorMessage(
+					code,
+					UI_STRINGS.settingsAgents.clearFailed,
+				);
+				const technicalMsg = err instanceof Error ? err.message : String(err);
+				setValidationErrors((prev) => ({
+					...prev,
+					[agentId]: {
+						...prev[agentId],
+						[field]: {
+							message: chineseMsg,
+							technical: technicalMsg,
+							requestId: apiErr?.requestId,
+						},
+					},
+				}));
+				return false;
+			} finally {
+				setUpdatingAgentId(null);
+			}
+		},
+		[agents, loadAgents],
+	);
+
+	// 更新思考强度（AC 7 / E-351 / E-358: defaultEffortTier: null 单独发表示「覆盖为跟随」）
+	const updateAgentEffortTier = useCallback(
+		async (agentId: string, value: EffortValue): Promise<boolean> => {
+			const prevAgent = agents.find((a) => a.id === agentId);
+			if (!prevAgent) return false;
+
+			setUpdatingAgentId(agentId);
+			try {
+				if (!updateAgentRoute) {
+					throw new Error('Route PATCH /api/v1/agents/:agentId is missing in ROUTES');
+				}
+				const res = await httpClient.callRoute<UpdateAgentResponse, UpdateAgentBody>(
+					updateAgentRoute,
+					{
+						params: { agentId },
+						body: { defaultEffortTier: value },
+					},
+				);
+				setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, ...res.agent } : a)));
+				invalidate(CACHE_KEYS.agents());
+				await loadAgents();
+				setValidationErrors((prev) => {
+					if (!prev[agentId]?.defaultEffortTier) return prev;
+					const { defaultEffortTier: _unused, ...rest } = prev[agentId] ?? {};
+					return { ...prev, [agentId]: rest };
+				});
+				return true;
+			} catch (err) {
+				const apiErr = isApiError(err) ? err : undefined;
+				const code = apiErr?.code ?? 'E_INTERNAL';
+				const chineseMsg = getSettingsAgentErrorMessage(
+					code,
+					UI_STRINGS.settingsAgents.effortFailed,
+				);
+				const technicalMsg = err instanceof Error ? err.message : String(err);
+				setValidationErrors((prev) => ({
+					...prev,
+					[agentId]: {
+						...prev[agentId],
+						defaultEffortTier: {
+							message: chineseMsg,
+							technical: technicalMsg,
+							requestId: apiErr?.requestId,
+						},
+					},
+				}));
+				return false;
+			} finally {
+				setUpdatingAgentId(null);
+			}
+		},
+		[agents, loadAgents],
 	);
 
 	// Set lane count (AC 8, E-248: 1-6) with R4 失败回滚 + inline 报错
 	const setLaneCount = useCallback(
 		async (count: number) => {
 			if (count < MIN_LANE_COUNT || count > MAX_LANE_COUNT) {
-				setLaneCountError(`并行窗口数必须在 ${MIN_LANE_COUNT} 到 ${MAX_LANE_COUNT} 之间`);
+				setLaneCountError(UI_STRINGS.settingsAgents.laneCountRange(MIN_LANE_COUNT, MAX_LANE_COUNT));
 				return;
 			}
 
 			// R5: 定位不到目标文档时不执行写操作
 			if (!targetDoc || !updateDocumentSettingsRoute) {
-				setLaneCountError('未定位到目标文档，无法修改窗口数');
+				setLaneCountError(UI_STRINGS.settingsAgents.missingDocument);
 				return;
 			}
 
@@ -328,7 +468,10 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 				setLaneCountState(prevCount);
 				const apiErr = isApiError(err) ? err : undefined;
 				const code = apiErr?.code ?? 'E_INTERNAL';
-				const chineseMsg = ERROR_CODE_CHINESE_MESSAGES[code] ?? '更新窗口数失败，已回滚';
+				const chineseMsg = getSettingsAgentErrorMessage(
+					code,
+					UI_STRINGS.settingsAgents.laneCountFailed,
+				);
 				setLaneCountError(chineseMsg);
 			}
 		},
@@ -416,6 +559,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		loadAgents,
 		probeAgent,
 		updateAgentField,
+		clearAgentOverride,
+		updateAgentEffortTier,
 		setLaneCount,
 		getFieldLayers,
 		validateMonogram,

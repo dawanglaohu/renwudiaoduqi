@@ -1,3 +1,4 @@
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
 /**
  * packages/web/src/pages/settings-pipeline-page.tsx
  *
@@ -21,15 +22,17 @@ export function SettingsPipelinePage() {
 			{/* 顶栏 52px */}
 			<header className="h-topbar flex items-center justify-between border-b border-border bg-bg px-4 text-ink-1">
 				<div className="flex items-center gap-2">
-					<span className="font-mono text-dense text-ink-3">设置</span>
+					<span className="font-mono text-dense text-ink-3">{UI_STRINGS.settings.title}</span>
 					<span className="text-ink-3">/</span>
-					<h1 className="font-ui text-dense font-semibold text-ink-1">流水线设置</h1>
+					<h1 className="font-ui text-dense font-semibold text-ink-1">
+						{UI_STRINGS.settings.pipelineDescription}
+					</h1>
 				</div>
 			</header>
 
 			{/* 主内容区域 */}
-			<main className="flex-1 p-4 sm:p-6">
-				<div className="mx-auto max-w-4xl">
+			<main className="flex-1 min-w-0 p-[var(--sp-4)]">
+				<div className="w-full min-w-0">
 					<PipelineTogglesContainer layout="settings" />
 				</div>
 			</main>

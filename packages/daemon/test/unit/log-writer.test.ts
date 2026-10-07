@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createAppendQueue } from '../../src/logstore/append-queue.ts';
 import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
 import { createLogstorePaths } from '../../src/logstore/paths.ts';
 import {
@@ -30,11 +31,11 @@ describe('RunLogWriter (E-149 / R1)', () => {
 		const paths = createLogstorePaths(baseDir);
 		const fs = createNodeLogFileSystem();
 		const { appendFile } = await import('node:fs/promises');
-		const queue = { append: appendFile, drain: async () => {}, pendingBytes: 0 };
+		const queue = createAppendQueue({ appendFile });
 		const writer = createRunWriter({
 			runId: 'run-1',
 			paths,
-			queue: queue as never,
+			queue,
 			fs,
 			segmentSizeLimitBytes: TEST_SEGMENT_LIMIT,
 		});
@@ -60,9 +61,9 @@ describe('RunLogWriter (E-149 / R1)', () => {
 		const paths = createLogstorePaths(baseDir);
 		const fs = createNodeLogFileSystem();
 		const { appendFile } = await import('node:fs/promises');
-		const queue = { append: appendFile, drain: async () => {}, pendingBytes: 0 };
+		const queue = createAppendQueue({ appendFile });
 
-		const writerA = createRunWriter({ runId: 'run-1', paths, queue: queue as never, fs });
+		const writerA = createRunWriter({ runId: 'run-1', paths, queue, fs });
 		await writerA.appendEventLine(new Uint8Array([65, 66, 67])); // ABC
 		await writerA.flush();
 
@@ -75,7 +76,7 @@ describe('RunLogWriter (E-149 / R1)', () => {
 		const writerB = createRunWriter({
 			runId: 'run-1',
 			paths,
-			queue: queue as never,
+			queue,
 			fs,
 			initialState,
 		});
@@ -95,12 +96,12 @@ describe('RunLogWriter (E-149 / R1)', () => {
 		const paths = createLogstorePaths(baseDir);
 		const fs = createNodeLogFileSystem();
 		const { appendFile } = await import('node:fs/promises');
-		const queue = { append: appendFile, drain: async () => {}, pendingBytes: 0 };
+		const queue = createAppendQueue({ appendFile });
 
 		const writerA = createRunWriter({
 			runId: 'run-rotate',
 			paths,
-			queue: queue as never,
+			queue,
 			fs,
 			segmentSizeLimitBytes: 8, // 4 bytes per line + LF
 		});
@@ -117,7 +118,7 @@ describe('RunLogWriter (E-149 / R1)', () => {
 		const writerB = createRunWriter({
 			runId: 'run-rotate',
 			paths,
-			queue: queue as never,
+			queue,
 			fs,
 			initialState: state,
 		});

@@ -1,5 +1,4 @@
 import * as nodeFs from 'node:fs/promises';
-import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { AdapterKind } from '../config/defaults.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { resolveAssignment } from '../domain/assignment.ts';
@@ -13,7 +12,8 @@ import {
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { publishCompletionEvents } from '../events/publish-completion.ts';
 import type { ProcessRegistry } from '../proc/registry.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GatesRepo } from '../repo/gates.ts';
@@ -708,14 +708,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 	 * 把已落库的返工运行行落成 `failed` 并带上类型化原因，事件在事务后发。
 	 * 不留 `starting` 幽灵行：那一行既没有进程也没有终态，谁也说不清它是什么。
 	 */
-	function markReworkRunFailed(reworkRunId: string, reason: ReworkUndeliverableReason): void {
+	async function markReworkRunFailed(
+		reworkRunId: string,
+		reason: ReworkUndeliverableReason,
+	): Promise<void> {
 		const row = deps.runsRepo.findById(reworkRunId);
 		if (!row || isTerminalRunState(row.state as RunState)) {
 			return;
 		}
 
 		const now = deps.clock.now();
-		const pendingEvents: EventEnvelope[] = [];
+		const pendingEvents: CreateEnvelopeInput[] = [];
 
 		const persistFailure = () => {
 			deps.runsRepo.updateState({
@@ -729,19 +732,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			});
 
 			if (deps.envelopeFactory) {
-				pendingEvents.push(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.state_changed',
-						runId: reworkRunId,
-						taskId: row.task_id,
-						actorDeviceId: null,
-						payload: {
-							from: row.state as RunState,
-							to: 'failed',
-							reason: `${REWORK_DELIVERY_FAILED_PREFIX}:${reason}`,
-						},
-					}),
-				);
+				pendingEvents.push({
+					kind: 'run.state_changed',
+					runId: reworkRunId,
+					taskId: row.task_id,
+					actorDeviceId: null,
+					payload: {
+						from: row.state as RunState,
+						to: 'failed',
+						reason: `${REWORK_DELIVERY_FAILED_PREFIX}:${reason}`,
+					},
+				} satisfies CreateEnvelopeInput);
 			}
 		};
 
@@ -751,11 +752,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			persistFailure();
 		}
 
-		if (deps.bus) {
-			for (const ev of pendingEvents) {
-				deps.bus.publish(ev);
-			}
-		}
+		await publishCompletionEvents(pendingEvents, deps);
 	}
 
 	/**
@@ -766,19 +763,21 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 	 * 不改 `rework_count`（一次打回只记一次）、不碰闸门已落库的决定。这样任务既不会占着泳道，
 	 * 也不会被那条失败的返工运行挡在补位队列外——它带着明确原因停在人工入口上。
 	 */
-	function parkTaskAfterDeliveryFailure(
+	async function parkTaskAfterDeliveryFailure(
 		targetRun: RunRow,
 		reason: ReworkUndeliverableReason,
-	): void {
+	): Promise<void> {
 		const taskId = targetRun.task_id;
 		if (!taskId) return;
 
 		const nowTs = deps.clock.now();
-		const events: EventEnvelope[] = [];
+		const events: CreateEnvelopeInput[] = [];
 		const comment = `${REWORK_DELIVERY_FAILED_PREFIX}:${reason}`;
 
 		const persist = () => {
 			const current = deps.runsRepo.findById(targetRun.id);
+			if (!current || isTerminalRunState(current.state as RunState) || current.session_archived_at)
+				return;
 			if (
 				current &&
 				!isTerminalRunState(current.state as RunState) &&
@@ -800,15 +799,13 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					});
 
 					if (deps.envelopeFactory) {
-						events.push(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'run.state_changed',
-								runId: targetRun.id,
-								taskId: targetRun.task_id,
-								actorDeviceId: null,
-								payload: { from, to: step, reason: comment },
-							}),
-						);
+						events.push({
+							kind: 'run.state_changed',
+							runId: targetRun.id,
+							taskId: targetRun.task_id,
+							actorDeviceId: null,
+							payload: { from, to: step, reason: comment },
+						} satisfies CreateEnvelopeInput);
 					}
 					from = step;
 				}
@@ -816,21 +813,19 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 			const lane = deps.tasksRepo?.clearLaneNo?.(taskId);
 			if (lane && lane.changes === 1 && deps.envelopeFactory) {
-				events.push(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'lane.released',
+				events.push({
+					kind: 'lane.released',
+					taskId: targetRun.task_id,
+					runId: targetRun.id,
+					actorDeviceId: null,
+					payload: {
+						docId: lane.docId,
+						laneNo: lane.previousLaneNo,
 						taskId: targetRun.task_id,
 						runId: targetRun.id,
-						actorDeviceId: null,
-						payload: {
-							docId: lane.docId,
-							laneNo: lane.previousLaneNo,
-							taskId: targetRun.task_id,
-							runId: targetRun.id,
-							reason: 'awaiting_human',
-						},
-					}),
-				);
+						reason: 'awaiting_human',
+					},
+				} satisfies CreateEnvelopeInput);
 			}
 
 			if (deps.gatesRepo) {
@@ -854,15 +849,13 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 						created_at: nowTs,
 					});
 					if (deps.envelopeFactory) {
-						events.push(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'task.gate_waiting',
-								runId: targetRun.id,
-								taskId: targetRun.task_id,
-								actorDeviceId: null,
-								payload: { gate: 'review', comment },
-							}),
-						);
+						events.push({
+							kind: 'task.gate_waiting',
+							runId: targetRun.id,
+							taskId: targetRun.task_id,
+							actorDeviceId: null,
+							payload: { gate: 'review', comment },
+						} satisfies CreateEnvelopeInput);
 					}
 				}
 			}
@@ -874,18 +867,14 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			persist();
 		}
 
-		if (deps.bus) {
-			for (const ev of events) {
-				deps.bus.publish(ev);
-			}
-		}
+		await publishCompletionEvents(events, deps);
 	}
 
 	/**
 	 * 投递失败的唯一收口：标掉失败的返工行、把任务交回人手、回类型化 `undeliverable`。
 	 * 一条路径，保证「失败不留占槽 / 不留幽灵行 / 不重复计数」不会被某个分支漏掉。
 	 */
-	function failReworkDelivery(params: {
+	async function failReworkDelivery(params: {
 		readonly targetRun: RunRow;
 		readonly reviewRunId: string | null;
 		readonly reworkRunId?: string | null;
@@ -894,11 +883,11 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		readonly message: string;
 		readonly source: ReworkSource;
 		readonly diffRegression: DiffRegressionEvaluation;
-	}): DispatchReworkResult {
+	}): Promise<DispatchReworkResult> {
 		if (params.reworkRunId) {
-			markReworkRunFailed(params.reworkRunId, params.reason);
+			await markReworkRunFailed(params.reworkRunId, params.reason);
 		}
-		parkTaskAfterDeliveryFailure(params.targetRun, params.reason);
+		await parkTaskAfterDeliveryFailure(params.targetRun, params.reason);
 		return buildUndeliverableResult({
 			targetRunId: params.targetRun.id,
 			reviewRunId: params.reviewRunId,
@@ -909,6 +898,15 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			source: params.source,
 			diffRegression: params.diffRegression,
 		});
+	}
+
+	function assertDeliveryTargetActive(runId: string): void {
+		const current = deps.runsRepo.findById(runId);
+		if (!current || current.session_archived_at || isTerminalRunState(current.state as RunState)) {
+			throw new AppError('E_MESSAGE_UNDELIVERED', 'The rework target ended before delivery.', {
+				details: { runId, reason: 'process_exited' },
+			});
+		}
 	}
 
 	async function dispatchRework(input: DispatchReworkInput): Promise<DispatchReworkResult> {
@@ -963,7 +961,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 		const isAutoReview = !isManual && targetRun.state === 'reviewing';
 
 		if (isAutoReview && currentReworkCount >= maxReworkCount) {
-			const pendingEvents: EventEnvelope[] = [];
+			const pendingEvents: CreateEnvelopeInput[] = [];
 
 			const persistLimitReached = () => {
 				if (
@@ -986,19 +984,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					});
 
 					if (deps.envelopeFactory) {
-						pendingEvents.push(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'run.state_changed',
-								runId: targetRun.id,
-								taskId,
-								actorDeviceId: input.actorDeviceId ?? null,
-								payload: {
-									from: targetRun.state as RunState,
-									to: 'awaiting_human',
-									reason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
-								},
-							}),
-						);
+						pendingEvents.push({
+							kind: 'run.state_changed',
+							runId: targetRun.id,
+							taskId,
+							actorDeviceId: input.actorDeviceId ?? null,
+							payload: {
+								from: targetRun.state as RunState,
+								to: 'awaiting_human',
+								reason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
+							},
+						} satisfies CreateEnvelopeInput);
 					}
 				}
 
@@ -1022,19 +1018,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 						});
 
 						if (deps.envelopeFactory) {
-							pendingEvents.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'run.state_changed',
-									runId: reviewRun.id,
-									taskId: reviewRun.task_id,
-									actorDeviceId: input.actorDeviceId ?? null,
-									payload: {
-										from: reviewRun.state as RunState,
-										to: 'awaiting_human',
-										reason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
-									},
-								}),
-							);
+							pendingEvents.push({
+								kind: 'run.state_changed',
+								runId: reviewRun.id,
+								taskId: reviewRun.task_id,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: reviewRun.state as RunState,
+									to: 'awaiting_human',
+									reason: REWORK_TRANSITION_REASONS.REWORK_LIMIT_REACHED,
+								},
+							} satisfies CreateEnvelopeInput);
 						}
 					}
 				}
@@ -1046,11 +1040,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				persistLimitReached();
 			}
 
-			if (deps.bus) {
-				for (const ev of pendingEvents) {
-					deps.bus.publish(ev);
-				}
-			}
+			await publishCompletionEvents(pendingEvents, deps);
 
 			return Object.freeze({
 				success: false,
@@ -1132,7 +1122,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				? REWORK_TRANSITION_REASONS.HUMAN_REWORK
 				: REWORK_TRANSITION_REASONS.REWORK_INJECTION;
 
-			const pendingEvents: EventEnvelope[] = [];
+			const pendingEvents: CreateEnvelopeInput[] = [];
 
 			const persistReinjection = () => {
 				if (targetRun.state !== 'reworking') {
@@ -1150,19 +1140,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				});
 
 				if (deps.envelopeFactory) {
-					pendingEvents.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: targetRun.id,
-							taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: targetRun.state as RunState,
-								to: 'reworking',
-								reason: transitionReason,
-							},
-						}),
-					);
+					pendingEvents.push({
+						kind: 'run.state_changed',
+						runId: targetRun.id,
+						taskId,
+						actorDeviceId: input.actorDeviceId ?? null,
+						payload: {
+							from: targetRun.state as RunState,
+							to: 'reworking',
+							reason: transitionReason,
+						},
+					} satisfies CreateEnvelopeInput);
 				}
 			};
 
@@ -1172,15 +1160,12 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				persistReinjection();
 			}
 
-			if (deps.bus) {
-				for (const ev of pendingEvents) {
-					deps.bus.publish(ev);
-				}
-			}
+			await publishCompletionEvents(pendingEvents, deps);
 
 			// 事务提交后：通过消息回话通路将返工意见投递给原进程
 			let deliveryResult: { messageId: string; delivered: boolean };
 			try {
+				assertDeliveryTargetActive(targetRun.id);
 				deliveryResult = await deps.messageService.sendMessage({
 					runId: targetRun.id,
 					text: input.reworkText,
@@ -1189,8 +1174,9 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					throwOnUndelivered: true,
 				});
 			} catch (error) {
-				const failEvents: EventEnvelope[] = [];
+				const failEvents: CreateEnvelopeInput[] = [];
 				const persistFailure = () => {
+					if (deps.runsRepo.findById(targetRun.id)?.state !== 'reworking') return;
 					assertValidTransition('reworking', 'awaiting_human', {
 						reason: REWORK_TRANSITION_REASONS.INJECTION_FAILED,
 					});
@@ -1205,19 +1191,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					});
 
 					if (deps.envelopeFactory) {
-						failEvents.push(
-							deps.envelopeFactory.createEnvelope({
-								kind: 'run.state_changed',
-								runId: targetRun.id,
-								taskId,
-								actorDeviceId: input.actorDeviceId ?? null,
-								payload: {
-									from: 'reworking',
-									to: 'awaiting_human',
-									reason: REWORK_TRANSITION_REASONS.INJECTION_FAILED,
-								},
-							}),
-						);
+						failEvents.push({
+							kind: 'run.state_changed',
+							runId: targetRun.id,
+							taskId,
+							actorDeviceId: input.actorDeviceId ?? null,
+							payload: {
+								from: 'reworking',
+								to: 'awaiting_human',
+								reason: REWORK_TRANSITION_REASONS.INJECTION_FAILED,
+							},
+						} satisfies CreateEnvelopeInput);
 					}
 				};
 
@@ -1227,18 +1211,15 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					persistFailure();
 				}
 
-				if (deps.bus) {
-					for (const ev of failEvents) {
-						deps.bus.publish(ev);
-					}
-				}
+				await publishCompletionEvents(failEvents, deps);
 
 				throw error;
 			}
 
 			// 意见回灌原会话成功：reworking --> running
-			const postDeliveryEvents: EventEnvelope[] = [];
+			const postDeliveryEvents: CreateEnvelopeInput[] = [];
 			const persistRunning = () => {
+				if (deps.runsRepo.findById(targetRun.id)?.state !== 'reworking') return;
 				assertValidTransition('reworking', 'running', {
 					reason: transitionReason,
 				});
@@ -1253,19 +1234,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				});
 
 				if (deps.envelopeFactory) {
-					postDeliveryEvents.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: targetRun.id,
-							taskId: targetRun.task_id,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: 'reworking',
-								to: 'running',
-								reason: transitionReason,
-							},
-						}),
-					);
+					postDeliveryEvents.push({
+						kind: 'run.state_changed',
+						runId: targetRun.id,
+						taskId: targetRun.task_id,
+						actorDeviceId: input.actorDeviceId ?? null,
+						payload: {
+							from: 'reworking',
+							to: 'running',
+							reason: transitionReason,
+						},
+					} satisfies CreateEnvelopeInput);
 				}
 			};
 
@@ -1275,15 +1254,11 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				persistRunning();
 			}
 
-			if (deps.bus) {
-				for (const ev of postDeliveryEvents) {
-					deps.bus.publish(ev);
-				}
-			}
+			await publishCompletionEvents(postDeliveryEvents, deps);
 
 			// AC 4: 每分支在事务后发 run.rework_dispatched{mode, source}
 			if (deps.bus && deps.envelopeFactory) {
-				const dispatchedEnvelope = deps.envelopeFactory.createEnvelope({
+				const dispatchedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 					kind: 'run.rework_dispatched',
 					runId: targetRun.id,
 					taskId: targetRun.task_id,
@@ -1322,9 +1297,9 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			const repoPath = resolveRepoPath(targetRun);
 			const branchExists = await checkBranchExists(targetRun.branch_name, repoPath, deps.gitRunner);
 
-			if (!branchExists || !targetRun.branch_name) {
+			const parkMissingBranch = async (): Promise<DispatchReworkResult> => {
 				// 分支不存在：转 awaiting_human 并在闸门 comment 写 branch_missing，不开干净 worktree
-				const branchMissingEvents: EventEnvelope[] = [];
+				const branchMissingEvents: CreateEnvelopeInput[] = [];
 
 				const persistBranchMissing = () => {
 					if (
@@ -1345,19 +1320,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 						});
 
 						if (deps.envelopeFactory) {
-							branchMissingEvents.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'run.state_changed',
-									runId: targetRun.id,
-									taskId: targetRun.task_id,
-									actorDeviceId: input.actorDeviceId ?? null,
-									payload: {
-										from: targetRun.state as RunState,
-										to: 'awaiting_human',
-										reason: REWORK_TRANSITION_REASONS.BRANCH_MISSING,
-									},
-								}),
-							);
+							branchMissingEvents.push({
+								kind: 'run.state_changed',
+								runId: targetRun.id,
+								taskId: targetRun.task_id,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									from: targetRun.state as RunState,
+									to: 'awaiting_human',
+									reason: REWORK_TRANSITION_REASONS.BRANCH_MISSING,
+								},
+							} satisfies CreateEnvelopeInput);
 						}
 					}
 
@@ -1385,18 +1358,16 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 						}
 
 						if (deps.envelopeFactory) {
-							branchMissingEvents.push(
-								deps.envelopeFactory.createEnvelope({
-									kind: 'task.gate_waiting',
-									runId: targetRun.id,
-									taskId: targetRun.task_id,
-									actorDeviceId: input.actorDeviceId ?? null,
-									payload: {
-										gate: 'review',
-										comment: 'branch_missing',
-									},
-								}),
-							);
+							branchMissingEvents.push({
+								kind: 'task.gate_waiting',
+								runId: targetRun.id,
+								taskId: targetRun.task_id,
+								actorDeviceId: input.actorDeviceId ?? null,
+								payload: {
+									gate: 'review',
+									comment: 'branch_missing',
+								},
+							} satisfies CreateEnvelopeInput);
 						}
 					}
 				};
@@ -1407,11 +1378,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					persistBranchMissing();
 				}
 
-				if (deps.bus) {
-					for (const ev of branchMissingEvents) {
-						deps.bus.publish(ev);
-					}
-				}
+				await publishCompletionEvents(branchMissingEvents, deps);
 
 				return Object.freeze({
 					success: false,
@@ -1425,18 +1392,30 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 					source: input.source,
 					diffRegression,
 				});
-			}
+			};
+
+			if (!branchExists || !targetRun.branch_name) return parkMissingBranch();
 
 			// 分支存在：走 M5-T1 在原分支上 reuse 重建
 			if (deps.worktreeManager && repoPath) {
-				const prepared = await deps.worktreeManager.prepareWorktree({
-					repoPath,
-					taskId: targetRun.task_id,
-					preferredBranchName: targetRun.branch_name,
-					targetWorktreePath: targetRun.worktree_path ?? undefined,
-					worktreeMode: 'reuse',
-				});
-				effectiveWorktreePath = prepared.worktreePath;
+				try {
+					const prepared = await deps.worktreeManager.prepareWorktree({
+						repoPath,
+						taskId: targetRun.task_id,
+						preferredBranchName: targetRun.branch_name,
+						targetWorktreePath: targetRun.worktree_path ?? undefined,
+						worktreeMode: 'reuse',
+					});
+					effectiveWorktreePath = prepared.worktreePath;
+				} catch (error) {
+					if (
+						error instanceof AppError &&
+						error.code === 'E_WORKSPACE_UNAVAILABLE' &&
+						error.details?.reason === 'branch_missing'
+					)
+						return parkMissingBranch();
+					throw error;
+				}
 			}
 		}
 
@@ -1485,7 +1464,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				lane_no: targetTask?.lane_no ?? targetRun.lane_no ?? null,
 			};
 
-			const resumeEvents: EventEnvelope[] = [];
+			const resumeEvents: CreateEnvelopeInput[] = [];
 
 			const persistResume = () => {
 				assertSessionRefFree(
@@ -1495,19 +1474,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				deps.runsRepo.insert(newRunInsert);
 
 				if (deps.envelopeFactory) {
-					resumeEvents.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId: newRunId,
-							taskId,
-							actorDeviceId: input.actorDeviceId ?? null,
-							payload: {
-								from: targetRun.state as RunState,
-								to: 'starting',
-								reason: REWORK_TRANSITION_REASONS.REWORK_INJECTION,
-							},
-						}),
-					);
+					resumeEvents.push({
+						kind: 'run.state_changed',
+						runId: newRunId,
+						taskId,
+						actorDeviceId: input.actorDeviceId ?? null,
+						payload: {
+							from: targetRun.state as RunState,
+							to: 'starting',
+							reason: REWORK_TRANSITION_REASONS.REWORK_INJECTION,
+						},
+					} satisfies CreateEnvelopeInput);
 				}
 			};
 
@@ -1517,16 +1494,13 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 				persistResume();
 			}
 
-			if (deps.bus) {
-				for (const ev of resumeEvents) {
-					deps.bus.publish(ev);
-				}
-			}
+			await publishCompletionEvents(resumeEvents, deps);
 
 			// 事务提交后执行恢复投递；只有进程真的起来且意见进了启动参数才算送达
 			let resumeMessageId: string | undefined = undefined;
 			let resumeResult: ResumeSessionResult;
 			try {
+				assertDeliveryTargetActive(newRunId);
 				resumeResult = await deps.resumeSession({
 					runId: newRunId,
 					taskId: targetRun.task_id,
@@ -1586,7 +1560,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 			// AC 4: 每分支在事务后发 run.rework_dispatched{mode, source}
 			if (deps.bus && deps.envelopeFactory) {
-				const dispatchedEnvelope = deps.envelopeFactory.createEnvelope({
+				const dispatchedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 					kind: 'run.rework_dispatched',
 					runId: newRunId,
 					taskId: targetRun.task_id,
@@ -1736,7 +1710,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			lane_no: targetTask?.lane_no ?? targetRun.lane_no ?? null,
 		};
 
-		const newSessionEvents: EventEnvelope[] = [];
+		const newSessionEvents: CreateEnvelopeInput[] = [];
 
 		const persistNewSession = () => {
 			assertSessionRefFree(
@@ -1746,19 +1720,17 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			deps.runsRepo.insert(newRunInsert);
 
 			if (deps.envelopeFactory) {
-				newSessionEvents.push(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'run.state_changed',
-						runId: newRunId,
-						taskId,
-						actorDeviceId: input.actorDeviceId ?? null,
-						payload: {
-							from: targetRun.state as RunState,
-							to: 'starting',
-							reason: REWORK_TRANSITION_REASONS.REWORK_INJECTION,
-						},
-					}),
-				);
+				newSessionEvents.push({
+					kind: 'run.state_changed',
+					runId: newRunId,
+					taskId,
+					actorDeviceId: input.actorDeviceId ?? null,
+					payload: {
+						from: targetRun.state as RunState,
+						to: 'starting',
+						reason: REWORK_TRANSITION_REASONS.REWORK_INJECTION,
+					},
+				} satisfies CreateEnvelopeInput);
 			}
 		};
 
@@ -1768,14 +1740,11 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 			persistNewSession();
 		}
 
-		if (deps.bus) {
-			for (const ev of newSessionEvents) {
-				deps.bus.publish(ev);
-			}
-		}
+		await publishCompletionEvents(newSessionEvents, deps);
 
 		// 事务提交后执行新运行派发回调；只有进程真的起来才算派发成功
 		try {
+			assertDeliveryTargetActive(newRunId);
 			await deps.spawnReworkRun({
 				run: {
 					...newRunInsert,
@@ -1839,7 +1808,7 @@ export function createReworkService(deps: ReworkServiceDeps): ReworkService {
 
 		// AC 4: 每分支在事务后发 run.rework_dispatched{mode, source}
 		if (deps.bus && deps.envelopeFactory) {
-			const dispatchedEnvelope = deps.envelopeFactory.createEnvelope({
+			const dispatchedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 				kind: 'run.rework_dispatched',
 				runId: newRunId,
 				taskId: targetRun.task_id,

@@ -431,12 +431,13 @@ export function RunDetailPageContainer({
 } & Omit<RunDetailContainerProps, 'runId'>) {
 	const hasInitialRun = Boolean(containerProps.run);
 	const state = useRunDetailPage(runId, runFetcher, hasInitialRun);
-	if (!hasInitialRun && state.isLoading) return <p className="p-4 text-ink-3">正在加载运行…</p>;
+	if (!hasInitialRun && state.isLoading)
+		return <p className="w-full border border-border bg-bg p-3.5 text-ink-3">正在加载运行…</p>;
 	if (state.isMissing) {
 		return (
 			<output
 				data-run-missing="true"
-				className="flex flex-col items-center justify-center p-8 text-center text-ink-2 gap-2"
+				className="w-full min-w-0 flex flex-col items-start p-3.5 text-left border border-border bg-bg text-ink-2 gap-2"
 			>
 				<h1 className="text-lead font-semibold text-ink-1">该运行不存在或已被清理</h1>
 				<p className="font-mono text-meta text-ink-3">{runId || '—'}</p>
@@ -445,7 +446,7 @@ export function RunDetailPageContainer({
 	}
 	if (!hasInitialRun && state.error)
 		return (
-			<p role="alert" className="p-4 text-warn">
+			<p role="alert" className="w-full border border-border bg-bg p-3.5 text-warn">
 				加载运行失败：{state.error}
 			</p>
 		);

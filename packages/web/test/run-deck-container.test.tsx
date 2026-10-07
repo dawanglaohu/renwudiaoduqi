@@ -63,6 +63,15 @@ describe('R13 browser entry wiring', () => {
 		const html = renderDeck();
 		expect(html).toContain('empty-onboarding-console');
 		expect(html).toContain('import-doc-path');
+		const root = document.createElement('div');
+		root.innerHTML = html;
+		const rail = root.querySelector('[data-testid="deck-rail"]');
+		const onboarding = root.querySelector('[data-testid="empty-onboarding-console"]');
+		const grid = root.querySelector('[data-container="lanes-deck"]');
+		expect(rail?.contains(onboarding)).toBe(true);
+		expect(grid?.contains(onboarding)).toBe(false);
+		expect(grid?.querySelectorAll('[data-stream-column="true"]')).toHaveLength(1);
+		expect(grid?.querySelector('[data-action="stop-stream"]')).not.toBeNull();
 	});
 	it('renders unassigned waiting gates without changing authoritative lane identity or stage', () => {
 		const gate = {

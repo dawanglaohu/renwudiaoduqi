@@ -579,3 +579,118 @@ describe('M4-T9: claude 原生适配器', () => {
 		});
 	});
 });
+
+describe('R8-T57073674: partial and complete content ownership', () => {
+	function stream(
+		type: string,
+		fields: Record<string, unknown> = {},
+		parent: string | null = null,
+	) {
+		return { type: 'stream_event', parent_tool_use_id: parent, event: { type, ...fields } };
+	}
+	function assistant(text: string, parent: string | null = null) {
+		return {
+			type: 'assistant',
+			parent_tool_use_id: parent,
+			message: { id: 'message', content: [{ type: 'text', text }] },
+		};
+	}
+	function start(mapper: ReturnType<typeof createClaudeEventMapper>, parent: string | null = null) {
+		mapper.mapLine(stream('message_start', { message: { id: 'message' } }, parent));
+		mapper.mapLine(
+			stream(
+				'content_block_start',
+				{ index: 0, content_block: { type: 'text', text: '' } },
+				parent,
+			),
+		);
+	}
+	it.each([
+		['partial', 'Hello', ''],
+		['multiblock', 'HelloWorld', 'Plan'],
+	])('maps native %s recording once per block', (name, text, thinking) => {
+		const mapper = createClaudeEventMapper();
+		const lines = readFileSync(
+			new URL(`../fixtures/dispatch/claude-2-1-238-local-${name}.stdout.ndjson`, import.meta.url),
+			'utf8',
+		)
+			.trim()
+			.split('\n');
+		const events = lines.flatMap((line) => mapper.mapLine(line).events);
+		expect(
+			events
+				.filter((e) => e.kind === 'agent_message_chunk')
+				.map((e) => e.payload.chunk)
+				.join(''),
+		).toBe(text);
+		expect(
+			events
+				.filter((e) => e.kind === 'agent_thought_chunk')
+				.map((e) => e.payload.chunk)
+				.join(''),
+		).toBe(thinking);
+	});
+	it('emits one native tool call with final input and its linked result', () => {
+		const mapper = createClaudeEventMapper();
+		const lines = readFileSync(
+			new URL('../fixtures/dispatch/claude-2-1-238-local-tool.stdout.ndjson', import.meta.url),
+			'utf8',
+		)
+			.trim()
+			.split('\n');
+		const events = lines.flatMap((line) => mapper.mapLine(line).events);
+		const calls = events.filter((e) => e.kind === 'tool_call');
+		expect(calls).toHaveLength(1);
+		expect(calls[0]?.payload.input).toEqual({ file_path: 'probe.txt' });
+		expect(events.find((e) => e.kind === 'tool_call_update')?.payload.callId).toBe(
+			calls[0]?.payload.callId,
+		);
+	});
+	it.each([false, true])(
+		'retains partial prefix through block stop (%s) and emits only missing suffix',
+		(stopped) => {
+			const mapper = createClaudeEventMapper();
+			start(mapper);
+			expect(
+				mapper.mapLine(
+					stream('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Hello' } }),
+				).events[0]?.payload.chunk,
+			).toBe('Hello');
+			if (stopped) mapper.mapLine(stream('content_block_stop', { index: 0 }));
+			expect(mapper.mapLine(assistant('HelloWorld')).events.map((e) => e.payload.chunk)).toEqual([
+				'World',
+			]);
+		},
+	);
+	it('keeps main and subagent parents independent even with equal message ids and text', () => {
+		const mapper = createClaudeEventMapper();
+		start(mapper);
+		start(mapper, 'child');
+		mapper.mapLine(
+			stream('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Hello' } }),
+		);
+		expect(mapper.mapLine(assistant('Hello', 'child')).events[0]?.payload.chunk).toBe('Hello');
+		expect(mapper.mapLine(assistant('Hello')).events).toHaveLength(0);
+	});
+	it('keeps process instances independent and reset clears content ownership', () => {
+		const one = createClaudeEventMapper();
+		const two = createClaudeEventMapper();
+		start(one);
+		one.mapLine(
+			stream('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Hello' } }),
+		);
+		expect(two.mapLine(assistant('Hello')).events[0]?.payload.chunk).toBe('Hello');
+		one.reset();
+		expect(one.mapLine(assistant('Hello')).events[0]?.payload.chunk).toBe('Hello');
+	});
+	it('does not suppress complete content after an empty partial block or completed message', () => {
+		const mapper = createClaudeEventMapper();
+		start(mapper);
+		mapper.mapLine(
+			stream('content_block_delta', { index: 0, delta: { type: 'text_delta', text: '' } }),
+		);
+		expect(mapper.mapLine(assistant('Hello')).events[0]?.payload.chunk).toBe('Hello');
+		mapper.mapLine(stream('message_stop'));
+		expect(mapper.mapLine(assistant('Hello')).events[0]?.payload.chunk).toBe('Hello');
+	});
+});

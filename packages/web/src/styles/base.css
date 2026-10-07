@@ -106,3 +106,17 @@ samp {
 .pulse-dot-waiting {
 	background-color: var(--needs);
 }
+
+/* The portal's Popper wrapper otherwise contains fixed-position content. */
+[data-radix-popper-content-wrapper]:has([data-select-fullscreen]) {
+	position: fixed !important;
+	inset: 0 !important;
+	width: 100% !important;
+	transform: none !important;
+}
+
+[data-select-fullscreen] {
+	width: 100vw;
+	height: 100dvh;
+	max-height: none;
+}

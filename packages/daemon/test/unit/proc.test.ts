@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 type SpawnFn = typeof import('node:child_process').spawn;
 import { AppError } from '../../src/errors/app-error.ts';
+import { createPublicationOrder } from '../../src/events/publication-order.ts';
 import { createAppendQueue } from '../../src/logstore/append-queue.ts';
 import type { KillTreeResult } from '../../src/platform/kill-tree-contract.ts';
 import { DEFAULT_ENV_DENYLIST, createProcessEnv } from '../../src/proc/env.ts';
@@ -142,6 +143,54 @@ describe('Adapter-owned stdin lifecycle', () => {
 		expect(errors[0]).toMatchObject({ code: 'E_MESSAGE_UNDELIVERED' });
 		expect(managed.exitResult?.error).toBe(errors[0]);
 	});
+});
+
+describe('combined stdout backpressure', () => {
+	it.each(['disk', 'events'] as const)(
+		'keeps output paused when %s pressure releases first',
+		async (first) => {
+			const child = createMockChild();
+			let releaseDisk: () => void = () => undefined;
+			const blocked = new Promise<void>((resolve) => {
+				releaseDisk = resolve;
+			});
+			const queue = createAppendQueue(
+				{ appendFile: () => blocked },
+				{ highWatermarkBytes: 4, lowWatermarkBytes: 2 },
+			);
+			const order = createPublicationOrder(2);
+			const managed = spawnManaged(
+				{ runId: 'combined-pressure', file: '/agent', args: [], cwd: '/tmp' },
+				{
+					platform: 'linux',
+					spawnFn: vi.fn(() => child as unknown as ChildProcess) as unknown as SpawnFn,
+					appendQueue: queue,
+					outputBackpressure: order,
+				},
+			);
+			order.reserve(() => 1);
+			order.reserve(() => 2);
+			const writing = queue.append('/log', new Uint8Array(8));
+			expect(child.stdout.isPaused()).toBe(true);
+			if (first === 'disk') {
+				releaseDisk();
+				await writing;
+				expect(child.stdout.isPaused()).toBe(true);
+				order.cancel(1);
+			} else {
+				order.cancel(1);
+				expect(child.stdout.isPaused()).toBe(true);
+				releaseDisk();
+				await writing;
+			}
+			expect(child.stdout.isPaused()).toBe(false);
+			await managed.finalize();
+			const pause = vi.spyOn(child.stdout, 'pause');
+			order.reserve(() => 3);
+			expect(pause).not.toHaveBeenCalled();
+			order.dispose();
+		},
+	);
 });
 
 describe('M1-T7 Line Reader (Buffer-based, AC 3, AC 4, E-131, E-141, E-203)', () => {

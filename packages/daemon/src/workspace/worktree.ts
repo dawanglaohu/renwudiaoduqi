@@ -9,6 +9,7 @@ import type {
 import { takePlatformHostInputs } from '../platform/host.ts';
 import { resolveExecutable } from '../platform/resolve-executable.ts';
 import { type LaunchSpec, spawnManaged } from '../proc/spawn.ts';
+import { withWorktreeOperation, worktreePathKey } from './worktree-operations.ts';
 
 export interface GitCommandResult {
 	readonly exitCode: number;
@@ -356,6 +357,13 @@ export async function listWorktrees(
 	repoPath: string,
 	runner: GitRunner,
 ): Promise<readonly WorktreeEntry[]> {
+	return withWorktreeOperation(repoPath, runner, () => listWorktreesUnlocked(repoPath, runner));
+}
+
+async function listWorktreesUnlocked(
+	repoPath: string,
+	runner: GitRunner,
+): Promise<readonly WorktreeEntry[]> {
 	const result = await runner.run(['worktree', 'list', '--porcelain'], repoPath);
 	if (result.exitCode !== 0) {
 		throw new AppError(
@@ -383,7 +391,7 @@ async function listAllBranchNames(repoPath: string, runner: GitRunner): Promise<
 		}
 	}
 
-	const worktrees = await listWorktrees(repoPath, runner).catch(() => []);
+	const worktrees = await listWorktreesUnlocked(repoPath, runner).catch(() => []);
 	for (const wt of worktrees) {
 		if (wt.branch) {
 			branches.add(wt.branch);
@@ -394,6 +402,17 @@ async function listAllBranchNames(repoPath: string, runner: GitRunner): Promise<
 }
 
 export async function resolveBranchName(
+	repoPath: string,
+	taskId: string,
+	runner: GitRunner,
+	options: { branchPrefix?: string; preferredBranchName?: string } = {},
+): Promise<string> {
+	return withWorktreeOperation(repoPath, runner, () =>
+		resolveBranchNameUnlocked(repoPath, taskId, runner, options),
+	);
+}
+
+async function resolveBranchNameUnlocked(
 	repoPath: string,
 	taskId: string,
 	runner: GitRunner,
@@ -480,7 +499,49 @@ function categorizeWorktreeCreationError(
 	});
 }
 
+async function assertReuseBranchExists(
+	repoPath: string,
+	worktreePath: string,
+	branchName: string,
+	runner: GitRunner,
+): Promise<void> {
+	const result = await runner.run(
+		['rev-parse', '--verify', '--quiet', `refs/heads/${branchName}`],
+		repoPath,
+	);
+	if (result.exitCode === 1) {
+		throw new AppError('E_WORKSPACE_UNAVAILABLE', `Original branch '${branchName}' is missing`, {
+			details: {
+				repoPath,
+				worktreePath,
+				branchName,
+				reason: 'branch_missing',
+				releaseSlot: true,
+				workspaceUnavailable: true,
+			},
+		});
+	}
+	if (result.exitCode !== 0) {
+		throw categorizeWorktreeCreationError(
+			new Error(result.stderr || result.stdout),
+			repoPath,
+			worktreePath,
+			branchName,
+		);
+	}
+}
+
 export async function prepareWorktree(
+	input: PrepareWorktreeInput,
+	runner: GitRunner,
+	deps: WorktreeManagerDeps,
+): Promise<PrepareWorktreeResult> {
+	return withWorktreeOperation(input.repoPath, runner, () =>
+		prepareWorktreeUnlocked(input, runner, deps),
+	);
+}
+
+async function prepareWorktreeUnlocked(
 	input: PrepareWorktreeInput,
 	runner: GitRunner,
 	deps: WorktreeManagerDeps,
@@ -495,18 +556,23 @@ export async function prepareWorktree(
 	await assertGitRepository(repoPath, runner);
 
 	const mode = input.worktreeMode ?? 'fresh';
-	const existingWorktrees = await listWorktrees(repoPath, runner);
+	const existingWorktrees = await listWorktreesUnlocked(repoPath, runner);
 
 	// 2. If reuse mode requested (E-121 / E-277)
 	if (mode === 'reuse') {
 		const expectedPrefix = input.branchPrefix ?? 'task/';
 		const targetBranch = input.preferredBranchName ?? `${expectedPrefix}${taskId}`;
-		const matching = existingWorktrees.find(
-			(wt) =>
-				wt.branch === targetBranch ||
-				(input.targetWorktreePath &&
-					nodePath.resolve(wt.path) === nodePath.resolve(input.targetWorktreePath)),
+		const targetPathKey = input.targetWorktreePath
+			? await worktreePathKey(input.targetWorktreePath)
+			: null;
+		const pathMatches = await Promise.all(
+			existingWorktrees.map(
+				async (wt) => targetPathKey !== null && (await worktreePathKey(wt.path)) === targetPathKey,
+			),
 		);
+		const matching =
+			existingWorktrees[pathMatches.findIndex(Boolean)] ??
+			existingWorktrees.find((wt) => wt.branch === targetBranch);
 		const registeredDirectoryExists = matching
 			? await worktreeDirectoryExists(matching.path, deps)
 			: false;
@@ -523,54 +589,74 @@ export async function prepareWorktree(
 		// 不 `-b` 新分支、不换 base。旧版 Git 对 prunable 登记执行 `worktree add --force` 可能成功退出却
 		// 不重建目录，所以先精确 remove 这一条登记；绝不对全仓执行 worktree prune。
 		const reuseBranch = matching?.branch ?? targetBranch;
-		const branchExists =
-			matching !== undefined || (await listAllBranchNames(repoPath, runner)).has(reuseBranch);
-		if (branchExists) {
-			const reusePath = matching
-				? matching.path
-				: input.targetWorktreePath
-					? input.targetWorktreePath
-					: resolveDefaultWorktreePath(repoPath, taskId, undefined, input.worktreesDir);
-			if (matching) {
-				const removeResult = await runner.run(
-					['worktree', 'remove', '--force', matching.path],
-					repoPath,
-				);
-				if (removeResult.exitCode !== 0) {
-					throw categorizeWorktreeCreationError(
-						new Error(removeResult.stderr || removeResult.stdout),
-						repoPath,
-						reusePath,
-						reuseBranch,
-					);
-				}
-			}
-			const reuseArgs = ['worktree', 'add', reusePath, reuseBranch];
-			let reuseResult: GitCommandResult;
-			try {
-				reuseResult = await runner.run(reuseArgs, repoPath);
-			} catch (cause) {
-				throw categorizeWorktreeCreationError(cause, repoPath, reusePath, reuseBranch);
-			}
-			if (reuseResult.exitCode !== 0) {
+		const reusePath = matching
+			? matching.path
+			: input.targetWorktreePath
+				? input.targetWorktreePath
+				: resolveDefaultWorktreePath(repoPath, taskId, undefined, input.worktreesDir);
+		await assertReuseBranchExists(repoPath, reusePath, reuseBranch, runner);
+		if (matching) {
+			const removeResult = await runner.run(
+				['worktree', 'remove', '--force', matching.path],
+				repoPath,
+			);
+			if (removeResult.exitCode !== 0) {
 				throw categorizeWorktreeCreationError(
-					new Error(reuseResult.stderr || reuseResult.stdout),
+					new Error(removeResult.stderr || removeResult.stdout),
 					repoPath,
 					reusePath,
 					reuseBranch,
 				);
 			}
-			return Object.freeze({
-				worktreePath: reusePath,
-				branchName: reuseBranch,
-				baseRef: input.baseRef ?? 'HEAD',
-				isReused: true,
-			});
 		}
+		// Explicit local refs prevent Git from recreating a missing branch from a remote.
+		const reuseArgs = ['worktree', 'add', '--detach', reusePath, `refs/heads/${reuseBranch}`];
+		let reuseResult: GitCommandResult;
+		try {
+			reuseResult = await runner.run(reuseArgs, repoPath);
+		} catch (cause) {
+			throw categorizeWorktreeCreationError(cause, repoPath, reusePath, reuseBranch);
+		}
+		if (reuseResult.exitCode !== 0) {
+			await assertReuseBranchExists(repoPath, reusePath, reuseBranch, runner);
+			throw categorizeWorktreeCreationError(
+				new Error(reuseResult.stderr || reuseResult.stdout),
+				repoPath,
+				reusePath,
+				reuseBranch,
+			);
+		}
+		try {
+			const attachResult = await runner.run(['switch', '--no-guess', reuseBranch], reusePath);
+			if (attachResult.exitCode !== 0) {
+				throw new Error(attachResult.stderr || attachResult.stdout);
+			}
+		} catch (cause) {
+			const cleanupResult = await runner.run(
+				['worktree', 'remove', '--force', reusePath],
+				repoPath,
+			);
+			if (cleanupResult.exitCode !== 0) {
+				throw categorizeWorktreeCreationError(
+					new Error(cleanupResult.stderr || cleanupResult.stdout),
+					repoPath,
+					reusePath,
+					reuseBranch,
+				);
+			}
+			await assertReuseBranchExists(repoPath, reusePath, reuseBranch, runner);
+			throw categorizeWorktreeCreationError(cause, repoPath, reusePath, reuseBranch);
+		}
+		return Object.freeze({
+			worktreePath: reusePath,
+			branchName: reuseBranch,
+			baseRef: input.baseRef ?? 'HEAD',
+			isReused: true,
+		});
 	}
 
 	// 3. Resolve branch name with collision detection (AC 1, E-71)
-	const branchName = await resolveBranchName(repoPath, taskId, runner, {
+	const branchName = await resolveBranchNameUnlocked(repoPath, taskId, runner, {
 		branchPrefix: input.branchPrefix,
 		preferredBranchName: input.preferredBranchName,
 	});
@@ -586,12 +672,14 @@ export async function prepareWorktree(
 		? nodePath.resolve(input.targetWorktreePath)
 		: resolveDefaultWorktreePath(repoPath, taskId, branchSuffix, input.worktreesDir);
 
-	const isPathOccupied = (p: string) =>
-		existingWorktrees.some((wt) => nodePath.resolve(wt.path) === nodePath.resolve(p));
+	const occupiedPaths = new Set(
+		await Promise.all(existingWorktrees.map((wt) => worktreePathKey(wt.path))),
+	);
+	const isPathOccupied = async (path: string) => occupiedPaths.has(await worktreePathKey(path));
 
-	if (isPathOccupied(worktreePath)) {
+	if (await isPathOccupied(worktreePath)) {
 		let pathIndex = branchSuffix ?? 2;
-		while (isPathOccupied(`${worktreePath}-${pathIndex}`)) {
+		while (await isPathOccupied(`${worktreePath}-${pathIndex}`)) {
 			pathIndex++;
 		}
 		worktreePath = `${worktreePath}-${pathIndex}`;
@@ -638,13 +726,27 @@ export async function removeWorktree(
 	runner: GitRunner,
 	deps: WorktreeManagerDeps,
 ): Promise<CleanupWorktreeResult> {
+	return withWorktreeOperation(input.repoPath, runner, () =>
+		removeWorktreeUnlocked(input, runner, deps),
+	);
+}
+
+async function removeWorktreeUnlocked(
+	input: CleanupWorktreeInput,
+	runner: GitRunner,
+	deps: WorktreeManagerDeps,
+): Promise<CleanupWorktreeResult> {
 	const repoPath = nodePath.resolve(input.repoPath);
 	const worktreePath = nodePath.resolve(input.worktreePath);
 	const force = input.force ?? false;
 	const deleteBranch = input.deleteBranch ?? false;
 
-	const existingWorktrees = await listWorktrees(repoPath, runner).catch(() => []);
-	const matching = existingWorktrees.find((wt) => nodePath.resolve(wt.path) === worktreePath);
+	const existingWorktrees = await listWorktreesUnlocked(repoPath, runner).catch(() => []);
+	const targetPathKey = await worktreePathKey(worktreePath);
+	const matches = await Promise.all(
+		existingWorktrees.map(async (wt) => (await worktreePathKey(wt.path)) === targetPathKey),
+	);
+	const matching = existingWorktrees[matches.findIndex(Boolean)];
 
 	let branchDeleted = false;
 
@@ -653,7 +755,7 @@ export async function removeWorktree(
 		if (force) {
 			removeArgs.push('--force');
 		}
-		removeArgs.push(worktreePath);
+		removeArgs.push(nodePath.resolve(matching.path));
 
 		const result = await runner.run(removeArgs, repoPath);
 		if (result.exitCode !== 0) {
@@ -768,14 +870,19 @@ export async function prepareWrapupWorktree(
 	runner: GitRunner,
 	deps: WorktreeManagerDeps,
 ): Promise<PrepareWrapupWorktreeResult> {
-	const preferredBranchName = await resolveWrapupBranchName(
-		input.repoPath,
-		input.batchId,
-		input.round,
-		runner,
+	return withWorktreeOperation(input.repoPath, runner, () =>
+		prepareWrapupWorktreeUnlocked(input, runner, deps),
 	);
+}
 
-	const result = await prepareWorktree(
+async function prepareWrapupWorktreeUnlocked(
+	input: PrepareWrapupWorktreeInput,
+	runner: GitRunner,
+	deps: WorktreeManagerDeps,
+): Promise<PrepareWrapupWorktreeResult> {
+	const preferredBranchName = formatWrapupBranchName(input.batchId, input.round);
+
+	const result = await prepareWorktreeUnlocked(
 		{
 			repoPath: input.repoPath,
 			taskId: `wrapup-${input.batchId}-${input.round}`,

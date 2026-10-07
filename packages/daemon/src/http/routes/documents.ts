@@ -234,8 +234,6 @@ export function registerDocumentRoutes(
 				});
 			}
 
-			docsService.updateLaneCount(docId, request.body.laneCount);
-
 			const actorDeviceId =
 				(request as unknown as { actorDeviceId?: string }).actorDeviceId ?? null;
 			const container =
@@ -254,7 +252,14 @@ export function registerDocumentRoutes(
 						laneCount: request.body.laneCount,
 					},
 				});
-				bus.publish(env);
+				try {
+					docsService.updateLaneCount(docId, request.body.laneCount);
+					bus.publish(env);
+				} finally {
+					envelopeFactory.cancelEnvelope(env);
+				}
+			} else {
+				docsService.updateLaneCount(docId, request.body.laneCount);
 			}
 
 			// Nudge tick: 调大立即补位、调小不杀任何运行只停止补位（AC 4, E-309, E-310）

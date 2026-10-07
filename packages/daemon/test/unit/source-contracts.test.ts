@@ -56,12 +56,16 @@ describe('source contracts', () => {
 		});
 		const checker = program.getTypeChecker();
 		const violations: string[] = [];
+		let checkedFiles = 0;
+		const packageDirectoryPrefix = `${packagesRoot.replaceAll('\\', '/')}/`;
 
 		for (const sourceFile of program.getSourceFiles()) {
-			if (!sourceFile.fileName.startsWith(packagesRoot)) continue;
+			if (!sourceFile.fileName.replaceAll('\\', '/').startsWith(packageDirectoryPrefix)) continue;
+			checkedFiles++;
 			visitPromiseStatements(sourceFile, checker, violations);
 		}
 
+		expect(checkedFiles).toBeGreaterThan(0);
 		expect(violations).toEqual([]);
 	});
 

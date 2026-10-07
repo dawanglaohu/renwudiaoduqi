@@ -52,8 +52,8 @@ export interface CreateRunWriterDeps {
  * Per-run append writer for raw.log and events.ndjson. The writer itself is
  * file-only (logstore layer, R5); it never reads the segments repo or the index.
  *
- * Concurrency: per-run serialization via AppendQueue plus an internal promise
- * chain, so a resolved `appendEventLine` means those bytes are persisted to
+ * Concurrency: AppendQueue serializes preparation and writes together and counts
+ * retained bytes from enqueue, so a resolved `appendEventLine` means bytes are persisted to
  * disk and the returned offsets are accurate. The caller may then write the
  * milestone index in a unitOfWork transaction — that write is outside the
  * writer, so file-first ordering is preserved (R1).
@@ -106,7 +106,7 @@ export function createRunWriter(deps: CreateRunWriterDeps): RunLogWriter {
 		const framed = new Uint8Array(incomingBytes);
 		framed.set(line, 0);
 		framed[incomingBytes - 1] = NEWLINE[0] ?? 0x0a;
-		await queue.append(path, framed);
+		await fs.appendFile(path, framed);
 		const byteOffset = state.byteEnd;
 		state.byteEnd += incomingBytes;
 		state.lineCount += 1;
@@ -120,7 +120,7 @@ export function createRunWriter(deps: CreateRunWriterDeps): RunLogWriter {
 	}
 
 	function enqueue(stream: LogStream, line: Uint8Array): Promise<AppendResult> {
-		const task = chain.then(() => performAppend(stream, line));
+		const task = queue.enqueue(line.byteLength + 1, () => performAppend(stream, line));
 		chain = task.then(
 			() => undefined,
 			() => undefined,

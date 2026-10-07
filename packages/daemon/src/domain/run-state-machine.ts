@@ -164,10 +164,16 @@ export function isTerminalRunState(state: RunState): state is TerminalRunState {
 
 /**
  * 判断状态是否占用每 agent 的并发配额。
- * awaiting_human 与 orphaned 不计入；终态不计入；awaiting_reply 仍占用（E-54, E-115）。
+ * 已归档会话、awaiting_human、orphaned 与终态不计入；awaiting_reply 仍占用（E-54, E-115）。
  */
-export function countsTowardAgentConcurrency(state: RunState): boolean {
-	return !(EXCLUDED_FROM_CONCURRENCY_STATES as readonly RunState[]).includes(state);
+export function countsTowardAgentConcurrency(
+	state: RunState,
+	sessionArchivedAt?: string | null,
+): boolean {
+	return (
+		sessionArchivedAt == null &&
+		!(EXCLUDED_FROM_CONCURRENCY_STATES as readonly RunState[]).includes(state)
+	);
 }
 
 /**

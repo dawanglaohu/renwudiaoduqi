@@ -389,6 +389,7 @@ async function captureStateFrame(
 
 interface CapturedEvent {
 	readonly kind: string;
+	readonly receivedAt?: string;
 	readonly runId: string | null;
 	readonly taskId: string | null;
 	readonly payload: Record<string, unknown>;
@@ -396,6 +397,7 @@ interface CapturedEvent {
 
 async function captureLiveEvents(port: number, token: string): Promise<{
 	readonly events: CapturedEvent[];
+	readonly subscription: { readonly connectedAt: string; readonly status: number };
 	readonly stop: () => Promise<void>;
 }> {
 	const abort = new AbortController();
@@ -423,7 +425,7 @@ async function captureLiveEvents(port: number, token: string): Promise<{
 				const data = frame.split('\n').find((line) => line.startsWith('data: '));
 				if (data) {
 					const envelope = JSON.parse(data.slice(6)) as CapturedEvent;
-					events.push(envelope);
+					events.push({ ...envelope, receivedAt: new Date().toISOString() });
 				}
 				boundary = pending.indexOf('\n\n');
 			}
@@ -433,6 +435,7 @@ async function captureLiveEvents(port: number, token: string): Promise<{
 	});
 	return {
 		events,
+		subscription: { connectedAt: new Date().toISOString(), status: response.status },
 		stop: async () => {
 			abort.abort();
 			await drain;
@@ -505,14 +508,16 @@ const isTask2 = !isReviewOrBughunt && (
   process.argv.some((a) => a.includes('B14-T2') && !a.includes('B14-T1'))
 );
 
-// E-323 Bughunt failure check: if bughunt-fail signal exists and command is bughunt, exit with error
-const bughuntFailSignals = [
-  path.join(signalDir, 'bughunt-fail.signal'),
-  path.join(os.tmpdir(), 'bughunt-fail.signal'),
-  path.join(path.dirname(process.argv[1] || ''), 'bughunt-fail.signal'),
-];
-const hasBughuntFailSignal = bughuntFailSignals.some((p) => fs.existsSync(p));
-const isBughuntRun = process.argv.some((a) => a.includes('bughunt') || a.includes('查 bug'));
+// E-323: only the armed task's bughunt may consume this fault.
+const bughuntFailSignal = path.join(signalDir, 'bughunt-fail.signal');
+function shouldFailBughunt(prompt) {
+  if (!prompt.trimStart().startsWith('# 查 bug 执行指令') || !fs.existsSync(bughuntFailSignal)) return false;
+  const fault = JSON.parse(fs.readFileSync(bughuntFailSignal, 'utf8'));
+  const targetHeading = '\\n## 工作区指针与测试指令\\n\\n### 目标任务\\n';
+  const targetOffset = prompt.lastIndexOf(targetHeading);
+  return typeof fault.taskId === 'string' && fault.taskId.length > 0 && targetOffset >= 0 &&
+    prompt.slice(targetOffset + targetHeading.length).startsWith('- 任务 ' + fault.taskId + '：');
+}
 const hasWrapupFailSignal = fs.existsSync(path.join(signalDir, 'wrapup-fail.signal'));
 
 // E-348 Zero-output check: if zero-output signal exists and target is B14-T2, wait 350ms for daemon to reach running state, then exit with stderr before content events
@@ -528,11 +533,6 @@ if (hasWrapupFailSignal) {
     process.stderr.write('[error] Agent process exited before producing content: authentication required or invalid model\\n[stderr] credentials check failed: token expired\\n');
     process.exit(1);
   }, 350);
-} else if (hasBughuntFailSignal && isBughuntRun) {
-  setTimeout(() => {
-    process.stderr.write('[error] Bughunt execution failure: test induced bughunt failure for E-323\\n[stderr] analysis aborted\\n');
-    process.exit(1);
-  }, 350);
 } else {
   let turnStarted = false;
   let currentPrompt = '';
@@ -540,6 +540,14 @@ if (hasWrapupFailSignal) {
   function emitTurnPayload() {
     if (turnStarted) return;
     turnStarted = true;
+    const prompt = currentPrompt || process.argv.find((arg) => arg.trimStart().startsWith('# 查 bug 执行指令')) || '';
+    if (shouldFailBughunt(prompt)) {
+      setTimeout(() => {
+        process.stderr.write('[error] Bughunt execution failure: test induced bughunt failure for E-323\\n[stderr] analysis aborted\\n');
+        process.exit(1);
+      }, 350);
+      return;
+    }
 
     // Produce real git diff for implement runs strictly within the task's own effectivePaths
     const taskKeys = ['b14-t1', 'b14-t2', 'b14-t3', 'b14-t4', 'b14-t5'];
@@ -618,7 +626,9 @@ if (hasWrapupFailSignal) {
         params: { item: { id: 'msg-b14-1', type: 'agentMessage', text: outputText } }
       }) + '\\n');
 
-      setTimeout(() => {
+      setTimeout(async () => {
+        // Keep the real implement turn active until its lane metadata is observed.
+        while (outputText.startsWith('B14_LIVE_CONTENT_') && fs.existsSync(path.join(signalDir, 'hold-implementation.signal'))) await sleep(50);
         process.stdout.write(JSON.stringify({
           method: 'turn/completed',
           params: { threadId: 'thread-b14-composition', turn: { id: 'turn-b14-composition', status: 'completed' } }
@@ -959,7 +969,8 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 			isolatedProjectRoot = mkdtempSync(join(tmpdir(), 'agsched-e2e-project-'));
 			gitRepoDir = join(isolatedProjectRoot, 'repo');
 			mkdirSync(gitRepoDir, { recursive: true });
-			execFileSync('git', ['init', '-b', 'main', gitRepoDir], { stdio: 'ignore' });
+			execFileSync('git', ['init', gitRepoDir], { stdio: 'ignore' });
+			execFileSync('git', ['-C', gitRepoDir, 'symbolic-ref', 'HEAD', 'refs/heads/main'], { stdio: 'ignore' });
 			execFileSync('git', ['-C', gitRepoDir, 'config', 'user.name', 'Batch14 E2E'], { stdio: 'ignore' });
 			execFileSync('git', ['-C', gitRepoDir, 'config', 'user.email', 'b14-e2e@example.invalid'], { stdio: 'ignore' });
 
@@ -1113,7 +1124,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 				{ stdio: 'ignore' },
 			);
 
-			daemon = await startCompositionDaemon({ timeoutMs: 90000 });
+			daemon = await startCompositionDaemon({ timeoutMs: 240000 });
 			browser = await chromium.launch({
 				headless: true,
 				args:
@@ -1135,47 +1146,68 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 			}
 			throw err;
 		}
-	});
+	}, 300000);
 
 	afterEach(async ({ task }) => {
-		if (task.result?.state === 'fail') {
-			const safeName = task.name.replace(/[^a-zA-Z0-9_-]/g, '_');
-			mkdirSync(artifactsDir, { recursive: true });
-
-			if (daemon && currentRunId && adminToken) {
-				try {
-					const r = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${currentRunId}`, {
-						headers: { Authorization: `Bearer ${adminToken}` },
-					});
-					const runState = await r.json();
+		try {
+			if (daemon) rmSync(join(daemon.dataDir, 'hold-implementation.signal'), { force: true });
+			if (task.result?.state === 'fail') {
+				const safeName = task.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+				mkdirSync(artifactsDir, { recursive: true });
+				if (liveEvents) {
 					writeFileSync(
-						join(artifactsDir, `${safeName}-run-state.json`),
-						redactSensitiveData(JSON.stringify(runState, null, 2)),
+						join(artifactsDir, `${safeName}-live-events.json`),
+						redactSensitiveData(JSON.stringify({ subscription: liveEvents.subscription, events: liveEvents.events }, null, 2)),
 						'utf8',
 					);
-				} catch {}
+				}
+
+				if (daemon && currentRunId && adminToken) {
+					try {
+						const r = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${currentRunId}`, {
+							headers: { Authorization: `Bearer ${adminToken}` },
+						});
+						const runState = await r.json();
+						writeFileSync(
+							join(artifactsDir, `${safeName}-run-state.json`),
+							redactSensitiveData(JSON.stringify(runState, null, 2)),
+							'utf8',
+						);
+					} catch {}
+				}
+
+				if (page) {
+					try {
+						await maskSensitivePageContent(page);
+						const screenshotPath = join(artifactsDir, `${safeName}-failure.png`);
+						await page.screenshot({ path: screenshotPath, fullPage: true });
+
+						const domHtml = await page.content();
+						const domPath = join(artifactsDir, `${safeName}-failure.dom.html`);
+						writeFileSync(domPath, redactSensitiveData(domHtml), 'utf8');
+					} catch {}
+				}
+
+				if (daemon) {
+					writeFileSync(join(artifactsDir, `${safeName}-daemon-stdout.log`), daemon.getStdout(), 'utf8');
+					writeFileSync(join(artifactsDir, `${safeName}-daemon-stderr.log`), daemon.getStderr(), 'utf8');
+				}
 			}
-
-			if (page) {
-				try {
-					await maskSensitivePageContent(page);
-					const screenshotPath = join(artifactsDir, `${safeName}-failure.png`);
-					await page.screenshot({ path: screenshotPath, fullPage: true });
-
-					const domHtml = await page.content();
-					const domPath = join(artifactsDir, `${safeName}-failure.dom.html`);
-					writeFileSync(domPath, redactSensitiveData(domHtml), 'utf8');
-				} catch {}
-			}
-
-			if (daemon) {
-				writeFileSync(join(artifactsDir, `${safeName}-daemon-stdout.log`), daemon.getStdout(), 'utf8');
-				writeFileSync(join(artifactsDir, `${safeName}-daemon-stderr.log`), daemon.getStderr(), 'utf8');
+		} finally {
+			if (daemon && (task.result?.state === 'fail' || task.name.startsWith('step 4:'))) {
+				rmSync(join(daemon.dataDir, 'bughunt-fail.signal'), { force: true });
 			}
 		}
 	});
 
 	afterAll(async () => {
+		if (liveEvents) {
+			writeFileSync(
+				join(artifactsDir, 'b14-live-events.json'),
+				redactSensitiveData(JSON.stringify({ subscription: liveEvents.subscription, events: liveEvents.events }, null, 2)),
+				'utf8',
+			);
+		}
 		if (liveEvents) await liveEvents.stop().catch(() => {});
 		if (context) await context.close().catch(() => {});
 		if (browser) await browser.close().catch(() => {});
@@ -1399,13 +1431,11 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		// Configure task assignment for B14-T1: agent=codex, model=codex-standard, effortTier=high via UI (AC 1, E-347)
 		await page.getByTestId('select-agent-B14-T1').selectOption('codex');
 
-		const modelSelect = page.getByTestId('select-model-B14-T1');
-		await modelSelect.waitFor({ state: 'visible', timeout: 5000 });
-		await modelSelect.selectOption('codex-standard');
-
-		const effortSelect = page.getByTestId('select-effort-B14-T1');
-		await effortSelect.waitFor({ state: 'visible', timeout: 5000 });
-		await effortSelect.selectOption('high');
+		const assignmentRow = page.locator('[data-task-editing-row="B14-T1"]');
+		await assignmentRow.getByTestId('model-picker').getByRole('combobox').click();
+		await page.getByRole('option', { name: 'codex-standard', exact: true }).click();
+		await assignmentRow.getByTestId('effort-picker').getByRole('combobox').click();
+		await page.getByRole('option', { name: '高档 (high)', exact: true }).click();
 
 		const savedAssign = page.waitForResponse(
 			(res) =>
@@ -1458,6 +1488,8 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		const liveMsg = `B14_LIVE_CONTENT_${Date.now()}`;
 		const sigFile = join(daemon.dataDir, 'agsched-fake-agent-1.signal');
 		writeFileSync(sigFile, `${liveMsg}\n`, 'utf8');
+		const holdSignal = join(daemon.dataDir, 'hold-implementation.signal');
+		writeFileSync(holdSignal, 'WAIT_FOR_IMPLEMENT_METADATA\n', 'utf8');
 
 		// Configure pipeline setting with reviewOverride and bughunt before dispatch (E-341, E-342, E-323)
 		const pipelineRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/settings/pipeline`, {
@@ -1520,7 +1552,7 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		);
 		expect(runDetailRes.status).toBe(200);
 		const runDetail = (await runDetailRes.json()) as {
-			run: { id: string; assignmentSource: string; modelName: string; effort: any };
+			run: { id: string; laneNo: number; assignmentSource: string; modelName: string; effort: any };
 		};
 		expect(runDetail.run.assignmentSource).toBe('task');
 		expect(runDetail.run.modelName).toBe('codex-standard');
@@ -1536,12 +1568,24 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 
 		// Navigate to deck #/ to verify stream column ref-bar rendered with assignment source (AC 1, E-347)
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
-		const refBar = page.locator('[data-ref-bar="true"], [data-field="ref-source"]').first();
+		const observedLane = page.locator(
+			`[data-stream-column="true"][data-lane-no="${runDetail.run.laneNo}"]`,
+		);
+		const refBar = observedLane.locator('[data-ref-bar="true"]');
 		await refBar.waitFor({ state: 'visible', timeout: 15000 });
-		const sourceField = page.locator('[data-field="ref-source"]').first();
+		const sourceField = observedLane.locator('[data-field="ref-source"]');
 		await sourceField.waitFor({ state: 'visible', timeout: 10000 });
 		const sourceText = await sourceField.innerText();
 		expect(sourceText).toMatch(/任务/);
+		// Arm the target fault before releasing the implementation into review and bughunt.
+		const targetWorktreePath = getRunFromDb(daemon.dataDir, currentRunId)?.worktree_path;
+		expect(targetWorktreePath).toBeTruthy();
+		writeFileSync(
+			join(daemon.dataDir, 'bughunt-fail.signal'),
+			JSON.stringify({ taskId: task1Id }),
+			'utf8',
+		);
+		rmSync(holdSignal, { force: true });
 
 		// 清理 liveMsg 信号文件，避免干扰后续阶段
 		if (existsSync(sigFile)) rmSync(sigFile, { force: true });
@@ -1644,11 +1688,8 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 			)
 			.toBe(true);
 
-		// 写入 bughunt-fail 信号，使初次 bughunt 运行发生真实失败以测试 E-323 规约
+		// Step 3 armed this task's first bughunt before releasing the implementation.
 		const bughuntFailSignalPath = join(daemon.dataDir, 'bughunt-fail.signal');
-		const bughuntFailTmpSignalPath = join(tmpdir(), 'bughunt-fail.signal');
-		writeFileSync(bughuntFailSignalPath, 'TRIGGER_BUGHUNT_FAIL\n', 'utf8');
-		writeFileSync(bughuntFailTmpSignalPath, 'TRIGGER_BUGHUNT_FAIL\n', 'utf8');
 
 		// 等待审查运行完成并触发查 bug 运行 (bughunt)，此时因信号真实失败转入 failed (AC 2, M8-T9, E-323)
 		let failedBughuntRunId: string | null = null;
@@ -1713,7 +1754,6 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 
 		// 4. 清理 bughunt-fail 信号，通过合法 POST /runs/:id/rerun 触发重跑 (AC 2, E-323)
 		if (existsSync(bughuntFailSignalPath)) rmSync(bughuntFailSignalPath, { force: true });
-		if (existsSync(bughuntFailTmpSignalPath)) rmSync(bughuntFailTmpSignalPath, { force: true });
 
 		const bughuntRerunRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs/${failedBughuntRunId}/rerun`, {
 			method: 'POST',
@@ -1721,6 +1761,12 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 			body: JSON.stringify({ idempotencyKey: `bughunt-rerun-${Date.now()}` }),
 		});
 		expect([200, 201]).toContain(bughuntRerunRes.status);
+		const bughuntRerunBody = (await bughuntRerunRes.json()) as {
+			run: { id: string; kind: string; parentRunId: string };
+		};
+		expect(bughuntRerunBody.run.kind).toBe('bughunt');
+		expect(bughuntRerunBody.run.id).not.toBe(failedBughuntRunId);
+		expect(bughuntRerunBody.run.parentRunId).toBe(currentRunId);
 
 		// 5. 等待重跑后的 bughunt 运行启动并完成
 		let recoveredBughuntRunId: string | null = null;

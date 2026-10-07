@@ -1,8 +1,18 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
@@ -63,12 +73,14 @@ describe('Pairing & Devices HTTP Routes Integration (M2-T2, E-07, E-127, E-226)'
 
 	afterEach(() => {
 		db.close();
+		expect(dirname(resolve(testDir))).toBe(resolve(tmpdir()));
+		expect(basename(testDir)).toMatch(/^sched-pair-integ-/);
 		// macOS keeps the SQLite -wal/-shm files briefly visible after close, so a single
 		// rmdir can hit ENOTEMPTY; retrying is what Node's own docs recommend for rmSync.
 		rmSync(testDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 	});
 
-	function makeServer(options?: { clock?: { now: () => string } }) {
+	function makeServer(options?: { clock?: { now: () => string }; platform?: 'linux' | 'win32' }) {
 		const clock = options?.clock ?? { now: () => new Date().toISOString() };
 		const container = createContainer({
 			config: {
@@ -80,7 +92,7 @@ describe('Pairing & Devices HTTP Routes Integration (M2-T2, E-07, E-127, E-226)'
 			},
 			database: db,
 			hostInputs: {
-				platform: 'linux',
+				platform: options?.platform ?? 'linux',
 				homedir: '/root',
 			},
 			lockAdapter: dummyLockAdapter,
@@ -89,6 +101,83 @@ describe('Pairing & Devices HTTP Routes Integration (M2-T2, E-07, E-127, E-226)'
 		});
 		return createHttpServer({ container });
 	}
+
+	it.skipIf(process.platform !== 'win32').each([false, true])(
+		'creates a current-user-only bootstrap file through the Windows container (existing target: %s)',
+		async (existingTarget) => {
+			const codeFilePath = join(testDir, 'pairing-code.txt');
+			const grant = spawnSync('icacls.exe', [testDir, '/grant', '*S-1-1-0:(OI)(CI)(R)'], {
+				encoding: 'utf8',
+				windowsHide: true,
+			});
+			expect(grant.status).toBe(0);
+			if (existingTarget) {
+				writeFileSync(codeFilePath, 'stale');
+				const explicit = spawnSync('icacls.exe', [codeFilePath, '/grant', '*S-1-1-0:R'], {
+					encoding: 'utf8',
+					windowsHide: true,
+				});
+				expect(explicit.status).toBe(0);
+			}
+			const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+			let server: ReturnType<typeof makeServer> | undefined;
+			try {
+				server = makeServer({ platform: 'win32' });
+				const probe = spawnSync(
+					'powershell.exe',
+					[
+						'-NoProfile',
+						'-NonInteractive',
+						'-Command',
+						'$path = [Console]::In.ReadToEnd(); $acl = [IO.File]::GetAccessControl($path); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])); @{ protected = $acl.AreAccessRulesProtected; owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value; sid = $sid; rules = @($rules | ForEach-Object { @{ sid = $_.IdentityReference.Value; allow = $_.AccessControlType.ToString(); inherited = $_.IsInherited; rights = $_.FileSystemRights.ToString() } }) } | ConvertTo-Json -Compress -Depth 4',
+					],
+					{ input: codeFilePath, encoding: 'utf8', windowsHide: true },
+				);
+				expect(probe.status, probe.stderr).toBe(0);
+				const acl = JSON.parse(probe.stdout);
+				expect(acl).toEqual({
+					protected: true,
+					owner: acl.sid,
+					sid: acl.sid,
+					rules: [{ sid: acl.sid, allow: 'Allow', inherited: false, rights: 'FullControl' }],
+				});
+				const code = readFileSync(codeFilePath, 'utf8');
+				expect(code).toMatch(/^\d{6}$/);
+				const claimed = await server.instance.inject({
+					method: 'POST',
+					url: '/api/v1/pair/claim',
+					payload: { code, deviceName: 'Windows owner' },
+				});
+				expect(claimed.statusCode).toBe(200);
+				expect(existsSync(codeFilePath)).toBe(false);
+			} finally {
+				consoleSpy.mockRestore();
+				await server?.instance.close();
+			}
+		},
+	);
+
+	it.skipIf(process.platform !== 'win32')(
+		'cleans its private temporary file when publication fails and preserves the existing target',
+		() => {
+			const target = join(testDir, 'pairing-code.txt');
+			mkdirSync(target);
+			writeFileSync(join(target, 'keep.txt'), 'existing target');
+			const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+			try {
+				expect(() => makeServer({ platform: 'win32' })).toThrow(
+					'Could not publish a private pairing file.',
+				);
+				expect(consoleSpy).not.toHaveBeenCalled();
+				expect(readFileSync(join(target, 'keep.txt'), 'utf8')).toBe('existing target');
+				expect(readdirSync(testDir).filter((name) => name.startsWith('pairing-code.txt'))).toEqual([
+					'pairing-code.txt',
+				]);
+			} finally {
+				consoleSpy.mockRestore();
+			}
+		},
+	);
 
 	it('AC 5 & E-226: bootstraps initial pairing code into dataDir/pairing-code.txt with 0600 mode on fresh database', async () => {
 		const currentTime = '2026-09-10T12:00:00.000Z';

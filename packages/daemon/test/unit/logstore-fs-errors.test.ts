@@ -2,6 +2,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AppError } from '../../src/errors/app-error.ts';
+import { createAppendQueue } from '../../src/logstore/append-queue.ts';
 import { isBusyCause, isEnoent, toFilesystemError } from '../../src/logstore/fs-errors.ts';
 import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
 
@@ -55,11 +56,7 @@ describe('logstore fs-errors (R4)', () => {
 		const writer = createRunWriter({
 			runId: 'run-x',
 			paths: createLogstorePaths('/unused'),
-			queue: {
-				append: async (p: string, d: Uint8Array) => failingFs.appendFile(p, d),
-				pendingBytes: 0,
-				drain: async () => {},
-			},
+			queue: createAppendQueue({ appendFile: failingFs.appendFile }),
 			fs: failingFs,
 		});
 		// The run-writer does not wrap fs errors itself — that is the service boundary.

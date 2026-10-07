@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
 import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
@@ -629,6 +630,108 @@ describe('documents repository Row and error boundary', () => {
 });
 
 describe('DocsService document lifecycle (E-79, E-82, E-247)', () => {
+	function setupReimport() {
+		const db = createTestDatabase();
+		const documentsRepo = createDocumentsRepo(db);
+		const tasksRepo = createTasksRepo(db);
+		const dispatchSnapshotsRepo = createDispatchSnapshotsRepo(db);
+		const payload = makeValidDocPayload();
+		const firstTask = payload.data.tasks[0];
+		const firstDispatch = payload.dispatch['T-1'];
+		const firstContract = payload.handoff.contracts['T-1'];
+		const firstReadiness = payload.handoff.readiness['T-1'];
+		if (!firstTask || !firstDispatch || !firstContract || !firstReadiness) {
+			throw new Error('Reimport fixture is incomplete');
+		}
+		let nextId = 0;
+		const service = createDocsService({
+			db,
+			documentsRepo,
+			tasksRepo,
+			dispatchSnapshotsRepo,
+			unitOfWork: createUnitOfWork(db),
+			clock: { now: () => '2026-10-02T00:00:00.000Z' },
+			ids: { newId: () => `reimport-${++nextId}` },
+			fs: { readFile: async () => `window.DOCS = ${JSON.stringify(payload)};` },
+		});
+		return {
+			db,
+			documentsRepo,
+			tasksRepo,
+			dispatchSnapshotsRepo,
+			payload,
+			service,
+			firstTask,
+			firstDispatch,
+			firstContract,
+			firstReadiness,
+		};
+	}
+
+	it('reimport compares changed acceptance and prompts with the existing dispatch snapshot', async () => {
+		const env = setupReimport();
+		const initial = await env.service.importDocument('/app/reimport/docs-data.js');
+		const task = env.tasksRepo.findByDocAndKey(initial.document.id, 'T-1');
+		if (!task) throw new Error('Imported task is missing');
+		const snapshot = env.dispatchSnapshotsRepo.takeSnapshotForTask({
+			taskId: task.id,
+			launchSpecJson: '{}',
+			createdAt: '2026-10-02T00:00:00.000Z',
+		});
+		env.firstTask.accept = 'Changed acceptance';
+		env.firstDispatch.implementation = 'Changed implementation prompt';
+		env.firstDispatch.contractHash = 'changed-hash';
+		env.firstContract.hash = 'changed-hash';
+		env.firstReadiness.contractHash = 'changed-hash';
+
+		await env.service.importDocument('/app/reimport/docs-data.js');
+
+		expect(env.tasksRepo.findById(task.id)).toMatchObject({
+			has_accept_changed: 1,
+			has_prompt_changed: 1,
+		});
+		expect(env.dispatchSnapshotsRepo.findById(snapshot.id)?.accept_text).toBe(task.accept_text);
+	});
+
+	it('rolls back document metadata together with task changes when reimport fails', async () => {
+		const env = setupReimport();
+		const initial = await env.service.importDocument('/app/reimport/docs-data.js');
+		const originalTasks = env.tasksRepo.listByDocId(initial.document.id);
+		env.payload.project = 'Uncommitted project name';
+		env.firstTask.accept = 'Uncommitted acceptance';
+		env.db.exec(
+			"CREATE TRIGGER reject_import BEFORE UPDATE ON tasks BEGIN SELECT RAISE(ABORT, 'write rejected'); END",
+		);
+
+		await expect(env.service.importDocument('/app/reimport/docs-data.js')).rejects.toThrow();
+
+		expect(env.service.getDocumentById(initial.document.id)).toEqual(initial.document);
+		expect(env.tasksRepo.listByDocId(initial.document.id)).toEqual(originalTasks);
+	});
+
+	it('rolls back a new document when its first task import fails', async () => {
+		const env = setupReimport();
+		env.db.exec(
+			"CREATE TRIGGER reject_import BEFORE INSERT ON tasks BEGIN SELECT RAISE(ABORT, 'write rejected'); END",
+		);
+
+		await expect(env.service.importDocument('/app/reimport/docs-data.js')).rejects.toThrow();
+
+		expect(env.service.listDocuments()).toEqual([]);
+	});
+
+	it('concurrent initial imports of the same path reuse one document and task set', async () => {
+		const env = setupReimport();
+		const [first, second] = await Promise.all([
+			env.service.importDocument('/app/reimport/docs-data.js'),
+			env.service.importDocument('/app/reimport/docs-data.js'),
+		]);
+		expect(first.document.id).toBe(second.document.id);
+		expect([first.isNew, second.isNew]).toEqual([true, false]);
+		expect(env.service.listDocuments()).toHaveLength(1);
+		expect(env.tasksRepo.listByDocId(first.document.id)).toHaveLength(2);
+	});
+
 	it('uses product lane_count defaults and preserves user changes across imports', async () => {
 		const db = createTestDatabase();
 		const documentsRepo = createDocumentsRepo(db);

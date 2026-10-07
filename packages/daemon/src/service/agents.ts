@@ -102,7 +102,7 @@ export interface AgentServiceDeps {
 export interface AgentService {
 	readonly registry: AgentRegistry;
 	start(): Promise<void>;
-	stop(): void;
+	stop(): Promise<void>;
 	listAgents(): Promise<readonly AgentEntryDto[]>;
 	getAgent(agentId: string): Promise<AgentEntryDto | undefined>;
 	updateAgent(agentId: string, updates: UpdateAgentBody): Promise<AgentEntryDto>;
@@ -185,6 +185,30 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	const liveCache = new Map<string, LiveCacheEntry>();
 	const inflightModels = new Map<string, Promise<LiveModelCatalogResult>>();
 	const configCache = new Map<string, AgentConfigFileData>();
+	let stopped = false;
+	let initialized = false;
+	let starting: Promise<void> | undefined;
+	let stopping: Promise<void> | undefined;
+	let backgroundFailure: unknown;
+	const operations = new Set<Promise<unknown>>();
+
+	function runOperation<T>(operation: () => Promise<T>): Promise<T> {
+		if (stopped) return Promise.reject(new AppError('E_INTERNAL', 'Agent service has stopped.'));
+		const promise = operation();
+		operations.add(promise);
+		void promise.then(
+			() => operations.delete(promise),
+			() => operations.delete(promise),
+		);
+		return promise;
+	}
+
+	function runBackground(operation: () => Promise<unknown>): void {
+		if (stopped) return;
+		void runOperation(operation).catch((error: unknown) => {
+			backgroundFailure ??= error;
+		});
+	}
 
 	const runsRepo: RunsRepo | undefined =
 		deps.runsRepo ?? (deps.database ? createRunsRepo(deps.database) : undefined);
@@ -296,14 +320,9 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		return promise;
 	}
 
-	if (typeof deps.registry.onReload === 'function') {
-		deps.registry.onReload(() => {
-			void probeAll({ force: true });
-		});
-	}
-
-	let initializationPromise: Promise<Readonly<Record<string, AgentAvailabilityState>>> | null =
-		null;
+	const unsubscribeReload = deps.registry.onReload?.(() => {
+		if (initialized) runBackground(() => probeAll({ force: true }));
+	});
 
 	function toAgentEntryDto(
 		agentId: string,
@@ -649,9 +668,11 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		return { probeResult, state };
 	}
 
-	function recordAndPublishAvailability(agentId: string, state: AgentAvailabilityState): void {
+	async function recordAndPublishAvailability(
+		agentId: string,
+		state: AgentAvailabilityState,
+	): Promise<void> {
 		const prev = availabilityMap.get(agentId);
-		availabilityMap.set(agentId, state);
 
 		const prevAvailable = prev?.isAvailable;
 		const prevCode = prev?.unavailableCode;
@@ -660,7 +681,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			isFirst || prevAvailable !== state.isAvailable || prevCode !== state.unavailableCode;
 
 		if (changed && deps.bus && deps.envelopeFactory) {
-			const envelope = deps.envelopeFactory.createEnvelope({
+			availabilityMap.set(agentId, state);
+			const envelope = await deps.envelopeFactory.createEnvelopeAsync({
 				kind: 'agent.availability_changed',
 				payload: {
 					agentId,
@@ -675,12 +697,18 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				},
 			});
 			deps.bus.publish(envelope);
+		} else {
+			availabilityMap.set(agentId, state);
 		}
 
 		// Invalidation point 3: availability flip (AC 5)
-		if (prev !== undefined && prev.isAvailable !== state.isAvailable) {
+		if (
+			availabilityMap.get(agentId) === state &&
+			prev !== undefined &&
+			prev.isAvailable !== state.isAvailable
+		) {
 			loginCache.delete(`login:${agentId}`);
-			void refreshLogin(agentId, { force: true, trigger: 'availability_changed' });
+			runBackground(() => refreshLogin(agentId, { force: true, trigger: 'availability_changed' }));
 		}
 	}
 
@@ -693,7 +721,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		const results = await Promise.allSettled(
 			entries.map(async ([agentId, config]) => {
 				const { state } = await probeSingleAgent(agentId, config, options);
-				recordAndPublishAvailability(agentId, state);
+				await recordAndPublishAvailability(agentId, state);
 				return [agentId, state] as const;
 			}),
 		);
@@ -709,29 +737,39 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 	}
 
 	async function ensureInitialized(): Promise<void> {
-		if (!initializationPromise) {
-			initializationPromise = probeAll();
-		}
-		await initializationPromise;
+		await (starting ?? start());
 	}
 
-	async function start(): Promise<void> {
-		await deps.registry.start();
-		if (!initializationPromise) {
-			initializationPromise = probeAll();
-		}
-		await initializationPromise;
+	function start(): Promise<void> {
+		if (stopped) return Promise.reject(new AppError('E_INTERNAL', 'Agent service has stopped.'));
+		if (starting) return starting;
+		starting = runOperation(async () => {
+			await deps.registry.start();
+			if (stopped) return;
+			await probeAll();
+			initialized = true;
+		});
+		return starting;
 	}
 
-	function stop(): void {
-		deps.registry.stop();
-		initializationPromise = null;
-		cache.clear();
-		loginCache.clear();
-		inflightLogin.clear();
-		liveCache.clear();
-		inflightModels.clear();
-		configCache.clear();
+	function stop(): Promise<void> {
+		if (stopping) return stopping;
+		stopped = true;
+		unsubscribeReload?.();
+		stopping = (async () => {
+			const registryOutcome = await Promise.allSettled([deps.registry.stop()]);
+			while (operations.size > 0) await Promise.allSettled([...operations]);
+			cache.clear();
+			loginCache.clear();
+			inflightLogin.clear();
+			liveCache.clear();
+			inflightModels.clear();
+			configCache.clear();
+			const registryFailure = registryOutcome[0];
+			if (registryFailure?.status === 'rejected') throw registryFailure.reason;
+			if (backgroundFailure !== undefined) throw backgroundFailure;
+		})();
+		return stopping;
 	}
 
 	async function listAgents(): Promise<readonly AgentEntryDto[]> {
@@ -741,7 +779,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			const state = availabilityMap.get(agentId);
 			if (!state || state.generation !== snapshot.generation) {
 				const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
-				recordAndPublishAvailability(agentId, refreshedState);
+				await recordAndPublishAvailability(agentId, refreshedState);
 			}
 		}
 		// Preload config cache for all agents
@@ -763,7 +801,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		let state = availabilityMap.get(agentId);
 		if (!state || state.generation !== snapshot.generation) {
 			const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
-			recordAndPublishAvailability(agentId, refreshedState);
+			await recordAndPublishAvailability(agentId, refreshedState);
 			state = refreshedState;
 		}
 		await readAgentConfig(agentId);
@@ -782,7 +820,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		}
 
 		const { probeResult, state } = await probeSingleAgent(agentId, config, options);
-		recordAndPublishAvailability(agentId, state);
+		await recordAndPublishAvailability(agentId, state);
 
 		// Invalidation point 1: POST /agents/:id/probe runs fingerprint probe then login probe (AC 5)
 		await refreshLogin(agentId, { force: true, trigger: 'probe' });
@@ -1127,7 +1165,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		let state = availabilityMap.get(agentId);
 		if (!state || state.generation !== currentSnapshot.generation) {
 			const { state: refreshedState } = await probeSingleAgent(agentId, config, { force: true });
-			recordAndPublishAvailability(agentId, refreshedState);
+			await recordAndPublishAvailability(agentId, refreshedState);
 			state = refreshedState;
 		}
 		if (!state.canDispatch) {
@@ -1226,7 +1264,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					const { state: refreshedState } = await probeSingleAgent(agentId, config, {
 						force: options.force,
 					});
-					recordAndPublishAvailability(agentId, refreshedState);
+					await recordAndPublishAvailability(agentId, refreshedState);
 					state = refreshedState;
 				}
 
@@ -1243,15 +1281,12 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 					nowIso: clock.now(),
 				});
 
-				if (result) {
-					loginCache.set(cacheKey, result);
-				}
-
 				// AC 5: 每次 refreshLogin() 结束（成功、超时、unparsable、exec_missing）都发
 				// agent.availability_changed{reason:'login_changed', login}
 				if (deps.bus && deps.envelopeFactory) {
 					const currentAvail = availabilityMap.get(agentId)?.isAvailable ?? false;
-					const envelope = deps.envelopeFactory.createEnvelope({
+					if (result) loginCache.set(cacheKey, result);
+					const envelope = await deps.envelopeFactory.createEnvelopeAsync({
 						kind: 'agent.availability_changed',
 						payload: {
 							agentId,
@@ -1264,6 +1299,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 						},
 					});
 					deps.bus.publish(envelope);
+				} else if (result) {
+					loginCache.set(cacheKey, result);
 				}
 
 				return result;
@@ -1280,15 +1317,19 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		registry: deps.registry,
 		start,
 		stop,
-		listAgents,
-		getAgent,
-		updateAgent,
-		probeAgent: probeAgentMethod,
-		probeAll,
-		listAgentModels,
-		assertCanDispatch,
+		listAgents: () => runOperation(listAgents),
+		getAgent: (agentId: string) => runOperation(() => getAgent(agentId)),
+		updateAgent: (agentId: string, updates: UpdateAgentBody) =>
+			runOperation(() => updateAgent(agentId, updates)),
+		probeAgent: (...args: Parameters<typeof probeAgentMethod>) =>
+			runOperation(() => probeAgentMethod(...args)),
+		probeAll: (...args: Parameters<typeof probeAll>) => runOperation(() => probeAll(...args)),
+		listAgentModels: (...args: Parameters<typeof listAgentModels>) =>
+			runOperation(() => listAgentModels(...args)),
+		assertCanDispatch: (agentId: string) => runOperation(() => assertCanDispatch(agentId)),
 		getAvailability,
 		getLogin,
-		refreshLogin,
+		refreshLogin: (...args: Parameters<typeof refreshLogin>) =>
+			runOperation(() => refreshLogin(...args)),
 	});
 }

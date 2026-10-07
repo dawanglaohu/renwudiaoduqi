@@ -227,8 +227,10 @@ export function createBatchService(deps: BatchServiceDeps): BatchService {
 				result = transitionBatchInTx(batchId, toState, reason);
 			});
 
-			if (result && deps.bus) {
-				deps.bus.publish((result as TransitionBatchInTxResult).envelope);
+			if (result) {
+				const envelope = (result as TransitionBatchInTxResult).envelope;
+				if (deps.bus) deps.bus.publish(envelope);
+				else deps.envelopeFactory?.cancelEnvelope(envelope);
 			}
 
 			if (!result) {

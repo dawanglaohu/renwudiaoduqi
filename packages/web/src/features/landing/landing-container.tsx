@@ -205,7 +205,9 @@ export function LandingContainer({
 	const diffDeletions = data?.diffStat !== undefined ? `-${data.diffStat.deletions}` : '—';
 
 	return (
-		<div className={['flex flex-col gap-6', className].join(' ')}>
+		<div
+			className={['min-w-0 flex flex-col gap-6 min-[768px]:gap-[var(--sp-3)]', className].join(' ')}
+		>
 			{/* AC 4 / E-19: 文档变更横幅 */}
 			{docChangeNotice && docChangeNotice.affectedCount > 0 && (
 				<DocChangeBanner notice={docChangeNotice} onViewAffected={onViewAffectedTasks} />
@@ -262,11 +264,11 @@ export function LandingContainer({
 			)}
 
 			{isLoading ? (
-				<div className="p-8 text-center font-mono text-meta text-ink-3">
+				<div className="p-3.5 text-left font-mono text-meta text-ink-3">
 					正在生成落地清单摘要...
 				</div>
 			) : (
-				<div className="flex flex-col gap-4">
+				<div className="min-w-0 flex flex-col gap-4 min-[768px]:gap-[var(--sp-3)]">
 					{data?.landingHints && data.landingHints.length > 0 && (
 						<section
 							data-testid="duplicate-fix-landing-hints"

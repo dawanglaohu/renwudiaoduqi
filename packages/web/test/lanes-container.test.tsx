@@ -100,6 +100,20 @@ function createMockSteps(): readonly LaneStepItem[] {
 }
 
 describe('M9-T21 返工 R1: 真实甲板与步骤接线 (AC 1, AC 2, E-315, E-333)', () => {
+	it('keeps the density grid when callers supply other inline styles', () => {
+		const root = document.createElement('div');
+		root.innerHTML = renderToStaticMarkup(
+			createElement(LanesContainer, {
+				lanes: [createMockLane({ laneNo: 1 }), createMockLane({ laneNo: 2 })],
+				overrideTier: 'full',
+				style: { columnGap: 12 },
+			}),
+		);
+		const grid = root.querySelector<HTMLElement>('[data-container="lanes-deck"]');
+		expect(grid?.style.gridTemplateColumns).toBe('repeat(2, minmax(var(--stream-min), 1fr))');
+		expect(grid?.style.columnGap).toBe('12px');
+	});
+
 	it('tool_call 与 tool_call_update 按 callId 更新同一步骤', () => {
 		const events = [
 			{ id: 1, kind: 'tool_call', payload: { callId: 'call-1', tool: 'read_file' } },
