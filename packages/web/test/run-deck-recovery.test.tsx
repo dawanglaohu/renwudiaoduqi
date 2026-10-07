@@ -6,7 +6,8 @@ import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { eventBus } from '../src/api/event-bus.ts';
 import { httpClient } from '../src/api/http-client.ts';
-import { RunDeckContainer } from '../src/features/run-deck/run-deck-container.tsx';
+import { RunDeckContainer, buildDeckLanes } from '../src/features/run-deck/run-deck-container.tsx';
+import { RunDeckView, type RunDeckViewProps } from '../src/features/run-deck/run-deck-view.tsx';
 import { triggerResync } from '../src/store/connection-store.ts';
 
 function idleLane(laneNo: number): LaneView {
@@ -105,6 +106,65 @@ it('M9-T21 reloads authoritative deck lanes after connection recovery without a 
 			await recovery;
 		});
 		expect(container.querySelectorAll('[data-stream-column="true"]')).toHaveLength(4);
+	} finally {
+		await act(async () => root.unmount());
+		container.remove();
+		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
+	}
+});
+
+it('keeps the onboarding step when a snapshot moves the console between the main area and rail', async () => {
+	vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+	vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
+		if (route.path === '/api/v1/documents') return { documents: [] };
+		if (route.path === '/api/v1/agents') return { agents: [] };
+		throw new Error(`Unexpected request: ${route.path}`);
+	});
+	const props: RunDeckViewProps = {
+		lanes: [],
+		rawLanes: [],
+		batches: [],
+		tier: 'full',
+		isTouch: false,
+		width: 1200,
+		expandedLaneNo: null,
+		toggleExpandLane: vi.fn(),
+		stoppingLanes: new Set<number>(),
+		handleStopLane: vi.fn(),
+		userPreference: 'auto',
+		togglePreference: vi.fn(),
+		scrollContainerRef: { current: null },
+		offScreenWaiting: { left: 0, right: 0 },
+		scrollToLane: vi.fn(),
+	};
+	const container = document.createElement('div');
+	document.body.appendChild(container);
+	const root = createRoot(container);
+	try {
+		await act(async () => root.render(createElement(RunDeckView, props)));
+		await act(async () => {
+			(container.querySelector('[data-action="next-step-1"]') as HTMLButtonElement).click();
+		});
+		expect(
+			container.querySelector('[data-step-active="true"]')?.getAttribute('data-step-index'),
+		).toBe('1');
+		const lanes = [idleLane(1)];
+		await act(async () => {
+			root.render(
+				createElement(RunDeckView, { ...props, rawLanes: lanes, lanes: buildDeckLanes({ lanes }) }),
+			);
+		});
+		expect(
+			container.querySelector('[data-step-active="true"]')?.getAttribute('data-step-index'),
+		).toBe('1');
+		await act(async () => {
+			(container.querySelector('[data-action="next-step-2"]') as HTMLButtonElement).click();
+		});
+		await act(async () => root.render(createElement(RunDeckView, props)));
+		expect(
+			container.querySelector('[data-step-active="true"]')?.getAttribute('data-step-index'),
+		).toBe('2');
 	} finally {
 		await act(async () => root.unmount());
 		container.remove();

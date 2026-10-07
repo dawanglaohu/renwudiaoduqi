@@ -22,7 +22,7 @@ import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { type ReactNode, useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { navigateTo } from '../../app/routes.tsx';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
@@ -413,6 +413,10 @@ export function RunDeckView(props: RunDeckViewProps) {
 		(streamCount === 0 || (rawLanes !== undefined && !hasAssignedLane)) &&
 		pendingGates.length === 0 &&
 		!error;
+	const [onboardingStep, setOnboardingStep] = useState(0);
+	useEffect(() => {
+		if (!showOnboarding) setOnboardingStep(0);
+	}, [showOnboarding]);
 	const reassignTaskId = useSelectionStore((state) => state.reassignTaskId);
 	const reassignToast = useSelectionStore((state) => state.reassignToast);
 	const assignPanel = useAssignPanel({ enabled: showOnboarding || Boolean(reassignTaskId) });
@@ -481,6 +485,8 @@ export function RunDeckView(props: RunDeckViewProps) {
 				</div>
 			)}
 			<EmptyOnboarding
+				currentStep={onboardingStep}
+				onStepChange={setOnboardingStep}
 				documents={assignPanel.documents}
 				batches={assignPanel.batches}
 				tasks={assignPanel.tasks}
