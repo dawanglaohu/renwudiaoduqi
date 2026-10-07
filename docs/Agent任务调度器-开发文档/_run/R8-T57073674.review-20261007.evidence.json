@@ -1,0 +1,206 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R8-T57073674": {
+      "contractHash": "dbcd0dfecda7bf4990dd28fb4eeb5d94c3bb95e4879924a6d84be6fedd4b005b",
+      "evidence": [
+        "任务契约语义复核：用户原会话 2026-09-29 指令明确要求三个 Claude 启动/映射问题的复现、任务登记、修复与生产派发入口测试。batch-8-20260929-claude-launch.md 定义保留完整要求，未改变原任务状态或关闭整批遗留。",
+        "范围与依赖：M4-T9 的 stream-json 可回话契约、M6-T6 的 E-113 投递反馈、M8-T10 的真实启动入口和 R8-T70356006 的主循环模型专用拒绝信号均列为前置。有效路径包含 Claude 适配器、defaults、通用 proc、message 服务、真实录制及相应测试；container.ts:489 的已有适配器注册点列入范围。厂商字段仍由 adapters/claude 处理。",
+        "边界：E-37 环境清理与模型核对保持；E-36 的 error=model_not_found 分支在普通 assistant 映射之前，子代理拒绝不影响主任务；E-348 的 API 错误正文不算内容；E-113 管道关闭拒绝发送，背压等待清理监听器；E-202 未知内容只增加未映射计数。单元与生产入口回放定位见任务受保护代码位置和 _run/R8-T57073674.implementation.json。",
+        "Jev 真实裁决与有限候选、model、line 和执行选择保存在 _run/R8-T57073674.implementation.json；生产测试 pnpm -w check 为 206 文件/2579 通过/3 跳过。此登记只确认任务契约自洽，任务保持 review，实施完成仍等待独立审查，不执行 --landed。",
+        "2026-10-07 本轮复核保留原验收标准及历史成功/失败录制，原 batch-8 及非本次返工状态仍 open。原生 Claude Code 2.1.238 在隔离配置、回环 HTTP/SSE 测试服务和假 key 下复现 partial + assistant 同块双重文本/思考、工具调用；工具控制禁用实际工具，error_max_turns 是有界控制，不冒称厂商正常执行。新入库内容帧去除系统路径和会话标识，来源见 claude-local-partial-recording.json；没有使用个人凭据或访问上游厂商。",
+        "先复现后修复：partial-before.log 两文件7项失败、48项通过，包括真实文本 HelloHello、多块 HelloHelloWorldWorld、两次工具调用、缺失后缀去重及主/子代理隔离；修复后 partial-after.log 四文件127项通过，原生产 spawn/input/error 断言保留。最终 top-full-check-final.log: pnpm -w check，Biome654文件、TypeScript、错误码、架构、对比度规则通过，241测试文件2945项通过、3项平台跳过。初次新增JSON格式和接口类型检查失败均已修复；首次修复后全量运行一个既有5001事件慢磁盘测试在30秒超时，单独复跑5项通过（压力项约9.5秒），未改断言和时限，最终降低并发重跑全绿；失败日志保留。",
+        "根因修复：ClaudePartialContent 在适配器内按 parent_tool_use_id/message.id/内容块索引保存已输出前缀；同消息的多个单块完整帧关联当前活动块，多块数组按原索引；保留 block_stop 前后证据，message_stop/result/reset 清理。只发送未输出后缀，空增量不吞完整内容；partial工具开始不发空参数调用，完整assistant一次性保留最终输入和 linked user tool_result。E-36专用失败分支和 E-348 synthetic/API错误负例保留，未知帧安全计数。",
+        "必要接线支持路径以原任务源围栏补齐，没有改验收标准。DispatchAdapter 和 SessionResumeAdapter 增加可选 createEventMapper；container 为 Claude 每个进程创建实例，dispatch 的普通/收口和 session-resume 使用新实例，其他适配器沿原 mapEvents。独立 stack-factory-control.json 通过实际 service 入口验证4次独立回调、2次原回调回退、并行相同ID、聚合索引与错误负例。session-resume 转发冻结 argsTemplate，可实际开启 partial；本轮没有声称普通 dispatch 已新增自定义参数转发。",
+        "独立复核使用实际已安装CLI和隔离本地服务重新跑 partial、complete-only、thinking+two-text、工具四个控制，结果分别 Hello/Hello/HelloWorld+Plan/一次完整工具调用；独立focused3文件110项、Biome7文件和TypeScript通过。它验证原生协议及生产调用/回放接线，未冒称本轮真实上游模型或整套daemon/browser厂商验收。最终head适用CI和原生栈合并结果由仓库外审查合并记录另行证明。",
+        "实际Jev裁决：原输入方案保留A/B完整候选复核，jev-1.13.0 pick=A(high1.00) adopt=take(A)；本次partial有限候选A按块保留增量/B拒绝partial能力/C延后到完整输出全部保留，jev-1.13.0 pick=A(high0.90) spec_change=no needs_owner=no adopt=take(A)，已落实A的状态及接线修复。parent原A-D加当前事实候选E的复核为pick=E(medium0.57) adopt=take(E)，历史red_line不被删除。完整state/model/line见本证据adjudications和 judgments.jsonl。"
+      ],
+      "verdict": "pass"
+    }
+  },
+  "adjudications": {
+    "parent-review": {
+      "state": {
+        "conflict": "The earlier review snapshot above is historical, not the current diff. Current PR161 explicitly handles only main-loop assistant.error == model_not_found from sanitized real Claude Code 2.1.238 and 2.1.283 recordings. Other real recordings use authentication_failed and server_error and retain E-348. Exactly Claude reportsModelRejection is true. Production dispatch replay verifies failed, original model passthrough, queued reason, lane release, waiting gate superseded; removing error or changing parent_tool_use_id defeats the positive mapping. Actual original vendor probing found one typed vendor after correcting the mistaken object-only error parser. Original hypothetical code/type implementation is gone. PR170 preserves this and fixes real foreground launch, input encoding, ordinary content mapping and process completion. Current parent merged main4a01efdb without losing main pressure/shutdown fixes; parent focused109 tests, lint and dependency-refreshed TypeScript pass. Source contract remains strict and historical batch/open findings remain open. User explicitly authorizes current PR review and merge after checks. No payment, deletion, contract relaxation, or external promise is requested. Preserve original A-D for transparent re-adjudication, plus new E reflecting the revised evidence; ordinary check/CI gates still apply independently.",
+        "task": {
+          "accept": "AC1 real positive vendor recording and version, AC2 mapping exactly one event and capability true only for that vendor, AC3 production dispatch outcome with existing pending gate superseded, AC4 docs alignment, AC5 pnpm check and real vendor verification.",
+          "title": "Round 2 review of E-36 real vendor typed model rejection along production dispatch"
+        },
+        "options": {
+          "A": "Keep R8-T70356006 and PR #161 open and unlanded, record R2 fixed and R1 blocked on real typed vendor output. Continue empirical protocol probing when a verifiable dispatchable vendor/version is available; only then enable exactly that capability, replay raw recording through production dispatch, run check, and land.",
+          "D": "Split the already implemented synthetic parser and gate regression into a narrower infrastructure PR with a precise docs patch, then retain the original E-36 vendor-positive task as open dependency; do not mark exact attribution done.",
+          "B": "Approve and merge PR #161 as-is because E-348 fallback is safe and the hypothetical positive signal proves the code path, despite zero real positive vendor recordings.",
+          "C": "Patch the contract to permit 0 verified vendors, land fallback-only implementation, and mark the E-36 exact attribution finished.",
+          "E": "Accept the current revised one-vendor typed-signal implementation under the unchanged strict contract, retaining all untyped-vendor E-348 fallbacks, while separately requiring the refreshed code, independent verifier and exact-head CI to pass before native stack merge. Preserve historical failed probes, prior red_line and unresolved batch repair tasks; do not declare whole batch clean or claim fresh vendor calls."
+        },
+        "requirement": "The current R8-T70356006 contract explicitly requires at least one dispatchable real vendor with a sanitized raw model-specific structured code/type recording; without it the task must not pass. Typed event and E-348 fallback from the predecessor are already landed. No heuristic text, stderr, generic HTTP status, or codexErrorInfo=other inference is allowed.",
+        "historical_conflict": "PR #161 second revision e1aeb6e resolves R2: tests create a waiting gate and assert decided/superseded/decision null, plus lane release reason/runId. R1 remains untouched: the author still reports zero vendors with a real model-specific typed signal, all capabilities false, only a hypothetical Claude code:model_not_found positive frame. Evidence file now correctly says rework. This is the second review round. Reviewer can fix local code errors after two rounds, but cannot manufacture external vendor protocol evidence. Choose a truthful path that preserves acceptance and minimizes blocked work."
+      },
+      "result": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "key_source": "C:/Users/admin/.typesafe/.env",
+        "verdicts": {
+          "pick": {
+            "choice": "E",
+            "confidence": 0.57,
+            "band": "medium",
+            "probabilities": {
+              "B": 0.0,
+              "C": 0.0,
+              "D": 0.01,
+              "E": 0.66,
+              "A": 0.33
+            }
+          },
+          "spec_change": {
+            "p": 0.22,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.15,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.08,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.7,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "E",
+            "confidence": "medium",
+            "why": "Jev 选 E（medium）"
+          }
+        },
+        "line": "adjudicate: pick=E(medium 0.57) spec_change=no(0.22) outside_stack=no(0.15) needs_owner=no(0.08) reversible=yes(0.70) adopt=take(E)",
+        "usage": {
+          "input_tokens": 1749,
+          "output_tokens": 122
+        }
+      }
+    },
+    "child-review": {
+      "state": {
+        "requirement": "Fix Claude foreground launch --verbose, initial prompt delivery and assistant frame mapping. Preserve native stream-json replies and E-36/E-348. User explicitly authorized this implementation and provider probes; no scope, purchase, deletion or external commitment decision is needed.",
+        "task": {
+          "title": "R8-T57073674 Claude stream-json launch and content events",
+          "accept": "Real CLI with isolated config accepts initial prompt, replies while running remain supported, normal output prevents E-348, errors do not become content, completed runs exit; use existing Node/TypeScript stack."
+        },
+        "conflict": "The current builder puts prompt in argv while --input-format stream-json ignores it. message service writes raw text. Actual Claude 2.1.283 stays alive after result while stdin is open, then exits when stdin closes. Prompt and reply serialization must stay in adapters/claude, with subprocess listeners attached before input can produce output. All dispatch kinds use the same builder and spawnManaged. Foreground input transport is a reversible implementation choice. Current review facts: ordinary assistant text/thinking/tool_use and user tool_result map via adapter; error/synthetic messages never count as content. Adapter completion predicate closes stdin only on main-loop result. Real recorded success, prior managed-run and failure controls remain evidence. Refreshed production spawn merges main listener containment, kill serialization and combined stdout pressure; both test groups remain intact. Main source now allocates rerun attemptNo from actual maximum and retains original historical repair task open. Full combined local check and new exact-head CI are pending gates, not inferred pass. User explicitly requested review and merge of current four PRs. Re-adjudicate the original implementation alternatives without adding a contract change or external commitment.",
+        "options": {
+          "A": "Keep stream-json input. Adapter serializes a user frame for the initial prompt and replies. Add generic optional LaunchSpec.initialStdin and closeStdinWhen JSON predicate; proc writes initial input once on child spawn, keeps pipe writable during work, and ends it after adapter-recognized main-turn result. Shared proc semantics cover every dispatch kind. Add bounded error handling and real/replay tests.",
+          "B": "Remove stream-json input for one-shot runs and keep positional prompt. Support replies by queuing them until process completion and resuming the CLI in a new process through existing resumption machinery, with corresponding delivery and capability changes. Add lifecycle tests. This works but changes timing and requires more message-service orchestration."
+        }
+      },
+      "result": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "key_source": "C:/Users/admin/.typesafe/.env",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "B": 0.0,
+              "A": 1.0
+            }
+          },
+          "spec_change": {
+            "p": 0.11,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.04,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.83,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.11) outside_stack=no(0.09) needs_owner=no(0.04) reversible=yes(0.83) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1266,
+          "output_tokens": 101
+        }
+      }
+    },
+    "partial": {
+      "state": {
+        "requirement": "User requests checking four existing PRs and merging after correctness verification. Fix the reproduced Claude partial/complete output duplication in PR170 without relaxing acceptance criteria or changing other vendors.",
+        "task": {
+          "title": "R8-T57073674 ordinary Claude content mapping",
+          "accept": "One text/thinking contribution per native content block; one linked tool call with final full input; E-36/E-348 and unknown-event handling unchanged; independent per-process state for concurrent runs and resumed sessions."
+        },
+        "conflict": "Native installed Claude Code 2.1.238, using isolated local HTTP/SSE fixture with fake key and no upstream calls, emits stream_event deltas followed by complete assistant blocks, causing HelloHello and two tool calls (empty input then final input). Native thinking plus two text blocks emits three singleton assistant.content arrays sharing the same message.id; each assistant occurs BEFORE the corresponding content_block_stop. Whole-message or content-array-position-zero suppression loses output. Production container currently shares a stateless adapter singleton. Normal dispatch, wrapup, and session-resume each attach that mapper. Session-resume actually forwards frozen custom args including --include-partial-messages; normal dispatch currently does not forward that option. Existing ToolCallUpdate only represents output, not input replacement. The original default full-only stream works. Review-agent currently attaches with no mapper and its separate pre-existing fallback is outside this specific duplication fix. Necessary support paths for generic optional per-process mapper construction must be registered in original task through local begin/sync/verify. No external commitment, deletion, payment or task-scope expansion requested.",
+        "options": {
+          "A": "Keep incremental text/thinking. Add an optional per-process mapper factory to adapter wiring, invoke for normal/wrapup/resume, and use existing stateless fallback for other adapters. Stateful Claude correlates parent_tool_use_id, message.id and stream block index; singleton complete blocks match active block, aggregate arrays use stream block indices. Emit only the unstreamed suffix of complete text/thinking. Defer wrapped tool starts until authoritative complete assistant tool_use so final input is emitted exactly once. Clear per-message state at message end and reset. Add old-red/new-green native-recording and production-entry tests.",
+          "B": "Reject --include-partial-messages from launch extra args/templates with a specific configuration error and support only complete assistant output. Preserve default operation, but explicitly remove a previously accepted Claude launch capability until a separately scoped incremental implementation.",
+          "C": "Select complete assistant content as authoritative for both modes and suppress all wrapped stream_event text/thinking/tool content. Preserve one complete output with final tool input and avoid per-process content state, at the cost of delaying existing incremental UI updates until each block completes."
+        }
+      },
+      "result": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "key_source": "C:/Users/admin/.typesafe/.env",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.9,
+            "band": "high",
+            "probabilities": {
+              "B": 0.03,
+              "C": 0.04,
+              "A": 0.93
+            }
+          },
+          "spec_change": {
+            "p": 0.16,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.04,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.79,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 0.90) spec_change=no(0.16) outside_stack=no(0.09) needs_owner=no(0.04) reversible=yes(0.79) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1404,
+          "output_tokens": 108
+        }
+      }
+    }
+  }
+}

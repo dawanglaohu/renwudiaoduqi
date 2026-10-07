@@ -165,7 +165,14 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 		}),
 		[BUILT_IN_AGENT_IDS.CLAUDE]: freezeAgentConfig({
 			execPath: 'claude',
-			argsTemplate: ['--print', '--output-format', 'stream-json', '--model', '{model}'],
+			argsTemplate: [
+				'--print',
+				'--verbose',
+				'--output-format',
+				'stream-json',
+				'--model',
+				'{model}',
+			],
 			maxConcurrency: 1,
 			defaultModel: null,
 			permissionTier: DEFAULT_PERMISSION_TIER,

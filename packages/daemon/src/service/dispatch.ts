@@ -218,6 +218,7 @@ export interface BuildLaunchSpecInput {
 export interface DispatchAdapter {
 	readonly buildLaunchSpec: (options: BuildLaunchSpecInput) => LaunchSpec;
 	readonly mapEvents: (vendorLine: unknown) => readonly EventEnvelopeInput[];
+	readonly createEventMapper?: () => (vendorLine: unknown) => readonly EventEnvelopeInput[];
 }
 
 function createAgentDefaultsLookup(
@@ -2156,7 +2157,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 
 				deps.runService.attachProcess(runId, managed, {
-					eventMapper: adapter.mapEvents,
+					eventMapper: adapter.createEventMapper?.() ?? adapter.mapEvents,
 				});
 
 				const latestRun = runsRepo.findById(runId);
@@ -2472,7 +2473,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 
 			deps.runService.attachProcess(runId, managed, {
-				eventMapper: adapter.mapEvents,
+				eventMapper: adapter.createEventMapper?.() ?? adapter.mapEvents,
 				mapExitResult: (result) => {
 					const session = deps.codexSessions?.get(runId);
 					if (!session) return result;

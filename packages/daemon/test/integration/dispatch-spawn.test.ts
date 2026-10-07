@@ -7,9 +7,10 @@ import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { CreateRunResponse } from '@agent-scheduler/shared/api/runs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildCodexLaunchSpec } from '../../src/adapters/codex/build-launch-spec.ts';
 import { createContainer } from '../../src/boot/container.ts';
+import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import type { ProcessConfig } from '../../src/config/env.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
@@ -35,6 +36,15 @@ import type {
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = resolve(currentDir, '../../migrations');
 const fixturePath = resolve(currentDir, '../fixtures/dispatch/codex-session.ndjson');
+// stderr line Claude Code printed alongside every recording below; it is text and never decides E-36.
+const CLAUDE_RECORDED_STDERR =
+	'[claude-code:unrecognized_model] {"model":"r8-invalid-model-20260929","query_source":"sdk"}';
+
+function readClaudeRecording(name: string): string[] {
+	return readFileSync(resolve(currentDir, '../fixtures/dispatch', name), 'utf8')
+		.split('\n')
+		.filter((line) => line.trim() !== '');
+}
 
 const temporaryDirectories: string[] = [];
 const openDatabases: DatabaseConnection[] = [];
@@ -285,6 +295,8 @@ function setupTestEnvironment(
 		readonly exitCode?: number;
 		readonly stderrTail?: string;
 		readonly spawnThrow?: boolean;
+		readonly implPrompt?: string;
+		readonly claudeExecPath?: string;
 		readonly customSpawn?: typeof import('../../src/proc/spawn.ts').spawnManaged;
 		readonly baseSelector?: import('../../src/workspace/base-select.ts').BaseSelector;
 	} = {},
@@ -386,6 +398,17 @@ function setupTestEnvironment(
 		baseSelector: overrides.baseSelector,
 		reviewService: fakeReviewService,
 		agentService: fakeAgentService,
+		agentRegistry: overrides.claudeExecPath
+			? createAgentRegistry({
+					dataDir: tempDir,
+					platform: 'posix',
+					publishWarning: () => {},
+					builtInDefaults: {
+						...BUILT_IN_AGENT_DEFAULTS,
+						claude: { ...BUILT_IN_AGENT_DEFAULTS.claude, execPath: overrides.claudeExecPath },
+					},
+				})
+			: undefined,
 		logViolation: (msg) => console.log('VIOLATION:', msg),
 	});
 
@@ -418,6 +441,7 @@ function setupTestEnvironment(
 		doc_id: 'doc-1',
 		task_key: 'M8-T10',
 		title: 'Implement dispatch spawn',
+		impl_prompt: overrides.implPrompt,
 		module_key: 'M8',
 		deps_json: '[]',
 		est_days: 2,
@@ -444,6 +468,138 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it.each(['success', 'partial', 'empty', 'input-error'] as const)(
+		'R8-T57073674: production stdin and event lifecycle (%s)',
+		async (scenario) => {
+			const child = Object.assign(new EventEmitter(), {
+				pid: 98765,
+				exitCode: null as number | null,
+				signalCode: null as NodeJS.Signals | null,
+				killed: false,
+				stdin: new PassThrough(),
+				stdout: new PassThrough(),
+				stderr: new PassThrough(),
+			});
+			const writes: string[] = [];
+			child.stdin.on('data', (chunk: Buffer) => writes.push(chunk.toString()));
+			const finish = (code: number) => {
+				child.exitCode = code;
+				child.stdout.end();
+				child.stderr.end();
+				child.emit('exit', code, null);
+				child.emit('close', code, null);
+			};
+			child.stdin.on('finish', () => finish(0));
+			const launches: LaunchSpec[] = [];
+			const prompt = 'Read "probe.txt"\n中文 exact prompt\n';
+			const { container, tempDir, getMechanicalCheckCalls } = setupTestEnvironment({
+				availableAgentIds: ['claude'],
+				claudeExecPath: '/opt/claude',
+				implPrompt: prompt,
+				customSpawn: (spec, options) => {
+					launches.push(spec);
+					return spawnManaged(spec, {
+						...options,
+						spawnFn: ((_file: string, _args: readonly string[], spawnOptions: SpawnOptions) => {
+							expect(spawnOptions.shell).toBe(false);
+							return child as unknown as ChildProcess;
+						}) as typeof nodeSpawn,
+						killTree: async () => {
+							finish(1);
+							return { outcome: 'terminated', attempts: [] };
+						},
+					});
+				},
+			});
+			const events: EventEnvelope[] = [];
+			container.events.bus.subscribe((e) => events.push(e));
+			const created = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'claude-opus-5',
+				idempotencyKey: `claude-stdin-${scenario}`,
+			});
+			await container.services.dispatch.tick();
+			await vi.waitFor(() =>
+				expect(container.repos.runs.findById(created.run.id)?.state).toBe('running'),
+			);
+			expect(launches).toHaveLength(1);
+			expect(launches[0]?.args).toContain('--verbose');
+			expect(launches[0]?.args).not.toContain(prompt);
+			child.emit('spawn');
+			expect(writes).toHaveLength(1);
+			expect(JSON.parse(writes[0] ?? '').message.content[0].text).toBe(prompt);
+			if (scenario === 'success' || scenario === 'partial') {
+				const reply = await container.services.message.sendMessage({
+					runId: created.run.id,
+					text: '继续\n"reply"',
+					kind: 'reply',
+				});
+				expect(reply.delivered).toBe(true);
+				expect(writes).toHaveLength(2);
+				expect(JSON.parse(writes[1] ?? '').message.content[0].text).toBe('继续\n"reply"');
+				for (const line of readClaudeRecording(
+					scenario === 'partial'
+						? 'claude-2-1-238-local-multiblock.stdout.ndjson'
+						: 'claude-2-1-283-success.stdout.ndjson',
+				))
+					child.stdout.write(`${line}\n`);
+				if (scenario === 'partial') child.stdout.write('{"type":"result","subtype":"success"}\n');
+			} else if (scenario === 'empty') {
+				child.stdout.write('{"type":"result","subtype":"success"}\n');
+			} else {
+				child.stdin.emit('error', new Error('EPIPE'));
+			}
+			await vi.waitFor(() => expect(events.some((e) => e.kind === 'run.exited')).toBe(true));
+			if (scenario === 'success' || scenario === 'partial') {
+				expect(child.stdin.writableEnded).toBe(true);
+				await vi.waitFor(() => expect(getMechanicalCheckCalls()).toBe(1));
+				expect(container.repos.runs.findById(created.run.id)?.state).toBe('exited');
+				if (scenario === 'partial') {
+					expect(
+						events
+							.filter((e) => e.kind === 'agent_message_chunk')
+							.map((e) => (e.payload as { chunk: string }).chunk)
+							.join(''),
+					).toBe('HelloWorld');
+					expect(
+						events
+							.filter((e) => e.kind === 'agent_thought_chunk')
+							.map((e) => (e.payload as { chunk: string }).chunk)
+							.join(''),
+					).toBe('Plan');
+				} else {
+					expect(
+						events.some(
+							(e) =>
+								e.kind === 'agent_message_chunk' &&
+								String((e.payload as { chunk?: string }).chunk).includes('CLAUDE_STREAM_OK'),
+						),
+					).toBe(true);
+					expect(events.some((e) => e.kind === 'tool_call')).toBe(true);
+				}
+				expect(container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review')).toBeNull();
+			} else {
+				await vi.waitFor(() =>
+					expect(container.repos.runs.findById(created.run.id)?.state).toBe('awaiting_human'),
+				);
+				expect(getMechanicalCheckCalls()).toBe(0);
+			}
+			const saved = readFileSync(join(tempDir, 'runs', created.run.id, 'events.ndjson'), 'utf8')
+				.trim()
+				.split('\n')
+				.map((line) => JSON.parse(line) as EventEnvelope);
+			expect(saved.some((e) => e.kind === 'run.exited')).toBe(true);
+			expect(saved.some((e) => e.kind === 'tool_call')).toBe(scenario === 'success');
+			if (scenario === 'partial')
+				expect(
+					saved
+						.filter((e) => e.kind === 'agent_message_chunk')
+						.map((e) => (e.payload as { chunk: string }).chunk)
+						.join(''),
+				).toBe('HelloWorld');
+		},
+	);
 	it('AC 1 & E-42 & E-70: POST /api/v1/runs spawns managed process, validates LaunchSpec, sets pid, emits run.state_changed', async () => {
 		const { container, getLatestProc } = setupTestEnvironment();
 		const server = createHttpServer({ container });
@@ -1223,6 +1379,170 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
 		expect(gate).toBeNull();
 	});
+
+	it.each([
+		['claude-2-1-238-model-not-found.stdout.ndjson'],
+		['claude-2-1-283-model-not-found.stdout.ndjson'],
+	])(
+		'R8-T70356006 AC 3 & E-36: replaying %s through the production dispatch entry fails the run as model invalid, releases the lane, supersedes the waiting gate and skips E-348',
+		async (recording) => {
+			const env = setupTestEnvironment({
+				exitCode: 1,
+				availableAgentIds: ['codex', 'claude'],
+				stderrTail: CLAUDE_RECORDED_STDERR,
+			});
+			const { container, getLatestProc, getMechanicalCheckCalls } = env;
+
+			container.repos.tasks.setLaneNo('task-1', 2);
+
+			const busEvents: EventEnvelope[] = [];
+			container.events.bus.subscribe((event) => busEvents.push(event));
+
+			const createRes = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'r8-invalid-model-20260929',
+				idempotencyKey: `idemp-claude-model-rejected-${recording}`,
+			});
+			await container.services.dispatch.tick();
+
+			let attempts = 0;
+			while (!getLatestProc() && attempts < 50) {
+				await new Promise((r) => setTimeout(r, 20));
+				attempts++;
+			}
+			const proc = getLatestProc();
+			expect(proc).not.toBeNull();
+
+			// E-36: the unknown name reaches the agent unchanged; nothing checks it against a list first.
+			const launchArgs = proc?.lastLaunchSpec.args ?? [];
+			expect(launchArgs[launchArgs.indexOf('--model') + 1]).toBe('r8-invalid-model-20260929');
+
+			// A waiting gate already tied to the run must be superseded atomically with the failure.
+			container.repos.gates?.create({
+				id: 'gate-model-rejection-test',
+				task_id: 'task-1',
+				run_id: createRes.run.id,
+				kind: 'review',
+				state: 'waiting',
+				created_at: new Date().toISOString(),
+			});
+
+			for (const line of readClaudeRecording(recording)) {
+				proc?.emitLine(line);
+			}
+			proc?.emitExit(1);
+
+			attempts = 0;
+			while (
+				container.repos.runs.findById(createRes.run.id)?.state !== 'failed' &&
+				attempts < 100
+			) {
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				attempts++;
+			}
+
+			const run = container.repos.runs.findById(createRes.run.id);
+			expect(run?.state).toBe('failed');
+			expect(run?.queued_reason).toBe('派发失败·模型无效');
+			expect(run?.rework_count ?? 0).toBe(0);
+			expect(getMechanicalCheckCalls()).toBe(0);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+
+			attempts = 0;
+			while (!busEvents.some((e) => e.kind === 'lane.released') && attempts < 100) {
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				attempts++;
+			}
+			const laneReleased = busEvents.find((e) => e.kind === 'lane.released');
+			expect(laneReleased?.payload).toMatchObject({
+				reason: 'failed',
+				runId: createRes.run.id,
+				taskId: 'task-1',
+			});
+
+			const supersededGate = container.repos.gates?.findById('gate-model-rejection-test');
+			expect(supersededGate?.state).toBe('decided');
+			expect(supersededGate?.comment).toBe('superseded');
+			expect(supersededGate?.decision).toBeNull();
+
+			expect(busEvents.filter((e) => e.kind === 'run.model_rejected')).toHaveLength(1);
+			const failedTransition = busEvents.find(
+				(e) => e.kind === 'run.state_changed' && (e.payload as { to?: string }).to === 'failed',
+			);
+			expect(failedTransition?.payload).toMatchObject({
+				reason: 'model_invalid',
+				message: expect.stringContaining('(r8-invalid-model-20260929)'),
+			});
+			expect(
+				busEvents.some(
+					(e) =>
+						e.kind === 'run.state_changed' &&
+						['reviewing', 'awaiting_human'].includes((e.payload as { to?: string }).to ?? ''),
+				),
+			).toBe(false);
+		},
+	);
+
+	it.each([
+		['claude-2-1-238-invalid-model-503.stdout.ndjson'],
+		['claude-2-1-283-authentication-failed.stdout.ndjson'],
+	])(
+		'R8-T70356006 AC 3 & E-348: replaying %s (typed failure other than model_not_found) through the production dispatch entry goes to awaiting_human',
+		async (recording) => {
+			const env = setupTestEnvironment({
+				exitCode: 1,
+				availableAgentIds: ['codex', 'claude'],
+				stderrTail: CLAUDE_RECORDED_STDERR,
+			});
+			const { container, getLatestProc, getMechanicalCheckCalls } = env;
+
+			container.repos.tasks.setLaneNo('task-1', 2);
+
+			const busEvents: EventEnvelope[] = [];
+			container.events.bus.subscribe((event) => busEvents.push(event));
+
+			const createRes = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'claude',
+				model: 'r8-invalid-model-20260929',
+				idempotencyKey: `idemp-claude-typed-failure-${recording}`,
+			});
+			await container.services.dispatch.tick();
+
+			let attempts = 0;
+			while (!getLatestProc() && attempts < 50) {
+				await new Promise((r) => setTimeout(r, 20));
+				attempts++;
+			}
+			const proc = getLatestProc();
+			expect(proc).not.toBeNull();
+
+			for (const line of readClaudeRecording(recording)) {
+				proc?.emitLine(line);
+			}
+			proc?.emitExit(1);
+
+			attempts = 0;
+			while (
+				container.repos.runs.findById(createRes.run.id)?.state !== 'awaiting_human' &&
+				attempts < 100
+			) {
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				attempts++;
+			}
+
+			const run = container.repos.runs.findById(createRes.run.id);
+			expect(run?.state).toBe('awaiting_human');
+			expect(run?.queued_reason).toBe('exited_before_output');
+			expect(getMechanicalCheckCalls()).toBe(0);
+			expect(busEvents.some((e) => e.kind === 'run.model_rejected')).toBe(false);
+
+			const gate = container.repos.gates?.findLatestByTaskIdAndKind('task-1', 'review');
+			expect(gate?.state).toBe('waiting');
+			expect(gate?.comment).toBe('exited_before_output');
+		},
+	);
 
 	it('B1: POST rerun after exited_before_output creates a new run and launches its process', async () => {
 		const env = setupTestEnvironment({ exitCode: 0 });

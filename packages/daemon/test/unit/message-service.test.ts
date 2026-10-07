@@ -214,6 +214,55 @@ describe('M6-T6 MessageService: delivery and capability constraints', () => {
 	const clock = { now: () => '2026-09-14T10:00:00.000Z' };
 	let nextId = 1;
 	const ids = { newId: () => `msg-id-${nextId++}` };
+	it.each([false, true])(
+		'sends Claude NDJSON replies and reports drain failure=%s truthfully',
+		async (drainFails) => {
+			const { repo, messages } = createMockRunsRepo([
+				{
+					id: 'claude-reply',
+					taskId: 'T-1',
+					state: 'running',
+					agentId: 'claude',
+					pid: 1000,
+					parentRunId: null,
+					attemptNo: 1,
+					sessionArchivedAt: null,
+				},
+			]);
+			const writes: string[] = [];
+			const registry = createProcessRegistry();
+			const managed = createMockProcess({
+				runId: 'claude-reply',
+				writeResult: !drainFails,
+				onWrite: (data) => writes.push(String(data)),
+			});
+			if (drainFails)
+				vi.mocked(managed.waitForStdinDrain).mockRejectedValue(new Error('pipe closed'));
+			registry.register(managed);
+			const service = createMessageService({
+				runMessagesRepo: repo,
+				processRegistry: registry,
+				clock,
+				ids,
+			});
+			const text = 'Read "probe.txt"\n回复原文\n';
+			const result = await service.sendMessage({
+				runId: 'claude-reply',
+				text,
+				kind: 'reply',
+				throwOnUndelivered: false,
+			});
+			expect(writes).toHaveLength(1);
+			expect(writes[0]?.split('\n')).toHaveLength(2);
+			expect(JSON.parse(writes[0] ?? '')).toEqual({
+				type: 'user',
+				message: { role: 'user', content: [{ type: 'text', text }] },
+			});
+			expect(result.delivered).toBe(!drainFails);
+			expect(messages[0]?.deliveryState).toBe(drainFails ? 'undelivered' : 'delivered');
+			expect(messages[0]?.text).toBe(text);
+		},
+	);
 
 	describe('AC 1 & E-117: Reply capability bit check', () => {
 		it('resolves built-in agent capabilities correctly', () => {

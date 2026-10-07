@@ -1,4 +1,5 @@
 import type { EventKind } from '@agent-scheduler/shared/api/events';
+import { ClaudePartialContent } from './partial-content.ts';
 
 export interface EventEnvelopeInput {
 	readonly kind: EventKind;
@@ -16,6 +17,7 @@ export interface ClaudeEventMapperState {
 	unmappedEventCount?: number;
 	runId?: string | null;
 	taskId?: string | null;
+	partialContent?: ClaudePartialContent;
 }
 
 export interface ClaudeMapEventsResult {
@@ -80,6 +82,16 @@ const KNOWN_STREAM_EVENT_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Value of the top-level `error` field on the synthetic `assistant` frame Claude Code emits for a
+ * failed API call when the requested model is unknown or unavailable (E-36). Recorded with Claude
+ * Code 2.1.238 and 2.1.283 in stream-json output; other failures carry other values of the same
+ * field, such as `authentication_failed` or `server_error`, and stay on the E-348 path. Only a
+ * main-loop frame (`parent_tool_use_id` null) concerns the dispatched model: a subagent's frame
+ * reports a model the agent chose for a tool call and reaches the agent as that tool's result.
+ */
+const CLAUDE_MODEL_NOT_FOUND_ERROR = 'model_not_found';
+
+/**
  * Maps a single Claude vendor output line into normalized ACP / product event inputs.
  * Enforces AC 2 & E-37: Reads self-reported model from first frame and flags mismatch with selected model.
  * Enforces AC 3 & E-202: Unknown vendor events are discarded and counted to unmappedCount; never crashes or invents kinds.
@@ -136,6 +148,7 @@ export function mapClaudeEventLine(
 		});
 	}
 
+	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) parsed = {};
 	const events: EventEnvelopeInput[] = [];
 	let unmappedCount = 0;
 	let isFirstFrame = false;
@@ -144,6 +157,7 @@ export function mapClaudeEventLine(
 
 	const rawType = typeof parsed.type === 'string' ? parsed.type.trim() : '';
 	const rawSubtype = typeof parsed.subtype === 'string' ? parsed.subtype.trim() : '';
+	state?.partialContent?.observe(parsed);
 
 	// --- 1. Check for First Frame / System Init (AC 2 & E-37) ---
 	const isInitFrame =
@@ -239,7 +253,8 @@ export function mapClaudeEventLine(
 			const block = ev.content_block as Record<string, unknown>;
 			const blockType = typeof block.type === 'string' ? block.type.trim() : '';
 
-			if (blockType === 'tool_use') {
+			// Partial tool input is incomplete; the complete assistant block owns the call.
+			if (blockType === 'tool_use' && !state?.partialContent) {
 				events.push(
 					Object.freeze({
 						kind: 'tool_call',
@@ -414,11 +429,104 @@ export function mapClaudeEventLine(
 			}),
 		);
 	}
-	// H. Known system types with no further output needed
+	// H. Main-loop API error frame naming the requested model unavailable (E-36)
+	// Only the typed `error` field decides; the frame's text is carried verbatim, never matched.
+	else if (
+		rawType === 'assistant' &&
+		parsed.error === CLAUDE_MODEL_NOT_FOUND_ERROR &&
+		(parsed.parent_tool_use_id === null || parsed.parent_tool_use_id === undefined)
+	) {
+		events.push(
+			Object.freeze({
+				kind: 'run.model_rejected',
+				runId,
+				taskId,
+				payload: Object.freeze({
+					code: 'model_invalid',
+					modelName: state?.selectedModel ?? state?.actualModel ?? '',
+					vendorMessage: joinAssistantText(parsed.message),
+					vendor: Object.freeze({ ...parsed }),
+				}),
+			}),
+		);
+	} else if (rawType === 'assistant' || rawType === 'user') {
+		// Synthetic API failures contain text but are not agent output (E-348).
+		const message = parsed.message as Record<string, unknown> | undefined;
+		if (
+			parsed.error != null ||
+			parsed.is_api_error_message === true ||
+			message?.model === '<synthetic>'
+		) {
+			// The typed model rejection above is the only failure mapped to E-36.
+		} else if (!message || !Array.isArray(message.content)) {
+			unmappedCount++;
+		} else {
+			for (const [index, value] of message.content.entries()) {
+				if (!value || typeof value !== 'object') {
+					unmappedCount++;
+					continue;
+				}
+				const block = value as Record<string, unknown>;
+				let kind: EventKind;
+				let payload: Record<string, unknown>;
+				if (rawType === 'assistant' && block.type === 'text' && typeof block.text === 'string') {
+					const chunk =
+						state?.partialContent?.remaining(parsed, message, index, 'text', block.text) ??
+						block.text;
+					if (!chunk) continue;
+					kind = 'agent_message_chunk';
+					payload = { chunk };
+				} else if (
+					rawType === 'assistant' &&
+					block.type === 'thinking' &&
+					typeof block.thinking === 'string'
+				) {
+					const chunk =
+						state?.partialContent?.remaining(parsed, message, index, 'thinking', block.thinking) ??
+						block.thinking;
+					if (!chunk) continue;
+					kind = 'agent_thought_chunk';
+					payload = { chunk };
+				} else if (
+					rawType === 'assistant' &&
+					block.type === 'tool_use' &&
+					typeof block.id === 'string' &&
+					typeof block.name === 'string'
+				) {
+					kind = 'tool_call';
+					payload = { callId: block.id, tool: block.name, input: block.input };
+				} else if (
+					rawType === 'user' &&
+					block.type === 'tool_result' &&
+					typeof block.tool_use_id === 'string'
+				) {
+					kind = 'tool_call_update';
+					payload = { callId: block.tool_use_id, output: block.content };
+				} else if (
+					block.type === 'redacted_thinking' ||
+					(rawType === 'user' && block.type === 'text')
+				) {
+					continue;
+				} else {
+					unmappedCount++;
+					continue;
+				}
+				events.push(
+					Object.freeze({
+						kind,
+						runId,
+						taskId,
+						payload: Object.freeze({ ...payload, vendor: Object.freeze({ ...parsed }) }),
+					}),
+				);
+			}
+		}
+	}
+	// I. Known system types with no further output needed
 	else if (KNOWN_CLAUDE_SYSTEM_TYPES.has(rawType)) {
 		// Handled gracefully without mapping to ACP or counting as unmapped
 	}
-	// I. Unknown vendor event (AC 3 & E-202)
+	// J. Unknown vendor event (AC 3 & E-202)
 	else {
 		// Discard event; increment unmappedCount; never crash; never invent fake kind.
 		unmappedCount++;
@@ -470,6 +578,7 @@ export function createClaudeEventMapper(options: ClaudeEventMapperOptions = {}):
 		actualModel: null,
 		modelMismatch: false,
 		unmappedEventCount: 0,
+		partialContent: new ClaudePartialContent(),
 	};
 
 	function mapLine(line: unknown): ClaudeMapEventsResult {
@@ -493,6 +602,7 @@ export function createClaudeEventMapper(options: ClaudeEventMapperOptions = {}):
 		state.actualModel = null;
 		state.modelMismatch = false;
 		state.unmappedEventCount = 0;
+		state.partialContent?.reset();
 	}
 
 	return Object.freeze({
@@ -502,4 +612,22 @@ export function createClaudeEventMapper(options: ClaudeEventMapperOptions = {}):
 		getUnmappedEventCount,
 		reset,
 	});
+}
+
+/** Concatenates the text blocks of an assistant message; returns '' when there are none. */
+function joinAssistantText(message: unknown): string {
+	if (!message || typeof message !== 'object') return '';
+	const content = (message as Record<string, unknown>).content;
+	if (typeof content === 'string') return content;
+	if (!Array.isArray(content)) return '';
+	return content
+		.map((block) =>
+			block &&
+			typeof block === 'object' &&
+			(block as Record<string, unknown>).type === 'text' &&
+			typeof (block as Record<string, unknown>).text === 'string'
+				? ((block as Record<string, unknown>).text as string)
+				: '',
+		)
+		.join('');
 }

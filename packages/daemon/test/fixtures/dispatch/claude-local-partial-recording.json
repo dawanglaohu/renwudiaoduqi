@@ -1,0 +1,15 @@
+{
+	"cliVersion": "2.1.238",
+	"recordedAt": "2026-10-07",
+	"provider": "isolated loopback HTTP/SSE fixture, fake key, no upstream calls",
+	"configuration": "isolated CLAUDE_CONFIG_DIR, empty settings sources, --include-partial-messages",
+	"red": "Before repair, partial text renders HelloHello and tool call appears twice, first with empty input.",
+	"ordering": "Complete singleton assistant block precedes corresponding content_block_stop; multiple blocks share message.id.",
+	"sanitization": "Only type, event, message, parent_tool_use_id and typed error retained. No key, system paths, session UUID or usage totals.",
+	"files": [
+		"claude-2-1-238-local-partial.stdout.ndjson",
+		"claude-2-1-238-local-multiblock.stdout.ndjson",
+		"claude-2-1-238-local-tool.stdout.ndjson"
+	],
+	"toolContainment": "Tools disabled; linked user tool_result reports containment. CLI error_max_turns is expected, not a provider startup failure."
+}

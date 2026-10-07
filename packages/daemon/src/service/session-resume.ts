@@ -38,6 +38,7 @@ export interface SessionResumeAdapter {
 		readonly [key: string]: unknown;
 	}) => LaunchSpec;
 	readonly mapEvents: (vendorLine: unknown) => readonly EventEnvelopeInput[];
+	readonly createEventMapper?: () => (vendorLine: unknown) => readonly EventEnvelopeInput[];
 }
 
 export interface SessionResumeRunWiring {
@@ -208,7 +209,9 @@ export function createSessionResumeDispatcher(
 			);
 		}
 
-		deps.runService.attachProcess(run.id, managed, { eventMapper: adapter.mapEvents });
+		deps.runService.attachProcess(run.id, managed, {
+			eventMapper: adapter.createEventMapper?.() ?? adapter.mapEvents,
+		});
 
 		await deps.runService.transitionState({
 			runId: run.id,
