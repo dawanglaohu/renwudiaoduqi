@@ -9,11 +9,12 @@
     "https://github.com/openai/codex/blob/main/codex-rs/protocol/src/openai_models.rs",
     "https://code.claude.com/docs/en/model-config#adjust-effort-level",
     "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/cli.md#models",
-    "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs"
+    "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs",
+    "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/README.md#headless-mode"
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 245 test files, 3040 passed, 3 existing skips",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 245 test files, 3043 passed, 3 existing skips",
     "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
@@ -191,5 +192,86 @@
       ],
       "scope": "Production AgentService capability probe and generated argv accepted with --help; no model inference requested"
     }
+  },
+  "grokNativeLevels": {
+    "live": {
+      "version": "grok 1.0.41 (4220f3b224a6)",
+      "source": "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/README.md#headless-mode",
+      "probes": [
+        {
+          "level": "none",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "none"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "minimal",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "minimal"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "low",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "low"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "medium",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "medium"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "high",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "high"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "xhigh",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "xhigh"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "max",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "max"
+          ],
+          "helpExitCode": 0
+        }
+      ],
+      "inferenceRequested": false,
+      "scope": "Production-generated argv accepted by the installed CLI with --help; no model inference requested"
+    },
+    "regressionBefore": "Three production dispatch cases reject none, minimal and max from the incomplete four-level fallback"
   }
 }

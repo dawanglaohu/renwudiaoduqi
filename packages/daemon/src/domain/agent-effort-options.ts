@@ -8,8 +8,8 @@ const NATIVE_EFFORT_OPTIONS: Readonly<Record<string, readonly string[]>> = Objec
 	claude: Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']),
 	// https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/cli.md#models
 	pi: Object.freeze(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
-	// https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs
-	grok: Object.freeze(['low', 'medium', 'high', 'xhigh']),
+	// https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/README.md#headless-mode
+	grok: Object.freeze(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
 });
 
 interface EffortAgentConfig {

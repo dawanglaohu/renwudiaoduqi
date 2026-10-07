@@ -583,6 +583,9 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		['codex', 'ultra', 'model_reasoning_effort="ultra"'],
 		['claude', 'max', '--effort'],
 		['grok', 'xhigh', '--reasoning-effort'],
+		['grok', 'none', '--reasoning-effort'],
+		['grok', 'minimal', '--reasoning-effort'],
+		['grok', 'max', '--reasoning-effort'],
 		['pi', 'off', '--thinking'],
 	])(
 		'dispatches %s native effort %s through the production container',
