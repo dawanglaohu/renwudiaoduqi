@@ -1,5 +1,6 @@
 import { EVENT_DEFINITIONS, type EventEnvelope } from '@agent-scheduler/shared/api/events';
 import { getClaudeCapabilities } from '../adapters/claude/capabilities.ts';
+import { encodeClaudeInput } from '../adapters/claude/input.ts';
 import type { CodexSessionRegistry } from '../adapters/codex/app-server-session.ts';
 import { getCodexCapabilities } from '../adapters/codex/capabilities.ts';
 import { getGrokCapabilities } from '../adapters/grok/capabilities.ts';
@@ -581,7 +582,12 @@ export function createMessageService(deps: MessageServiceDeps): MessageService {
 			}
 
 			// AC 6: Writing to stdin with backpressure drain check
-			const payload = text.endsWith('\n') ? text : `${text}\n`;
+			const payload =
+				run.agentId === BUILT_IN_AGENT_IDS.CLAUDE
+					? encodeClaudeInput(text)
+					: text.endsWith('\n')
+						? text
+						: `${text}\n`;
 			let writeOk = false;
 
 			try {

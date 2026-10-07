@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { buildClaudeLaunchSpec } from '../adapters/claude/build-launch-spec.ts';
-import { mapEvents as mapClaudeEvents } from '../adapters/claude/map-events.ts';
+import {
+	createClaudeEventMapper,
+	mapEvents as mapClaudeEvents,
+} from '../adapters/claude/map-events.ts';
 import {
 	type CodexSessionRegistry,
 	createCodexSessionRegistry,
@@ -509,6 +512,10 @@ export function createContainer(input: {
 					model: options.model ?? undefined,
 				}),
 			mapEvents: (line: unknown) => mapClaudeEvents(line) as readonly EventEnvelopeInput[],
+			createEventMapper: () => {
+				const mapper = createClaudeEventMapper();
+				return (line: unknown) => mapper.mapLine(line).events as readonly EventEnvelopeInput[];
+			},
 		}),
 		dsh: Object.freeze({
 			buildLaunchSpec: (options: BuildLaunchSpecInput) =>

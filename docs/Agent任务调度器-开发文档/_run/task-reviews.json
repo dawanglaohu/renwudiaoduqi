@@ -421,7 +421,7 @@
       "Production bootstrap/browser restart proof remains unavailable in this unelevated Windows session due Administrators/SYSTEM daemon-lock ACL. No existing runtime service or user registry configuration changed. Local source review and native probes do not claim deployed recovery.",
       "Review diagnostic follow-up: unavailable checkedPaths exactly matches attempted filesystem stat paths. Ignored extensionless Windows shims and invalid relative PATH entries are omitted. Regression fails before repair and passes after repair; complete probe suite has 29 passing tests. Changed-file Biome and TypeScript checks pass."
     ],
-    "reviewed": "2026-10-07T02:55:01.591738+00:00",
+    "reviewed": "2026-10-07T02:59:24.183798+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1274,14 +1274,39 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R8-T57073674": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "dbcd0dfecda7bf4990dd28fb4eeb5d94c3bb95e4879924a6d84be6fedd4b005b",
+    "evidence": [
+      "任务契约语义复核：用户原会话 2026-09-29 指令明确要求三个 Claude 启动/映射问题的复现、任务登记、修复与生产派发入口测试。batch-8-20260929-claude-launch.md 定义保留完整要求，未改变原任务状态或关闭整批遗留。",
+      "范围与依赖：M4-T9 的 stream-json 可回话契约、M6-T6 的 E-113 投递反馈、M8-T10 的真实启动入口和 R8-T70356006 的主循环模型专用拒绝信号均列为前置。有效路径包含 Claude 适配器、defaults、通用 proc、message 服务、真实录制及相应测试；container.ts:489 的已有适配器注册点列入范围。厂商字段仍由 adapters/claude 处理。",
+      "边界：E-37 环境清理与模型核对保持；E-36 的 error=model_not_found 分支在普通 assistant 映射之前，子代理拒绝不影响主任务；E-348 的 API 错误正文不算内容；E-113 管道关闭拒绝发送，背压等待清理监听器；E-202 未知内容只增加未映射计数。单元与生产入口回放定位见任务受保护代码位置和 _run/R8-T57073674.implementation.json。",
+      "Jev 真实裁决与有限候选、model、line 和执行选择保存在 _run/R8-T57073674.implementation.json；生产测试 pnpm -w check 为 206 文件/2579 通过/3 跳过。此登记只确认任务契约自洽，任务保持 review，实施完成仍等待独立审查，不执行 --landed。",
+      "2026-10-07 本轮复核保留原验收标准及历史成功/失败录制，原 batch-8 及非本次返工状态仍 open。原生 Claude Code 2.1.238 在隔离配置、回环 HTTP/SSE 测试服务和假 key 下复现 partial + assistant 同块双重文本/思考、工具调用；工具控制禁用实际工具，error_max_turns 是有界控制，不冒称厂商正常执行。新入库内容帧去除系统路径和会话标识，来源见 claude-local-partial-recording.json；没有使用个人凭据或访问上游厂商。",
+      "先复现后修复：partial-before.log 两文件7项失败、48项通过，包括真实文本 HelloHello、多块 HelloHelloWorldWorld、两次工具调用、缺失后缀去重及主/子代理隔离；修复后 partial-after.log 四文件127项通过，原生产 spawn/input/error 断言保留。最终 top-full-check-final.log: pnpm -w check，Biome654文件、TypeScript、错误码、架构、对比度规则通过，241测试文件2945项通过、3项平台跳过。初次新增JSON格式和接口类型检查失败均已修复；首次修复后全量运行一个既有5001事件慢磁盘测试在30秒超时，单独复跑5项通过（压力项约9.5秒），未改断言和时限，最终降低并发重跑全绿；失败日志保留。",
+      "根因修复：ClaudePartialContent 在适配器内按 parent_tool_use_id/message.id/内容块索引保存已输出前缀；同消息的多个单块完整帧关联当前活动块，多块数组按原索引；保留 block_stop 前后证据，message_stop/result/reset 清理。只发送未输出后缀，空增量不吞完整内容；partial工具开始不发空参数调用，完整assistant一次性保留最终输入和 linked user tool_result。E-36专用失败分支和 E-348 synthetic/API错误负例保留，未知帧安全计数。",
+      "必要接线支持路径以原任务源围栏补齐，没有改验收标准。DispatchAdapter 和 SessionResumeAdapter 增加可选 createEventMapper；container 为 Claude 每个进程创建实例，dispatch 的普通/收口和 session-resume 使用新实例，其他适配器沿原 mapEvents。独立 stack-factory-control.json 通过实际 service 入口验证4次独立回调、2次原回调回退、并行相同ID、聚合索引与错误负例。session-resume 转发冻结 argsTemplate，可实际开启 partial；本轮没有声称普通 dispatch 已新增自定义参数转发。",
+      "独立复核使用实际已安装CLI和隔离本地服务重新跑 partial、complete-only、thinking+two-text、工具四个控制，结果分别 Hello/Hello/HelloWorld+Plan/一次完整工具调用；独立focused3文件110项、Biome7文件和TypeScript通过。它验证原生协议及生产调用/回放接线，未冒称本轮真实上游模型或整套daemon/browser厂商验收。最终head适用CI和原生栈合并结果由仓库外审查合并记录另行证明。",
+      "实际Jev裁决：原输入方案保留A/B完整候选复核，jev-1.13.0 pick=A(high1.00) adopt=take(A)；本次partial有限候选A按块保留增量/B拒绝partial能力/C延后到完整输出全部保留，jev-1.13.0 pick=A(high0.90) spec_change=no needs_owner=no adopt=take(A)，已落实A的状态及接线修复。parent原A-D加当前事实候选E的复核为pick=E(medium0.57) adopt=take(E)，历史red_line不被删除。完整state/model/line见本证据adjudications和 judgments.jsonl。"
+    ],
+    "reviewed": "2026-10-07T02:46:11.816788+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T70356006": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "66036f33c9f9b163fe9d3b9a980e061f0e59ab05d0f38bd4d1dcedc6baad7b78",
+    "contractHash": "4065661e43917e74f38d912c02147f35e75427fb3ca296c584a6043532a79cd7",
     "evidence": [
-      "R8-T70356006 note requires a real deployable vendor protocol recording with model-specific structured code/type, production dispatch proof, and an E-348 fallback. This remains a clear, testable task contract; task status remains todo and no vendor signal is claimed.",
-      "Current packages/daemon/src/adapters/codex/capabilities.ts:17, claude/capabilities.ts:27, pi/capabilities.ts:28 and grok/capabilities.ts:30 keep reportsModelRejection false; packages/daemon/src/service/run.ts:703 retains exited_before_output fallback. Full pnpm -w check passed 206 test files and 2551 tests (3 skipped)."
+      "验收 1：Claude Code 的 stream-json 协议有模型专用的类型化字段。2.1.283 安装包内置的 SDK schema 把 assistant 消息的 error 定义为枚举 authentication_failed、oauth_org_not_allowed、account_on_hold、verification_required、billing_error、rate_limit、overloaded、invalid_request、model_not_found、server_error、unknown、max_output_tokens、cloud_credential_error。2026-09-29 用 buildClaudeLaunchSpec 生成的生产参数（--print --output-format stream-json --model r8-invalid-model-20260929 --input-format stream-json --permission-mode acceptEdits；隔离配置目录后补 --verbose，等价本机 settings.json 的 verbose=true），把提示词作为一条 stream-json user 消息写入 stdin，经 Any Router 中转实测：Claude Code 2.1.238（本机 claude 命令解析到的版本）与 2.1.283 都输出主循环 assistant 帧 error=model_not_found、is_api_error_message=true、parent_tool_use_id=null，随后 result 帧 terminal_reason=api_error、api_error_status=404，退出码 1。对照：同入口换无效令牌得到 error=authentication_failed（401，前有 10 条同值 api_retry）；agentrouter 中转对同一无效模型回 503 时得到 error=server_error。脱敏脚本保留 null 值后四份录制重录一遍，结果不变，存为 packages/daemon/test/fixtures/dispatch/claude-2-1-283-model-not-found.stdout.ndjson、claude-2-1-238-model-not-found.stdout.ndjson、claude-2-1-238-invalid-model-503.stdout.ndjson、claude-2-1-283-authentication-failed.stdout.ndjson，已对照 CC Switch 全部供应商的令牌、地址与主机名确认无泄漏。此前探针只在 error 为对象时读取 type/code，漏记了字符串值。",
+      "验收 2：packages/daemon/src/adapters/claude/map-events.ts:90 定义已录制的 model_not_found 取值；:427-447 只在 type=assistant、顶层 error 等于该值且 parent_tool_use_id 为 null 时产出恰一条 run.model_rejected{code:model_invalid, modelName, vendorMessage 为 assistant 正文原文}，子代理帧、result 帧（404）与 api_retry 帧不产出；:539 joinAssistantText 拼接正文。原 PR 按对象 error.code/type 猜测的 CLAUDE_MODEL_REJECTION_CODES 与 detectClaudeModelRejection（复制 Codex 私有 detectModelRejection）已删除。能力位：claude/capabilities.ts:33 为 true，codex/capabilities.ts:21、:29 与 dsh、generic-acp、grok、pi 均为 false。packages/daemon/test/unit/codex-adapter.test.ts:1003-1084 用四份夹具断言：两份 model_not_found 各恰一条事件，503 server_error 与 401 authentication_failed 零条，去掉 error 字段只留同一正文零条，只改 parent_tool_use_id 的子代理帧零条；:1086-1096 断言能力位只有 Claude 为 true。把常量改错后 4 条正例用例失败，去掉主循环条件后子代理用例失败，测试不是空转。",
+      "验收 3：packages/daemon/test/integration/dispatch-spawn.test.ts:1219-1321 走真实生产派发入口（dispatch.createRun、tick、buildClaudeLaunchSpec、spawnManaged 假进程、container.ts:489 接入的 mapClaudeEvents、run.ts:562 的 RunService 分支、container.ts:714 接线的 rerun.ts:683 handleModelInvalid），断言无效模型名原样作为 --model 透传；回放两份 model_not_found 录制后运行 failed、queued_reason 为派发失败·模型无效、rework_count 0、不跑机械检查、tasks.lane_no 置空、lane.released{reason:failed, runId, taskId}、预置 waiting 审批卡变为 decided/superseded/decision=null、恰一条 run.model_rejected、run.state_changed 到 failed 带 reason model_invalid 与 agent 原文、没有 reviewing 或 awaiting_human 迁移。:1323-1381 回放 503 与 401 录制，同样带录制里的 stderr 行 [claude-code:unrecognized_model]，结果进入 awaiting_human、queued_reason exited_before_output、审批卡 waiting、无 run.model_rejected。container-wiring.test.ts:1830 复核容器接线与各家能力位。",
+      "验收 4：13 节 E-36（13-边界问题与异常处理.md:49）、19 节 M8-T5 验收 6（19-模块任务拆分.md:81）、10 节 run.model_rejected 约定（10-接口约定.md:428）都写明仅在 agent 通过自身协议给出结构化错误字段时精确产出，否则按 E-348 转人，与 Claude 为 true、其余为 false 一致，正文无须改动；能力位说明写在 claude/capabilities.ts:12-20 与 codex/capabilities.ts:8-12 的注释里并注明实测版本。补丁 r8-t70356006-claude-recordings-20260929 经 begin/sync/verify 把四份录制夹具补进本任务有效路径，只影响本任务，review.json 阻断 0。",
+      "验收 5：Windows 工作树两次合并 main（第二次含 PR #168 桌面密度补丁）后运行 pnpm -w check，错误码一致性、对比度与禁用项检查、biome ci（594 个文件）、tsc -b --noEmit 全部通过，vitest 206 个文件 2563 通过、3 跳过。提供模型专用字段的实际验证家数为 1（Claude Code 2.1.238 与 2.1.283）；Codex 0.157.1 app-server 只有 codexErrorInfo=other，Pi 0.87.1、Grok 1.0.41、OpenCode 1.18.32 按此前录制无该字段，Gemini CLI 0.61.0 未完成模型请求，这些能力位保持 false。",
+      "E-36：模型名不做白名单校验直接透传（测试断言 --model 原样），只凭 Claude 的类型化 error 字段精确标注，失败后标派发失败·模型无效、状态事件带 agent 原文、释放泳道。E-348：判定只看事件 kind；503、401 两份录制与 E-36 正例带同一条 stderr 文本，仍按零产出进入 awaiting_human，stderr 与正文从不参与判定，dispatch-proc 架构测试守住 service/jobs 不嗅探文本。",
+      "范围外发现（未在本任务修改，另开任务）：内置 Claude 参数模板缺 --verbose，本机靠 settings.json 的 verbose=true 才能运行；生产启动形状带 --input-format stream-json，提示词却只作位置参数、stdin 保持打开未写入，实测 Claude Code 2.1.283 等待 90 秒无任何输出，关闭 stdin 则零输出退出；适配器不映射 type=assistant 的正常消息帧，未开 --include-partial-messages 时正常运行也产出不了内容事件。三者修复前，真实 Claude 运行到不了 API 调用，本任务的精确标注只在回放录制的测试中生效。",
+      "2026-10-07 本轮审查：原 PR161 完整生产差异、Claude error 字段/主循环限定、能力位与真实录制来源逐项核对。已合入 main 37681592，保留全部主干生产修复与85条裁决日志，再追加本分支3条独立记录；生成文件按主干版本重新构建。production typed-rejection、E-348负例、容器接线及非连续次数回归四文件109项通过，Biome六文件与 TypeScript通过。运行日志在仓库外 four-pr-20261007/{parent-focused,parent-lint,parent-types-final}.log。已有真实厂商录制是历史实测，不冒称本轮重跑厂商。PR最终新head适用CI及整栈合并仍须由合并记录单独证明。 初次类型检查因工作树依赖未包含主干新增 @radix-ui/react-select 失败，保留 parent-types.log；pnpm install --frozen-lockfile 后重验 exit 0，未改清单或锁文件。"
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-07T02:13:06.129694+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

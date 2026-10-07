@@ -1,0 +1,101 @@
+{
+  "task": "R8-T57073674",
+  "date": "2026-09-29",
+  "state": "review",
+  "checks": {
+    "full": "206 files; 2579 passed, 3 skipped; pnpm -w check exit 0",
+    "focused": "4 files; 116 passed",
+    "mutations": {
+      "initialInputRemoved": "production integration failed: expected one stdin write, received zero",
+      "assistantMappingDisabled": "production integration failed: mechanical check did not run",
+      "completionSignalDisabled": "production integration failed: run.exited never arrived",
+      "restored": "original source bytes restored; production lifecycle 3/3 passed"
+    }
+  },
+  "adjudication": {
+    "state": {
+      "requirement": "Fix Claude foreground launch --verbose, initial prompt delivery and assistant frame mapping. Preserve native stream-json replies and E-36/E-348. User explicitly authorized this implementation and provider probes; no scope, purchase, deletion or external commitment decision is needed.",
+      "task": {
+        "title": "R8-T57073674 Claude stream-json launch and content events",
+        "accept": "Real CLI with isolated config accepts initial prompt, replies while running remain supported, normal output prevents E-348, errors do not become content, completed runs exit; use existing Node/TypeScript stack."
+      },
+      "conflict": "The current builder puts prompt in argv while --input-format stream-json ignores it. message service writes raw text. Actual Claude 2.1.283 stays alive after result while stdin is open, then exits when stdin closes. Prompt and reply serialization must stay in adapters/claude, with subprocess listeners attached before input can produce output. All dispatch kinds use the same builder and spawnManaged. Foreground input transport is a reversible implementation choice.",
+      "options": {
+        "A": "Keep stream-json input. Adapter serializes a user frame for the initial prompt and replies. Add generic optional LaunchSpec.initialStdin and closeStdinWhen JSON predicate; proc writes initial input once on child spawn, keeps pipe writable during work, and ends it after adapter-recognized main-turn result. Shared proc semantics cover every dispatch kind. Add bounded error handling and real/replay tests.",
+        "B": "Remove stream-json input for one-shot runs and keep positional prompt. Support replies by queuing them until process completion and resuming the CLI in a new process through existing resumption machinery, with corresponding delivery and capability changes. Add lifecycle tests. This works but changes timing and requires more message-service orchestration."
+      }
+    },
+    "result": {
+      "status": "ok",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 1.0,
+          "band": "high",
+          "probabilities": {
+            "A": 1.0,
+            "B": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.12,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.1,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.04,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.83,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.12) outside_stack=no(0.10) needs_owner=no(0.04) reversible=yes(0.83) adopt=take(A)",
+      "usage": {
+        "input_tokens": 1121,
+        "output_tokens": 101
+      }
+    }
+  },
+  "live": {
+    "agent": "Claude Code 2.1.283",
+    "normalRecording": "packages/daemon/test/fixtures/dispatch/claude-2-1-283-success.stdout.ndjson",
+    "managedRun": {
+      "initialPrompt": "Read \"probe.txt\" with the Read tool.\nReply with its exact contents, including \"CLAUDE_STREAM_OK\".",
+      "reply": "After the file response, reply exactly \"CLAUDE_REPLY_OK\".\nThis is a follow-up message.",
+      "exitCode": 0,
+      "frames": [
+        "system/init",
+        "assistant",
+        "assistant",
+        "user",
+        "assistant",
+        "system/informational",
+        "user",
+        "assistant",
+        "result/success"
+      ],
+      "observation": "The live reply interrupted the tool interaction; CLI responded and exited 0. This is delivery/lifecycle evidence, not an assertion that the final answer contained the marker."
+    },
+    "laterProbes": "Independent subsequent valid-model requests encountered provider budget exhaustion, unavailable upstreams or authentication failures. These are negative controls, not successful output evidence."
+  },
+  "ci": {
+    "head": "d79c780bf8d0005a9bf42316da01f7e639dbd0cc",
+    "run": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/36566400701",
+    "status": "blocked",
+    "observation": "Desktop builds and pnpm -w check passed; Batch 14 E2E failed at e2e/batch-14-composition.test.ts:1745. The same failure occurred on parent PR 161 without this Claude patch. A real SQLite reproduction confirms rerun counts noncontiguous attempts incorrectly and returns the old implement run. Independent repair R8-T69421773 is open.",
+    "evidence": "_run/R8-T70356006.ci-blocker-20260929.json"
+  }
+}

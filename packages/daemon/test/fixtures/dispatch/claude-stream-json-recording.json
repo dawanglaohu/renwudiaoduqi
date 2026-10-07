@@ -1,0 +1,24 @@
+{
+	"agent": "2.1.283 (Claude Code)",
+	"model": "claude-opus-5[1M]",
+	"capturedAt": "2026-09-29",
+	"source": "Installed CLI stdout from an isolated working directory and CLAUDE_CONFIG_DIR; credentials read from CC Switch into child environment only.",
+	"baseline": {
+		"missingVerboseExit": 1,
+		"openEmptyInputFrames": 0,
+		"openEmptyInputTimeoutSeconds": 12,
+		"closedEmptyInputExit": 0,
+		"closedEmptyInputFrames": 0
+	},
+	"recording": {
+		"file": "claude-2-1-283-success.stdout.ndjson",
+		"exitCode": 0,
+		"aliveAfterResultUntilInputClosed": true,
+		"captureAdjustments": [
+			"Added --verbose to baseline builder output",
+			"Wrote a stream-json user frame to stdin",
+			"Closed stdin after result to allow process exit"
+		]
+	},
+	"sanitization": "Credentials, endpoints, local paths, timestamps, session IDs and request IDs redacted. Message and tool identifiers consistently replaced; null values and protocol fields retained."
+}

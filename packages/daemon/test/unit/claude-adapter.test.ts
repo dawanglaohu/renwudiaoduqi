@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
 	CLAUDE_ENV_DENYLIST,
@@ -11,8 +12,127 @@ import {
 	CLAUDE_CAPABILITIES,
 	getClaudeCapabilities,
 } from '../../src/adapters/claude/capabilities.ts';
+import { encodeClaudeInput, isClaudeTurnComplete } from '../../src/adapters/claude/input.ts';
 import { createClaudeEventMapper, mapEvents } from '../../src/adapters/claude/map-events.ts';
+import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import { AppError } from '../../src/errors/app-error.ts';
+
+describe('R8-T57073674: Claude foreground protocol', () => {
+	it.each([undefined, BUILT_IN_AGENT_DEFAULTS.claude.argsTemplate])(
+		'delivers the exact prompt through stdin with isolated-config flags',
+		(argsTemplate) => {
+			const prompt = '  Read "probe.txt"\n中文与 \\ path\n';
+			const spec = buildClaudeLaunchSpec({
+				runId: 'launch',
+				cwd: '/repo',
+				prompt,
+				argsTemplate,
+				model: 'opus',
+			});
+			expect(spec.args.filter((a) => a === '--verbose')).toHaveLength(1);
+			expect(spec.args).not.toContain(prompt);
+			expect(spec.initialStdin?.split('\n')).toHaveLength(2);
+			expect(JSON.parse(spec.initialStdin ?? '')).toEqual({
+				type: 'user',
+				message: { role: 'user', content: [{ type: 'text', text: prompt }] },
+			});
+			expect(spec.stdinMode).toBe('pipe');
+			expect(spec.closeStdinWhen?.({ type: 'result' })).toBe(true);
+		},
+	);
+	it('encodes replies and completes only the main turn', () => {
+		expect(JSON.parse(encodeClaudeInput('hello\n"world"')).message.content[0].text).toBe(
+			'hello\n"world"',
+		);
+		for (const value of [
+			null,
+			{},
+			{ type: 'assistant' },
+			{ type: 'result', parent_tool_use_id: 'child' },
+		])
+			expect(isClaudeTurnComplete(value)).toBe(false);
+		expect(isClaudeTurnComplete({ type: 'result', parent_tool_use_id: null, is_error: true })).toBe(
+			true,
+		);
+		const background = buildClaudeLaunchSpec({
+			runId: 'bg',
+			cwd: '/repo',
+			isBackground: true,
+			prompt: 'prompt',
+		});
+		expect(background.initialStdin).toBeUndefined();
+		expect(background.closeStdinWhen).toBeUndefined();
+	});
+	it('maps the real successful CLI recording including linked tool results', () => {
+		const lines = readFileSync(
+			new URL('../fixtures/dispatch/claude-2-1-283-success.stdout.ndjson', import.meta.url),
+			'utf8',
+		)
+			.trim()
+			.split('\n');
+		const mapper = createClaudeEventMapper({ runId: 'run', taskId: 'task' });
+		const events = lines.flatMap((line) => mapper.mapLine(line).events);
+		expect(
+			events
+				.filter((e) => e.kind === 'agent_message_chunk')
+				.map((e) => e.payload.chunk)
+				.join(''),
+		).toContain('CLAUDE_STREAM_OK');
+		const call = events.find((e) => e.kind === 'tool_call');
+		expect(call?.payload.tool).toBe('Read');
+		expect(events.find((e) => e.kind === 'tool_call_update')?.payload.callId).toBe(
+			call?.payload.callId,
+		);
+		expect(mapper.getUnmappedEventCount()).toBe(0);
+		expect(events.every((e) => e.runId === 'run' && e.taskId === 'task')).toBe(true);
+	});
+	it('maps typed content blocks and counts malformed/unknown blocks without inventing output', () => {
+		const mapper = createClaudeEventMapper();
+		const result = mapper.mapLine({
+			type: 'assistant',
+			message: {
+				content: [
+					{ type: 'thinking', thinking: 'considering' },
+					{ type: 'text', text: 'answer' },
+					{ type: 'tool_use', id: 'tool-1', name: 'Read', input: { file_path: 'file' } },
+					{ type: 'text', text: '' },
+					{ type: 'thinking' },
+					{ type: 'future_content' },
+					null,
+				],
+			},
+		});
+		expect(result.events.map((e) => e.kind)).toEqual([
+			'agent_thought_chunk',
+			'agent_message_chunk',
+			'tool_call',
+		]);
+		expect(result.unmappedCount).toBe(3);
+		expect(mapper.getUnmappedEventCount()).toBe(3);
+		expect(() => mapper.mapLine('null')).not.toThrow();
+	});
+	it.each([
+		'claude-2-1-238-invalid-model-503.stdout.ndjson',
+		'claude-2-1-283-authentication-failed.stdout.ndjson',
+	])('does not count API failure text as content: %s', (recording) => {
+		const lines = readFileSync(
+			new URL(`../fixtures/dispatch/${recording}`, import.meta.url),
+			'utf8',
+		)
+			.trim()
+			.split('\n');
+		for (const line of lines) {
+			const frame = JSON.parse(line);
+			for (const candidate of [frame, { ...frame, error: undefined }]) {
+				expect(
+					mapEvents(candidate).filter((e) =>
+						['agent_message_chunk', 'agent_thought_chunk', 'tool_call'].includes(e.kind),
+					),
+				).toHaveLength(0);
+			}
+		}
+	});
+});
 
 describe('M4-T9: claude 原生适配器', () => {
 	describe('AC 1: --bg 与 -p 不同时使用，后台会话经 claude agents --json 回读', () => {
@@ -457,5 +577,120 @@ describe('M4-T9: claude 原生适配器', () => {
 			expect(Object.isFrozen(caps.permissionModes)).toBe(true);
 			expect(CLAUDE_CAPABILITIES).toBe(caps);
 		});
+	});
+});
+
+describe('R8-T57073674: partial and complete content ownership', () => {
+	function stream(
+		type: string,
+		fields: Record<string, unknown> = {},
+		parent: string | null = null,
+	) {
+		return { type: 'stream_event', parent_tool_use_id: parent, event: { type, ...fields } };
+	}
+	function assistant(text: string, parent: string | null = null) {
+		return {
+			type: 'assistant',
+			parent_tool_use_id: parent,
+			message: { id: 'message', content: [{ type: 'text', text }] },
+		};
+	}
+	function start(mapper: ReturnType<typeof createClaudeEventMapper>, parent: string | null = null) {
+		mapper.mapLine(stream('message_start', { message: { id: 'message' } }, parent));
+		mapper.mapLine(
+			stream(
+				'content_block_start',
+				{ index: 0, content_block: { type: 'text', text: '' } },
+				parent,
+			),
+		);
+	}
+	it.each([
+		['partial', 'Hello', ''],
+		['multiblock', 'HelloWorld', 'Plan'],
+	])('maps native %s recording once per block', (name, text, thinking) => {
+		const mapper = createClaudeEventMapper();
+		const lines = readFileSync(
+			new URL(`../fixtures/dispatch/claude-2-1-238-local-${name}.stdout.ndjson`, import.meta.url),
+			'utf8',
+		)
+			.trim()
+			.split('\n');
+		const events = lines.flatMap((line) => mapper.mapLine(line).events);
+		expect(
+			events
+				.filter((e) => e.kind === 'agent_message_chunk')
+				.map((e) => e.payload.chunk)
+				.join(''),
+		).toBe(text);
+		expect(
+			events
+				.filter((e) => e.kind === 'agent_thought_chunk')
+				.map((e) => e.payload.chunk)
+				.join(''),
+		).toBe(thinking);
+	});
+	it('emits one native tool call with final input and its linked result', () => {
+		const mapper = createClaudeEventMapper();
+		const lines = readFileSync(
+			new URL('../fixtures/dispatch/claude-2-1-238-local-tool.stdout.ndjson', import.meta.url),
+			'utf8',
+		)
+			.trim()
+			.split('\n');
+		const events = lines.flatMap((line) => mapper.mapLine(line).events);
+		const calls = events.filter((e) => e.kind === 'tool_call');
+		expect(calls).toHaveLength(1);
+		expect(calls[0]?.payload.input).toEqual({ file_path: 'probe.txt' });
+		expect(events.find((e) => e.kind === 'tool_call_update')?.payload.callId).toBe(
+			calls[0]?.payload.callId,
+		);
+	});
+	it.each([false, true])(
+		'retains partial prefix through block stop (%s) and emits only missing suffix',
+		(stopped) => {
+			const mapper = createClaudeEventMapper();
+			start(mapper);
+			expect(
+				mapper.mapLine(
+					stream('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Hello' } }),
+				).events[0]?.payload.chunk,
+			).toBe('Hello');
+			if (stopped) mapper.mapLine(stream('content_block_stop', { index: 0 }));
+			expect(mapper.mapLine(assistant('HelloWorld')).events.map((e) => e.payload.chunk)).toEqual([
+				'World',
+			]);
+		},
+	);
+	it('keeps main and subagent parents independent even with equal message ids and text', () => {
+		const mapper = createClaudeEventMapper();
+		start(mapper);
+		start(mapper, 'child');
+		mapper.mapLine(
+			stream('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Hello' } }),
+		);
+		expect(mapper.mapLine(assistant('Hello', 'child')).events[0]?.payload.chunk).toBe('Hello');
+		expect(mapper.mapLine(assistant('Hello')).events).toHaveLength(0);
+	});
+	it('keeps process instances independent and reset clears content ownership', () => {
+		const one = createClaudeEventMapper();
+		const two = createClaudeEventMapper();
+		start(one);
+		one.mapLine(
+			stream('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Hello' } }),
+		);
+		expect(two.mapLine(assistant('Hello')).events[0]?.payload.chunk).toBe('Hello');
+		one.reset();
+		expect(one.mapLine(assistant('Hello')).events[0]?.payload.chunk).toBe('Hello');
+	});
+	it('does not suppress complete content after an empty partial block or completed message', () => {
+		const mapper = createClaudeEventMapper();
+		start(mapper);
+		mapper.mapLine(
+			stream('content_block_delta', { index: 0, delta: { type: 'text_delta', text: '' } }),
+		);
+		expect(mapper.mapLine(assistant('Hello')).events[0]?.payload.chunk).toBe('Hello');
+		mapper.mapLine(stream('message_stop'));
+		expect(mapper.mapLine(assistant('Hello')).events[0]?.payload.chunk).toBe('Hello');
 	});
 });
