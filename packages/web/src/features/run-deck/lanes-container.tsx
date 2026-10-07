@@ -23,6 +23,7 @@ import { useRunStreamBuffer } from '../../api/event-bus.ts';
 import { LaneRunStrip } from '../../components/lane-run-strip.tsx';
 import { PipelineLane } from '../../components/pipeline-lane.tsx';
 import { type DensityTier, useDensityTier } from '../../hooks/use-breakpoint.ts';
+import { getDeckGridTemplate } from '../../lib/deck-grid.ts';
 import {
 	type StageRow,
 	findLatestRun,
@@ -417,19 +418,19 @@ export function LanesContainer({
 			.sort((a, b) => getRunTimestamp(a) - getRunTimestamp(b));
 	};
 
-	// E-333: 快照缺 lanes 键或不是数组 → 运行甲板显示「泳道数据不可用」
+	// E-333: 快照缺 lanes 键或不是数组 → 运行甲板显示「泳道数据不可用」（内边距 ≤ 24px 且靠左上，D5）
 	if (isUnavailable) {
 		return (
 			<div
 				data-container="lanes-deck"
 				data-state="unavailable"
 				className={[
-					'flex items-center justify-center p-8 w-full min-h-[200px]',
+					'flex flex-col items-start justify-start p-3.5 w-full min-h-[120px]',
 					className ?? '',
 				].join(' ')}
 				{...rest}
 			>
-				<div data-field="lanes-unavailable" className="flex flex-col items-center gap-2">
+				<div data-field="lanes-unavailable" className="flex flex-col items-start gap-2">
 					<span className="font-ui text-[14px] text-[var(--down)]">
 						{errorMessage ?? '泳道数据不可用'}
 					</span>
@@ -546,6 +547,8 @@ export function LanesContainer({
 		propExpandedLaneNo !== undefined ? propExpandedLaneNo : internalLanes.expandedLaneNo;
 	const toggleExpandLane = onToggleExpandLane ?? internalLanes.toggleExpandLane;
 
+	const gridTemplateColumns = getDeckGridTemplate(tier, lanes.length);
+
 	// 桌面档：多流并置换行网格，绝不横向滚动（E-106, E-145, E-164）
 	return (
 		<div
@@ -554,10 +557,11 @@ export function LanesContainer({
 			data-mode="desktop"
 			className={[
 				layoutClassName ??
-					'flex flex-row flex-wrap gap-4 w-full min-h-0 flex-1 overflow-y-auto items-stretch p-2',
+					'grid auto-rows-fr gap-3 w-full min-h-0 flex-1 overflow-y-auto items-stretch p-4 h-full',
 				className ?? '',
 			].join(' ')}
 			{...rest}
+			style={{ ...rest.style, gridTemplateColumns }}
 		>
 			{lanes.map((lane) => {
 				const task = lane.taskId ? tasksById.get(lane.taskId) : null;
@@ -578,9 +582,9 @@ export function LanesContainer({
 						key={lane.laneNo}
 						data-lane-deck-slot={lane.laneNo}
 						className={[
-							tier === 'full' && lanes.length > 3 ? 'flex-shrink-0 w-[380px] h-full' : '',
 							isExpanded ? 'col-span-full' : '',
-							'flex flex-col h-full min-h-[360px]',
+							tier === 'compact' ? 'min-h-0' : 'min-h-[360px]',
+							'flex flex-col h-full min-w-0',
 						]
 							.filter(Boolean)
 							.join(' ')}

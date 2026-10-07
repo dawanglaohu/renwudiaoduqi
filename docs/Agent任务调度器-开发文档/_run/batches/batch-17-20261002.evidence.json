@@ -1,0 +1,2335 @@
+{
+  "schemaVersion": 1,
+  "batch": 17,
+  "date": "2026-10-02",
+  "baseline": "844bb01948664d963de886e524795f19ed607276",
+  "verdict": "open",
+  "originalTasks": {
+    "M9-T23": {
+      "pr": 172,
+      "state": "MERGED"
+    },
+    "M9-T29": {
+      "pr": 175,
+      "state": "MERGED"
+    }
+  },
+  "testResults": {
+    "windowsBaselineCheck": {
+      "files": 219,
+      "passed": 2717,
+      "skipped": 3
+    },
+    "windowsE2e": {
+      "state": "fail",
+      "reason": "Production daemon singleton lock ACL bootstrap; all 39 cases unexecuted; ACL unchanged"
+    },
+    "linuxBaselineE2e": {
+      "files": 4,
+      "passed": 39,
+      "skipped": 0
+    },
+    "linuxFinalCheck": {
+      "files": 222,
+      "passed": 2699,
+      "skipped": 32,
+      "total": 2731
+    },
+    "linuxFinalE2e": {
+      "files": 4,
+      "passed": 40,
+      "skipped": 0
+    },
+    "linuxPairing": {
+      "files": 1,
+      "passed": 7,
+      "skipped": 0
+    },
+    "generatorTests": {
+      "total": 200,
+      "passed": 199,
+      "skipped": 1
+    }
+  },
+  "testLogs": {
+    "final-check4.log": {
+      "sha256": "f940abeec50ae51733fc4c12197abb89bfc1c150c9102def1eda735ff84c67ab",
+      "summary": [
+        "All architecture grep and token restrictions passed cleanly. (0 violations) ✓",
+        "Test Files  222 passed (222)",
+        "Tests  2699 passed | 32 skipped (2731)",
+        "Duration  273.44s (transform 251.43s, setup 0ms, collect 918.13s, tests 635.22s, environment 19.11s, prepare 40.72s)"
+      ]
+    },
+    "linux-e2e.log": {
+      "sha256": "fcd7ee0a230eed53a572889b4d2cf0bde52a7b4c47ac79cb3ea00d2e9fc00187",
+      "summary": [
+        "Test Files  4 passed (4)",
+        "Tests  40 passed (40)",
+        "Duration  265.53s (transform 704ms, setup 0ms, collect 3.10s, tests 260.53s, environment 1ms, prepare 442ms)"
+      ]
+    },
+    "linux-pair.log": {
+      "sha256": "a83b31ade53a5125a36d7c2203e0fbbe7bb52d3b403767d5bf3a8998fffe9c69",
+      "summary": [
+        "Test Files  1 passed (1)",
+        "Tests  7 passed (7)",
+        "Duration  22.02s (transform 308ms, setup 0ms, collect 814ms, tests 20.75s, environment 0ms, prepare 134ms)"
+      ]
+    },
+    "generator-tests.log": {
+      "sha256": "80d0738721ed5d60b7d15569ee1bb176c5567cb8df901c907efae4da6efd6f7a",
+      "summary": [
+        "Ran 200 tests in 132.774s",
+        "OK (skipped=1)"
+      ]
+    },
+    "b1-fixed.log": {
+      "sha256": "4f5220899e15005a5c475a28e964805a8a072f708320be7d93954b6c02e2f16c",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  27 passed (27)",
+        "Duration  6.47s (transform 7.30s, setup 0ms, collect 10.88s, tests 997ms, environment 1.93s, prepare 461ms)"
+      ]
+    },
+    "controls-fixed.log": {
+      "sha256": "291cb6d324c042b6924c00b946e631561cd1bd5ddd40997b6826f332d7bd56b5",
+      "summary": [
+        "Test Files  5 passed (5)",
+        "Tests  39 passed (39)",
+        "Duration  9.40s (transform 16.90s, setup 0ms, collect 28.96s, tests 1.73s, environment 2.66s, prepare 704ms)"
+      ]
+    },
+    "refresh-fixed.log": {
+      "sha256": "7a1386d928d432346c0fffb99f3aa77a2b777900427cc39d83dfb556fdda90b9",
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  27 passed (27)",
+        "Duration  4.42s (transform 4.68s, setup 0ms, collect 6.80s, tests 174ms, environment 1.22s, prepare 466ms)"
+      ]
+    },
+    "touch-tests.log": {
+      "sha256": "884b194007d2bc5b787376042f8c39ebbf4b2782867223a98393e222a8f69c0e",
+      "summary": [
+        "Test Files  4 passed (4)",
+        "Tests  38 passed (38)",
+        "Duration  9.97s (transform 11.23s, setup 0ms, collect 19.34s, tests 1.67s, environment 1.97s, prepare 531ms)"
+      ]
+    }
+  },
+  "negativeControls": {
+    "B1": {
+      "expectedGetAgents": 2,
+      "beforeGetAgents": 1,
+      "browserBefore": "Login badge remained old after authoritative checkedAt changed",
+      "log": {
+        "sha256": "df2412ca15e93b1d27292a13821c5c6a314e88d3db3b1a1818c16ec47b02ee0c",
+        "summary": [
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+          "Test Files  1 failed (1)",
+          "Tests  1 failed (1)",
+          "Duration  209.14s (transform 2.93s, setup 0ms, collect 6.59s, tests 142ms, environment 187.35s, prepare 11.97s)"
+        ]
+      }
+    },
+    "B2": {
+      "cancelBeforePatch": 1,
+      "cancelAfterPatch": 0,
+      "log": {
+        "sha256": "70cb62b6e942e590caf58b5798c979692cbaa45be3c081ee3710a2f58fa5d5ef",
+        "summary": [
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+          "Test Files  2 failed (2)",
+          "Tests  2 failed | 10 passed (12)",
+          "Duration  5.62s (transform 4.69s, setup 0ms, collect 6.44s, tests 742ms, environment 557ms, prepare 262ms)"
+        ]
+      }
+    },
+    "B3": {
+      "before": {
+        "x": 46,
+        "y": 438,
+        "width": 290,
+        "height": 204.875
+      },
+      "after": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 844
+      },
+      "width320": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 844
+      },
+      "lastOptionScrollable": true,
+      "closeRestoresFocus": true
+    },
+    "B4": {
+      "authoritativeEmptyCatalogBeforeChip": false,
+      "afterChip": true,
+      "unknownCatalogDoesNotClaimUnlisted": true
+    },
+    "B5": {
+      "slow10sBeforeRequests": 2,
+      "networkFailureBeforeRequests": 3,
+      "afterEach": 1,
+      "log": {
+        "sha256": "3eb99b91af0692f9eeb61347385a21e182bad37e870d4b300f6d9c2922fb6392",
+        "summary": [
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+          "Test Files  1 failed (1)",
+          "Tests  2 failed (2)",
+          "Duration  3.68s (transform 2.08s, setup 0ms, collect 2.50s, tests 35ms, environment 506ms, prepare 107ms)"
+        ]
+      }
+    },
+    "B6": {
+      "beforePipelineHeight": 28,
+      "beforeRestoreHeightApprox": 22,
+      "afterMinHeight": 44,
+      "log": {
+        "sha256": "c670c8d05b99469d6fdeec59817fec03668f74a38e25de159e31ffffcb26b43b",
+        "summary": []
+      }
+    }
+  },
+  "density": {
+    "agents": [
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/agents",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/agents",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.978,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 5,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/agents",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.959,
+        "leftGap": 16,
+        "rightGap": 0,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    ],
+    "devices": [
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/devices",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.579,
+        "leftGap": 16,
+        "rightGap": 792,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 2,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/devices",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.772,
+        "leftGap": 16,
+        "rightGap": 312,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 2,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/devices",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.918,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 2,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [
+          {
+            "path": "main.flex-1 > section > div.flex.flex-col.gap-[var(--sp-3)] > div.grid.w-full.max-w-[1112px]",
+            "gap": 24,
+            "limit": 18
+          },
+          {
+            "path": "section > div.flex.flex-col.gap-[var(--sp-3)] > div.grid.w-full.max-w-[1112px] > div.flex.flex-col.min-w-0",
+            "gap": 24,
+            "limit": 18
+          }
+        ],
+        "padOffenders": [
+          {
+            "path": "section > div.flex.flex-col.gap-[var(--sp-3)] > div.grid.w-full.max-w-[1112px] > aside.min-w-0.p-5.min-[768px]\\:p-3.5",
+            "pad": 20,
+            "limit": 18
+          }
+        ],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 2,
+          "padOffenders": 1,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    ],
+    "pipeline": [
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/pipeline",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.579,
+        "leftGap": 16,
+        "rightGap": 792,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.006
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/pipeline",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.772,
+        "leftGap": 16,
+        "rightGap": 312,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.008
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/settings/pipeline",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.918,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 5,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    ],
+    "landing": [
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/landing/req_042d38386e2f",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 8,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/landing/req_042d38386e2f",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.978,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 6,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/landing/req_042d38386e2f",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.918,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 5,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [
+          {
+            "path": "main.flex-1 > div.flex.min-h-screen.flex-col > main.flex-1.min-w-0.p-[var(--sp-4)] > div.min-w-0.flex.flex-col",
+            "gap": 24,
+            "limit": 18
+          }
+        ],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 1,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    ],
+    "run": [
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/run/req_dfb5b61d77a4",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.988,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 10,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/run/req_dfb5b61d77a4",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 5,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/run/req_dfb5b61d77a4",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.938,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    ],
+    "missing": [
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/run/b17-missing-run",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.988,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/run/b17-missing-run",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/run/b17-missing-run",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.938,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    ],
+    "pair": [
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/pair",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.233,
+        "leftGap": 736,
+        "rightGap": 736,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [
+          {
+            "path": "div.flex.min-h-screen.flex-col > main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)]",
+            "maxWidth": "480px",
+            "width": 480
+          }
+        ],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 1
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/pair",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.311,
+        "leftGap": 496,
+        "rightGap": 496,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [
+          {
+            "path": "div.flex.min-h-screen.flex-col > main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)]",
+            "maxWidth": "480px",
+            "width": 480
+          }
+        ],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 1
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/pair",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.918,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [
+          {
+            "path": "main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg",
+            "gap": 32,
+            "limit": 18
+          },
+          {
+            "path": "section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg > form.flex.flex-col.gap-5",
+            "gap": 20,
+            "limit": 18
+          }
+        ],
+        "padOffenders": [
+          {
+            "path": "main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg",
+            "pad": 24,
+            "limit": 18
+          }
+        ],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 2,
+          "padOffenders": 1,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    ],
+    "connect": [
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex.flex-1.items-center",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.271,
+        "leftGap": 700,
+        "rightGap": 700,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 0,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex.flex-1.items-center",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.361,
+        "leftGap": 460,
+        "rightGap": 460,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 0,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      },
+      {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:18827/#/",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex.flex-1.items-center",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.877,
+        "leftGap": 24,
+        "rightGap": 24,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 0,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [
+          {
+            "path": "div#root > div.flex.min-h-screen.flex-col > main.flex.flex-1.items-center > div.min-w-0.w-full.max-w-[520px]",
+            "pad": 24,
+            "limit": 18
+          }
+        ],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 1,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    ]
+  },
+  "actualTouchAndPatch": {
+    "pipeline": [
+      {
+        "id": "review-override-follow-btn",
+        "text": "跟随任务",
+        "height": 44,
+        "width": 72
+      },
+      {
+        "id": "review-override-custom-btn",
+        "text": "自定义指定",
+        "height": 44,
+        "width": 84
+      },
+      {
+        "id": "wrapup-assignment-follow-btn",
+        "text": "跟随任务",
+        "height": 44,
+        "width": 72
+      },
+      {
+        "id": "wrapup-assignment-custom-btn",
+        "text": "自定义指定",
+        "height": 44,
+        "width": 84
+      }
+    ],
+    "agents": [
+      {
+        "id": "refresh-models-btn-codex",
+        "text": "刷新清单",
+        "height": 44,
+        "width": 78
+      },
+      {
+        "id": "probe-agent-btn-codex",
+        "text": "重新探测",
+        "height": 44,
+        "width": 78
+      },
+      {
+        "id": "restore-default-defaultModel-codex",
+        "text": "恢复默认",
+        "height": 44,
+        "width": 62
+      },
+      {
+        "id": "grouped-select-trigger",
+        "text": "选择默认模型...",
+        "height": 44,
+        "width": 246
+      },
+      {
+        "id": "refresh-models-btn",
+        "text": "",
+        "height": 44,
+        "width": 44
+      },
+      {
+        "id": "restore-default-defaultEffortTier-codex",
+        "text": "恢复默认",
+        "height": 44,
+        "width": 62
+      },
+      {
+        "id": "grouped-select-trigger",
+        "text": "选择思考强度...",
+        "height": 44,
+        "width": 298
+      }
+    ],
+    "actions": [
+      {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": {
+          "agentId": "codex",
+          "modelName": null,
+          "effortTier": null
+        },
+        "wrapupAssignment": {
+          "mode": "follow"
+        }
+      },
+      {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": null,
+        "wrapupAssignment": {
+          "mode": "follow"
+        }
+      },
+      {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": null,
+        "wrapupAssignment": {
+          "mode": "fixed",
+          "agentId": "codex",
+          "modelName": null,
+          "effortTier": null
+        }
+      },
+      {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": null,
+        "wrapupAssignment": {
+          "mode": "follow"
+        }
+      }
+    ],
+    "sheet320": {
+      "x": 0,
+      "y": 0,
+      "width": 320,
+      "height": 844
+    },
+    "lastOption": {
+      "x": 20,
+      "y": 112.9375,
+      "width": 280,
+      "height": 44
+    },
+    "focus": true,
+    "errors": []
+  },
+  "realSettings": {
+    "before": "16 分钟前探测",
+    "after": "刚刚",
+    "login": {
+      "state": "unknown",
+      "reason": "timeout",
+      "checkedAt": "2026-10-01T18:23:42.634Z",
+      "loginCommand": "codex login",
+      "warningCode": "E_AGENT_LOGIN_PROBE_FAILED"
+    },
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/codex/models",
+        "query": "?refresh=1"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/claude/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/pi/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/grok/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/dsh/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/pi/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/codex/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/pi/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/grok/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents/dsh/models",
+        "query": ""
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/agents",
+        "query": ""
+      }
+    ],
+    "available": true
+  },
+  "realProvider": {
+    "binaryVersion": "0.153.4",
+    "validModel": "gpt-6.1-sol",
+    "invalidModel": "b17-nonexistent-model",
+    "standaloneControl": {
+      "result": "B17-CONTROL",
+      "scope": "Standalone codex exec; provider reachable, does not accept production app-server"
+    },
+    "productionState": "awaiting_human/exited_before_output for both valid and invalid models",
+    "diagnostics": [
+      "SQLite state runtime initialization failed in Windows-mounted home",
+      "After isolated same configuration home and successful direct control, production path still SIGTERM with bubblewrap prerequisite diagnostics"
+    ],
+    "rootCause": "Native app-server startup/environment/protocol not yet isolated; do not infer bubblewrap is the sole cause",
+    "passed": false,
+    "completeRequiredGifPassed": false,
+    "noMockMode": true
+  },
+  "decisions": [
+    {
+      "state": {
+        "requirement": "Close Batch 17 unattended: full tests, real production daemon/browser/model flow, desktop and phone density. Do not weaken machine lock security or substitute fake-agent evidence for a real model. Safe engineering choices go to Jev.",
+        "task": {
+          "title": "M9-T23 and M9-T29 joined closeout",
+          "accept": "All checks and genuine entrypoint evidence, otherwise an open record with complete repair tasks."
+        },
+        "conflict": "Windows workspace check passed 219 files/2717 tests/3 existing skips. Formal bootstrap and all four root E2E suites cannot acquire the machine-level Administrators/SYSTEM lock under the current user (39 scenarios not executed). Built-in browser control also timed out. Linux WSL and the repository Playwright dependency are available. Linux uses the same formal bootstrap and source, and normally configured real CLI agents.",
+        "options": {
+          "A": "Preserve the Windows failure. Run production bootstrap and repository-declared Playwright on Linux in an isolated mount namespace and existing allowed worktree/planning paths, without weakening the lock. Record platform limits separately and require real-model control plus full CI matrix before a passing closeout.",
+          "B": "Run only Windows read-only tests; publish an open closeout with a repair task to obtain authorized Windows administrator runtime evidence, leaving all real runtime claims unverified.",
+          "C": "Use Linux full E2E plus repository Playwright on Windows against a Linux production daemon, with unchanged source and normal real-agent configuration. Keep Windows bootstrap ACL failure explicit; use Linux namespace isolation for the singleton lock."
+        }
+      },
+      "result": {
+        "ts": "2026-10-02T01:19:31",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "state_sha256": "e949932c485c27a4",
+        "label": "batch-17:wrapup",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.77,
+            "band": "high",
+            "probabilities": {
+              "C": 0.12,
+              "A": 0.84,
+              "B": 0.04
+            }
+          },
+          "spec_change": {
+            "p": 0.19,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.37,
+            "verdict": "unsure"
+          },
+          "needs_owner": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.73,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "usage": {
+          "input_tokens": 1076,
+          "output_tokens": 108
+        }
+      },
+      "actionExecuted": "A"
+    },
+    {
+      "state": {
+        "requirement": "M9-T23 requires login only from AgentEntryDto on the agents resource key; agent.availability_changed is processed by the single kind-based invalidation table and reloads GET /agents without /snapshot or new probes. After a user catalog refresh, settings cards must show updated config/effective values with overrides unchanged. Existing PATCH failure rollback and per-field clearOverrides must remain.",
+        "task": {
+          "title": "Batch 17 M9-T23 setting-card refresh consistency",
+          "accept": "Login and effective fields update from daemon authority on a refresh milestone and reconnect; no polling, no extra subprocess, no optimistic clear on failed PATCH."
+        },
+        "conflict": "SettingsAgentsContainer passes the current hook AgentEntryDto to AgentCard and uses the shared model-catalog refresh hook, but useSettingsAgents keeps a private GET /agents result and has no cache or event subscription. Main assignment separately consumes the agents key and milestones. Thus the catalog updates while the settings login/three-layer fields remain stale until navigation/probe. The minimal event regression has been added and will be verified before implementation.",
+        "options": {
+          "A": "Connect useSettingsAgents reads to the existing agents resource cache, subscribe to its data updates, process agent milestones through the existing invalidation table, and share ordinary reads for recovery. Invalidate after successful field mutations; preserve per-field rollback and avoid writing login event payload into the cache. Add mounted-hook stale-response and refresh regressions plus real-browser button verification.",
+          "B": "Wrap the settings Refresh button so it waits for catalog refresh then calls private loadAgents; also reload private agents on each matching milestone, leaving separate agents state. Add guards and regressions. This local repair is smaller but keeps two cache paths.",
+          "C": "Leave code unchanged, publish an open batch record with a complete repair task for shared agents authority, and defer implementation/verification."
+        }
+      },
+      "result": {
+        "ts": "2026-10-02T01:27:02",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "state_sha256": "f1af6c9a01b3327d",
+        "label": "batch-17:wrapup",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.83,
+            "band": "high",
+            "probabilities": {
+              "A": 0.89,
+              "B": 0.11,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.1,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.15,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.06,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.83,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "usage": {
+          "input_tokens": 1162,
+          "output_tokens": 108
+        }
+      },
+      "actionExecuted": "A"
+    },
+    {
+      "state": {
+        "requirement": "M9-T23 requires a Radix-based grouped selector; manual entry submits on Enter or leaving the control and Escape rolls back. Its explicit Cancel button must not save. Phone and phone-xs open a full-screen sheet with touch-height rows and no clipped candidates. No new dependency or redesign is authorized. Batch closeout fixes reproduced root causes with before-fail/after-pass evidence.",
+        "task": {
+          "title": "Batch 17 grouped selector actual interaction",
+          "accept": "Cancel emits zero changes; Confirm emits exactly one; external blur and Enter submit, Escape rolls back. At 390x844 and 320px, sheet fills viewport, scrolls all options, closes and returns focus."
+        },
+        "conflict": "The production browser shows clicking Cancel performs PATCH defaultModel because input blur submits first. Mobile content is only 290x205 at x46/y438 because Radix Popper's transformed wrapper contains fixed content. Existing SSR/class checks miss both.",
+        "options": {
+          "A": "Keep Radix Select for every viewport. Make manual input blur ignore focus moving within its own action group, leaving button clicks authoritative. Give the existing Select wrapper a fullScreen mode with scoped CSS overriding Popper positioning and a scrollable viewport independent of trigger height. Verify browser geometry, all options, keyboard/cancel and exact change counts.",
+          "B": "Keep manual input but prevent pointer-down on its action buttons from moving focus. On phone replace the selector presentation with an existing Dialog-based full-screen list with explicit keyboard selection/focus behavior; retain Radix Select on desktop. Verify full-screen geometry and equivalent selection.",
+          "C": "Keep product code unchanged and publish open repair tasks for both reproduced defects, deferring the component changes and real-browser regression."
+        }
+      },
+      "result": {
+        "ts": "2026-10-02T01:43:19",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "state_sha256": "a572b2f81cb236a3",
+        "label": "batch-17:wrapup",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.98,
+            "band": "high",
+            "probabilities": {
+              "C": 0.0,
+              "A": 0.99,
+              "B": 0.01
+            }
+          },
+          "spec_change": {
+            "p": 0.12,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.12,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.07,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.77,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "usage": {
+          "input_tokens": 1123,
+          "output_tokens": 108
+        }
+      },
+      "actionExecuted": "A"
+    },
+    {
+      "state": {
+        "requirement": "M9-T23 says refresh=1 is sent only for explicit user clicks, while mount/events/reconnect never spawn refresh subprocesses. Model refresh must tolerate the documented Codex live 10s and login 5s deadlines. The shared HTTP client ordinary GET timeout is 8s and network timeouts retry twice. This unattended batch must repair safely or register a complete open task without weakening acceptance.",
+        "task": {
+          "title": "Explicit model refresh and shared HTTP timeout seam",
+          "accept": "One explicit click sends one refresh request; a valid live operation taking between 8s and 15s is allowed to settle; normal reads remain ordinary with existing timeout/retries; failures preserve the previous catalog."
+        },
+        "conflict": "Production browser emitted two GET /agents/codex/models?refresh=1 requests 7.95s apart for one click. First request was client-aborted, second reused server inflight and returned after 2.46s. Hook already restores ordinary cache fetcher synchronously; the extra request comes from shared HTTP timeout/retry rather than event re-fetch. Agent login and model processes remain daemon-owned.",
+        "options": {
+          "A": "Use the existing 30s probe timeout for explicit listModels refresh and add an optional shared-client request flag disabling automatic retry for this explicit subprocess-triggering GET only. Ordinary reads retain defaults. Add a fake-clock fetch-level 10s response regression proving one request and a rejected-refresh zero-retry regression. Recheck production requests.",
+          "B": "Only pass the existing 30s probe timeout for explicit refresh. Keep shared GET retry policy unchanged, accepting up to two extra refresh requests if a network failure or a still-longer registry timeout occurs. Add slow-response regression and production proof.",
+          "C": "Leave implementation untouched and register an open repair task for the timeout/retry protocol seam, with the observed production request timing and requirements. Finish the batch record and merge it with verdict open."
+        }
+      },
+      "result": {
+        "ts": "2026-10-02T01:50:54",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "state_sha256": "8d711e1709f9d72a",
+        "label": "batch-17:wrapup",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.92,
+            "band": "high",
+            "probabilities": {
+              "A": 0.95,
+              "B": 0.02,
+              "C": 0.03
+            }
+          },
+          "spec_change": {
+            "p": 0.18,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.27,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.77,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "usage": {
+          "input_tokens": 1177,
+          "output_tokens": 108
+        }
+      },
+      "actionExecuted": "A"
+    },
+    {
+      "state": {
+        "requirement": "Batch 17 requires real daemon/browser dispatch through the installed agent and a valid-model control before claiming a nonexistent-model failure. Do not mock the service, copy a repository, alter user credentials/provider configuration or weaken the daemon lock. All disposable artifacts stay in the designated planning directory.",
+        "task": {
+          "title": "Real CLI writable state for production browser acceptance",
+          "accept": "The production daemon launches the installed Linux Codex binary with the user's actual provider/model credentials and normal adapter, writes only isolated acceptance task files, and exposes a real content event and invalid-model control separately."
+        },
+        "conflict": "Both valid gpt-6.1-sol and nonexistent models exited before output with: failed to initialize sqlite state runtime under /mnt/c/Users/admin/.codex. Thus the current invalid-model run is not model-specific proof. The Windows native daemon is blocked by machine lock ACL. Existing WSL namespace approach uses same production code and native binary, but the CLI state home is on NTFS shared with Windows.",
+        "options": {
+          "A": "Create a private tmpfs mount at the authorized planning/codex-home path inside the existing daemon namespace. Copy only the user's normal Codex config/auth/model-cache files read-only as inputs, verify same bytes, restrict auth to 0600, then let the installed CLI initialize new disposable Linux SQLite runtime state. Set CODEX_HOME to this isolated home and keep provider/model configuration identical. Retry both tasks through UI and clean all copies afterward.",
+          "B": "Keep the current shared CLI home and report both failures as environment-limited zero-output behavior. Register an open real-model verification task; do not claim model-specific validation or clean/fixed.",
+          "C": "Use the installed Windows Codex executable from WSL for task processes while preserving real Windows credentials. This adds cross-platform cwd/permission translation work and should be verified through the production adapter before accepting either control."
+        }
+      },
+      "result": {
+        "ts": "2026-10-02T01:55:52",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "state_sha256": "429c0f032666d148",
+        "label": "batch-17:wrapup",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.93,
+            "band": "high",
+            "probabilities": {
+              "A": 0.96,
+              "C": 0.0,
+              "B": 0.04
+            }
+          },
+          "spec_change": {
+            "p": 0.2,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.31,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.72,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "usage": {
+          "input_tokens": 1168,
+          "output_tokens": 108
+        }
+      },
+      "actionExecuted": "A"
+    },
+    {
+      "state": {
+        "requirement": "M9-T23 and UI section 11 specify mobile buttons/selectors and refresh hit targets of 44px, using existing h-input-touch, h-btn-lg and row-h-touch tokens. M9-T29 preserves the mobile form structure and forbids responsive spacing expansion. Desktop density remains 8. Scope is the existing settings and grouped-selector controls, without new functionality.",
+        "question": "The real 390x844 settings page has four pipeline mode buttons at 28px; AgentCard restore buttons at 21.94px and selectors/refresh buttons at 32px. Which presentation repair should this batch apply?",
+        "current": "The audit confirms four-key PATCHs and 320px full-screen geometry/focus work. The defect is target sizing rather than action semantics or sheet layout.",
+        "options": {
+          "A": "Keep all existing form rows/actions and desktop sizes, adding scoped phone minimum dimensions of 44px from existing tokens to AgentCard and PipelineAssignment, and to grouped-selector triggers/manual controls/close action. Re-run real 390px target measurements and density probes.",
+          "B": "On phones, replace the action rows with full-width vertically stacked buttons and separate each selector into its own large block. This meets target size but visibly changes more of the established mobile form layout and spacing.",
+          "C": "Leave the controls as shipped and register an open mobile target-sizing task with the measured heights and all affected paths for separate implementation."
+        }
+      },
+      "result": {
+        "ts": "2026-10-02T02:14:24",
+        "template": "design",
+        "model": "jev-1.13.0",
+        "state_sha256": "1d5df9b354ee1482",
+        "label": "batch-17:wrapup",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "C": 0.0,
+              "B": 0.0
+            }
+          },
+          "register": {
+            "choice": "product_backoffice",
+            "confidence": 0.17,
+            "band": "low",
+            "probabilities": {
+              "brand": 0.0,
+              "product_workbench": 0.32,
+              "product_backoffice": 0.34,
+              "h5": 0.34,
+              "commerce": 0.0
+            }
+          },
+          "stated": {
+            "p": 0.85,
+            "verdict": "yes"
+          },
+          "token_only": {
+            "p": 0.22,
+            "verdict": "no"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "usage": {
+          "input_tokens": 1116,
+          "output_tokens": 135
+        }
+      },
+      "actionExecuted": "A"
+    },
+    {
+      "state": {
+        "requirement": "The user authorizes Batch 17 closeout of M9-T23 and M9-T29, fixes to safely reproduced root causes, and a merged open record with complete repair tasks whenever a requirement remains unpassed or needs independent scope. Acceptance cannot be lowered; fake-agent protocol E2E cannot substitute for real-provider proof. The batch must also satisfy Chinese UI strings sourced only from i18n/ui-strings.ts. Original task definitions must not be edited for a documentation-root issue.",
+        "task": {
+          "title": "Truthful Batch 17 remaining scope and disposition",
+          "accept": "Keep six proven fixes, record every unpassed requirement as a complete repair task, and merge the record; clean/fixed is forbidden while real-model control or the string-source contract remains unverified/violated."
+        },
+        "conflict": "Six local UI/cache/request defects have before/after evidence and passing tests. All eight density routes pass in three sizes. WSL installed Codex 0.153.4 standalone exec returned B17-CONTROL using the unchanged user provider, but the production adapter's app-server path repeatedly exits without content, first with SQLite initialization errors and then SIGTERM plus bubblewrap prerequisite diagnostics. Therefore a valid model versus invalid model primary workflow and its required full GIF cannot be accepted. Separately, pipeline-assignment JSX lines 153/304 and AgentCard layer labels still contain Chinese literals instead of i18n keys; fixing the full task-wide reuse surface requires a bounded prose/source-contract audit, not merely swapping two labels. Do not infer gate event_missing is a defect from a screenshot captured before run.exited persistence; that timing remains a suspect until a continuous browser observer completes.",
+        "options": {
+          "A": "Continue this branch into the Codex app-server startup/native sandbox/protocol lifecycle and full M9-T23 literal migration now, adding real provider acceptance and production failure tests. This may require changing the native adapter contract or installed OS sandbox prerequisites beyond the six narrow UI fixes, so any such fork must be adjudicated before implementation and no pass may be claimed until proven.",
+          "B": "Land the six narrow fixes and an open batch record with separate complete stable-key tasks for the real-provider production adapter/required GIF proof and the M9-T23 Chinese string-source audit. Include exact real failures and successful direct control, existing protocol/density proof, scope, all hard requirements, and prerequisites. Do not label the real-provider path pass or enable a clean/fixed gate. Review and merge the closeout PR as a truthful record.",
+          "C": "Create one combined repair task covering the native adapter proof and all literal migration, then land the same six fixes with verdict open. This is reversible but combines independent causes and conflicts in a larger implementation scope."
+        }
+      },
+      "result": {
+        "ts": "2026-10-02T02:21:06",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "state_sha256": "99842e52998036f9",
+        "label": "batch-17:wrapup",
+        "verdicts": {
+          "outside_stack": {
+            "p": 0.26,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.15,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.67,
+            "verdict": "yes"
+          },
+          "pick": {
+            "choice": "B",
+            "confidence": 0.99,
+            "band": "high",
+            "probabilities": {
+              "C": 0.01,
+              "A": 0.0,
+              "B": 0.99
+            }
+          },
+          "spec_change": {
+            "p": 0.13,
+            "verdict": "no"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "B",
+            "confidence": "high",
+            "why": "Jev 选 B（high）"
+          }
+        },
+        "usage": {
+          "input_tokens": 1400,
+          "output_tokens": 108
+        }
+      },
+      "actionExecuted": "B"
+    }
+  ],
+  "suspect": [
+    "Gate screenshot was captured before run.exited persisted; later authoritative gate has stderr. Continuous final event/DOM comparison required.",
+    "Near-simultaneous rerun creation alone does not prove overlapping native execution beyond concurrency."
+  ],
+  "environment": {
+    "sourceTree": "D:/xiangmu/agent-scheduler-batch-17",
+    "node": "22.17.0",
+    "pnpm": "10.18.3",
+    "sourceCopied": false,
+    "dependencyTmpfs": true,
+    "productionLockUnchanged": true,
+    "nativeSqlitePackageVersion": "13.0.3",
+    "normalProviderConfigurationUnchanged": true,
+    "cliHomeConfigurationComparedBytewise": true,
+    "credentialValuesIncluded": false
+  },
+  "media": {
+    "status": "Final-head partial real-service recording pending publication in PR; full real-model success/invalid-model proof remains B7"
+  }
+}

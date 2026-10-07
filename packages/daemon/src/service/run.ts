@@ -10,11 +10,14 @@ import {
 } from '../domain/run-state-machine.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
-import type { EnvelopeFactory } from '../events/envelope.ts';
+import type { CreateEnvelopeInput, EnvelopeFactory } from '../events/envelope.ts';
+import { retryEventAdmission } from '../events/retry-admission.ts';
 import type { AppendResult } from '../logstore/run-writer.ts';
 import type { ManagedProcess, ProcessExitResult } from '../proc/spawn.ts';
-import type { AppendEventResult, EventEnvelopeInput, LogstoreService } from './logstore.ts';
+import type { AppendEventResult, LogstoreService } from './logstore.ts';
 import type { ArchiveTaskContext, SessionArchiveService } from './session-archive.ts';
+
+type EventEnvelopeInput = EventEnvelope | CreateEnvelopeInput;
 
 export interface RunRecord {
 	readonly id: string;
@@ -77,7 +80,7 @@ export interface IngestLineResult {
 }
 
 export interface AttachProcessOptions {
-	readonly onEvent?: (envelope: EventEnvelope) => void;
+	readonly onEvent?: (envelope: EventEnvelopeInput) => void;
 	readonly onExit?: (result: ProcessExitResult) => Promise<void> | void;
 	readonly mapExitResult?: (result: ProcessExitResult) => ProcessExitResult;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
@@ -322,6 +325,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			runsWithContent.add(runId);
 		}
 		if (!runId || typeof runId !== 'string' || runId.trim().length === 0) {
+			if ('id' in envelope && typeof envelope.id === 'number') {
+				deps.envelopeFactory.cancelEnvelope({ id: envelope.id });
+			}
 			throw new AppError('E_VALIDATION', 'Run ID must be a non-empty string');
 		}
 
@@ -345,47 +351,51 @@ export function createRunService(deps: RunServiceDeps): RunService {
 						readonly actor_device_id?: string | null;
 				  })
 				| null;
-			fullEnvelope = deps.envelopeFactory.createEnvelope({
+			fullEnvelope = (await deps.envelopeFactory.createEnvelopeAsync({
 				kind: envelope.kind as Parameters<EnvelopeFactory['createEnvelope']>[0]['kind'],
 				runId,
 				taskId: envelope.taskId ?? run?.taskId ?? run?.task_id ?? null,
 				actorDeviceId: envelope.actorDeviceId ?? run?.actorDeviceId ?? run?.actor_device_id ?? null,
 				payload: envelope.payload as Parameters<EnvelopeFactory['createEnvelope']>[0]['payload'],
-			}) as EventEnvelope;
+			})) as EventEnvelope;
 		}
 
-		// 1. 落盘：全量原文写入 events.ndjson；里程碑写入 events 索引表，*_chunk 不进索引表 (AC 1, AC 2)
-		const appendResult = await deps.logstore.appendEvent(runId, fullEnvelope);
+		try {
+			// 1. 落盘：全量原文写入 events.ndjson；里程碑写入 events 索引表，*_chunk 不进索引表 (AC 1, AC 2)
+			const appendResult = await deps.logstore.appendEvent(runId, fullEnvelope);
 
-		// 2. 更新运行元数据中的 last_event_at (若提供了仓储)
-		if (deps.runsRepo) {
-			if (deps.unitOfWork) {
-				deps.unitOfWork.run(() => {
-					deps.runsRepo?.updateLastEventAt(runId, fullEnvelope.ts);
-				});
-			} else {
-				deps.runsRepo.updateLastEventAt(runId, fullEnvelope.ts);
+			// 2. 更新运行元数据中的 last_event_at (若提供了仓储)
+			if (deps.runsRepo) {
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(() => {
+						deps.runsRepo?.updateLastEventAt(runId, fullEnvelope.ts);
+					});
+				} else {
+					deps.runsRepo.updateLastEventAt(runId, fullEnvelope.ts);
+				}
 			}
-		}
 
-		// 3. 事件发布在任何可能有的事务之后进行 (AC 3)
-		//    单条 payload 超 32 KiB 时通过 locationRef 在入缓冲前替换为引用 (08节架构规范, E-142)
-		//    内存中只经由 EventBus 保留最近 5000 条环形缓冲，历史事件全部按需回读
-		if (deps.bus) {
-			const locationRef = {
-				fileSeq: appendResult.location.fileSeq,
-				byteOffset: appendResult.location.byteOffset,
-				byteLen: appendResult.location.byteLen,
-			};
-			deps.bus.publish(fullEnvelope, locationRef);
-		}
+			// 3. 事件发布在任何可能有的事务之后进行 (AC 3)
+			//    单条 payload 超 32 KiB 时通过 locationRef 在入缓冲前替换为引用 (08节架构规范, E-142)
+			//    内存中只经由 EventBus 保留最近 5000 条环形缓冲，历史事件全部按需回读
+			if (deps.bus) {
+				const locationRef = {
+					fileSeq: appendResult.location.fileSeq,
+					byteOffset: appendResult.location.byteOffset,
+					byteLen: appendResult.location.byteLen,
+				};
+				deps.bus.publish(fullEnvelope, locationRef);
+			}
 
-		// 4. M6-T7 状态接线：从 starting 到 running，以及自动模式下提问/权限受阻转 awaiting_reply
-		if (deps.runsRepo && fullEnvelope.kind !== 'run.state_changed') {
-			await handleEventStateWiring(runId, fullEnvelope);
-		}
+			// 4. M6-T7 状态接线：从 starting 到 running，以及自动模式下提问/权限受阻转 awaiting_reply
+			if (deps.runsRepo && fullEnvelope.kind !== 'run.state_changed') {
+				await handleEventStateWiring(runId, fullEnvelope);
+			}
 
-		return appendResult;
+			return appendResult;
+		} finally {
+			deps.envelopeFactory.cancelEnvelope(fullEnvelope);
+		}
 	}
 
 	async function ingestLine(
@@ -411,9 +421,17 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				if (mapper) {
 					const mapped = mapper(rawText);
 					let eventsAppended = 0;
-					for (const env of mapped) {
-						await ingestEvent(runId, env);
-						eventsAppended++;
+					try {
+						for (const env of mapped) {
+							await ingestEvent(runId, env);
+							eventsAppended++;
+						}
+					} finally {
+						for (const env of mapped) {
+							if ('id' in env && typeof env.id === 'number') {
+								deps.envelopeFactory.cancelEnvelope({ id: env.id });
+							}
+						}
 					}
 					return {
 						rawAppended: true,
@@ -481,9 +499,17 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		}
 
 		let eventsAppended = 0;
-		for (const env of envelopesToIngest) {
-			await ingestEvent(runId, env);
-			eventsAppended++;
+		try {
+			for (const env of envelopesToIngest) {
+				await ingestEvent(runId, env);
+				eventsAppended++;
+			}
+		} finally {
+			for (const env of envelopesToIngest) {
+				if ('id' in env && typeof env.id === 'number') {
+					deps.envelopeFactory.cancelEnvelope({ id: env.id });
+				}
+			}
 		}
 
 		return {
@@ -637,6 +663,46 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								? redactSecrets(process.stderrTail)
 								: stderrTailLines;
 
+						if (
+							run &&
+							(run.sessionArchivedAt ||
+								run.session_archived_at ||
+								((!run.kind || run.kind === 'implement') && isTerminalRunState(run.state)))
+						) {
+							if (
+								run.state === 'starting' ||
+								run.state === 'running' ||
+								run.state === 'awaiting_reply'
+							) {
+								await transitionState({
+									runId,
+									targetState: run.state === 'starting' ? 'failed' : 'exited',
+									reason:
+										run.state === 'starting'
+											? 'premature_exit'
+											: RUN_TRANSITION_REASONS.PROCESS_EXITED,
+									exitCode: result.exitCode,
+									exitSignal: result.signal ? String(result.signal) : null,
+								});
+							}
+							await ingestEvent(
+								runId,
+								await deps.envelopeFactory.createEnvelopeAsync({
+									kind: 'run.exited',
+									runId,
+									taskId: run.taskId,
+									actorDeviceId: run.actorDeviceId ?? null,
+									payload: {
+										exitCode: result.exitCode,
+										signal: result.signal ? String(result.signal) : null,
+										stderrTail: eventStderrTail,
+									},
+								}),
+							);
+							await closeRunStream(runId);
+							return;
+						}
+
 						// 1. spawn 抛错、启动超时及 starting 状态抢先退出必须落定 starting → failed (R3)
 						if (isStarting) {
 							const failureReason =
@@ -654,7 +720,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									exitSignal: result.signal ? String(result.signal) : null,
 								});
 							}
-							const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+							const exitedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 								kind: 'run.exited',
 								runId,
 								taskId: run?.taskId ?? null,
@@ -818,28 +884,35 @@ export function createRunService(deps: RunServiceDeps): RunService {
 									}
 								};
 
-								if (deps.unitOfWork) {
-									deps.unitOfWork.run(executeZeroOutputInTx);
-								} else {
-									executeZeroOutputInTx();
-								}
+								await retryEventAdmission(deps.envelopeFactory, () => {
+									pendingEnvelopes.length = 0;
+									if (deps.unitOfWork) {
+										deps.unitOfWork.run(executeZeroOutputInTx);
+									} else {
+										executeZeroOutputInTx();
+									}
+								});
 
 								// 事务外：落盘与事件总线发布
-								for (const event of pendingEnvelopes) {
-									const appendResult = await deps.logstore.appendEvent(runId, event);
-									if (deps.bus) {
-										const locationRef = appendResult?.location
-											? {
-													fileSeq: appendResult.location.fileSeq,
-													byteOffset: appendResult.location.byteOffset,
-													byteLen: appendResult.location.byteLen,
-												}
-											: undefined;
-										deps.bus.publish(event, locationRef);
+								try {
+									for (const event of pendingEnvelopes) {
+										const appendResult = await deps.logstore.appendEvent(runId, event);
+										if (deps.bus) {
+											const locationRef = appendResult?.location
+												? {
+														fileSeq: appendResult.location.fileSeq,
+														byteOffset: appendResult.location.byteOffset,
+														byteLen: appendResult.location.byteLen,
+													}
+												: undefined;
+											deps.bus.publish(event, locationRef);
+										}
 									}
+								} finally {
+									for (const event of pendingEnvelopes) deps.envelopeFactory.cancelEnvelope(event);
 								}
 
-								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+								const exitedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 									kind: 'run.exited',
 									runId,
 									taskId,
@@ -881,7 +954,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 										exitSignal: result.signal ? String(result.signal) : null,
 									});
 								}
-								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+								const exitedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 									kind: 'run.exited',
 									runId,
 									taskId: run?.taskId ?? null,
@@ -911,7 +984,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 										exitSignal: result.signal ? String(result.signal) : null,
 									});
 								}
-								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+								const exitedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 									kind: 'run.exited',
 									runId,
 									taskId: run?.taskId ?? null,
@@ -940,7 +1013,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 										exitSignal: result.signal ? String(result.signal) : null,
 									});
 								}
-								const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+								const exitedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 									kind: 'run.exited',
 									runId,
 									taskId: run?.taskId ?? null,
@@ -974,7 +1047,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 								exitSignal: result.signal ? String(result.signal) : null,
 							});
 						}
-						const exitedEnvelope = deps.envelopeFactory.createEnvelope({
+						const exitedEnvelope = await deps.envelopeFactory.createEnvelopeAsync({
 							kind: 'run.exited',
 							runId,
 							taskId: run?.taskId ?? null,
@@ -1059,141 +1132,168 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		readonly branchName?: string | null;
 	}): Promise<{ readonly previousState: RunState; readonly currentState: RunState }> {
 		const { runId, targetState, reason, exitCode, exitSignal, actorDeviceId } = input;
-		const run = deps.runsRepo?.findById(runId);
-		if (!run) {
-			throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
-				details: { runId },
-			});
-		}
+		const { previousState, isTerminal, pendingEvents, archiveContext } = await retryEventAdmission(
+			deps.envelopeFactory,
+			() => {
+				const run = deps.runsRepo?.findById(runId);
+				if (!run) {
+					throw new AppError('E_NOT_FOUND', `Run not found: ${runId}`, {
+						details: { runId },
+					});
+				}
 
-		const previousState = run.state;
-		assertValidTransition(previousState, targetState, { reason });
+				const previousState = run.state;
+				assertValidTransition(previousState, targetState, { reason });
 
-		const taskId = run.taskId ?? (run as { task_id?: string | null }).task_id;
-		const now = getNow();
-		const endedAt =
-			isTerminalRunState(targetState) || targetState === 'exited' ? (input.endedAt ?? now) : null;
+				const taskId = run.taskId ?? (run as { task_id?: string | null }).task_id;
+				const now = getNow();
+				const endedAt =
+					isTerminalRunState(targetState) || targetState === 'exited'
+						? (input.endedAt ?? now)
+						: null;
 
-		const stateChangedEnvelope = deps.envelopeFactory.createEnvelope({
-			kind: 'run.state_changed',
-			runId,
-			taskId: taskId ?? null,
-			actorDeviceId: actorDeviceId ?? null,
-			payload: {
-				from: previousState,
-				to: targetState,
-				reason,
+				// 事务回调内部严格禁止 await 与异步副作用；事件发布在事务返回后进行 (AC 3)
+				const pendingEvents: EventEnvelope[] = [];
+				let archiveContext: ArchiveTaskContext | null = null;
+				const isTerminal =
+					targetState === 'landed' ||
+					targetState === 'failed' ||
+					targetState === 'aborted' ||
+					targetState === 'interrupted';
+				const isImplement = !run.kind || run.kind === 'implement';
+
+				const executeTransitionInTx = () => {
+					const stateChangedEnvelope = deps.envelopeFactory.createEnvelope({
+						kind: 'run.state_changed',
+						runId,
+						taskId: taskId ?? null,
+						actorDeviceId: actorDeviceId ?? null,
+						payload: {
+							from: previousState,
+							to: targetState,
+							reason,
+						},
+					});
+
+					if (deps.runsRepo) {
+						deps.runsRepo.updateState({
+							id: runId,
+							fromState: previousState,
+							toState: targetState,
+							queuedReason: reason ?? null,
+							endedAt,
+							exitCode:
+								exitCode !== undefined
+									? exitCode
+									: ((run as { exitCode?: number | null; exit_code?: number | null }).exitCode ??
+										(run as { exitCode?: number | null; exit_code?: number | null }).exit_code ??
+										null),
+							exitSignal:
+								exitSignal !== undefined
+									? exitSignal
+									: ((run as { exitSignal?: string | null; exit_signal?: string | null })
+											.exitSignal ??
+										(run as { exitSignal?: string | null; exit_signal?: string | null })
+											.exit_signal ??
+										null),
+							actorDeviceId: actorDeviceId ?? null,
+							pid: input.pid ?? null,
+							worktreePath: input.worktreePath ?? null,
+							branchName: input.branchName ?? null,
+						});
+					}
+					pendingEvents.push(stateChangedEnvelope);
+
+					// AC 1 & E-302: 归档只有一个触发点：kind='implement' 行迁到 landed/failed/aborted/interrupted
+					if (
+						isImplement &&
+						isTerminal &&
+						!run.sessionArchivedAt &&
+						!run.session_archived_at &&
+						deps.sessionArchiveService &&
+						taskId
+					) {
+						archiveContext = deps.sessionArchiveService.archiveTaskInTx({
+							taskId,
+							runId,
+							actorDeviceId,
+							now,
+						});
+						// R1(b): 收集 lane.released（只在 changes===1 时，E-326 防止人放行后重发）
+						if (archiveContext.laneReleased) {
+							const laneReason = targetState as 'landed' | 'failed' | 'aborted' | 'interrupted';
+							pendingEvents.push(
+								deps.envelopeFactory.createEnvelope({
+									kind: 'lane.released',
+									taskId,
+									runId,
+									actorDeviceId: actorDeviceId ?? null,
+									payload: {
+										docId: archiveContext.docId,
+										laneNo: archiveContext.laneNo,
+										taskId,
+										runId,
+										reason: laneReason,
+									},
+								}),
+							);
+						}
+					} else if ((targetState === 'awaiting_human' || targetState === 'orphaned') && taskId) {
+						// AC 3 & E-326: awaiting_human 只置 tasks.lane_no NULL、不归档
+						const laneResult = deps.tasksRepo?.clearLaneNo(taskId);
+						// R1(c): 收集 lane.released（changes===1 时）
+						if (laneResult && laneResult.changes === 1) {
+							pendingEvents.push(
+								deps.envelopeFactory.createEnvelope({
+									kind: 'lane.released',
+									taskId,
+									runId,
+									actorDeviceId: actorDeviceId ?? null,
+									payload: {
+										docId: laneResult.docId,
+										laneNo: laneResult.previousLaneNo,
+										taskId,
+										runId,
+										reason: 'awaiting_human',
+									},
+								}),
+							);
+						}
+					}
+				};
+
+				if (deps.unitOfWork) {
+					deps.unitOfWork.run(executeTransitionInTx);
+				} else {
+					executeTransitionInTx();
+				}
+
+				return {
+					previousState,
+					isTerminal,
+					pendingEvents,
+					archiveContext: archiveContext as ArchiveTaskContext | null,
+				};
 			},
-		});
-
-		// 事务回调内部严格禁止 await 与异步副作用；事件发布在事务返回后进行 (AC 3)
-		const pendingEvents: EventEnvelope[] = [];
-		let archiveContext: ArchiveTaskContext | null = null;
-		const isTerminal =
-			targetState === 'landed' ||
-			targetState === 'failed' ||
-			targetState === 'aborted' ||
-			targetState === 'interrupted';
-		const isImplement = !run.kind || run.kind === 'implement';
-
-		const executeTransitionInTx = () => {
-			if (deps.runsRepo) {
-				deps.runsRepo.updateState({
-					id: runId,
-					fromState: previousState,
-					toState: targetState,
-					queuedReason: reason ?? null,
-					endedAt,
-					exitCode:
-						exitCode !== undefined
-							? exitCode
-							: ((run as { exitCode?: number | null; exit_code?: number | null }).exitCode ??
-								(run as { exitCode?: number | null; exit_code?: number | null }).exit_code ??
-								null),
-					exitSignal:
-						exitSignal !== undefined
-							? exitSignal
-							: ((run as { exitSignal?: string | null; exit_signal?: string | null }).exitSignal ??
-								(run as { exitSignal?: string | null; exit_signal?: string | null }).exit_signal ??
-								null),
-					actorDeviceId: actorDeviceId ?? null,
-					pid: input.pid ?? null,
-					worktreePath: input.worktreePath ?? null,
-					branchName: input.branchName ?? null,
-				});
-			}
-			pendingEvents.push(stateChangedEnvelope);
-
-			// AC 1 & E-302: 归档只有一个触发点：kind='implement' 行迁到 landed/failed/aborted/interrupted
-			if (isImplement && isTerminal && deps.sessionArchiveService && taskId) {
-				archiveContext = deps.sessionArchiveService.archiveTaskInTx({
-					taskId,
-					runId,
-					actorDeviceId,
-					now,
-				});
-				// R1(b): 收集 lane.released（只在 changes===1 时，E-326 防止人放行后重发）
-				if (archiveContext.laneReleased) {
-					const laneReason = targetState as 'landed' | 'failed' | 'aborted' | 'interrupted';
-					pendingEvents.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'lane.released',
-							taskId,
-							runId,
-							actorDeviceId: actorDeviceId ?? null,
-							payload: {
-								docId: archiveContext.docId,
-								laneNo: archiveContext.laneNo,
-								taskId,
-								runId,
-								reason: laneReason,
-							},
-						}),
-					);
-				}
-			} else if ((targetState === 'awaiting_human' || targetState === 'orphaned') && taskId) {
-				// AC 3 & E-326: awaiting_human 只置 tasks.lane_no NULL、不归档
-				const laneResult = deps.tasksRepo?.clearLaneNo(taskId);
-				// R1(c): 收集 lane.released（changes===1 时）
-				if (laneResult && laneResult.changes === 1) {
-					pendingEvents.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'lane.released',
-							taskId,
-							runId,
-							actorDeviceId: actorDeviceId ?? null,
-							payload: {
-								docId: laneResult.docId,
-								laneNo: laneResult.previousLaneNo,
-								taskId,
-								runId,
-								reason: 'awaiting_human',
-							},
-						}),
-					);
-				}
-			}
-		};
-
-		if (deps.unitOfWork) {
-			deps.unitOfWork.run(executeTransitionInTx);
-		} else {
-			executeTransitionInTx();
-		}
+		);
 
 		// 事务已成功返回，执行落盘与事件总线发布 (AC 3)
-		for (const event of pendingEvents) {
-			const appendResult = await deps.logstore.appendEvent(runId, event);
-			if (deps.bus) {
-				const locationRef = appendResult?.location
-					? {
-							fileSeq: appendResult.location.fileSeq,
-							byteOffset: appendResult.location.byteOffset,
-							byteLen: appendResult.location.byteLen,
-						}
-					: undefined;
-				deps.bus.publish(event, locationRef);
+		try {
+			for (const event of pendingEvents) {
+				const appendResult = await deps.logstore.appendEvent(runId, event);
+				if (deps.bus) {
+					const locationRef = appendResult?.location
+						? {
+								fileSeq: appendResult.location.fileSeq,
+								byteOffset: appendResult.location.byteOffset,
+								byteLen: appendResult.location.byteLen,
+							}
+						: undefined;
+					deps.bus.publish(event, locationRef);
+				}
 			}
+		} finally {
+			for (const event of pendingEvents) deps.envelopeFactory.cancelEnvelope(event);
 		}
 
 		// 运行退出或进入终态时，临时权限提升失效 (E-133)
@@ -1245,7 +1345,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		readonly payload: unknown;
 	}): Promise<void> {
 		if (deps.envelopeFactory && deps.bus) {
-			const envelope = deps.envelopeFactory.createEnvelope({
+			const envelope = await deps.envelopeFactory.createEnvelopeAsync({
 				kind: 'run.stalled_suspected',
 				runId: eventInput.runId,
 				taskId: eventInput.taskId,

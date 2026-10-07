@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T29": {
+      "contractHash": "de393c7c679e1a64efca907abdb248fc43daea004c7cad0bcc160c996adef964",
+      "evidence": [
+        "第2轮仅核第1轮R1/R2及其直接回归。当前PR #175代码head a139502abc173ca3a39c32550868ab4c80b82bdd，与main 76ecacfe564fd1bbea787b30ae9faa747dc99d15对照；契约哈希未变，前置、边界、13/17/19要求及有效范围沿用首轮已核事实。",
+        "R1已修：check-forbidden.ts:183对二元+使用实际字符串连接；源码级居中组合命中CENTERED_WORK_SURFACE，p-4加sm:p-3不再误报。模板、join、cn/clsx/classNames和条件分支隔离由check-forbidden.test.ts:62起覆盖；独立首轮反例脚本复跑结果正确。",
+        "R2已修：check-forbidden.ts:44对px/rem、常量calc、括号、四则运算及已知token求值，不执行源码；check-forbidden.test.ts:106起源码级增长/相等/收紧及轴向回归通过。p-2 md:p-[calc(4px*4)]正确命中8px到16px增长；未知、循环、除零和不合法量纲不编造值。",
+        "pnpm exec vitest run packages/web/test/check-forbidden.test.ts：89用例通过；pnpm -w check：219测试文件、2717用例通过、3个既有跳过。类型、Biome、对比度及机械守护全部通过。反例结果和测试日志保存在原planning的review-round2-*.log，PR留存本轮结论。",
+        "本轮只改守护、其测试及任务受保护回填区，packages/web/src与首轮页面验收提交3647928408452a2de8402b06cb0ea2c2dd065fc6完全一致。复用首轮生产页面21次探针、同代码有效运行3次探针及真实服务GIF；原pairing-entry 7通过、batch-13管理员权限12通过；没有扩展为新模型或自动派发验收。",
+        "代码位置与实施沉淀已核对且更新到实际行号；实施方/审查方均无未定裁决。当前GitHub原代码head三平台CI、生产配对、E2E、流水线设置E2E和Release Gate均success；Signing Gate为工作流规定的skipped。正式落地前复核最终head与所需检查。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

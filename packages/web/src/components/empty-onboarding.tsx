@@ -135,7 +135,7 @@ export function DocChangeBanner({
 				<span className="flex h-5 w-5 items-center justify-center rounded-sm bg-needs text-on-needs font-mono text-micro font-bold">
 					!
 				</span>
-				<div className="flex flex-col">
+				<div className="flex flex-col min-w-0">
 					<span className="text-dense font-semibold">本文档已更新，{count} 个任务的依据已变</span>
 					{notice.summary && (
 						<span className="font-mono text-micro text-ink-2">{notice.summary}</span>
@@ -292,7 +292,7 @@ export function EmptyOnboarding({
 		<div
 			data-testid="empty-onboarding-console"
 			className={[
-				'flex flex-col gap-6 rounded-lg border border-border bg-page p-4 sm:p-6 text-ink-1 font-ui max-w-4xl mx-auto w-full select-none',
+				'flex flex-col gap-[var(--sp-3)] bg-page p-0 text-ink-1 font-ui min-w-0 w-full select-none break-words',
 				className,
 			].join(' ')}
 		>
@@ -302,7 +302,7 @@ export function EmptyOnboarding({
 			)}
 
 			{/* 头部标题与控制塔说明（不是插画，AC 1 / E-108） */}
-			<header className="flex flex-col gap-1 border-b border-border pb-4">
+			<header className="flex flex-col gap-1 border-b border-border pb-3">
 				<div className="flex items-center gap-2">
 					<span className="font-mono text-micro uppercase tracking-wider text-ink-3">
 						Workbench Console
@@ -310,7 +310,7 @@ export function EmptyOnboarding({
 					<span className="text-ink-3">/</span>
 					<span className="font-mono text-micro text-needs">零运行调度向导</span>
 				</div>
-				<h2 className="font-ui text-lead font-semibold tracking-tight text-ink-1">
+				<h2 className="font-ui text-dense font-semibold tracking-tight text-ink-1">
 					开始调度任务流
 				</h2>
 				<p className="text-meta text-ink-2">
@@ -320,12 +320,12 @@ export function EmptyOnboarding({
 
 			{/* ─────────────────────────────────────────────────────────────
 			    四步导航条（AC 1 / E-108）
-			    当前步高亮、已完成步显示所选值可点回改，严禁插画
+			    竖排四步卡，当前步高亮、已完成步显示所选值可点回改，严禁插画
 			    ───────────────────────────────────────────────────────────── */}
 			<nav
 				data-testid="onboarding-stepper"
 				aria-label="调度向导步骤"
-				className="grid grid-cols-1 sm:grid-cols-4 gap-2"
+				className="flex flex-col gap-2"
 			>
 				{steps.map((step, idx) => {
 					const isCurrent = currentStep === idx;
@@ -395,9 +395,9 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="0"
 					aria-label="第 1 步：选文档"
-					className="flex flex-col gap-4 rounded border border-border bg-bg p-4"
+					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
 							<h3 className="text-dense font-semibold text-ink-1">
 								第一步：选择调度目标需求开发文档
@@ -441,17 +441,17 @@ export function EmptyOnboarding({
 										data-selected={isSelected ? 'true' : 'false'}
 										onClick={() => handleSelectDoc(doc.id)}
 										className={[
-											'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
+											'flex flex-wrap items-center justify-between gap-2 min-w-0 p-3 rounded border text-left cursor-pointer transition-colors w-full',
 											isSelected
 												? 'border-needs bg-panel-2'
 												: 'border-border bg-bg hover:border-border-strong',
 										].join(' ')}
 									>
-										<div className="flex flex-col">
+										<div className="flex flex-col min-w-0">
 											<span className="font-ui text-dense font-semibold text-ink-1">
 												{doc.title}
 											</span>
-											<span className="font-mono text-micro text-ink-3">{doc.path}</span>
+											<span className="font-mono text-micro text-ink-3 break-all">{doc.path}</span>
 										</div>
 										<div className="flex items-center gap-3 text-micro text-ink-2 font-mono">
 											{doc.batchCount !== undefined && <span>{doc.batchCount} 个批次</span>}
@@ -473,7 +473,7 @@ export function EmptyOnboarding({
 						) : (
 							<div
 								data-testid="empty-documents"
-								className="p-6 text-center font-mono text-meta text-ink-3"
+								className="p-3.5 text-left font-mono text-meta text-ink-3"
 							>
 								—
 							</div>
@@ -500,9 +500,9 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="1"
 					aria-label="第 2 步：选批次"
-					className="flex flex-col gap-4 rounded border border-border bg-bg p-4"
+					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
 							<h3 className="text-dense font-semibold text-ink-1">第二步：选择要派发的任务批次</h3>
 							<p className="text-meta text-ink-2">
@@ -523,13 +523,13 @@ export function EmptyOnboarding({
 										data-selected={isSelected ? 'true' : 'false'}
 										onClick={() => handleSelectBatch(batch.id)}
 										className={[
-											'flex items-center justify-between p-3 rounded border text-left cursor-pointer transition-colors w-full',
+											'flex flex-wrap items-center justify-between gap-2 min-w-0 p-3 rounded border text-left cursor-pointer transition-colors w-full',
 											isSelected
 												? 'border-needs bg-panel-2'
 												: 'border-border bg-bg hover:border-border-strong',
 										].join(' ')}
 									>
-										<div className="flex flex-col">
+										<div className="flex flex-col min-w-0">
 											<div className="flex items-center gap-2">
 												<span className="font-ui text-dense font-semibold text-ink-1">
 													{batch.name}
@@ -563,14 +563,14 @@ export function EmptyOnboarding({
 						) : (
 							<div
 								data-testid="empty-batches"
-								className="p-6 text-center font-mono text-meta text-ink-3"
+								className="p-3.5 text-left font-mono text-meta text-ink-3"
 							>
 								—
 							</div>
 						)}
 					</div>
 
-					<div className="flex items-center justify-between pt-2">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-2">
 						<button
 							type="button"
 							data-action="prev-step"
@@ -598,9 +598,9 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="2"
 					aria-label="第 3 步：逐任务指派"
-					className="flex flex-col gap-4 rounded border border-border bg-bg p-4"
+					className="flex min-w-0 w-full flex-col gap-4 rounded border border-border bg-bg p-2"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
 							<h3 className="text-dense font-semibold text-ink-1">第三步：逐任务指派</h3>
 							<p className="text-meta text-ink-2">
@@ -609,11 +609,11 @@ export function EmptyOnboarding({
 						</div>
 					</div>
 
-					<div data-slot="step-3-assign" className="flex flex-col gap-2.5">
+					<div data-slot="step-3-assign" className="flex min-w-0 w-full flex-col gap-2.5">
 						{step3Slot ?? (
 							<div
 								data-testid="step-3-fallback"
-								className="p-6 rounded border border-border bg-page text-center font-mono text-meta text-ink-3"
+								className="p-3.5 rounded border border-border bg-page text-center font-mono text-meta text-ink-3"
 							>
 								{tasks && tasks.length > 0 ? (
 									<div className="flex flex-col gap-2">
@@ -639,7 +639,7 @@ export function EmptyOnboarding({
 						)}
 					</div>
 
-					<div className="flex items-center justify-between pt-2">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-2">
 						<button
 							type="button"
 							data-action="prev-step"
@@ -667,9 +667,9 @@ export function EmptyOnboarding({
 				<section
 					data-step-content="3"
 					aria-label="第 4 步：派发"
-					className="flex flex-col gap-4 rounded border border-border bg-bg p-4"
+					className="flex flex-col gap-[var(--sp-3)] rounded border border-border bg-bg p-0 min-w-0"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 						<div>
 							<h3 className="text-dense font-semibold text-ink-1">
 								第四步：并发限制审计与启动派发
@@ -686,12 +686,12 @@ export function EmptyOnboarding({
 							data-testid="concurrency-bottleneck-card"
 							className="flex flex-col gap-3 p-3.5 rounded border border-border bg-panel-2 text-meta"
 						>
-							<div className="flex items-center justify-between">
+							<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
 								<span className="font-semibold text-ink-1">有效并行并发容量</span>
 								<span className="font-mono text-num font-bold text-needs">{capacityText}</span>
 							</div>
 
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-micro font-mono">
+							<div className="flex flex-col gap-2 text-micro font-mono">
 								<div className="flex justify-between p-2 rounded bg-bg border border-border">
 									<span className="text-ink-3">并行窗口数 (调度器)</span>
 									<span className="text-ink-1 font-bold">{laneCountText}</span>
@@ -710,25 +710,33 @@ export function EmptyOnboarding({
 					)}
 
 					{/* 派发清单摘要 */}
-					<div className="flex items-center justify-between text-meta text-ink-2 p-3 rounded border border-border bg-page">
-						<div>
-							<span className="text-ink-3">就绪任务：</span>
-							<span className="font-mono font-bold text-ink-1 ml-1">
-								{tasks && tasks.length > 0 ? `${tasks.length} 个` : '—'}
-							</span>
-							<span className="text-ink-3 ml-3">所属文档：</span>
-							<span className="font-mono text-ink-1 ml-1">
-								{selectedDoc ? selectedDoc.title : '—'}
-							</span>
-							<span className="text-ink-3 ml-3">所属批次：</span>
-							<span className="font-mono text-ink-1 ml-1">
-								{selectedBatch ? selectedBatch.name : '—'}
-							</span>
+					<div className="flex flex-col gap-1.5 text-meta text-ink-2 p-3 rounded border border-border bg-page">
+						<div className="flex flex-col gap-1">
+							<div>
+								<span className="text-ink-3">就绪任务：</span>
+								<span className="font-mono font-bold text-ink-1 ml-1">
+									{tasks && tasks.length > 0 ? `${tasks.length} 个` : '—'}
+								</span>
+							</div>
+							<div>
+								<span className="text-ink-3">所属文档：</span>
+								<span className="font-mono text-ink-1 ml-1">
+									{selectedDoc ? selectedDoc.title : '—'}
+								</span>
+							</div>
+							<div>
+								<span className="text-ink-3">所属批次：</span>
+								<span className="font-mono text-ink-1 ml-1">
+									{selectedBatch ? selectedBatch.name : '—'}
+								</span>
+							</div>
 						</div>
-						<div className="font-mono text-micro text-ink-3">状态: 待派发</div>
+						<div className="font-mono text-micro text-ink-3 border-t border-border pt-1">
+							状态: 待派发
+						</div>
 					</div>
 
-					<div className="flex items-center justify-between pt-2">
+					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-2">
 						<button
 							type="button"
 							data-action="prev-step"

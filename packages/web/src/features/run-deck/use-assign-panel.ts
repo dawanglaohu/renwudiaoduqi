@@ -11,11 +11,7 @@
  * - 用户每次改选后 POST 同一端点整批覆写，并用返回值刷新界面（决策 136）
  */
 
-import type {
-	AgentEntryDto,
-	ListAgentModelsResponse,
-	ListAgentsResponse,
-} from '@agent-scheduler/shared/api/agents';
+import type { AgentEntryDto, ListAgentsResponse } from '@agent-scheduler/shared/api/agents';
 import type {
 	AgentCapacityPreview,
 	TaskAssignmentDraft as ApiAssignmentDraft,
@@ -35,7 +31,10 @@ import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { putAssignments, readAssignments } from '../../api/batches.ts';
+import { CACHE_KEYS } from '../../api/cache-keys.ts';
+import { eventBus } from '../../api/event-bus.ts';
 import { type ApiError, httpClient, isApiError } from '../../api/http-client.ts';
+import { invalidate, read } from '../../api/resource-cache.ts';
 import type {
 	AgentCapacityInfo,
 	AssignableAgent,
@@ -48,7 +47,9 @@ import type {
 	OnboardingDocOption,
 } from '../../components/empty-onboarding.tsx';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { useSelectionStore } from '../../store/selection-store.ts';
+import { useAgentModelCatalogs } from '../settings-agents/use-agent-models.ts';
 
 /** 任务分页上限（daemon 契约 maximum: 200），超出时按 cursor 续读。 */
 const TASKS_PAGE_LIMIT = 200;
@@ -72,9 +73,9 @@ const LIST_DOCUMENTS_ROUTE = findRoute('GET', '/api/v1/documents');
 const LIST_BATCHES_ROUTE = findRoute('GET', '/api/v1/documents/:docId/batches');
 const LIST_TASKS_ROUTE = findRoute('GET', '/api/v1/documents/:docId/tasks');
 const LIST_AGENTS_ROUTE = findRoute('GET', '/api/v1/agents');
-const LIST_AGENT_MODELS_ROUTE = findRoute('GET', '/api/v1/agents/:agentId/models');
 const UPDATE_DOCUMENT_SETTINGS_ROUTE = findRoute('PATCH', '/api/v1/documents/:docId/settings');
 const IMPORT_DOCUMENT_ROUTE = findRoute('POST', '/api/v1/documents');
+const CREATE_RUN_ROUTE = findRoute('POST', '/api/v1/runs');
 const START_BATCH_ROUTE = findRoute('POST', '/api/v1/batches/:batchId/start');
 
 /**
@@ -88,9 +89,9 @@ export interface AssignPanelClient {
 		docId: string,
 		batchId: string,
 		cursor: string | null,
+		includeDispatched?: boolean,
 	): Promise<ListDocumentTasksResponse>;
 	listAgents(): Promise<ListAgentsResponse>;
-	listAgentModels(agentId: string): Promise<ListAgentModelsResponse>;
 	readAssignments(batchId: string): Promise<BatchAssignmentsResponse>;
 	putAssignments(
 		batchId: string,
@@ -103,19 +104,17 @@ export const httpAssignPanelClient: AssignPanelClient = {
 	listDocuments: () => httpClient.callRoute<ListDocumentsResponse>(LIST_DOCUMENTS_ROUTE),
 	listBatches: (docId) =>
 		httpClient.callRoute<ListDocumentBatchesResponse>(LIST_BATCHES_ROUTE, { params: { docId } }),
-	listTasks: (docId, batchId, cursor) =>
+	listTasks: (docId, batchId, cursor, includeDispatched) =>
 		httpClient.callRoute<ListDocumentTasksResponse>(LIST_TASKS_ROUTE, {
 			params: { docId },
 			query: {
 				batchId,
-				state: ASSIGNABLE_TASK_STATE,
+				state: includeDispatched ? undefined : ASSIGNABLE_TASK_STATE,
 				limit: TASKS_PAGE_LIMIT,
 				cursor: cursor ?? undefined,
 			},
 		}),
 	listAgents: () => httpClient.callRoute<ListAgentsResponse>(LIST_AGENTS_ROUTE),
-	listAgentModels: (agentId) =>
-		httpClient.callRoute<ListAgentModelsResponse>(LIST_AGENT_MODELS_ROUTE, { params: { agentId } }),
 	readAssignments: (batchId) => readAssignments(batchId),
 	putAssignments: (batchId, assignments) => putAssignments(batchId, assignments),
 	updateLaneCount: async (docId, laneCount) => {
@@ -141,7 +140,7 @@ function toPanelError(error: unknown): AssignPanelError {
 		};
 	}
 	return {
-		message: '加载指派数据失败，请稍后重试',
+		message: UI_STRINGS.assignment.loadFailed,
 		technical: error instanceof Error ? error.message : String(error),
 	};
 }
@@ -215,6 +214,7 @@ export interface UseAssignPanelResult {
 	readonly selectDoc: (docId: string) => void;
 	readonly selectBatch: (batchId: string) => void;
 	readonly assignTask: (taskId: string, selection: TaskAssignmentSelection) => Promise<void>;
+	readonly refreshAgentModels: (agentId: string) => Promise<void>;
 	readonly resetAssignment: (taskId: string) => Promise<void>;
 	readonly changeUserSetting: (laneCount: number) => Promise<void>;
 	readonly toggleUnlockAboveWindow: (unlocked: boolean) => void;
@@ -230,6 +230,7 @@ export function useAssignPanel({
 	enabled = true,
 	client = httpAssignPanelClient,
 }: UseAssignPanelOptions = {}): UseAssignPanelResult {
+	const reassignTaskId = useSelectionStore((state) => state.reassignTaskId);
 	const selectedDocId = useSelectionStore((state) => state.selectedDocId);
 	const selectedBatchId = useSelectionStore((state) => state.selectedBatchId);
 	const assignments = useSelectionStore((state) => state.assignments);
@@ -241,12 +242,11 @@ export function useAssignPanel({
 	const [batches, setBatches] = useState<readonly OnboardingBatchOption[]>([]);
 	const [tasks, setTasks] = useState<readonly TaskDto[]>([]);
 	const [agentEntries, setAgentEntries] = useState<readonly AgentEntryDto[]>([]);
-	const [modelsByAgent, setModelsByAgent] = useState<Readonly<Record<string, readonly string[]>>>(
-		{},
-	);
+	const catalogs = useAgentModelCatalogs(enabled ? agentEntries.map((agent) => agent.id) : []);
 	const [preview, setPreview] = useState<ConcurrencyPreview | null>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(enabled);
 	const [isSaving, setIsSaving] = useState<boolean>(false);
+	const reassignPending = useRef(false);
 	const [error, setError] = useState<AssignPanelError | null>(null);
 	const [isUnlockedAboveWindow, setIsUnlockedAboveWindow] = useState<boolean>(false);
 	/** 旧请求的返回值必须丢弃，避免批次切换时用过期预览覆盖新状态 */
@@ -254,7 +254,12 @@ export function useAssignPanel({
 
 	const applyResponse = useCallback(
 		(response: BatchAssignmentsResponse) => {
-			setAssignments(toSelectionMap(response.drafts));
+			const target = useSelectionStore.getState().reassignTaskId;
+			const current = target ? useSelectionStore.getState().assignments[target] : null;
+			setAssignments({
+				...toSelectionMap(response.drafts),
+				...(target && current ? { [target]: current } : {}),
+			});
 			setPreview(response.preview);
 		},
 		[setAssignments],
@@ -272,7 +277,7 @@ export function useAssignPanel({
 			try {
 				const [docsResponse, agentsResponse] = await Promise.all([
 					client.listDocuments(),
-					client.listAgents(),
+					read(CACHE_KEYS.agents(), () => client.listAgents()),
 				]);
 				if (!isCurrent) {
 					return;
@@ -293,39 +298,17 @@ export function useAssignPanel({
 		};
 	}, [client, enabled]);
 
-	// 2. 每个 agent 的模型清单（M4-T6：下拉只列当前 agent 的模型）
-	useEffect(() => {
-		if (!enabled || agentEntries.length === 0) {
-			return;
-		}
-		let isCurrent = true;
-		void (async () => {
-			const entries = await Promise.all(
-				agentEntries.map(async (agent) => {
-					try {
-						const response = await client.listAgentModels(agent.id);
-						return [agent.id, response.models.map((model) => model.name)] as const;
-					} catch {
-						// 模型清单取不到就只呈现 daemon 下发的 agent 默认配置，不伪造模型名
-						return null;
-					}
-				}),
-			);
-			if (!isCurrent) {
-				return;
-			}
-			const next: Record<string, readonly string[]> = {};
-			for (const entry of entries) {
-				if (entry) {
-					next[entry[0]] = entry[1];
-				}
-			}
-			setModelsByAgent(next);
-		})();
-		return () => {
-			isCurrent = false;
-		};
-	}, [agentEntries, client, enabled]);
+	useEffect(
+		() =>
+			eventBus.subscribeAll((event) => {
+				if (!enabled || event.kind !== 'agent.availability_changed') return;
+				invalidate(CACHE_KEYS.agents());
+				void read(CACHE_KEYS.agents(), () => client.listAgents())
+					.then((response) => setAgentEntries(response.agents))
+					.catch((cause: unknown) => setError(toPanelError(cause)));
+			}),
+		[client, enabled],
+	);
 
 	// 3. 选中文档 → 批次清单（第二步按 batch.docId === selectedDocId 联动）
 	useEffect(() => {
@@ -400,6 +383,7 @@ export function useAssignPanel({
 						selectedDocId,
 						selectedBatchId,
 						cursor,
+						Boolean(reassignTaskId),
 					);
 					collected.push(...response.tasks);
 					cursor = response.nextCursor;
@@ -420,7 +404,7 @@ export function useAssignPanel({
 		return () => {
 			isCurrent = false;
 		};
-	}, [client, enabled, selectedBatchId, selectedDocId]);
+	}, [client, enabled, selectedBatchId, selectedDocId, reassignTaskId]);
 
 	// 6. 选中批次 → daemon 现算的草稿与并发预览（GET，会话序号与瓶颈的唯一来源）
 	const loadAssignments = useCallback(async () => {
@@ -477,9 +461,31 @@ export function useAssignPanel({
 
 	const assignTask = useCallback(
 		async (taskId: string, selection: TaskAssignmentSelection) => {
-			await writeAssignments({ ...assignments, [taskId]: selection });
+			if (reassignTaskId === taskId) {
+				if (reassignPending.current) return;
+				reassignPending.current = true;
+				setIsSaving(true);
+				try {
+					await httpClient.callRoute(CREATE_RUN_ROUTE, {
+						body: {
+							taskId,
+							agentId: selection.agentId,
+							model: selection.model,
+							effort: selection.effort,
+							idempotencyKey: `reassign_${Date.now()}_${taskId}`,
+						},
+					});
+					useSelectionStore.getState().clearReassign();
+					setError(null);
+				} catch (cause) {
+					setError(toPanelError(cause));
+				} finally {
+					reassignPending.current = false;
+					setIsSaving(false);
+				}
+			} else await writeAssignments({ ...assignments, [taskId]: selection });
 		},
-		[assignments, writeAssignments],
+		[assignments, writeAssignments, reassignTaskId],
 	);
 
 	const resetAssignment = useCallback(
@@ -597,10 +603,14 @@ export function useAssignPanel({
 					usedConcurrency: capacity ? (capacity.used ?? null) : null,
 					isLimitReached: capacity ? (capacity.isFull ?? null) : null,
 					supportsEffort: agent.effortVendorMap !== null && agent.effortVendorMap !== undefined,
-					models: modelsByAgent[agent.id] ?? undefined,
+					catalog: catalogs[agent.id]?.catalog ?? null,
+					currentConfig: catalogs[agent.id]?.currentConfig ?? null,
+					isRefreshingModels: catalogs[agent.id]?.isRefreshing ?? false,
+					login: agent.login ?? null,
+					effortVendorMap: agent.effortVendorMap ?? null,
 				};
 			}),
-		[agentCapacities, agentEntries, modelsByAgent],
+		[agentCapacities, agentEntries, catalogs],
 	);
 
 	const panelTasks = useMemo<readonly TaskItem[]>(
@@ -672,6 +682,9 @@ export function useAssignPanel({
 		selectDoc,
 		selectBatch,
 		assignTask,
+		refreshAgentModels: async (agentId) => {
+			await catalogs[agentId]?.refresh();
+		},
 		resetAssignment,
 		changeUserSetting,
 		toggleUnlockAboveWindow,

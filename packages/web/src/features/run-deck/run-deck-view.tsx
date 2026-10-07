@@ -22,18 +22,19 @@ import type { GateDto } from '@agent-scheduler/shared/api/gates';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { type ReactNode, useCallback } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import { navigateTo } from '../../app/routes.tsx';
 import { AssignPanel } from '../../components/assign-panel.tsx';
 import { BatchTree, type BatchTreeItem } from '../../components/batch-tree.tsx';
 import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
-import { GateCard } from '../../components/gate-card.tsx';
+import { GateCard, GateRejectConfirmation } from '../../components/gate-card.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { LaneRunStrip } from '../../components/lane-run-strip.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
 import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { useCanDispatch } from '../../store/connection-store.ts';
 import { useSelectionStore } from '../../store/selection-store.ts';
 import type { LaneStepItem } from './lane-steps-container.tsx';
@@ -117,7 +118,7 @@ function LaneGateCard(props: LaneGateCardProps) {
 	);
 }
 
-function TaskApprovalCard(props: {
+export function TaskApprovalCard(props: {
 	readonly gate: GateDto;
 	readonly task: TaskDto | undefined;
 	readonly runs: readonly RunDto[];
@@ -135,51 +136,74 @@ function TaskApprovalCard(props: {
 				(a, b) => a.attemptNo - b.attemptNo || (a.startedAt ?? '').localeCompare(b.startedAt ?? ''),
 			)
 			.at(-1);
-	const targetRun = reviewRun?.parentRunId
-		? runs.find((run) => run.id === reviewRun.parentRunId)
-		: null;
+	const targetRun =
+		gate.context && gate.runId
+			? runs.find((run) => run.id === gate.runId)
+			: reviewRun?.parentRunId
+				? runs.find((run) => run.id === reviewRun.parentRunId)
+				: null;
 	const delivery = useGateCard({
-		runId: targetRun?.id,
+		runId: gate.context ? gate.runId : targetRun?.id,
+		taskId: gate.taskId,
+		batchId: task?.batchId,
+		snapshotAgentId: targetRun?.agentId,
 		reviewVerdict: reviewRun?.reviewVerdict,
 		reworkText: reviewRun?.reworkText,
 		canReply: targetRun?.capabilities?.canReply,
 	});
+	const [rejectOpen, setRejectOpen] = useState(false);
 	return (
-		<GateCard
-			gateKind={gate.kind}
-			gate={gate}
-			taskKey={task?.taskKey ?? '—'}
-			taskTitle={task?.title ?? '—'}
-			reviewVerdict={reviewRun?.reviewVerdict ?? undefined}
-			reworkText={reviewRun?.reworkText ?? undefined}
-			canReply={delivery.canReply}
-			deliveryNotice={delivery.deliveryNotice}
-			isReworkTextCopied={delivery.isReworkTextCopied}
-			onCopyReworkText={() => {
-				void delivery.copyReworkText();
-			}}
-			disabled={!onDecideGate}
-			tier={tier}
-			isMobile={isMobileMode}
-			isTouch={isTouch}
-			stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
-			onApprove={() => {
-				void onDecideGate?.(gate.id, 'pass');
-			}}
-			onEdit={() => {
-				void onDecideGate?.(gate.id, 'reject', '改一下');
-			}}
-			onReject={() => {
-				void onDecideGate?.(gate.id, 'reject');
-			}}
-			{...(delivery.shouldShowDeliverRaw
-				? {
-						onDeliverRaw: () => {
-							void delivery.deliverRaw();
-						},
-					}
-				: {})}
-		/>
+		<>
+			<GateCard
+				gateKind={gate.kind}
+				gate={gate}
+				taskKey={task?.taskKey ?? '—'}
+				taskTitle={task?.title ?? '—'}
+				reviewVerdict={reviewRun?.reviewVerdict ?? undefined}
+				reworkText={reviewRun?.reworkText ?? undefined}
+				canReply={delivery.canReply}
+				deliveryNotice={delivery.deliveryNotice}
+				isReworkTextCopied={delivery.isReworkTextCopied}
+				onCopyReworkText={() => {
+					void delivery.copyReworkText();
+				}}
+				disabled={!onDecideGate || delivery.isRerunPending}
+				tier={tier}
+				isMobile={isMobileMode}
+				isTouch={isTouch}
+				stepHref={gate.runId ? `#/run/${gate.runId}` : undefined}
+				onApprove={() => {
+					if (gate.context) void delivery.handleApproveRerun();
+					else void onDecideGate?.(gate.id, 'pass');
+				}}
+				onEdit={() => {
+					if (gate.context) {
+						if (task) useSelectionStore.getState().setSelectedDocId(task.docId);
+						if (task?.batchId) useSelectionStore.getState().setSelectedBatchId(task.batchId);
+						delivery.handleReassign();
+					} else void onDecideGate?.(gate.id, 'reject', UI_STRINGS.gateCard.editComment);
+				}}
+				onReject={() => {
+					setRejectOpen(true);
+				}}
+				{...(delivery.shouldShowDeliverRaw
+					? {
+							onDeliverRaw: () => {
+								void delivery.deliverRaw();
+							},
+						}
+					: {})}
+			/>
+			{delivery.actionError && <InlineNotice tone="down" message={delivery.actionError} />}
+			<GateRejectConfirmation
+				open={rejectOpen}
+				onCancel={() => setRejectOpen(false)}
+				onConfirm={() => {
+					setRejectOpen(false);
+					void onDecideGate?.(gate.id, 'reject');
+				}}
+			/>
+		</>
 	);
 }
 
@@ -389,7 +413,9 @@ export function RunDeckView(props: RunDeckViewProps) {
 		(streamCount === 0 || (rawLanes !== undefined && !hasAssignedLane)) &&
 		pendingGates.length === 0 &&
 		!error;
-	const assignPanel = useAssignPanel({ enabled: showOnboarding });
+	const reassignTaskId = useSelectionStore((state) => state.reassignTaskId);
+	const reassignToast = useSelectionStore((state) => state.reassignToast);
+	const assignPanel = useAssignPanel({ enabled: showOnboarding || Boolean(reassignTaskId) });
 	const canDispatch = useCanDispatch();
 	const approvalExpandedIds = new Set(expandedIds);
 	for (const batch of treeBatches) {
@@ -402,15 +428,42 @@ export function RunDeckView(props: RunDeckViewProps) {
 		if (!gate) return null;
 		const task = tasks.find((entry) => entry.id === taskId);
 		return (
-			<TaskApprovalCard
-				gate={gate}
-				task={task}
-				runs={runs}
-				tier={tier}
-				isMobileMode={isMobileMode}
-				isTouch={isTouch}
-				onDecideGate={onDecideGate}
-			/>
+			<>
+				<TaskApprovalCard
+					gate={gate}
+					task={task}
+					runs={runs}
+					tier={tier}
+					isMobileMode={isMobileMode}
+					isTouch={isTouch}
+					onDecideGate={onDecideGate}
+				/>
+				{reassignTaskId === taskId && (
+					<>
+						{reassignToast && <output>{reassignToast}</output>}
+						{assignPanel.error && (
+							<InlineNotice
+								tone="down"
+								message={assignPanel.error.message}
+								technical={assignPanel.error.technical}
+							/>
+						)}
+						<AssignPanel
+							mode="step3"
+							tasks={assignPanel.tasks.filter((entry) => entry.id === taskId)}
+							agents={assignPanel.agents}
+							assignments={assignPanel.assignments}
+							reassignTaskId={reassignTaskId}
+							onRefreshAgentModels={(id) => {
+								void assignPanel.refreshAgentModels(id);
+							}}
+							onAssignTask={(id, selection) => {
+								void assignPanel.assignTask(id, selection);
+							}}
+						/>
+					</>
+				)}
+			</>
 		);
 	};
 
@@ -418,7 +471,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 		<>
 			{/* 取数失败就地提示，不整页替换（07 节错误体系） */}
 			{assignPanel.error && (
-				<div className="mb-3 w-full max-w-4xl mx-auto">
+				<div className="mb-3 w-full min-w-0">
 					<InlineNotice
 						tone="down"
 						testId="assign-panel-error"
@@ -446,6 +499,10 @@ export function RunDeckView(props: RunDeckViewProps) {
 				step3Slot={
 					<AssignPanel
 						mode="step3"
+						reassignTaskId={reassignTaskId}
+						onRefreshAgentModels={(id) => {
+							void assignPanel.refreshAgentModels(id);
+						}}
 						tasks={assignPanel.tasks}
 						agents={assignPanel.agents}
 						assignments={assignPanel.assignments}
@@ -475,28 +532,30 @@ export function RunDeckView(props: RunDeckViewProps) {
 		</>
 	);
 
-	// ─── 桌面/宽屏布局容器样式 ───
+	// ─── 桌面/宽屏布局容器样式（M9-T28 / 11 节「间距与容器契约」：间距 gap-3 p-4，网格模板由 deck-grid.ts 给出） ───
 	const getDeckLayoutClass = (): string => {
-		// 1. 紧凑档（AC 2, E-164）
+		// 1. 紧凑档（AC 2, E-164）：auto-fill 换行网格而非横向滚动
 		if (tier === 'compact') {
-			return 'grid grid-cols-[repeat(auto-fill,minmax(var(--stream-min-dense,260px),1fr))] gap-4 p-4 overflow-y-auto flex-1 auto-rows-fr';
+			return 'grid gap-3 p-4 overflow-y-auto flex-1 auto-rows-fr h-full';
 		}
 
 		// 2. 完整档（AC 9, AC 10, E-163, E-167）
 		if (tier === 'full') {
 			if (streamCount <= 3) {
-				return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 overflow-y-auto flex-1 auto-rows-fr';
+				// 1–3 条完整档按实际条数吃满宽度，不出现横向滚动（E-163）
+				return 'grid gap-3 p-4 overflow-y-auto flex-1 auto-rows-fr h-full';
 			}
-			return 'relative flex flex-row gap-4 p-4 overflow-auto flex-1';
+			// 4 条及以上完整档滚动，触发 E-167 左右视野外待处理标记
+			return 'grid gap-3 p-4 overflow-auto flex-1 h-full';
 		}
 
-		// 3. 桌面窄窗（AC 11, E-168）
+		// 3. 桌面窄窗（AC 11, E-168）：单列吃满，不设 max-width、不居中
 		if (tier === 'narrow') {
-			return 'flex flex-col gap-4 p-4 overflow-y-auto flex-1 w-full max-w-[800px] mx-auto';
+			return 'grid gap-3 p-3 overflow-y-auto flex-1 w-full h-full';
 		}
 
-		// 4. 手机档位（在单流模式下占满垂直容器）
-		return 'flex flex-col gap-3 p-3 overflow-y-auto flex-1 w-full';
+		// 4. 手机档位（单流全屏）
+		return 'flex flex-col gap-3 p-3 overflow-y-auto flex-1 w-full h-full';
 	};
 
 	return (
@@ -644,6 +703,11 @@ export function RunDeckView(props: RunDeckViewProps) {
 										wrapupPendingBatchIds={wrapupPendingBatchIds}
 										wrapupFailureByBatch={wrapupFailureByBatch}
 									/>
+									{showOnboarding && (
+										<div className="border-t border-[var(--border)] pt-3 flex flex-col gap-3">
+											{emptyConsole}
+										</div>
+									)}
 								</div>
 							)}
 
@@ -653,35 +717,31 @@ export function RunDeckView(props: RunDeckViewProps) {
 									data-pane-view="stream"
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
 								>
-									{showOnboarding ? (
-										emptyConsole
-									) : (
-										<LanesContainer
-											lanes={pipelineLanes}
-											tasks={tasks}
-											runs={runs}
-											wrapups={wrapups}
-											isUnavailable={error === '泳道数据不可用'}
-											errorMessage={error}
-											overrideTier={tier}
-											hideMobileRunStrip={true}
-											activeMobileLanePosition={props.activeMobileLanePosition}
-											activeMobileLaneNo={activeMobileLaneNo}
-											onPrevMobileLane={handlePrevMobileLane}
-											onNextMobileLane={handleNextMobileLane}
-											onOpenRun={(runId) => navigateTo(`#/run/${runId}`)}
-											onStopLane={(laneNo, runId) => {
-												const lane = lanes.find((l) => l.laneNo === laneNo);
-												void handleStopLane(laneNo, runId, lane?.taskKey);
-											}}
-											stoppingLanes={stoppingLanes}
-											renderApprovalSlot={(laneNo) => {
-												const lane = lanes.find((l) => l.laneNo === laneNo);
-												return lane ? laneGateSlot(lane, tier, true, onDecideGate) : null;
-											}}
-											getLaneSteps={getLaneSteps}
-										/>
-									)}
+									<LanesContainer
+										lanes={pipelineLanes}
+										tasks={tasks}
+										runs={runs}
+										wrapups={wrapups}
+										isUnavailable={error === '泳道数据不可用'}
+										errorMessage={error}
+										overrideTier={tier}
+										hideMobileRunStrip={true}
+										activeMobileLanePosition={props.activeMobileLanePosition}
+										activeMobileLaneNo={activeMobileLaneNo}
+										onPrevMobileLane={handlePrevMobileLane}
+										onNextMobileLane={handleNextMobileLane}
+										onOpenRun={(runId) => navigateTo(`#/run/${runId}`)}
+										onStopLane={(laneNo, runId) => {
+											const lane = lanes.find((l) => l.laneNo === laneNo);
+											void handleStopLane(laneNo, runId, lane?.taskKey);
+										}}
+										stoppingLanes={stoppingLanes}
+										renderApprovalSlot={(laneNo) => {
+											const lane = lanes.find((l) => l.laneNo === laneNo);
+											return lane ? laneGateSlot(lane, tier, true, onDecideGate) : null;
+										}}
+										getLaneSteps={getLaneSteps}
+									/>
 								</div>
 							)}
 
@@ -719,7 +779,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 							{/* 左栏 272px 批次树（AC 1, AC 5, 11 节 UI, R2） */}
 							<aside
 								data-testid="deck-rail"
-								className="w-[var(--rail-w,272px)] min-w-[var(--rail-w,272px)] shrink-0 border-r border-[var(--border)] bg-[var(--bg)] flex flex-col overflow-y-auto p-3 gap-3 select-none"
+								className="w-[var(--rail-w,272px)] min-w-[var(--rail-w,272px)] shrink-0 border-r border-[var(--border)] bg-[var(--bg)] flex flex-col overflow-y-auto p-3 gap-3 select-none h-full"
 							>
 								<div className="font-ui text-dense font-semibold text-[var(--ink-1)] px-1">
 									批次与任务
@@ -753,10 +813,17 @@ export function RunDeckView(props: RunDeckViewProps) {
 									wrapupPendingBatchIds={wrapupPendingBatchIds}
 									wrapupFailureByBatch={wrapupFailureByBatch}
 								/>
+
+								{/* 零运行引导落位：四步编号卡竖排在左栏派发面板里（批次树之下，AC 4, E-108, E-319） */}
+								{showOnboarding && (
+									<div className="border-t border-[var(--border)] pt-3 flex flex-col gap-3">
+										{emptyConsole}
+									</div>
+								)}
 							</aside>
 
 							{/* 泳道监看区 */}
-							<div className="relative flex-1 flex flex-col min-h-0 overflow-hidden">
+							<div className="relative flex-1 flex flex-col min-h-0 overflow-hidden h-full">
 								{tier === 'full' && offScreenWaiting.left > 0 && (
 									<button
 										type="button"
@@ -775,34 +842,30 @@ export function RunDeckView(props: RunDeckViewProps) {
 									</button>
 								)}
 
-								{showOnboarding ? (
-									<div className="flex flex-col flex-1 p-4 overflow-y-auto">{emptyConsole}</div>
-								) : (
-									<LanesContainer
-										lanes={pipelineLanes}
-										tasks={tasks}
-										runs={runs}
-										wrapups={wrapups}
-										isUnavailable={error === '泳道数据不可用'}
-										errorMessage={error}
-										overrideTier={tier}
-										onOpenRun={(runId) => navigateTo(`#/run/${runId}`)}
-										onStopLane={(laneNo, runId) => {
-											const lane = lanes.find((l) => l.laneNo === laneNo);
-											void handleStopLane(laneNo, runId, lane?.taskKey);
-										}}
-										stoppingLanes={stoppingLanes}
-										renderApprovalSlot={(laneNo) => {
-											const lane = lanes.find((l) => l.laneNo === laneNo);
-											return lane ? laneGateSlot(lane, tier, isTouch, onDecideGate) : null;
-										}}
-										getLaneSteps={getLaneSteps}
-										expandedLaneNo={expandedLaneNo}
-										onToggleExpandLane={toggleExpandLane}
-										scrollContainerRef={scrollContainerRef}
-										layoutClassName={getDeckLayoutClass()}
-									/>
-								)}
+								<LanesContainer
+									lanes={pipelineLanes}
+									tasks={tasks}
+									runs={runs}
+									wrapups={wrapups}
+									isUnavailable={error === '泳道数据不可用'}
+									errorMessage={error}
+									overrideTier={tier}
+									onOpenRun={(runId) => navigateTo(`#/run/${runId}`)}
+									onStopLane={(laneNo, runId) => {
+										const lane = lanes.find((l) => l.laneNo === laneNo);
+										void handleStopLane(laneNo, runId, lane?.taskKey);
+									}}
+									stoppingLanes={stoppingLanes}
+									renderApprovalSlot={(laneNo) => {
+										const lane = lanes.find((l) => l.laneNo === laneNo);
+										return lane ? laneGateSlot(lane, tier, isTouch, onDecideGate) : null;
+									}}
+									getLaneSteps={getLaneSteps}
+									expandedLaneNo={expandedLaneNo}
+									onToggleExpandLane={toggleExpandLane}
+									scrollContainerRef={scrollContainerRef}
+									layoutClassName={getDeckLayoutClass()}
+								/>
 
 								{tier === 'full' && offScreenWaiting.right > 0 && (
 									<button

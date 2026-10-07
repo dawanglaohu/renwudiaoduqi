@@ -208,7 +208,7 @@ export function createSessionArchiveService(
 			}
 
 			// Publish task.sessions_archived event
-			const envelope = deps.envelopeFactory.createEnvelope({
+			const envelope = await deps.envelopeFactory.createEnvelopeAsync({
 				kind: 'task.sessions_archived',
 				taskId: context.taskId,
 				runId: context.runId,
@@ -223,6 +223,8 @@ export function createSessionArchiveService(
 
 			if (deps.bus) {
 				deps.bus.publish(envelope);
+			} else {
+				deps.envelopeFactory.cancelEnvelope(envelope);
 			}
 
 			return Object.freeze({

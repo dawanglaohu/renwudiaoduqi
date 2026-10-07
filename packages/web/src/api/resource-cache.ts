@@ -20,6 +20,24 @@ interface InFlightEntry<T> {
 const dataCache = new Map<string, unknown>();
 const inFlightRequests = new Map<string, InFlightEntry<unknown>>();
 const registeredFetchers = new Map<string, () => Promise<unknown>>();
+const listeners = new Set<() => void>();
+let version = 0;
+
+export function subscribeResourceCache(listener: () => void): () => void {
+	listeners.add(listener);
+	return () => {
+		listeners.delete(listener);
+	};
+}
+
+export function getResourceCacheVersion(): number {
+	return version;
+}
+
+function notify(): void {
+	version++;
+	for (const listener of listeners) listener();
+}
 
 /**
  * 判断缓存 key 是否匹配指定失效前缀。
@@ -73,6 +91,7 @@ export async function read<T>(key: string, fetcher: () => Promise<T>): Promise<T
 				}
 
 				dataCache.set(key, data);
+				notify();
 				return data;
 			}
 		} finally {
@@ -104,6 +123,7 @@ export function invalidate(prefix: string): void {
 			entry.invalidatedWhileInFlight = true;
 		}
 	}
+	notify();
 }
 
 /**
@@ -162,4 +182,5 @@ export function clearResourceCache(): void {
 	dataCache.clear();
 	inFlightRequests.clear();
 	registeredFetchers.clear();
+	notify();
 }

@@ -437,8 +437,11 @@ describe('M9-T10: 审批卡与闸门交互 (AC 1..5, E-109, E-182)', () => {
 							lines: ['error: missing API token [REDACTED]', 'failed to initialize'],
 						},
 						login: {
-							status: 'logged_out',
-							hint: '请运行 codex auth login',
+							state: 'logged_out',
+							reason: null,
+							checkedAt: '2026-09-30T10:00:00.000Z',
+							loginCommand: 'codex auth login',
+							warningCode: null,
 						},
 					},
 				}),
@@ -451,7 +454,7 @@ describe('M9-T10: 审批卡与闸门交互 (AC 1..5, E-109, E-182)', () => {
 			);
 			expect(html).toContain('[已脱敏]');
 			expect(html).toContain('未登录');
-			expect(html).toContain('请运行 codex auth login');
+			expect(html).toContain('codex auth login');
 
 			// 三动作复用：重跑、换 agent 重派、标失败
 			expect(html).toContain('换 agent 重派');

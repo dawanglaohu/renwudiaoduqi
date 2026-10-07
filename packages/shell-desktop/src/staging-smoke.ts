@@ -175,6 +175,7 @@ export interface ExecuteSmokeOptions {
  * Starts the daemon from the identical frozen launch spec and waits for its health
  * endpoint (AC 2, E-209, E-265). The injection points exist for unit tests; the default
  * path really spawns the shipped launch target and really probes the endpoint.
+ * SIGTERM rejection, failure, or an unclosed child makes the check fail before return.
  */
 export async function executeDaemonSmoke(
 	spec: DaemonLaunchSpec,
@@ -196,20 +197,27 @@ export async function executeDaemonSmoke(
 	let child: ChildProcess | undefined;
 	let spawnFailure: string | undefined;
 	let processExited: number | null | undefined;
+	let childClosed = false;
+	let closed: Promise<void> | undefined;
+	let stopFailure: string | undefined;
+	let outcome: SmokeOutcome;
 
 	try {
 		child = spawnFunction(spec.file, spec.args, spawnOptions);
+		closed = new Promise<void>((resolveClosed) => {
+			child?.once('close', () => {
+				childClosed = true;
+				resolveClosed();
+			});
+		});
 		// A spawn that cannot start, or a process that dies immediately, must fail the
 		// check instead of surfacing as an unhandled error or a misleading timeout.
-		// Test doubles may provide a minimal process object without event emitters.
-		if (typeof child.once === 'function') {
-			child.once('error', (error: Error) => {
-				spawnFailure = error.message;
-			});
-			child.once('exit', (code: number | null) => {
-				processExited = code;
-			});
-		}
+		child.once('error', (error: Error) => {
+			spawnFailure = error.message;
+		});
+		child.once('exit', (code: number | null) => {
+			processExited = code;
+		});
 
 		const probeFn =
 			options?.probeEndpoint ??
@@ -227,20 +235,12 @@ export async function executeDaemonSmoke(
 
 		while (Date.now() < deadline) {
 			if (spawnFailure) {
-				return Object.freeze({
-					success: false,
-					pid: child.pid,
-					durationMs: Date.now() - startTime,
-					error: `The launch target could not be started: ${spawnFailure}`,
-				});
+				throw new Error(`The launch target could not be started: ${spawnFailure}`);
 			}
 			if (processExited !== undefined && processExited !== 0) {
-				return Object.freeze({
-					success: false,
-					pid: child.pid,
-					durationMs: Date.now() - startTime,
-					error: `The daemon process exited with code ${processExited} before becoming healthy`,
-				});
+				throw new Error(
+					`The daemon process exited with code ${processExited} before becoming healthy`,
+				);
 			}
 			isHealthy = await probeFn(healthUrl);
 			if (isHealthy) {
@@ -250,56 +250,55 @@ export async function executeDaemonSmoke(
 		}
 
 		if (spawnFailure) {
-			return Object.freeze({
-				success: false,
-				pid: child.pid,
-				durationMs: Date.now() - startTime,
-				error: `The launch target could not be started: ${spawnFailure}`,
-			});
+			throw new Error(`The launch target could not be started: ${spawnFailure}`);
 		}
 
 		if (!isHealthy) {
-			return Object.freeze({
-				success: false,
-				pid: child.pid,
-				durationMs: Date.now() - startTime,
-				error: `Health check probe failed within ${timeoutMs}ms at ${healthUrl}`,
-			});
+			throw new Error(`Health check probe failed within ${timeoutMs}ms at ${healthUrl}`);
 		}
 
-		return Object.freeze({
+		outcome = Object.freeze({
 			success: true,
 			pid: child.pid,
 			endpointStatus: 200,
 			durationMs: Date.now() - startTime,
 		});
 	} catch (err) {
-		return Object.freeze({
+		outcome = Object.freeze({
 			success: false,
+			pid: child?.pid,
 			durationMs: Date.now() - startTime,
 			error: err instanceof Error ? err.message : String(err),
 		});
 	} finally {
-		if (child?.pid) {
+		if (child?.pid && !childClosed) {
 			try {
-				child.kill('SIGTERM');
-			} catch {
-				// Clean exit ignore
+				if (!child.kill('SIGTERM')) {
+					stopFailure = `Could not stop daemon process ${child.pid}: SIGTERM was rejected`;
+				} else if (!closed || !(await waitForClose(closed, 5000))) {
+					stopFailure = `Daemon process ${child.pid} did not close within 5000ms after SIGTERM`;
+				}
+			} catch (error) {
+				stopFailure = `Could not stop daemon process ${child.pid}: ${error instanceof Error ? error.message : String(error)}`;
 			}
-			// Let the process release its working directory before the caller removes the
-			// staging root; Windows reports EBUSY on a directory a live process still holds.
-			await waitForExit(child, 5000);
 		}
 	}
+	return stopFailure
+		? Object.freeze({
+				...outcome,
+				success: false,
+				durationMs: Date.now() - startTime,
+				error: [outcome.error, stopFailure].filter(Boolean).join('; '),
+			})
+		: outcome;
 }
 
-function waitForExit(child: ChildProcess, timeoutMs: number): Promise<void> {
-	if (child.exitCode !== null || typeof child.once !== 'function') return Promise.resolve();
+function waitForClose(closed: Promise<void>, timeoutMs: number): Promise<boolean> {
 	return new Promise((resolveWait) => {
-		const timer = setTimeout(resolveWait, timeoutMs);
-		child.once('exit', () => {
+		const timer = setTimeout(() => resolveWait(false), timeoutMs);
+		void closed.then(() => {
 			clearTimeout(timer);
-			resolveWait();
+			resolveWait(true);
 		});
 	});
 }

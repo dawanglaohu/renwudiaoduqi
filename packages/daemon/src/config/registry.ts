@@ -19,6 +19,7 @@ import {
 	type PermissionTier,
 	isPermissionTier,
 } from '../domain/permission-tier.ts';
+import { AppError } from '../errors/app-error.ts';
 import {
 	ADAPTER_KINDS,
 	type AdapterKind,
@@ -264,7 +265,7 @@ export interface CreateAgentRegistryOptions {
 export interface AgentRegistry {
 	readonly configPath: string;
 	start(): Promise<AgentRegistrySnapshot>;
-	stop(): void;
+	stop(): Promise<void>;
 	reload(): Promise<AgentRegistryReloadResult>;
 	getSnapshot(): AgentRegistrySnapshot;
 	adoptDefault(agentId: string, field: AgentConfigFieldPath): Promise<AdoptDefaultResult>;
@@ -380,11 +381,26 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 	let lastObservedFingerprint: string | null = null;
 	let watcher: AgentRegistryWatcher | undefined;
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let stopped = false;
+	let stopping: Promise<void> | undefined;
+	let backgroundFailure: unknown;
+	const operations = new Set<Promise<unknown>>();
 	const reloadListeners = new Set<(snapshot: AgentRegistrySnapshot) => void>();
 	let reloadQueue = Promise.resolve<AgentRegistryReloadResult>({
 		status: 'unchanged',
 		snapshot: current,
 	});
+
+	function runOperation<T>(operation: () => Promise<T>): Promise<T> {
+		if (stopped) return Promise.reject(new AppError('E_INTERNAL', 'Agent registry has stopped.'));
+		const promise = operation();
+		operations.add(promise);
+		void promise.then(
+			() => operations.delete(promise),
+			() => operations.delete(promise),
+		);
+		return promise;
+	}
 
 	function publishWarning(
 		reason: AgentRegistryWarningReason,
@@ -530,16 +546,21 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 	}
 
 	function reload(): Promise<AgentRegistryReloadResult> {
-		const nextReload = reloadQueue.then(performReload, performReload);
-		reloadQueue = nextReload;
-		return nextReload;
+		return runOperation(() => {
+			const nextReload = reloadQueue.then(performReload, performReload);
+			reloadQueue = nextReload;
+			return nextReload;
+		});
 	}
 
 	function scheduleReload(): void {
+		if (stopped) return;
 		if (debounceTimer !== undefined) timers.clearTimeout(debounceTimer);
 		debounceTimer = timers.setTimeout(() => {
 			debounceTimer = undefined;
-			void reload();
+			void reload().catch((error: unknown) => {
+				backgroundFailure ??= error;
+			});
 		}, AGENT_REGISTRY_RELOAD_DEBOUNCE_MS);
 	}
 
@@ -552,6 +573,7 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 				}
 			});
 			watcher.on('error', () => {
+				if (stopped) return;
 				publishWarning(
 					'watch-failed',
 					'Agent registry watch failed; the daemon will keep the last valid version.',
@@ -566,18 +588,26 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 	}
 
 	async function start(): Promise<AgentRegistrySnapshot> {
+		if (stopped) throw new AppError('E_INTERNAL', 'Agent registry has stopped.');
 		startWatcher();
 		await reload();
 		return current;
 	}
 
-	function stop(): void {
+	function stop(): Promise<void> {
+		if (stopping) return stopping;
+		stopped = true;
 		if (debounceTimer !== undefined) {
 			timers.clearTimeout(debounceTimer);
 			debounceTimer = undefined;
 		}
 		watcher?.close();
 		watcher = undefined;
+		stopping = (async () => {
+			while (operations.size > 0) await Promise.allSettled([...operations]);
+			if (backgroundFailure !== undefined) throw backgroundFailure;
+		})();
+		return stopping;
 	}
 
 	async function adoptDefault(
@@ -784,8 +814,10 @@ export function createAgentRegistry(options: CreateAgentRegistryOptions): AgentR
 		stop,
 		reload,
 		getSnapshot: () => current,
-		adoptDefault,
-		updateOverrides,
+		adoptDefault: (agentId: string, field: AgentConfigFieldPath) =>
+			runOperation(() => adoptDefault(agentId, field)),
+		updateOverrides: (agentId: string, updates: AgentConfigOverrides) =>
+			runOperation(() => updateOverrides(agentId, updates)),
 		onReload,
 	});
 }

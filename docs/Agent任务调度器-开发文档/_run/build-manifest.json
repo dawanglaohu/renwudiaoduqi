@@ -30,21 +30,22 @@
     "_run/batches/batch-13-20260924.md": "c9bb239c324bcc8b2900ca666abfdc6e2b092911dd22a837260400b84691cfd6",
     "_run/batches/batch-14-20260925.md": "d93e6a6373626df67d9a8d943929226eac3d22ae91efb883dbe5baf8fee54fd8",
     "_run/batches/batch-16-20260926.md": "bd6ce3786a8a116474086aef2690a2db0eda49b95ad5e0b2de2a36e48b833500",
+    "_run/batches/batch-17-20261002.md": "17bfb4cbd52151832291c11e5a2dc43c3f4ed1a0864784bd7fe17917c79668b0",
     "_run/batches/batch-8-20260922-r3.md": "52aa2002768a4e638ce58603139f8917725e8b5fc80ecdce4ad06bfc07516f47",
     "_run/batches/batch-8-20260922.md": "deecc561c1cac3850acc32f98c6d7c082a1d7af7843aa324561f608406d561e3",
     "_run/batches/batch-8-20260926-scope-amendment.md": "5f4da2588576ccdc507c79b48e483f03cf116b9153e53b0a52b6094aea96c80c",
     "_run/batches/batch-8-20260929-rerun-gap.md": "0476d1965b7434167eafdbe23d397a899a01acc077589c830cc298eddee50fd1",
     "_run/presentation.json": "33c1dc94b86aba95c5e4fcf587633f834e187f76f8d9a3c60c1843f4a1a3f937",
-    "_run/task-contracts.json": "56a7681ddec159f2cbc86a2ea4f0e2034ef730cf38abc441b4c8dcbe61d88b25"
+    "_run/task-contracts.json": "2a100bd5c1fd5d5e9e88d0e7e8d44240da8a90bb1debb00c68de421d852f7b0f"
   },
   "products": {
     "_MOC.md": "079c49246a2698424381a5d18fb8372aadf3f87043b9619772c2622dc480dc92",
-    "_run/dispatch.json": "adb725c8f56305e2c672253eae0b39117ed53ab755b545153efb16c42f67a46f",
-    "_run/review.json": "10ba6e10ca739bb8322be1429fee74943f1e3c6db190c78c6de1a3934bcaf781",
-    "_run/task-reviews.json": "1701b18a8e7b6eb0927f5af51cad18b640f116c3dc4caaebb9f188b18f026c74",
-    "docs-data.js": "49024deb2b2f5bb982ec2fb6e5d709e7d2bed2bbeb77b2a52b582469e5fd390d",
+    "_run/dispatch.json": "72ac0072cdc04c1f6abf7ed8152eb0fc4a49b897d22d0d70ef99b0c41fa44d83",
+    "_run/review.json": "3ffb42feb81a3a2952b73b9b168fd997af5f0e58754bdab6c85820ce82a85cff",
+    "_run/task-reviews.json": "89f115767d61ab842af80cae720ee31ab3b5fa060167a93d5ab96bcee9f898cb",
+    "docs-data.js": "85b0eae2b4366126628dadd10a4b8c4c669d13e84d4e9c8b764a46b1a52aa015",
     "index.html": "7558315b3b7718157e85b3dd8c36f2e6d6790cfee592ed51ef84f61c562af085"
   },
   "schemaVersion": 1,
-  "sourceVersion": "96b0270425d67bcca6869df482b0400cab1f103945affe148f6c3cc4cfed38db"
+  "sourceVersion": "dd7bae95356c65f228e7580e163de8cccb431e53878ce3c213276fdd29e10439"
 }

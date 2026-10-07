@@ -137,10 +137,7 @@ export function BatchSummaryBar({
 				)}
 
 				{/* 四个核心数字（AC 2: 进行中 / 待审批 / 已落地 / 失败） */}
-				<div
-					data-testid="batch-summary-counts"
-					className="flex items-center gap-3 sm:gap-4 ml-auto"
-				>
+				<div data-testid="batch-summary-counts" className="flex items-center gap-3 ml-auto">
 					{/* 1. 进行中 */}
 					<div
 						data-stat="running"

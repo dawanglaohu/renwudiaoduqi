@@ -145,13 +145,13 @@ interface MetaItem {
  */
 function normalizeReportedEffort(raw: string): string {
 	const trimmed = raw.trim().toLowerCase();
-	if (trimmed === 'low' || trimmed === 'minimal' || raw === '低') {
+	if (trimmed === 'low' || trimmed === 'minimal' || raw === UI_STRINGS.refBar.effortTiers.low) {
 		return UI_STRINGS.refBar.effortTiers.low;
 	}
-	if (trimmed === 'medium' || raw === '中') {
+	if (trimmed === 'medium' || raw === UI_STRINGS.refBar.effortTiers.medium) {
 		return UI_STRINGS.refBar.effortTiers.medium;
 	}
-	if (trimmed === 'high' || raw === '高') {
+	if (trimmed === 'high' || raw === UI_STRINGS.refBar.effortTiers.high) {
 		return UI_STRINGS.refBar.effortTiers.high;
 	}
 	return raw;
@@ -180,7 +180,7 @@ function resolveEffortMeta(
 		} else if ('tier' in effort && effort.tier) {
 			const tierLabel = UI_STRINGS.refBar.effortTiers[effort.tier] ?? effort.tier;
 			selectedText = tierLabel;
-			selectedTitle = `思考强度: ${tierLabel}`;
+			selectedTitle = UI_STRINGS.assignment.effortTitle(tierLabel);
 		}
 	}
 
@@ -195,7 +195,7 @@ function resolveEffortMeta(
 	if (!selectedText && effortTier) {
 		const tierLabel = UI_STRINGS.refBar.effortTiers[effortTier] ?? effortTier;
 		selectedText = tierLabel;
-		selectedTitle = `思考强度: ${tierLabel}`;
+		selectedTitle = UI_STRINGS.assignment.effortTitle(tierLabel);
 	}
 
 	// 4. 思考强度不支持的 agent（E-254）：显示「—」并在 title 说明原因，不补默认档冒充
@@ -216,7 +216,7 @@ function resolveEffortMeta(
 
 		if (isMismatch) {
 			const combinedText = UI_STRINGS.refBar.formatMismatch(selectedText, normalizedReported);
-			const mismatchTitle = `自报思考强度与所选不一致（所选: ${selectedText}，实际: ${normalizedReported}）`;
+			const mismatchTitle = UI_STRINGS.refBar.effortMismatchTitle(selectedText, normalizedReported);
 			return {
 				text: combinedText,
 				title: mismatchTitle,
@@ -229,7 +229,7 @@ function resolveEffortMeta(
 
 	return {
 		text: selectedText,
-		title: selectedTitle ?? `思考强度: ${selectedText}`,
+		title: selectedTitle ?? UI_STRINGS.assignment.effortTitle(selectedText),
 		isMismatch: false,
 		isVendor,
 		isSupported,
@@ -252,7 +252,7 @@ function resolveModelMeta(
 		const selectedDisplay = selected ?? fallback;
 		return {
 			text: UI_STRINGS.refBar.formatMismatch(selectedDisplay, reported),
-			title: `自报模型与所选不一致（所选: ${selectedDisplay}，实际: ${reported}）`,
+			title: UI_STRINGS.refBar.modelMismatchTitle(selectedDisplay, reported),
 			isMismatch: true,
 		};
 	}
@@ -260,7 +260,7 @@ function resolveModelMeta(
 	const displayText = selected ?? fallback;
 	return {
 		text: displayText,
-		title: selected ? `模型: ${selected}` : fallback,
+		title: selected ? UI_STRINGS.assignment.modelTitle(selected) : fallback,
 		isMismatch: false,
 	};
 }
@@ -281,7 +281,7 @@ function resolvePermissionMeta(tier: string | null | undefined): MetaItem {
 	if (tier === 'readOnly') {
 		return {
 			text: UI_STRINGS.refBar.permissionTiers.readOnly,
-			title: `权限档: ${UI_STRINGS.refBar.permissionTiers.readOnly}`,
+			title: UI_STRINGS.refBar.permissionTitle(UI_STRINGS.refBar.permissionTiers.readOnly),
 			isElevated: false,
 		};
 	}
@@ -289,7 +289,7 @@ function resolvePermissionMeta(tier: string | null | undefined): MetaItem {
 	if (tier === 'workspaceWrite') {
 		return {
 			text: UI_STRINGS.refBar.permissionTiers.workspaceWrite,
-			title: `权限档: ${UI_STRINGS.refBar.permissionTiers.workspaceWrite}`,
+			title: UI_STRINGS.refBar.permissionTitle(UI_STRINGS.refBar.permissionTiers.workspaceWrite),
 			isElevated: false,
 		};
 	}
@@ -297,7 +297,7 @@ function resolvePermissionMeta(tier: string | null | undefined): MetaItem {
 	// 缺失或未知 permissionTier 显示 —（原值放 title 可保留），仅确认为 unrestricted 才显示 --down（R2）
 	const fallback = UI_STRINGS.refBar.fallback;
 	const trimmed = tier?.trim();
-	const title = trimmed ? `权限档: ${trimmed}` : fallback;
+	const title = trimmed ? UI_STRINGS.refBar.permissionTitle(trimmed) : fallback;
 	return {
 		text: fallback,
 		title,

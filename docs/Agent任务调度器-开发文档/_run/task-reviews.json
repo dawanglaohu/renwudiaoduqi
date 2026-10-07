@@ -984,12 +984,16 @@
   },
   "M9-T23": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "2b34ff9a275284fbf4dd896c961814d4da445a4891ec6f54150f652e9b0710be",
+    "contractHash": "a7ce8b053fcef3ab1f2d0d7b8e00dbd5b4f3164b5884542e70008da8e0e6fad1",
     "evidence": [
-      "M9-T23: desktop-density-20260929 adds shared 11-UI.md spacing context; patch changes.before/after shows task acceptance, edges and effective paths unchanged. New density implementation is scoped to todo M9-T28/M9-T29. M9-T23 stays todo; semantic contract review does not mark its code complete.",
-      "M9-T23 note retains grouped model/login/effort acceptance and E-254/E-335 through E-359 boundaries; full pnpm -w check on base 33c483f9 passed 206 test files and 2551 tests (3 skipped)."
+      "Verified acceptance 1-9, all 13 original edges, prerequisite capabilities and route/event registrations against current main and the original PR.",
+      "Support paths cover only affected production layout and regressions plus rerun.ts and its two existing test files required by the remaining R1 CI failure. No API, DTO, schema or gate semantic change.",
+      "Actual-count grid, left-rail assignment and left-aligned form/sidebar pass every required density verdict at 1920x1080 and 1440x900; 390x844 has no horizontal overflow. Stored probe output: _run/M9-T23.review-round-2.evidence.json.",
+      "Jev jev-1.13.0: density option A low 0.34 adopted; sequence-gap fix option A high 0.96 adopted. Both actions are implemented on the original branch, and overlap with M9-T28 is preserved for reconciliation.",
+      "Final local pnpm -w check passed: 218 files, 2642 passed and 3 existing skipped. Rerun/bughunt focused tests: 31 passed. Sequence-gap tests fail with old code and pass with corrected production code.",
+      "Real-provider browser evidence verifies one shared refresh, ordinary reads restored, exact assistant final reply, model refusal zero-output, rerun with zero gate writes, reassign focus and confirmation refusal. Final clean-head recording and exact-head CI are required before merge and published on PR #172."
     ],
-    "reviewed": "2026-09-29T00:23:33.584777+00:00",
+    "reviewed": "2026-10-01T01:39:50.107186+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1041,13 +1045,13 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af",
     "evidence": [
-      "有效路径文件已核存在：taskPaths 9 个里 7 个既有文件在主干 8ee193e 上存在（run-deck-view.tsx、lanes-container.tsx、run-deck-container.tsx、deck-page.tsx、stream-column.tsx、empty-onboarding.tsx、assign-panel.tsx），packages/web/src/lib/deck-grid.ts 与 packages/web/test/deck-grid.test.ts 由本任务新建；supportPaths 10 个文件全部存在。",
-      "依赖任务已落地：M9-T16、M9-T17、M9-T18、M9-T19、M9-T21 在 docs-data.js 的 progress 里均为 done；按 git log -1 与 taskPaths/supportPaths 反查，它们就是最后改过这些文件的原任务；另两个最后改动者 R13-T57054072、R14-T23602992 是已落地的返工任务，不写进 19 节依赖。",
-      "验收 1–6 均可客观判定：探针命令与 --init 令牌取法、D2 fill ≥ 0.85 / D3 emptyTracks 为空 / D6、1920×1080 与 1440×900 两档视口、左栏与泳道下缘离视口底 ≤ 16px、vitest 的泳道数 × 档位组合、rg 清零范围与 e2e 用例都写明；引用的 E-106、E-108、E-145、E-163、E-164、E-165、E-167、E-168、E-236、E-319、E-324 均在 13 节存在。",
-      "与 11 节「间距与容器契约」一致：完整档泳道 repeat(N, minmax(var(--stream-min), 1fr)) 吃满、--stream-max 不再封顶（Jev design pick=A，high 0.99，adopt=take）；零运行四步引导按 11 节页面清单原文落在左栏派发面板，22 节无相反裁决。",
-      "路径冲突已核：待派的 M9-T23 与本任务共用 packages/web/src/components/assign-panel.tsx，它未落地、不写成依赖，由交接台的路径冲突检测串行处理；主干 8ee193e 上本任务路径内的守护命中是 empty-onboarding.tsx:295 与 run-deck-view.tsx:421，与验收 6 一致。"
+      "第二轮仅复核第一轮 R1/R2/R3。任务契约、前置、有效路径、11/13/17/19 节与当前主干 M9-T23 合并内容复核；契约哈希未变。所有本层产品与测试差异均在原有效路径内，main 的 daemon/batch-14 修复保持原字节，不将主干改动伪记为本层修复。",
+      "R1 真实生产 daemon 公开配对、浏览器导入、确认指派、回改、取消、再次保存在 1440x900/1920x1080/390x844 通过。桌面编辑行 209/209px、手机 328/328px，确认/取消单行，桌面高32px、触控44px。模型与思考强度触发器触控补足44px；登录与清单、重派定位接线保留。",
+      "合并主干后的生产构建及 pnpm -w check 219文件/2657通过/3原有跳过；原 batch-13 12/12，断言未改；触控高度补丁后的指派/模型/思考强度44/44。原密度探针N2复测1920/1440fill0.981/0.973，D1-D6pass、emptyTracks=[]、390无溢出、1920左栏底0泳道16；未受影响N1/3/5复用第一轮真实矩阵。",
+      "R2 返工36ba2e75真实GIF1440x900源帧与单次nativeCodex完成记录已核。合并后的最终提交将另录同一生产实例/全新浏览器上下文的公开配对、导入、指派、派发、真实模型完成，并在PR记录head/origin/run/源帧及远端媒体校验。R3 返工head正常CI全绿已核；合并后的最终head必须正常CI全绿才执行合并，此契约登记不代替该代码门禁。",
+      "第一轮三项实施候选及CI范围裁决全部由真实Jev jev-1.13.0确认take(A)。本轮不改原候选或方向：保留原工作树与PR、手机引导在任务面板、公开设置配置密度矩阵、待主干所属修复与最终提交必需检查通过后落地。合并使用唯一网格模板和全高链，修复已定44px触控约定，不产生新的方向裁决。"
     ],
-    "reviewed": "2026-09-28T22:12:15.316480+00:00",
+    "reviewed": "2026-10-01T03:25:52.119833+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1055,13 +1059,14 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "de393c7c679e1a64efca907abdb248fc43daea004c7cad0bcc160c996adef964",
     "evidence": [
-      "有效路径文件已核存在：taskPaths 21 个文件在主干 8ee193e 上全部存在；supportPaths 12 个文件全部存在。",
-      "依赖任务已落地：M9-T13、M9-T14、M9-T15、M9-T20、M9-T22、M9-T25、M9-T27、M10-T6 在 docs-data.js 的 progress 里均为 done，且是最后改过对应文件的原任务（git log -1 反查）；M9-T28 是同一补丁新增的任务，按依赖层号排在本任务之前（第 16 批 / 第 17 批）。",
-      "验收 1–5 均可客观判定：每页路由、两档视口、--type 按 11 节页面类型取 work / form / card、D1–D6 判定、卡宽上限、两条守护的扫描目录与白名单规则、正反用例文件与旧文件只改类名的清单都写明；引用的 E-145、E-224、E-226 均在 13 节存在。",
-      "守护可落地：主干 8ee193e 上按同一类名规则静态扫描，命中与渲染报告一致——甲板两处归 M9-T28，设置页、落地清单、单卡页 5 处与路由上用不到的旧文件 2 处归本任务；三个旧文件仍被测试与其他任务的有效路径引用（task-list-page.tsx 在 M9-T19，mobile-batch-list.tsx 在 M9-T19 / M9-T25 / M10-T6，batch-summary-bar.tsx 在 M9-T16，另有 landing-onboarding.test.ts 与 thumb-bar.test.ts 引用），所以只改类名不删文件。",
-      "路径冲突已核：待派的 M9-T23 与本任务共用 settings-agents-page.tsx、settings-pipeline-page.tsx、agent-card.tsx、model-picker.tsx 与 check-forbidden.ts / check-forbidden.test.ts，它未落地、不写成依赖，由交接台的路径冲突检测串行处理。"
+      "第2轮仅核第1轮R1/R2及其直接回归。当前PR #175代码head a139502abc173ca3a39c32550868ab4c80b82bdd，与main 76ecacfe564fd1bbea787b30ae9faa747dc99d15对照；契约哈希未变，前置、边界、13/17/19要求及有效范围沿用首轮已核事实。",
+      "R1已修：check-forbidden.ts:183对二元+使用实际字符串连接；源码级居中组合命中CENTERED_WORK_SURFACE，p-4加sm:p-3不再误报。模板、join、cn/clsx/classNames和条件分支隔离由check-forbidden.test.ts:62起覆盖；独立首轮反例脚本复跑结果正确。",
+      "R2已修：check-forbidden.ts:44对px/rem、常量calc、括号、四则运算及已知token求值，不执行源码；check-forbidden.test.ts:106起源码级增长/相等/收紧及轴向回归通过。p-2 md:p-[calc(4px*4)]正确命中8px到16px增长；未知、循环、除零和不合法量纲不编造值。",
+      "pnpm exec vitest run packages/web/test/check-forbidden.test.ts：89用例通过；pnpm -w check：219测试文件、2717用例通过、3个既有跳过。类型、Biome、对比度及机械守护全部通过。反例结果和测试日志保存在原planning的review-round2-*.log，PR留存本轮结论。",
+      "本轮只改守护、其测试及任务受保护回填区，packages/web/src与首轮页面验收提交3647928408452a2de8402b06cb0ea2c2dd065fc6完全一致。复用首轮生产页面21次探针、同代码有效运行3次探针及真实服务GIF；原pairing-entry 7通过、batch-13管理员权限12通过；没有扩展为新模型或自动派发验收。",
+      "代码位置与实施沉淀已核对且更新到实际行号；实施方/审查方均无未定裁决。当前GitHub原代码head三平台CI、生产配对、E2E、流水线设置E2E和Release Gate均success；Signing Gate为工作流规定的skipped。正式落地前复核最终head与所需检查。"
     ],
-    "reviewed": "2026-09-28T22:12:39.057873+00:00",
+    "reviewed": "2026-10-01T16:13:38.173989+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1218,6 +1223,38 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R17-T70594995": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "81596a5e5519a5d4489dbb68fe2047a39306c268dbd008124bff41aecd2fee09",
+    "evidence": [
+      "第2轮仅核R1-R3。对照review1的103个直接复用/设置调用片段，10个源AST扫描运行时中文为0；8个周边源与9f4fa94逐字一致，保留120项排除记录。字句来源逐条见batch-17-20261002.md:491起。",
+      "16个完整调用源受来源AST守护，字符串/模板/JSX/转义/数字实体负控、i18n/props及供应商数据正控和ui逆向依赖禁令保留。43项实际DOM验证原句、title/aria、点路径、未知码回落、零产出三动作与失败覆盖值。",
+      "06/07约定保持：普通UI文案来自ui-strings；设置错误码上下文翻译保留在error-messages唯一责任处。GroupedSelect只承接props，不新增DTO、错误码、探测能力判定或登录态派发禁用。",
+      "真实浏览器组合8/8、流水线设置12/12全部通过。同一轮订阅先于派发，当前零产出运行退出、awaiting_human、lane.released及stderrTail实时事件全通过。测试子进程输出消息后保持实施轮次，按该RunDto的laneNo核对来源任务，核对后释放；失败清理同样释放。原断言、超时与生产代码均未放松。",
+      "审查方选择完整A/B经Jev adjudicate取A；model=jev-1.13.0，status=ok，pick=A(high 0.84)，spec_change=no，outside_stack=no，needs_owner=no，reversible=yes，adopt=take(A)。具体动作为测试时序与同一泳道取景修复。",
+      "pnpm -w check --no-file-parallelism --maxWorkers 1 --minWorkers 1退出0：223文件，2774通过，3既有平台跳过；Biome、TypeScript、机械禁令、错误码、对比度及架构检查均通过。首次并行RPC超时及测试等待点错误保留在失败历史，未以它们宣称通过。",
+      "E-335/E-355/E-356/E-358/E-359既有daemon/DTO和动作链保持；真实设置/组合回归通过。本任务没有新增接线责任，H12迁移关键词提示已核对。",
+      "原任务保护区已核命题并补充测试阶段等待与同一泳道位置。原AC、原批次集合与B7未改，Batch17继续open。实际UI导入两任务后的逐任务指派控件与1920/1440/390量测已核；最终干净提交另以同源生产构建、真实UI配对和原生1440x900GIF发布PR证据，模型轮次0，不能替代B7。"
+    ],
+    "reviewed": "2026-10-02T11:28:44.057852+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
+  "R17-T73118308": {
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "85cadc1f58a46a3f83c5de1f34ca87333a70bb70fd2c8fde30c5aa3f7a6a95be",
+    "evidence": [
+      "Round 2 R2 prerequisite continuation: repository CI secrets now exist and explicit workflow_dispatch run 37014182049 at f94345b68aa8649d3bac5f0d6a96b3477129e1ae succeeded. Real native provider 2/2, formal four-file browser E2E 40/40, pairing, pipeline, all three platform workspace/integration/shell jobs and requested-provider release gate succeeded. Actual provider preparation/test/upload/credential cleanup steps succeeded; no skipped provider was treated as a pass.",
+      "Reviewer independently verified GitHub artifact11230020157 digest against the actual 2440403-byte ZIP, SHA256 a98fa20cb56431daeeab56c95b6401de43b618081db74a3561006f96e9d92ddb. All20 extracted files match the archive, 15 browser frames are1440x900 and phone is390x844. No auth.json/config.toml is included and no JWT/credential-URI/named-token pattern was found in text artifacts. Detailed receipt is original planning/review-final-audit.json.",
+      "Archive evidence is clean at start with head=headAtEnd=f94345b; ordinary production bootstrap/registry/native transport, valid gpt-6.1-sol R17-CONTROL, genuine invalid-model error with zero content, UI setup and recovery, continuous SSE, current API/detail DOM/deck task failed and zero remaining target waiting cards are verified. Control/error/final native browser screenshots were independently viewed. Original R1/R3 evidence and failed history remain, no original assertion, timeout, lock, permission or authentication contract was reduced.",
+      "Fetched live main0724fb9 containing landed R17-T70594995. Merge-forward conflicts affect only Batch17 source appendices and generated/verification records. Preserved both source histories and both task reviews; restored main generated projections and regenerated through maintain_docs. Current contract hash, all eight acceptance criteria, eleven edges, stable key, effective paths and prerequisites remain unchanged. Product merge changes are the existing main UI text-source migration, with final combined-head checks and screenshots required before merge.",
+      "Code/notes protected task sections are reviewed and preserved; formal container registration and consumer paths remain. All existing adjudications retain their complete options, real Jev model/line and implemented actions; no new native/OS/UI design fork was introduced. No new API/type/layer or arbitrary scope expansion.",
+      "This pass registers the semantic task contract. The review will land only after final combined-head production provider/browser evidence and required checks pass, and current-head recording is verified and published. Historical Batch17 open remains for the separate full-batch closeout; task completion does not rewrite historical batch verdict or lower standards."
+    ],
+    "reviewed": "2026-10-02T14:17:53.373846+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T54786768": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "e80ef6cf04b42e52faeee079d5746f5a679ef03ba585ff67413f05da36bd0101",
@@ -1226,18 +1263,6 @@
       "R8-T54786768: checked current main implementation reference packages/daemon/src/http/plugins/90-error-handler.ts:47 against its landed task note; full pnpm -w check on base 33c483f9 passed 206 test files, 2551 tests (3 skipped), including web UI, daemon and shell coverage. This is revalidation of the changed document scope, not a new implementation verdict."
     ],
     "reviewed": "2026-09-29T00:23:33.584777+00:00",
-    "scope": "task-contract",
-    "verdict": "pass"
-  },
-  "R8-T69421773": {
-    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "e3edfdc2de392516d1750f0326c95003cb7c651ed4f80150ae27145864d1d866",
-    "evidence": [
-      "本证据仅复核返工任务定义可实施，不代表代码已修复或 CI 已通过。来源 M8-T5 原样重跑契约、E-177/E-323/E-331 和两次真实 CI，独立 JSON 记录真实 SQLite 正负对照。",
-      "AC1/2 要求新 id、bughunt kind、次数单调及同幂等键复用，符合原样重跑，不降低唯一约束；真实事务回滚必须保持闸门。AC3 要求跨任务交错及泳道占用负例，避免只修记录数后遗漏相邻共享状态。",
-      "AC4/5 由现有生产容器、HTTP 与 Batch 14 浏览器 E2E 检验，给 rerun 响应体和失败产物补诊断，禁止延长超时掩盖错误。有效路径包含容器注册点、生产重跑和查 bug 服务、仓储与相应测试，未扩展新的产品能力。"
-    ],
-    "reviewed": "2026-09-29T12:22:46.961644+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1251,9 +1276,10 @@
       "验收 4：13 节 E-36（13-边界问题与异常处理.md:49）、19 节 M8-T5 验收 6（19-模块任务拆分.md:81）、10 节 run.model_rejected 约定（10-接口约定.md:428）都写明仅在 agent 通过自身协议给出结构化错误字段时精确产出，否则按 E-348 转人，与 Claude 为 true、其余为 false 一致，正文无须改动；能力位说明写在 claude/capabilities.ts:12-20 与 codex/capabilities.ts:8-12 的注释里并注明实测版本。补丁 r8-t70356006-claude-recordings-20260929 经 begin/sync/verify 把四份录制夹具补进本任务有效路径，只影响本任务，review.json 阻断 0。",
       "验收 5：Windows 工作树两次合并 main（第二次含 PR #168 桌面密度补丁）后运行 pnpm -w check，错误码一致性、对比度与禁用项检查、biome ci（594 个文件）、tsc -b --noEmit 全部通过，vitest 206 个文件 2563 通过、3 跳过。提供模型专用字段的实际验证家数为 1（Claude Code 2.1.238 与 2.1.283）；Codex 0.157.1 app-server 只有 codexErrorInfo=other，Pi 0.87.1、Grok 1.0.41、OpenCode 1.18.32 按此前录制无该字段，Gemini CLI 0.61.0 未完成模型请求，这些能力位保持 false。",
       "E-36：模型名不做白名单校验直接透传（测试断言 --model 原样），只凭 Claude 的类型化 error 字段精确标注，失败后标派发失败·模型无效、状态事件带 agent 原文、释放泳道。E-348：判定只看事件 kind；503、401 两份录制与 E-36 正例带同一条 stderr 文本，仍按零产出进入 awaiting_human，stderr 与正文从不参与判定，dispatch-proc 架构测试守住 service/jobs 不嗅探文本。",
-      "范围外发现（未在本任务修改，另开任务）：内置 Claude 参数模板缺 --verbose，本机靠 settings.json 的 verbose=true 才能运行；生产启动形状带 --input-format stream-json，提示词却只作位置参数、stdin 保持打开未写入，实测 Claude Code 2.1.283 等待 90 秒无任何输出，关闭 stdin 则零输出退出；适配器不映射 type=assistant 的正常消息帧，未开 --include-partial-messages 时正常运行也产出不了内容事件。三者修复前，真实 Claude 运行到不了 API 调用，本任务的精确标注只在回放录制的测试中生效。"
+      "范围外发现（未在本任务修改，另开任务）：内置 Claude 参数模板缺 --verbose，本机靠 settings.json 的 verbose=true 才能运行；生产启动形状带 --input-format stream-json，提示词却只作位置参数、stdin 保持打开未写入，实测 Claude Code 2.1.283 等待 90 秒无任何输出，关闭 stdin 则零输出退出；适配器不映射 type=assistant 的正常消息帧，未开 --include-partial-messages 时正常运行也产出不了内容事件。三者修复前，真实 Claude 运行到不了 API 调用，本任务的精确标注只在回放录制的测试中生效。",
+      "2026-10-07 本轮审查：原 PR161 完整生产差异、Claude error 字段/主循环限定、能力位与真实录制来源逐项核对。已合入 main 37681592，保留全部主干生产修复与85条裁决日志，再追加本分支3条独立记录；生成文件按主干版本重新构建。production typed-rejection、E-348负例、容器接线及非连续次数回归四文件109项通过，Biome六文件与 TypeScript通过。运行日志在仓库外 four-pr-20261007/{parent-focused,parent-lint,parent-types}.log。已有真实厂商录制是历史实测，不冒称本轮重跑厂商。PR最终新head适用CI及整栈合并仍须由合并记录单独证明。"
     ],
-    "reviewed": "2026-09-29T11:58:09.739006+00:00",
+    "reviewed": "2026-10-07T02:09:55.018080+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

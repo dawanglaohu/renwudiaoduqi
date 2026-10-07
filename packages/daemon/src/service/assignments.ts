@@ -231,7 +231,7 @@ export function createAssignmentsService(deps: AssignmentsServiceDeps): Assignme
 	function countActiveRunsByAgent(): (agentId: string) => number {
 		const counts = new Map<string, number>();
 		for (const run of deps.runsRepo.listActive()) {
-			if (countsTowardAgentConcurrency(run.state as RunState)) {
+			if (countsTowardAgentConcurrency(run.state as RunState, run.session_archived_at)) {
 				counts.set(run.agent_id, (counts.get(run.agent_id) ?? 0) + 1);
 			}
 		}

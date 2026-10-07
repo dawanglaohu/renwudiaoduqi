@@ -10,6 +10,7 @@ import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { summarizeBatchLanding } from '../../src/domain/batch-landing.ts';
 import { AppError } from '../../src/errors/app-error.ts';
+import type { EnvelopeFactory } from '../../src/events/envelope.ts';
 import { registerBatchesRoutes } from '../../src/http/routes/batches.ts';
 import { registerTasksRoutes } from '../../src/http/routes/tasks.ts';
 import { type BatchWrapupsRepo, createBatchWrapupsRepo } from '../../src/repo/batch-wrapups.ts';
@@ -147,6 +148,13 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		};
 
 		const fakeEnvelopeFactory = {
+			async createEnvelopeAsync(
+				this: EnvelopeFactory,
+				input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+			) {
+				return this.createEnvelope(input);
+			},
+			cancelEnvelope: () => undefined,
 			createEnvelope: (input: {
 				runId?: string | null;
 				taskId?: string | null;

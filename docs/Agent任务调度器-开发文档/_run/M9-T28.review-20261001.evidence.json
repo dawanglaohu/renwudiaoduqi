@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T28": {
+      "contractHash": "249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af",
+      "evidence": [
+        "按当前契约哈希 249ccc4e3e6c845cb4b3a7edd35ac12dd8be39310636b47ccab8fef7c30539af 核对任务笔记、11 节间距与容器、13 节边界、17 节 check/E2E 命令及 19 节范围。此 pass 只登记文档契约语义复核；代码验收结论为 rework，未执行 --landed。",
+        "M9-T16/17/18/19/21 前置已在当前 main 落地。全部生产与测试改动均在有效路径内，任务笔记两个回填区已核；共享接口、daemon 与业务状态约定没有修改。",
+        "泳道布局读取 daemon 下发数据，密度类型复用 use-breakpoint.ts 的 DensityTier，桌面网格模板由 deck-grid.ts 单点提供。页面、容器、展示组件与 API 客户端分层保持既定约定。",
+        "AC1-6 与 E-106/108/145/163/164/165/167/168/236/319/324 已逐条对照生产消费者与测试。全量 check 和原版 batch-13 通过，真实密度矩阵通过；左栏指派控件、GIF 视口和 CI 门禁的返工项须修复后才可落地。原始证据保存在任务 planning 目录的 review-*.json 与 review-*.log，PR 留存完整本轮结论。",
+        "实施方全部 A/B 候选已加入当前 diff 事实重新交 Jev；模型 jev-1.13.0 对工作树沿用、手机引导落位、公开设置配置密度矩阵均返回 status=ok/adopt=take(A)。CI 范围裁决同为 take(A)：保留本 PR 未合并，待所属修复使必需检查变绿。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

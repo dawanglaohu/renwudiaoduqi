@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
+import type { EnvelopeFactory } from '../../src/events/envelope.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
 import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
@@ -74,6 +75,13 @@ function createTestEnvironment(options?: {
 	};
 
 	const envelopeFactory = {
+		async createEnvelopeAsync(
+			this: EnvelopeFactory,
+			input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+		) {
+			return this.createEnvelope(input);
+		},
+		cancelEnvelope: () => undefined,
 		createEnvelope: (input: {
 			kind: string;
 			runId?: string;
@@ -160,6 +168,58 @@ function createTestEnvironment(options?: {
 }
 
 describe('M8-T5: 重派、换 agent 与原样重跑', () => {
+	it.each(['rerun', 'redispatch'] as const)(
+		'E-177 & E-121: %s allocates after the highest attempt when the sequence has gaps',
+		async (action) => {
+			const env = createTestEnvironment();
+			env.batchesRepo.insert({ id: 'b1', doc_id: 'doc-1', batch_no: 1, state: 'running' });
+			env.tasksRepo.insert({
+				id: 'task-gap',
+				doc_id: 'doc-1',
+				batch_id: 'b1',
+				task_key: 'M8-GAP',
+				title: 'Attempt sequence gap',
+				module_key: 'M8',
+				deps_json: '[]',
+				contract_hash: 'hash-gap',
+				is_contract_ready: 1,
+				contract_reasons_json: '[]',
+			});
+			const snapshot = env.dispatchSnapshotsRepo.takeSnapshotForTask({
+				taskId: 'task-gap',
+				launchSpecJson: JSON.stringify({ agentId: 'codex', model: 'gpt-5' }),
+				createdAt: env.clock.now(),
+			});
+			for (const attempt of [1, 3]) {
+				env.runsRepo.insert({
+					id: `gap-${attempt}`,
+					task_id: 'task-gap',
+					attempt_no: attempt,
+					kind: 'implement',
+					state: 'failed',
+					agent_id: 'codex',
+					model_name: 'gpt-5',
+					permission_tier: 'workspaceWrite',
+					snapshot_id: snapshot.id,
+				});
+			}
+			const key = `gap-${action}`;
+			const result =
+				action === 'rerun'
+					? await env.service.rerunRun({ runId: 'gap-3', idempotencyKey: key })
+					: await env.service.redispatchRun({
+							taskId: 'task-gap',
+							agentId: 'claude',
+							idempotencyKey: key,
+						});
+			expect(result.run.attemptNo).toBe(4);
+			expect(result.run.id).not.toBe('gap-3');
+			expect(env.runsRepo.findByIdempotencyKey(key)?.id).toBe(result.run.id);
+			expect(env.runsRepo.findById('gap-3')?.state).toBe('failed');
+			expect(env.runsRepo.listByTaskId('task-gap')).toHaveLength(3);
+		},
+	);
+
 	describe('AC 1 & E-121: 换 agent 重派', () => {
 		it('新建运行记录、旧运行转只读留存，attemptNo 递增', async () => {
 			const env = createTestEnvironment();

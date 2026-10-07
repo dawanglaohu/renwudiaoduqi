@@ -29,7 +29,7 @@ export function TaskListPage() {
 			</div>
 
 			{/* 主内容区：由 TaskListContainer 承担拼装 */}
-			<main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full flex flex-col gap-6">
+			<main className="flex-1 p-[var(--sp-4)] w-full flex flex-col gap-[var(--sp-3)]">
 				<TaskListContainer />
 			</main>
 		</div>

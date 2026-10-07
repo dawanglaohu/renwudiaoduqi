@@ -1,0 +1,17 @@
+{
+  "tasks": {
+    "M9-T29": {
+      "contractHash": "de393c7c679e1a64efca907abdb248fc43daea004c7cad0bcc160c996adef964",
+      "evidence": [
+        "第1轮复核当前 M9-T29 的任务笔记、11节间距与容器、13节边界、17节测试命令与19节范围。此 pass 仅登记文档契约语义复核；代码验收结论 rework，未执行 --landed。",
+        "前置 M9-T28/M9-T13/M9-T14/M9-T15/M9-T20/M9-T22/M9-T25/M9-T27/M10-T6 均已在 main 落地；PR #175 对当前 main 的16个变更文件均属于有效Web路径或任务笔记回填。原PR与工作树保留，未扩大契约。",
+        "AC1/2/4/5 与 E-145/E-224/E-226 已对照 routes.tsx:49-54、app.tsx装配、pairing.ts:106-162及现有E2E。页面不新增取数、登录态判断、DTO或API出口，设备页原Hook与事件动作保持。",
+        "pnpm -w check 在 head 3647928408452a2de8402b06cb0ea2c2dd065fc6 上219文件2692通过3既有跳过；原生产pairing-entry 7通过。7页面在1920/1440/390使用未改density_probe复跑21次通过；原有效运行3次测量及同head真实Codex GIF作为复用证据。",
+        "AC3的两条守护有可复现代码缺陷：字符串 + 拼接漏掉 max-w-4xl mx-auto，且将 p-4 + sm:p-3 误报；p-2 md:p-[calc(4px*4)] 在8px到16px增长时放行。已形成R1/R2，要求修复后仅复核这两项；本轮契约复核不替代实现验收。",
+        "实施方自行裁决为无，审查没有未定的产品/架构取舍。任务代码位置与实施沉淀已回填，并按dsh-prose-standard与dsh-trim-cot-leakage核对。证据保存于原planning目录review-*.log/json，PR留存完整结论。"
+      ],
+      "verdict": "pass"
+    }
+  },
+  "scope": "task-contract"
+}

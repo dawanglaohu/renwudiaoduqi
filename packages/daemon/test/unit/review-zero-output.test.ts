@@ -157,6 +157,13 @@ describe('M8-T9 Review Zero Output (AC 7, AC 8, E-348, E-62, E-354)', () => {
 
 		let envId = 1;
 		envelopeFactory = {
+			async createEnvelopeAsync(
+				this: EnvelopeFactory,
+				input: Parameters<EnvelopeFactory['createEnvelope']>[0],
+			) {
+				return this.createEnvelope(input);
+			},
+			cancelEnvelope: vi.fn(),
 			createEnvelope: vi.fn((opts) => ({
 				id: envId++,
 				ts: '2026-09-17T12:00:00.000Z',

@@ -19,12 +19,15 @@ import type {
 	GateSettings,
 	UpdateGateSettingsResponse,
 } from '@agent-scheduler/shared/api/settings';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient, isApiError } from '../../api/http-client.ts';
+import { sseClient } from '../../api/sse-client.ts';
 import { GateToggles } from '../../components/gate-toggles.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { getErrorMessage } from '../../i18n/error-messages.ts';
+import { readCurrentDeviceId } from '../../shell/shell-bridge.ts';
+import { registerResyncHandler } from '../../store/connection-store.ts';
 
 const getGatesRoute: RouteDefinition | undefined = ROUTES.find(
 	(r) => r.method === 'GET' && r.path === '/api/v1/settings/gates',
@@ -38,6 +41,26 @@ const patchGatesRoute: RouteDefinition | undefined = ROUTES.find(
 interface GateTogglesError {
 	readonly message: string;
 	readonly technical: string;
+}
+
+interface PendingGatePatch {
+	readonly gates: GateSettings;
+	readonly deviceId: string | null;
+	httpDone: boolean;
+	eventSeen: boolean;
+}
+
+function matchesPatch(
+	gates: GateSettings,
+	actorDeviceId: string | null,
+	pending: PendingGatePatch,
+): boolean {
+	return (
+		(!pending.deviceId || actorDeviceId === pending.deviceId) &&
+		gates.dispatch === pending.gates.dispatch &&
+		gates.review === pending.gates.review &&
+		gates.landing === pending.gates.landing
+	);
 }
 
 function toGateTogglesError(error: unknown, fallback: string): GateTogglesError {
@@ -78,83 +101,142 @@ export function GateTogglesContainer({
 	const [gates, setGates] = useState<GateSettings | null>(initialGates ?? null);
 	const [isPending, setIsPending] = useState<boolean>(false);
 	const [error, setError] = useState<GateTogglesError | null>(null);
+	const mounted = useRef(false);
+	const sourceVersion = useRef(0);
+	const readVersion = useRef(0);
+	const pendingPatch = useRef<PendingGatePatch | null>(null);
+	const patchCompletion = useRef<Promise<void> | null>(null);
 
-	// 1. 初始化拉取闸门状态（使用 shared 契约路由与 callRoute，R4）
-	useEffect(() => {
-		let isMounted = true;
-
-		const fetchGates = async () => {
+	const fetchGates = useCallback(
+		async function readGates(recover = false): Promise<void> {
+			// Recovery must observe the committed write, even when reconnect beats its HTTP response.
+			if (recover && patchCompletion.current) await patchCompletion.current;
+			if (!mounted.current) return;
+			const requestVersion = sourceVersion.current;
+			const requestReadVersion = ++readVersion.current;
+			const pendingAtRead = pendingPatch.current?.httpDone ? pendingPatch.current : null;
 			try {
-				if (fetcher) {
-					const res = await fetcher();
-					if (isMounted && res?.gates) {
-						setGates(res.gates);
+				const res = fetcher
+					? await fetcher()
+					: getGatesRoute
+						? await httpClient.callRoute<UpdateGateSettingsResponse>(getGatesRoute)
+						: null;
+				if (
+					mounted.current &&
+					requestReadVersion === readVersion.current &&
+					requestVersion === sourceVersion.current &&
+					res?.gates
+				) {
+					setGates(res.gates);
+					setError(null);
+					if (recover && pendingAtRead && pendingPatch.current === pendingAtRead) {
+						pendingPatch.current = null;
+						setIsPending(false);
 					}
-					return;
-				}
-
-				if (getGatesRoute) {
-					const res = await httpClient.callRoute<UpdateGateSettingsResponse>(getGatesRoute);
-					if (isMounted && res?.gates) {
-						setGates(res.gates);
-					}
+				} else if (
+					recover &&
+					mounted.current &&
+					requestReadVersion === readVersion.current &&
+					pendingAtRead &&
+					pendingPatch.current === pendingAtRead &&
+					requestVersion !== sourceVersion.current
+				) {
+					await readGates(true);
 				}
 			} catch (cause: unknown) {
-				if (isMounted) {
+				if (
+					mounted.current &&
+					requestReadVersion === readVersion.current &&
+					requestVersion === sourceVersion.current
+				) {
 					setError(toGateTogglesError(cause, '读取闸门设置失败，请稍后重试'));
 				}
 			}
-		};
+		},
+		[fetcher],
+	);
 
+	useEffect(() => {
+		mounted.current = true;
 		if (!initialGates) {
 			void fetchGates();
 		} else {
+			sourceVersion.current += 1;
 			setGates(initialGates);
 		}
-
-		return () => {
-			isMounted = false;
-		};
-	}, [initialGates, fetcher]);
-
-	// 2. 订阅 settings.gates_changed milestone 事件回流（E-299）
-	useEffect(() => {
 		const unsub = eventBus.subscribeMilestone((envelope) => {
 			if (envelope.kind === 'settings.gates_changed' && envelope.payload) {
 				const payload = envelope.payload as { readonly gates?: GateSettings };
 				if (payload.gates) {
+					sourceVersion.current += 1;
 					setGates(payload.gates);
-					setIsPending(false);
 					setError(null);
+					const pending = pendingPatch.current;
+					if (pending && matchesPatch(payload.gates, envelope.actorDeviceId, pending)) {
+						pending.eventSeen = true;
+						if (pending.httpDone) {
+							pendingPatch.current = null;
+							setIsPending(false);
+						}
+					}
 				}
 			}
 		});
+		const unregisterResync = registerResyncHandler(() => fetchGates(true));
+		const unregisterReplay = sseClient.onClearBuffer(() => {
+			void fetchGates(true);
+		});
 
 		return () => {
+			mounted.current = false;
+			readVersion.current += 1;
 			unsub();
+			unregisterResync();
+			unregisterReplay();
 		};
-	}, []);
+	}, [initialGates, fetchGates]);
 
 	// 3. 提交全量三值 PATCH 更新（不翻转状态、不提前结束 pending，只等事件回流，R4, E-299）
 	const handleChange = useCallback(
 		async (nextValues: GateSettings) => {
+			if (pendingPatch.current) return;
+			const pending: PendingGatePatch = {
+				gates: nextValues,
+				deviceId: readCurrentDeviceId(),
+				httpDone: false,
+				eventSeen: false,
+			};
+			pendingPatch.current = pending;
+			sourceVersion.current += 1;
 			setIsPending(true);
 			setError(null);
 
-			try {
-				if (patcher) {
-					await patcher(nextValues);
-				} else if (patchGatesRoute) {
-					await httpClient.callRoute<UpdateGateSettingsResponse, GateSettings>(patchGatesRoute, {
-						body: nextValues,
-					});
-				}
-				// 注意：PATCH 成功响应后绝不提前翻转状态，也不提前结束 pending（R4），严格等待 settings.gates_changed 回流
-			} catch (cause: unknown) {
-				// 失败才解除 pending，保持服务端当前真实值，错误就地提示（E-299、07 节错误体系）
-				setIsPending(false);
-				setError(toGateTogglesError(cause, '闸门设置未能保存，请稍后重试'));
-			}
+			const operation = Promise.resolve()
+				.then(async () => {
+					if (patcher) {
+						await patcher(nextValues);
+					} else if (patchGatesRoute) {
+						await httpClient.callRoute<UpdateGateSettingsResponse, GateSettings>(patchGatesRoute, {
+							body: nextValues,
+						});
+					}
+					pending.httpDone = true;
+					if (mounted.current && pendingPatch.current === pending && pending.eventSeen) {
+						pendingPatch.current = null;
+						setIsPending(false);
+					}
+				})
+				.catch((cause: unknown) => {
+					if (!mounted.current || pendingPatch.current !== pending) return;
+					pendingPatch.current = null;
+					setIsPending(false);
+					setError(toGateTogglesError(cause, '闸门设置未能保存，请稍后重试'));
+				})
+				.finally(() => {
+					if (patchCompletion.current === operation) patchCompletion.current = null;
+				});
+			patchCompletion.current = operation;
+			await operation;
 		},
 		[patcher],
 	);

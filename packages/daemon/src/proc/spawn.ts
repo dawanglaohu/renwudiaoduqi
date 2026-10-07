@@ -135,6 +135,11 @@ export interface ManagedProcess {
 }
 
 export interface SpawnManagedOptions {
+	readonly outputBackpressure?: {
+		readonly isPaused: boolean;
+		readonly onPause: (listener: () => void) => () => void;
+		readonly onResume: (listener: () => void) => () => void;
+	};
 	readonly platform: SupportedPlatform;
 	readonly exitDrainGraceMs?: number;
 	readonly baseEnv?: Readonly<Record<string, string | undefined>>;
@@ -519,18 +524,49 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 	let activeAppendQueue: AppendQueue | undefined = options.appendQueue;
 	let detachQueue: (() => void) | undefined = undefined;
 
-	function bindAppendQueue(queue: AppendQueue): () => void {
-		if (child.stdout === null || typeof queue.attachStream !== 'function') return () => {};
-		const unbind = queue.attachStream(child.stdout);
+	function bindAppendQueue(queue?: AppendQueue): () => void {
+		const stdout = child.stdout;
+		if (stdout === null) return () => {};
+		const outputPressure = options.outputBackpressure;
+		let diskPaused = queue?.isPaused ?? false;
+		let eventsPaused = outputPressure?.isPaused ?? false;
+		const update = () => {
+			if (diskPaused || eventsPaused) stdout.pause();
+			else stdout.resume();
+		};
+		const unbind = queue?.attachStream?.({
+			pause: () => {
+				diskPaused = true;
+				update();
+			},
+			resume: () => {
+				diskPaused = false;
+				update();
+			},
+		});
+		const unpause = outputPressure?.onPause(() => {
+			eventsPaused = true;
+			update();
+		});
+		const unresume = outputPressure?.onResume(() => {
+			eventsPaused = false;
+			update();
+		});
+		if (eventsPaused || diskPaused) update();
 		return () => {
-			unbind();
+			unbind?.();
+			unpause?.();
+			unresume?.();
 			if (activeAppendQueue === queue) {
 				activeAppendQueue = undefined;
 			}
 		};
 	}
 
-	if (options.appendQueue !== undefined && child.stdout !== null) {
+	if (
+		(options.appendQueue !== undefined || options.outputBackpressure !== undefined) &&
+		child.stdout !== null
+	) {
 		detachQueue = bindAppendQueue(options.appendQueue);
 	}
 

@@ -1,3 +1,4 @@
+import type { EffortValue } from '../../../../shared/src/api/agents.ts';
 import { AgentCard, type AgentEntryWithLayers } from '../../components/agent-card.tsx';
 import type {
 	AgentFieldKey,
@@ -6,6 +7,7 @@ import type {
 } from '../../components/field-layers-row.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { LaneCountSetting } from '../../components/lane-count-setting.tsx';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { useAgentModels } from './use-agent-models.ts';
 import { useSettingsAgents } from './use-settings-agents.ts';
 
@@ -18,7 +20,12 @@ interface AgentCardItemProps {
 		value: string | number,
 	) => Promise<boolean>;
 	readonly onProbe: (agentId: string) => Promise<unknown>;
-	readonly validationError?: Partial<Record<AgentFieldKey, FieldErrorInfo>>;
+	readonly onClearOverride: (
+		agentId: string,
+		field: 'defaultModel' | 'defaultEffortTier',
+	) => Promise<boolean>;
+	readonly onUpdateEffortTier: (agentId: string, value: EffortValue) => Promise<boolean>;
+	readonly validationError?: Partial<Record<AgentFieldKey | 'defaultEffortTier', FieldErrorInfo>>;
 	readonly isProbing?: boolean;
 	readonly isUpdating?: boolean;
 }
@@ -28,13 +35,14 @@ function AgentCardItem({
 	getFieldLayers,
 	onUpdateField,
 	onProbe,
+	onClearOverride,
+	onUpdateEffortTier,
 	validationError,
 	isProbing,
 	isUpdating,
 }: AgentCardItemProps) {
-	const { models, isComplete, isLoading, isRefreshing, refresh, addCustomModel } = useAgentModels(
-		agent.id,
-	);
+	const { catalog, models, isComplete, isLoading, isRefreshing, refresh, addCustomModel } =
+		useAgentModels(agent.id);
 
 	return (
 		<AgentCard
@@ -42,6 +50,9 @@ function AgentCardItem({
 			getFieldLayers={getFieldLayers}
 			onUpdateField={onUpdateField}
 			onProbe={onProbe}
+			onClearOverride={onClearOverride}
+			onUpdateEffortTier={onUpdateEffortTier}
+			catalog={catalog}
 			models={models}
 			isModelsComplete={isComplete}
 			isModelsLoading={isLoading}
@@ -76,6 +87,8 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 		validationErrors,
 		probeAgent,
 		updateAgentField,
+		clearAgentOverride,
+		updateAgentEffortTier,
 		setLaneCount,
 		getFieldLayers,
 	} = useSettingsAgents({ targetDocId });
@@ -85,10 +98,10 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 			<div
 				data-component="settings-agents-container"
 				data-testid="settings-agents-container"
-				className="flex flex-col gap-4"
+				className="flex flex-col gap-[var(--sp-3)]"
 			>
-				<div className="flex items-center justify-center p-8">
-					<InlineNotice tone="muted" message="正在加载 Agent 注册表..." />
+				<div className="flex items-start p-3.5">
+					<InlineNotice tone="muted" message={UI_STRINGS.settingsAgents.loading} />
 				</div>
 			</div>
 		);
@@ -98,7 +111,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 		<div
 			data-component="settings-agents-container"
 			data-testid="settings-agents-container"
-			className="flex flex-col gap-6"
+			className="flex flex-col gap-[var(--sp-3)]"
 		>
 			{/* 错误提示：中文文案在展示层，daemon 英文 message 只进技术详情 */}
 			{error && (
@@ -106,7 +119,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 					<InlineNotice
 						tone="down"
 						testId="settings-agents-error-notice"
-						message="加载 Agent 列表失败，请重试"
+						message={UI_STRINGS.settingsAgents.loadFailed}
 						technical={error.message}
 					/>
 				</div>
@@ -122,7 +135,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 			/>
 
 			{/* 2. Agent 列表 */}
-			<div className="flex flex-col gap-4">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,560px),1fr))] gap-[var(--sp-3)]">
 				{agents.map((agent) => (
 					<AgentCardItem
 						key={agent.id}
@@ -130,6 +143,8 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 						getFieldLayers={getFieldLayers}
 						onUpdateField={updateAgentField}
 						onProbe={probeAgent}
+						onClearOverride={clearAgentOverride}
+						onUpdateEffortTier={updateAgentEffortTier}
 						validationError={validationErrors[agent.id]}
 						isProbing={probingAgentId === agent.id}
 						isUpdating={updatingAgentId === agent.id}

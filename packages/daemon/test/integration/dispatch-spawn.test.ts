@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildCodexLaunchSpec } from '../../src/adapters/codex/build-launch-spec.ts';
 import { createContainer } from '../../src/boot/container.ts';
 import type { ProcessConfig } from '../../src/config/env.ts';
+import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
@@ -774,6 +775,9 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(latestProc).not.toBeNull();
 		const activeRuns = container.repos.runs.listActive();
 		expect(activeRuns.some((r) => r.pid === 88888 && r.state === 'running')).toBe(true);
+		for (const runId of tickResult.runsDispatched) {
+			expect(container.repos.runs.findById(runId)?.batch_id).toBe('batch-1');
+		}
 	});
 
 	it('R1: real proc wiring: missing platform throws; bound container proc passes shell: false to spawn options', async () => {
@@ -805,6 +809,14 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const { tempDir, db, clock } = setupTestEnvironment();
 
 		const realContainer = createContainer({
+			agentRegistry: createAgentRegistry({
+				dataDir: tempDir,
+				platform: 'posix',
+				builtInDefaults: {},
+				publishWarning: (warning) => {
+					throw new Error(warning.message);
+				},
+			}),
 			config: createTestConfig(tempDir),
 			database: db,
 			hostInputs: { platform: 'linux', homedir: tempDir },
@@ -812,9 +824,14 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 			instanceLock: dummyLockHandle,
 			clock,
 		});
-		realContainer.proc.spawnManaged(dummySpec, { spawnFn: fakeSpawnFn });
-
-		expect(capturedSpawnOptions).toEqual(expect.objectContaining({ shell: false }));
+		await realContainer.services.agents.start();
+		const managed = realContainer.proc.spawnManaged(dummySpec, { spawnFn: fakeSpawnFn });
+		try {
+			expect(capturedSpawnOptions).toEqual(expect.objectContaining({ shell: false }));
+		} finally {
+			await managed.finalize();
+			await realContainer.services.agents.stop();
+		}
 	});
 
 	it('R2: upstream output not in HEAD without explicit upstreamBranch throws E_UPSTREAM_BASE_MISSING, explains "下游 base 缺上游产出", does not create worktree', async () => {
