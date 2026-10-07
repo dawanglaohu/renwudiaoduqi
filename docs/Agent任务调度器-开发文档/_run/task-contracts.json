@@ -283,7 +283,10 @@
         "packages/web/tsconfig.json",
         "packages/web/src/placeholder.ts",
         "package.json",
-        "pnpm-lock.yaml"
+        "pnpm-lock.yaml",
+        "packages/web/index.html",
+        "packages/web/public/theme-init.js",
+        "packages/web/test/theme-initial.test.ts"
       ]
     },
     "M9-T4": {

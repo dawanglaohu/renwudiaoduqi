@@ -21,13 +21,13 @@
   },
   "M1-T11": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "418d78941f3af391b23ee64c8ebb930728db56062da8746307e3a5642e419219",
+    "contractHash": "0262cf5bc95134163d391ebb343fe55cdcf422a7adb3df96c52ce79e949990cd",
     "evidence": [
-      "M1-T11 补丁基线到当前版本的变化字段：前置哈希传播",
-      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M1-T11 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -113,73 +113,73 @@
   },
   "M10-T1": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a6fba7f4209f44f91d737c4229673682667b8df944ae74b2c90429aeb1394e54",
+    "contractHash": "faa8354bbdff33d3eee6b913c81282cd96b7b1c37318fbb8304c37ae6a9f8ca7",
     "evidence": [
-      "M10-T1 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M10-T1 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T2": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "7cb5d249f36e13ff4443ebae0f788a82667c2f6aaa765cc4073e464582b79981",
+    "contractHash": "d8180152343c4508281785c75e2439e44c3e893186fcb7c29ea389879cd36043",
     "evidence": [
-      "M10-T2 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M10-T2 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T3": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "7fb662a4439a3d4d372efeed04815fd1f2507260d66bac65bd9e05fe31760ec3",
+    "contractHash": "d19e97164a85f579ebd2d268255b31dfb0c0e0587a97daae805a274f7684fcde",
     "evidence": [
-      "M10-T3 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M10-T3 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T4": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "0a4700f53c59093d9ff2a507d9b9020eae083ddf2adba9651b5829d89037abaf",
+    "contractHash": "ae3b14c3919a407da4bff9308e89dbaea3ebdc89543951dd4ea90003a496db5c",
     "evidence": [
-      "M10-T4 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M10-T4 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T5": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "c1cb02407a4b8cf0ce28bd20d97d0a3c00be4791d0ee91c4d3a35ca5c0a695bc",
+    "contractHash": "ffde535d2efb013a12e9711a34fa4820910123ce44d3d2564bd18cf3e881a1a0",
     "evidence": [
-      "M10-T5 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M10-T5 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M10-T6": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "62c46f70ea528962092c689d74c3cd0308fc25744f1c48929b62e805205bb059",
+    "contractHash": "f38bc53ee2b868168f112d2d0e091cacd5c04ed74500e47c2bf92c35a7d451eb",
     "evidence": [
-      "M10-T6 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M10-T6 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -255,13 +255,13 @@
   },
   "M2-T8": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d8dc99ea9cf588cf4ed81fd5d8b76aa3f313585fb34bc2c2e6e00e74c110e42c",
+    "contractHash": "26daa96860da7de7c2a612adbd22997af7ea0361b81f13d407245cd798077332",
     "evidence": [
-      "M2-T8 补丁基线到当前版本的变化字段：前置哈希传播",
-      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M2-T8 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -839,349 +839,349 @@
   },
   "M9-T1": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "076f4086a6c1ca6e0f12330a3205c41d77b0c848cf80b66604fd389f077ed81b",
+    "contractHash": "2a138740f04716e204d7ee54e3d41214fdb0c8bf8cc0db9580062cdfd583d75e",
     "evidence": [
-      "M9-T1 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T1 实际变化字段：definition, effectivePaths",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T10": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "bbc51b82e105e7760f152ef7e387b121ce488b25d01c38dde3d10cc7e05b02a9",
+    "contractHash": "a4f4eecc05b276a8028acc4eb0da2d65a780ebbcff1541630a81c9a975a68b4f",
     "evidence": [
-      "M9-T10 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T10 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T11": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "0ddec94939231c3272973e25a36bcaf901209d4411124a4a31ab0ab15246e778",
+    "contractHash": "168babbb67a132916a82bb608215f9c966d5e0e0c572cddc93229abde4ca8f30",
     "evidence": [
-      "M9-T11 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T11 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T12": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "da876171bc24c363e0beb8cf19937172c6f53564de264a40e72332224711d812",
+    "contractHash": "5684ff2dc96236fd98ecb8c4e1fbd0ef4c5538b62e0fea6cd388a43a9dc7e0b8",
     "evidence": [
-      "M9-T12 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T12 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T13": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "78bb8b6d5874a74f68b3e585fdccea7f64f8eb62425086522cb6ec12d1202ddd",
+    "contractHash": "e4853b660538c334fced32b31ac1226a48237b47524cf9f5a4ee4607f464f201",
     "evidence": [
-      "M9-T13 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T13 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T14": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "3009558e38b855a2a802b2d3de2905cc65eaf9c6dfb8e5164fab0e802e94887f",
+    "contractHash": "baae84606a11f4734c0a7001a5e44520966c387c87c284b2f3ce46f2498aa54b",
     "evidence": [
-      "M9-T14 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T14 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T15": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "858111243485b5442e33ef1218047fe8b3a695c08f1b2fda24395c4d028eb1fe",
+    "contractHash": "400772d3662fe6ed3f7133134bec59f9d87f6836c29081c8cdefbd2e3f1cb15c",
     "evidence": [
-      "M9-T15 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T15 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T16": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "b294e42b8e1fc78d36c959f8a1c7070271db3f52d5f30b32de672744a145905c",
+    "contractHash": "1419e606bb4c55e6b4dc97cca2d52c7b2d4d2b6d3b3c21015e8e0c42e800613d",
     "evidence": [
-      "M9-T16 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T16 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T17": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "f2a73e0e9f592dbe50c854d996460436af43b14f423065cfc7f6f4cc992b0921",
+    "contractHash": "c9c43bc9ab3d9d6594ec0797d6225b44fb05b9dfb6f97b668797cdb64d700bee",
     "evidence": [
-      "M9-T17 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T17 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T18": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "73324eb88f2dc981b509a432b1f0f9283ef0ccc07cf44d6feba5ae2c7fdaaf19",
+    "contractHash": "215d0985c976600b4f16b1a140ec4c0e3d7f64a69c675a92cbf1113acac8c46c",
     "evidence": [
-      "M9-T18 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T18 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T19": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "896ef85e15bc75bd125faad57953e5418cb2410f029b6beb7bbfaa7ef6784c0f",
+    "contractHash": "6c5282763972c77baf6b207364dae99bfb75f6c575d890903d4ddafc04fb89b9",
     "evidence": [
-      "M9-T19 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T19 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T2": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "6b3507eb911153da0b2f60c15a55e4dbab19f4ed184d4d54f5b53a2372afb45a",
+    "contractHash": "ee03dd6aaf494b9eca595306596b39b81d730873845d673aacdd29c36211022f",
     "evidence": [
-      "M9-T2 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T2 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T20": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a08d986af280316273b70dab1fbb1f1aecafab3733ab9e499827a74cbff6e42b",
+    "contractHash": "ef6205e179b9cf62c8dd800596bff109ae59bf4c7a8b5a5deffce33d603e097e",
     "evidence": [
-      "M9-T20 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T20 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T21": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "7f1def4024628b9fb672091903d66348ef967e8163d310db144ae24256c6d5b5",
+    "contractHash": "97a220109be7109c4fb1004eaff371221e0164b19d38185880187b1feabb71cb",
     "evidence": [
-      "M9-T21 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T21 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T22": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "807eb64e06d72329eae14908bc9d93ac959c48aaac40972d622e966abca45146",
+    "contractHash": "780cfc94d9bc827ca59d49b53f2c384395a1f8617812a9d459f439fb90147bdb",
     "evidence": [
-      "M9-T22 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T22 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T23": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "f3b797524345e4ec21f4954b5fe7555e97dfe3382d22964d35f9797c922592d2",
+    "contractHash": "87d76960ee2711dd27f73a49f872aee083f5a8733a7cc71ff2bbd142f049a771",
     "evidence": [
-      "M9-T23 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T23 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T24": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "26ed079658a9445523970f56de65958bee48d5edb420fb12b12b2180da5a8a13",
+    "contractHash": "4e67276d4fef4d369ddc06313c2f6eb7990fd0ca86513d81523d9744e16c9c94",
     "evidence": [
-      "M9-T24 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T24 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T25": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "8858210024853f41fec373305be441adbb2d874c1581cdcdbf2aa1b1affe9e0e",
+    "contractHash": "d98c8b4700a904e252ffed2f49c6aec054a2b06c501b4645037101d09e8e5029",
     "evidence": [
-      "M9-T25 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T25 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T26": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "9adc6d7011f5049c4ce17b92d523a43f91d22d98e99d2c830ea1e490231e0ea1",
+    "contractHash": "a38d67c7d574ab53e35fe0e8ecca448cb1008513212a6abb3eea7b32d054a1e1",
     "evidence": [
-      "M9-T26 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T26 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T27": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "b92d41e4073bab057a6290358aaf5f285f5d6b1356d67ab03571d41d3dbd65cf",
+    "contractHash": "a6308e44a22feed5148f3bd91fa1012d70fd81189d5afa3d93e4b0e31a1867df",
     "evidence": [
-      "M9-T27 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T27 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T28": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "8b2747db4ec4aec1e7d87c74a15e952bc9068b1ac88e6b58b0603ff0bc11e57f",
+    "contractHash": "aaab1acb87fca5905df0b3659b0efcf8b75fa6178d9cc276f1b6a3a8b964de21",
     "evidence": [
-      "M9-T28 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T28 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T29": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "36932793e5f0d1e811c5badee5ac25c6cb40a93317675df643b24570248306cf",
+    "contractHash": "13fca9a96faaaaa69155aa471d38b405fdcfc9a4ec9d8161884f2a32cb0769f0",
     "evidence": [
-      "M9-T29 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T29 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T3": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d54e36d13e055dbbc3bd36fb7dc6cef3212fe54a6562907e478445fa33d5e1a7",
+    "contractHash": "ef6486beb7b7b448733a1df2a959c268e8c1b20398020d1a3812b4217ec893f7",
     "evidence": [
-      "M9-T3 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T3 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T4": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "9e2c70c6c6e07476aaf94b605cc8c25fd75734e2fb8cb9002c41f2a5f86772fb",
+    "contractHash": "4ba6a883e333a717795034c1524f3492729ac34a82cc04e5aa64678cf20ba154",
     "evidence": [
-      "M9-T4 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T4 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T5": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "4ff6c0bd8781dbec724cb10bdf14d5615f53470bc70dd165b556313d3ef1926f",
+    "contractHash": "bf9cf09ee8cf5aedc92172153a76541671f807cf75ef5406ebc74ef562b29577",
     "evidence": [
-      "M9-T5 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T5 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T6": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "68e1072afa43cc1615fa9cb91692b3d2c19bbb52965295619b55b4f9d342f752",
+    "contractHash": "9468b826e54d1c1c807ac5311baa9cd28c86a9ca0c5d91709555673667ce40e4",
     "evidence": [
-      "M9-T6 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T6 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T7": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "0452a655637d662bff2441cc978d95728fc36ea5d0b1a26f59d15165851717b4",
+    "contractHash": "66aa82c872970f2c1f12165e10bd3d129cdf305fbb16544fff57b14ec2a2f0de",
     "evidence": [
-      "M9-T7 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T7 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T8": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "19adb21da71f70331dbb25078caa3c2e106dfc114917ec7f4ab34b13e9667795",
+    "contractHash": "e39435091f3328b8b0125678e2a3a36c3e8172f69f8f82d3a9640a118db558d9",
     "evidence": [
-      "M9-T8 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T8 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M9-T9": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "6a12ed5cf897a02a7e75b0b862da5ee5f6ef147a442f6387580620aa4dac09d6",
+    "contractHash": "560c01d478999f7ca4d4120c3b88749528b28dbd3085df3c3c73e614230db74e",
     "evidence": [
-      "M9-T9 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "M9-T9 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1197,109 +1197,109 @@
   },
   "R13-T57054072": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "56f89ddc23a394b5fd6c434de42101ced1949f2bb913630b480ce53485bde908",
+    "contractHash": "5c743cac77c8099ce441eb16d04413a22c648a930f542a87108c4da2b99b7119",
     "evidence": [
-      "R13-T57054072 补丁基线到当前版本的变化字段：前置哈希传播",
-      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R13-T57054072 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R13-T98191508": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "381e60ebb985994be36e1ad779b588ed6033f603ea30ae9690499b9d6aef13ef",
+    "contractHash": "1017e897c9ce1fc4d9b3363339b60f1663e5e2c55dceee3ba5cead221ad2d57e",
     "evidence": [
-      "R13-T98191508 补丁基线到当前版本的变化字段：前置哈希传播",
-      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R13-T98191508 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R14-T23602992": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "8c9949b5720a3f6cca9263b75d27d6c03f6213ab9b12e38cdabb8e8599feb2fa",
+    "contractHash": "128267ad20a2b913ed70ebb2dfdbc7b8cd2aa3616eb1730e5f55d632735c9c8d",
     "evidence": [
-      "R14-T23602992 补丁基线到当前版本的变化字段：前置哈希传播",
-      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R14-T23602992 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T41148998": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "9e65a115d44d1affc55a35fd2419bc92be2f79027fd311ffdf2e5f409e00cf03",
+    "contractHash": "fc2b0aefe6bcb2af519a708ab7283571b07133e88b84d31f4cddba34b2c8c628",
     "evidence": [
-      "R16-T41148998 补丁基线到当前版本的变化字段：前置哈希传播",
-      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R16-T41148998 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T83723920": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "93dd414cf7ca77a55684ab42fc7af94bc81d01959d09b002eadd4d6cda5567f8",
+    "contractHash": "a0807a1e8d0a4df9cabaa97bb65ee87b29e4f5597e43779bc92ceae6d77d14a6",
     "evidence": [
-      "R16-T83723920 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R16-T83723920 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R16-T85823419": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "390f59f4e65b52fd2ee120434e05b32973f776eb5902f1e1a2bde54a90350de3",
+    "contractHash": "b39b5ecc4cde69da0fed0c2ba75a8bd9dcf26f071c76dab08c0b309825cb303b",
     "evidence": [
-      "R16-T85823419 补丁基线到当前版本的变化字段：前置哈希传播",
-      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R16-T85823419 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R17-T70594995": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a61de57be849a159bdae4d3ebbd076cf650be6147d58d568eeb87214d95111d9",
+    "contractHash": "ebe9de0a2248de397c59c7e3cc19ebd9600869173d8319b8a30aa1ff124d847b",
     "evidence": [
-      "R17-T70594995 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R17-T70594995 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R17-T73118308": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "052dfc9c5e16569bb4c2d042bd5526f9574420ece9843e35265c27bbfa96f9f3",
+    "contractHash": "7264257518018f76457fdc31150bdfcf4ae4abf585217d95241759ddd1b70370",
     "evidence": [
-      "R17-T73118308 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
-      "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R17-T73118308 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R8-T54786768": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "11ff93a7b3038205c2869e14ac9dca7e221fbfed1b669c2bfddf03be1a1a97e8",
+    "contractHash": "282060eb02503300975967ede29e910ea0790f265d79f0d0c65fa5996cdb6c00",
     "evidence": [
-      "R8-T54786768 补丁基线到当前版本的变化字段：前置哈希传播",
-      "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
-      "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      "R8-T54786768 实际变化字段：仅前置契约哈希传播，上下文不变",
+      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
+      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
     ],
-    "reviewed": "2026-10-07T07:40:51.294819+00:00",
+    "reviewed": "2026-10-07T08:55:43.905517+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
