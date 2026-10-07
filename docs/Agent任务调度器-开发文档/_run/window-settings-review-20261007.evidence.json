@@ -1,0 +1,127 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "afd7c7abddd73f7aca93be55e038a695f6709afbe79d041f47d9fcd397000dc2",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for M1-T11. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "M9-T14": {
+      "contractHash": "bd0da02f2af96fc301b8b3a0b09d1630c42a324e74339cc73a677847594b1a67",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "M9-T14 AC8/E-248: explicit document selection and integer 1-6 persist through PATCH /documents/:docId/settings; current settings and text tests passed 81/81.",
+        "Six additional negative controls failed before the review fix and passed afterward: failed refresh, initial read retry, stale success, stale failure, system.docs_changed and read-before-save ordering.",
+        "Original production browser flow passed 13/13 at 21ae3d4; extended live import and other-client SSE flow is committed for CI validation before merge."
+      ],
+      "verdict": "pass"
+    },
+    "M9-T23": {
+      "contractHash": "e3b665de964618dd2870ee8d862d51a1eda5be50ee421a3366c5d57dc524d209",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for M9-T23. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "M9-T25": {
+      "contractHash": "ee0e3fb5b04382c830bbb0bc720c624a06a713ab07c5125a861a56fbd7aab657",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for M9-T25. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "M9-T27": {
+      "contractHash": "9b0cb5e17b7bbbc4034f01fc540bc265621c57a2a7f66391fd78f713a3ebed86",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for M9-T27. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "M9-T29": {
+      "contractHash": "5c465c287f941000c6901227aab1781641b83751dd431535ebbd8e5674fdbbd9",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for M9-T29. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "R13-T57054072": {
+      "contractHash": "7da7ea7204553e29067bf7eac21c5ba97b8bde81dd3fe2ec3d7c4fe86a283668",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for R13-T57054072. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "R13-T98191508": {
+      "contractHash": "9fa7022accf67fac1b92b88c4c13931ac8e24a998a2b1da3d1e3e5432f704b4e",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for R13-T98191508. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "R14-T23602992": {
+      "contractHash": "e37f151d395417adf2ca5761b27b45f781f0526603abff4f0bb6c6aa75f75c32",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for R14-T23602992. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "R16-T85823419": {
+      "contractHash": "7bdce524ce5c65518b0ab5614a6401c38d615b0e79ce9a47403d231d3a8e3173",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for R16-T85823419. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "R17-T70594995": {
+      "contractHash": "9496a454607991d6e585c7ae4d714af3f810432969b07c89734961bbccd26080",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for R17-T70594995. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    },
+    "R17-T73118308": {
+      "contractHash": "537341e9660f4857514cbec651dcccccab4dd4253ddc9ad565c503d1d83b4021",
+      "evidence": [
+        "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+        "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+        "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+        "Changed fields are providers only; before.context equals after.context in patch changes for R17-T73118308. No acceptance criteria, effective paths or own task definition changed."
+      ],
+      "verdict": "pass"
+    }
+  }
+}

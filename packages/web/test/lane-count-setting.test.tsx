@@ -4,6 +4,7 @@ import type { DocumentDto } from '@agent-scheduler/shared/api/documents';
 import { act, createElement, useState } from 'react';
 import { type Root, createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { eventBus } from '../src/api/event-bus.ts';
 import { httpClient } from '../src/api/http-client.ts';
 import { clearResourceCache } from '../src/api/resource-cache.ts';
 import { LaneCountSetting } from '../src/components/lane-count-setting.tsx';
@@ -77,10 +78,14 @@ function documentDto(id: string, laneCount: number): DocumentDto {
 function documentApi(initialDocuments = [documentDto('doc-a', 2), documentDto('doc-b', 4)]) {
 	let documents = initialDocuments;
 	let rejectSave = false;
+	let rejectRead = false;
 	const writes: { docId: string; laneCount: number }[] = [];
 	vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route, options) => {
 		if (route.method === 'GET' && route.path === '/api/v1/agents') return { agents: [] };
-		if (route.method === 'GET' && route.path === '/api/v1/documents') return { documents };
+		if (route.method === 'GET' && route.path === '/api/v1/documents') {
+			if (rejectRead) throw new Error('document refresh failed');
+			return { documents };
+		}
 		if (route.method === 'PATCH' && route.path === '/api/v1/documents/:docId/settings') {
 			const docId = options?.params?.docId as string;
 			const { laneCount } = options?.body as { laneCount: number };
@@ -96,7 +101,44 @@ function documentApi(initialDocuments = [documentDto('doc-a', 2), documentDto('d
 		failSaves: () => {
 			rejectSave = true;
 		},
+		failReads: () => {
+			rejectRead = true;
+		},
+		recoverReads: () => {
+			rejectRead = false;
+		},
+		addDocument: (doc: DocumentDto) => {
+			documents = [...documents, doc];
+		},
 	};
+}
+
+async function documentChanged(kind: 'document.settings_changed' | 'system.docs_changed') {
+	const envelope = {
+		id: 1001,
+		ts: '2026-10-07T00:00:00Z',
+		runId: null,
+		taskId: null,
+		seq: 1,
+		actorDeviceId: null,
+	};
+	await act(async () => {
+		if (kind === 'document.settings_changed') {
+			eventBus.push({
+				...envelope,
+				kind,
+				scope: 'document',
+				payload: { docId: 'doc-b', laneCount: 5 },
+			});
+		} else {
+			eventBus.push({
+				...envelope,
+				kind,
+				scope: 'system',
+				payload: { docsPath: '/projects/doc-a/docs-data.js' },
+			});
+		}
+	});
 }
 
 it('lets the count receive focus and saves a typed integer once on Enter', async () => {
@@ -177,4 +219,96 @@ it('restores the saved count and displays an error when the save fails', async (
 	expect(api.writes).toEqual([{ docId: 'doc-b', laneCount: 3 }]);
 	expect(countInput().value).toBe('4');
 	expect(container.querySelector('[data-testid="lane-count-error"]')?.textContent).toBeTruthy();
+});
+
+it('keeps the document choices and count after a failed refresh, and can retry', async () => {
+	const api = documentApi();
+	await act(async () => root.render(createElement(SettingsAgentsPage)));
+	await selectDocument('doc-b');
+	api.failReads();
+	await documentChanged('document.settings_changed');
+	expect(countInput().value).toBe('4');
+	expect(container.querySelector('option[value="doc-a"]')).not.toBeNull();
+	expect(container.textContent).toContain('加载文档列表失败，请重试');
+	api.recoverReads();
+	await act(async () =>
+		container
+			.querySelector<HTMLButtonElement>('[data-testid="lane-count-documents-retry"]')
+			?.click(),
+	);
+	expect(container.querySelector('[data-testid="lane-count-documents-error"]')).toBeNull();
+	expect(countInput().value).toBe('4');
+});
+
+it('shows a retryable document read error instead of asking to import when the initial read fails', async () => {
+	const api = documentApi();
+	api.failReads();
+	await act(async () => root.render(createElement(SettingsAgentsPage)));
+	expect(container.textContent).toContain('加载文档列表失败，请重试');
+	expect(container.textContent).not.toContain('请先导入开发文档');
+	api.recoverReads();
+	await act(async () =>
+		container
+			.querySelector<HTMLButtonElement>('[data-testid="lane-count-documents-retry"]')
+			?.click(),
+	);
+	await selectDocument('doc-b');
+	expect(countInput().value).toBe('4');
+});
+
+it.each(['resolve', 'reject'] as const)(
+	'ignores an older refresh that finishes with %s after the latest count',
+	async (outcome) => {
+		documentApi();
+		await act(async () => root.render(createElement(SettingsAgentsPage)));
+		await selectDocument('doc-b');
+		let resolveOld: (value: { documents: DocumentDto[] }) => void = () => {};
+		let rejectOld: (error: Error) => void = () => {};
+		const oldRead = new Promise<{ documents: DocumentDto[] }>((resolve, reject) => {
+			resolveOld = resolve;
+			rejectOld = reject;
+		});
+		vi.mocked(httpClient.callRoute)
+			.mockReturnValueOnce(oldRead)
+			.mockResolvedValueOnce({ documents: [documentDto('doc-b', 5)] });
+		await documentChanged('document.settings_changed');
+		await documentChanged('document.settings_changed');
+		expect(countInput().value).toBe('5');
+		await act(async () => {
+			if (outcome === 'resolve') resolveOld({ documents: [documentDto('doc-b', 3)] });
+			else rejectOld(new Error('obsolete refresh failed'));
+		});
+		expect(countInput().value).toBe('5');
+		expect(container.querySelector('[data-testid="lane-count-documents-error"]')).toBeNull();
+	},
+);
+
+it('receives newly imported documents through the system document milestone while settings stays mounted', async () => {
+	const api = documentApi([]);
+	await act(async () => root.render(createElement(SettingsAgentsPage)));
+	expect(container.querySelector('option[value="doc-a"]')).toBeNull();
+	api.addDocument(documentDto('doc-a', 2));
+	await documentChanged('system.docs_changed');
+	expect(container.querySelector('option[value="doc-a"]')).not.toBeNull();
+	await selectDocument('doc-a');
+	expect(countInput().value).toBe('2');
+	expect(api.writes).toEqual([]);
+});
+
+it('does not let a refresh started before a local save revert the saved count', async () => {
+	const api = documentApi();
+	await act(async () => root.render(createElement(SettingsAgentsPage)));
+	await selectDocument('doc-b');
+	let resolveOld: (value: { documents: DocumentDto[] }) => void = () => {};
+	vi.mocked(httpClient.callRoute).mockReturnValueOnce(
+		new Promise((resolve) => {
+			resolveOld = resolve;
+		}),
+	);
+	await documentChanged('document.settings_changed');
+	const input = await typeCount('6');
+	await act(async () => input.blur());
+	expect(api.writes).toEqual([{ docId: 'doc-b', laneCount: 6 }]);
+	await act(async () => resolveOld({ documents: [documentDto('doc-b', 4)] }));
+	expect(countInput().value).toBe('6');
 });

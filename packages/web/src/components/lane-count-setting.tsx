@@ -11,6 +11,8 @@ export interface LaneCountSettingProps {
 	readonly targetDocName?: string | null;
 	readonly targetDocId?: string | null;
 	readonly documents?: readonly { readonly id: string; readonly projectName: string }[];
+	readonly documentsError?: string | null;
+	readonly onRetryDocuments?: () => void;
 	readonly onChangeTargetDoc?: (docId: string) => void;
 	readonly error?: string | null;
 	readonly disabled?: boolean;
@@ -30,6 +32,8 @@ export function LaneCountSetting({
 	targetDocName,
 	targetDocId,
 	documents = [],
+	documentsError,
+	onRetryDocuments,
 	onChangeTargetDoc,
 	error,
 	disabled = false,
@@ -91,7 +95,11 @@ export function LaneCountSetting({
 							className="h-input max-w-full rounded-sm border border-border bg-bg px-2.5 font-ui text-dense text-ink-1 focus:border-needs focus:outline-none disabled:opacity-50"
 						>
 							<option value="" disabled>
-								{documents.length === 0 ? '请先导入开发文档' : '请选择文档'}
+								{documentsError && documents.length === 0
+									? '文档列表读取失败'
+									: documents.length === 0
+										? '请先导入开发文档'
+										: '请选择文档'}
 							</option>
 							{documents.map((doc) => (
 								<option key={doc.id} value={doc.id}>
@@ -168,6 +176,27 @@ export function LaneCountSetting({
 			</div>
 
 			{canWrite && <p className="text-meta text-ink-3">输入后按 Enter 或移开焦点保存</p>}
+
+			{documentsError && (
+				<div
+					data-testid="lane-count-documents-error"
+					role="alert"
+					className="flex flex-wrap items-center gap-2 text-micro text-down"
+				>
+					<span>{documentsError}</span>
+					{onRetryDocuments && (
+						<button
+							type="button"
+							onClick={onRetryDocuments}
+							disabled={disabled}
+							data-testid="lane-count-documents-retry"
+							className="rounded-sm border border-border px-2 py-1 font-ui text-dense text-ink-1 hover:bg-panel-2 disabled:opacity-50"
+						>
+							重新加载文档
+						</button>
+					)}
+				</div>
+			)}
 
 			{(inputError || error) && (
 				<div data-testid="lane-count-error" className="text-micro text-down">

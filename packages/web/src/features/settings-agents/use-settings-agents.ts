@@ -45,6 +45,8 @@ export interface UseSettingsAgentsResult {
 	readonly error: Error | null;
 	readonly laneCount: number;
 	readonly documents: readonly DocumentDto[];
+	readonly documentsError: string | null;
+	readonly loadDocuments: () => Promise<void>;
 	readonly targetDocId: string | null;
 	readonly selectTargetDoc: (docId: string) => void;
 	readonly isSavingLaneCount: boolean;
@@ -111,6 +113,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	const [error, setError] = useState<Error | null>(null);
 
 	const [documents, setDocuments] = useState<readonly DocumentDto[]>([]);
+	const [documentsError, setDocumentsError] = useState<string | null>(null);
+	const documentsRequest = useRef(0);
 	const [selectedDocId, setSelectedDocId] = useState(resolveLastDocId);
 	const explicitDocId = options?.targetDocId ?? selectedDocId;
 	const targetDoc = documents.find((doc) => doc.id === explicitDocId) ?? null;
@@ -128,13 +132,22 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	// 文档列表只提供选择项；写目标必须来自显式指派、用户选择或已记住的选择。
 	const loadDocuments = useCallback(async () => {
 		if (!listDocumentsRoute) return;
+		const request = ++documentsRequest.current;
 
 		try {
 			// R7: 请求改走 ROUTES/callRoute
 			const res = await httpClient.callRoute<ListDocumentsResponse>(listDocumentsRoute);
-			if (mounted.current) setDocuments(res.documents);
-		} catch {
-			if (mounted.current) setDocuments([]);
+			if (!mounted.current || request !== documentsRequest.current) return;
+			setDocuments(res.documents);
+			setDocumentsError(null);
+		} catch (err) {
+			if (!mounted.current || request !== documentsRequest.current) return;
+			setDocumentsError(
+				getSettingsAgentErrorMessage(
+					isApiError(err) ? err.code : '',
+					UI_STRINGS.settingsAgents.documentsLoadFailed,
+				),
+			);
 		}
 	}, []);
 
@@ -186,7 +199,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			if (response) setAgents(response.agents);
 		});
 		const unsubscribeEvents = eventBus.subscribeMilestone((event) => {
-			if (event.kind === 'document.settings_changed') {
+			if (event.kind === 'document.settings_changed' || event.kind === 'system.docs_changed') {
 				void loadDocuments();
 				return;
 			}
@@ -196,6 +209,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		});
 		return () => {
 			mounted.current = false;
+			documentsRequest.current += 1;
 			unsubscribeCache();
 			unsubscribeEvents();
 		};
@@ -470,6 +484,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			if (savingLaneCount.current || count === laneCount) return;
 			const docId = targetDoc.id;
 			const prevCount = laneCount;
+			// 保存前发起的读取不得覆盖本次乐观值或服务端确认值。
+			documentsRequest.current += 1;
 			savingLaneCount.current = true;
 			setIsSavingLaneCount(true);
 			setLaneCountError(null);
@@ -585,6 +601,8 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 		error,
 		laneCount,
 		documents,
+		documentsError,
+		loadDocuments,
 		targetDocId: targetDoc?.id ?? null,
 		selectTargetDoc,
 		isSavingLaneCount,

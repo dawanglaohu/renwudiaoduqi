@@ -1298,7 +1298,12 @@
     },
     "M9-T14": {
       "supportPaths": [
-        "packages/web/test/settings-agents.test.ts"
+        "packages/web/test/settings-agents.test.ts",
+        "packages/web/test/lane-count-setting.test.tsx",
+        "packages/web/test/settings-agent-refresh.test.tsx",
+        "packages/web/test/m9-t23-ui-string-source.test.ts",
+        "packages/web/src/i18n/ui-strings.ts",
+        "e2e/pipeline-settings.test.ts"
       ]
     },
     "M6-T4": {

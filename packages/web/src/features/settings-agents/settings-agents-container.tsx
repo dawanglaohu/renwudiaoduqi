@@ -80,6 +80,8 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 		error,
 		laneCount,
 		documents,
+		documentsError,
+		loadDocuments,
 		targetDocId: selectedDocId,
 		selectTargetDoc,
 		isSavingLaneCount,
@@ -134,6 +136,8 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 				key={selectedDocId ?? 'unselected'}
 				laneCount={laneCount}
 				documents={documents}
+				documentsError={documentsError}
+				onRetryDocuments={() => void loadDocuments()}
 				targetDocId={selectedDocId}
 				onChangeTargetDoc={targetDocId ? undefined : selectTargetDoc}
 				disabled={isSavingLaneCount}

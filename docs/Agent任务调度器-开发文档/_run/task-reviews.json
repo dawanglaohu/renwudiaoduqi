@@ -21,13 +21,14 @@
   },
   "M1-T11": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "0262cf5bc95134163d391ebb343fe55cdcf422a7adb3df96c52ce79e949990cd",
+    "contractHash": "afd7c7abddd73f7aca93be55e038a695f6709afbe79d041f47d9fcd397000dc2",
     "evidence": [
-      "M1-T11 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for M1-T11. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -899,13 +900,16 @@
   },
   "M9-T14": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "baae84606a11f4734c0a7001a5e44520966c387c87c284b2f3ce46f2498aa54b",
+    "contractHash": "bd0da02f2af96fc301b8b3a0b09d1630c42a324e74339cc73a677847594b1a67",
     "evidence": [
-      "M9-T14 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "M9-T14 AC8/E-248: explicit document selection and integer 1-6 persist through PATCH /documents/:docId/settings; current settings and text tests passed 81/81.",
+      "Six additional negative controls failed before the review fix and passed afterward: failed refresh, initial read retry, stale success, stale failure, system.docs_changed and read-before-save ordering.",
+      "Original production browser flow passed 13/13 at 21ae3d4; extended live import and other-client SSE flow is committed for CI validation before merge."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:37:06.424458+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1019,13 +1023,14 @@
   },
   "M9-T23": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "87d76960ee2711dd27f73a49f872aee083f5a8733a7cc71ff2bbd142f049a771",
+    "contractHash": "e3b665de964618dd2870ee8d862d51a1eda5be50ee421a3366c5d57dc524d209",
     "evidence": [
-      "M9-T23 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for M9-T23. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1043,13 +1048,14 @@
   },
   "M9-T25": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "d98c8b4700a904e252ffed2f49c6aec054a2b06c501b4645037101d09e8e5029",
+    "contractHash": "ee0e3fb5b04382c830bbb0bc720c624a06a713ab07c5125a861a56fbd7aab657",
     "evidence": [
-      "M9-T25 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for M9-T25. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1067,13 +1073,14 @@
   },
   "M9-T27": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a6308e44a22feed5148f3bd91fa1012d70fd81189d5afa3d93e4b0e31a1867df",
+    "contractHash": "9b0cb5e17b7bbbc4034f01fc540bc265621c57a2a7f66391fd78f713a3ebed86",
     "evidence": [
-      "M9-T27 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for M9-T27. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1091,13 +1098,14 @@
   },
   "M9-T29": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "13fca9a96faaaaa69155aa471d38b405fdcfc9a4ec9d8161884f2a32cb0769f0",
+    "contractHash": "5c465c287f941000c6901227aab1781641b83751dd431535ebbd8e5674fdbbd9",
     "evidence": [
-      "M9-T29 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for M9-T29. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1197,37 +1205,40 @@
   },
   "R13-T57054072": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "5c743cac77c8099ce441eb16d04413a22c648a930f542a87108c4da2b99b7119",
+    "contractHash": "7da7ea7204553e29067bf7eac21c5ba97b8bde81dd3fe2ec3d7c4fe86a283668",
     "evidence": [
-      "R13-T57054072 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for R13-T57054072. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R13-T98191508": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "1017e897c9ce1fc4d9b3363339b60f1663e5e2c55dceee3ba5cead221ad2d57e",
+    "contractHash": "9fa7022accf67fac1b92b88c4c13931ac8e24a998a2b1da3d1e3e5432f704b4e",
     "evidence": [
-      "R13-T98191508 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for R13-T98191508. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R14-T23602992": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "128267ad20a2b913ed70ebb2dfdbc7b8cd2aa3616eb1730e5f55d632735c9c8d",
+    "contractHash": "e37f151d395417adf2ca5761b27b45f781f0526603abff4f0bb6c6aa75f75c32",
     "evidence": [
-      "R14-T23602992 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for R14-T23602992. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1257,37 +1268,40 @@
   },
   "R16-T85823419": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "b39b5ecc4cde69da0fed0c2ba75a8bd9dcf26f071c76dab08c0b309825cb303b",
+    "contractHash": "7bdce524ce5c65518b0ab5614a6401c38d615b0e79ce9a47403d231d3a8e3173",
     "evidence": [
-      "R16-T85823419 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for R16-T85823419. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R17-T70594995": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "ebe9de0a2248de397c59c7e3cc19ebd9600869173d8319b8a30aa1ff124d847b",
+    "contractHash": "9496a454607991d6e585c7ae4d714af3f810432969b07c89734961bbccd26080",
     "evidence": [
-      "R17-T70594995 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for R17-T70594995. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "R17-T73118308": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "7264257518018f76457fdc31150bdfcf4ae4abf585217d95241759ddd1b70370",
+    "contractHash": "537341e9660f4857514cbec651dcccccab4dd4253ddc9ad565c503d1d83b4021",
     "evidence": [
-      "R17-T73118308 实际变化字段：仅前置契约哈希传播，上下文不变",
-      "补丁只为 M9-T1 补齐同源同步主题入口和因果回归的三个必要支持路径；既有有效范围、验收条款、边界、接口与功能责任均保留。",
-      "变化范围核对与真实代码、回归、生产构建和浏览器首帧证据见本文件 sharedEvidence；不重新声称历史任务全部功能验收。"
+      "window-settings-support-20261007 only expands M9-T14 supportPaths; acceptance criteria and API schemas are unchanged.",
+      "Exact source diff is confined to lane count settings, its tests and UI text; no native provider, daemon lifecycle or assignment schema is changed.",
+      "Local pnpm -w check passed: 245 files, 3027 passed, 3 platform skips; tsc and Web build passed.",
+      "Changed fields are providers only; before.context equals after.context in patch changes for R17-T73118308. No acceptance criteria, effective paths or own task definition changed."
     ],
-    "reviewed": "2026-10-07T08:55:43.905517+00:00",
+    "reviewed": "2026-10-07T15:38:45.990766+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
