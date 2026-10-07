@@ -5,7 +5,12 @@ import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import type { AgentRegistry } from '../../src/config/registry.ts';
 import type { ExecutableFileSystem } from '../../src/platform/contract.ts';
 import { windowsExecutableCandidatePaths } from '../../src/platform/windows.ts';
-import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../../src/proc/spawn.ts';
+import {
+	type LaunchSpec,
+	type ManagedProcess,
+	type SpawnManagedOptions,
+	spawnManaged,
+} from '../../src/proc/spawn.ts';
 import { createAgentService } from '../../src/service/agents.ts';
 
 const fileSystem: ExecutableFileSystem = {
@@ -33,6 +38,45 @@ function registry(execPath: string): AgentRegistry {
 }
 
 describe('DSH desktop headless CLI compatibility', () => {
+	it.each([
+		[3000, 'exited', 0],
+		[50, 'wall-clock-timeout', null],
+	] as const)(
+		'supervises silent DSH output with hard wall %s while ignoring first-event startup deadlines',
+		async (hardWallClockMs, reason, exitCode) => {
+			const spec = buildDshLaunchSpec({
+				runId: 'dsh-delayed-output',
+				cwd: process.cwd(),
+				execPath: process.execPath,
+				prompt: 'Finish the task',
+				timeouts: { startupTimeoutMs: 20, idleTimeoutMs: 10, hardWallClockMs },
+			});
+			const lines: string[] = [];
+			const result = await new Promise<{ reason: string; exitCode: number | null }>((resolve) => {
+				// The controlled CLI delays stdout while retaining the DSH adapter's timeout policy.
+				spawnManaged(
+					{
+						...spec,
+						args: [
+							'-e',
+							'process.stderr.write("dsh: reasoning:\\nWorking.\\n"); setTimeout(() => { process.stdout.write("Completed.\\n"); }, 300);',
+						],
+					},
+					{
+						platform: process.platform as 'win32' | 'linux' | 'darwin',
+						onLine: (line) => lines.push(line.text),
+						onExit: resolve,
+					},
+				);
+			});
+			expect(result.reason).toBe(reason);
+			if (exitCode === 0) {
+				expect(result.exitCode).toBe(0);
+				expect(lines).toEqual(['Completed.']);
+			}
+		},
+	);
+
 	it('discovers the packaged Windows launcher outside PATH', () => {
 		expect(
 			windowsExecutableCandidatePaths('dsh', { platform: 'win32', homedir: 'C:\\Users\\tester' }),

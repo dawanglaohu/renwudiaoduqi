@@ -88,7 +88,8 @@ export function buildDshLaunchSpec(options: BuildDshLaunchSpecOptions): LaunchSp
 		cwd: options.cwd,
 		envOverrides: Object.freeze(envOverrides),
 		envDenylist: options.envDenylist,
-		timeouts: options.timeouts,
+		// Headless emits its first stdout only at completion; spawning failures are reported by proc.
+		timeouts: Object.freeze({ ...options.timeouts, startupTimeoutMs: 0 }),
 		label: options.label ?? 'dsh-headless',
 		windowsComSpecPath: options.windowsComSpecPath,
 	});
