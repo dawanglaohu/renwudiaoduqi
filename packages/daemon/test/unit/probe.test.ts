@@ -377,6 +377,50 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 	});
 
 	describe('AC 3, E-196 & E-270: Candidate discovery, collisions and minimal environment', () => {
+		it.each(['pi', 'codex', 'claude'])(
+			'ignores the Unix npm shim beside the Windows %s launcher',
+			async (agentId) => {
+				const config = BUILT_IN_AGENT_DEFAULTS[agentId as 'pi' | 'codex' | 'claude'];
+				const fs = createMockFileSystem({
+					[`C:\\tools\\${agentId}.cmd`]: { isFile: true },
+					[`C:\\tools\\${agentId}`]: { isFile: true },
+					'C:\\Windows\\System32\\cmd.exe': { isFile: true },
+				});
+				const mockRunner = vi.fn(async () => ({
+					ok: true,
+					exitCode: 0,
+					stdout: agentId === 'claude' ? '2.1.238 (Claude Code)' : `${agentId} 1.2.3`,
+					stderr: '',
+				}));
+				const result = await probeAgent({
+					agentId,
+					config,
+					hostInputs: windowsHost,
+					env: { PATH: 'C:\\tools' },
+					fileSystem: fs,
+					commandRunner: mockRunner,
+				});
+				expect(result.status).toBe('matched');
+				expect(result.canDispatch).toBe(true);
+				expect(result.candidates?.allCandidates).toEqual([`C:\\tools\\${agentId}.cmd`]);
+				expect(mockRunner).toHaveBeenCalledOnce();
+			},
+		);
+
+		it('does not discover a Unix-only shim in Windows fixed candidate directories', async () => {
+			const result = await probeAgent({
+				agentId: 'pi',
+				config: BUILT_IN_AGENT_DEFAULTS.pi,
+				hostInputs: windowsHost,
+				env: { PATH: '' },
+				fileSystem: createMockFileSystem({
+					'C:\\Users\\tester\\AppData\\Roaming\\npm\\pi': { isFile: true },
+				}),
+			});
+			expect(result.status).toBe('not-found');
+			expect(result.canDispatch).toBe(false);
+		});
+
 		it('R2: reads Path case-insensitively on Windows and lists all candidates with confirmation', async () => {
 			const config = BUILT_IN_AGENT_DEFAULTS.grok;
 

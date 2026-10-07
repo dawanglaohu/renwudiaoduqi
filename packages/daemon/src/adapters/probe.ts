@@ -21,7 +21,7 @@ import { createProcessEnv } from '../proc/env.ts';
 import { type LaunchSpec, spawnManaged } from '../proc/spawn.ts';
 
 export const DEFAULT_PROBE_TIMEOUT_MS = 5000;
-export const PROBE_WINDOWS_EXTENSIONS = Object.freeze(['.cmd', '.bat', '.exe', ''] as const);
+export const PROBE_WINDOWS_EXTENSIONS = Object.freeze(['.cmd', '.bat', '.exe'] as const);
 
 export type ProbeStatus =
 	| 'matched'
@@ -776,6 +776,14 @@ export async function findExecutableCandidates(input: {
 
 	for (const candidate of candidatePathsToTest) {
 		checkedPaths.push(candidate);
+		// npm also installs extensionless Unix shell shims. Windows cannot launch those
+		// directly; including them makes a single CLI installation look like a collision.
+		if (
+			platform === 'win32' &&
+			!PROBE_WINDOWS_EXTENSIONS.some((extension) => candidate.toLowerCase().endsWith(extension))
+		) {
+			continue;
+		}
 		const classified = adapter.classifyPath(candidate);
 		if (!classified.isValidForCurrentPlatform) continue;
 
