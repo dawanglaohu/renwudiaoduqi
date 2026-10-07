@@ -546,7 +546,12 @@ describe(
 	'M7-T9 Integration: Container Wiring (AC 2, AC 3, AC 4, E-53, E-57, E-104, E-120, E-123)',
 	{ timeout: 25000 },
 	() => {
-		it('uses the discovered DSH executable in the production review service and new review sessions', async () => {
+		it.each([
+			'Implementation complete.',
+			'{"status":"done"}',
+			'["completed", "verified"]',
+			'{"text":"literal JSON answer"}',
+		])('preserves DSH terminal output %s through production reviews', async (terminalText) => {
 			const executable = '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh';
 			const { container, spawnedProcesses } = setupWiringEnvironment({
 				dshResolvedPath: executable,
@@ -570,8 +575,9 @@ describe(
 					output.push(event.payload);
 				}
 			});
-			implementation.emitLine('Implementation complete.');
+			implementation.emitLine(terminalText);
 			expect(await waitFor(() => output.length > 0)).toBe(true);
+			expect(output).toEqual([expect.objectContaining({ chunk: terminalText })]);
 			implementation.emitExit(0);
 			expect(await waitFor(() => spawnedProcesses.length >= 2)).toBe(true);
 			const review = spawnedProcesses[1];

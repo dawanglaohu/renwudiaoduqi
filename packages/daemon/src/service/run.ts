@@ -84,6 +84,7 @@ export interface AttachProcessOptions {
 	readonly onExit?: (result: ProcessExitResult) => Promise<void> | void;
 	readonly mapExitResult?: (result: ProcessExitResult) => ProcessExitResult;
 	readonly eventMapper?: (vendorLine: unknown) => readonly EventEnvelopeInput[];
+	/** Map stdout as terminal text, including JSON-looking answers, instead of JSON events. */
 	readonly acceptsPlainText?: boolean;
 }
 
@@ -414,8 +415,8 @@ export function createRunService(deps: RunServiceDeps): RunService {
 		const rawText = typeof line === 'string' ? line : Buffer.from(line).toString('utf8');
 		const trimmed = rawText.trim();
 
-		// 非 JSON 格式处理 (E-140 & R2 c: 纯文本 stdout 终稿支持)
-		if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+		// Text-output agents own the whole stdout line, regardless of answer syntax (E-140).
+		if (options?.acceptsPlainText || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) {
 			if (options?.acceptsPlainText) {
 				const mapper = options?.eventMapper ?? deps.eventMapper;
 				if (mapper) {
@@ -544,22 +545,19 @@ export function createRunService(deps: RunServiceDeps): RunService {
 				if (detached) return;
 				void trackWrite(ingestRaw(runId, line.text)).catch((err) => logFailure(err));
 				if (options?.acceptsPlainText) {
-					const trimmed = line.text.trim();
-					if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
-						const mapper = options?.eventMapper ?? deps.eventMapper;
-						if (mapper) {
-							const mapped = mapper(line.text);
-							for (const env of mapped) {
-								if (isContentEventKind(env.kind)) {
-									hasContent = true;
-									runsWithContent.add(runId);
-								}
-								void trackWrite(
-									ingestEvent(runId, env).then(() => {
-										options?.onEvent?.(env);
-									}),
-								).catch((err) => logFailure(err));
+					const mapper = options?.eventMapper ?? deps.eventMapper;
+					if (mapper) {
+						const mapped = mapper(line.text);
+						for (const env of mapped) {
+							if (isContentEventKind(env.kind)) {
+								hasContent = true;
+								runsWithContent.add(runId);
 							}
+							void trackWrite(
+								ingestEvent(runId, env).then(() => {
+									options?.onEvent?.(env);
+								}),
+							).catch((err) => logFailure(err));
 						}
 					}
 				}
@@ -568,7 +566,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 		cleanups.push(
 			process.onJson((parsed) => {
-				if (detached) return;
+				if (detached || options?.acceptsPlainText) return;
 				const mapper = options?.eventMapper ?? deps.eventMapper;
 				if (mapper) {
 					const mapped = mapper(parsed.value);

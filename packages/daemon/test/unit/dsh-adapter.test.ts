@@ -196,7 +196,12 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(events[0]?.runId).toBe('run-multi');
 		});
 
-		it('R2 (c) & E-140: runService.ingestLine with acceptsPlainText=true passes plain text to mapper without unmapped_event_count', async () => {
+		it.each([
+			'Final analysis finished successfully.',
+			'{"status":"done"}',
+			'["completed", "verified"]',
+			'{unfinished JSON answer',
+		])('preserves DSH terminal text %s without unmapped_event_count', async (plainTextOutput) => {
 			const mockLogstore = {
 				appendRaw: vi.fn(async () => ({ offset: 0, byteLen: 50 })),
 				appendEvent: vi.fn(async () => ({ offset: 0, byteLen: 100, seq: 1 })),
@@ -222,7 +227,6 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 				eventMapper: (line: unknown) => mapDshEvents(line, { runId: 'run-plain-1' }),
 			});
 
-			const plainTextOutput = 'Final analysis finished successfully.';
 			const result = await runService.ingestLine('run-plain-1', plainTextOutput, {
 				acceptsPlainText: true,
 			});
@@ -230,6 +234,10 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(result.rawAppended).toBe(true);
 			expect(result.eventsAppended).toBe(1);
 			expect(result.unmappedDiscarded).toBe(false); // E-140: not discarded as unmapped
+			expect(mockLogstore.appendEvent).toHaveBeenCalledWith(
+				'run-plain-1',
+				expect.objectContaining({ payload: expect.objectContaining({ chunk: plainTextOutput }) }),
+			);
 			expect(mockRunsRepo.incrementUnmappedEventCount).not.toHaveBeenCalled();
 		});
 	});

@@ -67,7 +67,8 @@ function isBannerOrProgressLine(text: string): boolean {
  * (a) Correctly processes object inputs without String(obj) -> [object Object]
  * (b) Only terminal assistant text becomes agent_message_chunk; banners/progress lines emit nothing
  * (c) Provides plain-text stdout passage
- * (d) Unrecognized JSON lines without text/discriminants are dropped and counted in unmappedCount
+ * (d) Unrecognized object events without text/discriminants are counted in unmappedCount
+ * String stdout is terminal assistant text, even when the answer uses JSON syntax.
  * (e) Carries vendor payload, preserves multi-line newlines
  */
 export function mapDshEvents(
@@ -211,21 +212,6 @@ export function parseAndMapDshLine(
 				unmappedCount: 0,
 				rawLine,
 			});
-		}
-
-		// If it's a JSON string
-		if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-			try {
-				const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-				return parseAndMapDshLine(parsed, context);
-			} catch {
-				return Object.freeze({
-					events: Object.freeze([]),
-					unmappedCount: 0,
-					parseError: true,
-					rawLine,
-				});
-			}
 		}
 
 		// (b) Plain text stdout: filter out banners and progress lines
