@@ -606,11 +606,18 @@ describe(
 			if (!review) throw new Error('Review process missing');
 			expect(review.launchSpec.file).toBe(executable);
 			expect(review.launchSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
+			review.emitStderr('dsh: reasoning:');
+			review.emitStderr('VERDICT: rework');
 			review.emitLine('VERDICT: pass');
 			review.emitExit(0);
 			expect(
 				await waitFor(
 					() => container.repos.runs.findById(review.launchSpec.runId)?.state === 'exited',
+				),
+			).toBe(true);
+			expect(
+				await waitFor(
+					() => container.repos.runs.findById(review.launchSpec.runId)?.review_verdict === 'pass',
 				),
 			).toBe(true);
 			const nextRoundId = await container.services.review.startReviewRound({
@@ -624,7 +631,52 @@ describe(
 			);
 			expect(nextReview?.launchSpec.file).toBe(executable);
 			expect(nextReview?.launchSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
+			nextReview?.emitStderr('dsh: reasoning:');
+			nextReview?.emitStderr('VERDICT: rework');
+			nextReview?.emitLine('VERDICT: pass');
+			nextReview?.emitExit(0);
+			expect(
+				await waitFor(() => container.repos.runs.findById(nextRoundId)?.review_verdict === 'pass'),
+			).toBe(true);
+			expect(container.repos.runs.findById(nextRoundId)?.state).toBe('exited');
 		});
+
+		it.each(['', 'No final verdict was produced.'])(
+			'rejects a DSH verdict found only in stderr with stdout %s',
+			async (stdout) => {
+				const { container, spawnedProcesses } = setupWiringEnvironment({
+					dshResolvedPath: '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh',
+				});
+				await container.services.settings.updateGates(
+					{ dispatch: 'auto', review: 'auto', landing: 'manual' },
+					null,
+				);
+				const result = await container.services.dispatch.createRun({
+					taskId: 'task-1',
+					agentId: 'dsh',
+					idempotencyKey: 'dsh-stderr-verdict',
+				});
+				expect(await waitFor(() => spawnedProcesses.length === 1)).toBe(true);
+				spawnedProcesses[0]?.emitLine('Implementation complete.');
+				spawnedProcesses[0]?.emitExit(0);
+				expect(await waitFor(() => spawnedProcesses.length === 2)).toBe(true);
+				const review = spawnedProcesses[1];
+				if (!review) throw new Error('Review process missing');
+				review.emitStderr('dsh: reasoning:');
+				review.emitStderr('VERDICT: pass');
+				if (stdout) review.emitLine(stdout);
+				review.emitExit(0);
+				expect(
+					await waitFor(
+						() => container.repos.runs.findById(review.launchSpec.runId)?.review_verdict !== null,
+					),
+				).toBe(true);
+				expect(container.repos.runs.findById(review.launchSpec.runId)?.review_verdict).toBe(
+					'incomplete',
+				);
+				expect(container.repos.runs.findById(result.run.id)?.state).toBe('awaiting_human');
+			},
+		);
 
 		it('releases an admitted DSH run when a persisted model override rejects launch construction', async () => {
 			const { container, spawnedProcesses } = setupWiringEnvironment({

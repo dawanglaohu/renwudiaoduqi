@@ -137,6 +137,34 @@ function makeService(
 }
 
 describe('Review Round Integration (M7-T7)', () => {
+	it('fails a persisted DSH review continuation when its model override rejects launch construction', async () => {
+		const updateState = vi.fn();
+		const spawnManagedFn = vi.fn();
+		const repo = makeRunsRepo({
+			findLatestReview: () => makeReviewRow({ agent_id: 'dsh', model_name: 'deepseek-chat' }),
+			updateState,
+		});
+		const service = makeService(repo, { spawnManagedFn });
+		await expect(
+			service.startReviewRound({
+				taskId: 'task-1',
+				implRunId: 'impl-1',
+				round: 2,
+				reworkItems: [],
+			}),
+		).rejects.toThrow('model');
+		expect(updateState).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: 'run-1',
+				fromState: 'starting',
+				toState: 'failed',
+				queuedReason: 'review_continuation_failed',
+			}),
+		);
+		expect(repo.findById('run-1')?.state).toBe('failed');
+		expect(spawnManagedFn).not.toHaveBeenCalled();
+	});
+
 	it('AC 1 & E-89：没有上一轮审查行时拒绝续接', async () => {
 		const service = makeService(makeRunsRepo({ findLatestReview: () => null }));
 
