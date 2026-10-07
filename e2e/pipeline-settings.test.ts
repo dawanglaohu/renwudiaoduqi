@@ -1618,6 +1618,8 @@ describe(
 		it('window settings: selects a document, types and persists lane count through the production UI', async () => {
 			const origin = `http://127.0.0.1:${daemon.port}`;
 			await page.setViewportSize({ width: 1440, height: 900 });
+			// 同一路由的片段导航沿用事件连接；新页面保证等待本次 SSE 握手。
+			await page.goto('about:blank');
 			const initialRead = page.waitForResponse((response) => response.url() === `${origin}/api/v1/documents` && response.request().method() === 'GET');
 			const connected = page.waitForResponse((response) => response.url().startsWith(`${origin}/api/v1/events`) && response.status() === 200);
 			await page.goto(`${origin}/#/settings/agents`, { waitUntil: 'domcontentloaded' });
