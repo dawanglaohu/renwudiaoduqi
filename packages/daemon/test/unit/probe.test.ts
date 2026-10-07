@@ -377,6 +377,32 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 	});
 
 	describe('AC 3, E-196 & E-270: Candidate discovery, collisions and minimal environment', () => {
+		it.each(['codex.cmd', 'codex.bat', 'codex.exe', 'codex.CMD'])(
+			'finds the already-suffixed command %s in a non-fixed PATH directory',
+			async (execPath) => {
+				const mockRunner = vi.fn(async () => ({
+					ok: true,
+					exitCode: 0,
+					stdout: 'codex-cli 0.157.1',
+					stderr: '',
+				}));
+				const result = await probeAgent({
+					agentId: 'codex',
+					config: { ...BUILT_IN_AGENT_DEFAULTS.codex, execPath },
+					hostInputs: windowsHost,
+					env: { PATH: 'C:\\custom-cli' },
+					fileSystem: createMockFileSystem({
+						[`C:\\custom-cli\\${execPath}`]: { isFile: true },
+						'C:\\Windows\\System32\\cmd.exe': { isFile: true },
+					}),
+					commandRunner: mockRunner,
+				});
+				expect(result.status).toBe('matched');
+				expect(result.canDispatch).toBe(true);
+				expect(result.candidates?.allCandidates).toEqual([`C:\\custom-cli\\${execPath}`]);
+			},
+		);
+
 		it.each(['pi', 'codex', 'claude'])(
 			'ignores the Unix npm shim beside the Windows %s launcher',
 			async (agentId) => {

@@ -757,8 +757,16 @@ export async function findExecutableCandidates(input: {
 	// Add PATH based candidates
 	for (const dir of searchDirectories) {
 		if (platform === 'win32') {
-			for (const ext of PROBE_WINDOWS_EXTENSIONS) {
-				addCandidate(pathJoin(dir, `${executableName}${ext}`));
+			if (
+				PROBE_WINDOWS_EXTENSIONS.some((extension) =>
+					executableName.toLowerCase().endsWith(extension),
+				)
+			) {
+				addCandidate(pathJoin(dir, executableName));
+			} else {
+				for (const ext of PROBE_WINDOWS_EXTENSIONS) {
+					addCandidate(pathJoin(dir, `${executableName}${ext}`));
+				}
 			}
 		} else {
 			addCandidate(pathJoin(dir, executableName));

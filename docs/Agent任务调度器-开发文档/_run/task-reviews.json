@@ -408,12 +408,19 @@
     "verdict": "pass"
   },
   "M4-T4": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "a82fa15e1866c2c9e9e037fedfe3a68f92984b352ac3f0598d7e6445b374c487",
     "evidence": [
-      "M4-T4: compared before/after contract context; its own task, edges, architecture and effective paths are unchanged. Shared 10-接口约定.md:273 only corrects the pipeline GET example to the four-key response; packages/shared/src/api/settings.ts:62-93 and packages/daemon/src/http/routes/settings.ts:59-90 already implement that shape. Real HTTP regression: packages/daemon/test/integration/pipeline-lanes.test.ts:1007-1055."
+      "AC1/E-29/E-40: packages/daemon/src/adapters/probe.ts:292 and packages/daemon/src/service/agents.ts:593 retain not-found and cannot-dispatch mapping; packages/daemon/test/unit/agents-service.test.ts:99 verifies startup detection and list DTO.",
+      "AC2/E-88/E-262/E-263: explicit paths still use platform resolution; packages/daemon/test/unit/agents-service.test.ts:123 verifies failure isolation. Focused probe/agents-service/platform tests: 82 passed; one existing POSIX symlink case skipped on Windows.",
+      "AC3/E-201: fingerprint validation remains unchanged at packages/daemon/src/adapters/probe.ts:512; existing wrong-pi-output regression remains passing.",
+      "Windows npm-shim regression: three agents' .cmd plus extensionless Unix shim and fixed-directory Unix-only shim fail before repair and pass after repair. Genuine different-directory executable candidates still require confirmation (existing E-196 tests).",
+      "Review follow-up: codex.cmd/codex.bat/codex.exe/codex.CMD in a non-fixed PATH directory all fail before the suffix repair and pass after repair at packages/daemon/test/unit/probe.test.ts:379. TypeScript and changed-file Biome checks pass.",
+      "Real native version probes: Pi 0.87.1 and Claude Code 2.1.238 automatically match after repair. Codex CLI 0.157.1 matches when its exact .cmd launcher is selected; a desktop core plus standalone CLI remains a genuine multi-candidate result.",
+      "DSH scope remains open: installed D:/Program Files/DeepSeek Harness/resources/runtime/cli/bin/dsh.cmd version 0.2.0-rc.2 successfully returns DSH_HEALTHCHECK_OK through --profile headless, exit 0 and empty stderr. Existing adapter --model argv fails with unknown option --model. This PR does not fix or mark DSH compatibility complete.",
+      "Production bootstrap/browser restart proof remains unavailable in this unelevated Windows session due Administrators/SYSTEM daemon-lock ACL. No existing runtime service or user registry configuration changed. Local source review and native probes do not claim deployed recovery."
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "reviewed": "2026-10-07T02:46:19.588198+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
