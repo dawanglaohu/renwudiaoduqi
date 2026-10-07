@@ -79,6 +79,12 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 		isLoading,
 		error,
 		laneCount,
+		documents,
+		documentsError,
+		loadDocuments,
+		targetDocId: selectedDocId,
+		selectTargetDoc,
+		isSavingLaneCount,
 		hasTargetDoc,
 		targetDocName,
 		laneCountError,
@@ -127,7 +133,14 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 
 			{/* 1. 任务并行窗口数设置（AC 8, E-248 & R5: 定位不到不渲染写入口） */}
 			<LaneCountSetting
+				key={selectedDocId ?? 'unselected'}
 				laneCount={laneCount}
+				documents={documents}
+				documentsError={documentsError}
+				onRetryDocuments={() => void loadDocuments()}
+				targetDocId={selectedDocId}
+				onChangeTargetDoc={targetDocId ? undefined : selectTargetDoc}
+				disabled={isSavingLaneCount}
 				onChangeLaneCount={(count) => void setLaneCount(count)}
 				hasTargetDoc={hasTargetDoc}
 				targetDocName={targetDocName}

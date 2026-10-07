@@ -14,7 +14,7 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 245 test files, 3043 passed, 3 existing skips",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3061 passed, 3 existing skips",
     "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
@@ -273,5 +273,6 @@
       "scope": "Production-generated argv accepted by the installed CLI with --help; no model inference requested"
     },
     "regressionBefore": "Three production dispatch cases reject none, minimal and max from the incomplete four-level fallback"
-  }
+  },
+  "mergedMainCommit": "3e209fbbbe6ed5bd759da82d0ac03dd4f202ba0c"
 }

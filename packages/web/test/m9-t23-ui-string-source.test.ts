@@ -412,15 +412,18 @@ describe('M9-T23 mounted reused text and settings feedback', () => {
 				defaultEffortTier: { builtin: null, config: null, override: null, hasOverride: false },
 			},
 		};
-		vi.spyOn(httpClient, 'callRoute')
-			.mockResolvedValueOnce({ agents: [agent] })
-			.mockRejectedValueOnce(
-				new ApiError({
+		vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
+			if (route.method === 'GET' && route.path === '/api/v1/agents') return { agents: [agent] };
+			if (route.method === 'GET' && route.path === '/api/v1/documents') return { documents: [] };
+			if (route.method === 'PATCH' && route.path === '/api/v1/agents/:agentId') {
+				throw new ApiError({
 					code: code as ApiError['code'],
 					message: 'vendor error',
 					requestId: 'req-example',
-				}),
-			);
+				});
+			}
+			throw new Error(`Unexpected settings route: ${route.method} ${route.path}`);
+		});
 		const container = document.createElement('div');
 		document.body.append(container);
 		const root = createRoot(container);
