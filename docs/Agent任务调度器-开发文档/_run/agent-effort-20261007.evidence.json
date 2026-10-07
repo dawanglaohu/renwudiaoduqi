@@ -14,7 +14,7 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3061 passed, 3 existing skips",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3070 passed, 3 existing skips",
     "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
@@ -274,5 +274,16 @@
     },
     "regressionBefore": "Three production dispatch cases reject none, minimal and max from the incomplete four-level fallback"
   },
-  "mergedMainCommit": "3e209fbbbe6ed5bd759da82d0ac03dd4f202ba0c"
+  "mergedMainCommit": "3e209fbbbe6ed5bd759da82d0ac03dd4f202ba0c",
+  "reviewContinuation": {
+    "before": "Four review-continuation/DOM regressions fail; production container persists max when the newly saved review override selects ultra",
+    "after": "Full workspace check passes: 246 files, 3070 tests, 3 existing skips",
+    "coverage": [
+      "Native change prevents both reply and resume from reusing the previous review session; unchanged native value still reuses reply",
+      "New review row and launch both use the resolved native value; same-agent launch preserves the frozen executable",
+      "Cross-agent review round captures executable and capabilities into a child snapshot in the same transaction as its run",
+      "Unavailable changed agent creates neither a review run nor child snapshot and records review_agent_unavailable",
+      "Picker distinguishes empty and reduced agent capability lists from missing capability data, retains the saved value, and does not call onChange"
+    ]
+  }
 }

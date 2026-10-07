@@ -4,6 +4,7 @@ import { createEventBus } from '../../src/events/bus.ts';
 import { createEnvelopeFactory } from '../../src/events/envelope.ts';
 import { createRingBuffer } from '../../src/events/ring-buffer.ts';
 import type { ProcessRegistry } from '../../src/proc/registry.ts';
+import type { LaunchSpec, ManagedProcess } from '../../src/proc/spawn.ts';
 import type { RunInsertRow, RunRow } from '../../src/repo/runs.ts';
 import type { MessageService, ResumeSessionInput } from '../../src/service/message.ts';
 import {
@@ -137,6 +138,134 @@ function makeService(
 }
 
 describe('Review Round Integration (M7-T7)', () => {
+	it.each([
+		{ mode: 'reply', nextEffort: 'ultra', changed: true },
+		{ mode: 'resume', nextEffort: 'minimal', changed: true },
+		{ mode: 'reply', nextEffort: 'max', changed: false },
+	])(
+		'applies native review override $nextEffort before $mode continuation',
+		async ({ mode, nextEffort, changed }) => {
+			const previous = makeReviewRow({
+				agent_id: 'codex',
+				effort_tier: null,
+				effort_vendor: 'max',
+				vendor_session_ref: 'session-previous',
+			});
+			const implementation = makeReviewRow({
+				...previous,
+				id: 'impl-1',
+				kind: 'implement',
+				parent_run_id: null,
+			});
+			const rows = new Map<string, RunRow>([['impl-1', implementation]]);
+			const deliver = vi.fn(async (input: Parameters<MessageService['deliverMessage']>[0]) => ({
+				delivered: true,
+				messageId: 'message-1',
+				text: input.text,
+				deliveryState: 'delivered' as const,
+				runId: input.runId,
+			}));
+			const resumeSession = vi.fn(async (_input: ResumeSessionInput) => ({
+				newRunId: 'run-1',
+				messageId: 'message-1',
+				delivered: true,
+			}));
+			const spawn = vi.fn((spec: LaunchSpec) => ({ runId: spec.runId }) as ManagedProcess);
+			const snapshots: ReviewServiceDeps['dispatchSnapshotsRepo'] = {
+				insert: () => {
+					throw new Error('Unexpected snapshot write for a same-agent override');
+				},
+				findById: () => ({
+					id: 'snap-1',
+					task_id: 'task-1',
+					input_text: null,
+					output_text: null,
+					accept_text: null,
+					impl_prompt: null,
+					review_prompt: null,
+					bug_prompt: null,
+					contract_hash: 'contract-1',
+					task_paths_json: '[]',
+					created_at: CLOCK.now(),
+					assignment_json: JSON.stringify({
+						agentId: 'codex',
+						modelName: 'model-1',
+						effortTier: null,
+						effortVendor: 'max',
+					}),
+					launch_spec_json: JSON.stringify({ execPath: '/opt/codex-frozen' }),
+				}),
+				findLatestByTaskId: () => null,
+				listByTaskId: () => [],
+				findLatestForDoc: () => [],
+				takeSnapshotForTask: () => {
+					throw new Error('Unexpected task snapshot creation');
+				},
+				updateTaskChangedFlags: () => {},
+				hasActiveRuns: () => false,
+				getTaskAcceptanceComparison: () => null,
+				refreshDocDiff: () => {
+					throw new Error('Unexpected document refresh');
+				},
+				getDocDiffBanner: () => {
+					throw new Error('Unexpected document banner read');
+				},
+			};
+			const service = makeService(
+				makeRunsRepo({
+					findLatestReview: () => previous,
+					findById: (id) => rows.get(id) ?? null,
+					insert: (row) => rows.set(row.id, makeReviewRow(row)),
+				}),
+				{
+					dispatchSnapshotsRepo: snapshots,
+					settingsRepo: {
+						get: () => ({
+							key: 'pipeline',
+							updated_at: CLOCK.now(),
+							value_json: JSON.stringify({
+								bughunt: 0,
+								wrapupMode: 'manual',
+								reviewOverride: { agentId: 'codex', effortVendor: nextEffort },
+								wrapupAssignment: { mode: 'follow' },
+							}),
+						}),
+						set: () => {},
+						delete: () => {},
+					},
+					messageService: makeMessageService({ deliverMessage: deliver }),
+					processRegistry: makeProcessRegistry({ has: () => mode === 'reply' }),
+					resumeSession,
+					spawnManagedFn: spawn,
+				},
+			);
+			const runId = await service.startReviewRound({
+				taskId: 'task-1',
+				implRunId: 'impl-1',
+				round: 2,
+				reworkItems: [],
+			});
+			if (changed) {
+				expect(deliver).not.toHaveBeenCalled();
+				expect(resumeSession).not.toHaveBeenCalled();
+				expect(rows.get(runId)).toMatchObject({
+					effort_tier: null,
+					effort_vendor: nextEffort,
+					vendor_session_ref: null,
+				});
+				expect(spawn).toHaveBeenCalledTimes(1);
+				expect(spawn.mock.calls[0]?.[0].file).toBe('/opt/codex-frozen');
+				expect(spawn.mock.calls[0]?.[0].args).toContain(`model_reasoning_effort="${nextEffort}"`);
+			} else {
+				expect(rows.get(runId)).toMatchObject({
+					effort_vendor: 'max',
+					vendor_session_ref: 'session-previous',
+				});
+				expect(deliver).toHaveBeenCalledTimes(1);
+				expect(spawn).not.toHaveBeenCalled();
+			}
+		},
+	);
 	it('fails a persisted DSH review continuation when its model override rejects launch construction', async () => {
 		const updateState = vi.fn();
 		const spawnManagedFn = vi.fn();

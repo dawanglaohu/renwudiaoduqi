@@ -23,6 +23,37 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 		high: 'high_v',
 	};
 
+	it.each([
+		{ name: 'empty probed list', options: [], warns: true },
+		{ name: 'reduced agent list', options: ['low', 'medium', 'high'], warns: true },
+		{ name: 'missing capability data', options: undefined, warns: false },
+	])('preserves saved native effort and reports support with $name', ({ options, warns }) => {
+		const root = createRoot(container);
+		const onChange = vi.fn();
+		act(() =>
+			root.render(
+				createElement(EffortPicker, {
+					vendorMap: { low: 'low', medium: 'medium', high: 'high' },
+					value: { vendor: 'max' },
+					agentEffortOptions: options,
+					onChange,
+				}),
+			),
+		);
+		expect(
+			container.querySelector('[data-testid="grouped-select-trigger"]')?.textContent,
+		).toContain('max');
+		const warning = container.querySelector('[data-testid="effort-support-warning"]');
+		if (warns) {
+			expect(warning?.textContent).toContain('max');
+			expect(warning?.getAttribute('aria-live')).toBe('polite');
+		} else {
+			expect(warning).toBeNull();
+		}
+		expect(onChange).not.toHaveBeenCalled();
+		act(() => root.unmount());
+	});
+
 	it('offers native fallback levels, prefers model levels, and preserves a selected unsupported value', async () => {
 		const root = createRoot(container);
 		const onChange = vi.fn();

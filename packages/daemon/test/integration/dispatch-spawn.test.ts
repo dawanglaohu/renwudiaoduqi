@@ -15,6 +15,7 @@ import type { ProcessConfig } from '../../src/config/env.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { vendorEffortDomain } from '../../src/domain/agent-effort-options.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-contract.ts';
@@ -378,6 +379,10 @@ function setupTestEnvironment(
 	const availableAgentIds = new Set(
 		overrides.availableAgentIds ?? (overrides.codexAvailable === false ? [] : ['codex']),
 	);
+	const claudeEffortOptions =
+		overrides.claudeVersion === '2.1.0 (Claude Code)'
+			? []
+			: ['low', 'medium', 'high', 'xhigh', 'max'];
 	const fakeAgentService = {
 		start: async () => {},
 		stop: async () => {},
@@ -391,16 +396,20 @@ function setupTestEnvironment(
 					status: 'ready',
 					versionString:
 						agentId === 'claude' ? (overrides.claudeVersion ?? '2.1.238 (Claude Code)') : '',
-					effortOptions:
-						agentId === 'claude' && overrides.claudeVersion !== '2.1.0 (Claude Code)'
-							? ['low', 'medium', 'high', 'xhigh', 'max']
-							: [],
+					effortOptions: agentId === 'claude' ? claudeEffortOptions : [],
 					resolvedPath: agentId === 'dsh' ? overrides.dshResolvedPath : undefined,
 				};
 			}
 			return { canDispatch: false, isReady: false, status: 'not_found' };
 		},
 		listAgentModels: async () => ({ models: [], currentConfig: {} }),
+		getVendorEffortDomain: (agentId: string) =>
+			vendorEffortDomain(
+				agentId,
+				Object.entries(BUILT_IN_AGENT_DEFAULTS).find(([id]) => id === agentId)?.[1] ?? {},
+				undefined,
+				agentId === 'claude' ? claudeEffortOptions : undefined,
+			),
 		refreshLogin: async () => null,
 	} as unknown as import('../../src/service/agents.ts').AgentService;
 
@@ -493,6 +502,148 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it.each([
+		['codex', 'ultra'],
+		['claude', 'max'],
+	])(
+		'starts a new review round with the changed %s native effort in its persisted row and launch',
+		async (nextAgent, nextEffort) => {
+			const { container, getLatestProc, clock } = setupTestEnvironment({
+				availableAgentIds: ['codex', nextAgent],
+				claudeExecPath: '/opt/claude-review',
+			});
+			const created = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'codex',
+				model: 'test-model',
+				effort: { vendor: 'max' },
+				idempotencyKey: 'native-review-round',
+			});
+			await container.services.dispatch.launchRun(created.run.id);
+			await vi.waitFor(() => expect(getLatestProc()).not.toBeNull());
+			const implementation = container.repos.runs.findById(created.run.id);
+			if (!implementation) throw new Error('implementation missing');
+			container.repos.runs.updateState({ id: implementation.id, toState: 'exited' });
+			container.repos.runs.updateReworkCount({ id: implementation.id, reworkCount: 1 });
+			container.repos.runs.insert({
+				id: 'review-previous',
+				task_id: 'task-1',
+				attempt_no: 2,
+				kind: 'review',
+				parent_run_id: implementation.id,
+				state: 'exited',
+				agent_id: 'codex',
+				model_name: 'test-model',
+				effort_tier: null,
+				effort_vendor: 'max',
+				permission_tier: 'readOnly',
+				snapshot_id: implementation.snapshot_id,
+				worktree_path: implementation.worktree_path,
+				branch_name: implementation.branch_name,
+				vendor_session_ref: null,
+				review_round: 1,
+				started_at: clock.now(),
+			});
+			container.services.settings.updatePipeline(
+				{
+					bughunt: 0,
+					wrapupMode: 'manual',
+					reviewOverride: { agentId: nextAgent, modelName: 'test-model', effortVendor: nextEffort },
+					wrapupAssignment: { mode: 'follow' },
+				},
+				null,
+			);
+			const runId = await container.services.review.startReviewRound({
+				taskId: 'task-1',
+				implRunId: implementation.id,
+				round: 2,
+				reworkItems: [],
+			});
+			expect(container.repos.runs.findById(runId)).toMatchObject({
+				agent_id: nextAgent,
+				effort_tier: null,
+				effort_vendor: nextEffort,
+				vendor_session_ref: null,
+				review_round: 2,
+				continued_from_run_id: 'review-previous',
+			});
+			expect(getLatestProc()?.lastLaunchSpec.runId).toBe(runId);
+			const review = container.repos.runs.findById(runId);
+			if (nextAgent === 'codex') {
+				expect(review?.snapshot_id).toBe(implementation.snapshot_id);
+				expect(getLatestProc()?.lastLaunchSpec.args).toContain('model_reasoning_effort="ultra"');
+			} else {
+				const snapshot = container.repos.dispatchSnapshots?.findById(review?.snapshot_id ?? '');
+				const original = container.repos.dispatchSnapshots?.findById(implementation.snapshot_id);
+				expect(snapshot?.parent_snapshot_id).toBe(implementation.snapshot_id);
+				expect(snapshot?.assignment_json).toBe(original?.assignment_json);
+				expect(JSON.parse(snapshot?.launch_spec_json ?? '{}')).toMatchObject({
+					execPath: '/opt/claude-review',
+					effortOptions: ['low', 'medium', 'high', 'xhigh', 'max'],
+				});
+				expect(getLatestProc()?.lastLaunchSpec.file).toBe('/opt/claude-review');
+				expect(getLatestProc()?.lastLaunchSpec.args).toContain('--effort');
+				expect(getLatestProc()?.lastLaunchSpec.args).toContain('max');
+			}
+		},
+	);
+
+	it('does not create a review row or child snapshot when the changed review agent is unavailable', async () => {
+		const { container, clock, getLatestProc, db } = setupTestEnvironment();
+		const created = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'codex',
+			idempotencyKey: 'review-unavailable',
+		});
+		await container.services.dispatch.launchRun(created.run.id);
+		await vi.waitFor(() => expect(getLatestProc()).not.toBeNull());
+		const implementation = container.repos.runs.findById(created.run.id);
+		if (!implementation) throw new Error('implementation missing');
+		container.repos.runs.updateState({ id: implementation.id, toState: 'reviewing' });
+		container.repos.runs.insert({
+			id: 'review-previous',
+			task_id: 'task-1',
+			attempt_no: 2,
+			kind: 'review',
+			parent_run_id: implementation.id,
+			state: 'exited',
+			agent_id: 'codex',
+			permission_tier: 'readOnly',
+			snapshot_id: implementation.snapshot_id,
+			review_round: 1,
+			started_at: clock.now(),
+		});
+		container.services.settings.updatePipeline(
+			{
+				bughunt: 0,
+				wrapupMode: 'manual',
+				reviewOverride: { agentId: 'claude', effortTier: 'high' },
+				wrapupAssignment: { mode: 'follow' },
+			},
+			null,
+		);
+		await expect(
+			container.services.review.startReviewRound({
+				taskId: 'task-1',
+				implRunId: implementation.id,
+				round: 2,
+				reworkItems: [],
+			}),
+		).rejects.toMatchObject({ code: 'E_AGENT_UNAVAILABLE' });
+		expect(container.repos.runs.listByTaskId('task-1')).toHaveLength(2);
+		expect(container.repos.runs.findById(implementation.id)?.state).toBe('awaiting_human');
+		expect(container.repos.gates?.findPendingByRunId?.(implementation.id)?.comment).toBe(
+			'review_agent_unavailable',
+		);
+		expect(
+			db
+				.prepare(
+					'SELECT COUNT(*) AS count FROM dispatch_snapshots WHERE parent_snapshot_id IS NOT NULL',
+				)
+				.get(),
+		).toEqual({ count: 0 });
+		expect(getLatestProc()?.lastLaunchSpec.runId).toBe(implementation.id);
+	});
 	it('fails visibly without spawning when saved native effort is unsupported by the frozen Claude executable', async () => {
 		const { container, getLatestProc } = setupTestEnvironment({
 			availableAgentIds: ['claude'],

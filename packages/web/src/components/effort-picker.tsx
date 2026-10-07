@@ -118,7 +118,7 @@ export function EffortPicker({
 	const warningText = effortSupportWarning(
 		{
 			effort: value,
-			effortOptions: selectedModelEffortOptions,
+			effortOptions: selectedModelEffortOptions ?? agentEffortOptions,
 			vendorMap,
 		},
 		UI_STRINGS.effortPicker.unsupportedWarning,

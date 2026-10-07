@@ -214,12 +214,13 @@ export function effortSupportWarning(
 	{ effort, effortOptions, vendorMap }: EffortSupportWarningParams,
 	format: (value: string) => string,
 ): string | null {
-	if (!effort || !effortOptions || effortOptions.length === 0) {
+	if (!effort || !effortOptions) {
 		return null;
 	}
 
 	if ('tier' in effort) {
-		if (!vendorMap) return null;
+		// Legacy CLIs can still map the common tiers to token budgets without named levels.
+		if (!vendorMap || effortOptions.length === 0) return null;
 		const mappedVendor = vendorMap[effort.tier];
 		if (mappedVendor && !effortOptions.includes(mappedVendor)) {
 			return format(effort.tier);
@@ -228,6 +229,13 @@ export function effortSupportWarning(
 	}
 
 	if ('vendor' in effort) {
+		if (
+			effortOptions.length === 0 &&
+			vendorMap &&
+			Object.values(vendorMap).includes(effort.vendor)
+		) {
+			return null;
+		}
 		if (!effortOptions.includes(effort.vendor)) {
 			return format(effort.vendor);
 		}
