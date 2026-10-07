@@ -1615,5 +1615,38 @@ describe(
 				body: JSON.stringify(pipelineNow.pipeline),
 			});
 		});
+		it('window settings: selects a document, types and persists lane count through the production UI', async () => {
+			const origin = `http://127.0.0.1:${daemon.port}`;
+			// 只准备真实项目文档；窗口数的写入必须由设置页交互发起。
+			const imported = await fetch(`${origin}/api/v1/documents`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+				body: JSON.stringify({ docsPath: join(repoRoot, 'docs/Agent任务调度器-开发文档/docs-data.js') }),
+			});
+			expect(imported.ok).toBe(true);
+			const { document: importedDoc } = await imported.json() as { document: { id: string } };
+			await page.setViewportSize({ width: 1440, height: 900 });
+			await page.goto(`${origin}/#/settings/agents`, { waitUntil: 'domcontentloaded' });
+			const selector = page.getByLabel('窗口设置所属文档');
+			await selector.waitFor({ state: 'visible' });
+			await page.waitForFunction((id) => Boolean(document.querySelector(`select[aria-label="窗口设置所属文档"] option[value="${id}"]`)), importedDoc.id);
+			await selector.selectOption(importedDoc.id);
+			const input = page.getByRole('spinbutton', { name: '任务并行窗口数', exact: true });
+			await input.waitFor({ state: 'visible' });
+			const saved = page.waitForResponse((response) => response.url() === `${origin}/api/v1/documents/${importedDoc.id}/settings` && response.request().method() === 'PATCH');
+			await input.fill('4');
+			await input.press('Enter');
+			const response = await saved;
+			expect(response.status()).toBe(200);
+			expect(response.request().postDataJSON()).toEqual({ laneCount: 4 });
+			expect((await response.json()).document.laneCount).toBe(4);
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await page.waitForFunction(() => document.querySelector<HTMLInputElement>('input[aria-label="任务并行窗口数"]')?.value === '4');
+			expect(await selector.inputValue()).toBe(importedDoc.id);
+			await captureGifFrame(page, 'window-count-saved');
+			await page.screenshot({ path: join(artifactsDir, 'window-settings-saved.png'), fullPage: false });
+			await page.getByTestId('settings-back').click();
+			await page.waitForFunction(() => document.querySelector('[data-indicator="stream-count"]')?.textContent?.includes('4'));
+		});
 	},
 );

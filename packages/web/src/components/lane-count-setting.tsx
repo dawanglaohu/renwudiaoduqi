@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 export const DEFAULT_LANE_COUNT = 2;
 export const MIN_LANE_COUNT = 1;
 export const MAX_LANE_COUNT = 6;
@@ -7,6 +9,9 @@ export interface LaneCountSettingProps {
 	readonly onChangeLaneCount?: (count: number) => void;
 	readonly hasTargetDoc?: boolean;
 	readonly targetDocName?: string | null;
+	readonly targetDocId?: string | null;
+	readonly documents?: readonly { readonly id: string; readonly projectName: string }[];
+	readonly onChangeTargetDoc?: (docId: string) => void;
 	readonly error?: string | null;
 	readonly disabled?: boolean;
 }
@@ -23,10 +28,37 @@ export function LaneCountSetting({
 	onChangeLaneCount,
 	hasTargetDoc = true,
 	targetDocName,
+	targetDocId,
+	documents = [],
+	onChangeTargetDoc,
 	error,
 	disabled = false,
 }: LaneCountSettingProps) {
 	const canWrite = hasTargetDoc && typeof onChangeLaneCount === 'function';
+	const [draftCount, setDraftCount] = useState(String(laneCount));
+	const [inputError, setInputError] = useState<string | null>(null);
+
+	useEffect(() => {
+		setDraftCount(String(laneCount));
+		setInputError(null);
+	}, [laneCount]);
+
+	const saveDraftCount = () => {
+		if (!canWrite || disabled) return;
+		const count = Number(draftCount);
+		if (!draftCount.trim()) {
+			setDraftCount(String(laneCount));
+			return;
+		}
+		if (!Number.isInteger(count) || count < MIN_LANE_COUNT || count > MAX_LANE_COUNT) {
+			setInputError('请输入 1–6 之间的整数');
+			setDraftCount(String(laneCount));
+			return;
+		}
+		setInputError(null);
+		setDraftCount(String(laneCount));
+		if (count !== laneCount) onChangeLaneCount?.(count);
+	};
 
 	return (
 		<div
@@ -50,6 +82,24 @@ export function LaneCountSetting({
 				</div>
 
 				<div className="flex min-w-0 flex-wrap items-center gap-3">
+					{onChangeTargetDoc && (
+						<select
+							aria-label="窗口设置所属文档"
+							value={targetDocId ?? ''}
+							onChange={(event) => onChangeTargetDoc(event.target.value)}
+							disabled={disabled || documents.length === 0}
+							className="h-input max-w-full rounded-sm border border-border bg-bg px-2.5 font-ui text-dense text-ink-1 focus:border-needs focus:outline-none disabled:opacity-50"
+						>
+							<option value="" disabled>
+								{documents.length === 0 ? '请先导入开发文档' : '请选择文档'}
+							</option>
+							{documents.map((doc) => (
+								<option key={doc.id} value={doc.id}>
+									{doc.projectName}
+								</option>
+							))}
+						</select>
+					)}
 					{/* R5: 定位不到目标文档时不渲染写入口 */}
 					{canWrite ? (
 						<div className="flex items-center rounded-sm border border-border bg-panel-2">
@@ -63,12 +113,31 @@ export function LaneCountSetting({
 							>
 								-
 							</button>
-							<span
+							<input
+								type="number"
+								inputMode="numeric"
+								min={MIN_LANE_COUNT}
+								max={MAX_LANE_COUNT}
+								step={1}
+								value={draftCount}
+								disabled={disabled}
+								aria-label="任务并行窗口数"
+								aria-invalid={Boolean(inputError || error)}
+								onChange={(event) => {
+									setDraftCount(event.target.value);
+									setInputError(null);
+								}}
+								onFocus={(event) => event.currentTarget.select()}
+								onBlur={saveDraftCount}
+								onKeyDown={(event) => {
+									if (event.key === 'Enter') {
+										event.preventDefault();
+										event.currentTarget.blur();
+									}
+								}}
 								data-testid="lane-count-value"
-								className="flex h-btn w-12 items-center justify-center font-mono text-lead font-semibold text-ink-1 select-none"
-							>
-								{laneCount}
-							</span>
+								className="h-btn w-16 border-x border-border bg-bg px-1 text-center font-mono text-lead font-semibold text-ink-1 focus:outline-none focus:ring-1 focus:ring-needs disabled:opacity-50"
+							/>
 							<button
 								type="button"
 								onClick={() => onChangeLaneCount(Math.min(MAX_LANE_COUNT, laneCount + 1))}
@@ -98,9 +167,11 @@ export function LaneCountSetting({
 				</div>
 			</div>
 
-			{error && (
+			{canWrite && <p className="text-meta text-ink-3">输入后按 Enter 或移开焦点保存</p>}
+
+			{(inputError || error) && (
 				<div data-testid="lane-count-error" className="text-micro text-down">
-					{error}
+					{inputError || error}
 				</div>
 			)}
 		</div>
