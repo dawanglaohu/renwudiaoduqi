@@ -1098,6 +1098,7 @@ export async function executeProbeProcess(params: {
 	readonly commandRunner?: (params: CommandRunnerParams) => Promise<CommandRunnerResult>;
 	readonly spawnManagedFn?: typeof spawnManaged;
 	readonly agentId: string;
+	readonly env?: Readonly<Record<string, string | undefined>>;
 }): Promise<CommandRunnerResult> {
 	const {
 		file,
@@ -1119,6 +1120,15 @@ export async function executeProbeProcess(params: {
 			cwd,
 			timeoutMs,
 			windowsVerbatimArguments,
+			...(params.env
+				? {
+						env: Object.fromEntries(
+							Object.entries(params.env).filter(
+								(entry): entry is [string, string] => entry[1] !== undefined,
+							),
+						),
+					}
+				: {}),
 		});
 	}
 
@@ -1157,6 +1167,7 @@ export async function executeProbeProcess(params: {
 					args: comSpec.rawArgs,
 					windowsComSpecPath: comSpec.commandProcessor,
 					cwd,
+					envOverrides: params.env,
 					timeouts: {
 						startupTimeoutMs: timeoutMs,
 					},
@@ -1166,6 +1177,7 @@ export async function executeProbeProcess(params: {
 					file,
 					args,
 					cwd,
+					envOverrides: params.env,
 					timeouts: {
 						startupTimeoutMs: timeoutMs,
 					},

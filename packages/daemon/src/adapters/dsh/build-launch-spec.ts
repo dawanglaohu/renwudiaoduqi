@@ -4,9 +4,10 @@ import {
 	isPermissionTier,
 	resolvePermissionMapping,
 } from '../../domain/permission-tier.ts';
+import { AppError } from '../../errors/app-error.ts';
 import type { LaunchSpec } from '../../proc/spawn.ts';
 
-export const DEFAULT_DSH_BIN_PATH = 'resources/host/node_modules/@deepseek-ai/dsh/lib/bin.js';
+export const DEFAULT_DSH_BIN_PATH = 'dsh';
 
 export interface BuildDshLaunchSpecOptions {
 	readonly runId: string;
@@ -48,7 +49,10 @@ export function buildDshLaunchSpec(options: BuildDshLaunchSpecOptions): LaunchSp
 	args.push('--profile', 'headless');
 
 	if (options.model && options.model.trim().length > 0) {
-		args.push('--model', options.model.trim());
+		throw new AppError(
+			'E_VALIDATION',
+			'DSH headless does not support a model argument. Select the model in DeepSeek Harness and clear the scheduler model override.',
+		);
 	}
 
 	const envOverrides: Record<string, string | undefined> = {

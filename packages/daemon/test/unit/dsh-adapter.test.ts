@@ -67,14 +67,14 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(Object.isFrozen(spec.args)).toBe(true);
 		});
 
-		it('defaults to application internal bin.js executed via node when execPath not given (E-193)', () => {
+		it('defaults to a discoverable dsh command when execPath not given (E-193)', () => {
 			const spec = buildLaunchSpec({
 				runId: 'dsh-run-internal',
 				cwd: '/workspace/project',
 			});
 
-			expect(spec.file).toBe(process.execPath);
-			expect(spec.args[0]).toBe(DEFAULT_DSH_BIN_PATH);
+			expect(spec.file).toBe(DEFAULT_DSH_BIN_PATH);
+			expect(spec.args[0]).toBe('--profile');
 			expect(spec.args).toContain('--profile');
 			expect(spec.args[spec.args.indexOf('--profile') + 1]).toBe('headless');
 		});
@@ -119,16 +119,15 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			}
 		});
 
-		it('passes model parameter if specified', () => {
-			const spec = buildDshLaunchSpec({
-				runId: 'dsh-model-run',
-				cwd: '/workspace/project',
-				model: 'deepseek-reasoner',
-				prompt: 'solve problem',
-			});
-
-			expect(spec.args).toContain('--model');
-			expect(spec.args[spec.args.indexOf('--model') + 1]).toBe('deepseek-reasoner');
+		it('rejects a model parameter unsupported by headless', () => {
+			expect(() =>
+				buildDshLaunchSpec({
+					runId: 'dsh-model-run',
+					cwd: '/workspace/project',
+					model: 'deepseek-reasoner',
+					prompt: 'solve problem',
+				}),
+			).toThrow('DSH headless does not support a model argument');
 		});
 	});
 

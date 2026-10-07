@@ -30,6 +30,7 @@ export interface DshSmokeTestOptions {
 	readonly cwd?: string;
 	readonly smokePrompt?: string;
 	readonly timeoutMs?: number;
+	readonly model?: string | null;
 	readonly runner: (params: DshSmokeRunnerParams) => Promise<DshSmokeRunnerResult>;
 }
 
@@ -44,14 +45,23 @@ export interface DshSmokeTestOptions {
  * Any mismatch fails the test and prevents enabling or dispatch.
  */
 export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<DshSmokeTestResult> {
-	const prompt = options.smokePrompt ?? 'smoke-test';
+	const prompt = options.smokePrompt ?? 'Reply exactly OK. Do not use tools or change any files.';
 	const cwd = options.cwd ?? process.cwd();
-	const launchSpec = buildDshLaunchSpec({
-		runId: 'dsh-smoke',
-		cwd,
-		execPath: options.execPath,
-		prompt,
-	});
+	let launchSpec: ReturnType<typeof buildDshLaunchSpec>;
+	try {
+		launchSpec = buildDshLaunchSpec({
+			runId: 'dsh-smoke',
+			cwd,
+			execPath: options.execPath,
+			prompt,
+			model: options.model,
+		});
+	} catch (error) {
+		return Object.freeze({
+			ok: false,
+			reason: error instanceof Error ? error.message : String(error),
+		});
+	}
 
 	let runnerResult: DshSmokeRunnerResult;
 	try {
@@ -59,7 +69,7 @@ export async function runDshSmokeTest(options: DshSmokeTestOptions): Promise<Dsh
 			file: launchSpec.file,
 			args: launchSpec.args,
 			cwd: launchSpec.cwd,
-			timeoutMs: options.timeoutMs ?? 10_000,
+			timeoutMs: options.timeoutMs ?? 60_000,
 			env: launchSpec.envOverrides,
 		});
 	} catch (error) {
