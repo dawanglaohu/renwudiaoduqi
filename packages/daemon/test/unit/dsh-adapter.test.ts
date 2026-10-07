@@ -67,14 +67,14 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(Object.isFrozen(spec.args)).toBe(true);
 		});
 
-		it('defaults to application internal bin.js executed via node when execPath not given (E-193)', () => {
+		it('defaults to a discoverable dsh command when execPath not given (E-193)', () => {
 			const spec = buildLaunchSpec({
 				runId: 'dsh-run-internal',
 				cwd: '/workspace/project',
 			});
 
-			expect(spec.file).toBe(process.execPath);
-			expect(spec.args[0]).toBe(DEFAULT_DSH_BIN_PATH);
+			expect(spec.file).toBe(DEFAULT_DSH_BIN_PATH);
+			expect(spec.args[0]).toBe('--profile');
 			expect(spec.args).toContain('--profile');
 			expect(spec.args[spec.args.indexOf('--profile') + 1]).toBe('headless');
 		});
@@ -119,16 +119,15 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			}
 		});
 
-		it('passes model parameter if specified', () => {
-			const spec = buildDshLaunchSpec({
-				runId: 'dsh-model-run',
-				cwd: '/workspace/project',
-				model: 'deepseek-reasoner',
-				prompt: 'solve problem',
-			});
-
-			expect(spec.args).toContain('--model');
-			expect(spec.args[spec.args.indexOf('--model') + 1]).toBe('deepseek-reasoner');
+		it('rejects a model parameter unsupported by headless', () => {
+			expect(() =>
+				buildDshLaunchSpec({
+					runId: 'dsh-model-run',
+					cwd: '/workspace/project',
+					model: 'deepseek-reasoner',
+					prompt: 'solve problem',
+				}),
+			).toThrow('DSH headless does not support a model argument');
 		});
 	});
 
@@ -164,7 +163,7 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(result.unmappedCount).toBe(1); // R2 (d)
 		});
 
-		it('R2 (b): filters out dsh banners and progress lines; only terminal assistant text emits event', () => {
+		it('R2 (b): preserves banner-looking text in the terminal assistant answer', () => {
 			const bannerLines = [
 				'DeepSeek Harness v0.1.0 (headless)',
 				'Loading profile headless...',
@@ -176,7 +175,7 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 
 			for (const banner of bannerLines) {
 				const events = mapDshEvents(banner);
-				expect(events).toEqual([]);
+				expect(events[0]?.payload.chunk).toBe(banner);
 			}
 
 			// Actual terminal assistant text emits exactly 1 event
@@ -197,7 +196,12 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(events[0]?.runId).toBe('run-multi');
 		});
 
-		it('R2 (c) & E-140: runService.ingestLine with acceptsPlainText=true passes plain text to mapper without unmapped_event_count', async () => {
+		it.each([
+			'Final analysis finished successfully.',
+			'{"status":"done"}',
+			'["completed", "verified"]',
+			'{unfinished JSON answer',
+		])('preserves DSH terminal text %s without unmapped_event_count', async (plainTextOutput) => {
 			const mockLogstore = {
 				appendRaw: vi.fn(async () => ({ offset: 0, byteLen: 50 })),
 				appendEvent: vi.fn(async () => ({ offset: 0, byteLen: 100, seq: 1 })),
@@ -223,7 +227,6 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 				eventMapper: (line: unknown) => mapDshEvents(line, { runId: 'run-plain-1' }),
 			});
 
-			const plainTextOutput = 'Final analysis finished successfully.';
 			const result = await runService.ingestLine('run-plain-1', plainTextOutput, {
 				acceptsPlainText: true,
 			});
@@ -231,16 +234,53 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(result.rawAppended).toBe(true);
 			expect(result.eventsAppended).toBe(1);
 			expect(result.unmappedDiscarded).toBe(false); // E-140: not discarded as unmapped
+			expect(mockLogstore.appendEvent).toHaveBeenCalledWith(
+				'run-plain-1',
+				expect.objectContaining({ payload: expect.objectContaining({ chunk: plainTextOutput }) }),
+			);
 			expect(mockRunsRepo.incrementUnmappedEventCount).not.toHaveBeenCalled();
 		});
 	});
 
 	describe('AC 3 & E-191 & E-28 & R3: 启用前过探测 + 冒烟任务（生产接线与单测覆盖）', () => {
+		it.each([
+			['dsh: reasoning:\nChecking the requested answer.\n', false],
+			['dsh: reasoning:\nChecking.\nError: authentication failed', false],
+			['dsh: reasoning:\nChecking.\n(node:42) Warning: unexpected runtime diagnostic', false],
+			['dsh: reasoning:\nChecking.\n    at provider (runtime.js:1:1)', false],
+			['dsh: E_PROVIDER: request failed', false],
+			['dsh: reasoning:\nChecking.\ndsh: E_PROVIDER: request failed', false],
+			['Unknown diagnostic\ndsh: reasoning:\nChecking.', false],
+		] as const)('rejects every headless smoke stderr diagnostic %s', async (stderr, expected) => {
+			const result = await runDshSmokeTest({
+				runner: async () => ({
+					ok: true,
+					exitCode: 0,
+					stdout: '{"type":"final","text":"OK"}',
+					stderr,
+				}),
+			});
+			expect(result.ok).toBe(expected);
+			expect(result.stderr).toBe(stderr);
+		});
+		it.each([
+			'{"type":"status","phase":"turn_end"}',
+			'{"type":"final","text":"  "}',
+			'{"type":"final","text":42}',
+			'Runtime diagnostic\n{"type":"final","text":"OK"}',
+			'{"type":"final","text":"OK"}\n{"type":"status","phase":"turn_end"}',
+		])('rejects JSON smoke output without a valid terminal final record %s', async (stdout) => {
+			const result = await runDshSmokeTest({
+				runner: async () => ({ ok: true, exitCode: 0, stdout, stderr: '' }),
+			});
+			expect(result.ok).toBe(false);
+		});
 		it('passes standalone runDshSmokeTest on contract match', async () => {
 			const mockRunner = vi.fn(async (_params: DshSmokeRunnerParams) => ({
 				ok: true,
 				exitCode: 0,
-				stdout: 'OK\n',
+				stdout:
+					'{"type":"status","phase":"turn_end","reason":{"kind":"completed"}}\n{"type":"final","text":"OK"}\n',
 				stderr: '',
 			}));
 
@@ -257,6 +297,7 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 
 			const callArgs = mockRunner.mock.calls[0]?.[0];
 			expect(callArgs?.args).toContain('--profile');
+			expect(callArgs?.args).toContain('--json');
 			expect(callArgs?.args[callArgs.args.indexOf('--profile') + 1]).toBe('headless');
 			expect(callArgs?.args).toContain('ping');
 		});
@@ -391,7 +432,7 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 
 			const dshDto = await service.getAgent('dsh');
 			expect(dshDto?.isAvailable).toBe(false);
-			expect(dshDto?.unavailableReason).toContain('expected empty stderr on success');
+			expect(dshDto?.unavailableReason).toContain('unexpected stderr on success');
 		});
 
 		it('R3 case 3 (E-191): empty stdout makes dsh unavailable with failure reason in DTO', async () => {
@@ -498,7 +539,12 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 				if (params.args.includes('--version')) {
 					return { ok: true, exitCode: 0, stdout: 'dsh 0.1.1', stderr: '' };
 				}
-				return { ok: true, exitCode: 0, stdout: 'All tests passed cleanly.', stderr: '' };
+				return {
+					ok: true,
+					exitCode: 0,
+					stdout: '{"type":"final","text":"All tests passed cleanly."}',
+					stderr: '',
+				};
 			});
 
 			const service = createAgentService({
@@ -571,10 +617,10 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 		});
 
 		it('R4 & R6: version outside registry versionRange has canDispatch=true and attaches warningBanner to DTO', async () => {
-			const mockRunner = vi.fn(async () => ({
+			const mockRunner = vi.fn(async (params: DshSmokeRunnerParams) => ({
 				ok: true,
 				exitCode: 0,
-				stdout: 'dsh 0.3.0',
+				stdout: params.args.includes('--version') ? 'dsh 0.3.0' : '{"type":"final","text":"OK"}',
 				stderr: '',
 			}));
 

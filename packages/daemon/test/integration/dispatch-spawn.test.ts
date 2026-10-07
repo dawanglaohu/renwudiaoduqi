@@ -110,6 +110,7 @@ function createFakeProcess(
 	options: { exitCode?: number; stderrTail?: string } = {},
 ): FakeManagedProcessController {
 	const rawListeners = new Set<(line: ReadLine) => void>();
+	const lineListeners = new Set<(line: ReadLine) => void>();
 	const jsonListeners = new Set<(parsed: ParsedJsonLine) => void>();
 	const exitListeners = new Set<(result: ProcessExitResult) => void>();
 	let isExited = false;
@@ -139,7 +140,10 @@ function createFakeProcess(
 		waitForStdinDrain: () => Promise.resolve(),
 		onStdinDrain: () => () => {},
 		writeStdin: () => true,
-		onLine: () => () => {},
+		onLine: (listener) => {
+			lineListeners.add(listener);
+			return () => lineListeners.delete(listener);
+		},
 		onRaw: (listener) => {
 			rawListeners.add(listener);
 			return () => rawListeners.delete(listener);
@@ -170,6 +174,7 @@ function createFakeProcess(
 		for (const l of rawListeners) {
 			l(rawLine);
 		}
+		for (const l of lineListeners) l(rawLine);
 		try {
 			const parsed = JSON.parse(text);
 			for (const l of jsonListeners) {
@@ -297,6 +302,7 @@ function setupTestEnvironment(
 		readonly spawnThrow?: boolean;
 		readonly implPrompt?: string;
 		readonly claudeExecPath?: string;
+		readonly dshResolvedPath?: string;
 		readonly customSpawn?: typeof import('../../src/proc/spawn.ts').spawnManaged;
 		readonly baseSelector?: import('../../src/workspace/base-select.ts').BaseSelector;
 	} = {},
@@ -377,7 +383,12 @@ function setupTestEnvironment(
 			Array.from(availableAgentIds).map((id) => ({ id, canDispatch: true, maxConcurrency: 2 })),
 		getAvailability: (agentId: string) => {
 			if (availableAgentIds.has(agentId)) {
-				return { canDispatch: true, isReady: true, status: 'ready' };
+				return {
+					canDispatch: true,
+					isReady: true,
+					status: 'ready',
+					resolvedPath: agentId === 'dsh' ? overrides.dshResolvedPath : undefined,
+				};
 			}
 			return { canDispatch: false, isReady: false, status: 'not_found' };
 		},
@@ -468,6 +479,49 @@ function setupTestEnvironment(
 }
 
 describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000 }, () => {
+	it.each(['manual', 'tick'] as const)(
+		'freezes the discovered DSH executable before %s dispatch',
+		async (entry) => {
+			const executable = '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh';
+			const { container, getLatestProc } = setupTestEnvironment({
+				availableAgentIds: ['dsh'],
+				dshResolvedPath: executable,
+				implPrompt: 'Reply OK',
+			});
+			let runId: string;
+			if (entry === 'manual') {
+				const result = await container.services.dispatch.createRun({
+					taskId: 'task-1',
+					agentId: 'dsh',
+					idempotencyKey: 'dsh-resolved-manual',
+				});
+				runId = result.run.id;
+			} else {
+				const result = await container.services.dispatch.tick();
+				expect(result.runsDispatched).toHaveLength(1);
+				runId = result.runsDispatched[0] ?? '';
+			}
+			const run = container.repos.runs.findById(runId);
+			const snapshot = container.repos.dispatchSnapshots?.findById(run?.snapshot_id ?? '');
+			expect(JSON.parse(snapshot?.launch_spec_json ?? '{}').execPath).toBe(executable);
+			if (entry === 'manual') {
+				vi.spyOn(container.services.agents, 'getAvailability').mockReturnValue({
+					agentId: 'dsh',
+					isAvailable: true,
+					canDispatch: true,
+					status: 'matched',
+					versionString: '0.2.0-rc.2',
+					resolvedPath: '/opt/changed-after-snapshot/dsh',
+					probedAt: new Date().toISOString(),
+					generation: 1,
+				});
+				await container.services.dispatch.launchRun(runId);
+			}
+			await vi.waitFor(() => expect(getLatestProc()?.lastLaunchSpec.file).toBe(executable));
+			vi.restoreAllMocks();
+		},
+	);
+
 	it.each(['success', 'partial', 'empty', 'input-error'] as const)(
 		'R8-T57073674: production stdin and event lifecycle (%s)',
 		async (scenario) => {

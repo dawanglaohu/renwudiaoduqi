@@ -102,6 +102,7 @@ export async function readWrapupReportText(
 	paths: LogstorePaths,
 	fs: LogFileSystem,
 	runId: string,
+	options?: { readonly allowRawFallback?: boolean },
 ): Promise<string> {
 	const readStream = async (stream: 'events' | 'raw'): Promise<string[]> => {
 		const chunks: string[] = [];
@@ -139,6 +140,7 @@ export async function readWrapupReportText(
 	if (messageParts.length > 0) {
 		return messageParts.join('');
 	}
+	if (options?.allowRawFallback === false) return '';
 	return (await readStream('raw')).join('');
 }
 
@@ -648,7 +650,12 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				const snapshot = deps.agentRegistry.getSnapshot();
 				const entry = snapshot.agents[assignment.agentId];
 				if (entry) {
-					launchSpecJson = JSON.stringify(entry);
+					launchSpecJson = JSON.stringify({
+						...entry,
+						execPath:
+							deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
+							entry.execPath,
+					});
 				}
 			}
 
@@ -871,11 +878,12 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				throw new AppError('E_NOT_FOUND', `Batch not found: ${batchId}`);
 			}
 
-			// Read report text：先从 events 流拼 agent 的最终文本（所有受支持 agent 的 stdout 都是 JSON 行流，
-			// 八段段头只出现在 agent_message_chunk 里）；没有内容事件时（纯文本 agent）才回落到 raw 流原文。
+			// DSH reports use normalized stdout only; raw logs also contain stderr reasoning.
 			let rawText = input.rawText ?? '';
 			if (!rawText && deps.logstorePaths && deps.logFs) {
-				rawText = await readWrapupReportText(deps.logstorePaths, deps.logFs, runId);
+				rawText = await readWrapupReportText(deps.logstorePaths, deps.logFs, runId, {
+					allowRawFallback: run.agent_id !== 'dsh',
+				});
 			}
 
 			const now = deps.clock.now();

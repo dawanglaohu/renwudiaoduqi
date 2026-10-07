@@ -1098,6 +1098,7 @@ export async function executeProbeProcess(params: {
 	readonly commandRunner?: (params: CommandRunnerParams) => Promise<CommandRunnerResult>;
 	readonly spawnManagedFn?: typeof spawnManaged;
 	readonly agentId: string;
+	readonly env?: Readonly<Record<string, string | undefined>>;
 }): Promise<CommandRunnerResult> {
 	const {
 		file,
@@ -1119,12 +1120,23 @@ export async function executeProbeProcess(params: {
 			cwd,
 			timeoutMs,
 			windowsVerbatimArguments,
+			...(params.env
+				? {
+						env: Object.fromEntries(
+							Object.entries(params.env).filter(
+								(entry): entry is [string, string] => entry[1] !== undefined,
+							),
+						),
+					}
+				: {}),
 		});
 	}
 
 	const spawnFn = spawnManagedFn ?? spawnManaged;
 	const stdoutChunks: string[] = [];
 	const stderrChunks: string[] = [];
+	const collectedStderr = () =>
+		stderrChunks.length === 1 && stderrChunks[0] === '' ? '\n' : stderrChunks.join('\n');
 
 	return new Promise<CommandRunnerResult>((resolve) => {
 		let resolved = false;
@@ -1140,7 +1152,7 @@ export async function executeProbeProcess(params: {
 					ok: false,
 					exitCode: null,
 					stdout: stdoutChunks.join(''),
-					stderr: stderrChunks.join(''),
+					stderr: collectedStderr(),
 					timedOut: true,
 				});
 			}
@@ -1157,6 +1169,7 @@ export async function executeProbeProcess(params: {
 					args: comSpec.rawArgs,
 					windowsComSpecPath: comSpec.commandProcessor,
 					cwd,
+					envOverrides: params.env,
 					timeouts: {
 						startupTimeoutMs: timeoutMs,
 					},
@@ -1166,6 +1179,7 @@ export async function executeProbeProcess(params: {
 					file,
 					args,
 					cwd,
+					envOverrides: params.env,
 					timeouts: {
 						startupTimeoutMs: timeoutMs,
 					},
@@ -1175,7 +1189,7 @@ export async function executeProbeProcess(params: {
 		try {
 			managed = spawnFn(spec, {
 				platform,
-				onRaw: (line) => {
+				onLine: (line) => {
 					stdoutChunks.push(line.text);
 				},
 				onStderr: (line) => {
@@ -1189,7 +1203,7 @@ export async function executeProbeProcess(params: {
 						resolved = true;
 						clearTimeout(timer);
 						const stdout = stdoutChunks.join('\n');
-						const stderr = stderrChunks.join('\n');
+						const stderr = collectedStderr();
 						const ok = exitResult.exitCode === 0;
 						resolve({
 							ok,
