@@ -37,16 +37,16 @@
     "_run/batches/batch-8-20260929-claude-launch.md": "5afcd1e46116cfc76f6ce4035b69602d34206a5bca039981b1cd1d9e113a76c7",
     "_run/batches/batch-8-20260929-rerun-gap.md": "0476d1965b7434167eafdbe23d397a899a01acc077589c830cc298eddee50fd1",
     "_run/presentation.json": "33c1dc94b86aba95c5e4fcf587633f834e187f76f8d9a3c60c1843f4a1a3f937",
-    "_run/task-contracts.json": "5a6f99f7cdf2abfb6d0800659ba03130e7f9585472b14a6faa4f9cf56a0740e4"
+    "_run/task-contracts.json": "4ca5be0278517fd0a8d767b5029b19dffa80400fb4cb5868f1cd4d3f9334b031"
   },
   "products": {
     "_MOC.md": "079c49246a2698424381a5d18fb8372aadf3f87043b9619772c2622dc480dc92",
-    "_run/dispatch.json": "0ea05cfc912bc6e837dff3d2c36f2d116d928c63326c6d45a84a2f37b7d77038",
-    "_run/review.json": "03db3c50781b4885e916b307ac76098a06297769913e89671a446739433fda4a",
-    "_run/task-reviews.json": "ff6191ac45c9859940b6bf3cdcc69e262fd61d9aac3629b664e7bf604380e3f9",
-    "docs-data.js": "5f8d3ab09a6a3452db4b1f5762f2928086af938b092aabf60d931c90141c58ba",
+    "_run/dispatch.json": "a04b7b9ca551194c54b1253028f12b3a5a4429e1db2f6218603a3c2b7a0a3cc2",
+    "_run/review.json": "eff4c52ad04a753408019dc5230e4dc5e671a71b75e449137a052fec4fa79dd4",
+    "_run/task-reviews.json": "56cb683f743a38af337ef50d4bb835d8cc96069ab7a57a9fcab25d26acd11d4d",
+    "docs-data.js": "51381f1e5ce92b4025ac992a17d9a044e9b777df6f6088157d916ba561d33734",
     "index.html": "7558315b3b7718157e85b3dd8c36f2e6d6790cfee592ed51ef84f61c562af085"
   },
   "schemaVersion": 1,
-  "sourceVersion": "3c843a0e16a8b4c9473379c246a1d9fdf3e4d21741c2cded5797a7b8a22c39ed"
+  "sourceVersion": "c6975ef81b65c131923f9429a062fb649316abf289e0446a482d9a298144d1f5"
 }

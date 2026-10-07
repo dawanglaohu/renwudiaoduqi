@@ -696,7 +696,8 @@
         "packages/daemon/src/service/review.ts",
         "packages/daemon/src/service/wrapup.ts",
         "packages/daemon/src/service/bughunt.ts",
-        "packages/daemon/test/integration/dispatch-spawn.test.ts"
+        "packages/daemon/test/integration/dispatch-spawn.test.ts",
+        "packages/daemon/test/integration/container-wiring.test.ts"
       ]
     },
     "M4-T4": {

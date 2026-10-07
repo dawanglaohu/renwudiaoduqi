@@ -216,6 +216,7 @@ function setupWiringEnvironment(
 		/** 注册表里的每 agent 并发上限；容器与 tick 都读它（E-47）。默认 2。 */
 		readonly agentMaxConcurrency?: number;
 		readonly codexExecPath?: string;
+		readonly dshResolvedPath?: string;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-wiring-'));
@@ -298,6 +299,14 @@ function setupWiringEnvironment(
 		stop: async () => {},
 		listAgents: async () => [{ id: 'codex', canDispatch: true, maxConcurrency: 2 }],
 		getAvailability: (agentId: string) => {
+			if (agentId === 'dsh' && overrides.dshResolvedPath) {
+				return {
+					canDispatch: true,
+					isReady: true,
+					status: 'ready',
+					resolvedPath: overrides.dshResolvedPath,
+				};
+			}
 			if (agentId === 'codex') {
 				return { canDispatch: true, isReady: true, status: 'ready' };
 			}
@@ -537,6 +546,58 @@ describe(
 	'M7-T9 Integration: Container Wiring (AC 2, AC 3, AC 4, E-53, E-57, E-104, E-120, E-123)',
 	{ timeout: 25000 },
 	() => {
+		it('uses the discovered DSH executable in the production review service and new review sessions', async () => {
+			const executable = '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh';
+			const { container, spawnedProcesses } = setupWiringEnvironment({
+				dshResolvedPath: executable,
+			});
+			await container.services.settings.updateGates(
+				{ dispatch: 'auto', review: 'auto', landing: 'manual' },
+				null,
+			);
+			const result = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'dsh',
+				idempotencyKey: 'dsh-production-review',
+			});
+			await container.services.dispatch.launchRun(result.run.id);
+			expect(await waitFor(() => spawnedProcesses.length >= 1)).toBe(true);
+			const implementation = spawnedProcesses[0];
+			if (!implementation) throw new Error('Implementation process missing');
+			const output: unknown[] = [];
+			container.events.bus.subscribe((event) => {
+				if (event.runId === result.run.id && event.kind === 'agent_message_chunk') {
+					output.push(event.payload);
+				}
+			});
+			implementation.emitLine('Implementation complete.');
+			expect(await waitFor(() => output.length > 0)).toBe(true);
+			implementation.emitExit(0);
+			expect(await waitFor(() => spawnedProcesses.length >= 2)).toBe(true);
+			const review = spawnedProcesses[1];
+			if (!review) throw new Error('Review process missing');
+			expect(review.launchSpec.file).toBe(executable);
+			expect(review.launchSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
+			review.emitLine('VERDICT: pass');
+			review.emitExit(0);
+			expect(
+				await waitFor(
+					() => container.repos.runs.findById(review.launchSpec.runId)?.state === 'exited',
+				),
+			).toBe(true);
+			const nextRoundId = await container.services.review.startReviewRound({
+				taskId: 'task-1',
+				implRunId: result.run.id,
+				round: 2,
+				reworkItems: ['Verify the follow-up change'],
+			});
+			const nextReview = spawnedProcesses.find(
+				(process) => process.launchSpec.runId === nextRoundId,
+			);
+			expect(nextReview?.launchSpec.file).toBe(executable);
+			expect(nextReview?.launchSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
+		});
+
 		it.each(['codex', 'grok'] as const)(
 			'resumes %s with the executable and extra arguments frozen in its snapshot',
 			async (agentId) => {

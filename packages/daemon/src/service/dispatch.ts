@@ -2167,6 +2167,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 				deps.runService.attachProcess(runId, managed, {
 					eventMapper: adapter.createEventMapper?.() ?? adapter.mapEvents,
+					acceptsPlainText: run.agent_id === 'dsh',
 				});
 
 				const latestRun = runsRepo.findById(runId);
@@ -2483,6 +2484,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 			deps.runService.attachProcess(runId, managed, {
 				eventMapper: adapter.createEventMapper?.() ?? adapter.mapEvents,
+				acceptsPlainText: run.agent_id === 'dsh',
 				mapExitResult: (result) => {
 					const session = deps.codexSessions?.get(runId);
 					if (!session) return result;

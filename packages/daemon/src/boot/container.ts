@@ -1130,6 +1130,7 @@ export function createContainer(input: {
 					spawnManaged: boundSpawnManaged,
 					spawnManagedFn: baseSpawn,
 					agentRegistry,
+					agentService,
 					dispatchSnapshotsRepo: dispatchSnapshots,
 					platform: input.hostInputs.platform,
 					hostInputs: input.hostInputs,
