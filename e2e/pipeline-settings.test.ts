@@ -1657,7 +1657,7 @@ describe(
 				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
 				body: JSON.stringify({ laneCount: 5 }),
 			});
-			expect(externalSave.status()).toBe(200);
+			expect(externalSave.status).toBe(200);
 			await page.waitForFunction(() => document.querySelector<HTMLInputElement>('input[aria-label="任务并行窗口数"]')?.value === '5');
 			const restored = page.waitForResponse((response) => response.url() === `${origin}/api/v1/documents/${importedDoc.id}/settings` && response.request().method() === 'PATCH');
 			await input.fill('4');
