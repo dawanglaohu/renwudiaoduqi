@@ -2,6 +2,7 @@ import { promises as nodeFs } from 'node:fs';
 import { resolve as nodeResolve } from 'node:path';
 import { AGENT_MESSAGE_CHUNK_EVENT_KIND } from '@agent-scheduler/shared/api/events';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
+import { mapDshEvents } from '../adapters/dsh/map-events.ts';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { resolveAssignment } from '../domain/assignment.ts';
@@ -510,6 +511,7 @@ export async function readReviewReportText(
 	paths: LogstorePaths,
 	fs: LogFileSystem,
 	runId: string,
+	options?: { readonly allowRawFallback?: boolean },
 ): Promise<string> {
 	const readStream = async (stream: 'events' | 'raw'): Promise<string[]> => {
 		const chunks: string[] = [];
@@ -547,6 +549,7 @@ export async function readReviewReportText(
 	if (messageParts.length > 0) {
 		return messageParts.join('');
 	}
+	if (options?.allowRawFallback === false) return '';
 	return (await readStream('raw')).join('');
 }
 
@@ -1994,7 +1997,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		) {
 			try {
 				const dispatchInput: DispatchReviewRunInput = {
-					execPath: deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
+					execPath:
+						deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
+						deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
 					implRun: {
 						id: run.id,
 						taskId,
@@ -2060,7 +2065,17 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				reviewRunId = dispatchResult.run.id;
 
 				if (dispatchResult.managedProcess && deps.runService) {
-					deps.runService.attachProcess(dispatchResult.run.id, dispatchResult.managedProcess);
+					deps.runService.attachProcess(
+						dispatchResult.run.id,
+						dispatchResult.managedProcess,
+						assignment.agentId === 'dsh'
+							? {
+									acceptsPlainText: true,
+									eventMapper: (line) =>
+										mapDshEvents(line, { runId: dispatchResult.run.id, taskId }),
+								}
+							: undefined,
+					);
 					await deps.runService.transitionState({
 						runId: dispatchResult.run.id,
 						targetState: 'running',
@@ -2370,26 +2385,51 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			};
 
 			// AC 2 的 new_session 分支：独立新会话，vendor_session_ref 为空，提示词头部自带轮次与 R 条目。
-			const spawnNewSession = (runId: string, prompt: string) => {
+			const spawnNewSession = async (runId: string, prompt: string) => {
 				const spawn = deps.spawnManagedFn ?? deps.spawnManaged;
 				if (!spawn) return;
-				const assignment: ReviewAgentAssignment = {
-					agentId: prevReview.agent_id,
-					modelName: prevReview.model_name,
-					effortTier: prevReview.effort_tier as EffortTier | null,
-					...(prevReview.effort_vendor ? { effortVendor: prevReview.effort_vendor } : {}),
-				};
-				const launchSpec = buildReviewLaunchSpec({
-					runId,
-					taskId,
-					worktreePath: prevReview.worktree_path ?? '',
-					execPath: deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
-					assignment,
-					prompt,
-				});
-				const hostResult = takePlatformHostInputs({});
-				const platform = deps.platform ?? (hostResult.ok ? hostResult.value.platform : 'win32');
-				deps.processRegistry?.register(spawn(launchSpec, { platform }));
+				try {
+					const assignment: ReviewAgentAssignment = {
+						agentId: prevReview.agent_id,
+						modelName: prevReview.model_name,
+						effortTier: prevReview.effort_tier as EffortTier | null,
+						...(prevReview.effort_vendor ? { effortVendor: prevReview.effort_vendor } : {}),
+					};
+					const launchSpec = buildReviewLaunchSpec({
+						runId,
+						taskId,
+						worktreePath: prevReview.worktree_path ?? '',
+						execPath:
+							deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
+							deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
+						assignment,
+						prompt,
+					});
+					const hostResult = takePlatformHostInputs({});
+					const platform = deps.platform ?? (hostResult.ok ? hostResult.value.platform : 'win32');
+					const managed = spawn(launchSpec, { platform });
+					if (assignment.agentId === 'dsh' && managed.isExited) {
+						throw new AppError('E_INTERNAL', 'DSH review process exited before attachment');
+					}
+					deps.processRegistry?.register(managed);
+					if (assignment.agentId === 'dsh' && deps.runService) {
+						deps.runService.attachProcess(runId, managed, {
+							acceptsPlainText: true,
+							eventMapper: (line) => mapDshEvents(line, { runId, taskId }),
+						});
+						await deps.runService.transitionState({
+							runId,
+							targetState: 'running',
+							reason: 'process_spawned',
+							pid: managed.pid,
+							worktreePath: prevReview.worktree_path ?? undefined,
+							branchName: prevReview.branch_name,
+						});
+					}
+				} catch (error) {
+					await handOverContinuationFailure(runId, parentRunId ?? null);
+					throw error;
+				}
 			};
 
 			// AC 2：按能力位选路，不试了再降级。
@@ -2446,7 +2486,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				persistRound(newRunId, null);
 				await publishStarted(newRunId);
 				if (deps.runsRepo?.findById(newRunId)?.state !== 'starting') return newRunId;
-				spawnNewSession(newRunId, promptPrefix);
+				await spawnNewSession(newRunId, promptPrefix);
 				return newRunId;
 			}
 
@@ -2520,7 +2560,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			}
 			await publishStarted(fallbackRunId);
 			if (deps.runsRepo?.findById(fallbackRunId)?.state !== 'starting') return fallbackRunId;
-			spawnNewSession(fallbackRunId, promptPrefix);
+			await spawnNewSession(fallbackRunId, promptPrefix);
 
 			// E-330 末句：新开的会话再次在内容前失败 → 不再新开，转人并在闸门 comment 写 review_continuation_failed。
 			// 观察在事务外异步进行，函数本身立即返回新行 id。
@@ -2751,16 +2791,18 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			if (deps.runService?.closeRunStream) {
 				await deps.runService.closeRunStream(runId);
 			}
+			const reviewRun = deps.runsRepo?.findById(input.runId);
 			let outputText = '';
 			if (deps.logstorePaths && deps.logFs) {
 				try {
-					outputText = await readReviewReportText(deps.logstorePaths, deps.logFs, runId);
+					outputText = await readReviewReportText(deps.logstorePaths, deps.logFs, runId, {
+						allowRawFallback: reviewRun?.agent_id !== 'dsh',
+					});
 				} catch {
 					outputText = '';
 				}
 			}
 
-			const reviewRun = deps.runsRepo?.findById(input.runId);
 			const unsuccessful =
 				reviewRun?.state === 'failed' ||
 				reviewRun?.state === 'aborted' ||

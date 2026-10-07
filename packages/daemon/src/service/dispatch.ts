@@ -203,6 +203,8 @@ export interface DispatchableAgent {
 	readonly agentId: string;
 	readonly canDispatch: boolean;
 	readonly concurrencyLimit?: number;
+	/** Executable verified by the current availability probe; frozen into new launch snapshots. */
+	readonly resolvedPath?: string;
 }
 
 export interface BuildLaunchSpecInput {
@@ -407,6 +409,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			return deps.listDispatchableAgents();
 		}
 		return Object.freeze([]);
+	}
+
+	function launchExecutable(agentId: string): string | undefined {
+		return (
+			listDispatchableAgents().find((agent) => agent.agentId === agentId)?.resolvedPath ??
+			deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath
+		);
 	}
 
 	/**
@@ -644,7 +653,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		const launchSpecJson = JSON.stringify({
 			agentId,
-			execPath: deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath,
+			execPath: launchExecutable(agentId),
 			model: resolvedAssignment.modelName ?? null,
 			effort: resolvedAssignment.effortTier ?? null,
 			permissionTier: input.permissionTier ?? 'workspaceWrite',
@@ -1915,7 +1924,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 							const launchSpecJson = JSON.stringify({
 								agentId: item.agentId,
-								execPath: deps.agentRegistry?.getSnapshot().agents[item.agentId]?.execPath,
+								execPath: launchExecutable(item.agentId),
 								model: tickResolved.modelName ?? null,
 								effort: tickResolved.effortTier ?? null,
 								permissionTier: 'workspaceWrite',
@@ -2122,19 +2131,18 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						{ details: { runId, snapshotId: run.snapshot_id } },
 					);
 				}
-				const launchSpec = adapter.buildLaunchSpec({
-					runId,
-					cwd: worktreePath,
-					execPath: wrapupLaunchSpecData.execPath,
-					model: run.model_name ?? wrapupLaunchSpecData.model ?? null,
-					effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
-					permissionTier: 'workspaceWrite',
-					prompt: wrapupPrompt,
-					...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
-				});
-
 				let managed: ManagedProcess;
 				try {
+					const launchSpec = adapter.buildLaunchSpec({
+						runId,
+						cwd: worktreePath,
+						execPath: wrapupLaunchSpecData.execPath,
+						model: run.model_name ?? wrapupLaunchSpecData.model ?? null,
+						effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
+						permissionTier: 'workspaceWrite',
+						prompt: wrapupPrompt,
+						...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
+					});
 					managed = deps.proc.spawnManaged(launchSpec);
 				} catch (spawnErr) {
 					await deps.runService.transitionState({
@@ -2158,6 +2166,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 				deps.runService.attachProcess(runId, managed, {
 					eventMapper: adapter.createEventMapper?.() ?? adapter.mapEvents,
+					acceptsPlainText: run.agent_id === 'dsh',
 				});
 
 				const latestRun = runsRepo.findById(runId);
@@ -2395,22 +2404,22 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				? (run.effort_tier ?? null)
 				: (run.effort_tier ?? launchSpecData.effort ?? null);
 
-			const launchSpec = adapter.buildLaunchSpec({
-				runId,
-				cwd: preparedWorktree.worktreePath,
-				execPath: launchSpecData.execPath,
-				model: effectiveModel,
-				effortTier: effectiveEffort,
-				permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
-				prompt: runPrompt,
-				// A fresh implementation run owns one bidirectional app-server process.
-				...(run.agent_id === 'codex'
-					? { mode: run.kind === 'implement' && deps.codexSessions ? 'app-server' : 'exec' }
-					: {}),
-			});
-
 			let managed: ManagedProcess;
+			let launchSpec: LaunchSpec;
 			try {
+				launchSpec = adapter.buildLaunchSpec({
+					runId,
+					cwd: preparedWorktree.worktreePath,
+					execPath: launchSpecData.execPath,
+					model: effectiveModel,
+					effortTier: effectiveEffort,
+					permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
+					prompt: runPrompt,
+					// A fresh implementation run owns one bidirectional app-server process.
+					...(run.agent_id === 'codex'
+						? { mode: run.kind === 'implement' && deps.codexSessions ? 'app-server' : 'exec' }
+						: {}),
+				});
 				managed = deps.proc.spawnManaged(launchSpec);
 			} catch (spawnErr) {
 				if (run.origin === 'rework') {
@@ -2474,6 +2483,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 			deps.runService.attachProcess(runId, managed, {
 				eventMapper: adapter.createEventMapper?.() ?? adapter.mapEvents,
+				acceptsPlainText: run.agent_id === 'dsh',
 				mapExitResult: (result) => {
 					const session = deps.codexSessions?.get(runId);
 					if (!session) return result;

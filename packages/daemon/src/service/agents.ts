@@ -32,7 +32,9 @@ import {
 	type FingerprintCache,
 	type ProbeAgentResult,
 	type ProbeStatus,
+	buildProbeLaunch,
 	createFingerprintCache,
+	executeProbeProcess,
 	probeAgent,
 } from '../adapters/probe.ts';
 import { BUILT_IN_AGENT_IDS, type ResolvedAgentConfig } from '../config/defaults.ts';
@@ -45,6 +47,7 @@ import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { ExecutableFileSystem, PlatformHostInputs } from '../platform/contract.ts';
+import { resolveExecutable } from '../platform/resolve-executable.ts';
 import type { spawnManaged } from '../proc/spawn.ts';
 import { type RunsRepo, createRunsRepo } from '../repo/runs.ts';
 
@@ -471,13 +474,7 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 		}
 
 		// R3 & E-191 & E-28: dsh smoke test verification before enablement
-		const smokeCommandRunner = deps.commandRunner;
-		if (
-			agentId === BUILT_IN_AGENT_IDS.DSH &&
-			probeResult.canDispatch &&
-			smokeCommandRunner !== undefined
-		) {
-			const runCommand: NonNullable<typeof smokeCommandRunner> = smokeCommandRunner;
+		if (agentId === BUILT_IN_AGENT_IDS.DSH && probeResult.canDispatch) {
 			const runner = async (params: {
 				file: string;
 				args: readonly string[];
@@ -485,18 +482,26 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 				timeoutMs?: number;
 				env?: Readonly<Record<string, string | undefined>>;
 			}) => {
-				const cleanEnv: Record<string, string> = {};
-				if (params.env) {
-					for (const [k, v] of Object.entries(params.env)) {
-						if (v !== undefined) cleanEnv[k] = v;
-					}
-				}
-				const res = await runCommand({
-					file: params.file,
-					args: params.args,
+				const resolved = await resolveExecutable(
+					{
+						hostInputs: deps.hostInputs,
+						executableName: params.file,
+						configuredPath: params.file,
+					},
+					deps.fileSystem,
+				);
+				if (!resolved.ok) throw new AppError(resolved.error.code, resolved.error.message);
+				const launch = buildProbeLaunch(resolved.executable, params.args);
+				if (!launch) throw new AppError('E_VALIDATION', 'DSH smoke arguments cannot be launched.');
+				const res = await executeProbeProcess({
+					...launch,
 					cwd: params.cwd,
-					timeoutMs: params.timeoutMs ?? 10_000,
-					env: Object.keys(cleanEnv).length > 0 ? cleanEnv : undefined,
+					timeoutMs: params.timeoutMs ?? 60_000,
+					env: params.env,
+					platform: deps.hostInputs.platform,
+					commandRunner: deps.commandRunner,
+					spawnManagedFn: deps.spawnManagedFn,
+					agentId,
 				});
 				return {
 					ok: res.ok,
@@ -510,6 +515,8 @@ export function createAgentService(deps: AgentServiceDeps): AgentService {
 			const smokeResult = await runDshSmokeTest({
 				execPath: probeResult.resolvedPath ?? config.execPath,
 				cwd: deps.hostInputs.homedir,
+				model: config.defaultModel,
+				timeoutMs: config.timeouts.startupTimeoutMs,
 				runner,
 			});
 

@@ -2,422 +2,465 @@
   "scope": "task-contract",
   "tasks": {
     "M1-T11": {
-      "contractHash": "7cb5e9edd42a3c547bc8ebdce6b565205bb0925957ef61cc588d5d26b9b2c4ca",
+      "contractHash": "418d78941f3af391b23ee64c8ebb930728db56062da8746307e3a5642e419219",
       "evidence": [
-        "M1-T11 实际变化字段：仅前置契约哈希传播；context 内容无变化",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M1-T11 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M10-T1": {
       "contractHash": "a6fba7f4209f44f91d737c4229673682667b8df944ae74b2c90429aeb1394e54",
       "evidence": [
-        "M10-T1 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M10-T1 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M10-T2": {
       "contractHash": "7cb5d249f36e13ff4443ebae0f788a82667c2f6aaa765cc4073e464582b79981",
       "evidence": [
-        "M10-T2 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M10-T2 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M10-T3": {
       "contractHash": "7fb662a4439a3d4d372efeed04815fd1f2507260d66bac65bd9e05fe31760ec3",
       "evidence": [
-        "M10-T3 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M10-T3 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M10-T4": {
       "contractHash": "0a4700f53c59093d9ff2a507d9b9020eae083ddf2adba9651b5829d89037abaf",
       "evidence": [
-        "M10-T4 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M10-T4 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M10-T5": {
       "contractHash": "c1cb02407a4b8cf0ce28bd20d97d0a3c00be4791d0ee91c4d3a35ca5c0a695bc",
       "evidence": [
-        "M10-T5 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M10-T5 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M10-T6": {
       "contractHash": "62c46f70ea528962092c689d74c3cd0308fc25744f1c48929b62e805205bb059",
       "evidence": [
-        "M10-T6 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M10-T6 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M2-T8": {
       "contractHash": "d8dc99ea9cf588cf4ed81fd5d8b76aa3f313585fb34bc2c2e6e00e74c110e42c",
       "evidence": [
-        "M2-T8 实际变化字段：仅前置契约哈希传播；context 内容无变化",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M2-T8 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      ],
+      "verdict": "pass"
+    },
+    "M4-T12": {
+      "contractHash": "bdd2b5376ac2fd179fdf63b59c5e85c774095c95a2be981878c9f0203bb16166",
+      "evidence": [
+        "M4-T12 补丁基线到当前版本的变化字段：/definition/supportPaths, /edges, /effectivePaths, /task/accept",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      ],
+      "verdict": "pass"
+    },
+    "M8-T10": {
+      "contractHash": "bb6ca8c3e3889d158792462a8dd7d0bf4e38a3f40cf5a240ac998585bfa012e6",
+      "evidence": [
+        "M8-T10 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T1": {
       "contractHash": "076f4086a6c1ca6e0f12330a3205c41d77b0c848cf80b66604fd389f077ed81b",
       "evidence": [
-        "M9-T1 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T1 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T10": {
       "contractHash": "bbc51b82e105e7760f152ef7e387b121ce488b25d01c38dde3d10cc7e05b02a9",
       "evidence": [
-        "M9-T10 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T10 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T11": {
       "contractHash": "0ddec94939231c3272973e25a36bcaf901209d4411124a4a31ab0ab15246e778",
       "evidence": [
-        "M9-T11 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T11 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T12": {
       "contractHash": "da876171bc24c363e0beb8cf19937172c6f53564de264a40e72332224711d812",
       "evidence": [
-        "M9-T12 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T12 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T13": {
       "contractHash": "78bb8b6d5874a74f68b3e585fdccea7f64f8eb62425086522cb6ec12d1202ddd",
       "evidence": [
-        "M9-T13 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T13 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T14": {
       "contractHash": "3009558e38b855a2a802b2d3de2905cc65eaf9c6dfb8e5164fab0e802e94887f",
       "evidence": [
-        "M9-T14 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T14 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T15": {
       "contractHash": "858111243485b5442e33ef1218047fe8b3a695c08f1b2fda24395c4d028eb1fe",
       "evidence": [
-        "M9-T15 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T15 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T16": {
       "contractHash": "b294e42b8e1fc78d36c959f8a1c7070271db3f52d5f30b32de672744a145905c",
       "evidence": [
-        "M9-T16 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T16 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T17": {
       "contractHash": "f2a73e0e9f592dbe50c854d996460436af43b14f423065cfc7f6f4cc992b0921",
       "evidence": [
-        "M9-T17 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T17 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T18": {
       "contractHash": "73324eb88f2dc981b509a432b1f0f9283ef0ccc07cf44d6feba5ae2c7fdaaf19",
       "evidence": [
-        "M9-T18 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T18 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T19": {
       "contractHash": "896ef85e15bc75bd125faad57953e5418cb2410f029b6beb7bbfaa7ef6784c0f",
       "evidence": [
-        "M9-T19 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T19 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T2": {
       "contractHash": "6b3507eb911153da0b2f60c15a55e4dbab19f4ed184d4d54f5b53a2372afb45a",
       "evidence": [
-        "M9-T2 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T2 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T20": {
       "contractHash": "a08d986af280316273b70dab1fbb1f1aecafab3733ab9e499827a74cbff6e42b",
       "evidence": [
-        "M9-T20 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T20 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T21": {
       "contractHash": "7f1def4024628b9fb672091903d66348ef967e8163d310db144ae24256c6d5b5",
       "evidence": [
-        "M9-T21 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T21 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T22": {
       "contractHash": "807eb64e06d72329eae14908bc9d93ac959c48aaac40972d622e966abca45146",
       "evidence": [
-        "M9-T22 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T22 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T23": {
       "contractHash": "f3b797524345e4ec21f4954b5fe7555e97dfe3382d22964d35f9797c922592d2",
       "evidence": [
-        "M9-T23 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T23 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T24": {
       "contractHash": "26ed079658a9445523970f56de65958bee48d5edb420fb12b12b2180da5a8a13",
       "evidence": [
-        "M9-T24 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T24 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T25": {
       "contractHash": "8858210024853f41fec373305be441adbb2d874c1581cdcdbf2aa1b1affe9e0e",
       "evidence": [
-        "M9-T25 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T25 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T26": {
       "contractHash": "9adc6d7011f5049c4ce17b92d523a43f91d22d98e99d2c830ea1e490231e0ea1",
       "evidence": [
-        "M9-T26 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T26 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T27": {
       "contractHash": "b92d41e4073bab057a6290358aaf5f285f5d6b1356d67ab03571d41d3dbd65cf",
       "evidence": [
-        "M9-T27 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T27 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T28": {
       "contractHash": "8b2747db4ec4aec1e7d87c74a15e952bc9068b1ac88e6b58b0603ff0bc11e57f",
       "evidence": [
-        "M9-T28 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T28 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T29": {
       "contractHash": "36932793e5f0d1e811c5badee5ac25c6cb40a93317675df643b24570248306cf",
       "evidence": [
-        "M9-T29 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T29 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T3": {
       "contractHash": "d54e36d13e055dbbc3bd36fb7dc6cef3212fe54a6562907e478445fa33d5e1a7",
       "evidence": [
-        "M9-T3 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T3 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T4": {
       "contractHash": "9e2c70c6c6e07476aaf94b605cc8c25fd75734e2fb8cb9002c41f2a5f86772fb",
       "evidence": [
-        "M9-T4 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T4 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T5": {
       "contractHash": "4ff6c0bd8781dbec724cb10bdf14d5615f53470bc70dd165b556313d3ef1926f",
       "evidence": [
-        "M9-T5 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T5 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T6": {
       "contractHash": "68e1072afa43cc1615fa9cb91692b3d2c19bbb52965295619b55b4f9d342f752",
       "evidence": [
-        "M9-T6 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T6 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T7": {
       "contractHash": "0452a655637d662bff2441cc978d95728fc36ea5d0b1a26f59d15165851717b4",
       "evidence": [
-        "M9-T7 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T7 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T8": {
       "contractHash": "19adb21da71f70331dbb25078caa3c2e106dfc114917ec7f4ab34b13e9667795",
       "evidence": [
-        "M9-T8 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T8 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "M9-T9": {
       "contractHash": "6a12ed5cf897a02a7e75b0b862da5ee5f6ef147a442f6387580620aa4dac09d6",
       "evidence": [
-        "M9-T9 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "M9-T9 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R13-T57054072": {
-      "contractHash": "87916e52bf7c1a7e8f9981df6690d28e2aa910617fd0ee42acd72fb199688215",
+      "contractHash": "56f89ddc23a394b5fd6c434de42101ced1949f2bb913630b480ce53485bde908",
       "evidence": [
-        "R13-T57054072 实际变化字段：仅前置契约哈希传播；context 内容无变化",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R13-T57054072 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R13-T98191508": {
       "contractHash": "381e60ebb985994be36e1ad779b588ed6033f603ea30ae9690499b9d6aef13ef",
       "evidence": [
-        "R13-T98191508 实际变化字段：仅前置契约哈希传播；context 内容无变化",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R13-T98191508 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R14-T23602992": {
-      "contractHash": "9224f53414e437b4c3ecc78ff4a6e673463a751a24c4ed28c7c01e8aded00e24",
+      "contractHash": "8c9949b5720a3f6cca9263b75d27d6c03f6213ab9b12e38cdabb8e8599feb2fa",
       "evidence": [
-        "R14-T23602992 实际变化字段：仅前置契约哈希传播；context 内容无变化",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R14-T23602992 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R16-T41148998": {
       "contractHash": "9e65a115d44d1affc55a35fd2419bc92be2f79027fd311ffdf2e5f409e00cf03",
       "evidence": [
-        "R16-T41148998 实际变化字段：仅前置契约哈希传播；context 内容无变化",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R16-T41148998 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R16-T83723920": {
       "contractHash": "93dd414cf7ca77a55684ab42fc7af94bc81d01959d09b002eadd4d6cda5567f8",
       "evidence": [
-        "R16-T83723920 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R16-T83723920 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R16-T85823419": {
-      "contractHash": "9f93158fe5bbfe3d355e318864ac45b910c434f59f2017c81db961db0fa36e6b",
+      "contractHash": "390f59f4e65b52fd2ee120434e05b32973f776eb5902f1e1a2bde54a90350de3",
       "evidence": [
-        "R16-T85823419 实际变化字段：仅前置契约哈希传播；context 内容无变化",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R16-T85823419 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R17-T70594995": {
       "contractHash": "a61de57be849a159bdae4d3ebbd076cf650be6147d58d568eeb87214d95111d9",
       "evidence": [
-        "R17-T70594995 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R17-T70594995 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R17-T73118308": {
       "contractHash": "052dfc9c5e16569bb4c2d042bd5526f9574420ece9843e35265c27bbfa96f9f3",
       "evidence": [
-        "R17-T73118308 实际变化字段：/sections/02-设计/11-UI.md",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R17-T73118308 补丁基线到当前版本的变化字段：/sections/02-设计/11-UI.md",
+        "相对已落地主干 f3e9052 的实际新增变化字段：/sections/02-设计/11-UI.md",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     },
     "R8-T54786768": {
       "contractHash": "11ff93a7b3038205c2869e14ac9dca7e221fbfed1b669c2bfddf03be1a1a97e8",
       "evidence": [
-        "R8-T54786768 实际变化字段：仅前置契约哈希传播；context 内容无变化",
-        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
-        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+        "R8-T54786768 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      ],
+      "verdict": "pass"
+    },
+    "R8-T57073674": {
+      "contractHash": "147a32252d0d8a55bb78f2efd399d54313f10077c38fd55c24c6d3654a5a6c00",
+      "evidence": [
+        "R8-T57073674 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      ],
+      "verdict": "pass"
+    },
+    "R8-T70356006": {
+      "contractHash": "24b14c44c485946f8c5d83b3d02850e07139e1acdeee14c61d3e85fd7d368bd4",
+      "evidence": [
+        "R8-T70356006 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
+      ],
+      "verdict": "pass"
+    },
+    "R8-T97041355": {
+      "contractHash": "9b30e26ec30f706c8eff540b3bc67ec0aa205ead668b9963abb7bea729d1f5ab",
+      "evidence": [
+        "R8-T97041355 补丁基线到当前版本的变化字段：前置哈希传播",
+        "相对已落地主干 f3e9052 的实际新增变化字段：无上下文变化；仅前置契约哈希传播",
+        "UI 变化按 sharedEvidence 的代码、真实浏览器与回归证据复核。主干 PR #202 的 DSH 源码、任务条款、路径声明、边界与实施记录逐文件与 origin/main 一致，沿用其已落地验证证据，没有重新声称本地供应商模型执行通过。"
       ],
       "verdict": "pass"
     }
   },
-  "reviewScope": "UI-20261007 shared UI contract amendment; historical done statuses retained; scoped code validation only",
-  "pullRequest": "https://github.com/dawanglaohu/renwudiaoduqi/pull/203",
   "sharedEvidence": [
     "复验范围限定本补丁变化的共享章节 02-设计/11-UI.md，以及由前置契约哈希传播产生的变化；任务自身验收条款、边界、接口、路径均未修改。未把样式检查当作历史任务全部功能的重新验收。",
     "PR #203 用户明确要求设置页紧凑、元素自己提供边界、减少套盒，并要求主题切换；本次审查按用户确认的布局修正文档。三条评论分别对应设备流式列、流水线就地说明、Agent 扁平配置组。",
@@ -426,6 +469,11 @@
     "针对性回归：原改动8文件81项通过；本次审查的 connect-failed 与 m9-t23-ui-string-source 两文件56项全部通过，覆盖正式入口网络恢复、设置标题与中文来源。生产构建及三处修改文件 Biome 通过。顶栏分隔线恢复 --sp-4=16px，保留原端到端断言。最终远程 CI 必须在同一提交上通过后才合并。",
     "主题实现核对：packages/web/src/app/theme-control.tsx:7 提供三种模式，Escape 返回焦点，点击保存后收起；packages/web/src/app/theme-provider.tsx:108 保存偏好并监听系统。颜色 token 与状态语义分开，不使用 Agent 身份色。",
     "用户追加要求不同 Agent 分组保持上下、左右安全间距。packages/web/src/styles/console.css:217 的 agent-settings-grid 两轴间距均为 calc(var(--sp-3)*1.5)=18px，内部字段仍为12px；:245 的配置来源列使用 overflow-wrap:anywhere，agent-card 与 field-layers-row 移除来源值的 truncate。",
-    "追加真实生产浏览器复验：1920/1440/768/414/375/320 六种宽度实测五张 Agent 分组的横纵最小间距均不小于18px，卡内控件及配置文字未越界，无页面横向溢出。通过设置页修改 Codex 最大并发数、刷新确认持久化，再通过同一 UI 恢复原值。三设置页在1920x1080/1440x900六次密度探针D1-D6与overflow全通过。生产构建、三处TSX的Biome、check-forbidden和finesse P0检测通过。"
-  ]
+    "追加真实生产浏览器复验：1920/1440/768/414/375/320 六种宽度实测五张 Agent 分组的横纵最小间距均不小于18px，卡内控件及配置文字未越界，无页面横向溢出。通过设置页修改 Codex 最大并发数、刷新确认持久化，再通过同一 UI 恢复原值。三设置页在1920x1080/1440x900六次密度探针D1-D6与overflow全通过。生产构建、三处TSX的Biome、check-forbidden和finesse P0检测通过。",
+    "最终补丁保持单个 EmptyOnboarding 子树，运行甲板通过 CSS 布局移动位置。导入草稿回归修复前失败、修复后 RunDeckView 与正式容器两个文件六项通过；同一控件与指派面板实例在零泳道和空闲泳道双向切换中保留。",
+    "正式 bootstrap 与真实配对后的浏览器，在实际初始快照请求加入 3000ms 网络延迟，键入路径后等待真实快照从零泳道加载为两个空闲泳道，输入值与控件/引导实例保持不变。零与空闲泳道在六种屏宽的十二个布局检查均无溢出、无停止按钮裁剪。真实文档导入、选中与路径保留通过；四个桌面甲板密度探针 D1-D6 全通过。最新生产构建和 finesse P0 检查通过。",
+    "主干在推送时合入 PR #202，导致六个文档产物冲突。保留双方源修改与任务契约声明，冲突产物取主干后重新 sync。本证据区分原补丁基线中的主干 DSH 变化和相对当前主干的 UI 增量；后者只有 11-UI.md 与前置哈希传播。完整 CI 必须针对合并后的最终提交通过。"
+  ],
+  "reviewScope": "UI net changes versus main f3e9052; inherited PR 202 source and accepted evidence preserved",
+  "pullRequest": "https://github.com/dawanglaohu/renwudiaoduqi/pull/203"
 }

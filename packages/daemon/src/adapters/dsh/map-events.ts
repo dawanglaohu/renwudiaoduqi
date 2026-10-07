@@ -48,26 +48,15 @@ export function isKnownDshEventType(type: string): boolean {
 }
 
 /**
- * Tests whether a line of text is a dsh startup banner or progress indicator,
- * which should not produce agent_message_chunk events (R2 b).
- */
-function isBannerOrProgressLine(text: string): boolean {
-	const trimmed = text.trim();
-	if (trimmed.length === 0) return true;
-	return /^(?:\[(?:info|progress|debug|trace|warn)\]|={2,}|-{2,}|DeepSeek Harness|Loading profile|Initializing|Running\.\.\.)/i.test(
-		trimmed,
-	);
-}
-
-/**
  * Pure function mapping a single output line or object from dsh (--profile headless)
  * into normalized ACP event envelope inputs.
  *
  * AC 2 & E-253 & R2:
  * (a) Correctly processes object inputs without String(obj) -> [object Object]
- * (b) Only terminal assistant text becomes agent_message_chunk; banners/progress lines emit nothing
+ * (b) Stdout text is terminal assistant output, regardless of its syntax
  * (c) Provides plain-text stdout passage
- * (d) Unrecognized JSON lines without text/discriminants are dropped and counted in unmappedCount
+ * (d) Unrecognized object events without text/discriminants are counted in unmappedCount
+ * String stdout is terminal assistant text, even when the answer uses JSON syntax.
  * (e) Carries vendor payload, preserves multi-line newlines
  */
 export function mapDshEvents(
@@ -123,7 +112,7 @@ export function parseAndMapDshLine(
 									? obj.message
 									: '';
 					const isQuestion = Boolean(obj.isQuestion || obj.requiresReply || obj.requiresHumanInput);
-					if (text.length > 0 && !isBannerOrProgressLine(text)) {
+					if (text.length > 0) {
 						return Object.freeze({
 							events: Object.freeze([
 								{
@@ -170,7 +159,7 @@ export function parseAndMapDshLine(
 						? obj.message
 						: undefined;
 
-		if (text !== undefined && text.length > 0 && !isBannerOrProgressLine(text)) {
+		if (text !== undefined && text.length > 0) {
 			const isQuestion = Boolean(obj.isQuestion || obj.requiresReply || obj.requiresHumanInput);
 			return Object.freeze({
 				events: Object.freeze([
@@ -205,31 +194,7 @@ export function parseAndMapDshLine(
 	// Handle string input
 	if (typeof vendorLine === 'string') {
 		const trimmed = vendorLine.trim();
-		if (trimmed.length === 0) {
-			return Object.freeze({
-				events: Object.freeze([]),
-				unmappedCount: 0,
-				rawLine,
-			});
-		}
-
-		// If it's a JSON string
-		if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-			try {
-				const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-				return parseAndMapDshLine(parsed, context);
-			} catch {
-				return Object.freeze({
-					events: Object.freeze([]),
-					unmappedCount: 0,
-					parseError: true,
-					rawLine,
-				});
-			}
-		}
-
-		// (b) Plain text stdout: filter out banners and progress lines
-		if (isBannerOrProgressLine(vendorLine)) {
+		if (trimmed.length === 0 && !vendorLine.endsWith('\n')) {
 			return Object.freeze({
 				events: Object.freeze([]),
 				unmappedCount: 0,

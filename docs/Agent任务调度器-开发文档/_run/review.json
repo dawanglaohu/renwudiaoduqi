@@ -146,15 +146,6 @@
     {
       "code": "H12",
       "level": "WARN",
-      "msg": "M4-T12 疑似接线任务未列注册点（命中：事件、接口）",
-      "taskIds": [
-        "M4-T12"
-      ],
-      "where": "M4-T12"
-    },
-    {
-      "code": "H12",
-      "level": "WARN",
       "msg": "M5-T3 疑似接线任务未列注册点（命中：事件）",
       "taskIds": [
         "M5-T3"
@@ -306,6 +297,6 @@
       "where": "M10-T3"
     }
   ],
-  "sourceVersion": "5aebd086f6f9e67d1c195408979c0a9b2cfca17d1246345a696d8e80e5c4d041",
-  "warn": 31
+  "sourceVersion": "ace2b1a06d1a075df3c97607f15e397520c0eacf1a8a08b531a27847a9f10954",
+  "warn": 30
 }

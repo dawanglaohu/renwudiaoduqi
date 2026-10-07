@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { getClaudeCapabilities } from '../../src/adapters/claude/capabilities.ts';
 import { getCodexCapabilities } from '../../src/adapters/codex/capabilities.ts';
 import { getDshCapabilities } from '../../src/adapters/dsh/capabilities.ts';
+import { mapDshEvents } from '../../src/adapters/dsh/map-events.ts';
 import { getGenericAcpCapabilities } from '../../src/adapters/generic-acp/capabilities.ts';
 import { getGrokCapabilities } from '../../src/adapters/grok/capabilities.ts';
 import { getPiCapabilities } from '../../src/adapters/pi/capabilities.ts';
@@ -72,6 +73,7 @@ const dummyLockAdapter: NativeLockAdapter = {
 interface FakeManagedProcessController {
 	readonly managed: ManagedProcess;
 	readonly emitLine: (text: string) => void;
+	readonly emitStderr: (text: string) => void;
 	readonly emitExit: (exitCode: number, signal?: NodeJS.Signals | null) => void;
 	readonly launchSpec: LaunchSpec;
 }
@@ -88,6 +90,8 @@ interface FakeJsonLine extends FakeLine {
 
 function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 	const rawListeners = new Set<(line: FakeLine) => void>();
+	const lineListeners = new Set<(line: FakeLine) => void>();
+	const stderrListeners = new Set<(line: FakeLine) => void>();
 	const jsonListeners = new Set<(parsed: FakeJsonLine) => void>();
 	const exitListeners = new Set<(result: ProcessExitResult) => void>();
 	let isExited = false;
@@ -122,12 +126,18 @@ function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 		waitForStdinDrain: () => Promise.resolve(),
 		onStdinDrain: () => () => {},
 		writeStdin: () => true,
-		onLine: () => () => {},
+		onLine: (listener) => {
+			lineListeners.add(listener);
+			return () => lineListeners.delete(listener);
+		},
 		onRaw: (listener) => {
 			rawListeners.add(listener);
 			return () => rawListeners.delete(listener);
 		},
-		onStderr: () => () => {},
+		onStderr: (listener) => {
+			stderrListeners.add(listener);
+			return () => stderrListeners.delete(listener);
+		},
 		onJson: (listener) => {
 			jsonListeners.add(listener);
 			return () => jsonListeners.delete(listener);
@@ -153,6 +163,7 @@ function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 		for (const l of rawListeners) {
 			l(rawLine);
 		}
+		for (const l of lineListeners) l(rawLine);
 		try {
 			const parsed = JSON.parse(text);
 			for (const l of jsonListeners) {
@@ -187,6 +198,11 @@ function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 	return {
 		managed,
 		emitLine,
+		emitStderr: (text) => {
+			const line = { text, truncated: false, rawByteLen: Buffer.byteLength(text) };
+			for (const listener of rawListeners) listener(line);
+			for (const listener of stderrListeners) listener(line);
+		},
 		emitExit,
 		launchSpec: spec,
 	};
@@ -216,6 +232,7 @@ function setupWiringEnvironment(
 		/** 注册表里的每 agent 并发上限；容器与 tick 都读它（E-47）。默认 2。 */
 		readonly agentMaxConcurrency?: number;
 		readonly codexExecPath?: string;
+		readonly dshResolvedPath?: string;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-wiring-'));
@@ -298,6 +315,14 @@ function setupWiringEnvironment(
 		stop: async () => {},
 		listAgents: async () => [{ id: 'codex', canDispatch: true, maxConcurrency: 2 }],
 		getAvailability: (agentId: string) => {
+			if (agentId === 'dsh' && overrides.dshResolvedPath) {
+				return {
+					canDispatch: true,
+					isReady: true,
+					status: 'ready',
+					resolvedPath: overrides.dshResolvedPath,
+				};
+			}
 			if (agentId === 'codex') {
 				return { canDispatch: true, isReady: true, status: 'ready' };
 			}
@@ -537,6 +562,244 @@ describe(
 	'M7-T9 Integration: Container Wiring (AC 2, AC 3, AC 4, E-53, E-57, E-104, E-120, E-123)',
 	{ timeout: 25000 },
 	() => {
+		it.each([
+			'Implementation complete.',
+			'---',
+			'Running...',
+			'[warn] This is the requested literal answer.',
+			'DeepSeek Harness is installed.',
+			'# Summary\n---\nRunning...\nCompleted.',
+			'{"status":"done"}',
+			'["completed", "verified"]',
+			'{"text":"literal JSON answer"}',
+			'# Summary\nCompleted.\n# Validation\nPassed.',
+			'# Summary\n\nCompleted.\n\n# Validation\n\nPassed.',
+			'\n# Summary\n\nCompleted.\n',
+		])('preserves DSH terminal output %s through production reviews', async (terminalText) => {
+			const executable = '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh';
+			const { container, spawnedProcesses } = setupWiringEnvironment({
+				dshResolvedPath: executable,
+			});
+			await container.services.settings.updateGates(
+				{ dispatch: 'auto', review: 'auto', landing: 'manual' },
+				null,
+			);
+			const result = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'dsh',
+				idempotencyKey: 'dsh-production-review',
+			});
+			await container.services.dispatch.launchRun(result.run.id);
+			expect(await waitFor(() => spawnedProcesses.length >= 1)).toBe(true);
+			const implementation = spawnedProcesses[0];
+			if (!implementation) throw new Error('Implementation process missing');
+			const output: string[] = [];
+			container.events.bus.subscribe((event) => {
+				if (event.runId === result.run.id && event.kind === 'agent_message_chunk') {
+					output.push((event.payload as { chunk: string }).chunk);
+				}
+			});
+			implementation.emitStderr('dsh: reasoning:');
+			implementation.emitStderr('Checking the requested answer.');
+			await new Promise((resolve) => setTimeout(resolve, 30));
+			expect(output).toEqual([]);
+			for (const line of terminalText.split('\n')) implementation.emitLine(line);
+			expect(await waitFor(() => output.join('') === `${terminalText}\n`)).toBe(true);
+			expect(output.join('')).toBe(`${terminalText}\n`);
+			implementation.emitExit(0);
+			expect(await waitFor(() => spawnedProcesses.length >= 2)).toBe(true);
+			const review = spawnedProcesses[1];
+			if (!review) throw new Error('Review process missing');
+			expect(review.launchSpec.file).toBe(executable);
+			expect(review.launchSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
+			review.emitStderr('dsh: reasoning:');
+			review.emitStderr('VERDICT: rework');
+			review.emitLine('VERDICT: pass');
+			review.emitExit(0);
+			expect(
+				await waitFor(
+					() => container.repos.runs.findById(review.launchSpec.runId)?.state === 'exited',
+				),
+			).toBe(true);
+			expect(
+				await waitFor(
+					() => container.repos.runs.findById(review.launchSpec.runId)?.review_verdict === 'pass',
+				),
+			).toBe(true);
+			const nextRoundId = await container.services.review.startReviewRound({
+				taskId: 'task-1',
+				implRunId: result.run.id,
+				round: 2,
+				reworkItems: ['Verify the follow-up change'],
+			});
+			const nextReview = spawnedProcesses.find(
+				(process) => process.launchSpec.runId === nextRoundId,
+			);
+			expect(nextReview?.launchSpec.file).toBe(executable);
+			expect(nextReview?.launchSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
+			nextReview?.emitStderr('dsh: reasoning:');
+			nextReview?.emitStderr('VERDICT: rework');
+			nextReview?.emitLine('VERDICT: pass');
+			nextReview?.emitExit(0);
+			expect(
+				await waitFor(() => container.repos.runs.findById(nextRoundId)?.review_verdict === 'pass'),
+			).toBe(true);
+			expect(container.repos.runs.findById(nextRoundId)?.state).toBe('exited');
+		});
+
+		it.each(['', 'No final verdict was produced.'])(
+			'rejects a DSH verdict found only in stderr with stdout %s',
+			async (stdout) => {
+				const { container, spawnedProcesses } = setupWiringEnvironment({
+					dshResolvedPath: '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh',
+				});
+				await container.services.settings.updateGates(
+					{ dispatch: 'auto', review: 'auto', landing: 'manual' },
+					null,
+				);
+				const result = await container.services.dispatch.createRun({
+					taskId: 'task-1',
+					agentId: 'dsh',
+					idempotencyKey: 'dsh-stderr-verdict',
+				});
+				expect(await waitFor(() => spawnedProcesses.length === 1)).toBe(true);
+				spawnedProcesses[0]?.emitLine('Implementation complete.');
+				spawnedProcesses[0]?.emitExit(0);
+				expect(await waitFor(() => spawnedProcesses.length === 2)).toBe(true);
+				const review = spawnedProcesses[1];
+				if (!review) throw new Error('Review process missing');
+				review.emitStderr('dsh: reasoning:');
+				review.emitStderr('VERDICT: pass');
+				if (stdout) review.emitLine(stdout);
+				review.emitExit(0);
+				expect(
+					await waitFor(
+						() => container.repos.runs.findById(review.launchSpec.runId)?.review_verdict !== null,
+					),
+				).toBe(true);
+				expect(container.repos.runs.findById(review.launchSpec.runId)?.review_verdict).toBe(
+					'incomplete',
+				);
+				expect(container.repos.runs.findById(result.run.id)?.state).toBe('awaiting_human');
+			},
+		);
+
+		it('releases an admitted DSH run when a persisted model override rejects launch construction', async () => {
+			const { container, spawnedProcesses } = setupWiringEnvironment({
+				dshResolvedPath: '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh',
+			});
+			const result = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'dsh',
+				model: 'deepseek-chat',
+				idempotencyKey: 'dsh-unsupported-model',
+			});
+			expect(
+				await waitFor(() => container.repos.runs.findById(result.run.id)?.state === 'failed'),
+			).toBe(true);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+			expect(spawnedProcesses).toHaveLength(0);
+		});
+
+		it.each([false, true])(
+			'reads DSH wrapup stdout only with final output present %s',
+			async (hasStdout) => {
+				const { container, clock, db } = setupWiringEnvironment();
+				const wrapup = container.services.wrapup;
+				if (!wrapup) throw new Error('Production container did not create wrapup service');
+				db.prepare("UPDATE batches SET state = 'wrapping' WHERE id = 'batch-1'").run();
+				container.repos.runs.insert({
+					id: 'dsh-wrapup',
+					task_id: null,
+					batch_id: 'batch-1',
+					attempt_no: 1,
+					kind: 'wrapup',
+					state: 'exited',
+					agent_id: 'dsh',
+					permission_tier: 'readOnly',
+					snapshot_id: 'snap-1',
+					ended_at: clock.now(),
+				});
+				const draft = readFileSync(
+					resolve(currentDir, '../fixtures/wrapup/clean-report.md'),
+					'utf8',
+				);
+				await container.services.run.ingestRaw('dsh-wrapup', `dsh: reasoning:\n${draft}`);
+				if (hasStdout) {
+					for (const event of mapDshEvents(draft, { runId: 'dsh-wrapup' }))
+						await container.services.run.ingestEvent('dsh-wrapup', event);
+				}
+				await container.services.run.closeRunStream('dsh-wrapup');
+				await wrapup.recordWrapupResult({ runId: 'dsh-wrapup', exitCode: 0 });
+				if (hasStdout) {
+					expect(container.repos.batchWrapups?.findByRunId('dsh-wrapup')?.verdict).toBe('clean');
+				} else {
+					expect(container.repos.batchWrapups?.findByRunId('dsh-wrapup')).toBeNull();
+					expect(container.repos.runs.findById('dsh-wrapup')?.state).toBe('awaiting_human');
+					expect(container.repos.batches.findById('batch-1')?.state).toBe('needs_attention');
+				}
+			},
+		);
+
+		it('routes DSH bughunt stderr drafts to the unparsed recovery path', async () => {
+			const { container, clock } = setupWiringEnvironment();
+			const bughunt = container.services.bughunt;
+			if (!bughunt?.finalizeBughunt)
+				throw new Error('Production container did not create bughunt service');
+			container.repos.runs.insert({
+				id: 'dsh-impl',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'reviewing',
+				agent_id: 'dsh',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				started_at: clock.now(),
+			});
+			container.repos.runs.insert({
+				id: 'dsh-bughunt',
+				task_id: 'task-1',
+				parent_run_id: 'dsh-impl',
+				attempt_no: 2,
+				kind: 'bughunt',
+				state: 'exited',
+				agent_id: 'dsh',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				ended_at: clock.now(),
+			});
+			const draft = readFileSync(resolve(currentDir, '../fixtures/bughunt/clean.txt'), 'utf8');
+			await container.services.run.ingestRaw('dsh-bughunt', `dsh: reasoning:\n${draft}`);
+			await bughunt.finalizeBughunt({ runId: 'dsh-bughunt', exitCode: 0 });
+			expect(container.repos.runs.findById('dsh-bughunt')?.queued_reason).toBe('bughunt_unparsed');
+		});
+
+		it('keeps whitespace-only DSH stdout in the zero-output recovery path', async () => {
+			const { container, spawnedProcesses } = setupWiringEnvironment({
+				dshResolvedPath: '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh',
+			});
+			await container.services.settings.updateGates(
+				{ dispatch: 'auto', review: 'auto', landing: 'manual' },
+				null,
+			);
+			const result = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'dsh',
+				idempotencyKey: 'dsh-whitespace-only',
+			});
+			expect(await waitFor(() => spawnedProcesses.length === 1)).toBe(true);
+			spawnedProcesses[0]?.emitLine('');
+			spawnedProcesses[0]?.emitLine('  ');
+			spawnedProcesses[0]?.emitExit(0);
+			expect(
+				await waitFor(
+					() => container.repos.runs.findById(result.run.id)?.state === 'awaiting_human',
+				),
+			).toBe(true);
+			expect(spawnedProcesses).toHaveLength(1);
+		});
+
 		it.each(['codex', 'grok'] as const)(
 			'resumes %s with the executable and extra arguments frozen in its snapshot',
 			async (agentId) => {

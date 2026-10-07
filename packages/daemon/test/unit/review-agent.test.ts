@@ -351,10 +351,25 @@ describe('M7-T2: 审查 agent 派发与 diff 裁剪 (AC 1-4, E-135, E-347, E-65)
 				runId: 'r-dsh',
 				taskId: 't-1',
 				worktreePath: '/w/dsh',
-				assignment: { agentId: 'dsh', modelName: 'deepseek-v3', effortTier: null },
+				assignment: { agentId: 'dsh', modelName: null, effortTier: null },
 				prompt: 'review test',
+				execPath: '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh',
 			});
+			expect(dshSpec.file).toBe('/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh');
 			expect(dshSpec.envOverrides?.DSH_PERMISSION_MODE).toBe('read-only');
+			expect(dshSpec.args).not.toContain('--model');
+		});
+
+		it('rejects unsupported DSH model selection through the review launch entry', () => {
+			expect(() =>
+				buildReviewLaunchSpec({
+					runId: 'r-dsh-model',
+					taskId: 't-1',
+					worktreePath: '/w/dsh',
+					assignment: { agentId: 'dsh', modelName: 'deepseek-v3', effortTier: null },
+					prompt: 'review test',
+				}),
+			).toThrow(/model.*DeepSeek Harness/i);
 		});
 
 		it('prompt explicitly forbids modifying code/docs, git commit/push/merge, and maintenance scripts (E-135)', () => {

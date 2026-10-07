@@ -717,6 +717,7 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
 		return buildDshLaunchSpec({
 			runId: options.runId,
 			cwd: options.worktreePath,
+			execPath: options.execPath,
 			model,
 			permissionTier,
 			prompt: options.prompt,

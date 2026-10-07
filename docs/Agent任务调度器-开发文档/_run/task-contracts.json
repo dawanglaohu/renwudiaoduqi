@@ -686,7 +686,20 @@
         "packages/daemon/src/service/run.ts",
         "packages/daemon/test/unit/dsh-adapter.test.ts",
         "packages/daemon/test/unit/generic-acp-adapter.test.ts",
-        "packages/daemon/test/unit/run-service.test.ts"
+        "packages/daemon/test/unit/run-service.test.ts",
+        "packages/daemon/src/platform/windows.ts",
+        "packages/daemon/test/unit/dsh-current-cli.test.ts",
+        "packages/daemon/test/unit/review-agent.test.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/service/review-agent.ts",
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/src/service/wrapup.ts",
+        "packages/daemon/src/service/bughunt.ts",
+        "packages/daemon/test/integration/dispatch-spawn.test.ts",
+        "packages/daemon/test/integration/container-wiring.test.ts",
+        "packages/daemon/test/unit/probe.test.ts",
+        "packages/daemon/test/unit/review-round.test.ts"
       ]
     },
     "M4-T4": {

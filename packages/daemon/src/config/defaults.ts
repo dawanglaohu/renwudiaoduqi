@@ -274,10 +274,10 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 			effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
 		}),
 		[BUILT_IN_AGENT_IDS.DSH]: freezeAgentConfig({
-			execPath: 'resources/host/node_modules/@deepseek-ai/dsh/lib/bin.js',
-			argsTemplate: ['--profile', 'headless', '--model', '{model}'],
+			execPath: 'dsh',
+			argsTemplate: ['--profile', 'headless'],
 			maxConcurrency: 1,
-			defaultModel: 'deepseek-chat',
+			defaultModel: null,
 			permissionTier: DEFAULT_PERMISSION_TIER,
 			monogram: 'DS',
 			adapterKind: ADAPTER_KINDS.NATIVE,
