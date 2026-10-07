@@ -206,7 +206,7 @@ export function parseAndMapDshLine(
 	// Handle string input
 	if (typeof vendorLine === 'string') {
 		const trimmed = vendorLine.trim();
-		if (trimmed.length === 0) {
+		if (trimmed.length === 0 && !vendorLine.endsWith('\n')) {
 			return Object.freeze({
 				events: Object.freeze([]),
 				unmappedCount: 0,
@@ -215,7 +215,7 @@ export function parseAndMapDshLine(
 		}
 
 		// (b) Plain text stdout: filter out banners and progress lines
-		if (isBannerOrProgressLine(vendorLine)) {
+		if (trimmed.length > 0 && isBannerOrProgressLine(vendorLine)) {
 			return Object.freeze({
 				events: Object.freeze([]),
 				unmappedCount: 0,

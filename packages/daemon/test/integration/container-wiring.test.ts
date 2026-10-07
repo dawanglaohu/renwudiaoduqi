@@ -567,6 +567,8 @@ describe(
 			'["completed", "verified"]',
 			'{"text":"literal JSON answer"}',
 			'# Summary\nCompleted.\n# Validation\nPassed.',
+			'# Summary\n\nCompleted.\n\n# Validation\n\nPassed.',
+			'\n# Summary\n\nCompleted.\n',
 		])('preserves DSH terminal output %s through production reviews', async (terminalText) => {
 			const executable = '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh';
 			const { container, spawnedProcesses } = setupWiringEnvironment({
@@ -585,10 +587,10 @@ describe(
 			expect(await waitFor(() => spawnedProcesses.length >= 1)).toBe(true);
 			const implementation = spawnedProcesses[0];
 			if (!implementation) throw new Error('Implementation process missing');
-			const output: unknown[] = [];
+			const output: string[] = [];
 			container.events.bus.subscribe((event) => {
 				if (event.runId === result.run.id && event.kind === 'agent_message_chunk') {
-					output.push(event.payload);
+					output.push((event.payload as { chunk: string }).chunk);
 				}
 			});
 			implementation.emitStderr('dsh: reasoning:');
@@ -596,10 +598,8 @@ describe(
 			await new Promise((resolve) => setTimeout(resolve, 30));
 			expect(output).toEqual([]);
 			for (const line of terminalText.split('\n')) implementation.emitLine(line);
-			expect(await waitFor(() => output.length > 0)).toBe(true);
-			expect(output).toEqual(
-				terminalText.split('\n').map((chunk) => expect.objectContaining({ chunk: `${chunk}\n` })),
-			);
+			expect(await waitFor(() => output.join('') === `${terminalText}\n`)).toBe(true);
+			expect(output.join('')).toBe(`${terminalText}\n`);
 			implementation.emitExit(0);
 			expect(await waitFor(() => spawnedProcesses.length >= 2)).toBe(true);
 			const review = spawnedProcesses[1];
@@ -641,6 +641,31 @@ describe(
 			).toBe(true);
 			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
 			expect(spawnedProcesses).toHaveLength(0);
+		});
+
+		it('keeps whitespace-only DSH stdout in the zero-output recovery path', async () => {
+			const { container, spawnedProcesses } = setupWiringEnvironment({
+				dshResolvedPath: '/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh',
+			});
+			await container.services.settings.updateGates(
+				{ dispatch: 'auto', review: 'auto', landing: 'manual' },
+				null,
+			);
+			const result = await container.services.dispatch.createRun({
+				taskId: 'task-1',
+				agentId: 'dsh',
+				idempotencyKey: 'dsh-whitespace-only',
+			});
+			expect(await waitFor(() => spawnedProcesses.length === 1)).toBe(true);
+			spawnedProcesses[0]?.emitLine('');
+			spawnedProcesses[0]?.emitLine('  ');
+			spawnedProcesses[0]?.emitExit(0);
+			expect(
+				await waitFor(
+					() => container.repos.runs.findById(result.run.id)?.state === 'awaiting_human',
+				),
+			).toBe(true);
+			expect(spawnedProcesses).toHaveLength(1);
 		});
 
 		it.each(['codex', 'grok'] as const)(

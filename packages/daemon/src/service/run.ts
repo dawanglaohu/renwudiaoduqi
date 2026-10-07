@@ -528,6 +528,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 	): AttachedProcessController {
 		let detached = false;
 		let hasContent = false;
+		let terminalPrefix = '';
 		const cleanups: Array<() => void> = [];
 		const pendingWrites = new Set<Promise<unknown>>();
 		const trackWrite = <T>(p: Promise<T>): Promise<T> => {
@@ -551,11 +552,16 @@ export function createRunService(deps: RunServiceDeps): RunService {
 			cleanups.push(
 				process.onLine((line) => {
 					if (detached) return;
+					if (!hasContent && line.text.trim().length === 0) {
+						terminalPrefix += `${line.text}\n`;
+						return;
+					}
 					const mapper = options?.eventMapper ?? deps.eventMapper;
 					if (mapper) {
-						const mapped = mapper(`${line.text}\n`);
+						const mapped = mapper(`${terminalPrefix}${line.text}\n`);
+						terminalPrefix = '';
 						for (const env of mapped) {
-							if (isContentEventKind(env.kind)) {
+							if (isContentEventKind(env.kind) && line.text.trim().length > 0) {
 								hasContent = true;
 								runsWithContent.add(runId);
 							}
