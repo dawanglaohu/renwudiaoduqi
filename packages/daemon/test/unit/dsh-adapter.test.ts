@@ -163,7 +163,7 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 			expect(result.unmappedCount).toBe(1); // R2 (d)
 		});
 
-		it('R2 (b): filters out dsh banners and progress lines; only terminal assistant text emits event', () => {
+		it('R2 (b): preserves banner-looking text in the terminal assistant answer', () => {
 			const bannerLines = [
 				'DeepSeek Harness v0.1.0 (headless)',
 				'Loading profile headless...',
@@ -175,7 +175,7 @@ describe('M4-T12: dsh headless 适配器与通用 ACP 扩展槽', () => {
 
 			for (const banner of bannerLines) {
 				const events = mapDshEvents(banner);
-				expect(events).toEqual([]);
+				expect(events[0]?.payload.chunk).toBe(banner);
 			}
 
 			// Actual terminal assistant text emits exactly 1 event

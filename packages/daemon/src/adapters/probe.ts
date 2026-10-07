@@ -1135,6 +1135,8 @@ export async function executeProbeProcess(params: {
 	const spawnFn = spawnManagedFn ?? spawnManaged;
 	const stdoutChunks: string[] = [];
 	const stderrChunks: string[] = [];
+	const collectedStderr = () =>
+		stderrChunks.length === 1 && stderrChunks[0] === '' ? '\n' : stderrChunks.join('\n');
 
 	return new Promise<CommandRunnerResult>((resolve) => {
 		let resolved = false;
@@ -1150,7 +1152,7 @@ export async function executeProbeProcess(params: {
 					ok: false,
 					exitCode: null,
 					stdout: stdoutChunks.join(''),
-					stderr: stderrChunks.join(''),
+					stderr: collectedStderr(),
 					timedOut: true,
 				});
 			}
@@ -1201,7 +1203,7 @@ export async function executeProbeProcess(params: {
 						resolved = true;
 						clearTimeout(timer);
 						const stdout = stdoutChunks.join('\n');
-						const stderr = stderrChunks.join('\n');
+						const stderr = collectedStderr();
 						const ok = exitResult.exitCode === 0;
 						resolve({
 							ok,

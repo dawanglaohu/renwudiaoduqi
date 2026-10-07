@@ -466,7 +466,9 @@ export function createBughuntService(deps: BughuntServiceDeps): BughuntService {
 			let outputText = '';
 			if (deps.logstorePaths && deps.logFs) {
 				try {
-					outputText = await readReviewReportText(deps.logstorePaths, deps.logFs, runId);
+					outputText = await readReviewReportText(deps.logstorePaths, deps.logFs, runId, {
+						allowRawFallback: deps.runsRepo.findById(runId)?.agent_id !== 'dsh',
+					});
 				} catch {
 					outputText = '';
 				}

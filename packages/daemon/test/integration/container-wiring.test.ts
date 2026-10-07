@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { getClaudeCapabilities } from '../../src/adapters/claude/capabilities.ts';
 import { getCodexCapabilities } from '../../src/adapters/codex/capabilities.ts';
 import { getDshCapabilities } from '../../src/adapters/dsh/capabilities.ts';
+import { mapDshEvents } from '../../src/adapters/dsh/map-events.ts';
 import { getGenericAcpCapabilities } from '../../src/adapters/generic-acp/capabilities.ts';
 import { getGrokCapabilities } from '../../src/adapters/grok/capabilities.ts';
 import { getPiCapabilities } from '../../src/adapters/pi/capabilities.ts';
@@ -563,6 +564,11 @@ describe(
 	() => {
 		it.each([
 			'Implementation complete.',
+			'---',
+			'Running...',
+			'[warn] This is the requested literal answer.',
+			'DeepSeek Harness is installed.',
+			'# Summary\n---\nRunning...\nCompleted.',
 			'{"status":"done"}',
 			'["completed", "verified"]',
 			'{"text":"literal JSON answer"}',
@@ -693,6 +699,80 @@ describe(
 			).toBe(true);
 			expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
 			expect(spawnedProcesses).toHaveLength(0);
+		});
+
+		it.each([false, true])(
+			'reads DSH wrapup stdout only with final output present %s',
+			async (hasStdout) => {
+				const { container, clock, db } = setupWiringEnvironment();
+				const wrapup = container.services.wrapup;
+				if (!wrapup) throw new Error('Production container did not create wrapup service');
+				db.prepare("UPDATE batches SET state = 'wrapping' WHERE id = 'batch-1'").run();
+				container.repos.runs.insert({
+					id: 'dsh-wrapup',
+					task_id: null,
+					batch_id: 'batch-1',
+					attempt_no: 1,
+					kind: 'wrapup',
+					state: 'exited',
+					agent_id: 'dsh',
+					permission_tier: 'readOnly',
+					snapshot_id: 'snap-1',
+					ended_at: clock.now(),
+				});
+				const draft = readFileSync(
+					resolve(currentDir, '../fixtures/wrapup/clean-report.md'),
+					'utf8',
+				);
+				await container.services.run.ingestRaw('dsh-wrapup', `dsh: reasoning:\n${draft}`);
+				if (hasStdout) {
+					for (const event of mapDshEvents(draft, { runId: 'dsh-wrapup' }))
+						await container.services.run.ingestEvent('dsh-wrapup', event);
+				}
+				await container.services.run.closeRunStream('dsh-wrapup');
+				await wrapup.recordWrapupResult({ runId: 'dsh-wrapup', exitCode: 0 });
+				if (hasStdout) {
+					expect(container.repos.batchWrapups?.findByRunId('dsh-wrapup')?.verdict).toBe('clean');
+				} else {
+					expect(container.repos.batchWrapups?.findByRunId('dsh-wrapup')).toBeNull();
+					expect(container.repos.runs.findById('dsh-wrapup')?.state).toBe('awaiting_human');
+					expect(container.repos.batches.findById('batch-1')?.state).toBe('needs_attention');
+				}
+			},
+		);
+
+		it('routes DSH bughunt stderr drafts to the unparsed recovery path', async () => {
+			const { container, clock } = setupWiringEnvironment();
+			const bughunt = container.services.bughunt;
+			if (!bughunt?.finalizeBughunt)
+				throw new Error('Production container did not create bughunt service');
+			container.repos.runs.insert({
+				id: 'dsh-impl',
+				task_id: 'task-1',
+				attempt_no: 1,
+				kind: 'implement',
+				state: 'reviewing',
+				agent_id: 'dsh',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				started_at: clock.now(),
+			});
+			container.repos.runs.insert({
+				id: 'dsh-bughunt',
+				task_id: 'task-1',
+				parent_run_id: 'dsh-impl',
+				attempt_no: 2,
+				kind: 'bughunt',
+				state: 'exited',
+				agent_id: 'dsh',
+				permission_tier: 'workspaceWrite',
+				snapshot_id: 'snap-1',
+				ended_at: clock.now(),
+			});
+			const draft = readFileSync(resolve(currentDir, '../fixtures/bughunt/clean.txt'), 'utf8');
+			await container.services.run.ingestRaw('dsh-bughunt', `dsh: reasoning:\n${draft}`);
+			await bughunt.finalizeBughunt({ runId: 'dsh-bughunt', exitCode: 0 });
+			expect(container.repos.runs.findById('dsh-bughunt')?.queued_reason).toBe('bughunt_unparsed');
 		});
 
 		it('keeps whitespace-only DSH stdout in the zero-output recovery path', async () => {

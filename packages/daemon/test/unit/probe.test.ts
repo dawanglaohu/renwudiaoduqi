@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { runDshSmokeTest } from '../../src/adapters/dsh/smoke.ts';
 import {
 	createFingerprintCache,
 	executeProbeProcess,
@@ -28,6 +29,26 @@ it('keeps native stderr diagnostics out of captured stdout', async () => {
 	expect(result.ok).toBe(true);
 	expect(result.stdout).toBe('final answer');
 	expect(result.stderr).toBe('diagnostic');
+});
+
+it('preserves a single native stderr newline as a nonempty diagnostic', async () => {
+	const result = await executeProbeProcess({
+		file: process.execPath,
+		args: [
+			'-e',
+			'process.stderr.write("\\n"); process.stdout.write(JSON.stringify({type:"final",text:"OK"})+"\\n");',
+		],
+		windowsVerbatimArguments: false,
+		cwd: process.cwd(),
+		agentId: 'dsh',
+		timeoutMs: 5000,
+		platform: process.platform as 'win32' | 'linux' | 'darwin',
+	});
+	expect(result.ok).toBe(true);
+	expect(result.stderr).toBe('\n');
+	const smoke = await runDshSmokeTest({ runner: async () => result });
+	expect(smoke.ok).toBe(false);
+	expect(smoke.reason).toContain('unexpected stderr');
 });
 
 function createMockFileSystem(
