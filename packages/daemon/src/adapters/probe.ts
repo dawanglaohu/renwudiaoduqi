@@ -21,7 +21,7 @@ import { createProcessEnv } from '../proc/env.ts';
 import { type LaunchSpec, spawnManaged } from '../proc/spawn.ts';
 
 export const DEFAULT_PROBE_TIMEOUT_MS = 5000;
-export const PROBE_WINDOWS_EXTENSIONS = Object.freeze(['.cmd', '.bat', '.exe', ''] as const);
+export const PROBE_WINDOWS_EXTENSIONS = Object.freeze(['.cmd', '.bat', '.exe'] as const);
 
 export type ProbeStatus =
 	| 'matched'
@@ -757,8 +757,16 @@ export async function findExecutableCandidates(input: {
 	// Add PATH based candidates
 	for (const dir of searchDirectories) {
 		if (platform === 'win32') {
-			for (const ext of PROBE_WINDOWS_EXTENSIONS) {
-				addCandidate(pathJoin(dir, `${executableName}${ext}`));
+			if (
+				PROBE_WINDOWS_EXTENSIONS.some((extension) =>
+					executableName.toLowerCase().endsWith(extension),
+				)
+			) {
+				addCandidate(pathJoin(dir, executableName));
+			} else {
+				for (const ext of PROBE_WINDOWS_EXTENSIONS) {
+					addCandidate(pathJoin(dir, `${executableName}${ext}`));
+				}
 			}
 		} else {
 			addCandidate(pathJoin(dir, executableName));
@@ -775,9 +783,17 @@ export async function findExecutableCandidates(input: {
 	const seenRealPaths = new Set<string>();
 
 	for (const candidate of candidatePathsToTest) {
-		checkedPaths.push(candidate);
+		// npm also installs extensionless Unix shell shims. Windows cannot launch those
+		// directly; including them makes a single CLI installation look like a collision.
+		if (
+			platform === 'win32' &&
+			!PROBE_WINDOWS_EXTENSIONS.some((extension) => candidate.toLowerCase().endsWith(extension))
+		) {
+			continue;
+		}
 		const classified = adapter.classifyPath(candidate);
 		if (!classified.isValidForCurrentPlatform) continue;
+		checkedPaths.push(candidate);
 
 		try {
 			const stat = await fileSystem.stat(candidate);
