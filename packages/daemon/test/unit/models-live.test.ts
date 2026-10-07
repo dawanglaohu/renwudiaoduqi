@@ -211,7 +211,24 @@ describe('M4-T14 Live Models Catalog, Source Attribution and Effort Domain', () 
 			// antigravity/claude-3-5-haiku has thinking=no -> no effort options
 			const haiku = models.find((m) => m.id === 'antigravity/claude-3-5-haiku-20241022');
 			expect(haiku).toBeDefined();
-			expect(haiku?.effortOptions).toBeUndefined();
+			expect(haiku?.effortOptions).toEqual([]);
+			const merged = mergeModelSources({
+				live: {
+					ok: true,
+					models: models.map((m) => ({
+						name: m.id,
+						effortOptions: m.effortOptions,
+					})),
+				},
+			});
+			expect(merged.find((m) => m.name === haiku?.id)?.effortOptions).toEqual([]);
+		});
+
+		it('preserves unknown Pi thinking capability separately from an explicit no', () => {
+			const models = parsePiListModelsTable(
+				'provider model context max-output thinking images\np unknown 100 10 unknown no\np absent 100 10',
+			);
+			expect(models.map((m) => m.effortOptions)).toEqual([undefined, undefined]);
 		});
 
 		it('returns not_supported for agents with kind: none', async () => {

@@ -5,7 +5,7 @@
  *
  * 规范依据：
  * - 纯展示层组件：纯 props in / callback out
- * - vendorMap === null 时只读显示「—」+ title 说明，不渲染选择器、不禁用整行（E-254）
+ * - Agent 或模型明确不支持时只读显示「—」+ title 说明，不渲染选择器、不禁用整行（E-254）
  * - 否则渲染「标准档位」组 +「厂商原值」组（allowVendor=false 时不渲染厂商组）
  * - 没有手填框
  * - 配置当前值加「当前配置」chip，effortRecognized === false 再加「无法识别」chip
@@ -124,13 +124,18 @@ export function EffortPicker({
 		UI_STRINGS.effortPicker.unsupportedWarning,
 	);
 
-	// E-254: agent 不支持思考强度时，显示只读「—」并在 title 说明原因，不渲染选择器
-	if (vendorMap === null || vendorMap === undefined) {
+	// E-254: Agent 或所选模型不支持思考强度时，只读显示「—」。
+	const modelUnsupported = selectedModelEffortOptions?.length === 0;
+	if (vendorMap === null || vendorMap === undefined || modelUnsupported) {
 		return (
 			<div className={`flex flex-col gap-0.5 w-full ${className}`}>
 				<div
 					data-testid="effort-unsupported-display"
-					title={UI_STRINGS.effortPicker.unsupportedAgentTitle}
+					title={
+						modelUnsupported
+							? UI_STRINGS.effortPicker.unsupportedModelTitle
+							: UI_STRINGS.effortPicker.unsupportedAgentTitle
+					}
 					className="flex h-[var(--h-input)] items-center px-2.5 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--panel-2)] text-[var(--ink-3)] font-mono text-[13px] select-none"
 				>
 					{UI_STRINGS.effortPicker.unsupportedFallback}

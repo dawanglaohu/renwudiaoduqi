@@ -6,7 +6,7 @@
  * 规范依据：
  * - 纯函数：同输入同输出，不 import React，不 import src 下除 lib 外任何目录
  * - 编码往返：''（跟随默认）/ 'tier:x' / 'vendor:y'
- * - vendorMap === null 时不支持思考强度，外层显示只读「—」
+ * - vendorMap === null 或模型能力为空时不支持思考强度，外层显示只读「—」
  * - 三档组 + 厂商原值组（allowVendor=false 不渲染厂商组）
  * - 配置当前值加「当前配置」chip，effortRecognized === false 再加「无法识别」chip
  * - 没有手填框
@@ -92,7 +92,7 @@ export function buildEffortOptionGroups({
 	effortRecognized = true,
 	copy,
 }: BuildEffortOptionsParams): readonly EffortOptionGroup[] {
-	if (vendorMap === null || vendorMap === undefined) {
+	if (vendorMap === null || vendorMap === undefined || selectedModelEffortOptions?.length === 0) {
 		return [];
 	}
 

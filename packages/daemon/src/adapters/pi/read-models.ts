@@ -100,8 +100,8 @@ export function parsePiListModelsTable(stdout: string): (ModelOption & {
 				const model = parts[1];
 				const id = `${provider}/${model}`;
 				const thinking = parts[4]?.toLowerCase();
-				const hasThinking = thinking === 'yes';
-				const effortOptions = hasThinking ? PI_EFFORT_OPTIONS : undefined;
+				const effortOptions =
+					thinking === 'yes' ? PI_EFFORT_OPTIONS : thinking === 'no' ? [] : undefined;
 				models.push({
 					id,
 					name: model,

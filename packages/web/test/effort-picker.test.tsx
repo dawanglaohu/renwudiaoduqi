@@ -154,6 +154,28 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 		});
 	});
 
+	it('shows authoritative no-thinking model as read-only despite agent fallback (E-254)', () => {
+		const root = createRoot(container);
+		const onChange = vi.fn();
+		act(() =>
+			root.render(
+				createElement(EffortPicker, {
+					vendorMap: { low: 'low', medium: 'medium', high: 'high' },
+					value: null,
+					onChange,
+					selectedModelEffortOptions: [],
+					agentEffortOptions: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+				}),
+			),
+		);
+		const display = container.querySelector('[data-testid="effort-unsupported-display"]');
+		expect(display?.textContent?.trim()).toBe('—');
+		expect(display?.getAttribute('title')).toContain('模型不支持思考强度');
+		expect(container.querySelector('[data-testid="grouped-select-trigger"]')).toBeNull();
+		expect(onChange).not.toHaveBeenCalled();
+		act(() => root.unmount());
+	});
+
 	it('renders select trigger when vendorMap is present and roundtrips onChange', async () => {
 		const onChangeMock = vi.fn();
 		const root = createRoot(container);

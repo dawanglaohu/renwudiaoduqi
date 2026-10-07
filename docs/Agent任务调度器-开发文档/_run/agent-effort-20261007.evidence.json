@@ -14,7 +14,7 @@
   ],
   "regression": {
     "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
-    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3084 passed, 3 existing skips",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3086 passed, 3 existing skips",
     "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
     "coverage": [
       "Native effort passed through the production container dispatch entry with the external process mocked",
@@ -275,6 +275,11 @@
     "regressionBefore": "Three production dispatch cases reject none, minimal and max from the incomplete four-level fallback"
   },
   "mergedMainCommit": "3e209fbbbe6ed5bd759da82d0ac03dd4f202ba0c",
+  "piNoThinking": {
+    "before": "Two regressions fail: Pi thinking=no is lost as undefined, and an unsupported model still renders the effort selector",
+    "after": "Twenty-seven focused live-catalog and DOM tests pass",
+    "scope": "Explicit empty model effortOptions survives parsing and catalog merge and renders read-only; missing model capability retains the Agent fallback and legacy CLI common-tier budget behavior"
+  },
   "manualAndDefault": {
     "before": "Nine regressions fail: the default model exposes unsupported levels without a warning; seven manual HTTP requests cannot submit structured effort",
     "after": "Fourteen focused DOM and manual HTTP cases pass",
