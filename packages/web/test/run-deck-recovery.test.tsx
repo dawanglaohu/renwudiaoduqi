@@ -114,7 +114,7 @@ it('M9-T21 reloads authoritative deck lanes after connection recovery without a 
 	}
 });
 
-it('keeps the onboarding step when a snapshot moves the console between the main area and rail', async () => {
+it('keeps onboarding drafts and steps when a snapshot moves the console between the main area and rail', async () => {
 	vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 	vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
 		if (route.path === '/api/v1/documents') return { documents: [] };
@@ -143,17 +143,38 @@ it('keeps the onboarding step when a snapshot moves the console between the main
 	const root = createRoot(container);
 	try {
 		await act(async () => root.render(createElement(RunDeckView, props)));
+		const onboarding = container.querySelector('[data-testid="empty-onboarding-console"]');
+		const pathInput = container.querySelector(
+			'[data-testid="import-doc-path"]',
+		) as HTMLInputElement;
+		const pathDraft = '/tmp/task-drafts/docs-data.js';
+		await act(async () => {
+			Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
+				pathInput,
+				pathDraft,
+			);
+			pathInput.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+		await act(async () => root.render(createElement(RunDeckView, props)));
+		expect(pathInput.value).toBe(pathDraft);
+		const lanes = [idleLane(1)];
+		const hydratedProps = { ...props, rawLanes: lanes, lanes: buildDeckLanes({ lanes }) };
+		await act(async () => root.render(createElement(RunDeckView, hydratedProps)));
+		expect(
+			(container.querySelector('[data-testid="import-doc-path"]') as HTMLInputElement).value,
+		).toBe(pathDraft);
+		expect(container.querySelector('[data-testid="empty-onboarding-console"]')).toBe(onboarding);
+		await act(async () => root.render(createElement(RunDeckView, props)));
+		expect(container.querySelector('[data-testid="import-doc-path"]')).toBe(pathInput);
+		expect(pathInput.value).toBe(pathDraft);
 		await act(async () => {
 			(container.querySelector('[data-action="next-step-1"]') as HTMLButtonElement).click();
 		});
 		expect(
 			container.querySelector('[data-step-active="true"]')?.getAttribute('data-step-index'),
 		).toBe('1');
-		const lanes = [idleLane(1)];
 		await act(async () => {
-			root.render(
-				createElement(RunDeckView, { ...props, rawLanes: lanes, lanes: buildDeckLanes({ lanes }) }),
-			);
+			root.render(createElement(RunDeckView, hydratedProps));
 		});
 		expect(
 			container.querySelector('[data-step-active="true"]')?.getAttribute('data-step-index'),
@@ -161,7 +182,10 @@ it('keeps the onboarding step when a snapshot moves the console between the main
 		await act(async () => {
 			(container.querySelector('[data-action="next-step-2"]') as HTMLButtonElement).click();
 		});
+		const assignmentList = container.querySelector('[data-testid="task-assignment-list"]');
+		expect(assignmentList).not.toBeNull();
 		await act(async () => root.render(createElement(RunDeckView, props)));
+		expect(container.querySelector('[data-testid="task-assignment-list"]')).toBe(assignmentList);
 		expect(
 			container.querySelector('[data-step-active="true"]')?.getAttribute('data-step-index'),
 		).toBe('2');
