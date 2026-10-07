@@ -434,17 +434,20 @@ describe('M4-T3 Agent Version Fingerprint & Executable Resolution (AC 1-6, E-195
 		);
 
 		it('does not discover a Unix-only shim in Windows fixed candidate directories', async () => {
+			const fileSystem = createMockFileSystem({
+				'C:\\Users\\tester\\AppData\\Roaming\\npm\\pi': { isFile: true },
+			});
+			const stat = vi.spyOn(fileSystem, 'stat');
 			const result = await probeAgent({
 				agentId: 'pi',
 				config: BUILT_IN_AGENT_DEFAULTS.pi,
 				hostInputs: windowsHost,
-				env: { PATH: '' },
-				fileSystem: createMockFileSystem({
-					'C:\\Users\\tester\\AppData\\Roaming\\npm\\pi': { isFile: true },
-				}),
+				env: { PATH: 'relative-bin' },
+				fileSystem,
 			});
 			expect(result.status).toBe('not-found');
 			expect(result.canDispatch).toBe(false);
+			expect(result.errorDetails?.checkedPaths).toEqual(stat.mock.calls.map(([path]) => path));
 		});
 
 		it('R2: reads Path case-insensitively on Windows and lists all candidates with confirmation', async () => {

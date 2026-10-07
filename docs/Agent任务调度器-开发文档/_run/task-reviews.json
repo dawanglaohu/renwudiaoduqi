@@ -418,9 +418,10 @@
       "Review follow-up: codex.cmd/codex.bat/codex.exe/codex.CMD in a non-fixed PATH directory all fail before the suffix repair and pass after repair at packages/daemon/test/unit/probe.test.ts:379. TypeScript and changed-file Biome checks pass.",
       "Real native version probes: Pi 0.87.1 and Claude Code 2.1.238 automatically match after repair. Codex CLI 0.157.1 matches when its exact .cmd launcher is selected; a desktop core plus standalone CLI remains a genuine multi-candidate result.",
       "DSH scope remains open: installed D:/Program Files/DeepSeek Harness/resources/runtime/cli/bin/dsh.cmd version 0.2.0-rc.2 successfully returns DSH_HEALTHCHECK_OK through --profile headless, exit 0 and empty stderr. Existing adapter --model argv fails with unknown option --model. This PR does not fix or mark DSH compatibility complete.",
-      "Production bootstrap/browser restart proof remains unavailable in this unelevated Windows session due Administrators/SYSTEM daemon-lock ACL. No existing runtime service or user registry configuration changed. Local source review and native probes do not claim deployed recovery."
+      "Production bootstrap/browser restart proof remains unavailable in this unelevated Windows session due Administrators/SYSTEM daemon-lock ACL. No existing runtime service or user registry configuration changed. Local source review and native probes do not claim deployed recovery.",
+      "Review diagnostic follow-up: unavailable checkedPaths exactly matches attempted filesystem stat paths. Ignored extensionless Windows shims and invalid relative PATH entries are omitted. Regression fails before repair and passes after repair; complete probe suite has 29 passing tests. Changed-file Biome and TypeScript checks pass."
     ],
-    "reviewed": "2026-10-07T02:46:19.588198+00:00",
+    "reviewed": "2026-10-07T02:55:01.591738+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

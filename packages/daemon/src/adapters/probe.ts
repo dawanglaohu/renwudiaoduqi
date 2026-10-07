@@ -783,7 +783,6 @@ export async function findExecutableCandidates(input: {
 	const seenRealPaths = new Set<string>();
 
 	for (const candidate of candidatePathsToTest) {
-		checkedPaths.push(candidate);
 		// npm also installs extensionless Unix shell shims. Windows cannot launch those
 		// directly; including them makes a single CLI installation look like a collision.
 		if (
@@ -794,6 +793,7 @@ export async function findExecutableCandidates(input: {
 		}
 		const classified = adapter.classifyPath(candidate);
 		if (!classified.isValidForCurrentPlatform) continue;
+		checkedPaths.push(candidate);
 
 		try {
 			const stat = await fileSystem.stat(candidate);
