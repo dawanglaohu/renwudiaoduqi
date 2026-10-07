@@ -29,6 +29,7 @@ async function preloadLazyPages(): Promise<void> {
 		import('../src/pages/landing-page.tsx'),
 		import('../src/pages/settings-agents-page.tsx'),
 		import('../src/pages/settings-devices-page.tsx'),
+		import('../src/pages/settings-pipeline-page.tsx'),
 	]);
 }
 
@@ -133,8 +134,8 @@ afterAll(() => {
 	for (const dir of scratchDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-describe('M9-T25 seven route entries', () => {
-	it('navigates all seven hashes to real page/container components', async () => {
+describe('M9-T25 route entries', () => {
+	it('navigates all eight hashes to real page/container components', async () => {
 		await preloadLazyPages();
 		const root = createRoot(document.getElementById('root') as HTMLElement);
 		cleanupFns.push(async () => act(async () => root.unmount()));
@@ -150,6 +151,7 @@ describe('M9-T25 seven route entries', () => {
 			['#/landing/task-m9-t25', '[data-component="landing-page"]'],
 			[ROUTE_PATHS.settingsAgents, '[data-component="settings-agents-container"]'],
 			[ROUTE_PATHS.settingsDevices, '[data-component="settings-devices-container"]'],
+			[ROUTE_PATHS.settingsPipeline, '[data-testid="settings-pipeline-page"]'],
 			[ROUTE_PATHS.pair, '[data-component="pairing-container"]'],
 		];
 		for (const [hash, selector] of routes) {
@@ -158,11 +160,91 @@ describe('M9-T25 seven route entries', () => {
 				await flushReact();
 			});
 			expect(document.querySelector(selector), `${hash} -> ${selector}`).not.toBeNull();
+			expect(document.querySelectorAll('[data-testid="settings-entry"]')).toHaveLength(
+				hash === ROUTE_PATHS.pair ? 0 : 1,
+			);
 			expect(document.querySelectorAll('[data-component="gate-toggles"]')).toHaveLength(
 				hash === ROUTE_PATHS.pair ? 0 : 1,
 			);
 		}
 	});
+
+	it('opens settings from the deck, switches every section and returns without duplicate navigation', async () => {
+		await preloadLazyPages();
+		const root = createRoot(document.getElementById('root') as HTMLElement);
+		cleanupFns.push(async () => act(async () => root.unmount()));
+		await act(async () => {
+			root.render(createElement(App));
+			await flushReact();
+		});
+
+		const click = async (button: HTMLButtonElement | null | undefined) => {
+			expect(button).toBeTruthy();
+			await act(async () => {
+				button?.click();
+				await flushReact();
+			});
+		};
+		const settingsEntry = () =>
+			document.querySelector<HTMLButtonElement>('[data-testid="settings-entry"]');
+		expect(document.querySelector('nav[aria-label="设置导航"]')).toBeNull();
+		await click(settingsEntry());
+		expect(window.location.hash).toBe(ROUTE_PATHS.settingsAgents);
+
+		const sections: ReadonlyArray<readonly [string, string, string]> = [
+			['Agent', ROUTE_PATHS.settingsAgents, '[data-component="settings-agents-container"]'],
+			['设备', ROUTE_PATHS.settingsDevices, '[data-component="settings-devices-container"]'],
+			['流水线', ROUTE_PATHS.settingsPipeline, '[data-testid="settings-pipeline-page"]'],
+		];
+		for (const [label, path, selector] of sections) {
+			const sectionButton = () =>
+				Array.from(
+					document.querySelectorAll<HTMLButtonElement>('nav[aria-label="设置导航"] button'),
+				).find((button) => button.textContent?.trim() === label);
+			await click(sectionButton());
+			expect(window.location.hash).toBe(path);
+			const page = document.querySelector(selector);
+			expect(page).not.toBeNull();
+			expect(sectionButton()?.getAttribute('aria-current')).toBe('page');
+			expect(
+				document.querySelectorAll('nav[aria-label="设置导航"] [aria-current="page"]'),
+			).toHaveLength(1);
+
+			const historyLength = window.history.length;
+			await click(sectionButton());
+			await click(settingsEntry());
+			expect(window.location.hash).toBe(path);
+			expect(window.history.length).toBe(historyLength);
+			expect(document.querySelector(selector)).toBe(page);
+		}
+
+		const back = document.querySelector<HTMLButtonElement>('[data-testid="settings-back"]');
+		expect(back?.textContent?.trim()).toBe('返回运行甲板');
+		await click(back);
+		expect(window.location.hash).toBe(ROUTE_PATHS.deck);
+		expect(document.querySelector('[data-component="run-deck-container"]')).not.toBeNull();
+		expect(document.querySelector('nav[aria-label="设置导航"]')).toBeNull();
+		await click(settingsEntry());
+		expect(window.location.hash).toBe(ROUTE_PATHS.settingsAgents);
+		expect(document.querySelectorAll('nav[aria-label="设置导航"]')).toHaveLength(1);
+	});
+
+	it.each([ROUTE_PATHS.deck, ROUTE_PATHS.settingsAgents, ROUTE_PATHS.pair])(
+		'hides settings navigation from an unpaired visit to %s',
+		async (path) => {
+			clearCachedToken();
+			navigateTo(path);
+			const root = createRoot(document.getElementById('root') as HTMLElement);
+			cleanupFns.push(async () => act(async () => root.unmount()));
+			await act(async () => {
+				root.render(createElement(App));
+				await flushReact();
+			});
+			expect(document.querySelector('[data-testid="settings-entry"]')).toBeNull();
+			expect(document.querySelector('[data-testid="settings-back"]')).toBeNull();
+			expect(document.querySelector('nav[aria-label="设置导航"]')).toBeNull();
+		},
+	);
 
 	it('keeps pair public, accepts a manual host and posts the real claim body', async () => {
 		await preloadLazyPages();
@@ -447,6 +529,7 @@ describe('M9-T25 Vite route chunks', () => {
 		expect(assets.some((name) => /^landing-page-[\w-]+\.js$/.test(name))).toBe(true);
 		expect(assets.some((name) => /^settings-agents-page-[\w-]+\.js$/.test(name))).toBe(true);
 		expect(assets.some((name) => /^settings-devices-page-[\w-]+\.js$/.test(name))).toBe(true);
+		expect(assets.some((name) => /^settings-pipeline-page-[\w-]+\.js$/.test(name))).toBe(true);
 		expect(assets.some((name) => /^(?:deck|tasks|run-detail)-page-[\w-]+\.js$/.test(name))).toBe(
 			false,
 		);
