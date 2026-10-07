@@ -111,7 +111,9 @@ export function PipelineToggles({
 			data-layout={layout}
 			data-pending={isPending ? 'true' : 'false'}
 			className={[
-				isTopbar ? 'flex items-center select-none shrink-0' : 'flex flex-col gap-1.5 select-none',
+				isTopbar
+					? 'flex items-center select-none shrink-0'
+					: 'pipeline-settings-controls flex flex-col gap-3 select-none',
 				className,
 			]
 				.filter(Boolean)

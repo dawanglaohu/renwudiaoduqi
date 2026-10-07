@@ -135,7 +135,7 @@ export function SettingsAgentsContainer({ targetDocId }: { readonly targetDocId?
 			/>
 
 			{/* 2. Agent 列表 */}
-			<div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,560px),1fr))] gap-[var(--sp-3)]">
+			<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,560px),1fr))] items-start gap-[var(--sp-3)]">
 				{agents.map((agent) => (
 					<AgentCardItem
 						key={agent.id}

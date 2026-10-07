@@ -15,6 +15,7 @@ import { getManualHost, resolveBaseUrl } from '../src/api/base-url.ts';
 import { ApiError, clearCachedToken, httpClient, setCachedToken } from '../src/api/http-client.ts';
 import { App } from '../src/app/app.tsx';
 import { ROUTE_PATHS, matchRoute, navigateTo } from '../src/app/routes.tsx';
+import { ThemeProvider } from '../src/app/theme-provider.tsx';
 import { mapSnapshotToBatches } from '../src/features/run-deck/batch-expansion.ts';
 import type { RunFetcher } from '../src/features/run-detail/run-detail-container.tsx';
 import { RunDetailPage } from '../src/pages/run-detail-page.tsx';
@@ -140,7 +141,7 @@ describe('M9-T25 route entries', () => {
 		const root = createRoot(document.getElementById('root') as HTMLElement);
 		cleanupFns.push(async () => act(async () => root.unmount()));
 		await act(async () => {
-			root.render(createElement(App));
+			root.render(createElement(ThemeProvider, null, createElement(App)));
 			await flushReact();
 		});
 
@@ -174,7 +175,7 @@ describe('M9-T25 route entries', () => {
 		const root = createRoot(document.getElementById('root') as HTMLElement);
 		cleanupFns.push(async () => act(async () => root.unmount()));
 		await act(async () => {
-			root.render(createElement(App));
+			root.render(createElement(ThemeProvider, null, createElement(App)));
 			await flushReact();
 		});
 
@@ -237,7 +238,7 @@ describe('M9-T25 route entries', () => {
 			const root = createRoot(document.getElementById('root') as HTMLElement);
 			cleanupFns.push(async () => act(async () => root.unmount()));
 			await act(async () => {
-				root.render(createElement(App));
+				root.render(createElement(ThemeProvider, null, createElement(App)));
 				await flushReact();
 			});
 			expect(document.querySelector('[data-testid="settings-entry"]')).toBeNull();
@@ -257,7 +258,7 @@ describe('M9-T25 route entries', () => {
 		const root = createRoot(document.getElementById('root') as HTMLElement);
 		cleanupFns.push(async () => act(async () => root.unmount()));
 		await act(async () => {
-			root.render(createElement(App));
+			root.render(createElement(ThemeProvider, null, createElement(App)));
 			await flushReact();
 		});
 
@@ -343,7 +344,7 @@ describe('M9-T25 route entries', () => {
 		const root = createRoot(document.getElementById('root') as HTMLElement);
 		cleanupFns.push(async () => act(async () => root.unmount()));
 		await act(async () => {
-			root.render(createElement(App));
+			root.render(createElement(ThemeProvider, null, createElement(App)));
 			await flushReact();
 		});
 
@@ -363,7 +364,7 @@ describe('M9-T25 route entries', () => {
 		const root = createRoot(document.getElementById('root') as HTMLElement);
 		cleanupFns.push(async () => act(async () => root.unmount()));
 		await act(async () => {
-			root.render(createElement(App));
+			root.render(createElement(ThemeProvider, null, createElement(App)));
 			await flushReact();
 		});
 		const tree = document.querySelector('[data-component="batch-tree"]');
@@ -468,7 +469,7 @@ describe('M9-T25 route entries', () => {
 		const root = createRoot(document.getElementById('root') as HTMLElement);
 		cleanupFns.push(async () => act(async () => root.unmount()));
 		await act(async () => {
-			root.render(createElement(App));
+			root.render(createElement(ThemeProvider, null, createElement(App)));
 			await flushReact();
 		});
 		const missing = document.querySelector('[data-run-missing="true"]');
@@ -483,7 +484,7 @@ describe('M9-T25 route entries', () => {
 		const root = createRoot(document.getElementById('root') as HTMLElement);
 		cleanupFns.push(async () => act(async () => root.unmount()));
 		await act(async () => {
-			root.render(createElement(App));
+			root.render(createElement(ThemeProvider, null, createElement(App)));
 			await flushReact();
 		});
 

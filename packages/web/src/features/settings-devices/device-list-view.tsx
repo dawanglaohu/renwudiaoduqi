@@ -1,4 +1,5 @@
 import type { DeviceDto } from '../../../../shared/src/api/devices.ts';
+import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { BrowserModeBanner } from './browser-mode-banner.tsx';
 import { DeviceRevokeDialog } from './device-revoke-dialog.tsx';
 import { type UseSettingsDevicesResult, formatIsoDateTime } from './use-settings-devices.ts';
@@ -34,7 +35,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 	} = devicesState;
 
 	return (
-		<div className="grid w-full max-w-[1112px] min-w-0 grid-cols-1 min-[1144px]:grid-cols-[minmax(0,780px)_320px] gap-6 min-[768px]:gap-[var(--sp-3)] items-start">
+		<div className="grid w-full min-w-0 grid-cols-1 min-[1144px]:grid-cols-[minmax(0,1fr)_320px] gap-3 items-start">
 			{/* E-229: 浏览器模式常驻通知 */}
 			<div className="col-span-full min-w-0">
 				<BrowserModeBanner />
@@ -61,7 +62,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 				{/* 顶栏操作区：标题 + 生成配对码 (E-125) */}
 				<div className="flex flex-col sm:flex-row sm:items-center flex-wrap justify-between gap-4 min-[768px]:gap-[var(--sp-3)] pb-4 min-[768px]:pb-3 border-b border-border">
 					<div>
-						<h1 className="text-lead font-semibold text-ink-1">设备与配对管理</h1>
+						<h1 className="text-num font-semibold text-ink-1">设备与配对管理</h1>
 						<p className="text-meta text-ink-2 mt-1">
 							管理所有已授权访问调度服务的终端设备与会话令牌。
 						</p>
@@ -83,7 +84,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 							disabled={isGeneratingCode}
 							className="h-btn px-4 rounded-sm bg-needs text-on-needs font-medium text-meta hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-needs-soft disabled:opacity-50"
 						>
-							{isGeneratingCode ? '正在生成...' : '生成新配对码 (E-125)'}
+							{isGeneratingCode ? '正在生成...' : UI_STRINGS.settings.generateCode}
 						</button>
 					</div>
 				</div>
@@ -92,7 +93,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 				{newPairingCode && (
 					<div
 						data-testid="new-pairing-code-card"
-						className="p-5 min-[768px]:p-3.5 rounded bg-panel-2 border border-needs text-ink-1 flex flex-col gap-3"
+						className="text-ink-1 flex flex-col gap-3 border-b border-border pb-3"
 					>
 						<div className="flex items-center justify-between">
 							<span className="text-meta font-medium text-needs">新设备配对码（一次性）</span>
@@ -219,7 +220,7 @@ export function DeviceListView({ devicesState }: DeviceListViewProps) {
 				</div>
 			</div>
 			{/* PC 局域网 IP 变化与手填地址说明 (AC 3 / E-09 / E-06) */}
-			<aside className="min-w-0 p-5 min-[768px]:p-3.5 rounded bg-bg border border-border flex flex-col gap-4 min-[768px]:gap-[var(--sp-3)]">
+			<aside className="min-w-0 flex flex-col gap-3">
 				<div className="flex flex-col gap-1">
 					<h2 className="text-body font-semibold text-ink-1">
 						调度服务网络与局域网 IP 设置 (E-09)

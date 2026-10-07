@@ -31,11 +31,11 @@ export function LaneCountSetting({
 	return (
 		<div
 			data-testid="lane-count-setting-card"
-			className="flex flex-col gap-3 rounded border border-border bg-bg p-4"
+			className="flex flex-col gap-3 border-b border-border pb-3"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<div className="flex items-center gap-2">
+					<div className="flex min-w-0 flex-wrap items-center gap-2">
 						<h3 className="font-ui text-lead font-semibold text-ink-1">任务并行窗口数</h3>
 						{targetDocName && (
 							<span className="rounded bg-panel-2 px-1.5 py-0.5 text-micro text-ink-3">
@@ -49,7 +49,7 @@ export function LaneCountSetting({
 					</p>
 				</div>
 
-				<div className="flex items-center gap-3">
+				<div className="flex min-w-0 flex-wrap items-center gap-3">
 					{/* R5: 定位不到目标文档时不渲染写入口 */}
 					{canWrite ? (
 						<div className="flex items-center rounded-sm border border-border bg-panel-2">

@@ -28,6 +28,7 @@ import {
 	RouterView,
 	navigateTo,
 } from './routes.tsx';
+import { ThemeControl } from './theme-control.tsx';
 
 const LandingPage = lazy(() => import('../pages/landing-page.tsx'));
 const SettingsAgentsPage = lazy(() => import('../pages/settings-agents-page.tsx'));
@@ -65,19 +66,22 @@ function AppTopbar({ match, banner }: { readonly match: RouteMatch; readonly ban
 	return (
 		<>
 			{banner}
-			<div className="relative">
-				<header
-					data-testid="app-topbar"
-					className="h-topbar flex items-center gap-3 border-b border-border bg-bg px-4 text-ink-1"
-				>
-					<span className="font-mono text-dense font-semibold text-ink-1">Agent 任务调度器</span>
-					<div className="flex h-topbar items-center">
+			<div className="app-chrome">
+				<header data-testid="app-topbar" className="app-topbar">
+					<a className="app-brand" href={ROUTE_PATHS.deck}>
+						<span className="app-brand-mark" aria-hidden="true">
+							a
+						</span>
+						<span>{UI_STRINGS.settings.appName}</span>
+					</a>
+					<div className="app-header-actions">
+						<ThemeControl />
 						{showGates && (
 							<button
 								type="button"
 								data-testid="settings-entry"
 								aria-current={isSettings ? 'location' : undefined}
-								className={NAV_BUTTON_CLASS}
+								className={`${NAV_BUTTON_CLASS} app-settings-entry`}
 								onClick={() => {
 									if (!isSettings) navigateTo(ROUTE_PATHS.settingsAgents);
 								}}
@@ -87,14 +91,11 @@ function AppTopbar({ match, banner }: { readonly match: RouteMatch; readonly ban
 						)}
 					</div>
 				</header>
-				<div className="hidden min-[600px]:flex flex-wrap items-center gap-3 border-b border-border bg-bg px-4 py-2 min-[1280px]:absolute min-[1280px]:top-0 min-[1280px]:right-4 min-[1280px]:h-topbar min-[1280px]:flex-nowrap min-[1280px]:border-0 min-[1280px]:p-0">
+				<div className="app-controls">
 					{showGates && (
 						<>
 							<GateTogglesContainer layout="topbar" />
-							<div
-								className="h-px w-full bg-border shrink-0 min-[1280px]:h-4 min-[1280px]:w-px"
-								aria-hidden="true"
-							/>
+							<div className="app-controls-divider" aria-hidden="true" />
 							<PipelineTogglesContainer layout="topbar" notesHost={pipelineNotesHost} />
 						</>
 					)}
@@ -107,10 +108,7 @@ function AppTopbar({ match, banner }: { readonly match: RouteMatch; readonly ban
 				/>
 			</div>
 			{showGates && isSettings && (
-				<nav
-					aria-label={UI_STRINGS.settings.navigation}
-					className="flex flex-wrap items-center gap-2 border-b border-border bg-bg px-4 py-2"
-				>
+				<nav aria-label={UI_STRINGS.settings.navigation} className="settings-navigation">
 					<button
 						type="button"
 						data-testid="settings-back"

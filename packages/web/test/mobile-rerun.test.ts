@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearCachedToken, setCachedToken } from '../src/api/http-client.ts';
 import { App } from '../src/app/app.tsx';
 import { navigateTo } from '../src/app/routes.tsx';
+import { ThemeProvider } from '../src/app/theme-provider.tsx';
 import { ThumbBar } from '../src/components/thumb-bar.tsx';
 import { MobileRerunBar } from '../src/features/run-detail/mobile-rerun-bar.tsx';
 import { RerunConfirmDialog } from '../src/features/run-detail/rerun-confirm-dialog.tsx';
@@ -40,7 +41,7 @@ describe('M9-T13: Mobile Rerun Entrance (AC 1-5, E-177, E-181, R1-R3)', () => {
 		it('renders RunDetailPage within App when navigating to #/run/:runId with terminal failure', () => {
 			navigateTo('#/run/run-fail-101');
 
-			const html = renderToStaticMarkup(createElement(App));
+			const html = renderToStaticMarkup(createElement(ThemeProvider, null, createElement(App)));
 
 			expect(html).toContain('data-testid="run-detail-page"');
 			expect(html).toContain('run-fail-101');

@@ -48,7 +48,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 		layers.override !== null && layers.override !== undefined && layers.override !== '—';
 
 	return (
-		<div className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body">
+		<div className="settings-field">
 			{/* 字段名与顶部信息栏 */}
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<div className="flex items-center gap-2">
@@ -68,9 +68,11 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 				</div>
 			</div>
 
-			{/* 三行表（内置默认 / 你的覆盖 / 当前生效） */}
-			<div className="grid grid-cols-1 gap-1 text-meta sm:grid-cols-3">
-				<div className="flex flex-col rounded bg-bg px-2 py-1">
+			{children && <div className="settings-field-editor">{children}</div>}
+
+			{/* 三层配置来源 */}
+			<div className="settings-field-layers">
+				<div className="flex min-w-0 flex-col">
 					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
 					<span
 						className="font-mono text-dense text-ink-2 truncate"
@@ -80,7 +82,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 						{layers.builtIn}
 					</span>
 				</div>
-				<div className="flex flex-col rounded bg-bg px-2 py-1">
+				<div className="flex min-w-0 flex-col">
 					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
 					<span
 						className={`font-mono text-dense truncate ${
@@ -92,7 +94,7 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 						{layers.override ?? '—'}
 					</span>
 				</div>
-				<div className="flex flex-col rounded bg-bg px-2 py-1">
+				<div className="flex min-w-0 flex-col">
 					<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
 					<span
 						className="font-mono text-dense text-ink-1 font-medium truncate"
@@ -103,9 +105,6 @@ export function FieldLayersRow({ layers, fieldLabel, children }: FieldLayersRowP
 					</span>
 				</div>
 			</div>
-
-			{/* 内嵌编辑控件 */}
-			{children && <div className="mt-1">{children}</div>}
 		</div>
 	);
 }

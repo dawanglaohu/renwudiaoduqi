@@ -20,6 +20,7 @@ import {
 	SERVICE_NOT_RUNNING_TITLE,
 	useFirstScreenFailure,
 } from '../src/app/connect-failed.tsx';
+import { ThemeProvider } from '../src/app/theme-provider.tsx';
 import { LAUNCH_SERVICE_FAILED_MESSAGE } from '../src/i18n/error-messages.ts';
 import { shellBridge } from '../src/shell/shell-bridge.ts';
 
@@ -312,7 +313,7 @@ describe('M10-T6 AC 1: the failure channel is reachable from the app entry', () 
 				retry: () => {},
 			});
 		});
-		render(createElement(App));
+		render(createElement(ThemeProvider, null, createElement(App)));
 
 		const screen = document.querySelector('[data-testid="connect-failed-screen"]');
 		expect(screen).not.toBeNull();

@@ -1,3 +1,4 @@
+import { SettingsPageHeader } from '../components/settings-page-header.tsx';
 import { SettingsAgentsContainer } from '../features/settings-agents/settings-agents-container.tsx';
 import { UI_STRINGS } from '../i18n/ui-strings.ts';
 
@@ -9,23 +10,14 @@ import { UI_STRINGS } from '../i18n/ui-strings.ts';
  */
 export function SettingsAgentsPage() {
 	return (
-		<div
-			data-testid="settings-agents-page"
-			className="flex min-h-screen flex-col bg-page text-ink-1 font-ui"
-		>
-			{/* 顶栏 52px */}
-			<header className="h-topbar flex items-center justify-between border-b border-border bg-bg px-4 text-ink-1">
-				<div className="flex items-center gap-2">
-					<span className="font-mono text-dense text-ink-3">{UI_STRINGS.settings.title}</span>
-					<span className="text-ink-3">/</span>
-					<h1 className="font-ui text-dense font-semibold text-ink-1">
-						{UI_STRINGS.settings.agentsDescription}
-					</h1>
-				</div>
-			</header>
+		<div data-testid="settings-agents-page" className="settings-page">
+			<SettingsPageHeader
+				title={UI_STRINGS.settings.agentsDescription}
+				description={UI_STRINGS.settings.agentsHint}
+			/>
 
 			{/* 主内容区域 */}
-			<main className="flex-1 min-w-0 p-[var(--sp-4)]">
+			<main className="min-w-0">
 				<div className="w-full min-w-0">
 					<SettingsAgentsContainer />
 				</div>

@@ -5,10 +5,23 @@
  */
 
 export const UI_STRINGS = {
+	appearance: {
+		label: '主题',
+		choose: '选择界面主题',
+		system: '跟随系统',
+		light: '浅色',
+		dark: '深色',
+	},
 	fieldLayers: {
 		defaultUpdatedPrefix: '内置默认已更新（',
 	},
 	settings: {
+		appName: 'Agent 任务调度器',
+		deck: '运行甲板',
+		agentsHint: '管理运行环境、默认模型和并发上限',
+		pipelineHint: '设置自动化流程，以及审查与收口阶段的执行者',
+		saveHint: '有效修改会自动保存',
+		generateCode: '生成配对码',
 		navigation: '设置导航',
 		backToDeck: '返回运行甲板',
 		agentsTab: 'Agent',

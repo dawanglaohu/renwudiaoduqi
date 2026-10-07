@@ -69,6 +69,9 @@
 
 :root,
 [data-theme="dark"] {
+	--accent: #70d5c5;
+	--accent-soft: rgba(112, 213, 197, 0.12);
+	--on-accent: #10221e;
 	--page: #0f1213;
 	--bg: #171b1c;
 	--panel-2: #1f2425;
@@ -102,13 +105,16 @@
 	--spine-dead: var(--down);
 
 	--row-hover: rgba(255, 255, 255, 0.035);
-	--shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+	--shadow: 0 1px 3px rgba(4, 18, 16, 0.24);
 	--shadow-lg: 0 32px 70px -40px rgba(0, 0, 0, 0.8);
 	--glow: 0 6px 20px rgba(240, 176, 60, 0.28);
 }
 
 [data-theme="light"] {
-	--page: #ecefee;
+	--accent: #176c66;
+	--accent-soft: rgba(23, 108, 102, 0.09);
+	--on-accent: #f5fbf9;
+	--page: #eef1ef;
 	--bg: #fbfcfc;
 	--panel-2: #f1f4f3;
 	--border: rgba(16, 30, 28, 0.09);
@@ -124,11 +130,11 @@
 	--auto: #16785f;
 	--auto-ink: #16785f;
 	--auto-soft: rgba(22, 120, 95, 0.11);
-	--on-auto: #ffffff;
+	--on-auto: #fbfcfc;
 	--down: #c2402f;
 	--down-ink: #c2402f;
 	--down-soft: rgba(194, 64, 47, 0.1);
-	--on-down: #ffffff;
+	--on-down: #fbfcfc;
 
 	--warn: var(--needs);
 	--warn-soft: var(--needs-soft);

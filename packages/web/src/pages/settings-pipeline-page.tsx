@@ -1,3 +1,4 @@
+import { SettingsPageHeader } from '../components/settings-page-header.tsx';
 import { UI_STRINGS } from '../i18n/ui-strings.ts';
 /**
  * packages/web/src/pages/settings-pipeline-page.tsx
@@ -17,21 +18,15 @@ export function SettingsPipelinePage() {
 		<div
 			data-component="settings-pipeline-page"
 			data-testid="settings-pipeline-page"
-			className="flex min-h-screen flex-col bg-page text-ink-1 font-ui"
+			className="settings-page"
 		>
-			{/* 顶栏 52px */}
-			<header className="h-topbar flex items-center justify-between border-b border-border bg-bg px-4 text-ink-1">
-				<div className="flex items-center gap-2">
-					<span className="font-mono text-dense text-ink-3">{UI_STRINGS.settings.title}</span>
-					<span className="text-ink-3">/</span>
-					<h1 className="font-ui text-dense font-semibold text-ink-1">
-						{UI_STRINGS.settings.pipelineDescription}
-					</h1>
-				</div>
-			</header>
+			<SettingsPageHeader
+				title={UI_STRINGS.settings.pipelineDescription}
+				description={UI_STRINGS.settings.pipelineHint}
+			/>
 
 			{/* 主内容区域 */}
-			<main className="flex-1 min-w-0 p-[var(--sp-4)]">
+			<main className="min-w-0">
 				<div className="w-full min-w-0">
 					<PipelineTogglesContainer layout="settings" />
 				</div>

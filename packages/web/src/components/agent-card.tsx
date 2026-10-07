@@ -75,7 +75,7 @@ function formatEffortValue(val: EffortValue | undefined | null): string {
  * - dsh 的思考强度块显示「该 agent 不支持」，不渲染三行与按钮；
  * - 内置默认/你的覆盖读 layers，当前生效读顶层字段；
  * - 你的覆盖模型名不在 catalog.models 时加 chip「清单未列」；
- * - <400px 竖排，恢复默认按钮排在三行下方。
+ * - 窄屏元信息竖排，恢复默认与字段标题同行。
  */
 export function AgentCard({
 	agent,
@@ -171,15 +171,13 @@ export function AgentCard({
 		<div
 			data-testid={`agent-card-${agent.id}`}
 			data-available={agent.isAvailable}
-			className={`min-w-0 flex flex-col gap-4 min-[768px]:gap-[var(--sp-3)] rounded border bg-bg p-[18px] max-[767px]:p-4 transition-opacity max-[639px]:[&_button]:min-h-[var(--h-btn-lg)] max-[639px]:[&_button]:min-w-[var(--h-btn-lg)] max-[639px]:[&_input]:min-h-[var(--h-input-touch)] max-[639px]:[&_select]:min-h-[var(--h-input-touch)] ${
-				isUnavailable ? 'opacity-75 border-border-strong' : 'border-border'
-			}`}
+			className="agent-settings-section min-w-0 flex flex-col gap-3 max-[639px]:[&_button]:min-h-[var(--h-btn-lg)] max-[639px]:[&_button]:min-w-[var(--h-btn-lg)] max-[639px]:[&_input]:min-h-[var(--h-input-touch)] max-[639px]:[&_select]:min-h-[var(--h-input-touch)]"
 		>
 			{/* 卡片头部：身份识别（E-184）、登录态徽标、状态徽标、刷新与探测按钮 */}
-			<div className="flex flex-col gap-2 border-b border-border pb-3">
+			<div className="agent-card-header">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					{/* AC 6 & E-184 & E-185: 字母组配合完整名称出现，短码纯文本中性 chip 渲染，无外部素材 */}
-					<div className="flex items-center gap-3">
+					<div className="flex min-w-0 items-center gap-3">
 						<span
 							data-testid={`monogram-chip-${agent.id}`}
 							title={agent.name}
@@ -189,7 +187,7 @@ export function AgentCard({
 							{agent.monogram}
 						</span>
 						<div className="flex flex-col">
-							<div className="flex items-center gap-2">
+							<div className="flex min-w-0 flex-wrap items-center gap-2">
 								<span
 									data-testid={`agent-name-${agent.id}`}
 									className="font-ui text-lead font-semibold text-ink-1"
@@ -204,7 +202,7 @@ export function AgentCard({
 					</div>
 
 					{/* 状态徽标、刷新清单按钮与探测按钮 */}
-					<div className="flex items-center gap-2">
+					<div className="flex min-w-0 flex-wrap items-center gap-2">
 						<span
 							data-testid={`agent-status-badge-${agent.id}`}
 							className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-ui text-micro font-medium ${
@@ -257,7 +255,7 @@ export function AgentCard({
 					data-testid={`unavailable-banner-${agent.id}`}
 					className="flex flex-col gap-1 rounded-sm border border-down bg-down-soft p-3 text-left"
 				>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-2">
 						<div className="flex items-center gap-2 text-dense font-semibold text-down">
 							<span>
 								{UI_STRINGS.agentCard.unavailablePrefix}
@@ -294,7 +292,7 @@ export function AgentCard({
 					data-testid={`session-overlap-warning-${agent.id}`}
 					className="flex items-center justify-between rounded-sm border border-needs bg-needs-soft p-3 text-meta text-needs"
 				>
-					<div className="flex items-center gap-2">
+					<div className="flex min-w-0 flex-wrap items-center gap-2">
 						<span className="font-bold" aria-hidden="true">
 							!
 						</span>
@@ -305,11 +303,255 @@ export function AgentCard({
 			)}
 
 			{/* 配置字段列表 */}
-			<div className="flex flex-col gap-3">
+			<div className="agent-settings-fields">
+				{/* 3. 默认模型（AC 2 / AC 3 / AC 7 / E-38 / E-358） */}
+				<div className="settings-field">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<span className="font-ui font-semibold text-ink-1 text-dense">
+								{UI_STRINGS.agentCard.defaultModelLabel}
+							</span>
+						</div>
+						<div className="settings-field-reset">
+							<button
+								type="button"
+								disabled={!hasModelOverride || isUpdating}
+								title={!hasModelOverride ? UI_STRINGS.agentCard.noOverrideTitle : undefined}
+								onClick={() => void onClearOverride?.(agent.id, 'defaultModel')}
+								data-testid={`restore-default-defaultModel-${agent.id}`}
+								className="rounded-sm border border-border bg-bg px-2 py-0.5 font-ui text-micro text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40 disabled:hover:bg-bg disabled:hover:text-ink-2"
+							>
+								{UI_STRINGS.agentCard.restoreDefault}
+							</button>
+						</div>
+					</div>
+
+					{/* 三行表（内置默认 / 你的覆盖 / 当前生效），<400px 竖排 */}
+					<div className="settings-field-editor">
+						<ModelPicker
+							catalog={catalog}
+							models={models}
+							selectedModel={agent.defaultModel}
+							onSelectModel={(model) => void onUpdateField(agent.id, 'defaultModel', model)}
+							error={validationError?.defaultModel}
+							isComplete={isModelsComplete}
+							isLoading={isModelsLoading}
+							isRefreshing={isModelsRefreshing}
+							onRefresh={onRefreshModels}
+							onAddCustomModel={onAddCustomModel}
+							disabled={isUpdating}
+						/>
+					</div>
+
+					<div className="settings-field-layers">
+						<div className="flex min-w-0 flex-col">
+							<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
+							<span
+								className="font-mono text-dense text-ink-2 truncate"
+								title={modelBuiltin}
+								data-testid="layer-builtin-defaultModel"
+							>
+								{modelBuiltin}
+							</span>
+						</div>
+						<div className="flex min-w-0 flex-col">
+							<div className="flex items-center gap-1.5">
+								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
+								{isModelOverrideUnlisted && (
+									<span
+										data-testid={`unlisted-model-chip-${agent.id}`}
+										className="px-1 py-0.2 rounded-[3px] bg-panel-2 border border-border font-mono text-[9px] text-ink-3"
+									>
+										{UI_STRINGS.modelPicker.unlistedChip}
+									</span>
+								)}
+							</div>
+							<span
+								className={`font-mono text-dense truncate ${
+									hasModelOverride ? 'text-needs font-medium' : 'text-ink-3'
+								}`}
+								title={modelOverride}
+								data-testid="layer-override-defaultModel"
+							>
+								{modelOverride}
+							</span>
+						</div>
+						<div className="flex min-w-0 flex-col">
+							<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
+							<span
+								className="font-mono text-dense text-ink-1 font-medium truncate"
+								title={modelEffective}
+								data-testid="layer-effective-defaultModel"
+							>
+								{modelEffective}
+							</span>
+						</div>
+					</div>
+				</div>
+
+				{/* 4. 思考强度（AC 7, E-254, E-351, E-358） */}
+				{!isEffortSupported ? (
+					/* dsh 等不支持思考强度的 agent：显示该 agent 不支持，不渲染三行与按钮（E-358） */
+					<div data-testid={`effort-unsupported-block-${agent.id}`} className="settings-field">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<span className="font-ui font-semibold text-ink-1 text-dense">
+								{UI_STRINGS.assignment.effortLabel}
+							</span>
+						</div>
+						<div className="font-ui text-dense text-ink-3">
+							{UI_STRINGS.agentCard.effortUnsupported}
+						</div>
+					</div>
+				) : (
+					/* 支持思考强度：三行表 + 恢复默认按钮 + EffortPicker */
+					<div data-testid={`effort-block-${agent.id}`} className="settings-field">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<div className="flex min-w-0 flex-wrap items-center gap-2">
+								<span className="font-ui font-semibold text-ink-1 text-dense">
+									{UI_STRINGS.assignment.effortLabel}
+								</span>
+							</div>
+							<div className="settings-field-reset">
+								<button
+									type="button"
+									disabled={!hasEffortOverride || isUpdating}
+									title={!hasEffortOverride ? UI_STRINGS.agentCard.noOverrideTitle : undefined}
+									onClick={() => void onClearOverride?.(agent.id, 'defaultEffortTier')}
+									data-testid={`restore-default-defaultEffortTier-${agent.id}`}
+									className="rounded-sm border border-border bg-bg px-2 py-0.5 font-ui text-micro text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40 disabled:hover:bg-bg disabled:hover:text-ink-2"
+								>
+									{UI_STRINGS.agentCard.restoreDefault}
+								</button>
+							</div>
+						</div>
+
+						{/* 三行表（内置默认 / 你的覆盖 / 当前生效），<400px 竖排 */}
+						<div className="settings-field-editor">
+							<EffortPicker
+								vendorMap={agent.effortVendorMap ?? null}
+								selectedModelEffortOptions={
+									catalog?.models?.find((m) => m.name === agent.defaultModel)?.effortOptions ?? []
+								}
+								currentConfigEffort={catalog?.currentConfig?.effort ?? null}
+								effortRecognized={catalog?.currentConfig?.effortRecognized ?? true}
+								allowVendor={true}
+								value={agent.defaultEffortTier ?? null}
+								onChange={(newVal) => void onUpdateEffortTier?.(agent.id, newVal)}
+								disabled={isUpdating}
+							/>
+							{validationError?.defaultEffortTier && (
+								<div
+									data-testid={`defaultEffortTier-error-${agent.id}`}
+									className="flex flex-col gap-0.5 text-micro text-down mt-1"
+								>
+									<span>{validationError.defaultEffortTier.message}</span>
+									{validationError.defaultEffortTier.technical && (
+										<details className="mt-0.5 text-micro text-ink-3">
+											<summary className="cursor-pointer hover:text-ink-2">
+												{UI_STRINGS.technicalDetails}
+											</summary>
+											<div className="font-mono text-micro text-ink-3 break-all">
+												{validationError.defaultEffortTier.technical}
+											</div>
+										</details>
+									)}
+								</div>
+							)}
+						</div>
+
+						<div className="settings-field-layers">
+							<div className="flex min-w-0 flex-col">
+								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
+								<span
+									className="font-mono text-dense text-ink-2 truncate"
+									title={effortBuiltin}
+									data-testid="layer-builtin-defaultEffortTier"
+								>
+									{effortBuiltin}
+								</span>
+							</div>
+							<div className="flex min-w-0 flex-col">
+								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
+								<span
+									className={`font-mono text-dense truncate ${
+										hasEffortOverride ? 'text-needs font-medium' : 'text-ink-3'
+									}`}
+									title={effortOverride}
+									data-testid="layer-override-defaultEffortTier"
+								>
+									{effortOverride}
+								</span>
+							</div>
+							<div className="flex min-w-0 flex-col">
+								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
+								<span
+									className="font-mono text-dense text-ink-1 font-medium truncate"
+									title={effortEffective}
+									data-testid="layer-effective-defaultEffortTier"
+								>
+									{effortEffective}
+								</span>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* 2. 可执行路径（AC 4 / E-88 挂钩点） */}
+				<FieldLayersRow layers={execPathLayers} fieldLabel={execPathLayers.label}>
+					<div className="flex flex-col gap-1">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<input
+								ref={execPathInputRef}
+								id={`agent-${agent.id}-execPath`}
+								type="text"
+								value={editingExecPath}
+								onChange={(e) => setEditingExecPath(e.target.value)}
+								onBlur={() => {
+									if (editingExecPath !== (agent.execPath ?? '')) {
+										void onUpdateField(agent.id, 'execPath', editingExecPath);
+									}
+								}}
+								placeholder={UI_STRINGS.agentCard.execPathPlaceholder}
+								aria-label={UI_STRINGS.agentCard.execPathLabel}
+								data-testid={`input-execPath-${agent.id}`}
+								className="h-input flex-1 rounded-sm border border-border bg-bg px-2.5 font-mono text-dense text-ink-1 focus:border-needs focus:outline-none"
+							/>
+							{editingExecPath !== (agent.execPath ?? '') && (
+								<button
+									type="button"
+									onClick={() => void onUpdateField(agent.id, 'execPath', editingExecPath)}
+									disabled={isUpdating}
+									className="rounded-sm bg-needs px-2.5 py-1 font-ui text-micro font-medium text-on-needs hover:opacity-90 disabled:opacity-40"
+								>
+									{UI_STRINGS.agentCard.updatePath}
+								</button>
+							)}
+						</div>
+						{validationError?.execPath && (
+							<div
+								data-testid={`execPath-error-${agent.id}`}
+								className="flex flex-col gap-0.5 text-micro text-down"
+							>
+								<span>{validationError.execPath.message}</span>
+								{validationError.execPath.technical && (
+									<details className="mt-0.5 text-micro text-ink-3">
+										<summary className="cursor-pointer hover:text-ink-2">
+											{UI_STRINGS.technicalDetails}
+										</summary>
+										<div className="font-mono text-micro text-ink-3 break-all">
+											{validationError.execPath.technical}
+										</div>
+									</details>
+								)}
+							</div>
+						)}
+					</div>
+				</FieldLayersRow>
+
 				{/* 1. 两字符短码（AC 5 / E-183） */}
 				<FieldLayersRow layers={monogramLayers} fieldLabel={monogramLayers.label}>
 					<div className="flex flex-col gap-1">
-						<div className="flex items-center gap-2">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
 							<input
 								type="text"
 								maxLength={2}
@@ -365,266 +607,10 @@ export function AgentCard({
 					</div>
 				</FieldLayersRow>
 
-				{/* 2. 可执行路径（AC 4 / E-88 挂钩点） */}
-				<FieldLayersRow layers={execPathLayers} fieldLabel={execPathLayers.label}>
-					<div className="flex flex-col gap-1">
-						<div className="flex items-center gap-2">
-							<input
-								ref={execPathInputRef}
-								id={`agent-${agent.id}-execPath`}
-								type="text"
-								value={editingExecPath}
-								onChange={(e) => setEditingExecPath(e.target.value)}
-								onBlur={() => {
-									if (editingExecPath !== (agent.execPath ?? '')) {
-										void onUpdateField(agent.id, 'execPath', editingExecPath);
-									}
-								}}
-								placeholder={UI_STRINGS.agentCard.execPathPlaceholder}
-								aria-label={UI_STRINGS.agentCard.execPathLabel}
-								data-testid={`input-execPath-${agent.id}`}
-								className="h-input flex-1 rounded-sm border border-border bg-bg px-2.5 font-mono text-dense text-ink-1 focus:border-needs focus:outline-none"
-							/>
-							{editingExecPath !== (agent.execPath ?? '') && (
-								<button
-									type="button"
-									onClick={() => void onUpdateField(agent.id, 'execPath', editingExecPath)}
-									disabled={isUpdating}
-									className="rounded-sm bg-needs px-2.5 py-1 font-ui text-micro font-medium text-on-needs hover:opacity-90 disabled:opacity-40"
-								>
-									{UI_STRINGS.agentCard.updatePath}
-								</button>
-							)}
-						</div>
-						{validationError?.execPath && (
-							<div
-								data-testid={`execPath-error-${agent.id}`}
-								className="flex flex-col gap-0.5 text-micro text-down"
-							>
-								<span>{validationError.execPath.message}</span>
-								{validationError.execPath.technical && (
-									<details className="mt-0.5 text-micro text-ink-3">
-										<summary className="cursor-pointer hover:text-ink-2">
-											{UI_STRINGS.technicalDetails}
-										</summary>
-										<div className="font-mono text-micro text-ink-3 break-all">
-											{validationError.execPath.technical}
-										</div>
-									</details>
-								)}
-							</div>
-						)}
-					</div>
-				</FieldLayersRow>
-
-				{/* 3. 默认模型（AC 2 / AC 3 / AC 7 / E-38 / E-358） */}
-				<div className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body">
-					<div className="flex flex-wrap items-center justify-between gap-2">
-						<div className="flex items-center gap-2">
-							<span className="font-ui font-semibold text-ink-1 text-dense">
-								{UI_STRINGS.agentCard.defaultModelLabel}
-							</span>
-						</div>
-					</div>
-
-					{/* 三行表（内置默认 / 你的覆盖 / 当前生效），<400px 竖排 */}
-					<div className="grid grid-cols-1 gap-1 text-meta sm:grid-cols-3 max-[400px]:grid-cols-1">
-						<div className="flex flex-col rounded bg-bg px-2 py-1">
-							<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
-							<span
-								className="font-mono text-dense text-ink-2 truncate"
-								title={modelBuiltin}
-								data-testid="layer-builtin-defaultModel"
-							>
-								{modelBuiltin}
-							</span>
-						</div>
-						<div className="flex flex-col rounded bg-bg px-2 py-1">
-							<div className="flex items-center gap-1.5">
-								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
-								{isModelOverrideUnlisted && (
-									<span
-										data-testid={`unlisted-model-chip-${agent.id}`}
-										className="px-1 py-0.2 rounded-[3px] bg-panel-2 border border-border font-mono text-[9px] text-ink-3"
-									>
-										{UI_STRINGS.modelPicker.unlistedChip}
-									</span>
-								)}
-							</div>
-							<span
-								className={`font-mono text-dense truncate ${
-									hasModelOverride ? 'text-needs font-medium' : 'text-ink-3'
-								}`}
-								title={modelOverride}
-								data-testid="layer-override-defaultModel"
-							>
-								{modelOverride}
-							</span>
-						</div>
-						<div className="flex flex-col rounded bg-bg px-2 py-1">
-							<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
-							<span
-								className="font-mono text-dense text-ink-1 font-medium truncate"
-								title={modelEffective}
-								data-testid="layer-effective-defaultModel"
-							>
-								{modelEffective}
-							</span>
-						</div>
-					</div>
-
-					{/* 恢复默认按钮排在三行下方 */}
-					<div className="flex items-center justify-end">
-						<button
-							type="button"
-							disabled={!hasModelOverride || isUpdating}
-							title={!hasModelOverride ? UI_STRINGS.agentCard.noOverrideTitle : undefined}
-							onClick={() => void onClearOverride?.(agent.id, 'defaultModel')}
-							data-testid={`restore-default-defaultModel-${agent.id}`}
-							className="rounded-sm border border-border bg-bg px-2 py-0.5 font-ui text-micro text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40 disabled:hover:bg-bg disabled:hover:text-ink-2"
-						>
-							{UI_STRINGS.agentCard.restoreDefault}
-						</button>
-					</div>
-
-					{/* 模型选择控件 */}
-					<div className="mt-1">
-						<ModelPicker
-							catalog={catalog}
-							models={models}
-							selectedModel={agent.defaultModel}
-							onSelectModel={(model) => void onUpdateField(agent.id, 'defaultModel', model)}
-							error={validationError?.defaultModel}
-							isComplete={isModelsComplete}
-							isLoading={isModelsLoading}
-							isRefreshing={isModelsRefreshing}
-							onRefresh={onRefreshModels}
-							onAddCustomModel={onAddCustomModel}
-							disabled={isUpdating}
-						/>
-					</div>
-				</div>
-
-				{/* 4. 思考强度（AC 7, E-254, E-351, E-358） */}
-				{!isEffortSupported ? (
-					/* dsh 等不支持思考强度的 agent：显示该 agent 不支持，不渲染三行与按钮（E-358） */
-					<div
-						data-testid={`effort-unsupported-block-${agent.id}`}
-						className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body"
-					>
-						<div className="flex items-center gap-2">
-							<span className="font-ui font-semibold text-ink-1 text-dense">
-								{UI_STRINGS.assignment.effortLabel}
-							</span>
-						</div>
-						<div className="font-ui text-dense text-ink-3">
-							{UI_STRINGS.agentCard.effortUnsupported}
-						</div>
-					</div>
-				) : (
-					/* 支持思考强度：三行表 + 恢复默认按钮 + EffortPicker */
-					<div
-						data-testid={`effort-block-${agent.id}`}
-						className="flex flex-col gap-2 rounded-sm border border-border bg-panel-2 p-3 text-body"
-					>
-						<div className="flex flex-wrap items-center justify-between gap-2">
-							<div className="flex items-center gap-2">
-								<span className="font-ui font-semibold text-ink-1 text-dense">
-									{UI_STRINGS.assignment.effortLabel}
-								</span>
-							</div>
-						</div>
-
-						{/* 三行表（内置默认 / 你的覆盖 / 当前生效），<400px 竖排 */}
-						<div className="grid grid-cols-1 gap-1 text-meta sm:grid-cols-3 max-[400px]:grid-cols-1">
-							<div className="flex flex-col rounded bg-bg px-2 py-1">
-								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.builtinLabel}</span>
-								<span
-									className="font-mono text-dense text-ink-2 truncate"
-									title={effortBuiltin}
-									data-testid="layer-builtin-defaultEffortTier"
-								>
-									{effortBuiltin}
-								</span>
-							</div>
-							<div className="flex flex-col rounded bg-bg px-2 py-1">
-								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.overrideLabel}</span>
-								<span
-									className={`font-mono text-dense truncate ${
-										hasEffortOverride ? 'text-needs font-medium' : 'text-ink-3'
-									}`}
-									title={effortOverride}
-									data-testid="layer-override-defaultEffortTier"
-								>
-									{effortOverride}
-								</span>
-							</div>
-							<div className="flex flex-col rounded bg-bg px-2 py-1">
-								<span className="text-micro text-ink-3">{UI_STRINGS.agentCard.effectiveLabel}</span>
-								<span
-									className="font-mono text-dense text-ink-1 font-medium truncate"
-									title={effortEffective}
-									data-testid="layer-effective-defaultEffortTier"
-								>
-									{effortEffective}
-								</span>
-							</div>
-						</div>
-
-						{/* 恢复默认按钮排在三行下方 */}
-						<div className="flex items-center justify-end">
-							<button
-								type="button"
-								disabled={!hasEffortOverride || isUpdating}
-								title={!hasEffortOverride ? UI_STRINGS.agentCard.noOverrideTitle : undefined}
-								onClick={() => void onClearOverride?.(agent.id, 'defaultEffortTier')}
-								data-testid={`restore-default-defaultEffortTier-${agent.id}`}
-								className="rounded-sm border border-border bg-bg px-2 py-0.5 font-ui text-micro text-ink-2 hover:bg-panel-2 hover:text-ink-1 disabled:opacity-40 disabled:hover:bg-bg disabled:hover:text-ink-2"
-							>
-								{UI_STRINGS.agentCard.restoreDefault}
-							</button>
-						</div>
-
-						{/* 思考强度选择控件 */}
-						<div className="mt-1">
-							<EffortPicker
-								vendorMap={agent.effortVendorMap ?? null}
-								selectedModelEffortOptions={
-									catalog?.models?.find((m) => m.name === agent.defaultModel)?.effortOptions ?? []
-								}
-								currentConfigEffort={catalog?.currentConfig?.effort ?? null}
-								effortRecognized={catalog?.currentConfig?.effortRecognized ?? true}
-								allowVendor={true}
-								value={agent.defaultEffortTier ?? null}
-								onChange={(newVal) => void onUpdateEffortTier?.(agent.id, newVal)}
-								disabled={isUpdating}
-							/>
-							{validationError?.defaultEffortTier && (
-								<div
-									data-testid={`defaultEffortTier-error-${agent.id}`}
-									className="flex flex-col gap-0.5 text-micro text-down mt-1"
-								>
-									<span>{validationError.defaultEffortTier.message}</span>
-									{validationError.defaultEffortTier.technical && (
-										<details className="mt-0.5 text-micro text-ink-3">
-											<summary className="cursor-pointer hover:text-ink-2">
-												{UI_STRINGS.technicalDetails}
-											</summary>
-											<div className="font-mono text-micro text-ink-3 break-all">
-												{validationError.defaultEffortTier.technical}
-											</div>
-										</details>
-									)}
-								</div>
-							)}
-						</div>
-					</div>
-				)}
-
 				{/* 4. 最大并发数 */}
 				<FieldLayersRow layers={concurrencyLayers} fieldLabel={concurrencyLayers.label}>
 					<div className="flex flex-col gap-1">
-						<div className="flex items-center gap-2">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
 							<input
 								type="number"
 								min={0}
