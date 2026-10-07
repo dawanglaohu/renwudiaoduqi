@@ -203,7 +203,7 @@ export const BUILT_IN_AGENT_DEFAULTS: Readonly<Record<BuiltInAgentId, AgentConfi
 				{ name: 'opus[1m]', note: '别名，实际可用由登录账号决定' },
 			],
 			defaultEffortTier: null,
-			effortVendorMap: { low: '2048', medium: '8192', high: '32768' },
+			effortVendorMap: { low: 'low', medium: 'medium', high: 'high' },
 		}),
 		[BUILT_IN_AGENT_IDS.PI]: freezeAgentConfig({
 			execPath: 'pi',

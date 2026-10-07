@@ -1648,6 +1648,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		let snapshotId: string | null = null;
 		let targetSnapshotId: string | null = null;
 		let pendingSubSnapshotInsert: (() => void) | null = null;
+		let reviewLaunch: { execPath?: string; effortOptions?: readonly string[] } = {};
 		let assignmentSource = 'task';
 		let reviewContext: ReviewContext | null = null;
 		let assignment: ReviewAgentAssignment | null = null;
@@ -1671,6 +1672,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						missingMaterialTag = 'snapshot_missing';
 						missingMaterialReason = 'missing_dispatch_snapshot';
 					} else {
+						reviewLaunch = JSON.parse(snapshot.launch_spec_json ?? '{}');
 						reviewContext = getReviewContext(
 							taskId,
 							{
@@ -1726,6 +1728,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 									stage: 'review',
 									taskAssignment,
 									reviewOverride,
+									modelEffortOptions: deps.agentService?.getModelEffortOptions,
 									agentDefaults: deps.agentRegistry
 										? (id) => {
 												const a = deps.agentRegistry?.getSnapshot().agents[id];
@@ -1758,9 +1761,14 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								targetSnapshotId = snapshot.id;
 								if (isCrossFamily && overrideAgentId) {
 									const subSnapshotId = ids.newId();
-									const agentConfig =
-										deps.agentRegistry?.getSnapshot().agents[overrideAgentId] ?? {};
-									const launchSpecJson = JSON.stringify(agentConfig);
+									const agentConfig = deps.agentRegistry?.getSnapshot().agents[overrideAgentId];
+									const availability = deps.agentService?.getAvailability(overrideAgentId);
+									reviewLaunch = {
+										...agentConfig,
+										execPath: availability?.resolvedPath ?? agentConfig?.execPath,
+										effortOptions: availability?.effortOptions ?? [],
+									};
+									const launchSpecJson = JSON.stringify(reviewLaunch);
 
 									pendingSubSnapshotInsert = () => {
 										deps.dispatchSnapshotsRepo?.insert({
@@ -1997,7 +2005,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		) {
 			try {
 				const dispatchInput: DispatchReviewRunInput = {
+					effortOptions: reviewLaunch.effortOptions,
 					execPath:
+						reviewLaunch.execPath ??
 						deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
 						deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
 					implRun: {
@@ -2323,8 +2333,18 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				isBugHuntFix,
 			});
 			const startedAt = clock.now();
+			let roundAssignment: ReviewAgentAssignment = {
+				agentId: prevReview.agent_id,
+				modelName: prevReview.model_name,
+				effortTier: prevReview.effort_tier as EffortTier | null,
+				effortVendor: prevReview.effort_vendor ?? undefined,
+			};
+			let roundAssignmentSource = prevReview.assignment_source;
+			let roundSnapshotId = prevReview.snapshot_id;
+			let pendingRoundSnapshotInsert: (() => void) | null = null;
 
 			const insertRoundRow = (runId: string, vendorSessionRef: string | null) => {
+				pendingRoundSnapshotInsert?.();
 				const row: RunInsertRow = {
 					id: runId,
 					task_id: taskId,
@@ -2332,12 +2352,13 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					kind: 'review',
 					parent_run_id: parentRunId,
 					state: 'starting',
-					agent_id: prevReview.agent_id,
-					model_name: prevReview.model_name,
-					effort_tier: prevReview.effort_tier,
-					effort_vendor: prevReview.effort_vendor,
+					agent_id: roundAssignment.agentId,
+					model_name: roundAssignment.modelName,
+					effort_tier: roundAssignment.effortTier,
+					effort_vendor: roundAssignment.effortVendor ?? null,
+					assignment_source: roundAssignmentSource,
 					permission_tier: 'readOnly',
-					snapshot_id: prevReview.snapshot_id,
+					snapshot_id: roundSnapshotId,
 					worktree_path: prevReview.worktree_path,
 					branch_name: prevReview.branch_name,
 					vendor_session_ref: vendorSessionRef,
@@ -2372,9 +2393,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								taskId,
 								attemptNo: nextAttemptNo,
 								kind: 'review',
-								agentId: prevReview.agent_id,
-								model: prevReview.model_name,
-								effortTier: prevReview.effort_tier,
+								agentId: roundAssignment.agentId,
+								model: roundAssignment.modelName,
+								effortTier: roundAssignment.effortTier,
 								parentRunId,
 								isPartialDiff: false,
 							},
@@ -2389,17 +2410,18 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 				const spawn = deps.spawnManagedFn ?? deps.spawnManaged;
 				if (!spawn) return;
 				try {
-					const assignment: ReviewAgentAssignment = {
-						agentId: prevReview.agent_id,
-						modelName: prevReview.model_name,
-						effortTier: prevReview.effort_tier as EffortTier | null,
-						...(prevReview.effort_vendor ? { effortVendor: prevReview.effort_vendor } : {}),
-					};
+					const assignment = roundAssignment;
+					const previousSnapshot = deps.dispatchSnapshotsRepo?.findById(roundSnapshotId);
+					const frozenLaunch: { execPath?: string; effortOptions?: readonly string[] } = JSON.parse(
+						previousSnapshot?.launch_spec_json ?? '{}',
+					);
 					const launchSpec = buildReviewLaunchSpec({
 						runId,
+						effortOptions: frozenLaunch.effortOptions,
 						taskId,
 						worktreePath: prevReview.worktree_path ?? '',
 						execPath:
+							frozenLaunch.execPath ??
 							deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
 							deps.agentRegistry?.getSnapshot().agents[assignment.agentId]?.execPath,
 						assignment,
@@ -2457,6 +2479,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 						stage: 'review',
 						taskAssignment,
 						reviewOverride: pipeline.reviewOverride,
+						modelEffortOptions: deps.agentService?.getModelEffortOptions,
 						agentDefaults: deps.agentRegistry
 							? (id) => {
 									const a = deps.agentRegistry?.getSnapshot().agents[id];
@@ -2474,9 +2497,56 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					if (
 						currentResolved.agentId !== prevReview.agent_id ||
 						currentResolved.modelName !== (prevReview.model_name ?? null) ||
-						currentResolved.effortTier !== (prevReview.effort_tier ?? null)
+						currentResolved.effortTier !== (prevReview.effort_tier ?? null) ||
+						(currentResolved.effortVendor ?? null) !== (prevReview.effort_vendor ?? null)
 					) {
 						assignmentChanged = true;
+						roundAssignment = {
+							agentId: currentResolved.agentId,
+							modelName: currentResolved.modelName,
+							effortTier: currentResolved.effortTier,
+							effortVendor: currentResolved.effortVendor ?? undefined,
+						};
+						roundAssignmentSource = currentResolved.source;
+						if (currentResolved.agentId !== prevReview.agent_id) {
+							const agentConfig = deps.agentRegistry?.getSnapshot().agents[currentResolved.agentId];
+							const availability = deps.agentService?.getAvailability(currentResolved.agentId);
+							if (
+								(deps.agentRegistry && !agentConfig) ||
+								(availability && !availability.canDispatch)
+							) {
+								await handOverContinuationFailure(
+									prevReview.id,
+									parentRunId ?? null,
+									'review_agent_unavailable',
+								);
+								throw new AppError('E_AGENT_UNAVAILABLE', 'Review override agent is unavailable');
+							}
+							const snapshot = deps.dispatchSnapshotsRepo.findById(
+								implRun?.snapshot_id ?? prevReview.snapshot_id,
+							);
+							if (!snapshot)
+								throw new AppError('E_VALIDATION', 'Review dispatch snapshot is missing');
+							roundSnapshotId = snapshot.id;
+							if (currentResolved.agentId !== taskAssignment.agentId) {
+								roundSnapshotId = nextId();
+								const launchSpecJson = JSON.stringify({
+									...agentConfig,
+									execPath: availability?.resolvedPath ?? agentConfig?.execPath,
+									effortOptions: availability?.effortOptions ?? [],
+								});
+								pendingRoundSnapshotInsert = () =>
+									deps.dispatchSnapshotsRepo?.insert({
+										...snapshot,
+										id: roundSnapshotId,
+										batch_id: null,
+										parent_snapshot_id: snapshot.id,
+										launch_spec_json: launchSpecJson,
+										assignmentJson: reader.getRawAssignmentJson(snapshot),
+										created_at: startedAt,
+									});
+							}
+						}
 					}
 				}
 			}
@@ -2578,28 +2648,30 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			async function handOverContinuationFailure(
 				failedReviewRunId: string,
 				implRunId: string | null,
+				failureReason: string = REVIEW_CONTINUATION_FAILED,
 			): Promise<void> {
 				const now = clock.now();
 				const implRow = implRunId ? deps.runsRepo?.findById(implRunId) : null;
 				const pendingEnvelopes: CreateEnvelopeInput[] = [];
 				const persist = () => {
-					deps.runsRepo?.updateState({
-						id: failedReviewRunId,
-						fromState: 'starting',
-						toState: 'failed',
-						endedAt: now,
-						queuedReason: REVIEW_CONTINUATION_FAILED,
-					});
+					if (deps.runsRepo?.findById(failedReviewRunId)?.state === 'starting')
+						deps.runsRepo.updateState({
+							id: failedReviewRunId,
+							fromState: 'starting',
+							toState: 'failed',
+							endedAt: now,
+							queuedReason: failureReason,
+						});
 					if (implRow && implRow.state === 'reviewing') {
 						assertValidTransition('reviewing', 'awaiting_human', {
-							reason: REVIEW_CONTINUATION_FAILED,
+							reason: failureReason,
 						});
 						deps.runsRepo?.updateState({
 							id: implRow.id,
 							fromState: 'reviewing',
 							toState: 'awaiting_human',
 							endedAt: now,
-							queuedReason: REVIEW_CONTINUATION_FAILED,
+							queuedReason: failureReason,
 						});
 						if (deps.envelopeFactory) {
 							pendingEnvelopes.push({
@@ -2609,7 +2681,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								payload: {
 									from: 'reviewing',
 									to: 'awaiting_human',
-									reason: REVIEW_CONTINUATION_FAILED,
+									reason: failureReason,
 								},
 							} satisfies CreateEnvelopeInput);
 						}
@@ -2624,7 +2696,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								runId: gateRunId,
 								kind: 'review',
 								state: 'waiting',
-								comment: REVIEW_CONTINUATION_FAILED,
+								comment: failureReason,
 								createdAt: now,
 							});
 						} else if (deps.gatesRepo.create) {
@@ -2634,7 +2706,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								run_id: gateRunId,
 								kind: 'review',
 								state: 'waiting',
-								comment: REVIEW_CONTINUATION_FAILED,
+								comment: failureReason,
 								created_at: now,
 							});
 						}
@@ -2643,7 +2715,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 								kind: 'task.gate_waiting',
 								runId: implRow?.id ?? failedReviewRunId,
 								taskId,
-								payload: { gate: 'review', comment: REVIEW_CONTINUATION_FAILED },
+								payload: { gate: 'review', comment: failureReason },
 							} satisfies CreateEnvelopeInput);
 						}
 					}

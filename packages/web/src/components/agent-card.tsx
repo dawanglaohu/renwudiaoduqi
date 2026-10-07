@@ -429,8 +429,11 @@ export function AgentCard({
 						<div className="settings-field-editor">
 							<EffortPicker
 								vendorMap={agent.effortVendorMap ?? null}
+								agentEffortOptions={agent.effortOptions}
 								selectedModelEffortOptions={
-									catalog?.models?.find((m) => m.name === agent.defaultModel)?.effortOptions ?? []
+									catalog?.models?.find(
+										(m) => m.name === (agent.defaultModel || catalog.currentConfig.model),
+									)?.effortOptions
 								}
 								currentConfigEffort={catalog?.currentConfig?.effort ?? null}
 								effortRecognized={catalog?.currentConfig?.effortRecognized ?? true}

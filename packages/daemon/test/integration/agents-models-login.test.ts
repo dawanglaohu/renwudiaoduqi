@@ -14,7 +14,7 @@ import type {
 	ListRunsResponse,
 	RerunRunResponse,
 } from '@agent-scheduler/shared/api/runs';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
@@ -50,13 +50,18 @@ function createMockFileStat(): ExecutableFileInfo {
 }
 
 function createEmptyManagedProcess(spec: LaunchSpec, pid = 8888): ManagedProcess {
+	const listeners = new Set<Parameters<ManagedProcess['onJson']>[0]>();
 	return {
 		runId: spec.runId,
 		pid,
 		file: spec.file,
 		args: spec.args,
 		cwd: spec.cwd,
-		child: {} as ManagedProcess['child'],
+		child: {
+			pid,
+			killed: false,
+			stdin: { destroyed: false, writable: true },
+		} as ManagedProcess['child'],
 		stdoutReader: {} as ManagedProcess['stdoutReader'],
 		stderrReader: {} as ManagedProcess['stderrReader'],
 		timers: {} as ManagedProcess['timers'],
@@ -66,11 +71,37 @@ function createEmptyManagedProcess(spec: LaunchSpec, pid = 8888): ManagedProcess
 		attachAppendQueue: () => () => undefined,
 		waitForStdinDrain: async () => undefined,
 		onStdinDrain: () => () => undefined,
-		writeStdin: () => true,
+		writeStdin: (raw) => {
+			const message = JSON.parse(raw.toString());
+			if (typeof message.id === 'number') {
+				queueMicrotask(() => {
+					const result =
+						message.method === 'thread/start'
+							? { thread: { id: 'test-thread' } }
+							: message.method === 'turn/start'
+								? { turn: { id: 'test-turn' } }
+								: {};
+					const value = { id: message.id, result };
+					const text = JSON.stringify(value);
+					for (const listener of listeners)
+						listener({
+							value,
+							text,
+							isJson: true,
+							truncated: false,
+							rawByteLen: Buffer.byteLength(text),
+						});
+				});
+			}
+			return true;
+		},
 		onLine: () => () => undefined,
 		onRaw: () => () => undefined,
 		onStderr: () => () => undefined,
-		onJson: () => () => undefined,
+		onJson: (listener) => {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
 		onExit: () => () => undefined,
 		onError: () => () => undefined,
 		kill: async () => ({ outcome: 'terminated', attempts: [] }),
@@ -140,8 +171,15 @@ describe(
 
 		let appServerSpawnCount = 0;
 		let forceAppServerTimeout = false;
+		let extraModelEffort: string | null = null;
+		let claudeHelp = '';
+		const spawnedRuns = new Set<string>();
+		const waitForSpawn = (runId: string) =>
+			vi.waitFor(() => expect(spawnedRuns.has(runId)).toBe(true), { timeout: 5000 });
 
 		beforeEach(async () => {
+			claudeHelp =
+				'  --effort <level>  Effort level (low, medium, high, xhigh, max)\n  --model <model>';
 			testDir = join(tmpdir(), `agents-models-login-${randomUUID()}`);
 			dbPath = join(testDir, 'test.db');
 			mkdirSync(testDir, { recursive: true });
@@ -187,12 +225,16 @@ model_reasoning_effort = "xhigh"
 
 			appServerSpawnCount = 0;
 			forceAppServerTimeout = false;
+			extraModelEffort = null;
+			spawnedRuns.clear();
 
+			const configFiles = new Map<string, string>();
 			const mockFileSystem: ExecutableFileSystem & {
 				readUtf8File: (p: string) => Promise<string>;
 				writeUtf8File: (p: string, c: string) => Promise<void>;
 			} = {
 				readUtf8File: async (p) => {
+					if (configFiles.has(p)) return configFiles.get(p) as string;
 					if (p.includes('config.toml')) {
 						return `
 model = "gpt-6-astra"
@@ -201,7 +243,9 @@ model_reasoning_effort = "xhigh"
 					}
 					return '{}';
 				},
-				writeUtf8File: async () => undefined,
+				writeUtf8File: async (p, content) => {
+					configFiles.set(p, content);
+				},
 				stat: async (p) => {
 					if (
 						p === '/usr/local/bin/codex' ||
@@ -242,10 +286,13 @@ model_reasoning_effort = "xhigh"
 			// Command runner for login probing and text-based model lists
 			const commandRunner = async (params: { file: string; args: readonly string[] }) => {
 				const joined = `${params.file} ${params.args.join(' ')}`;
+				if (joined.includes('claude') && params.args.includes('--help')) {
+					return { ok: true, exitCode: 0, stdout: claudeHelp, stderr: '' };
+				}
 				// Version probes (availability checks)
 				if (joined.includes('--version') || joined.includes('-v')) {
 					if (joined.includes('claude')) {
-						return { ok: true, exitCode: 0, stdout: '2.1.0 (Claude Code)\n', stderr: '' };
+						return { ok: true, exitCode: 0, stdout: '2.1.238 (Claude Code)\n', stderr: '' };
 					}
 					if (joined.includes('codex')) {
 						return { ok: true, exitCode: 0, stdout: 'codex 0.12.0\n', stderr: '' };
@@ -329,7 +376,18 @@ model_reasoning_effort = "xhigh"
 						return createEmptyManagedProcess(_spec, 7777);
 					}
 					const ndjsonContent = readFixture(modelsFixturesDir, 'codex-model-list.stdout.ndjson');
-					const lines = ndjsonContent.split('\n').filter((l) => l.trim().length > 0);
+					const lines = ndjsonContent
+						.split('\n')
+						.filter((l) => l.trim().length > 0)
+						.map((line) => {
+							const message = JSON.parse(line);
+							if (extraModelEffort && message.result?.data?.[0]) {
+								message.result.data[0].supportedReasoningEfforts.push({
+									reasoningEffort: extraModelEffort,
+								});
+							}
+							return JSON.stringify(message);
+						});
 					setTimeout(() => {
 						for (const line of lines) {
 							options?.onLine?.({
@@ -374,6 +432,7 @@ model_reasoning_effort = "xhigh"
 			};
 
 			const fakeSpawnManaged = (spec: LaunchSpec): ManagedProcess => {
+				spawnedRuns.add(spec.runId);
 				return createEmptyManagedProcess(spec, 8888);
 			};
 
@@ -412,6 +471,19 @@ model_reasoning_effort = "xhigh"
 
 		afterEach(async () => {
 			if (server) await server.instance.close();
+			if (container) {
+				for (const job of [...container.jobs].reverse()) await job.stop();
+				// Settings changes can nudge a tick independently of the HTTP request being asserted.
+				await vi.waitFor(
+					() => {
+						const pending = db
+							.prepare("SELECT id FROM runs WHERE state IN ('starting', 'running')")
+							.all() as { id: string }[];
+						expect(pending.filter((run) => !spawnedRuns.has(run.id))).toEqual([]);
+					},
+					{ timeout: 5000 },
+				);
+			}
 			await new Promise((r) => setTimeout(r, 100));
 			if (db) db.close();
 			try {
@@ -422,6 +494,101 @@ model_reasoning_effort = "xhigh"
 					rmSync(gitRepoDir, { recursive: true, force: true });
 				} catch {}
 			}
+		});
+
+		it('rejects unsupported Claude native levels after probing its actual executable', async () => {
+			claudeHelp = '  --model <model>  Model\n';
+			await container.services.agents.probeAgent('claude', { force: true });
+			const headers = { authorization: authToken };
+			const agents = (
+				await server.instance.inject({ method: 'GET', url: '/api/v1/agents', headers })
+			).json<ListAgentsResponse>().agents;
+			expect(agents.find((agent) => agent.id === 'claude')?.effortOptions).toEqual([]);
+			const response = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/agents/claude',
+				headers,
+				payload: { defaultEffortTier: { vendor: 'max' } },
+			});
+			expect(response.statusCode).toBe(400);
+			const tier = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/agents/claude',
+				headers,
+				payload: { defaultEffortTier: { tier: 'high' } },
+			});
+			expect(tier.statusCode).toBe(200);
+		});
+
+		it('exposes and saves native effort levels through agent and pipeline HTTP settings', async () => {
+			const headers = { authorization: authToken };
+			const agents = (
+				await server.instance.inject({ method: 'GET', url: '/api/v1/agents', headers })
+			).json<ListAgentsResponse>().agents;
+			for (const [agentId, level] of [
+				['codex', 'ultra'],
+				['claude', 'max'],
+				['grok', 'xhigh'],
+				['pi', 'off'],
+			] as const) {
+				expect(agents.find((agent) => agent.id === agentId)?.effortOptions).toContain(level);
+				const response = await server.instance.inject({
+					method: 'PATCH',
+					url: `/api/v1/agents/${agentId}`,
+					headers,
+					payload: { defaultEffortTier: { vendor: level } },
+				});
+				expect(response.statusCode, response.body).toBe(200);
+				expect(response.json().agent.defaultEffortTier).toEqual({ vendor: level });
+			}
+			const pipeline = {
+				bughunt: 0,
+				wrapupMode: 'auto',
+				reviewOverride: { agentId: 'codex', effortVendor: 'ultra' },
+				wrapupAssignment: { mode: 'fixed', agentId: 'claude', effortVendor: 'max' },
+			};
+			const response = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/settings/pipeline',
+				headers,
+				payload: pipeline,
+			});
+			expect(response.statusCode, response.body).toBe(200);
+			expect(container.services.settings.getPipeline()).toEqual(pipeline);
+			const invalid = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/agents/claude',
+				headers,
+				payload: { defaultEffortTier: { vendor: 'ultra' } },
+			});
+			expect(invalid.statusCode).toBe(400);
+		});
+
+		it('accepts a newly advertised model effort consistently in agent and pipeline settings', async () => {
+			extraModelEffort = 'future-effort';
+			const headers = { authorization: authToken };
+			const agent = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/agents/codex',
+				headers,
+				payload: { defaultEffortTier: { vendor: extraModelEffort } },
+			});
+			expect(agent.statusCode, agent.body).toBe(200);
+			const pipeline = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/settings/pipeline',
+				headers,
+				payload: {
+					bughunt: 0,
+					wrapupMode: 'auto',
+					reviewOverride: { agentId: 'codex', effortVendor: extraModelEffort },
+					wrapupAssignment: { mode: 'fixed', agentId: 'codex', effortVendor: extraModelEffort },
+				},
+			});
+			expect(pipeline.statusCode, pipeline.body).toBe(200);
+			expect(container.services.settings.getPipeline().reviewOverride?.effortVendor).toBe(
+				extraModelEffort,
+			);
 		});
 
 		it('executes the 8 integration assertions end-to-end', async () => {
@@ -526,14 +693,14 @@ model_reasoning_effort = "xhigh"
 			forceAppServerTimeout = false;
 
 			// =========================================================================
-			// ⑤ PATCH /agents/codex: {defaultEffortTier:{vendor:'ultra'}} -> 400, {vendor:'xhigh'} -> 200
+			// ⑤ PATCH /agents/codex rejects unknown effort and accepts a native level.
 			// =========================================================================
 			const patchInvalidEffortRes = await server.instance.inject({
 				method: 'PATCH',
 				url: '/api/v1/agents/codex',
 				headers: { authorization: authToken },
 				payload: {
-					defaultEffortTier: { vendor: 'ultra' },
+					defaultEffortTier: { vendor: 'unknown-effort' },
 				},
 			});
 			expect(patchInvalidEffortRes.statusCode).toBe(400);
@@ -565,6 +732,7 @@ model_reasoning_effort = "xhigh"
 			});
 			expect(postRunRes.statusCode).toBe(200);
 			const run6 = JSON.parse(postRunRes.body).run;
+			await waitForSpawn(run6.id);
 
 			const run6InDb = db.prepare('SELECT * FROM runs WHERE id = ?').get(run6.id) as Record<
 				string,
@@ -663,6 +831,7 @@ model_reasoning_effort = "xhigh"
 			});
 			expect(rerunRes.statusCode).toBe(200);
 			const rerunRun = (JSON.parse(rerunRes.body) as RerunRunResponse).run;
+			await waitForSpawn(rerunRun.id);
 			const rerunInDb = db.prepare('SELECT * FROM runs WHERE id = ?').get(rerunRun.id) as Record<
 				string,
 				unknown
@@ -748,6 +917,7 @@ model_reasoning_effort = "xhigh"
 			});
 			expect(run8Res.statusCode).toBe(200);
 			const run8 = JSON.parse(run8Res.body).run;
+			await waitForSpawn(run8.id);
 
 			// 2. PATCH /settings/pipeline set reviewOverride to claude (cross-family)
 			const patchPipelineRes = await server.instance.inject({
@@ -832,6 +1002,7 @@ model_reasoning_effort = "xhigh"
 			});
 			expect(wrapupRes.statusCode).toBe(200);
 			const wrapupRun = JSON.parse(wrapupRes.body).run;
+			await waitForSpawn(wrapupRun.id);
 
 			// Check GET /runs followedTaskId
 			const listRunsRes = await server.instance.inject({

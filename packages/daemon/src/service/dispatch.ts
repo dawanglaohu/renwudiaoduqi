@@ -18,6 +18,7 @@ import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { CodexSessionRegistry } from '../adapters/codex/app-server-session.ts';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { vendorEffortDomain } from '../domain/agent-effort-options.ts';
 import { resolveAssignment } from '../domain/assignment.ts';
 import { summarizeBatchLanding } from '../domain/batch-landing.ts';
 import {
@@ -205,6 +206,7 @@ export interface DispatchableAgent {
 	readonly concurrencyLimit?: number;
 	/** Executable verified by the current availability probe; frozen into new launch snapshots. */
 	readonly resolvedPath?: string;
+	readonly effortOptions?: readonly string[];
 }
 
 export interface BuildLaunchSpecInput {
@@ -269,6 +271,11 @@ export interface DispatchServiceDeps {
 	readonly logFailure?: (error: unknown) => void;
 	readonly getDispatchHalt?: () => boolean;
 	readonly agentRegistry?: AgentRegistry;
+	readonly listVendorEffortDomain?: (agentId: string) => Promise<readonly string[]>;
+	readonly modelEffortOptions?: (
+		agentId: string,
+		modelName: string | null,
+	) => readonly string[] | undefined;
 	readonly agentLimits?: number | Record<string, number> | ((agentId: string) => number);
 	readonly listAgents?: () => Promise<readonly AgentEntryDto[]> | readonly AgentEntryDto[];
 	readonly listDispatchableAgents?: () => readonly DispatchableAgent[];
@@ -411,11 +418,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return Object.freeze([]);
 	}
 
-	function launchExecutable(agentId: string): string | undefined {
-		return (
-			listDispatchableAgents().find((agent) => agent.agentId === agentId)?.resolvedPath ??
-			deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath
-		);
+	function launchConfiguration(agentId: string) {
+		const available = listDispatchableAgents().find((agent) => agent.agentId === agentId);
+		return {
+			execPath:
+				available?.resolvedPath ?? deps.agentRegistry?.getSnapshot().agents[agentId]?.execPath,
+			effortOptions: available?.effortOptions ?? [],
+		};
 	}
 
 	/**
@@ -623,9 +632,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					},
 				);
 			}
-			const allowed = agentEntry?.effortVendorMap
-				? (Object.values(agentEntry.effortVendorMap) as readonly string[])
-				: [];
+			const allowed = deps.listVendorEffortDomain
+				? await deps.listVendorEffortDomain(agentId)
+				: vendorEffortDomain(agentId, agentEntry ?? {});
 			assertVendorEffortInDomain(input.effort.vendor, allowed, 'effort');
 		}
 
@@ -649,11 +658,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				effort: input.effort ?? null,
 			},
 			agentDefaults: createAgentDefaultsLookup(deps.agentRegistry),
+			modelEffortOptions: deps.modelEffortOptions,
 		});
 
 		const launchSpecJson = JSON.stringify({
 			agentId,
-			execPath: launchExecutable(agentId),
+			...launchConfiguration(agentId),
 			model: resolvedAssignment.modelName ?? null,
 			effort: resolvedAssignment.effortTier ?? null,
 			permissionTier: input.permissionTier ?? 'workspaceWrite',
@@ -1921,10 +1931,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 									effort: item.draft?.effort ?? null,
 								},
 								agentDefaults: createAgentDefaultsLookup(deps.agentRegistry),
+								modelEffortOptions: deps.modelEffortOptions,
 							});
 							const launchSpecJson = JSON.stringify({
 								agentId: item.agentId,
-								execPath: launchExecutable(item.agentId),
+								...launchConfiguration(item.agentId),
 								model: tickResolved.modelName ?? null,
 								effort: tickResolved.effortTier ?? null,
 								permissionTier: 'workspaceWrite',
@@ -2104,6 +2115,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				let wrapupPrompt: string | undefined;
 				let wrapupLaunchSpecData: {
 					execPath?: string;
+					effortOptions?: readonly string[];
 					model?: string | null;
 					effort?: string | null;
 					permissionTier?: string;
@@ -2137,8 +2149,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						runId,
 						cwd: worktreePath,
 						execPath: wrapupLaunchSpecData.execPath,
+						effortOptions: wrapupLaunchSpecData.effortOptions,
 						model: run.model_name ?? wrapupLaunchSpecData.model ?? null,
 						effortTier: run.effort_tier ?? wrapupLaunchSpecData.effort ?? null,
+						effortVendor: run.effort_vendor ?? null,
 						permissionTier: 'workspaceWrite',
 						prompt: wrapupPrompt,
 						...(run.agent_id === 'codex' ? { mode: 'exec' } : {}),
@@ -2238,6 +2252,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			let runPrompt = task.impl_prompt ?? undefined;
 			let launchSpecData: {
 				execPath?: string;
+				effortOptions?: readonly string[];
 				model?: string | null;
 				effort?: string | null;
 				permissionTier?: string;
@@ -2411,8 +2426,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					runId,
 					cwd: preparedWorktree.worktreePath,
 					execPath: launchSpecData.execPath,
+					effortOptions: launchSpecData.effortOptions,
 					model: effectiveModel,
 					effortTier: effectiveEffort,
+					effortVendor: run.effort_vendor ?? null,
 					permissionTier: run.permission_tier ?? launchSpecData.permissionTier ?? 'workspaceWrite',
 					prompt: runPrompt,
 					// A fresh implementation run owns one bidirectional app-server process.

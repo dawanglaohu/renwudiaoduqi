@@ -58,6 +58,11 @@ export interface ResolveAssignmentInput {
 	readonly wrapupSettings?: WrapupAssignment | null;
 	readonly followAssignment?: FollowAssignmentInfo | null;
 	readonly agentDefaults?: AgentDefaultsLookup;
+	/** Cached model capability: an empty set means explicitly unsupported; omitted means unknown. */
+	readonly modelEffortOptions?: (
+		agentId: string,
+		modelName: string | null,
+	) => readonly string[] | undefined;
 	readonly stageOverride?: unknown;
 	readonly manualOverride?: unknown;
 }
@@ -90,6 +95,17 @@ export interface ResolvedAssignment {
  *    - wrapup: manual body -> fixed -> follow; follow_source_missing if follow source missing
  */
 export function resolveAssignment(input: ResolveAssignmentInput): ResolvedAssignment {
+	const resolved = resolveAssignmentCore(input);
+	if (
+		(input.stage === 'implement' || input.stage === 'review' || input.stage === 'wrapup') &&
+		input.modelEffortOptions?.(resolved.agentId, resolved.modelName)?.length === 0
+	) {
+		return Object.freeze({ ...resolved, effortTier: null, effortVendor: null });
+	}
+	return resolved;
+}
+
+function resolveAssignmentCore(input: ResolveAssignmentInput): ResolvedAssignment {
 	const { stage } = input;
 
 	switch (stage) {
@@ -228,9 +244,9 @@ export function resolveAssignment(input: ResolveAssignmentInput): ResolvedAssign
 				// Same family: inherit task's model and effort unless explicitly overridden
 				modelName =
 					override.modelName !== undefined ? override.modelName : taskAssignment.modelName;
-				if (override.effortTier !== undefined) {
-					effortTier = override.effortTier;
-					effortVendor = null;
+				if (override.effortTier !== undefined || override.effortVendor !== undefined) {
+					effortTier = override.effortTier ?? null;
+					effortVendor = override.effortVendor ?? null;
 				} else {
 					effortTier = taskAssignment.effortTier;
 					effortVendor = taskAssignment.effortVendor ?? null;
@@ -250,9 +266,9 @@ export function resolveAssignment(input: ResolveAssignmentInput): ResolvedAssign
 				}
 
 				// Effort: if explicitly specified in override, use it
-				if (override.effortTier !== undefined) {
-					effortTier = override.effortTier;
-					effortVendor = null;
+				if (override.effortTier !== undefined || override.effortVendor !== undefined) {
+					effortTier = override.effortTier ?? null;
+					effortVendor = override.effortVendor ?? null;
 				} else {
 					// Remap from task assignment using remapEffortAcrossAgents (E-342)
 					const taskEffort: EffortValue = taskAssignment.effortTier
@@ -338,7 +354,7 @@ export function resolveAssignment(input: ResolveAssignmentInput): ResolvedAssign
 					wrapupSettings.modelName !== undefined ? wrapupSettings.modelName : undefined;
 				let effortTier =
 					wrapupSettings.effortTier !== undefined ? wrapupSettings.effortTier : undefined;
-				let effortVendor: string | null = null;
+				let effortVendor: string | null = wrapupSettings.effortVendor ?? null;
 				const warnings: AssignmentWarning[] = [];
 
 				// If model or effort is omitted, fall back to follow assignment (E-344)
@@ -359,7 +375,7 @@ export function resolveAssignment(input: ResolveAssignmentInput): ResolvedAssign
 							warnings.push('model_dropped_cross_family');
 						}
 					}
-					if (effortTier === undefined || effortTier === null) {
+					if ((effortTier === undefined || effortTier === null) && effortVendor === null) {
 						const followEffort: EffortValue = follow.assignment.effortTier
 							? { tier: follow.assignment.effortTier }
 							: follow.assignment.effortVendor

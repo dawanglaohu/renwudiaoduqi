@@ -1,4 +1,7 @@
-import { type EffortTier, isEffortTier, resolveEffortMapping } from '../../domain/effort-tier.ts';
+import {
+	type NativeEffortSelection,
+	resolveNativeEffortTransport,
+} from '../../domain/effort-tier.ts';
 import { renderLaunchTemplate, validateLaunchTemplate } from '../../domain/launch-template.ts';
 import { applyModelToArgsTemplate } from '../../domain/model-selection.ts';
 import {
@@ -10,7 +13,7 @@ import { AppError } from '../../errors/app-error.ts';
 import type { LaunchSpec } from '../../proc/spawn.ts';
 import type { LaunchTimeouts } from '../../proc/timers.ts';
 
-export interface BuildGrokLaunchSpecOptions {
+export interface BuildGrokLaunchSpecOptions extends NativeEffortSelection {
 	readonly runId: string;
 	readonly cwd: string;
 	readonly execPath?: string;
@@ -27,7 +30,6 @@ export interface BuildGrokLaunchSpecOptions {
 	readonly worktree?: string;
 	readonly worktreeRef?: string;
 	readonly permissionTier?: PermissionTier;
-	readonly effortTier?: EffortTier;
 	readonly timeouts?: LaunchTimeouts;
 	readonly envOverrides?: Readonly<Record<string, string | undefined>>;
 	readonly envDenylist?: readonly string[];
@@ -180,18 +182,13 @@ export function buildGrokLaunchSpec(options: BuildGrokLaunchSpecOptions): Launch
 	}
 
 	// 7. Effort tier mapping
+	const effort = resolveNativeEffortTransport('grok', options);
 	if (
-		options.effortTier &&
-		isEffortTier(options.effortTier) &&
+		effort?.kind === 'argv' &&
 		!args.includes('--reasoning-effort') &&
 		!args.includes('--effort')
 	) {
-		const effortMapping = resolveEffortMapping('grok', options.effortTier, {
-			model: options.model,
-		});
-		if (effortMapping.supported && effortMapping.transport.kind === 'argv') {
-			args.push(...effortMapping.transport.args);
-		}
+		args.push(...effort.args);
 	}
 
 	// 8. Worktree flags

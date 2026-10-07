@@ -23,6 +23,89 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 		high: 'high_v',
 	};
 
+	it.each([
+		{ name: 'empty probed list', options: [], warns: true },
+		{ name: 'reduced agent list', options: ['low', 'medium', 'high'], warns: true },
+		{ name: 'missing capability data', options: undefined, warns: false },
+	])('preserves saved native effort and reports support with $name', ({ options, warns }) => {
+		const root = createRoot(container);
+		const onChange = vi.fn();
+		act(() =>
+			root.render(
+				createElement(EffortPicker, {
+					vendorMap: { low: 'low', medium: 'medium', high: 'high' },
+					value: { vendor: 'max' },
+					agentEffortOptions: options,
+					onChange,
+				}),
+			),
+		);
+		expect(
+			container.querySelector('[data-testid="grouped-select-trigger"]')?.textContent,
+		).toContain('max');
+		const warning = container.querySelector('[data-testid="effort-support-warning"]');
+		if (warns) {
+			expect(warning?.textContent).toContain('max');
+			expect(warning?.getAttribute('aria-live')).toBe('polite');
+		} else {
+			expect(warning).toBeNull();
+		}
+		expect(onChange).not.toHaveBeenCalled();
+		act(() => root.unmount());
+	});
+
+	it('offers native fallback levels, prefers model levels, and preserves a selected unsupported value', async () => {
+		const root = createRoot(container);
+		const onChange = vi.fn();
+		const props = {
+			vendorMap: { low: 'low', medium: 'medium', high: 'high' },
+			agentEffortOptions: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+			value: null,
+			onChange,
+		};
+		act(() => root.render(createElement(EffortPicker, props)));
+		await act(async () =>
+			(container.querySelector('[data-testid="grouped-select-trigger"]') as HTMLElement).click(),
+		);
+		const ultra = document.querySelector(
+			'[data-testid="select-option-vendor:ultra"]',
+		) as HTMLElement;
+		expect(ultra).not.toBeNull();
+		await act(async () => ultra.click());
+		expect(onChange).toHaveBeenCalledWith({ vendor: 'ultra' });
+		act(() =>
+			root.render(
+				createElement(EffortPicker, {
+					...props,
+					selectedModelEffortOptions: ['low', 'medium', 'high', 'max'],
+				}),
+			),
+		);
+		await act(async () =>
+			(container.querySelector('[data-testid="grouped-select-trigger"]') as HTMLElement).click(),
+		);
+		expect(document.querySelector('[data-testid="select-option-vendor:ultra"]')).toBeNull();
+		await act(async () =>
+			(document.querySelector('[data-testid="select-option-vendor:max"]') as HTMLElement).click(),
+		);
+		act(() =>
+			root.render(
+				createElement(EffortPicker, {
+					...props,
+					value: { vendor: 'ultra' },
+					selectedModelEffortOptions: ['high'],
+				}),
+			),
+		);
+		expect(
+			container.querySelector('[data-testid="grouped-select-trigger"]')?.textContent,
+		).toContain('ultra');
+		expect(
+			container.querySelector('[data-testid="effort-support-warning"]')?.textContent,
+		).toContain('ultra');
+		act(() => root.unmount());
+	});
+
 	beforeEach(() => {
 		container = document.createElement('div');
 		document.body.appendChild(container);
@@ -69,6 +152,28 @@ describe('EffortPicker (AC 3, E-254, E-351)', () => {
 		act(() => {
 			root.unmount();
 		});
+	});
+
+	it('shows authoritative no-thinking model as read-only despite agent fallback (E-254)', () => {
+		const root = createRoot(container);
+		const onChange = vi.fn();
+		act(() =>
+			root.render(
+				createElement(EffortPicker, {
+					vendorMap: { low: 'low', medium: 'medium', high: 'high' },
+					value: null,
+					onChange,
+					selectedModelEffortOptions: [],
+					agentEffortOptions: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+				}),
+			),
+		);
+		const display = container.querySelector('[data-testid="effort-unsupported-display"]');
+		expect(display?.textContent?.trim()).toBe('—');
+		expect(display?.getAttribute('title')).toContain('模型不支持思考强度');
+		expect(container.querySelector('[data-testid="grouped-select-trigger"]')).toBeNull();
+		expect(onChange).not.toHaveBeenCalled();
+		act(() => root.unmount());
 	});
 
 	it('renders select trigger when vendorMap is present and roundtrips onChange', async () => {

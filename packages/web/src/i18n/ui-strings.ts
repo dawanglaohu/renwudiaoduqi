@@ -269,6 +269,7 @@ export const UI_STRINGS = {
 		unsupportedWarning: (val: string) => `该模型不支持 ${val}`,
 		unsupportedFallback: '—',
 		unsupportedAgentTitle: '该 agent 不支持思考强度',
+		unsupportedModelTitle: '该模型不支持思考强度',
 		selectPlaceholder: '选择思考强度...',
 	},
 	zeroOutputGate: {

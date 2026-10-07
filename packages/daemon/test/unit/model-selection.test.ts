@@ -402,8 +402,8 @@ describe('domain/model-selection (M4-T6)', () => {
 				agentDefaults: claudeDefaults,
 				taskState: { agentId: 'claude', effortOverride: 'medium' },
 			});
-			expect(claudeRes.effortTransport.args).toEqual([]);
-			expect(claudeRes.effortTransport.env).toEqual({ MAX_THINKING_TOKENS: '8192' });
+			expect(claudeRes.effortTransport.args).toEqual(['--effort', 'medium']);
+			expect(claudeRes.effortTransport.env).toEqual({});
 		});
 	});
 

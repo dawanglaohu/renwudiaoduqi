@@ -2,6 +2,8 @@ import type { EffortVendorMap } from '@agent-scheduler/shared/api/agents';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { GateSettings, PipelineSettings } from '@agent-scheduler/shared/api/settings';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { vendorEffortDomain } from '../domain/agent-effort-options.ts';
+import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
 import { DEFAULT_GATE_SETTINGS, isValidGateSettings } from '../domain/gates.ts';
 import { isValidPipelineSettings, parsePipelineSettings } from '../domain/pipeline-settings.ts';
 import { AppError } from '../errors/app-error.ts';
@@ -23,10 +25,18 @@ export interface SettingsServiceDeps {
 	readonly unitOfWork: UnitOfWork;
 	readonly warn?: (message: string, ...args: unknown[]) => void;
 	readonly nudgeTick?: () => void;
+	readonly getVendorEffortDomain?: (agentId: string) => readonly string[];
+	readonly modelEffortOptions?: (
+		agentId: string,
+		modelName: string | null,
+	) => readonly string[] | undefined;
 	readonly agentRegistry?: {
 		readonly getSnapshot: () => {
 			readonly agents: Readonly<
-				Record<string, { readonly effortVendorMap?: EffortVendorMap | null }>
+				Record<
+					string,
+					{ readonly effortVendorMap?: EffortVendorMap | null; readonly adapterKind?: string }
+				>
 			>;
 		};
 	};
@@ -188,8 +198,8 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 						);
 					}
 					if (
-						input.reviewOverride.effortTier !== undefined &&
-						input.reviewOverride.effortTier !== null
+						input.reviewOverride.effortTier != null ||
+						input.reviewOverride.effortVendor != null
 					) {
 						if (agent.effortVendorMap === null) {
 							throw new AppError(
@@ -200,6 +210,14 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 								},
 							);
 						}
+					}
+					if (input.reviewOverride.effortVendor) {
+						assertVendorEffortInDomain(
+							input.reviewOverride.effortVendor,
+							deps.getVendorEffortDomain?.(input.reviewOverride.agentId) ??
+								vendorEffortDomain(input.reviewOverride.agentId, agent),
+							'reviewOverride.effortVendor',
+						);
 					}
 				}
 
@@ -215,8 +233,8 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 						);
 					}
 					if (
-						input.wrapupAssignment.effortTier !== undefined &&
-						input.wrapupAssignment.effortTier !== null
+						input.wrapupAssignment.effortTier != null ||
+						input.wrapupAssignment.effortVendor != null
 					) {
 						if (agent.effortVendorMap === null) {
 							throw new AppError(
@@ -228,14 +246,41 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
 							);
 						}
 					}
+					if (input.wrapupAssignment.effortVendor) {
+						assertVendorEffortInDomain(
+							input.wrapupAssignment.effortVendor,
+							deps.getVendorEffortDomain?.(input.wrapupAssignment.agentId) ??
+								vendorEffortDomain(input.wrapupAssignment.agentId, agent),
+							'wrapupAssignment.effortVendor',
+						);
+					}
 				}
 			}
 
 			const updated: PipelineSettings = Object.freeze({
 				bughunt: input.bughunt,
 				wrapupMode: input.wrapupMode,
-				reviewOverride: input.reviewOverride ? Object.freeze({ ...input.reviewOverride }) : null,
-				wrapupAssignment: Object.freeze({ ...input.wrapupAssignment }),
+				reviewOverride: input.reviewOverride
+					? Object.freeze({
+							...input.reviewOverride,
+							...(deps.modelEffortOptions?.(
+								input.reviewOverride.agentId,
+								input.reviewOverride.modelName ?? null,
+							)?.length === 0
+								? { effortTier: null, effortVendor: null }
+								: {}),
+						})
+					: null,
+				wrapupAssignment: Object.freeze({
+					...input.wrapupAssignment,
+					...(input.wrapupAssignment.mode === 'fixed' &&
+					deps.modelEffortOptions?.(
+						input.wrapupAssignment.agentId,
+						input.wrapupAssignment.modelName ?? null,
+					)?.length === 0
+						? { effortTier: null, effortVendor: null }
+						: {}),
+				}),
 			});
 
 			const valueJson = JSON.stringify(updated);

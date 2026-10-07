@@ -6,7 +6,7 @@
  * 规范依据：
  * - 纯展示层组件：纯 props in / callback out
  * - 审查覆盖与收口指派各常驻一行说明，不弹 dialog
- * - effort-picker 设置 allowVendor=false（四键仅支持三档不收 vendor，E-356）
+ * - 思考强度支持通用三档及所选 Agent 的原生值
  * - E_VALIDATION 的 details.field 点路径就地渲染在对应控件下方并 aria-invalid
  * - disabled 期间禁用所有子控件
  */
@@ -159,6 +159,7 @@ export function PipelineAssignment({
 										agentId: e.target.value,
 										modelName: null,
 										effortTier: null,
+										effortVendor: null,
 									})
 								}
 								disabled={disabled}
@@ -195,6 +196,15 @@ export function PipelineAssignment({
 									onChangeReviewOverride({
 										...reviewOverride,
 										modelName: model || null,
+										...(catalogs[reviewOverride.agentId]?.models.find(
+											(item) =>
+												item.name ===
+												(model ||
+													reviewAgent?.defaultModel ||
+													catalogs[reviewOverride.agentId]?.currentConfig.model),
+										)?.effortOptions?.length === 0
+											? { effortTier: null, effortVendor: null }
+											: {}),
 									})
 								}
 								login={reviewAgent?.login}
@@ -211,31 +221,47 @@ export function PipelineAssignment({
 							)}
 						</div>
 
-						{/* 思考强度选择（allowVendor=false，E-356） */}
+						{/* 思考强度选择 */}
 						<div className="flex min-w-0 flex-col gap-1">
 							<span className="text-meta font-ui text-[var(--ink-2)]">
 								{UI_STRINGS.assignment.effortLabel}
 							</span>
 							<EffortPicker
 								vendorMap={reviewAgent?.effortVendorMap}
-								value={reviewOverride.effortTier ? { tier: reviewOverride.effortTier } : null}
+								agentEffortOptions={reviewAgent?.effortOptions}
+								selectedModelEffortOptions={
+									catalogs[reviewOverride.agentId]?.models.find(
+										(m) =>
+											m.name ===
+											(reviewOverride.modelName ||
+												reviewAgent?.defaultModel ||
+												catalogs[reviewOverride.agentId]?.currentConfig.model),
+									)?.effortOptions
+								}
+								value={
+									reviewOverride.effortVendor
+										? { vendor: reviewOverride.effortVendor }
+										: reviewOverride.effortTier
+											? { tier: reviewOverride.effortTier }
+											: null
+								}
 								onChange={(val: EffortValue) => {
 									const tier: EffortTier | null = val && 'tier' in val ? val.tier : null;
 									onChangeReviewOverride({
 										...reviewOverride,
 										effortTier: tier,
+										effortVendor: val && 'vendor' in val ? val.vendor : null,
 									});
 								}}
-								allowVendor={false}
 								disabled={disabled}
 							/>
-							{errors['reviewOverride.effortTier'] && (
+							{(errors['reviewOverride.effortTier'] || errors['reviewOverride.effortVendor']) && (
 								<div
 									data-testid="error-reviewOverride-effortTier"
 									aria-invalid="true"
 									className="text-micro text-[var(--down)] font-ui"
 								>
-									{errors['reviewOverride.effortTier']}
+									{errors['reviewOverride.effortTier'] || errors['reviewOverride.effortVendor']}
 								</div>
 							)}
 						</div>
@@ -343,6 +369,15 @@ export function PipelineAssignment({
 									onChangeWrapupAssignment({
 										...wrapupAssignment,
 										modelName: model || null,
+										...(catalogs[wrapupAssignment.agentId]?.models.find(
+											(item) =>
+												item.name ===
+												(model ||
+													wrapupAgent?.defaultModel ||
+													catalogs[wrapupAssignment.agentId]?.currentConfig.model),
+										)?.effortOptions?.length === 0
+											? { effortTier: null, effortVendor: null }
+											: {}),
 									})
 								}
 								login={wrapupAgent?.login}
@@ -359,31 +394,48 @@ export function PipelineAssignment({
 							)}
 						</div>
 
-						{/* 思考强度选择（allowVendor=false，E-356） */}
+						{/* 思考强度选择 */}
 						<div className="flex min-w-0 flex-col gap-1">
 							<span className="text-meta font-ui text-[var(--ink-2)]">
 								{UI_STRINGS.assignment.effortLabel}
 							</span>
 							<EffortPicker
 								vendorMap={wrapupAgent?.effortVendorMap}
-								value={wrapupAssignment.effortTier ? { tier: wrapupAssignment.effortTier } : null}
+								agentEffortOptions={wrapupAgent?.effortOptions}
+								selectedModelEffortOptions={
+									catalogs[wrapupAssignment.agentId]?.models.find(
+										(m) =>
+											m.name ===
+											(wrapupAssignment.modelName ||
+												wrapupAgent?.defaultModel ||
+												catalogs[wrapupAssignment.agentId]?.currentConfig.model),
+									)?.effortOptions
+								}
+								value={
+									wrapupAssignment.effortVendor
+										? { vendor: wrapupAssignment.effortVendor }
+										: wrapupAssignment.effortTier
+											? { tier: wrapupAssignment.effortTier }
+											: null
+								}
 								onChange={(val: EffortValue) => {
 									const tier: EffortTier | null = val && 'tier' in val ? val.tier : null;
 									onChangeWrapupAssignment({
 										...wrapupAssignment,
 										effortTier: tier,
+										effortVendor: val && 'vendor' in val ? val.vendor : null,
 									});
 								}}
-								allowVendor={false}
 								disabled={disabled}
 							/>
-							{errors['wrapupAssignment.effortTier'] && (
+							{(errors['wrapupAssignment.effortTier'] ||
+								errors['wrapupAssignment.effortVendor']) && (
 								<div
 									data-testid="error-wrapupAssignment-effortTier"
 									aria-invalid="true"
 									className="text-micro text-[var(--down)] font-ui"
 								>
-									{errors['wrapupAssignment.effortTier']}
+									{errors['wrapupAssignment.effortTier'] || errors['wrapupAssignment.effortVendor']}
 								</div>
 							)}
 						</div>

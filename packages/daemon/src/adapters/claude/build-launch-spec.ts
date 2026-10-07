@@ -1,4 +1,9 @@
-import { type EffortTier, resolveEffortMapping } from '../../domain/effort-tier.ts';
+import { nativeEffortOptions } from '../../domain/agent-effort-options.ts';
+import {
+	type NativeEffortSelection,
+	isEffortTier,
+	resolveNativeEffortTransport,
+} from '../../domain/effort-tier.ts';
 import { type PermissionTier, resolvePermissionMapping } from '../../domain/permission-tier.ts';
 import { AppError } from '../../errors/app-error.ts';
 import type { LaunchSpec } from '../../proc/spawn.ts';
@@ -37,14 +42,14 @@ export function cleanClaudeEnv(
 	return Object.freeze(result);
 }
 
-export interface BuildClaudeLaunchSpecOptions {
+export interface BuildClaudeLaunchSpecOptions extends NativeEffortSelection {
+	readonly effortOptions?: readonly string[];
 	readonly runId: string;
 	readonly execPath?: string;
 	readonly cwd: string;
 	readonly prompt?: string;
 	readonly model?: string;
 	readonly permissionTier?: PermissionTier;
-	readonly effortTier?: EffortTier;
 	readonly isBackground?: boolean;
 	readonly sessionId?: string;
 	readonly extraArgs?: readonly string[];
@@ -135,14 +140,30 @@ export function buildClaudeLaunchSpec(options: BuildClaudeLaunchSpecOptions): La
 	}
 
 	// 4. Reasoning effort mapping
-	if (options.effortTier) {
-		const effortMapping = resolveEffortMapping('claude', options.effortTier, {
-			model: options.model,
-		});
-		if (effortMapping.supported && effortMapping.transport.kind === 'argv') {
-			args.push(...effortMapping.transport.args);
+	let effort = resolveNativeEffortTransport('claude', options);
+	if (effort?.kind === 'argv') {
+		const available = nativeEffortOptions('claude', options, options.effortOptions);
+		if (available.length === 0 && isEffortTier(effort.value)) {
+			const budgets = { low: '2048', medium: '8192', high: '32768' };
+			effort = { kind: 'env', variables: { MAX_THINKING_TOKENS: budgets[effort.value] } };
+		} else if (!available.includes(effort.value)) {
+			const allowed = available.length > 0 ? available : ['low', 'medium', 'high'];
+			throw new AppError(
+				'E_VALIDATION',
+				`Claude executable '${file}' does not support reasoning effort '${effort.value}'. Choose ${allowed.join(', ')} or update the Claude executable and refresh its capabilities.`,
+				{
+					details: {
+						runId: options.runId,
+						field: 'effort',
+						reason: 'effort_unsupported',
+						selected: effort.value,
+						allowed,
+					},
+				},
+			);
 		}
 	}
+	if (effort?.kind === 'argv') args.push(...effort.args);
 
 	// 5. Session ID
 	if (options.sessionId && !args.includes('--session-id')) {
@@ -183,6 +204,7 @@ export function buildClaudeLaunchSpec(options: BuildClaudeLaunchSpecOptions): La
 		const cleaned = cleanClaudeEnv(options.envOverrides);
 		Object.assign(cleanOverrides, cleaned);
 	}
+	if (effort?.kind === 'env') Object.assign(cleanOverrides, effort.variables);
 
 	return Object.freeze({
 		runId: options.runId,

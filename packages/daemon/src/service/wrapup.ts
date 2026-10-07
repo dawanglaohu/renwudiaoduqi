@@ -1,4 +1,4 @@
-import type { EffortTier } from '@agent-scheduler/shared/api/agents';
+import type { EffortTier, EffortValue } from '@agent-scheduler/shared/api/agents';
 import type {
 	BatchDto,
 	BatchWrapupDto,
@@ -12,8 +12,10 @@ import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { RecallTaskResponse } from '@agent-scheduler/shared/api/tasks';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import { vendorEffortDomain } from '../domain/agent-effort-options.ts';
 import { resolveAssignment } from '../domain/assignment.ts';
 import { latestImplementationRunByTaskId, summarizeBatchLanding } from '../domain/batch-landing.ts';
+import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import {
 	buildWrapupFixSerialReason,
@@ -151,6 +153,7 @@ export interface TriggerWrapupInput {
 	readonly agentId?: string;
 	readonly model?: string | null;
 	readonly effortTier?: 'low' | 'medium' | 'high' | null;
+	readonly effort?: EffortValue;
 	readonly actorDeviceId?: string | null;
 }
 
@@ -191,6 +194,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			readonly agentId?: string;
 			readonly model?: string | null;
 			readonly effortTier?: 'low' | 'medium' | 'high' | null;
+			readonly effort?: EffortValue;
 		},
 	): {
 		readonly agentId: string;
@@ -206,13 +210,48 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 		});
 
 		// Manual override has highest priority
+		if (override?.effort != null && override.effortTier != null) {
+			throw new AppError('E_VALIDATION', 'effort and effortTier are mutually exclusive.', {
+				details: { field: 'effort' },
+			});
+		}
+		if (override?.effort != null && !override.agentId?.trim()) {
+			throw new AppError('E_VALIDATION', 'An explicit effort requires agentId.', {
+				details: { field: 'agentId' },
+			});
+		}
 		if (override?.agentId && override.agentId.trim().length > 0) {
 			const agentId = override.agentId.trim();
 			assertAgentAvailable(agentId);
+			const effort: EffortValue =
+				override.effort ?? (override.effortTier ? { tier: override.effortTier } : null);
+			const effortVendor = effort && 'vendor' in effort ? effort.vendor : null;
+			if (effortVendor !== null) {
+				const agent = deps.agentRegistry?.getSnapshot().agents[agentId];
+				if (agent?.effortVendorMap === null) {
+					throw new AppError(
+						'E_VALIDATION',
+						`Agent '${agentId}' does not support reasoning effort.`,
+						{
+							details: { field: 'effort', reason: 'effort_unsupported' },
+						},
+					);
+				}
+				const allowed =
+					deps.agentService?.getVendorEffortDomain(agentId) ??
+					vendorEffortDomain(agentId, agent ?? {});
+				assertVendorEffortInDomain(effortVendor, allowed);
+			}
+			const resolved = resolveAssignment({
+				stage: 'wrapup',
+				body: { agentId, model: override.model ?? null, effort },
+				modelEffortOptions: deps.agentService?.getModelEffortOptions,
+			});
 			return {
 				agentId,
-				modelName: override.model ?? null,
-				effortTier: override.effortTier ?? null,
+				modelName: resolved.modelName,
+				effortTier: resolved.effortTier,
+				effortVendor: resolved.effortVendor ?? null,
 				source: 'wrapup_settings',
 				followedTaskId: null,
 			};
@@ -223,12 +262,26 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const prevAssignment = assignmentReader.readTaskAssignment(latestWrapup.id);
 			const agentId = prevAssignment?.agentId ?? latestWrapup.agent_id;
 			assertAgentAvailable(agentId);
+			const effortVendor = prevAssignment?.effortVendor ?? latestWrapup.effort_vendor ?? null;
+			const resolved = resolveAssignment({
+				stage: 'wrapup',
+				body: {
+					agentId,
+					model: prevAssignment?.modelName ?? latestWrapup.model_name ?? null,
+					effort: effortVendor ? { vendor: effortVendor } : null,
+					effortTier: effortVendor
+						? undefined
+						: (prevAssignment?.effortTier ??
+							(latestWrapup.effort_tier as EffortTier | null) ??
+							null),
+				},
+				modelEffortOptions: deps.agentService?.getModelEffortOptions,
+			});
 			return {
 				agentId,
-				modelName: prevAssignment?.modelName ?? latestWrapup.model_name ?? null,
-				effortTier:
-					prevAssignment?.effortTier ?? (latestWrapup.effort_tier as EffortTier | null) ?? null,
-				effortVendor: prevAssignment?.effortVendor ?? latestWrapup.effort_vendor ?? null,
+				modelName: resolved.modelName,
+				effortTier: resolved.effortTier,
+				effortVendor: resolved.effortVendor ?? null,
 				source: 'wrapup_settings',
 				followedTaskId: prevAssignment?.followedTaskId ?? null,
 			};
@@ -262,6 +315,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			body: override,
 			wrapupSettings: pipeline?.wrapupAssignment ?? { mode: 'follow' },
 			followAssignment,
+			modelEffortOptions: deps.agentService?.getModelEffortOptions,
 			agentDefaults: deps.agentRegistry
 				? (id) => {
 						const a = deps.agentRegistry?.getSnapshot().agents[id];
@@ -529,6 +583,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					agentId: input.agentId,
 					model: input.model,
 					effortTier: input.effortTier,
+					effort: input.effort,
 				});
 			} catch (err: unknown) {
 				// If agent unavailable or follow source missing, transition batch to needs_attention (E-287, E-344)
@@ -650,11 +705,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				const snapshot = deps.agentRegistry.getSnapshot();
 				const entry = snapshot.agents[assignment.agentId];
 				if (entry) {
+					const availability = deps.agentService?.getAvailability(assignment.agentId);
 					launchSpecJson = JSON.stringify({
 						...entry,
-						execPath:
-							deps.agentService?.getAvailability(assignment.agentId)?.resolvedPath ??
-							entry.execPath,
+						execPath: availability?.resolvedPath ?? entry.execPath,
+						effortOptions: availability?.effortOptions ?? [],
 					});
 				}
 			}
@@ -668,6 +723,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				agentId: assignment.agentId,
 				modelName: assignment.modelName,
 				effortTier: assignment.effortTier,
+				effortVendor: assignment.effortVendor ?? null,
 				source: assignment.source,
 				followedTaskId: assignment.followedTaskId,
 				capturedAt: now,
@@ -753,6 +809,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						agent_id: assignment.agentId,
 						model_name: assignment.modelName,
 						effort_tier: assignment.effortTier,
+						effort_vendor: assignment.effortVendor ?? null,
 						permission_tier: 'workspaceWrite',
 						snapshot_id: snapshotId,
 						worktree_path: worktreePath,

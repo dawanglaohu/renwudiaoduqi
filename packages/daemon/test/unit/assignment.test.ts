@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	type AgentDefaultInfo,
 	type AgentDefaultsLookup,
+	type ResolveAssignmentInput,
 	type TaskAssignmentValue,
 	resolveAssignment,
 } from '../../src/domain/assignment.ts';
@@ -36,6 +37,74 @@ const mockAgentDefaults = (agentId: string): AgentDefaultInfo | null => {
 			return null;
 	}
 };
+
+describe('model without reasoning support', () => {
+	const task = {
+		agentId: 'codex',
+		modelName: 'no-thinking',
+		effortTier: null,
+		effortVendor: 'max',
+	} as const;
+	const entries: ResolveAssignmentInput[] = [
+		{
+			stage: 'implement',
+			body: { agentId: 'codex', model: 'no-thinking', effort: { vendor: 'max' } },
+		},
+		{
+			stage: 'implement',
+			body: { agentId: 'codex' },
+			agentDefaults: () => ({
+				agentId: 'codex',
+				defaultModel: 'no-thinking',
+				defaultEffortTier: { tier: 'high' },
+			}),
+		},
+		{ stage: 'review', taskAssignment: task },
+		{
+			stage: 'review',
+			taskAssignment: task,
+			reviewOverride: { agentId: 'codex', modelName: 'no-thinking', effortTier: 'high' },
+		},
+		{
+			stage: 'wrapup',
+			body: { agentId: 'codex', model: 'no-thinking', effort: { vendor: 'max' } },
+		},
+		{
+			stage: 'wrapup',
+			wrapupSettings: {
+				mode: 'fixed',
+				agentId: 'codex',
+				modelName: 'no-thinking',
+				effortTier: null,
+			},
+			followAssignment: { taskId: 'task-1', assignment: task },
+		},
+		{ stage: 'wrapup', followAssignment: { taskId: 'task-1', assignment: task } },
+	];
+	it.each(entries)('clears resolved effort after defaults and inheritance for $stage', (input) => {
+		const result = resolveAssignment({ ...input, modelEffortOptions: () => [] });
+		expect(result.modelName).toBe('no-thinking');
+		expect(result.effortTier).toBeNull();
+		expect(result.effortVendor).toBeNull();
+	});
+	it.each([undefined, ['low']])('preserves advertised or unknown capability %j', (options) => {
+		expect(
+			resolveAssignment({
+				stage: 'implement',
+				body: { agentId: 'codex', model: 'no-thinking', effort: { vendor: 'max' } },
+				modelEffortOptions: () => options,
+			}).effortVendor,
+		).toBe('max');
+	});
+	it.each(['rework', 'bughunt', 'wrapup-fix'] as const)(
+		'keeps captured %s assignment unchanged',
+		(stage) => {
+			expect(resolveAssignment({ stage, taskAssignment: task, modelEffortOptions: () => [] })).toBe(
+				task,
+			);
+		},
+	);
+});
 
 describe('domain/assignment (AC 1, AC 3, E-341, E-342, E-344, E-347, E-93)', () => {
 	// Case 1: implement body 全给 → task

@@ -78,6 +78,64 @@ const mockCatalog: ListAgentModelsResponse = {
 	isRefreshing: false,
 };
 
+it.each([{ effortOptions: [] }, { effortOptions: ['max'] }])(
+	'uses the configured model capability $effortOptions when defaultModel is explicitly null',
+	async ({ effortOptions }) => {
+		const host = document.createElement('div');
+		document.body.append(host);
+		const root = createRoot(host);
+		const onUpdateEffortTier = vi.fn();
+		try {
+			await act(async () =>
+				root.render(
+					createElement(AgentCard, {
+						agent: {
+							...mockBaseAgent,
+							defaultModel: null,
+							defaultEffortTier: { vendor: 'ultra' },
+							effortOptions: ['max', 'ultra'],
+							layers: {
+								...mockBaseAgent.layers,
+								defaultModel: {
+									builtin: 'gpt-4o-mini',
+									config: 'gpt-4o',
+									override: null,
+									hasOverride: true,
+								},
+								defaultEffortTier: mockBaseAgent.layers?.defaultEffortTier ?? {
+									builtin: null,
+									config: null,
+									override: null,
+									hasOverride: false,
+								},
+							},
+						},
+						catalog: {
+							...mockCatalog,
+							models: [{ name: 'gpt-4o', source: 'live', isCurrentConfig: true, effortOptions }],
+						},
+						getFieldLayers: () => mockFieldLayers,
+						models: mockCatalog.models,
+						onUpdateField: vi.fn(),
+						onUpdateEffortTier,
+						onProbe: vi.fn(),
+					}),
+				),
+			);
+			if (effortOptions.length === 0)
+				expect(host.querySelector('[data-testid="effort-unsupported-display"]')).not.toBeNull();
+			else
+				expect(host.querySelector('[data-testid="effort-support-warning"]')?.textContent).toContain(
+					'ultra',
+				);
+			expect(onUpdateEffortTier).not.toHaveBeenCalled();
+		} finally {
+			await act(async () => root.unmount());
+			host.remove();
+		}
+	},
+);
+
 it('keeps the rendered layer labels, actions and accessible names unchanged (E-358)', async () => {
 	const host = document.createElement('div');
 	document.body.append(host);

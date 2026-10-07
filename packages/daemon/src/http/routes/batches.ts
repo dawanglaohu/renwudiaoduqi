@@ -164,6 +164,7 @@ export function registerBatchesRoutes(
 			agentId: body.agentId,
 			model: body.model,
 			effortTier: body.effortTier,
+			effort: body.effort,
 			actorDeviceId,
 		});
 	};

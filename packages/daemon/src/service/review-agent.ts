@@ -570,6 +570,7 @@ ${pruneResult.diffText}`);
  * Options for building the review agent process launch spec (AC 1, AC 2, E-135).
  */
 export interface BuildReviewLaunchSpecOptions {
+	readonly effortOptions?: readonly string[];
 	readonly runId: string;
 	readonly taskId: string;
 	readonly worktreePath: string;
@@ -652,6 +653,7 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
 	const agentId = options.assignment.agentId.trim().toLowerCase();
 	const model = options.assignment.modelName;
 	const effortTier = options.assignment.effortTier ?? undefined;
+	const effortVendor = options.assignment.effortVendor;
 	const permissionTier: PermissionTier = REVIEW_PERMISSION_TIER; // 'readOnly' strictly enforced (AC 2, E-135)
 
 	if (agentId === 'codex') {
@@ -662,6 +664,7 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
 			mode: 'exec',
 			model,
 			effortTier,
+			effortVendor,
 			permissionTier,
 			prompt: options.prompt,
 			promptFile: options.promptFile,
@@ -674,9 +677,12 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
 	if (agentId === 'claude') {
 		return buildClaudeLaunchSpec({
 			runId: options.runId,
+			execPath: options.execPath,
+			effortOptions: options.effortOptions,
 			cwd: options.worktreePath,
 			model: model ?? undefined,
 			effortTier,
+			effortVendor,
 			permissionTier,
 			prompt: options.prompt,
 			timeouts: options.timeouts,
@@ -691,6 +697,7 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
 			execPath: options.execPath ?? 'grok',
 			model,
 			effortTier,
+			effortVendor,
 			permissionTier,
 			prompt: options.prompt,
 			promptFile: options.promptFile,
@@ -706,6 +713,7 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
 			cwd: options.worktreePath,
 			model: model ?? undefined,
 			effortTier,
+			effortVendor,
 			permissionTier,
 			prompt: options.prompt,
 			timeouts: options.timeouts,
@@ -752,6 +760,7 @@ export function buildReviewLaunchSpec(options: BuildReviewLaunchSpecOptions): La
  * Input for preparing a round 1 review run (AC 1, AC 4, Decision 89, Decision 107, E-347).
  */
 export interface PrepareReviewRunInput {
+	readonly effortOptions?: readonly string[];
 	readonly execPath?: string;
 	/**
 	 * Completed implementation run row or DTO being reviewed.
@@ -932,6 +941,7 @@ export function prepareReviewRun(
 	// Build process launch spec
 	const launchSpec = buildReviewLaunchSpec({
 		runId,
+		effortOptions: input.effortOptions,
 		taskId,
 		worktreePath,
 		execPath: input.execPath,

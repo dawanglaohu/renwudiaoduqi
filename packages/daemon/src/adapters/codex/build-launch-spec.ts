@@ -1,5 +1,8 @@
 import type { AdapterKind } from '../../config/defaults.ts';
-import { type EffortTier, isEffortTier, resolveEffortMapping } from '../../domain/effort-tier.ts';
+import {
+	type NativeEffortSelection,
+	resolveNativeEffortTransport,
+} from '../../domain/effort-tier.ts';
 import {
 	type PermissionTier,
 	isPermissionTier,
@@ -10,7 +13,7 @@ import type { LaunchSpec } from '../../proc/spawn.ts';
 
 export type CodexLaunchMode = 'app-server' | 'exec';
 
-export interface BuildCodexLaunchSpecOptions {
+export interface BuildCodexLaunchSpecOptions extends NativeEffortSelection {
 	readonly runId: string;
 	readonly cwd: string;
 	readonly execPath?: string;
@@ -19,7 +22,6 @@ export interface BuildCodexLaunchSpecOptions {
 	readonly prompt?: string;
 	readonly promptFile?: string;
 	readonly permissionTier?: PermissionTier;
-	readonly effortTier?: EffortTier;
 	readonly timeouts?: LaunchSpec['timeouts'];
 	readonly envOverrides?: Readonly<Record<string, string | undefined>>;
 	readonly envDenylist?: readonly string[];
@@ -82,12 +84,8 @@ export function buildCodexLaunchSpec(options: BuildCodexLaunchSpecOptions): Laun
 			args.push('-c', `model="${options.model.trim()}"`);
 		}
 
-		if (options.effortTier && isEffortTier(options.effortTier)) {
-			const effortMapping = resolveEffortMapping('codex', options.effortTier);
-			if (effortMapping.supported && effortMapping.transport.kind === 'argv') {
-				args.push(...effortMapping.transport.args);
-			}
-		}
+		const effort = resolveNativeEffortTransport('codex', options);
+		if (effort?.kind === 'argv') args.push(...effort.args);
 
 		if (options.permissionTier && isPermissionTier(options.permissionTier)) {
 			const permissionMapping = resolvePermissionMapping('codex', options.permissionTier);
@@ -104,12 +102,8 @@ export function buildCodexLaunchSpec(options: BuildCodexLaunchSpecOptions): Laun
 			args.push('--model', options.model.trim());
 		}
 
-		if (options.effortTier && isEffortTier(options.effortTier)) {
-			const effortMapping = resolveEffortMapping('codex', options.effortTier);
-			if (effortMapping.supported && effortMapping.transport.kind === 'argv') {
-				args.push(...effortMapping.transport.args);
-			}
-		}
+		const effort = resolveNativeEffortTransport('codex', options);
+		if (effort?.kind === 'argv') args.push(...effort.args);
 
 		if (options.permissionTier && isPermissionTier(options.permissionTier)) {
 			const permissionMapping = resolvePermissionMapping('codex', options.permissionTier);

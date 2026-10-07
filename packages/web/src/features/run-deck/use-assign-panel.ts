@@ -608,6 +608,7 @@ export function useAssignPanel({
 					isRefreshingModels: catalogs[agent.id]?.isRefreshing ?? false,
 					login: agent.login ?? null,
 					effortVendorMap: agent.effortVendorMap ?? null,
+					effortOptions: agent.effortOptions,
 				};
 			}),
 		[agentCapacities, agentEntries, catalogs],

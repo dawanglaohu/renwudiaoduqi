@@ -44,6 +44,7 @@ export interface ReviewOverride {
 	readonly agentId: string;
 	readonly modelName?: string | null;
 	readonly effortTier?: EffortTier | null;
+	readonly effortVendor?: string | null;
 }
 
 export interface WrapupAssignmentFollow {
@@ -55,6 +56,7 @@ export interface WrapupAssignmentFixed {
 	readonly agentId: string;
 	readonly modelName?: string | null;
 	readonly effortTier?: EffortTier | null;
+	readonly effortVendor?: string | null;
 }
 
 export type WrapupAssignment = WrapupAssignmentFollow | WrapupAssignmentFixed;
@@ -104,6 +106,7 @@ export const updatePipelineSettingsBodySchema = {
 					properties: {
 						agentId: { type: 'string', minLength: 1, maxLength: 64 },
 						modelName: { type: ['string', 'null'], maxLength: 256 },
+						effortVendor: { type: ['string', 'null'], minLength: 1, maxLength: 256 },
 						effortTier: {
 							type: ['string', 'null'],
 							enum: ['low', 'medium', 'high', null],
@@ -130,6 +133,7 @@ export const updatePipelineSettingsBodySchema = {
 						mode: { type: 'string', const: 'fixed' },
 						agentId: { type: 'string', minLength: 1, maxLength: 64 },
 						modelName: { type: ['string', 'null'], maxLength: 256 },
+						effortVendor: { type: ['string', 'null'], minLength: 1, maxLength: 256 },
 						effortTier: {
 							type: ['string', 'null'],
 							enum: ['low', 'medium', 'high', null],

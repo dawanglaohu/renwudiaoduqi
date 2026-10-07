@@ -1,0 +1,328 @@
+{
+  "date": "2026-10-07",
+  "finalReviewDate": "2026-10-08",
+  "task": "AGENT-EFFORT-20261007",
+  "baseCommit": "3c498394d6f0d4c59fa4e4a135a7174fc04cc7bf",
+  "sources": [
+    "https://learn.chatgpt.com/docs/config-file/config-reference#model_reasoning_effort",
+    "https://learn.chatgpt.com/docs/app-server",
+    "https://github.com/openai/codex/blob/main/codex-rs/protocol/src/openai_models.rs",
+    "https://code.claude.com/docs/en/model-config#adjust-effort-level",
+    "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/cli.md#models",
+    "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/src/slash/commands/effort.rs",
+    "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/README.md#headless-mode"
+  ],
+  "regression": {
+    "before": "9 native transport/dispatch failures; pipeline raw-effort validation fails",
+    "after": "pnpm -w check --maxWorkers=2 --minWorkers=1: exit 0; 246 test files, 3113 passed, 3 existing skips",
+    "localConcurrency": "An unchanged real-Git worktree test timed out in the default parallel run, passed standalone (27 tests), and passed in the full run with two workers; timeouts and test scope unchanged",
+    "coverage": [
+      "Native effort passed through the production container dispatch entry with the external process mocked",
+      "Codex app-server and exec argument generation",
+      "Claude named effort and review inheritance",
+      "Agent settings and pipeline HTTP persistence, unknown values rejected",
+      "New model-advertised effort values accepted without hard-coding",
+      "DOM picker selection and preservation; pipeline vendor value cleared on agent change",
+      "Queued Claude launch retains both the frozen executable and its effort capability when current availability changes in either direction",
+      "Automatic wrapup preserves inherited native effort in its run row and assignment snapshot",
+      "Unsupported persisted Claude native effort fails before spawning; review reports validation details and supported choices"
+    ]
+  },
+  "realCliProbe": {
+    "cli": "codex-cli 0.157.1",
+    "entry": "buildCodexLaunchSpec -> requestModelList -> installed codex app-server",
+    "args": [
+      "app-server",
+      "--listen",
+      "stdio://",
+      "-c",
+      "model_reasoning_effort=\"ultra\""
+    ],
+    "ok": true,
+    "models": [
+      {
+        "name": "gpt-6-astra",
+        "isDefault": true,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "note": "Frontier intelligence for the most demanding work."
+      },
+      {
+        "name": "gpt-6-sol",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "note": "Previous generation workhorse model."
+      },
+      {
+        "name": "gpt-6-luna",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "note": "Fast and affordable model for easier tasks."
+      },
+      {
+        "name": "gpt-5.6-sol",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "note": "Older generation workhorse model."
+      },
+      {
+        "name": "gpt-5.6-terra",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "note": "Older balanced model for straightforward work."
+      },
+      {
+        "name": "gpt-5.6-luna",
+        "isDefault": false,
+        "effortOptions": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "note": "Older fast and efficient model."
+      }
+    ],
+    "inferenceRequested": false
+  },
+  "otherInstalledVersions": {
+    "claude": "2.1.238",
+    "pi": "0.87.1",
+    "grok": "1.0.41"
+  },
+  "documentation": "build_vault and maintain_docs build passed; M4-T7 status stale=[], runtimeDrift=[]",
+  "limitations": [
+    "Production Windows bootstrap refused its machine-level daemon.lock ACL; live browser verification remains pending. Lock and ACL policies unchanged.",
+    "Claude, Pi and Grok help/version inspected; no paid model request used as acceptance evidence.",
+    "CLI fallback levels are not a promise that every model or older CLI supports every level; model effortOptions take precedence in the picker."
+  ],
+  "claudeCompatibility": {
+    "regressionBefore": "4 legacy Claude launch/production dispatch tests fail on unknown --effort",
+    "capability": "Actual executable --help probe controls DTO options and validation; executable and capability are frozen together for launch, review, wrapup and session resume",
+    "snapshotRegressionBefore": "2 production dispatch tests fail when queued executable and current capability are mixed: legacy to modern and modern to legacy",
+    "snapshotRegressionAfter": "Both production dispatch regressions pass with frozen executable and capability",
+    "wrapupRegressionBefore": "Automatic wrapup created from a max implementation run loses native effort in the run row",
+    "wrapupRegressionAfter": "Automatic wrapup preserves max in effort_vendor and assignment_json",
+    "unsupportedRegressionBefore": "5 unsupported-effort tests fail; the production entry starts a legacy executable with saved max while omitting effort controls",
+    "unsupportedRegressionAfter": "E_VALIDATION includes selected effort, allowed choices and remedy; production run enters failed state without spawning",
+    "live": {
+      "version": "2.1.238 (Claude Code)",
+      "canDispatch": true,
+      "effortOptions": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "launchArgs": [
+        "--print",
+        "--output-format",
+        "stream-json",
+        "--input-format",
+        "stream-json",
+        "--verbose",
+        "--effort",
+        "max"
+      ],
+      "helpExitCode": 0,
+      "legacy": [
+        {
+          "version": "2.1.31",
+          "effortOptions": [],
+          "launchArgs": [
+            "--print",
+            "--output-format",
+            "stream-json",
+            "--input-format",
+            "stream-json",
+            "--verbose"
+          ],
+          "budget": "32768",
+          "helpExitCode": 0
+        },
+        {
+          "version": "2.1.32",
+          "effortOptions": [],
+          "launchArgs": [
+            "--print",
+            "--output-format",
+            "stream-json",
+            "--input-format",
+            "stream-json",
+            "--verbose"
+          ],
+          "budget": "32768",
+          "helpExitCode": 0
+        }
+      ],
+      "scope": "Production AgentService capability probe and generated argv accepted with --help; no model inference requested"
+    }
+  },
+  "grokNativeLevels": {
+    "live": {
+      "version": "grok 1.0.41 (4220f3b224a6)",
+      "source": "https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/README.md#headless-mode",
+      "probes": [
+        {
+          "level": "none",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "none"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "minimal",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "minimal"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "low",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "low"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "medium",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "medium"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "high",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "high"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "xhigh",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "xhigh"
+          ],
+          "helpExitCode": 0
+        },
+        {
+          "level": "max",
+          "args": [
+            "--output-format",
+            "streaming-json",
+            "--reasoning-effort",
+            "max"
+          ],
+          "helpExitCode": 0
+        }
+      ],
+      "inferenceRequested": false,
+      "scope": "Production-generated argv accepted by the installed CLI with --help; no model inference requested"
+    },
+    "regressionBefore": "Three production dispatch cases reject none, minimal and max from the incomplete four-level fallback"
+  },
+  "mergedMainCommit": "3e209fbbbe6ed5bd759da82d0ac03dd4f202ba0c",
+  "piNoThinking": {
+    "before": "Two regressions fail: Pi thinking=no is lost as undefined, and an unsupported model still renders the effort selector",
+    "after": "Twenty-seven focused live-catalog and DOM tests pass",
+    "scope": "Explicit empty model effortOptions survives parsing and catalog merge and renders read-only; missing model capability retains the Agent fallback and legacy CLI common-tier budget behavior"
+  },
+  "unsupportedModelSubmission": {
+    "before": "Fifteen regressions fail: stale effort survives task submission, pipeline model changes, Agent default updates, inherited assignment resolution and production persistence",
+    "after": "129 focused tests pass with one existing skip; full workspace check passes 246 files, 3106 tests with three existing skips",
+    "coverage": [
+      "Task DOM submit omits stale effort for both an explicit model and the Agent default model",
+      "Review and fixed-wrapup DOM model selection clears tier and vendor in the same callback",
+      "Agent model or effort updates write null effort atomically through the real registry",
+      "Pipeline service persists both effort fields as null for a cached model with no reasoning support",
+      "Implement, review and wrapup clear both effort columns after defaulting and inheritance, including fixed wrapup fallback",
+      "Production Pi dispatch captures null in the run and assignment snapshot and generates no --thinking argument",
+      "Unknown model capabilities and nonempty reduced option lists retain the original value; rework, bughunt and wrapup-fix retain captured assignment identity"
+    ],
+    "scope": "Only authoritative empty model capability clears effort; dispatch reads the existing model cache without an external probe inside a transaction"
+  },
+  "configuredModelFallback": {
+    "before": "Seven DOM regressions fail against 3b83ef8 when Agent defaultModel is explicitly null and the CLI uses its configured model",
+    "after": "64 focused DOM cases pass; full workspace check passes 246 files, 3113 tests with three existing skips",
+    "coverage": [
+      "Task selection and E-351 warnings use currentConfig.model when no explicit or Agent default model is selected",
+      "Task submit clears stale effort when the configured model explicitly has no reasoning support",
+      "Agent card, review override and fixed wrapup use the same configured-model fallback for narrow and empty capability lists",
+      "Capability lookup preserves the submitted null model override and does not trigger persistence on render"
+    ]
+  },
+  "manualAndDefault": {
+    "before": "Nine regressions fail: the default model exposes unsupported levels without a warning; seven manual HTTP requests cannot submit structured effort",
+    "after": "Fourteen focused DOM and manual HTTP cases pass",
+    "coverage": [
+      "Following the Agent default model uses that model's effortOptions and warns without replacing a saved unsupported value",
+      "Manual HTTP native none, minimal, xhigh, max and ultra persist unchanged in the run and assignment snapshot",
+      "Structured tier and legacy effortTier remain supported, including nullable legacy fields",
+      "Ambiguous tier/native input, unknown native values, unsupported Agent and missing Agent are rejected without creating a run"
+    ]
+  },
+  "reviewContinuation": {
+    "before": "Four review-continuation/DOM regressions fail; production container persists max when the newly saved review override selects ultra",
+    "after": "Full workspace check passes: 246 files, 3070 tests, 3 existing skips",
+    "coverage": [
+      "Native change prevents both reply and resume from reusing the previous review session; unchanged native value still reuses reply",
+      "New review row and launch both use the resolved native value; same-agent launch preserves the frozen executable",
+      "Cross-agent review round captures executable and capabilities into a child snapshot in the same transaction as its run",
+      "Unavailable changed agent creates neither a review run nor child snapshot and records review_agent_unavailable",
+      "Picker distinguishes empty and reduced agent capability lists from missing capability data, retains the saved value, and does not call onChange"
+    ]
+  }
+}

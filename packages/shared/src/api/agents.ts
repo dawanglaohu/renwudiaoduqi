@@ -39,6 +39,7 @@ export interface AgentModelItem {
 	/** Preserve future daemon source values for client display. */
 	readonly source: string;
 	readonly provider?: string;
+	/** Empty means unsupported; omitted means the model's effort capability was not reported. */
 	readonly effortOptions?: readonly string[];
 	readonly isCurrentConfig: boolean;
 	readonly isDefault?: boolean;
@@ -105,6 +106,8 @@ export interface AgentEntryDto {
 	readonly login?: LoginState | null;
 	readonly layers?: AgentLayersDto;
 	readonly effortVendorMap?: EffortVendorMap;
+	/** Native CLI choices used when the selected model does not advertise effortOptions. */
+	readonly effortOptions?: readonly string[];
 	readonly builtinModels?: readonly BuiltinModelDto[];
 	readonly unavailableReason?: string | null;
 	readonly unavailableCode?: string | null;
