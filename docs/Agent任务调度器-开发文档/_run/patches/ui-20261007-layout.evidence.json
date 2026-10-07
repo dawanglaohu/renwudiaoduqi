@@ -1,0 +1,429 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T11": {
+      "contractHash": "d5d2d16802729919e193a11b8ce2751f394b8d8a7b6db1635d7b37dcc781b797",
+      "evidence": [
+        "M1-T11 实际变化字段：仅前置契约哈希传播；context 内容无变化",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M10-T1": {
+      "contractHash": "fbf4e1952dee8dfa6593e3608f947d9f6fd50203570c7e633bdf82e4ac2c539d",
+      "evidence": [
+        "M10-T1 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M10-T2": {
+      "contractHash": "e61aab6edad5b495d5006528dbbe91aea25d51c85c5c31f62308dee2ab4c0e49",
+      "evidence": [
+        "M10-T2 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M10-T3": {
+      "contractHash": "790a6c097d76eb6d46fc84407ac1e8e2e296edafa8dd98b99d17ccd39f7cfcb2",
+      "evidence": [
+        "M10-T3 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M10-T4": {
+      "contractHash": "53324f7b48edcba954dd376c813e33c25b82567e0ef392e9a72c3a7a6a8d3625",
+      "evidence": [
+        "M10-T4 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M10-T5": {
+      "contractHash": "6b120d26858604545cd622b62e6cc10ad18b808c38bafb3e18ea2b36f30f0bd8",
+      "evidence": [
+        "M10-T5 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M10-T6": {
+      "contractHash": "fc2504d2bfc848ae2cbe3830645b85555cf03331b866e2d0a2753136a99fccd4",
+      "evidence": [
+        "M10-T6 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M2-T8": {
+      "contractHash": "ff556b4d7a244c3d4fb8a889d1aa24506eb55c00130e48d2c5f19c92e9ff3483",
+      "evidence": [
+        "M2-T8 实际变化字段：仅前置契约哈希传播；context 内容无变化",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T1": {
+      "contractHash": "360ca2a28a3a52f5ddf3c5a784e0ca5310e3336bf568b4a7a28d4b8f712af028",
+      "evidence": [
+        "M9-T1 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T10": {
+      "contractHash": "fa8000a07f6384efd666be8dd1b5b94de4e11833ed15b0a765da613e4bfb0f73",
+      "evidence": [
+        "M9-T10 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T11": {
+      "contractHash": "d282f48cd76e51fee34f3659e20cd1ad941d88ca7c43ddce8e0aa67ccaa293f1",
+      "evidence": [
+        "M9-T11 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T12": {
+      "contractHash": "894ae8603786bdadaf94d3d551904a90a55cff02cba4501c7178282724313ff3",
+      "evidence": [
+        "M9-T12 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T13": {
+      "contractHash": "5c1961532426c12e238a886c9bab0a3316e3f28331a200fe66fe9698803cc332",
+      "evidence": [
+        "M9-T13 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T14": {
+      "contractHash": "d27149e44c9aa9d63b93668cebf60b4df9c77908670680e7ce5bc0ba1212db45",
+      "evidence": [
+        "M9-T14 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T15": {
+      "contractHash": "720ab4bddbebf8c397a9243e7e41dd5b38e2b6034af7952908942284995f3917",
+      "evidence": [
+        "M9-T15 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T16": {
+      "contractHash": "51bda545997c20305754c58e0cff6ea81409e49b91b3c233808c941e0eac7447",
+      "evidence": [
+        "M9-T16 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T17": {
+      "contractHash": "b0204131edd94630c30fb3dee9cefee13d031c2e9b38babe2f3f66ed7189abb3",
+      "evidence": [
+        "M9-T17 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T18": {
+      "contractHash": "29ee9cd39325b20080e75eab66788f4f3eec2838e3e17bb2a3249d19480e22ba",
+      "evidence": [
+        "M9-T18 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T19": {
+      "contractHash": "a5dc1569f09905194592dc7a68121eaa61ccf572ba3032159107dfab50783e31",
+      "evidence": [
+        "M9-T19 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T2": {
+      "contractHash": "70da09ddb92e5392d2c3eb594cdae4d169300ef5f0d8fd8bb047f0fd406cb84a",
+      "evidence": [
+        "M9-T2 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T20": {
+      "contractHash": "7df2f3bb228ae5eda873ef9d281e3763995c6e2124689a3c86c450b9e90bb778",
+      "evidence": [
+        "M9-T20 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T21": {
+      "contractHash": "d3d8d2fabc73160688ca82112bfb61c3ebc3d654549b3a960e88e90df8d630c5",
+      "evidence": [
+        "M9-T21 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T22": {
+      "contractHash": "b3fb4390171dd1ef753f5d2ba0aff4e576954e757f5f1a4ebdcfdfaefe6a3c39",
+      "evidence": [
+        "M9-T22 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T23": {
+      "contractHash": "c97c8afd812ade527c52219d7ff45385c20a3924cbf3a5e40af00e4587f035ce",
+      "evidence": [
+        "M9-T23 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T24": {
+      "contractHash": "fc69318b3a206e22fe40f155c222b164d220082630588565ef57fed11d5ecbab",
+      "evidence": [
+        "M9-T24 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T25": {
+      "contractHash": "d4f0b73f3eaa5a5b41fbafa374599412ecc124cc4e986edcd26c00ea10f6460a",
+      "evidence": [
+        "M9-T25 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T26": {
+      "contractHash": "00b3567675e047eace0e1aacbd262f39cae2ed54316c843486a25816f17616e4",
+      "evidence": [
+        "M9-T26 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T27": {
+      "contractHash": "b0ecf04619fb4aedadec6cc819f3313a2462f074669dbb46fd239d18ade8a6c7",
+      "evidence": [
+        "M9-T27 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T28": {
+      "contractHash": "8a634cee19438f2935f50a00950b3c7b4173813bccd3866baca9f8cb291e62fd",
+      "evidence": [
+        "M9-T28 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T29": {
+      "contractHash": "58be004fede35e92bd6733d7e1e7744c5d4a85ef2cd2fb0422d68cff94add58e",
+      "evidence": [
+        "M9-T29 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T3": {
+      "contractHash": "773f74d7e0b05915cbb294cec012a49f82cb13bde5cf0f3c359eaa04cf7bf086",
+      "evidence": [
+        "M9-T3 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T4": {
+      "contractHash": "866cab8de50d3d6fa47524b38df08618a87fd3d28c755e1e98418636f3821691",
+      "evidence": [
+        "M9-T4 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T5": {
+      "contractHash": "f75307c8973adf30c0bc20778a09e6bce43704e1187d2e97c2e135dbb7259718",
+      "evidence": [
+        "M9-T5 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T6": {
+      "contractHash": "ca452b89f577249c69bf132b3c881c92f8b706ac70c4af19262022ac695663a3",
+      "evidence": [
+        "M9-T6 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T7": {
+      "contractHash": "1e0d91d22f6e55a774a6583b85c4e807b76820d376b9ebba8c5fb99fdd1c9d7b",
+      "evidence": [
+        "M9-T7 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T8": {
+      "contractHash": "5835c29df95ec6931abce78ee0d4eec30a3dd79c3bce30b74163304c449b1da0",
+      "evidence": [
+        "M9-T8 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T9": {
+      "contractHash": "577ef588ea2688fdd069920fb9accb50d7567612f6ac6fba1cfe7f8f6fb69aa6",
+      "evidence": [
+        "M9-T9 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R13-T57054072": {
+      "contractHash": "d7af3ec122395104dba841109740495002c527d1bd15731c38fb253b40894451",
+      "evidence": [
+        "R13-T57054072 实际变化字段：仅前置契约哈希传播；context 内容无变化",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R13-T98191508": {
+      "contractHash": "b88a3858a4a8de3dd65e4b06c4f7192da2ffd4f47fd7c2875972032b7911d97d",
+      "evidence": [
+        "R13-T98191508 实际变化字段：仅前置契约哈希传播；context 内容无变化",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R14-T23602992": {
+      "contractHash": "0e2efaa79709aa3bd7e7746ad4a3c4fa3f2ab2af4c9e739206f4c03dcdffe25e",
+      "evidence": [
+        "R14-T23602992 实际变化字段：仅前置契约哈希传播；context 内容无变化",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R16-T41148998": {
+      "contractHash": "8e148db43eed3769585cccde48f7614fbaab9453b122aaf94e1ed92a8a913ceb",
+      "evidence": [
+        "R16-T41148998 实际变化字段：仅前置契约哈希传播；context 内容无变化",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R16-T83723920": {
+      "contractHash": "4358116893796ee097ad4680bfa28544cbd22af0b6db31dbb1dda2ff5b2455a9",
+      "evidence": [
+        "R16-T83723920 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R16-T85823419": {
+      "contractHash": "9fe0555a051bf3bcdd93404d0e946a55df11948d1b2f230b07a57903c1b66c64",
+      "evidence": [
+        "R16-T85823419 实际变化字段：仅前置契约哈希传播；context 内容无变化",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R17-T70594995": {
+      "contractHash": "b04cf40ef56f343012011163c42c5706c48684f7a2e912da5007a4ec72cc4cae",
+      "evidence": [
+        "R17-T70594995 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R17-T73118308": {
+      "contractHash": "01738a41f8bf50f6bfa3250f193e0852e63e5bf0e2bae93698411e6cdc6b268c",
+      "evidence": [
+        "R17-T73118308 实际变化字段：/sections/02-设计/11-UI.md",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    },
+    "R8-T54786768": {
+      "contractHash": "cd7a392d67feab3a32f956841a528f4776bc96993533ed62280ca917ccc89541",
+      "evidence": [
+        "R8-T54786768 实际变化字段：仅前置契约哈希传播；context 内容无变化",
+        "本文件 sharedEvidence 记录了变化章节对现有代码的影响、具体代码位置及真实浏览器/构建/回归证据；仅复验这些变化，保留其余已落地契约。",
+        "02-设计/11-UI.md 的设备流式列、流水线就地说明、Agent 扁平配置组与 theme-control/theme-provider 均与 PR #203 实现相符；数据接口和原任务验收要求未修改。"
+      ],
+      "verdict": "pass"
+    }
+  },
+  "reviewScope": "UI-20261007 shared UI contract amendment; historical done statuses retained; scoped code validation only",
+  "pullRequest": "https://github.com/dawanglaohu/renwudiaoduqi/pull/203",
+  "sharedEvidence": [
+    "复验范围限定本补丁变化的共享章节 02-设计/11-UI.md，以及由前置契约哈希传播产生的变化；任务自身验收条款、边界、接口、路径均未修改。未把样式检查当作历史任务全部功能的重新验收。",
+    "PR #203 用户明确要求设置页紧凑、元素自己提供边界、减少套盒，并要求主题切换；本次审查按用户确认的布局修正文档。三条评论分别对应设备流式列、流水线就地说明、Agent 扁平配置组。",
+    "代码核对：packages/web/src/features/settings-devices/device-list-view.tsx:38 为 minmax(0,1fr)+320px 且 <1144px 堆叠；packages/web/src/features/run-deck/pipeline-toggles-container.tsx:96 为说明就地排列；packages/web/src/components/agent-card.tsx:174 使用配置组而非多层卡片边框。数据钩子、请求接口、开关与指派回调保持原契约。",
+    "生产 bootstrap 与真实浏览器证据：配置持久化、顶栏同步、主题浅色/深色/系统切换、真实配对码生成及关闭均通过；设置三页在 1920x1080 与 1440x900 的六次 density_probe 均通过 D1-D6，四个页面共24种窗口组合无溢出。证据见 PR 原提交 4b030d6 的 UI 实施沉淀及本次合并核查记录，未使用 mock/注入 token 代替浏览器链路。",
+    "针对性回归：原改动8文件81项通过；本次审查的 connect-failed 与 m9-t23-ui-string-source 两文件56项全部通过，覆盖正式入口网络恢复、设置标题与中文来源。生产构建及三处修改文件 Biome 通过。顶栏分隔线恢复 --sp-4=16px，保留原端到端断言。最终远程 CI 必须在同一提交上通过后才合并。",
+    "主题实现核对：packages/web/src/app/theme-control.tsx:7 提供三种模式，Escape 返回焦点，点击保存后收起；packages/web/src/app/theme-provider.tsx:108 保存偏好并监听系统。颜色 token 与状态语义分开，不使用 Agent 身份色。"
+  ]
+}

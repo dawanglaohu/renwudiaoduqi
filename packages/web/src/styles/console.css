@@ -90,7 +90,7 @@ select {
 
 .app-controls-divider {
 	width: 1px;
-	height: 20px;
+	height: var(--sp-4);
 	background: var(--border-strong);
 }
 
