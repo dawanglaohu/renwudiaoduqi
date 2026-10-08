@@ -169,8 +169,13 @@ function resolveConstraintConflict<T>(err: unknown, resolver: () => T | null): T
 	return null;
 }
 
-function isMatchingRerun(candidate: RunRow, previous: RunRow): boolean {
+function isMatchingRerun(
+	candidate: RunRow,
+	previous: RunRow,
+	taskRuns: readonly RunRow[],
+): boolean {
 	const parentRunId = previous.kind === 'bughunt' ? previous.parent_run_id : previous.id;
+	// Bughunt children share an implementation parent; their immediate predecessor identifies the source.
 	return (
 		candidate.id !== previous.id &&
 		candidate.attempt_no > previous.attempt_no &&
@@ -186,7 +191,13 @@ function isMatchingRerun(candidate: RunRow, previous: RunRow): boolean {
 		(previous.kind !== 'bughunt' ||
 			(candidate.worktree_path === previous.worktree_path &&
 				candidate.branch_name === previous.branch_name &&
-				candidate.branch_tip_sha === previous.branch_tip_sha))
+				candidate.branch_tip_sha === previous.branch_tip_sha &&
+				!taskRuns.some(
+					(run) =>
+						run.kind === 'bughunt' &&
+						run.attempt_no > previous.attempt_no &&
+						run.attempt_no < candidate.attempt_no,
+				)))
 	);
 }
 
@@ -288,7 +299,13 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 		const existingByIdempotency = runsRepo.findByIdempotencyKey(idempotencyKey);
 		if (existingByIdempotency) {
-			if (!isMatchingRerun(existingByIdempotency, previousRun)) {
+			if (
+				!isMatchingRerun(
+					existingByIdempotency,
+					previousRun,
+					previousRun.kind === 'bughunt' ? runsRepo.listByTaskId(previousRun.task_id) : [],
+				)
+			) {
 				throw new AppError(
 					'E_RUN_ALREADY_EXISTS',
 					'Idempotency key belongs to a different run request.',
@@ -530,7 +547,12 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		} catch (err) {
 			const racedByKey = resolveConstraintConflict(err, () => {
 				const racedRun = runsRepo.findByIdempotencyKey(idempotencyKey);
-				return racedRun && isMatchingRerun(racedRun, previousRun)
+				return racedRun &&
+					isMatchingRerun(
+						racedRun,
+						previousRun,
+						previousRun.kind === 'bughunt' ? runsRepo.listByTaskId(task.id) : [],
+					)
 					? { run: toRunDto(racedRun) }
 					: null;
 			});

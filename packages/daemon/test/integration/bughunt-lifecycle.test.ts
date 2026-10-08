@@ -794,6 +794,33 @@ describe('R8-T69421773: production HTTP rerun admission', () => {
 				expect(container.repos.runs.listByTaskId('task-1').map((r) => r.attempt_no)).toEqual([
 					1, 2, 4, 5, 6,
 				]);
+				const waitingBeforeReplay = listWaitingGates(container);
+				const firstRerun = expectDefined(
+					container.repos.runs.listByTaskId('task-1').find((r) => r.attempt_no === 5),
+				);
+				const wrongSource = await server.instance.inject({
+					method: 'POST',
+					url: `/api/v1/runs/${original.id}/rerun`,
+					headers: { authorization: token },
+					payload: { idempotencyKey: `startup-${failure}-6` },
+				});
+				expect(wrongSource.statusCode).toBe(409);
+				expect(wrongSource.json().error.code).toBe('E_RUN_ALREADY_EXISTS');
+				for (const [sourceId, attemptNo, expectedId] of [
+					[original.id, 5, firstRerun.id],
+					[firstRerun.id, 6, previousRunId],
+				] as const) {
+					const replay = await server.instance.inject({
+						method: 'POST',
+						url: `/api/v1/runs/${sourceId}/rerun`,
+						headers: { authorization: token },
+						payload: { idempotencyKey: `startup-${failure}-${attemptNo}` },
+					});
+					expect(replay.statusCode).toBe(200);
+					expect(replay.json().run.id).toBe(expectedId);
+				}
+				expect(container.repos.runs.listByTaskId('task-1')).toHaveLength(5);
+				expect(listWaitingGates(container)).toEqual(waitingBeforeReplay);
 			} finally {
 				for (const job of container.jobs) await job.stop();
 				await server.instance.close();

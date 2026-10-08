@@ -308,9 +308,12 @@ describe('R8-T69421773: real rerun transactions and semantic recovery', () => {
 		}
 	});
 
-	it.each([true, false])(
-		'constraint recovery accepts only a matching committed rerun (matching: %s)',
-		async (isMatching) => {
+	it.each(['matching', 'wrong-kind', 'wrong-source'] as const)(
+		'constraint recovery accepts only a matching committed rerun (%s)',
+		async (candidateIdentity) => {
+			const isMatching = candidateIdentity === 'matching';
+			const isBughunt = candidateIdentity !== 'wrong-kind';
+			const hasDifferentSource = candidateIdentity === 'wrong-source';
 			const env = createFailedBughuntEnvironment();
 			const original = env.runsRepo.findById('bughunt-history-4');
 			if (!original) throw new AppError('E_INTERNAL', 'Missing bughunt run fixture.');
@@ -321,17 +324,25 @@ describe('R8-T69421773: real rerun transactions and semantic recovery', () => {
 					run: (work) => {
 						// A competing request commits before this request acquires the write transaction.
 						databaseUnitOfWork.run(() => {
+							if (hasDifferentSource) {
+								env.runsRepo.insert({
+									...original,
+									id: 'intervening-bughunt',
+									attempt_no: 5,
+									idempotency_key: 'intervening-key',
+								});
+							}
 							env.runsRepo.insert({
 								...original,
 								id: 'committed-rerun',
-								attempt_no: 5,
+								attempt_no: hasDifferentSource ? 6 : 5,
 								parent_run_id: 'bughunt-history-1',
-								kind: isMatching ? 'bughunt' : 'implement',
+								kind: isBughunt ? 'bughunt' : 'implement',
 								state: 'queued',
 								lane_no: null,
 								idempotency_key: 'competing-key',
 							});
-							if (isMatching) {
+							if (isBughunt) {
 								env.runsRepo.updateState({
 									id: 'bughunt-history-1',
 									toState: 'reviewing',
@@ -365,11 +376,11 @@ describe('R8-T69421773: real rerun transactions and semantic recovery', () => {
 						cause: { code: 'SQLITE_CONSTRAINT_UNIQUE' },
 					});
 				}
-				expect(env.runsRepo.listByTaskId('task-bughunt').map((r) => r.attempt_no)).toEqual([
-					1, 2, 4, 5,
-				]);
+				expect(env.runsRepo.listByTaskId('task-bughunt').map((r) => r.attempt_no)).toEqual(
+					hasDifferentSource ? [1, 2, 4, 5, 6] : [1, 2, 4, 5],
+				);
 				expect(env.gatesRepo.findById('bughunt-gate')?.state).toBe(
-					isMatching ? 'decided' : 'waiting',
+					isBughunt ? 'decided' : 'waiting',
 				);
 			} finally {
 				env.db.close();
