@@ -1,0 +1,71 @@
+{
+  "tasks": {
+    "R8-T69421773": {
+      "contractHash": "e3edfdc2de392516d1750f0326c95003cb7c651ed4f80150ae27145864d1d866",
+      "verdict": "pass",
+      "evidence": [
+        "已复核原始批次收口问题、任务输入产出与 5 项验收；当前契约与复制提示词一致，未降低数据库唯一约束、幂等身份、生产生命周期和失败闸门要求。此处 pass 仅登记契约语义复核，代码审查为 rework。",
+        "前置 M7-T9 / M8-T5 / R12-T32133721 已落地；08 层次/事务规则、06 入口接线、17 check 与真浏览器规则均核对。正式 rerun 路由调用 dispatch.rerunRun，再由 container nudgeTick 与既有 scheduler-tick 准入。",
+        "有效路径覆盖 rerun/dispatch/container 及新增真实 SQLite/容器/HTTP/Batch14 测试；清单外只有任务回填和审查裁决日志，均为提示词明确要求。共享 DTO、迁移约束和生成器未修改。",
+        "19 对应 E-177/E-323/E-331/E-265 要求与接口/状态一致；R1 复现的是代码遗漏而非契约矛盾：准备工作区失败/缺失 adapter 后父 reviewing、旧 gate superseded、无新 waiting gate且占槽，必须返工。",
+        "两项实施选择复用全部 A/B/C 候选并加入 final diff/CI 和原生窗口失败事实；真实 Jev jev-1.13.0 返回 A high 0.86 / A medium 0.52，确认既定有效范围与 WSL 真实 E2E 方法，无源契约变更。"
+      ]
+    }
+  },
+  "scope": "task-contract",
+  "codeReview": {
+    "focused": {
+      "files": 3,
+      "tests": 55,
+      "command": "owning files in full check",
+      "result": "pass"
+    },
+    "blocking": [
+      {
+        "files": [
+          "packages/daemon/src/service/dispatch.ts:2389",
+          "packages/daemon/src/service/dispatch.ts:2408",
+          "packages/daemon/src/service/dispatch.ts:1694"
+        ],
+        "id": "R1",
+        "observed": "New attempt=5 child failed; parent reviewing; task lane_no=1; old gate decided/superseded; zero replacement waiting gates and zero spawned processes.",
+        "required": "Finalize every pre-spawn bughunt failure through the existing bughunt finalizer, restoring an actionable bughunt_failed gate, awaiting_human parent, released lane and unchanged rework_count.",
+        "trigger": "Failed bughunt rerun admitted through production HTTP; reused workspace preparation throws or configured adapter is absent."
+      }
+    ],
+    "negativeProbe": {
+      "path": "D:/xiangmu/.codex-plans/agent-scheduler-r8-t69421773/review-startup-failure.test.ts",
+      "cases": 2,
+      "skippedByFilter": 22,
+      "result": "fail"
+    },
+    "workspaceCheck": {
+      "isolated": "PASS: unchanged assertions/timeouts, 2 files / 10 tests; full workspace check remains FAIL and must pass after R1 repair.",
+      "filesFailed": 2,
+      "testsSkipped": 3,
+      "testsFailed": 2,
+      "failures": [
+        "container-bughunt-worktree: fresh poll exceeded 1000ms",
+        "worktree-concurrency: atomic creation exceeded 30000ms; cleanup EBUSY"
+      ],
+      "filesPassed": 244,
+      "command": "pnpm -w check --maxWorkers=2 --minWorkers=2",
+      "testsPassed": 3120,
+      "result": "fail"
+    },
+    "ci": {
+      "run": 37725476675,
+      "head": "4bfe9b636d1a677b42dc8c6f143aca84aea9c325",
+      "result": "Windows/macOS/Ubuntu and release gate passed"
+    },
+    "round": 1,
+    "verdict": "rework",
+    "browser": {
+      "nativeUI": "GetCursorPos E_ACCESSDENIED; native input stopped",
+      "tests": 8,
+      "head": "4bfe9b636d1a677b42dc8c6f143aca84aea9c325",
+      "result": "existing same-head evidence verified; review rerun skipped after blocking reproduction"
+    },
+    "head": "4bfe9b636d1a677b42dc8c6f143aca84aea9c325"
+  }
+}
