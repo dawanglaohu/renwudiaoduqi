@@ -8,6 +8,7 @@ import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type { NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import type { LaunchSpec, ManagedProcess, ProcessExitResult } from '../../src/proc/spawn.ts';
@@ -220,6 +221,7 @@ async function setupBughuntEnvironment(
 		readonly laneCount?: number;
 		readonly agentConcurrency?: number;
 		readonly isInitiallyParked?: boolean;
+		readonly spawnFailure?: AppError;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-bughunt-'));
@@ -246,6 +248,7 @@ async function setupBughuntEnvironment(
 
 	const spawnedProcesses: FakeManagedProcessController[] = [];
 	const fakeSpawnManaged = ((spec: LaunchSpec) => {
+		if (overrides.spawnFailure) throw overrides.spawnFailure;
 		const proc = createFakeProcess(spec);
 		spawnedProcesses.push(proc);
 		return proc.managed;
@@ -681,6 +684,57 @@ describe('R8-T69421773: production HTTP rerun admission', () => {
 			expect(landed.statusCode).toBe(200);
 			expect(container.repos.runs.findById('history-1')?.state).toBe('landed');
 		} finally {
+			await server.instance.close();
+		}
+	});
+
+	it('a queued rerun spawn failure restores an actionable gate without an unhandled rejection', async () => {
+		const env = await setupBughuntEnvironment({
+			pipelineBughunt: false,
+			isInitiallyParked: true,
+			spawnFailure: new AppError('E_AGENT_EXEC_NOT_FOUND', 'Controlled rerun spawn failure.'),
+		});
+		seedFailedBughunt(env);
+		const { container } = env;
+		const server = createHttpServer({ container });
+		await server.instance.ready();
+		try {
+			const response = await server.instance.inject({
+				method: 'POST',
+				url: '/api/v1/runs/history-4/rerun',
+				headers: { authorization: await getAuthToken(container) },
+				payload: { idempotencyKey: 'spawn-failure-rerun' },
+			});
+			expect(response.statusCode).toBe(200);
+			const { run } = response.json();
+			expect(run).toMatchObject({ kind: 'bughunt', attemptNo: 5, parentRunId: 'history-1' });
+			expect(await waitFor(() => container.repos.runs.findById(run.id)?.state === 'failed')).toBe(
+				true,
+			);
+			expect(
+				await waitFor(() =>
+					listWaitingGates(container).some((g) => g.comment === 'bughunt_failed'),
+				),
+			).toBe(true);
+			expect(container.repos.runs.findById('history-1')).toMatchObject({
+				state: 'awaiting_human',
+				queued_reason: 'bughunt_failed',
+				rework_count: 0,
+			});
+			expect(container.repos.tasks.findById('task-1')).toMatchObject({
+				manual_state: null,
+				lane_no: null,
+			});
+			expect(container.repos.gates?.findById('history-gate')).toMatchObject({
+				state: 'decided',
+				comment: 'superseded',
+			});
+			expect(
+				listWaitingGates(container).filter((g) => g.comment === 'bughunt_failed'),
+			).toHaveLength(1);
+			expect(env.spawnedProcesses).toHaveLength(0);
+		} finally {
+			for (const job of container.jobs) await job.stop();
 			await server.instance.close();
 		}
 	});

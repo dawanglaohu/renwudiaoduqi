@@ -1691,7 +1691,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					if (dequeuedEvent) deps.bus?.publish(dequeuedEvent);
 
 					runsDispatched.push(queuedRun.id);
-					void launchRun(queuedRun.id);
+					void launchRun(queuedRun.id).catch((error) => {
+						logFailure(error);
+					});
 				}
 
 				if (free.length === 0) {
