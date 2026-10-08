@@ -46,8 +46,9 @@ import type {
 	OnboardingBatchOption,
 	OnboardingDocOption,
 } from '../../components/empty-onboarding.tsx';
-import { getErrorMessage } from '../../i18n/error-messages.ts';
+import { getDocumentErrorMessage } from '../../i18n/error-messages.ts';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
+import { readLastDocumentId, rememberDocumentId } from '../../lib/document-preference.ts';
 import { useSelectionStore } from '../../store/selection-store.ts';
 import { useAgentModelCatalogs } from '../settings-agents/use-agent-models.ts';
 
@@ -135,11 +136,7 @@ function toPanelError(error: unknown): AssignPanelError {
 	if (isApiError(error)) {
 		const apiError: ApiError = error;
 		return {
-			message: ['E_DOC_SOURCE_UNREADABLE', 'E_NOT_A_GIT_REPO', 'E_WORKSPACE_UNAVAILABLE'].includes(
-				apiError.code,
-			)
-				? apiError.message
-				: getErrorMessage(apiError.code),
+			message: getDocumentErrorMessage(apiError.code, apiError.details),
 			technical: `${apiError.code} · ${apiError.message}${apiError.requestId ? ` · requestId=${apiError.requestId}` : ''}`,
 		};
 	}
@@ -360,13 +357,19 @@ export function useAssignPanel({
 			return;
 		}
 		if (!selectedDocId && documents.length > 0) {
-			setSelectedDocId(documents[0]?.id ?? null);
+			const rememberedId = readLastDocumentId();
+			const target =
+				documents.find((document) => document.id === rememberedId) ??
+				documents.find((document) => document.isSourceReadable) ??
+				documents[0];
+			setSelectedDocId(target?.id ?? null);
 			return;
 		}
 		if (selectedDocId && batches.length > 0) {
-			const stillVisible = batches.some((batch) => batch.id === selectedBatchId);
+			const documentBatches = batches.filter((batch) => batch.docId === selectedDocId);
+			const stillVisible = documentBatches.some((batch) => batch.id === selectedBatchId);
 			if (!stillVisible) {
-				setSelectedBatchId(batches[0]?.id ?? null);
+				setSelectedBatchId(documentBatches[0]?.id ?? null);
 			}
 		}
 	}, [
@@ -534,6 +537,7 @@ export function useAssignPanel({
 		(docId: string) => {
 			setSelectedDocId(docId);
 			setSelectedBatchId(null);
+			rememberDocumentId(docId);
 		},
 		[setSelectedBatchId, setSelectedDocId],
 	);

@@ -30,6 +30,7 @@ import { EmptyOnboarding } from '../../components/empty-onboarding.tsx';
 import { GateCard, GateRejectConfirmation } from '../../components/gate-card.tsx';
 import { InlineNotice } from '../../components/inline-notice.tsx';
 import { LaneRunStrip } from '../../components/lane-run-strip.tsx';
+import { ProjectDocumentControls } from '../../components/project-document-controls.tsx';
 import { ThumbBar } from '../../components/thumb-bar.tsx';
 import type { BatchWrapupFailureView } from '../../components/wrapup-report.tsx';
 import type { DensityTier } from '../../hooks/use-breakpoint.ts';
@@ -419,7 +420,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 	}, [showOnboarding]);
 	const reassignTaskId = useSelectionStore((state) => state.reassignTaskId);
 	const reassignToast = useSelectionStore((state) => state.reassignToast);
-	const assignPanel = useAssignPanel({ enabled: showOnboarding || Boolean(reassignTaskId) });
+	const assignPanel = useAssignPanel();
 	const canDispatch = useCanDispatch();
 	const approvalExpandedIds = new Set(expandedIds);
 	for (const batch of treeBatches) {
@@ -660,6 +661,21 @@ export function RunDeckView(props: RunDeckViewProps) {
 						</div>
 					</div>
 				)}
+
+				<ProjectDocumentControls
+					isTouch={isTouch || isMobileMode}
+					documents={assignPanel.documents}
+					selectedDocId={assignPanel.selectedDocId}
+					isSaving={assignPanel.isSaving}
+					error={assignPanel.error}
+					onSelectDoc={assignPanel.selectDoc}
+					onImportDocument={(docsPath, repoPath) => {
+						void assignPanel.importDocument(docsPath, repoPath);
+					}}
+					onRebindDocument={(docsPath, repoPath) => {
+						void assignPanel.rebindDocument(docsPath, repoPath);
+					}}
+				/>
 
 				{/* ─────────────────────────────────────────────────────────────
 			    主体内容区：
