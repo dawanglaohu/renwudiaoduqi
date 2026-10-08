@@ -97,6 +97,16 @@ export function getErrorMessage(code: string | undefined | null, fallback?: stri
 	return fallback ?? code;
 }
 
+export function getDocumentErrorMessage(
+	code: string,
+	details?: Readonly<Record<string, unknown>>,
+): string {
+	if (code === 'E_DOC_SOURCE_UNREADABLE' && details?.reason === 'handoff_export_missing') {
+		return '这份文档是旧版阅读器导出，缺少调度交接数据。请升级该项目的文档工具并重新生成，再导入。';
+	}
+	return getErrorMessage(code);
+}
+
 /**
  * E-04 要求的首屏文案：明确指出「电脑上的调度服务未启动」，而不是「连接超时」或纯网络术语。
  */

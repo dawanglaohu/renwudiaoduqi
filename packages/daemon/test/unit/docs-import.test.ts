@@ -249,6 +249,17 @@ describe('service/docs protocol validation (E-16, E-17, E-82, E-246)', () => {
 		);
 	});
 
+	it('identifies a legacy reader export without treating it as a dispatchable task package', () => {
+		const payload = makeValidDocPayload();
+		const { schemaVersion: _schema, handoff: _handoff, dispatch: _dispatch, ...legacy } = payload;
+		expect(() => parseDocsDataContent(`window.DOCS = ${JSON.stringify(legacy)};`)).toThrowError(
+			expect.objectContaining({
+				code: 'E_DOC_SOURCE_UNREADABLE',
+				details: expect.objectContaining({ reason: 'handoff_export_missing' }),
+			}),
+		);
+	});
+
 	it('E-82 rejects duplicate task IDs in data.tasks with E_DOC_SOURCE_UNREADABLE', () => {
 		const payload = makeValidDocPayload();
 		payload.data.tasks.push({

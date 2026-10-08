@@ -395,6 +395,22 @@ export function parseDocsDataContent(
 
 	const doc = parsedRaw as Record<string, unknown>;
 
+	if (
+		doc.schemaVersion === undefined &&
+		doc.handoff === undefined &&
+		doc.dispatch === undefined &&
+		typeof doc.project === 'string' &&
+		Array.isArray((doc.data as Record<string, unknown>)?.tasks)
+	) {
+		throw new AppError(
+			'E_DOC_SOURCE_UNREADABLE',
+			'Legacy reader export lacks scheduler handoff data',
+			{
+				details: { docsPath: options.docsPath, reason: 'handoff_export_missing' },
+			},
+		);
+	}
+
 	if (doc.schemaVersion !== 1) {
 		throw new AppError(
 			'E_DOC_SOURCE_UNREADABLE',

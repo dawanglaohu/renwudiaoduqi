@@ -508,6 +508,11 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		expect(claimData.token).toBeTruthy();
 		adminToken = claimData.token;
 		registerSensitiveData(adminToken);
+		const initialDocuments = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/documents`, {
+			headers: { Authorization: `Bearer ${adminToken}` },
+		});
+		expect(initialDocuments.ok).toBe(true);
+		expect((await initialDocuments.json()).documents).toEqual([]);
 
 		// pairing-code.txt must be deleted after claim (E-226)
 		expect(existsSync(codeFilePath)).toBe(false);
@@ -589,23 +594,45 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		expect(hasFlexRule).toBe(true);
 	});
 
-	it('step 4: imports fixture document and verifies two tasks appear (AC 3, E-108)', async () => {
+	it('reports legacy reader exports with actionable guidance through the real import form', async () => {
+		if (projectRepo === null || importDocsPath === null) throw new Error('Missing fixture repository');
+		const payload = JSON.parse(readFileSync(importDocsPath, 'utf8').replace(/^window\.DOCS\s*=\s*/, '').replace(/;\s*$/, ''));
+		delete payload.schemaVersion;
+		delete payload.handoff;
+		delete payload.dispatch;
+		const legacyDirectory = join(projectRepo, 'legacy');
+		mkdirSync(legacyDirectory);
+		const legacyPath = join(legacyDirectory, 'docs-data.js');
+		writeFileSync(legacyPath, `window.DOCS = ${JSON.stringify(payload)};\n`);
+		await page.locator('[data-action="manage-project-documents"]').click();
+		await page.locator('[data-testid="project-import-doc-path"]').fill(legacyPath);
+		const responsePromise = page.waitForResponse((response) =>
+			response.url().endsWith('/api/v1/documents') && response.request().method() === 'POST',
+		);
+		await page.locator('[data-action="import-project-document"]').click();
+		const response = await responsePromise;
+		expect(response.ok()).toBe(false);
+		expect((await response.json()).error.details.reason).toBe('handoff_export_missing');
+		await page.locator('[data-testid="project-document-controls"]').getByText(/旧版阅读器导出/).waitFor({ state: 'visible' });
+		const documentsResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/documents`, {
+			headers: { Authorization: `Bearer ${adminToken}` },
+		});
+		expect((await documentsResponse.json()).documents).toEqual([]);
+	});
+
+	it('step 4: imports fixture document from the real form and verifies two tasks appear (AC 3, E-108)', async () => {
 		const fixtureDocsPath = importDocsPath;
 		if (fixtureDocsPath === null) throw new Error('Isolated fixture document was not created');
 		expect(existsSync(fixtureDocsPath)).toBe(true);
 
-		const importRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/documents`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${adminToken}`,
-			},
-			body: JSON.stringify({
-				docsPath: fixtureDocsPath,
-			}),
-		});
+		await page.locator('[data-testid="project-import-doc-path"]').fill(fixtureDocsPath);
+		const importPromise = page.waitForResponse((response) =>
+			response.url().endsWith('/api/v1/documents') && response.request().method() === 'POST',
+		);
+		await page.locator('[data-action="import-project-document"]').click();
+		const importRes = await importPromise;
 
-		expect([200, 201]).toContain(importRes.status);
+		expect([200, 201]).toContain(importRes.status());
 		const importBody = (await importRes.json()) as {
 			document: { id: string };
 			taskCount: number;
@@ -708,6 +735,36 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 
 		// R2: Verify this run's identity in the deck rail
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
+		await page.locator('[data-testid="project-document-controls"]').waitFor({ state: 'visible' });
+		await page.locator('[data-action="manage-project-documents"]').click();
+		if (importDocsPath === null) throw new Error('Missing fixture document');
+		const secondPayload = JSON.parse(readFileSync(importDocsPath, 'utf8').replace(/^window\.DOCS\s*=\s*/, '').replace(/;\s*$/, ''));
+		secondPayload.project = 'Second project';
+		const secondDirectory = join(projectRepo, 'second');
+		mkdirSync(secondDirectory);
+		const secondPath = join(secondDirectory, 'docs-data.js');
+		writeFileSync(secondPath, `window.DOCS = ${JSON.stringify(secondPayload)};\n`);
+		await page.locator('[data-testid="project-import-doc-path"]').fill(secondPath);
+		const secondImportPromise = page.waitForResponse((response) =>
+			response.url().endsWith('/api/v1/documents') && response.request().method() === 'POST',
+		);
+		await page.locator('[data-action="import-project-document"]').click();
+		const secondImport = await secondImportPromise;
+		expect(secondImport.ok()).toBe(true);
+		const secondDocId = (await secondImport.json()).document.id as string;
+		await page.waitForFunction((id) =>
+			(document.querySelector('[data-testid="project-doc-select"]') as HTMLSelectElement)?.value === id,
+			secondDocId,
+		);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForFunction((id) =>
+			(document.querySelector('[data-testid="project-doc-select"]') as HTMLSelectElement)?.value === id,
+			secondDocId,
+		);
+		await page.locator('[data-testid="project-doc-select"]').selectOption(docId);
+		await page.locator('[data-action="manage-project-documents"]').click();
+		await page.screenshot({ path: join(artifactsDir, 'project-import-during-run.png') });
+		await page.locator('[data-action="manage-project-documents"]').click();
 
 		// Assert data-connection-status is 'online'
 		await page.waitForFunction(

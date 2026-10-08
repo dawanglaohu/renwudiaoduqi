@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
+import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -9,6 +10,7 @@ import { httpClient } from '../src/api/http-client.ts';
 import { RunDeckContainer, buildDeckLanes } from '../src/features/run-deck/run-deck-container.tsx';
 import { RunDeckView, type RunDeckViewProps } from '../src/features/run-deck/run-deck-view.tsx';
 import { triggerResync } from '../src/store/connection-store.ts';
+import { useSelectionStore } from '../src/store/selection-store.ts';
 
 function idleLane(laneNo: number): LaneView {
 	return {
@@ -23,6 +25,146 @@ function idleLane(laneNo: number): LaneView {
 		overLimit: false,
 	};
 }
+
+it('loads lanes for the selected project and discards the previous project response after switching', async () => {
+	vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+	useSelectionStore.getState().setSelectedDocId('project-a');
+	const finishOldSnapshots: (() => void)[] = [];
+	let delayOldProject = false;
+	let showOwnWrapupGate = false;
+	const wrapupRun: RunDto = {
+		id: 'wrapup-b',
+		taskId: null,
+		batchId: 'batch-b',
+		attemptNo: 1,
+		kind: 'wrapup',
+		parentRunId: null,
+		state: 'awaiting_human',
+		reviewVerdict: null,
+		agentId: 'codex',
+		modelName: null,
+		reportedModel: null,
+		effortTier: null,
+		reportedEffort: null,
+		permissionTier: 'readOnly',
+		worktreePath: null,
+		branchName: null,
+		pid: null,
+		exitCode: 0,
+		exitSignal: null,
+		changedFileCount: 0,
+		tokenUsage: null,
+		isStallSuspected: false,
+		reworkCount: 0,
+		queuedReason: null,
+		idempotencyKey: 'wrapup-b',
+		actorDeviceId: null,
+		startedAt: null,
+		lastEventAt: null,
+		endedAt: null,
+	};
+	const requests: (string | undefined)[] = [];
+	vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route, options) => {
+		if (route.path === '/api/v1/snapshot') {
+			const docId = options?.query?.docId as string | undefined;
+			requests.push(docId);
+			const response = {
+				documents: [],
+				batches: [
+					{
+						id: 'batch-b',
+						docId: 'project-b',
+						batchNo: 1,
+						state: 'idle',
+						startedAt: null,
+						finishedAt: null,
+					},
+				],
+				tasks: [
+					{
+						id: 'task-a',
+						docId: 'project-a',
+						taskKey: 'A-T1',
+						title: 'Project A task',
+						moduleKey: 'A',
+						deps: [],
+						estDays: null,
+						batchId: null,
+						state: 'never_dispatched',
+					},
+				],
+				runs: [],
+				gates: [],
+				agents: [],
+				lanes: docId === 'project-b' ? [idleLane(1), idleLane(2)] : [idleLane(1)],
+				latestEventId: 100,
+			} satisfies SnapshotResponse;
+			if (docId === 'project-a' && delayOldProject) {
+				return new Promise((resolve) => {
+					finishOldSnapshots.push(() => resolve(response));
+				});
+			}
+			return response;
+		}
+		if (route.path === '/api/v1/runs') return { runs: showOwnWrapupGate ? [wrapupRun] : [] };
+		if (route.path === '/api/v1/gates')
+			return {
+				gates: [
+					{
+						id: 'gate-a',
+						taskId: showOwnWrapupGate ? null : 'task-a',
+						runId: showOwnWrapupGate ? wrapupRun.id : null,
+						kind: 'dispatch',
+						state: 'waiting',
+						decision: null,
+						comment: null,
+						decidedByDeviceId: null,
+						createdAt: '2026-10-08T00:00:00.000Z',
+						decidedAt: null,
+					},
+				],
+			};
+		if (route.path === '/api/v1/documents') return { documents: [] };
+		if (route.path === '/api/v1/agents') return { agents: [] };
+		if (route.path === '/api/v1/documents/:docId/batches') return { batches: [] };
+		if (route.path === '/api/v1/batches/:batchId/wrapups') return { wrapups: [] };
+		throw new Error(`Unexpected request: ${route.path}`);
+	});
+	const container = document.createElement('div');
+	document.body.appendChild(container);
+	const root = createRoot(container);
+	try {
+		await act(async () =>
+			root.render(createElement(RunDeckContainer, { lanes: [], densityTier: 'full' })),
+		);
+		expect(requests).toContain('project-a');
+		expect(container.querySelectorAll('[data-stream-column="true"]')).toHaveLength(1);
+		expect(container.querySelector('[data-testid="empty-onboarding-console"]')).toBeNull();
+		delayOldProject = true;
+		const staleRead = triggerResync();
+		await act(async () => {
+			await Promise.resolve();
+		});
+		await act(async () => useSelectionStore.getState().setSelectedDocId('project-b'));
+		expect(requests).toContain('project-b');
+		expect(container.querySelectorAll('[data-stream-column="true"]')).toHaveLength(2);
+		expect(container.querySelector('[data-testid="empty-onboarding-console"]')).not.toBeNull();
+		await act(async () => {
+			for (const finish of finishOldSnapshots) finish();
+			await staleRead;
+		});
+		expect(container.querySelectorAll('[data-stream-column="true"]')).toHaveLength(2);
+		showOwnWrapupGate = true;
+		await act(async () => triggerResync());
+		expect(container.querySelector('[data-testid="empty-onboarding-console"]')).toBeNull();
+	} finally {
+		await act(async () => root.unmount());
+		container.remove();
+		useSelectionStore.getState().reset();
+		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
+	}
+});
 
 it('M9-T21 reloads authoritative deck lanes after connection recovery without a new event', async () => {
 	vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);

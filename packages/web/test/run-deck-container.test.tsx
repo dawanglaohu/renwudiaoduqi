@@ -88,6 +88,9 @@ describe('R13 browser entry wiring', () => {
 		expect(html).toContain('data-slot="task-approval"');
 		expect(html).toContain('data-component="gate-card"');
 		expect(html).not.toContain('empty-onboarding-console');
+		expect(html).toContain('project-document-controls');
+		expect(html).toContain('project-doc-select');
+		expect(html).toContain('manage-project-documents');
 		expect(idleLane.stage).toBe('idle');
 	});
 	it('projects a real zero-output GateDto context into the waiting task card (E-348)', () => {

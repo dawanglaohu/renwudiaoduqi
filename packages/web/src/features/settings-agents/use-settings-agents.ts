@@ -31,6 +31,7 @@ import {
 } from '../../components/lane-count-setting.tsx';
 import { getSettingsAgentErrorMessage } from '../../i18n/error-messages.ts';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
+import { readLastDocumentId, rememberDocumentId } from '../../lib/document-preference.ts';
 import { FIELD_LABELS } from './types.ts';
 
 export interface UseSettingsAgentsOptions {
@@ -90,22 +91,6 @@ const updateDocumentSettingsRoute = ROUTES.find(
 	(r) => r.method === 'PATCH' && r.path === '/api/v1/documents/:docId/settings',
 );
 
-function readUiPreferences(): Record<string, unknown> {
-	if (typeof window === 'undefined') return {};
-	try {
-		const raw = localStorage.getItem('agsched.ui.v1');
-		const parsed = raw ? JSON.parse(raw) : null;
-		return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-	} catch {
-		return {};
-	}
-}
-
-function resolveLastDocId(): string | null {
-	const lastDocId = readUiPreferences().lastDocId;
-	return typeof lastDocId === 'string' && lastDocId ? lastDocId : null;
-}
-
 export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettingsAgentsResult {
 	const mounted = useRef(true);
 	const [agents, setAgents] = useState<readonly AgentEntryWithLayers[]>([]);
@@ -116,7 +101,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 	const [documentsError, setDocumentsError] = useState<string | null>(null);
 	const documentsRequest = useRef(0);
 	const appliedDocumentsRequest = useRef(0);
-	const [selectedDocId, setSelectedDocId] = useState(resolveLastDocId);
+	const [selectedDocId, setSelectedDocId] = useState(readLastDocumentId);
 	const explicitDocId = options?.targetDocId ?? selectedDocId;
 	const targetDoc = documents.find((doc) => doc.id === explicitDocId) ?? null;
 	const laneCount = targetDoc?.laneCount ?? DEFAULT_LANE_COUNT;
@@ -158,12 +143,7 @@ export function useSettingsAgents(options?: UseSettingsAgentsOptions): UseSettin
 			if (savingLaneCount.current || !documents.some((doc) => doc.id === docId)) return;
 			setSelectedDocId(docId);
 			setLaneCountError(null);
-			try {
-				const prefs = readUiPreferences();
-				localStorage.setItem('agsched.ui.v1', JSON.stringify({ ...prefs, lastDocId: docId }));
-			} catch {
-				// 存储不可用时，当前会话仍可选择文档并保存服务端设置。
-			}
+			rememberDocumentId(docId);
 		},
 		[documents],
 	);

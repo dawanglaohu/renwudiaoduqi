@@ -679,6 +679,48 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 			useSelectionStore.getState().reset();
 		});
 
+		it('does not select the previous project batch while the next project is loading', async () => {
+			let finishNextBatches: ((response: ListDocumentBatchesResponse) => void) | undefined;
+			const client = createClient({ listAgents: vi.fn(async () => ({ agents: [] })) });
+			const originalListBatches = vi.mocked(client.listBatches).getMockImplementation();
+			vi.mocked(client.listBatches).mockImplementation((requestedDocId) =>
+				requestedDocId === 'doc-2'
+					? new Promise<ListDocumentBatchesResponse>((resolve) => {
+							finishNextBatches = resolve;
+						})
+					: (originalListBatches?.(requestedDocId) ?? Promise.resolve({ batches: [] })),
+			);
+			const probe = await mountAssignPanel(client);
+			try {
+				expect(probe.current().selectedBatchId).toBe(batchId);
+				await act(async () => probe.current().selectDoc('doc-2'));
+				expect(probe.current().selectedBatchId).toBeNull();
+				expect(client.listTasks).not.toHaveBeenCalledWith(
+					'doc-2',
+					batchId,
+					expect.anything(),
+					expect.anything(),
+				);
+				await act(async () => {
+					finishNextBatches?.({
+						batches: [
+							{
+								id: 'batch-2',
+								docId: 'doc-2',
+								batchNo: 1,
+								state: 'idle',
+								startedAt: null,
+								finishedAt: null,
+							},
+						],
+					});
+				});
+				expect(probe.current().selectedBatchId).toBe('batch-2');
+			} finally {
+				await probe.unmount();
+			}
+		});
+
 		it('rebinding keeps the selection and reloads tasks from the replacement document source', async () => {
 			const client = createClient({ listAgents: vi.fn(async () => ({ agents: [] })) });
 			const probe = await mountAssignPanel(client);
