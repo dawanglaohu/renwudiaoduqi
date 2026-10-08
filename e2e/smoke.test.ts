@@ -735,6 +735,10 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 
 		// R2: Verify this run's identity in the deck rail
 		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
+		const activeTaskHeader = page.locator('[data-stream-column="true"] [data-field="task-key"]')
+			.filter({ hasText: targetTask.taskKey });
+		await activeTaskHeader.waitFor({ state: 'visible', timeout: 15000 });
+		expect(await page.locator('[data-testid="empty-onboarding-console"]').count()).toBe(0);
 		await page.locator('[data-testid="project-document-controls"]').waitFor({ state: 'visible' });
 		await page.locator('[data-action="manage-project-documents"]').click();
 		if (importDocsPath === null) throw new Error('Missing fixture document');
@@ -762,6 +766,7 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 			secondDocId,
 		);
 		await page.locator('[data-testid="project-doc-select"]').selectOption(docId);
+		await activeTaskHeader.waitFor({ state: 'visible', timeout: 15000 });
 		await page.locator('[data-action="manage-project-documents"]').click();
 		await page.screenshot({ path: join(artifactsDir, 'project-import-during-run.png') });
 		await page.locator('[data-action="manage-project-documents"]').click();
