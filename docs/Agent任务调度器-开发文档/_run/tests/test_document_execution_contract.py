@@ -119,6 +119,18 @@ class DocumentExecutionContractTests(unittest.TestCase):
         self.assertEqual(modules, dict(expected))
         self.assertEqual(phase_days, total_days)
 
+    def test_valid_unavailable_agent_keeps_a_waiting_execution_intent(self):
+        dispatch = json.loads((DOCS_ROOT / '_run/dispatch.json').read_text(encoding='utf-8'))
+        for task in TASKS:
+            for side in ('implementation', 'review'):
+                with self.subTest(task=task, side=side):
+                    prompt = dispatch['tasks'][task][side]
+                    self.assertIn('临时不可用', prompt)
+                    self.assertIn('agent_unavailable', prompt)
+        row = next(line for line in (DOCS_ROOT / '04-执行/19-模块任务拆分.md').read_text(encoding='utf-8').splitlines() if line.startswith('| M8-T12 |'))
+        self.assertNotIn('非法、不可用、过期来源、缺少文档', row)
+        self.assertIn('running', row)
+
 
 if __name__ == '__main__':
     unittest.main()

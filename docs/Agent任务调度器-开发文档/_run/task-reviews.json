@@ -34,17 +34,17 @@
   },
   "M1-T12": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "ecd097c0fc505db82cb7a4d823baff83ccc83f2fb02bfd5f407d1030b51b0544",
+    "contractHash": "aea4bacd01cdf8eedcf399355d603c2b602ab735136ab8a617ecac42f8e0c5df",
     "evidence": [
       "复核范围仅为待实施任务的需求契约，不代表代码验收或落地；任务笔记 status=todo，既有124项契约哈希及落地进度逐项对照 origin/main 62f645d 保持不变。",
       "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
       "依赖及能力提供/消费链经项目结构检查无BLOCK；生成的21个依赖批次包含 M8-T12→M8-T13→M9-T30→M1-T12（第18至21批），原17批任务集合和历史收口/返工记录保持不变。",
       "有效路径逐项核对：10处已有文件/目录存在，5处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
-      "PR210六项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天。验收及四项派发/审查提示词包含对应要求。",
+      "PR210七项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天；已注册Agent临时不可用仍保存running等待计划和agent_unavailable，恢复后自动补位，未知ID/非法参数才拒绝且无计划。验收及四项派发/审查提示词包含对应要求。",
       "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-      "文档工具链完整208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；最后统计修正后9项相关契约回归再次通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败；未修改生成器或产品代码。"
+      "最新文档工具链完整210项：209通过，1项因本项目_run目录无SKILL.md按原条件跳过；10项相关契约回归全部通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败，Agent等待条款修正前9处断言失败；未修改生成器或产品代码。"
     ],
-    "reviewed": "2026-10-08T17:05:51.324538+00:00",
+    "reviewed": "2026-10-08T17:25:06.755388+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -776,33 +776,33 @@
   },
   "M8-T12": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "be2dddcb8813c1fbebc37a24c4b6414990055aafafa5b6e851ed83d7ea32375f",
+    "contractHash": "b00889b40a67be7dd8342698200f2319b7d1cd470b717a42642bdeb4e057ef01",
     "evidence": [
       "复核范围仅为待实施任务的需求契约，不代表代码验收或落地；任务笔记 status=todo，既有124项契约哈希及落地进度逐项对照 origin/main 62f645d 保持不变。",
       "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
       "依赖及能力提供/消费链经项目结构检查无BLOCK；生成的21个依赖批次包含 M8-T12→M8-T13→M9-T30→M1-T12（第18至21批），原17批任务集合和历史收口/返工记录保持不变。",
       "有效路径逐项核对：22处已有文件/目录存在，7处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
-      "PR210六项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天。验收及四项派发/审查提示词包含对应要求。",
+      "PR210七项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天；已注册Agent临时不可用仍保存running等待计划和agent_unavailable，恢复后自动补位，未知ID/非法参数才拒绝且无计划。验收及四项派发/审查提示词包含对应要求。",
       "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-      "文档工具链完整208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；最后统计修正后9项相关契约回归再次通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败；未修改生成器或产品代码。"
+      "最新文档工具链完整210项：209通过，1项因本项目_run目录无SKILL.md按原条件跳过；10项相关契约回归全部通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败，Agent等待条款修正前9处断言失败；未修改生成器或产品代码。"
     ],
-    "reviewed": "2026-10-08T17:05:51.324538+00:00",
+    "reviewed": "2026-10-08T17:25:06.755388+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
   "M8-T13": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "ee6d4eb306f9a7c7c7a3a22f21b68d3af8be3efd710f9af7fe9edc3cb8f13744",
+    "contractHash": "97781e02bbe19cfa82d53f04f0e8da5daa39da802de7035a1f48a9c72e646940",
     "evidence": [
       "复核范围仅为待实施任务的需求契约，不代表代码验收或落地；任务笔记 status=todo，既有124项契约哈希及落地进度逐项对照 origin/main 62f645d 保持不变。",
       "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
       "依赖及能力提供/消费链经项目结构检查无BLOCK；生成的21个依赖批次包含 M8-T12→M8-T13→M9-T30→M1-T12（第18至21批），原17批任务集合和历史收口/返工记录保持不变。",
       "有效路径逐项核对：27处已有文件/目录存在，5处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
-      "PR210六项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天。验收及四项派发/审查提示词包含对应要求。",
+      "PR210七项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天；已注册Agent临时不可用仍保存running等待计划和agent_unavailable，恢复后自动补位，未知ID/非法参数才拒绝且无计划。验收及四项派发/审查提示词包含对应要求。",
       "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-      "文档工具链完整208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；最后统计修正后9项相关契约回归再次通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败；未修改生成器或产品代码。"
+      "最新文档工具链完整210项：209通过，1项因本项目_run目录无SKILL.md按原条件跳过；10项相关契约回归全部通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败，Agent等待条款修正前9处断言失败；未修改生成器或产品代码。"
     ],
-    "reviewed": "2026-10-08T17:05:51.324538+00:00",
+    "reviewed": "2026-10-08T17:25:06.755388+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
@@ -1172,17 +1172,17 @@
   },
   "M9-T30": {
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "a9295fd1ec42792cf0e4331c85b86b471e57210530f7aaca716d4fb67308cc8d",
+    "contractHash": "f8f2ded63ef456f6fdab0f8c0443094d844fe89097606e066c54a2bbb3ba614e",
     "evidence": [
       "复核范围仅为待实施任务的需求契约，不代表代码验收或落地；任务笔记 status=todo，既有124项契约哈希及落地进度逐项对照 origin/main 62f645d 保持不变。",
       "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
       "依赖及能力提供/消费链经项目结构检查无BLOCK；生成的21个依赖批次包含 M8-T12→M8-T13→M9-T30→M1-T12（第18至21批），原17批任务集合和历史收口/返工记录保持不变。",
       "有效路径逐项核对：23处已有文件/目录存在，6处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
-      "PR210六项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天。验收及四项派发/审查提示词包含对应要求。",
+      "PR210七项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天；已注册Agent临时不可用仍保存running等待计划和agent_unavailable，恢复后自动补位，未知ID/非法参数才拒绝且无计划。验收及四项派发/审查提示词包含对应要求。",
       "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-      "文档工具链完整208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；最后统计修正后9项相关契约回归再次通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败；未修改生成器或产品代码。"
+      "最新文档工具链完整210项：209通过，1项因本项目_run目录无SKILL.md按原条件跳过；10项相关契约回归全部通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败，Agent等待条款修正前9处断言失败；未修改生成器或产品代码。"
     ],
-    "reviewed": "2026-10-08T17:05:51.324538+00:00",
+    "reviewed": "2026-10-08T17:25:06.755388+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
