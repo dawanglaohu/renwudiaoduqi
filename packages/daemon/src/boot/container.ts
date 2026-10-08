@@ -902,7 +902,7 @@ export function createContainer(input: {
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
-			validateWorkspace: (docId) => docsService.validateWorkspace(docId),
+			validateWorkspace: (docId, taskIds) => docsService.validateWorkspace(docId, taskIds),
 			unitOfWork,
 			tasksRepo: tasks,
 			batchesRepo: batches,

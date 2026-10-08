@@ -10,18 +10,23 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
+import { createBatchWrapupsRepo } from '../../src/repo/batch-wrapups.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
 import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
+import { createGatesRepo } from '../../src/repo/gates.ts';
 import { createRunsRepo } from '../../src/repo/runs.ts';
 import { createTasksRepo } from '../../src/repo/tasks.ts';
+import { createBatchService } from '../../src/service/batch.ts';
 import { createDispatchService } from '../../src/service/dispatch.ts';
-import { createDocsService } from '../../src/service/docs.ts';
+import { type DocsFileSystem, createDocsService } from '../../src/service/docs.ts';
+import { type WrapupService, createWrapupService } from '../../src/service/wrapup.ts';
 import { createWorktreeManager } from '../../src/workspace/worktree.ts';
+import { writeTasksDocsData } from '../fixtures/task-docs-data.ts';
 
 const directories: string[] = [];
 const databases: DatabaseConnection[] = [];
@@ -30,7 +35,7 @@ afterEach(() => {
 	for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function setup() {
+function setup(fs?: DocsFileSystem) {
 	const root = mkdtempSync(join(realpathSync.native(tmpdir()), 'document-workspace-'));
 	directories.push(root);
 	const repo = join(root, 'real repository');
@@ -50,6 +55,7 @@ function setup() {
 	const runsRepo = createRunsRepo(db);
 	const dispatchSnapshotsRepo = createDispatchSnapshotsRepo(db);
 	const service = createDocsService({
+		fs,
 		hostInputs: {
 			platform: process.platform as 'win32' | 'linux' | 'darwin',
 			homedir: root,
@@ -109,6 +115,24 @@ function setup() {
 		});
 		return { task, snapshot, run: runsRepo.findById('original-run') };
 	}
+	function makeDispatch(
+		validateWorkspace = service.validateWorkspace,
+		wrapupService?: WrapupService,
+	) {
+		return createDispatchService({
+			validateWorkspace,
+			wrapupService,
+			tasksRepo,
+			batchesRepo,
+			documentsRepo,
+			dispatchSnapshotsRepo,
+			runsRepo,
+			unitOfWork: createUnitOfWork(db),
+			clock: { now: () => new Date().toISOString() },
+			ids: { newId: () => crypto.randomUUID() },
+			listDispatchableAgents: () => [{ agentId: 'codex', canDispatch: true }],
+		});
+	}
 	return {
 		root,
 		repo,
@@ -121,10 +145,316 @@ function setup() {
 		dispatchSnapshotsRepo,
 		writeDoc,
 		seedRun,
+		makeDispatch,
 	};
 }
 
 describe('document repository binding with real Git', () => {
+	it('checks task readiness after an automatic wrapup fails despite a successful document-only probe', async () => {
+		const f = setup();
+		const source = join(f.repo, 'docs-data.js');
+		writeTasksDocsData(source, [
+			{ id: 'T-1', hash: 'h1' },
+			{ id: 'T-2', hash: 'h2', deps: ['T-1'] },
+		]);
+		const imported = await f.service.importDocument(source);
+		const first = f.tasksRepo.findByDocAndKey(imported.document.id, 'T-1');
+		const second = f.tasksRepo.findByDocAndKey(imported.document.id, 'T-2');
+		if (!first?.batch_id || !second?.batch_id) throw new Error('Imported tasks missing');
+		f.tasksRepo.updateManualState(first.id, 'landed');
+		for (const task of [first, second])
+			f.batchesRepo.updateState({ id: task.batch_id as string, state: 'running' });
+		const payload = JSON.parse(
+			readFileSync(source, 'utf8')
+				.replace(/^window\.DOCS\s*=\s*/, '')
+				.replace(/;$/, ''),
+		);
+		payload.handoff.readiness['T-2'] = {
+			ready: false,
+			reasons: ['H01: Review pending'],
+			contractHash: 'h2',
+		};
+		writeFileSync(source, `window.DOCS = ${JSON.stringify(payload)};`);
+		const shared = {
+			...f,
+			unitOfWork: createUnitOfWork(f.db),
+			clock: { now: () => new Date().toISOString() },
+			ids: { newId: () => crypto.randomUUID() },
+		};
+		const wrapup = createWrapupService({
+			...shared,
+			batchService: createBatchService(shared),
+			batchWrapupsRepo: createBatchWrapupsRepo(f.db),
+			gatesRepo: createGatesRepo(f.db),
+			docsService: f.service,
+		});
+		const validate = vi.fn(f.service.validateWorkspace);
+		const result = await f.makeDispatch(validate, wrapup).tick();
+		expect(validate).toHaveBeenCalledWith(imported.document.id, undefined);
+		expect(validate).toHaveBeenCalledWith(imported.document.id, [second.id]);
+		expect(result.tasksBlocked).toContainEqual({ taskId: second.id, reason: 'contract_not_ready' });
+		expect(f.runsRepo.listByTaskId(second.id)).toHaveLength(0);
+		expect(f.dispatchSnapshotsRepo.listByTaskId(second.id)).toHaveLength(0);
+	});
+	it.each(['rebind', 'unreadable', 'contract'] as const)(
+		'rechecks the %s document at commit after another document preflight waits',
+		async (change) => {
+			const f = setup();
+			const oldSource = f.writeDoc(join(f.repo, 'first'));
+			const first = await f.service.importDocument(oldSource);
+			const second = await f.service.importDocument(f.writeDoc(join(f.repo, 'second')));
+			const firstTask = f.tasksRepo.findByDocAndKey(first.document.id, 'T-1');
+			const secondTask = f.tasksRepo.findByDocAndKey(second.document.id, 'T-1');
+			if (!firstTask?.batch_id || !secondTask?.batch_id) throw new Error('Imported tasks missing');
+			f.batchesRepo.updateState({ id: firstTask.batch_id, state: 'running' });
+			f.batchesRepo.updateState({ id: secondTask.batch_id, state: 'running' });
+			let reachedSecond = () => {};
+			let releaseSecond = () => {};
+			const reached = new Promise<void>((resolve) => {
+				reachedSecond = resolve;
+			});
+			const release = new Promise<void>((resolve) => {
+				releaseSecond = resolve;
+			});
+			const dispatch = f.makeDispatch(async (id) => {
+				await f.service.validateWorkspace(id);
+				if (id === second.document.id) {
+					reachedSecond();
+					await release;
+				}
+			});
+			const ticking = dispatch.tick();
+			await reached;
+			expect(f.runsRepo.listActive()).toHaveLength(0);
+			if (change === 'contract') {
+				writeFileSync(
+					oldSource,
+					readFileSync(oldSource, 'utf8').replaceAll('hash-t1', 'changed-hash'),
+				);
+				await f.service.refreshDocument(first.document.id);
+			} else {
+				const replacement = f.writeDoc(join(f.repo, 'replacement'));
+				await f.service.refreshDocument(first.document.id, { docsPath: replacement });
+				if (change === 'unreadable') {
+					rmSync(replacement);
+					await expect(f.service.refreshDocument(first.document.id)).rejects.toMatchObject({
+						code: 'E_DOC_SOURCE_UNREADABLE',
+					});
+				}
+			}
+			releaseSecond();
+			const result = await ticking;
+			expect(f.runsRepo.listByTaskId(firstTask.id)).toHaveLength(0);
+			expect(f.dispatchSnapshotsRepo.listByTaskId(firstTask.id)).toHaveLength(0);
+			expect(f.tasksRepo.findById(firstTask.id)?.lane_no).toBeNull();
+			expect(f.runsRepo.listByTaskId(secondTask.id)).toHaveLength(1);
+			expect(result.runsDispatched).toHaveLength(1);
+		},
+	);
+	it.each(['manual', 'rerun', 'auto'] as const)(
+		'honors changed readiness metadata for %s dispatch while allowing ready siblings',
+		async (mode) => {
+			const f = setup();
+			const source = join(f.repo, 'docs-data.js');
+			writeTasksDocsData(source, [
+				{ id: 'T-1', hash: 'hash-t1' },
+				{ id: 'T-2', hash: 'hash-t2' },
+			]);
+			const imported = await f.service.importDocument(source);
+			const task = f.tasksRepo.findByDocAndKey(imported.document.id, 'T-1');
+			const sibling = f.tasksRepo.findByDocAndKey(imported.document.id, 'T-2');
+			if (!task?.batch_id || !sibling) throw new Error('Imported tasks missing');
+			if (mode === 'rerun') f.seedRun(imported.document.id, 'failed');
+			const payload = JSON.parse(
+				readFileSync(source, 'utf8')
+					.replace(/^window\.DOCS\s*=\s*/, '')
+					.replace(/;$/, ''),
+			);
+			payload.handoff.readiness['T-1'] = {
+				ready: false,
+				reasons: ['H01: Review pending'],
+				contractHash: 'hash-t1',
+			};
+			writeFileSync(source, `window.DOCS = ${JSON.stringify(payload)};`);
+			expect((await f.service.parseFile(source)).contentFingerprint).toBe(
+				imported.document.contentFingerprint,
+			);
+			const dispatch = f.makeDispatch();
+			if (mode === 'auto') {
+				f.batchesRepo.updateState({ id: task.batch_id, state: 'running' });
+				const result = await dispatch.tick();
+				expect(result.tasksBlocked).toContainEqual({
+					taskId: task.id,
+					reason: 'contract_not_ready',
+				});
+				expect(f.runsRepo.listByTaskId(sibling.id)).toHaveLength(1);
+			} else {
+				const pending =
+					mode === 'rerun'
+						? dispatch.rerunRun({ runId: 'original-run', idempotencyKey: 'readiness-rerun' })
+						: dispatch.createRun({
+								taskId: task.id,
+								agentId: 'codex',
+								permissionTier: 'workspaceWrite',
+								idempotencyKey: 'readiness-manual',
+							});
+				await expect(pending).rejects.toMatchObject({
+					code: 'E_DOC_CONTRACT_PENDING',
+					details: { pendingTasks: [{ taskId: task.id, reasons: ['H01: Review pending'] }] },
+				});
+				await dispatch.createRun({
+					taskId: sibling.id,
+					agentId: 'codex',
+					permissionTier: 'workspaceWrite',
+					idempotencyKey: 'ready-sibling',
+				});
+			}
+			expect(f.runsRepo.listByTaskId(task.id)).toHaveLength(mode === 'rerun' ? 1 : 0);
+			expect(f.service.getDocumentById(imported.document.id)?.isSourceReadable).toBe(true);
+		},
+	);
+	it.each(['malformed', 'version', 'contract'] as const)(
+		'blocks new dispatch after a %s source change without replacing cached tasks or snapshots',
+		async (change) => {
+			const f = setup();
+			const source = f.writeDoc(join(f.repo, 'docs'));
+			const imported = await f.service.importDocument(source);
+			const history = f.seedRun(imported.document.id, 'failed');
+			const originalDoc = f.documentsRepo.findById(imported.document.id);
+			const content = readFileSync(source, 'utf8');
+			writeFileSync(
+				source,
+				change === 'malformed'
+					? 'window.DOCS = {'
+					: change === 'version'
+						? content.replace('"schemaVersion":1', '"schemaVersion":2')
+						: content.replaceAll('hash-t1', 'hash-t1-changed'),
+			);
+			const error = change === 'contract' ? 'E_SNAPSHOT_STALE' : 'E_DOC_SOURCE_UNREADABLE';
+			const dispatch = f.makeDispatch();
+			await expect(
+				dispatch.createRun({
+					taskId: history.task.id,
+					agentId: 'codex',
+					permissionTier: 'workspaceWrite',
+					idempotencyKey: 'new-run',
+				}),
+			).rejects.toMatchObject({ code: error });
+			await expect(
+				dispatch.startBatch({ batchId: history.task.batch_id as string }),
+			).rejects.toMatchObject({ code: error });
+			const tick = await dispatch.tick();
+			expect(tick.runsDispatched).toHaveLength(0);
+			expect(f.documentsRepo.findById(imported.document.id)?.content_fingerprint).toBe(
+				originalDoc?.content_fingerprint,
+			);
+			expect(f.service.getDocumentById(imported.document.id)?.isSourceReadable).toBe(
+				change === 'contract',
+			);
+			expect(f.tasksRepo.findById(history.task.id)).toEqual(history.task);
+			expect(f.runsRepo.listAll()).toEqual([history.run]);
+			expect(f.dispatchSnapshotsRepo.findById(history.snapshot.id)).toEqual(history.snapshot);
+		},
+	);
+
+	it.each(['idle', 'done'] as const)(
+		'does not probe an inactive %s document on every tick',
+		async (state) => {
+			const f = setup();
+			const imported = await f.service.importDocument(f.writeDoc(join(f.repo, 'docs')));
+			const task = f.tasksRepo.findByDocAndKey(imported.document.id, 'T-1');
+			f.batchesRepo.updateState({ id: task?.batch_id as string, state });
+			const validate = vi.fn(f.service.validateWorkspace);
+			await f.makeDispatch(validate).tick();
+			expect(validate).not.toHaveBeenCalled();
+		},
+	);
+
+	it.each([true, false])(
+		'advances already landed work when source readability is %s',
+		async (readable) => {
+			const f = setup();
+			const source = f.writeDoc(join(f.repo, 'docs'));
+			const imported = await f.service.importDocument(source);
+			const history = f.seedRun(imported.document.id, 'failed');
+			f.runsRepo.updateState({ id: 'original-run', state: 'landed' });
+			f.batchesRepo.updateState({ id: history.task.batch_id as string, state: 'running' });
+			rmSync(source);
+			if (!readable) f.service.markSourceUnreadable(imported.document.id);
+			const validate = vi.fn(f.service.validateWorkspace);
+			await f.makeDispatch(validate).tick();
+			expect(f.batchesRepo.findById(history.task.batch_id as string)?.state).toBe(
+				'awaiting_landing',
+			);
+			expect(validate).not.toHaveBeenCalled();
+		},
+	);
+
+	it('launches an already snapshot-backed queued run after its source disappears', async () => {
+		const f = setup();
+		const source = f.writeDoc(join(f.repo, 'docs'));
+		const imported = await f.service.importDocument(source);
+		const history = f.seedRun(imported.document.id, 'failed');
+		f.runsRepo.updateState({ id: 'original-run', state: 'queued', queuedReason: 'lane_full' });
+		f.batchesRepo.updateState({ id: history.task.batch_id as string, state: 'running' });
+		rmSync(source);
+		f.service.markSourceUnreadable(imported.document.id);
+		const validate = vi.fn(f.service.validateWorkspace);
+		const result = await f.makeDispatch(validate).tick();
+		expect(result.runsDispatched).toEqual(['original-run']);
+		expect(f.runsRepo.findById('original-run')?.state).toBe('starting');
+		expect(f.dispatchSnapshotsRepo.findById(history.snapshot.id)).toEqual(history.snapshot);
+		expect(validate).not.toHaveBeenCalled();
+	});
+
+	it.each(['preflight', 'refresh'] as const)(
+		'does not mark a recovered binding unreadable after an old %s read fails',
+		async (action) => {
+			const blockedRead: { path?: string } = {};
+			let rejectRead: (error: Error) => void = () => {};
+			const f = setup({
+				readFile: async (path) => {
+					if (path === blockedRead.path)
+						return new Promise<string>((_resolve, reject) => {
+							rejectRead = reject;
+						});
+					return readFileSync(path, 'utf8');
+				},
+			});
+			const oldPath = f.writeDoc(join(f.repo, 'old docs'));
+			const imported = await f.service.importDocument(oldPath);
+			blockedRead.path = oldPath;
+			const pending =
+				action === 'preflight'
+					? f.service.validateWorkspace(imported.document.id)
+					: f.service.refreshDocument(imported.document.id);
+			const rejection = expect(pending).rejects.toMatchObject({ code: 'E_DOC_SOURCE_UNREADABLE' });
+			const newPath = f.writeDoc(join(f.repo, 'new docs'));
+			await f.service.refreshDocument(imported.document.id, { docsPath: newPath });
+			rejectRead(new Error('Old source removed'));
+			await rejection;
+			expect(f.service.getDocumentById(imported.document.id)).toMatchObject({
+				docsPath: newPath,
+				isSourceReadable: true,
+			});
+			await expect(f.service.validateWorkspace(imported.document.id)).resolves.toBeUndefined();
+		},
+	);
+
+	it('returns the accepted rerun on an idempotent retry after its source disappears', async () => {
+		const f = setup();
+		const source = f.writeDoc(join(f.repo, 'docs'));
+		const imported = await f.service.importDocument(source);
+		const history = f.seedRun(imported.document.id, 'failed');
+		const dispatch = f.makeDispatch();
+		const input = { runId: 'original-run', idempotencyKey: 'rerun-retry' };
+		const accepted = await dispatch.rerunRun(input);
+		const acceptedSnapshots = f.dispatchSnapshotsRepo.listByTaskId(history.task.id);
+		rmSync(source);
+		await expect(dispatch.rerunRun(input)).resolves.toEqual(accepted);
+		expect(f.runsRepo.listByTaskId(history.task.id)).toHaveLength(2);
+		expect(f.dispatchSnapshotsRepo.listByTaskId(history.task.id)).toEqual(acceptedSnapshots);
+	});
 	it('binds a portable repository name to the Git root containing docs-data.js', async () => {
 		const { repo, service, writeDoc } = setup();
 		const imported = await service.importDocument(writeDoc(join(repo, 'docs', '开发文档')));
@@ -277,7 +607,7 @@ describe('document repository binding with real Git', () => {
 		expect(dispatchSnapshotsRepo.findById(history.snapshot.id)).toEqual(history.snapshot);
 	});
 
-	it.each(['healthy', 'source', 'repository'] as const)(
+	it.each(['healthy', 'source', 'repository', 'malformed', 'version', 'contract'] as const)(
 		'checks the %s workspace before automatic dispatch in a running batch',
 		async (missing) => {
 			const fixture = setup();
@@ -304,6 +634,17 @@ describe('document repository binding with real Git', () => {
 			});
 			if (missing === 'source') rmSync(docsPath);
 			else if (missing === 'repository') rmSync(repo, { recursive: true });
+			else if (missing === 'malformed') writeFileSync(docsPath, 'window.DOCS = {');
+			else if (missing === 'version')
+				writeFileSync(
+					docsPath,
+					readFileSync(docsPath, 'utf8').replace('"schemaVersion":1', '"schemaVersion":2'),
+				);
+			else if (missing === 'contract')
+				writeFileSync(
+					docsPath,
+					readFileSync(docsPath, 'utf8').replaceAll('hash-t1', 'changed-hash'),
+				);
 			const result = await dispatch.tick();
 			if (missing === 'healthy') {
 				expect(result.runsDispatched).toHaveLength(1);
@@ -319,7 +660,12 @@ describe('document repository binding with real Git', () => {
 			expect(tasksRepo.findById(task.id)).toEqual(task);
 			expect(errors).toEqual([
 				expect.objectContaining({
-					code: missing === 'source' ? 'E_DOC_SOURCE_UNREADABLE' : 'E_NOT_A_GIT_REPO',
+					code:
+						missing === 'contract'
+							? 'E_SNAPSHOT_STALE'
+							: missing === 'repository'
+								? 'E_NOT_A_GIT_REPO'
+								: 'E_DOC_SOURCE_UNREADABLE',
 				}),
 			]);
 		},

@@ -572,6 +572,45 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		expect(container.repos.batches.findById(task.batch_id)).toEqual(initialBatch);
 	});
 
+	it('returns current readiness reasons through the production HTTP dispatch entry', async () => {
+		const { server, container } = setupServer();
+		const authorization = await getAuthToken(container);
+		const docsPath = join(testDir, 'docs-data.js');
+		const content = createDocsDataJs();
+		writeFileSync(docsPath, content);
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers: { authorization },
+			payload: { docsPath },
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const docId = (imported.json() as CreateDocumentResponse).document.id;
+		const task = container.repos.tasks.findByDocAndKey(docId, 'T-1');
+		if (!task) throw new Error('Imported task missing');
+		const payload = JSON.parse(content.replace(/^window\.DOCS\s*=\s*/, '').replace(/;\s*$/, ''));
+		payload.handoff.readiness['T-1'].ready = false;
+		payload.handoff.readiness['T-1'].reasons = ['H01: Review pending'];
+		writeFileSync(docsPath, `window.DOCS = ${JSON.stringify(payload)};`);
+		const run = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs',
+			headers: { authorization },
+			payload: { taskId: task.id, agentId: 'codex', idempotencyKey: 'readiness-http-001' },
+		});
+		expect(run.statusCode).toBe(409);
+		expect(run.json().error).toMatchObject({
+			code: 'E_DOC_CONTRACT_PENDING',
+			details: { pendingTasks: [{ taskId: task.id, reasons: ['H01: Review pending'] }] },
+		});
+		expect(run.json().error.message).toContain('H01: Review pending');
+		expect(
+			ROUTES.find((route) => route.method === 'POST' && route.path === '/api/v1/runs')?.errors,
+		).toContain(run.json().error.code);
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		expect(container.repos.documents.findById(docId)?.is_source_readable).toBe(1);
+	});
+
 	it('AC 3: GET /documents/:docId/tasks supports state filter, cursor pagination, and derived state', async () => {
 		const { server, container } = setupServer();
 		const authToken = await getAuthToken(container);

@@ -24,6 +24,7 @@ import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-
 import { createProcessRegistry } from '../../src/proc/registry.ts';
 import { type ManagedProcess, spawnManaged } from '../../src/proc/spawn.ts';
 import { createRerunService } from '../../src/service/rerun.ts';
+import { writeTaskDocsData } from '../fixtures/task-docs-data.ts';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -36,7 +37,7 @@ async function environment(queuedSettings = 4999) {
 	execFileSync('git', ['init', '-q', dataDir]);
 	const docsPath = join(dataDir, 'source', 'docs-data.js');
 	mkdirSync(dirname(docsPath));
-	writeFileSync(docsPath, 'document source fixture');
+	const docFingerprint = writeTaskDocsData(docsPath, 'M6-T5', 'contract');
 	const db = openDatabase(':memory:');
 	const migrations = join(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 	for (const file of readdirSync(migrations)
@@ -112,7 +113,7 @@ async function environment(queuedSettings = 4999) {
 		main_branch: 'main',
 		branch_prefix: 'task/',
 		lane_count: 1,
-		content_fingerprint: 'fp',
+		content_fingerprint: docFingerprint,
 		is_source_readable: 1,
 		is_takeover_notified: 0,
 		imported_at: now,

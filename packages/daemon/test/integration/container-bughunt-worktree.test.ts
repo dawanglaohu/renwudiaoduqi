@@ -25,6 +25,7 @@ import { createHttpServer } from '../../src/http/server.ts';
 import type { SupportedPlatform } from '../../src/platform/contract.ts';
 import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import type { LaunchSpec } from '../../src/proc/spawn.ts';
+import { writeTaskDocsData } from '../fixtures/task-docs-data.ts';
 
 it.each(['fresh', 'reuse', 'implementation-fresh', 'missing-worktree'] as const)(
 	'respects stage workspace ownership with frozen mode %s',
@@ -114,7 +115,7 @@ it.each(['fresh', 'reuse', 'implementation-fresh', 'missing-worktree'] as const)
 		try {
 			await container.services.agents.start();
 			expect(container.services.agents.getAvailability('codex')?.canDispatch).toBe(true);
-			writeFileSync(join(repoPath, 'docs-data.js'), 'document source fixture');
+			const docFingerprint = writeTaskDocsData(join(repoPath, 'docs-data.js'), 'BH-T1', 'fp');
 			container.repos.documents.insert({
 				id: 'doc',
 				docs_path: join(repoPath, 'docs-data.js'),
@@ -123,7 +124,7 @@ it.each(['fresh', 'reuse', 'implementation-fresh', 'missing-worktree'] as const)
 				main_branch: 'main',
 				branch_prefix: 'task/',
 				lane_count: 1,
-				content_fingerprint: 'fp',
+				content_fingerprint: docFingerprint,
 				is_source_readable: 1,
 				is_takeover_notified: 0,
 				imported_at: container.clock.now(),

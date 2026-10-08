@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +32,7 @@ import type {
 	PrepareWorktreeResult,
 	WorktreeManager,
 } from '../../src/workspace/worktree.ts';
+import { writeTaskDocsData } from '../fixtures/task-docs-data.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(currentDir, '../../../..');
@@ -422,7 +423,7 @@ function setupWiringEnvironment(
 
 	// Seed document, batch, task, snapshot
 	const docsPath = join(tempDir, 'docs-data.js');
-	writeFileSync(docsPath, 'document source fixture');
+	const docFingerprint = writeTaskDocsData(docsPath, 'M7-T9', 'contract-hash-task-1');
 	container.repos.documents.insert({
 		id: 'doc-1',
 		docs_path: docsPath,
@@ -431,7 +432,7 @@ function setupWiringEnvironment(
 		main_branch: 'main',
 		branch_prefix: 'task/',
 		lane_count: 2,
-		content_fingerprint: 'fp-1',
+		content_fingerprint: docFingerprint,
 		is_source_readable: 1,
 		is_takeover_notified: 0,
 		imported_at: clock.now(),

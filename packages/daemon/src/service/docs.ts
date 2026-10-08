@@ -188,7 +188,7 @@ export interface DocsService {
 		docId: string,
 		options?: RefreshDocumentBody,
 	) => Promise<RefreshDocumentResponse>;
-	readonly validateWorkspace: (docId: string) => Promise<void>;
+	readonly validateWorkspace: (docId: string, taskIds?: readonly string[]) => Promise<void>;
 	readonly listTasks: (docId: string, query?: ListTasksQuery) => Promise<ListTasksResult>;
 	readonly getDocumentById: (id: string) => DocumentRecord | null;
 	readonly getDocumentByPath: (docsPath: string) => DocumentRecord | null;
@@ -825,6 +825,18 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			hostInputs: deps.hostInputs,
 			ids: deps.ids,
 		});
+	function isCurrentSource(row: DocumentRow): boolean {
+		const current = deps.documentsRepo.findById(row.id);
+		return (
+			current?.docs_path === row.docs_path &&
+			current.repo_path === row.repo_path &&
+			current.content_fingerprint === row.content_fingerprint &&
+			current.last_seen_at === row.last_seen_at
+		);
+	}
+	function markUnreadableIfCurrent(row: DocumentRow): void {
+		if (isCurrentSource(row)) deps.documentsRepo.markSourceUnreadable(row.id, deps.clock.now());
+	}
 	function bindingRepo(existing: DocumentRow | null, parsed: ParsedDocData): string | undefined {
 		const candidate = existing?.repo_path ?? parsed.repoPath;
 		return candidate &&
@@ -890,6 +902,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			options?: { repoPath?: string },
 		): Promise<ImportDocumentResult> {
 			const resolvedPath = resolve(docsPath);
+			const sourceBeforeRead = deps.documentsRepo.findByPath(resolvedPath);
 
 			let parsed: ParsedDocData;
 			try {
@@ -908,10 +921,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 							);
 
 				// E-82：源不可读时只置不可读标记，既有任务和派发快照保持不变。
-				const existingRow = deps.documentsRepo.findByPath(resolvedPath);
-				if (existingRow) {
-					deps.documentsRepo.markSourceUnreadable(existingRow.id, deps.clock.now());
-				}
+				if (sourceBeforeRead) markUnreadableIfCurrent(sourceBeforeRead);
 				throw appError;
 			}
 
@@ -1020,8 +1030,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 							});
 
 				// E-82: 源不可读时只置不可读标记，既有任务和派发快照保持不变。
-				if (docsPath === existingRow.docs_path)
-					deps.documentsRepo.markSourceUnreadable(existingRow.id, deps.clock.now());
+				if (docsPath === existingRow.docs_path) markUnreadableIfCurrent(existingRow);
 				throw appError;
 			}
 
@@ -1109,21 +1118,27 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			});
 		},
 
-		async validateWorkspace(docId: string): Promise<void> {
+		async validateWorkspace(docId: string, taskIds?: readonly string[]): Promise<void> {
 			const doc = deps.documentsRepo.findById(docId);
 			if (!doc) throw new AppError('E_NOT_FOUND', `Document not found: ${docId}`);
+			let parsed: ParsedDocData;
 			try {
-				await fileSystem.readFile(doc.docs_path, 'utf8');
+				parsed = await parseDocsDataFile(doc.docs_path, fileSystem, hasher);
 			} catch (cause) {
-				deps.documentsRepo.markSourceUnreadable(docId, deps.clock.now());
+				markUnreadableIfCurrent(doc);
 				throw new AppError(
 					'E_DOC_SOURCE_UNREADABLE',
-					`文档来源不可读：${doc.docs_path}。请重新绑定文档路径。`,
+					`文档来源不可读或格式无效：${doc.docs_path}。请刷新或重新绑定文档。`,
 					{
 						cause,
 						details: { docId, docsPath: doc.docs_path },
 					},
 				);
+			}
+			if (parsed.contentFingerprint !== doc.content_fingerprint) {
+				throw new AppError('E_SNAPSHOT_STALE', '文档任务契约已变化，请刷新并确认新文档后再派发。', {
+					details: { docId, docsPath: doc.docs_path },
+				});
 			}
 			if (
 				!doc.repo_path ||
@@ -1139,6 +1154,31 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				);
 			}
 			await resolveDocumentRepository(doc.docs_path, doc.repo_path, gitRunner);
+			if (!isCurrentSource(doc)) {
+				throw new AppError('E_WORKSPACE_UNAVAILABLE', '文档绑定已变化，请重新派发。', {
+					details: { docId, docsPath: doc.docs_path },
+				});
+			}
+			const tasksRepo = deps.tasksRepo ?? (deps.db ? createTasksRepo(deps.db) : undefined);
+			const pendingTasks = (taskIds ?? []).flatMap((taskId) => {
+				const task = tasksRepo?.findById(taskId);
+				const sourceTask = task ? parsed.taskMap.get(task.task_key) : undefined;
+				if (!sourceTask) {
+					throw new AppError('E_SNAPSHOT_STALE', '任务来源已变化，请刷新文档后再派发。', {
+						details: { docId, taskId },
+					});
+				}
+				return sourceTask.isContractReady ? [] : [{ taskId, reasons: sourceTask.contractReasons }];
+			});
+			if (pendingTasks.length > 0) {
+				throw new AppError(
+					'E_DOC_CONTRACT_PENDING',
+					`任务契约待复核：${pendingTasks.flatMap((task) => task.reasons).join('；')}。请处理后再派发。`,
+					{
+						details: { docId, pendingTasks },
+					},
+				);
+			}
 		},
 
 		async listTasks(docId: string, query?: ListTasksQuery): Promise<ListTasksResult> {
@@ -1254,7 +1294,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			if (!exists) {
 				// E-86: 文档目录被移动或重命名时提示「文档路径不可用，请重新定位」，
 				// 任务记录、快照、会话指针全部保留，只标记源不可读
-				deps.documentsRepo.markSourceUnreadable(id, deps.clock.now());
+				markUnreadableIfCurrent(row);
 				throw new AppError('E_NOT_FOUND', 'Document reader path is not available', {
 					details: {
 						docId: id,
