@@ -903,6 +903,8 @@ export function createContainer(input: {
 		input.dispatchService ??
 		createDispatchService({
 			validateWorkspace: (docId, taskIds) => docsService.validateWorkspace(docId, taskIds),
+			validateSourceAtCommit: (docId, taskIds) =>
+				docsService.validateSourceAtCommit(docId, taskIds),
 			unitOfWork,
 			tasksRepo: tasks,
 			batchesRepo: batches,

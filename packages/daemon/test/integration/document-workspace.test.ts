@@ -121,6 +121,7 @@ function setup(fs?: DocsFileSystem) {
 	) {
 		return createDispatchService({
 			validateWorkspace,
+			validateSourceAtCommit: service.validateSourceAtCommit,
 			wrapupService,
 			tasksRepo,
 			batchesRepo,
@@ -196,7 +197,14 @@ describe('document repository binding with real Git', () => {
 		expect(f.runsRepo.listByTaskId(second.id)).toHaveLength(0);
 		expect(f.dispatchSnapshotsRepo.listByTaskId(second.id)).toHaveLength(0);
 	});
-	it.each(['rebind', 'unreadable', 'contract'] as const)(
+	it.each([
+		'rebind',
+		'unreadable',
+		'contract',
+		'source_deleted',
+		'source_contract',
+		'source_readiness',
+	] as const)(
 		'rechecks the %s document at commit after another document preflight waits',
 		async (change) => {
 			const f = setup();
@@ -226,12 +234,21 @@ describe('document repository binding with real Git', () => {
 			const ticking = dispatch.tick();
 			await reached;
 			expect(f.runsRepo.listActive()).toHaveLength(0);
-			if (change === 'contract') {
+			if (change === 'source_deleted') {
+				rmSync(oldSource);
+			} else if (change === 'source_readiness') {
+				writeFileSync(
+					oldSource,
+					readFileSync(oldSource, 'utf8')
+						.replaceAll('"ready":true', '"ready":false')
+						.replaceAll('"reasons":[]', '"reasons":["H01 late source change"]'),
+				);
+			} else if (change === 'contract' || change === 'source_contract') {
 				writeFileSync(
 					oldSource,
 					readFileSync(oldSource, 'utf8').replaceAll('hash-t1', 'changed-hash'),
 				);
-				await f.service.refreshDocument(first.document.id);
+				if (change === 'contract') await f.service.refreshDocument(first.document.id);
 			} else {
 				const replacement = f.writeDoc(join(f.repo, 'replacement'));
 				await f.service.refreshDocument(first.document.id, { docsPath: replacement });

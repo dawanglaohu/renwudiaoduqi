@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import * as nodeFs from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import type {
@@ -134,6 +135,7 @@ export interface DocsServiceDeps {
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly fs?: DocsFileSystem;
+	readonly readSourceAtCommit?: (path: string) => string;
 	readonly hasher?: DocsFingerprintHasher;
 	readonly bus?: EventBus;
 	readonly envelopeFactory?: EnvelopeFactory;
@@ -189,6 +191,7 @@ export interface DocsService {
 		options?: RefreshDocumentBody,
 	) => Promise<RefreshDocumentResponse>;
 	readonly validateWorkspace: (docId: string, taskIds?: readonly string[]) => Promise<void>;
+	readonly validateSourceAtCommit: (docId: string, taskIds?: readonly string[]) => void;
 	readonly listTasks: (docId: string, query?: ListTasksQuery) => Promise<ListTasksResult>;
 	readonly getDocumentById: (id: string) => DocumentRecord | null;
 	readonly getDocumentByPath: (docsPath: string) => DocumentRecord | null;
@@ -837,6 +840,41 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 	function markUnreadableIfCurrent(row: DocumentRow): void {
 		if (isCurrentSource(row)) deps.documentsRepo.markSourceUnreadable(row.id, deps.clock.now());
 	}
+	function assertSourceContract(
+		doc: DocumentRow,
+		parsed: ParsedDocData,
+		taskIds?: readonly string[],
+	): void {
+		const docId = doc.id;
+		if (parsed.contentFingerprint !== doc.content_fingerprint) {
+			throw new AppError('E_SNAPSHOT_STALE', '文档任务契约已变化，请刷新并确认新文档后再派发。', {
+				details: { docId, docsPath: doc.docs_path },
+			});
+		}
+		if (!isCurrentSource(doc)) {
+			throw new AppError('E_WORKSPACE_UNAVAILABLE', '文档绑定已变化，请重新派发。', {
+				details: { docId, docsPath: doc.docs_path },
+			});
+		}
+		const tasksRepo = deps.tasksRepo ?? (deps.db ? createTasksRepo(deps.db) : undefined);
+		const pendingTasks = (taskIds ?? []).flatMap((taskId) => {
+			const task = tasksRepo?.findById(taskId);
+			const sourceTask = task ? parsed.taskMap.get(task.task_key) : undefined;
+			if (!sourceTask) {
+				throw new AppError('E_SNAPSHOT_STALE', '任务来源已变化，请刷新文档后再派发。', {
+					details: { docId, taskId },
+				});
+			}
+			return sourceTask.isContractReady ? [] : [{ taskId, reasons: sourceTask.contractReasons }];
+		});
+		if (pendingTasks.length > 0) {
+			throw new AppError(
+				'E_DOC_CONTRACT_PENDING',
+				`任务契约待复核：${pendingTasks.flatMap((task) => task.reasons).join('；')}。请处理后再派发。`,
+				{ details: { docId, pendingTasks } },
+			);
+		}
+	}
 	function bindingRepo(existing: DocumentRow | null, parsed: ParsedDocData): string | undefined {
 		const candidate = existing?.repo_path ?? parsed.repoPath;
 		return candidate &&
@@ -1135,11 +1173,6 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 					},
 				);
 			}
-			if (parsed.contentFingerprint !== doc.content_fingerprint) {
-				throw new AppError('E_SNAPSHOT_STALE', '文档任务契约已变化，请刷新并确认新文档后再派发。', {
-					details: { docId, docsPath: doc.docs_path },
-				});
-			}
 			if (
 				!doc.repo_path ||
 				!classifyPathForHost(doc.repo_path, process.platform as PlatformHostInputs['platform'])
@@ -1154,31 +1187,30 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				);
 			}
 			await resolveDocumentRepository(doc.docs_path, doc.repo_path, gitRunner);
-			if (!isCurrentSource(doc)) {
-				throw new AppError('E_WORKSPACE_UNAVAILABLE', '文档绑定已变化，请重新派发。', {
-					details: { docId, docsPath: doc.docs_path },
-				});
-			}
-			const tasksRepo = deps.tasksRepo ?? (deps.db ? createTasksRepo(deps.db) : undefined);
-			const pendingTasks = (taskIds ?? []).flatMap((taskId) => {
-				const task = tasksRepo?.findById(taskId);
-				const sourceTask = task ? parsed.taskMap.get(task.task_key) : undefined;
-				if (!sourceTask) {
-					throw new AppError('E_SNAPSHOT_STALE', '任务来源已变化，请刷新文档后再派发。', {
-						details: { docId, taskId },
-					});
-				}
-				return sourceTask.isContractReady ? [] : [{ taskId, reasons: sourceTask.contractReasons }];
-			});
-			if (pendingTasks.length > 0) {
+			assertSourceContract(doc, parsed, taskIds);
+		},
+
+		validateSourceAtCommit(docId: string, taskIds?: readonly string[]): void {
+			const doc = deps.documentsRepo.findById(docId);
+			if (!doc) throw new AppError('E_NOT_FOUND', `Document not found: ${docId}`);
+			let parsed: ParsedDocData;
+			try {
+				const content = deps.readSourceAtCommit
+					? deps.readSourceAtCommit(doc.docs_path)
+					: readFileSync(doc.docs_path, 'utf8');
+				parsed = parseDocsDataContent(content, { docsPath: doc.docs_path, hasher });
+			} catch (cause) {
+				markUnreadableIfCurrent(doc);
 				throw new AppError(
-					'E_DOC_CONTRACT_PENDING',
-					`任务契约待复核：${pendingTasks.flatMap((task) => task.reasons).join('；')}。请处理后再派发。`,
+					'E_DOC_SOURCE_UNREADABLE',
+					'文档来源已不可读或格式无效，请刷新或重新绑定。',
 					{
-						details: { docId, pendingTasks },
+						cause,
+						details: { docId, docsPath: doc.docs_path },
 					},
 				);
 			}
+			assertSourceContract(doc, parsed, taskIds);
 		},
 
 		async listTasks(docId: string, query?: ListTasksQuery): Promise<ListTasksResult> {

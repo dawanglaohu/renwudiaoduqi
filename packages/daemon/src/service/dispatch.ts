@@ -244,6 +244,7 @@ function createAgentDefaultsLookup(
 
 export interface DispatchServiceDeps {
 	readonly validateWorkspace?: (docId: string, taskIds?: readonly string[]) => Promise<void>;
+	readonly validateSourceAtCommit?: (docId: string, taskIds?: readonly string[]) => void;
 	readonly unitOfWork?: UnitOfWork;
 	readonly tasksRepo: TasksRepo;
 	readonly batchesRepo: BatchesRepo;
@@ -712,6 +713,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		let startedEvent: EventEnvelope | null = null;
 		const persist = (): { readonly snapshotId: string } => {
 			assertDocumentUnchanged(preflightDoc);
+			deps.validateSourceAtCommit?.(task.doc_id, [task.id]);
 			if (typeof input.laneNo === 'number' && deps.tasksRepo.assignLaneNo) {
 				const changes = deps.tasksRepo.assignLaneNo(taskId, input.laneNo);
 				if (changes === 0) {
@@ -852,6 +854,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				const preflightDoc = checkDocumentReadable(docId);
 				await deps.validateWorkspace?.(docId, task ? [task.id] : undefined);
 				assertDocumentUnchanged(preflightDoc);
+				deps.validateSourceAtCommit?.(docId, task ? [task.id] : undefined);
 			}
 		}
 		const result = await rerunService.rerunRun(input);
@@ -914,6 +917,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		assertDocumentUnchanged(preflightDoc);
+		deps.validateSourceAtCommit?.(batch.doc_id);
 		await effectiveBatchService.transitionBatch(batchId, 'running', 'batch_start');
 
 		const batchTasks = deps.tasksRepo.listByBatchId(batchId);
@@ -1941,15 +1945,33 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				const runsToLaunch = pendingRunsToLaunch;
 				const reworksToDispatch = pendingReworksToDispatch;
 				const hasNewWork = admitted.some((item) => !item.candidate.isRework);
+				const newTaskIds = admitted
+					.filter((item) => !item.candidate.isRework)
+					.map((item) => item.candidate.task.id);
 
 				const assignAllInTx = () => {
 					let newWorkAllowed = true;
 					if (hasNewWork) {
 						try {
 							assertDocumentUnchanged(doc);
+							// 同步读取提交时的来源，保持整轮分配事务且不引入新的异步等待。
+							deps.validateSourceAtCommit?.(doc.id, newTaskIds);
 						} catch (error) {
 							logFailure(error);
-							newWorkAllowed = false;
+							if (
+								error instanceof AppError &&
+								error.code === 'E_DOC_CONTRACT_PENDING' &&
+								Array.isArray(error.details?.pendingTasks)
+							) {
+								for (const pending of error.details.pendingTasks) {
+									if (typeof pending?.taskId === 'string' && newTaskIds.includes(pending.taskId)) {
+										pendingTaskIds.add(pending.taskId);
+										tasksBlocked.push({ taskId: pending.taskId, reason: 'contract_not_ready' });
+									}
+								}
+							} else {
+								newWorkAllowed = false;
+							}
 						}
 					}
 					for (let i = 0; i < admitted.length; i++) {
@@ -1959,7 +1981,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						const item = admitted[i];
 						if (!item) continue;
 						const candidate = item.candidate;
-						if (!candidate.isRework && !newWorkAllowed) continue;
+						if (!candidate.isRework && (!newWorkAllowed || pendingTaskIds.has(candidate.task.id)))
+							continue;
 
 						if (candidate.isRework && candidate.reworkRun) {
 							const reworkRun = candidate.reworkRun;
