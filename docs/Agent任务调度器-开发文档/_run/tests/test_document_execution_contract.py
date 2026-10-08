@@ -1,4 +1,4 @@
-"""新增文档执行合同与既有指派格式、控制版本的接缝检查。"""
+"""文档执行合同与控制版本、指派格式、收口成员的接缝检查。"""
 import json
 from pathlib import Path
 import unittest
@@ -43,6 +43,25 @@ class DocumentExecutionContractTests(unittest.TestCase):
                     prompt = dispatch['tasks'][task][side]
                     self.assertIn('expectedVersion', prompt)
                     self.assertIn('EffortValue', prompt)
+
+    def test_done_reuse_requires_a_matching_membership_proof(self):
+        text = (DOCS_ROOT / '05-附录/22-决策记录.md').read_text(encoding='utf-8')
+        extension = text.split('## 文档级顺序自动执行', 1)[1]
+        self.assertIn('membershipFingerprint', extension)
+        self.assertIn('completionFingerprint', extension)
+        self.assertIn('tasks_json', extension)
+        self.assertIn('finished_at', extension)
+        self.assertNotIn('已 done 批次和既有运行不重跑', extension)
+        self.assertNotIn('保留已完成批次与历史运行，重新规划未完成部分', extension)
+
+    def test_new_batch_members_cannot_be_skipped_in_generated_prompts(self):
+        dispatch = json.loads((DOCS_ROOT / '_run/dispatch.json').read_text(encoding='utf-8'))
+        for task in TASKS:
+            for side in ('implementation', 'review'):
+                with self.subTest(task=task, side=side):
+                    prompt = dispatch['tasks'][task][side]
+                    self.assertIn('membershipFingerprint', prompt)
+                    self.assertIn('已完成批次新增任务', prompt)
 
 
 if __name__ == '__main__':
