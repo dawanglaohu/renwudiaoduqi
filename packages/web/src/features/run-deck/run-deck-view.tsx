@@ -492,10 +492,14 @@ export function RunDeckView(props: RunDeckViewProps) {
 				tasks={assignPanel.tasks}
 				selectedDocId={assignPanel.selectedDocId ?? undefined}
 				selectedBatchId={assignPanel.selectedBatchId ?? undefined}
+				isSaving={assignPanel.isSaving}
 				onSelectDoc={assignPanel.selectDoc}
 				onSelectBatch={assignPanel.selectBatch}
-				onImportDocument={(docsPath) => {
-					void assignPanel.importDocument(docsPath);
+				onImportDocument={(docsPath, repoPath) => {
+					void assignPanel.importDocument(docsPath, repoPath);
+				}}
+				onRebindDocument={(docsPath, repoPath) => {
+					void assignPanel.rebindDocument(docsPath, repoPath);
 				}}
 				onDispatch={() => {
 					if (canDispatch) void assignPanel.startBatch();

@@ -18,6 +18,7 @@ export interface DocumentRow {
 
 export interface DocumentMetadataUpdateRow {
 	readonly id: string;
+	readonly docs_path?: string;
 	readonly project_name: string;
 	readonly repo_path: string | null;
 	readonly main_branch: string;
@@ -116,6 +117,7 @@ ORDER BY imported_at ASC
 const UPDATE_METADATA_SQL = `
 UPDATE documents
 SET
+	docs_path = COALESCE(@docs_path, docs_path),
 	project_name = @project_name,
 	repo_path = @repo_path,
 	main_branch = @main_branch,
@@ -302,7 +304,7 @@ export function createDocumentsRepo(db: DatabaseConnection): DocumentsRepo {
 		updateMetadata(row: DocumentMetadataUpdateRow): void {
 			if (!hasDocumentsTable()) return;
 			try {
-				getUpdateMetadataStmt().run(row);
+				getUpdateMetadataStmt().run({ ...row, docs_path: row.docs_path ?? null });
 			} catch (cause) {
 				throw toDatabaseError(cause, `Failed to update document metadata: ${row.id}`);
 			}

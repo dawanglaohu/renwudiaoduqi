@@ -94,7 +94,9 @@ export interface EmptyOnboardingProps {
 	/** 选中批次回调 */
 	readonly onSelectBatch?: (batchId: string) => void;
 	/** 导入 daemon 能读取的 docs-data.js 路径；成功后刷新文档选项。 */
-	readonly onImportDocument?: (docsPath: string) => void;
+	readonly onImportDocument?: (docsPath: string, repoPath?: string) => void;
+	readonly onRebindDocument?: (docsPath?: string, repoPath?: string) => void;
+	readonly isSaving?: boolean;
 	/** 离线或仍在保存时禁止提交派发。 */
 	readonly canDispatch?: boolean;
 	/** 样式自定义扩展 */
@@ -184,11 +186,14 @@ export function EmptyOnboarding({
 	onSelectDoc,
 	onSelectBatch,
 	onImportDocument,
+	onRebindDocument,
+	isSaving = false,
 	canDispatch = true,
 	className = '',
 }: EmptyOnboardingProps) {
 	// 步进索引：0=选文档, 1=选批次, 2=逐任务指派, 3=派发
 	const [internalStep, setInternalStep] = useState<number>(initialStep);
+	const [repoPath, setRepoPath] = useState('');
 	const currentStep = controlledStep !== undefined ? controlledStep : internalStep;
 
 	const changeStep = (next: number) => {
@@ -422,12 +427,33 @@ export function EmptyOnboarding({
 								<button
 									type="button"
 									data-action="import-document"
-									disabled={!docsPath.trim()}
-									onClick={() => onImportDocument(docsPath.trim())}
+									disabled={isSaving || !docsPath.trim()}
+									onClick={() => onImportDocument(docsPath.trim(), repoPath.trim() || undefined)}
 									className="h-btn rounded-sm bg-needs px-4 text-on-needs disabled:opacity-50"
 								>
 									导入文档
 								</button>
+								{onRebindDocument && (
+									<button
+										type="button"
+										data-action="rebind-document"
+										disabled={isSaving || !selectedDocId || (!docsPath.trim() && !repoPath.trim())}
+										onClick={() =>
+											onRebindDocument(docsPath.trim() || undefined, repoPath.trim() || undefined)
+										}
+										className="h-btn rounded-sm border border-border px-4 text-ink-1 disabled:opacity-50"
+									>
+										更新当前文档
+									</button>
+								)}
+								<input
+									aria-label="仓库目录"
+									data-testid="import-repo-path"
+									value={repoPath}
+									onChange={(event) => setRepoPath(event.target.value)}
+									placeholder="仓库绝对路径（留空自动识别）"
+									className="w-full rounded border border-border bg-panel-2 px-3 text-ink-1"
+								/>
 							</div>
 						)}
 						{documents && documents.length > 0 ? (

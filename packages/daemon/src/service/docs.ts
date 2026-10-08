@@ -1,7 +1,11 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import * as nodeFs from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import type { RefreshDocumentResponse } from '@agent-scheduler/shared/api/documents';
+import type {
+	RefreshDocumentBody,
+	RefreshDocumentResponse,
+} from '@agent-scheduler/shared/api/documents';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
 import type { DatabaseConnection } from '../db/open-database.ts';
@@ -25,6 +29,7 @@ import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
 import type { PlatformHostInputs } from '../platform/contract.ts';
+import { classifyPathForHost } from '../platform/host.ts';
 import { type OpenBrowserFn, createOpenBrowser } from '../proc/open-browser.ts';
 import { type BatchesRepo, createBatchesRepo } from '../repo/batches.ts';
 import {
@@ -40,6 +45,8 @@ import {
 	createTasksRepo,
 	importDocTasks,
 } from '../repo/tasks.ts';
+import { resolveDocumentRepository } from '../workspace/document-repository.ts';
+import { type GitRunner, createDefaultGitRunner } from '../workspace/worktree.ts';
 
 export interface ParsedDocTask {
 	readonly id: string;
@@ -123,10 +130,12 @@ export interface DocsFileSystem {
 }
 
 export interface DocsServiceDeps {
+	readonly gitRunner?: GitRunner;
 	readonly documentsRepo: DocumentsRepo;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
 	readonly fs?: DocsFileSystem;
+	readonly readSourceAtCommit?: (path: string) => string;
 	readonly hasher?: DocsFingerprintHasher;
 	readonly bus?: EventBus;
 	readonly envelopeFactory?: EnvelopeFactory;
@@ -173,8 +182,16 @@ export interface ListTasksResult {
 export interface DocsService {
 	readonly parseContent: (content: string, options?: { docsPath?: string }) => ParsedDocData;
 	readonly parseFile: (filePath: string) => Promise<ParsedDocData>;
-	readonly importDocument: (docsPath: string) => Promise<ImportDocumentResult>;
-	readonly refreshDocument: (docId: string) => Promise<RefreshDocumentResponse>;
+	readonly importDocument: (
+		docsPath: string,
+		options?: { repoPath?: string },
+	) => Promise<ImportDocumentResult>;
+	readonly refreshDocument: (
+		docId: string,
+		options?: RefreshDocumentBody,
+	) => Promise<RefreshDocumentResponse>;
+	readonly validateWorkspace: (docId: string, taskIds?: readonly string[]) => Promise<void>;
+	readonly validateSourceAtCommit: (docId: string, taskIds?: readonly string[]) => void;
 	readonly listTasks: (docId: string, query?: ListTasksQuery) => Promise<ListTasksResult>;
 	readonly getDocumentById: (id: string) => DocumentRecord | null;
 	readonly getDocumentByPath: (docsPath: string) => DocumentRecord | null;
@@ -804,6 +821,90 @@ function persistParsedTasks(
 export function createDocsService(deps: DocsServiceDeps): DocsService {
 	const fileSystem = deps.fs ?? DEFAULT_FS;
 	const hasher = deps.hasher ?? defaultSha256Hasher;
+	const gitRunner =
+		deps.gitRunner ??
+		createDefaultGitRunner({
+			platform: process.platform as PlatformHostInputs['platform'],
+			hostInputs: deps.hostInputs,
+			ids: deps.ids,
+		});
+	function isCurrentSource(row: DocumentRow): boolean {
+		const current = deps.documentsRepo.findById(row.id);
+		return (
+			current?.docs_path === row.docs_path &&
+			current.repo_path === row.repo_path &&
+			current.content_fingerprint === row.content_fingerprint &&
+			current.last_seen_at === row.last_seen_at
+		);
+	}
+	function markUnreadableIfCurrent(row: DocumentRow): void {
+		if (isCurrentSource(row)) deps.documentsRepo.markSourceUnreadable(row.id, deps.clock.now());
+	}
+	function assertSourceContract(
+		doc: DocumentRow,
+		parsed: ParsedDocData,
+		taskIds?: readonly string[],
+	): void {
+		const docId = doc.id;
+		if (parsed.contentFingerprint !== doc.content_fingerprint) {
+			throw new AppError('E_SNAPSHOT_STALE', '文档任务契约已变化，请刷新并确认新文档后再派发。', {
+				details: { docId, docsPath: doc.docs_path },
+			});
+		}
+		if (!isCurrentSource(doc)) {
+			throw new AppError('E_WORKSPACE_UNAVAILABLE', '文档绑定已变化，请重新派发。', {
+				details: { docId, docsPath: doc.docs_path },
+			});
+		}
+		const tasksRepo = deps.tasksRepo ?? (deps.db ? createTasksRepo(deps.db) : undefined);
+		const pendingTasks = (taskIds ?? []).flatMap((taskId) => {
+			const task = tasksRepo?.findById(taskId);
+			const sourceTask = task ? parsed.taskMap.get(task.task_key) : undefined;
+			if (!sourceTask) {
+				throw new AppError('E_SNAPSHOT_STALE', '任务来源已变化，请刷新文档后再派发。', {
+					details: { docId, taskId },
+				});
+			}
+			return sourceTask.isContractReady ? [] : [{ taskId, reasons: sourceTask.contractReasons }];
+		});
+		if (pendingTasks.length > 0) {
+			throw new AppError(
+				'E_DOC_CONTRACT_PENDING',
+				`任务契约待复核：${pendingTasks.flatMap((task) => task.reasons).join('；')}。请处理后再派发。`,
+				{ details: { docId, pendingTasks } },
+			);
+		}
+	}
+	function bindingRepo(existing: DocumentRow | null, parsed: ParsedDocData): string | undefined {
+		const candidate = existing?.repo_path ?? parsed.repoPath;
+		return candidate &&
+			classifyPathForHost(candidate, process.platform as PlatformHostInputs['platform'])
+				.isValidForCurrentPlatform
+			? candidate
+			: undefined;
+	}
+	function assertBindingChangeAllowed(docId: string): void {
+		const tasksRepo = deps.tasksRepo ?? (deps.db ? createTasksRepo(deps.db) : undefined);
+		const runsRepo = deps.runsRepo ?? (deps.db ? createRunsRepo(deps.db) : undefined);
+		const batchesRepo = deps.batchesRepo ?? (deps.db ? createBatchesRepo(deps.db) : undefined);
+		if (
+			runsRepo
+				?.listActive()
+				.some(
+					(run) =>
+						(run.task_id && tasksRepo?.findById(run.task_id)?.doc_id === docId) ||
+						(run.batch_id && batchesRepo?.findById(run.batch_id)?.doc_id === docId),
+				)
+		) {
+			throw new AppError(
+				'E_WORKSPACE_UNAVAILABLE',
+				'文档仍有运行中的任务，请结束运行后重新绑定目录。',
+				{
+					details: { docId },
+				},
+			);
+		}
+	}
 
 	const docFingerprintBatchesCache = new Map<string, CachedDocHistoryEntry>();
 	const lockedBatchWrapups = new Map<string, WrapupContext>();
@@ -834,8 +935,12 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			return parsed;
 		},
 
-		async importDocument(docsPath: string): Promise<ImportDocumentResult> {
+		async importDocument(
+			docsPath: string,
+			options?: { repoPath?: string },
+		): Promise<ImportDocumentResult> {
 			const resolvedPath = resolve(docsPath);
+			const sourceBeforeRead = deps.documentsRepo.findByPath(resolvedPath);
 
 			let parsed: ParsedDocData;
 			try {
@@ -854,23 +959,29 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 							);
 
 				// E-82：源不可读时只置不可读标记，既有任务和派发快照保持不变。
-				const existingRow = deps.documentsRepo.findByPath(resolvedPath);
-				if (existingRow) {
-					deps.documentsRepo.markSourceUnreadable(existingRow.id, deps.clock.now());
-				}
+				if (sourceBeforeRead) markUnreadableIfCurrent(sourceBeforeRead);
 				throw appError;
 			}
 
+			const existingBinding = deps.documentsRepo.findByPath(resolvedPath);
+			const repoPath = await resolveDocumentRepository(
+				resolvedPath,
+				options?.repoPath ?? bindingRepo(existingBinding, parsed),
+				gitRunner,
+			);
+			if (existingBinding && existingBinding.repo_path !== repoPath)
+				assertBindingChangeAllowed(existingBinding.id);
 			let changedEvent: EventEnvelope | null = null;
 			const persistImport = (): ImportDocumentResult => {
 				// 文件读取期间可能已有另一次导入提交；唯一路径的归属在写入事务内确认。
 				const existingRow = deps.documentsRepo.findByPath(resolvedPath);
 				const docId = existingRow?.id ?? deps.ids.newId();
+				if (existingRow && existingRow.repo_path !== repoPath) assertBindingChangeAllowed(docId);
 				const now = deps.clock.now();
 				const metadata = {
 					id: docId,
 					project_name: parsed.projectName,
-					repo_path: parsed.repoPath,
+					repo_path: repoPath,
 					main_branch: parsed.mainBranch,
 					branch_prefix: parsed.branchPrefix,
 					content_fingerprint: parsed.contentFingerprint,
@@ -889,6 +1000,9 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 					});
 				}
 				const imported = persistParsedTasks(deps, docId, parsed, true);
+				const hasChanged =
+					existingRow?.content_fingerprint !== parsed.contentFingerprint ||
+					existingRow?.repo_path !== repoPath;
 				deps.dispatchSnapshotsRepo?.refreshDocDiff(
 					docId,
 					parsed.tasks.map((task) => task.id),
@@ -897,11 +1011,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				if (!row) {
 					throw new AppError('E_INTERNAL', `Failed to retrieve imported document ${docId}`);
 				}
-				if (
-					existingRow?.content_fingerprint !== parsed.contentFingerprint &&
-					deps.bus &&
-					deps.envelopeFactory
-				) {
+				if (hasChanged && deps.bus && deps.envelopeFactory) {
 					changedEvent = deps.envelopeFactory.createEnvelope({
 						kind: 'system.docs_changed',
 						payload: {
@@ -913,7 +1023,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				return Object.freeze({
 					document: mapDocumentRow(row),
 					parsed,
-					hasChanged: existingRow?.content_fingerprint !== parsed.contentFingerprint,
+					hasChanged,
 					isNew: existingRow === null,
 					tasksImported: imported.tasksImported,
 					dependencyReport: imported.dependencyReport,
@@ -927,7 +1037,10 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			return result;
 		},
 
-		async refreshDocument(docId: string): Promise<RefreshDocumentResponse> {
+		async refreshDocument(
+			docId: string,
+			options?: RefreshDocumentBody,
+		): Promise<RefreshDocumentResponse> {
 			const existingRow = deps.documentsRepo.findById(docId);
 			if (!existingRow) {
 				throw new AppError('E_NOT_FOUND', `Document not found: ${docId}`, {
@@ -935,34 +1048,47 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				});
 			}
 
+			const docsPath = options?.docsPath ? resolve(options.docsPath) : existingRow.docs_path;
+			const owner = deps.documentsRepo.findByPath(docsPath);
+			if (owner && owner.id !== docId) {
+				throw new AppError('E_VALIDATION', '此文档路径已被另一份文档使用。', {
+					details: { docId, docsPath },
+				});
+			}
 			let parsed: ParsedDocData;
 			try {
-				parsed = await parseDocsDataFile(existingRow.docs_path, fileSystem, hasher);
+				parsed = await parseDocsDataFile(docsPath, fileSystem, hasher);
 			} catch (error) {
 				const appError =
 					error instanceof AppError
 						? error
-						: new AppError(
-								'E_DOC_SOURCE_UNREADABLE',
-								`Cannot read docs-data.js from ${existingRow.docs_path}`,
-								{
-									cause: error,
-									details: { docsPath: existingRow.docs_path },
-								},
-							);
+						: new AppError('E_DOC_SOURCE_UNREADABLE', `Cannot read docs-data.js from ${docsPath}`, {
+								cause: error,
+								details: { docsPath },
+							});
 
 				// E-82: 源不可读时只置不可读标记，既有任务和派发快照保持不变。
-				deps.documentsRepo.markSourceUnreadable(existingRow.id, deps.clock.now());
+				if (docsPath === existingRow.docs_path) markUnreadableIfCurrent(existingRow);
 				throw appError;
 			}
 
+			const repoPath = await resolveDocumentRepository(
+				docsPath,
+				options?.repoPath ?? (options?.docsPath ? undefined : bindingRepo(existingRow, parsed)),
+				gitRunner,
+			);
+			const bindingChanged =
+				docsPath !== existingRow.docs_path || repoPath !== existingRow.repo_path;
+			if (bindingChanged) assertBindingChangeAllowed(docId);
 			const now = deps.clock.now();
-			const hasChanged = existingRow.content_fingerprint !== parsed.contentFingerprint;
+			const hasChanged =
+				bindingChanged || existingRow.content_fingerprint !== parsed.contentFingerprint;
 
 			const updateRow: DocumentMetadataUpdateRow = {
 				id: existingRow.id,
+				docs_path: docsPath,
 				project_name: parsed.projectName,
-				repo_path: parsed.repoPath,
+				repo_path: repoPath,
 				main_branch: parsed.mainBranch,
 				branch_prefix: parsed.branchPrefix,
 				content_fingerprint: parsed.contentFingerprint,
@@ -978,6 +1104,18 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 
 			let changedEvent: EventEnvelope | null = null;
 			const performDatabaseRefresh = () => {
+				const current = deps.documentsRepo.findById(docId);
+				const currentOwner = deps.documentsRepo.findByPath(docsPath);
+				if (
+					current?.docs_path !== existingRow.docs_path ||
+					current?.repo_path !== existingRow.repo_path ||
+					(currentOwner && currentOwner.id !== docId)
+				) {
+					throw new AppError('E_VALIDATION', '文档绑定已变化，请重新刷新。', {
+						details: { docId, docsPath },
+					});
+				}
+				if (bindingChanged) assertBindingChangeAllowed(docId);
 				deps.documentsRepo.updateMetadata(updateRow);
 				persistParsedTasks(deps, existingRow.id, parsed, true);
 
@@ -996,7 +1134,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 					changedEvent = deps.envelopeFactory.createEnvelope({
 						kind: 'system.docs_changed',
 						payload: {
-							docsPath: existingRow.docs_path,
+							docsPath,
 							fingerprint: parsed.contentFingerprint,
 						},
 					});
@@ -1016,6 +1154,63 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				changed: hasChanged,
 				flags: Object.freeze(flags),
 			});
+		},
+
+		async validateWorkspace(docId: string, taskIds?: readonly string[]): Promise<void> {
+			const doc = deps.documentsRepo.findById(docId);
+			if (!doc) throw new AppError('E_NOT_FOUND', `Document not found: ${docId}`);
+			let parsed: ParsedDocData;
+			try {
+				parsed = await parseDocsDataFile(doc.docs_path, fileSystem, hasher);
+			} catch (cause) {
+				markUnreadableIfCurrent(doc);
+				throw new AppError(
+					'E_DOC_SOURCE_UNREADABLE',
+					`文档来源不可读或格式无效：${doc.docs_path}。请刷新或重新绑定文档。`,
+					{
+						cause,
+						details: { docId, docsPath: doc.docs_path },
+					},
+				);
+			}
+			if (
+				!doc.repo_path ||
+				!classifyPathForHost(doc.repo_path, process.platform as PlatformHostInputs['platform'])
+					.isValidForCurrentPlatform
+			) {
+				throw new AppError(
+					'E_WORKSPACE_UNAVAILABLE',
+					`仓库目录未绑定：${doc.repo_path ?? '未设置'}。请刷新或重新绑定文档。`,
+					{
+						details: { docId, repoPath: doc.repo_path, docsPath: doc.docs_path },
+					},
+				);
+			}
+			await resolveDocumentRepository(doc.docs_path, doc.repo_path, gitRunner);
+			assertSourceContract(doc, parsed, taskIds);
+		},
+
+		validateSourceAtCommit(docId: string, taskIds?: readonly string[]): void {
+			const doc = deps.documentsRepo.findById(docId);
+			if (!doc) throw new AppError('E_NOT_FOUND', `Document not found: ${docId}`);
+			let parsed: ParsedDocData;
+			try {
+				const content = deps.readSourceAtCommit
+					? deps.readSourceAtCommit(doc.docs_path)
+					: readFileSync(doc.docs_path, 'utf8');
+				parsed = parseDocsDataContent(content, { docsPath: doc.docs_path, hasher });
+			} catch (cause) {
+				markUnreadableIfCurrent(doc);
+				throw new AppError(
+					'E_DOC_SOURCE_UNREADABLE',
+					'文档来源已不可读或格式无效，请刷新或重新绑定。',
+					{
+						cause,
+						details: { docId, docsPath: doc.docs_path },
+					},
+				);
+			}
+			assertSourceContract(doc, parsed, taskIds);
 		},
 
 		async listTasks(docId: string, query?: ListTasksQuery): Promise<ListTasksResult> {
@@ -1131,7 +1326,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			if (!exists) {
 				// E-86: 文档目录被移动或重命名时提示「文档路径不可用，请重新定位」，
 				// 任务记录、快照、会话指针全部保留，只标记源不可读
-				deps.documentsRepo.markSourceUnreadable(id, deps.clock.now());
+				markUnreadableIfCurrent(row);
 				throw new AppError('E_NOT_FOUND', 'Document reader path is not available', {
 					details: {
 						docId: id,

@@ -22,6 +22,7 @@ import type {
 import { createOpenBrowser } from '../../src/proc/open-browser.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
 import { createDocsService } from '../../src/service/docs.ts';
+import { createDefaultGitRunner } from '../../src/workspace/worktree.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const testDir = resolve(currentDir, '../fixtures/documents-routes-test');
@@ -169,6 +170,11 @@ describe(
 			if (options?.openBrowser) {
 				const documentsRepo = createDocumentsRepo(db);
 				docsService = createDocsService({
+					hostInputs: {
+						platform: process.platform as 'win32' | 'linux' | 'darwin',
+						homedir: testDir,
+						pathEnv: process.env.PATH,
+					},
 					documentsRepo,
 					clock: { now: () => '2026-09-10T12:00:00.000Z' },
 					ids: { newId: () => 'test-doc-id' },
@@ -176,6 +182,15 @@ describe(
 				});
 			}
 			const container = createContainer({
+				gitRunner: createDefaultGitRunner({
+					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					hostInputs: {
+						platform: process.platform as 'win32' | 'linux' | 'darwin',
+						homedir: testDir,
+						pathEnv: process.env.PATH,
+					},
+					ids: { newId: () => crypto.randomUUID() },
+				}),
 				config: {
 					port: 7817,
 					bind: '127.0.0.1',

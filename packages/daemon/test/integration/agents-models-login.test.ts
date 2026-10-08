@@ -30,6 +30,7 @@ import type {
 	SpawnManagedOptions,
 } from '../../src/proc/spawn.ts';
 import { createAgentService } from '../../src/service/agents.ts';
+import { writeTasksDocsData } from '../fixtures/task-docs-data.ts';
 
 const currentDir = resolve(dirname(fileURLToPath(import.meta.url)));
 const migrationsDir = resolve(currentDir, '../../migrations');
@@ -209,9 +210,16 @@ model_reasoning_effort = "xhigh"
 
 			// Seed initial document, batch, and task
 			const escapedRepoPath = gitRepoDir.replace(/'/g, "''");
+			const docsPath = join(gitRepoDir, 'docs-data.js');
+			const docFingerprint = writeTasksDocsData(docsPath, [
+				{ id: 'M1-T1', hash: 'h1' },
+				{ id: 'M1-T2', hash: 'h2' },
+				{ id: 'M1-T3', hash: 'h3' },
+			]);
+			const escapedDocsPath = docsPath.replace(/'/g, "''");
 			db.exec(`
 			INSERT INTO documents (id, docs_path, project_name, repo_path, content_fingerprint, imported_at, last_seen_at)
-			VALUES ('doc-1', '/repo/docs', 'test-proj', '${escapedRepoPath}', 'fp-1', '2026-09-17T12:00:00.000Z', '2026-09-17T12:00:00.000Z');
+			VALUES ('doc-1', '${escapedDocsPath}', 'test-proj', '${escapedRepoPath}', '${docFingerprint}', '2026-09-17T12:00:00.000Z', '2026-09-17T12:00:00.000Z');
 
 			INSERT INTO batches (id, doc_id, batch_no, state, started_at)
 			VALUES ('batch-1', 'doc-1', 1, 'running', '2026-09-17T12:00:00.000Z');

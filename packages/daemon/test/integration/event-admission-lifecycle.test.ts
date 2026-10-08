@@ -1,6 +1,7 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
+	mkdirSync,
 	mkdtempSync,
 	readFileSync,
 	readdirSync,
@@ -23,6 +24,7 @@ import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-
 import { createProcessRegistry } from '../../src/proc/registry.ts';
 import { type ManagedProcess, spawnManaged } from '../../src/proc/spawn.ts';
 import { createRerunService } from '../../src/service/rerun.ts';
+import { writeTaskDocsData } from '../fixtures/task-docs-data.ts';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -32,6 +34,10 @@ afterEach(async () => {
 async function environment(queuedSettings = 4999) {
 	const tempRoot = realpathSync.native(tmpdir());
 	const dataDir = mkdtempSync(join(tempRoot, 'agsched-event-admission-'));
+	execFileSync('git', ['init', '-q', dataDir]);
+	const docsPath = join(dataDir, 'source', 'docs-data.js');
+	mkdirSync(dirname(docsPath));
+	const docFingerprint = writeTaskDocsData(docsPath, 'M6-T5', 'contract');
 	const db = openDatabase(':memory:');
 	const migrations = join(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 	for (const file of readdirSync(migrations)
@@ -54,7 +60,11 @@ async function environment(queuedSettings = 4999) {
 		config: { port: 0, bind: '127.0.0.1', dataDir, logLevel: 'error', dev: false },
 		database: db,
 		processRegistry: registry,
-		hostInputs: { platform: process.platform === 'win32' ? 'win32' : 'linux', homedir: dataDir },
+		hostInputs: {
+			platform: process.platform === 'win32' ? 'win32' : 'linux',
+			homedir: dataDir,
+			pathEnv: process.env.PATH,
+		},
 		lockAdapter: {} as NativeLockAdapter,
 		instanceLock: { release() {} } as unknown as LockFileHandle,
 		clock: { now: () => now },
@@ -97,13 +107,13 @@ async function environment(queuedSettings = 4999) {
 	const headers = { authorization: `Bearer ${claim.token}` };
 	container.repos.documents.insert({
 		id: 'doc',
-		docs_path: '/docs',
+		docs_path: docsPath,
 		project_name: 'pressure',
 		repo_path: dataDir,
 		main_branch: 'main',
 		branch_prefix: 'task/',
 		lane_count: 1,
-		content_fingerprint: 'fp',
+		content_fingerprint: docFingerprint,
 		is_source_readable: 1,
 		is_takeover_notified: 0,
 		imported_at: now,

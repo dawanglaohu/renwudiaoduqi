@@ -135,7 +135,11 @@ function toPanelError(error: unknown): AssignPanelError {
 	if (isApiError(error)) {
 		const apiError: ApiError = error;
 		return {
-			message: getErrorMessage(apiError.code),
+			message: ['E_DOC_SOURCE_UNREADABLE', 'E_NOT_A_GIT_REPO', 'E_WORKSPACE_UNAVAILABLE'].includes(
+				apiError.code,
+			)
+				? apiError.message
+				: getErrorMessage(apiError.code),
 			technical: `${apiError.code} · ${apiError.message}${apiError.requestId ? ` · requestId=${apiError.requestId}` : ''}`,
 		};
 	}
@@ -219,7 +223,8 @@ export interface UseAssignPanelResult {
 	readonly changeUserSetting: (laneCount: number) => Promise<void>;
 	readonly toggleUnlockAboveWindow: (unlocked: boolean) => void;
 	readonly reload: () => Promise<void>;
-	readonly importDocument: (docsPath: string) => Promise<void>;
+	readonly importDocument: (docsPath: string, repoPath?: string) => Promise<void>;
+	readonly rebindDocument: (docsPath?: string, repoPath?: string) => Promise<void>;
 	readonly startBatch: () => Promise<void>;
 }
 
@@ -239,6 +244,12 @@ export function useAssignPanel({
 	const setAssignments = useSelectionStore((state) => state.setAssignments);
 
 	const [documents, setDocuments] = useState<readonly DocumentDto[]>([]);
+	const [documentRevision, setDocumentRevision] = useState(0);
+	// Rebinding preserves the ID but invalidates reads from the previous source.
+	const documentSource = useMemo(
+		() => ({ docId: selectedDocId, revision: documentRevision }),
+		[selectedDocId, documentRevision],
+	);
 	const [batches, setBatches] = useState<readonly OnboardingBatchOption[]>([]);
 	const [tasks, setTasks] = useState<readonly TaskDto[]>([]);
 	const [agentEntries, setAgentEntries] = useState<readonly AgentEntryDto[]>([]);
@@ -312,14 +323,15 @@ export function useAssignPanel({
 
 	// 3. 选中文档 → 批次清单（第二步按 batch.docId === selectedDocId 联动）
 	useEffect(() => {
-		if (!enabled || !selectedDocId) {
+		const docId = documentSource.docId;
+		if (!enabled || !docId) {
 			setBatches([]);
 			return;
 		}
 		let isCurrent = true;
 		void (async () => {
 			try {
-				const response = await client.listBatches(selectedDocId);
+				const response = await client.listBatches(docId);
 				if (!isCurrent) {
 					return;
 				}
@@ -340,7 +352,7 @@ export function useAssignPanel({
 		return () => {
 			isCurrent = false;
 		};
-	}, [client, enabled, selectedDocId]);
+	}, [client, documentSource, enabled]);
 
 	// 4. 默认选中第一个文档 / 该文档的第一个批次（与 M9-T16 第二步的初始选择一致）
 	useEffect(() => {
@@ -369,7 +381,8 @@ export function useAssignPanel({
 
 	// 5. 选中批次 → 可指派任务清单（daemon 侧按 batchId + state 过滤）
 	useEffect(() => {
-		if (!enabled || !selectedDocId || !selectedBatchId) {
+		const docId = documentSource.docId;
+		if (!enabled || !docId || !selectedBatchId) {
 			setTasks([]);
 			return;
 		}
@@ -380,7 +393,7 @@ export function useAssignPanel({
 				let cursor: string | null = null;
 				for (let page = 0; page < TASKS_MAX_PAGES; page += 1) {
 					const response: ListDocumentTasksResponse = await client.listTasks(
-						selectedDocId,
+						docId,
 						selectedBatchId,
 						cursor,
 						Boolean(reassignTaskId),
@@ -404,7 +417,7 @@ export function useAssignPanel({
 		return () => {
 			isCurrent = false;
 		};
-	}, [client, enabled, selectedBatchId, selectedDocId, reassignTaskId]);
+	}, [client, documentSource, enabled, selectedBatchId, reassignTaskId]);
 
 	// 6. 选中批次 → daemon 现算的草稿与并发预览（GET，会话序号与瓶颈的唯一来源）
 	const loadAssignments = useCallback(async () => {
@@ -428,12 +441,12 @@ export function useAssignPanel({
 	}, [applyResponse, client, enabled, selectedBatchId]);
 
 	useEffect(() => {
-		if (!enabled || !selectedBatchId) {
+		if (!enabled || !documentSource.docId || !selectedBatchId) {
 			setPreview(null);
 			return;
 		}
 		void loadAssignments();
-	}, [enabled, loadAssignments, selectedBatchId]);
+	}, [documentSource, enabled, loadAssignments, selectedBatchId]);
 
 	// 7. 改选后整批覆写：把本地选择并进 daemon 草稿集合，再用返回值刷新
 	const writeAssignments = useCallback(
@@ -538,11 +551,12 @@ export function useAssignPanel({
 	}, []);
 
 	const importDocument = useCallback(
-		async (docsPath: string) => {
+		async (docsPath: string, repoPath?: string) => {
+			if (isSaving) return;
 			setIsSaving(true);
 			try {
 				const response = await httpClient.callRoute<CreateDocumentResponse>(IMPORT_DOCUMENT_ROUTE, {
-					body: { docsPath },
+					body: { docsPath, ...(repoPath ? { repoPath } : {}) },
 				});
 				const docs = await client.listDocuments();
 				setDocuments(docs.documents);
@@ -554,7 +568,30 @@ export function useAssignPanel({
 				setIsSaving(false);
 			}
 		},
-		[client, selectDoc],
+		[client, isSaving, selectDoc],
+	);
+
+	const rebindDocument = useCallback(
+		async (docsPath?: string, repoPath?: string) => {
+			if (!selectedDocId || isSaving) return;
+			setIsSaving(true);
+			try {
+				await httpClient.callRoute(findRoute('POST', '/api/v1/documents/:docId/refresh'), {
+					params: { docId: selectedDocId },
+					body: { docsPath, repoPath },
+				});
+				const response = await client.listDocuments();
+				setDocuments(response.documents);
+				if (useSelectionStore.getState().selectedDocId !== selectedDocId) return;
+				setDocumentRevision((revision) => revision + 1);
+				setError(null);
+			} catch (cause) {
+				setError(toPanelError(cause));
+			} finally {
+				setIsSaving(false);
+			}
+		},
+		[client, isSaving, selectedDocId],
 	);
 
 	const startBatch = useCallback(async () => {
@@ -691,6 +728,7 @@ export function useAssignPanel({
 		toggleUnlockAboveWindow,
 		reload: loadAssignments,
 		importDocument,
+		rebindDocument,
 		startBatch,
 	};
 }

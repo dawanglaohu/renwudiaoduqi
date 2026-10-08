@@ -32,6 +32,7 @@ import type {
 	PrepareWorktreeResult,
 	WorktreeManager,
 } from '../../src/workspace/worktree.ts';
+import { writeTaskDocsData } from '../fixtures/task-docs-data.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(currentDir, '../../../..');
@@ -421,15 +422,17 @@ function setupWiringEnvironment(
 	});
 
 	// Seed document, batch, task, snapshot
+	const docsPath = join(tempDir, 'docs-data.js');
+	const docFingerprint = writeTaskDocsData(docsPath, 'M7-T9', 'contract-hash-task-1');
 	container.repos.documents.insert({
 		id: 'doc-1',
-		docs_path: '/docs',
+		docs_path: docsPath,
 		project_name: 'test-project',
 		repo_path: tempDir,
 		main_branch: 'main',
 		branch_prefix: 'task/',
 		lane_count: 2,
-		content_fingerprint: 'fp-1',
+		content_fingerprint: docFingerprint,
 		is_source_readable: 1,
 		is_takeover_notified: 0,
 		imported_at: clock.now(),

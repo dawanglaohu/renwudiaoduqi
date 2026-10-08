@@ -32,7 +32,7 @@ import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup as renderToStaticMarkupOf } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearManualHost, setManualHost } from '../src/api/base-url.ts';
-import { clearCachedToken, setCachedToken } from '../src/api/http-client.ts';
+import { clearCachedToken, httpClient, setCachedToken } from '../src/api/http-client.ts';
 import { clearResourceCache, refetchAll } from '../src/api/resource-cache.ts';
 import {
 	AssignPanel,
@@ -677,6 +677,45 @@ describe('M9-T18 逐任务指派面板与并发瓶颈说明', () => {
 
 		afterEach(() => {
 			useSelectionStore.getState().reset();
+		});
+
+		it('rebinding keeps the selection and reloads tasks from the replacement document source', async () => {
+			const client = createClient({ listAgents: vi.fn(async () => ({ agents: [] })) });
+			const probe = await mountAssignPanel(client);
+			const originalTask = probe.current().tasks[0];
+			if (!originalTask) throw new Error('Imported task missing');
+			vi.mocked(client.listTasks).mockResolvedValue({
+				tasks: [
+					{
+						...originalTask,
+						docId,
+						moduleKey: 'M9',
+						deps: [],
+						estDays: null,
+						batchId,
+						state: 'never_dispatched',
+						title: 'Updated source task',
+					},
+				],
+				nextCursor: null,
+			});
+			const routeCall = vi.spyOn(httpClient, 'callRoute').mockResolvedValue({ changed: true });
+			try {
+				await act(async () => {
+					await probe.current().rebindDocument('D:/new/docs-data.js', 'D:/repo');
+				});
+				expect(routeCall).toHaveBeenCalledWith(
+					expect.objectContaining({ method: 'POST', path: '/api/v1/documents/:docId/refresh' }),
+					{ params: { docId }, body: { docsPath: 'D:/new/docs-data.js', repoPath: 'D:/repo' } },
+				);
+				expect(probe.current().selectedDocId).toBe(docId);
+				expect(probe.current().selectedBatchId).toBe(batchId);
+				expect(probe.current().tasks).toHaveLength(1);
+				expect(probe.current().tasks[0]?.title).toBe('Updated source task');
+			} finally {
+				routeCall.mockRestore();
+				await probe.unmount();
+			}
 		});
 
 		it('R2: mounted assignment panels preserve catalog metadata and share one explicit refresh=1', async () => {
