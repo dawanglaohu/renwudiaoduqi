@@ -151,6 +151,53 @@ function setup(fs?: DocsFileSystem) {
 }
 
 describe('document repository binding with real Git', () => {
+	it.each(['auto', 'manual'] as const)(
+		'keeps one run when the %s dispatch preflight overlaps the other entry',
+		async (firstEntry) => {
+			const f = setup();
+			const imported = await f.service.importDocument(f.writeDoc(join(f.repo, 'docs')));
+			const task = f.tasksRepo.findByDocAndKey(imported.document.id, 'T-1');
+			if (!task?.batch_id) throw new Error('Imported task missing');
+			f.batchesRepo.updateState({ id: task.batch_id, state: 'running' });
+			let reachedFirst = () => {};
+			let releaseFirst = () => {};
+			const reached = new Promise<void>((resolve) => {
+				reachedFirst = resolve;
+			});
+			const release = new Promise<void>((resolve) => {
+				releaseFirst = resolve;
+			});
+			let validationCalls = 0;
+			const dispatch = f.makeDispatch(async (id, taskIds) => {
+				await f.service.validateWorkspace(id, taskIds);
+				if (++validationCalls === 1) {
+					reachedFirst();
+					await release;
+				}
+			});
+			const manualInput = { taskId: task.id, agentId: 'codex', idempotencyKey: 'manual-race' };
+			if (firstEntry === 'auto') {
+				const ticking = dispatch.tick();
+				await reached;
+				const accepted = await dispatch.createRun(manualInput);
+				releaseFirst();
+				const result = await ticking;
+				expect(result.runsDispatched).toEqual([]);
+				expect(f.runsRepo.listByTaskId(task.id).map((run) => run.id)).toEqual([accepted.run.id]);
+				expect(f.tasksRepo.findById(task.id)?.lane_no).toBeNull();
+			} else {
+				const creating = dispatch.createRun(manualInput);
+				await reached;
+				const result = await dispatch.tick();
+				releaseFirst();
+				const accepted = await creating;
+				expect(accepted.isExisting).toBe(true);
+				expect(result.runsDispatched).toEqual([accepted.run.id]);
+			}
+			expect(f.runsRepo.listByTaskId(task.id)).toHaveLength(1);
+			expect(f.dispatchSnapshotsRepo.listByTaskId(task.id)).toHaveLength(1);
+		},
+	);
 	it('checks task readiness after an automatic wrapup fails despite a successful document-only probe', async () => {
 		const f = setup();
 		const source = join(f.repo, 'docs-data.js');

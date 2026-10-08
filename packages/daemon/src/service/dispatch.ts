@@ -2019,6 +2019,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 						} else {
 							const task = candidate.task;
+							// 预检等待期间，手动入口可能已经派发；新任务在事务内仍须没有运行历史。
+							if (runsRepo.listByTaskId(task.id).length > 0) continue;
 							const idempotencyKey = `auto_${task.id}_${deps.ids.newId()}`;
 							const existingRuns = runsRepo.listByTaskId(task.id);
 							const attemptNo = existingRuns.length + 1;
