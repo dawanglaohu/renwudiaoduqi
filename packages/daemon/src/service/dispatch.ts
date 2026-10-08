@@ -2245,6 +2245,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						targetState: 'failed',
 						reason: 'agent_unavailable',
 					});
+					if (run.kind === 'bughunt' && deps.bughuntService) {
+						await deps.bughuntService.finalizeBughuntRun({
+							bughuntRunId: runId,
+							failedReason: 'agent_unavailable',
+						});
+					}
 				}
 				throw new AppError(
 					'E_AGENT_UNAVAILABLE',
@@ -2391,6 +2397,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						targetState: 'failed',
 						reason: workspaceReason,
 					});
+					if (run.kind === 'bughunt' && deps.bughuntService) {
+						await deps.bughuntService.finalizeBughuntRun({
+							bughuntRunId: runId,
+							failedReason: workspaceReason,
+						});
+					}
 				}
 				throw err instanceof AppError
 					? err
@@ -2410,6 +2422,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						targetState: 'failed',
 						reason: 'agent_unavailable',
 					});
+					if (run.kind === 'bughunt' && deps.bughuntService) {
+						await deps.bughuntService.finalizeBughuntRun({
+							bughuntRunId: runId,
+							failedReason: 'agent_unavailable',
+						});
+					}
 				}
 				throw new AppError(
 					'E_AGENT_UNAVAILABLE',

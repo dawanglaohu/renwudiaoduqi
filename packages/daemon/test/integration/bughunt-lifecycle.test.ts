@@ -222,6 +222,9 @@ async function setupBughuntEnvironment(
 		readonly agentConcurrency?: number;
 		readonly isInitiallyParked?: boolean;
 		readonly spawnFailure?: AppError;
+		readonly worktreeFailure?: AppError;
+		readonly isAdapterMissing?: boolean;
+		readonly isAgentUnavailableAtStartup?: boolean;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-bughunt-'));
@@ -270,6 +273,7 @@ async function setupBughuntEnvironment(
 
 	const fakeWorktreeManager = {
 		prepareWorktree: async (input: PrepareWorktreeInput): Promise<PrepareWorktreeResult> => {
+			if (overrides.worktreeFailure) throw overrides.worktreeFailure;
 			const worktreePath = input.targetWorktreePath ?? join(tempDir, 'worktrees', input.taskId);
 			mkdirSync(worktreePath, { recursive: true });
 			return {
@@ -287,12 +291,16 @@ async function setupBughuntEnvironment(
 		}),
 	} as unknown as WorktreeManager;
 
+	let hasStartingBughunt = () => false;
 	const fakeAgentService = {
 		start: async () => {},
 		stop: async () => {},
 		listAgents: async () => [{ id: 'codex', canDispatch: true, maxConcurrency: 2 }],
 		getAvailability: (agentId: string) => {
 			if (agentId === 'codex') {
+				if (overrides.isAgentUnavailableAtStartup && hasStartingBughunt()) {
+					return { canDispatch: false, isReady: false, status: 'not_found' };
+				}
 				return { canDispatch: true, isReady: true, status: 'ready' };
 			}
 			return { canDispatch: false, isReady: false, status: 'not_found' };
@@ -399,9 +407,14 @@ async function setupBughuntEnvironment(
 		spawnManaged: fakeSpawnManaged,
 		codexSessions: null,
 		worktreeManager: fakeWorktreeManager,
+		adapters: overrides.isAdapterMissing ? {} : undefined,
 		agentService: fakeAgentService as never,
 		gitRunner: fakeGitRunner,
 	});
+	hasStartingBughunt = () =>
+		container.repos.runs
+			.listByTaskId('task-1')
+			.some((run) => run.kind === 'bughunt' && run.state === 'starting');
 
 	// Seed document, batch, task, and snapshot
 	container.repos.documents.insert({
@@ -687,6 +700,100 @@ describe('R8-T69421773: production HTTP rerun admission', () => {
 			await server.instance.close();
 		}
 	});
+
+	it.each(['workspace', 'adapter', 'agent'] as const)(
+		'a queued rerun %s failure restores its gate and permits another original rerun (R1, E-323, E-331)',
+		async (failure) => {
+			const env = await setupBughuntEnvironment({
+				pipelineBughunt: false,
+				isInitiallyParked: true,
+				worktreeFailure:
+					failure === 'workspace'
+						? new AppError('E_WORKSPACE_UNAVAILABLE', 'Controlled unavailable reused worktree.')
+						: undefined,
+				isAdapterMissing: failure === 'adapter',
+				isAgentUnavailableAtStartup: failure === 'agent',
+			});
+			seedFailedBughunt(env);
+			const { container } = env;
+			container.repos.runs.updateReworkCount({ id: 'history-1', reworkCount: 2 });
+			const original = expectDefined(container.repos.runs.findById('history-4'));
+			const originalSnapshot = expectDefined(container.repos.dispatchSnapshots).findById('snap-1');
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			const token = await getAuthToken(container);
+			let previousRunId = original.id;
+			let previousGateId = 'history-gate';
+			try {
+				for (const attemptNo of [5, 6]) {
+					const response = await server.instance.inject({
+						method: 'POST',
+						url: `/api/v1/runs/${previousRunId}/rerun`,
+						headers: { authorization: token },
+						payload: { idempotencyKey: `startup-${failure}-${attemptNo}` },
+					});
+					expect(response.statusCode).toBe(200);
+					const { run } = response.json();
+					expect(run).toMatchObject({ kind: 'bughunt', attemptNo, parentRunId: 'history-1' });
+					expect(run.id).not.toBe(previousRunId);
+					expect(
+						await waitFor(() => container.repos.runs.findById(run.id)?.state === 'failed'),
+					).toBe(true);
+					expect(
+						await waitFor(() =>
+							listWaitingGates(container).some((g) => g.comment === 'bughunt_failed'),
+						),
+					).toBe(true);
+					expect(container.repos.runs.findById(run.id)).toMatchObject({
+						state: 'failed',
+						queued_reason: 'bughunt_failed',
+						parent_run_id: original.parent_run_id,
+						snapshot_id: original.snapshot_id,
+						agent_id: original.agent_id,
+						model_name: original.model_name,
+						effort_tier: original.effort_tier,
+						permission_tier: original.permission_tier,
+						worktree_path: original.worktree_path,
+						branch_name: original.branch_name,
+						branch_tip_sha: original.branch_tip_sha,
+					});
+					expect(container.repos.runs.findById('history-1')).toMatchObject({
+						state: 'awaiting_human',
+						queued_reason: 'bughunt_failed',
+						rework_count: 2,
+					});
+					expect(container.repos.tasks.findById('task-1')).toMatchObject({
+						manual_state: null,
+						lane_no: null,
+					});
+					expect(container.repos.gates?.findById(previousGateId)).toMatchObject({
+						state: 'decided',
+						comment: 'superseded',
+					});
+					const waitingGates = listWaitingGates(container);
+					expect(waitingGates).toHaveLength(1);
+					expect(waitingGates[0]).toMatchObject({
+						run_id: 'history-1',
+						kind: 'review',
+						state: 'waiting',
+						comment: 'bughunt_failed',
+					});
+					expect(env.spawnedProcesses).toHaveLength(0);
+					expect(expectDefined(container.repos.dispatchSnapshots).findById('snap-1')).toEqual(
+						originalSnapshot,
+					);
+					previousRunId = run.id;
+					previousGateId = waitingGates[0].id;
+				}
+				expect(container.repos.runs.listByTaskId('task-1').map((r) => r.attempt_no)).toEqual([
+					1, 2, 4, 5, 6,
+				]);
+			} finally {
+				for (const job of container.jobs) await job.stop();
+				await server.instance.close();
+			}
+		},
+	);
 
 	it('a queued rerun spawn failure restores an actionable gate without an unhandled rejection', async () => {
 		const env = await setupBughuntEnvironment({
