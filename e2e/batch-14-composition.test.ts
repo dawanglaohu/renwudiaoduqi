@@ -1808,8 +1808,17 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 					if (!r.ok) return null;
 					const b = (await r.json()) as { runs: any[] };
 					const bRuns = b.runs.filter((entry) => entry.taskId === task1Id && entry.kind === 'bughunt');
-					const latest = bRuns.find((entry) => entry.id === bughuntRerunBody.run.id && entry.state === 'exited');
+					const latest = bRuns.find((entry) =>
+						entry.id === bughuntRerunBody.run.id && entry.state === 'landed' &&
+						entry.queuedReason === 'bughunt_clean' && entry.exitCode === 0 && entry.endedAt,
+					);
 					if (latest) {
+						const resumedGatesResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/gates`, {
+							headers: { Authorization: `Bearer ${adminToken}` },
+						});
+						if (!resumedGatesResponse.ok) return null;
+						const resumedGates = (await resumedGatesResponse.json()) as { gates: Array<{ runId: string; kind: string; state: string; comment: string }> };
+						if (!resumedGates.gates.some((gate) => gate.runId === currentRunId && gate.kind === 'review' && gate.state === 'waiting' && gate.comment === 'review_manual_gate')) return null;
 						recoveredBughuntRunId = latest.id;
 						return latest.id;
 					}
@@ -1831,9 +1840,26 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 		expect(bughuntDetail.run.parentRunId).toBe(currentRunId);
 		const gatesAfterRerun = (await (
 			await fetch(`http://127.0.0.1:${daemon.port}/api/v1/gates?pending=false`, { headers: { Authorization: `Bearer ${adminToken}` } })
-		).json()) as { gates: Array<{ id: string; taskId: string; kind: string; state: string; comment: string }> };
+		).json()) as { gates: Array<{ id: string; taskId: string; runId: string; kind: string; state: string; comment: string }> };
 		expect(gatesAfterRerun.gates.find((gate) => gate.id === bughuntGateId)).toMatchObject({ state: 'decided', comment: 'superseded' });
-		expect(gatesAfterRerun.gates.some((gate) => gate.taskId === task1Id && gate.kind === 'landing' && gate.state === 'waiting')).toBe(true);
+		const resumedReviewGate = gatesAfterRerun.gates.find((gate) =>
+			gate.taskId === task1Id && gate.runId === currentRunId && gate.state === 'waiting' &&
+			gate.kind === 'review' && gate.comment === 'review_manual_gate',
+		);
+		expect(resumedReviewGate).toBeTruthy();
+		if (!resumedReviewGate) throw new Error('Missing resumed review gate');
+		const resumeResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/gates/${resumedReviewGate.id}/decide`, {
+			method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+			body: JSON.stringify({ decision: 'pass' }),
+		});
+		expect(resumeResponse.status).toBe(200);
+		const continuedGates = (await (
+			await fetch(`http://127.0.0.1:${daemon.port}/api/v1/gates?pending=false`, { headers: { Authorization: `Bearer ${adminToken}` } })
+		).json()) as typeof gatesAfterRerun;
+		expect(continuedGates.gates.find((gate) => gate.id === resumedReviewGate.id)).toMatchObject({ state: 'decided', decision: 'pass' });
+		expect(continuedGates.gates.some((gate) => gate.runId === currentRunId && gate.kind === 'landing' && gate.state === 'waiting')).toBe(true);
+		bughuntRerunEvidence = { ...(bughuntRerunEvidence as object), recovered: bughuntDetail, gatesAfterRerun, continuedGates };
+		writeFileSync(join(artifactsDir, 'b14-bughunt-rerun.json'), redactSensitiveData(JSON.stringify(bughuntRerunEvidence, null, 2)), 'utf8');
 
 		// Record state frame 4
 		recordedFrames.push(
@@ -2437,6 +2463,7 @@ Ready for landing checklist
 		try {
 			currentGitHead = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 		} catch {}
+		expect(currentGitHead).toMatch(/^[0-9a-f]{40}$/);
 
 		// Write timeline JSON
 		const timelineData = {
