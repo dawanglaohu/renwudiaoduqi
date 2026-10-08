@@ -698,7 +698,7 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		);
 		expect(tasksRes.status).toBe(200);
 		const tasksBody = (await tasksRes.json()) as {
-			tasks: Array<{ id: string; taskKey: string }>;
+			tasks: Array<{ id: string; taskKey: string; batchId: string | null }>;
 		};
 		const targetTask =
 			tasksBody.tasks.find((t) => t.taskKey === 'SMOKE-T1') ?? tasksBody.tasks[0];
@@ -709,24 +709,32 @@ describe('M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流�
 		}
 		const expectedWorktree = join(isolatedRoot, 'project-smoke-t1');
 
-		// Dispatch SMOKE-T1 via POST /api/v1/runs
-		const runRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs`, {
+		if (!targetTask?.batchId) throw new Error('Fixture task has no batch');
+		const assignmentsResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/batches/${targetTask.batchId}/assignments`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 				Authorization: `Bearer ${adminToken}`,
 			},
 			body: JSON.stringify({
-				taskId: targetTask?.id,
-				agentId: 'codex',
-				idempotencyKey: `smoke-e2e-${Date.now()}`,
+				assignments: [{taskId: targetTask.id, agentId:'codex', model:null, effort:null}],
 			}),
 		});
-
-		expect([200, 201]).toContain(runRes.status);
-		const runBody = (await runRes.json()) as { run: { id: string } };
-		expect(runBody.run?.id).toBeTruthy();
-		currentRunId = runBody.run.id;
+		expect(assignmentsResponse.status).toBe(200);
+		const startResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/batches/${targetTask.batchId}/start`, {
+			method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${adminToken}`}, body:'{}',
+		});
+		expect(startResponse.ok).toBe(true);
+		const dispatchDeadline = Date.now()+15_000;
+		while (!currentRunId && Date.now()<dispatchDeadline) {
+			const runsResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs`, {headers:{Authorization:`Bearer ${adminToken}`}});
+			expect(runsResponse.ok).toBe(true);
+			const runsBody = await runsResponse.json() as {runs:Array<{id:string;taskId:string|null;kind:string;laneNo:number|null}>};
+			const assignedRun = runsBody.runs.find(run=>run.taskId===targetTask.id && run.kind==='implement' && run.laneNo !== null);
+			currentRunId = assignedRun?.id ?? null;
+			if (!currentRunId) await new Promise(resolveWait=>setTimeout(resolveWait,100));
+		}
+		expect(currentRunId).toBeTruthy();
 		const worktreeDeadline = Date.now() + 10_000;
 		while (!existsSync(expectedWorktree) && Date.now() < worktreeDeadline) {
 			await new Promise((resolveWait) => setTimeout(resolveWait, 100));
