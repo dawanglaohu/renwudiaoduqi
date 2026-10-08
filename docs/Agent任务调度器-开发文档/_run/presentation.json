@@ -1,12 +1,12 @@
 {
   "project": "Agent 任务调度器",
-  "lead": "核心仍是一个独立常驻的 daemon，桌面与手机是它的两副面孔；新增的硬约束是**同一套 daemon、路径/子进程与 Tauri 桌面壳必须在 Windows、macOS、Linux 完整运行**。第二强的是**「已退出」不等于「已落地」**：五个 agent 都不能只靠退出码判定任务完成。进度上要盯 **M1**（10 个任务、17 人天，三平台路径、进程树、自启和 `spawn` 都在这里收口）与 **M4**（12 个任务、21 人天，是最大的 agent 差异块）。当前平台风险是 macOS/Linux 缺本地真机证据，必须由三平台 CI 与人工 GUI 清单共同补齐。",
+  "lead": "本机常驻 daemon 按开发文档的任务、依赖和批次组织实施、审查与收口，桌面与手机共用同一界面。文档级顺序自动执行扩展已拆入第18至21批，仍待实施：导入后保持待启动，点击「开始」后按批次顺序和并行窗口自动派发，收口通过后接力下一批。人工闸门、路径冲突、Agent 名额和任务快照继续生效。",
   "highlights": {
     "tasks": [
-      "M1-T7",
-      "M4-T3",
-      "M6-T1",
-      "M8-T2"
+      "M8-T12",
+      "M8-T13",
+      "M9-T30",
+      "M1-T12"
     ],
     "modules": [
       "M1",
@@ -807,6 +807,73 @@
         "packages/web/src/app/routes.tsx",
         "packages/web/scripts/check-forbidden.ts",
         "packages/web/test/check-forbidden.test.ts"
+      ],
+      "M8-T12": [
+        "packages/daemon/src/domain/document-execution.ts",
+        "packages/daemon/src/repo/document-executions.ts",
+        "packages/daemon/src/service/document-execution.ts",
+        "packages/daemon/src/http/routes/document-execution.ts",
+        "packages/daemon/src/http/routes/documents.ts",
+        "packages/daemon/src/http/routes/snapshot.ts",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/main.ts",
+        "packages/daemon/migrations/",
+        "packages/shared/src/api/document-execution.ts",
+        "packages/shared/src/api/snapshot.ts",
+        "packages/shared/src/api/events.ts",
+        "packages/shared/src/api/routes.ts",
+        "packages/shared/package.json",
+        "packages/daemon/test/unit/document-execution.test.ts",
+        "packages/daemon/test/integration/document-execution-routes.test.ts",
+        "packages/daemon/test/arch/routes.test.ts",
+        "packages/daemon/test/arch/shared-contracts.test.ts"
+      ],
+      "M8-T13": [
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/service/document-execution.ts",
+        "packages/daemon/src/domain/document-execution.ts",
+        "packages/daemon/src/domain/dispatch-candidates.ts",
+        "packages/daemon/src/service/assignment-reader.ts",
+        "packages/daemon/src/service/assignments.ts",
+        "packages/daemon/src/service/docs.ts",
+        "packages/daemon/src/service/wrapup.ts",
+        "packages/daemon/src/service/gates.ts",
+        "packages/daemon/src/service/batch.ts",
+        "packages/daemon/src/jobs/scheduler-tick.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/test/integration/document-execution-scheduler.test.ts",
+        "packages/daemon/test/integration/document-execution-restart.test.ts",
+        "packages/daemon/test/unit/dispatch-contract.test.ts",
+        "packages/daemon/test/integration/pipeline-lanes.test.ts"
+      ],
+      "M9-T30": [
+        "packages/web/src/api/document-execution.ts",
+        "packages/web/src/features/run-deck/use-document-execution.ts",
+        "packages/web/src/features/run-deck/document-execution-container.tsx",
+        "packages/web/src/features/run-deck/run-deck-container.tsx",
+        "packages/web/src/features/run-deck/run-deck-view.tsx",
+        "packages/web/src/features/run-deck/use-assign-panel.ts",
+        "packages/web/src/components/document-execution-controls.tsx",
+        "packages/web/src/components/empty-onboarding.tsx",
+        "packages/web/src/components/assign-panel.tsx",
+        "packages/web/src/components/batch-tree.tsx",
+        "packages/web/src/store/selection-store.ts",
+        "packages/web/src/api/event-bus.ts",
+        "packages/web/test/document-execution.test.tsx",
+        "packages/web/test/document-execution-races.test.ts",
+        "packages/web/test/landing-onboarding.test.ts",
+        "packages/web/test/run-deck-container.test.tsx"
+      ],
+      "M1-T12": [
+        "e2e/document-execution.test.ts",
+        "e2e/fixtures/document-execution-docs-data.js",
+        "e2e/fixtures/document-execution-agent.mjs",
+        "e2e/fixtures/document-execution-agents.json",
+        "e2e/helpers/",
+        "vitest.e2e.config.ts",
+        ".github/workflows/desktop-ci.yml",
+        "docs/platform-support.md"
       ]
     },
     "taskSkills": {

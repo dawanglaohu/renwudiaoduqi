@@ -1716,6 +1716,173 @@
         12,
         17
       ]
+    },
+    "M8-T12": {
+      "stage": "primitive",
+      "integrationTask": "M8-T13",
+      "provides": [
+        "document-execution-control"
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        17,
+        22
+      ],
+      "wiring": [
+        "backendRoutes",
+        "container",
+        "eventKinds",
+        "migrations"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/repo/documents.ts",
+        "packages/daemon/src/repo/batches.ts",
+        "packages/daemon/test/integration/migrate-rebuild.test.ts",
+        "packages/daemon/test/integration/container-wiring.test.ts",
+        "packages/daemon/test/arch/shared-contracts.test.ts",
+        "docs/Agent任务调度器-开发文档/02-设计/09-数据模型.md",
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md",
+        "packages/daemon/src/domain/batch-state-machine.ts",
+        "packages/daemon/src/service/batch.ts",
+        "packages/daemon/test/unit/batch-state-machine.test.ts",
+        "packages/daemon/test/arch/batch-state-isolation.test.ts"
+      ]
+    },
+    "M8-T13": {
+      "stage": "integration",
+      "provides": [
+        "document-sequential-dispatch"
+      ],
+      "requires": [
+        {
+          "task": "M8-T12",
+          "capability": "document-execution-control"
+        }
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        17,
+        22
+      ],
+      "wiring": [
+        "container",
+        "jobs",
+        "eventKinds"
+      ],
+      "supportPaths": [
+        "packages/daemon/src/repo/document-executions.ts",
+        "packages/daemon/src/repo/batches.ts",
+        "packages/daemon/src/repo/tasks.ts",
+        "packages/daemon/src/service/run.ts",
+        "packages/daemon/src/http/routes/snapshot.ts",
+        "packages/daemon/src/http/routes/batches.ts",
+        "packages/daemon/src/main.ts",
+        "packages/daemon/test/integration/container-wiring.test.ts",
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/src/service/review-agent.ts",
+        "packages/daemon/src/service/bughunt.ts",
+        "packages/daemon/src/service/rework.ts",
+        "packages/daemon/src/domain/batch-state-machine.ts",
+        "packages/daemon/src/service/batch.ts",
+        "packages/daemon/test/unit/batch-state-machine.test.ts",
+        "packages/daemon/test/arch/batch-state-isolation.test.ts",
+        "packages/daemon/test/integration/batch-wrapup.test.ts"
+      ]
+    },
+    "M9-T30": {
+      "stage": "integration",
+      "provides": [
+        "document-execution-ui"
+      ],
+      "requires": [
+        {
+          "task": "M8-T13",
+          "capability": "document-sequential-dispatch"
+        }
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        17,
+        22
+      ],
+      "wiring": [
+        "eventKinds"
+      ],
+      "supportPaths": [
+        "packages/web/src/api/resource-cache.ts",
+        "packages/web/src/features/run-deck/types.ts",
+        "packages/web/src/i18n/error-messages.ts",
+        "packages/web/test/assign-panel.test.ts",
+        "packages/web/test/route-entries.test.tsx",
+        "packages/web/src/api/cache-keys.ts",
+        "packages/web/src/api/cache-invalidation.ts",
+        "packages/web/src/store/connection-store.ts",
+        "packages/web/src/features/settings-agents/use-agent-models.ts",
+        "packages/web/src/components/model-picker.tsx",
+        "packages/web/src/components/effort-picker.tsx",
+        "packages/web/src/i18n/ui-strings.ts",
+        "packages/web/test/cache-invalidation.test.ts"
+      ]
+    },
+    "M1-T12": {
+      "stage": "integration",
+      "requires": [
+        {
+          "task": "M9-T30",
+          "capability": "document-execution-ui"
+        },
+        {
+          "task": "M8-T13",
+          "capability": "document-sequential-dispatch"
+        }
+      ],
+      "sections": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9,
+        10,
+        14,
+        17,
+        18,
+        22
+      ],
+      "wiring": [
+        "buildPipeline"
+      ],
+      "supportPaths": [
+        "package.json",
+        "pnpm-lock.yaml",
+        ".gitignore",
+        "e2e/smoke.test.ts",
+        "e2e/batch-13-smoke.test.ts",
+        "e2e/fixtures/agents.json",
+        "e2e/fixtures/fake-agent.mjs"
+      ]
     }
   }
 }
