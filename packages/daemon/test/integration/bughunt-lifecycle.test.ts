@@ -10,6 +10,7 @@ import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
+import { createNodeLogFileSystem } from '../../src/logstore/node-log-file-system.ts';
 import type { NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import type { LaunchSpec, ManagedProcess, ProcessExitResult } from '../../src/proc/spawn.ts';
 import type {
@@ -228,6 +229,7 @@ async function setupBughuntEnvironment(
 		readonly worktreeFailure?: AppError;
 		readonly isAdapterMissing?: boolean;
 		readonly isAgentUnavailableAtStartup?: boolean;
+		readonly hasStateEventFailure?: boolean;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-bughunt-'));
@@ -393,6 +395,8 @@ async function setupBughuntEnvironment(
 		},
 	};
 
+	const realLogFs = createNodeLogFileSystem();
+	let stateEventFailures = 0;
 	const container = createContainer({
 		config: {
 			port: 0,
@@ -406,6 +410,19 @@ async function setupBughuntEnvironment(
 		lockAdapter: dummyLockAdapter,
 		instanceLock: { release: () => undefined } as never,
 		clock,
+		logFs: {
+			...realLogFs,
+			appendFile: async (path, data) => {
+				if (overrides.hasStateEventFailure && path.endsWith('.ndjson')) {
+					const event = JSON.parse(Buffer.from(data).toString('utf8'));
+					if (event.kind === 'run.state_changed' && event.payload?.to === 'failed') {
+						stateEventFailures++;
+						throw new AppError('E_INTERNAL', 'Controlled state-event append failure.');
+					}
+				}
+				return realLogFs.appendFile(path, data);
+			},
+		},
 		agentRegistry,
 		spawnManaged: fakeSpawnManaged,
 		codexSessions: null,
@@ -515,6 +532,7 @@ async function setupBughuntEnvironment(
 		clock,
 		tempDir,
 		spawnedProcesses,
+		getStateEventFailureCount: () => stateEventFailures,
 		gitDiffControl,
 	};
 }
@@ -706,9 +724,16 @@ describe('R8-T69421773: production HTTP rerun admission', () => {
 		}
 	});
 
-	it.each(['workspace', 'adapter', 'agent'] as const)(
-		'a queued rerun %s failure restores its gate and permits another original rerun (R1, E-323, E-331)',
-		async (failure) => {
+	it.each([
+		['workspace', false],
+		['adapter', false],
+		['agent', false],
+		['workspace', true],
+		['adapter', true],
+		['agent', true],
+	] as const)(
+		'a queued rerun %s failure restores its gate and permits another original rerun (state-event failure: %s, R1, E-323, E-331)',
+		async (failure, hasStateEventFailure) => {
 			const env = await setupBughuntEnvironment({
 				pipelineBughunt: false,
 				isInitiallyParked: true,
@@ -718,6 +743,7 @@ describe('R8-T69421773: production HTTP rerun admission', () => {
 						: undefined,
 				isAdapterMissing: failure === 'adapter',
 				isAgentUnavailableAtStartup: failure === 'agent',
+				hasStateEventFailure,
 			});
 			seedFailedBughunt(env);
 			const { container } = env;
@@ -821,6 +847,7 @@ describe('R8-T69421773: production HTTP rerun admission', () => {
 				}
 				expect(container.repos.runs.listByTaskId('task-1')).toHaveLength(5);
 				expect(listWaitingGates(container)).toEqual(waitingBeforeReplay);
+				expect(env.getStateEventFailureCount()).toBe(hasStateEventFailure ? 2 : 0);
 			} finally {
 				for (const job of container.jobs) await job.stop();
 				await server.instance.close();

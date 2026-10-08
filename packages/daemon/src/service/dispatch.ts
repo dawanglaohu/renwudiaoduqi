@@ -2349,16 +2349,19 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (run.origin === 'rework') {
 					await failReworkRunStartup(runId, 'agent_unavailable');
 				} else if (deps.runService) {
-					await deps.runService.transitionState({
-						runId,
-						targetState: 'failed',
-						reason: 'agent_unavailable',
-					});
-					if (run.kind === 'bughunt' && deps.bughuntService) {
-						await deps.bughuntService.finalizeBughuntRun({
-							bughuntRunId: runId,
-							failedReason: 'agent_unavailable',
+					try {
+						await deps.runService.transitionState({
+							runId,
+							targetState: 'failed',
+							reason: 'agent_unavailable',
 						});
+					} finally {
+						if (run.kind === 'bughunt' && deps.bughuntService) {
+							await deps.bughuntService.finalizeBughuntRun({
+								bughuntRunId: runId,
+								failedReason: 'agent_unavailable',
+							});
+						}
 					}
 				}
 				throw new AppError(
@@ -2501,16 +2504,19 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (run.origin === 'rework') {
 					await failReworkRunStartup(runId, workspaceReason);
 				} else {
-					await deps.runService.transitionState({
-						runId,
-						targetState: 'failed',
-						reason: workspaceReason,
-					});
-					if (run.kind === 'bughunt' && deps.bughuntService) {
-						await deps.bughuntService.finalizeBughuntRun({
-							bughuntRunId: runId,
-							failedReason: workspaceReason,
+					try {
+						await deps.runService.transitionState({
+							runId,
+							targetState: 'failed',
+							reason: workspaceReason,
 						});
+					} finally {
+						if (run.kind === 'bughunt' && deps.bughuntService) {
+							await deps.bughuntService.finalizeBughuntRun({
+								bughuntRunId: runId,
+								failedReason: workspaceReason,
+							});
+						}
 					}
 				}
 				throw err instanceof AppError
@@ -2526,16 +2532,19 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (run.origin === 'rework') {
 					await failReworkRunStartup(runId, 'agent_unavailable');
 				} else {
-					await deps.runService.transitionState({
-						runId,
-						targetState: 'failed',
-						reason: 'agent_unavailable',
-					});
-					if (run.kind === 'bughunt' && deps.bughuntService) {
-						await deps.bughuntService.finalizeBughuntRun({
-							bughuntRunId: runId,
-							failedReason: 'agent_unavailable',
+					try {
+						await deps.runService.transitionState({
+							runId,
+							targetState: 'failed',
+							reason: 'agent_unavailable',
 						});
+					} finally {
+						if (run.kind === 'bughunt' && deps.bughuntService) {
+							await deps.bughuntService.finalizeBughuntRun({
+								bughuntRunId: runId,
+								failedReason: 'agent_unavailable',
+							});
+						}
 					}
 				}
 				throw new AppError(
