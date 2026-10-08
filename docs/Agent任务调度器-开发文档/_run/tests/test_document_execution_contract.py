@@ -131,6 +131,14 @@ class DocumentExecutionContractTests(unittest.TestCase):
         self.assertNotIn('非法、不可用、过期来源、缺少文档', row)
         self.assertIn('running', row)
 
+    def test_control_task_defers_recovery_dispatch_to_its_integration_task(self):
+        rows = (DOCS_ROOT / '04-执行/19-模块任务拆分.md').read_text(encoding='utf-8').splitlines()
+        control = next(line for line in rows if line.startswith('| M8-T12 |'))
+        integration = next(line for line in rows if line.startswith('| M8-T13 |'))
+        self.assertNotIn('恢复观测后自动补位而非再开始', control)
+        self.assertIn('恢复派发由 M8-T13', control)
+        self.assertIn('恢复观测后下一 tick 自动派发', integration)
+
 
 if __name__ == '__main__':
     unittest.main()

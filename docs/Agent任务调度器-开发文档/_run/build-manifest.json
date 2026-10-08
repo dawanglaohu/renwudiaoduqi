@@ -19,7 +19,7 @@
     "03-质量/16-可观测性.md": "31e39822fc55ae28bcec422765abe985b13ec51f58c7369ccb087d585a4615dd",
     "03-质量/17-测试策略.md": "5f9b5ac17bf4c5345a86c8d48dd34ae01b39766f20fc9ae43818cc6da4ccec84",
     "04-执行/18-部署与运维.md": "786beb5a984dd6abb88421a6dd106763e3a3b19fd20e3173811097ccffdb0ae6",
-    "04-执行/19-模块任务拆分.md": "b83ae0b012684b2d6a93f79308e29350fab146f018366510a04ae81cbf506f9a",
+    "04-执行/19-模块任务拆分.md": "b65e5ec69c93e76c04b2d6353191fa1b72fc5df2aba5efe7f15604d9efb0c755",
     "04-执行/20-里程碑与交付顺序.md": "6ab74c0342e4883b6abe3e796bcb7604e7c73c513c9425c756622c2c1634a634",
     "04-执行/21-风险与未决事项.md": "efd8b20a095569aa97b1185472b4b0367cff7c7abfe3eaa3326a3f0fc04c1fc9",
     "05-附录/22-决策记录.md": "e73b465671eef09fe4b2de9de5e0575eb2198838ee6243a58afef66dd82201c6",
@@ -41,12 +41,12 @@
   },
   "products": {
     "_MOC.md": "c3f4d7ef30fb70999b6117e3254e2734d41b7655f712f2f75420eb937d0425f1",
-    "_run/dispatch.json": "c5e348f924a182479adaa2eb20686b18ac3ed1716582814b033452a31e6e8de5",
-    "_run/review.json": "4fcf78f037b8592f84147b0ea9556d4893fca473ebebf68b0ece94e792f21a5c",
-    "_run/task-reviews.json": "de1bd6f25af1cdcdbc6a11164af6bbb728047f34425f73f21e797a4f65b86b08",
-    "docs-data.js": "a54764342314494d3d01be0a307b631551f9dd0990028e231cdfd959e9fb9900",
+    "_run/dispatch.json": "e038c0da769019ebf3b0773f071cb6a9dad895583f58f8bfcc342569da85d77f",
+    "_run/review.json": "ee9567a0f34708cf567412190d09cfe004fc91d1d835d281668e005762aa1f50",
+    "_run/task-reviews.json": "aab9ea7c7d4068172a7a635c10ae295d2e7c562f4e453fe2f0cec7fe0ea16319",
+    "docs-data.js": "f6956372a7f805a54f058d5598b1611a4635c7ce00d254a5c9c8199ad18362ee",
     "index.html": "7558315b3b7718157e85b3dd8c36f2e6d6790cfee592ed51ef84f61c562af085"
   },
   "schemaVersion": 1,
-  "sourceVersion": "013175855f851fc6098f9f39fa85631008ba860b6f798e2ccf7352145ca2ae47"
+  "sourceVersion": "86c158670dadde6409db1e6d50ee961d221b3082f437462436c5926040281245"
 }
