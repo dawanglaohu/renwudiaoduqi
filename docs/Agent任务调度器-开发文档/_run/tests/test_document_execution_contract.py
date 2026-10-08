@@ -140,5 +140,26 @@ class DocumentExecutionContractTests(unittest.TestCase):
         self.assertIn('恢复观测后下一 tick 自动派发', integration)
 
 
+    def test_active_membership_changes_have_guarded_reconciliation(self):
+        extension = (DOCS_ROOT / '05-附录/22-决策记录.md').read_text(encoding='utf-8').split('## 文档级顺序自动执行', 1)[1]
+        for state in ('running', 'paused', 'awaiting_landing', 'wrapping', 'needs_attention'):
+            with self.subTest(state=state):
+                self.assertIn(f'{state} → idle', extension)
+        self.assertIn('source_runs_pending', extension)
+        blocker_row = next(line for line in extension.splitlines() if line.startswith('`blockers[]`'))
+        self.assertIn('`source_runs_pending`', blocker_row)
+        self.assertIn('旧代回调只保存历史', extension)
+        row = next(line for line in (DOCS_ROOT / '04-执行/19-模块任务拆分.md').read_text(encoding='utf-8').splitlines() if line.startswith('| M1-T12 |'))
+        self.assertIn('wrapping 时新增任务', row)
+
+    def test_wrapup_task_storage_keeps_the_existing_string_array(self):
+        model = (DOCS_ROOT / '02-设计/09-数据模型.md').read_text(encoding='utf-8')
+        self.assertIn('收口那一刻本批 task_key 的排序数组', model)
+        extension = (DOCS_ROOT / '05-附录/22-决策记录.md').read_text(encoding='utf-8').split('## 文档级顺序自动执行', 1)[1]
+        self.assertIn('tasks_json 保存排序的 task_key 字符串数组', extension)
+        self.assertIn('members.map(member => member.task_key)', extension)
+        self.assertNotIn('收口 tasks_json 也取冻结成员', extension)
+
+
 if __name__ == '__main__':
     unittest.main()
