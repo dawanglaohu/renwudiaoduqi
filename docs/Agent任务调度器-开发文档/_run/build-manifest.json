@@ -20,7 +20,7 @@
     "03-质量/17-测试策略.md": "5f9b5ac17bf4c5345a86c8d48dd34ae01b39766f20fc9ae43818cc6da4ccec84",
     "04-执行/18-部署与运维.md": "786beb5a984dd6abb88421a6dd106763e3a3b19fd20e3173811097ccffdb0ae6",
     "04-执行/19-模块任务拆分.md": "f9f14dfab44c14e85e132ae0b720a0e3ad9ae93c882790739a79196038efc38f",
-    "04-执行/20-里程碑与交付顺序.md": "7e63a7b654b08a6d2ea709932eb9ceb9d9cd3bfc81dceed2e04e7b6fb2b92820",
+    "04-执行/20-里程碑与交付顺序.md": "6ab74c0342e4883b6abe3e796bcb7604e7c73c513c9425c756622c2c1634a634",
     "04-执行/21-风险与未决事项.md": "efd8b20a095569aa97b1185472b4b0367cff7c7abfe3eaa3326a3f0fc04c1fc9",
     "05-附录/22-决策记录.md": "ad3100302c625d9051c5ce71b6ad1e2c532685358ce5fcec526e6c7ac34803b3",
     "05-附录/23-变更记录.md": "6aa34f6970961817f0511138f1cba34ff3e025bf4d9b6ff5bdbf8904ba5d33f1",
@@ -41,12 +41,12 @@
   },
   "products": {
     "_MOC.md": "c3f4d7ef30fb70999b6117e3254e2734d41b7655f712f2f75420eb937d0425f1",
-    "_run/dispatch.json": "b35db6e2ff53030d3c3d708061ef88afb9b3aad420433f5d211df01e7e9b47bb",
-    "_run/review.json": "779015da110def3a92efd0f14bd08d4e9c94a326d8c4e95500661f1c767f54c9",
-    "_run/task-reviews.json": "830aa74b610153685d02a9e4e311c587be36d7b390b473eeee626c0f5968b003",
-    "docs-data.js": "35dd151acab7c142eb499d6cfd5307aeb646b5d8e0ea7dc8bc3339b45437e1d5",
+    "_run/dispatch.json": "f6be02b411c2fe4b782305fe8227e4a1fea174d995ad54b29ae1ba822db974ec",
+    "_run/review.json": "993001fddc65bf52034fa49769684320dec85d985d0eb1486d48696e86964a20",
+    "_run/task-reviews.json": "08304490cf52362a66b62d986a8b9def3512af2ebf496bf87f62e4997ef57547",
+    "docs-data.js": "1332f95f6ce7badab0680b5c74e81e3b819685ddc064f3ef08fd6f949b5e5c39",
     "index.html": "7558315b3b7718157e85b3dd8c36f2e6d6790cfee592ed51ef84f61c562af085"
   },
   "schemaVersion": 1,
-  "sourceVersion": "464ef530c21697d24647db417fc77969340c9c970c4e2ac8eeb438a52a0ed8d4"
+  "sourceVersion": "31749c9d2ec7bb774c769cdfae645266abcbaa44cc89dbf0e95353b2b49000c8"
 }

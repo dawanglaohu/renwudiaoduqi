@@ -1,6 +1,8 @@
 """文档执行合同与控制版本、指派格式、收口成员的接缝检查。"""
 import json
+from collections import defaultdict
 from pathlib import Path
+import re
 import unittest
 
 DOCS_ROOT = Path(__file__).resolve().parents[2]
@@ -92,6 +94,30 @@ class DocumentExecutionContractTests(unittest.TestCase):
                 with self.subTest(task=task, side=side):
                     self.assertIn('generationId', dispatch['tasks'][task][side])
                     self.assertIn('6次物理尝试', dispatch['tasks'][task][side])
+
+    def test_milestone_totals_match_current_task_and_module_estimates(self):
+        expected = defaultdict(lambda: [0, 0.0])
+        tasks = (DOCS_ROOT / '04-执行/19-模块任务拆分.md').read_text(encoding='utf-8')
+        for line in tasks.splitlines():
+            cells = [c.strip() for c in line.split('|')[1:-1]]
+            if len(cells) == 8 and re.fullmatch(r'M\d+-T\d+', cells[0]):
+                expected[cells[2]][0] += 1
+                expected[cells[2]][1] += float(re.fullmatch(r'([\d.]+)d', cells[7])[1])
+        total_tasks = sum(value[0] for value in expected.values())
+        total_days = sum(value[1] for value in expected.values())
+        milestones = (DOCS_ROOT / '04-执行/20-里程碑与交付顺序.md').read_text(encoding='utf-8')
+        declared = re.search(r'总量\s*(\d+)\s*个任务、([\d.]+)\s*人天', milestones)
+        self.assertIsNotNone(declared)
+        self.assertEqual((int(declared[1]), float(declared[2])), (total_tasks, total_days))
+        modules, phase_days = {}, 0.0
+        for line in milestones.splitlines():
+            cells = [c.strip() for c in line.split('|')[1:-1]]
+            if len(cells) == 3 and re.fullmatch(r'M\d+', cells[0]):
+                modules[cells[0]] = [int(cells[1]), float(cells[2])]
+            elif len(cells) == 4 and re.fullmatch(r'[\d.]+', cells[2]):
+                phase_days += float(cells[2])
+        self.assertEqual(modules, dict(expected))
+        self.assertEqual(phase_days, total_days)
 
 
 if __name__ == '__main__':

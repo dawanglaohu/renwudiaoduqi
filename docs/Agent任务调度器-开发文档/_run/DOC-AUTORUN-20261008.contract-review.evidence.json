@@ -9,9 +9,9 @@
         "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
         "依赖及能力提供/消费链经项目结构检查无BLOCK；生成的21个依赖批次包含 M8-T12→M8-T13→M9-T30→M1-T12（第18至21批），原17批任务集合和历史收口/返工记录保持不变。",
         "有效路径逐项核对：22处已有文件/目录存在，7处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
-        "PR210五项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置。验收及四项派发/审查提示词均包含这些要求。",
+        "PR210六项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天。验收及四项派发/审查提示词包含对应要求。",
         "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-        "文档工具链 unittest discover 已运行208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；新增8项文档契约回归分别在对应修复前失败、修复后通过，最新状态机路径与代次额度修复前17处断言失败；未修改生成器或产品代码。"
+        "文档工具链完整208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；最后统计修正后9项相关契约回归再次通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败；未修改生成器或产品代码。"
       ]
     },
     "M8-T13": {
@@ -22,9 +22,9 @@
         "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
         "依赖及能力提供/消费链经项目结构检查无BLOCK；生成的21个依赖批次包含 M8-T12→M8-T13→M9-T30→M1-T12（第18至21批），原17批任务集合和历史收口/返工记录保持不变。",
         "有效路径逐项核对：27处已有文件/目录存在，5处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
-        "PR210五项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置。验收及四项派发/审查提示词均包含这些要求。",
+        "PR210六项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天。验收及四项派发/审查提示词包含对应要求。",
         "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-        "文档工具链 unittest discover 已运行208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；新增8项文档契约回归分别在对应修复前失败、修复后通过，最新状态机路径与代次额度修复前17处断言失败；未修改生成器或产品代码。"
+        "文档工具链完整208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；最后统计修正后9项相关契约回归再次通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败；未修改生成器或产品代码。"
       ]
     },
     "M9-T30": {
@@ -35,9 +35,9 @@
         "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
         "依赖及能力提供/消费链经项目结构检查无BLOCK；生成的21个依赖批次包含 M8-T12→M8-T13→M9-T30→M1-T12（第18至21批），原17批任务集合和历史收口/返工记录保持不变。",
         "有效路径逐项核对：23处已有文件/目录存在，6处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
-        "PR210五项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置。验收及四项派发/审查提示词均包含这些要求。",
+        "PR210六项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天。验收及四项派发/审查提示词包含对应要求。",
         "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-        "文档工具链 unittest discover 已运行208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；新增8项文档契约回归分别在对应修复前失败、修复后通过，最新状态机路径与代次额度修复前17处断言失败；未修改生成器或产品代码。"
+        "文档工具链完整208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；最后统计修正后9项相关契约回归再次通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败；未修改生成器或产品代码。"
       ]
     },
     "M1-T12": {
@@ -48,9 +48,9 @@
         "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
         "依赖及能力提供/消费链经项目结构检查无BLOCK；生成的21个依赖批次包含 M8-T12→M8-T13→M9-T30→M1-T12（第18至21批），原17批任务集合和历史收口/返工记录保持不变。",
         "有效路径逐项核对：10处已有文件/目录存在，5处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
-        "PR210五项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置。验收及四项派发/审查提示词均包含这些要求。",
+        "PR210六项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天。验收及四项派发/审查提示词包含对应要求。",
         "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-        "文档工具链 unittest discover 已运行208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；新增8项文档契约回归分别在对应修复前失败、修复后通过，最新状态机路径与代次额度修复前17处断言失败；未修改生成器或产品代码。"
+        "文档工具链完整208项：207通过，1项因本项目_run目录无SKILL.md按原条件跳过；最后统计修正后9项相关契约回归再次通过。新增回归均在对应修复前失败、修复后通过，状态机路径与代次额度修复前17处断言失败，统计修正前1项失败；未修改生成器或产品代码。"
       ]
     }
   }
