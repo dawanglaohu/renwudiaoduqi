@@ -901,6 +901,7 @@ export function createContainer(input: {
 		input.dispatchService ??
 		createDispatchService({
 			unitOfWork,
+			nudgeTick,
 			tasksRepo: tasks,
 			batchesRepo: batches,
 			documentsRepo: documents,

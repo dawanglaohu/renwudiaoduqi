@@ -217,6 +217,9 @@ interface GitDiffControl {
 async function setupBughuntEnvironment(
 	overrides: {
 		readonly pipelineBughunt?: boolean;
+		readonly laneCount?: number;
+		readonly agentConcurrency?: number;
+		readonly isInitiallyParked?: boolean;
 	} = {},
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agsched-bughunt-'));
@@ -256,7 +259,7 @@ async function setupBughuntEnvironment(
 			...BUILT_IN_AGENT_DEFAULTS,
 			codex: Object.freeze({
 				...BUILT_IN_AGENT_DEFAULTS.codex,
-				maxConcurrency: 2,
+				maxConcurrency: overrides.agentConcurrency ?? 2,
 				execPath: '/opt/codex-test',
 			}),
 		},
@@ -264,11 +267,11 @@ async function setupBughuntEnvironment(
 
 	const fakeWorktreeManager = {
 		prepareWorktree: async (input: PrepareWorktreeInput): Promise<PrepareWorktreeResult> => {
-			const worktreePath = join(tempDir, 'worktrees', input.taskId);
+			const worktreePath = input.targetWorktreePath ?? join(tempDir, 'worktrees', input.taskId);
 			mkdirSync(worktreePath, { recursive: true });
 			return {
 				worktreePath,
-				branchName: `task/${input.taskId}`,
+				branchName: input.preferredBranchName ?? `task/${input.taskId}`,
 				baseRef: input.baseRef ?? 'HEAD',
 				isReused: false,
 			};
@@ -405,7 +408,7 @@ async function setupBughuntEnvironment(
 		repo_path: tempDir,
 		main_branch: 'main',
 		branch_prefix: 'task/',
-		lane_count: 2,
+		lane_count: overrides.laneCount ?? 2,
 		content_fingerprint: 'fp-1',
 		is_source_readable: 1,
 		is_takeover_notified: 0,
@@ -430,7 +433,8 @@ async function setupBughuntEnvironment(
 		deps_json: '[]',
 		est_days: 2,
 		batch_id: 'batch-1',
-		manual_state: 'pending',
+		manual_state: overrides.isInitiallyParked ? 'awaiting_human' : 'pending',
+		task_paths_json: overrides.isInitiallyParked ? '["src/target.ts"]' : '[]',
 		contract_hash: 'contract-hash-task-1',
 		is_contract_ready: 1,
 		contract_reasons_json: '[]',
@@ -493,6 +497,194 @@ async function setupBughuntEnvironment(
 		gitDiffControl,
 	};
 }
+
+function seedFailedBughunt(env: Awaited<ReturnType<typeof setupBughuntEnvironment>>) {
+	const { container, clock, tempDir } = env;
+	const worktreePath = join(tempDir, 'original-worktree');
+	mkdirSync(worktreePath, { recursive: true });
+	container.repos.tasks.updateManualState('task-1', 'awaiting_human');
+	for (const [attemptNo, kind, state] of [
+		[1, 'implement', 'awaiting_human'],
+		[2, 'review', 'exited'],
+		[4, 'bughunt', 'failed'],
+	] as const) {
+		container.repos.runs.insert({
+			id: `history-${attemptNo}`,
+			task_id: 'task-1',
+			attempt_no: attemptNo,
+			kind,
+			state,
+			parent_run_id: attemptNo === 1 ? null : 'history-1',
+			queued_reason: attemptNo === 2 ? null : 'bughunt_failed',
+			agent_id: 'codex',
+			model_name: 'o3-mini',
+			effort_tier: 'high',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: 'snap-1',
+			batch_id: 'batch-1',
+			worktree_path: worktreePath,
+			branch_name: 'task/original',
+			branch_tip_sha: '0'.repeat(40),
+			lane_no: 1,
+			idempotency_key: `history-${attemptNo}-key`,
+			ended_at: clock.now(),
+		});
+	}
+	expectDefined(container.repos.gates, 'gates').create({
+		id: 'history-gate',
+		task_id: 'task-1',
+		run_id: 'history-1',
+		kind: 'review',
+		state: 'waiting',
+		comment: 'bughunt_failed',
+		created_at: clock.now(),
+	});
+}
+
+describe('R8-T69421773: production HTTP rerun admission', () => {
+	it.each([
+		{
+			laneCount: 1,
+			agentConcurrency: 2,
+			blockedBy: 'occupied historical lane',
+			isInitiallyBlocked: true,
+		},
+		{
+			laneCount: 2,
+			agentConcurrency: 1,
+			blockedBy: 'agent concurrency limit',
+			isInitiallyBlocked: true,
+		},
+		{
+			laneCount: 2,
+			agentConcurrency: 2,
+			blockedBy: 'a historical lane with a free alternative',
+			isInitiallyBlocked: false,
+		},
+	])('waits for $blockedBy and resumes the same bughunt in a free lane', async (limits) => {
+		const env = await setupBughuntEnvironment({
+			pipelineBughunt: false,
+			isInitiallyParked: true,
+			...limits,
+		});
+		const { container, spawnedProcesses } = env;
+		seedFailedBughunt(env);
+		container.repos.tasks.insert({
+			id: 'holding-task',
+			doc_id: 'doc-1',
+			batch_id: 'batch-1',
+			task_key: 'HOLD',
+			title: 'Occupies the former lane',
+			module_key: 'M8',
+			deps_json: '[]',
+			lane_no: 1,
+			contract_hash: 'holding-contract',
+			is_contract_ready: 1,
+			contract_reasons_json: '[]',
+		});
+		const holdingSnapshot = expectDefined(container.repos.dispatchSnapshots).takeSnapshotForTask({
+			taskId: 'holding-task',
+			launchSpecJson: '{}',
+			createdAt: env.clock.now(),
+		});
+		container.repos.runs.insert({
+			id: 'holding-run',
+			task_id: 'holding-task',
+			attempt_no: 9,
+			kind: 'implement',
+			state: 'running',
+			agent_id: 'codex',
+			permission_tier: 'workspaceWrite',
+			lane_no: 1,
+			batch_id: 'batch-1',
+			snapshot_id: holdingSnapshot.id,
+		});
+		const server = createHttpServer({ container });
+		await server.instance.ready();
+		const token = await getAuthToken(container);
+		const request = {
+			method: 'POST' as const,
+			url: '/api/v1/runs/history-4/rerun',
+			headers: { authorization: token },
+			payload: { idempotencyKey: 'admitted-rerun' },
+		};
+		try {
+			const response = await server.instance.inject(request);
+			expect(response.statusCode).toBe(200);
+			const { run } = response.json();
+			expect(run).toMatchObject({
+				kind: 'bughunt',
+				attemptNo: 5,
+				parentRunId: 'history-1',
+				state: 'queued',
+				laneNo: null,
+			});
+			expect(run.id).not.toBe('history-1');
+			expect(container.repos.tasks.findById('holding-task')?.lane_no).toBe(1);
+			if (limits.isInitiallyBlocked) {
+				expect(container.repos.tasks.findById('task-1')?.lane_no).toBeNull();
+				expect(spawnedProcesses).toHaveLength(0);
+			} else {
+				expect(
+					await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === run.id)),
+				).toBe(true);
+				expect(container.repos.tasks.findById('task-1')?.lane_no).toBe(2);
+			}
+			const replay = await server.instance.inject(request);
+			expect(replay.statusCode).toBe(200);
+			expect(replay.json().run.id).toBe(run.id);
+			expect(container.repos.runs.listByTaskId('task-1').map((r) => r.attempt_no)).toEqual([
+				1, 2, 4, 5,
+			]);
+			expect(container.repos.gates?.findById('history-gate')).toMatchObject({
+				state: 'decided',
+				comment: 'superseded',
+			});
+
+			container.repos.runs.updateState({ id: 'holding-run', toState: 'failed' });
+			container.repos.tasks.clearLaneNo('holding-task');
+			await container.services.dispatch.tick();
+			expect(await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === run.id))).toBe(
+				true,
+			);
+			expect(container.repos.tasks.findById('task-1')?.lane_no).toBe(
+				limits.isInitiallyBlocked ? 1 : 2,
+			);
+			expect(container.repos.runs.findById(run.id)).toMatchObject({
+				snapshot_id: 'snap-1',
+				model_name: 'o3-mini',
+				effort_tier: 'high',
+				parent_run_id: 'history-1',
+			});
+			const proc = expectDefined(spawnedProcesses.find((p) => p.launchSpec.runId === run.id));
+			expect(proc.launchSpec.cwd).toBe(join(env.tempDir, 'original-worktree'));
+			proc.emitLine(loadFixture('clean.txt'));
+			proc.emitExit(0);
+			expect(
+				await waitFor(() =>
+					listWaitingGates(container).some((g) => g.run_id === 'history-1' && g.kind === 'landing'),
+				),
+			).toBe(true);
+			expect(container.repos.runs.findById('history-1')).toMatchObject({
+				state: 'reviewing',
+				rework_count: 0,
+			});
+			const landingGate = expectDefined(
+				listWaitingGates(container).find((g) => g.run_id === 'history-1' && g.kind === 'landing'),
+			);
+			const landed = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/gates/${landingGate.id}/decide`,
+				headers: { authorization: token },
+				payload: { decision: 'pass' },
+			});
+			expect(landed.statusCode).toBe(200);
+			expect(container.repos.runs.findById('history-1')?.state).toBe('landed');
+		} finally {
+			await server.instance.close();
+		}
+	});
+});
 
 async function waitFor(predicate: () => boolean, timeoutMs = 4000): Promise<boolean> {
 	const start = Date.now();

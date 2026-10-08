@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
+import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
 import { AppError } from '../../src/errors/app-error.ts';
 import type { EnvelopeFactory } from '../../src/events/envelope.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
@@ -100,10 +101,11 @@ function createTestEnvironment(options?: {
 	const gatesRepo = createGatesRepo(db);
 
 	let unitOfWorkRunCount = 0;
+	const databaseUnitOfWork = createUnitOfWork(db);
 	const unitOfWork = {
 		run: <T>(fn: () => T): T => {
 			unitOfWorkRunCount++;
-			return fn();
+			return databaseUnitOfWork.run(fn);
 		},
 	};
 
@@ -166,6 +168,215 @@ function createTestEnvironment(options?: {
 		service,
 	};
 }
+
+function createFailedBughuntEnvironment() {
+	const env = createTestEnvironment();
+	env.batchesRepo.insert({ id: 'b1', doc_id: 'doc-1', batch_no: 1, state: 'running' });
+	env.tasksRepo.insert({
+		id: 'task-bughunt',
+		doc_id: 'doc-1',
+		batch_id: 'b1',
+		task_key: 'R8-T69421773',
+		title: 'Failed bughunt with attempts 1, 2, 4',
+		module_key: 'M8',
+		deps_json: '[]',
+		manual_state: 'awaiting_human',
+		contract_hash: 'bughunt-contract',
+		is_contract_ready: 1,
+		contract_reasons_json: '[]',
+	});
+	const snapshot = env.dispatchSnapshotsRepo.takeSnapshotForTask({
+		taskId: 'task-bughunt',
+		launchSpecJson: JSON.stringify({ agentId: 'codex', model: 'original-model' }),
+		createdAt: env.clock.now(),
+	});
+	for (const [attempt, kind, state] of [
+		[1, 'implement', 'awaiting_human'],
+		[2, 'review', 'exited'],
+		[4, 'bughunt', 'failed'],
+	] as const) {
+		env.runsRepo.insert({
+			id: `bughunt-history-${attempt}`,
+			task_id: 'task-bughunt',
+			attempt_no: attempt,
+			kind,
+			state,
+			parent_run_id: attempt === 1 ? null : 'bughunt-history-1',
+			queued_reason: attempt === 2 ? null : 'bughunt_failed',
+			agent_id: 'codex',
+			model_name: 'original-model',
+			effort_vendor: 'xhigh',
+			permission_tier: 'workspaceWrite',
+			snapshot_id: snapshot.id,
+			worktree_path: '/original-worktree',
+			branch_name: 'task/original',
+			lane_no: 1,
+			idempotency_key: `history-key-${attempt}`,
+		});
+	}
+	env.gatesRepo.create({
+		id: 'bughunt-gate',
+		task_id: 'task-bughunt',
+		run_id: 'bughunt-history-1',
+		kind: 'review',
+		state: 'waiting',
+		comment: 'bughunt_failed',
+		created_at: env.clock.now(),
+	});
+	const deps: RerunServiceDeps = {
+		unitOfWork: createUnitOfWork(env.db),
+		runsRepo: env.runsRepo,
+		gatesRepo: env.gatesRepo,
+		tasksRepo: env.tasksRepo,
+		batchesRepo: env.batchesRepo,
+		documentsRepo: env.documentsRepo,
+		dispatchSnapshotsRepo: env.dispatchSnapshotsRepo,
+		clock: env.clock,
+		ids: env.ids,
+	};
+	return { ...env, deps };
+}
+
+describe('R8-T69421773: real rerun transactions and semantic recovery', () => {
+	it.each(['insert', 'gate'] as const)(
+		'unique conflict at %s rolls back the new child, parent, lane and failure gate',
+		async (conflictAt) => {
+			const env = createFailedBughuntEnvironment();
+			const service = createRerunService({
+				...env.deps,
+				ids: conflictAt === 'insert' ? { newId: () => 'bughunt-history-1' } : env.ids,
+				gatesRepo:
+					conflictAt === 'gate'
+						? {
+								...env.gatesRepo,
+								updateDecision: (...args) => {
+									const changed = env.gatesRepo.updateDecision(...args);
+									const parent = env.runsRepo.findById('bughunt-history-1');
+									if (!parent) throw new AppError('E_INTERNAL', 'Missing parent run fixture.');
+									env.runsRepo.insert({ ...parent });
+									return changed;
+								},
+							}
+						: env.gatesRepo,
+			});
+			try {
+				await expect(
+					service.rerunRun({ runId: 'bughunt-history-4', idempotencyKey: 'rollback-key' }),
+				).rejects.toMatchObject({
+					code: 'E_INTERNAL',
+					cause: {
+						code:
+							conflictAt === 'insert' ? 'SQLITE_CONSTRAINT_PRIMARYKEY' : 'SQLITE_CONSTRAINT_UNIQUE',
+					},
+				});
+				expect(env.runsRepo.listByTaskId('task-bughunt').map((r) => r.attempt_no)).toEqual([
+					1, 2, 4,
+				]);
+				expect(env.runsRepo.findByIdempotencyKey('rollback-key')).toBeNull();
+				expect(env.runsRepo.findById('bughunt-history-1')).toMatchObject({
+					state: 'awaiting_human',
+					queued_reason: 'bughunt_failed',
+					rework_count: 0,
+				});
+				expect(env.tasksRepo.findById('task-bughunt')).toMatchObject({
+					manual_state: 'awaiting_human',
+					lane_no: null,
+				});
+				expect(env.gatesRepo.findById('bughunt-gate')).toMatchObject({
+					state: 'waiting',
+					comment: 'bughunt_failed',
+				});
+			} finally {
+				env.db.close();
+			}
+		},
+	);
+
+	it('an implementation idempotency key cannot impersonate a new bughunt', async () => {
+		const env = createFailedBughuntEnvironment();
+		try {
+			await expect(
+				createRerunService(env.deps).rerunRun({
+					runId: 'bughunt-history-4',
+					idempotencyKey: 'history-key-1',
+				}),
+			).rejects.toMatchObject({ code: 'E_RUN_ALREADY_EXISTS' });
+			expect(env.gatesRepo.findById('bughunt-gate')?.state).toBe('waiting');
+			expect(env.runsRepo.listByTaskId('task-bughunt')).toHaveLength(3);
+		} finally {
+			env.db.close();
+		}
+	});
+
+	it.each([true, false])(
+		'constraint recovery accepts only a matching committed rerun (matching: %s)',
+		async (isMatching) => {
+			const env = createFailedBughuntEnvironment();
+			const original = env.runsRepo.findById('bughunt-history-4');
+			if (!original) throw new AppError('E_INTERNAL', 'Missing bughunt run fixture.');
+			const databaseUnitOfWork = createUnitOfWork(env.db);
+			const service = createRerunService({
+				...env.deps,
+				unitOfWork: {
+					run: (work) => {
+						// A competing request commits before this request acquires the write transaction.
+						databaseUnitOfWork.run(() => {
+							env.runsRepo.insert({
+								...original,
+								id: 'committed-rerun',
+								attempt_no: 5,
+								parent_run_id: 'bughunt-history-1',
+								kind: isMatching ? 'bughunt' : 'implement',
+								state: 'queued',
+								lane_no: null,
+								idempotency_key: 'competing-key',
+							});
+							if (isMatching) {
+								env.runsRepo.updateState({
+									id: 'bughunt-history-1',
+									toState: 'reviewing',
+									queuedReason: null,
+								});
+								env.tasksRepo.updateManualState('task-bughunt', null);
+								env.gatesRepo.updateDecision(
+									'bughunt-gate',
+									'reject',
+									'superseded',
+									null,
+									env.clock.now(),
+								);
+							}
+						});
+						return databaseUnitOfWork.run(work);
+					},
+				},
+			});
+			try {
+				const request = service.rerunRun({ runId: original.id, idempotencyKey: 'competing-key' });
+				if (isMatching) {
+					expect((await request).run).toMatchObject({
+						id: 'committed-rerun',
+						kind: 'bughunt',
+						attemptNo: 5,
+					});
+				} else {
+					await expect(request).rejects.toMatchObject({
+						code: 'E_INTERNAL',
+						cause: { code: 'SQLITE_CONSTRAINT_UNIQUE' },
+					});
+				}
+				expect(env.runsRepo.listByTaskId('task-bughunt').map((r) => r.attempt_no)).toEqual([
+					1, 2, 4, 5,
+				]);
+				expect(env.gatesRepo.findById('bughunt-gate')?.state).toBe(
+					isMatching ? 'decided' : 'waiting',
+				);
+			} finally {
+				env.db.close();
+			}
+		},
+	);
+});
 
 describe('M8-T5: 重派、换 agent 与原样重跑', () => {
 	it.each(['rerun', 'redispatch'] as const)(
