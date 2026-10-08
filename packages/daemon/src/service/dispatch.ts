@@ -713,7 +713,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		let startedEvent: EventEnvelope | null = null;
 		const persist = (): { readonly snapshotId: string } => {
 			assertDocumentUnchanged(preflightDoc);
-			deps.validateSourceAtCommit?.(task.doc_id, [task.id]);
 			if (typeof input.laneNo === 'number' && deps.tasksRepo.assignLaneNo) {
 				const changes = deps.tasksRepo.assignLaneNo(taskId, input.laneNo);
 				if (changes === 0) {
@@ -773,6 +772,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			return { snapshotId: snapshot.id };
 		};
 
+		// 来源不可读的标记须独立保留；同步检查与事务之间没有异步等待。
+		deps.validateSourceAtCommit?.(task.doc_id, [task.id]);
 		try {
 			if (deps.unitOfWork) {
 				deps.unitOfWork.run(persist);

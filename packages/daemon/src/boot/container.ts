@@ -620,6 +620,8 @@ export function createContainer(input: {
 			documentsRepo: documents,
 			batchService,
 			docsService,
+			validateWorkspace: (docId) => docsService.validateWorkspace(docId),
+			validateSourceAtCommit: (docId) => docsService.validateSourceAtCommit(docId),
 			unitOfWork,
 			clock: input.clock,
 			ids,

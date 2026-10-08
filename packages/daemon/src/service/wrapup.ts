@@ -69,6 +69,8 @@ export interface WrapupServiceDeps {
 	readonly settingsRepo?: SettingsRepo;
 	readonly batchService: BatchService;
 	readonly docsService: DocsService;
+	readonly validateWorkspace?: (docId: string) => Promise<void>;
+	readonly validateSourceAtCommit?: (docId: string) => void;
 	readonly unitOfWork: UnitOfWork;
 	readonly clock: { readonly now: () => string };
 	readonly ids: { readonly newId: () => string };
@@ -511,6 +513,14 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					},
 				});
 			}
+			const doc = deps.documentsRepo.findById(batch.doc_id);
+			if (!doc) throw new AppError('E_NOT_FOUND', `Document not found: ${batch.doc_id}`);
+			if (doc.is_source_readable === 0) {
+				throw new AppError('E_DOC_SOURCE_UNREADABLE', '文档来源不可读，请刷新或重新绑定。', {
+					details: { docId: doc.id, docsPath: doc.docs_path },
+				});
+			}
+			await deps.validateWorkspace?.(doc.id);
 
 			// 2. Round limit check (R4, AC 5, E-274, E-276, E-288)
 			const validRoundCount = deps.batchWrapupsRepo.getMaxRound(batchId);
@@ -603,7 +613,6 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const wrapupContext = deps.docsService.getWrapupContext(batchId);
 
 			// 5. Prepare worktree & diff stat (E-285)
-			const doc = deps.documentsRepo.findById(batch.doc_id);
 			const repoPath = doc?.repo_path ?? '';
 			let worktreePath = '';
 			let branchName = `wrapup/batch-${batch.batch_no}-r${nextRound}`;
@@ -731,6 +740,25 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 
 			let createdRunRow: RunRow | null = null;
 			const pendingEnvelopes: EventEnvelope[] = [];
+			const currentDoc = deps.documentsRepo.findById(doc.id);
+			if (currentDoc?.is_source_readable === 0) {
+				throw new AppError('E_DOC_SOURCE_UNREADABLE', '文档来源不可读，请刷新或重新绑定。', {
+					details: { docId: doc.id, docsPath: currentDoc.docs_path },
+				});
+			}
+			if (
+				currentDoc?.docs_path !== doc.docs_path ||
+				currentDoc.repo_path !== doc.repo_path ||
+				currentDoc.content_fingerprint !== doc.content_fingerprint ||
+				currentDoc.last_seen_at !== doc.last_seen_at ||
+				currentDoc.lane_count !== doc.lane_count
+			) {
+				throw new AppError('E_WORKSPACE_UNAVAILABLE', '文档绑定已变化，请重新触发收口。', {
+					details: { docId: doc.id },
+				});
+			}
+			// 工作树与差异读取会等待；落库前再次同步检查，失败标记不随派发事务回滚。
+			deps.validateSourceAtCommit?.(doc.id);
 
 			// 7. Transaction: insert snapshot, insert wrapup run (queued), transitionBatch(->wrapping) (08 节, AC 1, AC 2, AC 7)
 			deps.unitOfWork.run(() => {

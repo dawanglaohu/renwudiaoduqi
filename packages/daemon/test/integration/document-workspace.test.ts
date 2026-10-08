@@ -10,10 +10,13 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
+import { createErrorHandler } from '../../src/http/plugins/90-error-handler.ts';
+import { registerBatchesRoutes } from '../../src/http/routes/batches.ts';
 import { createBatchWrapupsRepo } from '../../src/repo/batch-wrapups.ts';
 import { createBatchesRepo } from '../../src/repo/batches.ts';
 import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
@@ -151,6 +154,156 @@ function setup(fs?: DocsFileSystem) {
 }
 
 describe('document repository binding with real Git', () => {
+	it.each(['deleted', 'malformed'] as const)(
+		'persists the unreadable marker when a %s source rejects a manual commit',
+		async (change) => {
+			const f = setup();
+			const source = f.writeDoc(join(f.repo, 'docs'));
+			const imported = await f.service.importDocument(source);
+			const history = f.seedRun(imported.document.id, 'failed');
+			const dispatch = f.makeDispatch(async (docId, taskIds) => {
+				await f.service.validateWorkspace(docId, taskIds);
+				if (change === 'deleted') rmSync(source);
+				else writeFileSync(source, 'window.DOCS = {');
+			});
+			await expect(
+				dispatch.createRun({
+					taskId: history.task.id,
+					agentId: 'codex',
+					idempotencyKey: 'late-source-change',
+					laneNo: 1,
+				}),
+			).rejects.toMatchObject({ code: 'E_DOC_SOURCE_UNREADABLE' });
+			expect(f.service.getDocumentById(imported.document.id)?.isSourceReadable).toBe(false);
+			expect(f.tasksRepo.findById(history.task.id)).toEqual(history.task);
+			expect(f.runsRepo.listAll()).toEqual([history.run]);
+			expect(f.dispatchSnapshotsRepo.listByTaskId(history.task.id)).toEqual([history.snapshot]);
+		},
+	);
+	it.each([
+		['preflight', 'deleted'],
+		['preflight', 'malformed'],
+		['preflight', 'contract'],
+		['commit', 'deleted'],
+		['commit', 'malformed'],
+		['commit', 'contract'],
+		['commit', 'rebind'],
+		['commit', 'healthy'],
+	] as const)(
+		'checks a %s %s source through the manual wrapup HTTP route',
+		async (phase, change) => {
+			const f = setup();
+			const source = f.writeDoc(join(f.repo, 'docs'));
+			const imported = await f.service.importDocument(source);
+			const task = f.tasksRepo.findByDocAndKey(imported.document.id, 'T-1');
+			if (!task?.batch_id) throw new Error('Imported task missing');
+			f.tasksRepo.updateManualState(task.id, 'landed');
+			f.batchesRepo.updateState({ id: task.batch_id, state: 'running' });
+			execFileSync('git', ['-C', f.repo, 'add', 'docs/docs-data.js']);
+			execFileSync('git', [
+				'-C',
+				f.repo,
+				'-c',
+				'user.name=Regression',
+				'-c',
+				'user.email=regression@example.com',
+				'commit',
+				'-qm',
+				'Initial document',
+			]);
+			const manager = createWorktreeManager({
+				platform: process.platform as 'win32' | 'linux' | 'darwin',
+				hostInputs: {
+					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					homedir: f.root,
+					pathEnv: process.env.PATH,
+				},
+				ids: { newId: () => crypto.randomUUID() },
+			});
+			const mutateSource = async () => {
+				if (change === 'deleted') rmSync(source);
+				else if (change === 'malformed') writeFileSync(source, 'window.DOCS = {');
+				else if (change === 'contract')
+					writeFileSync(source, readFileSync(source, 'utf8').replaceAll('hash-t1', 'new-hash'));
+				else if (change === 'rebind')
+					await f.service.refreshDocument(imported.document.id, {
+						docsPath: f.writeDoc(join(f.repo, 'replacement')),
+					});
+			};
+			const shared = {
+				...f,
+				unitOfWork: createUnitOfWork(f.db),
+				clock: { now: () => new Date().toISOString() },
+				ids: { newId: () => crypto.randomUUID() },
+			};
+			const prepare = vi.fn(
+				async (input: { repoPath: string; batchId: string | number; round: number }) =>
+					manager.prepareWrapupWorktree({ ...input, worktreesDir: f.root }),
+			);
+			const wrapup = createWrapupService({
+				...shared,
+				batchService: createBatchService(shared),
+				batchWrapupsRepo: createBatchWrapupsRepo(f.db),
+				gatesRepo: createGatesRepo(f.db),
+				docsService: f.service,
+				validateWorkspace: f.service.validateWorkspace,
+				validateSourceAtCommit: f.service.validateSourceAtCommit,
+				workspace: {
+					prepareWrapupWorktree: prepare,
+					getDiffStat: async (path) => {
+						const diff = execFileSync('git', ['-C', path, 'diff', '--stat'], { encoding: 'utf8' });
+						if (phase === 'commit') await mutateSource();
+						return diff;
+					},
+				},
+			});
+			const app = Fastify();
+			createErrorHandler(app);
+			registerBatchesRoutes(app, { wrapupService: wrapup });
+			try {
+				if (phase === 'preflight') await mutateSource();
+				const request = {
+					method: 'POST' as const,
+					url: `/api/v1/batches/${task.batch_id}/wrapup`,
+					payload: { agentId: 'codex', idempotencyKey: 'manual-wrapup' },
+				};
+				const response = await app.inject(request);
+				if (change === 'healthy') {
+					expect(response.statusCode, response.body).toBe(200);
+					const run = response.json().run;
+					expect(f.runsRepo.listAll()).toHaveLength(1);
+					const runRow = f.runsRepo.findById(run.id);
+					if (!runRow) throw new Error('Wrapup run missing');
+					expect(f.dispatchSnapshotsRepo.findById(runRow.snapshot_id)).not.toBeNull();
+					rmSync(source);
+					const repeated = await app.inject(request);
+					expect(repeated.json().error).toMatchObject({ code: 'E_RUN_ALREADY_EXISTS' });
+					expect(f.runsRepo.listAll()).toHaveLength(1);
+					return;
+				}
+				expect(response.json().error, response.body).toMatchObject({
+					code:
+						change === 'contract'
+							? 'E_SNAPSHOT_STALE'
+							: change === 'rebind'
+								? 'E_WORKSPACE_UNAVAILABLE'
+								: 'E_DOC_SOURCE_UNREADABLE',
+				});
+				expect(f.runsRepo.listAll()).toHaveLength(0);
+				expect(f.db.prepare('SELECT COUNT(*) AS count FROM dispatch_snapshots').get()).toEqual({
+					count: 0,
+				});
+				expect(f.batchesRepo.findById(task.batch_id)?.state).toBe('running');
+				expect(f.tasksRepo.findById(task.id)?.lane_no).toBeNull();
+				expect(f.service.getDocumentById(imported.document.id)?.isSourceReadable).toBe(
+					change === 'contract' || change === 'rebind',
+				);
+				if (phase === 'preflight') expect(prepare).not.toHaveBeenCalled();
+			} finally {
+				await app.close();
+			}
+		},
+	);
 	it.each(['auto', 'manual'] as const)(
 		'keeps one run when the %s dispatch preflight overlaps the other entry',
 		async (firstEntry) => {
