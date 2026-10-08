@@ -18,6 +18,7 @@ import type {
 	PrepareWorktreeResult,
 	WorktreeManager,
 } from '../../src/workspace/worktree.ts';
+import { writeTaskDocsData } from '../fixtures/task-docs-data.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(currentDir, '../../../..');
@@ -76,6 +77,7 @@ const dummyLockAdapter: NativeLockAdapter = {
 
 interface FakeManagedProcessController {
 	readonly managed: ManagedProcess;
+	readonly isAttached: () => boolean;
 	readonly emitLine: (text: string) => void;
 	readonly emitExit: (exitCode: number, signal?: NodeJS.Signals | null) => void;
 	readonly launchSpec: LaunchSpec;
@@ -194,6 +196,7 @@ function createFakeProcess(spec: LaunchSpec): FakeManagedProcessController {
 		emitLine,
 		emitExit,
 		launchSpec: spec,
+		isAttached: () => rawListeners.size > 0 && exitListeners.size > 0,
 	};
 }
 
@@ -417,15 +420,17 @@ async function setupBughuntEnvironment(
 			.some((run) => run.kind === 'bughunt' && run.state === 'starting');
 
 	// Seed document, batch, task, and snapshot
+	const docsPath = join(tempDir, 'docs-data.js');
+	const docFingerprint = writeTaskDocsData(docsPath, 'R12-T32133721', 'contract-hash-task-1');
 	container.repos.documents.insert({
 		id: 'doc-1',
-		docs_path: '/docs',
+		docs_path: docsPath,
 		project_name: 'test-project',
 		repo_path: tempDir,
 		main_branch: 'main',
 		branch_prefix: 'task/',
 		lane_count: overrides.laneCount ?? 2,
-		content_fingerprint: 'fp-1',
+		content_fingerprint: docFingerprint,
 		is_source_readable: 1,
 		is_takeover_notified: 0,
 		imported_at: clock.now(),
@@ -883,7 +888,14 @@ async function advanceToReviewPassed(
 	// Trigger tick to launch implementation process
 	await container.services.dispatch.tick();
 
-	await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === implRunId));
+	await waitFor(() =>
+		spawnedProcesses.some(
+			(p) =>
+				p.launchSpec.runId === implRunId &&
+				p.isAttached() &&
+				container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+		),
+	);
 	const implProc = spawnedProcesses.find((p) => p.launchSpec.runId === implRunId);
 	expect(implProc).toBeDefined();
 
@@ -904,7 +916,14 @@ async function advanceToReviewPassed(
 		'reviewRun',
 	);
 
-	await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === reviewRun.id));
+	await waitFor(() =>
+		spawnedProcesses.some(
+			(p) =>
+				p.launchSpec.runId === reviewRun.id &&
+				p.isAttached() &&
+				container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+		),
+	);
 	const reviewProc = spawnedProcesses.find((p) => p.launchSpec.runId === reviewRun.id);
 	expect(reviewProc).toBeDefined();
 
@@ -981,7 +1000,12 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 
 		// Process was spawned by launcher
 		const bughuntProcSpawned = await waitFor(() =>
-			spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id),
+			spawnedProcesses.some(
+				(p) =>
+					p.launchSpec.runId === bughuntRun.id &&
+					p.isAttached() &&
+					container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+			),
 		);
 		expect(bughuntProcSpawned).toBe(true);
 
@@ -1008,7 +1032,14 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 				.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 			'bughuntRun',
 		);
-		await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+		await waitFor(() =>
+			spawnedProcesses.some(
+				(p) =>
+					p.launchSpec.runId === bughuntRun.id &&
+					p.isAttached() &&
+					container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+			),
+		);
 		const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 		// Clean: no git diff, clean report
@@ -1054,7 +1085,14 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 				.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 			'bughuntRun',
 		);
-		await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+		await waitFor(() =>
+			spawnedProcesses.some(
+				(p) =>
+					p.launchSpec.runId === bughuntRun.id &&
+					p.isAttached() &&
+					container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+			),
+		);
 		const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 		// FIXED with git diff
@@ -1104,7 +1142,14 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 				.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 			'bughuntRun',
 		);
-		await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+		await waitFor(() =>
+			spawnedProcesses.some(
+				(p) =>
+					p.launchSpec.runId === bughuntRun.id &&
+					p.isAttached() &&
+					container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+			),
+		);
 		const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 		gitDiffControl.hasDiff = true;
@@ -1142,7 +1187,14 @@ describe('bughunt lifecycle integration (R12-T32133721)', () => {
 				.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 			'bughuntRun',
 		);
-		await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+		await waitFor(() =>
+			spawnedProcesses.some(
+				(p) =>
+					p.launchSpec.runId === bughuntRun.id &&
+					p.isAttached() &&
+					container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+			),
+		);
 		const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 		gitDiffControl.hasDiff = true;
@@ -1199,7 +1251,14 @@ NEXT
 				.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 			'bughuntRun',
 		);
-		await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+		await waitFor(() =>
+			spawnedProcesses.some(
+				(p) =>
+					p.launchSpec.runId === bughuntRun.id &&
+					p.isAttached() &&
+					container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+			),
+		);
 		const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 		bughuntProc?.emitLine(loadFixture('open-s1.txt'));
@@ -1236,7 +1295,14 @@ NEXT
 				.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 			'bughuntRun',
 		);
-		await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+		await waitFor(() =>
+			spawnedProcesses.some(
+				(p) =>
+					p.launchSpec.runId === bughuntRun.id &&
+					p.isAttached() &&
+					container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+			),
+		);
 		const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 		// Output missing NEXT section
@@ -1309,7 +1375,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 			// Bughunt process exits 1 (failure)
@@ -1390,7 +1463,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 			bughuntProc?.emitExit(1);
@@ -1440,7 +1520,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 			// Bughunt failed, leaving 2 uncommitted files
@@ -1515,7 +1602,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 			// Emit signal exit (SIGTERM)
@@ -1558,7 +1652,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 			// Simulate clean output in report, but git diff reading fails!
@@ -1607,7 +1708,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 			// Untouched: the dirty workspace still has the same tree as at dispatch.
@@ -1637,7 +1745,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id);
 
 			// Has diff against baseline tree
@@ -1681,7 +1796,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun1',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun1.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun1.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc1 = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun1.id);
 
 			// First bughunt run fails
@@ -1709,7 +1831,14 @@ NEXT
 			expect(rerunOlderRes.statusCode).toBe(409);
 
 			// Let bughuntRun2 fail as well
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun2Id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun2Id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc2 = spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun2Id);
 			bughuntProc2?.emitExit(1);
 
@@ -1783,7 +1912,14 @@ NEXT
 					.find((r) => r.kind === 'bughunt' && r.parent_run_id === implRunId),
 				'bughuntRun',
 			);
-			await waitFor(() => spawnedProcesses.some((p) => p.launchSpec.runId === bughuntRun.id));
+			await waitFor(() =>
+				spawnedProcesses.some(
+					(p) =>
+						p.launchSpec.runId === bughuntRun.id &&
+						p.isAttached() &&
+						container.repos.runs.findById(p.launchSpec.runId)?.state === 'running',
+				),
+			);
 			const bughuntProc = expectDefined(
 				spawnedProcesses.find((p) => p.launchSpec.runId === bughuntRun.id),
 				'bughuntProc',

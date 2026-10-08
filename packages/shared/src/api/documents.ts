@@ -18,10 +18,12 @@ export interface DocumentDto {
 
 export interface CreateDocumentBody {
 	readonly docsPath: string;
+	readonly repoPath?: string;
 }
 
 export const CREATE_DOCUMENT_BODY_KEYS = [
 	'docsPath',
+	'repoPath',
 ] as const satisfies readonly (keyof CreateDocumentBody)[];
 
 type AssertCreateDocumentBodyExhaustive = [
@@ -37,6 +39,35 @@ export const createDocumentBodySchema = {
 	required: ['docsPath'],
 	properties: {
 		docsPath: { type: 'string', minLength: 1, maxLength: 4096, pattern: 'docs-data\\.js$' },
+		repoPath: { type: 'string', minLength: 1, maxLength: 4096 },
+	},
+} as const;
+
+export interface RefreshDocumentBody {
+	readonly docsPath?: string;
+	readonly repoPath?: string;
+}
+
+export const REFRESH_DOCUMENT_BODY_KEYS = [
+	'docsPath',
+	'repoPath',
+] as const satisfies readonly (keyof RefreshDocumentBody)[];
+
+type AssertRefreshDocumentBodyExhaustive = [
+	Exclude<keyof RefreshDocumentBody, (typeof REFRESH_DOCUMENT_BODY_KEYS)[number]>,
+] extends [never]
+	? true
+	: never;
+const _refreshDocumentBodyKeysComplete: AssertRefreshDocumentBodyExhaustive = true;
+void _refreshDocumentBodyKeysComplete;
+
+export const refreshDocumentBodySchema = {
+	type: 'object',
+	nullable: true,
+	additionalProperties: false,
+	properties: {
+		docsPath: { type: 'string', minLength: 1, maxLength: 4096, pattern: 'docs-data\\.js$' },
+		repoPath: { type: 'string', minLength: 1, maxLength: 4096 },
 	},
 } as const;
 

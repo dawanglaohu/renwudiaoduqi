@@ -7,6 +7,7 @@ import type {
 	ListDocumentTasksResponse,
 	RefreshDocumentResponse,
 } from '@agent-scheduler/shared/api/documents';
+import { ROUTES } from '@agent-scheduler/shared/api/routes';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
@@ -25,6 +26,7 @@ import {
 	type DispatchSnapshotsRepo,
 	createDispatchSnapshotsRepo,
 } from '../../src/repo/dispatch-snapshots.ts';
+import { createDefaultGitRunner } from '../../src/workspace/worktree.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const testDir = resolve(currentDir, '../fixtures/documents-routes-integration-test');
@@ -232,6 +234,15 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 	}) {
 		const lockAdapter = createMemoryLockAdapter();
 		const container = createContainer({
+			gitRunner: createDefaultGitRunner({
+				platform: process.platform as 'win32' | 'linux' | 'darwin',
+				hostInputs: {
+					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					homedir: testDir,
+					pathEnv: process.env.PATH,
+				},
+				ids: { newId: () => crypto.randomUUID() },
+			}),
 			agentRegistry: createAgentRegistry({
 				dataDir: testDir,
 				builtInDefaults: {},
@@ -478,6 +489,126 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		expect(tasksInDb.length).toBeGreaterThan(0);
 		const snapshotsInDb = snapshotsRepo.listByTaskId(taskT1.id);
 		expect(snapshotsInDb.length).toBeGreaterThan(0);
+	});
+
+	it('recovers a moved source through HTTP while preserving the document and task IDs', async () => {
+		const { server, container } = setupServer();
+		const authorization = await getAuthToken(container);
+		const oldPath = join(testDir, 'docs-data.js');
+		writeFileSync(oldPath, createDocsDataJs());
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers: { authorization },
+			payload: { docsPath: oldPath },
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const doc = (imported.json() as CreateDocumentResponse).document;
+		const taskBefore = container.repos.tasks.findByDocAndKey(doc.id, 'T-1');
+		const newFolder = join(testDir, 'relocated');
+		mkdirSync(newFolder);
+		const docsPath = join(newFolder, 'docs-data.js');
+		writeFileSync(docsPath, createDocsDataJs());
+		rmSync(oldPath);
+		const refreshed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${doc.id}/refresh`,
+			headers: { authorization },
+			payload: { docsPath, repoPath: doc.repoPath },
+		});
+		expect(refreshed.statusCode, refreshed.body).toBe(200);
+		expect(refreshed.json().changed).toBe(true);
+		expect(container.repos.documents.findById(doc.id)?.docs_path).toBe(docsPath);
+		expect(container.repos.tasks.findByDocAndKey(doc.id, 'T-1')?.id).toBe(taskBefore?.id);
+	});
+
+	it('rejects task and batch dispatch before creating runs when the source has disappeared', async () => {
+		const { server, container } = setupServer();
+		const authorization = await getAuthToken(container);
+		const docsPath = join(testDir, 'docs-data.js');
+		writeFileSync(docsPath, createDocsDataJs());
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers: { authorization },
+			payload: { docsPath },
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const docId = (imported.json() as CreateDocumentResponse).document.id;
+		const task = container.repos.tasks.findByDocAndKey(docId, 'T-1');
+		if (!task?.batch_id) throw new Error('Imported task must belong to a batch');
+		const initialBatch = container.repos.batches.findById(task.batch_id);
+		rmSync(docsPath);
+		const run = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs',
+			headers: { authorization },
+			payload: { taskId: task.id, agentId: 'codex', idempotencyKey: 'source-missing-001' },
+		});
+		expect(run.json().error).toMatchObject({
+			code: 'E_DOC_SOURCE_UNREADABLE',
+			details: { docsPath },
+		});
+		expect(
+			ROUTES.find((route) => route.method === 'POST' && route.path === '/api/v1/runs')?.errors,
+		).toContain(run.json().error.code);
+		const batch = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/batches/${task.batch_id}/start`,
+			headers: { authorization },
+			payload: {},
+		});
+		expect(batch.json().error).toMatchObject({
+			code: 'E_DOC_SOURCE_UNREADABLE',
+			details: { docsPath },
+		});
+		expect(
+			ROUTES.find(
+				(route) => route.method === 'POST' && route.path === '/api/v1/batches/:batchId/start',
+			)?.errors,
+		).toContain(batch.json().error.code);
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		expect(container.repos.tasks.findById(task.id)?.lane_no).toBeNull();
+		expect(container.repos.batches.findById(task.batch_id)).toEqual(initialBatch);
+	});
+
+	it('returns current readiness reasons through the production HTTP dispatch entry', async () => {
+		const { server, container } = setupServer();
+		const authorization = await getAuthToken(container);
+		const docsPath = join(testDir, 'docs-data.js');
+		const content = createDocsDataJs();
+		writeFileSync(docsPath, content);
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers: { authorization },
+			payload: { docsPath },
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const docId = (imported.json() as CreateDocumentResponse).document.id;
+		const task = container.repos.tasks.findByDocAndKey(docId, 'T-1');
+		if (!task) throw new Error('Imported task missing');
+		const payload = JSON.parse(content.replace(/^window\.DOCS\s*=\s*/, '').replace(/;\s*$/, ''));
+		payload.handoff.readiness['T-1'].ready = false;
+		payload.handoff.readiness['T-1'].reasons = ['H01: Review pending'];
+		writeFileSync(docsPath, `window.DOCS = ${JSON.stringify(payload)};`);
+		const run = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs',
+			headers: { authorization },
+			payload: { taskId: task.id, agentId: 'codex', idempotencyKey: 'readiness-http-001' },
+		});
+		expect(run.statusCode).toBe(409);
+		expect(run.json().error).toMatchObject({
+			code: 'E_DOC_CONTRACT_PENDING',
+			details: { pendingTasks: [{ taskId: task.id, reasons: ['H01: Review pending'] }] },
+		});
+		expect(run.json().error.message).toContain('H01: Review pending');
+		expect(
+			ROUTES.find((route) => route.method === 'POST' && route.path === '/api/v1/runs')?.errors,
+		).toContain(run.json().error.code);
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		expect(container.repos.documents.findById(docId)?.is_source_readable).toBe(1);
 	});
 
 	it('AC 3: GET /documents/:docId/tasks supports state filter, cursor pagination, and derived state', async () => {

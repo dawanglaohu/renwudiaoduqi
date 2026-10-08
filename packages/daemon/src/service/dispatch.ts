@@ -243,6 +243,8 @@ function createAgentDefaultsLookup(
 }
 
 export interface DispatchServiceDeps {
+	readonly validateWorkspace?: (docId: string, taskIds?: readonly string[]) => Promise<void>;
+	readonly validateSourceAtCommit?: (docId: string, taskIds?: readonly string[]) => void;
 	readonly unitOfWork?: UnitOfWork;
 	readonly nudgeTick?: () => void;
 	readonly tasksRepo: TasksRepo;
@@ -397,9 +399,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 		if (doc.is_source_readable === 0) {
-			throw new AppError('E_DOC_SOURCE_UNREADABLE', 'Document source is unreadable (E-82)', {
-				details: { docId },
-			});
+			throw new AppError(
+				'E_DOC_SOURCE_UNREADABLE',
+				`文档来源不可读：${doc.docs_path}。请重新绑定文档路径。`,
+				{ details: { docId, docsPath: doc.docs_path } },
+			);
 		}
 		return doc;
 	}
@@ -410,6 +414,25 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 		const runs = runsRepo.listByTaskId(task.id);
 		return runs.some((r) => r.state === 'landed');
+	}
+
+	function assertDocumentUnchanged(expected: DocumentRow): void {
+		const current = checkDocumentReadable(expected.id);
+		if (
+			current.docs_path !== expected.docs_path ||
+			current.repo_path !== expected.repo_path ||
+			current.content_fingerprint !== expected.content_fingerprint ||
+			current.last_seen_at !== expected.last_seen_at ||
+			current.lane_count !== expected.lane_count
+		) {
+			throw new AppError(
+				'E_WORKSPACE_UNAVAILABLE',
+				'文档来源、仓库或窗口设置已变化，请重新派发。',
+				{
+					details: { docId: expected.id, docsPath: current.docs_path },
+				},
+			);
+		}
 	}
 
 	function listDispatchableAgents(): readonly DispatchableAgent[] {
@@ -611,7 +634,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 
-		checkDocumentReadable(task.doc_id);
+		const preflightDoc = checkDocumentReadable(task.doc_id);
+		await deps.validateWorkspace?.(task.doc_id, [task.id]);
 		checkTaskRemoved(task);
 		checkContractReady(task);
 
@@ -689,6 +713,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		let startedEvent: EventEnvelope | null = null;
 		const persist = (): { readonly snapshotId: string } => {
+			assertDocumentUnchanged(preflightDoc);
 			if (typeof input.laneNo === 'number' && deps.tasksRepo.assignLaneNo) {
 				const changes = deps.tasksRepo.assignLaneNo(taskId, input.laneNo);
 				if (changes === 0) {
@@ -748,6 +773,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			return { snapshotId: snapshot.id };
 		};
 
+		// 来源不可读的标记须独立保留；同步检查与事务之间没有异步等待。
+		deps.validateSourceAtCommit?.(task.doc_id, [task.id]);
 		try {
 			if (deps.unitOfWork) {
 				deps.unitOfWork.run(persist);
@@ -817,6 +844,21 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	});
 
 	async function rerunRun(input: RerunRunInput): Promise<RerunRunResponse> {
+		if (typeof input.idempotencyKey !== 'string' || input.idempotencyKey.trim().length === 0) {
+			return rerunService.rerunRun(input);
+		}
+		if (!runsRepo.findByIdempotencyKey(input.idempotencyKey)) {
+			const previous = runsRepo.findById(input.runId);
+			const task = previous?.task_id ? deps.tasksRepo.findById(previous.task_id) : null;
+			const batch = previous?.batch_id ? deps.batchesRepo.findById(previous.batch_id) : null;
+			const docId = task?.doc_id ?? batch?.doc_id;
+			if (docId) {
+				const preflightDoc = checkDocumentReadable(docId);
+				await deps.validateWorkspace?.(docId, task ? [task.id] : undefined);
+				assertDocumentUnchanged(preflightDoc);
+				deps.validateSourceAtCommit?.(docId, task ? [task.id] : undefined);
+			}
+		}
 		const result = await rerunService.rerunRun(input);
 		if (result.run.kind === 'bughunt' && result.run.state === 'queued') {
 			deps.nudgeTick?.();
@@ -843,7 +885,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 
-		checkDocumentReadable(batch.doc_id);
+		const preflightDoc = checkDocumentReadable(batch.doc_id);
+		await deps.validateWorkspace?.(batch.doc_id);
 
 		if (batch.batch_no > 1) {
 			const prevBatch = deps.batchesRepo.findByDocAndBatchNo(batch.doc_id, batch.batch_no - 1);
@@ -879,6 +922,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 		}
 
+		assertDocumentUnchanged(preflightDoc);
+		deps.validateSourceAtCommit?.(batch.doc_id);
 		await effectiveBatchService.transitionBatch(batchId, 'running', 'batch_start');
 
 		const batchTasks = deps.tasksRepo.listByBatchId(batchId);
@@ -1279,10 +1324,32 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				pendingAssignmentTx.length = 0;
 			};
 
-			for (const doc of documents) {
-				if (doc.is_source_readable === 0) {
-					continue;
-				}
+			for (const previousDoc of documents) {
+				const doc = deps.documentsRepo.findById(previousDoc.id);
+				if (!doc) continue;
+				const pendingTaskIds = new Set<string>();
+				const canDispatchNewWork = async (taskIds?: readonly string[]): Promise<boolean> => {
+					if (deps.documentsRepo.findById(doc.id)?.is_source_readable !== 1) return false;
+					try {
+						await deps.validateWorkspace?.(doc.id, taskIds);
+						return true;
+					} catch (error) {
+						logFailure(error);
+						if (
+							error instanceof AppError &&
+							error.code === 'E_DOC_CONTRACT_PENDING' &&
+							Array.isArray(error.details?.pendingTasks)
+						) {
+							for (const pending of error.details.pendingTasks) {
+								if (typeof pending?.taskId === 'string' && taskIds?.includes(pending.taskId)) {
+									pendingTaskIds.add(pending.taskId);
+									tasksBlocked.push({ taskId: pending.taskId, reason: 'contract_not_ready' });
+								}
+							}
+						}
+						return false;
+					}
+				};
 
 				// Step 2: Batch progression & wrap-up trigger (AC 1, AC 2, E-272, E-283)
 				const batches = deps.batchesRepo.listByDocId(doc.id);
@@ -1358,6 +1425,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								: (latestWrapup?.attempt_no ?? 0);
 
 							if (!activeWrapup && currentRound < 2 && deps.wrapupService) {
+								if (!(await canDispatchNewWork())) continue;
 								// 自动派收口运行，且本 tick 不再派发 (AC 1, E-283)
 								try {
 									const wrapupResult = await deps.wrapupService.triggerWrapup({
@@ -1741,7 +1809,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					});
 				}
 				const eligibleTaskIdSet = new Set(dispatchCandidates.eligibleTaskIds);
-				const candidateTasks: TaskRow[] = docTasks.filter((t) => eligibleTaskIdSet.has(t.id));
+				let candidateTasks: TaskRow[] = docTasks.filter((t) => eligibleTaskIdSet.has(t.id));
+				if (
+					candidateTasks.length > 0 &&
+					!(await canDispatchNewWork(candidateTasks.map((task) => task.id)))
+				) {
+					candidateTasks =
+						pendingTaskIds.size > 0
+							? candidateTasks.filter((task) => !pendingTaskIds.has(task.id))
+							: [];
+				}
 
 				if (candidateTasks.length === 0 && reworkTasks.length === 0) {
 					continue;
@@ -1878,8 +1955,36 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				const pendingEnvelopes = pendingAssignmentEnvelopes;
 				const runsToLaunch = pendingRunsToLaunch;
 				const reworksToDispatch = pendingReworksToDispatch;
+				const hasNewWork = admitted.some((item) => !item.candidate.isRework);
+				const newTaskIds = admitted
+					.filter((item) => !item.candidate.isRework)
+					.map((item) => item.candidate.task.id);
 
 				const assignAllInTx = () => {
+					let newWorkAllowed = true;
+					if (hasNewWork) {
+						try {
+							assertDocumentUnchanged(doc);
+							// 同步读取提交时的来源，保持整轮分配事务且不引入新的异步等待。
+							deps.validateSourceAtCommit?.(doc.id, newTaskIds);
+						} catch (error) {
+							logFailure(error);
+							if (
+								error instanceof AppError &&
+								error.code === 'E_DOC_CONTRACT_PENDING' &&
+								Array.isArray(error.details?.pendingTasks)
+							) {
+								for (const pending of error.details.pendingTasks) {
+									if (typeof pending?.taskId === 'string' && newTaskIds.includes(pending.taskId)) {
+										pendingTaskIds.add(pending.taskId);
+										tasksBlocked.push({ taskId: pending.taskId, reason: 'contract_not_ready' });
+									}
+								}
+							} else {
+								newWorkAllowed = false;
+							}
+						}
+					}
 					for (let i = 0; i < admitted.length; i++) {
 						const allocatedLaneNo = free[i];
 						if (allocatedLaneNo === undefined) break;
@@ -1887,6 +1992,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						const item = admitted[i];
 						if (!item) continue;
 						const candidate = item.candidate;
+						if (!candidate.isRework && (!newWorkAllowed || pendingTaskIds.has(candidate.task.id)))
+							continue;
 
 						if (candidate.isRework && candidate.reworkRun) {
 							const reworkRun = candidate.reworkRun;
@@ -1923,6 +2030,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							});
 						} else {
 							const task = candidate.task;
+							// 预检等待期间，手动入口可能已经派发；新任务在事务内仍须没有运行历史。
+							if (runsRepo.listByTaskId(task.id).length > 0) continue;
 							const idempotencyKey = `auto_${task.id}_${deps.ids.newId()}`;
 							const existingRuns = runsRepo.listByTaskId(task.id);
 							const attemptNo = existingRuns.length + 1;

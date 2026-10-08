@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import type { ChildProcess, SpawnOptions, spawn as nodeSpawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
@@ -27,12 +28,14 @@ import {
 	spawnManaged,
 } from '../../src/proc/spawn.ts';
 import { createBaseSelector } from '../../src/workspace/base-select.ts';
-import type {
-	GitRunner,
-	PrepareWorktreeInput,
-	PrepareWorktreeResult,
-	WorktreeManager,
+import {
+	type GitRunner,
+	type PrepareWorktreeInput,
+	type PrepareWorktreeResult,
+	type WorktreeManager,
+	createDefaultGitRunner,
 } from '../../src/workspace/worktree.ts';
+import { writeTaskDocsData, writeTasksDocsData } from '../fixtures/task-docs-data.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = resolve(currentDir, '../../migrations');
@@ -313,6 +316,13 @@ function setupTestEnvironment(
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agent-scheduler-dispatch-spawn-'));
 	temporaryDirectories.push(tempDir);
+	execFileSync('git', ['init', '-q', tempDir]);
+	const docFingerprint = writeTaskDocsData(
+		join(tempDir, 'docs-data.js'),
+		'M8-T10',
+		'contract-hash-task-1',
+		overrides.implPrompt,
+	);
 	const dbPath = join(tempDir, 'test.db');
 
 	let timeMs = 1725800000000;
@@ -417,6 +427,16 @@ function setupTestEnvironment(
 	} as unknown as import('../../src/service/agents.ts').AgentService;
 
 	const container = createContainer({
+		gitRunner: {
+			async run(args, cwd) {
+				if (args.includes('--is-inside-work-tree'))
+					return { exitCode: 0, stdout: `true\n${cwd}`, stderr: '' };
+				return createDefaultGitRunner({
+					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					ids: { newId: () => crypto.randomUUID() },
+				}).run(args, cwd);
+			},
+		},
 		config: createTestConfig(tempDir),
 		database: db,
 		hostInputs: { platform: 'linux', homedir: tempDir },
@@ -452,13 +472,13 @@ function setupTestEnvironment(
 	// Seed document, batch, task
 	container.repos.documents.insert({
 		id: 'doc-1',
-		docs_path: '/docs',
+		docs_path: join(tempDir, 'docs-data.js'),
 		project_name: 'test-project',
 		repo_path: tempDir,
 		main_branch: 'main',
 		branch_prefix: 'task/',
 		lane_count: 2,
-		content_fingerprint: 'fp-1',
+		content_fingerprint: docFingerprint,
 		is_source_readable: 1,
 		is_takeover_notified: 0,
 		imported_at: clock.now(),
@@ -497,6 +517,20 @@ function setupTestEnvironment(
 		db,
 		clock,
 		tempDir,
+		syncDocSource: () => {
+			const doc = container.repos.documents.findById('doc-1');
+			if (!doc) throw new Error('Fixture document missing');
+			const fingerprint = writeTasksDocsData(
+				doc.docs_path,
+				container.repos.tasks.listByDocId(doc.id).map((task) => ({
+					id: task.task_key,
+					hash: task.contract_hash,
+					implPrompt: task.impl_prompt ?? undefined,
+					deps: JSON.parse(task.deps_json),
+				})),
+			);
+			container.repos.documents.updateMetadata({ ...doc, content_fingerprint: fingerprint });
+		},
 		getLatestProc: () => latestFakeProc,
 		getMechanicalCheckCalls: () => mechanicalCheckCalls,
 		fakeReviewService,
@@ -1295,6 +1329,7 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		});
 
 		// Execute tick -> task-1 and task-2 admitted into slot and dispatched
+		env.syncDocSource();
 		const tickResult = await container.services.dispatch.tick();
 		expect(tickResult.executed).toBe(true);
 		expect(tickResult.runsDispatched.length).toBeGreaterThan(0);
@@ -1344,6 +1379,11 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const { tempDir, db, clock } = setupTestEnvironment();
 
 		const realContainer = createContainer({
+			gitRunner: {
+				async run(_args, cwd) {
+					return { exitCode: 0, stdout: `true\n${cwd}`, stderr: '' };
+				},
+			},
 			agentRegistry: createAgentRegistry({
 				dataDir: tempDir,
 				platform: 'posix',
@@ -1454,6 +1494,7 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		});
 
 		// Create run without specifying upstreamBranch (default HEAD)
+		env.syncDocSource();
 		const createRes = await container.services.dispatch.createRun({
 			taskId: 'task-downstream',
 			agentId: 'codex',
@@ -1614,6 +1655,7 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		});
 
 		// Create run explicitly selecting upstreamBranch
+		env.syncDocSource();
 		const createRes = await container.services.dispatch.createRun({
 			taskId: 'task-downstream-2',
 			agentId: 'codex',

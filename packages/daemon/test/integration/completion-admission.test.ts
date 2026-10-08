@@ -32,6 +32,7 @@ import type { LockFileHandle, NativeLockAdapter } from '../../src/platform/lock-
 import { createProcessRegistry } from '../../src/proc/registry.ts';
 import { type ManagedProcess, spawnManaged } from '../../src/proc/spawn.ts';
 import type { RunInsertRow } from '../../src/repo/runs.ts';
+import { writeTaskDocsData } from '../fixtures/task-docs-data.ts';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -52,6 +53,10 @@ async function environment(
 ) {
 	const tempRoot = realpathSync.native(tmpdir());
 	const dataDir = realpathSync.native(mkdtempSync(join(tempRoot, 'agsched-completion-')));
+	execFileSync('git', ['init', '-q', dataDir]);
+	const docsPath = join(dataDir, 'source', 'docs-data.js');
+	mkdirSync(dirname(docsPath));
+	const docFingerprint = writeTaskDocsData(docsPath, 'M6-T5', 'contract');
 	const db = openDatabase(':memory:');
 	let databaseClosed = false;
 	const closeDatabase = () => {
@@ -211,7 +216,7 @@ async function environment(
 		const canonicalDir = realpathSync.native(dataDir);
 		expect(dirname(canonicalDir)).toBe(tempRoot);
 		expect(basename(canonicalDir)).toMatch(/^agsched-completion-/);
-		rmSync(canonicalDir, { recursive: true, force: true });
+		rmSync(canonicalDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
 	});
 	await server.instance.ready();
 	const claim = await container.services.pairing.claimPairingCode({
@@ -220,13 +225,13 @@ async function environment(
 	});
 	container.repos.documents.insert({
 		id: 'doc',
-		docs_path: '/docs',
+		docs_path: docsPath,
 		project_name: 'pressure',
 		repo_path: dataDir,
 		main_branch: 'main',
 		branch_prefix: 'task/',
 		lane_count: 1,
-		content_fingerprint: 'fp',
+		content_fingerprint: docFingerprint,
 		is_source_readable: 1,
 		is_takeover_notified: 0,
 		imported_at: now,
