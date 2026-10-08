@@ -1334,13 +1334,13 @@
     "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
     "contractHash": "e3edfdc2de392516d1750f0326c95003cb7c651ed4f80150ae27145864d1d866",
     "evidence": [
-      "已复核原始批次收口问题、任务输入产出与 5 项验收；当前契约与复制提示词一致，未降低数据库唯一约束、幂等身份、生产生命周期和失败闸门要求。此处 pass 仅登记契约语义复核，代码审查为 rework。",
-      "前置 M7-T9 / M8-T5 / R12-T32133721 已落地；08 层次/事务规则、06 入口接线、17 check 与真浏览器规则均核对。正式 rerun 路由调用 dispatch.rerunRun，再由 container nudgeTick 与既有 scheduler-tick 准入。",
-      "有效路径覆盖 rerun/dispatch/container 及新增真实 SQLite/容器/HTTP/Batch14 测试；清单外只有任务回填和审查裁决日志，均为提示词明确要求。共享 DTO、迁移约束和生成器未修改。",
-      "19 对应 E-177/E-323/E-331/E-265 要求与接口/状态一致；R1 复现的是代码遗漏而非契约矛盾：准备工作区失败/缺失 adapter 后父 reviewing、旧 gate superseded、无新 waiting gate且占槽，必须返工。",
-      "两项实施选择复用全部 A/B/C 候选并加入 final diff/CI 和原生窗口失败事实；真实 Jev jev-1.13.0 返回 A high 0.86 / A medium 0.52，确认既定有效范围与 WSL 真实 E2E 方法，无源契约变更。"
+      "第 2 轮核对 R1 与连续失败重跑的直接回归；原验收、前置、有效路径和 E-177/E-323/E-331/E-265 契约不变。本轮真实复核完成，代码阻断已关闭。",
+      "dispatch.ts 三种启动前失败于 finally 调用既有 finalizeBughuntRun，真实容器 HTTP 连续失败 5、6 均恢复父 awaiting_human/bughunt_failed、唯一 waiting gate、lane=null，非零 rework_count 与冻结载荷不变；真实日志文件接口两次状态事件追加拒绝亦不阻断恢复。",
+      "连续失败后的另一来源幂等键误报 200 已复现并由审查方在有效路径内修复；普通同键查找和真实唯一冲突恢复均核对直接查 bug 前序，正确历史请求仍可重放，无迁移或共享 DTO 改动。",
+      "真实 Jev jev-1.13.0 对幂等来源和状态事件错误两处分叉均采纳 A high 1.00；不加新字段或迁移，保留现有状态事件并独立终结阶段。动作已落实；最终第二意见四项断言均支持，未作为测试替代。",
+      "最终代码 HEAD 的审查方完整 Windows check、生命周期所属三文件和同工作树 WSL 真浏览器均通过；生成器未改，代码位置与实施沉淀已核对，落地文档增量另作投影复验。"
     ],
-    "reviewed": "2026-10-08T05:42:42.193107+00:00",
+    "reviewed": "2026-10-08T07:50:37.309248+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

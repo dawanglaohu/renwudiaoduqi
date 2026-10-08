@@ -1,0 +1,810 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R8-T69421773": {
+      "contractHash": "e3edfdc2de392516d1750f0326c95003cb7c651ed4f80150ae27145864d1d866",
+      "verdict": "pass",
+      "evidence": [
+        "第 2 轮核对 R1 与连续失败重跑的直接回归；原验收、前置、有效路径和 E-177/E-323/E-331/E-265 契约不变。本轮真实复核完成，代码阻断已关闭。",
+        "dispatch.ts 三种启动前失败于 finally 调用既有 finalizeBughuntRun，真实容器 HTTP 连续失败 5、6 均恢复父 awaiting_human/bughunt_failed、唯一 waiting gate、lane=null，非零 rework_count 与冻结载荷不变；真实日志文件接口两次状态事件追加拒绝亦不阻断恢复。",
+        "连续失败后的另一来源幂等键误报 200 已复现并由审查方在有效路径内修复；普通同键查找和真实唯一冲突恢复均核对直接查 bug 前序，正确历史请求仍可重放，无迁移或共享 DTO 改动。",
+        "真实 Jev jev-1.13.0 对幂等来源和状态事件错误两处分叉均采纳 A high 1.00；不加新字段或迁移，保留现有状态事件并独立终结阶段。动作已落实；最终第二意见四项断言均支持，未作为测试替代。",
+        "最终代码 HEAD 的审查方完整 Windows check、生命周期所属三文件和同工作树 WSL 真浏览器均通过；生成器未改，代码位置与实施沉淀已核对，落地文档增量另作投影复验。"
+      ]
+    }
+  },
+  "codeReview": {
+    "round": 2,
+    "verdict": "pass",
+    "head": "287db2afd5145e20e347f92ac8032bc01b4445e5",
+    "base": "101c3b1b80c24efca3372427e78c4380d2c8b4b4",
+    "previousEvidence": "_run/R8-T69421773.review-20261008.evidence.json",
+    "blocking": [],
+    "R1": "fixed: all three pre-spawn failures use existing bughunt finalization; repeated original rerun remains actionable",
+    "fixedByReviewer": {
+      "commits": [
+        "a34ff74738d5e037da5e35fb2242879043ae4fd8",
+        "287db2afd5145e20e347f92ac8032bc01b4445e5"
+      ],
+      "problem": "Attempt-6 idempotency key submitted to failed attempt-4 endpoint falsely returns HTTP 200; conflict recovery has the same source ambiguity.",
+      "red": {
+        "httpFailures": 3,
+        "httpActual": 200,
+        "httpExpected": 409,
+        "raceFailures": 1,
+        "codeHead": "caf37967a2807b684d690aa2861bb019e029c7a9"
+      },
+      "green": "Wrong-source key is 409 E_RUN_ALREADY_EXISTS; correct old requests for attempts 5 and 6 replay their original IDs; no duplicate row or waiting-gate mutation. Wrong-source committed race is rejected without rolling back the competing commit."
+    },
+    "stateEventRecovery": {
+      "commit": "287db2afd5145e20e347f92ac8032bc01b4445e5",
+      "red": "Three real LogFileSystem.appendFile fault cases at a34ff74 fail because the waiting failure gate is not restored.",
+      "green": "All three branches finalize in finally; each fault case observes two rejected failure-event writes across reruns 5/6, with exactly one waiting gate, lane=null and rework_count=2 unchanged.",
+      "adjudication": {
+        "model": "jev-1.13.0",
+        "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.11) outside_stack=no(0.08) needs_owner=no(0.05) reversible=yes(0.70) adopt=take(A)",
+        "action": "A implemented"
+      }
+    },
+    "focused": {
+      "files": 3,
+      "tests": 62,
+      "result": "pass",
+      "command": "pnpm exec vitest run packages/daemon/test/integration/bughunt-lifecycle.test.ts packages/daemon/test/unit/rerun.test.ts packages/daemon/test/integration/pipeline-lanes.test.ts --maxWorkers=1 --minWorkers=1"
+    },
+    "workspaceCheck": {
+      "files": 247,
+      "passed": 3188,
+      "failed": 0,
+      "skipped": 3,
+      "runnerErrors": 0,
+      "result": "pass",
+      "command": "pnpm -w check --maxWorkers=1 --minWorkers=1",
+      "skipReason": "Existing Windows exclusions: one agents-service POSIX case, one Linux staging case and one DMG Applications symlink case; assertions and timeouts unchanged."
+    },
+    "browser": {
+      "tests": 8,
+      "result": "pass",
+      "head": "287db2afd5145e20e347f92ac8032bc01b4445e5",
+      "platform": "WSL Ubuntu-20.04, same task worktree, real daemon/Chromium/subprocess/HTTP/SSE/DOM",
+      "command": "FONTCONFIG_FILE=<existing planning browser-fonts.conf> pnpm exec vitest run --config vitest.e2e.config.ts e2e/batch-14-composition.test.ts",
+      "firstRun": "8 functional assertions passed; missing CJK fonts in screenshots required a repeated capture using the existing task-local fontconfig.",
+      "timeline": {
+        "suite": "R14-T23602992 Batch 14 Composition Acceptance",
+        "generatedAt": "2026-10-08T07:35:41.348Z",
+        "gitHead": "287db2afd5145e20e347f92ac8032bc01b4445e5",
+        "frameCount": 7,
+        "dimensions": {
+          "width": 960,
+          "height": 600
+        },
+        "frames": [
+          {
+            "index": 1,
+            "label": "frame-1-pairing-complete",
+            "description": "完成真实一次性配对并进入甲板首页",
+            "timestamp": "2026-10-08T07:34:40.631Z",
+            "delayMs": 1200
+          },
+          {
+            "index": 2,
+            "label": "frame-2-assignment-configured",
+            "description": "导入文档并完成逐任务指派草稿",
+            "timestamp": "2026-10-08T07:34:43.672Z",
+            "delayMs": 1200
+          },
+          {
+            "index": 3,
+            "label": "frame-3-implement-ref-bar",
+            "description": "真实派发、SSE 到 DOM 及参照条显示任务指派",
+            "timestamp": "2026-10-08T07:34:47.396Z",
+            "delayMs": 1200
+          },
+          {
+            "index": 4,
+            "label": "frame-4-review-and-bughunt",
+            "description": "审查覆盖与查 bug 阶段运行及参照条呈现",
+            "timestamp": "2026-10-08T07:34:55.367Z",
+            "delayMs": 1200
+          },
+          {
+            "index": 5,
+            "label": "frame-5-zero-output-gate",
+            "description": "零产出退出转人工审批卡呈现与 stderr 尾",
+            "timestamp": "2026-10-08T07:34:55.842Z",
+            "delayMs": 1200
+          },
+          {
+            "index": 6,
+            "label": "frame-6-wrapup-report",
+            "description": "收口报告呈现有效裁定 open 与自报 clean 不一致及格式不全呈现",
+            "timestamp": "2026-10-08T07:35:37.847Z",
+            "delayMs": 1200
+          },
+          {
+            "index": 7,
+            "label": "frame-7-failed-wrapup",
+            "description": "收口失败、半成品分支保留与解析失败原文入口",
+            "timestamp": "2026-10-08T07:35:40.236Z",
+            "delayMs": 1200
+          }
+        ]
+      },
+      "rerun": {
+        "status": 200,
+        "response": {
+          "run": {
+            "id": "req_5ab930996ce0",
+            "taskId": "req_6b52c2057ddb",
+            "attemptNo": 5,
+            "kind": "bughunt",
+            "parentRunId": "req_01c10547932a",
+            "state": "queued",
+            "reviewVerdict": null,
+            "reworkText": null,
+            "agentId": "codex",
+            "modelName": "codex-standard",
+            "reportedModel": null,
+            "effortTier": "high",
+            "effortVendor": null,
+            "effort": {
+              "tier": "high"
+            },
+            "reportedEffort": null,
+            "permissionTier": "workspaceWrite",
+            "worktreePath": "/tmp/agsched-e2e-project-QvLuIL/repo-b14-t1",
+            "branchName": "task/B14-T1",
+            "pid": null,
+            "exitCode": null,
+            "exitSignal": null,
+            "changedFileCount": null,
+            "tokenUsage": null,
+            "isStallSuspected": false,
+            "reworkCount": 0,
+            "queuedReason": "rerun",
+            "idempotencyKey": "bughunt-rerun-1791444892307",
+            "actorDeviceId": "req_fde4c57fb58d",
+            "startedAt": "2026-10-08T07:34:52.351Z",
+            "lastEventAt": null,
+            "endedAt": null,
+            "laneNo": null,
+            "sessionArchivedAt": null,
+            "origin": "dispatch",
+            "spawnedByRunId": null,
+            "reviewRound": null,
+            "continuedFromRunId": null,
+            "batchId": "req_8bd238619b4e",
+            "isInHead": false,
+            "inHeadCheckedAt": null,
+            "branchTipSha": "efee0b1eaf88474c3c7fa0a6d9c57a145eb27279",
+            "promptSource": null,
+            "assignmentSource": "task",
+            "sessionNo": null
+          }
+        },
+        "before": [
+          {
+            "id": "req_f34ce51b6c6f",
+            "taskId": "req_6b52c2057ddb",
+            "attemptNo": 4,
+            "kind": "bughunt",
+            "parentRunId": "req_01c10547932a",
+            "state": "failed",
+            "reviewVerdict": null,
+            "reworkText": null,
+            "agentId": "codex",
+            "modelName": "codex-standard",
+            "reportedModel": null,
+            "effortTier": "high",
+            "effortVendor": null,
+            "effort": {
+              "tier": "high"
+            },
+            "reportedEffort": null,
+            "permissionTier": "workspaceWrite",
+            "worktreePath": "/tmp/agsched-e2e-project-QvLuIL/repo-b14-t1",
+            "branchName": "task/B14-T1",
+            "pid": 585,
+            "exitCode": 1,
+            "exitSignal": null,
+            "changedFileCount": null,
+            "tokenUsage": null,
+            "isStallSuspected": false,
+            "reworkCount": 0,
+            "queuedReason": "bughunt_failed",
+            "idempotencyKey": "",
+            "actorDeviceId": null,
+            "startedAt": "2026-10-08T07:34:49.727Z",
+            "lastEventAt": "2026-10-08T07:34:51.126Z",
+            "endedAt": "2026-10-08T07:34:51.209Z",
+            "laneNo": 1,
+            "sessionArchivedAt": null,
+            "origin": "dispatch",
+            "spawnedByRunId": null,
+            "reviewRound": null,
+            "continuedFromRunId": null,
+            "batchId": "req_8bd238619b4e",
+            "isInHead": false,
+            "inHeadCheckedAt": null,
+            "branchTipSha": "efee0b1eaf88474c3c7fa0a6d9c57a145eb27279",
+            "promptSource": "builtin",
+            "assignmentSource": "task",
+            "sessionNo": null,
+            "inHeadWarning": null,
+            "followedTaskId": null,
+            "capabilities": {
+              "canReply": true,
+              "canResume": true
+            }
+          },
+          {
+            "id": "req_e798098db248",
+            "taskId": "req_6b52c2057ddb",
+            "attemptNo": 2,
+            "kind": "review",
+            "parentRunId": "req_01c10547932a",
+            "state": "exited",
+            "reviewVerdict": "pass",
+            "reworkText": null,
+            "agentId": "grok",
+            "modelName": "grok-beta",
+            "reportedModel": null,
+            "effortTier": "medium",
+            "effortVendor": null,
+            "effort": {
+              "tier": "medium"
+            },
+            "reportedEffort": null,
+            "permissionTier": "readOnly",
+            "worktreePath": "/tmp/agsched-e2e-project-QvLuIL/repo-b14-t1",
+            "branchName": "task/B14-T1",
+            "pid": 496,
+            "exitCode": 0,
+            "exitSignal": null,
+            "changedFileCount": null,
+            "tokenUsage": null,
+            "isStallSuspected": false,
+            "reworkCount": 0,
+            "queuedReason": "process_exited",
+            "idempotencyKey": "",
+            "actorDeviceId": null,
+            "startedAt": "2026-10-08T07:34:48.607Z",
+            "lastEventAt": "2026-10-08T07:34:49.553Z",
+            "endedAt": "2026-10-08T07:34:49.548Z",
+            "laneNo": 1,
+            "sessionArchivedAt": null,
+            "origin": "dispatch",
+            "spawnedByRunId": null,
+            "reviewRound": 1,
+            "continuedFromRunId": null,
+            "batchId": null,
+            "isInHead": false,
+            "inHeadCheckedAt": null,
+            "branchTipSha": null,
+            "promptSource": null,
+            "assignmentSource": "review_override",
+            "sessionNo": null,
+            "inHeadWarning": null,
+            "followedTaskId": null,
+            "capabilities": {
+              "canReply": false,
+              "canResume": true
+            }
+          },
+          {
+            "id": "req_01c10547932a",
+            "taskId": "req_6b52c2057ddb",
+            "attemptNo": 1,
+            "kind": "implement",
+            "parentRunId": null,
+            "state": "awaiting_human",
+            "reviewVerdict": null,
+            "reworkText": null,
+            "agentId": "codex",
+            "modelName": "codex-standard",
+            "reportedModel": null,
+            "effortTier": "high",
+            "effortVendor": null,
+            "effort": {
+              "tier": "high"
+            },
+            "reportedEffort": null,
+            "permissionTier": "workspaceWrite",
+            "worktreePath": "/tmp/agsched-e2e-project-QvLuIL/repo-b14-t1",
+            "branchName": "task/B14-T1",
+            "pid": 431,
+            "exitCode": 0,
+            "exitSignal": null,
+            "changedFileCount": null,
+            "tokenUsage": null,
+            "isStallSuspected": false,
+            "reworkCount": 0,
+            "queuedReason": "bughunt_failed",
+            "idempotencyKey": "auto_req_6b52c2057ddb_req_e1b421ccc28f",
+            "actorDeviceId": null,
+            "startedAt": "2026-10-08T07:34:44.155Z",
+            "lastEventAt": "2026-10-08T07:34:47.596Z",
+            "endedAt": "2026-10-08T07:34:51.209Z",
+            "laneNo": 1,
+            "sessionArchivedAt": null,
+            "origin": "dispatch",
+            "spawnedByRunId": null,
+            "reviewRound": null,
+            "continuedFromRunId": null,
+            "batchId": "req_8bd238619b4e",
+            "isInHead": false,
+            "inHeadCheckedAt": null,
+            "branchTipSha": null,
+            "promptSource": null,
+            "assignmentSource": "task",
+            "sessionNo": 1,
+            "inHeadWarning": null,
+            "followedTaskId": null,
+            "capabilities": {
+              "canReply": false,
+              "canResume": true
+            }
+          }
+        ],
+        "gateId": "gate_req_dc6db70401a9",
+        "recovered": {
+          "run": {
+            "id": "req_5ab930996ce0",
+            "taskId": "req_6b52c2057ddb",
+            "attemptNo": 5,
+            "kind": "bughunt",
+            "parentRunId": "req_01c10547932a",
+            "state": "landed",
+            "reviewVerdict": null,
+            "reworkText": null,
+            "agentId": "codex",
+            "modelName": "codex-standard",
+            "reportedModel": null,
+            "effortTier": "high",
+            "effortVendor": null,
+            "effort": {
+              "tier": "high"
+            },
+            "reportedEffort": null,
+            "permissionTier": "workspaceWrite",
+            "worktreePath": "/tmp/agsched-e2e-project-QvLuIL/repo-b14-t1",
+            "branchName": "task/B14-T1",
+            "pid": 634,
+            "exitCode": 0,
+            "exitSignal": null,
+            "changedFileCount": null,
+            "tokenUsage": null,
+            "isStallSuspected": false,
+            "reworkCount": 0,
+            "queuedReason": "bughunt_clean",
+            "idempotencyKey": "bughunt-rerun-1791444892307",
+            "actorDeviceId": "req_fde4c57fb58d",
+            "startedAt": "2026-10-08T07:34:52.351Z",
+            "lastEventAt": "2026-10-08T07:34:53.632Z",
+            "endedAt": "2026-10-08T07:34:53.636Z",
+            "laneNo": 1,
+            "sessionArchivedAt": null,
+            "origin": "dispatch",
+            "spawnedByRunId": null,
+            "reviewRound": null,
+            "continuedFromRunId": null,
+            "batchId": "req_8bd238619b4e",
+            "isInHead": false,
+            "inHeadCheckedAt": null,
+            "branchTipSha": "efee0b1eaf88474c3c7fa0a6d9c57a145eb27279",
+            "promptSource": null,
+            "assignmentSource": "task",
+            "sessionNo": null,
+            "inHeadWarning": null,
+            "followedTaskId": null,
+            "capabilities": {
+              "canReply": true,
+              "canResume": true
+            }
+          },
+          "progress": null
+        },
+        "gatesAfterRerun": {
+          "gates": [
+            {
+              "id": "gate_req_ec317fcaa2db",
+              "taskId": "req_29eb9cd42136",
+              "runId": "req_e6e4da35b88d",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "exited_before_output",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:45.377Z",
+              "decidedAt": null,
+              "context": {
+                "exitCode": 1,
+                "exitSignal": null,
+                "stderrTail": {
+                  "kind": "lines",
+                  "lines": [
+                    "[error] Agent process exited before producing content: authentication required or invalid model",
+                    "[stderr] credentials check failed: token expired"
+                  ]
+                },
+                "login": null
+              }
+            },
+            {
+              "id": "req_dcad65236b80",
+              "taskId": "req_21abc4e6f8de",
+              "runId": "req_4affdeb0ebc0",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "review_verdict_incomplete",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:49.724Z",
+              "decidedAt": null,
+              "context": null
+            },
+            {
+              "id": "req_1aa5b236d510",
+              "taskId": "req_d8ac9ea28e13",
+              "runId": "req_b37fe4d7f567",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "review_manual_gate",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:50.579Z",
+              "decidedAt": null,
+              "context": null
+            },
+            {
+              "id": "gate_req_dc6db70401a9",
+              "taskId": "req_6b52c2057ddb",
+              "runId": "req_01c10547932a",
+              "kind": "review",
+              "state": "decided",
+              "decision": "reject",
+              "comment": "superseded",
+              "decidedByDeviceId": "req_fde4c57fb58d",
+              "createdAt": "2026-10-08T07:34:51.209Z",
+              "decidedAt": "2026-10-08T07:34:52.351Z",
+              "context": null
+            },
+            {
+              "id": "req_764c25d1b1a9",
+              "taskId": "req_7a780579b90d",
+              "runId": "req_8b201c2e8f9a",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "review_manual_gate",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:51.420Z",
+              "decidedAt": null,
+              "context": null
+            },
+            {
+              "id": "req_2fd14567dad3",
+              "taskId": "req_6b52c2057ddb",
+              "runId": "req_01c10547932a",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "review_manual_gate",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:53.918Z",
+              "decidedAt": null,
+              "context": null
+            }
+          ]
+        },
+        "continuedGates": {
+          "gates": [
+            {
+              "id": "gate_req_ec317fcaa2db",
+              "taskId": "req_29eb9cd42136",
+              "runId": "req_e6e4da35b88d",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "exited_before_output",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:45.377Z",
+              "decidedAt": null,
+              "context": {
+                "exitCode": 1,
+                "exitSignal": null,
+                "stderrTail": {
+                  "kind": "lines",
+                  "lines": [
+                    "[error] Agent process exited before producing content: authentication required or invalid model",
+                    "[stderr] credentials check failed: token expired"
+                  ]
+                },
+                "login": null
+              }
+            },
+            {
+              "id": "req_dcad65236b80",
+              "taskId": "req_21abc4e6f8de",
+              "runId": "req_4affdeb0ebc0",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "review_verdict_incomplete",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:49.724Z",
+              "decidedAt": null,
+              "context": null
+            },
+            {
+              "id": "req_1aa5b236d510",
+              "taskId": "req_d8ac9ea28e13",
+              "runId": "req_b37fe4d7f567",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "review_manual_gate",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:50.579Z",
+              "decidedAt": null,
+              "context": null
+            },
+            {
+              "id": "gate_req_dc6db70401a9",
+              "taskId": "req_6b52c2057ddb",
+              "runId": "req_01c10547932a",
+              "kind": "review",
+              "state": "decided",
+              "decision": "reject",
+              "comment": "superseded",
+              "decidedByDeviceId": "req_fde4c57fb58d",
+              "createdAt": "2026-10-08T07:34:51.209Z",
+              "decidedAt": "2026-10-08T07:34:52.351Z",
+              "context": null
+            },
+            {
+              "id": "req_764c25d1b1a9",
+              "taskId": "req_7a780579b90d",
+              "runId": "req_8b201c2e8f9a",
+              "kind": "review",
+              "state": "waiting",
+              "decision": null,
+              "comment": "review_manual_gate",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:51.420Z",
+              "decidedAt": null,
+              "context": null
+            },
+            {
+              "id": "req_2fd14567dad3",
+              "taskId": "req_6b52c2057ddb",
+              "runId": "req_01c10547932a",
+              "kind": "review",
+              "state": "decided",
+              "decision": "pass",
+              "comment": null,
+              "decidedByDeviceId": "req_fde4c57fb58d",
+              "createdAt": "2026-10-08T07:34:53.918Z",
+              "decidedAt": "2026-10-08T07:34:55.009Z",
+              "context": null
+            },
+            {
+              "id": "req_24eda3ddb617",
+              "taskId": "req_6b52c2057ddb",
+              "runId": "req_01c10547932a",
+              "kind": "landing",
+              "state": "waiting",
+              "decision": null,
+              "comment": "landing_manual_gate",
+              "decidedByDeviceId": null,
+              "createdAt": "2026-10-08T07:34:55.010Z",
+              "decidedAt": null,
+              "context": null
+            }
+          ]
+        }
+      },
+      "artifactSha256": {
+        "b14-bughunt-rerun.json": "660972da065a64418b3f1dd8786f7646124b79cb0c837767594ebca6a9f3c9a9",
+        "batch-14-composition.gif": "65653e156f5191203c2d22d7f6be5948373f4f6b874dbeb924721453c51a84a0",
+        "batch-14-timeline.json": "cc8a66b91a7baa7e60405b24fde524a28362b168244c43c14055c169effa8f01",
+        "frame-1-pairing-complete.png": "d6db1c457d754493349da978ed38378812e57adeac3740905d874c2bdfc67fd4",
+        "frame-2-assignment-configured.png": "a6cb1a2c637f0cb16b6d575ee4b0942e1f779a64460bce933e6e0e6648c4edeb",
+        "frame-3-implement-ref-bar.png": "e3dbdc00ec1b8b241ee1a638a7d774ec88bc3b41d367d2f65999136ad436e8b4",
+        "frame-4-review-and-bughunt.png": "9cf4cfa337fa6d395b2f41c52cf5b598209877ed34425448f36d0c505734de05",
+        "frame-5-zero-output-gate.png": "26af3cb4980fd4a4e3e53f4058c7734e1a54457d4d016dcd57deaf936c288407",
+        "frame-6-wrapup-report.png": "653ad0c7f82a2b9a064d50207a516bc7a9907053891c3a76f52d84961404f3d0",
+        "frame-7-failed-wrapup.png": "3d52ac595032be8f10afd33e14d46bbf1475676a906cfa0fd8444611cc944a04"
+      },
+      "nativeUI": "Earlier GetCursorPos E_ACCESSDENIED retained; no claim about the installed Desktop Shell."
+    },
+    "adjudication": {
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.10) outside_stack=no(0.06) needs_owner=no(0.05) reversible=yes(0.72) adopt=take(A)",
+      "option": "A",
+      "action": "implemented"
+    },
+    "secondOpinion": {
+      "model": "jev-1.13.0",
+      "line": "review: hardcoded_gate=no(0.07) stub_in_production=no(0.03) test_hook=no(0.09) duplicates_shared=no(0.12) fixed_response=no(0.03) claim_c1=supports(high 0.98) claim_c2=supports(high 1.00) claim_c3=supports(high 0.97) claim_c4=supports(high 1.00)"
+    },
+    "ci": {
+      "head": "287db2afd5145e20e347f92ac8032bc01b4445e5",
+      "run": 37743993064,
+      "result": "Windows/macOS/Ubuntu and Release Gate Evaluation SUCCESS; PR-only Real Native Provider and macOS signing jobs skipped by unchanged workflow conditions.",
+      "url": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/37743993064"
+    },
+    "originalR1FailureSnapshots": [
+      {
+        "head": "4bfe9b636d1a677b42dc8c6f143aca84aea9c325",
+        "failure": "workspace",
+        "responseRun": {
+          "id": "req_c59d4ae9914e",
+          "taskId": "task-1",
+          "attemptNo": 5,
+          "kind": "bughunt",
+          "parentRunId": "history-1",
+          "state": "queued",
+          "reviewVerdict": null,
+          "reworkText": null,
+          "agentId": "codex",
+          "modelName": "o3-mini",
+          "reportedModel": null,
+          "effortTier": "high",
+          "effortVendor": null,
+          "effort": {
+            "tier": "high"
+          },
+          "reportedEffort": null,
+          "permissionTier": "workspaceWrite",
+          "worktreePath": "C:\\Users\\admin\\AppData\\Local\\Temp\\agsched-bughunt-gIVKZB\\original-worktree",
+          "branchName": "task/original",
+          "pid": null,
+          "exitCode": null,
+          "exitSignal": null,
+          "changedFileCount": null,
+          "tokenUsage": null,
+          "isStallSuspected": false,
+          "reworkCount": 0,
+          "queuedReason": "rerun",
+          "idempotencyKey": "review-workspace-failure",
+          "actorDeviceId": "req_0f7b9b06ccbf",
+          "startedAt": "2024-09-08T12:53:20.033Z",
+          "lastEventAt": null,
+          "endedAt": null,
+          "laneNo": null,
+          "sessionArchivedAt": null,
+          "origin": "dispatch",
+          "spawnedByRunId": null,
+          "reviewRound": null,
+          "continuedFromRunId": null,
+          "batchId": "batch-1",
+          "isInHead": false,
+          "inHeadCheckedAt": null,
+          "branchTipSha": "0000000000000000000000000000000000000000",
+          "promptSource": null,
+          "assignmentSource": "task",
+          "sessionNo": null
+        },
+        "child": {
+          "id": "req_c59d4ae9914e",
+          "state": "failed",
+          "queued_reason": "workspace_unavailable",
+          "parent_run_id": "history-1",
+          "attempt_no": 5
+        },
+        "parent": {
+          "id": "history-1",
+          "state": "reviewing",
+          "queued_reason": null,
+          "rework_count": 0
+        },
+        "task": {
+          "id": "task-1",
+          "manual_state": null,
+          "lane_no": 1
+        },
+        "gates": [
+          {
+            "id": "history-gate",
+            "task_id": "task-1",
+            "run_id": "history-1",
+            "kind": "review",
+            "state": "decided",
+            "decision": "reject",
+            "comment": "superseded",
+            "decided_by_device_id": "req_0f7b9b06ccbf",
+            "created_at": "2024-09-08T12:53:20.028Z",
+            "decided_at": "2024-09-08T12:53:20.033Z"
+          }
+        ],
+        "spawned": 0
+      },
+      {
+        "head": "4bfe9b636d1a677b42dc8c6f143aca84aea9c325",
+        "failure": "adapter",
+        "responseRun": {
+          "id": "req_6f41a8fab4dd",
+          "taskId": "task-1",
+          "attemptNo": 5,
+          "kind": "bughunt",
+          "parentRunId": "history-1",
+          "state": "queued",
+          "reviewVerdict": null,
+          "reworkText": null,
+          "agentId": "codex",
+          "modelName": "o3-mini",
+          "reportedModel": null,
+          "effortTier": "high",
+          "effortVendor": null,
+          "effort": {
+            "tier": "high"
+          },
+          "reportedEffort": null,
+          "permissionTier": "workspaceWrite",
+          "worktreePath": "C:\\Users\\admin\\AppData\\Local\\Temp\\agsched-bughunt-JTmUeS\\original-worktree",
+          "branchName": "task/original",
+          "pid": null,
+          "exitCode": null,
+          "exitSignal": null,
+          "changedFileCount": null,
+          "tokenUsage": null,
+          "isStallSuspected": false,
+          "reworkCount": 0,
+          "queuedReason": "rerun",
+          "idempotencyKey": "review-adapter-failure",
+          "actorDeviceId": "req_4f382aaa2d5d",
+          "startedAt": "2024-09-08T12:53:20.033Z",
+          "lastEventAt": null,
+          "endedAt": null,
+          "laneNo": null,
+          "sessionArchivedAt": null,
+          "origin": "dispatch",
+          "spawnedByRunId": null,
+          "reviewRound": null,
+          "continuedFromRunId": null,
+          "batchId": "batch-1",
+          "isInHead": false,
+          "inHeadCheckedAt": null,
+          "branchTipSha": "0000000000000000000000000000000000000000",
+          "promptSource": null,
+          "assignmentSource": "task",
+          "sessionNo": null
+        },
+        "child": {
+          "id": "req_6f41a8fab4dd",
+          "state": "failed",
+          "queued_reason": "agent_unavailable",
+          "parent_run_id": "history-1",
+          "attempt_no": 5
+        },
+        "parent": {
+          "id": "history-1",
+          "state": "reviewing",
+          "queued_reason": null,
+          "rework_count": 0
+        },
+        "task": {
+          "id": "task-1",
+          "manual_state": null,
+          "lane_no": 1
+        },
+        "gates": [
+          {
+            "id": "history-gate",
+            "task_id": "task-1",
+            "run_id": "history-1",
+            "kind": "review",
+            "state": "decided",
+            "decision": "reject",
+            "comment": "superseded",
+            "decided_by_device_id": "req_4f382aaa2d5d",
+            "created_at": "2024-09-08T12:53:20.028Z",
+            "decided_at": "2024-09-08T12:53:20.033Z"
+          }
+        ],
+        "spawned": 0
+      }
+    ]
+  }
+}
