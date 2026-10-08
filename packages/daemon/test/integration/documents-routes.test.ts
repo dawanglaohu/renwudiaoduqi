@@ -7,6 +7,7 @@ import type {
 	ListDocumentTasksResponse,
 	RefreshDocumentResponse,
 } from '@agent-scheduler/shared/api/documents';
+import { ROUTES } from '@agent-scheduler/shared/api/routes';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createContainer } from '../../src/boot/container.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
@@ -548,6 +549,9 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 			code: 'E_DOC_SOURCE_UNREADABLE',
 			details: { docsPath },
 		});
+		expect(
+			ROUTES.find((route) => route.method === 'POST' && route.path === '/api/v1/runs')?.errors,
+		).toContain(run.json().error.code);
 		const batch = await server.instance.inject({
 			method: 'POST',
 			url: `/api/v1/batches/${task.batch_id}/start`,
@@ -558,6 +562,11 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 			code: 'E_DOC_SOURCE_UNREADABLE',
 			details: { docsPath },
 		});
+		expect(
+			ROUTES.find(
+				(route) => route.method === 'POST' && route.path === '/api/v1/batches/:batchId/start',
+			)?.errors,
+		).toContain(batch.json().error.code);
 		expect(container.repos.runs.listAll()).toHaveLength(0);
 		expect(container.repos.tasks.findById(task.id)?.lane_no).toBeNull();
 		expect(container.repos.batches.findById(task.batch_id)).toEqual(initialBatch);
