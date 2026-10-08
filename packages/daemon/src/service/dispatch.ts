@@ -246,6 +246,7 @@ export interface DispatchServiceDeps {
 	readonly validateWorkspace?: (docId: string, taskIds?: readonly string[]) => Promise<void>;
 	readonly validateSourceAtCommit?: (docId: string, taskIds?: readonly string[]) => void;
 	readonly unitOfWork?: UnitOfWork;
+	readonly nudgeTick?: () => void;
 	readonly tasksRepo: TasksRepo;
 	readonly batchesRepo: BatchesRepo;
 	readonly documentsRepo: DocumentsRepo;
@@ -859,6 +860,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 		}
 		const result = await rerunService.rerunRun(input);
+		if (result.run.kind === 'bughunt' && result.run.state === 'queued') {
+			deps.nudgeTick?.();
+			return result;
+		}
 		if (result.run.id !== input.runId && result.run.state === 'starting') {
 			void launchRun(result.run.id).catch((err) => {
 				logFailure(err);
@@ -1653,6 +1658,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					let hasClash = false;
 					for (const holding of activeRuns) {
 						if (holding.id === queuedRun.id || holding.state === 'queued') continue;
+						if (queuedRun.kind === 'bughunt' && holding.id === queuedRun.parent_run_id) continue;
 						if (!holding.task_id || !isTaskPathHolding(holding.state)) continue;
 						const hTask = deps.tasksRepo.findById(holding.task_id);
 						let hPaths: string[] = [];
@@ -1684,6 +1690,26 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						continue;
 					}
 
+					// A bughunt child owns the process slot; its parked implementation and queued
+					// children are not live processes. Read committed admissions for each candidate.
+					const concurrencyRuns = queuedRun.kind === 'bughunt' ? runsRepo.listActive() : allRuns;
+					const bughuntParents = new Set(
+						concurrencyRuns.filter((r) => r.kind === 'bughunt').map((r) => r.parent_run_id),
+					);
+					const queuedAgentActive = countAgentConcurrency(
+						concurrencyRuns.filter(
+							(r) =>
+								r.id !== queuedRun.id &&
+								(queuedRun.kind !== 'bughunt' ||
+									(r.state !== 'queued' && !bughuntParents.has(r.id))),
+						),
+						queuedRun.agent_id,
+					);
+					if (queuedAgentActive >= agentLimitFor(queuedRun.agent_id)) {
+						tasksDeferred.push({ taskId: qTaskId, reason: 'agent_concurrency_limit_reached' });
+						continue;
+					}
+
 					// 3. 泳道：已占槽直接出队，否则取一个空槽（E-309 / E-310 / E-326）
 					let laneNo =
 						typeof qTask.lane_no === 'number' && qTask.lane_no >= 1
@@ -1702,24 +1728,6 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						}
 						laneNo = allocatedLaneNo;
 						occupiedLanes.add(allocatedLaneNo);
-					}
-
-					// 4. 每 agent 并发上限（E-54）
-					const queuedAgentLimit = agentLimitFor(queuedRun.agent_id);
-					const queuedAgentActive = countAgentConcurrency(
-						allRuns.filter(
-							(r) =>
-								r.id !== queuedRun.id &&
-								(queuedRun.kind !== 'bughunt' || r.id !== queuedRun.parent_run_id),
-						),
-						queuedRun.agent_id,
-					);
-					if (queuedAgentActive >= queuedAgentLimit) {
-						tasksDeferred.push({
-							taskId: qTaskId,
-							reason: 'agent_concurrency_limit_reached',
-						});
-						continue;
 					}
 
 					let dequeuedEvent: EventEnvelope | null = null;
@@ -1751,7 +1759,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					if (dequeuedEvent) deps.bus?.publish(dequeuedEvent);
 
 					runsDispatched.push(queuedRun.id);
-					void launchRun(queuedRun.id);
+					void launchRun(queuedRun.id).catch((error) => {
+						logFailure(error);
+					});
 				}
 
 				if (free.length === 0) {
@@ -2339,11 +2349,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (run.origin === 'rework') {
 					await failReworkRunStartup(runId, 'agent_unavailable');
 				} else if (deps.runService) {
-					await deps.runService.transitionState({
-						runId,
-						targetState: 'failed',
-						reason: 'agent_unavailable',
-					});
+					try {
+						await deps.runService.transitionState({
+							runId,
+							targetState: 'failed',
+							reason: 'agent_unavailable',
+						});
+					} finally {
+						if (run.kind === 'bughunt' && deps.bughuntService) {
+							await deps.bughuntService.finalizeBughuntRun({
+								bughuntRunId: runId,
+								failedReason: 'agent_unavailable',
+							});
+						}
+					}
 				}
 				throw new AppError(
 					'E_AGENT_UNAVAILABLE',
@@ -2485,11 +2504,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (run.origin === 'rework') {
 					await failReworkRunStartup(runId, workspaceReason);
 				} else {
-					await deps.runService.transitionState({
-						runId,
-						targetState: 'failed',
-						reason: workspaceReason,
-					});
+					try {
+						await deps.runService.transitionState({
+							runId,
+							targetState: 'failed',
+							reason: workspaceReason,
+						});
+					} finally {
+						if (run.kind === 'bughunt' && deps.bughuntService) {
+							await deps.bughuntService.finalizeBughuntRun({
+								bughuntRunId: runId,
+								failedReason: workspaceReason,
+							});
+						}
+					}
 				}
 				throw err instanceof AppError
 					? err
@@ -2504,11 +2532,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (run.origin === 'rework') {
 					await failReworkRunStartup(runId, 'agent_unavailable');
 				} else {
-					await deps.runService.transitionState({
-						runId,
-						targetState: 'failed',
-						reason: 'agent_unavailable',
-					});
+					try {
+						await deps.runService.transitionState({
+							runId,
+							targetState: 'failed',
+							reason: 'agent_unavailable',
+						});
+					} finally {
+						if (run.kind === 'bughunt' && deps.bughuntService) {
+							await deps.bughuntService.finalizeBughuntRun({
+								bughuntRunId: runId,
+								failedReason: 'agent_unavailable',
+							});
+						}
+					}
 				}
 				throw new AppError(
 					'E_AGENT_UNAVAILABLE',

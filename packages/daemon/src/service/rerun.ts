@@ -9,7 +9,13 @@ import type { BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { GatesRepo } from '../repo/gates.ts';
-import { type RunInsertRow, type RunsRepo, isConstraintConflict, toRunDto } from '../repo/runs.ts';
+import {
+	type RunInsertRow,
+	type RunRow,
+	type RunsRepo,
+	isConstraintConflict,
+	toRunDto,
+} from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 import type { LogstoreService } from './logstore.ts';
 import { assertSessionRefFree } from './session-guard.ts';
@@ -163,6 +169,38 @@ function resolveConstraintConflict<T>(err: unknown, resolver: () => T | null): T
 	return null;
 }
 
+function isMatchingRerun(
+	candidate: RunRow,
+	previous: RunRow,
+	taskRuns: readonly RunRow[],
+): boolean {
+	const parentRunId = previous.kind === 'bughunt' ? previous.parent_run_id : previous.id;
+	// Bughunt children share an implementation parent; their immediate predecessor identifies the source.
+	return (
+		candidate.id !== previous.id &&
+		candidate.attempt_no > previous.attempt_no &&
+		candidate.task_id === previous.task_id &&
+		candidate.kind === previous.kind &&
+		candidate.parent_run_id === parentRunId &&
+		candidate.snapshot_id === previous.snapshot_id &&
+		candidate.agent_id === previous.agent_id &&
+		candidate.model_name === previous.model_name &&
+		(candidate.effort_tier ?? null) === (previous.effort_tier ?? null) &&
+		(candidate.effort_vendor ?? null) === (previous.effort_vendor ?? null) &&
+		candidate.permission_tier === previous.permission_tier &&
+		(previous.kind !== 'bughunt' ||
+			(candidate.worktree_path === previous.worktree_path &&
+				candidate.branch_name === previous.branch_name &&
+				candidate.branch_tip_sha === previous.branch_tip_sha &&
+				!taskRuns.some(
+					(run) =>
+						run.kind === 'bughunt' &&
+						run.attempt_no > previous.attempt_no &&
+						run.attempt_no < candidate.attempt_no,
+				)))
+	);
+}
+
 export function createRerunService(deps: RerunServiceDeps): RerunService {
 	const { runsRepo, tasksRepo, batchesRepo, documentsRepo, clock, ids } = deps;
 
@@ -247,14 +285,6 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			throw new AppError('E_VALIDATION', 'idempotencyKey must be a non-empty string');
 		}
 
-		// Idempotency: return existing run if key was already used
-		const existingByIdempotency = runsRepo.findByIdempotencyKey(idempotencyKey);
-		if (existingByIdempotency) {
-			return {
-				run: toRunDto(existingByIdempotency),
-			};
-		}
-
 		// Look up the run being rerun
 		const previousRun = runsRepo.findById(runId);
 		if (!previousRun) {
@@ -265,6 +295,26 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 		if (!previousRun.task_id) {
 			throw new AppError('E_VALIDATION', 'Cannot rerun a run without task_id');
+		}
+
+		const existingByIdempotency = runsRepo.findByIdempotencyKey(idempotencyKey);
+		if (existingByIdempotency) {
+			if (
+				!isMatchingRerun(
+					existingByIdempotency,
+					previousRun,
+					previousRun.kind === 'bughunt' ? runsRepo.listByTaskId(previousRun.task_id) : [],
+				)
+			) {
+				throw new AppError(
+					'E_RUN_ALREADY_EXISTS',
+					'Idempotency key belongs to a different run request.',
+					{
+						details: { runId, existingRunId: existingByIdempotency.id },
+					},
+				);
+			}
+			return { run: toRunDto(existingByIdempotency) };
 		}
 
 		const task = tasksRepo.findById(previousRun.task_id);
@@ -350,6 +400,12 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			isRetryableBughuntWait = true;
 		}
 
+		if (active && isRetryableBughuntWait && active.id !== previousRun.parent_run_id) {
+			throw new AppError('E_RUN_ALREADY_EXISTS', 'Task already has another active run.', {
+				details: { taskId: task.id, existingRunId: active.id },
+			});
+		}
+
 		if (active && !isRetryableZeroOutputWait && !isRetryableBughuntWait) {
 			return {
 				run: toRunDto(active),
@@ -391,9 +447,8 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 
 		// AC 6 & E-36: Model name is passed through directly without whitelist checks
 		const now = clock.now();
-		const existingRuns = runsRepo.listByTaskId(task.id);
-		const attemptNo = Math.max(0, ...existingRuns.map((run) => run.attempt_no)) + 1;
 		const newRunId = ids.newId();
+		const initialState = isRetryableBughuntWait ? 'queued' : 'starting';
 
 		// AC 2: Strictly reuse original snapshot_id without creating new snapshot or modifying assignment
 		const parentRunId =
@@ -401,13 +456,13 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 				? (previousRun.parent_run_id ?? previousRun.id)
 				: previousRun.id;
 
-		const runInsert: RunInsertRow = {
+		const runInsert: Omit<RunInsertRow, 'attempt_no'> = {
 			id: newRunId,
 			task_id: task.id,
-			attempt_no: attemptNo,
 			kind: previousRun.kind,
 			parent_run_id: parentRunId,
-			state: 'starting',
+			state: initialState,
+			queued_reason: isRetryableBughuntWait ? 'rerun' : null,
 			agent_id: previousRun.agent_id,
 			model_name: previousRun.model_name ?? null,
 			effort_tier: previousRun.effort_tier ?? null,
@@ -418,7 +473,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 			worktree_path: previousRun.worktree_path ?? null,
 			branch_name: previousRun.branch_name ?? null,
 			branch_tip_sha: previousRun.branch_tip_sha ?? null,
-			lane_no: previousRun.lane_no ?? null,
+			lane_no: isRetryableBughuntWait ? null : (previousRun.lane_no ?? null),
 			batch_id: previousRun.batch_id ?? task.batch_id ?? null,
 			idempotency_key: idempotencyKey,
 			actor_device_id: input.actorDeviceId ?? null,
@@ -431,7 +486,11 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 				{ taskId: task.id, vendorSessionRef: runInsert.vendor_session_ref ?? null },
 				{ runsRepo, tasksRepo },
 			);
-			runsRepo.insert(runInsert);
+			const existingRuns = runsRepo.listByTaskId(task.id);
+			runsRepo.insert({
+				...runInsert,
+				attempt_no: Math.max(0, ...existingRuns.map((run) => run.attempt_no)) + 1,
+			});
 			if (isRetryableZeroOutputWait) {
 				deps.gatesRepo?.supersedePendingByRunIds?.([previousRun.id], now);
 			}
@@ -445,9 +504,6 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 					});
 				}
 				tasksRepo.updateManualState(task.id, null);
-				if (typeof previousRun.lane_no === 'number' && previousRun.lane_no >= 1) {
-					tasksRepo.assignLaneNo(task.id, previousRun.lane_no);
-				}
 				if (deps.gatesRepo) {
 					const pending = deps.gatesRepo.list({ pendingOnly: true });
 					const bughuntGates = pending.filter(
@@ -474,7 +530,7 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 					actorDeviceId: input.actorDeviceId ?? null,
 					payload: {
 						from: previousRun.state,
-						to: 'starting',
+						to: initialState,
 						reason: 'rerun',
 						misalignment: batchAlignment.isMisaligned ? batchAlignment.message : undefined,
 					},
@@ -491,17 +547,17 @@ export function createRerunService(deps: RerunServiceDeps): RerunService {
 		} catch (err) {
 			const racedByKey = resolveConstraintConflict(err, () => {
 				const racedRun = runsRepo.findByIdempotencyKey(idempotencyKey);
-				return racedRun ? { run: toRunDto(racedRun) } : null;
+				return racedRun &&
+					isMatchingRerun(
+						racedRun,
+						previousRun,
+						previousRun.kind === 'bughunt' ? runsRepo.listByTaskId(task.id) : [],
+					)
+					? { run: toRunDto(racedRun) }
+					: null;
 			});
 			if (racedByKey) {
 				return racedByKey;
-			}
-			const racedByTask = resolveConstraintConflict(err, () => {
-				const activeRun = runsRepo.findActiveByTaskId(task.id);
-				return activeRun ? { run: toRunDto(activeRun) } : null;
-			});
-			if (racedByTask) {
-				return racedByTask;
 			}
 			throw err;
 		}

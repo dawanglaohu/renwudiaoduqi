@@ -908,6 +908,7 @@ export function createContainer(input: {
 			validateSourceAtCommit: (docId, taskIds) =>
 				docsService.validateSourceAtCommit(docId, taskIds),
 			unitOfWork,
+			nudgeTick,
 			tasksRepo: tasks,
 			batchesRepo: batches,
 			documentsRepo: documents,
