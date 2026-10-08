@@ -125,7 +125,6 @@ export interface DocumentRecord {
 }
 
 export interface DocsFileSystem {
-	readonly access?: (path: string) => Promise<void>;
 	readonly readFile: (path: string, encoding: 'utf8') => Promise<string>;
 }
 
@@ -202,7 +201,6 @@ export interface DocsService {
 }
 
 const DEFAULT_FS: DocsFileSystem = Object.freeze({
-	access: nodeFs.access,
 	async readFile(path: string, encoding: 'utf8'): Promise<string> {
 		return nodeFs.readFile(path, encoding);
 	},
@@ -1115,8 +1113,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 			const doc = deps.documentsRepo.findById(docId);
 			if (!doc) throw new AppError('E_NOT_FOUND', `Document not found: ${docId}`);
 			try {
-				if (fileSystem.access) await fileSystem.access(doc.docs_path);
-				else await fileSystem.readFile(doc.docs_path, 'utf8');
+				await fileSystem.readFile(doc.docs_path, 'utf8');
 			} catch (cause) {
 				deps.documentsRepo.markSourceUnreadable(docId, deps.clock.now());
 				throw new AppError(

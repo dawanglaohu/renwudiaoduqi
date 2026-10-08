@@ -1,15 +1,25 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	realpathSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { type DatabaseConnection, openDatabase } from '../../src/db/open-database.ts';
 import { createUnitOfWork } from '../../src/db/unit-of-work.ts';
+import { createBatchesRepo } from '../../src/repo/batches.ts';
 import { createDispatchSnapshotsRepo } from '../../src/repo/dispatch-snapshots.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
 import { createRunsRepo } from '../../src/repo/runs.ts';
 import { createTasksRepo } from '../../src/repo/tasks.ts';
+import { createDispatchService } from '../../src/service/dispatch.ts';
 import { createDocsService } from '../../src/service/docs.ts';
 import { createWorktreeManager } from '../../src/workspace/worktree.ts';
 
@@ -21,7 +31,7 @@ afterEach(() => {
 });
 
 function setup() {
-	const root = mkdtempSync(join(tmpdir(), 'document-workspace-'));
+	const root = mkdtempSync(join(realpathSync.native(tmpdir()), 'document-workspace-'));
 	directories.push(root);
 	const repo = join(root, 'real repository');
 	mkdirSync(repo);
@@ -35,10 +45,16 @@ function setup() {
 		fileSystem: { readDirectory: readdirSync, readFile: (path) => readFileSync(path, 'utf8') },
 	}).run(migrations);
 	const documentsRepo = createDocumentsRepo(db);
+	const batchesRepo = createBatchesRepo(db);
 	const tasksRepo = createTasksRepo(db);
 	const runsRepo = createRunsRepo(db);
 	const dispatchSnapshotsRepo = createDispatchSnapshotsRepo(db);
 	const service = createDocsService({
+		hostInputs: {
+			platform: process.platform as 'win32' | 'linux' | 'darwin',
+			homedir: root,
+			pathEnv: process.env.PATH,
+		},
 		documentsRepo,
 		tasksRepo,
 		runsRepo,
@@ -99,6 +115,7 @@ function setup() {
 		db,
 		service,
 		documentsRepo,
+		batchesRepo,
 		tasksRepo,
 		runsRepo,
 		dispatchSnapshotsRepo,
@@ -135,6 +152,11 @@ describe('document repository binding with real Git', () => {
 		const imported = await service.importDocument(writeDoc(join(repo, 'docs', '开发文档')));
 		const manager = createWorktreeManager({
 			platform: process.platform as 'win32' | 'linux' | 'darwin',
+			hostInputs: {
+				platform: process.platform as 'win32' | 'linux' | 'darwin',
+				homedir: root,
+				pathEnv: process.env.PATH,
+			},
 			ids: { newId: () => crypto.randomUUID() },
 		});
 		const workspace = await manager.prepareWorktree({
@@ -238,6 +260,70 @@ describe('document repository binding with real Git', () => {
 		expect(service.getDocumentById(imported.document.id)?.isSourceReadable).toBe(false);
 		expect(tasksRepo.listByDocId(imported.document.id)).toHaveLength(1);
 	});
+
+	it('blocks a source replaced by a directory without changing run history', async () => {
+		const { repo, service, runsRepo, dispatchSnapshotsRepo, writeDoc, seedRun } = setup();
+		const docsPath = writeDoc(join(repo, 'docs'));
+		const imported = await service.importDocument(docsPath);
+		const history = seedRun(imported.document.id, 'failed');
+		rmSync(docsPath);
+		mkdirSync(docsPath);
+		await expect(service.validateWorkspace(imported.document.id)).rejects.toMatchObject({
+			code: 'E_DOC_SOURCE_UNREADABLE',
+			details: { docsPath },
+		});
+		expect(service.getDocumentById(imported.document.id)?.isSourceReadable).toBe(false);
+		expect(runsRepo.findById('original-run')).toEqual(history.run);
+		expect(dispatchSnapshotsRepo.findById(history.snapshot.id)).toEqual(history.snapshot);
+	});
+
+	it.each(['healthy', 'source', 'repository'] as const)(
+		'checks the %s workspace before automatic dispatch in a running batch',
+		async (missing) => {
+			const fixture = setup();
+			const { root, repo, service, tasksRepo, batchesRepo, runsRepo, dispatchSnapshotsRepo } =
+				fixture;
+			const docsPath = fixture.writeDoc(join(root, 'external'));
+			const imported = await service.importDocument(docsPath, { repoPath: repo });
+			const task = tasksRepo.findByDocAndKey(imported.document.id, 'T-1');
+			if (!task?.batch_id) throw new Error('Imported task must belong to a batch');
+			batchesRepo.updateState({ id: task.batch_id, state: 'running' });
+			const errors: unknown[] = [];
+			const dispatch = createDispatchService({
+				validateWorkspace: service.validateWorkspace,
+				tasksRepo,
+				batchesRepo,
+				documentsRepo: fixture.documentsRepo,
+				dispatchSnapshotsRepo,
+				runsRepo,
+				unitOfWork: createUnitOfWork(fixture.db),
+				clock: { now: () => new Date().toISOString() },
+				ids: { newId: () => crypto.randomUUID() },
+				listDispatchableAgents: () => [{ agentId: 'codex', canDispatch: true }],
+				logFailure: (error) => errors.push(error),
+			});
+			if (missing === 'source') rmSync(docsPath);
+			else if (missing === 'repository') rmSync(repo, { recursive: true });
+			const result = await dispatch.tick();
+			if (missing === 'healthy') {
+				expect(result.runsDispatched).toHaveLength(1);
+				expect(runsRepo.listByTaskId(task.id)).toHaveLength(1);
+				expect(dispatchSnapshotsRepo.listByTaskId(task.id)).toHaveLength(1);
+				expect(tasksRepo.findById(task.id)?.lane_no).toBe(1);
+				expect(errors).toHaveLength(0);
+				return;
+			}
+			expect(result.runsDispatched).toHaveLength(0);
+			expect(runsRepo.listAll()).toHaveLength(0);
+			expect(dispatchSnapshotsRepo.listByTaskId(task.id)).toHaveLength(0);
+			expect(tasksRepo.findById(task.id)).toEqual(task);
+			expect(errors).toEqual([
+				expect.objectContaining({
+					code: missing === 'source' ? 'E_DOC_SOURCE_UNREADABLE' : 'E_NOT_A_GIT_REPO',
+				}),
+			]);
+		},
+	);
 
 	it('repairs a legacy slug binding on a normal refresh', async () => {
 		const { repo, service, documentsRepo, writeDoc } = setup();

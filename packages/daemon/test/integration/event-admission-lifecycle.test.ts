@@ -1,6 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
+	mkdirSync,
 	mkdtempSync,
 	readFileSync,
 	readdirSync,
@@ -32,6 +33,10 @@ afterEach(async () => {
 async function environment(queuedSettings = 4999) {
 	const tempRoot = realpathSync.native(tmpdir());
 	const dataDir = mkdtempSync(join(tempRoot, 'agsched-event-admission-'));
+	execFileSync('git', ['init', '-q', dataDir]);
+	const docsPath = join(dataDir, 'source', 'docs-data.js');
+	mkdirSync(dirname(docsPath));
+	writeFileSync(docsPath, 'document source fixture');
 	const db = openDatabase(':memory:');
 	const migrations = join(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 	for (const file of readdirSync(migrations)
@@ -101,7 +106,7 @@ async function environment(queuedSettings = 4999) {
 	const headers = { authorization: `Bearer ${claim.token}` };
 	container.repos.documents.insert({
 		id: 'doc',
-		docs_path: '/docs',
+		docs_path: docsPath,
 		project_name: 'pressure',
 		repo_path: dataDir,
 		main_branch: 'main',
@@ -397,7 +402,6 @@ it('queues one disk-full warning without blocking the failing writer callback', 
 it('rolls back a new document and its tasks when its changed event cannot be admitted', async () => {
 	const env = await environment();
 	const source = join(env.dataDir, 'docs-data.js');
-	execFileSync('git', ['init', '-q', env.dataDir]);
 	const payload = {
 		schemaVersion: 1,
 		project: 'admission import',

@@ -1284,10 +1284,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				pendingAssignmentTx.length = 0;
 			};
 
-			for (const doc of documents) {
-				if (doc.is_source_readable === 0) {
+			for (const previousDoc of documents) {
+				if (previousDoc.is_source_readable === 0) {
 					continue;
 				}
+				if (deps.validateWorkspace) {
+					try {
+						await deps.validateWorkspace(previousDoc.id);
+					} catch (error) {
+						logFailure(error);
+						continue;
+					}
+				}
+				const doc = deps.documentsRepo.findById(previousDoc.id);
+				if (!doc || doc.is_source_readable === 0) continue;
 
 				// Step 2: Batch progression & wrap-up trigger (AC 1, AC 2, E-272, E-283)
 				const batches = deps.batchesRepo.listByDocId(doc.id);

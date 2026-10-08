@@ -235,6 +235,11 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		const container = createContainer({
 			gitRunner: createDefaultGitRunner({
 				platform: process.platform as 'win32' | 'linux' | 'darwin',
+				hostInputs: {
+					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					homedir: testDir,
+					pathEnv: process.env.PATH,
+				},
 				ids: { newId: () => crypto.randomUUID() },
 			}),
 			agentRegistry: createAgentRegistry({

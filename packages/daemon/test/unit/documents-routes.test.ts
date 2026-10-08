@@ -170,6 +170,11 @@ describe(
 			if (options?.openBrowser) {
 				const documentsRepo = createDocumentsRepo(db);
 				docsService = createDocsService({
+					hostInputs: {
+						platform: process.platform as 'win32' | 'linux' | 'darwin',
+						homedir: testDir,
+						pathEnv: process.env.PATH,
+					},
 					documentsRepo,
 					clock: { now: () => '2026-09-10T12:00:00.000Z' },
 					ids: { newId: () => 'test-doc-id' },
@@ -179,6 +184,11 @@ describe(
 			const container = createContainer({
 				gitRunner: createDefaultGitRunner({
 					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					hostInputs: {
+						platform: process.platform as 'win32' | 'linux' | 'darwin',
+						homedir: testDir,
+						pathEnv: process.env.PATH,
+					},
 					ids: { newId: () => crypto.randomUUID() },
 				}),
 				config: {

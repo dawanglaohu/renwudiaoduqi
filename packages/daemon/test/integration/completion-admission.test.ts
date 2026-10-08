@@ -52,6 +52,10 @@ async function environment(
 ) {
 	const tempRoot = realpathSync.native(tmpdir());
 	const dataDir = realpathSync.native(mkdtempSync(join(tempRoot, 'agsched-completion-')));
+	execFileSync('git', ['init', '-q', dataDir]);
+	const docsPath = join(dataDir, 'source', 'docs-data.js');
+	mkdirSync(dirname(docsPath));
+	writeFileSync(docsPath, 'document source fixture');
 	const db = openDatabase(':memory:');
 	let databaseClosed = false;
 	const closeDatabase = () => {
@@ -220,7 +224,7 @@ async function environment(
 	});
 	container.repos.documents.insert({
 		id: 'doc',
-		docs_path: '/docs',
+		docs_path: docsPath,
 		project_name: 'pressure',
 		repo_path: dataDir,
 		main_branch: 'main',
