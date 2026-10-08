@@ -1748,7 +1748,11 @@
         "packages/daemon/test/integration/container-wiring.test.ts",
         "packages/daemon/test/arch/shared-contracts.test.ts",
         "docs/Agent任务调度器-开发文档/02-设计/09-数据模型.md",
-        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md"
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md",
+        "packages/daemon/src/domain/batch-state-machine.ts",
+        "packages/daemon/src/service/batch.ts",
+        "packages/daemon/test/unit/batch-state-machine.test.ts",
+        "packages/daemon/test/arch/batch-state-isolation.test.ts"
       ]
     },
     "M8-T13": {
@@ -1791,7 +1795,12 @@
         "packages/daemon/src/service/review.ts",
         "packages/daemon/src/service/review-agent.ts",
         "packages/daemon/src/service/bughunt.ts",
-        "packages/daemon/src/service/rework.ts"
+        "packages/daemon/src/service/rework.ts",
+        "packages/daemon/src/domain/batch-state-machine.ts",
+        "packages/daemon/src/service/batch.ts",
+        "packages/daemon/test/unit/batch-state-machine.test.ts",
+        "packages/daemon/test/arch/batch-state-isolation.test.ts",
+        "packages/daemon/test/integration/batch-wrapup.test.ts"
       ]
     },
     "M9-T30": {

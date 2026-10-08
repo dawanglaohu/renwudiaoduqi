@@ -63,6 +63,36 @@ class DocumentExecutionContractTests(unittest.TestCase):
                     self.assertIn('membershipFingerprint', prompt)
                     self.assertIn('已完成批次新增任务', prompt)
 
+    def test_batch_invalidation_has_authorized_state_machine_paths(self):
+        run = DOCS_ROOT / '_run'
+        contracts = json.loads((run / 'task-contracts.json').read_text(encoding='utf-8'))['tasks']
+        paths = json.loads((run / 'presentation.json').read_text(encoding='utf-8'))['handoff']['taskPaths']
+        required = ('packages/daemon/src/domain/batch-state-machine.ts',
+                    'packages/daemon/src/service/batch.ts',
+                    'packages/daemon/test/unit/batch-state-machine.test.ts',
+                    'packages/daemon/test/arch/batch-state-isolation.test.ts')
+        for task in ('M8-T12', 'M8-T13'):
+            effective = set(paths[task] + contracts[task]['supportPaths'])
+            for path in required:
+                with self.subTest(task=task, path=path):
+                    self.assertIn(path, effective)
+        extension = (DOCS_ROOT / '05-附录/22-决策记录.md').read_text(encoding='utf-8').split('## 文档级顺序自动执行', 1)[1]
+        self.assertIn('transitionBatchInTx', extension)
+        self.assertIn('membership_invalidated', extension)
+
+    def test_membership_generations_have_separate_bounded_wrapup_budgets(self):
+        extension = (DOCS_ROOT / '05-附录/22-决策记录.md').read_text(encoding='utf-8').split('## 文档级顺序自动执行', 1)[1]
+        for term in ('generationId', 'wrapupRunIds', '2轮有效自动收口', '6次物理尝试', '历史编号继续全局递增'):
+            self.assertIn(term, extension)
+
+    def test_generation_budget_is_in_every_implementation_and_review_prompt(self):
+        dispatch = json.loads((DOCS_ROOT / '_run/dispatch.json').read_text(encoding='utf-8'))
+        for task in TASKS:
+            for side in ('implementation', 'review'):
+                with self.subTest(task=task, side=side):
+                    self.assertIn('generationId', dispatch['tasks'][task][side])
+                    self.assertIn('6次物理尝试', dispatch['tasks'][task][side])
+
 
 if __name__ == '__main__':
     unittest.main()
