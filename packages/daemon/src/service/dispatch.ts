@@ -243,6 +243,7 @@ function createAgentDefaultsLookup(
 }
 
 export interface DispatchServiceDeps {
+	readonly validateWorkspace?: (docId: string) => Promise<void>;
 	readonly unitOfWork?: UnitOfWork;
 	readonly tasksRepo: TasksRepo;
 	readonly batchesRepo: BatchesRepo;
@@ -396,9 +397,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 		if (doc.is_source_readable === 0) {
-			throw new AppError('E_DOC_SOURCE_UNREADABLE', 'Document source is unreadable (E-82)', {
-				details: { docId },
-			});
+			throw new AppError(
+				'E_DOC_SOURCE_UNREADABLE',
+				`文档来源不可读：${doc.docs_path}。请重新绑定文档路径。`,
+				{ details: { docId, docsPath: doc.docs_path } },
+			);
 		}
 		return doc;
 	}
@@ -611,6 +614,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		checkDocumentReadable(task.doc_id);
+		await deps.validateWorkspace?.(task.doc_id);
 		checkTaskRemoved(task);
 		checkContractReady(task);
 
@@ -816,6 +820,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	});
 
 	async function rerunRun(input: RerunRunInput): Promise<RerunRunResponse> {
+		const previous = runsRepo.findById(input.runId);
+		const task = previous?.task_id ? deps.tasksRepo.findById(previous.task_id) : null;
+		const batch = previous?.batch_id ? deps.batchesRepo.findById(previous.batch_id) : null;
+		const docId = task?.doc_id ?? batch?.doc_id;
+		if (docId) await deps.validateWorkspace?.(docId);
 		const result = await rerunService.rerunRun(input);
 		if (result.run.id !== input.runId && result.run.state === 'starting') {
 			void launchRun(result.run.id).catch((err) => {
@@ -839,6 +848,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		}
 
 		checkDocumentReadable(batch.doc_id);
+		await deps.validateWorkspace?.(batch.doc_id);
 
 		if (batch.batch_no > 1) {
 			const prevBatch = deps.batchesRepo.findByDocAndBatchNo(batch.doc_id, batch.batch_no - 1);

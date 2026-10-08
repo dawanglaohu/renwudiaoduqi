@@ -18,10 +18,22 @@ import {
 } from '../../src/repo/tasks.ts';
 import {
 	type DocsFileSystem,
-	createDocsService,
+	type DocsServiceDeps,
+	createDocsService as createProductionDocsService,
 	mapDocumentRow,
 	parseDocsDataContent,
 } from '../../src/service/docs.ts';
+
+function createDocsService(deps: DocsServiceDeps) {
+	return createProductionDocsService({
+		...deps,
+		gitRunner: {
+			async run(_args, cwd) {
+				return { exitCode: 0, stdout: `true\n${resolve(cwd)}`, stderr: '' };
+			},
+		},
+	});
+}
 
 const openDatabases: DatabaseConnection[] = [];
 const temporaryDirectories: string[] = [];
@@ -877,7 +889,7 @@ describe('DocsService real repository docs-data.js integration', () => {
 		expect(result.isNew).toBe(true);
 		expect(result.hasChanged).toBe(true);
 		expect(result.document.projectName).toBe('Agent 任务调度器');
-		expect(result.document.repoPath).toBe('agent-scheduler');
+		expect(result.document.repoPath).toBe(resolve(dirname(realDocsPath)));
 		expect(result.document.laneCount).toBe(2);
 		expect(result.document.isSourceReadable).toBe(true);
 		expect(result.parsed.tasks.length).toBe(sourceTaskCount);

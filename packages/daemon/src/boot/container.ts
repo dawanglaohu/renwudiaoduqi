@@ -417,6 +417,8 @@ export function createContainer(input: {
 	const docsService =
 		input.docsService ??
 		createDocsService({
+			gitRunner,
+			runsRepo: runs,
 			documentsRepo: documents,
 			tasksRepo: tasks,
 			batchesRepo: batches,
@@ -900,6 +902,7 @@ export function createContainer(input: {
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
+			validateWorkspace: (docId) => docsService.validateWorkspace(docId),
 			unitOfWork,
 			tasksRepo: tasks,
 			batchesRepo: batches,

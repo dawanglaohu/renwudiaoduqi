@@ -1,6 +1,7 @@
+import { execFileSync } from 'node:child_process';
 import type { ChildProcess, SpawnOptions, spawn as nodeSpawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -27,11 +28,12 @@ import {
 	spawnManaged,
 } from '../../src/proc/spawn.ts';
 import { createBaseSelector } from '../../src/workspace/base-select.ts';
-import type {
-	GitRunner,
-	PrepareWorktreeInput,
-	PrepareWorktreeResult,
-	WorktreeManager,
+import {
+	type GitRunner,
+	type PrepareWorktreeInput,
+	type PrepareWorktreeResult,
+	type WorktreeManager,
+	createDefaultGitRunner,
 } from '../../src/workspace/worktree.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -313,6 +315,8 @@ function setupTestEnvironment(
 ) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'agent-scheduler-dispatch-spawn-'));
 	temporaryDirectories.push(tempDir);
+	execFileSync('git', ['init', '-q', tempDir]);
+	writeFileSync(join(tempDir, 'docs-data.js'), 'document source fixture');
 	const dbPath = join(tempDir, 'test.db');
 
 	let timeMs = 1725800000000;
@@ -417,6 +421,16 @@ function setupTestEnvironment(
 	} as unknown as import('../../src/service/agents.ts').AgentService;
 
 	const container = createContainer({
+		gitRunner: {
+			async run(args, cwd) {
+				if (args.includes('--is-inside-work-tree'))
+					return { exitCode: 0, stdout: `true\n${cwd}`, stderr: '' };
+				return createDefaultGitRunner({
+					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					ids: { newId: () => crypto.randomUUID() },
+				}).run(args, cwd);
+			},
+		},
 		config: createTestConfig(tempDir),
 		database: db,
 		hostInputs: { platform: 'linux', homedir: tempDir },
@@ -452,7 +466,7 @@ function setupTestEnvironment(
 	// Seed document, batch, task
 	container.repos.documents.insert({
 		id: 'doc-1',
-		docs_path: '/docs',
+		docs_path: join(tempDir, 'docs-data.js'),
 		project_name: 'test-project',
 		repo_path: tempDir,
 		main_branch: 'main',
@@ -1344,6 +1358,11 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		const { tempDir, db, clock } = setupTestEnvironment();
 
 		const realContainer = createContainer({
+			gitRunner: {
+				async run(_args, cwd) {
+					return { exitCode: 0, stdout: `true\n${cwd}`, stderr: '' };
+				},
+			},
 			agentRegistry: createAgentRegistry({
 				dataDir: tempDir,
 				platform: 'posix',

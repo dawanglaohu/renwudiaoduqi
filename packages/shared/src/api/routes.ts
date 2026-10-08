@@ -10,8 +10,10 @@ import {
 } from './batches.ts';
 import {
 	CREATE_DOCUMENT_BODY_KEYS,
+	REFRESH_DOCUMENT_BODY_KEYS,
 	UPDATE_DOCUMENT_SETTINGS_BODY_KEYS,
 	createDocumentBodySchema,
+	refreshDocumentBodySchema,
 	updateDocumentSettingsBodySchema,
 } from './documents.ts';
 import { DECIDE_GATE_BODY_KEYS, decideGateBodySchema } from './gates.ts';
@@ -59,6 +61,13 @@ export const REQUEST_BODY_SCHEMAS = [
 		method: 'POST' as const,
 		schema: createDocumentBodySchema,
 		keys: CREATE_DOCUMENT_BODY_KEYS,
+	},
+	{
+		name: 'refreshDocument',
+		path: '/api/v1/documents/:docId/refresh',
+		method: 'POST' as const,
+		schema: refreshDocumentBodySchema,
+		keys: REFRESH_DOCUMENT_BODY_KEYS,
 	},
 	{
 		name: 'updateDocumentSettings',
@@ -223,6 +232,8 @@ export const ROUTES: readonly RouteDefinition[] = [
 			'E_DEVICE_REVOKED',
 			'E_VALIDATION',
 			'E_DOC_SOURCE_UNREADABLE',
+			'E_NOT_A_GIT_REPO',
+			'E_WORKSPACE_UNAVAILABLE',
 			'E_INTERNAL',
 		],
 		bodySchema: createDocumentBodySchema,
@@ -232,15 +243,20 @@ export const ROUTES: readonly RouteDefinition[] = [
 		method: 'POST',
 		path: '/api/v1/documents/:docId/refresh',
 		auth: 'device',
-		reqType: 'void',
+		reqType: 'RefreshDocumentBody',
 		resType: 'RefreshDocumentResponse',
 		errors: [
 			'E_UNAUTHORIZED',
 			'E_DEVICE_REVOKED',
 			'E_NOT_FOUND',
 			'E_DOC_SOURCE_UNREADABLE',
+			'E_NOT_A_GIT_REPO',
+			'E_VALIDATION',
+			'E_WORKSPACE_UNAVAILABLE',
 			'E_INTERNAL',
 		],
+		bodySchema: refreshDocumentBodySchema,
+		bodyKeys: REFRESH_DOCUMENT_BODY_KEYS,
 	},
 	{
 		method: 'POST',

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -421,9 +421,11 @@ function setupWiringEnvironment(
 	});
 
 	// Seed document, batch, task, snapshot
+	const docsPath = join(tempDir, 'docs-data.js');
+	writeFileSync(docsPath, 'document source fixture');
 	container.repos.documents.insert({
 		id: 'doc-1',
-		docs_path: '/docs',
+		docs_path: docsPath,
 		project_name: 'test-project',
 		repo_path: tempDir,
 		main_branch: 'main',

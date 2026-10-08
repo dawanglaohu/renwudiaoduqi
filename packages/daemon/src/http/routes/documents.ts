@@ -6,10 +6,12 @@ import {
 	type ListDocumentTasksResponse,
 	type ListDocumentsResponse,
 	type OpenReaderResponse,
+	type RefreshDocumentBody,
 	type RefreshDocumentResponse,
 	type UpdateDocumentSettingsBody,
 	type UpdateDocumentSettingsResponse,
 	createDocumentBodySchema,
+	refreshDocumentBodySchema,
 	updateDocumentSettingsBodySchema,
 } from '@agent-scheduler/shared/api/documents';
 import type { FastifyInstance, RouteHandlerMethod } from 'fastify';
@@ -185,7 +187,9 @@ export function registerDocumentRoutes(
 		async (request): Promise<CreateDocumentResponse> => {
 			authenticateDevice(request);
 			const docsService = options?.docsService ?? resolveDocsService(instance, options);
-			const result = await docsService.importDocument(request.body.docsPath);
+			const result = await docsService.importDocument(request.body.docsPath, {
+				repoPath: request.body.repoPath,
+			});
 			return {
 				document: toDocumentDto(result.document),
 				taskCount: result.parsed.tasks.length,
@@ -295,17 +299,18 @@ export function registerDocumentRoutes(
 	);
 
 	// POST /api/v1/documents/:docId/refresh
-	instance.post<{ Params: DocumentParams }>(
+	instance.post<{ Params: DocumentParams; Body: RefreshDocumentBody | null }>(
 		'/api/v1/documents/:docId/refresh',
 		{
 			schema: {
 				params: DOCUMENT_PARAMS_SCHEMA,
+				body: refreshDocumentBodySchema,
 			},
 		},
 		async (request): Promise<RefreshDocumentResponse> => {
 			authenticateDevice(request);
 			const docsService = options?.docsService ?? resolveDocsService(instance, options);
-			return docsService.refreshDocument(request.params.docId);
+			return docsService.refreshDocument(request.params.docId, request.body ?? undefined);
 		},
 	);
 

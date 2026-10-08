@@ -22,6 +22,7 @@ import type {
 import { createOpenBrowser } from '../../src/proc/open-browser.ts';
 import { createDocumentsRepo } from '../../src/repo/documents.ts';
 import { createDocsService } from '../../src/service/docs.ts';
+import { createDefaultGitRunner } from '../../src/workspace/worktree.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const testDir = resolve(currentDir, '../fixtures/documents-routes-test');
@@ -176,6 +177,10 @@ describe(
 				});
 			}
 			const container = createContainer({
+				gitRunner: createDefaultGitRunner({
+					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					ids: { newId: () => crypto.randomUUID() },
+				}),
 				config: {
 					port: 7817,
 					bind: '127.0.0.1',

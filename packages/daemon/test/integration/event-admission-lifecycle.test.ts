@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
 	mkdtempSync,
@@ -54,7 +54,11 @@ async function environment(queuedSettings = 4999) {
 		config: { port: 0, bind: '127.0.0.1', dataDir, logLevel: 'error', dev: false },
 		database: db,
 		processRegistry: registry,
-		hostInputs: { platform: process.platform === 'win32' ? 'win32' : 'linux', homedir: dataDir },
+		hostInputs: {
+			platform: process.platform === 'win32' ? 'win32' : 'linux',
+			homedir: dataDir,
+			pathEnv: process.env.PATH,
+		},
 		lockAdapter: {} as NativeLockAdapter,
 		instanceLock: { release() {} } as unknown as LockFileHandle,
 		clock: { now: () => now },
@@ -393,6 +397,7 @@ it('queues one disk-full warning without blocking the failing writer callback', 
 it('rolls back a new document and its tasks when its changed event cannot be admitted', async () => {
 	const env = await environment();
 	const source = join(env.dataDir, 'docs-data.js');
+	execFileSync('git', ['init', '-q', env.dataDir]);
 	const payload = {
 		schemaVersion: 1,
 		project: 'admission import',

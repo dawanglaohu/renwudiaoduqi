@@ -25,6 +25,7 @@ import {
 	type DispatchSnapshotsRepo,
 	createDispatchSnapshotsRepo,
 } from '../../src/repo/dispatch-snapshots.ts';
+import { createDefaultGitRunner } from '../../src/workspace/worktree.ts';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const testDir = resolve(currentDir, '../fixtures/documents-routes-integration-test');
@@ -232,6 +233,10 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 	}) {
 		const lockAdapter = createMemoryLockAdapter();
 		const container = createContainer({
+			gitRunner: createDefaultGitRunner({
+				platform: process.platform as 'win32' | 'linux' | 'darwin',
+				ids: { newId: () => crypto.randomUUID() },
+			}),
 			agentRegistry: createAgentRegistry({
 				dataDir: testDir,
 				builtInDefaults: {},
@@ -478,6 +483,79 @@ describe('M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth
 		expect(tasksInDb.length).toBeGreaterThan(0);
 		const snapshotsInDb = snapshotsRepo.listByTaskId(taskT1.id);
 		expect(snapshotsInDb.length).toBeGreaterThan(0);
+	});
+
+	it('recovers a moved source through HTTP while preserving the document and task IDs', async () => {
+		const { server, container } = setupServer();
+		const authorization = await getAuthToken(container);
+		const oldPath = join(testDir, 'docs-data.js');
+		writeFileSync(oldPath, createDocsDataJs());
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers: { authorization },
+			payload: { docsPath: oldPath },
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const doc = (imported.json() as CreateDocumentResponse).document;
+		const taskBefore = container.repos.tasks.findByDocAndKey(doc.id, 'T-1');
+		const newFolder = join(testDir, 'relocated');
+		mkdirSync(newFolder);
+		const docsPath = join(newFolder, 'docs-data.js');
+		writeFileSync(docsPath, createDocsDataJs());
+		rmSync(oldPath);
+		const refreshed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${doc.id}/refresh`,
+			headers: { authorization },
+			payload: { docsPath, repoPath: doc.repoPath },
+		});
+		expect(refreshed.statusCode, refreshed.body).toBe(200);
+		expect(refreshed.json().changed).toBe(true);
+		expect(container.repos.documents.findById(doc.id)?.docs_path).toBe(docsPath);
+		expect(container.repos.tasks.findByDocAndKey(doc.id, 'T-1')?.id).toBe(taskBefore?.id);
+	});
+
+	it('rejects task and batch dispatch before creating runs when the source has disappeared', async () => {
+		const { server, container } = setupServer();
+		const authorization = await getAuthToken(container);
+		const docsPath = join(testDir, 'docs-data.js');
+		writeFileSync(docsPath, createDocsDataJs());
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers: { authorization },
+			payload: { docsPath },
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const docId = (imported.json() as CreateDocumentResponse).document.id;
+		const task = container.repos.tasks.findByDocAndKey(docId, 'T-1');
+		if (!task?.batch_id) throw new Error('Imported task must belong to a batch');
+		const initialBatch = container.repos.batches.findById(task.batch_id);
+		rmSync(docsPath);
+		const run = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs',
+			headers: { authorization },
+			payload: { taskId: task.id, agentId: 'codex', idempotencyKey: 'source-missing-001' },
+		});
+		expect(run.json().error).toMatchObject({
+			code: 'E_DOC_SOURCE_UNREADABLE',
+			details: { docsPath },
+		});
+		const batch = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/batches/${task.batch_id}/start`,
+			headers: { authorization },
+			payload: {},
+		});
+		expect(batch.json().error).toMatchObject({
+			code: 'E_DOC_SOURCE_UNREADABLE',
+			details: { docsPath },
+		});
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		expect(container.repos.tasks.findById(task.id)?.lane_no).toBeNull();
+		expect(container.repos.batches.findById(task.batch_id)).toEqual(initialBatch);
 	});
 
 	it('AC 3: GET /documents/:docId/tasks supports state filter, cursor pagination, and derived state', async () => {

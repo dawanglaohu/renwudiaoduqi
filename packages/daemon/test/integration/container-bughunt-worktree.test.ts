@@ -114,9 +114,10 @@ it.each(['fresh', 'reuse', 'implementation-fresh', 'missing-worktree'] as const)
 		try {
 			await container.services.agents.start();
 			expect(container.services.agents.getAvailability('codex')?.canDispatch).toBe(true);
+			writeFileSync(join(repoPath, 'docs-data.js'), 'document source fixture');
 			container.repos.documents.insert({
 				id: 'doc',
-				docs_path: '/docs',
+				docs_path: join(repoPath, 'docs-data.js'),
 				project_name: 'Bughunt worktree',
 				repo_path: repoPath,
 				main_branch: 'main',
