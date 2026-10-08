@@ -772,7 +772,8 @@ describe('R8-T69421773: production HTTP rerun admission', () => {
 					});
 					const waitingGates = listWaitingGates(container);
 					expect(waitingGates).toHaveLength(1);
-					expect(waitingGates[0]).toMatchObject({
+					const waitingGate = expectDefined(waitingGates[0]);
+					expect(waitingGate).toMatchObject({
 						run_id: 'history-1',
 						kind: 'review',
 						state: 'waiting',
@@ -783,7 +784,7 @@ describe('R8-T69421773: production HTTP rerun admission', () => {
 						originalSnapshot,
 					);
 					previousRunId = run.id;
-					previousGateId = waitingGates[0].id;
+					previousGateId = waitingGate.id;
 				}
 				expect(container.repos.runs.listByTaskId('task-1').map((r) => r.attempt_no)).toEqual([
 					1, 2, 4, 5, 6,
