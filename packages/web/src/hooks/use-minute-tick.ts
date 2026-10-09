@@ -20,6 +20,8 @@ const listeners = new Set<() => void>();
 
 function startTimerIfNeeded(): void {
 	if (intervalTimer === null && listeners.size > 0) {
+		// The clock can advance or move backwards while there are no subscribers.
+		currentTick = Date.now();
 		intervalTimer = setInterval(() => {
 			currentTick = Date.now();
 			for (const listener of listeners) {

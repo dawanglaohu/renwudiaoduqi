@@ -181,87 +181,128 @@ export function RunDeckContainer(props: RunDeckProps) {
 	const wrapupRoundsRef = useRef<Map<string, number>>(new Map());
 	const wrapupsByRunIdRef = useRef<Map<string, BatchWrapupDto>>(new Map());
 	const remoteMountedRef = useRef(false);
-
-	const loadOnce = useCallback(async (canPublish: () => boolean) => {
-		try {
-			const [snapshot, fetchedLanes, runsResponse, gatesResponse] = await Promise.all([
-				httpClient.callRoute<SnapshotResponse>(SNAPSHOT_ROUTE),
-				fetchLanes(),
-				httpClient.callRoute<{ runs: readonly RunDto[] }>(RUNS_ROUTE),
-				httpClient.callRoute<ListGatesResponse>(GATES_ROUTE),
-			]);
-			const batchResponses = await Promise.all(
-				snapshot.documents.map((document) =>
-					httpClient.callRoute<ListDocumentBatchesResponse>(DOCUMENT_BATCHES_ROUTE, {
-						params: { docId: document.id },
-					}),
-				),
-			);
-			const batchDetails = batchResponses.flatMap((response) => response.batches);
-			// 完成的收口运行已离开活动泳道；从 daemon 持久记录恢复轮次，刷新后批次树仍有报告入口。
-			const wrapupBatchIds = [
-				...new Set(
-					runsResponse.runs
-						.filter((run) => run.kind === 'wrapup' && run.batchId)
-						.map((run) => run.batchId as string),
-				),
-			];
-			await Promise.allSettled(
-				wrapupBatchIds.map(async (batchId) => {
-					const response = await httpClient.callRoute<GetBatchWrapupsResponse>(
-						BATCH_WRAPUPS_ROUTE,
-						{ params: { batchId } },
-					);
-					if (!canPublish()) return;
-					for (const wrapup of response.wrapups) {
-						wrapupRoundsRef.current.set(wrapup.runId, wrapup.round);
-						wrapupsByRunIdRef.current.set(wrapup.runId, wrapup);
-					}
-				}),
-			);
-			// E-333: 快照缺 lanes 键或不是数组 → 抛出异常，运行甲板呈现「泳道数据不可用」
-			if (!snapshot || !Array.isArray(snapshot.lanes)) {
-				throw new Error('泳道数据不可用');
-			}
-
-			if (!canPublish()) return;
-			setRemote({
-				lanes: buildDeckLanes({
-					lanes: fetchedLanes,
-					// 快照里的运行没有 capabilities，能力位取 GET /runs 的那一份（E-117）
-					runs: runsResponse.runs,
-					tasks: snapshot.tasks,
-					batches: snapshot.batches,
-					gates: gatesResponse.gates,
-					wrapupRoundByRunId: wrapupRoundsRef.current,
-				}),
-				batches: mapSnapshotToBatches(
-					snapshot,
-					wrapupRoundsRef.current,
-					runsResponse.runs,
-					batchDetails,
-				),
-				rawTasks: snapshot.tasks,
-				rawRuns: runsResponse.runs,
-				rawLanes: fetchedLanes,
-				wrapups: [...wrapupsByRunIdRef.current.values()],
-				gates: gatesResponse.gates,
-				error: null,
-			});
-		} catch (cause: unknown) {
-			if (!canPublish()) return;
-			setRemote({
-				lanes: Object.freeze([]) as readonly DeckStreamLane[],
-				batches: Object.freeze([]) as readonly BatchTreeItem[],
-				rawTasks: [],
-				rawRuns: [],
-				rawLanes: [],
-				wrapups: [],
-				gates: [],
-				error: cause instanceof Error ? cause.message : String(cause),
-			});
+	const gatesRef = useRef<readonly GateDto[]>([]);
+	const gatesRequestRef = useRef<{
+		promise: Promise<void>;
+		started: boolean;
+		invalidated: boolean;
+	} | null>(null);
+	const loadGates = useCallback((invalidate = false): Promise<void> => {
+		if (!remoteMountedRef.current) return Promise.resolve();
+		const existing = gatesRequestRef.current;
+		if (existing) {
+			if (invalidate && existing.started) existing.invalidated = true;
+			return existing.promise;
 		}
+		const request = { promise: Promise.resolve(), started: false, invalidated: false };
+		const promise = Promise.resolve()
+			.then(async () => {
+				do {
+					request.started = true;
+					request.invalidated = false;
+					try {
+						const response = await httpClient.callRoute<ListGatesResponse>(GATES_ROUTE);
+						if (gatesRequestRef.current === request && !request.invalidated) {
+							gatesRef.current = response.gates;
+						}
+					} catch (cause: unknown) {
+						if (gatesRequestRef.current === request && !request.invalidated) throw cause;
+					}
+				} while (request.invalidated && gatesRequestRef.current === request);
+			})
+			.finally(() => {
+				if (gatesRequestRef.current === request) gatesRequestRef.current = null;
+			});
+		request.promise = promise;
+		gatesRequestRef.current = request;
+		return promise;
 	}, []);
+
+	const loadOnce = useCallback(
+		async (canPublish: () => boolean) => {
+			try {
+				const [snapshot, fetchedLanes, runsResponse] = await Promise.all([
+					httpClient.callRoute<SnapshotResponse>(SNAPSHOT_ROUTE),
+					fetchLanes(),
+					httpClient.callRoute<{ runs: readonly RunDto[] }>(RUNS_ROUTE),
+					loadGates(),
+				]);
+				const batchResponses = await Promise.all(
+					snapshot.documents.map((document) =>
+						httpClient.callRoute<ListDocumentBatchesResponse>(DOCUMENT_BATCHES_ROUTE, {
+							params: { docId: document.id },
+						}),
+					),
+				);
+				const batchDetails = batchResponses.flatMap((response) => response.batches);
+				// 完成的收口运行已离开活动泳道；从 daemon 持久记录恢复轮次，刷新后批次树仍有报告入口。
+				const wrapupBatchIds = [
+					...new Set(
+						runsResponse.runs
+							.filter((run) => run.kind === 'wrapup' && run.batchId)
+							.map((run) => run.batchId as string),
+					),
+				];
+				await Promise.allSettled(
+					wrapupBatchIds.map(async (batchId) => {
+						const response = await httpClient.callRoute<GetBatchWrapupsResponse>(
+							BATCH_WRAPUPS_ROUTE,
+							{ params: { batchId } },
+						);
+						if (!canPublish()) return;
+						for (const wrapup of response.wrapups) {
+							wrapupRoundsRef.current.set(wrapup.runId, wrapup.round);
+							wrapupsByRunIdRef.current.set(wrapup.runId, wrapup);
+						}
+					}),
+				);
+				// E-333: 快照缺 lanes 键或不是数组 → 抛出异常，运行甲板呈现「泳道数据不可用」
+				if (!snapshot || !Array.isArray(snapshot.lanes)) {
+					throw new Error('泳道数据不可用');
+				}
+
+				if (!canPublish()) return;
+				// A login probe can finish while the other deck reads are still pending.
+				const gates = gatesRef.current;
+				setRemote({
+					lanes: buildDeckLanes({
+						lanes: fetchedLanes,
+						// 快照里的运行没有 capabilities，能力位取 GET /runs 的那一份（E-117）
+						runs: runsResponse.runs,
+						tasks: snapshot.tasks,
+						batches: snapshot.batches,
+						gates,
+						wrapupRoundByRunId: wrapupRoundsRef.current,
+					}),
+					batches: mapSnapshotToBatches(
+						snapshot,
+						wrapupRoundsRef.current,
+						runsResponse.runs,
+						batchDetails,
+					),
+					rawTasks: snapshot.tasks,
+					rawRuns: runsResponse.runs,
+					rawLanes: fetchedLanes,
+					wrapups: [...wrapupsByRunIdRef.current.values()],
+					gates,
+					error: null,
+				});
+			} catch (cause: unknown) {
+				if (!canPublish()) return;
+				setRemote({
+					lanes: Object.freeze([]) as readonly DeckStreamLane[],
+					batches: Object.freeze([]) as readonly BatchTreeItem[],
+					rawTasks: [],
+					rawRuns: [],
+					rawLanes: [],
+					wrapups: [],
+					gates: [],
+					error: cause instanceof Error ? cause.message : String(cause),
+				});
+			}
+		},
+		[loadGates],
+	);
 	const loadRequestRef = useRef<{
 		promise: Promise<void>;
 		started: boolean;
@@ -295,6 +336,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 	// 首屏取数；之后只在运行/批次事件到达时重取（07 节：失效由事件驱动，禁止轮询）
 	useEffect(() => {
 		if (hasLocalLanes && hasLocalBatches) return;
+		let active = true;
 		remoteMountedRef.current = true;
 		void load();
 		const unregisterResync = registerResyncHandler(() => {
@@ -302,6 +344,27 @@ export function RunDeckContainer(props: RunDeckProps) {
 			return load();
 		});
 		const unsubscribe = eventBus.subscribeMilestone((envelope) => {
+			if (
+				envelope.kind === 'agent.availability_changed' &&
+				'reason' in envelope.payload &&
+				envelope.payload.reason === 'login_changed'
+			) {
+				// Login completion changes gate context without changing the deck or probing again.
+				void loadGates(true).then(
+					() => {
+						if (active) setRemote((current) => ({ ...current, gates: gatesRef.current }));
+					},
+					(cause: unknown) => {
+						if (active) {
+							setRemote((current) => ({
+								...current,
+								error: cause instanceof Error ? cause.message : String(cause),
+							}));
+						}
+					},
+				);
+				return;
+			}
 			if (
 				envelope.kind === 'lane.assigned' ||
 				envelope.kind === 'lane.released' ||
@@ -335,12 +398,15 @@ export function RunDeckContainer(props: RunDeckProps) {
 			}
 		});
 		return () => {
+			active = false;
 			remoteMountedRef.current = false;
 			loadRequestRef.current = null;
+			gatesRequestRef.current = null;
+			gatesRef.current = [];
 			unsubscribe();
 			unregisterResync();
 		};
-	}, [hasLocalLanes, hasLocalBatches, load]);
+	}, [hasLocalLanes, hasLocalBatches, load, loadGates]);
 
 	/** 闸门裁定：走 POST /gates/:gateId/decide，界面状态一律等回流事件（E-157）。 */
 	const decideGate = useCallback(

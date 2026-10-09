@@ -24,7 +24,10 @@ const servedHead = execFileSync('git', ['rev-parse', 'HEAD'], {
 }).trim();
 const cleanAtStart =
 	execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() === '';
-const plan = resolve(root, '../.codex-plans/agent-scheduler-r17-t73118308');
+const plan = resolve(
+	root,
+	process.env.R17_EVIDENCE_ROOT ?? '../.codex-plans/agent-scheduler-r17-t73118308',
+);
 mkdirSync(plan, { recursive: true });
 const evidence = mkdtempSync(join(plan, 'provider-'));
 const validModel = process.env.R17_REAL_MODEL ?? 'gpt-6.1-sol';
@@ -152,7 +155,7 @@ async function manualModel(scope: Locator, value: string) {
 	await page.getByTestId('grouped-select-custom-input').press('Enter');
 }
 
-async function density(label: string, type: 'work' | 'form', pad = 14) {
+async function density(label: string, type: 'work' | 'form' | 'card', pad = 14) {
 	if (!page) throw new Error('Browser not ready');
 	const source = readFileSync(
 		join(root, 'docs/Agent任务调度器-开发文档/_run/density_probe.js'),
@@ -479,6 +482,7 @@ describe('R17-T73118308 real native provider', () => {
 		await page.goto(origin, { waitUntil: 'domcontentloaded' });
 		await page.getByTestId('pairing-code-input').waitFor();
 		expect(page.url()).toBe(`${origin}/#/pair`);
+		await density('pair', 'card');
 		await shot('pair');
 		await page.getByTestId('pairing-code-input').fill(code);
 		const claim = response('POST', '/pair/claim');
@@ -774,6 +778,8 @@ describe('R17-T73118308 real native provider', () => {
 		);
 		await expect.poll(() => gateCard.innerText()).not.toContain('事件缺失');
 		await expect.poll(() => gateCard.getByTestId('login-badge').getAttribute('title')).toBe('刚刚');
+		observations.gateLoginUiTitle = await gateCard.getByTestId('login-badge').getAttribute('title');
+		observations.refreshedGateContext = (await latestGate(failed.taskId)).context;
 		await density('deck', 'work');
 		await shot('invalid-model-gate');
 		await page.goto(`${origin}/#/run/${failed.id}`, { waitUntil: 'domcontentloaded' });
@@ -919,5 +925,31 @@ describe('R17-T73118308 real native provider', () => {
 			modelRequests.every((request) => request.query === '' || request.query === '?refresh=1'),
 		).toBe(true);
 		await shot('confirmed-failure');
+		await page.goto(`${origin}/#/settings/devices`, { waitUntil: 'domcontentloaded' });
+		await page.getByTestId('current-device-badge').waitFor();
+		await density('devices', 'form', 18);
+		const landing = response('GET', `/tasks/${control?.taskId}/landing`);
+		await page.goto(`${origin}/#/landing/${control?.taskId}`, { waitUntil: 'domcontentloaded' });
+		expect((await landing).ok()).toBe(true);
+		await page.getByTestId('diff-stat-summary').waitFor();
+		await density('landing', 'work');
+		await page.goto(`${origin}/#/run/${control?.id}`, { waitUntil: 'domcontentloaded' });
+		await page.locator('[data-component="run-detail-container"]').waitFor();
+		await density('run-detail', 'work');
+		await page.goto(`${origin}/#/run/r17-missing-run`, { waitUntil: 'domcontentloaded' });
+		await page.getByRole('heading', { name: '该运行不存在或已被清理', exact: true }).waitFor();
+		await density('run-missing', 'work');
+		await page.goto(`${origin}/#/pair`, { waitUntil: 'domcontentloaded' });
+		await page.getByRole('button', { name: '手填地址兜底 (E-06)', exact: true }).click();
+		const unreachable = `127.0.0.1:${await port()}`;
+		await page.getByTestId('manual-host-input').fill(unreachable);
+		await page.getByTestId('save-manual-host-button').click();
+		await page.goto(`${origin}/#/`, { waitUntil: 'domcontentloaded' });
+		await page.getByRole('heading', { name: '电脑上的调度服务未启动', exact: true }).waitFor();
+		observations.connectionFailure = {
+			apiAddress: unreachable,
+			method: 'public pairing UI saves unused port; normal authenticated first-screen read fails',
+		};
+		await density('connect-failed', 'card');
 	}, 900_000);
 });
