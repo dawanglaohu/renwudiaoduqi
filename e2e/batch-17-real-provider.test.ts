@@ -924,7 +924,7 @@ describe('R17-T73118308 real native provider', () => {
 		).toBe(true);
 		await shot('confirmed-failure');
 		await page.goto(`${origin}/#/settings/devices`, { waitUntil: 'domcontentloaded' });
-		await page.locator('[data-component="device-list-view"]').waitFor();
+		await page.getByTestId('current-device-badge').waitFor();
 		await density('devices', 'form', 18);
 		const landing = response('GET', `/tasks/${control?.taskId}/landing`);
 		await page.goto(`${origin}/#/landing/${control?.taskId}`, { waitUntil: 'domcontentloaded' });
