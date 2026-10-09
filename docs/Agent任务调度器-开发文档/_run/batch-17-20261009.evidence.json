@@ -60,6 +60,21 @@
       "passed": 2,
       "mode": "normal configured native Codex CLI 0.157.1; actual provider rounds, no fake transport",
       "command": "R17_REAL_PROVIDER=1 pnpm exec vitest run --config vitest.e2e.config.ts"
+    },
+    {
+      "command": "pnpm -w check --maxWorkers=2 --minWorkers=1",
+      "commit": "3d868a800cf7dcc9e3194a1fb6793c5c7545d7b7",
+      "phase": "B5/B6 follow-up",
+      "exit": 0,
+      "files": 249,
+      "passed": 3201,
+      "skipped": 3,
+      "seconds": 307.47,
+      "skippedReasons": [
+        "agents-service Windows symlink case",
+        "staging smoke Linux-only case on Windows",
+        "staging smoke symlink case on Windows"
+      ]
     }
   ],
   "regressions": [
@@ -112,6 +127,32 @@
       "task": "M9-T23",
       "test": "packages/web/test/gate-login-refresh.test.tsx",
       "fix": "376508b395b3bdd761c13226fc6c0036ad3b2de1"
+    },
+    {
+      "id": "B5",
+      "severity": "S2",
+      "task": "M9-T23",
+      "crossBatch": [
+        "M9-T20",
+        "M9-T21"
+      ],
+      "test": "packages/web/test/gate-login-refresh.test.tsx:297",
+      "red": "Fresh gate waiting event reused an older focused gates read; new approval was absent",
+      "green": "All 8 mounted gate tests passed, 26 adjacent tests passed",
+      "fix": "3d868a800cf7dcc9e3194a1fb6793c5c7545d7b7"
+    },
+    {
+      "id": "B6",
+      "severity": "S2",
+      "task": "M9-T23",
+      "crossBatch": [
+        "M9-T20"
+      ],
+      "test": "packages/web/test/gate-login-refresh.test.tsx:318",
+      "red": "Successful focused gates retry left an error hiding empty-deck onboarding",
+      "green": "Recovered onboarding visible; E-333 full-deck error still visible; 8 gate tests and 26 adjacent passed",
+      "negativeControl": "packages/web/test/gate-login-refresh.test.tsx:337",
+      "fix": "3d868a800cf7dcc9e3194a1fb6793c5c7545d7b7"
     }
   ],
   "native": {
@@ -2320,6 +2361,58 @@
           "why": "Jev 选 A（medium）"
         }
       }
+    },
+    {
+      "state": {
+        "requirement": "Finish the authorized unattended Batch 17 round 2 closeout for M9-T23/M9-T29, fix reproduced local seam bugs at their root, retain red-before/green-after regression evidence, and verify the real production native provider flow with a same-head GIF and CI. M9-T23 AC5 forbids a global snapshot or new probe on login_changed; AC6 requires every committed waiting approval to be visible, fresh login context, and working recovery actions. Preserve existing full-deck errors and do not relax assertions or move policy into the UI. Ordinary forks go to Jev.",
+        "task": {
+          "title": "Correct gate refresh ordering and recovered error state in the existing deck container",
+          "accept": "A task.gate_waiting milestone must invalidate a gate request that started before its new gate was committed; no newer snapshot may publish an obsolete gate list. A focused GET /gates failure followed by a genuine successful retry must restore the empty-deck onboarding. A successful focused gate read must never hide an unrelated failed full snapshot. Preserve merged-request, unmount, stale-result and no-extra-snapshot/probe controls."
+        },
+        "conflict": "The final automated PR review reported two real flaws introduced in the earlier Batch 17 B4 fix. The merge preflight printed newly arrived unresolved threads but failed to gate on them, so PR #211 was already merged; this error is acknowledged and an isolated follow-up branch from current origin/main is being used in the same allowed worktree. Before any product edit, two added mounted DOM tests fail on the merged implementation: a focused gate request returns the pre-gate empty list after task.gate_waiting triggered a full reload, so the new approval card is absent; a failed focused request followed by a successful empty list leaves remote.error set and hides the real onboarding. Six other tests, including the negative control that an unrelated full snapshot failure must remain visible, pass. loadOnce currently calls loadGates() without invalidating an already started focused request. The focused rejection writes to the same remote.error as full snapshot failures; its success updates only gates. Simply setting remote.error=null on every focused success would hide legitimate full-deck failures. These are bounded M9-T23/M9-T20/M9-T21 frontend lifecycle fixes, with backend transaction and gate policy unchanged.",
+        "options": {
+          "A": "Have each actual full-deck load call the existing loadGates(true), so a started earlier gate request is discarded and re-read while requests queued in the same tick remain shared. Track focused gate failures in one local gateError state instead of remote.error; pass remote.error ?? gateError to the existing view, preserving priority for real full-deck failures. Clear only gateError when a latest accepted gate response succeeds, including a full read that recovered that resource. Keep active/request-identity guards and all existing endpoints/actions unchanged. Run all eight DOM tests, adjacent regressions, workspace checks, and the real native same-head browser/CI/GIF flow.",
+          "B": "Use the same full-load invalidation correction, but retain one shared error field and add explicit error-origin and generation tracking. A focused success may clear remote.error only when it belongs to that focused generation; full-read failure publication replaces the origin and must not be cleared by a gate-only response. Add the same red/green DOM, race, unmount and production acceptance evidence. This avoids a second error state but requires additional ownership/version bookkeeping around the current shared remote object.",
+          "C": "Leave product code unchanged, record both reproduced S2 defects as complete stable repair tasks, keep the batch open, and do not claim this closeout is finished. The merged original PR remains historical; no follow-up fix is merged until separately implemented and verified. This preserves evidence but leaves two now-known local defects in main despite the user's authorization to repair them."
+        }
+      },
+      "status": "ok",
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(medium 0.69) spec_change=no(0.08) outside_stack=no(0.08) needs_owner=no(0.05) reversible=yes(0.82) adopt=take(A)",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.69,
+          "band": "medium",
+          "probabilities": {
+            "A": 0.79,
+            "B": 0.21,
+            "C": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.08,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.08,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.05,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.82,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "medium",
+          "why": "Jev 选 A（medium）"
+        }
+      }
     }
   ],
   "logFingerprints": [
@@ -2679,5 +2772,127 @@
     "normalLocalAuthUnchanged": true,
     "productAssertionsUnchanged": true,
     "finalHeadGate": "Fresh native GIF and explicit workflow_dispatch real_provider acceptance at the resulting PR head, referenced in PR body before merge."
+  },
+  "gateRefreshFollowup": {
+    "baseline": "a59e5e837fbff9570a53f0fa7b4afc86edc97004",
+    "fix": "3d868a800cf7dcc9e3194a1fb6793c5c7545d7b7",
+    "pr": "https://github.com/dawanglaohu/renwudiaoduqi/pull/212",
+    "reviewError": "The #211 merge preflight printed newly added review threads but did not programmatically block unresolved threads. Follow-up reproduces and fixes both findings, requires a zero-unresolved-thread gate before merge, and keeps the historical merge record.",
+    "red": "2 failed / 6 passed",
+    "green": "8 gate tests passed; 26 adjacent passed",
+    "fixturePreparation": "The first negative-control fixture used an arbitrary full-error message not displayed by the actual empty-deck branch; corrected the fixture to the existing E-333 lane-unavailable condition without changing production behavior or weakening the preserved-error assertion. The genuine old implementation still failed exactly the two product reproductions.",
+    "finalHeadEvidence": "Exact final-head native run, 27 dimension results, verified GIF checksums and explicit native CI are recorded in PR #212 after this evidence commit to avoid self-referencing its own commit hash.",
+    "outputs": {
+      "gate-followup-red.log": [
+        "",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx (8 tests | 2 failed) 361ms",
+        "   × loads the new approval when a deck milestone overtakes a focused gate read 41ms",
+        "     → expected null not to be null",
+        "   × restores onboarding after a focused gate failure recovers 20ms",
+        "     → expected null not to be null",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+        "",
+        " FAIL  packages/web/test/gate-login-refresh.test.tsx > loads the new approval when a deck milestone overtakes a focused gate read",
+        "AssertionError: expected null not to be null",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx:311:76",
+        "    309|   await act(async () => deckMilestone());",
+        "    310|   await act(async () => stale.resolve({ gates: [] }));",
+        "    311|   expect(deck.container.querySelector('[data-component=\"gate-card\"]'))…",
+        "       |                                                                            ^",
+        "    312|   expect(reads).toBe(2);",
+        "    313|  } finally {",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯",
+        "",
+        " FAIL  packages/web/test/gate-login-refresh.test.tsx > restores onboarding after a focused gate failure recovers",
+        "AssertionError: expected null not to be null",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx:330:74",
+        "    328|   deck.setGateReader(async () => ({ gates: [] }));",
+        "    329|   await act(async () => loginChanged());",
+        "    330|   expect(deck.container.querySelector('[data-testid=\"deck-setup\"]')).n…",
+        "       |                                                                          ^",
+        "    331|   expect(deck.container.textContent).not.toContain('focused gate read …",
+        "    332|  } finally {",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯",
+        "",
+        " Test Files  1 failed (1)",
+        "      Tests  2 failed | 6 passed (8)",
+        "   Start at  11:09:06",
+        "   Duration  3.92s (transform 954ms, setup 0ms, collect 1.69s, tests 361ms, environment 1.21s, prepare 219ms)",
+        ""
+      ],
+      "gate-followup-green.log": [
+        "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.",
+        "",
+        " RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17",
+        "",
+        " ✓ packages/web/test/run-deck-container.test.tsx (4 tests) 106ms",
+        " ✓ packages/web/test/gate-login-refresh.test.tsx (8 tests) 396ms",
+        " ✓ packages/web/test/use-minute-tick.test.tsx (6 tests) 68ms",
+        " ✓ packages/web/test/cache-invalidation.test.ts (8 tests) 11ms",
+        "",
+        " Test Files  4 passed (4)",
+        "      Tests  26 passed (26)",
+        "   Start at  11:09:12",
+        "   Duration  5.59s (transform 1.17s, setup 0ms, collect 3.63s, tests 580ms, environment 3.24s, prepare 584ms)",
+        ""
+      ],
+      "followup-workspace-check.log": [
+        "Warning: The current testing environment is not configured to support act(...)",
+        "",
+        "stderr | packages/web/test/gate-card.test.tsx > R3: production task approval assembly > rerun uses its run route; reassign expands before navigation; failure waits for confirmation",
+        "Warning: The current testing environment is not configured to support act(...)",
+        "",
+        "stderr | packages/web/test/gate-card.test.tsx > R3: production task approval assembly > ordinary approval and edit keep their gate decisions and never rerun",
+        "Warning: The current testing environment is not configured to support act(...)",
+        "",
+        "stderr | packages/web/test/gate-card.test.tsx > R3: production task approval assembly > ordinary approval and edit keep their gate decisions and never rerun",
+        "Warning: The current testing environment is not configured to support act(...)",
+        "",
+        " ✓ packages/web/test/gate-card.test.tsx (7 tests) 120ms",
+        " ✓ packages/web/test/effort-picker.test.tsx (8 tests) 617ms",
+        " ✓ packages/web/test/run-deck-recovery.test.tsx (2 tests) 284ms",
+        " ✓ packages/web/test/gate-toggles-recovery.test.tsx (6 tests) 143ms",
+        " ✓ packages/web/test/model-picker.test.tsx (5 tests) 402ms",
+        " ✓ packages/web/test/style-pipeline.test.ts (8 tests) 9555ms",
+        "   ✓ M9-T24: PostCSS pipeline (AC 2, E-159) > postcss.config.cjs registers exactly tailwindcss and autoprefixer 665ms",
+        "   ✓ M9-T24: PostCSS pipeline (AC 2, E-159) > processing src/styles/base.css emits .bg-page backed by var(--page), no hex in between 1001ms",
+        "   ✓ M9-T24: vite build output (AC 1, AC 5, E-175, E-224) > AC 1: the built stylesheet contains no @tailwind literal and at least 200 utility rules 6860ms",
+        "   ✓ M9-T24: theme-provider marks the document once styles apply (AC 3, E-159) > does not fake data-style-loaded while --page is empty (bare jsdom, no stylesheet) 744ms",
+        " ✓ packages/web/test/use-agent-models.test.tsx (3 tests) 67ms",
+        " ✓ packages/web/test/settings-agent-refresh.test.tsx (3 tests) 52ms",
+        " ✓ packages/web/test/run-deck-container.test.tsx (4 tests) 106ms",
+        " ✓ packages/web/test/login-hint.test.tsx (4 tests) 71ms",
+        " ✓ packages/web/test/use-minute-tick.test.tsx (6 tests) 74ms",
+        " ✓ packages/web/test/login-badge.test.tsx (5 tests) 61ms",
+        " ✓ packages/web/test/theme-control.test.tsx (2 tests) 156ms",
+        " ✓ packages/web/test/grouped-select-interaction.test.tsx (6 tests) 541ms",
+        " ✓ packages/web/test/batch-11-log-seams.test.ts (1 test) 114ms",
+        " ✓ packages/web/test/empty-onboarding.test.tsx (2 tests) 126ms",
+        " ✓ packages/web/test/model-refresh-http.test.ts (2 tests) 28ms",
+        "",
+        " Test Files  249 passed (249)",
+        "      Tests  3201 passed | 3 skipped (3204)",
+        "   Start at  11:11:06",
+        "   Duration  307.47s (transform 9.41s, setup 0ms, collect 63.61s, tests 411.47s, environment 35.43s, prepare 36.95s)",
+        ""
+      ]
+    },
+    "logFingerprints": {
+      "gate-followup-red.log": {
+        "sha256": "8c061be9925f6979a01d89cfb216d7fb60d79f78bf854fc862736fa22f07c64e",
+        "bytes": 2138
+      },
+      "gate-followup-green.log": {
+        "sha256": "d191562a4f5a0a7f38803cb0895c5375eea4d477d1b48727ca969e717ed5e29a",
+        "bytes": 658
+      },
+      "followup-workspace-check.log": {
+        "sha256": "b1e80840eac63d2e1eaecdab32b88901b8e27b32689fce18207a88b8fc27ea3b",
+        "bytes": 659677
+      }
+    }
   }
 }
