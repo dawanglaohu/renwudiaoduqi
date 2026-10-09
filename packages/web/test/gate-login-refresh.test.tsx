@@ -64,9 +64,9 @@ function loginChanged(reason = 'login_changed') {
 	});
 }
 
-function mountDeck() {
+function mountDeck(options: { empty?: boolean } = {}) {
 	vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-	let gates = [gate(unchecked)];
+	let gates = options.empty ? [] : [gate(unchecked)];
 	let readGates: () => Promise<ListGatesResponse> = async () => ({ gates });
 	let readRuns = async () => ({ runs: [] });
 	const snapshot: SnapshotResponse = {
@@ -101,10 +101,12 @@ function mountDeck() {
 		lanes: [],
 		latestEventId: 200,
 	};
+	let readSnapshot = async () =>
+		options.empty ? { ...snapshot, tasks: [], batches: [] } : snapshot;
 	const calls = vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
 		switch (route.path) {
 			case '/api/v1/snapshot':
-				return snapshot;
+				return readSnapshot();
 			case '/api/v1/runs':
 				return readRuns();
 			case '/api/v1/gates':
@@ -132,6 +134,9 @@ function mountDeck() {
 		},
 		setRunReader: (read: typeof readRuns) => {
 			readRuns = read;
+		},
+		setSnapshotReader: (read: typeof readSnapshot = async () => snapshot) => {
+			readSnapshot = read;
 		},
 		mount: () =>
 			act(async () =>
@@ -273,4 +278,75 @@ it('stops the invalidated gate read when the container unmounts', async () => {
 	await deck.unmount();
 	await act(async () => stale.resolve({ gates: [gate(unchecked)] }));
 	expect(reads).toBe(1);
+});
+
+function deckMilestone() {
+	eventBus.push({
+		id: ++eventId,
+		ts: new Date().toISOString(),
+		scope: 'task',
+		kind: 'task.gate_waiting',
+		runId: 'r-zero',
+		taskId: 't-zero',
+		seq: 2,
+		actorDeviceId: null,
+		payload: { gate: 'g-zero' },
+	});
+}
+
+it('loads the new approval when a deck milestone overtakes a focused gate read', async () => {
+	const deck = mountDeck({ empty: true });
+	try {
+		await deck.mount();
+		expect(deck.container.querySelector('[data-component="gate-card"]')).toBeNull();
+		const stale = deferred<ListGatesResponse>();
+		let reads = 0;
+		deck.setGateReader(() =>
+			++reads === 1 ? stale.promise : Promise.resolve({ gates: [gate(unchecked)] }),
+		);
+		await act(async () => loginChanged());
+		deck.setSnapshotReader();
+		await act(async () => deckMilestone());
+		await act(async () => stale.resolve({ gates: [] }));
+		expect(deck.container.querySelector('[data-component="gate-card"]')).not.toBeNull();
+		expect(reads).toBe(2);
+	} finally {
+		await deck.unmount();
+	}
+});
+
+it('restores onboarding after a focused gate failure recovers', async () => {
+	const deck = mountDeck({ empty: true });
+	try {
+		await deck.mount();
+		expect(deck.container.querySelector('[data-testid="deck-setup"]')).not.toBeNull();
+		deck.setGateReader(async () => {
+			throw new Error('focused gate read failed');
+		});
+		await act(async () => loginChanged());
+		expect(deck.container.querySelector('[data-testid="deck-setup"]')).toBeNull();
+		deck.setGateReader(async () => ({ gates: [] }));
+		await act(async () => loginChanged());
+		expect(deck.container.querySelector('[data-testid="deck-setup"]')).not.toBeNull();
+		expect(deck.container.textContent).not.toContain('focused gate read failed');
+	} finally {
+		await deck.unmount();
+	}
+});
+
+it('preserves a full-deck lane-data failure when a focused gate read succeeds', async () => {
+	const deck = mountDeck({ empty: true });
+	try {
+		await deck.mount();
+		deck.setSnapshotReader(async () => {
+			throw new Error('泳道数据不可用');
+		});
+		await act(async () => deckMilestone());
+		expect(deck.container.querySelector('[data-testid="deck-setup"]')).toBeNull();
+		await act(async () => loginChanged());
+		expect(deck.container.querySelector('[data-testid="deck-setup"]')).toBeNull();
+		expect(deck.container.textContent).toContain('泳道数据不可用');
+	} finally {
+		await deck.unmount();
+	}
 });

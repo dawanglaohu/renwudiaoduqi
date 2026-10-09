@@ -176,6 +176,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 	const { pendingBatchId, pendingBatchIds, failureByBatch } = useBatchWrapupOverview();
 
 	const [remote, setRemote] = useState<RemoteDeckData>(INITIAL_REMOTE);
+	const [gateError, setGateError] = useState<string | null>(null);
 	const hasLocalLanes = props.lanes.length > 0;
 	const hasLocalBatches = Boolean(props.batches && props.batches.length > 0);
 	const wrapupRoundsRef = useRef<Map<string, number>>(new Map());
@@ -204,6 +205,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 						const response = await httpClient.callRoute<ListGatesResponse>(GATES_ROUTE);
 						if (gatesRequestRef.current === request && !request.invalidated) {
 							gatesRef.current = response.gates;
+							setGateError(null);
 						}
 					} catch (cause: unknown) {
 						if (gatesRequestRef.current === request && !request.invalidated) throw cause;
@@ -225,7 +227,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 					httpClient.callRoute<SnapshotResponse>(SNAPSHOT_ROUTE),
 					fetchLanes(),
 					httpClient.callRoute<{ runs: readonly RunDto[] }>(RUNS_ROUTE),
-					loadGates(),
+					loadGates(true),
 				]);
 				const batchResponses = await Promise.all(
 					snapshot.documents.map((document) =>
@@ -356,10 +358,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 					},
 					(cause: unknown) => {
 						if (active) {
-							setRemote((current) => ({
-								...current,
-								error: cause instanceof Error ? cause.message : String(cause),
-							}));
+							setGateError(cause instanceof Error ? cause.message : String(cause));
 						}
 					},
 				);
@@ -446,7 +445,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				{...deckState}
 				lanes={lanes}
 				batches={batches}
-				error={remote.error}
+				error={remote.error ?? gateError}
 				tasks={remote.rawTasks}
 				runs={remote.rawRuns}
 				rawLanes={remote.rawLanes}
