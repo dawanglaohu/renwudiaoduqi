@@ -471,7 +471,9 @@
         "packages/daemon/test/integration/batch-wrapup.test.ts",
         "packages/daemon/test/integration/migrate-rebuild.test.ts",
         "packages/daemon/test/fixtures/wrapup/",
-        "packages/daemon/test/arch/routes.test.ts"
+        "packages/daemon/test/arch/routes.test.ts",
+        "packages/daemon/src/domain/agent-effort-options.ts",
+        "packages/daemon/test/unit/native-effort.test.ts"
       ],
       "sections": [
         1,
@@ -1152,7 +1154,9 @@
         "packages/daemon/test/unit/bughunt-report.test.ts",
         "packages/daemon/test/fixtures/login/",
         "packages/daemon/test/fixtures/models/",
-        "packages/daemon/src/service/rerun.ts"
+        "packages/daemon/src/service/rerun.ts",
+        "packages/daemon/src/domain/agent-effort-options.ts",
+        "packages/daemon/test/unit/native-effort.test.ts"
       ],
       "sections": [
         1,
@@ -1230,7 +1234,8 @@
         "packages/web/test/pipeline-lane.test.tsx",
         "packages/daemon/src/service/rerun.ts",
         "packages/daemon/test/unit/rerun.test.ts",
-        "packages/daemon/test/integration/bughunt-lifecycle.test.ts"
+        "packages/daemon/test/integration/bughunt-lifecycle.test.ts",
+        "packages/daemon/src/domain/agent-effort-options.ts"
       ],
       "sections": [
         1,

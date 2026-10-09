@@ -1,1 +1,1633 @@
-{}
+{
+  "M1-T1": {
+    "contractHash": "b9b96d7e1943c3e6b183c48cc0958deded3e72ae4e48ab16f25fb8907a9df360",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T10": {
+    "contractHash": "032e295bf4a5588a263f68278676d28fec2fb74259e726475c486771b0c613a7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T11": {
+    "contractHash": "eb9d3f89833d62e9c6c9b564a510ca05fafd44c82584f30fde0b21def778536c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T2": {
+    "contractHash": "e1d480d1e3f92992e9f8ac910c97f9a0cb06c80b3d2e1b324eb4b7d5e0e86ee3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T3": {
+    "contractHash": "32bffdea16ee13470eb2c52e20e4e625b4c359c3b51a335e4e3aecf0d8aed382",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T4": {
+    "contractHash": "94c4920abc80bf64aa442d1f5940418e0a7d8d0112e3aa4779dc96f554c3706f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T5": {
+    "contractHash": "2b1d04d5c7848bb40f4415f0376cdaf4c92861ab03fa56cbc39126fc6b937c78",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T6": {
+    "contractHash": "283ce50c52355aa7dcaefd1c4310197698d7cdca0ba473dc4abee4cca775ff66",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T7": {
+    "contractHash": "023f38c8bc8ff7a25467896028db7676c9d1ef6262b4f8339695264704d34a44",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T8": {
+    "contractHash": "c6452e62f0324db4321cd112ccf10446531cf2e87dac11fbf38cdce3b3f19995",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M1-T9": {
+    "contractHash": "0145ee57f3e3beea8e55163eff60efdea7aa486220f9903b3de675043c2a71a4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T1": {
+    "contractHash": "04e2980b919f0299d9d1fd8ca789a142ca8319660c294f4ceb330b19dae52c61",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T2": {
+    "contractHash": "3f66c114eb8ed7ab4e2eb6e4feb662d472a50b725b2599f8928942cc3dda8f08",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T3": {
+    "contractHash": "ff23f9c4aa8360c9991a53bdbbcdbaa9f925c91428287168cb6c90eac9cab676",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T4": {
+    "contractHash": "931be3b6056b691c884b0abace8c78912f9cf9312430af3c72ffa4bec3d28eb7",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T5": {
+    "contractHash": "32b50dee87159b62e670c7c83d742844ae6ae023b6b625a073f1fe3263f6ac54",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M10-T6": {
+    "contractHash": "c225c9751306fe78732e5e6f9c9804d2de538782db6a46feeae5bf90bc028e25",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T1": {
+    "contractHash": "e710c7e0dfa9c9e398f1665879b99a1e0c501552677ff52336a8e2f8f94d38d1",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T2": {
+    "contractHash": "f5b04e4d95007a34bfb07e67416f781a80c99e0420bf769ef1cb236d68d487fc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T3": {
+    "contractHash": "0ea840d3d0dc9bf2a4ca30274d52b39064e70e2d7a2b636d619f3008e7bccc8e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T4": {
+    "contractHash": "d4cd94e6467e7ff30522e9a8e4387cbc34efb1e77dba30422b0da2f3af0f71c2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T5": {
+    "contractHash": "42d37d2ec7113fda577f5952fb97e294f0a02bc47e4e5a946e248648aa29b968",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T6": {
+    "contractHash": "582a06ca55e8d2d6eb708935ecf9d2f184b2d2bed8bd55ce5612eec99918122d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T7": {
+    "contractHash": "c5986decc2433ac698f1f673169d2135bd3d37650bdd407f91a43e1f1a0fcf2c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M2-T8": {
+    "contractHash": "581312a120525860c5d19d7e34e7d3a02f8c811bd78cb0c9244f2678a71e2e93",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T1": {
+    "contractHash": "2133243ae912e614628efe074e1a81ca431a2ae708b2d9f4eaa11d232813958a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T2": {
+    "contractHash": "f393494d24df0f852dab3c9502cad7ae0eb2a091561835bb2344122af41aed55",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T3": {
+    "contractHash": "c4c6392ff471eb67b62b1c88d7056917c54113b1f93316547ddc36a3f507effc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T4": {
+    "contractHash": "2c167a5c0c2b318625b49443a6fc834899af5efe0e11a7ce73bbe995456daae2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T5": {
+    "contractHash": "4b1ccf11b5df9e62f4ab66561680cebdcc1657a2e3fe64c0b1c732a7fbdcd963",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T6": {
+    "contractHash": "d2787de294b4c0b6001ee755bd9ae855249e191adb3ba177ca942a48a3f0eae0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M3-T7": {
+    "contractHash": "52b08187c8578cf0d11ebbd8bec1f5ef88555506d74e293fe8f642fa219cf3d3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T1": {
+    "contractHash": "957402c8091e9144d63b0a5745222059cab0a71eff4bf9ee4bee222e0cbe31e0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T10": {
+    "contractHash": "bbe6c3365d50ac0292c68e91587c6a274df3a1ae1be774931c85a70759a23f30",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T11": {
+    "contractHash": "4387609e46cf2674078d6031f1dff4b2bfb3813bee282be803dd31a880e3e3d0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T12": {
+    "contractHash": "9417b543af9eef04f734146c6424548c00bcaebbbcf69a03f6a97d25b7345ec4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T13": {
+    "contractHash": "2ee1f30517bf6e7222f05b8402c16075c847e01f609cdc32b28a8cdbeb2666bc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T14": {
+    "contractHash": "478bb5b5d858ee499d602153f905da82dfade4dd3ecf5de94024c32688092182",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T2": {
+    "contractHash": "75c2ae613d5cf3d3121da0208e2c03a9d71725346aba55a55e283faf268f89e0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T3": {
+    "contractHash": "07f88ef4d6e748b87fa11f15fdb2294cf4b27168f1b07ee1cdf923bac196f5a5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T4": {
+    "contractHash": "cb6162888f435f04ddef4ed22ae2c6e435872240b3705d7be0bb8c58d17e060e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T5": {
+    "contractHash": "c53119c3187a753f9c77715fdf8a87f8c2e7e99652896b42ada327b75996c4ab",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T6": {
+    "contractHash": "5475ca48359ea8f07eef95cb62e2bf2b84dfe8d6abdd0bb3ca60b68b11c801dd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T7": {
+    "contractHash": "b0b7475803e4fab467e4b25c383ebd387de812ad17f5a43460535cc43fdd1cfc",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T8": {
+    "contractHash": "298ccc418a7dbb4159d76cb6615f97a73ee54966616158928049f354c2eb92c2",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M4-T9": {
+    "contractHash": "e1509fc966c610a9be1bdc6ac252587a57525927027c9fa950196d05a61a165c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T1": {
+    "contractHash": "c33d790edb665429dd0d2177fe7b9c8b8c0bff3da81405c8f8793b003f196abf",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T2": {
+    "contractHash": "56f8c0aa9fe9e92b27ea9e1febcbed05b619cb9e3f1e8b82be23102af4754275",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T3": {
+    "contractHash": "88b0dc82d42b342fe947ca8a45de1a468e8d1540a95ed1fafcb58b41b6bbb584",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T4": {
+    "contractHash": "d860d0d00a5ebcea97635ce5a590d4d486875c396c27c741d94a08dcb9774f60",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M5-T5": {
+    "contractHash": "a5630f814ddeff2bbfaa30d6dffc6b24a14fc2b99670096d04fea4c2ad62e2a6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T1": {
+    "contractHash": "d45bb04695515b9dd5cf4e82e8709ed51042265817d187bf277cdd1134a184d0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T10": {
+    "contractHash": "46b916ada56af55530a6f6f7fcea90b80b61009d592832efceebd95940f7d5fa",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T2": {
+    "contractHash": "0d720adc594d7308384686244b7c94d07c3dcf03287ac33331956fddbe661d0e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T3": {
+    "contractHash": "ce26c37a38e6a3c17e8d2ce75a9d867c572006b32546bf93da5522e7c96b7f80",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T4": {
+    "contractHash": "7d06d8405373f3c22d90b7acae7ba134de228270dd35ed8a0e8b0c3592a5a9e3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T5": {
+    "contractHash": "f95c2b9a3b82f460d2be472987f7d01f0ed30f84c7d5d700962848e12731f8dd",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T6": {
+    "contractHash": "870ff9ecb016a48aa48d44c0d98dfd0316e88f12a78bab1f6d456f9ee5bf9004",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T7": {
+    "contractHash": "11f59a89d645c5826d83fabd0db072f4389cf64e9a7e3fe8eab6cb91e2ce9984",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T8": {
+    "contractHash": "909b206ba40bb7e606f5d62c120b1ee849211f6465b4162c0910a070ca6a5a07",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M6-T9": {
+    "contractHash": "211cb766ac0f54c52776b1fc8c7dd21e1e3858f5697c5f2aad9703b417eee083",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T1": {
+    "contractHash": "fd54e35b790853eebaaaa8ca683feb5ab950e3658be0e128365390ae8907eeaa",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T2": {
+    "contractHash": "ab821090144bccec4b1e73c37f7f4eaba5868085cc073f754fead496610e14a9",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T3": {
+    "contractHash": "eb01d3207ff043c70bef40ffc6b6217c721f524077132fc3b24fa44c107a9dea",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T4": {
+    "contractHash": "e1654a0b0c566762df13a0afd0ba3ea1b08f29bea7c0a654b09c66aa61d93e9e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T5": {
+    "contractHash": "09c3847f4e2dab7112029fbae7ce402c5dd9771a9a9cbcdd4884f4c8fac977e0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T6": {
+    "contractHash": "866817360011e82347a4ed1404faa6df9e27f54c12abe621af653854b81717bb",
+    "patches": [
+      {
+        "changedFields": [
+          "providers"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T7": {
+    "contractHash": "7c2fb4850fa6ebdc5c5a16cc2232152ba3a4c47f3690048a89f99b9d333981b4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T8": {
+    "contractHash": "2b101406f5a129153624450ff803504c4159251e611f7ddc138bcc31a17ecca0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M7-T9": {
+    "contractHash": "0123e03f774d50ad13e8c57350b3c13640f824c44a53d2f91a259dad5e745012",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T1": {
+    "contractHash": "4c78526e6dc482fcdbbb9a68a5d0d3d39c9610a974efac21eb179c0b009b34b6",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T10": {
+    "contractHash": "72eb8a6bd1e2a066b26c1e5a021f9527ed135e53b90c08af167c787a0ae6510a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T11": {
+    "contractHash": "0e6d319ef2208afa708832efab7b28a3f98553a4bc0a14a18a58cba611103025",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T2": {
+    "contractHash": "62d41d0f62859e12767b666393f95eafd8c9159b120e3c7769b6b675a790030a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T3": {
+    "contractHash": "54783d80164dd19bd4bd6f5933576970a1f6e1adfedf568cb1761ce404ab2a1c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T4": {
+    "contractHash": "e7b146a2f99f06284ffce110cdb1b8417d7e235438e860f09b2ce9856588ab1c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T5": {
+    "contractHash": "b1a5ef0a576746698e55ddd28d34573162e8c6e18046f1fa8e892788bcd5d226",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T6": {
+    "contractHash": "373e07f258a587896c3f4d020e1d86184f51851f5b5517041df42dbec1d5b4d3",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "edges",
+          "effectivePaths",
+          "sections:02-设计/10-接口约定.md",
+          "task"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T7": {
+    "contractHash": "b1e1d81b26e53c23b5583e0a328a1bc5a366132d907b877c29f0f8442e3ceca5",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T8": {
+    "contractHash": "630a6aa208e8a90f2e53b3a624f7d2997e43522d4b1ac9d4260c40302244d82a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M8-T9": {
+    "contractHash": "d1699beecf050616808a295649876eba87cc0b065d72e346d8fbed9dcc2bf758",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "edges",
+          "effectivePaths",
+          "sections:02-设计/10-接口约定.md",
+          "task"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T1": {
+    "contractHash": "0eac99af71ab2bd69b100e4a38148d7154fd724fdfbcb0da09e865ae6f0ba174",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T10": {
+    "contractHash": "529dcf8267369711fa0b6a0614f9edc30a8243625ad721fa2a3fd0ee87d05253",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T11": {
+    "contractHash": "1ed54843c554be3fcd10771c0cc96b8c15f2c2a90150c476171a6fcfdc0b3059",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T12": {
+    "contractHash": "bc8a839cc5f800d4ac4e1772fbc8bbeded0f8f7b957a3e7bfeb05bfaf8bb11f0",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T13": {
+    "contractHash": "d00367cc78d446777a1ce2d83ad46da33e6116eb907e297c8eda5217abd29a7a",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T14": {
+    "contractHash": "fe38b303d772d9db05beeb8be024d433139f39dc938382115f3ac39780ab386e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T15": {
+    "contractHash": "8b63a1e376559c9267b4cb66fdffe3cdc8f033331c24de7871dbd7a657d11028",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T16": {
+    "contractHash": "c6d35955ce49fbeefdf8bbdee542fc4c044acfbc7300afc9d5f2760caf25e920",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T17": {
+    "contractHash": "ae9dfb9b3d642afe8e557887d9d12d6e3d94a4e0a8c33ee0e020c8c61155a909",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T18": {
+    "contractHash": "3cfb711bf3c27512bc998533866bf7117861cfeac97fd497426e6cd76de1a6af",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T19": {
+    "contractHash": "ace1695759b42b372ad945d87a7f361e10192a14929013531a207d4a07e28e74",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T2": {
+    "contractHash": "4506fd70b52e1b5f0d8c192aa09bc52c9793798a5a6b7dead5126e6ddf70a03b",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T20": {
+    "contractHash": "7c0122a57b829ff35e5ff8d66896fda5c226acd85f9fcb850b5eef27fcb6e047",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T21": {
+    "contractHash": "1879d0e56c15e4b6eba4f5153b13a4572737265284a13ea06e31cc0b7fedb43e",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T22": {
+    "contractHash": "d27b617ce275270999c9db5111ef7265e674cf77f4a1f58cca8a068c757e82ba",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T23": {
+    "contractHash": "e4621fb30976143479554972ad07a4e5700fa1c38087a1325c20b510e0cfcbe8",
+    "patches": [
+      {
+        "changedFields": [
+          "definition",
+          "edges",
+          "effectivePaths",
+          "sections:02-设计/10-接口约定.md",
+          "task"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T24": {
+    "contractHash": "5d521247b8c1b93fd466dc85b215964742ecaef67e658a0ebc033a136411038c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T25": {
+    "contractHash": "54c932817a3eb3f5d8aa3b0f8760b8717169641a58fdb8ebb6415faf67b29b95",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T26": {
+    "contractHash": "b5bb2467c38d2ecea834eaa750b2b6e98481c93bc0fa200c96642bb491e6df01",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T27": {
+    "contractHash": "050eb2c7e44b2a332b524aba1e530473c4ebb0c35aff2d2a5562c05c9ba7d328",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T28": {
+    "contractHash": "40b640e1330770422b317120a5936e689fad50141f188f5c3c37fef319c8ce47",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T29": {
+    "contractHash": "d3da7bb36aa3c7d8893151bd530fb0cc2c688b55c5241fc92e11f95357e4ec2c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T3": {
+    "contractHash": "949cfbce88ca7c62b4fe3ebce5188ce8bbaa22032b2c50a7cd3fd5d4663ce402",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T4": {
+    "contractHash": "5105fbc07244a21950ed2e9887b6e44b7e0b3ff0f33e9b6f3797c28a5f80c5b4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T5": {
+    "contractHash": "d29f0b230d2481950e33c36ed384d9dde4aaf89584780f3a33a479447d16e14c",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T6": {
+    "contractHash": "56285708cc1e7b2a53bb190677b1dba3dbaea9fe661dbd5ef430ae98e0068468",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T7": {
+    "contractHash": "3ccc2be113a3867fecfc8da69a0a3deee91dbea61d664ae7a5dd45310aeff62f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T8": {
+    "contractHash": "cc75c3bf82d3127f5c78c39ad07bbdf4a9b1476f70fb97ff481fa587fca5abf4",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "M9-T9": {
+    "contractHash": "247d4ae499d8ddc8c840f83bbed0f6ae489b54c77a4368fc770045a1066c8c37",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R12-T32133721": {
+    "contractHash": "ae8b67f90f59c7758e35cb560709af8078e39624804a8b7230752f8123ecab38",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R13-T57054072": {
+    "contractHash": "4bcaebac5072fafe199c4c03b1924af50ad17bab9a9d60d7f33edc7f656a1a7f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R13-T98191508": {
+    "contractHash": "c813cfb841ed6c83e9a6c41d3aa20331521ce8d0526bbb24281b9084346519db",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R14-T23602992": {
+    "contractHash": "b17d1e87ca1035a1d0745436a42203cbd12628b21e938a2860f2f2856b1158c3",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R16-T41148998": {
+    "contractHash": "305eb7da390019d140d362bac982827be29aef665d9a7c8203ef8304a57a6f85",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R16-T83723920": {
+    "contractHash": "1c4b890efc1bcbd562a6770c79a82f6019c52d873bc09d3ac15679ced57bdaac",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R16-T85823419": {
+    "contractHash": "c5d7ead5fb6c86fd500dea07aa50d5cfe0b07cd5eafe2f636d8732740e99c21a",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R17-T70594995": {
+    "contractHash": "1d868dc0aab0f555dc0844ce49d593e4dc124d2d2147ccb5fa130f4d52237803",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R17-T73118308": {
+    "contractHash": "ebeb8740e1b4038d89327949939e97cdce31e58f05b0fd11cf55ff18f1bc49ee",
+    "patches": [
+      {
+        "changedFields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R8-T54786768": {
+    "contractHash": "09946642546e8bad7f032e053cb22b3f91e1037ee972b51d06ac614549b48c81",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R8-T57073674": {
+    "contractHash": "095ffd9bffcf487a47a9dcdfb4a83739d1fd300603e138f3bd853d1822818f2d",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R8-T69421773": {
+    "contractHash": "80fbfa47e3c1fa26ec63f287ff49aad60b4a38a1904324005663638e28b03730",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R8-T70356006": {
+    "contractHash": "07857f8583b684fbbbb70e0d5b903c61f865e7d22d39c71a91bf2e645ba1988f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  },
+  "R8-T97041355": {
+    "contractHash": "8917138dc8b6f106a3053e6b79e98459bb31de71f47b333d383cccf73390744f",
+    "patches": [
+      {
+        "changedFields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "patch": "r17-native-effort-contract-20261009",
+        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+      }
+    ],
+    "previousStatus": "done"
+  }
+}
