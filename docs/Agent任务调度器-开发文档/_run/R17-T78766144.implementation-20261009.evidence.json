@@ -1,0 +1,264 @@
+{
+  "scope": "task-contract",
+  "task": "R17-T78766144",
+  "verdict": "pending",
+  "sourceVersion": "1834e6cbb11c83c298d6d7ae13ff610dda780f7e29b3b591d05c2d026f2f3ee6",
+  "implementationHead": "5447c4c427b83dbad99d37e58852077227e1c000",
+  "approvedChange": {
+    "pr": "https://github.com/dawanglaohu/renwudiaoduqi/pull/206",
+    "head": "39be766",
+    "merge": "6de76a84602817c7cf2768064ec0ad93ea589a2f",
+    "state": "MERGED",
+    "baselineMain": "184af0249f5347bfa74ea0dac7c5942e786ddd4e"
+  },
+  "sourceLocations": {
+    "manualInterface": "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:190",
+    "effortDomain": "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:194",
+    "reviewInterface": "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:195",
+    "wrapupInterface": "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:196",
+    "modelCapability": "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:205",
+    "E-254": "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:267",
+    "E-287": "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:300",
+    "E-344": "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:357",
+    "E-351": "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:364",
+    "E-356": "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:369"
+  },
+  "contractConflicts": [
+    {
+      "old": "手动收口只收旧三档 effortTier，原生 vendor 不接受；省略字段全部继承跟随。",
+      "contract": "有 agentId 的手动请求是该轮独立指派，支持结构化 effort 与旧三档非空互斥；未给 model/effort 为 null，非空 effort 要求 agentId，非空厂商值照原串保存。",
+      "refs": [
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:190",
+        "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:357"
+      ]
+    },
+    {
+      "old": "流水线强度仅三档，审查与固定收口不接受原生值。",
+      "contract": "reviewOverride 与 fixed wrapupAssignment 接收互斥 effortTier/effortVendor，长度 1–256；既有四键整体写入、缺键拒绝、读侧默认、事件/nudge 和权限不变。",
+      "refs": [
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:195",
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:196",
+        "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:369"
+      ]
+    },
+    {
+      "old": "厂商值仅配置当前值或 live；E-351 显式 xhigh→high 自报映射，与当前代码不符。",
+      "contract": "域是旧三档映射、已探测 CLI 原生后备、配置当前值和缓存 live 并集；厂商值保存/透传不降档，自报 vendor 原串相等，normalizeReportedEffort 只作三档/旧 Claude 预算比较。",
+      "refs": [
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:194",
+        "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:364"
+      ]
+    },
+    {
+      "old": "模型没有某个档位一律只告警，无法区分 [] 与缺失。",
+      "contract": "实际模型按显式→生效默认→当前配置；[] 明确不支持，保存与新运行/快照为 null；缺能力未知保留后备，非空清单排除某值仅告警不替换。",
+      "refs": [
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:205",
+        "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:364"
+      ]
+    },
+    {
+      "old": "覆盖 ?? 配置 ?? 内置吞掉显式 null；固定/跟随/手动的 null 语义混淆。",
+      "contract": "Agent hasOverride 为 true 时保留 null；审查显式 null 清空，字段缺失继承；固定空值回落跟随，手动有 agentId 时不继承；返工/查 bug/修复/原样重跑保留原快照。",
+      "refs": [
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:195",
+        "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:196",
+        "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:300",
+        "docs/Agent任务调度器-开发文档/03-质量/13-边界问题与异常处理.md:357"
+      ]
+    },
+    {
+      "old": "M9-T23 AC8 强制 pipeline allowVendor=false，M8-T6/M8-T9 验收遗漏原生完整指派。",
+      "contract": "原验收 obligations 保留，定点同步 pipeline/手动/自动入口的原生字段和 []/未知分歧；为原 owner 补齐已落地 native helper/test 的支持路径，目标 repair 定义不改。",
+      "refs": [
+        "docs/Agent任务调度器-开发文档/04-执行/19-模块任务拆分.md",
+        "docs/Agent任务调度器-开发文档/_run/task-contracts.json"
+      ]
+    }
+  ],
+  "fourEntrypoints": [
+    {
+      "entry": "POST /runs",
+      "schema": "packages/shared/src/api/runs.ts:79",
+      "service": "packages/daemon/src/service/dispatch.ts:633",
+      "tests": "packages/daemon/test/integration/dispatch-spawn.test.ts:600"
+    },
+    {
+      "entry": "PATCH /agents/:id",
+      "schema": "packages/shared/src/api/agents.ts:188",
+      "service": "packages/daemon/src/service/agents.ts:982",
+      "tests": "packages/daemon/test/integration/agents-models-login.test.ts:531"
+    },
+    {
+      "entry": "PATCH /settings/pipeline",
+      "schema": "packages/shared/src/api/settings.ts:47",
+      "service": "packages/daemon/src/service/settings.ts:172",
+      "tests": "packages/daemon/test/integration/agents-models-login.test.ts:531"
+    },
+    {
+      "entry": "POST /batches/:id/wrapup",
+      "schema": "packages/shared/src/api/batches.ts:145",
+      "service": "packages/daemon/src/service/wrapup.ts:212",
+      "tests": "packages/daemon/test/integration/batch-wrapup.test.ts:925",
+      "blocker": "E-254-manual-dsh-tier"
+    }
+  ],
+  "blockingRegression": {
+    "id": "E-254-manual-dsh-tier",
+    "verdict": "fail",
+    "summary": "DSH 手动收口的结构化三档与旧 effortTier 均保存 high，而非 NULL。",
+    "receipts": [
+      {
+        "label": "structured-tier",
+        "request": {
+          "idempotencyKey": "e254-structured-tier",
+          "agentId": "dsh",
+          "effort": {
+            "tier": "high"
+          }
+        },
+        "status": 200,
+        "run": {
+          "id": "run_id_2",
+          "agentId": "dsh",
+          "effortTier": "high",
+          "effortVendor": null,
+          "snapshotId": "snap_id_1"
+        },
+        "assignment": {
+          "agentId": "dsh",
+          "modelName": null,
+          "effortTier": "high",
+          "effortVendor": null,
+          "source": "wrapup_settings",
+          "followedTaskId": null,
+          "capturedAt": "2026-09-17T10:00:00.000Z"
+        },
+        "provenance": "Existing real Fastify route, SQLite repos and WrapupService. Existing test substitutes only availability and workspace boundary; HTTP and persistence are not substituted."
+      },
+      {
+        "label": "legacy-tier",
+        "request": {
+          "idempotencyKey": "e254-legacy-tier",
+          "agentId": "dsh",
+          "effortTier": "high"
+        },
+        "status": 200,
+        "run": {
+          "id": "run_id_2",
+          "agentId": "dsh",
+          "effortTier": "high",
+          "effortVendor": null,
+          "snapshotId": "snap_id_1"
+        },
+        "assignment": {
+          "agentId": "dsh",
+          "modelName": null,
+          "effortTier": "high",
+          "effortVendor": null,
+          "source": "wrapup_settings",
+          "followedTaskId": null,
+          "capturedAt": "2026-09-17T10:00:00.000Z"
+        },
+        "provenance": "Existing real Fastify route, SQLite repos and WrapupService. Existing test substitutes only availability and workspace boundary; HTTP and persistence are not substituted."
+      }
+    ],
+    "rootCause": {
+      "path": "packages/daemon/src/service/wrapup.ts",
+      "branch": "packages/daemon/src/service/wrapup.ts:231",
+      "explanation": "能力拒绝只在 vendor 非空分支；tier 请求跳过 effortVendorMap === null 检查，后续模型能力未知保留 tier，运行和快照直接保存。"
+    },
+    "requiredRepairPaths": [
+      "packages/daemon/src/service/wrapup.ts",
+      "packages/daemon/test/integration/batch-wrapup.test.ts"
+    ],
+    "scopeAction": "未修改范围外运行代码或测试；需审查方定点补齐有效路径并核对冲突后作根因修复，不能把非空三档从 E-254 排除。",
+    "repro": {
+      "command": "pnpm exec vitest run --config <planning>/unsupported-wrapup.config.ts -t \"E-254 manual unsupported DSH\"",
+      "result": "2 failed, 34 filtered out; HTTP200 + real SQLite run/snapshot high",
+      "assertionsUnchangedInRepository": true
+    }
+  },
+  "maintenance": {
+    "patch": "r17-native-effort-contract-20261009",
+    "patchStatus": "synced",
+    "flaggedInitially": 124,
+    "verifiedAndCleared": [
+      "M7-T6"
+    ],
+    "remainingPending": 123,
+    "targetPassed": false,
+    "targetLanded": false,
+    "batch17Verdict": "open"
+  },
+  "preservation": {
+    "historicProtectedBlocksChecked": 648,
+    "changedBeforeTargetBackfill": 0,
+    "runtimeDiffFromBaseline": [],
+    "noPermissionsOrMigrationsChanged": true
+  },
+  "decisions": [
+    {
+      "name": "bootstrap",
+      "conflict": "The repository provider e2e scenario has a 30-second server-readiness polling budget. In this Windows NTFS worktree under WSL Ubuntu20, two fresh-server attempts timed out before any daemon log; a separate unchanged production-bootstrap diagnostic then reached genuine pairing readiness successfully in 83162 ms and exited normally. This is distinct from the real Codex cold-start test: that existing 60000ms startup budget passed and must remain unchanged. We must obtain authentic browser-save evidence without changing product code, permanent tests or claiming that the 30-second e2e startup passed.",
+      "options": {
+        "A": "Use a planning-only browser acceptance harness with a 120-second production-server staging readiness budget, retain the actual bootstrap, isolated data/profile, real native inference, every save/status/GET/SQLite/model-switch assertion and native 60000ms cold-start budget. Record actual boot latency and state explicitly that this does not prove the original 30-second e2e server startup. Leave repository tests unchanged.",
+        "B": "Move real browser acceptance to the normal Windows Node/Git/native Codex environment in the same task worktree, prepare Windows dependency bindings and an isolated Windows data directory, then rerun the unmodified 30-second server-readiness scenario. Keep WSL workspace testing isolated but incur another platform dependency preparation.",
+        "C": "Keep the 30-second readiness budget unchanged and leave real browser evidence and the affected contracts pending until an allowed faster host/runtime becomes available; report the implementation incomplete without a pass/ready claim."
+      },
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(medium 0.55) spec_change=no(0.26) outside_stack=no(0.25) needs_owner=no(0.12) reversible=yes(0.72) adopt=take(A)",
+      "adopt": {
+        "action": "take",
+        "option": "A",
+        "confidence": "medium",
+        "why": "Jev 选 A（medium）"
+      },
+      "state": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t78766144\\bootstrap-adjudication.state.json"
+    },
+    {
+      "name": "lock",
+      "conflict": "The unchanged Linux production bootstrap uses one fixed system-wide /var/lib/agent-scheduler/daemon.lock, independent of AGSCHED_DATA_DIR and HOME. Fresh scratch servers therefore collide, and a stale record from an earlier owned diagnostic now has a PID reused by an alive unrelated test process; the guard correctly refuses to delete that uncertain lock. No global lock should be removed. We need isolated authentic product sessions without changing code or bypassing the native guard. WSL root supports mount namespaces and tmpfs in the assigned planning directory.",
+      "options": {
+        "A": "Launch each unchanged production bootstrap in a private Linux mount namespace. Bind a fresh lock directory under its assigned planning tmpfs data root onto the normal fixed system lock path only inside that namespace. Keep real native lock permissions/ownership/guard, full main/container, real CLI/API/SQLite/DOM and isolated profile. Record this host namespace staging clearly. Never remove or modify the host lock.",
+        "B": "Use an isolated planning bootstrap that calls the production startDaemon/createContainer services through their existing DI interfaces with a genuine native lock adapter configured to an explicit private filePath. Real HTTP, SQLite and CLI remain unchanged, but record that the default main composition entry is not used.",
+        "C": "Keep default bootstrap without isolation and leave native browser proof/contracts pending until the global holder state permits startup; report incomplete, do not fabricate success."
+      },
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(high 0.92) spec_change=no(0.12) outside_stack=no(0.30) needs_owner=no(0.07) reversible=yes(0.71) adopt=take(A)",
+      "adopt": {
+        "action": "take",
+        "option": "A",
+        "confidence": "high",
+        "why": "Jev 选 A（high）"
+      },
+      "state": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t78766144\\lock-adjudication.state.json"
+    },
+    {
+      "name": "blocker",
+      "conflict": "A bounded reproduction using the existing real Fastify batch route, real SQLite repositories and production WrapupService proves an existing runtime failure at current main/PR206 baseline. Both POST /api/v1/batches/batch-1/wrapup with agentId=dsh and effort={tier:high}, and the legacy effortTier=high body return HTTP200 and persist effort_tier=high and snapshot assignment.effortTier=high. DSH effortVendorMap is null. The production manual branch at packages/daemon/src/service/wrapup.ts only rejects unsupported capability inside effortVendor !== null, so three-tier bodies bypass it. Two regression assertions failed. No runtime source or test source was changed. Repair needs at least packages/daemon/src/service/wrapup.ts and packages/daemon/test/integration/batch-wrapup.test.ts, neither in this task authorized effective paths. Jev cannot grant scope expansion or lower E-254. Shared contract patch has marked 124 landed tasks pending. Source docs and protected historic notes are preserved.",
+      "options": {
+        "A": "Complete all other authorized documentation/proofs/checks and commit a precise blocked handoff with the real red receipts, minimal required runtime repair paths and existing decisions. Keep the target incomplete, all 124 revalidation markers, patch pending and Batch17 open. Do not mark pass, call --landed, open a red PR, or change unauthorized runtime files. A reviewer can repair taskPaths/supportPaths before the separate bounded runtime repair.",
+        "B": "Complete all other authorized documentation/proofs/checks, inspect all 124 tasks changedFields individually, and verify/clear only any genuinely proven unrelated subsets whose changed obligations do not depend on the failing manual DSH boundary. Keep affected owners and the target pending with a blocked handoff; no red PR, no unauthorized runtime repair, and no Batch17 closure. Never treat an unchanged original test suite as evidence that the new red boundary passed."
+      },
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=B(low 0.12) spec_change=unsure(0.36) outside_stack=no(0.10) needs_owner=no(0.24) reversible=yes(0.73) adopt=take(B)",
+      "adopt": {
+        "action": "take",
+        "option": "B",
+        "confidence": "low",
+        "why": "Jev 选 B（low）"
+      },
+      "state": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t78766144\\blocker-adjudication.state.json"
+    }
+  ],
+  "tasks": {
+    "R17-T78766144": {
+      "contractHash": "19179e19c92f18e899793022ee077467cf619f7d294f09b81f51800ae4b7fe41",
+      "verdict": "pending",
+      "evidence": [
+        "源契约已定点同步；必须边界 E-254 的真实 HTTP/SQLite 回归失败，因此不登记 pass、不清除补丁 pending、不 --landed。"
+      ]
+    }
+  }
+}
