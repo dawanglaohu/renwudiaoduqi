@@ -24,7 +24,10 @@ const servedHead = execFileSync('git', ['rev-parse', 'HEAD'], {
 }).trim();
 const cleanAtStart =
 	execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() === '';
-const plan = resolve(root, '../.codex-plans/agent-scheduler-r17-t73118308');
+const plan = resolve(
+	root,
+	process.env.R17_EVIDENCE_ROOT ?? '../.codex-plans/agent-scheduler-r17-t73118308',
+);
 mkdirSync(plan, { recursive: true });
 const evidence = mkdtempSync(join(plan, 'provider-'));
 const validModel = process.env.R17_REAL_MODEL ?? 'gpt-6.1-sol';
