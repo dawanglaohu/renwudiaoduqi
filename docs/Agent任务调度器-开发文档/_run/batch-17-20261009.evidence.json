@@ -2270,6 +2270,56 @@
           "why": "Jev 选 A（low）"
         }
       }
+    },
+    {
+      "state": {
+        "requirement": "Complete unattended Batch 17 round 2 closeout for M9-T23 and M9-T29: root-cause fixes with red/green tests, genuine native provider browser evidence, a real-flow GIF from the exact PR head, explicit unresolved repair tasks, review and merge the closeout PR, preserve the user's existing files, and use Jev for ordinary forks. The user did not ask for a new account, new credential consumer, new permission, or public disclosure of credentials.",
+        "task": {
+          "title": "Recover the existing credentialed native-provider CI gate without changing product assertions",
+          "accept": "Keep the real native-provider assertions and production composition unchanged. A successful test must contain genuine R17-CONTROL output and the real invalid-model recovery flow at the same exact commit. Retain the failed run and its actual cause. Never print credentials or store them in Git or published media. Any credential maintenance stays limited to the existing encrypted repository secret already used by this workflow."
+        },
+        "conflict": "At clean exact PR #211 head a74c9010df0f8a9938e54e5f54ec2a85586573c4, local production native acceptance passed 2/2 tests, all 27 density sets passed, the final UI badge is freshly checked, and both successful content and invalid-model recovery are genuine. Ordinary PR CI completed successfully across Windows, macOS, Linux, formal E2E, pipeline E2E, and pairing. An explicitly dispatched existing real_provider workflow at the identical head failed both content controls. Its sanitized run.exited stderr explicitly reports that the refresh token was already used; the native protocol reports workspace routing discovery unauthorized (401). GitHub metadata shows R17_CODEX_AUTH_B64 was last updated on October 2. The owner's normal working local auth.json was last updated October 6 and is the unchanged normal input used for all successful local native runs. Config does not need changing. The existing repository CI already consumes this account through R17_CODEX_AUTH_B64; replacing only that stale input would keep the same destination and purpose. The user authorized this unattended closeout and actual provider validation, but did not give a separate explicit instruction to export an additional credential or to broaden access. The optional dispatch's requested real-provider job must not be falsely reported as passing or bypassed.",
+        "options": {
+          "A": "Replace only the existing encrypted R17_CODEX_AUTH_B64 repository secret from the owner's normal working local authentication file, streaming base64 directly to the GitHub secret CLI through stdin without printing the value or putting it in process arguments, a public file, Git, or media. Do not change local auth/config, workflow code, account, model, token scope, assertion timeouts, or any product behavior. Preserve the failed run's 401/refresh-reuse cause, rerun the identical exact-head native CI gate, and require its real success before merging. Record this environment-input recovery and actual Jev result; if the evidence commit changes the PR head, repeat the final native recording and CI against that new head.",
+          "B": "Keep the encrypted CI secret unchanged. Record the native CI failure honestly as an external authentication blocker, create one complete stable repair task for the existing gate's credential maintenance and genuine acceptance, retain the local real-flow proof, and leave the PR unmerged with the batch open until the owner or a separately authorized credential-maintenance action restores the existing test input. Do not relax or disable the real-provider gate, and do not claim native CI success."
+        }
+      },
+      "status": "ok",
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(medium 0.50) spec_change=no(0.13) outside_stack=no(0.29) needs_owner=no(0.21) reversible=yes(0.77) adopt=take(A)",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.5,
+          "band": "medium",
+          "probabilities": {
+            "A": 0.75,
+            "B": 0.25
+          }
+        },
+        "spec_change": {
+          "p": 0.13,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.29,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.21,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.77,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "medium",
+          "why": "Jev 选 A（medium）"
+        }
+      }
     }
   ],
   "logFingerprints": [
@@ -2613,5 +2663,21 @@
       ]
     }
   ],
-  "preservation": "Historical 2026-10-02 open record, existing done tasks and pending revalidation remain intact. Main preexisting paths were snapshotted separately before work and will be compared after fast-forward sync."
+  "preservation": "Historical 2026-10-02 open record, existing done tasks and pending revalidation remain intact. Main preexisting paths were snapshotted separately before work and will be compared after fast-forward sync.",
+  "ciInputRecovery": {
+    "failedRun": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/37874699609",
+    "head": "a74c9010df0f8a9938e54e5f54ec2a85586573c4",
+    "nativeTestsFailed": 2,
+    "actualCause": [
+      "refresh token was already used",
+      "workspace routing discovery unauthorized (401)"
+    ],
+    "originalSecretUpdatedAt": "2026-10-02T13:36:23Z",
+    "recoveredSecret": "R17_CODEX_AUTH_B64",
+    "recoveredAt": "2026-10-09T02:42:43Z",
+    "sameAccountAndPurpose": true,
+    "normalLocalAuthUnchanged": true,
+    "productAssertionsUnchanged": true,
+    "finalHeadGate": "Fresh native GIF and explicit workflow_dispatch real_provider acceptance at the resulting PR head, referenced in PR body before merge."
+  }
 }
